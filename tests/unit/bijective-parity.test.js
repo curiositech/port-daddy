@@ -383,9 +383,9 @@ describe('Test Group 3: API -> CLI Parity', () => {
     // durableagentroster: manage durable named AgentNode experts. routes/durable-agent-roster.ts
     // (GET /durable-agents, etc.); `pd roster <subcommand>` is its CLI surface.
     durableagentroster: ['roster'],
-    // skillgraft: read current-hash Tool2Vec coverage and start bounded local
-    // reconciliation. `pd skill-graft <status|warm>` is the CLI surface.
-    skillgraft: ['skill-graft', 'skillgraft'],
+    // skillgraft is the internal route module filename; the public CLI surface
+    // is the native `pd jury-rig <status|warm>` command.
+    skillgraft: ['jury-rig'],
   };
 
   // API-only routes that have no CLI equivalent (accessed via curl or SDK).
@@ -409,7 +409,10 @@ describe('Test Group 3: API -> CLI Parity', () => {
   // GET /roadmap/items/:slug/activity, routes/roadmap-activity.ts). A read-only projection the
   // FleetBar/dashboard board surfaces consume (follow-up PR) — the CLI story stays with
   // `pd roadmap` / `pd sitrep`; no dedicated `pd` command by design.
-  const API_ONLY_ROUTES = new Set(['arbiter', 'pheromone', 'mergequeue', 'symbols', 'observability', 'metricsprom', 'operator', 'semantic', 'resources', 'usage', 'testhooks', 'blob', 'githubwebhook', 'context', 'harvest', 'custodian', 'cloudapptelemetry', 'visualtasks', 'sorties', 'galaxy', 'fleetwebhooks', 'roadmapactivity']);
+  // recovery is the bonded account-recovery route domain; editorrecovery is a
+  // registered 503-only Harbor Editor scaffold. Neither gets a CLI alias: doing
+  // so would expose token mint/consume or imply missing recovery authority exists.
+  const API_ONLY_ROUTES = new Set(['arbiter', 'pheromone', 'mergequeue', 'symbols', 'observability', 'metricsprom', 'operator', 'semantic', 'resources', 'usage', 'testhooks', 'blob', 'githubwebhook', 'context', 'harvest', 'custodian', 'cloudapptelemetry', 'visualtasks', 'sorties', 'galaxy', 'fleetwebhooks', 'roadmapactivity', 'recovery', 'editorrecovery']);
 
   test('all route modules have at least one corresponding CLI command', () => {
     const missingCoverage = [];

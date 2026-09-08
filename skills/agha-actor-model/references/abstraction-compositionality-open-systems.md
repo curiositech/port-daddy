@@ -79,9 +79,9 @@ This is defined inductively: two systems are observation-equivalent to depth n i
 
 This is strictly more discriminating than history equivalence (it distinguishes S₁ and S₂ in the Brock-Ackerman example) and strictly weaker than implementation equivalence (it ignores internal differences that have no external effect).
 
-## Application to WinDAGs
+## Application to Jury-rig
 
-**Skill interface design**: Every skill in WinDAGs should define its **receptionists** (the input ports through which it accepts tasks) and its **external actors** (the other skills or services it will call). This interface definition is the skill's compositionality contract.
+**Skill interface design**: Every skill in Jury-rig should define its **receptionists** (the input ports through which it accepts tasks) and its **external actors** (the other skills or services it will call). This interface definition is the skill's compositionality contract.
 
 **Modular workflow construction**: Workflows should be composable by connecting the external actors of one sub-workflow to the receptionists of another. The connection protocol is "send a message telling the external actor buffer to forward to the target receptionist." No workflow-level synchronization is needed.
 
@@ -89,6 +89,6 @@ This is strictly more discriminating than history equivalence (it distinguishes 
 
 **Testing and equivalence**: Two implementations of the same skill are equivalent (and therefore safely interchangeable) if they are observation-equivalent — if no sequence of inputs can produce different outputs. The Brock-Ackerman anomaly warns: **don't just test final outputs, test the interactive behavior**. A skill that produces correct results but in a different timing pattern may behave incorrectly when composed with other skills.
 
-**Dynamic capability registration**: As skills discover new capabilities (e.g., a research skill that finds a useful external API it didn't know about), they should be able to register new "receptionists" dynamically. The set of skills in WinDAGs should be extensible at runtime without requiring the entire system to be reconfigured.
+**Dynamic capability registration**: As skills discover new capabilities (e.g., a research skill that finds a useful external API it didn't know about), they should be able to register new "receptionists" dynamically. The set of skills in Jury-rig should be extensible at runtime without requiring the entire system to be reconfigured.
 
 **The history trap**: Do not evaluate skill equivalence by recording input-output pairs and comparing them. Two skills that appear equivalent in isolation may be substitutable in some workflows but not others. The correct evaluation is observation equivalence, which requires testing interactive behavior across all possible compositions — which in practice means property-based testing and formal specification.

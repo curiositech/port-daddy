@@ -238,7 +238,7 @@ The conditional knowledge about wind direction and runway selection is compiled 
 
 This is a conscious tradeoff: executability over reflectivity. The system can execute conditional reasoning quickly but cannot explain or reason about its conditional knowledge as a first-class object.
 
-## For WinDAGs: Skills as Compiled Plans
+## For Jury-rig: Skills as Compiled Plans
 
 In a DAG-based orchestration system, skills map directly to the plan concept:
 

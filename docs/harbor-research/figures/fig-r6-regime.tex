@@ -1,21 +1,43 @@
-% R6 regime diagram: three small graph topologies (cycle relayed, path
-% bridge/cut, cycle severed), each annotated with its residual outcome.
-% Structural diagram (node/edge topology + text annotation, no numeric
-% axes) so plain tikzpicture per CONVENTION.md, not pgfplots. Topology,
-% edge styling (solid/dashed black, dotted grey) and all three annotation
-% strings match r6_figures.py's create_regime_diagram() verbatim; the
-% residual values 1.225/0.000 are the C6/P6 minimal pair verified in
-% \S\ref{sec:mechanism} against sheaf_mechanism_proof.py, and the trial
-% counts 200/200, 0/200 are [internal, sheaf_harness_v2.py] as cited there.
+% R6 regime diagram: three small graph topologies (relayed cycle, relayed
+% cut edge / bridge, severed cycle edge), each annotated with its residual
+% outcome. Structural diagram (node/edge topology + text annotation, no
+% numeric axes) so plain tikzpicture per CONVENTION.md, not pgfplots.
+% Topology and all three annotation strings match r6_figures.py's
+% create_regime_diagram(); the residual values 1.225/0.000 are the C6/P6
+% minimal pair verified in \S\ref{sec:mechanism} against
+% sheaf_mechanism_proof.py, and the trial counts 200/200, 0/200 are
+% [internal, sheaf_harness_v2.py] as cited there.
 % [verified: script r6_figures.py]
+%
+% ENCODING UNIFIED with fig-paper7-visibility.tex (fig:vis) in the K_c pass
+% -- see paper7-notes.md B2/B3. Previously this figure used black dashed for
+% "the uncompared/cut edge" while fig:vis used seagreen dashed for
+% "relayed", so the same visual token meant two different things in two
+% adjacent figures teaching the same three-tier contract. Both figures now
+% use exactly one legend: harborblue solid = compared, seagreen dashed =
+% relayed, gray dotted = severed. The lied-on edge is marked by a shipred
+% cross rather than by its dash pattern, so tier and lie are independent
+% channels. Panel (b)'s cut edge also moved from the terminal link 4--5 to
+% the middle link 2--3, so it reads as a bridge between two nontrivial
+% halves rather than a dangling end (the theorem is about bridges), and the
+% panel labels now name the unit of each number.
 \begin{figure}[htbp]
 \centering
-{\small\bfseries R6 regime --- detection requires a cycle AND relayed reports; cut edges silent, severed edges dark [internal, \texttt{sheaf\_harness\_v2.py}]}\\[6pt]
+{\small\bfseries R6 regime --- detection requires a cycle of \emph{visible} links AND relayed reports; cut edges silent, severed edges dark [internal, \texttt{sheaf\_harness\_v2.py}]}\\[3pt]
+{\footnotesize
+\tikz[baseline=-0.5ex]{\draw[harborblue,thick] (0,0) -- (0.5,0);}~\textcolor{harborblue}{compared}\quad
+\tikz[baseline=-0.5ex]{\draw[seagreen,thick,dashed] (0,0) -- (0.5,0);}~\textcolor{seagreen}{relayed}\quad
+\tikz[baseline=-0.5ex]{\draw[gray,thick,dotted] (0,0) -- (0.5,0);}~\textcolor{gray}{severed}\quad
+\textcolor{shipred}{$\times$}~lied-on link\ \ (same legend as Figure~\ref{fig:vis})}\\[6pt]
 \begin{minipage}{0.32\textwidth}
 \centering
-{\small\bfseries (a) cycle $C_6$ relayed}\\[2pt]
+{\small\bfseries (a) $C_6$, lie on a relayed cycle edge}\\[2pt]
 \begin{tikzpicture}[
   gnode/.style={circle,draw=black,thick,fill=harborblue,minimum size=5.5mm,inner sep=0pt,font=\tiny\bfseries,text=white},
+  comparededge/.style={harborblue,thick},
+  relayededge/.style={seagreen,thick,dashed},
+  severededge/.style={gray,thick,dotted},
+  liemark/.style={shipred,font=\scriptsize\bfseries,fill=white,inner sep=0.6pt},
 ]
 \node[gnode] (n0) at (1.0,0) {0};
 \node[gnode] (n1) at (0.5,0.866) {1};
@@ -23,49 +45,57 @@
 \node[gnode] (n3) at (-1.0,0) {3};
 \node[gnode] (n4) at (-0.5,-0.866) {4};
 \node[gnode] (n5) at (0.5,-0.866) {5};
-\draw[black,thick,dashed] (n0) -- (n1);
-\draw[black,thick] (n1) -- (n2);
-\draw[black,thick] (n2) -- (n3);
-\draw[black,thick] (n3) -- (n4);
-\draw[black,thick] (n4) -- (n5);
-\draw[black,thick] (n5) -- (n0);
+\draw[relayededge] (n0) -- (n1);
+\draw[comparededge] (n1) -- (n2);
+\draw[comparededge] (n2) -- (n3);
+\draw[comparededge] (n3) -- (n4);
+\draw[comparededge] (n4) -- (n5);
+\draw[comparededge] (n5) -- (n0);
+\node[liemark] at ($(n0)!0.5!(n1)$) {$\times$};
 \end{tikzpicture}
 \\[4pt]
-{\color{seagreen}\bfseries\footnotesize residual 1.225\\ detected (200/200\\ cohomology-only)}
+{\color{seagreen}\bfseries\footnotesize the lie edge lies on a\\ cycle of $K_c$: residual\\ $r=1.225$, detected in\\ 200/200 trials}
 \end{minipage}%
 \hfill
 \begin{minipage}{0.32\textwidth}
 \centering
-{\small\bfseries (b) path $P_6$ bridge}\\[2pt]
+{\small\bfseries (b) $P_6$, lie on a relayed bridge}\\[2pt]
 \begin{tikzpicture}[
   gnode/.style={circle,draw=black,thick,fill=harborblue,minimum size=5.5mm,inner sep=0pt,font=\tiny\bfseries,text=white},
+  comparededge/.style={harborblue,thick},
+  relayededge/.style={seagreen,thick,dashed},
+  liemark/.style={shipred,font=\scriptsize\bfseries,fill=white,inner sep=0.6pt},
 ]
 % Node spacing widened from the original 0.4 to 0.75: at minimum size 5.5mm
 % (0.55cm diameter), 0.4cm spacing made every circle overlap its neighbor,
-% which swallowed the dashed cut-edge's visible gap entirely (it rendered
-% indistinguishable from the solid edges). 0.75cm leaves a real gap between
-% circles so the dash pattern on the n4--n5 cut edge actually shows.
+% which swallowed the dashed relayed edge's visible gap entirely (it
+% rendered indistinguishable from the solid edges). 0.75cm leaves a real gap
+% between circles so the dash pattern on the n2--n3 bridge actually shows.
 \node[gnode] (n0) at (-1.875,0) {0};
 \node[gnode] (n1) at (-1.125,0) {1};
 \node[gnode] (n2) at (-0.375,0) {2};
 \node[gnode] (n3) at (0.375,0) {3};
 \node[gnode] (n4) at (1.125,0) {4};
 \node[gnode] (n5) at (1.875,0) {5};
-\draw[black,thick] (n0) -- (n1);
-\draw[black,thick] (n1) -- (n2);
-\draw[black,thick] (n2) -- (n3);
-\draw[black,thick] (n3) -- (n4);
-\draw[black,thick,dashed] (n4) -- (n5);
+\draw[comparededge] (n0) -- (n1);
+\draw[comparededge] (n1) -- (n2);
+\draw[relayededge] (n2) -- (n3);
+\draw[comparededge] (n3) -- (n4);
+\draw[comparededge] (n4) -- (n5);
+\node[liemark] at ($(n2)!0.5!(n3)$) {$\times$};
 \end{tikzpicture}
 \\[4pt]
-{\color{shipred}\bfseries\footnotesize cut edge:\\ residual 0.000\\ provably silent}
+{\color{shipred}\bfseries\footnotesize cut edge (bridge): no\\ cycle of $K_c$ through it,\\ residual $r=0.000$,\\ provably silent}
 \end{minipage}%
 \hfill
 \begin{minipage}{0.32\textwidth}
 \centering
-{\small\bfseries (c) cycle $C_6$ severed}\\[2pt]
+{\small\bfseries (c) $C_6$, lie on a severed edge}\\[2pt]
 \begin{tikzpicture}[
   gnode/.style={circle,draw=black,thick,fill=harborblue,minimum size=5.5mm,inner sep=0pt,font=\tiny\bfseries,text=white},
+  comparededge/.style={harborblue,thick},
+  severededge/.style={gray,thick,dotted},
+  liemark/.style={shipred,font=\scriptsize\bfseries,fill=white,inner sep=0.6pt},
 ]
 \node[gnode] (n0) at (1.0,0) {0};
 \node[gnode] (n1) at (0.5,0.866) {1};
@@ -73,19 +103,24 @@
 \node[gnode] (n3) at (-1.0,0) {3};
 \node[gnode] (n4) at (-0.5,-0.866) {4};
 \node[gnode] (n5) at (0.5,-0.866) {5};
-\draw[gray,thick,dotted] (n0) -- (n1);
-\draw[black,thick] (n1) -- (n2);
-\draw[black,thick] (n2) -- (n3);
-\draw[black,thick] (n3) -- (n4);
-\draw[black,thick] (n4) -- (n5);
-\draw[black,thick] (n5) -- (n0);
+\draw[severededge] (n0) -- (n1);
+\draw[comparededge] (n1) -- (n2);
+\draw[comparededge] (n2) -- (n3);
+\draw[comparededge] (n3) -- (n4);
+\draw[comparededge] (n4) -- (n5);
+\draw[comparededge] (n5) -- (n0);
+\node[liemark] at ($(n0)!0.5!(n1)$) {$\times$};
 \end{tikzpicture}
 \\[4pt]
-{\color{gray}\bfseries\footnotesize severed:\\ provably dark\\ (0/200)}
+{\color{gray}\bfseries\footnotesize no report crosses, so\\ the edge is absent from\\ $K_c$: provably dark,\\ 0/200 detections}
 \end{minipage}
-\caption{Regime diagram for the mechanism: (a) relayed cycle edge --- residual $1.225$, detected
-($200/200$ cohomology-only); (b) cut edge --- residual $0.000$, provably silent; (c) severed cycle edge --- provably dark
-($0/200$). Detection requires the cycle \emph{and} the relayed reports; each panel is one clause of the observability
-contract [internal, \texttt{sheaf\_harness\_v2.py}].}
+\caption{Regime diagram for the mechanism, in one legend with Figure~\ref{fig:vis} (harborblue solid compared, seagreen
+dashed relayed, gray dotted severed; the shipred $\times$ marks the lied-on link, independently of its tier).
+(a) The lie sits on a relayed link that still lies on a cycle of the visible subgraph $K_c$ --- residual $r=1.225$, detected
+in $200/200$ trials, cohomology-only. (b) The same relayed tier but a bridge: no cycle of $K_c$ runs through it, so
+$r=0.000$ and the completion absorbs any lie --- provably silent. (c) The link is severed, absent from $K_c$ entirely, and
+equivocation there is provably dark ($0/200$ detections). Detection needs both clauses --- a cycle the analyst can see
+\emph{and} relayed endpoint reports; deleting either one, as (b) and (c) do, deletes the detection
+[internal, \texttt{sheaf\_harness\_v2.py}].}
 \label{fig:r6reg}
 \end{figure}

@@ -37,6 +37,7 @@ describe('dispatch routes WorkIntent contract', () => {
       goal: 'implement WorkIntent-first dispatch intake',
       requestedBy: 'operator',
       baseBranch: 'main',
+      projectDir: '/Users/operator/coding/port-daddy',
       mergePolicy: 'review',
     };
 
@@ -62,6 +63,8 @@ describe('dispatch routes WorkIntent contract', () => {
     expect(events).toHaveLength(1);
     const intent = JSON.parse(events[0].payload_json);
     expect(intent.source).toEqual(expect.objectContaining({ kind: 'compat', legacyVerb: 'dispatch' }));
+    expect(intent.source.worktree).toBe('/Users/operator/coding/port-daddy');
+    expect(first.json().dispatch.projectDir).toBe('/Users/operator/coding/port-daddy');
     expect(intent.startPolicy).toBe('queued');
 
     await app.inject({ method: 'GET', url: '/dispatches' });
@@ -104,6 +107,21 @@ describe('dispatch routes WorkIntent contract', () => {
 
     expect(res.statusCode).toBe(400);
     expect(res.json().error).toMatch(/budgetUsd must be a non-negative number/);
+    expect(dispatchQueue.list({ state: 'all' })).toHaveLength(0);
+    expect(readEvents(db, { streamType: 'work-intent' })).toHaveLength(1);
+    await app.close();
+  });
+
+  test('POST /dispatches rejects a relative source project binding', async () => {
+    const { app, db, dispatchQueue } = await buildApp();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/dispatches',
+      payload: { goal: 'invalid source binding', projectDir: 'relative/project' },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toMatch(/projectDir must be an absolute path/);
     expect(dispatchQueue.list({ state: 'all' })).toHaveLength(0);
     expect(readEvents(db, { streamType: 'work-intent' })).toHaveLength(1);
     await app.close();

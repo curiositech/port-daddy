@@ -15,8 +15,21 @@ import { canPrompt, promptText, promptSelect, promptIdentity, promptConfirm, pri
 import { autoIdentityFromPackageJson } from './services.js';
 import { assertSafeId, posixShellQuote, fishShellQuote } from '../../lib/shell-quote.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
+import type { RoadmapSearchHit } from '../../lib/roadmap-search.js';
 import * as ui from '../utils/ui.js';
-import { clearCurrentContext, readCurrentContext, writeCurrentContext } from '../utils/current-context.js';
+import {
+  clearBeginAttempt,
+  clearCurrentContext,
+  readCurrentContext,
+  resolveCurrentContext,
+  writeBeginAttempt,
+  writeCurrentContext,
+} from '../utils/current-context.js';
+import {
+  BEGIN_IDEMPOTENCY_KEY_PATTERN,
+  generateBeginIdempotencyKey,
+  isValidBeginIdempotencyKey,
+} from '../../lib/begin-idempotency.js';
 import {
   attachCliSessionWorktreePolicy,
   resolveCliSessionWorktreePolicy,
@@ -63,6 +76,11 @@ function printBeginUsage(): void {
   console.error('  --roadmap <slug>              link to an existing roadmap item');
   console.error('  --roadmap-new "<title>"       create a draft roadmap item and link it');
   console.error('  --sidequest "<reason>"        opt out with a one-line reason (min 12 chars)');
+  console.error('');
+  console.error('Retry safety:');
+  console.error('  --idempotency-key <key>       reuse one key across retries of the SAME begin (default: a fresh UUID');
+  console.error('                                per invocation); a re-send after a lost response replays the original');
+  console.error('                                session instead of creating a second one. Recover with: pd session find');
 }
 
 // =============================================================================
@@ -90,6 +108,36 @@ export interface BeginRentResolution {
   /** TTY path: caller should run the interactive prompt. */
   needsPrompt?: boolean;
   error?: string;
+}
+
+/**
+ * Best-effort: fetch roadmap items matching `purpose` (lib/roadmap-search.ts,
+ * GET /roadmap/search) and print them so the rent-gate rejection carries a
+ * fix, not just a rule. Never throws — a daemon hiccup or an un-indexed
+ * roadmap degrades silently back to the plain gate message; suggestions are
+ * a convenience, not a dependency of the gate itself.
+ */
+export async function printRoadmapSuggestions(
+  purpose: string,
+  harbor: string | undefined,
+  fetcher: typeof pdFetch = pdFetch,
+): Promise<void> {
+  try {
+    const params = new URLSearchParams({ q: purpose, limit: '5' });
+    if (harbor) params.set('harbor', harbor);
+    const res = await fetcher(`${PORT_DADDY_URL}/roadmap/search?${params.toString()}`);
+    if (!res.ok) return;
+    const data = (await res.json().catch(() => ({}))) as { hits?: RoadmapSearchHit[] };
+    const hits = data.hits ?? [];
+    if (hits.length === 0) return;
+
+    ui.note(
+      hits.map((h) => `  --roadmap ${h.slug}\n    [${h.status}] ${h.summaryMd}`).join('\n'),
+      `Did you mean one of these? (matched "${purpose}")`,
+    );
+  } catch {
+    // Best-effort only — see docblock.
+  }
 }
 
 /**
@@ -422,6 +470,25 @@ export function shouldRunBeginWizard(
   return purpose === undefined && interactive && !hasScopingArgs;
 }
 
+/**
+ * The idempotency key for this `pd begin`. `--idempotency-key <key>` lets a
+ * scripted caller retry the same logical begin across processes; otherwise a
+ * fresh UUID v4 is minted per invocation (retries INSIDE this invocation —
+ * the transport's socket→TCP re-send — already share it).
+ *
+ * @param options - Parsed CLI options.
+ * @returns A key accepted by the daemon.
+ * @throws When an explicit key is malformed (never silently drop the flag).
+ */
+export function resolveBeginIdempotencyKey(options: CLIOptions): string {
+  const explicit = options['idempotency-key'] ?? options.idempotencyKey;
+  if (explicit === undefined || explicit === null || explicit === false) return generateBeginIdempotencyKey();
+  if (!isValidBeginIdempotencyKey(explicit)) {
+    throw new Error(`--idempotency-key must match ${BEGIN_IDEMPOTENCY_KEY_PATTERN.source} (e.g. a UUID v4)`);
+  }
+  return explicit;
+}
+
 export async function handleBegin(
   purpose: string | undefined,
  rest: string[],
@@ -491,6 +558,13 @@ export async function handleBegin(
     rent = await promptBeginRent();
   }
   if (!rent.ok) {
+    // The caller has purpose text but no --roadmap slug in hand — surface
+    // ranked candidates (lib/roadmap-search.ts) instead of a bare rejection,
+    // only on the generic "none given" gate (a specific --roadmap/--sidequest
+    // validation error already names the exact fix; suggestions would be noise).
+    if (rent.error === RENT_GATE_MESSAGE) {
+      await printRoadmapSuggestions(purpose, options.harbor as string | undefined);
+    }
     throw new Error(rent.error || RENT_GATE_MESSAGE);
   }
 
@@ -526,6 +600,21 @@ export async function handleBegin(
   }
   attachCliSessionWorktreePolicy(body, worktreePolicy);
 
+  // Begin idempotency. One key per LOGICAL begin: the transport re-sends the
+  // same body on a socket reset / timeout (cli/utils/fetch.ts fallback), and
+  // the daemon answers a known key with the ORIGINAL session + credential
+  // instead of minting a second one. The key is persisted BEFORE the request
+  // goes out so a crash or lost response leaves `pd session find` a way back
+  // to the session the daemon committed.
+  const idempotencyKey = resolveBeginIdempotencyKey(options);
+  body.idempotencyKey = idempotencyKey;
+  try {
+    writeBeginAttempt({ idempotencyKey, purpose, identity: identity || null, startedAt: Date.now() });
+  } catch (error) {
+    // The begin still proceeds; only the crash-recovery breadcrumb is lost.
+    console.error(`  (could not persist begin attempt: ${(error as Error).message})`);
+  }
+
   const res: PdFetchResponse = await pdFetch('/sugar/begin', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -535,6 +624,9 @@ export async function handleBegin(
   const data = await res.json();
 
   if (!res.ok) {
+    // Leave the attempt on disk only when the daemon may have committed
+    // something under this key; a plain rejection has nothing to recover.
+    if (res.status !== 409 || data.code !== 'IDEMPOTENCY_KEY_REUSED') clearBeginAttempt();
     throw new Error((data.error as string) || 'Failed to begin');
   }
 
@@ -553,7 +645,9 @@ export async function handleBegin(
     credential: typeof data.credential === 'string' && data.credential
       ? data.credential
       : (process.env.PD_ACTOR_CREDENTIAL?.trim() || process.env.PORT_DADDY_ACTOR_CREDENTIAL?.trim() || null),
+    idempotencyKey,
   });
+  clearBeginAttempt();
 
   if (isJson(options)) {
     console.log(JSON.stringify(data, null, 2));
@@ -615,6 +709,7 @@ export async function handleBegin(
       { state: lifecycle.lifecycle === 'durable' ? 'healthy' : 'info', label: 'lifecycle', text: lifecycle.lifecycle },
     ];
     if (identity) rows.push({ state: 'active', label: 'identity', text: identity });
+    if (data.replayed) rows.push({ state: 'recovering', label: 'replayed', text: 'a retry of this begin: the original session was returned, nothing new was created' });
     if (data.roadmapLink) rows.push({ state: 'confirmed', label: 'roadmap', text: String(data.roadmapLink) });
     if (data.sidequestReason) rows.push({ state: 'info', label: 'sidequest', text: String(data.sidequestReason) });
     if (rentReceipt) rows.push({ state: 'confirmed', label: 'rent', text: rentReceipt });
@@ -649,6 +744,9 @@ export async function handleBegin(
   console.error(`  Session: ${sessionLabel}`);
   console.error(`  Purpose: ${purpose}`);
   console.error(`  Lifecycle: ${lifecycle.lifecycle}`);
+  if (data.replayed) {
+    console.error('  Replayed: a retry of this begin — the original session was returned, nothing new was created');
+  }
   if (data.roadmapLink) {
     const suffix = data.roadmapCreated
       ? ' (draft created)'
@@ -749,22 +847,38 @@ export async function handleDone(
     }
   }
 
-  // Try to read local context first
-  const ctx = readCurrentContext();
+  const explicitAgentId = typeof options.agent === 'string' && options.agent.trim() ? options.agent.trim() : undefined;
+  const explicitSessionId = typeof options.session === 'string' && options.session.trim() ? options.session.trim() : undefined;
+  const contextResolution = resolveCurrentContext();
+  if (!contextResolution.success && !explicitAgentId && !explicitSessionId) {
+    const conflict = {
+      success: false,
+      code: contextResolution.code,
+      error: contextResolution.error,
+      provenances: contextResolution.provenances,
+    };
+    if (isJson(options)) console.error(JSON.stringify(conflict, null, 2));
+    else {
+      ui.error(`${conflict.code}: ${conflict.error}`);
+      console.error(JSON.stringify({ provenances: conflict.provenances }, null, 2));
+    }
+    process.exit(1);
+  }
+  const ctx = contextResolution.success ? contextResolution.context : null;
 
   const body: Record<string, unknown> = {};
-  if (ctx) {
+  if (ctx && !explicitAgentId && !explicitSessionId) {
     body.agentId = ctx.agentId;
     body.sessionId = ctx.sessionId;
   }
-  if (options.agent) body.agentId = options.agent;
-  if (options.session) body.sessionId = options.session;
+  if (explicitAgentId) body.agentId = explicitAgentId;
+  if (explicitSessionId) body.sessionId = explicitSessionId;
   if (note) body.note = note;
   if (options.status) body.status = options.status;
 
-  // pd done origin-rule escape hatch (substrate fix 2026-05-20).
-  // --skip-origin-check requires --reason "<reason>". The reason is
-  // stamped into the result note with a loud [OPERATOR-OVERRIDE] prefix.
+  // Keep deprecated override flags in the wire request solely so older
+  // callers receive the daemon's structured, fail-closed capability error.
+  // Neither a reason string nor an actor credential grants operator authority.
   const skipOriginCheck = options.skipOriginCheck === true || options['skip-origin-check'] === true;
   const skipOriginCheckReason = (options.reason as string | undefined) || undefined;
   if (skipOriginCheck) {
@@ -777,13 +891,24 @@ export async function handleDone(
   const forceIncomplete = options.forceIncomplete === true || options['force-incomplete'] === true;
   const reason = (options.reason as string | undefined) || undefined;
 
-  // Best-effort auto-merge confirmation pass BEFORE the session actually
-  // ends (the dispatch's session_id lookup only works while we still know
-  // which session this is — after clearCurrentContext() below, local context
-  // is gone).
-  const autoMergeLines = await reportAutoMergeOnDone(
-    typeof body.sessionId === 'string' ? body.sessionId : ctx?.sessionId,
-  );
+  // Resolve every alias to one exact daemon-observed tuple before mutation.
+  // Agent-only ambiguity and dormant contexts remain structured refusals.
+  const scopeClient = new PortDaddy({ agentId: typeof body.agentId === 'string' ? body.agentId : undefined });
+  const scope = await scopeClient.whoami({
+    agentId: typeof body.agentId === 'string' ? body.agentId : undefined,
+    sessionId: typeof body.sessionId === 'string' ? body.sessionId : undefined,
+  });
+  if (!scope.active || !scope.sessionId) {
+    ui.error(scope.error || scope.hint || 'No active session found');
+    if (Array.isArray(scope.candidates)) {
+      for (const candidate of scope.candidates) {
+        console.error(`  ${candidate.sessionId} (worktree ${candidate.worktreeId || '<unknown>'})`);
+      }
+    }
+    process.exit(1);
+  }
+  body.sessionId = scope.sessionId;
+  if (scope.agentId) body.agentId = scope.agentId;
 
   // #8877 / ADR-0122: /sugar/done requires the actor credential minted at
   // begin; resolve it from env or the context store (only when the context's
@@ -817,8 +942,14 @@ export async function handleDone(
     process.exit(1);
   }
 
+  // Auto-merge can delete a branch and worktree, so it MUST follow the
+  // credentialed exact-session completion. Scope discovery alone is not
+  // authorization: doing this earlier let a caller name another actor's
+  // session and trigger dispatch cleanup before `/sugar/done` rejected them.
+  const autoMergeLines = await reportAutoMergeOnDone(data.sessionId);
+
   // Clear local context
-  clearCurrentContext();
+  if (ctx?.sessionId === data.sessionId) clearCurrentContext();
 
   if (isJson(options)) {
     console.log(JSON.stringify({ ...data, autoMerge: autoMergeLines }, null, 2));
@@ -846,10 +977,27 @@ export async function handleDone(
 // =============================================================================
 
 export async function handleWhoami(options: CLIOptions): Promise<void> {
-  // Try local context first
-  const ctx = readCurrentContext();
-  const agentId = (options.agent as string) || ctx?.agentId;
-  const sessionId = (options.session as string) || ctx?.sessionId;
+  const explicitAgentId = typeof options.agent === 'string' && options.agent.trim() ? options.agent.trim() : undefined;
+  const explicitSessionId = typeof options.session === 'string' && options.session.trim() ? options.session.trim() : undefined;
+  const contextResolution = resolveCurrentContext();
+  if (!contextResolution.success && !explicitAgentId && !explicitSessionId) {
+    const conflict = {
+      success: false,
+      active: false,
+      code: contextResolution.code,
+      error: contextResolution.error,
+      provenances: contextResolution.provenances,
+    };
+    if (isJson(options)) console.log(JSON.stringify(conflict, null, 2));
+    else {
+      ui.error(`${conflict.code}: ${conflict.error}`);
+      console.error(JSON.stringify({ provenances: conflict.provenances }, null, 2));
+    }
+    process.exit(1);
+  }
+  const ctx = contextResolution.success ? contextResolution.context : null;
+  const agentId = explicitAgentId || (explicitSessionId ? undefined : ctx?.agentId);
+  const sessionId = explicitSessionId || (explicitAgentId ? undefined : ctx?.sessionId);
 
   if (!agentId && !sessionId) {
     if (isJson(options)) {
@@ -887,7 +1035,18 @@ export async function handleWhoami(options: CLIOptions): Promise<void> {
 
   if (!data.active) {
     if (isQuiet(options)) return;
-    console.error(data.hint || 'No active session');
+    if (data.dormant && data.resumable) {
+      console.error(`Dormant ${data.lifecycle || 'durable'} session: ${data.sessionId}`);
+      if (data.status) console.error(`  Status: ${data.status}`);
+    } else {
+      console.error(data.error || data.hint || 'No active session');
+    }
+    if (data.hint) console.error(`  ${data.hint}`);
+    if (Array.isArray(data.candidates)) {
+      for (const candidate of data.candidates) {
+        console.error(`  ${candidate.sessionId} (${candidate.status || 'unknown'}, ${candidate.lifecycle || 'unknown'}, worktree ${candidate.worktreeId || '<unknown>'})`);
+      }
+    }
     return;
   }
 

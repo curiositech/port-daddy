@@ -31,22 +31,22 @@
 
 % ---- Four stage boxes ----
 \node[regimebox,draw=harborblue,fill=harborblue!10,minimum width=2.7cm,minimum height=2.6cm,text width=2.45cm] (s1) at (2.35,5.05) {%
-  {\color{harborblue}\bfseries\footnotesize II --- Mediation}\\[4pt]
+  {\color{harborblue}\bfseries\footnotesize II --- Enforceability}\\[4pt]
   {\footnotesize gate only $\Sigma_c$: egress, write, exec, push, spawn}\\[8pt]
   {\scriptsize\color{black!45} if absent: no boundary is enforceable at all}%
 };
 \node[regimebox,draw=harborblue,fill=harborblue!10,minimum width=2.7cm,minimum height=2.6cm,text width=2.45cm] (s2) at (5.4,5.05) {%
-  {\color{harborblue}\bfseries\footnotesize I --- Declassification gate}\\[4pt]
+  {\color{harborblue}\bfseries\footnotesize I --- Noninterference}\\[4pt]
   {\footnotesize silence except through $g(s)$}\\[8pt]
   {\scriptsize\color{black!45} if absent: a gated channel could still leak the raw secret}%
 };
 \node[regimebox,draw=harborblue,fill=harborblue!10,minimum width=2.7cm,minimum height=2.6cm,text width=2.45cm] (s3) at (8.45,5.05) {%
-  {\color{harborblue}\bfseries\footnotesize III --- $\varepsilon$-ledger}\\[4pt]
+  {\color{harborblue}\bfseries\footnotesize III --- Conservation}\\[4pt]
   {\footnotesize atomic append + spend, $\sigma$ conserved}\\[8pt]
   {\scriptsize\color{black!45} if absent: honest releases could still blow the contracted total}%
 };
 \node[regimebox,draw=harborblue,fill=harborblue!10,minimum width=2.7cm,minimum height=2.6cm,text width=2.45cm] (s4) at (11.5,5.05) {%
-  {\color{harborblue}\bfseries\footnotesize IV --- Canary + SPRT}\\[4pt]
+  {\color{harborblue}\bfseries\footnotesize IV --- Detection}\\[4pt]
   {\footnotesize power $1-\beta^k$, alarm clock on evasion}\\[8pt]
   {\scriptsize\color{black!45} if absent: leaks that dodge the ledger go unnoticed}%
 };

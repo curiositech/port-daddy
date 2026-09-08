@@ -121,8 +121,8 @@ CREATE INDEX IF NOT EXISTS audit_log_fp_idx ON audit_log (daemon_fingerprint, at
 -- Phase C: fleet observability — transcript + audit trail (ADR-0049 follow-on)
 --
 -- The fleet-executor writes one fleet_runs row per GitHub delivery (the audit
--- header: PR context + final conclusion + wall time) and an append-only stream
--- of fleet_run_steps (the immutable transcript: MAP chunks, REDUCE, findings,
+-- header: PR context + final conclusion + wall time) and retry-replaceable
+-- fleet_run_steps telemetry (MAP chunks, REDUCE, findings,
 -- verdicts, posts, check completion). The relay's operator-gated read endpoints
 -- (/v1/fleet/activity, /v1/fleet/runs/:id, /v1/fleet/health) project these for
 -- the pd-console Cloud Fleet pane.
@@ -144,7 +144,7 @@ CREATE TABLE IF NOT EXISTS fleet_runs (
 );
 CREATE INDEX IF NOT EXISTS fleet_runs_created_idx ON fleet_runs (created_at DESC);
 
--- Immutable transcript of each step within a run.
+-- Retry-replaceable telemetry for each step within a run.
 CREATE TABLE IF NOT EXISTS fleet_run_steps (
   run_id             TEXT    NOT NULL,            -- FK to fleet_runs.id
   seq                INTEGER NOT NULL,            -- 0-indexed step sequence within the run

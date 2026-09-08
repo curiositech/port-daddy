@@ -7,6 +7,17 @@
 % ceiling). Marked point (50, 0.25) and the tower inset text are
 % transcribed from the script's ax.plot / ax.annotate / ax.text calls.
 % [verified: script r7_figures.py]
+%
+% REVIEW FIXES (exposition review B2), neither of which touches the data:
+%   (1) the "cheating pays" region was a seagreen!12 / shipred!8 tint pair
+%       -- two very light washes that are near-indistinguishable in
+%       greyscale, leaving the legend to carry the whole load. It is now a
+%       hatch, so the two half-planes differ in texture as well as hue.
+%       (\usetikzlibrary{patterns} is loaded by paper3.tex.)
+%   (2) the inset and the caption attributed the decay rate (1-rho*d)=0.8
+%       to C=8. The rate is independent of C -- it is identical at C=1.
+%       What C sets is where the geometric decay STARTS (the threshold
+%       G_k <= C*B). Both now say so.
 \begin{figure}[htbp]\centering
 \begin{tikzpicture}
 \begin{axis}[
@@ -24,7 +35,7 @@
   (90,0.138889) (100,0.125) (100,1.0)
 } \closedcycle;
 \addlegendentry{deterrence holds (cheating unprofitable)}
-\addplot[fill=shipred!8,draw=none] coordinates {
+\addplot[pattern=north east lines,pattern color=shipred!45,draw=none] coordinates {
   (10,1.0) (12.5,1.0) (15,0.833333) (20,0.625) (25,0.5) (30,0.416667)
   (40,0.3125) (50,0.25) (60,0.208333) (70,0.178571) (80,0.15625)
   (90,0.138889) (100,0.125) (100,0)
@@ -43,9 +54,9 @@
 \draw[-{Stealth[length=2mm]},shipred,thin] (axis cs:50,0.25) -- (measnote.north);
 \node[regimebox,anchor=north west,align=left,font=\scriptsize,draw=harborblue,fill=yellow!15]
   at (rel axis cs:0.03,0.60)
-  {tower: sealed sampling from $C$ cliques\\ $\Rightarrow$ corruption decays $(1-\rho d)^k$\\ $C=8$ collapses $\times 0.8$/level};
+  {tower: once $G_k \le CB$, corrupt value\\ decays $(1-\rho d)^k = 0.8^k$ per level\\ (rate independent of $C$;\\ $C$ sets where the decay starts)};
 \end{axis}
 \end{tikzpicture}
-\caption{The regime diagram: the deterrence frontier $\rho d B = G$ in the (bond $B$, audit rate $\rho$) plane at $G{=}10$, $d{=}0.8$. Above the curve $\rho = G/(dB)$, cheating is unprofitable; below it, cheating pays. The marked point is the running example $(B,\rho^\star) = (50, 0.25)$, where the measured cheat payoff is exactly zero [internal, \texttt{b2\_tower.py}]. The inset records the tower consequence of \S\ref{sec:tower}: sealed sampling from $C$ cliques drives surviving corrupt value down as $(1-\rho d)^k$, a $\times 0.8$-per-level collapse at $C{=}8$.}
+\caption{The regime diagram: the deterrence frontier $\rho d B = G$ in the (bond $B$, audit rate $\rho$) plane at $G{=}10$, $d{=}0.8$. Above the curve $\rho = G/(dB)$, cheating is unprofitable; below it, cheating pays. The marked point is the running example $(B,\rho^\star) = (50, 0.25)$, where the measured cheat payoff is exactly zero [internal, \texttt{b2\_tower.py}]. Below the curve, the region is hatched rather than tinted so the two half-planes stay distinguishable in greyscale. The inset records the tower consequence of \S\ref{sec:tower}: below the bribery threshold $G_k \le CB$, surviving corrupt value decays as $(1-\rho d)^k$ --- a $\times 0.8$-per-level collapse at these parameters, at every $C$. What $C$ controls is not the rate but where the decay begins.}
 \label{fig:regime}
 \end{figure}

@@ -308,7 +308,7 @@ The key advantage: **AgentSpeak's failure handling is goal-aware**. You're not j
 
 ## Implications for Orchestration Robustness
 
-For WinDAGs-style systems:
+For Jury-rig-style systems:
 
 1. **Skill Composition as Intention Stacks**: When one skill invokes another, the invocation stack is an intention stack. If inner skill fails, outer skill's failure plan handles it. This creates natural layering: high-level orchestration plans delegate to skills, and skill failures propagate upward for high-level recovery decisions.
 

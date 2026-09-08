@@ -22,6 +22,7 @@ import { mkdirSync, rmSync, readFileSync, writeFileSync, existsSync, symlinkSync
 import { join, resolve, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { createServer } from 'node:http';
 
 import {
   setLock,
@@ -47,13 +48,25 @@ import { stageTentacles } from '../../cli/commands/hooks-install.js';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dir, '..', '..');
-const bin = (n: 'pd-hook-prompt' | 'pd-hook-pre-tool' | 'pd-hook-post-tool' | 'pd-hook-stop') =>
+const bin = (n: 'pd-hook-prompt' | 'pd-hook-pre-tool' | 'pd-hook-post-tool' | 'pd-hook-stop' | 'pd-hook-precompact') =>
   join(repoRoot, 'bin', n);
 
 // Isolated scratch under ~/coding/tmp (NEVER /tmp — macOS purges /tmp).
 const SCRATCH = join(homedir(), 'coding', 'tmp', 'squid-selftest', `jest-${process.pid}`);
 const WORKSPACE = join(SCRATCH, 'workspace');
 const MATRIX = join(SCRATCH, 'matrix.env');
+
+function runPromptAsync(env: NodeJS.ProcessEnv): Promise<{ status: number | null; stdout: string; stderr: string }> {
+  return new Promise((resolveRun) => {
+    const child = spawn(bin('pd-hook-prompt'), [], { env });
+    let stdout = '';
+    let stderr = '';
+    child.stdout?.on('data', (chunk) => { stdout += String(chunk); });
+    child.stderr?.on('data', (chunk) => { stderr += String(chunk); });
+    child.on('close', (status) => resolveRun({ status, stdout, stderr }));
+    child.stdin?.end(JSON.stringify({ cwd: WORKSPACE }));
+  });
+}
 
 // Both layers honor PD_MATRIX_FILE: lib/squid/matrix.ts reads it via matrixPath()
 // and the pd-hook-* tentacles read it directly. Pointing both at ONE scratch file
@@ -127,7 +140,7 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
   function pathWithoutJq(): string {
     const dir = join(SCRATCH, 'no-jq-bin');
     mkdirSync(dir, { recursive: true });
-    for (const name of ['cat', 'tr', 'sed', 'head', 'dirname', 'grep', 'cut', 'python3']) {
+    for (const name of ['cat', 'tr', 'sed', 'head', 'dirname', 'grep', 'cut', 'python3', 'curl']) {
       const target = join(dir, name);
       if (!existsSync(target)) symlinkSync(commandPath(name), target);
     }
@@ -628,6 +641,147 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     expect(r.error).toBeUndefined();
     expect(Buffer.byteLength(r.stdout)).toBe(0);
     expect(Buffer.byteLength(r.stderr)).toBe(0);
+  });
+
+  test('prompt hook surfaces a bounded unread inbox/parley count without message content', async () => {
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    writeFileSync(MATRIX, '# no matrix coordination\n');
+    const server = createServer((req, res) => {
+      expect(req.url).toBe('/agents/agent_test/inbox/stats');
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ success: true, total: 9, unread: 3, secret: 'must-not-leak' }));
+    });
+    await new Promise<void>((resolveListen) => server.listen(0, '127.0.0.1', resolveListen));
+    const address = server.address();
+    expect(address && typeof address === 'object').toBe(true);
+    try {
+      const r = await runPromptAsync({
+        ...process.env,
+        PD_MATRIX_FILE: MATRIX,
+        PD_HOME: dirname(MATRIX),
+        PD_SITREP: 'off',
+        PD_ACTOR: 'agent_test',
+        PORT_DADDY_URL: `http://127.0.0.1:${(address as { port: number }).port}`,
+      });
+      expect(r.status).toBe(0);
+      const ctx = JSON.parse(r.stdout).hookSpecificOutput.additionalContext as string;
+      expect(ctx).toContain('3 unread inbox/parley item(s)');
+      expect(ctx).toContain('pd attention');
+      expect(ctx).not.toContain('must-not-leak');
+      expect(ctx.split('\n').filter((line) => line.startsWith('- '))).toHaveLength(1);
+    } finally {
+      server.close();
+    }
+  });
+
+  test('prompt inbox probe is silent and fail-open without an actor or live daemon', async () => {
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    writeFileSync(MATRIX, '# no matrix coordination\n');
+    const noActor = await runPromptAsync({
+      ...process.env,
+      PD_MATRIX_FILE: MATRIX,
+      PD_HOME: dirname(MATRIX),
+      PD_SITREP: 'off',
+      PORT_DADDY_URL: 'http://127.0.0.1:1',
+    });
+    expect(noActor).toMatchObject({ status: 0, stdout: '', stderr: '' });
+
+    const down = await runPromptAsync({
+      ...process.env,
+      PD_MATRIX_FILE: MATRIX,
+      PD_HOME: dirname(MATRIX),
+      PD_SITREP: 'off',
+      PD_ACTOR: 'agent_test',
+      PORT_DADDY_URL: 'http://127.0.0.1:1',
+    });
+    expect(down).toMatchObject({ status: 0, stdout: '', stderr: '' });
+
+    const remote = await runPromptAsync({
+      ...process.env,
+      PD_MATRIX_FILE: MATRIX,
+      PD_HOME: dirname(MATRIX),
+      PD_SITREP: 'off',
+      PD_ACTOR: 'agent_test',
+      PORT_DADDY_URL: 'https://coordination.example.invalid',
+    });
+    expect(remote).toMatchObject({ status: 0, stdout: '', stderr: '' });
+  });
+
+  test('prompt inbox probe rejects malformed actors and ignores malformed or timed-out responses', async () => {
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    writeFileSync(MATRIX, '# no matrix coordination\n');
+    let requests = 0;
+    const server = createServer((_req, res) => {
+      requests += 1;
+      if (requests === 1) {
+        res.setHeader('content-type', 'application/json');
+        res.end('{"unread":"not-a-number"}');
+        return;
+      }
+      setTimeout(() => res.end('{"unread":4}'), 500);
+    });
+    await new Promise<void>((resolveListen) => server.listen(0, '127.0.0.1', resolveListen));
+    const address = server.address();
+    expect(address && typeof address === 'object').toBe(true);
+    const daemonUrl = `http://127.0.0.1:${(address as { port: number }).port}`;
+    try {
+      const malformedActor = await runPromptAsync({
+        ...process.env,
+        PD_MATRIX_FILE: MATRIX,
+        PD_HOME: dirname(MATRIX),
+        PD_SITREP: 'off',
+        PD_ACTOR: 'agent/../../secret',
+        PORT_DADDY_URL: daemonUrl,
+      });
+      expect(malformedActor).toMatchObject({ status: 0, stdout: '', stderr: '' });
+      expect(requests).toBe(0);
+
+      const malformedJson = await runPromptAsync({
+        ...process.env,
+        PD_MATRIX_FILE: MATRIX,
+        PD_HOME: dirname(MATRIX),
+        PD_SITREP: 'off',
+        PD_ACTOR: 'agent_test',
+        PORT_DADDY_URL: daemonUrl,
+      });
+      expect(malformedJson).toMatchObject({ status: 0, stdout: '', stderr: '' });
+
+      const timedOut = await runPromptAsync({
+        ...process.env,
+        PD_MATRIX_FILE: MATRIX,
+        PD_HOME: dirname(MATRIX),
+        PD_SITREP: 'off',
+        PD_ACTOR: 'agent_test',
+        PORT_DADDY_URL: daemonUrl,
+      });
+      expect(timedOut).toMatchObject({ status: 0, stdout: '', stderr: '' });
+    } finally {
+      server.close();
+    }
+  });
+
+  test('prompt inbox probe parses numeric unread count without jq', async () => {
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    writeFileSync(MATRIX, '# no matrix coordination\n');
+    const server = createServer((_req, res) => res.end('{"unread":2}'));
+    await new Promise<void>((resolveListen) => server.listen(0, '127.0.0.1', resolveListen));
+    const address = server.address();
+    expect(address && typeof address === 'object').toBe(true);
+    try {
+      const r = await runPromptAsync({
+        ...process.env,
+        PATH: pathWithoutJq(),
+        PD_MATRIX_FILE: MATRIX,
+        PD_HOME: dirname(MATRIX),
+        PD_SITREP: 'off',
+        PD_ACTOR: 'agent_test',
+        PORT_DADDY_URL: `http://127.0.0.1:${(address as { port: number }).port}`,
+      });
+      expect(r.status).toBe(0);
+      expect(r.stdout).toContain('2 unread inbox/parley item(s)');
+    } finally {
+      server.close();
+    }
   });
 
   // ── SITREP dial (per-repo end-of-turn compulsion; operator doctrine 2026-08-22) ──
@@ -1310,7 +1464,7 @@ describe('Giant Squid Harness — pd-hook-stop event byte budget (review finding
     const binDir = join(pdHome, 'bin');
     const srcBin = join(SCRATCH, 'debug-oversize-src');
     mkdirSync(srcBin, { recursive: true });
-    for (const name of ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool', 'pd-hook-stop'] as const) {
+    for (const name of ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool', 'pd-hook-stop', 'pd-hook-precompact'] as const) {
       copyFileSync(bin(name), join(srcBin, name));
       chmodSync(join(srcBin, name), 0o755);
     }
@@ -1450,7 +1604,7 @@ describe('Giant Squid Harness — pd-hook-stop marker garbage collection (review
 });
 
 describe('Giant Squid Harness — ClaudeCliSquidAdapter.injectHooks', () => {
-  test('wires only the decision-bearing turn/edit tentacles with absolute paths', async () => {
+  test('wires the verified Claude PreCompact checkpoint and decision-bearing turn/edit tentacles with absolute paths', async () => {
     const adapter = new ClaudeCliSquidAdapter();
     expect(adapter.verified).toBe(true);
     await adapter.injectHooks(WORKSPACE);
@@ -1460,9 +1614,13 @@ describe('Giant Squid Harness — ClaudeCliSquidAdapter.injectHooks', () => {
     const settings = JSON.parse(readFileSync(settingsPath, 'utf8'));
 
     const cmd = (event: string) => settings.hooks[event][settings.hooks[event].length - 1].hooks[0].command;
-    expect(cmd('UserPromptSubmit')).toBe(hookCommandPath('pd-hook-prompt'));
+    expect(cmd('UserPromptSubmit')).toBe(`${hookCommandPath('pd-hook-prompt')} --interactive-context-pressure`);
     expect(cmd('PreToolUse')).toBe(hookCommandPath('pd-hook-pre-tool'));
     expect(cmd('Stop')).toBe(hookCommandPath('pd-hook-stop'));
+    // This fixture proves only the provider-native lifecycle registration. It
+    // does not simulate a context packet: the daemon must first bind the
+    // provider session and independently witness usage/tool-pair coverage.
+    expect(cmd('PreCompact')).toBe(hookCommandPath('pd-hook-precompact'));
     expect(settings.hooks.Stop[settings.hooks.Stop.length - 1].matcher).toBeUndefined();
     expect(cmd('UserPromptSubmit')).not.toContain('/Cellar/');
     expect(settings.hooks.PostToolUse).toBeUndefined();
@@ -1473,6 +1631,10 @@ describe('Giant Squid Harness — ClaudeCliSquidAdapter.injectHooks', () => {
     expect(gate.name).toBe(SQUID_HOOK_METADATA.preTool.displayName);
     expect(gate.description).toBe(SQUID_HOOK_METADATA.preTool.description);
     expect(gate.privacy).toBe(SQUID_HOOK_METADATA.preTool.privacy);
+    const preCompact = settings.hooks.PreCompact[settings.hooks.PreCompact.length - 1];
+    expect(preCompact.name).toBe(SQUID_HOOK_METADATA.preCompact.displayName);
+    expect(preCompact.description).toBe(SQUID_HOOK_METADATA.preCompact.description);
+    expect(preCompact.privacy).toBe(SQUID_HOOK_METADATA.preCompact.privacy);
   });
 
   test('injectHooks is idempotent (re-run does not duplicate PD entries)', async () => {
@@ -2073,4 +2235,350 @@ describe('tentaclePath resolution (regression: compiled-binary /bin/ bug)', () =
       expect(p.endsWith(`/bin/${name}`)).toBe(true); // repo bin/, absolute
     });
   }
+});
+
+describe('Giant Squid Harness — ADR-0132 listening watch (halt sentinel)', () => {
+  // Every tentacle consults ~/.port-daddy/HALT ($PD_HOME/HALT) BEFORE any
+  // matrix, dial, or daemon work. These tests pipe real vendor payloads
+  // through the real shell binaries with the sentinel present and absent,
+  // and read back the distress file + the per-session markers.
+  const HALT_LINE = '2026-09-05T14:02:11Z operator:erich SECURITE HALT reason=spend-runaway ref=docs/incidents/2026-09-05-port-daddy-halt.md';
+  const SENTINEL = join(SCRATCH, 'HALT');
+  const DISTRESS = join(SCRATCH, 'DISTRESS');
+
+  function hoist(text: string = `${HALT_LINE}\n`) {
+    writeFileSync(SENTINEL, text);
+  }
+  function distressLines(): string[] {
+    return existsSync(DISTRESS) ? readFileSync(DISTRESS, 'utf8').trim().split('\n').filter(Boolean) : [];
+  }
+  const env = (extra: Record<string, string> = {}): NodeJS.ProcessEnv => ({
+    ...process.env,
+    PD_HOME: SCRATCH,
+    PD_MATRIX_FILE: MATRIX,
+    PD_HOOK_PROVIDER: 'claude',
+    ...extra,
+  });
+  const runPre = (event: Record<string, unknown>, extra: Record<string, string> = {}) =>
+    spawnSync(bin('pd-hook-pre-tool'), [], { input: JSON.stringify(event), env: env(extra), encoding: 'utf8' });
+  const runPrompt = (event: Record<string, unknown>, extra: Record<string, string> = {}) =>
+    spawnSync(bin('pd-hook-prompt'), [], { input: JSON.stringify(event), env: env(extra), encoding: 'utf8' });
+  const runStop = (event: Record<string, unknown>, extra: Record<string, string> = {}) =>
+    spawnSync(bin('pd-hook-stop'), [], { input: JSON.stringify({ cwd: WORKSPACE, ...event }), env: env(extra), encoding: 'utf8' });
+  const bash = (command: string, session = 'halt-s1') => ({ tool_name: 'Bash', tool_input: { command }, cwd: WORKSPACE, session_id: session });
+
+  test('global disable marker makes every direct tentacle a zero-work no-op', () => {
+    writeFileSync(join(SCRATCH, 'hooks.disabled'), 'operator halt\n');
+    hoist();
+    writeFileSync(MATRIX, 'PD_ALERT_TEST=must-not-be-read\n');
+
+    for (const hook of ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool', 'pd-hook-stop', 'pd-hook-precompact'] as const) {
+      const result = spawnSync(bin(hook), ['unread-argument'], {
+        input: JSON.stringify(bash('pd status', `disabled-${hook}`)),
+        env: env({ PD_SITREP: 'enforce' }),
+        encoding: 'utf8',
+      });
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
+      expect(result.stderr).toBe('');
+    }
+
+    expect(existsSync(DISTRESS)).toBe(false);
+    expect(existsSync(join(SCRATCH, 'squid'))).toBe(false);
+    expect(readFileSync(MATRIX, 'utf8')).toBe('PD_ALERT_TEST=must-not-be-read\n');
+  });
+
+  function pathWithoutJqHalt(): string {
+    const dir = join(SCRATCH, 'no-jq-bin-halt');
+    mkdirSync(dir, { recursive: true });
+    for (const name of ['cat', 'tr', 'sed', 'head', 'dirname', 'grep', 'cut', 'date', 'mkdir', 'wc', 'tail', 'basename', 'stat', 'rm']) {
+      const target = join(dir, name);
+      const r = spawnSync('sh', ['-c', `command -v ${name}`], { encoding: 'utf8' });
+      if (r.status === 0 && !existsSync(target)) symlinkSync(r.stdout.trim(), target);
+    }
+    return dir;
+  }
+
+  test('sentinel absent: every tentacle is byte-for-byte its pre-halt self (no distress file, no markers)', () => {
+    const pre = runPre(bash('pd status'));
+    expect(pre.status).toBe(0);
+    expect(pre.stdout).toBe('');
+    expect(pre.stderr).toBe('');
+    const prompt = runPrompt({ prompt: 'hi', cwd: WORKSPACE, session_id: 'halt-s1' }, { PD_SITREP: 'off' });
+    expect(prompt.status).toBe(0);
+    expect(prompt.stdout).toBe('');
+    const stop = runStop({ session_id: 'halt-s1', last_assistant_message: 'done' }, { PD_SITREP: 'off' });
+    expect(stop.status).toBe(0);
+    expect(stop.stdout).toBe('');
+    expect(existsSync(DISTRESS)).toBe(false);
+    expect(existsSync(join(SCRATCH, 'squid', 'halt-watch'))).toBe(false);
+  });
+
+  test('prompt tentacle: SECURITE HALT notice on its own line with the halt text, SEEN once per session, no SITREP compulsion', () => {
+    hoist();
+    const first = runPrompt({ prompt: 'refactor', cwd: WORKSPACE, session_id: 'halt-p1' });
+    expect(first.status).toBe(0);
+    const parsed = JSON.parse(first.stdout) as { hookSpecificOutput: { hookEventName: string; additionalContext: string } };
+    expect(parsed.hookSpecificOutput.hookEventName).toBe('UserPromptSubmit');
+    const ctx = parsed.hookSpecificOutput.additionalContext;
+    expect(ctx.split('\n')[0]).toBe('SECURITE HALT');
+    expect(ctx.split('\n')[1]).toBe(HALT_LINE);
+    expect(ctx).toMatch(/only --help\/--version are permitted/);
+    // The SITREP block's scaffold commands are `pd` invocations: withheld under halt.
+    expect(ctx).not.toMatch(/SITREP enforce/);
+    expect(ctx).not.toMatch(/pd sitrep --template/);
+
+    const lines = distressLines();
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z agent:claude:halt-p1 control SEEN ref=2026-09-05T14:02:11Z hook=prompt$/);
+    // Cycle marker opened for pd-hook-stop; SEEN not repeated on the next turn.
+    const marker = join(SCRATCH, 'squid', 'halt-watch', 'halt-p1.2026-09-05T14:02:11Z');
+    expect(existsSync(join(marker, 'cycle'))).toBe(true);
+    const second = runPrompt({ prompt: 'again', cwd: WORKSPACE, session_id: 'halt-p1' });
+    expect(second.status).toBe(0);
+    expect(distressLines()).toHaveLength(1);
+    // A different session answers its own SEEN.
+    runPrompt({ prompt: 'x', cwd: WORKSPACE, session_id: 'halt-p2' });
+    expect(distressLines()).toHaveLength(2);
+  });
+
+  test('prompt tentacle: the halt notice does not need jq, and the coordination alerts still ride beneath it', () => {
+    hoist();
+    process.env.PD_MATRIX_FILE = MATRIX;
+    setAlert('steer-halt', 'STEERING DM: stop and ack before any edit');
+    const r = spawnSync(bin('pd-hook-prompt'), [], {
+      input: JSON.stringify({ prompt: 'x', cwd: WORKSPACE, session_id: 'halt-nojq' }),
+      env: { ...env(), PATH: pathWithoutJqHalt() },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(0);
+    expect(r.stdout.startsWith('SECURITE HALT\n')).toBe(true);
+    expect(r.stdout).toContain(HALT_LINE);
+    expect(r.stdout).toContain('stop and ack');
+    expect(distressLines()[0]).toContain('agent:claude:halt-nojq control SEEN');
+  });
+
+  describe('pre-tool tentacle block list (each forbidden shape blocks; ordinary work does not)', () => {
+    const blocked: Array<[string, string]> = [
+      ['bare pd', 'pd'],
+      ['pd status', 'pd status'],
+      ['pd begin', 'pd begin --identity port-daddy:x --lifecycle sidequest'],
+      ['port-daddy start', 'port-daddy start'],
+      ['env prefix', 'PORT_DADDY_URL=http://127.0.0.1:1 pd note "x"'],
+      ['chained after ordinary command', 'git status && pd note "x"'],
+      ['piped', 'echo x | pd sitrep'],
+      ['multiline', 'ls\npd spawn something'],
+      ['npx', 'npx port-daddy status'],
+      ['repo bin', './bin/pd dispatch x'],
+      ['node dist', 'node dist/bin/pd.js fleet up'],
+      ['sh -c', "sh -c 'pd status'"],
+      ['sudo', 'sudo pd restart'],
+      ['launchctl load', 'launchctl load ~/Library/LaunchAgents/com.portdaddy.bosun.plist'],
+      ['launchctl enable', 'launchctl enable gui/501/com.portdaddy.daemon'],
+      ['launchctl kickstart', 'launchctl kickstart -k gui/501/com.portdaddy.daemon'],
+      ['launchctl bootstrap', 'launchctl bootstrap gui/501 ~/Library/LaunchAgents/homebrew.mxcl.port-daddy.plist'],
+      ['brew services start', 'brew services start port-daddy'],
+      ['brew services restart', 'brew services restart port-daddy'],
+    ];
+    const allowed: Array<[string, string]> = [
+      ['git status', 'git status'],
+      ['pd --help', 'pd --help'],
+      ['pd --version', 'pd --version'],
+      ['port-daddy --version', 'port-daddy --version'],
+      ['pd -h', 'pd -h'],
+      ['echo mentioning pd', 'echo pd status'],
+      ['grep for pd', 'grep -rn "pd begin" docs/'],
+      ['cat the sentinel', 'cat ~/.port-daddy/HALT'],
+      ['launchctl print (read-only)', 'launchctl print gui/501/com.portdaddy.daemon'],
+      ['launchctl disable (the halt direction)', 'launchctl disable gui/501/com.portdaddy.daemon'],
+      ['launchctl kickstart of an unrelated label', 'launchctl kickstart -k gui/501/com.apple.Finder'],
+      ['brew services list', 'brew services list'],
+      ['brew services stop port-daddy', 'brew services stop port-daddy'],
+      ['npm test', 'npm test -- tests/unit/halt-watch.test.ts'],
+    ];
+
+    test.each(blocked)('BLOCKS %s → exit 2, reason opens with SECURITE HALT and names the halt', (_label, command) => {
+      hoist();
+      const r = runPre(bash(command, 'halt-block'));
+      expect(r.status).toBe(2);
+      expect(r.stdout).toBe('');
+      const lines = r.stderr.split('\n');
+      expect(lines[0]).toBe('SECURITE HALT');
+      expect(lines[1]).toBe(HALT_LINE);
+      expect(r.stderr).toMatch(/BLOCKED Bash:/);
+      expect(r.stderr).toMatch(/ref=2026-09-05T14:02:11Z/);
+      // The blocked marker withholds COMPLIED for this cycle.
+      expect(existsSync(join(SCRATCH, 'squid', 'halt-watch', 'halt-block.2026-09-05T14:02:11Z', 'blocked'))).toBe(true);
+    });
+
+    test.each(allowed)('ALLOWS %s → exit 0 with the halt notice as PreToolUse additionalContext', (_label, command) => {
+      hoist();
+      const r = runPre(bash(command, 'halt-allow'));
+      expect(r.status).toBe(0);
+      expect(r.stderr).toBe('');
+      const parsed = JSON.parse(r.stdout) as { hookSpecificOutput: { hookEventName: string; additionalContext: string } };
+      expect(parsed.hookSpecificOutput.hookEventName).toBe('PreToolUse');
+      expect(parsed.hookSpecificOutput.additionalContext.startsWith('SECURITE HALT\n')).toBe(true);
+      expect(existsSync(join(SCRATCH, 'squid', 'halt-watch', 'halt-allow.2026-09-05T14:02:11Z', 'blocked'))).toBe(false);
+    });
+
+    test('the allowed-call notice is once per cycle, and silent when the prompt tentacle already carried it', () => {
+      hoist();
+      const first = runPre(bash('git status', 'halt-notice'));
+      expect(JSON.parse(first.stdout).hookSpecificOutput.additionalContext).toMatch(/^SECURITE HALT\n/);
+      const second = runPre(bash('git diff', 'halt-notice'));
+      expect(second.status).toBe(0);
+      expect(second.stdout).toBe('');
+      // The stop tentacle closes the cycle; the next turn may notify once more.
+      runStop({ session_id: 'halt-notice', last_assistant_message: 'x' });
+      expect(runPre(bash('git log', 'halt-notice')).stdout).toMatch(/SECURITE HALT/);
+      // Once the prompt tentacle has opened a cycle it owns the notice: pre-tool stays silent.
+      runPrompt({ prompt: 'x', cwd: WORKSPACE, session_id: 'halt-prompted' });
+      const after = runPre(bash('git status', 'halt-prompted'));
+      expect(after.status).toBe(0);
+      expect(after.stdout).toBe('');
+    });
+
+    test('BLOCKS every mcp__port-daddy__* tool regardless of input', () => {
+      hoist();
+      for (const tool of ['mcp__port-daddy__begin_session', 'mcp__port-daddy__spawn', 'mcp__port-daddy__whoami']) {
+        const r = runPre({ tool_name: tool, tool_input: { identity: 'x' }, cwd: WORKSPACE, session_id: 'halt-mcp' });
+        expect(r.status).toBe(2);
+        expect(r.stderr.split('\n')[0]).toBe('SECURITE HALT');
+        expect(r.stderr).toContain(`BLOCKED ${tool}:`);
+      }
+      // An unrelated MCP server is ordinary work.
+      const other = runPre({ tool_name: 'mcp__github__get_pull_request', tool_input: { n: 1 }, cwd: WORKSPACE, session_id: 'halt-mcp' });
+      expect(other.status).toBe(0);
+    });
+
+    test('Codex argv-array shell tool (["bash","-lc","pd status"]) is blocked; non-Claude providers get no stdout notice', () => {
+      hoist();
+      const r = runPre(
+        { tool_name: 'shell', tool_input: { command: ['bash', '-lc', 'pd status'] }, cwd: WORKSPACE, session_id: 'halt-codex' },
+        { PD_HOOK_PROVIDER: 'codex' },
+      );
+      expect(r.status).toBe(2);
+      expect(r.stderr.split('\n')[0]).toBe('SECURITE HALT');
+      const ok = runPre(
+        { tool_name: 'shell', tool_input: { command: ['bash', '-lc', 'git status'] }, cwd: WORKSPACE, session_id: 'halt-codex' },
+        { PD_HOOK_PROVIDER: 'codex' },
+      );
+      expect(ok.status).toBe(0);
+      expect(ok.stdout).toBe(''); // Codex: no raw stdout on exit 0
+      expect(distressLines()[0]).toContain('agent:codex:halt-codex control SEEN');
+    });
+
+    test('camelCase app-server / agy shape → exit 0 + deny JSON whose reason opens with SECURITE HALT', () => {
+      hoist();
+      const r = runPre({ toolName: 'Bash', toolInput: { command: 'pd status' }, cwd: WORKSPACE, sessionId: 'halt-camel' }, { PD_HOOK_PROVIDER: 'agy' });
+      expect(r.status).toBe(0);
+      const parsed = JSON.parse(r.stdout) as { hookSpecificOutput: Record<string, string> };
+      expect(parsed.hookSpecificOutput.permissionDecision).toBe('deny');
+      expect(parsed.hookSpecificOutput.decision).toBe('block');
+      expect(parsed.hookSpecificOutput.permissionDecisionReason.startsWith('SECURITE HALT\n')).toBe(true);
+      expect(parsed.hookSpecificOutput.message).toContain(HALT_LINE);
+    });
+
+    test('the block list works without jq (string command and argv array)', () => {
+      hoist();
+      const noJq = { ...env(), PATH: pathWithoutJqHalt() };
+      const s = spawnSync(bin('pd-hook-pre-tool'), [], { input: JSON.stringify(bash('git fetch && pd guard status', 'halt-nojq-pre')), env: noJq, encoding: 'utf8' });
+      expect(s.status).toBe(2);
+      expect(s.stderr.split('\n')[0]).toBe('SECURITE HALT');
+      const a = spawnSync(bin('pd-hook-pre-tool'), [], {
+        input: JSON.stringify({ tool_name: 'shell', tool_input: { command: ['bash', '-lc', 'pd status'] }, cwd: WORKSPACE, session_id: 'halt-nojq-pre' }),
+        env: noJq, encoding: 'utf8',
+      });
+      expect(a.status).toBe(2);
+      const ok = spawnSync(bin('pd-hook-pre-tool'), [], { input: JSON.stringify(bash('git status', 'halt-nojq-pre')), env: noJq, encoding: 'utf8' });
+      expect(ok.status).toBe(0);
+    });
+
+    test('the halt gate runs before the matrix early-exit and the lock gate still applies to allowed edits', () => {
+      hoist();
+      rmSync(MATRIX, { force: true }); // no matrix at all → the old first line would have exited 0
+      expect(runPre(bash('pd status', 'halt-nomatrix')).status).toBe(2);
+      // With a foreign lock, an allowed Edit during the halt is still lock-gated.
+      process.env.PD_MATRIX_FILE = MATRIX;
+      setLock('/repo/src/auth.ts', 'agent_alpha');
+      const r = runPre({ tool_name: 'Edit', tool_input: { file_path: '/repo/src/auth.ts' }, cwd: '/repo', session_id: 'halt-lock' }, { PD_ACTOR: 'agent_beta' });
+      expect(r.status).toBe(2);
+      expect(r.stderr).toMatch(/locked by actor 'agent_alpha'/);
+    });
+
+    test('stays under the 250 ms breaker line on a halted shell call', () => {
+      hoist();
+      const started = Date.now();
+      runPre(bash('git status && pd note x', 'halt-timing'));
+      expect(Date.now() - started).toBeLessThan(250);
+    });
+  });
+
+  test('stop tentacle: closes the cycle — COMPLIED after a clean prompt→stop cycle, withheld after a blocked call, once per session', () => {
+    hoist();
+    // Turn 1: prompt opens the cycle, a pd call is blocked, stop consumes the marker silently.
+    runPrompt({ prompt: 'a', cwd: WORKSPACE, session_id: 'halt-cycle' });
+    expect(runPre(bash('pd status', 'halt-cycle')).status).toBe(2);
+    let stop = runStop({ session_id: 'halt-cycle', last_assistant_message: 'no table here' });
+    expect(stop.status).toBe(0); // no SITREP block during a halt
+    expect(distressLines().filter((l) => l.includes('COMPLIED'))).toHaveLength(0);
+    // Turn 2: clean cycle → COMPLIED exactly once; the Claude notice rides along.
+    runPrompt({ prompt: 'b', cwd: WORKSPACE, session_id: 'halt-cycle' });
+    expect(runPre(bash('git status', 'halt-cycle')).status).toBe(0);
+    stop = runStop({ session_id: 'halt-cycle', last_assistant_message: 'no table here' });
+    expect(stop.status).toBe(0);
+    const notice = JSON.parse(stop.stdout) as { hookSpecificOutput: { hookEventName: string; additionalContext: string } };
+    expect(notice.hookSpecificOutput.hookEventName).toBe('Stop');
+    expect(notice.hookSpecificOutput.additionalContext.startsWith('SECURITE HALT\n')).toBe(true);
+    const lines = distressLines();
+    expect(lines.filter((l) => l.includes('agent:claude:halt-cycle control SEEN'))).toHaveLength(1);
+    expect(lines.filter((l) => l.includes('agent:claude:halt-cycle control COMPLIED ref=2026-09-05T14:02:11Z hook=stop'))).toHaveLength(1);
+    // Turn 3: no second COMPLIED.
+    runPrompt({ prompt: 'c', cwd: WORKSPACE, session_id: 'halt-cycle' });
+    runStop({ session_id: 'halt-cycle', last_assistant_message: 'x' });
+    expect(distressLines().filter((l) => l.includes('COMPLIED'))).toHaveLength(1);
+  });
+
+  test('stop tentacle: a stop with no prior prompt this session emits SEEN but not COMPLIED (no full cycle yet); non-Claude stays silent', () => {
+    hoist();
+    const r = runStop({ session_id: 'halt-stop-only', last_assistant_message: 'x' }, { PD_HOOK_PROVIDER: 'codex' });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe('');
+    const lines = distressLines();
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain('agent:codex:halt-stop-only control SEEN ref=2026-09-05T14:02:11Z hook=stop');
+  });
+
+  test('precompact and post-tool tentacles answer SEEN and never reach the daemon shim', () => {
+    hoist();
+    const pre = spawnSync(bin('pd-hook-precompact'), [], {
+      input: JSON.stringify({ session_id: 'halt-compact', trigger: 'manual', cwd: WORKSPACE }),
+      env: env({ PD_SQUID_CLI: '/nonexistent/pd-must-not-run' }),
+      encoding: 'utf8',
+    });
+    expect(pre.status).toBe(0);
+    expect(pre.stdout).toBe('');
+    const post = spawnSync(bin('pd-hook-post-tool'), [], {
+      input: JSON.stringify({ tool_name: 'Edit', tool_input: { file_path: `${WORKSPACE}/x.ts` }, cwd: WORKSPACE, session_id: 'halt-post' }),
+      env: env(),
+      encoding: 'utf8',
+    });
+    expect(post.status).toBe(0);
+    const lines = distressLines();
+    expect(lines.some((l) => l.includes('agent:claude:halt-compact control SEEN') && l.endsWith('hook=precompact'))).toBe(true);
+    expect(lines.some((l) => l.includes('agent:claude:halt-post control SEEN') && l.endsWith('hook=post-tool'))).toBe(true);
+  });
+
+  test('repo-scoped distress: a cwd inside a .portdaddy project also gets the line; a bare touch sentinel still halts', () => {
+    hoist('');
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    const r = runPre(bash('pd status', 'halt-repo'));
+    expect(r.status).toBe(2);
+    expect(r.stderr.split('\n')[1]).toMatch(/^SECURITE HALT \(sentinel present, no text\)/);
+    const repoLines = readFileSync(join(WORKSPACE, '.portdaddy', 'DISTRESS'), 'utf8').trim().split('\n');
+    expect(repoLines).toHaveLength(1);
+    expect(repoLines[0]).toContain('agent:claude:halt-repo control SEEN ref=sentinel');
+    expect(distressLines()).toEqual(repoLines);
+  });
 });

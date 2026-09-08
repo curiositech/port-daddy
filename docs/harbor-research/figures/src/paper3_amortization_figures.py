@@ -55,11 +55,14 @@ def amortization_figure():
 
     fig, ax = plt.subplots(figsize=(9.2, 5.6), dpi=150)
 
-    ax.plot(t, spend_flat, color=SHIPRED, lw=2.2,
+    # Linestyle is redundant with color on all three curves (not just hue) so the
+    # encoding survives grayscale print and red-green color-vision deficiency —
+    # SHIPRED and SEAGREEN sit close in luminance and are a red-green pair.
+    ax.plot(t, spend_flat, color=SHIPRED, lw=2.2, ls='-',
              label=r'flat $\rho_t\equiv\rho^\star$:  $\Theta(T)$')
-    ax.plot(t, spend_A, color=HARBORBLUE, lw=2.2,
+    ax.plot(t, spend_A, color=HARBORBLUE, lw=2.2, ls='--',
              label=r'Model A (loss only if audited):  $\Theta(\log T)$')
-    ax.plot(t, spend_B, color=SEAGREEN, lw=2.2,
+    ax.plot(t, spend_B, color=SEAGREEN, lw=2.2, ls='-.',
              label=r'Model B (independent revelation $r$):  $O(1)$')
 
     # closed-form O(1) asymptote for Model B -- drawn, but not yet reached

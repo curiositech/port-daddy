@@ -287,10 +287,10 @@ git worktree remove ../project-agent-tests
 ../project-<purpose>-<branch-slug>
 
 # Examples:
-../windags-agent-auth-refactor
-../windags-agent-api-endpoints
-../windags-review-pr-142
-../windags-experiment-new-executor
+../jury_rig-agent-auth-refactor
+../jury_rig-agent-api-endpoints
+../jury_rig-review-pr-142
+../jury_rig-experiment-new-executor
 ```
 
 ## PR Review Workflow

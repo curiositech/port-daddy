@@ -471,6 +471,7 @@ export function createVisualTaskIntake(deps: VisualTaskIntakeDeps) {
           requestedBy: `${task.source ?? 'visual-task'}-visual`,
           mergePolicy: 'review',
           baseBranch: 'main',
+          projectDir: task.projectDir ?? task.project ?? undefined,
           targetActorId: dispatchTarget ?? undefined,
           idempotencyKey: `visual-task:${task.id}:dispatch`,
         }, deps.dispatchQueue);

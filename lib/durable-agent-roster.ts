@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { realpathSync } from 'node:fs';
 import { basename, dirname, isAbsolute, resolve } from 'node:path';
 import type { DatabaseInstance } from './sqlite-runtime.js';
@@ -10,6 +10,8 @@ import {
 } from './handoff-capsule.js';
 import type { SemanticResolver } from './semantic-resolver.js';
 import { getWorktreeInfo } from './worktree.js';
+import type { ForensicsSink } from './forensics-archive.js';
+import { IDENTITY_RESURRECTED_RULE, IDENTITY_RETIRED_RULE } from './actor-souls.js';
 
 export const DURABLE_AGENT_PROFILE_SCHEMA = 'pd.agent-harbor.durable-agent-profile.v0' as const;
 
@@ -191,6 +193,46 @@ interface DurableAgentRosterDeps {
     info?(message: string, meta?: Record<string, unknown>): void;
     error?(message: string, meta?: Record<string, unknown>): void;
   };
+  /**
+   * Durable security-forensics journal (ADR-0089). Retirement and audited
+   * resurrection of a durable agent identity are written here so a
+   * retire-and-respawn whitewash leaves a trail outside the live DB.
+   */
+  forensicsSink?: ForensicsSink;
+}
+
+/** Audit stamp carried ONLY on the fact that resurrects a retired agent. */
+export interface DurableAgentResurrection {
+  receipt: string;
+  at: string;
+  by: string;
+  reason: string;
+  /** ledger_seq of the retired fact this resurrection supersedes. */
+  fromLedgerSeq: number;
+}
+
+const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+/** Crockford base32 ULID — same shape as an actor soul's receipt. */
+function receiptUlid(nowMs: number): string {
+  let ts = nowMs;
+  const time = new Array<string>(10);
+  for (let i = 9; i >= 0; i--) {
+    time[i] = CROCKFORD[ts % 32];
+    ts = Math.floor(ts / 32);
+  }
+  const rnd = randomBytes(10);
+  const rand: string[] = [];
+  let bitBuffer = 0;
+  let bits = 0;
+  for (let i = 0; i < rnd.length; i++) {
+    bitBuffer = (bitBuffer << 8) | rnd[i];
+    bits += 8;
+    while (bits >= 5) {
+      bits -= 5;
+      rand.push(CROCKFORD[(bitBuffer >> bits) & 31]);
+    }
+  }
+  return time.join('') + rand.join('');
 }
 
 interface DurableAgentCreateOptions {
@@ -540,6 +582,55 @@ export function createDurableAgentRoster(db: DatabaseInstance, deps: DurableAgen
     }
   }
 
+  // ─── Retired is final unless resurrected (identity keystone) ─────────────────
+  // A durable agent's lifecycle lives in an append-only fact stream, so the
+  // "row" is the newest agent-node fact. Any writer that appends a fact with a
+  // non-retired lifecycle on top of a retired one has reactivated the identity
+  // — PATCH /durable-agents/:id used to do exactly that with no audit. The
+  // ledger now refuses such a fact unless it carries a resurrection receipt
+  // that the previous fact did not already carry (a replayed receipt is not a
+  // fresh audit). This is the ledger-shaped twin of the actor_souls trigger:
+  // enforcement at the DB, the app layer merely explains it.
+  ensureEventLedgerSchema(db);
+  db.exec(`
+    CREATE TRIGGER IF NOT EXISTS harbor_events_agent_node_no_silent_resurrection
+    BEFORE INSERT ON harbor_events
+    WHEN NEW.stream_type = 'agent-node'
+     AND NEW.agent_node_id IS NOT NULL
+     AND json_extract(NEW.payload_json, '$.profile.lifecycle') IS NOT 'retired'
+     AND (SELECT json_extract(payload_json, '$.profile.lifecycle')
+            FROM harbor_events
+           WHERE stream_type = 'agent-node' AND agent_node_id = NEW.agent_node_id
+           ORDER BY ledger_seq DESC LIMIT 1) = 'retired'
+     AND (json_extract(NEW.payload_json, '$.resurrection.receipt') IS NULL
+       OR json_extract(NEW.payload_json, '$.resurrection.receipt') IS
+          (SELECT json_extract(payload_json, '$.resurrection.receipt')
+             FROM harbor_events
+            WHERE stream_type = 'agent-node' AND agent_node_id = NEW.agent_node_id
+            ORDER BY ledger_seq DESC LIMIT 1))
+    BEGIN
+      SELECT RAISE(ABORT, 'DURABLE_AGENT_RETIRED: a retired durable agent can only be reactivated by an audited resurrection carrying a fresh receipt');
+    END;
+  `);
+  const ledgerTriggers = new Set(
+    (db.prepare("SELECT name FROM sqlite_master WHERE type = 'trigger' AND tbl_name = 'harbor_events'").all() as Array<{ name: string }>)
+      .map((row) => row.name),
+  );
+  if (!ledgerTriggers.has('harbor_events_agent_node_no_silent_resurrection')) {
+    throw new Error('harbor_events migration verification failed: agent-node no-silent-resurrection trigger missing.');
+  }
+
+  function journal(rule: string, agentNodeId: string, metadata: Record<string, unknown>, details: string): void {
+    deps.forensicsSink?.record({
+      timestamp: now().getTime(),
+      rule,
+      severity: 'warning',
+      details,
+      agentId: agentNodeId,
+      metadata: { surface: 'durable_agent_roster', ...metadata },
+    });
+  }
+
   const getEmbedding = db.prepare(`
     SELECT profile_revision, model_id, document_hash, embedding
     FROM durable_agent_profile_embeddings WHERE agent_node_id = ?
@@ -651,10 +742,20 @@ export function createDurableAgentRoster(db: DatabaseInstance, deps: DurableAgen
     };
   }
 
-  function nodePayload(agentNodeId: string, profile: DurableAgentProfileV0, previous?: Record<string, unknown>): Record<string, unknown> {
+  function nodePayload(
+    agentNodeId: string,
+    profile: DurableAgentProfileV0,
+    previous?: Record<string, unknown>,
+    resurrection?: DurableAgentResurrection,
+  ): Record<string, unknown> {
     const repoIdentity = profile.scope.repoName ?? 'system';
+    // The resurrection stamp is evidence for ONE fact. It must not ride the
+    // `previous` spread onto every later fact, or the ledger trigger's
+    // "carries a fresh receipt" test would be satisfied forever after.
+    const { resurrection: _carried, ...carried } = previous ?? {};
     return {
-      ...(previous ?? {}),
+      ...carried,
+      ...(resurrection ? { resurrection } : {}),
       schema: 'pd.agent-harbor.agent-node.v0',
       agentNodeId,
       identity: `${repoIdentity}:roster:${profile.slug}`,
@@ -744,6 +845,15 @@ export function createDurableAgentRoster(db: DatabaseInstance, deps: DurableAgen
     const profile = current.profile;
     const slug = input.slug === undefined ? profile.slug : normalizeSlug(input.slug);
     const lifecycle = input.lifecycle === undefined ? profile.lifecycle : validateLifecycle(input.lifecycle);
+    // Retired is final on this path. The ledger trigger would abort the
+    // append anyway; refusing here names the door the caller must use.
+    if (profile.lifecycle === 'retired' && lifecycle !== 'retired') {
+      throw new DurableAgentRosterError(
+        `durable agent ${agentNodeId} is retired; reactivation requires an audited resurrection (POST /durable-agents/:id/resurrect)`,
+        'DURABLE_AGENT_RETIRED',
+        409,
+      );
+    }
     const raw = {
       displayName: input.displayName === undefined ? profile.displayName : identifier(input.displayName, 'displayName', 512),
       remit: input.remit === undefined ? profile.remit : identifier(input.remit, 'remit', 32 * 1024),
@@ -896,12 +1006,73 @@ export function createDurableAgentRoster(db: DatabaseInstance, deps: DurableAgen
     };
   }
 
+  async function retire(agentNodeId: string, opts: { by?: string; reason?: string } = {}) {
+    const result = await update(agentNodeId, { lifecycle: 'retired' });
+    journal(IDENTITY_RETIRED_RULE, result.agent.agentNodeId,
+      { by: opts.by ?? 'operator', reason: opts.reason ?? 'retired', ledgerSeq: result.agent.ledgerSeq, identity: result.agent.identity },
+      `durable agent ${result.agent.identity} retired`);
+    return result;
+  }
+
+  /**
+   * The ONLY legitimate way back from `lifecycle: 'retired'`. Appends a fact
+   * that carries a fresh receipt (the shape the ledger trigger admits) and
+   * journals it. The agent comes back PAUSED, never straight to ready — an
+   * operator re-arms it with an ordinary update once it is resurrected.
+   */
+  async function resurrect(
+    agentNodeId: string,
+    opts: { by: string; reason: string },
+  ): Promise<{ agent: DurableAgentRecord; receipt: string; warnings: string[] }> {
+    const by = identifier(opts?.by, 'by', 512);
+    const reason = identifier(opts?.reason, 'reason', 4_096);
+    const current = findFact(identifier(agentNodeId, 'agentNodeId'));
+    if (current.profile.lifecycle !== 'retired') {
+      throw new DurableAgentRosterError(
+        `durable agent ${agentNodeId} is not retired`,
+        'DURABLE_AGENT_NOT_RETIRED',
+        409,
+      );
+    }
+    const at = now();
+    const resurrection: DurableAgentResurrection = {
+      receipt: receiptUlid(at.getTime()),
+      at: at.toISOString(),
+      by,
+      reason,
+      fromLedgerSeq: current.ledgerSeq,
+    };
+    const next: DurableAgentProfileV0 = {
+      ...current.profile,
+      revision: current.profile.revision + 1,
+      lifecycle: 'paused',
+      updatedAt: at.toISOString(),
+    };
+    appendEvent(db, { streamType: 'agent-node', payload: nodePayload(agentNodeId, next, current.payload, resurrection) });
+    const agent = get(agentNodeId);
+    journal(IDENTITY_RESURRECTED_RULE, agentNodeId,
+      { receipt: resurrection.receipt, by, reason, fromLedgerSeq: current.ledgerSeq, ledgerSeq: agent.ledgerSeq, identity: agent.identity },
+      `durable agent ${agent.identity} resurrected by ${by} (receipt ${resurrection.receipt}): ${reason}`);
+    const warnings: string[] = [];
+    try {
+      await refreshEmbedding(agent);
+    } catch (error) {
+      warnings.push('semantic profile indexing is pending; run pd doctor if the shared embedder is unavailable');
+      deps.logger?.error?.('durable_agent_embedding_failed', {
+        agentNodeId,
+        errorType: error instanceof Error ? error.name : 'unknown',
+      });
+    }
+    return { agent, receipt: resurrection.receipt, warnings };
+  }
+
   return {
     create,
     list,
     get,
     update,
-    retire: (agentNodeId: string) => update(agentNodeId, { lifecycle: 'retired' }),
+    retire,
+    resurrect,
     attachHandoffEpisode,
     history,
     search,

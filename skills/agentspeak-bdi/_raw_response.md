@@ -31,7 +31,7 @@
 
 This document teaches the Belief-Desire-Intention (BDI) architecture as formalized
 in Rao's AgentSpeak(L) paper, and translates its core insights into design principles
-for building intelligent orchestration systems like WinDAGs. The BDI model is not
+for building intelligent orchestration systems like Jury-rig. The BDI model is not
 merely a historical curiosity — it is the clearest formal account we have of how a
 rational agent should manage information, motivation, and committed action
 simultaneously. Every orchestration system that routes tasks, manages state, and
@@ -94,7 +94,7 @@ This tuple is the complete state of a rational agent at any moment. Notice what 
 plans." The agent's behavior emerges entirely from the interaction of these components
 through the interpreter cycle. This is powerful precisely because it is minimal.
 
-For WinDAGs, this suggests that each agent node should maintain explicit, separate
+For Jury-rig, this suggests that each agent node should maintain explicit, separate
 data structures for these six components, rather than collapsing them into a single
 "agent state" blob. The selection functions in particular should be exposed as
 configurable policies, not hardcoded logic.
@@ -154,7 +154,7 @@ both P2 and P3 are *relevant* for the goal `+!location(robot, X)`, but only P3 i
 *applicable* when the robot is not already at the target location and an adjacent
 clear lane exists.
 
-**For WinDAGs**: This two-stage filtering maps directly onto skill selection. A skill
+**For Jury-rig**: This two-stage filtering maps directly onto skill selection. A skill
 may be *relevant* (handles this task type) without being *applicable* (preconditions
 not met: wrong permissions, missing data, system state incompatible). The orchestrator
 should implement both relevance filtering (fast, syntactic) and applicability checking
@@ -372,7 +372,7 @@ P2 handles the base case (already at destination). P3 handles the recursive case
 (move to adjacent clear lane, then retry). The plan library encodes *pattern of
 behavior* (navigate to location) as a composable, reusable piece of agent knowledge.
 
-**For WinDAGs**: The skill library is the plan library. Each skill should be
+**For Jury-rig**: The skill library is the plan library. Each skill should be
 understood as a context-sensitive, event-triggered recipe:
 - What *type* of task does this skill handle? (triggering event)
 - Under what *conditions* is this skill applicable? (context condition)
@@ -610,7 +610,7 @@ not a description of what *should* happen in some ideal world. It is a formal
 specification of *exactly* what the interpreter does when it processes an external
 event. The correspondence is the guarantee.
 
-**Applied to WinDAGs**: Every coordination mechanism — routing decisions, skill
+**Applied to Jury-rig**: Every coordination mechanism — routing decisions, skill
 invocation, state update, failure propagation — should have a corresponding formal
 description, even if informal. The question to ask of every component: "Can I write
 down exactly what this does as a state transition? If not, what is the implicit
@@ -843,7 +843,7 @@ not to either component alone.
 
 ---
 
-## Selection Functions in WinDAGs
+## Selection Functions in Jury-rig
 
 Translating this to a DAG-based orchestration system with 180+ skills:
 
@@ -973,7 +973,7 @@ These functions should be:
 - **Formally analyzable**: agent properties (liveness, safety, fairness) depend on
   selection functions and should be provable from their specifications
 
-In WinDAGs, the event router, skill selector, and thread scheduler are the concrete
+In Jury-rig, the event router, skill selector, and thread scheduler are the concrete
 manifestations of SE, SO, and SI respectively. They deserve as much design attention
 as the skills themselves.
 ```
@@ -1070,7 +1070,7 @@ concurrent intentions. Each intention may develop a deep stack as it decomposes
 its task hierarchically. The SI selection function interleaves execution across
 these concurrent intentions.
 
-**For WinDAGs**: This maps directly to the distinction between parallel task
+**For Jury-rig**: This maps directly to the distinction between parallel task
 execution (multiple top-level requests become multiple concurrent workflows) and
 sequential sub-task decomposition (a single workflow decomposes into sequential
 sub-skills, each waiting for the previous to complete before proceeding). Confusing
@@ -1138,7 +1138,7 @@ drop intentions (related to commitment strategies: "blind commitment" = never dr
 commitment" = periodically reconsider). Implemented systems handle this with various
 ad-hoc mechanisms.
 
-**For WinDAGs**: Every orchestration system needs explicit cancellation and timeout
+**For Jury-rig**: Every orchestration system needs explicit cancellation and timeout
 mechanisms. A running skill invocation should be cancellable if the parent task
 is dropped. Long-running intentions should periodically check whether their goal
 is still valid. The architecture should support "intention interruption" (suspend
@@ -1410,7 +1410,7 @@ determined by the current world state, not by the triggering event alone. The sa
 plan handles any waste-robot-bin configuration, with the specific values extracted
 from beliefs.
 
-**For WinDAGs**: Skills should be parameterized through context queries, not through
+**For Jury-rig**: Skills should be parameterized through context queries, not through
 hardcoded values or all-explicit parameters. A skill that handles "files" should
 query the current context for relevant file paths, permissions, and metadata rather
 than requiring all these as explicit inputs. This makes skills more general and
@@ -1465,7 +1465,7 @@ new agents can join by registering interest in certain belief patterns.
 concurrency control for belief updates; potential for agents to act on stale
 observations.
 
-**For WinDAGs**: The orchestrator's shared state (task completion status, resource
+**For Jury-rig**: The orchestrator's shared state (task completion status, resource
 availability, context information) should be structured as a queryable belief base,
 not as opaque variables passed between agents. This enables any agent to react to
 any state change that falls within its plan library's triggering events.
@@ -1688,7 +1688,7 @@ Agent architectures address all four. The plan library, intention structure, bel
 base, and selection functions together provide a framework for building multi-agent
 systems where these requirements are met by design, not by ad-hoc extension.
 
-**For WinDAGs with 180+ skills**: The skill invocation mechanism is fundamentally
+**For Jury-rig with 180+ skills**: The skill invocation mechanism is fundamentally
 the agent's primitive action mechanism — calling a skill is like executing a
 primitive action. The orchestration layer that decides which skills to invoke and
 in what sequence is the agent's plan selection and intention execution mechanism.
@@ -1912,7 +1912,7 @@ to test the system; you can prove the invariants hold.
 
 ---
 
-## Practical Verification for WinDAGs
+## Practical Verification for Jury-rig
 
 Full formal verification of a 180-skill orchestration system is computationally
 expensive. But the principles apply at multiple levels of rigor:
@@ -1976,7 +1976,7 @@ Every user request, every orchestrated workflow, every compound skill invocation
 should have a corresponding intention whose lifecycle (creation, execution,
 completion/failure) is tracked through the formal refutation concept.
 
-**For WinDAGs**: Every active task should have:
+**For Jury-rig**: Every active task should have:
 - An intention ID (unique identifier for the intention)
 - An intention stack (the current decomposition state)
 - A lifecycle status (active, suspended, completing, complete, failed)
@@ -2172,7 +2172,7 @@ postings that trigger other agents' plans. This uniformity is a key architectura
 virtue — success and failure are handled by the same mechanism, just with different
 belief predicates.
 
-**For WinDAGs**: Skill failures should post structured failure beliefs (not just
+**For Jury-rig**: Skill failures should post structured failure beliefs (not just
 log errors) that other waiting agents/intentions can query and react to. The
 orchestration layer should have explicit plans (error-handling skills) triggered
 by failure beliefs, not just exception handlers buried in skill code.

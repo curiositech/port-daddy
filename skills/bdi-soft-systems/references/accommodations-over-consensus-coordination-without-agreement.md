@@ -391,7 +391,7 @@ Some conflicts reflect such fundamental value differences that no accommodation 
 
 Jenkins and Jarvis don't fully develop the accommodation concept—it's inherited from Checkland's POM and adapted to BDI. But they identify it as crucial: organizations function not through consensus but through accommodations.
 
-For WinDAGs-style orchestration systems, this suggests:
+For Jury-rig-style orchestration systems, this suggests:
 
 **Short Term**:
 - Add explicit accommodation representation to agent coordination protocols

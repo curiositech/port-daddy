@@ -17,6 +17,10 @@
  */
 
 import { parse as parseYaml } from 'yaml';
+import {
+  CF_ROLE_MODELS,
+  resolveCfModel,
+} from '../../shared/model-registry.generated.js';
 
 export interface ShipConfig {
   name: string;
@@ -55,8 +59,12 @@ export interface FleetValidationResult {
 }
 
 // Default Cloudflare AI model per ship if not declared in fallbacks.
-const DEFAULT_CF_MODEL = '@cf/qwen/qwen3-30b-a3b-fp8';
-const CODER_CF_MODEL = '@cf/qwen/qwen2.5-coder-32b-instruct';
+//
+// SUPPLANTED (2026-08-23): this pair was a hand-maintained duplicate of the
+// executor's, and it had drifted — different ids, and, worse, no pin guard at
+// all (see deriveCfModel). Both now read the one generated registry, so the
+// relay's view of which model a ship will actually run cannot disagree with the
+// executor that runs it.
 
 // Tools that require local execution (can't run in a Worker). Matches any
 // Bash(...) tool whose command is NOT `gh` (gh runs fine against the API).
@@ -92,14 +100,23 @@ function coerceBlocking(value: unknown): boolean {
 
 /**
  * Derive the Cloudflare Workers AI model for a ship:
- *   1. the first `fallbacks[].model` that starts with `@cf/`, else
- *   2. a name-based default (coder model for *reviewer* ships, general otherwise).
+ *   1. the first Workers AI `fallbacks[].model` pin, GUARDED — a pin outside the
+ *      pinnable set is remapped to the ship default rather than reported, else
+ *   2. a name-based default (the review model for *reviewer* ships).
+ *
+ * The guard is the correction: this function previously honored ANY `@cf/`-
+ * prefixed string, so the relay would report a ship as valid and name the model
+ * it would run while that id did not exist — and an unknown Workers AI id hangs
+ * rather than erroring. The relay is the surface an operator checks a fleet
+ * config against; it must not certify a model the executor will refuse.
  */
 function deriveCfModel(agent: RawAgent, name: string): string {
   for (const fb of agent.fallbacks ?? []) {
-    if (typeof fb?.model === 'string' && fb.model.startsWith('@cf/')) return fb.model;
+    if (typeof fb?.model === 'string' && fb.model.startsWith('@cf/')) {
+      return resolveCfModel(fb.model);
+    }
   }
-  return name.includes('reviewer') ? CODER_CF_MODEL : DEFAULT_CF_MODEL;
+  return name.includes('reviewer') ? CF_ROLE_MODELS.reviewBot : CF_ROLE_MODELS.shipDefault;
 }
 
 function deriveNeedsExecution(name: string, allowedTools: unknown): boolean {

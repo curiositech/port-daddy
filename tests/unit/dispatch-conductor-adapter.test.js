@@ -44,6 +44,7 @@ function makePlan(over = {}) {
     budgetUsd: over.budgetUsd ?? 7,
     timeoutMs: over.timeoutMs ?? 90 * 60 * 1000,
     baseBranch: over.baseBranch ?? 'main',
+    projectDir: over.projectDir ?? '/Users/operator/coding/port-daddy',
     mergePolicy: over.mergePolicy ?? 'review',
   });
   // Claim the row so it is in `claimed` exactly as the runner leaves it before
@@ -116,6 +117,7 @@ describe('planToLaunchIntent', () => {
 
     // Worktree mint request — the off-main branch the Conductor must carve.
     expect(intent.worktree).toBe('create');
+    expect(intent.workdir).toBe('/Users/operator/coding/port-daddy');
     expect(intent.worktreePath).toBe(plan.worktreePath);
     expect(intent.worktreeBranch).toBe(plan.branch);
     expect(intent.worktreeBaseRef).toBe(plan.baseRef);

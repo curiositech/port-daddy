@@ -193,7 +193,7 @@ The mutual information criterion provides a principled alternative to heuristics
 
 ## Design Pattern: Affordance-Driven Task Decomposition
 
-For WinDAGs orchestrators planning complex tasks:
+For Jury-rig orchestrators planning complex tasks:
 
 **1. Goal specification as affordance**:  
 Rather than "grasp radio," specify "achieve p_grasp=1 ∧ f_grasp satisfies task constraints"

@@ -39,10 +39,10 @@
    `peer_id_for_identity(&str) -> PeerId` hashes the PD identity string
    (`project:stack:context` for an agent, the OS user / `pd whoami` for a human)
    with **FNV-1a**, masking off the single `u64::MAX` value Loro reserves. The
-   mapping is **deterministic and stable across process restarts** — so a salvaged
-   successor replaying a dead actor's identity lands on the *same* replica id and
-   authorship stays attributed to the original actor (battle-plan §6 risk:
-   "Loro-replica↔PD-identity binding must survive reconnect/salvage"). The console
+   mapping is **deterministic and stable across process restarts** — so a
+   reconnecting actor lands on the *same* replica id and authorship remains stable.
+   This identity primitive is necessary but not sufficient for P3.5 recovery; a
+   successor cannot self-assert a dead actor's identity. The console
    call site passes the operator's real identity; the buffer itself accepts the
    **injected identity string** so it stays free of any daemon dependency and
    testable headless.
@@ -54,7 +54,7 @@
    and that both replicas converge to identical byte content. **This is the P1
    deliverable — the co-equal-replica substrate, demonstrated.** Supporting tests:
    stable/identity-specific PeerID, opener-attributed seed lines, and idempotent
-   re-import (the salvage-replay foundation).
+   re-import (a P1/P2 merge and reconnect property, not recovery authority).
 
 5. **`EditorPane` renders from the buffer** (`core/pd-console/src/editor_pane.rs`).
    It no longer reads raw bytes with `std::fs::read_to_string`; it holds a
@@ -104,7 +104,9 @@ resolved to theme OKLCH by the renderer); there is **no `rgb(0x…)` hex** anywh
   full P1 row; out of scope for this foundation slice (the full P1 is multi-week).
 - **No networking / multiplayer / tube sync** — that's P2. `export_ops`/
   `apply_remote_ops` exist and are proven in-process (the merge test), but no
-  transport wires them across processes yet.
+  transport wires them across processes yet. These methods import Loro updates;
+  they do not verify abandonment, prove a complete sequence-zero ledger, authorize
+  another actor, transfer a claim, consume a recovery token, or persist provenance.
 
 ## The named continuation
 
@@ -114,7 +116,8 @@ resolved to theme OKLCH by the renderer); there is **no `rgb(0x…)` hex** anywh
 2. **P3 — claims (the actual wedge).** `POST /conflicts/predict`, claim-before-edit,
    region/symbol claims rendered as Loro awareness ranges, the `Conflicted` guard
    band on overlap, and the agents-as-peers demo. The battle-plan is explicit: a
-   buffer without claims/salvage is a Potemkin editor, not the product. The gutter
+   buffer without claims and authoritative recovery is a Potemkin editor, not the
+   product. The gutter
    column and `region` seam built in P0/P1 are exactly where the claim bands land.
    **P3 follows the live-edit Element; it is the first slice anyone demos and must
    not be deferred indefinitely.**

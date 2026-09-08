@@ -2,7 +2,7 @@
 license: BSL-1.1
 name: dag-orchestrator
 description: |
-  The intelligence layer of WinDAGs. Decomposes natural language tasks into Hierarchical Task DAGs (HTDAGs), matches subtasks to skills, executes waves in parallel, and dynamically expands nodes when complexity exceeds executor capability. Use for 'orchestrate', 'execute DAG', 'parallel agents', 'decompose task', 'coordinate skills'. NOT for single-skill tasks or simple linear workflows.
+  The intelligence layer of Jury-rig. Decomposes natural language tasks into Hierarchical Task DAGs (HTDAGs), matches subtasks to skills, executes waves in parallel, and dynamically expands nodes when complexity exceeds executor capability. Use for 'orchestrate', 'execute DAG', 'parallel agents', 'decompose task', 'coordinate skills'. NOT for single-skill tasks or simple linear workflows.
 allowed-tools:
   - Read
   - Write
@@ -35,7 +35,7 @@ metadata:
 
 # DAG Orchestrator
 
-The beating heart of WinDAGs. Transforms arbitrary natural language tasks into parallelized agent graphs that execute in waves, adapting dynamically to task complexity and executor capabilities.
+The beating heart of Jury-rig. Transforms arbitrary natural language tasks into parallelized agent graphs that execute in waves, adapting dynamically to task complexity and executor capabilities.
 
 ## Decision Points
 

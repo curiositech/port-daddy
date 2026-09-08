@@ -37,8 +37,10 @@
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { DatabaseInstance } from '../lib/sqlite-runtime.js';
+import type { EpisodicMemory } from '../lib/episodic-memory.js';
+import type { GitleaksRunner } from '../lib/handoff-capsule.js';
 import type { DaemonBerthIdentity } from '../shared/daemon-berths.js';
 import { getBlackboard } from '../lib/agent-harbor/blackboard.js';
 import {
@@ -77,10 +79,87 @@ import {
   buildHarnessContinuationMatrix,
   collectHarnessConformanceWitnesses,
 } from '../lib/harness-conformance.js';
-import { listContextContinuity } from '../lib/agent-harbor/context-continuity.js';
+import {
+  listContextContinuity,
+  measureDaemonSessionTranscriptTokens,
+  type ToolPairCoverage,
+} from '../lib/agent-harbor/context-continuity.js';
+import {
+  INTERACTIVE_CONTEXT_CAPABILITIES,
+  INTERACTIVE_CONTEXT_PROVIDERS,
+  recordInteractiveContextPressure,
+  type InteractiveContextPressureResult,
+  type ProviderNativeUsage,
+} from '../lib/squid/context-pressure.js';
+import {
+  extractActorCredential,
+  resolveWriteIdentity,
+  type IdentityVerifier,
+} from '../lib/identity-write-boundary.js';
+import type { SessionBindingLookup } from '../lib/agent-soul-binding.js';
+import { getEffectiveContextWindow } from '../lib/context-window-tracker.js';
+import { resolveModel } from '../lib/model-registry.js';
 
 interface AgentHarborRouteDeps {
   db: DatabaseInstance;
+  episodicMemory?: Pick<EpisodicMemory, 'remember'>;
+  gitleaksRunner?: GitleaksRunner;
+  /** ADR-0040 verifier for attributed interactive lifecycle writes. */
+  actorSouls?: IdentityVerifier | null;
+  /** Daemon session projection used to bind a hook to one stamped plan session. */
+  sessions?: SessionBindingLookup | null;
+  /**
+   * Exact provider-session to PD-plan binding, owned by a daemon adapter.
+   * Ambient PD_SESSION_ID is intentionally not a substitute: a stale shell
+   * context must never attach one provider conversation to another plan.
+   */
+  interactiveProviderSessionBinding?: {
+    resolve(input: {
+      provider: typeof INTERACTIVE_CONTEXT_PROVIDERS[number];
+      providerSessionId: string;
+      actorId: string;
+    }): { planSessionId: string } | null;
+  } | null;
+  /**
+   * Optional in-process provider adapter witness. It is never populated from a
+   * heartbeat or hook JSON; absent witness falls back to a server-selected
+   * durable-ledger estimate below.
+   */
+  interactiveContextUsageWitness?: {
+    measure(input: {
+      provider: typeof INTERACTIVE_CONTEXT_PROVIDERS[number];
+      agentNodeId: string;
+      sessionId: string;
+      actorId: string;
+    }): {
+      witness: 'daemon-adapter';
+      model: string;
+      windowTokens: number;
+      daemonUsedTokensEstimate: number;
+      /**
+       * Opaque, daemon-owned watermark for the exact adapter measurement.
+       * It is retry-stable for one observation and advances when the adapter
+       * has observed newer provider or tool-pair evidence. It is never read
+       * from the lifecycle hook body.
+       */
+      measurementRef: string;
+      providerNativeUsage?: ProviderNativeUsage | null;
+    } | null;
+  } | null;
+  /**
+   * Optional in-process coverage witness for lifecycle adapters whose hook
+   * payload does not contain a complete tool stream. No raw tool content or
+   * BufferedOutputRef blob is copied through this route.
+   */
+  interactiveToolPairWitness?: {
+    coverage(input: {
+      provider: typeof INTERACTIVE_CONTEXT_PROVIDERS[number];
+      agentNodeId: string;
+      sessionId: string;
+      actorId: string;
+      observationId: string;
+    }): ToolPairCoverage | null;
+  } | null;
   workIntentService?: WorkIntentService;
   dispatchQueue?: DispatchQueue;
   dispatchWorker?: DispatchWorker;
@@ -213,7 +292,372 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function isLoopback(address: string): boolean {
+function boundedString(value: unknown, maximum = 2_048): string | null {
+  if (typeof value !== 'string') return null;
+  const text = value.trim();
+  return text && Buffer.byteLength(text, 'utf8') <= maximum ? text : null;
+}
+
+interface InteractivePlanAuthority {
+  sessionId: string;
+  agentNodeId: string;
+  project: string | null;
+  worktreeId: string | null;
+}
+
+/**
+ * Verify the exact session stamp rather than relying on a display handle. This
+ * is intentionally kept local until the PR #9417 integration lane can expose
+ * the shared helper in agent-soul-binding; it mirrors that module's strict
+ * `metadata.identity.{verified,actorId}` contract without accepting a caller
+ * supplied metadata value.
+ */
+function sessionHasVerifiedActor(session: Record<string, unknown>, actorId: string): boolean {
+  const rawMetadata = session.metadata;
+  let metadata: unknown = rawMetadata;
+  if (typeof metadata === 'string') {
+    try {
+      metadata = JSON.parse(metadata);
+    } catch {
+      return false;
+    }
+  }
+  if (!isRecord(metadata) || !isRecord(metadata.identity)) return false;
+  return metadata.identity.verified === true && metadata.identity.actorId === actorId;
+}
+
+/**
+ * Bind a hook's provider session to the exact daemon-owned pd-plan session
+ * before reading a checklist. Loopback is a transport boundary, not proof that
+ * an arbitrary local process may attach another agent's plan to its packet.
+ */
+function resolveInteractivePlanAuthority(
+  sessions: SessionBindingLookup | null | undefined,
+  planSessionId: string,
+  actorId: string,
+): InteractivePlanAuthority | null {
+  if (!sessions || typeof sessions.get !== 'function') return null;
+  let found: { success: boolean; session?: unknown };
+  try {
+    found = sessions.get(planSessionId);
+  } catch {
+    return null;
+  }
+  if (!found.success || !isRecord(found.session)) return null;
+  const session = found.session;
+  const agentNodeId = boundedString(session.agentId, 512);
+  if (session.status !== 'active' || !agentNodeId || !sessionHasVerifiedActor(session, actorId)) return null;
+  return {
+    sessionId: planSessionId,
+    agentNodeId,
+    project: boundedString(session.identityProject, 512),
+    worktreeId: boundedString(session.worktreeId, 512),
+  };
+}
+
+function resolveInteractiveProviderPlanSession(
+  binding: AgentHarborRouteDeps['interactiveProviderSessionBinding'],
+  provider: typeof INTERACTIVE_CONTEXT_PROVIDERS[number],
+  providerSessionId: string,
+  actorId: string,
+): string | null {
+  if (!binding) return null;
+  try {
+    return boundedString(binding.resolve({ provider, providerSessionId, actorId })?.planSessionId, 512);
+  } catch {
+    return null;
+  }
+}
+
+function latestPlanRevision(db: DatabaseInstance, sessionId: string): string {
+  const hasNotes = db.prepare(
+    "SELECT 1 AS present FROM sqlite_master WHERE type = 'table' AND name = 'session_notes'",
+  ).get() as { present: number } | undefined;
+  if (!hasNotes) return 'no-plan-table';
+  const row = db.prepare(`
+    SELECT id, created_at
+    FROM session_notes
+    WHERE session_id = ? AND type = 'todo_list'
+    ORDER BY created_at DESC, id DESC
+    LIMIT 1
+  `).get(sessionId) as { id: unknown; created_at: unknown } | undefined;
+  // SQLite session_notes uses INTEGER primary keys and timestamps. Preserve
+  // string support for foreign fixtures, but canonicalize both forms so an
+  // edited `pd plan` changes the trusted hook observation id at fixed usage.
+  const revisionPart = (value: unknown): string | null => {
+    if (typeof value === 'string' && value.trim() && Buffer.byteLength(value, 'utf8') <= 128) return value;
+    if (typeof value === 'number' && Number.isSafeInteger(value)) return String(value);
+    return null;
+  };
+  return `${revisionPart(row?.id) ?? 'no-plan'}:${revisionPart(row?.created_at) ?? ''}`;
+}
+
+/**
+ * A provider PreCompact payload has no stable delivery id. The daemon instead
+ * derives one from its exact active-plan revision and adapter-owned measurement
+ * watermark. This gives retry/restart idempotency without trusting a
+ * hook-provided run id, transcript reference, timestamp, or environment
+ * variable, while still distinguishing a later provider observation whose
+ * rounded token count happens to be unchanged.
+ */
+function interactiveObservationId(
+  db: DatabaseInstance,
+  provider: typeof INTERACTIVE_CONTEXT_PROVIDERS[number],
+  hookTrigger: 'manual' | 'auto' | 'turn',
+  providerSessionId: string,
+  planSessionId: string,
+  measurement: TrustedInteractiveContextMeasurement | null,
+): string {
+  // A provider delivery has no native id, but a compacting decision must still
+  // evolve when the daemon's trusted pressure snapshot changes (for example
+  // .60 prepare becoming .92 governed-successor with the same plan). Exact
+  // retries of the same snapshot retain this key.
+  const watermark = measurement
+    ? [
+        measurement.model,
+        measurement.windowTokens,
+        measurement.daemonUsedTokensEstimate,
+        measurement.measurementRef,
+        measurement.providerNativeUsage?.usedTokensEstimate ?? null,
+        measurement.providerNativeUsage?.windowTokens ?? null,
+        measurement.providerNativeUsage?.measuredAt ?? null,
+      ].join(':')
+    : 'measurement-unavailable';
+  return `ctxobs_${createHash('sha256')
+    .update(['interactive-context-pressure.v3', provider, hookTrigger, providerSessionId, planSessionId, latestPlanRevision(db, planSessionId), watermark].join('\0'))
+    .digest('hex')}`;
+}
+
+interface TrustedInteractiveContextMeasurement {
+  model: string;
+  windowTokens: number;
+  daemonUsedTokensEstimate: number;
+  measurementRef: string;
+  providerNativeUsage?: ProviderNativeUsage | null;
+}
+
+/**
+ * A bounded daemon-ledger watermark for the no-adapter measurement fallback.
+ * Its sequence and content hash advance when a new durable provider-work event
+ * is observed, but are identical when this bridge writes its own checkpoint,
+ * coverage, envelope, or packet receipts. It must cover exactly the event
+ * kinds included by `measureDaemonSessionTranscriptTokens`; otherwise every
+ * turn would manufacture a new watermark from the previous turn's receipt.
+ */
+function durableMeasurementRef(db: DatabaseInstance, sessionId: string): string | null {
+  const row = db.prepare(`
+    SELECT ledger_seq, content_hash
+    FROM harbor_events
+    WHERE stream_type = 'transcript-event'
+      AND session_id = ?
+      AND kind IN ('operator_message', 'assistant_message', 'tool_call', 'tool_result')
+    ORDER BY ledger_seq DESC
+    LIMIT 1
+  `).get(sessionId) as { ledger_seq: unknown; content_hash: unknown } | undefined;
+  if (!Number.isInteger(row?.ledger_seq) || (row?.ledger_seq as number) < 0) return null;
+  const hash = boundedString(row?.content_hash, 256);
+  return hash ? `ledger:${row?.ledger_seq}:${hash}` : null;
+}
+
+function finitePositive(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+}
+
+function finiteNonNegative(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
+}
+
+function trustedNativeUsage(value: unknown): ProviderNativeUsage | null {
+  if (!isRecord(value) || value.witness !== 'daemon-adapter') return null;
+  const usedTokensEstimate = finiteNonNegative(value.usedTokensEstimate);
+  if (usedTokensEstimate === null) return null;
+  const windowTokens = value.windowTokens === undefined || value.windowTokens === null
+    ? null
+    : finitePositive(value.windowTokens);
+  if (value.windowTokens !== undefined && value.windowTokens !== null && windowTokens === null) return null;
+  return {
+    witness: 'daemon-adapter',
+    usedTokensEstimate,
+    windowTokens,
+    measuredAt: boundedString(value.measuredAt, 128),
+  };
+}
+
+function daemonContextMeasurement(
+  db: DatabaseInstance,
+  witness: AgentHarborRouteDeps['interactiveContextUsageWitness'],
+  provider: typeof INTERACTIVE_CONTEXT_PROVIDERS[number],
+  authority: InteractivePlanAuthority,
+  actorId: string,
+): TrustedInteractiveContextMeasurement | null {
+  // Context-heartbeat values are deliberately excluded here: heartbeats are
+  // agent-provided health hints, not an authorization-grade token witness.
+  // A configured in-process adapter can provide provider-native usage; absent
+  // that, use only the daemon's own bounded ledger projection.
+  if (witness) {
+    try {
+      const measured = witness.measure({
+        provider,
+        agentNodeId: authority.agentNodeId,
+        sessionId: authority.sessionId,
+        actorId,
+      });
+      const model = boundedString(measured?.model, 512);
+      const windowTokens = finitePositive(measured?.windowTokens);
+      const daemonUsedTokensEstimate = finiteNonNegative(measured?.daemonUsedTokensEstimate);
+      const measurementRef = boundedString(measured?.measurementRef, 512);
+      if (
+        measured?.witness === 'daemon-adapter'
+        && model
+        && windowTokens !== null
+        && daemonUsedTokensEstimate !== null
+        && measurementRef
+      ) {
+        return {
+          model,
+          windowTokens,
+          daemonUsedTokensEstimate,
+          measurementRef,
+          providerNativeUsage: trustedNativeUsage(measured.providerNativeUsage),
+        };
+      }
+    } catch {
+      // Fall through to the server-selected durable evidence path.
+    }
+  }
+
+  if (provider !== 'claude') return null;
+  const durable = measureDaemonSessionTranscriptTokens(db, authority.sessionId);
+  if (durable.evidenceRows === 0 || durable.truncated) return null;
+  const measurementRef = durableMeasurementRef(db, authority.sessionId);
+  if (!measurementRef) return null;
+  const model = resolveModel({ backend: 'anthropic', tier: 'mid' });
+  return {
+    // Claude's supported PreCompact event does not declare a selected model.
+    // Resolve the canonical balanced Claude handle rather than accepting a
+    // hook-body model string that can change the pressure decision.
+    model,
+    windowTokens: getEffectiveContextWindow(model),
+    daemonUsedTokensEstimate: durable.usedTokensEstimate,
+    measurementRef,
+    providerNativeUsage: null,
+  };
+}
+
+function toolPairCoverage(
+  witness: AgentHarborRouteDeps['interactiveToolPairWitness'],
+  provider: typeof INTERACTIVE_CONTEXT_PROVIDERS[number],
+  authority: InteractivePlanAuthority,
+  actorId: string,
+  observationId: string,
+): ToolPairCoverage | null {
+  if (!witness) return null;
+  try {
+    const coverage = witness.coverage({
+      provider,
+      agentNodeId: authority.agentNodeId,
+      sessionId: authority.sessionId,
+      actorId,
+      observationId,
+    });
+    if (
+      coverage?.witness !== 'daemon-adapter'
+      || !['complete', 'incomplete', 'unavailable'].includes(coverage.status)
+      || coverage.provider !== provider
+      || coverage.sessionId !== authority.sessionId
+      || coverage.observationId !== observationId
+      || !Number.isInteger(coverage.coveredThroughLedgerSeq)
+      || coverage.coveredThroughLedgerSeq < 0
+      || !boundedString(coverage.coverageRef, 512)
+    ) return null;
+    return {
+      witness: 'daemon-adapter',
+      status: coverage.status,
+      provider: coverage.provider,
+      sessionId: coverage.sessionId,
+      observationId: coverage.observationId,
+      coveredThroughLedgerSeq: coverage.coveredThroughLedgerSeq,
+      coverageRef: coverage.coverageRef,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** The only hook response shape: no packet, plan content, or transcript handles. */
+function interactiveContextReceipt(result: InteractiveContextPressureResult) {
+  const continuity = result.continuity;
+  const packet = continuity?.packet;
+  return {
+    schema: 'pd.agent-harbor.interactive-context-pressure-result.v0',
+    status: result.status,
+    capability: {
+      provider: result.capability.provider,
+      preCompact: result.capability.preCompact,
+      providerNativeUsage: result.capability.providerNativeUsage,
+      toolPairCoverage: result.capability.toolPairCoverage,
+      packetIssuance: result.capability.packetIssuance,
+      continuation: result.capability.continuation,
+    },
+    coverage: continuity?.toolPairCoverageReceipt
+      ? 'verified'
+      : result.error?.code === 'TOOL_PAIR_COVERAGE_UNAVAILABLE'
+        ? 'unavailable'
+        : 'not-required',
+    directive: {
+      ...result.directive,
+      reason: result.directive.reason?.slice(0, 512) ?? null,
+    },
+    receipt: continuity ? {
+      envelopeId: continuity.envelope.envelopeId,
+      pressure: continuity.assessment.ratio,
+      packet: packet ? {
+        packetId: packet.packetId,
+        validatorPassed: packet.validator.passed,
+      } : null,
+      handoff: packet
+        ? continuity.handoffEpisodeId !== null
+          ? 'projected'
+          : continuity.bootstrap === null
+            ? 'not-projected'
+            : 'unavailable'
+        : 'not-requested',
+      replayed: continuity.replayed,
+    } : null,
+    error: result.error ? { code: result.error.code } : null,
+  };
+}
+
+/** A registered lifecycle hook is not authorized until the daemon binds it. */
+function interactiveProviderSessionUnboundReceipt(provider: typeof INTERACTIVE_CONTEXT_PROVIDERS[number]) {
+  const capability = INTERACTIVE_CONTEXT_CAPABILITIES[provider];
+  return {
+    schema: 'pd.agent-harbor.interactive-context-pressure-result.v0',
+    status: 'provider-session-unbound',
+    capability: {
+      provider: capability.provider,
+      preCompact: capability.preCompact,
+      providerNativeUsage: capability.providerNativeUsage,
+      toolPairCoverage: capability.toolPairCoverage,
+      packetIssuance: capability.packetIssuance,
+      continuation: capability.continuation,
+    },
+    coverage: 'not-required',
+    directive: {
+      decision: 'allow',
+      plan: 'not-required',
+      riskyWork: 'allowed',
+      continuation: 'normal',
+      reason: 'No daemon-owned provider-session binding exists for this lifecycle event; no context record or packet was created.',
+    },
+    receipt: null,
+    error: { code: 'INTERACTIVE_PROVIDER_SESSION_UNBOUND' },
+  };
+}
+
+/** Missing or malformed request metadata must never widen a local-only route. */
+function isLoopback(address: unknown): boolean {
+  if (typeof address !== 'string') return false;
   const normalized = address.replace(/^::ffff:/, '');
   return normalized === '127.0.0.1' || normalized === '::1' || normalized === 'localhost';
 }
@@ -325,6 +769,157 @@ export const agentHarborPlugin: FastifyPluginAsync<AgentHarborPluginOpts> = asyn
     } catch (error) {
       return fail(reply, 'context_continuity', error);
     }
+  });
+
+  // The bounded ingress used by a verified interactive lifecycle adapter. It
+  // accepts metadata only: a daemon-owned provider-session binding selects the
+  // plan, then the daemon reads its latest `todo_list` from session_notes. This
+  // keeps `pd plan` authoritative and prevents a hook payload or stale ambient
+  // shell context from selecting a different continuation packet.
+  fastify.post('/agent-harbor/interactive-context-pressure', async (request, reply) => {
+    if (!isLoopback(request.ip)) {
+      reply.code(403);
+      return {
+        code: 'INTERACTIVE_CONTEXT_REMOTE_UNAVAILABLE',
+        error: 'interactive context-pressure ingress is local-only',
+      };
+    }
+    const raw = request.body;
+    if (!isRecord(raw)) {
+      reply.code(400);
+      return { code: 'INTERACTIVE_CONTEXT_REJECTED', errors: ['request body must be an object'] };
+    }
+
+    const provider = boundedString(raw.provider, 32);
+    const hookTrigger = boundedString(raw.hookTrigger, 16);
+    const providerSessionId = boundedString(raw.providerSessionId, 512);
+    const assertedAgentNodeId = raw.agentNodeId === undefined ? null : boundedString(raw.agentNodeId, 512);
+    const errors: string[] = [];
+    // This is a lifecycle-envelope protocol, not an extensible JSON bucket.
+    // Reject unknown fields before identity/measurement so neither raw
+    // transcript text nor a future "convenience" assertion can silently turn
+    // into compaction authority later. Adding a field is an explicit contract
+    // and review event, not a backward-compatible server accident.
+    const allowedHookFields = new Set(['provider', 'hookTrigger', 'providerSessionId', 'agentNodeId']);
+    for (const key of Object.keys(raw)) {
+      if (!allowedHookFields.has(key)) errors.push(`${key} is not accepted in an interactive lifecycle envelope`);
+    }
+    if (!provider || !INTERACTIVE_CONTEXT_PROVIDERS.includes(provider as typeof INTERACTIVE_CONTEXT_PROVIDERS[number])) {
+      errors.push(`provider must be one of ${INTERACTIVE_CONTEXT_PROVIDERS.join(', ')}`);
+    }
+    if (hookTrigger !== 'manual' && hookTrigger !== 'auto' && hookTrigger !== 'turn') {
+      errors.push('hookTrigger must be manual, auto, or turn');
+    }
+    if (!providerSessionId || !/^[A-Za-z0-9._:-]+$/.test(providerSessionId)) {
+      errors.push('providerSessionId must be a bounded provider lifecycle identifier');
+    }
+    if (raw.agentNodeId !== undefined && !assertedAgentNodeId) {
+      errors.push('agentNodeId must be a bounded non-empty string when supplied');
+    }
+    if (errors.length > 0) {
+      reply.code(400);
+      return { code: 'INTERACTIVE_CONTEXT_REJECTED', errors };
+    }
+
+    const identity = resolveWriteIdentity({
+      souls: opts.deps.actorSouls,
+      credential: extractActorCredential(request.headers as Record<string, unknown>, raw),
+      assertedAgentId: null,
+      route: 'POST /agent-harbor/interactive-context-pressure',
+      requireIdentity: true,
+      logger: opts.deps.logger,
+    });
+    if (!identity.ok) {
+      reply.code(identity.httpStatus);
+      return { code: identity.code, error: identity.error };
+    }
+    // `requireIdentity` makes anonymous impossible in production, but preserve
+    // the fail-closed branch at the typed boundary rather than assuming it.
+    if (identity.kind !== 'verified') {
+      reply.code(503);
+      return {
+        code: 'IDENTITY_VERIFIER_UNAVAILABLE',
+        error: 'interactive context pressure requires a verified actor identity',
+      };
+    }
+    const typedProvider = provider as typeof INTERACTIVE_CONTEXT_PROVIDERS[number];
+    const mappedPlanSessionId = resolveInteractiveProviderPlanSession(
+      opts.deps.interactiveProviderSessionBinding,
+      typedProvider,
+      providerSessionId as string,
+      identity.actorId,
+    );
+    if (!mappedPlanSessionId) return interactiveProviderSessionUnboundReceipt(typedProvider);
+    const planAuthority = resolveInteractivePlanAuthority(opts.deps.sessions, mappedPlanSessionId, identity.actorId);
+    if (!planAuthority) {
+      reply.code(403);
+      return {
+        code: 'INTERACTIVE_CONTEXT_AUTHORITY_REJECTED',
+        error: 'plan checkpoint is not an active session stamped for the verified actor',
+      };
+    }
+    if (assertedAgentNodeId !== null && assertedAgentNodeId !== planAuthority.agentNodeId) {
+      reply.code(403);
+      return {
+        code: 'INTERACTIVE_CONTEXT_AUTHORITY_REJECTED',
+        error: 'hook agentNodeId does not match the verified plan session',
+      };
+    }
+    const typedTrigger = hookTrigger as 'manual' | 'auto' | 'turn';
+    const measurement = daemonContextMeasurement(
+      db,
+      opts.deps.interactiveContextUsageWitness,
+      typedProvider,
+      planAuthority,
+      identity.actorId,
+    );
+    const observationId = interactiveObservationId(
+      db,
+      typedProvider,
+      typedTrigger,
+      providerSessionId as string,
+      planAuthority.sessionId,
+      measurement,
+    );
+    const result = recordInteractiveContextPressure(db, {
+      provider: typedProvider,
+      hookTrigger: typedTrigger,
+      observationId,
+      // ContextEnvelope and packet identity are server-derived from the exact
+      // verified pd-plan session. No provider reference from a hook body can
+      // select a different persisted transcript or idempotency key.
+      agentNodeId: planAuthority.agentNodeId,
+      sessionId: planAuthority.sessionId,
+      runId: planAuthority.sessionId,
+      transcriptId: planAuthority.sessionId,
+      model: measurement?.model ?? 'claude-interactive',
+      windowTokens: measurement?.windowTokens,
+      daemonUsedTokensEstimate: measurement?.daemonUsedTokensEstimate,
+      providerNativeUsage: measurement?.providerNativeUsage ?? null,
+      // Never accept raw plan text or a plan session from an interactive hook.
+      // The coordinator resolves the daemon-bound session against session_notes.
+      planCheckpoint: { sessionId: planAuthority.sessionId },
+      // Scope comes from the checked daemon session, not from hook metadata.
+      project: planAuthority.project,
+      projectDir: null,
+      workdir: null,
+      worktreeId: planAuthority.worktreeId,
+      branch: null,
+      measuredAt: undefined,
+      toolPairCoverage: toolPairCoverage(
+        opts.deps.interactiveToolPairWitness,
+        typedProvider,
+        planAuthority,
+        identity.actorId,
+        observationId,
+      ),
+      deferHandoffProjection: true,
+    }, {
+      episodicMemory: opts.deps.episodicMemory,
+      gitleaksRunner: opts.deps.gitleaksRunner,
+      logger: opts.deps.logger,
+    });
+    return interactiveContextReceipt(result);
   });
 
   // ── POST /agent-harbor/surface-gateway ──

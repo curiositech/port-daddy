@@ -20,7 +20,7 @@ The interaction history grows beyond the model's maximum context window. In Agen
 
 **What this indicates**: The environment's information density exceeds the agent's memory capacity. This is fundamentally an architectural limitation, not a reasoning failure. For agent systems, this reveals tasks that require either context summarization, external memory systems, or hierarchical decomposition.
 
-**Design implication for WinDAGs**: Long-running agent workflows must implement memory management strategies—periodic summarization, hierarchical state representation, or delegation to specialized sub-agents that operate on compressed state representations.
+**Design implication for Jury-rig**: Long-running agent workflows must implement memory management strategies—periodic summarization, hierarchical state representation, or delegation to specialized sub-agents that operate on compressed state representations.
 
 ### 3. Invalid Format (IF)
 The agent produces output that doesn't match the specified format, making it unparseable by the environment. This occurred in 6.0% of commercial API cases but 10.4% of open-source model cases.
@@ -47,7 +47,7 @@ The "Action: Operation" label is missing, making the output unparseable.
 
 **Critical insight**: Format adherence is not a linguistic capability but an executive function capability. Models must simultaneously (1) solve the problem cognitively and (2) maintain awareness of output constraints. The latter is a form of meta-cognitive monitoring that many models lack.
 
-**Design implication for WinDAGs**: Skills that invoke LLM agents should implement format validation layers with retry logic. When format violations occur, the system should extract the semantic intent and reformat it, rather than treating the entire response as failed. This separates the cognitive output (which may be correct) from the formatting output (which may be wrong).
+**Design implication for Jury-rig**: Skills that invoke LLM agents should implement format validation layers with retry logic. When format violations occur, the system should extract the semantic intent and reformat it, rather than treating the entire response as failed. This separates the cognitive output (which may be correct) from the formatting output (which may be wrong).
 
 ### 4. Invalid Action (IA)
 The agent produces correctly formatted output, but the action itself is invalid—it references non-existent entities, violates action space constraints, or has malformed parameters. This occurred in 4.6% of commercial API cases and 13.6% of open-source cases.
@@ -61,7 +61,7 @@ The agent produces correctly formatted output, but the action itself is invalid�
 
 **The grounding problem**: Models trained on text corpora learn action-language associations ("take X from Y" is a common pattern) but struggle to ground those patterns in the specific entities present in the current state. They generate plausible-sounding actions rather than environmentally-valid actions.
 
-**Design implication for WinDAGs**: Agent skills should separate action *generation* from action *validation*. After an LLM proposes an action, a deterministic validation layer checks it against the current action space. If invalid, the system can either (1) request a retry with explicit constraint listing, (2) find the nearest valid action (e.g., via BLEU similarity to valid options, as AgentBench does for ALFWorld), or (3) prompt for clarification of intent.
+**Design implication for Jury-rig**: Agent skills should separate action *generation* from action *validation*. After an LLM proposes an action, a deterministic validation layer checks it against the current action space. If invalid, the system can either (1) request a retry with explicit constraint listing, (2) find the nearest valid action (e.g., via BLEU similarity to valid options, as AgentBench does for ALFWorld), or (3) prompt for clarification of intent.
 
 ### 5. Task Limit Exceeded (TLE)
 The agent exhausts the maximum allowed interaction rounds without completing the task. This is the most common failure mode, occurring in 24.9% of commercial API cases and 36.9% of open-source cases.
@@ -143,11 +143,11 @@ This failure taxonomy is specific to **multi-turn interactive tasks with defined
 - **Open-ended creative tasks**: No "invalid action" when action space is unrestricted
 - **Human-in-the-loop workflows**: Human can interpret and repair malformed outputs
 
-The taxonomy is most valuable for **autonomous agent systems operating in structured environments**—exactly the domain WinDAGs targets.
+The taxonomy is most valuable for **autonomous agent systems operating in structured environments**—exactly the domain Jury-rig targets.
 
 ## Connection to Skill Design
 
-When designing skills for WinDAGs:
+When designing skills for Jury-rig:
 
 1. **Define explicit failure modes in skill specifications**: Don't just return success/failure. Return structured failure information (CLE, IF, IA, TLE) so orchestrator can respond appropriately.
 

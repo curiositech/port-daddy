@@ -48,6 +48,7 @@ import { cliBinarySearchPath, resolveCliBinary } from './cli-bin-dirs.js';
 import { resolveFleetAgentRuntime, type FleetModelTier } from './fleet-runtime.js';
 import { nativeHarnessSessionIdError } from './harness-session-id.js';
 import {
+  captureWorkspaceIdentity,
   sameWorkspaceIdentity,
   type WorkspaceIdentity,
 } from './workspace-identity.js';
@@ -272,6 +273,15 @@ export interface SpawnResult {
   coastGuard?: CoastGuardReceipt | null;
   /** Harness session preserved by a validated native-resume launch. */
   harnessSessionId?: string;
+  /** Separate witness for the exact managed-session terminal transition. */
+  managedSession?: ManagedSessionSettlement;
+}
+
+export interface ManagedSessionSettlement {
+  requestedStatus: 'completed' | 'abandoned';
+  outcome: 'succeeded' | 'refused' | 'timed_out';
+  code?: string;
+  error?: string;
 }
 
 export interface SpawnTelemetry {
@@ -305,6 +315,7 @@ export interface SpawnedAgent {
    * manufacture a confinement/egress claim for the operator surface.
    */
   coastGuard?: CoastGuardReceipt;
+  managedSession?: ManagedSessionSettlement;
 }
 
 export interface TelemetryBypassApproval {
@@ -326,6 +337,51 @@ interface AgentRecord extends SpawnedAgent {
    * are rejected 401 without a verified credential.
    */
   actorCredential?: string | null;
+  /** Exact session returned by the managed `/sugar/begin` admission. */
+  coordinationSessionId?: string | null;
+  /** True only after the daemon durably stamped this exact managed session. */
+  managedSessionBound?: boolean;
+  /** Exactly-once terminal write shared by normal finish and kill paths. */
+  managedTerminalPromise?: Promise<Record<string, unknown>> | null;
+  /** Terminal intent chosen before the asynchronous write begins. */
+  managedTerminalStatus?: 'completed' | 'abandoned' | null;
+  /** True once transcript success is decided and the terminal write begins. */
+  terminalStarted?: boolean;
+  /** Cancels admission/binding waits when kill wins before backend start. */
+  lifecycleAbort: AbortController;
+}
+
+export interface ManagedSessionLifecycle {
+  admit(input: {
+    agentId: string;
+    name: string;
+    identity: string | null;
+    purpose: string;
+    pid: number;
+    metadata: Record<string, unknown>;
+    lifecycle: 'ephemeral';
+    /** Physical target only; the daemon derives the Git world itself. */
+    workdir?: string;
+    allowSharedCheckout: boolean;
+  }, options: { signal: AbortSignal }): Promise<Record<string, unknown>>;
+  bind(input: {
+    sessionId: string;
+    agentId: string;
+    credential: string;
+  }, options: { signal: AbortSignal }): Promise<Record<string, unknown>>;
+  complete(input: {
+    sessionId: string;
+    agentId: string;
+    credential: string;
+    note: string;
+    status: 'completed' | 'abandoned';
+  }, options: { signal: AbortSignal }): Promise<Record<string, unknown>>;
+  abort(input: {
+    sessionId: string;
+    agentId: string;
+    credential: string;
+    note: string;
+  }, options: { signal: AbortSignal }): Promise<Record<string, unknown>>;
 }
 
 export interface ResolvedSpawnRuntime {
@@ -371,6 +427,16 @@ interface SpawnerDeps {
    * Absent → no publishing (the spawn still runs); same posture as before.
    */
   tubeClient?: TubeClientLike;
+  /**
+   * Daemon-owned exact-session lifecycle for spawned ephemeral agents.
+   * Public `/sugar/done` override booleans are intentionally unavailable;
+   * the live server injects this credential-verifying in-process authority.
+   */
+  managedSessionLifecycle?: ManagedSessionLifecycle;
+  /** Finite daemon coordination deadline; injectable only for deterministic tests. */
+  coordinationTimeoutMs?: number;
+  /** Finite private lifecycle deadline; injectable only for deterministic tests. */
+  managedLifecycleTimeoutMs?: number;
 }
 
 const ANSI_RESET = '\x1b[0m';
@@ -414,6 +480,47 @@ interface PdCoordinateOptions {
   pid?: number | null;
   /** ADR-0040 actor credential to present as `x-actor-credential` (#8877). */
   credential?: string | null;
+  signal?: AbortSignal;
+  timeoutMs?: number;
+}
+
+class CoordinationTimeoutError extends Error {}
+
+function boundedSignal(parent: AbortSignal | undefined, timeoutMs: number): {
+  signal: AbortSignal;
+  cleanup: () => void;
+  timedOut: () => boolean;
+} {
+  const controller = new AbortController();
+  let timeout = false;
+  const onAbort = () => controller.abort(parent?.reason ?? new Error('coordination cancelled'));
+  if (parent?.aborted) onAbort();
+  else parent?.addEventListener('abort', onAbort, { once: true });
+  const timer = setTimeout(() => {
+    timeout = true;
+    controller.abort(new CoordinationTimeoutError(`coordination timed out after ${timeoutMs}ms`));
+  }, timeoutMs);
+  timer.unref?.();
+  return {
+    signal: controller.signal,
+    cleanup: () => {
+      clearTimeout(timer);
+      parent?.removeEventListener('abort', onAbort);
+    },
+    timedOut: () => timeout,
+  };
+}
+
+async function awaitAbortable<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) throw signal.reason ?? new Error('coordination cancelled');
+  return await new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(signal.reason ?? new Error('coordination cancelled'));
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(
+      (value) => { signal.removeEventListener('abort', onAbort); resolve(value); },
+      (error) => { signal.removeEventListener('abort', onAbort); reject(error); },
+    );
+  });
 }
 
 function normalizeCoordinationPid(pid: number | null | undefined): number | undefined {
@@ -445,6 +552,7 @@ function registryPidFor(record: Pick<AgentRecord, 'childProcess'>): number {
  * @returns The parsed JSON response body, or null on any failure.
  */
 async function pdCoordinate(path: string, body: Record<string, unknown>, options: PdCoordinateOptions = {}): Promise<Record<string, unknown> | null> {
+  const bounded = boundedSignal(options.signal, options.timeoutMs ?? 5_000);
   try {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     const pid = normalizeCoordinationPid(options.pid);
@@ -455,15 +563,18 @@ async function pdCoordinate(path: string, body: Record<string, unknown>, options
       method: 'POST',
       headers,
       body: JSON.stringify(body),
+      signal: bounded.signal,
     });
     try {
-      return await res.json() as Record<string, unknown>;
+      return await awaitAbortable(Promise.resolve(res.json()), bounded.signal) as Record<string, unknown>;
     } catch {
       return null;
     }
   } catch {
     // Silent — coordination failures never block spawning
     return null;
+  } finally {
+    bounded.cleanup();
   }
 }
 
@@ -617,8 +728,10 @@ async function runConfinedChild(
     dotenvKeys: Object.keys(loadDotenvOnce()),
   });
   try {
-    const nativeWorkspaceError = validateNativeResumeWorkspace(opts.spec);
-    if (nativeWorkspaceError) throw new Error(nativeWorkspaceError);
+    await opts.context?.beforeChildLaunch?.();
+    opts.context?.signal?.throwIfAborted();
+    const workspaceError = validateNativeResumeWorkspace(opts.spec) ?? validateSpawnWorkspace(opts.spec);
+    if (workspaceError) throw new Error(workspaceError);
     const res = await runChild({
       cmd: cg.cmd,
       args: cg.args,
@@ -655,9 +768,22 @@ interface BackendRunResult {
    *  single final-output blob, so thinking + tool calls land in the transcript.
    *  Backends that only yield a final answer (simple API calls) leave it unset. */
   transcript?: StructuredTurn[];
+  /**
+   * True when this backend already appended its answer through the live delta
+   * sink.
+   *
+   * The spawn loop reads it to SKIP the batched end-of-run re-append. Recording
+   * both is how an operator ends up reading the same answer twice — the exact
+   * duplicate-turn bug that makes a live lane less trustworthy than no lane.
+   */
+  streamedTranscript?: boolean;
 }
 
 interface BackendRunContext {
+  /** Prevent a child launch if its managed lifecycle ended during sandbox setup. */
+  signal?: AbortSignal;
+  /** Private daemon witness check, repeated after asynchronous sandbox setup. */
+  beforeChildLaunch?: () => Promise<void>;
   /** Durable outer spawn identity threaded into subprocess receipts. */
   agentId?: string;
   onChildProcess?: (child: ChildProcess) => void;
@@ -709,7 +835,11 @@ async function runOllama(spec: SpawnSpec, model: string): Promise<BackendRunResu
   return adaptLLMResult(result);
 }
 
-async function runClaude(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+async function runClaude(
+  spec: SpawnSpec,
+  model: string,
+  context?: BackendRunContext,
+): Promise<BackendRunResult> {
   // Dynamic import with graceful fallback — use Function to avoid static analysis
   // of the module specifier (so tsc doesn't error on a missing optional dep)
   let Anthropic: unknown = null;
@@ -721,6 +851,7 @@ async function runClaude(spec: SpawnSpec, model: string): Promise<BackendRunResu
     return { output: '', error: '@anthropic-ai/sdk is not installed. Run: npm install @anthropic-ai/sdk' };
   }
 
+  const sink = apiDeltaSink(context);
   try {
     const client = new (Anthropic as new (opts?: { apiKey?: string }) => {
       messages: {
@@ -731,16 +862,45 @@ async function runClaude(spec: SpawnSpec, model: string): Promise<BackendRunResu
             output_tokens?: number;
           };
         }>;
+        stream(opts: Record<string, unknown>): {
+          on(event: string, cb: (delta: unknown) => void): unknown;
+          finalMessage(): Promise<{
+            content: Array<{ text?: string }>;
+            usage?: { input_tokens?: number; output_tokens?: number };
+          }>;
+        };
       };
     })({
       apiKey: getSecret('ANTHROPIC_API_KEY'),
     });
 
-    const response = await client.messages.create({
+    const request = {
       model,
       max_tokens: 8192,
       messages: [{ role: 'user', content: spec.task }],
-    });
+    };
+
+    // The SDK's `stream()` helper emits text deltas and still assembles the
+    // whole message, so the final result is byte-identical to the non-streamed
+    // path. That equivalence is the reason streaming can be a caller's choice
+    // rather than a separate code path: nothing downstream has to know.
+    if (sink) {
+      const stream = client.messages.stream(request);
+      stream.on('text', (delta: unknown) => {
+        if (typeof delta === 'string') sink.onTextDelta(delta);
+      });
+      const finalMessage = await stream.finalMessage();
+      const streamedText = finalMessage.content.map((c) => c.text ?? '').join('');
+      return {
+        output: streamedText,
+        error: null,
+        inputTokens: finalMessage.usage?.input_tokens,
+        outputTokens: finalMessage.usage?.output_tokens,
+        streamedTranscript: sink.finish(),
+      };
+    }
+
+    const response = await client.messages.create(request);
 
     const text = response.content.map((c) => c.text).join('');
     return {
@@ -750,96 +910,171 @@ async function runClaude(spec: SpawnSpec, model: string): Promise<BackendRunResu
       outputTokens: response.usage?.output_tokens,
     };
   } catch (err) {
+    // Flush whatever streamed before the failure: partial output an operator
+    // already SAW must not vanish from the record when the run then dies.
+    sink?.finish();
     return { output: '', error: (err as Error).message };
   }
 }
 
-async function runGemini(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+async function runGemini(
+  spec: SpawnSpec,
+  model: string,
+  context?: BackendRunContext,
+): Promise<BackendRunResult> {
   // REST-based: no SDK dep, and (critically) extracts exact usage tokens
   // (promptTokenCount + candidatesTokenCount + thoughtsTokenCount) so the
   // fail-closed telemetry policy can record an exact nonzero cost. The
   // legacy @google/generative-ai SDK path returned no usage and is deprecated.
+  const sink = apiDeltaSink(context);
   const result = await geminiAdapter({
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
     signal: backendAbortSignal(spec),
+    ...(sink ? { onTextDelta: sink.onTextDelta } : {}),
   });
   const adapted = adaptLLMResult(result);
   // Full-depth capture: reconstruct thinking / functionCall / text turns from
   // the raw Gemini response so the transcript shows HOW it answered.
-  if (result.ok && result.raw !== undefined) {
-    const turns = parseGeminiTranscript(result.raw);
-    if (turns.length > 0) adapted.transcript = turns;
+  const turns = result.ok && result.raw !== undefined ? parseGeminiTranscript(result.raw) : [];
+  if (sink?.sawText() && turns.length > 0) {
+    // Streamed path: the ASSISTANT text already went through the sink turn by
+    // turn, so re-appending it would show the answer twice. Everything else —
+    // the reasoning summary, any function calls — never passes through a text
+    // sink at all, and would be silently lost if streaming simply skipped the
+    // structured pass. So append exactly the turns the stream could not carry.
+    for (const turn of turns) {
+      if (turn.role === 'assistant') continue;
+      sink.emitTurn(turn);
+    }
+  } else if (turns.length > 0) {
+    adapted.transcript = turns;
   }
+  adapted.streamedTranscript = sink?.finish() ?? false;
   return adapted;
 }
 
-async function runGroq(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+async function runGroq(
+  spec: SpawnSpec,
+  model: string,
+  context?: BackendRunContext,
+): Promise<BackendRunResult> {
+  const sink = apiDeltaSink(context);
   const result = await groqAdapter({
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
     signal: backendAbortSignal(spec),
+    ...(sink ? { onTextDelta: sink.onTextDelta } : {}),
   });
-  return adaptLLMResult(result);
+  const adapted = adaptLLMResult(result);
+  adapted.streamedTranscript = sink?.finish() ?? false;
+  return adapted;
 }
 
-async function runLmStudio(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+async function runLmStudio(
+  spec: SpawnSpec,
+  model: string,
+  context?: BackendRunContext,
+): Promise<BackendRunResult> {
+  const sink = apiDeltaSink(context);
   const result = await lmstudioAdapter({
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
     signal: backendAbortSignal(spec),
+    ...(sink ? { onTextDelta: sink.onTextDelta } : {}),
   });
-  return adaptLLMResult(result);
+  const adapted = adaptLLMResult(result);
+  adapted.streamedTranscript = sink?.finish() ?? false;
+  return adapted;
 }
 
-async function runDeepseek(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+async function runDeepseek(
+  spec: SpawnSpec,
+  model: string,
+  context?: BackendRunContext,
+): Promise<BackendRunResult> {
+  const sink = apiDeltaSink(context);
   const result = await deepseekAdapter({
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
     signal: backendAbortSignal(spec),
+    ...(sink ? { onTextDelta: sink.onTextDelta } : {}),
   });
-  return adaptLLMResult(result);
+  const adapted = adaptLLMResult(result);
+  adapted.streamedTranscript = sink?.finish() ?? false;
+  return adapted;
 }
 
-async function runXai(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+async function runXai(
+  spec: SpawnSpec,
+  model: string,
+  context?: BackendRunContext,
+): Promise<BackendRunResult> {
+  const sink = apiDeltaSink(context);
   const result = await xaiAdapter({
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
     signal: backendAbortSignal(spec),
+    ...(sink ? { onTextDelta: sink.onTextDelta } : {}),
   });
-  return adaptLLMResult(result);
+  const adapted = adaptLLMResult(result);
+  adapted.streamedTranscript = sink?.finish() ?? false;
+  return adapted;
 }
 
-async function runCloudflare(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+async function runCloudflare(
+  spec: SpawnSpec,
+  model: string,
+  context?: BackendRunContext,
+): Promise<BackendRunResult> {
+  const sink = apiDeltaSink(context);
   const result = await cloudflareAdapter({
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
     signal: backendAbortSignal(spec),
+    ...(sink ? { onTextDelta: sink.onTextDelta } : {}),
   });
   const adapted = adaptLLMResult(result);
   // Full-depth capture: reconstruct reasoning / tool_calls / message turns
-  // from the raw Workers AI result.
-  if (result.ok && result.raw !== undefined) {
-    const turns = parseCloudflareTranscript(result.raw);
-    if (turns.length > 0) adapted.transcript = turns;
+  // from the raw Workers AI result. On the streamed path the assistant text
+  // already went through the sink, so only the turns a text stream cannot carry
+  // are appended (see runGemini for the same reasoning).
+  const turns =
+    result.ok && result.raw !== undefined ? parseCloudflareTranscript(result.raw) : [];
+  if (sink?.sawText() && turns.length > 0) {
+    for (const turn of turns) {
+      if (turn.role === 'assistant') continue;
+      sink.emitTurn(turn);
+    }
+  } else if (turns.length > 0) {
+    adapted.transcript = turns;
   }
+  adapted.streamedTranscript = sink?.finish() ?? false;
   return adapted;
 }
 
-async function runOpenAI(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+async function runOpenAI(
+  spec: SpawnSpec,
+  model: string,
+  context?: BackendRunContext,
+): Promise<BackendRunResult> {
+  const sink = apiDeltaSink(context);
   const result = await openaiAdapter({
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
     signal: backendAbortSignal(spec),
+    ...(sink ? { onTextDelta: sink.onTextDelta } : {}),
   });
-  return adaptLLMResult(result);
+  const adapted = adaptLLMResult(result);
+  adapted.streamedTranscript = sink?.finish() ?? false;
+  return adapted;
 }
 
 /**
@@ -853,6 +1088,120 @@ async function runOpenAI(spec: SpawnSpec, model: string): Promise<BackendRunResu
  * relies on the operator's flat-rate subscription (Claude Max / ChatGPT
  * Pro) for cost accounting at the wallet layer.
  */
+/**
+ * Turn a stream of tiny text fragments into a small number of transcript turns.
+ *
+ * WHY COALESCE AT ALL. An API backend emits deltas at token granularity — often
+ * a few characters each. Appending one transcript message per delta would write
+ * thousands of rows for a single answer, emit thousands of SSE frames, and give
+ * the operator a lane that scrolls one character at a time. Neither the store
+ * nor the eye wants that resolution.
+ *
+ * THE FLUSH RULE is three-part on purpose, and each part covers a case the
+ * others miss: a size threshold keeps a fast model from buffering a wall of
+ * text, a time threshold keeps a SLOW model from appearing frozen (the
+ * anti-Infinite-Spinner rule — a lane must show life), and a newline flush makes
+ * the seams fall on natural boundaries so a paragraph is not split mid-sentence.
+ *
+ * EXACTLY-ONCE. The returned `finish()` flushes the remainder and reports
+ * whether anything was streamed at all. That answer is what tells the spawn loop
+ * to SKIP the batched end-of-run re-append — recording both is how an operator
+ * ends up reading the same answer twice.
+ *
+ * @param emit Called with each coalesced text block.
+ * @param now Injected clock, so the time threshold is testable.
+ * @returns `push` for each delta, `sawText` for whether the provider streamed at
+ *          all, and `finish` returning whether anything was emitted.
+ */
+export function createDeltaCoalescer(
+  emit: (text: string) => void,
+  now: () => number = Date.now,
+): { push: (delta: string) => void; sawText: () => boolean; finish: () => boolean } {
+  const MIN_CHARS = 400;
+  const MIN_INTERVAL_MS = 250;
+  let buffer = '';
+  let lastFlush = now();
+  let emitted = false;
+  let sawText = false;
+
+  const flush = (): void => {
+    const text = buffer;
+    buffer = '';
+    lastFlush = now();
+    if (!text) return;
+    emitted = true;
+    emit(text);
+  };
+
+  return {
+    /** True once any text has been pushed, even if still buffered. */
+    sawText: () => sawText,
+    push: (delta: string) => {
+      if (!delta) return;
+      sawText = true;
+      buffer += delta;
+      const dueBySize = buffer.length >= MIN_CHARS;
+      const dueByTime = now() - lastFlush >= MIN_INTERVAL_MS;
+      const dueByBreak = delta.includes('\n');
+      if (dueBySize || dueByTime || dueByBreak) flush();
+    },
+    finish: () => {
+      flush();
+      return emitted;
+    },
+  };
+}
+
+/**
+ * Build the delta sink an API backend streams into, or undefined when nobody
+ * is listening.
+ *
+ * The purpose of the indirection is that every API backend gets identical
+ * streaming semantics from one place: same coalescing, same `assistant` role, same
+ * timestamps. Per-backend sinks would drift, and a lane that renders one
+ * backend differently from another is a lane an operator stops trusting.
+ *
+ * @param context The spawn's run context, carrying the transcript-delta sink.
+ * @returns A push/finish pair, or undefined when the spawn records no transcript.
+ */
+function apiDeltaSink(context?: BackendRunContext): ApiDeltaSink | undefined {
+  const sink = context?.onTranscriptDelta;
+  if (!sink) return undefined;
+  const coalescer = createDeltaCoalescer((text) => {
+    sink({ role: 'assistant', content: text, timestamp: Date.now() });
+  });
+  return {
+    onTextDelta: coalescer.push,
+    sawText: coalescer.sawText,
+    // A structured turn the text stream cannot express — a reasoning summary, a
+    // function call. Flushed FIRST so it lands before any buffered assistant
+    // text, preserving the order the model actually produced them in.
+    emitTurn: (turn: StructuredTurn) => {
+      coalescer.finish();
+      sink(turnToMessage(turn, Date.now()));
+    },
+    finish: coalescer.finish,
+  };
+}
+
+/** The streaming seam an API backend writes into. */
+interface ApiDeltaSink {
+  onTextDelta: (delta: string) => void;
+  /**
+   * Did the provider actually stream?
+   *
+   * Distinct from "was a sink offered": asking for a stream is a request, and a
+   * provider (or a proxy, or a model that does not support it) can answer with
+   * one whole JSON body instead. The two must not be conflated — treating an
+   * offered sink as proof of streaming drops the batch path's structured turns
+   * on every response that declined.
+   */
+  sawText: () => boolean;
+  emitTurn: (turn: StructuredTurn) => void;
+  /** Flush the remainder; returns whether anything was streamed at all. */
+  finish: () => boolean;
+}
+
 /** Map one backend StructuredTurn to a transcript message (live deltas + batch
  *  recording share this so a streamed turn and its end-of-run twin are identical). */
 function turnToMessage(turn: StructuredTurn, ts: number): TranscriptMessage {
@@ -900,7 +1249,9 @@ async function runCliTube(
     onStreamLine,
     permissionMode: spec.permissionMode,
     resumeSessionId: spec.nativeResume?.sessionId,
-    workspaceIdentity: spec.nativeResume?.workspaceIdentity,
+    workspaceIdentity: spec.nativeResume?.workspaceIdentity ?? spec.workspaceIdentity,
+    signal: context?.signal,
+    beforeChildLaunch: context?.beforeChildLaunch,
     // Live observability (ADR-0060): publish the exchange on the operator-
     // discoverable channel (dispatch:<id>) when both a channel and a tube client
     // are present. When `tubeChannel` is undefined, spawnViaCliTube falls back to
@@ -1599,7 +1950,78 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     telemetryBypassApproval,
     runnerOverrides = {},
     tubeClient,
+    managedSessionLifecycle,
+    coordinationTimeoutMs = 5_000,
+    managedLifecycleTimeoutMs = 5_000,
   } = deps;
+
+  async function runManagedOperation(
+    record: AgentRecord,
+    label: string,
+    operation: (options: { signal: AbortSignal }) => Promise<Record<string, unknown>>,
+    options: { cancelOnKill: boolean },
+  ): Promise<{ success: true; value: Record<string, unknown> } | { success: false; timedOut: boolean; error: string }> {
+    const parentSignal = options.cancelOnKill ? record.lifecycleAbort?.signal : undefined;
+    const bounded = boundedSignal(parentSignal, managedLifecycleTimeoutMs);
+    try {
+      const value = await awaitAbortable(Promise.resolve(operation({ signal: bounded.signal })), bounded.signal);
+      return { success: true, value };
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      return {
+        success: false,
+        timedOut: bounded.timedOut(),
+        error: bounded.timedOut() ? `${label} timed out after ${managedLifecycleTimeoutMs}ms` : detail,
+      };
+    } finally {
+      bounded.cleanup();
+    }
+  }
+
+  /**
+   * Commit one exact managed session terminal transition.
+   *
+   * The promise is installed synchronously before the daemon call, so a kill
+   * racing normal completion observes and reuses the same transition. A
+   * session whose binding failed uses the narrower abort path: it still must
+   * present the captured credential for the exact minted session, but it does
+   * not pretend a managed stamp exists.
+   */
+  function settleManagedSession(
+    record: AgentRecord,
+    status: 'completed' | 'abandoned',
+    note: string,
+  ): Promise<Record<string, unknown>> | null {
+    if (!managedSessionLifecycle || !record.actorCredential || !record.coordinationSessionId) return null;
+    if (record.managedTerminalPromise) return record.managedTerminalPromise;
+    record.managedTerminalStatus = status;
+    const exact = {
+      sessionId: record.coordinationSessionId,
+      agentId: record.agentId,
+      credential: record.actorCredential,
+      note,
+    };
+    record.managedTerminalPromise = (async () => {
+      const outcome = await runManagedOperation(
+        record,
+        record.managedSessionBound ? 'managed session completion' : 'managed session abort',
+        (options) => record.managedSessionBound
+          ? managedSessionLifecycle.complete({ ...exact, status }, options)
+          : managedSessionLifecycle.abort(exact, options),
+        { cancelOnKill: false },
+      );
+      if (!outcome.success) {
+        return {
+          success: false,
+          code: outcome.timedOut ? 'MANAGED_SESSION_TIMEOUT' : 'MANAGED_SESSION_ERROR',
+          error: outcome.error,
+          timedOut: outcome.timedOut,
+        };
+      }
+      return outcome.value;
+    })();
+    return record.managedTerminalPromise;
+  }
 
   // ── Transcript helpers ──────────────────────────────────────────────────
   // Fail-loud under enforcement (the daemon's posture): if recording throws,
@@ -1883,6 +2305,24 @@ export function createSpawner(deps: SpawnerDeps = {}) {
    * Automatically wires PD session + heartbeat + done.
    */
   async function spawn(spec: SpawnSpec): Promise<SpawnResult> {
+    // Snapshot before the first await. Callers may reuse/mutate their spec while
+    // harbor or session admission waits; that must not redirect an admitted run.
+    spec = {
+      ...spec,
+      env: spec.env ? { ...spec.env } : undefined,
+      workspaceIdentity: spec.workspaceIdentity ? { ...spec.workspaceIdentity } : undefined,
+      nativeResume: spec.nativeResume ? {
+        ...spec.nativeResume,
+        workspaceIdentity: spec.nativeResume.workspaceIdentity ? { ...spec.nativeResume.workspaceIdentity } : undefined,
+      } : undefined,
+    };
+    const requestedWorkdir = spec.workdir;
+    const targetDirectory = requestedWorkdir === undefined ? null : captureWorkspaceIdentity(requestedWorkdir);
+    Object.defineProperty(spec, 'workdir', {
+      value: targetDirectory?.canonicalPath ?? requestedWorkdir,
+      enumerable: true,
+      writable: false,
+    });
     cleanupStaleAgents();
 
     // Hard global limit — never exceed MAX_CONCURRENT_RUNNING processes
@@ -1906,6 +2346,15 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       startedAt: Date.now(),
       completedAt: Date.now(),
     });
+    if (requestedWorkdir !== undefined && !targetDirectory) {
+      return blockedResult('Spawn workdir must be an existing owned absolute directory.');
+    }
+    const transport = getBackendCatalogEntry(runtime.effectiveBackend)?.adapter.spawn.transport;
+    const projectlessBackend = transport === 'provider-http' || transport === 'model-server-http'
+      || transport === 'provider-sdk'; // Current provider SDK adapters make remote calls, not local agent-tool calls.
+    if (managedSessionLifecycle && !targetDirectory && !projectlessBackend) {
+      return blockedResult('This local backend requires an explicit workdir; no daemon working directory is inherited.');
+    }
     const continuationWorkspaceError = validateNativeResume(spec, runtime) ?? validateSpawnWorkspace(spec);
     if (continuationWorkspaceError) {
       counters?.bump('spawn.blocked', dims);
@@ -1918,7 +2367,11 @@ export function createSpawner(deps: SpawnerDeps = {}) {
 
     // Worktree isolation (layer 2): never launch a file-writing agent into a
     // repository main checkout — parallel agents there steamroll each other.
-    const isolation = assessSpawnIsolation(spec);
+    // A projectless API call has no filesystem target. Running the daemon from
+    // a main checkout must not silently turn that call into work in that repo.
+    const isolation = requestedWorkdir === undefined && projectlessBackend
+      ? { blocked: false, reason: null }
+      : assessSpawnIsolation(spec);
     if (isolation.blocked) {
       counters?.bump('spawn.blocked', dims);
       return blockedResult(isolation.reason as string);
@@ -2186,6 +2639,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       childProcess: null,
       bondId,
       bondUsd,
+      lifecycleAbort: new AbortController(),
     };
     agents.set(agentId, record);
 
@@ -2240,25 +2694,108 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       identity: spec.identity || null,
       purpose: spec.purpose || spec.task.slice(0, 80),
       metadata: coordinationMetadata,
-    }, { pid: initialRegistryPid });
+    }, { pid: initialRegistryPid, signal: record.lifecycleAbort.signal, timeoutMs: coordinationTimeoutMs });
 
     // PD coordination: start session. Begin is the ADR-0040 mint door: an
     // uncredentialed begin mints this agent's soul and returns its credential
     // ONCE — capture it, because `/sugar/done` (and every other attributed
     // write) rejects without it (#8877 / ADR-0122).
-    const beginResponse = await pdCoordinate('/sugar/begin', {
+    const admissionInput = {
       agentId,
       name: displayName,
-      type: 'spawned',
       pid: initialRegistryPid,
       identity: spec.identity || null,
       purpose: spec.purpose || spec.task.slice(0, 80),
-      lifecycle: 'ephemeral',
+      lifecycle: 'ephemeral' as const,
       metadata: coordinationMetadata,
-    }, { pid: initialRegistryPid });
+      workdir: spec.workdir,
+      allowSharedCheckout: spec.allowSharedCheckout === true,
+    };
+    let beginResponse: Record<string, unknown> | null = null;
+    let managedSessionBindingError: string | null = null;
+    let revalidateManagedWorktree: (() => Promise<void>) | undefined;
+    let managedAdmissionTimedOut = false;
+    if (record.status !== 'killed') {
+      if (managedSessionLifecycle) {
+        const admission = await runManagedOperation(
+          record,
+          'managed session admission',
+          (options) => managedSessionLifecycle.admit(admissionInput, options),
+          { cancelOnKill: true },
+        );
+        if (!admission.success) {
+          managedSessionBindingError = admission.error;
+          managedAdmissionTimedOut = admission.timedOut;
+        } else if (admission.value.success !== true) {
+          managedSessionBindingError = typeof admission.value.error === 'string'
+            ? admission.value.error
+            : 'managed spawn admission was refused';
+        } else {
+          beginResponse = admission.value;
+        }
+      } else {
+        beginResponse = await pdCoordinate('/sugar/begin', {
+          ...admissionInput,
+          type: 'spawned',
+        }, {
+          pid: initialRegistryPid,
+          signal: record.lifecycleAbort.signal,
+          timeoutMs: coordinationTimeoutMs,
+        });
+      }
+    }
     record.actorCredential = typeof beginResponse?.credential === 'string'
       ? beginResponse.credential
       : null;
+    record.coordinationSessionId = typeof beginResponse?.sessionId === 'string'
+      ? beginResponse.sessionId
+      : null;
+    if (managedSessionLifecycle) {
+      if (record.status === 'killed') {
+        // If admission already returned an exact receipt, cleanup below uses
+        // abort. If kill won earlier, no session was minted and there is
+        // deliberately nothing to bind or infer.
+      } else if (managedSessionBindingError) {
+        // Preserve the admission refusal/timeout as the root cause.
+      } else if (!record.actorCredential || !record.coordinationSessionId) {
+        managedSessionBindingError = 'managed spawn admission did not return an exact session and actor credential';
+      } else if (!beginResponse?.worktreeBinding || typeof beginResponse.worktreeBinding !== 'object'
+        || (beginResponse.worktreeBinding as Record<string, unknown>).cwd !== (targetDirectory?.canonicalPath ?? null)) {
+        managedSessionBindingError = 'managed spawn admission did not return the exact physical target receipt';
+      } else {
+        const sessionId = record.coordinationSessionId;
+        const credential = record.actorCredential;
+        const binding = await runManagedOperation(
+          record,
+          'managed session binding',
+          (options) => managedSessionLifecycle.bind({
+            sessionId,
+            agentId,
+            credential,
+          }, options),
+          { cancelOnKill: true },
+        );
+        if (!binding.success) {
+          managedSessionBindingError = binding.error;
+        } else if (binding.value.success !== true) {
+          managedSessionBindingError = typeof binding.value.error === 'string'
+            ? binding.value.error
+            : 'managed spawn session binding was refused';
+        } else if (JSON.stringify(binding.value.worktreeBinding) !== JSON.stringify(beginResponse.worktreeBinding)) {
+          managedSessionBindingError = 'managed spawn binding changed the admitted worktree receipt';
+        } else if (typeof binding.value.validateBeforeLaunch !== 'function') {
+          managedSessionBindingError = 'managed spawn binding did not return its private launch validator';
+        } else {
+          const validate = binding.value.validateBeforeLaunch as (options: { signal: AbortSignal }) => Promise<Record<string, unknown>>;
+          revalidateManagedWorktree = async () => {
+            const checked = await runManagedOperation(record, 'managed launch worktree validation', validate, { cancelOnKill: true });
+            if (!checked.success) throw new Error(checked.error);
+            if (checked.value.success !== true) throw new Error(String(checked.value.error ?? 'Managed launch worktree validation refused'));
+          };
+          record.managedSessionBound = true;
+        }
+      }
+    }
 
     // Start heartbeat interval
     record.heartbeatInterval = setInterval(async () => {
@@ -2281,6 +2818,11 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     // When true, the conversation is ALREADY persisted turn-by-turn, so the
     // end-of-run path skips the batched re-append to avoid duplicating it.
     let streamedLiveDeltas = false;
+    // Turns actually appended through the live path. The output summary counts
+    // recorded turns, and moving a backend from batch to streaming must not make
+    // its run look like it produced none — a summary that says "0 turns" about a
+    // run the operator watched arrive is worse than no summary.
+    let streamedTurnCount = 0;
 
     try {
       // Recording is a precondition: if the transcript row could not be opened
@@ -2291,14 +2833,27 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           `Spawn refused: ${transcriptStartError}. A backend must not run unless its conversation is recorded.`,
         );
       }
+      if (managedSessionBindingError) {
+        throw new Error(`Spawn refused: ${managedSessionBindingError}. Managed session authority must be bound before backend execution.`);
+      }
+      if (record.status === 'killed') {
+        throw new Error('Killed by spawner before backend execution');
+      }
+      await revalidateManagedWorktree?.();
+      record.lifecycleAbort.signal.throwIfAborted();
       const executionSpec: SpawnSpec = {
         ...spec,
         backend: runtime.effectiveBackend,
         model: runtime.effectiveModel,
+        workspaceIdentity: spec.workspaceIdentity ?? targetDirectory ?? undefined,
       };
       const finalContinuationWorkspaceError = validateNativeResume(executionSpec, runtime)
         ?? validateSpawnWorkspace(executionSpec);
       if (finalContinuationWorkspaceError) throw new Error(finalContinuationWorkspaceError);
+      if (targetDirectory && (!sameWorkspaceIdentity(requestedWorkdir, targetDirectory)
+        || !sameWorkspaceIdentity(spec.workdir, targetDirectory))) {
+        throw new Error('Spawn physical directory changed before backend execution');
+      }
       const override = runnerOverrides[runtime.effectiveBackend];
       let result: BackendRunResult;
 
@@ -2307,6 +2862,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       } else {
         const childContext: BackendRunContext = {
           agentId,
+          signal: record.lifecycleAbort.signal,
+          beforeChildLaunch: revalidateManagedWorktree,
           onChildProcess: (child) => {
             if (record.status === 'running') {
               record.childProcess = child;
@@ -2325,6 +2882,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           onTranscriptDelta: transcriptId
             ? (msg) => {
                 streamedLiveDeltas = true;
+                streamedTurnCount += 1;
                 txDelta(transcriptId, msg);
               }
             : undefined,
@@ -2336,14 +2894,14 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         };
         switch (runtime.effectiveBackend) {
           case 'ollama':    result = await runOllama(executionSpec, runtime.effectiveModel); break;
-          case 'lmstudio':  result = await runLmStudio(executionSpec, runtime.effectiveModel); break;
-          case 'claude':    result = await runClaude(executionSpec, runtime.effectiveModel); break;
-          case 'gemini':    result = await runGemini(executionSpec, runtime.effectiveModel); break;
-          case 'cloudflare': result = await runCloudflare(executionSpec, runtime.effectiveModel); break;
-          case 'openai':    result = await runOpenAI(executionSpec, runtime.effectiveModel); break;
-          case 'groq':      result = await runGroq(executionSpec, runtime.effectiveModel); break;
-          case 'deepseek':  result = await runDeepseek(executionSpec, runtime.effectiveModel); break;
-          case 'xai':       result = await runXai(executionSpec, runtime.effectiveModel); break;
+          case 'lmstudio':  result = await runLmStudio(executionSpec, runtime.effectiveModel, childContext); break;
+          case 'claude':    result = await runClaude(executionSpec, runtime.effectiveModel, childContext); break;
+          case 'gemini':    result = await runGemini(executionSpec, runtime.effectiveModel, childContext); break;
+          case 'cloudflare': result = await runCloudflare(executionSpec, runtime.effectiveModel, childContext); break;
+          case 'openai':    result = await runOpenAI(executionSpec, runtime.effectiveModel, childContext); break;
+          case 'groq':      result = await runGroq(executionSpec, runtime.effectiveModel, childContext); break;
+          case 'deepseek':  result = await runDeepseek(executionSpec, runtime.effectiveModel, childContext); break;
+          case 'xai':       result = await runXai(executionSpec, runtime.effectiveModel, childContext); break;
           case 'codex':     result = await runCodexCli(executionSpec, runtime.effectiveModel, childContext); break;
           case 'claude-cli': result = await runClaudeCli(executionSpec, childContext); break;
           case 'cli:claude-code': result = await runCliTube(executionSpec, 'claude-code', childContext); break;
@@ -2357,6 +2915,12 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           default:
             result = { output: '', error: `Unknown backend: ${String(runtime.effectiveBackend)}` };
         }
+        // A backend that streamed its answer says so. The delta sink already
+        // sets this flag on its first append, so the OR is belt-and-braces —
+        // but stating it here means the "record it once" rule is legible at the
+        // one place that decides, rather than implied by a callback's side
+        // effect two hundred lines away.
+        if (result.streamedTranscript) streamedLiveDeltas = true;
       }
 
       if (result.childProcess) {
@@ -2440,7 +3004,6 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     const completedAt = record.completedAt ?? Date.now();
     let status: SpawnResult['status'] = wasKilled ? 'killed' : budgetOverrunError ? 'over_budget' : error ? 'failed' : 'completed';
 
-    record.status = status;
     record.completedAt = completedAt;
     record.childProcess = null;
     // The result already carries this receipt, but the daemon's /spawn history
@@ -2458,28 +3021,16 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       enteredHarborName = null;
     }
 
-    if (!wasKilled) {
-      const doneNote = error ? `Failed: ${error.slice(0, 200)}` : `Completed: ${(output || '').slice(0, 200)}`;
-      // Spawner-managed agents bypass the pd-done origin-push rule: they
-      // are ephemeral workflow agents whose lifetime is tied to a
-      // subprocess, not a feature branch. The override marker makes the
-      // bypass auditable in session notes.
-      await pdCoordinate('/sugar/done', {
-        agentId,
-        note: doneNote,
-        skipOriginCheck: true,
-        skipOriginCheckReason: 'spawner-managed agent — lifecycle is subprocess, not feature branch',
-      }, { credential: record.actorCredential });
-    }
-
     // Record the conversation + finalize transcript. Order matters: we append
     // the turns BEFORE finalize so the 'end' SSE event carries the full
     // conversation. Under enforcement a recording failure here is loud: it
     // flips the spawn to 'failed' (untracked work must not look successful).
     try {
       if (streamedLiveDeltas) {
-        // Live path (cli-tube streaming): every thinking / tool / assistant turn
-        // was already appended mid-run via onTranscriptDelta, so re-appending
+        // Live path: every thinking / tool / assistant turn was already appended
+        // mid-run via onTranscriptDelta — by the cli-tube backends parsing
+        // stream-json / --json per line, or (2026-08-23) by an API backend
+        // streaming its completion through the coalescer. Re-appending
         // `structuredTurns` or `output` here would duplicate the whole
         // conversation. Record nothing extra — the error turn below still fires.
       } else if (structuredTurns && !wasKilled) {
@@ -2501,7 +3052,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       // transcripts.appendOutput() directly to add pr-comment / draft-pr /
       // commit artifacts.
       if (!wasKilled && transcriptId) {
-        const turnCount = structuredTurns?.length ?? 0;
+        const turnCount = structuredTurns?.length ?? streamedTurnCount;
         const summary = error
           ? `failed: ${error.slice(0, 160)}`
           : turnCount > 0
@@ -2534,6 +3085,56 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       record.status = 'failed';
       try { txFinalize(transcriptId, 'failed', completedAt, telemetry, error); } catch { /* row may be unreachable; the SpawnResult already reports failed */ }
     }
+
+    // Session terminal state is the LAST success gate. In particular, an
+    // enforced transcript append/finalize failure above must turn a would-be
+    // completion into abandonment before the durable session is closed.
+    const terminalStatus: 'completed' | 'abandoned' = wasKilled || error ? 'abandoned' : 'completed';
+    const terminalNote = wasKilled
+      ? 'Killed by spawner'
+      : error
+        ? `Failed: ${error.slice(0, 200)}`
+        : `Completed: ${(output || '').slice(0, 200)}`;
+    record.terminalStarted = true;
+    let managedSettlement: ManagedSessionSettlement | undefined;
+    if (managedSessionLifecycle && record.actorCredential && record.coordinationSessionId) {
+      const terminal = settleManagedSession(record, terminalStatus, terminalNote);
+      const completion = terminal ? await terminal : null;
+      if (completion?.success === true) {
+        managedSettlement = { requestedStatus: terminalStatus, outcome: 'succeeded' };
+      } else {
+        const timedOut = completion?.timedOut === true || completion?.code === 'MANAGED_SESSION_TIMEOUT';
+        managedSettlement = {
+          requestedStatus: terminalStatus,
+          outcome: timedOut ? 'timed_out' : 'refused',
+          ...(typeof completion?.code === 'string' ? { code: completion.code } : {}),
+          error: typeof completion?.error === 'string'
+            ? completion.error
+            : 'managed terminal transition was refused',
+        };
+      }
+    } else if (managedSessionLifecycle) {
+      managedSettlement = {
+        requestedStatus: terminalStatus,
+        outcome: managedAdmissionTimedOut ? 'timed_out' : 'refused',
+        code: managedAdmissionTimedOut ? 'MANAGED_SESSION_TIMEOUT' : 'MANAGED_SESSION_ADMISSION_FAILED',
+        error: managedSessionBindingError
+          ?? (wasKilled ? 'killed before managed session admission completed' : 'managed admission returned no exact session'),
+      };
+    } else {
+      // Non-daemon/test constructions have no privileged lifecycle seam.
+      // Use the ordinary exact-session path with no override semantics. The
+      // spawn continuation owns this call for both finish and kill so that
+      // transcript finalization always precedes the terminal mutation.
+      await pdCoordinate('/sugar/done', {
+        agentId,
+        sessionId: record.coordinationSessionId,
+        note: terminalNote,
+        status: terminalStatus,
+      }, { credential: record.actorCredential, timeoutMs: coordinationTimeoutMs });
+    }
+    if (managedSettlement) record.managedSession = managedSettlement;
+    record.status = wasKilled ? 'killed' : status;
 
     // Resolve bond. Clean exit → full refund; error → slash full bond with reason.
     // Why slash on any error: an error means the spawn didn't do its job; the
@@ -2586,6 +3187,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       startedAt,
       completedAt,
       coastGuard: coastGuardReceipt,
+      ...(managedSettlement ? { managedSession: managedSettlement } : {}),
       ...(spec.nativeResume ? { harnessSessionId: spec.nativeResume.sessionId } : {}),
     };
   }
@@ -2611,6 +3213,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       startedAt: r.startedAt,
       completedAt: r.completedAt,
       ...(r.coastGuard ? { coastGuard: r.coastGuard } : {}),
+      ...(r.managedSession ? { managedSession: r.managedSession } : {}),
     }));
   }
 
@@ -2619,7 +3222,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
    */
   function kill(agentId: string): void {
     const record = agents.get(agentId);
-    if (!record) return;
+    if (!record || record.status !== 'running' || record.terminalStarted) return;
 
     // Clean up heartbeat
     if (record.heartbeatInterval) {
@@ -2637,6 +3240,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     }
 
     record.status = 'killed';
+    record.lifecycleAbort?.abort(new Error('killed by spawner'));
     record.completedAt = Date.now();
     counters?.bump('spawn.killed', metricDims(record.backend, record.model, record.identity));
 
@@ -2651,30 +3255,10 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       } catch {}
     }
 
-    // PD coordination: done (fire-and-forget)
-    pdCoordinate('/sugar/done', {
-      agentId,
-      note: 'Killed by spawner',
-      status: 'abandoned',
-      skipOriginCheck: true,
-      skipOriginCheckReason: 'spawner-managed agent killed by operator',
-    }, { credential: record.actorCredential }).catch(() => {});
-
-    // Finalize any open transcript for this agent. We don't keep the
-    // transcriptId on the AgentRecord (to avoid a circular type dep on the
-    // public SpawnedAgent shape), so kill() finalizes by spawned_agent_id.
-    if (transcripts) {
-      try {
-        const open = transcripts.listTranscripts({ agentId, status: 'running', limit: 1 });
-        for (const tx of open) {
-          transcripts.finalize(tx.id, {
-            status: 'killed',
-            ended_at: Date.now(),
-            error: 'Killed by spawner',
-          });
-        }
-      } catch { /* swallow */ }
-    }
+    // The spawn continuation owns transcript finalization and the one exact
+    // session terminal write. Keeping kill synchronous and side-effect-limited
+    // prevents a race where the session is abandoned before its evidence row
+    // is finalized or both kill and normal finish write terminal states.
   }
 
   return { spawn, list, kill };

@@ -1,65 +1,57 @@
-% Conservation under composition: native-unit accounting vs valuation boundary.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure IV.5 --- accounting quantities, not architecture boxes.
 \begin{figure}[H]
 \centering
-\resizebox{0.96\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  panel/.style={draw=hhebony,thick,rounded corners=4pt,inner sep=6pt,
-                minimum width=66mm,minimum height=46mm},
-  state/.style={draw=hhebony,thick,fill=hhsand!30,rounded corners=2pt,
-                inner sep=3pt,minimum width=17mm,font=\scriptsize},
-  flow/.style={->,>=Latex,thick,draw=hhebony},
-  boundary/.style={->,>=Latex,line width=1.4pt,draw=hhcobalt},
-]
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-6.9,3.0) {A. native unit closes exactly};
+  \node[pd panel title,anchor=west] at (.65,3.0) {B. conversion introduces priced terms};
 
-% ─── LEFT: native-unit trace ────────────────────────────────────────────
-\node[panel,fill=hhsand!30,label={[font=\bfseries\footnotesize]north:
-  One native unit}] (left) at (0,0) {};
-\node[state] (x) at (-20mm,7mm) {$x$};
-\node[state] (y) at (0,7mm) {$y$};
-\node[state] (z) at (20mm,7mm) {$z$};
-\draw[flow] (x) -- node[above,font=\scriptsize]{$f$} (y);
-\draw[flow] (y) -- node[above,font=\scriptsize]{$g$} (z);
-\node[font=\scriptsize\itshape,below=2mm of left.south,text=hhink,
-      text width=58mm,align=center]
-  {$\Delta(g\!\circ\!f)=\Delta(f)+\Delta(g)$\\
-   internal moves: $\Delta(f)=\Delta(g)=0$};
+  \draw[pd rule,-{Stealth[length=1.7mm,width=1mm]}] (-6.35,-1.65)--(-.30,-1.65);
+  \draw[pd rule,-{Stealth[length=1.7mm,width=1mm]}] (-6.35,-1.65)--(-6.35,2.25);
+  \draw[pd caution rule,line width=8pt] (-5.45,0)--(-5.45,-1.10);
+  \draw[pd focus rule,line width=8pt] (-3.95,-1.10)--(-3.95,.15);
+  \draw[pd focus rule,line width=8pt] (-2.45,.15)--(-2.45,.55);
+  \draw[pd rule,line width=8pt] (-.95,.55)--(-.95,0);
+  \draw[pd guide] (-5.45,-1.10)--(-3.95,-1.10);
+  \draw[pd guide] (-3.95,.15)--(-2.45,.15);
+  \draw[pd guide] (-2.45,.55)--(-.95,.55);
+  \node[pd axis label,anchor=north] at (-5.45,-1.82) {$\Delta W$};
+  \node[pd axis label,anchor=north] at (-3.95,-1.82) {$\Delta E$};
+  \node[pd axis label,anchor=north] at (-2.45,-1.82) {$\Delta C$};
+  \node[pd axis label,anchor=north] at (-.95,-1.82) {net};
+  \node[pd direct label,text=hhteal,anchor=south] at (-.95,.18) {$0$};
+  \node[pd note] at (-3.65,2.00) {$\Delta W+\Delta E+\Delta C=0$};
 
-% ─── RIGHT: cross-currency valuation boundary ─────────────────────────
-\node[panel,fill=hhsand!30,right=34mm of left,
-  label={[font=\bfseries\footnotesize]north:
-  Heterogeneous units}] (right) {};
-\node[state] (u1) at ($(right.center)+(-20mm,7mm)$) {$a\,u_1$};
-\node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
-      font=\scriptsize,align=center] (val) at ($(right.center)+(0,7mm)$)
-      {valuation $v_t$\\at instant $t$};
-\node[state] (u2) at ($(right.center)+(20mm,7mm)$) {$b\,u_2$};
-\draw[boundary] (u1) -- (val);
-\draw[boundary] (val) -- (u2);
-\node[font=\scriptsize\itshape,below=2mm of right.south,text=hhink,
-      text width=58mm,align=center]
-  {record fees, slippage, and exposure separately\\
-   no unit-free global sum exists};
+  \draw[pd rule,-{Stealth[length=1.7mm,width=1mm]}] (1.15,-1.65)--(7.05,-1.65);
+  \draw[pd rule,-{Stealth[length=1.7mm,width=1mm]}] (1.15,-1.65)--(1.15,2.25);
+  \draw[pd caution rule,line width=8pt] (2.00,0)--(2.00,-1.10);
+  \draw[pd focus rule,line width=8pt] (3.35,-1.10)--(3.35,.35);
+  \draw[pd caution rule,line width=8pt] (4.70,.35)--(4.70,.05);
+  \draw[pd caution rule,line width=8pt] (5.75,.05)--(5.75,-.15);
+  \draw[pd caution rule,dashed,line width=2pt] (6.60,-.15)--(6.60,.75);
+  \draw[pd guide] (2.00,-1.10)--(3.35,-1.10);
+  \draw[pd guide] (3.35,.35)--(4.70,.35);
+  \draw[pd guide] (4.70,.05)--(5.75,.05);
+  \node[pd axis label,anchor=north] at (2.00,-1.82) {$-a u_1$};
+  \node[pd axis label,anchor=north] at (3.35,-1.82) {$v_t(a)u_2$};
+  \node[pd axis label,anchor=north] at (4.70,-1.82) {fee};
+  \node[pd axis label,anchor=north] at (5.75,-1.82) {slip.};
+  \node[pd axis label,anchor=north] at (6.60,-1.82) {risk};
+  \node[pd direct label,text=hhamber,anchor=west,align=left] at (5.05,1.35)
+    {valuation passport\\$v_t$, source, instant};
+  \draw[pd caution arrow] (5.22,1.15)--(3.55,.55);
 
-\draw[boundary] (left.east) -- node[above,font=\bfseries\footnotesize,
-  fill=hhpaper,inner sep=2pt] {conversion introduces assumptions} (right.west);
-
-
-\end{tikzpicture}%
-}
-\caption{Conservation under composition. In one native unit, the supply delta of
-a composed trace is the sum of its step deltas, so zero-delta internal operations
-remain conservative. A cross-currency transfer is different: it requires a named
-valuation function and instant, plus explicit fee, slippage, and exposure accounts.
-Category-theoretic language does not remove those accounting assumptions.}
+  \draw[pd focus rule] (-6.15,-2.60)--(-.55,-2.60);
+  \node[pd note,text=hhteal] at (-3.35,-2.86) {conserved by construction};
+  \draw[pd caution rule] (1.35,-2.60)--(6.85,-2.60);
+  \node[pd note,text=hhamber] at (4.10,-2.86)
+    {conserved per unit; portfolio value is assumed and time-indexed};
+\end{tikzpicture}}
+\caption{\textbf{Conservation closes inside a native unit; conversion requires a
+named valuation boundary.} Panel A is an accounting waterfall: wallet, escrow,
+and commons deltas return exactly to zero. Panel B cannot close by adding unlike
+units. It must record the valuation function and instant, plus fee, slippage, and
+open exposure. Composition preserves native-unit balances; notation does not
+manufacture a unit-free portfolio total.}
 \label{fig:he-conservation-functor}
 \end{figure}

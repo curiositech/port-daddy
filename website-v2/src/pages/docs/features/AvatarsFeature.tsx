@@ -85,7 +85,7 @@ git commit -m "test"   # QA, docs, cartographer fire automatically`} />
             <p className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)] m-0 mt-1">
               Fires when a message arrives on a pub/sub channel. Reactive, event-driven. Good for: code review, docs sync, roadmap updates.
             </p>
-            <DocsCodeBlock code={`qa:\n  trigger: git:committed\n  backend: cloudflare\n  model: '@cf/qwen/qwen3-30b-a3b-fp8'`} />
+            <DocsCodeBlock code={`qa:\n  trigger: git:committed\n  backend: cloudflare\n  capability: cheap`} />
           </div>
           <div className="border-l-[length:var(--lw-stripe)] border-[var(--brand-secondary)] pl-4">
             <div className="flex items-center gap-2">
@@ -95,7 +95,7 @@ git commit -m "test"   # QA, docs, cartographer fire automatically`} />
             <p className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)] m-0 mt-1">
               Runs on a cron interval. Periodic, ambient. Good for: health checks, idea generation, cleanup, status reports.
             </p>
-            <DocsCodeBlock code={`spark:\n  schedule: "*/30 * * * *"\n  backend: codex\n  model: gpt-5.4-mini`} />
+            <DocsCodeBlock code={`spark:\n  schedule: "*/30 * * * *"\n  backend: codex\n  capability: cheap`} />
           </div>
         </div>
         <p className="text-sm text-[var(--text-secondary)]">

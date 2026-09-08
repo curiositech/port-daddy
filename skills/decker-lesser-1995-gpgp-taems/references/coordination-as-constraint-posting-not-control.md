@@ -46,7 +46,7 @@ This allows the system to break commitments when doing so produces higher overal
 
 ## Application to Modern Agent Systems
 
-For WinDAGs and similar orchestration systems, this separation principle suggests several design imperatives:
+For Jury-rig and similar orchestration systems, this separation principle suggests several design imperatives:
 
 **Don't Build Monolithic Orchestrators**: Instead of a central orchestrator that directly schedules all agent activities, build coordination mechanisms that post constraints to agents' local decision-making processes. Each agent should retain autonomy in *how* it satisfies constraints.
 
@@ -54,7 +54,7 @@ For WinDAGs and similar orchestration systems, this separation principle suggest
 
 **Allow Graceful Commitment Breaking**: Sometimes breaking a commitment is the right choice. The system should support renegotiation with clear communication about what changed and why. The negotiability index concept could be implemented as metadata on commitments.
 
-**Separate Domain Logic from Coordination Logic**: Skills (in WinDAGs terminology) should embed domain-specific scheduling heuristics. Coordination mechanisms should be domain-independent patterns that detect structural features (dependencies, redundancies) and post appropriate constraints.
+**Separate Domain Logic from Coordination Logic**: Skills (in Jury-rig terminology) should embed domain-specific scheduling heuristics. Coordination mechanisms should be domain-independent patterns that detect structural features (dependencies, redundancies) and post appropriate constraints.
 
 ## Boundary Conditions and Limitations
 

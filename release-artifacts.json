@@ -40,6 +40,15 @@
       "minBytes": 1
     },
     {
+      "id": "pd-hook-precompact",
+      "buildCmd": "cp bin/pd-hook-precompact dist/bin/pd-hook-precompact (Claude-only compaction checkpoint; no build)",
+      "sourcePath": "bin/pd-hook-precompact",
+      "stagedPath": "bin/pd-hook-precompact",
+      "required": true,
+      "executable": true,
+      "minBytes": 1
+    },
+    {
       "id": "pd-hook-pre-tool",
       "buildCmd": "cp bin/pd-hook-pre-tool dist/bin/pd-hook-pre-tool (POSIX shell tentacle; no build)",
       "sourcePath": "bin/pd-hook-pre-tool",

@@ -10,7 +10,7 @@ const site = (label: string, path: string, highlight: string) => ({
   href: `https://portdaddy.dev${path}#:~:text=${encodeURIComponent(highlight)}`,
 })
 
-const windags = (path: string) => ({
+const jury_rig = (path: string) => ({
   label: path,
   href: `http://windag.ai/skills/${path.split('/')[1] ?? ''}`,
 })
@@ -208,7 +208,7 @@ export const conceptsSection: DocsContentSection = {
               site('Session file claims', '/docs/features/sessions', 'File claims are advisory locks that warn agents about overlapping edits'),
             ],
             runtimeCode: [repo('lib/sessions.ts', '1-7'), repo('lib/sessions.ts', '54-77'), repo('lib/sessions.ts', '156-282'), repo('lib/sessions.ts', '1047-1089'), repo('lib/sessions.ts', '1272-1395'), repo('routes/sessions.ts'), repo('cli/commands/sessions.ts')],
-            skillDossiers: [windags('skills/multi-agent-coordination/SKILL.md'), windags('skills/agent-conversation-protocols/SKILL.md')],
+            skillDossiers: [jury_rig('skills/multi-agent-coordination/SKILL.md'), jury_rig('skills/agent-conversation-protocols/SKILL.md')],
           },
           {
             title: 'Leases, locks, and semantic port claims',
@@ -218,7 +218,7 @@ export const conceptsSection: DocsContentSection = {
               site('Locks SDK', '/docs/sdk/locks', 'exclusive lock'),
             ],
             runtimeCode: [repo('lib/locks.ts', '1-6'), repo('lib/locks.ts', '75-105'), repo('lib/locks.ts', '126-205'), repo('lib/locks.ts', '313-422'), repo('lib/services.ts', '1-5'), repo('lib/services.ts', '16-58'), repo('routes/locks.ts'), repo('routes/services.ts')],
-            skillDossiers: [windags('skills/multi-agent-coordination/SKILL.md'), windags('skills/ipc-communication-patterns/SKILL.md')],
+            skillDossiers: [jury_rig('skills/multi-agent-coordination/SKILL.md'), jury_rig('skills/ipc-communication-patterns/SKILL.md')],
           },
           {
             title: 'Pub/sub channels and direct agent inboxes',
@@ -229,7 +229,7 @@ export const conceptsSection: DocsContentSection = {
               site('Radio', '/docs/features/radio', 'task claims, handoffs, done signals'),
             ],
             runtimeCode: [repo('lib/messaging.ts', '1-5'), repo('lib/messaging.ts', '72-140'), repo('lib/messaging.ts', '150-213'), repo('lib/messaging.ts', '303-397'), repo('lib/agent-inbox.ts', '1-10'), repo('routes/messaging.ts')],
-            skillDossiers: [windags('skills/agent-conversation-protocols/SKILL.md'), windags('skills/ipc-communication-patterns/SKILL.md')],
+            skillDossiers: [jury_rig('skills/agent-conversation-protocols/SKILL.md'), jury_rig('skills/ipc-communication-patterns/SKILL.md')],
           },
           {
             title: 'Tuple space',
@@ -239,7 +239,7 @@ export const conceptsSection: DocsContentSection = {
               site('Tuple CLI', '/docs/cli/tuple', 'tuple'),
             ],
             runtimeCode: [repo('lib/tuples.ts', '1-20'), repo('lib/tuples.ts', '40-59'), repo('lib/tuples.ts', '79-159'), repo('lib/tuples.ts', '181-280'), repo('routes/tuples.ts'), repo('cli/commands/tuples.ts'), repo('mcp/server.ts', '2336-2391')],
-            skillDossiers: [windags('skills/multi-agent-coordination/SKILL.md'), windags('skills/agent-conversation-protocols/SKILL.md')],
+            skillDossiers: [jury_rig('skills/multi-agent-coordination/SKILL.md'), jury_rig('skills/agent-conversation-protocols/SKILL.md')],
           },
           {
             title: 'Harbors, capability cards, and zero-trust boundaries',
@@ -249,7 +249,7 @@ export const conceptsSection: DocsContentSection = {
               site('Create harbor MCP', '/docs/mcp/create-harbor', 'Create a scoped harbor'),
             ],
             runtimeCode: [repo('lib/harbors.ts', '1-15'), repo('lib/harbors.ts', '41-72'), repo('lib/harbor-tokens.ts', '1-24'), repo('lib/harbor-tokens.ts', '121-380'), repo('routes/harbors.ts')],
-            skillDossiers: [windags('skills/agentic-zero-trust-security/SKILL.md'), windags('skills/ostrom-commons-governance/SKILL.md')],
+            skillDossiers: [jury_rig('skills/agentic-zero-trust-security/SKILL.md'), jury_rig('skills/ostrom-commons-governance/SKILL.md')],
           },
           {
             title: 'Append-only activity, timelines, and evidence trails',
@@ -259,7 +259,7 @@ export const conceptsSection: DocsContentSection = {
               site('Activity CLI', '/docs/cli/activity', 'activity'),
             ],
             runtimeCode: [repo('lib/activity.ts', '1-6'), repo('lib/activity.ts', '16-52'), repo('lib/activity.ts', '147-164'), repo('lib/activity.ts', '226-380'), repo('routes/activity.ts'), repo('cli/commands/activity.ts'), repo('lib/sessions.ts', '1047-1089')],
-            skillDossiers: [windags('skills/runtime-verification-for-agents/SKILL.md'), windags('skills/game-theoretic-agent-incentives/SKILL.md')],
+            skillDossiers: [jury_rig('skills/runtime-verification-for-agents/SKILL.md'), jury_rig('skills/game-theoretic-agent-incentives/SKILL.md')],
           },
           {
             title: 'Runtime monitors and invariant enforcement',
@@ -269,7 +269,7 @@ export const conceptsSection: DocsContentSection = {
               site('Coordination Guard', '/agents/coordination-guard', 'Coordination Guard'),
             ],
             runtimeCode: [repo('lib/arbiter.ts', '1-12'), repo('lib/arbiter.ts', '102-209'), repo('lib/arbiter.ts', '213-245'), repo('lib/arbiter.ts', '297-353'), repo('lib/agents.ts', '320-390'), repo('lib/bosun-heartbeat.ts')],
-            skillDossiers: [windags('skills/runtime-verification-for-agents/SKILL.md'), windags('skills/runtime-verification-for-agents/diagrams/01_flowchart_decision-points.md')],
+            skillDossiers: [jury_rig('skills/runtime-verification-for-agents/SKILL.md'), jury_rig('skills/runtime-verification-for-agents/diagrams/01_flowchart_decision-points.md')],
           },
           {
             title: 'Budget, cost, and economic gates',
@@ -280,21 +280,21 @@ export const conceptsSection: DocsContentSection = {
               site('Resources', '/agents/smart-resources', 'Resources'),
             ],
             runtimeCode: [repo('lib/budget-guard.ts', '1-52'), repo('lib/budget-guard.ts', '149-232'), repo('lib/cost-tracker.ts', '1-17'), repo('lib/backend-telemetry-policy.ts', '11-99'), repo('lib/fleet-engine.ts', '690-709'), repo('lib/fleet-engine.ts', '1543-1560')],
-            skillDossiers: [windags('skills/game-theoretic-agent-incentives/SKILL.md'), windags('skills/ostrom-commons-governance/SKILL.md')],
+            skillDossiers: [jury_rig('skills/game-theoretic-agent-incentives/SKILL.md'), jury_rig('skills/ostrom-commons-governance/SKILL.md')],
           },
         ],
         skillTrail: [
-          windags('skills/multi-agent-coordination/SKILL.md'),
-          windags('skills/agent-conversation-protocols/SKILL.md'),
-          windags('skills/ipc-communication-patterns/SKILL.md'),
-          windags('skills/agentic-zero-trust-security/SKILL.md'),
-          windags('skills/runtime-verification-for-agents/SKILL.md'),
-          windags('skills/game-theoretic-agent-incentives/SKILL.md'),
-          windags('skills/ostrom-commons-governance/SKILL.md'),
-          windags('skills/next-move/SKILL.md'),
-          windags('skills/next-move/references/runtime-honesty.md'),
-          windags('docs/METHODOLOGY.md'),
-          windags('docs/screenshots/skill-search-bm25.png'),
+          jury_rig('skills/multi-agent-coordination/SKILL.md'),
+          jury_rig('skills/agent-conversation-protocols/SKILL.md'),
+          jury_rig('skills/ipc-communication-patterns/SKILL.md'),
+          jury_rig('skills/agentic-zero-trust-security/SKILL.md'),
+          jury_rig('skills/runtime-verification-for-agents/SKILL.md'),
+          jury_rig('skills/game-theoretic-agent-incentives/SKILL.md'),
+          jury_rig('skills/ostrom-commons-governance/SKILL.md'),
+          jury_rig('skills/next-move/SKILL.md'),
+          jury_rig('skills/next-move/references/runtime-honesty.md'),
+          jury_rig('docs/METHODOLOGY.md'),
+          jury_rig('docs/screenshots/skill-search-bm25.png'),
         ],
       },
       goals: [

@@ -1359,7 +1359,7 @@
     },
     {
       "kind": "branch",
-      "branch": "codex/agent-conformance-windags-docs",
+      "branch": "codex/agent-conformance-jury_rig-docs",
       "local": true,
       "remote": false,
       "last_commit": "2026-05-31 02:54:37 -0700",
@@ -1386,7 +1386,7 @@
       "age_days": 0,
       "what_it_is": "wip: preserve uncommitted edits from 2026-05-31 batch-merge re-triage",
       "what_it_does": "Touches WIP \u00b7 no PR yet",
-      "paragraph": "Preserved by automated steward sweep. 10 modified file(s) on branch codex/agent-conformance-windags-docs. Steward: [redacted]\n\nFiles:\n  - .agents/skills/port-daddy-agent-skill/SKILL.md\n  - .cartographer/status.md\n  - .claude/skills/port-daddy-agent-skill/SKILL.md\n  - .codex/skills/port-daddy-agent-skill/SKILL.md\n  - .gemini/extensions/port-daddy/skills/port-daddy-agent-skill/SKILL.md\n  ",
+      "paragraph": "Preserved by automated steward sweep. 10 modified file(s) on branch codex/agent-conformance-jury_rig-docs. Steward: [redacted]\n\nFiles:\n  - .agents/skills/port-daddy-agent-skill/SKILL.md\n  - .cartographer/status.md\n  - .claude/skills/port-daddy-agent-skill/SKILL.md\n  - .codex/skills/port-daddy-agent-skill/SKILL.md\n  - .gemini/extensions/port-daddy/skills/port-daddy-agent-skill/SKILL.md\n  ",
       "risk_level": "low",
       "risk_reasons": [
         "no high-risk path touched"
@@ -6510,7 +6510,7 @@
       "age_days": 12,
       "what_it_is": "feat(landscape): multi-agent comparison page + whitepaper cross-link",
       "what_it_does": "5 files \u00b7 +709/-18 lines \u00b7 merged; branch is cleanup candidate",
-      "paragraph": "New /landscape page with three screens:\n- Comparison table (Port Daddy, Cursor 2.0, Claude Code Task, ccswarm,\n  WinDAGs) with a \"Composes with PD?\" column and the \"none of these are\n  competitors\" honest-framing footnote. - Four-layer architecture diagram (Isolation / Communication / Coordination\n  / Integration) rendered as an inline themable layer stack; PD lives at\n  the coordination layer. - ",
+      "paragraph": "New /landscape page with three screens:\n- Comparison table (Port Daddy, Cursor 2.0, Claude Code Task, ccswarm,\n  Jury-rig) with a \"Composes with PD?\" column and the \"none of these are\n  competitors\" honest-framing footnote. - Four-layer architecture diagram (Isolation / Communication / Coordination\n  / Integration) rendered as an inline themable layer stack; PD lives at\n  the coordination layer. - ",
       "risk_level": "low",
       "risk_reasons": [
         "no high-risk path touched"
@@ -8570,7 +8570,7 @@
       "age_days": 12,
       "what_it_is": "feat(landscape): multi-agent comparison page positioning PD as coordination layer",
       "what_it_does": "no PR yet",
-      "paragraph": "New /landscape page with three screens:\n- Comparison table (Port Daddy, Cursor 2.0, Claude Code Task, ccswarm,\n  WinDAGs) with a \"Composes with PD?\" column and the \"none of these are\n  competitors\" honest-framing footnote. - Four-layer architecture diagram (Isolation / Communication / Coordination\n  / Integration) rendered as an inline themable layer stack; PD lives at\n  the coordination layer. - ",
+      "paragraph": "New /landscape page with three screens:\n- Comparison table (Port Daddy, Cursor 2.0, Claude Code Task, ccswarm,\n  Jury-rig) with a \"Composes with PD?\" column and the \"none of these are\n  competitors\" honest-framing footnote. - Four-layer architecture diagram (Isolation / Communication / Coordination\n  / Integration) rendered as an inline themable layer stack; PD lives at\n  the coordination layer. - ",
       "risk_level": "low",
       "risk_reasons": [
         "no high-risk path touched"
@@ -20529,7 +20529,7 @@
       "age_days": 12,
       "what_it_is": "feat(landscape): multi-agent comparison page positioning PD as coordination layer",
       "what_it_does": "no PR yet",
-      "paragraph": "New /landscape page with three screens:\n- Comparison table (Port Daddy, Cursor 2.0, Claude Code Task, ccswarm,\n  WinDAGs) with a \"Composes with PD?\" column and the \"none of these are\n  competitors\" honest-framing footnote. - Four-layer architecture diagram (Isolation / Communication / Coordination\n  / Integration) rendered as an inline themable layer stack; PD lives at\n  the coordination layer. - ",
+      "paragraph": "New /landscape page with three screens:\n- Comparison table (Port Daddy, Cursor 2.0, Claude Code Task, ccswarm,\n  Jury-rig) with a \"Composes with PD?\" column and the \"none of these are\n  competitors\" honest-framing footnote. - Four-layer architecture diagram (Isolation / Communication / Coordination\n  / Integration) rendered as an inline themable layer stack; PD lives at\n  the coordination layer. - ",
       "risk_level": "low",
       "risk_reasons": [
         "no high-risk path touched"

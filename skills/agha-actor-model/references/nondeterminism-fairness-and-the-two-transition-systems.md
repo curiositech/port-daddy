@@ -87,16 +87,16 @@ Then by the guarantee of delivery (subsequent transition) and induction, you can
 
 This is the distributed analog of a termination proof.
 
-## Application to WinDAGs
+## Application to Jury-rig
 
-**Task scheduling fairness**: WinDAGs must guarantee that every queued task is eventually executed. A scheduler that can starve low-priority tasks violates the subsequent transition property and breaks the correctness guarantees of any reasoning about the system.
+**Task scheduling fairness**: Jury-rig must guarantee that every queued task is eventually executed. A scheduler that can starve low-priority tasks violates the subsequent transition property and breaks the correctness guarantees of any reasoning about the system.
 
 **Progress monitoring**: The two-transition architecture suggests a natural monitoring approach. Track "pending tasks" against "completed tasks." A task that has been pending for more than a threshold time while other tasks are being processed is a potential fairness violation and should trigger an alert.
 
-**Divergence detection**: An agent that is generating new tasks faster than it is completing them may be in a divergent loop. WinDAGs should monitor the rate of task creation vs. task completion per agent and alert when the ratio exceeds a threshold.
+**Divergence detection**: An agent that is generating new tasks faster than it is completing them may be in a divergent loop. Jury-rig should monitor the rate of task creation vs. task completion per agent and alert when the ratio exceeds a threshold.
 
-**Liveness properties**: WinDAGs can formally specify liveness properties using the language of subsequent transitions: "If task T is created, it will eventually be completed." These properties can be monitored at runtime and violated when the subsequent transition guarantee is not met.
+**Liveness properties**: Jury-rig can formally specify liveness properties using the language of subsequent transitions: "If task T is created, it will eventually be completed." These properties can be monitored at runtime and violated when the subsequent transition guarantee is not met.
 
-**Nondeterminism in skill selection**: When multiple skills could handle a request, WinDAGs should not commit to a specific ordering. The nondeterministic choice should be made by the scheduler based on resource availability. The system's correctness should not depend on which skill is chosen — only that one is chosen.
+**Nondeterminism in skill selection**: When multiple skills could handle a request, Jury-rig should not commit to a specific ordering. The nondeterministic choice should be made by the scheduler based on resource availability. The system's correctness should not depend on which skill is chosen — only that one is chosen.
 
-**Fairness in multi-tenant scenarios**: In WinDAGs serving multiple users, the fairness guarantee extends to users: no user's tasks should be permanently deferred while other users' tasks are processed. The subsequent transition property should hold across users, not just within a single workflow.
+**Fairness in multi-tenant scenarios**: In Jury-rig serving multiple users, the fairness guarantee extends to users: no user's tasks should be permanently deferred while other users' tasks are processed. The subsequent transition property should hold across users, not just within a single workflow.

@@ -193,7 +193,7 @@ compliance ladder) and its interrupt buttons disable everywhere at once.
 
 ## Navigation and Seamanship
 
-Two capabilities that today live outside the product as WinDAGs tooling become
+Two capabilities that today live outside the product as Jury-rig tooling become
 first-class Port Daddy concepts, named for the harbor. This is a
 centralization move, not an addition: the external tools are engines behind
 existing binder concepts, and their old names stop being product vocabulary.
@@ -201,7 +201,7 @@ existing binder concepts, and their old names stop being product vocabulary.
 **Navigation** is the act of turning a Work Intent into a plan: sensemaking,
 decomposition into a DAG or hypertree of nodes, skill selection per node,
 premortem, synthesis. Chapter 14's `WorkPlanner` *is* the navigator — this
-term names what it does, and the WinDAGs next-move meta-DAG (sensemaker →
+term names what it does, and the Jury-rig next-move meta-DAG (sensemaker →
 decomposer → skill-selector ∥ premortem → synthesizer) is its current engine.
 The engine moves into the daemon as the WorkPlanner implementation; it does
 not remain a separate external surface the operator has to know about. The
@@ -211,7 +211,7 @@ which dependencies, which skills, what risks, what cost.
 **Seamanship** is the skill system: the indexed catalog, the search cascade
 (BM25 → embeddings → rank fusion → cross-encoder → outcome attribution), and
 the graft — attaching chosen skills to an Agent Node before launch, visibly.
-The WinDAGs `skill_search`/`skill_graft` tools are the current engine; they
+The Jury-rig `skill_search`/`skill_graft` tools are the current engine; they
 become the daemon's skill index and graft service (chapter 04, milestone M7).
 The PRD already commits to "skill grafting as visible preparation" — this
 names the whole capability, and every navigated node lists its grafted
@@ -222,7 +222,7 @@ Rules:
 - Navigation without Seamanship is planning theater. A plan whose nodes name
   no skills is a placeholder, not a plan (chapter 14 placeholder rules apply).
 - Vocabulary collapse applies here exactly as it does to launch verbs:
-  "WinDAGs", "next-move", "skill-selector", "graft batch" survive as engine
+  "Jury-rig", "next-move", "skill-selector", "graft batch" survive as engine
   and implementation names, never as operator-facing concepts. The operator
   sees Navigation (the chart) and Seamanship (the crew's skills).
 - Under the enforced MCP below, Navigation requests ride `work` and
@@ -354,7 +354,7 @@ before starting; the integration reviewer treats a missing graft as a finding:
 
 Rule: a chain that starts without grafting its row is under-prepared; the
 integration reviewer (work order I0) should treat missing grafts as a finding.
-Grafting is a Seamanship act; the engine behind it today is WinDAGs, per the
+Grafting is a Seamanship act; the engine behind it today is Jury-rig, per the
 Navigation and Seamanship section above.
 
 ## Proof gates

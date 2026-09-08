@@ -182,7 +182,7 @@ The empirical results suggest a practical heuristic: **design your decomposition
 - Chains are short enough to maintain coherence and accuracy
 - Error rates remain manageable (95%^15 ≈ 46% success per chain)
 
-For a WinDAGs system with 180+ skills:
+For a Jury-rig system with 180+ skills:
 
 **Poor decomposition** (targeting 5-step chains):
 ```

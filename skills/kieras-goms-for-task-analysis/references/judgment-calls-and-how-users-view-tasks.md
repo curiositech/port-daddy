@@ -327,6 +327,6 @@ The deepest lesson: **any useful task model embeds a theory of user cognition**.
 
 GOMS makes this explicit and systematic. It doesn't eliminate judgment—it structures judgment, documents it, and makes its implications traceable.
 
-For WinDAGs and agent systems: **orchestration design is cognitive engineering**. You're not just wiring up capabilities—you're creating a structure that encourages certain ways of thinking about tasks. Document your theory of how users think. Test it when possible. Revise when wrong. But don't pretend you don't have a theory. That just makes your theory unconscious and untestable.
+For Jury-rig and agent systems: **orchestration design is cognitive engineering**. You're not just wiring up capabilities—you're creating a structure that encourages certain ways of thinking about tasks. Document your theory of how users think. Test it when possible. Revise when wrong. But don't pretend you don't have a theory. That just makes your theory unconscious and untestable.
 
 The standard: thoughtful, documented, revisable speculation beats unconscious assumption.

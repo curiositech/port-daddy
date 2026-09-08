@@ -1,18 +1,20 @@
 /**
  * GitHub App egress credential (ADR-0053 Phase 0a — the confinement upgrade).
  *
- * Today the push path inherits the operator's `gh` token (`lib/fleet/
- * github-output.ts`): the agent's box holds a credential that can touch every
- * repo the operator can. Phase 0a replaces that for the *push broker* with a
+ * The push broker must not inherit an operator credential that can touch every
+ * repo the operator can. This existing seam provides it with a
  * **narrowly-scoped, short-lived GitHub App installation token** that the daemon
  * mints server-side and the agent never sees.
  *
  * "Narrowly-scoped" is the upgrade over `getInstallationToken`
  * (`apps/github-app-fleet/lib/auth.ts`), which mints a full-installation token.
  * Here we pass `repositories` + `permissions` in the mint request, so the token
- * GitHub returns can ONLY do `contents:write` on ONE repo. Even if it leaked, it
- * cannot read Actions secrets, touch another repo, or administer anything — and
- * it dies within the hour. The macaroon discharge gate (Phase 1) decides
+ * GitHub returns has `contents:write` on ONE repo; an explicitly authorized
+ * workflow or PR publication may also opt into `workflows:write` or
+ * `pull_requests:write`, respectively. No arbitrary
+ * permission map is accepted. Returned scope and one-hour expiry (with bounded
+ * clock skew) are checked before handing the token to its trusted caller.
+ * The macaroon discharge gate (Phase 1) decides
  * *whether* to mint; this decides *what the minted credential can do*.
  *
  * Dependency-injected by design: the caller supplies the App id + PEM (loaded
@@ -45,6 +47,12 @@ export interface ScopedPushTokenRequest extends AppCredentials {
   owner: string;
   /** Repo name (without owner). */
   repo: string;
+  /** Explicit opt-in for an already-authorized workflow-file publication.
+   *  Omitted/false keeps contents-only access; this is not publication authority. */
+  workflowWrite?: boolean;
+  /** Explicit opt-in for already-authorized PR publication/review actions.
+   *  Omitted/false never requests pull-request write access. */
+  pullRequestsWrite?: boolean;
   /** Injected for testing; defaults to global fetch. */
   fetchImpl?: typeof fetch;
   /** Injected verification clock (unix ms); defaults to Date.now(). */
@@ -52,7 +60,7 @@ export interface ScopedPushTokenRequest extends AppCredentials {
 }
 
 export interface ScopedPushToken {
-  /** The installation access token — push-scoped to `owner/repo` only. */
+  /** The installation access token — verified grants on `owner/repo` only. */
   token: string;
   /** Epoch ms when GitHub says the token expires (~1 h out). */
   expiresAt: number;
@@ -63,7 +71,10 @@ export interface ScopedPushToken {
 /**
  * Sign a GitHub App JWT (RS256). Exposed for testing; the JWT authenticates AS
  * the App only long enough to mint an installation token — it never touches a
- * repo. Back-dated `iat` absorbs laptop-vs-GitHub clock skew.
+ * repo. Design intent: back-dated `iat` absorbs laptop-vs-GitHub clock skew.
+ * @param creds App identity and its signing key, supplied by the trusted caller.
+ * @param nowMs Verification clock in Unix milliseconds.
+ * @returns A short-lived RS256 App JWT, not an installation credential.
  */
 export function signAppJwt(creds: AppCredentials, nowMs: number): string {
   if (!Number.isInteger(creds.appId) || creds.appId <= 0) {
@@ -76,6 +87,10 @@ export function signAppJwt(creds: AppCredentials, nowMs: number): string {
     exp: nowSec + JWT_LIFETIME_SECONDS - JWT_BACKDATE_SECONDS,
     iss: String(creds.appId),
   };
+  /** Design: JWT segments use URL-safe JSON encoding without padding.
+   * @param o JSON-compatible JWT segment.
+   * @returns The encoded segment.
+   */
   const b64u = (o: unknown): string => Buffer.from(JSON.stringify(o)).toString('base64url');
   const unsigned = `${b64u(header)}.${b64u(payload)}`;
   const signer = createSign('RSA-SHA256');
@@ -87,59 +102,131 @@ export function signAppJwt(creds: AppCredentials, nowMs: number): string {
 
 /**
  * Mint a push-scoped installation token: an App-authenticated POST to GitHub's
- * access-tokens endpoint, narrowed to ONE repo and `contents:write` only. The
- * returned token is the egress credential the push broker uses; it is never
- * handed to the agent.
+ * access-tokens endpoint, narrowed to ONE repo and contents-write, with an
+ * explicit workflow/PR-write opt-ins. The design verifies the actual grant rather
+ * than assuming the request proved scope. Implicit metadata-read is permitted.
  *
- * Throws on a non-2xx mint (with status + body) so a misconfigured App or a
- * revoked installation fails loud rather than silently yielding no token.
+ * Mint and rejected-token cleanup are bounded, with no retries. A rejected
+ * grant is revoked when a usable token was returned; only HTTP 204 confirms
+ * that cleanup. Unknown mint outcomes cannot be cleaned up without the token.
+ * The trusted caller must revoke a successful token in its own finally block;
+ * expiry is the remaining limit if its process is lost. No error echoes remote
+ * bodies, credentials or nested transport errors.
+ *
+ * @param req App credentials, exact repository and optional workflow/PR grants.
+ * @returns A verified short-lived token; never grants authority to publish.
  */
 export async function mintScopedPushToken(req: ScopedPushTokenRequest): Promise<ScopedPushToken> {
   if (!Number.isInteger(req.installationId) || req.installationId <= 0) {
     throw new Error('github-app-egress: installationId must be a positive integer');
   }
-  if (!req.owner || !req.repo) {
-    throw new Error('github-app-egress: owner and repo are required');
+  if (typeof req.owner !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9-]*$/.test(req.owner)
+    || typeof req.repo !== 'string' || !/^[A-Za-z0-9_.-]+$/.test(req.repo)
+    || req.repo === '.' || req.repo === '..') {
+    throw new Error('github-app-egress: owner and repo must be single repository identifiers');
+  }
+  if (req.workflowWrite !== undefined && typeof req.workflowWrite !== 'boolean') {
+    throw new Error('github-app-egress: workflowWrite must be an explicit boolean');
+  }
+  if (req.pullRequestsWrite !== undefined && typeof req.pullRequestsWrite !== 'boolean') {
+    throw new Error('github-app-egress: pullRequestsWrite must be an explicit boolean');
   }
   const fetchImpl = req.fetchImpl ?? fetch;
   const nowMs = req.nowMs ?? Date.now();
+  if (!Number.isFinite(nowMs)) throw new Error('github-app-egress: invalid verification clock');
   const jwt = signAppJwt(req, nowMs);
-
-  const res = await fetchImpl(
-    `https://api.github.com/app/installations/${req.installationId}/access_tokens`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${jwt}`,
-        Accept: 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-        'User-Agent': 'pd-push-broker/github-app',
-      },
-      // The narrowing that makes this a confinement upgrade: one repo, push only.
-      body: JSON.stringify({
-        repositories: [req.repo],
-        permissions: { contents: 'write' },
-      }),
-    },
-  );
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(
-      `github-app-egress: scoped-token mint failed: ${res.status} ${text.trim()}`,
-    );
+  const permissions: Record<string, string> = req.workflowWrite === true
+    ? { contents: 'write', workflows: 'write' } : { contents: 'write' };
+  if (req.pullRequestsWrite === true) permissions.pull_requests = 'write';
+  const headers = {
+    Accept: 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+    'User-Agent': 'pd-push-broker/github-app',
+  };
+  /** Bound both transport and body reads; motivation: injected transports may
+   * ignore abort, so a signal alone does not enforce the caller's deadline.
+   * @param run One attempt accepting an abort signal.
+   * @param timeoutMs Maximum duration of this attempt.
+   * @returns The attempt result, or a private timeout rejection.
+   */
+  async function bounded<T>(run: (signal: AbortSignal) => Promise<T>, timeoutMs: number): Promise<T> {
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        run(controller.signal),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => { controller.abort(); reject(new Error('deadline')); }, timeoutMs);
+        }),
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
   }
-
-  const data = (await res.json()) as { token: string; expires_at: string };
-  if (!data?.token || !data?.expires_at) {
-    throw new Error('github-app-egress: mint response missing token/expires_at');
+  let result: { status: number; data?: Record<string, unknown> };
+  try {
+    result = await bounded(async (signal) => {
+      const res = await fetchImpl(
+        `https://api.github.com/app/installations/${req.installationId}/access_tokens`,
+        {
+          method: 'POST', redirect: 'error', signal,
+          headers: { ...headers, Authorization: `Bearer ${jwt}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ repositories: [req.repo], permissions }),
+        },
+      );
+      return { status: res.status, data: res.status === 201 ? await res.json() : undefined };
+    }, 15_000);
+  } catch {
+    throw new Error('github-app-egress: scoped-token mint outcome unknown; cleanup unavailable; not retried');
   }
-  const expiresAt = new Date(data.expires_at).getTime();
-  if (!Number.isFinite(expiresAt)) {
-    throw new Error(`github-app-egress: mint response has an unparseable expires_at: ${data.expires_at}`);
+  if (result.status !== 201) {
+    throw new Error(`github-app-egress: scoped-token mint failed: HTTP ${result.status}; not retried`);
+  }
+  const data = result.data;
+  if (!data || typeof data.token !== 'string' || !data.token || /\s/.test(data.token)) {
+    throw new Error('github-app-egress: mint response missing usable token; cleanup unavailable');
+  }
+  const token = data.token;
+  /** Reject a minted capability without leaking it; motivation: invalid scope
+   * must not leave a known live credential silently abandoned.
+   * @param reason Fixed local diagnostic, never provider-controlled text.
+   * @returns Never; throws after a bounded cleanup witness.
+   */
+  async function rejectGrant(reason: string): Promise<never> {
+    let cleanup = 'unconfirmed';
+    try {
+      const status = await bounded(async (signal) => {
+        const response = await fetchImpl('https://api.github.com/installation/token', {
+          method: 'DELETE', redirect: 'error', signal,
+          headers: { ...headers, Authorization: `Bearer ${token}` },
+        });
+        return response.status;
+      }, 5_000);
+      if (status === 204) cleanup = 'confirmed';
+    } catch { /* Preserve the original rejection; cleanup remains unconfirmed. */ }
+    throw new Error(`github-app-egress: ${reason}; rejected-token cleanup ${cleanup}`);
+  }
+  const expiresAt = typeof data.expires_at === 'string' ? Date.parse(data.expires_at) : NaN;
+  // GitHub's one-hour grant plus at most 60 seconds of clock skew; never unbounded.
+  if (!Number.isFinite(expiresAt) || expiresAt <= nowMs || expiresAt > nowMs + 3_660_000) {
+    return rejectGrant('mint response expiry outside the one-hour bounded lifetime');
+  }
+  const granted = data.permissions;
+  if (!granted || typeof granted !== 'object' || Array.isArray(granted)
+    || Object.entries(permissions).some(([name, level]) => (granted as Record<string, unknown>)[name] !== level)
+    || Object.entries(granted).some(([name, level]) => permissions[name] !== level
+      && !(name === 'metadata' && level === 'read'))) {
+    return rejectGrant('mint response permissions do not match the requested scope');
+  }
+  const repositories = data.repositories;
+  const repository = Array.isArray(repositories) && repositories.length === 1 ? repositories[0] : null;
+  if (data.repository_selection !== 'selected' || !repository
+    || typeof repository.full_name !== 'string'
+    || repository.full_name.toLowerCase() !== `${req.owner}/${req.repo}`.toLowerCase()) {
+    return rejectGrant('mint response does not identify the exact single repository');
   }
   return {
-    token: data.token,
+    token,
     expiresAt,
     owner: req.owner,
     repo: req.repo,

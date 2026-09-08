@@ -1,0 +1,220 @@
+{
+  "identity": {
+    "agent": "primary-implementer",
+    "model": "gpt-5.6-sol",
+    "backend": "codex",
+    "sessionId": "session-build-the-authoritative-cross-backend-pd-console-1fc9a67c401a",
+    "operator": "Erich Owens",
+    "worktree": "/Users/erichowens/coding/tmp/pd-console-agent-switcher-20260830"
+  },
+  "intent": {
+    "goal": "Make pd-console's Agents view an authoritative, durable switcher for Port Daddy sessions across running Codex, Claude, and other provider backends without inventing provider identity.",
+    "scope": [
+      "lib/operator-session-directory.ts",
+      "routes/operator.ts",
+      "lib/daemon-profiles.ts",
+      "cli/commands/daemon.ts",
+      "core/pd-console/src/sessions_pane.rs",
+      "core/pd-console/src/main.rs",
+      "core/pd-console/src/grid.rs",
+      "core/pd-console/src/bin/repl.rs",
+      "tests/unit/operator-session-directory.test.ts",
+      "tests/unit/operator-routes.test.js",
+      "tests/unit/daemon-profiles.test.js",
+      "features.manifest.json",
+      "README.md",
+      "docs/operations/daemon-and-supervision.md",
+      "docs/roadmap/roadmap.snapshot.json"
+    ],
+    "stopCondition": "The daemon directory and named-berth identity tests pass, TypeScript typecheck exits 0, GPUI cargo check exits 0, the Agents pane tests pass, and a 520px live-data artifact shows the sortable ledger plus full selected-session evidence without offline-profile spam.",
+    "nonGoals": [
+      "Do not open another daemon berth's SQLite ledger directly.",
+      "Do not infer Codex, Claude, a model, or a provider endpoint from a process name.",
+      "Do not make historical or offline sessions addressable."
+    ]
+  },
+  "contextUsed": {
+    "filesRead": [
+      "AGENTS.md",
+      "docs/operations/daemon-and-supervision.md",
+      "core/pd-console/src/sessions_pane.rs",
+      "core/pd-console/src/main.rs",
+      "core/pd-console/src/lane_pane.rs",
+      "lib/daemon-profiles.ts",
+      "routes/operator.ts",
+      "skills/agent-work-receipt-designer/SKILL.md",
+      "skills/operator-surface-authority-designer/SKILL.md",
+      "skills/sqlite-durable-agent-state/SKILL.md"
+    ],
+    "rulesApplied": [
+      "AGENTS.md",
+      "ADR-0120 Rust boundary",
+      "daemon-authoritative SQLite ownership",
+      "provider evidence must be witnessed",
+      "layout-overflow-guard narrow-width discipline",
+      "agent-work-receipt artifact-backed validation"
+    ],
+    "attachments": [
+      "artifacts/pd-console-agent-switcher/agents-520px.png",
+      "artifacts/pd-console-agent-switcher/agents-sort-switch-520px.gif"
+    ],
+    "priorReceipts": []
+  },
+  "actions": {
+    "commands": [
+      {
+        "cmd": "npm test -- --runInBand tests/unit/daemon-profiles.test.js tests/unit/operator-session-directory.test.ts tests/unit/operator-routes.test.js",
+        "exitCode": 0,
+        "cwd": "/Users/erichowens/coding/tmp/pd-console-agent-switcher-20260830"
+      },
+      {
+        "cmd": "npm run typecheck",
+        "exitCode": 0,
+        "cwd": "/Users/erichowens/coding/tmp/pd-console-agent-switcher-20260830"
+      },
+      {
+        "cmd": "CARGO_BUILD_JOBS=2 cargo check --manifest-path core/pd-console/Cargo.toml --bin pd-console --features gpui",
+        "exitCode": 0,
+        "cwd": "/Users/erichowens/coding/tmp/pd-console-agent-switcher-20260830"
+      },
+      {
+        "cmd": "cargo test -p pd-console sessions_pane::tests",
+        "exitCode": 0,
+        "cwd": "/Users/erichowens/coding/tmp/pd-console-agent-switcher-20260830/core"
+      },
+      {
+        "cmd": "PORT_DADDY_URL=http://127.0.0.1:19993 core/target/debug/pd-console-repl --capture-agents artifacts/pd-console-agent-switcher/agents-520px.png --capture-width 520",
+        "exitCode": 0,
+        "cwd": "/Users/erichowens/coding/tmp/pd-console-agent-switcher-20260830"
+      },
+      {
+        "cmd": "PATH=/opt/homebrew/opt/node@22/bin:$PATH npm test -- --runInBand",
+        "exitCode": 1,
+        "cwd": "/Users/erichowens/coding/tmp/pd-console-agent-switcher-20260830"
+      },
+      {
+        "cmd": "PATH=/opt/homebrew/opt/node@22/bin:$PATH npm test -- --runInBand tests/unit/manifest-enforcement.test.js tests/unit/no-hardcoded-model-ids.test.js tests/unit/no-hardcoded-daemon-url.test.js tests/unit/no-hardcoded-daemon-port.test.js tests/unit/operator-session-directory.test.ts tests/unit/operator-routes.test.js tests/unit/daemon-profiles.test.js",
+        "exitCode": 0,
+        "cwd": "/Users/erichowens/coding/tmp/pd-console-agent-switcher-20260830"
+      }
+    ],
+    "toolCalls": [
+      { "tool": "apply_patch", "count": 20 },
+      { "tool": "exec_command", "count": 40 },
+      { "tool": "view_image", "count": 1 }
+    ],
+    "filesChanged": {
+      "added": [
+        "lib/operator-session-directory.ts",
+        "tests/unit/operator-session-directory.test.ts",
+        "changelog.d/9968-pd-console-agent-switcher.md",
+        "artifacts/pd-console-agent-switcher/agents-520px.png",
+        "artifacts/pd-console-agent-switcher/agents-sort-switch-520px.gif",
+        "artifacts/pd-console-agent-switcher/work-receipt.json"
+      ],
+      "modified": [
+        "README.md",
+        "cli/commands/daemon.ts",
+        "core/pd-console/src/bin/repl.rs",
+        "core/pd-console/src/grid.rs",
+        "core/pd-console/src/main.rs",
+        "core/pd-console/src/sessions_pane.rs",
+        "docs/operations/daemon-and-supervision.md",
+        "docs/roadmap/roadmap.snapshot.json",
+        "features.manifest.json",
+        "lib/daemon-profiles.ts",
+        "routes/operator.ts",
+        "tests/unit/daemon-profiles.test.js",
+        "tests/unit/operator-routes.test.js"
+      ],
+      "deleted": [],
+      "diffSummary": "+1835 -134 across 19 source, test, manifest, roadmap, documentation, receipt, and visual-proof files"
+    }
+  },
+  "validation": {
+    "artifactBacked": true,
+    "tests": [
+      {
+        "name": "daemon cross-berth directory, operator route, and named profile identity",
+        "command": "npm test -- --runInBand tests/unit/daemon-profiles.test.js tests/unit/operator-session-directory.test.ts tests/unit/operator-routes.test.js",
+        "exitCode": 0,
+        "passed": true
+      },
+      {
+        "name": "TypeScript contract",
+        "command": "npm run typecheck",
+        "exitCode": 0,
+        "passed": true
+      },
+      {
+        "name": "GPUI application compile",
+        "command": "CARGO_BUILD_JOBS=2 cargo check --manifest-path core/pd-console/Cargo.toml --bin pd-console --features gpui",
+        "exitCode": 0,
+        "passed": true
+      },
+      {
+        "name": "Agents pane parsing, ledger inspection, transcript receipts, explicit cross-berth rebind confirmation, and fail-closed legacy selection upgrade",
+        "command": "cargo test -p pd-console sessions_pane::tests",
+        "exitCode": 0,
+        "passed": true
+      },
+      {
+        "name": "route manifest, portable model and daemon discovery contracts, and berth-coupled session deduplication",
+        "command": "PATH=/opt/homebrew/opt/node@22/bin:$PATH npm test -- --runInBand tests/unit/manifest-enforcement.test.js tests/unit/no-hardcoded-model-ids.test.js tests/unit/no-hardcoded-daemon-url.test.js tests/unit/no-hardcoded-daemon-port.test.js tests/unit/operator-session-directory.test.ts tests/unit/operator-routes.test.js tests/unit/daemon-profiles.test.js",
+        "exitCode": 0,
+        "passed": true
+      },
+      {
+        "name": "full Node test inventory",
+        "command": "PATH=/opt/homebrew/opt/node@22/bin:$PATH npm test -- --runInBand",
+        "exitCode": 1,
+        "passed": false,
+        "notes": "13468 tests passed. The two remaining failures are pre-existing home-directory assertions in sitrep-template.test.js and purser/template-command.test.ts: each first requires homedir() output and then forbids the literal path of this operator's actual home directory. Four feature-specific contract failures found by this run were corrected and their seven exact gates pass."
+      },
+      {
+        "name": "520px live-data layout proof",
+        "artifactPath": "artifacts/pd-console-agent-switcher/agents-520px.png",
+        "passed": true
+      },
+      {
+        "name": "sortable ledger transition proof",
+        "artifactPath": "artifacts/pd-console-agent-switcher/agents-sort-switch-520px.gif",
+        "passed": true
+      }
+    ],
+    "manualVerification": "macOS Screen Recording and Accessibility permission blocked an automated click-through capture of the live GPUI framebuffer. The checked-in proof therefore uses pd-console's real Block projection against the live development daemon at 520px; the HTML-only layout-overflow checker cannot geometrically inspect a native GPUI or PNG surface. A reviewer should click an active row in a permitted build and confirm that Mission chat reaches the selected actor. The full Node inventory ran under the repository's Node 22 ABI; its feature-specific contract findings were fixed and rechecked. Hosted review additionally found that a saved conversation could silently resolve through another surviving berth; the selection file now preserves both session and berth identity, and a five-test Rust suite proves chat remains unbound until the operator confirms that switch. Legacy session-only selection files are also inspect-only until the operator confirms the owning berth."
+  },
+  "spend": {
+    "wallClockMs": 2560752
+  },
+  "risks": [
+    {
+      "description": "The selected-actor routing compiled and its identity projection is unit-tested, but macOS privacy controls prevented automated end-to-end clicking in the live GPUI window; a permitted human click-through remains the first review check.",
+      "severity": "high",
+      "mitigated": false,
+      "checkFirst": true
+    },
+    {
+      "description": "The current workspace Cargo.lock is stale relative to dependencies already present on main. Cargo compilation passed after resolving that pre-existing graph, and the unrelated lock rewrite was excluded from this change.",
+      "severity": "medium",
+      "mitigated": true
+    },
+    {
+      "description": "Provider labels remain unknown when no daemon roster witness exists; this is deliberate fail-closed behavior but may look less polished than guessed labels until every harness publishes evidence.",
+      "severity": "low",
+      "mitigated": true
+    }
+  ],
+  "rollback": {
+    "checkpoint": "f28a1893bf0f6d28292e3e44cd11490b928ee425",
+    "method": "git-revert",
+    "verified": false
+  },
+  "provenance": {
+    "contentHash": "sha256:0783d5795e10b0598975762e50d2a67f5b80d7c0df8235baa9dc5eeebf3a16e1",
+    "signedBy": "codex:session-build-the-authoritative-cross-backend-pd-console-1fc9a67c401a",
+    "signatureAlg": "none",
+    "timestamp": "2026-08-30T14:31:00Z",
+    "replayCommand": "npm test -- --runInBand tests/unit/daemon-profiles.test.js tests/unit/operator-session-directory.test.ts tests/unit/operator-routes.test.js && npm run typecheck && CARGO_BUILD_JOBS=2 cargo check --manifest-path core/pd-console/Cargo.toml --bin pd-console --features gpui && cd core && cargo test -p pd-console sessions_pane::tests"
+  }
+}

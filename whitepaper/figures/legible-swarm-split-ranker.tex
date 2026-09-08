@@ -1,50 +1,73 @@
-% Figure 8 — the split ranker (Thm. split-ranker): shared candidate-generation +
-% decay substrate, two distinct scoring heads (fit vs regret).
-% Design: each box is a name, an objective, and a motto — the signals inventory
-% and the "not one ranker" verdict live in the caption.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure 11 — slope chart, restyled to spec [ch4.md restyles]. Ranks 1-4 are
+% ticks on both axes; all four candidates are named with a three-word gloss
+% at BOTH ends so no legend is needed. A and B fully reverse (the theorem's
+% content); C and D swap one adjacent pair, a smaller instance of the same
+% non-comonotone fact. C/D glosses are this redraw's own short illustrative
+% tags — the chapter names only A and B explicitly.
 \begin{figure}[H]
 \centering
-\resizebox{0.8\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  box/.style={draw=hhebony,thick,rounded corners=3pt,align=center,inner sep=5pt,
-              font=\footnotesize,text width=42mm},
-  head/.style={draw=hhebony,very thick,rounded corners=3pt,align=center,inner sep=6pt,
-               font=\footnotesize,text width=50mm},
-  e/.style={-{Latex[length=2mm]},thick,hhink},
-]
-% shared substrate
-\node[box,fill=hhsand!30] (sub) at (0,0)
-  {\textbf{Shared substrate}\\candidate generation\\$+$ recency decay (Prop.~\ref{prop:decay})};
+\begin{tikzpicture}[pd figure,x=.5cm,y=1cm]
+  \draw[pd focus rule,line width=1.1pt] (4,0.7)--(4,5.8);
+  \draw[pd caution rule,line width=1.1pt] (12,0.7)--(12,5.8);
+  \node[pd panel title,text=hhteal,anchor=south,align=center] at (4,6.05)
+    {rank by discovery\\(fit)};
+  \node[pd panel title,text=hhamber,anchor=south,align=center] at (12,6.05)
+    {rank by attention\\(regret)};
 
-% split
-\node[head,fill=hhsand!30] (fit) at (6.4,1.8)
-  {\textbf{Discovery head} --- agent$\to$agent\\maximize \emph{fit} (Eq.~\ref{eq:fit})\\
-   \emph{``who is most capable?''}};
-\node[head,fill=hhsand!30] (reg) at (6.4,-1.8)
-  {\textbf{Attention-queue head} --- substrate$\to$operator\\maximize \emph{regret-if-ignored} (Eq.~\ref{eq:regret})\\
-   \emph{``what is most dangerous?''}};
+  \foreach \y/\rank in {5.2/1,3.9/2,2.6/3,1.3/4}{
+    \draw[pd tick] (3.85,\y)--(4.15,\y);
+    \draw[pd tick] (11.85,\y)--(12.15,\y);
+    \node[pd axis label,anchor=east] at (3.7,\y) {\rank};
+    \node[pd axis label,anchor=west] at (12.3,\y) {\rank};
+  }
 
-\draw[e] (sub.east) -- (fit.west);
-\draw[e] (sub.east) -- (reg.west);
-\end{tikzpicture}%
-}
-\caption{The split ranker (Thm.~\ref{thm:split-ranker}). The discovery ranker and the
-operator's attention queue \emph{share} candidate generation and recency-decay
-(Prop.~\ref{prop:decay}) over the same signals --- claims, skills, notes, episodes,
-presence --- but apply distinct scoring heads: discovery maximizes \emph{fit}
-(capability match, Eq.~\ref{eq:fit}); the attention queue maximizes
-\emph{regret-if-ignored} (Eq.~\ref{eq:regret}). The operator wants the most dangerous
-item surfaced, the agent wants the most capable collaborator --- incompatible loss
-functions, not one objective with swapped weights, so the elegant ``one ranker''
-claim is false-as-stated and demoted to ``shared substrate, distinct heads.''}
+  % A: discovery rank 1 -> attention rank 4 (safe to ignore)
+  \draw[pd focus rule,line width=1.05pt] (4,5.2)--(12,1.3);
+  \node[pd focus datum] at (4,5.2) {};
+  \node[pd focus datum] at (12,1.3) {};
+  % B: discovery rank 4 -> attention rank 1 (dangerous to miss)
+  \draw[pd caution rule,line width=1.05pt] (4,1.3)--(12,5.2);
+  \node[pd caution datum] at (4,1.3) {};
+  \node[pd caution datum] at (12,5.2) {};
+  % C, D: a smaller adjacent swap, the same non-comonotone fact in miniature
+  \draw[pd hairline] (4,3.9)--(12,2.6);
+  \draw[pd hairline] (4,2.6)--(12,3.9);
+  \node[pd datum] at (4,3.9) {};
+  \node[pd datum] at (12,2.6) {};
+  \node[pd datum] at (4,2.6) {};
+  \node[pd datum] at (12,3.9) {};
+
+  % end glosses, named at both ends, outside both axes
+  \node[pd direct label,text=hhteal,anchor=east,align=center,text width=1.8cm]
+    at (2.3,5.2) {\hyphenpenalty=10000\textbf{A} \\ capable, safe, calm};
+  \node[pd direct label,text=hhteal,anchor=west,align=center,text width=1.8cm]
+    at (13.7,1.3) {\hyphenpenalty=10000\textbf{A} \\ capable, safe, calm};
+
+  \node[pd direct label,text=hhamber,anchor=east,align=center,text width=1.8cm]
+    at (2.3,1.3) {\hyphenpenalty=10000\textbf{B} \\ off-topic, risky, tense};
+  \node[pd direct label,text=hhamber,anchor=west,align=center,text width=1.8cm]
+    at (13.7,5.2) {\hyphenpenalty=10000\textbf{B} \\ off-topic, risky, tense};
+
+  \node[pd direct label,anchor=east,align=center,text width=1.8cm]
+    at (2.3,3.9) {\hyphenpenalty=10000\textbf{C} \\ steady, calm, minor};
+  \node[pd direct label,anchor=west,align=center,text width=1.8cm]
+    at (13.7,2.6) {\hyphenpenalty=10000\textbf{C} \\ steady, calm, minor};
+
+  \node[pd direct label,anchor=east,align=center,text width=1.8cm]
+    at (2.3,2.6) {\hyphenpenalty=10000\textbf{D} \\ shaky, tense, rising};
+  \node[pd direct label,anchor=west,align=center,text width=1.8cm]
+    at (13.7,3.9) {\hyphenpenalty=10000\textbf{D} \\ shaky, tense, rising};
+
+  \node[pd note,anchor=north,align=center,text width=8.2cm] at (8,0.35)
+    {\hyphenpenalty=10000\exhyphenpenalty=10000
+     A and B reverse: no monotone rescaling\\makes the two heads interchangeable};
+\end{tikzpicture}
+\caption{One candidate pool under two loss functions, ranks 1--4 on both
+axes. Discovery ranks by fit; attention ranks by expected regret if ignored.
+Candidate A is the best fit but safest to skip, while B is a poor fit but the
+most dangerous to miss, so their ranks fully invert (1--4 against 4--1). C
+and D swap one adjacent pair, the same non-comonotone fact at smaller scale.
+Shared candidate generation and recency decay do not make the two scoring
+heads interchangeable [internal].}
 \label{fig:split-ranker}
 \end{figure}

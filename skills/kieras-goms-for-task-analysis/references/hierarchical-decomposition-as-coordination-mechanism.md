@@ -6,7 +6,7 @@ The GOMS framework reveals a profound insight about how intelligent systems shou
 
 ## Why Hierarchies Matter for Coordination
 
-In a multi-agent system like WinDAGs, agents don't communicate through a shared understanding of the entire problem space. Instead, they coordinate through **goal decomposition**—one agent accomplishes a goal by invoking subgoals that other agents (or itself at a different level) fulfill. GOMS shows that this only works when decomposition follows certain principles:
+In a multi-agent system like Jury-rig, agents don't communicate through a shared understanding of the entire problem space. Instead, they coordinate through **goal decomposition**—one agent accomplishes a goal by invoking subgoals that other agents (or itself at a different level) fulfill. GOMS shows that this only works when decomposition follows certain principles:
 
 **Subgoal Independence**: Each subgoal must be accomplishable without detailed knowledge of its parent goal's context. Kieras notes, "A method may call for sub-Goals to be accomplished, so the Methods have a hierarchical structure" (p. 2). The critical design question: what information does a subgoal need? GOMS represents this through pseudoparameters and the task description, showing exactly what context must be passed down.
 
@@ -102,7 +102,7 @@ The interstep vs. intrastep distinction matters for failure handling. Interstep 
 
 ## What This Means for DAG Construction
 
-A DAG in WinDAGs is essentially a method hierarchy made explicit as a graph. Each node is a goal; each edge is a subgoal relationship. GOMS teaches:
+A DAG in Jury-rig is essentially a method hierarchy made explicit as a graph. Each node is a goal; each edge is a subgoal relationship. GOMS teaches:
 
 - **Nodes at the same depth should be comparable in complexity**: If one node takes 100x longer than its siblings, the decomposition is unbalanced.
 - **Shared subDAGs indicate consistency**: When multiple top-level tasks invoke the same sub-pattern, you've found a reusable component.
@@ -121,7 +121,7 @@ GOMS hierarchical decomposition works best when:
 
 ## Connection to Agent System Design
 
-For WinDAGs specifically:
+For Jury-rig specifically:
 
 - **Skill definition = method definition**: Each skill should be documentable as a GOMS method—clear goal, defined steps, explicit subgoal calls, identifiable completion.
 - **Skill composition = method hierarchy**: When Skill A invokes Skill B, document the pseudoparameters (what context is passed) and the working memory contract (what state must exist).

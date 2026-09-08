@@ -36,7 +36,7 @@ The paper reveals this thinking explicitly: "The first technique is the well-kno
 
 ### 1. Task Decomposition in DAG Orchestration
 
-When WinDAGs decomposes a complex task into subtasks, **the decomposition strategy determines coordination complexity**:
+When Jury-rig decomposes a complex task into subtasks, **the decomposition strategy determines coordination complexity**:
 
 **Bad decomposition** (Paxos-like):
 - Task A produces intermediate state
@@ -111,7 +111,7 @@ The Raft decomposition assumes:
 
 The authors acknowledge this: "Raft's strong leadership approach simplifies the algorithm, but it precludes some performance optimizations. For example, Egalitarian Paxos (EPaxos) can achieve higher performance under some conditions with a leaderless approach" (p. 16).
 
-## Implication for WinDAGs
+## Implication for Jury-rig
 
 When decomposing complex problems into skills/agents:
 

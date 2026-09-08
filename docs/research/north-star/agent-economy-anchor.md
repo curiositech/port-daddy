@@ -134,7 +134,7 @@ until value has been pinned against it.
 
 ### 3.2 The bond ledger is built, and it conserves value
 
-The single most load-bearing primitive — and the one that is *actually built* — is
+The single most core primitive — and the one that is *actually built* — is
 **`lib/bonds.ts`** (*bond escrow for agent spawning: debit a project wallet into an escrow
 row before spawn; refund on clean exit; slash on breach, splitting the slash between the
 wallet and a commons pool*). It guards two invariants, restated here verbatim from the

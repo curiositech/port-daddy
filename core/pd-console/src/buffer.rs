@@ -18,9 +18,10 @@
 //! A Loro `PeerID` is a `u64`. We mint one deterministically from the actor's PD
 //! identity string (`project:stack:context` for an agent, the OS user for a human,
 //! whatever `pd whoami` reports) by hashing it with FNV-1a. The same identity
-//! therefore always maps to the same replica — authorship and audit survive
-//! reconnect/salvage (battle-plan risk: "Loro-replica↔PD-identity binding must
-//! survive reconnect"). We mask off `u64::MAX` because Loro reserves it.
+//! therefore always maps to the same replica across reconnects. This mapping is a
+//! necessary authorship primitive, not P3.5 recovery authority: it does not let a
+//! successor assume a dead actor's verified identity. We mask off `u64::MAX`
+//! because Loro reserves it.
 
 use loro::{ExpandType, ExportMode, LoroDoc, LoroText, StyleConfig, StyleConfigMap};
 use std::ops::Range;
@@ -42,9 +43,10 @@ pub type PeerId = u64;
 /// Mint a stable Loro `PeerId` from a PD identity string.
 ///
 /// FNV-1a over the identity's bytes — deterministic, dependency-free, and stable
-/// across process restarts so a salvaged successor replaying a dead actor's
-/// identity lands on the *same* replica id (authorship stays attributed to the
-/// original actor). We clear the top bit's all-ones edge by masking `u64::MAX`,
+/// across process restarts so a reconnecting actor lands on the *same* replica id.
+/// P3.5 recovery must separately prove the abandoned actor and complete typed
+/// operation ledger through canonical Rust; callers may not self-assert a dead
+/// actor's identity. We clear the top bit's all-ones edge by masking `u64::MAX`,
 /// which Loro reserves internally.
 pub fn peer_id_for_identity(identity: &str) -> PeerId {
     // FNV-1a 64-bit.
@@ -222,13 +224,13 @@ impl HarborBuffer {
     /// Export a **compacted full-state snapshot** of this buffer — the durability
     /// primitive for P2 slice 3. Where [`export_ops`](Self::export_ops) is the
     /// unbounded update *log*, this is Loro's `ExportMode::Snapshot`: the current
-    /// state + history folded into one blob a fresh (or reconnecting/salvaging)
+    /// state + history folded into one blob a fresh or reconnecting
     /// replica imports via [`apply_remote_ops`](Self::apply_remote_ops) to
     /// reconstruct the doc in one shot — no full-history replay. This is the byte
-    /// stream that rides to the content-addressed `/blob` store (build-coop-ide-gpui
-    /// ref 03 §3: "doc snapshots → content-addressed `/blob` … the salvage
-    /// substrate"), so a peer that missed the live op stream catches up from
-    /// snapshot+recent-deltas instead of the whole log.
+    /// stream that can ride to the content-addressed `/blob` store, so a peer that
+    /// missed the live op stream catches up from snapshot+recent-deltas instead of
+    /// the whole log. `/blob` is P2 checkpoint transport, not authoritative editor
+    /// recovery evidence.
     pub fn export_snapshot(&self) -> Vec<u8> {
         self.doc.commit();
         self.doc
@@ -351,7 +353,7 @@ mod tests {
 
     /// A stable PD identity → PeerId mapping: same identity, same id; different
     /// identities, (overwhelmingly) different ids. This underpins the
-    /// replica↔identity binding that authorship and salvage depend on.
+    /// replica↔identity binding that stable authorship and reconnect depend on.
     #[test]
     fn peer_id_is_stable_and_identity_specific() {
         let human = "port-daddy:console:erich";
@@ -359,7 +361,7 @@ mod tests {
         assert_eq!(
             peer_id_for_identity(human),
             peer_id_for_identity(human),
-            "same identity must mint the same replica id (salvage depends on this)"
+            "same identity must mint the same replica id across reconnects"
         );
         assert_ne!(
             peer_id_for_identity(human),
@@ -487,9 +489,9 @@ mod tests {
         );
     }
 
-    /// Importing the same ops twice is idempotent (a salvage/replay successor may
-    /// re-import; the buffer must not duplicate lines). Foundational for the P3.5
-    /// salvage story even though salvage itself is not in this slice.
+    /// Importing the same ops twice is idempotent (a reconnecting peer may
+    /// re-import; the buffer must not duplicate lines). This is a P1/P2 CRDT
+    /// property, not proof that the caller is authorized to recover a dead actor.
     #[test]
     fn reimporting_ops_is_idempotent() {
         let a = HarborBuffer::empty("port-daddy:editor:a");
@@ -507,7 +509,7 @@ mod tests {
 
     /// P2 slice 3 durability: a compacted snapshot reconstructs the whole buffer —
     /// content AND per-line authorship — in one import, exactly what a reconnecting
-    /// or salvaging replica does after fetching the snapshot blob from `/blob`.
+    /// replica does after fetching a P2 snapshot blob from `/blob`.
     #[test]
     fn snapshot_reconstructs_content_and_authorship() {
         let human_id = "port-daddy:console:human";
@@ -548,7 +550,7 @@ mod tests {
             "the agent's line stays the agent's"
         );
 
-        // Re-importing the snapshot is idempotent (double-consume safety).
+        // Re-importing the snapshot is idempotent (duplicate-delivery safety).
         restored.apply_remote_ops(&snapshot).unwrap();
         assert_eq!(
             restored.lines().len(),

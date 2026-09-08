@@ -40,6 +40,8 @@ export interface FetchOptions {
   body?: string | Buffer | null;
   timeout?: number;
   transport?: 'auto' | 'tcp';
+  /** Pin the initially selected socket/transport; pair false with retry:false for a single attempt. */
+  socketFallback?: boolean;
   /** Disable launchd-window reconnect retries for optional latency-critical calls. */
   retry?: boolean;
   /** Abort the active socket/TCP request when a caller's total deadline expires. */
@@ -155,13 +157,20 @@ function isDaemonDownError(error: unknown): boolean {
  */
 const DAEMON_RECONNECT_DELAYS_MS: readonly number[] = [200, 400, 800, 1500];
 
+/**
+ * The design retains ordinary socket fallback unless a caller explicitly pins
+ * transport. Non-idempotent callers can forbid ambiguous cross-transport replay.
+ * @param path - Route on the selected daemon.
+ * @param options - Request options including opt-in fallback suppression.
+ * @returns The selected transport's response or its original failure.
+ */
 function singleRequest(path: string, options: FetchOptions): Promise<PdFetchResponse> {
   const explicitUrl = configuredDaemonUrl(process.env);
   const target: ConnectionTarget = options.transport === 'tcp'
     ? resolveDaemonTcpTarget(explicitUrl)
     : resolveTarget();
   return requestTarget(target, path, options).catch((error: unknown) => {
-    if (!target.socketPath || explicitUrl || !shouldFallbackFromSocket(error)) {
+    if (options.socketFallback === false || !target.socketPath || explicitUrl || !shouldFallbackFromSocket(error)) {
       throw error;
     }
     const fallbackTarget = resolveDaemonTcpTarget(explicitUrl);

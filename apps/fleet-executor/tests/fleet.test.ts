@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parseFleetShips, parseFleetSquidEvents, defaultPRShips, resolveCfModel } from '../src/fleet.js';
+import { CF_ADMITTED_MODELS, CF_ROLE_MODELS } from '../../shared/model-registry.generated.js';
 
 // The REAL pd-fleet.yml at the repo root (apps/fleet-executor/tests → ../../..).
 const REAL_YAML = readFileSync(
@@ -299,5 +300,39 @@ describe('defaultPRShips fallback', () => {
     expect(names.has('code-reviewer')).toBe(true);
     expect(names.has('qa')).toBe(true);
     for (const s of ships) expect(s.prompt.trim().length).toBeGreaterThan(0);
+  });
+});
+
+describe('ship-level pins: both spellings, and admission at the resolver', () => {
+  const purser = (pin: string) =>
+    parseFleetShips(
+      `fleet:\n  agents:\n    purser:\n      class: purser\n      trigger: pull_request:opened\n${pin}\n      prompt: |\n        anything.\n`,
+      'pull_request:opened',
+    )!.find((s) => s.name === 'purser')!;
+
+  // EVERY fixture here pins something DIFFERENT from the ship default on
+  // purpose. A regression in this exact function hid behind a fixture that
+  // pinned the default value: the pin was being dropped entirely, and the
+  // assertion still passed because the fallback produced the same id. A pin
+  // test whose expected value equals the default proves nothing.
+  it('honors a ship-level `model:` literal — pd-fleet.yml\'s spelling', () => {
+    expect(CF_ROLE_MODELS.reviewBot).not.toBe(CF_ROLE_MODELS.shipDefault);
+    expect(purser(`      model: '${CF_ROLE_MODELS.reviewBot}'`).cfModel).toBe(
+      CF_ROLE_MODELS.reviewBot,
+    );
+  });
+
+  it('honors a ship-level `cf_role:` token', () => {
+    expect(purser('      cf_role: reviewBot').cfModel).toBe(CF_ROLE_MODELS.reviewBot);
+  });
+
+  it('drops an unadmitted role rather than running it', () => {
+    // `embed` resolves to a real catalogued model the fleet must never run: the
+    // ideas-store index would return vectors where a review should be. The
+    // resolver refuses it, so the ship falls back rather than being handed it.
+    expect(CF_ADMITTED_MODELS).not.toContain(CF_ROLE_MODELS.embed);
+    const cfModel = purser('      cf_role: embed').cfModel;
+    expect(cfModel).not.toBe(CF_ROLE_MODELS.embed);
+    expect(CF_ADMITTED_MODELS).toContain(cfModel);
   });
 });

@@ -31,7 +31,7 @@
 
 #![allow(dead_code)]
 
-use crate::pane::{Block, CodeBand, CodeLine, SyntaxKind, Tone};
+use crate::pane::{Block, CodeBand, CodeLine, LedgerCell, SyntaxKind, Tone};
 use crate::theme::{Oklch, Theme, DARK};
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -247,6 +247,81 @@ fn label_w(label: &str, scale: usize) -> usize {
     (label.chars().count().max(1) * GLYPH_ADV * scale) + 16
 }
 
+fn raster_chunks_at_scale(text: &str, width_px: usize, scale: usize) -> Vec<String> {
+    let max_chars = (width_px / (GLYPH_ADV * scale.max(1))).max(1);
+    let mut lines = Vec::new();
+    let mut line = String::new();
+    for ch in text.chars() {
+        if ch == '\u{200b}' {
+            continue;
+        }
+        if ch == '\n' || line.chars().count() >= max_chars {
+            lines.push(std::mem::take(&mut line));
+            if ch == '\n' {
+                continue;
+            }
+        }
+        line.push(ch);
+    }
+    if !line.is_empty() || lines.is_empty() {
+        lines.push(line);
+    }
+    lines
+}
+
+fn raster_chunks(text: &str, width_px: usize) -> Vec<String> {
+    raster_chunks_at_scale(text, width_px, 1)
+}
+
+fn header_height(text: &str, inner: usize) -> usize {
+    16 + raster_chunks_at_scale(text, inner.saturating_sub(28), 2).len() * 16
+}
+
+fn row_height(cells: &[String], inner: usize) -> usize {
+    let cell_width = inner / cells.len().max(1);
+    let line_count = cells
+        .iter()
+        .map(|cell| raster_chunks_at_scale(cell, cell_width.saturating_sub(16), 2).len())
+        .max()
+        .unwrap_or(1);
+    16 + line_count * 16
+}
+
+fn chip_height(label: &str, inner: usize) -> usize {
+    (10 + raster_chunks_at_scale(label, inner.saturating_sub(16), 2).len() * 16).max(ROW_H)
+}
+
+fn keyval_height(key: &str, value: &str, inner: usize) -> usize {
+    let column_width = inner / 2;
+    let lines = raster_chunks_at_scale(key, column_width.saturating_sub(20), 2)
+        .len()
+        .max(raster_chunks_at_scale(value, column_width.saturating_sub(20), 2).len());
+    (16 + lines * 16).max(ROW_H)
+}
+
+const LEDGER_RASTER_SCALE: usize = 1;
+const LEDGER_RASTER_LINE_H: usize = 12;
+
+/// Metadata ledgers deliberately use a denser proof type scale than general
+/// narrative rows: every labelled field remains visible in wide and 520px
+/// evidence without inflating a six-row ledger into an unreadable poster.
+/// This affects only the deterministic proof face; GPUI keeps TEXT_BODY.
+fn ledger_row_height(cells: &[LedgerCell], inner: usize) -> usize {
+    let value_width = inner.saturating_sub(24).max(GLYPH_ADV);
+    8 + cells
+        .iter()
+        .map(|cell| {
+            14 + raster_chunks_at_scale(&cell.value, value_width, LEDGER_RASTER_SCALE).len()
+                * LEDGER_RASTER_LINE_H
+        })
+        .sum::<usize>()
+}
+
+fn wrapped_text_height(text: &str, inner: usize) -> usize {
+    let value_width = inner.saturating_sub(24).max(GLYPH_ADV);
+    16 + raster_chunks(text, value_width).len() * 12
+}
+
 /// Render a `Block` list to an offscreen [`Canvas`] using the real locked theme.
 /// Pure geometry + color here; text is overlaid by [`draw_text`]. This is the same
 /// primitive language the GPUI and ratatui faces consume — a faithful third face.
@@ -265,9 +340,15 @@ pub fn render_blocks(blocks: &[Block], t: &Theme, width: usize) -> Canvas {
     for b in blocks {
         h += match b {
             Block::Gap => ROW_H / 2,
-            Block::Header(_) => ROW_H + 8,
+            Block::Header(text) => header_height(text, inner) + 8,
+            Block::Row(cells) => row_height(cells, inner),
+            Block::Chip { label, .. } => chip_height(label, inner),
+            Block::KeyVal(key, value) => keyval_height(key, value, inner),
             Block::Spark(_) => ROW_H + 20,
-            Block::WrappedText { .. } | Block::ChatTurn { .. } => ROW_H + 18,
+            Block::WrappedText { text, .. } => wrapped_text_height(text, inner),
+            Block::ChatTurn { .. } => ROW_H + 18,
+            Block::LedgerHeader { columns, .. } => columns.len().max(1) * 22,
+            Block::LedgerRow { cells, .. } => ledger_row_height(cells, inner),
             Block::NodeRow { .. } => ROW_H + 8,
             Block::CodeBuffer { lines, .. } => {
                 let visible = lines.len().min(500);
@@ -293,32 +374,126 @@ pub fn render_blocks(blocks: &[Block], t: &Theme, width: usize) -> Canvas {
                 y += ROW_H / 2;
             }
             Block::Header(s) => {
-                c.fill_rect(x0, y, inner, ROW_H, panel);
-                c.fill_rect(x0, y, 5, ROW_H, accent); // accent tick
-                draw_text(&mut c, x0 + 14, y + 8, 2, s, ink);
-                y += ROW_H + 8;
+                let height = header_height(s, inner);
+                c.fill_rect(x0, y, inner, height, panel);
+                c.fill_rect(x0, y, 5, height, accent); // accent tick
+                for (line_index, line) in raster_chunks_at_scale(s, inner.saturating_sub(28), 2)
+                    .iter()
+                    .enumerate()
+                {
+                    draw_text(&mut c, x0 + 14, y + 8 + line_index * 16, 2, line, ink);
+                }
+                y += height + 8;
             }
             Block::KeyVal(k, v) => {
-                c.fill_rect(x0, y, inner, ROW_H, panel);
-                draw_text(&mut c, x0 + 10, y + 9, 2, k, muted);
-                draw_text(&mut c, x0 + inner / 2, y + 9, 2, v, ink);
-                y += ROW_H;
+                let height = keyval_height(k, v, inner);
+                c.fill_rect(x0, y, inner, height, panel);
+                for (line_index, line) in
+                    raster_chunks_at_scale(k, (inner / 2).saturating_sub(20), 2)
+                        .iter()
+                        .enumerate()
+                {
+                    draw_text(&mut c, x0 + 10, y + 9 + line_index * 16, 2, line, muted);
+                }
+                for (line_index, line) in
+                    raster_chunks_at_scale(v, (inner / 2).saturating_sub(20), 2)
+                        .iter()
+                        .enumerate()
+                {
+                    draw_text(
+                        &mut c,
+                        x0 + inner / 2,
+                        y + 9 + line_index * 16,
+                        2,
+                        line,
+                        ink,
+                    );
+                }
+                y += height;
             }
             Block::Row(cells) => {
-                c.fill_rect(x0, y, inner, ROW_H, panel);
+                let height = row_height(cells, inner);
+                c.fill_rect(x0, y, inner, height, panel);
                 let n = cells.len().max(1);
                 let cw = inner / n;
                 for (i, cell) in cells.iter().enumerate() {
                     let cx = x0 + i * cw;
                     if i > 0 {
-                        c.fill_rect(cx, y + 4, 1, ROW_H - 8, muted); // separator
+                        c.fill_rect(cx, y + 4, 1, height - 8, muted); // separator
                     }
                     // First column is the accent/label column in the GPUI + TUI
                     // renderers; keep it brighter here so emphasis reads the same.
                     let col = if i == 0 { ink } else { ink2 };
-                    draw_text(&mut c, cx + 8, y + 9, 2, cell, col);
+                    for (line_index, line) in raster_chunks_at_scale(cell, cw.saturating_sub(16), 2)
+                        .iter()
+                        .enumerate()
+                    {
+                        draw_text(&mut c, cx + 8, y + 9 + line_index * 16, 2, line, col);
+                    }
                 }
-                y += ROW_H;
+                y += height;
+            }
+            Block::LedgerHeader {
+                columns,
+                active_sort,
+                descending,
+                ..
+            } => {
+                for (key, label) in columns {
+                    let active = key == active_sort;
+                    c.fill_rect(x0, y, inner, 20, if active { raised } else { panel });
+                    if active {
+                        c.fill_rect(x0, y, 4, 20, accent);
+                    }
+                    let text = if active {
+                        format!("{label} {}", if *descending { "v" } else { "^" })
+                    } else {
+                        label.clone()
+                    };
+                    draw_text(
+                        &mut c,
+                        x0 + 10,
+                        y + 6,
+                        1,
+                        &text,
+                        if active { accent } else { muted },
+                    );
+                    y += 22;
+                }
+            }
+            Block::LedgerRow {
+                selected,
+                cells,
+                tone,
+                ..
+            } => {
+                let height = ledger_row_height(cells, inner);
+                c.fill_rect(x0, y, inner, height, if *selected { raised } else { panel });
+                c.fill_rect(x0, y, 4, height, tone_rgb(*tone, t));
+                if *selected {
+                    c.stroke_rect(x0, y, inner, height, accent);
+                }
+                let mut cell_y = y + 6;
+                let value_width = inner.saturating_sub(24).max(GLYPH_ADV);
+                for cell in cells {
+                    draw_text(
+                        &mut c,
+                        x0 + 12,
+                        cell_y,
+                        LEDGER_RASTER_SCALE,
+                        &cell.label.to_ascii_uppercase(),
+                        muted,
+                    );
+                    cell_y += LEDGER_RASTER_LINE_H;
+                    for line in
+                        raster_chunks_at_scale(&cell.value, value_width, LEDGER_RASTER_SCALE)
+                    {
+                        draw_text(&mut c, x0 + 12, cell_y, LEDGER_RASTER_SCALE, &line, ink);
+                        cell_y += LEDGER_RASTER_LINE_H;
+                    }
+                    cell_y += 2;
+                }
+                y += height;
             }
             Block::CodeBuffer {
                 lines,
@@ -388,10 +563,16 @@ pub fn render_blocks(blocks: &[Block], t: &Theme, width: usize) -> Canvas {
             }
             Block::Chip { label, tone } => {
                 let col = tone_rgb(*tone, t);
+                let height = chip_height(label, inner);
                 let w = label_w(label, 2).min(inner);
-                c.fill_rect(x0, y + 4, w, ROW_H - 10, col);
-                draw_text(&mut c, x0 + 8, y + 9, 2, label, bg);
-                y += ROW_H;
+                c.fill_rect(x0, y + 4, w, height - 10, col);
+                for (line_index, line) in raster_chunks_at_scale(label, inner.saturating_sub(16), 2)
+                    .iter()
+                    .enumerate()
+                {
+                    draw_text(&mut c, x0 + 8, y + 9 + line_index * 16, 2, line, bg);
+                }
+                y += height;
             }
             Block::Flag {
                 letter,
@@ -518,10 +699,16 @@ pub fn render_blocks(blocks: &[Block], t: &Theme, width: usize) -> Canvas {
                 y += ROW_H + 18;
             }
             Block::WrappedText { text, tone } => {
-                c.fill_rect(x0, y, inner, ROW_H + 14, panel);
-                c.fill_rect(x0, y, 4, ROW_H + 14, tone_rgb(*tone, t));
-                draw_text(&mut c, x0 + 12, y + 10, 1, text, ink2);
-                y += ROW_H + 18;
+                let height = wrapped_text_height(text, inner);
+                c.fill_rect(x0, y, inner, height - 4, panel);
+                c.fill_rect(x0, y, 4, height - 4, tone_rgb(*tone, t));
+                let value_width = inner.saturating_sub(24).max(GLYPH_ADV);
+                let mut line_y = y + 8;
+                for line in raster_chunks(text, value_width) {
+                    draw_text(&mut c, x0 + 12, line_y, 1, &line, ink2);
+                    line_y += 12;
+                }
+                y += height;
             }
             Block::TranscriptLine { text, tone } => {
                 c.fill_rect(x0, y, inner, ROW_H, panel);
@@ -731,6 +918,12 @@ fn glyph(ch: char) -> [u8; 7] {
         ],
         '·' | '•' => [0, 0, 0b01110, 0b01110, 0b01110, 0, 0],
         '%' => [0b11001, 0b11010, 0b00100, 0b01000, 0b01011, 0b10011, 0],
+        '█' => [
+            0b11111, 0b11111, 0b11111, 0b11111, 0b11111, 0b11111, 0b11111,
+        ],
+        '▓' => [
+            0b10101, 0b11111, 0b01010, 0b11111, 0b10101, 0b11111, 0b01010,
+        ],
         _ => [
             0b11111, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b11111,
         ], // unknown → box
@@ -1000,6 +1193,158 @@ pub fn capture_to_path(path: &str) -> std::io::Result<usize> {
     capture_state_to_path(path, "in_progress")
 }
 
+/// Deterministic, TCC-independent proof of the title-deck zoom contract.
+/// This intentionally uses the render-agnostic raster and carries a visible
+/// provenance label; it is not represented as a GPUI/Metal framebuffer grab.
+pub fn capture_zoom_controls_to_path(path: &str, requested_percent: u16) -> std::io::Result<usize> {
+    let percent = requested_percent.clamp(
+        crate::presentation::MIN_ZOOM_PERCENT,
+        crate::presentation::MAX_ZOOM_PERCENT,
+    );
+    let factor = f32::from(percent) / 100.0;
+    let width = 1200usize;
+    // Keep every proof frame the same size while leaving enough vertical room
+    // for the 200% title deck, annotations, and provenance watermark.
+    let height = 320usize;
+    let logical_width = width as f32 / factor;
+    let compact = logical_width < 960.0;
+    let minimal = logical_width < 720.0;
+    let t = &DARK;
+    let bg = to_rgb(t.bg);
+    let panel = to_rgb(t.panel);
+    let raised = to_rgb(t.raised);
+    let line = to_rgb(t.resting);
+    let ink = to_rgb(t.ink);
+    let ink2 = to_rgb(t.ink2);
+    let muted = to_rgb(t.muted);
+    let accent = to_rgb(t.accent);
+    let engaged = to_rgb(t.engaged);
+    let s = |value: usize| ((value as f32 * factor).round() as usize).max(1);
+    let text_scale = if percent >= 150 { 3 } else { 2 };
+
+    let mut canvas = Canvas::new(width, height, bg);
+    let deck_h = s(48);
+    canvas.fill_rect(0, 0, width, deck_h, panel);
+    canvas.fill_rect(0, deck_h.saturating_sub(1), width, 1, line);
+
+    let mut x = s(78);
+    let port_w = s(58);
+    let daddy_w = s(70);
+    canvas.fill_rect(x, 0, port_w, deck_h, accent);
+    draw_text(
+        &mut canvas,
+        x + s(9),
+        s(15),
+        text_scale,
+        "PORT",
+        (251, 247, 239),
+    );
+    x += port_w;
+    canvas.fill_rect(x, 0, daddy_w, deck_h, engaged);
+    draw_text(
+        &mut canvas,
+        x + s(8),
+        s(15),
+        text_scale,
+        "DADDY",
+        (23, 25, 29),
+    );
+    x += daddy_w;
+
+    if !compact {
+        let version_w = s(150);
+        canvas.stroke_rect(x, 0, version_w, deck_h, line);
+        draw_text(&mut canvas, x + s(10), s(17), 1, "PD-CONSOLE / DEV", muted);
+        x += version_w + s(8);
+        draw_text(&mut canvas, x, s(17), 1, "MAIN  +  [VIEWS]", ink2);
+    }
+
+    // Primary controls are right-anchored, matching the flex spacer in GPUI.
+    let cli_w = s(76);
+    let optional_w = if minimal { 0 } else { s(146) };
+    let controls_w = s(104);
+    let right_pad = s(14);
+    let controls_x = width.saturating_sub(right_pad + cli_w + optional_w + controls_w + s(18));
+    let button_y = s(11);
+    let button_h = s(26);
+    let minus_w = s(28);
+    let reset_w = s(48);
+    let plus_w = s(28);
+    let mut bx = controls_x;
+    let zoom_labels = [
+        ("-".to_string(), minus_w),
+        (format!("{percent}%"), reset_w),
+        ("+".to_string(), plus_w),
+    ];
+    for (label, button_w) in zoom_labels {
+        canvas.fill_rect(bx, button_y, button_w, button_h, raised);
+        canvas.stroke_rect(bx, button_y, button_w, button_h, line);
+        let label_width = label.chars().count() * GLYPH_ADV * text_scale;
+        draw_text(
+            &mut canvas,
+            bx + button_w.saturating_sub(label_width) / 2,
+            button_y + s(6),
+            text_scale,
+            &label,
+            ink,
+        );
+        bx += button_w;
+    }
+
+    if !minimal {
+        bx += s(8);
+        draw_text(&mut canvas, bx, s(17), 1, "MOTION ON  LIGHT", ink2);
+    }
+    draw_text(
+        &mut canvas,
+        width.saturating_sub(cli_w + right_pad),
+        s(17),
+        1,
+        ">_ CLI",
+        ink2,
+    );
+
+    canvas.fill_rect(0, deck_h + s(16), width, 1, line);
+    draw_text(
+        &mut canvas,
+        s(24),
+        deck_h + s(32),
+        2,
+        &format!("ZOOM {percent}% / LOGICAL WIDTH {:.0}px", logical_width),
+        ink,
+    );
+    draw_text(
+        &mut canvas,
+        s(24),
+        deck_h + s(58),
+        1,
+        if compact {
+            "SECONDARY TITLE LABELS COLLAPSED; ZOOM CONTROLS REMAIN VISIBLE"
+        } else {
+            "FULL TITLE DECK; ZOOM CONTROLS REMAIN RIGHT-ANCHORED"
+        },
+        muted,
+    );
+    draw_text(
+        &mut canvas,
+        s(24),
+        height - 22,
+        1,
+        "RENDER-AGNOSTIC TITLE-DECK PROOF / NOT A GPUI-METAL FRAMEBUFFER CAPTURE",
+        engaged,
+    );
+
+    let png = canvas.to_png();
+    let output = std::path::Path::new(path);
+    if let Some(parent) = output.parent() {
+        if !parent.as_os_str().is_empty() {
+            std::fs::create_dir_all(parent)?;
+        }
+    }
+    std::fs::write(output, &png)?;
+    Ok(png.len())
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // isonim-gpui technique, ported to our gpui 0.2.2 pin.
 //
@@ -1115,6 +1460,171 @@ mod geom_tests {
             .filter(|&(x, y)| c.pixel(x, y) != bg)
             .count();
         assert!(painted > 500, "too few painted pixels: {painted}");
+    }
+
+    #[test]
+    fn gantt_block_glyphs_have_native_quality_proof_raster_shapes() {
+        let solid = glyph('█');
+        let shaded = glyph('▓');
+        assert!(solid.iter().all(|row| *row == 0b11111));
+        assert_ne!(solid, shaded, "critical and slack bars must stay distinct");
+        assert!(shaded.iter().all(|row| *row != 0));
+    }
+
+    #[test]
+    fn narrow_ledger_canvas_expands_vertically_and_preserves_visible_text() {
+        let value = "/Users/erichowens/coding/tmp/port-daddy-dispatch-2593fc6c/core/pd-console/src/claims_pane.rs::ClaimsPane::refresh";
+        let cells = vec![LedgerCell::wide("path", value)];
+        let width = 180;
+        let inner = width - PAD * 2;
+        let chunks = raster_chunks(value, inner.saturating_sub(24));
+        assert_eq!(chunks.concat(), value, "raster wrapping must be lossless");
+        assert!(chunks.len() > 1, "test must exercise narrow wrapping");
+
+        let expected_row_height = ledger_row_height(&cells, inner);
+        assert!(
+            expected_row_height > ROW_H,
+            "long identity must expand the row rather than clip"
+        );
+        let canvas = render_blocks(
+            &[Block::LedgerRow {
+                surface: "claims".into(),
+                index: 0,
+                selected: true,
+                cells,
+                tone: Tone::Engaged,
+            }],
+            &DARK,
+            width,
+        );
+        assert_eq!(canvas.w, width);
+        assert_eq!(
+            canvas.h,
+            HEADER_H + PAD + expected_row_height + FOOTER_H + PAD,
+            "canvas height must reserve every wrapped line"
+        );
+    }
+
+    #[test]
+    fn ledger_header_reserves_and_paints_every_sort_control() {
+        let columns = vec![
+            ("path".into(), "Path".into()),
+            ("owner".into(), "Owner".into()),
+            ("phase".into(), "Phase".into()),
+        ];
+        let canvas = render_blocks(
+            &[Block::LedgerHeader {
+                surface: "claims".into(),
+                columns,
+                active_sort: "owner".into(),
+                descending: true,
+            }],
+            &DARK,
+            180,
+        );
+
+        assert_eq!(
+            canvas.h,
+            HEADER_H + PAD + 3 * 22 + FOOTER_H + PAD,
+            "each sort control needs a complete geometry row"
+        );
+        assert_eq!(
+            canvas.pixel(PAD, HEADER_H + PAD + 22 + 10),
+            to_rgb(DARK.accent),
+            "the active sort row must retain its visible accent marker"
+        );
+    }
+
+    #[test]
+    fn narrow_inspector_canvas_expands_vertically_for_every_visible_line() {
+        let value = "FILE\n/Users/erichowens/coding/tmp/port-daddy-dispatch-2593fc6c/core/pd-console/src/claims_pane.rs::ClaimsPane::refresh";
+        let width = 180;
+        let inner = width - PAD * 2;
+        let chunks = raster_chunks(value, inner.saturating_sub(24));
+        assert_eq!(chunks.concat(), value.replace('\n', ""));
+        let expected_height = wrapped_text_height(value, inner);
+        assert!(expected_height > ROW_H + 18);
+
+        let canvas = render_blocks(
+            &[Block::WrappedText {
+                text: value.into(),
+                tone: Tone::Engaged,
+            }],
+            &DARK,
+            width,
+        );
+        assert_eq!(
+            canvas.h,
+            HEADER_H + PAD + expected_height + FOOTER_H + PAD,
+            "canvas height must reserve every inspector line"
+        );
+    }
+
+    #[test]
+    fn narrow_generic_header_and_row_wrap_losslessly_without_cell_collision() {
+        let header = "Gantt critical path with a complete source-labelled planning summary";
+        let cells = vec![
+            "fail-closed-signed-external-accountability".to_string(),
+            "........########################".to_string(),
+            "estimate 13 critical date anchored".to_string(),
+        ];
+        let width = 180;
+        let inner = width - PAD * 2;
+        let header_chunks = raster_chunks_at_scale(header, inner.saturating_sub(28), 2);
+        assert_eq!(header_chunks.concat(), header);
+        assert!(header_chunks.len() > 1);
+        for cell in &cells {
+            let chunks = raster_chunks_at_scale(cell, (inner / cells.len()).saturating_sub(16), 2);
+            assert_eq!(chunks.concat(), *cell);
+        }
+
+        let expected_header = header_height(header, inner);
+        let expected_row = row_height(&cells, inner);
+        assert!(expected_header > ROW_H);
+        assert!(expected_row > ROW_H);
+        let canvas = render_blocks(
+            &[Block::Header(header.into()), Block::Row(cells)],
+            &DARK,
+            width,
+        );
+        assert_eq!(
+            canvas.h,
+            HEADER_H + PAD + expected_header + 8 + expected_row + FOOTER_H + PAD
+        );
+    }
+
+    #[test]
+    fn narrow_chip_expands_instead_of_clipping_status_metadata() {
+        let label = "PORT DADDY LOCAL AUTHORITY WITH FIVE HUNDRED NINETY ROADMAP ITEMS";
+        let width = 180;
+        let inner = width - PAD * 2;
+        let chunks = raster_chunks_at_scale(label, inner.saturating_sub(16), 2);
+        assert_eq!(chunks.concat(), label);
+        let expected_height = chip_height(label, inner);
+        assert!(expected_height > ROW_H);
+        let canvas = render_blocks(
+            &[Block::Chip {
+                label: label.into(),
+                tone: Tone::Accent,
+            }],
+            &DARK,
+            width,
+        );
+        assert_eq!(canvas.h, HEADER_H + PAD + expected_height + FOOTER_H + PAD);
+    }
+
+    #[test]
+    fn narrow_key_value_expands_for_a_complete_schedule_count() {
+        let key = "remaining";
+        let value = "+436 more scheduled task(s)";
+        let width = 180;
+        let inner = width - PAD * 2;
+        let value_chunks = raster_chunks_at_scale(value, (inner / 2).saturating_sub(20), 2);
+        assert_eq!(value_chunks.concat(), value);
+        let expected_height = keyval_height(key, value, inner);
+        assert!(expected_height > ROW_H);
+        let canvas = render_blocks(&[Block::KeyVal(key.into(), value.into())], &DARK, width);
+        assert_eq!(canvas.h, HEADER_H + PAD + expected_height + FOOTER_H + PAD);
     }
 
     #[test]

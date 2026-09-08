@@ -1,6 +1,20 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { executeFleet, mapWithConcurrency, mapChunkCharLimit } from '../src/execute.js';
+import {
+  executeFleet,
+  buildSystemPrompt,
+  mapWithConcurrency,
+  mapChunkCharLimit,
+  MAX_OUTPUT_TOKENS,
+} from '../src/execute.js';
+import { parseFleetShips } from '../src/fleet.js';
+import {
+  createCheckpointReviewInputSha256,
+  createShipCheckpointBinding,
+} from '../src/ship-checkpoint.js';
 import { MODEL_CONTEXT_TOKENS } from '../src/spend.js';
+import { assessContextAdmission } from '../src/context-admission.js';
+import { recordDeliveryContinuation } from '../src/delivery-failure.js';
+import { MAX_DIFF_BYTES, PR_FILES_PAGE_SIZE, renderFleetContext } from '../src/github.js';
 import {
   freshState,
   installGitHubFetch,
@@ -51,9 +65,185 @@ const REVIEWER_YAML = fleetYaml([
   { name: 'code-reviewer', blocking: true, model: '@cf/qwen/qwen2.5-coder-32b-instruct' },
 ]);
 
+// Same parsed policy as REVIEWER_YAML, deliberately reordered at the YAML and
+// fallback-map levels. Checkpoint reuse must bind effective policy, not source
+// formatting or object insertion order.
+const REORDERED_REVIEWER_YAML = [
+  'fleet:',
+  '  agents:',
+  '    code-reviewer:',
+  '      prompt: |',
+  '        code-reviewer ship: review the diff and report findings.',
+  '      fallbacks:',
+  "        - model: '@cf/qwen/qwen2.5-coder-32b-instruct'",
+  '          backend: cloudflare',
+  '      blocking: true',
+  '      trigger: pull_request:opened',
+  '  name: test',
+  '',
+].join('\n');
+
+const ADVISORY_REVIEWER_YAML = fleetYaml([
+  { name: 'code-reviewer', blocking: false, model: '@cf/qwen/qwen2.5-coder-32b-instruct' },
+]);
+
 const REVIEWER_PLUS_QA_YAML = fleetYaml([
   { name: 'code-reviewer', blocking: true, model: '@cf/qwen/qwen2.5-coder-32b-instruct' },
   { name: 'qa', blocking: false },
+]);
+
+const REVIEWER_PLUS_PURSER_YAML = [
+  'fleet:',
+  '  name: test',
+  '  agents:',
+  '    code-reviewer:',
+  '      trigger: pull_request:opened',
+  '      blocking: true',
+  '      fallbacks:',
+  "        - backend: cloudflare",
+  "          model: '@cf/qwen/qwen2.5-coder-32b-instruct'",
+  '      prompt: |',
+  '        code-reviewer ship: review the diff and report findings.',
+  '    purser:',
+  '      class: purser',
+  '      trigger: pull_request:opened',
+  '      blocking: true',
+  '      blockWithoutSandbox: false',
+  '      testPaths: [tests/unit/purser]',
+  '      fallbacks:',
+  "        - backend: cloudflare",
+  "          model: '@cf/qwen/qwen3-30b-a3b-fp8'",
+  '      prompt: |',
+  '        purser ship: steel-man and test the change.',
+  '',
+].join('\n');
+
+const REVIEWER_PLUS_RED_TEAM_YAML = fleetYaml([
+  { name: 'code-reviewer', blocking: true, model: '@cf/qwen/qwen2.5-coder-32b-instruct' },
+  { name: 'red-team', blocking: true, model: '@cf/qwen/qwen2.5-coder-32b-instruct' },
+]);
+
+const MEDIATOR_REVIEWER_PLUS_QA_YAML = REVIEWER_PLUS_QA_YAML.replace(
+  '  name: test\n',
+  '  name: test\n  mediator:\n    enabled: true\n    harbor: test-harbor\n',
+);
+
+const LOOKOUT_THEN_REVIEWER_QA_YAML = fleetYaml([
+  { name: 'lookout', blocking: false, model: '@cf/qwen/qwen2.5-coder-32b-instruct' },
+  { name: 'code-reviewer', blocking: true, model: '@cf/qwen/qwen2.5-coder-32b-instruct' },
+  { name: 'qa', blocking: false, model: '@cf/qwen/qwen2.5-coder-32b-instruct' },
+]);
+
+const MEDIATOR_LOOKOUT_THEN_REVIEWER_QA_YAML = LOOKOUT_THEN_REVIEWER_QA_YAML.replace(
+  '  name: test\n',
+  '  name: test\n  mediator:\n    enabled: true\n    harbor: test-harbor\n',
+);
+
+const CONTRACT_MINIMAL_PASS = '```json\n[]\n```\nFLEET-VERDICT: PASS';
+
+const PURSER_STEELMAN_JSON = [
+  '```json',
+  JSON.stringify({
+    purpose: 'Keep the generated contract from invalidating review checkpoints.',
+    contract: { obligations: ['Generated obligation from Fleet only.'] },
+    testTargets: ['src/x.ts'],
+  }),
+  '```',
+].join('\n');
+
+const PURSER_TESTS_JSON = [
+  '```json',
+  JSON.stringify({
+    files: [{
+      path: 'tests/unit/purser/review-body.contract.test.ts',
+      contents: 'it("keeps review inputs stable", () => {});',
+    }],
+  }),
+  '```',
+].join('\n');
+
+async function seedMediatorOrders(control: ReturnType<typeof memoryKV>, modifyText: string): Promise<void> {
+  await control.put(
+    'mediator:reinjection:erichowens/port-daddy:7',
+    JSON.stringify({
+      parleyId: '979f6940-e0b0-42b9-ab21-078bbb2acae6',
+      repo: 'erichowens/port-daddy',
+      pr: 7,
+      action: 'merge',
+      modifyText,
+      decidedBy: 'operator',
+      at: 1_756_320_000,
+    }),
+  );
+}
+
+/** Match the executor's live PR evidence digest for the shared GitHub harness. */
+async function checkpointReviewInputForState(): Promise<string> {
+  const diff = state.prDiff ?? 'diff --git a/src/x.ts b/src/x.ts\n+changed';
+  return createCheckpointReviewInputSha256({
+    owner: 'erichowens',
+    repo: 'port-daddy',
+    prNumber: 7,
+    title: state.prTitle ?? 'Test PR',
+    body: state.prBody ?? '',
+    headSha: state.prHeadSha,
+    headRef: state.prHeadRef ?? '',
+    headRepoFullName: state.prHeadRepo,
+    baseSha: state.prBaseSha,
+    baseRef: state.prBaseRef,
+    baseRepoFullName: state.prBaseRepo,
+    isFork: state.prHeadRepo !== state.prBaseRepo,
+    state: state.prState ?? '',
+    merged: state.prMerged === true,
+    files: state.prFiles ?? [{ filename: 'src/x.ts', status: 'modified', additions: 3, deletions: 1 }],
+    diff,
+    diffBytes: new TextEncoder().encode(diff).byteLength,
+    diffTruncated: false,
+    filesTruncated: false,
+  });
+}
+
+/** Build the exact checkpoint proof the current executor would persist. */
+async function checkpointBindingForYaml(
+  config: string,
+  shipName: string,
+  contract: string | null = null,
+  graftText = '',
+  mediatorOrders = '',
+  lookoutProjection: string | null = null,
+) {
+  const ship = parseFleetShips(config, 'pull_request:opened')?.find(candidate => candidate.name === shipName);
+  if (!ship) throw new Error(`fixture does not declare ${shipName}`);
+  return createShipCheckpointBinding(
+    ship,
+    contract,
+    graftText,
+    buildSystemPrompt(ship, contract, graftText),
+    await checkpointReviewInputForState(),
+    mediatorOrders,
+    lookoutProjection,
+  );
+}
+
+const TEST_CHECKPOINT_BINDING = {
+  bindingVersion: 4 as const,
+  shipConfigSha256: `sha256:${'1'.repeat(64)}`,
+  contractSha256: 'absent',
+  graftSha256: `sha256:${'2'.repeat(64)}`,
+  systemPromptSha256: `sha256:${'3'.repeat(64)}`,
+  reviewInputSha256: `sha256:${'4'.repeat(64)}`,
+  mediatorOrdersSha256: 'absent',
+  lookoutProjectionSha256: 'not-applicable',
+  executionReceiptKind: 'not-applicable' as const,
+};
+
+const PURSER_CHECKPOINT_BINDING = {
+  ...TEST_CHECKPOINT_BINDING,
+  executionReceiptKind: 'purser-sandbox-v1' as const,
+};
+
+const TEST_EXPECTED_CHECKPOINT_BINDINGS = new Map([
+  ['code-reviewer', TEST_CHECKPOINT_BINDING],
 ]);
 
 /**
@@ -296,15 +486,17 @@ describe('pull_request action routing', () => {
 
   it('cancels a run whose head changes during inference before publishing or checkpointing', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
-    // Eight file-sized chunks require two waves at MAP_CONCURRENCY=4. Moving
-    // the head during wave one must prevent wave two from ever spending.
+    // Eight individually-admitted file chunks require two waves at
+    // MAP_CONCURRENCY=4. Moving the head during wave one must prevent wave two
+    // from ever spending; this fixture must stay below the request admission
+    // limit or it would prove only the context guard.
     state.prDiff = Array.from(
       { length: 8 },
       (_, i) =>
         `diff --git a/src/chunk-${i}.ts b/src/chunk-${i}.ts\n` +
         `--- a/src/chunk-${i}.ts\n` +
         `+++ b/src/chunk-${i}.ts\n` +
-        `@@ -1 +1 @@\n-${'a'.repeat(30_000)}\n+${'b'.repeat(30_000)}\n`,
+        `@@ -1 +1 @@\n-${'a'.repeat(8_000)}\n+${'b'.repeat(8_000)}\n`,
     ).join('');
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -345,7 +537,7 @@ describe('pull_request action routing', () => {
     expect(state.prPatches).toHaveLength(0);
   });
 
-  it.each(['opened', 'synchronize', 'reopened', 'ready_for_review'] as const)(
+  it.each(['opened', 'synchronize', 'reopened', 'ready_for_review', 'edited'] as const)(
     'runs the fleet for %s deliveries',
     async action => {
       state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
@@ -366,7 +558,7 @@ describe('pull_request action routing', () => {
     },
   );
 
-  it.each(['edited', null] as Array<string | null>)(
+  it.each([null] as Array<string | null>)(
     'skips non-reviewable pull_request action %s without touching GitHub or AI',
     async action => {
       const ai = aiStub({
@@ -480,7 +672,7 @@ describe('blocking-ship verdict → check conclusion', () => {
     // whose gating check we could not even create.
     await expect(
       executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai })),
-    ).rejects.toThrow(/createCheckRun failed|cannot establish/i);
+    ).rejects.toThrow(/create.*check run failed|cannot establish/i);
 
     // No check was completed (no falsely-green or stray verdict on GitHub).
     expect(state.completed).toHaveLength(0);
@@ -579,11 +771,11 @@ describe('map-reduce fan-out', () => {
     // about "2 map calls" failing for a reason with nothing to do with
     // map-reduce. A fixture that encodes a constant is a fixture that expires.
     //
-    // Sized against the LARGEST budget any known model yields, so the diff
-    // fans out whichever model the ship under test resolves to -- and stays
-    // correct if a model with a bigger window is added later.
-    const budget = Math.max(...Object.keys(MODEL_CONTEXT_TOKENS).map(mapChunkCharLimit));
-    const linesPerFile = Math.ceil((budget * 0.6) / '+line\n'.length);
+    // Sized below the full-request admission budget of the deliberately small
+    // 32k MAP model, but above half of its per-file chunk limit. Two intact
+    // files must therefore fan out without sending an over-window prompt.
+    const budget = mapChunkCharLimit('@cf/qwen/qwen2.5-coder-32b-instruct');
+    const linesPerFile = Math.ceil((budget * 0.35) / '+line\n'.length);
     const file = (name: string) =>
       `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n` +
       '+line\n'.repeat(linesPerFile);
@@ -623,8 +815,8 @@ describe('map-reduce fan-out', () => {
     // 12 chunks' worth of diff (each file sized to fill one chunk) must fan
     // out to at most 8 MAP calls, with a map-truncated step naming the drop —
     // a partial review may never masquerade as a full one.
-    const budget = Math.max(...Object.keys(MODEL_CONTEXT_TOKENS).map(mapChunkCharLimit));
-    const linesPerFile = Math.ceil((budget * 0.9) / '+line\n'.length);
+    const budget = mapChunkCharLimit('@cf/qwen/qwen2.5-coder-32b-instruct');
+    const linesPerFile = Math.ceil((budget * 0.35) / '+line\n'.length);
     const file = (name: string) =>
       `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n` +
       '+line\n'.repeat(linesPerFile);
@@ -646,7 +838,251 @@ describe('map-reduce fan-out', () => {
     const truncated = db.steps.filter((s: { kind: string }) => s.kind === 'map-truncated');
     expect(truncated).toHaveLength(1);
     expect(String(truncated[0].title)).toContain('chunks dropped');
-    // Still reaches a verdict — degraded honestly, never dead.
+    // Still reaches a verdict — degraded honestly, never dead, but the
+    // required check cannot represent a partial source review as a clean PASS.
+    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(state.completed[0].summary).toContain('PARTIAL REVIEW');
+  });
+
+  it('keeps raw terminal evidence out of MAP while still reviewing authored source', async () => {
+    const artifact = (path: string, body: string) =>
+      `diff --git a/${path} b/${path}\n--- a/${path}\n+++ b/${path}\n${body}`;
+    state.prDiff = [
+      artifact('docs/artifacts/porthole-harness-proof-v2/harness-proof-current.html', '+<div>derived</div>\n'.repeat(12_000)),
+      artifact('website-v2/public/casts/porthole/parley-source.cast', '+\u001b[31mraw terminal evidence\u001b[0m\n'.repeat(12_000)),
+      artifact('src/safe.ts', '+export const reviewable = true;\n'),
+    ].join('');
+
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const db = memoryD1();
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding() } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: db.db }));
+
+    const mapCalls = ai.calls.filter(call => call.phase === 'map');
+    expect(mapCalls).toHaveLength(1);
+    const prompt = mapCalls[0].messages.map(message => message.content).join('\n');
+    expect(prompt).toContain('src/safe.ts');
+    expect(prompt).not.toContain('parley-source.cast');
+    expect(prompt).not.toContain('raw terminal evidence');
+    expect(prompt).not.toContain('harness-proof-current.html');
+    expect(db.steps.some(step => step.kind === 'map-context-omitted')).toBe(false);
+    for (const call of ai.calls) {
+      expect(assessContextAdmission(call.model, call.messages, MAX_OUTPUT_TOKENS).accepted).toBe(true);
+    }
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('skips an evidence-only diff instead of falling back to raw terminal bytes', async () => {
+    state.prDiff =
+      'diff --git a/website-v2/public/casts/porthole/parley-source.cast ' +
+      'b/website-v2/public/casts/porthole/parley-source.cast\n' +
+      '--- a/website-v2/public/casts/porthole/parley-source.cast\n' +
+      '+++ b/website-v2/public/casts/porthole/parley-source.cast\n' +
+      '+\u001b[31mreal transcript evidence only\u001b[0m\n'.repeat(8_000);
+
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const db = memoryD1();
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding() } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: db.db }));
+
+    expect(ai.calls).toHaveLength(0);
+    const skipped = db.steps.find(
+      step => step.kind === 'ship-skipped' && String(step.title).includes('no reviewable source'),
+    );
+    expect(skipped).toBeDefined();
+    expect(String(skipped?.detail)).toContain('no-reviewable-source');
+    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(state.completed[0].summary).toContain('not reviewed');
+  });
+
+  it('marks a GitHub-truncated diff partial even when its available prefix reviews cleanly', async () => {
+    // The source prefix is reviewable, but GitHub cuts the response in a later
+    // terminal-evidence section. A clean MAP result must remain neutral: bytes
+    // after the fetch cap might contain authored source we never received.
+    state.prDiff = [
+      'diff --git a/src/x.ts b/src/x.ts\n--- a/src/x.ts\n+++ b/src/x.ts\n+export const safe = true;\n',
+      'diff --git a/website-v2/public/casts/porthole/proof.cast b/website-v2/public/casts/porthole/proof.cast\n',
+      '+terminal evidence\n'.repeat(125_000),
+    ].join('');
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const db = memoryD1();
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding() } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: db.db }));
+
+    expect(ai.calls.filter(call => call.phase === 'map')).toHaveLength(1);
+    expect(db.steps.some(step => step.kind === 'source-fetch-truncated')).toBe(true);
+    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(state.completed[0].summary).toContain('PARTIAL REVIEW');
+    expect(state.completed[0].summary).toContain('GitHub stopped the diff read');
+  });
+
+  it('does not call an artifact-only truncated prefix a complete no-source review', async () => {
+    // We cannot infer anything about source after the fetch cap, even when the
+    // bytes we received are all evidence. This exercises the early no-source
+    // branch, which must return partial rather than the ordinary `none` state.
+    state.prDiff = [
+      'diff --git a/website-v2/public/casts/porthole/proof.cast b/website-v2/public/casts/porthole/proof.cast\n',
+      '+terminal evidence\n'.repeat(125_000),
+    ].join('');
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const db = memoryD1();
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding() } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: db.db }));
+
+    expect(ai.calls).toHaveLength(0);
+    expect(db.steps.some(step => step.kind === 'source-fetch-truncated')).toBe(true);
+    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(state.completed[0].summary).toContain('PARTIAL REVIEW');
+    expect(state.completed[0].summary).not.toContain('not reviewed');
+  });
+
+  describe('incomplete changed-file inventory never closes a surface gate', () => {
+    async function expectGatedRedTeamToRun(arrangeInventory: () => void): Promise<void> {
+      arrangeInventory();
+      state.files.set('main:pd-fleet.yml', fleetYaml([
+        { name: 'red-team', blocking: true, model: '@cf/qwen/qwen2.5-coder-32b-instruct' },
+      ]));
+      const kv = memoryKV();
+      seedToken(kv, 42);
+      const db = memoryD1();
+      const ai = aiStub({ perShip: { 'red-team': reviewWithFinding('PASS') } });
+
+      await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: db.db }));
+
+      // The normal red-team surface gate would skip all three fixtures below:
+      // malformed has no paths, exact-100 has only docs, and the diff-truncated
+      // case changes an ordinary source file. Incomplete provenance must force
+      // an actual review and keep a clean answer neutral.
+      expect(ai.calls.filter(call => call.ship === 'red-team').length).toBeGreaterThan(0);
+      expect(db.steps.some(step => step.kind === 'source-inventory-incomplete')).toBe(true);
+      expect(state.completed[0].conclusion).toBe('neutral');
+      expect(state.completed[0].summary).toContain('PARTIAL REVIEW');
+    }
+
+    it('runs a gated-only roster when GitHub returns malformed changed-file JSON', async () => {
+      await expectGatedRedTeamToRun(() => {
+        state.prFilesBody = '{not-json';
+      });
+    });
+
+    it('runs a gated-only roster at the exact first-page boundary', async () => {
+      await expectGatedRedTeamToRun(() => {
+        state.prFiles = Array.from({ length: PR_FILES_PAGE_SIZE }, (_, index) => ({
+          filename: `docs/proof-${index}.md`,
+          status: 'modified',
+          additions: 1,
+          deletions: 0,
+        }));
+      });
+    });
+
+    it('runs a gated-only roster when GitHub truncates the raw diff', async () => {
+      await expectGatedRedTeamToRun(() => {
+        state.prDiff = [
+          'diff --git a/src/x.ts b/src/x.ts\n--- a/src/x.ts\n+++ b/src/x.ts\n+export const reviewedPrefix = true;\n',
+          'diff --git a/docs/artifacts/proof.cast b/docs/artifacts/proof.cast\n',
+          '+terminal evidence\n'.repeat(Math.ceil(MAX_DIFF_BYTES / '+terminal evidence\n'.length) + 1),
+        ].join('');
+      });
+    });
+  });
+
+  it('re-packs a compound MAP candidate at file boundaries before omitting source', async () => {
+    // A large trusted contract leaves a narrow but valid MAP budget. The first
+    // two source sections fit the soft character cap together, but their real
+    // numbered MAP prompt does not: scope prose is present only once a second
+    // chunk exists. Older code dropped that whole compound candidate after
+    // checking it too late, even though each file fits by itself.
+    const file = (name: string) =>
+      `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n` +
+      '+contextSafeSource\n'.repeat(32);
+    state.prDiff = [file('src/x.ts'), file('src/a.ts'), file('src/b.ts')].join('');
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    state.files.set('main:fleet/ships/code-reviewer.md', 'trusted contract\n'.repeat(1_575));
+
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const db = memoryD1();
+    const ai = aiStub({
+      perShip: { 'code-reviewer': reviewWithFinding() },
+      managerOutput: reviewWithFinding(),
+    });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: db.db }));
+
+    const mapCalls = ai.calls.filter(call => call.phase === 'map');
+    expect(mapCalls.length).toBeGreaterThan(1);
+    const mapPrompts = mapCalls.map(call => call.messages.map(message => message.content).join('\n'));
+    for (const path of ['src/x.ts', 'src/a.ts', 'src/b.ts']) {
+      expect(mapPrompts.some(prompt => prompt.includes(path))).toBe(true);
+    }
+    expect(db.steps.some(step => step.kind === 'map-context-omitted')).toBe(false);
+    for (const call of ai.calls) {
+      expect(assessContextAdmission(call.model, call.messages, MAX_OUTPUT_TOKENS).accepted).toBe(true);
+    }
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('records an indivisible over-budget source chunk and fails without provider dispatch', async () => {
+    const giantSource = '+const unreviewableWithoutContext = true;\n'.repeat(2_000);
+    state.prDiff =
+      'diff --git a/src/giant.ts b/src/giant.ts\n--- a/src/giant.ts\n+++ b/src/giant.ts\n' + giantSource;
+
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const db = memoryD1();
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding() } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: db.db }));
+
+    expect(ai.calls).toHaveLength(0);
+    const omission = db.steps.find(step => step.kind === 'map-context-omitted');
+    expect(omission).toBeDefined();
+    expect(String(omission?.title)).toMatch(/omitted 1 indivisible chunk/i);
+    expect(String(omission?.detail)).toContain('src/giant.ts');
+    expect(state.completed[0].conclusion).toBe('failure');
+  });
+
+  it('partitions oversized MAP findings into admitted REDUCE groups', async () => {
+    const budget = mapChunkCharLimit('@cf/qwen/qwen2.5-coder-32b-instruct');
+    const linesPerFile = Math.ceil((budget * 0.35) / '+line\n'.length);
+    const file = (name: string) =>
+      `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n` +
+      '+line\n'.repeat(linesPerFile);
+    state.prDiff = ['src/x.ts', 'src/a.ts', 'src/b.ts', 'src/c.ts']
+      .map(file)
+      .join('');
+
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const db = memoryD1();
+    const ai = aiStub({
+      perShip: { 'code-reviewer': reviewWithFinding('PASS', 'x'.repeat(12_000)) },
+      managerOutput: reviewWithFinding(),
+    });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: db.db }));
+
+    expect(ai.calls.filter(call => call.phase === 'map')).toHaveLength(4);
+    expect(ai.calls.filter(call => call.phase === 'reduce').length).toBeGreaterThan(1);
+    expect(db.steps.some(step => step.kind === 'reduce-partitioned')).toBe(true);
+    for (const call of ai.calls) {
+      expect(assessContextAdmission(call.model, call.messages, MAX_OUTPUT_TOKENS).accepted).toBe(true);
+    }
     expect(state.completed[0].conclusion).toBe('success');
   });
 
@@ -768,13 +1204,73 @@ describe('idempotent re-run — a redelivery must not re-spend', () => {
     const job = makeJob();
     await executeFleet(job, makeEnv({ FLEET_TOKENS: kv, AI: mkAi() }));
     // Simulate the comment now existing on GitHub.
-    state.existingComments = [{ id: 555, body: 'old\n\n<!-- pd-ship:code-reviewer -->' }];
+    state.existingComments = [{
+      id: 555,
+      body: 'old\n\n<!-- pd-ship:code-reviewer -->',
+      user: { type: 'Bot' },
+      performed_via_github_app: { id: 3810450 },
+    }];
     await executeFleet(job, makeEnv({ FLEET_TOKENS: kv, AI: mkAi() }));
 
     expect(state.commentPosts).toBe(1); // only the first run created
     // Previously 1 — the re-run edited in place, having paid to regenerate
     // identical text. Now it never gets that far.
     expect(state.commentPatches).toBe(0);
+  });
+
+  it('retries when a Mediator order lands during terminal reuse, then binds it into a fresh prompt and check', async () => {
+    state.files.set('main:pd-fleet.yml', MEDIATOR_REVIEWER_PLUS_QA_YAML);
+    const tokenKv = memoryKV();
+    const controlKv = memoryKV();
+    seedToken(tokenKv, 42);
+    const job = makeJob();
+    const first = aiStub({
+      perShip: {
+        'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS',
+        qa: 'ok\n\nFLEET-VERDICT: PASS',
+      },
+    });
+    await executeFleet(job, makeEnv({ FLEET_TOKENS: tokenKv, CONTROL_KV: controlKv, AI: first.ai }));
+    expect(state.checkRunsCreated).toBe(1);
+
+    const githubFetch = globalThis.fetch;
+    let injected = false;
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (!injected && String(input).includes('/commits/HEADSHA/check-runs')) {
+        injected = true;
+        await seedMediatorOrders(controlKv, 'Address the newly reported concurrency race.');
+      }
+      return githubFetch(input as RequestInfo, init);
+    }) as unknown as typeof fetch);
+
+    const raced = aiStub({
+      perShip: {
+        'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS',
+        qa: 'ok\n\nFLEET-VERDICT: PASS',
+      },
+    });
+    await expect(executeFleet(
+      job,
+      makeEnv({ FLEET_TOKENS: tokenKv, CONTROL_KV: controlKv, AI: raced.ai }),
+    )).rejects.toThrow(/Mediator order changed before completed-check repair/);
+    expect(raced.calls).toHaveLength(0);
+    expect(state.checkRunsCreated).toBe(1);
+
+    vi.stubGlobal('fetch', githubFetch);
+    const retry = aiStub({
+      perShip: {
+        'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS',
+        qa: 'ok\n\nFLEET-VERDICT: PASS',
+      },
+    });
+    await executeFleet(
+      job,
+      makeEnv({ FLEET_TOKENS: tokenKv, CONTROL_KV: controlKv, AI: retry.ai }),
+    );
+    expect(state.checkRunsCreated).toBe(2);
+    expect(retry.calls.length).toBeGreaterThan(0);
+    expect(JSON.stringify(retry.calls.map(call => call.messages)))
+      .toContain('Address the newly reported concurrency race.');
   });
 
   it('a redelivery while the check is still IN PROGRESS does proceed', async () => {
@@ -786,7 +1282,13 @@ describe('idempotent re-run — a redelivery must not re-spend', () => {
     seedToken(kv, 42);
 
     // Pre-seed an in-progress check, as an interrupted first attempt would.
-    state.existingCheckRuns = [{ id: 4242, name: 'Port Daddy Fleet', status: 'in_progress' }];
+    state.existingCheckRuns = [{
+      id: 4242,
+      name: 'Port Daddy Fleet',
+      status: 'in_progress',
+      external_id: 'pd-fleet-run:v1:run:delivery-abc',
+      app: { id: 3810450 },
+    }];
 
     const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
     await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai }));
@@ -1180,6 +1682,8 @@ import {
   parseShipCheckpoint,
   SHIP_CHECKPOINT_KIND,
   SHIP_CHECKPOINT_SEQ_BASE,
+  SHIP_CHECKPOINT_SCHEMA_VERSION,
+  countShipCheckpoints,
 } from '../src/ship-checkpoint.js';
 
 describe('attempt checkpoints — retries resume, never re-spend', () => {
@@ -1211,6 +1715,565 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     expect(state.completed).toHaveLength(0);
     expect(d1.steps.filter(step => step.kind === SHIP_CHECKPOINT_KIND).map(step => step.ship))
       .toEqual(['code-reviewer']);
+  });
+
+  it('makes monotonic one-ship progress past Lookout and terminates with every ship executed once', async () => {
+    state.files.set('main:pd-fleet.yml', LOOKOUT_THEN_REVIEWER_QA_YAML);
+    // An active Lookout can legitimately have no other work to report. Empty
+    // context is still an exact projection and must hash as evidence, not be
+    // confused with the non-Lookout `not-applicable` sentinel.
+    state.openPRs = [];
+    state.branches = [];
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const ai = aiStub({
+      perShip: {
+        lookout: CONTRACT_MINIMAL_PASS,
+        'code-reviewer': CONTRACT_MINIMAL_PASS,
+        qa: CONTRACT_MINIMAL_PASS,
+      },
+    });
+    const env = makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db });
+
+    await expect(executeFleet(makeJob(), env, {
+      queueAttempt: 1,
+      maxNewShipsPerInvocation: 1,
+    })).resolves.toEqual({
+      kind: 'continuation',
+      completedShip: 'lookout',
+      remainingShips: ['code-reviewer', 'qa'],
+    });
+    await expect(executeFleet(makeJob(), env, {
+      queueAttempt: 2,
+      maxNewShipsPerInvocation: 1,
+    })).resolves.toEqual({
+      kind: 'continuation',
+      completedShip: 'code-reviewer',
+      remainingShips: ['qa'],
+    });
+    await expect(executeFleet(makeJob(), env, {
+      queueAttempt: 3,
+      maxNewShipsPerInvocation: 1,
+    })).resolves.toBeUndefined();
+
+    expect(ai.calls.filter(call => call.ship === 'lookout')).toHaveLength(1);
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer')).toHaveLength(1);
+    expect(ai.calls.filter(call => call.ship === 'qa')).toHaveLength(1);
+    const lookoutCheckpoint = d1.steps.find(
+      step => step.kind === SHIP_CHECKPOINT_KIND && step.ship === 'lookout',
+    );
+    const lookoutBinding = JSON.parse(String(lookoutCheckpoint?.detail)).checkpointBinding;
+    expect(lookoutBinding.lookoutProjectionSha256).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(lookoutBinding.lookoutProjectionSha256).not.toBe('not-applicable');
+    expect(lookoutBinding).toEqual(
+      await checkpointBindingForYaml(LOOKOUT_THEN_REVIEWER_QA_YAML, 'lookout', null, '', '', ''),
+    );
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('resumes earlier ships after Purser evidence and provider redelivery without touching the PR body', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_PURSER_YAML);
+    state.prBody = 'Human-authored summary that must remain byte-exact.  ';
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+
+    const reviewerAi = aiStub({
+      perShip: {
+        'code-reviewer': CONTRACT_MINIMAL_PASS,
+        purser: PURSER_TESTS_JSON,
+      },
+    });
+    await expect(executeFleet(
+      makeJob(),
+      makeEnv({ FLEET_TOKENS: kv, AI: reviewerAi.ai, DB: d1.db }),
+      { queueAttempt: 1, maxNewShipsPerInvocation: 1 },
+    )).resolves.toEqual({
+      kind: 'continuation',
+      completedShip: 'code-reviewer',
+      remainingShips: ['purser'],
+    });
+
+    let purserCalls = 0;
+    const interruptedPurserAi = aiStub({
+      perShip: {
+        'code-reviewer': CONTRACT_MINIMAL_PASS,
+        purser: PURSER_TESTS_JSON,
+      },
+      perShipQueue: { purser: [PURSER_STEELMAN_JSON, PURSER_TESTS_JSON] },
+      onCall(call) {
+        if (call.ship !== 'purser') return;
+        purserCalls += 1;
+        if (purserCalls === 2) {
+          throw Object.assign(new Error('simulated Workers AI transport reset'), { status: 503 });
+        }
+      },
+    });
+    await expect(executeFleet(
+      makeJob(),
+      makeEnv({ FLEET_TOKENS: kv, AI: interruptedPurserAi.ai, DB: d1.db }),
+      { queueAttempt: 2, maxNewShipsPerInvocation: 1 },
+    )).rejects.toThrow();
+
+    const steelmanStep = d1.steps.find(step => step.kind === 'purser-steelman');
+    expect(JSON.parse(String(steelmanStep?.detail))).toMatchObject({
+      purpose: 'Keep the generated contract from invalidating review checkpoints.',
+      obligations: ['Generated obligation from Fleet only.'],
+    });
+    expect(state.prPatches.filter(patch => typeof patch.body === 'string')).toHaveLength(0);
+    expect(state.prBody).toBe('Human-authored summary that must remain byte-exact.  ');
+
+    const resumedPurserAi = aiStub({
+      perShip: {
+        'code-reviewer': CONTRACT_MINIMAL_PASS,
+        purser: PURSER_TESTS_JSON,
+      },
+      perShipQueue: { purser: [PURSER_STEELMAN_JSON, PURSER_TESTS_JSON] },
+    });
+    await expect(executeFleet(
+      makeJob(),
+      makeEnv({ FLEET_TOKENS: kv, AI: resumedPurserAi.ai, DB: d1.db }),
+      { queueAttempt: 3, maxNewShipsPerInvocation: 1 },
+    )).resolves.toBeUndefined();
+
+    expect(resumedPurserAi.calls.filter(call => call.ship === 'code-reviewer')).toHaveLength(0);
+    expect(d1.steps.filter(step => step.kind === 'ship-checkpoint-invalidated')).toHaveLength(0);
+    expect(d1.steps.filter(step => step.kind === 'ship-resumed' && step.ship === 'code-reviewer'))
+      .toHaveLength(2);
+    const purserComment = state.existingComments.find(comment => comment.body.includes('pd-purser'))?.body ?? '';
+    expect(purserComment).toContain('Keep the generated contract from invalidating review checkpoints.');
+    expect(purserComment).toContain('Generated obligation from Fleet only.');
+    expect(state.prPatches.filter(patch => typeof patch.body === 'string')).toHaveLength(0);
+    expect(state.completed).toHaveLength(1);
+    expect(state.existingCheckRuns.find(check => check.id === state.completed[0].id)?.status)
+      .toBe('completed');
+  });
+
+  it('stops a repeated Lookout continuation before a third model call', async () => {
+    state.files.set('main:pd-fleet.yml', LOOKOUT_THEN_REVIEWER_QA_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const ai = aiStub({
+      perShip: {
+        lookout: CONTRACT_MINIMAL_PASS,
+        'code-reviewer': CONTRACT_MINIMAL_PASS,
+        qa: CONTRACT_MINIMAL_PASS,
+      },
+    });
+    const env = makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db });
+    const unchangedRemaining = ['code-reviewer', 'qa'];
+    await recordDeliveryContinuation(env, makeJob(), 1, 'lookout', unchangedRemaining);
+    await recordDeliveryContinuation(env, makeJob(), 101, 'lookout', unchangedRemaining);
+
+    await expect(executeFleet(makeJob(), env, {
+      queueAttempt: 203,
+      maxNewShipsPerInvocation: 1,
+    })).resolves.toBeUndefined();
+
+    expect(ai.calls).toHaveLength(0);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0]).toMatchObject({ conclusion: 'neutral' });
+    expect(String(state.completed[0].summary)).toBe(
+      'Fleet stopped because 2 consecutive checkpoint continuations completed pd-lookout while leaving ' +
+      'the same 2 ship(s) pending (pd-code-reviewer, pd-qa). This is a scheduler livelock, not progress; ' +
+      'no additional model call was made. Re-push after repairing checkpoint resume or continuation selection.',
+    );
+    const receipt = d1.steps.find(step => step.kind === 'continuation-livelock');
+    expect(receipt).toMatchObject({
+      kind: 'continuation-livelock',
+      ship: 'lookout',
+      title: 'Check concluded: neutral (checkpoint continuation repeated without progress)',
+    });
+    expect(JSON.parse(String(receipt?.detail))).toEqual({
+      checkRunId: state.completed[0].id,
+      conclusion: 'neutral',
+      completedShip: 'lookout',
+      remainingShips: unchangedRemaining,
+      repeats: 2,
+    });
+  });
+
+  it('finalizes a repeated continuation when its telemetry receipt cannot be written', async () => {
+    state.files.set('main:pd-fleet.yml', LOOKOUT_THEN_REVIEWER_QA_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const ai = aiStub({ perShip: {} });
+    const env = makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db });
+    const unchangedRemaining = ['code-reviewer', 'qa'];
+    await recordDeliveryContinuation(env, makeJob(), 1, 'lookout', unchangedRemaining);
+    await recordDeliveryContinuation(env, makeJob(), 101, 'lookout', unchangedRemaining);
+    d1.failNextStepInsert = true;
+
+    await expect(executeFleet(makeJob(), env, {
+      queueAttempt: 203,
+      maxNewShipsPerInvocation: 1,
+    })).resolves.toBeUndefined();
+
+    expect(ai.calls).toHaveLength(0);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0]).toMatchObject({ conclusion: 'neutral' });
+    expect(d1.steps.filter(step => step.kind === 'continuation-livelock')).toHaveLength(0);
+    expect(d1.runs.find(run => run.id === 'run:delivery-abc')?.conclusion).toBe('neutral');
+  });
+
+  it('finalizes a repeated continuation when its run conclusion mirror cannot be written', async () => {
+    state.files.set('main:pd-fleet.yml', LOOKOUT_THEN_REVIEWER_QA_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const db = {
+      prepare(sql: string) {
+        if (!/UPDATE fleet_runs/i.test(sql)) return d1.db.prepare(sql);
+        return {
+          bind() {
+            return {
+              async run() {
+                throw new Error('D1 unavailable (simulated run conclusion failure)');
+              },
+            };
+          },
+        };
+      },
+    } as unknown as D1Database;
+    const ai = aiStub({ perShip: {} });
+    const env = makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: db });
+    const unchangedRemaining = ['code-reviewer', 'qa'];
+    await recordDeliveryContinuation(env, makeJob(), 1, 'lookout', unchangedRemaining);
+    await recordDeliveryContinuation(env, makeJob(), 101, 'lookout', unchangedRemaining);
+
+    await expect(executeFleet(makeJob(), env, {
+      queueAttempt: 203,
+      maxNewShipsPerInvocation: 1,
+    })).resolves.toBeUndefined();
+
+    expect(ai.calls).toHaveLength(0);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0]).toMatchObject({ conclusion: 'neutral' });
+    expect(d1.steps.filter(step => step.kind === 'continuation-livelock')).toHaveLength(1);
+    expect(d1.runs.find(run => run.id === 'run:delivery-abc')?.conclusion).toBe('pending');
+  });
+
+  it('freezes an exact empty Lookout projection when both GitHub context reads reject', async () => {
+    state.files.set('main:pd-fleet.yml', LOOKOUT_THEN_REVIEWER_QA_YAML);
+    const installedFetch = globalThis.fetch;
+    const rejectedProjectionUrls: string[] = [];
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (/\/pulls\?/.test(url) || /\/branches\?/.test(url)) {
+        rejectedProjectionUrls.push(url);
+        throw new Error('Lookout context transport unavailable');
+      }
+      return installedFetch(input, init);
+    });
+
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const ai = aiStub({
+      perShip: { lookout: CONTRACT_MINIMAL_PASS },
+    });
+
+    await expect(executeFleet(
+      makeJob(),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }),
+      { queueAttempt: 1, maxNewShipsPerInvocation: 1 },
+    )).resolves.toEqual({
+      kind: 'continuation',
+      completedShip: 'lookout',
+      remainingShips: ['code-reviewer', 'qa'],
+    });
+
+    expect(rejectedProjectionUrls).toHaveLength(2);
+    expect(rejectedProjectionUrls.some(url => /\/pulls\?/.test(url))).toBe(true);
+    expect(rejectedProjectionUrls.some(url => /\/branches\?/.test(url))).toBe(true);
+    const lookoutPrompt = ai.calls
+      .find(call => call.ship === 'lookout')
+      ?.messages.map(message => message.content).join('\n') ?? '';
+    expect(lookoutPrompt).not.toContain('## Fleet context');
+    const lookoutCheckpoint = d1.steps.find(
+      step => step.kind === SHIP_CHECKPOINT_KIND && step.ship === 'lookout',
+    );
+    expect(JSON.parse(String(lookoutCheckpoint?.detail)).checkpointBinding).toEqual(
+      await checkpointBindingForYaml(LOOKOUT_THEN_REVIEWER_QA_YAML, 'lookout', null, '', '', ''),
+    );
+  });
+
+  it('keeps stable nonempty mediator orders resumable across one-ship slices', async () => {
+    state.files.set('main:pd-fleet.yml', MEDIATOR_LOOKOUT_THEN_REVIEWER_QA_YAML);
+    state.openPRs = [
+      { number: 700, title: 'Stable peer work', draft: false, head: { ref: 'peer' }, base: { ref: 'main' } },
+    ];
+    state.branches = [{ name: 'peer' }];
+    const kv = memoryKV();
+    const control = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const ai = aiStub({
+      perShip: {
+        lookout: CONTRACT_MINIMAL_PASS,
+        'code-reviewer': CONTRACT_MINIMAL_PASS,
+        qa: CONTRACT_MINIMAL_PASS,
+      },
+    });
+    const env = makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: control, AI: ai.ai, DB: d1.db });
+    const stableOrder = 'Keep the release boundary exact and preserve the proof receipts.';
+
+    await seedMediatorOrders(control, stableOrder);
+    await expect(executeFleet(makeJob(), env, {
+      queueAttempt: 1,
+      maxNewShipsPerInvocation: 1,
+    })).resolves.toMatchObject({ kind: 'continuation', completedShip: 'lookout' });
+    await seedMediatorOrders(control, stableOrder);
+    await expect(executeFleet(makeJob(), env, {
+      queueAttempt: 2,
+      maxNewShipsPerInvocation: 1,
+    })).resolves.toMatchObject({ kind: 'continuation', completedShip: 'code-reviewer' });
+    await seedMediatorOrders(control, stableOrder);
+    await expect(executeFleet(makeJob(), env, {
+      queueAttempt: 3,
+      maxNewShipsPerInvocation: 1,
+    })).resolves.toBeUndefined();
+
+    expect(ai.calls.filter(call => call.ship === 'lookout')).toHaveLength(1);
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer')).toHaveLength(1);
+    expect(ai.calls.filter(call => call.ship === 'qa')).toHaveLength(1);
+    const mediatorDigests = d1.steps
+      .filter(step => step.kind === SHIP_CHECKPOINT_KIND)
+      .map(step => JSON.parse(String(step.detail)).checkpointBinding.mediatorOrdersSha256);
+    expect(new Set(mediatorDigests).size).toBe(1);
+    expect(mediatorDigests[0]).toMatch(/^sha256:/);
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('binds and prompts Lookout with the identical frozen projection even if GitHub changes mid-call', async () => {
+    state.files.set('main:pd-fleet.yml', LOOKOUT_THEN_REVIEWER_QA_YAML);
+    state.openPRs = [
+      { number: 700, title: 'Projection A', draft: false, head: { ref: 'projection-a' }, base: { ref: 'main' } },
+    ];
+    state.branches = [{ name: 'projection-a' }];
+    const projectionA = renderFleetContext([
+      { number: 700, title: 'Projection A', draft: false, headRef: 'projection-a', baseRef: 'main' },
+    ], ['projection-a']);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const ai = aiStub({
+      perShip: {
+        lookout: CONTRACT_MINIMAL_PASS,
+        'code-reviewer': CONTRACT_MINIMAL_PASS,
+        qa: CONTRACT_MINIMAL_PASS,
+      },
+      onCall: call => {
+        if (call.ship !== 'lookout') return;
+        state.openPRs = [
+          { number: 701, title: 'Projection B', draft: false, head: { ref: 'projection-b' }, base: { ref: 'main' } },
+        ];
+        state.branches = [{ name: 'projection-b' }];
+      },
+    });
+
+    await executeFleet(
+      makeJob(),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }),
+      { queueAttempt: 1, maxNewShipsPerInvocation: 1 },
+    );
+
+    const lookoutPrompt = ai.calls
+      .find(call => call.ship === 'lookout')
+      ?.messages.map(message => message.content).join('\n') ?? '';
+    expect(lookoutPrompt).toContain('#700');
+    expect(lookoutPrompt).toContain('projection-a');
+    expect(lookoutPrompt).not.toContain('#701');
+    expect(lookoutPrompt).not.toContain('projection-b');
+    const checkpoint = d1.steps.find(
+      step => step.kind === SHIP_CHECKPOINT_KIND && step.ship === 'lookout',
+    );
+    expect(JSON.parse(String(checkpoint?.detail)).checkpointBinding).toEqual(
+      await checkpointBindingForYaml(
+        LOOKOUT_THEN_REVIEWER_QA_YAML,
+        'lookout',
+        null,
+        '',
+        '',
+        projectionA,
+      ),
+    );
+  });
+
+  it('invalidates only Lookout when its frozen projection changes, then converges', async () => {
+    state.files.set('main:pd-fleet.yml', LOOKOUT_THEN_REVIEWER_QA_YAML);
+    state.openPRs = [
+      { number: 700, title: 'Projection A', draft: false, head: { ref: 'projection-a' }, base: { ref: 'main' } },
+    ];
+    state.branches = [{ name: 'projection-a' }];
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const ai = aiStub({
+      perShip: {
+        lookout: CONTRACT_MINIMAL_PASS,
+        'code-reviewer': CONTRACT_MINIMAL_PASS,
+        qa: CONTRACT_MINIMAL_PASS,
+      },
+    });
+    const env = makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db });
+
+    await executeFleet(makeJob(), env, { queueAttempt: 1, maxNewShipsPerInvocation: 1 });
+    await executeFleet(makeJob(), env, { queueAttempt: 2, maxNewShipsPerInvocation: 1 });
+    state.openPRs = [
+      { number: 701, title: 'Projection B', draft: false, head: { ref: 'projection-b' }, base: { ref: 'main' } },
+    ];
+    state.branches = [{ name: 'projection-b' }];
+    await expect(executeFleet(makeJob(), env, {
+      queueAttempt: 3,
+      maxNewShipsPerInvocation: 1,
+    })).resolves.toEqual({
+      kind: 'continuation',
+      completedShip: 'lookout',
+      remainingShips: ['qa'],
+    });
+    await expect(executeFleet(makeJob(), env, {
+      queueAttempt: 4,
+      maxNewShipsPerInvocation: 1,
+    })).resolves.toBeUndefined();
+
+    expect(ai.calls.filter(call => call.ship === 'lookout')).toHaveLength(2);
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer')).toHaveLength(1);
+    expect(ai.calls.filter(call => call.ship === 'qa')).toHaveLength(1);
+    const invalidatedShips = d1.steps
+      .filter(step => step.kind === 'ship-checkpoint-invalidated')
+      .map(step => step.ship);
+    expect(new Set(invalidatedShips)).toEqual(new Set(['lookout']));
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('invalidates mediator-bound checkpoints on an order change and then converges', async () => {
+    state.files.set('main:pd-fleet.yml', MEDIATOR_LOOKOUT_THEN_REVIEWER_QA_YAML);
+    state.openPRs = [
+      { number: 700, title: 'Stable peer work', draft: false, head: { ref: 'peer' }, base: { ref: 'main' } },
+    ];
+    state.branches = [{ name: 'peer' }];
+    const kv = memoryKV();
+    const control = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const ai = aiStub({
+      perShip: {
+        lookout: CONTRACT_MINIMAL_PASS,
+        'code-reviewer': CONTRACT_MINIMAL_PASS,
+        qa: CONTRACT_MINIMAL_PASS,
+      },
+    });
+    const env = makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: control, AI: ai.ai, DB: d1.db });
+    const orderA = 'Preserve the original release proof.';
+    const orderB = 'Re-record the release proof against the new boundary.';
+
+    await seedMediatorOrders(control, orderA);
+    await executeFleet(makeJob(), env, { queueAttempt: 1, maxNewShipsPerInvocation: 1 });
+    await seedMediatorOrders(control, orderA);
+    await executeFleet(makeJob(), env, { queueAttempt: 2, maxNewShipsPerInvocation: 1 });
+    await seedMediatorOrders(control, orderB);
+    await expect(executeFleet(makeJob(), env, {
+      queueAttempt: 3,
+      maxNewShipsPerInvocation: 1,
+    })).resolves.toEqual({
+      kind: 'continuation',
+      completedShip: 'lookout',
+      remainingShips: ['code-reviewer', 'qa'],
+    });
+    await seedMediatorOrders(control, orderB);
+    await expect(executeFleet(makeJob(), env, {
+      queueAttempt: 4,
+      maxNewShipsPerInvocation: 1,
+    })).resolves.toEqual({
+      kind: 'continuation',
+      completedShip: 'code-reviewer',
+      remainingShips: ['qa'],
+    });
+    await seedMediatorOrders(control, orderB);
+    await expect(executeFleet(makeJob(), env, {
+      queueAttempt: 5,
+      maxNewShipsPerInvocation: 1,
+    })).resolves.toBeUndefined();
+
+    expect(ai.calls.filter(call => call.ship === 'lookout')).toHaveLength(2);
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer')).toHaveLength(2);
+    expect(ai.calls.filter(call => call.ship === 'qa')).toHaveLength(1);
+    const invalidatedShips = new Set(
+      d1.steps
+        .filter(step => step.kind === 'ship-checkpoint-invalidated')
+        .map(step => step.ship),
+    );
+    expect(invalidatedShips).toEqual(new Set(['lookout', 'code-reviewer']));
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('does not schedule a continuation from a broken first ship with work remaining', async () => {
+    // A checkpoint is the only authorization for a bounded invocation to leave
+    // the rest of its roster for a later delivery. If a broken first ship were
+    // checkpointed, maxNewShips=1 would create error → continuation → re-run
+    // loops instead of reaching the current invocation's terminal adjudication.
+    state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_QA_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const ai = aiStub({
+      // Include the reviewer in the routed stub so throwForShip reaches its
+      // actual model call rather than the generic fallback response.
+      perShip: {
+        'code-reviewer': 'unused because this call throws',
+        qa: 'FLEET-VERDICT: PASS',
+      },
+      throwForShip: 'code-reviewer',
+    });
+
+    const disposition = await executeFleet(
+      makeJob(),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }),
+      { queueAttempt: 1, maxNewShipsPerInvocation: 1 },
+    );
+
+    expect(disposition).toBeUndefined();
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer').length).toBeGreaterThan(0);
+    expect(ai.calls.filter(call => call.ship === 'qa').length).toBeGreaterThan(0);
+    expect(d1.steps.filter(step => step.kind === SHIP_CHECKPOINT_KIND && step.ship === 'code-reviewer'))
+      .toHaveLength(0);
+    expect(d1.steps.some(step => step.kind === 'ship-broken' && step.ship === 'code-reviewer')).toBe(true);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('failure');
+  });
+
+  it('keeps an incomplete-inventory gated ship in the continuation roster', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_RED_TEAM_YAML);
+    // An unparseable `/files` payload previously made red-team look gated out,
+    // which let the continuation conclude cleanly after code-reviewer alone.
+    state.prFilesBody = '{not-json';
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const ai = aiStub({
+      perShip: {
+        'code-reviewer': reviewWithFinding('PASS'),
+        'red-team': reviewWithFinding('PASS'),
+      },
+    });
+
+    const disposition = await executeFleet(
+      makeJob(),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }),
+      { queueAttempt: 1, maxNewShipsPerInvocation: 1 },
+    );
+
+    expect(disposition).toEqual({
+      kind: 'continuation',
+      completedShip: 'code-reviewer',
+      remainingShips: ['red-team'],
+    });
+    expect(ai.calls.filter(call => call.ship === 'red-team')).toHaveLength(0);
   });
 
   it('preserves one logical start and end-to-end wall clock across checkpoint retries', async () => {
@@ -1309,6 +2372,9 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     expect(checkpoints.map(c => c.ship).sort()).toEqual(['code-reviewer', 'qa']);
     for (const row of checkpoints) {
       expect(Number(row.seq)).toBeGreaterThanOrEqual(SHIP_CHECKPOINT_SEQ_BASE);
+      expect(JSON.parse(String(row.detail))).toMatchObject({
+        checkpointSchemaVersion: SHIP_CHECKPOINT_SCHEMA_VERSION,
+      });
       const parsed = parseShipCheckpoint(row.ship, row.detail);
       expect(parsed?.ship).toBe(row.ship);
     }
@@ -1326,6 +2392,7 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
       runId,
       0,
       { ship: 'code-reviewer', blocking: true, verdict: 'PASS', errored: false, findings: [] },
+      await checkpointBindingForYaml(REVIEWER_PLUS_QA_YAML, 'code-reviewer'),
     );
 
     const ai = aiStub({ perShip: { qa: 'FLEET-VERDICT: PASS' } });
@@ -1340,6 +2407,501 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     // And the resume is legible in the transcript.
     const resumedSteps = d1.steps.filter(st => st.kind === 'ship-resumed');
     expect(resumedSteps.map(s => s.ship)).toEqual(['code-reviewer']);
+  });
+
+  it('resumes when trusted YAML formatting changes but effective ship policy is identical', async () => {
+    // The binding uses a fixed semantic tuple, so reordered YAML keys cannot
+    // force unnecessary re-spend while any actual policy change still does.
+    const priorBinding = await checkpointBindingForYaml(REVIEWER_YAML, 'code-reviewer');
+    const currentBinding = await checkpointBindingForYaml(REORDERED_REVIEWER_YAML, 'code-reviewer');
+    expect(currentBinding).toEqual(priorBinding);
+
+    state.files.set('main:pd-fleet.yml', REORDERED_REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    await saveShipCheckpoint(
+      makeEnv({ DB: d1.db }),
+      'run:delivery-abc',
+      0,
+      { ship: 'code-reviewer', blocking: true, verdict: 'PASS', errored: false, findings: [] },
+      priorBinding,
+    );
+
+    const ai = aiStub({ perShip: {} });
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    expect(ai.calls).toHaveLength(0);
+    expect(d1.steps.filter(step => step.kind === 'ship-resumed').map(step => step.ship))
+      .toEqual(['code-reviewer']);
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('re-runs a checkpoint when the trusted ship changes from advisory to blocking', async () => {
+    // A cached advisory pass cannot prove the now-required ship satisfied the
+    // current policy. The `blocking` bit is therefore part of the binding.
+    const advisoryBinding = await checkpointBindingForYaml(
+      ADVISORY_REVIEWER_YAML,
+      'code-reviewer',
+    );
+    const blockingBinding = await checkpointBindingForYaml(REVIEWER_YAML, 'code-reviewer');
+    expect(blockingBinding).not.toEqual(advisoryBinding);
+
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    await saveShipCheckpoint(
+      makeEnv({ DB: d1.db }),
+      'run:delivery-abc',
+      0,
+      { ship: 'code-reviewer', blocking: false, verdict: 'PASS', errored: false, findings: [] },
+      advisoryBinding,
+    );
+
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding('PASS') } });
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer').length).toBeGreaterThan(0);
+    expect(d1.steps.filter(step => step.kind === 'ship-resumed')).toHaveLength(0);
+    expect(d1.steps.filter(step => step.kind === 'ship-checkpoint-invalidated')).toMatchObject([
+      { ship: 'code-reviewer' },
+    ]);
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('re-runs a checkpoint when the trusted ship contract text changes', async () => {
+    // The config can stay byte-for-byte identical while the authoritative
+    // contract changes the review. Contract text is bound into the prompt and
+    // cannot be silently inherited from a prior completed result.
+    const earlierContract = '# Reviewer contract\n\nReject unsafe changes.\n';
+    const currentContract = '# Reviewer contract\n\nRequire explicit threat analysis.\n';
+    const priorBinding = await checkpointBindingForYaml(
+      REVIEWER_YAML,
+      'code-reviewer',
+      earlierContract,
+    );
+    const currentBinding = await checkpointBindingForYaml(
+      REVIEWER_YAML,
+      'code-reviewer',
+      currentContract,
+    );
+    expect(currentBinding).not.toEqual(priorBinding);
+
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    state.files.set('main:fleet/ships/code-reviewer.md', currentContract);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    await saveShipCheckpoint(
+      makeEnv({ DB: d1.db }),
+      'run:delivery-abc',
+      0,
+      { ship: 'code-reviewer', blocking: true, verdict: 'PASS', errored: false, findings: [] },
+      priorBinding,
+    );
+
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding('PASS') } });
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer').length).toBeGreaterThan(0);
+    expect(d1.steps.filter(step => step.kind === 'ship-resumed')).toHaveLength(0);
+    expect(d1.steps.filter(step => step.kind === 'ship-checkpoint-invalidated')).toMatchObject([
+      { ship: 'code-reviewer' },
+    ]);
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('re-runs a checkpoint when the live PR title or description changes without a new head', async () => {
+    // GitHub permits metadata edits without a push, so the delivery id/head
+    // are unchanged. The model's user prompt is not: it includes both fields.
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    state.prTitle = 'Initial fleet hardening';
+    state.prBody = 'Review the original admission rule.';
+    const priorBinding = await checkpointBindingForYaml(REVIEWER_YAML, 'code-reviewer');
+
+    state.prTitle = 'Corrected fleet hardening';
+    state.prBody = 'Review the corrected admission rule and new failure mode.';
+    const currentBinding = await checkpointBindingForYaml(REVIEWER_YAML, 'code-reviewer');
+    expect(currentBinding).not.toEqual(priorBinding);
+
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    await saveShipCheckpoint(
+      makeEnv({ DB: d1.db }),
+      'run:delivery-abc',
+      0,
+      { ship: 'code-reviewer', blocking: true, verdict: 'PASS', errored: false, findings: [] },
+      priorBinding,
+    );
+
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding('PASS') } });
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer').length).toBeGreaterThan(0);
+    expect(d1.steps.filter(step => step.kind === 'ship-resumed')).toHaveLength(0);
+    expect(d1.steps.filter(step => step.kind === 'ship-checkpoint-invalidated')).toMatchObject([
+      { ship: 'code-reviewer' },
+    ]);
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('re-runs a checkpoint when the live diff or changed-file inventory changes', async () => {
+    // The head is intentionally unchanged. The exact diff and file index both
+    // render into reviewer/Purser input, so a stale checkpoint cannot survive
+    // a GitHub context refresh that changes either projection.
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const priorBinding = await checkpointBindingForYaml(REVIEWER_YAML, 'code-reviewer');
+
+    state.prDiff = [
+      'diff --git a/src/changed.ts b/src/changed.ts',
+      '--- a/src/changed.ts',
+      '+++ b/src/changed.ts',
+      '@@ -0,0 +1 @@',
+      '+export const changed = true;',
+      '',
+    ].join('\n');
+    state.prFiles = [{ filename: 'src/changed.ts', status: 'added', additions: 1, deletions: 0 }];
+    const currentBinding = await checkpointBindingForYaml(REVIEWER_YAML, 'code-reviewer');
+    expect(currentBinding).not.toEqual(priorBinding);
+
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    await saveShipCheckpoint(
+      makeEnv({ DB: d1.db }),
+      'run:delivery-abc',
+      0,
+      { ship: 'code-reviewer', blocking: true, verdict: 'PASS', errored: false, findings: [] },
+      priorBinding,
+    );
+
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding('PASS') } });
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer').length).toBeGreaterThan(0);
+    expect(d1.steps.filter(step => step.kind === 'ship-resumed')).toHaveLength(0);
+    expect(d1.steps.filter(step => step.kind === 'ship-checkpoint-invalidated')).toMatchObject([
+      { ship: 'code-reviewer' },
+    ]);
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('invalidates and re-runs a stale ERROR checkpoint when its review input drifts', async () => {
+    // #9914 shape: an ERROR recorded before a PR description correction must
+    // not reach epidemic adjudication as though it were this delivery's fresh
+    // model evidence. Binding drift is checked before error eligibility so the
+    // transcript makes the stale-input cause explicit.
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    state.prTitle = 'Before the correction';
+    const staleBinding = await checkpointBindingForYaml(REVIEWER_YAML, 'code-reviewer');
+    state.prTitle = 'After the correction';
+    const currentBinding = await checkpointBindingForYaml(REVIEWER_YAML, 'code-reviewer');
+    expect(currentBinding).not.toEqual(staleBinding);
+
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    d1.steps.push({
+      runId: 'run:delivery-abc',
+      seq: SHIP_CHECKPOINT_SEQ_BASE,
+      kind: SHIP_CHECKPOINT_KIND,
+      ship: 'code-reviewer',
+      title: 'historical ERROR checkpoint',
+      detail: JSON.stringify({
+        ship: 'code-reviewer',
+        blocking: true,
+        verdict: 'PASS',
+        errored: true,
+        findings: [],
+        checkpointSchemaVersion: SHIP_CHECKPOINT_SCHEMA_VERSION,
+        checkpointBinding: staleBinding,
+      }),
+    });
+
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding('PASS') } });
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer').length).toBeGreaterThan(0);
+    expect(d1.steps.filter(step => step.kind === 'ship-resumed')).toHaveLength(0);
+    expect(d1.steps.filter(step => step.kind === 'ship-checkpoint-invalidated')).toMatchObject([
+      { ship: 'code-reviewer' },
+    ]);
+    expect(JSON.parse(String(d1.steps.find(step => step.kind === 'ship-checkpoint-invalidated')?.detail)))
+      .toMatchObject({ reason: 'trusted-binding-mismatch' });
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it.each([
+    {
+      label: 'ERROR',
+      result: { verdict: 'PASS' as const, errored: true, findings: [] },
+    },
+    {
+      label: 'no-usable-output',
+      result: { verdict: 'PASS' as const, errored: false, noUsableOutput: true, findings: [] },
+    },
+  ])('does not resume a matching $label checkpoint', async ({ result }) => {
+    // Historical rows can predate the save-side guard below. Even with a
+    // perfect current binding, a broken result is diagnostic evidence rather
+    // than permission to skip a fresh model attempt.
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const binding = await checkpointBindingForYaml(REVIEWER_YAML, 'code-reviewer');
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    d1.steps.push({
+      runId: 'run:delivery-abc',
+      seq: SHIP_CHECKPOINT_SEQ_BASE,
+      kind: SHIP_CHECKPOINT_KIND,
+      ship: 'code-reviewer',
+      title: 'historical broken checkpoint',
+      detail: JSON.stringify({
+        ship: 'code-reviewer',
+        blocking: true,
+        ...result,
+        checkpointSchemaVersion: SHIP_CHECKPOINT_SCHEMA_VERSION,
+        checkpointBinding: binding,
+      }),
+    });
+
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding('PASS') } });
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer').length).toBeGreaterThan(0);
+    expect(d1.steps.filter(step => step.kind === 'ship-resumed')).toHaveLength(0);
+    expect(JSON.parse(String(d1.steps.find(step => step.kind === 'ship-checkpoint-invalidated')?.detail)))
+      .toMatchObject({ reason: 'non-resumable-result' });
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('does not persist ERROR or no-usable-output results as checkpoint progress', async () => {
+    const d1 = memoryD1();
+    const binding = await checkpointBindingForYaml(REVIEWER_YAML, 'code-reviewer');
+    const env = makeEnv({ DB: d1.db });
+
+    await expect(saveShipCheckpoint(
+      env,
+      'run:delivery-abc',
+      0,
+      { ship: 'code-reviewer', blocking: true, verdict: 'PASS', errored: true, findings: [] },
+      binding,
+    )).resolves.toBe(false);
+    await expect(saveShipCheckpoint(
+      env,
+      'run:delivery-abc',
+      0,
+      {
+        ship: 'code-reviewer',
+        blocking: true,
+        verdict: 'PASS',
+        errored: false,
+        noUsableOutput: true,
+        findings: [],
+      },
+      binding,
+    )).resolves.toBe(false);
+    expect(d1.steps).toHaveLength(0);
+  });
+
+  it('requires an executed Purser sandbox receipt before saving or resuming PASS', async () => {
+    const failed = memoryD1();
+    failed.steps.push({
+      runId: 'run:delivery-abc',
+      seq: 97,
+      kind: 'purser-sandbox',
+      ship: 'purser',
+      title: 'stale prior attempt: pd-purser sandbox passed',
+      detail: JSON.stringify({
+        executed: true,
+        passed: true,
+        outcomeKind: 'passed',
+        attemptId: 'run:delivery-abc:attempt:1',
+        testDigest: `sha256:${'9'.repeat(64)}`,
+      }),
+    });
+    const falsePass = {
+      ship: 'purser',
+      blocking: true,
+      verdict: 'PASS' as const,
+      errored: false,
+      findings: [],
+    };
+
+    await expect(saveShipCheckpoint(
+      makeEnv({ DB: failed.db }),
+      'run:delivery-abc',
+      0,
+      falsePass,
+      PURSER_CHECKPOINT_BINDING,
+    )).resolves.toBe(false);
+    expect(failed.steps.filter(step => step.kind === SHIP_CHECKPOINT_KIND)).toHaveLength(0);
+
+    // A row written by the buggy executor is diagnostic evidence only. The
+    // current loader validates only the receipt embedded by the checkpoint
+    // writer and never grafts a generic high-sequence sandbox row from an old
+    // attempt into the current invocation.
+    failed.steps.push({
+      runId: 'run:delivery-abc',
+      seq: SHIP_CHECKPOINT_SEQ_BASE,
+      kind: SHIP_CHECKPOINT_KIND,
+      ship: 'purser',
+      title: 'historical false Purser PASS',
+      detail: JSON.stringify({
+        ...falsePass,
+        checkpointSchemaVersion: SHIP_CHECKPOINT_SCHEMA_VERSION,
+        // Pre-fix Purser bindings had no execution-receipt requirement. The
+        // current trusted binding must invalidate that row before reuse.
+        checkpointBinding: TEST_CHECKPOINT_BINDING,
+      }),
+    });
+    const invalidated: string[] = [];
+    await expect(loadShipCheckpoints(
+      makeEnv({ DB: failed.db }),
+      'run:delivery-abc',
+      new Map([['purser', PURSER_CHECKPOINT_BINDING]]),
+      (_ship, reason) => { invalidated.push(reason); },
+    )).resolves.toEqual(new Map());
+    expect(invalidated).toEqual(['trusted-binding-mismatch']);
+
+    // Positive control: an exact structured execution receipt still permits
+    // monotonic continuation, so this hardening cannot recreate starvation.
+    const executed = memoryD1();
+    const currentExecutedPass = {
+      ...falsePass,
+      checkpointExecutionReceipt: {
+        kind: 'purser-sandbox-v1' as const,
+        executed: true as const,
+        passed: true,
+        outcomeKind: 'passed' as const,
+        attemptId: 'run:delivery-good:attempt:2',
+        testDigest: `sha256:${'a'.repeat(64)}`,
+      },
+    };
+    await expect(saveShipCheckpoint(
+      makeEnv({ DB: executed.db }),
+      'run:delivery-good',
+      0,
+      currentExecutedPass,
+      PURSER_CHECKPOINT_BINDING,
+    )).resolves.toBe(true);
+    const saved = executed.steps.find(step => step.kind === SHIP_CHECKPOINT_KIND)!;
+    expect(JSON.parse(String(saved.detail))).toMatchObject({
+      verdict: 'PASS',
+      checkpointExecutionReceipt: {
+        kind: 'purser-sandbox-v1',
+        executed: true,
+        passed: true,
+        outcomeKind: 'passed',
+        attemptId: 'run:delivery-good:attempt:2',
+        testDigest: `sha256:${'a'.repeat(64)}`,
+      },
+    });
+    await expect(loadShipCheckpoints(
+      makeEnv({ DB: executed.db }),
+      'run:delivery-good',
+      new Map([['purser', PURSER_CHECKPOINT_BINDING]]),
+    )).resolves.toEqual(new Map([['purser', falsePass]]));
+
+    const mismatched = JSON.parse(String(saved.detail)) as Record<string, unknown>;
+    mismatched.checkpointExecutionReceipt = {
+      kind: 'purser-sandbox-v1',
+      executed: true,
+      passed: false,
+      outcomeKind: 'assertion-failure',
+    };
+    saved.detail = JSON.stringify(mismatched);
+    await expect(loadShipCheckpoints(
+      makeEnv({ DB: executed.db }),
+      'run:delivery-good',
+      new Map([['purser', PURSER_CHECKPOINT_BINDING]]),
+    )).resolves.toEqual(new Map());
+  });
+
+  it('refuses to persist a Lookout checkpoint with the non-applicable projection sentinel', async () => {
+    const d1 = memoryD1();
+    const binding = await checkpointBindingForYaml(
+      LOOKOUT_THEN_REVIEWER_QA_YAML,
+      'lookout',
+      null,
+      '',
+      '',
+      '',
+    );
+
+    await expect(saveShipCheckpoint(
+      makeEnv({ DB: d1.db }),
+      'run:delivery-abc',
+      0,
+      { ship: 'lookout', blocking: false, verdict: 'PASS', errored: false, findings: [] },
+      { ...binding, lookoutProjectionSha256: 'not-applicable' },
+    )).resolves.toBe(false);
+    expect(d1.steps).toHaveLength(0);
+  });
+
+  it('keeps a Mediator order replayable through continuation and acknowledges it only at terminal success', async () => {
+    state.files.set('main:pd-fleet.yml', MEDIATOR_REVIEWER_PLUS_QA_YAML);
+    const kv = memoryKV();
+    const control = memoryKV();
+    seedToken(kv, 42);
+    await control.put(
+      'mediator:reinjection:erichowens/port-daddy:7',
+      JSON.stringify({
+        parleyId: '979f6940-e0b0-42b9-ab21-078bbb2acae6',
+        repo: 'erichowens/port-daddy',
+        pr: 7,
+        action: 'merge',
+        modifyText: 'Reconcile the conflicting error-boundary behavior before concluding.',
+        decidedBy: 'operator',
+        at: 1_756_320_000,
+      }),
+    );
+    const d1 = memoryD1();
+    const ai = aiStub({
+      perShip: {
+        'code-reviewer': reviewWithFinding('PASS'),
+        qa: 'FLEET-VERDICT: PASS',
+      },
+    });
+    const env = makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: control, AI: ai.ai, DB: d1.db });
+
+    const first = await executeFleet(makeJob(), env, {
+      queueAttempt: 1,
+      maxNewShipsPerInvocation: 1,
+    });
+    expect(first).toEqual({
+      kind: 'continuation',
+      completedShip: 'code-reviewer',
+      remainingShips: ['qa'],
+    });
+    expect(control._store.has('mediator:reinjection:erichowens/port-daddy:7')).toBe(true);
+    const firstReviewerCalls = ai.calls.filter(call => call.ship === 'code-reviewer').length;
+    expect(firstReviewerCalls).toBeGreaterThan(0);
+    expect(JSON.stringify(ai.calls)).toContain('MEDIATOR ORDERS');
+    const firstCheckpoint = d1.steps.find(
+      step => step.kind === SHIP_CHECKPOINT_KIND && step.ship === 'code-reviewer',
+    );
+    expect(JSON.parse(String(firstCheckpoint?.detail)).checkpointBinding.mediatorOrdersSha256)
+      .toMatch(/^sha256:/);
+
+    const second = await executeFleet(makeJob(), env, {
+      queueAttempt: 2,
+      maxNewShipsPerInvocation: 1,
+    });
+    expect(second).toBeUndefined();
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer').length).toBe(firstReviewerCalls);
+    expect(ai.calls.filter(call => call.ship === 'qa')).toHaveLength(1);
+    expect(d1.steps.filter(step => step.kind === 'ship-resumed' && step.ship === 'code-reviewer'))
+      .toHaveLength(1);
+    expect(control._store.has(
+      'mediator:reinjection:erichowens/port-daddy:7:ack:979f6940-e0b0-42b9-ab21-078bbb2acae6',
+    )).toBe(true);
+    const latestCheckpoint = d1.steps.filter(
+      step => step.kind === SHIP_CHECKPOINT_KIND && step.ship === 'code-reviewer',
+    ).at(-1);
+    expect(JSON.parse(String(latestCheckpoint?.detail)).checkpointBinding.mediatorOrdersSha256)
+      .toMatch(/^sha256:/);
   });
 
   it('multiple checkpointed ships resume in roster order with their findings intact', async () => {
@@ -1359,6 +2921,7 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
         errored: false,
         findings: [{ path: 'src/x.ts', line: 1, severity: 'LOW', body: 'reviewer finding' }],
       },
+      await checkpointBindingForYaml(REVIEWER_PLUS_QA_YAML, 'code-reviewer'),
     );
     await saveShipCheckpoint(
       makeEnv({ DB: d1.db }),
@@ -1371,6 +2934,7 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
         errored: false,
         findings: [{ path: 'src/x.ts', line: 2, severity: 'LOW', body: 'qa finding' }],
       },
+      await checkpointBindingForYaml(REVIEWER_PLUS_QA_YAML, 'qa'),
     );
 
     const ai = aiStub({ perShip: {} });
@@ -1405,6 +2969,7 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
         errored: false,
         findings: [{ path: 'src/x.ts', line: 1, severity: 'HIGH', body: 'checkpointed finding' }],
       },
+      await checkpointBindingForYaml(REVIEWER_PLUS_QA_YAML, 'code-reviewer'),
     );
 
     const ai = aiStub({ perShip: { qa: 'FLEET-VERDICT: PASS' } });
@@ -1436,6 +3001,56 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     expect(state.completed[0].conclusion).toBe('success');
   });
 
+  it('a valid-but-v2 checkpoint is ignored and re-runs the ship', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    // This is the former v2 wire shape: clean and internally valid, but it
+    // predates trusted config/contract binding so must not resume after deploy.
+    d1.steps.push({
+      runId: 'run:delivery-abc',
+      seq: SHIP_CHECKPOINT_SEQ_BASE,
+      kind: SHIP_CHECKPOINT_KIND,
+      ship: 'code-reviewer',
+      title: 'v2 clean checkpoint',
+      detail: JSON.stringify({
+        ship: 'code-reviewer',
+        blocking: true,
+        verdict: 'PASS',
+        errored: false,
+        findings: [],
+        checkpointSchemaVersion: 2,
+      }),
+    });
+
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding('PASS') } });
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    expect(ai.calls.filter(call => call.ship === 'code-reviewer').length).toBeGreaterThan(0);
+    expect(d1.steps.filter(step => step.kind === 'ship-resumed')).toHaveLength(0);
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('does not report a versionless checkpoint as resumable DLQ progress', async () => {
+    const d1 = memoryD1();
+    d1.steps.push({
+      runId: 'run:delivery-abc',
+      seq: SHIP_CHECKPOINT_SEQ_BASE,
+      kind: SHIP_CHECKPOINT_KIND,
+      ship: 'code-reviewer',
+      title: 'legacy clean checkpoint',
+      detail: JSON.stringify({
+        ship: 'code-reviewer',
+        blocking: true,
+        verdict: 'PASS',
+        errored: false,
+      }),
+    });
+
+    await expect(countShipCheckpoints(makeEnv({ DB: d1.db }), 'run:delivery-abc')).resolves.toBe(0);
+  });
+
   it("another delivery's checkpoints never leak in: run ids partition resume state", async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
@@ -1447,6 +3062,7 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
       'run:some-other-delivery',
       0,
       { ship: 'code-reviewer', blocking: true, verdict: 'PASS', errored: false, findings: [] },
+      TEST_CHECKPOINT_BINDING,
     );
 
     const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding('PASS') } });
@@ -1465,6 +3081,7 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
       'run:delivery-abc',
       0,
       { ship: 'removed-ship', blocking: true, verdict: 'BLOCK', errored: false, findings: [] },
+      TEST_CHECKPOINT_BINDING,
     );
 
     const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding('PASS') } });
@@ -1486,10 +3103,11 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
       'run:delivery-abc',
       0,
       { ship: 'code-reviewer', blocking: true, verdict: 'PASS', errored: false, findings: [] },
+      TEST_CHECKPOINT_BINDING,
     );
     d1.failAll = false;
 
-    expect((await loadShipCheckpoints(env, 'run:delivery-abc')).size).toBe(0);
+    expect((await loadShipCheckpoints(env, 'run:delivery-abc', TEST_EXPECTED_CHECKPOINT_BINDINGS)).size).toBe(0);
   });
 
   it('a checkpoint load query failure returns an empty resume map', async () => {
@@ -1497,7 +3115,8 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     const env = makeEnv({ DB: d1.db });
     d1.failAll = true;
 
-    await expect(loadShipCheckpoints(env, 'run:delivery-abc')).resolves.toEqual(new Map());
+    await expect(loadShipCheckpoints(env, 'run:delivery-abc', TEST_EXPECTED_CHECKPOINT_BINDINGS))
+      .resolves.toEqual(new Map());
   });
 
   it('an invalid ship index uses the first reserved checkpoint slot', async () => {
@@ -1508,6 +3127,7 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
         'run:delivery-abc',
         invalidIndex,
         { ship: 'code-reviewer', blocking: true, verdict: 'PASS', errored: false, findings: [] },
+        TEST_CHECKPOINT_BINDING,
       );
 
       expect(d1.steps).toHaveLength(1);
@@ -1522,8 +3142,10 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
       'run:delivery-abc',
       0,
       { ship: 'code-reviewer', blocking: true, verdict: 'PASS', errored: false, findings: [] },
+      TEST_CHECKPOINT_BINDING,
     )).resolves.toBe(false);
-    await expect(loadShipCheckpoints(env, 'run:delivery-abc')).resolves.toEqual(new Map());
+    await expect(loadShipCheckpoints(env, 'run:delivery-abc', TEST_EXPECTED_CHECKPOINT_BINDINGS))
+      .resolves.toEqual(new Map());
   });
 
   it('D1 down: checkpoint load/save swallow and the run behaves exactly as before checkpoints', async () => {
@@ -1542,20 +3164,49 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
 
   it('parseShipCheckpoint refuses mis-attributed or malformed rows', () => {
     const good = { ship: 'qa', blocking: false, verdict: 'PASS', errored: false };
-    expect(parseShipCheckpoint('qa', JSON.stringify(good))).toEqual(good);
-    // Row/detail ship mismatch (band collision after a roster change): refused.
-    expect(parseShipCheckpoint('code-reviewer', JSON.stringify(good))).toBeNull();
-    // Unknown verdict, wrong types, and malformed finding payloads: refused.
-    expect(parseShipCheckpoint('qa', JSON.stringify({ ...good, verdict: 'MAYBE' }))).toBeNull();
-    expect(parseShipCheckpoint('qa', JSON.stringify({ ...good, blocking: 'yes' }))).toBeNull();
-    expect(parseShipCheckpoint('qa', JSON.stringify({ ...good, findings: 'none' }))).toBeNull();
-    expect(parseShipCheckpoint('qa', JSON.stringify({ ...good, findings: [null] }))).toBeNull();
-    expect(parseShipCheckpoint('qa', JSON.stringify({
+    const versionedGood = {
       ...good,
+      checkpointSchemaVersion: SHIP_CHECKPOINT_SCHEMA_VERSION,
+      checkpointBinding: TEST_CHECKPOINT_BINDING,
+    };
+    expect(parseShipCheckpoint('qa', JSON.stringify(versionedGood))).toEqual(good);
+    // Row/detail ship mismatch (band collision after a roster change): refused.
+    expect(parseShipCheckpoint('code-reviewer', JSON.stringify(versionedGood))).toBeNull();
+    // Schema v3 rows need a complete current binding; a clean-looking legacy
+    // result without one cannot prove the policy or prompt it reviewed.
+    expect(parseShipCheckpoint('qa', JSON.stringify({ ...good, checkpointSchemaVersion: SHIP_CHECKPOINT_SCHEMA_VERSION })))
+      .toBeNull();
+    expect(parseShipCheckpoint('qa', JSON.stringify({
+      ...versionedGood,
+      checkpointBinding: { ...TEST_CHECKPOINT_BINDING, bindingVersion: 1 },
+    }))).toBeNull();
+    expect(parseShipCheckpoint('qa', JSON.stringify({
+      ...versionedGood,
+      checkpointBinding: { ...TEST_CHECKPOINT_BINDING, systemPromptSha256: 'sha256:not-a-digest' },
+    }))).toBeNull();
+    expect(parseShipCheckpoint('qa', JSON.stringify({
+      ...versionedGood,
+      checkpointBinding: { ...TEST_CHECKPOINT_BINDING, reviewInputSha256: 'sha256:not-a-digest' },
+    }))).toBeNull();
+    expect(parseShipCheckpoint('qa', JSON.stringify({
+      ...versionedGood,
+      checkpointBinding: { ...TEST_CHECKPOINT_BINDING, mediatorOrdersSha256: 'sha256:not-a-digest' },
+    }))).toBeNull();
+    expect(parseShipCheckpoint('qa', JSON.stringify({
+      ...versionedGood,
+      checkpointBinding: { ...TEST_CHECKPOINT_BINDING, lookoutProjectionSha256: 'sha256:not-a-digest' },
+    }))).toBeNull();
+    // Unknown verdict, wrong types, and malformed finding payloads: refused.
+    expect(parseShipCheckpoint('qa', JSON.stringify({ ...versionedGood, verdict: 'MAYBE' }))).toBeNull();
+    expect(parseShipCheckpoint('qa', JSON.stringify({ ...versionedGood, blocking: 'yes' }))).toBeNull();
+    expect(parseShipCheckpoint('qa', JSON.stringify({ ...versionedGood, findings: 'none' }))).toBeNull();
+    expect(parseShipCheckpoint('qa', JSON.stringify({ ...versionedGood, findings: [null] }))).toBeNull();
+    expect(parseShipCheckpoint('qa', JSON.stringify({
+      ...versionedGood,
       findings: [{ path: 'src/x.ts', line: 0, severity: 'HIGH', body: 'bad line' }],
     }))).toBeNull();
     expect(parseShipCheckpoint('qa', JSON.stringify({
-      ...good,
+      ...versionedGood,
       findings: [{
         path: 'src/x.ts',
         line: Number.MAX_SAFE_INTEGER + 1,
@@ -1564,10 +3215,10 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
       }],
     }))).toBeNull();
     expect(parseShipCheckpoint('qa', JSON.stringify({
-      ...good,
+      ...versionedGood,
       findings: [{ path: 'src/x.ts', line: 1, severity: 'URGENT', body: 'bad severity' }],
     }))).toBeNull();
     expect(parseShipCheckpoint('qa', 'not json')).toBeNull();
-    expect(parseShipCheckpoint('', JSON.stringify(good))).toBeNull();
+    expect(parseShipCheckpoint('', JSON.stringify(versionedGood))).toBeNull();
   });
 });

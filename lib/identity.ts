@@ -4,10 +4,10 @@
  * Format: project:stack:context
  *
  * Examples:
- *   windags              -> { project: 'windags', stack: null, context: null }
- *   windags:api          -> { project: 'windags', stack: 'api', context: null }
- *   windags:api:main     -> { project: 'windags', stack: 'api', context: 'main' }
- *   windags:*:main       -> { project: 'windags', stack: '*', context: 'main' }
+ *   jury_rig              -> { project: 'jury_rig', stack: null, context: null }
+ *   jury_rig:api          -> { project: 'jury_rig', stack: 'api', context: null }
+ *   jury_rig:api:main     -> { project: 'jury_rig', stack: 'api', context: 'main' }
+ *   jury_rig:*:main       -> { project: 'jury_rig', stack: '*', context: 'main' }
  *   *:frontend:*         -> { project: '*', stack: 'frontend', context: '*' }
  */
 
@@ -76,9 +76,9 @@ export function parseIdentity(id: string): ParsedIdentity {
 /**
  * Check if an identity matches a pattern (with wildcards)
  *
- * Pattern: windags:*:main
- * Identity: windags:api:main -> true
- * Identity: windags:api:dev -> false
+ * Pattern: jury_rig:*:main
+ * Identity: jury_rig:api:main -> true
+ * Identity: jury_rig:api:dev -> false
  */
 export function matchesPattern(pattern: string, identity: string): boolean {
   const p = parseIdentity(pattern);

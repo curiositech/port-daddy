@@ -22,6 +22,7 @@
  * to avoid dragging a model loader across a package boundary.
  */
 
+import { CF_ROLE_MODELS } from '../../shared/model-registry.generated.js';
 import type { Proposal } from './proposals.js';
 import { slugify } from './proposals.js';
 
@@ -33,7 +34,7 @@ import { slugify } from './proposals.js';
 export const DEDUP_THRESHOLD = 0.92;
 
 /** Workers AI embedding model. 768-dim, normalized vectors. */
-export const EMBED_MODEL = '@cf/baai/bge-base-en-v1.5';
+export const EMBED_MODEL = CF_ROLE_MODELS.embed;
 
 /** The GitHub label every auto-captured fleet idea carries. */
 export const FLEET_IDEA_LABEL = 'fleet-idea';

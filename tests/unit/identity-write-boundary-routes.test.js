@@ -28,22 +28,53 @@ describe('identity write boundary — sugar routes', () => {
   let db;
   let souls;
   let beginCalls;
+  let doneCalls;
+  let relinkCalls;
+  let sessionRows;
 
   beforeEach(async () => {
     db = createTestDb();
     souls = createTestActorSouls(db);
     beginCalls = [];
+    doneCalls = [];
+    relinkCalls = [];
+    sessionRows = new Map();
     app = Fastify();
     await app.register(sugarPlugin, {
       deps: {
         sugar: {
           begin: (options) => {
             beginCalls.push(options);
-            return { success: true, agentId: options.agentId || 'generated-agent', sessionId: 'session-1' };
+            const ownerAgentId = options.agentId || 'generated-agent';
+            sessionRows.set('session-1', {
+              id: 'session-1',
+              agentId: ownerAgentId,
+              status: 'active',
+              metadata: options.metadata,
+            });
+            return { success: true, agentId: ownerAgentId, sessionId: 'session-1' };
           },
-          done: () => ({ success: true, agentId: 'generated-agent', sessionId: 'session-1', sessionStatus: 'completed' }),
-          relink: () => ({ success: true, agentId: 'generated-agent', sessionId: 'session-1' }),
+          done: (options) => {
+            doneCalls.push(options);
+            return { success: true, agentId: options.agentId || 'generated-agent', sessionId: options.sessionId || 'session-1', sessionStatus: 'completed' };
+          },
+          relink: (options) => {
+            relinkCalls.push(options);
+            return { success: true, agentId: options.agentId || 'generated-agent', sessionId: options.sessionId || 'session-1' };
+          },
           whoami: () => ({ success: true }),
+        },
+        sessions: {
+          get: (sessionId) => sessionRows.has(sessionId)
+            ? { success: true, session: sessionRows.get(sessionId) }
+            : { success: false },
+          list: (options = {}) => {
+            const rows = [...sessionRows.values()].filter((row) => (
+              (!options.status || row.status === options.status)
+              && (!options.agentId || row.agentId === options.agentId)
+            ));
+            return { success: true, sessions: rows, count: rows.length };
+          },
         },
         metrics: { errors: 0 },
         logger: silentLogger,
@@ -132,6 +163,35 @@ describe('identity write boundary — sugar routes', () => {
     expect(body.actorIdentity).toEqual(expect.objectContaining({ verified: true, actorId: minted.actorId }));
   });
 
+  test('public begin strips caller-forged managed-spawn proof metadata', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/sugar/begin',
+      payload: {
+        purpose: 'try to forge managed authority',
+        lifecycle: 'ephemeral',
+        metadata: { keep: true, managedSpawn: { verified: true, source: 'daemon-spawner' } },
+      },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(beginCalls[0].metadata.keep).toBe(true);
+    expect(beginCalls[0].metadata.managedSpawn).toBeUndefined();
+  });
+
+  test('public begin cannot self-authorize the crowded-main-worktree bypass', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/sugar/begin',
+      payload: {
+        purpose: 'try to bypass crowded main worktree gate',
+        lifecycle: 'durable',
+        bypassCrowdedGate: true,
+      },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(beginCalls[0].bypassCrowdedGate).toBeUndefined();
+  });
+
   test('/sugar/done without a credential is rejected 401 — no anonymous session ending', async () => {
     const res = await app.inject({ method: 'POST', url: '/sugar/done', payload: {} });
     expect(res.statusCode).toBe(401);
@@ -160,6 +220,29 @@ describe('identity write boundary — sugar routes', () => {
     expect(res.json().code).toBe('IDENTITY_ALIAS_MISMATCH');
   });
 
+  test('agent-scoped done and relink do not reveal an unowned stored session', async () => {
+    const owner = mintTestActor(souls, 'victim-owner-soul');
+    const attacker = mintTestActor(souls, 'attacker-owner-soul');
+    sessionRows.set('victim-agent-scoped-session', {
+      id: 'victim-agent-scoped-session',
+      agentId: 'friendly-unbound-victim',
+      status: 'active',
+      worktreeId: 'victim-worktree',
+      metadata: { identity: { verified: true, actorId: owner.actorId } },
+    });
+
+    for (const [url, payload] of [
+      ['/sugar/done', { agentId: 'friendly-unbound-victim', note: 'attack' }],
+      ['/sugar/relink', { agentId: 'friendly-unbound-victim', sidequestReason: 'attack the victim rent metadata' }],
+    ]) {
+      const res = await app.inject({ method: 'POST', url, headers: attacker.headers, payload });
+      expect(res.statusCode).toBe(404);
+      expect(res.json().code).toBe('NO_ACTIVE_SESSION');
+    }
+    expect(doneCalls).toHaveLength(0);
+    expect(relinkCalls).toHaveLength(0);
+  });
+
   test('/sugar/done with the minted credential succeeds (positive path)', async () => {
     const begin = (await app.inject({
       method: 'POST',
@@ -174,6 +257,174 @@ describe('identity write boundary — sugar routes', () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json().success).toBe(true);
+  });
+
+  test('an attacker credential cannot complete or relink a victim explicit session when agentId is omitted', async () => {
+    const owner = mintTestActor(souls, 'explicit-owner');
+    const attacker = mintTestActor(souls, 'explicit-attacker');
+    sessionRows.set('victim-session', {
+      id: 'victim-session',
+      agentId: 'explicit-owner',
+      status: 'active',
+      metadata: { identity: { verified: true, actorId: owner.actorId } },
+    });
+
+    const done = await app.inject({
+      method: 'POST',
+      url: '/sugar/done',
+      headers: attacker.headers,
+      payload: { sessionId: 'victim-session', note: 'attack' },
+    });
+    expect(done.statusCode).toBe(403);
+    expect(done.json().code).toBe('SESSION_OWNERSHIP_MISMATCH');
+    expect(doneCalls).toHaveLength(0);
+
+    const relink = await app.inject({
+      method: 'POST',
+      url: '/sugar/relink',
+      headers: attacker.headers,
+      payload: { sessionId: 'victim-session', sidequestReason: 'attacker cannot rewrite this rent' },
+    });
+    expect(relink.statusCode).toBe(403);
+    expect(relink.json().code).toBe('SESSION_OWNERSHIP_MISMATCH');
+    expect(relinkCalls).toHaveLength(0);
+  });
+
+  test('the owner credential may mutate an explicit session without a caller agentId', async () => {
+    const owner = mintTestActor(souls, 'explicit-owner-ok');
+    sessionRows.set('owned-session', {
+      id: 'owned-session',
+      agentId: 'explicit-owner-ok',
+      status: 'active',
+      metadata: { identity: { verified: true, actorId: owner.actorId } },
+    });
+    const res = await app.inject({
+      method: 'POST',
+      url: '/sugar/done',
+      headers: owner.headers,
+      payload: { sessionId: 'owned-session', note: 'finished' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(doneCalls[0]).toEqual(expect.objectContaining({ sessionId: 'owned-session', agentId: 'explicit-owner-ok' }));
+  });
+
+  test('an unverifiable legacy owner fails closed and public override flags never reach sugar.done', async () => {
+    const caller = mintTestActor(souls, 'ordinary-owner');
+    sessionRows.set('legacy-session', {
+      id: 'legacy-session',
+      agentId: 'unknown-legacy-owner',
+      status: 'active',
+      metadata: {},
+    });
+    const legacy = await app.inject({
+      method: 'POST',
+      url: '/sugar/done',
+      headers: caller.headers,
+      payload: { sessionId: 'legacy-session' },
+    });
+    expect(legacy.statusCode).toBe(403);
+    expect(legacy.json().code).toBe('SESSION_OWNER_UNVERIFIABLE');
+
+    sessionRows.set('ordinary-session', {
+      id: 'ordinary-session',
+      agentId: 'ordinary-owner',
+      status: 'active',
+      metadata: { identity: { verified: true, actorId: caller.actorId } },
+    });
+    for (const payload of [
+      { sessionId: 'ordinary-session', skipOriginCheck: true, skipOriginCheckReason: 'I say I am allowed' },
+      { sessionId: 'ordinary-session', forceIncomplete: true, forceIncompleteReason: 'I say I am allowed' },
+    ]) {
+      const res = await app.inject({ method: 'POST', url: '/sugar/done', headers: caller.headers, payload });
+      expect(res.statusCode).toBe(403);
+      expect(res.json().code).toBe('OPERATOR_CAPABILITY_REQUIRED');
+    }
+    expect(doneCalls).toHaveLength(0);
+  });
+
+  test('post-hoc binding a legacy display alias cannot authorize done or relink', async () => {
+    sessionRows.set('legacy-post-hoc-session', {
+      id: 'legacy-post-hoc-session',
+      agentId: 'legacy-display-alias',
+      status: 'active',
+      metadata: {},
+    });
+    const caller = mintTestActor(souls, 'legacy-display-alias');
+
+    for (const [url, payload] of [
+      ['/sugar/done', { sessionId: 'legacy-post-hoc-session', note: 'claim history after the fact' }],
+      ['/sugar/relink', { sessionId: 'legacy-post-hoc-session', sidequestReason: 'rewrite history after the fact' }],
+    ]) {
+      const res = await app.inject({ method: 'POST', url, headers: caller.headers, payload });
+      expect(res.statusCode).toBe(403);
+      expect(res.json().code).toBe('SESSION_OWNER_UNVERIFIABLE');
+    }
+    expect(doneCalls).toHaveLength(0);
+    expect(relinkCalls).toHaveLength(0);
+  });
+
+  test('credential-only resolution does not reveal whether unrelated active sessions exist', async () => {
+    const caller = mintTestActor(souls, 'credential-only-caller');
+    const empty = await app.inject({
+      method: 'POST',
+      url: '/sugar/done',
+      headers: caller.headers,
+      payload: { note: 'no implicit global target' },
+    });
+
+    const other = mintTestActor(souls, 'unrelated-owner');
+    sessionRows.set('unrelated-active-session', {
+      id: 'unrelated-active-session',
+      agentId: 'unrelated-owner',
+      status: 'active',
+      metadata: { identity: { verified: true, actorId: other.actorId } },
+    });
+    const nonempty = await app.inject({
+      method: 'POST',
+      url: '/sugar/done',
+      headers: caller.headers,
+      payload: { note: 'still no implicit global target' },
+    });
+
+    expect(nonempty.statusCode).toBe(empty.statusCode);
+    expect(nonempty.json()).toEqual(empty.json());
+    expect(empty.statusCode).toBe(404);
+    expect(empty.json()).toMatchObject({ success: false, code: 'NO_ACTIVE_SESSION' });
+    expect(doneCalls).toHaveLength(0);
+  });
+
+  test('ambiguous sugar candidates match the documented session projection', async () => {
+    const owner = mintTestActor(souls, 'ambiguous-owner');
+    for (const [sessionId, durable, worktreeId] of [
+      ['ambiguous-one', true, 'worktree-one'],
+      ['ambiguous-two', false, null],
+    ]) {
+      sessionRows.set(sessionId, {
+        id: sessionId,
+        agentId: 'ambiguous-owner',
+        status: 'active',
+        durable,
+        worktreeId,
+        metadata: { identity: { verified: true, actorId: owner.actorId } },
+      });
+    }
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/sugar/done',
+      headers: owner.headers,
+      payload: { agentId: 'ambiguous-owner', note: 'must choose exact session' },
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({
+      code: 'AMBIGUOUS_ACTIVE_SESSION',
+      candidates: [
+        { sessionId: 'ambiguous-one', worktreeId: 'worktree-one', status: 'active', lifecycle: 'durable' },
+        { sessionId: 'ambiguous-two', worktreeId: null, status: 'active', lifecycle: 'ephemeral' },
+      ],
+    });
+    expect(doneCalls).toHaveLength(0);
   });
 
   test('/sugar/relink without a credential is rejected 401', async () => {

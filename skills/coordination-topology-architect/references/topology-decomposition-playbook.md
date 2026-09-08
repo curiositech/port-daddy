@@ -79,7 +79,7 @@ Ask these in order:
 
 ## Legacy Naming Note
 
-Current WinDAGs runtime and prediction schemas still use `team-loop` in some places.
+Current Jury-rig runtime and prediction schemas still use `team-loop` in some places.
 
 Use that label only as a compatibility bridge when necessary. The planning concept you should reason about is:
 

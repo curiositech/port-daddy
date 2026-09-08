@@ -1,64 +1,46 @@
-% Cartel repeated-game node — inline at §sec:youle:a6.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure IV.14 --- cartel stability is a two-lever phase diagram.
 \begin{figure}[H]
 \centering
-\resizebox{\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\sffamily\small,
-  state/.style={draw=hhebony,thick,fill=hhsand,circle,inner sep=2pt,
-                minimum size=8mm,font=\sffamily\footnotesize},
-  decision/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=3pt,
-                   inner sep=4pt,align=center,minimum width=20mm},
-  payoff/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,
-                 inner sep=3pt,align=center,font=\sffamily\footnotesize\bfseries},
-  bad/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,
-              inner sep=3pt,align=center,font=\sffamily\footnotesize\bfseries,
-              text=hhcobalt},
-  arr/.style={->,>=Latex,thick,draw=hhink},
-  prob/.style={font=\sffamily\footnotesize\itshape,fill=hhpaper,inner sep=1pt},
-]
-\node[state] (rt) at (0,2.4) {round $t$};
-\node[decision,right=10mm of rt] (dec) {Action choice};
-\draw[arr] (rt) -- (dec);
-\node[decision,fill=hhteal!30,right=12mm of dec,yshift=14mm] (collude)
-  {COLLUDE\\$q_{\mathrm{floor}}$};
-\draw[arr] (dec.north east) to[bend left=10] (collude.west);
-\node[decision,fill=hhamber!40,right=12mm of dec,yshift=-14mm] (defect)
-  {DEFECT\\$-\varepsilon$};
-\draw[arr] (dec.south east) to[bend right=10] (defect.west);
-\node[state,right=14mm of collude,yshift=10mm] (det) {detected};
-\node[state,right=14mm of collude,yshift=-10mm] (safe) {survived};
-\draw[arr] (collude.east) to[bend left=10]
-  node[prob,above] {$p_d$} (det.west);
-\draw[arr] (collude.east) to[bend right=10]
-  node[prob,below] {$1-p_d$} (safe.west);
-\node[bad,right=4mm of det] {$-5(q_f - \mu)$};
-\node[payoff,right=4mm of safe] {$+\pi_C$};
-\node[state,right=14mm of defect] (collapse) {collapse};
-\draw[arr] (defect.east) -- (collapse.west);
-\node[payoff,right=4mm of collapse,fill=hhamber!20]
-  {$+\pi_D$ once,\\then $\pi_N \approx 0$};
-\node[draw=hhebony,thick,fill=hhsanddeep,rounded corners=3pt,
-      align=left,inner sep=6pt,
-      below=20mm of defect,minimum width=110mm]
-  {{\bfseries Model-conditional sustainability:}
-   \quad $V_C=\dfrac{\pi_C-p_dL}{1-\delta(1-p_d)}\;\geq\;\pi_D$,
-   \quad $L=5(q_f-\mu)$};
-\end{tikzpicture}%
-}
-\caption{Cartel repeated-game node under the supplied grim-trigger model. Each
-round a member maintains the floor or undercuts it by $\varepsilon$. Detection
-occurs before the current-round payoff and applies loss $L$; a one-shot deviation
-takes $\pi_D$ and ends the cartel stream. The displayed recurrence is specific to
-that event timing and payoff model.}
+\resizebox{0.88\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-5.9,3.25)
+    {detection probability and sampled loss jointly set the cartel boundary};
+
+  \fill[hhamber!11]
+    (-5.0,-1.55)--(5.3,-1.55)--(5.3,-.65)--(3.9,-.35)--(2.4,.15)--(.5,.95)--(-2.2,2.10)--(-4.55,2.75)--(-5.0,2.90)--cycle;
+  \fill[hhteal!7]
+    (-5.0,2.90)--(-4.55,2.75)--(-2.2,2.10)--(.5,.95)--(2.4,.15)--(3.9,-.35)--(5.3,-.65)--(5.3,2.95)--(-5.0,2.95)--cycle;
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-5.0,-1.55)--(5.65,-1.55);
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-5.0,-1.55)--(-5.0,3.05);
+  \node[pd axis label,anchor=west] at (5.75,-1.55) {sampled detection $p_d$};
+  \node[pd axis label,rotate=90,anchor=south] at (-5.35,.65) {loss if detected $L$};
+
+  \draw[pd caution rule,line width=1.4pt,smooth]
+    plot coordinates {(-4.55,2.75)(-2.2,2.10)(.5,.95)(2.4,.15)(3.9,-.35)(5.3,-.65)};
+  \node[pd direct label,text=hhamber,anchor=west] at (.65,1.18)
+    {$V_C=\pi_D$};
+
+  \node[pd direct label,text=hhteal,align=center] at (2.35,2.25)
+    {DEVIATION DOMINATES\\cartel unsustainable};
+  \node[pd direct label,text=hhamber,align=center] at (1.65,-.85)
+    {COLLUSION PERSISTS\\discounted stream still wins};
+
+  \node[pd caution datum] at (-2.2,2.10) {};
+  \node[pd caution datum] at (3.9,-.35) {};
+  \draw[pd guide] (-2.2,-1.55)--(-2.2,2.10);
+  \draw[pd guide] (3.9,-1.55)--(3.9,-.35);
+  \node[pd note,anchor=north] at (-2.2,-1.72) {rare / severe};
+  \node[pd note,anchor=north] at (3.9,-1.72) {frequent / smaller};
+
+  \node[pd note,anchor=west] at (-4.85,-2.30)
+    {$V_C=(\pi_C-p_dL)/(1-\delta(1-p_d))$; monitoring frequency alone is not the mechanism};
+\end{tikzpicture}}
+\caption{\textbf{Cartel sustainability is a two-policy phase diagram.} The
+boundary is the repeated-game equality $V_C=\pi_D$. Below it, the discounted
+collusive stream still dominates a one-shot deviation. Above it, deviation wins
+and the cartel is unstable. A rarer severe sampled loss and a more frequent
+smaller loss can lie on the same deterrence boundary. Detection frequency by
+itself is therefore not the mechanism; the product enters through the full
+discounted payoff expression.}
 \label{fig:cartel-game-inline}
 \end{figure}

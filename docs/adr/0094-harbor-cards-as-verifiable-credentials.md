@@ -49,7 +49,7 @@ keystone is a strategic error for a product whose thesis is *"you don't sell cry
 verifier reads is trust the market must take on faith, which is the thing the
 product exists to remove.
 
-One hardware detail makes the algorithm choice load-bearing: ADR-0040's principal
+One hardware detail makes the algorithm choice central: ADR-0040's principal
 keys should ultimately live in secure hardware (a principal whose key is exfiltrable
 is a principal in name only). Apple's Secure Enclave, WebAuthn authenticators, and
 most TPMs mint **P-256 (ES256)** keys natively and largely do not expose Ed25519.
