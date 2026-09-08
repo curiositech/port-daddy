@@ -244,23 +244,23 @@ export const COLLECTED_VOLUME: CollectedVolume = {
   downloadUrl:
     'https://raw.githubusercontent.com/curiositech/port-daddy/main/website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
   date: TEXTBOOK.edition.date,
-  pages: 538,
-  sizeKb: 8065,
+  pages: 545,
+  sizeKb: 8098,
   references: 221,
   editions: [
     {
       id: 'coordination-papers-mega-volume-swiss',
       title: 'Swiss edition',
       pdfPath: '/whitepaper/coordination-papers-mega-volume-swiss.pdf',
-      pages: 542,
-      sizeKb: 3363,
+      pages: 552,
+      sizeKb: 7501,
     },
     {
       id: 'coordination-papers-mega-volume-technical',
       title: 'Technical edition',
       pdfPath: '/whitepaper/coordination-papers-mega-volume-technical.pdf',
-      pages: 538,
-      sizeKb: 7780,
+      pages: 548,
+      sizeKb: 7815,
     },
   ],
 }
