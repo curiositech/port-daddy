@@ -1,11 +1,46 @@
 // the complete contents of tests/unit/purser/test_aspect_forgery_and_header_tampering.test.ts
+//
+// This file was rewritten against the real
+// scripts/harbor-research/check_plate_provenance.py. The version this
+// replaces had three problems that kept every test in the "declared aspect"
+// describe block from ever exercising real logic:
+//
+//   1. `runCheckPlateProvenance` invoked the script with a positional
+//      argument (`[scriptPath, rootDir]`). The script's only CLI flag is
+//      `--repo-root PATH` (argparse defines no positional argument at all),
+//      so the process would exit 2 on "unrecognized arguments" before any
+//      of its actual checks ran -- the aspect-ratio and dangling-entry
+//      assertions below were never reachable from the CLI invocation.
+//   2. Calling the CLI form even with the flag fixed still runs main(),
+//      which also resolves every literal `plates/...` path reachable from
+//      the .tex sources (Part B: check_tex_plate_paths) against
+//      whitepaper/textbook.json and the two macro-bearing .tex files. None
+//      of that exists in the ephemeral tempdir this file builds, so every
+//      invocation would report those files missing regardless of whether
+//      the provenance/aspect fixture under test was correct -- exit code 0
+//      was unreachable even for a fully valid fixture. That machinery is
+//      irrelevant to what this file is actually testing (aspect-ratio
+//      forgery and provenance-entry integrity), so the fix calls the real
+//      `check_all_provenance` module function directly instead -- the
+//      Part A checker in isolation, with no textbook.json/tex dependency.
+//   3. `writeProvenance` wrote a bare JSON array of `{filename, final_aspect}`
+//      objects. The real schema (scripts/harbor-research/check_plate_provenance.py,
+//      matching tests/harbor-research/test_check_plate_provenance.py on the
+//      same branch) is a top-level object with a "plates" dict keyed by
+//      plate stem, each entry requiring "prompt", model provenance (entry
+//      "model"/doc "model"/entry "recovered_from"), a post-processing note
+//      (entry "post"/doc "post"/entry "note"), and, when declared, an
+//      aspect ratio as a "W:H" *string* (e.g. "3:2"), not a decimal number.
+//      A bare array fails `isinstance(doc, dict)` immediately, so every
+//      test using the old writeProvenance always hit "PROVENANCE.json does
+//      not contain a JSON object" -- never the aspect-tolerance or
+//      dangling-entry logic its name promised to test.
 import { spawnSync } from 'node:child_process';
 import {
   mkdtempSync,
   writeFileSync,
   rmSync,
   mkdirSync,
-  readFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
@@ -31,7 +66,7 @@ p = Path(sys.argv[3])
 p.parent.mkdir(parents=True, exist_ok=True)
 Image.new("RGB", (w, h), color="white").save(p)
 `;
-  const result = spawnSync('python', ['-c', pythonCode, `${width}`, `${height}`, outPath], {
+  const result = spawnSync('python3', ['-c', pythonCode, `${width}`, `${height}`, outPath], {
     stdio: 'ignore',
     encoding: 'utf-8',
   });
@@ -40,25 +75,39 @@ Image.new("RGB", (w, h), color="white").save(p)
   }
 }
 
+const CHECKER_PATH = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../../scripts/harbor-research/check_plate_provenance.py',
+);
+
 /**
- * Run the repository's `check_plate_provenance.py` script against a given
- * repository‑root directory. Returns the process exit code (0 = success).
+ * Run the repository's real `check_all_provenance(repo_root)` function
+ * (Part A of check_plate_provenance.py: PROVENANCE.json completeness,
+ * dangling entries, and the 2% aspect-ratio tolerance) directly via Python,
+ * the same way `readImageSizeViaPython` below calls `read_image_size`.
+ * Returns the list of failure strings check_all_provenance produced (empty
+ * = clean). Going through the real exported function instead of `main()`
+ * avoids Part B's unrelated TeX-path resolution, which needs a whitepaper/
+ * textbook.json and two macro-bearing .tex files this fixture never builds
+ * and which this suite is not about.
  */
-function runCheckPlateProvenance(rootDir: string): number {
-  const scriptPath = resolve(
-    dirname(fileURLToPath(import.meta.url)),
-    '../../../scripts/harbor-research/check_plate_provenance.py',
-  );
-  const result = spawnSync('python', [scriptPath, rootDir], {
-    encoding: 'utf-8',
-  });
-  // Forward script output for debugging – Jest will capture it.
-  if (result.stdout) process.stdout.write(result.stdout);
-  if (result.stderr) process.stderr.write(result.stderr);
-  if (result.status === null) {
-    throw new Error('check_plate_provenance terminated by signal');
+function runCheckAllProvenance(rootDir: string): string[] {
+  const wrapper = `
+import json, importlib.util, pathlib
+spec = importlib.util.spec_from_file_location(
+    "mod",
+    pathlib.Path(${JSON.stringify(CHECKER_PATH)}).as_posix(),
+)
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+failures = mod.check_all_provenance(${JSON.stringify(rootDir)})
+print(json.dumps(failures))
+`;
+  const result = spawnSync('python3', ['-c', wrapper], { encoding: 'utf-8' });
+  if (result.status !== 0) {
+    throw new Error(`check_all_provenance invocation failed: ${result.stderr}`);
   }
-  return result.status;
+  return JSON.parse(result.stdout);
 }
 
 /**
@@ -67,22 +116,17 @@ function runCheckPlateProvenance(rootDir: string): number {
  */
 function readImageSizeViaPython(imagePath: string): { width: number; height: number } {
   const wrapper = `
-import json, importlib.util, pathlib, sys
+import json, importlib.util, pathlib
 spec = importlib.util.spec_from_file_location(
     "mod",
-    pathlib.Path("${resolve(
-      dirname(fileURLToPath(import.meta.url)),
-      '../../../scripts/harbor-research/check_plate_provenance.py',
-    )}").as_posix(),
+    pathlib.Path(${JSON.stringify(CHECKER_PATH)}).as_posix(),
 )
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
-w, h = mod.read_image_size("${imagePath.replace(/\\/g, '\\\\')}")
+w, h = mod.read_image_size(${JSON.stringify(imagePath)})
 print(json.dumps({"width": w, "height": h}))
 `;
-  const result = spawnSync('python', ['-c', wrapper], {
-    encoding: 'utf-8',
-  });
+  const result = spawnSync('python3', ['-c', wrapper], { encoding: 'utf-8' });
   if (result.status !== 0) {
     throw new Error(`read_image_size failed: ${result.stderr}`);
   }
@@ -90,19 +134,21 @@ print(json.dumps({"width": w, "height": h}))
 }
 
 /**
- * Helper to write a minimal PROVENANCE.json file.
- * The caller provides an array of entry objects.
+ * Write a PROVENANCE.json in the real schema: a top-level object with a
+ * "plates" dict keyed by plate stem. `plates` maps stem -> per-entry fields
+ * (prompt/model/post/final_aspect etc.), matching what
+ * scripts/harbor-research/check_plate_provenance.py actually parses.
  */
-function writeProvenance(dir: string, entries: any[]): void {
+function writeProvenance(dir: string, plates: Record<string, Record<string, unknown>>): void {
   const provPath = join(dir, 'PROVENANCE.json');
-  writeFileSync(provPath, JSON.stringify(entries, null, 2), 'utf8');
+  writeFileSync(provPath, JSON.stringify({ plates }, null, 2), 'utf8');
 }
 
 /* -------------------------------------------------------------------------- */
 /*                               TEST SUITE                                   */
 /* -------------------------------------------------------------------------- */
 
-describe('check_plate_provenance – read_image_size and 2 % aspect‑ratio tolerance', () => {
+describe('check_plate_provenance – read_image_size and 2 % aspect‑ratio tolerance', () => {
   let tempRoot: string;
 
   beforeEach(() => {
@@ -118,7 +164,9 @@ describe('check_plate_provenance – read_image_size and 2 % aspect‑ratio to
    *
    *   <root>/website-v2/public/whitepaper/plates/swiss/
    *
-   * Returns the absolute path to that `swiss` folder.
+   * Returns the absolute path to that `swiss` folder. "swiss" is one of
+   * REQUIRED_PROVENANCE_DIRS in the real script, so a PROVENANCE.json is
+   * mandatory there (unlike an arbitrary plates subdirectory).
    */
   function swissPlateDir(): string {
     const dir = join(
@@ -141,38 +189,67 @@ describe('check_plate_provenance – read_image_size and 2 % aspect‑ratio to
     expect(height).toBe(100);
   });
 
-  test('passes when declared aspect matches actual ratio within 2 % tolerance', () => {
+  test('passes when declared aspect matches actual ratio within 2 % tolerance', () => {
     const dir = swissPlateDir();
     const imgName = 'match.jpg';
     const imgPath = join(dir, imgName);
-    // 150 × 100 → aspect = 1.5
+    // 150 × 100 → aspect = 1.5 = 3:2
     generatePillowImage(150, 100, imgPath);
-    writeProvenance(dir, [{ filename: imgName, final_aspect: 1.5 }]);
+    writeProvenance(dir, {
+      match: {
+        prompt: 'a test plate',
+        model: 'test-model',
+        post: 'no post-processing',
+        final_aspect: '3:2',
+      },
+    });
 
-    const exitCode = runCheckPlateProvenance(tempRoot);
-    expect(exitCode).toBe(0);
+    const failures = runCheckAllProvenance(tempRoot);
+    expect(failures).toEqual([]);
   });
 
-  test('fails when declared aspect deviates beyond the 2 % tolerance', () => {
+  test('fails when declared aspect deviates beyond the 2 % tolerance', () => {
     const dir = swissPlateDir();
     const imgName = 'off.jpg';
     const imgPath = join(dir, imgName);
     // 150 × 100 → aspect = 1.5
     generatePillowImage(150, 100, imgPath);
-    // Declare a wildly different aspect (2.0) → >2 % error
-    writeProvenance(dir, [{ filename: imgName, final_aspect: 2.0 }]);
+    // Declare a wildly different aspect (2:1) → >2 % error
+    writeProvenance(dir, {
+      off: {
+        prompt: 'a test plate',
+        model: 'test-model',
+        post: 'no post-processing',
+        final_aspect: '2:1',
+      },
+    });
 
-    const exitCode = runCheckPlateProvenance(tempRoot);
-    expect(exitCode).not.toBe(0);
+    const failures = runCheckAllProvenance(tempRoot);
+    expect(failures.length).toBeGreaterThan(0);
+    expect(failures.some((f) => f.includes('off') && f.includes('2:1'))).toBe(true);
   });
 
   test('fails when provenance references a non‑existent image file', () => {
     const dir = swissPlateDir();
-    // No image is created.
-    writeProvenance(dir, [{ filename: 'missing.jpg', final_aspect: 1.5 }]);
+    // check_provenance_dir bails out with "nothing to check" the moment a
+    // directory has zero image files on disk -- so a dangling entry only
+    // has anything to be dangling *against* once at least one real image
+    // is present. Write one legitimate plate, then point its own entry's
+    // "file" field at a filename that was never written.
+    const imgName = 'plate.jpg';
+    generatePillowImage(150, 100, join(dir, imgName));
+    writeProvenance(dir, {
+      plate: {
+        file: 'does-not-exist.jpg',
+        prompt: 'a ghost plate',
+        model: 'test-model',
+        post: 'no post-processing',
+      },
+    });
 
-    const exitCode = runCheckPlateProvenance(tempRoot);
-    expect(exitCode).not.toBe(0);
+    const failures = runCheckAllProvenance(tempRoot);
+    expect(failures.length).toBeGreaterThan(0);
+    expect(failures.some((f) => f.includes('does-not-exist.jpg'))).toBe(true);
   });
 
   test('fails when an image exists without a provenance entry', () => {
@@ -180,10 +257,11 @@ describe('check_plate_provenance – read_image_size and 2 % aspect‑ratio to
     const imgName = 'lonely.jpg';
     const imgPath = join(dir, imgName);
     generatePillowImage(120, 80, imgPath);
-    // Empty provenance array → the image is unaccounted for.
-    writeProvenance(dir, []);
+    // Empty plates dict → the image is unaccounted for.
+    writeProvenance(dir, {});
 
-    const exitCode = runCheckPlateProvenance(tempRoot);
-    expect(exitCode).not.toBe(0);
+    const failures = runCheckAllProvenance(tempRoot);
+    expect(failures.length).toBeGreaterThan(0);
+    expect(failures.some((f) => f.includes('lonely.jpg') && f.includes('no provenance entry'))).toBe(true);
   });
 });
