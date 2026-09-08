@@ -1,5 +1,35 @@
 # Durable Process Log
 
+## Current operating decision — 2026-09-08
+
+The operator halted Port Daddy after a reported spending incident and directed
+this work to continue solo, without using Port Daddy at all. This overrides
+the earlier runtime, coordination, agent and publication procedures below.
+No further daemon, CLI, MCP, App actuator, agent fan-out or review-bot workflow
+is authorized by this project. Local Git operations use a command-local empty
+hook path so suspended coordination hooks cannot execute.
+
+The six disciplinary lenses, steel-man review, consolidation and editorial
+checks will be performed sequentially by one author. They are useful design
+analysis but are not independent positions, fresh reviewers, or evidence for
+H3. The independent Field Guide feedback already supplied by the source task
+is retained with that limited provenance. No completed Phase 1 paper was found
+in this worktree on resumption; earlier launch receipts prove no result here.
+Historical costs remain unknown; requested budgets are not proof of caps.
+
+The referenced halt incident file was absent in this checkout, its local
+origin/main ref, and the primary checkout on September 8. The operator's
+explicit order is sufficient authority for the halt; no runtime check is needed.
+
+Local completion plan:
+
+- [x] Preserve existing research and mark the halt/method amendment.
+- [ ] Reconcile the branch with current remote source using Git alone.
+- [ ] Complete constitution, practitioner guide, architecture and dissent.
+- [ ] Produce a static impact preview and offline audit skill.
+- [ ] Run bounded local checks and record evidence and limitations.
+- [ ] Commit a complete publication packet; perform no external publication.
+
 ## 2026-09-05 — Phase 0 opened
 
 - Synthesis Steward session: `session-design-constitutional-egosystem-reconciliation-a-f2a63c9bf701`.
@@ -49,3 +79,10 @@
 ## Open operator input
 
 The operator can add a stakeholder, private/public boundary, representative conflict story, or unacceptable decision outcome at any time. Work continues unless the input changes authority, disclosure, publication, or canonical roadmap state.
+
+## 2026-09-05 — Continuity and Phase 1 independence gate
+
+- Inventory commit: `e8426c6357757c975f983e1a981fd925434e4694` on unchanged `origin/main@38e52122a7b54346d509bf5b7ae07278f1c48ced`.
+- A daemon restart invalidated the first session registration. The first takeover preserved claims but lost roadmap/plan metadata and presented an actor-alias mismatch. A second default-slot begin inherited stale actor context and returned no usable local credential. Neither is treated as healthy continuation.
+- Healthy successor: `session-continue-constitutional-egosystem-reconciliation-3d4980b17aa2`, identity `port-daddy:egosystem-reconciliation:steward-v3`, in isolated context slot `ego-synthesis-v3`. It minted a fresh credential, links the existing roadmap item, restored the exact plan, and reclaimed the 18 intended paths. No credential was copied or substituted.
+- Phase 1 commission is frozen at the inventory commit. Papers A–C launched through Port Daddy in separate detached exact-head worktrees. They receive the same eight common artifacts plus distinct method charters, may not read one another, and return prose only.
