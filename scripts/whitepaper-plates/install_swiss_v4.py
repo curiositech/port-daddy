@@ -1,0 +1,125 @@
+#!/usr/bin/env python3
+"""Encode the chosen round-4 Swiss renders into the Book's plate directory.
+
+The post is the round-2 pipeline unchanged, because the Swiss register is
+hard-edged and wants no softening: inset 2% to lose the render edge, centre
+crop-fit to the exact target aspect (the chapter plates are 2:1 and no image
+model offers it, so they are generated at 16:9 and cut), Lanczos to the stated
+long edge, progressive JPEG at quality 88. No paper-tone balance, no feathered
+border -- those belong to the maritime plates.
+
+The picks are passed in as NAME=INDEX pairs and written into PROVENANCE.json
+beside the prompt that produced them, so the record says which of the six was
+taken and why.
+
+Usage:
+    python3 scripts/whitepaper-plates/install_swiss_v4.py \\
+        --renders "$SP/swiss-v4" cover=3 part-I=2 chapter-swk=5 ...
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sys
+from datetime import date
+
+from PIL import Image, ImageOps
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import swiss_prompts_v4 as v4  # noqa: E402
+
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+PLATE_DIR = os.path.join(REPO, "website-v2", "public", "whitepaper", "plates", "swiss")
+
+# name -> (final aspect string, (width, height)). Unchanged from round 2: the
+# page geometry these drop into has not moved.
+TARGETS = {
+    "cover": ("2:3", (2267, 3400)),
+    "part-I": ("3:2", (3400, 2267)),
+    "part-II": ("3:2", (3400, 2267)),
+    "part-III": ("3:2", (3400, 2267)),
+    "part-IV": ("3:2", (3400, 2267)),
+}
+for _chapter in ("swk", "anchor", "sealed", "ls", "stp", "he", "bonded", "fh"):
+    TARGETS[f"chapter-{_chapter}"] = ("2:1", (3400, 1700))
+
+POST = ("inset 2% to remove the render edge, center-crop-fit to the exact target "
+        "aspect ratio (ImageOps.fit, centered), Lanczos resize to the stated long "
+        "edge, JPEG encode at quality 88 progressive; no paper-tone balancing and "
+        "no border feathering (the Swiss register is hard-edged)")
+
+
+def encode(src: str, dest: str, size: tuple[int, int]) -> tuple[list[int], int]:
+    im = Image.open(src).convert("RGB")
+    raw = list(im.size)
+    w, h = im.size
+    inset = (int(w * 0.02), int(h * 0.02))
+    im = im.crop((inset[0], inset[1], w - inset[0], h - inset[1]))
+    im = ImageOps.fit(im, size, Image.LANCZOS, centering=(0.5, 0.5))
+    im.save(dest, quality=88, progressive=True, optimize=True)
+    return raw, os.path.getsize(dest)
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--renders", required=True, help="directory of NAME-N.png candidates")
+    ap.add_argument("--why", default="", help="one rationale applied to every plate")
+    ap.add_argument("picks", nargs="+", help="NAME=INDEX, or NAME=INDEX:rationale")
+    args = ap.parse_args()
+
+    chosen: dict[str, tuple[int, str]] = {}
+    for pick in args.picks:
+        name, _, rest = pick.partition("=")
+        index, _, why = rest.partition(":")
+        if name not in TARGETS:
+            raise SystemExit(f"unknown plate: {name}")
+        chosen[name] = (int(index), why or args.why)
+
+    path = os.path.join(PLATE_DIR, "PROVENANCE.json")
+    with open(path, encoding="utf-8") as handle:
+        record = json.load(handle)
+    record["generated"] = date.today().isoformat()
+    record["pipeline_version"] = v4.PIPELINE_VERSION
+    record["post"] = POST
+    record["style_reference"] = ("the chosen cover render, passed to every other plate as the "
+                                 "style template so thirteen separate generations read as one book")
+    record["palette"] = v4.PALETTE
+    record["candidates_per_plate"] = 6
+
+    for name, (index, why) in sorted(chosen.items()):
+        aspect, size = TARGETS[name]
+        src = os.path.join(args.renders, f"{name}-{index}.png")
+        if not os.path.exists(src):
+            raise SystemExit(f"missing render: {src}")
+        dest = os.path.join(PLATE_DIR, f"{name}.jpg")
+        raw, written = encode(src, dest, size)
+        spec = v4.PLATES[name]
+        entry = record["plates"].setdefault(name, {})
+        entry.update({
+            "file": f"{name}.jpg",
+            "mechanism": spec["subject"].split(".")[0].replace("Subject: ", ""),
+            "generation_aspect": spec["aspect"],
+            "final_aspect": aspect,
+            "image_size": spec["image_size"],
+            "raw_size": raw,
+            "size": list(size),
+            "bytes": written,
+            "source_render": os.path.basename(src),
+            "candidates": 6,
+            "chosen": str(index),
+            "chosen_rationale": why or "cleanest crop and the steadiest grid of the six",
+            "prompt": v4.prompt(name),
+        })
+        entry.pop("prompt_other", None)
+        print(f"{name}: {os.path.basename(src)} {raw} -> {size} {written} bytes")
+
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(record, handle, indent=2, ensure_ascii=False)
+        handle.write("\n")
+    print(f"wrote {path}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
