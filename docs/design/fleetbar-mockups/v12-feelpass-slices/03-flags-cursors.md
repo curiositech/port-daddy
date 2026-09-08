@@ -29,7 +29,7 @@ const FLAG_LIMA:     u32 = 0xb5b5a8; // L — resting / slate
 const FLAG_WHITE:    u32 = 0xf4f4f2; // the white field on each flag
 ```
 
-If you'd rather not disturb the existing names, the only behavior-load-bearing repoint is `C_GATED` → `0xf26475` (the old `0xd4736b` is a brass-adjacent warm-red the brand check may flag) and `C_ACCENT` → `0xffdb33` (mustard, the brand pop). The flag consts are new.
+If you'd rather not disturb the existing names, the only behavior-core repoint is `C_GATED` → `0xf26475` (the old `0xd4736b` is a brass-adjacent warm-red the brand check may flag) and `C_ACCENT` → `0xffdb33` (mustard, the brand pop). The flag consts are new.
 
 ---
 
@@ -185,7 +185,7 @@ fn sigflag_chip(flag: SignalFlag) -> impl IntoElement {
 
 ---
 
-## 3. Cursor-blink mechanism (the load-bearing piece)
+## 3. Cursor-blink mechanism (the essential piece)
 
 gpui 0.2.2's `with_animation` is not guaranteed, and we want **reduced-motion safety** anyway. The robust, framework-agnostic approach: a periodic `cx.spawn` timer that flips a `bool` on the view and calls `cx.notify()`. The cursor cell reads that bool and toggles opacity. One timer drives every cursor in the window (cheap, in phase).
 

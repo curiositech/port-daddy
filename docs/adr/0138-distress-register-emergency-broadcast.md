@@ -91,7 +91,7 @@ published procedure, a *floor-control* rule, and *drills*.
 ### 1. The registry: four classes, one small code table
 
 Meanings are registered, not composed. Every distress message carries exactly one class
-and one code. Free prose is allowed only in a trailing, non-load-bearing field.
+and one code. Free prose is allowed only in a trailing, decorative field.
 
 | Class | Meaning | Who may raise it | Preempts |
 |---|---|---|---|

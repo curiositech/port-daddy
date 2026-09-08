@@ -1048,6 +1048,24 @@ The Federated Harbor sits at the intersection of four bodies of work. We are con
 
 \paragraph{Capability-based federation.} Macaroons~\cite{birgisson2014macaroons} are the foundational capability-with-attenuation construction; our transfer ceremony extends Macaroon-style third-party-caveat chains across an administrative boundary. UCAN~\cite{ucan2024} is the current production-deployed answer to ``Macaroons with public-key principals,'' and we treat it as the operationally most relevant existing system; the Federated Harbor differs in keeping the daemon as a structural commons authority rather than going fully peer-to-peer, and in pricing delegation through insurance-priced bonds rather than pure capability constraints. The object-capability lineage~\cite{miller2006robust, dennis1966programming} continues to be relevant: cross-realm operations are exactly a mutual-suspicion scenario in Miller's vocabulary, and his defensive-consistency framework is the right lens.
 
+\paragraph{Production federation protocols.} Three deployed federations solve a
+version of the same trust-boundary problem and are not otherwise engaged here.
+ActivityPub~\cite{activitypub2018}, the W3C-standardized protocol behind
+Mastodon and the fediverse, lets independent servers relay signed activity
+without a shared database or a global ruler --- exactly the property this
+chapter states as its own goal. Matrix~\cite{matrixspec}, an open,
+currently-deployed specification, has homeservers replicate room state with
+eventual consistency across administrative boundaries and no single point of
+control, arguably the closest production analogue running today to the
+``no consensus, gossip-bounded, detectable equivocation'' model of
+\S\ref{sec:fh-not}. And SPKI/SDSI~\cite{spkisdsi1999}, the mid-1990s
+local-names, decentralized-authorization design, is the conceptual ancestor
+both Macaroons and UCAN descend from, and so sits one layer beneath the
+capability-based federation discussed next. None of the three overturns a
+theorem in this chapter; each is a closer production point of comparison for
+the federation's design than the identity- and capability-federation
+literature cited above.
+
 \paragraph{Transparency logs.} Certificate Transparency~\cite{laurie2013ct} is the model; the federated witness log of \S\ref{sec:fh-witness} is CT applied to capability tokens. Sigstore~\cite{newman2022sigstore} and Rekor are the production instantiation we rhyme with most heavily; in-toto~\cite{torres2019intoto} and SLSA~\cite{slsa2023} are the supply-chain analogues that compose with the Federated Harbor for the ``poisoned plugin under a bonded principal'' case but do not close it. The Crosby--Wallach history-tree~\cite{crosby2009tamper} is the formal substrate of every modern transparency log including ours.
 
 \paragraph{Cross-domain settlement.} Herlihy's atomic cross-chain swap~\cite{herlihy2018atomic} is a comparison point; the cross-harbor settlement protocol of \S\ref{sec:fh-settlement} instead handles non-fungible reputation-priced bonds through conditionally restricted custody. It is not trustless in Herlihy's sense. Whether trustless settlement is achievable in our setting is open (\S\ref{sec:fh-limitations}). The IBC protocol~\cite{goes2020ibc} supplies another connection/channel comparison; unlike IBC, this design does not assume a consensus-backed state machine underneath.
@@ -1179,7 +1197,7 @@ The script's own printed lines (\path{skills/harbor-results/scripts/sheaf_consis
 Theorem~\ref{thm:sheaf-equivocation} assumes a \emph{single} equivocator and says outright that this is not decoration. Two colluding reporters sit on the same visible cycle $K_c$ and each reports an offset; either offset alone would be detected. Using only the definition of the completion residual $r$ as a minimum over global sections and free severed blocks, explain why a coalition can drive $r$ to (numerically) zero even though neither liar's offset is small, and say what kind of evidence --- if any --- could still catch the coalition.
 \end{pdexercise}
 \begin{pdsolution}{ex:fh-two-liar-boundary}
-$r$ is defined as the \emph{best-fit} residual: the smallest disagreement left over after choosing the global section $x$ and the free severed blocks $g_{\mathrm{sev}}$ that explain as much of the observed data as any choice can. It is not a per-liar quantity; it is a property of the whole observed cochain $g_K$. If two equivocators on a common cycle choose offsets $o_1$ and $o_2$ such that $o_1+o_2$ happens to be a coboundary --- i.e.\ the \emph{sum} of their two lies is indistinguishable from a single consistent state change --- then the best-fit global section can absorb $o_1+o_2$ entirely, leaving a near-zero residual, exactly the way a lone liar's offset is absorbed when it lies off a visible cycle (the cut-edge case above). Nothing in the definition of $r$ requires the offsets to be individually small for their \emph{sum} to be small or zero; it requires only that the sum land in the image of $\delta$, the space the completion can always explain away. This is why the single-equivocator hypothesis is load-bearing rather than a simplifying nicety: the moment a second colluding reporter is admitted on the same cycle, the detector's soundness guarantee (Theorem~\ref{thm:sheaf-equivocation}'s ``if and only if'') no longer applies to the \emph{pair}, only to each alone under the counterfactual that the other is honest.
+$r$ is defined as the \emph{best-fit} residual: the smallest disagreement left over after choosing the global section $x$ and the free severed blocks $g_{\mathrm{sev}}$ that explain as much of the observed data as any choice can. It is not a per-liar quantity; it is a property of the whole observed cochain $g_K$. If two equivocators on a common cycle choose offsets $o_1$ and $o_2$ such that $o_1+o_2$ happens to be a coboundary --- i.e.\ the \emph{sum} of their two lies is indistinguishable from a single consistent state change --- then the best-fit global section can absorb $o_1+o_2$ entirely, leaving a near-zero residual, exactly the way a lone liar's offset is absorbed when it lies off a visible cycle (the cut-edge case above). Nothing in the definition of $r$ requires the offsets to be individually small for their \emph{sum} to be small or zero; it requires only that the sum land in the image of $\delta$, the space the completion can always explain away. This is why the single-equivocator hypothesis is decisive rather than a simplifying nicety: the moment a second colluding reporter is admitted on the same cycle, the detector's soundness guarantee (Theorem~\ref{thm:sheaf-equivocation}'s ``if and only if'') no longer applies to the \emph{pair}, only to each alone under the counterfactual that the other is honest.
 
 The compendium's own sweep states the shape of this exactly: a solo equivocator on an 8-cycle is bounded below at $r\ge|s|/\sqrt8$, while a coordinating coalition of two on the same cycle drives the same statistic to $r\approx6\times10^{-15}$ --- numerically the silence of a true coboundary, not a small-but-detectable residual [internal, \texttt{sheaf\_consistency\_radius.py}]. What could still catch the coalition is exactly what $r$ is not: per-report attribution rather than a single scalar. Signature-level forensics can ask whether the \emph{same} reporter's two prefixes are individually self-consistent (an equivocator still signs two incompatible things even if the aggregate looks clean); cross-checking against a third, independent visible cycle through only one of the two colluders can isolate that one's contribution if such a cycle exists; and widening $K$ --- comparing more edges directly rather than relying on relayed reports --- shrinks the coalition's room to choose a cancelling pair in the first place. None of this is a proof that coalitions are caught in general; \S\ref{sec:fh-lim-cartel} names the cross-harbor cartel question as open for exactly this reason, and this exercise is that same boundary stated at the level of one theorem rather than the whole federation.
 \end{pdsolution}
@@ -1251,7 +1269,7 @@ Standing back from the individual protocols: this paper repeatedly describes fed
 \begin{pdsolution}{ex:fh-synthesis}
 What does not require consensus is the \emph{event history}: harbors never need to agree on a single global order of issuances, revocations, or transfers. Each harbor's epoch roots only extend (per-harbor monotonicity), each root is cross-witnessed rather than centrally ordered, and equivocation is detectable rather than prevented by agreement (\S\ref{sec:fh-not}, \S\ref{sec:fh-witness}). What the Cross-Harbor Bucket Partition result (Design Invariant~\ref{prop:fh-cross-cons}) presupposes is narrower and different in kind: it is a model-checked invariant of one abstract transition system with a fixed set of buckets per bond, checked at a stated finite bound ($|F|=4$, bond depth 16, \S\ref{sec:fh-tla-ext}). Apalache is not requiring the \emph{harbors} to agree on anything at runtime; it is verifying that the \emph{rules} governing one bond's bucket moves cannot, on paper, create or destroy value, for every reachable state up to the bound. Consensus among machines and exhaustive checking of a specification are different axes entirely --- the first is a runtime coordination requirement the federation deliberately avoids, the second is an offline proof technique applied to a design the federation still has to implement correctly and run at unbounded scale. Nothing here claims the deployed custody ledger enforces the bound at runtime; that is exactly Design Invariant~\ref{thm:fh-escrow-bound}'s conditional custody-ledger assumption, stated separately.
 
-Calling the Federated Harbor ``a project institution, not merely two machines sharing a repository'' means the paper's actual claim is broader than any one protocol: an authoritative event/work-unit graph, per-principal policy, local effect mediators, causal messages, evidence, roles, and explicit governance over conflicts, of which the transfer ceremony, revocation mesh, and settlement escrow are three load-bearing pieces, not the whole structure. A roadmap or a stated intention is versioned forecast, not truth, and a contradiction detector (the witness log's equivocation check) produces evidence for a \emph{named principal or role} to decide against, rather than deciding by itself. The paper's own posture --- consensus only where it is cheap and structurally necessary (the small authoritative metadata core: epoch roots, admission records), federation everywhere else (the actual work artifacts) --- is the concrete answer to the framing question of \S\ref{sec:fh-intro}: two machines needed more than a shared repository, and what they needed is exactly the institution this paper specifies one layer of.
+Calling the Federated Harbor ``a project institution, not merely two machines sharing a repository'' means the paper's actual claim is broader than any one protocol: an authoritative event/work-unit graph, per-principal policy, local effect mediators, causal messages, evidence, roles, and explicit governance over conflicts, of which the transfer ceremony, revocation mesh, and settlement escrow are three essential pieces, not the whole structure. A roadmap or a stated intention is versioned forecast, not truth, and a contradiction detector (the witness log's equivocation check) produces evidence for a \emph{named principal or role} to decide against, rather than deciding by itself. The paper's own posture --- consensus only where it is cheap and structurally necessary (the small authoritative metadata core: epoch roots, admission records), federation everywhere else (the actual work artifacts) --- is the concrete answer to the framing question of \S\ref{sec:fh-intro}: two machines needed more than a shared repository, and what they needed is exactly the institution this paper specifies one layer of.
 \end{pdsolution}
 
 % ═════════════════════════════════════════════════════════════════════════════
@@ -1359,6 +1377,21 @@ John R. Douceur.
 Eve Maler and Drummond Reed.
 \newblock The Venn of Identity: Options and Issues in Federated Identity Management.
 \newblock \textit{IEEE Security \& Privacy}, 6(2):16--23, 2008.
+
+\bibitem{activitypub2018}
+Christine Lemmer-Webber, Jessica Tallon, Erin Shepherd, Amy Guy, and Evan Prodromou (eds.).
+\newblock ActivityPub.
+\newblock W3C Recommendation, 2018.
+
+\bibitem{matrixspec}
+The Matrix.org Foundation.
+\newblock The Matrix Specification.
+\newblock \texttt{https://spec.matrix.org}.
+
+\bibitem{spkisdsi1999}
+Carl M. Ellison, Bill Frantz, Butler Lampson, Ron Rivest, Brian M. Thomas, and Tatu Ylonen.
+\newblock SPKI Certificate Theory.
+\newblock IETF RFC 2693, 1999.
 
 \bibitem{zimmermann1995pgp}
 Philip R. Zimmermann.

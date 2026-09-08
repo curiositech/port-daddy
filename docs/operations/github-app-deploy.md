@@ -29,7 +29,7 @@ The GitHub App is registered. Its credentials live in
 **`GITHUB_WEBHOOK_SECRET` is the single value that must match in three places:**
 the GitHub App webhook settings, the **receiver Worker** secret, and (because
 the daemon route also supports direct-HMAC auth) optionally the daemon's
-`PD_GITHUB_WEBHOOK_SECRET`. Treat it as the load-bearing shared secret.
+`PD_GITHUB_WEBHOOK_SECRET`. Treat it as the decisive shared secret.
 
 ---
 
