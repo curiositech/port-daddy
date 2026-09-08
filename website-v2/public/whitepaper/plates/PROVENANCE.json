@@ -101,7 +101,9 @@
       ],
       "bytes": 205335,
       "final_aspect": "7:10",
-      "use": "the bookseller panel on /library and /research — a thumbnail of the edition, not a plate printed inside it"
+      "use": "the bookseller panel on /library and /research — a thumbnail of the edition, not a plate printed inside it",
+      "brief": "scripts/whitepaper-plates/leviathan_cover_brief.txt",
+      "brief_note": "The written brief the cover was generated from: full-bleed copper-plate etching after the frontispiece of Hobbes's Leviathan, four registers, gold leaf as trim only. It was committed without a pointer from this record, which is why a reviewer found it orphaned."
     },
     "cover-swiss": {
       "file": "cover-swiss.jpg",

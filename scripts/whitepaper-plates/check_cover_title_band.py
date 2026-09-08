@@ -299,7 +299,12 @@ def check_pages(manifest: dict, pdf_dir: str, failures: list) -> None:
         name = os.path.basename(edition["pdf"])
         pdf = os.path.join(pdf_dir, name)
         if not os.path.exists(pdf):
-            print(f"{edition['id']}: no built PDF to check ({name})")
+            # The manifest names the edition, so its absence is a finding, not
+            # a skip: a build that produced two editions of three would
+            # otherwise pass the page check for the one it never rendered.
+            failures.append(
+                f"{edition['id']}: no built PDF to check ({name} is not in {pdf_dir}); "
+                f"the manifest names this edition and the check cannot pass without it")
             continue
         offenders = illegible_lines(pdf, manifest["contrast"])
         if offenders:

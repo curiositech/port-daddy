@@ -26,6 +26,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, dirname, basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { contrastRatio } from './wcag.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = join(HERE, '..', '..')             // repo root from website-v2/scripts
@@ -143,21 +144,18 @@ const GROUNDS = [
 const GROUND_ONLY_IF_UNUSED = ['pdcreamstrong']
 const BRAND_MD = join(REPO, 'website-v2', 'docs', 'design', 'BRAND.md')
 
-function relativeLuminance(hex) {
-  const channel = (v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)
-  const [r, g, b] = [0, 2, 4].map((i) => channel(parseInt(hex.slice(i, i + 2), 16) / 255))
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b
-}
-function contrastRatio(a, b) {
-  const [la, lb] = [relativeLuminance(a), relativeLuminance(b)]
-  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05)
-}
-
 const PD_PALETTE_COPIES = [
   join(REPO, 'website-v2', 'public', 'whitepaper', 'figures', 'pd-palette.tex'),
   join(REPO, 'whitepaper', 'figures', 'pd-palette.tex'),
 ]
-const TOKENS_CSS = join(REPO, 'website-v2', 'src', 'styles', 'tokens.semantic.css')
+// `--tokens <path>` points the guard at another token file. It exists so the
+// contrast pass can be proved to FAIL: the test hands it a copy with one ink
+// paled and expects exit 1. It is not for production use; the real file is
+// the default and CI never passes the flag.
+const tokensArg = process.argv.indexOf('--tokens')
+const TOKENS_CSS = tokensArg > -1 && process.argv[tokensArg + 1]
+  ? process.argv[tokensArg + 1]
+  : join(REPO, 'website-v2', 'src', 'styles', 'tokens.semantic.css')
 
 const FORBIDDEN_NAMES = /\b(cinnabar|brass|patina)\b/   // the warm accents, banned by name
 // known off-brand hexes we explicitly call out for a better error message

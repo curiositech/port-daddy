@@ -273,10 +273,16 @@ jobs:
       - name: Install the cover-check dependencies (Pillow, NumPy, PyMuPDF)
         run: pip install --quiet pillow numpy pymupdf
 
+      # No continue-on-error here, and no quiet exit below when the directory
+      # is empty. Both were in place, and together they meant a build that
+      # failed to upload its editions produced a green cover-band that had
+      # checked nothing -- the fail-open the type-over-art manifest was written
+      # to forbid. The page half of the check (the one that found the Part IV
+      # opener at 2.56:1) runs only here, so "the plate half still ran in
+      # library-checks" was never a reason to pass.
       - name: Fetch the freshly built editions
         id: editions
         uses: actions/download-artifact@v4
-        continue-on-error: true
         with:
           name: freshly-built-editions
           path: /tmp/editions
@@ -285,9 +291,8 @@ jobs:
         run: |
           set -euo pipefail
           if [ ! -d /tmp/editions ] || [ -z "$(ls -A /tmp/editions 2>/dev/null)" ]; then
-            echo "::notice::No freshly built editions to check (the build job "
-            echo "produced none); the plate half still ran in library-checks."
-            exit 0
+            echo "::error::freshly-built-editions is empty: the build job produced no PDFs to check. This job cannot pass without them."
+            exit 1
           fi
           python3 scripts/whitepaper-plates/check_cover_title_band.py \
             --pdf-dir /tmp/editions

@@ -535,6 +535,10 @@ function firstAuthorSurname(authorField) {
     .replace(/\\([&%_$#])/g, '$1')          // \& is an ampersand, not a macro
     .replace(/\\[a-zA-Z]+\\?\s?/g, ' ')     // \ and other spacing macros
     .replace(/[{}~]/g, ' ')
+    // "et al.", "(ed.)", "(eds.)", "editors": not names, and lowercase, so
+    // they would otherwise read as the mark of a corporate body.
+    .replace(/\bet\s+al\.?/gi, ' ')
+    .replace(/\(?\b(?:eds?|editors?)\.?\)?/gi, ' ')
     .trim();
   if (!plain) return '';
   // An author list separates names with commas as well as "and", so the first
@@ -547,10 +551,32 @@ function firstAuthorSurname(authorField) {
   const surnameFirst = upToAnd.includes(',') && wordsBeforeComma.length === 1;
   const firstAuthor = surnameFirst ? beforeComma : (upToAnd.includes(',') ? beforeComma : upToAnd);
   const words = firstAuthor.match(/[A-Za-z][A-Za-z'’-]+/g) ?? [];
-  // Drop trailing corporate/edition noise but keep real one-word bodies
-  // ("Foundation for Intelligent Physical Agents" sorts under "foundation").
-  const surname = words.length > 1 ? words[words.length - 1] : words[0];
-  return (surname ?? '').toLowerCase();
+  if (!words.length) return '';
+  // A corporate author files under its first word, the way a reader looks up
+  // FIPA or AWS: nobody finds "Foundation for Intelligent Physical Agents"
+  // under A. There is no marker in a \bibitem for a corporate body (biblatex
+  // uses braces; that is one more reason the .bib migration is the real fix),
+  // so it is inferred: a lowercase word that is not a name particle ("for",
+  // "of", "and" inside one name), an all-capitals first token ("AWS", "UCAN"),
+  // or a word that names an organisation.
+  const PARTICLES = new Set(['van', 'von', 'de', 'der', 'den', 'da', 'di', 'du', 'del', 'della', 'le', 'la', 'ter', 'ten', 'af', 'av', 'y', 'e']);
+  const ORG = /^(Group|Foundation|Working|Consortium|Institute|Committee|Team|Laboratory|Lab|Inc|LLC|Ltd|Corporation|Association|Organization|Organisation|Project|Society|Council|Office|Agency|Bureau|University|Press|Authors|Contributors|Community)$/;
+  const corporate =
+    words.some((w) => /^[a-z]/.test(w) && !PARTICLES.has(w.toLowerCase())) ||
+    /^[A-Z]{2,}$/.test(words[0]) ||
+    words.some((w) => ORG.test(w));
+  if (corporate) {
+    // "The Matrix.org Foundation" files under M, not T.
+    const ARTICLE = /^(The|A|An|Le|La|Les|Der|Die|Das|El|Los|Las|Il|Lo|Gli)$/;
+    const first = words.find((w) => !ARTICLE.test(w)) ?? words[0];
+    return first.toLowerCase();
+  }
+  // Otherwise the surname is the last word. That is also the rule for particle
+  // names ("van der Meyden" files under M, as Chicago 8.10 has it for Dutch
+  // names with a lowercase particle), and it is deliberately the same rule for
+  // sorting and for the duplicate fingerprint, so "R. van der Meyden" and "Ron
+  // van der Meyden" reduce to one key rather than two.
+  return words[words.length - 1].toLowerCase();
 }
 
 function referenceYear(body) {
@@ -1290,6 +1316,10 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
 
 export {
   cleanStandaloneChrome,
+  firstAuthorSurname,
+  referenceFingerprint,
+  referenceParts,
+  referenceSortKey,
   stripPaperApparatus,
   collateReferences,
   compareNormalizedReferences,
