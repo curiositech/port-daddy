@@ -50,6 +50,21 @@ that can hold state no agent can edit*.)
   without it is a **new** actor that starts from the newcomer floor (below), and the event
   is logged.
 
+### Custody
+
+The actor secret is protected by the operator's file mode. Agents and the daemon currently
+run as the operator's Unix uid, so an agent can read the credential file that the daemon
+uses. This is an intentional boundary: ADR-0040 prices identity churn by making
+re-registration costly, but it does not provide cryptographic protection against a
+co-resident process that steals a credential under the same uid. The threat model is a
+lazy or self-interested agent in a fleet owned by one operator, not a hostile operator or
+multi-tenant filesystem isolation.
+
+Per-process uid/gid separation is explicitly out of scope for this identity decision. If
+co-resident agent isolation becomes necessary, it belongs to the OS-level enforcement
+layer owned by [ADR-0053](0053-out-of-band-enforcement.md), specifically its Layer 3
+separate-uid/VM boundary, rather than being folded into the actor identity mechanism.
+
 ### Anti-Sybil newcomer policy
 
 A strict newcomer floor blocks legitimate new agents; a lenient one makes Sybil-reset
@@ -94,4 +109,5 @@ key in budget-guard is migrated to `(project, actor_id, utcDay)`.
 - `docs/research/agent-accountability-proposal.md` (Law 3; the 46→29→1 result)
 - ADR-0022 (durable actor-souls / body-leases)
 - ADR-0041 (durable commitments — the primary consumer of this identity)
+- ADR-0053 (out-of-band enforcement — owner of future OS-level agent isolation)
 - ADR-0094 (harbor cards as verifiable credentials — the cross-operator extension)
