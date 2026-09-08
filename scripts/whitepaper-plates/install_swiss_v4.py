@@ -32,17 +32,24 @@ import swiss_prompts_v4 as v4  # noqa: E402
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PLATE_DIR = os.path.join(REPO, "website-v2", "public", "whitepaper", "plates", "swiss")
 
-# name -> (final aspect string, (width, height)). Unchanged from round 2: the
-# page geometry these drop into has not moved.
+# name -> (final aspect string, (width, height)).
+#
+# Round 2's plates were 3400px on the long edge, which is 486 dpi across a 7in
+# trim. Flat colour compresses to nothing, so nobody noticed. Round 4's plates
+# are halftone photographs, which are noise: at 3400px the thirteen of them came
+# to 15 MB against a whole-book budget of 12. 2100px is 300 dpi at the trim --
+# the print standard, not a compromise -- and brings them to about a third of
+# that. The aspect ratios are unchanged, so the TeX that places them does not
+# move.
 TARGETS = {
-    "cover": ("2:3", (2267, 3400)),
-    "part-I": ("3:2", (3400, 2267)),
-    "part-II": ("3:2", (3400, 2267)),
-    "part-III": ("3:2", (3400, 2267)),
-    "part-IV": ("3:2", (3400, 2267)),
+    "cover": ("2:3", (2100, 3150)),
+    "part-I": ("3:2", (2100, 1400)),
+    "part-II": ("3:2", (2100, 1400)),
+    "part-III": ("3:2", (2100, 1400)),
+    "part-IV": ("3:2", (2100, 1400)),
 }
 for _chapter in ("swk", "anchor", "sealed", "ls", "stp", "he", "bonded", "fh"):
-    TARGETS[f"chapter-{_chapter}"] = ("2:1", (3400, 1700))
+    TARGETS[f"chapter-{_chapter}"] = ("2:1", (2100, 1050))
 
 POST = ("inset 2% to remove the render edge, center-crop-fit to the exact target "
         "aspect ratio (ImageOps.fit, centered), Lanczos resize to the stated long "
