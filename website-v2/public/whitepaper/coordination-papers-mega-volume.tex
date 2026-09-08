@@ -88,13 +88,31 @@ Curiositech \textperiodcentered\ Version \pdeditionversion\ \textperiodcentered\
 \end{minipage}
 \vspace*{1.0cm}
 \clearpage
-% Frontispiece: the etching faces the title matter (plates/frontispiece.jpg is optional).
-\IfFileExists{plates/frontispiece.jpg}{%
-  \thispagestyle{empty}\pagecolor{hhpaper}\color{hhink}%
-  \vspace*{\fill}
-  \begin{center}\includegraphics[height=0.92\textheight,width=\textwidth,keepaspectratio]{plates/frontispiece.jpg}\end{center}
-  \vspace*{\fill}
-  \clearpage}{}%
+% Frontispiece: the plate faces the title matter, in the edition's own register.
+%
+% It used to be one maritime etching printed in all three editions and wrapped
+% in \IfFileExists, which is two defects in four lines. The etching's vellum and
+% cross-hatching in front of the Swiss edition's flat colour blocks announced
+% that the character stops at the cover; and a missing plate printed NOTHING, so
+% the book would have shipped without a frontispiece and told nobody -- the
+% silent fallback the plate rule exists to forbid (see the \PackageError in
+% coordination-papers-mega-volume-swiss-plates.tex, which this now matches).
+\newcommand{\pdfrontispiece}[1]{%
+  \IfFileExists{#1}{%
+    \thispagestyle{empty}\pagecolor{hhpaper}\color{hhink}%
+    \vspace*{\fill}
+    \begin{center}\includegraphics[height=0.92\textheight,width=\textwidth,keepaspectratio]{#1}\end{center}
+    \vspace*{\fill}
+    \clearpage}{%
+    \PackageError{coordination-papers-mega-volume}{Missing plate render #1}%
+      {Generate this edition's frontispiece and place it at #1 before building.}}}
+\ifpdswiss
+  \pdfrontispiece{plates/swiss/frontispiece.jpg}
+\else\ifpdtechnical
+  \pdfrontispiece{plates/technical/frontispiece.jpg}
+\else
+  \pdfrontispiece{plates/frontispiece.jpg}
+\fi\fi
 \nopagecolor\color{hhink}
 
 \pagenumbering{roman}

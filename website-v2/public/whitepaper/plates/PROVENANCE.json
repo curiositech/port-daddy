@@ -93,7 +93,7 @@
     },
     "cover-maritime": {
       "file": "cover-maritime.jpg",
-      "derived_from": "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf, page 1 — the cover of the maritime edition, built by whitepaper-build.yml",
+      "derived_from": "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf, page 1 \u2014 the cover of the maritime edition, built by whitepaper-build.yml",
       "render": "rasterised from page one of that PDF at 1000x1429 and JPEG-encoded; no image model was involved, and the generation record for the artwork on that page lives with the plates the edition itself uses",
       "size": [
         1000,
@@ -101,13 +101,13 @@
       ],
       "bytes": 205335,
       "final_aspect": "7:10",
-      "use": "the bookseller panel on /library and /research — a thumbnail of the edition, not a plate printed inside it",
+      "use": "the bookseller panel on /library and /research \u2014 a thumbnail of the edition, not a plate printed inside it",
       "brief": "scripts/whitepaper-plates/leviathan_cover_brief.txt",
       "brief_note": "The written brief the cover was generated from: full-bleed copper-plate etching after the frontispiece of Hobbes's Leviathan, four registers, gold leaf as trim only. It was committed without a pointer from this record, which is why a reviewer found it orphaned."
     },
     "cover-swiss": {
       "file": "cover-swiss.jpg",
-      "derived_from": "website-v2/public/whitepaper/coordination-papers-mega-volume-swiss.pdf, page 1 — the cover of the Swiss edition, built by whitepaper-build.yml",
+      "derived_from": "website-v2/public/whitepaper/coordination-papers-mega-volume-swiss.pdf, page 1 \u2014 the cover of the Swiss edition, built by whitepaper-build.yml",
       "render": "rasterised from page one of that PDF at 1000x1429 and JPEG-encoded; no image model was involved, and the generation record for the artwork on that page lives with the plates the edition itself uses",
       "size": [
         1000,
@@ -115,11 +115,11 @@
       ],
       "bytes": 105680,
       "final_aspect": "7:10",
-      "use": "the bookseller panel on /library and /research — a thumbnail of the edition, not a plate printed inside it"
+      "use": "the bookseller panel on /library and /research \u2014 a thumbnail of the edition, not a plate printed inside it"
     },
     "cover-technical": {
       "file": "cover-technical.jpg",
-      "derived_from": "website-v2/public/whitepaper/coordination-papers-mega-volume-technical.pdf, page 1 — the cover of the technical edition, built by whitepaper-build.yml",
+      "derived_from": "website-v2/public/whitepaper/coordination-papers-mega-volume-technical.pdf, page 1 \u2014 the cover of the technical edition, built by whitepaper-build.yml",
       "render": "rasterised from page one of that PDF at 1000x1429 and JPEG-encoded; no image model was involved, and the generation record for the artwork on that page lives with the plates the edition itself uses",
       "size": [
         1000,
@@ -127,7 +127,7 @@
       ],
       "bytes": 136247,
       "final_aspect": "7:10",
-      "use": "the bookseller panel on /library and /research — a thumbnail of the edition, not a plate printed inside it"
+      "use": "the bookseller panel on /library and /research \u2014 a thumbnail of the edition, not a plate printed inside it"
     },
     "frontispiece": {
       "file": "frontispiece.jpg",
@@ -198,6 +198,17 @@
       "bytes": 535826,
       "note": "Part IV wash, full page behind the part type, sheet edges cropped away, paper balanced to the page stock",
       "prompt": "A faded watercolor wash landscape reproduced on aged, lightly embossed paper stock: visible paper tooth, salt texture and pigment blooms in the washes, offset print grain, colors muted and slightly bled as in an old lithographed reproduction, no hard outlines, no ink linework, no bright saturated color. Palette: pale greys, cobalt and violet washes faded almost to paper, one warm lamp-glow. Space-opera scale: one colossal, smooth, unearthly presence dominates the picture, rendered as soft masses of pale wash with almost no detail, and one small everyday human-scale thing sits beneath it, tiny and exact. Tall vertical picture: the upper third is open, nearly empty pale wash (sky and mist), the colossal presence occupies the middle, the small thing sits low. No people's faces, no crews, no lettering, no border; the wash runs to all four edges. Scene: two colossal smooth masses, one dark and one pale, facing each other across a narrow strait in evening haze, their tops lost in cloud, and between them, low in the picture, one tiny sail crossing under a single hair-thin line of light strung from one to the other."
+    }
+  },
+  "frontispieces": {
+    "generated": "2026-09-08",
+    "model": "gemini-3-pro-image-preview",
+    "prompts": "scripts/whitepaper-plates/frontispiece_prompts.py",
+    "why": "The Leviathan brief measured against the plate already in the book: the cyclopean lens emitted nothing, the scroll was blank rather than a Float Plan of hashes, there was no subterranean Merkle-and-gearing cutaway, the sceptre was a plain staff, and the colossus waded in the harbour instead of towering over it. One plate also served all three editions, so the etching faced the Swiss edition's flat colour blocks.",
+    "plates": {
+      "plates/frontispiece.jpg": "maritime, variant a, style-referenced to the previous etching",
+      "plates/swiss/frontispiece.jpg": "swiss, variant c; a and b read as a toy robot and were rejected",
+      "plates/technical/frontispiece.jpg": "technical, variant a"
     }
   }
 }
