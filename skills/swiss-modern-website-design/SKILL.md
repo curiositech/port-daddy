@@ -286,3 +286,36 @@ Do not use this skill when the user clearly wants:
 - highly illustrative brand worlds
 - skeuomorphic product metaphors
 - ornamental motion or cinematic web experiments as the main point
+
+<!-- BEGIN BUNDLE INDEX (auto: index_references.py) -->
+
+## Skill Bundle Index
+
+*Every file in this skill, and when to open it. Auto-generated; run `scripts/index_references.py --fix`.*
+
+**`agents/`**
+- [`agents/openai.yaml`](agents/openai.yaml) — openai (data/schema)
+
+**`diagrams/`**
+- [`diagrams/01_flowchart_swiss-modern-style-fit.md`](diagrams/01_flowchart_swiss-modern-style-fit.md)
+- [`diagrams/02_flowchart_existing-ui-audit-to-refactor.md`](diagrams/02_flowchart_existing-ui-audit-to-refactor.md)
+- [`diagrams/INDEX.md`](diagrams/INDEX.md) — Diagrams for swiss-modern-website-design — **Primary Focus:** Translating International Typographic Style into practical web workflows without losing readability, product clarity, or 
+
+**`references/`**
+- [`references/component-patterns.md`](references/component-patterns.md) — Component Patterns — This file maps Swiss-modern logic onto common website sections.
+- [`references/frontend-implementation.md`](references/frontend-implementation.md) — Frontend Implementation — This file translates Swiss-modern direction into frontend decisions.
+- [`references/research-notes.md`](references/research-notes.md) — Research Notes — These notes capture the source-backed logic behind the skill so the guidance remains anchored in design history and durable web primitives i
+- [`references/swiss-modern-principles.md`](references/swiss-modern-principles.md) — Swiss Modern Principles — This file captures the non-negotiable logic of Swiss modern web design.
+- [`references/typography-and-grids.md`](references/typography-and-grids.md) — Typography And Grids — This file provides practical numbers and decisions for implementing Swiss-modern structure on the web.
+
+**`scripts/`**
+- [`scripts/audit_frontend_for_swiss.sh`](scripts/audit_frontend_for_swiss.sh) — !/bin/bash
+- [`scripts/validate_skill_bundle.sh`](scripts/validate_skill_bundle.sh) — !/bin/bash
+- [`scripts/validate_swiss_modern_brief.sh`](scripts/validate_swiss_modern_brief.sh) — !/bin/bash
+
+**`templates/`**
+- [`templates/swiss-modern-design-brief.md`](templates/swiss-modern-design-brief.md) — Swiss-Modern Website Design Brief — - Name: - Type: SaaS marketing site, portfolio, documentation, dashboard, product page, or other - Existing codebase or net-new: - Primary a
+- [`templates/swiss-modern-layout.tsx`](templates/swiss-modern-layout.tsx)
+- [`templates/swiss-modern-tokens.css`](templates/swiss-modern-tokens.css)
+
+<!-- END BUNDLE INDEX -->

@@ -375,3 +375,45 @@ Before delivering UI code, verify these items:
 - [ ] Form inputs have labels
 - [ ] Color is not the only indicator
 - [ ] `prefers-reduced-motion` respected
+
+<!-- BEGIN BUNDLE INDEX (auto: index_references.py) -->
+
+## Skill Bundle Index
+
+*Every file in this skill, and when to open it. Auto-generated; run `scripts/index_references.py --fix`.*
+
+**`data/`**
+- [`data/INDEX.md`](data/INDEX.md) — Data tables for ui-ux-pro-max — Every file here is a CSV lookup table the skill's scripts read; none is prose.
+- [`data/charts.csv`](data/charts.csv)
+- [`data/colors.csv`](data/colors.csv)
+- [`data/icons.csv`](data/icons.csv)
+- [`data/landing.csv`](data/landing.csv)
+- [`data/products.csv`](data/products.csv)
+- [`data/react-performance.csv`](data/react-performance.csv)
+- [`data/styles.csv`](data/styles.csv)
+- [`data/typography.csv`](data/typography.csv)
+- [`data/ui-reasoning.csv`](data/ui-reasoning.csv)
+- [`data/ux-guidelines.csv`](data/ux-guidelines.csv)
+- [`data/web-interface.csv`](data/web-interface.csv)
+
+**`data/stacks/`**
+- [`data/stacks/astro.csv`](data/stacks/astro.csv)
+- [`data/stacks/flutter.csv`](data/stacks/flutter.csv)
+- [`data/stacks/html-tailwind.csv`](data/stacks/html-tailwind.csv)
+- [`data/stacks/jetpack-compose.csv`](data/stacks/jetpack-compose.csv)
+- [`data/stacks/nextjs.csv`](data/stacks/nextjs.csv)
+- [`data/stacks/nuxt-ui.csv`](data/stacks/nuxt-ui.csv)
+- [`data/stacks/nuxtjs.csv`](data/stacks/nuxtjs.csv)
+- [`data/stacks/react-native.csv`](data/stacks/react-native.csv)
+- [`data/stacks/react.csv`](data/stacks/react.csv)
+- [`data/stacks/shadcn.csv`](data/stacks/shadcn.csv)
+- [`data/stacks/svelte.csv`](data/stacks/svelte.csv)
+- [`data/stacks/swiftui.csv`](data/stacks/swiftui.csv)
+- [`data/stacks/vue.csv`](data/stacks/vue.csv)
+
+**`scripts/`**
+- [`scripts/core.py`](scripts/core.py) — UI/UX Pro Max Core - BM25 search engine for UI/UX style guides
+- [`scripts/design_system.py`](scripts/design_system.py) — Design System Generator - Aggregates search results and applies reasoning
+- [`scripts/search.py`](scripts/search.py) — UI/UX Pro Max Search - BM25 search engine for UI/UX style guides
+
+<!-- END BUNDLE INDEX -->

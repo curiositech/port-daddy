@@ -16,6 +16,7 @@ const {
   collectSkillUnion,
   defaultSkillCatalogRoots,
   ensureGeminiPortDaddyExtension,
+  findUnclaimedSkillLinks,
   runtimeSkillTargets,
   syncAgentSkills,
 } = await import('../../lib/skill-sync.js');
@@ -241,6 +242,75 @@ describe('cross-tool agent skill sync', () => {
     expect(result.audit.currentLinks).toBe(1);
     expect(result.audit.freshnessPct).toBe(100);
     expect(readlinkSync(join(targetRoot, 'alpha'))).toBe(relativeAlpha);
+  });
+
+  test('a deleted skill leaves a link behind, and the sync reaps it', () => {
+    // The audit walks skills x targets, so it can only ever see links the
+    // catalog still expects. Ten windags-* links outlived their skills in
+    // ~/.claude/skills exactly this way: dangling, invisible, reported as no
+    // drift at all. This is that shape, in a sandbox.
+    const source = join(tmpRoot, 'skills');
+    writeSkill(source, 'kept-skill', 'kept-skill');
+    const deleted = writeSkill(source, 'deleted-skill', 'deleted-skill');
+    const baseDir = join(tmpRoot, 'home');
+    const roots = [{ label: 'test', path: source }];
+    const targets = [{ label: 'Claude', path: join(baseDir, '.claude', 'skills') }];
+
+    const first = syncAgentSkills({ baseDir, projectRoot: tmpRoot, scope: 'user', sourceRoots: roots, targets });
+    expect(first.created).toBe(2);
+    expect(first.audit.orphanedLinks).toBe(0);
+
+    rmSync(deleted, { recursive: true, force: true });
+    const orphan = join(targets[0].path, 'deleted-skill');
+    expect(lstatSync(orphan).isSymbolicLink()).toBe(true);
+    expect(existsSync(orphan)).toBe(false); // dangling: the link is there, the skill is not
+
+    const status = syncAgentSkills({ baseDir, projectRoot: tmpRoot, scope: 'user', sourceRoots: roots, targets, statusOnly: true });
+    expect(status.audit.orphanedLinks).toBe(1);
+    expect(status.audit.examples.orphaned[0].skill).toBe('deleted-skill');
+    expect(status.removed).toBe(0); // status mode reports, never writes
+    expect(lstatSync(orphan).isSymbolicLink()).toBe(true);
+
+    const second = syncAgentSkills({ baseDir, projectRoot: tmpRoot, scope: 'user', sourceRoots: roots, targets });
+    expect(second.removed).toBe(1);
+    expect(second.audit.orphanedLinks).toBe(0);
+    expect(lstatSync(join(targets[0].path, 'kept-skill')).isSymbolicLink()).toBe(true);
+  });
+
+  test('the reap takes only links it could have made, never an operator\'s own', () => {
+    const source = writeSkill(join(tmpRoot, 'skills'), 'real-skill', 'real-skill') && join(tmpRoot, 'skills');
+    const elsewhere = join(tmpRoot, 'elsewhere');
+    mkdirSync(elsewhere, { recursive: true });
+    const baseDir = join(tmpRoot, 'home');
+    const targetDir = join(baseDir, '.claude', 'skills');
+    const roots = [{ label: 'test', path: source }];
+    const targets = [{ label: 'Claude', path: targetDir }];
+    syncAgentSkills({ baseDir, projectRoot: tmpRoot, scope: 'user', sourceRoots: roots, targets });
+
+    // An alias the operator made, pointing outside anything we manage, and a
+    // real directory somebody dropped in by hand. Neither is ours to delete.
+    const alias = join(targetDir, 'my-alias');
+    symlinkSync(elsewhere, alias);
+    const handMade = join(targetDir, 'hand-made');
+    mkdirSync(handMade, { recursive: true });
+    // A dangling link that points nowhere near a managed root: still not ours.
+    const foreignDangler = join(targetDir, 'foreign-dangler');
+    symlinkSync(join(tmpRoot, 'no-such-place'), foreignDangler);
+
+    const unclaimed = findUnclaimedSkillLinks(
+      collectSkillUnion(roots).skills,
+      targets,
+      roots,
+    );
+    expect(unclaimed.orphaned).toEqual([]);
+    expect(unclaimed.unmanaged.map((entry) => entry.skill).sort()).toEqual(['foreign-dangler', 'my-alias']);
+
+    const result = syncAgentSkills({ baseDir, projectRoot: tmpRoot, scope: 'user', sourceRoots: roots, targets });
+    expect(result.removed).toBe(0);
+    expect(result.audit.unmanagedLinks).toBe(2);
+    expect(lstatSync(alias).isSymbolicLink()).toBe(true);
+    expect(lstatSync(foreignDangler).isSymbolicLink()).toBe(true);
+    expect(existsSync(handMade)).toBe(true);
   });
 
   test('runtimeSkillTargets includes Codex, Claude, Gemini, and AGENTS-aware targets', () => {

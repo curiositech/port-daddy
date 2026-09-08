@@ -636,8 +636,11 @@ jobs:
           targets = d.get('targets') or []
           created = d.get('created') or 0
           skills = d.get('skillCount') or 0
+          audit = d.get('audit') or {}
+          orphaned = audit.get('orphanedLinks') or 0
           print(f'fanned out {skills} skill(s) to {len(targets)} runtime(s): '
-                f'{created} link(s), {len(errors)} error(s), {len(blocked)} blocked')
+                f'{created} link(s), {len(errors)} error(s), {len(blocked)} blocked, '
+                f'{orphaned} orphaned')
           if errors:
               print('-- the catalog could not fan out:', file=sys.stderr)
               for e in errors[:20]:
@@ -646,6 +649,15 @@ jobs:
           if skills == 0 or created == 0:
               print('-- fan-out produced no links, which means no catalog was found at all',
                     file=sys.stderr)
+              sys.exit(1)
+          # A fan-out into an empty directory cannot inherit anyone's stale
+          # links, so the only way this is nonzero is a catalog that resolves a
+          # skill id it then fails to own -- worth knowing about immediately.
+          if orphaned:
+              print(f'-- {orphaned} orphaned link(s) in a directory that was empty '
+                    'a second ago:', file=sys.stderr)
+              for o in (audit.get('examples') or {}).get('orphaned', [])[:20]:
+                  print(f"     {o.get('target')} -> {o.get('current')}", file=sys.stderr)
               sys.exit(1)
           PY
 
