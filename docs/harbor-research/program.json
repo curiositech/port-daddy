@@ -156,7 +156,7 @@
         1
       ],
       "result": "R8",
-      "statement": "The 536-state work-unit machine is checked exhaustively today by a Python model whose guards are proven load-bearing by mutation, which is real evidence but not the same kind as the rest of the estate. The lift restates it in TLA+ and checks it with Apalache, so the kernel's invariants sit in the same checker as the relay's and the ledger's.",
+      "statement": "The 536-state work-unit machine is checked exhaustively today by a Python model each of whose guards is proven necessary by mutation, which is real evidence but not the same kind as the rest of the estate. The lift restates it in TLA+ and checks it with Apalache, so the kernel's invariants sit in the same checker as the relay's and the ledger's.",
       "source": "docs/harbor-research/HANDOFF.md"
     },
     {
@@ -272,7 +272,7 @@
       "id": "R1",
       "kind": "theorem",
       "title": "Read-poverty and the information floor",
-      "oneBreath": "A human overseeing a fleet of software agents reads digests, not transcripts, and any digest that guarantees catching all k load-bearing artifacts among N while opening only m must carry at least log2 C(N,k) - log2 C(m,k) bits.",
+      "oneBreath": "A human overseeing a fleet of software agents reads digests, not transcripts, and any digest that guarantees catching all k critical artifacts among N while opening only m must carry at least log2 C(N,k) - log2 C(m,k) bits.",
       "status": "folded",
       "chapters": [
         4
@@ -405,7 +405,7 @@
       "id": "R8",
       "kind": "result-family",
       "title": "The work-unit machine",
-      "oneBreath": "The state machine (phase, policy, receipt, epoch/holder/stale-token, grants-with-parentage, effect journal, idempotency journal, settlement) satisfies six safety invariants in all 536 reachable states, each guard shown load-bearing by mutation.",
+      "oneBreath": "The state machine (phase, policy, receipt, epoch/holder/stale-token, grants-with-parentage, effect journal, idempotency journal, settlement) satisfies six safety invariants in all 536 reachable states, each guard shown critical by mutation.",
       "status": "folded",
       "chapters": [
         1
@@ -500,7 +500,7 @@
       "id": "R13",
       "kind": "result-family",
       "title": "Engine substitution and resurrection soundness",
-      "oneBreath": "Unattested, the period-2 price never depends on the actual engine so swapping to a cheap one always pays; daemon-attested engine ids flip the incentive to the planner's efficiency rule at zero audit stake, and sanction-respecting reputation survives provider migration under three named clauses, each individually load-bearing.",
+      "oneBreath": "Unattested, the period-2 price never depends on the actual engine so swapping to a cheap one always pays; daemon-attested engine ids flip the incentive to the planner's efficiency rule at zero audit stake, and sanction-respecting reputation survives provider migration under three named clauses, each individually critical.",
       "status": "folded",
       "chapters": [
         5
@@ -690,9 +690,9 @@
   },
   "critiqueLedger": {
     "source": "docs/harbor-research/critique-ledger.json",
-    "total": 759,
-    "done": 561,
-    "declined": 198,
+    "total": 809,
+    "done": 589,
+    "declined": 220,
     "inWave": 0,
     "other": 0
   }

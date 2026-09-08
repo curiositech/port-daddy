@@ -134,6 +134,25 @@ jobs:
       - name: Margin apparatus rules hold in every chapter
         run: python3 skills/tufte-evidence-design/scripts/margin_lint.py
 
+      # The margin apparatus is generated from the chapters and committed. Each
+      # of these four ships a --check mode whose docstring says it exists for
+      # CI, and until now nothing ran them -- which is the same gap PR #9911
+      # closed for check_citations.py and is why this workflow exists at all.
+      # Without them: rename a \label, add a \bibitem, or edit a chapter's
+      # citations, and the generated tables go quietly stale while the macros
+      # fall back to a blank margin note or a bare key.
+      - name: Margin citation short-forms are a fresh render of the bibliographies
+        run: python3 scripts/harbor-research/build_cite_shortforms.py --check
+
+      - name: Discharge pointers are a fresh render of the discharge pairs
+        run: python3 scripts/harbor-research/build_discharge_pointers.py --check
+
+      - name: Every eligible \cite is promoted to \pdcite
+        run: python3 scripts/harbor-research/promote_cites.py --check
+
+      - name: Every provenance tag is promoted to a margin note
+        run: python3 scripts/harbor-research/promote_provenance.py --check
+
       - name: Semantic figure atlas covers every canonical figure (no drift from textbook.json)
         run: python3 skills/whitepaper-figure-system/scripts/check_atlas_coverage.py
 
