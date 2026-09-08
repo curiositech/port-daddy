@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>pd-console Story Linework Sandboxes</title>
+    <link rel="stylesheet" href="./gallery.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="window-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+      <nav aria-label="Sandbox views">
+        <a class="active" aria-current="page" href="#fleet">fleet</a>
+        <a href="#harbor">harbor</a>
+        <a href="#motion">motion</a>
+        <a href="#shader">shader</a>
+      </nav>
+      <div class="toolbar">
+        <button id="motionToggle" type="button" aria-pressed="true" aria-label="Pause animated studies">pause</button>
+        <button id="themeToggle" type="button" aria-pressed="true" aria-label="Switch to light theme">light</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-slab">
+          <div class="hero-ribbon">
+            <span class="micro-flag flag-kilo"></span>
+            <div>
+              <span class="hero-ribbon-label">GPUI sandbox gallery</span>
+              <span class="hero-ribbon-note">static proof, no production changes</span>
+            </div>
+          </div>
+          <h1 class="hero-title">
+            <span class="hero-line hero-line--ink">Port Daddy</span>
+            <span class="hero-line hero-line--paper">console</span>
+            <span class="hero-line hero-line--trail">experiments.</span>
+          </h1>
+          <p class="hero-lede">
+            Story Linework extended into operator truth: live fleet state, honest
+            uncertainty, durable receipts, and motion that proves progress without
+            pretending everything is fine.
+          </p>
+          <div class="hero-foot">
+            <article class="hero-foot-card">
+              <span class="hero-foot-label">Palette</span>
+              <strong>cobalt / kelp / gold / coral</strong>
+              <p>One ramp and one alert lane, tuned for dark and light.</p>
+            </article>
+            <article class="hero-foot-card">
+              <span class="hero-foot-label">Motion</span>
+              <strong>reduced motion freezes cleanly</strong>
+              <p>Animation only exists when it names a budget, retry, or receipt.</p>
+            </article>
+            <article class="hero-foot-card hero-foot-card--wide">
+              <span class="hero-foot-label">Proof fence</span>
+              <strong>gallery first, proto second, pd-console later</strong>
+              <p>The page is a taste sketch. The Rust prototype stays separate evidence, and nothing here implies production console changes.</p>
+            </article>
+          </div>
+        </div>
+
+        <aside class="hero-aside" aria-label="Gallery intent">
+          <article class="hero-card hero-card--dark">
+            <span class="hero-card-label">What this page should feel like</span>
+            <p>
+              Intentional, not generic. The cards read like operator notes, the
+              canvases read like studies, and the empty space earns its keep.
+            </p>
+          </article>
+          <article class="hero-card">
+            <span class="hero-card-label">State grammar</span>
+            <ul class="hero-list">
+              <li><b>pending</b><span>deadline visible</span></li>
+              <li><b>unknown</b><span>receipt gap</span></li>
+              <li><b>recovering</b><span>replay in flight</span></li>
+              <li><b>confirmed</b><span>receipt-backed</span></li>
+              <li><b>dead-letter</b><span>safe stop</span></li>
+            </ul>
+          </article>
+          <article class="hero-card hero-card--tall">
+            <span class="hero-card-label">Promotion rule</span>
+            <p>
+              Only the static gallery ships as taste. The headless prototype proves
+              renderability, and a later GPUI surface proves integration.
+            </p>
+          </article>
+        </aside>
+      </section>
+
+      <section class="state-rail" aria-label="Operator state language">
+        <div class="section-intro">
+          <span class="section-kicker">
+            <span class="micro-flag flag-charlie"></span>
+            State language
+          </span>
+          <p>
+            Five honest states. Each one keeps its own color, its own next action,
+            and its own visibility into uncertainty.
+          </p>
+        </div>
+        <div class="state-band">
+          <article class="state pending">
+            <b>pending</b><span>deadline visible</span>
+          </article>
+          <article class="state unknown">
+            <b>unknown</b><span>receipt gap</span>
+          </article>
+          <article class="state recovering">
+            <b>recovering</b><span>replay in flight</span>
+          </article>
+          <article class="state confirmed">
+            <b>confirmed</b><span>receipt-backed</span>
+          </article>
+          <article class="state dead">
+            <b>dead-letter</b><span>safe stop</span>
+          </article>
+        </div>
+      </section>
+
+      <section class="gallery" aria-label="Design studies">
+        <article class="study" id="fleet">
+          <div class="study-head">
+            <div class="study-meta">
+              <span class="study-index"><span class="micro-flag flag-charlie"></span> study 01</span>
+              <span class="study-chip">surface / fleet</span>
+            </div>
+            <h2>Fleet Truth Deck</h2>
+            <p>
+              Corner ticks bound the truth surface. Micro-flags stay paired. Rows
+              separate ready, gated, degraded, and waiting states.
+            </p>
+          </div>
+          <div class="study-frame">
+            <canvas id="fleetCanvas" width="920" height="520" aria-label="Animated fleet truth deck"></canvas>
+            <div class="study-caption">
+              <span class="micro-flag flag-charlie"></span>
+              <p>Active, gated, degraded, and unknown agents keep separate colors and separate affordances.</p>
+              <span class="study-note">reduced motion safe</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="study" id="harbor">
+          <div class="study-head">
+            <div class="study-meta">
+              <span class="study-index"><span class="micro-flag flag-november"></span> study 02</span>
+              <span class="study-chip">surface / harbor</span>
+            </div>
+            <h2>Harbor Editor Claims</h2>
+            <p>
+              Color-blocked code claims, line-bound flags, and parley in a restrained
+              operator split.
+            </p>
+          </div>
+          <div class="study-frame">
+            <canvas id="harborCanvas" width="920" height="520" aria-label="Animated harbor editor claim surface"></canvas>
+            <div class="study-caption">
+              <span class="micro-flag flag-november"></span>
+              <p>The editor never hides contention: frozen lines, forecast landings, and salvage prompts stay visible.</p>
+              <span class="study-note">claim / parley</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="study" id="motion">
+          <div class="study-head">
+            <div class="study-meta">
+              <span class="study-index"><span class="micro-flag flag-oscar"></span> study 03</span>
+              <span class="study-chip">surface / motion</span>
+            </div>
+            <h2>Receipt Motion</h2>
+            <p>
+              Motion is evidence: retries burn down, receipts land, and unknowns
+              pulse as an explicit gap.
+            </p>
+          </div>
+          <div class="study-frame">
+            <canvas id="motionCanvas" width="920" height="520" aria-label="Animated receipt and recovery states"></canvas>
+            <div class="study-caption">
+              <span class="micro-flag flag-oscar"></span>
+              <p>No infinite spinner: every moving element names a budget, deadline, or recovery phase.</p>
+              <span class="study-note">budgeted motion</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="study" id="shader">
+          <div class="study-head">
+            <div class="study-meta">
+              <span class="study-index"><span class="micro-flag flag-kilo"></span> study 04</span>
+              <span class="study-chip">surface / shader</span>
+            </div>
+            <h2>Living Harbor Shader</h2>
+            <p>
+              Pixelated dither as ambient truth: hot bus shimmer, cool ledger
+              sediment, recoverable gaps.
+            </p>
+          </div>
+          <div class="study-frame">
+            <canvas id="shaderCanvas" width="920" height="520" aria-label="Animated dither shader exploration"></canvas>
+            <div class="study-caption">
+              <span class="micro-flag flag-kilo"></span>
+              <p>This is the web taste sketch; the Rust proto records the GPU pass headlessly.</p>
+              <span class="study-note">fixture only</span>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <script src="./gallery.js"></script>
+  </body>
+</html>

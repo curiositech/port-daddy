@@ -1,0 +1,46 @@
+{
+  "name": "pd-console Story Linework Sandboxes",
+  "status": "refined",
+  "summary": "Editorial Story Linework gallery for the static GPUI sandbox: hero, state band, and four reduced-motion study canvases.",
+  "galleryNotes": [
+    "Keep this sandbox separate from production pd-console surfaces.",
+    "Reduced motion should freeze the canvases without changing layout.",
+    "Story Linework palette, micro-flags, and corner ticks remain the visual grammar."
+  ],
+  "sourceReferences": [
+    "docs/design/story-linework/apps.html",
+    "docs/design/story-linework/ports/port.css",
+    "docs/design/story-linework/art/PROMPTS.md",
+    "docs/design/story-linework/arbitrate.html",
+    "core/pd-harbor-proto",
+    "core/pd-flag-proto",
+    "core/pd-console/docs/VISUAL-PROOF.md",
+    "docs/design/gpui-sandboxes/scout-synthesis.md"
+  ],
+  "studies": [
+    {
+      "id": "fleet-truth-deck",
+      "surface": "pd-console fleet",
+      "stateCoverage": ["active", "gated", "degraded", "unknown"],
+      "promotionGate": "Rows must map to daemon-backed AgentNode/AgentRun truth, expose next action, and keep each honest state distinct."
+    },
+    {
+      "id": "harbor-editor-claims",
+      "surface": "Harbor editor",
+      "stateCoverage": ["claimed", "frozen", "forecast", "salvage"],
+      "promotionGate": "Line claims must be receipt-backed and never imply lock strength the daemon does not enforce."
+    },
+    {
+      "id": "receipt-motion",
+      "surface": "spawn/session recovery",
+      "stateCoverage": ["pending", "unknown", "recovering", "confirmed", "dead-letter"],
+      "promotionGate": "No animation may run without a deadline, retry budget, or recovery phase, and the frozen frame must still read clearly."
+    },
+    {
+      "id": "living-harbor-shader",
+      "surface": "ambient console substrate",
+      "stateCoverage": ["hot-bus", "cool-ledger", "receipt-gap"],
+      "promotionGate": "Theme-token uniforms, reduced-motion freeze, and headless capture required before GPUI embedding."
+    }
+  ]
+}
