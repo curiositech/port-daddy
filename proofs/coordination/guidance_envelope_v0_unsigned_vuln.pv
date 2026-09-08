@@ -17,7 +17,7 @@
  * never reads this file (it reads the fixed model's results), this twin
  * exists to show the failure the signature check removes.
  *
- * Run:  proverif docs/adr/models/guidance_envelope_v0_unsigned_vuln.pv
+ * Run:  proverif proofs/coordination/guidance_envelope_v0_unsigned_vuln.pv
  * Results checked in: guidance_envelope_v0_unsigned_vuln_results.txt
  *)
 

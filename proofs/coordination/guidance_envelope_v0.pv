@@ -58,7 +58,7 @@
  * turn-start text) ProVerif finds the forgery immediately — the exact premise
  * of the forged-guidance negative probe.
  *
- * Run:  proverif docs/adr/models/guidance_envelope_v0.pv
+ * Run:  proverif proofs/coordination/guidance_envelope_v0.pv
  * Results checked in: guidance_envelope_v0_results.txt
  * Lineage: analyses/relay_e2e_secrecy.pv (injective agreement pattern),
  *          skills/proverif-tamarin-protocol-modeling (decision trees).

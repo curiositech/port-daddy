@@ -1,4 +1,4 @@
-File "docs/adr/models/guidance_envelope_v0_unsigned_vuln.pv", line 62, characters 7-9:
+File "proofs/coordination/guidance_envelope_v0_unsigned_vuln.pv", line 62, characters 7-9:
 Warning: identifier sid rebound.
 Process 0 (that is, the initial process):
 {1}!

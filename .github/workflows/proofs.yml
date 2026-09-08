@@ -11,7 +11,7 @@ name: Proofs (TLA+ / Z3 / ProVerif / Kani / Monte Carlo)
 #   - proofs/relay/CardRevocation.tla              (TLA+ via TLC, 3 configs)
 #   - proofs/relay/WebhookDelivery.tla             (TLA+ via TLC, 2 configs)
 #   - proofs/bonded/pareto/threat-bands.mjs        (Monte Carlo)
-#   - every analyses/**, proofs/**, docs/adr/models/** .pv model (ProVerif)
+#   - every analyses/** and proofs/** .pv model (ProVerif)
 #   - the three #[kani::proof] harnesses in core/harbor-card-rs (Kani)
 #   - the 19 skills/harbor-results/scripts/*.py result-checkers (R1-R17)
 #   - scripts/check-whitepaper-corpus.mjs (the estate's own WIRED/RETIRED
@@ -25,7 +25,6 @@ on:
     paths:
       - 'proofs/**'
       - 'analyses/**'
-      - 'docs/adr/models/**'
       - 'core/harbor-card-rs/**'
       - 'scripts/proofs/**'
       - 'whitepaper/corpus.json'
@@ -41,7 +40,6 @@ on:
     paths:
       - 'proofs/**'
       - 'analyses/**'
-      - 'docs/adr/models/**'
       - 'core/harbor-card-rs/**'
       - 'scripts/proofs/**'
       - 'whitepaper/corpus.json'
@@ -414,15 +412,15 @@ jobs:
           done
 
   # ── ProVerif (2.05): the model estate that never ran ────────────────────────
-  # 25 .pv models under analyses/, proofs/**, and docs/adr/models/ previously
-  # had zero CI coverage -- evidenced only by committed *_results.txt/.run.log
+  # 25 .pv models under analyses/ and proofs/** previously had
+  # zero CI coverage -- evidenced only by committed *_results.txt/.run.log
   # transcripts a human ran locally at some point. scripts/proofs/run-proverif.py
   # re-runs every one of them and fails on any RESULT-line drift from its
   # committed evidence, and separately asserts every negative control
   # (*_vuln*.pv, *naive_unsound*.pv) genuinely fails its query (so the checker
   # itself can't go vacuous). skills/pd-relay-zero-trust/templates/proverif-relay.pv
   # is a skill teaching template, not a claim about this repo's protocol, and is
-  # deliberately out of the runner's three scan roots (see whitepaper/corpus.json).
+  # deliberately out of the runner's two scan roots (see whitepaper/corpus.json).
   proverif-estate:
     if: github.event_name != 'merge_group'
     name: ProVerif / model estate (2.05)
