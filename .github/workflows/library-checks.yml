@@ -25,6 +25,7 @@ on:
       - 'scripts/generate-mega-whitepaper.test.mjs'
       - 'scripts/build-whitepapers.sh'
       - 'skills/whitepaper-figure-system/**'
+      - 'skills/tufte-evidence-design/**'
       - '.github/workflows/library-checks.yml'
   push:
     branches: [main]
@@ -40,6 +41,7 @@ on:
       - 'scripts/generate-mega-whitepaper.test.mjs'
       - 'scripts/build-whitepapers.sh'
       - 'skills/whitepaper-figure-system/**'
+      - 'skills/tufte-evidence-design/**'
       - '.github/workflows/library-checks.yml'
   # Merge queue: run unconditionally so a required check context always
   # appears (a path-filtered workflow that does not match would hang the
@@ -93,6 +95,9 @@ jobs:
 
       - name: Every marginalia plate has a licence sidecar in the allow-list
         run: python3 scripts/harbor-research/check_marginalia_sidecars.py && python3 -m unittest discover -s tests/harbor-research -p 'test_*.py'
+
+      - name: Margin apparatus rules hold in every chapter
+        run: python3 skills/tufte-evidence-design/scripts/margin_lint.py
 
       - name: Semantic figure atlas covers every canonical figure (no drift from textbook.json)
         run: python3 skills/whitepaper-figure-system/scripts/check_atlas_coverage.py
