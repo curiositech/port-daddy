@@ -206,6 +206,30 @@ test('the front-matter map lists every chapter in order with a first-edition con
   assert.match(contents, /Proves what \\pdchapref\{swk\}/);
 });
 
+test('a reference whose label already names another chapter by its prefix is left alone', () => {
+  // Chapter 6's Book-only branch points at chapter 8's escrow bound as
+  // \ref{fh:thm:fh-escrow-bound} instead of printing the theorem a second
+  // time. Namespacing that again would yield he:fh:thm:..., which nothing
+  // defines; a label whose head merely resembles a prefix is still local.
+  const source = [
+    '\\ref{fh:thm:fh-escrow-bound}',
+    '\\Cref{thm:local}',
+    '\\cref{fh:thm:a,thm:b}',
+    '\\ref{fhx:thm:not-a-chapter}',
+  ].join('\n');
+  assert.equal(
+    namespaceLabels(source, 'he', ['he', 'fh']),
+    [
+      '\\ref{fh:thm:fh-escrow-bound}',
+      '\\Cref{he:thm:local}',
+      '\\cref{fh:thm:a,he:thm:b}',
+      '\\ref{he:fhx:thm:not-a-chapter}',
+    ].join('\n'),
+  );
+  // With no chapter list, nothing is foreign and the old behaviour stands.
+  assert.equal(namespaceLabels('\\ref{fh:thm:x}', 'he'), '\\ref{he:fh:thm:x}');
+});
+
 test('every cross-reference macro is namespaced, comma lists split, book anchors kept', () => {
   const source = [
     '\\cref{thm:a,lem:b}',
