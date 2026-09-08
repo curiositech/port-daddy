@@ -278,7 +278,13 @@ case "\${1:-}" in
 esac
 
 if [ -n "$verb" ]; then
-  if command -v pd >/dev/null 2>&1; then
+  # ADR-0132 A0: a hoisted halt sentinel turns the guard OFF with nothing but
+  # test -f — no Node, no pd. Under a halt, pd is the thing that was stopped;
+  # the shim must not boot it to learn that. Absence is NOT all-clear: pd
+  # guard check still consults the register when the sentinel is gone.
+  if [ -f "\${PD_HOME:-$HOME/.port-daddy}/HALT" ]; then
+    echo "Coordination Guard: OFF — Port Daddy is halted (SECURITE HALT sentinel \${PD_HOME:-$HOME/.port-daddy}/HALT); proceeding without coordination rent." >&2
+  elif command -v pd >/dev/null 2>&1; then
     if ! pd guard check --git-verb "$verb" --hook >/dev/null 2>&1; then
       echo "pd-shim: $verb refused by Port Daddy coordination guard." >&2
       echo "pd-shim: coordinate first — 'pd begin', claim the files, then retry." >&2

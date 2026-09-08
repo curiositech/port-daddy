@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from '@jest/globals';
-import { existsSync, mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
@@ -14,6 +14,8 @@ import {
   extractClaimPaths,
   filterClaimsToRepo,
   fileNeedsRoadmapReceipt,
+  formatHaltedGuardNotice,
+  GUARD_HOOK_HALT_TEST,
   localGuardConfigPath,
   mergePostCommitHook,
   mergePreCommitHook,
@@ -419,6 +421,82 @@ describe('Coordination Guard', () => {
     expect(startMarkers).toHaveLength(1);
   });
 
+  describe('ADR-0132 A0: the hook block turns OFF on the sentinel with test -f alone', () => {
+    const SH = '/bin/sh';
+    const shAvailable = spawnSync(SH, ['-c', 'true']).status === 0;
+
+    test('both managed blocks test the sentinel BEFORE anything that needs pd', () => {
+      for (const merged of [mergePreCommitHook(''), mergePostCommitHook('')]) {
+        expect(merged).toContain(GUARD_HOOK_HALT_TEST);
+        expect(merged.indexOf(GUARD_HOOK_HALT_TEST)).toBeLessThan(merged.indexOf('command -v pd'));
+        // The sentinel test is a plain POSIX test -f: no node, no pd, no subshell.
+        expect(GUARD_HOOK_HALT_TEST).toMatch(/^\[ -f "\$\{PD_HOME:-\$HOME\/\.port-daddy\}\/HALT" \]$/);
+      }
+      // A legacy block without the rung is upgraded in place.
+      const legacy = mergePreCommitHook([
+        '# >>> Port Daddy Coordination Guard',
+        'if command -v pd >/dev/null 2>&1; then',
+        '  pd guard check --staged --hook || exit $?',
+        'fi',
+        '# <<< Port Daddy Coordination Guard',
+        '',
+      ].join('\n'));
+      expect(legacy).toContain(GUARD_HOOK_HALT_TEST);
+      expect(legacy.match(/# >>> Port Daddy Coordination Guard/g)).toHaveLength(1);
+    });
+
+    /**
+     * Run the generated pre-commit hook under /bin/sh with a fake `pd` on PATH
+     * that records every invocation and exits 1 (the guard refusing). With the
+     * sentinel hoisted the hook must exit 0, print the OFF line, and never
+     * touch pd; without it the fake pd runs and its refusal propagates.
+     */
+    function runHook(hook, { halt }) {
+      const dir = mkdtempSync(join(tmpdir(), 'pd-hook-halt-'));
+      try {
+        const bin = join(dir, 'bin');
+        const pdHome = join(dir, 'pd-home');
+        mkdirSync(bin);
+        mkdirSync(pdHome);
+        const calls = join(dir, 'pd-calls');
+        writeFileSync(join(bin, 'pd'), `#!/bin/sh\nprintf '%s\\n' "$*" >> "${calls}"\nexit 1\n`, { mode: 0o755 });
+        if (halt) writeFileSync(join(pdHome, 'HALT'), '2026-09-05T14:02:11Z operator:erich SECURITE HALT reason=spend-runaway\n');
+        const hookPath = join(dir, 'hook.sh');
+        writeFileSync(hookPath, `${hook}\necho after-guard\n`, { mode: 0o755 });
+        const res = spawnSync(SH, [hookPath], {
+          env: { PATH: `${bin}:/usr/bin:/bin`, HOME: dir, PD_HOME: pdHome },
+          encoding: 'utf8',
+          timeout: 10_000,
+        });
+        return { ...res, pdCalls: existsSync(calls) ? readFileSync(calls, 'utf8').trim().split('\n') : [] };
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    }
+
+    (shAvailable ? test : test.skip)('sentinel hoisted: exit 0, one OFF line on stderr, pd never executed, later hook lines still run', () => {
+      const res = runHook(mergePreCommitHook(''), { halt: true });
+      expect(res.status).toBe(0);
+      expect(res.stderr).toMatch(/^Coordination Guard: OFF — Port Daddy is halted \(SECURITE HALT sentinel .*\/pd-home\/HALT\); proceeding without coordination rent\.\n$/);
+      expect(res.pdCalls).toEqual([]);
+      expect(res.stdout.trim()).toBe('after-guard');
+    });
+
+    (shAvailable ? test : test.skip)('no sentinel: pd guard check runs and its refusal blocks the commit', () => {
+      const res = runHook(mergePreCommitHook(''), { halt: false });
+      expect(res.status).toBe(1);
+      expect(res.pdCalls).toEqual(['guard check --staged --hook']);
+      expect(res.stdout).toBe('');
+    });
+
+    (shAvailable ? test : test.skip)('post-commit block under a halt: same OFF line, pd never executed', () => {
+      const res = runHook(mergePostCommitHook(''), { halt: true });
+      expect(res.status).toBe(0);
+      expect(res.stderr).toMatch(/Coordination Guard: OFF/);
+      expect(res.pdCalls).toEqual([]);
+    });
+  });
+
   test('merges post-commit hook as a non-blocking audit path', () => {
     const existing = [
       '#!/usr/bin/env zsh',
@@ -669,6 +747,70 @@ describe('describeGuardBlock — HITL escalation policy', () => {
   });
 });
 
+describe('ADR-0132: a hoisted halt is a legible OFF state, not a structural emergency', () => {
+  const enforce = { ...DEFAULT_GUARD_CONFIG, enabled: true, mode: 'enforce' };
+  const halt = {
+    path: '/home/op/.port-daddy/HALT', scope: 'machine',
+    raw: '2026-09-05T14:02:11Z operator:erich SECURITE HALT reason=spend-runaway',
+    at: '2026-09-05T14:02:11Z',
+    record: { at: '2026-09-05T14:02:11Z', kind: 'operator', id: 'erich', cls: 'SECURITE', code: 'HALT', fields: { reason: 'spend-runaway' } },
+  };
+
+  test('sentinel present + daemon unreachable + no session → mode off, no block, no violations', () => {
+    const result = evaluateGuardFacts({ config: enforce, mode: 'enforce', active: false, daemonReachable: false, files: ['src/a.ts'], halt });
+    expect(result).toMatchObject({ mode: 'off', enabled: false, shouldBlock: false, passed: true, success: true, violations: [] });
+    expect(result.halt).toEqual({ at: '2026-09-05T14:02:11Z', path: halt.path, raw: halt.raw, by: 'operator:erich' });
+    // The classifier must not produce a notice at all — nothing structural, nothing to escalate.
+    expect(describeGuardBlock(result, { hook: true })).toBeNull();
+    expect(describeGuardBlock(result, { hook: false })).toBeNull();
+  });
+
+  test('the halt overrides an explicit enforce flag and rent debt alike', () => {
+    const result = evaluateGuardFacts({
+      config: enforce, mode: 'enforce', active: true, agentId: 'a', sessionId: 's', files: ['src/a.ts'],
+      ownersByFile: { 'src/a.ts': [] }, commitsSinceLastNote: 3, atCommitTime: true, rentUnverifiable: true, halt,
+    });
+    expect(result.shouldBlock).toBe(false);
+    expect(result.mode).toBe('off');
+    expect(result.violations).toEqual([]);
+  });
+
+  test('a hand-made sentinel with no parseable line still halts; the notice names the operator generically', () => {
+    const bare = { ...halt, raw: 'stopped by hand', record: null };
+    const result = evaluateGuardFacts({ config: enforce, active: false, daemonReachable: false, files: ['src/a.ts'], halt: bare });
+    expect(result.halt.by).toBeNull();
+    expect(formatHaltedGuardNotice(result.halt)).toBe(
+      'Coordination Guard: OFF — Port Daddy is halted by operator (SECURITE HALT 2026-09-05T14:02:11Z); proceeding without coordination rent.',
+    );
+  });
+
+  test('even a hand-built blocking result is silenced by the classifier when a halt is attached', () => {
+    const result = {
+      shouldBlock: true,
+      violations: [{ code: 'daemon-unreachable', severity: 'critical', message: 'unreachable' }],
+      halt: { at: halt.at, path: halt.path, raw: halt.raw, by: 'operator:erich' },
+    };
+    expect(describeGuardBlock(result, { hook: true })).toBeNull();
+  });
+
+  test('NO sentinel: the same facts remain a structural emergency that escalates (the genuine case)', () => {
+    const result = evaluateGuardFacts({ config: enforce, mode: 'enforce', active: false, daemonReachable: false, files: ['src/a.ts'], halt: null });
+    expect(result.shouldBlock).toBe(true);
+    expect(result.halt).toBeUndefined();
+    expect(result.violations.map((v) => v.code)).toEqual(['daemon-unreachable', 'no-active-session']);
+    const notice = describeGuardBlock(result, { hook: false });
+    expect(notice.severity).toBe('structural');
+    expect(notice.notifyOperator).toBe(true);
+    expect(notice.title).toMatch(/COORDINATION LAYER DOWN/);
+  });
+
+  test('the calm line is exactly one sentence with the ISO instant and who hoisted it', () => {
+    expect(formatHaltedGuardNotice({ at: '2026-09-05T14:02:11Z', by: 'operator:erich' })).toBe(
+      'Coordination Guard: OFF — Port Daddy is halted by operator:erich (SECURITE HALT 2026-09-05T14:02:11Z); proceeding without coordination rent.',
+    );
+  });
+});
+
 describe('post-commit audit — real Git commits and executable CLI handler', () => {
   const require = createRequire(import.meta.url);
   const tsxLoader = require.resolve('tsx/esm');
@@ -690,10 +832,11 @@ describe('post-commit audit — real Git commits and executable CLI handler', ()
     return result.stdout.trim();
   }
 
-  async function check(options = {}, positional = ['check']) {
+  async function check(options = {}, positional = ['check'], extraEnv = {}) {
     // Invoke the actual handler in a separate process: output and process.exit
     // are part of the contract, not just the pure evaluator's return values.
     const env = {
+      ...extraEnv,
       PATH: `${join(repo, 'fixture-bin')}:${process.env.PATH}`,
       TMPDIR: tmpdir(),
       PORT_DADDY_URL: daemonUrl,
@@ -779,6 +922,75 @@ describe('post-commit audit — real Git commits and executable CLI handler', ()
   afterEach(async () => {
     if (server?.listening) await new Promise(resolve => server.close(resolve));
     if (repo) rmSync(repo, { recursive: true, force: true });
+  });
+
+  test('ADR-0132: with the sentinel hoisted and the daemon dead, the hook prints one calm stderr line and exits 0', async () => {
+    // The daemon is gone — exactly the 2026-09-05 shape — and the sentinel says why.
+    await new Promise(resolve => server.close(resolve));
+    const pdHome = join(repo, 'pd-home');
+    mkdirSync(pdHome, { recursive: true });
+    writeFileSync(join(pdHome, 'HALT'), '2026-09-05T14:02:11Z operator:erich SECURITE HALT reason=spend-runaway\n');
+    writeFileSync(join(repo, 'fixture.txt'), 'halted change\n');
+    git(['add', 'fixture.txt']);
+
+    const report = await check({ staged: true, hook: true }, ['check'], { PD_HOME: pdHome });
+    expect(report.code).toBe(0);
+    expect(report.stdout).toBe('');
+    expect(report.stderr).toBe(
+      'Coordination Guard: OFF — Port Daddy is halted by operator:erich (SECURITE HALT 2026-09-05T14:02:11Z); proceeding without coordination rent.\n',
+    );
+    expect(existsSync(join(repo, 'notification'))).toBe(false); // no osascript escalation
+    expect(requests).toEqual([]); // the daemon was never probed
+
+    const json = JSON.parse((await check({ staged: true, json: true }, ['check'], { PD_HOME: pdHome })).stdout);
+    expect(json).toMatchObject({ mode: 'off', shouldBlock: false, violations: [], halt: { at: '2026-09-05T14:02:11Z', by: 'operator:erich' } });
+  });
+
+  test('ADR-0132: with NO sentinel and the daemon dead, the hook still escalates as structural and blocks', async () => {
+    await new Promise(resolve => server.close(resolve));
+    writeFileSync(join(repo, 'fixture.txt'), 'unhalted change\n');
+    git(['add', 'fixture.txt']);
+
+    const report = await check({ staged: true, hook: true }, ['check'], { PD_HOME: join(repo, 'pd-home-empty') });
+    expect(report.code).toBe(1);
+    expect(report.stderr).toMatch(/COORDINATION LAYER DOWN/);
+    expect(report.stderr).toMatch(/Escalating to the operator/);
+    // notifyOperatorOfGuardBlock only spawns osascript on darwin; on Linux the
+    // escalation is the stderr banner above and no notification file exists.
+    if (process.platform === 'darwin') expect(existsSync(join(repo, 'notification'))).toBe(true);
+    else expect(existsSync(join(repo, 'notification'))).toBe(false);
+  });
+
+  test('ADR-0132 §4: with the sentinel DELETED but an unlifted HALT on the register, the hook is still OFF', async () => {
+    await new Promise(resolve => server.close(resolve));
+    const pdHome = join(repo, 'pd-home-register');
+    mkdirSync(pdHome, { recursive: true });
+    // The register carries the halt; the sentinel that accompanied it is gone.
+    writeFileSync(join(pdHome, 'DISTRESS'), '2026-09-05T14:02:11Z operator:erich SECURITE HALT reason=spend-runaway\n');
+    expect(existsSync(join(pdHome, 'HALT'))).toBe(false);
+    writeFileSync(join(repo, 'fixture.txt'), 'sentinel deleted\n');
+    git(['add', 'fixture.txt']);
+
+    const report = await check({ staged: true, hook: true }, ['check'], { PD_HOME: pdHome });
+    expect(report.code).toBe(0);
+    expect(report.stdout).toBe('');
+    // Two lines, not one: the calm OFF line, plus the register's own notice
+    // that somebody deleted the sentinel — a MAYDAY-class violation the
+    // operator should see on every commit until a signed ALL-CLEAR lands.
+    const lines = report.stderr.trim().split('\n');
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toMatch(/^\[distress-allclear\] MAYDAY-class violation HALT_SENTINEL_MISSING: 2026-09-05T14:02:11Z operator:erich SECURITE HALT/);
+    expect(lines[1]).toBe(
+      'Coordination Guard: OFF — Port Daddy is halted by operator:erich (SECURITE HALT 2026-09-05T14:02:11Z); proceeding without coordination rent.',
+    );
+    expect(report.stderr).not.toMatch(/COORDINATION LAYER DOWN|Escalating/);
+    expect(existsSync(join(repo, 'notification'))).toBe(false);
+    expect(requests).toEqual([]);
+    // The deletion is journaled, not obeyed.
+    const forensics = join(pdHome, 'forensics');
+    expect(existsSync(forensics)).toBe(true);
+    const json = JSON.parse((await check({ staged: true, json: true }, ['check'], { PD_HOME: pdHome })).stdout);
+    expect(json).toMatchObject({ mode: 'off', shouldBlock: false, halt: { source: 'register', by: 'operator:erich', path: join(pdHome, 'DISTRESS') } });
   });
 
   test('a just-created commit remains successful; debt blocks only the next pre-commit until a note', async () => {

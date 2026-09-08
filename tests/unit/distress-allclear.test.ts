@@ -20,13 +20,11 @@ import {
   defaultDistressPaths,
   evaluateHaltState,
   formatRegistryLine,
-  haltActive,
   liftHalt,
   loadOperatorPrivateKey,
   loadOperatorPublicKey,
   parseRegistryLine,
   publicKeyFingerprint,
-  readHalt,
   readHaltState,
   resetViolationJournalDedupe,
   signAllClear,
@@ -263,22 +261,24 @@ describe('on disk: sentinel, register, journal, and the verifier path', () => {
 
   test('absence of the sentinel with an empty register is "no halt hoisted", with no violation', () => {
     const sink = fakeSink();
-    expect(haltActive({ paths, publicKey: op.publicKey, forensics: sink })).toBe(false);
-    expect(readHalt({ paths, publicKey: op.publicKey, forensics: sink })).toBeNull();
+    const ev = readHaltState({ paths, publicKey: op.publicKey, forensics: sink });
+    expect(ev.status).toEqual({ state: 'clear', halt: null, allClear: null });
     expect(sink.events).toEqual([]);
   });
 
-  test('hoisted: haltActive is true and readHalt returns the HALT record', () => {
+  test('hoisted: readHaltState reports the HALT record with the sentinel present', () => {
     hoist();
-    expect(haltActive({ paths, publicKey: op.publicKey, forensics: null })).toBe(true);
-    expect(readHalt({ paths, publicKey: op.publicKey, forensics: null })?.ts).toBe(HALT_TS);
+    const ev = readHaltState({ paths, publicKey: op.publicKey, forensics: null });
+    expect(ev.status).toMatchObject({ state: 'hoisted', sentinelPresent: true });
+    expect(ev.status.halt?.ts).toBe(HALT_TS);
   });
 
   test('deleting the sentinel does not end the halt; the deletion is journaled', () => {
     hoist();
     rmSync(paths.haltFile);
     const sink = fakeSink();
-    expect(haltActive({ paths, publicKey: op.publicKey, forensics: sink })).toBe(true);
+    const ev = readHaltState({ paths, publicKey: op.publicKey, forensics: sink });
+    expect(ev.status).toMatchObject({ state: 'hoisted', sentinelPresent: false });
     expect(sink.events).toEqual([expect.objectContaining({ rule: 'HALT_SENTINEL_MISSING', severity: 'violation' })]);
   });
 
@@ -292,7 +292,7 @@ describe('on disk: sentinel, register, journal, and the verifier path', () => {
 
     const sink = fakeSink();
     const now = () => Date.parse('2026-09-07T12:01:00Z');
-    expect(haltActive({ paths, publicKey: op.publicKey, forensics: sink, now })).toBe(true);
+    expect(readHaltState({ paths, publicKey: op.publicKey, forensics: sink, now }).status.state).toBe('hoisted');
     expect(sink.events.map((e) => e.rule)).toEqual(['ALLCLEAR_UNSIGNED', 'ALLCLEAR_FORGED', 'ALLCLEAR_WRONG_REF']);
     for (const e of sink.events) {
       expect(e.severity).toBe('critical');
@@ -300,7 +300,7 @@ describe('on disk: sentinel, register, journal, and the verifier path', () => {
       expect(e.timestamp).toBe(now());
     }
     // A listening watch re-reading the register does not re-journal the same lines.
-    expect(haltActive({ paths, publicKey: op.publicKey, forensics: sink, now })).toBe(true);
+    expect(readHaltState({ paths, publicKey: op.publicKey, forensics: sink, now }).status.state).toBe('hoisted');
     expect(sink.events).toHaveLength(3);
     // The sentinel is still there: nothing but a verified all-clear removes it.
     expect(existsSync(paths.haltFile)).toBe(true);
@@ -338,8 +338,7 @@ describe('on disk: sentinel, register, journal, and the verifier path', () => {
     expect(existsSync(paths.haltFile)).toBe(false);
     expect(readFileSync(paths.distressFile, 'utf8')).toBe(`${HALT_LINE}\n${valid}\n`);
     expect(readFileSync(paths.repoDistressFile!, 'utf8')).toBe(`${valid}\n`);
-    expect(haltActive({ paths, publicKey: op.publicKey, forensics: sink })).toBe(false);
-    expect(readHalt({ paths, publicKey: op.publicKey, forensics: sink })).toBeNull();
+    expect(readHaltState({ paths, publicKey: op.publicKey, forensics: sink }).status.state).toBe('lifted');
     expect(sink.events).toHaveLength(1);
   });
 
@@ -410,7 +409,7 @@ describe('operator key custody', () => {
     const r = liftHalt({ operatorId: 'erich', passphrase: 'correct horse battery', paths, forensics: null, ts: '2026-09-07T12:00:00Z' });
     expect(r.lifted).toBe(true);
     expect(existsSync(paths.haltFile)).toBe(false);
-    expect(haltActive({ paths, forensics: null })).toBe(false);
+    expect(readHaltState({ paths, forensics: null }).status.state).toBe('lifted');
     const lines = readFileSync(paths.distressFile, 'utf8').trim().split('\n');
     expect(lines).toHaveLength(2);
     expect(parseRegistryLine(lines[1])).toMatchObject({ kind: 'operator', id: 'erich', code: 'ALL-CLEAR', fields: { ref: HALT_TS } });

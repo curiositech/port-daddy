@@ -12,6 +12,7 @@
 // (Snapshot runs once, deletes from process.env; subsequent fleet-level
 // env loading would be invisible to getSecret().) See lib/secret-env.ts.
 import { loadEnvFiles } from './lib/env-loader.js';
+import { lastWords } from './lib/distress.js';
 import { fileURLToPath as _fileURLToPath } from 'url';
 import { dirname as _dirname } from 'path';
 loadEnvFiles(_dirname(_fileURLToPath(import.meta.url)));
@@ -1977,8 +1978,29 @@ setInterval(() => {
   lastWakeCheck = now;
 }, SLEEP_CHECK_INTERVAL_MS);
 
+/**
+ * Rung 4 of the distress ladder (ADR-0132 §2): one registry-format line on
+ * stderr before the daemon dies, appended to the A0 file when that works.
+ * Never throws; a failure here must not mask the death it is reporting.
+ */
+function daemonLastWords(code: 'STANDING-DOWN' | 'CORRUPT', signal: string, text?: string): void {
+  try {
+    lastWords({
+      kind: 'daemon',
+      id: String(process.pid),
+      cls: code === 'CORRUPT' ? 'MAYDAY' : 'control',
+      code,
+      fields: { pid: process.pid, tier: DAEMON_BERTH.tier, port: PORT, signal },
+      text,
+    });
+  } catch {
+    // stderr and the distress file are best effort on the way out.
+  }
+}
+
 function shutdown(signal: string): void {
   logger.info('shutdown_initiated', { signal });
+  daemonLastWords('STANDING-DOWN', signal);
   // Remove this berth's own registry entry on a clean stop, so it doesn't
   // linger as a stale record until the next prune pass notices the dead pid.
   if (DAEMON_BERTH.tier !== 'stable') {
@@ -2054,6 +2076,7 @@ process.on('uncaughtException', (err: Error) => {
   // Undefined state: log loudly (bypass dedup — this is fatal + singular), flush, and let the
   // supervisor (launchd/brew KeepAlive) respawn cleanly rather than limp on in a corrupt state.
   logger.error('uncaught_exception', { error: err.message, stack: err.stack });
+  daemonLastWords('CORRUPT', 'uncaughtException', err.message.replace(/\s+/g, ' ').slice(0, 300));
   shutdown('uncaughtException');
 });
 

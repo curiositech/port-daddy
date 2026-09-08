@@ -11,6 +11,7 @@ import { parseIdentity, patternToSql } from './identity.js';
 import type { SemanticIndex } from './semantic-index.js';
 import { getSharedApprovalStream } from './fleet/approval-stream.js';
 import { createReaperSoulResolver, type SessionBindingLookup } from './agent-soul-binding.js';
+import { haltActive } from './distress.js';
 
 const DEFAULT_HEARTBEAT_INTERVAL = 30000;  // 30 seconds
 const DEFAULT_AGENT_TTL = 120000;          // 2 minutes without heartbeat = display as inactive
@@ -191,6 +192,12 @@ export interface CleanupOptions {
 
 interface AgentsOptions {
   semanticIndex?: SemanticIndex;
+  /**
+   * ADR-0132 A0: is a halt hoisted? Defaults to the real sentinel check in
+   * lib/distress.ts; injectable so tests can flip it without touching the
+   * operator's home directory.
+   */
+  haltActive?: () => boolean;
 }
 
 /**
@@ -198,6 +205,7 @@ interface AgentsOptions {
  */
 export function createAgents(db: Database.Database, options?: AgentsOptions) {
   const semanticIndex = options?.semanticIndex;
+  const isHalted = options?.haltActive ?? (() => haltActive());
   // Ensure agents table exists
   db.exec(`
     CREATE TABLE IF NOT EXISTS agents (
@@ -797,6 +805,20 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
    * Cleanup stale agents and release their resources
    */
   function cleanup(locks?: LocksLike, options: CleanupOptions = {}) {
+    // ADR-0132 §2 rung 22: silence during a HALT is not a trigger. Every agent
+    // was TOLD to go quiet, so a missed heartbeat proves compliance, not death.
+    // While the sentinel is hoisted the reaper neither deletes handles nor
+    // force-releases locks; the ladder resumes untouched when the halt lifts.
+    if (isHalted()) {
+      return {
+        cleaned: 0,
+        cleanedAgentIds: [] as string[],
+        retainedAgentIds: [] as string[],
+        releasedLocks: 0,
+        halted: true,
+        message: 'reaper idle: Port Daddy is halted (SECURITE HALT); silence is not death during a halt',
+      };
+    }
     const now = Date.now();
     // Cleanup is an operational death decision, not a display concern.
     // Agents may be "inactive" after 2 minutes for UI purposes while still
@@ -878,6 +900,7 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
       cleanedAgentIds,
       retainedAgentIds,
       releasedLocks,
+      halted: false,
       message: `cleaned ${cleanedAgentIds.length} stale agent(s)`
     };
   }

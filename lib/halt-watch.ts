@@ -27,14 +27,19 @@
  * unreadable sentinel, or an unwritable distress file is degraded evidence,
  * never an error that takes the daemon down.
  *
- * TODO(ADR-0132 phase 0): the sentinel read and the O_APPEND distress write are
- * inline below; switch to `lib/distress.ts` (`haltActive()`, `readHalt()`,
- * `appendDistress()`) once that module lands. The wire format is identical.
+ * The halt PREDICATE is `lib/distress.ts#readHalt` (phase 0): sentinel
+ * present, OR an unlifted `SECURITE HALT` on the machine-wide register, OR an
+ * unreadable home. A daemon that boots after an agent deleted the sentinel is
+ * therefore still `halted` on its first check. `readHaltSentinel` below is the
+ * existence-only reader kept for callers that pin an explicit `sentinelPath`
+ * (tests); the O_APPEND distress write stays inline because it must never
+ * throw. The wire format is identical to lib/distress.ts.
  */
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { readHalt as readRegisterHalt } from './distress.js';
 
 /** ADR-0132 phase 3: the listening interval every long-running entity keeps. */
 export const HALT_WATCH_INTERVAL_MS = 30_000;
@@ -63,8 +68,15 @@ export interface HaltWatchOptions {
   entity: string;
   /** Called exactly once, on the nominal → halted transition. Stop the sweeps here. */
   onHalt: (halt: HaltInfo) => void;
-  /** Sentinel path; defaults to `~/.port-daddy/HALT` (honours `PD_HOME` / `PD_HALT_FILE`). */
+  /**
+   * Sentinel path override. When set, the watch reads THAT file only
+   * (existence is the signal). When unset, the watch uses the phase-0
+   * predicate `lib/distress.ts#readHalt` under `PD_HOME`, which also honours
+   * an unlifted HALT on the register after the sentinel is deleted.
+   */
   sentinelPath?: string;
+  /** Test seam: replaces the halt reader entirely. */
+  readHalt?: () => HaltInfo | null;
   /** Machine-wide distress file; defaults to `~/.port-daddy/DISTRESS`. */
   distressPath?: string;
   /** Repo-scoped distress file (`<repo>/.portdaddy/DISTRESS`); appended only if its directory exists. */
@@ -129,6 +141,20 @@ export function readHaltSentinel(path: string, now: () => number = Date.now): Ha
   return { line, ref, detectedAt: now(), complied: false };
 }
 
+/**
+ * The phase-0 predicate as `HaltInfo`: sentinel OR unlifted register HALT OR
+ * unreadable home (fail closed). Machine-wide only — the daemon's watch is
+ * not scoped to whichever repo it happened to be started from.
+ */
+export function readHaltFromRegister(now: () => number = Date.now): HaltInfo | null {
+  const halt = readRegisterHalt({ repoRoot: null });
+  if (!halt) return null;
+  const first = halt.raw.split(/\r?\n/).map((l) => l.trim()).find((l) => l.length > 0) ?? '';
+  const line = first || 'SECURITE HALT (sentinel present, no text)';
+  const ref = halt.record ? halt.record.at : halt.source === 'sentinel' ? 'sentinel' : halt.at;
+  return { line, ref, detectedAt: now(), complied: false };
+}
+
 export interface DistressLineInput {
   kind: string;
   id: string;
@@ -178,6 +204,9 @@ export function createHaltWatch(options: HaltWatchOptions): HaltWatch {
   const logger = options.logger ?? noopLogger;
   const intervalMs = options.intervalMs ?? HALT_WATCH_INTERVAL_MS;
   const sentinelPath = options.sentinelPath ?? haltSentinelPath();
+  const readHalt =
+    options.readHalt ??
+    (options.sentinelPath ? () => readHaltSentinel(sentinelPath, now) : () => readHaltFromRegister(now));
   const distressPath = options.distressPath ?? distressFilePath();
   const repoDistressPath = options.repoDistressPath ?? null;
   const [kind, ...idParts] = options.entity.split(':');
@@ -224,7 +253,7 @@ export function createHaltWatch(options: HaltWatchOptions): HaltWatch {
       if (checks % 20 === 0) logger.info('halt_watch_listening', { ref: halted.ref, checks });
       return true;
     }
-    const info = readHaltSentinel(sentinelPath, now);
+    const info = readHalt();
     if (!info) return false;
     transition(info);
     return true;
