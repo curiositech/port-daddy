@@ -25,6 +25,28 @@ There is exactly **one** of each. Narrative prose is not gate truth; the table
 is not the story. A roadmap item is legible when it is a row in the table **and**
 every narrative mention carries `link:<slug>` or a one-line `optout:<reason>`.
 
+### Doc-authority is per domain, and each domain has exactly one
+
+The doc-authority above governs execution order across the whole programme.
+Two domains carry their own, because they answer questions the execution
+narrative does not and would otherwise sprout a second plan wherever they were
+discussed:
+
+| Domain | Its doc-authority | What it decides |
+|---|---|---|
+| The Book and the research programme | [`whitepaper-research-program.md`](whitepaper-research-program.md) | what the Book claims and in what order the work lands |
+| The product architecture | [`../grand-harbor/`](../grand-harbor/README.md) — constitution, contract registry, decisions | what each noun means, what each boundary guarantees, and which questions are deliberately still open |
+
+Both are subordinate to the registry: a thing is not scheduled because a
+document says so, it is scheduled when it is a row in the table. And both are
+single-writer, which is the point. A session that wants to change what the
+Book claims edits the programme file; a session that wants to change what the
+architecture promises goes through the ledger's own decision path, where a
+proposal must name the records it touches and declare one relation to them.
+Neither accepts a plan invented in a chat, a mock, or a pull-request
+description. "Newest prose wins" is exactly the failure both were built to
+refuse.
+
 ## Rules
 
 1. **`roadmap.snapshot.json` is an append-only projection of the table.** Never

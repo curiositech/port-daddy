@@ -33,6 +33,7 @@ on:
       - 'website-v2/src/data/researchPapers.ts'
       - 'scripts/harbor-research/**'
       - 'scripts/whitepaper-plates/**'
+      - 'docs/grand-harbor/**'
       - 'tests/whitepaper-plates/**'
       - 'tests/harbor-research/**'
       - 'scripts/generate-mega-whitepaper.mjs'
@@ -63,6 +64,7 @@ on:
       - 'website-v2/src/data/researchPapers.ts'
       - 'scripts/harbor-research/**'
       - 'scripts/whitepaper-plates/**'
+      - 'docs/grand-harbor/**'
       - 'tests/whitepaper-plates/**'
       - 'tests/harbor-research/**'
       - 'scripts/generate-mega-whitepaper.mjs'
@@ -103,6 +105,16 @@ jobs:
 
       - name: textbook.json is the one source of chapter order (generated mirrors match)
         run: node scripts/generate-mega-whitepaper.mjs --check-shared
+
+      # The architecture ledger's own checker, on the ledger's own terms: it
+      # rejects an indexed document that is missing, a duplicate stable ID, a
+      # broken local link, an unlabelled stub, and a citation that points at a
+      # conversation rather than a record. That last one is the ledger's whole
+      # thesis mechanised -- an idea does not become architecture by having
+      # been said recently.
+      - name: The Grand Harbor architecture ledger indexes what it claims to
+        run: node checks/check-ledger.mjs
+        working-directory: docs/grand-harbor
 
       - name: Book generator contract (namespacing, apparatus stripping, seams, shared files)
         run: node --test scripts/generate-mega-whitepaper.test.mjs scripts/generate-mega-mechanized.test.mjs
