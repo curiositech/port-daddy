@@ -376,6 +376,25 @@ jobs:
           set -euo pipefail
           changed="$(git diff --name-only "$BASE_SHA"...HEAD -- whitepaper/figures website-v2/public/whitepaper/figures \
             | grep -E '\.tex$' | xargs -r -n1 basename | sed 's/\.tex$//' || true)"
+          # Not everything in figures/ is a figure. The Book's preamble \inputs
+          # its apparatus from the same directory -- the palette, the hyperlink
+          # setup, the pedagogy environments, the figure language, the chapter
+          # map -- and those are preamble files, not drawings. Compiled as
+          # fragments they fail on their own nature: "Can be used only in
+          # preamble", or "\pd@chaptercolor already defined" because the
+          # wrapper's preamble has already loaded them. The exclusion is read
+          # from the preamble rather than listed here, so an apparatus file
+          # added later stops being mistaken for a drawing without anyone
+          # remembering to come back and edit this.
+          apparatus="$(grep -oE '\\input\{figures/[a-z0-9-]+\}' \
+            website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex \
+            | sed 's|.*figures/||; s|}||' | sort -u)"
+          if [ -n "$apparatus" ]; then
+            changed="$(printf '%s\n' "$changed" | grep -vxF "$apparatus" || true)"
+          else
+            echo "::error::could not read the apparatus list from the Book preamble; refusing to guess which files are drawings"
+            exit 1
+          fi
           blocked="$(python3 -c "import json; print(chr(10).join(e['id'] for e in json.load(open('docs/harbor-research/exposition/figures/blockers.json'))))")"
           { printf '%s\n' "$changed"; printf '%s\n' "$blocked"; } | grep -v '^$' | sort -u > /tmp/figure-gate-scope.txt
           count="$(wc -l < /tmp/figure-gate-scope.txt)"
