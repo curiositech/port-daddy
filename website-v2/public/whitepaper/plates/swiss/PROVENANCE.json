@@ -16,7 +16,7 @@
   "plates": {
     "cover": {
       "file": "cover.jpg",
-      "mechanism": "a great container port seen from above and slightly oblique -- gantry cranes in a row, stacked containers in strict rows, a ship alongside -- as one large high-contrast halftone photograph occupying the lower two thirds, cropped hard on the grid",
+      "mechanism": "THE MOST IMPORTANT CONSTRAINT: the upper 40 percent of this image, full width, is one clean empty plane of bare paper",
       "generation_aspect": "2:3",
       "final_aspect": "2:3",
       "image_size": "4K",
@@ -28,13 +28,13 @@
         2100,
         3150
       ],
-      "bytes": 1481907,
-      "chosen": "3",
-      "chosen_rationale": "the only candidate whose upper third is a genuinely clean plane for the title, with the port photograph cropped hard on the grid and the blue planes stepping off the right edge",
-      "prompt": "A Swiss International Typographic Style plate in the manner of Josef Muller-Brockmann and Herbert Matter: built on a hard modular grid whose thin rules are visible as structure, with flat planes of opaque colour, high-contrast black-and-white halftone photography montaged against those planes and cropped square to the grid, axonometric construction where the subject allows, asymmetric balance and active negative space. Printed flat on warm off-white paper #FBF7EF. The photographic elements are genuinely photographic -- real tonal halftone with visible screen, not illustration -- and they are the life of the composition. Dominant colour: flat #001489 reflex blue, with the signal red #DA291C used once and small as the single accent, and charcoal #121212 for reversed-out planes. Subject: a great container port seen from above and slightly oblique -- gantry cranes in a row, stacked containers in strict rows, a ship alongside -- as one large high-contrast halftone photograph occupying the lower two thirds, cropped hard on the grid. Over it, three flat colour planes of the dominant ink, offset from one another on the grid, one of them running off the right edge. The upper third is a clean empty plane reserved for the title.  Absolutely no lettering, numerals, words, letterforms, captions, labels, logos or symbols resembling writing anywhere in the image. Where the composition calls for a type area, leave a clean empty plane of flat colour; the lettering is typeset afterwards.",
+      "bytes": 940707,
+      "chosen": "5",
+      "chosen_rationale": "the only candidate of six that actually reserves the title band -- measured, not eyeballed: substantial ink starts 33.2% down the page, where the three-line title and subtitle end at about 33%. cover-4 read as clean in a thumbnail and starts at 2.0%, which is exactly the mistake that put type over the photograph in round 4a",
+      "prompt": "A Swiss International Typographic Style plate in the manner of Josef Muller-Brockmann and Herbert Matter: built on a hard modular grid whose thin rules are visible as structure, with flat planes of opaque colour, high-contrast black-and-white halftone photography montaged against those planes and cropped square to the grid, axonometric construction where the subject allows, asymmetric balance and active negative space. Printed flat on warm off-white paper #FBF7EF. The photographic elements are genuinely photographic -- real tonal halftone with visible screen, not illustration -- and they are the life of the composition. Dominant colour: flat #001489 reflex blue, with the signal red #DA291C used once and small as the single accent, and charcoal #121212 for reversed-out planes. THE MOST IMPORTANT CONSTRAINT: the upper 40 percent of this image, full width, is one clean empty plane of bare paper. Nothing at all appears in it -- no photograph, no colour plane, no grid rule, no mark of any kind. The title is typeset into that space afterwards and must not fight anything. Everything described below happens strictly BELOW that band. Subject: a great container port seen from above and slightly oblique -- gantry cranes in a row, stacked containers in strict rows, a ship alongside -- as one large high-contrast halftone photograph filling the lower 60 percent, cropped hard on the grid. Over it, three flat colour planes of the dominant ink, offset from one another on the grid, one of them running off the right edge.  Absolutely no lettering, numerals, words, letterforms, captions, labels, logos or symbols resembling writing anywhere in the image. Where the composition calls for a type area, leave a clean empty plane of flat colour; the lettering is typeset afterwards.",
       "generated_at": "2026-09-07T23:31:18+00:00",
       "pipeline_version": "2.0.0",
-      "source_render": "cover-3.png",
+      "source_render": "cover-5.png",
       "candidates": 6
     },
     "part-I": {
