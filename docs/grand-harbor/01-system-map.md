@@ -43,7 +43,7 @@ flowchart TB
 | Goal | Desired condition or candidate objective. | Deliberation input. | Persistent commitment. | Designed semantic distinction. |
 | Intention | Accepted persistent commitment with lifecycle and provenance. | Scheduling/resume/supersession behavior. | Permission to cause effects. | Designed from BDI/ADR-0041. |
 | Decision | Attributable resolution that changes authoritative design/program state. | Named records within authority scope. | Silent constitutional amendment. | This ledger proposes ceremony. |
-| Tension | Two desirable properties that remain jointly load-bearing. | Design constraints and experiments. | A forced false resolution. | First-class ledger record. |
+| Tension | Two desirable properties that both still carry weight. | Design constraints and experiments. | A forced false resolution. | First-class ledger record. |
 | Claim | Hard coordination record over file/symbol/resource scope. | Occupancy, conflict, transfer, salvage cues. | Actuator permission or completion proof. | Claims built; Claim Tree ADR Proposed. |
 | Pheromone | Provenance-bearing signal with strength and half-life. | Advisory attention/selection priors. | Ownership, permission, fact, or success. | Accepted vocabulary design; lifecycle/visualization proposed. |
 
