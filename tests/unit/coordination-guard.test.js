@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from '@jest/globals';
-import { existsSync, mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
@@ -435,6 +435,45 @@ describe('Coordination Guard', () => {
     expect(existsSync(called)).toBe(false);
 
     rmSync(repo, { recursive: true, force: true });
+  });
+
+  test('versioned Git hooks are inert before any subprocess when globally disabled', () => {
+    const scratchRoot = join(process.cwd(), '.scratch');
+    mkdirSync(scratchRoot, { recursive: true });
+    const sandbox = mkdtempSync(join(scratchRoot, 'pd-static-hooks-'));
+    const pdHome = join(sandbox, 'pd-home');
+    const fakeBin = join(sandbox, 'bin');
+    const called = join(sandbox, 'called');
+    mkdirSync(pdHome, { recursive: true });
+    mkdirSync(fakeBin, { recursive: true });
+    writeFileSync(join(pdHome, 'hooks.disabled'), 'operator halt\n');
+
+    for (const command of ['git', 'pd', 'port-daddy', 'curl', 'npx']) {
+      writeFileSync(join(fakeBin, command), `#!/bin/sh\nprintf '%s' '${command}' > "$PD_HOOK_CALLED"\nexit 99\n`, { mode: 0o755 });
+    }
+
+    for (const name of ['pre-commit', 'post-commit']) {
+      const hookPath = join(process.cwd(), 'hooks', name);
+      const source = readFileSync(hookPath, 'utf8');
+      expect(source.indexOf('hooks.disabled')).toBeGreaterThan(source.indexOf('#!/usr/bin/env zsh'));
+      expect(source.indexOf('hooks.disabled')).toBeLessThan(source.indexOf('git rev-parse'));
+      const result = spawnSync(hookPath, [], {
+        cwd: sandbox,
+        env: {
+          ...process.env,
+          PATH: `${fakeBin}:/usr/bin:/bin`,
+          PD_HOME: pdHome,
+          PD_HOOK_CALLED: called,
+        },
+        encoding: 'utf8',
+      });
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
+      expect(result.stderr).toBe('');
+      expect(existsSync(called)).toBe(false);
+    }
+
+    rmSync(sandbox, { recursive: true, force: true });
   });
 
   test('upgrades legacy guard block missing || exit $? in place', () => {

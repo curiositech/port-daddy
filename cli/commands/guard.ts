@@ -411,6 +411,10 @@ function dirtyFiles(cwd = process.cwd()): string[] {
 }
 
 function guardHookAvailabilityFunction(): string[] {
+  // Keep this self-contained: managed blocks are merged into arbitrary user
+  // hooks and cannot safely source a file from the originating checkout.
+  // tests/unit/coordination-guard.test.js executes both this block and the
+  // standalone templates so their fail-open boundary cannot drift silently.
   return [
     'pd_guard_available() {',
     '  pd_guard_home="${PD_HOME:-$HOME/.port-daddy}"',
@@ -430,9 +434,10 @@ function guardHookAvailabilityFunction(): string[] {
     '  pd_guard_ready_pid=$(tr -d "[:space:]" < "$pd_guard_ready" 2>/dev/null || true)',
     '  pd_guard_daemon_pid=$(tr -d "[:space:]" < "$pd_guard_pid" 2>/dev/null || true)',
     '  [ -n "$pd_guard_ready_pid" ] && [ "$pd_guard_ready_pid" = "$pd_guard_daemon_pid" ] || return 1',
-    '  pd_guard_heartbeat_mtime=$(stat -f %m "$pd_guard_heartbeat" 2>/dev/null || stat -c %Y "$pd_guard_heartbeat" 2>/dev/null || true)',
-    '  pd_guard_now=$(date +%s 2>/dev/null || true)',
-    '  case "$pd_guard_heartbeat_mtime:$pd_guard_now" in *[!0-9:]*|:*) return 1 ;; esac',
+    '  pd_guard_heartbeat_mtime=$(stat -f %m "$pd_guard_heartbeat" 2>/dev/null || stat -c %Y "$pd_guard_heartbeat" 2>/dev/null) || return 1',
+    '  pd_guard_now=$(date +%s 2>/dev/null) || return 1',
+    '  case "$pd_guard_heartbeat_mtime" in ""|*[!0-9]*) return 1 ;; esac',
+    '  case "$pd_guard_now" in ""|*[!0-9]*) return 1 ;; esac',
     '  pd_guard_age=$((pd_guard_now - pd_guard_heartbeat_mtime))',
     '  [ "$pd_guard_age" -ge -30 ] 2>/dev/null && [ "$pd_guard_age" -le 30 ] 2>/dev/null',
     '}',

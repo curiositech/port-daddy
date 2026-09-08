@@ -13,6 +13,7 @@ PD_HOOK_DAEMON_PID="$(tr -d '[:space:]' < "$PD_HOOK_PID" 2>/dev/null)"
 [[ -n "$PD_HOOK_READY_PID" && "$PD_HOOK_READY_PID" = "$PD_HOOK_DAEMON_PID" ]] || exit 0
 PD_HOOK_HEARTBEAT_MTIME="$(stat -f %m "$PD_HOOK_HEARTBEAT" 2>/dev/null || stat -c %Y "$PD_HOOK_HEARTBEAT" 2>/dev/null)" || exit 0
 PD_HOOK_NOW="$(date +%s 2>/dev/null)" || exit 0
+[[ "$PD_HOOK_HEARTBEAT_MTIME" = <-> && "$PD_HOOK_NOW" = <-> ]] || exit 0
 PD_HOOK_AGE=$((PD_HOOK_NOW - PD_HOOK_HEARTBEAT_MTIME))
 (( PD_HOOK_AGE >= -30 && PD_HOOK_AGE <= 30 )) || exit 0
 
