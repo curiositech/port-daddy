@@ -134,9 +134,15 @@ def main() -> int:
         entry.pop("prompt_other", None)
         print(f"{name}: {os.path.basename(src)} {raw} -> {size} {written} bytes")
 
-    with open(path, "w", encoding="utf-8") as handle:
+    # Write through a temp file in the same directory and rename over the
+    # original: PROVENANCE.json is the only record of which candidate was
+    # taken and why, and a run interrupted midway through json.dump would
+    # leave it truncated with no way back except the last commit.
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as handle:
         json.dump(record, handle, indent=2, ensure_ascii=False)
         handle.write("\n")
+    os.replace(tmp, path)
     print(f"wrote {path}")
     return 0
 

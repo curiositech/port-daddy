@@ -47,7 +47,10 @@ def render(job: tuple[str, dict, int, str, str | None]) -> tuple[str, bool, str]
         cmd += ["--style", style]
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
-        return stem, False, result.stderr.strip()[-300:]
+        # The generator's useful line is usually the last one, but an API
+        # error body can run long and the cause sits inside it, so keep enough
+        # to read rather than a 300-character tail.
+        return stem, False, result.stderr.strip()[-2000:]
     return stem, True, out
 
 
