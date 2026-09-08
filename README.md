@@ -1251,6 +1251,7 @@ Start with [CONTRIBUTING.md](CONTRIBUTING.md). Every PR is filled out against [`
 - [Dated delivery evidence](docs/research/2026-09-02-delivery-census.md) — published work, preserved checkpoints, and runtime follow-ups; a sanitized audit, not roadmap authority
 - [Machine-instruction parity audit](docs/research/2026-09-02-machine-instruction-parity.md) — installed-guide and Pilot/skill provenance, preservation boundaries, and the remaining repair contract; source delivery is not installation
 - [macOS isolated-build findings](docs/research/2026-09-02-macos-isolated-bun-build.md) — three failed attempts, resolver controls, and remaining proof requirements; no runtime promotion
+- [Project Epistemology design package](docs/research/egosystem-reconciliation/README.md) — proposed reconciliation constitution, practitioner guide, offline packet-audit skill and local impact preview; no runtime integration or authority to resume halted work
 - White papers at `/whitepaper` on [portdaddy.dev](https://portdaddy.dev): **The Anchor Protocol**, **The Bonded Commons**
 
 ---

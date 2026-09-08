@@ -1,0 +1,71 @@
+# Local publication packet
+
+Status: prepared for later authorized publication. **Not submitted, pushed,
+opened as a PR, sent to a GitHub App, deployed or enrolled in a review queue.**
+The operator halt remains in force. The publishing route and any downstream
+paid review/workflow effects need explicit authority before use.
+
+## Suggested title
+
+Project Epistemology: scoped reconciliation constitution and offline proof package
+
+## Summary for a later review
+
+This design separates world evidence, attributable actor assertions and
+institutional decisions. It proposes bounded consequence analysis, explicit
+authority and temporal scope, a Synthesis Steward's disposition record, retained
+dissent, and an impact preview before commitments change.
+
+The package contains a constitution, practitioner guide, event/API/authorization
+contracts, staged delivery plan, source and literature mapping, research protocol,
+solo synthesis record, a reusable local packet-audit skill, and a three-case
+interactive design study. Only the declaration auditor and static demonstration
+are executable deliverables. No runtime integration is claimed.
+
+## Roadmap and boundaries
+
+Historical roadmap association: `chartroom-grand-harbor-authority-cutover`.
+No live roadmap access, reassignment or competing authority document was made.
+The proposed institutional event family reuses existing Harbor authority rather
+than introducing a parallel canonical store.
+
+The change does not edit Chartroom, Relay publishers, session recovery, retrieval,
+Porthole, website, FleetBar or pd-console runtime. It adds one self-contained
+skill without modifying the public/internal operational Port Daddy skills or
+installing/activating anything.
+
+## Review evidence
+
+See [validation](validation.md) for the complete executed-check record and
+limitations. The local declaration suite covers malformed shapes, unknown
+references, authority and spend declarations, evidence promotion, independence
+claims, stale previews, unresolved blockers, dissent and CLI exit behavior.
+The preview is checked across light/dark and 320–1100px widths, including all
+six paths, keyboard operation and enlarged text.
+
+Human usability gates, actual authority verification, formal entailment,
+production replay, live spending enforcement and empirical H1–H4 studies are
+not complete. The design score is not a full pass because human studies are
+missing. A systematic review is needed before any novelty priority claim.
+
+## Method deviation and spend record
+
+The original independent-agent program was suspended under the operator halt.
+No completed Phase 1 papers were recovered into this package. Remaining lenses
+and final editorial review were performed by one author; they are not fresh
+independent reviews. Earlier supplied Field Guide feedback retains its own
+limited provenance. Historical requested budgets do not establish actual cost
+or enforced aggregate caps.
+
+## Before any external publication
+
+1. Obtain explicit scope and authority for publication and its downstream effects.
+2. Reconcile the exact local head and current canonical source again.
+3. Inspect the authorized publication route without borrowing credentials or
+   interpreting the halted Port Daddy route as available.
+4. Bind the publication intent to exact content and head, use an idempotency key,
+   and retain a verifiable effect receipt. On ambiguity, reconcile before retry.
+5. Arrange actual independent review only if the operator authorizes it and its
+   aggregate cost boundary is demonstrably enforceable.
+
+This packet is content for those steps, not authorization to take them.
