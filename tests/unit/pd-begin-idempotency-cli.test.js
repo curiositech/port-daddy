@@ -37,15 +37,31 @@ function attemptsIn(contextDir) {
   return existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.json')) : [];
 }
 
-// Every handleBegin call below passes 'allow-main-worktree'. This is about the
-// idempotency key, not the worktree policy, and without the flag the test's
-// result depends on where the checkout happens to be: pd refuses a session in a
-// MAIN git worktree by default, so the suite passed for anyone working in a
-// linked worktree (or with PORT_DADDY_ALLOW_MAIN_WORKTREE_SESSION set) and
-// failed on CI, which checks out the main one. It went red on both runners and
-// stayed red, blamed on whichever PR happened to be open. A unit test should
-// not be able to tell where it is running; the flag says so explicitly and puts
-// the assertions back on the behaviour they are named for.
+// One place that says what every begin in this file has in common, rather than
+// the same three keys repeated at seven call sites.
+//
+// 'allow-main-worktree' is the one that needs explaining. This suite is about
+// the idempotency key, not the worktree policy, and without the flag its result
+// depends on where the checkout happens to be: pd refuses a session in a MAIN
+// git worktree by default, so the suite passed for anyone working in a linked
+// worktree (or with PORT_DADDY_ALLOW_MAIN_WORKTREE_SESSION set) and failed on
+// CI, which checks out the main one. It went red on both runners and stayed
+// red, blamed on whichever PR happened to be open. A unit test should not be
+// able to tell where it is running.
+//
+// Keeping it here rather than inline means the opt-out is declared once, with
+// its reason attached, and a test that ever needs the policy exercised has to
+// say so explicitly by overriding it -- which is the point of the flag being
+// visible at all.
+const BEGIN_DEFAULTS = Object.freeze({
+  lifecycle: 'ephemeral',
+  'allow-main-worktree': true,
+  quiet: true,
+});
+function beginOptions(overrides = {}) {
+  return { ...BEGIN_DEFAULTS, ...overrides };
+}
+
 describe('pd begin / pd session find — idempotency key on the client', () => {
   const originalExit = process.exit;
   const savedEnv = {};
@@ -133,7 +149,7 @@ describe('pd begin / pd session find — idempotency key on the client', () => {
   test('handleBegin sends a fresh UUID v4 key and persists the attempt BEFORE the request', async () => {
     script['POST /sugar/begin'] = (request, response, body) => okBegin(response, body);
     const { handleBegin } = await import('../../cli/commands/sugar.js');
-    await handleBegin('retry-safe begin', [], { lifecycle: 'ephemeral', 'allow-main-worktree': true, sidequest: 'exercising the begin idempotency key', quiet: true });
+    await handleBegin('retry-safe begin', [], beginOptions({ sidequest: 'exercising the begin idempotency key' }));
 
     const begin = requests.find((r) => r.path === '/sugar/begin');
     expect(begin).toBeDefined();
@@ -153,12 +169,12 @@ describe('pd begin / pd session find — idempotency key on the client', () => {
     script['POST /sugar/begin'] = (request, response, body) => okBegin(response, body);
     const { handleBegin } = await import('../../cli/commands/sugar.js');
     const key = '0123456789abcdef0123456789abcdef';
-    await handleBegin('scripted retry', [], { lifecycle: 'ephemeral', 'allow-main-worktree': true, sidequest: 'scripted retry with a pinned key', 'idempotency-key': key, quiet: true });
+    await handleBegin('scripted retry', [], beginOptions({ sidequest: 'scripted retry with a pinned key', 'idempotency-key': key }));
     expect(requests.find((r) => r.path === '/sugar/begin').body.idempotencyKey).toBe(key);
 
     requests = [];
     await expect(
-      handleBegin('scripted retry', [], { lifecycle: 'ephemeral', 'allow-main-worktree': true, sidequest: 'scripted retry with a pinned key', 'idempotency-key': 'nope', quiet: true }),
+      handleBegin('scripted retry', [], beginOptions({ sidequest: 'scripted retry with a pinned key', 'idempotency-key': 'nope' })),
     ).rejects.toThrow(/--idempotency-key must match/);
     expect(requests.filter((r) => r.path === '/sugar/begin')).toHaveLength(0);
   });
@@ -170,13 +186,13 @@ describe('pd begin / pd session find — idempotency key on the client', () => {
       response.writeHead(400, { 'Content-Type': 'application/json' });
       response.end(JSON.stringify({ success: false, error: 'lifecycle must be explicitly set', code: 'SESSION_LIFECYCLE_REQUIRED' }));
     };
-    await expect(handleBegin('rejected', [], { lifecycle: 'ephemeral', 'allow-main-worktree': true, sidequest: 'daemon rejects this begin outright', quiet: true }))
+    await expect(handleBegin('rejected', [], beginOptions({ sidequest: 'daemon rejects this begin outright' })))
       .rejects.toThrow(/lifecycle must be explicitly set/);
     expect(attemptsIn(contextDir)).toEqual([]);
 
     // The daemon commits, then the connection dies before the response.
     script['POST /sugar/begin'] = (request) => { request.socket.destroy(); };
-    await expect(handleBegin('lost response', [], { lifecycle: 'ephemeral', 'allow-main-worktree': true, sidequest: 'the response never makes it back', quiet: true }))
+    await expect(handleBegin('lost response', [], beginOptions({ sidequest: 'the response never makes it back' })))
       .rejects.toThrow();
     expect(attemptsIn(contextDir)).toEqual(['idem-test.json']);
     const attempt = readJson(join(contextDir, 'begin-attempts', 'idem-test.json'));
@@ -190,7 +206,7 @@ describe('pd begin / pd session find — idempotency key on the client', () => {
     const { handleSession } = await import('../../cli/commands/sessions.js');
 
     script['POST /sugar/begin'] = (request) => { request.socket.destroy(); };
-    await expect(handleBegin('lost response', [], { lifecycle: 'ephemeral', 'allow-main-worktree': true, identity: 'demo:cli:find', sidequest: 'the response never makes it back', quiet: true }))
+    await expect(handleBegin('lost response', [], beginOptions({ identity: 'demo:cli:find', sidequest: 'the response never makes it back' })))
       .rejects.toThrow();
     const lostKey = requests.find((r) => r.path === '/sugar/begin').body.idempotencyKey;
 
