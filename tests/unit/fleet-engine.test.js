@@ -38,7 +38,7 @@ jest.unstable_mockModule('node:fs', () => ({
   statSync: jest.fn(() => ({ mtimeMs: 0 })),
   // …and lib/skill-graft.ts transitively imports lib/shipwright/skill-index.ts,
   // whose catalog walker calls readdirSync. Some tests below DO set
-  // `skill_graft: true` on an agent, but every one of them injects a fake
+  // `jury_rig: true` on an agent, but every one of them injects a fake
   // `options.skillGraft` (see "Skill Graft wiring" tests), so the real
   // createSkillGraftIndex()/loadSkillCatalog() path — the thing that would
   // actually call readdirSync — is never reached. This stub only needs to
@@ -2163,7 +2163,7 @@ test('trimMessage at exactly maxChars returns message unchanged', async () => {
 
 // ─── Skill Graft wiring (opt-in per-ship context injection, lib/skill-graft.ts) ──
 
-test('skillGraft: true splices the injected skill-graft context into the task', async () => {
+test('juryRig: true splices the injected Jury-rig context into the task', async () => {
   const craft = jest.fn().mockResolvedValue({
     query: 'Do something',
     scannedCount: 42,
@@ -2173,7 +2173,7 @@ test('skillGraft: true splices the injected skill-graft context into the task', 
     ],
     top: [],
   });
-  const config = makeConfig({ skillGraft: true });
+  const config = makeConfig({ juryRig: true });
   const runner = createFleetRunner(config, '/tmp/proj', { skillGraft: { craft } });
 
   await runner.hailAgent('test-agent', { source: 'manual' });
@@ -2190,9 +2190,9 @@ test('skillGraft: true splices the injected skill-graft context into the task', 
   expect(body.task).toContain('42 scanned');
 });
 
-test('agents without skillGraft never call the injected index (fast path unaffected)', async () => {
+test('agents without juryRig never call the injected index (fast path unaffected)', async () => {
   const craft = jest.fn();
-  const config = makeConfig(); // skillGraft is undefined/falsy by default
+  const config = makeConfig(); // juryRig is undefined/falsy by default
   const runner = createFleetRunner(config, '/tmp/proj', { skillGraft: { craft } });
 
   await runner.hailAgent('test-agent', { source: 'manual' });
@@ -2206,9 +2206,9 @@ test('agents without skillGraft never call the injected index (fast path unaffec
   expect(body.task).toBe('Do something');
 });
 
-test('skillGraft failure fails open: the spawn still proceeds with the unmodified task', async () => {
+test('Jury-rig failure fails open: the spawn still proceeds with the unmodified task', async () => {
   const craft = jest.fn().mockRejectedValue(new Error('embedder unavailable'));
-  const config = makeConfig({ skillGraft: true });
+  const config = makeConfig({ juryRig: true });
   const runner = createFleetRunner(config, '/tmp/proj', { skillGraft: { craft } });
   const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -2229,13 +2229,13 @@ test('skillGraft failure fails open: the spawn still proceeds with the unmodifie
   errSpy.mockRestore();
 });
 
-test('skillGraft that stalls never blocks a spawn: the budget elapses and the ship spawns un-grafted', async () => {
+test('Jury-rig that stalls never blocks a spawn: the budget elapses and the ship spawns without guidance', async () => {
   // craft() that never settles — stands in for the one-time cold cost on a
   // first spawn (a full skills/ scan, or a MiniLM model load/download when the
   // semantic tier is on). The awaited-before-spawn enrichment must be bounded
   // so it can never hold the spawn hostage (Copilot review finding).
   const craft = jest.fn().mockReturnValue(new Promise(() => {}));
-  const config = makeConfig({ skillGraft: true });
+  const config = makeConfig({ juryRig: true });
   const runner = createFleetRunner(config, '/tmp/proj', { skillGraft: { craft }, skillGraftBudgetMs: 5 });
   const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 

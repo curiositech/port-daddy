@@ -128,7 +128,7 @@ When an orchestrator decomposes a complex task into subtasks:
 
 **Skill Composition with Normative Constraints**:
 
-Skills in WinDAGs may have embedded norms:
+Skills in Jury-rig may have embedded norms:
 - Authentication skill requires: O(verify_identity) before allowing access
 - Data processing skill has: F(log_PII) to comply with privacy regulations
 - Code generation skill has: O(include_license_header) for legal compliance
@@ -233,7 +233,7 @@ This is weak consistency reasoning in action—the agent can satisfy the obligat
 
 ## Implementation Patterns
 
-**For WinDAGs orchestration**:
+**For Jury-rig orchestration**:
 
 ```python
 def adopt_norm(agent, new_norm):

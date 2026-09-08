@@ -42,6 +42,61 @@ export interface ModelCatalogEntry {
   notes?: string;
 }
 
+export type EmbeddingNormalization = 'none' | 'l2';
+export type EmbeddingMetric = 'cosine' | 'dot-product' | 'euclidean';
+export type EmbeddingPooling = 'mean-attention-mask-v1' | 'cls-last-hidden-state-v1';
+export type EmbeddingTask = 'feature-extraction' | 'sentence-similarity';
+export type EmbeddingUnicodeNormalization = 'none' | 'nfc' | 'nfkc' | 'tokenizer-defined';
+export type EmbeddingTruncation = 'longest-first' | 'only-first';
+export type EmbeddingCoordinatePrecision = 'float16' | 'float32' | 'float64';
+export type EmbeddingTransportEncoding = 'json-number-array' | 'float32-array';
+export type EmbeddingQuantization = 'none';
+export type EmbeddingStorageEncoding = 'json-number-array' | 'float32-le';
+export type EmbeddingProfileQuality = 'degraded-fallback';
+export type EmbeddingRevisionBinding = 'declared-upstream';
+export type EmbeddingRuntimeBinding = 'declarative-only';
+
+/** A declared vector-space target plus binding policy; inspect runtimeBinding before use as proof. */
+export interface EmbeddingProfile {
+  readonly version: 2;
+  readonly servingProvider: string;
+  readonly modelId: string;
+  readonly runtimeFamily: string;
+  readonly runtimeVersion: string;
+  readonly upstreamModelId: string;
+  readonly modelRevision: string;
+  readonly modelArtifact: string;
+  readonly modelDigest: string;
+  readonly modelConfigArtifact: string;
+  readonly modelConfigDigest: string;
+  readonly tokenizerId: string;
+  readonly tokenizerRevision: string;
+  readonly tokenizerArtifact: string;
+  readonly tokenizerDigest: string;
+  readonly tokenizerConfigArtifact: string;
+  readonly tokenizerConfigDigest: string;
+  readonly task: EmbeddingTask;
+  readonly queryPrefix: string;
+  readonly documentPrefix: string;
+  readonly unicodeNormalization: EmbeddingUnicodeNormalization;
+  readonly truncation: EmbeddingTruncation;
+  readonly maxTokens: number;
+  readonly dimensions: number;
+  readonly normalization: EmbeddingNormalization;
+  readonly metric: EmbeddingMetric;
+  readonly pooling: EmbeddingPooling;
+  readonly coordinatePrecision: EmbeddingCoordinatePrecision;
+  readonly coordinateQuantization: EmbeddingQuantization;
+  readonly transportEncoding: EmbeddingTransportEncoding;
+  readonly storageEncoding: EmbeddingStorageEncoding;
+  readonly storageQuantization: EmbeddingQuantization;
+  readonly preprocessingDigest: string;
+  readonly quality: EmbeddingProfileQuality;
+  readonly revisionBinding: EmbeddingRevisionBinding;
+  readonly runtimeBinding: EmbeddingRuntimeBinding;
+  readonly spaceId: string;
+}
+
 export interface ModelRegistryData {
   generatedAt: string;
   generatedBy: string;
@@ -67,6 +122,8 @@ export interface ModelRegistryData {
   /** Every concrete id, with the facts that used to live in four separate tables. */
   models: Record<string, ModelCatalogEntry>;
   backends: Record<string, Record<string, string>>;
+  /** Declared embedding targets, separate from the text-generation capability ladder. */
+  readonly embeddingProfiles: Readonly<Record<string, Readonly<EmbeddingProfile>>>;
 }
 
 export const MODEL_REGISTRY_DATA: ModelRegistryData = {
@@ -678,15 +735,15 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
     "@cf/baai/bge-base-en-v1.5": {
       "provider": "baai",
       "plane": "workers-ai",
-      "priceIn": 0.02,
+      "priceIn": 0.067,
       "priceOut": 0,
       "contextWindow": 512,
       "capabilities": [
         "embedding"
       ],
       "status": "ga",
-      "verifiedAt": "2026-08-23",
-      "verifiedBy": "live-probe",
+      "verifiedAt": "2026-08-31",
+      "verifiedBy": "vendor-docs",
       "priceBasis": "vendor-docs"
     },
     "gemini-3.7-flash": {
@@ -810,6 +867,21 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
       "verifiedBy": "cf-catalog",
       "priceBasis": "estimate",
       "notes": "Replaces the registry's previous `grok-2-latest` (balanced+high) and `grok-3` (max-thinking) — both several generations stale. Sourced from the AI Gateway catalog; NOT live-probed (no xAI credential in this environment)."
+    },
+    "Xenova/all-MiniLM-L6-v2": {
+      "provider": "xenova",
+      "plane": "local",
+      "priceIn": 0,
+      "priceOut": 0,
+      "contextWindow": 512,
+      "capabilities": [
+        "embedding"
+      ],
+      "status": "ga",
+      "verifiedAt": "2026-08-31",
+      "verifiedBy": "vendor-docs",
+      "priceBasis": "vendor-docs",
+      "notes": "Explicit offline-minimal embedding fallback. It is reachable through the embedding profile map only and deliberately absent from every backend text-generation ladder. Its loader weight dtype is not the profile's coordinate encoding; the current JS boundary exposes JSON numbers."
     },
     "qwen2.5-coder:7b": {
       "provider": "alibaba",
@@ -936,5 +1008,94 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
       "max-thinking": "local-model",
       "code": "local-model"
     }
+  },
+  "embeddingProfiles": {
+    "@cf/baai/bge-base-en-v1.5": {
+      "servingProvider": "cloudflare-workers-ai",
+      "runtimeFamily": "workers-ai-binding",
+      "runtimeVersion": "workers-ai-binding-unversioned",
+      "upstreamModelId": "BAAI/bge-base-en-v1.5",
+      "modelRevision": "a5beb1e3e68b9ab74eb54cfd186867f64f240e1a",
+      "modelArtifact": "model.safetensors",
+      "modelDigest": "sha256:c7c1988aae201f80cf91a5dbbd5866409503b89dcaba877ca6dba7dd0a5167d7",
+      "modelConfigArtifact": "config.json",
+      "modelConfigDigest": "sha256:bc00af31a4a31b74040d73370aa83b62da34c90b75eb77bfa7db039d90abd591",
+      "tokenizerId": "BAAI/bge-base-en-v1.5",
+      "tokenizerRevision": "a5beb1e3e68b9ab74eb54cfd186867f64f240e1a",
+      "tokenizerArtifact": "tokenizer.json",
+      "tokenizerDigest": "sha256:d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66",
+      "tokenizerConfigArtifact": "tokenizer_config.json",
+      "tokenizerConfigDigest": "sha256:9261e7d79b44c8195c1cada2b453e55b00aeb81e907a6664974b4d7776172ab3",
+      "task": "feature-extraction",
+      "queryPrefix": "",
+      "documentPrefix": "",
+      "unicodeNormalization": "tokenizer-defined",
+      "truncation": "longest-first",
+      "maxTokens": 512,
+      "dimensions": 768,
+      "normalization": "l2",
+      "metric": "cosine",
+      "pooling": "mean-attention-mask-v1",
+      "coordinatePrecision": "float32",
+      "coordinateQuantization": "none",
+      "transportEncoding": "json-number-array",
+      "storageEncoding": "json-number-array",
+      "storageQuantization": "none",
+      "revisionBinding": "declared-upstream",
+      "version": 2,
+      "modelId": "@cf/baai/bge-base-en-v1.5",
+      "preprocessingDigest": "sha256:2e9cef6953fac4a1789917fc2653a5ad2c5bfc008ab310f2f887cf056d5c8961",
+      "quality": "degraded-fallback",
+      "runtimeBinding": "declarative-only",
+      "spaceId": "embed-v2:4c3eb8222853b8ab6bf24cac75ae7dca9bc5544acbdb7c48a93ffd9189b724bd"
+    },
+    "Xenova/all-MiniLM-L6-v2": {
+      "servingProvider": "local-transformers-js",
+      "runtimeFamily": "transformers.js+onnxruntime-node",
+      "runtimeVersion": "transformers.js@4.1.0+onnxruntime-node@1.24.3",
+      "upstreamModelId": "Xenova/all-MiniLM-L6-v2",
+      "modelRevision": "751bff37182d3f1213fa05d7196b954e230abad9",
+      "modelArtifact": "onnx/model.onnx",
+      "modelDigest": "sha256:759c3cd2b7fe7e93933ad23c4c9181b7396442a2ed746ec7c1d46192c469c46e",
+      "modelConfigArtifact": "config.json",
+      "modelConfigDigest": "sha256:7135149f7cffa1a573466c6e4d8423ed73b62fd2332c575bf738a0d033f70df7",
+      "tokenizerId": "Xenova/all-MiniLM-L6-v2",
+      "tokenizerRevision": "751bff37182d3f1213fa05d7196b954e230abad9",
+      "tokenizerArtifact": "tokenizer.json",
+      "tokenizerDigest": "sha256:da0e79933b9ed51798a3ae27893d3c5fa4a201126cef75586296df9b4d2c62a0",
+      "tokenizerConfigArtifact": "tokenizer_config.json",
+      "tokenizerConfigDigest": "sha256:9261e7d79b44c8195c1cada2b453e55b00aeb81e907a6664974b4d7776172ab3",
+      "task": "feature-extraction",
+      "queryPrefix": "",
+      "documentPrefix": "",
+      "unicodeNormalization": "tokenizer-defined",
+      "truncation": "longest-first",
+      "maxTokens": 512,
+      "dimensions": 384,
+      "normalization": "l2",
+      "metric": "cosine",
+      "pooling": "mean-attention-mask-v1",
+      "coordinatePrecision": "float32",
+      "coordinateQuantization": "none",
+      "transportEncoding": "float32-array",
+      "storageEncoding": "json-number-array",
+      "storageQuantization": "none",
+      "revisionBinding": "declared-upstream",
+      "version": 2,
+      "modelId": "Xenova/all-MiniLM-L6-v2",
+      "preprocessingDigest": "sha256:67fcdea190a5d862ab741c5d12df4c891a556f2c54fd7ccbb341ec692c8ff0e6",
+      "quality": "degraded-fallback",
+      "runtimeBinding": "declarative-only",
+      "spaceId": "embed-v2:76b6025e2a87cf9fd594508baadbc38289ab36c667f6492ed905314875d44173"
+    }
   }
 };
+
+for (const profile of Object.values(MODEL_REGISTRY_DATA.embeddingProfiles)) {
+  Object.freeze(profile);
+}
+Object.freeze(MODEL_REGISTRY_DATA.embeddingProfiles);
+Object.defineProperty(MODEL_REGISTRY_DATA, 'embeddingProfiles', {
+  writable: false,
+  configurable: false,
+});

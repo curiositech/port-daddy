@@ -954,6 +954,7 @@ _pd_cmd_session() {
     'done:end a session (alias for end)'
     'abandon:abandon a session'
     'takeover:create successor session; preserve notes'
+    'find:recover my session by begin key or identity'
     'rm:archive a session; preserve notes'
     'files:manage file claims for a session'
     'phase:set session phase (planning/in_progress/testing/etc)'
@@ -1006,6 +1007,17 @@ _pd_cmd_session() {
             '(-j --json)'{-j,--json}'[JSON output]' \
             '(-q --quiet)'{-q,--quiet}'[suppress output]' \
             '1:predecessor session ID:'
+          ;;
+        find)
+          _arguments \
+            '--key[begin idempotency key to recover]:key:' \
+            '--identity[identity to search (project:stack:context)]:identity:' \
+            '--all-worktrees[search every worktree]' \
+            '--all[include closed sessions]' \
+            '--no-adopt[do not write the recovered context locally]' \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+            '1::begin idempotency key:'
           ;;
         files)
           local -a files_subcmds
@@ -1290,8 +1302,6 @@ _pd_cmd_done() {
     '(-a --agent)'{-a,--agent}'[agent ID]:agent ID:_pd_complete_agents' \
     '--session[session ID]:session ID:' \
     '(-s --status)'{-s,--status}'[session end status]:status:(completed abandoned)' \
-    '--force-incomplete[force end session with incomplete tasks]' \
-    '--reason[reason for force incomplete]:reason:' \
     '(-j --json)'{-j,--json}'[JSON output]' \
     '(-q --quiet)'{-q,--quiet}'[suppress output]' \
     '(-h --help)'{-h,--help}'[show help]' \
@@ -1901,11 +1911,11 @@ _pd_cmd_embed() {
   esac
 }
 
-_pd_cmd_skill_graft() {
-  local -a skill_graft_subcmds
-  skill_graft_subcmds=(
+_pd_cmd_jury_rig() {
+  local -a jury_rig_subcmds
+  jury_rig_subcmds=(
     'query:rank skills for an operator task'
-    'warm:refresh the local skill-graft index'
+    'warm:refresh the local Jury-rig index'
     'reference:read an allowlisted skill reference'
   )
 
@@ -1914,7 +1924,7 @@ _pd_cmd_skill_graft() {
 
   case "$state" in
     subcommand)
-      _describe 'skill-graft subcommand' skill_graft_subcmds
+      _describe 'jury-rig subcommand' jury_rig_subcmds
       ;;
     args)
       case "${words[2]}" in
@@ -1937,7 +1947,7 @@ _pd_cmd_skill_graft() {
             '(-j --json)'{-j,--json}'[output JSON]'
           ;;
         *)
-          _describe 'skill-graft subcommand' skill_graft_subcmds
+          _describe 'jury-rig subcommand' jury_rig_subcmds
           ;;
       esac
       ;;
@@ -2400,8 +2410,7 @@ _port_daddy() {
     'tuple:Linda-style tuple space (out, rd, in, scan, count)'
     # Semantic graph + episodic memory
     'embed:shared local embedding model — status, prefetch, embed text'
-    'skill-graft:query and warm the native local skill-graft index'
-    'skillgraft:alias for skill-graft'
+    'jury-rig:discover and safely load native skill guidance'
     'graph:inspect semantic graph edges and stats'
     'memory:inspect episodic memory entries and stats'
     # Artifact harvest provenance (slice S4a)
@@ -2578,7 +2587,7 @@ _port_daddy() {
         wallet)                 _pd_cmd_wallet ;;
         bond)                   _pd_cmd_bond ;;
         embed)                  _pd_cmd_embed ;;
-        skill-graft|skillgraft) _pd_cmd_skill_graft ;;
+        jury-rig)               _pd_cmd_jury_rig ;;
         graph)                  _pd_cmd_graph ;;
         booty)                  _pd_cmd_booty ;;
         memory)                 _pd_cmd_memory ;;

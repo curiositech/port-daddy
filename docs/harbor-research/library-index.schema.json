@@ -1,0 +1,177 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.internal/schemas/library-index.schema.json",
+  "title": "Harbor library index",
+  "description": "Deterministic inventory of the Harbor Research Program's results (R1-R17, CR, B6) and the theorems folded from them into the Coordination Papers textbook: for each idea, where it is proved, where it is retold, what draws it, what computes its numbers, and what (if anything) mechanizes it. See docs/harbor-research/library-index.README.md for how to add an entry and docs/harbor-research/LIBRARY-SYSTEM.md for the system this index is part of.",
+  "type": "object",
+  "required": ["$schema", "version", "entries", "unindexed_allow"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Relative path back to this schema file, so a JSON-Schema-aware editor can validate library-index.json on save.",
+      "const": "./library-index.schema.json"
+    },
+    "version": {
+      "type": "integer",
+      "description": "Schema/index format version. Bump only on a breaking shape change to entries or unindexed_allow.",
+      "const": 1
+    },
+    "entries": {
+      "type": "array",
+      "description": "One record per idea (theorem/lemma/proposition/definition/conjecture/corollary/result-family/counterexample). An idea that lives in two places (a standalone research paper and a textbook chapter) is ONE entry with two locations, not two entries.",
+      "items": { "$ref": "#/definitions/entry" }
+    },
+    "unindexed_allow": {
+      "type": "array",
+      "description": "Escape hatch for check_library_index.py's coverage check (2b): every theorem-family label or environment in the three corpora must either be claimed by some entry's labels[]/sections[] or be listed here with a reason. Used for (i) chapter-native results that are not part of the R1-R17/CR/B6 catalog and have no folded twin, and (ii) pre-existing unlabeled theorem-family environments that the task scope forbids adding a \\label to (comment-header edits only).",
+      "items": { "$ref": "#/definitions/allowEntry" }
+    }
+  },
+  "definitions": {
+    "entry": {
+      "type": "object",
+      "required": [
+        "id", "kind", "title", "one_breath", "standalone", "chapters",
+        "figures", "scripts", "numbers", "mechanization", "site", "status"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "R1-R17, CR, or B6 for the canonical Harbor Research Program catalog; a label-style id (e.g. \"prop:claim-signaling-ic\") for a folded theorem that is not part of that catalog but is provably the same idea in two locations.",
+          "pattern": "^(R(1[0-7]|[1-9])|CR|B6|(thm|lem|prop|cor|def|conj):[a-zA-Z0-9_.-]+)$"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "theorem", "lemma", "proposition", "definition", "conjecture",
+            "corollary", "result-family", "counterexample"
+          ],
+          "description": "\"result-family\" is for an id that bundles more than one boxed statement (e.g. R7 = Stage deterrence + Tower contraction + Amortization; R17 = the membership theorem + the NP-completeness frontier)."
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The short name the box/section gives the result, e.g. \"Tower contraction\" or \"No-mint reputation inheritance\"."
+        },
+        "one_breath": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One sentence. Copied verbatim from the paper's own \\onebreath{...} line when the standalone paper has one for this result; otherwise the theorem/definition statement's first sentence, lightly trimmed to stand alone."
+        },
+        "standalone": {
+          "description": "The research paper (docs/harbor-research/tex/paperN.tex) that carries this result, or null when no paperN.tex file contains it yet (e.g. R8, which the research program itself records as having no paper; R14 and R16, whose only written-out home today is a textbook chapter even though the public results catalog files them under Paper 1's theme).",
+          "oneOf": [
+            { "$ref": "#/definitions/location" },
+            { "type": "null" }
+          ]
+        },
+        "chapters": {
+          "type": "array",
+          "description": "Textbook chapters that also carry this result. Empty when not yet folded.",
+          "items": { "$ref": "#/definitions/chapterLocation" }
+        },
+        "figures": {
+          "type": "array",
+          "description": "Repo-relative paths to the native TikZ/pgfplots figure fragments (docs/harbor-research/figures/*.tex) that draw this result.",
+          "items": { "type": "string" }
+        },
+        "scripts": {
+          "type": "array",
+          "description": "Repo-relative paths to the R-scripts that regenerate this result's [internal] numbers.",
+          "items": { "type": "string" }
+        },
+        "numbers": {
+          "type": "array",
+          "description": "Headline numbers a reader can hand-check, with the regex the drift checker (2c) uses to confirm the number is actually printed at every location listed for this entry (standalone.file plus every chapters[].file). A number that has no exact-digit twin between locations (the chapter illustrates the same formula with a fresh worked example) is legitimately left out rather than forced.",
+          "items": { "$ref": "#/definitions/numberClaim" }
+        },
+        "mechanization": {
+          "type": "array",
+          "description": "Repo-relative paths to formal-methods artifacts (.pv ProVerif, .tla TLA+, .z3 SMT-LIB/Z3, or a Kani-harnessed Rust source) that mechanically check this result, beyond the Python falsification scripts. Empty for results whose only verification is the seeded Python sweep.",
+          "items": { "type": "string" }
+        },
+        "site": {
+          "type": "array",
+          "description": "Public website anchors/paths for this result (e.g. a /research/paperN.pdf path). May be empty.",
+          "items": { "type": "string" }
+        },
+        "status": {
+          "type": "string",
+          "enum": ["folded", "standalone-only", "chapter-only", "unplaced"],
+          "description": "folded = lives in both a standalone paper and >=1 chapter. standalone-only = paper only, not yet folded into any chapter. chapter-only = a chapter carries it but no docs/harbor-research/tex/paperN.tex file does (yet). unplaced = neither a paper nor a chapter has it (today this is only R8, which the results compendium itself records as paperless; its only home is the compendium prose and its script)."
+        }
+      }
+    },
+    "location": {
+      "type": "object",
+      "required": ["file", "labels", "sections"],
+      "additionalProperties": false,
+      "properties": {
+        "file": { "type": "string", "description": "Repo-relative path to the .tex file." },
+        "labels": {
+          "type": "array",
+          "description": "LaTeX \\label{...} keys in this file that anchor the result (checked to exist by check_library_index.py's check (a)). May be empty when the result is stated in prose/a thebox with no amsthm environment or label of its own, in which case sections[] is the anchor of record.",
+          "items": { "type": "string" }
+        },
+        "sections": {
+          "type": "array",
+          "description": "Human-readable section pointers (e.g. \"S4 (sec:stage)\"), for a reader jumping to the spot -- descriptive only, not machine-verified against the compiled section numbering.",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "chapterLocation": {
+      "type": "object",
+      "required": ["file", "chapter", "prefix", "labels", "sections"],
+      "additionalProperties": false,
+      "properties": {
+        "file": { "type": "string", "description": "Repo-relative path to the chapter .tex file (whitepaper/textbook.json's \"source\")." },
+        "chapter": { "type": "integer", "minimum": 1, "description": "The chapter number from whitepaper/textbook.json." },
+        "prefix": { "type": "string", "description": "The chapter's \\pdchapterprefix, must equal whitepaper/textbook.json's \"prefix\" for this chapter (checked by check (e))." },
+        "labels": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "LaTeX \\label{...} keys in this chapter that anchor the result. May be empty when the fold is prose-only (e.g. a \"Status: item R14 of the research ledger\" aside with no dedicated environment)."
+        },
+        "sections": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Human-readable section pointers into the chapter."
+        }
+      }
+    },
+    "numberClaim": {
+      "type": "object",
+      "required": ["name", "value", "tag", "regex"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "description": "Short slug for the quantity, e.g. \"floor_B_star_bits\"." },
+        "value": { "type": "string", "description": "The number as printed (kept as a string: some are exact fractions, some are 199.0, some are 1,350)." },
+        "tag": {
+          "type": "string",
+          "enum": ["verified", "internal"],
+          "description": "verified = externally recomputable from a closed form/textbook fact. internal = regenerates from the named script at the program's seed (20260816)."
+        },
+        "regex": {
+          "type": "string",
+          "description": "A Python re pattern (re.search, no flags) that must match somewhere in the standalone file and in every listed chapter file for this entry. Written to tolerate the two files' independent LaTeX formatting of the same digits (e.g. a thousands-separator \\{,\\} in one and not the other)."
+        }
+      }
+    },
+    "allowEntry": {
+      "type": "object",
+      "required": ["id", "file", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The label being allowed (e.g. \"prop:legible-sovereign\"), or a synthetic id \"unlabeled-env:<repo-relative-file>:<line>\" for a theorem-family \\begin{...} environment that carries no \\label at all (the coverage checker computes the same synthetic id when scanning, so this must match exactly)."
+        },
+        "file": { "type": "string", "description": "Repo-relative path to the file the id/environment lives in -- disambiguates the same label text reused across independent documents." },
+        "reason": { "type": "string", "minLength": 1, "description": "Why this is not (yet) an index entry: chapter-native with no research-paper twin, a pre-existing unlabeled environment the task scope forbids labelling, etc." }
+      }
+    }
+  }
+}

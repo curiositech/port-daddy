@@ -34,7 +34,7 @@ This means:
 
 This is a much stronger condition. An agent can receive a message saying φ is true but not *know* it (if the agent cannot verify the source, or if there are worlds consistent with its observations in which the message is false). Conversely, an agent may know something without having been explicitly told — by ruling out all worlds in which it is false through its own observations.
 
-For WinDAGs agents: an agent that has received a confirmation message does not necessarily *know* the confirmed fact. It depends on whether the agent's model of the world has been updated to exclude all worlds in which the fact is false. This is the difference between **receiving information** and **achieving knowledge**.
+For Jury-rig agents: an agent that has received a confirmation message does not necessarily *know* the confirmed fact. It depends on whether the agent's model of the world has been updated to exclude all worlds in which the fact is false. This is the difference between **receiving information** and **achieving knowledge**.
 
 ## Higher-Order Knowledge: What Agents Know About Agent Knowledge
 
@@ -74,4 +74,4 @@ The Big Brother Logic framework shows what the ideal looks like. Agent system en
 
 ## Conclusion
 
-The Kripke model is not just a logical formalism — it is a design philosophy. It insists that uncertainty is structured, that knowledge is a function of what can be ruled out, and that higher-order reasoning about what other agents know is essential for correct coordination. For WinDAGs agents, internalizing this framework means asking, for every coordination design: "What is the Kripke model here? What do agents know, and what do they know about each other's knowledge? And how does the protocol produce the epistemic state required for correct collective behavior?"
+The Kripke model is not just a logical formalism — it is a design philosophy. It insists that uncertainty is structured, that knowledge is a function of what can be ruled out, and that higher-order reasoning about what other agents know is essential for correct coordination. For Jury-rig agents, internalizing this framework means asking, for every coordination design: "What is the Kripke model here? What do agents know, and what do they know about each other's knowledge? And how does the protocol produce the epistemic state required for correct collective behavior?"

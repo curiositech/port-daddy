@@ -16,6 +16,8 @@ import ActivityPanel from './components/ActivityPanel';
 import ActivityRail from './components/ActivityRail';
 import MemoryPanel from './components/MemoryPanel';
 import AgentsPanel from './components/AgentsPanel';
+import SessionPlanDetail from './components/SessionPlanDetail';
+import { requestedSessionId } from './sessionPlan';
 import RoadmapPanel from './components/RoadmapPanel';
 import CockpitMissionsPanel from './components/CockpitMissionsPanel';
 import ResourceGovernancePanel from './components/ResourceGovernancePanel';
@@ -79,6 +81,8 @@ function canUseWindow(): boolean {
 
 function normalizeSurface(value: string | null): ControlSurface {
   switch (value) {
+    case 'sessions':
+      return 'agents';
     case 'operator':
     case 'activity':
     case 'channels':
@@ -179,9 +183,9 @@ function mainTabToSurface(activeTab: MainTab): ControlSurface {
   return 'flow';
 }
 
-function readInitialRoute(): { project: string | null; surface: ControlSurface; embedded: boolean; agent: string | null } {
+function readInitialRoute(): { project: string | null; surface: ControlSurface; embedded: boolean; agent: string | null; session: string | null } {
   if (!canUseWindow()) {
-    return { project: null, surface: 'flow', embedded: false, agent: null };
+    return { project: null, surface: 'flow', embedded: false, agent: null, session: null };
   }
 
   const params = new URLSearchParams(window.location.search);
@@ -198,6 +202,7 @@ function readInitialRoute(): { project: string | null; surface: ControlSurface; 
     surface,
     embedded: embedded || explicitEmbed,
     agent: agent && agent.trim() ? agent.trim() : null,
+    session: requestedSessionId(params),
   };
 }
 
@@ -994,6 +999,7 @@ export default function App() {
   const fleet = useFleet(daemonUrl);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(initialRoute.project);
   const [selectedAgent, setSelectedAgent] = useState<string | null>(initialRoute.agent);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(initialRoute.session);
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
   const [configAgent, setConfigAgent] = useState<string | null>(initialRoute.agent);
   const [inspectorTab, setInspectorTab] = useState<'details' | 'settings'>('details');
@@ -1130,13 +1136,18 @@ export default function App() {
     } else {
       next.searchParams.delete('agent');
     }
+    if (selectedSessionId !== null && activeTab === 'Agents') {
+      next.searchParams.set('session', selectedSessionId);
+    } else {
+      next.searchParams.delete('session');
+    }
     if (embedded) {
       next.searchParams.set('embed', 'fleetbar');
     } else {
       next.searchParams.delete('embed');
     }
     window.history.replaceState({}, '', next);
-  }, [activeTab, embedded, selectedAgent, selectedProjectId]);
+  }, [activeTab, embedded, selectedAgent, selectedProjectId, selectedSessionId]);
 
   useEffect(() => {
     if (!configAgent || !selectedAgent || configAgent === selectedAgent) return;
@@ -1490,7 +1501,7 @@ export default function App() {
   const surfaceTabs: MainTab[] = ['Operator', 'Flow', 'Roadmap', 'Agents', 'Visual', 'Resources', 'Activity', 'Channels', 'Tube', 'TubeBrowser', 'Events', 'Inbox', 'Sorties', 'Memory', 'Metrics', 'Galaxy', 'Dispatch', 'Cockpit', 'CoastGuard', 'Shipwright', 'YAML'];
   // Visual task intake can start from a screenshot before the operator picks a repo.
   // It still attaches a project when FleetBar opens it from a project context.
-  const allProjectSurfaceTabs: MainTab[] = ['Operator', 'Flow', 'Visual', 'Metrics', 'Galaxy', 'TubeBrowser', 'Dispatch', 'Cockpit', 'CoastGuard', 'Shipwright'];
+  const allProjectSurfaceTabs: MainTab[] = ['Operator', 'Flow', 'Agents', 'Visual', 'Metrics', 'Galaxy', 'TubeBrowser', 'Dispatch', 'Cockpit', 'CoastGuard', 'Shipwright'];
   const showProjectSidebar = activeTab === 'Flow' && !embedded;
   const visibleSurfaceTabs = selectedProjectId ? surfaceTabs : allProjectSurfaceTabs;
   const handleProjectRefresh = useCallback(() => {
@@ -1594,7 +1605,16 @@ export default function App() {
       )}
 
       <AnimatePresence mode="wait">
-        {!selectedProjectId ? (
+        {activeTab === 'Agents' && selectedSessionId !== null ? (
+          <div key="exact-session" className="flex-1 min-h-0 overflow-hidden">
+            <SessionPlanDetail sessionId={selectedSessionId} daemonKey={daemonUrl} onBack={() => setSelectedSessionId(null)} />
+          </div>
+        ) : !selectedProjectId ? (
+          activeTab === 'Agents' ? (
+            <div key="agents-all" className="flex-1 min-h-0 overflow-auto">
+              <AgentsPanel daemonKey={daemonUrl} onOpenSession={setSelectedSessionId} />
+            </div>
+          ) :
           activeTab === 'Visual' ? (
             <motion.div key="visual-all-wrap" className="flex-1 overflow-hidden flex flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}>
               <VisualTaskPanel
@@ -1915,6 +1935,7 @@ export default function App() {
                     {activeTab === 'Agents' && (
                       <AgentsPanel
                         daemonKey={`${daemonUrl}:${selectedProjectId ?? 'all'}`}
+                        onOpenSession={setSelectedSessionId}
                         projectName={selectedProjectName ?? undefined}
                         projectDir={selectedProjectId ?? undefined}
                         fleetConfig={fleetConfig}

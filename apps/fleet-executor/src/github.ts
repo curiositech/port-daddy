@@ -16,23 +16,15 @@
 // ---------------------------------------------------------------------------
 // GitHub App JWT (no @octokit/auth-app — Workers-native Web Crypto)
 
-async function signJwt(payload: Record<string, unknown>, pemKey: string): Promise<string> {
-  // Decode PEM → DER
-  const pem = pemKey
-    .replace(/-----BEGIN RSA PRIVATE KEY-----/, '')
-    .replace(/-----END RSA PRIVATE KEY-----/, '')
-    .replace(/-----BEGIN PRIVATE KEY-----/, '')
-    .replace(/-----END PRIVATE KEY-----/, '')
-    .replace(/\s/g, '');
-  const der = Uint8Array.from(atob(pem), c => c.charCodeAt(0));
+import {
+  githubAppPrivateKeyDer,
+  importGitHubAppSigningKey,
+} from '../../shared/github-app-crypto.js';
 
-  const key = await crypto.subtle.importKey(
-    'pkcs8',
-    der,
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  );
+export { githubAppPrivateKeyDer };
+
+async function signJwt(payload: Record<string, unknown>, pemKey: string): Promise<string> {
+  const key = await importGitHubAppSigningKey(pemKey);
 
   const header = { alg: 'RS256', typ: 'JWT' };
   const enc = (obj: unknown) =>
@@ -291,6 +283,8 @@ export interface PRFile {
   patch?: string;
   additions: number;
   deletions: number;
+  /** Present only when `status === 'renamed'`; the path before the rename. */
+  previous_filename?: string;
 }
 
 export interface PRContext {
@@ -371,6 +365,16 @@ export interface PRContext {
    * sensitive path must never disappear behind a surface gate.
    */
   filesTruncated: boolean;
+  /**
+   * Where {@link diff} came from. `'raw'` is GitHub's own unified diff
+   * (`Accept: application/vnd.github.v3.diff`). `'reconstructed-from-files'`
+   * means that endpoint refused the PR (406 — over GitHub's own diff-render
+   * limits) and the text was rebuilt from the `/files` patches instead; see
+   * {@link PullRequestDiffFetchError}. Carried so the ships and the check-run
+   * summary can say a review ran on rebuilt evidence rather than GitHub's own
+   * rendering.
+   */
+  diffSource: 'raw' | 'reconstructed-from-files';
 }
 
 /** Small live witness used at mutation/checkpoint boundaries without reloading diff/files. */
@@ -396,6 +400,12 @@ export interface PullRequestMetadataWitness {
  * typed error so it can retry this transient dependency and, after exhaustion,
  * let the DLQ complete the required Fleet check as infrastructure failure.
  *
+ * NOTE: a 406 from this endpoint is NOT this error — see
+ * {@link fetchPRContext}, which reconstructs the diff from `/files` instead,
+ * because 406 means GitHub is refusing on the PR's own size (not a transient
+ * fault four retries could ever fix). Every OTHER non-OK status still throws
+ * this, for the reasoning above.
+ *
  * @param status The GitHub HTTP status returned by the raw-diff endpoint.
  */
 export class PullRequestDiffFetchError extends Error {
@@ -403,6 +413,128 @@ export class PullRequestDiffFetchError extends Error {
     super(`fetch pull request raw diff failed ${status}`);
     this.name = 'PullRequestDiffFetchError';
   }
+}
+
+/**
+ * GitHub returns 406 on the raw-diff endpoint once a pull request exceeds its
+ * own diff-rendering limits (more than 300 files, or more than 20,000 changed
+ * lines) — observed on a 357-file PR (#10077), dead-lettering on every push
+ * because the status never changes across the queue's four retries. The
+ * `/files` endpoint keeps answering at that size, so this walks EVERY page of
+ * it (not just the first) and hands back the full inventory for
+ * {@link reconstructDiffFromFiles} to render.
+ *
+ * Bounded two ways: each page read is capped at {@link MAX_FILES_BYTES} like
+ * the normal path, and the walk itself stops at a generous page ceiling so a
+ * pathological file count cannot hold the isolate fetching forever. Either
+ * limit sets `truncated`, which the caller folds into `filesTruncated` same
+ * as any other incomplete inventory.
+ */
+const MAX_RECONSTRUCT_FILE_PAGES = 30;
+
+async function fetchAllPrFilesForReconstruction(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  token: string,
+): Promise<{ files: PRFile[]; truncated: boolean }> {
+  const files: PRFile[] = [];
+  for (let page = 1; page <= MAX_RECONSTRUCT_FILE_PAGES; page++) {
+    let res: Response;
+    try {
+      res = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files?per_page=${PR_FILES_PAGE_SIZE}&page=${page}`,
+        { headers: ghHeaders(token) },
+      );
+    } catch {
+      return { files, truncated: true };
+    }
+    if (!res.ok) {
+      return { files, truncated: true };
+    }
+    const read = await readTextCapped(res, MAX_FILES_BYTES);
+    if (read.truncated) {
+      return { files, truncated: true };
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(read.text);
+    } catch {
+      return { files, truncated: true };
+    }
+    if (!Array.isArray(parsed)) {
+      return { files, truncated: true };
+    }
+    const pageFiles = parsed as PRFile[];
+    files.push(...pageFiles);
+    if (pageFiles.length < PR_FILES_PAGE_SIZE) {
+      return { files, truncated: false };
+    }
+  }
+  // Every page up to the ceiling came back full: more may remain.
+  return { files, truncated: true };
+}
+
+/**
+ * One line of review-visible evidence in place of a missing `patch`. GitHub
+ * omits `patch` for two different reasons and a reviewer needs to tell them
+ * apart: a genuinely binary file (GitHub reports 0/0 additions/deletions for
+ * those) versus a text file whose own diff GitHub judged too large to render
+ * — silently treating either as "no change" is how a real edit disappears
+ * from review.
+ */
+function reconstructedFileMarker(file: PRFile): string {
+  if (file.additions === 0 && file.deletions === 0) {
+    return `Binary files a/${file.filename} and b/${file.filename} differ`;
+  }
+  return 'patch omitted by GitHub (diff too large to include)';
+}
+
+/**
+ * One `diff --git` segment built from a single `/files` entry. GitHub's
+ * `patch` field starts at the first `@@` hunk header with no `diff --git` /
+ * `new file` / `rename` preamble of its own, so those are synthesized here
+ * from `status` and `previous_filename` — the same information a real
+ * `git diff` derives from the same rename/add/delete facts.
+ */
+function buildFileDiffSegment(file: PRFile): string {
+  const before = file.status === 'renamed' && file.previous_filename ? file.previous_filename : file.filename;
+  const lines: string[] = [`diff --git a/${before} b/${file.filename}`];
+  if (file.status === 'added') {
+    lines.push('new file mode 100644');
+  } else if (file.status === 'removed') {
+    lines.push('deleted file mode 100644');
+  } else if (file.status === 'renamed' && file.previous_filename) {
+    lines.push(`rename from ${file.previous_filename}`);
+    lines.push(`rename to ${file.filename}`);
+  }
+  lines.push(file.patch ?? reconstructedFileMarker(file));
+  return lines.join('\n');
+}
+
+/**
+ * Render the `/files` inventory as a unified-diff-shaped string when the raw
+ * diff endpoint refused the PR outright (406). Bounded exactly like the raw
+ * path ({@link MAX_DIFF_BYTES}): built incrementally, one file segment at a
+ * time, so a reconstruction that would exceed the cap stops there rather than
+ * ever holding the whole oversized text in memory first.
+ */
+function reconstructDiffFromFiles(files: PRFile[], maxBytes: number): CappedRead {
+  const encoder = new TextEncoder();
+  const parts: string[] = [];
+  let bytes = 0;
+  let truncated = false;
+  for (const file of files) {
+    const segment = `${buildFileDiffSegment(file)}\n`;
+    const segBytes = encoder.encode(segment).byteLength;
+    if (bytes + segBytes > maxBytes) {
+      truncated = true;
+      break;
+    }
+    parts.push(segment);
+    bytes += segBytes;
+  }
+  return { text: parts.join(''), bytes, truncated };
 }
 
 /**
@@ -533,50 +665,77 @@ export async function fetchPRContext(
   if (!prRes.ok) {
     throw new Error(`fetch pull request failed ${prRes.status}: ${await prRes.text()}`);
   }
-  // The raw diff is the only source the MAP/REDUCE ships inspect. A non-OK
-  // response must escape as infrastructure failure, never become an empty
-  // diff that a model can incorrectly bless as a complete clean review.
-  if (!diffRes.ok) {
-    throw new PullRequestDiffFetchError(diffRes.status);
-  }
   const livePr = (await prRes.json()) as typeof eventPr;
 
-  // Both bodies are bounded (#7743). They arrive concurrently, so the peak is
-  // their sum; an unbounded read of either one can kill the isolate before any
-  // catch block exists to report it.
+  let diffSource: PRContext['diffSource'] = 'raw';
   let files: PRFile[] = [];
-  // A failed, malformed, capped, or exactly-full first page cannot prove the
-  // whole changed-file set. Carry that uncertainty to the executor instead of
-  // silently letting surface gates treat an empty/partial inventory as exact.
-  let filesTruncated = !filesRes.ok;
-  if (filesRes.ok) {
-    const read = await readTextCapped(filesRes, MAX_FILES_BYTES);
-    if (read.truncated) {
-      // A truncated body is not parseable JSON. Degrade to "no file list"
-      // rather than throwing: the ships review the diff, and the mediator's
-      // line-mapping simply falls back. Silent would be worse than empty, so
-      // the flag rides along on the context.
-      filesTruncated = true;
-    } else {
-      try {
-        const parsed: unknown = JSON.parse(read.text);
-        if (!Array.isArray(parsed)) {
-          filesTruncated = true;
-        } else {
-          files = parsed as PRFile[];
-          // This endpoint requests one page only. An exact page could be the
-          // complete set or merely the first 100 entries; fail closed to a
-          // complete-inventory claim until pagination is implemented.
-          filesTruncated = files.length >= PR_FILES_PAGE_SIZE;
-        }
-      } catch {
+  let filesTruncated: boolean;
+  let diff: string;
+  let diffBytes: number;
+  let diffTruncated: boolean;
+
+  if (!diffRes.ok && diffRes.status === 406) {
+    // GitHub's own diff-render limit (>300 files or >20,000 changed lines),
+    // not a transient fault — the four queue retries below this call cannot
+    // make a 357-file PR smaller (#10077, dead-lettering on every push while
+    // /files answered fine in the same request). Rebuild reviewable evidence
+    // from the file inventory instead of surrendering the run to
+    // infrastructure failure.
+    diffSource = 'reconstructed-from-files';
+    const walk = await fetchAllPrFilesForReconstruction(owner, repo, prNumber, token);
+    files = walk.files;
+    filesTruncated = walk.truncated;
+    const reconstructed = reconstructDiffFromFiles(files, MAX_DIFF_BYTES);
+    diff = reconstructed.text;
+    diffBytes = reconstructed.bytes;
+    diffTruncated = reconstructed.truncated;
+  } else if (!diffRes.ok) {
+    // The raw diff is the only source the MAP/REDUCE ships inspect. A non-OK
+    // response must escape as infrastructure failure, never become an empty
+    // diff that a model can incorrectly bless as a complete clean review.
+    // (406 is handled above via reconstruction; every OTHER status here means
+    // the evidence genuinely never arrived, so it must still fail closed.)
+    throw new PullRequestDiffFetchError(diffRes.status);
+  } else {
+    // Both bodies are bounded (#7743). They arrive concurrently, so the peak
+    // is their sum; an unbounded read of either one can kill the isolate
+    // before any catch block exists to report it.
+    // A failed, malformed, capped, or exactly-full first page cannot prove
+    // the whole changed-file set. Carry that uncertainty to the executor
+    // instead of silently letting surface gates treat an empty/partial
+    // inventory as exact.
+    filesTruncated = !filesRes.ok;
+    if (filesRes.ok) {
+      const read = await readTextCapped(filesRes, MAX_FILES_BYTES);
+      if (read.truncated) {
+        // A truncated body is not parseable JSON. Degrade to "no file list"
+        // rather than throwing: the ships review the diff, and the mediator's
+        // line-mapping simply falls back. Silent would be worse than empty,
+        // so the flag rides along on the context.
         filesTruncated = true;
+      } else {
+        try {
+          const parsed: unknown = JSON.parse(read.text);
+          if (!Array.isArray(parsed)) {
+            filesTruncated = true;
+          } else {
+            files = parsed as PRFile[];
+            // This endpoint requests one page only. An exact page could be
+            // the complete set or merely the first 100 entries; fail closed
+            // to a complete-inventory claim until pagination is implemented.
+            filesTruncated = files.length >= PR_FILES_PAGE_SIZE;
+          }
+        } catch {
+          filesTruncated = true;
+        }
       }
     }
-  }
 
-  const diffRead = await readTextCapped(diffRes, MAX_DIFF_BYTES);
-  const diff = diffRead.text;
+    const diffRead = await readTextCapped(diffRes, MAX_DIFF_BYTES);
+    diff = diffRead.text;
+    diffBytes = diffRead.bytes;
+    diffTruncated = diffRead.truncated;
+  }
 
   return {
     owner,
@@ -607,9 +766,10 @@ export async function fetchPRContext(
     installationId: 0,
     files,
     diff,
-    diffBytes: diffRead.bytes,
-    diffTruncated: diffRead.truncated,
+    diffBytes,
+    diffTruncated,
     filesTruncated,
+    diffSource,
   };
 }
 

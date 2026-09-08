@@ -15,7 +15,7 @@ metadata:
     maintainers: [port-daddy]
   distribution:
     public: false
-    note: "Sync to internal coordination paths inside the port-daddy repo only. Do not publish to windags-skills, .claude marketplaces, or other public catalogs. The port-daddy-agent-skill is the public-facing companion."
+    note: "Sync to internal coordination paths inside the port-daddy repo only. Do not publish to external-skill-catalog, .claude marketplaces, or other public catalogs. The port-daddy-agent-skill is the public-facing companion."
   mirrors:
     repo: skills/port-daddy-internal-dev
     codex: .codex/skills/port-daddy-internal-dev
@@ -98,10 +98,9 @@ repo-specific mechanics:
   whitepapers registered in `website-v2/src/data/whitePapers.ts` (Legible Swarm,
   Single-Writer Kernel, Spawn to Person, Harbor Economy, Anchor Protocol, Bonded
   Commons, Federated Harbor); note drift in the PR.
-- **Skill matching.** If you're missing a matching skill, pause and do skill
-  research. The intended home is a **seamanship** match-cascade/graft selector
-  (proposed, not yet built — modelled on windags `windags_skill_induct` /
-  `windags_skill_graft`); until it lands, match by hand against `skills/`.
+- **Skill matching.** If you're missing a matching skill, pause and run
+  `pd jury-rig query`. It uses Port Daddy's native hybrid catalog and guarded
+  reference loader; no external skill runtime is required.
 - **Launch work through PD spawn** (`pd spawn`, SDK `spawn()`, or MCP `spawn`),
   never a raw side-channel — so the work is registered, sandboxed, budgeted, salvageable.
 - **Managers orchestrate; workers author PRs.** A manager lane delegates
@@ -385,26 +384,52 @@ carries the canonical copy — this is the contributor-repo mirror.
 
 **Create.** Linked worktree off `origin/main` under `~/coding/tmp/wt-<slug>`
 (never the main checkout — it carries the operator's WIP) → `pd begin
-"<purpose>" --identity port-daddy:contrib:<slug>` → scope `pd note` → `pd
-session files add <files>` *before* editing → edit → `pd guard check
---staged` → commit (no Claude co-author trailer) → `git push -u origin
-<branch>` → `gh pr create` → `pd done`.
+"<purpose>" --identity port-daddy:contrib:<slug> --lifecycle durable` → full
+`pd plan set` → scope `pd note` → smallest claims *before* editing → edit and
+test → `pd guard check --staged` → frequent coherent checkpoints with verified
+agent author/committer attribution → ready, non-draft App/Fleetbot PR through
+the authorized publication path. A checkpoint is not delivery; **do not run
+`pd done` at PR creation**. Retain ownership through actual merge.
 
-**Update** (review + CI). Pull bot comments with `gh api
-repos/curiositech/port-daddy/pulls/<n>/comments` and fix the real ones.
-Land every HIGH adversarial finding as a named fixup commit. Get `npx tsc
+GitHub writes (push, PR, comment, review and queue mutations) use that scoped
+App path, never ambient personal `gh`/API credentials. Read-only inspection is
+distinct from publication and may use tools permitted by repository/operator
+policy; where **all GitHub access is broker-routed**, honor that policy for
+reads too. A planned ActionReceipt API or an ad-hoc helper is not a shipped
+surface. If the required publisher is missing, preserve the exact commits and
+body, record the missing capability and arrange an accepting handoff; do not
+invent a command, switch identities or replay an uncertain write.
+
+**Update** (review + CI). Read live comments, replies and checks through the
+permitted inspection path. Respond graciously, incorporating actionable
+feedback unless clearly wrong or harmful; explain disagreements with evidence.
+Add regression tests and land high-confidence findings as named fixup commits.
+Get `npx tsc
 --noEmit`, jest, `npm run parity`, and the build green. Rebase onto latest
-`origin/main`, resolve conflicts, push.
+`origin/main`, resolve conflicts with affected owners, validate and update the
+same App PR. Read-only reviewers must not push or merge; preserve role scope.
 
 **Land.** Merge in dependency order: base before dependent, and rebase the
 dependent after *each* merge — mergeability can flip MERGEABLE → CONFLICTING
-the moment the base lands. Use the protected flow: `gh pr merge <n> --auto`
-when the merge queue is active, and let branch protection choose the merge
-strategy. Do not add `--squash`, `--merge`,
-`--rebase`, or `--admin` as routine agent flow. A human maintainer may make an
+the moment the base lands. Use the authorized App protected merge/queue path
+and let branch protection choose the merge strategy. Keep required checks and
+review gates intact; neutral/skipped Fleet is not a clean required verdict.
+Queue admission is not merge: verify the actual merged-head receipt, merge
+commit and timestamp, then update the full plan and typed roadmap PR receipt
+before ordinary `pd done`. Do not add `--admin` as routine agent flow. A human maintainer may make an
 explicit, documented emergency bypass; an agent does not admin-skip a real
 required gate. Cloudflare Pages may be external/advisory, but prove that from
 branch protection and record the evidence before treating it as non-blocking.
+
+The ordinary completion Git gate verifies clean, origin-bound publication or
+advertised-default-branch ancestry, not the reviewed protected merge required
+above. `lib/git-origin-check.ts` returns the exact proof kind and commit/ref
+observation; missing local tracking metadata must not be labeled never-pushed.
+Keep tests for absent and deleted upstreams, dirty/untracked work, non-origin
+refs, missing objects and read-time movement. Reads have a ten-second total
+budget, bounded output and no interactive prompts; they do not fetch, rewrite
+refs/config, infer squash/rebase delivery, or promote the installed runtime.
+The separate ledger-only `--no-pr` verifier remains unchanged.
 
 **Cleanup.** Delete a worktree only when its branch is merged AND `git -C
 <wt> status --porcelain` is clean. Never delete a worktree with uncommitted
@@ -467,18 +492,28 @@ The friction below costs every fresh session real time. Internalize it.
   check --staged`.
 - **A `git add -A` / `reset --hard` / `rebase` refused with "coordination
   guard … could not be verified"** (not the routine advisory refusal) means the
-  daemon-side guard couldn't confirm your session. Re-run `pd begin`, then
-  retry. If direct session state, claims, and the refusal still disagree,
-  publish exact evidence to `coordination:inconsistency` and surface the blocker
-  to the operator instead of routing around the guard.
-- **Environment variables override context slot**: When running Port Daddy commands (like `pd begin`, `pd done`, `pd session files add`) inside subagent execution lanes spawned by harnesses (such as Antigravity/Claude Code), the harness may inject `PD_SESSION_ID` and `PD_AGENT_ID` of the parent/old session into the environment. Because the CLI prioritizes these environment variables over context slot files, any command will resolve to that old session (which may be completed, leading to "No active session found"). Fix this by prefixing your commands with `PD_SESSION_ID="" PD_AGENT_ID=""` to force the CLI to read the active context from the filesystem context slots.
+  daemon-side guard could not confirm your session. Inspect the selected daemon,
+  exact session, owner, physical worktree/root and retained claim history. Do
+  not rerun `pd begin` to hide the disagreement. Use supported authorized
+  recovery, read back its actual successor/claim disposition, or record the
+  bounded defect and continue authorized disjoint work. Missing projections
+  and released history are not permission to borrow claims or credentials.
+- **Inherited selectors are not a recovery shortcut.** Only at launch of a
+  genuinely new child with its own context slot may the launcher remove
+  inherited parent selectors before fresh admission. Never clear an existing
+  `CONTEXT_CONFLICT`, broaden selectors, or copy a credential to bypass a proven
+  contradiction. Retain the exact caller for notes, claims and completion;
+  inspect runtime support before any recovery mutation and read back the result.
 - **Binary drift in integration tests on dev machine**: Ephemeral test daemons started by the integration test framework will verify binary hashes. If there's a global Homebrew or PATH-installed `pd` binary, it may cause false positive "binary drift" checks. Fix this by overriding the comparable on-disk path by setting `PORT_DADDY_BIN_OVERRIDE: process.execPath` inside the test environment for both the CLI runs and the ephemeral daemon spawns (now configured automatically in `tests/helpers/integration-setup.js` and `tests/helpers/ephemeral-daemon.js`).
 - **Roadmap authority during Oracle cutover**: Core coordination paths may still trigger the legacy Coordination Guard check for a local roadmap receipt. Do not satisfy that check by minting or touching a local roadmap row: local roadmap stores and files are transitional projections, not new authority. Use an attributable, fresh, signed remote Oracle work receipt once that writer is deployed and a remote read-back succeeds. Until then, fail closed and record the exact violation plus the operator-authorized, narrowly scoped commit exception or handoff for the slice; do not weaken Guard globally or claim a canonical remote receipt.
+- **Guard receipt lookups must not infer absence from a capped list.** Linked sessions read only their exact `roadmapLink` in the same intended harbor selected by `pd roadmap` writes; wrong-harbor and unrelated-item receipts cannot satisfy them. Keep freshness and agent attribution checks. Unlinked sessions use one scoped bounded page, reporting incomplete or unavailable evidence separately from missing receipts. These are local projection checks, not canonical remote authority.
+- **Heartbeat liveness is not durable work authority.** Automatic expiry preserves durable sessions and claims; only verified active durable bindings retain an inactive, not-ready directory row. Harvest and report only the ephemeral IDs actually abandoned. Existing replacement capsules stay held with `holdReason: durable_session_active`, never reopened by heartbeat or ordinary salvage callbacks. A previously admitted attempt is not canceled by a hold. Queue-hold clearance is not implemented; existing explicit session end, abandon, and takeover do not clear the saved hold. Source tests prove this preservation boundary, not an installed daemon upgrade or completed recovery UI.
 - **Rich Docstring Mandate (TypeScript and Rust)**: Every library function and method in the codebase must carry rich, informative documentation. This is enforced by the `npm run check:rich-docs` (under `scripts/check-rich-docs.mjs`) validation loop. TypeScript functions/methods must use `/** ... */` JSDoc blocks including `@param` and `@returns` tags (when parameters/return values are present) and discuss design, motivation, or philosophical rationale (e.g., matching keywords: `motivation`, `purpose`, `philosophy`, `why`, `design`, `intent`). Rust functions must use `///` doc comments discussing the same motivation/philosophy keywords and parameter/return usage. You can run `npm run check:rich-docs -- --staged` to fast-audit only your changed/staged files.
 - **Hook fan-out is host-visible work, not free middleware**: Codex schedules a command hook once per matching nested tool call and renders concurrent batches as concurrent hook jobs. Never register an observational synchronous `PostToolUse` command, and never match an edit gate against broad `Bash` / `exec_command` / shell surfaces when the gate cannot derive a canonical target. The shipped topology is one turn briefing plus a synchronous gate only for direct edit tools; claims and notes are the cumulative outcome record. A six-tool read-only batch must schedule zero Port Daddy tool hooks. The raw debug/headless `pd-hook-post-tool` asset remains staged, but the stable interactive wrapper is an immediate zero-work tombstone so a running provider with cached config cannot resurrect it; never “repair” that wrapper by copying the raw tentacle over it. Its absence from provider config is intentional and must still diagnose as LIVE.
 - **Hook config paths are a durable interface, not a package location**: resolve versioned release assets only while staging; every Claude/Codex/Gemini/agy lifecycle config must call `~/.port-daddy/bin/pd-hook-*`. Release smoke must reject `/Cellar/` paths, and uninstall/repair must sweep legacy project-local Codex TOML without touching user hooks. The generated wrapper owns a CLOSED/OPEN/HALF_OPEN circuit breaker (3 consecutive failures or >250 ms, 5-minute cooldown, one probe, zero hook retries). Measure latency through external `/usr/bin/time -p -o`; shell-reserved `time` leaks outside redirections under dash. A missing timer must fail open, trip the same breaker, and request FleetBar Repair. Test unexpected exit, missing executable, missing timer, slow execution, exit-2 enforcement, concurrent accounting, one-shot FleetBar remediation, repair reset, minimal tooling, macOS/Linux shell behavior, and compiled artifact wiring as separate V&V seams.
 - **Harness introspection is a bounded interface**: `pd squid status` and `pd squid debug status` must read one sanitized timeline source and emit valid JSON regardless of retained history size. Cap recent steps and matrix values, expose total/returned/truncated metadata, and keep descriptions beside actual/expected timestamps. When capture is off, routine status must omit retained session identifiers and absolute workspace/event paths; only explicit debug status may reveal that diagnostic window. The portable shell compactor must strip BSD/macOS `wc -c` whitespace before its numeric guard and remove the first partial line after `tail -c`, or the nominal byte ceiling silently stops working and the retained TSV begins with a corrupt record. Test a multi-thousand-record fixture, macOS-padded byte counts, complete record boundaries, and a response-size ceiling; a JSON EOF is an interface failure even when the underlying daemon route returned 200.
 - **Arrival and sitrep are on the critical path**: optional `pd begin` peer guidance is semantic-only, capped to three, fail-open, and budgeted at 75 ms total — disable reconnect retries, abort the active request, and test a transport that never settles. Sitrep must project and cap every top-level collection, nested salvage notes, and text field; preserve exact note totals separately from the DB-bounded preview. `--quiet` must request a summary-only route rather than fetching a full payload and discarding it locally. A fast database query that serializes 200 KB of histories is still a failed launcher interface.
+- **Durable history needs admission, not lifetime erasure**: ordinary durable note appends have no lifetime count ceiling; SQLite atomically checks 60 writes/60s per session with the append, preserving originals and returning a precise retry time. Bound content to 10 KiB UTF-8 and type metadata to 128 bytes at the library boundary. Only an actual active-to-terminal transition gets one bounded handoff outside burst admission; repeated end calls are no-ops and a caller-selected handoff type is ordinary admission. Ephemeral 500 remains. Typed/since reads must apply the requested 1–1000 limit in SQL, and write authorization must not materialize notes/claims/counts; full-history detail remains explicit existing behavior. Test 601+ actual appends, normal plan/check/done, exact persisted totals, two-connection contention, Unicode, SQLITE_FULL/rollback, auth refusal and post-commit projection failure. Do not claim installed runtime proof, a hostwide quota, or cursor/UI pagination. Replicated history is not fresh authoring: use the internal project-bound synchronous page transaction, preserve original content/time and existing encryption, and commit notes/cursor/bindings atomically. Populate the key cache and emit projections only after commit; projection failures are separate from storage success. Never add a public rate-bypass flag; count only ordinary-origin rows for ordinary bursts. Incoming room pages allow 1000 operations and need their own finite byte/deadline bound, not the smaller outgoing envelope budget.
 - **A preferred port is not endpoint evidence**: startup may seed `9876`, but SDK/CLI connection resolvers must use an explicit URL, a real socket, or a strictly parsed published port. Keep forgiving seed helpers separate from strict connection helpers, including public display fields and socket-to-TCP fallback. Reject a protocol the returned connection target cannot carry: the current Node target is HTTP-only, so accepting `https:` and then calling `node:http` is a plaintext-to-TLS-port defect, not compatibility. Fixture-test absent, malformed, unreadable, environment-published, file-published, unsupported-protocol, and constructor-URL-over-socket cases without consulting the developer's live daemon. The compiled smoke must use AF_UNIX-safe paths under `~/coding/tmp` and prove Unix plus TCP health on both boots.
 - **Provider CLI policy flags are versioned interfaces**: dogfood the exact packaged spawn argv against the installed provider CLI, not only a mocked child process. Current Codex defines `--approve-for-me` as automatic review inside `workspace-write`; combining it with `--sandbox workspace-write` is a hard parse error before an agent starts. Direct spawn and Tube builders must share this compatibility invariant, and a reviewer that cannot launch is a product red, not a reason to waive review.
 - **A Cloudflare Queue delivery is not a logical Fleet run**: persist an ingress intent before `queue.send()`, idempotently key it by webhook delivery id, and assign a monotonic generation per repo + PR. Only supersede older active generations after the newer queue send succeeds; otherwise a transient admission failure can erase the last valid review. The executor must compare-and-swap that intent before spend so duplicate deliveries, retries, and stale heads acknowledge without re-running ships. Project activity from the intent ledger plus `fleet_runs`; label D1-known queue depth and expected timestamps as estimates, never Cloudflare-internal position. Keep active rows out of retention deletion, delete intent-only receipts through the same operator contract, and test the webhook, executor race, rollback-without-table path, signed-in receipt, and terminal retention seams independently.
@@ -524,7 +559,27 @@ block in its frontmatter declares targets:
 | `.claude/skills/` | Claude Code agents on this repo | install.sh + brew post_install |
 | `.agents/skills/` | Generic AGENTS.md-aware tools | install.sh |
 | `.gemini/extensions/port-daddy/skills/` | Gemini CLI extension surface | install.sh |
-| windags-skills (out of repo) | Public catalog distribution | manual `cp -r` from this repo to `~/coding/windags-skills/skills/` |
+| external-skill-catalog (out of repo) | Public catalog distribution | manual `cp -r` from this repo to `~/coding/external-skill-catalog/skills/` |
+
+The standalone `scripts/install-pilot-agents.ts` accepts `--source-dir` before
+Homebrew discovery; an invalid explicit source never falls back. Preview with
+`--dry-run`, then bind an apply using both `--expect-agent-sha256` and
+`--expect-config-sha256` from the captured source receipt. Those digests describe
+the exact prompt/config bytes rendered into all five formats, not trusted-source
+attestation, atomic target replacement or proof of an installed runtime. Without
+a source override, package-first defaults remain and no setup/MCP flags are added;
+the shared target executor now governs replacement, cleanup and uninstall.
+
+Target ownership requires a verified prior output record, never an ID substring
+or equality with newly rendered bytes. Preserve historical unmanaged targets.
+`--expect-target-sha256` binds an explicitly reviewed target preview; without that
+pin, apply validates an immediate snapshot, not a separately reviewed or signed
+plan. Source validation precedes target, backup and receipt writes; preview writes
+nothing. `--uninstall` and explicit `--recover <run-id>` require both source and
+base directories. Partial recovery must preserve later edits and report unresolved
+evidence. There is no force/adopt option, automatic recovery, actor grant, same-UID
+sandbox or all-five-file transaction. Source tests do not authorize a real-home
+installation; machine actuation needs its own exact preview and execution evidence.
 
 `port-daddy-internal-dev` (this skill) **is intentionally absent** from
 the mirrors-list above. Do not propose distributing it. Its presence on a
@@ -582,25 +637,25 @@ before-window stats and gets judged on its after-window. The gpt-oss-20b
 author tier (#8870: 75% repair failure, half the fleet's verdicts washed out)
 is the tombstone for choosing a tier off a price note without a scoreboard.
 
-## Catalog-First Reflex (windags MCP, internal edition)
+## Catalog-First Reflex (Jury-rig, internal edition)
 
-Port Daddy contributors are not exempt from the catalog. The 600+ skills
-in `~/coding/windags-skills/` cover most patterns you'll hit while
-editing this codebase: rate limiting, caching, websocket protocols,
+Port Daddy contributors are not exempt from the local catalog. Project,
+user, and explicitly configured skill roots cover most patterns you'll hit
+while editing this codebase: rate limiting, caching, websocket protocols,
 distributed transactions, pre-mortems, evaluation harnesses, design
 systems for the website, and more.
 
 ```bash
-windags_skill_search "<the thing you're about to do>"
-windags_skill_graft <skill-id> [skill-id...]
+pd jury-rig query "<the thing you're about to do>"
+pd jury-rig reference <skill-id> <path-within-skill>
 ```
 
 **Before every contributor slice**, one search. Examples that have paid off:
 
-- Editing the daemon's lock-acquire path? `windags_skill_search "distributed lock semantics"` → grafts `distributed-algorithms` and `sagas-garcia-molina-salem-1987`.
-- Adding a new MCP tool description? `windags_skill_search "MCP tool description writing"` → grafts `mcp-creator` if relevant.
-- Touching the website? `windags_skill_search "responsive layout master"` and friends — the design-system skills ship with usable component patterns.
-- Writing pre-release tests? `windags_skill_search "adversarial QA"` → grafts `qa-automation-specialist` or `webapp-testing`.
+- Editing the daemon's lock-acquire path? `pd jury-rig query "distributed lock semantics"` surfaces the closest local guidance.
+- Adding a new MCP tool description? `pd jury-rig query "MCP tool description writing"` surfaces `mcp-creator` when installed.
+- Touching the website? `pd jury-rig query "responsive layout master"` finds the available design-system skills.
+- Writing pre-release tests? `pd jury-rig query "adversarial QA"` finds installed QA and web-app testing guidance.
 
 If the catalog is wrong or stale for our domain, that's a Cartographer
 issue: `pd actor cartographer --message "Catalog gap: <what skill should exist>. Use case: <internal slice>."`
@@ -691,14 +746,16 @@ re-asking them is the failure mode this section exists to kill.
    are first-class reviews: fix-and-reply, or dismiss-with-reason against
    origin/main. A PR with unanswered threads is not "ready".
 5. **Land in dependency order**, base before dependent, rebasing the
-   dependent after each merge. Use `gh pr merge <n> --auto` for merge-queue
-   repos and let the protected branch choose strategy. Admin bypass is not a
-   routine agent landing path.
+   dependent after each merge. Use the authorized App protected merge/queue
+   path; required checks and review gates stay binding. Queue admission is not
+   merge. Verify the actual merged-head receipt before advancing dependents.
 6. **Clean up**: delete only worktrees whose branch is merged AND whose
    `git status --porcelain` is clean. Never touch the main checkout.
 7. **Close the ledger**: `pd note "Result: ... Validation: ... Remaining: ..."`,
-   `pd done`, `pd feedback` — and if the sweep taught this skill something,
-   land the skill edit in the same sweep.
+   the complete plan and typed roadmap PR receipt, then `pd done` and
+   `pd feedback` only after actual merge or an accepting, attributable handoff.
+   Preserve unfinished work in the plan; PR creation is not completion. If the
+   sweep taught this skill something, land the skill edit in the same sweep.
 
 Built bundles (`public/fleet-ui/`) conflict on every rebase because both
 sides rebuilt them: resolve toward main's bundle, finish the rebase, rebuild
@@ -736,15 +793,17 @@ pd guard check --staged
 node scripts/release-surface-audit.mjs   # if present
 # OR walk the Release-Surface Drift list above by hand
 
-# 7. Commit + push (NOT tag — tags are release work, see RELEASING.md §1)
+# 7. Checkpoint + publish (NOT tag — tags are release work, see RELEASING.md §1)
 git add <explicit paths>
 git status --porcelain          # MUST be clean of foreign files
-git commit -m "<scope>: <change>"
-git push -u origin <feature-branch>
-gh pr create ...                # standard PR flow
+git commit -m "<scope>: <change>" # verified agent author AND committer
+# Publish a ready, non-draft App/Fleetbot PR through the authorized path.
+# Respond graciously; add regression tests; fix required checks and reviews.
+# Use protected merge/queue and verify the actual merged-head receipt.
 
-# 8. Close
-pd note "Result: <change>. Validation: <evidence>. Remaining: <Lookout drifts, follow-ups>."
+# 8. Close only after actual merge, not PR creation or queue admission
+# Update the complete plan and typed roadmap PR receipt first.
+pd note "Result: <change + PR + merged SHA>. Validation: <evidence>. Remaining: <Lookout drifts, follow-ups>."
 pd done "<outcome>"
 pd feedback "<contributor experience report>"   # bare form; auto slug + agent
 ```
@@ -833,6 +892,11 @@ receipt.
 **Fix:** Build named-profile environments through `buildDaemonProfileEnv()` and assert every mutable runtime path equals the resolved profile path. Acceptance-test the running profile on a noncanonical port, then inspect its open files and require that no canonical registry handle appears.
 **Why:** A profile is a state-plane boundary, not a naming convention. Isolation must survive new consumers and refactors without depending on every module reimplementing prefix inference correctly.
 
+### Assuming Prefix Isolation Also Isolates The Note Key
+**Detection:** A synthetic daemon selects its own DB but still resolves the session-note master key through the canonical Keychain account or machine key file.
+**Fix:** Use shared `PD_HOME` for note-key storage. A noncanonical root requires `PORT_DADDY_DISABLE_KEYCHAIN=1`; use an owned real 0700 directory and a regular, single-link 0600 key. Never copy the canonical key or change HOME to make a fixture boot. Test bounded nonblocking reads, exclusive creation, pathname revalidation and restart with synthetic keys; invalid existing keys must fail unchanged.
+**Boundary:** This is session-note key isolation, not a same-user filesystem sandbox, a claim that all berth secrets are isolated, a change to Porthole's separate root provider, or proof of an installed release.
+
 ### Demoing One Slice Of A Multi-PR Feature
 **Detection:** The feature spans multiple unmerged PRs, but the triple was built from a single PR branch.
 **Symptoms:** The operator files rage-bugs against branch A for everything branch B already fixed; review time is spent re-litigating known-done work.
@@ -907,11 +971,11 @@ it in one commit.** Land the rename in phases through Cartographer:
 - [ ] You staged by explicit path; `git add -A` does not appear in your shell history for this slice.
 - [ ] Every public surface affected has been updated in this slice OR a Lookout message names the gap.
 - [ ] If you touched an internal actor's body, you updated the actor-roster reference and the matching `decisions/` entry.
-- [ ] If you renamed or removed a CLI / API / MCP surface, you provided a migration path and a deprecation window.
+- [ ] If you renamed or removed a CLI / API / MCP surface, you followed the repo's supplant rule unless the operator explicitly requested compatibility.
 - [ ] You did not edit `docs/recovery/CURRENT-WORK.md` directly.
 - [ ] You ended with `pd done` AND `pd feedback "..."` (CLI bare form) or MCP `drop_feedback`.
 - [ ] If you skipped any of the above, you owned up to it explicitly in the feedback.
-- [ ] You ran `windags_skill_search` for the slice's domain before starting.
+- [ ] You ran `pd jury-rig query` for the slice's domain before starting.
 - [ ] **Two-skill maintenance check.** You asked: "did the public `port-daddy-agent-skill` or this internal skill mislead me, mis-instruct me, or under-equip me?" If yes, you landed the fix on the correct surface (public vs. internal — see "Maintain These Skills") *in the same slice*. Drive-by edits are explicitly welcome; no separate ticket required.
 - [ ] You did NOT propagate internal-only wisdom into `port-daddy-agent-skill` (that's the public skill's split-decision rule).
 

@@ -85,7 +85,7 @@ Example: A vision system must translate pixels → "there is a red cube at (2,3)
 - Skills that tolerate partial/uncertain inputs
 - Explicit re-checking of assumptions before dependent actions
 
-## Transfer to Complex Systems: WinDAGs with 180+ Skills
+## Transfer to Complex Systems: Jury-rig with 180+ Skills
 
 When you have 180 skills in a directed acyclic graph, each skill effectively operates in a **sub-environment** defined by:
 - What observations it receives (from sensors or upstream skills)

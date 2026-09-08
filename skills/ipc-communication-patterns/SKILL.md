@@ -185,7 +185,7 @@ void sigterm_handler(int sig) { shutdown_requested = 1; }
 
 ```typescript
 // 1. Create Unix domain socket server (orchestrator)
-const SOCKET_PATH = '/tmp/windags-orchestrator.sock';
+const SOCKET_PATH = '/tmp/jury_rig-orchestrator.sock';
 if (fs.existsSync(SOCKET_PATH)) fs.unlinkSync(SOCKET_PATH); // Clean stale socket
 
 const server = net.createServer((connection) => {

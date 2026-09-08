@@ -227,7 +227,8 @@
         "POST /durable-agents/promote",
         "PATCH /durable-agents/:id",
         "POST /durable-agents/:id/handoffs",
-        "POST /durable-agents/:id/retire"
+        "POST /durable-agents/:id/retire",
+        "POST /durable-agents/:id/resurrect"
       ],
       "completions": [
         "roster"
@@ -272,7 +273,9 @@
         "GET /actors/:param/inbox/stats",
         "PUT /actors/:param/inbox/read-all",
         "POST /actors/:param/message",
-        "POST /actors/register"
+        "POST /actors/register",
+        "POST /actors/souls/:param/retire",
+        "POST /actors/souls/:param/resurrect"
       ],
       "completions": [
         "actor",
@@ -1014,6 +1017,7 @@
         "POST /sugar/done",
         "POST /sugar/relink",
         "GET /sugar/whoami",
+        "GET /sugar/find",
         "GET /sugar/welcome"
       ],
       "completions": [
@@ -1775,20 +1779,18 @@
       }
     },
     "skill_graft": {
-      "description": "Native local skill-graft index, checkpointed Tool2Vec catalog reconciler, and operator inspection surface. Fleet ships call lib/skill-graft.ts through lib/fleet-engine.ts; `pd skill-graft` lets agents query, warm, and read guarded references from the same index. Setup and daemon callers are restricted to loopback Ollama; remote generation is manual and actor-pinned.",
+      "description": "Jury-rig native skill discovery, checkpointed Tool2Vec catalog reconciliation, and guarded skill-owned reference loading. Fleet ships call lib/skill-graft.ts through lib/fleet-engine.ts; `pd jury-rig` queries, warms, and reads contained references from the same index without requiring an external skill runtime. Setup and daemon callers are restricted to loopback Ollama; remote generation is manual and actor-pinned.",
       "module": "lib/skill-graft.ts",
       "cli": [
-        "skill-graft",
-        "skillgraft"
+        "jury-rig"
       ],
       "sdk": [],
       "routes": [
-        "GET /skill-graft/status",
-        "POST /skill-graft/reconcile"
+        "GET /jury-rig/status",
+        "POST /jury-rig/reconcile"
       ],
       "completions": [
-        "skill-graft",
-        "skillgraft"
+        "jury-rig"
       ],
       "docs": {
         "readme": true,

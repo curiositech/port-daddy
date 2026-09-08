@@ -1,50 +1,73 @@
-% Figure 11 — a true slopegraph: one candidate pool, two incompatible orders.
+% Figure 11 — slope chart, restyled to spec [ch4.md restyles]. Ranks 1-4 are
+% ticks on both axes; all four candidates are named with a three-word gloss
+% at BOTH ends so no legend is needed. A and B fully reverse (the theorem's
+% content); C and D swap one adjacent pair, a smaller instance of the same
+% non-comonotone fact. C/D glosses are this redraw's own short illustrative
+% tags — the chapter names only A and B explicitly.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \draw[pd focus rule,line width=1.1pt] (2.6,.55)--(2.6,4.65);
-  \draw[pd caution rule,line width=1.1pt] (13.0,.55)--(13.0,4.65);
-  \node[pd panel title,text=hhteal,anchor=south] at (2.6,4.90)
-    {discovery: fit};
-  \node[pd axis label,anchor=south] at (2.6,4.55) {best collaborator};
-  \node[pd panel title,text=hhamber,anchor=south] at (13.0,4.90)
-    {attention: regret if ignored};
-  \node[pd axis label,anchor=south] at (13.0,4.55) {most dangerous omission};
+\begin{tikzpicture}[pd figure,x=.5cm,y=1cm]
+  \draw[pd focus rule,line width=1.1pt] (4,0.7)--(4,5.8);
+  \draw[pd caution rule,line width=1.1pt] (12,0.7)--(12,5.8);
+  \node[pd panel title,text=hhteal,anchor=south,align=center] at (4,6.05)
+    {rank by discovery\\(fit)};
+  \node[pd panel title,text=hhamber,anchor=south,align=center] at (12,6.05)
+    {rank by attention\\(regret)};
 
-  \foreach \y/\rank in {4.0/1,3.0/2,2.0/3,1.0/4}{
-    \draw[pd tick] (2.48,\y)--(2.72,\y);
-    \draw[pd tick] (12.88,\y)--(13.12,\y);
-    \node[pd axis label,anchor=east] at (2.35,\y) {\rank};
-    \node[pd axis label,anchor=west] at (13.25,\y) {\rank};
+  \foreach \y/\rank in {5.2/1,3.9/2,2.6/3,1.3/4}{
+    \draw[pd tick] (3.85,\y)--(4.15,\y);
+    \draw[pd tick] (11.85,\y)--(12.15,\y);
+    \node[pd axis label,anchor=east] at (3.7,\y) {\rank};
+    \node[pd axis label,anchor=west] at (12.3,\y) {\rank};
   }
 
-  \draw[pd focus rule,line width=1.05pt] (2.6,4.0)--(13.0,1.0);
-  \draw[pd caution rule,line width=1.05pt] (2.6,1.0)--(13.0,4.0);
-  \draw[pd hairline] (2.6,3.0)--(13.0,2.65);
-  \draw[pd hairline] (2.6,2.0)--(13.0,2.35);
+  % A: discovery rank 1 -> attention rank 4 (safe to ignore)
+  \draw[pd focus rule,line width=1.05pt] (4,5.2)--(12,1.3);
+  \node[pd focus datum] at (4,5.2) {};
+  \node[pd focus datum] at (12,1.3) {};
+  % B: discovery rank 4 -> attention rank 1 (dangerous to miss)
+  \draw[pd caution rule,line width=1.05pt] (4,1.3)--(12,5.2);
+  \node[pd caution datum] at (4,1.3) {};
+  \node[pd caution datum] at (12,5.2) {};
+  % C, D: a smaller adjacent swap, the same non-comonotone fact in miniature
+  \draw[pd hairline] (4,3.9)--(12,2.6);
+  \draw[pd hairline] (4,2.6)--(12,3.9);
+  \node[pd datum] at (4,3.9) {};
+  \node[pd datum] at (12,2.6) {};
+  \node[pd datum] at (4,2.6) {};
+  \node[pd datum] at (12,3.9) {};
 
-  \node[pd focus datum] at (2.6,4.0) {};
-  \node[pd focus datum] at (13.0,1.0) {};
-  \node[pd caution datum] at (2.6,1.0) {};
-  \node[pd caution datum] at (13.0,4.0) {};
-  \node[pd datum] at (2.6,3.0) {};
-  \node[pd datum] at (13.0,2.65) {};
-  \node[pd datum] at (2.6,2.0) {};
-  \node[pd datum] at (13.0,2.35) {};
+  % end glosses, named at both ends, outside both axes
+  \node[pd direct label,text=hhteal,anchor=east,align=center,text width=1.8cm]
+    at (2.3,5.2) {\hyphenpenalty=10000\textbf{A} \\ capable, safe, calm};
+  \node[pd direct label,text=hhteal,anchor=west,align=center,text width=1.8cm]
+    at (13.7,1.3) {\hyphenpenalty=10000\textbf{A} \\ capable, safe, calm};
 
-  \node[pd direct label,text=hhteal,anchor=west,align=left] at (3.05,3.83)
-    {A \quad capable, safe, reversible};
-  \node[pd direct label,text=hhamber,anchor=west,align=left] at (3.05,1.17)
-    {B \quad off-topic, irreversible, anomalous};
-  \node[pd direct label,anchor=center] at (7.8,2.82) {C};
-  \node[pd direct label,anchor=center] at (7.8,2.18) {D};
-  \node[pd note,anchor=south] at (7.8,.18)
-    {A and B reverse: no monotone rescaling can make the heads interchangeable};
+  \node[pd direct label,text=hhamber,anchor=east,align=center,text width=1.8cm]
+    at (2.3,1.3) {\hyphenpenalty=10000\textbf{B} \\ off-topic, risky, tense};
+  \node[pd direct label,text=hhamber,anchor=west,align=center,text width=1.8cm]
+    at (13.7,5.2) {\hyphenpenalty=10000\textbf{B} \\ off-topic, risky, tense};
+
+  \node[pd direct label,anchor=east,align=center,text width=1.8cm]
+    at (2.3,3.9) {\hyphenpenalty=10000\textbf{C} \\ steady, calm, minor};
+  \node[pd direct label,anchor=west,align=center,text width=1.8cm]
+    at (13.7,2.6) {\hyphenpenalty=10000\textbf{C} \\ steady, calm, minor};
+
+  \node[pd direct label,anchor=east,align=center,text width=1.8cm]
+    at (2.3,2.6) {\hyphenpenalty=10000\textbf{D} \\ shaky, tense, rising};
+  \node[pd direct label,anchor=west,align=center,text width=1.8cm]
+    at (13.7,3.9) {\hyphenpenalty=10000\textbf{D} \\ shaky, tense, rising};
+
+  \node[pd note,anchor=north,align=center,text width=8.2cm] at (8,0.35)
+    {\hyphenpenalty=10000\exhyphenpenalty=10000
+     A and B reverse: no monotone rescaling\\makes the two heads interchangeable};
 \end{tikzpicture}
-\caption{One candidate pool under two loss functions. Discovery ranks the most
-capable collaborator; attention ranks the omission with the greatest expected
-regret. Candidate A is excellent but safe to ignore, while B is a poor match but
-dangerous to miss, so their order reverses. Shared candidate generation and
-recency decay do not make the scoring heads interchangeable.}
+\caption{One candidate pool under two loss functions, ranks 1--4 on both
+axes. Discovery ranks by fit; attention ranks by expected regret if ignored.
+Candidate A is the best fit but safest to skip, while B is a poor fit but the
+most dangerous to miss, so their ranks fully invert (1--4 against 4--1). C
+and D swap one adjacent pair, the same non-comonotone fact at smaller scale.
+Shared candidate generation and recency decay do not make the two scoring
+heads interchangeable [internal].}
 \label{fig:split-ranker}
 \end{figure}

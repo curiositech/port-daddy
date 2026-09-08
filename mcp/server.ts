@@ -38,6 +38,7 @@ import {
   type ReleaseRegionArgs,
 } from '../lib/editor-claims-mcp.js';
 import { serializeSwarmDigest, serializeLegacySwarmSnapshot } from '../lib/swarm-awareness-digest.js';
+import { beginRequestFingerprint, generateBeginIdempotencyKey } from '../lib/begin-idempotency.js';
 import { governToolOutput } from '../lib/mcp-output-governor.js';
 import { setActiveSession, clearActiveSession, resolveSessionId, resolveAgentId, resolveActorCredential } from '../lib/mcp-session-cache.js';
 
@@ -304,8 +305,8 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     tools: ['call_parley', 'list_parleys', 'get_parley', 'respond_parley', 'resolve_parley'],
   },
   'knowledge': {
-    description: 'Semantic search + symbol index — inspect Skill Graft coverage, search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming',
-    tools: ['skill_graft_status', 'semantic_search', 'semantic_resolve', 'find_symbols', 'symbol_stats', 'predict_conflicts', 'blast_radius'],
+    description: 'Semantic search + symbol index — inspect Jury-rig coverage, search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming',
+    tools: ['jury_rig_status', 'semantic_search', 'semantic_resolve', 'find_symbols', 'symbol_stats', 'predict_conflicts', 'blast_radius'],
   },
   'context': {
     description: 'Context economics — per-agent token budget health, swarm COGS overview, and per-spawn task ledger',
@@ -865,11 +866,11 @@ const TOOLS = [
 
   // ── Knowledge (semantic search + symbol index) ───────────────────────
   {
-    name: 'skill_graft_status',
+    name: 'jury_rig_status',
     description:
       '[Knowledge] Read-only Tool2Vec catalog coverage and checkpoint state. ' +
       'Reports current, cold, reconciling, embedder-down, or generator-down ' +
-      'without generating centroids or calling an LLM. Usage: skill_graft_status()',
+      'without generating centroids or calling an LLM. Usage: jury_rig_status()',
     inputSchema: {
       type: 'object' as const,
       properties: {},
@@ -3017,7 +3018,7 @@ const TOOLS = [
         model_tier: { type: 'string', description: 'Optional model tier shortcut: low, mid, or high' },
         purpose: { type: 'string', description: 'Optional short human-readable label for the run' },
         files: { type: 'array', description: 'Optional focused file list, mainly for aider-backed runs', items: { type: 'string' } },
-        workdir: { type: 'string', description: 'Optional working directory override' },
+        workdir: { type: 'string', description: 'Existing absolute working directory, required for local CLI/file-capable agents. Omit only for API-only projectless runs; never defaults to the daemon directory.' },
         timeout: { type: 'number', description: 'Optional timeout in milliseconds' },
         allowed_tools: { type: 'string', description: 'Comma-separated tool list (e.g. "Read,Grep,Glob,Write")' },
         max_tokens: { type: 'number', description: 'Optional token ceiling for claude or claude-cli launches' },
@@ -3472,6 +3473,26 @@ const DAEMON_RECOVERY_HINT =
 // Tool handler
 // ---------------------------------------------------------------------------
 
+/**
+ * Begin idempotency keys, per logical begin, for the life of this MCP
+ * process. A harness that re-issues the SAME `begin_session` call (a tool
+ * retry after a lost or timed-out result) maps to the same key by request
+ * fingerprint, so the daemon replays the session it already committed rather
+ * than minting a second one. Scoped to this process on purpose: keys derived
+ * from public arguments alone would let any caller replay another agent's
+ * begin (and receive its credential).
+ */
+const beginIdempotencyKeysByFingerprint = new Map<string, string>();
+
+function beginIdempotencyKeyFor(body: Record<string, unknown>): string {
+  const fingerprint = beginRequestFingerprint(body);
+  const existing = beginIdempotencyKeysByFingerprint.get(fingerprint);
+  if (existing) return existing;
+  const key = generateBeginIdempotencyKey();
+  beginIdempotencyKeysByFingerprint.set(fingerprint, key);
+  return key;
+}
+
 async function handleTool(
   name: string,
   args: Record<string, unknown>
@@ -3517,6 +3538,7 @@ async function handleTool(
           }, null, 2);
         }
       }
+      body.idempotencyKey = beginIdempotencyKeyFor(body);
       res = await POST('/sugar/begin', body);
 
       // Attach salvage context — check if any dead agents share this project
@@ -3833,8 +3855,8 @@ async function handleTool(
     }
 
     // ── Knowledge (semantic search + symbol index) ──────────────────
-    case 'skill_graft_status': {
-      res = await GET('/skill-graft/status');
+    case 'jury_rig_status': {
+      res = await GET('/jury-rig/status');
       break;
     }
 

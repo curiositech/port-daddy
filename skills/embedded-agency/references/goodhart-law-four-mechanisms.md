@@ -122,7 +122,7 @@ Goodhart's law is particularly pernicious for embedded agents because:
 3. **Embedded agents create subsystems**: Which face their own Goodhart problems with their own proxies
 4. **Embedded agents can't step outside**: A dualistic agent's programmer can observe Goodhart failures from outside and fix them. Embedded agents must detect and correct their own proxy failures from inside.
 
-## Implications for WinDAGs
+## Implications for Jury-rig
 
 ### For Skill Composition
 

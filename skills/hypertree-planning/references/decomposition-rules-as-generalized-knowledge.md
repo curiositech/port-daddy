@@ -181,7 +181,7 @@ Additionally, **rules can be incomplete or misspecified**. If the TravelPlanner 
 
 ## Practical Implications for Agent Orchestration
 
-For a system like WinDAGs with 180+ skills, the rule-based approach suggests:
+For a system like Jury-rig with 180+ skills, the rule-based approach suggests:
 
 **1. Skill Taxonomy as Decomposition Rules**: Organize skills into hierarchical categories that mirror problem structure. Rather than a flat list of 180 skills, create a rule structure like:
 

@@ -6,7 +6,7 @@ The workflow patterns paper reveals a subtle but profound challenge: **systems t
 
 The authors note that "many of the more complex requirements identified recur quite frequently in the analysis phases of workflow projects, however their implementation is uncertain in current products." The uncertainty often arises not from individual patterns but from their combinations.
 
-For agent orchestration systems like WinDAGs, this teaching is critical: **you cannot evaluate coordination capability by checking patterns one-by-one. You must evaluate how patterns compose**.
+For agent orchestration systems like Jury-rig, this teaching is critical: **you cannot evaluate coordination capability by checking patterns one-by-one. You must evaluate how patterns compose**.
 
 ## Why Patterns Don't Automatically Compose
 
@@ -37,7 +37,7 @@ Synchronizing merge: Wait for all activated branches before proceeding.
 
 If your system implements OR-split (activate multiple branches conditionally) and synchronizing merge (wait for multiple branches) but doesn't provide the state propagation mechanism, the composition is broken.
 
-**For WinDAGs**: If you support conditional parallel execution (fan-out to multiple skills based on analysis) and synchronization (wait for multiple skills to complete), how does the synchronizer know which skills were activated? If this requires manual tracking (e.g., passing a list of activated skills as data), the patterns don't compose cleanly.
+**For Jury-rig**: If you support conditional parallel execution (fan-out to multiple skills based on analysis) and synchronization (wait for multiple skills to complete), how does the synchronizer know which skills were activated? If this requires manual tracking (e.g., passing a list of activated skills as data), the patterns don't compose cleanly.
 
 ## Example 2: Cancellation Region + Parallel Split
 
@@ -64,7 +64,7 @@ Parallel split: Launch multiple activities concurrently.
 
 If your system supports parallel execution and cancellation separately but doesn't provide activity handles, transactional semantics, or cleanup mechanisms, the composition is broken.
 
-**For WinDAGs**: If you can launch multiple skills in parallel and want to cancel them (e.g., user cancels request, or first skill found answer), can you abort in-flight skills cleanly? Do skills support abortion hooks? Does the orchestrator track skill execution handles? If not, cancellation is not truly supported despite being "implementable."
+**For Jury-rig**: If you can launch multiple skills in parallel and want to cancel them (e.g., user cancels request, or first skill found answer), can you abort in-flight skills cleanly? Do skills support abortion hooks? Does the orchestrator track skill execution handles? If not, cancellation is not truly supported despite being "implementable."
 
 ## Example 3: Discriminator + Deferred Choice
 
@@ -92,7 +92,7 @@ Deferred choice: External environment determines which branch executes.
 
 If your system implements deferred choice (external activation) and discriminator (first-completion) but doesn't handle their interaction, real-world workflows combining them will have race conditions.
 
-**For WinDAGs**: If you support both "wait for external input to determine routing" and "take first result from parallel skills," what happens when external input arrives while parallel skills are racing? Do you get deterministic behavior?
+**For Jury-rig**: If you support both "wait for external input to determine routing" and "take first result from parallel skills," what happens when external input arrives while parallel skills are racing? Do you get deterministic behavior?
 
 ## The General Principle: Semantic Interference
 
@@ -137,7 +137,7 @@ Testing every combination is infeasible. But certain combinations recur frequent
 - **Frequency**: Common in competitive evaluation, optimization
 - **Failure mode**: Timing of cancellation (what if second completion arrives before cancellation signal propagates?)
 
-For WinDAGs, prioritize testing these common combinations. They represent real-world coordination patterns.
+For Jury-rig, prioritize testing these common combinations. They represent real-world coordination patterns.
 
 ## Diagnosing Composition Failures
 
@@ -164,9 +164,9 @@ Example: To avoid cycle+conditional exit, you unroll the loop or encapsulate it 
 
 **Implication**: Other control structures will also be inexpressible. Your abstraction has fundamental limitations.
 
-## For WinDAGs: The Composition Test Matrix
+## For Jury-rig: The Composition Test Matrix
 
-To evaluate WinDAGs honestly, create a composition test matrix:
+To evaluate Jury-rig honestly, create a composition test matrix:
 
 **Step 1**: List patterns your system claims to support (e.g., sequence, AND-split/join, XOR-split/join, OR-split, conditional routing, parallel execution)
 
@@ -211,24 +211,24 @@ This matrix is brutally honest about your system's coordination capabilities.
 No system can support all pattern combinations perfectly. The design question is: **which compositions are first-class, which require workarounds, and which are explicitly out-of-scope?**
 
 **Strategy 1: Support a closed set of compositions**
-Example: "WinDAGs supports sequential, parallel, and conditional routing. Combinations of these patterns compose cleanly. Cycles, discriminators, and cancellation require external orchestration."
+Example: "Jury-rig supports sequential, parallel, and conditional routing. Combinations of these patterns compose cleanly. Cycles, discriminators, and cancellation require external orchestration."
 
 **Advantage**: Clear semantics, predictable behavior, bounded complexity
 **Disadvantage**: Limited expressiveness, many real workflows require workarounds
 
 **Strategy 2: Support extension mechanisms**
-Example: "WinDAGs provides hooks for custom coordination code. Standard patterns have first-class support; complex combinations use hooks."
+Example: "Jury-rig provides hooks for custom coordination code. Standard patterns have first-class support; complex combinations use hooks."
 
 **Advantage**: Unlimited expressiveness (anything computable)
 **Disadvantage**: Escaping to code breaks declarative specification, hinders analysis
 
 **Strategy 3: Layer coordination abstractions**
-Example: "WinDAGs DAGs orchestrate skills. For complex coordination (cycles, discriminators), DAGs call sub-orchestrators with richer models (state machines, Petri nets)."
+Example: "Jury-rig DAGs orchestrate skills. For complex coordination (cycles, discriminators), DAGs call sub-orchestrators with richer models (state machines, Petri nets)."
 
 **Advantage**: Right abstraction for each pattern
 **Disadvantage**: Complexity of multiple coordination models, impedance mismatch at boundaries
 
-For WinDAGs, the choice depends on target use cases:
+For Jury-rig, the choice depends on target use cases:
 - **If target is structured data processing**: Strategy 1 (closed set) may suffice
 - **If target is exploratory agent workflows**: Strategy 2 or 3 needed for flexibility
 
@@ -246,9 +246,9 @@ If patterns are implementations of a unified execution model (e.g., colored Petr
 - Synchronizing merge is a transition requiring tokens from all input places
 - Token semantics guarantee correct synchronization
 
-For WinDAGs: if your patterns are ad-hoc features, they won't compose. If they are expressions of a unified execution model (DAG semantics + metadata + runtime state), they will compose within the model's limits.
+For Jury-rig: if your patterns are ad-hoc features, they won't compose. If they are expressions of a unified execution model (DAG semantics + metadata + runtime state), they will compose within the model's limits.
 
-The question is: **what is WinDAGs's execution model?** Is it:
+The question is: **what is Jury-rig's execution model?** Is it:
 - Pure DAG (nodes are tasks, edges are dependencies)
 - DAG + conditional edges (dependencies with predicates)
 - DAG + runtime state (execution context visible to nodes)
@@ -262,7 +262,7 @@ The workflow patterns paper teaches: **evaluate coordination systems by their pa
 
 A system claiming "supports parallel execution, conditional routing, and synchronization" may still fail at "conditional parallel execution with synchronized merge" if the patterns don't compose.
 
-For WinDAGs:
+For Jury-rig:
 1. Map individual patterns to your primitives (what does DAG formalism support?)
 2. **Test combinations**: Can these patterns be used together naturally?
 3. **Document composition failures**: Where do patterns not compose? What workarounds exist?

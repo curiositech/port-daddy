@@ -25,7 +25,7 @@ That baseline has four gaps a first-class verb closes:
    label that ch. 27 W9's skill-usage logging needs, and there is nowhere to
    record them today.
 
-Neither windags nor Port Daddy has such a verb. windags's `skill_reference`
+Neither jury_rig nor Port Daddy has such a verb. jury_rig's `skill_reference`
 does the opposite — it reads a script's *source* into context.
 
 ## Name

@@ -1,32 +1,139 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs';
-import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const VALID_PIPELINE_TYPES = ['bi-encoder', 'cross-encoder', 'classification'];
 const VALID_ENVIRONMENTS = ['node', 'browser'];
-const VALID_POOLING = ['mean', 'cls', 'none'];
+const VALID_POOLING = ['mean-attention-mask-v1', 'cls-last-hidden-state-v1'];
 const VALID_DTYPES = ['auto', 'fp32', 'fp16', 'q8', 'int8', 'uint8', 'q4', 'bnb4', 'q4f16', 'q2', 'q2f16', 'q1', 'q1f16'];
-const REQUIRED_SPACE_IDENTITY_FIELDS = ['provider', 'modelId', 'revision', 'dimensions', 'normalization', 'distanceMetric', 'dtype', 'spaceId'];
-const VALID_QUALITY_TIERS = ['approved', 'degraded-fallback'];
+const REQUIRED_EMBEDDING_PROFILE_FIELDS = [
+  'version',
+  'servingProvider',
+  'modelId',
+  'runtimeFamily',
+  'runtimeVersion',
+  'upstreamModelId',
+  'modelRevision',
+  'modelArtifact',
+  'modelDigest',
+  'modelConfigArtifact',
+  'modelConfigDigest',
+  'tokenizerId',
+  'tokenizerRevision',
+  'tokenizerArtifact',
+  'tokenizerDigest',
+  'tokenizerConfigArtifact',
+  'tokenizerConfigDigest',
+  'task',
+  'queryPrefix',
+  'documentPrefix',
+  'unicodeNormalization',
+  'truncation',
+  'maxTokens',
+  'pooling',
+  'normalization',
+  'metric',
+  'dimensions',
+  'coordinatePrecision',
+  'coordinateQuantization',
+  'transportEncoding',
+  'storageEncoding',
+  'storageQuantization',
+  'preprocessingDigest',
+  'spaceId',
+  'quality',
+  'revisionBinding',
+  'runtimeBinding',
+];
+const LEGACY_EMBEDDING_PROFILE_FIELDS = [
+  'provider',
+  'revision',
+  'distanceMetric',
+  'dtype',
+  'qualityTier',
+  'degradedFallbackLabel',
+];
+const VALID_UNICODE_NORMALIZATIONS = ['none', 'nfc', 'nfkc', 'tokenizer-defined'];
+const VALID_TRUNCATION = ['longest-first', 'only-first'];
+const VALID_TASKS = ['feature-extraction', 'sentence-similarity'];
+const VALID_NORMALIZATIONS = ['none', 'l2'];
+const VALID_METRICS = ['cosine', 'dot-product', 'euclidean'];
+const VALID_COORDINATE_PRECISIONS = ['float16', 'float32', 'float64'];
+const VALID_TRANSPORT_ENCODINGS = ['json-number-array', 'float32-array'];
+const VALID_QUANTIZATIONS = ['none'];
+const VALID_STORAGE_ENCODINGS = ['json-number-array', 'float32-le'];
+const VALID_VECTOR_DISPOSITIONS = ['ephemeral-uncompared', 'quarantined-uncompared'];
+const FORBIDDEN_ATTESTATION_FIELDS = [
+  'producerAttestation',
+  'producerAttestationVerified',
+  'attestationReceiptId',
+];
+const SHA256_DIGEST = /^sha256:[0-9a-f]{64}$/;
+const EMBED_V2_ID = /^embed-v2:[0-9a-f]{64}$/;
+const IMMUTABLE_COMMIT = /^[0-9a-f]{40}$/;
+const RELATIVE_ARTIFACT = /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9._/+@=-]+$/;
 const SEVERITY_WEIGHTS = { critical: 30, high: 15, medium: 8, low: 3 };
 
 function isPlainObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
-function deriveEmbeddingSpaceId(space) {
-  const canonical = JSON.stringify({
-    provider: space.provider,
-    modelId: space.modelId,
-    revision: space.revision,
-    dimensions: space.dimensions,
-    normalization: space.normalization,
-    distanceMetric: space.distanceMetric,
-    dtype: space.dtype,
+function isNonEmptyString(value) {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function profileFieldErrors(profile) {
+  if (!isPlainObject(profile)) return [...REQUIRED_EMBEDDING_PROFILE_FIELDS];
+
+  const knownFields = new Set(REQUIRED_EMBEDDING_PROFILE_FIELDS);
+  const errors = REQUIRED_EMBEDDING_PROFILE_FIELDS.filter((field) => {
+    const value = profile[field];
+    if (field === 'queryPrefix' || field === 'documentPrefix') return typeof value !== 'string';
+    if (field === 'version' || field === 'maxTokens' || field === 'dimensions') return false;
+    return !isNonEmptyString(value);
   });
-  return `embed-v1:${createHash('sha256').update(canonical).digest('hex')}`;
+  for (const field of Object.keys(profile)) {
+    if (!knownFields.has(field)) errors.push(`unknown:${field}`);
+  }
+  if (profile.version !== 2) errors.push('version=2');
+  if (!Number.isSafeInteger(profile.maxTokens) || profile.maxTokens < 1) errors.push('maxTokens>0');
+  if (!Number.isSafeInteger(profile.dimensions) || profile.dimensions < 1) errors.push('dimensions>0');
+  if (!IMMUTABLE_COMMIT.test(profile.modelRevision ?? '')) errors.push('modelRevision=immutable-sha');
+  if (!IMMUTABLE_COMMIT.test(profile.tokenizerRevision ?? '')) errors.push('tokenizerRevision=immutable-sha');
+  for (const field of [
+    'modelArtifact',
+    'modelConfigArtifact',
+    'tokenizerArtifact',
+    'tokenizerConfigArtifact',
+  ]) {
+    if (!RELATIVE_ARTIFACT.test(profile[field] ?? '')) errors.push(`${field}=relative-path`);
+  }
+  for (const field of [
+    'modelDigest',
+    'modelConfigDigest',
+    'tokenizerDigest',
+    'tokenizerConfigDigest',
+    'preprocessingDigest',
+  ]) {
+    if (!SHA256_DIGEST.test(profile[field] ?? '')) errors.push(`${field}=sha256`);
+  }
+  if (!EMBED_V2_ID.test(profile.spaceId ?? '')) errors.push('spaceId=embed-v2');
+  if (!VALID_TASKS.includes(profile.task)) errors.push('task');
+  if (!VALID_UNICODE_NORMALIZATIONS.includes(profile.unicodeNormalization)) errors.push('unicodeNormalization');
+  if (!VALID_TRUNCATION.includes(profile.truncation)) errors.push('truncation');
+  if (!VALID_POOLING.includes(profile.pooling)) errors.push('pooling');
+  if (!VALID_NORMALIZATIONS.includes(profile.normalization)) errors.push('normalization');
+  if (!VALID_METRICS.includes(profile.metric)) errors.push('metric');
+  if (!VALID_COORDINATE_PRECISIONS.includes(profile.coordinatePrecision)) errors.push('coordinatePrecision');
+  if (!VALID_QUANTIZATIONS.includes(profile.coordinateQuantization)) errors.push('coordinateQuantization');
+  if (!VALID_TRANSPORT_ENCODINGS.includes(profile.transportEncoding)) errors.push('transportEncoding');
+  if (!VALID_STORAGE_ENCODINGS.includes(profile.storageEncoding)) errors.push('storageEncoding');
+  if (!VALID_QUANTIZATIONS.includes(profile.storageQuantization)) errors.push('storageQuantization');
+  if (profile.quality !== 'degraded-fallback') errors.push('quality=degraded-fallback');
+  if (profile.revisionBinding !== 'declared-upstream') errors.push('revisionBinding=declared-upstream');
+  if (profile.runtimeBinding !== 'declarative-only') errors.push('runtimeBinding=declarative-only');
+  return [...new Set(errors)];
 }
 
 /**
@@ -89,14 +196,14 @@ export function auditTransformersJsOnnxPipelines(plan) {
     }
   }
 
-  // --- Gate: bi-encoder cosine needs normalized mean-pooled vectors ---
+  // --- Gate: bi-encoder execution must match one complete registry profile ---
   if (plan.pipelineType === 'bi-encoder') {
     if (plan.normalizeEmbeddings !== true) {
       fail(
         'embeddings-not-normalized',
         'high',
         'normalizeEmbeddings is not true: raw dot products bias toward longer strings and cosine ordering is subtly wrong.',
-        'Always call the pipeline with { pooling: "mean", normalize: true } so cosine equals dot product.'
+        'Map the profile pooling recipe to its loader primitive and normalize according to the profile.'
       );
     }
     if (plan.pooling !== undefined && !VALID_POOLING.includes(plan.pooling)) {
@@ -104,120 +211,141 @@ export function auditTransformersJsOnnxPipelines(plan) {
         'invalid-pooling',
         'medium',
         `pooling "${plan.pooling}" is not one of: ${VALID_POOLING.join(', ')}.`,
-        'Use pooling: "mean" (average token embeddings) or "cls" ([CLS] token) for sentence embeddings.'
-      );
-    } else if (plan.pooling === 'none') {
-      fail(
-        'no-pooling-for-sentence-embeddings',
-        'high',
-        'pooling is "none": the output is per-token embeddings, not a sentence vector, so cosine search over it is meaningless.',
-        'Set pooling: "mean" (or "cls") to reduce token embeddings to one sentence vector.'
+        'Use the exact versioned recipe from the registry profile; generic mean/cls labels do not identify the pooling kernel.'
       );
     }
-    const space = plan.embeddingSpace;
-    const missingSpaceFields = isPlainObject(space)
-      ? REQUIRED_SPACE_IDENTITY_FIELDS.filter((field) => {
-          const value = space[field];
-          return value === undefined || value === null || value === '';
-        })
-      : REQUIRED_SPACE_IDENTITY_FIELDS;
-    if (missingSpaceFields.length > 0 || !Number.isInteger(space?.dimensions) || space.dimensions < 1) {
+    if (Object.hasOwn(plan, 'embeddingSpace')) {
       fail(
-        'embedding-space-identity-incomplete',
+        'legacy-embedding-space-declaration',
         'critical',
-        `embeddingSpace is incomplete or invalid; missing/invalid fields: ${missingSpaceFields.join(', ') || 'dimensions'}.`,
-        'Persist provider, modelId, immutable revision, dimensions, normalization, distanceMetric, dtype, and a derived spaceId with corpus and query vectors.'
+        'embeddingSpace is the retired local identity shape; it cannot prove the canonical registry profile or a verified producer.',
+        'Remove embeddingSpace and attach the complete registry-provided embeddingProfile v2 record.'
+      );
+    }
+
+    const profile = plan.embeddingProfile;
+    const legacyProfileFields = isPlainObject(profile)
+      ? LEGACY_EMBEDDING_PROFILE_FIELDS.filter((field) => Object.hasOwn(profile, field))
+      : [];
+    if (legacyProfileFields.length > 0 || /^embed-v(?!2:)/.test(String(profile?.spaceId ?? ''))) {
+      fail(
+        'legacy-embedding-profile-v1',
+        'critical',
+        `embeddingProfile carries retired v1 fields or id: ${legacyProfileFields.join(', ') || String(profile?.spaceId)}.`,
+        'Load the complete v2 profile from the canonical registry; do not translate or locally derive a compatibility id.'
+      );
+    }
+    const invalidProfileFields = profileFieldErrors(profile);
+    if (invalidProfileFields.length > 0) {
+      fail(
+        'embedding-profile-v2-incomplete',
+        'critical',
+        `embeddingProfile is missing or invalid for: ${invalidProfileFields.join(', ')}.`,
+        'Pass through the complete registry-produced v2 profile, including model/tokenizer config artifacts and preprocessing digest. The skill auditor never computes those digests or treats the profile as producer proof.'
       );
     } else {
-      const expectedSpaceId = deriveEmbeddingSpaceId(space);
-      if (space.spaceId !== expectedSpaceId) {
+      if (plan.loaderModelId !== profile.modelId) {
         fail(
-          'embedding-space-id-not-derived',
+          'embedding-loader-profile-model-mismatch',
           'critical',
-          `embeddingSpace.spaceId does not match the canonical identity derived from its fields; expected "${expectedSpaceId}".`,
-          'Hash the versioned canonical JSON metadata into embed-v1:<sha256>; never hand-label spaceId independently.'
+          `loaderModelId "${plan.loaderModelId}" does not match embeddingProfile.modelId "${profile.modelId}".`,
+          'Load the exact model named by the registry profile; never substitute an alias or fallback.'
         );
       }
-      if (['main', 'master', 'latest'].includes(String(space.revision).toLowerCase())) {
+      if (plan.loaderRevision !== profile.modelRevision) {
         fail(
-          'embedding-model-revision-mutable',
+          'embedding-loader-profile-revision-mismatch',
           'critical',
-          `embeddingSpace.revision "${space.revision}" is mutable rather than an immutable model revision.`,
-          'Pin an immutable model commit or content digest and re-embed when it changes.'
+          `loaderRevision "${plan.loaderRevision}" does not match embeddingProfile.modelRevision "${profile.modelRevision}".`,
+          'Pass the profile modelRevision to the loader and refuse a moving or substituted revision.'
         );
       }
-      if (space.dtype !== plan.dtype) {
+      if (plan.pooling !== profile.pooling) {
         fail(
-          'embedding-loader-space-dtype-mismatch',
+          'embedding-loader-profile-pooling-mismatch',
           'critical',
-          `embeddingSpace.dtype "${space.dtype}" does not match loader dtype "${plan.dtype}".`,
-          'Use the same explicit dtype in the loader and embedding-space identity.'
+          `pooling "${plan.pooling}" does not match embeddingProfile.pooling "${profile.pooling}".`,
+          'Use the same registry pooling recipe for both corpus and query vectors, then map it to the loader primitive at execution.'
         );
       }
       const observedNormalization = plan.normalizeEmbeddings === true ? 'l2' : 'none';
-      if (space.normalization !== observedNormalization) {
+      if (profile.normalization !== observedNormalization) {
         fail(
-          'embedding-loader-space-normalization-mismatch',
+          'embedding-loader-profile-normalization-mismatch',
           'critical',
-          `embeddingSpace.normalization "${space.normalization}" does not match the configured output normalization "${observedNormalization}".`,
-          'Make the loader behavior and persisted embedding-space identity agree before indexing.'
+          `embeddingProfile.normalization "${profile.normalization}" does not match configured output normalization "${observedNormalization}".`,
+          'Make the loader invocation and canonical profile agree before indexing.'
+        );
+      }
+      if (plan.maxInputTokens !== profile.maxTokens) {
+        fail(
+          'embedding-loader-profile-token-limit-mismatch',
+          'critical',
+          `maxInputTokens "${plan.maxInputTokens}" does not match embeddingProfile.maxTokens "${profile.maxTokens}".`,
+          'Use the profile truncation and token limit for both corpus and query inputs.'
         );
       }
     }
-    if (!isPlainObject(space) || !VALID_QUALITY_TIERS.includes(space.qualityTier)) {
-      fail(
-        'embedding-space-quality-tier-invalid',
-        'critical',
-        `embeddingSpace.qualityTier must be one of: ${VALID_QUALITY_TIERS.join(', ')}.`,
-        'Declare model quality explicitly on the model-space record; never infer it from modelId.'
-      );
-    } else if (!Object.hasOwn(space, 'degradedFallbackLabel')) {
-      fail(
-        'embedding-space-fallback-label-undeclared',
-        'critical',
-        'embeddingSpace.degradedFallbackLabel must be declared explicitly, using null when the space is not a degraded fallback.',
-        'Store degradedFallbackLabel beside qualityTier on every model-space record.'
-      );
-    } else if (space.qualityTier === 'approved' && space.degradedFallbackLabel !== null) {
-      fail(
-        'approved-space-has-degraded-label',
-        'critical',
-        'An approved embedding space must declare degradedFallbackLabel: null.',
-        'Use null for an approved space, or classify the space as degraded-fallback with a non-empty label.'
-      );
-    } else if (
-      space.qualityTier === 'degraded-fallback'
-      && (typeof space.degradedFallbackLabel !== 'string' || space.degradedFallbackLabel.trim() === '')
-    ) {
-      fail(
-        'degraded-space-missing-fallback-label',
-        'critical',
-        'A degraded-fallback embedding space requires a non-empty degradedFallbackLabel.',
-        'Name the constrained mode explicitly, for example degraded-local.'
-      );
-    }
+
     if (Object.hasOwn(plan, 'degradedFallbackLabeled')) {
       fail(
         'legacy-fallback-quality-flag',
         'critical',
-        'degradedFallbackLabeled is a legacy boolean and cannot identify the quality of an embedding space.',
-        'Remove the boolean and declare embeddingSpace.qualityTier plus embeddingSpace.degradedFallbackLabel.'
+        'degradedFallbackLabeled is a retired self-asserted quality flag and has no authority.',
+        'Remove the boolean. Current registry profiles remain degraded-fallback/declarative-only until a separate runtime attestation receipt promotes them.'
       );
+    }
+    const selfAssertedAttestationFields = FORBIDDEN_ATTESTATION_FIELDS.filter((field) =>
+      Object.hasOwn(plan, field)
+    );
+    if (selfAssertedAttestationFields.length > 0) {
+      fail(
+        'producer-attestation-self-asserted',
+        'critical',
+        `The plan self-asserts unsupported producer-attestation fields: ${selfAssertedAttestationFields.join(', ')}.`,
+        'Remove those fields. A separately verified producer-attestation path is roadmap-only and is not implemented by this skill.'
+      );
+    }
+    if (profile?.runtimeBinding === 'declarative-only') {
+      if (!VALID_VECTOR_DISPOSITIONS.includes(plan.vectorDisposition)) {
+        fail(
+          'declarative-profile-disposition-invalid',
+          'critical',
+          `vectorDisposition must be one of ${VALID_VECTOR_DISPOSITIONS.join(', ')} for a declarative-only profile.`,
+          'Keep generated vectors ephemeral and uncompared, or persist them only as an explicitly quarantined-uncompared fixture.'
+        );
+      }
+      if (plan.similarityComparisonEnabled !== false) {
+        fail(
+          'declarative-profile-comparison-forbidden',
+          'critical',
+          'similarityComparisonEnabled must be false because a declarative-only profile is not verified producer evidence.',
+          'Do not compare these vectors. A separately verified producer-attestation path is roadmap-only.'
+        );
+      }
+      if (plan.persistsVectors === true && plan.vectorDisposition !== 'quarantined-uncompared') {
+        fail(
+          'declarative-profile-persistence-not-quarantined',
+          'critical',
+          'A declarative-only vector may not enter ordinary index storage; persisted output must be explicitly quarantined-uncompared.',
+          'Set persistsVectors false for ephemeral output, or quarantine the artifact outside every search/index path.'
+        );
+      }
+      if (plan.vectorDisposition === 'quarantined-uncompared' && plan.persistsVectors !== true) {
+        fail(
+          'declarative-profile-quarantine-not-persisted',
+          'critical',
+          'vectorDisposition is quarantined-uncompared but persistsVectors is not true, so the declared lifecycle state is internally inconsistent.',
+          'Use ephemeral-uncompared with persistsVectors false, or quarantined-uncompared with persistsVectors true.'
+        );
+      }
     }
     if (plan.rejectsIncompatibleSpaces !== true) {
       fail(
         'incompatible-spaces-not-rejected',
         'critical',
-        'rejectsIncompatibleSpaces is not true: query and index vectors can be compared across different model spaces.',
-        'Fail closed on spaceId mismatch or explicitly re-embed one side before similarity search.'
-      );
-    }
-    if (plan.modelSelectedByDomainEval !== true) {
-      fail(
-        'embedding-model-not-domain-evaluated',
-        'critical',
-        'modelSelectedByDomainEval is not true: the embedder was not selected against representative corpus queries.',
-        'Evaluate approved candidate models on the target corpus and record the selection evidence.'
+        'rejectsIncompatibleSpaces is not true: a future attested comparison path would not fail closed on different declared spaces.',
+        'Preserve spaceId mismatch rejection as a future-path invariant; this flag does not authorize comparison now.'
       );
     }
   }
@@ -295,7 +423,7 @@ export function auditTransformersJsOnnxPipelines(plan) {
       'no-ci-smoke-test',
       'low',
       'ciSmokeTest is not true: nothing exercises the model on known queries each build, so a broken cache or model change ships silently.',
-      'Run the model on 3 known queries in CI and assert stable top-1 results.'
+      'Run the model on 3 known inputs in CI, assert load success, dimensions, and finite coordinates, then discard or quarantine the output without similarity comparison.'
     );
   }
 
@@ -303,7 +431,7 @@ export function auditTransformersJsOnnxPipelines(plan) {
   const pass = !criticalHit && clampedScore >= 60;
 
   if (findings.length === 0) {
-    recommendations.push('Plan clears every gate this skill checks. Still verify end-to-end: run the pipeline on a known query and confirm scores/vectors match a recorded baseline.');
+    recommendations.push('Plan clears every gate this skill checks. Keep declarative-only vectors ephemeral-uncompared or quarantined-uncompared until a separate verified producer-attestation path exists.');
   }
 
   return { pass, score: clampedScore, findings, recommendations };

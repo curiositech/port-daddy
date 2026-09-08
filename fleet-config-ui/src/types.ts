@@ -953,7 +953,9 @@ export interface SalvageAgent {
   sessionId: string | null;
   lastHeartbeat: number;
   staleSince: number;
-  status: 'stale' | 'dead' | 'resurrecting';
+  status: 'pending' | 'stale' | 'dead' | 'resurrecting' | 'dormant';
+  holdReason?: 'durable_session_active';
+  replacementAlreadyAdmitted?: boolean;
   notes?: string[];
   identityProject: string | null;
   identityStack: string | null;

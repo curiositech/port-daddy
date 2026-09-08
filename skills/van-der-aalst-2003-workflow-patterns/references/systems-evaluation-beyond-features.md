@@ -11,7 +11,7 @@ This is a damning critique of how complex systems are typically evaluated. Consu
 
 What they miss: **Can the system express the coordination logic your problems require?**
 
-This gap between feature-based evaluation and expressiveness-based evaluation is the core teaching. For agent orchestration systems like WinDAGs, this distinction is existential: a system with 180 skills means nothing if it cannot coordinate them in the patterns real problems demand.
+This gap between feature-based evaluation and expressiveness-based evaluation is the core teaching. For agent orchestration systems like Jury-rig, this distinction is existential: a system with 180 skills means nothing if it cannot coordinate them in the patterns real problems demand.
 
 ## Why Feature Checklists Fail
 
@@ -64,7 +64,7 @@ System B (Petri net):
 
 Both systems can express cycles (expressive), but only one makes cycles natural (suitable).
 
-**For WinDAGs**: Many patterns can be "expressed" by dropping to Python code. But if every advanced pattern requires Python, WinDAGs's orchestration layer has poor suitability (even if technically expressive).
+**For Jury-rig**: Many patterns can be "expressed" by dropping to Python code. But if every advanced pattern requires Python, Jury-rig's orchestration layer has poor suitability (even if technically expressive).
 
 ## The Four-Level Expressiveness Scale
 
@@ -119,9 +119,9 @@ The paper's methodology is systematic:
 
 This methodology produces honest assessment: not "System X has parallel execution," but "System X supports AND-split/join (Level 1), OR-split requires workaround (Level 3), discriminator is not supported (Level 4)."
 
-## Application to WinDAGs: An Honest Evaluation Framework
+## Application to Jury-rig: An Honest Evaluation Framework
 
-To evaluate WinDAGs using this methodology:
+To evaluate Jury-rig using this methodology:
 
 **Pattern Support Matrix:**
 
@@ -169,7 +169,7 @@ Many system evaluations commit the "optimistic feature claim" anti-pattern:
 
 These claims are technically true but practically misleading. Users expect "supports X" to mean "X is first-class and works correctly in combinations." When "supports" means "can be simulated with workarounds," trust erodes.
 
-**For WinDAGs**: Avoid claiming "supports 180+ skills" without clarifying coordination limitations. Better: "Supports 180+ skills orchestrated via DAG-based coordination. Native support for sequential, parallel, and conditional routing. Advanced patterns (cycles, discriminator, cancellation) require external orchestration or are out-of-scope."
+**For Jury-rig**: Avoid claiming "supports 180+ skills" without clarifying coordination limitations. Better: "Supports 180+ skills orchestrated via DAG-based coordination. Native support for sequential, parallel, and conditional routing. Advanced patterns (cycles, discriminator, cancellation) require external orchestration or are out-of-scope."
 
 This honesty helps users self-select for appropriate use cases.
 
@@ -179,18 +179,18 @@ Honest evaluation requires stating boundary conditions—when does the system NO
 
 **Example boundary conditions for a DAG-based system:**
 
-"WinDAGs is optimized for workflows with:
+"Jury-rig is optimized for workflows with:
 - Clear task dependencies (A must complete before B)
 - Moderate parallelism (fork/join patterns)
 - Conditional routing based on task outputs
 
-WinDAGs is NOT optimized for workflows with:
+Jury-rig is NOT optimized for workflows with:
 - Iterative refinement (arbitrary cycles with complex exit conditions)
 - Competitive evaluation (discriminator pattern with early termination)
 - Complex state machines (milestone patterns, deferred choice)
 - Transactional semantics (cancellation with rollback)
 
-For these advanced patterns, WinDAGs provides integration points with external orchestrators (Step Functions, Temporal, Airflow) or allows embedding imperative coordination in Python skills."
+For these advanced patterns, Jury-rig provides integration points with external orchestrators (Step Functions, Temporal, Airflow) or allows embedding imperative coordination in Python skills."
 
 These boundary conditions:
 1. Set realistic user expectations
@@ -202,7 +202,7 @@ These boundary conditions:
 
 The workflow patterns paper evaluates multiple commercial systems (Staffware, MQSeries, SAP Workflow, FileNet, etc.) against the pattern taxonomy. The result is not rankings ("System X is best") but **fit analysis** ("System X excels at structured workflows, struggles with dynamic routing; System Y excels at ad-hoc workflows, struggles with synchronization").
 
-This is the right evaluation approach for WinDAGs:
+This is the right evaluation approach for Jury-rig:
 - Don't claim to be best at everything
 - Identify what you excel at (DAG-based orchestration for skill-based agent tasks)
 - Identify what you struggle with (cycles, discriminators, state-based patterns)
@@ -234,7 +234,7 @@ Feature checklists don't answer these questions. Pattern-based evaluation does.
 
 The workflow patterns paper teaches that **honest evaluation requires assessing expressiveness and suitability, not just feature presence**.
 
-For agent orchestration systems like WinDAGs:
+For agent orchestration systems like Jury-rig:
 
 **Don't evaluate by:**
 - Feature counts (180+ skills)
@@ -255,4 +255,4 @@ This evaluation produces:
 
 The meta-teaching: **evaluation is not about scoring points; it is about understanding fit between problem and tool**. The workflow patterns framework enables this understanding.
 
-For WinDAGs: create your pattern support matrix, test pattern combinations, document boundary conditions, provide clear escape hatches. That is honest evaluation. That is how users make informed decisions. That is how systems improve over time.
+For Jury-rig: create your pattern support matrix, test pattern combinations, document boundary conditions, provide clear escape hatches. That is honest evaluation. That is how users make informed decisions. That is how systems improve over time.

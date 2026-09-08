@@ -57,13 +57,13 @@ only in a dashboard tooltip.
 
 Use exactly the `costAttribution` object above in events and receipts; do not
 fork it into `costCenter` or prose-only aliases. Unknown measured values are
-`null`, not silently omitted or renamed. An `embeddingSpaceId` is a foreign key
-to the explicit model-space record that owns provider, model id, immutable
-revision, dimensions, normalization, distance metric, dtype, `qualityTier`
-(`approved` or `degraded-fallback`), and a nullable
-`degradedFallbackLabel` such as `degraded-local`. A roadmap event never infers
-that classification from “MiniLM” or any other model name and never acts as the
-model registry.
+`null`, not silently omitted or renamed. An `embeddingSpaceId` is only an
+opaque `embed-v2:<64-lowercase-hex>` foreign key into the canonical model
+registry. A roadmap event never parses, derives, translates, or promotes that
+id and never acts as the model registry. The id describes a declared space; it
+does not mint ResourceScope compatibility, producer attestation, ordinary
+index persistence, or similarity authority. A verified producer-attestation
+path remains roadmap-only until implemented separately.
 
 ## Event Types
 
@@ -91,7 +91,7 @@ model registry.
   "supersedes": [],
   "dependencyIds": [],
   "retentionClass": "hot",
-  "embeddingSpaceId": "embed-v1:<sha256-of-canonical-space-metadata>",
+  "embeddingSpaceId": "embed-v2:<opaque-declared-space-id>",
   "costAttribution": {
     "project": "port-daddy",
     "account": "operator-local",

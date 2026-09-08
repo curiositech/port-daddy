@@ -58,7 +58,7 @@ Split by **disjoint edit surface**, not by line count:
   notes, the validation command. A narrow context is a faster, more accurate
   agent.
 - Where the work needs *different expertise* (Swift vs SQL vs CSS), give each
-  implementer a matching skill via `windags_skill_search` so the right tacit
+  implementer a matching skill via `pd jury-rig query` so the right tacit
   knowledge is loaded, rather than one generalist guessing across domains.
 
 `swarm_awareness` is how the coordinator keeps the split honest: before spawning
@@ -146,7 +146,7 @@ reachable without leaving the agent loop*:
 - **Port Daddy MCP** first: every coordination verb (session, claim, lock, note,
   port, swarm, spawn, discover) is a tool call, so "coordinate before you cut"
   costs one tool, not a context switch.
-- **WinDAGs MCP** for capability: `skill_search` before hand-rolling,
+- **Jury-rig MCP** for capability: `skill_search` before hand-rolling,
   `next_move` when the next action is ambiguous, `validate_dag` before executing
   a plan — so the fleet is planned, not improvised.
 - **Custom tools** (`pd_preflight`, `pd_note`, `pd_status`) exist only for the

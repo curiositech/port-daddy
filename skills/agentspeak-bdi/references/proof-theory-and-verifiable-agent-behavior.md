@@ -161,7 +161,7 @@ to test the system; you can prove the invariants hold.
 
 ---
 
-## Practical Verification for WinDAGs
+## Practical Verification for Jury-rig
 
 Full formal verification of a 180-skill orchestration system is computationally
 expensive. But the principles apply at multiple levels of rigor:
@@ -225,7 +225,7 @@ Every user request, every orchestrated workflow, every compound skill invocation
 should have a corresponding intention whose lifecycle (creation, execution,
 completion/failure) is tracked through the formal refutation concept.
 
-**For WinDAGs**: Every active task should have:
+**For Jury-rig**: Every active task should have:
 - An intention ID (unique identifier for the intention)
 - An intention stack (the current decomposition state)
 - A lifecycle status (active, suspended, completing, complete, failed)

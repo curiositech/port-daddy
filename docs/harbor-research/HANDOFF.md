@@ -205,3 +205,26 @@ B7 escalation signaling (single-crossing threshold; tuning band from measured va
 - **The collected source now owns its seams.** Every chapter receives a short opening that names the question and result ids, plus a handoff that says what the next chapter may assume and what remains unresolved. The introduction states the book's seven propositions; the appendices now contain only the implementation boundary, result atlas, and notation.
 - **Editorial illustration is out of this edition.** Jacket, chapter-plate, coda, speculative-expansion, condominium, and clean-room material no longer render in the collected book. Art assets remain available for a later, separately judged edition.
 - **Current Relay scope was checked against source.** Relay v0 transports authenticated events over outbound HTTPS/SSE. It is not daemon-state replication, global consensus, local effect authorization, end-to-end secrecy, a witness log, or a settlement institution.
+
+---
+## 11. DELTA v10 (2026-09-07) — outside literature review credited into the canon
+Four independent outside reviewers were pointed at the Book, one per part, and told to
+search the live literature for prior work behind every formal idea, ignoring the Book's own framing. Their four write-ups live
+at `docs/harbor-research/exposition/literature/README.md`, `part-I-ground-truth.md`, `part-II-cost-of-seeing.md`,
+`part-III-what-survives-the-restart.md`, and `part-IV-trade-between-strangers.md` on the `research/literature-review` branch
+(Part I landed after Parts II–IV, in a second pass on the same wave): a verdict per idea (firm / known result
+restated / novel / contested), a `[verified]`-or-`[unverified]`-tagged Prior Work list, a reading list, and a closing table of
+the Book's private coinages against the public terms the fields already use. The reviews found no theorem wrong as stated;
+what they found was missing canon. This wave (`wave-16/credit-the-canon`) closed the citable gaps: it added the missing
+`\cite`/`\bibitem` pairs at the sentence where the Book states each idea (propagated to the research-paper twin per the
+twin rule, `LIBRARY-SYSTEM.md` §2/7, when the section is folded), named the public term before the Book's private one where
+the closing tables called for it (e.g. "level of automation" before "auto-land grant," "algorithms with predictions" before
+"context paging with a corrupted pin oracle," the fencing token before the fencing epoch, self-composition before "run the
+world twice"), added the one-sentence reframing of the deontic fragment against Colombo
+Tosatto/Governatori/van Beest's compliance-checking dichotomy the Part IV review recommended, placed the five-rung assurance
+ladder beside Sheridan's levels of automation and the Common Criteria's evaluation assurance levels, and verified the
+Liu–Skrzypacz venue correction the reviews flagged was already applied. Every finding is logged as a row in
+`docs/harbor-research/critique-ledger.json` / `CRITIQUE-LEDGER.md` under ids `LR-1xx` (Part I), `LR-2xx` (Part II), `LR-3xx`
+(Part III), and `LR-4xx` (Part IV) — see the ledger's "Outside literature review" section for the full per-idea disposition
+(`DONE`, or `DECLINED` with the reason: already fully cited, no citable source exists, or a self-reported open item in the
+Book itself). No theorem statement, number, or label changed.

@@ -51,7 +51,7 @@ Common errors to avoid:
 
 The paper notes: "In standard tool documents, there are often issues of redundancy, unclear descriptions, which may mislead the agent into making inappropriate attempts."
 
-**For WinDAGs**: This suggests skills should receive **execution-context-aware tool documentation** generated per invocation, not generic API docs. A code review skill invoked for security checks sees different tool descriptions (emphasis on security scanners) than the same skill invoked for performance optimization (emphasis on profilers).
+**For Jury-rig**: This suggests skills should receive **execution-context-aware tool documentation** generated per invocation, not generic API docs. A code review skill invoked for security checks sees different tool descriptions (emphasis on security scanners) than the same skill invoked for performance optimization (emphasis on profilers).
 
 ### 2. Incremental Skill Library (Section 4.2.2)
 
@@ -122,7 +122,7 @@ Appendix B.1 details the implementation:
 
 This is **evolutionary agent development**: the agent population's capabilities grow over time without human intervention.
 
-## Implementation Pattern for WinDAGs
+## Implementation Pattern for Jury-rig
 
 The paper suggests a three-stage agent generation process:
 
@@ -234,7 +234,7 @@ This reveals boundary conditions:
 
 In WebShop, tasks are "click elements on a webpage"—highly uniform. In TextCraft, tasks are "craft item X"—more varied but still within a single domain (Minecraft crafting). Yet TDAG still outperforms (WebShop: 64.5 vs. 60.0; TextCraft: 73.5 vs. 52.0), suggesting **agent generation helps even in relatively simple domains** by providing focused context.
 
-**For WinDAGs**: Use fixed agents for:
+**For Jury-rig**: Use fixed agents for:
 - High-frequency, invariant operations (e.g., "parse JSON")
 - Ultra-low-latency requirements where generation overhead matters
 - Security-critical operations where generated prompts might introduce vulnerabilities
@@ -264,7 +264,7 @@ This is **organizational learning**. The paper notes: "A agent dedicated to skil
 - Skills are deduplicated: if ≥k=2 similar skills exist (similarity >θ=0.7), new skill is rejected
 - This prevents library pollution while allowing refinement: if a skill proves flawed, next execution generates a corrected version that *replaces* it (by being more similar to the problem than the flawed skill)
 
-**For WinDAGs**: The skill library becomes a critical component:
+**For Jury-rig**: The skill library becomes a critical component:
 - **Persistence**: Store across sessions, like a database
 - **Versioning**: Track skill evolution over time
 - **Analytics**: Monitor which skills are retrieved most often, which lead to success/failure
@@ -284,7 +284,7 @@ The paper doesn't detail the generator prompts, but implies they're relatively s
 
 The system is autonomous at Level 0-1 but not Level 2. This is the right trade-off: Level 2 changes rarely (how to customize documentation is stable) while Level 0-1 changes constantly (which specific subtasks need solving).
 
-**For WinDAGs**: Invest engineering effort in *generator quality* (Level 2), not agent variety (Level 1). Build excellent tool doc generators and skill extractors, let them produce the agent zoo.
+**For Jury-rig**: Invest engineering effort in *generator quality* (Level 2), not agent variety (Level 1). Build excellent tool doc generators and skill extractors, let them produce the agent zoo.
 
 ## Measuring Agent Generation Impact
 

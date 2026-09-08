@@ -333,10 +333,10 @@ describe('Identity Module', () => {
 
   describe('matchesPattern() - Complex Scenarios (5 tests)', () => {
     it('should match wildcard stack with specific project and context', () => {
-      expect(matchesPattern('windags:*:main', 'windags:api:main')).toBe(true);
-      expect(matchesPattern('windags:*:main', 'windags:frontend:main')).toBe(true);
-      expect(matchesPattern('windags:*:main', 'windags:worker:main')).toBe(true);
-      expect(matchesPattern('windags:*:main', 'windags:api:dev')).toBe(false);
+      expect(matchesPattern('jury_rig:*:main', 'jury_rig:api:main')).toBe(true);
+      expect(matchesPattern('jury_rig:*:main', 'jury_rig:frontend:main')).toBe(true);
+      expect(matchesPattern('jury_rig:*:main', 'jury_rig:worker:main')).toBe(true);
+      expect(matchesPattern('jury_rig:*:main', 'jury_rig:api:dev')).toBe(false);
     });
 
     it('should match multiple services with same pattern', () => {

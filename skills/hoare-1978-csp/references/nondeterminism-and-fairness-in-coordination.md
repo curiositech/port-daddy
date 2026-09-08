@@ -253,7 +253,7 @@ Techniques:
 2. **Formal proof**: Prove invariants that hold regardless of ordering
 3. **Stress testing**: Run the system many times with different timings (using delays, load, etc.) to exercise different orderings
 
-**For WinDAGs**: Test orchestration plans under varying conditions:
+**For Jury-rig**: Test orchestration plans under varying conditions:
 - Skills finishing in different orders
 - Skills delayed by varying amounts
 - Skills failing at different points

@@ -81,7 +81,7 @@ witness simulator (placeholder under
   commits the new paper PDF.
 - Decides what is in scope for round N vs deferred to N+1.
 - Maintains the running threat model under
-  `docs/shipwright/federated/THREAT-MODEL.md`.
+  `docs/shipwright/federated/THREAT-MODEL.md` (not built yet).
 
 ## Defense categories
 
@@ -98,7 +98,7 @@ attests to C in its own pact registry. The verifier rule binds the
 verifying harbor's *own* pact-set, not the chain.
 
 **Mechanization commitment.** ProVerif at
-`proofs/federated/trust/non-transitive-pact.pv` (placeholder).
+`proofs/federated/trust/non-transitive-pact.pv` (planned, not yet written; not built yet).
 Authenticity query: `accepted(C-token at A) ==> consented(A, C)`.
 Composition query: a two-hop pact (A→B, B→C) does *not* imply
 `consented(A, C)` unless an explicit attestation event was emitted.
@@ -130,7 +130,7 @@ attestation propagation (gossip costs gas).
   of one chain into another changes the position field.
 
 **Mechanization commitment.** ProVerif at
-`proofs/federated/tokens/cross-harbor-issuance.pv` (placeholder)
+`proofs/federated/tokens/cross-harbor-issuance.pv` (planned, not yet written; not built yet)
 with three independent queries — forgery, re-issuance, splice —
 each `false` (i.e., attacker cannot derive the event).
 
@@ -157,7 +157,7 @@ more, or are paid more, depending on the federation's pricing rule).
   window are accepted only after the re-sync.
 
 **Mechanization commitment.** Apalache spec at
-`proofs/federated/revocation/propagation.tla` (placeholder).
+`proofs/federated/revocation/propagation.tla` (planned, not yet written; not built yet).
 Inductive invariant `RevokedNotAccepted`:
 
 ```
@@ -186,7 +186,7 @@ weight on federation governance is capped at the bond-fraction.
 Voting weight = stake-fraction, never harbor-count-fraction.
 
 **Mechanization commitment.** Mesa simulation at
-`proofs/federated/sybil/join-cost.py` (placeholder). The
+`proofs/federated/sybil/join-cost.py` (planned, not yet written; not built yet). The
 simulation produces, for every (K, N, bond-curve) tuple, a row
 showing the adversary's stake fraction and voting weight fraction.
 The paper's safety claim is parametric in the bond curve and the
@@ -213,7 +213,7 @@ bonded escalation:
   ordering; the loser's bond pays the winner.
 
 **Mechanization commitment.** TLA+/Apalache spec at
-`proofs/federated/settlement/no-double-extract.tla` (placeholder).
+`proofs/federated/settlement/no-double-extract.tla` (planned, not yet written; not built yet).
 Invariant `NoDoubleExtract`: in every reachable state, the
 adversary's net balance change ≤ the legitimate settlement amount.
 
@@ -241,8 +241,8 @@ This is the CT-log signed-tree-head-cross-witness pattern, made
 explicit and called out by name (see Pre-emptive analogies below).
 
 **Mechanization commitment.** ProVerif at
-`proofs/federated/equivocation/witness-cross-check.pv`
-(placeholder). Authenticity: any two observers' accepted
+`proofs/federated/equivocation/witness-cross-check.pv` (planned, not yet written; not built yet).
+Authenticity: any two observers' accepted
 tree-heads at epoch e are equal *or* the trace contains a
 `Disagreement` event observable in O(W) gossip rounds.
 
@@ -262,7 +262,7 @@ floor is enforced by refusing new cross-harbor commitments below a
 threshold rather than asking honest parties to top up under duress.
 
 **Mechanization commitment.** Mesa simulation at
-`proofs/federated/econ/bond-drain.py` (placeholder), producing
+`proofs/federated/econ/bond-drain.py` (planned, not yet written; not built yet), producing
 a worst-case depletion curve under adversary-optimal dispute
 timing. The pool must stay above the safety floor for every run.
 
@@ -285,7 +285,7 @@ harbor are gated by a *reputation budget* that starts at the bond
 amount and grows at a paper-stated rate.
 
 **Mechanization commitment.** Mesa simulation at
-`proofs/federated/cold-start/extraction-bound.py` (placeholder).
+`proofs/federated/cold-start/extraction-bound.py` (planned, not yet written; not built yet).
 For every strategy in the strategy library (and for adversary-best-
 response), expected extraction ≤ posted bond over the cold-start
 window. Joint cold-start by coalition is simulated; the cap is
@@ -314,7 +314,7 @@ operator identity layer in an appendix. It is not part of the core
 safety claim.
 
 **Mechanization commitment.** A protocol commitment, not a proof:
-`proofs/federated/operator-sybil/binding.md` (placeholder). The
+`proofs/federated/operator-sybil/binding.md` (planned, not yet written; not built yet). The
 document states which mechanism the paper commits to (the
 "bonded-not-diverse" default) and what falsification would look
 like (an attacker demonstrating that bond-fraction safety fails
@@ -364,7 +364,7 @@ so the redteam can find them.
 ## Dependency formalization (cross-paper)
 
 The Federated Harbor rests on Anchor and Bonded results. Every
-load-bearing dependency must be cited and tested:
+critical dependency must be cited and tested:
 
 - **Anchor dependencies.** Cross-harbor capability tokens depend
   on Anchor's signature scheme (Anchor §[ANCHOR-§-SIGS]) and
@@ -504,7 +504,7 @@ A defender's counter has these markers:
   authority. A counter that introduces a trusted root is a tell
   that the doctrine has slipped.
 - **"The paper does *not* claim operator diversity."** Operator
-  Sybil counters open with this disclaimer. It is the load-bearing
+  Sybil counters open with this disclaimer. It is the pivotal
   honesty in the defense surface.
 - **"Refute the cap, not the strategy."** Cold-start counters
   invite the redteam to find a strategy that breaks the cap, not a

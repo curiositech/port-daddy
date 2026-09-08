@@ -145,7 +145,7 @@ This is the difference between static epistemic logic (facts don't change) and d
 
 When certain facts should be commonly known and won't change, broadcast them publicly. This creates stable common knowledge that enables coordination.
 
-Example in WinDAGs: "The current task queue contains tasks T1, T2, T3" announced to all agents means everyone knows the queue state, everyone knows everyone knows it, enabling decentralized decisions about task claiming.
+Example in Jury-rig: "The current task queue contains tasks T1, T2, T3" announced to all agents means everyone knows the queue state, everyone knows everyone knows it, enabling decentralized decisions about task claiming.
 
 **2. Model Announcement History as Constraints**
 
@@ -187,7 +187,7 @@ Public announcement semantics: "Here's a constraint on possible worlds"
 
 The second is more powerful for reasoning about knowledge, but requires maintaining a model of possibilities. 
 
-For WinDAGs: when epistemic properties matter (does everyone know X? does anyone know Y?), use announcement semantics. When just sharing data, use simpler message-passing.
+For Jury-rig: when epistemic properties matter (does everyone know X? does anyone know Y?), use announcement semantics. When just sharing data, use simpler message-passing.
 
 ## The Deep Pattern
 

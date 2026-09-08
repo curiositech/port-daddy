@@ -89,7 +89,7 @@ Each stage reduces optionality:
 - **Goals**: "I want some of those things"
 - **Intentions**: "I'm committed to attempting specific things"
 
-## Application to WinDAGs: Hierarchical Skill Decomposition
+## Application to Jury-rig: Hierarchical Skill Decomposition
 
 Consider a complex request: "Analyze the security vulnerabilities in this codebase."
 
@@ -211,7 +211,7 @@ Agent B's intention-world:
 
 No central controller needs to understand the full branching structure. Each agent maintains their own partial view.
 
-For WinDAGs: This suggests a **distributed orchestration pattern** where each agent:
+For Jury-rig: This suggests a **distributed orchestration pattern** where each agent:
 - Maintains beliefs about task structure (branching possibilities)
 - Selects goals based on local objectives
 - Commits to intentions based on coordination signals
@@ -243,7 +243,7 @@ This triggers:
 3. Re-evaluate remaining goal-branches
 4. Re-commit to new intention-branch
 
-For WinDAGs orchestration, this means failure handling should:
+For Jury-rig orchestration, this means failure handling should:
 
 ```python
 def handle_subtask_failure(self, failed_task, error):
@@ -353,7 +353,7 @@ The BDI formalism reveals that **decomposition is not a function from problems t
 4. **Execute** and observe which branch is actual (action)
 5. **Revise** the structure based on observations (belief update)
 
-For WinDAGs, this suggests:
+For Jury-rig, this suggests:
 - Don't just ask "How should I decompose this task?"
 - Ask: "What are all possible decompositions?" (belief)
 - Then: "Which would achieve my objectives?" (goal)

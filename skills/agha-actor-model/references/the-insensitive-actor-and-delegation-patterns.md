@@ -120,11 +120,11 @@ One of Agha's most important theoretical results: "Concurrent composition is int
 
 Sequential composition, in actor systems, is not a primitive — it is pattern of causally ordered message-passing. This means that any time you write sequential code in an agent system, you are implicitly creating a causal chain that could be parallelized if the dependencies were not actually necessary.
 
-## Application to WinDAGs Agent Design
+## Application to Jury-rig Agent Design
 
 ### The insensitive agent pattern for skill invocations
 
-When a WinDAGs agent invokes a skill that requires an external result before its next state can be determined:
+When a Jury-rig agent invokes a skill that requires an external result before its next state can be determined:
 
 1. Create a buffer agent to hold incoming task requests
 2. Create a continuation agent (customer) to handle the skill result
@@ -136,7 +136,7 @@ This prevents the orchestrating agent from being unavailable during skill invoca
 
 ### Customer chains for parallel sub-plans
 
-When a WinDAGs plan requires multiple sequential steps, implement each step as a customer agent:
+When a Jury-rig plan requires multiple sequential steps, implement each step as a customer agent:
 
 - Step N creates customer N+1 and sends work to step N's executor
 - Step N's executor sends the result to customer N+1
@@ -149,7 +149,7 @@ Each customer is a small, focused agent whose only job is to receive one result 
 
 ### Making "waiting" explicit
 
-WinDAGs orchestration should distinguish between:
+Jury-rig orchestration should distinguish between:
 - **Active agents**: Currently executing their primary behavior
 - **Insensitive agents**: Waiting for a specific result before they can proceed
 - **Customer agents**: Waiting for a result to continue a computation chain
@@ -161,7 +161,7 @@ Making these states observable enables:
 
 ### The continuation/callback pattern
 
-Rather than polling for results, WinDAGs should adopt the customer model throughout:
+Rather than polling for results, Jury-rig should adopt the customer model throughout:
 
 ```
 # Instead of:
@@ -184,7 +184,7 @@ skill.invoke(task, reply_to=customer)
 
 **The proxy authentication requirement**
 
-The insensitive actor pattern requires that only the correct proxy can send the "become" message. Without this, any actor could maliciously or erroneously change the insensitive actor's state. In WinDAGs, continuation agents should have authenticated channels back to the agents they serve.
+The insensitive actor pattern requires that only the correct proxy can send the "become" message. Without this, any actor could maliciously or erroneously change the insensitive actor's state. In Jury-rig, continuation agents should have authenticated channels back to the agents they serve.
 
 **Buffer overflow**
 

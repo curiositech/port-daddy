@@ -36,7 +36,7 @@ This is fundamentally different from desire aggregation (voting, averaging, pref
 
 In traditional multi-agent systems, coordination happens between agents with fixed, pre-programmed goals. Agent A wants X, Agent B wants Y, they negotiate based on utilities. But real systems often need to **discover what their goals should be** through interaction.
 
-Consider a WinDAGs-style orchestration system tasked with "improve system reliability." The individual agents (monitoring, debugging, testing, deployment) don't have pre-existing desires about HOW to improve reliability. Instead:
+Consider a Jury-rig-style orchestration system tasked with "improve system reliability." The individual agents (monitoring, debugging, testing, deployment) don't have pre-existing desires about HOW to improve reliability. Instead:
 
 1. **Monitoring agent shares observations**: "High error rates in authentication service"
 2. **Debugging agent shares hypothesis**: "Likely race condition under load"

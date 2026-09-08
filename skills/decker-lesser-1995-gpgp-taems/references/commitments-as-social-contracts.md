@@ -83,7 +83,7 @@ The paper shows how different coordination mechanisms create different types of 
 
 ## Application to Modern Agent Systems
 
-For orchestration systems like WinDAGs, this commitment model suggests several design patterns:
+For orchestration systems like Jury-rig, this commitment model suggests several design patterns:
 
 **Explicit Commitment Types**: Define clear commitment types with formal semantics. At minimum: "best effort" (Do), "by deadline" (DL), and "continuous" (for ongoing services). Each type should have clear satisfaction criteria.
 

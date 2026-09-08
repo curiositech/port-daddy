@@ -152,7 +152,7 @@ describe('begin idempotency — resume, do not fork', () => {
     expect(b.sessionId).not.toBe(a.sessionId);
   });
 
-  test('closed-session re-begin exposes only the verified packet metadata and plan checkpoint', () => {
+  test('closed-session re-begin returns an exact takeover candidate without reading predecessor context', () => {
     const lookups = [];
     const { sugar, sessions } = setup({
       contextBootstrapLookup: (sourceSessionId) => {
@@ -166,16 +166,19 @@ describe('begin idempotency — resume, do not fork', () => {
 
     const second = sugar.begin({ lifecycle: 'durable', identity: 'demo:test:verified', purpose: 'take over verified work' });
 
-    expect(second.takeover).toBe(true);
-    expect(lookups).toEqual([first.sessionId]);
-    expect(second.contextContinuation).toEqual(expect.objectContaining({
-      status: 'ready',
-      sourceSessionId: first.sessionId,
-      packet: expect.objectContaining({ packetId: 'cpk_verified_fixture', sourceHeadEventId: 'evt_context_head' }),
-      planCheckpoint: expect.objectContaining({ content: '- [ ] Resume the bounded plan' }),
-    }));
-    expect(second.contextContinuation).not.toHaveProperty('transcriptPrefix');
-    expect(JSON.stringify(second.contextContinuation)).not.toContain('RAW_TRANSCRIPT_MUST_NOT_ESCAPE');
+    expect(second).toMatchObject({
+      success: false,
+      code: 'CLOSED_SESSION_REQUIRES_EXPLICIT_TAKEOVER',
+      candidates: [expect.objectContaining({
+        sessionId: first.sessionId,
+        status: 'completed',
+        lifecycle: 'durable',
+      })],
+    });
+    expect(second.hint).toContain(`pd session takeover ${first.sessionId}`);
+    expect(lookups).toEqual([]);
+    expect(second).not.toHaveProperty('contextContinuation');
+    expect(JSON.stringify(second)).not.toContain('RAW_TRANSCRIPT_MUST_NOT_ESCAPE');
   });
 
   test('malformed lookup output is withheld rather than copied into a continuation', () => {

@@ -73,7 +73,7 @@ private class CallForOfferServer extends CyclicBehaviour {
 
 If the book isn't in the catalog, the seller **immediately refuses** (doesn't accept and then fail later). This prevents wasted work and allows the buyer to query other sellers quickly.
 
-**For WinDAGs**: Skills should check preconditions *before* accepting work:
+**For Jury-rig**: Skills should check preconditions *before* accepting work:
 
 ```python
 def handle_task_request(task):
@@ -138,7 +138,7 @@ Messages are written to disk before sending. If delivery fails:
 3. If receiver comes online later, message is delivered
 4. After successful delivery, message is deleted
 
-**For WinDAGs**: Implement persistent queues (e.g., Kafka, RabbitMQ with durable queues) for inter-skill messages. If Skill B crashes while Skill A is sending results, the message waits in the queue until B restarts.
+**For Jury-rig**: Implement persistent queues (e.g., Kafka, RabbitMQ with durable queues) for inter-skill messages. If Skill B crashes while Skill A is sending results, the message waits in the queue until B restarts.
 
 ### Message Templates for Resilient Routing
 
@@ -164,7 +164,7 @@ MessageTemplate mt = MessageTemplate.and(
 ACLMessage reply = myAgent.receive(mt);
 ```
 
-**For WinDAGs**: Every skill invocation should include:
+**For Jury-rig**: Every skill invocation should include:
 - **Request-ID**: Globally unique (UUID)
 - **Conversation-ID**: Identifies the workflow instance
 - **In-reply-to**: Points to the request this is responding to
@@ -193,7 +193,7 @@ JADE uses **non-preemptive scheduling** for behaviors:
 
 > "A behaviour such as that shown below will prevent any other behaviour from being executed because its action() method will never return."
 
-**For WinDAGs**: If using cooperative scheduling for skill executors:
+**For Jury-rig**: If using cooperative scheduling for skill executors:
 - Enforce **per-behavior timeouts** at the scheduler level
 - If a behavior doesn't return within N seconds, forcibly terminate it
 - Log timeout events for debugging (which behaviors are misbehaving?)
@@ -260,7 +260,7 @@ private class BookNegotiator extends Behaviour {
 - If confirmation doesn't arrive (step 3), timeout logic (implicit in receive + block)
 - Each state has a clear next state or terminal condition
 
-**For WinDAGs**: Represent workflows as explicit FSMs:
+**For Jury-rig**: Represent workflows as explicit FSMs:
 
 ```python
 class WorkflowFSM:
@@ -308,7 +308,7 @@ MCRS works by:
 3. Agents re-register with the new main container
 4. Service continuity maintained (agents don't need to restart)
 
-**For WinDAGs**: If the central orchestrator is a single point of failure:
+**For Jury-rig**: If the central orchestrator is a single point of failure:
 - Deploy multiple orchestrator replicas (active-passive or active-active)
 - Use leader election (e.g., Raft, Zookeeper) to choose the active orchestrator
 - Replicate orchestrator state (workflow states, skill registry) across replicas
@@ -329,7 +329,7 @@ If an agent doesn't respond to pings:
 2. Remove from routing tables (messages to it will fail-fast)
 3. Notify dependent agents (if configured)
 
-**For WinDAGs**: Implement heartbeat monitoring:
+**For Jury-rig**: Implement heartbeat monitoring:
 - Each skill sends heartbeat every N seconds
 - Orchestrator expects heartbeats within 3N seconds
 - If 3 consecutive heartbeats missed → mark skill as down
@@ -376,7 +376,7 @@ MicroRuntime.setConnectionListener(new ConnectionListener() {
 - Escalate to user if recovery impossible
 - Invalidate cached state if back-end lost
 
-**For WinDAGs**: Expose similar events:
+**For Jury-rig**: Expose similar events:
 - `SKILL_UNAVAILABLE`: Registry lookup failed
 - `EXECUTION_STALLED`: Skill started but no heartbeat
 - `RESULT_UNDELIVERABLE`: Skill completed but orchestrator unreachable
@@ -416,7 +416,7 @@ myAgent.send(subscribe);
 // Orchestrator processes INFORMs asynchronously
 ```
 
-**For WinDAGs**: Use pub/sub (e.g., Redis Pub/Sub, Kafka) for status updates:
+**For Jury-rig**: Use pub/sub (e.g., Redis Pub/Sub, Kafka) for status updates:
 - Skills publish `(skill_id, status, timestamp)` to a topic
 - Orchestrators subscribe to the topic
 - On status change (ready → running → failed), orchestrator updates workflow state
@@ -502,7 +502,7 @@ Use NOT_UNDERSTOOD performative when messages don't match expected ontology:
 - Sender can retry with corrected data or negotiate a compatible ontology
 - Receiver doesn't crash on unexpected input
 
-**For WinDAGs**: Validate skill inputs against declared schemas before execution. If validation fails, return schema mismatch error (not runtime exception).
+**For Jury-rig**: Validate skill inputs against declared schemas before execution. If validation fails, return schema mismatch error (not runtime exception).
 
 ## The Hard Truth About Distributed Failures
 

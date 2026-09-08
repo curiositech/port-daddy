@@ -13,9 +13,22 @@
  * precedence and on the safety rule below.
  */
 
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  constants as fsConstants,
+  closeSync,
+  existsSync,
+  fchmodSync,
+  fstatSync,
+  lstatSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
-import { getContextDir, readCurrentContext, resolveContextSlot } from './current-context.js';
+import { getContextDir, resolveCurrentContext, resolveContextSlot } from './current-context.js';
 
 interface StoredCliActor {
   agentId?: string | null;
@@ -30,17 +43,52 @@ function actorFilePath(cwd: string = process.cwd()): string {
   return join(actorStoreDir(cwd), `${resolveContextSlot()}.json`);
 }
 
+function repairPrivateActorDirectory(path: string, create: boolean): boolean {
+  let fd: number | null = null;
+  try {
+    if (!existsSync(path)) {
+      if (!create) return false;
+      mkdirSync(path, { mode: 0o700 });
+    }
+    const link = lstatSync(path);
+    if (link.isSymbolicLink() || !link.isDirectory()) throw new Error(`refusing unsafe actor credential directory: ${path}`);
+    fd = openSync(path, fsConstants.O_RDONLY | fsConstants.O_DIRECTORY | fsConstants.O_NOFOLLOW);
+    const opened = fstatSync(fd);
+    const uid = process.getuid?.();
+    if (!opened.isDirectory() || opened.ino !== link.ino || opened.dev !== link.dev
+      || (uid !== undefined && opened.uid !== uid)) throw new Error(`refusing unsafe actor credential directory: ${path}`);
+    fchmodSync(fd, 0o700);
+    return true;
+  } finally {
+    if (fd !== null) try { closeSync(fd); } catch {}
+  }
+}
+
 function readStoredCliActor(): StoredCliActor | null {
+  let fd: number | null = null;
   try {
     const path = actorFilePath();
     if (!existsSync(path)) return null;
-    const parsed = JSON.parse(readFileSync(path, 'utf8')) as StoredCliActor | null;
+    const contextDir = getContextDir();
+    const storeDir = actorStoreDir();
+    if (!repairPrivateActorDirectory(contextDir, false) || !repairPrivateActorDirectory(storeDir, false)) return null;
+    const link = lstatSync(path);
+    const uid = process.getuid?.();
+    if (link.isSymbolicLink() || !link.isFile() || link.nlink !== 1 || (uid !== undefined && link.uid !== uid)) return null;
+    fd = openSync(path, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
+    const opened = fstatSync(fd);
+    if (!opened.isFile() || opened.nlink !== 1 || opened.ino !== link.ino || opened.dev !== link.dev
+      || (uid !== undefined && opened.uid !== uid)) return null;
+    if ((opened.mode & 0o777) !== 0o600) fchmodSync(fd, 0o600);
+    const parsed = JSON.parse(readFileSync(fd, 'utf8')) as StoredCliActor | null;
     if (!parsed || typeof parsed !== 'object' || typeof parsed.credential !== 'string' || !parsed.credential.trim()) {
       return null;
     }
     return parsed;
   } catch {
     return null;
+  } finally {
+    if (fd !== null) try { closeSync(fd); } catch {}
   }
 }
 
@@ -69,9 +117,13 @@ function readStoredCliActor(): StoredCliActor | null {
 export function resolveCliActorCredential(expectedAgentId?: string): string | undefined {
   const envCredential = process.env.PD_ACTOR_CREDENTIAL?.trim()
     || process.env.PORT_DADDY_ACTOR_CREDENTIAL?.trim();
-  if (envCredential) return envCredential;
+  const pairedEnvAgentId = process.env.PD_AGENT_ID?.trim();
+  if (envCredential && (!expectedAgentId || !pairedEnvAgentId || pairedEnvAgentId === expectedAgentId)) {
+    return envCredential;
+  }
   try {
-    const context = readCurrentContext();
+    const resolution = resolveCurrentContext();
+    const context = resolution.success ? resolution.context : null;
     if (
       context &&
       typeof context.credential === 'string' &&
@@ -99,19 +151,37 @@ export function resolveCliActorCredential(expectedAgentId?: string): string | un
  */
 export function persistCliActorCredential(credential: string, agentId?: string | null): void {
   try {
+    const contextDir = getContextDir();
+    repairPrivateActorDirectory(contextDir, true);
     const dir = actorStoreDir();
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    repairPrivateActorDirectory(dir, true);
     // 0o600: the file holds a plaintext bearer credential — owner read/write
     // only, same posture as an SSH private key and the custody bar ADR-0040
     // sets for plaintext bearer credentials at rest. Other local users must
     // not be able to read (and thus present) this shell's soul.
     const path = actorFilePath();
-    writeFileSync(path, JSON.stringify({ agentId: agentId ?? null, credential }, null, 2), { mode: 0o600 });
-    // writeFileSync's `mode` only applies when the file is CREATED; a
-    // pre-existing file (older CLI version, loosened by hand) keeps its old
-    // mode through the overwrite — which would leave a fresh plaintext
-    // credential world-readable. Clamp unconditionally.
-    chmodSync(path, 0o600);
+    const temporaryPath = `${path}.tmp-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    let fd: number | null = null;
+    try {
+      if (existsSync(path)) {
+        const destination = lstatSync(path);
+        if (destination.isSymbolicLink() || !destination.isFile()) {
+          throw new Error(`refusing unsafe actor credential file: ${path}`);
+        }
+      }
+      fd = openSync(temporaryPath, 'wx', 0o600);
+      fchmodSync(fd, 0o600);
+      writeFileSync(fd, JSON.stringify({ agentId: agentId ?? null, credential }, null, 2));
+      closeSync(fd);
+      fd = null;
+      renameSync(temporaryPath, path);
+    } catch (error) {
+      if (fd !== null) {
+        try { closeSync(fd); } catch {}
+      }
+      try { unlinkSync(temporaryPath); } catch {}
+      throw error;
+    }
   } catch {
     // Best-effort: an unpersistable credential only costs a re-mint later.
   }

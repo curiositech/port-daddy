@@ -717,27 +717,27 @@ describe('buildSkillAdjacency + first-hop expansion end-to-end through craft()',
 
   test('an id that prefixes a longer id never steals its mention (hyphen-aware boundaries)', async () => {
     // `\\b` treats a hyphen as a boundary, so a plain-\\b regex would match
-    // `windags-ops` INSIDE `windags-ops-extended` — a false edge to the
+    // `jury_rig-ops` INSIDE `jury_rig-ops-extended` — a false edge to the
     // shorter id AND, with the g-flag cursor advanced, the longer id's own
     // mention consumed and missed. The lookaround boundaries must credit
     // the mention to the longer id only.
-    writeSkill(tmpRoot, 'windags-ops', 'short operational skill vocabulary');
-    writeSkill(tmpRoot, 'windags-ops-extended', 'longer operational skill vocabulary');
+    writeSkill(tmpRoot, 'jury_rig-ops', 'short operational skill vocabulary');
+    writeSkill(tmpRoot, 'jury_rig-ops-extended', 'longer operational skill vocabulary');
     const dir = join(tmpRoot, 'mentioner');
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, 'SKILL.md'),
-      `---\nname: mentioner\ndescription: |\n  central topic words filler alpha\n---\n\n# mentioner\n\nThis skill builds on windags-ops-extended for the long-form flow.\n`);
+      `---\nname: mentioner\ndescription: |\n  central topic words filler alpha\n---\n\n# mentioner\n\nThis skill builds on jury_rig-ops-extended for the long-form flow.\n`);
 
     const { buildSkillAdjacency } = await import('../../lib/skill-graft.js');
     const adjacency = buildSkillAdjacency([
-      { id: 'windags-ops', description: 'short', sourcePath: join(tmpRoot, 'windags-ops', 'SKILL.md') },
-      { id: 'windags-ops-extended', description: 'long', sourcePath: join(tmpRoot, 'windags-ops-extended', 'SKILL.md') },
+      { id: 'jury_rig-ops', description: 'short', sourcePath: join(tmpRoot, 'jury_rig-ops', 'SKILL.md') },
+      { id: 'jury_rig-ops-extended', description: 'long', sourcePath: join(tmpRoot, 'jury_rig-ops-extended', 'SKILL.md') },
       { id: 'mentioner', description: 'central topic', sourcePath: join(dir, 'SKILL.md') },
     ]);
     const edges = adjacency.get('mentioner') ?? [];
     const targets = edges.map((e) => e.target);
-    expect(targets).toContain('windags-ops-extended');
-    expect(targets).not.toContain('windags-ops');
+    expect(targets).toContain('jury_rig-ops-extended');
+    expect(targets).not.toContain('jury_rig-ops');
   });
 
   test('a pairs-with target that is not a real catalog skill never reaches the shortlist', async () => {
@@ -761,7 +761,7 @@ describe('buildSkillAdjacency + first-hop expansion end-to-end through craft()',
 
   test('a bare-string pairs-with entry (the wave-by-wave-parley shape) counts as a curated edge too', async () => {
     // 22 real SKILL.md files list `pairs-with` as plain id strings instead
-    // of `{skill, reason}` objects (top-level in the imported windags
+    // of `{skill, reason}` objects (top-level in the imported jury_rig
     // grafts, flow-style under metadata in several port-daddy-* skills) —
     // regression guard: both shapes must produce the same curated edge.
     const dir = join(tmpRoot, 'string-seed');
@@ -915,7 +915,7 @@ describe('getOrBuildCentroid', () => {
 // ─── defaultSkillGraftRoots ─────────────────────────────────────────────────
 
 describe('defaultSkillGraftRoots', () => {
-  test('defaults to just <projectRoot>/skills — no windags/workgroup-ai reach-out', () => {
+  test('defaults to just <projectRoot>/skills — no jury_rig/workgroup-ai reach-out', () => {
     const roots = defaultSkillGraftRoots('/Users/example/coding/port-daddy');
     expect(roots).toEqual([{ label: 'port-daddy', path: '/Users/example/coding/port-daddy/skills' }]);
   });

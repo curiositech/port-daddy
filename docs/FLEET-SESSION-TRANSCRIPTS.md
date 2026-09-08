@@ -192,7 +192,7 @@ future eval harness or fine-tune of a ship's behavior.
 
 | Phase | Ships | Size |
 | --- | --- | --- |
-| 1 | Capture wrapper + R2 bucket/binding + D1 migration + index rows; run page's per-ship panel links to raw JSONL | the load-bearing slice |
+| 1 | Capture wrapper + R2 bucket/binding + D1 migration + index rows; run page's per-ship panel links to raw JSONL | the pivotal slice |
 | 2 | Web viewer route + turn-card UI + live tail | biggest UX win |
 | 3 | JSON API hardening (ranges, attempts) + `pd fleet transcript` | small once 1–2 exist |
 | 4 | pd-console transcript view | independent of 3 |
