@@ -1,0 +1,32 @@
+{
+  "scope": "Reviewer-authored, bounded #10108 coverage; not a full binder audit or readiness percentage",
+  "documents": [
+    {
+      "name": "harness/README.md",
+      "claimedCapabilities": [
+        { "name": "D1a synthetic temporal replay and R17 adapter", "owner": "Current #10108 author (Codex)", "gate": "Offline unittest suite, four run_cases results and original R17 oracle/mutation sweep", "evidenceLink": "docs/research/egosystem-reconciliation/final/validation.md" }
+      ]
+    },
+    {
+      "name": "final/harbor-integration-contract.md",
+      "claimedCapabilities": [
+        { "name": "D5 integration contract, specification only", "owner": "Existing Synthesis Steward; Harbor/editor maintainers for implementation", "gate": "Participant, tenancy, canonical recovery and native UI gates before activation", "evidenceLink": "docs/research/egosystem-reconciliation/final/harbor-integration-contract.md" }
+      ]
+    }
+  ],
+  "contradictions": [
+    { "kind": "schema", "resolved": false, "status": "Fixed with local parity tests; canonical landed resolution not claimed" },
+    { "kind": "shipped-vs-target", "resolved": false, "status": "Integration contract corrects editor placement; broader stale examples remain outside this slice" }
+  ],
+  "ambitionCorpus": [
+    { "name": "R17 reuse", "classification": "absorbed", "destination": "D1a and D3", "rationale": "Existing checker imported and tested; utility not inferred" },
+    { "name": "Cooperative Harbor editor", "classification": "absorbed", "destination": "D5 integration contract", "rationale": "Owner and proof gates mapped; runtime remains deferred" },
+    { "name": "H1-H4 measured benefit", "classification": "deferred", "destination": "D2-D4", "rationale": "Study inputs, evidence and authority gates remain open" },
+    { "name": "Split views, sealed review and attention", "classification": "deferred", "destination": "D4-D5", "rationale": "R2/R9/R14 inform requirements, not a deployed proof" }
+  ],
+  "coverageMatrix": {
+    "customerAxisComplete": false,
+    "contingencyAxisComplete": false,
+    "architectureAxisComplete": false
+  }
+}
