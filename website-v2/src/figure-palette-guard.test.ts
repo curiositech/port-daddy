@@ -45,6 +45,16 @@ describe('wcag.mjs arithmetic', () => {
     expect(AA).toEqual({ text: 4.5, large: 3.0 })
     expect(() => relativeLuminance('#fff')).toThrow(TypeError)
   })
+
+  test('the page check and the palette guard agree on what AA is', () => {
+    // Two checks measure type against its ground: check_cover_title_band.py
+    // reads its floors from type-over-art.json, this guard from wcag.mjs. A
+    // floor edited in one and not the other would let a page pass one check
+    // and fail the other for the same line, so they are pinned to each other.
+    const manifest = JSON.parse(readFileSync(join(websiteRoot, '..', 'scripts', 'whitepaper-plates', 'type-over-art.json'), 'utf8'))
+    expect(manifest.contrast.normal).toBe(AA.text)
+    expect(manifest.contrast.large).toBe(AA.large)
+  })
 })
 
 describe('check-figure-palette.mjs', () => {
