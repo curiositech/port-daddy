@@ -253,7 +253,7 @@ export const COLLECTED_VOLUME: CollectedVolume = {
       title: 'Swiss edition',
       pdfPath: '/whitepaper/coordination-papers-mega-volume-swiss.pdf',
       pages: 542,
-      sizeKb: 5039,
+      sizeKb: 3363,
     },
     {
       id: 'coordination-papers-mega-volume-technical',
