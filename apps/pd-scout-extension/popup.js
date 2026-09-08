@@ -1,5 +1,5 @@
-const DEFAULT_DAEMON_URL = 'http://127.0.0.1:9876';
 const MANUAL_PROJECT_VALUE = '__manual__';
+const { MISSING_ENDPOINT_MESSAGE, normalizePublishedEndpoint } = PortDaddyScoutEndpoint;
 
 const els = {
   daemonStatus: document.getElementById('daemonStatus'),
@@ -68,7 +68,16 @@ function setMessage(text, tone = '') {
 }
 
 function daemonBaseUrl() {
-  return (els.daemonUrl.value.trim() || DEFAULT_DAEMON_URL).replace(/\/+$/, '');
+  return normalizePublishedEndpoint(els.daemonUrl.value);
+}
+
+function endpointForStorage() {
+  if (!els.daemonUrl.value.trim()) return '';
+  try {
+    return daemonBaseUrl();
+  } catch {
+    return '';
+  }
 }
 
 function projectDirValue() {
@@ -160,12 +169,9 @@ function setDaemonStatus(text, tone) {
 }
 
 function daemonScope() {
-  const value = els.daemonUrl.value.trim() || DEFAULT_DAEMON_URL;
   try {
-    const url = new URL(value);
-    const host = url.hostname.toLowerCase();
-    const local = host === 'localhost' || host === '127.0.0.1' || host === '::1';
-    return local ? 'Local' : 'Remote';
+    normalizePublishedEndpoint(els.daemonUrl.value);
+    return 'Local';
   } catch {
     return null;
   }
@@ -194,7 +200,7 @@ function updateDaemonStatus() {
   if (!scope) {
     daemonProbeSeq += 1;
     if (daemonProbeTimer) clearTimeout(daemonProbeTimer);
-    setDaemonStatus('Unknown', 'unknown');
+    setDaemonStatus(els.daemonUrl.value.trim() ? 'Invalid endpoint' : 'Not connected', 'unknown');
     return;
   }
   setDaemonStatus(`${scope} · ...`, scope === 'Local' ? '' : 'remote');
@@ -244,7 +250,7 @@ async function loadProjects(preferredRoot = '') {
     els.projectChoice.value = MANUAL_PROJECT_VALUE;
     els.projectChoice.disabled = true;
     updateProjectManualVisibility();
-    els.projectHint.textContent = err instanceof Error ? err.message : 'Could not load projects.';
+    els.projectHint.textContent = err instanceof Error ? err.message : MISSING_ENDPOINT_MESSAGE;
   }
 }
 
@@ -258,7 +264,7 @@ function updateAgentVisibility() {
 
 async function persistForm() {
   await storageSet({
-    pdScoutDaemonUrl: daemonBaseUrl(),
+    pdScoutDaemonUrl: endpointForStorage(),
     pdScoutProjectDir: projectDirValue(),
     pdScoutAssignee: els.assignee.value,
     pdScoutTargetAgent: els.targetAgent.value.trim(),
@@ -275,7 +281,7 @@ async function load() {
     'pdScoutTargetAgent',
     'pdScoutStartAgent',
   ]);
-  els.daemonUrl.value = stored.pdScoutDaemonUrl || DEFAULT_DAEMON_URL;
+  els.daemonUrl.value = stored.pdScoutDaemonUrl || '';
   updateDaemonStatus();
   els.assignee.value = stored.pdScoutAssignee || 'review-queue';
   els.targetAgent.value = stored.pdScoutTargetAgent || '';

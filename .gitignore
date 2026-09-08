@@ -50,7 +50,6 @@ plans/
 .serena/
 .cache/
 .public-export/
-CLAUDE.md
 GEMINI.md
 *.strategy.md
 *.internal.md
