@@ -1,0 +1,2 @@
+corpus,substrate,agents,temperament,seed,tasks_requested,tasks_landed,tasks_abandoned,sim_seconds,throughput_per_hour,wasted_lines,conflict_incidents,time_to_land_median_s,evidence_completeness,torn_tree_incidents,drop_merges,drop_binary,drop_oversize
+py-library,B005,4,cooperative,2,200,200,0,505977.738,1.422988,36765,1451,0.000,0.610000,76,298,17,1
