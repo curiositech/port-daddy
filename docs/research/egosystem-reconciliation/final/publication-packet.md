@@ -1,8 +1,12 @@
 # Publication packet
 
-Checkpoint: prepared locally before publication. No publication receipt is
-claimed by this document; the resulting PR and its exact head must be read back
-from GitHub before publication can be reported as complete.
+Publication receipt, 2026-09-08: [PR #10108](https://github.com/curiositech/port-daddy/pull/10108)
+was created and separately read back as open and draft, targeting `main`, with
+author `erichowens` and initial head
+`27ce7abfbc537001bb22740817c641152819b0f9`. No reviewers were requested.
+This records publication, not review approval, merge or deployment. Later
+documentation-only receipt updates have their own commits; inspect the PR for
+its current exact head and checks.
 
 On 2026-09-08 the operator explicitly approved a one-PR exception to the
 App-only publisher rule for this package, using the connected personal account.
@@ -66,7 +70,7 @@ independent reviews. Earlier supplied Field Guide feedback retains its own
 limited provenance. Historical requested budgets do not establish actual cost
 or enforced aggregate caps.
 
-## Before any external publication
+## Conditions for later publication or readiness changes
 
 1. Obtain explicit scope and authority for publication and its downstream effects.
 2. Reconcile the exact local head and current canonical source again.
