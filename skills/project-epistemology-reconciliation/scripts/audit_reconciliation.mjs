@@ -25,13 +25,15 @@ function validate(value, rule, path = '$') {
     if (rule.uniqueItems && new Set(value).size !== value.length) fail('items must be unique');
     for (let i = 0; i < value.length; i++) validate(value[i], rule.items, `${path}[${i}]`);
   } else if (rule.type === 'string') {
-    if (typeof value !== 'string' || value.trim().length < (rule.minLength ?? 0)) fail('must be a nonblank string');
+    if (typeof value !== 'string' || [...value].length < (rule.minLength ?? 0)) fail('must meet the declared string length');
+    if (rule.pattern && !new RegExp(rule.pattern, 'u').test(value)) fail('must match the declared nonblank pattern');
   } else if (rule.type === 'boolean') {
     if (typeof value !== 'boolean') fail('must be a boolean');
   } else if (rule.type === 'number' || rule.type === 'integer') {
     if (typeof value !== 'number' || !Number.isFinite(value)) fail('must be a finite number');
-    if (rule.type === 'integer' && !Number.isSafeInteger(value)) fail('must be a safe integer');
+    if (rule.type === 'integer' && !Number.isInteger(value)) fail('must be an integer');
     if (value < rule.minimum) fail(`must be at least ${rule.minimum}`);
+    if (value > rule.maximum) fail(`must be at most ${rule.maximum}`);
   }
 }
 
