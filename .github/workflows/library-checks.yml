@@ -243,6 +243,18 @@ jobs:
       - name: Every \begin has its \end, and every source file balances
         run: python3 scripts/harbor-research/check_tex_environments.py
 
+      # Every chapter source is also a submission paper. An edit made for the
+      # Book -- five figure sites in chapter 6 rewritten to point at the
+      # chapters that own the drawings -- took five figures out of
+      # harbor-economy-whitepaper.pdf, and the only thing that noticed was a
+      # regen commit 50 KB lighter. This reads the \else side of every
+      # \ifpdbook, which is what the standalone paper compiles, and compares
+      # its figure sites with the committed record; a paper that lost a site
+      # fails, and so does a stale record (refresh it with --write when the
+      # change to the paper is the point).
+      - name: No Book-side edit has shrunk a standalone paper
+        run: python3 scripts/harbor-research/check_standalone_figures.py
+
       # A drawing shared by two chapters is invisible in either chapter's source
       # and invisible in either standalone PDF; it shows only in the assembled
       # Book, as one figure printed twice under two numbers. That is how seven
