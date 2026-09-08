@@ -243,6 +243,71 @@ class TestAspectMismatch(unittest.TestCase):
             self.assertIn("off", result.stdout)
 
 
+    def test_derived_render_needs_no_prompt_model_or_post(self) -> None:
+        """A plate rendered from something the repo builds has no prompt and
+        no model, because no image model made it. It says what it came from
+        and how, and that stands in for the three generation fields."""
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            make_repo(repo)
+            write_swiss_images(repo)
+            write_technical_images(repo)
+            (repo / PLATES_REL / "swiss" / "cover-render.jpg").write_bytes(make_jpeg_bytes(W, H))
+            write_swiss_provenance(repo, aspect="3:2", extra_entries={
+                "cover-render": {
+                    "file": "cover-render.jpg",
+                    "derived_from": "the built edition PDF, page 1",
+                    "render": "rasterised at 300x200 and JPEG-encoded",
+                    "final_aspect": "3:2",
+                },
+            })
+            write_technical_provenance(repo)
+            result = run_checker(repo)
+            self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+
+    def test_derived_from_without_render_fails(self) -> None:
+        """Naming a source without saying what was done to it is not
+        provenance, and must not buy an exemption from the other fields."""
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            make_repo(repo)
+            write_swiss_images(repo)
+            write_technical_images(repo)
+            (repo / PLATES_REL / "swiss" / "cover-render.jpg").write_bytes(make_jpeg_bytes(W, H))
+            write_swiss_provenance(repo, aspect="3:2", extra_entries={
+                "cover-render": {
+                    "file": "cover-render.jpg",
+                    "derived_from": "the built edition PDF, page 1",
+                    "final_aspect": "3:2",
+                },
+            })
+            write_technical_provenance(repo)
+            result = run_checker(repo)
+            self.assertEqual(result.returncode, 1, msg=result.stdout + result.stderr)
+            self.assertIn("'render'", result.stdout)
+            self.assertIn("no non-empty 'prompt'", result.stdout)
+
+    def test_derived_render_still_obeys_the_aspect_check(self) -> None:
+        """The exemption covers the three generation fields, nothing else."""
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            make_repo(repo)
+            write_swiss_images(repo)
+            write_technical_images(repo)
+            (repo / PLATES_REL / "swiss" / "cover-render.jpg").write_bytes(make_jpeg_bytes(W, H))
+            write_swiss_provenance(repo, aspect="3:2", extra_entries={
+                "cover-render": {
+                    "file": "cover-render.jpg",
+                    "derived_from": "the built edition PDF, page 1",
+                    "render": "rasterised and JPEG-encoded",
+                    "final_aspect": "1:3",
+                },
+            })
+            write_technical_provenance(repo)
+            result = run_checker(repo)
+            self.assertEqual(result.returncode, 1, msg=result.stdout + result.stderr)
+            self.assertIn("declares final_aspect", result.stdout)
+
     def test_zero_height_header_is_reported_not_divided_by(self) -> None:
         """A header can declare a zero dimension. read_image_size hands back
         whatever the container's size fields say -- it decodes nothing -- so

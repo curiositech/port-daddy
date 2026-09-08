@@ -84,7 +84,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     claim:
       'Reading digests instead of transcripts has an exact bit-price, not a rule of thumb — and the floor survived a pre-registered attempt to break it.',
     pullQuote:
-      'log₂C(N,k) − log₂C(m,k) bits, minimum, to guarantee catching all k central artifacts among N while opening only m — 0/16 falsification attempts survived it, including an oracle encoder.',
+      'log₂C(N,k) − log₂C(m,k) bits, minimum, to guarantee catching all k critical artifacts among N while opening only m — 0/16 falsification attempts survived it, including an oracle encoder.',
     resultTags: ['R1', 'R2', 'R3', 'R4', 'R14', 'R16'],
     tone: 'primary',
     icon: Binary,
@@ -240,37 +240,12 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
 export const RESEARCH_PAPER_TOTAL_PAGES = RESEARCH_PAPERS.reduce((sum, paper) => sum + paper.pages, 0)
 
 /**
- * The R-number ledger: every result the seven papers discharge, in order,
- * with which paper carries it. R8 (the work-unit machine substrate) is
- * deliberately absent — it underwrites the daemon these papers assume but
- * has no numbered paper of its own yet (see results-compendium.md's paper
- * map). Listing it here as "proved" would overclaim.
+ * The result ledger (which paper carries which executed result, and where it
+ * lives in the book) is no longer typed here. It is derived from
+ * docs/harbor-research/library-index.json into program.json and mirrored to
+ * ./harborResearchProgram.json, which /research renders; the mirror test
+ * checks every `resultTags` entry above against it.
  */
-export interface ResultLedgerEntry {
-  id: string
-  label: string
-  paperNumbers: string[]
-}
-
-export const RESULT_LEDGER: ResultLedgerEntry[] = [
-  { id: 'R1', label: 'Read-poverty & the information floor', paperNumbers: ['1'] },
-  { id: 'R2', label: 'Split-digest theorem', paperNumbers: ['1'] },
-  { id: 'R3', label: 'Derived regret head', paperNumbers: ['1'] },
-  { id: 'R4', label: 'Digest-zoom Pareto frontier', paperNumbers: ['1'] },
-  { id: 'R5', label: 'Hypervisor enforceability = supervisory control', paperNumbers: ['2', '4'] },
-  { id: 'R6', label: 'Sheaf verdict & consistency-radius theorem', paperNumbers: ['7'] },
-  { id: 'R7', label: 'Inspection tower', paperNumbers: ['3'] },
-  { id: 'R9', label: 'Sealed-room noninterference', paperNumbers: ['4'] },
-  { id: 'R10', label: 'ε-conservation of the release ledger', paperNumbers: ['4'] },
-  { id: 'R11', label: 'Canary detection power & SPRT latency', paperNumbers: ['4'] },
-  { id: 'R12', label: 'No-mint reputation inheritance', paperNumbers: ['5'] },
-  { id: 'R13', label: 'Engine substitution & resurrection soundness', paperNumbers: ['5'] },
-  { id: 'R14', label: 'Costly-escalation threshold & the debit tuning band', paperNumbers: ['1'] },
-  { id: 'R15', label: 'Specialization boundary & the succession price', paperNumbers: ['6'] },
-  { id: 'R16', label: 'Context paging under a corrupted pin oracle', paperNumbers: ['1'] },
-  { id: 'R17', label: 'Tractable deontic-conflict fragment & its NP frontier', paperNumbers: ['6'] },
-]
-
 export function findResearchPaperById(id: string | undefined) {
   return RESEARCH_PAPERS.find((paper) => paper.id === id)
 }
