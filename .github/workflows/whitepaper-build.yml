@@ -377,10 +377,16 @@ jobs:
       # for the evaluator to read and nothing waivable about a broken
       # fragment -- so those are collected and the step fails on them once,
       # after every other fragment has had its turn.
+      #
+      # `set -e` stays on. The two commands allowed to fail are the two inside
+      # `if !` conditions, and errexit does not apply inside a condition, so
+      # nothing else in the block gets to fail quietly -- in particular a
+      # missing scope file, which without -e would leave the loop unrun and the
+      # step green having checked nothing.
       - name: Compile each in-scope fragment under the Book preamble and run figcheck
         if: steps.scope.outputs.relevant == 'true' && steps.fragments.outputs.count != '0'
         run: |
-          set -uo pipefail
+          set -euo pipefail
           mkdir -p /tmp/figure-gate/pdf /tmp/figure-gate/json
           uncompilable=""
           findings=0
