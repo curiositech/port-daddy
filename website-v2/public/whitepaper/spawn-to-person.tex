@@ -729,16 +729,21 @@ its past''). Parfit shows the identity-bearing organ is the \emph{transitive
 chain of witnessed outcomes}, not the memory stream. Build the ledger, not just
 the memory.}
 
-Two of Parfit's strongest rivals go unanswered here, and should be named rather
-than left silent. Williams's body-swap thought experiments show that the
-\emph{same} facts, narrated first-personally versus third-personally, flip
-readers' intuitions between the bodily and the psychological
-criterion~\pdcite{williams1970} --- a live worry for a chapter that is, after all,
-choosing which continuity criterion the ledger encodes. And Olson's
-\emph{animalism} holds we are essentially biological organisms, for whom
-psychological continuity is neither necessary nor sufficient for
-persistence~\pdcite{olson2007}. Neither is refuted; the ledger criterion is simply
-not defended against them.
+Parfit is not the last word, and two of his strongest rivals belong here rather
+than in a footnote, because both bear on the choice this chapter is actually
+making. Williams showed, with a pair of body-swap cases that differ only in
+how they are narrated, that the \emph{same} facts told first-personally and
+third-personally flip a reader's intuition between the bodily and the
+psychological criterion~\pdcite{williams1970}; for a chapter deciding which
+continuity criterion the ledger will encode, that is not a curiosity but a
+warning that any criterion argued from one framing will feel compelling from
+that framing. And Olson's animalism holds that we are essentially organisms,
+for whom psychological continuity is neither necessary nor sufficient for
+persistence~\pdcite{olson2007}. Neither is answered here. The ledger criterion
+is chosen because reputation has to accumulate on something transitive, which
+is an engineering reason, and we are candid that it is not a metaphysical one
+--- which is also why the chapter takes Parfit's move (dissolve the question)
+and not his thesis.
 
 \pdexercisepointer*{\ref{ex:stp-connected-vs-continuous}}{\ref{ex:stp-fork-inheritance}}{\pageref{ex:stp-connected-vs-continuous}}
 
@@ -763,15 +768,19 @@ by hand], so budgets without debiting conserve nothing for $\gamma>\tfrac12$;
 the transfer restatement is the theorem. \emph{Now you try:} check by hand
 that under transfer semantics the same chain's live total is
 $0.9\cdot 1=0.9\le 1$, not $2.439$ (Exercise~\ref{ex:stp-nomint-sweep}).
-This conservation discipline has an uncited, twenty-five-year-old cousin in
-peer-to-peer trust systems: Levien's Advogato attack-resistant trust metric
-computes certified trust as \emph{maximum flow} from a small seed set of
-trusted nodes through a capacity-bounded graph, so that no set of newly
-created accounts can manufacture trust beyond what genuinely flows from the
-seed~\pdcite{levien-advogato}. The two conserve in different directions ---
-Advogato bounds trust flowing \emph{outward} from a root; the theorem above
-bounds value extracted \emph{upward} through derivation --- which is a reason
-to state the distinction, not a reason to leave Advogato unread.
+The discipline is older than this chapter, and it is worth saying where it
+came from. Levien and Aiken's attack-resistant trust metric, running at
+Advogato from 1999, computes certified trust as a \emph{maximum flow} from a
+small seed of trusted nodes through a capacity-bounded graph, precisely so
+that no crop of freshly minted accounts can manufacture more trust than
+genuinely flows from the seed~\pdcite{levien-advogato}. Same enemy, same
+conservation instinct, opposite direction: Advogato bounds trust flowing
+\emph{outward} from a root, and the theorem above bounds value extracted
+\emph{upward} through derivation. That the two land on the same discipline
+from opposite ends is a reason to trust the discipline, and the difference in
+direction is exactly what the richer DAG shapes above (diamonds, multi-parent
+merges, re-derivation cycles) turn on --- a single-seed flow bound has nothing
+to say about a merge.
 \end{pdexample}
 
 \input{figures/fig-stp-nomint-lineage}
@@ -848,13 +857,16 @@ inherits a note about what the predecessor was doing, not the live belief state 
 was doing it with. The goal is sometimes called a ``checkpoint with teeth''
 (the same phrase this paper uses everywhere else for it, \S\ref{sec:open},
 Appendix~\ref{app:status}); the current organ has gums. Operating systems have
-named this exact distinction for fifty years as \textbf{checkpoint/restore}
-versus live execution state --- Condor's process checkpoint-and-migrate
-system~\pdcite{litzkow1997condor} freezes and serializes full process state for
-resumption elsewhere, and Orleans's \emph{virtual actor} abstraction keeps an
-actor's durable identity distinct from its transient in-memory
-activation~\pdcite{bernstein2014orleans}, which the restart organ's
-identity/state split above is the LLM-agent instance of.
+drawn this exact line for decades, between \textbf{checkpoint/restore} of a
+process and the live execution state a checkpoint has to carry to deserve the
+name: Condor freezes a running process, serializes the whole of it, and resumes
+it on another machine~\pdcite{litzkow1997condor}, and Orleans's \emph{virtual
+actor} keeps an actor's durable identity distinct from whichever in-memory
+activation currently embodies it~\pdcite{bernstein2014orleans}. The restart
+organ's identity/state split is the LLM-agent instance of the second idea, and
+its ``gums'' are the honest measure of how far it is from the first: what
+Condor serializes is registers and memory, and what would have to be serialized
+here is a KV-cache and a sampling state the provider does not export.
 
 \pitfall{Selling a summary-forwarding restart organ as real checkpointing would
 violate the system's own \textbf{honest-attestation} discipline: \emph{only report
@@ -1084,12 +1096,18 @@ is worth. We make that ``costs more'' precise in Theorem~\ref{thm:whitewash-cost
   whose creation is rate-limited and, in the economy, \emph{bonded}.
 \end{itemize}
 
-Theorem~\ref{thm:necessity} is a special case of a tighter, formally closer
-result: Cheng and Friedman prove that no \emph{symmetric} reputation function
-can be Sybil-proof, and that only asymmetric, flow-based functions with stated
-conditions can be~\pdcite{chengfriedman2005}. That paper, not just Douceur's
-informal statement of the problem, is the impossibility family
-Theorem~\ref{thm:necessity} instantiates.
+The theorem is not new, and it is a good sign that it isn't. Cheng and Friedman
+proved the general form in 2005: no \emph{symmetric} reputation function --- one
+that scores a node the same however it is placed in the graph, so a fresh
+identity is worth what any fresh identity is worth --- can be Sybil-proof, and
+only asymmetric, flow-based functions anchored somewhere
+can~\pdcite{chengfriedman2005}. Theorem~\ref{thm:necessity} is the
+sanction-respecting corner of that impossibility, and its proof is two lines
+because ``sanction-respecting'' already carries the symmetry inside it: a
+newcomer's score is the same newcomer's score whoever the newcomer used to be.
+Douceur named the attack and Friedman and Resnick priced it; Cheng and Friedman
+are the ones who proved the family this theorem belongs to, and the theorem is
+stronger for having been reached independently.
 
 \noindent Theorem~\ref{thm:necessity} says abandonment must cost \emph{something};
 the design question is \emph{how much}. The newcomer policy answers it as a
@@ -2047,16 +2065,23 @@ Amortized Verification}~\pdcite{harborpaper3} proves it as a parameterized theor
 (Theorem~\ref{thm:tower-imported} below), and the two mechanisms this section
 mandates --- model heterogeneity and VRF-selected honeypots --- are exactly the two
 hypotheses that theorem needs. Figure~\ref{fig:rate-raters} draws the recursion and
-where the two mechanisms arrest it. ``Who audits the auditor'' is a named question
-in two literatures this section does not otherwise engage: economics has
-Kofman and Lawarrée's collusion-in-hierarchical-agency
-model~\pdcite{kofmanlawarree1993} and Tirole's three-tier
-principal/supervisor/agent analysis~\pdcite{tirole1986}, and applied
-cryptoeconomics converged on the same shape independently --- TrueBit's
-forced-error verifier's-dilemma solution~\pdcite{truebit2017} and Arbitrum's
-recursive bisection dispute game~\pdcite{arbitrum-fraud-proofs} are both bonded,
-recursive answers to the identical incentive problem the tower theorem solves
-with sealed clique sampling instead.
+where the two mechanisms arrest it. ``Who audits the auditor'' is not a question
+this book invented, and two literatures had it before us. Economics has studied
+collusion in exactly this three-tier shape --- principal, supervisor, agent,
+where the supervisor can be bought --- since Tirole's hierarchies
+paper~\pdcite{tirole1986}, and Kofman and Lawarrée worked out when an auditor is
+worth having at all given that it can collude~\pdcite{kofmanlawarree1993}; their
+worry that supervisor and agent will renegotiate a side contract unless the
+model forbids it is the same worry the disjoint-clique hypothesis below exists
+to answer, reached from the other side. And applied cryptoeconomics converged
+on the same shape independently: TrueBit's answer to the verifier's dilemma
+(why verify at all, if verification is costly and cheating is rare) is forced
+errors and a bonded challenge game~\pdcite{truebit2017}, and Arbitrum's dispute
+protocol bisects a disagreement level by level until a single checkable step
+remains~\pdcite{arbitrum-fraud-proofs}. Both are bonded, recursive answers to
+the incentive problem the tower theorem solves with sealed clique sampling
+instead --- three different tools on one problem, which is about what one
+expects when the problem is real.
 
 % --- FIGURE 12: rate-the-raters recursion ---
 \input{figures/fig-stp-rate-the-raters}
@@ -2158,6 +2183,22 @@ value of $+1.78\times10^{-15}$ for each, zero to floating-point precision.
 200=0.25\times 1\times 200=50$, the flat baseline both amortization models
 beat (Exercise~\ref{ex:stp-tower-amortization}).
 \end{pdexample}
+
+``Reputation is amortized verification'' is the companion paper's phrase, and
+the idea under it is not the companion paper's. It is Kreps and Wilson's, and
+Fudenberg and Levine's after them: reputation as \emph{continuation value}, the
+discounted future a long-lived player forfeits by deviating, which is what
+sustains honest play in a repeated game with no auditor
+anywhere~\pdcite{krepswilson1982,fudenberglevine1989}. Model~A above is that
+result with the invoice itemized. The deterrent is $d(B+vt)$, bond plus stake,
+and as the stake $vt$ accumulates the verification the platform has to buy,
+$\rho_t$, can retreat while the total stays pinned at $G$; set $B=0$ and
+$\rho=0$ and the bonded game \emph{is} the repeated game, with the discount
+thresholds of \pdchapref{bonded}{The Bonded Commons} ($\delta\ge\tfrac13$ under
+grim trigger, $\delta^\star\approx0.3425$ under the graduated one) as the
+limiting case where the future carries all of the deterrence. The connection
+is exact rather than analogical, which is why the phrase earns its keep as a
+name for the accounting and not as a claim to a new mechanism.
 
 \input{figures/fig-stp-deterrence-regime}
 
@@ -3303,9 +3344,20 @@ Eric T.\ Olson.
 \newblock Oxford University Press, 2007.
 
 \bibitem{levien-advogato}
-Raph Levien.
-\newblock Attack-Resistant Trust Metrics.
-\newblock Ph.D.\ thesis; deployed at Advogato.org, c.\ 1999--2000.
+Raph Levien and Alexander Aiken.
+\newblock Attack-Resistant Trust Metrics for Public Key Certification.
+\newblock In \textit{Proceedings of the 7th USENIX Security Symposium}, 1998.
+\newblock Deployed as the Advogato trust metric, 1999.
+
+\bibitem{krepswilson1982}
+David M.\ Kreps and Robert Wilson.
+\newblock Reputation and Imperfect Information.
+\newblock \textit{Journal of Economic Theory}, 27(2):253--279, 1982.
+
+\bibitem{fudenberglevine1989}
+Drew Fudenberg and David K.\ Levine.
+\newblock Reputation and Equilibrium Selection in Games with a Patient Player.
+\newblock \textit{Econometrica}, 57(4):759--778, 1989.
 
 \bibitem{kofmanlawarree1993}
 Fred Kofman and Jacques Lawarrée.

@@ -368,7 +368,8 @@ two fences, two gates, and which of the four claims each part produces. The figu
 \section{Silence except through the slot}\label{sec:sealed-noninterference}
 
 \noindent\emph{Express lane: run the whole world twice, identical except for
-Derek's secret, under every possible sequence of moves, and prove that Erin's
+Derek's secret, under every possible sequence of moves --- self-composition,
+in the name the verification literature gave the move~\pdcite{bdr04} --- and prove that Erin's
 view is bit-for-bit identical whenever the gate's declared function maps the
 two secrets to the same release; the formal statement is
 Theorem~\ref{thm:sealed-noninterference}.}
@@ -432,13 +433,16 @@ it observes, not the frequency an adversary chooses to request it.
 \paragraph{Proof idea.}
 There is no proof to read; there is a search to rerun. The checker builds the
 two worlds side by side, one per secret, and drives them through every
-interleaving of the same action sequence to depth 7 --- \textbf{self-composition}
-\pdcite{bdr04}, the standard technique for reducing a 2-safety hyperproperty
-like noninterference (a claim that quantifies over pairs of runs) to an
-ordinary safety check by composing two copies of the system and asserting an
-invariant relating their states, applied here concretely rather than through a
-general program logic. At each step it projects
-both states onto what Erin can observe and compares. A difference at a
+interleaving of the same action sequence to depth 7. This is
+\textbf{self-composition}, exactly as Barthe, D'Argenio and Rezk set it
+out~\pdcite{bdr04}: noninterference is a claim about \emph{pairs} of runs,
+which no ordinary invariant can state, so you compose two copies of the system
+into one and state an ordinary invariant about the pair. We do it to a finite
+model with a Python checker, where they do it to a program with a logic; that
+is the small version of the technique, but it is the technique --- and this book said
+``run the world twice'' for two editions before noticing the move had a name.
+At each step the checker projects both states onto what Erin can observe and
+compares. A difference at a
 non-release step is a counterexample; a difference at a release step is a
 counterexample exactly when $g$ agreed on the two secrets. The mutation suite
 then shows the search has teeth: with the honest gate replaced by one that
@@ -793,11 +797,13 @@ $\gamma$ because $\beta$ is already the per-canary miss rate and $b$ is the
 release-channel width of Section~\ref{sec:sealed-budget}.
 \end{pdclaim}
 
-This is textbook sequential analysis applied to a live security detector, and
-the closest prior instance of exactly that move is Jung, Paxson, Berger and
-Balakrishnan's Threshold Random Walk, which models portscan detection as the
-same benign-versus-malicious random walk and derives a guaranteed
-false-positive/latency trade-off from Wald's SPRT \pdcite{jpbb04}.
+This is textbook sequential analysis pointed at a live security detector, and
+the move has a precedent worth naming: Jung, Paxson, Berger and Balakrishnan's
+threshold random walk did the same thing to portscan detection in 2004,
+modelling the benign-or-malicious question as a random walk between two
+hypotheses and reading a guaranteed false-positive-against-latency trade-off
+straight off Wald's test \pdcite{jpbb04}. The canary is that detector with the
+network swapped for a gate.
 
 \paragraph{Proof idea.}\pdmarginfigure{wald}{Wald's sequential probability ratio test, made for wartime quality control, is still the fastest way to decide that a canary has tripped at a guaranteed error rate.}%
 Power is independence and counting: a leak is missed only if every carried
@@ -969,7 +975,7 @@ What this chapter leaves coupled, in the order the rest of the book will lean on
 \item A \textbf{sealed room} lets an agent compute on data it may not export: the data owner and the model owner each get their guarantee from a fence they can inspect, not from trust in the other.
 \item \textbf{Taint does not survive a language model.} Token-level information flow through the model is not soundly definable, so the room does not try; it fences the room and gates the slot.
 \item \textbf{Two fences, two gates}: the work order fixes what may enter, the slot fixes what may leave, and the model in between is treated as an opaque function of both.
-\item \textbf{Noninterference is checked by running the world twice}: identical except for the secret, the two runs must agree on everything that leaves through the slot, modulo the declassification the gate performs. The finite clean-room model passes this check to depth seven.
+\item \textbf{Noninterference is checked by running the world twice} (self-composition, in the verification literature's word): identical except for the secret, the two runs must agree on everything that leaves through the slot, modulo the declassification the gate performs. The finite clean-room model passes this check to depth seven.
 \item The gate sits on the \textbf{only enforceable boundary}: a policy over the agent's behavior is enforceable exactly when its trigger is witnessed at the slot; anything decided inside the room is detect-only.
 \item \textbf{The privacy budget is a ledger that conserves}: every release debits $\varepsilon$, the ledger's total never exceeds $\varepsilon_{\max}$, and a torn write is caught by the invariant within three steps on the two-client instance.
 \item \textbf{Canaries have a power curve and a clock}: with per-canary miss probability $\beta$ and $k$ independent canaries, the chance a smuggled item passes is $\beta^{k}$ ($0.008$ at $\beta=0.2$, $k=3$), and Wald's sequential test bounds how long detection takes.

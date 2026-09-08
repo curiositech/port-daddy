@@ -641,14 +641,17 @@ its active grants.
 \end{definition}
 
 Consent so defined gives the design something Hume's critique cannot reach: a
-discrete authorization event, a bounded scope, and an exit. Supervisory-control
-research calls a per-action-class autonomy scoping like this a \textbf{level of
-automation}: Sheridan's ten-point scale and its four-stage
-acquisition/analysis/decision/action refinement give the scope/stakes-ceiling/
-reversibility-floor/TTL tuple above its formal
-home~\pdcite{sheridan1992,parasuraman2000}; this section builds the same selector
-from a Hobbesian covenant instead, and the two routes reach compatible
-conclusions. It also hands the
+discrete authorization event, a bounded scope, and an exit. It is also an object
+supervisory-control research named long before this chapter did: a
+\textbf{level of automation}, in Sheridan's ten-point sense and in the
+four-stage refinement (acquire, analyse, decide, act) that Parasuraman,
+Sheridan and Wickens later gave it~\pdcite{sheridan1992,parasuraman2000}. Read
+that way, a grant's $\langle\textsc{scope}, s_{\max}, v_{\min},
+\textsc{ttl}\rangle$ is a level-of-automation setting chosen per action class
+rather than once for the whole system, which is roughly what that literature
+has been recommending since 1978. This section built the same selector from a
+Hobbesian covenant, and that two routes so far apart arrive at a compatible
+object is some evidence the object is the right one. It also hands the
 accompanying chapters a concrete object. A grant is precisely what a \emph{hosted-trust}
 offering transfers --- ``we make this fleet legible to you, under this scope'' is
 the sale of a consent grant to a third party, which \pdchapref{he}{The Harbor Economy}
@@ -692,11 +695,12 @@ dual --- the operator-to-daemon channel --- and it is a \emph{right}, not a feat
 it preempts every grant, every in-flight landing, every coordinator decision.
 \end{property}
 
-Computer security has an independently-arrived-at, near-exact structural analog to the
-consent grant: a \textbf{capability with contextual caveats that can only narrow, never
-widen, as it delegates}~\pdcite{macaroons2014}, unforgeable and revocable by
-construction --- the security literature's route to the same object this section
-builds from a Hobbesian covenant.
+Computer security reached the same object by its own road. A consent grant is,
+to a capability theorist, a \textbf{capability with contextual caveats} ---
+unforgeable, revocable, and able only to narrow as it is passed
+along~\pdcite{macaroons2014} --- and that a Hobbesian covenant and a Macaroon
+agree about what the object has to be is a small reassurance that neither
+derivation was decorative.
 
 This pairs with \textbf{Hirschman}'s \emph{Exit, Voice, and Loyalty}
 (1970~\pdcite{hirschman1970} --- \emph{the choice between leaving (exit) and
@@ -1154,9 +1158,13 @@ response, with explicit flood-suppression}). An uncontrolled-false-alarm distres
 lane self-destructs into habituated uselessness within days, exactly as clinical
 alarms do (\textbf{Cvach 2012}, \emph{Monitor Alarm Fatigue}~\pdcite{cvach2012} ---
 \emph{85--99\% of clinical alarms are non-actionable; staff learn to ignore channels
-that cry wolf}). We make escalation a \emph{costly signal} (\S\ref{sec:gates}): an
-escalation the operator dismisses debits the agent's standing, so crying wolf has a
-price.
+that cry wolf}). We make escalation a \emph{costly signal} in Spence's
+sense~\pdcite{spence1973} --- the job-market model in which a credential nobody
+strictly needs is still worth buying, because it costs the able less than it
+costs everyone else and so sorts them (\S\ref{sec:gates}): an escalation the
+operator dismisses debits the agent's standing, so crying wolf has a price, and
+the price falls harder on the agent whose alarm was baseless than on the one
+whose alarm was right.
 
 \noindent\Verified. The costly-signal lane has a unique equilibrium, and the
 debit that makes it work is a fitted quantity with a feasible range.
@@ -1181,9 +1189,14 @@ one direction; the miss-loss wall bounds the suppressed mass and is monotone in 
 other; the feasible set is the intersection of two half-lines, an interval, possibly
 empty.
 \end{proof}
-This is the Spence mold, job-market signaling's separating equilibrium
-transplanted to an escalation lane~\pdcite{spence1973}: the dismissal debit is money
-only a genuine signal is worth risking. The free parameter $\delta$ is fit from measured validation rates
+This is Spence's separating equilibrium arriving through a different door. In
+the job market the signal costs the able type less by assumption; here nobody's
+debit is cheaper than anybody else's, but a true alarm is dismissed less often,
+so the \emph{expected} debit $\delta w\,(1-V(u))$ falls with $u$ and the
+single-crossing condition his separation needs comes out of the validator rather
+than being put in by hand. (Which is also why monotone $V$ is not a technicality
+below: it is the whole of the single-crossing.) The dismissal debit is money only
+a genuine signal is worth risking. The free parameter $\delta$ is fit from measured validation rates
 (\texttt{instrumentation.md}), and an empty band is a finding, not a tuning problem:
 a tight attention budget with high miss costs admits no good debit, and the fix is
 capacity or evidence quality. Monotone $V$ is required throughout; a non-monotone
@@ -1262,11 +1275,15 @@ Equation~\ref{eq:sdt} is a decision objective, not by itself a fitted detector.
 
 \input{figures/legible-swarm-sdt}
 
-This is a normative claim (a Bayesian SDT decision-maker is the target to calibrate
-toward), not a descriptive one: naturalistic decision-making research argues skilled
-operators under time pressure pattern-match against recognized cases rather than
-compute a likelihood-ratio threshold~\pdcite{klein1998}, a live rival account of what
-the operator's instrument actually measures that this objective does not adjudicate.
+This is a normative claim --- a Bayesian SDT decision-maker is the target to
+calibrate toward --- and not a descriptive one. Naturalistic decision-making
+research argues that skilled operators under time pressure do something else
+entirely: they recognize the situation as a case they have seen before and act
+on the match, rather than computing a likelihood ratio and holding it against a
+threshold~\pdcite{klein1998}. That is a live rival account of what the
+operator's instrument actually measures, and this objective does not adjudicate
+it; it says what Mara should be calibrated toward, not what Mara is doing at
+3:25 in the afternoon.
 
 Figure~\ref{fig:sdt} lays the same decision out visually: the operator's criterion
 $\beta$ trading misses against false alarms. The miss-cost term prevents the
@@ -1573,8 +1590,18 @@ reputation over an unranked registry has nothing to attach a score to.
 
 \pdmarginfigure{shannon}{Shannon's information theory is why a digest has a hard floor: nothing compresses below the entropy of what the reader must recover.}%
 Section~\ref{sec:zoom} forbade the Potemkin digest by fiat. We can also state the
-prohibition as a theorem: there is an information floor below which a digest
-\emph{cannot} be a faithful zoomable index, no matter how it is written.
+prohibition as a theorem --- and the theorem, it should be said before the box
+and not after it, is the classical counting bound of group testing, the one
+Dorfman's pooled blood tests~\pdcite{dorfman} and Hwang's splitting
+procedures~\pdcite{hwang} rest on, and the same move that gives coding theory
+its covering bound: so many messages, each covering so many cases, must
+between them cover every case there is. What is ours is the reading, not the
+arithmetic. A digest that must never miss is a message that picks out $m$
+items to open, and there is a floor below which no such message can be a
+faithful zoomable index, however cleverly it is written. That the floor was
+derived here before it was recognized is, if anything, a point in its favor:
+a two-line proof that lands on a 1943 bound by a different door is behaving
+the way a true bound behaves.
 
 \begin{pdclaim}{Theorem}{Legibility lower bound with a review budget}
 \label{thm:lowerbound}
@@ -2002,15 +2029,25 @@ fact says when sharing \emph{is} safe, which is the statement a designer needs.
 Two readers want two numbers from one thermometer. The successor wants the reading
 that predicts tomorrow's weather; the operator wants the reading that says whether
 to act now. One scalar can serve both only when the two orderings agree item by
-item, and the theorem says exactly when that holds.
+item, and decision theory has had a word for that agreement since the 1980s:
+the two readers' losses are \textbf{comonotone} --- they move together across
+the items, never one rising while the other falls --- the property Yaari and
+Schmeidler built rank-dependent and Choquet expected utility
+on~\pdcite{yaari1987,schmeidler1989}. Their theorems are about how a decision
+maker prices comonotone acts; the theorem below borrows only the concept, and
+once the concept is named the rest is elementary: two real-valued functions on
+a finite set are comonotone exactly when they induce the same ranking, which is
+exactly when one number can stand in for both. So the box says when a shared
+head is safe, and the crossing pair after it says why, for these two readers,
+it isn't. (The super-additive price of serving both --- the $2.13\times$ of
+Theorem~\ref{thm:split-digest}, unbounded in $k$ --- is the part that is not
+in Yaari or Schmeidler, and the part this chapter is actually claiming.)
 
 \begin{pdclaim}{Theorem}{Comonotone characterization}
 \label{thm:comonotone}
 A scalar head $h:X\to\mathbb R$ \emph{serves} a reader with loss $L_r$ if ranking by
 $h$ realizes $r$'s optimal selection at every budget. A single head serves two
-readers iff their induced preference orders are \textbf{comonotone} --- the property
-decision theory names for acts that ``move together,'' admitting no
-hedge~\pdcite{schmeidler1989,yaari1987} (they agree on every
+readers iff their induced preference orders are comonotone (they agree on every
 pair). The successor and operator orders are not comonotone: a routine-but-essential
 working state (high continuation value, negligible regret) and an anomalously
 abandoned dead end with irreversible side effects (zero continuation value, maximal
@@ -2384,13 +2421,17 @@ instances, not a closed proof for every adversary class; a stronger-than-greedy
 adaptive adversary remains untested, and unit cost density is assumed (general
 refetch costs need $c_{\mathrm{refetch}}\ge$ max-density $\times$ max-size). The
 classical and weighted bounds themselves are Sleator--Tarjan and Young, imported
-unchanged. What field calls a classical competitive algorithm consulting an
-untrusted external oracle and degrading gracefully as its error grows
-\textbf{online algorithms with (untrusted) predictions}: Lykouris and
-Vassilvitskii's competitive-caching-with-machine-learned-advice line
-gives the closest published shape to this additive corruption
-term~\pdcite{lykouris2018}, arrived at here independently and without that
-literature's consistency/robustness vocabulary.
+unchanged. The field's name for the rest of it --- a classical competitive
+algorithm that consults an oracle it cannot trust and is asked to degrade
+gracefully as the oracle's error grows --- is \textbf{online algorithms with
+predictions}, and Lykouris and Vassilvitskii's competitive caching with
+machine-learned advice~\pdcite{lykouris2018} is the closest published shape to
+the corruption term above. We reached the additive term without that
+literature's vocabulary (they speak of consistency and robustness, and their
+degradation curves are multiplicative in the prediction error where ours is
+additive in the corruption rate), which is a reason to read them next, not a
+reason to distrust the sweep: two routes into the same neighborhood is what
+one hopes to see.
 \end{pdboundary}
 
 \begin{pdexample}{The Landlord ratio, at a size an operator can hold in one head}

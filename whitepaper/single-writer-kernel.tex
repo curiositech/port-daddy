@@ -780,6 +780,19 @@ function acquire(key, requester, ttl):
 \end{minipage}
 \end{figure}
 
+The second half of the theorem below is the \textbf{fencing token}, and it should
+be named before it is proved, because it is the part of the design that was not
+invented here. Kleppmann's rule is the whole of it --- ``a number that increases
+every time a client acquires the lock,'' handed to the resource along with every
+write, so that the resource itself and not the lock service can refuse a holder
+who paused past its lease and woke up still believing it held
+it~\pdcite{kleppmann2016locking} --- and Chubby shipped it first, as the
+\emph{sequencer} a lock holder passes downstream so a storage server can tell a
+current handle from a stale predecessor's~\pdcite{burrows2006chubby}. This
+chapter calls the number an \emph{epoch} because it is kept per resource and
+survives reallocation, but the protocol shape is the same one: acquire, receive
+a monotone number, present it with every effect, get refused when it is stale.
+
 \begin{theorem}[Atomic Mutual Exclusion and Fenced Leases]\label{thm:exclusion}
 Within a canonical conflict domain (exact normalized key, transactional interval overlap $[a, b] \cap [c, d] \neq \emptyset$, or path prefix hierarchy), at most one holder can hold an active lease at any logical instant. Furthermore, every granted lease carries a strictly monotonic fencing epoch $e \in \mathbb{N}$; downstream effect brokers reject any operation bearing an expired epoch $e' < e_{\text{current}}$.
 \end{theorem}
@@ -788,15 +801,16 @@ Within a canonical conflict domain (exact normalized key, transactional interval
 Within an immediate SQLite transaction (\texttt{BEGIN IMMEDIATE}), the daemon evaluates the conflict predicate against all currently unexpired leases. For exact keys, this is enforced by primary-key uniqueness; for intervals and hierarchies, by an indexed range check within the same transaction. Because all writes funnel through the single connection (Def.~\ref{def:single-writer}), predicate evaluation and insert are atomic. Upon grant or reallocation, the daemon increments the resource's fencing epoch $e$. Downstream effect brokers validate that $e$ matches the active lease at execution time, preventing stale or paused holders from producing side effects after lease expiration.
 \end{proof}
 
-The fencing epoch is the \textbf{fencing token}: ``a number that increases every
-time a client acquires the lock,'' rejected by the resource itself if a paused or
-stale holder tries to act after a newer epoch has issued~\pdcite{kleppmann2016locking}
---- the exact mechanism Chubby shipped first, where a sequence number lets a
-storage server tell a current handle from a stale predecessor's and reject the
-latter~\pdcite{burrows2006chubby}. The setting differs (Chubby and Raft's leader term
-fence across machines that cannot otherwise agree on liveness; this rail fences a
-single process's own async handlers against each other), but the reject-below-current-epoch
-rule is the identical protocol shape.
+What differs from Chubby is the setting, and it is worth being exact about how
+much smaller our problem is. Chubby's sequencer and Raft's leader term fence
+across machines that cannot otherwise agree on who is alive; the danger they
+answer is a paused JVM or a partitioned node still acting on a lease the rest
+of the world has moved past. This rail fences one process's own asynchronous
+handlers against each other, so the race the epoch defends against is logical
+rather than physical, and the whole apparatus fits inside one SQLite
+transaction. That is a good reason not to need Raft (the related-work section
+makes the argument by way of Fischer, Lynch and Paterson); it is not a reason
+to let the token pass as new.
 
 \paragraph{Worked dramatization: Alice and Bob race for one port.}
 Alice and Bob are two agents, started a millisecond apart, that both want to bind a
@@ -2275,7 +2289,7 @@ What this chapter leaves coupled, in the order the rest of the book will lean on
 \item Durability is split by fault class. A process crash loses nothing; a power loss
   can lose the last commits under the default synchronous setting. The setting is the
   durability claim.
-\item A claim is a lease with a fencing epoch. At most one compatible holder per
+\item A claim is a lease with a fencing token (this chapter's epoch). At most one compatible holder per
   conflict domain; expiry is lazy; a stale holder's effects are refused downstream by
   the epoch, not by the lock.
 \item The bus is at-least-once and says so. Benign redelivery is deduplicated by an
@@ -2564,14 +2578,20 @@ supplies the boundary that the central correction of this paper rests on
 (Theorem~\ref{thm:schneider}): an execution monitor can enforce only the safety
 properties it can prevent by truncating execution, which a post-commit observer
 cannot do. This is a narrower, cheaper problem than general operating-system
-confinement, and the same-machine adversary this chapter's own OP-9 leaves
-\Open{} (\S\ref{sec:merkle}) is exactly the problem the field's two current
-answers exist to close: seL4's machine-checked proof of functional correctness
-from specification to binary~\pdcite{klein2009sel4}, and Firecracker's
-production microVM isolation for untrusted multi-tenant
-workloads~\pdcite{agache2020firecracker}. Either would give this kernel a
-stronger trusted computing base than an ephemeral-UID process boundary; neither
-is adopted here, and the gap is named rather than closed.
+confinement, and honesty requires saying where the narrower problem ends. The
+same-machine adversary this chapter's own OP-9 leaves \Open{}
+(\S\ref{sec:merkle}) is exactly the problem three current systems exist to
+close, each at a different price: seL4, which takes ``small enough to verify''
+to its conclusion with a machine-checked proof of functional correctness from
+specification down to the binary~\pdcite{klein2009sel4}; gVisor, a user-space
+kernel that interposes on every system call a guest makes rather than trusting
+the host's boundary to hold~\pdcite{young2019gvisor}; and Firecracker, the
+microVM monitor that has isolated untrusted multi-tenant workloads in
+production since 2018~\pdcite{agache2020firecracker}. Any of the three would
+give this kernel a stronger trusted computing base than an ephemeral-UID
+process boundary. None is adopted here, and the gap is named rather than closed
+--- the single writer buys complete mediation for coordination state, not for
+the machine.
 
 \subsection{Durable storage and transaction processing}
 
@@ -3062,6 +3082,11 @@ Pat Helland.
 Gerwin Klein, Kevin Elphinstone, Gernot Heiser, June Andronick, David Cock, Philip Derrin, Dhammika Elkaduwe, Kai Engelhardt, Rafal Kolanski, Michael Norrish, Thomas Sewell, Harvey Tuch, and Simon Winwood.
 \newblock seL4: Formal Verification of an OS Kernel.
 \newblock In \textit{ACM Symposium on Operating Systems Principles (SOSP)}, pages 207--220, 2009.
+
+\bibitem{young2019gvisor}
+Ethan G. Young, Pengfei Zhu, Tyler Caraza-Harter, Andrea C. Arpaci-Dusseau, and Remzi H. Arpaci-Dusseau.
+\newblock The True Cost of Containing: A gVisor Case Study.
+\newblock In \textit{USENIX Workshop on Hot Topics in Cloud Computing (HotCloud)}, 2019.
 
 \bibitem{agache2020firecracker}
 Alexandru Agache, Marc Brooker, Alexandra Iordache, Anthony Liguori, Rolf Neugebauer, Phil Piwonka, and Diana-Maria Popa.
