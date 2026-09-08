@@ -3,7 +3,7 @@ import {
   getMaritimeActor,
   listMaritimeActors,
   resolveMaritimeActorId,
-} from '../../lib/maritime-actors.js';
+} from './maritime-actors.js';
 
 describe('fleet actors (formerly maritime)', () => {
   test('defines the canonical durable actor roster', () => {
