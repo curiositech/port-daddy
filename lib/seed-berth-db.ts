@@ -24,7 +24,7 @@
  * launch; cross-daemon federation is ADR-0090 phases 4–9 and out of scope here.
  */
 
-import { existsSync, mkdirSync, statSync } from 'node:fs';
+import { mkdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 
