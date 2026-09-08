@@ -156,7 +156,7 @@
         1
       ],
       "result": "R8",
-      "statement": "The 536-state work-unit machine is checked exhaustively today by a Python model whose guards are proven load-bearing by mutation, which is real evidence but not the same kind as the rest of the estate. The lift restates it in TLA+ and checks it with Apalache, so the kernel's invariants sit in the same checker as the relay's and the ledger's.",
+      "statement": "The 536-state work-unit machine is checked exhaustively today by a Python model each of whose guards is proven necessary by mutation, which is real evidence but not the same kind as the rest of the estate. The lift restates it in TLA+ and checks it with Apalache, so the kernel's invariants sit in the same checker as the relay's and the ledger's.",
       "source": "docs/harbor-research/HANDOFF.md"
     },
     {

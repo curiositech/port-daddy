@@ -183,15 +183,23 @@ jobs:
 
       # The cover's type is set at fixed coordinates over a full-bleed plate, so
       # whether it collides with the artwork is a property of the built page and
-      # of nothing else. Checked here, against the PDFs this job just made,
-      # rather than in library-checks, where the only PDF available is the
-      # committed one -- which lags its own source by exactly this job.
-      - name: Cover type does not print over the cover art
-        run: |
-          set -euo pipefail
-          pip install --quiet pillow numpy pymupdf
-          python3 scripts/whitepaper-plates/check_cover_title_band.py \
-            --pdf-dir website-v2/public/whitepaper
+      # of nothing else. That check needs the PDFs this job just made -- the
+      # committed ones lag their own source by exactly this job -- but it also
+      # needs Pillow, NumPy and PyMuPDF, and the pinned TeX Live image has no
+      # pip on PATH (the first run of this step died at `pip: not found`). So
+      # the freshly built covers ride out as an artifact and the check runs in
+      # the cover-band job below, on ubuntu-latest, where the figure-gates job
+      # already installs the same three wheels.
+      - name: Hand the freshly built covers to the cover-band check
+        uses: actions/upload-artifact@v4
+        with:
+          name: freshly-built-covers
+          if-no-files-found: error
+          retention-days: 1
+          path: |
+            website-v2/public/whitepaper/coordination-papers-mega-volume.pdf
+            website-v2/public/whitepaper/coordination-papers-mega-volume-swiss.pdf
+            website-v2/public/whitepaper/coordination-papers-mega-volume-technical.pdf
 
       - name: Commit rebuilt PDFs (same-repo branch)
         # Heal configured feature-branch pushes and same-repository PR heads.
@@ -241,6 +249,47 @@ jobs:
           fi
           echo "::notice::Advisory only — PDFs are regenerated and committed on the"
           echo "feature branch, so the merge carries fresh artifacts to main."
+
+  cover-band:
+    # The page half of the cover check: read every text bounding box on page
+    # one of each built cover and fail on any that reaches past the plate's
+    # clean band. The plate half runs in library-checks and needs no build;
+    # this half needs the PDFs the build job just made, which arrive as the
+    # freshly-built-covers artifact. Runs even when the build failed only at
+    # the commit step, and is skipped (not failed) when there is no artifact
+    # to check -- a build that produced nothing has already reported itself.
+    needs: build
+    if: github.event_name != 'merge_group' && !cancelled()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install the cover-check dependencies (Pillow, NumPy, PyMuPDF)
+        run: pip install --quiet pillow numpy pymupdf
+
+      - name: Fetch the freshly built covers
+        id: covers
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: freshly-built-covers
+          path: /tmp/covers
+
+      - name: Cover type does not print over the cover art
+        run: |
+          set -euo pipefail
+          if [ ! -d /tmp/covers ] || [ -z "$(ls -A /tmp/covers 2>/dev/null)" ]; then
+            echo "::notice::No freshly built covers to check (the build job "
+            echo "produced none); the plate half still ran in library-checks."
+            exit 0
+          fi
+          python3 scripts/whitepaper-plates/check_cover_title_band.py \
+            --pdf-dir /tmp/covers
 
   figure-gates:
     # Born from the PR #10069 review: figcheck.py existed and caught real

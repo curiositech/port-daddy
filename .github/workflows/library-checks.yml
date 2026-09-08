@@ -33,6 +33,8 @@ on:
       - 'website-v2/src/data/researchPapers.ts'
       - 'scripts/harbor-research/**'
       - 'scripts/whitepaper-plates/**'
+      - 'tests/whitepaper-plates/**'
+      - 'tests/harbor-research/**'
       - 'scripts/generate-mega-whitepaper.mjs'
       - 'scripts/generate-mega-whitepaper.test.mjs'
       - 'scripts/build-whitepapers.sh'
@@ -61,6 +63,8 @@ on:
       - 'website-v2/src/data/researchPapers.ts'
       - 'scripts/harbor-research/**'
       - 'scripts/whitepaper-plates/**'
+      - 'tests/whitepaper-plates/**'
+      - 'tests/harbor-research/**'
       - 'scripts/generate-mega-whitepaper.mjs'
       - 'scripts/generate-mega-whitepaper.test.mjs'
       - 'scripts/build-whitepapers.sh'
@@ -137,11 +141,23 @@ jobs:
       # pixels to find where its artwork starts, and read the built PDF's text
       # boxes to see where the type actually landed -- the two things that
       # cannot be answered from the source. Wheels, so it costs seconds.
-      - name: Install the image and PDF readers the cover check needs
-        run: pip install --quiet pillow numpy pymupdf
+      - name: Install the image and PDF readers the plate checks need
+        run: pip install --quiet pillow numpy scipy pymupdf
 
       - name: Full-bleed covers leave room for the type set over them
         run: python3 scripts/whitepaper-plates/check_cover_title_band.py
+
+      # score_broken_arc.py measured the chapter-stp pick and corrected a
+      # rationale that had been written from a thumbnail, and then ran nowhere.
+      # It cannot be a threshold gate -- the chosen render is 6.3% of a radius
+      # off concentric and the record says so, and a bar the plate fails would
+      # be theatre -- so it is a regression gate instead: re-measure the
+      # committed plate and fail if it has drifted from its own record.
+      - name: The measured plates still match the geometry their record claims
+        run: python3 scripts/whitepaper-plates/score_broken_arc.py --verify-provenance
+
+      - name: Plate-check unit tests (band, ink thresholds, arc fitting)
+        run: python3 -m unittest discover -s tests/whitepaper-plates -p 'test_*.py'
 
       - name: Margin apparatus rules hold in every chapter
         run: python3 skills/tufte-evidence-design/scripts/margin_lint.py

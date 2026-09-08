@@ -21,6 +21,9 @@
     "website-v2/public/whitepaper/**/*.tex",
     "docs/harbor-research/**/*.tex",
     "docs/harbor-research/library-index.json",
+    "docs/harbor-research/program.json",
+    "website-v2/src/data/*.json",
+    "website-v2/public/whitepaper/plates/**/*.json",
     "whitepaper/textbook.json",
     "whitepaper/figures/figure-register.json",
     "docs/harbor-research/exposition/**/*.json"

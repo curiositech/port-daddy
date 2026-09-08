@@ -118,6 +118,12 @@ def main() -> int:
         entry = record["plates"].setdefault(name, {})
         entry.update({
             "file": f"{name}.jpg",
+            # Per-plate, not only at the top: the record kept saying 2.0.0 on
+            # every plate while the top-level field said 4.0.0, because the
+            # round-2 installer wrote it here and the round-4 one only wrote
+            # it there. A per-plate version that never moves is worse than
+            # none -- it reads as "this plate was not regenerated".
+            "pipeline_version": v4.PIPELINE_VERSION,
             "mechanism": spec["subject"].split(".")[0].replace("Subject: ", ""),
             "generation_aspect": spec["aspect"],
             "final_aspect": aspect,
