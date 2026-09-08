@@ -1280,9 +1280,9 @@ through it at $C_{\text{fa}}=1$ and $c_{\mathrm{att}}=0.2$ attention-seconds.
 % measure, and the table came in 5.6pt over it. 4pt cut that to 0.8pt; 2pt
 % clears it with room.
 \setlength{\tabcolsep}{2pt}
-% C_{\text{miss}} column widened 0.09 -> 0.11\textwidth: its own header,
-% set in math, was still overfull after the tabcolsep cut above.
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\centering\arraybackslash}p{0.05\textwidth} >{\centering\arraybackslash}p{0.11\textwidth} >{\centering\arraybackslash}p{0.10\textwidth} >{\centering\arraybackslash}p{0.10\textwidth} >{\raggedright\arraybackslash}p{0.12\textwidth}@{}}
+% C_{\text{miss}} column widened 0.09 -> 0.14\textwidth: its own header,
+% set in math, was still overfull at 0.11.
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\centering\arraybackslash}p{0.05\textwidth} >{\centering\arraybackslash}p{0.14\textwidth} >{\centering\arraybackslash}p{0.09\textwidth} >{\centering\arraybackslash}p{0.09\textwidth} >{\raggedright\arraybackslash}p{0.11\textwidth}@{}}
 \toprule
 \textbf{Action class} & $\pi$ & $C_{\text{miss}}$ & \textbf{Never zoom} & \textbf{Always zoom} & \textbf{Verdict} \\
 \midrule
@@ -3568,7 +3568,7 @@ L & Resurrection handoff & \BuiltWeak & \texttt{lib/resurrection.ts}; notes, not
 L & Durable commitment / outcome substrate & \BuiltWeak & \path{lib/commitments.ts}, \path{lib/obligation-monitor.ts}; grading and reputation binding absent \\
 L & Local actor identity root & \BuiltWeak & \path{lib/actor-souls.ts}, \path{lib/budget-guard.ts}; universal write gating absent \\
 L & Honest attestation / legible sovereign & \Built & \texttt{lib/attest.ts}; ADR-0045 \\
-L & Episodic memory; pheromone decay; skill index & \Built & \path{lib/episodic-memory.ts}, \path{lib/pheromone.ts}, \path{lib/shipwright/skill-index.ts} \\
+L & Episodic memory; pheromone decay; skill index & \Built & \path{lib/}\allowbreak\path{episodic-}\allowbreak\path{memory.ts}, \path{lib/}\allowbreak\path{pheromone.ts}, \path{lib/}\allowbreak\path{shipwright/}\allowbreak\path{skill-}\allowbreak\path{index.ts} \\
 L & Anomaly monitor (detect-and-compensate, post-commit) & \BuiltWeak & \texttt{lib/arbiter.ts:328} is a log subscriber (Prop.~\ref{prop:regiment}) \\
 L & Operator attention queue (regret-ranked lanes) & \Designed & ADR-0046; not yet ranked into lanes \\
 L & Discovery router (relevance ranking) & \Designed & ADR-0030; \texttt{lib/router.ts} not yet on disk \\

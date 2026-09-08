@@ -442,9 +442,9 @@ All three protocol phases were independently verified in ProVerif 2.05. Table~\r
 \midrule
 $\neg\;\text{attacker}(\mathit{master\_key})$ & v1 (HS256) & \texttt{v1\allowbreak\_refined.pv} & \textbf{TRUE} \\
 $\text{Accepted} \implies \text{Issued}$ & v1 (HS256) & \texttt{v1\allowbreak\_refined.pv} & \textbf{TRUE} \\
-$\neg\;\text{attacker}(\mathit{harbor\_sk})$ & v2 (Ed25519) & \texttt{v2\allowbreak\_asymmetric.pv} & \textbf{TRUE} \\
-$\text{Accepted} \implies \text{Issued}$ & v2 (Ed25519) & \texttt{v2\allowbreak\_asymmetric.pv} & \textbf{TRUE} \\
-$\text{Accepted}(b) \implies \text{IssuedRoot}(a)$\newline $\land\ \text{Delegated}(a,b)$ & v3 (Delegation) & \texttt{v3\allowbreak\_delegation.pv} & \textbf{TRUE} \\
+$\neg\;\text{attacker}(\mathit{harbor\_sk})$ & v2 (Ed25519) & \texttt{v2\allowbreak\_asymm\allowbreak etric.pv} & \textbf{TRUE} \\
+$\text{Accepted} \implies \text{Issued}$ & v2 (Ed25519) & \texttt{v2\allowbreak\_asymm\allowbreak etric.pv} & \textbf{TRUE} \\
+$\text{Accepted}(b) \implies \text{IssuedRoot}(a)$\newline $\land\ \text{Delegated}(a,b)$ & v3 (Delegation) & \texttt{v3\allowbreak\_deleg\allowbreak ation.pv} & \textbf{TRUE} \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -1003,7 +1003,11 @@ Agent Payments Protocol (AP2): Mandates.
 \renewcommand{\arraystretch}{1.15}
 {\small
 \setlength{\tabcolsep}{4pt}
-\begin{xltabular}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.29\textwidth} >{\raggedright\arraybackslash}p{0.19\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.20\textwidth}@{}}
+% Claim/Phase/Artifact columns given up 0.07\textwidth total: the Result
+% column (X) carries inline math ($2B/2^f$, $A$, $B$) with less room to
+% wrap around than a plain word has, and the other three still had spare
+% width at their own longest unwrapped line.
+\begin{xltabular}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.26\textwidth} >{\raggedright\arraybackslash}p{0.17\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.18\textwidth}@{}}
 \caption{Six of the twelve listed claims close at both the model and runtime level; five remain partial and one open. \Closed: model verified \emph{and} runtime conformance test passes. \Partial: design verified, runtime empirically tested rather than proved. \Open: known unmechanized.}\label{tab:anchor-status}\\
 \toprule
 \textbf{Claim} & \textbf{Method} & \textbf{Result} & \textbf{Artifact} \\
