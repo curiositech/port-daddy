@@ -85,6 +85,29 @@ describe('Fleet budget-kill pipeline', () => {
     });
     expect(setBudget.ok).toBe(true);
 
+    // 1b. ADR-0040: with the souls store wired, an agentId with no known soul
+    // resolves as 'unknown' and is floored to the shared newcomer_pool (which
+    // has no per-agent kill_armed_at at all -- see lib/budget-guard.ts). This
+    // test is about per-agent kill-arming on the individual ledger, which is
+    // exactly what an already-known, trusted fleet agent gets (the grandfather
+    // migration grants this to every pre-existing agent automatically). Seed
+    // that same trust here so TEST_AGENT exercises the 'ledger' route, not
+    // the newcomer pool -- matching a real fleet agent, not a first-time walk-up.
+    {
+      const { dbPath } = getDaemonState();
+      const seedDb = new Database(dbPath);
+      try {
+        const now = Date.now();
+        seedDb.prepare(`
+          INSERT INTO actor_souls (actor_id, harbor, operator_trusted, created_at, last_seen_at)
+          VALUES (?, 'local', 1, ?, ?)
+          ON CONFLICT (harbor, actor_id) DO UPDATE SET operator_trusted = 1
+        `).run(TEST_AGENT, now, now);
+      } finally {
+        seedDb.close();
+      }
+    }
+
     // 2. Drive a cost event that exceeds the budget on a single charge.
     const charge = await request('/test/cost-event', {
       method: 'POST',

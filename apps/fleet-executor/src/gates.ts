@@ -29,7 +29,7 @@ const CODE_PATH_RE = /\.(ts|tsx|js|jsx|mjs|cjs|rs|swift|go|py|rb|java|kt|c|h|cpp
  * gate enumerated in red-team's prompt.
  */
 const SECURITY_SURFACE_RE =
-  /(lib\/(auth|capabilities|secret-env|bonds|cost-tracker|arbiter|file-claims|salvage|note-encryption))|(routes\/(auth|bonds))|(crypto|sign|verify|hash|token|secret|auth|capabilit)/i;
+  /(lib\/(auth|capabilities|secret-env|bonds|cost-tracker|arbiter|file-claims|salvage|note-encryption))|(routes\/(auth|bonds))|(crypto|sign|verify|hash|token|secret|auth|capabilit|key|vault|wrap|hpke)/i;
 
 /** Test-file surface for tautology-sniffer / test-author. */
 const TEST_FILE_RE = /(\.(test|spec)\.[tj]sx?$)|((^|\/)tests?\/)|(_test\.go$)|((^|\/)test_[^/]*\.py$)/i;
@@ -62,6 +62,52 @@ export function isDocsOnly(changedPaths: string[]): boolean {
   if (changedPaths.length === 0) return false;
   if (changedPaths.some(p => CODE_PATH_RE.test(p))) return false;
   return changedPaths.every(p => PROSE_PATH_RE.test(p));
+}
+
+/**
+ * Files whose diffs cannot carry a reviewable defect.
+ *
+ * These are machine-authored or machine-derived: nobody wrote the bug, and no
+ * reviewer can act on the hunk. They are, however, frequently the LARGEST
+ * entries in a diff — a lockfile refresh or a regenerated snapshot dwarfs the
+ * hand-written change it accompanies.
+ *
+ * Excluding them before chunking is the cheapest possible saving in this
+ * pipeline. Review is map-reduce with one model call per 12k-char chunk, so
+ * every chunk of regenerated JSON is a call spent producing findings about
+ * output no human controls — and worse, it displaces real code into further
+ * chunks, which is what makes a reviewer's view of the actual change partial in
+ * the first place.
+ */
+const UNREVIEWABLE_PATH_RE = new RegExp(
+  [
+    // dependency lockfiles
+    '(^|/)(package-lock\\.json|pnpm-lock\\.yaml|yarn\\.lock|Cargo\\.lock|poetry\\.lock|go\\.sum|Gemfile\\.lock)$',
+    // generated / derived artifacts
+    '(^|/)(dist|build|out|coverage|vendor|node_modules|target)/',
+    '(^|/)docs/artifacts/',
+    // Terminal recordings are evidence, not authored program source. Their
+    // semantic checks live beside the recorder; feeding raw ANSI streams to a
+    // reviewer both wastes the context window and makes its view less useful.
+    '\\.cast$',
+    '\\.(min\\.(js|css)|map|snap)$',
+    '(^|/)__snapshots__/',
+    '\\.snapshot\\.json$',
+    // binary-ish assets a text reviewer cannot reason about
+    '\\.(png|jpe?g|gif|webp|ico|svg|pdf|woff2?|ttf|eot|mp4|mov|zip|gz|wasm)$',
+  ].join('|'),
+  'i',
+);
+
+/**
+ * Whether a changed file's diff is worth spending a review call on.
+ *
+ * Conservative by construction: anything not positively recognised as generated
+ * is reviewable. A false negative here silently hides real code from review,
+ * which is far worse than the tokens a false positive costs.
+ */
+export function isReviewableForBugs(path: string): boolean {
+  return !UNREVIEWABLE_PATH_RE.test(path);
 }
 
 export interface GateDecision {

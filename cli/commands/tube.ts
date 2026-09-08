@@ -49,8 +49,16 @@ import {
   type TubeClient,
   type TubeMessage,
 } from '../../lib/tube.js';
-import { buildLineage, summarizeThread, renderLineageTree } from '../../lib/discourse-lineage.js';
-import { shouldConvene } from '../../lib/parley-trigger.js';
+import {
+  buildLineage,
+  summarizeThread,
+  renderLineageTree,
+} from '../../lib/discourse-lineage.js';
+import {
+  buildConversationalDiagnosticSignal,
+  CONFLICT_SIGNAL_PRODUCERS,
+  shouldConvene,
+} from '../../lib/parley-trigger.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Daemon client (HTTP shim over pdFetch)
@@ -484,15 +492,24 @@ export async function handleTube(channel: string | undefined, options: CLIOption
       }
       const graph = buildLineage(msgs);
       const digest = summarizeThread(graph);
-      // Parley recommendation (RCP-2a / ADR-0086): should the swarm convene over
-      // the unresolved contradictions? Costs are tunable; defaults are unit-scaled.
+      const signal = buildConversationalDiagnosticSignal({
+        channel: physical,
+        conversationId: graph.conversationId,
+        digest,
+        producer: CONFLICT_SIGNAL_PRODUCERS.tubeDiagnostic,
+      });
+      // ADR-0111/ADR-0129 diagnostic recommendation for the conversation
+      // checkpoint. This renders economics only and never summons Parley.
       const num = (v: unknown, d: number) => {
         const n = typeof v === 'string' ? Number(v) : NaN;
         return Number.isFinite(n) ? n : d;
       };
-      const parley = shouldConvene(digest, {
-        wastePerUnresolved: num(options['waste-per-contradiction'], 2),
-        parleyCost: num(options['parley-cost'], 1),
+      const parley = shouldConvene(signal, {
+        mode: 'diagnostic',
+        costs: {
+          wastePerUnresolved: num(options['waste-per-contradiction'], 2),
+          parleyCost: num(options['parley-cost'], 1),
+        },
       });
       if (emitMode === 'json') {
         console.log(JSON.stringify({

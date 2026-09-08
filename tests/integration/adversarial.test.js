@@ -13,7 +13,29 @@
  */
 
 import { request, runCli, getDaemonState } from '../helpers/integration-setup.js';
+import { registerTestActorVia } from '../helpers/actor-credentials.js';
 import http from 'node:http';
+
+// #8877 / ADR-0122: lock mutations require a daemon-minted actor credential.
+// Mint one locker actor for this suite through the public mint door.
+let locker = null;
+async function lockerHeaders() {
+  if (!locker) locker = await registerTestActorVia(request, { alias: 'adversarial-locker' });
+  return locker.headers;
+}
+
+async function newOwnedSession(purpose) {
+  const owner = await registerTestActorVia(request, { alias: `adversarial-${purpose}` });
+  const res = await request('/sessions', {
+    method: 'POST',
+    headers: owner.headers,
+    body: { purpose, agentId: owner.actorId },
+  });
+  expect(res.ok).toBe(true);
+  const sessionId = res.data.id || res.data.session_id;
+  expect(typeof sessionId).toBe('string');
+  return { sessionId, headers: owner.headers };
+}
 
 /**
  * Make a raw HTTP request over the Unix socket (for testing malformed bodies, wrong content types, etc.)
@@ -233,26 +255,23 @@ describe('Adversarial Testing - Session/Notes Edge Cases', () => {
 
   describe('Notes Operations', () => {
     test('add note to non-existent session', async () => {
+      const writer = await registerTestActorVia(request, { alias: 'adversarial-missing-note-writer' });
       const res = await request('/sessions/nonexistent-session-xyz/notes', {
         method: 'POST',
+        headers: writer.headers,
         body: { content: 'test' }
       });
       expect(res.status).toBe(404);
+      expect(res.data.code).toBe('SESSION_NOT_FOUND');
     });
 
     test('add very large note (100KB+)', async () => {
-      // Create a session first
-      const sessionRes = await request('/sessions', {
-        method: 'POST',
-        body: { purpose: 'large-note-test' }
-      });
-      expect(sessionRes.ok).toBe(true);
-
-      const sessionId = sessionRes.data.id || sessionRes.data.session_id;
+      const { sessionId, headers } = await newOwnedSession('large-note-test');
       const largeContent = 'x'.repeat(102400);
 
       const res = await request(`/sessions/${sessionId}/notes`, {
         method: 'POST',
+        headers,
         body: { content: largeContent }
       });
 
@@ -261,16 +280,11 @@ describe('Adversarial Testing - Session/Notes Edge Cases', () => {
     });
 
     test('add notes with unicode content', async () => {
-      const sessionRes = await request('/sessions', {
-        method: 'POST',
-        body: { purpose: 'unicode-note-test' }
-      });
-      expect(sessionRes.ok).toBe(true);
-
-      const sessionId = sessionRes.data.id || sessionRes.data.session_id;
+      const { sessionId, headers } = await newOwnedSession('unicode-note-test');
 
       const res = await request(`/sessions/${sessionId}/notes`, {
         method: 'POST',
+        headers,
         body: { content: '测试内容 café 🎉 日本語' }
       });
 
@@ -278,16 +292,11 @@ describe('Adversarial Testing - Session/Notes Edge Cases', () => {
     });
 
     test('add note with SQL injection attempt', async () => {
-      const sessionRes = await request('/sessions', {
-        method: 'POST',
-        body: { purpose: 'injection-test' }
-      });
-      expect(sessionRes.ok).toBe(true);
-
-      const sessionId = sessionRes.data.id || sessionRes.data.session_id;
+      const { sessionId, headers } = await newOwnedSession('injection-test');
 
       const res = await request(`/sessions/${sessionId}/notes`, {
         method: 'POST',
+        headers,
         body: { content: "'); DELETE FROM session_notes; --" }
       });
 
@@ -300,11 +309,7 @@ describe('Adversarial Testing - Session/Notes Edge Cases', () => {
 
   describe('Session Deletion', () => {
     test('delete session while notes are being added (race)', async () => {
-      const sessionRes = await request('/sessions', {
-        method: 'POST',
-        body: { purpose: 'race-delete' }
-      });
-      const sessionId = sessionRes.data.id || sessionRes.data.session_id;
+      const { sessionId, headers } = await newOwnedSession('race-delete');
 
       // Start adding notes and deleting simultaneously
       const promises = [];
@@ -312,25 +317,50 @@ describe('Adversarial Testing - Session/Notes Edge Cases', () => {
         promises.push(
           request(`/sessions/${sessionId}/notes`, {
             method: 'POST',
+            headers,
             body: { content: `note-${i}` }
           })
         );
       }
       promises.push(
-        request(`/sessions/${sessionId}`, { method: 'DELETE' })
+        request(`/sessions/${sessionId}`, { method: 'DELETE', headers })
       );
 
       const results = await Promise.all(promises);
-      // All operations should complete without crashes
+      // Archiving preserves the session and its notes, so all owned writes
+      // succeed regardless of the arrival order. Auth denials are not a race pass.
       expect(results.length).toBe(4);
+      expect(results.every((result) => result.ok)).toBe(true);
+      const notes = await request(`/sessions/${sessionId}/notes`);
+      expect(notes.ok).toBe(true);
+      expect(notes.data.notes.map((note) => note.content)).toEqual(expect.arrayContaining(['note-0', 'note-1', 'note-2']));
     });
 
     test('delete non-existent session', async () => {
+      const owner = await registerTestActorVia(request, { alias: 'adversarial-missing-delete-owner' });
       const res = await request('/sessions/nonexistent-session-xyz', {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: owner.headers,
       });
       expect(res.status).toBe(404);
+      expect(res.data.code).toBe('SESSION_NOT_FOUND');
     });
+  });
+
+  test.each([
+    ['note', 'POST', '/notes', { content: 'must not persist' }],
+    ['archive', 'DELETE', '', null],
+  ])('anonymous %s requests cannot mutate an owned session', async (label, method, suffix, body) => {
+    const { sessionId } = await newOwnedSession(`anonymous-${label}-denial`);
+    const before = await request(`/sessions/${sessionId}`);
+    expect(before.ok).toBe(true);
+    const denied = await request(`/sessions/${sessionId}${suffix}`, { method, body });
+    expect(denied.status).toBe(401);
+    expect(denied.data.code).toBe('IDENTITY_CREDENTIAL_REQUIRED');
+    const after = await request(`/sessions/${sessionId}`);
+    expect(after.ok).toBe(true);
+    expect(after.data.session.status).toBe('active');
+    expect(after.data.notes).toEqual(before.data.notes);
   });
 });
 
@@ -343,6 +373,7 @@ describe('Adversarial Testing - Locks', () => {
       for (let i = 0; i < 5; i++) {
         promises.push(
           request(`/locks/${lockName}`, {
+            headers: await lockerHeaders(),
             method: 'POST',
             body: { ttl: 60000 }
           })
@@ -356,7 +387,7 @@ describe('Adversarial Testing - Locks', () => {
       expect(successful.length).toBe(1);
 
       // Cleanup
-      await request(`/locks/${lockName}`, { method: 'DELETE' });
+      await request(`/locks/${lockName}`, { method: 'DELETE', headers: await lockerHeaders() });
     });
   });
 
@@ -364,6 +395,7 @@ describe('Adversarial Testing - Locks', () => {
     test('lock with TTL of 0 normalizes to default', async () => {
       const lockName = `ttl-zero-${Date.now()}`;
       const res = await request(`/locks/${lockName}`, {
+        headers: await lockerHeaders(),
         method: 'POST',
         body: { ttl: 0 }
       });
@@ -371,12 +403,13 @@ describe('Adversarial Testing - Locks', () => {
       expect([200, 201]).toContain(res.status);
 
       // Cleanup
-      await request(`/locks/${lockName}`, { method: 'DELETE' });
+      await request(`/locks/${lockName}`, { method: 'DELETE', headers: await lockerHeaders() });
     });
 
     test('lock with negative TTL normalizes to default', async () => {
       const lockName = `ttl-negative-${Date.now()}`;
       const res = await request(`/locks/${lockName}`, {
+        headers: await lockerHeaders(),
         method: 'POST',
         body: { ttl: -60 }
       });
@@ -384,19 +417,20 @@ describe('Adversarial Testing - Locks', () => {
       expect([200, 201]).toContain(res.status);
 
       // Cleanup
-      await request(`/locks/${lockName}`, { method: 'DELETE' });
+      await request(`/locks/${lockName}`, { method: 'DELETE', headers: await lockerHeaders() });
     });
 
     test('lock with very large TTL is accepted', async () => {
       const lockName = `ttl-large-${Date.now()}`;
       const res = await request(`/locks/${lockName}`, {
+        headers: await lockerHeaders(),
         method: 'POST',
         body: { ttl: 999999999 }
       });
       expect([200, 201]).toContain(res.status);
 
       // Cleanup
-      await request(`/locks/${lockName}`, { method: 'DELETE' });
+      await request(`/locks/${lockName}`, { method: 'DELETE', headers: await lockerHeaders() });
     });
 
     test('extending expired lock fails', async () => {
@@ -404,6 +438,7 @@ describe('Adversarial Testing - Locks', () => {
 
       // Create with short TTL (50ms — TTL > 0 so it won't normalize)
       await request(`/locks/${lockName}`, {
+        headers: await lockerHeaders(),
         method: 'POST',
         body: { ttl: 50 }
       });
@@ -413,6 +448,7 @@ describe('Adversarial Testing - Locks', () => {
 
       // Try to extend — expired locks are cleaned before extend checks
       const res = await request(`/locks/${lockName}`, {
+        headers: await lockerHeaders(),
         method: 'PUT',
         body: { ttl: 60000 }
       });
@@ -425,6 +461,7 @@ describe('Adversarial Testing - Locks', () => {
   describe('Lock Release', () => {
     test('release non-existent lock returns success with released=false', async () => {
       const res = await request(`/locks/nonexistent-lock-${Date.now()}`, {
+        headers: await lockerHeaders(),
         method: 'DELETE'
       });
       // Server returns 200 with { success: true, released: false } for idempotent release

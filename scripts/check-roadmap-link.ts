@@ -1,5 +1,5 @@
 /**
- * Roadmap-link gate — CI entry point (non-blocking).
+ * Roadmap-link gate — CI entry point (BLOCKING; required in branch protection).
  *
  *   npx tsx scripts/check-roadmap-link.ts            # CI: reads $GITHUB_EVENT_PATH
  *   npx tsx scripts/check-roadmap-link.ts 512        # local: inspect PR #512 via gh
@@ -101,6 +101,12 @@ function buildComment(r: LinkResult): string {
   switch (r.reason) {
     case 'linked':
       lines.push(`✅ Linked to roadmap item **\`${r.slug}\`**. Good to land.`);
+      break;
+    case 'self-spawned':
+      lines.push(
+        `✅ Linked to **\`${r.slug}\`**, declared by this PR's own \`Roadmap-Spawns:\` trailer.`,
+      );
+      lines.push('', 'The item is introduced by this PR; the snapshot catches up at the next `export-roadmap-snapshot` run.');
       break;
     case 'opt-out':
       lines.push(`✅ Explicit opt-out accepted — _${r.optOutReason}_.`);

@@ -45,7 +45,7 @@ describe('SIGNAL_FOR_STATE', () => {
     expect(SIGNAL_FOR_STATE['spawning']).toBe('A');         // Alfa — diver down, keep clear
     expect(SIGNAL_FOR_STATE['fleet-healthy']).toBe('P');    // Papa / Blue Peter — about to sail
     expect(SIGNAL_FOR_STATE['mayday']).toBe('J');           // Juliett — on fire, dangerous cargo
-    expect(SIGNAL_FOR_STATE['inform']).toBe('R');           // Romeo — received
+    expect(SIGNAL_FOR_STATE['inform']).toBe('R');           // Procedure signal — received
     expect(SIGNAL_FOR_STATE['request']).toBe('K');          // Kilo — wish to communicate
     expect(SIGNAL_FOR_STATE['refuse']).toBe('N');           // November — negative
     expect(SIGNAL_FOR_STATE['affirmative']).toBe('C');      // Charlie — affirmative
@@ -82,6 +82,11 @@ describe('ICS_MEANING & NATO_PHONETIC — all 26 letters', () => {
     expect(NATO_PHONETIC.K).toBe('Kilo');
     expect(NATO_PHONETIC.W).toBe('Whiskey');
     expect(NATO_PHONETIC.Y).toBe('Yankee');
+  });
+
+  test('R is labeled as a procedure acknowledgement, not 1931 single-letter folklore', () => {
+    expect(ICS_MEANING.R).toBe('No 1969 single-letter meaning; procedure signal: Received');
+    expect(ICS_MEANING.R).not.toMatch(/way is off my ship/i);
   });
 });
 

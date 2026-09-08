@@ -12,13 +12,24 @@ import { canPrompt, promptText, promptSelect } from '../utils/prompt.js';
 import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
-import { readCurrentContext, writeCurrentContext } from '../utils/current-context.js';
+import {
+  clearBeginAttempt,
+  readBeginAttempt,
+  readCurrentContext,
+  resolveCurrentContext,
+  writeCurrentContext,
+  type CurrentContextProvenance,
+} from '../utils/current-context.js';
+import { autoIdentityFromPackageJson } from './services.js';
+import { isValidBeginIdempotencyKey } from '../../lib/begin-idempotency.js';
+import { resolveCliActorCredential } from '../utils/actor-credential.js';
 import { loadFleetConfig } from '../../lib/fleet-engine.js';
 import { deriveChangelogFromNote } from '../../lib/changelog-from-note.js';
 import {
   attachCliSessionWorktreePolicy,
   resolveCliSessionWorktreePolicy,
 } from '../utils/session-worktree-policy.js';
+import { resolveRelinkRent, formatRentReceipt, RELINK_GATE_MESSAGE } from './sugar.js';
 
 type SessionStartResult = Awaited<ReturnType<PortDaddy['startSession']>>;
 type SessionEndResult = Awaited<ReturnType<PortDaddy['endSession']>>;
@@ -30,9 +41,23 @@ type FileReleaseResult = Awaited<ReturnType<PortDaddy['releaseFiles']>>;
 type NoteResult = Awaited<ReturnType<PortDaddy['note']>>;
 type ErrorBody = Record<string, unknown>;
 type ActiveSessionResolution = {
+  success: true;
   sessionId: string;
+  agentId?: string;
   source: 'explicit-session' | 'current-context' | 'active-agent';
 };
+type ActiveSessionResolutionFailure = {
+  success: false;
+  code: 'CONTEXT_CONFLICT' | 'AMBIGUOUS_ACTIVE_SESSION' | 'SESSION_NOT_ACTIVE'
+    | 'SESSION_SCOPE_MISMATCH' | 'SESSION_RESOLUTION_FAILED';
+  error: string;
+  provenances?: {
+    environment: CurrentContextProvenance;
+    stored: CurrentContextProvenance;
+  };
+  candidates?: Array<{ sessionId: string; worktreeId: string | null }>;
+};
+type ActiveSessionResolutionResult = ActiveSessionResolution | ActiveSessionResolutionFailure | null;
 type FileRegion = {
   path: string;
   startLine?: number;
@@ -48,10 +73,49 @@ function parseSessionLifecycle(value: unknown): SessionLifecycle | null {
   return normalized === 'durable' || normalized === 'ephemeral' ? normalized : null;
 }
 
+/**
+ * Build the SDK client for session commands, carrying the ADR-0040 actor
+ * credential (#8877 / ADR-0122).
+ *
+ * Design intent: an explicit CLI session or agent is the highest-authority
+ * identity carrier, so ambient context can never silently replace it.
+ *
+ * Credential resolution order: the PD_ACTOR_CREDENTIAL /
+ * PORT_DADDY_ACTOR_CREDENTIAL env vars, then the per-worktree context file —
+ * but the context credential is used ONLY when the context's agentId matches
+ * the agent this client will assert, because presenting soul A's credential
+ * while asserting agent B's name is exactly the laundering the daemon now
+ * rejects (403 IDENTITY_ALIAS_MISMATCH). Commands that mint (session start /
+ * takeover) call `pd.ensureActorCredential()` when nothing resolves here.
+ *
+ * @param options - Parsed CLI options (`--agent` wins over context).
+ * @returns A PortDaddy client with agentId + credential set when available.
+ */
 function createSessionClient(options: CLIOptions): PortDaddy {
-  const current = readCurrentContext();
+  const explicitAgentId = stringOption(options, 'agent', 'agent-id', 'agentId');
+  const explicitSessionId = stringOption(options, 'session', 'session-id', 'sessionId');
+  const contextResolution = resolveCurrentContext();
+  if (!contextResolution.success && !explicitAgentId && !explicitSessionId) {
+    const conflict = {
+      success: false,
+      code: contextResolution.code,
+      error: contextResolution.error,
+      provenances: contextResolution.provenances,
+    };
+    if (isJson(options)) {
+      console.error(JSON.stringify(conflict, null, 2));
+    } else {
+      ui.error(`${conflict.code}: ${conflict.error}`);
+      console.error(JSON.stringify({ provenances: conflict.provenances }, null, 2));
+    }
+    process.exit(1);
+  }
+  const current = contextResolution.success ? contextResolution.context : null;
+  const agentId = explicitAgentId
+    || (explicitSessionId ? undefined : current?.agentId || `cli-${process.pid}`);
   return new PortDaddy({
-    agentId: (typeof options.agent === 'string' ? options.agent : undefined) || current?.agentId || `cli-${process.pid}`,
+    agentId,
+    credential: agentId ? resolveCliActorCredential(agentId) : undefined,
     pid: process.pid,
   });
 }
@@ -139,52 +203,103 @@ function buildRegionFromOptions(paths: string[], options: CLIOptions): FileRegio
 /**
  * Resolve the active session that a file-claim command should mutate.
  *
+ * Design intent: every mutating file command must resolve one exact session;
+ * conflicting carriers and multiple active candidates fail closed with enough
+ * provenance for the caller to retry explicitly.
+ *
  * Sample input:
  * `current = { agentId: "agent-a", sessionId: "session-1" }`
  *
  * Sample output:
  * `{ sessionId: "session-1", source: "current-context" }`
+ *
+ * @param pd - Read/write client used to verify exact sessions and enumerate candidates.
+ * @param options - CLI scope; explicit session/agent values outrank ambient context.
+ * @returns One exact active session, a structured conflict/ambiguity, or null.
  */
-async function resolveActiveSessionForFiles(
+export async function resolveActiveSessionForFiles(
   pd: PortDaddy,
   options: CLIOptions
-): Promise<ActiveSessionResolution | null> {
-  const current = readCurrentContext();
+): Promise<ActiveSessionResolutionResult> {
   const explicitSessionId = stringOption(options, 'session', 'session-id', 'sessionId');
   const explicitAgentId = stringOption(options, 'agent', 'agent-id', 'agentId');
+  const contextResolution = resolveCurrentContext();
+  if (!contextResolution.success && !explicitSessionId && !explicitAgentId) {
+    return {
+      success: false,
+      code: contextResolution.code,
+      error: contextResolution.error,
+      provenances: contextResolution.provenances,
+    };
+  }
+  // An explicit CLI scope outranks ambient carriers. If only one half was
+  // explicit, use stored context only when it resolves without conflict and
+  // agrees with that explicit half; otherwise let the daemon resolve the
+  // explicit half without grafting a contradictory identity onto it.
+  const current = contextResolution.success ? contextResolution.context : null;
   const contextSessionId = current?.sessionId;
   const contextAgentId = current?.agentId;
-  const candidateSessionId = explicitSessionId || contextSessionId;
-  const candidateAgentId = explicitAgentId || contextAgentId || pd.agentId;
+  const candidateSessionId = explicitSessionId
+    || (explicitAgentId && contextAgentId !== explicitAgentId ? undefined : contextSessionId);
+  // An explicit session without an explicit agent must derive its owner from
+  // that exact stored session. Ambient agent context may be valid for a
+  // different session and must not be grafted onto the explicit selector.
+  const candidateAgentId = explicitAgentId
+    || (explicitSessionId ? undefined : (contextAgentId || pd.agentId));
 
   if (candidateSessionId) {
     try {
-      const whoami = await pd.whoami({ agentId: candidateAgentId, sessionId: candidateSessionId });
-      if (whoami?.active && whoami.sessionId) {
+      const whoami = await pd.whoami({
+        ...(candidateAgentId ? { agentId: candidateAgentId } : {}),
+        sessionId: candidateSessionId,
+      });
+      if (whoami?.success !== true) {
         return {
-          sessionId: whoami.sessionId,
-          source: explicitSessionId ? 'explicit-session' : 'current-context',
+          success: false,
+          code: 'SESSION_RESOLUTION_FAILED',
+          error: `Could not verify exact session "${candidateSessionId}"; no fallback attempted.`,
         };
       }
-      if (explicitSessionId) {
-        ui.error(whoami?.hint || `Session "${explicitSessionId}" is not active`);
-        process.exit(1);
+      if (whoami.active !== true) {
+        return {
+          success: false,
+          code: 'SESSION_NOT_ACTIVE',
+          error: whoami?.hint || `Session "${candidateSessionId}" is not active; select or resume that exact session explicitly.`,
+        };
       }
+      if (whoami.sessionId !== candidateSessionId || !whoami.agentId?.trim()
+        || (candidateAgentId && whoami.agentId !== candidateAgentId)) {
+        return {
+          success: false,
+          code: 'SESSION_SCOPE_MISMATCH',
+          error: `Resolved identity does not match exact session "${candidateSessionId}" and its selected owner.`,
+        };
+      }
+      return {
+        success: true,
+        sessionId: candidateSessionId,
+        agentId: whoami.agentId,
+        source: explicitSessionId ? 'explicit-session' : 'current-context',
+      };
     } catch (error) {
-      if (explicitSessionId) {
-        const errorBody = getErrorBody(error);
-        ui.error((errorBody.error as string) || (error as Error).message || 'Failed to resolve session');
-        process.exit(1);
-      }
+      const errorBody = getErrorBody(error);
+      return {
+        success: false,
+        code: 'SESSION_RESOLUTION_FAILED',
+        error: (errorBody.error as string) || (error as Error).message || `Failed to resolve exact session "${candidateSessionId}"`,
+      };
     }
   }
+
+  if (!candidateAgentId) return null;
 
   let listData: SessionListResult;
   try {
     listData = await pd.sessions({
       status: 'active',
       agentId: candidateAgentId,
-      limit: 1,
+      allWorktrees: true,
+      limit: 50,
     });
   } catch (error) {
     const errorBody = getErrorBody(error);
@@ -194,8 +309,25 @@ async function resolveActiveSessionForFiles(
 
   if (!listData.success || listData.count === 0) return null;
 
+  if (listData.sessions.length > 1) {
+    return {
+      success: false,
+      code: 'AMBIGUOUS_ACTIVE_SESSION',
+      error: `Agent "${candidateAgentId || '<unspecified>'}" has multiple active sessions; pass --session explicitly.`,
+      candidates: listData.sessions.map((session) => {
+        const row = session as unknown as Record<string, unknown>;
+        return {
+          sessionId: session.id,
+          worktreeId: typeof row.worktreeId === 'string' ? row.worktreeId : null,
+        };
+      }),
+    };
+  }
+
   return {
+    success: true,
     sessionId: listData.sessions[0].id,
+    agentId: listData.sessions[0].agentId || candidateAgentId,
     source: 'active-agent',
   };
 }
@@ -210,7 +342,7 @@ export async function handleSession(
   useDirect = false
 ): Promise<void> {
   if (!subcommand) {
-    console.error('Usage: port-daddy session <start|end|done|abandon|takeover|rm|files|phase> [args]');
+    console.error('Usage: port-daddy session <start|end|done|abandon|takeover|find|rm|files|phase|relink> [args]');
     console.error('');
     console.error('Commands:');
     console.error('  start <purpose> [--files file1 file2...] [--agent AGENT_ID] [--force]');
@@ -218,10 +350,13 @@ export async function handleSession(
     console.error('  done [note]           # Alias for "end" with status=completed');
     console.error('  abandon [note]        # End session with status=abandoned');
     console.error('  takeover <id> [note]  # Start a successor session; preserve old notes');
+    console.error('  find [--key K | --identity ID] [--all-worktrees] [--all] [--no-adopt]');
+    console.error('                        # Recover "my session" after a lost begin response or crash');
     console.error('  rm <id>               # Archive a session; preserve old notes');
     console.error('  files add <paths...> [--session ID]  # Claim files in active session');
     console.error('  files rm <paths...> [--session ID]   # Release files in active session');
     console.error('  phase <id> <phase>    # Set session phase');
+    console.error('  relink --roadmap <slug> | --sidequest "<reason>"  # Fix the active session\'s roadmap rent');
     console.error('');
     console.error('Phases: planning, in_progress, testing, reviewing, completed, abandoned');
     process.exit(1);
@@ -242,12 +377,16 @@ export async function handleSession(
       return sessionEnd(rest, options, 'abandoned');
     case 'takeover':
       return sessionTakeover(rest, options);
+    case 'find':
+      return sessionFind(rest, options);
     case 'rm':
       return sessionRemove(rest, options);
     case 'files':
       return sessionFiles(rest, options);
     case 'phase':
       return sessionPhase(rest, options);
+    case 'relink':
+      return sessionRelink(options);
     default:
       console.error(`Unknown session command: ${subcommand}`);
       console.error('Run "port-daddy session" for usage');
@@ -287,7 +426,19 @@ async function sessionStart(rest: string[], options: CLIOptions): Promise<void> 
     process.exit(1);
   }
 
-  const pd = createSessionClient(options);
+  let pd = createSessionClient(options);
+  // #8877: an attributed session start requires a daemon-minted credential.
+  // Mint one through POST /actors/register when this shell does not already
+  // hold one (env or matching context); the alias binds the asserted agentId
+  // to the minted soul so nobody else can assert it uncredentialed.
+  if (!pd.credential && pd.agentId) {
+    try {
+      await pd.ensureActorCredential(pd.agentId);
+    } catch (error) {
+      ui.error(`Failed to mint actor credential: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  }
   const body: Record<string, unknown> = { purpose };
   if (pd.agentId) body.agentId = pd.agentId;
   if (options.force) body.force = true;
@@ -347,10 +498,38 @@ async function sessionStart(rest: string[], options: CLIOptions): Promise<void> 
   }
 
   const sessionId = data.id as string;
+  // Persist the session + minted credential so follow-up commands in this
+  // shell (files claim/release, notes, session end) present the same soul.
+  if (pd.agentId) {
+    writeCurrentContext({
+      agentId: pd.agentId,
+      sessionId,
+      purpose,
+      startedAt: Date.now(),
+      credential: pd.credential ?? null,
+    });
+  }
   if (isJson(options)) {
     console.log(JSON.stringify(data, null, 2));
   } else if (isQuiet(options)) {
     console.log(sessionId);
+  } else if (ui.lineworkEnabled({ json: isJson(options), quiet: isQuiet(options) })) {
+    const rows: ui.LineworkRow[] = [
+      { state: 'confirmed', label: 'session', text: sessionId },
+      { state: 'pending', label: 'purpose', text: purpose },
+      { state: lifecycle === 'durable' ? 'healthy' : 'info', label: 'lifecycle', text: lifecycle },
+    ];
+    if (files.length > 0) {
+      rows.push({ state: 'confirmed', label: 'files', text: `${files.length} claimed` });
+    }
+    console.log(ui.renderLineworkPanel({
+      title: 'Session Start',
+      subtitle: sessionId,
+      tone: 'healthy',
+      zone: 'session anchored',
+      rows,
+      footer: 'notes and file claims are now attached to this session',
+    }));
   } else {
     ui.success(`Started session: ${sessionId}`);
     console.log(`  Purpose: ${purpose}`);
@@ -373,7 +552,64 @@ async function sessionEnd(rest: string[], options: CLIOptions, status: string): 
   }
 
   const pd = createSessionClient(options);
-  const data: SessionEndResult = await pd.endSession(note, { status });
+  const activeSession = await resolveActiveSessionForFiles(pd, options);
+  if (!activeSession) {
+    ui.error('No active session found');
+    process.exit(1);
+  }
+  if (!activeSession.success) {
+    ui.error(`${activeSession.code}: ${activeSession.error}`);
+    if (activeSession.provenances) {
+      console.error(JSON.stringify({ code: activeSession.code, provenances: activeSession.provenances }, null, 2));
+    }
+    if (activeSession.candidates) {
+      for (const candidate of activeSession.candidates) {
+        console.error(`  ${candidate.sessionId} (worktree ${candidate.worktreeId || '<unknown>'})`);
+      }
+    }
+    process.exit(1);
+  }
+  if (activeSession.agentId) {
+    pd.agentId = activeSession.agentId;
+    pd.credential = resolveCliActorCredential(activeSession.agentId);
+  }
+  let data: SessionEndResult;
+  try {
+    if (status === 'completed') {
+      const noPr = options['no-pr'] === true || options.noPr === true;
+      const subtask = options.subtask === true || options['subtask'] === true;
+      const skipOriginCheck = options.skipOriginCheck === true || options['skip-origin-check'] === true;
+      const skipOriginCheckReason = (options.reason as string | undefined) || undefined;
+
+      const sugarResult = await pd.done(note, {
+        agentId: activeSession.agentId,
+        sessionId: activeSession.sessionId,
+        status,
+        skipOriginCheck: skipOriginCheck ? true : undefined,
+        skipOriginCheckReason: skipOriginCheck ? skipOriginCheckReason : undefined,
+        noPr: noPr ? true : undefined,
+        subtask: subtask ? true : undefined,
+      });
+
+      data = {
+        success: sugarResult.success,
+        id: sugarResult.sessionId,
+        error: sugarResult.error,
+        releasedFiles: sugarResult.releasedFiles,
+      } as any;
+    } else {
+      data = await pd.endSession(activeSession.sessionId, { status, note });
+    }
+  } catch (error) {
+    const errorBody = getErrorBody(error);
+    ui.error((errorBody.error as string) || (error as Error).message || 'Failed to end session');
+    const hint = (errorBody as any)?.hint;
+    if (typeof hint === 'string') {
+      console.error(hint.split('\n').map((line: string) => `  ${line}`).join('\n'));
+    }
+    process.exit(1);
+  }
+
   const sessionId = data.id;
 
   if (!data.success || !sessionId) {
@@ -404,7 +640,26 @@ async function sessionRemove(rest: string[], options: CLIOptions): Promise<void>
     process.exit(1);
   }
 
-  const pd = createSessionClient(options);
+  const pd = createSessionClient({ ...options, session: sessionId });
+  const explicitAgentId = stringOption(options, 'agent', 'agent-id', 'agentId');
+  let exact;
+  try {
+    exact = await pd.whoami({ sessionId });
+  } catch (error) {
+    const errorBody = getErrorBody(error);
+    ui.error((errorBody.error as string) || (error as Error).message || 'Failed to resolve session owner');
+    process.exit(1);
+  }
+  if (!exact.sessionId || !exact.agentId) {
+    ui.error(exact.error || exact.hint || `Session "${sessionId}" was not found`);
+    process.exit(1);
+  }
+  if (explicitAgentId && explicitAgentId !== exact.agentId) {
+    ui.error(`SESSION_OWNERSHIP_MISMATCH: session "${sessionId}" belongs to "${exact.agentId}", not "${explicitAgentId}"`);
+    process.exit(1);
+  }
+  pd.agentId = exact.agentId;
+  pd.credential = resolveCliActorCredential(exact.agentId);
   let data: SessionRemoveResult;
   try {
     data = await pd.removeSession(sessionId);
@@ -431,6 +686,142 @@ async function sessionRemove(rest: string[], options: CLIOptions): Promise<void>
   }
 }
 
+/**
+ * `pd session find` — successor discovery for an agent that lost its local
+ * state (a `pd begin` whose response never arrived, a crash before the
+ * context file was written, a wiped worktree).
+ *
+ * Two doors, tried in this order:
+ *   1. `--key <k>` (or the pending begin attempt / current context on disk):
+ *      the daemon returns the session that begin created together with the
+ *      credential it sealed under the key, and this shell adopts it — the
+ *      agent is exactly where it would have been had the response arrived.
+ *   2. `--identity <p:s:c>` (or the package.json identity): the most recent
+ *      live session(s) for that identity in this worktree. Ids only; the
+ *      hint says how to continue, which is `pd session takeover <id>` for a
+ *      closed session. Nothing here bypasses takeover's ownership rules.
+ */
+async function sessionFind(rest: string[], options: CLIOptions): Promise<void> {
+  const positionalKey = rest[0] && !rest[0].startsWith('-') ? rest[0] : undefined;
+  let key = typeof options.key === 'string' ? options.key : positionalKey;
+  const explicitIdentity = typeof options.identity === 'string' ? options.identity : undefined;
+  let keySource: 'flag' | 'begin-attempt' | 'context' | null = key ? 'flag' : null;
+
+  if (!key && !explicitIdentity) {
+    const attempt = readBeginAttempt();
+    if (attempt?.idempotencyKey) {
+      key = attempt.idempotencyKey;
+      keySource = 'begin-attempt';
+    } else {
+      const context = readCurrentContext();
+      if (context?.idempotencyKey) {
+        key = context.idempotencyKey;
+        keySource = 'context';
+      }
+    }
+  }
+
+  if (key && !isValidBeginIdempotencyKey(key)) {
+    ui.error('--key must be the begin idempotency key (16-128 URL-safe chars, e.g. a UUID v4)');
+    process.exit(1);
+  }
+
+  const identity = key ? undefined : (explicitIdentity || autoIdentityFromPackageJson());
+  if (!key && !identity) {
+    ui.error('Nothing to search by: pass --key <begin key> or --identity <project:stack:context>');
+    console.error('  (no pending begin attempt or context with a key was found in this worktree)');
+    process.exit(1);
+  }
+
+  const params = new URLSearchParams();
+  if (key) {
+    params.set('key', key);
+  } else {
+    params.set('identity', identity as string);
+    const allWorktrees = Boolean(options['all-worktrees'] || options.aw);
+    if (allWorktrees) {
+      params.set('allWorktrees', '1');
+    } else {
+      const worktreePolicy = resolveCliSessionWorktreePolicy(options);
+      if (worktreePolicy.success && worktreePolicy.worktree?.id) params.set('worktreeId', worktreePolicy.worktree.id);
+      else params.set('allWorktrees', '1');
+    }
+    if (options.all) params.set('includeClosed', '1');
+  }
+
+  let res: PdFetchResponse;
+  try {
+    res = await pdFetch(`/sugar/find?${params.toString()}`);
+  } catch (error) {
+    ui.error(`Failed to reach the daemon: ${(error as Error).message}`);
+    process.exit(1);
+  }
+  const data = await res.json();
+  if (!res.ok) {
+    ui.error((data.error as string) || 'Failed to find session');
+    if (typeof data.hint === 'string') console.error(`  ${data.hint}`);
+    if (typeof data.sessionId === 'string') console.error(`  Recorded session: ${data.sessionId}`);
+    process.exit(1);
+  }
+
+  // Adopt a key-recovered session locally: the context file is exactly what
+  // the lost `pd begin` response would have written.
+  let adopted = false;
+  const adopt = !(options['no-adopt'] === true || options.noAdopt === true);
+  if (data.foundBy === 'key' && adopt && typeof data.sessionId === 'string' && typeof data.agentId === 'string' && data.driveable === true) {
+    const priorContext = readCurrentContext();
+    writeCurrentContext({
+      agentId: data.agentId,
+      sessionId: data.sessionId,
+      purpose: typeof data.purpose === 'string' ? data.purpose : undefined,
+      identity: typeof data.identity === 'string' ? data.identity : null,
+      startedAt: typeof data.createdAt === 'number' ? data.createdAt : Date.now(),
+      credential: typeof data.credential === 'string' && data.credential
+        ? data.credential
+        : (priorContext?.sessionId === data.sessionId ? priorContext.credential ?? null : null),
+      idempotencyKey: key as string,
+    });
+    clearBeginAttempt();
+    adopted = true;
+  }
+
+  if (isJson(options)) {
+    const { credential: _hidden, ...rest } = data;
+    void _hidden;
+    console.log(JSON.stringify({ ...rest, adopted, keySource, credentialRecovered: typeof data.credential === 'string' }, null, 2));
+    return;
+  }
+  if (isQuiet(options)) {
+    if (typeof data.sessionId === 'string') console.log(data.sessionId);
+    return;
+  }
+
+  if (data.foundBy === 'key') {
+    ui.success(`Found session ${String(data.sessionId)} (agent ${String(data.agentId)})`);
+    if (keySource && keySource !== 'flag') console.error(`  Key source: ${keySource === 'begin-attempt' ? 'pending begin attempt on disk' : 'current context file'}`);
+    if (data.purpose) console.error(`  Purpose: ${String(data.purpose)}`);
+    console.error(`  Status: ${String(data.status ?? 'unknown')}${data.lifecycle ? ` (${String(data.lifecycle)})` : ''}`);
+    if (adopted) {
+      console.error(`  Context restored${typeof data.credential === 'string' ? ' with credential' : ' (no credential sealed under this key)'} — continue with pd note / pd done`);
+    }
+    if (typeof data.hint === 'string' && !adopted) console.error(`  ${data.hint}`);
+    return;
+  }
+
+  const rows = Array.isArray(data.sessions) ? data.sessions as Array<Record<string, unknown>> : [];
+  if (rows.length === 0) {
+    ui.warn(`No ${options.all ? '' : 'active '}session for ${String(data.identity)}${data.worktreeId ? ' in this worktree' : ''}`);
+  } else {
+    ui.success(`${rows.length} session(s) for ${String(data.identity)} (newest first)`);
+    for (const row of rows) {
+      const when = typeof row.createdAt === 'number' ? new Date(row.createdAt).toISOString() : '';
+      console.error(`  ${String(row.sessionId)}  ${String(row.status ?? '')}  agent=${String(row.agentId ?? '-')}  ${when}`);
+      if (row.purpose) console.error(`      ${String(row.purpose)}`);
+    }
+  }
+  if (typeof data.hint === 'string') console.error(`  ${data.hint}`);
+}
+
 async function sessionTakeover(rest: string[], options: CLIOptions): Promise<void> {
   const sessionId = rest[0];
   if (!sessionId) {
@@ -446,6 +837,16 @@ async function sessionTakeover(rest: string[], options: CLIOptions): Promise<voi
   }
 
   const pd = createSessionClient(options);
+  // #8877: takeover rewrites session lineage — always attributed, credential
+  // required. Mint one when this shell holds none.
+  if (!pd.credential && pd.agentId) {
+    try {
+      await pd.ensureActorCredential(pd.agentId);
+    } catch (error) {
+      ui.error(`Failed to mint actor credential: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  }
   const body: Parameters<PortDaddy['takeoverSession']>[1] = {
     note,
     purpose: typeof options.purpose === 'string' ? options.purpose : undefined,
@@ -487,6 +888,8 @@ async function sessionTakeover(rest: string[], options: CLIOptions): Promise<voi
         purpose: typeof successor?.purpose === 'string' ? successor.purpose : undefined,
         identity: typeof successor?.identityProject === 'string' ? successor.identityProject : null,
         startedAt: typeof successor?.createdAt === 'number' ? successor.createdAt : Date.now(),
+        // Keep the soul credential with the successor context (#8877).
+        credential: pd.credential ?? null,
       });
     }
   }
@@ -541,8 +944,24 @@ async function sessionFiles(rest: string[], options: CLIOptions): Promise<void> 
     ui.error('No active session found');
     process.exit(1);
   }
+  if (!activeSession.success) {
+    ui.error(`${activeSession.code}: ${activeSession.error}`);
+    if (activeSession.provenances) {
+      console.error(JSON.stringify({ code: activeSession.code, provenances: activeSession.provenances }, null, 2));
+    }
+    if (activeSession.candidates) {
+      for (const candidate of activeSession.candidates) {
+        console.error(`  ${candidate.sessionId} (worktree ${candidate.worktreeId || '<unknown>'})`);
+      }
+    }
+    process.exit(1);
+  }
 
   const sessionId = activeSession.sessionId;
+  if (activeSession.agentId) {
+    pd.agentId = activeSession.agentId;
+    pd.credential = resolveCliActorCredential(activeSession.agentId);
+  }
 
   if (filesCmd === 'add') {
     let data: FileClaimResult;
@@ -607,9 +1026,23 @@ async function sessionPhase(rest: string[], options: CLIOptions): Promise<void> 
     process.exit(1);
   }
 
+  const pd = createSessionClient({ ...options, session: sessionId });
+  const activeSession = await resolveActiveSessionForFiles(pd, { ...options, session: sessionId });
+  if (!activeSession || !activeSession.success) {
+    const message = activeSession && !activeSession.success
+      ? `${activeSession.code}: ${activeSession.error}`
+      : `Session "${sessionId}" is not active`;
+    ui.error(message);
+    process.exit(1);
+  }
+  const ownerAgentId = activeSession.agentId;
+  const credential = resolveCliActorCredential(ownerAgentId);
   const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/sessions/${encodeURIComponent(sessionId)}/phase`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(credential ? { 'X-Actor-Credential': credential } : {}),
+    },
     body: JSON.stringify({ phase })
   });
 
@@ -625,6 +1058,90 @@ async function sessionPhase(rest: string[], options: CLIOptions): Promise<void> 
   } else if (!isQuiet(options)) {
     ui.success(`Session ${sessionId}: ${data.previousPhase} → ${data.phase}`);
   }
+}
+
+/**
+ * `pd session relink --roadmap <slug> | --sidequest "<reason>"`
+ *
+ * Anti-Goodhart valve for rent-at-claim: fixes the ACTIVE session's roadmap
+ * link / sidequest opt-out. Same validation as pd begin (slug must exist,
+ * with did-you-mean; sidequest min 12 chars; mutually exclusive). The daemon
+ * records an old -> new audit note on the session.
+ */
+async function sessionRelink(options: CLIOptions): Promise<void> {
+  const rent = resolveRelinkRent(options);
+  if (!rent.ok) {
+    ui.error(rent.error || RELINK_GATE_MESSAGE);
+    process.exit(1);
+  }
+
+  const pd = createSessionClient(options);
+  const activeSession = await resolveActiveSessionForFiles(pd, options);
+  if (!activeSession) {
+    ui.error('No active session found');
+    process.exit(1);
+  }
+  if (!activeSession.success) {
+    ui.error(`${activeSession.code}: ${activeSession.error}`);
+    if (activeSession.provenances) {
+      console.error(JSON.stringify({ code: activeSession.code, provenances: activeSession.provenances }, null, 2));
+    }
+    if (activeSession.candidates) {
+      for (const candidate of activeSession.candidates) {
+        console.error(`  ${candidate.sessionId} (worktree ${candidate.worktreeId || '<unknown>'})`);
+      }
+    }
+    process.exit(1);
+  }
+  const agentId = activeSession.agentId;
+  const sessionId = activeSession.sessionId;
+  const credential = resolveCliActorCredential(agentId);
+
+  const body: Record<string, unknown> = {};
+  if (agentId) body.agentId = agentId;
+  if (sessionId) body.sessionId = sessionId;
+  if (rent.roadmapLink) body.roadmapLink = rent.roadmapLink;
+  if (rent.sidequestReason) body.sidequestReason = rent.sidequestReason;
+
+  const res: PdFetchResponse = await pdFetch('/sugar/relink', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(credential ? { 'X-Actor-Credential': credential } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    ui.error((data.error as string) || 'Failed to relink session');
+    process.exit(1);
+  }
+
+  if (isJson(options)) {
+    console.log(JSON.stringify(data, null, 2));
+    return;
+  }
+  if (isQuiet(options)) {
+    console.log(data.sessionId);
+    return;
+  }
+
+  const oldDesc = data.previousRoadmapLink
+    ? `roadmap:${data.previousRoadmapLink}`
+    : data.previousSidequestReason
+      ? `sidequest:${data.previousSidequestReason}`
+      : 'none';
+  const newDesc = data.roadmapLink
+    ? `roadmap:${data.roadmapLink}`
+    : `sidequest:${data.sidequestReason}`;
+  ui.success(`Session ${data.sessionId} relinked: ${oldDesc} → ${newDesc}`);
+  const receipt = formatRentReceipt({
+    roadmapLink: data.roadmapLink as string | undefined,
+    sidequestReason: data.sidequestReason as string | undefined,
+  });
+  if (receipt) console.error(`  ${receipt}`);
 }
 
 /**
@@ -877,6 +1394,7 @@ export async function handleSessions(options: CLIOptions): Promise<void> {
     createdAt: number;
     fileCount?: number;
     noteCount?: number;
+    metadata?: { roadmapLink?: string; sidequestReason?: string } | null;
   }>;
 
   if (sessions.length === 0) {
@@ -894,14 +1412,58 @@ export async function handleSessions(options: CLIOptions): Promise<void> {
     console.log(`Showing sessions for worktree ${data.worktreeId} (use --all-worktrees for all)`);
     console.log('');
   }
-  console.log('ID              PURPOSE                    STATUS    FILES  NOTES  AGE');
-  console.log('─'.repeat(75));
+  if (ui.lineworkEnabled({ json: isJson(options), quiet: isQuiet(options) })) {
+    const rows = sessions.map((s): ui.LineworkRow => {
+      const meta = s.metadata && typeof s.metadata === 'object' ? s.metadata : null;
+      const link = typeof meta?.roadmapLink === 'string' && meta.roadmapLink
+        ? `roadmap ${meta.roadmapLink}`
+        : typeof meta?.sidequestReason === 'string' && meta.sidequestReason
+          ? `sidequest ${meta.sidequestReason}`
+          : 'no link';
+      const status = s.status.toLowerCase();
+      const state: ui.LineworkState = status === 'active'
+        ? 'active'
+        : status === 'completed'
+          ? 'confirmed'
+          : status === 'abandoned'
+            ? 'recovering'
+            : status.includes('block')
+              ? 'blocked'
+              : 'unknown';
+      const age = formatAge(now - s.createdAt);
+      return {
+        state,
+        label: s.id.slice(0, 10),
+        text: `${s.purpose} · ${s.status} · files ${s.fileCount || 0} · notes ${s.noteCount || 0} · ${age} · ${link}`,
+      };
+    });
+    console.log(ui.renderLineworkPanel({
+      title: 'Sessions',
+      subtitle: showingAll ? 'all worktrees' : (data.worktreeId ? `worktree ${data.worktreeId}` : 'active'),
+      tone: rows.some((row) => row.state === 'blocked') ? 'blocked' : 'running',
+      zone: `${sessions.length} session(s)`,
+      rows,
+      footer: showingAll
+        ? `${sessions.length} session(s) shown across all worktrees`
+        : `${sessions.length} session(s) shown · use --all-worktrees for the full fleet`,
+    }));
+    return;
+  }
+  console.log('ID              PURPOSE                    STATUS    FILES  NOTES  AGE      LINK');
+  console.log('─'.repeat(95));
 
   for (const s of sessions) {
     const age = formatAge(now - s.createdAt);
     const purposeStr = s.purpose.length > 26 ? s.purpose.slice(0, 23) + '...' : s.purpose.padEnd(26);
+    // Rent-at-claim (S3): show the roadmap link or the sidequest opt-out.
+    const meta = s.metadata && typeof s.metadata === 'object' ? s.metadata : null;
+    const link = typeof meta?.roadmapLink === 'string' && meta.roadmapLink
+      ? meta.roadmapLink
+      : typeof meta?.sidequestReason === 'string' && meta.sidequestReason
+        ? `sidequest: ${meta.sidequestReason.length > 32 ? meta.sidequestReason.slice(0, 29) + '...' : meta.sidequestReason}`
+        : '—';
     console.log(
-      `${s.id.padEnd(16)}${purposeStr} ${s.status.padEnd(10)}${String(s.fileCount || 0).padStart(5)}  ${String(s.noteCount || 0).padStart(5)}  ${age}`
+      `${s.id.padEnd(16)}${purposeStr} ${s.status.padEnd(10)}${String(s.fileCount || 0).padStart(5)}  ${String(s.noteCount || 0).padStart(5)}  ${age.padEnd(8)} ${link}`
     );
   }
 }
@@ -941,10 +1503,24 @@ export async function handleNote(content: string | undefined, options: CLIOption
   const current = readCurrentContext();
   const explicitSessionId = typeof options.session === 'string' ? options.session : undefined;
   const explicitAgentId = typeof options.agent === 'string' ? options.agent : undefined;
-  const pd = createSessionClient(options);
+  let pd = createSessionClient(options);
 
   let sessionId = explicitSessionId;
   let agentId = explicitAgentId;
+
+  if (sessionId && !agentId) {
+    const exact = await pd.whoami({ sessionId });
+    if (!exact.active || !exact.agentId) {
+      ui.error(exact.error || exact.hint || `Session ${sessionId} is not active`);
+      process.exit(1);
+    }
+    agentId = exact.agentId;
+    pd = new PortDaddy({
+      agentId,
+      credential: resolveCliActorCredential(agentId),
+      pid: process.pid,
+    });
+  }
 
   if (!sessionId && !explicitAgentId && current?.sessionId) {
     try {

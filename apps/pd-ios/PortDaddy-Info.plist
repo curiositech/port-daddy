@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Bundle metadata for the iOS app target, checked in as a static plist
+	     exactly like apps/FleetBar/FleetBar-Info.plist. Version strings are
+	     placeholders: the repo root package.json `version` is the single
+	     source of truth and is stamped in at package time (see the FleetBar
+	     packaging script's PlistBuddy step). CFBundleVersion must stay
+	     numeric-only — a prerelease suffix there breaks Apple's tooling.
+
+	     NOT consumed by SwiftPM. This becomes live when the Xcode app target
+	     lands with the distribution lane. -->
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleExecutable</key>
+	<string>PortDaddy</string>
+	<key>CFBundleIdentifier</key>
+	<string>ai.portdaddy.PortDaddy</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>Port Daddy</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>UILaunchScreen</key>
+	<dict/>
+	<key>UIRequiredDeviceCapabilities</key>
+	<array>
+		<string>arm64</string>
+	</array>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<!-- APNs. The relay counterpart (POST /v1/push/apns/devices) ships
+	     separately; the app registers for remote notifications only once that
+	     endpoint is reachable from the configured relay. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+</dict>
+</plist>

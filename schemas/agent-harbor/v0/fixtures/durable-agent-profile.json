@@ -1,0 +1,52 @@
+{
+  "schema": "pd.agent-harbor.durable-agent-profile.v0",
+  "revision": 1,
+  "slug": "portdaddy-typography-expert",
+  "displayName": "Portdaddy Typography Expert",
+  "scope": {
+    "kind": "repo",
+    "key": "repo:0123456789abcdef01234567",
+    "repoRoot": "/Users/me/coding/port-daddy",
+    "repoName": "port-daddy"
+  },
+  "lifecycle": "paused",
+  "remit": "Own typography systems and dense operator interface hierarchy.",
+  "instructions": "Inspect the established paper-like visual language before editing.",
+  "skills": ["swiss-modern-website-design", "web-layout-spacing"],
+  "tools": ["read", "apply_patch"],
+  "backendPreferences": [
+    { "backend": "cli:codex", "model": "gpt-5" }
+  ],
+  "permissionPolicy": {
+    "filesystem": "repo",
+    "network": "restricted",
+    "allowedTools": [],
+    "deniedTools": [],
+    "enforcement": "declaration-only"
+  },
+  "memory": {
+    "handoff": "sanitized-only",
+    "archiveSearch": true,
+    "compaction": "episodic",
+    "handoffEpisodeIds": [41],
+    "latestHandoffEpisodeId": 41
+  },
+  "triggers": [
+    {
+      "kind": "manual",
+      "label": "Operator summons the specialist",
+      "configurationRef": null,
+      "status": "declared"
+    }
+  ],
+  "origin": {
+    "kind": "session-promotion",
+    "sourceSessionId": "session-typography-1",
+    "handoffEpisodeId": 41,
+    "sourceAgentId": "claude-session-agent",
+    "sourceAdapter": "claude-code",
+    "promotedAt": "2026-07-15T20:00:00.000Z"
+  },
+  "createdAt": "2026-07-15T20:00:00.000Z",
+  "updatedAt": "2026-07-15T20:00:00.000Z"
+}

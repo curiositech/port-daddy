@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" fill="none">
+  <!-- Micro optical mark for 16–32 px: p/d + four permission brackets only. -->
+  <rect x="8" y="8" width="284" height="284" rx="62" fill="#101216"/>
+  <g stroke-linecap="square" stroke-width="20">
+    <path d="M48 100V48H100" stroke="#7DB4FF"/>
+    <path d="M200 48H252V100" stroke="#8FD0A7"/>
+    <path d="M252 200V252H200" stroke="#7DB4FF"/>
+    <path d="M100 252H48V200" stroke="#8FD0A7"/>
+    <path d="M200 48H252" stroke="#F2BE51"/>
+  </g>
+  <g fill="none" stroke-linecap="butt" stroke-width="22">
+    <path d="M105 102V218" stroke="#7DB4FF"/>
+    <circle cx="136" cy="134" r="29" stroke="#7DB4FF"/>
+    <path d="M195 198V82" stroke="#8FD0A7"/>
+    <circle cx="164" cy="166" r="29" stroke="#8FD0A7"/>
+  </g>
+  <circle cx="150" cy="150" r="7" fill="#F2BE51"/>
+</svg>

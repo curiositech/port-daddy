@@ -38,19 +38,30 @@ struct FleetPopover: View {
     @ObservedObject var costStore: CostStore
     @ObservedObject var secretsStore: SecretsStore
     @ObservedObject var backendStore: BackendStore
+    @ObservedObject var interruptionsStore: InterruptionsStore
     @StateObject private var budgetStore = BudgetPauseStore()
     @StateObject private var approvalStore = SpawnApprovalStore()
+    @StateObject private var coastGuardReceiptStore: CoastGuardReceiptStore
     @StateObject private var berthStore = BerthStore()
     @StateObject private var cloudFleetStore = CloudFleetStore()
     @AppStorage("fleet.control.theme") private var selectedThemeRaw = "dark"
     @State private var appeared = false
     @State private var showingSettings = false
 
-    init(store: FleetStore, costStore: CostStore, secretsStore: SecretsStore = SecretsStore(autoStart: false), backendStore: BackendStore = BackendStore()) {
+    init(
+        store: FleetStore,
+        costStore: CostStore,
+        secretsStore: SecretsStore = SecretsStore(autoStart: false),
+        backendStore: BackendStore = BackendStore(),
+        interruptionsStore: InterruptionsStore = InterruptionsStore(autoStart: false),
+        coastGuardReceiptStore: CoastGuardReceiptStore = CoastGuardReceiptStore()
+    ) {
         self.store = store
         self.costStore = costStore
         self.secretsStore = secretsStore
         self.backendStore = backendStore
+        self.interruptionsStore = interruptionsStore
+        _coastGuardReceiptStore = StateObject(wrappedValue: coastGuardReceiptStore)
     }
 
     private var recentAgentHighlights: [RecentAgentHighlight] {
@@ -98,19 +109,37 @@ struct FleetPopover: View {
             withAnimation(.smooth(duration: 0.4)) { appeared = true }
             budgetStore.start()
             approvalStore.start()
+            coastGuardReceiptStore.start()
+            Task { await interruptionsStore.refresh() }
         }
         .onDisappear {
             budgetStore.stop()
             approvalStore.stop()
+            coastGuardReceiptStore.stop()
         }
     }
 
     @ViewBuilder
     private var popoverContent: some View {
         VStack(spacing: 0) {
-            // HITL first: spawns held by the trust gate lead everything else
-            // in the dropdown (ADR-0093 — a pending human gate is unmissable).
-            SpawnApprovalSection(store: approvalStore)
+            // HITL first: operator interruptions (docs/hitl-interruptions.md §4)
+            // and spawns held by the trust gate lead everything else in the
+            // dropdown — a pending human gate is unmissable.
+            InterruptionsSection(store: interruptionsStore)
+            Divider().opacity(0.5)
+            SpawnApprovalSection(
+                store: approvalStore,
+                criticalBlockTitle: interruptionsStore.criticalSpawnBlockTitle,
+                openAnswerPage: {
+                    if let url = interruptionsStore.answerPageURL {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+            )
+            if !coastGuardReceiptStore.receipts.isEmpty {
+                Divider().opacity(0.5)
+                CoastGuardReceiptSection(store: coastGuardReceiptStore)
+            }
             if store.versionSkew.needsAttention {
                 versionSkewBanner(store.versionSkew)
                 Divider().opacity(0.5)
@@ -698,10 +727,15 @@ struct FleetPopover: View {
     }
 
     private func berthTooltip(_ b: DaemonBerthResponse?) -> String {
-        // Resolve the canonical port through DaemonLocation rather than hardcoding
-        // it — the no-hardcoded-daemon-port guard (and ADR-0084) keep the literal
-        // in exactly one place.
-        guard let b else { return "Connected to the stable berth (port \(DaemonLocation.canonicalPreferredPort))" }
+        guard let b else {
+            guard let daemonURL = store.daemonURL else {
+                return "Control plane unavailable · \(store.controlPlaneUnavailableReason?.summary ?? "no endpoint resolved")"
+            }
+            guard let url = URL(string: daemonURL), let port = url.port else {
+                return "Daemon berth unknown · \(daemonURL)"
+            }
+            return "Daemon berth unknown · port \(port)"
+        }
         var parts = ["\(b.label) berth · port \(b.port)"]
         if let branch = b.gitBranch, !branch.isEmpty {
             let rev = b.gitRev.map { " @ \($0)" } ?? ""
@@ -821,22 +855,7 @@ struct FleetPopover: View {
             EmptyView()
 
         case let .appBehindDaemon(app, daemon):
-            versionSkewCard(
-                icon: "arrow.down.circle.fill",
-                tint: Fleet.Color.warning,
-                title: "FleetBar is out of date",
-                detail: "This app is \(app); the daemon is already \(daemon). Download the latest FleetBar to match.",
-                versionLine: "app \(app)  →  daemon \(daemon)",
-                primaryLabel: "Download FleetBar \(daemon)",
-                primaryAction: { NSWorkspace.shared.open(FleetVersion.downloadPageURL) },
-                // A Developer-ID-signed build means the release pipeline signs +
-                // notarizes every artifact, so the download needs no manual
-                // checksum ritual — Gatekeeper verifies it. Only unsigned/ad-hoc
-                // builds keep the caveat.
-                footnote: FleetVersion.isSignedBuild
-                    ? "Signed & notarized — Gatekeeper verifies the download automatically."
-                    : "Unsigned build — the download page lists the checksum to verify."
-            )
+            FleetBarUpdateCard(appVersion: app, daemonVersion: daemon)
 
         case let .daemonBehindApp(app, daemon):
             // FleetBar can't run `brew` or kill a live daemon itself, so we hand
@@ -1017,6 +1036,7 @@ struct FleetPopover: View {
             ForEach(Array(store.projects.enumerated()), id: \.element.id) { index, project in
                 ProjectSection(
                     project: project,
+                    spawnBlockTitle: interruptionsStore.criticalSpawnBlockTitle,
                     isExpanded: store.expandedProjects.contains(project.id),
                     onToggle: { withAnimation(Fleet.Motion.expandSpring) { store.toggleProject(project.id) } },
                     onOpenProject: {
@@ -1064,19 +1084,39 @@ struct FleetPopover: View {
     //
     // Whisper-quiet. The user glances here, never stares.
 
+    private var footerSymbol: String {
+        guard store.isControlPlaneAvailable else { return "bolt.horizontal.circle" }
+        return store.isConnected
+            ? "antenna.radiowaves.left.and.right"
+            : "antenna.radiowaves.left.and.right.slash"
+    }
+
+    private var footerLabel: String {
+        guard store.isControlPlaneAvailable else { return "Unavailable" }
+        return store.isConnected ? "Live" : "Polling"
+    }
+
+    private var footerHelp: String {
+        if let source = store.endpointSource {
+            return "Endpoint from \(source.label) · \(store.daemonLabel)"
+        }
+        return store.controlPlaneUnavailableReason?.summary ?? "No daemon endpoint resolved."
+    }
+
     private var footer: some View {
         HStack(spacing: Fleet.Space.xs) {
-            Image(systemName: store.isConnected
-                  ? "antenna.radiowaves.left.and.right"
-                  : "antenna.radiowaves.left.and.right.slash")
+            Image(systemName: footerSymbol)
                 .font(.system(size: 9, weight: .medium))
-                .foregroundStyle(store.isConnected ? Fleet.Color.healthy : Fleet.Color.warning)
+                .foregroundStyle(store.isControlPlaneAvailable
+                    ? (store.isConnected ? Fleet.Color.healthy : Fleet.Color.warning)
+                    : Fleet.Color.failure)
                 .symbolEffect(.variableColor.iterative, isActive: store.isConnected)
                 .contentTransition(.symbolEffect(.replace))
 
-            Text(store.isConnected ? "Live" : "Polling")
+            Text(footerLabel)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
+                .help(footerHelp)
 
             Spacer()
 
@@ -1182,6 +1222,8 @@ private struct ConsoleMetric: View {
 
 struct ProjectSection: View {
     let project: FleetProject
+    /// Title of the open critical operator ask blocking new agent work, or nil.
+    var spawnBlockTitle: String? = nil
     let isExpanded: Bool
     let onToggle: () -> Void
     let onOpenProject: () -> Void
@@ -1283,6 +1325,7 @@ struct ProjectSection: View {
                     ForEach(Array(orderedAgents.enumerated()), id: \.element.id) { index, agent in
                         AgentRow(
                             agent: agent,
+                            spawnBlockTitle: spawnBlockTitle,
                             onInspect: { onInspectAgent(agent.name) },
                             onRunAgent: { onRunAgent(agent.name) },
                             onPauseToggle: { onPauseToggle(agent.name, agent.status == .paused) },
@@ -1413,6 +1456,9 @@ struct ProjectReadinessRow: View {
 
 struct AgentRow: View {
     let agent: FleetAgent
+    /// Title of the open critical operator ask blocking new agent work, or nil.
+    /// Run starts NEW work, so it is disabled while set (HITL contract §4.3).
+    var spawnBlockTitle: String? = nil
     let onInspect: () -> Void
     let onRunAgent: () -> Void
     let onPauseToggle: () -> Void
@@ -1469,7 +1515,12 @@ struct AgentRow: View {
                     Button("Run", action: onRunAgent)
                         .buttonStyle(.borderless)
                         .font(.caption2.weight(.semibold))
-                        .foregroundStyle(Fleet.Color.active)
+                        .foregroundStyle(spawnBlockTitle == nil ? Fleet.Color.active : Fleet.Color.dormant)
+                        .disabled(spawnBlockTitle != nil)
+                        .help(
+                            spawnBlockTitle.map { "Blocked: critical operator ask “\($0)” is open. Answer it on the web first." }
+                                ?? "Run this agent now"
+                        )
                 }
             }
             if let purpose = agent.purpose, !purpose.isEmpty {

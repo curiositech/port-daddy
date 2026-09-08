@@ -7,6 +7,9 @@ export default function TimelineFeature() {
     <div className="space-y-10">
       {/* Header */}
       <div className="space-y-4">
+        <p className="font-mono text-[length:var(--type-meta-size)] font-bold uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+          Feature · Timeline
+        </p>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Activity Timeline
         </h1>
@@ -18,7 +21,10 @@ export default function TimelineFeature() {
 
       {/* The Problem */}
       <div>
-        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">The Problem</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">01</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">The Problem</h2>
+        </div>
         <p className="text-[var(--text-secondary)] leading-relaxed mb-3">
           With multiple agents operating concurrently, understanding what happened — and in what
           order — is critical for debugging, auditing, and post-mortems. Without a timeline:
@@ -41,7 +47,10 @@ export default function TimelineFeature() {
 
       {/* How It Works */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">How It Works</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">02</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">How It Works</h2>
+        </div>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           Every operation that hits the daemon is logged to an append-only SQLite table with
           a timestamp, operation type, identity, and details. The log is queryable by type,
@@ -72,24 +81,27 @@ $ pd activity`}
 
       {/* Event Types */}
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Event Types</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">03</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">Event Types</h2>
+        </div>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           The timeline captures every category of daemon operation, giving you complete
           visibility into the system.
         </p>
 
         <div className="grid sm:grid-cols-3 gap-4">
-          <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+          <div className="lw-stripe-card p-3">
             <code className="text-[var(--brand-primary)] font-mono">claim / release</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Port assignments</p>
             <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">Who claimed what port and when</p>
           </div>
-          <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+          <div className="lw-stripe-card p-3">
             <code className="text-[var(--brand-primary)] font-mono">lock / unlock</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Distributed locks</p>
             <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">Lock acquisition and release events</p>
           </div>
-          <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+          <div className="lw-stripe-card p-3">
             <code className="text-[var(--brand-primary)] font-mono">session / note</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Work tracking</p>
             <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">Session lifecycle and note additions</p>
@@ -99,10 +111,13 @@ $ pd activity`}
 
       {/* CLI Commands */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">CLI Commands</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">04</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">CLI Commands</h2>
+        </div>
 
         <div className="space-y-3">
-          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+          <div className="border-l-[length:var(--lw-stripe)] border-[var(--brand-primary)] pl-4">
             <code className="font-mono text-[var(--brand-primary)]">pd activity</code>
             <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Show recent activity across all operations. Defaults to the last 50 entries.</p>
             <DocsCodeBlock
@@ -115,7 +130,7 @@ $ pd activity`}
             />
           </div>
 
-          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+          <div className="border-l-[length:var(--lw-stripe)] border-[var(--brand-primary)] pl-4">
             <code className="font-mono text-[var(--brand-primary)]">pd activity --type &lt;type&gt;</code>
             <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Filter activity by operation type. Useful for tracing specific categories of events.</p>
             <DocsCodeBlock
@@ -126,7 +141,7 @@ $ pd activity`}
             />
           </div>
 
-          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+          <div className="border-l-[length:var(--lw-stripe)] border-[var(--brand-primary)] pl-4">
             <code className="font-mono text-[var(--brand-primary)]">pd activity --since &lt;duration&gt;</code>
             <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Show activity within a time window. Supports human-friendly durations like 1h, 30m, 2d.</p>
             <DocsCodeBlock
@@ -136,7 +151,7 @@ $ pd activity`}
             />
           </div>
 
-          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+          <div className="border-l-[length:var(--lw-stripe)] border-[var(--brand-primary)] pl-4">
             <code className="font-mono text-[var(--brand-primary)]">pd activity</code>
             <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Get an aggregate summary of activity grouped by operation type.</p>
             <DocsCodeBlock
@@ -154,7 +169,10 @@ $ pd activity`}
 
       {/* SDK Usage */}
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">SDK Usage</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">05</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">SDK Usage</h2>
+        </div>
 
         <DocsCodeBlock
           language="typescript"
@@ -180,7 +198,7 @@ const lastHour = await pd.activity.list({
       </div>
 
       {/* Next */}
-      <div className="flex items-center justify-between p-5 rounded-xl bg-gradient-to-r from-[var(--brand-primary)]/5 to-transparent border border-[var(--brand-primary)]/20">
+      <div className="flex flex-wrap items-center justify-between gap-4 border border-[var(--border-subtle)] bg-[color-mix(in_oklab,var(--brand-primary)_10%,var(--surface-base))] p-5">
         <div>
           <div className="text-sm text-[var(--text-muted)] mb-1">Next Feature</div>
           <div className="font-semibold text-[var(--text-primary)]">DNS & Tunnels</div>
@@ -188,7 +206,7 @@ const lastHour = await pd.activity.list({
         </div>
         <Link
           to="/docs/features/dns"
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-[var(--text-inverse)] font-medium hover:bg-[var(--brand-primary)] transition-colors"
+          className="flex items-center gap-2 bg-[var(--brand-primary)] px-4 py-2 font-medium text-[var(--text-inverse)]"
         >
           Learn More
           <ArrowRight size={16} />

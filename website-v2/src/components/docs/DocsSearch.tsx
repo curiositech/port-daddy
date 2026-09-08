@@ -102,7 +102,7 @@ const SEARCH_INDEX: SearchResult[] = [
   { title: 'Always-On Avatars', href: '/docs/features/avatars', category: 'Features', icon: FileText, description: 'Background agents' },
   { title: 'Self-Healing', href: '/docs/features/salvage', category: 'Features', icon: FileText, description: 'Automatic recovery' },
   { title: 'Pheromone Trails', href: '/docs/features/pheromone', category: 'Features', icon: FileText, description: 'Stigmergic signaling' },
-  { title: 'Fleet Agents', href: '/docs/features/fleet', category: 'Features', icon: FileText, description: 'Declarative background agents' },
+  { title: 'Fleet & GitHub App', href: '/docs/features/fleet', category: 'Features', icon: FileText, description: 'Declarative agents + cloud PR fleet' },
   { title: 'Activity Timeline', href: '/docs/features/timeline', category: 'Features', icon: FileText, description: 'Audit log and replay' },
 
   // API
@@ -209,10 +209,10 @@ export function DocsSearch({ variant = 'full', className }: DocsSearchProps) {
       <button
         data-search-trigger
         onClick={openSearch}
-        className={`flex items-center gap-2 border border-[var(--border-default)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--text-muted)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-secondary)] ${variant === 'full' ? 'w-full' : 'w-[min(36vw,280px)]'} ${className ?? ''}`}
+        className={`flex items-center gap-2 border border-[var(--border-default)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--text-muted)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-secondary)] ${variant === 'full' ? 'w-full' : 'w-full min-w-0'} ${className ?? ''}`}
       >
         <Search size={16} />
-        <span className="flex-1 text-left">{variant === 'full' ? 'Search documentation...' : 'Search docs...'}</span>
+        <span className="flex-1 truncate whitespace-nowrap text-left">{variant === 'full' ? 'Search documentation...' : 'Search docs...'}</span>
         <kbd className="hidden border border-[var(--border-default)] bg-[var(--surface-base)] px-1.5 py-0.5 font-mono text-[length:var(--type-meta-size)] sm:inline-block">
           {shortcut}
         </kbd>

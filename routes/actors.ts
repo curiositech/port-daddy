@@ -10,6 +10,8 @@ import type { createAgentInbox } from '../lib/agent-inbox.js';
 import type { createResurrection } from '../lib/resurrection.js';
 import type { createSessions } from '../lib/sessions.js';
 import type { createFleetDaemon } from '../lib/fleet-daemon.js';
+import type { ActorSouls } from '../lib/actor-souls.js';
+import { createInboxIdentity } from '../lib/inbox-identity.js';
 
 type AgentsManager = ReturnType<typeof createAgents>;
 type AgentInboxManager = ReturnType<typeof createAgentInbox>;
@@ -23,11 +25,41 @@ interface ActorsRouteDeps {
   sessions?: SessionsManager;
   resurrection?: ResurrectionManager;
   fleetDaemon?: FleetDaemonManager;
+  /** ADR-0040 daemon-minted actor identity store (POST /actors/register). */
+  actorSouls?: ActorSouls;
+  /** Route logger — carries the structured identity-reject lines. */
+  logger?: {
+    info(msg: string, meta?: Record<string, unknown>): void;
+    error(msg: string, meta?: Record<string, unknown>): void;
+  };
+}
+
+interface RegisterActorBody {
+  /** Multi-tenant scope. Defaults to the souls store's default harbor. */
+  harbor?: string;
+  /** Display alias ('project:stack:context'). Display-only; never a principal. */
+  alias?: string;
+  /** '<actor_id>.<secret>' lookup token from a prior mint. Re-presents a soul. */
+  credential?: string;
+  /** Operator escape hatch (advisory-above-floor; see ADR-0040 §2.4). */
+  operatorToken?: string;
 }
 
 interface ActorsQuery {
   project?: string;
   limit?: string;
+}
+
+interface SoulParams {
+  actorId: string;
+}
+
+interface SoulLifecycleBody {
+  /** Operator escape hatch (ADR-0040 §2.4) — required for retire/resurrect. */
+  operatorToken?: unknown;
+  reason?: unknown;
+  by?: unknown;
+  harbor?: unknown;
 }
 
 interface ActorParams {
@@ -111,6 +143,16 @@ function actorOr404(id: string, deps: ActorsRouteDeps, project?: string): ActorR
 export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = async (fastify, opts) => {
   const deps = opts.deps ?? {};
 
+  // POST /actors/:id/message is the SECOND door into the same agent_inbox
+  // table, with the same unverified `from` and the same wake → hailAgent
+  // path. Credentialing only /agents/:id/inbox would be bypassable in one
+  // line of curl, so both doors share one gate (lib/inbox-identity.ts).
+  const { requireInboxSender } = createInboxIdentity({
+    souls: deps.actorSouls,
+    sessions: deps.sessions,
+    logger: deps.logger,
+  });
+
   fastify.get('/actors', async (request: FastifyRequest<{ Querystring: ActorsQuery }>) => {
     const input = collectProjectionInput(deps, request.query ?? {});
     const actors = listActors(input)
@@ -121,6 +163,136 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
       count: actors.length,
       actors,
     };
+  });
+
+  // ADR-0040 keystone: the ONLY path to a daemon-minted, non-forgeable
+  // principal. A minted actor_id is bound to a lookup-token credential
+  // ("<actor_id>.<secret>"); re-presenting a valid credential returns the SAME
+  // id (idempotent), a forged/mismatched one is rejected 401 (never mints), and
+  // an uncredentialed registration mints a fresh NEWCOMER that draws from the
+  // shared spend pool — so minting fresh ids buys no new budget.
+  //
+  // This is NOT self-asserted registration. POST /agents still exists for
+  // liveness bookkeeping but its self-asserted `id` is a DISPLAY handle only;
+  // an above-floor economic ceiling requires a minted, credentialed, graduated
+  // soul, enforced at the budget-guard spend choke.
+  fastify.post('/actors/register', async (
+    request: FastifyRequest<{ Body: RegisterActorBody }>,
+    reply: FastifyReply,
+  ) => {
+    if (!deps.actorSouls) {
+      return reply.code(501).send({
+        success: false,
+        error: 'actor identity minting is unavailable',
+        code: 'ACTOR_SOULS_UNAVAILABLE',
+      });
+    }
+
+    const body = request.body ?? {};
+    const outcome = deps.actorSouls.register({
+      harbor: typeof body.harbor === 'string' ? body.harbor : undefined,
+      alias: typeof body.alias === 'string' ? body.alias : undefined,
+      credential: typeof body.credential === 'string' ? body.credential : undefined,
+      operatorToken: typeof body.operatorToken === 'string' ? body.operatorToken : undefined,
+    });
+
+    if (!outcome.ok) {
+      return reply.code(outcome.httpStatus).send({
+        success: false,
+        error: outcome.code === 'CREDENTIAL_INVALID'
+          ? 'credential did not verify'
+          : outcome.code === 'RESERVED_ALIAS'
+            ? 'that alias is a reserved authority name; a self-service soul may not bind it (only an operator-token registration can)'
+            : 'identity store unavailable',
+        code: outcome.code,
+      });
+    }
+
+    // The plaintext credential is returned ONCE (only on a fresh mint). The
+    // caller MUST persist it to re-authenticate the same soul; there is no
+    // recovery path (a lost credential means a new newcomer next time).
+    if (outcome.status === 'minted') {
+      return reply.code(201).send({
+        success: true,
+        status: 'minted',
+        actorId: outcome.actorId,
+        soulClass: outcome.soulClass,
+        credential: outcome.credential,
+      });
+    }
+
+    return reply.send({
+      success: true,
+      status: 'resolved',
+      actorId: outcome.actorId,
+      soulClass: outcome.soulClass,
+    });
+  });
+
+  // ─── Retire / resurrect a minted soul (identity keystone) ─────────────────
+  // Retirement is FINAL unless resurrected through this door. Both are
+  // operator actions (the operator token, ADR-0040 §2.4), both are journaled
+  // to the forensics sink (ADR-0089), and the DB refuses every other way
+  // back (lib/actor-souls.ts triggers). `souls/` is a distinct segment from
+  // the canonical actor roster ids served by /actors/:id.
+  const requireOperator = (
+    body: SoulLifecycleBody,
+    reply: FastifyReply,
+  ): boolean => {
+    if (!deps.actorSouls) {
+      void reply.code(501).send({ success: false, error: 'actor identity store is unavailable', code: 'ACTOR_SOULS_UNAVAILABLE' });
+      return false;
+    }
+    if (typeof body.operatorToken !== 'string' || !deps.actorSouls.verifyOperatorToken(body.operatorToken)) {
+      deps.logger?.error?.('actor_soul_lifecycle_refused', { reason: 'operator token missing or invalid' });
+      void reply.code(403).send({ success: false, error: 'a valid operatorToken is required to change a soul\'s lifecycle', code: 'OPERATOR_TOKEN_REQUIRED' });
+      return false;
+    }
+    if (typeof body.reason !== 'string' || !body.reason.trim()) {
+      void reply.code(400).send({ success: false, error: 'reason required', code: 'VALIDATION_ERROR' });
+      return false;
+    }
+    return true;
+  };
+
+  fastify.post('/actors/souls/:actorId/retire', async (
+    request: FastifyRequest<{ Params: SoulParams; Body: SoulLifecycleBody }>,
+    reply: FastifyReply,
+  ) => {
+    const body = request.body ?? {};
+    if (!requireOperator(body, reply)) return reply;
+    const souls = deps.actorSouls as ActorSouls;
+    const outcome = souls.retire(request.params.actorId, {
+      reason: (body.reason as string).trim(),
+      by: typeof body.by === 'string' && body.by.trim() ? body.by.trim() : 'operator',
+      harbor: typeof body.harbor === 'string' ? body.harbor : undefined,
+    });
+    if (!outcome.ok) {
+      const status = outcome.code === 'SOUL_NOT_FOUND' ? 404 : 409;
+      return reply.code(status).send({ success: false, error: outcome.code === 'SOUL_NOT_FOUND' ? 'unknown soul' : 'soul is already retired', code: outcome.code });
+    }
+    deps.logger?.info?.('actor_soul_retired', { actorId: outcome.actorId, retiredAt: outcome.retiredAt });
+    return reply.send({ success: true, actorId: outcome.actorId, retired: true, retiredAt: outcome.retiredAt });
+  });
+
+  fastify.post('/actors/souls/:actorId/resurrect', async (
+    request: FastifyRequest<{ Params: SoulParams; Body: SoulLifecycleBody }>,
+    reply: FastifyReply,
+  ) => {
+    const body = request.body ?? {};
+    if (!requireOperator(body, reply)) return reply;
+    const souls = deps.actorSouls as ActorSouls;
+    const outcome = souls.resurrect(request.params.actorId, {
+      reason: (body.reason as string).trim(),
+      by: typeof body.by === 'string' && body.by.trim() ? body.by.trim() : 'operator',
+      harbor: typeof body.harbor === 'string' ? body.harbor : undefined,
+    });
+    if (!outcome.ok) {
+      const status = outcome.code === 'SOUL_NOT_FOUND' ? 404 : 409;
+      return reply.code(status).send({ success: false, error: outcome.code === 'SOUL_NOT_FOUND' ? 'unknown soul' : 'soul is not retired', code: outcome.code });
+    }
+    deps.logger?.info?.('actor_soul_resurrected', { actorId: outcome.actorId, receipt: outcome.receipt });
+    return reply.send({ success: true, actorId: outcome.actorId, resurrected: true, receipt: outcome.receipt, resurrectedAt: outcome.resurrectedAt });
   });
 
   fastify.get('/actors/:id', async (
@@ -159,6 +331,20 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
     }
 
     const { content, from, type, wake, project } = request.body ?? {};
+
+    // Same strict gate as POST /agents/:id/inbox, applied before the message
+    // is stored or the wake path can spawn anything. The body's `from` is
+    // dead after this point.
+    const sender = requireInboxSender(
+      request.headers as Record<string, unknown>,
+      request.body,
+      from,
+      'POST /actors/:id/message',
+    );
+    if (!sender.success) {
+      return reply.code(sender.httpStatus).send(sender.result);
+    }
+
     if (content === undefined || content === null || content === '') {
       return reply.code(400).send({
         success: false,
@@ -175,7 +361,9 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
     }
 
     const result = deps.agentInbox.send(actor.inboxTarget, content, {
-      from: typeof from === 'string' ? from : undefined,
+      from: sender.from,
+      fromActorId: sender.fromActorId,
+      fromSoulClass: sender.fromSoulClass,
       type: typeof type === 'string' ? type : 'actor.message',
     });
     if (!result.success) {
@@ -192,7 +380,9 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
       wakeResult = await deps.fleetDaemon.hailAgent(actor.compatibilityFleetAgent, {
         project: typeof project === 'string' ? project : undefined,
         source: 'inbox',
-        from: typeof from === 'string' ? from : null,
+        from: sender.from,
+        fromActorId: sender.fromActorId,
+        fromSoulClass: sender.fromSoulClass,
         message: content,
         messageContent: String(content),
       });

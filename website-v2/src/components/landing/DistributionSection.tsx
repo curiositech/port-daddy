@@ -1,4 +1,4 @@
-import { MonitorCheck, PackageCheck } from 'lucide-react'
+import { ArrowRight, MonitorCheck, PackageCheck } from 'lucide-react'
 import { DISTRIBUTION_OPTIONS } from '@/data/product'
 import { Button } from '@/components/ui/Button'
 import { useTheme } from '@/lib/theme-context'
@@ -164,6 +164,29 @@ export function DistributionSection() {
                     </li>
                   ))}
                 </ol>
+              </SurfacePanel>
+
+              {/* Account pairing CTA — after install, the one command that
+                  links this machine to your runs. Benefit first: receipts and
+                  a shared view across devices, not "create an account". */}
+              <SurfacePanel elevation="quiet" className="grid gap-[var(--space-4)] md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+                <div className="grid gap-[var(--space-2)]">
+                  <PanelEyebrow>Pair your devices</PanelEyebrow>
+                  <PanelTitle as="h3" size="card" className="max-w-[24ch]">
+                    Pair your devices — <span className="font-mono">pd account login</span>
+                  </PanelTitle>
+                  <PanelBody size="compact" className="max-w-[46rem]">
+                    One sign-in links this Mac, the CLI, and FleetBar to the same account, so
+                    every fleet run lands in your receipts — verdicts, ships, and cost you can
+                    share as a link, from any of your machines.
+                  </PanelBody>
+                </div>
+                <Button asChild variant="secondary" size="lg">
+                  <a href="https://relay.portdaddy.dev/account/runs">
+                    See your fleet&apos;s receipts
+                    <ArrowRight size={16} />
+                  </a>
+                </Button>
               </SurfacePanel>
 
             </div>

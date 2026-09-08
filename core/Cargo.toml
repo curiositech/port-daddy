@@ -11,6 +11,7 @@ members = [
   "kernel/pd-mesh",
   "kernel/pd-runtime",
   "kernel/pd-tui",
+  "kernel/pd-vault",
   "kernel/pd-rs",
 ]
 

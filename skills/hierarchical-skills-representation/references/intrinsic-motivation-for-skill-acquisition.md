@@ -100,7 +100,7 @@ Figure 1a shows the learned policy as a finite state machine over [p_search, p_t
 
 ## Implications for Multi-Agent Skill Acquisition
 
-In a WinDAGs context with 180+ skills:
+In a Jury-rig context with 180+ skills:
 
 **Skill discovery protocol**: Rather than hand-coding all 180 skills, provide a smaller set of primitive control programs and intrinsic motivation learning algorithms. Agents discover compositions that work reliably in their deployment environments. The skill library becomes *emergent* and *adaptive*.
 
@@ -124,6 +124,6 @@ The authors' framework operationalizes the developmental hypothesis: intelligenc
 
 For multi-agent coordination without centralized control, the challenge is establishing shared understanding without explicit communication protocols. Intrinsic motivation provides this: **agents that experience similar environments and have similar embodiments will independently discover similar affordance structures**.
 
-This is profound for WinDAGs. If agents A and B both learn in environments containing graspable objects, they'll both discover REACHGRASP schemas (though possibly with different implementation details). When A requests help from B, they share a basis set of control primitives even without prior coordination.
+This is profound for Jury-rig. If agents A and B both learn in environments containing graspable objects, they'll both discover REACHGRASP schemas (though possibly with different implementation details). When A requests help from B, they share a basis set of control primitives even without prior coordination.
 
 The alternative—hand-coding a shared ontology of 180+ skills—is brittle and requires centralized design. Intrinsically motivated learning makes the skill ontology *emergent from interaction with the world*, automatically adapted to the actual structure of the environment.

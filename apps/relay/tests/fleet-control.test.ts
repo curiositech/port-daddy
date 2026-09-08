@@ -12,6 +12,7 @@
  *     returns a prUrl, and NEVER writes fleet state to D1 (prepare untouched).
  */
 
+import { CF_ROLE_MODELS } from '../../shared/model-registry.generated.js';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   handleFleetConfig,
@@ -91,7 +92,7 @@ fleet:
         You are a code reviewer. Review the diff.
       fallbacks:
         - backend: cloudflare
-          model: "@cf/qwen/qwen2.5-coder-32b-instruct"
+          capability: cheap
     qa:
       trigger: pull_request:opened
       prompt: "Find the test gaps."
@@ -148,7 +149,9 @@ describe('handleFleetValidate', () => {
     const reviewer = json.ships.find((s) => s.name === 'code-reviewer');
     expect(reviewer).toBeDefined();
     expect(reviewer!.blocking).toBe(true);
-    expect(reviewer!.cfModel).toBe('@cf/qwen/qwen2.5-coder-32b-instruct');
+    // `code-reviewer` ends in "reviewer", so the review role wins over the
+    // fixture's own pin — the same routing rule the executor applies.
+    expect(reviewer!.cfModel).toBe(CF_ROLE_MODELS.reviewBot);
     expect(json.ships.map((s) => s.name)).toContain('qa');
   });
 
@@ -221,9 +224,9 @@ describe('handleFleetSmokeTest', () => {
     expect(json.output).toContain('null dereference');
     expect(typeof json.ms).toBe('number');
 
-    // AI was called once, with the ship's coder model.
+    // AI was called once, with the ship's review model.
     expect(ai.run).toHaveBeenCalledTimes(1);
-    expect(ai.run.mock.calls[0]![0]).toBe('@cf/qwen/qwen2.5-coder-32b-instruct');
+    expect(ai.run.mock.calls[0]![0]).toBe(CF_ROLE_MODELS.reviewBot);
     const inputs = ai.run.mock.calls[0]![1] as { max_tokens: number; messages: Array<{ role: string }> };
     expect(inputs.max_tokens).toBe(2000); // bounded
   });

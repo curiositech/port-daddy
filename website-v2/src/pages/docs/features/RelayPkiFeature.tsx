@@ -6,6 +6,9 @@ export default function RelayPkiFeature() {
   return (
     <div className="space-y-10">
       <div className="space-y-4">
+        <p className="font-mono text-[length:var(--type-meta-size)] font-bold uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+          Feature · Relay PKI
+        </p>
         <h1 className="text-4xl font-semibold tracking-tight text-[var(--text-primary)]">
           Relay PKI
         </h1>
@@ -17,21 +20,24 @@ export default function RelayPkiFeature() {
         </p>
       </div>
 
-      <p className="border-l-4 border-[var(--brand-accent)] pl-4 leading-relaxed text-[var(--text-secondary)]">
+      <p className="border-l-[length:var(--lw-stripe)] border-[var(--brand-accent)] pl-4 leading-relaxed text-[var(--text-secondary)]">
         <strong className="text-[var(--text-primary)]">ADR-0025 is the authority.</strong>{' '}
         The relay routes ciphertext and identity metadata. It does not become the daemon transport credential, and v0
         does not accept self-attested fingerprints into a managed global registry.
       </p>
 
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Decision Shape</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">01</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">Decision Shape</h2>
+        </div>
         <div className="grid gap-4 sm:grid-cols-3">
           {[
             ['OIDC', 'v0 primary for managed workload publishers and explicit daemon bootstrap.'],
             ['ACME', 'Reserved proof method for DNS/name control, bound to daemon Ed25519 fingerprints.'],
             ['WoT', 'Self-hosted and harbor-local only, requiring an admin allowlist or pairing receipt.'],
           ].map(([label, body]) => (
-            <div key={label} className="border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-4">
+            <div key={label} className="lw-stripe-card p-4">
               <code className="font-mono text-[var(--brand-primary)]">{label}</code>
               <p className="mt-2 text-sm text-[var(--text-secondary)]">{body}</p>
             </div>
@@ -40,7 +46,10 @@ export default function RelayPkiFeature() {
       </div>
 
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Reproduce The Score</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">02</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">Reproduce The Score</h2>
+        </div>
         <DocsCodeBlock
           code={`printf '%s\\n' '{"kind":"request","version":"1","command":"pki.score","payload":{"options":["ACME","OIDC","WoT","Hybrid"]}}' \\
   | python3 skills/pd-relay-zero-trust/scripts/pki_decision.py \\
@@ -53,7 +62,10 @@ ACME 137`}
       </div>
 
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Security Commitments</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">03</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">Security Commitments</h2>
+        </div>
         <ul className="space-y-3 text-[var(--text-secondary)]">
           <li className="flex gap-2">
             <ShieldCheck size={16} className="mt-1 shrink-0 text-[var(--brand-primary)]" />
@@ -70,7 +82,7 @@ ACME 137`}
         </ul>
       </div>
 
-      <div className="flex items-center justify-between border border-[var(--brand-primary)]/20 bg-[var(--brand-primary)]/5 p-5">
+      <div className="flex flex-wrap items-center justify-between gap-4 border border-[var(--border-subtle)] bg-[color-mix(in_oklab,var(--brand-primary)_10%,var(--surface-base))] p-5">
         <div>
           <div className="text-sm text-[var(--text-muted)]">Read next</div>
           <div className="font-semibold text-[var(--text-primary)]">PD Tube</div>

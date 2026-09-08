@@ -9,7 +9,7 @@
     "bodyId": { "type": "string", "minLength": 1 },
     "agentNodeId": { "type": "string", "minLength": 1 },
     "runId": { "type": ["string", "null"] },
-    "kind": { "enum": ["claude-code", "codex-cli", "cloudflare", "ollama", "lmstudio", "custom-stdio", "custom-http", "human"] },
+    "kind": { "enum": ["claude-code", "codex-cli", "cloudflare", "ollama", "lmstudio", "custom-stdio", "custom-http", "spawner-child", "human"] },
     "provider": { "type": "string", "minLength": 1 },
     "modelTier": { "enum": ["fast", "mid", "strong", "local", "custom"] },
     "modelName": { "type": ["string", "null"] },

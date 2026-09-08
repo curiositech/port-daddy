@@ -1,0 +1,14 @@
+{
+  "chosenRung": 1,
+  "surfaceKind": "2d-vector-text",
+  "namedConstraintForLowerRung": null,
+  "measuredRung1Miss": false,
+  "promotionFrameRateRequested": false,
+  "redrawEveryFrame": false,
+  "idleRedrawPolicy": "event-driven",
+  "motionPreferenceControl": "visible-runtime-toggle",
+  "systemPreferenceAdapter": "not-yet-exposed-by-gpui-0.2.2",
+  "glyphSource": "parley",
+  "tripleBuffered": false,
+  "keptOutOfLinuxCI": true
+}

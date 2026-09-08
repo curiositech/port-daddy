@@ -4,20 +4,26 @@
  * Five endpoints under /v1/fleet/ that let pd-console read, validate, smoke-test,
  * optimize, and persist fleet definitions (pd-fleet.yml + fleet/ships/*.md).
  *
- * ZERO-TRUST INVARIANT: {@link handleFleetSave} is the ONLY mutation path and it
- * NEVER hot-mutates the runtime fleet definition or D1. It commits to a NEW git
- * branch and opens a PR to the trusted ref (main). The fleet-executor always
- * reads config from main, so a PR editing pd-fleet.yml cannot redefine its own
- * gating. All mutations are git-backed, auditable, and gated by PR review/merge.
+ * ZERO-TRUST INVARIANT: {@link commitFilesAndOpenPr} is the ONLY mutation core
+ * and it NEVER hot-mutates the runtime fleet definition or D1. It commits to a
+ * NEW git branch and opens a PR to the trusted ref (main). The fleet-executor
+ * always reads config from main, so a PR editing pd-fleet.yml cannot redefine
+ * its own gating. All mutations are git-backed, auditable, and gated by PR
+ * review/merge. Two routes flow through it: {@link handleFleetSave} (operator
+ * token, the relay's own repo) and the Shipwright's session-scoped PR route
+ * (shipwright.ts, the signed-in user's own installation) — neither has any
+ * other way to write.
  *
  * Shared envelope: every response is JSON `{ code, error, ... }`. `code` starts
  * with OK on success (HTTP 200); BAD_* → 400; UNAUTHORIZED → 401;
  * *_NOT_FOUND / NOT_FOUND → 404 (config ref rejection is 400 per its contract);
- * *_ERROR → 500. Operator gate is shared with the rest of the relay via
- * {@link operatorOnly} (timing-safe token compare).
+ * *_ERROR → 500. The read-only config route accepts an account-backed Cloud
+ * Fleet operator; mutation and AI-spend routes retain the break-glass secret.
  */
 
+import { CF_ROLE_MODELS } from '../../shared/model-registry.generated.js';
 import { operatorOnly } from './handlers.js';
+import { fleetOperatorOnly } from './fleet-access.js';
 import { validateFleetYaml, parseAllShips } from './fleet-parser.js';
 import {
   getRepoToken,
@@ -70,8 +76,8 @@ async function readJson<T>(request: Request): Promise<T | null> {
  * Reads only — never mutates. Resolves a repo-scoped GitHub App token.
  */
 export async function handleFleetConfig(request: Request, env: Env): Promise<Response> {
-  const denied = operatorOnly(request, env);
-  if (denied) return denied;
+  const authorization = await fleetOperatorOnly(request, env);
+  if (authorization instanceof Response) return authorization;
 
   const url = new URL(request.url);
   const defaultBranch = env.DEFAULT_BRANCH ?? 'main';
@@ -206,7 +212,7 @@ interface OptimizeBody {
   goal?: string;
 }
 
-const OPTIMIZE_MODEL = '@cf/qwen/qwen3-30b-a3b-fp8';
+const OPTIMIZE_MODEL = CF_ROLE_MODELS.optimize;
 
 /**
  * Rewrite a ship prompt for clarity and LLM execution quality. The metaprompt
@@ -297,6 +303,42 @@ function safePath(path: string): boolean {
 }
 
 /**
+ * The single git-mutation core (zero-trust invariant): create a NEW branch off
+ * `baseBranch`, commit `files` onto it, and open a PR back into `baseBranch`.
+ * It never touches D1 and never pushes to an existing branch — review/merge of
+ * the PR is the only way any of these bytes take effect. Both fleet mutation
+ * routes ({@link handleFleetSave} and the Shipwright's open-PR route) call
+ * THIS, so there is exactly one code path capable of writing.
+ *
+ * @returns The created PR's html_url.
+ * @throws On any GitHub API failure — callers translate to their own envelope.
+ */
+export async function commitFilesAndOpenPr(m: {
+  owner: string;
+  repo: string;
+  /** The trusted ref the branch forks from and the PR merges into. */
+  baseBranch: string;
+  branchName: string;
+  files: Record<string, string>;
+  commitMessage: string;
+  prTitle: string;
+  prBody: string;
+  token: string;
+}): Promise<string> {
+  // 1. base SHA → 2. new branch
+  const baseSha = await getBranchSha(m.owner, m.repo, m.baseBranch, m.token);
+  await createBranch(m.owner, m.repo, m.branchName, baseSha, m.token);
+
+  // 3. commit each file (base SHA looked up against the trusted ref)
+  for (const p of Object.keys(m.files)) {
+    await putFile(m.owner, m.repo, p, m.files[p]!, m.commitMessage, m.branchName, m.baseBranch, m.token);
+  }
+
+  // 4. open the PR — this is the gate; nothing runs against this branch.
+  return createPr(m.owner, m.repo, m.prTitle, m.prBody, m.branchName, m.baseBranch, m.token);
+}
+
+/**
  * Commit the changed files to a NEW branch and open a PR to the trusted ref.
  * NEVER mutates runtime/D1 fleet state — the executor reads from main, and the
  * PR review/merge is the gate (zero-trust invariant).
@@ -348,16 +390,6 @@ export async function handleFleetSave(request: Request, env: Env): Promise<Respo
       env.KV,
     );
 
-    // 1. base SHA → 2. new branch
-    const baseSha = await getBranchSha(owner, repo, baseBranch, token);
-    await createBranch(owner, repo, branchName, baseSha, token);
-
-    // 3. commit each file (base SHA looked up against the trusted ref)
-    for (const p of paths) {
-      await putFile(owner, repo, p, files[p]!, message, branchName, baseBranch, token);
-    }
-
-    // 4. open the PR — this is the gate; nothing runs against this branch.
     const prBody = [
       'Automated fleet definition change via the Port Daddy relay control-plane.',
       '',
@@ -368,7 +400,17 @@ export async function handleFleetSave(request: Request, env: Env): Promise<Respo
       'this PR is reviewed and merged.',
     ].join('\n');
 
-    const prUrl = await createPr(owner, repo, message, prBody, branchName, baseBranch, token);
+    const prUrl = await commitFilesAndOpenPr({
+      owner,
+      repo,
+      baseBranch,
+      branchName,
+      files,
+      commitMessage: message,
+      prTitle: message,
+      prBody,
+      token,
+    });
     return envelope(200, { code: 'OK_PR_CREATED', error: null, prUrl, branch: branchName });
   } catch (e) {
     return fleetErr('INTERNAL_ERROR', `GitHub API save failed: ${publicError(e)}`, 500);

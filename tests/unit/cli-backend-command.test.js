@@ -245,6 +245,38 @@ describe('pd backend use', () => {
   });
 });
 
+describe('pd backend adapters', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    uiCalls.info = [];
+    uiCalls.error = [];
+  });
+
+  test('prints the generated N:N contract without contacting the daemon', async () => {
+    const cap = captureStdout();
+    try {
+      await handleBackend(['adapters'], { json: true });
+    } finally {
+      cap.restore();
+    }
+    const parsed = JSON.parse(cap.lines.join('\n'));
+    expect(parsed.success).toBe(true);
+    expect(parsed.probe).toBeNull();
+    expect(parsed.adapters).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        family: 'codex-cli',
+        backendIds: ['cli:codex', 'codex'],
+        resume: 'session',
+      }),
+      expect.objectContaining({
+        family: 'ollama',
+        resume: 'handoff-only',
+      }),
+    ]));
+    expect(mockPdFetch).not.toHaveBeenCalled();
+  });
+});
+
 describe('pd backend cost', () => {
   beforeEach(() => {
     jest.clearAllMocks();

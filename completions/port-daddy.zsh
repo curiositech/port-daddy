@@ -519,6 +519,43 @@ _pd_cmd_actors() {
     '1:actor id or alias:(navigator cartographer coxswain signalman harbormaster sounder lookout breaker caulker quartermaster)'
 }
 
+_pd_cmd_roster() {
+  local -a subcommands
+  subcommands=(
+    'list:list durable agents'
+    'show:show one profile and its lineage'
+    'search:hybrid expertise lookup'
+    'create:mint a durable AgentNode profile'
+    'promote:promote a sanitized session handoff'
+    'update:append a profile revision'
+    'attach:attach a sanitized handoff episode'
+    'continue:continue in a chosen backend'
+    'retire:retire without deleting history'
+  )
+  _arguments \
+    '1:subcommand:->subcommand' \
+    '2:agent, session, or query:' \
+    '--repo[repository root]:path:_directories' \
+    '--scope[identity scope]:scope:(system repo)' \
+    '--slug[meaningful alias]:slug:' \
+    '--name[display name]:name:' \
+    '--remit[bounded responsibility]:text:' \
+    '--instructions[durable operating prompt]:text:' \
+    '--skills[comma-separated skills]:skills:' \
+    '--tools[comma-separated tools]:tools:' \
+    '--backend[target backend]:backend:' \
+    '--model[target model]:model:' \
+    '--episode[sanitized handoff episode]:id:' \
+    '--mode[continuation mode]:mode:(auto native handoff)' \
+    '--filesystem[declared filesystem policy]:policy:(inherit repo workspace read-only)' \
+    '--network[declared network policy]:policy:(inherit none restricted full)' \
+    '(-j --json)'{-j,--json}'[JSON output]' \
+    '(-q --quiet)'{-q,--quiet}'[suppress output]'
+  case $state in
+    subcommand) _describe 'roster subcommand' subcommands ;;
+  esac
+}
+
 _pd_cmd_log() {
   _arguments \
     '--limit[max entries to return]:count:' \
@@ -917,6 +954,7 @@ _pd_cmd_session() {
     'done:end a session (alias for end)'
     'abandon:abandon a session'
     'takeover:create successor session; preserve notes'
+    'find:recover my session by begin key or identity'
     'rm:archive a session; preserve notes'
     'files:manage file claims for a session'
     'phase:set session phase (planning/in_progress/testing/etc)'
@@ -969,6 +1007,17 @@ _pd_cmd_session() {
             '(-j --json)'{-j,--json}'[JSON output]' \
             '(-q --quiet)'{-q,--quiet}'[suppress output]' \
             '1:predecessor session ID:'
+          ;;
+        find)
+          _arguments \
+            '--key[begin idempotency key to recover]:key:' \
+            '--identity[identity to search (project:stack:context)]:identity:' \
+            '--all-worktrees[search every worktree]' \
+            '--all[include closed sessions]' \
+            '--no-adopt[do not write the recovered context locally]' \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+            '1::begin idempotency key:'
           ;;
         files)
           local -a files_subcmds
@@ -1257,6 +1306,15 @@ _pd_cmd_done() {
     '(-q --quiet)'{-q,--quiet}'[suppress output]' \
     '(-h --help)'{-h,--help}'[show help]' \
     '1:note:'
+}
+
+_pd_cmd_plan() {
+  _arguments \
+    '--session[session ID]:session ID:' \
+    '--agent[agent ID]:agent ID:_pd_complete_agents' \
+    '(-h --help)'{-h,--help}'[show help]' \
+    '1:action:(show set check)' \
+    '2:data:'
 }
 
 _pd_cmd_whoami() {
@@ -1853,11 +1911,11 @@ _pd_cmd_embed() {
   esac
 }
 
-_pd_cmd_skill_graft() {
-  local -a skill_graft_subcmds
-  skill_graft_subcmds=(
+_pd_cmd_jury_rig() {
+  local -a jury_rig_subcmds
+  jury_rig_subcmds=(
     'query:rank skills for an operator task'
-    'warm:refresh the local skill-graft index'
+    'warm:refresh the local Jury-rig index'
     'reference:read an allowlisted skill reference'
   )
 
@@ -1866,7 +1924,7 @@ _pd_cmd_skill_graft() {
 
   case "$state" in
     subcommand)
-      _describe 'skill-graft subcommand' skill_graft_subcmds
+      _describe 'jury-rig subcommand' jury_rig_subcmds
       ;;
     args)
       case "${words[2]}" in
@@ -1889,7 +1947,7 @@ _pd_cmd_skill_graft() {
             '(-j --json)'{-j,--json}'[output JSON]'
           ;;
         *)
-          _describe 'skill-graft subcommand' skill_graft_subcmds
+          _describe 'jury-rig subcommand' jury_rig_subcmds
           ;;
       esac
       ;;
@@ -1935,6 +1993,47 @@ _pd_cmd_graph() {
           ;;
         *)
           _describe 'graph subcommand' graph_subcmds
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_pd_cmd_booty() {
+  local -a booty_subcmds
+  booty_subcmds=(
+    'add:content-address files into the blob store + record provenance'
+    'list:list harvested artifacts'
+    'help:show booty help'
+  )
+
+  local state
+  _arguments -C '1:subcommand:->subcommand' '*::args:->args'
+
+  case "$state" in
+    subcommand)
+      _describe 'booty subcommand' booty_subcmds
+      ;;
+    args)
+      case "${words[2]}" in
+        add)
+          _arguments \
+            '--roadmap[link the artifact to a roadmap item]:slug:' \
+            '--note[freeform provenance note]:text:' \
+            '(-j --json)'{-j,--json}'[output JSON]' \
+            '(-q --quiet)'{-q,--quiet}'[quiet output]' \
+            '*:file:_files'
+          ;;
+        list)
+          _arguments \
+            '--branch[filter by branch]:branch:' \
+            '--session[filter by session]:session id:' \
+            '--limit[max rows]:limit:' \
+            '(-j --json)'{-j,--json}'[output JSON]' \
+            '(-q --quiet)'{-q,--quiet}'[quiet output]'
+          ;;
+        *)
+          _describe 'booty subcommand' booty_subcmds
           ;;
       esac
       ;;
@@ -2204,6 +2303,7 @@ _port_daddy() {
     'agents:list registered agents'
     'actor:show one durable maritime actor'
     'actors:list durable maritime actors'
+    'roster:manage durable named AgentNode experts'
     'swarm:list registered agents (alias for agents)'
     # Activity
     'log:tail the activity log'
@@ -2229,17 +2329,19 @@ _port_daddy() {
     'begin:begin a work session (register agent + start session)'
     'b:begin a work session (alias for begin)'
     'done:end a work session (end session + unregister agent)'
+    'plan:manage session todo plans (show/set/check)'
     'whoami:show current agent/session context'
     'w:show current context (alias for whoami)'
+    'account:sign in to your Port Daddy cloud account (GitHub device flow)'
     'attention:read inbox + subscribed channels in one call (run first thing every session)'
     'nudge:suggestibility nudges — claim-overlap heads-up (list/accept/decline/scan)'
     'with-lock:run a command while holding a lock'
     'n:add a quick note (alias for note)'
     'u:start all services (alias for up)'
     'd:stop all services (alias for down)'
-    # Tutorial
-    'learn:interactive tutorial — learn Port Daddy step by step'
-    'tutorial:interactive tutorial (alias for learn)'
+    # Agent orientation
+    'learn:operationally read-only agent orientation'
+    'tutorial:alias for the agent orientation'
     # Briefing & History
     'briefing:generate .portdaddy/ project briefing'
     'history:view recent project activity'
@@ -2277,6 +2379,9 @@ _port_daddy() {
     'coast-guard:Coast Guard read path — whether spawns are confined + what they cannot read'
     'cg:alias for coast-guard — the Coast Guard read path'
     'relay:Relay v0 — zero-trust event fabric for cross-machine pub/sub (ADR-0049)'
+    'suggest:Tender suggestion queue — list, approve, dismiss operator suggestions'
+    'seamanship:Skill registry — search, show, sync, outcomes, index, visibility'
+    'skills:alias for seamanship — skill registry'
     'sight:alias for periscope — operator loop SIGHT stage'
     'scope:alias for periscope — operator loop SIGHT stage'
     'cockpit:App-Native Development Cockpit — read roadmap into mission cards'
@@ -2285,7 +2390,7 @@ _port_daddy() {
     'secrets:alias for secret — manage keychain-backed provider credentials'
     'watch:subscribe to a channel and run a script on each message'
     # Fleet ship-run transcripts
-    'transcripts:browse fleet ship-run transcripts (list/show/cost/delete)'
+    'transcripts:browse fleet ship-run transcripts (list/show/watch/cost)'
     'transcript:alias for transcripts — view a single ship-run record'
     # Squid bridge
     'squid:run an unofficial Anthropic-compatible bridge backed by Codex CLI'
@@ -2305,10 +2410,11 @@ _port_daddy() {
     'tuple:Linda-style tuple space (out, rd, in, scan, count)'
     # Semantic graph + episodic memory
     'embed:shared local embedding model — status, prefetch, embed text'
-    'skill-graft:query and warm the native local skill-graft index'
-    'skillgraft:alias for skill-graft'
+    'jury-rig:discover and safely load native skill guidance'
     'graph:inspect semantic graph edges and stats'
     'memory:inspect episodic memory entries and stats'
+    # Artifact harvest provenance (slice S4a)
+    'booty:harvest artifacts into the blob store with provenance'
     'ideas:search the canonical ideas trove and local residue'
     # Cartographer roadmap projection
     'roadmap:show and write the roadmap_items DB-of-record'
@@ -2354,6 +2460,7 @@ _port_daddy() {
     'restart:restart the Port Daddy daemon'
     'status:show daemon status'
     'install:install daemon as a system service'
+    'install-bosun:wire only the Bosun watchdog (brew-managed daemon)'
     'uninstall:uninstall the system service'
     'dev:daemon berths — up/down/list tiered side-by-side daemons (ADR-0055)'
     'use:target this shell at a daemon berth (eval "$(pd use dev)")'
@@ -2364,6 +2471,7 @@ _port_daddy() {
     'daemon:daemon lifecycle subcommands (status, log, doctor)'
     'setup:install daemon, MCP, FleetBar, and initialize a project'
     'cut:cut a release — build daemon + Rust + FleetBar, hash, optionally sign (pd cut)'
+    'batten:verify + imprint staged release artifacts against release-artifacts.json (pd batten)'
     'init:set up Port Daddy for this project (scan, fleet, MCP, git hook)'
     # Bonds / Wallets — FleetControl hardening
     'wallet:manage project USD wallets (show/top-up/history)'
@@ -2414,6 +2522,7 @@ _port_daddy() {
         agent)              _pd_cmd_agent ;;
         agents|swarm)        _pd_cmd_agents ;;
         actor|actors)        _pd_cmd_actors ;;
+        roster)              _pd_cmd_roster ;;
         log)                _pd_cmd_log ;;
         activity)           _pd_cmd_activity ;;
         session)            _pd_cmd_session ;;
@@ -2449,6 +2558,7 @@ _port_daddy() {
         history)                _pd_cmd_history ;;
         begin|b)                _pd_cmd_begin ;;
         done)                   _pd_cmd_done ;;
+        plan)                   _pd_cmd_plan ;;
         whoami|w)               _pd_cmd_whoami ;;
         with-lock)              _pd_cmd_with_lock ;;
         n)                      _pd_cmd_note ;;
@@ -2477,8 +2587,9 @@ _port_daddy() {
         wallet)                 _pd_cmd_wallet ;;
         bond)                   _pd_cmd_bond ;;
         embed)                  _pd_cmd_embed ;;
-        skill-graft|skillgraft) _pd_cmd_skill_graft ;;
+        jury-rig)               _pd_cmd_jury_rig ;;
         graph)                  _pd_cmd_graph ;;
+        booty)                  _pd_cmd_booty ;;
         memory)                 _pd_cmd_memory ;;
         ideas)                  _pd_cmd_ideas ;;
         roadmap)                _pd_cmd_roadmap ;;

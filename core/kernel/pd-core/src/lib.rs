@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use thiserror::Error;
 use time::OffsetDateTime;
-use uuid::Uuid;
 
 macro_rules! id_type {
     ($name:ident) => {
@@ -469,7 +468,13 @@ impl WorkTransaction {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct KernelEvent {
+    /// Stable identity of this event, **derived from `sequence`** (see
+    /// [`KernelEvent::derive_id`]). It is a function of the ordering key rather than
+    /// an independently minted value, so the in-memory event and the
+    /// persisted/replayed record for the same logical event always agree.
     pub id: String,
+    /// The authoritative, strictly-increasing position of this event in the total
+    /// order. Assigned by the append-only log; `id` is derived from it.
     pub sequence: i64,
     pub event_type: String,
     pub subject: String,
@@ -479,6 +484,52 @@ pub struct KernelEvent {
 }
 
 impl KernelEvent {
+    /// Derives an event's identity deterministically from its `sequence`.
+    ///
+    /// `sequence` is the authoritative, strictly-increasing ordering key handed out
+    /// by the append-only log (`pd-eventlog`'s `sequence INTEGER PRIMARY KEY
+    /// AUTOINCREMENT`). Because `id` is *derived from* that key rather than minted
+    /// independently, the same logical event can never end up with two different
+    /// ids depending on whether you hold the in-memory value or a replayed record.
+    /// This is the single source of truth for event identity — both `KernelEvent`
+    /// construction and the persistence layer route through it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use pd_core::KernelEvent;
+    ///
+    /// assert_eq!(KernelEvent::derive_id(7), "event-7");
+    /// ```
+    pub fn derive_id(sequence: i64) -> String {
+        format!("event-{sequence}")
+    }
+
+    /// Builds an event whose `id` is derived deterministically from `sequence` via
+    /// [`KernelEvent::derive_id`], stamped with the current timestamp.
+    ///
+    /// The caller supplies the `sequence` (the position in the total order), the
+    /// `event_type`, `subject`, `payload`, and `provenance`; `id` and
+    /// `created_at_ms` are filled in here. Constructing an event with the same
+    /// `sequence` always yields the same `id`, matching what `pd-eventlog` persists
+    /// and replays for that position.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use pd_core::{KernelEvent, Provenance};
+    /// use serde_json::json;
+    ///
+    /// let ev = KernelEvent::new(
+    ///     1,
+    ///     "transaction.created",
+    ///     "tx-1",
+    ///     json!({ "intent": "ship it" }),
+    ///     Provenance::kernel("test"),
+    /// );
+    /// assert_eq!(ev.sequence, 1);
+    /// assert_eq!(ev.id, "event-1"); // derived from sequence, not a random UUID
+    /// ```
     pub fn new(
         sequence: i64,
         event_type: impl Into<String>,
@@ -487,7 +538,7 @@ impl KernelEvent {
         provenance: Provenance,
     ) -> Self {
         Self {
-            id: Uuid::new_v4().to_string(),
+            id: Self::derive_id(sequence),
             sequence,
             event_type: event_type.into(),
             subject: subject.into(),
@@ -597,6 +648,31 @@ mod tests {
 
         assert_eq!(tx.state, TransactionState::Completed);
         assert_eq!(tx.result.as_ref().unwrap().summary, "done");
+    }
+
+    #[test]
+    fn kernel_event_id_is_derived_from_sequence_and_never_diverges() {
+        // Two events built independently for the same sequence must carry the same
+        // id (deterministic), and that id must match the persistence-layer format
+        // `event-{sequence}` that pd-eventlog uses when it persists/replays.
+        let a = KernelEvent::new(
+            42,
+            "transaction.created",
+            "tx-1",
+            serde_json::json!({}),
+            Provenance::kernel("test"),
+        );
+        let b = KernelEvent::new(
+            42,
+            "transaction.created",
+            "tx-1",
+            serde_json::json!({}),
+            Provenance::kernel("test"),
+        );
+
+        assert_eq!(a.id, b.id);
+        assert_eq!(a.id, KernelEvent::derive_id(42));
+        assert_eq!(a.id, "event-42");
     }
 
     #[test]

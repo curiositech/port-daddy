@@ -1,0 +1,114 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0d1117;color:#c9d1d9;font:14px/1.55 ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;padding:26px 30px 34px}
+.sheet{max-width:1340px;margin:0 auto}
+.disclaimer{border:1px solid #b7791f;background:#2b2011;border-left:5px solid #d69e2e;padding:12px 16px;border-radius:6px;margin-bottom:18px;color:#f0d9a8}
+.disclaimer b{color:#f6e05e}
+h1{font:600 22px/1.3 ui-sans-serif,system-ui,sans-serif;color:#e6edf3;letter-spacing:-.2px}
+h1 .n{color:#58a6ff;margin-right:10px}
+.sub{color:#8b949e;font-size:12.5px;margin-top:5px}
+.prov{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 20px}
+.chip{border:1px solid #30363d;background:#161b22;border-radius:999px;padding:3px 11px;font-size:11.5px;color:#8b949e}
+.chip b{color:#c9d1d9;font-weight:600}
+.chip.real{border-color:#2ea043;background:#0f2417;color:#7ee787}
+.chip.harness{border-color:#8957e5;background:#1d1428;color:#d2b4fe}
+.chip.authored{border-color:#b7791f;background:#2b2011;color:#f0d9a8}
+.card{border:1px solid #30363d;background:#0f141a;border-radius:9px;margin-bottom:16px;overflow:hidden}
+.card > .head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:11px 14px;background:#161b22;border-bottom:1px solid #30363d}
+.req{color:#e6edf3;font-size:13px}
+.req .m{color:#d2a8ff;font-weight:600}
+.req .q{color:#8b949e}
+.pill{font-size:11.5px;font-weight:700;border-radius:5px;padding:2px 8px}
+.ok{background:#0f2417;color:#7ee787;border:1px solid #2ea043}
+.err{background:#2d1416;color:#ff9492;border:1px solid #da3633}
+.warn{background:#2b2011;color:#f6e05e;border:1px solid #b7791f}
+.t{margin-left:auto;color:#6e7681;font-size:11.5px}
+.body{padding:14px}
+.note{color:#8b949e;font-size:12.5px;margin-bottom:11px}
+pre{background:#010409;border:1px solid #21262d;border-radius:6px;padding:11px 13px;overflow:auto;font-size:11.5px;color:#a5d6ff;white-space:pre-wrap;word-break:break-word}
+pre .k{color:#7ee787}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.wm{display:grid;grid-template-columns:repeat(4,auto);gap:0 26px;align-items:start;background:#010409;border:1px solid #21262d;border-radius:7px;padding:13px 15px;margin-bottom:13px}
+.wm .lab{font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;color:#6e7681}
+.wm .val{font-size:16px;color:#e6edf3;margin:3px 0 1px}
+.wm .sub2{font-size:11px;color:#8b949e}
+.wm .stale{color:#f6e05e}
+.lanes{display:grid;grid-template-columns:repeat(5,1fr);gap:11px}
+.lane{border:1px solid #21262d;border-radius:7px;background:#010409;min-height:120px}
+.lane h3{font:600 11px/1 ui-sans-serif,system-ui,sans-serif;text-transform:uppercase;letter-spacing:.1em;padding:9px 10px;border-bottom:1px solid #21262d;display:flex;justify-content:space-between;color:#8b949e}
+.lane h3 .c{color:#e6edf3;background:#21262d;border-radius:4px;padding:0 6px}
+.lane.now h3{color:#7ee787}.lane.backlog h3{color:#79c0ff}.lane.parked h3{color:#8b949e}
+.lane.merge h3{color:#d2a8ff}.lane.done h3{color:#6e7681}
+.it{padding:7px 10px;border-bottom:1px solid #12171d}
+.it:last-child{border-bottom:none}
+.it .s{color:#e6edf3;font-size:11.5px;word-break:break-all}
+.it .d{color:#6e7681;font-size:10.5px;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.more{padding:7px 10px;color:#6e7681;font-size:11px;font-style:italic}
+.empty{padding:16px 10px;color:#484f58;font-size:11.5px;text-align:center;font-style:italic}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;color:#6e7681;font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;padding:6px 9px;border-bottom:1px solid #21262d}
+td{padding:6px 9px;border-bottom:1px solid #12171d;color:#c9d1d9;vertical-align:top}
+td.slug{color:#79c0ff}
+.kv{display:grid;grid-template-columns:150px 1fr;gap:4px 14px;font-size:12px}
+.kv .k2{color:#6e7681}
+.kv .v2{color:#e6edf3;word-break:break-word}
+.edge{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid #12171d;font-size:12px}
+.edge:last-child{border-bottom:none}
+.edge .n1{color:#79c0ff}
+.edge .ty{color:#d2a8ff;background:#1d1428;border:1px solid #8957e5;border-radius:4px;padding:1px 7px;font-size:10.5px}
+.edge .ar{color:#6e7681}
+.tomb{border:1px solid #da3633;background:#2d1416;border-radius:7px;padding:12px 14px}
+.tomb .t2{color:#ff9492;font-weight:700;font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.foot{color:#6e7681;font-size:11px;margin-top:20px;border-top:1px solid #21262d;padding-top:11px}
+.delta{background:#010409;border:1px solid #21262d;border-radius:7px;padding:11px 13px;font-size:12px;color:#8b949e}
+.delta b{color:#e6edf3}
+.same{color:#7ee787;font-weight:700}
+h2{font:600 14px/1 ui-sans-serif,system-ui,sans-serif;color:#e6edf3;margin:0 0 10px;letter-spacing:.02em}
+
+    body{padding:18px 22px}
+    .wbar{display:flex;gap:9px;margin-bottom:14px;flex-wrap:wrap}
+    .wstep{border:1px solid #30363d;border-radius:999px;padding:4px 13px;font-size:12px;color:#6e7681;display:flex;align-items:center;gap:7px}
+    .wstep .dot{width:7px;height:7px;border-radius:50%;background:#30363d}
+    .wstep.on{border-color:#2ea043;color:#7ee787;background:#0f2417}
+    .wstep.on .dot{background:#7ee787}
+    .frame{display:none}.frame.on{display:block}
+    </style></head><body><div class="sheet">
+    <div class="disclaimer" style="padding:9px 13px;font-size:12.5px"><b>No operator page in this slice</b> — this is the real <code>GET /v1/roadmap/mirror</code> response at four points in a real push sequence, laid out for reading. Pages land in PR 3/4.</div>
+    <div class="wbar"><div class="wstep" data-i="0"><span class="dot"></span>1 · never synced</div><div class="wstep" data-i="1"><span class="dot"></span>2 · pushed an empty roadmap</div><div class="wstep" data-i="2"><span class="dot"></span>3 · pushed the real roadmap export</div><div class="wstep" data-i="3"><span class="dot"></span>4 · re-pushed — full replace</div></div>
+    <div class="frame" data-i="0"><div class="note">GET /v1/roadmap/mirror?repo=curiositech%2Fport-daddy → <b style="color:#ff9492">HTTP 404</b></div><pre>{
+  &quot;code&quot;: &quot;NO_MIRROR&quot;,
+  &quot;error&quot;: &quot;no roadmap mirror for curiositech/port-daddy on this account&quot;,
+  &quot;requestId&quot;: &quot;req_5f4e4a3aefaebec3&quot;
+}</pre></div><div class="frame" data-i="1"><div class="note">GET /v1/roadmap/mirror?repo=curiositech%2Fport-daddy → <b style="color:#7ee787">HTTP 200</b> · 0 live items</div>
+      <div class="wm">
+    <div><div class="lab">repo · harbor</div><div class="val">curiositech/port-daddy</div><div class="sub2">harbor <b>port-daddy</b> · daemon <b>port-daddy-daemon</b> · harborId null</div></div>
+    <div><div class="lab">generatedAt — daemon clock</div><div class="val">2026-08-22 13:43:10.046Z</div><div class="sub2">1787406190046 (unix ms, stored verbatim)</div></div>
+    <div><div class="lab">receivedAt — relay clock</div><div class="val">2026-08-22 23:41:36Z</div><div class="sub2">1787442096 (unix <b>seconds</b>)</div></div>
+    <div><div class="lab">staleness</div><div class="val stale">9h 58m 25s</div><div class="sub2">receivedAt·1000 − generatedAt = 35905954</div></div>
+  </div>
+      <div class="lanes"><div class="lane now"><h3>now<span class="c">0</span></h3><div class="empty">no items</div></div><div class="lane backlog"><h3>backlog<span class="c">0</span></h3><div class="empty">no items</div></div><div class="lane parked"><h3>parked<span class="c">0</span></h3><div class="empty">no items</div></div><div class="lane merge"><h3>merge<span class="c">0</span></h3><div class="empty">no items</div></div><div class="lane done"><h3>done<span class="c">0</span></h3><div class="empty">no items</div></div></div>
+      <div class="delta" style="margin-top:12px">tombstoned slug <b>adr-0049-relay-v0</b> on the board: <b class="same">absent</b> · activity tail <b>0</b></div></div><div class="frame" data-i="2"><div class="note">GET /v1/roadmap/mirror?repo=curiositech%2Fport-daddy → <b style="color:#7ee787">HTTP 200</b> · 279 live items</div>
+      <div class="wm">
+    <div><div class="lab">repo · harbor</div><div class="val">curiositech/port-daddy</div><div class="sub2">harbor <b>port-daddy</b> · daemon <b>port-daddy-daemon</b> · harborId null</div></div>
+    <div><div class="lab">generatedAt — daemon clock</div><div class="val">2026-08-22 13:53:10.046Z</div><div class="sub2">1787406790046 (unix ms, stored verbatim)</div></div>
+    <div><div class="lab">receivedAt — relay clock</div><div class="val">2026-08-22 23:41:36Z</div><div class="sub2">1787442096 (unix <b>seconds</b>)</div></div>
+    <div><div class="lab">staleness</div><div class="val stale">9h 48m 25s</div><div class="sub2">receivedAt·1000 − generatedAt = 35305954</div></div>
+  </div>
+      <div class="lanes"><div class="lane now"><h3>now<span class="c">103</span></h3><div class="it"><div class="s">accountability-wedge-launch-assets</div><div class="d">Wedge 1 launch assets from the GTM strategy (§6): Show HN post + founder note, and the portdaddy.dev /accountability launch page (hero, before/after, compliance ladder, git-guard demo, install CTA). Spawned by distribution-dogfood-gtm-strategy.</div></div><div class="it"><div class="s">actor-identity-minimal-slice</div><div class="d">ADR-0040 keystone: daemon-minted, non-forgeable actor identity (actor-souls). Selector.verifier lookup-token credential, fail-closed above newcomer floor / fail-open-at-bounded-shared-pool below it. Anti-launder core: minting fresh ids buys no new budget. Full guarantee depends on door (PR #2582) write-boundary being fully enforced.</div></div><div class="it"><div class="s">adr-0022-durable-actor-souls-body-leases</div><div class="d">ADR-0022 'Accepted' but body_leases/actors tables NOT shipped (queue.ts:209 confirms). Build tables + lease lifecycle.</div></div><div class="it"><div class="s">adr-0043-phase-0-spec-and-parser</div><div class="d">ADR-0043 + matrix format + lib/adr-matrix.ts parser/transform + unit tests</div></div><div class="it"><div class="s">adr-0043-phase-1-adr-sync-wiring</div><div class="d">ADR-0043 partial: lib/adr-matrix.ts parser shipped (Phase 0); Phase 1 missing — no cli/commands/adr.ts, no POST /adr/sync.</div></div><div class="more">+ 98 more in this lane</div></div><div class="lane backlog"><h3>backlog<span class="c">152</span></h3><div class="it"><div class="s">active-agent-roster</div><div class="d">Add live active agent roster surfaces</div></div><div class="it"><div class="s">adr-0029-v0-account-login-and-local-forest</div><div class="d">pd account login (OIDC) + account Ed25519 key + local pairing receipts + Merkle audit (ADR-0029 v0)</div></div><div class="it"><div class="s">adr-0029-v3-cross-device-quotas-and-rbac</div><div class="d">owner/member/viewer sync card scoping + cross-device fleet quota pool (ADR-0029 v3)</div></div><div class="it"><div class="s">adr-0037-git-access-control-pd-feature-verbs</div><div class="d">ADR-0037 Proposed, ZERO impl: no pd feature verbs / git-ACL module (doc PR #112 only).</div></div><div class="it"><div class="s">adr-0038-claim-tree-multi-granularity</div><div class="d">ADR-0038 Proposed, ZERO impl: no claimTree code (doc PR #119 + website explainers only).</div></div><div class="more">+ 147 more in this lane</div></div><div class="lane parked"><h3>parked<span class="c">1</span></h3><div class="it"><div class="s">ast-a4-1-go-rust-grammars</div><div class="d">A4.1 (optional) Wire tree-sitter-go / tree-sitter-rust + extraction (symbols, imports, intra-file calls). Done when a Go and Rust file parse with symbols + call edges.</div></div></div><div class="lane merge"><h3>merge<span class="c">10</span></h3><div class="it"><div class="s">ast-a2-1-symbol-claim-isolation-validator</div><div class="d">A2.1 Pre-flight: run predictConflicts vs live claims before a symbol claim; refuse/warn on blocking overlaps. Done when a 2nd modify-claim on a contended symbol is blocked/warned on the live daemon.</div></div><div class="it"><div class="s">cli-spawn-liveness-and-collection</div><div class="d">Make local coding-agent spawns durable, observable, explicitly cancellable, and free of hidden task wallclock deadlines.</div></div><div class="it"><div class="s">codex-cartographer-conversation-transcripts</div><div class="d">Console: scrollable Cartographer chat and transcript conformance</div></div><div class="it"><div class="s">dev-berth-daemon-registration</div><div class="d">Make named development daemons discoverable by published runtime identity and prove backend changes against selected feature builds.</div></div><div class="it"><div class="s">durable-agent-cross-harness-resumption</div><div class="d">Resume durable coding-agent work across harnesses with immutable predecessor lineage, one admitted successor, collectible receipts, and honest liveness.</div></div><div class="more">+ 5 more in this lane</div></div><div class="lane done"><h3>done<span class="c">13</span></h3><div class="it"><div class="s">adr-0019-declarative-fleet-yaml</div><div class="d">ADR-0019 SHIPPED despite PROPOSED header: fleet YAML parser in lib/fleet-engine.ts (#533,#16).</div></div><div class="it"><div class="s">adr-0026-fleet-ast-diagnostics</div><div class="d">ADR-0026 SHIPPED despite PROPOSED header: lib/fleet-ast.ts positional AST + diagnostics (#170,#50).</div></div><div class="it"><div class="s">adr-0041-durable-commitments-obligation-monitor</div><div class="d">ADR-0041 SHIPPED despite Proposed header: lib/commitments.ts + lib/obligation-monitor.ts (#422,#334).</div></div><div class="it"><div class="s">adr-0049-relay-v0</div><div class="d">ADR-0049 Relay v0 SHIPPED: apps/relay Worker+DO, lib/relay-client.ts, pd relay (#305,#336,#355). Was untracked.</div></div><div class="it"><div class="s">adr-0050-coast-guard</div><div class="d">ADR-0050 Coast Guard SHIPPED: pd-cutter sandbox + egress cap + compulsion (#259,#281,#282,#297). Was untracked.</div></div><div class="more">+ 8 more in this lane</div></div></div>
+      <div class="delta" style="margin-top:12px">tombstoned slug <b>adr-0049-relay-v0</b> on the board: <b class="">present</b> · activity tail <b>0</b></div></div><div class="frame" data-i="3"><div class="note">GET /v1/roadmap/mirror?repo=curiositech%2Fport-daddy → <b style="color:#7ee787">HTTP 200</b> · 278 live items</div>
+      <div class="wm">
+    <div><div class="lab">repo · harbor</div><div class="val">curiositech/port-daddy</div><div class="sub2">harbor <b>port-daddy</b> · daemon <b>port-daddy-daemon</b> · harborId null</div></div>
+    <div><div class="lab">generatedAt — daemon clock</div><div class="val">2026-08-22 14:53:10.046Z</div><div class="sub2">1787410390046 (unix ms, stored verbatim)</div></div>
+    <div><div class="lab">receivedAt — relay clock</div><div class="val">2026-08-22 23:41:36Z</div><div class="sub2">1787442096 (unix <b>seconds</b>)</div></div>
+    <div><div class="lab">staleness</div><div class="val stale">8h 48m 25s</div><div class="sub2">receivedAt·1000 − generatedAt = 31705954</div></div>
+  </div>
+      <div class="lanes"><div class="lane now"><h3>now<span class="c">103</span></h3><div class="it"><div class="s">accountability-wedge-launch-assets</div><div class="d">Wedge 1 launch assets from the GTM strategy (§6): Show HN post + founder note, and the portdaddy.dev /accountability launch page (hero, before/after, compliance ladder, git-guard demo, install CTA). Spawned by distribution-dogfood-gtm-strategy.</div></div><div class="it"><div class="s">actor-identity-minimal-slice</div><div class="d">ADR-0040 keystone: daemon-minted, non-forgeable actor identity (actor-souls). Selector.verifier lookup-token credential, fail-closed above newcomer floor / fail-open-at-bounded-shared-pool below it. Anti-launder core: minting fresh ids buys no new budget. Full guarantee depends on door (PR #2582) write-boundary being fully enforced.</div></div><div class="it"><div class="s">adr-0022-durable-actor-souls-body-leases</div><div class="d">ADR-0022 'Accepted' but body_leases/actors tables NOT shipped (queue.ts:209 confirms). Build tables + lease lifecycle.</div></div><div class="it"><div class="s">adr-0043-phase-0-spec-and-parser</div><div class="d">ADR-0043 + matrix format + lib/adr-matrix.ts parser/transform + unit tests</div></div><div class="it"><div class="s">adr-0043-phase-1-adr-sync-wiring</div><div class="d">ADR-0043 partial: lib/adr-matrix.ts parser shipped (Phase 0); Phase 1 missing — no cli/commands/adr.ts, no POST /adr/sync.</div></div><div class="more">+ 98 more in this lane</div></div><div class="lane backlog"><h3>backlog<span class="c">152</span></h3><div class="it"><div class="s">active-agent-roster</div><div class="d">Add live active agent roster surfaces</div></div><div class="it"><div class="s">adr-0029-v0-account-login-and-local-forest</div><div class="d">pd account login (OIDC) + account Ed25519 key + local pairing receipts + Merkle audit (ADR-0029 v0)</div></div><div class="it"><div class="s">adr-0029-v3-cross-device-quotas-and-rbac</div><div class="d">owner/member/viewer sync card scoping + cross-device fleet quota pool (ADR-0029 v3)</div></div><div class="it"><div class="s">adr-0037-git-access-control-pd-feature-verbs</div><div class="d">ADR-0037 Proposed, ZERO impl: no pd feature verbs / git-ACL module (doc PR #112 only).</div></div><div class="it"><div class="s">adr-0038-claim-tree-multi-granularity</div><div class="d">ADR-0038 Proposed, ZERO impl: no claimTree code (doc PR #119 + website explainers only).</div></div><div class="more">+ 147 more in this lane</div></div><div class="lane parked"><h3>parked<span class="c">1</span></h3><div class="it"><div class="s">ast-a4-1-go-rust-grammars</div><div class="d">A4.1 (optional) Wire tree-sitter-go / tree-sitter-rust + extraction (symbols, imports, intra-file calls). Done when a Go and Rust file parse with symbols + call edges.</div></div></div><div class="lane merge"><h3>merge<span class="c">10</span></h3><div class="it"><div class="s">ast-a2-1-symbol-claim-isolation-validator</div><div class="d">A2.1 Pre-flight: run predictConflicts vs live claims before a symbol claim; refuse/warn on blocking overlaps. Done when a 2nd modify-claim on a contended symbol is blocked/warned on the live daemon.</div></div><div class="it"><div class="s">cli-spawn-liveness-and-collection</div><div class="d">Make local coding-agent spawns durable, observable, explicitly cancellable, and free of hidden task wallclock deadlines.</div></div><div class="it"><div class="s">codex-cartographer-conversation-transcripts</div><div class="d">Console: scrollable Cartographer chat and transcript conformance</div></div><div class="it"><div class="s">dev-berth-daemon-registration</div><div class="d">Make named development daemons discoverable by published runtime identity and prove backend changes against selected feature builds.</div></div><div class="it"><div class="s">durable-agent-cross-harness-resumption</div><div class="d">Resume durable coding-agent work across harnesses with immutable predecessor lineage, one admitted successor, collectible receipts, and honest liveness.</div></div><div class="more">+ 5 more in this lane</div></div><div class="lane done"><h3>done<span class="c">12</span></h3><div class="it"><div class="s">adr-0019-declarative-fleet-yaml</div><div class="d">ADR-0019 SHIPPED despite PROPOSED header: fleet YAML parser in lib/fleet-engine.ts (#533,#16).</div></div><div class="it"><div class="s">adr-0026-fleet-ast-diagnostics</div><div class="d">ADR-0026 SHIPPED despite PROPOSED header: lib/fleet-ast.ts positional AST + diagnostics (#170,#50).</div></div><div class="it"><div class="s">adr-0041-durable-commitments-obligation-monitor</div><div class="d">ADR-0041 SHIPPED despite Proposed header: lib/commitments.ts + lib/obligation-monitor.ts (#422,#334).</div></div><div class="it"><div class="s">adr-0050-coast-guard</div><div class="d">ADR-0050 Coast Guard SHIPPED: pd-cutter sandbox + egress cap + compulsion (#259,#281,#282,#297). Was untracked.</div></div><div class="it"><div class="s">adr-number-collision-guard</div><div class="d">Resolves 12 duplicate ADR numbers (renamed to 0102-0115), adds docs/adr/adr-numbering-registry.json + scripts/adr-number-collision-guard.mjs wired into hooks/pre-commit as a fail-closed check blocking future collisions. Rebased onto origin/main; one real conflict in docs/adr/0028-salvage-envelope.md resolved with no content lost. PR #2594.</div></div><div class="more">+ 7 more in this lane</div></div></div>
+      <div class="delta" style="margin-top:12px">tombstoned slug <b>adr-0049-relay-v0</b> on the board: <b class="same">absent</b> · activity tail <b>6</b></div></div>
+    </div><script>
+      window.showStep = (n) => {
+        document.querySelectorAll('.wstep').forEach((e) => e.classList.toggle('on', Number(e.dataset.i) <= n));
+        document.querySelectorAll('.frame').forEach((e) => e.classList.toggle('on', Number(e.dataset.i) === n));
+      };
+      window.showStep(0);
+    </script></body></html>

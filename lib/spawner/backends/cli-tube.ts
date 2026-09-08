@@ -33,6 +33,13 @@
  * Wrapped CLIs run with `OTEL_SDK_DISABLED=true` and inherit a sanitized
  * env (the spawner's existing dotenv loader handles credential
  * surfacing).
+ *
+ * Confinement (ADR-0050 Coast Guard):
+ *   A cli-tube child is a subprocess with a real shell on the operator's
+ *   box — the same threat shape as the codex/claude-cli/aider/custom
+ *   backends. Every child is therefore routed through the same Coast Guard
+ *   wrap (OS sandbox + secret broker + hard egress cap) BY DEFAULT before
+ *   spawn, and every result carries the honest confinement receipt.
  */
 
 import { spawn as spawnChild, type ChildProcess } from 'node:child_process';
@@ -41,10 +48,64 @@ import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync } from 'node:f
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { cliBinarySearchPath, resolveCliBinary } from '../../cli-bin-dirs.js';
+import type { CoastGuardReceipt } from '../../coast-guard.js';
+import {
+  withCoastGuard,
+  type CoastGuardRun,
+  type CoastGuardRunInput,
+} from '../coast-guard-runner.js';
+import {
+  sameWorkspaceIdentity,
+  type WorkspaceIdentity,
+} from '../../workspace-identity.js';
+import {
+  buildCliTubeArgs,
+  CLI_TUBE_PROVIDER_SPECS,
+  CLI_TUBE_TOOLS,
+  normalizeCodexConfigOverrides,
+  type CliTubePermissionMode,
+  type CliTubeProviderSpec,
+  type CliTubeTool,
+} from './cli-tube-provider-specs.js';
+import {
+  waitForCliChildProcess,
+  type CliChildWaitResult,
+} from './cli-tube-lifecycle.js';
+
+export {
+  CLI_TUBE_PROVIDER_SPECS,
+  CLI_TUBE_TOOLS,
+  normalizeCodexConfigOverrides,
+};
+export type { CliTubeProviderSpec, CliTubeTool };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type CliTubeTool = 'claude-code' | 'codex' | 'agy' | 'gemini' | 'groq' | 'grok';
+/**
+ * Receipt metadata and policy controls for the Coast Guard wrap around a CLI
+ * child (ADR-0050).
+ *
+ * Design/why: these options only PARAMETERIZE confinement — they never decide
+ * whether it happens. Every cli-tube child is routed through Coast Guard by
+ * default, exactly like the codex/claude-cli/aider/custom subprocess backends,
+ * so a caller that forgets (or predates) this object still gets a confined
+ * child and an honest receipt. The purpose of keeping the fields optional is
+ * ergonomic defaults, not an escape hatch.
+ */
+export interface CliTubeCoastGuardOptions {
+  /** Durable agent identity recorded in the confinement receipt. */
+  agentId?: string;
+  /** Effective backend recorded in the confinement receipt. */
+  backend?: string;
+  /** Per-spawn Coast Guard controls. Enabled by default when omitted. */
+  spec?: CoastGuardRunInput['spec'];
+  /** Keys sourced from operator dotenv files and scrubbed from the child. */
+  dotenvKeys?: CoastGuardRunInput['dotenvKeys'];
+  /** Scope-derived filesystem write posture. */
+  writePolicy?: CoastGuardRunInput['writePolicy'];
+  /** Injectable policy environment for focused tests. */
+  envSource?: CoastGuardRunInput['envSource'];
+}
 
 export interface CliTubeOptions {
   /** Which local CLI to drive. */
@@ -57,7 +118,15 @@ export interface CliTubeOptions {
    * `cli:<tool>:<uuid>`. Pass `null` to suppress publishing.
    */
   tube?: string | null;
-  /** Per-spawn timeout (ms). Default 5 minutes. */
+  /**
+   * Optional wall-clock deadline (ms) for the CLI invocation. When omitted,
+   * NO deadline is enforced — the child may run indefinitely (still
+   * externally observable via `onStreamLine` and the tube channel while it
+   * runs). When set, the full process tree gets SIGTERM at the deadline and
+   * SIGKILL after a grace period, with honest `timedOut` evidence in the
+   * result. This is the CLI's own process deadline, distinct from any
+   * transport/network timeout a caller may apply separately.
+   */
   timeoutMs?: number;
   /** Working directory for the child process. */
   cwd?: string;
@@ -102,7 +171,22 @@ export interface CliTubeOptions {
    * Unset = the CLI's default (interactive prompts), preserving prior behavior.
    * Ignored for CLIs that don't support the flag.
    */
-  permissionMode?: 'default' | 'acceptEdits' | 'bypassPermissions';
+  permissionMode?: CliTubePermissionMode;
+  /** Validated harness-owned session id for native resume. */
+  resumeSessionId?: string;
+  /** Canonical workspace identity rechecked immediately before child spawn. */
+  workspaceIdentity?: WorkspaceIdentity;
+  /** Managed lifecycle cancellation checked immediately before child launch. */
+  signal?: AbortSignal;
+  /** Internal daemon callback; never reconstructed from a public spawn request. */
+  beforeChildLaunch?: () => Promise<void>;
+  /**
+   * Receipt metadata and policy controls for Coast Guard. The wrapper itself is
+   * not optional: every CLI child is routed through Coast Guard, even when this
+   * object is omitted. An explicit `spec.coastGuard:false` is preserved as an
+   * honest operator opt-out and produces an unconfined receipt.
+   */
+  coastGuard?: CliTubeCoastGuardOptions;
 }
 
 export interface CliTubeResult {
@@ -116,6 +200,10 @@ export interface CliTubeResult {
    *  this is the JSONL event stream the caller parses into full-depth
    *  transcript turns; `output` is the extracted final answer. */
   rawStdout: string;
+  /** Honest confinement receipt for an attempted child launch. `null` only on
+   *  paths where no launch was attempted (unknown tool, missing binary,
+   *  blocked native resume, Coast Guard setup failure). */
+  coastGuardReceipt: CoastGuardReceipt | null;
 }
 
 /**
@@ -134,45 +222,8 @@ export interface TubeClientLike {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000;
-
-/**
- * The binary name used to invoke each tool. On this user's machine
- * `claude-code` is installed as `claude` (per `claude install`). Code
- * paths that need a different binary name set `PD_CLI_CLAUDE_CODE_BIN`
- * / `PD_CLI_CODEX_BIN` / the matching `PD_CLI_*_BIN`.
- */
-const DEFAULT_BINARIES: Record<CliTubeTool, string> = {
-  'claude-code': 'claude',
-  codex: 'codex',
-  agy: 'agy',
-  gemini: 'gemini',
-  groq: 'groq',
-  grok: 'grok',
-};
-
-// Environment override key per tool — operators can swap the binary
-// without code edits (helpful for `claude-stable` vs `claude-beta`).
-const BINARY_ENV_OVERRIDE: Record<CliTubeTool, string> = {
-  'claude-code': 'PD_CLI_CLAUDE_CODE_BIN',
-  codex: 'PD_CLI_CODEX_BIN',
-  agy: 'PD_CLI_AGY_BIN',
-  gemini: 'PD_CLI_GEMINI_BIN',
-  groq: 'PD_CLI_GROQ_BIN',
-  grok: 'PD_CLI_GROK_BIN',
-};
-
-// Auth-error sentinels we surface verbatim so the operator sees
-// actionable guidance. The CLIs themselves are the source of truth for
-// their auth flows; we just map their errors to a helpful next step.
-const AUTH_NEXT_STEP: Record<CliTubeTool, string> = {
-  'claude-code': 'Run `claude setup-token` or `claude auth` to authenticate.',
-  codex: 'Set OPENAI_API_KEY in ~/.codex/config or `codex auth login`.',
-  agy: 'Run `agy --print "hello"` once interactively to confirm authentication.',
-  gemini: 'Run `gemini` once interactively to sign in, or set GEMINI_API_KEY.',
-  groq: 'Run `groq` once interactively to sign in, or set GROQ_API_KEY.',
-  grok: 'Run `grok` once interactively to sign in, or set GROK_API_KEY / XAI_API_KEY.',
-};
+const TIMEOUT_KILL_GRACE_MS = 5_000;
+const TIMEOUT_KILL_CLOSE_DEADLINE_MS = 1_000;
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
@@ -194,162 +245,100 @@ export function buildArgs(
   prompt: string,
   outputPath?: string,
   model?: string,
-  permissionMode?: 'default' | 'acceptEdits' | 'bypassPermissions',
+  permissionMode?: CliTubePermissionMode,
   codexConfig?: string[],
   timeoutMs?: number,
+  resumeSessionId?: string,
 ): { args: string[]; stdin: string | null } {
-  // A model equal to the backend/CLI's own name is a placeholder that leaked
-  // from default resolution (backend "cli:claude-code" → model "claude-code").
-  // The CLIs reject it with "model not supported". Map the placeholder to a real
-  // per-CLI default so spawns get EXACT, billable telemetry instead of an
-  // estimate (which the cost gate then rejects); for CLIs without a known good
-  // default, drop `--model` so the CLI uses its authenticated account's default.
-  //
-  // `claude-cli` / `codex-cli` are the OTHER placeholder spelling: lib/spawner.ts
-  // DEFAULT_MODELS maps `cli:claude-code` → "claude-cli" and `cli:codex` →
-  // "codex-cli" ("the CLI manages its own model"). When that sentinel reaches
-  // here as the model it must be treated as a placeholder too — otherwise
-  // `claude --model claude-cli` fails with "model may not exist" and every
-  // sentinel-model spawn dies (the bug that made cli:claude-code look broken).
-  const PLACEHOLDER_MODELS = new Set([
-    'claude-code', 'codex', 'agy', 'gemini', 'groq', 'grok',
-    'claude-cli', 'codex-cli', 'agy-cli', 'agy-default', 'default', 'cli',
-  ]);
-  const CLI_DEFAULT_MODEL: Partial<Record<CliTubeTool, string>> = {
-    'claude-code': 'sonnet', // a real Claude model the CLI + rate table both accept
-  };
-  const isPlaceholder = !model || PLACEHOLDER_MODELS.has(model);
-  const effModel = isPlaceholder ? CLI_DEFAULT_MODEL[cli] : model;
-
-  if (cli === 'claude-code') {
-    // `claude -p` runs non-interactively. `--output-format stream-json
-    // --verbose` emits one JSON object per line, including thinking /
-    // tool_use / tool_result blocks, so the spawner can record the FULL
-    // conversation (not just the final answer). The caller recovers the
-    // final answer from the terminal `result` line (extractClaudeCodeFinal).
-    // OAuth-safe: works with no ANTHROPIC_API_KEY (spawnViaCliTube strips it).
-    const args = ['-p', '--output-format', 'stream-json', '--verbose'];
-    if (effModel) args.push('--model', effModel);
-    // `--permission-mode acceptEdits` lets the spawned agent edit files in its
-    // workdir without an interactive prompt (non-interactive `-p` runs would
-    // otherwise block on the permission gate). Only forwarded when set, so the
-    // default spawn keeps the CLI's default gating.
-    if (permissionMode) args.push('--permission-mode', permissionMode);
-    args.push(prompt);
-    return { args, stdin: null };
-  }
-
-  if (cli === 'codex') {
-    // `codex exec` is the non-interactive entry point. Mirror the
-    // spawner's existing codex invocation: skip-git-repo-check +
-    // full-auto + workspace-write sandbox so the tube wrapper behaves
-    // like the codex backend operators are used to.
-    const args = [
-      'exec',
-      '--skip-git-repo-check',
-      '--full-auto',
-      '--sandbox', 'workspace-write',
-      '--json',
-    ];
-    if (outputPath) args.push('--output-last-message', outputPath);
-    if (effModel) args.push('--model', effModel);
-    for (const config of normalizeCodexConfigOverrides(codexConfig)) {
-      args.push('-c', config);
-    }
-    args.push(prompt);
-    return { args, stdin: null };
-  }
-
-  if (cli === 'agy') {
-    // `agy --print <prompt>` is the documented non-interactive surface. It
-    // prints a final response to stdout and currently has no JSONL stream, so
-    // Port Daddy records the prompt plus the final stdout/stderr transcript path
-    // instead of claiming structured streaming.
-    const args = ['--print'];
-    if (effModel) args.push('--model', effModel);
-    if (timeoutMs && Number.isFinite(timeoutMs) && timeoutMs > 0) {
-      args.push('--print-timeout', `${Math.max(1, Math.ceil(timeoutMs / 1000))}s`);
-    }
-    args.push(prompt);
-    return { args, stdin: null };
-  }
-
-  if (cli === 'gemini' || cli === 'groq' || cli === 'grok') {
-    // All three agent CLIs share the claude-code-style headless surface:
-    // `-p <prompt>` runs one non-interactive turn and prints the response
-    // to stdout; `--model` overrides the model. (Gemini CLI, Groq Code
-    // CLI, and Grok CLI all follow this convention.)
-    const args = ['-p'];
-    if (effModel) args.push('--model', effModel);
-    args.push(prompt);
-    return { args, stdin: null };
-  }
-
-  throw new Error(`unknown cli tool: ${cli}`);
-}
-
-const CODEX_CONFIG_KEY = /^[A-Za-z0-9_][A-Za-z0-9_.-]*$/;
-const MAX_CODEX_CONFIG_OVERRIDES = 32;
-const MAX_CODEX_CONFIG_OVERRIDE_LENGTH = 512;
-
-export function normalizeCodexConfigOverrides(configs: readonly string[] | undefined | null): string[] {
-  const normalized: string[] = [];
-  for (const raw of configs ?? []) {
-    if (typeof raw !== 'string') continue;
-    const config = raw.trim();
-    if (!config) continue;
-    if (normalized.length >= MAX_CODEX_CONFIG_OVERRIDES) {
-      throw new Error(`Too many Codex config overrides; maximum is ${MAX_CODEX_CONFIG_OVERRIDES}`);
-    }
-    if (config.length > MAX_CODEX_CONFIG_OVERRIDE_LENGTH || /[\0\r\n]/.test(config)) {
-      throw new Error(`Invalid Codex config override "${config}": value is too long or contains a control character`);
-    }
-    const separator = config.indexOf('=');
-    const key = separator > 0 ? config.slice(0, separator).trim() : '';
-    if (!key || !CODEX_CONFIG_KEY.test(key)) {
-      throw new Error(`Invalid Codex config override "${config}": expected key=value with a simple key`);
-    }
-    normalized.push(config);
-  }
-  return normalized;
+  return buildCliTubeArgs(cli, {
+    prompt,
+    outputPath,
+    model,
+    permissionMode,
+    codexConfig,
+    timeoutMs,
+    resumeSessionId,
+  });
 }
 
 /**
  * Drive a local CLI tool, optionally publishing the exchange on a tube
  * channel for observers. Returns the captured output.
  *
+ * Design/why (ADR-0050): a CLI child is a subprocess with a real shell on the
+ * operator's box, so — like every other subprocess backend — it is routed
+ * through the Coast Guard wrap (OS sandbox + secret broker + hard egress cap)
+ * BEFORE spawn, by default. The `opts.coastGuard` object only parameterizes
+ * the receipt and policy; it never gates whether the wrap happens, and no
+ * failure message on this path names any way to turn confinement off.
+ *
+ * @param opts invocation spec: which CLI to drive, the prompt, optional
+ *   deadline/model/permission/resume controls, tube observability wiring, and
+ *   Coast Guard receipt/policy parameterization (see `CliTubeOptions`).
+ * @returns a `CliTubeResult` — never a rejection for operational failures:
+ *   captured output, exit code, structured `error` copy, tube channel,
+ *   duration, raw stdout, and the honest `coastGuardReceipt` for any
+ *   attempted launch (`null` only when no launch was attempted).
+ *
  * Failure modes the caller can expect:
  *   - exit code 0 + non-empty output → success
  *   - exit code != 0 with auth-related stderr → wrapped as auth error
  *     and the wrapper's `nextStep` hint is included in `error`
- *   - timeout → SIGTERM then SIGKILL after 5s; `error` reports timeout
+ *   - no `timeoutMs` (deadline) supplied → no deadline enforced; the child
+ *     runs until it exits on its own, however long that takes
+ *   - explicit `timeoutMs` (deadline) reached → SIGTERM then SIGKILL after
+ *     5s; `error` reports the deadline miss
  *   - binary not found → ENOENT-style error; no retry
+ *   - Coast Guard setup failure → structured error result, scratch dir
+ *     cleaned up, no child spawned
  */
 export async function spawnViaCliTube(
   opts: CliTubeOptions,
 ): Promise<CliTubeResult> {
   const cli = opts.cli;
-  // Binary override is OPERATOR-scoped: read PD_CLI_*_BIN from process.env
-  // only, never from per-spawn opts.env/spec.env — a caller-supplied env
-  // must not be able to redirect which executable runs.
-  const resolution = resolveCliBinary(DEFAULT_BINARIES[cli], { envOverride: BINARY_ENV_OVERRIDE[cli] });
-  const binary = resolution.command;
-  if (!resolution.found) {
-    const reason = resolution.warning || `${DEFAULT_BINARIES[cli]} binary was not found in PATH or standard user CLI dirs.`;
+  const provider = (CLI_TUBE_PROVIDER_SPECS as Partial<Record<string, CliTubeProviderSpec<CliTubeTool>>>)[cli];
+  if (!provider) {
     return {
       output: '',
       exitCode: 127,
-      error: `${cli} CLI binary unavailable: ${reason}`,
+      error: `Unknown CLI tube tool "${String(cli)}". Supported tools: ${CLI_TUBE_TOOLS.join(', ')}.`,
       tube: null,
       durationMs: 0,
       rawStdout: '',
+      coastGuardReceipt: null,
+    };
+  }
+  // Binary override is OPERATOR-scoped: read PD_CLI_*_BIN from process.env
+  // only, never from per-spawn opts.env/spec.env — a caller-supplied env
+  // must not be able to redirect which executable runs.
+  // Empty or malformed PATH is acceptable here: cliBinarySearchPath filters
+  // blank entries and appends PD_CLI_BIN_DIRS plus the standard user CLI dirs.
+  const operatorPath = process.env.PATH ?? '';
+  const resolution = resolveCliBinary(provider.defaultBinary, {
+    envOverride: provider.binaryEnvOverride,
+    basePath: operatorPath,
+  });
+  const fallbackToDefaultCommand = provider.stalePathOverrideFallback === 'default-command'
+    && !resolution.found
+    && isPathLikeCliOverride(resolution.override);
+  const binary = fallbackToDefaultCommand ? provider.defaultBinary : resolution.command;
+  if (!resolution.found && !fallbackToDefaultCommand) {
+    const reason = resolution.warning || `${provider.defaultBinary} binary was not found in PATH or standard user CLI dirs.`;
+    return {
+      output: '',
+      exitCode: 127,
+      error: `${cli} CLI binary unavailable: ${reason} ${provider.authNextStep}`,
+      tube: null,
+      durationMs: 0,
+      rawStdout: '',
+      coastGuardReceipt: null,
     };
   }
   // Augment PATH with the same per-user install dirs backend-readiness checks.
   // The binary command itself comes from the same resolver readiness uses:
   // an executable operator override wins, a stale override falls back to the
   // discovered default, and per-spawn opts.env cannot redirect executable choice.
-  const basePath = (opts.env?.PATH as string | undefined) ?? process.env.PATH ?? '';
+  const basePath = fallbackToDefaultCommand ? operatorPath : ((opts.env?.PATH as string | undefined) ?? operatorPath);
   const augmentedPath = cliBinarySearchPath(basePath);
   const env = {
     ...process.env,
@@ -357,13 +346,15 @@ export async function spawnViaCliTube(
     PATH: augmentedPath,
     OTEL_SDK_DISABLED: 'true',
   } as Record<string, string>;
-  // claude-code manages its own OAuth (Claude Max). An ANTHROPIC_API_KEY in
-  // the environment overrides OAuth and breaks auth ("Invalid API key"), so
-  // strip it for this CLI — mirrors runClaudeCli's handling.
-  if (cli === 'claude-code') {
-    delete env.ANTHROPIC_API_KEY;
+  for (const key of provider.stripEnvKeys ?? []) {
+    delete env[key];
   }
-  const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  // No fallback: an absent deadline means no deadline. `deadlineMs` stays
+  // `undefined` all the way down to `waitForCliChildProcess`, which then
+  // schedules neither a termination timer nor process-tree polling.
+  const deadlineMs = typeof opts.timeoutMs === 'number' && Number.isFinite(opts.timeoutMs)
+    ? opts.timeoutMs
+    : undefined;
   const tubeChannel = opts.tube === null ? null : (opts.tube ?? generateTubeChannel(cli));
 
   // For codex, we use --output-last-message to capture a clean final
@@ -372,25 +363,122 @@ export async function spawnViaCliTube(
   // timer and could yank the file out from under an in-flight run).
   let tempDir: string | null = null;
   let outputPath: string | undefined;
-  if (cli === 'codex') {
+  if (provider.outputCapture === 'last-message-file') {
     const scratchRoot = join(homedir(), '.port-daddy', 'cli-tube-scratch');
     mkdirSync(scratchRoot, { recursive: true });
     tempDir = mkdtempSync(join(scratchRoot, 'codex-'));
     outputPath = join(tempDir, 'last-message.txt');
   }
 
-  const { args } = buildArgs(cli, opts.prompt, outputPath, opts.model, opts.permissionMode, opts.codexConfig, timeoutMs);
+  const { args } = provider.buildArgs({
+    prompt: opts.prompt,
+    outputPath,
+    model: opts.model,
+    permissionMode: opts.permissionMode,
+    codexConfig: opts.codexConfig,
+    timeoutMs: deadlineMs,
+    resumeSessionId: opts.resumeSessionId,
+  });
 
   const startedAt = Date.now();
 
-  const child = spawnChild(binary, args, {
-    cwd: opts.cwd || process.cwd(),
-    env,
-    detached: false,
-    shell: false,
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-  opts.onChild?.(child);
+  const launchError = (): string | null => {
+    if (opts.signal?.aborted) return 'Spawn cancelled before child launch.';
+    if ((opts.resumeSessionId && !opts.workspaceIdentity)
+      || (opts.workspaceIdentity && (!opts.cwd || !sameWorkspaceIdentity(opts.cwd, opts.workspaceIdentity)))) {
+      return `${opts.resumeSessionId ? 'Native resume' : 'Spawn'} blocked: canonical workspace identity changed before child launch.`;
+    }
+    return null;
+  };
+  const initialLaunchError = launchError();
+  if (initialLaunchError) {
+    if (tempDir) rmSync(tempDir, { recursive: true, force: true });
+    return {
+      output: '',
+      exitCode: 1,
+      error: initialLaunchError,
+      tube: tubeChannel,
+      durationMs: Date.now() - startedAt,
+      rawStdout: '',
+      coastGuardReceipt: null,
+    };
+  }
+
+  // ADR-0050 Coast Guard: cli-tube children get a real shell on the operator's
+  // box, exactly like the codex/claude-cli/aider/custom subprocess backends —
+  // so they go through the SAME sandbox + secret-broker + egress-cap wrap, by
+  // default, before anything is spawned. `opts.coastGuard` only parameterizes
+  // the receipt and policy; it never gates whether the wrap happens.
+  const cwd = opts.cwd || process.cwd();
+  let cg: CoastGuardRun;
+  try {
+    cg = await withCoastGuard({
+      agentId: opts.coastGuard?.agentId || opts.tubeSender || `cli-tube/${cli}`,
+      backend: opts.coastGuard?.backend || `cli:${cli}`,
+      cmd: binary,
+      args,
+      env,
+      workdir: cwd,
+      spec: opts.coastGuard?.spec,
+      dotenvKeys: opts.coastGuard?.dotenvKeys,
+      writePolicy: opts.coastGuard?.writePolicy,
+      envSource: opts.coastGuard?.envSource,
+    });
+  } catch (err) {
+    // Coast Guard preparation itself failed (e.g. the in-process egress meter
+    // couldn't bind a loopback port, or the workdir tripped the SBPL-injection
+    // guard) before any child was spawned. No handle exists to dispose here —
+    // withCoastGuard is responsible for tearing down its own partial state on
+    // this path — but the codex scratch tempDir is ours and must not leak, and
+    // the caller must still get a structured CliTubeResult, not a rejection.
+    if (tempDir) {
+      try { rmSync(tempDir, { recursive: true, force: true }); } catch { /* best effort */ }
+    }
+    return {
+      output: '',
+      exitCode: 1,
+      error: `Coast Guard confinement setup failed for ${binary}: ${(err as Error).message}`,
+      tube: tubeChannel,
+      durationMs: Date.now() - startedAt,
+      rawStdout: '',
+      coastGuardReceipt: null,
+    };
+  }
+
+  let child: ChildProcess;
+  try {
+    await opts.beforeChildLaunch?.();
+    // Sandbox preparation awaits I/O. Recheck afterwards, with no intervening
+    // await before the actual spawn; a cancelled/replaced target must not run.
+    const finalLaunchError = launchError();
+    if (finalLaunchError) throw new Error(finalLaunchError);
+    child = spawnChild(cg.cmd, cg.args, {
+      cwd,
+      env: cg.env,
+      detached: true,
+      shell: false,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  } catch (err) {
+    const coastGuardReceipt = cg.receipt();
+    cg.dispose();
+    if (tempDir) {
+      try { rmSync(tempDir, { recursive: true, force: true }); } catch { /* best effort */ }
+    }
+    // Name what was actually attempted: under a sandbox wrap the executable is
+    // the wrapper, not the raw CLI binary — a debugging operator needs both.
+    const attempted = cg.cmd === binary ? cg.cmd : `${cg.cmd} (Coast Guard wrapper for "${binary}")`;
+    return {
+      output: '',
+      exitCode: 1,
+      error: `Failed to spawn ${attempted}: ${(err as Error).message}`,
+      tube: tubeChannel,
+      durationMs: Date.now() - startedAt,
+      rawStdout: '',
+      coastGuardReceipt,
+    };
+  }
+  try { opts.onChild?.(child); } catch { /* observer hooks never own child liveness */ }
 
   const stdoutChunks: string[] = [];
   const stderrChunks: string[] = [];
@@ -421,36 +509,34 @@ export async function spawnViaCliTube(
     }
   }
 
-  child.stdout?.on('data', (d: Buffer) => {
+  const onStdoutData = (d: Buffer): void => {
     const text = d.toString();
     stdoutChunks.push(text);
     pumpStdout(text);
-  });
-  child.stderr?.on('data', (d: Buffer) => stderrChunks.push(d.toString()));
+  };
+  const onStderrData = (d: Buffer): void => {
+    stderrChunks.push(d.toString());
+  };
 
-  const result = await new Promise<{ code: number; timedOut: boolean; spawnErr: string | null }>((resolve) => {
-    let settled = false;
-    let timedOut = false;
-    const timer = setTimeout(() => {
-      timedOut = true;
-      try { child.kill('SIGTERM'); } catch {}
-      setTimeout(() => { try { child.kill('SIGKILL'); } catch {} }, 5000).unref?.();
-    }, timeoutMs);
-    timer.unref?.();
+  child.stdout?.on('data', onStdoutData);
+  child.stderr?.on('data', onStderrData);
 
-    child.on('close', (code) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      resolve({ code: typeof code === 'number' ? code : -1, timedOut, spawnErr: null });
+  let result: CliChildWaitResult;
+  let coastGuardReceipt: CoastGuardReceipt;
+  try {
+    result = await waitForCliChildProcess(child, {
+      deadlineMs,
+      killGraceMs: TIMEOUT_KILL_GRACE_MS,
+      killCloseDeadlineMs: TIMEOUT_KILL_CLOSE_DEADLINE_MS,
     });
-    child.on('error', (err) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      resolve({ code: -1, timedOut: false, spawnErr: err.message });
-    });
-  });
+  } finally {
+    child.stdout?.off('data', onStdoutData);
+    child.stderr?.off('data', onStderrData);
+    // The receipt folds in the final egress tally, so it is captured after the
+    // child exits and BEFORE dispose tears down the meter.
+    coastGuardReceipt = cg.receipt();
+    cg.dispose();
+  }
 
   // Flush any trailing partial line (a final JSONL line without a terminating
   // newline) so the last event is still delivered live.
@@ -463,7 +549,7 @@ export async function spawnViaCliTube(
   // Codex: prefer the `--output-last-message` file (clean final
   // payload) and fall back to sanitized stdout.
   let cleanOutput = rawStdout;
-  if (cli === 'codex' && outputPath && existsSync(outputPath)) {
+  if (provider.outputCapture === 'last-message-file' && outputPath && existsSync(outputPath)) {
     try {
       const fileOut = readFileSync(outputPath, 'utf8').trim();
       if (fileOut) cleanOutput = fileOut;
@@ -477,19 +563,27 @@ export async function spawnViaCliTube(
   let error: string | null = null;
   if (result.spawnErr) {
     if (result.spawnErr.includes('ENOENT') || result.spawnErr.includes('not found')) {
-      error = `${cli} binary "${binary}" not found on PATH. Install it and retry. ${AUTH_NEXT_STEP[cli]}`;
+      error = `${cli} binary "${binary}" not found on PATH. Install it and retry. ${provider.authNextStep}`;
+    } else if (result.timedOut) {
+      error = `${cli} timed out after ${deadlineMs}ms: ${result.spawnErr}`;
     } else {
       error = `Failed to spawn ${binary}: ${result.spawnErr}`;
     }
   } else if (result.timedOut) {
-    error = `${cli} timed out after ${timeoutMs}ms${stderrText ? `: ${stderrText.trim()}` : ''}`;
+    const detail = formatCliErrorDetail(stderrText || rawStdout);
+    error = `${cli} timed out after ${deadlineMs}ms${detail ? `: ${detail}` : ''}`;
   } else if (result.code !== 0) {
-    const stderrLc = stderrText.toLowerCase();
-    if (stderrLc.includes('unauthorized') || stderrLc.includes('not authenticated') || stderrLc.includes('please log in') || stderrLc.includes('api key')) {
-      error = `${cli} authentication failed. ${AUTH_NEXT_STEP[cli]} (stderr: ${stderrText.trim()})`;
+    const failureText = stderrText || rawStdout;
+    const failureLc = failureText.toLowerCase();
+    if (failureLc.includes('unauthorized') || failureLc.includes('not authenticated') || failureLc.includes('please log in') || failureLc.includes('api key')) {
+      error = `${cli} authentication failed. ${provider.authNextStep} (${stderrText ? 'stderr' : 'stdout'}: ${formatCliErrorDetail(failureText)})`;
     } else {
-      error = `${cli} exited with code ${result.code}${stderrText ? `: ${stderrText.trim()}` : ''}`;
+      const detail = formatCliErrorDetail(failureText);
+      error = `${cli} exited with code ${result.code}${detail ? `: ${detail}` : ''}`;
     }
+  } else if (provider.emptySuccess === 'fail' && !rawStdout.trim() && !stderrText.trim()) {
+    const emptySuccessError = provider.emptySuccessError ?? `${cli} produced no stdout or stderr.`;
+    error = `${emptySuccessError} ${provider.authNextStep}`;
   }
 
   // Optional: publish the result on the tube so subscribed observers
@@ -520,7 +614,19 @@ export async function spawnViaCliTube(
     tube: tubeChannel,
     durationMs,
     rawStdout,
+    coastGuardReceipt,
   };
+}
+
+function isPathLikeCliOverride(value: string | undefined): boolean {
+  return !!value && (value.startsWith('~') || value.includes('/') || value.includes('\\'));
+}
+
+function formatCliErrorDetail(text: string): string {
+  const trimmed = text.trim();
+  const max = 1_200;
+  if (trimmed.length <= max) return trimmed;
+  return `[truncated ${trimmed.length - max} chars] ${trimmed.slice(-max)}`;
 }
 
 // ─── Convenience: factory bound to a specific CLI ────────────────────────────

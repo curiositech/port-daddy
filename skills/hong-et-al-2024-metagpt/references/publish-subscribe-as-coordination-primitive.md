@@ -166,7 +166,7 @@ The tradeoff: more sophisticated subscriptions require more specification effort
 
 ## Implementing Pub-Sub in Agent Orchestration Systems
 
-For WinDAGs-like systems, pub-sub offers a clean coordination primitive:
+For Jury-rig-like systems, pub-sub offers a clean coordination primitive:
 
 ### Architecture Sketch
 
@@ -322,9 +322,9 @@ This is vastly superior to point-to-point systems where communication is ephemer
 
 For regulated domains (healthcare, finance) or safety-critical systems, this auditability may be a requirement, not just nice-to-have.
 
-## Application to WinDAGs: Skill Coordination via Pub-Sub
+## Application to Jury-rig: Skill Coordination via Pub-Sub
 
-WinDAGs has 180+ skills (specialized capabilities). Pub-sub enables skill coordination:
+Jury-rig has 180+ skills (specialized capabilities). Pub-sub enables skill coordination:
 
 **Pattern: Skills as Subscribers**
 ```python
@@ -353,7 +353,7 @@ Skills coordinate without knowing about each other—they only know message type
 - **Skill composition**: Complex pipelines emerge from simple subscriptions (load → validate → transform → analyze)
 - **Parallel skill execution**: Skills operating on different data can run simultaneously
 
-The pub-sub pattern makes WinDAGs' 180 skills *composable* rather than requiring explicit orchestration of 180 different tools.
+The pub-sub pattern makes Jury-rig' 180 skills *composable* rather than requiring explicit orchestration of 180 different tools.
 
 ## Conclusion: Communication Infrastructure as Cognitive Infrastructure
 
@@ -364,6 +364,6 @@ Pub-sub isn't the only solution—other patterns (actor model, CSP channels, tup
 - Context windows are limited (filtering matters)
 - Reproducibility is important (message history matters)
 
-For WinDAGs and similar orchestration systems, the lesson is: invest in communication infrastructure as much as agent capability. A system with mediocre agents but excellent coordination can outperform a system with excellent agents but poor coordination—as MetaGPT's 2x improvement over ChatDev demonstrates.
+For Jury-rig and similar orchestration systems, the lesson is: invest in communication infrastructure as much as agent capability. A system with mediocre agents but excellent coordination can outperform a system with excellent agents but poor coordination—as MetaGPT's 2x improvement over ChatDev demonstrates.
 
 The message pool isn't just a technical implementation detail; it's the foundation that makes complex multi-agent coordination tractable.

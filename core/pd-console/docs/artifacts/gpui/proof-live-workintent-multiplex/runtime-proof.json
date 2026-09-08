@@ -1,0 +1,94 @@
+{
+  "capturedAt": "2026-07-14T00:30:00Z",
+  "featureDaemon": {
+    "status": "ok",
+    "severity": "ok",
+    "version": "3.24.2",
+    "pid": 74191,
+    "tier": "codebase",
+    "label": "pd-console-live",
+    "port": 3166,
+    "plane": "ephemeral:pd-console-live",
+    "canonical": false,
+    "sourceDir": "/Users/erichowens/coding/tmp/pd-console-story-linework-motion",
+    "gitBranch": "codex/pd-console-story-linework-motion",
+    "fleetRunning": true,
+    "launchableAgents": 17,
+    "binaryDrifted": false
+  },
+  "liveSessionMultiplex": [
+    {
+      "dispatchId": "a99a69a3-ee4a-735c-083d-a4f0d6c8ee2a",
+      "sessionId": "dispatch-worker-a99a69a3-ee4a-735c-083d-a4f0d6c8ee2a",
+      "bodyId": "spawned-3ec011dcaf4d",
+      "budgetUsd": 10
+    },
+    {
+      "dispatchId": "b852b6b6-fd53-4b9d-fba5-043d52b5da45",
+      "sessionId": "dispatch-worker-b852b6b6-fd53-4b9d-fba5-043d52b5da45",
+      "bodyId": "spawned-5e1e258c3179",
+      "budgetUsd": 10
+    }
+  ],
+  "roadmapReceipt": {
+    "observedBeforeLifecycleRestart": true,
+    "dispatchId": "5d7803e4-e9c7-32ab-3ad0-c93c8415a40e",
+    "goal": "Take roadmap slice ideas-trove-queryable-surface. Audit the current trove access, implement one bounded provider-neutral query improvement with focused tests, and report exact evidence through the Port Daddy transcript.",
+    "state": "settled",
+    "budgetUsd": 10,
+    "costUsd": 0.01,
+    "sessionId": "dispatch-worker-5d7803e4-e9c7-32ab-3ad0-c93c8415a40e",
+    "bodyId": "spawned-4c88472f16af",
+    "branch": "dispatch/take-roadmap-slice-ideas-trove-queryable-surface-audit-the-c-5d7803e4",
+    "resultArtifact": "https://github.com/curiositech/port-daddy/pull/1866",
+    "commit": "104ee4655c0862e861d41f48e68061e83157da7b",
+    "changedFiles": [
+      "lib/ideas-search.ts",
+      "lib/ideas-trove.ts",
+      "tests/unit/ideas-search.test.js",
+      "tests/unit/ideas-trove.test.js"
+    ],
+    "focusedValidation": {
+      "testSuitesPassed": 2,
+      "testsPassed": 5
+    }
+  },
+  "consoleReceiptProjection": {
+    "capturedBeforeLifecycleRestart": true,
+    "pane": "dispatch",
+    "active": 0,
+    "pendingReview": 0,
+    "recovery": 0,
+    "recentlyCompleted": 1,
+    "receiptLabel": "receipt 5d7803e4",
+    "receiptValue": "https://github.com/curiositech/port-daddy/pull/1866"
+  },
+  "prePreservationRegression": {
+    "rawEvidence": "runtime-proof-pre-preservation-fix.json",
+    "dispatchIds": [
+      "a99a69a3-ee4a-735c-083d-a4f0d6c8ee2a",
+      "b852b6b6-fd53-4b9d-fba5-043d52b5da45"
+    ],
+    "observed": "Both runs were stored as settled with null resultArtifact and their dirty worktrees were reaped.",
+    "fixedContract": "A produced or settled Conductor launch without resultArtifact maps to salvage and preserves its worktree for recovery.",
+    "focusedRegressionTestsPassed": 2
+  },
+  "berthRestartPersistence": {
+    "sessionId": "session-named-berth-cool-bus-persistence-proof-eeac37b3302f",
+    "purpose": "named berth cool-bus persistence proof",
+    "noteId": 1,
+    "note": "ledger marker survives ordinary pd dev down/up",
+    "stopOutput": "state preserved: /Users/erichowens/.port-daddy/instances/pd-console-live",
+    "restartOutput": "DB: kept existing berth DB (not re-seeded)",
+    "readBackAfterRestart": true,
+    "daemonPidAfterRestart": 74191
+  },
+  "visualEvidence": [
+    "02-live-agent-multiplex.png",
+    "03-live-transcript-steer.png",
+    "04-live-transcript-stream.mov",
+    "05-two-roadmap-work-bonds.png",
+    "06-completed-roadmap-receipt.png",
+    "07-berth-ledger-survived-restart.png"
+  ]
+}

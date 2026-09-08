@@ -25,6 +25,16 @@
   --rule-strong: var(--border-strong);
   --rule-subtle: var(--border-subtle);
 
+  /* Status shorthand roles. Feature/docs pages were already consuming
+     var(--error) / var(--success) / var(--warning) / var(--info) — until
+     these aliases existed those references silently resolved to nothing
+     (transparent stripes, default-colored icons). Kept as first-class
+     roles so the short names stay honest. */
+  --error: var(--status-error);
+  --success: var(--status-success);
+  --warning: var(--status-warning);
+  --info: var(--status-info);
+
   --radius: 0;
   --background: var(--surface-base);
   --foreground: var(--text-primary);

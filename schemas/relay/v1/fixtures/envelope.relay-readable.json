@@ -1,0 +1,26 @@
+{
+  "schema": "pd.relay.envelope.v1",
+  "v": 1,
+  "classification": "relay_readable",
+  "harbor": "github",
+  "channel": "github:webhook:pull_request",
+  "sender": "0d7e19e21a9f2b04f1f2b71b7f0c8a53a9c19a7de1d0f4d2c8b6a5e4f3d2c1b0",
+  "seq": 1,
+  "iat": 1755648000,
+  "payload": {
+    "event_type": "pull_request",
+    "delivery_id": "fixture-delivery-0001",
+    "action": "opened",
+    "repository": "curiositech/port-daddy",
+    "payload": {
+      "action": "opened",
+      "repository": { "full_name": "curiositech/port-daddy" }
+    }
+  },
+  "reason": "github webhook relay: payload is GitHub-public data",
+  "sig": {
+    "alg": "ed25519",
+    "key_id": "3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29",
+    "value": "d2c1b0a9f8e7d6c5b4a3928170f6e5d4c3b2a190887766554433221100ffeeddd2c1b0a9f8e7d6c5b4a3928170f6e5d4c3b2a190887766554433221100ffeedd"
+  }
+}

@@ -32,11 +32,19 @@ describe('resolveTubeBackend', () => {
     })
   })
 
-  it('goes live (same-origin) under the embedded /fleet-ui console', () => {
+  it('goes live with a relative baseUrl (same-origin) under the embedded /fleet-ui console', () => {
     const location = { origin: 'http://127.0.0.1:4321', pathname: '/fleet-ui/dashboard', search: '' }
     expect(resolveTubeBackend(undefined, location)).toEqual({
       mode: 'live',
-      baseUrl: 'http://127.0.0.1:4321',
+      baseUrl: '',
+    })
+  })
+
+  it('lets an explicit selected daemon override an embedded page origin', () => {
+    const location = { origin: 'http://127.0.0.1:4321', pathname: '/fleet-ui/', search: '' }
+    expect(resolveTubeBackend('http://127.0.0.1:9000', location)).toEqual({
+      mode: 'live',
+      baseUrl: 'http://127.0.0.1:9000',
     })
   })
 

@@ -18,7 +18,7 @@ tags:
 
 An operad formalizes "a complex thing decomposes into simpler things, and the decomposition itself composes." Each operation has typed inputs and a typed output. Composition is hierarchical: you can plug the output of one operation into the input of another, provided the types match. The composition laws (associativity and identity) guarantee that decomposition is well-defined regardless of the order you assemble the pieces.
 
-This is the mathematical structure underlying DAG-of-agents architectures, WinDAGs, and any system where tasks decompose into subtasks with explicit interface contracts.
+This is the mathematical structure underlying DAG-of-agents architectures, Jury-rig, and any system where tasks decompose into subtasks with explicit interface contracts.
 
 ## When to Use
 
@@ -136,7 +136,7 @@ Spivak's **operad of wiring diagrams** (2013) provides a visual and formal langu
     └──────────────────────────────────────┘
 ```
 
-**This IS the WinDAGs architecture:**
+**This IS the Jury-rig architecture:**
 - Each box = an agent node in the DAG
 - Each port = a typed input or output
 - Wiring = edges in the DAG with type annotations
@@ -278,7 +278,7 @@ interface TaskOperad {
       "name": "analyze",
       "inputs": [{ "name": "problem", "type": "ProblemDescription" }],
       "output": { "type": "DomainAnalysis" },
-      "agent": "windags-sensemaker"
+      "agent": "jury_rig-sensemaker"
     },
     {
       "name": "implement",
@@ -302,7 +302,7 @@ interface TaskOperad {
         { "name": "tests", "type": "TestResults" }
       ],
       "output": { "type": "FinalDeliverable" },
-      "agent": "windags-evaluator"
+      "agent": "jury_rig-evaluator"
     }
   ],
   "composition_order": [
@@ -327,11 +327,11 @@ If any check fails: INVALID decomposition. Report the type mismatch.
 
 ---
 
-## Relationship to WinDAGs
+## Relationship to Jury-rig
 
-The WinDAGs architecture is an instantiation of the operad of wiring diagrams:
+The Jury-rig architecture is an instantiation of the operad of wiring diagrams:
 
-| Operad Concept | WinDAGs Equivalent |
+| Operad Concept | Jury-rig Equivalent |
 |---|---|
 | Type (color) | Node output schema |
 | Operation | Agent node with skill assignment |
@@ -342,9 +342,9 @@ The WinDAGs architecture is an instantiation of the operad of wiring diagrams:
 | Nested wiring diagram | Sub-DAG (hierarchical decomposition) |
 | Associativity | "Decompose T into sub-DAGs, or directly into leaves -- same result" |
 
-**The WinDAGs Decomposer agent is performing operad construction:** Given a problem description, it produces a wiring diagram (DAG topology) where each box (node) has typed inputs and outputs, and the wiring (edges) respects type compatibility.
+**The Jury-rig Decomposer agent is performing operad construction:** Given a problem description, it produces a wiring diagram (DAG topology) where each box (node) has typed inputs and outputs, and the wiring (edges) respects type compatibility.
 
-**The WinDAGs Mutator is performing operad substitution:** When a node fails and the DAG needs restructuring, the mutator replaces an operation with a different operation of the same type signature, or decomposes it into sub-operations. The operad structure guarantees the replacement is type-safe.
+**The Jury-rig Mutator is performing operad substitution:** When a node fails and the DAG needs restructuring, the mutator replaces an operation with a different operation of the same type signature, or decomposes it into sub-operations. The operad structure guarantees the replacement is type-safe.
 
 ---
 
@@ -409,4 +409,4 @@ You have a valid task operad when:
 - [ ] Every type is produced by at least one operation and consumed by at least one operation (except initial/final types)
 - [ ] No operation has more than 5 inputs (decompose further if so)
 - [ ] Iterative/looping behaviors are encapsulated inside operations, not expressed as cycles in the operad
-- [ ] The operad corresponds to a valid WinDAGs DAG topology (if applicable)
+- [ ] The operad corresponds to a valid Jury-rig DAG topology (if applicable)

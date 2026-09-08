@@ -37,6 +37,10 @@ import {
   type ClaimRegionArgs,
   type ReleaseRegionArgs,
 } from '../lib/editor-claims-mcp.js';
+import { serializeSwarmDigest, serializeLegacySwarmSnapshot } from '../lib/swarm-awareness-digest.js';
+import { beginRequestFingerprint, generateBeginIdempotencyKey } from '../lib/begin-idempotency.js';
+import { governToolOutput } from '../lib/mcp-output-governor.js';
+import { setActiveSession, clearActiveSession, resolveSessionId, resolveAgentId, resolveActorCredential } from '../lib/mcp-session-cache.js';
 
 // ---------------------------------------------------------------------------
 // Config
@@ -63,6 +67,16 @@ async function api(
 ): Promise<ApiResponse> {
   const url = new URL(path, DAEMON_URL);
 
+  // #8877 / ADR-0122: attributed daemon writes require the ADR-0040
+  // daemon-minted credential. Present the one begin_session captured (or the
+  // env-injected one) on every request; harmless on reads, required on writes.
+  const actorCredential = resolveActorCredential();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  };
+  if (actorCredential) headers['x-actor-credential'] = actorCredential;
+
   return new Promise((resolve, reject) => {
     const req = http.request(
       {
@@ -70,10 +84,7 @@ async function api(
         port: url.port,
         path: url.pathname + url.search,
         method,
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
+        headers,
         timeout: options?.timeout ?? REQUEST_TIMEOUT,
       },
       (res) => {
@@ -137,6 +148,7 @@ const ESSENTIAL_TOOL_NAMES = new Set([
   // Magic tools — high-level composed operations for vibe coders
   'fleet_init',
   'active_agent_roster',
+  'durable_agent_roster',
   'swarm_awareness',
   'coordination_preflight',
   'sitrep',
@@ -154,6 +166,10 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
   'magic': {
     description: 'High-level composed tools: fleet setup, swarm awareness, situation reports, spawning, file heat maps, agent messaging',
     tools: ['fleet_init', 'fleet_status', 'active_agent_roster', 'swarm_awareness', 'sitrep', 'catch_me_up', 'file_heat', 'talk_to_agent', 'spawn'],
+  },
+  'roster': {
+    description: 'Durable named AgentNode identities — hybrid expertise lookup, profile creation, session promotion, handoff attachment, and cross-runtime continuation',
+    tools: ['durable_agent_roster', 'create_durable_agent', 'promote_session_to_durable_agent', 'attach_durable_agent_handoff', 'continue_durable_agent', 'harness_continuation_matrix'],
   },
   'session-lifecycle': {
     description: 'Start/end sessions, manage agent registration (sugar commands)',
@@ -240,8 +256,8 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     tools: ['cockpit_missions_list'],
   },
   'system': {
-    description: 'Daemon status, version, metrics, config, launch hints, relay, and harbormaster liveness',
-    tools: ['daemon_status', 'get_version', 'get_metrics', 'get_config', 'wait_for_service', 'get_launch_hints', 'relay_status', 'harbormaster_status'],
+    description: 'Daemon status, version, metrics, config, launch hints, relay and coordination peers, harbormaster liveness, and witnessed harness compatibility',
+    tools: ['daemon_status', 'get_version', 'get_metrics', 'get_config', 'wait_for_service', 'get_launch_hints', 'relay_status', 'coordination_status', 'harbormaster_status', 'harness_continuation_matrix'],
   },
   'tuples': {
     description: 'Shared tuple space for swarm coordination — write, read, take, scan, count',
@@ -273,8 +289,8 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     tools: ['spray_pheromone', 'resolve_pheromone', 'pheromone_coverage', 'read_pheromones', 'read_entity_pheromones'],
   },
   'roadmap': {
-    description: 'Tuple-backed roadmap of record — read progress/claims (cartographer projection), list/get items, and promote feedback into a roadmap item',
-    tools: ['roadmap_progress', 'roadmap_claims', 'roadmap_list', 'roadmap_get', 'roadmap_promote'],
+    description: 'Tuple-backed roadmap of record — read progress/claims (cartographer projection), list/get/search items, and promote feedback into a roadmap item',
+    tools: ['roadmap_progress', 'roadmap_claims', 'roadmap_list', 'roadmap_get', 'roadmap_promote', 'roadmap_search', 'roadmap_export'],
   },
   'commitments': {
     description: 'Durable commitments + obligation monitor (ADR-0041) — make a commitment, list yours, and see what is overdue',
@@ -289,8 +305,8 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     tools: ['call_parley', 'list_parleys', 'get_parley', 'respond_parley', 'resolve_parley'],
   },
   'knowledge': {
-    description: 'Semantic search + symbol index — search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming',
-    tools: ['semantic_search', 'semantic_resolve', 'find_symbols', 'symbol_stats', 'predict_conflicts', 'blast_radius'],
+    description: 'Semantic search + symbol index — inspect Jury-rig coverage, search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming',
+    tools: ['jury_rig_status', 'semantic_search', 'semantic_resolve', 'find_symbols', 'symbol_stats', 'predict_conflicts', 'blast_radius'],
   },
   'context': {
     description: 'Context economics — per-agent token budget health, swarm COGS overview, and per-spawn task ledger',
@@ -318,7 +334,8 @@ const TOOLS = [
       '[Essential] Register agent + start session in one atomic step. Use this at the start of every ' +
       'coding session instead of calling register_agent and start_session separately. ' +
       'Returns agentId, sessionId, and a salvageHint if dead agents need attention. ' +
-      'Usage: begin_session({purpose: "Building auth system", identity: "myapp:api:main", lifecycle: "ephemeral"})',
+      'Rent-at-claim: exactly ONE of roadmap / roadmap_new / sidequest is REQUIRED. ' +
+      'Usage: begin_session({purpose: "Building auth system", identity: "myapp:api:main", lifecycle: "ephemeral", roadmap: "adr-0090-database-distribution"})',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -349,6 +366,24 @@ const TOOLS = [
           type: 'array',
           items: { type: 'string' },
           description: 'Files to claim for this session (advisory — shows conflicts to other agents)',
+        },
+        roadmap: {
+          type: 'string',
+          description:
+            'Rent-at-claim: slug of an EXISTING roadmap item to link this session to. ' +
+            'Mutually exclusive with sidequest and roadmap_new.',
+        },
+        sidequest: {
+          type: 'string',
+          description:
+            'Rent-at-claim opt-out: one-line reason this work is off-roadmap (min 12 chars). ' +
+            'Mutually exclusive with roadmap and roadmap_new.',
+        },
+        roadmap_new: {
+          type: 'string',
+          description:
+            'Rent-at-claim genesis: title for a NEW draft roadmap item to create and link. ' +
+            'Mutually exclusive with roadmap and sidequest.',
         },
       },
       required: ['purpose', 'lifecycle'],
@@ -442,6 +477,20 @@ const TOOLS = [
       'connected to the cloud relay, its session, last handshake, and which channels ' +
       'are accepted — so an agent can tell if cross-machine pub/sub is live before ' +
       'relying on it. Read-only. Usage: relay_status()',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+  {
+    name: 'coordination_status',
+    description:
+      '[System] Offline-first coordination peer status (ADR-0092 section 4). ' +
+      'Returns whether federation is enabled and connected plus the project, actor, ' +
+      'stable replica id, durable room cursor, pending local outbox count, last sync, ' +
+      'and last error. A disconnected peer does not mean local coordination is ' +
+      'unavailable: the local SQLite ledger remains writable and reconverges later. ' +
+      'Read-only. Usage: coordination_status()',
     inputSchema: {
       type: 'object' as const,
       properties: {},
@@ -632,6 +681,42 @@ const TOOLS = [
       required: ['slug'],
     },
   },
+  {
+    name: 'roadmap_search',
+    description:
+      '[Roadmap] Rank roadmap items against free text (BM25 -> cosine over shared MiniLM embeddings, ' +
+      'same cascade as pd whois). Use before pd_begin when you know what you are about to work on but ' +
+      'not the exact --roadmap slug. Usage: roadmap_search({query: "fix the login timeout"})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        query: { type: 'string', description: 'Free text describing the work' },
+        harbor: { type: 'string', description: 'Restrict to one harbor (optional)' },
+        limit: { type: 'number', description: 'Max candidates to return (default 5)' },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'roadmap_export',
+    description:
+      '[Roadmap] Push one roadmap item to an external tracker (GitHub Issues, Linear, or Jira). ' +
+      'One-way, repeatable push, not two-way sync. Credentials come from server env vars only. ' +
+      'Usage: roadmap_export({slug: "fix-x", target: "github", repo: "acme/widgets"})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        slug: { type: 'string', description: 'Roadmap item slug to export' },
+        target: { type: 'string', enum: ['github', 'linear', 'jira'], description: 'Which tracker' },
+        repo: { type: 'string', description: 'GitHub only: "owner/repo"' },
+        teamId: { type: 'string', description: 'Linear only: team id to file the issue under' },
+        baseUrl: { type: 'string', description: 'Jira only: e.g. https://your-org.atlassian.net' },
+        projectKey: { type: 'string', description: 'Jira only: project key, e.g. "ROAD"' },
+        issueType: { type: 'string', description: 'Jira only: issue type name (default "Task")' },
+      },
+      required: ['slug', 'target'],
+    },
+  },
 
   // ── Commitments (ADR-0041 obligations) ───────────────────────────────
   {
@@ -780,6 +865,17 @@ const TOOLS = [
   },
 
   // ── Knowledge (semantic search + symbol index) ───────────────────────
+  {
+    name: 'jury_rig_status',
+    description:
+      '[Knowledge] Read-only Tool2Vec catalog coverage and checkpoint state. ' +
+      'Reports current, cold, reconciling, embedder-down, or generator-down ' +
+      'without generating centroids or calling an LLM. Usage: jury_rig_status()',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
   {
     name: 'semantic_search',
     description:
@@ -1111,7 +1207,9 @@ const TOOLS = [
       '[Essential] Add a note to the current session or create a quick standalone note. ' +
       'Notes are immutable — once added, they cannot be edited or deleted. ' +
       'Use liberally: progress updates, decisions made, blockers hit, handoffs to other agents. ' +
-      'Usage: add_note({content: "Switched to PKCE flow for SPAs", type: "decision"})',
+      'If this MCP process has no cached begin_session attachment and multiple sessions are active, ' +
+      'pass agent_id (from your begin_session response) or session_id to avoid AMBIGUOUS_ACTIVE_SESSION. ' +
+      'Usage: add_note({content: "Switched to PKCE flow for SPAs", type: "decision", agent_id: "agent-abc123"})',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -1126,7 +1224,14 @@ const TOOLS = [
         },
         session_id: {
           type: 'string',
-          description: 'Session ID to add note to (omit for active session or quick note)',
+          description: 'Session ID to add note to. Omit to use the session this process attached to via begin_session, if any; otherwise a quick standalone note.',
+        },
+        agent_id: {
+          type: 'string',
+          description:
+            'Your agent ID (from begin_session response). Disambiguates which session to write to ' +
+            'when multiple sessions are active in this worktree — otherwise omitting session_id fails ' +
+            'with AMBIGUOUS_ACTIVE_SESSION.',
         },
       },
       required: ['content'],
@@ -1169,7 +1274,7 @@ const TOOLS = [
       properties: {
         session_id: {
           type: 'string',
-          description: 'Session ID (omit for recent notes)',
+          description: 'Session ID. Omit to use the session this process attached to via begin_session; if none, recent notes.',
         },
         limit: {
           type: 'number',
@@ -1190,7 +1295,7 @@ const TOOLS = [
     inputSchema: {
       type: 'object' as const,
       properties: {
-        session_id: { type: 'string', description: 'Session ID' },
+        session_id: { type: 'string', description: 'Session ID. Omit to use the session this process attached to via begin_session.' },
         paths: {
           type: 'array',
           items: { type: 'string' },
@@ -1212,7 +1317,6 @@ const TOOLS = [
         },
         force: { type: 'boolean', description: 'Claim despite conflicts' },
       },
-      required: ['session_id'],
     },
   },
   {
@@ -1221,11 +1325,11 @@ const TOOLS = [
       '[Standard] Declare symbol-level claims for the active session. A `modify` claim AUTO-RESERVES its ' +
       'blast radius (read-claims on every downstream caller), so a contract change holds its callers stable. ' +
       'Returns predicted conflicts (direct/dependency/signature/transitive) with other active sessions — advisory, never blocks. ' +
-      'Usage: claim_symbols({session_id, claims: [{filePath: "lib/server.ts", symbolPath: "createRoutes", type: "modify"}]})',
+      'Usage: claim_symbols({claims: [{filePath: "lib/server.ts", symbolPath: "createRoutes", type: "modify"}]}) — session_id optional, defaults to the session begin_session attached.',
     inputSchema: {
       type: 'object' as const,
       properties: {
-        session_id: { type: 'string', description: 'Session ID' },
+        session_id: { type: 'string', description: 'Session ID. Omit to use the session this process attached to via begin_session.' },
         claims: {
           type: 'array',
           description: 'Symbol claims to declare',
@@ -1242,7 +1346,7 @@ const TOOLS = [
         auto_derive_radius: { type: 'boolean', description: 'Auto-reserve each modify\'s blast radius (default true)' },
         radius_depth: { type: 'number', description: 'How far the auto-reservation reaches (default 3)' },
       },
-      required: ['session_id', 'claims'],
+      required: ['claims'],
     },
   },
   {
@@ -1253,7 +1357,7 @@ const TOOLS = [
       properties: {
         session_id: {
           type: 'string',
-          description: 'Session ID',
+          description: 'Session ID. Omit to use the session this process attached to via begin_session.',
         },
         files: {
           type: 'array',
@@ -1274,7 +1378,6 @@ const TOOLS = [
           },
         },
       },
-      required: ['session_id'],
     },
   },
 
@@ -1286,14 +1389,14 @@ const TOOLS = [
     inputSchema: {
       type: 'object' as const,
       properties: {
-        session_id: { type: 'string', description: 'Session ID' },
+        session_id: { type: 'string', description: 'Session ID. Omit to use the session this process attached to via begin_session.' },
         phase: {
           type: 'string',
           enum: ['planning', 'in_progress', 'testing', 'reviewing', 'completed', 'abandoned'],
           description: 'Session phase',
         },
       },
-      required: ['session_id', 'phase'],
+      required: ['phase'],
     },
   },
 
@@ -1640,10 +1743,6 @@ const TOOLS = [
           type: 'string',
           description: 'Message content to queue.',
         },
-        from: {
-          type: 'string',
-          description: 'Sender agent id or operator label.',
-        },
         type: {
           type: 'string',
           description: 'Optional message type.',
@@ -1803,10 +1902,6 @@ const TOOLS = [
         content: {
           type: 'string',
           description: 'Message content',
-        },
-        from: {
-          type: 'string',
-          description: 'Sender agent ID (optional)',
         },
         type: {
           type: 'string',
@@ -2732,10 +2827,116 @@ const TOOLS = [
     },
   },
   {
+    name: 'harness_continuation_matrix',
+    description:
+      '[Standard] Read the honest N:N harness matrix. Returns catalog mechanics separately from fresh/stale ' +
+      'daemon-witnessed spawn, live-control, native-resume, and handoff evidence; never a scalar compliance badge.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+  {
+    name: 'durable_agent_roster',
+    description:
+      '[Essential] Find durable named agents by expertise, list a system/repo roster, or inspect one AgentNode. ' +
+      'Search always combines BM25 with the shared local MiniLM embedder when available and labels any lexical fallback.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        query: { type: 'string', description: 'Expertise or task query. Omit to list.' },
+        agent_node_id: { type: 'string', description: 'Exact daemon-minted AgentNode id. Takes precedence over query.' },
+        repo_root: { type: 'string', description: 'Limit list/search to the canonical Git repository scope.' },
+        include_retired: { type: 'boolean', description: 'Include retired durable identities.' },
+        limit: { type: 'number', description: 'Maximum results (1-50 for search, 1-500 for list).' },
+      },
+    },
+  },
+  {
+    name: 'create_durable_agent',
+    description:
+      '[Standard] Mint a durable named AgentNode from an operator-authored profile. The slug is a unique human alias; ' +
+      'permissions and triggers remain explicitly declaration-only until a witnessed runtime enforces them.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        slug: { type: 'string', description: 'Meaningful hyphenated name, e.g. portdaddy-typography-expert.' },
+        display_name: { type: 'string' },
+        remit: { type: 'string', description: 'Bounded responsibility and expertise.' },
+        instructions: { type: 'string', description: 'Durable operating prompt; fail-closed secret scanned.' },
+        scope: { type: 'string', enum: ['system', 'repo'] },
+        repo_root: { type: 'string', description: 'Required for repo scope.' },
+        skills: { type: 'array', items: { type: 'string' } },
+        tools: { type: 'array', items: { type: 'string' } },
+        backends: { type: 'array', items: { type: 'string' }, description: 'Ordered backend preferences.' },
+        models: { type: 'array', items: { type: 'string' }, description: 'Optional models parallel to backends.' },
+      },
+      required: ['slug', 'remit', 'instructions', 'scope'],
+    },
+  },
+  {
+    name: 'promote_session_to_durable_agent',
+    description:
+      '[Standard] Promote a great Port Daddy session into a durable named AgentNode using an already-sanitized handoff episode. ' +
+      'The daemon verifies that the capsule and coordination session lineage agree.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        source_session_id: { type: 'string' },
+        handoff_episode_id: { type: 'number' },
+        slug: { type: 'string' },
+        display_name: { type: 'string' },
+        remit: { type: 'string' },
+        instructions: { type: 'string' },
+        scope: { type: 'string', enum: ['system', 'repo'] },
+        repo_root: { type: 'string' },
+        skills: { type: 'array', items: { type: 'string' } },
+        tools: { type: 'array', items: { type: 'string' } },
+        backends: { type: 'array', items: { type: 'string' } },
+        models: { type: 'array', items: { type: 'string' } },
+      },
+      required: ['source_session_id', 'handoff_episode_id', 'slug', 'remit', 'instructions', 'scope'],
+    },
+  },
+  {
+    name: 'attach_durable_agent_handoff',
+    description: '[Standard] Attach a new sanitized handoff episode to the matching durable AgentNode for later continuation.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        agent_node_id: { type: 'string' },
+        handoff_episode_id: { type: 'number' },
+      },
+      required: ['agent_node_id', 'handoff_episode_id'],
+    },
+  },
+  {
+    name: 'continue_durable_agent',
+    description:
+      '[Standard] Continue the same durable AgentNode in a chosen backend. Same-family native resume is used only with a ' +
+      'fresh daemon witness; every other path uses the sanitized successor brief and durable continuation receipt.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        agent_node_id: { type: 'string' },
+        target_backend: { type: 'string' },
+        mode: { type: 'string', enum: ['auto', 'native', 'handoff'] },
+        model: { type: 'string' },
+        prompt: { type: 'string' },
+        handoff_episode_id: { type: 'number', description: 'Override the profile latest handoff episode.' },
+        idempotency_key: { type: 'string' },
+        timeout_ms: { type: 'number' },
+      },
+      required: ['agent_node_id', 'target_backend', 'idempotency_key'],
+    },
+  },
+  {
     name: 'swarm_awareness',
     description:
       '[Magic] Who else is working here? Returns all active agents with their identities, purposes, ' +
-      'file claims, session notes, heartbeat freshness, harness lane, and session-control affordances. One call to understand the whole swarm.',
+      'file claims, latest session note, heartbeat freshness, harness lane, and session-control affordances. ' +
+      'One call to understand the whole swarm. Output is a bounded digest (hard character budget, explicit ' +
+      'omission counters); the full-fidelity roster lives at GET /agent-roster on the daemon.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -2817,7 +3018,7 @@ const TOOLS = [
         model_tier: { type: 'string', description: 'Optional model tier shortcut: low, mid, or high' },
         purpose: { type: 'string', description: 'Optional short human-readable label for the run' },
         files: { type: 'array', description: 'Optional focused file list, mainly for aider-backed runs', items: { type: 'string' } },
-        workdir: { type: 'string', description: 'Optional working directory override' },
+        workdir: { type: 'string', description: 'Existing absolute working directory, required for local CLI/file-capable agents. Omit only for API-only projectless runs; never defaults to the daemon directory.' },
         timeout: { type: 'number', description: 'Optional timeout in milliseconds' },
         allowed_tools: { type: 'string', description: 'Comma-separated tool list (e.g. "Read,Grep,Glob,Write")' },
         max_tokens: { type: 'number', description: 'Optional token ceiling for claude or claude-cli launches' },
@@ -3272,6 +3473,26 @@ const DAEMON_RECOVERY_HINT =
 // Tool handler
 // ---------------------------------------------------------------------------
 
+/**
+ * Begin idempotency keys, per logical begin, for the life of this MCP
+ * process. A harness that re-issues the SAME `begin_session` call (a tool
+ * retry after a lost or timed-out result) maps to the same key by request
+ * fingerprint, so the daemon replays the session it already committed rather
+ * than minting a second one. Scoped to this process on purpose: keys derived
+ * from public arguments alone would let any caller replay another agent's
+ * begin (and receive its credential).
+ */
+const beginIdempotencyKeysByFingerprint = new Map<string, string>();
+
+function beginIdempotencyKeyFor(body: Record<string, unknown>): string {
+  const fingerprint = beginRequestFingerprint(body);
+  const existing = beginIdempotencyKeysByFingerprint.get(fingerprint);
+  if (existing) return existing;
+  const key = generateBeginIdempotencyKey();
+  beginIdempotencyKeysByFingerprint.set(fingerprint, key);
+  return key;
+}
+
 async function handleTool(
   name: string,
   args: Record<string, unknown>
@@ -3290,6 +3511,34 @@ async function handleTool(
       if (args.agent_id) body.agentId = args.agent_id;
       if (args.type) body.type = args.type;
       if (args.files) body.files = args.files;
+      // Rent-at-claim (S3): the gate is enforced HERE, at the MCP boundary,
+      // with the same semantics as the pd CLI — agents are the dominant
+      // programmatic caller and must pay roadmap rent too. Only the daemon's
+      // raw HTTP surface stays lenient in v1 (documented in lib/sugar.ts).
+      if (args.roadmap) body.roadmapLink = args.roadmap;
+      if (args.sidequest) body.sidequestReason = args.sidequest;
+      if (args.roadmap_new) body.roadmapNewTitle = args.roadmap_new;
+      if (!body.roadmapLink && !body.sidequestReason && !body.roadmapNewTitle) {
+        // Bounded env exemption (server-side env, operator-controlled) —
+        // mirrors cli/commands/sugar.ts resolveBeginRent.
+        const exempt = typeof process.env.PD_RENT_EXEMPT === 'string'
+          ? process.env.PD_RENT_EXEMPT.trim().toLowerCase()
+          : '';
+        if (exempt === 'hotfix' || exempt === 'chore') {
+          body.sidequestReason = `PD_RENT_EXEMPT: ${exempt}`;
+        } else {
+          return JSON.stringify({
+            success: false,
+            error:
+              'begin_session needs a roadmap link or an explicit opt-out. Pass exactly one:\n' +
+              '  roadmap: "<slug>"        link this session to an existing roadmap item\n' +
+              '  roadmap_new: "<title>"   create a draft roadmap item and link it\n' +
+              '  sidequest: "<reason>"    opt out with a one-line reason (min 12 chars)',
+            code: 'ROADMAP_RENT_REQUIRED',
+          }, null, 2);
+        }
+      }
+      body.idempotencyKey = beginIdempotencyKeyFor(body);
       res = await POST('/sugar/begin', body);
 
       // Attach salvage context — check if any dead agents share this project
@@ -3317,22 +3566,40 @@ async function handleTool(
         } catch {
           // salvage context is best-effort — never fail begin_session over it
         }
+        // Cache this process's session so later session-scoped calls
+        // (add_note, claim_files, ...) don't need session_id/agent_id
+        // re-supplied on every call. See lib/mcp-session-cache.ts.
+        const data = res.data as Record<string, unknown>;
+        const agentId = typeof data.agentId === 'string' ? data.agentId : undefined;
+        const sessionId = typeof data.sessionId === 'string' ? data.sessionId : undefined;
+        // #8877: begin mints (or verifies) the ADR-0040 soul; the returned
+        // credential must be cached so every later attributed write from this
+        // process presents it. NEVER echo the credential back into the tool
+        // output visible to the model transcript longer than necessary — but
+        // the begin response itself already carries it by design (returned
+        // once); we additionally keep it here for subsequent calls.
+        const mintedCredential = typeof data.credential === 'string' ? data.credential : undefined;
+        if (agentId && sessionId) setActiveSession({ agentId, sessionId, credential: mintedCredential });
       }
       break;
     }
 
     case 'end_session_full': {
       const body: Record<string, unknown> = {};
-      if (args.agent_id) body.agentId = args.agent_id;
-      if (args.session_id) body.sessionId = args.session_id;
+      const agentId = resolveAgentId(args);
+      const sessionId = resolveSessionId(args);
+      if (agentId) body.agentId = agentId;
+      if (sessionId) body.sessionId = sessionId;
       if (args.note) body.note = args.note;
       if (args.status) body.status = args.status;
       res = await POST('/sugar/done', body);
+      if (res.status >= 200 && res.status < 300) clearActiveSession();
       break;
     }
 
     case 'whoami': {
-      const qs = args.agent_id ? `?agentId=${encodeURIComponent(args.agent_id as string)}` : '';
+      const agentId = resolveAgentId(args);
+      const qs = agentId ? `?agentId=${encodeURIComponent(agentId)}` : '';
       res = await GET(`/sugar/whoami${qs}`);
       break;
     }
@@ -3355,6 +3622,11 @@ async function handleTool(
 
     case 'relay_status': {
       res = await GET('/relay/status');
+      break;
+    }
+
+    case 'coordination_status': {
+      res = await GET('/coordination/status');
       break;
     }
 
@@ -3464,6 +3736,25 @@ async function handleTool(
       break;
     }
 
+    case 'roadmap_search': {
+      const params = new URLSearchParams({ q: args.query as string });
+      if (args.harbor) params.set('harbor', args.harbor as string);
+      if (args.limit !== undefined) params.set('limit', String(args.limit));
+      res = await GET(`/roadmap/search?${params.toString()}`);
+      break;
+    }
+
+    case 'roadmap_export': {
+      const body: Record<string, unknown> = { target: args.target };
+      if (args.repo !== undefined) body.repo = args.repo;
+      if (args.teamId !== undefined) body.teamId = args.teamId;
+      if (args.baseUrl !== undefined) body.baseUrl = args.baseUrl;
+      if (args.projectKey !== undefined) body.projectKey = args.projectKey;
+      if (args.issueType !== undefined) body.issueType = args.issueType;
+      res = await POST(`/roadmap/items/${encodeURIComponent(args.slug as string)}/export`, body);
+      break;
+    }
+
     // ── Commitments (ADR-0041) ──────────────────────────────────────
     case 'commit': {
       const body: Record<string, unknown> = {
@@ -3564,6 +3855,11 @@ async function handleTool(
     }
 
     // ── Knowledge (semantic search + symbol index) ──────────────────
+    case 'jury_rig_status': {
+      res = await GET('/jury-rig/status');
+      break;
+    }
+
     case 'semantic_search': {
       const params = new URLSearchParams();
       params.set('q', args.q as string);
@@ -3618,8 +3914,10 @@ async function handleTool(
       const body: Record<string, unknown> = {};
       if (args.project_root) body.projectRoot = args.project_root;
       if (args.task) body.task = args.task;
-      if (args.session_id) body.sessionId = args.session_id;
-      if (args.agent_id) body.agentId = args.agent_id;
+      const preflightSessionId = resolveSessionId(args);
+      const preflightAgentId = resolveAgentId(args);
+      if (preflightSessionId) body.sessionId = preflightSessionId;
+      if (preflightAgentId) body.agentId = preflightAgentId;
       if (args.files) body.files = args.files;
       if (args.include_channels) body.includeChannels = true;
       if (args.include_tuple_hints) body.includeTupleHints = true;
@@ -3741,7 +4039,10 @@ async function handleTool(
     case 'add_note': {
       const body: Record<string, unknown> = { content: args.content };
       if (args.type) body.type = args.type;
-      if (args.session_id) body.sessionId = args.session_id;
+      const noteSessionId = resolveSessionId(args);
+      const noteAgentId = resolveAgentId(args);
+      if (noteSessionId) body.sessionId = noteSessionId;
+      if (noteAgentId) body.agentId = noteAgentId;
 
       res = await POST('/notes', body);
       break;
@@ -3764,8 +4065,9 @@ async function handleTool(
       if (args.limit) params.set('limit', String(args.limit));
       if (args.project) params.set('project', args.project as string);
       const qs = params.toString() ? `?${params.toString()}` : '';
-      if (args.session_id) {
-        res = await GET(`/sessions/${args.session_id}/notes${qs}`);
+      const listNotesSessionId = resolveSessionId(args);
+      if (listNotesSessionId) {
+        res = await GET(`/sessions/${listNotesSessionId}/notes${qs}`);
       } else {
         res = await GET(`/notes${qs}`);
       }
@@ -3773,7 +4075,15 @@ async function handleTool(
     }
 
     case 'claim_files': {
-      res = await POST(`/sessions/${args.session_id}/files`, {
+      const claimFilesSessionId = resolveSessionId(args);
+      if (!claimFilesSessionId) {
+        return JSON.stringify({
+          success: false,
+          error: 'No session_id given and no active session cached in this process. Call begin_session first, or pass session_id explicitly.',
+          code: 'NO_ACTIVE_SESSION',
+        }, null, 2);
+      }
+      res = await POST(`/sessions/${claimFilesSessionId}/files`, {
         files: args.paths ?? [],
         regions: args.regions,
         force: args.force,
@@ -3782,7 +4092,15 @@ async function handleTool(
     }
 
     case 'claim_symbols': {
-      res = await POST(`/sessions/${args.session_id}/symbols`, {
+      const claimSymbolsSessionId = resolveSessionId(args);
+      if (!claimSymbolsSessionId) {
+        return JSON.stringify({
+          success: false,
+          error: 'No session_id given and no active session cached in this process. Call begin_session first, or pass session_id explicitly.',
+          code: 'NO_ACTIVE_SESSION',
+        }, null, 2);
+      }
+      res = await POST(`/sessions/${claimSymbolsSessionId}/symbols`, {
         claims: args.claims ?? [],
         autoDeriveRadius: args.auto_derive_radius,
         radiusDepth: args.radius_depth,
@@ -3791,7 +4109,15 @@ async function handleTool(
     }
 
     case 'release_files': {
-      res = await DELETE(`/sessions/${encodeURIComponent(args.session_id as string)}/files`, {
+      const releaseFilesSessionId = resolveSessionId(args);
+      if (!releaseFilesSessionId) {
+        return JSON.stringify({
+          success: false,
+          error: 'No session_id given and no active session cached in this process. Call begin_session first, or pass session_id explicitly.',
+          code: 'NO_ACTIVE_SESSION',
+        }, null, 2);
+      }
+      res = await DELETE(`/sessions/${encodeURIComponent(releaseFilesSessionId)}/files`, {
         files: args.files ?? [],
         regions: args.regions,
       });
@@ -3813,7 +4139,15 @@ async function handleTool(
 
     // ── Session Phases ──────────────────────────────────────────────
     case 'set_session_phase': {
-      res = await PUT(`/sessions/${encodeURIComponent(args.session_id as string)}/phase`, {
+      const phaseSessionId = resolveSessionId(args);
+      if (!phaseSessionId) {
+        return JSON.stringify({
+          success: false,
+          error: 'No session_id given and no active session cached in this process. Call begin_session first, or pass session_id explicitly.',
+          code: 'NO_ACTIVE_SESSION',
+        }, null, 2);
+      }
+      res = await PUT(`/sessions/${encodeURIComponent(phaseSessionId)}/phase`, {
         phase: args.phase,
       });
       break;
@@ -3955,7 +4289,14 @@ async function handleTool(
       const body: Record<string, unknown> = {
         content: args.content,
       };
-      if (args.from) body.from = args.from;
+      // #8877 / ADR-0122: `from` is no longer model-supplied. The inbox is an
+      // instruction plane — a model-chosen sender name is a forged authority
+      // label the daemon would have to take on faith. Send under this
+      // process's own session agentId (which the daemon can verify against
+      // the session binding), or send nothing and let it derive the minted
+      // actorId from the credential.
+      const senderAgentId = resolveAgentId({});
+      if (senderAgentId) body.from = senderAgentId;
       if (args.type) body.type = args.type;
       if (typeof args.wake === 'boolean') body.wake = args.wake;
       if (args.project) body.project = args.project;
@@ -4012,7 +4353,10 @@ async function handleTool(
     // ── Agent Inbox ─────────────────────────────────────────────────────
     case 'inbox_send': {
       const body: Record<string, unknown> = { content: args.content };
-      if (args.from) body.from = args.from;
+      // See message_actor: the sender is this process's verified session, not
+      // a string the model picked.
+      const senderAgentId = resolveAgentId({});
+      if (senderAgentId) body.from = senderAgentId;
       if (args.type) body.type = args.type;
       res = await POST(`/agents/${encodeURIComponent(args.agent_id as string)}/inbox`, body);
       break;
@@ -4482,14 +4826,104 @@ async function handleTool(
       return JSON.stringify({ agents, channels: msgs, recent_notes: recentNotes }, null, 2);
     }
 
+    case 'durable_agent_roster': {
+      if (args.agent_node_id) {
+        res = await GET(`/durable-agents/${encodeURIComponent(String(args.agent_node_id))}`);
+        break;
+      }
+      const params = new URLSearchParams();
+      if (args.repo_root) params.set('repoRoot', String(args.repo_root));
+      if (args.include_retired === true) params.set('includeRetired', 'true');
+      if (args.limit != null) params.set('limit', String(args.limit));
+      if (args.query) {
+        params.set('q', String(args.query));
+        res = await GET(`/durable-agents/search?${params}`);
+      } else {
+        res = await GET(`/durable-agents?${params}`);
+      }
+      break;
+    }
+
+    case 'create_durable_agent':
+    case 'promote_session_to_durable_agent': {
+      const backends = Array.isArray(args.backends) ? args.backends.map(String) : [];
+      const models = Array.isArray(args.models) ? args.models.map(String) : [];
+      const body: Record<string, unknown> = {
+        slug: args.slug,
+        displayName: args.display_name,
+        remit: args.remit,
+        instructions: args.instructions,
+        scope: args.scope === 'repo'
+          ? { kind: 'repo', repoRoot: args.repo_root }
+          : { kind: 'system' },
+        skills: args.skills,
+        tools: args.tools,
+        backendPreferences: backends.map((backend, index) => ({ backend, model: models[index] ?? models[0] ?? null })),
+      };
+      if (name === 'promote_session_to_durable_agent') {
+        body.sourceSessionId = args.source_session_id;
+        body.handoffEpisodeId = args.handoff_episode_id;
+        res = await POST('/durable-agents/promote', body);
+      } else {
+        res = await POST('/durable-agents', body);
+      }
+      break;
+    }
+
+    case 'attach_durable_agent_handoff': {
+      res = await POST(`/durable-agents/${encodeURIComponent(String(args.agent_node_id))}/handoffs`, {
+        episodeId: args.handoff_episode_id,
+      });
+      break;
+    }
+
+    case 'continue_durable_agent': {
+      const id = String(args.agent_node_id);
+      let episodeId = args.handoff_episode_id as number | undefined;
+      let defaultPrompt: string | undefined;
+      if (!episodeId || !args.prompt) {
+        const detail = await GET(`/durable-agents/${encodeURIComponent(id)}`);
+        if (detail.status < 200 || detail.status >= 300 || detail.data?.success === false) {
+          return JSON.stringify(detail.data, null, 2);
+        }
+        const agent = (detail.data as Record<string, unknown>).agent as Record<string, any> | undefined;
+        episodeId ??= agent?.continuation?.episodeId as number | undefined;
+        defaultPrompt = agent?.profile?.remit as string | undefined;
+      }
+      if (!episodeId) {
+        return JSON.stringify({ success: false, error: 'durable agent has no sanitized handoff episode' });
+      }
+      res = await POST(`/memory/handoffs/${episodeId}/continue`, {
+        targetBackend: args.target_backend,
+        mode: args.mode ?? 'auto',
+        model: args.model,
+        prompt: args.prompt ?? defaultPrompt,
+        durableAgentId: id,
+        idempotencyKey: args.idempotency_key,
+        timeoutMs: args.timeout_ms,
+      }, { timeout: typeof args.timeout_ms === 'number' ? args.timeout_ms + 90_000 : 390_000 });
+      break;
+    }
+
+    case 'harness_continuation_matrix': {
+      res = await GET('/harness-adapters/continuation-matrix');
+      break;
+    }
+
     case 'active_agent_roster':
     case 'swarm_awareness': {
+      // An MCP tool result must fit in the calling agent's context window;
+      // the raw roster (full squid matrices, complete note bodies, unbounded
+      // claim lists, pretty-printed) has blown past harness token caps in
+      // production. Both paths below go through the digest layer, which
+      // shapes and hard-budgets the output. Full fidelity stays on the
+      // /agent-roster HTTP endpoint for FleetBar / Control Center.
       const project = args.project as string | undefined;
       const rosterQs = new URLSearchParams({ limit: '50' });
       if (project) rosterQs.set('project', project);
       const rosterRes = await GET(`/agent-roster?${rosterQs}`);
       if (rosterRes.status >= 200 && rosterRes.status < 300 && rosterRes.data && rosterRes.data.success !== false) {
-        return JSON.stringify(rosterRes.data, null, 2);
+        return serializeSwarmDigest(rosterRes.data);
       }
 
       const qs = project ? `?identityPrefix=${encodeURIComponent(project)}` : '';
@@ -4501,12 +4935,12 @@ async function handleTool(
         GET('/files'),
         GET(`/salvage/pending${project ? '?project=' + encodeURIComponent(project) : ''}`),
       ]);
-      return JSON.stringify({
-        active_agents: (agentsRes.data as Record<string, unknown>)?.agents ?? [],
-        sessions: (sessionsRes.data as Record<string, unknown>)?.sessions ?? [],
-        file_claims: (filesRes.data as Record<string, unknown>)?.claims ?? (filesRes.data as Record<string, unknown>)?.files ?? [],
-        dead_agents: (salvageRes.data as Record<string, unknown>)?.agents ?? [],
-      }, null, 2);
+      return serializeLegacySwarmSnapshot({
+        agents: ((agentsRes.data as Record<string, unknown>)?.agents ?? []) as unknown[],
+        sessions: ((sessionsRes.data as Record<string, unknown>)?.sessions ?? []) as unknown[],
+        claims: ((filesRes.data as Record<string, unknown>)?.claims ?? (filesRes.data as Record<string, unknown>)?.files ?? []) as unknown[],
+        deadAgents: ((salvageRes.data as Record<string, unknown>)?.agents ?? []) as unknown[],
+      });
     }
 
     case 'sitrep':
@@ -4563,6 +4997,7 @@ async function handleTool(
       const message = args.message as string;
       const type = (args.type as string) || 'request';
       const project = args.project as string | undefined;
+      const talkSenderAgentId = resolveAgentId({});
       const candidates = agent.includes(':')
         ? [agent]
         : [
@@ -4573,14 +5008,20 @@ async function handleTool(
       for (const target of candidates) {
         try {
           const r = await POST(`/agents/${encodeURIComponent(target)}/inbox`, {
-            type, content: message, from: 'mcp-user',
+            // 'mcp-user' was a hardcoded, un-minted sender name — exactly the
+            // forged attribution the inbox gate now rejects. Send under this
+            // process's verified session agentId, or omit and let the daemon
+            // attribute the message to the credential's minted actor.
+            type, content: message, ...(talkSenderAgentId ? { from: talkSenderAgentId } : {}),
           });
           if (r.status >= 200 && r.status < 300) {
             return JSON.stringify({ success: true, delivered_to: target, type, message });
           }
         } catch { /* try next candidate */ }
       }
-      await POST(`/msg/${encodeURIComponent(agent)}`, { payload: { type, message, from: 'mcp-user' } });
+      await POST(`/msg/${encodeURIComponent(agent)}`, {
+        payload: { type, message, from: talkSenderAgentId ?? 'mcp-user' },
+      });
       return JSON.stringify({ success: true, delivered_via: 'channel', channel: agent, message });
     }
 
@@ -4903,7 +5344,7 @@ async function handleTool(
 const server = new Server(
   {
     name: 'port-daddy',
-    version: '3.24.2',
+    version: '3.30.6',
   },
   {
     capabilities: {
@@ -4937,8 +5378,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   try {
     const result = await handleTool(name, (args ?? {}) as Record<string, unknown>);
+    // Universal backstop: no tool result leaves this server unbounded. Smart
+    // shaping (digests) happens per-tool; this guarantees the contract even
+    // for tools that lack one. See lib/mcp-output-governor.ts.
     return {
-      content: [{ type: 'text' as const, text: result }],
+      content: [{ type: 'text' as const, text: governToolOutput(name, result) }],
     };
   } catch (error) {
     if (error instanceof McpError) throw error;

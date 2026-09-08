@@ -1,0 +1,10 @@
+#!/usr/bin/expect -f
+set stty_init "rows 28 columns 100"
+set timeout 20
+set send_slow {1 .09}
+spawn bash -c "cd ../.. && git ls-files | fzf --height=100% --border=rounded --prompt='files ❯ ' --pointer='▶' --color=dark,fg+:bright-white,bg+:blue,pointer:yellow"
+sleep 1.5
+send -s "porthole"
+sleep 1.6
+send "\r"
+expect eof

@@ -247,6 +247,43 @@ Remote sessions should support:
 - artifact retrieval;
 - cost reconciliation.
 
+Wake sources:
+  A remote or local Agent Node is woken by a bounded, enumerated set of
+  sources, not an open-ended callback surface. Cloudflare's actor model exposes
+  six — HTTP request, WebSocket connect, RPC or sub-agent return, scheduled
+  alarm, email, and external event — where the agent's name is the routing key.
+  Port Daddy's trigger registry (`lib/fleet/triggers/`) is the same shape with a
+  coordination-native twist. The wake sources live today are:
+
+  - file: a watched path changes;
+  - webhook: an HMAC-verified inbound HTTP delivery;
+  - cron/schedule: a time expression fires;
+  - tuple-mailbox match: a coordination tuple the agent is waiting on is
+    posted, which Cloudflare has no equivalent of;
+  - inbox message: a note, claim, or session event on a `pd:*` channel.
+
+  Email, SMS, and calendar sources are registered but stubbed — their
+  `available()` reports not-ready until they are wired. Every wake source is
+  provenance-classified and passed through the fail-closed trust gate before it
+  may spawn or wake an Agent Node: the content author is authenticated, never
+  the transport (ADR-0093). A wake source is an authorization question, not just
+  a delivery mechanism, and each new one widens the injection surface the gate
+  must cover.
+
+Hibernate versus resume:
+  Cloudflare hibernates a Durable Object to zero cost after roughly 70-140s of
+  idle and wakes it in place with its co-located SQLite state intact — the same
+  actor, the same memory, resumed. Port Daddy's daemon is a single always-on
+  process, so every wake through the fleet spawn path is a fresh OS-process
+  spawn plus context injection (handoff capsule and inbox), not an in-place
+  resume of a suspended actor. This is a deliberate difference, not a missing
+  feature: one always-on daemon on one operator's machine has no idle-cost
+  problem to solve, so there is nothing to hibernate to zero and nothing to
+  revive in place. The durability lives in the shared ledger and the injected
+  capsule, not in a frozen process image. Harness-native session resume
+  (`claude --resume`, `codex exec resume`) is a separate, adapter-owned
+  continuation path and does not change this daemon-level model — see ADR-0118.
+
 Remote interrupt race test:
   Start a remote Agent Node, issue a mobile interrupt, revoke the device before
   ack, and verify the command either fails with a recorded reason or is
@@ -270,6 +307,50 @@ Remote interrupt race test:
 - manage public or shared skills.
 
 Local-only mode should not require an account. Hybrid and hosted modes do.
+
+## Daemon state-plane identity
+
+Status: shipped behind PR #1724, pending merge.
+
+Local daemons do not all carry the same authority. The machine runs three lanes:
+
+Stable plane (`prod`):
+  The canonical daemon on :9876 with the `~/.port-daddy` prefix. Its state is
+  the durable truth for the local harbor.
+
+Dev-latest plane (`dev-latest`):
+  The supervised development daemon on :9886 with its own prefix. Long-lived,
+  but its writes are not prod truth.
+
+Ephemeral plane (`ephemeral:<label>`):
+  Feature and test daemons on ports >= 9900, each with an isolated prefix.
+  Disposable by construction.
+
+Every daemon self-classifies its plane at boot (`lib/state-plane.ts`, will land
+with PR #1724): an explicit `PORT_DADDY_PLANE` override wins (unrecognized
+values are namespaced into `ephemeral:` so a typo can never masquerade as
+prod), then the canonical `~/.port-daddy` prefix resolves to `prod`, then the
+:9886/dev-latest lane, else `ephemeral:<label>`. The plane travels with the
+daemon's identity everywhere a client could be confused:
+
+- `GET /version` and `GET /health` carry a `plane` field (absent on legacy
+  daemons, so clients must treat missing as unknown, not prod);
+- the berth registry record and the Bosun heartbeat payload carry the plane;
+- the CLI prints a one-line stderr banner before the first mutating command in
+  a process when the target daemon is not on the prod plane. Read-only
+  commands never probe; failures stay silent; identity only, no write policy.
+
+Write policies, provenance envelopes, and quarantine are later slices. S1 is
+strictly "know which plane you are talking to."
+
+Known hazard — roadmap snapshot divergence:
+  The committed roadmap snapshot carries 151 items while the :9876 daemon's
+  roadmap export shows roughly 127-128 (the DB fragmentation/continuity bug).
+  A full snapshot export from the smaller side silently deletes live items.
+  Current mitigation is a surgical union: add new items, bump count and
+  timestamp, remove nothing. The planned fix is a single-authority export
+  whose output is stamped with the source daemon's plane header, so a
+  non-prod export can never overwrite the committed snapshot unnoticed.
 
 ## Daemon freshness and versioning
 

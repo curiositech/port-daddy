@@ -92,9 +92,18 @@ const dispatchesPlugin: FastifyPluginAsync<DispatchesRouteDeps> = async (
 
   function isProjectionValidationError(message: string): boolean {
     return message.includes('goal text') ||
-      message.includes('budgetUsd must be a positive number') ||
+      // BUG 1 (2026-07-14 halt-mandate): the budget message became
+      // "non-negative" when budgetUsd 0 was legalized. Match the stable
+      // "budgetUsd must be a" prefix so this classifier does not silently
+      // downgrade a validation error to a 500 on a future wording tweak.
+      message.includes('budgetUsd must be a') ||
       message.includes('timeoutMs must be a positive number') ||
-      message.includes("merge_policy 'auto'");
+      message.includes('projectDir must be an absolute path') ||
+      message.includes('projectDir contains invalid characters');
+      // NOTE: `merge_policy='auto'` used to throw here (blocked pending
+      // harbormaster); it is now accepted at propose time and merges are
+      // handled by lib/dispatch/auto-merge.ts. No projection-validation
+      // branch needed for it anymore.
   }
 
   // POST /dispatches — propose
@@ -114,6 +123,7 @@ const dispatchesPlugin: FastifyPluginAsync<DispatchesRouteDeps> = async (
           requestedBy: body.requestedBy ?? 'operator',
           mergePolicy: body.mergePolicy ?? 'review',
           baseBranch: body.baseBranch ?? 'main',
+          projectDir: body.projectDir,
           targetActorId: body.targetActorId,
           reviewerActorId: body.reviewerActorId,
           backend: body.backend,

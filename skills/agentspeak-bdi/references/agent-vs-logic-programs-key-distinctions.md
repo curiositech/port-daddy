@@ -183,7 +183,7 @@ Agent architectures address all four. The plan library, intention structure, bel
 base, and selection functions together provide a framework for building multi-agent
 systems where these requirements are met by design, not by ad-hoc extension.
 
-**For WinDAGs with 180+ skills**: The skill invocation mechanism is fundamentally
+**For Jury-rig with 180+ skills**: The skill invocation mechanism is fundamentally
 the agent's primitive action mechanism — calling a skill is like executing a
 primitive action. The orchestration layer that decides which skills to invoke and
 in what sequence is the agent's plan selection and intention execution mechanism.

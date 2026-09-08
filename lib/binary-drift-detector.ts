@@ -121,6 +121,18 @@ function resolveComparableOnDiskPath(
     }
   }
 
+  // Homebrew installs a small `pd` launcher beside the compiled `port-daddy`
+  // runtime. Their hashes and sizes are intentionally different, so comparing
+  // the daemon to `command -v pd` creates permanent false drift even immediately
+  // after a clean restart. The comparable artifact is the same executable name
+  // in the same keg; an in-place bottle upgrade still changes this file's hash.
+  if (basename(runningPath) === 'port-daddy') {
+    const siblingRuntime = join(dirname(runningPath), 'port-daddy');
+    if (existsSync(siblingRuntime)) {
+      return safeRealpath(siblingRuntime);
+    }
+  }
+
   return resolveOnDiskPdPath(env);
 }
 

@@ -21,8 +21,10 @@
 
 import { createHash, randomBytes } from 'node:crypto';
 import type { Database } from 'better-sqlite3';
+import type { ClassifiedTransit } from './relay-seal.js';
 
 export const RELAY_CONFIG_KEY = 'relay_url';
+export const RELAY_CARD_CONFIG_KEY = 'relay_card';
 export const RELAY_RECONNECT_MIN_MS = 1_000;
 export const RELAY_RECONNECT_MAX_MS = 60_000;
 export const RELAY_HEARTBEAT_INTERVAL_MS = 25_000;
@@ -60,6 +62,48 @@ export function setRelayUrl(db: Database, url: string | null): void {
     db.prepare(
       "INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value"
     ).run(RELAY_CONFIG_KEY, url);
+  }
+}
+
+/**
+ * Read the stored harbor card (JWT) the daemon presents in the relay
+ * handshake, or null when none has been exchanged yet.
+ *
+ * Why stored config rather than a file: the card is daemon connection state —
+ * the outbound connection manager needs it on every reconnect, across daemon
+ * restarts, without the operator re-running the OIDC exchange. It lives in
+ * the same self-initialized config table as relay_url.
+ *
+ * @param db The daemon registry database.
+ * @returns The stored card JWT, or null.
+ */
+export function getRelayCard(db: Database): string | null {
+  ensureRelayConfigTable(db);
+  const row = db
+    .prepare('SELECT value FROM config WHERE key = ?')
+    .get(RELAY_CARD_CONFIG_KEY) as { value: string } | undefined;
+  return row?.value ?? null;
+}
+
+/**
+ * Persist (or clear, with null) the harbor card used for relay handshakes.
+ *
+ * Why one write path: the successful `POST /relay/exchange` — the daemon
+ * remembers the card it just obtained so the connection lifecycle can use it
+ * without a second operator step.
+ *
+ * @param db The daemon registry database.
+ * @param card The card JWT to store, or null to clear.
+ * @returns Nothing — the config row is the output.
+ */
+export function setRelayCard(db: Database, card: string | null): void {
+  ensureRelayConfigTable(db);
+  if (card === null) {
+    db.prepare('DELETE FROM config WHERE key = ?').run(RELAY_CARD_CONFIG_KEY);
+  } else {
+    db.prepare(
+      'INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value'
+    ).run(RELAY_CARD_CONFIG_KEY, card);
   }
 }
 
@@ -207,12 +251,31 @@ export interface RelaySubscription {
   close(): void;
 }
 
+/**
+ * Open the SSE subscribe stream for a handshaken session and route its events.
+ *
+ * Why `onOpen` exists: the status surface must never claim connected when it
+ * is not, and the only moment that claim becomes TRUE is when the relay has
+ * accepted the stream (HTTP 200 on the subscribe fetch) — not when the
+ * connection attempt started, and not when the handshake succeeded. `onOpen`
+ * fires at exactly that moment so a status manager can flip `connected` on
+ * evidence instead of intent.
+ *
+ * @param relayUrl Relay origin.
+ * @param sessionId Session from the handshake's ServerHello.
+ * @param fromSeq Resume cursor for the event stream.
+ * @param onEvent Receives each parsed relay event (events, revocations, heartbeats).
+ * @param onError Receives the terminal error for this stream (a closed stream included) — the reconnect trigger.
+ * @param onOpen Optional: fires once when the relay accepts the stream.
+ * @returns A handle whose close() tears the stream down without firing onError.
+ */
 export function subscribeRelay(
   relayUrl: string,
   sessionId: string,
   fromSeq: number,
   onEvent: EventHandler,
-  onError: ErrorHandler
+  onError: ErrorHandler,
+  onOpen?: () => void
 ): RelaySubscription {
   let closed = false;
   let controller: AbortController | null = null;
@@ -232,6 +295,10 @@ export function subscribeRelay(
       if (!resp.ok || !resp.body) {
         throw new RelayError('SSE_CONNECT_FAILED', `SSE connect ${resp.status}`);
       }
+
+      // The stream is accepted: this — not the attempt, not the handshake —
+      // is the moment "connected" becomes a true statement.
+      onOpen?.();
 
       const reader = resp.body.getReader();
       const dec = new TextDecoder();
@@ -288,7 +355,17 @@ export interface PublishOptions {
     prev_hash: string;
     this_hash: string;
     iat: number;
-    ciphertext: string;
+    /**
+     * The transit body — a CLASSIFIED envelope only (ADR-0123 §6 N1).
+     *
+     * Why the branded type and not `string`: {@link ClassifiedTransit} has no
+     * inhabitants outside lib/relay-seal.ts's classification chokepoint, so
+     * the compiler — not a reviewer — rejects any call site that tries to put
+     * an unclassified body on the wire. This field is the daemon's only public
+     * entry to the publish wire, which is what makes "every relay-bound event
+     * passes through the chokepoint" a construction rather than a convention.
+     */
+    ciphertext: ClassifiedTransit;
     sig: string;
   };
   card?: string;
@@ -345,6 +422,26 @@ export async function revokeOnRelay(
 
 // ── Reconnect loop ────────────────────────────────────────────────────────────
 
+/**
+ * Optional collaborators for {@link RelayConnectionManager}.
+ *
+ * Design intent: the manager owns exactly one loop (session → stream →
+ * backoff → retry). Everything a *status surface* or a *test* needs is
+ * injected here — the open/error signals so status reflects evidence, and the
+ * subscribe/sleep functions so the lifecycle is provable without a network or
+ * a wall clock.
+ */
+export interface RelayConnectionManagerOptions {
+  /** Fires when the relay ACCEPTS the SSE stream — the only honest moment to report connected. */
+  onConnect?: () => void;
+  /** Receives the terminal error of each stream/connect attempt, before onDisconnect. */
+  onError?: (err: Error) => void;
+  /** Stream opener; defaults to {@link subscribeRelay}. Injectable for tests. */
+  subscribeFn?: typeof subscribeRelay;
+  /** Delay primitive; defaults to a real setTimeout sleep. Injectable for tests. */
+  sleepFn?: (ms: number) => Promise<void>;
+}
+
 export class RelayConnectionManager {
   private subscription: RelaySubscription | null = null;
   private reconnectDelay = RELAY_RECONNECT_MIN_MS;
@@ -354,7 +451,8 @@ export class RelayConnectionManager {
     private readonly relayUrl: string,
     private readonly getSession: () => Promise<{ sessionId: string; fromSeq: number } | null>,
     private readonly onEvent: EventHandler,
-    private readonly onDisconnect?: () => void
+    private readonly onDisconnect?: () => void,
+    private readonly options: RelayConnectionManagerOptions = {}
   ) {}
 
   start(): void {
@@ -368,29 +466,41 @@ export class RelayConnectionManager {
   }
 
   private async connectWithRetry(): Promise<void> {
+    const subscribeFn = this.options.subscribeFn ?? subscribeRelay;
+    const sleepFn = this.options.sleepFn ?? sleep;
     while (!this.stopped) {
       const session = await this.getSession();
       if (!session) {
-        await sleep(this.reconnectDelay);
+        await sleepFn(this.reconnectDelay);
         this.reconnectDelay = Math.min(this.reconnectDelay * 2, RELAY_RECONNECT_MAX_MS);
         continue;
       }
 
       await new Promise<void>((resolve) => {
-        this.subscription = subscribeRelay(
+        this.subscription = subscribeFn(
           this.relayUrl,
           session.sessionId,
           session.fromSeq,
           this.onEvent,
-          () => {
+          (err) => {
+            this.options.onError?.(err);
             this.onDisconnect?.();
             resolve();
+          },
+          () => {
+            // A stream the relay accepted is the definition of a successful
+            // connection, so the backoff resets HERE — resetting on the
+            // attempt would defeat backoff, and never resetting (the old
+            // behavior) made a daemon that had been up for a week retry a
+            // blip at the 60s ceiling as if it were flapping.
+            this.reconnectDelay = RELAY_RECONNECT_MIN_MS;
+            this.options.onConnect?.();
           }
         );
       });
 
       if (!this.stopped) {
-        await sleep(this.reconnectDelay);
+        await sleepFn(this.reconnectDelay);
         this.reconnectDelay = Math.min(this.reconnectDelay * 2, RELAY_RECONNECT_MAX_MS);
       }
     }

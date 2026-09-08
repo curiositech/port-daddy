@@ -1,0 +1,112 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Mirror header + board — relay roadmap mirror</title><style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0d1117;color:#c9d1d9;font:14px/1.55 ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;padding:26px 30px 34px}
+.sheet{max-width:1340px;margin:0 auto}
+.disclaimer{border:1px solid #b7791f;background:#2b2011;border-left:5px solid #d69e2e;padding:12px 16px;border-radius:6px;margin-bottom:18px;color:#f0d9a8}
+.disclaimer b{color:#f6e05e}
+h1{font:600 22px/1.3 ui-sans-serif,system-ui,sans-serif;color:#e6edf3;letter-spacing:-.2px}
+h1 .n{color:#58a6ff;margin-right:10px}
+.sub{color:#8b949e;font-size:12.5px;margin-top:5px}
+.prov{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 20px}
+.chip{border:1px solid #30363d;background:#161b22;border-radius:999px;padding:3px 11px;font-size:11.5px;color:#8b949e}
+.chip b{color:#c9d1d9;font-weight:600}
+.chip.real{border-color:#2ea043;background:#0f2417;color:#7ee787}
+.chip.harness{border-color:#8957e5;background:#1d1428;color:#d2b4fe}
+.chip.authored{border-color:#b7791f;background:#2b2011;color:#f0d9a8}
+.card{border:1px solid #30363d;background:#0f141a;border-radius:9px;margin-bottom:16px;overflow:hidden}
+.card > .head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:11px 14px;background:#161b22;border-bottom:1px solid #30363d}
+.req{color:#e6edf3;font-size:13px}
+.req .m{color:#d2a8ff;font-weight:600}
+.req .q{color:#8b949e}
+.pill{font-size:11.5px;font-weight:700;border-radius:5px;padding:2px 8px}
+.ok{background:#0f2417;color:#7ee787;border:1px solid #2ea043}
+.err{background:#2d1416;color:#ff9492;border:1px solid #da3633}
+.warn{background:#2b2011;color:#f6e05e;border:1px solid #b7791f}
+.t{margin-left:auto;color:#6e7681;font-size:11.5px}
+.body{padding:14px}
+.note{color:#8b949e;font-size:12.5px;margin-bottom:11px}
+pre{background:#010409;border:1px solid #21262d;border-radius:6px;padding:11px 13px;overflow:auto;font-size:11.5px;color:#a5d6ff;white-space:pre-wrap;word-break:break-word}
+pre .k{color:#7ee787}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.wm{display:grid;grid-template-columns:repeat(4,auto);gap:0 26px;align-items:start;background:#010409;border:1px solid #21262d;border-radius:7px;padding:13px 15px;margin-bottom:13px}
+.wm .lab{font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;color:#6e7681}
+.wm .val{font-size:16px;color:#e6edf3;margin:3px 0 1px}
+.wm .sub2{font-size:11px;color:#8b949e}
+.wm .stale{color:#f6e05e}
+.lanes{display:grid;grid-template-columns:repeat(5,1fr);gap:11px}
+.lane{border:1px solid #21262d;border-radius:7px;background:#010409;min-height:120px}
+.lane h3{font:600 11px/1 ui-sans-serif,system-ui,sans-serif;text-transform:uppercase;letter-spacing:.1em;padding:9px 10px;border-bottom:1px solid #21262d;display:flex;justify-content:space-between;color:#8b949e}
+.lane h3 .c{color:#e6edf3;background:#21262d;border-radius:4px;padding:0 6px}
+.lane.now h3{color:#7ee787}.lane.backlog h3{color:#79c0ff}.lane.parked h3{color:#8b949e}
+.lane.merge h3{color:#d2a8ff}.lane.done h3{color:#6e7681}
+.it{padding:7px 10px;border-bottom:1px solid #12171d}
+.it:last-child{border-bottom:none}
+.it .s{color:#e6edf3;font-size:11.5px;word-break:break-all}
+.it .d{color:#6e7681;font-size:10.5px;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.more{padding:7px 10px;color:#6e7681;font-size:11px;font-style:italic}
+.empty{padding:16px 10px;color:#484f58;font-size:11.5px;text-align:center;font-style:italic}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;color:#6e7681;font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;padding:6px 9px;border-bottom:1px solid #21262d}
+td{padding:6px 9px;border-bottom:1px solid #12171d;color:#c9d1d9;vertical-align:top}
+td.slug{color:#79c0ff}
+.kv{display:grid;grid-template-columns:150px 1fr;gap:4px 14px;font-size:12px}
+.kv .k2{color:#6e7681}
+.kv .v2{color:#e6edf3;word-break:break-word}
+.edge{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid #12171d;font-size:12px}
+.edge:last-child{border-bottom:none}
+.edge .n1{color:#79c0ff}
+.edge .ty{color:#d2a8ff;background:#1d1428;border:1px solid #8957e5;border-radius:4px;padding:1px 7px;font-size:10.5px}
+.edge .ar{color:#6e7681}
+.tomb{border:1px solid #da3633;background:#2d1416;border-radius:7px;padding:12px 14px}
+.tomb .t2{color:#ff9492;font-weight:700;font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.foot{color:#6e7681;font-size:11px;margin-top:20px;border-top:1px solid #21262d;padding-top:11px}
+.delta{background:#010409;border:1px solid #21262d;border-radius:7px;padding:11px 13px;font-size:12px;color:#8b949e}
+.delta b{color:#e6edf3}
+.same{color:#7ee787;font-weight:700}
+h2{font:600 14px/1 ui-sans-serif,system-ui,sans-serif;color:#e6edf3;margin:0 0 10px;letter-spacing:.02em}
+</style></head><body><div class="sheet"><div class="disclaimer"><b>This slice ships no operator-visible page.</b> The relay roadmap mirror is PR 1 of 4 — a D1 replica plus two JSON endpoints. The board/item pages land in PR 3 of 4. These sheets are not a product surface and are not a mock of one: they are a layout of <b>verbatim HTTP responses</b> captured from the real Worker, recorded in <code>run-log.json</code> beside this image.</div><h1><span class="n">02</span>The mirror holding a real roadmap</h1><div class="sub">GET /v1/roadmap/mirror after two pushes of the port-daddy roadmap. The header is the honest watermark: the daemon's clock and the relay's clock are separate fields, and staleness is the reader's to compute from both.</div><div class="prov"><span class="chip"><b>claude/relay-roadmap-mirror</b> @ 3841a342c</span><span class="chip">captured <b>2026-08-22T23:41:02.496Z</b></span><span class="chip real">relay src/migrations/tests at capture: <b>clean — as committed</b></span><span class="chip real">REAL WORKER — wrangler dev --local (workerd + miniflare), real migration chain</span><span class="chip authored">items = REAL daemon export (279) · edges/activity/tombstone = capture-authored</span></div><div class="card"><div class="head">
+    <span class="req"><span class="m">GET</span> /v1/roadmap/mirror<span class="q">?repo=curiositech/port-daddy</span></span>
+    <span class="pill ok">HTTP 200</span>
+    <span class="t">Bearer pdu_… (account A) · 31 ms</span>
+  </div><div class="body">
+    <div class="note">Read the mirror again — watermark advanced, tombstone off the board — Same endpoint, after the replace.</div>
+    <div class="wm">
+    <div><div class="lab">repo · harbor</div><div class="val">curiositech/port-daddy</div><div class="sub2">harbor <b>port-daddy</b> · daemon <b>port-daddy-daemon</b> · harborId null</div></div>
+    <div><div class="lab">generatedAt — daemon clock</div><div class="val">2026-08-22 14:53:10.046Z</div><div class="sub2">1787410390046 (unix ms, stored verbatim)</div></div>
+    <div><div class="lab">receivedAt — relay clock</div><div class="val">2026-08-22 23:41:36Z</div><div class="sub2">1787442096 (unix <b>seconds</b>)</div></div>
+    <div><div class="lab">staleness</div><div class="val stale">8h 48m 25s</div><div class="sub2">receivedAt·1000 − generatedAt = 31705954</div></div>
+  </div>
+         <div class="note">Board — <b>278</b> live items across five lanes (tombstones excluded by design); header itemCount <b>279</b> counts tombstones too, so the difference is exactly the 1 tombstoned row.</div>
+         <div class="lanes"><div class="lane now"><h3>now<span class="c">103</span></h3><div class="it"><div class="s">accountability-wedge-launch-assets</div><div class="d">Wedge 1 launch assets from the GTM strategy (§6): Show HN post + founder note, and the portdaddy.dev /accountability launch page (hero, before/after, compliance ladder, git-guard demo, install CTA). Spawned by distribution-dogfood-gtm-strategy.</div></div><div class="it"><div class="s">actor-identity-minimal-slice</div><div class="d">ADR-0040 keystone: daemon-minted, non-forgeable actor identity (actor-souls). Selector.verifier lookup-token credential, fail-closed above newcomer floor / fail-open-at-bounded-shared-pool below it. Anti-launder core: minting fresh ids buys no new budget. Full guarantee depends on door (PR #2582) write-boundary being fully enforced.</div></div><div class="it"><div class="s">adr-0022-durable-actor-souls-body-leases</div><div class="d">ADR-0022 'Accepted' but body_leases/actors tables NOT shipped (queue.ts:209 confirms). Build tables + lease lifecycle.</div></div><div class="it"><div class="s">adr-0043-phase-0-spec-and-parser</div><div class="d">ADR-0043 + matrix format + lib/adr-matrix.ts parser/transform + unit tests</div></div><div class="it"><div class="s">adr-0043-phase-1-adr-sync-wiring</div><div class="d">ADR-0043 partial: lib/adr-matrix.ts parser shipped (Phase 0); Phase 1 missing — no cli/commands/adr.ts, no POST /adr/sync.</div></div><div class="it"><div class="s">adr-0043-phase-1-daemon-route-and-cli</div><div class="d">POST /adr/sync + GET /adr/:n/matrix routes; pd adr sync/matrix CLI</div></div><div class="it"><div class="s">adr-0043-phase-2-cartographer-commitment</div><div class="d">Register Cartographer commitment (ADR-0041) owning matrix&lt;-&gt;roadmap sync; pd adr audit is its monitor</div></div><div class="more">+ 96 more in this lane</div></div><div class="lane backlog"><h3>backlog<span class="c">152</span></h3><div class="it"><div class="s">active-agent-roster</div><div class="d">Add live active agent roster surfaces</div></div><div class="it"><div class="s">adr-0029-v0-account-login-and-local-forest</div><div class="d">pd account login (OIDC) + account Ed25519 key + local pairing receipts + Merkle audit (ADR-0029 v0)</div></div><div class="it"><div class="s">adr-0029-v3-cross-device-quotas-and-rbac</div><div class="d">owner/member/viewer sync card scoping + cross-device fleet quota pool (ADR-0029 v3)</div></div><div class="it"><div class="s">adr-0037-git-access-control-pd-feature-verbs</div><div class="d">ADR-0037 Proposed, ZERO impl: no pd feature verbs / git-ACL module (doc PR #112 only).</div></div><div class="it"><div class="s">adr-0038-claim-tree-multi-granularity</div><div class="d">ADR-0038 Proposed, ZERO impl: no claimTree code (doc PR #119 + website explainers only).</div></div><div class="it"><div class="s">adr-0042-team-secret-sharing</div><div class="d">ADR-0042 Proposed, not started: lib/secret-env.ts is single-user; no team sharing/shamir/threshold.</div></div><div class="it"><div class="s">adr-0050-phase-4-real-isolation</div><div class="d">Real isolation vs the malicious case: separate UID / Virtualization.framework + pf forced egress. Done when an agent that unset HTTPS_PROXY still cannot egress/read secrets (live-tree tradeoff documented).</div></div><div class="more">+ 145 more in this lane</div></div><div class="lane parked"><h3>parked<span class="c">1</span></h3><div class="it"><div class="s">ast-a4-1-go-rust-grammars</div><div class="d">A4.1 (optional) Wire tree-sitter-go / tree-sitter-rust + extraction (symbols, imports, intra-file calls). Done when a Go and Rust file parse with symbols + call edges.</div></div></div><div class="lane merge"><h3>merge<span class="c">10</span></h3><div class="it"><div class="s">ast-a2-1-symbol-claim-isolation-validator</div><div class="d">A2.1 Pre-flight: run predictConflicts vs live claims before a symbol claim; refuse/warn on blocking overlaps. Done when a 2nd modify-claim on a contended symbol is blocked/warned on the live daemon.</div></div><div class="it"><div class="s">cli-spawn-liveness-and-collection</div><div class="d">Make local coding-agent spawns durable, observable, explicitly cancellable, and free of hidden task wallclock deadlines.</div></div><div class="it"><div class="s">codex-cartographer-conversation-transcripts</div><div class="d">Console: scrollable Cartographer chat and transcript conformance</div></div><div class="it"><div class="s">dev-berth-daemon-registration</div><div class="d">Make named development daemons discoverable by published runtime identity and prove backend changes against selected feature builds.</div></div><div class="it"><div class="s">durable-agent-cross-harness-resumption</div><div class="d">Resume durable coding-agent work across harnesses with immutable predecessor lineage, one admitted successor, collectible receipts, and honest liveness.</div></div><div class="it"><div class="s">fix-skill-graft-tool2vec-vocabulary-gap</div><div class="d">PR #723 skill-graft.ts shipped with a vocabulary-mismatch bug: ranking compared task embeddings to a skill's OWN description embedding (cosine(task, description)), which fails when a task is phrased in user language different from the skill's own description wording. Fix: real Tool2Vec synthetic-query-centroid generation (lib/skill-graft-tool2vec.ts) + BM25/Porter-stemming lexical signal (lib/skill-graft-bm25.ts), fused via reciprocal rank fusion (k=60) in lib/skill-graft.ts. lib/coordination-judge.ts's transportToAdapter helper exported (no behavior change) for reuse by lib/fleet-engine.ts's new skill-graft LLM-backend wiring.</div></div><div class="it"><div class="s">fleet-v2-adversarial-prosecutor</div><div class="d">Preserve exact-SHA adversarial review coverage and fail closed on missing, stale, malformed, or unprovable evidence.</div></div><div class="more">+ 3 more in this lane</div></div><div class="lane done"><h3>done<span class="c">12</span></h3><div class="it"><div class="s">adr-0019-declarative-fleet-yaml</div><div class="d">ADR-0019 SHIPPED despite PROPOSED header: fleet YAML parser in lib/fleet-engine.ts (#533,#16).</div></div><div class="it"><div class="s">adr-0026-fleet-ast-diagnostics</div><div class="d">ADR-0026 SHIPPED despite PROPOSED header: lib/fleet-ast.ts positional AST + diagnostics (#170,#50).</div></div><div class="it"><div class="s">adr-0041-durable-commitments-obligation-monitor</div><div class="d">ADR-0041 SHIPPED despite Proposed header: lib/commitments.ts + lib/obligation-monitor.ts (#422,#334).</div></div><div class="it"><div class="s">adr-0050-coast-guard</div><div class="d">ADR-0050 Coast Guard SHIPPED: pd-cutter sandbox + egress cap + compulsion (#259,#281,#282,#297). Was untracked.</div></div><div class="it"><div class="s">adr-number-collision-guard</div><div class="d">Resolves 12 duplicate ADR numbers (renamed to 0102-0115), adds docs/adr/adr-numbering-registry.json + scripts/adr-number-collision-guard.mjs wired into hooks/pre-commit as a fail-closed check blocking future collisions. Rebased onto origin/main; one real conflict in docs/adr/0028-salvage-envelope.md resolved with no content lost. PR #2594.</div></div><div class="it"><div class="s">ast-a0-intra-file-call-edges</div><div class="d">SHIPPED (#468/#544): parseFile extracts intra-file calls edges so blast-radius + signature conflicts fire within a file. Cross-file is ast-a1-1.</div></div><div class="it"><div class="s">ast-a1-1-cross-file-resolution</div><div class="d">A1.1 cross-file import resolution — DONE (#576 + #593 hardening: NodeNext .js-&gt;.ts, boundary clamp, dropped bogus baseUrl probe). Cross-file IMPORT edges resolve. Unblocks ast-a1-3.</div></div><div class="more">+ 5 more in this lane</div></div></div>
+         <h2 style="margin:18px 0 9px">Activity tail — 6 entries, newest first</h2>
+         <table><thead><tr><th>at (daemon clock)</th><th>slug</th><th>kind</th><th>byId</th><th>detail</th></tr></thead><tbody><tr><td>2026-08-22 14:52:10.046Z</td><td class="slug">roadmap-link-gate</td><td>touch</td><td>agent:cartographer</td><td>{&quot;note&quot;:&quot;link gate wired&quot;}</td></tr><tr><td>2026-08-22 14:49:10.046Z</td><td class="slug">adr-0049-relay-v0</td><td>delete</td><td>agent:cartographer</td><td>{&quot;reason&quot;:&quot;superseded by the relay mirror program&quot;}</td></tr><tr><td>2026-08-22 14:38:10.046Z</td><td class="slug">roadmap-schema-wiring</td><td>promote</td><td>agent:coxswain</td><td>{&quot;from&quot;:&quot;backlog&quot;,&quot;to&quot;:&quot;now&quot;}</td></tr><tr><td>2026-08-22 14:23:10.046Z</td><td class="slug">roadmap-reconciler-agent</td><td>touch</td><td>agent:navigator</td><td>null</td></tr><tr><td>2026-08-22 13:53:10.046Z</td><td class="slug">mcp-roadmap-receipt-parity</td><td>status</td><td>agent:coxswain</td><td>{&quot;to&quot;:&quot;backlog&quot;}</td></tr><tr><td>2026-08-22 12:53:10.046Z</td><td class="slug">roadmap-jira-tool-design</td><td>touch</td><td>agent:lookout</td><td>null</td></tr></tbody></table>
+  </div></div><div class="card"><div class="head"><span class="req">Full replace — the two pushes</span><span class="pill ok">PUT × 2</span></div><div class="body">
+        <div class="grid2">
+          <div><h2>a1 · first push (real export, verbatim)</h2><pre>{
+  &quot;code&quot;: &quot;OK&quot;,
+  &quot;error&quot;: null,
+  &quot;repo&quot;: &quot;curiositech/port-daddy&quot;,
+  &quot;harbor&quot;: &quot;port-daddy&quot;,
+  &quot;harborId&quot;: null,
+  &quot;generatedAt&quot;: 1787406790046,
+  &quot;receivedAt&quot;: 1787442096,
+  &quot;itemCount&quot;: 279,
+  &quot;edgeCount&quot;: 0,
+  &quot;activityCount&quot;: 0
+}</pre></div>
+          <div><h2>b1 · second push (replace + augmentation)</h2><pre>{
+  &quot;code&quot;: &quot;OK&quot;,
+  &quot;error&quot;: null,
+  &quot;repo&quot;: &quot;curiositech/port-daddy&quot;,
+  &quot;harbor&quot;: &quot;port-daddy&quot;,
+  &quot;harborId&quot;: null,
+  &quot;generatedAt&quot;: 1787410390046,
+  &quot;receivedAt&quot;: 1787442096,
+  &quot;itemCount&quot;: 279,
+  &quot;edgeCount&quot;: 4,
+  &quot;activityCount&quot;: 6
+}</pre></div>
+        </div>
+        <div class="delta" style="margin-top:13px">Watermark moved <b>2026-08-22 13:53:10.046Z</b> → <b>2026-08-22 14:53:10.046Z</b>; live board items 279 → 278. The replace is wholesale: the mirror is always exactly one daemon snapshot.</div>
+      </div></div><div class="foot">Item text is verbatim from docs/roadmap/roadmap.snapshot.json — the committed export scripts/export-roadmap-snapshot.ts produced from the daemon. Edges, the activity tail and the tombstone are capture-authored (that export carries none) and are listed in MANIFEST.md.</div></div></body></html>

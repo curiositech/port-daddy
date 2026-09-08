@@ -1,22 +1,25 @@
-import { useEffect, useState, type ComponentType, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight,
-  Ban,
   CheckCircle2,
-  CircleDollarSign,
-  Ear,
-  GitBranch,
+  Eye,
+  FileClock,
+  FileSearch,
+  LockKeyhole,
   MessagesSquare,
   Radio,
-  ShieldAlert,
-  SignalHigh,
+  ShieldCheck,
+  Sparkles,
   Terminal,
   Users,
+  type LucideIcon,
 } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
-import { CodeBlock } from '@/components/ui/CodeBlock'
+import { ParleyTmuxReplay } from '@/components/harness/ParleyTmuxReplay'
+import { PortholeEmbed } from '@/components/porthole/PortholeEmbed'
 import { Button } from '@/components/ui/Button'
+import { CodeBlock } from '@/components/ui/CodeBlock'
 import {
   BracketLabel,
   PageContainer,
@@ -25,1157 +28,620 @@ import {
   PanelTitle,
   SectionIntro,
   SurfacePanel,
-  SwissGrid,
-  SwissGridItem,
 } from '@/components/site/primitives'
-import { useTheme } from '@/lib/theme-context'
 
-/**
- * Standalone marquee page at /harness. The argument: a bare vendor CLI is a
- * lone agent typing into the void. The harness sinks tentacles into that
- * CLI's own hook surface and turns it into a citizen of the fleet: it starts
- * each turn with the latest messages, joins the right channels, checks for
- * edit conflicts, gets CI failures back, calls a parley when work overlaps,
- * stops at budget, works in its own tree, and has destructive commands vetoed
- * with the safe alternative named.
- *
- * Source: ADR-0051 (eight harness capabilities). Tone is honest infrastructure,
- * not hype: Claude is fully wired today; Gemini and Codex hook surfaces are
- * mapped and being validated.
- *
- * Idiom matches SecurityPage / PdTube: lives under MainLayout (header only),
- * renders its own <Footer />, built entirely from site/primitives so every
- * type size inherits the a11y-floored tokens (meta 14px, body 18px).
- */
+type EvidenceState = 'recorded' | 'source-only' | 'join-only' | 'proposed'
 
-type Capability = {
-  n: string
-  icon: ComponentType<{ size?: number | string; className?: string }>
+type PortholeScene = {
+  id: string
+  number: string
+  station: string
   title: string
-  cardTitle?: string
-  oneLiner: string
-  detail: string
-  figure: {
-    input: string
-    hook: string
-    output: string
-    proof: string
-  }
+  moment: string
+  intervention: string
+  proof: string
+  authority: string
+  format: string
+  hash: string
+  cast: string
+  color: string
+  icon: LucideIcon
 }
 
-const CAPABILITIES: readonly Capability[] = [
+const PORTHOLE_SCENES: readonly PortholeScene[] = [
   {
-    n: '01',
-    icon: Ear,
-    title: 'Starts with the latest messages',
-    cardTitle: 'Starts with the latest messages',
-    oneLiner: 'Every turn begins with the project notes and tube messages the agent missed.',
-    detail:
-      'Before the model decides what to do, Port Daddy adds unread notes, tube messages, and channel updates to the prompt. The agent sees what changed before it edits, tests, or replies.',
-    figure: {
-      input: 'Unread notes',
-      hook: 'Before reply',
-      output: 'Fresh context',
-      proof: 'Attention, inbox, and subscribed channels are read before the agent gets its next turn.',
-    },
-  },
-  {
-    n: '02',
+    id: 'quickstart',
+    number: '01',
+    station: 'Arrival',
+    title: 'A fresh machine gets a named, healthy harbor.',
+    moment: 'The agent is about to begin work in an empty repository with no Port Daddy process already running.',
+    intervention: 'The released binary starts one named daemon profile and makes that exact control plane active.',
+    proof: 'Version, PID, home-collapsed paths, and converged health are read back from the real process.',
+    authority: 'Release archive · isolated HOME · daemon process',
+    format: 'single shell · 100×28',
+    hash: '662c843071e09ecc8570881d9852c67ba118da486e8440723fb637bdc9a68c5e',
+    cast: '/casts/porthole/quickstart.cast',
+    color: '#3f7614',
     icon: Radio,
-    title: 'Joins the right channels',
-    cardTitle: 'Joins the right channels',
-    oneLiner: 'A new session is subscribed to the project and fleet channels before work starts.',
-    detail:
-      'When a session starts, the harness subscribes it to the places its work will happen. A teammate can broadcast once, and every relevant agent hears it without hand-wiring another subscription.',
-    figure: {
-      input: 'New session',
-      hook: 'Subscribe',
-      output: 'Project + fleet',
-      proof: 'The project lane and fleet lane are attached before the first useful turn.',
-    },
   },
   {
-    n: '03',
-    icon: Users,
-    title: 'Checks who is editing',
-    cardTitle: 'Checks who is editing',
-    oneLiner: 'Before a write, the agent sees active sessions, file claims, and nearby work.',
-    detail:
-      'Before the agent touches a file, the harness shows it who already claimed that surface and what depends on it. The agent can wait, pick another path, or start a parley before it creates a merge mess.',
-    figure: {
-      input: 'Edit request',
-      hook: 'Claim check',
-      output: 'Clear path',
-      proof: 'File claims, active sessions, and nearby work are surfaced before the write path.',
-    },
+    id: 'harness-next-turn',
+    number: '02',
+    station: 'Before the decision',
+    title: 'The model sees bounded context, not transport sludge.',
+    moment: 'The agent has one unread message and one relevant policy document nearby.',
+    intervention: 'The registered turn-start hook admits only the unread count and standing SITREP contract, separated from shell output and agent speech.',
+    proof: 'The cast shows the exact bounded context, then reads the durable message and discovers the source document separately.',
+    authority: 'Hook scripts · daemon inbox · hybrid idea search',
+    format: 'single shell · 100×28',
+    hash: 'e18b129c34767d7afd67d03d2d0a04b5d664c68ccfbc0c17ceac66205351804b',
+    cast: '/casts/porthole/harness-next-turn.cast',
+    color: '#8b4faf',
+    icon: Sparkles,
   },
   {
-    n: '04',
-    icon: SignalHigh,
-    title: 'Gets CI failures back',
-    cardTitle: 'Gets CI failures back',
-    oneLiner: 'A red check is sent to the session that pushed the branch.',
-    detail:
-      'A failing run lands with the agent that earned it. The session gets the error, fixes the branch, reruns the check, and pushes again without a human playing dispatcher.',
-    figure: {
-      input: 'CI failure',
-      hook: 'Branch route',
-      output: 'Fix request',
-      proof: 'CI verdicts are routed back to the session that produced the branch.',
-    },
+    id: 'collision',
+    number: '03',
+    station: 'Before the side effect',
+    title: 'A contested action stops in unmistakable red.',
+    moment: 'Two agents in different worktrees reach for the same non-mergeable migration lock.',
+    intervention: 'Port Daddy grants the first live holder and refuses the second while preserving both identities and claims.',
+    proof: 'The same lock is requested twice; the second pane receives the real refusal and names the holder.',
+    authority: 'tmux PTYs · linked worktrees · daemon lock',
+    format: 'tmux · 2 agents · 120×34',
+    hash: '37aa832e2ba4b2cecf9f0a5f02aced2fcad38d4ee37925bdbf426f9f185fd36b',
+    cast: '/casts/porthole/collision.cast',
+    color: '#b42318',
+    icon: LockKeyhole,
   },
   {
-    n: '05',
+    id: 'visibility',
+    number: '04',
+    station: 'Across real time',
+    title: 'A quiet interval stays on the clock.',
+    moment: 'Two agents leave durable notes, go quiet, and return after a real wait.',
+    intervention: 'Porthole compresses only the silent display interval and marks the discontinuity with a broken axis.',
+    proof: 'Before and after clocks differ by more than eighty seconds; source duration remains 112 seconds.',
+    authority: 'Wall clock · literal timestamps · no staged narration',
+    format: 'tmux · 2 agents · jump cut',
+    hash: '552c9fc69435bb22d5d4913d5126e08670348246528a03201a49eed02c5bb5e0',
+    cast: '/casts/porthole/visibility.cast',
+    color: '#a15c00',
+    icon: FileClock,
+  },
+  {
+    id: 'ports',
+    number: '05',
+    station: 'Runtime read-back',
+    title: 'Configuration, registration, discovery, and health agree.',
+    moment: 'A tiny service is declared but no process is running when capture begins.',
+    intervention: 'One pane launches it; another probes HTTP, semantic discovery, health, and teardown.',
+    proof: 'Every layer agrees on porthole-service-proof:app:main after the live HTTP probe succeeds.',
+    authority: 'Child process · HTTP response · pd up/down lifecycle',
+    format: 'tmux · service + probe',
+    hash: '771b81d817c78af80967112bb0f8ae15cd7aaee3b16136b2127cf4795f58d241',
+    cast: '/casts/porthole/ports.cast',
+    color: '#007c91',
+    icon: Terminal,
+  },
+  {
+    id: 'parley',
+    number: '06',
+    station: 'Shared decision',
+    title: 'A plan changes under three distinct roles.',
+    moment: 'Nora, Milo, and Aya disagree about capture order, inventory safety, and retry safety.',
+    intervention: 'Each participant reads the same durable six-turn record through a compact decision projection.',
+    proof: 'Proposal, two objections, one revision, two individual agreements, and caught-up receipts remain visible.',
+    authority: 'Parley record · participant-bound projections',
+    format: 'tmux · 3 receipt panes · 140×40',
+    hash: '2a25a0516bd61dfa23022378586176bfe8da088e58610a7f55e5e38dadc8d1c6',
+    cast: '/casts/porthole/parley.cast',
+    color: '#c35a24',
     icon: MessagesSquare,
-    title: 'Calls a meeting when work overlaps',
-    cardTitle: 'Calls a meeting when work overlaps',
-    oneLiner: 'Overlapping agents get a structured conversation instead of stray chat.',
-    detail:
-      'When agents disagree or reach for the same surface, Port Daddy opens a conversation with named participants, turn order, and a way to end. The output is a decision another agent can read later.',
-    figure: {
-      input: 'Overlap',
-      hook: 'Parley',
-      output: 'Written decision',
-      proof: 'The conversation has participants, order, exit criteria, and a durable result.',
-    },
   },
   {
-    n: '06',
-    icon: CircleDollarSign,
-    title: 'Stops when budget is gone',
-    cardTitle: 'Stops when budget is gone',
-    oneLiner: 'Every agent runs under a spend cap and a posted bond.',
-    detail:
-      'Each agent has a spending cap and a bond. If the next tool call would exceed the limit, the call is stopped before money leaves the account.',
-    figure: {
-      input: 'Tool call',
-      hook: 'Spend check',
-      output: 'Allowed or stopped',
-      proof: 'Spend is checked at the call boundary where the expensive action would happen.',
-    },
-  },
-  {
-    n: '07',
-    icon: GitBranch,
-    title: 'Works outside your checkout',
-    cardTitle: 'Works outside your checkout',
-    oneLiner: 'Agent work is redirected into a linked git worktree.',
-    detail:
-      'The harness keeps agents out of the working copy you are sitting in. Their work happens in a linked git worktree, so an experiment can branch, fail, or be thrown away without disturbing your checkout.',
-    figure: {
-      input: 'Work request',
-      hook: 'Worktree check',
-      output: 'Own branch',
-      proof: 'The live operator tree stays untouched while the agent works in a linked berth.',
-    },
-  },
-  {
-    n: '08',
-    icon: Ban,
-    title: 'Blocks irreversible commands',
-    cardTitle: 'Blocks irreversible commands',
-    oneLiner: 'Dangerous shell and git commands are intercepted before they run.',
-    detail:
-      'Commands like rm -rf and force push are caught before they run. The refusal names the reversible command the agent should use instead, so the agent can recover without guessing.',
-    figure: {
-      input: 'Risky command',
-      hook: 'Guard check',
-      output: 'Safer command',
-      proof: 'The refusal names the reversible action, so the agent can recover without guessing.',
-    },
+    id: 'parley-source',
+    number: '07',
+    station: 'Protocol audit',
+    title: 'The real four-pane source stays available underneath.',
+    moment: 'An auditor needs more than the compact decision view.',
+    intervention: 'Three live sessions remain distinct while a fourth read-only witness explains committed public moves.',
+    proof: 'Every pane has its own prompt, identity, history, receipt frontier, and independently scrollable archive.',
+    authority: 'tmux PTYs · three sessions · read-only projection',
+    format: 'tmux · 3 sessions + witness · 160×44',
+    hash: 'f90e60937b6141d287274ab1f5b863e4f4f63f9e8100cc138f7f79365941b9d0',
+    cast: '/casts/porthole/parley-source.cast',
+    color: '#0b57c9',
+    icon: Eye,
   },
 ] as const
 
-/** A small status pill for the vendor-support honesty table. */
-function StatusPill({ tone, children }: { tone: 'live' | 'mapped'; children: ReactNode }) {
-  const cls =
-    tone === 'live'
-      ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]'
-      : 'border-[var(--border-strong)] bg-[var(--surface-base)] text-[var(--text-secondary)]'
+type HarnessContext = {
+  phase: string
+  title: string
+  naturalCopy: string
+  state: EvidenceState
+  sceneId?: string
+  contract: string
+}
+
+const HARNESS_CONTEXTS: readonly HarnessContext[] = [
+  {
+    phase: 'Control-plane arrival',
+    title: 'Named daemon and readiness',
+    naturalCopy: 'This is the daemon and runtime you are about to trust. Its identity and health agree.',
+    state: 'recorded',
+    sceneId: 'quickstart',
+    contract: 'Named daemon and readiness read-back',
+  },
+  {
+    phase: 'Provider SessionStart',
+    title: 'Pilot identity and salvage nudge',
+    naturalCopy: 'Coordinate before editing. Interrupted runs exist nearby; review them before starting duplicate work.',
+    state: 'source-only',
+    contract: 'Claude Pilot policy and bounded salvage count',
+  },
+  {
+    phase: 'Before a turn',
+    title: 'Bounded suggestion',
+    naturalCopy: 'One unread message and one relevant policy may change your next decision.',
+    state: 'recorded',
+    sceneId: 'harness-next-turn',
+    contract: 'Current Squid next-turn envelope',
+  },
+  {
+    phase: 'Before a scarce resource',
+    title: 'Lock authority and collision',
+    naturalCopy: 'Another worker holds this non-mergeable resource. The second lock request was refused.',
+    state: 'recorded',
+    sceneId: 'collision',
+    contract: 'Claims, lock holder, and refusal',
+  },
+  {
+    phase: 'Before a direct edit',
+    title: 'Provider edit refusal',
+    naturalCopy: 'This file is held by another agent. The edit did not run; coordinate or wait.',
+    state: 'source-only',
+    contract: 'PreToolUse path extraction and foreign-owner decision',
+  },
+  {
+    phase: 'After an ordinary tool',
+    title: 'No automatic trace injection',
+    naturalCopy: 'Nothing is injected here. Claims and explicit notes remain the cumulative coordination trail.',
+    state: 'source-only',
+    contract: 'Retired PostToolUse; no per-tool process fan-out',
+  },
+  {
+    phase: 'At turn close',
+    title: 'SITREP closeout gate',
+    naturalCopy: 'This turn is missing its compact handoff. Add the SITREP, then finish.',
+    state: 'source-only',
+    contract: 'Stop / Gemini AfterAgent closeout contract',
+  },
+  {
+    phase: 'Across a wait',
+    title: 'Literal elapsed time',
+    naturalCopy: 'Nothing happened here for eighty seconds. The replay is shorter; the evidence clock is not.',
+    state: 'recorded',
+    sceneId: 'visibility',
+    contract: 'Timestamp discontinuity and broken axis',
+  },
+  {
+    phase: 'Service lifecycle',
+    title: 'Process and discovery',
+    naturalCopy: 'The process is alive, the endpoint answers, and the semantic name resolves to the same service.',
+    state: 'recorded',
+    sceneId: 'ports',
+    contract: 'Launch, HTTP, discovery, health, teardown',
+  },
+  {
+    phase: 'When plans converge',
+    title: 'Parley recommendation',
+    naturalCopy: 'Your plan is close enough to two other roles that the disagreement needs a shared decision.',
+    state: 'recorded',
+    sceneId: 'parley',
+    contract: 'Manual three-session Parley evidence',
+  },
+  {
+    phase: 'During review',
+    title: 'Public rationale',
+    naturalCopy: 'Here is the proposal, the blocking objection, the revision, and who has actually caught up.',
+    state: 'recorded',
+    sceneId: 'parley-source',
+    contract: 'Public turns and participant read receipts',
+  },
+  {
+    phase: 'Output pressure',
+    title: 'Referenced, not stuffed into context',
+    naturalCopy: 'The omitted output remains available through a bounded reference; it was not silently loaded.',
+    state: 'join-only',
+    contract: 'BufferedOutputRef',
+  },
+  {
+    phase: 'Before compaction',
+    title: 'Checkpoint direction',
+    naturalCopy: 'Checkpoint the cited plan before compacting. A hook firing does not prove a packet exists.',
+    state: 'source-only',
+    contract: 'Claude PreCompact lifecycle boundary',
+  },
+  {
+    phase: 'Continuity issuance',
+    title: 'Packet ready or withheld',
+    naturalCopy: 'These obligations, risks, decisions, and evidence heads survive, or the missing witness stays visible.',
+    state: 'join-only',
+    contract: 'ContextEnvelope + CompactionPacket',
+  },
+  {
+    phase: 'Completion',
+    title: 'Reviewer-facing receipt',
+    naturalCopy: 'This intent, scope, test, rollback, spend, and evidence set is what the work actually proved.',
+    state: 'join-only',
+    contract: 'WorkReceipt',
+  },
+  {
+    phase: 'Before persistence',
+    title: 'Privacy disposition',
+    naturalCopy: 'Sensitive cells were dropped or redacted before any durable write, and the declared perimeter scans clean.',
+    state: 'proposed',
+    contract: 'Screen-aware pre-write privacy gateway',
+  },
+  {
+    phase: 'After failure',
+    title: 'Controlled successor branch',
+    naturalCopy: 'Start one isolated successor from the last verified checkpoint and compare its receipt to the original.',
+    state: 'proposed',
+    contract: 'T5 checkpoint and branch authority receipt',
+  },
+] as const
+
+const KILLER_DEMO_CONTRACT = [
+  {
+    title: 'Exact screen and source time',
+    state: 'recorded' as const,
+    body: 'Selectable terminal text, terminal geometry, semantic color, real tmux perspectives, and marked jump cuts are live in the recordings above.',
+  },
+  {
+    title: 'Command and runtime outcome',
+    state: 'recorded' as const,
+    body: 'The service and collision witnesses show the real command, refusal or exit, semantic identity, HTTP result, and teardown read-back.',
+  },
+  {
+    title: 'Decision context and omitted output',
+    state: 'join-only' as const,
+    body: 'ContextEnvelope, CompactionPacket, and BufferedOutputRef get a Porthole view only after their owning branches merge and the exact join is re-recorded.',
+  },
+  {
+    title: 'Normalized work receipt',
+    state: 'join-only' as const,
+    body: 'A cast is not a WorkReceipt. Porthole will attach to the canonical receipt instead of inventing a second authority.',
+  },
+  {
+    title: 'No-secret-on-disk proof',
+    state: 'proposed' as const,
+    body: 'The privacy claim requires classification and redaction before the first durable write, followed by an exhaustive scan of the declared storage perimeter.',
+  },
+  {
+    title: 'Branch from a verified checkpoint',
+    state: 'proposed' as const,
+    body: 'Playback seeking is not time travel. A controlled successor needs a distinct identity, bounded repair delta, isolated runtime, and branch receipt.',
+  },
+] as const
+
+const STATE_COPY: Record<EvidenceState, string> = {
+  recorded: 'Recorded now',
+  'source-only': 'Source · needs capture',
+  'join-only': 'Integration join',
+  proposed: 'Proposed',
+}
+
+function EvidenceBadge({ state }: { state: EvidenceState }) {
+  const className =
+    state === 'recorded'
+      ? 'border-[var(--status-success)] bg-[var(--status-success)] text-white'
+      : state === 'source-only'
+        ? 'border-[var(--status-warning)] bg-[var(--surface-base)] text-[var(--status-warning)]'
+      : state === 'join-only'
+        ? 'border-[var(--brand-primary)] bg-[var(--surface-base)] text-[var(--brand-primary)]'
+        : 'border-[var(--border-strong)] bg-[var(--surface-sunken)] text-[var(--text-secondary)]'
+
   return (
-    <span
-      className={`inline-flex items-center border-2 px-[var(--space-2)] py-[2px] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] ${cls}`}
-    >
-      {children}
+    <span className={`inline-flex min-h-7 items-center border-2 px-[var(--space-2)] font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] ${className}`}>
+      {STATE_COPY[state]}
     </span>
   )
 }
 
-function HarnessArtFigure({
-  src,
-  alt,
-  caption,
-  loading = 'eager',
-  className,
-}: {
-  src: string
-  alt: string
-  caption: string
-  loading?: 'eager' | 'lazy'
-  className?: string
-}) {
-  const { theme } = useTheme()
-  const dark = theme === 'dark'
-  const darkSrc = src.replace(/(\.[^.]+)$/, '-dark$1')
-
+function PlainLayer({ icon: Icon, title, children }: { icon: LucideIcon; title: string; children: ReactNode }) {
   return (
-    <figure className={`space-y-[var(--space-2)] ${className ?? ''}`}>
-      <div className="relative overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
-        <picture>
-          <source srcSet={darkSrc} media="(prefers-color-scheme: dark)" />
-          <img
-            src={src}
-            alt={alt}
-            className="aspect-video w-full object-cover"
-            style={{
-              filter: dark ? 'brightness(0.72) contrast(1.18) saturate(1.12)' : 'saturate(1.03)',
-            }}
-            width={1456}
-            height={816}
-            loading={loading}
-            decoding="async"
-          />
-        </picture>
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{
-            background: dark
-              ? 'linear-gradient(180deg, rgba(11,13,16,0.12) 0%, rgba(11,13,16,0.54) 100%)'
-              : 'linear-gradient(180deg, rgba(245,241,233,0) 0%, rgba(245,241,233,0.22) 100%)',
-          }}
-        />
-      </div>
-      <figcaption className="font-sans text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
-        {caption}
-      </figcaption>
-    </figure>
-  )
-}
-
-function CapabilityFlowNode({
-  label,
-  icon: Icon,
-  active = false,
-}: {
-  label: string
-  icon: ComponentType<{ size?: number | string; className?: string }>
-  active?: boolean
-}) {
-  const cls = active
-    ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]'
-    : 'border-[var(--border-strong)] bg-[var(--surface-base)] text-[var(--text-primary)]'
-
-  return (
-    <div className={`grid min-h-[7.25rem] content-center gap-[var(--space-2)] border-2 p-[var(--space-3)] text-center ${cls}`}>
-      <span className="mx-auto inline-flex h-10 w-10 items-center justify-center border-2 border-current">
-        <Icon size={18} />
-      </span>
-      <span className="text-balance font-sans text-[length:var(--type-panel-body-compact-size)] font-black leading-[var(--leading-nav)]">
-        {label}
-      </span>
-    </div>
-  )
-}
-
-function CapabilityExplainer({ capability }: { capability: Capability }) {
-  const Icon = capability.icon
-
-  return (
-    <SurfacePanel
-      elevation="quiet"
-      padding="default"
-      className="mt-[var(--space-7)] grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,1.1fr)_minmax(18rem,0.9fr)]"
-    >
-      <div className="grid content-center gap-[var(--space-3)] border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)] p-[var(--space-4)]">
-        <div className="grid gap-[var(--space-3)] sm:grid-cols-[minmax(0,1fr)_2.5rem_minmax(0,1fr)_2.5rem_minmax(0,1fr)] sm:items-center">
-          <CapabilityFlowNode label={capability.figure.input} icon={Terminal} />
-          <ArrowRight className="mx-auto rotate-90 text-[var(--brand-primary)] sm:rotate-0" size={24} />
-          <CapabilityFlowNode label={capability.figure.hook} icon={Icon} active />
-          <ArrowRight className="mx-auto rotate-90 text-[var(--brand-primary)] sm:rotate-0" size={24} />
-          <CapabilityFlowNode label={capability.figure.output} icon={CheckCircle2} />
-        </div>
-        <div className="border-l-2 border-[var(--brand-primary)] bg-[var(--surface-base)] px-[var(--space-3)] py-[var(--space-2)]">
-          <PanelEyebrow>Contract proof</PanelEyebrow>
-          <PanelBody size="compact" className="mt-[var(--space-1)] max-w-none">
-            {capability.figure.proof}
-          </PanelBody>
-        </div>
-      </div>
-
-      <div className="grid content-center gap-[var(--space-3)]">
-        <div className="flex flex-wrap items-center gap-[var(--space-3)]">
-          <span className="inline-flex h-11 w-11 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-base)] font-mono text-[length:var(--type-meta-size)] font-black text-[var(--brand-primary)]">
-            {capability.n}
-          </span>
-          <PanelEyebrow>{capability.oneLiner}</PanelEyebrow>
-        </div>
-        <PanelTitle as="h3" size="display" className="max-w-[14ch]">
-          {capability.title}
-        </PanelTitle>
-        <PanelBody className="max-w-[42rem]">
-          {capability.detail}
-        </PanelBody>
-      </div>
-    </SurfacePanel>
-  )
-}
-
-const VENDOR_ROWS: readonly { vendor: string; status: 'live' | 'mapped'; note: string }[] = [
-  {
-    vendor: 'Claude Code',
-    status: 'live',
-    note: 'Fully wired. All eight capabilities run against Claude’s own hook surface, verified end to end.',
-  },
-  {
-    vendor: 'Gemini CLI',
-    status: 'mapped',
-    note: 'Hook surface mapped. The same tentacles are being seated and validated against it now.',
-  },
-  {
-    vendor: 'Codex CLI',
-    status: 'mapped',
-    note: 'Hook surface mapped. Validation in progress — honest status, not a promise.',
-  },
-] as const
-
-type BackendLane = {
-  runtime: string
-  backend: string
-  contract: string
-  status: 'live' | 'mapped'
-  command: string
-}
-
-const BACKEND_LANES: readonly BackendLane[] = [
-  {
-    runtime: 'Claude Code native',
-    backend: 'Claude via Claude Code login or an official Anthropic gateway',
-    contract:
-      'The Articles bind to Claude Code hooks: turn-start attention, pre-tool vetoes, post-tool telemetry, MCP replies.',
-    status: 'live',
-    command: 'pd begin --identity myapp:api\nclaude',
-  },
-  {
-    runtime: 'Claude Code shape, Codex behind',
-    backend: 'OpenAI Codex CLI through the Squid compatibility bridge',
-    contract:
-      'Claude-shaped requests hit a local Anthropic-compatible bridge; provenance records the backend tier actually used.',
-    status: 'live',
-    command: 'pd squid codex --tier strong',
-  },
-  {
-    runtime: 'Claude Code shape, open weights behind',
-    backend: 'vLLM serving Gemma, Qwen, Llama, DeepSeek, or another tool-capable model',
-    contract:
-      'Claude Code keeps the hook layer; the gateway provides Anthropic Messages compatibility and tool-call shape.',
-    status: 'mapped',
-    command: 'surface required: streamed turns, tool calls, and hook verdicts in CLI + FleetBar before promotion',
-  },
-  {
-    runtime: 'Ollama / Gemma adapter lane',
-    backend: 'Local Ollama models behind a router that speaks Anthropic Messages',
-    contract:
-      'The Articles still bind to the harness; this lane stays experimental until streaming and tool-loop fixtures pass.',
-    status: 'mapped',
-    command: 'surface required: ollama turn stream + Port Daddy hook verdicts visible in the roster',
-  },
-  {
-    runtime: 'Cloudflare Agent',
-    backend: 'Durable cloud actor using Workers AI or provider APIs',
-    contract:
-      'The remote agent gets a Harbor identity, relay channel, PR duties, budget, and the same review/merge obligations.',
-    status: 'mapped',
-    command: 'surface required: Cloudflare actor appears beside local agents with relay status and transcript tail',
-  },
-] as const
-
-type ProofMedia = {
-  title: string
-  eyebrow: string
-  body: string
-  src: string
-  darkSrc?: string
-  alt: string
-  kind: 'gif' | 'image'
-  featured?: boolean
-}
-
-const PROOF_MEDIA: readonly ProofMedia[] = [
-  {
-    eyebrow: 'Rust GPUI app',
-    title: 'The operator sees the harness roster in the native app.',
-    body:
-      'The current GPUI control center opens the active-agent roster beside the live lane and planner, with stream, steer, takeover, worktree, and harness labels visible in one window.',
-    src: '/img/app-screens/pd-console-gpui/active-agents-harness-roster.png',
-    alt: 'Rust GPUI Port Daddy control center showing the active agent harness roster beside a live lane and planner pane.',
-    kind: 'image',
-    featured: true,
-  },
-  {
-    eyebrow: 'CLI multiplexer',
-    title: 'The same roster exists without the native window.',
-    body:
-      'The headless console face shows the same active-agent contract: backend, worktree, current task, touched files, stream command, steer command, and takeover handle.',
-    src: '/img/app-screens/pd-console-gpui/active-agent-roster-repl.gif',
-    alt: 'Animated terminal console showing the Port Daddy active-agent harness roster with stream, steer, and takeover commands.',
-    kind: 'gif',
-  },
-  {
-    eyebrow: 'CLI multiplexor',
-    title: 'Terminal streams show agent traffic in motion.',
-    body:
-      'The CLI needs to show the working agent and Port Daddy side by side: stream, inbox injections, hook verdicts, and jump-in controls for daemon-launched work.',
-    src: '/demos/pd-tube/pd-tube-multiplex.gif',
-    alt: 'Terminal recording of Port Daddy tube multiplexing multiple agent messages and replies.',
-    kind: 'gif',
-  },
-  {
-    eyebrow: 'FleetBar',
-    title: 'The menu-bar app is part of the harness.',
-    body:
-      'FleetBar is the quick operator surface for daemon health, session state, credentials, remediation, and opening the fuller control center.',
-    src: '/img/app-screens/fleetbar-native-shell-light.webp',
-    darkSrc: '/img/app-screens/fleetbar-native-shell-dark.webp',
-    alt: 'FleetBar native shell showing Port Daddy app controls and status.',
-    kind: 'image',
-  },
-  {
-    eyebrow: 'Live dashboard',
-    title: 'The web app shows claims, notes, and active agents.',
-    body:
-      'The same harness evidence should read in the dashboard: who is active, what they claimed, what they heard, and where their transcript lives.',
-    src: '/media/landing-live-glory/live-agents-panel-light.webp',
-    darkSrc: '/media/landing-live-glory/live-agents-panel-dark.webp',
-    alt: 'Port Daddy dashboard live agents panel showing active sessions, notes, and file claims.',
-    kind: 'image',
-  },
-] as const
-
-type RunItMedia = {
-  eyebrow: string
-  title: string
-  body: string
-  src: string
-  darkSrc: string
-  alt: string
-  featured?: boolean
-}
-
-/**
- * Real terminal recordings of the squid harness — captured with VHS/asciinema
- * running the actual commands against the actual daemon; no staged output.
- * Light GIFs are Catppuccin Latte, -dark are Macchiato, matching pd-tube.
- */
-const RUN_IT_MEDIA: readonly RunItMedia[] = [
-  {
-    eyebrow: 'Real interactive Claude Code',
-    title: 'Ask for a haiku, get a haiku about ships — because the harness said so.',
-    body:
-      'This is the actual Claude Code TUI, not piped output. The ◆ PD badge sits in the status line the whole session. The operator dropped one steering alert in the Ink Cloud — "any haiku must be about ships" — and pd squid tap shows it. The prompt typed into Claude only says "write a haiku to ship_haiku.txt", with no mention of ships. The UserPromptSubmit tentacle injects the alert, "Async hook SessionStart completed" flashes, and Claude writes a ship haiku, then says so. Watch the status line counters tick to 1 alert · 2 traces as the harness works.',
-    src: '/demos/harness/harness-claude-live.gif',
-    darkSrc: '/demos/harness/harness-claude-live-dark.gif',
-    alt: 'Interactive Claude Code terminal session with a cyan PD badge in the status line. pd squid tap shows a steering alert requiring ship haiku; the user prompt only says write a haiku, and Claude writes a ship-themed haiku, with the status line showing 1 alert and 2 traces.',
-    featured: true,
-  },
-  {
-    eyebrow: 'Codex pilots Claude Code — live',
-    title: 'The real Claude Code TUI, answered by Codex.',
-    body:
-      'pd squid codex boots the local Anthropic-shaped bridge and launches the actual Claude Code interface pointed at it. The magenta ◆ PD⇄CODEX badge and the honest backend label — codex (strong), not an Anthropic id — sit in the status line while Claude answers a question whose tokens were generated by codex exec. Same harness, ChatGPT Pro behind the seat.',
-    src: '/demos/harness/harness-codex-pilot-live.gif',
-    darkSrc: '/demos/harness/harness-codex-pilot-live-dark.gif',
-    alt: 'Interactive Claude Code terminal session launched through the Codex bridge, showing a magenta PD-to-CODEX badge and the codex (strong) backend label in the status line while Claude answers a question.',
-  },
-  {
-    eyebrow: 'The arm switch',
-    title: 'pd squid on wires everything; status shows it.',
-    body:
-      'One command arms hooks for every detected agent CLI, the ◆ PD statusline, the Pilot steering hook, and the /squid command — then pd squid status reads back every surface, live.',
-    src: '/demos/harness/harness-squid-on.gif',
-    darkSrc: '/demos/harness/harness-squid-on-dark.gif',
-    alt: 'Terminal recording of pd squid on arming the harness and pd squid status showing daemon, tentacles, per-CLI wiring, identity surfaces, and the Ink Cloud matrix.',
-  },
-  {
-    eyebrow: 'The envelope, verbatim',
-    title: 'pd squid tap prints the next turn’s injection.',
-    body:
-      'No guessing about what the hooks feed the model: tap runs the real UserPromptSubmit tentacle and prints the exact Suggestibility Envelope — steering alerts plus pheromone traces near your directory.',
-    src: '/demos/harness/harness-squid-tap.gif',
-    darkSrc: '/demos/harness/harness-squid-tap-dark.gif',
-    alt: 'Terminal recording of pd squid tap printing the steering alerts and pheromone traces that will be injected into the next Claude Code turn.',
-  },
-  {
-    eyebrow: 'The bridge card',
-    title: 'The Codex bridge announces exactly what it is.',
-    body:
-      'pd squid codex --serve-only prints the boundary card: base URL, local auth, tier, routes — and the honest line that this is a compatibility bridge, not a Claude Code auth mode.',
-    src: '/demos/harness/harness-squid-codex.gif',
-    darkSrc: '/demos/harness/harness-squid-codex-dark.gif',
-    alt: 'Terminal recording of the Giant Squid Claude-shaped local bridge card showing base URL, auth, tier, backend, and routes.',
-  },
-] as const
-
-function ProofMediaCard({ media }: { media: ProofMedia }) {
-  const mediaClass = media.featured
-    ? 'aspect-[16/10] md:aspect-[21/9]'
-    : 'aspect-video'
-
-  return (
-    <SurfacePanel
-      elevation={media.featured ? 'raised' : 'quiet'}
-      padding="compact"
-      className={`grid content-start gap-[var(--space-3)] ${media.featured ? 'lg:col-span-2' : ''}`}
-    >
-      <figure className="space-y-[var(--space-2)]">
-        <div className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
-          {media.darkSrc ? (
-            <picture>
-              <source srcSet={media.darkSrc} media="(prefers-color-scheme: dark)" />
-              <img
-                src={media.src}
-                alt={media.alt}
-                className={`${mediaClass} w-full object-cover`}
-                loading="eager"
-              />
-            </picture>
-          ) : (
-            <img
-              src={media.src}
-              alt={media.alt}
-              className={`${mediaClass} w-full object-cover`}
-              loading="eager"
-            />
-          )}
-        </div>
-      </figure>
-      <div className="grid gap-[var(--space-2)]">
-        <PanelEyebrow className="text-[var(--brand-primary)]">{media.eyebrow}</PanelEyebrow>
-        <PanelTitle as="h3" size="card" className="max-w-[24ch]">
-          {media.title}
-        </PanelTitle>
-        <PanelBody size="compact" className="max-w-none">
-          {media.body}
-        </PanelBody>
-      </div>
-    </SurfacePanel>
+    <article className="grid gap-[var(--space-3)] bg-[var(--surface-raised)] p-[var(--space-4)]">
+      <Icon size={22} className="text-[var(--brand-primary)]" />
+      <PanelTitle as="h3" size="nav" className="max-w-[20ch]">{title}</PanelTitle>
+      <PanelBody size="compact" className="max-w-none">{children}</PanelBody>
+    </article>
   )
 }
 
 export default function HarnessPage() {
-  const [activeCapability, setActiveCapability] = useState(0)
-  const selectedCapability = CAPABILITIES[activeCapability]
-
-  useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-
-    const timer = window.setInterval(() => {
-      setActiveCapability((current) => (current + 1) % CAPABILITIES.length)
-    }, 5200)
-
-    return () => window.clearInterval(timer)
-  }, [])
+  const [activeSceneId, setActiveSceneId] = useState('collision')
+  const activeScene = PORTHOLE_SCENES.find((scene) => scene.id === activeSceneId) ?? PORTHOLE_SCENES[0]
+  const ActiveSceneIcon = activeScene.icon
 
   return (
-    <div className="bg-[var(--surface-base)]">
-      <main id="main-content">
-        {/* ── Hero ─────────────────────────────────────────────────────── */}
+    <div className="min-h-screen bg-[var(--surface-base)] text-[var(--text-primary)]">
+      <main>
         <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
           <PageContainer width="wide">
-            <SwissGrid className="items-center">
-              <SwissGridItem span="narrow">
-                <div className="space-y-[var(--space-5)]">
-                  <BracketLabel>The harness</BracketLabel>
-                  <PanelTitle as="h1" size="hero" className="max-w-[15ch]">
-                    A control plane for every coding agent.
-                  </PanelTitle>
-                  <HarnessArtFigure
-                    src="/img/generated/harness-hero.webp"
-                    alt="A rugged agent core in a harness cradle, with instrumented lines reaching into message radio, file claims, budget controls, worktree docks, and command guardrails."
-                    caption="One agent core, eight instrumented lines into the fleet’s control plane."
-                    loading="eager"
-                    className="lg:hidden"
-                  />
-                  <PanelBody className="max-w-[46rem] text-[length:var(--type-panel-body-size)]">
-                    Port Daddy Harness gives each agent the coordination layer it
-                    needs: messages before each turn, project channels, edit-conflict
-                    checks, CI feedback, parley when work overlaps, budget stops,
-                    isolated worktrees, and command guardrails.
-                  </PanelBody>
-                  <div className="flex flex-wrap gap-[var(--space-3)]">
-                    <Button asChild variant="primary" size="lg">
-                      <Link to="/docs/quickstart">
-                        Run a harnessed agent
-                        <ArrowRight size={16} />
-                      </Link>
-                    </Button>
-                    <Button asChild variant="secondary" size="lg">
-                      <a href="#capabilities">See the eight capabilities</a>
-                    </Button>
-                  </div>
+            <div className="grid gap-[var(--space-7)] lg:grid-cols-[minmax(0,1.2fr)_minmax(18rem,0.8fr)] lg:items-end">
+              <div className="space-y-[var(--space-5)]">
+                <BracketLabel>Porthole · evidence from real agent runs</BracketLabel>
+                <h1 className="max-w-[13ch] text-balance font-sans text-[clamp(3.4rem,8vw,7.5rem)] font-black leading-[0.88] tracking-[-0.06em]">
+                  See what the agent saw before it acted.
+                </h1>
+                <PanelBody className="max-w-[54rem] text-[length:var(--type-panel-body-large-size)]">
+                  A harness is the safety, context, and continuity layer around an agent. Port Daddy
+                  supplies the durable team state. Porthole records the terminal evidence so a person
+                  can inspect what changed, what was refused, and why.
+                </PanelBody>
+                <div className="flex flex-wrap gap-[var(--space-3)]">
+                  <Button asChild size="lg">
+                    <a href="#proof-workbench">Watch the proof <ArrowRight size={16} /></a>
+                  </Button>
+                  <Button asChild variant="secondary" size="lg">
+                    <a href="#harness-contexts">See every context moment</a>
+                  </Button>
                 </div>
-              </SwissGridItem>
+              </div>
 
-              <SwissGridItem span="wide">
-                <HarnessArtFigure
-                  src="/img/generated/harness-hero.webp"
-                  alt="A single agent core at center, eight instrumented lines reaching out into a control plane of message tubes, a subscription rail, a swarm-ownership grid, a returning verdict path, a conversation loop, a budget meter, an isolated worktree, and an amber guard gate"
-                  caption="One agent core, eight instrumented lines into the fleet’s control plane."
-                  loading="eager"
-                  className="hidden lg:block"
-                />
-              </SwissGridItem>
-            </SwissGrid>
+              <div className="grid gap-px border-2 border-[var(--border-strong)] bg-[var(--border-strong)] sm:grid-cols-3 lg:grid-cols-1">
+                <PlainLayer icon={Users} title="The agent does the work.">
+                  It reads the task, chooses commands, edits files, and explains its result.
+                </PlainLayer>
+                <PlainLayer icon={ShieldCheck} title="Port Daddy governs the work.">
+                  It remembers identity, sessions, claims, locks, messages, Parleys, budgets, and receipts.
+                </PlainLayer>
+                <PlainLayer icon={Eye} title="Porthole makes the evidence inspectable.">
+                  It replays the real terminal bytes as selectable text. It does not invent a decision or upgrade a recording into a receipt.
+                </PlainLayer>
+              </div>
+            </div>
           </PageContainer>
         </section>
 
-        {/* ── The spine: tentacles into the vendor hook surface ────────── */}
-        <section className="border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
-          <PageContainer width="wide">
-            <SwissGrid className="items-start">
-              <SwissGridItem span="narrow">
-                <SectionIntro
-                  eyebrow="The spine"
-                  title="It hooks into the CLI you already run."
-                  description="The harness is not a fork of your agent and not a wrapper that re-implements it. It seats itself into the vendor CLI’s own hook surface — the turn-start, pre-tool, post-tool, and command-intercept points the tool already exposes. Every capability below rides one of those hooks. There is no new agent to learn; the agent you have becomes a citizen of the fleet."
-                  titleAs="h2"
-                  titleSize="display"
-                  titleClassName="max-w-[18ch]"
-                  bodyClassName="max-w-[44rem]"
-                />
-                <div className="mt-[var(--space-5)] grid gap-[var(--space-3)]">
-                  <SurfacePanel elevation="quiet" padding="compact" className="grid gap-[var(--space-2)]">
-                    <div className="inline-flex items-center gap-[var(--space-2)]">
-                      <Terminal size={16} className="text-[var(--brand-primary)]" />
-                      <PanelEyebrow>Honest status</PanelEyebrow>
-                    </div>
-                    <PanelBody size="compact" className="max-w-none">
-                      Claude Code is fully wired today — every capability verified against
-                      its hooks. Gemini and Codex expose comparable hook surfaces; those
-                      are mapped and being validated. This is real infrastructure, named
-                      where it stands.
-                    </PanelBody>
-                  </SurfacePanel>
-                </div>
-              </SwissGridItem>
-
-              <SwissGridItem span="wide">
-                <figure className="space-y-[var(--space-2)]">
-                  <div className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
-                    <picture>
-                      <source srcSet="/img/generated/harness-hooks-dark.png" media="(prefers-color-scheme: dark)" />
-                      <img
-                        src="/img/generated/harness-hooks.png"
-                        alt="A vendor command-line tool exposing four hook ports, with keyed couplings from the daemon seating into them."
-                        className="aspect-video w-full object-cover"
-                        loading="eager"
-                      />
-                    </picture>
-                  </div>
-                  <figcaption className="font-sans text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
-                    The daemon seats into the CLI’s hook ports. One coupling is verified; the others are validating.
-                  </figcaption>
-                </figure>
-              </SwissGridItem>
-            </SwissGrid>
-          </PageContainer>
-        </section>
-
-        {/* ── The eight capabilities ──────────────────────────────────── */}
-        <section
-          id="capabilities"
-          className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]"
-        >
+        <section id="proof-workbench" className="scroll-mt-20 border-b-2 border-[var(--border-strong)] bg-[var(--surface-sunken)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
           <PageContainer width="wide">
             <SectionIntro
-              eyebrow="What the harness grants"
-              title="Eight jobs the harness does before an agent acts."
-              description="These are practical jobs, not slogans. The harness gives every agent the messages, channels, claims, CI feedback, meetings, budget checks, worktree routing, and command guardrails it needs to work with the fleet."
+              eyebrow="Seven real witnesses · not one stitched story"
+              title="Choose the moment you want to verify."
+              description="Every scene below is a fresh Porthole cast with a source digest and a bounded claim. Changing scenes destroys the old player and restarts the selected witness from time zero."
               titleAs="h2"
               titleSize="display"
-              titleClassName="max-w-[20ch]"
+              titleClassName="max-w-[18ch]"
+              bodyClassName="max-w-[58rem]"
             />
-            <CapabilityExplainer capability={selectedCapability} />
 
-            <div className="mt-[var(--space-4)] grid grid-cols-2 gap-px border-2 border-[var(--border-strong)] bg-[var(--border-strong)] md:grid-cols-4">
-              {CAPABILITIES.map((cap, index) => {
-                const selected = index === activeCapability
-
-                return (
-                  <button
-                    key={cap.n}
-                    type="button"
-                    aria-pressed={selected}
-                    onClick={() => setActiveCapability(index)}
-                    className={`grid min-h-[9rem] gap-[var(--space-2)] p-[var(--space-3)] text-left transition-colors focus-visible:outline-4 focus-visible:outline-[var(--focus-ring)] sm:min-h-[8.25rem] ${
-                      selected
-                        ? 'bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]'
-                        : 'bg-[var(--surface-raised)] text-[var(--text-primary)] hover:bg-[var(--surface-strong)]'
-                    }`}
-                  >
-                    <span className="flex items-center justify-between gap-[var(--space-2)]">
-                      <span
-                        className={`inline-flex h-9 w-9 items-center justify-center border-2 ${
-                          selected ? 'border-current' : 'border-[var(--border-strong)] text-[var(--brand-primary)]'
-                        }`}
-                      >
-                        <cap.icon size={16} />
-                      </span>
-                      <span className="font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] opacity-75">
-                        {cap.n}
-                      </span>
-                    </span>
-                    <span className="font-sans text-[length:var(--type-panel-body-compact-size)] font-black leading-[var(--leading-body-compact)] sm:text-balance sm:text-[length:var(--type-panel-title-nav-size)] sm:leading-[var(--leading-nav)]">
-                      {cap.cardTitle ?? cap.title}
-                    </span>
-                    <span
-                      className={`hidden text-[length:var(--type-meta-size)] font-semibold leading-[var(--leading-body-compact)] sm:block ${
-                        selected ? 'text-[color:var(--brand-primary-foreground-muted)]' : 'text-[var(--text-secondary)]'
-                      }`}
+            <div className="mt-[var(--space-7)] grid min-w-0 gap-[var(--space-4)] xl:grid-cols-[20rem_minmax(0,1fr)]">
+              <nav className="grid content-start gap-px border-2 border-[var(--border-strong)] bg-[var(--border-strong)]" aria-label="Porthole evidence scenes">
+                {PORTHOLE_SCENES.map((scene) => {
+                  const SceneIcon = scene.icon
+                  const selected = scene.id === activeScene.id
+                  return (
+                    <button
+                      key={scene.id}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => setActiveSceneId(scene.id)}
+                      className={`grid min-h-[5.5rem] grid-cols-[2.25rem_minmax(0,1fr)] gap-[var(--space-3)] border-l-[0.45rem] p-[var(--space-3)] text-left transition-colors focus-visible:outline-4 focus-visible:outline-[var(--focus-ring)] ${selected ? 'bg-[var(--surface-base)]' : 'bg-[var(--surface-raised)] hover:bg-[var(--interactive-hover)]'}`}
+                      style={{ borderLeftColor: scene.color }}
                     >
-                      {cap.oneLiner}
-                    </span>
-                  </button>
+                      <span className="grid h-9 w-9 place-items-center border border-[var(--border-strong)] bg-[var(--surface-base)]" style={{ color: scene.color }}>
+                        <SceneIcon size={17} />
+                      </span>
+                      <span>
+                        <span className="block font-mono text-[length:var(--type-meta-size)] font-black uppercase text-[var(--text-muted)]">
+                          {scene.number} · {scene.station}
+                        </span>
+                        <strong className="mt-1 block font-sans text-[length:var(--type-panel-body-compact-size)] leading-[1.2]">
+                          {scene.title}
+                        </strong>
+                      </span>
+                    </button>
+                  )
+                })}
+              </nav>
+
+              <div className="min-w-0 space-y-[var(--space-4)]">
+                <SurfacePanel elevation="raised" padding="compact" className="min-w-0 space-y-[var(--space-4)] overflow-hidden">
+                  <div className="grid gap-[var(--space-4)] lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-[var(--space-2)]">
+                        <span className="inline-flex h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)]" style={{ color: activeScene.color }}>
+                          <ActiveSceneIcon size={19} />
+                        </span>
+                        <EvidenceBadge state="recorded" />
+                        <PanelEyebrow>{activeScene.format}</PanelEyebrow>
+                      </div>
+                      <PanelTitle as="h3" size="display" className="mt-[var(--space-3)] max-w-[18ch]">
+                        {activeScene.title}
+                      </PanelTitle>
+                    </div>
+                    <div className="font-mono text-[length:var(--type-meta-size)] text-[var(--text-muted)] lg:text-right">
+                      <div>{activeScene.station}</div>
+                      <div>sha256 {activeScene.hash.slice(0, 12)}</div>
+                    </div>
+                  </div>
+
+                  <PortholeEmbed key={activeScene.id} src={activeScene.cast} label={`Replay ${activeScene.title}`} eager />
+
+                  <div className="grid gap-px border-2 border-[var(--border-strong)] bg-[var(--border-strong)] md:grid-cols-3">
+                    <article className="bg-[var(--surface-raised)] p-[var(--space-3)]">
+                      <PanelEyebrow>What was happening</PanelEyebrow>
+                      <PanelBody size="compact" className="mt-[var(--space-2)] max-w-none">{activeScene.moment}</PanelBody>
+                    </article>
+                    <article className="bg-[var(--surface-raised)] p-[var(--space-3)]">
+                      <PanelEyebrow>What Port Daddy did</PanelEyebrow>
+                      <PanelBody size="compact" className="mt-[var(--space-2)] max-w-none">{activeScene.intervention}</PanelBody>
+                    </article>
+                    <article className="bg-[var(--surface-raised)] p-[var(--space-3)]">
+                      <PanelEyebrow>What proves it</PanelEyebrow>
+                      <PanelBody size="compact" className="mt-[var(--space-2)] max-w-none">{activeScene.proof}</PanelBody>
+                    </article>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-[var(--space-2)] border-l-[0.45rem] border-l-[var(--brand-primary)] bg-[var(--surface-sunken)] px-[var(--space-3)] py-[var(--space-2)]">
+                    <span className="font-mono text-[length:var(--type-meta-size)] font-black uppercase text-[var(--brand-primary)]">Authority</span>
+                    <span className="font-mono text-[length:var(--type-meta-size)] text-[var(--text-secondary)]">{activeScene.authority}</span>
+                  </div>
+                </SurfacePanel>
+              </div>
+            </div>
+          </PageContainer>
+        </section>
+
+        <section id="harness-contexts" className="scroll-mt-20 border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+          <PageContainer width="wide">
+            <SectionIntro
+              eyebrow="The context atlas"
+              title="A harness can meet the agent at seventeen different moments."
+              description="The useful unit is not a tentacle name. It is the smallest timely fact that changes a decision without taking the decision away from the agent. Recorded moments link back to evidence; future contracts stay visibly unplayed."
+              titleAs="h2"
+              titleSize="display"
+              titleClassName="max-w-[22ch]"
+              bodyClassName="max-w-[58rem]"
+            />
+
+            <div className="mt-[var(--space-7)] grid gap-px border-2 border-[var(--border-strong)] bg-[var(--border-strong)] md:grid-cols-2 xl:grid-cols-3">
+              {HARNESS_CONTEXTS.map((context, index) => {
+                const scene = context.sceneId ? PORTHOLE_SCENES.find((candidate) => candidate.id === context.sceneId) : undefined
+                const body = (
+                  <>
+                    <div className="flex flex-wrap items-start justify-between gap-[var(--space-2)]">
+                      <span className="font-mono text-[length:var(--type-meta-size)] font-black text-[var(--text-muted)]">{String(index + 1).padStart(2, '0')}</span>
+                      <EvidenceBadge state={context.state} />
+                    </div>
+                    <PanelEyebrow className="mt-[var(--space-4)]">{context.phase}</PanelEyebrow>
+                    <PanelTitle as="h3" size="card" className="mt-[var(--space-2)] max-w-[20ch]">{context.title}</PanelTitle>
+                    <blockquote className="mt-[var(--space-3)] border-l-[0.35rem] border-l-[var(--brand-accent)] pl-[var(--space-3)] font-sans text-[length:var(--type-panel-body-compact-size)] font-bold leading-[1.35] text-[var(--text-primary)]">
+                      “{context.naturalCopy}”
+                    </blockquote>
+                    <div className="mt-[var(--space-4)] flex items-end justify-between gap-[var(--space-3)]">
+                      <span className="font-mono text-[length:var(--type-meta-size)] text-[var(--text-muted)]">{context.contract}</span>
+                      {scene ? <span className="font-mono text-[length:var(--type-meta-size)] font-black uppercase text-[var(--brand-primary)]">open proof ↗</span> : null}
+                    </div>
+                  </>
+                )
+
+                return scene ? (
+                  <a
+                    href="#proof-workbench"
+                    key={`${context.phase}-${context.title}`}
+                    className="block min-h-[18rem] bg-[var(--surface-raised)] p-[var(--space-4)] hover:bg-[var(--interactive-hover)] focus-visible:outline-4 focus-visible:outline-[var(--focus-ring)]"
+                    onClick={() => setActiveSceneId(scene.id)}
+                    style={{ boxShadow: `inset 0 0.45rem 0 ${scene.color}` }}
+                  >
+                    {body}
+                  </a>
+                ) : (
+                  <article key={`${context.phase}-${context.title}`} className="min-h-[18rem] bg-[var(--surface-sunken)] p-[var(--space-4)]">
+                    {body}
+                  </article>
                 )
               })}
             </div>
           </PageContainer>
         </section>
 
-        {/* ── Veto deep-dive ─────────────────────────────────────────── */}
-        <section className="border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
-          <PageContainer width="wide">
-            <SwissGrid className="items-center">
-              <SwissGridItem span="wide">
-                <figure className="space-y-[var(--space-2)]">
-                  <div className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
-                    <picture>
-                      <source srcSet="/img/generated/harness-veto-dark.png" media="(prefers-color-scheme: dark)" />
-                      <img
-                        src="/img/generated/harness-veto.png"
-                        alt="A destructive command lane carrying a hazard mark arrives and is stopped by an amber guard gate while a clean safe lane departs."
-                        className="aspect-video w-full object-cover"
-                        loading="eager"
-                      />
-                    </picture>
-                  </div>
-                  <figcaption className="font-sans text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
-                    The hazard lane is stopped at the gate; a safe lane is offered in its place.
-                  </figcaption>
-                </figure>
-              </SwissGridItem>
-
-              <SwissGridItem span="narrow">
-                <div className="space-y-[var(--space-4)]">
-                  <div className="inline-flex items-center gap-[var(--space-2)]">
-                    <ShieldAlert size={18} className="text-[var(--brand-primary)]" />
-                    <BracketLabel>A veto that teaches</BracketLabel>
-                  </div>
-                  <PanelTitle as="h2" size="display" className="max-w-[18ch]">
-                    Blocking is easy. Naming the safe move is the point.
-                  </PanelTitle>
-                  <PanelBody className="max-w-[44rem]">
-                    A guard that only says “no” leaves the agent stuck and likely to
-                    try again, harder. The harness intercepts the irreversible command
-                    and answers with the reversible one — the move the agent should
-                    have reached for. The lesson travels with the refusal.
-                  </PanelBody>
-                  <CodeBlock language="bash" filename="intercepted at the tool call">
-                    {`# agent tries:
-$ rm -rf build/ .git/
-
-# harness vetoes, and names the safe path:
-✗ Refused: this would delete tracked history.
-→ Try: git clean -xfd build/   (build artifacts only,
-        leaves .git and working tree intact)`}
-                  </CodeBlock>
-                </div>
-              </SwissGridItem>
-            </SwissGrid>
-          </PageContainer>
-        </section>
-
-        {/* ── Vendor support honesty table ───────────────────────────── */}
-        <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+        <section id="parley-proof" className="scroll-mt-20 border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
           <PageContainer width="wide">
             <SectionIntro
-              eyebrow="Where it runs"
-              title="One harness, mapped to each vendor CLI’s hooks."
-              description="The capabilities are the same across vendors because they ride hook points every modern coding CLI exposes. What differs is how far each integration has been verified. Here is the honest state."
-              titleAs="h2"
-              titleSize="display"
-              titleClassName="max-w-[22ch]"
-            />
-            <div className="mt-[var(--space-6)] grid gap-[var(--space-3)]">
-              {VENDOR_ROWS.map((row) => (
-                <SurfacePanel
-                  key={row.vendor}
-                  elevation="quiet"
-                  padding="compact"
-                  className="grid items-center gap-[var(--space-3)] md:grid-cols-[minmax(0,12rem)_auto_minmax(0,1fr)]"
-                >
-                  <PanelTitle as="h3" size="nav" className="max-w-none">
-                    {row.vendor}
-                  </PanelTitle>
-                  <div>
-                    <StatusPill tone={row.status}>
-                      {row.status === 'live' ? 'Fully wired' : 'Hooks mapped'}
-                    </StatusPill>
-                  </div>
-                  <PanelBody size="compact" className="max-w-none">
-                    {row.note}
-                  </PanelBody>
-                </SurfacePanel>
-              ))}
-            </div>
-          </PageContainer>
-        </section>
-
-        {/* ── Operator proof surfaces ───────────────────────────────── */}
-        <section className="border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
-          <PageContainer width="wide">
-            <SectionIntro
-              eyebrow="What finished means"
-              title="A harnessed agent must be visible, controllable, and pleasant to run."
-              description="A backend lane is not real because a command fits in a code block. It is real when the operator can watch the stream, see Port Daddy's hook decisions, jump into the session, stop or steer the work, and see the same agent beside the standing fleet in CLI, FleetBar, and the Rust GPUI app."
-              titleAs="h2"
-              titleSize="display"
-              titleClassName="max-w-[26ch]"
-              bodyClassName="max-w-[58rem]"
-            />
-            <div className="mt-[var(--space-6)] grid gap-[var(--space-4)] lg:grid-cols-3">
-              <SurfacePanel className="space-y-[var(--space-4)]">
-                <div className="flex items-center gap-[var(--space-2)]">
-                  <Terminal size={18} className="text-[var(--brand-primary)]" />
-                  <PanelEyebrow className="text-[var(--brand-primary)]">CLI multiplexor</PanelEyebrow>
-                </div>
-                <PanelTitle as="h3" size="card">
-                  Watch the working agent and Port Daddy at once.
-                </PanelTitle>
-                <PanelBody size="compact" className="max-w-none">
-                  The terminal surface needs a live transcript tail, hook verdicts, inbox and parley injections, budget state,
-                  and a jump-in path for every daemon-launched agent.
-                </PanelBody>
-                <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
-                  <img
-                    src="/demos/pd-tube/pd-tube-multiplex.gif"
-                    alt="Terminal recording of Port Daddy tube multiplexing agent streams and replies."
-                    className="aspect-video w-full object-cover"
-                    loading="eager"
-                  />
-                </figure>
-              </SurfacePanel>
-
-              <SurfacePanel className="space-y-[var(--space-4)]">
-                <div className="flex items-center gap-[var(--space-2)]">
-                  <Users size={18} className="text-[var(--brand-primary)]" />
-                  <PanelEyebrow className="text-[var(--brand-primary)]">FleetBar roster</PanelEyebrow>
-                </div>
-                <PanelTitle as="h3" size="card">
-                  See fleet agents and task agents in one place.
-                </PanelTitle>
-                <PanelBody size="compact" className="max-w-none">
-                  FleetBar should show full-time infrastructure agents beside task agents, with model tier, worktree,
-                  hook health, transcript tail, and remediation when part of the harness is missing.
-                </PanelBody>
-                <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
-                  <picture>
-                    <source srcSet="/img/app-screens/fleetbar-native-shell-dark.webp" media="(prefers-color-scheme: dark)" />
-                    <img
-                      src="/img/app-screens/fleetbar-native-shell-light.webp"
-                      alt="FleetBar native shell showing the Port Daddy operator app surface."
-                      className="aspect-video w-full object-cover"
-                      loading="eager"
-                    />
-                  </picture>
-                </figure>
-              </SurfacePanel>
-
-              <SurfacePanel className="space-y-[var(--space-4)]">
-                <div className="flex items-center gap-[var(--space-2)]">
-                  <Radio size={18} className="text-[var(--brand-primary)]" />
-                  <PanelEyebrow className="text-[var(--brand-primary)]">Rust GPUI control center</PanelEyebrow>
-                </div>
-                <PanelTitle as="h3" size="card">
-                  Control a live session without losing the fleet.
-                </PanelTitle>
-                <PanelBody size="compact" className="max-w-none">
-                  The GPUI app needs a unified roster, readable live lane, transcript anchor, daemon lane, and operator
-                  controls for attach, interrupt, remediation, and handoff.
-                </PanelBody>
-                <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
-                  <img
-                    src="/img/app-screens/pd-console-gpui/active-agents-harness-roster.png"
-                    alt="Rust GPUI active-agent harness roster showing live agents, stream commands, steer commands, and takeover handles."
-                    className="aspect-video w-full object-cover"
-                    loading="eager"
-                  />
-                </figure>
-              </SurfacePanel>
-            </div>
-
-            <div className="mt-[var(--space-8)]">
-              <div className="mb-[var(--space-5)] flex flex-col gap-[var(--space-2)] md:flex-row md:items-end md:justify-between">
-                <div className="space-y-[var(--space-2)]">
-                  <PanelEyebrow>Proof gallery</PanelEyebrow>
-                  <PanelTitle as="h3" size="display" className="max-w-[18ch]">
-                    Screens and recordings from the harness surfaces.
-                  </PanelTitle>
-                </div>
-                <PanelBody size="compact" className="max-w-[34rem]">
-                  These are the acceptance surfaces: CLI streams, FleetBar, dashboard state, and the Rust GPUI control center.
-                  Any new backend lane has to show up here before the marketing copy can call it real.
-                </PanelBody>
-              </div>
-              <div className="grid gap-[var(--space-4)] lg:grid-cols-2">
-                {PROOF_MEDIA.map((media) => (
-                  <ProofMediaCard key={`${media.eyebrow}-${media.title}`} media={media} />
-                ))}
-              </div>
-            </div>
-          </PageContainer>
-        </section>
-
-        {/* ── Backend lanes ─────────────────────────────────────────── */}
-        <section className="border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
-          <PageContainer width="wide">
-            <SectionIntro
-              eyebrow="Same Articles, many brains"
-              title="The contract binds to the runtime, then the model can vary."
-              description="Claude, Codex, Gemma, Ollama, and Cloudflare agents do not need identical brains. They need the same obligations: hear the fleet, claim before editing, pay rent, answer review, and leave memory behind. The verified state is named plainly."
+              eyebrow="Parley · primary view and audit source"
+              title="Agents should see a conversation. Auditors can open the protocol."
+              description="The primary recording removes raw performatives and shows one proposal changing under two independent objections. The tmux drill-down keeps every distinct shell, session, prompt, public turn, and read receipt available underneath."
               titleAs="h2"
               titleSize="display"
               titleClassName="max-w-[24ch]"
-              bodyClassName="max-w-[48rem]"
+              bodyClassName="max-w-[60rem]"
             />
 
-            <figure className="mt-[var(--space-6)] space-y-[var(--space-2)]">
-              <picture className="block">
-                <source
-                  media="(orientation: portrait) and (prefers-color-scheme: dark)"
-                  srcSet="/img/generated/harness-articles-jetpacks-portrait-dark.webp"
-                  type="image/webp"
-                />
-                <source
-                  media="(orientation: portrait) and (prefers-color-scheme: dark)"
-                  srcSet="/img/generated/harness-articles-jetpacks-portrait-dark.png"
-                />
-                <source
-                  media="(orientation: portrait)"
-                  srcSet="/img/generated/harness-articles-jetpacks-portrait-light.webp"
-                  type="image/webp"
-                />
-                <source
-                  media="(orientation: portrait)"
-                  srcSet="/img/generated/harness-articles-jetpacks-portrait-light.png"
-                />
-                <source
-                  media="(prefers-color-scheme: dark)"
-                  srcSet="/img/generated/harness-articles-jetpacks-landscape-dark.webp"
-                  type="image/webp"
-                />
-                <source
-                  media="(prefers-color-scheme: dark)"
-                  srcSet="/img/generated/harness-articles-jetpacks-landscape-dark.png"
-                />
-                <source
-                  srcSet="/img/generated/harness-articles-jetpacks-landscape-light.webp"
-                  type="image/webp"
-                />
-                <img
-                  src="/img/generated/harness-articles-jetpacks-landscape-light.png"
-                  alt="A three-part illustration of sailors joining an old ship, actively signing an open ledger together, then lifting safely from a deck launch platform with jet packs connected to abstract tool modules"
-                  className="w-full border-2 border-[var(--border-strong)] bg-[var(--surface-base)]"
-                  width={1376}
-                  height={768}
-                  loading="eager"
-                />
-              </picture>
-              <figcaption className="font-sans text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
-                The old ship is the agreement. The crew signs the ledger. The jet packs are the tools. Portrait phones get the same story stacked vertically; landscape viewports read it left to right.
-              </figcaption>
-            </figure>
+            <div id="parley-primary-proof" className="mt-[var(--space-7)] scroll-mt-20">
+              <SurfacePanel elevation="raised" padding="compact" className="grid min-w-0 gap-[var(--space-5)] lg:grid-cols-[minmax(0,1.5fr)_minmax(18rem,0.5fr)]">
+                <div className="min-w-0">
+                  <PortholeEmbed src="/casts/porthole/parley.cast" label="Replay the compact three-party Parley decision view" />
+                </div>
+                <div className="grid content-center gap-[var(--space-3)]">
+                  <EvidenceBadge state="recorded" />
+                  <PanelTitle as="h3" size="card" className="max-w-[20ch]">One plan, two objections, one revision.</PanelTitle>
+                  <PanelBody size="compact" className="max-w-none">
+                    Nora proposes capture-first. Milo exposes the inventory failure. Aya adds retry safety. Nora revises the order, then each reviewer closes only their own objection. CONVENED is visible; global settlement is not fabricated.
+                  </PanelBody>
+                </div>
+              </SurfacePanel>
+            </div>
 
-            <div className="mt-[var(--space-6)] grid gap-[var(--space-4)]">
-              {BACKEND_LANES.map((row) => (
-                <SurfacePanel key={row.runtime} elevation="quiet" padding="compact" className="grid gap-[var(--space-4)] lg:grid-cols-[minmax(0,1fr)_minmax(18rem,28rem)]">
-                  <div className="space-y-[var(--space-3)]">
-                    <div className="flex flex-wrap items-center gap-[var(--space-3)]">
-                      <PanelTitle as="h3" size="nav" className="max-w-none">
-                        {row.runtime}
-                      </PanelTitle>
-                      <StatusPill tone={row.status}>
-                        {row.status === 'live' ? 'Verified lane' : 'Mapped lane'}
-                      </StatusPill>
-                    </div>
-                    <PanelBody size="compact" className="max-w-none font-semibold text-[var(--text-primary)]">
-                      {row.backend}
-                    </PanelBody>
-                    <PanelBody size="compact" className="max-w-none">
-                      {row.contract}
-                    </PanelBody>
-                  </div>
-                  <CodeBlock language="bash" filename={row.status === 'live' ? 'operator command' : 'promotion gate'}>
-                    {row.command}
-                  </CodeBlock>
-                </SurfacePanel>
-              ))}
+            <div className="mt-[var(--space-6)]">
+              <ParleyTmuxReplay />
             </div>
           </PageContainer>
         </section>
 
-        {/* ── Run it yourself: fresh install + real recordings ───────── */}
         <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
           <PageContainer width="wide">
             <SectionIntro
-              eyebrow="Run it yourself"
-              title="Five commands from a clean machine to a harnessed, identifiable Claude Code."
-              description="Everything below is a real terminal recording of these exact commands — no mockups. The install stages the tentacles and the identity statusline; pd squid on is the one-shot arm switch; pd squid off removes every pd-authored entry and nothing else."
+              eyebrow="The killer-demo contract"
+              title="Click the failed decision. Follow only evidence that exists."
+              description="The complete Porthole promise reaches from the exact pre-decision screen to context, omissions, receipt, privacy proof, and a controlled successor. This table is intentionally uneven: green has a recording, blue waits for an integration join, and gray is engineering direction."
               titleAs="h2"
               titleSize="display"
-              titleClassName="max-w-[26ch]"
-              bodyClassName="max-w-[58rem]"
+              titleClassName="max-w-[23ch]"
+              bodyClassName="max-w-[60rem]"
             />
 
-            <div className="mt-[var(--space-6)] grid gap-[var(--space-4)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-              <SurfacePanel elevation="raised" padding="compact" className="space-y-[var(--space-3)]">
-                <PanelEyebrow className="text-[var(--brand-primary)]">Fresh install</PanelEyebrow>
-                <CodeBlock language="bash" filename="clean machine → armed project">
-                  {`# 1 — install the daemon + harness machinery
-brew install curiositech/tap/port-daddy
-pd setup            # daemon, MCP, skills, Pilot agents, tentacles staged
-
-# 2 — arm a project (per project, never machine-wide)
-cd ~/code/your-project
-pd squid on         # hooks + ◆ PD statusline + steering + /squid command
-
-# 3 — run Claude Code, visibly harnessed
-claude              # cyan ◆ PD badge; the envelope arrives every turn
-
-# 4 — inspect the non-diegetic machinery any time
-pd squid status     # what is armed, live Ink Cloud, bridge probe
-pd squid tap        # the exact envelope the next turn will receive
-
-# 5 — the off switch (also /squid off inside Claude Code)
-pd squid off`}
-                </CodeBlock>
-                <PanelBody size="compact" className="max-w-none">
-                  Every hook routes through a gate that no-ops unless the daemon is running and the
-                  directory is a Port Daddy project — armed hooks are inert everywhere else. A
-                  statusline or hook you wrote yourself is never touched.
-                </PanelBody>
-              </SurfacePanel>
-
-              <SurfacePanel elevation="raised" padding="compact" className="space-y-[var(--space-3)]">
-                <PanelEyebrow className="text-[var(--brand-primary)]">Codex-piloted Claude Code</PanelEyebrow>
-                <CodeBlock language="bash" filename="ChatGPT Pro as the seat behind Claude Code">
-                  {`# one command. no env vars, no ANTHROPIC_* exports, no auth prompts.
-pd squid codex --tier strong
-
-# it boots a local Anthropic-shaped endpoint backed by codex exec and
-# launches Claude Code pointed at it in an isolated, pre-trusted config —
-# so the bridge token is the ONLY credential (no login/token auth
-# conflict), the folder is already trusted, and onboarding is skipped.
-# The statusline flips to a magenta ◆ PD⇄CODEX badge reporting the REAL
-# backend model, never the client-facing Anthropic id.`}
-                </CodeBlock>
-                <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
-                  <picture>
-                    <source srcSet="/demos/harness/harness-statusline-dark.png" media="(prefers-color-scheme: dark)" />
-                    <img
-                      src="/demos/harness/harness-statusline.png"
-                      alt="Terminal showing the pd-statusline output twice: a cyan PD badge with daemon state for a direct Anthropic seat, and a magenta PD-to-CODEX badge reporting the codex backend model for a bridged session."
-                      className="w-full"
-                      loading="lazy"
-                    />
-                  </picture>
-                </figure>
-                <PanelBody size="compact" className="max-w-none">
-                  Same session JSON, two truths: the direct seat shows the Anthropic model; the
-                  piloted seat shows the Codex backend actually answering.
-                </PanelBody>
-              </SurfacePanel>
+            <div className="mt-[var(--space-7)] grid gap-px border-2 border-[var(--border-strong)] bg-[var(--border-strong)] md:grid-cols-2 xl:grid-cols-3">
+              {KILLER_DEMO_CONTRACT.map((item) => (
+                <article key={item.title} className="bg-[var(--surface-raised)] p-[var(--space-4)]">
+                  <EvidenceBadge state={item.state} />
+                  <PanelTitle as="h3" size="card" className="mt-[var(--space-3)] max-w-[20ch]">{item.title}</PanelTitle>
+                  <PanelBody size="compact" className="mt-[var(--space-3)] max-w-none">{item.body}</PanelBody>
+                </article>
+              ))}
             </div>
 
-            <div className="mt-[var(--space-8)]">
-              <div className="mb-[var(--space-5)] space-y-[var(--space-2)]">
-                <PanelEyebrow>Real recordings</PanelEyebrow>
-                <PanelTitle as="h3" size="display" className="max-w-[22ch]">
-                  The harness steering a live Claude Code session.
-                </PanelTitle>
-                <PanelBody size="compact" className="max-w-[58rem]">
-                  The featured recording is the whole product in one take, inside the real Claude
-                  Code TUI: a steering alert sits in the Ink Cloud, <code>pd squid tap</code> shows
-                  the envelope, and then the prompt typed into Claude — just “write a haiku” — comes
-                  back as a haiku about ships, because the UserPromptSubmit hook injected the rule
-                  the operator never typed. The <code>◆ PD</code> badge and its live counters sit in
-                  the status line the whole time.
+            <SurfacePanel elevation="quiet" padding="default" className="mt-[var(--space-6)] grid gap-[var(--space-4)] lg:grid-cols-[auto_minmax(0,1fr)] lg:items-start">
+              <FileSearch size={30} className="text-[var(--brand-primary)]" />
+              <div>
+                <PanelTitle as="h3" size="card">What Porthole is becoming</PanelTitle>
+                <PanelBody className="mt-[var(--space-2)] max-w-[64rem]">
+                  A privacy-safe evidence, continuity, and debugging layer for autonomous work: searchable terminal and process observations correlated to Port Daddy identity, context, authority, and receipts. The terminal player is the lens. The durable evidence graph is the product.
                 </PanelBody>
               </div>
-
-              <div className="grid gap-[var(--space-4)] lg:grid-cols-2">
-                {RUN_IT_MEDIA.map((media) => (
-                  <SurfacePanel
-                    key={media.title}
-                    elevation={media.featured ? 'raised' : 'quiet'}
-                    padding="compact"
-                    className={`grid content-start gap-[var(--space-3)] ${media.featured ? 'lg:col-span-2' : ''}`}
-                  >
-                    <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
-                      <picture>
-                        <source srcSet={media.darkSrc} media="(prefers-color-scheme: dark)" />
-                        <img src={media.src} alt={media.alt} className="w-full" loading="lazy" />
-                      </picture>
-                    </figure>
-                    <div className="grid gap-[var(--space-2)]">
-                      <PanelEyebrow className="text-[var(--brand-primary)]">{media.eyebrow}</PanelEyebrow>
-                      <PanelTitle as="h4" size="card" className="max-w-[30ch]">
-                        {media.title}
-                      </PanelTitle>
-                      <PanelBody size="compact" className="max-w-none">
-                        {media.body}
-                      </PanelBody>
-                    </div>
-                  </SurfacePanel>
-                ))}
-              </div>
-            </div>
+            </SurfacePanel>
           </PageContainer>
         </section>
 
-        {/* ── Closing CTA ────────────────────────────────────────────── */}
         <section className="py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
           <PageContainer width="wide">
-            <SurfacePanel tone="blue" elevation="raised" padding="default" className="grid gap-[var(--space-5)]">
-              <div className="space-y-[var(--space-3)]">
-                <PanelEyebrow>Try it</PanelEyebrow>
-                <PanelTitle as="h2" size="display" tone="primary" className="max-w-[20ch]">
-                  Install Port Daddy, begin a session, harness your agent.
+            <SurfacePanel tone="blue" elevation="raised" padding="default" className="grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.8fr)] lg:items-end">
+              <div>
+                <PanelEyebrow>Run a harnessed agent</PanelEyebrow>
+                <PanelTitle as="h2" size="display" tone="primary" className="mt-[var(--space-3)] max-w-[18ch]">
+                  Install the control plane. Arm this project. Inspect the next turn.
                 </PanelTitle>
-                <PanelBody tone="primary" className="max-w-[44rem]">
-                  One setup command installs the app, hooks, guard, skills, and MCP
-                  wiring. Doctor is the repair path when a runtime disables part of
-                  the harness or a local agent cannot see its tools.
+                <PanelBody tone="primary" className="mt-[var(--space-3)] max-w-[48rem]">
+                  The operator should not need daemon incantations. FleetBar is the control surface; these three commands are the agent-side quick path and the exact source of the current harness-context witness.
                 </PanelBody>
+                <div className="mt-[var(--space-4)] flex flex-wrap gap-[var(--space-3)]">
+                  <Button asChild variant="secondary" size="lg">
+                    <Link to="/docs/quickstart">Read the quickstart <ArrowRight size={16} /></Link>
+                  </Button>
+                  <Button asChild variant="ghost" size="lg">
+                    <Link to="/security"><CheckCircle2 size={16} /> Inspect the safety boundary</Link>
+                  </Button>
+                </div>
               </div>
-              <CodeBlock language="bash">
+              <CodeBlock language="bash" filename="agent-side quick path">
                 {`brew install curiositech/tap/port-daddy
 pd setup
-pd doctor`}
+pd squid on && pd squid tap`}
               </CodeBlock>
-              <div className="flex flex-wrap gap-[var(--space-3)]">
-                <Button asChild variant="secondary" size="lg">
-                  <Link to="/docs/quickstart">
-                    Read the quickstart
-                    <ArrowRight size={16} />
-                  </Link>
-                </Button>
-                <Button asChild variant="ghost" size="lg">
-                  <Link to="/security">
-                    <CheckCircle2 size={16} />
-                    How the guard is enforced
-                  </Link>
-                </Button>
-              </div>
             </SurfacePanel>
           </PageContainer>
         </section>

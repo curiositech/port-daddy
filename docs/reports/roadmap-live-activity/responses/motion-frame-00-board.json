@@ -1,0 +1,108 @@
+{
+  "success": true,
+  "generatedAt": 1787441895904,
+  "harbor": null,
+  "counts": {
+    "items": 2,
+    "byStage": {
+      "stacked": 1,
+      "executing": 1,
+      "review": 0,
+      "done": 0
+    },
+    "activeAgents": 1,
+    "staleAttachments": 0,
+    "openClaims": 1,
+    "attention": 0
+  },
+  "items": [
+    {
+      "slug": "liveness-contrast-slice",
+      "harbor": "port-daddy:fleet",
+      "status": "now",
+      "summaryMd": "A draining agent whose heartbeat ages past its 3-minute stale threshold while the clock advances.",
+      "assigneeId": null,
+      "lastTouchedAt": 1787441895920,
+      "stage": "executing",
+      "dispatch": null,
+      "needsAttention": false,
+      "reviewEvidence": null,
+      "attachments": [
+        {
+          "key": "session-wind-down-the-contrast-slice-136eb6ad4014",
+          "sources": [
+            "claim",
+            "session-link"
+          ],
+          "agentId": "fleet-cooper-09",
+          "agentName": "Cooper",
+          "agentRegistered": true,
+          "agentNodeId": null,
+          "sessionId": "session-wind-down-the-contrast-slice-136eb6ad4014",
+          "sessionStatus": "active",
+          "purpose": "wind down the contrast slice",
+          "worktreeId": "wt-contrast-b",
+          "liveness": "active",
+          "lastHeartbeatMs": 1787441895920,
+          "idleMs": 0,
+          "staleThresholdMs": 180000,
+          "claim": {
+            "id": 1,
+            "kind": "next-cut",
+            "claimedBy": "fleet-cooper-09",
+            "claimedAt": 1787441895904
+          },
+          "cockpit": {
+            "steeringChannel": "agent:fleet-cooper-09",
+            "streamUrl": "/agents/fleet-cooper-09/stream",
+            "interrupt": {
+              "available": false,
+              "reason": "interrupt is a publish-only soft signal today (no delivery/ack lifecycle); acknowledged control ingress is pending",
+              "softSignalUrl": "/agents/fleet-cooper-09/interrupt",
+              "plannedRoute": "/agent-nodes/:id/control",
+              "plannedVerbs": [
+                "interrupt",
+                "steer"
+              ]
+            }
+          },
+          "transcriptUrl": "/sessions/session-wind-down-the-contrast-slice-136eb6ad4014/events",
+          "agentNodeUrl": null,
+          "hitl": []
+        }
+      ],
+      "counts": {
+        "attachments": 1,
+        "active": 1,
+        "stale": 0
+      }
+    },
+    {
+      "slug": "roadmap-activity-board-feed",
+      "harbor": "port-daddy:fleet",
+      "status": "now",
+      "summaryMd": "Board feed: join roadmap items to in-flight agent work so the operator sees who is driving what, right now.",
+      "assigneeId": null,
+      "lastTouchedAt": 1787441895920,
+      "stage": "stacked",
+      "dispatch": {
+        "id": "593ca5e7-9afa-496c-a8a2-0aa74fe33316",
+        "state": "proposed",
+        "sessionId": null,
+        "workerActorId": null,
+        "branch": null,
+        "resultArtifact": null,
+        "errorMessage": null,
+        "createdAt": 1787441895904
+      },
+      "needsAttention": false,
+      "reviewEvidence": null,
+      "attachments": [],
+      "counts": {
+        "attachments": 0,
+        "active": 0,
+        "stale": 0
+      }
+    }
+  ]
+}

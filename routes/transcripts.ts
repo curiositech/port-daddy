@@ -8,19 +8,13 @@
  *   GET    /transcripts/stream         SSE — live tail of start/update/end events
  *   GET    /transcripts/:id            Full transcript with messages + outputs
  *
- * Write paths (operator-only / spawner-internal):
- *   POST   /transcripts                Append a full transcript (idempotent upsert)
- *   POST   /transcripts/:id/messages   Append a single message (used by external recorders)
- *   POST   /transcripts/:id/outputs    Append a ship output artifact (pr-comment URL etc.)
- *   DELETE /transcripts/:id            Delete (destructive — gated)
+ * This plugin is read-only. Credentialless HTTP mutation routes are not
+ * registered. Trusted in-process producers use the Transcripts API directly.
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import type {
   Transcripts,
-  TranscriptEntry,
-  TranscriptMessage,
-  TranscriptOutput,
   TranscriptFilter,
 } from '../lib/transcripts.js';
 import {
@@ -29,23 +23,24 @@ import {
   findLatestTranscriptForAgent,
   type TranscriptTrackedRun,
 } from '../lib/transcript-compliance.js';
+import {
+  buildTranscriptEmergencyFromSources,
+  parseTranscriptEmergencyPositiveIntQuery,
+  type TranscriptEmergencySourceDeps,
+} from '../lib/transcript-emergency.js';
 
 interface TranscriptRouteDeps {
   transcripts?: Transcripts;
   spawner?: {
     list(): TranscriptTrackedRun[];
   };
+  cloudAppTelemetry?: TranscriptEmergencySourceDeps['cloudAppTelemetry'];
   metrics: { errors: number };
   logger: {
     info(msg: string, meta?: Record<string, unknown>): void;
     error(msg: string, meta?: Record<string, unknown>): void;
   };
 }
-
-const VALID_ROLES = new Set(['system', 'user', 'assistant', 'tool', 'thinking']);
-const VALID_OUTPUT_TYPES = new Set([
-  'pr-comment', 'issue', 'draft-pr', 'commit', 'noop', 'message', 'other',
-]);
 
 export const transcriptsPlugin: FastifyPluginAsync<{ deps: TranscriptRouteDeps }> = async (
   fastify,
@@ -110,16 +105,48 @@ export const transcriptsPlugin: FastifyPluginAsync<{ deps: TranscriptRouteDeps }
     if (!transcripts) return notWired(reply);
     try {
       const q = (request.query as Record<string, string>) || {};
-      const stallAfterMs = q.stallAfterMs ? Number.parseInt(q.stallAfterMs, 10) : undefined;
-      if (q.stallAfterMs && !Number.isFinite(stallAfterMs)) {
+      const stallAfterMs = parseTranscriptEmergencyPositiveIntQuery(q.stallAfterMs);
+      if (q.stallAfterMs !== undefined && stallAfterMs === undefined) {
         reply.code(400);
-        return { success: false, error: 'stallAfterMs must be a duration in milliseconds' };
+        return { success: false, error: 'stallAfterMs must be a positive integer duration in milliseconds' };
       }
       const report = complianceReport(stallAfterMs);
       return { success: true, ...(report || buildTranscriptComplianceReport([])) };
     } catch (error) {
       metrics.errors++;
       logger.error('transcripts_compliance_error', { error: (error as Error).message });
+      reply.code(500);
+      return { success: false, error: 'internal server error' };
+    }
+  });
+
+  // ── GET /transcripts/emergency ───────────────────────────────────────────
+  fastify.get('/transcripts/emergency', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!transcripts) return notWired(reply);
+    try {
+      const q = (request.query as Record<string, string>) || {};
+      const stallAfterMs = parseTranscriptEmergencyPositiveIntQuery(q.stallAfterMs);
+      if (q.stallAfterMs !== undefined && stallAfterMs === undefined) {
+        reply.code(400);
+        return { success: false, error: 'stallAfterMs must be a positive integer duration in milliseconds' };
+      }
+      const cloudSinceMs = parseTranscriptEmergencyPositiveIntQuery(q.since);
+      if (q.since !== undefined && cloudSinceMs === undefined) {
+        reply.code(400);
+        return { success: false, error: 'since must be a positive integer duration in milliseconds' };
+      }
+      const report = buildTranscriptEmergencyFromSources({
+        transcripts,
+        spawner,
+        cloudAppTelemetry: opts.deps.cloudAppTelemetry,
+      }, {
+        stallAfterMs,
+        cloudSinceMs,
+      });
+      return { success: true, ...report };
+    } catch (error) {
+      metrics.errors++;
+      logger.error('transcripts_emergency_error', { error: (error as Error).message });
       reply.code(500);
       return { success: false, error: 'internal server error' };
     }
@@ -214,131 +241,4 @@ export const transcriptsPlugin: FastifyPluginAsync<{ deps: TranscriptRouteDeps }
     }
   });
 
-  // ── POST /transcripts  (operator upsert path) ────────────────────────────
-  fastify.post('/transcripts', async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!transcripts) return notWired(reply);
-    try {
-      const body = (request.body as TranscriptEntry) || {} as TranscriptEntry;
-      if (!body.id || !body.ship || !body.spawned_agent_id || !body.trigger || !body.backend || !body.model) {
-        reply.code(400);
-        return { success: false, error: 'id, ship, spawned_agent_id, trigger, backend, model are required' };
-      }
-      // Coerce messages and outputs to safe defaults.
-      const entry: TranscriptEntry = {
-        ...body,
-        messages: Array.isArray(body.messages) ? body.messages : [],
-        outputs: Array.isArray(body.outputs) ? body.outputs : [],
-      };
-      transcripts.recordTranscript(entry);
-      return { success: true, id: entry.id };
-    } catch (error) {
-      metrics.errors++;
-      logger.error('transcripts_record_error', { error: (error as Error).message });
-      reply.code(500);
-      return { success: false, error: 'internal server error' };
-    }
-  });
-
-  // ── POST /transcripts/:id/messages ───────────────────────────────────────
-  fastify.post('/transcripts/:id/messages', async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!transcripts) return notWired(reply);
-    try {
-      const id = String((request.params as Record<string, string>).id);
-      const body = (request.body as TranscriptMessage) || ({} as TranscriptMessage);
-      if (!body.role || !VALID_ROLES.has(body.role)) {
-        reply.code(400);
-        return { success: false, error: `role must be one of: ${[...VALID_ROLES].join(', ')}` };
-      }
-      if (typeof body.content !== 'string') {
-        reply.code(400);
-        return { success: false, error: 'content must be a string' };
-      }
-      transcripts.appendMessage(id, {
-        role: body.role,
-        content: body.content,
-        timestamp: body.timestamp || Date.now(),
-        tool_calls: body.tool_calls,
-      });
-      return { success: true, id };
-    } catch (error) {
-      const msg = (error as Error).message;
-      if (msg.includes('no transcript with id')) {
-        reply.code(404);
-        return { success: false, error: msg };
-      }
-      metrics.errors++;
-      logger.error('transcripts_message_error', { error: msg });
-      reply.code(500);
-      return { success: false, error: 'internal server error' };
-    }
-  });
-
-  // ── POST /transcripts/:id/outputs ────────────────────────────────────────
-  fastify.post('/transcripts/:id/outputs', async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!transcripts) return notWired(reply);
-    try {
-      const id = String((request.params as Record<string, string>).id);
-      const body = (request.body as TranscriptOutput) || ({} as TranscriptOutput);
-      if (!body.type || !VALID_OUTPUT_TYPES.has(body.type)) {
-        reply.code(400);
-        return { success: false, error: `type must be one of: ${[...VALID_OUTPUT_TYPES].join(', ')}` };
-      }
-      if (typeof body.summary !== 'string' || !body.summary.trim()) {
-        reply.code(400);
-        return { success: false, error: 'summary must be a non-empty string' };
-      }
-      transcripts.appendOutput(id, {
-        type: body.type,
-        summary: body.summary,
-        url: body.url,
-      });
-      return { success: true, id };
-    } catch (error) {
-      const msg = (error as Error).message;
-      if (msg.includes('no transcript with id')) {
-        reply.code(404);
-        return { success: false, error: msg };
-      }
-      metrics.errors++;
-      logger.error('transcripts_output_error', { error: msg });
-      reply.code(500);
-      return { success: false, error: 'internal server error' };
-    }
-  });
-
-  // ── DELETE /transcripts/:id  (destructive) ───────────────────────────────
-  fastify.delete('/transcripts/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!transcripts) return notWired(reply);
-    try {
-      const id = String((request.params as Record<string, string>).id);
-      // Confirmation is enforced at CLI layer; the daemon honors any delete.
-      const removed = transcripts.deleteTranscript(id);
-      if (!removed) {
-        reply.code(404);
-        return { success: false, error: 'transcript not found' };
-      }
-      return { success: true, id, deleted: true };
-    } catch (error) {
-      metrics.errors++;
-      logger.error('transcripts_delete_error', { error: (error as Error).message });
-      reply.code(500);
-      return { success: false, error: 'internal server error' };
-    }
-  });
-
-  // Retention backfill — durably re-archive every transcript in the DB to the
-  // JSONL archive (ADR-0058), so "log ALL transcripts" covers history, not just
-  // runs since the archive was enabled. Run once after first enabling retention.
-  fastify.post('/transcripts/archive/backfill', async (_request: FastifyRequest, reply: FastifyReply) => {
-    if (!transcripts) return notWired(reply);
-    try {
-      const result = transcripts.backfillArchive();
-      return { success: true, ...result };
-    } catch (error) {
-      metrics.errors++;
-      logger.error('transcripts_backfill_error', { error: (error as Error).message });
-      reply.code(500);
-      return { success: false, error: 'internal server error' };
-    }
-  });
 };

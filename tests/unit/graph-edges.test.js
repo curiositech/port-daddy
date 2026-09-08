@@ -80,4 +80,26 @@ describe('graph edges', () => {
     expect(edges).toHaveLength(1);
     expect(edges[0].metadata.status).toBe('merged');
   });
+
+  test('forget deletes exactly the keyed edge and reports whether one existed', () => {
+    // ADR-0086 §3 vocabulary: one `links` edge_type, target_type discriminates.
+    const key = {
+      scope: 'planner:links',
+      sourceType: 'roadmap:item',
+      sourceId: 'relay-hardening',
+      edgeType: 'links',
+      targetType: 'pr',
+      targetId: '9340',
+    };
+    graphEdges.remember({ ...key, metadata: { title: 'retry backoff' } });
+    graphEdges.remember({ ...key, targetType: 'doc', targetId: 'docs/adr/0086.md' });
+
+    expect(graphEdges.forget(key)).toBe(true);
+    // The sibling edge in the same scope survives — forget is surgical.
+    const remaining = graphEdges.list({ scope: 'planner:links', limit: 10 });
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0].targetType).toBe('doc');
+    // Idempotent retry: forgetting again is a false, not an error.
+    expect(graphEdges.forget(key)).toBe(false);
+  });
 });

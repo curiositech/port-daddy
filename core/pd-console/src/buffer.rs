@@ -5,14 +5,10 @@
 //! merge byte-conflict-free with per-line authorship preserved.
 //!
 //! ## Honest scope (read before extending)
-//! This is the **substrate**, not a finished editor. It deliberately does NOT
-//! implement:
-//!   - live keystroke editing (GPUI 0.2.x ships no text-input widget; that is a
-//!     ~300-LOC custom `Element` and is the explicitly-named NEXT step), and
-//!   - P3 claims / `/conflicts/predict` / claim-before-edit (the actual wedge).
-//! What it DOES prove: open a file as a Loro `LoroText`, mint a stable PeerID from
-//! a PD identity, merge a second replica's ops in (the M×N proof), and read back
-//! per-line authorship. See `docs/strategy/harbor-editor-P1-implementation.md`.
+//! This remains the renderer-free substrate. Live selection, IME, clipboard and
+//! grapheme navigation live in `editor_input.rs`; `EditorPane` translates those
+//! accepted UTF-8 replacements into the authored incremental deltas implemented
+//! here. Claims and `/conflicts/predict` remain policy above this buffer.
 //!
 //! ## Renderer-agnostic on purpose
 //! Nothing here touches gpui. The buffer compiles and unit-tests on Linux with the
@@ -22,11 +18,13 @@
 //! A Loro `PeerID` is a `u64`. We mint one deterministically from the actor's PD
 //! identity string (`project:stack:context` for an agent, the OS user for a human,
 //! whatever `pd whoami` reports) by hashing it with FNV-1a. The same identity
-//! therefore always maps to the same replica — authorship and audit survive
-//! reconnect/salvage (battle-plan risk: "Loro-replica↔PD-identity binding must
-//! survive reconnect"). We mask off `u64::MAX` because Loro reserves it.
+//! therefore always maps to the same replica across reconnects. This mapping is a
+//! necessary authorship primitive, not P3.5 recovery authority: it does not let a
+//! successor assume a dead actor's verified identity. We mask off `u64::MAX`
+//! because Loro reserves it.
 
 use loro::{ExpandType, ExportMode, LoroDoc, LoroText, StyleConfig, StyleConfigMap};
+use std::ops::Range;
 
 /// Loro container name for the file's text. One file = one `LoroDoc` holding one
 /// `LoroText` under this key (battle-plan §3).
@@ -45,9 +43,10 @@ pub type PeerId = u64;
 /// Mint a stable Loro `PeerId` from a PD identity string.
 ///
 /// FNV-1a over the identity's bytes — deterministic, dependency-free, and stable
-/// across process restarts so a salvaged successor replaying a dead actor's
-/// identity lands on the *same* replica id (authorship stays attributed to the
-/// original actor). We clear the top bit's all-ones edge by masking `u64::MAX`,
+/// across process restarts so a reconnecting actor lands on the *same* replica id.
+/// P3.5 recovery must separately prove the abandoned actor and complete typed
+/// operation ledger through canonical Rust; callers may not self-assert a dead
+/// actor's identity. We clear the top bit's all-ones edge by masking `u64::MAX`,
 /// which Loro reserves internally.
 pub fn peer_id_for_identity(identity: &str) -> PeerId {
     // FNV-1a 64-bit.
@@ -158,20 +157,49 @@ impl HarborBuffer {
     }
 
     /// Insert `s` at Unicode position `pos`, authored to this replica, and mark
-    /// the inserted span with this replica's PeerId. This is the programmatic
-    /// edit primitive (NOT live keystroke input — that GPUI Element is the next
-    /// step). Appending a full line should include its trailing `\n`.
+    /// the inserted span with this replica's PeerId. Appending a full line should
+    /// include its trailing `\n`.
     pub fn insert_authored(&self, pos: usize, s: &str) {
-        self.text.insert(pos, s).expect("insert authored span");
-        let inserted_len = s.chars().count();
-        self.text
-            .mark(
-                pos..(pos + inserted_len),
-                AUTHOR_MARK,
-                self.local_peer as i64,
-            )
-            .expect("mark authored span");
+        let _ = self.replace_authored(pos..pos, s);
+    }
+
+    /// Replace a Unicode-scalar range with locally-authored text and return only
+    /// the newly-created Loro update bytes. The returned delta is the exact op
+    /// the live editor broadcasts; it does not resend the file's full history on
+    /// every keystroke.
+    pub fn replace_authored(&self, range: Range<usize>, s: &str) -> Vec<u8> {
+        let len = self.text.len_unicode();
+        assert!(
+            range.start <= range.end && range.end <= len,
+            "authored replacement range {range:?} must fit Unicode length {len}"
+        );
+        if range.is_empty() && s.is_empty() {
+            return Vec::new();
+        }
+
+        let before = self.doc.oplog_vv();
+        if !range.is_empty() {
+            self.text
+                .delete(range.start, range.end - range.start)
+                .expect("delete authored span");
+        }
+        if !s.is_empty() {
+            self.text
+                .insert(range.start, s)
+                .expect("insert authored span");
+            let inserted_len = s.chars().count();
+            self.text
+                .mark(
+                    range.start..(range.start + inserted_len),
+                    AUTHOR_MARK,
+                    self.local_peer as i64,
+                )
+                .expect("mark authored span");
+        }
         self.doc.commit();
+        self.doc
+            .export(ExportMode::updates(&before))
+            .expect("export authored replacement delta")
     }
 
     /// Append `line` (a single logical line WITHOUT a trailing newline) at the end
@@ -196,13 +224,13 @@ impl HarborBuffer {
     /// Export a **compacted full-state snapshot** of this buffer — the durability
     /// primitive for P2 slice 3. Where [`export_ops`](Self::export_ops) is the
     /// unbounded update *log*, this is Loro's `ExportMode::Snapshot`: the current
-    /// state + history folded into one blob a fresh (or reconnecting/salvaging)
+    /// state + history folded into one blob a fresh or reconnecting
     /// replica imports via [`apply_remote_ops`](Self::apply_remote_ops) to
     /// reconstruct the doc in one shot — no full-history replay. This is the byte
-    /// stream that rides to the content-addressed `/blob` store (build-coop-ide-gpui
-    /// ref 03 §3: "doc snapshots → content-addressed `/blob` … the salvage
-    /// substrate"), so a peer that missed the live op stream catches up from
-    /// snapshot+recent-deltas instead of the whole log.
+    /// stream that can ride to the content-addressed `/blob` store, so a peer that
+    /// missed the live op stream catches up from snapshot+recent-deltas instead of
+    /// the whole log. `/blob` is P2 checkpoint transport, not authoritative editor
+    /// recovery evidence.
     pub fn export_snapshot(&self) -> Vec<u8> {
         self.doc.commit();
         self.doc
@@ -325,7 +353,7 @@ mod tests {
 
     /// A stable PD identity → PeerId mapping: same identity, same id; different
     /// identities, (overwhelmingly) different ids. This underpins the
-    /// replica↔identity binding that authorship and salvage depend on.
+    /// replica↔identity binding that stable authorship and reconnect depend on.
     #[test]
     fn peer_id_is_stable_and_identity_specific() {
         let human = "port-daddy:console:erich";
@@ -333,7 +361,7 @@ mod tests {
         assert_eq!(
             peer_id_for_identity(human),
             peer_id_for_identity(human),
-            "same identity must mint the same replica id (salvage depends on this)"
+            "same identity must mint the same replica id across reconnects"
         );
         assert_ne!(
             peer_id_for_identity(human),
@@ -369,6 +397,26 @@ mod tests {
                 "line {i} must be attributed to the opener replica"
             );
         }
+    }
+
+    #[test]
+    fn authored_replacement_deletes_unicode_and_exports_only_the_delta() {
+        let human = HarborBuffer::empty("port-daddy:console:human");
+        human.insert_authored(0, "a😀z\n");
+        let agent = HarborBuffer::empty("port-daddy:editor:agent");
+        agent.apply_remote_ops(&human.export_ops()).unwrap();
+
+        // Loro positions are Unicode scalar offsets: the emoji occupies one.
+        let delta = human.replace_authored(1..2, "é");
+        assert_eq!(human.to_string(), "aéz\n");
+        agent.apply_remote_ops(&delta).unwrap();
+        assert_eq!(agent.to_string(), human.to_string());
+
+        // The replacement span keeps local authorship after a remote import.
+        let spans = human.richtext_spans();
+        assert!(spans
+            .iter()
+            .any(|(text, author)| { text.contains('é') && *author == Some(human.local_peer()) }));
     }
 
     /// THE P1 DELIVERABLE — the co-equal-replica proof.
@@ -441,9 +489,9 @@ mod tests {
         );
     }
 
-    /// Importing the same ops twice is idempotent (a salvage/replay successor may
-    /// re-import; the buffer must not duplicate lines). Foundational for the P3.5
-    /// salvage story even though salvage itself is not in this slice.
+    /// Importing the same ops twice is idempotent (a reconnecting peer may
+    /// re-import; the buffer must not duplicate lines). This is a P1/P2 CRDT
+    /// property, not proof that the caller is authorized to recover a dead actor.
     #[test]
     fn reimporting_ops_is_idempotent() {
         let a = HarborBuffer::empty("port-daddy:editor:a");
@@ -461,7 +509,7 @@ mod tests {
 
     /// P2 slice 3 durability: a compacted snapshot reconstructs the whole buffer —
     /// content AND per-line authorship — in one import, exactly what a reconnecting
-    /// or salvaging replica does after fetching the snapshot blob from `/blob`.
+    /// replica does after fetching a P2 snapshot blob from `/blob`.
     #[test]
     fn snapshot_reconstructs_content_and_authorship() {
         let human_id = "port-daddy:console:human";
@@ -502,7 +550,7 @@ mod tests {
             "the agent's line stays the agent's"
         );
 
-        // Re-importing the snapshot is idempotent (double-consume safety).
+        // Re-importing the snapshot is idempotent (duplicate-delivery safety).
         restored.apply_remote_ops(&snapshot).unwrap();
         assert_eq!(
             restored.lines().len(),

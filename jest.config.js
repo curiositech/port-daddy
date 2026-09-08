@@ -1,4 +1,18 @@
 /** @type {import('@swc/jest').JestConfigWithTsJest} */
+import { readFileSync } from 'node:fs';
+
+// tests/purser/ is routed per-file by ROUTING.json rather than by a directory
+// glob: the purser has emitted tests for node:test, vitest and jest, and only
+// the jest-shaped ones can run here. Deriving testMatch from the manifest means
+// a file cannot be added to one and forgotten in the other -- and
+// tests/unit/purser-routing.test.js fails if the manifest and the directory
+// ever disagree.
+const purserRouting = JSON.parse(
+  readFileSync(new URL('./tests/purser/ROUTING.json', import.meta.url), 'utf8'),
+);
+const purserJestTests = Object.entries(purserRouting.files)
+  .filter(([, entry]) => entry.runner === 'jest')
+  .map(([file]) => `<rootDir>/tests/purser/${file}`);
 const swcTransform = {
   '^.+\\.tsx?$': ['@swc/jest', {
     jsc: {
@@ -53,6 +67,18 @@ export default {
       moduleFileExtensions: ['js', 'mjs', 'ts', 'tsx'],
       extensionsToTreatAsEsm: ['.ts', '.tsx'],
       testMatch: ['<rootDir>/tests/unit/**/*.test.{js,ts}'],
+      setupFiles: ['<rootDir>/tests/jest.env.js'],
+      setupFilesAfterEnv: [],
+      testTimeout: 10000
+    },
+    {
+      displayName: 'purser',
+      testEnvironment: 'node',
+      transform: { ...swcTransform },
+      moduleNameMapper,
+      moduleFileExtensions: ['js', 'mjs', 'ts', 'tsx'],
+      extensionsToTreatAsEsm: ['.ts', '.tsx'],
+      testMatch: purserJestTests,
       setupFiles: ['<rootDir>/tests/jest.env.js'],
       setupFilesAfterEnv: [],
       testTimeout: 10000

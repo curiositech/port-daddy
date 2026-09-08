@@ -15,7 +15,7 @@ by editorial taste.
 Truthful file-claim signaling is a Nash equilibrium of the repeated
 coordination game **inside one operator's box** (observable history + persistent
 identity + high δ). The threshold is mechanically established:
-`proofs/economics/delta-threshold.z3` (δ\* ≈ 0.253, Z3) and
+`proofs/economics/delta-threshold.z3` (δ\* ≈ 0.3425, Z3) and
 `proofs/economics/claim_signaling.tla` (TLA⁺). Federation breaks persistent
 identity (Sybil-reset drives δ→0); the cooperative equilibrium collapses; and
 **economic enforcement must replace the guarantee that cooperation used to give
@@ -26,7 +26,7 @@ Paper 4 (many operators). **The partition is a theorem.** This sentence opens
 the volume.
 
 The four papers are one rising argument — the **trust radius widens** one ring
-at a time, and each ring is load-bearing only because a proof underneath it
+at a time, and each ring is structural only because a proof underneath it
 holds. The proofs do not live in a separate section; each sits inline, directly
 under the claim it earns.
 

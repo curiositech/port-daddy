@@ -1,8 +1,14 @@
 /**
  * Harbormaster — canonical actor body that owns merges of dispatched work.
  *
- * ADR-0037 spec. Long-running loop that walks the merge_queue and rebases /
- * merges entries whose dispatch row has been operator-approved.
+ * No dedicated ADR specs this module; the header previously cited "ADR-0037",
+ * but neither ADR numbered 0037 (git-access-control-and-pd-feature-verbs,
+ * pd-backup-durable-snapshots) mentions Harbormaster or merge queues. The
+ * closest description in the ADR corpus is ADR-0109 (The Steward), which
+ * positions Harbormaster as the merge-executor for one operator-accepted
+ * dispatch — not a roadmap-aware gate over every open PR. Long-running loop
+ * that walks the merge_queue and rebases / merges entries whose dispatch row
+ * has been operator-approved.
  *
  * ─── Safety properties (the things this module will NEVER do) ────────────
  *

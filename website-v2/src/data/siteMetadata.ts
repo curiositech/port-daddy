@@ -152,6 +152,7 @@ function sourceImageForRoute(path: string, section: SiteMetadataSection) {
   if (path === '/pd-tube') return OG_SOURCE_IMAGES.pdTube
   if (path === '/blog') return OG_SOURCE_IMAGES.blog
   if (path === '/library') return OG_SOURCE_IMAGES.library
+  if (path === '/research') return OG_SOURCE_IMAGES.library
   if (path === '/landscape') return OG_SOURCE_IMAGES.landscape
   if (path === '/mac-preview') return OG_SOURCE_IMAGES.fleetbarInstall
   if (path === '/scout') return OG_SOURCE_IMAGES.scout
@@ -351,8 +352,14 @@ const productRoutes: SiteMetadata[] = [
   ),
   metadata(
     '/library',
-    'The Harbor Library',
-    'The seven-paper Harbor Library, read as one volume: four chapters explain local-first agent coordination, identity, and the harbor economy; three prove it with machine-checked formal verification.',
+    'The Harbor, the Person, and the Economy',
+    'The Port Daddy whitepaper, read as one book: eight chapters in four parts on what has to stay coupled when software works while you are not watching, with every claim labelled by kind, worked examples, exercises, and proofs that run in CI. A free PDF, in three typographic editions.',
+    { section: 'whitepaper' },
+  ),
+  metadata(
+    '/research',
+    'The Harbor Research Program',
+    'What the whitepaper proves, what it measures, and what it does not know yet: seven conference-form papers, every executed result and where it lives, the mechanized proof estate, the studies still running, and the open problems the book names for itself.',
     { section: 'whitepaper' },
   ),
   metadata(
@@ -397,7 +404,7 @@ const docsFeatureRoutes = [
   ['features/sessions', 'Sessions'],
   ['features/tunnels', 'Tunnels'],
   ['features/pheromone', 'Pheromone Trails'],
-  ['features/fleet', 'Fleet YAML'],
+  ['features/fleet', 'Fleet & GitHub App'],
   ['features/tuples', 'Tuples'],
   ['features/arbiter', 'Arbiter'],
   ['features/relay-pki', 'Relay PKI'],

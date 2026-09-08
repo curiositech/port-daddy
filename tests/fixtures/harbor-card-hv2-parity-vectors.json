@@ -1,0 +1,578 @@
+{
+  "_comment": "Canonical hv:2 harbor-card parity vectors, GENERATED FROM the canonical Rust impl (core/harbor-card-rs/src/lib.rs) by core/harbor-card-rs/tests/hv2_parity_vectors.rs. The Rust test and the TS test (apps/relay/tests/harbor-card-hv2-parity.test.ts) each assert that THEIR verifier reaches the recorded verdict on the same bytes. hv:2 is the live wire format (ADR-0049/0120): an Ed25519 JWT-shaped token whose signature covers the SHA-256 digest of `headerB64.payloadB64`, NOT the signing input itself, so a stock JWT library will not verify it. The two implementations are not identical: every vector records expected.rust AND expected.ts, and any vector where they differ carries a `divergence` field explaining why — a fixture that collapsed both columns into one boolean would assert a parity that does not hold. If you change the format in either language, regenerate this file FROM RUST (HV2_FIXTURE_REGENERATE=1 cargo test --test hv2_parity_vectors) and make both suites pass. ADR-0120 rule 4: reviewers treat a diff here exactly like a diff to the verifier.",
+  "capability_vectors": [
+    {
+      "cap": [
+        {
+          "channel": "alerts",
+          "op": "pub"
+        }
+      ],
+      "expected_match": true,
+      "name": "exact-channel-hit",
+      "required_channel": "alerts",
+      "required_op": "pub"
+    },
+    {
+      "cap": [
+        {
+          "channel": "alerts",
+          "op": "pub"
+        }
+      ],
+      "expected_match": false,
+      "name": "exact-channel-miss",
+      "required_channel": "alerts.x",
+      "required_op": "pub"
+    },
+    {
+      "cap": [
+        {
+          "channel": "*",
+          "op": "sub"
+        }
+      ],
+      "expected_match": true,
+      "name": "star-matches-everything",
+      "required_channel": "anything/at.all",
+      "required_op": "sub"
+    },
+    {
+      "cap": [
+        {
+          "channel": "logs.*",
+          "op": "sub"
+        }
+      ],
+      "expected_match": true,
+      "name": "prefix-glob-hit",
+      "required_channel": "logs.app",
+      "required_op": "sub"
+    },
+    {
+      "cap": [
+        {
+          "channel": "logs.*",
+          "op": "sub"
+        }
+      ],
+      "expected_match": false,
+      "name": "prefix-glob-boundary-miss",
+      "required_channel": "logsx",
+      "required_op": "sub"
+    },
+    {
+      "cap": [
+        {
+          "channel": "log*",
+          "op": "sub"
+        }
+      ],
+      "expected_match": true,
+      "name": "prefix-glob-shorter-prefix-hit",
+      "required_channel": "logsx",
+      "required_op": "sub"
+    },
+    {
+      "cap": [
+        {
+          "channel": "logs.",
+          "op": "sub"
+        }
+      ],
+      "expected_match": false,
+      "name": "no-star-is-not-a-prefix",
+      "required_channel": "logs.app",
+      "required_op": "sub"
+    },
+    {
+      "cap": [
+        {
+          "channel": "ops.*",
+          "op": "admin"
+        }
+      ],
+      "expected_match": true,
+      "name": "admin-op-covers-pub",
+      "required_channel": "ops.deploy",
+      "required_op": "pub"
+    },
+    {
+      "cap": [
+        {
+          "channel": "ops.*",
+          "op": "admin"
+        }
+      ],
+      "expected_match": true,
+      "name": "admin-op-covers-sub",
+      "required_channel": "ops.deploy",
+      "required_op": "sub"
+    },
+    {
+      "cap": [
+        {
+          "channel": "ops.*",
+          "op": "admin"
+        }
+      ],
+      "expected_match": false,
+      "name": "admin-is-not-a-channel-wildcard",
+      "required_channel": "logs.app",
+      "required_op": "pub"
+    },
+    {
+      "cap": [
+        {
+          "channel": "*",
+          "op": "sub"
+        }
+      ],
+      "expected_match": false,
+      "name": "op-mismatch-refused",
+      "required_channel": "anything",
+      "required_op": "pub"
+    },
+    {
+      "cap": [
+        {
+          "channel": "*",
+          "op": "delete"
+        },
+        {
+          "channel": "alerts",
+          "op": "pub"
+        }
+      ],
+      "expected_match": true,
+      "name": "unrecognised-op-is-skipped-not-fatal",
+      "required_channel": "alerts",
+      "required_op": "pub"
+    },
+    {
+      "cap": [],
+      "expected_match": false,
+      "name": "empty-cap-grants-nothing",
+      "required_channel": "anything",
+      "required_op": "sub"
+    },
+    {
+      "cap": [
+        {
+          "channel": "a*",
+          "op": "pub"
+        }
+      ],
+      "expected_match": true,
+      "name": "literal-star-channel-matched-by-equality",
+      "required_channel": "a*",
+      "required_op": "pub"
+    }
+  ],
+  "card_vectors": [
+    {
+      "expected": {
+        "rust": "accept",
+        "ts": "accept"
+      },
+      "issuer_public_key_hex": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+      "name": "valid-sub-card",
+      "note": "The ordinary case: a live card granting sub on a channel glob.",
+      "now_ts": 1767225600,
+      "required_channel": "logs.app",
+      "required_op": "sub",
+      "token": "eyJhbGciOiJFZERTQSIsImtpZCI6ImFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWIifQ.eyJhdWQiOiJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiIiwiY2FwIjpbeyJjaGFubmVsIjoibG9ncy4qIiwib3AiOiJzdWIifV0sImV4cCI6MTc2NzIyOTIwMCwiaHYiOjIsImlhdCI6MTc2NzIyNTYwMCwiaXNzIjoiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYiIsImp0aSI6Imp0aS1wYXJpdHktMDAwMSIsInN1YiI6ImNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2QifQ.ihJurztKKMPh1e5LNLGoKSzXDgL64hzIiufJzynDhGppviyrGICWOoP9P7B9PNvCyCIkBHsRq6ECaeSqs5I2AA"
+    },
+    {
+      "expected": {
+        "rust": "accept",
+        "ts": "accept"
+      },
+      "issuer_public_key_hex": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+      "name": "valid-card-with-nbf-and-ceilings",
+      "note": "nbf already passed; rate/byte ceilings present and carried through.",
+      "now_ts": 1767225600,
+      "required_channel": "alerts",
+      "required_op": "pub",
+      "token": "eyJhbGciOiJFZERTQSIsImtpZCI6ImFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWIifQ.eyJhdWQiOiJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiIiwiY2FwIjpbeyJjaGFubmVsIjoiYWxlcnRzIiwibWF4X3BheWxvYWRfYnl0ZXMiOjQwOTYsIm9wIjoicHViIiwicmF0ZV9wZXJfbWluIjo2MH1dLCJleHAiOjE3NjcyMjkyMDAsImh2IjoyLCJpYXQiOjE3NjcyMjU1OTAsImlzcyI6ImFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWIiLCJqdGkiOiJqdGktcGFyaXR5LTAwMDEiLCJuYmYiOjE3NjcyMjU1OTUsInN1YiI6ImNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2QifQ.k1csSHI6DnGjzkkLyy617bMEklxfduXrFtx2SbGX9yWGuLa4chnzn8as7U_QEjfAHgjhYitYYLOqzYIsMZLoAA"
+    },
+    {
+      "expected": {
+        "rust": "accept",
+        "ts": "accept"
+      },
+      "issuer_public_key_hex": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+      "name": "valid-admin-op-is-an-op-wildcard",
+      "note": "op:admin satisfies a required pub on the channels it names.",
+      "now_ts": 1767225600,
+      "required_channel": "ops.deploy",
+      "required_op": "pub",
+      "token": "eyJhbGciOiJFZERTQSIsImtpZCI6ImFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWIifQ.eyJhdWQiOiJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiIiwiY2FwIjpbeyJjaGFubmVsIjoib3BzLioiLCJvcCI6ImFkbWluIn1dLCJleHAiOjE3NjcyMjkyMDAsImh2IjoyLCJpYXQiOjE3NjcyMjU2MDAsImlzcyI6ImFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWIiLCJqdGkiOiJqdGktcGFyaXR5LTAwMDEiLCJzdWIiOiJjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkIn0.DcurwAkBnmEDSxLh37ZjWD9v1I326Y6Hqo-I1RA72eYqmz_NcD98ezDVtoHkWMudDZIPuRWJbV4NV1I2Y_uOAA"
+    },
+    {
+      "expected": {
+        "rust": "accept",
+        "ts": "accept"
+      },
+      "issuer_public_key_hex": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+      "name": "valid-star-channel-matches-everything",
+      "note": "channel '*' is the channel wildcard.",
+      "now_ts": 1767225600,
+      "required_channel": "anything.at.all",
+      "required_op": "pub",
+      "token": "eyJhbGciOiJFZERTQSIsImtpZCI6ImFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWIifQ.eyJhdWQiOiJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiIiwiY2FwIjpbeyJjaGFubmVsIjoiKiIsIm9wIjoicHViIn1dLCJleHAiOjE3NjcyMjkyMDAsImh2IjoyLCJpYXQiOjE3NjcyMjU2MDAsImlzcyI6ImFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWIiLCJqdGkiOiJqdGktcGFyaXR5LTAwMDEiLCJzdWIiOiJjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkIn0.COzHLR8CnjXd-Twx9XzEQbRqjAYk3_d2bcRmmWqt0wlsGkQDkF0WjpY7h3yAL6rBGy8UHnsgHB9PCW7rgyodCg"
+    },
+    {
+      "expected": {
+        "rust": "accept",
+        "ts": "accept"
+      },
+      "issuer_public_key_hex": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+      "name": "valid-at-exactly-exp",
+      "note": "Both verifiers refuse on now > exp, so now == exp is still inside the window.",
+      "now_ts": 1767225600,
+      "required_channel": "logs.app",
+      "required_op": "sub",
+      "token": "eyJhbGciOiJFZERTQSIsImtpZCI6ImFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWIifQ.eyJhdWQiOiJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiIiwiY2FwIjpbeyJjaGFubmVsIjoibG9ncy4qIiwib3AiOiJzdWIifV0sImV4cCI6MTc2NzIyNTYwMCwiaHYiOjIsImlhdCI6MTc2NzIyNTU0MCwiaXNzIjoiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYiIsImp0aSI6Imp0aS1wYXJpdHktMDAwMSIsInN1YiI6ImNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2QifQ.oNn4cUnWPRFkjN3ZdHEHH88cT0qhfaa2lL-cmIKhSo4KRgqVYDC6zaBCHuOBWB_bW1BXdr5dzAbe8cJ7Enm_BQ"
+    },
+    {
+      "expected": {
+        "rust": "InvalidSignature",
+        "ts": "BAD_SIG"
+      },
+      "issuer_public_key_hex": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+      "name": "reject-tampered-signature",
+      "note": "One bit flipped in the signature.",
+      "now_ts": 1767225600,
+      "required_channel": "logs.app",
+      "required_op": "sub",
+      "token": "eyJhbGciOiJFZERTQSIsImtpZCI6ImFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWIifQ.eyJhdWQiOiJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiIiwiY2FwIjpbeyJjaGFubmVsIjoibG9ncy4qIiwib3AiOiJzdWIifV0sImV4cCI6MTc2NzIyOTIwMCwiaHYiOjIsImlhdCI6MTc2NzIyNTYwMCwiaXNzIjoiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYiIsImp0aSI6Imp0aS1wYXJpdHktMDAwMSIsInN1YiI6ImNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2QifQ.ixJurztKKMPh1e5LNLGoKSzXDgL64hzIiufJzynDhGppviyrGICWOoP9P7B9PNvCyCIkBHsRq6ECaeSqs5I2AA"
+    },
+    {
+      "expected": {
+        "rust": "InvalidSignature",
+        "ts": "BAD_SIG"
+      },
+      "issuer_public_key_hex": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+      "name": "reject-wrong-issuer-key",
+      "note": "Correctly formed card signed by a key the verifier does not trust.",
+      "now_ts": 1767225600,
+      "required_channel": "logs.app",
+      "required_op": "sub",
+      "token": "eyJhbGciOiJFZERTQSIsImtpZCI6ImFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWIifQ.eyJhdWQiOiJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiIiwiY2FwIjpbeyJjaGFubmVsIjoibG9ncy4qIiwib3AiOiJzdWIifV0sImV4cCI6MTc2NzIyOTIwMCwiaHYiOjIsImlhdCI6MTc2NzIyNTYwMCwiaXNzIjoiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYiIsImp0aSI6Imp0aS1wYXJpdHktMDAwMSIsInN1YiI6ImNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2QifQ.OtjqVMPhli7w1q_edVZboy79I2DDhOlQllxNiv2swno6Y7Pja6klGiOO8RxN1_vOksKeBVDnB9mZjjqyIEtfDg"
+    },
+    {
+      "expected": {
+        "rust": "InvalidSignature",
+        "ts": "BAD_SIG"
+      },
+      "issuer_public_key_hex": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+      "name": "reject-legacy-signing-scheme",
+      "note": "Signed over the RAW signing input (the pre-ADR-0120 legacy scheme) instead of its SHA-256 digest. Neither implementation may accept it — this vector is why the port existed.",
+      "now_ts": 1767225600,
+      "required_channel": "logs.app",
+      "required_op": "sub",
+      "token": "eyJhbGciOiJFZERTQSIsImtpZCI6ImFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWIifQ.eyJhdWQiOiJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiIiwiY2FwIjpbeyJjaGFubmVsIjoibG9ncy4qIiwib3AiOiJzdWIifV0sImV4cCI6MTc2NzIyOTIwMCwiaHYiOjIsImlhdCI6MTc2NzIyNTYwMCwiaXNzIjoiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYiIsImp0aSI6Imp0aS1wYXJpdHktMDAwMSIsInN1YiI6ImNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2QifQ.chF0Rir5bITYrb9PmTlAG5-3qM9NUQjLFsX77hXlLuMdx1O_CALUtLkjAurIB1D1W4UNbkI-021xus9wVFJrCA"
+    },
+    {
+      "expected": {
+        "rust": "Expired",
+        "ts": "EXPIRED"
+      },
+      "issuer_public_key_hex": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+      "name": "reject-expired",
+      "note": "exp one second before now.",
+      "now_ts": 1767225600,
+      "required_channel": "logs.app",
+      "required_op": "sub",
+      "token": "eyJhbGciOiJFZERTQSIsImtpZCI6ImFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWIifQ.eyJhdWQiOiJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiIiwiY2FwIjpbeyJjaGFubmVsIjoibG9ncy4qIiwib3AiOiJzdWIifV0sImV4cCI6MTc2NzIyNTU5OSwiaHYiOjIsImlhdCI6MTc2NzIyMjAwMCwiaXNzIjoiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYiIsImp0aSI6Imp0aS1wYXJpdHktMDAwMSIsInN1YiI6ImNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2QifQ.-kRYXj6wvlbZmfNUGIhNmN0-53wLXu-YGeJeYC1wODKWBD3zXLTcB7neyjooXlDWx8Z09oc2gW1meDaIPzh6Ag"
+    },
+    {
+      "expected": {
+        "rust": "NotYetValid",
+        "ts": "NOT_YET_VALID"
+      },
+      "issuer_public_key_hex": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+      "name": "reject-not-yet-valid",
+      "note": "nbf one hour in the future.",
+      "now_ts": 1767225600,
+      "required_channel": "logs.app",
+      "required_op": "sub",
+      "token": "eyJhbGciOiJFZERTQSIsImtpZCI6ImFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWIifQ.eyJhdWQiOiJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiIiwiY2FwIjpbeyJjaGFubmVsIjoibG9ncy4qIiwib3AiOiJzdWIifV0sImV4cCI6MTc2NzIzMjgwMCwiaHYiOjIsImlhdCI6MTc2NzIyNTU0MCwiaXNzIjoiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYiIsImp0aSI6Imp0aS1wYXJpdHktMDAwMSIsIm5iZiI6MTc2NzIyOTIwMCwic3ViIjoiY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZCJ9.fbyxV8RnxpKOVcjeNnugCkzP_fW7CL2QyRjnlTu0AP2m1j83kL7uIM74z0kkZilmNS5oU85YButZU9JqHxTJDg"
+    },
+    {
+      "expected": {
+        "rust": "WrongVersion",
+        "ts": "WRONG_VERSION"
+      },
+      "issuer_public_key_hex": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+      "name": "reject-wrong-hv",
+      "note": "hv:3 — an unknown version is refused, never best-effort parsed.",
+      "now_ts": 1767225600,
+      "required_channel": "logs.app",
+      "required_op": "sub",
+      "token": "eyJhbGciOiJFZERTQSIsImtpZCI6ImFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWIifQ.eyJhdWQiOiJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiIiwiY2FwIjpbeyJjaGFubmVsIjoibG9ncy4qIiwib3AiOiJzdWIifV0sImV4cCI6MTc2NzIyOTIwMCwiaHYiOjMsImlhdCI6MTc2NzIyNTYwMCwiaXNzIjoiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYiIsImp0aSI6Imp0aS1wYXJpdHktMDAwMSIsInN1YiI6ImNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2QifQ.hX_WKltuLXWhBobk0Z4YR3I9g00q9LR6zuSTpcp0A2waGofL-QU_6XTVoY9YAGYrwM3YQ5hfXbxp_JZvcZwuBg"
+    },
+    {
+      "expected": {
+        "rust": "UnsupportedAlgorithm",
+        "ts": "WRONG_ALG"
+      },
+      "issuer_public_key_hex": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+      "name": "reject-wrong-alg",
+      "note": "Header declares HS256 while the card is genuinely Ed25519-signed: alg confusion must fail closed.",
+      "now_ts": 1767225600,
+      "required_channel": "logs.app",
+      "required_op": "sub",
+      "token": "eyJhbGciOiJIUzI1NiIsImtpZCI6ImFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWIifQ.eyJhdWQiOiJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiIiwiY2FwIjpbeyJjaGFubmVsIjoibG9ncy4qIiwib3AiOiJzdWIifV0sImV4cCI6MTc2NzIyOTIwMCwiaHYiOjIsImlhdCI6MTc2NzIyNTYwMCwiaXNzIjoiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYiIsImp0aSI6Imp0aS1wYXJpdHktMDAwMSIsInN1YiI6ImNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2QifQ.MyCfmNBTWbBApY5qE95VXJsW_5zNY7c5gH2YFKTEZqctQCKgz6sbznlfhdJ1odg4Iy-Ih_2Ejfnr1GoB6B8IBg"
+    },
+    {
+      "expected": {
+        "rust": "InsufficientCapability",
+        "ts": "INSUFFICIENT_CAP"
+      },
+      "issuer_public_key_hex": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+      "name": "reject-capability-not-a-subset-wrong-op",
+      "note": "Card grants sub on logs.*; a pub on the same channel is not a subset of that authority.",
+      "now_ts": 1767225600,
+      "required_channel": "logs.app",
+      "required_op": "pub",
+      "token": "eyJhbGciOiJFZERTQSIsImtpZCI6ImFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWIifQ.eyJhdWQiOiJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiIiwiY2FwIjpbeyJjaGFubmVsIjoibG9ncy4qIiwib3AiOiJzdWIifV0sImV4cCI6MTc2NzIyOTIwMCwiaHYiOjIsImlhdCI6MTc2NzIyNTYwMCwiaXNzIjoiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYiIsImp0aSI6Imp0aS1wYXJpdHktMDAwMSIsInN1YiI6ImNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2QifQ.ihJurztKKMPh1e5LNLGoKSzXDgL64hzIiufJzynDhGppviyrGICWOoP9P7B9PNvCyCIkBHsRq6ECaeSqs5I2AA"
+    },
+    {
+      "expected": {
+        "rust": "InsufficientCapability",
+        "ts": "INSUFFICIENT_CAP"
+      },
+      "issuer_public_key_hex": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+      "name": "reject-capability-not-a-subset-outside-glob",
+      "note": "logs.* does not reach ops.deploy, and (the boundary case) does not reach logsx either.",
+      "now_ts": 1767225600,
+      "required_channel": "ops.deploy",
+      "required_op": "sub",
+      "token": "eyJhbGciOiJFZERTQSIsImtpZCI6ImFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWIifQ.eyJhdWQiOiJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiIiwiY2FwIjpbeyJjaGFubmVsIjoibG9ncy4qIiwib3AiOiJzdWIifV0sImV4cCI6MTc2NzIyOTIwMCwiaHYiOjIsImlhdCI6MTc2NzIyNTYwMCwiaXNzIjoiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYiIsImp0aSI6Imp0aS1wYXJpdHktMDAwMSIsInN1YiI6ImNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2QifQ.ihJurztKKMPh1e5LNLGoKSzXDgL64hzIiufJzynDhGppviyrGICWOoP9P7B9PNvCyCIkBHsRq6ECaeSqs5I2AA"
+    },
+    {
+      "expected": {
+        "rust": "Malformed",
+        "ts": "MALFORMED"
+      },
+      "issuer_public_key_hex": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+      "name": "reject-malformed-two-part-token",
+      "note": "Structurally not a card.",
+      "now_ts": 1767225600,
+      "required_channel": "logs.app",
+      "required_op": "sub",
+      "token": "aGVhZGVy.cGF5bG9hZA"
+    },
+    {
+      "divergence": "auth.ts ignores `iat` entirely; the Rust verifier rejects a card dated beyond MAX_CLOCK_SKEW_SECS into the future. Rust is strictly stricter here. Closing the gap means adding an iat check to auth.ts — a relay behavior change, not a port — so it is declared, not silently reconciled.",
+      "expected": {
+        "rust": "IssuedInFuture",
+        "ts": "accept"
+      },
+      "issuer_public_key_hex": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+      "name": "divergence-future-dated-iat",
+      "note": "iat one hour into the future, well past MAX_CLOCK_SKEW_SECS.",
+      "now_ts": 1767225600,
+      "required_channel": "logs.app",
+      "required_op": "sub",
+      "token": "eyJhbGciOiJFZERTQSIsImtpZCI6ImFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWIifQ.eyJhdWQiOiJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiIiwiY2FwIjpbeyJjaGFubmVsIjoibG9ncy4qIiwib3AiOiJzdWIifV0sImV4cCI6MTc2NzIzMjgwMCwiaHYiOjIsImlhdCI6MTc2NzIyOTIwMCwiaXNzIjoiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYiIsImp0aSI6Imp0aS1wYXJpdHktMDAwMSIsInN1YiI6ImNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2QifQ.-G3J6iN-Q4JxfsT1HxsCaYV0eMJY8f-hKgwE3lmjkq27MgpFM3FvZCXOJ44KvxcZ_nitenW9nelPl9mvXj98Bw"
+    },
+    {
+      "divergence": "Both refuse; only the code differs. Rust checks iat/exp coherence before expiry, so it reports Malformed where auth.ts reports EXPIRED. Verdict parity holds, code parity does not.",
+      "expected": {
+        "rust": "Malformed",
+        "ts": "EXPIRED"
+      },
+      "issuer_public_key_hex": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+      "name": "divergence-iat-after-exp",
+      "note": "Incoherent card: issued after it expires, evaluated after both.",
+      "now_ts": 1767225600,
+      "required_channel": "logs.app",
+      "required_op": "sub",
+      "token": "eyJhbGciOiJFZERTQSIsImtpZCI6ImFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWIifQ.eyJhdWQiOiJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiIiwiY2FwIjpbeyJjaGFubmVsIjoibG9ncy4qIiwib3AiOiJzdWIifV0sImV4cCI6MTc2NzIyNTUwMCwiaHYiOjIsImlhdCI6MTc2NzIyNTU1MCwiaXNzIjoiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYiIsImp0aSI6Imp0aS1wYXJpdHktMDAwMSIsInN1YiI6ImNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2RjZGNkY2QifQ.6DVtmU7pQwNezHCtTNDIT3ZIADuIMMNP2lWRfqLSrc0MJtA4JyxM5CbkFELygza8KHZIe31T_mGCl0yI4y-DAg"
+    }
+  ],
+  "impostor_public_key_hex": "6b734a8eff246fe734b38d4046c148eee5f04fe87b3a0a423955a77956de066b",
+  "issuer_public_key_hex": "197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61",
+  "issuer_seed_hex": "2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a",
+  "revocation_boundary": "Neither column covers JTI revocation. apps/relay/src/auth.ts also refuses a card whose jti is in the D1 revocations table; that is stateful relay policy and deliberately stays out of the kernel crate (ADR-0120: keep the TCB small). The TS half stubs the revocation lookup to 'not revoked' so this fixture measures format verification only.",
+  "signing_scheme": "sig = Ed25519(issuer_sk, SHA-256(ascii(headerB64) || '.' || ascii(payloadB64))); the signed message is the raw 32 digest bytes",
+  "structured_subset_vectors_rust_only": {
+    "_comment": "verify_capability_subset_structured has NO counterpart in apps/relay/src/auth.ts — the relay only ever asks 'does this card grant the concrete channel in front of me' (matchCapability). These vectors are asserted by the Rust suite alone, and the TS suite must NOT pretend to implement them.",
+    "vectors": [
+      {
+        "expected_subset": true,
+        "name": "narrowing-op-and-channel",
+        "root": [
+          {
+            "channel": "logs.*",
+            "op": "admin"
+          }
+        ],
+        "sub": [
+          {
+            "channel": "logs.app",
+            "op": "pub"
+          }
+        ]
+      },
+      {
+        "expected_subset": true,
+        "name": "identical-is-a-subset",
+        "root": [
+          {
+            "channel": "logs.*",
+            "op": "pub"
+          }
+        ],
+        "sub": [
+          {
+            "channel": "logs.*",
+            "op": "pub"
+          }
+        ]
+      },
+      {
+        "expected_subset": true,
+        "name": "empty-sub-is-vacuously-a-subset",
+        "root": [
+          {
+            "channel": "*",
+            "op": "pub"
+          }
+        ],
+        "sub": []
+      },
+      {
+        "expected_subset": false,
+        "name": "empty-root-grants-nothing",
+        "root": [],
+        "sub": [
+          {
+            "channel": "x",
+            "op": "pub"
+          }
+        ]
+      },
+      {
+        "expected_subset": false,
+        "name": "channel-escalation",
+        "root": [
+          {
+            "channel": "logs.*",
+            "op": "pub"
+          }
+        ],
+        "sub": [
+          {
+            "channel": "metrics.app",
+            "op": "pub"
+          }
+        ]
+      },
+      {
+        "expected_subset": false,
+        "name": "glob-widening-under-a-literal-root",
+        "root": [
+          {
+            "channel": "logs.app",
+            "op": "pub"
+          }
+        ],
+        "sub": [
+          {
+            "channel": "logs.app*",
+            "op": "pub"
+          }
+        ]
+      },
+      {
+        "expected_subset": false,
+        "name": "star-widening",
+        "root": [
+          {
+            "channel": "logs.*",
+            "op": "sub"
+          }
+        ],
+        "sub": [
+          {
+            "channel": "*",
+            "op": "sub"
+          }
+        ]
+      },
+      {
+        "expected_subset": false,
+        "name": "op-escalation-to-admin",
+        "root": [
+          {
+            "channel": "*",
+            "op": "sub"
+          }
+        ],
+        "sub": [
+          {
+            "channel": "*",
+            "op": "admin"
+          }
+        ]
+      },
+      {
+        "expected_subset": false,
+        "name": "dropping-a-rate-ceiling",
+        "root": [
+          {
+            "channel": "*",
+            "op": "pub",
+            "rate_per_min": 60
+          }
+        ],
+        "sub": [
+          {
+            "channel": "*",
+            "op": "pub"
+          }
+        ]
+      },
+      {
+        "expected_subset": false,
+        "name": "raising-a-payload-ceiling",
+        "root": [
+          {
+            "channel": "*",
+            "max_payload_bytes": 1024,
+            "op": "pub"
+          }
+        ],
+        "sub": [
+          {
+            "channel": "*",
+            "max_payload_bytes": 4096,
+            "op": "pub"
+          }
+        ]
+      },
+      {
+        "expected_subset": true,
+        "name": "tightening-a-rate-ceiling",
+        "root": [
+          {
+            "channel": "*",
+            "op": "pub",
+            "rate_per_min": 60
+          }
+        ],
+        "sub": [
+          {
+            "channel": "*",
+            "op": "pub",
+            "rate_per_min": 10
+          }
+        ]
+      }
+    ]
+  }
+}

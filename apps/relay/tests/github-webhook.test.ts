@@ -17,7 +17,12 @@
 import { describe, it, expect } from 'vitest';
 import { hmac } from '@noble/hashes/hmac';
 import { sha256 } from '@noble/hashes/sha256';
-import { handleGithubWebhook, channelsForWebhook } from '../src/github-webhook.js';
+import {
+  handleGithubWebhook,
+  channelsForWebhook,
+  GITHUB_RELAY_READABLE_REASON,
+} from '../src/github-webhook.js';
+import { tryDecodeTransitEnvelope } from '../src/envelope.js';
 import type { Env } from '../src/types.js';
 
 const SECRET = 'super-secret-webhook-key';
@@ -76,6 +81,10 @@ function makeMockD1(cap: Captured): D1Database {
 }
 
 // ── DO mock: record every channel publish() routed to it ──────────────────────
+// Every published event body the DO received, so a test can assert what
+// actually went on the wire — not merely which channel it went to.
+const publishedEvents: Array<{ channel: string; ciphertext?: string }> = [];
+
 function makeEnv(cap: Captured, publishedChannels: string[], secret: string | undefined = SECRET): Env {
   const harborChannel = {
     idFromName: (name: string) => ({ name }),
@@ -83,8 +92,9 @@ function makeEnv(cap: Captured, publishedChannels: string[], secret: string | un
       async fetch(url: string, init?: { body?: string }) {
         if (url.includes('action=publish') && init?.body) {
           const { event } = JSON.parse(init.body) as { event: string };
-          const ev = JSON.parse(event) as { channel: string };
+          const ev = JSON.parse(event) as { channel: string; ciphertext?: string };
           publishedChannels.push(ev.channel);
+          publishedEvents.push(ev);
         }
         return new Response(null, { status: 204 });
       },
@@ -364,5 +374,363 @@ describe('handleGithubWebhook — ambient-noise event filter', () => {
       'github:curiositech/port-daddy:pull_request',
     ]);
     expect(cap.audits.every((a) => a.action === 'github_webhook_publish')).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MERGE QUEUE: the fleet must report on the queue branch, or nothing merges.
+//
+// `Port Daddy Fleet` is a REQUIRED context on the merge queue. Until this
+// change the relay enqueued a fleet run only for `pull_request`, so a
+// `merge_group` delivery produced no job, no run and no check — and GitHub sat
+// waiting for a context no code path could ever create. Observed 2026-08-10:
+// `main` had not advanced since 2026-08-06, the queue head had been
+// AWAITING_CHECKS for 9+ hours, and the queue branches carried every Actions
+// check green with `Port Daddy Fleet` simply absent.
+
+describe('fleet enqueue — merge_group (the merge-queue deadlock)', () => {
+  function envWithQueues(reviewSent: unknown[], gateSent?: unknown[]) {
+    const cap: Captured = { events: [], audits: [] };
+    const env = makeEnv(cap, []) as unknown as Record<string, unknown>;
+    env.FLEET_RUNS = { async send(job: unknown) { reviewSent.push(job); } };
+    if (gateSent) {
+      env.FLEET_GATES = { async send(job: unknown) { gateSent.push(job); } };
+    }
+    return { env: env as unknown as Env, cap };
+  }
+
+  const MERGE_GROUP_BODY = JSON.stringify({
+    action: 'checks_requested',
+    repository: { full_name: 'curiositech/port-daddy', id: 42 },
+    sender: { login: 'octocat', id: 1 },
+    installation: { id: 777 },
+    merge_group: {
+      head_sha: 'b8ae3f4202aeb2b25d7be69b7a3ed6898957c8c1',
+      head_ref: 'refs/heads/gh-readonly-queue/main/pr-6455-b8ae3f42',
+    },
+  });
+
+  it('falls back to the review queue and carries the queue-branch head_sha', async () => {
+    const sent: unknown[] = [];
+    const { env } = envWithQueues(sent);
+    const res = await handleGithubWebhook(
+      webhookReq({
+        body: MERGE_GROUP_BODY,
+        signature: sign(SECRET, MERGE_GROUP_BODY),
+        event: 'merge_group',
+        delivery: 'mg-1',
+      }),
+      env
+    );
+
+    expect(res.status).toBe(204);
+    expect(sent).toHaveLength(1);
+    const job = sent[0] as {
+      eventType: string;
+      action: string;
+      prNumber: number | null;
+      installationId: number | null;
+      payloadMinimal: { merge_group?: { head_sha?: string } };
+    };
+    expect(job.eventType).toBe('merge_group');
+    expect(job.action).toBe('checks_requested');
+    // No pull_request on this payload — the head_sha IS the only thing the
+    // executor can hang a check run on, so losing it loses the whole fix.
+    expect(job.prNumber).toBeNull();
+    expect(job.installationId).toBe(777);
+    expect(job.payloadMinimal.merge_group?.head_sha).toBe(
+      'b8ae3f4202aeb2b25d7be69b7a3ed6898957c8c1'
+    );
+  });
+
+  it('routes deterministic checks to the independent gate queue when bound', async () => {
+    const reviewSent: unknown[] = [];
+    const gateSent: unknown[] = [];
+    const { env } = envWithQueues(reviewSent, gateSent);
+    const res = await handleGithubWebhook(
+      webhookReq({
+        body: MERGE_GROUP_BODY,
+        signature: sign(SECRET, MERGE_GROUP_BODY),
+        event: 'merge_group',
+        delivery: 'mg-fast-lane',
+      }),
+      env
+    );
+
+    expect(res.status).toBe(204);
+    expect(reviewSent).toHaveLength(0);
+    expect(gateSent).toHaveLength(1);
+  });
+
+  it('ignores merge_group actions that are not checks_requested', async () => {
+    const sent: unknown[] = [];
+    const body = JSON.stringify({
+      action: 'destroyed',
+      repository: { full_name: 'curiositech/port-daddy', id: 42 },
+      sender: { login: 'octocat', id: 1 },
+      installation: { id: 777 },
+      merge_group: { head_sha: 'deadbeef' },
+    });
+    const res = await handleGithubWebhook(
+      webhookReq({ body, signature: sign(SECRET, body), event: 'merge_group', delivery: 'mg-2' }),
+      envWithQueues(sent).env
+    );
+    expect(res.status).toBe(204);
+    expect(sent).toHaveLength(0);
+  });
+
+  it('still enqueues ordinary pull_request deliveries', async () => {
+    // Regression guard: widening the predicate must not narrow the path that
+    // already worked.
+    const reviewSent: unknown[] = [];
+    const gateSent: unknown[] = [];
+    const res = await handleGithubWebhook(
+      webhookReq({
+        body: PR_BODY,
+        signature: sign(SECRET, PR_BODY),
+        event: 'pull_request',
+        delivery: 'pr-1',
+      }),
+      envWithQueues(reviewSent, gateSent).env
+    );
+    expect(res.status).toBe(204);
+    expect(reviewSent).toHaveLength(1);
+    expect(gateSent).toHaveLength(0);
+    expect((reviewSent[0] as { eventType: string }).eventType).toBe('pull_request');
+  });
+
+  it('enqueues pull_request edited deliveries so same-head metadata changes are re-reviewed', async () => {
+    const reviewSent: unknown[] = [];
+    const editedBody = JSON.stringify({
+      action: 'edited',
+      repository: { full_name: 'curiositech/port-daddy', id: 42 },
+      sender: { login: 'octocat', id: 1 },
+      installation: { id: 777 },
+      pull_request: { number: 7, head: { sha: 'same-head' } },
+    });
+    const res = await handleGithubWebhook(
+      webhookReq({
+        body: editedBody,
+        signature: sign(SECRET, editedBody),
+        event: 'pull_request',
+        delivery: 'pr-edited-1',
+      }),
+      envWithQueues(reviewSent).env,
+    );
+    expect(res.status).toBe(204);
+    expect(reviewSent).toHaveLength(1);
+    expect(reviewSent[0]).toMatchObject({ action: 'edited', deliveryId: 'pr-edited-1' });
+  });
+});
+
+describe('fleet enqueue — durable PR generation admission', () => {
+  interface IntentRow {
+    delivery_id: string;
+    repo_full_name: string;
+    pr_number: number;
+    generation: number;
+    state: string;
+    superseded_by: string | null;
+  }
+
+  function envWithIntentLedger(sent: unknown[]) {
+    const cap: Captured = { events: [], audits: [] };
+    const base = makeMockD1(cap);
+    const intents = new Map<string, IntentRow>();
+    const prepare = (sql: string) => {
+      if (!sql.includes('fleet_run_intents')) return base.prepare(sql);
+      let bound: unknown[] = [];
+      const stmt = {
+        bind(...values: unknown[]) {
+          bound = values;
+          return stmt;
+        },
+        async first<T>() {
+          if (sql.includes('delivery_id = ?')) {
+            return (intents.get(String(bound[0])) ?? null) as T | null;
+          }
+          return null;
+        },
+        async all<T>() {
+          return { results: [...intents.values()] as T[] };
+        },
+        async run() {
+          if (sql.includes('INSERT OR IGNORE')) {
+            const deliveryId = String(bound[0]);
+            if (intents.has(deliveryId)) return { success: true, meta: { changes: 0 } };
+            const repo = String(bound[1]);
+            const pr = Number(bound[2]);
+            const generation = 1 + Math.max(
+              0,
+              ...[...intents.values()]
+                .filter((row) => row.repo_full_name === repo && row.pr_number === pr)
+                .map((row) => row.generation),
+            );
+            intents.set(deliveryId, {
+              delivery_id: deliveryId,
+              repo_full_name: repo,
+              pr_number: pr,
+              generation,
+              state: 'admitting',
+              superseded_by: null,
+            });
+            return { success: true, meta: { changes: 1 } };
+          }
+          if (sql.includes("SET state = 'queued'")) {
+            const row = intents.get(String(bound[2]));
+            if (row) row.state = 'queued';
+          } else if (sql.includes("SET state = 'superseded'")) {
+            const newerId = String(bound[2]);
+            const newer = intents.get(newerId);
+            if (newer) {
+              for (const row of intents.values()) {
+                if (
+                  row.repo_full_name === newer.repo_full_name &&
+                  row.pr_number === newer.pr_number &&
+                  row.generation < newer.generation &&
+                  ['admitting', 'queued', 'running', 'retrying'].includes(row.state)
+                ) {
+                  row.state = 'superseded';
+                  row.superseded_by = newerId;
+                }
+              }
+            }
+          }
+          return { success: true, meta: { changes: 1 } };
+        },
+      };
+      return stmt as unknown as D1PreparedStatement;
+    };
+    const db = {
+      ...base,
+      prepare,
+      batch: async (statements: D1PreparedStatement[]) => {
+        for (const statement of statements) await statement.run();
+        return [];
+      },
+    } as unknown as D1Database;
+    const env = makeEnv(cap, []);
+    env.DB = db;
+    env.FLEET_RUNS = { async send(job: unknown) { sent.push(job); } } as Queue;
+    return { env, intents, cap };
+  }
+
+  function prBody(sha: string): string {
+    return JSON.stringify({
+      action: 'synchronize',
+      repository: { full_name: 'curiositech/port-daddy', id: 42 },
+      sender: { login: 'octocat', id: 1 },
+      installation: { id: 777 },
+      pull_request: {
+        number: 8889,
+        head: { sha },
+      },
+    });
+  }
+
+  it('coalesces older PR heads only after the newer generation is queued', async () => {
+    const sent: unknown[] = [];
+    const { env, intents } = envWithIntentLedger(sent);
+    const first = prBody('a'.repeat(40));
+    const second = prBody('b'.repeat(40));
+
+    expect((await handleGithubWebhook(webhookReq({
+      body: first,
+      signature: sign(SECRET, first),
+      event: 'pull_request',
+      delivery: 'delivery-a',
+    }), env)).status).toBe(204);
+    expect((await handleGithubWebhook(webhookReq({
+      body: second,
+      signature: sign(SECRET, second),
+      event: 'pull_request',
+      delivery: 'delivery-b',
+    }), env)).status).toBe(204);
+
+    expect(sent).toHaveLength(2);
+    expect(intents.get('delivery-a')).toMatchObject({
+      generation: 1,
+      state: 'superseded',
+      superseded_by: 'delivery-b',
+    });
+    expect(intents.get('delivery-b')).toMatchObject({ generation: 2, state: 'queued' });
+  });
+
+  it('does not enqueue the same GitHub delivery twice', async () => {
+    const sent: unknown[] = [];
+    const { env } = envWithIntentLedger(sent);
+    const body = prBody('c'.repeat(40));
+    const request = () => webhookReq({
+      body,
+      signature: sign(SECRET, body),
+      event: 'pull_request',
+      delivery: 'delivery-once',
+    });
+
+    expect((await handleGithubWebhook(request(), env)).status).toBe(204);
+    expect((await handleGithubWebhook(request(), env)).status).toBe(204);
+    expect(sent).toHaveLength(1);
+  });
+});
+
+// ── N1 on the wire: what the webhook actually publishes ──────────────────────
+//
+// The regression this locks is the one A1 exists to end: this producer used to
+// write base64 PLAINTEXT into the ciphertext slot with sig:''. Asserting the
+// channel list alone would not have caught that — only decoding the transit
+// body does. So this reads the bytes the Durable Object received and holds them
+// to the classification contract.
+describe('handleGithubWebhook — N1 envelope classification on the wire', () => {
+  it('publishes a labeled relay_readable envelope carrying its stated reason and a real signature', async () => {
+    publishedEvents.length = 0;
+    const cap: Captured = { events: [], audits: [] };
+    const channels: string[] = [];
+    const res = await handleGithubWebhook(
+      webhookReq({ body: PR_BODY, signature: sign(SECRET, PR_BODY), event: 'pull_request', delivery: 'd-n1' }),
+      makeEnv(cap, channels)
+    );
+    expect(res.status).toBe(204);
+    expect(publishedEvents.length).toBeGreaterThan(0);
+
+    for (const ev of publishedEvents) {
+      const envelope = tryDecodeTransitEnvelope(ev.ciphertext ?? '');
+      // Not merely "parses" — it must satisfy the discriminated union, which
+      // the old plaintext-as-base64 body could never do.
+      expect(envelope).not.toBeNull();
+      expect(envelope!.classification).toBe('relay_readable');
+      // The honesty requirement: a relay-readable class must SAY why it may
+      // transit unencrypted. Asserting ONLY that the emitted reason equals the
+      // imported constant would be a tautology — both sides move together when
+      // the constant is edited (verified by mutation: changing the constant
+      // left that assertion green). So pin the SUBSTANCE independently, then
+      // check the wiring separately.
+      const reason = (envelope as { reason?: unknown }).reason;
+      expect(typeof reason).toBe('string');
+      // It must name the actual justification: this payload is already public
+      // via GitHub, so relaying it in the clear adds no exposure. A reason that
+      // stops saying that is a different claim and must fail here.
+      expect(reason as string).toMatch(/github/i);
+      expect(reason as string).toMatch(/public/i);
+      expect((reason as string).length).toBeGreaterThan(20);
+      // …and the wiring: what shipped is what the module declares.
+      expect(reason).toBe(GITHUB_RELAY_READABLE_REASON);
+      // sig:'' was the old tell. A classification nobody signed is unbound.
+      expect(envelope!.sig).toBeTruthy();
+      expect(envelope!.sig.value.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('never emits a sealed envelope from this producer (it holds no keys to seal with)', async () => {
+    publishedEvents.length = 0;
+    const cap: Captured = { events: [], audits: [] };
+    const channels: string[] = [];
+    await handleGithubWebhook(
+      webhookReq({ body: PR_BODY, signature: sign(SECRET, PR_BODY), event: 'pull_request', delivery: 'd-n1-2' }),
+      makeEnv(cap, channels)
+    );
+    for (const ev of publishedEvents) {
+      const envelope = tryDecodeTransitEnvelope(ev.ciphertext ?? '');
+      expect(envelope!.classification).not.toBe('sealed');
+    }
   });
 });

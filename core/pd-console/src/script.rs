@@ -13,6 +13,8 @@
 //!   {"cmd":"focus","pane":"sextant"}
 //!   {"cmd":"state","pane":"sextant"}
 //!   {"cmd":"sextant","windowHours":720,"minTokens":64}
+//!   {"cmd":"work","goal":"Take the next roadmap slice"}
+//!   {"cmd":"stop"}
 //!   {"cmd":"chat","text":"Are you attached live?"}
 //!   {"cmd":"rebind","url":"http://127.0.0.1:9899"}
 //!   {"cmd":"alerts"}
@@ -53,6 +55,10 @@ pub enum ScriptRequest {
     Chat {
         text: String,
     },
+    Work {
+        goal: String,
+    },
+    StopMission,
     Rebind {
         url: String,
     },
@@ -104,6 +110,17 @@ pub fn parse_request(line: &str) -> Result<ScriptRequest, String> {
                 text: text.trim().to_string(),
             })
         }
+        "work" => {
+            let goal = v
+                .get("goal")
+                .and_then(Value::as_str)
+                .filter(|s| !s.trim().is_empty())
+                .ok_or_else(|| "work needs non-empty \"goal\"".to_string())?;
+            Ok(ScriptRequest::Work {
+                goal: goal.trim().to_string(),
+            })
+        }
+        "stop" => Ok(ScriptRequest::StopMission),
         "sextant" => {
             let window_hours = optional_positive_u32(&v, "windowHours")?;
             let min_tokens = optional_positive_u32(&v, "minTokens")?;
@@ -129,7 +146,7 @@ pub fn parse_request(line: &str) -> Result<ScriptRequest, String> {
         }
         "alerts" => Ok(ScriptRequest::Alerts),
         other => Err(format!(
-            "unknown cmd \"{other}\" (try ping/panes/focus/state/chat/sextant/rebind/alerts)"
+            "unknown cmd \"{other}\" (try ping/panes/focus/state/work/chat/sextant/rebind/alerts)"
         )),
     }
 }
@@ -179,6 +196,35 @@ pub fn block_to_json(block: &Block) -> Value {
         Block::Spark(values) => json!({"type": "spark", "values": values}),
         Block::Gap => json!({"type": "gap"}),
         Block::WrappedText { text, .. } => json!({"type": "text", "text": text}),
+        Block::LedgerHeader {
+            surface,
+            columns,
+            active_sort,
+            descending,
+        } => json!({
+            "type": "ledgerHeader",
+            "surface": surface,
+            "columns": columns.iter().map(|(key, label)| json!({"key": key, "label": label})).collect::<Vec<_>>(),
+            "activeSort": active_sort,
+            "descending": descending,
+        }),
+        Block::LedgerRow {
+            surface,
+            index,
+            selected,
+            cells,
+            ..
+        } => json!({
+            "type": "ledgerRow",
+            "surface": surface,
+            "index": index,
+            "selected": selected,
+            "cells": cells.iter().map(|cell| json!({
+                "label": cell.label,
+                "value": cell.value,
+                "width": cell.width.as_str(),
+            })).collect::<Vec<_>>(),
+        }),
         Block::NodeRow {
             index,
             selected,
@@ -378,6 +424,16 @@ mod tests {
             })
         );
         assert_eq!(
+            parse_request(r#"{"cmd":"work","goal":"  Take the next roadmap slice  "}"#),
+            Ok(ScriptRequest::Work {
+                goal: "Take the next roadmap slice".into()
+            })
+        );
+        assert_eq!(
+            parse_request(r#"{"cmd":"stop"}"#),
+            Ok(ScriptRequest::StopMission)
+        );
+        assert_eq!(
             parse_request(r#"{"cmd":"rebind","url":"http://127.0.0.1:9899"}"#),
             Ok(ScriptRequest::Rebind {
                 url: "http://127.0.0.1:9899".into()
@@ -406,6 +462,10 @@ mod tests {
         assert_eq!(
             parse_request(r#"{"cmd":"chat","text":"   "}"#).unwrap_err(),
             "chat needs non-empty \"text\""
+        );
+        assert_eq!(
+            parse_request(r#"{"cmd":"work","goal":"   "}"#).unwrap_err(),
+            "work needs non-empty \"goal\""
         );
         assert!(parse_request(r#"{"cmd":"warp"}"#)
             .unwrap_err()

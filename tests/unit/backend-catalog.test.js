@@ -9,8 +9,17 @@ import {
   detectForcedCliBackend,
   detectForcedCliBackendValue,
   getBackendCatalogEntry,
+  harnessAdapterCapabilityRows,
   recommendedBackendIds,
+  renderHarnessAdapterMarkdown,
+  resolveEffectiveSpawnBackend,
 } from '../../lib/backend-catalog.js';
+import { renderHarnessContinuationMatrix } from '../../lib/harness-conformance.js';
+import {
+  CAPABILITIES,
+  resolveModel,
+  resolveCliModelAlias,
+} from '../../lib/model-registry.js';
 
 describe('backend-catalog', () => {
   test('includes the cli-tube backends introduced in PR #109', () => {
@@ -56,6 +65,65 @@ describe('backend-catalog', () => {
     for (const entry of BACKEND_CATALOG) {
       expect(allowed.has(entry.costModel)).toBe(true);
     }
+  });
+
+  test('every backend declares a shell-free N:N adapter contract', () => {
+    for (const entry of BACKEND_CATALOG) {
+      expect(entry.adapter.family).toMatch(/^[a-z0-9-]+$/);
+      expect(entry.adapter.acceptsInitialPrompt).toBe(true);
+      expect(entry.adapter.authModes.length).toBeGreaterThan(0);
+      expect(entry.adapter.limitations.length).toBeGreaterThan(0);
+      for (const command of [entry.adapter.spawn.command, entry.adapter.resume.command]) {
+        if (!command) continue;
+        expect(command.executable).not.toMatch(/\s|[;&|]/);
+        expect(command.args).not.toContain('-c');
+        expect(command.args.join(' ')).not.toMatch(/\s(?:&&|\|\||;)\s/);
+      }
+    }
+  });
+
+  test('capability rows collapse provider routes onto one adapter family', () => {
+    const rows = harnessAdapterCapabilityRows();
+    expect(rows.length).toBeLessThan(BACKEND_CATALOG.length);
+    expect(rows.find((row) => row.family === 'claude-code')).toMatchObject({
+      backendIds: ['cli:claude-code', 'claude-cli'],
+      resume: 'session',
+      transcript: 'harness:claude-jsonl',
+    });
+    expect(rows.find((row) => row.family === 'codex-cli')).toMatchObject({
+      backendIds: ['cli:codex', 'codex'],
+      resume: 'session',
+      transcript: 'harness:codex-rollout-jsonl',
+    });
+    expect(rows.find((row) => row.family === 'cloudflare-workers-ai')).toMatchObject({
+      resume: 'handoff-only',
+      transcript: 'port-daddy:port-daddy-jsonl',
+    });
+    expect(rows.find((row) => row.family === 'aider')).toMatchObject({ resume: 'history' });
+  });
+
+  test('ADR-0118 generated adapter table matches the executable catalog', () => {
+    const adr = readFileSync(new URL('../../docs/adr/0118-harness-adapter-contract.md', import.meta.url), 'utf8');
+    const beginMarker = '<!-- BEGIN GENERATED HARNESS ADAPTER TABLE -->';
+    const endMarker = '<!-- END GENERATED HARNESS ADAPTER TABLE -->';
+    const begin = adr.indexOf(beginMarker);
+    const end = adr.indexOf(endMarker);
+    expect(begin).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(begin);
+    const checkedIn = adr.slice(begin + beginMarker.length, end).trim();
+    expect(checkedIn).toBe(renderHarnessAdapterMarkdown().trim());
+  });
+
+  test('ADR-0118 generated N by N matrix matches executable continuation rules', () => {
+    const adr = readFileSync(new URL('../../docs/adr/0118-harness-adapter-contract.md', import.meta.url), 'utf8');
+    const beginMarker = '<!-- BEGIN GENERATED HARNESS CONTINUATION MATRIX -->';
+    const endMarker = '<!-- END GENERATED HARNESS CONTINUATION MATRIX -->';
+    const begin = adr.indexOf(beginMarker);
+    const end = adr.indexOf(endMarker);
+    expect(begin).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(begin);
+    const checkedIn = adr.slice(begin + beginMarker.length, end).trim();
+    expect(checkedIn).toBe(`\`\`\`text\n${renderHarnessContinuationMatrix().trim()}\n\`\`\``);
   });
 
   test('detectForcedCliBackend maps env values to catalog ids', () => {
@@ -110,6 +178,31 @@ describe('backend-catalog', () => {
       const env = { PD_USE_CLI_BACKEND: 'claude-code' };
       expect(detectForcedCliBackend(env, { persistedPath: path })).toBe('cli:claude-code');
       expect(detectForcedCliBackendValue(env, { persistedPath: path })).toBe('claude-code');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('resolveEffectiveSpawnBackend reports whether a forced backend came from env or persisted selection', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pd-backend-catalog-'));
+    const path = join(dir, 'selection');
+    try {
+      writeFileSync(path, 'codex\n');
+
+      expect(resolveEffectiveSpawnBackend('openai', {}, { persistedPath: path })).toMatchObject({
+        requestedBackend: 'openai',
+        backend: 'cli:codex',
+        forcedBackend: 'cli:codex',
+        forcedSource: 'persisted',
+        forced: true,
+      });
+      expect(resolveEffectiveSpawnBackend('openai', { PD_USE_CLI_BACKEND: 'agy' }, { persistedPath: path })).toMatchObject({
+        requestedBackend: 'openai',
+        backend: 'cli:agy',
+        forcedBackend: 'cli:agy',
+        forcedSource: 'env',
+        forced: true,
+      });
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -171,28 +264,59 @@ describe('backend-catalog', () => {
     expect(detectForcedCliBackendValue({ PD_USE_CLI_BACKEND: 'Antigravity' })).toBe('agy');
   });
 
-  test('claude SDK ladder uses current undated model ids', () => {
+  test('the advertised model list is exactly what the resolver can pick', () => {
+    // The invariant, not the ids: a picker must not offer a model resolveModel()
+    // will never return. The old assertion pinned three literals, which made it
+    // a change-detector — and it passed for months while the Cloudflare row
+    // advertised an id Workers AI had retired, because nobody pinned that one.
     const claude = getBackendCatalogEntry('claude');
-    expect(claude.models).toEqual([
-      'claude-haiku-4-5',
-      'claude-sonnet-4-6',
-      'claude-opus-4-8',
-    ]);
+    const resolvable = new Set(CAPABILITIES.map((c) => resolveModel({ backend: 'claude', capability: c })));
+    expect(new Set(claude.models)).toEqual(resolvable);
+    expect(claude.models.length).toBeGreaterThan(0);
   });
 
-  test('cli:claude-code model list uses current undated model ids', () => {
+  test('cli:claude-code advertises the CLI flag values, not API ids', () => {
+    // The `claude` binary takes family nicknames on --model. Advertising API ids
+    // here told the operator to type something the CLI rejects.
     const claudeCode = getBackendCatalogEntry('cli:claude-code');
-    expect(claudeCode.models).toEqual([
-      'claude-sonnet-4-6',
-      'claude-opus-4-8',
-      'claude-haiku-4-5',
-    ]);
+    const aliases = new Set(
+      CAPABILITIES.map((c) => resolveCliModelAlias('claude-cli', c)).filter(Boolean),
+    );
+    expect(new Set(claudeCode.models)).toEqual(aliases);
+    for (const m of claudeCode.models) expect(m).not.toMatch(/^claude-/);
+  });
+
+  test('no catalog row advertises a model the registry does not map', () => {
+    const registryFor = {
+      claude: 'claude', gemini: 'gemini', cloudflare: 'cloudflare', openai: 'openai',
+      groq: 'groq', codex: 'codex', deepseek: 'deepseek', xai: 'xai',
+      lmstudio: 'lmstudio', aider: 'aider', 'cli:codex': 'codex',
+      'cli:gemini': 'gemini', 'cli:groq': 'groq', 'cli:grok': 'xai',
+    };
+    for (const [catalogId, registryBackend] of Object.entries(registryFor)) {
+      const entry = getBackendCatalogEntry(catalogId);
+      if (!entry) continue;
+      const resolvable = new Set(
+        CAPABILITIES.map((c) => resolveModel({ backend: registryBackend, capability: c })),
+      );
+      for (const m of entry.models) {
+        expect(resolvable.has(m) ? 'ok' : `${catalogId} advertises unresolvable ${m}`).toBe('ok');
+      }
+    }
   });
 
   test('OpenAI metered backend has openai id and metered framing', () => {
     const openai = getBackendCatalogEntry('openai');
     expect(openai).toBeDefined();
     expect(openai.costModel).toBe('metered');
-    expect(openai.models).toContain('gpt-5-mini');
+    // The PROPERTY, not a literal: the catalog advertises exactly what the
+    // resolver picks, so a picker can never offer a model the resolver would
+    // never return. Naming one id here made this test fail on a ladder move
+    // that was correct — the model it pinned was superseded by a cheaper one
+    // with more context — which is a false alarm, not a caught regression.
+    expect(openai.models.length).toBeGreaterThan(0);
+    for (const capability of CAPABILITIES) {
+      expect(openai.models).toContain(resolveModel({ backend: 'openai', capability }));
+    }
   });
 });

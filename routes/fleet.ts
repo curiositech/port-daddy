@@ -14,6 +14,14 @@
  * POST   /fleet/config/:project/budget — Set limits.budget_usd_per_day
  * POST   /fleet/config/:project/runtime — Apply one ready runtime to fleet agents
  * GET    /fleet/events     — SSE stream of all fleet lifecycle events
+ *
+ * Suggestions & one-shot runs (Tender/suggestibility layer):
+ * GET    /fleet/suggestions          — List pending operator suggestions from Tender
+ * POST   /fleet/suggestions/:id/approve — Approve a suggestion (triggers run-now if action=run-now)
+ * POST   /fleet/suggestions/:id/dismiss — Dismiss a suggestion
+ * POST   /fleet/suggestions/write    — Tender writes a suggestion (internal)
+ * POST   /fleet/run/:ship            — One-shot ship run (body: { project?, once? })
+ * GET    /fleet/registry             — Ship registry (health scores, Tender recommendations)
  */
 
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
@@ -51,6 +59,7 @@ import {
   trackConnection,
   untrackConnection,
 } from '../shared/connection-tracking.js';
+import type { Transcripts } from '../lib/transcripts.js';
 
 interface FleetRouteDeps {
   fleetDaemon: ReturnType<typeof createFleetDaemon>;
@@ -70,6 +79,7 @@ interface FleetRouteDeps {
   cloudAppTelemetry?: CloudAppTelemetry;
   /** Metric counters — powers the observed side of GET /fleet/forecast. */
   counters?: Counters;
+  transcripts?: Transcripts;
 }
 
 // Backend catalog is shared with the CLI and FleetBar/dashboard surfaces;
@@ -217,7 +227,7 @@ function setFleetYamlRuntime(yaml: string, update: FleetRuntimeYamlUpdate): Flee
 }
 
 export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (fastify, opts) => {
-  const { fleetDaemon, messaging, projects, conductor, cloudAppTelemetry, counters } = opts.deps;
+  const { fleetDaemon, messaging, projects, conductor, cloudAppTelemetry, counters, transcripts } = opts.deps;
 
   // ── Conductor operator control surface (ADR-0060) ──────────────────────────
   // halt = total (SIGTERM→SIGKILL the scope, refund-not-slash); pause = soft
@@ -818,6 +828,7 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
           tagline: backend.tagline,
           recommended: Boolean(backend.recommended),
           pdUseCliBackendValue: backend.pdUseCliBackendValue,
+          adapter: backend.adapter,
           isForcedByEnv: forcedCliBackend === backend.id,
           readinessStatus: readiness.status,
           readinessSummary: readiness.summary,
@@ -886,6 +897,107 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
       reply.code(503);
       return { success: false, error: (error as Error).message, storage: managedSecretStorageStatus() };
     }
+  });
+
+  // ── Suggestions & ship registry (Tender / suggestibility layer) ──────────
+
+  // GET /fleet/suggestions — pending operator suggestions from Tender
+  fastify.get('/fleet/suggestions', async (_request: FastifyRequest, reply: FastifyReply) => {
+    if (!transcripts) { reply.code(501); return { error: 'transcripts not wired' }; }
+    const rows = transcripts.listSuggestions();
+    return { success: true, suggestions: rows, count: rows.length };
+  });
+
+  // POST /fleet/suggestions/write — Tender (or any ship) writes a suggestion
+  fastify.post('/fleet/suggestions/write', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!transcripts) { reply.code(501); return { error: 'transcripts not wired' }; }
+    const body = request.body as {
+      ship_name: string;
+      reason: string;
+      action?: string;
+      priority?: number;
+    };
+    if (!body?.ship_name || !body?.reason) {
+      reply.code(400); return { error: 'ship_name and reason required' };
+    }
+    const id = transcripts.writeSuggestionIfNew({
+      ship_name: body.ship_name,
+      reason: body.reason,
+      action: (body.action as 'run-now' | 'adjust-cooldown' | 'pause' | 'review-prompt' | 'graft-skill') ?? 'run-now',
+      priority: body.priority ?? 5,
+    });
+    return { success: true, id, deduplicated: id === null };
+  });
+
+  // POST /fleet/suggestions/:id/approve — operator approves a suggestion
+  fastify.post('/fleet/suggestions/:id/approve', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!transcripts) { reply.code(501); return { error: 'transcripts not wired' }; }
+    const { id } = request.params as { id: string };
+    const suggestion = transcripts.listSuggestions({ includeActioned: true })
+      .find(s => s.id === id);
+    if (!suggestion) { reply.code(404); return { error: 'suggestion not found' }; }
+    transcripts.approveSuggestion(id);
+    // If action is run-now, trigger a one-shot agent run
+    if (suggestion.action === 'run-now') {
+      const hailResult = await fleetDaemon.hailAgent(suggestion.ship_name, { source: 'manual' });
+      if (!hailResult.success) {
+        return { success: true, approved: true, run_triggered: false, run_error: hailResult.error };
+      }
+      return { success: true, approved: true, run_triggered: true };
+    }
+    return { success: true, approved: true, run_triggered: false };
+  });
+
+  // POST /fleet/suggestions/:id/dismiss
+  fastify.post('/fleet/suggestions/:id/dismiss', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!transcripts) { reply.code(501); return { error: 'transcripts not wired' }; }
+    const { id } = request.params as { id: string };
+    const ok = transcripts.dismissSuggestion(id);
+    if (!ok) { reply.code(404); return { error: 'suggestion not found' }; }
+    return { success: true };
+  });
+
+  // POST /fleet/run/:ship — one-shot ship run (bypasses trigger subscription)
+  fastify.post('/fleet/run/:ship', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { ship } = request.params as { ship: string };
+    if (!ship) { reply.code(400); return { error: 'ship name required' }; }
+    const body = (request.body ?? {}) as { project?: string };
+    const result = await fleetDaemon.hailAgent(ship, {
+      source: 'manual' as const,
+      ...(body.project ? { project: body.project } : {}),
+    });
+    if (!result.success) { reply.code(404); return { success: false, error: result.error }; }
+    return { success: true, ship, triggered: true };
+  });
+
+  // GET /fleet/registry — ship health registry (Tender writes, operator reads)
+  fastify.get('/fleet/registry', async (_request: FastifyRequest, reply: FastifyReply) => {
+    if (!transcripts) { reply.code(501); return { error: 'transcripts not wired' }; }
+    const rows = transcripts.listShipRegistry();
+    return { success: true, ships: rows, count: rows.length };
+  });
+
+  // POST /fleet/registry — upsert a ship registry entry (Tender writes)
+  fastify.post('/fleet/registry', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!transcripts) { reply.code(501); return { error: 'transcripts not wired' }; }
+    const body = request.body as Record<string, unknown>;
+    if (!body?.id) { reply.code(400); return { error: 'id required' }; }
+    transcripts.upsertShipRegistry(body as unknown as Parameters<typeof transcripts.upsertShipRegistry>[0]);
+    return { success: true };
+  });
+
+  // ── Skill outcomes ─────────────────────────────────────────────────────────
+
+  // GET /fleet/skills/outcomes — skill application history
+  fastify.get('/fleet/skills/outcomes', async (request: FastifyRequest, _reply: FastifyReply) => {
+    if (!transcripts) return { error: 'transcripts not wired' };
+    const { ship, skill, limit } = request.query as { ship?: string; skill?: string; limit?: string };
+    const rows = transcripts.listSkillApplications({
+      ship_name: ship,
+      skill_id: skill,
+      limit: limit ? parseInt(limit, 10) : undefined,
+    });
+    return { success: true, outcomes: rows, count: rows.length };
   });
 
   // GET /fleet/events — SSE stream of fleet lifecycle events

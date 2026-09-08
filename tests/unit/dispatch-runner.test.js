@@ -6,6 +6,7 @@
 import { jest } from '@jest/globals';
 import { createTestDb } from '../setup-unit.js';
 import { createDispatchQueue, deriveSlug, deriveBranchName } from '../../lib/dispatch/queue.js';
+import { buildCliTubeArgs } from '../../lib/spawner/backends/cli-tube-provider-specs.js';
 import {
   planRunFor,
   runNext,
@@ -97,20 +98,22 @@ describe('buildSpawnArgv', () => {
     expect(args[args.indexOf('-p') + 1]).toBe('do the thing');
   });
 
-  test('codex backend uses --sandbox workspace-write (no deprecated --full-auto)', () => {
+  test('codex backend uses the cli-tube auto-reviewed workspace-write contract', () => {
     const { command, args } = buildSpawnArgv(
       'cli:codex',
       '/scratch/x',
       'do the thing',
     );
     expect(command).toBe('codex');
-    // --full-auto is deprecated in recent codex in favor of --sandbox; we must
-    // not pass it (it pollutes the transcript with a deprecation warning).
+    expect(args).toContain('--approve-for-me');
     expect(args).not.toContain('--full-auto');
-    expect(args.indexOf('--sandbox')).toBeGreaterThanOrEqual(0);
-    expect(args[args.indexOf('--sandbox') + 1]).toBe('workspace-write');
+    expect(args).not.toContain('--sandbox');
     expect(args).toContain('/scratch/x');
     expect(args[args.length - 1]).toBe('do the thing');
+
+    const cwdIndex = args.indexOf('-C');
+    const providerArgs = args.filter((_, index) => index !== cwdIndex && index !== cwdIndex + 1);
+    expect(providerArgs).toEqual(buildCliTubeArgs('codex', { prompt: 'do the thing' }).args);
   });
 
   test('attaches --model when provided', () => {

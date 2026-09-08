@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["chains", "metrics"],
+  "properties": {
+    "chains": {
+      "type": "array",
+      "description": "Decomposed chains from DAG",
+      "items": {
+        "type": "object",
+        "properties": {
+          "chainId": { "type": "string" },
+          "nodes": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "length": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "description": "Decomposition metrics",
+      "properties": {
+        "totalChains": { "type": "integer" },
+        "maxChainLength": { "type": "integer" },
+        "avgChainLength": { "type": "number" },
+        "compressionRatio": { "type": "number", "description": "Original nodes / chain nodes" }
+      }
+    }
+  },
+  "additionalProperties": false
+}

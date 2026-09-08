@@ -7,6 +7,9 @@ export default function HarborsFeature() {
     <div className="space-y-10">
       {/* Header */}
       <div className="space-y-4">
+        <p className="font-mono text-[length:var(--type-meta-size)] font-bold uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+          Feature · Harbors
+        </p>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Harbors
         </h1>
@@ -18,7 +21,7 @@ export default function HarborsFeature() {
       </div>
 
       {/* Advisory Notice */}
-      <p className="text-[var(--text-secondary)] leading-relaxed border-l-4 border-[var(--brand-accent)] pl-4">
+      <p className="text-[var(--text-secondary)] leading-relaxed border-l-[length:var(--lw-stripe)] border-[var(--brand-accent)] pl-4">
         <strong className="text-[var(--text-primary)]">Advisory in v1.</strong>{' '}
         In the current release, harbor capabilities are advisory — they record intent and enable
         discovery, but the daemon does not enforce them on every request. An agent that enters
@@ -27,7 +30,10 @@ export default function HarborsFeature() {
 
       {/* The Problem */}
       <div>
-        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">The Problem</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">01</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">The Problem</h2>
+        </div>
         <p className="text-[var(--text-secondary)] leading-relaxed mb-3">
           In a multi-agent environment, every agent has full access to every operation by default.
           Without structure:
@@ -50,7 +56,10 @@ export default function HarborsFeature() {
 
       {/* How It Works */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">How It Works</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">02</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">How It Works</h2>
+        </div>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           Harbors are named permission scopes with a declared set of capabilities. When an agent
           enters a harbor, its intended scope is recorded. Other agents can query who is in which
@@ -76,7 +85,10 @@ observer   sessions:read,notes:read,activity:read  0 agents`}
 
       {/* Capability Model */}
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Capability Model</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">03</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">Capability Model</h2>
+        </div>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           Capabilities follow a <code className="text-[var(--brand-primary)]">resource:action</code> format.
           Combine them to declare precise permission scopes for each agent role. In v1 these are
@@ -84,17 +96,17 @@ observer   sessions:read,notes:read,activity:read  0 agents`}
         </p>
 
         <div className="grid sm:grid-cols-3 gap-4">
-          <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+          <div className="lw-stripe-card p-3">
             <code className="text-[var(--brand-primary)] font-mono">code:read</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Read source files</p>
             <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">Scan, list projects, view configs</p>
           </div>
-          <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+          <div className="lw-stripe-card p-3">
             <code className="text-[var(--brand-primary)] font-mono">notes:write</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Append session notes</p>
             <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">Add notes, quick notes</p>
           </div>
-          <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+          <div className="lw-stripe-card p-3">
             <code className="text-[var(--brand-primary)] font-mono">ports:write</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Manage port claims</p>
             <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">Claim, release, cleanup ports</p>
@@ -104,10 +116,13 @@ observer   sessions:read,notes:read,activity:read  0 agents`}
 
       {/* CLI Commands */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">CLI Commands</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">04</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">CLI Commands</h2>
+        </div>
 
         <div className="space-y-3">
-          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+          <div className="border-l-[length:var(--lw-stripe)] border-[var(--brand-primary)] pl-4">
             <code className="font-mono text-[var(--brand-primary)]">pd harbor create &lt;name&gt; --cap &lt;capabilities&gt;</code>
             <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Create a named harbor with a comma-separated list of capabilities.</p>
             <DocsCodeBlock
@@ -116,7 +131,7 @@ observer   sessions:read,notes:read,activity:read  0 agents`}
             />
           </div>
 
-          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+          <div className="border-l-[length:var(--lw-stripe)] border-[var(--brand-primary)] pl-4">
             <code className="font-mono text-[var(--brand-primary)]">pd harbor enter &lt;name&gt;</code>
             <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Enter a harbor to declare your agent's intended scope.</p>
             <DocsCodeBlock
@@ -126,7 +141,7 @@ Capabilities: ports:read, ports:write, sessions:read, notes:write`}
             />
           </div>
 
-          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+          <div className="border-l-[length:var(--lw-stripe)] border-[var(--brand-primary)] pl-4">
             <code className="font-mono text-[var(--brand-primary)]">pd harbors</code>
             <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">List all defined harbors with their capabilities and active agent count.</p>
             <DocsCodeBlock
@@ -141,7 +156,10 @@ observer   sessions:read,notes:read,activity:read  0 agents`}
 
       {/* Fleet Harbors */}
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Fleet Harbors</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">05</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">Fleet Harbors</h2>
+        </div>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           Fleet agents share a common harbor automatically. Declare <code>harbor</code> in your{' '}
           <code>pd-fleet.yml</code> and all agents join it on startup:
@@ -165,7 +183,10 @@ observer   sessions:read,notes:read,activity:read  0 agents`}
 
       {/* SDK Usage */}
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">SDK Usage</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">06</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">SDK Usage</h2>
+        </div>
 
         <DocsCodeBlock
           language="typescript"
@@ -190,7 +211,7 @@ harbors.forEach(h => {
       </div>
 
       {/* Next */}
-      <div className="flex items-center justify-between p-5 rounded-xl bg-gradient-to-r from-[var(--brand-primary)]/5 to-transparent border border-[var(--brand-primary)]/20">
+      <div className="flex flex-wrap items-center justify-between gap-4 border border-[var(--border-subtle)] bg-[color-mix(in_oklab,var(--brand-primary)_10%,var(--surface-base))] p-5">
         <div>
           <div className="text-sm text-[var(--text-muted)] mb-1">Next Feature</div>
           <div className="font-semibold text-[var(--text-primary)]">Agent Salvage</div>
@@ -198,7 +219,7 @@ harbors.forEach(h => {
         </div>
         <Link
           to="/docs/features/salvage"
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-[var(--text-inverse)] font-medium hover:bg-[var(--brand-primary)] transition-colors"
+          className="flex items-center gap-2 bg-[var(--brand-primary)] px-4 py-2 font-medium text-[var(--text-inverse)]"
         >
           Learn More
           <ArrowRight size={16} />

@@ -55,14 +55,18 @@ function sseMessage(payload) {
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 describe('Watch Module — createWatch()', () => {
+  const testDaemonUrl = 'http://127.0.0.1:4319';
   let createWatch;
   let parseRetryAfterMs;
   let httpRequestSpy;
   let activeFakes = [];
+  let previousDaemonUrl;
 
   beforeEach(async () => {
     jest.useFakeTimers();
     activeFakes = [];
+    previousDaemonUrl = process.env.PORT_DADDY_URL;
+    process.env.PORT_DADDY_URL = testDaemonUrl;
 
     // We need to dynamically import the module fresh each time so jest.useFakeTimers applies.
     // Use an HTTP spy by patching global http module behavior.
@@ -76,6 +80,8 @@ describe('Watch Module — createWatch()', () => {
     jest.useRealTimers();
     jest.restoreAllMocks();
     activeFakes = [];
+    if (previousDaemonUrl === undefined) delete process.env.PORT_DADDY_URL;
+    else process.env.PORT_DADDY_URL = previousDaemonUrl;
   });
 
   // ─── Factory ──────────────────────────────────────────────────────────────
@@ -93,6 +99,25 @@ describe('Watch Module — createWatch()', () => {
       const handle = watch('test-channel', { exec: 'echo test' });
       expect(typeof handle.stop).toBe('function');
       handle.stop(); // clean up
+    });
+
+    it('waits fail-open and retries when no daemon endpoint is published', () => {
+      const missingTarget = jest.fn(() => {
+        throw new Error('No selected daemon TCP endpoint is published');
+      });
+      const stderrSpy = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
+      const { watch } = createWatch({ resolveTarget: missingTarget });
+
+      const handle = watch('test-channel', { exec: 'echo test' });
+      expect(typeof handle.stop).toBe('function');
+      expect(missingTarget).toHaveBeenCalledTimes(1);
+      expect(stderrSpy).toHaveBeenCalledWith(expect.stringContaining('Open FleetBar and choose Repair'));
+
+      jest.advanceTimersByTime(1000);
+      expect(missingTarget).toHaveBeenCalledTimes(2);
+      // Identical unavailability is reported once, not on every reconnect.
+      expect(stderrSpy).toHaveBeenCalledTimes(1);
+      handle.stop();
     });
   });
 

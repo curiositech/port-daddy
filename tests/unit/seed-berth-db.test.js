@@ -15,6 +15,7 @@ import { homedir } from 'node:os';
 
 import Database from '../../lib/sqlite-runtime.js';
 import {
+  EXECUTABLE_QUEUE_TABLES,
   LOCAL_ONLY_TABLES,
   resolveProdDbPath,
   seedBerthDbFromProd,
@@ -43,11 +44,13 @@ function makeProdDb() {
     CREATE TABLE services (name TEXT PRIMARY KEY, port INTEGER);
     CREATE TABLE endpoints (id TEXT PRIMARY KEY, url TEXT);
     CREATE TABLE locks (key TEXT PRIMARY KEY, holder TEXT);
+    CREATE TABLE dispatches (id TEXT PRIMARY KEY, state TEXT, goal TEXT);
     INSERT INTO roadmap_items VALUES ('r1', 'ship berths'), ('r2', 'seed db');
     INSERT INTO session_notes VALUES ('n1', 'scope note');
     INSERT INTO services VALUES ('webapp:api:main', 9876), ('other:ui:main', 5173);
     INSERT INTO endpoints VALUES ('e1', 'http://127.0.0.1:9876');
     INSERT INTO locks VALUES ('release', 'agent-7');
+    INSERT INTO dispatches VALUES ('d1', 'proposed', 'launch me'), ('d2', 'in_progress', 'recover me');
   `);
   db.close();
   return path;
@@ -77,11 +80,12 @@ describe('seedBerthDbFromProd', () => {
     expect(count(target, 'roadmap_items')).toBe(2);
     expect(count(target, 'session_notes')).toBe(1);
 
-    // LOCAL-ONLY tables still exist (schema preserved) but are empty.
-    for (const table of LOCAL_ONLY_TABLES) {
+    // Local bindings and executable queues still exist (schema preserved) but
+    // are empty. A feature daemon must never auto-recover copied prod work.
+    for (const table of [...LOCAL_ONLY_TABLES, ...EXECUTABLE_QUEUE_TABLES]) {
       expect(count(target, table)).toBe(0);
     }
-    expect(result.scrubbedTables).toEqual([...LOCAL_ONLY_TABLES]);
+    expect(result.scrubbedTables).toEqual([...LOCAL_ONLY_TABLES, ...EXECUTABLE_QUEUE_TABLES]);
   });
 
   test('keeps LOCAL-ONLY rows when scrubLocalOnly is false', () => {
@@ -104,6 +108,7 @@ describe('seedBerthDbFromProd', () => {
     const target = join(scratch, 'berth', 'port-daddy.db');
 
     expect(seedBerthDbFromProd({ targetDbPath: target, sourceDbPath: source }).seeded).toBe(true);
+    expect(count(target, 'dispatches')).toBe(0);
     // Add a row the berth "wrote" after launch; a re-seed must not erase it.
     const db = new Database(target);
     db.exec(`INSERT INTO roadmap_items VALUES ('local', 'berth-local change')`);
@@ -154,10 +159,11 @@ describe('describeSeedResult', () => {
       reason: 'seeded',
       targetDbPath: '/x',
       sourceDbPath: '/y',
-      scrubbedTables: ['services', 'locks'],
+      scrubbedTables: ['services', 'locks', 'dispatches'],
       bytes: 4096,
     });
     expect(msg).toContain('seeded from prod registry');
+    expect(msg).toContain('dispatches');
     expect(msg).toContain('services, locks');
   });
 

@@ -13,6 +13,12 @@
 set -euo pipefail
 
 TAG="${1:-${PD_RELEASE_TAG:-}}"
+# The smoke cd's into a throwaway dir before downloading, so `gh` cannot infer
+# the repo from a git checkout — every scheduled run since this script landed
+# died at step 1 with "failed to run git: not a git repository". Resolve the
+# repo explicitly: Actions provides GITHUB_REPOSITORY; local runs default to
+# the canonical repo.
+REPO="${PD_RELEASE_REPO:-${GITHUB_REPOSITORY:-curiositech/port-daddy}}"
 OS="$(uname -s)"; ARCH="$(uname -m)"
 
 case "$OS/$ARCH" in
@@ -33,8 +39,27 @@ ok()   { echo "  ✓ $*"; }
 
 echo "== Fresh-install smoke ($OS/$ARCH, tag=${TAG:-latest}) =="
 
+# 0. On release-published triggers this workflow starts the moment the Release
+#    is created — but release.yml uploads its assets DURING its own run, with
+#    latest.json landing last (its checksums require every artifact job to be
+#    done). Racing the download guarantees a false failure, so when asked
+#    (PD_WAIT_FOR_ASSETS=1), poll until latest.json exists on the release.
+if [ "${PD_WAIT_FOR_ASSETS:-}" = "1" ]; then
+  deadline=$(( $(date +%s) + ${PD_WAIT_TIMEOUT_SECONDS:-2700} ))
+  until gh release view "${TAG:-$(gh release list --repo "$REPO" --limit 1 --json tagName --jq '.[0].tagName')}" \
+        --repo "$REPO" --json assets --jq '.assets[].name' 2>/dev/null | grep -qx 'latest.json'; do
+    if [ "$(date +%s)" -ge "$deadline" ]; then
+      echo "FAIL: latest.json never appeared on the release within the wait window — release.yml likely failed; check its run." >&2
+      exit 1
+    fi
+    echo "  … release assets not complete yet (latest.json absent); sleeping 60s"
+    sleep 60
+  done
+  ok "release assets complete (latest.json present)"
+fi
+
 # 1. Download the published artifacts + the release feed.
-DL=(gh release download); [ -n "$TAG" ] && DL+=("$TAG")
+DL=(gh release download --repo "$REPO"); [ -n "$TAG" ] && DL+=("$TAG")
 DL+=(-p latest.json -p "$DAEMON_ART" --clobber -D .)
 [ -n "$FLEETBAR_ART" ] && DL+=(-p "$FLEETBAR_ART")
 "${DL[@]}"

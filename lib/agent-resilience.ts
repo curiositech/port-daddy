@@ -4,10 +4,9 @@
  * adds the three pieces that contract is missing for *expensive external
  * backends* (Codex/Claude/OpenAI/Gemini):
  *
- *   1. CLASSIFICATION from a raw provider error STRING into an `AgentError` with
- *      the right closed code — so a spawner that only has free text can still
- *      feed the structural retry contract (which forbids prose-reading at the
- *      decision point).
+ *   1. CLASSIFICATION preserves structural transport status before consulting
+ *      descriptive text. Dispatch additionally requires a process-local host
+ *      witness; a string classification alone cannot authorize a successor.
  *   2. FULL-JITTER backoff — `event-envelope.nextRetryDelayMs` is plain
  *      exponential (no jitter), which thundering-herds a recovering provider
  *      when many callers retry in lockstep. We add `random(0, base·2^attempt)`.
@@ -19,7 +18,7 @@
  *
  * Reuses the canonical error type and codes — no parallel error hierarchy. The
  * decision to retry is always `isRetryable(AgentError)`, never a string match.
- * Transport-agnostic and dependency-free: exhaustively unit-testable, reusable
+ * Transport-agnostic with platform-only dependencies: unit-testable, reusable
  * by the tube router, the fleet runner, and the daemon spawner.
  */
 
@@ -29,20 +28,24 @@ import {
   isRetryable,
   makeError,
 } from './event-envelope.js';
+import { createHash } from 'node:crypto';
+import { setTimeout as sleepTimer } from 'node:timers/promises';
 
 /** The circuit breaker for a backend is OPEN; the call was not attempted. */
 export class CircuitOpenError extends Error {
   readonly code = 'CIRCUIT_OPEN' as const;
-  constructor(readonly backend: string, readonly retryAtMs: number) {
-    super(`circuit OPEN for backend '${backend}'; retry after ${new Date(retryAtMs).toISOString()}`);
+  readonly backend: string;
+  constructor(backend: string, readonly retryAtMs: number) {
+    super(`Circuit unavailable: ${safeDiagnosticIdentifier(backend)}`);
+    this.backend = safeDiagnosticIdentifier(backend);
     this.name = 'CircuitOpenError';
   }
 }
 
 // ── Classify a raw provider error string → AgentError ────────────────────────
 //
-// Providers hand us free text. We map it to the closed AGENT_ERROR_CODES enum so
-// the retry decision downstream is purely structural (`isRetryable`). The regexes
+// Some dependency callers only have free text. We map that to existing error
+// codes after preserving concrete exception status facts. The regexes
 // key on the structured tokens providers literally emit (HTTP codes, canonical
 // phrases) — a closed, provider-defined vocabulary, not open-ended NLP.
 
@@ -50,6 +53,141 @@ interface Signal {
   re: RegExp;
   code: AgentErrorCode;
 }
+
+// Only an in-process host/transport witness may authorize dispatch retry or
+// backend replacement. JSON, stderr, and model output cannot mint this identity.
+const witnessedFailures = new WeakSet<object>();
+const classifiedFailures = new WeakSet<object>();
+const localPolicyFailures = new WeakMap<object, AgentError>();
+
+/**
+ * Keep this module's closed classifications recognizable across its callers.
+ * This identity is diagnostic only, separate from the host failover witness.
+ * @param fields Locally constructed safe error fields, never a raw rejection.
+ * @returns A frozen classified error and frozen diagnostic detail projection.
+ */
+function closedError(fields: Parameters<typeof makeError>[0]): AgentError {
+  const error = Object.freeze(makeError({
+    ...fields, ...(fields.details ? { details: Object.freeze({ ...fields.details }) } : {}),
+  }));
+  classifiedFailures.add(error);
+  return error;
+}
+
+/**
+ * Describe the locally enforced model-download refusal without private paths.
+ * Object identity keeps tool JSON or copied prose from supplying this trusted
+ * diagnostic. This signal is nonretryable and never authorizes a successor.
+ * @returns A real Error with fixed no-network and consent guidance.
+ */
+export function localModelDownloadDisabledError(): Error {
+  const message = 'Semantic embedder unavailable: remote model download is disabled by default '
+    + '(local-only egress policy; no network attempt was made). Prefetch the model or explicitly '
+    + 'enable PORT_DADDY_ALLOW_MODEL_DOWNLOAD=1 for a one-time download. Retrieval remains degraded until a model is available.';
+  const error = Object.freeze(new Error(message));
+  localPolicyFailures.set(error, closedError({
+    code: 'UNAVAILABLE', message, retryable: false,
+    details: Object.freeze({ reason: 'model_download_disabled' }),
+  }));
+  return error;
+}
+
+/**
+ * Preserve a locally observed terminal fact in the existing AgentError shape.
+ * The motivation for object identity is that display text and deserialized tool
+ * payloads must never impersonate a timer or OS error at the failover boundary.
+ * @param fact A timer expiry or a code from the actual child error event.
+ * @returns A frozen error carrying an in-process witness, without raw text.
+ */
+export function witnessedBackendFailure(fact: { kind: 'timeout' } | { kind: 'os'; code: string }): AgentError {
+  const code = fact.kind === 'timeout' ? 'TIMEOUT'
+    : fact.code === 'ENOENT' ? 'BACKEND_ABSENT'
+      : ['EAGAIN', 'ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'EAI_AGAIN'].includes(fact.code) ? 'UNAVAILABLE'
+        : ['EACCES', 'EPERM'].includes(fact.code) ? 'UNAUTHORIZED' : 'INTERNAL';
+  const error = closedError({ code, message: `Backend failure: ${code}` });
+  witnessedFailures.add(error);
+  return error;
+}
+
+/**
+ * Check provenance before using a failure to launch a successor, by design.
+ * @param value A potentially untrusted adapter result.
+ * @returns Whether this process created the host witness, not just its shape.
+ */
+export function isWitnessedBackendFailure(value: unknown): value is AgentError {
+  return typeof value === 'object' && value !== null && witnessedFailures.has(value);
+}
+
+/**
+ * Read data properties without executing an untrusted getter, by design.
+ * @param value Exception being inspected at the classification boundary.
+ * @param key Name of the structural field, never a path expression.
+ * @returns The own data value, or undefined when access cannot be proved safe.
+ */
+function ownData(value: object, key: string): unknown {
+  try { return Object.getOwnPropertyDescriptor(value, key)?.value; } catch { return undefined; }
+}
+
+/**
+ * Keep diagnostic labels bounded by design without copying a private name.
+ * Known runtime aliases stay readable; custom ids use an opaque correlation tag.
+ * @param value Internal backend or dependency identifier, never error prose.
+ * @param kind The closed diagnostic namespace.
+ * @returns A bounded label; opaque tags are correlation, not encryption.
+ */
+export function safeDiagnosticIdentifier(value: unknown, kind: 'backend' | 'dependency' = 'backend'): string {
+  if (typeof value !== 'string' || value.length === 0 || value.length > 1024) return `${kind}:unspecified`;
+  const known = new Set(['codex', 'claude', 'claude-code', 'gemini', 'agy', 'groq', 'groq-cli', 'openai', 'anthropic', 'embedder']);
+  const name = value.startsWith('cli:') ? value.slice(4) : value;
+  if (known.has(name)) return value;
+  return `${kind}:${createHash('sha256').update(value).digest('hex').slice(0, 16)}`;
+}
+
+/**
+ * Keep exception-cause traversal bounded and cycle-safe by design.
+ * @param value Raw failure; arbitrary JSON is not an Error instance.
+ * @returns At most eight concrete exceptions and whether inspection was opaque.
+ */
+function errorChain(value: unknown): { chain: Error[]; incomplete: boolean } {
+  const chain: Error[] = [];
+  const seen = new Set<Error>();
+  while (value !== undefined && value !== null) {
+    // Do not inspect a ninth exception, even to discover its status or shape.
+    if (chain.length === 8) return { chain, incomplete: true };
+    try {
+      if (!(value instanceof Error)) return { chain, incomplete: chain.length > 0 };
+      if (seen.has(value)) return { chain, incomplete: true };
+      seen.add(value);
+      chain.push(value);
+      const cause = Object.getOwnPropertyDescriptor(value, 'cause');
+      if (!cause) return { chain, incomplete: false };
+      if (!('value' in cause)) return { chain, incomplete: true };
+      value = cause.value;
+    } catch {
+      return { chain, incomplete: true };
+    }
+  }
+  return { chain, incomplete: false };
+}
+
+/**
+ * Classify a structured HTTP status without descriptive content, by design.
+ * @param status Status data from a concrete transport exception.
+ * @returns The existing error code, or undefined for an unsupported status.
+ */
+function statusCode(status: unknown): AgentErrorCode | undefined {
+  if (typeof status !== 'number' || !Number.isInteger(status)) return undefined;
+  if (status === 401 || status === 403) return 'UNAUTHORIZED';
+  if (status === 404) return 'NOT_FOUND';
+  if (status === 429) return 'RATE_LIMITED';
+  if (status === 408) return 'TIMEOUT';
+  if (status === 409) return 'CONFLICT';
+  if (status >= 400 && status < 500) return 'VALIDATION_ERROR';
+  if (status >= 500 && status < 600) return 'UNAVAILABLE';
+  return undefined;
+}
+
+const TRANSIENT_CODES = new Set(['RATE_LIMITED', 'TIMEOUT', 'UNAVAILABLE', 'CONFLICT']);
 
 const SIGNALS: ReadonlyArray<Signal> = [
   // Transient → retryable codes
@@ -69,14 +207,17 @@ const SIGNALS: ReadonlyArray<Signal> = [
  * Honours `Retry-After: 30`, `retry after 1500ms`, `retry-after 2 min`.
  */
 export function parseRetryAfterMs(message: string): number | undefined {
-  const m = /retry.?after[^0-9]*([0-9]+)\s*(ms|s|sec|seconds|m|min)?/i.exec(message);
-  if (!m) return undefined;
-  const n = Number(m[1]);
-  if (!Number.isFinite(n)) return undefined;
-  const unit = (m[2] ?? 's').toLowerCase();
-  if (unit === 'ms') return n;
-  if (unit.startsWith('m') && unit !== 'ms') return n * 60_000;
-  return n * 1000;
+  let minimum: number | undefined;
+  for (const hint of message.matchAll(/\bretry[- ]after\b/gi)) {
+    const m = /^\s*:?\s*([0-9]+)\s*(ms|seconds|sec|s|min|m)?(?=$|[\s;,])/i.exec(message.slice(hint.index + hint[0].length));
+    if (!m) return undefined;
+    const n = Number(m[1]);
+    const unit = (m[2] ?? 's').toLowerCase();
+    const delay = n * (unit === 'ms' ? 1 : unit.startsWith('m') ? 60_000 : 1000);
+    if (!Number.isSafeInteger(n) || !Number.isSafeInteger(delay)) return undefined;
+    minimum = Math.max(minimum ?? 0, delay);
+  }
+  return minimum;
 }
 
 /**
@@ -88,16 +229,43 @@ export function classifyAgentError(
   err: unknown,
   opts: { backend?: string; maxRetries?: number } = {},
 ): AgentError {
-  const message = err instanceof Error ? err.message : String(err);
-  const hit = SIGNALS.find((s) => s.re.test(message));
-  const code: AgentErrorCode = hit?.code ?? 'INTERNAL';
+  if (isWitnessedBackendFailure(err)) return err;
+  if (typeof err === 'object' && err !== null && classifiedFailures.has(err)) return err as AgentError;
+  const localPolicy = typeof err === 'object' && err !== null ? localPolicyFailures.get(err) : undefined;
+  if (localPolicy) return localPolicy;
+  const { chain, incomplete } = errorChain(err);
+  if (incomplete) return closedError({
+    code: 'INTERNAL', message: 'Backend failure: INTERNAL', retryable: false,
+    details: {
+      reason: 'incomplete_error_chain',
+      ...(opts.backend ? { backend: safeDiagnosticIdentifier(opts.backend) } : {}),
+    },
+  });
+  const messages = chain.length ? chain.map(error => ownData(error, 'message')) : [err];
+  const message = messages.filter((value): value is string => typeof value === 'string').join('\n');
+  const structuralFields = chain.flatMap(error => ['status', 'statusCode'].map(key => {
+    try { return Object.getOwnPropertyDescriptor(error, key); } catch { return { get: true }; }
+  }));
+  const opaqueStatus = structuralFields.some(field => field && !('value' in field));
+  const statuses = structuralFields.map(field => field && 'value' in field ? statusCode(field.value) : undefined).filter((code): code is AgentErrorCode => code !== undefined);
+  // An explicit permanent status in the exception chain wins over a transient
+  // wrapper. Plain object/tool JSON status fields have no transport provenance.
+  const structured = statuses.find(code => !TRANSIENT_CODES.has(code)) ?? statuses[0];
+  const hits = SIGNALS.filter(signal => signal.re.test(message));
+  const hit = hits.find(signal => !TRANSIENT_CODES.has(signal.code)) ?? hits[0];
+  const code: AgentErrorCode = opaqueStatus ? 'INTERNAL' : structured ?? hit?.code ?? 'INTERNAL';
   const retryAfterMs = parseRetryAfterMs(message);
-  return makeError({
+  const invalidRetryHint = /\bretry[- ]after\b/i.test(message) && retryAfterMs === undefined;
+  return closedError({
     code,
-    message,
+    message: `Backend failure: ${code}`,
+    ...(invalidRetryHint ? { retryable: false } : {}),
     ...(retryAfterMs !== undefined ? { retryAfterMs } : {}),
     ...(opts.maxRetries !== undefined ? { maxRetries: opts.maxRetries } : {}),
-    ...(opts.backend ? { details: { backend: opts.backend } } : {}),
+    ...((opts.backend || invalidRetryHint) ? { details: {
+      ...(opts.backend ? { backend: safeDiagnosticIdentifier(opts.backend) } : {}),
+      ...(invalidRetryHint ? { reason: 'invalid_retry_after' } : {}),
+    } } : {}),
   });
 }
 
@@ -112,9 +280,20 @@ export interface BackoffConfig {
 
 /** Full-jitter backoff: random(0, min(cap, base * 2^attempt)). attempt is 0-indexed. */
 export function fullJitterDelay(attempt: number, cfg: BackoffConfig): number {
+  if (!Number.isSafeInteger(attempt) || attempt < 0
+    || !Number.isSafeInteger(cfg.baseMs) || cfg.baseMs < 0
+    || !Number.isSafeInteger(cfg.capMs) || cfg.capMs < 0 || cfg.capMs > MAX_TIMER_MS) {
+    throw new RangeError('Invalid bounded backoff configuration');
+  }
   const rand = cfg.random ?? Math.random;
-  const exponential = Math.min(cfg.capMs, cfg.baseMs * Math.pow(2, attempt));
-  return Math.floor(rand() * exponential);
+  // Zero times an overflowing exponent is NaN, not zero. Cap the exponent
+  // before evaluating it; a positive base needs at most 31 doublings here.
+  const exponential = cfg.baseMs === 0 || cfg.capMs === 0 ? 0
+    : attempt >= Math.ceil(Math.log2(cfg.capMs / cfg.baseMs)) ? cfg.capMs
+      : cfg.baseMs * Math.pow(2, attempt);
+  const sample = rand();
+  if (!Number.isFinite(sample) || sample < 0 || sample > 1) throw new RangeError('Invalid jitter sample');
+  return Math.floor(sample * exponential);
 }
 
 // ── Per-backend circuit breaker ──────────────────────────────────────────────
@@ -137,25 +316,42 @@ interface CircuitEntry {
   failures: number;
   successes: number;
   openedAt: number | null;
+  generation: number;
+  probe: object | null;
+  abandoned: Set<object>;
 }
+
+/** A single admitted operation; closures bind settlement to its exact generation. */
+export interface CircuitLease {
+  /** Settle exactly once, after the underlying operation has stopped. */
+  settle(outcome: 'success' | 'failure' | 'neutral'): void;
+  /** Invalidate an unfinished operation, retaining its probe slot until settlement. */
+  abandon(): void;
+}
+
+const MAX_TIMER_MS = 2_147_483_647;
 
 /**
  * One breaker per backend name. `before()` gates a launch (throws
- * CircuitOpenError when OPEN and still cooling). `onSuccess`/`onRetryableFailure`
- * drive the state machine. NON-retryable failures do NOT trip the breaker — a
- * malformed task must not take a healthy backend offline.
+ * CircuitOpenError when cooling or a probe is running). The returned lease
+ * binds completion to one operation and generation. No string-only completion
+ * API exists: old completions cannot repair a newer outage.
  */
 export class BackendCircuitBreaker {
   private readonly entries = new Map<string, CircuitEntry>();
   private readonly now: () => number;
   constructor(private readonly cfg: CircuitConfig) {
+    if (![cfg.failureThreshold, cfg.successThreshold].every(n => Number.isSafeInteger(n) && n > 0)
+      || !Number.isSafeInteger(cfg.openTimeoutMs) || cfg.openTimeoutMs < 0 || cfg.openTimeoutMs > MAX_TIMER_MS) {
+      throw new RangeError('Invalid bounded circuit configuration');
+    }
     this.now = cfg.now ?? Date.now;
   }
 
   private entry(backend: string): CircuitEntry {
     let e = this.entries.get(backend);
     if (!e) {
-      e = { state: 'CLOSED', failures: 0, successes: 0, openedAt: null };
+      e = { state: 'CLOSED', failures: 0, successes: 0, openedAt: null, generation: 0, probe: null, abandoned: new Set() };
       this.entries.set(backend, e);
     }
     return e;
@@ -165,9 +361,14 @@ export class BackendCircuitBreaker {
     return this.entry(backend).state;
   }
 
-  /** Throws CircuitOpenError if the backend is OPEN and still cooling down. */
-  before(backend: string): void {
+  /**
+   * Admit one operation; the motivation is atomic single-probe ownership.
+   * @param backend Internal backend key, not diagnostic text.
+   * @returns An idempotent lease that must settle when physical work ends.
+   */
+  before(backend: string): CircuitLease {
     const e = this.entry(backend);
+    if (e.probe || e.abandoned.size) throw new CircuitOpenError(backend, this.now() + this.cfg.openTimeoutMs);
     if (e.state === 'OPEN') {
       const elapsed = this.now() - (e.openedAt ?? 0);
       if (elapsed < this.cfg.openTimeoutMs) {
@@ -176,33 +377,48 @@ export class BackendCircuitBreaker {
       e.state = 'HALF_OPEN';
       e.successes = 0;
     }
-  }
-
-  onSuccess(backend: string): void {
-    const e = this.entry(backend);
-    e.failures = 0;
-    if (e.state === 'HALF_OPEN') {
-      e.successes += 1;
-      if (e.successes >= this.cfg.successThreshold) {
-        e.state = 'CLOSED';
-        e.openedAt = null;
-      }
-    }
-  }
-
-  /** A retryable failure: counts toward opening (or re-opens a HALF_OPEN probe). */
-  onRetryableFailure(backend: string): void {
-    const e = this.entry(backend);
-    if (e.state === 'HALF_OPEN') {
+    const token = {};
+    const generation = e.generation;
+    if (e.state === 'HALF_OPEN') e.probe = token;
+    let settled = false;
+    let abandoned = false;
+    /** Invalidate old completion authority by design. @returns Nothing. */
+    const open = () => {
       e.state = 'OPEN';
       e.openedAt = this.now();
-      return;
-    }
-    e.failures += 1;
-    if (e.failures >= this.cfg.failureThreshold) {
-      e.state = 'OPEN';
-      e.openedAt = this.now();
-    }
+      e.generation += 1;
+      e.successes = 0;
+    };
+    return Object.freeze({
+      settle: (outcome: 'success' | 'failure' | 'neutral') => {
+        if (settled) return;
+        settled = true;
+        e.abandoned.delete(token);
+        if (e.probe === token) e.probe = null;
+        if (abandoned || e.generation !== generation) return;
+        if (outcome === 'failure') {
+          e.failures += 1;
+          if (e.state === 'HALF_OPEN' || e.failures >= this.cfg.failureThreshold) open();
+        } else if (outcome === 'success') {
+          e.failures = 0;
+          if (e.state === 'HALF_OPEN' && ++e.successes >= this.cfg.successThreshold) {
+            e.state = 'CLOSED';
+            e.openedAt = null;
+            e.generation += 1;
+          }
+        } else if (e.state === 'HALF_OPEN') {
+          // A rejected task is not successful proof that the backend recovered.
+          open();
+        }
+      },
+      abandon: () => {
+        if (settled || abandoned) return;
+        abandoned = true;
+        e.abandoned.add(token);
+        if (e.generation === generation) open();
+        // Keep e.probe until physical completion; abort is only a request.
+      },
+    });
   }
 }
 
@@ -212,8 +428,14 @@ export interface ResilientSpawnConfig {
   maxAttempts: number;
   backoff: BackoffConfig;
   breaker: BackendCircuitBreaker;
+  /** Total operation + retry budget. Default 60 seconds, never per-attempt. */
+  totalTimeoutMs?: number;
+  signal?: AbortSignal;
+  now?: () => number;
+  /** Dependency availability is distinct from whether a call is retryable. */
+  circuitFailurePolicy?: 'retryable-only' | 'any-failure';
   /** Sleep impl; injected for tests. */
-  sleep?: (ms: number) => Promise<void>;
+  sleep?: (ms: number, signal: AbortSignal) => Promise<void>;
   /** Structured observer for each attempt/outcome (logging/telemetry hook). */
   onEvent?: (e: ResilienceEvent) => void;
 }
@@ -226,7 +448,7 @@ export type ResilienceEvent =
   | { kind: 'circuit-open'; backend: string; retryAtMs: number }
   | { kind: 'exhausted'; backend: string; attempts: number; error: AgentError };
 
-const defaultSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+const defaultSleep = (ms: number, signal: AbortSignal) => sleepTimer(ms, undefined, { signal });
 
 /**
  * Run an expensive launch with classification + full-jitter backoff + circuit
@@ -237,45 +459,120 @@ const defaultSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
  */
 export async function runResilientSpawn<T>(
   backend: string,
-  fn: () => Promise<T>,
+  fn: (signal: AbortSignal) => Promise<T>,
   cfg: ResilientSpawnConfig,
 ): Promise<T> {
-  const sleep = cfg.sleep ?? defaultSleep;
-  const emit = (e: ResilienceEvent) => cfg.onEvent?.(e);
-  let lastErr: AgentError | null = null;
-
-  for (let attempt = 0; attempt < cfg.maxAttempts; attempt++) {
-    try {
-      cfg.breaker.before(backend);
-    } catch (e) {
-      if (e instanceof CircuitOpenError) emit({ kind: 'circuit-open', backend, retryAtMs: e.retryAtMs });
-      throw e;
-    }
-
-    emit({ kind: 'attempt', backend, attempt });
-    try {
-      const value = await fn();
-      cfg.breaker.onSuccess(backend);
-      emit({ kind: 'success', backend, attempt });
-      return value;
-    } catch (raw) {
-      const error = classifyAgentError(raw, { backend });
-      lastErr = error;
-      if (!isRetryable(error)) {
-        emit({ kind: 'permanent', backend, attempt, error });
-        throw error; // structural decision — never retry a non-retryable failure
-      }
-      cfg.breaker.onRetryableFailure(backend);
-      const isLast = attempt === cfg.maxAttempts - 1;
-      if (isLast) break;
-      // Honour an upstream Retry-After; else full-jitter backoff.
-      const delayMs = error.retryAfterMs ?? fullJitterDelay(attempt, cfg.backoff);
-      emit({ kind: 'retry', backend, attempt, delayMs, error });
-      await sleep(delayMs);
-    }
+  const totalTimeoutMs = cfg.totalTimeoutMs ?? 60_000;
+  if (!Number.isSafeInteger(totalTimeoutMs) || totalTimeoutMs <= 0 || totalTimeoutMs > MAX_TIMER_MS
+    || !Number.isSafeInteger(cfg.maxAttempts) || cfg.maxAttempts < 1) {
+    throw new RangeError('Invalid bounded retry configuration');
   }
+  const now = cfg.now ?? Date.now;
+  const deadline = now() + totalTimeoutMs;
+  const sleep = cfg.sleep ?? defaultSleep;
+  const label = safeDiagnosticIdentifier(backend);
+  const emit = (e: ResilienceEvent) => { try { cfg.onEvent?.(e); } catch { /* diagnostics cannot change execution */ } };
+  const controller = new AbortController();
+  let boundaryError: AgentError | null = null;
+  /**
+   * Preserve the first terminal boundary, never the caller's private reason.
+   * This design makes timeout and cancellation stable across racing callbacks.
+   * @param code Closed terminal reason.
+   * @returns Nothing; wakes bounded waits through the local signal.
+   */
+  const stop = (code: 'CANCELLED' | 'TIMEOUT') => {
+    boundaryError ??= closedError({ code, message: `Backend failure: ${code}`, retryable: false, details: { reason: code === 'TIMEOUT' ? 'total_deadline' : 'cancelled' } });
+    controller.abort();
+  };
+  /** Forward cancellation without its payload by design. @returns Nothing. */
+  const onAbort = () => stop('CANCELLED');
+  cfg.signal?.addEventListener('abort', onAbort, { once: true });
+  if (cfg.signal?.aborted) onAbort();
+  const timer = setTimeout(() => stop('TIMEOUT'), totalTimeoutMs);
+  /** Enforce elapsed injected time as well as timers by design. @returns Nothing. */
+  const checkBoundary = () => {
+    if (now() >= deadline) stop('TIMEOUT');
+    if (boundaryError) throw boundaryError;
+  };
+  /**
+   * Race a physical operation with the shared terminal boundary by design.
+   * @param work Already observed work whose late outcome cannot mutate a lease.
+   * @returns Its value while within budget, or the closed terminal error.
+   */
+  const bounded = async <V>(work: Promise<V>): Promise<V> => {
+    /** Keep listener identity stable for cleanup by design. @returns Nothing. */
+    let rejectBoundary: () => void = () => {};
+    const interrupted = new Promise<never>((_, reject) => { rejectBoundary = () => reject(boundaryError); });
+    controller.signal.addEventListener('abort', rejectBoundary, { once: true });
+    if (controller.signal.aborted) rejectBoundary();
+    try {
+      const result = await Promise.race([work, interrupted]);
+      checkBoundary();
+      return result;
+    } catch (error) {
+      checkBoundary();
+      throw error;
+    } finally {
+      controller.signal.removeEventListener('abort', rejectBoundary);
+    }
+  };
+  let lastErr: AgentError | null = null;
+  try {
+    for (let attempt = 0; attempt < cfg.maxAttempts; attempt++) {
+      checkBoundary();
+      let lease: CircuitLease;
+      try {
+        lease = cfg.breaker.before(backend);
+      } catch (e) {
+        if (e instanceof CircuitOpenError) emit({ kind: 'circuit-open', backend: label, retryAtMs: e.retryAtMs });
+        throw e;
+      }
+      emit({ kind: 'attempt', backend: label, attempt });
+      const operation = Promise.resolve().then(() => { checkBoundary(); return fn(controller.signal); });
+      try {
+        const value = await bounded(operation);
+        lease.settle('success');
+        emit({ kind: 'success', backend: label, attempt });
+        return value;
+      } catch (raw) {
+        if (boundaryError) {
+          lease.abandon();
+          void operation.then(() => lease.settle('neutral'), () => lease.settle('neutral'));
+          emit({ kind: 'permanent', backend: label, attempt, error: boundaryError });
+          throw boundaryError;
+        }
+        const error = classifyAgentError(raw, { backend });
+        lastErr = error;
+        lease.settle(isRetryable(error) || cfg.circuitFailurePolicy === 'any-failure' ? 'failure' : 'neutral');
+        if (!isRetryable(error)) {
+          emit({ kind: 'permanent', backend: label, attempt, error });
+          throw error; // structural decision — never retry a non-retryable failure
+        }
+        const isLast = attempt === cfg.maxAttempts - 1;
+        if (isLast) break;
+        // Honour an upstream Retry-After; else full-jitter backoff.
+        const delayMs = error.retryAfterMs ?? fullJitterDelay(attempt, cfg.backoff);
+        if (delayMs >= deadline - now()) {
+          const deferred = closedError({ ...error, retryable: false, details: { reason: 'retry_after_exceeds_deadline' } });
+          emit({ kind: 'permanent', backend: label, attempt, error: deferred });
+          throw deferred;
+        }
+        emit({ kind: 'retry', backend: label, attempt, delayMs, error });
+        try {
+          await bounded(Promise.resolve().then(() => { checkBoundary(); return sleep(delayMs, controller.signal); }));
+        } catch {
+          const stopped = boundaryError ?? closedError({ code: 'INTERNAL', message: 'Backoff failed', retryable: false });
+          emit({ kind: 'permanent', backend: label, attempt, error: stopped });
+          throw stopped;
+        }
+      }
+    }
 
-  const exhausted = lastErr ?? makeError({ code: 'INTERNAL', message: 'spawn exhausted retries', retryable: false });
-  emit({ kind: 'exhausted', backend, attempts: cfg.maxAttempts, error: exhausted });
-  throw exhausted;
+    const exhausted = lastErr ?? closedError({ code: 'INTERNAL', message: 'spawn exhausted retries', retryable: false });
+    emit({ kind: 'exhausted', backend: label, attempts: cfg.maxAttempts, error: exhausted });
+    throw exhausted;
+  } finally {
+    clearTimeout(timer);
+    cfg.signal?.removeEventListener('abort', onAbort);
+  }
 }

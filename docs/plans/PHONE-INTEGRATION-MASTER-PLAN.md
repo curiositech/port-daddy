@@ -1,3 +1,21 @@
+<!-- RETIRED-BY: ADR-0126 -->
+> ## ⚓ Retired — superseded, kept as history
+>
+> **Superseded by [ADR-0125 — iOS Operator Surface](../adr/0125-ios-operator-surface.md)**
+> (the phone surface as actually built: native SwiftUI, HITL-first) and by
+> [`docs/proposals/relay-grand-plan.md`](../proposals/relay-grand-plan.md)
+> (the relay tracks, sequenced).
+>
+> This plan promised to update `V4-DAG.md` and `v4.dag.yaml` and never did,
+> which is part of why those two are retired alongside it.
+>
+> **Authority:** [ADR-0126 — Shared-Harbors Re-sequencing](../adr/0126-shared-harbors-resequencing.md), § Formal supersessions.
+> This document is retained deliberately: the 2026-06-05 operator rule is
+> demote by default, delete only a merged twin. Read it for the reasoning
+> that was current when it was written, not for what to build now.
+
+---
+
 # Phone-Integration Master Plan
 
 **Status**: Living document.

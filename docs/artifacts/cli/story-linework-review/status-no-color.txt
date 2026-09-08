@@ -1,0 +1,10 @@
+Port Daddy is responsive (healthy)
+  Version: 3.24.2 (94a494e26484)
+  PID: 30119
+  Uptime: 6m
+  Active ports: 0
+  Runtime: nominal
+  Health: ok
+  Fleet: 0 project(s), 0 agent(s)
+  Bosun: idle — daemon heartbeat writer active; pd-bosun supervisor not installed (optional)
+  Last activity: 389s ago

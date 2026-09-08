@@ -1,0 +1,193 @@
+{
+  "success": true,
+  "status": "ok",
+  "severity": "ok",
+  "routes": {
+    "ok": true,
+    "missing": [],
+    "checked": 11
+  },
+  "version": "3.24.2",
+  "pid": 30119,
+  "uptimeSeconds": 132,
+  "uptimeHuman": "2m",
+  "daemon": {
+    "version": "3.24.2",
+    "codeHash": "94a494e26484",
+    "startedAt": 1784029572291,
+    "installDir": "/Users/erichowens/coding/tmp/port-daddy-dispatch-be996b1f",
+    "nodeVersion": "v24.3.0",
+    "berth": {
+      "tier": "codebase",
+      "label": "cli-linework",
+      "color": "#A855F7",
+      "sourceDir": "/Users/erichowens/coding/tmp/port-daddy-dispatch-be996b1f",
+      "gitBranch": "dispatch/implement-and-open-a-draft-pr-for-the-real-typescript-pd-cli-be996b1f",
+      "gitRev": "e2b495ec0",
+      "builtAt": "2026-07-14T11:46:12.291Z",
+      "port": 3180,
+      "canonical": false,
+      "plane": "ephemeral:cli-linework"
+    }
+  },
+  "metrics": {
+    "total_assignments": 0,
+    "total_releases": 0,
+    "total_cleanups": 0,
+    "ports_freed_by_cleanup": 0,
+    "validation_failures": 0,
+    "race_condition_retries": 0,
+    "messages_published": 0,
+    "errors": 0,
+    "uptime_start": 1784029572416,
+    "activePorts": 0,
+    "memoryRSS": 207273984,
+    "avgResponseMs": 0.85
+  },
+  "fleet": {
+    "running": false,
+    "startedAt": null,
+    "projects": [],
+    "totalAgents": 0,
+    "totalWatchers": 0,
+    "totalLaunchableAgents": 0,
+    "launchableAgents": 0,
+    "skippedProjects": []
+  },
+  "runtime": {
+    "state": "nominal",
+    "degraded": false,
+    "reasons": [],
+    "arbiter": {
+      "state": "nominal",
+      "mode": "strict_enforcement",
+      "criticalAction": "man_overboard",
+      "strictMode": true,
+      "enforcerLoaded": false,
+      "rules": {
+        "total": 6,
+        "enforced": 6,
+        "degraded": 0,
+        "stubbed": 0
+      }
+    },
+    "fleet": {
+      "running": false,
+      "projects": 0,
+      "skippedProjects": 0,
+      "totalAgents": 0,
+      "totalWatchers": 0,
+      "launchableAgents": 0
+    },
+    "transcripts": {
+      "state": "nominal",
+      "degraded": false,
+      "hitlEmergency": false,
+      "liveRuns": 0,
+      "supportedRuns": 0,
+      "degradedRuns": 0,
+      "missingRuns": 0,
+      "backendCoverage": {
+        "supported": 5,
+        "degraded": 14,
+        "missing": 0
+      },
+      "issues": []
+    }
+  },
+  "guardians": {
+    "supervisor": {
+      "state": "launchctl_preferred",
+      "summary": "launchctl is the authoritative daemon supervisor on macOS"
+    },
+    "bosun": {
+      "monitoredUrl": "file:///Users/erichowens/.port-daddy/instances/cli-linework/heartbeat",
+      "binaryPath": "/Users/erichowens/coding/tmp/port-daddy-dispatch-be996b1f/core/pd-bosun/target/release/pd-bosun",
+      "binaryExists": false,
+      "enabled": true,
+      "state": "idle",
+      "reason": "daemon heartbeat writer active; pd-bosun supervisor not installed (optional)",
+      "lastCheckAt": 1784029702592,
+      "lastHealthyAt": 1784029702592,
+      "lastFailureAt": null,
+      "failureCount": 0,
+      "heartbeat": {
+        "enabled": true,
+        "state": "healthy",
+        "heartbeatPath": "/Users/erichowens/.port-daddy/instances/cli-linework/heartbeat",
+        "intervalMs": 5000,
+        "staleAfterMs": 30000,
+        "lastWrittenAt": 1784029702592,
+        "lastError": null,
+        "writeCount": 27,
+        "pid": 30119,
+        "ownerPid": 30119,
+        "consecutiveProbeFailures": 0,
+        "lastProbeOk": true
+      }
+    }
+  },
+  "history": {
+    "lastActivityAt": 1784029572522,
+    "recentActivity": [
+      {
+        "id": 32,
+        "timestamp": 1784029572522,
+        "type": "daemon.start",
+        "agentId": null,
+        "targetId": null,
+        "summary": "Port Daddy v3.24.2 started (Fastify)"
+      },
+      {
+        "id": 31,
+        "timestamp": 1784029557563,
+        "type": "daemon.stop",
+        "agentId": null,
+        "targetId": null,
+        "summary": "Port Daddy stopped (SIGTERM)"
+      },
+      {
+        "id": 30,
+        "timestamp": 1784029544984,
+        "type": "session_note",
+        "agentId": null,
+        "targetId": null,
+        "summary": "Note added to session session-prove-story-linework-against-the-named-cli-daemo-340460946fda"
+      },
+      {
+        "id": 29,
+        "timestamp": 1784029544984,
+        "type": "session.note",
+        "agentId": "agent-prove-story-linework-against-the-named-cli-daemo-2a33d1d6",
+        "targetId": "port-daddy:session:session-prove-story-linework-against-the-named-cli-daemo-340460946fda",
+        "summary": "Note added to session session-prove-story-linework-against-the-named-cli-daemo-340460946fda"
+      },
+      {
+        "id": 28,
+        "timestamp": 1784029463058,
+        "type": "file_claim",
+        "agentId": null,
+        "targetId": null,
+        "summary": "Claimed 18 files for session session-prove-story-linework-against-the-named-cli-daemo-340460946fda"
+      },
+      {
+        "id": 27,
+        "timestamp": 1784029463057,
+        "type": "file.claim",
+        "agentId": "agent-prove-story-linework-against-the-named-cli-daemo-2a33d1d6",
+        "targetId": "port-daddy:session:session-prove-story-linework-against-the-named-cli-daemo-340460946fda",
+        "summary": "Claimed 18 file(s) for session session-prove-story-linework-against-the-named-cli-daemo-340460946fda"
+      }
+    ],
+    "recentSpend": []
+  },
+  "binaryDrift": {
+    "drifted": false,
+    "runningHash": "f021c85cf97a0c9848a4665233c75f9d3065778311a29a6ae58f415134a80d81",
+    "onDiskHash": "f021c85cf97a0c9848a4665233c75f9d3065778311a29a6ae58f415134a80d81",
+    "runningPath": "/Users/erichowens/coding/tmp/port-daddy-dispatch-be996b1f/dist/daemon/port-daddy-daemon",
+    "onDiskPath": "/Users/erichowens/coding/tmp/port-daddy-dispatch-be996b1f/dist/daemon/port-daddy-daemon",
+    "reason": "Running daemon matches comparable on-disk Port Daddy binary.",
+    "checkedAt": 1784029705108
+  }
+}

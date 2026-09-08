@@ -543,7 +543,7 @@ function spawnTunnel(
       // unauthenticated.
       proc = spawn('ngrok', ['http', port.toString(), '--log', 'stdout'], {
         stdio: ['ignore', 'pipe', 'pipe'],
-        env: withSecretsInChildEnv(process.env),
+        env: withSecretsInChildEnv(process.env, ['NGROK_AUTHTOKEN']),
       });
 
       urlPromise = new Promise((resolve, reject) => {
@@ -580,7 +580,13 @@ function spawnTunnel(
       // daemon startup. Re-inject from the cache.
       proc = spawn('cloudflared', ['tunnel', '--url', `http://localhost:${port}`], {
         stdio: ['ignore', 'pipe', 'pipe'],
-        env: withSecretsInChildEnv(process.env),
+        env: withSecretsInChildEnv(process.env, [
+          'CLOUDFLARE_ACCOUNT_ID',
+          'CLOUDFLARE_API_TOKEN',
+          'CLOUDFLARE_API_KEY',
+          'CF_ACCOUNT_ID',
+          'CF_API_TOKEN',
+        ]),
       });
 
       urlPromise = new Promise((resolve, reject) => {

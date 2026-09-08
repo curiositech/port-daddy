@@ -220,7 +220,7 @@ The paper doesn't directly measure context size, but we can infer from error ana
 - TDAG (multi-agent, generated agents) reduces EIM vs. P&E/ADAPT through context precision
 - But TDAG still slightly higher than ReAct—trade-off for parallelization benefits
 
-**For WinDAGs**: Track EIM-equivalent errors (hallucination, tool misuse, fact misalignment) as proxy for context quality. If errors increase with task complexity faster than linearly, suspect context bloat.
+**For Jury-rig**: Track EIM-equivalent errors (hallucination, tool misuse, fact misalignment) as proxy for context quality. If errors increase with task complexity faster than linearly, suspect context bloat.
 
 ## Implementing Context Precision in DAG Systems
 
@@ -362,7 +362,7 @@ Transformer models allocate attention across all tokens in context. If context h
 
 **Hypothesis**: EIM increases as % of irrelevant context increases, because model attention is distracted by irrelevant information, leading to hallucination.
 
-**Implication for WinDAGs**: Measure effective context size:
+**Implication for Jury-rig**: Measure effective context size:
 ```
 Effective size = (relevant tokens) / (total tokens)
 ```
@@ -449,7 +449,7 @@ Just as programs should allocate memory judiciously (load what you need, free wh
 
 3. **Retrieve, don't broadcast**: Use semantic search to pull relevant skills/knowledge instead of providing everything to everyone.
 
-**For WinDAGs**: Build infrastructure for context management:
+**For Jury-rig**: Build infrastructure for context management:
 - Context generation templates
 - Tool documentation generators
 - Skill retrieval systems

@@ -35,6 +35,10 @@ use std::path::{Path, PathBuf};
 /// How many transcript/tube lines to retain in the scrollback. Older lines drop
 /// off the top — the Lane is a live tail, not an archive.
 const SCROLLBACK: usize = 200;
+/// Keep the visible lane short enough that its newest event remains above the
+/// fixed operator controls at the minimum proof viewport. The durable
+/// transcript is still complete; this is only the live-tail projection.
+const VISIBLE_TAIL: usize = 4;
 
 /// One tool call surfaced from the transcript stream, with its live status.
 #[derive(Debug, Clone)]
@@ -89,10 +93,17 @@ struct ParsedArtifactRef {
 
 /// The live agent LANE surface.
 pub struct LanePane {
+    /// Mission-selected body. When present, the lane follows this exact agent
+    /// instead of whichever unrelated process most recently heartbeated.
+    pinned_agent_id: Option<String>,
     /// The agent we're watching (chosen on refresh). `None` until one is found.
     agent_id: Option<String>,
     /// Last known lifecycle status from `agent.status` frames.
     status: String,
+    /// Whether the selected roster entry can still receive operator turns.
+    /// Keep this separate from `agent_id`: a completed lane retains its receipt
+    /// and transcript, but must not pretend a tube send can reach the dead body.
+    agent_active: bool,
     /// Whether the live stream has delivered at least one frame (vs. just polled).
     streamed: bool,
     /// Scrollback of transcript + tube lines (most recent at the end).
@@ -108,20 +119,66 @@ pub struct LanePane {
     tools: Vec<ToolCall>,
     /// Last error from the 2s poll (daemon unreachable / no agents), if any.
     error: Option<String>,
+    /// Assistant transcript turns not yet forwarded to the focused chat surface.
+    /// The Lane remains the full-fidelity stream; chat receives only deduped
+    /// assistant prose, never tools/thinking/run metadata.
+    pending_chat_replies: Vec<String>,
 }
 
 impl LanePane {
     pub fn new() -> Self {
         Self {
+            pinned_agent_id: None,
             agent_id: None,
             status: "—".into(),
+            agent_active: false,
             streamed: false,
             lines: Vec::new(),
             seen_transcript_items: BTreeSet::new(),
             channel_cursor: 0,
             tools: Vec::new(),
             error: None,
+            pending_chat_replies: Vec::new(),
         }
+    }
+
+    pub fn has_agent(&self) -> bool {
+        self.agent_id.is_some() && self.agent_active
+    }
+
+    /// Attach the lane to the body recorded on the current mission receipt.
+    /// Passing `None` restores roster-based selection for standalone use.
+    pub fn follow_agent(&mut self, agent_id: Option<&str>) {
+        let selected = agent_id
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string);
+        if self.pinned_agent_id == selected {
+            return;
+        }
+        self.pinned_agent_id = selected.clone();
+        if selected.is_some() {
+            self.select_agent(selected);
+        }
+    }
+
+    fn select_agent(&mut self, selected: Option<String>) {
+        if self.agent_id == selected {
+            return;
+        }
+        self.agent_id = selected;
+        self.agent_active = false;
+        self.streamed = false;
+        self.lines.clear();
+        self.seen_transcript_items.clear();
+        self.channel_cursor = 0;
+        self.tools.clear();
+        self.pending_chat_replies.clear();
+        self.status = "—".into();
+    }
+
+    pub fn take_chat_replies(&mut self) -> Vec<String> {
+        std::mem::take(&mut self.pending_chat_replies)
     }
 
     /// Choose the agent to watch from a `GET /agents` body. `PD_LANE_AGENT` wins
@@ -317,6 +374,9 @@ impl LanePane {
             } else {
                 Tone::Landed
             };
+            self.status = status.to_string();
+            self.agent_active = false;
+            self.streamed = false;
             rendered |= self.push_unique_chat_turn(
                 format!("{tx_id}:end:{status}"),
                 "run".into(),
@@ -330,12 +390,21 @@ impl LanePane {
 
     fn fold_transcript_message(&mut self, tx_id: &str, msg: &serde_json::Value) -> bool {
         let mut rendered = false;
+        let mut structured_error: Option<String> = None;
         let timestamp = msg.get("timestamp").and_then(|t| t.as_i64()).unwrap_or(0);
 
         if let Some(tool_calls) = msg.get("tool_calls").and_then(|calls| calls.as_array()) {
             for (idx, call) in tool_calls.iter().enumerate() {
                 if let Some(name) = field_str(call, &["name", "tool", "toolName"]) {
-                    let state = if call.get("result").is_some() {
+                    let state = if name == "error" {
+                        if let Some(message) = call
+                            .get("args")
+                            .and_then(|args| field_str(args, &["message"]))
+                        {
+                            structured_error = Some(message.to_string());
+                        }
+                        ToolState::Failed
+                    } else if call.get("result").is_some() {
                         ToolState::Ok
                     } else {
                         ToolState::Running
@@ -349,7 +418,10 @@ impl LanePane {
             }
         }
 
-        let Some(content) = field_str(msg, &["content", "text", "delta"]) else {
+        let Some(content) = structured_error
+            .as_deref()
+            .or_else(|| field_str(msg, &["content", "text", "delta"]))
+        else {
             return rendered;
         };
         let content = content.trim();
@@ -358,7 +430,11 @@ impl LanePane {
         }
 
         let role = field_str(msg, &["role"]).unwrap_or("assistant");
-        let (speaker, tone) = chat_speaker_for_role(role);
+        let (speaker, tone) = if structured_error.is_some() {
+            ("runtime".into(), Tone::Gated)
+        } else {
+            chat_speaker_for_role(role)
+        };
         self.push_unique_chat_turn(
             format!("{tx_id}:msg:{timestamp}:{role}:{}", digest_text(content)),
             speaker,
@@ -432,6 +508,9 @@ impl LanePane {
     ) -> bool {
         if !self.seen_transcript_items.insert(key) {
             return false;
+        }
+        if speaker == "agent" {
+            self.pending_chat_replies.push(text.clone());
         }
         let artifact_refs = extract_artifact_refs(&text);
         self.push_line(LaneLine::Chat {
@@ -668,6 +747,21 @@ fn tool_state(status: &str) -> ToolState {
         "error" | "failed" | "failure" => ToolState::Failed,
         _ => ToolState::Running,
     }
+}
+
+fn is_terminal_status(status: &str) -> bool {
+    matches!(
+        status.trim().to_ascii_lowercase().as_str(),
+        "complete"
+            | "completed"
+            | "done"
+            | "failed"
+            | "error"
+            | "cancelled"
+            | "canceled"
+            | "halted"
+            | "settled"
+    )
 }
 
 fn chat_speaker_for_role(role: &str) -> (String, Tone) {
@@ -1116,13 +1210,21 @@ impl Pane for LanePane {
             tone: Tone::Accent,
         });
         out.push(Block::Chip {
-            label: if self.streamed {
+            label: if self.agent_active && self.streamed {
                 "● live".into()
+            } else if !self.agent_active && is_terminal_status(&self.status) {
+                "✓ closed".into()
+            } else if !self.agent_active && self.streamed {
+                "◐ draining".into()
             } else {
                 "○ connecting".into()
             },
-            tone: if self.streamed {
+            tone: if (self.agent_active && self.streamed)
+                || (!self.agent_active && is_terminal_status(&self.status))
+            {
                 Tone::Landed
+            } else if !self.agent_active && self.streamed {
+                Tone::Engaged
             } else {
                 Tone::Resting
             },
@@ -1137,8 +1239,8 @@ impl Pane for LanePane {
                 "connected; waiting for transcript/tool/tube frames".into(),
             ));
         } else {
-            // Show the last ~24 lines (most recent at the bottom).
-            let start = self.lines.len().saturating_sub(24);
+            // Show a viewport-sized tail with the newest event at the bottom.
+            let start = self.lines.len().saturating_sub(VISIBLE_TAIL);
             for line in &self.lines[start..] {
                 match line {
                     LaneLine::Chat {
@@ -1208,16 +1310,27 @@ impl Pane for LanePane {
                 Ok(resp) => match resp.json::<serde_json::Value>().await {
                     Ok(v) => {
                         self.error = None;
-                        if let Some(id) = Self::pick_agent(&v) {
+                        let selected = self
+                            .pinned_agent_id
+                            .clone()
+                            .or_else(|| Self::pick_agent(&v));
+                        if let Some(id) = selected {
+                            let active = util::arr(&v, "agents")
+                                .iter()
+                                .find(|agent| util::s(agent, "id") == id)
+                                .is_some_and(|agent| util::b(agent, "isActive"));
                             // If the target changed, reset the live view for the new agent.
-                            if self.agent_id.as_deref() != Some(id.as_str()) {
-                                self.agent_id = Some(id);
-                                self.streamed = false;
-                                self.lines.clear();
-                                self.seen_transcript_items.clear();
-                                self.channel_cursor = 0;
-                                self.tools.clear();
-                                self.status = "—".into();
+                            self.select_agent(Some(id));
+                            self.agent_active = active;
+                        } else if self.agent_id.is_some() {
+                            // Preserve the completed transcript and receipt, but
+                            // close the control path when the roster no longer
+                            // contains the selected body. Keep the stream open:
+                            // roster deregistration can beat the final durable
+                            // transcript row by a few ticks.
+                            self.agent_active = false;
+                            if !is_terminal_status(&self.status) {
+                                self.status = "finishing".into();
                             }
                         }
                     }
@@ -1254,8 +1367,9 @@ impl Pane for LanePane {
     }
 
     fn subscription(&self) -> Option<Subscription> {
-        self.agent_id
-            .clone()
+        (self.agent_active || !is_terminal_status(&self.status))
+            .then(|| self.agent_id.clone())
+            .flatten()
             .map(|agent_id| Subscription::Agent { agent_id })
     }
 
@@ -1273,6 +1387,10 @@ impl Pane for LanePane {
                     .or_else(|| env.body.as_str().map(str::to_string))
                     .unwrap_or_default();
                 if !s.is_empty() {
+                    self.agent_active = !is_terminal_status(&s);
+                    if !self.agent_active {
+                        self.streamed = false;
+                    }
                     self.status = s;
                 }
             }
@@ -1363,6 +1481,25 @@ mod tests {
     fn pick_agent_handles_empty() {
         assert!(LanePane::pick_agent(&json!({"agents": []})).is_none());
         assert!(LanePane::pick_agent(&json!({})).is_none());
+    }
+
+    #[test]
+    fn mission_receipt_pins_the_exact_agent_and_resets_unrelated_scrollback() {
+        let mut lane = LanePane::new();
+        lane.agent_id = Some("unrelated-newest".into());
+        lane.agent_active = true;
+        lane.lines.push(LaneLine::Chat {
+            speaker: "other".into(),
+            text: "not this mission".into(),
+            tone: Tone::Default,
+        });
+
+        lane.follow_agent(Some("mission-agent-7"));
+
+        assert_eq!(lane.pinned_agent_id.as_deref(), Some("mission-agent-7"));
+        assert_eq!(lane.agent_id.as_deref(), Some("mission-agent-7"));
+        assert!(!lane.agent_active);
+        assert!(lane.lines.is_empty());
     }
 
     #[test]
@@ -1479,6 +1616,40 @@ mod tests {
         assert_eq!(lane.tools.len(), 1);
         assert_eq!(lane.tools[0].name, "rg");
         assert_eq!(lane.tools[0].state, ToolState::Ok);
+    }
+
+    #[test]
+    fn structured_runtime_error_shows_its_message_instead_of_a_placeholder() {
+        let mut lane = LanePane::new();
+        lane.on_stream(&env(
+            "agent.transcript",
+            json!({
+                "type": "update",
+                "entry": {
+                    "id": "tx-runtime-warning",
+                    "messages": [{
+                        "role": "tool",
+                        "content": "[codex:error]",
+                        "timestamp": 12,
+                        "tool_calls": [{
+                            "name": "error",
+                            "args": {"message": "Falling back to the HTTPS transport."}
+                        }]
+                    }],
+                    "outputs": []
+                }
+            }),
+        ));
+
+        assert!(chat_turns(&lane).iter().any(|(speaker, text, tone)| {
+            speaker == "runtime"
+                && text == "Falling back to the HTTPS transport."
+                && *tone == Tone::Gated
+        }));
+        assert_eq!(
+            lane.tools.last().map(|tool| tool.state),
+            Some(ToolState::Failed)
+        );
     }
 
     #[test]
@@ -1629,6 +1800,8 @@ mod tests {
     #[test]
     fn folds_real_daemon_transcript_start_and_end_metadata() {
         let mut lane = LanePane::new();
+        lane.agent_id = Some("a".into());
+        lane.agent_active = true;
         lane.on_stream(&env(
             "agent.transcript",
             json!({
@@ -1672,6 +1845,27 @@ mod tests {
         assert!(lines
             .iter()
             .any(|line| line.contains("run completed: codex $0.0123 tokens 1200 in / 340 out")));
+        assert_eq!(lane.status, "completed");
+        assert!(!lane.has_agent());
+        assert!(!lane.streamed);
+        assert!(lane.subscription().is_none());
+        assert!(lane.view().iter().any(|block| matches!(
+            block,
+            Block::Chip { label, tone: Tone::Landed } if label == "✓ closed"
+        )));
+    }
+
+    #[test]
+    fn blocked_agent_remains_live_for_operator_gate_response() {
+        let mut lane = LanePane::new();
+        lane.agent_id = Some("agent-gated".into());
+        lane.agent_active = true;
+
+        lane.on_stream(&env("agent.status", json!({"status": "blocked"})));
+
+        assert_eq!(lane.status, "blocked");
+        assert!(lane.has_agent());
+        assert!(lane.subscription().is_some());
     }
 
     #[test]
@@ -1764,6 +1958,31 @@ mod tests {
             ));
         }
         assert!(lane.lines.len() <= SCROLLBACK);
+    }
+
+    #[test]
+    fn visible_lane_projects_only_the_newest_viewport_sized_tail() {
+        let mut lane = LanePane::new();
+        for i in 0..(VISIBLE_TAIL + 3) {
+            lane.on_stream(&env(
+                "agent.transcript",
+                json!({"text": format!("line {i}")}),
+            ));
+        }
+
+        let visible = lane
+            .view()
+            .into_iter()
+            .filter_map(|block| match block {
+                Block::ChatTurn { text, .. } => Some(text),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            visible,
+            vec!["line 3", "line 4", "line 5", "line 6"],
+            "the live pane should keep its newest event above fixed controls"
+        );
     }
 
     #[test]

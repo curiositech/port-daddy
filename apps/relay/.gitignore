@@ -1,0 +1,6 @@
+# Visual-evidence output from scripts/render-parley-pages.mts + shoot-parley-pages.mjs.
+# The SCRIPTS are committed, not their megabytes of PNGs: the capture is
+# reproducible in seconds from the real renderers, so checking in binaries
+# would add weight to every clone to preserve something regenerable — and a
+# stale committed PNG is worse than none, because it looks like current proof.
+.artifacts/

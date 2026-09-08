@@ -1,5 +1,7 @@
 import { motion } from 'framer-motion'
 import { useEffect, useRef } from 'react'
+import { ReceiptText } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
 import { PageContainer, PanelEyebrow, SectionIntro, Wordmark } from '@/components/site/primitives'
 import { ProductLogoLockup, type ProductLogoKey } from '@/components/site/ProductLogos'
 import { MarqueeTrack } from './FeaturedMarquee'
@@ -97,7 +99,9 @@ export function Hero() {
             />
 
             <div className="grid max-w-[46rem] gap-[var(--space-2)] sm:gap-[var(--space-3)]">
-              <div className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-2)] sm:p-[var(--space-4)]">
+              {/* Stripe card (ch. 20): card well + hairline edge + 3px cobalt
+                  state stripe — secondary surfaces shed enclosure chrome. */}
+              <div className="lw-stripe-card p-[var(--space-3)] pl-[var(--space-4)] sm:p-[var(--space-4)] sm:pl-[var(--space-5)]">
                 <p className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
                   Port Daddy is
                 </p>
@@ -106,7 +110,9 @@ export function Hero() {
                 </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-x-[var(--space-2)] gap-y-2 border-t-2 border-[var(--border-strong)] pt-[var(--space-2)] text-[length:var(--type-meta-size)] text-[var(--text-muted)] sm:pt-[var(--space-3)]">
+              {/* Left-anchored midline: "continues from above" (ch. 20 midline
+                  dialect) — texture-weight, replaces the heavy 2px rule. */}
+              <div className="lw-midline flex flex-wrap items-center gap-x-[var(--space-2)] gap-y-2 pt-[var(--space-2)] text-[length:var(--type-meta-size)] text-[var(--text-muted)] sm:pt-[var(--space-3)]">
                 <span className="font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]">
                   Runs on
                 </span>
@@ -122,6 +128,17 @@ export function Hero() {
                 <span className="font-semibold uppercase tracking-[var(--tracking-meta)]">
                   + more
                 </span>
+              </div>
+
+              {/* Account CTA — secondary on purpose: install stays the primary
+                  path; signed-in operators get straight to their run receipts. */}
+              <div className="flex flex-wrap gap-[var(--space-3)]">
+                <Button asChild variant="secondary" size="lg">
+                  <a href="https://relay.portdaddy.dev/account/runs">
+                    <ReceiptText size={16} aria-hidden="true" />
+                    See your fleet&apos;s receipts
+                  </a>
+                </Button>
               </div>
 
             </div>

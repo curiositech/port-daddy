@@ -342,7 +342,7 @@ Agent A delegates to B, B delegates to C, C delegates to A. Deadlock.
 
 The advantage: **future-proofing**. When Agent B learns new ways to achieve goals (new plans added), Agent A's delegations automatically benefit, without A being updated. In SOA, if a service adds a new capability, clients must be updated to use it.
 
-## Implications for WinDAGs Skill Coordination
+## Implications for Jury-rig Skill Coordination
 
 For orchestrating 180+ skills:
 

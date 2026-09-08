@@ -93,10 +93,26 @@ function pushFinding(findings, recommendations, severity, id, message, recommend
  * @param {string} spec.workOrder.output
  * @param {string} spec.workOrder.owner
  * @param {string} spec.workOrder.proofGate
+ * @param {object} [options] - Optional. Omitting it preserves the original
+ *   one-argument behaviour exactly, so existing callers are unaffected.
+ * @param {number} [options.now] - Epoch ms to evaluate `reviewDate` against.
+ *   Defaults to `Date.now()`. Supply it when a caller needs a deterministic
+ *   verdict — a committed fixture asserted against the wall clock silently
+ *   becomes a dated failure, which is what this parameter exists to prevent.
  * @returns {{pass:boolean, score:number, findings:Array, recommendations:string[]}}
  */
-export function auditFocusReceipt(spec) {
+export function auditFocusReceipt(spec, options = {}) {
   assertShape(spec);
+
+  // Evaluation instant, injectable. The reviewDate check below is the one
+  // assertion in this auditor that depends on WHEN it runs, which makes any
+  // committed sample receipt a dated bomb: `examples/sample-input.json` carried
+  // reviewDate 2026-08-15 and passed CI every day until 2026-08-16, when it
+  // began failing `tests/unit/agent-governance-skills.test.js` on every PR in
+  // the repo, none of which had touched this skill. Callers that need a
+  // deterministic verdict pin `now`; production passes nothing and gets the
+  // wall clock, so the staleness check itself is unchanged.
+  const now = options.now ?? Date.now();
 
   const findings = [];
   const recommendations = [];
@@ -162,7 +178,7 @@ export function auditFocusReceipt(spec) {
         `Focus receipt "reviewDate" ("${receipt.reviewDate}") is not a parseable date.`,
         'Use an ISO-8601 date (YYYY-MM-DD) for reviewDate so staleness can be checked automatically.',
       );
-    } else if (parsed < Date.now()) {
+    } else if (parsed < now) {
       pushFinding(
         findings, recommendations, 'high', 'review-date-elapsed',
         `Focus receipt's reviewDate ("${receipt.reviewDate}") has passed — this decision has not been revisited with evidence since.`,

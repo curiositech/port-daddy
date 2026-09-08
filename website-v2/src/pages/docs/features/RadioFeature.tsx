@@ -7,6 +7,9 @@ export default function RadioFeature() {
     <div className="space-y-10">
       {/* Header */}
       <div className="space-y-4">
+        <p className="font-mono text-[length:var(--type-meta-size)] font-bold uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+          Feature · Radio
+        </p>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Swarm Radio
         </h1>
@@ -19,7 +22,10 @@ export default function RadioFeature() {
 
       {/* The Problem */}
       <div>
-        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">The Problem</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">01</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">The Problem</h2>
+        </div>
         <p className="text-[var(--text-secondary)] leading-relaxed mb-3">
           When multiple AI agents work on the same codebase, they need to communicate state
           changes in real time. Without a messaging layer, teams resort to:
@@ -42,7 +48,10 @@ export default function RadioFeature() {
 
       {/* How It Works */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">How It Works</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">02</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">How It Works</h2>
+        </div>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           Swarm Radio uses named channels with Server-Sent Events (SSE) for real-time delivery.
           Any agent can publish a message to a channel, and every subscriber receives it instantly.
@@ -67,24 +76,27 @@ $ pd watch build-status --exec './run-tests.sh'`}
 
       {/* Channel Architecture */}
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Channel Architecture</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">03</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">Channel Architecture</h2>
+        </div>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           Channels are lightweight, ephemeral, and scoped by name. Use structured naming
           to organize your message flows.
         </p>
 
         <div className="grid sm:grid-cols-3 gap-4">
-          <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+          <div className="lw-stripe-card p-3">
             <code className="text-[var(--brand-primary)] font-mono">build-status</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Build pipeline events</p>
             <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">compile, lint, test results</p>
           </div>
-          <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+          <div className="lw-stripe-card p-3">
             <code className="text-[var(--brand-primary)] font-mono">deploy:staging</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Deployment notifications</p>
             <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">started, succeeded, rolled back</p>
           </div>
-          <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+          <div className="lw-stripe-card p-3">
             <code className="text-[var(--brand-primary)] font-mono">agent:sync</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Agent coordination</p>
             <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">task claims, handoffs, done signals</p>
@@ -94,10 +106,13 @@ $ pd watch build-status --exec './run-tests.sh'`}
 
       {/* CLI Commands */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">CLI Commands</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">04</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">CLI Commands</h2>
+        </div>
 
         <div className="space-y-3">
-          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+          <div className="border-l-[length:var(--lw-stripe)] border-[var(--brand-primary)] pl-4">
             <code className="font-mono text-[var(--brand-primary)]">pd pub &lt;channel&gt; &lt;message&gt;</code>
             <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Publish a message to a channel. Fire-and-forget; returns immediately.</p>
             <DocsCodeBlock
@@ -106,7 +121,7 @@ $ pd pub deploy:staging '{"version":"2.1.0","status":"live"}'`}
             />
           </div>
 
-          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+          <div className="border-l-[length:var(--lw-stripe)] border-[var(--brand-primary)] pl-4">
             <code className="font-mono text-[var(--brand-primary)]">pd sub &lt;channel&gt;</code>
             <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Subscribe to a channel via SSE. Streams messages in real time until interrupted.</p>
             <DocsCodeBlock
@@ -117,7 +132,7 @@ $ pd pub deploy:staging '{"version":"2.1.0","status":"live"}'`}
             />
           </div>
 
-          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+          <div className="border-l-[length:var(--lw-stripe)] border-[var(--brand-primary)] pl-4">
             <code className="font-mono text-[var(--brand-primary)]">pd watch &lt;channel&gt; --exec &lt;cmd&gt;</code>
             <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Subscribe to a channel and execute a command each time a message arrives. Reconnects automatically on disconnect.</p>
             <DocsCodeBlock
@@ -128,7 +143,7 @@ $ pd pub deploy:staging '{"version":"2.1.0","status":"live"}'`}
             />
           </div>
 
-          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+          <div className="border-l-[length:var(--lw-stripe)] border-[var(--brand-primary)] pl-4">
             <code className="font-mono text-[var(--brand-primary)]">pd channels</code>
             <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">List all active channels with subscriber counts and last message timestamp.</p>
             <DocsCodeBlock
@@ -143,7 +158,10 @@ agent:sync      2 subscribers   12s ago`}
 
       {/* SDK Usage */}
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">SDK Usage</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">05</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">SDK Usage</h2>
+        </div>
 
         <DocsCodeBlock
           language="typescript"
@@ -165,7 +183,7 @@ stream.close()`}
       </div>
 
       {/* Next */}
-      <div className="flex items-center justify-between p-5 rounded-xl bg-gradient-to-r from-[var(--brand-primary)]/5 to-transparent border border-[var(--brand-primary)]/20">
+      <div className="flex flex-wrap items-center justify-between gap-4 border border-[var(--border-subtle)] bg-[color-mix(in_oklab,var(--brand-primary)_10%,var(--surface-base))] p-5">
         <div>
           <div className="text-sm text-[var(--text-muted)] mb-1">Next Feature</div>
           <div className="font-semibold text-[var(--text-primary)]">Cryptographic Harbors</div>
@@ -173,7 +191,7 @@ stream.close()`}
         </div>
         <Link
           to="/docs/features/harbors"
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-[var(--text-inverse)] font-medium hover:bg-[var(--brand-primary)] transition-colors"
+          className="flex items-center gap-2 bg-[var(--brand-primary)] px-4 py-2 font-medium text-[var(--text-inverse)]"
         >
           Learn More
           <ArrowRight size={16} />

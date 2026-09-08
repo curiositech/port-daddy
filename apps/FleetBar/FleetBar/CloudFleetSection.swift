@@ -11,7 +11,8 @@ struct CloudFleetSection: View {
             header
             scopeStrip
             metrics
-            recentCloudActivity
+            liveRuns
+            selectedTranscript
 
             if let err = store.lastError {
                 errorBanner(err)
@@ -19,9 +20,10 @@ struct CloudFleetSection: View {
         }
         .padding(compact ? Fleet.Space.l : Fleet.Space.xl)
         .background(Fleet.Chrome.panel)
-        .task(id: localDaemonURL ?? "") {
-            store.rebind(baseURL: localDaemonURL)
-            await store.refresh()
+        .task {
+            if store.lastRefresh == nil && !store.isRefreshing {
+                await store.refresh()
+            }
         }
     }
 
@@ -33,7 +35,7 @@ struct CloudFleetSection: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Cloud Fleet")
                     .font(compact ? .caption.weight(.semibold) : .system(size: 18, weight: .semibold))
-                Text("Local daemon state beside remote GitHub App and Worker activity")
+                Text("Live delivery state, timing estimates, failures, and durable executor transcripts")
                     .font(compact ? .caption2 : .system(size: 14))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -61,15 +63,15 @@ struct CloudFleetSection: View {
             )
             scopeChip(
                 title: "Cloud",
-                value: store.routeMissing ? "route missing" : "telemetry ledger",
-                icon: "cloud.fill",
-                color: store.routeMissing ? Fleet.Color.failure : Fleet.Color.active
+                value: store.accountLabel,
+                icon: store.needsReauthentication ? "person.crop.circle.badge.exclamationmark" : "cloud.fill",
+                color: store.needsReauthentication || store.isSignedOut ? Fleet.Color.failure : Fleet.Color.active
             )
             scopeChip(
                 title: "Safety",
-                value: "writes require approval",
-                icon: "hand.raised.fill",
-                color: Fleet.Color.warning
+                value: "read-only · account scoped",
+                icon: "lock.shield.fill",
+                color: Fleet.Color.healthy
             )
         }
     }
@@ -77,33 +79,72 @@ struct CloudFleetSection: View {
     private var metrics: some View {
         HStack(spacing: Fleet.Space.s) {
             metricCard(title: "local projects", value: "\(localProjects.count)", tint: Fleet.Color.healthy)
-            metricCard(title: "local active", value: "\(localProjects.reduce(0) { $0 + $1.activeCount })", tint: Fleet.Color.active)
-            metricCard(title: "cloud events", value: "\(store.summary?.totals.events ?? 0)", tint: store.hasCloudActivity ? Fleet.Color.active : Fleet.Color.dormant)
-            metricCard(title: "cloud cost", value: formatCost(store.summary?.totals.costUsd), tint: Fleet.Color.warning)
+            metricCard(
+                title: "cloud active",
+                value: "\(store.activeRuns.count)",
+                tint: store.activeRuns.isEmpty ? Fleet.Color.dormant : Fleet.Color.active
+            )
+            metricCard(
+                title: "queue est.",
+                value: store.health?.queueDepthEstimate.map(String.init) ?? "—",
+                tint: (store.health?.queueDepthEstimate ?? 0) > 0 ? Fleet.Color.warning : Fleet.Color.dormant
+            )
+            metricCard(
+                title: "known intents",
+                value: store.health.map { String($0.knownIntents) } ?? "—",
+                tint: store.hasCloudActivity ? Fleet.Color.active : Fleet.Color.dormant
+            )
         }
     }
 
     @ViewBuilder
-    private var recentCloudActivity: some View {
-        if let summary = store.summary, !summary.recent.isEmpty {
+    private var liveRuns: some View {
+        if store.isSignedOut {
+            emptyCloudCard(
+                icon: "person.crop.circle.badge.exclamationmark",
+                message: "Sign in from FleetBar Credentials to inspect account-scoped Cloud Fleet runs."
+            )
+        } else if store.needsReauthentication {
+            emptyCloudCard(
+                icon: "key.slash.fill",
+                message: "The saved Cloud Fleet session was rejected. Renew it from FleetBar Credentials."
+            )
+        } else if !store.runs.isEmpty {
             VStack(alignment: .leading, spacing: Fleet.Space.s) {
-                Text("Recent cloud runs")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                ForEach(summary.recent.prefix(compact ? 3 : 8)) { event in
-                    cloudEventRow(event)
+                HStack {
+                    Text(store.activeRuns.isEmpty ? "Recent logical runs" : "Live logical runs")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    if store.health?.paused == true {
+                        Label("PAUSED", systemImage: "pause.circle.fill")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(Fleet.Color.failure)
+                    } else if let refreshed = store.lastRefresh {
+                        Text("updated \(refreshed, style: .relative)")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                ForEach(store.runs.prefix(compact ? 4 : 12)) { run in
+                    cloudRunRow(run)
                 }
             }
         } else {
-            emptyCloudCard
+            emptyCloudCard(
+                icon: store.isRefreshing ? "arrow.clockwise" : "tray",
+                message: store.isRefreshing
+                    ? "Reading the durable Cloud Fleet ledger…"
+                    : "No Cloud Fleet run receipts are visible for this account yet."
+            )
         }
     }
 
-    private var emptyCloudCard: some View {
+    private func emptyCloudCard(icon: String, message: String) -> some View {
         HStack(alignment: .top, spacing: Fleet.Space.s) {
-            Image(systemName: store.routeMissing ? "exclamationmark.triangle.fill" : "tray")
-                .foregroundStyle(store.routeMissing ? Fleet.Color.failure : Fleet.Color.dormant)
-            Text(store.routeMissing ? "This daemon does not expose Cloud Fleet telemetry yet." : "No cloud fleet events recorded in the last 24 hours.")
+            Image(systemName: icon)
+                .foregroundStyle(store.isSignedOut || store.needsReauthentication ? Fleet.Color.warning : Fleet.Color.dormant)
+            Text(message)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -113,37 +154,160 @@ struct CloudFleetSection: View {
         .background(Fleet.Chrome.card, in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous))
     }
 
-    private func cloudEventRow(_ event: CloudFleetTelemetryEvent) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: Fleet.Space.s) {
-            Circle()
-                .fill(event.conclusion == "failure" || event.status == "error" ? Fleet.Color.failure : Fleet.Color.active)
-                .frame(width: 7, height: 7)
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: Fleet.Space.xs) {
-                    Text(event.ship ?? event.role ?? "cloud ship")
+    private func cloudRunRow(_ run: CloudFleetRun) -> some View {
+        Button {
+            Task { await store.select(run) }
+        } label: {
+            VStack(alignment: .leading, spacing: Fleet.Space.xs) {
+                HStack(alignment: .firstTextBaseline, spacing: Fleet.Space.s) {
+                    Circle()
+                        .fill(runColor(run))
+                        .frame(width: 8, height: 8)
+                    Text(run.repo)
                         .font(.system(.caption, design: .monospaced).weight(.semibold))
-                    Text(event.repoDisplay)
+                        .lineLimit(1)
+                    Text("#\(run.prNumber)")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Fleet.Color.active)
+                    if !run.shortSha.isEmpty {
+                        Text(run.shortSha)
+                            .font(.system(.caption2, design: .monospaced))
+                            .foregroundStyle(.tertiary)
+                    }
+                    Spacer(minLength: 0)
+                    stateBadge(run)
+                }
+                HStack(spacing: Fleet.Space.s) {
+                    Text(run.attemptLabel)
                         .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                    if let prNumber = event.prNumber {
-                        Text("#\(prNumber)")
-                            .font(.caption2.weight(.semibold))
+                        .foregroundStyle(run.attemptCount > 1 ? Fleet.Color.warning : .secondary)
+                    Spacer(minLength: 0)
+                    Text(timingSummary(run))
+                        .font(.system(.caption2, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                if let progress = run.progress() {
+                    ProgressView(value: progress)
+                        .progressViewStyle(.linear)
+                        .tint(runColor(run))
+                }
+                if let lastError = run.lastError, !lastError.isEmpty {
+                    Label(lastError, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption2)
+                        .foregroundStyle(Fleet.Color.failure)
+                        .lineLimit(compact ? 1 : 2)
+                }
+            }
+            .padding(.horizontal, Fleet.Space.m)
+            .padding(.vertical, Fleet.Space.s)
+            .background(
+                store.selectedRun?.id == run.id ? Fleet.Color.active.opacity(0.10) : Fleet.Chrome.card,
+                in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
+                    .strokeBorder(
+                        store.selectedRun?.id == run.id ? Fleet.Color.active.opacity(0.38) : Color.clear,
+                        lineWidth: 1
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private var selectedTranscript: some View {
+        if let run = store.selectedRun {
+            VStack(alignment: .leading, spacing: Fleet.Space.s) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Run transcript · #\(run.prNumber)")
+                            .font(.caption.weight(.semibold))
+                        Text("\(store.steps.count) durable steps · actual timestamps · run-level estimates")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                    Spacer()
+                    if store.isLoadingDetail {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Text(run.id)
+                            .font(.system(.caption2, design: .monospaced))
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
+                    }
+                }
+
+                if let detailError = store.detailError {
+                    Label(detailError, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(Fleet.Color.warning)
+                } else if store.steps.isEmpty && !store.isLoadingDetail {
+                    Text(run.hasTranscript
+                         ? "The durable transcript is not readable yet."
+                         : "This legacy receipt did not publish a durable transcript.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    let limit = compact ? 4 : 12
+                    let visibleSteps = Array(store.steps.suffix(limit))
+                    ForEach(visibleSteps) { step in
+                        transcriptStep(step)
+                    }
+                    if store.steps.count > limit {
+                        Text("Showing the latest \(limit) of \(store.steps.count) steps.")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+            }
+            .padding(Fleet.Space.m)
+            .background(
+                Fleet.Color.active.opacity(0.05),
+                in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
+                    .strokeBorder(Fleet.Color.active.opacity(0.18), lineWidth: 1)
+            )
+        }
+    }
+
+    private func transcriptStep(_ step: CloudFleetStep) -> some View {
+        HStack(alignment: .top, spacing: Fleet.Space.s) {
+            Text(String(format: "%02d", step.seq))
+                .font(.system(.caption2, design: .monospaced).weight(.bold))
+                .foregroundStyle(Fleet.Color.active)
+                .frame(width: 24, alignment: .trailing)
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: Fleet.Space.xs) {
+                    Text(step.title)
+                        .font(.caption.weight(.semibold))
+                        .lineLimit(compact ? 1 : 2)
+                    Spacer(minLength: 0)
+                    if let ship = step.ship, !ship.isEmpty {
+                        Text(ship)
+                            .font(.system(.caption2, design: .monospaced))
                             .foregroundStyle(Fleet.Color.active)
                     }
                 }
-                Text([event.event, event.action, event.status, event.conclusion].compactMap { $0 }.joined(separator: " · "))
+                Text(step.explanation)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-            Spacer(minLength: 0)
-            Text(Date(timeIntervalSince1970: event.ts / 1000), style: .relative)
-                .font(.caption2)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: Fleet.Space.s) {
+                    Text("actual \(timestamp(step.createdAt))")
+                    Text(step.expectedAt.map { "expected \(timestamp($0))" } ?? "step ETA unavailable")
+                }
+                .font(.system(.caption2, design: .monospaced))
                 .foregroundStyle(.tertiary)
+            }
         }
-        .padding(.horizontal, Fleet.Space.m)
         .padding(.vertical, Fleet.Space.s)
-        .background(Fleet.Chrome.card, in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous))
+        .overlay(alignment: .bottom) {
+            Divider().opacity(0.28)
+        }
     }
 
     private func scopeChip(title: String, value: String, icon: String, color: Color) -> some View {
@@ -194,8 +358,74 @@ struct CloudFleetSection: View {
             .background(Fleet.Color.warning.opacity(0.10), in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous))
     }
 
-    private func formatCost(_ value: Double?) -> String {
-        guard let value else { return "$0.00" }
-        return String(format: "$%.2f", value)
+    private func stateBadge(_ run: CloudFleetRun) -> some View {
+        let terminalConclusion = run.conclusion.flatMap { $0.isEmpty ? nil : $0 }
+        let label = run.isActive ? run.state : (terminalConclusion ?? run.state)
+        return Text(label.replacingOccurrences(of: "_", with: " ").uppercased())
+            .font(.caption2.weight(.bold))
+            .foregroundStyle(runColor(run))
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .background(
+                runColor(run).opacity(0.10),
+                in: Capsule(style: .continuous)
+            )
     }
+
+    private func runColor(_ run: CloudFleetRun) -> Color {
+        if run.isFailure { return Fleet.Color.failure }
+        switch run.state {
+        case "running": return Fleet.Color.active
+        case "admitting", "queued", "retrying": return Fleet.Color.warning
+        case "superseded": return Fleet.Color.dormant
+        default:
+            return run.conclusion == "success" ? Fleet.Color.healthy : Fleet.Color.dormant
+        }
+    }
+
+    private func timingSummary(_ run: CloudFleetRun) -> String {
+        switch run.state {
+        case "admitting":
+            return run.expectedStartAt.map { "executor handoff \(timestamp($0))" }
+                ?? "admission in progress"
+        case "queued":
+            let ahead = run.queueAheadEstimate.map { "≈\($0) ahead" }
+            let start = run.expectedStartAt.map { "start \(timestamp($0))" }
+            return [ahead, start].compactMap { $0 }.joined(separator: " · ").nilIfEmpty ?? "waiting for worker"
+        case "running":
+            return run.expectedFinishAt.map { "expected finish \(timestamp($0))" }
+                ?? "finish estimate pending"
+        case "retrying":
+            return run.expectedStartAt.map { "retry \(timestamp($0))" }
+                ?? "durable retry scheduled"
+        case "superseded":
+            return run.supersededBy.map { "replaced by \(String($0.prefix(14)))" }
+                ?? "replaced by newer head"
+        default:
+            let finished = run.finishedAt.map { "finished \(timestamp($0))" }
+            return [finished, duration(run.elapsedMs)].compactMap { $0 }.joined(separator: " · ")
+        }
+    }
+
+    private func timestamp(_ epochSeconds: Double) -> String {
+        guard epochSeconds > 0 else { return "—" }
+        return Date(timeIntervalSince1970: epochSeconds)
+            .formatted(.dateTime.month(.abbreviated).day().hour().minute().second())
+    }
+
+    private func duration(_ milliseconds: Double) -> String? {
+        guard milliseconds > 0 else { return nil }
+        let seconds = Int(milliseconds / 1000)
+        if seconds >= 3600 {
+            return String(format: "%dh %02dm", seconds / 3600, (seconds % 3600) / 60)
+        }
+        if seconds >= 60 {
+            return String(format: "%dm %02ds", seconds / 60, seconds % 60)
+        }
+        return "\(seconds)s"
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
 }

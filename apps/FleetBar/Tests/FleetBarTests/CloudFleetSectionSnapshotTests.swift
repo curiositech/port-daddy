@@ -15,22 +15,46 @@ final class CloudFleetSectionSnapshotTests: XCTestCase {
         let output = env["FLEETBAR_CLOUD_FLEET_SNAPSHOT_OUT"]
 
         StubURLProtocol.handler = { request in
-            XCTAssertEqual(request.url?.path, "/telemetry/cloud-app")
-            return StubURLProtocol.Stub(status: 200, body: Self.cloudFleetFixture)
+            switch request.url?.path {
+            case "/v1/fleet/health":
+                return StubURLProtocol.Stub(status: 200, body: Self.healthFixture)
+            case "/v1/fleet/activity":
+                return StubURLProtocol.Stub(status: 200, body: Self.activityFixture)
+            case "/v1/fleet/runs/intent%3Adelivery-live", "/v1/fleet/runs/intent:delivery-live":
+                return StubURLProtocol.Stub(status: 200, body: Self.detailFixture)
+            case "/v1/fleet/runs/intent%3Adelivery-queued", "/v1/fleet/runs/intent:delivery-queued":
+                return StubURLProtocol.Stub(status: 200, body: Self.queuedDetailFixture)
+            default:
+                XCTFail("Unexpected Cloud Fleet snapshot path: \(request.url?.absoluteString ?? "nil")")
+                return StubURLProtocol.Stub(status: 404, body: Data())
+            }
         }
 
+        let account = OperatorAccount(
+            token: "pdu_snapshot_fixture",
+            relayUrl: "https://relay.example",
+            login: "operator"
+        )
         let store = CloudFleetStore(
             autoStart: false,
-            baseURL: DaemonLocation.resolveBaseURL(),
-            session: StubURLProtocol.makeSession()
+            session: StubURLProtocol.makeSession(),
+            loadAccount: { account }
         )
         await store.refresh()
-        XCTAssertEqual(store.summary?.totals.events, 6)
+        XCTAssertEqual(store.health?.knownIntents, 23)
+        XCTAssertEqual(store.runs.count, 3)
+        XCTAssertEqual(store.steps.count, 4)
+        if env["FLEETBAR_CLOUD_FLEET_SNAPSHOT_SELECTION"] == "queued",
+           let queued = store.runs.first(where: { $0.state == "queued" }) {
+            await store.select(queued)
+            XCTAssertEqual(store.selectedRun?.prNumber, 9003)
+            XCTAssertEqual(store.steps.count, 2)
+        }
 
         let view = CloudFleetSection(
             store: store,
             localProjects: Self.localProjects,
-            localDaemonURL: DaemonLocation.resolveBaseURL(),
+            localDaemonURL: "http://127.0.0.1:8080",
             compact: false
         )
         .frame(width: 1120, height: 760)
@@ -96,104 +120,219 @@ final class CloudFleetSectionSnapshotTests: XCTestCase {
         return [project]
     }
 
-    private static let cloudFleetFixture = """
+    private static let healthFixture = """
     {
-      "success": true,
-      "generatedAt": 1777328400000,
-      "since": 1777242000000,
-      "totals": {
-        "events": 6,
-        "uniqueDeliveries": 4,
-        "shipEvents": 4,
-        "checkRunEvents": 1,
-        "commentEvents": 1,
-        "errorEvents": 0,
-        "costUsd": 0.0475,
-        "estimatedCostEvents": 2,
-        "unknownCostEvents": 0
-      },
-      "byRepo": [{
-        "owner": "curiositech",
-        "repo": "port-daddy",
-        "events": 6,
-        "pullRequests": 2,
-        "costUsd": 0.0475,
-        "lastSeen": 1777328300000
-      }],
-      "byShip": [{
-        "ship": "red-team",
-        "events": 3,
-        "clean": 2,
-        "findings": 1,
-        "errors": 0,
-        "costUsd": 0.0312,
-        "lastSeen": 1777328300000
-      }],
-      "byBackend": [{
-        "backend": "cloudflare",
-        "model": "@cf/qwen/qwen3-30b-a3b-fp8",
-        "events": 6,
-        "costUsd": 0.0475,
-        "estimatedCostEvents": 2
-      }],
-      "recent": [
+      "code": "OK",
+      "error": null,
+      "paused": false,
+      "lastRunAgeSec": 9,
+      "queueDepthEstimate": 7,
+      "running": 1,
+      "retrying": 0,
+      "superseded": 12,
+      "failedAdmission": 1,
+      "oldestQueuedAgeSec": 488,
+      "knownIntents": 23
+    }
+    """.data(using: .utf8)!
+
+    private static let activityFixture = """
+    {
+      "code": "OK",
+      "error": null,
+      "runs": [
         {
-          "id": "delivery-7:red-team",
-          "ts": 1777328300000,
-          "source": "github-app-receiver",
-          "provider": "github",
-          "appSlug": "port-daddy-cloud-fleet",
-          "deliveryId": "delivery-7",
-          "event": "pull_request",
-          "action": "synchronize",
-          "owner": "curiositech",
-          "repo": "port-daddy",
-          "prNumber": 892,
-          "sha": "abc123",
-          "ship": "red-team",
-          "role": "reviewer",
-          "status": "clean",
-          "conclusion": "success",
-          "backend": "cloudflare",
-          "model": "@cf/qwen/qwen3-30b-a3b-fp8",
-          "durationMs": 1200,
-          "inputTokens": 500,
-          "cachedInputTokens": 0,
-          "outputTokens": 25,
-          "costUsd": 0.0132,
-          "costIsEstimate": true,
-          "commentUrl": "https://github.com/curiositech/port-daddy/pull/892#issuecomment-1",
-          "checkRunId": 42
+          "id": "intent:delivery-live",
+          "deliveryId": "delivery-live",
+          "repo": "curiositech/port-daddy",
+          "prNumber": 8996,
+          "prUrl": "https://github.com/curiositech/port-daddy/pull/8996",
+          "headSha": "f03a307",
+          "conclusion": null,
+          "ships": ["red-team", "qa", "systems"],
+          "neurons": 48,
+          "elapsedMs": 55000,
+          "createdAt": 1787412000,
+          "state": "running",
+          "generation": 3,
+          "attemptCount": 4,
+          "queuedAt": 1787411900,
+          "startedAt": 1787411950,
+          "lastProgressAt": 1787412040,
+          "finishedAt": null,
+          "expectedStartAt": 1787411950,
+          "expectedFinishAt": 1787412300,
+          "queueAheadEstimate": 0,
+          "hasTranscript": true,
+          "supersededBy": null,
+          "lastError": null
         },
         {
-          "id": "delivery-8:qa",
-          "ts": 1777324700000,
-          "source": "github-app-receiver",
-          "provider": "github",
-          "appSlug": "port-daddy-cloud-fleet",
-          "deliveryId": "delivery-8",
-          "event": "check_run",
-          "action": "completed",
-          "owner": "curiositech",
-          "repo": "port-daddy",
-          "prNumber": 891,
-          "sha": "def456",
-          "ship": "qa",
-          "role": "qa",
-          "status": "completed",
-          "conclusion": "success",
-          "backend": "cloudflare",
-          "model": "@cf/qwen/qwen3-30b-a3b-fp8",
-          "durationMs": 980,
-          "inputTokens": 420,
-          "cachedInputTokens": 110,
-          "outputTokens": 31,
-          "costUsd": 0.0111,
-          "costIsEstimate": true,
-          "commentUrl": null,
-          "checkRunId": 43
+          "id": "intent:delivery-queued",
+          "deliveryId": "delivery-queued",
+          "repo": "curiositech/port-daddy",
+          "prNumber": 9003,
+          "prUrl": "https://github.com/curiositech/port-daddy/pull/9003",
+          "headSha": "af44d20",
+          "conclusion": null,
+          "ships": [],
+          "neurons": 0,
+          "elapsedMs": 0,
+          "createdAt": 1787411980,
+          "state": "queued",
+          "generation": 2,
+          "attemptCount": 1,
+          "queuedAt": 1787411980,
+          "startedAt": null,
+          "lastProgressAt": 1787411980,
+          "finishedAt": null,
+          "expectedStartAt": 1787412360,
+          "expectedFinishAt": 1787412750,
+          "queueAheadEstimate": 6,
+          "hasTranscript": true,
+          "supersededBy": null,
+          "lastError": null
+        },
+        {
+          "id": "run:delivery-failed",
+          "deliveryId": "delivery-failed",
+          "repo": "curiositech/port-daddy",
+          "prNumber": 8889,
+          "prUrl": "https://github.com/curiositech/port-daddy/pull/8889",
+          "headSha": "749b4dc",
+          "conclusion": "failure",
+          "ships": ["red-team", "qa"],
+          "neurons": 31,
+          "elapsedMs": 396637,
+          "createdAt": 1787390085,
+          "state": "completed",
+          "generation": 1,
+          "attemptCount": 4,
+          "queuedAt": 1787389600,
+          "startedAt": 1787389688,
+          "lastProgressAt": 1787390080,
+          "finishedAt": 1787390085,
+          "expectedStartAt": 1787389688,
+          "expectedFinishAt": 1787390080,
+          "queueAheadEstimate": 0,
+          "hasTranscript": true,
+          "supersededBy": null,
+          "lastError": "Required Fleet verdict contained blocking findings"
         }
       ]
     }
     """.data(using: .utf8)!
+
+    private static let detailFixture = """
+    {
+      "code": "OK",
+      "error": null,
+      "run": {
+        "id": "intent:delivery-live",
+        "deliveryId": "delivery-live",
+        "repo": "curiositech/port-daddy",
+        "prNumber": 8996,
+        "prUrl": "https://github.com/curiositech/port-daddy/pull/8996",
+        "headSha": "f03a307cde1e5e25c4c488005a3241aa6ba51605",
+        "conclusion": null,
+        "ships": ["red-team", "qa", "systems"],
+        "neurons": 48,
+        "elapsedMs": 55000,
+        "createdAt": 1787412000,
+        "state": "running",
+        "generation": 3,
+        "attemptCount": 4,
+        "queuedAt": 1787411900,
+        "startedAt": 1787411950,
+        "lastProgressAt": 1787412040,
+        "finishedAt": null,
+        "expectedStartAt": 1787411950,
+        "expectedFinishAt": 1787412300,
+        "queueAheadEstimate": 0,
+        "hasTranscript": true,
+        "supersededBy": null,
+        "lastError": null
+      },
+      "steps": [
+        {
+          "seq": 1,
+          "kind": "delivery-attempt",
+          "ship": null,
+          "title": "Delivery attempt 4 received",
+          "createdAt": 1787412000
+        },
+        {
+          "seq": 2,
+          "kind": "checkpoint-reused",
+          "ship": "red-team",
+          "title": "Reused completed red-team verdict",
+          "createdAt": 1787412010
+        },
+        {
+          "seq": 3,
+          "kind": "map-chunk",
+          "ship": "qa",
+          "title": "QA inspecting chunk 3 of 8",
+          "createdAt": 1787412030
+        },
+        {
+          "seq": 4,
+          "kind": "checkpoint-written",
+          "ship": "qa",
+          "title": "QA progress checkpoint persisted",
+          "createdAt": 1787412040
+        }
+      ]
+    }
+    """.data(using: .utf8)!
+
+    private static let queuedDetailFixture = """
+    {
+      "code": "OK",
+      "error": null,
+      "run": {
+        "id": "intent:delivery-queued",
+        "deliveryId": "delivery-queued",
+        "repo": "curiositech/port-daddy",
+        "prNumber": 9003,
+        "prUrl": "https://github.com/curiositech/port-daddy/pull/9003",
+        "headSha": "af44d20b2f9a5f29dc7a7e2dfa6d6723625b8c4f",
+        "conclusion": null,
+        "ships": [],
+        "neurons": 0,
+        "elapsedMs": 0,
+        "createdAt": 1787411980,
+        "state": "queued",
+        "generation": 2,
+        "attemptCount": 1,
+        "queuedAt": 1787411980,
+        "startedAt": null,
+        "lastProgressAt": 1787411980,
+        "finishedAt": null,
+        "expectedStartAt": 1787412360,
+        "expectedFinishAt": 1787412750,
+        "queueAheadEstimate": 6,
+        "hasTranscript": true,
+        "supersededBy": null,
+        "lastError": null
+      },
+      "steps": [
+        {
+          "seq": 1,
+          "kind": "delivery-attempt",
+          "ship": null,
+          "title": "Delivery accepted into the durable queue",
+          "createdAt": 1787411980
+        },
+        {
+          "seq": 2,
+          "kind": "checkpoint-written",
+          "ship": null,
+          "title": "Queue position estimate recorded",
+          "createdAt": 1787411982
+        }
+      ]
+    }
+    """.data(using: .utf8)!
+
 }

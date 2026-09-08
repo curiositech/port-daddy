@@ -510,25 +510,44 @@ class FleetStore: ObservableObject {
     /// Mutable so the operator can switch berths live via `rebind(to:)`. Switching
     /// is in-memory only — FleetBar returns to the canonical berth on next launch,
     /// per the ADR-0084 rail that a dev berth must never be the implicit default.
-    private var baseURL: String
+    /// The resolved control-plane endpoint. Either a validated base URL with its
+    /// provenance, or a typed unavailable state — never a fabricated URL or a
+    /// port-0 sentinel. Mutable so the operator can switch berths via `rebind`.
+    private var endpoint: DaemonEndpoint
+    private let endpointResolver: () -> DaemonEndpoint
+    /// A manual berth choice is authoritative for this process lifetime. Polling
+    /// may refresh discovery-managed publications, but must never steal an
+    /// operator-selected endpoint.
+    private var operatorSelectedEndpoint = false
 
-    var daemonURL: String { baseURL }
+    /// The base URL FleetBar targets, or `nil` when the control plane is
+    /// unavailable. Call sites build requests only when this is non-nil.
+    var daemonURL: String? { endpoint.url }
+
+    /// True when a live control-plane endpoint has been resolved.
+    var isControlPlaneAvailable: Bool { endpoint.isAvailable }
+
+    /// Provenance of the current endpoint (explicit URL, named profile, the
+    /// published daemon.port, …) for the connection header and berth tooltips.
+    var endpointSource: DaemonEndpointSource? { endpoint.source }
+
+    /// Why the control plane is unavailable, when it is; `nil` when available.
+    var controlPlaneUnavailableReason: DaemonUnavailableReason? { endpoint.unavailableReason }
 
     /// The port FleetBar is currently bound to, for matching against discovered
-    /// berths in the manager UI.
-    var activePort: Int? { URL(string: baseURL)?.port }
+    /// berths in the manager UI. `nil` when unavailable.
+    var activePort: Int? { daemonURL.flatMap { URL(string: $0)?.port } }
 
     var daemonLabel: String {
-        guard let url = URL(string: baseURL) else { return baseURL }
+        guard let daemonURL, let url = URL(string: daemonURL) else { return "no daemon" }
         let port = url.port ?? (url.scheme == "https" ? 443 : 80)
         return "\(url.host ?? "localhost"):\(port)"
     }
 
-    var isCanonicalDaemon: Bool {
-        guard let url = URL(string: baseURL) else { return false }
-        return (url.host == "localhost" || url.host == "127.0.0.1")
-            && url.port == DaemonLocation.canonicalPreferredPort
-    }
+    /// The canonical/stable daemon is the one discovered via its *published*
+    /// `daemon.port` — identity derived from publication, never from a preferred
+    /// port literal (ADR-0084).
+    var isCanonicalDaemon: Bool { endpoint.source?.isCanonicalPublication == true }
 
     /// The daemon's own health severity. Reads the daemon-reported `severity`
     /// field; falls back to deriving from `runtime.degraded` for an older daemon
@@ -590,9 +609,13 @@ class FleetStore: ObservableObject {
         return FleetVersion.evaluate(appVersion: FleetBarBuild.version, daemonVersion: daemonVersion)
     }
 
-    init(autoStart: Bool = true) {
+    init(
+        autoStart: Bool = true,
+        endpointResolver: @escaping () -> DaemonEndpoint = DaemonLocation.resolve
+    ) {
         self.preferences = FleetBarPreferenceStore.load()
-        self.baseURL = DaemonLocation.resolveBaseURL()
+        self.endpointResolver = endpointResolver
+        self.endpoint = endpointResolver()
 
         guard autoStart else { return }
 
@@ -652,10 +675,18 @@ class FleetStore: ObservableObject {
     func rebind(to url: String) {
         let trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalized = trimmed.hasSuffix("/") ? String(trimmed.dropLast()) : trimmed
-        guard !normalized.isEmpty, normalized != baseURL else { return }
+        guard !normalized.isEmpty, normalized != daemonURL else { return }
 
         sseTask?.cancel()
-        baseURL = normalized
+        operatorSelectedEndpoint = true
+        // Operator-selected berth: an explicit URL. Validate it so a malformed
+        // selection surfaces as unavailable rather than a fabricated target.
+        endpoint = DaemonLocation.validatedLoopbackURL(
+            normalized,
+            requireExplicitPort: false
+        )
+            .map { DaemonEndpoint.available(url: $0, source: .explicitURL) }
+            ?? .unavailable(.invalidExplicitURL(normalized))
         isConnected = false
         isDaemonRunning = false
         daemonStatus = nil
@@ -679,7 +710,15 @@ class FleetStore: ObservableObject {
     // MARK: - HTTP API
 
     func refresh() async {
-        guard let fleetURL = URL(string: "\(baseURL)/fleet") else { return }
+        refreshDiscoveredEndpoint()
+
+        // Fail closed: with no resolved endpoint, construct no request and show
+        // the daemon as not running (the popover surfaces the unavailable state).
+        guard let baseURL = daemonURL, let fleetURL = URL(string: "\(baseURL)/fleet") else {
+            isDaemonRunning = false
+            daemonStatus = nil
+            return
+        }
         let registeredProjectsURL = URL(string: "\(baseURL)/projects")
         let daemonStatusURL = URL(string: "\(baseURL)/status")
         do {
@@ -722,8 +761,34 @@ class FleetStore: ObservableObject {
         }
     }
 
+    /// Refresh endpoint discovery before each poll. This lets FleetBar recover
+    /// when it launches before `daemon.port` exists and follow an atomically
+    /// republished port without relaunching. Manual berth selection remains
+    /// authoritative until the app exits.
+    private func refreshDiscoveredEndpoint() {
+        guard !operatorSelectedEndpoint else { return }
+
+        let next = endpointResolver()
+        guard next != endpoint else { return }
+
+        let previousURL = endpoint.url
+        let hadEventStream = sseTask != nil
+        endpoint = next
+
+        guard previousURL != next.url else { return }
+
+        sseTask?.cancel()
+        isConnected = false
+        isDaemonRunning = false
+        daemonStatus = nil
+
+        if hadEventStream, next.url != nil {
+            connectSSE()
+        }
+    }
+
     func startFleet(projectDir: String? = nil, enabledAgents: [String]? = nil) async {
-        guard let url = URL(string: "\(baseURL)/fleet/start") else { return }
+        guard let baseURL = daemonURL, let url = URL(string: "\(baseURL)/fleet/start") else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -736,7 +801,7 @@ class FleetStore: ObservableObject {
     }
 
     func stopFleet(projectDir: String? = nil) async {
-        guard let url = URL(string: "\(baseURL)/fleet/stop") else { return }
+        guard let baseURL = daemonURL, let url = URL(string: "\(baseURL)/fleet/stop") else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -750,7 +815,7 @@ class FleetStore: ObservableObject {
     }
 
     func reloadFleet() async {
-        guard let url = URL(string: "\(baseURL)/fleet/reload") else { return }
+        guard let baseURL = daemonURL, let url = URL(string: "\(baseURL)/fleet/reload") else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -760,7 +825,8 @@ class FleetStore: ObservableObject {
     }
 
     func setFleetBudget(projectDir: String, usdPerDay: Double = 5) async {
-        guard let encodedProject = encodePathSegment(projectDir),
+        guard let baseURL = daemonURL,
+              let encodedProject = encodePathSegment(projectDir),
               let url = URL(string: "\(baseURL)/fleet/config/\(encodedProject)/budget") else {
             settingsMessage = "Could not prepare budget update"
             return
@@ -786,7 +852,7 @@ class FleetStore: ObservableObject {
     }
 
     func runAgent(projectDir: String, agentName: String) async {
-        guard let url = URL(string: "\(baseURL)/fleet/agent/run") else { return }
+        guard let baseURL = daemonURL, let url = URL(string: "\(baseURL)/fleet/agent/run") else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -796,7 +862,7 @@ class FleetStore: ObservableObject {
     }
 
     func pauseAgent(projectDir: String, agentName: String) async {
-        guard let url = URL(string: "\(baseURL)/fleet/agent/pause") else { return }
+        guard let baseURL = daemonURL, let url = URL(string: "\(baseURL)/fleet/agent/pause") else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -806,7 +872,7 @@ class FleetStore: ObservableObject {
     }
 
     func resumeAgent(projectDir: String, agentName: String) async {
-        guard let url = URL(string: "\(baseURL)/fleet/agent/resume") else { return }
+        guard let baseURL = daemonURL, let url = URL(string: "\(baseURL)/fleet/agent/resume") else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -868,8 +934,8 @@ class FleetStore: ObservableObject {
 
     private func connectSSE() {
         sseTask?.cancel()
-        sseTask = Task { [weak self, baseURL] in
-            guard let url = URL(string: "\(baseURL)/fleet/events") else { return }
+        sseTask = Task { [weak self, baseURL = daemonURL] in
+            guard let baseURL, let url = URL(string: "\(baseURL)/fleet/events") else { return }
             while !Task.isCancelled {
                 do {
                     let (stream, response) = try await URLSession.shared.bytes(from: url)
@@ -1103,7 +1169,7 @@ class FleetStore: ObservableObject {
      * - output: project rows that still show `spark` as salvaged or historical
      */
     private func enrichProjectsFromActors() async -> Bool {
-        guard isDaemonRunning, !projects.isEmpty else { return false }
+        guard isDaemonRunning, !projects.isEmpty, let baseURL = daemonURL else { return false }
 
         var nextProjects = projects
         var loadedAny = false
@@ -1284,7 +1350,7 @@ class FleetStore: ObservableObject {
     }
 
     private func enrichProjectsFromBriefings() async {
-        guard isDaemonRunning, !projects.isEmpty else { return }
+        guard isDaemonRunning, !projects.isEmpty, let baseURL = daemonURL else { return }
 
         var nextProjects = projects
         await withTaskGroup(of: (String, FleetBriefing?).self) { group in

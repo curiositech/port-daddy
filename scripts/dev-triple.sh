@@ -195,6 +195,12 @@ c_info "starting fresh daemon via 'node --import tsx server.ts' → $DAEMON_LOG"
   export PORT_DADDY_PREFIX="$PREFIX"
   export PORT_DADDY_PORT="$PORT"
   export NODE_ENV=development
+  # Berth registration (shared/daemon-berths.ts BERTH_ENV): without these the
+  # daemon boots as the default/stable berth and never self-registers into
+  # ~/.port-daddy/dev-daemons.json — FleetBar's Daemons list can't show it.
+  export PD_DAEMON_TIER=dev
+  export PD_DAEMON_LABEL="$LABEL"
+  export PD_DAEMON_SOURCE_DIR="$ROOT"
   exec node --import tsx server.ts
 ) >"$DAEMON_LOG" 2>&1 &
 DAEMON_PID=$!

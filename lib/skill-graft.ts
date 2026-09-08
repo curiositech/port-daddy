@@ -2,21 +2,21 @@
  * Skill Graft — native, local skill-injection for Port Daddy's autonomous
  * fleet ships.
  *
- * Mirrors the windags MCP tool pattern (`windags_skill_graft` /
- * `windags_skill_reference` / `windags_skill_inventory`): given a task
+ * Mirrors the jury_rig MCP tool pattern (`pd jury-rig query` /
+ * `pd jury-rig reference` / `pd seamanship list`): given a task
  * description, return a CHEAP ranked shortlist of candidate skills (id +
  * one-line description + similarity) across every scanned skill, plus the
  * FULL `SKILL.md` body for only the top few (context-cost capped). A
  * companion function fetches one specific reference/example/script file
  * from a skill's own directory on demand — the local equivalent of
- * `windags_skill_reference`.
+ * `pd jury-rig reference`.
  *
- * Deliberately local, deliberately not a windags client: no MCP call, no
- * network dependency on the windags server being configured. This exists
+ * Deliberately local, deliberately not a jury_rig client: no MCP call, no
+ * network dependency on the jury_rig server being configured. This exists
  * because `apps/fleet-executor` (autonomous ships spawned from
- * `pd-fleet.yml`) has zero windags integration today — windags only covers
+ * `pd-fleet.yml`) has zero jury_rig integration today — jury_rig only covers
  * interactive sessions where it happens to be wired in as an MCP server.
- * Borrows windags' *design*, not windags itself, matching the
+ * Borrows jury_rig' *design*, not jury_rig itself, matching the
  * shared-library-not-hard-runtime-dependency precedent this repo already
  * applies elsewhere (see the M8 semantic-conflict-predictor architecture
  * recommendation, `docs/architecture/agent-harbor-technical-binder/
@@ -48,8 +48,8 @@
  * skill is exactly right — comparing a shovel to a bonsai tree. Both sides
  * need to live in the same semantic space for cosine to mean anything.
  *
- * Fixed the way windags' Tool2Vec cascade fixes it (see
- * https://windags.ai/blog/the-skill-matching-cascade): `./skill-graft-tool2vec.js`
+ * Fixed the way jury_rig' Tool2Vec cascade fixes it (see
+ * https://example.com/blog/the-skill-matching-cascade): `./skill-graft-tool2vec.js`
  * generates ~15 synthetic user-phrased task descriptions per skill via a
  * cheap LLM call, embeds them with the shared local embedder, and averages
  * them into a centroid — comparing the task against "what would you use
@@ -64,17 +64,29 @@
  * 'lexical-only'`) rather than silently reintroducing the cosine-vs-
  * description bug as a "fallback."
  *
- * Scoped deliberately: windags' full cascade also has cross-encoder
+ * Scoped deliberately: jury_rig' full cascade also has cross-encoder
  * reranking, local attribution k-NN, and cross-installation global priors.
  * None of those are built here — they need a second (reranker) model, an
  * outcomes-tracking DB, and a multi-installation telemetry population
  * respectively, none of which exist yet for this native single-repo
  * version. BM25 + Tool2Vec + RRF is the real fix for the reported bug
  * without building infrastructure nothing here asked for yet.
+ *
+ * First-hop candidate expansion (2026-08-19 operator directive): the fused
+ * RRF list above is still bounded to whatever BM25/Tool2Vec directly
+ * scored — a skill's own `pairs-with` neighbors, or the skills it names by
+ * id in its SKILL.md prose, never got a look-in unless they ALSO scored
+ * well lexically or semantically. `expandFirstHopCandidates()` (next to
+ * `reciprocalRankFusion()` below) widens the pool by exactly one graph hop
+ * from the top seeds AFTER fusion, competing for the same unchanged
+ * shortlist/top/body caps. See that section's doc comment for the
+ * graph-analysis rationale (median/max degree, why first-hop only and not
+ * full transitive closure).
  */
 
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { parse as parseYaml } from 'yaml';
 import { createLocalEmbedder, defaultTransformersCacheDir } from './semantic-resolver.js';
 import {
   loadSkillCatalog,
@@ -84,6 +96,7 @@ import {
 import { containPath, PathEscapeError } from './fleet/path-guard.js';
 import type { LLMClient } from './llm-call.js';
 import { bm25Rank } from './skill-graft-bm25.js';
+import { extractPairsWithTargets } from './skill-pairs-with.js';
 import {
   createLLMClientSyntheticQueryGenerator,
   createTool2VecStore,
@@ -114,6 +127,22 @@ export interface SkillShortlistEntry {
    *  related short-text embeddings tend to land in a narrow positive band,
    *  but don't assume it's bounded at 0. Higher is more relevant. */
   similarity: number;
+  /**
+   * Provenance for the first-hop candidate expansion (see
+   * `expandFirstHopCandidates()`) — auditable ranking, not silent magic.
+   * Present ONLY when this entry's score actually came from a one-hop
+   * graph boost: either it wasn't in the directly BM25/Tool2Vec-ranked
+   * list at all, or the boosted score beat what direct ranking gave it.
+   * Absent for every ordinary direct match — including every entry when
+   * the first-hop skill graph has no edges at all — so a zero-degree
+   * catalog is byte-identical to the pre-expansion shape (no `via` key,
+   * not `via: 'direct'` — which is also why the type has no 'direct'
+   * member: a direct match is the unmarked case).
+   */
+  via?: 'first-hop';
+  /** The shortlisted seed skill whose first-hop edge produced this entry's
+   *  boosted score. Set iff `via === 'first-hop'`. */
+  hopSeed?: string;
 }
 
 /** A shortlist entry PLUS the full `SKILL.md` body — reserved for the
@@ -221,9 +250,11 @@ export interface SkillGraftIndex {
   /**
    * Rank every scanned skill against `query` — BM25 lexical score fused
    * with Tool2Vec synthetic-query-centroid semantic score via reciprocal
-   * rank fusion (k=60) — and return a cheap shortlist plus the full body
-   * for the top few. Scans the catalog on first call if it hasn't been
-   * already, but NEVER builds Tool2Vec centroids itself (that's `refresh()`'s
+   * rank fusion (k=60), then widened by exactly one first-hop graph step
+   * from the top seeds (`expandFirstHopCandidates()`) — and return a cheap
+   * shortlist plus the full body for the top few. Scans the catalog on
+   * first call if it hasn't been already, but NEVER builds Tool2Vec centroids
+   * itself (that's `refresh()`'s
    * job, an explicit and potentially expensive step) — `craft()` only reads
    * whatever centroids are already cached, so it stays fast and bounded
    * even the very first time it's called on a fully cold cache. See
@@ -233,11 +264,10 @@ export interface SkillGraftIndex {
   craft(query: string, options?: SkillGraftCraftOptions): Promise<SkillGraftResult>;
   /**
    * Fetch one file from within a specific skill's own directory — the
-   * on-demand companion to `craft()`, mirroring `windags_skill_reference`.
+   * on-demand companion to `craft()`, mirroring `pd jury-rig reference`.
    * Guards against the requested path escaping the skill's directory.
-   * Requires `craft()` or `refresh()` to have run at least once (so the
-   * catalog is populated); returns `found: false` otherwise rather than
-   * throwing.
+   * Lazily scans the catalog when needed; fetching one reference must never
+   * trigger the expensive centroid build.
    */
   getReference(skillId: string, filePath: string): SkillReferenceResult;
   /** Skill ids known as of the last scan (empty until `craft()`/`refresh()` runs). */
@@ -270,7 +300,7 @@ const MIN_MAX_BODY_CHARS = 500;
 const MAX_MAX_BODY_CHARS = 50000;
 
 /** Just this repo's `skills/` directory — "start with this repo's skills/
- *  dir" per the task brief. Callers who want the fuller windags/workgroup-ai/
+ *  dir" per the task brief. Callers who want the fuller jury_rig/workgroup-ai/
  *  user-level catalog can pass `lib/skill-sync.ts`'s `defaultSkillCatalogRoots()`
  *  as `roots` explicitly; Skill Graft does not reach for those on its own so
  *  a bare `createSkillGraftIndex()` call never depends on another tool being
@@ -314,11 +344,16 @@ export function createSkillGraftIndex(options: SkillGraftOptions = {}): SkillGra
 
   let catalog: SkillEntry[] = [];
   let catalogById = new Map<string, SkillEntry>();
+  let adjacency: SkillAdjacency = new Map();
   let scanned = false;
 
   function scan(): SkillEntry[] {
     catalog = loadSkillCatalog(roots.map((root) => root.path), { onWarning: options.onWarning });
     catalogById = new Map(catalog.map((entry) => [entry.id, entry]));
+    // Pure text scan (frontmatter `pairs-with` + prose id mentions), no LLM
+    // calls — cheap enough to build on every scan, unlike Tool2Vec's
+    // centroids which need their own `refresh()`-gated precompute step.
+    adjacency = buildSkillAdjacency(catalog);
     scanned = true;
     return catalog;
   }
@@ -385,20 +420,34 @@ export function createSkillGraftIndex(options: SkillGraftOptions = {}): SkillGra
         semanticRank = queryVector ? tool2VecRank(queryVector, catalog, centroidStore) : [];
       }
 
-      const fused = reciprocalRankFusion(lexicalRank, semanticRank).slice(0, shortlistLimit);
+      const fusedFull = reciprocalRankFusion(lexicalRank, semanticRank);
+      // Widen the pool by one graph hop from the top-K (K = shortlistLimit)
+      // fused seeds, THEN apply the same cap `craft()` always applied —
+      // expansion only widens who competes, never raises the cap itself.
+      // See `expandFirstHopCandidates()` for the weight/decay rationale.
+      const fused = expandFirstHopCandidates(fusedFull, shortlistLimit, adjacency).slice(0, shortlistLimit);
       const semanticById = new Map(semanticRank.map((entry) => [entry.id, entry.similarity]));
 
       const shortlist: SkillShortlistEntry[] = [];
-      for (const { id } of fused) {
+      for (const { id, via, hopSeed } of fused) {
         const skill = catalogById.get(id);
-        if (!skill) continue; // stale id from a fused list computed before a rescan; defensive, not expected
-        shortlist.push({
+        // Stale/unknown id: either a fused list computed before a rescan,
+        // or a `pairs-with`/prose-mention target that isn't a real skill id
+        // (typo, or a skill outside the scanned roots) — defensive, not
+        // expected on a well-formed catalog.
+        if (!skill) continue;
+        const entry: SkillShortlistEntry = {
           id: skill.id,
           description: skill.description,
           category: skill.category,
           tags: skill.tags,
           similarity: semanticById.get(id) ?? 0,
-        });
+        };
+        // Only ever set for a candidate whose score actually came from a
+        // hop boost — see SkillShortlistEntry.via's doc comment for why an
+        // ordinary direct match carries no `via` key at all.
+        if (via) { entry.via = via; entry.hopSeed = hopSeed; }
+        shortlist.push(entry);
       }
 
       const top: SkillGraftEntry[] = [];
@@ -426,6 +475,7 @@ export function createSkillGraftIndex(options: SkillGraftOptions = {}): SkillGra
     },
 
     getReference(skillId, filePath) {
+      ensureScanned();
       const skill = catalogById.get(skillId);
       if (!skill) {
         return {
@@ -434,7 +484,7 @@ export function createSkillGraftIndex(options: SkillGraftOptions = {}): SkillGra
           found: false,
           content: null,
           absolutePath: null,
-          error: `unknown skill id "${skillId}" (call craft()/refresh() first, or check the id)`,
+          error: `unknown skill id "${skillId}" (check the id and configured skill roots)`,
         };
       }
 
@@ -549,6 +599,234 @@ export function reciprocalRankFusion(
   return [...scores.entries()]
     .map(([id, fusedScore]) => ({ id, fusedScore }))
     .sort((a, b) => b.fusedScore - a.fusedScore || a.id.localeCompare(b.id));
+}
+
+// ─── First-hop candidate graph & expansion ─────────────────────────────────
+//
+// 2026-08-19 operator directive: the fused list above only surfaces a skill
+// that BM25 or Tool2Vec directly scored. A skill's own `pairs-with`
+// neighbors, or the skills its SKILL.md prose names by id, never got a
+// look-in unless they ALSO happened to score well on lexical or semantic
+// grounds — even though a curated `pairs-with` link or an explicit "see
+// also X" mention is a strong, human-authored relevance signal in its own
+// right. This section builds a directed, weighted skill graph from those
+// two signals and widens the post-fusion candidate pool by exactly one hop.
+//
+// Why first-hop only, not full transitive closure (graph analysis verified
+// on this repo's 301-skill catalog as of the directive):
+//   first-hop out-degree:        median 3,  max 10,  70 skills at zero-degree
+//   full transitive closure:     median 40, max 145, 39 skills' closures >100
+// The catalog has a giant connected component hubbed on
+// `multi-agent-coordination` and `skill-architect` (21 in-links each) — a
+// convergence/closure walk would pull most of the catalog into most
+// queries once it touched that hub, which is indistinguishable from not
+// filtering at all. Convergence closure was REJECTED on this data. A
+// single hop keeps expansion proportional to what a skill actually,
+// deliberately points at, and lets `HOP_DECAY` keep it subordinate to
+// genuine direct matches.
+
+/** `pairs-with` is a curated, intentional edge — an author said "these two
+ *  belong together." Weighted higher than an incidental prose mention. */
+export const PAIRS_WITH_WEIGHT = 1.0;
+/** A bare id mentioned in another skill's prose is a weaker, incidental
+ *  signal — the author was writing about something else and happened to
+ *  name this skill, not necessarily endorsing it as a companion. */
+export const PROSE_MENTION_WEIGHT = 0.4;
+/** Discount applied on top of the edge weight when converting a seed's own
+ *  fused score into a first-hop neighbor's candidate score. A neighbor is
+ *  never worth more than half its best possible (pairs-with, weight 1.0)
+ *  share of the seed's score — one hop away is strictly less certain than
+ *  the seed's own direct match. */
+export const HOP_DECAY = 0.5;
+
+/** One directed, weighted edge in the first-hop skill graph. `weight` is
+ *  `PAIRS_WITH_WEIGHT` or `PROSE_MENTION_WEIGHT` — whichever is higher, when
+ *  both signals fire for the same (source, target) pair (see
+ *  `buildSkillAdjacency`). */
+export interface SkillGraphEdge {
+  target: string;
+  weight: number;
+}
+
+/** skill id → its outgoing first-hop edges. Built once per `scan()` (see
+ *  the factory below) and reused until the next scan — same lifecycle as
+ *  `catalog`/`catalogById`, unlike `centroidStore` (this needs no LLM call,
+ *  so unlike Tool2Vec it doesn't need its own `refresh()`-gated precompute
+ *  step; a pure text scan is cheap enough to do lazily on first use). */
+export type SkillAdjacency = Map<string, SkillGraphEdge[]>;
+
+const ID_HAS_HYPHEN = /-/;
+
+function escapeRegExpLiteral(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+
+/**
+ * Re-read one skill's SKILL.md — `loadSkillCatalog` already parsed the
+ * frontmatter fields IT needs (name/description/category/tags) but never
+ * kept the raw frontmatter object or the prose body around — to pull both
+ * first-hop signals: (a) explicit `pairs-with` targets, (b) every OTHER
+ * hyphenated skill id mentioned as a whole word in the prose that follows
+ * the frontmatter. Never throws: a read or YAML-parse failure here yields
+ * zero edges for that skill, the same "skip, don't poison the whole
+ * catalog" discipline `parseSkillMd` in `shipwright/skill-index.ts`
+ * already applies (which will already have warned about a genuinely
+ * malformed file).
+ */
+function extractSkillEdges(
+  skill: SkillEntry,
+  mentionRegex: RegExp | null,
+): { pairsWith: string[]; prose: string[] } {
+  let raw: string;
+  try {
+    raw = readFileSync(skill.sourcePath, 'utf-8');
+  } catch {
+    return { pairsWith: [], prose: [] };
+  }
+
+  const frontmatterMatch = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/);
+  let pairsWith: string[] = [];
+  if (frontmatterMatch) {
+    try {
+      const frontmatter = parseYaml(frontmatterMatch[1]) as Record<string, unknown>;
+      pairsWith = extractPairsWithTargets(frontmatter, skill.id);
+    } catch {
+      // Malformed frontmatter — loadSkillCatalog already warned about this
+      // file; it just contributes no pairs-with edges here.
+    }
+  }
+  const body = frontmatterMatch ? raw.slice(frontmatterMatch[0].length) : raw;
+
+  const prose: string[] = [];
+  if (mentionRegex) {
+    mentionRegex.lastIndex = 0;
+    const seen = new Set<string>();
+    let match: RegExpExecArray | null;
+    while ((match = mentionRegex.exec(body))) {
+      const id = match[1];
+      if (id !== skill.id && !seen.has(id)) {
+        seen.add(id);
+        prose.push(id);
+      }
+    }
+  }
+
+  return { pairsWith, prose };
+}
+
+/**
+ * Build the directed, weighted first-hop skill graph: skill A → skill B
+ * when (a) A's frontmatter names B via `pairs-with` (weight
+ * `PAIRS_WITH_WEIGHT`) or (b) B's exact id appears as a whole word in A's
+ * SKILL.md prose (weight `PROSE_MENTION_WEIGHT`) — signal (b) only
+ * considers ids that contain a hyphen, so a skill id that also happens to
+ * be a common English word (`docx`, `liaison`, `init`, ...) never fires on
+ * ordinary prose. When both signals fire for the same (A, B) pair, the
+ * edge keeps the HIGHER weight — `pairs-with` is curated and intentional,
+ * a prose mention is incidental, and they shouldn't stack.
+ *
+ * Pure text scan, no LLM calls — see the section banner above for why
+ * that's what makes it safe to build eagerly on every `scan()` rather than
+ * behind its own `refresh()`-gated precompute like Tool2Vec's centroids.
+ *
+ * Known, accepted limitation: `\b`-bounded matching treats a hyphen as a
+ * word-boundary character, so a skill id that is itself a hyphenated
+ * PREFIX of a longer compound id (e.g. `jury_rig-ops` inside a mention of
+ * `jury_rig-ops-extended`) can still match. The operator directive calls
+ * for plain word-boundary matching with a hyphen-presence guard against
+ * common-word false positives, not a longest-match / prefix-free scheme —
+ * that's what this implements.
+ */
+export function buildSkillAdjacency(skills: readonly SkillEntry[]): SkillAdjacency {
+  const adjacency: SkillAdjacency = new Map();
+  if (skills.length === 0) return adjacency;
+
+  const hyphenatedIds = skills.map((s) => s.id).filter((id) => ID_HAS_HYPHEN.test(id));
+  // Hyphen-aware boundaries, NOT plain \b: a hyphen IS a \b word boundary,
+  // so `\bjury_rig-ops\b` would match inside `jury_rig-ops-extended` — a false
+  // edge to the shorter id, and (with the g-flag cursor advanced past it)
+  // the longer id's own mention consumed and missed. Lookarounds excluding
+  // [\w-] make an id match only when it is not embedded in a longer
+  // hyphenated token, regardless of alternation order.
+  const mentionRegex = hyphenatedIds.length > 0
+    ? new RegExp(`(?<![\\w-])(${hyphenatedIds.map(escapeRegExpLiteral).join('|')})(?![\\w-])`, 'g')
+    : null;
+
+  for (const skill of skills) {
+    const { pairsWith, prose } = extractSkillEdges(skill, mentionRegex);
+    if (pairsWith.length === 0 && prose.length === 0) continue;
+    const edges = new Map<string, number>();
+    for (const target of pairsWith) edges.set(target, Math.max(edges.get(target) ?? 0, PAIRS_WITH_WEIGHT));
+    for (const target of prose) edges.set(target, Math.max(edges.get(target) ?? 0, PROSE_MENTION_WEIGHT));
+    adjacency.set(skill.id, [...edges.entries()].map(([target, weight]) => ({ target, weight })));
+  }
+  return adjacency;
+}
+
+/** A first-hop-fused candidate — `reciprocalRankFusion`'s `{ id, fusedScore }`
+ *  shape, plus optional provenance (see `SkillShortlistEntry.via`). */
+export interface FirstHopCandidate {
+  id: string;
+  fusedScore: number;
+  via?: 'first-hop';
+  hopSeed?: string;
+}
+
+/**
+ * Widen the RRF-fused candidate pool with each of the top-K seeds' 1-hop
+ * neighbors — K = `shortlistLimit`, the SAME cap `craft()` applies to the
+ * final result, not a separate expansion budget (INJECTION CAPS UNCHANGED:
+ * the caller re-slices to `shortlistLimit` after this runs). A neighbor's
+ * boosted score is `seedScore × edgeWeight × HOP_DECAY` — always a
+ * fraction of the seed's own score, so a first-hop neighbor of a mediocre
+ * seed can still lose to a strong direct match ranked elsewhere in the
+ * fused list, and a first-hop neighbor never simply inherits its seed's
+ * rank outright. An id already present in `fused` keeps `max(ownScore,
+ * boostedScore)` — expansion can only raise a candidate's position, never
+ * lower one a direct signal already earned.
+ *
+ * Provenance (`via`/`hopSeed`) is attached ONLY to a candidate whose
+ * returned score actually came from a hop boost — a brand-new id the
+ * direct signals never ranked at all, or an existing id whose boosted
+ * score beat its own fused score. Every other entry is returned exactly as
+ * `reciprocalRankFusion` produced it, with no extra fields — so a skill
+ * with no first-hop edges anywhere, or an empty adjacency map altogether,
+ * degrades byte-identically to the pre-expansion result: same ids, same
+ * order, same scores, nothing new to see.
+ *
+ * @example
+ *   expandFirstHopCandidates(
+ *     [{ id: 'seed', fusedScore: 0.03 }],
+ *     10,
+ *     new Map([['seed', [{ target: 'paired-skill', weight: PAIRS_WITH_WEIGHT }]]]),
+ *   )
+ *   // → [{ id: 'seed', fusedScore: 0.03 },
+ *   //    { id: 'paired-skill', fusedScore: 0.015, via: 'first-hop', hopSeed: 'seed' }]
+ */
+export function expandFirstHopCandidates(
+  fused: readonly { id: string; fusedScore: number }[],
+  shortlistLimit: number,
+  adjacency: SkillAdjacency,
+): FirstHopCandidate[] {
+  const byId = new Map<string, FirstHopCandidate>();
+  for (const entry of fused) byId.set(entry.id, { id: entry.id, fusedScore: entry.fusedScore });
+
+  const seeds = fused.slice(0, shortlistLimit);
+  for (const seed of seeds) {
+    const edges = adjacency.get(seed.id);
+    if (!edges) continue;
+    for (const edge of edges) {
+      if (edge.target === seed.id) continue; // self-edges never contribute (shouldn't occur — extractPairsWithTargets/prose scan both already exclude the source's own id, this is belt-and-suspenders)
+      const boosted = seed.fusedScore * edge.weight * HOP_DECAY;
+      const existing = byId.get(edge.target);
+      if (!existing || boosted > existing.fusedScore) {
+        byId.set(edge.target, { id: edge.target, fusedScore: boosted, via: 'first-hop', hopSeed: seed.id });
+      }
+    }
+  }
+
+  return [...byId.values()].sort((a, b) => b.fusedScore - a.fusedScore || a.id.localeCompare(b.id));
 }
 
 // ─── Internals ──────────────────────────────────────────────────────────────

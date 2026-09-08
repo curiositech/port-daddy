@@ -1,55 +1,53 @@
-% Figure 7 — read-poverty: O(n) eyeball search vs O(log n) indexed directory,
-% and the value curve of L2 across swarm size n.
-% Design: short data labels only; the read-poverty moral and the n=1 inventory
-% live in the caption.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure 9 — measured xy plot, redrawn to spec [ch4.md 4.9]. The R1 sweep's
+% own CSV (whitepaper/figures/data/r1-floor.csv) is not committed, so this
+% draws the two ANALYTIC curves the chapter's own Floor(N,k,m) formula
+% (Thm.~\ref{thm:lowerbound}, \ref{thm:split-penalty}) reduces to at m=8: the
+% flat (joint, 2k=4) and split (per-reader, k=2) zero-miss floors, with only
+% the N=60 points the chapter works by hand labelled. Deviation is named in
+% the caption.
 \begin{figure}[H]
 \centering
-\resizebox{0.92\textwidth}{!}{%
-\begin{tikzpicture}[font=\small]
+\begin{tikzpicture}[pd figure,
+  declare function={
+    split(\n)  = ln(\n*(\n-1))/ln(2) - 1 - 4.80735;
+    flat(\n)   = ln(\n*(\n-1)*(\n-2)*(\n-3))/ln(2) - 10.7141;
+  }]
+\begin{axis}[
+  width=8.6cm,height=6.0cm,
+  axis lines=left,
+  axis line style={pd rule},
+  xmin=8,xmax=105,ymin=0,ymax=17.5,
+  xtick={20,40,60,80,100},ytick={0,5,10,15},
+  tick label style={font=\footnotesize,text=hhink!80!hhgray},
+  xlabel={swarm size $N$},
+  ylabel={bits to locate},
+  every axis label/.style={font=\footnotesize,text=hhink!80!hhgray},
+  clip=false,axis on top,
+  ]
+  \draw[pd guide] (axis cs:60,0) -- (axis cs:60,15.6);
+  \node[pd axis label,anchor=south] at (axis cs:60,15.7) {$N{=}60$};
 
-% ─── LEFT: cost of search vs population ──────────────────────────────────
-\begin{scope}
-\draw[->,thick] (0,0) -- (5.6,0) node[right,font=\footnotesize]{population $n$};
-\draw[->,thick] (0,0) -- (0,4.6) node[above,font=\footnotesize]{cost to find};
-% O(n) eyeball
-\draw[hhcobalt,very thick,domain=0:5,samples=60,smooth] plot (\x,{0.8*\x});
-\node[text=hhink,font=\bfseries\footnotesize,anchor=west] at (4.45,4.0) {$O(n)$ eyeball};
-% O(log n) directory
-\draw[hhteal,very thick,domain=0:5,samples=60,smooth] plot (\x,{0.6 + 0.5*ln(1+\x)});
-\node[text=hhink,font=\bfseries\footnotesize,anchor=west] at (4.45,1.5) {$O(\log n)$ index};
-\end{scope}
+  \addplot[pd rule,line width=1.05pt,domain=8:105,samples=100,smooth] {flat(x)};
+  \addplot[pd focus rule,line width=1.05pt,domain=8:105,samples=100,smooth] {split(x)};
 
-% ─── RIGHT: value of L2 across n (works at n=1, grows) ───────────────────
-\begin{scope}[shift={(9.4,0)}]
-\draw[->,thick] (0,0) -- (5.6,0) node[right,font=\footnotesize]{swarm size $n$};
-\draw[->,thick] (0,0) -- (0,4.6) node[above,font=\footnotesize]{value of L2};
-% value: nonzero at n=1, grows
-\draw[hhamber,very thick,domain=0.2:5,samples=80,smooth]
-   plot (\x,{1.2 + 2.6*(1-exp(-0.7*\x))});
-\fill[hhteal] (0.2,{1.2+2.6*(1-exp(-0.14))}) circle (2pt);
-\node[text=hhink,font=\footnotesize,anchor=west] at (0.45,1.0) {$n{=}1$: already pays};
-\draw[hhink,dashed] (3.4,0)--(3.4,3.4);
-\node[font=\footnotesize,text=hhink,align=center] at (3.4,3.9) {bottleneck\\($n\!\approx\!50$)};
-\node[font=\bfseries\footnotesize,text=hhink,anchor=west] at (4.0,2.6) {discovery pays};
-\end{scope}
+  \node[pd datum] at (axis cs:60,{flat(60)}) {};
+  \node[pd focus datum] at (axis cs:60,{split(60)}) {};
+  \node[pd direct label,anchor=south east] at (axis cs:59,{flat(60)+0.4}) {12.77};
+  \node[pd direct label,text=hhteal,anchor=north east] at (axis cs:59,{split(60)-0.4}) {5.98};
 
-\end{tikzpicture}%
-}
-\caption{Read-poverty (\S\ref{sec:readpoverty}): state piles up faster than it can
-be read. \emph{Left}: the cost of finding the right agent/work grows linearly under
-eyeball search but stays near-flat under an indexed directory --- the same trade
-every database made at the table-scan wall. \emph{Right}: the value curve of the
-legibility wedge across swarm size. It is valuable already at $n{=}1$ (briefing,
-attestation, footgun guard, honest completion) and grows into the read-poverty
-regime; discovery ranking earns its keep around the $n{\approx}50$ bottleneck. The
-wedge must work at $n{=}1$ and grow gracefully.}
+  \node[pd direct label,anchor=west] at (axis cs:87,{flat(87)}) {flat digest};
+  \node[pd direct label,text=hhteal,anchor=west] at (axis cs:87,{split(87)}) {split digest};
+\end{axis}
+\end{tikzpicture}
+\caption{Bits an operator must read to locate the critical artifact, at the
+lower bound of Thm.~\ref{thm:lowerbound} with $m{=}8$, $k{=}2$. One flat
+digest serving both readers jointly needs $\mathrm{Floor}(N,4,8)$ bits; two
+split digests, one per reader, each need only $\mathrm{Floor}(N,2,8)$. At
+$N{=}60$ the split digest costs 5.98 bits against the flat digest's 12.77 ---
+a 2.13$\times$ penalty, not the 2$\times$ that halving the readers would
+predict. The committed sweep CSV (\texttt{r1-floor.csv}) is not yet present,
+so the two curves are the chapter's own closed-form Floor formula rather than
+simulated points; only the $N{=}60$ values it works by hand are marked
+[internal].}
 \label{fig:readpoverty}
 \end{figure}

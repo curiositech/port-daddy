@@ -145,12 +145,12 @@ final class FleetProposalStore: ObservableObject {
     @Published private(set) var isRefreshing = false
     @Published private(set) var routeMissing = false
 
-    private let baseURL: String
+    private let baseURL: String?
     private nonisolated(unsafe) var refreshTimer: Timer?
     private let session: URLSession
 
     init(autoStart: Bool = true, baseURL: String? = nil, session: URLSession = .shared) {
-        self.baseURL = baseURL ?? DaemonLocation.resolveBaseURL()
+        self.baseURL = baseURL ?? DaemonLocation.availableBaseURL()
         self.session = session
 
         guard autoStart else { return }
@@ -180,7 +180,7 @@ final class FleetProposalStore: ObservableObject {
         isRefreshing = true
         defer { isRefreshing = false }
 
-        guard var components = URLComponents(string: "\(baseURL)/fleet-proposals") else { return }
+        guard let baseURL, var components = URLComponents(string: "\(baseURL)/fleet-proposals") else { return }
         components.queryItems = [
             URLQueryItem(name: "status", value: "all"),
             URLQueryItem(name: "limit", value: "80"),
@@ -238,7 +238,7 @@ final class FleetProposalStore: ObservableObject {
     }
 
     private func postDecision(id: String, action: String, body: [String: Any]) async {
-        guard let url = URL(string: "\(baseURL)/fleet-proposals/\(id)/\(action)") else { return }
+        guard let baseURL, let url = URL(string: "\(baseURL)/fleet-proposals/\(id)/\(action)") else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

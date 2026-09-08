@@ -46,7 +46,7 @@ The key insight from these experiments is that there's no universal "best" confi
 
 ## Implications for Agent System Design
 
-For systems like WinDAGs, this suggests several design principles:
+For systems like Jury-rig, this suggests several design principles:
 
 **Build Mechanism Libraries, Not Monolithic Coordinators**: Instead of one coordination algorithm, implement a library of coordination mechanisms. Each should be independently toggleable and parameterizable.
 

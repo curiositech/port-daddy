@@ -28,6 +28,42 @@ release + `brew upgrade`, not rebuild the repo.**
   read `~/.port-daddy/daemon.port` (env `PORT_DADDY_URL` overrides). Hardcoding `9876` is a
   standing defect with its own CI regiment (see the consolidation TODO).
 
+### The atomic lifecycle contract
+
+The components are separate because they answer different questions, but only
+one component owns process lifecycle:
+
+| Component | Authority | Must never do |
+|---|---|---|
+| **launchd** (`homebrew.mxcl.port-daddy`) | Sole canonical process parent, start, stop, replacement, and resurrection | Compete with a detached CLI-spawned canonical daemon |
+| **daemon** | Publish one generation across health PID, listener port, PID file, port file, heartbeat, and the post-boot readiness lease | Silently walk the canonical listener from `:9876` to a fallback port |
+| **Bosun** | Detect a dead/stale/wedged generation and request replacement through launchd | Spawn a daemon itself or substitute an old heartbeat PID for launchd truth |
+| **status / Doctor / FleetBar / pd-console** | Observe and explain the same generation snapshot | Become another supervisor or report isolated facts as overall health |
+
+On canonical macOS installs, `pd start`, `pd restart`, and `pd stop` mutate only
+the launchd job. `restart` is one `launchctl kickstart -k`, followed by a
+readiness wait of up to 120 seconds and two stable identity samples. If the
+launchd plist is missing, `start` and `restart` fail with `pd install`; they do
+not fall back to a detached process. A busy canonical port fails closed unless
+an isolated non-canonical runtime explicitly sets `PD_ALLOW_TCP_FALLBACK=1`.
+
+The daemon writes its PID and atomic heartbeat before opening the production
+registry. The full SQLite `integrity_check` remains a boot gate, but a packaged
+binary performs that read-only scan in a child process so the parent heartbeat
+continues while a large registry is checked. That early heartbeat proves
+liveness, not readiness. Only `onReady` atomically publishes `daemon.ready`,
+whose PID must exactly match `daemon.pid`; every generated Claude, Codex,
+Gemini, and agy hook wrapper remains an immediate no-op until that match. The
+marker is cleared only after duplicate-owner detection during boot and by an
+owned generation during shutdown, so a deferring or displaced daemon cannot
+erase its successor's lease. The HTTP wedge probe is armed only after the Unix
+listener exists. `pd squid status` exposes heartbeat liveness and exact-PID
+readiness separately, and labels the harness `READY` rather than `LIVE` while
+boot checks are still running. `pd status` and Doctor call the runtime
+**converged** only when launchd, `/health`, `daemon.pid`, `daemon.port`, the
+canonical port, the running/on-disk binary hash, and Bosun heartbeat describe
+the same generation.
+
 ## Supervisors & watchdogs (the multi-headed part)
 
 | launchd job | What it is | Runs | Touch? |
@@ -46,7 +82,7 @@ should detect and not duplicate it). Its `.plist.bak-*` was also deleted.
 
 ## Why liveness ≠ freshness (the watchdog's blind spot)
 
-`com.portdaddy.bosun` restarts the daemon when it is **dead or its heartbeat is stale** — never when
+`com.portdaddy.bosun` asks launchd to replace the daemon when it is **dead or its heartbeat is stale** — never when
 it runs **old code**. A stale-but-responsive daemon is "healthy" to it, so it keeps it alive forever;
 and `KeepAlive` resurrects it stale after any manual kill. `pd doctor` *detects* the drift
 ("Code hash: Mismatch → run restart") but **nothing acts on it**. Detection without enforcement —
@@ -72,6 +108,9 @@ pd dev up --from main
 # spin a berth from YOUR branch on a claimed port
 pd dev up --from feat/my-thing --label my-thing
 
+# arm that isolated berth's fleet worker for governed WorkIntent launches
+pd dev up --from feat/my-thing --label my-thing --fleet
+
 # see every berth (stable + each dev berth)
 pd dev list
 
@@ -84,14 +123,25 @@ eval "$(pd use stable)"        # reset to :9876
 pd --daemon dev status
 pd --daemon my-thing roadmap items
 
-# stop a berth (never touches the brew/stable daemon)
+# stop a berth and preserve its isolated DB (never touches brew/stable)
 pd dev down my-thing           # or: pd dev down --all
+
+# explicit destructive reset of that named berth
+pd dev down my-thing --purge   # --reset is an alias
 ```
 
 `pd dev up` builds the daemon **binary** via `scripts/build-daemon-binary.mjs` (never
 `tsx`), launches it detached with its berth identity env, smokes `/health`, and records
 it in `~/.port-daddy/dev-daemons.json`. Each berth gets an isolated runtime dir / DB /
-socket under `~/.port-daddy/instances/<label>/`. Binding `:9876` is refused.
+socket under `~/.port-daddy/instances/<label>/`. A new berth copies durable board
+history from stable, but clears machine-local bindings and executable dispatch rows;
+the berth can launch only work explicitly submitted to that berth. Binding `:9876`
+is refused. Fleet work is off by default; `--fleet` arms the named berth worker and
+records that state in its profile without changing the berth's codebase identity.
+Ordinary `pd dev down` and automatic dead/idle-process reaping preserve the
+profile DB, so restarting the same label resumes its durable commands, events,
+transcripts, and receipts. State deletion is explicit: `pd dev down --purge`,
+`--reset`, or `pd dev gc`.
 
 Because `pd use` exports `PORT_DADDY_URL`, every consumer that resolves the daemon
 through it follows the berth automatically — the CLI, MCP, the SDK, **and the Rust
@@ -102,6 +152,23 @@ cockpit drives that berth.
 The daemon self-reports its berth on `GET /health` (`.daemon`) and `GET /whoami`. With
 no `PD_DAEMON_*` env it reports `tier=stable, canonical=true` — so the brew daemon is
 the stable berth with no launch change.
+
+pd-console's **Agents** directory is a read-only federation across these local berths.
+Each running daemon supplies its own authoritative session and roster projections;
+the current daemon never opens another berth's SQLite file or guesses a provider from
+a process name. Stopped profiles remain visible as `ledger preserved · offline` and
+become inspectable again when their own daemon starts. Closing pd-console does not stop
+launchd, a daemon, or its provider processes. The selected active actor is saved by
+stable Port Daddy identity; pd-console reconnects to that actor's witnessed owning
+berth before rebinding the shared composer after a console restart. The saved record
+includes that berth identity. If only another copy of the session is online, pd-console
+keeps chat unbound and asks the operator to select the row again before switching.
+An offline berth leaves the selection inspectable but cannot receive operator turns.
+
+Named profiles launched by `pd daemon start <name>` set their berth identity explicitly
+(`tier=codebase`, `label=<name>`, `canonical=false`) alongside their isolated database,
+socket, and port. This keeps `/health`, `/whoami`, and the Agents directory from
+misrepresenting a named development daemon as stable.
 
 ## How to (re)deploy current code to the live STABLE daemon
 

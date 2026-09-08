@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["isValid", "checks"],
+  "properties": {
+    "isValid": {
+      "type": "boolean",
+      "description": "Whether output meets all validation criteria"
+    },
+    "checks": {
+      "type": "object",
+      "description": "Results of individual validation checks",
+      "properties": {
+        "schemaCompliance": {
+          "type": "boolean",
+          "description": "Output matches expected schema"
+        },
+        "contentQuality": {
+          "type": "boolean",
+          "description": "Content meets quality standards"
+        },
+        "completeness": {
+          "type": "boolean",
+          "description": "All required fields present"
+        }
+      }
+    },
+    "errors": {
+      "type": "array",
+      "description": "List of validation failures",
+      "items": {
+        "type": "object",
+        "properties": {
+          "field": { "type": "string" },
+          "error": { "type": "string" },
+          "severity": {
+            "type": "string",
+            "enum": ["error", "warning"]
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,99 @@
+{
+  "schema": "pd.agent-harbor.harness-continuation-matrix.v0",
+  "generatedAt": "2026-07-15T20:00:00.000Z",
+  "evidencePolicy": {
+    "numericBadgeGranted": false,
+    "selfReportCanAdvance": false,
+    "discoveryProvesRuntime": false,
+    "staleAfterMs": 604800000,
+    "detail": "Catalog declarations are mechanical ceilings; only durable daemon evidence marks runtime predicates witnessed."
+  },
+  "adapters": [
+    {
+      "family": "codex-cli",
+      "backendIds": [
+        "cli:codex"
+      ],
+      "interactiveChannels": [
+        "terminal",
+        "app-server"
+      ],
+      "predicates": {
+        "catalog": {
+          "status": "declared",
+          "basis": "catalog",
+          "detail": "Mechanical adapter contract is registered.",
+          "witnessId": null,
+          "observedAt": null,
+          "ageMs": null,
+          "freshness": "none"
+        },
+        "discovery": {
+          "status": "unverified",
+          "basis": "none",
+          "detail": "Local discovery was not requested.",
+          "witnessId": null,
+          "observedAt": null,
+          "ageMs": null,
+          "freshness": "none"
+        },
+        "spawn": {
+          "status": "witnessed",
+          "basis": "durable-transcript",
+          "detail": "Completed durable Codex transcript.",
+          "witnessId": "tx_01JZFIX0001",
+          "observedAt": "2026-07-15T19:59:30.000Z",
+          "ageMs": 30000,
+          "freshness": "fresh"
+        },
+        "live-interaction": {
+          "status": "unverified",
+          "basis": "none",
+          "detail": "No daemon-witnessed control receipt exists.",
+          "witnessId": null,
+          "observedAt": null,
+          "ageMs": null,
+          "freshness": "none"
+        },
+        "native-resume": {
+          "status": "unverified",
+          "basis": "none",
+          "detail": "No completed native continuation receipt exists.",
+          "witnessId": null,
+          "observedAt": null,
+          "ageMs": null,
+          "freshness": "none"
+        },
+        "handoff": {
+          "status": "unverified",
+          "basis": "none",
+          "detail": "No completed successor continuation receipt exists.",
+          "witnessId": null,
+          "observedAt": null,
+          "ageMs": null,
+          "freshness": "none"
+        }
+      }
+    }
+  ],
+  "compatibility": [
+    {
+      "sourceFamily": "codex-cli",
+      "targetFamily": "codex-cli",
+      "autoMode": "native",
+      "native": "declared",
+      "handoff": "declared",
+      "witness": null,
+      "detail": "Auto may restore a daemon-witnessed native session inside the same adapter family."
+    }
+  ],
+  "summary": {
+    "adapterFamilies": 1,
+    "paths": 1,
+    "nativePaths": 1,
+    "handoffPaths": 0,
+    "unsupportedPaths": 0,
+    "witnessedPaths": 0,
+    "witnessedPredicates": 1
+  }
+}

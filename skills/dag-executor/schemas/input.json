@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["dag", "waves"],
+  "properties": {
+    "dag": {
+      "type": "object",
+      "description": "The DAG to execute"
+    },
+    "waves": {
+      "type": "array",
+      "description": "Execution waves (parallel groups of nodes)"
+    },
+    "taskDecomposition": {
+      "type": "array",
+      "description": "List of tasks derived from DAG decomposition"
+    },
+    "executionOptions": {
+      "type": "object",
+      "description": "Execution configuration options"
+    }
+  },
+  "additionalProperties": false
+}

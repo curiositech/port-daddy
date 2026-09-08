@@ -77,7 +77,7 @@ Each role addition improves outcomes because each adds a decomposition step. The
 
 ## Application to Agent Orchestration Systems
 
-For WinDAGs and similar systems, SOPs offer a powerful paradigm for task routing and decomposition:
+For Jury-rig and similar systems, SOPs offer a powerful paradigm for task routing and decomposition:
 
 **Principle 1: Curate Domain-Specific SOPs**
 Don't try to create a general-purpose decomposition engine. Instead, identify the domains your system operates in (e.g., data analysis, API integration, document generation) and encode the standard procedures for each. For data analysis:
@@ -102,7 +102,7 @@ Better yet, make SOPs composable. A "build web application" SOP might invoke "da
 MetaGPT hints at this in Appendix A.1 (p.15): "agents review previous feedback and make necessary adjustments to their constraint prompts... continuously learn from past project experiences." Track which SOPs succeed or fail, which steps are bottlenecks, and refine accordingly. This is organizational learning encoded in process.
 
 **Principle 4: Humans Can Inject Domain SOPs**
-One of WinDAGs' strengths should be letting domain experts contribute SOPs without coding. Provide a SOP definition language where experts specify:
+One of Jury-rig' strengths should be letting domain experts contribute SOPs without coding. Provide a SOP definition language where experts specify:
 ```
 SOP: Security Audit
 Roles:
@@ -149,7 +149,7 @@ This makes SOPs vastly more efficient for domains with established practices. Th
 - Efficiency matters more than theoretical generality
 - Domain expertise is valuable, not a limitation
 
-## Implementing SOP-Based Routing in WinDAGs
+## Implementing SOP-Based Routing in Jury-rig
 
 Concrete implementation sketch:
 

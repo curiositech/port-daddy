@@ -528,6 +528,60 @@ pre code {
   }
 }
 
+/* ─── Fractional linework grammar (binder ch. 20 / story-linework §04) ──────
+   Midline dialects: a left-anchored 64px hairline reads "continues from
+   above"; a centered-third rule reads "division". Both are texture-weight
+   (1px), always ink-derived, never a story hue (hard rule 1). */
+.lw-midline {
+  position: relative;
+}
+.lw-midline::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 64px;
+  height: var(--lw-hairline);
+  background: var(--border-default);
+}
+
+.lw-sect-head {
+  position: relative;
+  padding-bottom: var(--space-3);
+}
+.lw-sect-head::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--lw-hairline);
+  background-image: linear-gradient(
+    to right,
+    transparent 0 32%,
+    var(--border-default) 32% 68%,
+    transparent 68% 100%
+  );
+}
+
+/* Stripe card — the secondary surface that sheds enclosure chrome: the card
+   well plus a hairline edge (mandatory, ch. 20 rule 5), a 3px state stripe
+   on the left, and no other borders. Stripe color comes from the consuming
+   markup via --stripe. */
+.lw-stripe-card {
+  position: relative;
+  background: var(--surface-card);
+  border: var(--lw-hairline) solid var(--border-subtle);
+  border-left: none;
+}
+.lw-stripe-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--lw-stripe);
+  background: var(--stripe, var(--brand-primary));
+}
+
 .pd-docs-section-block {
   position: relative;
   overflow: hidden;

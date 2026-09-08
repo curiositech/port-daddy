@@ -101,7 +101,7 @@ Section 6.3.1 specifies the exact rules for which communicative act to use:
 
 This is a clean decision tree that separates four different things: comprehension failure, capability gap, authorization failure, message quality failure, and execution failure. Each requires a different response from the sender.
 
-## Application to WinDAGs Error Handling
+## Application to Jury-rig Error Handling
 
 ### Current Problem: Undifferentiated Failure
 
@@ -113,7 +113,7 @@ Most orchestration systems treat all skill invocation failures the same: log the
 - If a skill returned `failure: internal-error`, the skill may have left state half-changed. Query state before retrying.
 - If a skill returned `failure: already-registered`, the operation was already done — treat as success.
 
-### Implementing a FIPA-Inspired Exception Taxonomy in WinDAGs
+### Implementing a FIPA-Inspired Exception Taxonomy in Jury-rig
 
 Define a structured exception type for all skill invocation responses with the following hierarchy:
 
@@ -157,9 +157,9 @@ Failed:
   → InternalError: check skill health, attempt once more, then escalate
 ```
 
-### The Agree/Inform Split in WinDAGs
+### The Agree/Inform Split in Jury-rig
 
-WinDAGs skill invocations should distinguish between:
+Jury-rig skill invocations should distinguish between:
 - **Acknowledgment** ("I received your task and will process it"): fast, low-latency
 - **Completion** ("I have finished processing your task"): asynchronous, may take time
 
@@ -203,4 +203,4 @@ Both examples show that the exception carries enough information for the receivi
 
 ## Summary
 
-FIPA's exception taxonomy transforms failures from opaque events into structured, reasoning-amenable information. By categorizing failures along two axes — *when* the failure occurred (before or after agreement) and *why* it occurred (comprehension, capability, authorization, message quality, execution) — the taxonomy enables agents to make intelligent decisions about how to respond. WinDAGs should adopt this structure: define a rich exception type hierarchy, implement specific retry/escalation logic for each exception class, use the agree/completion split for long-running tasks, and treat `failure` (post-agree) as potentially involving partial state changes that must be queried before retrying.
+FIPA's exception taxonomy transforms failures from opaque events into structured, reasoning-amenable information. By categorizing failures along two axes — *when* the failure occurred (before or after agreement) and *why* it occurred (comprehension, capability, authorization, message quality, execution) — the taxonomy enables agents to make intelligent decisions about how to respond. Jury-rig should adopt this structure: define a rich exception type hierarchy, implement specific retry/escalation logic for each exception class, use the agree/completion split for long-running tasks, and treat `failure` (post-agree) as potentially involving partial state changes that must be queried before retrying.

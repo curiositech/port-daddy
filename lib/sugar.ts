@@ -9,6 +9,8 @@
 import { randomBytes } from 'crypto';
 import { parseIdentity } from './identity.js';
 import { classifySessionLiveness, decideBeginResume } from './session-liveness.js';
+import { scanPlanChecklist } from './plan-checklist.js';
+import type { VerifiedContextBootstrapLookup } from './agent-harbor/context-continuity.js';
 
 /** How recent an agent heartbeat counts as "a live process is driving this session right now". */
 const SESSION_DRIVING_TTL_MS = 180_000;
@@ -44,6 +46,12 @@ interface SessionsModule {
   claimFiles(sessionId: string, filePaths: string[], options?: Record<string, unknown>): Record<string, unknown>;
   /** Flip an abandoned durable session back to active. Optional: older deps may not provide it. */
   resurrect?(sessionId: string): void;
+  /** Shallow-merge a patch into the session's metadata JSON. Optional: older deps may not provide it. */
+  updateMetadata?(sessionId: string, patch: Record<string, unknown>): Record<string, unknown>;
+  /** Append an immutable session note. Optional: older deps may not provide it. */
+  addNote?(sessionId: string, content: string, options?: Record<string, unknown>): Record<string, unknown>;
+  /** Take over a session non-destructively */
+  takeover?(sessionId: string, options?: Record<string, unknown>): Record<string, unknown>;
 }
 
 interface ActivityLogModule {
@@ -55,16 +63,225 @@ interface ActivityLogModule {
   }): void;
 }
 
+/**
+ * Minimal structural view of lib/roadmap-items.ts used by the rent-at-claim
+ * gate: slug validation (--roadmap), draft genesis (--roadmap-new).
+ */
+interface RoadmapItemsModule {
+  list(options?: { harbor?: string; status?: 'all' | 'now' | 'backlog'; limit?: number }): Array<{ slug: string; summaryMd: string; status: string; harbor: string }>;
+  /** Exact existence check across all harbors — no list() cap involved. */
+  slugExists(slug: string): boolean;
+  upsert(input: {
+    slug: string;
+    summaryMd: string;
+    status?: 'now' | 'backlog' | 'parked' | 'merge' | 'done';
+    promotedByAgentId?: string;
+    project?: string;
+    notes?: Array<{ at: number; by: string; text: string }>;
+  }): { slug: string; harbor: string };
+}
+
+interface FeedbackModule {
+  list(options?: { harbor?: string; status?: 'open' | 'all'; limit?: number }): Array<{
+    feedbackId: string;
+    slug: string;
+    summary: string;
+    severity: string;
+    status: string;
+    droppedBy: string;
+    surface: string | null;
+    at: number;
+  }>;
+}
+
+interface CommitmentsModule {
+  create(input: {
+    ownerActorId: string;
+    objectText: string;
+    successCheck?: string | null;
+    impossibleCheck?: string | null;
+    motivationCheck?: string | null;
+    scope?: 'claim' | 'review' | 'standing' | 'default';
+    commitmentStrategy?: 'single' | 'open';
+  }): any;
+  close(id: string, oracleRef: string): any;
+  list(options?: Record<string, unknown>): any;
+}
+
 interface SugarDeps {
   agents: AgentsModule;
   sessions: SessionsModule;
   activityLog: ActivityLogModule;
+  /**
+   * Optional roadmap store. When present, `begin` can validate --roadmap
+   * slugs and create draft items for --roadmap-new. When absent, those two
+   * paths fail closed with ROADMAP_ITEMS_UNAVAILABLE (sidequest still works).
+   */
+  roadmapItems?: RoadmapItemsModule;
   /**
    * Optional git-origin checker. Defaults to a real-git implementation.
    * Tests inject a stub to simulate ahead / no-upstream / clean states
    * without touching a real repo.
    */
   gitOriginChecker?: GitOriginChecker;
+  feedback?: FeedbackModule;
+  commitments?: CommitmentsModule;
+  /**
+   * Read-only verified-context boundary supplied by the composition root. It
+   * is intentionally optional while older daemon embeddings lack the M6
+   * ledger, so a missing capability returns `none` rather than inventing a
+   * transcript-derived continuation.
+   */
+  contextBootstrapLookup?: ContextBootstrapLookup;
+}
+
+/**
+ * Exact-session lookup seam for the compaction ledger. A caller may ask only
+ * about a predecessor that the surrounding session operation has already
+ * proven; this function never performs identity, task, or workspace matching.
+ */
+export type ContextBootstrapLookup = (sourceSessionId: string) => VerifiedContextBootstrapLookup;
+
+/**
+ * Bounded entry-path continuation returned to a new or takeover session.
+ * `ready` contains just the verified packet identifiers and last checkpointed
+ * plan, not a raw provider transcript or the packet's cited excerpts.
+ */
+export type ContextContinuationProjection =
+  | { status: 'none' }
+  | {
+      status: 'withheld';
+      sourceSessionId: string;
+      packetId: string | null;
+      reason: 'verified-context-bootstrap-withheld' | 'verified-context-bootstrap-invalid';
+    }
+  | {
+      status: 'ready';
+      sourceSessionId: string;
+      packet: {
+        packetId: string;
+        createdAt: string;
+        sourceHeadEventId: string;
+        sourceHeadHash: string;
+        transcriptEventId: string | null;
+        contextEnvelopeRef: string | null;
+      };
+      planCheckpoint: {
+        transcriptEventId: string;
+        content: string;
+        capturedAt: string;
+      };
+    };
+
+const MAX_ENTRY_CONTEXT_ID_BYTES = 512;
+const MAX_ENTRY_CONTEXT_PLAN_BYTES = 16 * 1024;
+
+/**
+ * Project a verified compaction lookup into the small continuation contract
+ * that session entry paths may expose. The design validates the injected
+ * lookup again at the boundary: a malformed fixture or stale adapter is
+ * `withheld`, never a reason to substitute notes or raw transcript material.
+ *
+ * @param sourceSessionId - The exact predecessor established by the caller's
+ *   successful takeover or salvage operation.
+ * @param lookup - Optional daemon-owned lookup over the append-only ledger.
+ * @returns A bounded `none`, `ready`, or `withheld` continuation projection.
+ */
+export function projectContextContinuation(
+  sourceSessionId: string | null | undefined,
+  lookup?: ContextBootstrapLookup,
+): ContextContinuationProjection {
+  const source = typeof sourceSessionId === 'string' ? sourceSessionId.trim() : '';
+  if (!source || !lookup) return { status: 'none' };
+
+  try {
+    const result = lookup(source);
+    if (result.status === 'none') return { status: 'none' };
+    if (result.sourceSessionId !== source) {
+      return {
+        status: 'withheld',
+        sourceSessionId: source,
+        packetId: null,
+        reason: 'verified-context-bootstrap-invalid',
+      };
+    }
+    if (result.status === 'withheld') {
+      return {
+        status: 'withheld',
+        sourceSessionId: source,
+        packetId: typeof result.packetId === 'string'
+          && Buffer.byteLength(result.packetId, 'utf8') <= MAX_ENTRY_CONTEXT_ID_BYTES
+          ? result.packetId
+          : null,
+        reason: 'verified-context-bootstrap-withheld',
+      };
+    }
+
+    const { packet, bootstrap } = result;
+    const checkpoint = bootstrap.planCheckpoint;
+    const packetFields = [
+      packet.packetId,
+      packet.createdAt,
+      packet.sourceTranscript.headEventId,
+      packet.sourceTranscript.headHash,
+    ];
+    const checkpointIsBounded = checkpoint !== null && (
+      typeof checkpoint.transcriptEventId === 'string'
+      && typeof checkpoint.content === 'string'
+      && typeof checkpoint.capturedAt === 'string'
+      && Buffer.byteLength(checkpoint.transcriptEventId, 'utf8') <= MAX_ENTRY_CONTEXT_ID_BYTES
+      && Buffer.byteLength(checkpoint.capturedAt, 'utf8') <= MAX_ENTRY_CONTEXT_ID_BYTES
+      && Buffer.byteLength(checkpoint.content, 'utf8') <= MAX_ENTRY_CONTEXT_PLAN_BYTES
+    );
+    const packetIsBounded = packetFields.every((value) => typeof value === 'string'
+      && value.trim().length > 0
+      && Buffer.byteLength(value, 'utf8') <= MAX_ENTRY_CONTEXT_ID_BYTES);
+    const contextEnvelopeRef = typeof packet.trigger.contextEnvelopeRef === 'string'
+      && Buffer.byteLength(packet.trigger.contextEnvelopeRef, 'utf8') <= MAX_ENTRY_CONTEXT_ID_BYTES
+      ? packet.trigger.contextEnvelopeRef
+      : null;
+    if (
+      !packetIsBounded
+      || !checkpointIsBounded
+      || packet.sessionId !== source
+      || bootstrap.sessionId !== source
+      || bootstrap.packet.packetId !== packet.packetId
+      || !packet.validator.passed
+      || !bootstrap.revalidation.passed
+    ) {
+      return {
+        status: 'withheld',
+        sourceSessionId: source,
+        packetId: null,
+        reason: 'verified-context-bootstrap-invalid',
+      };
+    }
+
+    return {
+      status: 'ready',
+      sourceSessionId: source,
+      packet: {
+        packetId: packet.packetId,
+        createdAt: packet.createdAt,
+        sourceHeadEventId: packet.sourceTranscript.headEventId,
+        sourceHeadHash: packet.sourceTranscript.headHash,
+        transcriptEventId: packet.transcriptEventId ?? null,
+        contextEnvelopeRef,
+      },
+      planCheckpoint: {
+        transcriptEventId: checkpoint.transcriptEventId,
+        content: checkpoint.content,
+        capturedAt: checkpoint.capturedAt,
+      },
+    };
+  } catch {
+    return {
+      status: 'withheld',
+      sourceSessionId: source,
+      packetId: null,
+      reason: 'verified-context-bootstrap-invalid',
+    };
+  }
 }
 
 interface BeginOptions {
@@ -76,11 +293,21 @@ interface BeginOptions {
   files?: string[];
   force?: boolean;
   metadata?: Record<string, unknown>;
-  worktree?: SessionWorktreeContext;
+  /** undefined lets ordinary callers auto-detect; null explicitly means no Git world. */
+  worktree?: SessionWorktreeContext | null;
   requireLinkedWorktree?: boolean;
   allowMainWorktree?: boolean;
   /** Session retention behavior. Durable survives without a live heartbeat process. */
   lifecycle?: 'durable' | 'ephemeral';
+  /**
+   * Rent-at-claim (S3): link the session to an EXISTING roadmap item by slug.
+   * Validated against the roadmap store; mutually exclusive with the other two.
+   */
+  roadmapLink?: string;
+  /** Rent-at-claim opt-out: one-line reason this work is off-roadmap (min 12 chars). */
+  sidequestReason?: string;
+  /** Rent-at-claim genesis: create a DRAFT roadmap item with this title and link it. */
+  roadmapNewTitle?: string;
   /**
    * Skip the crowded-main-worktree collision check. Set by the CLI when
    * allowMainWorktree was triggered by the long-standing env var
@@ -96,18 +323,83 @@ interface DoneOptions {
   sessionId?: string;
   note?: string;
   status?: string;
-  /**
-   * Operator escape hatch. When true, the origin-push + result-note
-   * preconditions are skipped. `skipOriginCheckReason` is REQUIRED — the
-   * override is loud (the final note gets a [OPERATOR-OVERRIDE] prefix).
-   */
+  /** Rejected on the public boundary; retained only for a structured compatibility error. */
   skipOriginCheck?: boolean;
   skipOriginCheckReason?: string;
+  noPr?: boolean;
+  subtask?: boolean;
+  forceIncomplete?: boolean;
+  forceIncompleteReason?: string;
+}
+
+interface ManagedSessionBindingOptions {
+  sessionId: string;
+  agentId: string;
+  actorId: string;
+}
+
+interface ManagedSessionCompletionOptions extends ManagedSessionBindingOptions {
+  note?: string;
+  status?: 'completed' | 'abandoned';
+}
+
+interface ManagedSessionAbortOptions extends ManagedSessionBindingOptions {
+  note?: string;
 }
 
 interface WhoamiOptions {
   agentId?: string;
   sessionId?: string;
+}
+
+/**
+ * Anti-Goodhart valve for rent-at-claim: `relink` re-points the ACTIVE
+ * session's rent fields. A wrong link picked just to satisfy the begin gate
+ * must never be sticky — fixing it is one command, and the fix is audited.
+ */
+interface RelinkOptions {
+  agentId?: string;
+  sessionId?: string;
+  /** Link to an EXISTING roadmap item by slug (validated, did-you-mean on miss). */
+  roadmapLink?: string;
+  /** Opt out with a one-line reason (min 12 chars). */
+  sidequestReason?: string;
+}
+
+// Rent-at-claim (S3): the one-line cost of starting a session is either a
+// roadmap link or an explicit opt-out reason. 12 chars forces a real sentence
+// fragment ("fixing CI flake") instead of "stuff" / "work" / "misc".
+export const SIDEQUEST_REASON_MIN_CHARS = 12;
+
+function slugifyRoadmapTitle(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+}
+
+function commonPrefixLen(a: string, b: string): number {
+  const n = Math.min(a.length, b.length);
+  let i = 0;
+  while (i < n && a[i] === b[i]) i += 1;
+  return i;
+}
+
+/**
+ * Did-you-mean for roadmap slugs: rank candidates by shared prefix length
+ * with the requested slug. Deliberately dumb — plain string prefixes only,
+ * no similarity scoring (operator ruling 2026-07-09).
+ */
+export function nearestSlugsByPrefix(input: string, slugs: string[], max = 5): string[] {
+  const seen = new Set<string>();
+  return slugs
+    .map((slug) => ({ slug, lcp: commonPrefixLen(input, slug) }))
+    .filter((entry) => entry.lcp >= 3)
+    .sort((a, b) => b.lcp - a.lcp || a.slug.localeCompare(b.slug))
+    .filter((entry) => (seen.has(entry.slug) ? false : (seen.add(entry.slug), true)))
+    .slice(0, max)
+    .map((entry) => entry.slug);
 }
 
 function lifecycleForSession(session: Record<string, unknown>): 'durable' | 'ephemeral' {
@@ -137,6 +429,9 @@ export function createSugar(deps: SugarDeps) {
   ) {
     const sessionId = session.id as string;
     const startedAt = typeof session.createdAt === 'number' ? session.createdAt : Date.now();
+    const sessionMeta = session.metadata && typeof session.metadata === 'object'
+      ? session.metadata as Record<string, unknown>
+      : null;
 
     return {
       success: true,
@@ -155,6 +450,100 @@ export function createSugar(deps: SugarDeps) {
       noteCount: notes.length,
       startedAt,
       duration: Date.now() - startedAt,
+      // Rent-at-claim (S3): surface the roadmap link / sidequest opt-out.
+      roadmapLink: typeof sessionMeta?.roadmapLink === 'string' ? sessionMeta.roadmapLink : null,
+      sidequestReason: typeof sessionMeta?.sidequestReason === 'string' ? sessionMeta.sidequestReason : null,
+    };
+  }
+
+  /**
+   * Project session rows into the minimum identifiers an operator or agent
+   * needs to resolve an ambiguous selection. The purpose is to make recovery
+   * actionable without leaking notes, claims, or other session contents into
+   * an error response.
+   *
+   * @param rows - Candidate session rows returned by the session store.
+   * @returns Stable session/worktree identifiers for explicit retry.
+   */
+  function projectSessionCandidates(rows: Array<Record<string, unknown>>) {
+    return rows.map((row) => ({
+      sessionId: typeof row.id === 'string' ? row.id : '<unknown>',
+      worktreeId: typeof row.worktreeId === 'string' ? row.worktreeId : null,
+      status: typeof row.status === 'string' ? row.status : null,
+      lifecycle: row.durable === true || row.is_durable === true || row.is_durable === 1
+        ? 'durable'
+        : 'ephemeral',
+    }));
+  }
+
+  /**
+   * Read the daemon-owned actor id from a session metadata envelope.
+   *
+   * Purpose: automatic resume is a mutation, not a search convenience. Both
+   * the incoming begin request and the stored session must carry verified
+   * identity stamps before the service may reuse claims or rewrite rent
+   * metadata; display aliases alone are never ownership proof.
+   *
+   * @param value - Session or request metadata in parsed or serialized form.
+   * @returns The verified stamped actor id, or null when unavailable/malformed.
+   */
+  function verifiedActorIdFromMetadata(value: unknown): string | null {
+    let metadata: Record<string, unknown> | null = null;
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      metadata = value as Record<string, unknown>;
+    } else if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value) as unknown;
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          metadata = parsed as Record<string, unknown>;
+        }
+      } catch {}
+    }
+    const rawIdentity = metadata?.identity;
+    const identity = rawIdentity && typeof rawIdentity === 'object' && !Array.isArray(rawIdentity)
+      ? rawIdentity as Record<string, unknown>
+      : null;
+    return identity?.verified === true && typeof identity.actorId === 'string' && identity.actorId.trim()
+      ? identity.actorId.trim()
+      : null;
+  }
+
+  /**
+   * Describe an abandoned durable session as a resumable work context without
+   * mutating it. `whoami` is an observational command; resurrection belongs to
+   * an explicit `begin` resume/takeover path where claims and lineage can be
+   * reconciled deliberately.
+   *
+   * Design intent: durable identity remains discoverable after abandonment,
+   * while only an explicit lifecycle operation may make it active again.
+   *
+   * @param session - Exact abandoned durable session row.
+   * @param agent - Optional live agent projection associated with the row.
+   * @param fallbackAgentId - Agent id supplied by the lookup when the row lacks one.
+   * @returns A dormant/resumable whoami projection with no state transition.
+   */
+  function buildDormantWhoamiResponse(
+    session: Record<string, unknown>,
+    agent: Record<string, unknown> | null,
+    fallbackAgentId?: string,
+  ) {
+    const agentId = typeof session.agentId === 'string' ? session.agentId : fallbackAgentId;
+    return {
+      success: true,
+      active: false,
+      dormant: true,
+      resumable: true,
+      state: 'dormant',
+      lifecycle: 'durable',
+      status: typeof session.status === 'string' ? session.status : 'abandoned',
+      agentId,
+      sessionId: session.id as string,
+      purpose: session.purpose as string,
+      sessionName: deriveAgentDisplayName({ purpose: session.purpose as string, fallback: 'Port Daddy Session' }),
+      agentName: cleanAgentDisplayName(agent?.name) || null,
+      name: cleanAgentDisplayName(agent?.name) || null,
+      worktreeId: typeof session.worktreeId === 'string' ? session.worktreeId : null,
+      hint: `Session "${session.id as string}" is a dormant durable context. Continue it explicitly with: pd session takeover ${session.id as string}`,
     };
   }
 
@@ -194,6 +583,131 @@ export function createSugar(deps: SugarDeps) {
       };
     }
 
+    // =========================================================================
+    // Rent-at-claim (S3): resolve the roadmap link / sidequest opt-out BEFORE
+    // the resume decision so a bogus --roadmap slug fails loudly instead of
+    // silently resuming. Enforcement (refusing when none is given) lives in
+    // the pd CLI and the MCP begin_session tool — the daemon's raw HTTP
+    // surface stays lenient for direct programmatic callers in v1.
+    // =========================================================================
+    const rent: {
+      roadmapLink?: string;
+      sidequestReason?: string;
+      roadmapCreated?: boolean;
+      roadmapExisting?: boolean;
+    } = {};
+    // Deferred --roadmap-new write. Validation happens up front (fail loudly
+    // before any other work), but the roadmap INSERT is deferred until the
+    // begin actually succeeds — a begin that dies at the crowded-worktree
+    // gate or at agent/session registration must not leave an orphan roadmap
+    // item behind (there is no rollback for it).
+    let pendingRoadmapNew: { slug: string; title: string; by: string; project?: string } | null = null;
+    {
+      const givenRentFields = [options.roadmapLink, options.sidequestReason, options.roadmapNewTitle]
+        .filter((v) => v !== undefined && v !== null);
+      if (givenRentFields.length > 1) {
+        return {
+          success: false,
+          error: 'roadmapLink, sidequestReason, and roadmapNewTitle are mutually exclusive — pass exactly one.',
+          code: 'ROADMAP_RENT_CONFLICT',
+        };
+      }
+
+      const rentParsedIdentity = identity ? parseIdentity(identity) : null;
+      const rentProject = rentParsedIdentity && rentParsedIdentity.valid ? rentParsedIdentity.project : undefined;
+
+      if (options.sidequestReason !== undefined) {
+        const reason = typeof options.sidequestReason === 'string' ? options.sidequestReason.trim() : '';
+        if (reason.length < SIDEQUEST_REASON_MIN_CHARS) {
+          return {
+            success: false,
+            error: `sidequest reason must be at least ${SIDEQUEST_REASON_MIN_CHARS} characters — say what the work actually is.`,
+            code: 'SIDEQUEST_REASON_TOO_SHORT',
+          };
+        }
+        rent.sidequestReason = reason;
+      }
+
+      if (options.roadmapLink !== undefined) {
+        if (!deps.roadmapItems) {
+          return {
+            success: false,
+            error: 'roadmap linking requires the roadmap service, which is not available on this daemon.',
+            code: 'ROADMAP_ITEMS_UNAVAILABLE',
+          };
+        }
+        const requested = typeof options.roadmapLink === 'string' ? options.roadmapLink.trim() : '';
+        // Validate across ALL harbors: items are created under project-scoped
+        // harbors ('port-daddy', 'demo:fleet', 'fleet') by different writers,
+        // and a link to any of them is a real link. Existence is an exact
+        // indexed lookup (slugExists) — never a capped list() scan, which
+        // would reject valid slugs once the table outgrows the cap. The
+        // capped list feeds ONLY the did-you-mean suggestions.
+        if (!requested || !deps.roadmapItems.slugExists(requested)) {
+          const slugs = deps.roadmapItems.list({ status: 'all', limit: 5000 }).map((item) => item.slug);
+          const didYouMean = nearestSlugsByPrefix(requested, slugs);
+          return {
+            success: false,
+            error: `Unknown roadmap slug "${requested}".`
+              + (didYouMean.length > 0 ? ` Did you mean: ${didYouMean.join(', ')}?` : ''),
+            code: 'ROADMAP_SLUG_UNKNOWN',
+            didYouMean,
+          };
+        }
+        rent.roadmapLink = requested;
+      }
+
+      if (options.roadmapNewTitle !== undefined) {
+        const title = typeof options.roadmapNewTitle === 'string' ? options.roadmapNewTitle.trim() : '';
+        const slug = slugifyRoadmapTitle(title);
+        if (!title || !slug) {
+          return {
+            success: false,
+            error: 'roadmapNewTitle must be a non-empty title.',
+            code: 'ROADMAP_TITLE_REQUIRED',
+          };
+        }
+        if (!deps.roadmapItems) {
+          return {
+            success: false,
+            error: 'roadmap item creation requires the roadmap service, which is not available on this daemon.',
+            code: 'ROADMAP_ITEMS_UNAVAILABLE',
+          };
+        }
+        const by = options.agentId || 'pd-begin';
+        if (deps.roadmapItems.slugExists(slug)) {
+          // Slug collision: the item already exists (possibly in another
+          // harbor). LINK to it instead of upserting — an upsert here would
+          // silently rewrite the existing item's summary/status/notes from a
+          // begin() call that never intended an edit.
+          rent.roadmapLink = slug;
+          rent.roadmapExisting = true;
+        } else {
+          pendingRoadmapNew = { slug, title, by, project: rentProject };
+          rent.roadmapLink = slug;
+          rent.roadmapCreated = true;
+        }
+      }
+    }
+    const rentMetadata: Record<string, unknown> = {};
+    if (rent.roadmapLink) rentMetadata.roadmapLink = rent.roadmapLink;
+    if (rent.sidequestReason) rentMetadata.sidequestReason = rent.sidequestReason;
+    // Materialize the deferred --roadmap-new item. Called ONLY on the two
+    // success paths (resume, fresh start) after the begin can no longer fail.
+    const materializePendingRoadmapNew = () => {
+      if (!pendingRoadmapNew || !deps.roadmapItems) return;
+      const { slug, title, by, project } = pendingRoadmapNew;
+      pendingRoadmapNew = null;
+      deps.roadmapItems.upsert({
+        slug,
+        summaryMd: title,
+        status: 'backlog',
+        promotedByAgentId: by,
+        project,
+        notes: [{ at: Date.now(), by, text: 'genesis-at-begin' }],
+      });
+    };
+
     // Idempotent resume. A re-begin for the SAME identity in the SAME worktree
     // must RESUME the existing active session, not fork a parallel one. Forking
     // was the dual-session bug: the first session held the file claims, the
@@ -202,7 +716,7 @@ export function createSugar(deps: SugarDeps) {
     // Opt out with an explicit `agentId` or `force: true`.
     const resumeParsed = identity ? parseIdentity(identity) : null;
     const resumeProject = resumeParsed && resumeParsed.valid ? resumeParsed.project : null;
-    if (!options.agentId && !force && resumeProject) {
+    if (!force && !options.agentId && resumeProject) {
       // Scope to the current worktree. When the policy resolved a worktree use
       // its id; otherwise let list() auto-detect via getWorktreeId() (same
       // default sessions.start() uses), so create + lookup agree.
@@ -213,26 +727,97 @@ export function createSugar(deps: SugarDeps) {
         active && typeof active === 'object' && Array.isArray((active as { sessions?: unknown[] }).sessions)
           ? ((active as { sessions: Array<Record<string, unknown>> }).sessions)
           : [];
-      // Match on the EXACT full identity, not just the project: two identities
-      // that share a project but differ by stack/context (demo:test:alpha vs
-      // demo:test:beta) must NOT collapse. identityProject is a cheap pre-filter;
-      // the agent's full identity is the real key.
-      let match: Record<string, unknown> | undefined;
-      let matchAgent: { identity?: unknown; timeSinceHeartbeat?: unknown } | undefined;
-      for (const s of activeRows) {
-        if (!s || s.identityProject !== resumeProject || typeof s.agentId !== 'string') continue;
-        const agentResult = agents.get(s.agentId) as { agent?: { identity?: unknown; timeSinceHeartbeat?: unknown } };
-        if (agentResult && agentResult.agent && agentResult.agent.identity === identity) {
-          match = s;
-          matchAgent = agentResult.agent;
-          break;
+      // Match on the exact full identity, never merely the project prefix.
+      // Closed history is deliberately projected as candidates rather than
+      // auto-selected: only an exact `pd session takeover <id>` may create
+      // lineage from a dormant/completed predecessor.
+      const matchingIdentity = (row: Record<string, unknown>) => {
+        if (!row || row.identityProject !== resumeProject || typeof row.agentId !== 'string') return null;
+        let storedIdentity: string | null = null;
+        const rawMetadata = row.metadata;
+        if (rawMetadata && typeof rawMetadata === 'object') {
+          const metadata = rawMetadata as Record<string, unknown>;
+          storedIdentity = typeof metadata.identityString === 'string' ? metadata.identityString : null;
+        } else if (typeof rawMetadata === 'string') {
+          try {
+            const metadata = JSON.parse(rawMetadata) as Record<string, unknown>;
+            storedIdentity = typeof metadata.identityString === 'string' ? metadata.identityString : null;
+          } catch {}
+        }
+        const agentResult = agents.get(row.agentId) as { agent?: { identity?: unknown; timeSinceHeartbeat?: unknown } };
+        const agent = agentResult?.agent;
+        return storedIdentity === identity || agent?.identity === identity ? { row, agent } : null;
+      };
+      const stableMatches = (rows: Array<Record<string, unknown>>) => rows
+        .map(matchingIdentity)
+        .filter((entry): entry is { row: Record<string, unknown>; agent: { identity?: unknown; timeSinceHeartbeat?: unknown } | undefined } => Boolean(entry))
+        .sort((left, right) => {
+          const leftStarted = typeof left.row.createdAt === 'number' ? left.row.createdAt : 0;
+          const rightStarted = typeof right.row.createdAt === 'number' ? right.row.createdAt : 0;
+          if (leftStarted !== rightStarted) return rightStarted - leftStarted;
+          return String(left.row.id || '').localeCompare(String(right.row.id || ''));
+        });
+
+      const activeMatches = stableMatches(activeRows);
+      if (activeMatches.length > 1) {
+        return {
+          success: false,
+          code: 'AMBIGUOUS_ACTIVE_SESSION',
+          error: `Identity "${identity}" has multiple active sessions in this worktree; select one exact session.`,
+          candidates: projectSessionCandidates(activeMatches.map((entry) => entry.row)),
+        };
+      }
+
+      if (activeMatches.length === 0) {
+        const listOptsClosed: Record<string, unknown> = { allWorktrees: false, limit: 50 };
+        if (worktreePolicy.worktree) listOptsClosed.worktreeId = worktreePolicy.worktree.id;
+        const allSessions = sessions.list(listOptsClosed);
+        const allRows = allSessions && typeof allSessions === 'object'
+          && Array.isArray((allSessions as { sessions?: unknown[] }).sessions)
+          ? (allSessions as { sessions: Array<Record<string, unknown>> }).sessions
+          : [];
+        const closedMatches = stableMatches(allRows.filter((row) => row.status !== 'active'));
+        if (closedMatches.length > 0) {
+          const candidates = projectSessionCandidates(closedMatches.map((entry) => entry.row));
+          return {
+            success: false,
+            code: 'CLOSED_SESSION_REQUIRES_EXPLICIT_TAKEOVER',
+            error: `Identity "${identity}" has closed session history; automatic revival is disabled.`,
+            hint: candidates.length === 1
+              ? `Continue it with: pd session takeover ${candidates[0].sessionId}`
+              : 'Choose one candidate and run: pd session takeover <sessionId>',
+            candidates,
+          };
         }
       }
+
+      const activeMatch = activeMatches[0];
+      const match = activeMatch?.row;
+      const matchAgent = activeMatch?.agent;
       if (match && typeof match.id === 'string' && typeof match.agentId === 'string') {
-        // A session is a DURABLE WORK CONTEXT: resume it whether a process is
-        // actively driving it (active) or it's been parked since you closed your
-        // laptop (dormant). Only a `done` session forks a fresh one. See
-        // lib/session-liveness.ts.
+        const callerActorId = verifiedActorIdFromMetadata(options.metadata);
+        const ownerActorId = verifiedActorIdFromMetadata(match.metadata);
+        if ((callerActorId || ownerActorId) && (!callerActorId || !ownerActorId)) {
+          return {
+            success: false,
+            code: 'SESSION_OWNER_UNVERIFIABLE',
+            error: `Session "${match.id}" cannot be resumed automatically because its actor ownership cannot be verified.`,
+            hint: `Continue it explicitly with: pd session takeover ${match.id}`,
+            candidates: projectSessionCandidates([match]),
+          };
+        }
+        if (callerActorId && ownerActorId && callerActorId !== ownerActorId) {
+          return {
+            success: false,
+            code: 'SESSION_OWNERSHIP_MISMATCH',
+            error: `The presented actor credential does not own session "${match.id}".`,
+            hint: `The current owner must abandon it before an explicit takeover: pd session takeover ${match.id}`,
+            candidates: projectSessionCandidates([match]),
+          };
+        }
+        // Only an active exact identity match may resume automatically. Closed
+        // history is returned above as an explicit takeover candidate so a
+        // caller never revives the first plausible historical row.
         const nowMs = Date.now();
         const sinceBeat = typeof matchAgent?.timeSinceHeartbeat === 'number' ? matchAgent.timeSinceHeartbeat : null;
         const liveness = classifySessionLiveness({
@@ -273,6 +858,28 @@ export function createSugar(deps: SugarDeps) {
               if (Array.isArray(claim.conflicts) && claim.conflicts.length > 0) resumed.fileConflicts = claim.conflicts;
             }
           }
+          // Rent-at-claim: a fresh link/reason on re-begin updates the
+          // resumed session's record (the link is session state, not call state).
+          // Switching rent MODE clears the other field — a session is either
+          // roadmap-linked or a sidequest, never ambiguously both.
+          if (Object.keys(rentMetadata).length > 0) {
+            materializePendingRoadmapNew();
+            const rentPatch: Record<string, unknown> = { ...rentMetadata };
+            if (rent.roadmapLink) rentPatch.sidequestReason = undefined;
+            if (rent.sidequestReason) rentPatch.roadmapLink = undefined;
+            sessions.updateMetadata?.(resumedSessionId, rentPatch);
+          }
+          if (rent.roadmapLink) resumed.roadmapLink = rent.roadmapLink;
+          if (rent.sidequestReason) resumed.sidequestReason = rent.sidequestReason;
+          if (rent.roadmapCreated) resumed.roadmapCreated = true;
+          if (rent.roadmapExisting) resumed.roadmapExisting = true;
+          // Re-attaching a harness to this exact durable session makes that
+          // session the explicit continuation source. It is never discovered
+          // by identity, workspace, agent, or prior-note similarity.
+          resumed.contextContinuation = projectContextContinuation(
+            resumedSessionId,
+            deps.contextBootstrapLookup,
+          );
           if (decision.warn === 'driven-elsewhere') {
             resumed.warn = 'Another live process is already driving this session; attaching anyway (worktree isolation is the real guard).';
           }
@@ -341,10 +948,13 @@ export function createSugar(deps: SugarDeps) {
       }
     }
 
-    const metadata = mergeSessionWorktreeMetadata(options.metadata, worktreePolicy.worktree, {
+    const worktreeMetadata = mergeSessionWorktreeMetadata(options.metadata, worktreePolicy.worktree, {
       requireLinkedWorktree: options.requireLinkedWorktree,
       allowMainWorktree: options.allowMainWorktree,
     });
+    const metadata = Object.keys(rentMetadata).length > 0
+      ? { ...(worktreeMetadata && typeof worktreeMetadata === 'object' ? worktreeMetadata : {}), ...rentMetadata }
+      : worktreeMetadata;
 
     const name = deriveAgentDisplayName({
       name: options.name,
@@ -372,6 +982,7 @@ export function createSugar(deps: SugarDeps) {
     if (type) registerOpts.type = type;
     if (metadata) registerOpts.metadata = metadata;
     if (worktreePolicy.worktree) registerOpts.worktreeId = worktreePolicy.worktree.id;
+    else if (options.worktree === null) registerOpts.worktreeId = null;
 
     const agentResult = agents.register(agentId, registerOpts);
     if (!agentResult.success) {
@@ -385,6 +996,7 @@ export function createSugar(deps: SugarDeps) {
     // Step 2: Start session (rollback agent on failure)
     const sessionOpts: Record<string, unknown> = { agentId };
     if (worktreePolicy.worktree) sessionOpts.worktreeId = worktreePolicy.worktree.id;
+    else if (options.worktree === null) sessionOpts.worktreeId = null;
     let identityProject: string | null = null;
     if (identity) {
       const parsedIdentity = parseIdentity(identity);
@@ -397,9 +1009,20 @@ export function createSugar(deps: SugarDeps) {
       sessionOpts.files = files;
       if (force) sessionOpts.force = force;
     }
-    if (metadata && typeof metadata === 'object') {
-      sessionOpts.metadata = metadata;
-    }
+    // `identity` is the RESERVED daemon verdict slot (lib/identity-write-boundary.ts
+    // `stampIdentityMetadata`), and routes/sugar.ts has already stamped the
+    // verified actorId into it. Writing the display `project:stack:context`
+    // string there erased the daemon's stamp on every `pd begin` session,
+    // which (a) left routes/sessions.ts' file-claim soul check with nothing to
+    // compare against for begin-created sessions and (b) removed the only
+    // daemon-witnessed display-agentId → soul binding, which the inbox sender
+    // gate needs (lib/inbox-identity.ts branch (b)). The display string keeps
+    // its own key; the verdict slot belongs to the daemon.
+    const sessionMetadata = {
+      ...(metadata && typeof metadata === 'object' ? metadata : {}),
+      identityString: identity || null,
+    };
+    sessionOpts.metadata = sessionMetadata;
     if (durable) {
       sessionOpts.durable = true;
     }
@@ -414,6 +1037,9 @@ export function createSugar(deps: SugarDeps) {
         code: 'SESSION_START_FAILED',
       };
     }
+
+    // Begin succeeded — safe to materialize the deferred --roadmap-new item.
+    materializePendingRoadmapNew();
 
     // Build response
     const response: Record<string, unknown> = {
@@ -430,6 +1056,13 @@ export function createSugar(deps: SugarDeps) {
       sessionStarted: true,
     };
     if (worktreePolicy.worktree) response.worktree = worktreePolicy.worktree;
+    if (rent.roadmapLink) response.roadmapLink = rent.roadmapLink;
+    if (rent.sidequestReason) response.sidequestReason = rent.sidequestReason;
+    if (rent.roadmapCreated) response.roadmapCreated = true;
+    if (rent.roadmapExisting) response.roadmapExisting = true;
+    // Fresh begin has no proven lineage. In particular, it must not search
+    // for a similar-looking historical session and attach its packet.
+    response.contextContinuation = { status: 'none' };
 
     // Include file claims if present
     if (sessionResult.files) {
@@ -458,14 +1091,119 @@ export function createSugar(deps: SugarDeps) {
       } as unknown as Record<string, unknown>,
     });
 
+    // Auto-enroll commitment to complete session (Law 1: daemon/module derives deadline)
+    if (deps.commitments) {
+      deps.commitments.create({
+        ownerActorId: agentId,
+        objectText: `De-register agent and close session for project: ${identity || 'default'}`,
+        scope: 'default',
+        commitmentStrategy: 'single',
+        successCheck: `session:${sessionResult.id}:completed`,
+      });
+    }
+
     return response;
+  }
+
+  /**
+   * Finalize one already-authorized exact session.
+   *
+   * Design intent: public completion and the daemon-owned managed-spawn path
+   * share one mutation tail, while keeping their authorization/precondition
+   * gates separate. This helper never selects a session and never interprets
+   * caller override flags.
+   *
+   * @param sessionId - Exact session selected and authorized upstream.
+   * @param effectiveAgentId - Canonical stored session owner.
+   * @param effectiveNote - Final note after upstream policy processing.
+   * @param status - Terminal status to persist.
+   * @returns Structured completion result.
+   */
+  function finalizeAuthorizedSession(
+    sessionId: string,
+    effectiveAgentId: string | null,
+    effectiveNote: string | undefined,
+    status: string,
+  ) {
+    const notesBefore = sessions.getNotes(sessionId);
+    const beforeCount = typeof notesBefore.total === 'number' ? notesBefore.total : (notesBefore.notes as unknown[] || []).length;
+    const endOpts: Record<string, unknown> = { status };
+    if (effectiveNote) endOpts.note = effectiveNote;
+    const sessionResult = sessions.end(sessionId, endOpts);
+    if (!sessionResult.success) {
+      return {
+        success: false,
+        error: `Session end failed: ${sessionResult.error}`,
+        code: 'SESSION_END_FAILED',
+      };
+    }
+
+    let agentUnregistered = false;
+    let remainingActiveSessions = 0;
+    if (effectiveAgentId) {
+      const remaining = sessions.list({
+        agentId: effectiveAgentId,
+        status: 'active',
+        allWorktrees: true,
+        limit: 50,
+      });
+      const rows = Array.isArray(remaining.sessions) ? remaining.sessions : [];
+      remainingActiveSessions = typeof remaining.count === 'number' ? remaining.count : rows.length;
+      if (remainingActiveSessions === 0) {
+        const unregResult = agents.unregister(effectiveAgentId);
+        agentUnregistered = !!unregResult.unregistered;
+      }
+    }
+
+    if (deps.commitments && effectiveAgentId) {
+      try {
+        const openCommitments = deps.commitments.list({ ownerActorId: effectiveAgentId, state: 'open' }) as any;
+        const rows = Array.isArray(openCommitments) ? openCommitments : (openCommitments?.commitments || []);
+        for (const commitment of rows) {
+          if (commitment.successCheck === `session:${sessionId}:completed`) {
+            deps.commitments.close(commitment.id, `session:${sessionId}:completed`);
+          }
+        }
+      } catch {
+        // Completion remains authoritative when optional commitment cleanup fails.
+      }
+    }
+
+    const finalNote = !!effectiveNote && sessionResult.alreadyEnded !== true;
+    const totalNotes = beforeCount + (finalNote ? 1 : 0);
+    const sessionInfo = sessions.get(sessionId);
+    const session = sessionInfo.success && sessionInfo.session ? sessionInfo.session as Record<string, unknown> : null;
+    const identityProject = typeof session?.identityProject === 'string' ? session.identityProject : null;
+    activityLog.log('sugar_done', {
+      agentId: effectiveAgentId,
+      targetId: sessionTarget(identityProject, sessionId),
+      details: `Agent ${effectiveAgentId || 'unknown'} done: ${status}`,
+      metadata: {
+        agentId: effectiveAgentId,
+        sessionId,
+        status,
+        identityProject: identityProject || undefined,
+      } as Record<string, unknown>,
+    });
+
+    return {
+      success: true,
+      agentId: effectiveAgentId,
+      sessionId,
+      sessionStatus: status,
+      agentUnregistered,
+      remainingActiveSessions,
+      notesCount: typeof session?.noteCount === 'number' ? session.noteCount : totalNotes,
+      finalNote,
+      releasedFiles: (sessionResult as any).releasedFiles,
+    };
   }
 
   /**
    * Done — end session + unregister agent.
    * Finds active session by agentId if sessionId not provided.
    *
-   * Hard preconditions (enforced unless `skipOriginCheck` is set):
+   * Hard preconditions:
    *   1. The session's branch is not ahead of its upstream on origin.
    *   2. The result note contains one of: a PR URL, "no-pr-yet: <reason>",
    *      or "not-applicable: <reason>".
@@ -475,27 +1213,39 @@ export function createSugar(deps: SugarDeps) {
   function done(options: DoneOptions) {
     const { agentId, note, status = 'completed' } = options;
     let { sessionId } = options;
-    const skipOriginCheck = options.skipOriginCheck === true;
-    const skipOriginCheckReason = typeof options.skipOriginCheckReason === 'string'
-      ? options.skipOriginCheckReason.trim()
-      : '';
-
+    if (options.skipOriginCheck === true || options.forceIncomplete === true) {
+      return {
+        success: false,
+        code: 'OPERATOR_CAPABILITY_REQUIRED',
+        error: 'completion overrides require a daemon-verified, action-scoped operator capability',
+        hint: 'Actor credentials and reason strings do not grant operator authority. Complete the normal gates or use the daemon-owned managed-spawn completion path.',
+      };
+    }
     // Find session by agent if not provided
     if (!sessionId && agentId) {
-      const listResult = sessions.list({ agentId, status: 'active', allWorktrees: true });
-      const sessionsList = (listResult.sessions || []) as Array<{ id: string }>;
-      if (sessionsList.length > 0) {
-        sessionId = sessionsList[0].id;
+      const listResult = sessions.list({ agentId, status: 'active', allWorktrees: true, limit: 50 });
+      const sessionsList = (listResult.sessions || []) as Array<Record<string, unknown>>;
+      if (sessionsList.length > 1) {
+        return {
+          success: false,
+          error: `Agent "${agentId}" has multiple active sessions; pass sessionId explicitly.`,
+          code: 'AMBIGUOUS_ACTIVE_SESSION',
+          candidates: projectSessionCandidates(sessionsList),
+        };
+      }
+      if (sessionsList.length === 1) {
+        sessionId = sessionsList[0].id as string;
       }
     }
 
-    // Fallback: find most recent active session (only if no explicit agentId was given)
+    // No-context completion must never close a process-global "most recent"
+    // session. An explicit session, agent, or verified CLI context is required.
     if (!sessionId && !agentId) {
-      const listResult = sessions.list({ status: 'active', allWorktrees: true, limit: 1 });
-      const sessionsList = (listResult.sessions || []) as Array<{ id: string }>;
-      if (sessionsList.length > 0) {
-        sessionId = sessionsList[0].id;
-      }
+      return {
+        success: false,
+        error: 'No active session scope provided; pass sessionId or agentId explicitly.',
+        code: 'NO_ACTIVE_SESSION_SCOPE',
+      };
     }
 
     if (!sessionId) {
@@ -529,13 +1279,67 @@ export function createSugar(deps: SugarDeps) {
     // those through without the push/PR-URL gate.
     // =========================================================================
     let effectiveNote = typeof note === 'string' ? note : undefined;
+    const isSubtaskOrNoPr = options.noPr === true || options.subtask === true;
 
     if (status === 'completed') {
-      if (!skipOriginCheck) {
-        // 1) Note-sentinel check (cheap, do it first so operators get the most
-        //    actionable error when they forget BOTH things).
+      // Resolve the session worktree once for every completion path. In
+      // particular, `--skip-origin-check` may bypass the push/upstream gate but
+      // it must never bypass the stricter repository claim made by `--no-pr`.
+      const sessionInfo = sessions.get(sessionId);
+      const sessionRow = sessionInfo.success && sessionInfo.session
+        ? sessionInfo.session as Record<string, unknown>
+        : null;
+      const meta = sessionRow && typeof sessionRow.metadata === 'object' && sessionRow.metadata !== null
+        ? sessionRow.metadata as Record<string, unknown>
+        : null;
+      const worktreeMeta = meta && typeof meta.worktree === 'object' && meta.worktree !== null
+        ? meta.worktree as Record<string, unknown>
+        : null;
+      const worktreeRoot = worktreeMeta && typeof worktreeMeta.root === 'string' && worktreeMeta.root.trim()
+        ? worktreeMeta.root
+        : undefined;
+
+      if (options.noPr === true) {
         const sentinel = checkResultNoteSentinel(effectiveNote);
         if (!sentinel.ok) {
+          const standardSentinel = 'not-applicable: ledger-only session, no repository artifact';
+          effectiveNote = effectiveNote && effectiveNote.trim()
+            ? `${effectiveNote.trim()}\n\n${standardSentinel}`
+            : standardSentinel;
+        }
+
+        const ledgerOnly = gitOriginChecker.checkLedgerOnly
+          ? gitOriginChecker.checkLedgerOnly(worktreeRoot)
+          : null;
+        if (!ledgerOnly?.ok) {
+          return {
+            success: false,
+            code: 'LEDGER_ONLY_CHECK_FAILED',
+            error: `pd done refused — ${ledgerOnly?.error ?? 'ledger-only repository verification is unavailable'}`,
+            hint: ledgerOnly?.hint ?? 'Run this close through a Port Daddy build that can verify worktree cleanliness and unpublished commits.',
+            branch: null,
+            upstream: null,
+            ahead: null,
+            originCheckCode: null,
+            ledgerOnlyCheckCode: ledgerOnly?.code ?? 'CHECK_UNAVAILABLE',
+            dirtyEntries: ledgerOnly?.dirtyEntries ?? null,
+            unpublishedCommits: ledgerOnly?.unpublishedCommits ?? null,
+          };
+        }
+      }
+
+      // 1) Note-sentinel check (cheap, do it first so callers get the most
+      // actionable error when they forget both publication preconditions).
+      const sentinel = checkResultNoteSentinel(effectiveNote);
+      if (!sentinel.ok) {
+        if (isSubtaskOrNoPr) {
+          const standardSentinel = options.noPr === true
+            ? 'not-applicable: ledger-only session, no repository artifact'
+            : 'not-applicable: subtask code delivery';
+          effectiveNote = effectiveNote && effectiveNote.trim()
+            ? `${effectiveNote.trim()}\n\n${standardSentinel}`
+            : standardSentinel;
+        } else {
           return {
             success: false,
             code: 'RESULT_NOTE_MISSING_SENTINEL',
@@ -543,23 +1347,12 @@ export function createSugar(deps: SugarDeps) {
             hint: noteSentinelErrorMessage(),
           };
         }
+      }
 
-        // 2) Origin-push check. The cwd we run git in is the session's
-        //    worktree root when we know it, otherwise the daemon's cwd.
-        const sessionInfo = sessions.get(sessionId);
-        const sessionRow = sessionInfo.success && sessionInfo.session
-          ? sessionInfo.session as Record<string, unknown>
-          : null;
-        const meta = sessionRow && typeof sessionRow.metadata === 'object' && sessionRow.metadata !== null
-          ? sessionRow.metadata as Record<string, unknown>
-          : null;
-        const worktreeMeta = meta && typeof meta.worktree === 'object' && meta.worktree !== null
-          ? meta.worktree as Record<string, unknown>
-          : null;
-        const worktreeRoot = worktreeMeta && typeof worktreeMeta.root === 'string' && worktreeMeta.root.trim()
-          ? worktreeMeta.root
-          : undefined;
-
+      // 2) Origin-push check. `--no-pr` has already passed its stricter
+      // ledger-only verification above; ordinary completions require a
+      // published branch.
+      if (options.noPr !== true) {
         const originCheck = gitOriginChecker.checkBranchOnOrigin(worktreeRoot);
         if (!originCheck.ok) {
           return {
@@ -571,78 +1364,174 @@ export function createSugar(deps: SugarDeps) {
             upstream: originCheck.upstream ?? null,
             ahead: originCheck.ahead ?? null,
             originCheckCode: originCheck.code,
+            ledgerOnlyCheckCode: null,
+            dirtyEntries: null,
+            unpublishedCommits: null,
           };
         }
-      } else {
-        // Skip-origin-check requested. Require a reason and stamp the note.
-        if (!skipOriginCheckReason) {
-          return {
-            success: false,
-            code: 'SKIP_ORIGIN_CHECK_REASON_REQUIRED',
-            error: 'pd done --skip-origin-check requires --reason "<reason>".',
-            hint: 'Provide a one-line reason describing why the origin-push gate is being bypassed (e.g., "local experiment, not shipping").',
-          };
-        }
-        // Prepend a loud override marker so audits can grep for them.
-        const overrideStamp = `[OPERATOR-OVERRIDE skip-origin-check] reason: ${skipOriginCheckReason}`;
-        effectiveNote = effectiveNote && effectiveNote.length > 0
-          ? `${overrideStamp}\n${effectiveNote}`
-          : overrideStamp;
       }
     }
 
-    // Count notes before ending (end adds the handoff note)
-    const notesBefore = sessions.getNotes(sessionId);
-    const beforeCount = (notesBefore.notes as unknown[] || []).length;
-
-    // End the session
-    const endOpts: Record<string, unknown> = { status };
-    if (effectiveNote) endOpts.note = effectiveNote;
-    const sessionResult = sessions.end(sessionId, endOpts);
-
-    if (!sessionResult.success) {
-      return {
-        success: false,
-        error: `Session end failed: ${sessionResult.error}`,
-        code: 'SESSION_END_FAILED',
-      };
+    // 3) Plan checklist validation
+    if (status === 'completed') {
+      const planNotesResult = sessions.getNotes(sessionId, { type: 'todo_list', limit: 1 });
+      const planNotes = (planNotesResult.success && Array.isArray(planNotesResult.notes) ? planNotesResult.notes : []) as Array<{ content: string }>;
+      if (planNotes.length > 0) {
+        const latestPlan = planNotes[0].content;
+        if (scanPlanChecklist(latestPlan).some((task) => !task.checked)) {
+          return {
+            success: false,
+            code: 'PLAN_UNCHECKED_ITEMS',
+            error: 'pd done refused — your session plan still has unchecked todo items.',
+            hint: 'Complete the items and update your plan with "pd plan check <id>". Public callers cannot self-authorize an incomplete-plan override.',
+          };
+        }
+      }
     }
 
-    // Unregister the agent
-    let agentUnregistered = false;
     const effectiveAgentId = agentId || findAgentForSession(sessionId);
-    if (effectiveAgentId) {
-      const unregResult = agents.unregister(effectiveAgentId);
-      agentUnregistered = !!unregResult.unregistered;
+    return finalizeAuthorizedSession(sessionId, effectiveAgentId, effectiveNote, status);
+  }
+
+  /**
+   * Stamp an exact ephemeral session as daemon-managed spawn work.
+   *
+   * Purpose: public request metadata is untrusted and cannot authorize a
+   * completion bypass. Only the in-process spawner callback reaches this
+   * method after the server has verified the captured actor credential. The
+   * durable stamp is therefore both exact-session and actor bound.
+   *
+   * @param options - Exact session, stored agent, and verified actor binding.
+   * @returns Durable binding receipt or a structured refusal.
+   */
+  function bindManagedSession(options: ManagedSessionBindingOptions) {
+    const sessionInfo = sessions.get(options.sessionId);
+    const session = sessionInfo.success && sessionInfo.session
+      ? sessionInfo.session as Record<string, unknown>
+      : null;
+    if (!session) {
+      return { success: false, code: 'SESSION_NOT_FOUND', error: `Session ${options.sessionId} not found` };
     }
-
-    const totalNotes = beforeCount + (effectiveNote ? 1 : 0);
-
-    const sessionInfo = sessions.get(sessionId);
-    const session = sessionInfo.success && sessionInfo.session ? sessionInfo.session as Record<string, unknown> : null;
-    const identityProject = typeof session?.identityProject === 'string' ? session.identityProject : null;
-
-    activityLog.log('sugar_done', {
-      agentId: effectiveAgentId || null,
-      targetId: sessionTarget(identityProject, sessionId),
-      details: `Agent ${effectiveAgentId || 'unknown'} done: ${status}`,
-      metadata: {
-        agentId: effectiveAgentId || null,
-        sessionId,
-        status,
-        identityProject: identityProject || undefined,
-      } as unknown as Record<string, unknown>,
-    });
-
-    return {
-      success: true,
-      agentId: effectiveAgentId || null,
-      sessionId,
-      sessionStatus: status,
-      agentUnregistered,
-      notesCount: totalNotes,
-      finalNote: !!effectiveNote,
+    if (session.status !== 'active') {
+      return { success: false, code: 'SESSION_NOT_ACTIVE', error: `Session ${options.sessionId} is not active` };
+    }
+    if (session.agentId !== options.agentId) {
+      return { success: false, code: 'SESSION_OWNERSHIP_MISMATCH', error: 'managed-session agent does not own the target session' };
+    }
+    const metadata = session.metadata && typeof session.metadata === 'object'
+      ? session.metadata as Record<string, unknown>
+      : {};
+    const identity = metadata.identity && typeof metadata.identity === 'object'
+      ? metadata.identity as Record<string, unknown>
+      : null;
+    if (identity?.verified !== true || identity.actorId !== options.actorId) {
+      return { success: false, code: 'SESSION_OWNERSHIP_MISMATCH', error: 'managed-session actor does not match the daemon-stamped session owner' };
+    }
+    if (lifecycleForSession(session) !== 'ephemeral') {
+      return { success: false, code: 'MANAGED_SESSION_NOT_EPHEMERAL', error: 'only ephemeral sessions may use managed completion' };
+    }
+    if (!sessions.updateMetadata) {
+      return { success: false, code: 'SESSION_METADATA_UNAVAILABLE', error: 'managed-session metadata cannot be persisted' };
+    }
+    const managedSpawn = {
+      verified: true,
+      actorId: options.actorId,
+      agentId: options.agentId,
+      sessionId: options.sessionId,
+      boundAt: Date.now(),
+      source: 'daemon-spawner',
     };
+    const updated = sessions.updateMetadata(options.sessionId, { managedSpawn });
+    if (updated.success === false) return updated;
+    return { success: true, sessionId: options.sessionId, managedSpawn };
+  }
+
+  /**
+   * Abandon an exact ephemeral admission whose managed stamp could not bind.
+   *
+   * This is deliberately separate from public `done`: it is reachable only
+   * through the server's in-process spawner seam after the captured credential
+   * was verified against the stored session owner. The original daemon identity
+   * stamp is still required; failure to stamp identity never becomes cleanup
+   * authority.
+   */
+  function abortManagedSession(options: ManagedSessionAbortOptions) {
+    const sessionInfo = sessions.get(options.sessionId);
+    const session = sessionInfo.success && sessionInfo.session
+      ? sessionInfo.session as Record<string, unknown>
+      : null;
+    if (!session) {
+      return { success: false, code: 'SESSION_NOT_FOUND', error: `Session ${options.sessionId} not found` };
+    }
+    if (session.status !== 'active') {
+      return { success: false, code: 'SESSION_NOT_ACTIVE', error: `Session ${options.sessionId} is not active` };
+    }
+    if (session.agentId !== options.agentId || lifecycleForSession(session) !== 'ephemeral') {
+      return { success: false, code: 'MANAGED_SESSION_SCOPE_MISMATCH', error: 'managed abort requires the exact ephemeral session owner' };
+    }
+    const metadata = session.metadata && typeof session.metadata === 'object'
+      ? session.metadata as Record<string, unknown>
+      : null;
+    const identity = metadata?.identity && typeof metadata.identity === 'object'
+      ? metadata.identity as Record<string, unknown>
+      : null;
+    if (identity?.verified !== true || identity.actorId !== options.actorId) {
+      return { success: false, code: 'SESSION_OWNERSHIP_MISMATCH', error: 'managed abort actor does not match the daemon-stamped session owner' };
+    }
+    return finalizeAuthorizedSession(
+      options.sessionId,
+      options.agentId,
+      options.note || 'Managed spawn admission aborted before backend execution',
+      'abandoned',
+    );
+  }
+
+  /**
+   * Complete one daemon-bound managed spawn without public override flags.
+   *
+   * Design intent: the subprocess lifecycle is not repository delivery work,
+   * so its completion legitimately skips origin/plan gates. That exception is
+   * available only through this in-process exact-session path and only after
+   * verifying the durable managed-spawn stamp created above.
+   *
+   * @param options - Exact stamped session and verified actor binding.
+   * @returns Standard sugar completion result or a structured refusal.
+   */
+  function completeManagedSession(options: ManagedSessionCompletionOptions) {
+    const sessionInfo = sessions.get(options.sessionId);
+    const session = sessionInfo.success && sessionInfo.session
+      ? sessionInfo.session as Record<string, unknown>
+      : null;
+    if (!session) {
+      return { success: false, code: 'SESSION_NOT_FOUND', error: `Session ${options.sessionId} not found` };
+    }
+    if (session.status !== 'active') {
+      return { success: false, code: 'SESSION_NOT_ACTIVE', error: `Session ${options.sessionId} is not active` };
+    }
+    if (session.agentId !== options.agentId || lifecycleForSession(session) !== 'ephemeral') {
+      return { success: false, code: 'MANAGED_SESSION_SCOPE_MISMATCH', error: 'managed completion requires the exact ephemeral session owner' };
+    }
+    const metadata = session.metadata && typeof session.metadata === 'object'
+      ? session.metadata as Record<string, unknown>
+      : null;
+    const stamp = metadata?.managedSpawn && typeof metadata.managedSpawn === 'object'
+      ? metadata.managedSpawn as Record<string, unknown>
+      : null;
+    if (
+      stamp?.verified !== true
+      || stamp.actorId !== options.actorId
+      || stamp.agentId !== options.agentId
+      || stamp.sessionId !== options.sessionId
+      || stamp.source !== 'daemon-spawner'
+    ) {
+      return { success: false, code: 'MANAGED_SESSION_PROOF_REQUIRED', error: 'managed completion requires a daemon-stamped exact-session proof' };
+    }
+    return finalizeAuthorizedSession(
+      options.sessionId,
+      options.agentId,
+      options.note,
+      options.status || 'completed',
+    );
   }
 
   /**
@@ -670,21 +1559,9 @@ export function createSugar(deps: SugarDeps) {
           };
         }
 
-        // Durable sessions remain "active" even if the daemon marked them abandoned
-        // because the agent process heartbeat stopped. They're work contexts, not
-        // process lifetimes — only pd done / worktree-removed / branch-merged ends them.
         const isDurable = session.durable === true ||
           session.is_durable === 1 || session.is_durable === true;
-        const isEffectivelyActive = session.status === 'active' ||
-          (isDurable && session.status === 'abandoned');
-
-        if (isEffectivelyActive) {
-          // For abandoned-but-durable sessions, resurrect to active in the DB
-          // so future checks don't require special-casing.
-          if (isDurable && session.status === 'abandoned') {
-            sessions.resurrect?.(explicitSessionId);
-          }
-
+        if (session.status === 'active') {
           const lookupAgentId = sessionAgentId || agentId;
           const agentResult = lookupAgentId ? agents.get(lookupAgentId) : { success: false };
           const agent = agentResult.success ? agentResult.agent as Record<string, unknown> : null;
@@ -696,6 +1573,13 @@ export function createSugar(deps: SugarDeps) {
             agent,
             lookupAgentId || undefined,
           );
+        }
+
+        if (isDurable && session.status === 'abandoned') {
+          const lookupAgentId = sessionAgentId || agentId;
+          const agentResult = lookupAgentId ? agents.get(lookupAgentId) : { success: false };
+          const agent = agentResult.success ? agentResult.agent as Record<string, unknown> : null;
+          return buildDormantWhoamiResponse(session, agent, lookupAgentId || undefined);
         }
 
         return {
@@ -716,48 +1600,50 @@ export function createSugar(deps: SugarDeps) {
       };
     }
 
-    // Look up agent
     const agentResult = agents.get(agentId);
-    if (!agentResult.success) {
+    const agent = agentResult.success ? agentResult.agent as Record<string, unknown> : null;
+
+    // Find active session for this agent
+    const listResult = sessions.list({ agentId, status: 'active', allWorktrees: true, limit: 50 });
+    const sessionsList = (listResult.sessions || []) as Array<Record<string, unknown>>;
+
+    if (sessionsList.length > 1) {
       return {
-        success: true,
+        success: false,
         active: false,
-        hint: `Agent "${agentId}" not found. Use pd begin to start a session.`,
+        agentId,
+        code: 'AMBIGUOUS_ACTIVE_SESSION',
+        error: `Agent "${agentId}" has multiple active sessions; pass sessionId explicitly.`,
+        candidates: projectSessionCandidates(sessionsList),
       };
     }
 
-    const agent = agentResult.agent as Record<string, unknown>;
-
-    // Find active session for this agent
-    const listResult = sessions.list({ agentId, status: 'active', allWorktrees: true });
-    const sessionsList = (listResult.sessions || []) as Array<Record<string, unknown>>;
-
     if (sessionsList.length === 0) {
-      // Abandoned-but-durable sessions are still live work contexts: an
-      // abandonment write (e.g. zombie protocol) suspends them, it doesn't
-      // end them. Find the most recent one, resurrect it, and report active.
-      const abandonedResult = sessions.list({ agentId, status: 'abandoned', allWorktrees: true });
-      const abandonedList = (abandonedResult.sessions || []) as Array<Record<string, unknown>>;
-      const durableSession = abandonedList.find(s => s.durable === true);
-      if (durableSession) {
-        sessions.resurrect?.(durableSession.id as string);
-        const durableDetail = sessions.get(durableSession.id as string);
-        if (durableDetail.success && durableDetail.session) {
-          return buildWhoamiResponse(
-            durableDetail.session as Record<string, unknown>,
-            (durableDetail.notes as unknown[] | undefined) || [],
-            (durableDetail.files as Array<Record<string, unknown>> | undefined) || [],
-            agent,
-            agentId,
-          );
-        }
+      const abandonedResult = sessions.list({ agentId, status: 'abandoned', allWorktrees: true, limit: 50 });
+      const durableSessions = ((abandonedResult.sessions || []) as Array<Record<string, unknown>>)
+        .filter((session) => session.durable === true);
+      if (durableSessions.length > 1) {
+        return {
+          success: false,
+          active: false,
+          agentId,
+          code: 'AMBIGUOUS_ACTIVE_SESSION',
+          error: `Agent "${agentId}" has multiple dormant durable sessions; pass sessionId explicitly.`,
+          candidates: projectSessionCandidates(durableSessions),
+        };
+      }
+      if (durableSessions.length === 1) {
+        const durableSession = durableSessions[0];
+        return buildDormantWhoamiResponse(durableSession, agent, agentId);
       }
 
       return {
         success: true,
         active: false,
         agentId,
-        hint: `Agent "${agentId}" registered but no active session.`,
+        hint: agent
+          ? `Agent "${agentId}" registered but no active session.`
+          : `Agent "${agentId}" not found. Use pd begin to start a session.`,
       };
     }
 
@@ -791,5 +1677,266 @@ export function createSugar(deps: SugarDeps) {
     return (session.agentId as string) || null;
   }
 
-  return { begin, done, whoami };
+  /**
+   * Relink — update the ACTIVE session's rent-at-claim fields.
+   *
+   * Same validation as begin: an existing roadmap slug (with prefix
+   * did-you-mean) OR a sidequest reason (min 12 chars), mutually exclusive.
+   * Switching mode clears the other field — a session is either
+   * roadmap-linked or a sidequest, never ambiguously both. Every relink
+   * appends an audit note recording old -> new.
+   */
+  function relink(options: RelinkOptions) {
+    const { agentId } = options;
+    let { sessionId } = options;
+
+    // ------------------------------------------------------------------
+    // Validate the rent fields FIRST (same semantics as begin).
+    // ------------------------------------------------------------------
+    const given = [options.roadmapLink, options.sidequestReason]
+      .filter((v) => v !== undefined && v !== null);
+    if (given.length > 1) {
+      return {
+        success: false,
+        error: 'roadmapLink and sidequestReason are mutually exclusive — pass exactly one.',
+        code: 'ROADMAP_RENT_CONFLICT',
+      };
+    }
+    if (given.length === 0) {
+      return {
+        success: false,
+        error: 'relink needs a roadmap link or a sidequest reason — pass exactly one.',
+        code: 'ROADMAP_RENT_REQUIRED',
+      };
+    }
+
+    let newRoadmapLink: string | undefined;
+    let newSidequestReason: string | undefined;
+
+    if (options.sidequestReason !== undefined) {
+      const reason = typeof options.sidequestReason === 'string' ? options.sidequestReason.trim() : '';
+      if (reason.length < SIDEQUEST_REASON_MIN_CHARS) {
+        return {
+          success: false,
+          error: `sidequest reason must be at least ${SIDEQUEST_REASON_MIN_CHARS} characters — say what the work actually is.`,
+          code: 'SIDEQUEST_REASON_TOO_SHORT',
+        };
+      }
+      newSidequestReason = reason;
+    }
+
+    if (options.roadmapLink !== undefined) {
+      if (!deps.roadmapItems) {
+        return {
+          success: false,
+          error: 'roadmap linking requires the roadmap service, which is not available on this daemon.',
+          code: 'ROADMAP_ITEMS_UNAVAILABLE',
+        };
+      }
+      const requested = typeof options.roadmapLink === 'string' ? options.roadmapLink.trim() : '';
+      if (!requested || !deps.roadmapItems.slugExists(requested)) {
+        const slugs = deps.roadmapItems.list({ status: 'all', limit: 5000 }).map((item) => item.slug);
+        const didYouMean = nearestSlugsByPrefix(requested, slugs);
+        return {
+          success: false,
+          error: `Unknown roadmap slug "${requested}".`
+            + (didYouMean.length > 0 ? ` Did you mean: ${didYouMean.join(', ')}?` : ''),
+          code: 'ROADMAP_SLUG_UNKNOWN',
+          didYouMean,
+        };
+      }
+      newRoadmapLink = requested;
+    }
+
+    // ------------------------------------------------------------------
+    // Resolve the active session (same resolution order as done()).
+    // ------------------------------------------------------------------
+    if (!sessionId && agentId) {
+      const listResult = sessions.list({ agentId, status: 'active', allWorktrees: true, limit: 50 });
+      const sessionsList = (listResult.sessions || []) as Array<Record<string, unknown>>;
+      if (sessionsList.length > 1) {
+        return {
+          success: false,
+          error: `Agent "${agentId}" has multiple active sessions; pass sessionId explicitly.`,
+          code: 'AMBIGUOUS_ACTIVE_SESSION',
+          candidates: projectSessionCandidates(sessionsList),
+        };
+      }
+      if (sessionsList.length === 1) sessionId = sessionsList[0].id as string;
+    }
+    if (!sessionId && !agentId) {
+      return {
+        success: false,
+        error: 'No active session scope provided; pass sessionId or agentId explicitly.',
+        code: 'NO_ACTIVE_SESSION_SCOPE',
+      };
+    }
+    if (!sessionId) {
+      return {
+        success: false,
+        error: 'No active session found — relink needs an active session (pd begin first).',
+        code: 'NO_ACTIVE_SESSION',
+      };
+    }
+
+    const sessionInfo = sessions.get(sessionId);
+    if (!sessionInfo.success || !sessionInfo.session) {
+      return {
+        success: false,
+        error: `Session ${sessionId} not found`,
+        code: 'NO_ACTIVE_SESSION',
+      };
+    }
+    const session = sessionInfo.session as Record<string, unknown>;
+
+    // Ownership: an explicit sessionId must belong to the calling agent.
+    if (agentId && options.sessionId && session.agentId && session.agentId !== agentId) {
+      return {
+        success: false,
+        error: `Session ${sessionId} belongs to agent ${session.agentId}, not ${agentId}`,
+        code: 'SESSION_OWNERSHIP_MISMATCH',
+      };
+    }
+
+    const meta = session.metadata && typeof session.metadata === 'object'
+      ? session.metadata as Record<string, unknown>
+      : null;
+    const previousRoadmapLink = typeof meta?.roadmapLink === 'string' ? meta.roadmapLink : null;
+    const previousSidequestReason = typeof meta?.sidequestReason === 'string' ? meta.sidequestReason : null;
+
+    // ------------------------------------------------------------------
+    // Apply: switching rent MODE clears the other field.
+    // ------------------------------------------------------------------
+    const patch: Record<string, unknown> = {};
+    if (newRoadmapLink) {
+      patch.roadmapLink = newRoadmapLink;
+      patch.sidequestReason = undefined;
+    }
+    if (newSidequestReason) {
+      patch.sidequestReason = newSidequestReason;
+      patch.roadmapLink = undefined;
+    }
+    sessions.updateMetadata?.(sessionId, patch);
+
+    // Audit trail: old -> new, as an immutable session note + activity event.
+    const describeRent = (link: string | null | undefined, reason: string | null | undefined) =>
+      link ? `roadmap:${link}` : reason ? `sidequest:${reason}` : 'none';
+    const oldDesc = describeRent(previousRoadmapLink, previousSidequestReason);
+    const newDesc = describeRent(newRoadmapLink, newSidequestReason);
+    sessions.addNote?.(sessionId, `rent-relink: ${oldDesc} -> ${newDesc}`, { type: 'relink' });
+
+    const identityProject = typeof session.identityProject === 'string' ? session.identityProject : null;
+    const effectiveAgentId = agentId || (typeof session.agentId === 'string' ? session.agentId : null);
+    activityLog.log('sugar_relink', {
+      agentId: effectiveAgentId,
+      targetId: sessionTarget(identityProject, sessionId),
+      details: `Agent ${effectiveAgentId || 'unknown'} relinked rent: ${oldDesc} -> ${newDesc}`,
+      metadata: {
+        sessionId,
+        agentId: effectiveAgentId || undefined,
+        identityProject: identityProject || undefined,
+        previousRoadmapLink: previousRoadmapLink || undefined,
+        previousSidequestReason: previousSidequestReason || undefined,
+        roadmapLink: newRoadmapLink || undefined,
+        sidequestReason: newSidequestReason || undefined,
+      } as unknown as Record<string, unknown>,
+    });
+
+    const response: Record<string, unknown> = {
+      success: true,
+      sessionId,
+      agentId: effectiveAgentId,
+      previousRoadmapLink,
+      previousSidequestReason,
+    };
+    if (newRoadmapLink) response.roadmapLink = newRoadmapLink;
+    if (newSidequestReason) response.sidequestReason = newSidequestReason;
+    return response;
+  }
+
+  function getWelcomeBriefing(harbor?: string) {
+    const nextHarbor = harbor || 'fleet';
+    
+    // 1. Next most important thing on the roadmap
+    let nextRoadmap: Record<string, any> | null = null;
+    if (deps.roadmapItems) {
+      const nowItems = deps.roadmapItems.list({ harbor: nextHarbor, status: 'now', limit: 1 });
+      if (nowItems.length > 0) {
+        nextRoadmap = nowItems[0];
+      } else {
+        const backlogItems = deps.roadmapItems.list({ harbor: nextHarbor, status: 'backlog', limit: 1 });
+        if (backlogItems.length > 0) {
+          nextRoadmap = backlogItems[0];
+        }
+      }
+    }
+
+    // 2. Ongoing projects (active sessions)
+    const active = sessions.list({ status: 'active', limit: 10 });
+    const ongoing: Array<Record<string, any>> = [];
+    const activeRows: Array<Record<string, any>> =
+      active && typeof active === 'object' && Array.isArray((active as any).sessions)
+        ? ((active as any).sessions)
+        : [];
+    for (const s of activeRows) {
+      if (!s) continue;
+      const agentResult = agents.get(s.agentId) as any;
+      const agentName = agentResult?.agent?.name || s.agentName || s.name || 'Anonymous Agent';
+      const identity = agentResult?.agent?.identity || s.identity || null;
+      ongoing.push({
+        sessionId: s.id,
+        agentId: s.agentId,
+        agentName,
+        identity,
+        purpose: s.purpose,
+        worktree: s.worktree,
+      });
+    }
+
+    // 3. High-pri bugs needing attention (open feedback)
+    const highPriBugs: Array<Record<string, any>> = [];
+    if (deps.feedback) {
+      const openFeedback = deps.feedback.list({ harbor: nextHarbor, status: 'open', limit: 50 });
+      for (const f of openFeedback) {
+        if (f.severity === 'high' || f.severity === 'critical') {
+          highPriBugs.push(f);
+        }
+      }
+    }
+
+    // 4. Dormant or engineering excellence opportunities
+    const dormant: Array<Record<string, any>> = [];
+    for (const s of activeRows) {
+      if (!s) continue;
+      const agentResult = agents.get(s.agentId) as any;
+      const beat = agentResult?.agent?.timeSinceHeartbeat;
+      if (typeof beat === 'number' && beat > 30 * 60 * 1000) { // dormant for > 30 minutes
+        dormant.push({
+          sessionId: s.id,
+          purpose: s.purpose,
+          agentId: s.agentId,
+          lastActiveAgoMinutes: Math.floor(beat / (60 * 1000)),
+        });
+      }
+    }
+
+    return {
+      success: true,
+      nextRoadmap,
+      ongoing,
+      highPriBugs,
+      dormant,
+    };
+  }
+
+  return {
+    begin,
+    done,
+    bindManagedSession,
+    abortManagedSession,
+    completeManagedSession,
+    whoami,
+    relink,
+    getWelcomeBriefing,
+  };
 }

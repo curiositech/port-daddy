@@ -61,14 +61,15 @@ This is **advisory**. PD does not enforce — it tells you what's happening and 
 
 ## What `swarm_awareness` returns
 
-Only meaningful inside a fleet (or when you've explicitly joined a harbor):
+A **bounded digest** of the active-agent roster — the "look around the room" tool when you wake up as an agent:
 
-- All other agents in the same harbor.
-- Their identities, last activity, and current notes.
-- Tuple-space summary (counts by kind tag).
-- Pheromone hot-spots.
+- Every active agent: identity, purpose, liveness, heartbeat freshness, harness lane, worktree branch.
+- Squid conformance collapsed to `{level, score}`.
+- The active session with a note count and one truncated latest note.
+- Claimed file paths, capped per agent.
+- The steering channel for reaching each agent.
 
-This is the "look around the room" tool when you wake up as a fleet agent.
+The output is compact JSON under a hard character budget (~30K chars). When agents, claims, or notes are capped, explicit counters (`omittedAgents`, `omittedClaims`, `noteCount`) say so — truncation is never silent. For the full-fidelity roster (complete note bodies, all claims, per-provider squid detail), hit `GET /agent-roster` on the daemon.
 
 ## Tool vs route parity
 

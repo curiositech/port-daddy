@@ -3,7 +3,7 @@
 > Status: **research / exploratory.** Not canon. A landing pad for the bolder
 > cross-cutting ideas generated alongside the four-paper rewrite
 > (`docs/research/north-star/00-THE-FOUR-PAPERS.md`, pending in #378), and the **graft target** <!-- cite-exempt: pending in #378 -->
-> for `erichowens/soma` and `curiositech/windags` once those repos are added to
+> for `erichowens/soma` and `curiositech/example-service` once those repos are added to
 > the session scope. The "Open research items" list at the bottom is meant to be
 > promoted into `docs/research/north-star/00-THE-LEDGER-open-problems.md` (research) and/or the Cartographer
 > roadmap (`docs/ROADMAP.md`).
@@ -41,7 +41,7 @@ it, break ties, and make agreed roles stick (claims + commitments it serializes)
 Across operators there is no shared sovereign, so the same round must be enforced
 by **bonds**, not fiat. Same conversation; different teeth. This is not a wart —
 it is *why Paper 4 exists* (truthful signaling is a Nash equilibrium only inside
-one operator's box; δ\* ≈ 0.253, machine-checked).
+one operator's box; δ\* ≈ 0.3425, machine-checked).
 
 ## Concept 2 — Peer suggestibility + the parley protocol
 
@@ -153,41 +153,41 @@ already exists: the `research/evolutionary-agent-coordination-sandbox` branch
 
 > **Source-audit correction (2026-06-19).** The RCP items below were grafted from
 > summary memos. A read-only audit of the two source repos as they actually stand
-> — `docs/research/grafts/2026-06-19-soma-windags-source-audit.md` — corrected
+> — `docs/research/grafts/2026-06-19-soma-jury_rig-source-audit.md` — corrected <!-- cite-exempt -->
 > several maturity claims before they harden into roadmap commitments. In short:
 > soma's "sheaf" is a **graph Laplacian** (cohomology/restriction-maps **absent**,
-> not "the math is there" → RCP-8, RCP-5b are aspirational); windags' **Thompson**
+> not "the math is there" → RCP-8, RCP-5b are aspirational); jury_rig' **Thompson**
 > trust signal was **rejected as a "category error"** and replaced by
 > attribution-kNN (re-attribute RCP-4a/6a); monster-barring (RCP-6b) and
 > io-contract runtime validation (RCP-13) are **design-only**; the coverage delta
 > (RCP-12) and the 34.78%→4.35% figure are **not benchmarked on the source repos**.
 > What *is* shipped and portable: soma's graph-diffusion + expected-free-energy
-> agent, and windags' retrieval cascade + economic eval gate + typed discourse bus.
+> agent, and jury_rig' retrieval cascade + economic eval gate + typed discourse bus.
 > See the audit for `path:line` and the port plan.
 
 - **RCP-1 — Convergence detector.** Semantic task-shape similarity for "another
   agent is doing a similar thing," without keyword matching. *(Hard; gates the
   parley. Both source repos match at task-PLAN time; neither detects RUNTIME
   overlap between active agents — the real gap.)*
-  - *1a (windags):* BM25 → cosine-RRF → cross-encoder → attribution-kNN cascade
+  - *1a (jury_rig):* BM25 → cosine-RRF → cross-encoder → attribution-kNN cascade
     (`packages/core/src/core/skill-matcher.ts`), adapted from skill-matching to task-shape.
-  - *1b (windags):* run that cascade on live **agent outputs**, not task
+  - *1b (jury_rig):* run that cascade on live **agent outputs**, not task
     descriptions, to catch two agents converging on the same claim. *(open)*
 - **RCP-2 — Parley trigger.** Cost-aware (Signal-Detection) threshold for when to
   break formation and convene; avoid MAS-overhead Goodhart.
-  - *2a (windags):* the four-layer-eval `P(fail) × waste > cost` formula reused
+  - *2a (jury_rig):* the four-layer-eval `P(fail) × waste > cost` formula reused
     as the parley-vs-proceed decision.
   - *2b (soma/survey):* the stigmergic **density threshold ρ\*** (phase transition
     independent → synchronized) as a self-organization trigger.
 - **RCP-3 — Parley protocol.** Typed multi-party Contract-Net round over the
   existing performatives that outputs role allocation + commitments.
-  - *3a (windags):* **wave-by-wave reconvention** — parley scheduled at wave
+  - *3a (jury_rig):* **wave-by-wave reconvention** — parley scheduled at wave
     boundaries when TENTATIVE nodes / premortem-risk exist, not ad-hoc.
-  - *3b (windags):* a **discourse-typed bus** — FIPA `act/respondingTo/relationship/thesis`
+  - *3b (jury_rig):* a **discourse-typed bus** — FIPA `act/respondingTo/relationship/thesis`
     on every message (port-daddy's pub/sub is currently untyped).
 - **RCP-4 — Attestable-but-not-inspectable learned memory.** Make the learned rung
   carry attestation/bonding guarantees.
-  - *4a (windags):* **Thompson posteriors (α/β)** as narrow verifiable trust
+  - *4a (jury_rig):* **Thompson posteriors (α/β)** as narrow verifiable trust
     intervals — attestable without revealing method internals.
   - *4b (soma):* keep soma's week-4 V(D)J "memory cells" as **attested signed
     hashes**, never opaque weights — or digest-with-zoom breaks.
@@ -198,9 +198,9 @@ already exists: the `research/evolutionary-agent-coordination-sandbox` branch
   - *5b (soma):* **sheaf restriction maps** on boundary simplices as the
     cross-operator projection / bonds-boundary mechanism. *(unbuilt)*
 - **RCP-6 — Variation / inheritance operators.** For the evolutionary track.
-  - *6a (windags):* **method-level inheritance** — methods (decomposition patterns,
+  - *6a (jury_rig):* **method-level inheritance** — methods (decomposition patterns,
     prompt templates) heritable across skill versions; skills ephemeral.
-  - *6b (windags):* **monster-barring** (Lakatos) — `NOT_FOR`-growth >
+  - *6b (jury_rig):* **monster-barring** (Lakatos) — `NOT_FOR`-growth >
     `WHEN_TO_USE`-growth per revision = a degeneracy/selection signal.
 - **RCP-7 — Ecosystem-stability analysis.** Convergence to healthy diversity vs.
   collapse (monoculture / cartel). Extends the §8.4.4 sims.
@@ -209,7 +209,7 @@ already exists: the `research/evolutionary-agent-coordination-sandbox` branch
 
 ### New axes (not covered by 1–7)
 
-> **Numbering note.** The soma and windags memos each independently proposed
+> **Numbering note.** The soma and jury_rig memos each independently proposed
 > "RCP-8/9" with *different* meanings. Reconciled here: source-specific mechanisms
 > became `Na` refinements above; only genuinely new axes get fresh numbers below.
 
@@ -223,7 +223,7 @@ already exists: the `research/evolutionary-agent-coordination-sandbox` branch
 - **RCP-9 — Provable action adjudicator.** Lean-Agent-style auto-formalization of
   policy into axioms, adjudicating each action Proven/Refuted at µs latency — the
   *provable* reference monitor the containment story (Paper 1, machine-side) needs.
-- **RCP-10 — Pre-federation halt gate.** A validity check (windags' Polya
+- **RCP-10 — Pre-federation halt gate.** A validity check (jury_rig' Polya
   principal-parts gate) that must pass *before* work decomposes or bonds are
   written — a problem must be well-defined before it can be coordinated or traded.
 - **RCP-11 — Wide-market typed-trace goods.** soma's multi-commodity market over
@@ -232,10 +232,10 @@ already exists: the `research/evolutionary-agent-coordination-sandbox` branch
 - **RCP-12 — Coverage guarantee (epistemic scan).** soma's innate drive (fire with
   P ∝ unseen/total; teleport to novel nodes) guaranteeing **no node is permanently
   invisible** — a built legibility primitive (100% vs 50% coverage).
-- **RCP-13 — Inter-agent output contracts.** windags' `io-contract` frontmatter +
+- **RCP-13 — Inter-agent output contracts.** jury_rig' `io-contract` frontmatter +
   `ContractValidator`: runtime schema validation between agents before downstream
   propagation — an attestation primitive port-daddy lacks.
-- **RCP-14 — Argumentative lineage.** windags' `SwarmTracer` epistemic-ancestry
+- **RCP-14 — Argumentative lineage.** jury_rig' `SwarmTracer` epistemic-ancestry
   spans (Toulmin claim/data/warrant) — digest-with-zoom for *reasoning provenance*,
   and the structure RCP-8 / RCP-1b need to compare claims.
 
@@ -262,7 +262,7 @@ are an enum value with no auction; immune selection has no code).
   pitch overclaims markets/selection as shipped — weeks 1–2 alone are a complete
   substrate story; separate the paper from the implementation claims.
 
-### `curiositech/windags` — the orchestration + evaluation + skill machinery
+### `curiositech/example-service` — the orchestration + evaluation + skill machinery
 A single-operator DAG orchestrator for Claude Code: decompose → match each
 subtask to a skill (4-stage retrieval) → inject a **4-branch prompt hypertree**
 (Identity / Context / Task / Protocol) → execute in parallel waves → score via a
@@ -276,7 +276,7 @@ not wired** (a 16-week gap).
   variation (RCP-6a); monster-barring = a Lakatosian selection signal (RCP-6b).
 - **Contributes:** RCP-1a/1b, RCP-2a, RCP-3a/3b, RCP-4a, RCP-6a/6b, RCP-10,
   RCP-13, RCP-14.
-- **Watch:** RCP-1 is still open — windags matches task-shape at *plan* time, not
+- **Watch:** RCP-1 is still open — jury_rig matches task-shape at *plan* time, not
   running-agent overlap at *run* time; no MAS-overhead model; single-operator (no
   bonds).
 
@@ -288,11 +288,11 @@ Incorrect Verification is the top predictor; the inspector pattern recovers
 async belief-sync), and the honesty rail (multi-agent is a *precision instrument*,
 not a general upgrade — single-agent wins ~80% of workflows).
 
-## Skills worth porting (from windags)
+## Skills worth porting (from jury_rig)
 High-value first: **`next-move`** (5-agent meta-DAG: halt gate + retrieval +
 waves), **`agent-conversation-protocols`** (6 typed dialogue topologies → RCP-3b),
 **`coordination-topology-architect`** (1-operator → N-operator routing),
 **`multi-agent-coordination`** (worktree isolation + conflict heuristics),
-**`windags-premortem`** (risk-adjusted confidence → RCP-2), and the FIPA set
+**`jury_rig-premortem`** (risk-adjusted confidence → RCP-2), and the FIPA set
 (`fipa-00037` communicative acts, `fipa-00025` interaction protocols,
 `smith-1980-contract-net`) for the RCP-3 parley vocabulary.

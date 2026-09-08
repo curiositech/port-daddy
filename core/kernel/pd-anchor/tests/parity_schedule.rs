@@ -5,7 +5,9 @@
 //! `tests/fixtures/planner-schedule-parity-vectors.json`. This is the Rust half; the TS half is
 //! `tests/unit/planner-schedule.test.js`.
 
-use pd_anchor::schedule::{schedule, validate_ladder, LadderNode, ParentEdge, SchedEdge, SchedNode};
+use pd_anchor::schedule::{
+    schedule, validate_ladder, LadderNode, ParentEdge, SchedEdge, SchedNode,
+};
 use serde_json::Value;
 use std::{fs, path::PathBuf};
 
@@ -52,7 +54,8 @@ fn ladder_matches_canonical_vectors() {
             "case '{name}': ok mismatch ({:?})",
             got.violations
         );
-        let mut got_children: Vec<String> = got.violations.iter().map(|x| x.child.clone()).collect();
+        let mut got_children: Vec<String> =
+            got.violations.iter().map(|x| x.child.clone()).collect();
         got_children.sort();
         let mut exp_children: Vec<String> = case["expected"]["violationChildren"]
             .as_array()
@@ -61,6 +64,9 @@ fn ladder_matches_canonical_vectors() {
             .map(|x| x.as_str().unwrap().to_string())
             .collect();
         exp_children.sort();
-        assert_eq!(got_children, exp_children, "case '{name}': violation children mismatch");
+        assert_eq!(
+            got_children, exp_children,
+            "case '{name}': violation children mismatch"
+        );
     }
 }

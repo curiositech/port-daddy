@@ -144,7 +144,7 @@ final class SecretsStore: ObservableObject {
     /// How long a reveal stays visible before auto re-masking.
     let revealTTL: TimeInterval
 
-    private let baseURL: String
+    private let baseURL: String?
     private let session: URLSession
     private let pasteboard: SecretPasteboard
     private let now: () -> Date
@@ -170,7 +170,7 @@ final class SecretsStore: ObservableObject {
         revealTTL: TimeInterval = 30,
         now: @escaping () -> Date = Date.init
     ) {
-        self.baseURL = baseURL ?? DaemonLocation.resolveBaseURL()
+        self.baseURL = baseURL ?? DaemonLocation.availableBaseURL()
         self.session = session
         self.pasteboard = pasteboard
         self.clipboardTTL = clipboardTTL
@@ -204,7 +204,7 @@ final class SecretsStore: ObservableObject {
         isLoading = true
         defer { isLoading = false }
 
-        guard let url = URL(string: "\(baseURL)/secrets") else {
+        guard let baseURL, let url = URL(string: "\(baseURL)/secrets") else {
             lastError = "Invalid daemon URL"
             return
         }
@@ -367,7 +367,7 @@ final class SecretsStore: ObservableObject {
     /// and never retained. Returns true on 2xx.
     @discardableResult
     func setSecret(key: String, value: String, backend: String? = nil) async -> Bool {
-        guard let url = URL(string: "\(baseURL)/secrets") else {
+        guard let baseURL, let url = URL(string: "\(baseURL)/secrets") else {
             lastError = "Invalid daemon URL"
             return false
         }
@@ -439,12 +439,12 @@ final class SecretsStore: ObservableObject {
     }
 
     private func secretURL(for key: String) -> URL? {
-        guard let encoded = encodeKey(key) else { return nil }
+        guard let baseURL, let encoded = encodeKey(key) else { return nil }
         return URL(string: "\(baseURL)/secrets/\(encoded)")
     }
 
     private func revealURL(for key: String) -> URL? {
-        guard let encoded = encodeKey(key) else { return nil }
+        guard let baseURL, let encoded = encodeKey(key) else { return nil }
         return URL(string: "\(baseURL)/secrets/\(encoded)/reveal")
     }
 }

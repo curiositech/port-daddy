@@ -20,7 +20,7 @@ loadEnvFiles(_dirname(_fileURLToPath(import.meta.url)));
 // read process.env at module-init time, so this has to run first so
 // dependencies (Fastify plugins, winston, Anthropic SDK, etc.) cannot
 // capture the raw env values on load. See lib/secret-env.ts.
-import { snapshotSensitiveEnv } from './lib/secret-env.js';
+import { getSecret, snapshotSensitiveEnv } from './lib/secret-env.js';
 snapshotSensitiveEnv();
 
 import Fastify from 'fastify';
@@ -41,34 +41,45 @@ import { createServices } from './lib/services.js';
 import { createMessaging } from './lib/messaging.js';
 import { createLocks } from './lib/locks.js';
 import { createHealth } from './lib/health.js';
-import { createAgents } from './lib/agents.js';
+import { createAgents, getDeadThresholdForStatus } from './lib/agents.js';
 import { createActivityLog, ActivityType } from './lib/activity.js';
 import { createWebhooks, WebhookEvent } from './lib/webhooks.js';
 import { createProjects } from './lib/projects.js';
 import { createSessions } from './lib/sessions.js';
-import { createAgentInbox } from './lib/agent-inbox.js';
+import { createAgentInbox, inboxMessageForMessaging } from './lib/agent-inbox.js';
 import { createAttention } from './lib/attention.js';
 import { createClaimWatcher } from './lib/claim-watcher.js';
 import { createResurrection } from './lib/resurrection.js';
+import { createHaltWatch, haltSentinelPath, distressFilePath } from './lib/halt-watch.js';
+import { createHeartbeatDeathHandler } from './lib/agent-heartbeat-death.js';
 import { createChangelog } from './lib/changelog.js';
 import { createTunnel } from './lib/tunnel.js';
 import { createDns } from './lib/dns.js';
 import { createResolver } from './lib/resolver.js';
 import { createSpawner } from './lib/spawner.js';
+import {
+  captureManagedSpawnWorktree, managedSpawnWorktreeReceipt, verifyManagedSpawnWorktree,
+  type ManagedSpawnWorktree,
+} from './lib/managed-spawn-worktree.js';
 import { createTranscripts } from './lib/transcripts.js';
 import { createJsonlTranscriptArchive } from './lib/transcript-archive.js';
 import { createBriefing } from './lib/briefing.js';
 import { createSugar } from './lib/sugar.js';
 import { createHarbors } from './lib/harbors.js';
 import { createHarborTokens } from './lib/harbor-tokens.js';
+import { DaemonRelayConnection } from './lib/relay-connection.js';
 import { createSorties } from './lib/sorties.js';
 import { createPheromoneManager } from './lib/pheromone.js';
 import { createReactiveOrchestrator } from './lib/orchestrator.js';
 import { createConductor } from './lib/fleet/conductor.js';
 import { createDispatchQueue } from './lib/dispatch/queue.js';
 import { createDispatchWorker } from './lib/dispatch/worker.js';
+import { buildHandoffFromTranscript } from './lib/dispatch/handoff-from-transcript.js';
+import { runAutoMergeSweep } from './lib/dispatch/auto-merge.js';
 import { createConductorSpawnAdapter } from './lib/dispatch/conductor-adapter.js';
 import { createWorkIntentService } from './lib/agent-harbor/work-intent-service.js';
+import { createSpawnerHarborBridge } from './lib/agent-harbor/spawner-bridge.js';
+import { loadLatestVerifiedContextBootstrap } from './lib/agent-harbor/context-continuity.js';
 import {
   gitWorktreeAdd,
   gitPushBranch,
@@ -81,6 +92,7 @@ import { createJsonlForensicsArchive } from './lib/forensics-archive.js';
 import { createSemanticIndex } from './lib/semantic-index.js';
 import { createTupleSpace } from './lib/tuples.js';
 import { createBlobStore } from './lib/blob.js';
+import { createBootyStore } from './lib/booty.js';
 import { createNoteEncryption } from './lib/note-encryption.js';
 import { initDatabase, closeDatabase, resolveDbPath } from './lib/db.js';
 import { createIpcServer } from './lib/ipc-server.js';
@@ -94,31 +106,53 @@ import { createMergeQueue } from './lib/merge-queue.js';
 import { createCostTracker } from './lib/cost-tracker.js';
 import { createCloudAppTelemetry } from './lib/cloud-app-telemetry.js';
 import { createContextWindowTracker } from './lib/context-window-tracker.js';
+import { createTool2VecReconciler } from './lib/skill-graft-reconciler.js';
+import { resolveSkillGraftRuntime } from './lib/skill-graft-runtime.js';
 import { createKnowledgeCustodian } from './lib/knowledge-custodian.js';
 import { createOperatorPermissions } from './lib/operator-permissions.js';
 import { createCounters } from './lib/counters.js';
+import { createUsageTelemetry } from './lib/usage-telemetry.js';
 import { createMetricsRegistry } from './lib/metrics-registry.js';
 import { createBonds } from './lib/bonds.js';
 import { createBudgetGuard } from './lib/budget-guard.js';
+import { createActorSouls } from './lib/actor-souls.js';
+import { createBeginIdempotency } from './lib/begin-idempotency.js';
+import { authorizeSessionOwner, resolveWriteIdentity, stampIdentityMetadata } from './lib/identity-write-boundary.js';
+import { migrateActorSouls } from './scripts/migrate-actor-souls.js';
+import { homedir } from 'node:os';
 import { createBudgetPause } from './lib/budget-pause.js';
 import { createQuorum } from './lib/quorum.js';
 import { createParley } from './lib/parley.js';
+import { createParleyStore } from './lib/parley-store.js';
 import { createFeedback } from './lib/feedback.js';
 import { createRoadmapItems } from './lib/roadmap-items.js';
 import { createCommitments } from './lib/commitments.js';
 import { createSuggestions } from './lib/suggestions.js';
+import { createWhois } from './lib/whois.js';
 import { createObligationMonitor } from './lib/obligation-monitor.js';
 import { createRoadmapPromote } from './lib/roadmap-promote.js';
 import { createRoadmapPop } from './lib/roadmap-pop.js';
+import { createRoadmapActivity } from './lib/roadmap-activity.js';
 import { launchFleetBarIfEnabled } from './lib/fleetbar-launcher.js';
 import { createGraphEdges } from './lib/graph-edges.js';
 import { createEpisodicMemory } from './lib/episodic-memory.js';
 import { createLocalEmbedder, createSemanticResolver, defaultTransformersCacheDir } from './lib/semantic-resolver.js';
+import { installGovernor } from './lib/observability/index.js';
+import { createObservabilityMaintenance } from './lib/observability/maintenance.js';
+import { createDurableAgentRoster } from './lib/durable-agent-roster.js';
 import { createGalaxy } from './lib/galaxy.js';
 import { createBosunHeartbeat, createSocketHealthProbe } from './lib/bosun-heartbeat.js';
+import { createDbIntegrityProofOutOfProcess } from './lib/db-integrity.js';
+import { clearDaemonReady, publishDaemonReady } from './lib/daemon-ready.js';
 import { decideTakeover, probePortOwner } from './lib/port-takeover.js';
 import { createResourceGovernance } from './lib/resource-governance.js';
 import { createDaemonCorsOptions } from './lib/daemon-cors.js';
+import {
+  createCoordinationPeer,
+  coordinationPeerConfigFromEnv,
+  type CoordinationPeer,
+} from './lib/coordination-peer.js';
+import { scopeSugarSessionsToCoordinationProject } from './lib/coordination-session-scope.js';
 
 // Fastify route aggregator (Phase 3 — native Fastify plugins, no Express bridge)
 import { registerAllRoutes } from './routes/index.js';
@@ -130,8 +164,10 @@ import {
   resolveDaemonBerthIdentity,
   registerDaemonBerth,
   deregisterDaemonBerth,
+  BERTH_ENV,
   type DaemonBerthIdentity,
 } from './shared/daemon-berths.js';
+import { classifyPlane, STATE_PLANE_ENV, type StatePlane } from './lib/state-plane.js';
 import { calculateRuntimeCodeHash } from './shared/code-hash.js';
 import { snapshotRunningBinary, detectDrift, type BinaryDriftSnapshot } from './lib/binary-drift-detector.js';
 import { resolveDistributionRoot } from './shared/daemon-binary.js';
@@ -186,7 +222,7 @@ const config: PortDaddyServerConfig = existsSync(configPath)
 // package.json without a sync step, but the embedded constant is what the
 // bun-compiled binary actually serves — inside the /$bunfs/ bundle, __dirname
 // resolves to a virtual path where package.json doesn't exist on disk.
-const EMBEDDED_PACKAGE_VERSION: string = '3.24.2';
+const EMBEDDED_PACKAGE_VERSION: string = '3.30.6';
 const pkgPath: string = join(__dirname, 'package.json');
 const pkg: { version: string } = existsSync(pkgPath) ? JSON.parse(readFileSync(pkgPath, 'utf8')) as { version: string } : { version: EMBEDDED_PACKAGE_VERSION };
 const VERSION: string = pkg.version;
@@ -327,6 +363,11 @@ if (!isSilent && process.env.NODE_ENV !== 'production') {
   }));
 }
 
+// Install the process-wide governed logger over winston. Loop/tick call sites log through this
+// (dedup + rate-limit + sampling + correlation) so a persistently-failing operation can never again
+// storm the logs the way `semantic_resolution_failed` did (7,182 lines → a 255 MB stdout capture).
+const governor = installGovernor(logger, { windowMs: 60_000, burst: 3 });
+
 // =============================================================================
 // DATABASE + PATHS (identical to server.ts)
 // =============================================================================
@@ -337,16 +378,33 @@ const IS_DEV_MODE: boolean = !!PREFIX;
 const DB_PATH: string = resolveDbPath(PREFIX ? join(PREFIX, 'port-daddy.db') : undefined);
 const PORT: number = parseInt(process.env.PORT_DADDY_PORT as string, 10) || (IS_DEV_MODE ? 9877 : config.service.port);
 
+// State plane (S1): classify once at boot which state this daemon mutates —
+// 'prod' | 'dev-latest' | 'ephemeral:<label>'. Pure inference from the same
+// signals used above (PORT_DADDY_PLANE override > canonical prefix > the
+// dev-latest lane > ephemeral). Surfaced on /version, /health, the berth
+// registry, and the Bosun heartbeat file.
+const DAEMON_PLANE: StatePlane = classifyPlane({
+  prefixPath: PREFIX,
+  port: PORT,
+  profileName: process.env[BERTH_ENV.label]?.trim() || null,
+  envOverride: process.env[STATE_PLANE_ENV],
+});
+
 // Berth identity (ADR-0084): self-report which berth this daemon is. Defaults
 // to the stable, canonical berth when PD_DAEMON_* env is unset, so the existing
 // brew daemon transparently reports as `stable` with no launch change.
-const DAEMON_BERTH: DaemonBerthIdentity = resolveDaemonBerthIdentity({
-  env: process.env,
-  port: PORT,
-  gitSnapshot: snapshotDaemonGit(process.env.PD_DAEMON_SOURCE_DIR?.trim() || null),
-});
+const DAEMON_BERTH: DaemonBerthIdentity = {
+  ...resolveDaemonBerthIdentity({
+    env: process.env,
+    port: PORT,
+    gitSnapshot: snapshotDaemonGit(process.env.PD_DAEMON_SOURCE_DIR?.trim() || null),
+  }),
+  // Plane rides with the berth identity so `registerDaemonBerth` records it
+  // (shared/ cannot import lib/, so classification happens here, not there).
+  plane: DAEMON_PLANE,
+};
 
-import { DEFAULT_SOCK, DEFAULT_IPC, DEFAULT_PID_FILE, DEFAULT_PORT_FILE } from './shared/paths.js';
+import { DEFAULT_SOCK, DEFAULT_IPC, DEFAULT_PID_FILE, DEFAULT_PORT_FILE, DEFAULT_READY_FILE } from './shared/paths.js';
 const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || (PREFIX ? join(PREFIX, 'port-daddy.sock') : DEFAULT_SOCK);
 const DISABLE_TCP: boolean = process.env.PORT_DADDY_NO_TCP === '1';
 const IPC_PATH: string = process.env.PORT_DADDY_IPC || (PREFIX ? join(PREFIX, 'port-daddy.ipc') : DEFAULT_IPC);
@@ -358,6 +416,7 @@ const CUSTOM_RUNTIME_DIR: string | undefined = PREFIX ?? (process.env.PORT_DADDY
 const PID_FILE: string = process.env.PORT_DADDY_PID_FILE || (CUSTOM_RUNTIME_DIR ? join(CUSTOM_RUNTIME_DIR, 'daemon.pid') : DEFAULT_PID_FILE);
 const PORT_FILE: string = process.env.PORT_DADDY_PORT_FILE || (CUSTOM_RUNTIME_DIR ? join(CUSTOM_RUNTIME_DIR, 'daemon.port') : DEFAULT_PORT_FILE);
 const HEARTBEAT_FILE: string | undefined = process.env.PORT_DADDY_HEARTBEAT_FILE || (CUSTOM_RUNTIME_DIR ? join(CUSTOM_RUNTIME_DIR, 'heartbeat') : undefined);
+const READY_FILE: string = process.env.PORT_DADDY_READY_FILE || (CUSTOM_RUNTIME_DIR ? join(CUSTOM_RUNTIME_DIR, 'daemon.ready') : DEFAULT_READY_FILE);
 
 if (IS_DEV_MODE) {
   const { mkdirSync } = await import('node:fs');
@@ -418,6 +477,51 @@ if (existsSync(SOCK_PATH)) {
   try { unlinkSync(PID_FILE); } catch {}
 }
 
+// Readiness is a separate generation lease from Bosun liveness. Clear any
+// predecessor only after duplicate-owner detection, so a duplicate process
+// that defers cannot make the healthy daemon's hooks disappear.
+clearDaemonReady(READY_FILE);
+
+// Publish the launchd-owned generation BEFORE opening the production-sized DB
+// or constructing the service graph. Bosun previously saw only the prior
+// generation's dead heartbeat during this boot window and repeatedly ran
+// `launchctl kickstart -k`, killing each new child before it could bind. The
+// PID file + atomic heartbeat are the generation lease: once duplicate-owner
+// checks have passed, both move to this PID together and keep advancing while
+// initialization runs. The HTTP wedge probe is armed only after the Unix
+// listener exists; connection-refused during bootstrap is not a wedge.
+try { writeFileSync(PID_FILE, String(process.pid)); } catch {}
+const bosunHeartbeat = createBosunHeartbeat({
+  heartbeatPath: HEARTBEAT_FILE,
+  version: VERSION,
+  plane: DAEMON_PLANE,
+  codeHash: CODE_HASH,
+  startedAt: STARTED_AT,
+  installDir: __dirname,
+  pidFile: PID_FILE,
+  portFile: PORT_FILE,
+  requirePidFileMatch: true,
+  selfProbe: createSocketHealthProbe({ socketPath: SOCK_PATH }),
+  deferSelfProbeUntilReady: true,
+  logger,
+});
+bosunHeartbeat.start();
+
+// The full SQLite integrity scan remains a fail-closed boot gate, but the
+// packaged daemon runs it in a read-only child so this generation's heartbeat
+// can keep advancing. initDatabase accepts the result only while the durable
+// DB/WAL stamps still match the helper's proof; otherwise it repeats the full
+// check in-process rather than trusting stale evidence. SQLite's SHM sidecar is
+// excluded from freshness because readers legitimately mutate its lock state.
+const dbIntegrityProof = await createDbIntegrityProofOutOfProcess(DB_PATH);
+if (dbIntegrityProof) {
+  logger.info('database_integrity_verified', {
+    path: DB_PATH,
+    checkedAt: dbIntegrityProof.checkedAt,
+    mode: 'out-of-process',
+  });
+}
+
 // =============================================================================
 // SLEEP DETECTION (identical to server.ts)
 // =============================================================================
@@ -432,7 +536,14 @@ function isInSleepGracePeriod(): boolean {
   return Date.now() < sleepGraceUntil;
 }
 
-const db: DatabaseInstance = initDatabase({ dbPath: DB_PATH });
+// The daemon IS the write-boundary (the Door): it opens with owner semantics and
+// is the single legitimate writer of the registry. Non-daemon openers use
+// role:'client' and get a write-guarded handle.
+const db: DatabaseInstance = initDatabase({
+  dbPath: DB_PATH,
+  role: 'daemon',
+  integrityProof: dbIntegrityProof ?? undefined,
+});
 
 // =============================================================================
 // MODULE INITIALIZATION (identical to server.ts)
@@ -443,7 +554,13 @@ const graphEdges = createGraphEdges(db);
 const symbolIndex = createSymbolIndex(db, { graphEdges });
 const tuples = createTupleSpace(db);
 const blobs = createBlobStore();
+const booty = createBootyStore(db);
 const counters = createCounters(db);
+const usageTelemetry = createUsageTelemetry(
+  db,
+  { version: VERSION, codeHash: CODE_HASH, buildDate: new Date(STARTED_AT).toISOString() },
+  { counters },
+);
 const metricsRegistry = createMetricsRegistry();
 const semanticResolver = createSemanticResolver(db, {
   // Stable, daemon-portable cache (~/.port-daddy/transformers-cache) shared with
@@ -453,13 +570,69 @@ const semanticResolver = createSemanticResolver(db, {
   graphEdges,
   tuples,
   logger,
+  governor,
 });
+// Automatic reconciliation is local-only: a daemon tick must never send a
+// private SKILL.md catalog to a cloud backend or create surprise spend. An
+// explicit manual `pd skill-graft warm` may use the operator-pinned cloud
+// backend; setup/startup/ticks only use an explicitly configured Ollama.
+const tool2VecReconciler = createTool2VecReconciler({
+  projectRoot: REPO_ROOT,
+  runtime: resolveSkillGraftRuntime(process.env, { allowRemote: false }),
+  onWarning: (message) => logger.warn('tool2vec_reconcile_warning', { message }),
+});
+const _tool2VecPollMs = Number.parseInt(process.env.PD_TOOL2VEC_RECONCILE_MS ?? '300000', 10);
+const TOOL2VEC_RECONCILE_MS = Number.isFinite(_tool2VecPollMs) && _tool2VecPollMs >= 60_000
+  ? _tool2VecPollMs
+  : 300_000;
+let tool2VecTimer: ReturnType<typeof setInterval> | null = null;
+
+/**
+ * Schedules one bounded reconciliation pass outside daemon readiness. The
+ * design ensures startup and periodic ticks share the durable lease while the
+ * event loop remains available for health and operator traffic.
+ *
+ * @param trigger Durable provenance label for status and logs.
+ */
+function triggerTool2VecReconcile(trigger: string): void {
+  setImmediate(() => {
+    void tool2VecReconciler.reconcile({ trigger, maxSkills: 8 }).then((result) => {
+      logger.info('tool2vec_reconcile', {
+        trigger,
+        state: result.state,
+        acquired: result.acquired,
+        configured: result.configured,
+        embedded: result.embedded,
+        current: result.current,
+        total: result.total,
+        coveragePct: result.coveragePct,
+      });
+    }).catch((error) => {
+      logger.warn('tool2vec_reconcile_failed', {
+        trigger,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+  });
+}
 const episodicMemory = createEpisodicMemory(db, { tuples, graphEdges, semanticResolver });
+// Durable forensics journal — every Arbiter security event AND every identity
+// retirement / resurrection (actor souls, durable roster) is written, in full,
+// to an append-only JSONL journal OUTSIDE the live DB (~/.port-daddy/forensics/),
+// so it survives the 7-day activity_log prune. Default on; opt out with
+// PD_FORENSICS_ARCHIVE=off. (ADR-0089.) Created here, ahead of the identity
+// stores, because they journal through it.
+const forensicsSink =
+  process.env.PD_FORENSICS_ARCHIVE === 'off' ? undefined : createJsonlForensicsArchive();
+const durableAgentRoster = createDurableAgentRoster(db, { resolver: semanticResolver, logger, forensicsSink });
 const quorum = createQuorum({ tuples });
 const feedback = createFeedback({ tuples });
-const roadmapItems = createRoadmapItems({ db, tuples });
+const roadmapItems = createRoadmapItems({ db, tuples, graphEdges });
 const roadmapPromote = createRoadmapPromote({ feedback, roadmapItems });
 const roadmapPop = createRoadmapPop({ db, feedback });
+// Live-work join for the roadmap command center (operator mandate 2026-08-22).
+// Read-only projection over roadmap_items/roadmap_claims/sessions/agents.
+const roadmapActivity = createRoadmapActivity({ db });
 
 const services = createServices(db, { semanticIndex });
 const messaging = createMessaging(db);
@@ -467,12 +640,30 @@ const locks = createLocks(db);
 const health = createHealth(db, services as Parameters<typeof createHealth>[1]);
 const agents = createAgents(db, { semanticIndex });
 const activityLog = createActivityLog(db);
+
+// Observability maintenance: on each cleanup tick, prune the audit-identified unbounded tables
+// (harbor_issued_tokens, semantic_resolution_events), reclaim freed pages, and sample the daemon's
+// own DB/WAL/row footprint — raising a durable RESOURCE_ALARM before a runaway can reach 313 GB.
+const observabilityMaintenance = createObservabilityMaintenance({
+  db,
+  dbPath: DB_PATH,
+  governor,
+  onCritAlarm: (alarm) => {
+    try {
+      activityLog.log(ActivityType.RESOURCE_ALARM, {
+        details: `resource ceiling crossed: ${alarm.metric}`,
+        metadata: { metric: alarm.metric, value: alarm.value, threshold: alarm.threshold, severity: alarm.severity },
+      });
+    } catch { /* durable-audit best effort; the governed log already fired */ }
+  },
+});
 // Durable commitments + obligation monitor (ADR-0041 first slice). The
 // obligation half of accountability: resurrection watches heartbeats, this
 // watches promises. The monitor is a PURE runtime check over SQLite (Law 4 —
 // no Arbiter/Rust FFI dependency, so it cannot silently degrade to a stub).
 const commitments = createCommitments(db);
 const suggestions = createSuggestions(db);
+const whois = createWhois(db, { resolver: semanticResolver, logger });
 const obligationMonitor = createObligationMonitor(db, { activityLog });
 const webhooks = createWebhooks(db);
 const projects = createProjects(db);
@@ -485,6 +676,36 @@ const sessions = createSessions(db, noteEncryption, {
 });
 sessions.setActivityLog(activityLog);
 
+// ADR-0092: optional cloud coordination peer. Local SQLite remains the write
+// path regardless of configuration or network health; the peer only observes,
+// queues, and CRDT-merges. A partial/malformed configuration degrades loudly
+// without preventing the offline-first daemon from starting.
+let coordinationPeer: CoordinationPeer | null = null;
+let coordinationProject: string | null = null;
+try {
+  const coordinationConfig = coordinationPeerConfigFromEnv(process.env, getSecret);
+  if (coordinationConfig) {
+    coordinationProject = coordinationConfig.project;
+    coordinationPeer = createCoordinationPeer({
+      db,
+      sessions,
+      locks,
+      config: coordinationConfig,
+      logger,
+    });
+    coordinationPeer.start();
+    logger.info('coordination_peer_started', {
+      project: coordinationConfig.project,
+      actorId: coordinationConfig.actorId,
+      url: coordinationConfig.url,
+    });
+  }
+} catch (error) {
+  logger.error('coordination_peer_configuration_invalid', {
+    error: (error as Error).message,
+  });
+}
+
 const symbolClaims = createSymbolClaims(db, {
   symbolIndex,
   agentForSession: (sessionId: string) => {
@@ -494,13 +715,28 @@ const symbolClaims = createSymbolClaims(db, {
 });
 
 const agentInbox = createAgentInbox(db, (agentId, message) => {
-  messaging.publish(`inbox:${agentId}`, {
-    ...message,
-    sender: message.from || 'SYSTEM',
-    signal: (message as any).signal || 'report'
-  });
+  messaging.publish(`inbox:${agentId}`, inboxMessageForMessaging(message));
 });
-const parley = createParley({ tuples, agentInbox });
+// The local daemon is one tenant. CAP0 owns any future authenticated tenant
+// binding; request data must never choose this STORE0 authority.
+const parleyStore = createParleyStore({ db, tenantId: 'local-daemon' });
+if (parleyStore.legacyMigration && !parleyStore.legacyMigration.replayed) {
+  logger.info('parley_legacy_tuple_migration_completed', {
+    migrationVersion: parleyStore.legacyMigration.migrationVersion,
+    sourceDigest: parleyStore.legacyMigration.sourceDigest,
+    sourceTupleRows: parleyStore.legacyMigration.sourceTupleRows,
+    importedRecords: parleyStore.legacyMigration.importedRecords,
+    importedTurns: parleyStore.legacyMigration.importedTurns,
+    importedSeenReceipts: parleyStore.legacyMigration.importedSeenReceipts,
+    importedSeenProvenance: parleyStore.legacyMigration.importedSeenProvenance,
+    importedOutcomes: parleyStore.legacyMigration.importedOutcomes,
+  });
+}
+const parley = createParley({
+  store: parleyStore,
+  agentInbox,
+  notificationRecovery: {},
+});
 // Mid-claim hash watcher — snapshots claimed files when their content
 // hash changes mid-claim and DMs the claim-holder. Reactive, not
 // preventive — but turns silent steamrolls into recoverable events.
@@ -528,10 +764,39 @@ dns.setActivityLog(activityLog);
 const resolver = createResolver(db);
 dns.setResolver(resolver);
 const briefing = createBriefing(db, { sessions, agents, resurrection, activityLog, services, messaging });
-const sugar = createSugar({ agents, sessions, activityLog });
+const sugarSessions = scopeSugarSessionsToCoordinationProject(sessions, coordinationProject);
+/**
+ * Resolve one predecessor's bounded continuity projection for every daemon
+ * entry point. The design purpose is to keep fresh-begin, takeover, and
+ * salvage flows evidence-led instead of replaying an unbounded transcript.
+ *
+ * @param sourceSessionId - Durable predecessor session identifier to revalidate.
+ * @returns The verified plan-plus-packet projection, or an explicit withheld state.
+ */
+const contextBootstrapLookup = (sourceSessionId: string) => loadLatestVerifiedContextBootstrap(db, sourceSessionId);
+const sugar = createSugar({
+  agents,
+  sessions: sugarSessions,
+  activityLog,
+  roadmapItems,
+  feedback,
+  commitments,
+  contextBootstrapLookup,
+});
 const attention = createAttention({ db, inbox: agentInbox, messaging });
 const harborTokens = createHarborTokens(db);
 await harborTokens.initDaemonIdentity();
+// Relay connection lifecycle (ADR-0049). Replaces the honest-disconnected
+// stub: the daemon now runs the real outbound handshake + SSE loop from
+// lib/relay-connection.ts when a relay_url is configured, and the status
+// surface reports the live state of that loop — connected only while the
+// relay has an accepted stream open. Signing stays inside harbor-tokens
+// (signHex): the connection holds a signing capability, never the key.
+const relayConnection = new DaemonRelayConnection({
+  db,
+  logger,
+  signer: (msgHex) => harborTokens.signHex(msgHex),
+});
 const harbors = createHarbors(db, { harborTokens });
 const sorties = createSorties(db, { episodicMemory });
 
@@ -542,8 +807,34 @@ const bonds = createBonds(db, {
   harbors, noteEncryption,
   broadcast: (channel, event) => messaging.publish(channel, event),
 });
+// ADR-0040 keystone: daemon-minted, non-forgeable actor identity. The souls
+// store is the spend-choke input for budget-guard — it resolves each agentId
+// (minted id or display alias) to a soul + class, soul-sources the ceiling, and
+// meters newcomers against the SHARED per-project pool so minting fresh ids buys
+// no new budget. HONEST LIMIT: the anti-launder only fully bites once the `door`
+// lane makes the SQLite write-boundary real (a same-UID agent can otherwise
+// write a ledger/pool row directly). This is ADR-0040's explicit non-goal.
+// Retirement is final unless resurrected through the audited path; both
+// transitions are journaled to the forensics sink (identity keystone).
+const actorSouls = createActorSouls(db, { forensicsSink });
+// Begin idempotency (lib/begin-idempotency.ts): a `pd begin` retried after a
+// lost response replays the ORIGINAL session and its once-returned credential
+// instead of minting a second soul + session. Owns its own additive DDL.
+const beginIdempotency = createBeginIdempotency(db);
+// Grandfather EXISTING agents (from budget_ledger/bond_escrow/agents) into
+// trusted souls before budgetGuard starts routing spend through the souls
+// choke below -- otherwise every already-running agent looks like a brand
+// new "unknown" soul on this boot and gets capped at the newcomer pool floor
+// instead of its real budget. Idempotent (see scripts/migrate-actor-souls.ts);
+// safe to run on every boot, not just the first one after this lands.
+try {
+  migrateActorSouls(db, { apply: true, credentialsDir: join(homedir(), '.port-daddy', 'actor-credentials') });
+} catch (err) {
+  console.error('[actor-souls] grandfather migration failed (spend routing may throttle pre-existing agents until this is fixed):', err);
+}
 const budgetGuard = createBudgetGuard(db, {}, {
   broadcast: (channel, event) => messaging.publish(channel, event),
+  souls: actorSouls,
 });
 
 // Late-binding spawner ref: cost-tracker needs to trigger spawner.kill() on
@@ -591,6 +882,62 @@ const transcriptArchive =
   process.env.PD_TRANSCRIPT_ARCHIVE === 'off' ? undefined : createJsonlTranscriptArchive();
 const transcripts = createTranscripts(db, { archiveSink: transcriptArchive });
 
+// Hash-chain the transcript facts the spawner already persists into Agent
+// Harbor. This is an evidence feeder, not a second transcript store.
+const spawnerHarborBridge = createSpawnerHarborBridge(db, {
+  episodicMemory,
+  logger,
+});
+
+/**
+ * Verify the spawner's captured credential against one exact stored session.
+ *
+ * Purpose: managed ephemeral completion is an in-process daemon authority,
+ * never a public caller boolean. The credential still has to prove the same
+ * actor stamped on the exact session before the private lifecycle method may
+ * bind or complete it.
+ *
+ * @param input - Exact session, stored display agent, and captured credential.
+ * @returns Verified actor id and canonical stored owner, or a refusal body.
+ */
+function authorizeManagedSpawnerSession(input: {
+  sessionId: string;
+  agentId: string;
+  credential: string;
+}): { success: true; actorId: string; agentId: string } | { success: false; code: string; error: string } {
+  const verdict = resolveWriteIdentity({
+    souls: actorSouls,
+    credential: input.credential,
+    assertedAgentId: input.agentId,
+    route: 'daemon:spawner:managed-session',
+    logger,
+    requireIdentity: true,
+  });
+  if (!verdict.ok || verdict.kind !== 'verified') {
+    return {
+      success: false,
+      code: verdict.ok ? 'IDENTITY_CREDENTIAL_REQUIRED' : verdict.code,
+      error: verdict.ok ? 'managed session requires a verified actor credential' : verdict.error,
+    };
+  }
+  const lookup = sugarSessions.get(input.sessionId);
+  const session = lookup.success && lookup.session && typeof lookup.session === 'object'
+    ? lookup.session as Record<string, unknown>
+    : null;
+  if (!session) {
+    return { success: false, code: 'SESSION_NOT_FOUND', error: `Session ${input.sessionId} not found` };
+  }
+  const ownership = authorizeSessionOwner(session, verdict, actorSouls);
+  if (!ownership.ok) {
+    return { success: false, code: ownership.code, error: ownership.error };
+  }
+  return {
+    success: true,
+    actorId: ownership.ownerActorId,
+    agentId: ownership.ownerAgentId,
+  };
+}
+
 // Session Galaxy — 2-D embedding map of recent agent sessions over
 // fleet_transcripts. createLocalEmbedder gives the batch embed(texts[])
 // interface the semanticResolver singleton lacks (its .embed is single-text);
@@ -602,10 +949,124 @@ const transcripts = createTranscripts(db, { archiveSink: transcriptArchive });
 const galaxyEmbedder = createLocalEmbedder({ cacheDir: defaultTransformersCacheDir() });
 const galaxy = createGalaxy({ db, transcripts, sessions, embedder: galaxyEmbedder });
 
+// Private, short-lived admission witnesses for exact managed sessions. Durable
+// ownership remains in the existing session store, not this physical recheck map.
+const managedSpawnWorktrees = new Map<string, ManagedSpawnWorktree>();
 const spawner = createSpawner({
   costTracker, counters, bonds, harbors, transcripts,
+  harborBridge: spawnerHarborBridge,
   enforceTelemetryPolicy: true,
   enforceTranscriptPolicy: true,
+  managedSessionLifecycle: {
+    admit: async (input, { signal }) => {
+      const target = await captureManagedSpawnWorktree(input.workdir, signal);
+      signal.throwIfAborted();
+      if (target.worktree?.isMain && !input.allowSharedCheckout) {
+        return { success: false, code: 'MAIN_WORKTREE_SESSION_FORBIDDEN', error: 'Spawn target requires a linked worktree.' };
+      }
+      const minted = actorSouls.register({});
+      if (!minted.ok || minted.status !== 'minted') {
+        return {
+          success: false,
+          code: minted.ok ? 'MANAGED_SESSION_CREDENTIAL_UNAVAILABLE' : minted.code,
+          error: 'managed spawn admission could not mint an actor credential',
+        };
+      }
+      const verdict = {
+        ok: true as const,
+        kind: 'verified' as const,
+        actorId: minted.actorId,
+        agentId: input.agentId,
+        soulClass: minted.soulClass,
+        identity: { verified: true as const, actorId: minted.actorId, soulClass: minted.soulClass },
+      };
+      const admitted = sugar.begin({
+        agentId: input.agentId,
+        name: input.name,
+        type: 'spawned',
+        identity: input.identity ?? undefined,
+        purpose: input.purpose,
+        lifecycle: 'ephemeral',
+        worktree: target.worktree,
+        metadata: stampIdentityMetadata({
+          ...input.metadata,
+          worktree: target.worktree,
+          spawnWorkdir: target.directory,
+        }, verdict) ?? undefined,
+      });
+      if (!admitted.success) return admitted;
+      if (typeof admitted.sessionId !== 'string') throw new Error('Managed admission did not return an exact session');
+      managedSpawnWorktrees.set(admitted.sessionId, target);
+      return {
+        ...admitted,
+        credential: minted.credential,
+        actorId: minted.actorId,
+        actorIdentity: verdict.identity,
+        worktreeBinding: managedSpawnWorktreeReceipt(target),
+      };
+    },
+    bind: async (input, { signal }) => {
+      const authority = authorizeManagedSpawnerSession(input);
+      if (!authority.success) return authority;
+      const target = managedSpawnWorktrees.get(input.sessionId);
+      if (!target) return { success: false, code: 'MANAGED_SPAWN_TARGET_REQUIRED', error: 'Exact spawn target witness is missing' };
+      // The authorized one-shot binding attempt owns this local witness now.
+      // Failed terminal persistence must not leak an unbounded map of targets.
+      managedSpawnWorktrees.delete(input.sessionId);
+      await verifyManagedSpawnWorktree(target, () => {
+        const lookup = sugarSessions.get(input.sessionId);
+        return lookup.success && lookup.session ? lookup.session as Record<string, unknown> : null;
+      }, signal);
+      signal.throwIfAborted();
+      const currentAuthority = authorizeManagedSpawnerSession(input);
+      if (!currentAuthority.success) return currentAuthority;
+      const bound = sugar.bindManagedSession({
+        sessionId: input.sessionId,
+        agentId: currentAuthority.agentId,
+        actorId: currentAuthority.actorId,
+      });
+      return {
+        ...bound,
+        worktreeBinding: managedSpawnWorktreeReceipt(target),
+        // This closure retains the already verified witness, not a second
+        // identity store or a caller-controlled world. Child runners invoke it
+        // again after sandbox setup, when Git metadata may have changed.
+        validateBeforeLaunch: async ({ signal: launchSignal }: { signal: AbortSignal }) => {
+          await verifyManagedSpawnWorktree(target, () => {
+            const lookup = sugarSessions.get(input.sessionId);
+            return lookup.success && lookup.session ? lookup.session as Record<string, unknown> : null;
+          }, launchSignal);
+          launchSignal.throwIfAborted();
+          return authorizeManagedSpawnerSession(input);
+        },
+      };
+    },
+    complete: async (input) => {
+      const authority = authorizeManagedSpawnerSession(input);
+      if (!authority.success) return authority;
+      const completed = sugar.completeManagedSession({
+        sessionId: input.sessionId,
+        agentId: authority.agentId,
+        actorId: authority.actorId,
+        note: input.note,
+        status: input.status,
+      });
+      if (completed.success) managedSpawnWorktrees.delete(input.sessionId);
+      return completed;
+    },
+    abort: async (input) => {
+      const authority = authorizeManagedSpawnerSession(input);
+      if (!authority.success) return authority;
+      const aborted = sugar.abortManagedSession({
+        sessionId: input.sessionId,
+        agentId: authority.agentId,
+        actorId: authority.actorId,
+        note: input.note,
+      });
+      if (aborted.success) managedSpawnWorktrees.delete(input.sessionId);
+      return aborted;
+    },
+  },
   // Live observability seam (ADR-0060): give the spawner the daemon's messaging
   // layer as a tube client so cli-tube spawns that carry a stable channel (a
   // folded dispatch stamps `dispatch:<id>`) publish their exchange there. This is
@@ -691,11 +1152,18 @@ const conductor = createConductor({
     // I2 NO_SPAWN_ON_MAIN is satisfied here: carve a fresh off-main worktree on
     // the dispatch branch, then scope-disable the Coordination Guard inside it so
     // the autonomous agent can commit without an interactive `pd begin` session.
-    if (!intent.worktreePath || !intent.worktreeBranch || !intent.worktreeBaseRef) {
-      // Not a dispatch-shaped intent — fall back to the intent's own workdir.
-      return intent.workdir;
+    const dispatchShaped = intent.source === 'dispatch'
+      || Boolean(intent.worktreePath || intent.worktreeBranch || intent.worktreeBaseRef);
+    if (!dispatchShaped) return intent.workdir;
+    if (!intent.workdir) {
+      throw new Error('dispatch launch is missing its durable source project binding');
     }
-    await gitWorktreeAdd(intent.worktreePath, intent.worktreeBranch, intent.worktreeBaseRef);
+    if (!intent.worktreePath || !intent.worktreeBranch || !intent.worktreeBaseRef) {
+      throw new Error('dispatch launch is missing its worktree path, branch, or base ref');
+    }
+    await gitWorktreeAdd(intent.worktreePath, intent.worktreeBranch, intent.worktreeBaseRef, {
+      repoWorkdir: intent.workdir,
+    });
     disableGuardInWorktree(intent.worktreePath);
     return intent.worktreePath;
   },
@@ -765,6 +1233,18 @@ const DISPATCH_POLL_MS = Number.isFinite(_dispatchPollMs) && _dispatchPollMs >= 
   : 5000;
 // Optional model pin for dispatch work. Absent → the CLI's authenticated default.
 const DISPATCH_MODEL = process.env.PD_DISPATCH_MODEL?.trim() || undefined;
+// Cross-backend failover (ADR-0131). OFF unless the operator turns it on: it
+// mints a second body — and spends a second time — with nobody in the loop, so
+// it is a deliberate choice, not a default. When on, the successor's warm brief
+// comes from the dead body's own transcript through the fail-closed sanitizer;
+// if that cannot be produced the successor runs cold with the original goal
+// rather than not running at all.
+const DISPATCH_FAILOVER_ENABLED = process.env.PD_DISPATCH_FAILOVER === 'true';
+const DISPATCH_FAILOVER_CHAIN = (process.env.PD_DISPATCH_FAILOVER_CHAIN ?? '')
+  .split(',')
+  .map((b) => b.trim())
+  .filter(Boolean);
+
 const dispatchWorker = DISPATCH_WORKER_ENABLED
   ? createDispatchWorker({
       queue: dispatchQueue,
@@ -773,11 +1253,63 @@ const dispatchWorker = DISPATCH_WORKER_ENABLED
       pollIntervalMs: DISPATCH_POLL_MS,
       workIntentService,
       model: DISPATCH_MODEL,
+      ...(DISPATCH_FAILOVER_ENABLED
+        ? {
+            failover: {
+              enabled: true,
+              ...(DISPATCH_FAILOVER_CHAIN.length
+                ? { preferredChain: DISPATCH_FAILOVER_CHAIN }
+                : {}),
+              buildHandoff: async ({ dispatch, fromBackend, toBackend }) => {
+                const handoff = await buildHandoffFromTranscript({
+                  dispatch,
+                  fromBackend,
+                  toBackend,
+                  deps: { transcripts },
+                });
+                return handoff ? { goal: handoff.goal, episodeId: handoff.episodeId } : null;
+              },
+            },
+          }
+        : {}),
       // THE INJECTION POINT: spawn every dispatch through the Conductor.
       spawnAdapter: createConductorSpawnAdapter(conductor),
     })
   : null;
 if (dispatchWorker) dispatchWorker.start();
+
+// ── Auto-merge sweep (merge_policy='auto') ──────────────────────────────────
+// A DIFFERENT loop from the dispatch worker above: this one doesn't run
+// agents, it checks already-produced PRs for dispatches proposed with
+// `--merge-policy auto` and merges the ones that are CI-green + mergeable +
+// zero unresolved review threads (lib/dispatch/auto-merge.ts owns the full
+// safety gate). Disable with PD_DISPATCH_AUTOMERGE=false. Interval defaults
+// to 60s — merges are rare relative to the 5s dispatch-poll cadence above, so
+// there is no need to hammer `gh api` that often.
+const DISPATCH_AUTOMERGE_ENABLED = process.env.PD_DISPATCH_AUTOMERGE !== 'false';
+const _autoMergePollMs = parseInt(process.env.PD_DISPATCH_AUTOMERGE_POLL_MS ?? '60000', 10);
+const DISPATCH_AUTOMERGE_POLL_MS = Number.isFinite(_autoMergePollMs) && _autoMergePollMs >= 5000
+  ? _autoMergePollMs
+  : 60000;
+let autoMergeTimer: ReturnType<typeof setInterval> | null = null;
+if (DISPATCH_AUTOMERGE_ENABLED) {
+  const tick = () => {
+    runAutoMergeSweep(dispatchQueue, { repoRoot: REPO_ROOT }).then((result) => {
+      if (result.merged.length > 0 || result.errors.length > 0) {
+        logger.info('dispatch_auto_merge_sweep', {
+          checked: result.checked,
+          merged: result.merged.length,
+          blocked: result.blocked.length,
+          errors: result.errors.length,
+        });
+      }
+    }).catch((err) => {
+      logger.warn('dispatch_auto_merge_sweep_failed', { error: err instanceof Error ? err.message : String(err) });
+    });
+  };
+  autoMergeTimer = setInterval(tick, DISPATCH_AUTOMERGE_POLL_MS);
+  autoMergeTimer.unref?.();
+}
 
 const resourceGovernance = createResourceGovernance({ repoRoot: REPO_ROOT, startedAt: STARTED_AT });
 
@@ -788,12 +1320,8 @@ function resolveArbiterStrictMode(value: string | undefined): boolean {
 
 semanticIndex.initialize();
 const arbiterStrictMode = resolveArbiterStrictMode(process.env.PORT_DADDY_ARBITER_STRICT);
-// Durable forensics journal — every Arbiter security event is written, in full,
-// to an append-only JSONL journal OUTSIDE the live DB (~/.port-daddy/forensics/),
-// so it survives the 7-day activity_log prune. Default on; opt out with
-// PD_FORENSICS_ARCHIVE=off. (ADR-0089.)
-const forensicsSink =
-  process.env.PD_FORENSICS_ARCHIVE === 'off' ? undefined : createJsonlForensicsArchive();
+// The forensics journal (`forensicsSink`, ADR-0089) is created above, next to
+// the identity stores that also write to it.
 const arbiter = createArbiter(
   { activityLog, agents, sessions, locks, resurrection, bonds, forensicsSink },
   { strictMode: arbiterStrictMode }
@@ -813,7 +1341,7 @@ const custodian = CUSTODIAN_ENABLED
       logger,
       episodicMemory: episodicMemory as any,
       messaging: messaging as any,
-      resurrection: resurrection as any,
+      resurrection,
       contextTracker: contextTracker as any,
       operatorPermissions,
       blobs: blobs as any,
@@ -830,22 +1358,6 @@ const mergeQueue = createMergeQueue(db, {
   graphEdges,
   tuples,
   semanticResolver,
-});
-
-const bosunHeartbeat = createBosunHeartbeat({
-  heartbeatPath: HEARTBEAT_FILE,
-  version: VERSION,
-  codeHash: CODE_HASH,
-  startedAt: STARTED_AT,
-  installDir: __dirname,
-  pidFile: PID_FILE,
-  portFile: PORT_FILE,
-  requirePidFileMatch: true,
-  // Loopback probe of our own request pipeline over the primary Unix socket.
-  // If HTTP wedges while the event loop keeps turning, the heartbeat halts and
-  // Bosun restarts us (Bosun is HTTP-free by design and can't see this itself).
-  selfProbe: createSocketHealthProbe({ socketPath: SOCK_PATH }),
-  logger,
 });
 
 const orchestrator = createReactiveOrchestrator(db, messaging, spawner, conductor);
@@ -874,6 +1386,33 @@ const repoRegistry = createRepoRegistry({
   logger,
 });
 
+// ── ADR-0132 listening watch (phase 3) ──────────────────────────────────────
+// A 30 s unref'd timer that does one `existsSync` on ~/.port-daddy/HALT. On
+// the nominal → halted transition every background sweep that could spend or
+// coordinate is stopped here — the reaper/resurrection cleanup interval, the
+// dispatch worker, the auto-merge sweep, and the fleet daemon — and the
+// watch writes SEEN then COMPLIED to the distress file. `/health` answers
+// `state: 'halted'`. The sentinel's later absence does NOT resume anything:
+// only a signed operator ALL-CLEAR (phase 4) lifts a halt, and until then a
+// halted daemon stays halted until it is restarted. Created here (so the
+// route deps can read its state) and armed in the LIFECYCLE section once the
+// cleanup interval it must be able to stop exists.
+let cleanupTimer: ReturnType<typeof setInterval> | null = null;
+const haltWatch = createHaltWatch({
+  entity: `daemon:${DAEMON_PLANE}`,
+  sentinelPath: haltSentinelPath(),
+  distressPath: distressFilePath(),
+  repoDistressPath: join(REPO_ROOT, '.portdaddy', 'DISTRESS'),
+  logger,
+  onHalt: (halt) => {
+    logger.warn('halt_entered', { ref: halt.ref, line: halt.line });
+    if (cleanupTimer) { clearInterval(cleanupTimer); cleanupTimer = null; }
+    try { dispatchWorker?.stop(); } catch (err) { logger.warn('halt_dispatch_worker_stop_failed', { error: (err as Error).message }); }
+    if (autoMergeTimer) { clearInterval(autoMergeTimer); autoMergeTimer = null; }
+    try { fleetDaemon.stop(); } catch (err) { logger.warn('halt_fleet_stop_failed', { error: (err as Error).message }); }
+  },
+});
+
 // Wire resurrection events (identical to server.ts)
 resurrection.on('agent:stale', (agent) => {
   messaging.publish('resurrection', JSON.stringify({
@@ -883,30 +1422,10 @@ resurrection.on('agent:stale', (agent) => {
   logger.info('agent_stale', { agentId: agent.id, name: agent.name });
 });
 
-resurrection.on('agent:dead', (agent) => {
-  harbors.leaveAll(agent.id);
-  const zombied = sessions.abandonByAgent(agent.id);
-  if (zombied > 0) {
-    logger.warn('zombie_sessions_abandoned', { agentId: agent.id, count: zombied });
-    activityLog.log(ActivityType.SESSION_END, {
-      details: `Zombie protocol: ${zombied} active session(s) abandoned — agent ${agent.name || agent.id} is dead`,
-      metadata: { agentId: agent.id, zombied }
-    });
-  }
-  messaging.publish('resurrection', JSON.stringify({
-    event: 'dead', agentId: agent.id, name: agent.name, purpose: agent.purpose,
-    lastHeartbeat: agent.lastHeartbeat, staleSince: agent.staleSince, zombiedSessions: zombied
-  }));
-  messaging.publish('agents', JSON.stringify({
-    event: 'dead', agentId: agent.id,
-    message: `Agent ${agent.name || agent.id} is dead and queued for resurrection`
-  }));
-  logger.warn('agent_dead', { agentId: agent.id, name: agent.name });
-  activityLog.log(ActivityType.AGENT_CLEANUP, {
-    details: `Agent ${agent.name || agent.id} detected as dead, queued for resurrection`,
-    metadata: { agentId: agent.id, staleSince: agent.staleSince }
-  });
+const handleAgentHeartbeatDeath = createHeartbeatDeathHandler({
+  sessions, harbors, resurrection, messaging, logger, activityLog, custodian,
 });
+resurrection.on('agent:dead', handleAgentHeartbeatDeath);
 
 resurrection.on('agent:resurrected', (oldAgentId, newAgentId) => {
   messaging.publish('resurrection', JSON.stringify({ event: 'resurrected', oldAgentId, newAgentId }));
@@ -972,6 +1491,7 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
       const agentSessionRows = db.prepare(`
         SELECT agent_id, id AS session_id FROM sessions
         WHERE agent_id IN (${placeholders}) AND status = 'active'
+          AND (is_durable IS NULL OR is_durable = 0)
         GROUP BY agent_id HAVING MAX(updated_at)
       `).all(...inactiveIds) as AgentSessionRow[];
 
@@ -998,6 +1518,17 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
       }
 
       for (const agent of inactiveAgents) {
+        const hold = resurrection.holdForDurableSessions(agent.id);
+        if (hold.held) {
+          if (Date.now() - agent.lastHeartbeat > getDeadThresholdForStatus(agent.status)) {
+            handleAgentHeartbeatDeath({
+              id: agent.id, name: agent.name || agent.id, purpose: agent.metadata?.purpose ?? null,
+              lastHeartbeat: agent.lastHeartbeat, staleSince: agent.lastHeartbeat + getDeadThresholdForStatus(agent.status),
+              identityProject: agent.identityProject ?? null,
+            });
+          }
+          continue;
+        }
         const sessionId = agentSessionMap.get(agent.id);
         const notes = sessionId ? (notesBySession.get(sessionId) ?? []) : [];
         resurrection.check({
@@ -1013,7 +1544,13 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
       }
     }
 
-    const agentCleanup = agents.cleanup(locks);
+    // `sessions` is what lets the reaper tell whether a dying DISPLAY handle
+    // is actually the soul that holds a stamped lock. Without it the reaper
+    // fails closed and leaves stamped locks to their TTL — correct, but it
+    // means a genuinely dead agent's locks linger, so this must stay wired.
+    // See lib/agent-soul-binding.ts and
+    // tests/unit/heartbeat-lock-invariant.test.js.
+    const agentCleanup = agents.cleanup(locks, { sessions });
     if (agentCleanup.cleaned > 0) {
       logger.info('agent_cleanup', agentCleanup);
       activityLog.log(ActivityType.AGENT_CLEANUP, {
@@ -1047,6 +1584,10 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
   sessions.cleanup();
   agentInbox.cleanup();
   resurrection.cleanup();
+  // Unified retention sweep + page reclaim + self-footprint sample (see createObservabilityMaintenance).
+  try { observabilityMaintenance.tick(); } catch (err) {
+    governor.governed({ key: 'observability_maintenance_failed', level: 'error', message: 'observability_maintenance_failed', meta: { error: (err as Error).message } });
+  }
   db.pragma('wal_checkpoint(PASSIVE)');
   metrics.total_cleanups++;
   return serviceResult;
@@ -1308,34 +1849,56 @@ await registerAllRoutes(
     routeRegistry,
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention, symbolClaims,
-    harbors, sorties, conductor, dispatchQueue, dispatchWorker, workIntentService, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, fleetDaemon, repoRegistry,
-    orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, cloudAppTelemetry, counters, metricsRegistry,
-    contextTracker,
+    harbors, sorties, conductor, dispatchQueue, dispatchWorker, workIntentService, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, booty, fleetDaemon, repoRegistry,
+    orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, durableAgentRoster, costTracker, cloudAppTelemetry, counters, metricsRegistry, usageTelemetry,
+    contextTracker, tool2VecReconciler,
     custodian, operatorPermissions,
     quorum, parley, galaxy, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
-    commitments, obligationMonitor, suggestions,
-    bonds, budgetGuard, budgetPause,
+    roadmapActivity,
+    commitments, obligationMonitor, suggestions, whois,
+    contextBootstrapLookup,
+    bonds, budgetGuard, budgetPause, actorSouls, beginIdempotency,
     arbiter, bosunHeartbeat,
     VERSION, CODE_HASH, STARTED_AT, __dirname, repoRoot: REPO_ROOT,
     runningBinarySnapshot: RUNNING_BINARY_SNAPSHOT,
     daemonBerth: DAEMON_BERTH,
+    plane: DAEMON_PLANE,
+    haltWatch,
     cleanupStale, getSystemPorts,
-    // Relay (ADR-0049) connection status. The daemon does not yet start the
-    // outbound RelayConnectionManager (lib/relay-client.ts), so this honestly
-    // reports "not connected" — `pd relay status` shows disconnected even when
-    // a relay_url is configured. When the SSE manager is wired, replace this
-    // with the manager's live status getter.
-    getRelayStatus: () => ({
-      connected: false,
-      session_id: null,
-      last_handshake: null as number | null,
-      accepted_channels: [] as string[],
-      relay_version: null as string | null,
-    }),
+    // Relay (ADR-0049) connection status — the LIVE lifecycle's snapshot.
+    // `connected` is true only while the relay has an accepted SSE stream
+    // open to this daemon (lib/relay-connection.ts flips it on the stream's
+    // open signal and off on any error/close), so `pd relay status` reports
+    // evidence, never intent.
+    getRelayStatus: () => relayConnection.getStatus(),
+    // Lets a runtime config write (POST /relay/config) or a fresh card
+    // (POST /relay/exchange) take effect without a daemon restart.
+    notifyRelayConfigChanged: () => relayConnection.restart(),
   },
   arbiter,
   { pheromones, sessions, db },
 );
+
+// Read-only local readiness proof for cloud sandboxes. The macaroon never
+// leaves the daemon process; bootstrap code can still verify that its `pd
+// begin` operation received a durable room acknowledgement (outbox drained)
+// and was observed back through the room cursor.
+app.get('/coordination/status', async () => coordinationPeer?.status() ?? {
+  enabled: false,
+  connected: false,
+  project: null,
+  actorId: null,
+  replicaId: null,
+  cursor: 0,
+  outbox: 0,
+  lastSyncAt: null,
+  lastError: null,
+});
+
+// Start the outbound relay lifecycle after routes exist: a no-op when
+// relay_url is unconfigured (state: disabled — no loop spins against
+// nothing), the real handshake + SSE + backoff loop when it is.
+relayConnection.start();
 
 // =============================================================================
 // DASHBOARD SSE (Fastify raw reply pattern)
@@ -1397,7 +1960,13 @@ app.setErrorHandler((err: Error & { type?: string; statusCode?: number }, reques
 // LIFECYCLE (identical to server.ts)
 // =============================================================================
 
-setInterval(() => cleanupStale(), config.cleanup.interval_ms);
+cleanupTimer = setInterval(() => cleanupStale(), config.cleanup.interval_ms);
+
+// ADR-0132: arm the listening watch now that every sweep it may have to stop
+// exists. The first check runs synchronously, so a daemon started under a
+// hoisted flag is `halted` — sweeps off, SEEN/COMPLIED written — before it
+// serves a single request.
+haltWatch.start();
 
 setInterval(() => {
   const now = Date.now();
@@ -1435,16 +2004,26 @@ function shutdown(signal: string): void {
   }
   // Flush counters before closing DB (pending in-memory batches)
   try { counters.shutdown(); } catch {}
+  // Flush any pending log-suppression rollups so a governed tail isn't lost on exit.
+  try { governor.flushAll(); } catch {}
   try { tunnel.stopAll(); } catch {}
   try { tunnel.dispose?.(); } catch {}
   try { bosunHeartbeat.stop(); } catch {}
+  // Drop the relay stream before closing the DB: a stopping daemon must not
+  // advertise (or hold) a live federation link.
+  try { relayConnection.stop(); } catch {}
+  try { coordinationPeer?.stop(); } catch {}
   // Stop fleet runners before closing DB (graceful drain)
   try { fleetDaemon.stop(); } catch {}
   try { dispatchWorker?.stop(); } catch {}
+  try { if (autoMergeTimer) clearInterval(autoMergeTimer); } catch {}
+  try { if (tool2VecTimer) clearInterval(tool2VecTimer); } catch {}
+  try { haltWatch.stop(); } catch {}
   systemPortsRefresh.stop();
   if (ipcServer) ipcServer.stop().catch(() => {});
   closeDatabase(db);
   try { unlinkSync(SOCK_PATH); } catch {}
+  clearDaemonReady(READY_FILE, process.pid);
   try { unlinkSync(PID_FILE); } catch {}
   try { unlinkSync(PORT_FILE); } catch {}
   process.exit(0);
@@ -1462,7 +2041,40 @@ process.on('SIGHUP', () => {
   }
 });
 
+// Global failure visibility — previously ABSENT (the audit's top dev-dogfooding gap). Without these,
+// an unhandled rejection crashed the daemon with a terse message (Node ≥15 terminates by default) and
+// a corrupting exception went unlogged. Governed so a flapping async fault can't itself become spam.
+process.on('unhandledRejection', (reason: unknown) => {
+  governor.governed({
+    key: 'unhandled_rejection',
+    level: 'error',
+    message: 'unhandled_rejection',
+    meta: {
+      error: reason instanceof Error ? reason.message : String(reason),
+      stack: reason instanceof Error ? reason.stack : undefined,
+    },
+  });
+});
+process.on('uncaughtException', (err: Error) => {
+  // Undefined state: log loudly (bypass dedup — this is fatal + singular), flush, and let the
+  // supervisor (launchd/brew KeepAlive) respawn cleanly rather than limp on in a corrupt state.
+  logger.error('uncaught_exception', { error: err.message, stack: err.stack });
+  shutdown('uncaughtException');
+});
+
 function onReady(): void {
+  try {
+    publishDaemonReady(READY_FILE, process.pid);
+    logger.info('daemon_ready_published', { path: READY_FILE, pid: process.pid });
+  } catch (err) {
+    // Fail shut for hook delegation without taking down an otherwise healthy
+    // daemon. FleetBar can surface the log and repair the private runtime path.
+    logger.error('daemon_ready_publish_failed', {
+      path: READY_FILE,
+      pid: process.pid,
+      error: (err as Error).message,
+    });
+  }
   activityLog.log(ActivityType.DAEMON_START, {
     details: `Port Daddy v${VERSION} started (Fastify)`,
     metadata: { port: PORT, pid: process.pid, codeHash: CODE_HASH, socket: SOCK_PATH }
@@ -1471,6 +2083,18 @@ function onReady(): void {
     version: VERSION, port: PORT, pid: process.pid
   });
   webhooks.retryPending();
+
+  // O3: readiness never waits for a cold catalog. Every caller shares the
+  // same expiring SQLite lease and row checkpoints, so startup and the
+  // low-frequency tick resume missing hashes without duplicate builders.
+  triggerTool2VecReconcile('daemon-startup');
+  if (!tool2VecTimer) {
+    tool2VecTimer = setInterval(
+      () => triggerTool2VecReconcile('daemon-tick'),
+      TOOL2VEC_RECONCILE_MS,
+    );
+    tool2VecTimer.unref?.();
+  }
 
   // Start mid-claim hash watcher. Cheap (sha256 every ~5s over the active
   // claim set), unref()'d so it doesn't keep the process alive on its own.
@@ -1485,6 +2109,9 @@ function onReady(): void {
   // same project fleet as the canonical daemon.
   if (DISABLE_FLEET) {
     logger.info('fleet_daemon_disabled', { reason: 'PORT_DADDY_NO_FLEET' });
+  } else if (haltWatch.state() === 'halted') {
+    // ADR-0132: a halt seen at boot must not be undone by the ready path.
+    logger.info('fleet_daemon_disabled', { reason: 'halt_sentinel', ref: haltWatch.halt()?.ref });
   } else {
     try {
       fleetDaemon.start();
@@ -1578,7 +2205,9 @@ try { unlinkSync(SOCK_PATH); } catch {}
 const sockServer = http.createServer((req, res) => { app.routing(req, res); });
 sockServer.listen(SOCK_PATH, async () => {
   try { writeFileSync(PID_FILE, String(process.pid)); } catch {}
-  bosunHeartbeat.start();
+  // Bootstrap kept the process heartbeat fresh while the service graph was
+  // loading. Now that /health can answer, arm the independent wedge detector.
+  bosunHeartbeat.startProbing();
   logger.info('socket_started', { socket: SOCK_PATH, version: VERSION });
 
   // Tertiary: Binary IPC socket for agent hot path
@@ -1627,16 +2256,16 @@ sockServer.listen(SOCK_PATH, async () => {
                 if (!isSilent) {
                   console.error(`Port Daddy v${VERSION} refusing to start: ${decision.reason}`);
                   console.error(`  Existing daemon pid: ${decision.foreignPid ?? '(unknown)'}`);
-                  console.error('  Resolve by killing the stale daemon or unsetting PD_ALLOW_TCP_FALLBACK only after verifying it is safe.');
+                  console.error('  Resolve the port owner, or set PD_ALLOW_TCP_FALLBACK=1 only for an explicitly isolated non-canonical runtime.');
                 }
                 process.exit(1);
               }
               logger.warn('tcp_port_busy', { port: tryPort, nextAttempt: tryPort + 1, reason: decision.reason });
               tryListenTcp(attempt + 1);
             }).catch((probeErr: Error) => {
-              // If the probe itself fails unexpectedly, fall back rather
-              // than refuse — refusing on probe failure would be a worse
-              // failure mode than the legacy behavior.
+              // Preserve the same explicit-only fallback policy even when the
+              // probe itself throws. decideTakeover refuses by default and
+              // walks only when PD_ALLOW_TCP_FALLBACK=1 was deliberately set.
               logger.warn('tcp_port_busy', { port: tryPort, nextAttempt: tryPort + 1, probeError: probeErr.message });
               tryListenTcp(attempt + 1);
             });
@@ -1654,6 +2283,10 @@ sockServer.listen(SOCK_PATH, async () => {
       });
       tcpServer.on('listening', () => {
         try { writeFileSync(PORT_FILE, String(tryPort), { mode: 0o644 }); } catch {}
+        // The health route holds this object by reference. Keep its advertised
+        // identity equal to the listener and port file even when an operator
+        // explicitly opts an isolated runtime into fallback-port walking.
+        DAEMON_BERTH.port = tryPort;
         logger.info('tcp_started', { port: tryPort, host: tcpHost, version: VERSION });
         // Self-register this berth (ADR-0084) so FleetBar's berth picker can
         // see it regardless of how this daemon was launched — registration

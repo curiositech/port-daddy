@@ -131,4 +131,17 @@ describe('pd agent interrupt', () => {
     expect(mockUi.error).toHaveBeenCalledWith(expect.stringContaining('Usage'));
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
+
+  test.each([
+    ['Review the last commit', []],
+    ['run', ['Review the last commit']],
+    ['harness', ['codex', 'inspect the queue']],
+  ])('refuses launch-shaped pd agent form %s before any daemon request', async (subcommand, args) => {
+    await expect(handleAgent(subcommand, args, {})).rejects.toThrow('process.exit');
+
+    expect(mockPdFetch).not.toHaveBeenCalled();
+    expect(mockUi.error).toHaveBeenCalledWith('pd agent controls registered agents; it does not start work.');
+    expect(mockUi.info).toHaveBeenCalledWith(expect.stringContaining('pd spawn --backend'));
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
 });

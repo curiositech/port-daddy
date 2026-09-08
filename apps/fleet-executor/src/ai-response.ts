@@ -23,6 +23,9 @@ export type ResponseShape =
   | 'output_text' // OpenAI Responses API convenience aggregate
   | 'responses-api' // OpenAI Responses API structured output[]
   | 'chat-completions' // OpenAI Chat Completions choices[].message.content
+  | 'chat-completions-reasoning' // reasoning models: content empty, answer read from choices[].message.reasoning_content
+  | 'text-completions' // classic Completions / vLLM: choices[].text
+  | 'reasoning-only' // ONLY chain-of-thought arrived and it stripped to nothing — no answer
   | 'empty' // null / non-object
   | 'unknown'; // an object we couldn't extract text from (logged for diagnosis)
 
@@ -31,6 +34,64 @@ export interface ExtractedText {
   text: string;
   /** Which envelope produced the text (or why none did). Recorded for diagnostics. */
   shape: ResponseShape;
+}
+
+/**
+ * Remove `<think>…</think>` blocks (and an unclosed trailing `<think>…`) from
+ * model text.
+ *
+ * Reasoning models on Workers AI — qwq-32b, deepseek-r1-distill, and DeepSeek
+ * V4's thinking mode — emit their chain-of-thought inline, before the answer.
+ * The ship parsers scan raw text for structured markers, so an unstripped
+ * think block is not cosmetic: deliberation that MENTIONS "FLEET-VERDICT:
+ * BLOCK" while reasoning about what verdict to give would be parsed as the
+ * verdict itself. The unclosed-tag case matters too — a response truncated by
+ * max_tokens mid-think is ALL reasoning and NO answer, and stripping it to ''
+ * correctly routes the call into the no-usable-output path instead of feeding
+ * half a chain-of-thought to the findings parser.
+ */
+export function stripThinkTags(text: string): string {
+  // Innermost-first, to a fixpoint: a single non-greedy pass over NESTED
+  // blocks (<think>a<think>b</think>c</think>) matches the first closer and
+  // leaves `c</think>` — deliberation residue that would reach the findings
+  // parser. Matching only blocks with no inner opener, repeatedly, unwinds
+  // nesting from the inside out.
+  let out = text;
+  let prev;
+  do {
+    prev = out;
+    out = out.replace(/<think>(?:(?!<think>)[\s\S])*?<\/think>/g, '');
+  } while (out !== prev);
+  return (
+    out
+      // An unclosed OPENER swallows to end-of-string: everything after it is
+      // deliberation that never finished (max_tokens mid-think).
+      .replace(/<think>[\s\S]*$/, '')
+      // An orphan CLOSER with no opener is a stray tag from a sloppy reasoning
+      // model — drop the tag, keep the text on both sides, which is real output.
+      .replace(/<\/think>/g, '')
+      .trim()
+  );
+}
+
+/**
+ * Read an OpenAI-compatible `message.content`, which is a plain string on
+ * older models and an ARRAY of typed parts ({ type, text }) on newer ones.
+ * DeepSeek V4 and other current chat-completions models may use either.
+ */
+function contentText(content: unknown): string {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    const parts: string[] = [];
+    for (const part of content) {
+      if (part && typeof part === 'object') {
+        const t = firstString((part as Record<string, unknown>).text);
+        if (t) parts.push(t);
+      }
+    }
+    return parts.join('');
+  }
+  return '';
 }
 
 function firstString(value: unknown): string {
@@ -45,8 +106,10 @@ export function extractAiText(res: unknown): ExtractedText {
   if (res == null || typeof res !== 'object') return { text: '', shape: 'empty' };
   const o = res as Record<string, unknown>;
 
-  // 1. Standard Workers AI text generation: { response: "..." }
-  const response = firstString(o.response).trim();
+  // 1. Standard Workers AI text generation: { response: "..." }. Reasoning
+  //    models (qwq-32b, deepseek-r1-distill) answer here WITH their <think>
+  //    block inline — strip it, or deliberation gets parsed as the answer.
+  const response = stripThinkTags(firstString(o.response));
   if (response) return { text: response, shape: 'response' };
 
   // 2. OpenAI Responses API convenience aggregate: { output_text: "..." }
@@ -77,19 +140,37 @@ export function extractAiText(res: unknown): ExtractedText {
     if (text) return { text, shape: 'responses-api' };
   }
 
-  // 4. OpenAI Chat Completions: { choices: [ { message: { content: "..." } } ] }
+  // 4. OpenAI Chat Completions: { choices: [ { message: { content } } ] }.
+  //    DeepSeek V4 (both Workers AI ids) answers in this envelope, with the
+  //    final answer in `content` (string OR typed-part array) and its
+  //    chain-of-thought in a SIBLING `reasoning_content` field. Plus the
+  //    classic Completions / vLLM choices[].text envelope and qwen3-style
+  //    generations that place the whole output in reasoning_content.
   if (Array.isArray(o.choices)) {
-    const parts: string[] = [];
+    const content: string[] = [];
+    const reasoning: string[] = [];
+    const plain: string[] = [];
     for (const ch of o.choices) {
       if (!ch || typeof ch !== 'object') continue;
-      const msg = (ch as Record<string, unknown>).message;
+      const choice = ch as Record<string, unknown>;
+      const msg = choice.message;
       if (msg && typeof msg === 'object') {
-        const t = firstString((msg as Record<string, unknown>).content);
-        if (t) parts.push(t);
+        const m = msg as Record<string, unknown>;
+        const t = contentText(m.content);
+        if (t) content.push(t);
+        const r = firstString(m.reasoning_content);
+        if (r) reasoning.push(r);
       }
+      const p = firstString(choice.text);
+      if (p) plain.push(p);
     }
-    const text = parts.join('').trim();
-    if (text) return { text, shape: 'chat-completions' };
+    const answer = stripThinkTags(content.join(''));
+    if (answer) return { text: answer, shape: 'chat-completions' };
+    const plainText = stripThinkTags(plain.join(''));
+    if (plainText) return { text: plainText, shape: 'text-completions' };
+    const reasoningText = stripThinkTags(reasoning.join(''));
+    if (reasoningText) return { text: reasoningText, shape: 'chat-completions-reasoning' };
+    if (reasoning.join('').trim()) return { text: '', shape: 'reasoning-only' };
   }
 
   return { text: '', shape: 'unknown' };
@@ -111,7 +192,15 @@ export function describeResponseShape(res: unknown): string {
   if (typeof o.errors !== 'undefined') hints.push(`errors=${safeErrorHint(o.errors)}`);
   if (typeof o.error !== 'undefined') hints.push(`error=${safeErrorHint(o.error)}`);
   if (Array.isArray(o.output)) hints.push(`output.len=${o.output.length}`);
-  if (Array.isArray(o.choices)) hints.push(`choices.len=${o.choices.length}`);
+  if (Array.isArray(o.choices)) {
+    hints.push(`choices.len=${o.choices.length}`);
+    const msg = (o.choices[0] as Record<string, unknown> | undefined)?.message as
+      | Record<string, unknown>
+      | undefined;
+    if (msg && typeof msg.reasoning_content === 'string' && msg.reasoning_content) {
+      hints.push(`reasoning.len=${msg.reasoning_content.length}`);
+    }
+  }
   return `keys=[${keys.join(',')}]${hints.length ? ' ' + hints.join(' ') : ''}`;
 }
 

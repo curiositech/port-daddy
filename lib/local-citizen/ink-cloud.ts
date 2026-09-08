@@ -19,6 +19,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { parseMatrix } from '../squid/matrix.js';
 
 export const INK_CLOUD_PATH = join(homedir(), '.port-daddy', 'matrix.env');
 
@@ -54,34 +55,6 @@ export function lockKeyFor(path: string): string {
   return `PD_LOCK_${lockKeySuffix(path)}`;
 }
 
-/**
- * Parse POSIX `KEY="value"` env text. Tolerant of:
- *  - comments (# ...) and blank lines
- *  - optional `export ` prefix
- *  - single- or double-quoted values, or bare values
- *  - escaped \" and \\ inside double quotes
- */
-export function parseEnv(text: string): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const lineRaw of text.split('\n')) {
-    const line = lineRaw.trim();
-    if (!line || line.startsWith('#')) continue;
-    const body = line.startsWith('export ') ? line.slice(7).trim() : line;
-    const eq = body.indexOf('=');
-    if (eq <= 0) continue;
-    const key = body.slice(0, eq).trim();
-    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) continue;
-    let val = body.slice(eq + 1).trim();
-    if (val.length >= 2 && val[0] === '"' && val[val.length - 1] === '"') {
-      val = val.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, '\\');
-    } else if (val.length >= 2 && val[0] === "'" && val[val.length - 1] === "'") {
-      val = val.slice(1, -1);
-    }
-    out[key] = val;
-  }
-  return out;
-}
-
 /** Classify raw env keys into the Ink Cloud structure. */
 export function classify(raw: Record<string, string>): InkCloud {
   const locks: Record<string, string> = {};
@@ -95,16 +68,21 @@ export function classify(raw: Record<string, string>): InkCloud {
   return { locks, pheromones, alerts, raw };
 }
 
-/** Read + parse the Ink Cloud from disk. Missing file => empty (not an error). */
+/**
+ * Read + parse the Ink Cloud from disk. Missing file => empty (not an error).
+ * Delegates line-parsing to `lib/squid/matrix.ts`'s `parseMatrix`, the single
+ * source of truth for the `KEY="value"` format (ADR-0091 PR1: parser
+ * consolidation), instead of re-implementing it here.
+ */
 export function readInkCloud(path: string = INK_CLOUD_PATH): InkCloud {
   if (!existsSync(path)) return { locks: {}, pheromones: {}, alerts: {}, raw: {} };
-  const raw = parseEnv(readFileSync(path, 'utf8'));
+  const raw = parseMatrix(readFileSync(path, 'utf8'));
   return classify(raw);
 }
 
 /** Read an Ink Cloud directly from text (used by the live proof harness). */
 export function readInkCloudFromText(text: string): InkCloud {
-  return classify(parseEnv(text));
+  return classify(parseMatrix(text));
 }
 
 export interface InjectionOptions {

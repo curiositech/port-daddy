@@ -49,6 +49,7 @@ export function planToLaunchIntent(plan: RunnerPlan): LaunchIntent {
     // satisfies I2 (NO_SPAWN_ON_MAIN): the Conductor mints the branch the plan
     // names, so the run never touches the operator's main checkout.
     worktree: 'create',
+    workdir: d.projectDir ?? undefined,
     worktreePath: plan.worktreePath,
     worktreeBranch: plan.branch,
     worktreeBaseRef: plan.baseRef,
@@ -67,6 +68,7 @@ export function planToLaunchIntent(plan: RunnerPlan): LaunchIntent {
     // ceiling before admission. Ceiling = the SAME budget because a dispatch is
     // its OWN lineage root (source:'dispatch' is a root-minting source), so the
     // whole subtree it heads is bounded by exactly the budget the operator set.
+    budgetUsd: plan.budgetUsd,
     bondUsd: plan.budgetUsd,
     lineageCeilingUsd: plan.budgetUsd,
     timeoutMs: plan.timeoutMs,
@@ -109,7 +111,33 @@ export function createConductorSpawnAdapter(conductor: ConductorLike): SpawnAdap
       };
     }
 
+    // Bind the dispatch row's runtime identities live, as the Conductor admits
+    // the launch and starts the body — not after `launch()` resolves. An
+    // operator surface following this dispatch (a lane, the handoff-capsule
+    // builder on a mid-run failure) needs launchId/agentId/transcriptId while
+    // the run is still in flight, not only once it is terminal.
+    const dispatchId = input.plan.dispatch.id;
     const intent = planToLaunchIntent(input.plan);
+    intent.onAdmitted = (admittedLaunch) => {
+      try {
+        input.queue.bindExecution({ id: dispatchId, launchId: admittedLaunch.id });
+      } catch {
+        // Best-effort live binding; the terminal mapping below still carries
+        // the authoritative launchId if this write fails.
+      }
+    };
+    intent.onAgentStarted = (receipt) => {
+      try {
+        input.queue.bindExecution({
+          id: dispatchId,
+          agentId: receipt.agentId,
+          transcriptId: receipt.transcriptId,
+          model: receipt.model,
+        });
+      } catch {
+        // Best-effort live binding; see above.
+      }
+    };
     const r = await conductor.launch(intent);
 
     // Refused at admission (bond/ceiling/depth/breaker/main-checkout/capability):
@@ -122,26 +150,64 @@ export function createConductorSpawnAdapter(conductor: ConductorLike): SpawnAdap
     // mapping is exhaustive over the states the Conductor can return from
     // `launch()`; an unrecognized state is treated as a failure rather than
     // silently swallowed (defensive: a future LaunchState must be mapped here).
+    // Stamp the body's agent id onto the dispatch row as soon as the Conductor
+    // resolves it. This is the join key to `fleet_transcripts`, and it is
+    // recorded here — before the terminal mapping below — because the two things
+    // that need it (a live lane, and the handoff capsule built when a body dies)
+    // both need it while the run is unfinished or failing, not after.
+    const agentId = r.launch.agentId ?? null;
+    if (agentId && typeof input.queue.recordSpawnedAgent === 'function') {
+      try {
+        input.queue.recordSpawnedAgent(input.plan.dispatch.id, agentId);
+      } catch {
+        // Never let a bookkeeping write fail a run: an unrecorded agent id costs
+        // the lane a transcript link, an exception here costs the whole dispatch.
+      }
+    }
+
     const launchState = r.launch.state;
     switch (launchState) {
       case 'halted':
         // Operator halt landed on this launch → preserve the worktree/transcript
         // for the operator to salvage rather than discarding it as a failure.
-        return { state: 'salvage', errorMessage: r.launch.errorMessage ?? 'halted' };
+        return {
+          state: 'salvage',
+          launchId: r.launch.id,
+          agentId,
+          errorMessage: r.launch.errorMessage ?? 'halted',
+        };
 
       case 'failed':
         return {
           state: 'failed',
+          launchId: r.launch.id,
+          agentId,
           costUsd: r.launch.costUsd ?? undefined,
           errorMessage: r.launch.errorMessage,
         };
 
       case 'produced':
       case 'settled':
-        // A successful run. On the review path the Conductor's publishArtifact
-        // hook has already attached the draft-PR URL to resultArtifact.
+        // A review launch is only disposable once the Conductor proves a
+        // durable artifact exists. Agents can finish with dirty files but no
+        // commit; in that case push/PR publication returns null. Calling that
+        // settled lets DispatchWorker reap the only copy of the work. Route it
+        // to salvage so the worktree and transcript remain recoverable.
+        if (!r.launch.resultArtifact) {
+          return {
+            state: 'salvage',
+            launchId: r.launch.id,
+            agentId,
+            costUsd: r.launch.costUsd ?? undefined,
+            errorMessage:
+              r.launch.errorMessage
+              ?? 'run completed without a reviewable artifact; worktree preserved for recovery',
+          };
+        }
         return {
           state: 'settled',
+          launchId: r.launch.id,
+          agentId,
           costUsd: r.launch.costUsd ?? undefined,
           resultArtifact: r.launch.resultArtifact,
         };
@@ -149,6 +215,8 @@ export function createConductorSpawnAdapter(conductor: ConductorLike): SpawnAdap
       default:
         return {
           state: 'failed',
+          launchId: r.launch.id,
+          agentId,
           errorMessage: `unexpected launch state: ${launchState}`,
         };
     }

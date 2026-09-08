@@ -1,0 +1,128 @@
+name: Apple credentials preflight
+
+# Are the Apple signing + notarization credentials ACTUALLY good, right now?
+#
+# release.yml deliberately fail-SOFT on notarization: a bad key degrades the
+# build to signed-but-unnotarized with a `::warning::` so a rotated key can
+# never block shipping. That kindness hid a real outage — the notary
+# credentials failed validation in EVERY release job from v3.27.0 onward, so
+# every macOS artifact shipped unnotarized and Gatekeeper quarantined the
+# downloaded apps, while `latest.json` advertised them as signed.
+#
+# This workflow is the fail-HARD counterpart. It proves the credentials end to
+# end without publishing anything:
+#   1. store-credentials — the EXACT call release.yml gates on (a live
+#      authenticated validation against Apple).
+#   2. a real notarization round trip of a throwaway signed Mach-O — the only
+#      thing that proves the team's Apple Developer agreements are accepted and
+#      the service will actually accept our submissions. Auth can succeed while
+#      submission is refused for unsigned agreements, so step 1 alone is not
+#      proof.
+#
+# Run it after rotating a key, after accepting new Apple agreements, or weekly
+# as an expiry canary. Nothing here uploads, publishes, or mutates a release.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 14 * * 2' # Tuesdays 14:00 UTC — expiry canary
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Credentials must be present (this workflow does not fail soft)
+        env:
+          APPLE_CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
+          APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+          APPLE_NOTARY_KEY_P8_BASE64: ${{ secrets.APPLE_NOTARY_KEY_P8_BASE64 }}
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_KEY_ISSUER: ${{ secrets.APPLE_NOTARY_KEY_ISSUER }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in APPLE_CERT_P12_BASE64 APPLE_CERT_PASSWORD \
+                      APPLE_NOTARY_KEY_P8_BASE64 APPLE_NOTARY_KEY_ID APPLE_NOTARY_KEY_ISSUER; do
+            if [ -z "${!name:-}" ]; then echo "::error::$name is not set"; missing=1; fi
+          done
+          [ "$missing" = 0 ] || exit 1
+          echo "all five Apple secrets are present"
+
+      - name: Import the Developer ID certificate + report its expiry
+        env:
+          APPLE_CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
+          APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          KEYCHAIN="$RUNNER_TEMP/pd-preflight.keychain-db"
+          KCPASS="$(openssl rand -hex 24)"
+          security create-keychain -p "$KCPASS" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KCPASS" "$KEYCHAIN"
+          echo "$APPLE_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$APPLE_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -k "$KCPASS" "$KEYCHAIN" >/dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          rm -f "$RUNNER_TEMP/cert.p12"
+          if ! security find-identity -v -p codesigning "$KEYCHAIN" | grep -q 'Developer ID Application'; then
+            echo "::error::no Developer ID Application identity in the imported cert — APPLE_CERT_P12_BASE64 is wrong or lacks its private key"
+            exit 1
+          fi
+          security find-identity -v -p codesigning "$KEYCHAIN"
+          echo "KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+
+      - name: Validate the notary credentials (the exact gate release.yml fails soft on)
+        env:
+          APPLE_NOTARY_KEY_P8_BASE64: ${{ secrets.APPLE_NOTARY_KEY_P8_BASE64 }}
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_KEY_ISSUER: ${{ secrets.APPLE_NOTARY_KEY_ISSUER }}
+        run: |
+          set -euo pipefail
+          echo "$APPLE_NOTARY_KEY_P8_BASE64" | base64 --decode > "$RUNNER_TEMP/notary.p8"
+          if ! head -1 "$RUNNER_TEMP/notary.p8" | grep -q 'BEGIN PRIVATE KEY'; then
+            echo "::error::the decoded APPLE_NOTARY_KEY_P8_BASE64 is not a PEM private key — the secret is not valid base64 of the .p8"
+            rm -f "$RUNNER_TEMP/notary.p8"
+            exit 1
+          fi
+          if ! xcrun notarytool store-credentials pd-preflight \
+                 --key "$RUNNER_TEMP/notary.p8" \
+                 --key-id "$APPLE_NOTARY_KEY_ID" \
+                 --issuer "$APPLE_NOTARY_KEY_ISSUER" \
+                 --keychain "$KEYCHAIN"; then
+            echo "::error::notary credentials REJECTED by Apple. Causes, in order of likelihood: (1) unaccepted Apple Developer agreements — sign them at developer.apple.com and App Store Connect, then re-run; (2) APPLE_NOTARY_KEY_ISSUER holds the Key ID instead of the team Issuer UUID; (3) the key was revoked or lacks the Developer role."
+            rm -f "$RUNNER_TEMP/notary.p8"
+            exit 1
+          fi
+          rm -f "$RUNNER_TEMP/notary.p8"
+          echo "notary credentials validated"
+
+      - name: Real notarization round trip (proves the agreements are accepted)
+        run: |
+          set -euo pipefail
+          # A throwaway Mach-O, signed with the real Developer ID and submitted
+          # to Apple. Auth can pass while submission is refused for unsigned
+          # agreements, so this — not store-credentials — is the proof.
+          work="$RUNNER_TEMP/notary-rt"; mkdir -p "$work"
+          printf 'int main(void){return 0;}\n' > "$work/probe.c"
+          clang -o "$work/probe" "$work/probe.c"
+          codesign --force --options runtime --timestamp \
+            --sign "Developer ID Application: Curiositech LLC (P5H9P59X2M)" \
+            --keychain "$KEYCHAIN" "$work/probe"
+          codesign --verify --strict --verbose=2 "$work/probe"
+          ditto -c -k "$work/probe" "$work/probe.zip"
+          if ! xcrun notarytool submit "$work/probe.zip" \
+                 --keychain-profile pd-preflight --keychain "$KEYCHAIN" \
+                 --wait --timeout 15m; then
+            echo "::error::Apple ACCEPTED our credentials but REFUSED the submission. This is the signature of unaccepted Apple Developer / App Store Connect agreements, or a team-level account hold. Sign the outstanding agreements as the Account Holder, then re-run."
+            exit 1
+          fi
+          echo "notarization round trip ACCEPTED — releases will ship notarized"
+
+      - name: Tear down the temporary keychain
+        if: always()
+        run: security delete-keychain "$KEYCHAIN" || true

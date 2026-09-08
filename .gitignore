@@ -37,8 +37,9 @@ website-v2/.tmp-og/
 .env.local
 .port-daddy-env
 
-# Internal: analysis, strategy, dev planning
-plans/
+# Internal: analysis, strategy, dev planning (root-level scratch dir only —
+# anchored so it cannot swallow docs/plans/, where tracked program plans live)
+/plans/
 .CLAUDE_LOCK
 .CLAUDE_NOTES.md
 .portdaddyrc
@@ -49,6 +50,7 @@ plans/
 .remember/
 .serena/
 .cache/
+.visual-audit/
 .public-export/
 CLAUDE.md
 GEMINI.md
@@ -65,11 +67,14 @@ port-daddy-asciinema-skills-plan.md
 vite-output.log
 daemon-error.log
 *.cjs
+
 STRATEGY_private_gitignore/
 apps/FleetBar/.build/
+apps/pd-ios/.build/
+apps/pd-ios/DerivedData/
 **/build/
 .firecrawl/
-.windags/
+.skill-runtime-archive/
 v0-agentsd-main/
 agentsd_mocks/
 .aider.chat.history.md
@@ -118,8 +123,19 @@ xcuserdata/
 # per-user state must never be committed. Provisioning ids/secrets live in
 # wrangler.toml — use the checked-in *.example templates instead.
 apps/*/wrangler.toml
+# (apps/*/wrangler.deploy.toml IS committed: id-only CI deploy configs, no secrets.)
+# miniflare/wrangler local state (local D1 sqlite, DO storage, dev caches).
+**/.wrangler/
 **/.swiftpm/xcode/package.xcworkspace/xcuserdata/
 **/*.xcuserstate
 
 # Generated from com.portdaddy.fleetbar.plist.template by apps/FleetBar/install.sh
 apps/FleetBar/com.portdaddy.fleetbar.plist
+
+# harbor-results scripts savefig() to bare filenames, so running one from the
+# repo root drops a stray PNG here. The canonical copies are committed under
+# docs/harbor-research/figures/ — these root-level ones are re-renders and are
+# never the artifact of record.
+/a7_figure.png
+/b2_figure.png
+/b8_figure.png

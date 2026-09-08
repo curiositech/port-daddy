@@ -269,12 +269,28 @@ export function createTestDb() {
       notes_json TEXT NOT NULL DEFAULT '[]',
       harbor TEXT NOT NULL,
       created_at INTEGER NOT NULL,
+      kind TEXT NOT NULL DEFAULT 'task'
+        CHECK(kind IN ('project','epic','story','task','subtask','bug','chore')),
+      priority INTEGER NOT NULL DEFAULT 3
+        CHECK(priority BETWEEN 1 AND 5),
+      assignee_id TEXT,
+      description_md TEXT,
+      started_at INTEGER,
+      due_at INTEGER,
+      estimate INTEGER,
+      tags_json TEXT NOT NULL DEFAULT '[]',
+      actual INTEGER,
+      completed_at INTEGER,
+      source_refs_json TEXT,
+      deleted_at INTEGER,
       UNIQUE(slug, harbor)
     );
     CREATE INDEX IF NOT EXISTS idx_roadmap_items_harbor_status
       ON roadmap_items(harbor, status);
     CREATE INDEX IF NOT EXISTS idx_roadmap_items_last_touched
       ON roadmap_items(last_touched_at);
+    CREATE INDEX IF NOT EXISTS idx_roadmap_items_live
+      ON roadmap_items(harbor, status) WHERE deleted_at IS NULL;
 
     CREATE TABLE IF NOT EXISTS roadmap_item_status_events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

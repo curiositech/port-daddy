@@ -48,7 +48,10 @@ export const ActivityType = {
   // System
   DAEMON_START: 'daemon.start',
   DAEMON_STOP: 'daemon.stop',
-  CLEANUP: 'cleanup'
+  CLEANUP: 'cleanup',
+  // Durable record of a crossed resource ceiling (DB/WAL/table growth). Raised by the SelfMonitor
+  // so a runaway footprint leaves an audit trail — the signal that was missing for the 313 GB storm.
+  RESOURCE_ALARM: 'resource.alarm'
 } as const;
 
 interface LogOptions {

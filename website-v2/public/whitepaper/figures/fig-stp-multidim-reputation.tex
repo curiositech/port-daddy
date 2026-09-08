@@ -1,61 +1,51 @@
-% Fig 10 — multi-dimensional reputation: three axes, three judges, buyer weighting.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure --- the same outcome vectors reverse under legitimate buyer weights.
 \begin{figure}[H]
 \centering
-\resizebox{0.92\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  axis/.style={draw=hhebony,thick,rounded corners=2pt,inner sep=4pt,align=center,
-               minimum width=34mm,minimum height=14mm},
-  judge/.style={draw=hhink,thick,fill=hhsand!30,rounded corners=2pt,inner sep=3pt,
-                align=center,font=\footnotesize,minimum width=34mm},
-  arr/.style={->,>=Latex,thick,draw=hhink},
-]
-% the witnessed outcome
-\node[draw=hhebony,thick,fill=hhsand!30,rounded corners=3pt,inner sep=5pt,
-      align=center,font=\bfseries] (out) at (0,1.5)
-  {witnessed\\outcome};
+\resizebox{0.96\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-6.8,3.05)
+    {witnessed outcome profiles remain vectors};
 
-% three axes
-\node[axis,fill=hhsand!30,right=20mm of out,yshift=18mm] (acc) {\textbf{accuracy}\\{\scriptsize $q_{\text{acc}}$}};
-\node[axis,fill=hhsand!30,right=20mm of out] (aes) {\textbf{aesthetics}\\{\scriptsize $q_{\text{aes}}$}};
-\node[axis,fill=hhsand!30,right=20mm of out,yshift=-18mm] (eff) {\textbf{efficiency}\\{\scriptsize $q_{\text{eff}}$}};
-\draw[arr] (out.east) to[bend left=8] (acc.west);
-\draw[arr] (out.east) -- (aes.west);
-\draw[arr] (out.east) to[bend right=8] (eff.west);
+  % Three independently judged axes.
+  \foreach \x/\axis/\judge in {-4.4/accuracy/test oracle,0/aesthetics/expert reviewer,4.4/efficiency/cost ledger} {
+    \draw[pd hairline] (\x,-.35) -- (\x,2.45);
+    \foreach \y/\lab in {-.35/0,.35/.25,1.05/.5,1.75/.75,2.45/1}
+      \draw[pd tick] (\x-.11,\y) -- (\x+.11,\y);
+    \node[pd direct label,anchor=north,align=center] at (\x,-.58)
+      {\textbf{\axis}\\[-1pt]{\tiny \judge}};
+  }
+  % A=(1,.85,.45), B=(.75,.55,1)
+  \draw[pd focus rule,line width=1.5pt] (-4.4,2.45) -- (0,2.03) -- (4.4,.91);
+  \draw[pd caution rule,dashed,line width=1.5pt] (-4.4,1.75) -- (0,1.19) -- (4.4,2.45);
+  \foreach \x/\y in {-4.4/2.45,0/2.03,4.4/.91} \node[pd focus datum] at (\x,\y) {};
+  \foreach \x/\y in {-4.4/1.75,0/1.19,4.4/2.45} \node[pd caution datum] at (\x,\y) {};
+  \node[pd direct label,text=hhteal,anchor=west] at (4.65,.91) {outcome A};
+  \node[pd direct label,text=hhamber,anchor=west] at (4.65,2.45) {outcome B};
 
-% three different judges
-\node[judge,right=14mm of acc] (jacc) {test \textbf{oracle}\\{\scriptsize did it do the right thing?}};
-\node[judge,right=14mm of aes] (jaes) {senior \textbf{reviewer}\\{\scriptsize is the artifact good?}};
-\node[judge,right=14mm of eff] (jeff) {the \textbf{meter}\\{\scriptsize \texttt{cost-ledger.ts}}};
-\draw[arr,draw=hhink] (acc) -- (jacc);
-\draw[arr,draw=hhink] (aes) -- (jaes);
-\draw[arr,draw=hhink] (eff) -- (jeff);
-
-% buyer weighting
-\node[draw=hhcobalt,thick,fill=hhsand!30,rounded corners=3pt,inner sep=5pt,
-      right=16mm of jaes,align=center,font=\footnotesize,text width=30mm] (buyer)
-  {\textbf{buyer} reads the \emph{vector} $\mathbf{q}$ and applies \emph{their own}
-   weights $\mathbf{w}$ (``cheap vs.\ careful'')};
-\draw[arr,draw=hhcobalt] (jacc.east) to[bend left=6] (buyer.west);
-\draw[arr,draw=hhcobalt] (jaes.east) -- (buyer.west);
-\draw[arr,draw=hhcobalt] (jeff.east) to[bend right=6] (buyer.west);
-
-
+  % Buyer-specific projections; same vectors, opposite decisions.
+  \node[pd panel title,anchor=west] at (-6.8,-1.55)
+    {buyers apply preferences after disclosure};
+  \draw[pd hairline] (-5.25,-2.35) -- (5.8,-2.35);
+  \draw[pd hairline] (-5.25,-3.20) -- (5.8,-3.20);
+  \node[pd direct label,anchor=east] at (-5.45,-2.35)
+    {security buyer\\[-1pt]{\tiny weights $.60,.30,.10$}};
+  \node[pd direct label,anchor=east] at (-5.45,-3.20)
+    {cost buyer\\[-1pt]{\tiny weights $.15,.15,.70$}};
+  \node[pd focus datum] at (4.10,-2.35) {};
+  \node[pd caution datum] at (1.85,-2.35) {};
+  \node[pd focus datum] at (-.70,-3.20) {};
+  \node[pd caution datum] at (4.00,-3.20) {};
+  \node[pd direct label,text=hhteal,anchor=west] at (4.30,-2.35) {A selected};
+  \node[pd direct label,text=hhamber,anchor=west] at (4.20,-3.20) {B selected};
+  \node[pd axis label,anchor=north] at (-5.25,-3.45) {lower weighted fit};
+  \node[pd axis label,anchor=north] at (5.8,-3.45) {higher weighted fit};
 \end{tikzpicture}}
-\caption{\textbf{Multi-dimensional reputation.} A witnessed outcome
-carries a quality \emph{vector} $\mathbf{q}=(q_{\text{acc}},q_{\text{aes}},
-q_{\text{eff}})$. Each axis is scored by a \emph{different} competent judge: a test
-oracle for accuracy, a senior reviewer for aesthetics, the cost meter for
-efficiency. The buyer reads the vector and applies their own weights --- which is
-exactly what avoids collapsing quality into one Goodhart-able scalar.}
+\caption{\textbf{One quality vector supports legitimate preference reversal.}
+Outcome A is strongest on accuracy and aesthetics; outcome B is strongest on
+efficiency. Each axis is independently judged, then disclosed without a universal
+scalar. A security-weighted buyer selects A while a cost-weighted buyer selects B.
+Premature averaging would erase one of these valid decisions and create a single
+Goodhart target. Color is redundant with solid-versus-dashed profiles and direct
+labels.}
 \label{fig:multidim}
 \end{figure}

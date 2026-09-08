@@ -8,7 +8,7 @@
  * `pd feedback`/`pd tutorial` mis-detected the terminal.
  *
  * RULE: CLI code must decide interactivity via the kernel-level helpers in
- * `cli/utils/tty.ts` (`isStdinInteractive` / `openControllingTerminalInput`),
+ * `cli/utils/tty.ts` (`isStdinInteractive` / `readLineFromControllingTerminal`),
  * never by reading `stdin.isTTY` directly. The canonical predicate uses
  * `tty.isatty(0)` with the stream flag only as a fallback.
  *
@@ -88,7 +88,7 @@ describe('no-raw-stdin-istty', () => {
       throw new Error(
         `Found ${offenders.length} raw stdin.isTTY check(s) in CLI source:\n${detail}\n\n` +
         `stdin.isTTY is unreliable under the bun-compiled binary. Use\n` +
-        `isStdinInteractive() / openControllingTerminalInput() from cli/utils/tty.ts instead.\n` +
+        `isStdinInteractive() / readLineFromControllingTerminal() from cli/utils/tty.ts instead.\n` +
         `The raw flag may live ONLY in cli/utils/tty.ts (the fallback owner).`,
       );
     }

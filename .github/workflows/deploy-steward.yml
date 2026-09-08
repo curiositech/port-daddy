@@ -1,0 +1,83 @@
+name: Deploy steward (Cloudflare Worker)
+
+# Why this workflow exists:
+#   apps/steward is the Steward's seat (ADR-0109; docs/plans/THE_FULL_WHEEL.md
+#   §11 P1) — the per-repo Durable Object holding the merge authority's
+#   identity: charter, wake inbox, alarm heartbeat, and the append-only
+#   deck-log / merge-ledger fabric. It shipped with a committed
+#   wrangler.deploy.toml but NO deploy automation, so merging a change to main
+#   left the OLD Worker running until someone remembered `wrangler deploy` by
+#   hand — the exact drift deploy-fleet-executor.yml was created to kill for
+#   the executor. Launching a Worker is a consequence of CI/CD, not a chore:
+#   this workflow deploys the steward on every push to main that touches the
+#   app, so main == what's live.
+#
+# Config model — committed file, NOT a secret:
+#   apps/steward/wrangler.deploy.toml is committed and carries ONLY
+#   non-credential values (the shared D1 database id, the StewardDO binding).
+#   Cloudflare resource ids grant no access without an API token, and the
+#   committed file makes main the single source of truth.
+#
+# Required repository secrets (already set for deploy-fleet-executor):
+#   - CLOUDFLARE_API_TOKEN    Workers Scripts:Edit on this account.
+#   - CLOUDFLARE_ACCOUNT_ID
+#
+# The seat's runtime secrets are set out-of-band via `wrangler secret put` and
+# are PRESERVED across `wrangler deploy` — this workflow never touches them:
+#   - STEWARD_ADMIN_TOKEN     the commissioning bearer token (absent ⇒ every
+#                             route answers 503 "seat not commissioned", so
+#                             deploying before provisioning is safe).
+#   - STEWARD_GITHUB_TOKEN    read-only survey eyes (optional).
+#   - STEWARD_LAND_TOKEN      the landing hand (optional; presence is the switch).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/steward/**'
+      - '.github/workflows/deploy-steward.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Serialize deploys so two rapid pushes can't race the same Worker.
+  group: deploy-steward
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # Never run from a fork; the secrets only exist on the canonical repo.
+    if: github.repository == 'curiositech/port-daddy'
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/steward
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/steward/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Don't ship a red build. main is already tested by ci.yml's
+      # steward-tests job, but a deploy that skips its own gate can push a
+      # broken Worker if the two ever drift.
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npx vitest run
+
+      - name: Deploy Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy --config wrangler.deploy.toml

@@ -209,7 +209,7 @@ class BackendStore: ObservableObject {
     @Published var lastError: String?
 
     private nonisolated(unsafe) var refreshTimer: Timer?
-    private let baseURL: String
+    private let baseURL: String?
 
     /// The single "current backend" the FleetBar status row should show.
     /// Priority:
@@ -292,7 +292,7 @@ class BackendStore: ObservableObject {
     }
 
     init(autoStart: Bool = true) {
-        self.baseURL = DaemonLocation.resolveBaseURL()
+        self.baseURL = DaemonLocation.availableBaseURL()
         guard autoStart else { return }
 
         Task { await refresh() }
@@ -348,7 +348,7 @@ class BackendStore: ObservableObject {
     // MARK: - Fetchers
 
     private func fetchBackends() async -> BackendCatalogResponse? {
-        guard let url = URL(string: "\(baseURL)/fleet/models") else { return nil }
+        guard let baseURL, let url = URL(string: "\(baseURL)/fleet/models") else { return nil }
         do {
             let (data, response) = try await URLSession.shared.data(from: url)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
@@ -363,7 +363,7 @@ class BackendStore: ObservableObject {
     }
 
     private func fetchForecast() async -> SpawnForecastResponse? {
-        guard let url = URL(string: "\(baseURL)/fleet/forecast") else { return nil }
+        guard let baseURL, let url = URL(string: "\(baseURL)/fleet/forecast") else { return nil }
         do {
             let (data, response) = try await URLSession.shared.data(from: url)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return nil }
@@ -383,7 +383,7 @@ class BackendStore: ObservableObject {
     /// uses this to swap between Today / Week / Month without disturbing the
     /// menubar's pinned-to-today truth.
     func fetchCost(since secondsAgo: Int) async -> BackendCostWindow {
-        guard let url = URL(string: "\(baseURL)/metrics/cost?since=\(secondsAgo)") else {
+        guard let baseURL, let url = URL(string: "\(baseURL)/metrics/cost?since=\(secondsAgo)") else {
             return .empty
         }
         do {

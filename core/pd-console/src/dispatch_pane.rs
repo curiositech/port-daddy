@@ -1,7 +1,7 @@
-//! Dispatch-queue control pane — the operator's view of sorties awaiting review.
+//! Dispatch run/recovery pane — live work, review gates, and recoverable output.
 //!
 //! On `:dispatch` the pane refreshes against the daemon and emits render-agnostic
-//! `Block`s:  Header → KeyVal(pending count) → one Row per dispatch → Chip(summary).
+//! `Block`s: Header → state counts → one Row per dispatch → Chip(summary).
 //!
 //! Fail-closed: when the daemon is unreachable the pane renders a `Header`
 //! followed by a `Block::KeyVal("error", <message>)` (two blocks) and does NOT
@@ -27,7 +27,7 @@ fn truncate_chars(s: &str, n: usize) -> String {
     }
 }
 
-/// One dispatch entry as returned by `GET /dispatches?state=review_pending`.
+/// One dispatch entry as returned by `GET /dispatches`.
 ///
 /// Tolerant `from_value` extraction, never strict serde — the daemon sends
 /// epoch-ms numbers and nulls (`createdAt: 1781133247168`), which a strict
@@ -41,6 +41,9 @@ struct DispatchEntry {
     #[allow(dead_code)]
     budget_usd: Option<f64>,
     cost_usd: Option<f64>,
+    worktree_path: Option<String>,
+    error_message: Option<String>,
+    result_artifact: Option<String>,
     #[allow(dead_code)]
     created_at: Option<u64>,
 }
@@ -59,6 +62,9 @@ impl DispatchEntry {
                 .unwrap_or_else(|| "unknown".into()),
             budget_usd: f("budgetUsd").or_else(|| f("budget_usd")),
             cost_usd: f("costUsd").or_else(|| f("cost_usd")),
+            worktree_path: s("worktreePath").or_else(|| s("worktree_path")),
+            error_message: s("errorMessage").or_else(|| s("error")),
+            result_artifact: s("resultArtifact").or_else(|| s("result_artifact")),
             created_at: v
                 .get("createdAt")
                 .or_else(|| v.get("created_at"))
@@ -97,7 +103,9 @@ pub struct DispatchHead {
     pub count: u32,
 }
 
-/// Pane that shows the dispatch queue (sorties in `review_pending` state).
+/// Pane that shows dispatches requiring operator awareness. Active, review,
+/// failure, and salvage rows remain visible, followed by a bounded set of
+/// recently settled rows with their durable artifact receipts.
 pub struct DispatchQueuePane {
     /// Current snapshot from the daemon (empty until first refresh).
     dispatches: Vec<DispatchEntry>,
@@ -124,14 +132,17 @@ impl DispatchQueuePane {
 
     /// The oldest dispatch awaiting review — what the operator gate acts on next.
     pub fn head(&self) -> Option<DispatchHead> {
-        self.dispatches.first().map(|d| DispatchHead {
-            id: d.id.clone(),
-            goal: d.goal.clone(),
-            state: d.state.clone(),
-            budget_usd: d.budget_usd,
-            cost_usd: d.cost_usd,
-            count: self.count,
-        })
+        self.dispatches
+            .iter()
+            .find(|dispatch| dispatch.state == "review_pending")
+            .map(|d| DispatchHead {
+                id: d.id.clone(),
+                goal: d.goal.clone(),
+                state: d.state.clone(),
+                budget_usd: d.budget_usd,
+                cost_usd: d.cost_usd,
+                count: self.count,
+            })
     }
 }
 
@@ -153,15 +164,41 @@ impl Pane for DispatchQueuePane {
             return blocks;
         }
 
+        let active = self
+            .dispatches
+            .iter()
+            .filter(|dispatch| {
+                matches!(
+                    dispatch.state.as_str(),
+                    "proposed" | "claimed" | "in_progress" | "produced"
+                )
+            })
+            .count();
+        let recovery = self
+            .dispatches
+            .iter()
+            .filter(|dispatch| matches!(dispatch.state.as_str(), "salvage" | "failed" | "rejected"))
+            .count();
+        let completed = self
+            .dispatches
+            .iter()
+            .filter(|dispatch| dispatch.state == "settled")
+            .count();
+        blocks.push(Block::KeyVal("active".into(), active.to_string()));
         blocks.push(Block::KeyVal(
             "pending review".into(),
             self.count.to_string(),
+        ));
+        blocks.push(Block::KeyVal("recovery".into(), recovery.to_string()));
+        blocks.push(Block::KeyVal(
+            "recently completed".into(),
+            completed.to_string(),
         ));
 
         if self.dispatches.is_empty() {
             blocks.push(Block::KeyVal(
                 "status".into(),
-                "no dispatches awaiting review".into(),
+                "no active, gated, or recoverable dispatches".into(),
             ));
         } else {
             for d in &self.dispatches {
@@ -183,14 +220,35 @@ impl Pane for DispatchQueuePane {
                     d.state.clone(),
                     cost_str,
                 ]));
+                if d.state == "salvage" {
+                    blocks.push(Block::KeyVal(
+                        format!("recover {}", truncate_chars(&d.id, 8)),
+                        d.worktree_path
+                            .clone()
+                            .or_else(|| d.error_message.clone())
+                            .unwrap_or_else(|| "inspect the durable transcript receipt".into()),
+                    ));
+                } else if d.state == "settled" {
+                    blocks.push(Block::KeyVal(
+                        format!("receipt {}", truncate_chars(&d.id, 8)),
+                        d.result_artifact
+                            .clone()
+                            .unwrap_or_else(|| "artifact receipt missing".into()),
+                    ));
+                }
             }
         }
 
-        let chip_label = format!("{} awaiting review", self.count);
-        let chip_tone = if self.count == 0 {
-            Tone::Resting
-        } else {
+        let chip_label = format!(
+            "{active} active · {} review · {recovery} recovery · {completed} complete",
+            self.count
+        );
+        let chip_tone = if recovery > 0 {
+            Tone::Gated
+        } else if active > 0 || self.count > 0 {
             Tone::Engaged
+        } else {
+            Tone::Resting
         };
         blocks.push(Block::Chip {
             label: chip_label,
@@ -205,7 +263,7 @@ impl Pane for DispatchQueuePane {
         daemon: &'a DaemonClient,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
         Box::pin(async move {
-            let url = format!("{}/dispatches?state=review_pending&limit=50", daemon.base());
+            let url = format!("{}/dispatches?limit=50", daemon.base());
             let result = daemon.http_client().get(&url).send().await;
 
             match result {
@@ -230,9 +288,23 @@ impl Pane for DispatchQueuePane {
                         }
                         Ok(v) => {
                             self.last_error = None;
-                            let (dispatches, count) = parse_dispatches(&v);
-                            self.dispatches = dispatches;
-                            self.count = count;
+                            let (dispatches, _) = parse_dispatches(&v);
+                            let mut recent_settled = 0;
+                            self.dispatches = dispatches
+                                .into_iter()
+                                .filter(|dispatch| {
+                                    if dispatch.state != "settled" {
+                                        return true;
+                                    }
+                                    recent_settled += 1;
+                                    recent_settled <= 3
+                                })
+                                .collect();
+                            self.count = self
+                                .dispatches
+                                .iter()
+                                .filter(|dispatch| dispatch.state == "review_pending")
+                                .count() as u32;
                         }
                     }
                 }
@@ -273,6 +345,9 @@ mod tests {
             state: "review_pending".into(),
             budget_usd: None,
             cost_usd: None,
+            worktree_path: None,
+            error_message: None,
+            result_artifact: None,
             created_at: Some(1),
         };
         let pane = make_pane(vec![entry], 1);
@@ -289,23 +364,18 @@ mod tests {
     fn view_empty_queue() {
         let pane = make_pane(vec![], 0);
         let blocks = pane.view();
-        // Must have Header + KeyVal(pending=0) + status KeyVal + Chip
-        assert!(
-            blocks.len() >= 3,
-            "need at least 3 blocks for empty queue, got {}",
-            blocks.len()
-        );
+        // Header + state counters + status + summary chip remain legible even empty.
+        assert!(blocks.len() >= 7, "empty queue blocks: {}", blocks.len());
         match &blocks[0] {
             Block::Header(h) => assert_eq!(h, "Dispatch Queue"),
             _ => panic!("first block must be Header"),
         }
-        // The chip must say "0 awaiting review"
+        // The chip must report every state family honestly.
         let chip = blocks.last().expect("chip");
         match chip {
-            Block::Chip { label, .. } => assert!(
-                label.contains("0 awaiting review"),
-                "chip label should contain count: {label}"
-            ),
+            Block::Chip { label, .. } => {
+                assert_eq!(label, "0 active · 0 review · 0 recovery · 0 complete")
+            }
             _ => panic!("last block must be Chip, got {chip:?}"),
         }
     }
@@ -319,6 +389,9 @@ mod tests {
             state: "review_pending".into(),
             budget_usd: Some(1.0),
             cost_usd: Some(0.3456),
+            worktree_path: None,
+            error_message: None,
+            result_artifact: None,
             created_at: Some(1781133247168),
         };
         let pane = make_pane(vec![entry], 1);
@@ -330,13 +403,10 @@ mod tests {
             _ => panic!("expected Header"),
         }
         // KeyVal(pending review, 1) present
-        match &blocks[1] {
-            Block::KeyVal(k, v) => {
-                assert_eq!(k, "pending review");
-                assert_eq!(v, "1");
-            }
-            _ => panic!("expected KeyVal for pending count"),
-        }
+        assert!(blocks.iter().any(|block| matches!(
+            block,
+            Block::KeyVal(key, value) if key == "pending review" && value == "1"
+        )));
         // Row for the dispatch
         let row = blocks.iter().find(|b| matches!(b, Block::Row(_)));
         assert!(row.is_some(), "expected at least one Row block");
@@ -354,11 +424,11 @@ mod tests {
             // cost formatted
             assert!(cells[3].starts_with('$'), "cost format: {}", cells[3]);
         }
-        // Chip says "1 awaiting review"
+        // Chip reports the review gate separately from live and recovery work.
         let chip = blocks.last().expect("chip");
         match chip {
             Block::Chip { label, .. } => {
-                assert!(label.contains("1 awaiting review"), "label: {label}");
+                assert_eq!(label, "0 active · 1 review · 0 recovery · 0 complete");
             }
             _ => panic!("last block must be Chip"),
         }
@@ -377,6 +447,9 @@ mod tests {
             state: "review_pending".into(),
             budget_usd: Some(2.0),
             cost_usd: Some(0.5),
+            worktree_path: None,
+            error_message: None,
+            result_artifact: None,
             created_at: Some(1),
         };
         let second = DispatchEntry {
@@ -385,6 +458,9 @@ mod tests {
             state: "review_pending".into(),
             budget_usd: None,
             cost_usd: None,
+            worktree_path: None,
+            error_message: None,
+            result_artifact: None,
             created_at: Some(2),
         };
         let pane = make_pane(vec![first, second], 2);
@@ -408,9 +484,12 @@ mod tests {
             "dispatches": [
                 {"id": "d1", "goal": "ship it", "state": "review_pending",
                  "requestedBy": "operator", "budgetUsd": 2.5, "costUsd": null,
+                 "worktreePath": "/tmp/d1", "errorMessage": "recover me",
                  "createdAt": 1781133247168u64},
                 {"id": "d2", "goal": "fix it", "state": "review_pending",
-                 "budgetUsd": null, "costUsd": 0.12, "createdAt": 1781133250000u64}
+                 "budgetUsd": null, "costUsd": 0.12,
+                 "resultArtifact": "https://example.test/pr/2",
+                 "createdAt": 1781133250000u64}
             ]
         });
         let (entries, count) = parse_dispatches(&body);
@@ -419,6 +498,60 @@ mod tests {
         assert_eq!(entries[0].cost_usd, None);
         assert_eq!(entries[1].cost_usd, Some(0.12));
         assert_eq!(entries[0].created_at, Some(1781133247168));
+        assert_eq!(entries[0].worktree_path.as_deref(), Some("/tmp/d1"));
+        assert_eq!(entries[0].error_message.as_deref(), Some("recover me"));
+        assert_eq!(
+            entries[1].result_artifact.as_deref(),
+            Some("https://example.test/pr/2")
+        );
+    }
+
+    #[test]
+    fn view_surfaces_recovery_and_completed_receipts() {
+        let pane = make_pane(
+            vec![
+                DispatchEntry {
+                    id: "recover-1234".into(),
+                    goal: "Preserve unfinished edits".into(),
+                    state: "salvage".into(),
+                    budget_usd: Some(10.0),
+                    cost_usd: Some(0.01),
+                    worktree_path: Some("/tmp/recover-1234".into()),
+                    error_message: Some("artifact missing".into()),
+                    result_artifact: None,
+                    created_at: Some(1),
+                },
+                DispatchEntry {
+                    id: "settled-5678".into(),
+                    goal: "Publish a reviewable change".into(),
+                    state: "settled".into(),
+                    budget_usd: Some(10.0),
+                    cost_usd: Some(0.02),
+                    worktree_path: None,
+                    error_message: None,
+                    result_artifact: Some("https://github.com/example/repo/pull/42".into()),
+                    created_at: Some(2),
+                },
+            ],
+            0,
+        );
+
+        let blocks = pane.view();
+        assert!(blocks.iter().any(|block| matches!(
+            block,
+            Block::KeyVal(key, value)
+                if key == "recover recover-" && value == "/tmp/recover-1234"
+        )));
+        assert!(blocks.iter().any(|block| matches!(
+            block,
+            Block::KeyVal(key, value)
+                if key == "receipt settled-" && value.ends_with("/pull/42")
+        )));
+        assert!(matches!(
+            blocks.last(),
+            Some(Block::Chip { label, tone: Tone::Gated })
+                if label == "0 active · 0 review · 1 recovery · 1 complete"
+        ));
     }
 
     /// Missing `count` falls back to parsed length; missing array → empty.

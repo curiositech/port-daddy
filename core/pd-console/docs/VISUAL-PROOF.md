@@ -19,18 +19,20 @@ So we record a *real* rendered window, but keep it off the operator's screen:
 - **Off-screen, still rendering** — open the window with `--display <virtual>` so it
   lives on a virtual display (BetterDisplay or a dummy plug). The compositor keeps
   drawing it (animations, shaders run for real); your physical monitor stays clean.
-- **Window-only capture** — stills use `screencapture -l<windowid>` and video uses
-  ScreenCaptureKit's independent-window capture. Both grab **only** the pd-console
-  window's backing store, never your other windows, regardless of which display it
-  sits on.
+- **Window-only capture** — stills use `screencapture -l<windowid>`. Video first
+  tries ScreenCaptureKit's independent-window capture when available, then falls
+  back to repeated exact-window `screencapture -l<windowid>` frames stitched into
+  MP4/GIF. Both paths target **only** the proof-owned pd-console window backing
+  store, never operator browser, terminal, desktop, or unrelated windows.
 
 ## Pieces
 
 | File | Role |
 |------|------|
 | `core/pd-console/src/main.rs` `--display` / `--list-displays` | Open the window on a chosen display; enumerate displays |
-| `core/pd-console/scripts/proof/recorder.swift` | ScreenCaptureKit window/display → `.mov` recorder (cropped to the window) |
-| `core/pd-console/scripts/proof/capture-proof.sh` | Orchestrator: build → resolve virtual display → stills + video → `MANIFEST.md` |
+| `core/pd-console/scripts/proof/recorder.swift` | Best-effort ScreenCaptureKit window → `.mov` recorder (cropped to the window) |
+| `core/pd-console/scripts/proof/capture-proof.sh` | Orchestrator: build → resolve virtual display → exact-window stills + best-effort/fallback video → `RECEIPT.md` + `MANIFEST.md` |
+| `core/pd-console/scripts/proof/check-capture-proof.sh` | Deterministic dry-run receipt smoke; no GPUI launch, display, or TCC required |
 | `core/pd-console/scripts/proof/setup-virtual-display.sh` | One-time: install BetterDisplay, create the virtual screen, grant TCC |
 | `core/pd-console/scripts/capture-gpui.sh` | The original stills-only script (kept; `make shots`) |
 
@@ -64,21 +66,50 @@ make -C core/pd-console displays
 ```sh
 make -C core/pd-console proof
 # auto-detects the virtual display; writes docs/artifacts/gpui/proof-<stamp>/
-#   pane-fleet.png pane-sorties.png … proof.mov proof.mp4 MANIFEST.md
+#   pane-fleet.png pane-sorties.png ... proof.mov/proof.mp4
+#   or proof-window-fallback.mp4/proof-window-fallback.gif
+#   plus RECEIPT.md and MANIFEST.md
 ```
+
+Run the deterministic receipt smoke before trusting the harness:
+
+```sh
+make -C core/pd-console proof-check
+```
+
+`proof-check` verifies more than receipt vocabulary. It runs a dry-run capture,
+parses the machine-readable `pd-console-proof-metadata` JSON block in each
+`RECEIPT.md` and `MANIFEST.md`, and checks committed artifact bundles for a
+current HEAD commit or an explicitly documented capture commit. Real sample
+bundles must also carry decodable/dimensioned PNG/video artifacts plus concrete
+PID-filtered Window ID receipt evidence; intervention bundles must say capture
+stopped before any broad/full-screen fallback. Historical proof may be retained
+when a headless/no-GUI context cannot refresh it, but it must say so in metadata
+and must not claim provider/transcript end-to-end coverage.
 
 Tunables (env):
 
 | Var | Default | Meaning |
 |-----|---------|---------|
+| `PD_PROOF_DRY_RUN` | `0` | set `1` to emit a deterministic receipt/manifest without launching GPUI |
+| `PD_PROOF_STAMP` | UTC timestamp | deterministic artifact stamp for dry-run or scripted proof |
 | `PD_PROOF_DISPLAY` | auto | virtual-display selector (index or UUID) |
 | `PD_PROOF_PANES` | `fleet sorties dispatch sessions health lane` | panes to snapshot |
 | `PD_PROOF_VIDEO_PANE` | `fleet` | pane to record |
 | `PD_PROOF_DURATION` | `10` | video seconds |
 | `PD_PROOF_FPS` | `30` | video frame rate |
+| `PD_PROOF_SETTLE` | `3` | seconds to wait after the proof window appears before screenshot/video capture |
+| `PD_PROOF_VIDEO_MODE` | `auto` | `auto`, `screencapture`, or `sck`; `auto` falls back to exact-window frames |
 | `PD_PROOF_ALLOW_PRIMARY` | `0` | set `1` to allow recording on the primary display when auto-detect finds no virtual display; this is visible and intended only for explicit local debugging |
 
-Paste `MANIFEST.md` into the PR; it links every still and the video.
+Paste `MANIFEST.md` into the PR and keep `RECEIPT.md` with the artifact bundle.
+The receipt records the display selector, launched proof binary, window IDs,
+exact commands, video method, and limitations.
+
+When `PD_PROOF_DISPLAY` is set explicitly, the harness prevalidates the selector
+against `pd-console --list-displays` and fails with `OPERATOR-INTERVENTION.md`
+if it is missing or resolves to the primary display. It must never rely on
+pd-console's display fallback for proof capture.
 
 ## CI note
 
@@ -90,7 +121,12 @@ self-hosted macOS runner additionally needs auto-login + a pre-provisioned TCC g
 ## Troubleshooting
 
 - **"could not create image from display" / 0 frames** → the running terminal lacks
-  Screen Recording permission, or you're in a detached/SSH/CI context.
+  Screen Recording permission, or you're in a detached/SSH/CI context. The
+  harness writes `OPERATOR-INTERVENTION.md` and stops instead of broadening
+  capture.
+- **ScreenCaptureKit aborts or records no frames** → the harness falls back to
+  exact-window `screencapture -l<windowid>` frames and produces
+  `proof-window-fallback.mp4` plus `proof-window-fallback.gif`.
 - **Window opens on the physical monitor** → no virtual display was found; the
   harness aborts unless `PD_PROOF_ALLOW_PRIMARY=1`. Run `proof-setup`.
 - **Empty/blank panes** → the daemon isn't running or `PORT_DADDY_URL` is wrong;

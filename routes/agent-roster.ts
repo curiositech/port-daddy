@@ -5,6 +5,11 @@ import {
   type ActiveAgentRosterClaim,
   type ActiveAgentRosterSession,
 } from '../lib/active-agent-roster.js';
+import {
+  readSquidConformance,
+  unprotectedSquidConformance,
+  type SquidConformance,
+} from '../lib/squid/conformance.js';
 
 interface AgentRosterRouteDeps {
   agents: {
@@ -27,10 +32,12 @@ interface AgentRosterRouteDeps {
   logger: {
     error(msg: string, meta?: Record<string, unknown>): void;
   };
+  readSquidConformance?: (projectDir: string) => SquidConformance;
 }
 
 export const agentRosterPlugin: FastifyPluginAsync<{ deps: AgentRosterRouteDeps }> = async (fastify, opts) => {
   const { agents, cloudAppTelemetry, sessions, metrics, logger } = opts.deps;
+  const inspectSquid = opts.deps.readSquidConformance ?? readSquidConformance;
 
   fastify.get('/agent-roster', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -50,11 +57,26 @@ export const agentRosterPlugin: FastifyPluginAsync<{ deps: AgentRosterRouteDeps 
         limit,
       }) ?? [];
 
+      const conformanceByRoot = new Map<string, SquidConformance>();
       return buildActiveAgentRoster({
         agents: [...(agentRes.agents ?? []), ...remoteAgents],
         sessions: sessionRes.sessions ?? [],
         claims: claimRes.claims ?? [],
         project,
+        squidForWorktree: (root) => {
+          if (!root) return unprotectedSquidConformance('Agent has no local worktree root.');
+          const cached = conformanceByRoot.get(root);
+          if (cached) return cached;
+          try {
+            const snapshot = inspectSquid(root);
+            conformanceByRoot.set(root, snapshot);
+            return snapshot;
+          } catch {
+            const snapshot = unprotectedSquidConformance('Squid conformance inspection failed for this worktree.');
+            conformanceByRoot.set(root, snapshot);
+            return snapshot;
+          }
+        },
       });
     } catch (error) {
       metrics.errors++;

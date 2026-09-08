@@ -15,10 +15,11 @@
  * better-sqlite3 and bun:sqlite (the same snapshot primitive `lib/backup.ts`
  * uses; ADR-0090 §6 phase-2 sanctions it as the seed path). After the copy we
  * scrub the tables ADR-0090 classifies LOCAL-ONLY — `services` (port claims),
- * `endpoints`, and `locks`. A berth must never inherit prod's machine-local
- * port/lock bindings and report them as its own; everything else (roadmap,
+ * `endpoints`, and `locks` — plus executable queue tables. A berth must never
+ * inherit prod's machine-local port/lock bindings or a queued dispatch that its
+ * worker could recover and launch a second time. Board history (roadmap,
  * sessions, notes, feedback, projects, harbors, messages, claim forest) is
- * board data and is preserved.
+ * preserved, while new executions must be explicitly proposed to this berth.
  *
  * This is a ONE-TIME seed, not ongoing sync. The berth diverges freely after
  * launch; cross-daemon federation is ADR-0090 phases 4–9 and out of scope here.
@@ -38,6 +39,13 @@ import { checkIntegrity } from './backup.js';
  * ports it does not own. Scrubbed after the snapshot copy.
  */
 export const LOCAL_ONLY_TABLES = ['services', 'endpoints', 'locks'] as const;
+
+/**
+ * Durable control-plane rows that are meaningful only to the daemon that owns
+ * them. Copying a proposed or interrupted dispatch into a feature berth lets
+ * its eager worker recover and launch prod work without an operator command.
+ */
+export const EXECUTABLE_QUEUE_TABLES = ['dispatches'] as const;
 
 export interface SeedBerthDbOptions {
   /** Where the berth will open its DB (`profile.dbPath`). Must not exist yet. */
@@ -166,7 +174,7 @@ export function seedBerthDbFromProd(opts: SeedBerthDbOptions): SeedBerthDbResult
     const present = tablesIn(targetDbPath);
     const writer = new Database(targetDbPath);
     try {
-      for (const table of LOCAL_ONLY_TABLES) {
+      for (const table of [...LOCAL_ONLY_TABLES, ...EXECUTABLE_QUEUE_TABLES]) {
         if (present.has(table)) {
           writer.exec(`DELETE FROM ${table}`);
           scrubbedTables.push(table);

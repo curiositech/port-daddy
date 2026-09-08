@@ -14,6 +14,7 @@ import {
 } from './event-ledger.js';
 
 const WORK_INTENT_SCHEMA = 'pd.agent-harbor.work-intent.v0';
+const WORK_PLAN_SCHEMA = 'pd.agent-harbor.work-plan.v0';
 
 export interface WorkIntentPayload extends HarborPayload {
   schema: typeof WORK_INTENT_SCHEMA;
@@ -45,11 +46,24 @@ export interface WorkIntentPayload extends HarborPayload {
       budgetUsd?: number;
       timeoutMs?: number;
       baseBranch?: string;
+      projectDir?: string;
       autoClaim?: boolean;
       targetActorId?: string;
       reviewerActorId?: string;
       mergePolicy?: MergePolicy;
       requestedBy?: string;
+      /**
+       * Cross-backend succession (ADR-0131). Carried through the intent rather
+       * than written onto the dispatch row afterwards, because a successor is a
+       * governed launch like any other — the worker's intent gate refuses an
+       * orphan row, so a successor written directly to the queue would be
+       * claimed and then rejected at the exact moment recovery mattered.
+       */
+      predecessorDispatchId?: string;
+      failoverAttempt?: number;
+      failoverFromBackend?: string;
+      handoffEpisodeId?: string;
+      failoverChain?: string[];
     };
   };
 }
@@ -59,6 +73,7 @@ export interface CaptureWorkIntentInput {
   idempotencyKey: string;
   source: WorkIntentPayload['source'];
   goalText: string;
+  contextRefs?: Array<Record<string, unknown>>;
   constraints?: Record<string, unknown>;
   startPolicy?: WorkIntentPayload['startPolicy'];
   attachExisting?: boolean;
@@ -68,6 +83,32 @@ export interface CaptureWorkIntentInput {
   compat?: WorkIntentPayload['compat'];
 }
 
+export interface WorkPlanPayload extends HarborPayload {
+  schema: typeof WORK_PLAN_SCHEMA;
+  planId: string;
+  intentId: string;
+  idempotencyKey: string;
+  shape: 'unshaped';
+  state: 'intent-captured';
+  confidence: number;
+  evidence: string;
+  nodeSpecs: [];
+  placeholders: Array<{
+    placeholderId: string;
+    role: string;
+    uncertaintyReason: string;
+    resolutionTrigger: string;
+    evidenceNeeded: string[];
+  }>;
+  gates: Array<{
+    kind: 'human-approval';
+    reason: string;
+    status: 'pending';
+  }>;
+  requiresApproval: true;
+  createdAt: string;
+}
+
 export interface CaptureDispatchInput {
   goal: string;
   tags?: string[];
@@ -75,12 +116,19 @@ export interface CaptureDispatchInput {
   budgetUsd?: number;
   timeoutMs?: number;
   baseBranch?: string;
+  projectDir?: string;
   targetActorId?: string;
   reviewerActorId?: string;
   mergePolicy?: MergePolicy;
   requestedBy?: string;
   idempotencyKey?: string;
   autoClaim?: boolean;
+  /** Cross-backend succession fields, set only by the failover path. */
+  predecessorDispatchId?: string;
+  failoverAttempt?: number;
+  failoverFromBackend?: string;
+  handoffEpisodeId?: string | null;
+  failoverChain?: string[];
 }
 
 export interface CaptureResult {
@@ -88,8 +136,23 @@ export interface CaptureResult {
   append: AppendResult;
 }
 
+export interface WorkIntentSnapshot {
+  intent: WorkIntentPayload;
+  plan: WorkPlanPayload | null;
+}
+
+export interface CaptureWithInitialPlanResult extends CaptureResult {
+  plan: WorkPlanPayload;
+  planAppend: AppendResult;
+}
+
 export interface CaptureDispatchResult extends CaptureResult {
   dispatch: Dispatch;
+}
+
+export interface StartWorkIntentResult extends WorkIntentSnapshot {
+  dispatch: Dispatch;
+  duplicate: boolean;
 }
 
 export interface EnsureDispatchIntentResult {
@@ -113,6 +176,10 @@ export class WorkIntentMaterializationError extends Error {
 
 export interface WorkIntentService {
   capture(input: CaptureWorkIntentInput): CaptureResult;
+  captureWithInitialPlan(input: CaptureWorkIntentInput): CaptureWithInitialPlanResult;
+  get(intentId: string): WorkIntentSnapshot | null;
+  list(limit?: number): WorkIntentSnapshot[];
+  start(intentId: string, queue: DispatchQueue): StartWorkIntentResult;
   captureDispatch(input: CaptureDispatchInput, queue: DispatchQueue): CaptureDispatchResult;
   ensureDispatchIntent(dispatch: Dispatch): EnsureDispatchIntentResult;
 }
@@ -131,8 +198,27 @@ function idSafe(value: string): string {
   return value.replace(/[^a-zA-Z0-9_:-]/g, '_');
 }
 
+function uuidFromToken(token: string): string {
+  return [
+    token.slice(0, 8),
+    token.slice(8, 12),
+    token.slice(12, 16),
+    token.slice(16, 20),
+    token.slice(20, 32),
+  ].join('-');
+}
+
 export function dispatchIdForWorkIntent(intentId: string): string {
-  return `dispatch_${idSafe(intentId.replace(/^work_intent_/, ''))}`;
+  // The dispatch runner derives worktree identity from the first eight
+  // alphanumerics. Put stable entropy there instead of a shared readable prefix.
+  // Compatibility intake embeds its token in the intent id, which keeps the
+  // WorkIntent event id recoverable without scanning the ledger.
+  const compatibilityToken = /^work_intent_dispatch_([a-f0-9]{32})$/.exec(intentId)?.[1];
+  return uuidFromToken(compatibilityToken ?? stableToken(`work-intent-dispatch:${intentId}`));
+}
+
+export function planIdForWorkIntent(intentId: string): string {
+  return `work_plan_${idSafe(intentId.replace(/^work_intent_/, ''))}`;
 }
 
 function legacyIntentIdForDispatch(dispatchId: string): string {
@@ -153,6 +239,7 @@ function dispatchConstraints(input: {
   timeoutMs?: number | null;
   mergePolicy?: MergePolicy;
   backend?: DispatchBackend | null;
+  projectDir?: string | null;
 }): Record<string, unknown> {
   const constraints: Record<string, unknown> = {
     placement: 'local-only',
@@ -163,6 +250,7 @@ function dispatchConstraints(input: {
   if (input.timeoutMs != null) constraints.deadlineMs = input.timeoutMs;
   if (input.mergePolicy) constraints.reviewRequired = input.mergePolicy === 'review';
   if (input.backend) constraints.bodyPreference = input.backend;
+  if (input.projectDir) constraints.workdir = input.projectDir;
   return constraints;
 }
 
@@ -182,8 +270,59 @@ function readIntentByEventIdIfExists(db: DatabaseInstance, eventId: string): Wor
   return JSON.parse(row.payload_json) as WorkIntentPayload;
 }
 
+function readPlanForIntent(db: DatabaseInstance, intentId: string): WorkPlanPayload | null {
+  const row = db
+    .prepare("SELECT payload_json FROM harbor_events WHERE stream_type = 'work-plan' AND event_id = ?")
+    .get(planIdForWorkIntent(intentId)) as { payload_json: string } | undefined;
+  if (!row) return null;
+  return JSON.parse(row.payload_json) as WorkPlanPayload;
+}
+
+function initialPlanForIntent(intent: WorkIntentPayload): WorkPlanPayload {
+  const planId = planIdForWorkIntent(intent.intentId);
+  return {
+    schema: WORK_PLAN_SCHEMA,
+    planId,
+    intentId: intent.intentId,
+    idempotencyKey: `initial-plan:${intent.idempotencyKey}`,
+    shape: 'unshaped',
+    state: 'intent-captured',
+    confidence: 0,
+    evidence:
+      'Intent is durable. The daemon has not shaped or materialized executable nodes yet; no provider or model has been selected.',
+    nodeSpecs: [],
+    placeholders: [
+      {
+        placeholderId: `placeholder_planner_${idSafe(intent.intentId)}`,
+        role: 'daemon work planner',
+        uncertaintyReason:
+          'The governed WorkPlanner -> AgentNode -> AgentRun materialization path is not available.',
+        resolutionTrigger: 'work-planner.available',
+        evidenceNeeded: [
+          'daemon-shaped WorkPlan',
+          'governed AgentNode materialization',
+          'Squid-managed Body attachment',
+        ],
+      },
+    ],
+    gates: [
+      {
+        kind: 'human-approval',
+        reason: 'Execution is unavailable until the daemon can prove the complete governed launch chain.',
+        status: 'pending',
+      },
+    ],
+    requiresApproval: true,
+    createdAt: intent.createdAt,
+  };
+}
+
 function candidateIntentIdsForDispatchId(dispatchId: string): string[] {
   const ids = [legacyIntentIdForDispatch(dispatchId)];
+  const compactUuid = dispatchId.replace(/-/g, '');
+  if (/^[a-f0-9]{32}$/.test(compactUuid)) {
+    ids.unshift(`work_intent_dispatch_${compactUuid}`);
+  }
   if (dispatchId.startsWith('dispatch_')) {
     ids.unshift(`work_intent_${dispatchId.replace(/^dispatch_/, '')}`);
   }
@@ -215,20 +354,41 @@ function materializeDispatchProjectionFromIntent(
   queue: DispatchQueue,
 ): Dispatch {
   const projection = intent.compat?.dispatchProjection;
+  const constraints = intent.constraints ?? {};
+  const maxCostUsd = typeof constraints.maxCostUsd === 'number'
+    ? constraints.maxCostUsd
+    : undefined;
+  const deadlineMs = typeof constraints.deadlineMs === 'number'
+    ? constraints.deadlineMs
+    : undefined;
+  const reviewRequired = constraints.reviewRequired !== false;
+  const constraintWorkdir = typeof constraints.workdir === 'string'
+    ? constraints.workdir.trim()
+    : '';
   return queue.materializeProjection({
     id: intent.compat?.dispatchId ?? dispatchIdForWorkIntent(intent.intentId),
     goal: intent.goal.text,
-    tags: projection?.tags,
+    tags: projection?.tags ?? [`work-intent:${intent.intentId}`, `surface:${intent.source.surface ?? intent.source.kind}`],
     backend: projection?.backend,
-    budgetUsd: projection?.budgetUsd,
-    timeoutMs: projection?.timeoutMs,
-    baseBranch: projection?.baseBranch,
+    budgetUsd: projection?.budgetUsd ?? maxCostUsd,
+    timeoutMs: projection?.timeoutMs ?? deadlineMs,
+    baseBranch: projection?.baseBranch ?? intent.source.branch ?? 'main',
+    projectDir: projection?.projectDir ?? (constraintWorkdir || intent.source.worktree),
     autoClaim: projection?.autoClaim,
     targetActorId: projection?.targetActorId,
     reviewerActorId: projection?.reviewerActorId,
-    mergePolicy: projection?.mergePolicy,
+    mergePolicy: projection?.mergePolicy ?? (reviewRequired ? 'review' : 'never'),
     requestedBy: projection?.requestedBy ?? intent.operator,
     createdAt: millisFromIso(intent.createdAt),
+    ...(projection?.predecessorDispatchId
+      ? { predecessorDispatchId: projection.predecessorDispatchId }
+      : {}),
+    ...(projection?.failoverAttempt ? { failoverAttempt: projection.failoverAttempt } : {}),
+    ...(projection?.failoverFromBackend
+      ? { failoverFromBackend: projection.failoverFromBackend }
+      : {}),
+    ...(projection?.handoffEpisodeId ? { handoffEpisodeId: projection.handoffEpisodeId } : {}),
+    ...(projection?.failoverChain?.length ? { failoverChain: projection.failoverChain } : {}),
   });
 }
 
@@ -243,7 +403,10 @@ export function createWorkIntentService(deps: WorkIntentServiceDeps): WorkIntent
       intentId: input.intentId ?? `work_intent_${idSafe(uuid())}`,
       idempotencyKey: input.idempotencyKey,
       source: input.source,
-      goal: { text: input.goalText },
+      goal: {
+        text: input.goalText,
+        ...(input.contextRefs?.length ? { contextRefs: input.contextRefs } : {}),
+      },
       constraints: input.constraints,
       startPolicy: input.startPolicy,
       attachExisting: input.attachExisting ?? false,
@@ -256,9 +419,58 @@ export function createWorkIntentService(deps: WorkIntentServiceDeps): WorkIntent
     return { intent: readIntentByEventId(db, append.eventId), append };
   }
 
+  function captureWithInitialPlan(input: CaptureWorkIntentInput): CaptureWithInitialPlanResult {
+    const txn = db.transaction((): CaptureWithInitialPlanResult => {
+      const captured = capture(input);
+      const candidatePlan = initialPlanForIntent(captured.intent);
+      const planAppend = appendEvent(db, { streamType: 'work-plan', payload: candidatePlan });
+      const plan = readPlanForIntent(db, captured.intent.intentId);
+      if (!plan) {
+        throw new Error(`initial WorkPlan ${candidatePlan.planId} was not persisted`);
+      }
+      return { ...captured, plan, planAppend };
+    });
+    return txn();
+  }
+
+  function get(intentId: string): WorkIntentSnapshot | null {
+    ensureEventLedgerSchema(db);
+    const intent = readIntentByEventIdIfExists(db, intentId);
+    return intent ? { intent, plan: readPlanForIntent(db, intent.intentId) } : null;
+  }
+
+  function list(limit = 100): WorkIntentSnapshot[] {
+    ensureEventLedgerSchema(db);
+    const boundedLimit = Math.min(Math.max(Math.trunc(limit) || 100, 1), 500);
+    const rows = db
+      .prepare(
+        "SELECT payload_json FROM harbor_events WHERE stream_type = 'work-intent' ORDER BY ledger_seq DESC LIMIT ?",
+      )
+      .all(boundedLimit) as Array<{ payload_json: string }>;
+    return rows.map((row) => {
+      const intent = JSON.parse(row.payload_json) as WorkIntentPayload;
+      return { intent, plan: readPlanForIntent(db, intent.intentId) };
+    });
+  }
+
+  function start(intentId: string, queue: DispatchQueue): StartWorkIntentResult {
+    const snapshot = get(intentId);
+    if (!snapshot) {
+      throw new Error(`WorkIntent ${intentId} not found`);
+    }
+    const dispatchId = snapshot.intent.compat?.dispatchId
+      ?? dispatchIdForWorkIntent(snapshot.intent.intentId);
+    const duplicate = queue.get(dispatchId) !== null;
+    const dispatch = materializeDispatchProjectionFromIntent(snapshot.intent, queue);
+    return { ...snapshot, dispatch, duplicate };
+  }
+
   function captureDispatch(input: CaptureDispatchInput, queue: DispatchQueue): CaptureDispatchResult {
-    const token = input.idempotencyKey ? stableToken(input.idempotencyKey) : idSafe(uuid());
+    const token = input.idempotencyKey ? stableToken(input.idempotencyKey) : stableToken(uuid());
     const intentId = `work_intent_dispatch_${token}`;
+    // Compatibility intake uses the same entropy-first projection as native
+    // WorkIntent starts. The embedded token keeps reverse lookup O(1) without
+    // reintroducing the shared `dispatch_` worktree prefix.
     const dispatchId = dispatchIdForWorkIntent(intentId);
     const idempotencyKey = input.idempotencyKey ?? `compat:dispatch:${dispatchId}`;
     const captured = capture({
@@ -269,6 +481,7 @@ export function createWorkIntentService(deps: WorkIntentServiceDeps): WorkIntent
         legacyVerb: 'dispatch',
         surface: 'pd dispatch',
         actorId: input.requestedBy ?? 'operator',
+        worktree: input.projectDir,
       },
       goalText: input.goal,
       constraints: dispatchConstraints(input),
@@ -285,11 +498,21 @@ export function createWorkIntentService(deps: WorkIntentServiceDeps): WorkIntent
           budgetUsd: input.budgetUsd,
           timeoutMs: input.timeoutMs,
           baseBranch: input.baseBranch,
+          projectDir: input.projectDir,
           autoClaim: input.autoClaim,
           targetActorId: input.targetActorId,
           reviewerActorId: input.reviewerActorId,
           mergePolicy: input.mergePolicy,
           requestedBy: input.requestedBy,
+          ...(input.predecessorDispatchId
+            ? { predecessorDispatchId: input.predecessorDispatchId }
+            : {}),
+          ...(input.failoverAttempt ? { failoverAttempt: input.failoverAttempt } : {}),
+          ...(input.failoverFromBackend
+            ? { failoverFromBackend: input.failoverFromBackend }
+            : {}),
+          ...(input.handoffEpisodeId ? { handoffEpisodeId: input.handoffEpisodeId } : {}),
+          ...(input.failoverChain?.length ? { failoverChain: input.failoverChain } : {}),
         },
       },
     });
@@ -317,7 +540,7 @@ export function createWorkIntentService(deps: WorkIntentServiceDeps): WorkIntent
         legacyVerb: 'dispatch',
         surface: 'pd dispatch',
         actorId: dispatch.requestedBy,
-        worktree: dispatch.worktreePath ?? undefined,
+        worktree: dispatch.projectDir ?? dispatch.worktreePath ?? undefined,
         branch: dispatch.branch ?? undefined,
       },
       goalText: dispatch.goal,
@@ -326,6 +549,7 @@ export function createWorkIntentService(deps: WorkIntentServiceDeps): WorkIntent
         timeoutMs: dispatch.timeoutMs,
         mergePolicy: dispatch.mergePolicy,
         backend: dispatch.backend,
+        projectDir: dispatch.projectDir,
       }),
       startPolicy: 'queued',
       attachExisting: true,
@@ -340,5 +564,13 @@ export function createWorkIntentService(deps: WorkIntentServiceDeps): WorkIntent
     return { ...captured, imported: true };
   }
 
-  return { capture, captureDispatch, ensureDispatchIntent };
+  return {
+    capture,
+    captureWithInitialPlan,
+    get,
+    list,
+    start,
+    captureDispatch,
+    ensureDispatchIntent,
+  };
 }

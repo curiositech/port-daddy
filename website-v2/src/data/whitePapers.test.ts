@@ -1,4 +1,4 @@
-import { existsSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { readFileSync } from 'node:fs'
@@ -11,7 +11,8 @@ import {
   rewriteMetadata,
   type PdfFacts,
 } from '../../scripts/check-whitepaper-metadata'
-import { WHITE_PAPERS } from './whitePapers'
+import { COLLECTED_VOLUME, TABLE_OF_CONTENTS, TEXTBOOK, WHITE_PAPERS } from './whitePapers'
+import { prunePagesOnlyAssets } from '../../scripts/prune-pages-assets.mjs'
 
 const websiteRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const whitePapersSrc = resolve(websiteRoot, 'src/data/whitePapers.ts')
@@ -42,6 +43,85 @@ const whitePapersSrc = resolve(websiteRoot, 'src/data/whitePapers.ts')
  */
 
 describe('whitepaper metadata sync', () => {
+  test('the Book is separate from its chapters', () => {
+    expect(WHITE_PAPERS).toHaveLength(TEXTBOOK.chapters.length)
+    expect(WHITE_PAPERS.some((paper) => paper.id === COLLECTED_VOLUME.id)).toBe(false)
+  })
+
+  test('the site mirror of textbook.json is byte-identical to the source of record', () => {
+    const source = readFileSync(resolve(websiteRoot, '../whitepaper/textbook.json'), 'utf8')
+    const mirror = readFileSync(resolve(websiteRoot, 'src/data/textbook.json'), 'utf8')
+    expect(mirror).toBe(source)
+  })
+
+  test('chapter numbers, parts, roles, and cross-references agree with textbook.json', () => {
+    const byId = new Map(TEXTBOOK.chapters.map((chapter) => [chapter.id, chapter]))
+    expect(WHITE_PAPERS.map((paper) => paper.chapter)).toEqual(TEXTBOOK.chapters.map((chapter) => chapter.number))
+    for (const paper of WHITE_PAPERS) {
+      const record = byId.get(paper.id)
+      expect(record, `${paper.id} is a chapter in textbook.json`).toBeDefined()
+      expect(paper.chapter).toBe(record!.number)
+      expect(paper.title).toBe(record!.title)
+      expect(paper.role).toBe(record!.role)
+      expect(paper.formerNumeral).toBe(record!.formerNumeral)
+      expect(paper.discharges).toBe(record!.discharges)
+      expect(paper.pdfPath).toBe(`/whitepaper/${record!.pdf}`)
+      const part = TEXTBOOK.parts.find((candidate) => candidate.chapters.includes(paper.id))
+      expect(part?.id, `${paper.id} belongs to a part`).toBe(paper.part)
+      if (paper.discharges) {
+        expect(byId.get(paper.discharges)!.number).toBeLessThan(paper.chapter)
+      }
+      for (const edges of Object.values(paper.crossRefs)) {
+        for (const edge of edges ?? []) {
+          expect(byId.has(edge.id), `${paper.id} cross-references unknown chapter ${edge.id}`).toBe(true)
+        }
+      }
+    }
+    expect(TABLE_OF_CONTENTS.flatMap((part) => part.papers.map((paper) => paper.chapter))).toEqual(
+      WHITE_PAPERS.map((paper) => paper.chapter),
+    )
+  })
+
+  test('every chapter status matches the version its LaTeX source declares', () => {
+    for (const record of TEXTBOOK.chapters) {
+      const tex = readFileSync(resolve(websiteRoot, '..', record.source), 'utf8')
+      const match = tex.match(/\\date\{[^\\}]*\\\\Version ([^}]+)\}/)
+      expect(match, `${record.source} declares \\date{...\\\\Version ...}`).not.toBeNull()
+      const paper = WHITE_PAPERS.find((candidate) => candidate.id === record.id)!
+      expect(paper.status).toBe(`Version ${match![1]}`)
+    }
+  })
+
+  test('the collected volume declares an on-disk PDF', () => {
+    const abs = resolvePdfPath(COLLECTED_VOLUME.pdfPath)
+    expect(existsSync(abs), `collected volume PDF missing at ${abs}`).toBe(true)
+    expect(statSync(abs).size).toBeGreaterThan(10_000)
+  })
+
+  test('the full-fidelity collected volume downloads from its canonical repository artifact', () => {
+    expect(COLLECTED_VOLUME.downloadUrl).toBe(
+      'https://raw.githubusercontent.com/curiositech/port-daddy/main/website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
+    )
+  })
+
+  test('collected-volume pages and sizeKb match the actual PDF', () => {
+    if (!pdfinfoAvailable()) return
+    expect(detectDrift([COLLECTED_VOLUME], pdfFactsFromDisk)).toEqual([])
+  })
+
+  test('collected pagination is composed independently from standalone PDFs', () => {
+    if (!pdfinfoAvailable()) return
+    const standalonePages = WHITE_PAPERS.reduce((sum, paper) => sum + paper.pages, 0)
+    const actualPages = pdfFactsFromDisk(resolvePdfPath(COLLECTED_VOLUME.pdfPath)).pages
+
+    // The collected edition strips standalone front matter and inserts its own
+    // front matter, chapter openings and handoffs, result atlas, and collated
+    // references. The built PDF is authoritative; summing the seven separately
+    // typeset editions or copying a page-count literal into this test is not.
+    expect(COLLECTED_VOLUME.pages).toBe(actualPages)
+    expect(standalonePages).not.toBe(actualPages)
+  })
+
   test('every paper declares an on-disk PDF', () => {
     for (const paper of WHITE_PAPERS) {
       const abs = resolvePdfPath(paper.pdfPath)
@@ -150,6 +230,49 @@ describe('whitepaper metadata sync', () => {
       const abs = resolvePdfPath(paper.pdfPath)
       const bytes = statSync(abs).size
       expect(bytes, `${paper.id} PDF should be > 10 KB`).toBeGreaterThan(10_000)
+    }
+  })
+
+  test('audited Harbor metadata names the textbook edition', () => {
+    const byId = new Map(WHITE_PAPERS.map((paper) => [paper.id, paper]))
+    // Page counts grow with every fold and are guarded by the drift check
+    // against the PDF on disk; the audit pins the edition string only.
+    expect(byId.get('harbor-economy')).toMatchObject({ status: 'Version 1.3 (textbook edition)' })
+    expect(byId.get('harbor-economy')?.pages).toBeGreaterThan(0)
+  })
+
+  test('audited Legible metadata names the textbook edition', () => {
+    const byId = new Map(WHITE_PAPERS.map((paper) => [paper.id, paper]))
+    expect(byId.get('legible-swarm')).toMatchObject({ status: 'Version 1.2 (textbook edition)' })
+    expect(byId.get('legible-swarm')?.pages).toBeGreaterThan(0)
+  })
+
+  test('audited Single-Writer Kernel metadata names its textbook edition', () => {
+    const kernel = WHITE_PAPERS.find((paper) => paper.id === 'single-writer-kernel')
+    // The page count itself is guarded by the drift check against the PDF on
+    // disk (and grows with every fold), so this audit pins only the edition
+    // string and sanity-checks the count.
+    expect(kernel).toMatchObject({ status: 'Version 1.2 (textbook edition)' })
+    expect(kernel?.pages).toBeGreaterThan(0)
+  })
+})
+
+describe('Pages deployment boundary', () => {
+  test('only the oversized collected-volume duplicate is pruned from dist', () => {
+    const fixtureRoot = resolve(websiteRoot, '.cache/pages-prune-test')
+    const whitepaperDir = resolve(fixtureRoot, 'whitepaper')
+    const collected = resolve(whitepaperDir, 'coordination-papers-mega-volume.pdf')
+    const chapter = resolve(whitepaperDir, 'legible-swarm-whitepaper.pdf')
+    try {
+      mkdirSync(whitepaperDir, { recursive: true })
+      writeFileSync(collected, 'full fidelity collected volume')
+      writeFileSync(chapter, 'chapter remains on Pages')
+
+      expect(prunePagesOnlyAssets(fixtureRoot)).toEqual([collected])
+      expect(existsSync(collected)).toBe(false)
+      expect(existsSync(chapter)).toBe(true)
+    } finally {
+      rmSync(fixtureRoot, { recursive: true, force: true })
     }
   })
 })

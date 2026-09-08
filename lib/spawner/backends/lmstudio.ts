@@ -27,6 +27,7 @@
 
 import type { LLMCompletionRequest, LLMCompletionResult } from '../../llm-call.js';
 import { openaiAdapter } from './openai.js';
+import { resolveModel } from '../../model-registry.js';
 
 export const LMSTUDIO_DEFAULT_BASE_URL = 'http://localhost:1234/v1';
 
@@ -60,8 +61,10 @@ export const lmstudioAdapter = async (
 // LM Studio serves whatever model is loaded in the app, so the concrete id is
 // resolved at runtime. `'local-model'` is the conventional placeholder; the
 // loaded model's real id is reported by `GET /v1/models`. The operator's
-// intended prime here is Qwen 3 Next Coder.
-export const DEFAULT_LMSTUDIO_MODEL = 'local-model';
+// intended prime here is Qwen 3 Next Coder. Routed through the registry
+// (lib/model-registry-data.ts lmstudio table) so this placeholder has one
+// canonical home instead of being hand-duplicated per call site.
+export const DEFAULT_LMSTUDIO_MODEL = resolveModel({ backend: 'lmstudio', capability: 'cheap' });
 
 /** Per-spawn timeout (ms). Default 5 minutes, matching other backends. */
 export const DEFAULT_LMSTUDIO_TIMEOUT_MS = 5 * 60 * 1000;

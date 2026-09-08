@@ -1,0 +1,6 @@
+[38;2;255;125;125m┌[0m[48;2;255;125;125m[38;2;18;18;18m[1m PORT DADDY [0m daemon unavailable                                                       [38;2;255;125;125m┐[0m
+[48;2;255;125;125m[38;2;18;18;18m[1m FAILED WITH NEXT ACTION [0m                                                               
+[38;2;255;125;125m▌[0m [38;2;255;125;125m●[0m     daemon      DAEMON_UNAVAILABLE · ECONNREFUSED                                   
+[38;2;224;165;237m▌[0m [38;2;224;165;237m●[0m [38;2;242;239;231m█[0m[38;2;222;56;72m█[0mF next        open FleetBar and restart the daemon, then retry pd status          
+[38;2;224;165;237m▌[0m [38;2;224;165;237m●[0m     diagnose    run pd doctor if FleetBar cannot recover it                         
+[38;2;255;125;125m╵[0m exit 1 · machine callers keep the same failure code                                  [38;2;255;125;125m╵[0m

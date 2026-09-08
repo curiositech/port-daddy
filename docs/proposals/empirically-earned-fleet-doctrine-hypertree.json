@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "program": "empirically-earned-fleet-doctrine",
+  "root": "H0",
+  "nodes": [
+    {"id":"H0","kind":"program","title":"Fleet doctrine program","children":["W0","W1","W2","W3","W4","W5","W6","W7"]},
+    {"id":"W0","kind":"wave","title":"Constitutional contract","dependsOn":[],"gate":"Binder authority, vocabulary, privacy, and supersession accepted"},
+    {"id":"W1","kind":"wave","title":"Evidence plane","dependsOn":["W0"],"children":["A1","A2","A3"],"gate":"One real session round-trips from receipts to DecisionEpisode/v1"},
+    {"id":"A1","kind":"branch","title":"Decision episode contract","parallelGroup":"W1"},
+    {"id":"A2","kind":"branch","title":"Doctrine events and rebuildable projections on harbor_events","parallelGroup":"W1"},
+    {"id":"A3","kind":"branch","title":"Shared context composer","parallelGroup":"W1"},
+    {"id":"W2","kind":"wave","title":"Detection and induction","dependsOn":["W1"],"children":["B1","B2","B3"],"gate":"Held-out candidate benchmark passes"},
+    {"id":"B1","kind":"branch","title":"Structural decision detector","parallelGroup":"W2"},
+    {"id":"B2","kind":"branch","title":"Hybrid retrieval and ranking","parallelGroup":"W2"},
+    {"id":"B3","kind":"branch","title":"CDM and interaction extraction","parallelGroup":"W2"},
+    {"id":"W3","kind":"wave","title":"War-game laboratory","dependsOn":["W2"],"children":["C1","C2","C3"],"gate":"Planted causes recovered; failed replay fidelity refuses claims"},
+    {"id":"C1","kind":"branch","title":"Cross-harness immutable fork adapters","parallelGroup":"W3"},
+    {"id":"C2","kind":"branch","title":"Experiment registry, clustered assignment, and anti-pseudoreplication statistics","parallelGroup":"W3"},
+    {"id":"C3","kind":"branch","title":"Synthetic and real ambiguity suite","parallelGroup":"W3"},
+    {"id":"W4","kind":"wave","title":"Admission and decision-time pilot","dependsOn":["W3"],"children":["D1","D2"],"gate":"Safe advisory pilot improves preregistered quality metric"},
+    {"id":"D1","kind":"branch","title":"FleetBar doctrine review","parallelGroup":"W4"},
+    {"id":"D2","kind":"branch","title":"Decision-class retrieval and receipts","parallelGroup":"W4"},
+    {"id":"W5","kind":"wave","title":"Continuous revision and skills","dependsOn":["W4"],"gate":"Real outcomes strengthen, narrow, and deprecate doctrine"},
+    {"id":"W6","kind":"wave","title":"Multi-agent expertise and hackathons","dependsOn":["W5"],"children":["F1","F2","F3"],"gate":"Bounded exercise produces useful artifact without identity or autonomy violation"},
+    {"id":"F1","kind":"branch","title":"Live actor identity and effective-N discovery","parallelGroup":"W6"},
+    {"id":"F2","kind":"branch","title":"Research charters and operator approvals","parallelGroup":"W6"},
+    {"id":"F3","kind":"branch","title":"Hackathon and interaction mining","parallelGroup":"W6"},
+    {"id":"W7","kind":"wave","title":"Federation and scheduled fleet exercises","dependsOn":["W6"],"gate":"Two harbors reproduce an experiment with consent and tombstone propagation"}
+  ],
+  "globalKillCriteria": [
+    "doctrine exposure raises verified defect rate",
+    "operator correction burden exceeds preregistered limit",
+    "source deletion cannot propagate to derived artifacts",
+    "autonomous work begins without proven isolation or approval",
+    "the system cannot explain why guidance was shown",
+    "persona lineage or effective sample size is unavailable",
+    "replay count is presented as independent case count",
+    "holdout evidence is contaminated by prior doctrine exposure or agent interference"
+  ]
+}

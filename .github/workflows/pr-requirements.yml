@@ -42,7 +42,7 @@ jobs:
           node-version: 22
       - name: Ensure origin/main ref for the changed-files diff
         run: git fetch --no-tags origin main:refs/remotes/origin/main
-      - name: PR-requirements guard (summary, test plan, visual artifacts)
+      - name: PR-requirements guard (summary, test plan, visual artifacts, changelog fragment)
         run: node scripts/check-pr-requirements.mjs --event-path "$GITHUB_EVENT_PATH"
       - name: Unit-test Fleetbot signal classifier
         if: github.event_name == 'pull_request'

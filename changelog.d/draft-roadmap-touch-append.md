@@ -1,0 +1,3 @@
+type: fixed
+
+- **Roadmap receipts append without resending or overwriting the plan.** `pd roadmap touch` sends one bounded note to the existing touch endpoint, binding the selected caller credential to an exact active session. The daemon derives the stored author, atomically preserves history and every unrelated item field, rejects malformed history and future receipt clocks, and treats exact accepted replays as no-ops. Lost responses do not trigger hidden retries or a second transport. Guard counts only the matching agent's own valid note timestamp, not an original promoter's shared touch time. This is local receipt attribution and freshness, not remote roadmap authority or complete repository authorization.

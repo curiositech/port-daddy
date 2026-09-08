@@ -12,7 +12,101 @@ See [`VERSIONING.md`](VERSIONING.md) for semver policy and the canonical list of
 
 ## 1. Public release
 
-The release boundary is a git tag plus a GitHub Release. The workflow `.github/workflows/release.yml` builds notarized binaries from the tagged commit and automatically dispatches to `curiositech/homebrew-tap` to roll the formula.
+**The release train does this for you.** `.github/workflows/release-train.yml`
+runs Mondays + Thursdays: it measures unreleased daemon-surface commits, runs
+the formula-compat preflight (`scripts/check-formula-compat.mjs` — the tap
+formula must accept the tarball layout release.yml will produce), opens a
+version-bump PR with every version surface synced and the CHANGELOG stamped,
+auto-merges it on green, then tags and publishes the Release. To pause it,
+open an issue titled `Release train: hold`; to force a cut now, dispatch the
+workflow. The recipe below describes manual agent preparation and exceptional
+release phases (including deliberate major bumps). It is not an authentication
+fallback: a train/App configuration or authorization failure never permits
+publication through ambient or personal Git/`gh` credentials. Every GitHub write
+still requires the existing approved App-bound publisher and protected queue;
+exceptional release authorization and source preparation are separate decisions.
+
+### Release-train authority and recovery
+
+The train publishes as the existing Port Daddy GitHub App **3810450**, not as
+the operator. Read-only discovery, hold checks, unchanged merges and existing
+PR checks use the built-in workflow token and require no App secret. The two
+mutation jobs mint separate installation tokens, each restricted to this
+repository with explicit permissions: contents write and pull requests write
+for the version PR; contents write for tag/Release publication. Workflows write
+is requested only when the exact release target differs under
+`.github/workflows/` from the current default branch; that comparison is checked
+again before publication. There is no PAT, ambient credential or second-App
+fallback. [GitHub event-token behavior](https://docs.github.com/en/actions/concepts/security/github_token),
+[Release permissions](https://docs.github.com/en/rest/releases/releases#create-a-release).
+
+Approved Actions configuration consists of repository variable
+`RELEASE_TRAIN_APP_ID=3810450` and secret `RELEASE_TRAIN_APP_PRIVATE_KEY`.
+Missing configuration stops before publication with a sanitized diagnostic;
+presence alone does not establish installation scope or permission. The action
+requests those permissions and the job verifies the one-repository installation
+and bot identity before its first write. Source tests do not provision these
+settings, activate the workflow, or prove a successful release. Configuration
+and a controlled live rollout are separate authorized work.
+
+The official token action is pinned to
+`bcd2ba49218906704ab6c1aa796996da409d3eb1` (v3.2.0). Its masked token output stays
+inside one job; no token is passed to another job, stored in a Git remote/config,
+or uploaded as evidence. Build subprocesses do not receive the App token. Git
+push receives only a command-scoped authorization header. The generated commit
+uses verified App bot attribution, while its trailers and PR body identify the
+release-train role, Actions run, measured source and generated head. This is
+attribution, not a cryptographic signature.
+[Pinned action source](https://github.com/actions/create-github-app-token/tree/bcd2ba49218906704ab6c1aa796996da409d3eb1).
+
+The cut job checks out the **measured SHA**, never a newer `main` with an older
+version decision. The push uses an explicit empty expected-ref lease (create-only
+CAS), so even an ancestor branch appearing during the build is not fast-forwarded
+or overwritten. This is not permission to rewrite an existing ref. Push and PR
+responses are followed by exact branch/head/App-author readbacks, including
+after an ambiguous response. Auto-merge uses the exact head and the normal
+protected queue; unresolved review threads remain a wait, never an admin bypass.
+Branch rules, independent reviews and CI continue to govern eventual merge.
+
+Release publication binds the tag to the **merged version-transition SHA**,
+including when that transition arrived through another PR. Its dated-changelog
+check consumes the complete Git blob: an early-exit match must not turn a valid
+large changelog into a `SIGPIPE` failure. A missing header or failed Git read
+still stops discovery before any App token is minted. The remote tag is
+peeled and checked; `Release.target_commitish` alone is not a tag witness. A tag
+without a Release is incomplete work, and a conflicting tag is never moved.
+Partial-tag recovery also checks bounded, paginated remote stable tags and
+published Releases: equality with its own incomplete version is allowed, but a
+newer stable version supersedes it. That authoritative check is repeated before
+tag creation and immediately before the Release POST; there is no historical
+backfill path. The intended newest stable Release explicitly requests
+`make_latest: "true"`. Train concurrency serializes this workflow only; the
+read-check-POST sequence is not an atomic latest-promotion operation against an
+independent outside publisher. Coordinate exceptional publishers separately;
+these source guards are not a repository-wide publication lock.
+Only a genuine read-side 404 means absence: forbidden, throttled and transport
+failures do not authorize creation. After a lost mutation response, preserve
+the exact-state receipts before deciding what remains; do not blindly repeat a
+push, PR creation, tag operation or Release creation.
+
+Each mutation program reads back its publication state **before** attempting
+bounded job-local `DELETE /installation/token`. Only HTTP 204 proves that
+attempt revoked the token. A 401, timeout or network failure reports
+**publication may already have succeeded; token cleanup UNCONFIRMED**, preserving
+the prior receipts and failing the job without replaying publication. The pinned
+action's default post-job revoke remains enabled as a fallback. After an explicit
+successful revoke its later post-step may warn that the token is already invalid;
+that warning is distinct from the earlier 204 witness. Runner loss or cancellation
+may prevent either cleanup attempt, so universal cleanup is not promised.
+[Revocation API](https://docs.github.com/en/rest/apps/installations#revoke-an-installation-access-token),
+[pinned post-step implementation](https://github.com/actions/create-github-app-token/blob/bcd2ba49218906704ab6c1aa796996da409d3eb1/lib/post.js).
+
+The dated [App-only readiness audit](research/2026-09-02-release-train-app-only-readiness.md)
+separates source, approved configuration, Actions runs, release artifacts, tap
+promotion and installed runtime evidence. The separate relay release-ledger
+workflow and its shared credential selectors are unchanged by this train repair.
+
+The release boundary is a git tag plus a GitHub Release. The workflow `.github/workflows/release.yml` builds notarized binaries from the tagged commit — soaking the exact packaged binary for 180s, running `pd batten verify` and the formula-compat preflight before sealing anything — and generates GitHub/Sigstore provenance for both platform archives. The serialized `curiositech/homebrew-tap` workflow discovers the stable feed without a cross-repository credential, verifies the independent tag, dual Batten imprints, archive digests, and v3.30.3+ provenance, then rolls the formula. The source release job waits for that exact formula version. After publish, `.github/workflows/fresh-install.yml` smokes the published artifacts AND the literal `brew install` path on pristine runners, and files an issue if either fails.
 
 **npm distribution is retired** (2026-07-04, operator decision): brew, the release binaries, and `latest.json` cover every supported install path; the npm token had been dead since 3.15.0 so the registry was eight releases stale anyway. `.github/workflows/publish.yml` remains as the manual path if npm is ever revived — if so, `npm deprecate` the stale versions first.
 
@@ -31,7 +125,7 @@ pd begin --identity port-daddy:release-3.15.0 \
 pd note "Scope: version surfaces + CHANGELOG. Validation: binary builds + distribution-freshness test."
 pd session files add package.json package-lock.json mcp-server.json \
   .claude-plugin/plugin.json .gemini/extensions/port-daddy/gemini-extension.json \
-  mcp/server.ts website-v2/src/data/referenceCatalog.ts CHANGELOG.md
+  mcp/server.ts website-v2/src/data/referenceCatalog.ts CHANGELOG.md changelog.d/
 
 # C. Bump
 npm version minor --no-git-tag-version       # patch / minor / major
@@ -42,9 +136,13 @@ npx tsx scripts/sync-version.ts              # syncs EVERY version surface
 # website-v2/src/data/referenceCatalog.ts (PORT_DADDY_VERSION). No hand-bumps.
 # distribution-freshness.test.js fails CI if any surface drifts.
 
-# D. CHANGELOG.md
-# Rename [Unreleased] → [3.15.0] - YYYY-MM-DD, prepend a fresh [Unreleased].
-$EDITOR CHANGELOG.md
+# D. CHANGELOG.md — assembled, not hand-edited.
+# Splices every changelog.d/ fragment into a dated [3.15.0] - YYYY-MM-DD section,
+# leaves a fresh empty [Unreleased] on top, and deletes the consumed fragments.
+# --date defaults to today (UTC). Refuses if the version is already stamped, or if
+# any fragment is malformed — it never writes a partial section.
+node scripts/assemble-changelog.mjs --release 3.15.0
+git add -A changelog.d CHANGELOG.md   # picks up the deletions too
 
 # E. Validate locally
 npm ci
@@ -57,23 +155,21 @@ node scripts/build-single-binary.mjs --outfile=dist/pd     # release workflow sh
 ./dist/port-daddy --version                                # reports 3.15.0
 SOAK_SECONDS=180 SOAK_PORT=19876 bash scripts/soak-binary.sh dist/port-daddy
 
-# F. PR
+# F. Prepare the reviewed commit, then publish through the approved App boundary
 pd guard check --staged
 git add <explicit paths>
+# Inspect author and committer first; use verified responsible-agent attribution.
+# Follow skills/port-daddy-agent-skill/references/git-discipline.md.
 git commit -m "chore(release): bump to 3.15.0"
-git push -u origin chore/release-3.15.0
-gh pr create --title "chore(release): bump to 3.15.0" --body-file .scratch/pr-body.md
-# wait for CI green, address review, then:
-gh pr merge --squash --delete-branch
+# Hand this exact branch/head and PR body to the existing approved App-bound
+# publisher. Read back App author/head, answer reviews, and use the protected
+# queue. Do not replace a failed publisher with personal git push / gh pr calls.
 
-# G. Tag the merged commit on main
-git fetch origin
-git checkout main && git pull --ff-only
-git tag -a v3.15.0 -m "Port Daddy 3.15.0 — <headline>"
-git push origin v3.15.0
-
-# H. GitHub Release → triggers release.yml
-gh release create v3.15.0 --generate-notes --title "v3.15.0 — <headline>"
+# G. Normal path: the train identifies and tags the exact merged version transition.
+# H. Normal path: the App publishes the matching GitHub Release, triggering release.yml.
+# Exceptional manual tag/Release publication needs its own release authorization
+# through the same approved App boundary. Preserve exact target/tag/Release
+# witnesses and monotonic version checks; never force-retag or bypass auth.
 
 # I. Babysit the binary build
 gh run watch $(gh run list --workflow=release.yml --limit 1 --json databaseId --jq '.[0].databaseId')
@@ -81,17 +177,21 @@ gh run watch $(gh run list --workflow=release.yml --limit 1 --json databaseId --
 # Confirm the daemon/CLI binaries land on the release:
 #   pd-darwin-arm64.tar.gz
 #   pd-linux-x64.tar.gz
-# plus the FleetBar preview .zip and pd-console artifact.
+# plus the FleetBar preview .zip. The pd-console .zip is CONDITIONAL: it is
+# only attached when core/pd-console (or scripts/package-pd-console.sh)
+# actually changed since the previous tag — version-string churn aside. An
+# unchanged console is deliberately not re-cut; the newest console stays on
+# the last release that built one, and that release's latest.json simply
+# omits the console entry. To force a rebuild (e.g. signing-cert rotation),
+# dispatch release.yml with force_console=true.
+# Confirm both archives have provenance bound to this repository, release.yml,
+# the exact tag ref, and the tag commit (the tap enforces the same boundary).
 
-# J. Brew tap rolls automatically via release.yml → update-homebrew job.
-#    If it failed (e.g. after a manual workflow_dispatch re-run), dispatch it:
-pd lock release-publish
-gh api repos/curiositech/homebrew-tap/dispatches \
-  --input - <<JSON
-{"event_type":"update-formula","client_payload":{"version":"v3.15.0"}}
-JSON
-# wait for update-formula.yml to commit to curiositech/homebrew-tap
-pd release release-publish
+# J. The tap discovers the stable release within ten minutes and serializes
+#    promotion itself. release.yml's update-homebrew job waits for the exact
+#    formula version. If the scheduled run needs repair, dispatch the tap's
+#    default-branch workflow; it self-discovers all evidence and needs no payload:
+gh workflow run update-formula.yml --repo curiositech/homebrew-tap --ref main
 
 # K. Verify users can actually upgrade
 brew update && brew upgrade port-daddy
@@ -111,34 +211,50 @@ pd done "v3.15.0 shipped"
 |---|---|---|
 | `Could not resolve: "@clack/prompts"` (and friends) in `release.yml` | Workflow ran `bun build --compile` without first running `bun install`. `node_modules` empty in the checkout. | `release.yml` must have a `bun install` step between `setup-bun` and `bun build`. Validated in the workflow today. |
 | `distribution-freshness.test.js` fails with `Expected: "3.15.0" / Received: "3.14.0"` | A version surface drifted — usually you forgot to run `sync-version.ts` after `npm version`. | Run `npx tsx scripts/sync-version.ts` (it stamps every surface, incl. `mcp/server.ts` + `referenceCatalog.ts`), restage, recommit. |
+| App configuration check, token mint or repository/bot witness fails | Approved configuration is absent, App scope/permissions are insufficient, or GitHub is unavailable. | Inspect the sanitized phase diagnostic. Correct the approved App configuration or availability issue; do not substitute operator credentials or assume secret presence proves authority. |
+| Job fails after a confirmed branch, PR, tag or Release receipt | Cleanup or later state verification failed after a publication may have succeeded. | Preserve the exact receipt, inspect only the remaining operation, and distinguish token cleanup UNCONFIRMED from publication failure. Never force-push, retag or blindly replay a successful write. |
 | Tag pushed but `release.yml` didn't fire | Tag push alone doesn't fire release.yml — only the GitHub *Release* event does. | `gh release create v<x.y.z> --generate-notes`. |
 | Release created but binaries missing | release.yml failed; check `gh run view --log-failed`. | Fix workflow, re-run via `gh workflow run release.yml --ref v<x.y.z>` (works because workflow_dispatch is also enabled). |
-| `brew upgrade port-daddy` still serves the old version | The `update-homebrew` job in `release.yml` hasn't run or failed (common after a `workflow_dispatch` re-run, which skips that job). | Manually dispatch: `gh api repos/curiositech/homebrew-tap/dispatches --input - <<<'{"event_type":"update-formula","client_payload":{"version":"vX.Y.Z"}}'`. Until the commit lands in the tap, the bottle URL points at the previous release. |
+| `brew upgrade port-daddy` still serves the old version | The tap's serialized self-promotion has not completed, or it rejected tag/imprint/digest/provenance evidence. The source `update-homebrew` wait stays red instead of hiding the gap. | Inspect the tap workflow failure. After fixing the actual contract, run `gh workflow run update-formula.yml --repo curiositech/homebrew-tap --ref main`; it self-discovers the release and requires no payload or cross-repo token. |
 
 ---
 
 ### Code signing (Apple Developer ID)
 
-Every macOS artifact `release.yml` produces is signed with the **Developer ID
-Application: Curiositech LLC (P5H9P59X2M)** identity, and notarized + stapled by
-Apple — the daemon (`pd` + `port-daddy`), the `pd-console.app`, and FleetBar.
-This is automatic on every release; **nothing to do per-release** once the secrets
-below are set. (ADR-0057; the daemon path is ADR-0028's signing recipe, finally wired.)
+The stable release path signs macOS artifacts with the **Developer ID Application:
+Curiositech LLC (P5H9P59X2M)** identity. FleetBar is an ESSENTIAL artifact: its
+job fails unless signing and notarization credentials are present and valid, the
+bundle is accepted and stapled by Apple, and its manifest reads
+`unsigned:false` plus `notarized:true`. `build-latest-json` downloads that exact
+manifest, binds it to the FleetBar archive name and SHA-256, and refuses to emit
+the feed otherwise; `update-homebrew` depends on both jobs. Secret presence alone
+is never release evidence. (ADR-0057; the daemon path follows ADR-0028.)
+
+FleetBar is an app bundle with a bundled Port Daddy payload, not a single Mach-O.
+`scripts/package-fleetbar.sh` must discover every Mach-O under `FleetBar.app`
+and sign inside-out before the app root is sealed. Apply Bun JIT entitlements only
+to the Bun-compiled `Contents/Resources/PortDaddy/port-daddy` executable; ordinary
+`.dylib` files and the `pd` launcher get hardened runtime without those
+entitlements. If Apple returns a non-`Accepted` notary status, the packager fetches
+and prints `xcrun notarytool log` before cleanup so the failing nested binary is
+visible in CI.
 
 **Repo secrets** (set once, in `Settings → Secrets and variables → Actions`):
 
 | Secret | What it is | Required? |
 |---|---|---|
-| `APPLE_CERT_P12_BASE64` | base64 of the Developer ID Application `.p12` (cert **+ private key** — export from Keychain Access › *My Certificates*, which prompts for an export password) | **yes** — without it, binaries ship adhoc/unsigned |
-| `APPLE_CERT_PASSWORD` | the `.p12` export password | **yes** |
-| `APPLE_NOTARY_KEY_P8_BASE64` | base64 of the App Store Connect API `.p8` key (Users and Access › Integrations › App Store Connect API, role *Developer*) | optional — absent ⇒ signed but **not** notarized |
-| `APPLE_NOTARY_KEY_ID` | the API Key ID (10 chars) | with the `.p8` |
-| `APPLE_NOTARY_KEY_ISSUER` | the API Issuer ID (a UUID — note the top-of-page UUID, NOT the Key ID) | with the `.p8` |
+| `APPLE_CERT_P12_BASE64` | base64 of the Developer ID Application `.p12` (cert **+ private key** — export from Keychain Access › *My Certificates*, which prompts for an export password) | **yes** — FleetBar fails closed without it |
+| `APPLE_CERT_PASSWORD` | the `.p12` export password | **yes** — FleetBar fails closed without it |
+| `APPLE_NOTARY_KEY_P8_BASE64` | base64 of the App Store Connect API `.p8` key (Users and Access › Integrations › App Store Connect API, role *Developer*) | **yes** — FleetBar cannot ship signed-only |
+| `APPLE_NOTARY_KEY_ID` | the API Key ID (10 chars) | **yes** |
+| `APPLE_NOTARY_KEY_ISSUER` | the API Issuer ID (a UUID — note the top-of-page UUID, NOT the Key ID) | **yes** |
 
-**Graceful degradation:** the signing step is gated and fail-soft. No `APPLE_CERT_*`
-⇒ the build still ships an (adhoc) binary with a `::warning::`. Notary creds present
-but failing validation ⇒ the binary is **signed-only** with a warning, never a broken
-release. So a rotated/expired notary key cannot block shipping a signed daemon.
+The daemon and conditional pd-console jobs retain their separately documented
+fail-soft signing behavior, but that does not make a stable release promotable:
+FleetBar's essential gate remains fail-closed. Missing credentials, failed
+`notarytool store-credentials`, Apple's `Invalid` result, a missing manifest, or
+an unsigned/unnotarized/mismatched manifest all stop `build-fleetbar-preview`,
+`build-latest-json`, and therefore `update-homebrew`.
 
 **Verify it yourself** (no destructive release needed): the `_sign-smoke` pattern —
 import the cert into a temp keychain, sign + notarize a trivial Mach-O — is how this
@@ -242,7 +358,7 @@ pd done "<feature> shipped to main via PR #N"
 
 - **`lib/`, `routes/`, `server.ts`, `mcp/` changes → require a binary smoke-test** (step D). Source-mode `tsx server.ts` lies about what users actually run — module resolution, dependency boundaries, and the CSP all behave differently in the compiled binary.
 - **Workflow files (`.github/workflows/*`) → can only be validated by actually running CI.** Dispatch on a feature branch before relying on them in a release path. PR #75 (`bun install` missing from `release.yml`) bit us specifically because nobody dry-ran the workflow before tagging.
-- **Brew tap changes → serialized by `pd lock release-publish`.** Always.
+- **Brew tap changes → land through the tap repo's normal worktree/PR/Fleet flow.** Release promotion itself is serialized by the tap workflow concurrency group; source releases never write across repositories.
 
 ---
 
@@ -254,7 +370,7 @@ Not decoration — these primitives matter:
 |---|---|
 | `pd begin --identity port-daddy:<work> --lifecycle durable` | Always. Session is the atomic unit of "who's editing what". |
 | `pd session files add <path>` | Before any edit. Advisory, but visible to other agents via `pd sessions --all-worktrees`. |
-| `pd lock release-publish` | **Only for §1 step J** (manual Homebrew-tap `repository_dispatch`, used when `release.yml`'s automatic roll fails). Brew formula is shared state; two agents racing here = duplicate PRs to the tap. Hold the lock until the tap PR merges. |
+| `pd lock release-publish` | Only for an exceptional manual mutation of release state. Ordinary tap promotion is already serialized by its workflow and needs no agent-held lock. |
 | `pd note "..."` | Scope notes, milestones, blockers. Use `pd say --pin` for cross-session truths (`"3.15.0 binaries published"`). |
 | `pd pub promotion:release-surfaces` | Manual fire of the channel that `pd-fleet.yml`'s documentarian listens on. After a release, this kicks the docs-review fleet. |
 | `pd claim <port-name> -q` | For isolated test daemons in worktrees. Don't hardcode ports. |

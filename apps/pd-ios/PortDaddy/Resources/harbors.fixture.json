@@ -1,0 +1,82 @@
+{
+  "note": "Fixture for previews and tests. Exercises all four X2 reachability verdicts, including the one that matters most: unknown, which is not impossible.",
+  "entries": [
+    {
+      "harbor": {
+        "id": "hb_0001",
+        "namespace": "erichowens",
+        "name": "fleet",
+        "pubkey": "9f2c4b7ad1e05836c9147b2ea0d3f6581c47ab90de2f3315608bd47ea2c1905f",
+        "createdAt": 1752000000,
+        "role": "owner"
+      },
+      "members": [
+        { "kind": "user", "member": "erichowens", "role": "owner", "addedAt": 1752000000 },
+        { "kind": "daemon", "member": "4c1a9be7", "role": "member", "addedAt": 1752003600 },
+        { "kind": "daemon", "member": "7f30ab52", "role": "member", "addedAt": 1752007200 }
+      ],
+      "presence": {
+        "online": [
+          { "kind": "user", "member": "erichowens", "tier": "verified", "lastSeenAt": 1755820780 },
+          { "kind": "daemon", "member": "4c1a9be7", "tier": "verified", "lastSeenAt": 1755820790 },
+          { "kind": "daemon", "member": "7f30ab52", "tier": "verified", "lastSeenAt": 1755820760 }
+        ],
+        "ttlSeconds": 90
+      }
+    },
+    {
+      "harbor": {
+        "id": "hb_0002",
+        "namespace": "erichowens",
+        "name": "rimor",
+        "pubkey": "23bd90e7115c8fa4266d0be5397c1a08fd4423e1975cb608a35de1f042cb7761",
+        "createdAt": 1753200000,
+        "role": "owner"
+      },
+      "members": [
+        { "kind": "user", "member": "erichowens", "role": "owner", "addedAt": 1753200000 },
+        { "kind": "daemon", "member": "aa11cc22", "role": "member", "addedAt": 1753203600 },
+        { "kind": "daemon", "member": "bb33dd44", "role": "member", "addedAt": 1753207200 }
+      ],
+      "presence": {
+        "online": [
+          { "kind": "daemon", "member": "aa11cc22", "tier": "verified", "lastSeenAt": 1755820770 }
+        ],
+        "ttlSeconds": 90
+      }
+    },
+    {
+      "harbor": {
+        "id": "hb_0003",
+        "namespace": "curiositech",
+        "name": "shipwright",
+        "pubkey": "5e77c0aa3b1249df80a6e2c3915fb4470ad9e28c6631f5b027ac4e93d0817a2b",
+        "createdAt": 1754000000,
+        "role": "member"
+      },
+      "members": [
+        { "kind": "user", "member": "erichowens", "role": "member", "addedAt": 1754000000 },
+        { "kind": "daemon", "member": "ee55ff66", "role": "member", "addedAt": 1754003600 }
+      ],
+      "presence": {
+        "online": [],
+        "ttlSeconds": 90
+      }
+    },
+    {
+      "harbor": {
+        "id": "hb_0004",
+        "namespace": "curiositech",
+        "name": "lighthouse",
+        "pubkey": "c0ffee11223344556677889900aabbccddeeff00112233445566778899aabbcc",
+        "createdAt": 1754500000,
+        "role": "member"
+      },
+      "members": [
+        { "kind": "user", "member": "erichowens", "role": "member", "addedAt": 1754500000 },
+        { "kind": "daemon", "member": "1234abcd", "role": "member", "addedAt": 1754503600 }
+      ],
+      "presence": null
+    }
+  ]
+}

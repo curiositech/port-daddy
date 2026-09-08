@@ -22,6 +22,21 @@ export interface BoardItemView {
   status: string;
   harbor: string;
   dependencies: string[];
+  /**
+   * Actual start, epoch ms — `lib/roadmap-items.ts`'s `startedAt`, "the
+   * Gantt's left date anchor when present". Optional so every existing
+   * caller (which never populated it) keeps compiling unchanged; undefined
+   * and null are both treated as absent by the date-anchoring pass below.
+   */
+  startedAt?: number | null;
+  /**
+   * Target finish, epoch ms — `dueAt`, "the Gantt's right date anchor when
+   * present". Only when BOTH `startedAt` and `dueAt` are present (and
+   * `dueAt` lands after `startedAt`) does `renderBoard` draw that task's bar
+   * at its real dates instead of the CPM-relative offset — see the
+   * date-anchoring pass inside `renderBoard`.
+   */
+  dueAt?: number | null;
 }
 
 /** Per-ADR metadata for epic labels + inline reading, keyed by 4-digit number ("0048"). */
@@ -51,6 +66,101 @@ function esc(s: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+/**
+ * Pick the tick spacing (in schedule units ≈ days) for the Gantt time axis.
+ *
+ * Why adaptive: the schedule's span varies from a couple of days to a year+,
+ * and a fixed cadence either crowds the axis with labels or leaves it bare.
+ * The ladder is calendar-shaped on purpose — day, 2-day, week, fortnight,
+ * 4-week, quarter, half-year, year — so the ticks the operator sees are the
+ * time units they plan in (days → weeks → months-ish), not arbitrary
+ * decimals. Ceiling division counts the INTERVALS the span actually needs;
+ * the chosen step is the smallest rung that keeps the axis at ≤ 8 of them.
+ * Mirror of `axis_tick_step` in `core/pd-console/src/planner_pane.rs` — the
+ * two Gantt surfaces must agree on what a tick means.
+ *
+ * @param span - Schedule makespan in units (1 unit = 1 day by convention).
+ * @returns The tick step in units, always ≥ 1.
+ */
+export function axisTickStep(span: number): number {
+  const ladder = [1, 2, 7, 14, 28, 91, 182, 364];
+  for (const step of ladder) {
+    if (Math.ceil(span / step) <= 8) return step;
+  }
+  return (Math.floor(span / (364 * 8)) + 1) * 364;
+}
+
+/** One tick of the board Gantt's time axis (see {@link axisTicks}). */
+export interface AxisTick {
+  /** Schedule offset in units from the anchor. */
+  unit: number;
+  /** Horizontal position as a percentage of the bar lane. */
+  pct: number;
+  /** Human label: `today` for unit 0, else the real `MM-DD` date. */
+  label: string;
+  /** True on the unit-0 tick — the today-marker gets distinct styling. */
+  isToday: boolean;
+}
+
+/**
+ * Compute the labeled ticks for the board Gantt's time axis.
+ *
+ * Why it exists: bars without an x-axis are only relative geometry — the
+ * operator asked for actual time units. The kernel's CPM schedule itself is
+ * still purely relative (ADR-0086: the scheduler has no absolute-date
+ * anchor), so the axis anchors unit 0 at the render instant under the
+ * declared planning convention 1 estimate unit = 1 day: tick 0 is the
+ * today-marker and later ticks carry real UTC `MM-DD` dates at the adaptive
+ * cadence of {@link axisTickStep}. `renderBoard`'s date-anchoring pass
+ * overrides individual bars with real `startedAt`/`dueAt` offsets when an
+ * item has them, but every bar — anchored or relative — is placed on this
+ * SAME anchor-relative axis, so "day 3" always means the same wall-clock day
+ * regardless of which kind of bar is drawn there. The schedule's end always
+ * gets a closing tick (its date is "when does the plan land"), even when the
+ * makespan is not a multiple of the step.
+ *
+ * @param span - Schedule makespan in units (clamped ≥ 1 by the caller).
+ * @param anchorMs - Epoch ms of unit 0 (the board's `generatedAt`).
+ * @returns Ticks ordered by unit, positions in percent of the lane.
+ */
+export function axisTicks(span: number, anchorMs: number): AxisTick[] {
+  const step = axisTickStep(span);
+  const ticks: AxisTick[] = [];
+  const push = (unit: number) => {
+    const d = new Date(anchorMs + unit * 86_400_000);
+    ticks.push({
+      unit,
+      pct: (unit / Math.max(span, 1)) * 100,
+      label:
+        unit === 0
+          ? 'today'
+          : `${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`,
+      isToday: unit === 0,
+    });
+  };
+  for (let t = 0; t <= span; t += step) push(t);
+  if (span % step !== 0) push(span);
+  return ticks;
+}
+
+/**
+ * Whole-day offset of an epoch-ms timestamp from `anchorMs`, under the exact
+ * "1 unit = 1 day, unit 0 = anchor" convention `axisTicks` already draws the
+ * axis with. Why this exists: converts a real `startedAt`/`dueAt` (wall
+ * clock) into the same
+ * relative-unit coordinate space CPM bars live in, so a date-anchored bar and
+ * a CPM-relative bar share one axis without a second rendering code path.
+ * Mirror of `day_offset_from` in `core/pd-console/src/planner_pane.rs` — the
+ * two Gantt surfaces must agree on what "day 3" means.
+ *
+ * @param anchorMs - Epoch ms of unit 0 (the board's `generatedAt`).
+ * @param epochMs - The real timestamp to place on the axis.
+ * @returns Signed day offset (negative when `epochMs` is before the anchor).
+ */
+export function dayOffsetFromAnchor(anchorMs: number, epochMs: number): number {
+  return Math.round((epochMs - anchorMs) / 86_400_000);
 }
 
 /** Render the whole board to a single self-contained HTML document. */
@@ -128,24 +238,71 @@ export function renderBoard(input: BoardInput): string {
     .join('\n');
 
   // Gantt rows ordered by earliest start then slug.
-  const ganttSpan = Math.max(schedule.makespan, 1);
-  const ganttRows = [...plan.tasks]
+  //
+  // Date anchoring (additive, backward-compatible — mirrors the Rust twin's
+  // `PlannerPane::gantt` in `core/pd-console/src/planner_pane.rs`): a task
+  // whose roadmap item carries BOTH a valid `startedAt` and `dueAt` renders
+  // at its real wall-clock day-offset from `generatedAt` (the same unit-0
+  // anchor `axisTicks` already draws "today" at) instead of the CPM-relative
+  // `earliestStart`/`earliestFinish`. `critical` membership is untouched —
+  // it still comes from `schedule.criticalPath`, the kernel's parity-tested
+  // TS twin output (`lib/planner-schedule.ts`) — dates only ever change
+  // WHERE a bar is drawn, never the dependency-order math. An item missing
+  // either field, or with `dueAt` not after `startedAt`, keeps today's plain
+  // CPM offset exactly as before this field pair was read.
+  const ganttEntries = [...plan.tasks]
     .map((t) => ({ t, sn: schedById.get(t.slug!) }))
-    .filter((x) => x.sn)
-    .sort((a, b) =>
-      a.sn!.earliestStart !== b.sn!.earliestStart
-        ? a.sn!.earliestStart - b.sn!.earliestStart
-        : a.t.slug! < b.t.slug!
-          ? -1
-          : 1,
-    )
+    .filter((x): x is { t: PlanNode; sn: NonNullable<typeof x.sn> } => Boolean(x.sn))
     .map(({ t, sn }) => {
-      const left = (sn!.earliestStart / ganttSpan) * 100;
-      const width = Math.max(((sn!.earliestFinish - sn!.earliestStart) / ganttSpan) * 100, 2);
+      const it = itemBySlug.get(t.slug!);
+      const started = it?.startedAt;
+      const due = it?.dueAt;
+      if (started != null && started > 0 && due != null && due > started) {
+        const startU = Math.max(dayOffsetFromAnchor(generatedAt, started), 0);
+        const finishU = Math.max(dayOffsetFromAnchor(generatedAt, due), startU + 1);
+        return { t, start: startU, finish: finishU, dateAnchored: true };
+      }
+      return { t, start: sn.earliestStart, finish: sn.earliestFinish, dateAnchored: false };
+    });
+  // The render span is the CPM makespan UNLESS a date-anchored task's real
+  // due date lands past it (the schedule only knows effort/deps, never real
+  // dates) — widen so a wall-clock bar can never overflow the lane.
+  const ganttSpan = ganttEntries.reduce((m, e) => Math.max(m, e.finish), Math.max(schedule.makespan, 1));
+  // Time axis: unit 0 anchored at the board's own generatedAt (1 est unit =
+  // 1 day), adaptive tick cadence, gridlines aligned to the same percent
+  // geometry the bars use, today-marker on the unit-0 line.
+  const ticks = axisTicks(ganttSpan, generatedAt);
+  const tickStep = axisTickStep(ganttSpan);
+  const tickAnchor = (pct: number) =>
+    pct < 4 ? '' : pct > 96 ? 'transform:translateX(-100%)' : 'transform:translateX(-50%)';
+  const axisLabels = ticks
+    // Drop the closing label (never its gridline) when it would sit on top of
+    // the previous one — a partial trailing interval can land two dates a few
+    // percent apart.
+    .filter((k, i, all) => i === 0 || k.pct - all[i - 1].pct >= 7)
+    .map(
+      (k) =>
+        `<span class="gtick${k.isToday ? ' gtoday' : ''}" style="left:${k.pct.toFixed(3)}%;${tickAnchor(k.pct)}">${esc(k.label)}</span>`,
+    )
+    .join('');
+  const gridLines = ticks
+    .map(
+      (k) =>
+        `<div class="ggridline${k.isToday ? ' gtoday-line' : ''}" style="left:${k.pct.toFixed(3)}%"></div>`,
+    )
+    .join('');
+  const ganttRows = [...ganttEntries]
+    .sort((a, b) => (a.start !== b.start ? a.start - b.start : a.t.slug! < b.t.slug! ? -1 : 1))
+    .map(({ t, start, finish, dateAnchored }) => {
+      const left = (start / ganttSpan) * 100;
+      const width = Math.max(((finish - start) / ganttSpan) * 100, 2);
       const crit = critical.has(t.slug!);
+      const datedBadge = dateAnchored
+        ? `<span class="gdated" title="anchored to real startedAt/dueAt">dated</span>`
+        : '';
       return `<div class="grow">
-        <div class="glabel" title="${esc(t.slug!)}">${esc(t.slug!)}</div>
-        <div class="gtrack"><div class="gbar${crit ? ' gcrit' : ''}" style="left:${left}%;width:${width}%"></div></div>
+        <div class="glabel" title="${esc(t.slug!)}">${esc(t.slug!)}${datedBadge}</div>
+        <div class="gtrack"><div class="gbar${crit ? ' gcrit' : ''}${dateAnchored ? ' gdatedbar' : ''}" style="left:${left}%;width:${width}%"></div></div>
       </div>`;
     })
     .join('\n');
@@ -220,11 +377,24 @@ export function renderBoard(input: BoardInput): string {
   .crit{background:var(--gold);color:#1a1300;border-color:var(--gold)}
   .deps,.slack{font-size:13px}
   .grow{display:flex;align-items:center;gap:10px;margin:3px 0}
+  /* Time axis: label row above the bars + a gridline overlay across every
+     track, both sharing the bars' percent geometry (left:N% of the lane). */
+  .gaxis{margin:0 0 6px}
+  .gaxis-note{color:var(--muted);font-size:12px}
+  .gaxis-track{flex:1;position:relative;height:18px}
+  .gtick{position:absolute;top:1px;font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--muted);white-space:nowrap}
+  .gtick.gtoday{color:var(--teal);font-weight:600}
+  .gantt-body{position:relative}
+  .ggrid{position:absolute;left:310px;right:0;top:0;bottom:0;pointer-events:none;z-index:2}
+  .ggridline{position:absolute;top:0;bottom:0;width:1px;background:rgba(232,237,242,.14)}
+  .ggridline.gtoday-line{width:2px;background:var(--teal);opacity:.75}
   .glabel{width:300px;flex:none;font-family:ui-monospace,Menlo,monospace;font-size:13px;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
   .gtrack{flex:1;position:relative;height:18px;background:var(--panel2);border-radius:5px;overflow:hidden}
   .gbar{position:absolute;top:0;bottom:0;background:#3a5d80;border-radius:5px}
   .gbar.gcrit{background:var(--gold)}
+  .gbar.gdatedbar{box-shadow:inset 0 0 0 2px var(--teal)}
+  .gdated{margin-left:6px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--teal)}
   .live{display:flex;align-items:center;gap:10px;margin:14px 26px 0;font-size:13.5px;color:var(--muted)}
   .dot{width:9px;height:9px;border-radius:50%;background:#555}
   .dot.on{background:var(--teal)} .dot.off{background:var(--crimson)}
@@ -282,7 +452,13 @@ ${flagBanner}
 </div>
 <main>
   <section class="view active" id="view-tree">${epicSections}</section>
-  <section class="view" id="view-gantt">${ganttRows || '<div class="empty">no schedule</div>'}</section>
+  <section class="view" id="view-gantt">${
+    ganttRows
+      ? `<div class="grow gaxis"><div class="glabel gaxis-note">1 est unit = 1 day · ${tickStep}d ticks</div><div class="gaxis-track">${axisLabels}</div></div>
+  <div class="gantt-body"><div class="ggrid" aria-hidden="true">${gridLines}</div>
+${ganttRows}</div>`
+      : '<div class="empty">no schedule</div>'
+  }</section>
 </main>
 <script id="board-data" type="application/json">${payload}</script>
 <script>

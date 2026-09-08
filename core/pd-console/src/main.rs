@@ -22,26 +22,32 @@ mod cli_args;
 mod cloud_fleet_pane;
 mod cockpit_pane;
 mod conductor_pane;
-mod conjure;
 mod daemon_pane;
 mod dispatch_pane;
 mod editor_claims;
 mod editor_commit_gate;
+mod editor_input;
 mod editor_pane;
 mod editor_sync;
+mod editor_view;
 mod editor_wedge;
 mod fleet_pane;
 mod galaxy_canvas;
 mod galaxy_pane;
+mod git_blame;
 mod grid;
 mod harbor_pane;
 mod headless_capture;
 mod health_pane;
 mod inbox_pane;
+mod interruptions;
+mod interruptions_pane;
 mod lane_pane;
 mod ledger_pane;
 mod lineage_pane;
 mod maritime;
+mod mission_callbacks;
+mod mission_view;
 mod mux;
 mod notes_pane;
 mod palette;
@@ -49,18 +55,28 @@ mod pane;
 mod parley_pane;
 mod peek_pane;
 mod planner_pane;
+mod presentation;
 mod prs_pane;
 mod roadmap_pane;
+// Data layer only (WS-F cluster P): typed RoadmapProjection mirroring
+// lib/roadmap-projection.ts + the law-13 displayState pure function. No pane
+// wires it up yet, so nothing in the gpui bin calls it either.
+#[allow(dead_code)]
+mod roadmap_projection;
 mod script;
 mod sessions_pane;
+mod shell_drawer;
 mod sortie_pane;
+mod story_linework;
 mod substrate_pane;
 mod suggest_pane;
 mod syntax;
 mod term;
 mod theme;
+mod timeline;
 mod tokens;
 mod util;
+mod work_plan;
 
 use active_agents_pane::ActiveAgentsPane;
 use activity_pane::ActivityPane;
@@ -78,6 +94,7 @@ use galaxy_pane::GalaxyPane;
 use harbor_pane::HarborPane;
 use health_pane::HealthPane;
 use inbox_pane::InboxPane;
+use interruptions_pane::InterruptionsPane;
 use lane_pane::LanePane;
 use ledger_pane::LedgerPane;
 use lineage_pane::LineagePane;
@@ -100,11 +117,47 @@ use std::borrow::Cow;
 use std::sync::mpsc;
 use std::time::Duration;
 
+/// Route every ledger interaction through one surface registry. Sort and
+/// selection therefore cannot drift into separate lists when another ledger
+/// joins the console.
+async fn mutate_ledger_surface(
+    surface: &str,
+    action: SurfaceAction,
+    client: &DaemonClient,
+    claims: &mut ClaimsPane,
+    roadmap: &mut PlannerPane,
+    sessions: &mut SessionsPane,
+) -> anyhow::Result<()> {
+    match surface {
+        "claims" => claims.mutate(client, action).await,
+        "planner" => roadmap.mutate(client, action).await,
+        "sessions" => sessions.mutate(client, action).await,
+        _ => Err(anyhow::anyhow!("unknown ledger surface '{surface}'")),
+    }
+}
+
+/// Present one changed operator frame. GPUI 0.2.2 marks an inactive macOS
+/// window dirty but can leave its display link parked after the first frame.
+/// A sub-point native size toggle wakes that callback; alternating the offset
+/// keeps the window within a single logical pixel instead of allowing drift.
+fn present_changed_frame(
+    window: &mut Window,
+    cx: &mut Context<ConsoleView>,
+    size_nudged: &mut bool,
+) {
+    cx.notify();
+    window.refresh();
+    let mut present_size = window.viewport_size();
+    present_size.width += if *size_nudged { px(-0.5) } else { px(0.5) };
+    *size_nudged = !*size_nudged;
+    window.resize(present_size);
+}
+
 /// Resolve the `pd-conjure-proto` crate dir (the Vello renderer). Honors a
 /// `PD_CONJURE_PROTO_DIR` override (a packaged app can point at an installed
 /// copy); otherwise it is the sibling of this crate at build time
 /// (`core/pd-console/../pd-conjure-proto`).
-fn conjure_proto_dir() -> std::path::PathBuf {
+fn work_graph_proto_dir() -> std::path::PathBuf {
     if let Ok(dir) = std::env::var("PD_CONJURE_PROTO_DIR") {
         return std::path::PathBuf::from(dir);
     }
@@ -114,15 +167,40 @@ fn conjure_proto_dir() -> std::path::PathBuf {
         .unwrap_or_else(|| std::path::PathBuf::from("pd-conjure-proto"))
 }
 
-/// The Conjure → Vello render handoff (runs on a blocking worker, never the gpui
+/// Finder-launched apps do not inherit a login-shell PATH. Add the standard
+/// development tool locations for the optional local Vello proof renderer.
+fn augmented_tool_path() -> String {
+    let home = std::env::var("HOME").unwrap_or_default();
+    let mut dirs = Vec::<String>::new();
+    if !home.is_empty() {
+        dirs.push(format!("{home}/.cargo/bin"));
+        dirs.push(format!("{home}/.local/bin"));
+    }
+    for dir in ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"] {
+        dirs.push(dir.to_string());
+    }
+    if let Ok(existing) = std::env::var("PATH") {
+        for segment in existing
+            .split(':')
+            .filter(|segment| !segment.trim().is_empty())
+        {
+            if !dirs.iter().any(|dir| dir == segment) {
+                dirs.push(segment.to_string());
+            }
+        }
+    }
+    dirs.join(":")
+}
+
+/// The Work → Vello render handoff (runs on a blocking worker, never the gpui
 /// thread): write the serialized DAG where the proto reads it, then build+run
 /// `scripts/capture.sh`. capture.sh builds RELEASE and runs the binary UNSANDBOXED
 /// — both are required on macOS 15 (debug fontique panics; the Metal readback is
 /// SIGKILLed in a sandbox). Returns the PNG path on success; an error carrying the
 /// captured stderr otherwise (surfaced as a HITL alert, never swallowed).
-fn render_conjure_png(dag_json: &str) -> anyhow::Result<std::path::PathBuf> {
+fn render_work_graph_png(dag_json: &str) -> anyhow::Result<std::path::PathBuf> {
     use anyhow::{bail, Context};
-    let proto = conjure_proto_dir();
+    let proto = work_graph_proto_dir();
     let script = proto.join("scripts").join("capture.sh");
     if !script.exists() {
         bail!(
@@ -131,7 +209,7 @@ fn render_conjure_png(dag_json: &str) -> anyhow::Result<std::path::PathBuf> {
         );
     }
     // Write the live DAG to the proto's input file (the same shape its fixture.json
-    // carries) so capture.sh's default INPUT renders exactly what was conjured.
+    // carries) so capture.sh's default INPUT renders exactly the daemon projection.
     let input = proto.join("fixture.json");
     std::fs::write(&input, dag_json)
         .with_context(|| format!("writing the DAG JSON to {}", input.display()))?;
@@ -149,7 +227,7 @@ fn render_conjure_png(dag_json: &str) -> anyhow::Result<std::path::PathBuf> {
         .arg(&input)
         .arg(&output)
         .current_dir(&proto)
-        .env("PATH", conjure::augmented_path())
+        .env("PATH", augmented_tool_path())
         .output()
         .with_context(|| format!("running {}", script.display()))?;
     if !status.status.success() {
@@ -173,6 +251,71 @@ fn render_conjure_png(dag_json: &str) -> anyhow::Result<std::path::PathBuf> {
         );
     }
     Ok(output)
+}
+
+/// Rebuild the human-language Mission conversation from daemon-owned records.
+/// The WorkIntent goal is a safe fallback for the operator turn; assistant prose
+/// appears only when it exists in the exact transcript named by the execution.
+async fn rehydrate_mission_chat(
+    client: &DaemonClient,
+    snapshot: &agent::WorkSnapshot,
+) -> (Vec<chat::ChatMsg>, Option<String>) {
+    let assistant_sender = snapshot
+        .execution_agent_id()
+        .unwrap_or("attributed agent")
+        .to_string();
+    let mut warning = None;
+    let mut messages = match snapshot.transcript_id() {
+        Some(transcript_id) => match client.transcript_turns(transcript_id).await {
+            Ok(turns) => turns
+                .into_iter()
+                .map(|turn| match turn.role {
+                    agent::TranscriptTurnRole::Operator => chat::ChatMsg::mine(turn.content),
+                    agent::TranscriptTurnRole::Assistant => {
+                        chat::ChatMsg::agent(assistant_sender.clone(), turn.content)
+                    }
+                })
+                .collect(),
+            Err(error) => {
+                warning = Some(format!(
+                    "transcript {transcript_id} could not be restored: {error}"
+                ));
+                Vec::new()
+            }
+        },
+        None => Vec::new(),
+    };
+
+    if !messages
+        .iter()
+        .any(|message| message.kind == chat::ChatMsgKind::Operator)
+    {
+        messages.insert(0, chat::ChatMsg::mine(snapshot.goal()));
+    }
+
+    let receipt = match snapshot.dispatch_id() {
+        Some(execution_id) => chat::mission_admission_receipt(
+            snapshot.intent_id(),
+            execution_id,
+            snapshot.execution_state(),
+        ),
+        None => chat::ChatMsg::receipt(
+            "Port Daddy receipt",
+            format!(
+                "WorkIntent {} is durable · runtime {}.",
+                snapshot.intent_id(),
+                snapshot.execution_state()
+            ),
+        ),
+    };
+    let receipt_index = messages
+        .iter()
+        .position(|message| message.kind == chat::ChatMsgKind::Operator)
+        .map(|index| index + 1)
+        .unwrap_or(0);
+    messages.insert(receipt_index, receipt);
+
+    (messages, warning)
 }
 
 /// Filesystem asset source — resolves paths relative to the `assets/` dir
@@ -240,6 +383,31 @@ fn main() {
     // offscreen Metal readback (see docs/artifacts/gpui/HEADLESS-CAPTURE.md).
     {
         let args: Vec<String> = std::env::args().collect();
+        if let Some(i) = args.iter().position(|a| a == "--headless-zoom-capture") {
+            let out = args
+                .get(i + 1)
+                .map(String::as_str)
+                .filter(|a| !a.starts_with('-'))
+                .unwrap_or("headless-zoom-capture.png");
+            let percent = args
+                .iter()
+                .position(|a| a == "--zoom-percent")
+                .and_then(|index| args.get(index + 1))
+                .and_then(|value| value.parse::<u16>().ok())
+                .unwrap_or(presentation::DEFAULT_ZOOM_PERCENT);
+            match headless_capture::capture_zoom_controls_to_path(out, percent) {
+                Ok(bytes) => {
+                    println!(
+                        "pd-console headless-zoom-capture -> {out} ({bytes} bytes, {percent}%, no window/display/TCC)"
+                    );
+                    return;
+                }
+                Err(error) => {
+                    eprintln!("pd-console headless-zoom-capture failed: {error}");
+                    std::process::exit(1);
+                }
+            }
+        }
         if let Some(i) = args.iter().position(|a| a == "--headless-capture") {
             // Fall back to the default when the next token is another flag (or
             // absent) rather than silently writing to a path like `--list-displays`.
@@ -248,7 +416,13 @@ fn main() {
                 .map(String::as_str)
                 .filter(|a| !a.starts_with('-'))
                 .unwrap_or("headless-capture.png");
-            match headless_capture::capture_to_path(out) {
+            let state = args
+                .iter()
+                .position(|a| a == "--mission-state")
+                .and_then(|index| args.get(index + 1))
+                .map(String::as_str)
+                .unwrap_or("in_progress");
+            match headless_capture::capture_state_to_path(out, state) {
                 Ok(bytes) => {
                     println!("pd-console headless-capture -> {out} ({bytes} bytes, no window/display/TCC)");
                     return;
@@ -261,13 +435,20 @@ fn main() {
         }
     }
 
-    // Seed light/dark from PD_CONSOLE_THEME before the window opens (default dark).
+    // Seed operator presentation preferences before the window opens.
     app::init_theme_from_env();
+    app::init_motion_from_env();
+    if let Some(warning) = presentation::init() {
+        eprintln!("{warning}");
+    }
 
-    // Canonical daemon discovery: PORT_DADDY_URL env var → daemon.port file → default.
-    // All fallback logic lives in DaemonClient::discover(); no literals here.
+    // Canonical daemon discovery: PORT_DADDY_URL env var → daemon.port file →
+    // the stable berth default. All fallback logic lives in
+    // DaemonClient::discover(); no literals here. Discovery is infallible now —
+    // with nothing registered the console opens against the stable berth and the
+    // panes render reachability honestly instead of panicking pre-window.
     let daemon_url = DaemonClient::discover()
-        .expect("daemon discovery failed")
+        .expect("daemon discovery is infallible")
         .base()
         .to_string();
 
@@ -326,6 +507,28 @@ fn main() {
         // ControlMsg to the background thread that owns the surfaces + daemon.
         let (control_tx, control_rx) = mpsc::channel::<app::ControlMsg>();
 
+        // The CLI drawer owns one real login-shell PTY for the lifetime of the
+        // window. Launch failure stays visible in the drawer; it never aborts the
+        // operator console or degrades into a fake command dispatcher.
+        let shell_cwd = shell_drawer::default_cwd();
+        let (shell, mut shell_rx) = match shell_drawer::ShellTerminal::spawn(shell_cwd.clone()) {
+            Ok(session) => session,
+            Err(error) => {
+                let failure = shell_drawer::ShellFailure::new(
+                    "PTY_LAUNCH_FAILED",
+                    "The CLI shell could not be launched.",
+                    format!("{error:#}"),
+                    "Choose a valid login shell, then relaunch pd-console.",
+                );
+                eprintln!("{}", failure.operator_message());
+                let (_event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel();
+                (
+                    shell_drawer::ShellTerminal::disconnected_with_recovery(shell_cwd, failure),
+                    event_rx,
+                )
+            }
+        };
+
         let bounds = Bounds::centered(chosen_display, size(px(1200.0), px(800.0)), cx);
 
         let window = cx
@@ -343,12 +546,14 @@ fn main() {
                     ..Default::default()
                 },
                 |window, cx| {
+                    window.set_rem_size(gpui::px(16.0 * presentation::zoom_factor()));
                     let control_tx = control_tx.clone();
                     let view = cx.new(|cx| {
                         ConsoleView::with_control(
                             daemon_url.clone(),
                             initial_pane.clone(),
                             Some(control_tx),
+                            shell,
                             cx,
                         )
                     });
@@ -361,6 +566,24 @@ fn main() {
             )
             .expect("failed to open pd-console window");
 
+        // PTY output is latency-sensitive operator feedback, so it has its own
+        // event-driven foreground consumer rather than waiting for the 500ms
+        // daemon-pane refresh cadence below.
+        let shell_window = window;
+        let shell_async_cx = cx.to_async();
+        cx.foreground_executor()
+            .spawn(async move {
+                while let Some(event) = shell_rx.recv().await {
+                    let _ = shell_async_cx.update(|app| {
+                        let _ = shell_window.update(app, |view: &mut ConsoleView, _, cx| {
+                            view.apply_shell_event(event);
+                            cx.notify();
+                        });
+                    });
+                }
+            })
+            .detach();
+
         // ── Multi-pane refresh pipeline ───────────────────────────────────────
         // Producer: std thread with mini tokio runtime — refreshes all panes every 2s.
         // Sends Vec<(nav_index, Vec<Block>)> so the view can update each slot.
@@ -370,7 +593,7 @@ fn main() {
         //  7=Activity  8=Sessions  9=Inbox  10=Suggest  11=Memory  12=PRs
         //  13=Health  14=CoastGuard  15=Dispatch  16=Lane  17=Ledger  18=Lineage
         //  19=Substrate  20=Parley  21=Conductor  22=Daemons  23=Cloud Fleet
-        //  24=Active Agents  25=Harbor  26=Sextant
+        //  24=Active Agents  25=Harbor  26=Sextant  27=Interruptions (HITL)
         //
         // The tuple also carries Sextant's typed snapshot (points + clusters)
         // alongside the render-agnostic blocks, so the bespoke canvas draws the
@@ -379,25 +602,30 @@ fn main() {
             Vec<(usize, Vec<pane::Block>)>,
             Option<dispatch_pane::DispatchHead>,
             galaxy_pane::GalaxySnapshot,
+            bool,
+            interruptions::HitlGate,
         )>();
         // Alert bus: the bg thread captures the daemon's REAL rejection from any
         // operator action and pushes it here instead of swallowing it (`let _ =`).
         // The fg drains it alongside pane updates — the keystone that turns
         // "nothing happens" into "spawn rejected: <why>".
         let (alert_tx, alert_rx) = mpsc::channel::<pane::Alert>();
-        // Conjure bus: the bg worker streams the live-generated DAG (claude:cli)
-        // and the rendered Vello PNG path back to the view, which swaps to the
-        // Conjure surface and shows the inline graphic. Separate from the pane bus
-        // because these are foreground-owned surfaces, not background NAV panes.
-        let (conjure_tx, conjure_rx) = mpsc::channel::<app::ConjureUpdate>();
-        // Chat bus: the bg thread owns the real tube round-trip (tube_send up,
-        // tube_poll down on the stable `console-chat` channel, both off the gpui
-        // executor) and pushes replies/errors back here for the foreground to fold
-        // into the chat transcript. Real daemon traffic, never a fake.
+        // Mission bus: command receipts and restart-safe daemon snapshots flow back
+        // to the foreground-owned Mission surface. Rendered PNGs are artifacts of
+        // that truth, never an independent planning source.
+        let (work_tx, work_rx) = mpsc::channel::<app::WorkUpdate>();
+        // Mission conversation bus: attributed replies, deterministic receipts,
+        // and honest refusals. A first turn captures WorkIntent rather than
+        // silently spawning a provider-specific responder.
         let (chat_tx, chat_rx) = mpsc::channel::<chat::ChatUpdate>();
+        // The Harbor Editor's LIVE blocks (P3 wire stage 2): the producer folds the
+        // edit-sync + coordination lanes into its persistent EditorPane, then pushes
+        // `(bound_path, view())` here on each fold edge for the foreground to surface on
+        // the Editor surface — the wedge finally shows in the RUNNING window.
+        let (editor_tx, editor_rx) = mpsc::channel::<app::EditorUpdate>();
         // Sextant bus: the bg thread owns the GET /galaxy/session/:id round-trip
         // for a clicked point and streams the parsed detail (or the daemon's real
-        // failure) back to the view's drawer. Mirrors the conjure bus: a small
+        // failure) back to the view's drawer. Mirrors the WorkPlan bus: a small
         // dedicated channel, drained in the same 500ms foreground task.
         let (galaxy_tx, galaxy_rx) = mpsc::channel::<app::GalaxyUpdate>();
         // Scripting bus: the control-socket thread parses newline-JSON commands
@@ -451,6 +679,7 @@ fn main() {
                 let mut live_agents = ActiveAgentsPane::new();  // 24 — harness roster
                 let mut harbor     = HarborPane::new();         // 25 — Agent Node roster+detail (ch18 C3)
                 let mut galaxy      = GalaxyPane::new();        // 26 — Sextant embedding map
+                let mut hitl        = InterruptionsPane::new(); // 27 — HITL operator interruptions
 
                 // Pin the producer slots to the canonical grid map. If a pane is
                 // added, reordered, or swapped without updating `app::SLOT_PANE_IDS`
@@ -466,6 +695,7 @@ fn main() {
                         parley.id(), conductor.id(), daemons.id(), cloud_fleet.id(), live_agents.id(),
                         harbor.id(),
                         galaxy.id(),
+                        hitl.id(),
                     ],
                     grid::SLOT_PANE_IDS,
                     "producer slot order drifted from grid::SLOT_PANE_IDS",
@@ -482,10 +712,37 @@ fn main() {
                 // each loop into the pane's live tail.
                 let mut harbor_stream: Option<(String, tokio::sync::mpsc::Receiver<agent::StreamEnvelope>)> = None;
 
-                // Operator chat transport state: (channel, cursor). `None` until the
-                // first turn binds a responder on the stable `console-chat` channel.
-                // Each loop polls this channel for replies down the tube.
-                let mut chat: Option<(String, u64)> = None;
+                // The Harbor Editor's live lane (P3 wire stage 1). `editor` is the
+                // persistent pane bound to the operator's currently-open file (set by
+                // `ControlMsg::OpenEditor`); `editor_stream` holds its TWO isolated tube
+                // receivers — (edit_channel, edit-sync rx, coordination rx) — (re)opened
+                // whenever the bound file changes. Two independent `subscribe_channel`
+                // mpsc's IS the edit-lane ⇄ coordination-lane isolation (ref-03 §3).
+                // `None` until the operator opens an Editor surface.
+                let mut editor: Option<editor_pane::EditorPane> = None;
+                let mut editor_stream: Option<(
+                    String,
+                    tokio::sync::mpsc::Receiver<agent::TubeMsg>,
+                    tokio::sync::mpsc::Receiver<agent::TubeMsg>,
+                )> = None;
+
+                // Rehydrate Work truth only when its durable identity/state changes.
+                let mut latest_work_projection: Option<(String, String, String)> = None;
+                let mut latest_work_query_error: Option<String> = None;
+                // Once the operator starts a mission, keep following that exact
+                // WorkIntent even if another client creates newer work.
+                let mut tracked_work_intent_id: Option<String> = None;
+                // Route chat from durable execution truth, not a stale agent
+                // heartbeat or the mere existence of an old subscription.
+                let mut tracked_work_state: Option<String> = None;
+                // A row selected in Agents binds the shared composer to that
+                // stable Port Daddy actor without pretending it is a WorkIntent
+                // created by this console process.
+                let mut operator_selected_agent = false;
+                // Selection is durable across console restarts. Rebind it once
+                // the authoritative directory has refreshed; never infer a
+                // provider process or resurrect an offline actor.
+                let mut restore_saved_agent = true;
 
                 loop {
                     tokio::time::sleep(Duration::from_secs(2)).await;
@@ -504,49 +761,6 @@ fn main() {
                                     let _ = alert_tx.send(pane::Alert::error("interrupt failed", e.to_string()));
                                 }
                             }
-                            // Kick off a new top-level agent on the live daemon.
-                            app::ControlMsg::Spawn { backend, prompt, model } => {
-                                match agent::Backend::parse(&backend) {
-                                    None => {
-                                        let _ = alert_tx.send(pane::Alert::error(
-                                            "spawn failed",
-                                            format!("unknown backend '{backend}'"),
-                                        ));
-                                    }
-                                    // Manual Spawn keeps its historical posture:
-                                    // NO squid hooks (default opts). Only conjure
-                                    // dispatch opts into PD coordination.
-                                    Some(b) => match client.spawn(b, &prompt, "operator", model.as_deref(), agent::SpawnOpts::default()).await {
-                                        Err(e) => {
-                                            let _ = alert_tx.send(pane::Alert::error(
-                                                format!("spawn rejected ({backend})"),
-                                                e.to_string(),
-                                            ));
-                                        }
-                                        // The daemon can return 2xx with an embedded refusal
-                                        // (preflight block) — surface that too, never as success.
-                                        Ok(outcome) => {
-                                            if let Some(err) = outcome.error {
-                                                let _ = alert_tx.send(pane::Alert::error(
-                                                    format!("spawn blocked ({backend})"),
-                                                    err,
-                                                ));
-                                            } else {
-                                                let _ = alert_tx.send(pane::Alert::info(
-                                                    format!("spawned {backend} agent {}", outcome.id),
-                                                    outcome.status,
-                                                ));
-                                            }
-                                        }
-                                    },
-                                }
-                            }
-                            // Send a turn to the cartographer over its tube channel.
-                            app::ControlMsg::Cartographer { text } => {
-                                if let Err(e) = client.tube_send("cartographer", &text, "operator").await {
-                                    let _ = alert_tx.send(pane::Alert::error("cartographer send failed", e.to_string()));
-                                }
-                            }
                             app::ControlMsg::MessageLane { text } => {
                                 if let Err(e) = lane
                                     .mutate(
@@ -563,141 +777,87 @@ fn main() {
                                     ));
                                 }
                             }
-                            // Operator chat — the REAL tube round-trip. The first turn
-                            // binds a conversational responder by spawning a Claude Code
-                            // agent ON the `console-chat` channel (guaranteed multi-turn
-                            // tube replies); the operator's first message is the seed
-                            // prompt. Subsequent turns `tube_send` up the channel; the
-                            // poll below pulls replies down. Live launch is env-dependent
-                            // (daemon up + claude CLI + a worktree via PD_CONSOLE_WORKDIR
-                            // + budget). On a spawn refusal we DON'T lose the turn — we
-                            // round-trip it onto the real /msg channel and start polling,
-                            // and surface the refusal in the chat error state.
                             app::ControlMsg::ChatSend { text } => {
-                                let channel = "console-chat".to_string();
-                                match &mut chat {
-                                    Some((ch, _cursor)) => {
-                                        if let Err(e) = client.tube_send(ch, &text, "operator").await {
-                                            let _ = chat_tx.send(chat::ChatUpdate::Error(
-                                                format!("chat send failed: {e}"),
-                                            ));
-                                        }
+                                if (operator_selected_agent && lane.has_agent())
+                                    || chat::routes_to_existing_mission_body(
+                                        tracked_work_state.as_deref(),
+                                        lane.has_agent(),
+                                    )
+                                {
+                                    if let Err(error) = lane
+                                        .mutate(
+                                            &client,
+                                            SurfaceAction::OperatorTurn {
+                                                turn: OperatorTurn::parse(text),
+                                            },
+                                        )
+                                        .await
+                                    {
+                                        let _ = chat_tx.send(chat::ChatUpdate::Error(format!(
+                                            "operator turn was not delivered: {error}"
+                                        )));
                                     }
-                                    None => {
-                                        // Bind a responder. FIRST resolve a dedicated
-                                        // workdir so the daemon's main-checkout isolation
-                                        // guard (assessSpawnIsolation) is SATISFIED — a bare
-                                        // spawn omitted workdir, defaulted to the daemon's own
-                                        // main checkout, and bounced, so NO responder ever
-                                        // bound and the chat stayed silent. `bind_error` is
-                                        // `Some(reason)` when we couldn't bind (worktree
-                                        // creation failed, or the spawn itself failed for
-                                        // budget/binary/daemon reasons); it drives ONE shared
-                                        // recovery path below.
-                                        let bind_error: Option<String> =
-                                            match agent::resolve_console_chat_workdir() {
-                                                // ChatWorkdirError already carries a full,
-                                                // actionable "couldn't create …" message (and
-                                                // names a worktree OR a scratch dir), so surface
-                                                // it verbatim — no redundant re-prefix.
-                                                Err(wd_err) => Some(wd_err.to_string()),
-                                                Ok(workdir) => {
-                                                    let opts = agent::SpawnOpts {
-                                                        workdir: Some(workdir),
-                                                        ..Default::default()
-                                                    };
-                                                    match client
-                                                        .spawn(
-                                                            agent::Backend::ClaudeCli,
-                                                            &text,
-                                                            &channel,
-                                                            None,
-                                                            opts,
-                                                        )
-                                                        .await
-                                                    {
-                                                        Ok(outcome) => {
-                                                            chat = Some((channel.clone(), 0));
-                                                            // One-shot inline backends (ollama)
-                                                            // reply in the spawn response, not
-                                                            // on the tube.
-                                                            if let Some(out) = outcome
-                                                                .output
-                                                                .filter(|t| !t.trim().is_empty())
-                                                            {
-                                                                let _ = chat_tx.send(
-                                                                    chat::ChatUpdate::Reply(
-                                                                        chat::ChatMsg::agent(
-                                                                            "claude-cli",
-                                                                            out,
-                                                                        ),
-                                                                    ),
-                                                                );
-                                                            }
-                                                            if let Some(err) = outcome.error {
-                                                                let _ = chat_tx.send(
-                                                                    chat::ChatUpdate::Error(format!(
-                                                                        "chat responder blocked: {err}"
-                                                                    )),
-                                                                );
-                                                            }
-                                                            None
-                                                        }
-                                                        // workdir is valid now, so a spawn
-                                                        // failure is budget / claude binary /
-                                                        // daemon — `e` carries the daemon's
-                                                        // SPECIFIC reason (ensure_success
-                                                        // forwards the response body). Surface
-                                                        // it; don't relabel it "spawn refused".
-                                                        Err(e) => Some(format!("no responder bound: {e}")),
-                                                    }
-                                                }
-                                            };
+                                    continue;
+                                }
 
-                                        // One shared recovery: if we couldn't bind, still
-                                        // round-trip the turn onto the channel so it isn't
-                                        // lost — and surface the SPECIFIC reason (never swallow
-                                        // the send: "stop swallowing errors").
-                                        if let Some(reason) = bind_error {
-                                            match client
-                                                .tube_send(&channel, &text, "operator")
-                                                .await
-                                            {
-                                                Ok(_) => {
-                                                    // Message is on the channel; poll for a
-                                                    // responder that may join later.
-                                                    chat = Some((channel, 0));
-                                                    let _ = chat_tx.send(chat::ChatUpdate::Error(
-                                                        format!("{reason} — your message is on the channel; replies appear if a responder joins"),
-                                                    ));
-                                                }
-                                                Err(send_err) => {
-                                                    // Daemon fully unreachable: be honest the
-                                                    // message did NOT land; leave chat unbound
-                                                    // so the next turn retries the spawn.
-                                                    let _ = chat_tx.send(chat::ChatUpdate::Error(
-                                                        format!("{reason}; and the channel send also failed ({send_err}); is the daemon up?"),
-                                                    ));
-                                                }
+                                let goal = chat::mission_goal_for_operator_turn(&text);
+                                match client.capture_work_intent(&goal).await {
+                                    Ok(receipt) => {
+                                        let intent_id = receipt.snapshot.intent_id().to_string();
+                                        let state = receipt.snapshot.plan_state().to_string();
+                                        let snapshot = receipt.snapshot.clone();
+                                        tracked_work_intent_id = Some(intent_id.clone());
+                                        tracked_work_state = Some("starting".into());
+                                        latest_work_projection = Some((
+                                            intent_id.clone(),
+                                            state,
+                                            snapshot.execution_fingerprint(),
+                                        ));
+                                        let _ = work_tx.send(app::WorkUpdate::Receipt(receipt));
+                                        match client.start_work_intent(&snapshot).await {
+                                            Ok(execution) => {
+                                                let runtime_state = execution.state.clone();
+                                                tracked_work_state = Some(runtime_state.clone());
+                                                let execution_id = execution.dispatch_id.clone();
+                                                lane.follow_agent(execution.agent_id.as_deref());
+                                                operator_selected_agent = false;
+                                                let _ = work_tx.send(app::WorkUpdate::Execution(execution));
+                                                let _ = chat_tx.send(chat::ChatUpdate::Receipt(
+                                                    chat::mission_admission_receipt(
+                                                        &intent_id,
+                                                        &execution_id,
+                                                        &runtime_state,
+                                                    ),
+                                                ));
+                                            }
+                                            Err(error) => {
+                                                let _ = chat_tx.send(chat::ChatUpdate::Error(format!(
+                                                    "conversation WorkIntent {intent_id} is durable, but runtime start is unknown: {error}"
+                                                )));
                                             }
                                         }
+                                    }
+                                    Err(error) => {
+                                        let _ = chat_tx.send(chat::ChatUpdate::Error(format!(
+                                            "conversation intent was not captured: {error}; no responder was requested"
+                                        )));
                                     }
                                 }
                             }
                             // Operator review-gate verdicts on a dispatch.
                             app::ControlMsg::DispatchAccept { id } => {
                                 if let Err(e) = client.dispatch_action(&id, "accept", None).await {
-                                    let _ = alert_tx.send(pane::Alert::error("dispatch accept failed", e.to_string()));
+                                    let _ = alert_tx.send(pane::Alert::error("gate approval failed", e.to_string()));
                                 }
                             }
                             app::ControlMsg::DispatchReject { id, reason } => {
                                 if let Err(e) = client.dispatch_action(&id, "reject", Some(&reason)).await {
-                                    let _ = alert_tx.send(pane::Alert::error("dispatch reject failed", e.to_string()));
+                                    let _ = alert_tx.send(pane::Alert::error("gate rejection failed", e.to_string()));
                                 }
                             }
                             app::ControlMsg::DispatchCancel { id } => {
                                 if let Err(e) = client.dispatch_action(&id, "cancel", Some("operator cancelled")).await {
-                                    let _ = alert_tx.send(pane::Alert::error("dispatch cancel failed", e.to_string()));
+                                    let _ = alert_tx.send(pane::Alert::error("gate cancellation failed", e.to_string()));
                                 }
                             }
                             // Conductor operator control (ADR-0060): grab the wheel on the fleet.
@@ -716,81 +876,22 @@ fn main() {
                                     let _ = alert_tx.send(pane::Alert::error("fleet resume failed", e.to_string()));
                                 }
                             }
-                            // Conjure LIVE GENERATION: ask the Max-seat `claude` CLI
-                            // (print mode, NO API key) to bloom a real DAG tailored to
-                            // the operator's prompt, falling back to the prompt-seeded
-                            // fixture on any failure. Runs on a blocking worker (the
-                            // CLI round-trip is multi-second). On success it pushes the
-                            // DAG back to the view (which swaps to Conjure) AND kicks
-                            // the inline Vello render so the graphic appears too.
-                            app::ControlMsg::ConjureGenerate { prompt } => {
-                                let alert_tx = alert_tx.clone();
-                                let conjure_tx = conjure_tx.clone();
-                                tokio::task::spawn_blocking(move || {
-                                    let _ = alert_tx.send(pane::Alert::info(
-                                        "conjure: generating with claude:cli",
-                                        format!("asking the Max seat to plan: {}", prompt.trim()),
-                                    ));
-                                    // Never errors — returns the fixture on any CLI failure.
-                                    let dag = match conjure::generate_dag_via_cli(&prompt) {
-                                        Ok(d) => d,
-                                        Err(e) => {
-                                            // Defensive: generate_dag_via_cli is infallible
-                                            // by contract, but surface anything unexpected
-                                            // and still fall back to a renderable DAG.
-                                            let _ = alert_tx.send(pane::Alert::error(
-                                                "conjure generation error",
-                                                e.to_string(),
-                                            ));
-                                            conjure::seeded_from_prompt(&prompt)
-                                        }
-                                    };
-                                    let title = dag.title.clone();
-                                    let waves = dag.waves.len();
-                                    // Push the DAG to the view (swaps to Conjure surface).
-                                    let _ = conjure_tx.send(app::ConjureUpdate::Dag(dag.clone()));
-                                    let _ = alert_tx.send(pane::Alert::info(
-                                        format!("conjured “{title}” via claude:cli"),
-                                        format!("{waves} wave(s) — rendering the Vello graphic…"),
-                                    ));
-                                    // Auto-render the inline Vello PNG for the new DAG.
-                                    match conjure::to_json(&dag) {
-                                        Ok(json) => match render_conjure_png(&json) {
-                                            Ok(png) => {
-                                                let _ = conjure_tx.send(app::ConjureUpdate::Png(png));
-                                            }
-                                            Err(e) => {
-                                                let _ = alert_tx.send(pane::Alert::error(
-                                                    "conjure inline render failed",
-                                                    e.to_string(),
-                                                ));
-                                            }
-                                        },
-                                        Err(e) => {
-                                            let _ = alert_tx.send(pane::Alert::error(
-                                                "conjure serialize failed",
-                                                e.to_string(),
-                                            ));
-                                        }
-                                    }
-                                });
-                            }
-                            // Conjure → Vello: write the live DAG JSON where the proto
+                            // WorkPlan → Vello: write the live DAG JSON where the proto
                             // reads it, build+run capture.sh (RELEASE + UNSANDBOXED —
                             // debug fontique panics on macOS 15 and the Metal readback
                             // is SIGKILLed under a sandbox), then `open` the PNG. The
                             // whole shell-out runs on a blocking worker so the 2s
                             // refresh cadence above never stalls on a release build.
-                            app::ControlMsg::RenderConjureGraph { dag_json, title } => {
+                            app::ControlMsg::RenderWorkGraph { dag_json, title } => {
                                 let alert_tx = alert_tx.clone();
-                                let conjure_tx = conjure_tx.clone();
+                                let work_tx = work_tx.clone();
                                 tokio::task::spawn_blocking(move || {
-                                    match render_conjure_png(&dag_json) {
+                                    match render_work_graph_png(&dag_json) {
                                         Ok(png) => {
                                             // Slot the fresh PNG into the INLINE graphic too,
                                             // not just the external `open` — the operator sees
                                             // it update in-pane.
-                                            let _ = conjure_tx.send(app::ConjureUpdate::Png(png.clone()));
+                                            let _ = work_tx.send(app::WorkUpdate::Png(png.clone()));
                                             // Surface the PNG to the operator (best-effort `open`).
                                             let _ = std::process::Command::new("open").arg(&png).status();
                                             let _ = alert_tx.send(pane::Alert::info(
@@ -800,93 +901,12 @@ fn main() {
                                         }
                                         Err(e) => {
                                             let _ = alert_tx.send(pane::Alert::error(
-                                                "conjure render failed",
+                                                "work graph render failed",
                                                 e.to_string(),
                                             ));
                                         }
                                     }
                                 });
-                            }
-                            // Conjure DISPATCH: spawn each committed (non-HITL-gated)
-                            // node on the vendor its model_tier chose, through the
-                            // SAME client.spawn the manual Spawn command uses (the
-                            // daemon's existing multi-vendor spawner / lib/spawner.ts).
-                            // Each outcome is surfaced as an Alert exactly like Spawn:
-                            // Info with the agent id on launch, Error on a refusal
-                            // (unknown/non-launchable backend, budget/worktree guard,
-                            // or an embedded preflight block). Live launch is env-
-                            // dependent (daemon up + vendor CLI installed); the Giant
-                            // Squid Harness (ADR-0091, Proposed/not built) is the
-                            // FUTURE in-loop vendor-hook coordination upgrade.
-                            app::ControlMsg::ConjureDispatch { requests, gated } => {
-                                let total = requests.len();
-                                if gated > 0 {
-                                    let _ = alert_tx.send(pane::Alert::info(
-                                        format!("conjure dispatch: {total} node(s) → vendors"),
-                                        format!("{gated} HITL-gated node(s) held back for explicit approval"),
-                                    ));
-                                }
-                                for req in requests {
-                                    let tier = req.model_tier;
-                                    let node_id = req.node_id;
-                                    let skill = req.skill_id;
-                                    // The node's chosen vendor (already resolved from
-                                    // model_tier via agent::backend_for_tier on the
-                                    // foreground); re-parse the wire id to a Backend.
-                                    match agent::Backend::parse(&req.backend) {
-                                        None => {
-                                            let _ = alert_tx.send(pane::Alert::error(
-                                                format!("dispatch failed ({node_id})"),
-                                                format!("unknown backend '{}' for tier '{tier}'", req.backend),
-                                            ));
-                                        }
-                                        Some(b) => {
-                                            // Seed the goal with the skill the node
-                                            // predicted, so the spawned agent loads it.
-                                            let goal = if skill.is_empty() {
-                                                req.goal.clone()
-                                            } else {
-                                                format!("[skill: {skill}] {}", req.goal)
-                                            };
-                                            // EXISTING spawn path — same method, same
-                                            // channel convention as ControlMsg::Spawn,
-                                            // but with SpawnOpts::squid(): this makes
-                                            // the conjure-dispatched vendor CLI run
-                                            // UNDER PD coordination — the daemon injects
-                                            // the Giant Squid Harness (ADR-0091)
-                                            // pd-hook-* tentacles into the workspace's
-                                            // .claude/settings.json, so lock-gating +
-                                            // pheromones fire inside Claude Code's own
-                                            // loop (Claude Max Prime). codex / gemini
-                                            // remain validate-then-add (their squid
-                                            // adapters throw → the flag is a no-op there).
-                                            match client.spawn(b, &goal, "operator", None, agent::SpawnOpts::squid()).await {
-                                                Err(e) => {
-                                                    let _ = alert_tx.send(pane::Alert::error(
-                                                        format!("dispatch rejected ({node_id} → {})", req.backend),
-                                                        e.to_string(),
-                                                    ));
-                                                }
-                                                Ok(outcome) => {
-                                                    if let Some(err) = outcome.error {
-                                                        let _ = alert_tx.send(pane::Alert::error(
-                                                            format!("dispatch blocked ({node_id} → {})", req.backend),
-                                                            err,
-                                                        ));
-                                                    } else {
-                                                        let _ = alert_tx.send(pane::Alert::info(
-                                                            format!(
-                                                                "dispatched {node_id} → {} agent {}",
-                                                                req.backend, outcome.id
-                                                            ),
-                                                            format!("tier {tier} · {}", outcome.status),
-                                                        ));
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
                             }
                             // Switch the whole console to another daemon berth: swap
                             // the client so every pane's next refresh hits the new
@@ -895,7 +915,20 @@ fn main() {
                             app::ControlMsg::RebindDaemon { url } => {
                                 client = DaemonClient::new(url);
                                 lane_stream = None; // drop the old daemon's SSE stream
-                                chat = None; // re-bind chat on the new daemon's channel
+                                editor_stream = None; // and the editor's edit/coord streams
+                                lane.follow_agent(None);
+                                latest_work_projection = None;
+                                latest_work_query_error = None;
+                                tracked_work_intent_id = None;
+                                tracked_work_state = None;
+                                operator_selected_agent = false;
+                                // An explicit daemon switch is authoritative for
+                                // this process. Do not immediately bounce back to
+                                // a saved actor; clicking that actor re-enters its
+                                // owning berth deliberately.
+                                restore_saved_agent = false;
+                                let _ = work_tx.send(app::WorkUpdate::Reset);
+                                let _ = chat_tx.send(chat::ChatUpdate::Reset);
                             }
                             // Steer the Sextant pane's query; the next 2s refresh
                             // fetches with the new window/floor.
@@ -950,38 +983,6 @@ fn main() {
                                     }
                                 }
                             }
-                            // Propose a dispatch into the review queue (POST /dispatches).
-                            app::ControlMsg::ProposeDispatch { goal } => {
-                                match client.propose_dispatch(&goal).await {
-                                    Ok(()) => {
-                                        let _ = alert_tx.send(pane::Alert::info(
-                                            "dispatch proposed",
-                                            "Dispatch pane will refresh shortly",
-                                        ));
-                                    }
-                                    Err(e) => {
-                                        let _ = alert_tx.send(pane::Alert::error(
-                                            "dispatch proposal failed",
-                                            e.to_string(),
-                                        ));
-                                    }
-                                }
-                            }
-                            // Launch a sortie mission (POST /sorties).
-                            app::ControlMsg::LaunchSortie { goal } => {
-                                match client.launch_sortie(&goal).await {
-                                    Ok(()) => {
-                                        let _ = alert_tx.send(pane::Alert::info(
-                                            "sortie launching",
-                                            "Sorties pane will refresh shortly",
-                                        ));
-                                    }
-                                    Err(e) => {
-                                        let _ = alert_tx
-                                            .send(pane::Alert::error("sortie failed", e.to_string()));
-                                    }
-                                }
-                            }
                             // Claim a port for an identity (POST /claim).
                             app::ControlMsg::ClaimPort { identity } => {
                                 match client.claim_port(&identity).await {
@@ -1032,8 +1033,8 @@ fn main() {
                                 match client.interrupt(&agent_id, Some("operator stop")).await {
                                     Ok(()) => {
                                         let _ = alert_tx.send(pane::Alert::info(
-                                            format!("interrupted {agent_id}"),
-                                            "operator stop sent",
+                                            format!("stop requested for {agent_id}"),
+                                            "runtime acknowledgement pending",
                                         ));
                                     }
                                     Err(e) => {
@@ -1048,8 +1049,8 @@ fn main() {
                             // /parley/call). Parties are agent ids the view
                             // already deduped/gated at >=2; a daemon rejection
                             // (400 body) surfaces VERBATIM on the alert bus.
-                            app::ControlMsg::GalaxyParley { surface, reason, parties } => {
-                                match client.call_parley(&surface, &reason, "operator", &parties).await {
+                            app::ControlMsg::GalaxyParley { surface, reason, session_ids } => {
+                                match client.call_parley(&surface, &reason, &session_ids).await {
                                     Ok(v) => {
                                         let parley = v.get("parley").cloned().unwrap_or_default();
                                         let parley_id = parley
@@ -1065,8 +1066,8 @@ fn main() {
                                         let _ = alert_tx.send(pane::Alert::info(
                                             "parley convened",
                                             format!(
-                                                "parley {parley_id} on channel {channel} · {} parties · surface {surface}",
-                                                parties.len()
+                                                "parley {parley_id} on channel {channel} · {} source sessions · surface {surface}",
+                                                session_ids.len()
                                             ),
                                         ));
                                     }
@@ -1120,6 +1121,62 @@ fn main() {
                                     }
                                 }
                             }
+                            // Responsive ledger row click: Claims and Planner
+                            // own their selection state in the producer thread.
+                            app::ControlMsg::LedgerSelect { surface, index } => {
+                                let result = mutate_ledger_surface(
+                                    &surface,
+                                    SurfaceAction::SelectRow { index },
+                                    &client,
+                                    &mut claims,
+                                    &mut roadmap,
+                                    &mut sessions,
+                                )
+                                .await;
+                                if let Err(error) = result {
+                                    let _ = alert_tx.send(pane::Alert::error(
+                                        format!("{surface} selection failed"),
+                                        error.to_string(),
+                                    ));
+                                } else if surface == "sessions" {
+                                    if let Some((agent_id, daemon_url)) =
+                                        sessions.selected_active_agent_target()
+                                    {
+                                        if client.base() != daemon_url {
+                                            client = DaemonClient::new(daemon_url);
+                                            lane_stream = None;
+                                            editor_stream = None;
+                                            latest_work_projection = None;
+                                            latest_work_query_error = None;
+                                        }
+                                        lane.follow_agent(Some(&agent_id));
+                                        operator_selected_agent = true;
+                                        restore_saved_agent = false;
+                                    } else {
+                                        lane.follow_agent(None);
+                                        operator_selected_agent = false;
+                                    }
+                                }
+                            }
+                            // Sort is local projection state; it never writes
+                            // daemon authority or changes the selected claim/item.
+                            app::ControlMsg::LedgerSort { surface, key } => {
+                                let result = mutate_ledger_surface(
+                                    &surface,
+                                    SurfaceAction::Sort { key },
+                                    &client,
+                                    &mut claims,
+                                    &mut roadmap,
+                                    &mut sessions,
+                                )
+                                .await;
+                                if let Err(error) = result {
+                                    let _ = alert_tx.send(pane::Alert::error(
+                                        format!("{surface} sort failed"),
+                                        error.to_string(),
+                                    ));
+                                }
+                            }
                             // Harbor roster click: select a node (ch18 C3).
                             // Selection is a UI act; it never fails loudly.
                             app::ControlMsg::HarborSelect { index } => {
@@ -1162,6 +1219,142 @@ fn main() {
                                     }
                                 }
                             }
+                            // Bind the live Harbor Editor lane to a file (wire stage 1):
+                            // build a persistent EditorPane on this path + operator
+                            // identity, load its Loro buffer, and force a (re)subscribe so
+                            // the drain block below follows its edit-sync + coordination
+                            // channels. A fresh pane drops any prior file's buffer/streams.
+                            app::ControlMsg::OpenEditor { path, region } => {
+                                let identity = editor_pane::resolve_operator_identity();
+                                let mut pane = editor_pane::EditorPane::new_with_identity(
+                                    path, region, identity,
+                                );
+                                pane.load();
+                                editor = Some(pane);
+                                editor_stream = None; // resubscribe to the new file's channels
+                            }
+                            app::ControlMsg::EditorLocalChange {
+                                path,
+                                frame,
+                                presence,
+                            } => {
+                                let Some(ed) = editor.as_mut().filter(|ed| ed.path_str() == path) else {
+                                    let _ = alert_tx.send(pane::Alert::error(
+                                        "editor change not mirrored",
+                                        format!("live lane is not bound to {path}"),
+                                    ));
+                                    continue;
+                                };
+                                let mut changed = false;
+                                if let Some(frame) = frame {
+                                    changed |= ed.ingest_local_frame(&frame);
+                                    if let Err(error) = client
+                                        .tube_send(ed.channel(), &frame, "editor")
+                                        .await
+                                    {
+                                        let _ = alert_tx.send(pane::Alert::error(
+                                            "editor delta broadcast failed",
+                                            error.to_string(),
+                                        ));
+                                    }
+                                }
+                                ed.set_local_presence(presence);
+                                let now_ms = std::time::SystemTime::now()
+                                    .duration_since(std::time::UNIX_EPOCH)
+                                    .map(|duration| duration.as_millis() as i64)
+                                    .unwrap_or_default();
+                                if let Some(frame) = ed.take_presence_broadcast(now_ms) {
+                                    if let Err(error) = client.send_presence(ed.channel(), &frame).await {
+                                        let _ = alert_tx.send(pane::Alert::error(
+                                            "editor presence broadcast failed",
+                                            error.to_string(),
+                                        ));
+                                    }
+                                }
+                                if changed {
+                                    let _ = editor_tx.send(app::EditorUpdate {
+                                        path: ed.path_str().to_string(),
+                                        blocks: ed.view(),
+                                        remote_frames: Vec::new(),
+                                    });
+                                }
+                            }
+                        }
+                    }
+
+                    // The daemon may expose a native console WorkIntent adjacent
+                    // to a compatibility dispatch projection for the same run.
+                    // Read a small recency window so the native identity can win.
+                    let query_limit = if tracked_work_intent_id.is_some() { 100 } else { 10 };
+                    match client.list_work_intents(query_limit).await {
+                        Ok(snapshots) => {
+                            latest_work_query_error = None;
+                            let snapshot = match tracked_work_intent_id.as_deref() {
+                                Some(intent_id) => snapshots
+                                    .into_iter()
+                                    .find(|snapshot| snapshot.intent_id() == intent_id),
+                                None => agent::prefer_native_work_intent(snapshots),
+                            };
+                            if let Some(snapshot) = snapshot {
+                                tracked_work_state = Some(snapshot.execution_state().to_string());
+                                let fingerprint = (
+                                    snapshot.intent_id().to_string(),
+                                    snapshot.plan_state().to_string(),
+                                    snapshot.execution_fingerprint(),
+                                );
+                                if !operator_selected_agent {
+                                    lane.follow_agent(snapshot.execution_agent_id());
+                                }
+                                if latest_work_projection.as_ref() != Some(&fingerprint) {
+                                    latest_work_projection = Some(fingerprint);
+                                    let chat_snapshot = snapshot.clone();
+                                    let _ = work_tx.send(app::WorkUpdate::Snapshot(snapshot));
+                                    let (messages, transcript_warning) =
+                                        rehydrate_mission_chat(&client, &chat_snapshot).await;
+                                    let awaiting_reply = chat::routes_to_existing_mission_body(
+                                        Some(chat_snapshot.execution_state()),
+                                        chat_snapshot.execution_agent_id().is_some(),
+                                    );
+                                    let _ = chat_tx.send(chat::ChatUpdate::Hydrate {
+                                        messages,
+                                        awaiting_reply,
+                                    });
+                                    if let Some(detail) = transcript_warning {
+                                        let _ = alert_tx.send(pane::Alert::error(
+                                            "Mission transcript unavailable",
+                                            format!(
+                                                "{detail} · showing the durable WorkIntent and receipt without inventing assistant prose"
+                                            ),
+                                        ));
+                                    }
+                                }
+                            } else {
+                                let had_projection = latest_work_projection.take().is_some();
+                                let had_tracked_intent = tracked_work_intent_id.take().is_some();
+                                tracked_work_state = None;
+                                if !operator_selected_agent && (had_projection || had_tracked_intent) {
+                                    lane.follow_agent(None);
+                                    let _ = work_tx.send(app::WorkUpdate::Reset);
+                                    let _ = chat_tx.send(chat::ChatUpdate::Reset);
+                                }
+                            }
+                        }
+                        Err(error) => {
+                            // Force the first successful read after an outage through
+                            // the WorkUpdate bus even when the durable snapshot itself
+                            // is unchanged. The view uses that recovery delivery to
+                            // clear only the stale projection-failure alert.
+                            latest_work_projection = None;
+                            let detail = error.to_string();
+                            if latest_work_query_error.as_deref() != Some(detail.as_str()) {
+                                latest_work_query_error = Some(detail.clone());
+                                let _ = alert_tx.send(pane::Alert::error(
+                                    "Work projection unavailable",
+                                    format!(
+                                        "{detail} · existing pane data may be stale; no fallback plan was generated"
+                                    ),
+                                ));
+                            }
                         }
                     }
 
@@ -1174,7 +1367,22 @@ fn main() {
                     let _ = roadmap.refresh(&client).await;
                     let _ = adrs.refresh(&client).await;
                     let _ = activity.refresh(&client).await;
-                    let _ = sessions.refresh(&client).await;
+                    if sessions.refresh(&client).await.is_ok() && restore_saved_agent {
+                        if let Some((agent_id, daemon_url)) =
+                            sessions.selected_active_agent_target()
+                        {
+                            if client.base() != daemon_url {
+                                client = DaemonClient::new(daemon_url);
+                                lane_stream = None;
+                                editor_stream = None;
+                                latest_work_projection = None;
+                                latest_work_query_error = None;
+                            }
+                            lane.follow_agent(Some(&agent_id));
+                            operator_selected_agent = true;
+                        }
+                        restore_saved_agent = false;
+                    }
                     let _ = inbox.refresh(&client).await;
                     let _ = suggest.refresh(&client).await;
                     let _ = memory.refresh(&client).await;
@@ -1193,6 +1401,7 @@ fn main() {
                     let _ = live_agents.refresh(&client).await;
                     let _ = harbor.refresh(&client).await;
                     let _ = galaxy.refresh(&client).await;
+                    let _ = hitl.refresh(&client).await;
 
                     // (Re)subscribe the lane's live stream if its target changed.
                     let want = lane.subscription();
@@ -1212,7 +1421,13 @@ fn main() {
                     // Drain whatever the live stream delivered since last loop.
                     if let Some((_, rx)) = lane_stream.as_mut() {
                         while let Ok(env) = rx.try_recv() {
+                            let speaker = env.agent_id.clone();
                             lane.on_stream(&env);
+                            for reply in lane.take_chat_replies() {
+                                let _ = chat_tx.send(chat::ChatUpdate::Reply(
+                                    chat::ChatMsg::agent(speaker.clone(), reply),
+                                ));
+                            }
                         }
                     }
 
@@ -1241,26 +1456,72 @@ fn main() {
                         }
                     }
 
-                    // Poll the operator-chat channel for replies down the tube. Only
-                    // active once a turn has been sent (a responder bound); non-operator
-                    // messages become chat replies, the operator's own echoes are dropped.
-                    if let Some((ch, cursor)) = &mut chat {
-                        match client.tube_poll(ch, *cursor).await {
-                            Ok((new_cursor, msgs)) => {
-                                *cursor = new_cursor;
-                                for m in msgs.into_iter().filter(|m| m.sender != "operator") {
-                                    let _ = chat_tx.send(chat::ChatUpdate::Reply(
-                                        chat::ChatMsg::agent(m.sender, m.text),
-                                    ));
+                    // (Re)subscribe + drain the Harbor Editor's live lane (P3 wire stage
+                    // 1) — the same declare-intent/follow contract the Lane and Harbor use
+                    // for an agent stream, but an editor follows TWO isolated channels:
+                    // the edit-sync lane (durable Loro ops + lossy presence, folded via
+                    // `on_edit_frame`) and the coordination lane (region claims, folded via
+                    // `on_coord_frame`). We open one `subscribe_channel` per channel — two
+                    // independent mpsc receivers, which IS the isolation — whenever the
+                    // bound file changes, then drain both into the pane. `expire_presence`
+                    // each tick ages out a peer that went quiet. view() rendering is
+                    // unchanged here; surfacing these Blocks is wire stage 2.
+                    if let Some(ed) = editor.as_mut() {
+                        // Edge-triggered: `editor_dirty` becomes true only when the bound
+                        // file (re)binds or a real frame folds a change, so wire stage 2
+                        // pushes view() to the foreground on a paint EDGE — an idle editor
+                        // with live cursors sends nothing (the P2 discipline, carried here).
+                        let mut editor_dirty = false;
+                        let mut remote_frames = Vec::new();
+                        match ed.subscription() {
+                            Some(pane::Subscription::Editor { channel, coord_channel }) => {
+                                let reopen = match &editor_stream {
+                                    Some((cur, _, _)) => cur != &channel,
+                                    None => true,
+                                };
+                                if reopen {
+                                    let edit_rx = client.subscribe_channel(&channel);
+                                    let coord_rx = client.subscribe_channel(&coord_channel);
+                                    editor_stream = Some((channel, edit_rx, coord_rx));
+                                    editor_dirty = true; // a freshly (re)bound file paints once
                                 }
                             }
-                            Err(e) => {
-                                let _ = chat_tx
-                                    .send(chat::ChatUpdate::Error(format!("chat poll failed: {e}")));
+                            // A not-yet-loaded / errored editor pane has no buffer to fold
+                            // remote frames into, so it follows nothing (poll-only).
+                            _ => editor_stream = None,
+                        }
+                        if let Some((_, edit_rx, coord_rx)) = editor_stream.as_mut() {
+                            // The bool-returning inherent folds report the change edge the
+                            // trait hooks discard; OR it into `editor_dirty` so a folded op /
+                            // presence cursor / region claim triggers exactly one repaint.
+                            while let Ok(msg) = edit_rx.try_recv() {
+                                // The edit-sync lane multiplexes durable Loro op
+                                // frames and lossy presence frames under distinct
+                                // frame kinds (`ingest_frame` / `ingest_presence`
+                                // are mutually exclusive); `||` short-circuits so a
+                                // frame folds through exactly one path.
+                                if ed.ingest_frame(&msg.text) {
+                                    editor_dirty = true;
+                                    remote_frames.push(msg.text);
+                                } else {
+                                    editor_dirty |= ed.ingest_presence(&msg.text);
+                                }
+                            }
+                            while let Ok(msg) = coord_rx.try_recv() {
+                                editor_dirty |= ed.ingest_claim(&msg.text);
                             }
                         }
+                        editor_dirty |= ed.expire_presence();
+                        // Surface the folded pane on the edge — presence cursors, claim
+                        // bands, and the wedge conflict/gate Blocks now flow to the window.
+                        if editor_dirty {
+                            let _ = editor_tx.send(app::EditorUpdate {
+                                path: ed.path_str().to_string(),
+                                blocks: ed.view(),
+                                remote_frames,
+                            });
+                        }
                     }
-
                     let all = vec![
                         (0,  fleet.view()),
                         (1,  cockpit.view()),
@@ -1289,9 +1550,19 @@ fn main() {
                         (24, live_agents.view()),
                         (25, harbor.view()),
                         (26, galaxy.view()),
+                        (27, hitl.view()),
                     ];
 
-                    if tx.send((all, dispatch.head(), galaxy.snapshot())).is_err() {
+                    if tx
+                        .send((
+                            all,
+                            dispatch.head(),
+                            galaxy.snapshot(),
+                            health.is_connected(),
+                            hitl.gate(),
+                        ))
+                        .is_err()
+                    {
                         break; // window closed
                     }
                 }
@@ -1303,49 +1574,69 @@ fn main() {
         let async_cx = cx.to_async();
         cx.foreground_executor()
             .spawn(async move {
+                let mut size_nudged = false;
                 loop {
                     bg.timer(Duration::from_millis(500)).await;
-                    while let Ok((panes, dispatch_head, galaxy_snapshot)) = rx.try_recv() {
+                    while let Ok((panes, dispatch_head, galaxy_snapshot, daemon_connected, hitl_gate)) =
+                        rx.try_recv()
+                    {
                         let _ = async_cx.update(|app| {
-                            let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
+                            let _ = window.update(app, |view: &mut ConsoleView, window, cx| {
                                 // Notify ONLY when a pane actually changed — an
                                 // idle 2s refresh cycle schedules zero repaints.
                                 if view.update_panes(
                                     panes.clone(),
                                     dispatch_head.clone(),
                                     galaxy_snapshot.clone(),
+                                    daemon_connected,
+                                    hitl_gate.clone(),
                                 ) {
-                                    cx.notify();
+                                    present_changed_frame(window, cx, &mut size_nudged);
                                 }
                             });
                         });
+                        let _ = async_cx.refresh();
                     }
                     // Drain the alert bus: every captured action failure/outcome
                     // lands in the view (flash + accumulated HITL log).
                     while let Ok(alert) = alert_rx.try_recv() {
                         let _ = async_cx.update(|app| {
-                            let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
+                            let _ = window.update(app, |view: &mut ConsoleView, window, cx| {
                                 view.push_alert(alert.clone());
-                                cx.notify();
+                                present_changed_frame(window, cx, &mut size_nudged);
                             });
                         });
+                        let _ = async_cx.refresh();
                     }
-                    // Drain the Conjure bus: a live-generated DAG (swaps to the
-                    // Conjure surface) or a rendered Vello PNG (the inline graphic).
-                    while let Ok(update) = conjure_rx.try_recv() {
+                    // Drain durable Work truth and render artifacts derived from it.
+                    while let Ok(update) = work_rx.try_recv() {
                         let _ = async_cx.update(|app| {
-                            let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
-                                view.apply_conjure_update(update.clone());
-                                cx.notify();
+                            let _ = window.update(app, |view: &mut ConsoleView, window, cx| {
+                                view.apply_work_update(update.clone());
+                                present_changed_frame(window, cx, &mut size_nudged);
                             });
                         });
+                        let _ = async_cx.refresh();
                     }
                     // Drain the chat bus: real replies down the tube (with the receive
                     // earcon) or a transport error, folded into the chat transcript.
                     while let Ok(update) = chat_rx.try_recv() {
                         let _ = async_cx.update(|app| {
-                            let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
+                            let _ = window.update(app, |view: &mut ConsoleView, window, cx| {
                                 view.apply_chat_update(update.clone());
+                                present_changed_frame(window, cx, &mut size_nudged);
+                            });
+                        });
+                        let _ = async_cx.refresh();
+                    }
+                    // Drain the Harbor Editor bus (P3 wire stage 2): the producer's live
+                    // pane blocks — presence cursors, region claims, wedge conflict/gate
+                    // bands — folded into the Editor surface so the running window paints
+                    // the collaboration state, not a cold file re-read.
+                    while let Ok(editor_update) = editor_rx.try_recv() {
+                        let _ = async_cx.update(|app| {
+                            let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
+                                view.apply_editor_update(editor_update.clone());
                                 cx.notify();
                             });
                         });
@@ -1354,11 +1645,12 @@ fn main() {
                     // (or the daemon's real failure) into the drawer state.
                     while let Ok(update) = galaxy_rx.try_recv() {
                         let _ = async_cx.update(|app| {
-                            let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
+                            let _ = window.update(app, |view: &mut ConsoleView, window, cx| {
                                 view.apply_galaxy_update(update.clone());
-                                cx.notify();
+                                present_changed_frame(window, cx, &mut size_nudged);
                             });
                         });
+                        let _ = async_cx.refresh();
                     }
                     // Drain the scripting bus: answer each control-socket
                     // command from the view, on the foreground, and post the
@@ -1366,12 +1658,13 @@ fn main() {
                     while let Ok(envelope) = script_rx.try_recv() {
                         let script::ScriptEnvelope { request, reply } = envelope;
                         let _ = async_cx.update(|app| {
-                            let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
+                            let _ = window.update(app, |view: &mut ConsoleView, window, cx| {
                                 let response = view.handle_script(request.clone());
                                 let _ = reply.send(response);
-                                cx.notify();
+                                present_changed_frame(window, cx, &mut size_nudged);
                             });
                         });
+                        let _ = async_cx.refresh();
                     }
                 }
             })

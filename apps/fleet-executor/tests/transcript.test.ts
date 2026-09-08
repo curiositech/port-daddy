@@ -13,7 +13,9 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import handler from '../src/index.js';
-import { executeFleet } from '../src/execute.js';
+import { TRANSCRIPT_EMERGENCY_EVENT } from '../../../lib/transcript-emergency-constants.js';
+import { executeFleet, mapChunkCharLimit } from '../src/execute.js';
+import { MODEL_CONTEXT_TOKENS } from '../src/spend.js';
 import {
   freshState,
   installGitHubFetch,
@@ -75,7 +77,13 @@ afterEach(() => {
 });
 
 describe('kill switch (KV fleet:paused)', () => {
-  it('paused (boolean "true") ⇒ no AI calls, no GitHub calls, job acked', async () => {
+  it('paused (boolean "true") ⇒ no AI calls, no review posts, but STILL posts a neutral check', async () => {
+    // Regression test for the 2026-07-16 incident: an out-of-band
+    // `fleet:paused=true` left "Port Daddy Fleet" (a REQUIRED merge-queue
+    // check) silently ABSENT on every PR for 4 days because the old
+    // behavior was to return before ever creating a check run. Paused must
+    // still post something — a neutral check — so the required-check gate
+    // can never hang on total silence.
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -91,19 +99,62 @@ describe('kill switch (KV fleet:paused)', () => {
       {} as ExecutionContext,
     );
 
-    // Acked without retry — the job is consumed, nothing was done.
+    // Acked without retry — the job is consumed.
     expect(msg.ack).toHaveBeenCalledTimes(1);
     expect(msg.retry).not.toHaveBeenCalled();
-    // Zero AI spend, zero GitHub traffic, zero check runs, zero transcript writes.
+    // Zero AI spend, zero review/comment posts — but the required check WAS
+    // created and completed neutral, never left silently absent.
     expect(ai.calls).toHaveLength(0);
-    expect(state.records).toHaveLength(0);
-    expect(state.completed).toHaveLength(0);
     expect(state.commentPosts).toBe(0);
-    expect(d1.runs).toHaveLength(0);
-    expect(d1.steps).toHaveLength(0);
+    expect(state.reviews).toHaveLength(0);
+    expect(state.checkRunsCreated).toBe(1);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(state.completed[0].summary).toContain('Fleet paused by operator');
+    expect(d1.runs).toHaveLength(1);
+    expect(d1.runs[0].conclusion).toBe('neutral');
+    // The consumer stamps a delivery-attempt marker on EVERY delivery — paused
+    // ones included (#7743: an attempt's existence must be provable even when
+    // the run itself does nothing). The pause still spends nothing beyond it.
+    expect(d1.steps.map(s => s.kind)).toEqual(['delivery-attempt', 'check-completed']);
   });
 
-  it('paused (JSON {paused:true}) ⇒ skips, while {paused:false} runs normally', async () => {
+  it('paused ⇒ creates a distinct gate for a distinct webhook delivery on the same head', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    await kv.put('fleet:paused', 'true');
+    const ai = aiStub({ perShip: {} });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: memoryD1().db }));
+    expect(state.checkRunsCreated).toBe(1);
+
+    // A different webhook delivery is a new generation even on the same head;
+    // only a queue retry with the exact same delivery/run may reuse a check.
+    await executeFleet(
+      makeJob({ deliveryId: 'delivery-retry' }),
+      makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: memoryD1().db }),
+    );
+    expect(state.checkRunsCreated).toBe(2);
+    expect(state.completed).toHaveLength(2);
+    expect(state.completed.every(c => c.conclusion === 'neutral')).toBe(true);
+  });
+
+  it('paused with no head sha in the payload ⇒ cannot post a check, still acks (no throw)', async () => {
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    await kv.put('fleet:paused', 'true');
+    const ai = aiStub({ perShip: {} });
+
+    const job = makeJob({ payloadMinimal: { pull_request: { number: 7 } } });
+    await expect(
+      executeFleet(job, makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: memoryD1().db })),
+    ).resolves.toBeUndefined();
+    expect(state.checkRunsCreated).toBe(0);
+    expect(ai.calls).toHaveLength(0);
+  });
+
+  it('paused (JSON {paused:true}) ⇒ skips AI + review, posts neutral check; {paused:false} runs normally', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -112,14 +163,19 @@ describe('kill switch (KV fleet:paused)', () => {
     const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
     await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: memoryD1().db }));
     expect(ai.calls).toHaveLength(0);
-    expect(state.completed).toHaveLength(0);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('neutral');
 
-    // Flip to resumed: the same job now runs to completion.
+    // Flip to resumed: the same job (new delivery id) now runs to completion.
     await kv.put('fleet:paused', JSON.stringify({ paused: false, pausedAt: 2 }));
     const ai2 = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
-    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai2.ai, DB: memoryD1().db }));
+    await executeFleet(
+      makeJob({ deliveryId: 'delivery-resumed' }),
+      makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai2.ai, DB: memoryD1().db }),
+    );
     expect(ai2.calls.length).toBeGreaterThan(0);
-    expect(state.completed).toHaveLength(1);
+    expect(state.completed).toHaveLength(2);
+    expect(state.completed[1].conclusion).toBe('success');
   });
 
   it('absent / corrupt flag ⇒ NOT paused (fail-safe keeps the gate running)', async () => {
@@ -163,6 +219,16 @@ describe('kill switch (KV fleet:paused)', () => {
     expect(ai.calls.length).toBeGreaterThan(0);
     expect(state.completed).toHaveLength(1);
 
+    // A DIFFERENT head SHA, because this is a second commit being reviewed --
+    // not a redelivery of the first. Same-SHA redelivery after a decided check
+    // is now skipped on purpose (it would re-spend to change nothing), so
+    // reusing the SHA here would test the skip rather than the pause config.
+    // Model a SECOND COMMIT, not a redelivery of the first. The executor now
+    // skips a redelivery whose check already reached a verdict (it would
+    // re-spend to change nothing), so reusing the first commit's decided check
+    // here would silently test that skip instead of the pause config this case
+    // is about.
+    state.existingCheckRuns = [];
     const malformedKv = memoryKV();
     await malformedKv.put('fleet:paused', JSON.stringify({ paused: 'true' }));
     const ai2 = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
@@ -199,8 +265,11 @@ describe('kill switch (KV fleet:paused)', () => {
     expect(state.completed[0].conclusion).toBe('neutral');
     expect(state.completed[0].summary).toContain('Fleet paused before pd-code-reviewer');
     expect(d1.runs[0].conclusion).toBe('neutral');
-    expect(d1.steps.map(s => s.kind)).toEqual(['check-completed']);
-    expect(d1.steps[0].detail).toContain('"pausedBeforeShip":"code-reviewer"');
+    // Ship configs are recorded once, right after the gating check is
+    // established — before the per-ship loop's own (second) pause check, so
+    // this run's pause-before-first-ship still carries that one config row.
+    expect(d1.steps.map(s => s.kind)).toEqual(['fleet-ship-config', 'check-completed']);
+    expect(d1.steps.find(s => s.kind === 'check-completed')?.detail).toContain('"pausedBeforeShip":"code-reviewer"');
   });
 });
 
@@ -227,22 +296,57 @@ describe('transcript writes (fleet_runs + fleet_run_steps)', () => {
     expect(run.conclusion).toBe('success'); // 'pending' was overwritten by the UPDATE
     expect(run.ms).toBeGreaterThanOrEqual(0);
 
-    // Single chunk ⇒ no reduce step. Order: map-chunk → ship-verdict →
-    // review-posted → check-completed.
+    // Single chunk ⇒ no reduce step. Order: fleet-ship-config (once, before any
+    // ship runs) → map-chunk → ship-verdict → review-posted → ship-spend →
+    // ship-checkpoint → check-completed. The checkpoint row (ship-checkpoint.ts)
+    // is parked in its own seq band, so the Transcript recorder's own seqs stay
+    // monotonic from 0 around it.
     const kinds = d1.steps.map(s => s.kind);
-    expect(kinds).toEqual(['map-chunk', 'ship-verdict', 'review-posted', 'check-completed']);
-    // seq is monotonic from 0.
-    expect(d1.steps.map(s => s.seq)).toEqual([0, 1, 2, 3]);
+    expect(kinds).toEqual([
+      'fleet-ship-config',
+      'map-chunk',
+      'ship-verdict',
+      'review-posted',
+      'ship-spend',
+      'ship-checkpoint',
+      'check-completed',
+    ]);
+    // seq is monotonic from 0 for the recorder's own steps.
+    expect(d1.steps.filter(s => s.kind !== 'ship-checkpoint').map(s => s.seq)).toEqual([0, 1, 2, 3, 4, 5]);
     // The verdict step carries the parsed findings as its detail (here: empty).
     const verdict = d1.steps.find(s => s.kind === 'ship-verdict');
     expect(verdict?.ship).toBe('code-reviewer');
     // check-completed is run-scoped (no ship).
     expect(d1.steps.find(s => s.kind === 'check-completed')?.ship).toBeNull();
+    // The ship-config row carries what the run page needs to show "what is
+    // this ship" without the operator reading pd-fleet.yml themselves.
+    const config = d1.steps.find(s => s.kind === 'fleet-ship-config');
+    expect(config?.ship).toBe('code-reviewer');
+    expect(JSON.parse(String(config?.detail ?? '{}'))).toMatchObject({
+      cfModel: '@cf/qwen/qwen2.5-coder-32b-instruct',
+      blocking: true,
+      needsExecution: false,
+      purser: false,
+      ideation: false,
+    });
   });
 
   it('a multi-chunk run records 2 map-chunk steps + exactly one reduce step', async () => {
+    // Sized RELATIVE to the real budget, not to a number typed here. These
+    // fixtures used to hard-code ~9KB files against a 12KB budget; when the
+    // budget became derived from the MAP model's context window they silently
+    // stopped testing fan-out at all -- one chunk, no REDUCE, and an assertion
+    // about "2 map calls" failing for a reason with nothing to do with
+    // map-reduce. A fixture that encodes a constant is a fixture that expires.
+    //
+    // The ship under test uses the Qwen MAP model. Size this fixture against
+    // that model's real admission budget, including prompt framing, so each
+    // file is admitted while the pair still requires one REDUCE step.
+    const budget = mapChunkCharLimit('@cf/qwen/qwen2.5-coder-32b-instruct');
+    const linesPerFile = Math.ceil((budget * 0.35) / '+line\n'.length);
     const file = (name: string) =>
-      `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n` + '+line\n'.repeat(1500);
+      `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n` +
+      '+line\n'.repeat(linesPerFile);
     state.prDiff = file('a.ts') + file('b.ts');
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
@@ -260,11 +364,14 @@ describe('transcript writes (fleet_runs + fleet_run_steps)', () => {
     expect(kinds.filter(k => k === 'reduce')).toHaveLength(1);
     // reduce comes after both map chunks, before the verdict.
     expect(kinds).toEqual([
+      'fleet-ship-config',
       'map-chunk',
       'map-chunk',
       'reduce',
       'ship-verdict',
       'review-posted',
+      'ship-spend',
+      'ship-checkpoint',
       'check-completed',
     ]);
   });
@@ -298,7 +405,13 @@ describe('transcript is best-effort (never changes the gate)', () => {
 
     // Must NOT throw — a transcript-write failure cannot fail the job.
     await expect(
-      executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: d1.db })),
+      executeFleet(makeJob(), makeEnv({
+        FLEET_TOKENS: kv,
+        CONTROL_KV: kv,
+        AI: ai.ai,
+        DB: d1.db,
+        PORT_DADDY_TELEMETRY_URL: 'https://telemetry.example/ingest',
+      })),
     ).resolves.toBeUndefined();
 
     // The gate still concluded correctly (blocking BLOCK ⇒ failure).
@@ -308,6 +421,69 @@ describe('transcript is best-effort (never changes the gate)', () => {
     expect(d1.runCalls).toBeGreaterThan(0);
     expect(d1.runs).toHaveLength(0);
     expect(d1.steps).toHaveLength(0);
+    expect(state.records).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        method: 'POST',
+        url: 'https://telemetry.example/ingest',
+        body: expect.objectContaining({
+          source: 'fleet-executor',
+          event: TRANSCRIPT_EMERGENCY_EVENT.WRITE_FAILED,
+          status: 'error',
+          backend: 'cloudflare',
+          metadata: expect.objectContaining({
+            runId: 'run:delivery-abc',
+            error: expect.stringContaining('D1 unavailable'),
+          }),
+        }),
+      }),
+    ]));
+  });
+
+  it('D1 down ⇒ transcript failure telemetry cannot hold run completion open', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
+    const d1 = memoryD1();
+    d1.failAll = true;
+
+    const originalFetch = globalThis.fetch;
+    let telemetryCalls = 0;
+    const telemetryStarted = new Promise<void>((resolve) => {
+      vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url === 'https://telemetry.example/ingest') {
+          const payload = typeof init?.body === 'string'
+            ? JSON.parse(init.body) as { event?: string }
+            : {};
+          if (payload.event === TRANSCRIPT_EMERGENCY_EVENT.WRITE_FAILED) {
+            telemetryCalls += 1;
+            resolve();
+            return new Promise<Response>(() => {});
+          }
+        }
+        return originalFetch(input, init);
+      }) as unknown as typeof fetch);
+    });
+
+    const run = executeFleet(makeJob(), makeEnv({
+      FLEET_TOKENS: kv,
+      CONTROL_KV: kv,
+      AI: ai.ai,
+      DB: d1.db,
+      PORT_DADDY_TELEMETRY_URL: 'https://telemetry.example/ingest',
+    }));
+
+    const result = await Promise.race([
+      run.then(() => 'completed' as const),
+      new Promise<'timed-out'>(resolve => setTimeout(() => resolve('timed-out'), 100)),
+    ]);
+
+    expect(result).toBe('completed');
+    await telemetryStarted;
+    expect(telemetryCalls).toBeGreaterThan(0);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('success');
   });
 
   it('queue acks a completed run even when every transcript D1 write fails', async () => {

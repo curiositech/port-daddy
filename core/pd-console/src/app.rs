@@ -4,9 +4,9 @@
 //!   ┌─ sidebar 96px ─┬──────────── main pane ─────────────┐
 //!   │  pd             │  [pane header]                     │
 //!   │  ──────         │                                    │
-//!   │  ⚓ Fleet  1    │   active pane blocks               │
-//!   │  🧭 Cockpit 2   │                                    │
-//!   │  🚀 Sorties 3   │                                    │
+//!   │  Fleet  1       │   active pane blocks               │
+//!   │  Cockpit 2      │                                    │
+//!   │  Runs 3         │                                    │
 //!   │  ...            │                                    │
 //!   └────────────────┴─────────────────────────────────────┘
 //!   ┌─ status bar ───────────────────────────────────────┐
@@ -18,20 +18,41 @@
 use gpui::prelude::*;
 use gpui::*;
 
-use crate::agent::{Backend, ModelCatalog, Tier};
 pub use crate::chat::ChatUpdate;
-use crate::chat::{chat_display_text, chat_error_display_text, ChatLog, ChatMsg, ChatState};
+use crate::chat::{
+    chat_display_text, chat_error_display_text, ChatLog, ChatMsg, ChatMsgKind, ChatState,
+};
 use crate::dispatch_pane::DispatchHead;
+use crate::editor_input::{EditorInput, TextEdit};
+use crate::editor_sync::PresenceState;
+use crate::editor_view::{
+    editor_hit_position, editor_text_layout, editor_visual_position_for_byte, editor_wrap_columns,
+    wrap_byte_ranges, BLAME_COL_CHARS,
+};
 use crate::mux::{default_operator_workspace, Dir, Node, PaneId, SurfaceKind, Workspace};
 use crate::palette::{Theme, ThemeMode};
-use crate::pane::{Alert, AlertLevel, Block, OperatorTurn, Pane, Tone};
+use crate::pane::{Alert, AlertLevel, Block, LedgerCellWidth, OperatorTurn, Pane, Tone};
+use crate::presentation::{self, ZoomAction};
+use crate::shell_drawer::{
+    terminal_key_bytes, ShellDrawerGeometry, ShellEvent, ShellStatus, ShellTerminal, TerminalColor,
+};
+use crate::story_linework::{corner_ticks, micro_flag, state_stripe};
 use crate::tokens;
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::mpsc;
 use std::time::Duration;
+use unicode_segmentation::UnicodeSegmentation;
+
+/// Scale every authored pixel in this module through the operator's explicit
+/// presentation preference. A local definition intentionally shadows GPUI's
+/// glob-imported `px`; nested modules that need unscaled animation geometry
+/// import `gpui::px` directly.
+fn px(value: f32) -> Pixels {
+    gpui::px(value * presentation::zoom_factor())
+}
 
 /// Operator control messages sent from the GPUI view (button clicks) back to the
 /// background refresh thread, which owns the surfaces and performs the daemon
@@ -40,28 +61,14 @@ use std::time::Duration;
 pub enum ControlMsg {
     /// Grab the wheel: interrupt the agent the Lane is watching.
     InterruptLane,
-    /// Kick off a new top-level agent: `POST /spawn` with a backend + prompt +
-    /// an optional resolved model id (from the capability tier the operator picked).
-    Spawn {
-        backend: String,
-        prompt: String,
-        model: Option<String>,
-    },
-    /// Send a turn to the cartographer over its tube channel: `POST /msg/cartographer`.
-    Cartographer {
-        text: String,
-    },
     /// Send an operator turn to the agent currently watched by the Lane. This is
     /// a real `agent:<id>` tube message; the Lane stream echoes it as `agent.tube`.
     MessageLane {
         text: String,
     },
-    /// Operator chat: a turn UP the tube on the stable per-conversation channel
-    /// (`console-chat`). The background thread binds a real conversational
-    /// responder on the first turn (spawns a Claude Code agent on the channel,
-    /// `POST /spawn`), then `tube_send`s subsequent turns and `tube_poll`s replies
-    /// DOWN the same channel — both off the gpui executor. Replies flow back over
-    /// the [`ChatUpdate`] bus.
+    /// Operator chat turn. An already-bound governed run receives it over its
+    /// tube. Without one, the daemon captures a WorkIntent for the conversation;
+    /// the console never spawns a provider-specific responder itself.
     ChatSend {
         text: String,
     },
@@ -87,16 +94,7 @@ pub enum ControlMsg {
     FleetResume {
         root_id: Option<String>,
     },
-    /// Generate a predicted DAG LIVE from the operator's prompt via the Max-seat
-    /// `claude` CLI (print mode, NO API key). Runs on a blocking worker
-    /// (`conjure::generate_dag_via_cli`): `claude -p "<DAG_GEN_PROMPT>"`, parse the
-    /// JSON it returns, fall back to the prompt-seeded fixture on any error. The
-    /// resulting DAG is pushed back to the view over the Conjure-update channel,
-    /// which swaps to the Conjure surface AND kicks the inline Vello render.
-    ConjureGenerate {
-        prompt: String,
-    },
-    /// Render the live Conjure DAG to a PNG via the Vello proto. Carries the DAG
+    /// Render the live WorkPlan graph to a PNG via the Vello proto. Carries the DAG
     /// already serialized to the proto's JSON shape (the foreground owns the DAG;
     /// serializing on the gpui thread is cheap and keeps the worker self-contained)
     /// plus a short title for the success flash. The background thread writes the
@@ -105,21 +103,9 @@ pub enum ControlMsg {
     /// Metal readback is SIGKILLed under a sandbox), then `open`s the PNG. The
     /// shell-out runs on a blocking worker so it never stalls the refresh loop and
     /// never touches the gpui render thread.
-    RenderConjureGraph {
+    RenderWorkGraph {
         dag_json: String,
         title: String,
-    },
-    /// Dispatch the committed (non-HITL-gated) Conjure nodes to live agents. Each
-    /// request carries the vendor backend chosen by the node's `model_tier`
-    /// (the multi-vendor map), the goal prompt (role + why), and the skill id. The
-    /// worker spawns each through the SAME `DaemonClient::spawn` the manual Spawn
-    /// command uses (the daemon's existing multi-vendor spawner), and surfaces each
-    /// outcome as an Alert — Info with the agent id on launch, Error on a refusal.
-    /// `gated` is how many nodes were held back behind the HITL gate, reported so
-    /// the operator knows the dispatch was partial by design.
-    ConjureDispatch {
-        requests: Vec<ConjureDispatchRequest>,
-        gated: usize,
     },
     /// Switch the whole console to another daemon berth (ADR-0084). The producer
     /// swaps its `DaemonClient` so every pane's next refresh hits the new daemon.
@@ -150,14 +136,6 @@ pub enum ControlMsg {
     EndSession {
         summary: Option<String>,
     },
-    /// Propose a dispatch into the review queue: `POST /dispatches`.
-    ProposeDispatch {
-        goal: String,
-    },
-    /// Launch a sortie mission: `POST /sorties` (projectDir from PD_CONSOLE_WORKDIR).
-    LaunchSortie {
-        goal: String,
-    },
     /// Claim a port for an identity: `POST /claim` — Port Daddy's core verb.
     ClaimPort {
         identity: String,
@@ -176,19 +154,17 @@ pub enum ControlMsg {
         agent_id: String,
     },
     /// Convene a parley from a Sextant selection: `POST /parley/call`.
-    /// `parties` are DEDUPED AGENT ids (`fleet_transcripts.spawned_agent_id` —
-    /// never transcript/session ids; parley DMs parties via agent inbox). The
-    /// daemon 400s below 2 distinct ids; the UI disables the button first, and
-    /// any rejection body comes back verbatim on the alert bus.
+    /// The client sends durable session ids only. The daemon resolves canonical
+    /// actors, inbox targets, and lineage roots and rejects unresolved identity.
     GalaxyParley {
         surface: String,
         reason: String,
-        parties: Vec<String>,
+        session_ids: Vec<String>,
     },
     /// Fetch one Sextant session's full detail through `GET /galaxy/session/:id`
     /// (`:id` = the transcript id from a clicked point). The parsed
     /// [`crate::galaxy_pane::GalaxyDetail`] returns on the dedicated Sextant bus
-    /// (mirroring the conjure bus), drained into the view's detail drawer.
+    /// (mirroring the WorkPlan bus), drained into the view's detail drawer.
     GalaxyDetail {
         transcript_id: String,
     },
@@ -196,6 +172,17 @@ pub enum ControlMsg {
     /// NodeRow retargets the conjoined detail pane — never an id typed.
     HarborSelect {
         index: usize,
+    },
+    /// Select a row in a responsive metadata ledger (Claims or Planner).
+    LedgerSelect {
+        surface: String,
+        index: usize,
+    },
+    /// Sort a responsive metadata ledger by one of the keys declared in its
+    /// LedgerHeader. This is local projection state, not daemon authority.
+    LedgerSort {
+        surface: String,
+        key: String,
     },
     /// Issue a compliance-gated control verb against the Harbor's selected
     /// node. The pane re-checks its gate, then POSTs the F0 ControlCommand;
@@ -205,83 +192,75 @@ pub enum ControlMsg {
         verb: String,
         argument: Option<String>,
     },
+    /// Bind the producer's live Harbor Editor lane to a file (P3 wire stage 1). Sent
+    /// when the operator opens an `Editor` surface (FileTree click / `:edit <path>`).
+    /// The producer constructs a persistent [`crate::editor_pane::EditorPane`] on this
+    /// path, loads its Loro buffer, and follows its [`Subscription::Editor`] — draining
+    /// doc-op + presence frames off the edit-sync channel and claim frames off the
+    /// coordination channel into the pane, the same way the Lane/Harbor lanes follow an
+    /// agent stream. `region` carries the optional highlighted line span.
+    OpenEditor {
+        path: String,
+        region: Option<(u32, u32)>,
+    },
+    /// One accepted foreground keystroke as the exact incremental Loro delta,
+    /// plus its resulting caret/selection. The producer imports this frame into
+    /// its live-lane mirror and broadcasts it; it never recreates the edit.
+    EditorLocalChange {
+        path: String,
+        frame: Option<String>,
+        presence: PresenceState,
+    },
 }
 
-/// A flattened, transport-ready spawn request for one Conjure node — the wire
-/// form of `conjure::DispatchRequest` carried across the control channel to the
-/// background worker. `backend` is the daemon spawner id string (e.g. "gemini",
-/// "claude-cli") already resolved from the node's `model_tier`.
+/// Producer-to-window editor edge. Remote frames are carried alongside the
+/// already-rendered collaboration Blocks so the foreground Loro authority stays
+/// converged before the next local keystroke.
 #[derive(Debug, Clone)]
-pub struct ConjureDispatchRequest {
-    pub node_id: String,
-    pub backend: String,
-    pub skill_id: String,
-    pub goal: String,
-    pub model_tier: String,
+pub struct EditorUpdate {
+    pub path: String,
+    pub blocks: Vec<Block>,
+    pub remote_frames: Vec<String>,
 }
 
-/// A push from the background worker back to the view about the Conjure surface.
-/// The worker owns the claude:cli round-trip and the Vello render (both blocking);
-/// it streams the results back here so the foreground can update `conjure_dag` /
-/// `conjure_png_path` and `cx.notify()` without ever blocking the render thread.
+/// A push from the daemon worker back to the Mission surface. Runtime truth is a
+/// daemon snapshot/receipt; PNG is a render artifact of that truth only.
 #[derive(Debug, Clone)]
-pub enum ConjureUpdate {
-    /// A freshly-generated DAG (claude:cli, or the fixture fallback). The view
-    /// stores it, swaps to the Conjure surface, and clears the stale PNG so the
-    /// inline graphic shows a "rendering…" placeholder until the new PNG lands.
-    Dag(crate::conjure::PredictedDag),
+pub enum WorkUpdate {
+    Receipt(crate::agent::WorkIntentReceipt),
+    Execution(crate::agent::WorkExecutionReceipt),
+    Snapshot(crate::agent::WorkSnapshot),
+    /// Clear berth-scoped Mission truth after a daemon rebind or an empty
+    /// authoritative query. Old receipts must never survive into a new plane.
+    Reset,
     /// The path to the rendered Vello PNG for the current DAG — shown INLINE at the
-    /// top of the Conjure surface (gpui `img(path)`).
+    /// top of the Mission surface (gpui `img(path)`).
     Png(std::path::PathBuf),
 }
 
 /// A push from the background worker back to the view about the Sextant surface:
 /// the parsed session detail for a clicked point, or the daemon's real failure
 /// (surfaced in the drawer, never swallowed). Rides its own small bus alongside
-/// the conjure/chat buses in `main.rs`.
+/// the WorkPlan/chat buses in `main.rs`.
 #[derive(Debug, Clone)]
 pub enum GalaxyUpdate {
     Detail(crate::galaxy_pane::GalaxyDetail),
     DetailError(String),
 }
 
-/// Resolve the default (pre-rendered fixture) Conjure PNG path. Honors the
-/// `PD_CONJURE_PROTO_DIR` override (a packaged app points at its installed copy);
-/// otherwise it is the sibling `pd-conjure-proto` crate's `conjure-dag-vello.png`,
-/// located via `CARGO_MANIFEST_DIR` at build time. Mirrors `main::conjure_proto_dir`
-/// so the default inline graphic and the live render write/read the same file.
-pub fn default_conjure_png() -> Option<std::path::PathBuf> {
-    let proto = if let Ok(dir) = std::env::var("PD_CONJURE_PROTO_DIR") {
-        std::path::PathBuf::from(dir)
-    } else {
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .parent()
-            .map(|p| p.join("pd-conjure-proto"))?
-    };
-    Some(proto.join("conjure-dag-vello.png"))
-}
-
 /// Which command line is open at the bottom of the console.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CmdKind {
-    /// Kick off a new job. Buffer is `[backend] <prompt>`.
-    Spawn,
-    /// Talk to the cartographer. Buffer is the message.
-    Cartographer,
+    /// Capture operator intent through the daemon-owned Surface Gateway.
+    Mission,
     /// Talk to the agent currently watched by the Lane. Buffer is the message.
     LaneMessage,
     /// Reject the head dispatch with a reason (the human-gate "modify/why" path).
     /// The target dispatch id is held in `ConsoleView::reject_target`.
     DispatchReject,
     /// Add a new split pane of a chosen surface kind. Buffer is a surface name
-    /// (nav label/id/key prefix, e.g. "cost", "fleet", "chat"). Handled locally.
+    /// (nav label/id/key prefix, e.g. "cost", "fleet", "mission"). Handled locally.
     AddPane,
-    /// Conjure a predicted DAG from an operator prompt. Buffer is the free-text
-    /// intent ("ship a settings flow with tests"). On submit it produces a
-    /// `PredictedDag` (the windags `next_move` path when reachable, else the
-    /// prompt-seeded fixture), stores it in `ConsoleView::conjure_dag`, and swaps
-    /// the focused pane to the Conjure surface. Handled locally (no daemon round-trip).
-    Conjure,
     /// Switch the console to another daemon berth (ADR-0084). Buffer is a berth
     /// name, `:port`, or a tier alias ("stable"/"dev-latest"); resolved against
     /// `~/.port-daddy/dev-daemons.json`. See the Daemons pane for the names.
@@ -292,10 +271,6 @@ pub enum CmdKind {
     Begin,
     /// End the active session. Buffer is an optional summary. → `POST /sugar/done`.
     Done,
-    /// Propose a dispatch. Buffer is the goal text. → `POST /dispatches`.
-    Propose,
-    /// Launch a sortie. Buffer is the goal/prompt. → `POST /sorties`.
-    Sortie,
     /// Claim a port for an identity. Buffer is the identity. → `POST /claim`.
     Claim,
     /// Release a claimed port. Buffer is the identity. → `DELETE /release`.
@@ -323,18 +298,14 @@ pub enum CmdKind {
 impl CmdKind {
     fn prompt(&self) -> &'static str {
         match self {
-            CmdKind::Spawn => "spawn",
-            CmdKind::Cartographer => "cartographer",
+            CmdKind::Mission => "mission",
             CmdKind::LaneMessage => "message agent",
             CmdKind::DispatchReject => "reject reason",
             CmdKind::AddPane => "add pane",
-            CmdKind::Conjure => "conjure",
             CmdKind::UseDaemon => "use daemon",
             CmdKind::Note => "note",
             CmdKind::Begin => "begin (identity)",
             CmdKind::Done => "done (summary)",
-            CmdKind::Propose => "propose (goal)",
-            CmdKind::Sortie => "sortie (goal)",
             CmdKind::Claim => "claim (identity)",
             CmdKind::Release => "release (identity)",
             CmdKind::Kill => "kill (agent id)",
@@ -349,21 +320,12 @@ impl CmdKind {
     /// syntax the operator has to guess. This is the discoverability the hidden
     /// leader-key command line never had.
     ///
-    /// Returns an owned `String` because the Spawn hint's backend list is
-    /// GENERATED from [`Backend::ALL`] (see [`spawn_backend_hint`]) rather than
-    /// hardcoded, so it always reflects the real backend set — Groq, LM Studio,
-    /// and any future backend appear automatically and the hint can never drift
-    /// out of sync with what the picker actually offers.
+    /// Returns an owned `String` because some hints include discovered runtime
+    /// values such as the canonical daemon port.
     fn placeholder(&self) -> String {
         match self {
-            CmdKind::Spawn => {
-                format!(
-                    "claude: summarize the open PRs   (backend: task — try {})",
-                    spawn_backend_hint()
-                )
-            }
-            CmdKind::Cartographer => {
-                "Ask the cartographer about the roadmap, then watch the lane stream the reply…"
+            CmdKind::Mission => {
+                "describe the outcome; Port Daddy captures intent before choosing a plan or body…"
                     .to_string()
             }
             CmdKind::LaneMessage => {
@@ -373,12 +335,7 @@ impl CmdKind {
                 "Why reject this? The reason is sent back to the agent.".to_string()
             }
             CmdKind::AddPane => {
-                "fleet · cost · roadmap · lane · dispatch · chat · files · alerts · conjure…"
-                    .to_string()
-            }
-            CmdKind::Conjure => {
-                "describe the work — windags blooms a predicted DAG of skill-equipped agents"
-                    .to_string()
+                "mission · fleet · cost · roadmap · lane · files · alerts…".to_string()
             }
             CmdKind::UseDaemon => format!(
                 "prod · latest · dev-latest · :{} · berth name…",
@@ -387,8 +344,6 @@ impl CmdKind {
             CmdKind::Note => "record an operator note in Port Daddy memory…".to_string(),
             CmdKind::Begin => "port-daddy:console:task".to_string(),
             CmdKind::Done => "what changed, what was validated, what remains…".to_string(),
-            CmdKind::Propose => "describe the dispatch goal for the review queue…".to_string(),
-            CmdKind::Sortie => "describe the sortie mission to launch…".to_string(),
             CmdKind::Claim => "project:stack:context".to_string(),
             CmdKind::Release => "project:stack:context".to_string(),
             CmdKind::Kill => "agent-id".to_string(),
@@ -399,26 +354,9 @@ impl CmdKind {
             CmdKind::HarborSteer => {
                 "guidance for the selected node — injected before its next turn…".to_string()
             }
-            CmdKind::Verb => {
-                "note/begin/done/propose/sortie/claim/release/kill/interrupt …".to_string()
-            }
+            CmdKind::Verb => "mission/note/begin/done/claim/release/kill/interrupt …".to_string(),
         }
     }
-}
-
-/// The backend names shown in the Spawn placeholder hint, generated from
-/// [`Backend::ALL`] so the hint never drifts from the real backend set. We
-/// curate to the commonly-reached vendors plus the local options — but pulled
-/// from the live enum (never a hand-kept literal), so adding a backend to
-/// `Backend::ALL` surfaces it here for free. `custom` is omitted (it is an
-/// escape hatch, not a starting suggestion).
-fn spawn_backend_hint() -> String {
-    Backend::ALL
-        .into_iter()
-        .filter(|b| *b != Backend::Custom)
-        .map(|b| b.as_str())
-        .collect::<Vec<_>>()
-        .join(" · ")
 }
 
 /// Version + build-freshness of the running binary, for the status bar.
@@ -449,10 +387,10 @@ struct LauncherItem {
 
 const EXTRA_LAUNCHER_ITEMS: &[LauncherItem] = &[
     LauncherItem {
-        id: "chat",
-        label: "Chat",
-        icon: "icons/nav/cockpit.svg",
-        key: "c",
+        id: "mission",
+        label: "Mission",
+        icon: "icons/nav/roadmap.svg",
+        key: "v",
     },
     LauncherItem {
         id: "files",
@@ -465,12 +403,6 @@ const EXTRA_LAUNCHER_ITEMS: &[LauncherItem] = &[
         label: "Alerts",
         icon: "icons/nav/health.svg",
         key: "a",
-    },
-    LauncherItem {
-        id: "conjure",
-        label: "Conjure",
-        icon: "icons/nav/roadmap.svg",
-        key: "v",
     },
 ];
 
@@ -488,27 +420,24 @@ fn launcher_items() -> Vec<LauncherItem> {
 
 fn surface_for_launcher_id(id: &str) -> SurfaceKind {
     match id {
-        "chat" => SurfaceKind::CartographerChat,
+        "mission" => SurfaceKind::Mission,
         "files" => SurfaceKind::FileTree { root: None },
         "alerts" => SurfaceKind::Hitl,
-        "conjure" => SurfaceKind::Conjure,
         nav => surface_for_nav_id(nav),
     }
 }
 
 fn launcher_id_for_surface(surface: &SurfaceKind) -> Option<String> {
     match surface {
-        SurfaceKind::CartographerChat => Some("chat".to_string()),
+        SurfaceKind::Mission => Some("mission".to_string()),
         SurfaceKind::FileTree { .. } => Some("files".to_string()),
         SurfaceKind::Hitl => Some("alerts".to_string()),
-        SurfaceKind::Conjure => Some("conjure".to_string()),
         _ => nav_id_for_surface(surface).map(str::to_string),
     }
 }
 
 /// Resolve a typed surface name to a `SurfaceKind` for the add-pane picker.
-/// Matches every launcher tile by label/id/key, plus older aliases operators
-/// have already learned.
+/// Matches every launcher tile by label/id/key.
 fn surface_for_query(query: &str) -> Option<SurfaceKind> {
     let trimmed = query.trim();
     // `:edit <path>` (or `edit <path>`) opens the Harbor Editor surface on a file.
@@ -530,10 +459,8 @@ fn surface_for_query(query: &str) -> Option<SurfaceKind> {
         return None;
     }
     match q.as_str() {
-        "cartographer" => return Some(SurfaceKind::CartographerChat),
         "tree" | "filetree" => return Some(SurfaceKind::FileTree { root: None }),
         "hitl" => return Some(SurfaceKind::Hitl),
-        "plan" => return Some(SurfaceKind::Conjure),
         "roadmap" => return Some(SurfaceKind::Roadmap),
         "coast" => {
             return Some(SurfaceKind::Panel {
@@ -632,28 +559,11 @@ fn launcher_layout(viewport_w: f32, viewport_h: f32, item_count: usize) -> Launc
     }
 }
 
-/// An open command line: a prompt kind plus the text typed so far. For `Spawn`
-/// it also carries the structured picker state (chosen backend + tier) the
-/// operator selects from inline chips before typing the free-text prompt.
+/// An open command line: a prompt kind plus the text typed so far.
 #[derive(Debug, Clone)]
 pub struct CommandLine {
     kind: CmdKind,
     buffer: String,
-    /// Spawn picker: chosen backend (None → still choosing).
-    backend: Option<Backend>,
-    /// Spawn picker: chosen capability tier (None → still choosing).
-    tier: Option<Tier>,
-    /// Whether the chosen backend offers tiers (set from the ModelCatalog when
-    /// the backend is picked, so `spawn_step` stays catalog-free).
-    tier_applies: bool,
-}
-
-/// Which step of the Spawn structured picker is active.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum SpawnStep {
-    Backend,
-    Tier,
-    Prompt,
 }
 
 impl CommandLine {
@@ -661,9 +571,6 @@ impl CommandLine {
         Self {
             kind,
             buffer: String::new(),
-            backend: None,
-            tier: None,
-            tier_applies: false,
         }
     }
 
@@ -672,49 +579,6 @@ impl CommandLine {
         cmd.buffer = buffer;
         cmd
     }
-
-    /// The active step for a Spawn command: pick a backend, then a tier, then
-    /// type the prompt. Backends with no tiers in the config skip the tier step.
-    fn spawn_step(&self) -> SpawnStep {
-        if self.backend.is_none() {
-            SpawnStep::Backend
-        } else if self.tier.is_none() && self.tier_applies {
-            SpawnStep::Tier
-        } else {
-            SpawnStep::Prompt
-        }
-    }
-
-    /// True once the picker is done and we're typing the prompt.
-    fn spawn_ready(&self) -> bool {
-        self.kind != CmdKind::Spawn || self.spawn_step() == SpawnStep::Prompt
-    }
-}
-
-/// Backends matching the picker filter (case-insensitive prefix on label or id).
-fn filtered_backends(filter: &str) -> Vec<Backend> {
-    let f = filter.trim().to_lowercase();
-    Backend::ALL
-        .into_iter()
-        .filter(|b| {
-            f.is_empty()
-                || b.as_str().to_lowercase().starts_with(&f)
-                || b.label().to_lowercase().contains(&f)
-        })
-        .collect()
-}
-
-/// Tiers the config defines for this backend, matching the picker filter. Only
-/// tiers with a resolved model are shown — the set is data, not hard-coded.
-fn filtered_tiers(catalog: &ModelCatalog, backend: Backend, filter: &str) -> Vec<Tier> {
-    let f = filter.trim().to_lowercase();
-    Tier::ALL
-        .into_iter()
-        .filter(|t| catalog.resolve(backend, *t).is_some())
-        .filter(|t| {
-            f.is_empty() || t.as_str().starts_with(&f) || t.label().to_lowercase().contains(&f)
-        })
-        .collect()
 }
 
 /// An in-flight pane-divider drag (grab-the-rope resize): which split (by tree
@@ -724,6 +588,33 @@ struct DragState {
     path: Vec<usize>,
     left: usize,
     dir: Dir,
+}
+
+/// Immutable origin of one terminal-drawer resize gesture.
+///
+/// The handle moves whenever the drawer is re-laid out, so resize math cannot
+/// safely accumulate deltas from that moving element. Window-space pointer and
+/// visible-height anchors keep upward, downward, and direction-reversing drags
+/// symmetric until the root releases capture.
+#[derive(Debug, Clone, Copy)]
+struct ShellResizeDrag {
+    pointer_start_y: f32,
+    drawer_start_height_px: f32,
+}
+
+/// GPUI drag token for the terminal edge. Unlike a normal bubbling mouse-move
+/// listener, `on_drag_move` delivers this gesture in the capture phase even
+/// while the pointer is over the drawer's intentionally occluding contents.
+#[derive(Debug, Clone, Copy)]
+struct ShellResizeGesture;
+
+/// Invisible drag image: the authored drawer edge itself is the feedback.
+struct ShellResizePreview;
+
+impl Render for ShellResizePreview {
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+        div().w(px(1.0)).h(px(1.0)).opacity(0.0)
+    }
 }
 
 /// One named tab — an independent pane tree, plus an optional zoomed (maximized)
@@ -754,7 +645,7 @@ fn launcher_tone(id: &str, t: &Theme) -> u32 {
     match id {
         "fleet" | "cockpit" | "sorties" | "lane" | "peek" | "chat" | "files" => t.cobalt,
         "dispatch" | "conductor" | "parley" | "suggest" | "coast" | "coast-guard" | "claims"
-        | "conjure" => t.accent,
+        | "work" => t.accent,
         "roadmap" | "planner" | "adrs" | "memory" | "lineage" | "substrate" | "sextant" => t.landed,
         _ => t.gated, // activity, sessions, inbox, prs, health, ledger
     }
@@ -810,6 +701,9 @@ fn launcher_legend_chip(label: &'static str, color: u32) -> impl IntoElement {
 // closures, which then re-read the live theme — with no borrow/lifetime threading.
 // 0 = light, 1 = dark (default = the shipped look).
 static THEME_MODE: AtomicU8 = AtomicU8::new(1);
+// 0 = full motion, 1 = reduced motion. The visible chrome control can change
+// this at runtime; the environment variable only seeds the starting value.
+static MOTION_MODE: AtomicU8 = AtomicU8::new(0);
 
 pub(crate) fn current_theme() -> Theme {
     let mode = if THEME_MODE.load(Ordering::Relaxed) == 0 {
@@ -831,14 +725,14 @@ fn toggle_theme() {
     crate::audio::play(crate::audio::Cue::Toggle);
 }
 
-/// Honour a reduced-motion preference (`PD_CONSOLE_REDUCED_MOTION=1`). gpui has
-/// no `@media (prefers-reduced-motion)`, so this is the native opt-out: when set,
-/// motion resolves to its final state instantly (orientation cues like the hover
-/// glow stay; only the travel is dropped).
 fn reduced_motion() -> bool {
-    std::env::var("PD_CONSOLE_REDUCED_MOTION")
-        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-        .unwrap_or(false)
+    MOTION_MODE.load(Ordering::Relaxed) == 1
+}
+
+fn toggle_motion() {
+    let next = if reduced_motion() { 0 } else { 1 };
+    MOTION_MODE.store(next, Ordering::Relaxed);
+    crate::audio::play(crate::audio::Cue::Toggle);
 }
 
 /// `PD_CONSOLE_NO_SPLASH` opt-out — suppresses the launch splash entirely.
@@ -1002,6 +896,16 @@ pub fn init_theme_from_env() {
     }
 }
 
+/// Seed reduced motion from `PD_CONSOLE_REDUCED_MOTION`; the title deck exposes
+/// the same preference as a visible runtime control, so operators are not sent
+/// to an environment file for routine presentation settings.
+pub fn init_motion_from_env() {
+    let reduced = std::env::var("PD_CONSOLE_REDUCED_MOTION")
+        .map(|value| value == "1" || value.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+    MOTION_MODE.store(u8::from(reduced), Ordering::Relaxed);
+}
+
 fn tone_rgb(tone: &Tone) -> u32 {
     current_theme().tone(tone)
 }
@@ -1156,9 +1060,9 @@ struct WavingFlag {
 
 impl RenderOnce for WavingFlag {
     fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
-        const W: f32 = 46.0;
-        const H: f32 = 28.0;
-        const STRIPS: usize = 14;
+        const W: f32 = 26.0;
+        const H: f32 = 18.0;
+        const STRIPS: usize = 10;
         const LEAN: f32 = 0.40; // fly-edge trail per unit velocity
         const IDLE_DROOP: f32 = 0.12; // gentle hang at rest
         const RIPPLE_GAIN: f32 = 0.42; // ripple amplitude per unit speed
@@ -1228,7 +1132,7 @@ impl RenderOnce for WavingFlag {
                     .items_center()
                     .justify_center()
                     .text_color(rgb(0x0d141f))
-                    .text_size(px(14.0))
+                    .text_size(px(10.0))
                     .font_weight(FontWeight::BOLD)
                     .child(letter.to_string()),
             )
@@ -1239,21 +1143,128 @@ impl RenderOnce for WavingFlag {
 /// lines — only the visible window is painted, scroll state rides `scroll`.
 /// This replaces the per-line `Block::Row` card path (border + rounding +
 /// margins + hover per line — the "every line is a button" bug).
+#[derive(Clone, Default)]
+struct EditorPaintState {
+    caret: Option<(u32, usize)>,
+    selection: BTreeMap<u32, std::ops::Range<usize>>,
+    marked: BTreeMap<u32, std::ops::Range<usize>>,
+}
+
+fn paint_ranges_for_text(
+    text: &str,
+    range: std::ops::Range<usize>,
+) -> BTreeMap<u32, std::ops::Range<usize>> {
+    let mut result = BTreeMap::new();
+    if range.is_empty() {
+        return result;
+    }
+    let mut line_start = 0usize;
+    for (index, raw) in text.split_inclusive('\n').enumerate() {
+        let content_len = raw.strip_suffix('\n').map_or(raw.len(), str::len);
+        let content_end = line_start + content_len;
+        let start = range.start.max(line_start).min(content_end);
+        let end = range.end.max(line_start).min(content_end);
+        if start < end {
+            result.insert((index + 1) as u32, start - line_start..end - line_start);
+        }
+        line_start += raw.len();
+        if line_start >= range.end {
+            break;
+        }
+    }
+    result
+}
+
+fn editor_paint_state(input: &EditorInput, text: &str) -> EditorPaintState {
+    let selection = input.selection();
+    let caret = selection.is_empty().then(|| {
+        let byte = input.cursor().min(text.len());
+        let line_start = text[..byte].rfind('\n').map_or(0, |ix| ix + 1);
+        let line = text[..byte].bytes().filter(|b| *b == b'\n').count() as u32 + 1;
+        (line, byte - line_start)
+    });
+    EditorPaintState {
+        caret,
+        selection: paint_ranges_for_text(text, selection),
+        marked: input
+            .marked_range()
+            .map(|range| paint_ranges_for_text(text, range))
+            .unwrap_or_default(),
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct EditorVisualRow {
+    line_index: usize,
+    range: std::ops::Range<usize>,
+    continuation: bool,
+    final_segment: bool,
+}
+
+fn editor_visual_rows(
+    lines: &[crate::pane::CodeLine],
+    wrap_columns: Option<usize>,
+) -> std::sync::Arc<[EditorVisualRow]> {
+    let mut rows = Vec::new();
+    for (line_index, line) in lines.iter().enumerate() {
+        let ranges = wrap_columns
+            .map(|columns| wrap_byte_ranges(&line.text, columns))
+            .unwrap_or_else(|| vec![0..line.text.len()]);
+        let final_index = ranges.len().saturating_sub(1);
+        rows.extend(
+            ranges
+                .into_iter()
+                .enumerate()
+                .map(|(segment, range)| EditorVisualRow {
+                    line_index,
+                    range,
+                    continuation: segment > 0,
+                    final_segment: segment == final_index,
+                }),
+        );
+    }
+    rows.into()
+}
+
 fn render_code_buffer(
     pane_id: PaneId,
     lines: std::sync::Arc<[crate::pane::CodeLine]>,
     gutter_cols: u8,
     bands: Vec<crate::pane::CodeBand>,
     scroll: Option<UniformListScrollHandle>,
+    input: Option<EditorPaintState>,
+    options: Option<&EditorRenderOptions>,
 ) -> AnyElement {
     let t = current_theme();
-    let count = lines.len();
+    let show_blame = options.is_some_and(|options| options.show_blame);
+    let blame = options.and_then(|options| options.blame.clone());
+    let wrap_columns = options
+        .filter(|options| options.wrap_lines)
+        .and_then(|options| options.viewport_width)
+        .map(|width| editor_wrap_columns(width, gutter_cols as f32, show_blame));
+    let rows = editor_visual_rows(&lines, wrap_columns);
+    let count = rows.len();
     let list = uniform_list(
         SharedString::from(format!("code-{pane_id}")),
         count,
         move |range: std::ops::Range<usize>, _window, _cx| {
             range
-                .map(|ix| render_code_line(&lines[ix], gutter_cols, &bands))
+                .map(|ix| {
+                    let row = &rows[ix];
+                    let line = &lines[row.line_index];
+                    let blame_line = blame
+                        .as_deref()
+                        .and_then(|lines| lines.get(line.number.saturating_sub(1) as usize));
+                    render_code_segment(
+                        line,
+                        row,
+                        gutter_cols,
+                        &bands,
+                        input.as_ref(),
+                        blame_line,
+                        show_blame,
+                    )
+                })
                 .collect::<Vec<_>>()
         },
     )
@@ -1282,11 +1293,34 @@ fn render_code_line(
     line: &crate::pane::CodeLine,
     gutter_cols: u8,
     bands: &[crate::pane::CodeBand],
+    input: Option<&EditorPaintState>,
+) -> AnyElement {
+    let row = EditorVisualRow {
+        line_index: line.number.saturating_sub(1) as usize,
+        range: 0..line.text.len(),
+        continuation: false,
+        final_segment: true,
+    };
+    render_code_segment(line, &row, gutter_cols, bands, input, None, false)
+}
+
+fn render_code_segment(
+    line: &crate::pane::CodeLine,
+    row: &EditorVisualRow,
+    gutter_cols: u8,
+    bands: &[crate::pane::CodeBand],
+    input: Option<&EditorPaintState>,
+    blame: Option<&crate::git_blame::BlameLine>,
+    show_blame: bool,
 ) -> AnyElement {
     let t = current_theme();
     // Last covering band wins (the pane pushes the conflict wedge last).
     let band = bands.iter().rev().find(|b| b.covers(line.number));
-    let num = format!("{:>width$}", line.number, width = gutter_cols as usize);
+    let num = if row.continuation {
+        format!("{:>width$}", "↳", width = gutter_cols as usize)
+    } else {
+        format!("{:>width$}", line.number, width = gutter_cols as usize)
+    };
 
     // Per-run color highlights over one text element; Plain runs inherit the
     // container's ink2 so only colored spans carry a HighlightStyle.
@@ -1296,9 +1330,11 @@ fn render_code_line(
     for (len, kind) in &line.runs {
         let start = at.min(text_len);
         let end = at.saturating_add(*len as usize).min(text_len);
-        if !matches!(kind, crate::pane::SyntaxKind::Plain) && start < end {
+        let visible_start = start.max(row.range.start);
+        let visible_end = end.min(row.range.end);
+        if !matches!(kind, crate::pane::SyntaxKind::Plain) && visible_start < visible_end {
             highlights.push((
-                start..end,
+                visible_start - row.range.start..visible_end - row.range.start,
                 HighlightStyle {
                     color: Some(rgb(t.syntax(*kind)).into()),
                     ..Default::default()
@@ -1310,7 +1346,55 @@ fn render_code_line(
             break;
         }
     }
-    let author_tag = line.author_tag.clone();
+    if let Some(range) = input.and_then(|state| state.selection.get(&line.number)) {
+        let start = range.start.max(row.range.start);
+        let end = range.end.min(row.range.end);
+        if start < end {
+            highlights.push((
+                start - row.range.start..end - row.range.start,
+                HighlightStyle {
+                    background_color: Some(tone_wash(t.accent, 0x55).into()),
+                    ..Default::default()
+                },
+            ));
+        }
+    }
+    if let Some(range) = input.and_then(|state| state.marked.get(&line.number)) {
+        let start = range.start.max(row.range.start);
+        let end = range.end.min(row.range.end);
+        if start < end {
+            highlights.push((
+                start - row.range.start..end - row.range.start,
+                HighlightStyle {
+                    underline: Some(UnderlineStyle {
+                        color: Some(rgb(t.accent_ink).into()),
+                        thickness: px(1.0),
+                        wavy: false,
+                    }),
+                    ..Default::default()
+                },
+            ));
+        }
+    }
+    let author_tag = (!row.continuation)
+        .then(|| line.author_tag.clone())
+        .flatten();
+    let caret_col = input
+        .and_then(|state| state.caret)
+        .filter(|(number, _)| *number == line.number)
+        .and_then(|(_, byte)| {
+            let in_segment = byte >= row.range.start
+                && (byte < row.range.end || (row.final_segment && byte == row.range.end));
+            in_segment.then(|| {
+                line.text[row.range.start..byte.min(row.range.end)]
+                    .graphemes(true)
+                    .count()
+            })
+        });
+    let text = line.text[row.range.clone()].to_string();
+    let blame_label = (!row.continuation)
+        .then(|| blame.map(compact_blame_label))
+        .flatten();
 
     div()
         .h(px(tokens::CODE_LINE_H))
@@ -1346,8 +1430,58 @@ fn render_code_line(
                 .text_color(rgb(t.tone(&line.author_tone)))
                 .when_some(author_tag, |d, tag| d.child(SharedString::new(tag))),
         )
-        .child(StyledText::new(SharedString::new(line.text.clone())).with_highlights(highlights))
+        .when(show_blame, |line_row| {
+            line_row.child(
+                div()
+                    .w(px(BLAME_COL_CHARS * tokens::CODE_CH + 8.0))
+                    .pr(px(8.0))
+                    .flex_shrink_0()
+                    .overflow_hidden()
+                    .text_color(rgb(t.muted))
+                    .when_some(blame_label, |d, label| d.child(label)),
+            )
+        })
+        .child(
+            div()
+                .relative()
+                .h_full()
+                .flex_1()
+                .flex()
+                .items_center()
+                .child(StyledText::new(SharedString::new(text)).with_highlights(highlights))
+                .when_some(caret_col, |d, column| {
+                    d.child(
+                        div()
+                            .absolute()
+                            .left(px(column as f32 * tokens::CODE_CH))
+                            .top(px(2.0))
+                            .bottom(px(2.0))
+                            .w(px(1.5))
+                            .bg(rgb(t.accent_ink)),
+                    )
+                }),
+        )
         .into_any_element()
+}
+
+fn compact_blame_label(blame: &crate::git_blame::BlameLine) -> String {
+    if blame.is_working_tree() {
+        return "working tree"
+            .graphemes(true)
+            .take(BLAME_COL_CHARS as usize)
+            .collect();
+    }
+    let author = blame
+        .author
+        .split_whitespace()
+        .next()
+        .filter(|part| !part.is_empty())
+        .unwrap_or("unknown");
+    let label = format!("{} · {author}", blame.short_commit());
+    label
+        .graphemes(true)
+        .take(BLAME_COL_CHARS as usize)
+        .collect()
 }
 
 pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement {
@@ -1373,105 +1507,230 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
                 lines
                     .iter()
                     .take(500)
-                    .map(|line| render_code_line(line, gutter_cols, &bands)),
+                    .map(|line| render_code_line(line, gutter_cols, &bands, None)),
             )
             .into_any_element(),
         Block::Header(text) => div()
-            .mx(px(tokens::SPACE_3))
-            .mt(px(tokens::SPACE_3))
-            .mb(px(tokens::SPACE_1))
-            .px(px(tokens::SPACE_3))
-            .py(px(tokens::SPACE_2))
-            .rounded(px(tokens::RADIUS_MD))
-            .border_1()
-            .border_color(rgb(t.line))
-            .bg(rgb(t.raised))
-            .shadow(motion::hard_offset(t.sunken, 0.0, 2.0))
+            .mx(px(16.0))
+            .mt(px(12.0))
+            .min_h(px(38.0))
+            .py(px(8.0))
             .flex()
             .items_center()
-            .gap(px(tokens::SPACE_2))
-            .child(
-                div()
-                    .w(px(5.0))
-                    .h(px(18.0))
-                    .rounded(px(tokens::RADIUS_SM))
-                    .bg(rgb(t.accent)),
-            )
-            .child(
-                div()
-                    .text_color(rgb(t.ink))
-                    .text_size(px(tokens::TEXT_HEADER))
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .child(text),
-            )
-            .into_any_element(),
-        Block::KeyVal(key, val) => div()
-            .flex()
-            .items_start()
-            .gap(px(tokens::SPACE_3))
-            .mx(px(tokens::SPACE_3))
-            .my(px(2.0))
-            .px(px(tokens::SPACE_3))
-            .py(px(tokens::SPACE_2))
-            .rounded(px(tokens::RADIUS_MD))
-            .border_1()
+            .border_b_1()
             .border_color(rgb(t.line))
-            .bg(tone_wash(t.raised, 0xd8))
-            .hover(|s| {
-                let t = current_theme();
-                s.border_color(rgb(t.accent))
-                    .bg(rgb(t.raised))
-                    .shadow(motion::glow(t.accent, 0.16, 10.0, 0.0))
-            })
             .child(
                 div()
-                    .text_color(rgb(t.muted))
-                    .text_size(px(tokens::TEXT_CAPTION))
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .w(px(132.0))
-                    .flex_shrink_0()
-                    .child(key),
-            )
-            .child(
-                div()
-                    .text_color(rgb(t.ink))
-                    .text_size(px(tokens::TEXT_BODY))
                     .font_family("IBM Plex Mono")
-                    .child(val),
+                    .text_color(rgb(t.muted))
+                    .text_size(px(14.0))
+                    .font_weight(FontWeight::BOLD)
+                    .max_w_full()
+                    .whitespace_normal()
+                    .child(text.to_ascii_uppercase()),
             )
             .into_any_element(),
+        Block::KeyVal(key, val) => {
+            if key == "active" {
+                div()
+                    .h(px(62.0))
+                    .mx(px(16.0))
+                    .flex()
+                    .border_b_1()
+                    .border_color(rgb(t.line))
+                    .child(
+                        div()
+                            .flex_1()
+                            .px(px(14.0))
+                            .flex()
+                            .items_center()
+                            .bg(rgb(t.raised))
+                            .text_color(rgb(t.ink2))
+                            .text_size(px(14.0))
+                            .font_weight(FontWeight::BOLD)
+                            .child("ACTIVE / CONFIRMED"),
+                    )
+                    .child(
+                        div()
+                            .w(px(112.0))
+                            .flex_shrink_0()
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .bg(rgb(t.engaged))
+                            .text_color(rgb(knockout_ink(t.engaged)))
+                            .text_size(px(24.0))
+                            .font_weight(FontWeight::BOLD)
+                            .child(val),
+                    )
+                    .into_any_element()
+            } else {
+                div()
+                    .flex()
+                    .flex_wrap()
+                    .items_center()
+                    .min_h(px(38.0))
+                    .py(px(6.0))
+                    .mx(px(16.0))
+                    .border_b_1()
+                    .border_color(rgb(t.line))
+                    .bg(rgb(t.panel))
+                    .hover(|s| {
+                        let t = current_theme();
+                        s.bg(rgb(t.raised))
+                    })
+                    .child(div().w(px(2.0)).h_full().flex_shrink_0().bg(rgb(t.line2)))
+                    .child(
+                        div()
+                            .ml(px(11.0))
+                            .text_color(rgb(t.muted))
+                            .text_size(px(14.0))
+                            .font_family("IBM Plex Mono")
+                            .w(px(150.0))
+                            .flex_shrink_0()
+                            .child(key.to_ascii_uppercase()),
+                    )
+                    .child(
+                        div()
+                            .flex_1()
+                            .max_w_full()
+                            .whitespace_normal()
+                            .text_color(rgb(t.ink))
+                            .text_size(px(tokens::TEXT_BODY))
+                            .font_family("IBM Plex Mono")
+                            .child(val),
+                    )
+                    .into_any_element()
+            }
+        }
         Block::Row(cells) => div()
             .flex()
+            .flex_wrap()
             .items_center()
-            .gap(px(tokens::SPACE_3))
-            .mx(px(tokens::SPACE_3))
-            .my(px(2.0))
-            .px(px(tokens::SPACE_3))
-            .py(px(tokens::SPACE_2))
-            .rounded(px(tokens::RADIUS_MD))
-            .border_1()
+            .gap(px(12.0))
+            .mx(px(16.0))
+            .py(px(7.0))
+            .min_h(px(48.0))
+            .border_b_1()
             .border_color(rgb(t.line))
             .bg(rgb(t.panel))
             .hover(|s| {
                 let t = current_theme();
                 s.bg(rgb(t.raised))
-                    .border_color(rgb(t.accent))
-                    .shadow(motion::hard_offset(t.sunken, 0.0, 1.0))
             })
+            .child(
+                div()
+                    .flex()
+                    .flex_shrink_0()
+                    .child(div().w(px(9.0)).h(px(18.0)).bg(rgb(t.accent)))
+                    .child(div().w(px(9.0)).h(px(18.0)).bg(rgb(t.engaged))),
+            )
             .children(cells.into_iter().enumerate().map(|(i, cell)| {
                 div()
                     .text_color(rgb(if i == 0 {
-                        current_theme().accent_ink
+                        current_theme().ink
                     } else {
                         current_theme().ink2
                     }))
                     .text_size(px(tokens::TEXT_BODY))
                     .font_family("IBM Plex Mono")
-                    .flex_shrink_0()
+                    .max_w_full()
+                    .whitespace_normal()
                     .when(i == 0, |s| s.min_w(px(22.0)).font_weight(FontWeight::BOLD))
                     .child(cell)
             }))
             .into_any_element(),
+        // Interactive panes route these through render_ledger_header/row below.
+        // This fallback keeps exported/static renderers truthful and responsive.
+        Block::LedgerHeader {
+            columns,
+            active_sort,
+            descending,
+            ..
+        } => div()
+            .flex()
+            .flex_wrap()
+            .gap(px(tokens::SPACE_1))
+            .mx(px(tokens::SPACE_3))
+            .my(px(tokens::SPACE_2))
+            .children(columns.into_iter().map(|(key, label)| {
+                let active = key == active_sort;
+                div()
+                    .px(px(tokens::SPACE_2))
+                    .py(px(tokens::SPACE_1))
+                    .border_1()
+                    .border_color(rgb(if active {
+                        current_theme().accent
+                    } else {
+                        current_theme().line
+                    }))
+                    .text_color(rgb(if active {
+                        current_theme().accent_ink
+                    } else {
+                        current_theme().muted
+                    }))
+                    .text_size(px(tokens::TEXT_CAPTION))
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .child(if active {
+                        format!("{label} {}", if descending { "↓" } else { "↑" })
+                    } else {
+                        label
+                    })
+            }))
+            .into_any_element(),
+        Block::LedgerRow {
+            selected,
+            cells,
+            tone,
+            ..
+        } => {
+            let color = tone_rgb(&tone);
+            div()
+                .flex()
+                .flex_wrap()
+                .items_start()
+                .gap(px(tokens::SPACE_2))
+                .mx(px(tokens::SPACE_3))
+                .my(px(2.0))
+                .px(px(tokens::SPACE_2))
+                .py(px(tokens::SPACE_2))
+                .border_1()
+                .border_color(rgb(if selected { t.accent } else { t.line }))
+                .when(selected, |row| row.border_l_2().bg(rgb(t.raised)))
+                .child(
+                    div()
+                        .w(px(3.0))
+                        .min_h(px(34.0))
+                        .flex_shrink_0()
+                        .bg(rgb(color)),
+                )
+                .children(cells.into_iter().map(|cell| {
+                    let width = ledger_cell_width_px(cell.width);
+                    div()
+                        .w(px(width))
+                        .max_w_full()
+                        .flex_shrink_0()
+                        .flex()
+                        .flex_col()
+                        .gap(px(2.0))
+                        .child(
+                            div()
+                                .text_color(rgb(current_theme().muted))
+                                .text_size(px(11.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .child(cell.label.to_ascii_uppercase()),
+                        )
+                        .child(
+                            div()
+                                .text_color(rgb(current_theme().ink))
+                                .text_size(px(tokens::TEXT_BODY))
+                                .font_family("IBM Plex Mono")
+                                .whitespace_normal()
+                                .child(cell.value),
+                        )
+                }))
+                .into_any_element()
+        }
         Block::ChatTurn {
             speaker,
             text,
@@ -1492,7 +1751,6 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
                 .max_w(px(680.0))
                 .flex()
                 .overflow_hidden()
-                .rounded(px(tokens::RADIUS_LG))
                 .border_1()
                 .border_color(rgb(if mine { t.accent } else { t.line }))
                 .bg(rgb(if mine { t.raised } else { t.panel }))
@@ -1517,6 +1775,7 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
                             div()
                                 .text_color(rgb(t.ink))
                                 .text_size(px(tokens::TEXT_BODY))
+                                .whitespace_normal()
                                 .child(body),
                         ),
                 );
@@ -1567,7 +1826,9 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
         } => {
             let color_u32 = tone_rgb(&tone);
             let preview = preview.unwrap_or_else(|| "open / preview in current worktree".into());
+            let target = path.clone();
             div()
+                .id(SharedString::from(format!("artifact-{path}")))
                 .mx(px(tokens::SPACE_3))
                 .my(px(2.0))
                 .px(px(tokens::SPACE_2))
@@ -1578,6 +1839,11 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
                 .flex()
                 .items_start()
                 .gap(px(tokens::SPACE_2))
+                .cursor_pointer()
+                .hover(|surface| surface.bg(rgb(current_theme().raised)))
+                .on_click(move |_event, _window, _cx| {
+                    let _ = std::process::Command::new("open").arg(&target).spawn();
+                })
                 .child(
                     div()
                         .mt(px(1.0))
@@ -1596,12 +1862,10 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
                         .gap(px(tokens::SPACE_2))
                         .child(
                             div()
-                                .rounded(px(tokens::RADIUS_SM))
-                                .border_1()
-                                .border_color(rgb(color_u32))
+                                .bg(rgb(color_u32))
                                 .px(px(tokens::SPACE_1))
                                 .py(px(1.0))
-                                .text_color(rgb(color_u32))
+                                .text_color(rgb(knockout_ink(color_u32)))
                                 .text_size(px(tokens::TEXT_CAPTION))
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .child("ARTIFACT"),
@@ -1651,12 +1915,10 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
                         .gap(px(tokens::SPACE_2))
                         .child(
                             div()
-                                .rounded(px(tokens::RADIUS_SM))
-                                .border_1()
-                                .border_color(rgb(color_u32))
+                                .bg(rgb(color_u32))
                                 .px(px(tokens::SPACE_1))
                                 .py(px(1.0))
-                                .text_color(rgb(color_u32))
+                                .text_color(rgb(knockout_ink(color_u32)))
                                 .text_size(px(tokens::TEXT_CAPTION))
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .child("SCREENSHOT"),
@@ -1692,7 +1954,6 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
                         .w(px(280.0))
                         .max_w_full()
                         .h(px(156.0))
-                        .rounded(px(tokens::RADIUS_SM))
                         .border_1()
                         .border_color(rgb(t.line))
                         .bg(rgb(t.bg))
@@ -1730,21 +1991,32 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
         Block::Chip { label, tone } => {
             let color_u32 = tone_rgb(&tone);
             let color = rgb(color_u32);
-            div()
+            // A chip is a small inline badge, not a section banner. Its parent
+            // block list is a `flex_col()`; gpui/Taffy defaults an unset
+            // `align_items` to Stretch (CSS flexbox default), so a plain div
+            // with no override fills the pane's full width on the cross axis
+            // — exactly the "6 ON THE CRITICAL PATH" bar rendering as a
+            // full-bleed banner instead of a short pill (operator report on
+            // the live Planner Gantt, 2026-08-23). `flex_shrink_0` does NOT
+            // fix this — it governs the flex item's MAIN-axis sizing, not
+            // cross-axis stretch; only `align_self` does. `Block::Row`'s own
+            // row div correctly relies on the stretch default (rows SHOULD
+            // span full width); only this leaf badge needed the opt-out.
+            let mut el = div()
                 .mx(px(tokens::SPACE_3))
                 .my(px(tokens::SPACE_1))
-                .px(px(tokens::SPACE_3))
-                .py(px(tokens::SPACE_1))
-                .rounded(px(tokens::RADIUS_MD))
-                .border_1()
-                .border_color(color)
-                .bg(tone_wash(color_u32, 0x20))
-                .text_color(color)
+                .px(px(8.0))
+                .py(px(3.0))
+                .bg(color)
+                .text_color(rgb(knockout_ink(color_u32)))
+                .font_family("IBM Plex Mono")
                 .text_size(px(tokens::TEXT_CAPTION))
-                .font_weight(FontWeight::SEMIBOLD)
-                .shadow(motion::glow(color_u32, 0.10, 8.0, 0.0))
-                .child(label)
-                .into_any_element()
+                .font_weight(FontWeight::BOLD)
+                .max_w_full()
+                .whitespace_normal()
+                .child(label);
+            el.style().align_self = Some(gpui::AlignItems::Start);
+            el.into_any_element()
         }
         Block::Flag {
             letter,
@@ -1754,30 +2026,37 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
             // The signal flag is now a waving cloth (WavingFlag, T2 paint) that
             // reacts to pane scroll/resize via `motion`; the letter rides it.
             let color = tone_rgb(&tone);
+            let pair = match tone {
+                Tone::Engaged => t.accent,
+                Tone::Landed => t.engaged,
+                Tone::Gated => t.conflict,
+                Tone::Conflicted | Tone::Alarm => t.gated,
+                Tone::Accent | Tone::Default | Tone::Resting => t.line2,
+            };
             div()
                 .flex()
                 .items_center()
-                .gap(px(tokens::SPACE_3))
-                .mx(px(tokens::SPACE_3))
-                .my(px(2.0))
-                .px(px(tokens::SPACE_3))
-                .py(px(tokens::SPACE_2))
-                .rounded(px(tokens::RADIUS_MD))
-                .border_1()
+                .gap(px(10.0))
+                .mx(px(16.0))
+                .min_h(px(50.0))
+                .border_b_1()
                 .border_color(rgb(t.line))
-                .bg(tone_wash(color, 0x16))
-                .shadow(motion::hard_offset(t.sunken, 0.0, 1.0))
+                .bg(rgb(t.panel))
                 .hover(|s| {
                     let t = current_theme();
-                    s.border_color(rgb(color))
-                        .bg(rgb(t.raised))
-                        .shadow(motion::glow(color, 0.18, 10.0, 0.0))
+                    s.bg(rgb(t.raised))
                 })
-                .child(WavingFlag {
-                    letter,
-                    color,
-                    motion,
-                })
+                .child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .child(WavingFlag {
+                            letter,
+                            color,
+                            motion,
+                        })
+                        .child(div().w(px(8.0)).h(px(18.0)).bg(rgb(pair))),
+                )
                 .child(
                     div()
                         .text_color(rgb(t.ink))
@@ -1792,9 +2071,6 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
             .my(px(tokens::SPACE_1))
             .px(px(tokens::SPACE_3))
             .py(px(tokens::SPACE_2))
-            .rounded(px(tokens::RADIUS_MD))
-            .border_1()
-            .border_color(rgb(t.line))
             .bg(rgb(t.sunken))
             .text_color(rgb(t.landed))
             .text_size(px(tokens::TEXT_HEADER))
@@ -1806,18 +2082,18 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
             // Full, wrapping, never-truncated — the operator reads it all.
             let color = tone_rgb(&tone);
             div()
+                .max_w_full()
                 .mx(px(tokens::SPACE_3))
                 .my(px(tokens::SPACE_1))
                 .px(px(tokens::SPACE_3))
                 .py(px(tokens::SPACE_2))
-                .rounded(px(tokens::RADIUS_MD))
-                .border_1()
+                .border_l_2()
                 .border_color(rgb(color))
                 .bg(tone_wash(color, 0x18))
                 .text_color(rgb(color))
                 .text_size(px(tokens::TEXT_BODY))
                 .font_family("IBM Plex Mono")
-                .shadow(motion::glow(color, 0.14, 12.0, 0.0))
+                .whitespace_normal()
                 .child(text)
                 .into_any_element()
         }
@@ -1874,7 +2150,6 @@ impl RenderOnce for SidebarItem {
             .py(px(6.0))
             .mx(px(4.0))
             .my(px(1.0))
-            .rounded(px(6.0))
             .cursor_pointer()
             .when(self.active, |s| {
                 s.bg(rgb(current_theme().raised))
@@ -1923,10 +2198,16 @@ pub struct ConsoleView {
     /// submits, Escape cancels.
     command: Option<CommandLine>,
     pane_blocks: Vec<Vec<Block>>,
+    /// The producer's LIVE Harbor Editor blocks (P3 wire stage 2): `(bound_path,
+    /// view())` folded from the background edit-sync + coordination lanes — presence
+    /// cursors, region claims, and the wedge conflict/gate bands. `None` until an editor
+    /// surface opens. `blocks_for_surface` prefers these (when the bound path matches)
+    /// over a cold synchronous load, so the running window shows the LIVE wedge — not a
+    /// static file re-read that never saw the collaboration lanes.
+    editor_blocks: Option<(String, Vec<Block>)>,
     daemon_url: String,
     /// Provider→tier→model map, loaded from config (not compiled-in), so the
     /// Spawn picker resolves models that can change without a rebuild.
-    catalog: ModelCatalog,
     /// Stable focus handle — created once and focused on open. Recreating it per
     /// render (the old `cx.focus_handle()` in render) meant nothing stayed
     /// focused, so the keyboard nav never received key events.
@@ -1934,7 +2215,7 @@ pub struct ConsoleView {
     /// Channel to the background thread for operator mutations (Interrupt etc.).
     /// `None` when running without a control plane (e.g. an isolated test view).
     control_tx: Option<mpsc::Sender<ControlMsg>>,
-    /// Transient confirmation shown after a control action ("interrupt sent").
+    /// Transient confirmation shown after a control action (for example, a stop request).
     control_flash: Option<String>,
     /// The accumulated alert log (the HITL dead-letter queue): every captured
     /// action failure/outcome, newest first, bounded so an all-day session can't
@@ -1943,6 +2224,10 @@ pub struct ConsoleView {
     alerts: Vec<Alert>,
     /// Head-of-queue dispatch the review gate acts on (from the background refresh).
     dispatch_head: Option<DispatchHead>,
+    /// HITL interruptions gate (contract §4): open-ask count, the blocking
+    /// critical ask's title, known/unknown, and the web answer deep link.
+    /// Drives the window-wide banner and the dispatch-gate refusal.
+    hitl_gate: crate::interruptions::HitlGate,
     /// Dispatch id pending a reject reason (set when the operator opens the reject line).
     reject_target: Option<String>,
     /// In-flight pane-divider drag (grab-the-rope resize); `None` when idle.
@@ -1950,23 +2235,45 @@ pub struct ConsoleView {
     /// Laid-out bounds of each split container, keyed by tree path, captured via a
     /// canvas overlay so the drag handler can map a mouse position to a weight.
     split_bounds: Rc<RefCell<HashMap<Vec<usize>, Bounds<Pixels>>>>,
-    /// The Conjure surface's predicted DAG — live-generated from the operator's
-    /// prompt via the Max-seat `claude` CLI (with the fixture as the offline
-    /// fallback), rendered through the Block UI AND the inline Vello graphic.
-    conjure_dag: crate::conjure::PredictedDag,
-    /// Path to the rendered Vello PNG of `conjure_dag`, shown INLINE at the top of
-    /// the Conjure surface. `None` until a render lands (the surface shows a
+    /// Read-only visual projection of the daemon-owned WorkPlan. Empty daemon
+    /// nodeSpecs stay empty; this state never manufactures a runnable plan.
+    work_plan_graph: crate::work_plan::PredictedDag,
+    /// One human-facing mission receipt. This is the primary Mission model;
+    /// the plan graph remains a secondary technical artifact.
+    work_mission: crate::mission_view::MissionViewModel,
+    /// Path to the rendered Vello PNG of `work_plan_graph`, shown INLINE at the top of
+    /// the Mission surface. `None` until a render lands (the surface shows a
     /// "rendering graph…" placeholder). Auto-refreshed whenever the DAG changes.
-    conjure_png_path: Option<std::path::PathBuf>,
-    /// The node the operator clicked in the live Conjure canvas — drives the
+    work_graph_png_path: Option<std::path::PathBuf>,
+    /// Durable WorkIntent identity from the latest daemon snapshot.
+    work_intent_id: Option<String>,
+    /// Current daemon-authored plan state, including honest unplanned/unknown states.
+    work_plan_state: String,
+    /// Trace handle returned by the Surface Gateway command receipt.
+    work_correlation_id: Option<String>,
+    /// Recovery/progression instruction returned by the daemon.
+    work_next_action: Option<String>,
+    /// Honest runtime state returned by WorkIntent.start. This is named as a
+    /// compatibility execution projection until AgentRun ledger materialization
+    /// lands; the GUI never upgrades it into a native AgentRun claim.
+    work_execution_state: String,
+    work_execution_id: Option<String>,
+    work_execution_projection: Option<String>,
+    work_execution_session: Option<String>,
+    work_execution_worktree: Option<String>,
+    /// The node the operator clicked in the live Work canvas — drives the
     /// inspector drawer (full role/contracts/why/model/cost). `None` ⇒ no drawer.
-    conjure_selected: Option<String>,
+    work_selected_node: Option<String>,
     /// The pane launcher overlay — an animated grid of surface tiles. `Ctrl-A Space`
     /// (or the ⊞ button) opens it; clicking a tile swaps the focused pane's surface.
     launcher_open: bool,
     /// True once the first pane refresh has landed. Until then the launch splash
     /// (the brand boot flash) covers the chrome.
     booted: bool,
+    /// Current `/health` reachability from the same refresh cycle that supplies
+    /// pane truth. Kept separate from `booted` so stale chrome cannot claim a
+    /// dead named daemon is connected.
+    daemon_connected: bool,
     /// Pole movement driving the waving flags — scroll feeds `vy`, viewport-width
     /// change feeds `vx`; both decay to rest each frame (see WavingFlag / pd-flag-proto).
     flag_motion: FlagMotion,
@@ -2015,6 +2322,17 @@ pub struct ConsoleView {
     /// `EditorPane` inside every render — a `pd whoami` subprocess + a full
     /// disk read + a Loro doc build PER FRAME; this map is that fix.
     editors: HashMap<String, EditorSurfaceState>,
+    /// Persistent native PTY terminal. The shell process outlives drawer
+    /// visibility so closing and reopening never destroys operator context.
+    shell: ShellTerminal,
+    /// Whether the PTY surface is currently raised over the pane tree.
+    shell_open: bool,
+    /// Operator-controlled drawer height. Geometry stays separate from the PTY
+    /// model so a resize can synchronously update both authored pixels and rows.
+    shell_geometry: ShellDrawerGeometry,
+    /// Immutable gesture origin captured at drawer-edge mouse-down. `None` is
+    /// also the pointer-capture truth: no resize gesture is active.
+    shell_resize_drag: Option<ShellResizeDrag>,
 }
 
 /// One opened editor surface: the persistent pane (buffer + claims + wedge)
@@ -2022,6 +2340,67 @@ pub struct ConsoleView {
 struct EditorSurfaceState {
     pane: crate::editor_pane::EditorPane,
     scroll: UniformListScrollHandle,
+    input: EditorInput,
+    input_bounds: Option<Bounds<Pixels>>,
+    wrap_lines: bool,
+    show_blame: bool,
+    blame: EditorBlameState,
+    blame_rx: Option<mpsc::Receiver<std::result::Result<Vec<crate::git_blame::BlameLine>, String>>>,
+}
+
+#[derive(Clone)]
+enum EditorBlameState {
+    Off,
+    Loading,
+    Ready(std::sync::Arc<[crate::git_blame::BlameLine]>),
+    Stale,
+    Error(String),
+}
+
+#[derive(Clone)]
+struct EditorRenderOptions {
+    wrap_lines: bool,
+    show_blame: bool,
+    blame: Option<std::sync::Arc<[crate::git_blame::BlameLine]>>,
+    blame_status: String,
+    syntax_label: String,
+    viewport_width: Option<f32>,
+}
+
+fn invalidate_editor_blame(state: &mut EditorSurfaceState) {
+    if matches!(
+        state.blame,
+        EditorBlameState::Loading | EditorBlameState::Ready(_)
+    ) {
+        state.blame = EditorBlameState::Stale;
+        state.blame_rx = None;
+    }
+}
+
+/// Record the measured text-input bounds for exactly one editor pane.
+///
+/// Editor panes share the window focus handle, so paint order must never make
+/// one pane overwrite another pane's geometry. The return value tells the
+/// caller whether wrapped layout needs another render after a width change.
+fn record_editor_input_bounds(
+    editors: &mut HashMap<String, EditorSurfaceState>,
+    editor_key: &str,
+    bounds: Bounds<Pixels>,
+) -> bool {
+    let Some(state) = editors.get_mut(editor_key) else {
+        return false;
+    };
+    let width_changed = state.input_bounds.is_none_or(|previous| {
+        (f32::from(previous.size.width) - f32::from(bounds.size.width)).abs() >= tokens::CODE_CH
+    });
+    state.input_bounds = Some(bounds);
+    state.wrap_lines && width_changed
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EditorPlacement {
+    ReplaceFocused,
+    SplitRight,
 }
 
 /// Stable map key for an Editor surface binding.
@@ -2030,6 +2409,90 @@ fn editor_key(path: &str, region: Option<(u32, u32)>) -> String {
         Some((s, e)) => format!("{path}:{s}-{e}"),
         None => path.to_string(),
     }
+}
+
+fn editor_surface_state(
+    path: String,
+    region: Option<(u32, u32)>,
+    identity: String,
+) -> EditorSurfaceState {
+    let mut pane = crate::editor_pane::EditorPane::new_with_identity(path, region, identity);
+    pane.load();
+    // Demo seam (env-gated, never on by default): merge a second Loro replica's
+    // lines into the opened buffer so the author column visibly differentiates
+    // operator vs agent authorship. This exercises the real CRDT merge path on a
+    // demo copy only; the file on disk is never written.
+    if std::env::var("PD_CONSOLE_DEMO_AUTHORS").is_ok() {
+        if let Some(buf) = pane.buffer() {
+            let agent = crate::buffer::HarborBuffer::empty("port-daddy:editor:demo-agent");
+            if agent.apply_remote_ops(&buf.export_ops()).is_ok() {
+                agent.insert_authored(
+                    0,
+                    "// [agent replica] merged these two lines over the tube —\n// [agent replica] note the distinct author tag + tone in the gutter.\n",
+                );
+                let _ = buf.apply_remote_ops(&agent.export_ops());
+            }
+        }
+    }
+    EditorSurfaceState {
+        pane,
+        scroll: UniformListScrollHandle::new(),
+        input: EditorInput::default(),
+        input_bounds: None,
+        wrap_lines: false,
+        show_blame: false,
+        blame: EditorBlameState::Off,
+        blame_rx: None,
+    }
+}
+
+/// Prepare the file completely before mutating the pane tree. A failed read
+/// leaves both the workspace and editor cache untouched, which is the critical
+/// navigation invariant for permission-denied files.
+fn open_editor_transaction(
+    workspace: &mut Workspace,
+    editors: &mut HashMap<String, EditorSurfaceState>,
+    path: String,
+    region: Option<(u32, u32)>,
+    identity: String,
+    placement: EditorPlacement,
+) -> std::result::Result<(), String> {
+    let key = editor_key(&path, region);
+    let ready = editors
+        .get(&key)
+        .is_some_and(|state| state.pane.buffer().is_some() && state.pane.load_error().is_none());
+    if !ready {
+        let candidate = editor_surface_state(path.clone(), region, identity);
+        if let Some(reason) = candidate.pane.load_error() {
+            return Err(format!(
+                "Could not open {path}: {reason}. Your current view was kept."
+            ));
+        }
+        editors.insert(key, candidate);
+    }
+
+    let surface = SurfaceKind::Editor { path, region };
+    match placement {
+        EditorPlacement::ReplaceFocused => workspace.swap_surface(surface),
+        EditorPlacement::SplitRight => {
+            workspace.split(Dir::Row, surface);
+        }
+    }
+    Ok(())
+}
+
+fn editor_recovery_root(path: &str) -> Option<String> {
+    std::path::Path::new(path)
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .map(|parent| parent.to_string_lossy().into_owned())
+}
+
+fn editor_error_from_blocks(blocks: &[Block]) -> Option<String> {
+    blocks.iter().find_map(|block| match block {
+        Block::KeyVal(key, value) if key == "error" => Some(value.clone()),
+        _ => None,
+    })
 }
 
 /// Collect every Editor surface binding under a pane-tree node.
@@ -2087,7 +2550,12 @@ fn same_galaxy_snapshot(
 
 impl ConsoleView {
     pub fn new(daemon_url: String, initial_pane: Option<String>, cx: &mut Context<Self>) -> Self {
-        Self::with_control(daemon_url, initial_pane, None, cx)
+        let cwd = crate::shell_drawer::default_cwd();
+        let shell = ShellTerminal::disconnected(
+            cwd,
+            "CLI drawer is unavailable in this isolated console view.",
+        );
+        Self::with_control(daemon_url, initial_pane, None, shell, cx)
     }
 
     /// Advance the flag wave one frame and keep ticking until it settles.
@@ -2095,6 +2563,13 @@ impl ConsoleView {
     /// `window.request_animation_frame()` which panics outside paint (it calls
     /// `current_view()`, whose entity stack is empty in an event handler).
     fn tick_flag_motion(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if reduced_motion() {
+            self.flag_motion.vx = 0.0;
+            self.flag_motion.vy = 0.0;
+            self.flag_ticking = false;
+            cx.notify();
+            return;
+        }
         let speed = (self.flag_motion.vx.powi(2) + self.flag_motion.vy.powi(2)).sqrt();
         self.flag_motion.phase += speed * 0.9;
         self.flag_motion.vx *= 0.86;
@@ -2113,7 +2588,7 @@ impl ConsoleView {
 
     /// Start the settle loop if it isn't already running (idempotent).
     fn kick_flag_motion(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if !self.flag_ticking {
+        if !reduced_motion() && !self.flag_ticking {
             self.flag_ticking = true;
             cx.on_next_frame(window, |this, window, cx| this.tick_flag_motion(window, cx));
         }
@@ -2125,6 +2600,7 @@ impl ConsoleView {
         daemon_url: String,
         initial_pane: Option<String>,
         control_tx: Option<mpsc::Sender<ControlMsg>>,
+        shell: ShellTerminal,
         cx: &mut Context<Self>,
     ) -> Self {
         // Initialize one slot per NAV entry with a "connecting…" placeholder
@@ -2148,22 +2624,32 @@ impl ConsoleView {
             leader_armed: false,
             command: None,
             pane_blocks,
+            editor_blocks: None,
             daemon_url,
-            catalog: ModelCatalog::load(),
             focus_handle: cx.focus_handle(),
             control_tx,
             control_flash: None,
             alerts: Vec::new(),
             dispatch_head: None,
+            hitl_gate: crate::interruptions::HitlGate::default(),
             reject_target: None,
             dragging: None,
             split_bounds: Rc::new(RefCell::new(HashMap::new())),
-            conjure_dag: crate::conjure::fixture(),
-            // Seed the inline graphic from the PRE-RENDERED fixture PNG so the
-            // default Conjure view shows the node-graph immediately (no blank
-            // pane on first open). Only set when the file actually exists.
-            conjure_png_path: default_conjure_png().filter(|p| p.exists()),
-            conjure_selected: None,
+            work_plan_graph: crate::work_plan::empty_work_projection(),
+            work_mission: crate::mission_view::MissionViewModel::empty(),
+            work_graph_png_path: None,
+            work_intent_id: None,
+            work_plan_state: "unplanned".into(),
+            work_correlation_id: None,
+            work_next_action: Some(
+                "Submit a WorkIntent; the daemon owns planning, runtime admission, and body selection.".into(),
+            ),
+            work_execution_state: "not-started".into(),
+            work_execution_id: None,
+            work_execution_projection: None,
+            work_execution_session: None,
+            work_execution_worktree: None,
+            work_selected_node: None,
             // Screenshot/demo hook (mirrors `--pane`): open the launcher on startup
             // so capture tooling can grab it without injecting a keystroke.
             launcher_open: std::env::var("PD_CONSOLE_OPEN_LAUNCHER").is_ok(),
@@ -2171,6 +2657,7 @@ impl ConsoleView {
             // Splash suppression (screenshot hook + PD_CONSOLE_NO_SPLASH opt-out)
             // lives in render()'s gate, not here.
             booted: false,
+            daemon_connected: false,
             flag_motion: FlagMotion::default(),
             prev_viewport_w: 0.0,
             flag_ticking: false,
@@ -2186,6 +2673,10 @@ impl ConsoleView {
             galaxy_detail: None,
             galaxy_detail_error: None,
             editors: HashMap::new(),
+            shell,
+            shell_open: std::env::var("PD_CONSOLE_OPEN_CLI").is_ok(),
+            shell_geometry: ShellDrawerGeometry::default(),
+            shell_resize_drag: None,
         }
     }
 
@@ -2203,36 +2694,34 @@ impl ConsoleView {
         for (key, path, region) in wanted {
             if !self.editors.contains_key(&key) {
                 let identity = crate::editor_pane::resolve_operator_identity();
-                let mut pane =
-                    crate::editor_pane::EditorPane::new_with_identity(path, region, identity);
-                pane.load();
-                // Demo seam (env-gated, never on by default): merge a second
-                // Loro replica's lines into the opened buffer so the author
-                // column visibly differentiates operator vs agent authorship.
-                // This exercises the REAL CRDT merge path — the same
-                // apply_remote_ops a live agent peer rides — on a demo copy of
-                // the buffer only; the file on disk is never written.
-                if std::env::var("PD_CONSOLE_DEMO_AUTHORS").is_ok() {
-                    if let Some(buf) = pane.buffer() {
-                        let agent =
-                            crate::buffer::HarborBuffer::empty("port-daddy:editor:demo-agent");
-                        if agent.apply_remote_ops(&buf.export_ops()).is_ok() {
-                            agent.insert_authored(
-                                0,
-                                "// [agent replica] merged these two lines over the tube —\n// [agent replica] note the distinct author tag + tone in the gutter.\n",
-                            );
-                            let _ = buf.apply_remote_ops(&agent.export_ops());
-                        }
-                    }
-                }
-                self.editors.insert(
-                    key,
-                    EditorSurfaceState {
-                        pane,
-                        scroll: UniformListScrollHandle::new(),
-                    },
-                );
+                self.editors
+                    .insert(key, editor_surface_state(path, region, identity));
             }
+        }
+        let mut blame_errors = Vec::new();
+        for state in self.editors.values_mut() {
+            let received = state.blame_rx.as_ref().map(mpsc::Receiver::try_recv);
+            match received {
+                Some(Ok(Ok(lines))) => {
+                    state.blame = EditorBlameState::Ready(lines.into());
+                    state.blame_rx = None;
+                }
+                Some(Ok(Err(reason))) => {
+                    state.blame = EditorBlameState::Error(reason.clone());
+                    state.blame_rx = None;
+                    blame_errors.push(reason);
+                }
+                Some(Err(mpsc::TryRecvError::Disconnected)) => {
+                    let reason = "Git blame worker stopped before returning a result".to_string();
+                    state.blame = EditorBlameState::Error(reason.clone());
+                    state.blame_rx = None;
+                    blame_errors.push(reason);
+                }
+                Some(Err(mpsc::TryRecvError::Empty)) | None => {}
+            }
+        }
+        if let Some(reason) = blame_errors.pop() {
+            self.control_flash = Some(format!("Git blame unavailable: {reason}"));
         }
     }
 
@@ -2241,7 +2730,7 @@ impl ConsoleView {
     /// known nav id) becomes the focused pane's surface.
     fn default_workspace(initial: Option<&str>) -> Workspace {
         // Resolve `--pane <id>` through the full surface resolver (NAV ids AND
-        // non-NAV surfaces like `conjure`/`plan`/`chat`/`files`), so screenshot
+        // non-NAV surfaces like `work`/`plan`/`chat`/`files`), so screenshot
         // tooling and deep-links can open any surface, not just NAV-rail panes.
         default_operator_workspace(initial.and_then(surface_for_query))
     }
@@ -2253,6 +2742,100 @@ impl ConsoleView {
     fn ws_mut(&mut self) -> &mut Workspace {
         &mut self.tabs[self.active_tab].workspace
     }
+    fn open_editor(
+        &mut self,
+        path: String,
+        region: Option<(u32, u32)>,
+        placement: EditorPlacement,
+    ) -> std::result::Result<(), String> {
+        let identity = crate::editor_pane::resolve_operator_identity();
+        let active_tab = self.active_tab;
+        open_editor_transaction(
+            &mut self.tabs[active_tab].workspace,
+            &mut self.editors,
+            path.clone(),
+            region,
+            identity,
+            placement,
+        )?;
+        if let Some(tx) = &self.control_tx {
+            let _ = tx.send(ControlMsg::OpenEditor { path, region });
+        }
+        Ok(())
+    }
+
+    fn toggle_editor_wrap(&mut self, key: &str) -> bool {
+        let Some(state) = self.editors.get_mut(key) else {
+            return false;
+        };
+        state.wrap_lines = !state.wrap_lines;
+        self.control_flash = Some(format!(
+            "Editor line wrap {}",
+            if state.wrap_lines { "on" } else { "off" }
+        ));
+        true
+    }
+
+    fn toggle_editor_blame(&mut self, key: &str) -> bool {
+        let Some(state) = self.editors.get_mut(key) else {
+            return false;
+        };
+        state.show_blame = !state.show_blame;
+        if state.show_blame
+            && matches!(
+                state.blame,
+                EditorBlameState::Off | EditorBlameState::Stale | EditorBlameState::Error(_)
+            )
+        {
+            let path = std::path::PathBuf::from(state.pane.path_str());
+            let contents = state.pane.text().unwrap_or_default();
+            let (tx, rx) = mpsc::channel();
+            state.blame = EditorBlameState::Loading;
+            state.blame_rx = Some(rx);
+            std::thread::spawn(move || {
+                let _ = tx.send(crate::git_blame::load_with_contents(&path, &contents));
+            });
+        }
+        self.control_flash = Some(format!(
+            "Git blame {}",
+            if state.show_blame { "on" } else { "off" }
+        ));
+        true
+    }
+
+    fn focused_failed_editor_path(&self) -> Option<String> {
+        let SurfaceKind::Editor { path, region } = self.ws().focused_surface() else {
+            return None;
+        };
+        let local_failed = self
+            .editors
+            .get(&editor_key(path, *region))
+            .is_some_and(|state| state.pane.load_error().is_some());
+        let live_failed = self
+            .editor_blocks
+            .as_ref()
+            .is_some_and(|(live_path, blocks)| {
+                live_path == path && editor_error_from_blocks(blocks).is_some()
+            });
+        (local_failed || live_failed).then(|| path.clone())
+    }
+
+    fn return_editor_to_files(&mut self, pane_id: PaneId, path: &str) {
+        self.ws_mut().focus(pane_id);
+        self.ws_mut().swap_surface(SurfaceKind::FileTree {
+            root: editor_recovery_root(path),
+        });
+        self.control_flash = Some("Returned to Files. The unreadable file was not opened.".into());
+    }
+
+    fn recover_failed_editor(&mut self) -> bool {
+        let Some(path) = self.focused_failed_editor_path() else {
+            return false;
+        };
+        let pane_id = self.ws().focused();
+        self.return_editor_to_files(pane_id, &path);
+        true
+    }
     fn zoomed(&self) -> Option<PaneId> {
         self.tabs[self.active_tab].zoomed
     }
@@ -2260,6 +2843,39 @@ impl ConsoleView {
     fn toggle_zoom(&mut self, id: PaneId) {
         let t = &mut self.tabs[self.active_tab];
         t.zoomed = if t.zoomed == Some(id) { None } else { Some(id) };
+    }
+
+    /// Apply one operator presentation-scale action to the entire console.
+    /// The rem size covers any rem-authored descendants; this module's local
+    /// `px()` wrapper covers the console's existing explicit-pixel geometry.
+    fn apply_presentation_zoom(
+        &mut self,
+        action: ZoomAction,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if !presentation::can_apply(action) {
+            self.control_flash = Some(format!(
+                "zoom stays at {}% · allowed range {}–{}%",
+                presentation::zoom_percent(),
+                presentation::MIN_ZOOM_PERCENT,
+                presentation::MAX_ZOOM_PERCENT
+            ));
+            cx.notify();
+            return;
+        }
+
+        let persistence_error = presentation::apply(action).err();
+        let percent = presentation::zoom_percent();
+        window.set_rem_size(gpui::px(16.0 * presentation::zoom_factor()));
+        crate::audio::play(crate::audio::Cue::Toggle);
+        self.control_flash = Some(match persistence_error {
+            Some(error) => format!(
+                "zoom → {percent}% · active now, but the preference could not be saved: {error}"
+            ),
+            None => format!("zoom → {percent}% · saved"),
+        });
+        cx.notify();
     }
     /// Open a fresh tab and focus it.
     fn new_tab(&mut self) {
@@ -2295,16 +2911,34 @@ impl ConsoleView {
         if matches!(surface, SurfaceKind::Hitl) {
             return self.blocks_for_hitl();
         }
-        // Operator chat is foreground-only too — it reads the in-process transcript
-        // (the GPUI shell renders bespoke bubbles, but the terminal face + tests
-        // read these render-agnostic blocks from the same model).
-        if matches!(surface, SurfaceKind::CartographerChat) {
-            return self.chat.blocks();
-        }
-        // Conjure renders its (foundation-slice) fixture DAG through the Block UI
-        // — no background NAV pane, no windags call yet.
-        if matches!(surface, SurfaceKind::Conjure) {
-            return crate::conjure::blocks_for_conjure(&self.conjure_dag);
+        // Mission is the sole ordinary operator flow. Its headless projection
+        // joins conversation state to daemon-backed Work truth; the GPUI face
+        // renders the same ingredients as a bespoke conversation + context rail.
+        if matches!(surface, SurfaceKind::Mission) {
+            let live_work = NAV
+                .iter()
+                .position(|item| item.id == "lane")
+                .and_then(|index| self.pane_blocks.get(index))
+                .cloned()
+                .unwrap_or_default();
+            let pane = |id: &str| {
+                NAV.iter()
+                    .position(|item| item.id == id)
+                    .and_then(|index| self.pane_blocks.get(index))
+                    .cloned()
+                    .unwrap_or_default()
+            };
+            let launch_observability = crate::mission_view::launch_observability_blocks(
+                &pane("health"),
+                &pane("activity"),
+                &pane("ledger"),
+            );
+            let mut blocks =
+                crate::mission_view::blocks(&self.work_mission, &live_work, &launch_observability);
+            blocks.push(Block::Gap);
+            blocks.push(Block::Header("Conversation".into()));
+            blocks.extend(self.chat.blocks().into_iter().skip(1));
+            return blocks;
         }
         // The Harbor Editor surface reads its PERSISTENT pane (buffer + claims
         // + wedge), created once by `ensure_editor_states`. view() on an
@@ -2312,6 +2946,18 @@ impl ConsoleView {
         // — the old path built a fresh EditorPane (a `pd whoami` subprocess + a
         // full disk read + a Loro doc) inside EVERY render.
         if let SurfaceKind::Editor { path, region } = surface {
+            // WIRE STAGE 2 — prefer the producer's LIVE editor pane: the background lane
+            // folds presence cursors, region claims, and wedge conflict/gate bands into
+            // it, and pushes its `view()` here on each edge. Use it only when its bound
+            // path matches this surface (guards a mid-rebind race to another file). When
+            // no live snapshot has landed yet — or it's for a different file — fall back
+            // to the persistent `self.editors` state (opened once by
+            // `ensure_editor_states`) so the surface still renders honestly.
+            if let Some((live_path, blocks)) = &self.editor_blocks {
+                if live_path == path {
+                    return blocks.clone();
+                }
+            }
             return match self.editors.get(&editor_key(path, *region)) {
                 Some(state) => state.pane.view(),
                 // First frame before ensure_editor_states ran (shouldn't happen
@@ -2452,6 +3098,9 @@ impl ConsoleView {
             "o" | "tab" => self.ws_mut().focus_next(),
             "O" => self.ws_mut().focus_prev(),
             // Double-prefix (Ctrl-A Ctrl-A) cycles focus — fast tmux idiom.
+            "a" if ctrl && self.shell_open => {
+                let _ = self.shell.send(vec![0x01]);
+            }
             "a" if ctrl => self.ws_mut().focus_next(),
             // Resize the focused pane.
             "=" | "+" => {
@@ -2462,6 +3111,14 @@ impl ConsoleView {
             }
             // Flip the palette (light ⇄ dark) — re-skins the whole console.
             "g" => toggle_theme(),
+            // The PTY is global chrome, not a pane: it rises over any operator
+            // surface and preserves its process when hidden.
+            "`" | "grave" => {
+                self.shell_open = !self.shell_open;
+                if !self.shell_open {
+                    self.shell_resize_drag = None;
+                }
+            }
             // Maximize / restore the focused pane.
             "z" => {
                 let id = self.ws().focused();
@@ -2472,26 +3129,39 @@ impl ConsoleView {
             "]" => self.switch_tab(1),
             "[" => self.switch_tab(-1),
             // Open command lines.
-            "n" => self.command = Some(CommandLine::new(CmdKind::Spawn)),
-            "t" => self.command = Some(CommandLine::new(CmdKind::Cartographer)),
+            "n" => self.command = Some(CommandLine::new(CmdKind::Mission)),
             // Insert a new pane of a chosen kind (the add-pane picker).
             "i" => self.command = Some(CommandLine::new(CmdKind::AddPane)),
             // Switch which daemon berth the console talks to (the Daemons pane lists names).
             "u" => self.command = Some(CommandLine::new(CmdKind::UseDaemon)),
             // Operator verb palette (vim-`:`): one entry point for every write
-            // (note/begin/done/propose/sortie/claim/release/kill/interrupt).
+            // (mission/note/begin/done/claim/release/kill/interrupt).
             ":" => self.command = Some(CommandLine::new(CmdKind::Verb)),
             // Direct single-key shortcuts for the most-used operator writes
             // (free letters, no NAV/leader collision):
-            //   f note · e propose · U sortie · r begin · q done · j claim · Q release · X kill
+            //   f note · e mission · r begin · q done · j claim · Q release · X kill
             "f" => self.command = Some(CommandLine::new(CmdKind::Note)),
-            "e" => self.command = Some(CommandLine::new(CmdKind::Propose)),
-            "U" => self.command = Some(CommandLine::new(CmdKind::Sortie)),
+            "e" => self.command = Some(CommandLine::new(CmdKind::Mission)),
             "r" => self.command = Some(CommandLine::new(CmdKind::Begin)),
             "q" => self.command = Some(CommandLine::new(CmdKind::Done)),
             "j" => self.command = Some(CommandLine::new(CmdKind::Claim)),
             "Q" => self.command = Some(CommandLine::new(CmdKind::Release)),
             "X" => self.command = Some(CommandLine::new(CmdKind::Kill)),
+            // Summon the Voyage Timeline as a Vello/wgpu companion window
+            // (ADR-0112 path 3, "ship now"): the gpui shell execs the proven
+            // `pd-timeline-proto` binary detached against the current berth, so
+            // the operator gets the scrubbed playhead + causal-thread beziers
+            // with zero stack-mixing risk. `v` for "Voyage Timeline".
+            "v" => match crate::timeline::launch_timeline_companion(&self.daemon_url) {
+                Ok(bin) => {
+                    self.control_flash = Some(format!(
+                        "\u{2693} Voyage Timeline launched · {} · berth {}",
+                        bin.display(),
+                        self.daemon_url
+                    ));
+                }
+                Err(msg) => self.control_flash = Some(msg),
+            },
             // The visual pane launcher — an animated grid of surface tiles.
             "space" => self.launcher_open = true,
             // Any launcher key swaps the focused pane's surface — "hop context".
@@ -2504,24 +3174,42 @@ impl ConsoleView {
         cx.notify();
     }
 
+    pub fn apply_shell_event(&mut self, event: ShellEvent) {
+        self.shell.apply(event);
+    }
+
+    fn handle_shell_key(
+        &mut self,
+        key: &str,
+        typed: Option<&str>,
+        modifiers: Modifiers,
+        cx: &mut Context<Self>,
+    ) {
+        // Reading retained output is sticky across new PTY bytes, but explicit
+        // keyboard input means the operator has resumed the live conversation.
+        self.shell.scroll_to_live();
+        if let Some(bytes) = terminal_key_bytes(
+            key,
+            typed,
+            modifiers.control,
+            modifiers.alt,
+            modifiers.platform,
+            modifiers.function,
+        ) {
+            if !self.shell.send(bytes) {
+                self.control_flash = Some(
+                    "PTY_INPUT_CHANNEL_CLOSED · input did not reach the shell · next: relaunch pd-console"
+                        .into(),
+                );
+            }
+        }
+        cx.notify();
+    }
+
     /// Feed one keystroke into the open command line. `key` is the gpui key name
     /// (for enter/escape/backspace/space); `typed` is the actual character for
     /// printable input (case-preserving via `keystroke.key_char`).
     fn handle_command_key(&mut self, key: &str, typed: Option<&str>, cx: &mut Context<Self>) {
-        // The Spawn structured picker intercepts keys while choosing a backend or
-        // tier: digits 1-9 pick the Nth visible chip, Enter takes the first,
-        // typing filters, Backspace steps back. Once a prompt is being typed it
-        // falls through to the normal command-line handling below.
-        if self
-            .command
-            .as_ref()
-            .map(|c| !c.spawn_ready())
-            .unwrap_or(false)
-        {
-            self.handle_spawn_pick_key(key, typed);
-            cx.notify();
-            return;
-        }
         match key {
             "enter" => {
                 if let Some(cmd) = self.command.take() {
@@ -2552,11 +3240,266 @@ impl ConsoleView {
         cx.notify();
     }
 
-    /// Is the focused pane the operator chat? Drives the keydown router (chat
-    /// captures printable keys into its composer when focused, like a text field —
+    /// Is the focused pane the Mission? Drives the keydown router (the composer
+    /// captures printable keys when focused, like a text field —
     /// gpui 0.2.2 has no native input, so the root focus handle does the capturing).
-    fn focused_is_chat(&self) -> bool {
-        matches!(self.ws().focused_surface(), SurfaceKind::CartographerChat)
+    fn focused_is_mission(&self) -> bool {
+        matches!(self.ws().focused_surface(), SurfaceKind::Mission)
+    }
+
+    fn focused_editor_key(&self) -> Option<String> {
+        match self.ws().focused_surface() {
+            SurfaceKind::Editor { path, region } => Some(editor_key(path, *region)),
+            _ => None,
+        }
+    }
+
+    fn presence_for_editor(state: &EditorSurfaceState, text: &str) -> PresenceState {
+        let (cursor_line, cursor_col) = state.input.presence_cursor(text);
+        let (anchor_line, anchor_col) = state.input.presence_anchor(text);
+        let visual_top = state.scroll.0.borrow().base_handle.logical_scroll_top().0;
+        let wrap_columns = state
+            .input_bounds
+            .filter(|_| state.wrap_lines)
+            .map(|bounds| {
+                let gutter_cols = text.split('\n').count().max(1).to_string().len() as f32;
+                editor_wrap_columns(f32::from(bounds.size.width), gutter_cols, state.show_blame)
+            });
+        let line_for_visual_row = |visual_row| {
+            editor_hit_position(text, visual_row, 0, wrap_columns).map(|(line, _)| line as u32 + 1)
+        };
+        let top_line = line_for_visual_row(visual_top).unwrap_or(1);
+        let last_line = text.split('\n').count().max(1) as u32;
+        let bottom_line = line_for_visual_row(visual_top.saturating_add(80)).unwrap_or(last_line);
+        PresenceState {
+            cursor_line,
+            cursor_col,
+            anchor_line,
+            anchor_col,
+            top_line,
+            bottom_line,
+        }
+    }
+
+    fn apply_focused_editor_edit<F>(&mut self, prepare: F, cx: &mut Context<Self>) -> bool
+    where
+        F: FnOnce(&mut EditorInput, &str) -> Option<TextEdit>,
+    {
+        let Some(key) = self.focused_editor_key() else {
+            return false;
+        };
+        let outcome = {
+            let Some(state) = self.editors.get_mut(&key) else {
+                return false;
+            };
+            let Some(before) = state.pane.text() else {
+                return false;
+            };
+            let prior_input = state.input.clone();
+            let Some(edit) = prepare(&mut state.input, &before) else {
+                return true;
+            };
+            match state
+                .pane
+                .apply_local_text_edit(edit.range.clone(), &edit.text)
+            {
+                Ok(frame) => {
+                    let after = state.pane.text().unwrap_or_default();
+                    state.input.reconcile(&after);
+                    invalidate_editor_blame(state);
+                    let presence = Self::presence_for_editor(state, &after);
+                    state.pane.set_local_presence(presence);
+                    Ok((state.pane.path_str().to_string(), frame, presence))
+                }
+                Err(reason) => {
+                    state.input = prior_input;
+                    Err(reason)
+                }
+            }
+        };
+
+        match outcome {
+            Ok((path, frame, presence)) => {
+                // The foreground buffer paints the keystroke immediately. The
+                // producer's collaboration Blocks return after importing this
+                // exact delta; until then they must not cover the newer local view.
+                if self
+                    .editor_blocks
+                    .as_ref()
+                    .is_some_and(|(live_path, _)| live_path == &path)
+                {
+                    self.editor_blocks = None;
+                }
+                if let Some(tx) = &self.control_tx {
+                    let _ = tx.send(ControlMsg::EditorLocalChange {
+                        path,
+                        frame: Some(frame),
+                        presence,
+                    });
+                }
+            }
+            Err(reason) => {
+                self.control_flash = Some(reason);
+                crate::audio::play(crate::audio::Cue::Gate);
+            }
+        }
+        cx.notify();
+        true
+    }
+
+    fn move_focused_editor<F>(&mut self, update: F, cx: &mut Context<Self>) -> bool
+    where
+        F: FnOnce(&mut EditorInput, &str),
+    {
+        let Some(key) = self.focused_editor_key() else {
+            return false;
+        };
+        let change = {
+            let Some(state) = self.editors.get_mut(&key) else {
+                return false;
+            };
+            let Some(text) = state.pane.text() else {
+                return false;
+            };
+            update(&mut state.input, &text);
+            let presence = Self::presence_for_editor(state, &text);
+            state.pane.set_local_presence(presence);
+            (state.pane.path_str().to_string(), presence)
+        };
+        if let Some(tx) = &self.control_tx {
+            let _ = tx.send(ControlMsg::EditorLocalChange {
+                path: change.0,
+                frame: None,
+                presence: change.1,
+            });
+        }
+        cx.notify();
+        true
+    }
+
+    fn handle_editor_key(
+        &mut self,
+        key: &str,
+        modifiers: Modifiers,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        let select = modifiers.shift;
+        match key {
+            "left" => self.move_focused_editor(|input, text| input.left(text, select), cx),
+            "right" => self.move_focused_editor(|input, text| input.right(text, select), cx),
+            "up" => self.move_focused_editor(|input, text| input.vertical(text, -1, select), cx),
+            "down" => self.move_focused_editor(|input, text| input.vertical(text, 1, select), cx),
+            "home" => self.move_focused_editor(|input, text| input.home(text, select), cx),
+            "end" => self.move_focused_editor(|input, text| input.end(text, select), cx),
+            "backspace" => self.apply_focused_editor_edit(
+                |input, text| {
+                    let range = input.backspace_range(text)?;
+                    Some(input.replace_bytes(text, range, ""))
+                },
+                cx,
+            ),
+            "delete" => self.apply_focused_editor_edit(
+                |input, text| {
+                    let range = input.delete_range(text)?;
+                    Some(input.replace_bytes(text, range, ""))
+                },
+                cx,
+            ),
+            "enter" => self.apply_focused_editor_edit(
+                |input, text| Some(input.replace_bytes(text, input.selection(), "\n")),
+                cx,
+            ),
+            "tab" => self.apply_focused_editor_edit(
+                |input, text| Some(input.replace_bytes(text, input.selection(), "    ")),
+                cx,
+            ),
+            "a" if modifiers.platform => {
+                self.move_focused_editor(|input, text| input.select_all(text), cx)
+            }
+            "c" if modifiers.platform => {
+                if let Some(key) = self.focused_editor_key() {
+                    if let Some(state) = self.editors.get(&key) {
+                        if let Some(text) = state.pane.text() {
+                            let range = state.input.selection();
+                            if !range.is_empty() {
+                                cx.write_to_clipboard(ClipboardItem::new_string(
+                                    text[range].to_string(),
+                                ));
+                            }
+                        }
+                    }
+                }
+                true
+            }
+            "x" if modifiers.platform => {
+                let copied = self.focused_editor_key().and_then(|key| {
+                    let state = self.editors.get(&key)?;
+                    let text = state.pane.text()?;
+                    let range = state.input.selection();
+                    (!range.is_empty()).then(|| text[range].to_string())
+                });
+                if let Some(text) = copied {
+                    cx.write_to_clipboard(ClipboardItem::new_string(text));
+                    self.apply_focused_editor_edit(
+                        |input, text| Some(input.replace_bytes(text, input.selection(), "")),
+                        cx,
+                    )
+                } else {
+                    true
+                }
+            }
+            "v" if modifiers.platform => {
+                let paste = cx
+                    .read_from_clipboard()
+                    .and_then(|item| item.text())
+                    .unwrap_or_default();
+                self.apply_focused_editor_edit(
+                    move |input, text| Some(input.replace_bytes(text, input.selection(), &paste)),
+                    cx,
+                )
+            }
+            "escape" => self.move_focused_editor(|input, _| input.unmark(), cx),
+            _ => false,
+        }
+    }
+
+    fn handle_editor_mouse_down(&mut self, event: &MouseDownEvent, cx: &mut Context<Self>) {
+        let Some(key) = self.focused_editor_key() else {
+            return;
+        };
+        let target = self.editors.get(&key).and_then(|state| {
+            let bounds = state.input_bounds?;
+            let text = state.pane.text()?;
+            let top = state.scroll.0.borrow().base_handle.logical_scroll_top().0;
+            let (gutter_px, wrap_columns) = editor_text_layout(
+                &text,
+                f32::from(bounds.size.width),
+                state.wrap_lines,
+                state.show_blame,
+            );
+            let row = ((f32::from(event.position.y - bounds.top()) / tokens::CODE_LINE_H).floor()
+                as isize)
+                .max(0) as usize;
+            let column = ((f32::from(event.position.x - bounds.left()) - gutter_px)
+                / tokens::CODE_CH)
+                .floor()
+                .max(0.0) as usize;
+            let (line, column) = editor_hit_position(&text, top + row, column, wrap_columns)?;
+            let utf16 = state.input.utf16_index_for_line_column(&text, line, column);
+            Some(
+                state
+                    .input
+                    .byte_range_for_utf16(&text, &(utf16..utf16))
+                    .start,
+            )
+        });
+        if let Some(target) = target {
+            let select = event.modifiers.shift;
+            let _ = self.move_focused_editor(
+                move |input, text| input.move_to_byte(text, target, select),
+                cx,
+            );
+        }
     }
 
     /// Feed one keystroke into the chat composer. Mirrors `handle_command_key`'s
@@ -2620,94 +3563,14 @@ impl ConsoleView {
     /// Fold one transport push into the chat transcript: a real reply down the tube
     /// (with the receive earcon) or a transport error (surfaced in the error state).
     pub fn apply_chat_update(&mut self, update: ChatUpdate) {
-        match update {
-            ChatUpdate::Reply(msg) => {
-                // A reply is always agent-side (mine = false), by construction.
-                self.chat.push_agent(msg.sender, msg.text);
+        match crate::mission_callbacks::apply_chat_update(&mut self.chat, update) {
+            crate::mission_callbacks::ChatUpdateSignal::ReplyArrived => {
                 crate::audio::play(crate::audio::Cue::Receive);
             }
-            ChatUpdate::Error(reason) => self.chat.set_error(reason),
-        }
-    }
-
-    /// Key handling while the Spawn picker is choosing a backend or tier.
-    fn handle_spawn_pick_key(&mut self, key: &str, typed: Option<&str>) {
-        match key {
-            "escape" => self.command = None,
-            "backspace" => {
-                // Refine the filter, else step back: tier → backend → cancel.
-                if let Some(cmd) = self.command.as_mut() {
-                    if !cmd.buffer.is_empty() {
-                        cmd.buffer.pop();
-                    } else if cmd.tier.is_some() {
-                        cmd.tier = None;
-                    } else if cmd.backend.is_some() {
-                        cmd.backend = None;
-                    } else {
-                        self.command = None;
-                    }
-                }
+            crate::mission_callbacks::ChatUpdateSignal::ReceiptArrived => {
+                crate::audio::play(crate::audio::Cue::Tick);
             }
-            "enter" => self.spawn_pick_index(0), // take the first visible chip
-            _ => {
-                if let Some(ch) = typed {
-                    // A digit is a hotkey for the Nth visible chip (backend/tier
-                    // labels carry no digits, so this never clashes with filtering).
-                    if let Ok(n) = ch.trim().parse::<usize>() {
-                        if n >= 1 {
-                            self.spawn_pick_index(n - 1);
-                            return;
-                        }
-                    }
-                    if let Some(cmd) = self.command.as_mut() {
-                        cmd.buffer.push_str(ch);
-                    }
-                }
-            }
-        }
-    }
-
-    /// Select the Nth currently-visible chip for the active picker step.
-    fn spawn_pick_index(&mut self, idx: usize) {
-        let catalog = &self.catalog;
-        let Some(cmd) = self.command.as_mut() else {
-            return;
-        };
-        match cmd.spawn_step() {
-            SpawnStep::Backend => {
-                if let Some(b) = filtered_backends(&cmd.buffer).get(idx).copied() {
-                    cmd.backend = Some(b);
-                    cmd.tier_applies = catalog.has_tiers(b);
-                    cmd.buffer.clear();
-                }
-            }
-            SpawnStep::Tier => {
-                if let Some(bk) = cmd.backend {
-                    if let Some(t) = filtered_tiers(catalog, bk, &cmd.buffer).get(idx).copied() {
-                        cmd.tier = Some(t);
-                        cmd.buffer.clear();
-                    }
-                }
-            }
-            SpawnStep::Prompt => {}
-        }
-    }
-
-    /// Click-select a specific backend chip.
-    fn spawn_pick_backend(&mut self, b: Backend) {
-        let applies = self.catalog.has_tiers(b);
-        if let Some(cmd) = self.command.as_mut() {
-            cmd.backend = Some(b);
-            cmd.tier_applies = applies;
-            cmd.buffer.clear();
-        }
-    }
-
-    /// Click-select a specific tier chip.
-    fn spawn_pick_tier(&mut self, t: Tier) {
-        if let Some(cmd) = self.command.as_mut() {
-            cmd.tier = Some(t);
-            cmd.buffer.clear();
+            crate::mission_callbacks::ChatUpdateSignal::None => {}
         }
     }
 
@@ -2723,9 +3586,15 @@ impl ConsoleView {
                 self.submit_command(CommandLine::with_buffer(kind, arg));
             } else if !text.is_empty() {
                 let verb = text.split_whitespace().next().unwrap_or("");
-                self.control_flash = Some(format!(
-                    "unknown verb '{verb}' — try note/begin/done/propose/sortie/claim/release/kill/interrupt"
-                ));
+                self.control_flash = Some(if is_legacy_launch_verb(verb) {
+                    format!(
+                        "'{verb}' is retired in pd-console — use 'work <goal>'; old launch words no longer own runtime state"
+                    )
+                } else {
+                    format!(
+                        "unknown verb '{verb}' — try work/note/begin/done/claim/release/kill/interrupt"
+                    )
+                });
             }
             return;
         }
@@ -2743,6 +3612,15 @@ impl ConsoleView {
         // surface) — no daemon round-trip, so handle it before the tx guard.
         if cmd.kind == CmdKind::AddPane {
             match surface_for_query(&text) {
+                Some(SurfaceKind::Editor { path, region }) => {
+                    match self.open_editor(path, region, EditorPlacement::SplitRight) {
+                        Ok(()) => self.control_flash = Some(format!("added pane: {text}")),
+                        Err(reason) => {
+                            self.control_flash = Some(reason);
+                            crate::audio::play(crate::audio::Cue::Error);
+                        }
+                    }
+                }
                 Some(surface) => {
                     self.ws_mut().split(Dir::Row, surface);
                     self.control_flash = Some(format!("added pane: {text}"));
@@ -2750,36 +3628,6 @@ impl ConsoleView {
                 None => {
                     self.control_flash = Some(format!("no surface matches '{text}'"));
                 }
-            }
-            return;
-        }
-        // Conjure: the operator's prompt is generated into a real PredictedDag LIVE
-        // by the Max-seat `claude` CLI (print mode, NO API key) on a background
-        // worker, which streams the DAG back over the Conjure-update channel —
-        // swapping to the Conjure surface AND auto-rendering the inline Vello PNG.
-        // We swap surfaces and seed the prompt-titled fixture IMMEDIATELY so the
-        // operator sees a graph instantly; the live DAG replaces it when it lands.
-        // If there's no control plane (an isolated test view), fall back to the
-        // local fixture path so the surface is still populated.
-        if cmd.kind == CmdKind::Conjure {
-            // Optimistic seed so the surface is never blank during the CLI round-trip.
-            self.conjure_dag = crate::conjure::from_prompt(&text);
-            // A fresh DAG means the old PNG is stale — show the fixture PNG (if any)
-            // as a holding graphic until the live render lands.
-            self.conjure_png_path = default_conjure_png().filter(|p| p.exists());
-            self.ws_mut().swap_surface(SurfaceKind::Conjure);
-            if let Some(tx) = &self.control_tx {
-                let _ = tx.send(ControlMsg::ConjureGenerate {
-                    prompt: text.clone(),
-                });
-                self.control_flash =
-                    Some("generating with claude:cli… the DAG + Vello graphic land below".into());
-            } else {
-                self.control_flash = Some(format!(
-                    "conjured “{}” — {} waves (no control plane: fixture path)",
-                    self.conjure_dag.title.clone(),
-                    self.conjure_dag.waves.len()
-                ));
             }
             return;
         }
@@ -2807,45 +3655,20 @@ impl ConsoleView {
             return;
         };
         match cmd.kind {
-            CmdKind::Spawn => {
-                // Structured picker result: backend chosen from chips, tier
-                // resolved to a model id. Fall back to free-text `backend: prompt`
-                // only if no backend was picked (e.g. a future headless caller).
-                let (backend, prompt, model) = if let Some(b) = cmd.backend {
-                    // Resolve the model from the runtime config at the moment of
-                    // spawn — never compiled-in, so it can't go stale in the binary.
-                    let model = cmd.tier.and_then(|t| self.catalog.resolve(b, t));
-                    (b.as_str().to_string(), text.clone(), model)
-                } else {
-                    let (b, p) = split_backend(&text);
-                    (b, p, None)
+            CmdKind::Mission => {
+                self.work_mission = crate::mission_view::MissionViewModel {
+                    goal: text.clone(),
+                    intent_id: Some("submitting".into()),
+                    state: "starting".into(),
+                    ..crate::mission_view::MissionViewModel::default()
                 };
-                let label = match cmd.tier {
-                    Some(t) if cmd.tier_applies => format!("{backend}·{}", t.as_str()),
-                    _ => backend.clone(),
-                };
-                let _ = tx.send(ControlMsg::Spawn {
-                    backend: backend.clone(),
-                    prompt,
-                    model,
-                });
+                self.chat.push_mine(text.clone());
+                let _ = tx.send(ControlMsg::ChatSend { text });
                 self.control_flash =
-                    Some(format!("spawning a {label} agent — streaming live below"));
-                // Immediately surface the live agent lane so the operator SEES the
-                // streaming response to the command they just issued. This closes
-                // the GUI loop: click Spawn → type → Send → watch it run. The lane
-                // auto-targets the newest active agent on its next refresh.
-                self.ws_mut()
-                    .swap_surface(SurfaceKind::AgentTranscript { agent_id: None });
-            }
-            CmdKind::Cartographer => {
-                let _ = tx.send(ControlMsg::Cartographer { text });
-                self.control_flash =
-                    Some("sent to cartographer — streaming the reply below".into());
-                // Same loop for the cartographer: jump to the lane to watch the
-                // reply stream rather than leaving the operator guessing where it went.
-                self.ws_mut()
-                    .swap_surface(SurfaceKind::AgentTranscript { agent_id: None });
+                    Some("Mission accepted. Port Daddy is selecting a governed agent.".into());
+                self.work_plan_graph = crate::work_plan::pending_work_projection();
+                self.work_graph_png_path = None;
+                self.ws_mut().swap_surface(SurfaceKind::Mission);
             }
             CmdKind::LaneMessage => {
                 let turn = OperatorTurn::parse(&text);
@@ -2872,7 +3695,7 @@ impl ConsoleView {
                         "rejected via console".into()
                     };
                     let _ = tx.send(ControlMsg::DispatchReject { id, reason });
-                    self.control_flash = Some("dispatch rejected".into());
+                    self.control_flash = Some("gate rejected".into());
                 }
             }
             CmdKind::Note => {
@@ -2889,14 +3712,6 @@ impl ConsoleView {
                 let summary = if text.is_empty() { None } else { Some(text) };
                 let _ = tx.send(ControlMsg::EndSession { summary });
                 self.control_flash = Some("session ended".into());
-            }
-            CmdKind::Propose => {
-                let _ = tx.send(ControlMsg::ProposeDispatch { goal: text });
-                self.control_flash = Some("dispatch proposed → review queue".into());
-            }
-            CmdKind::Sortie => {
-                let _ = tx.send(ControlMsg::LaunchSortie { goal: text });
-                self.control_flash = Some("sortie launching → watch Sorties".into());
             }
             CmdKind::Claim => {
                 let _ = tx.send(ControlMsg::ClaimPort {
@@ -2923,17 +3738,15 @@ impl ConsoleView {
                 self.control_flash = Some(format!("interrupting agent {text}…"));
             }
             CmdKind::GalaxyParley => {
-                // Parties are AGENT ids (never transcript/session ids) — recompute
-                // from the live selection at submit time so a pruned map can't
-                // ship stale parties. Below 2 distinct agents the daemon 400s,
-                // so refuse here with the reason instead of a doomed round-trip.
-                let parties =
-                    crate::galaxy_pane::distinct_agents(&self.galaxy.points, &self.galaxy_selected);
-                if parties.len() < 2 {
-                    self.control_flash = Some(
-                        "parley needs ≥2 distinct agents — select sessions from ≥2 agents first"
-                            .into(),
-                    );
+                // Recompute durable session references from the live selection at
+                // submit time so a pruned map cannot ship stale participant hints.
+                let session_ids = crate::galaxy_pane::distinct_sessions(
+                    &self.galaxy.points,
+                    &self.galaxy_selected,
+                );
+                if session_ids.len() < 2 {
+                    self.control_flash =
+                        Some("parley needs ≥2 sessions with durable identity receipts".into());
                     return;
                 }
                 let surface = crate::galaxy_pane::parley_surface(
@@ -2950,15 +3763,15 @@ impl ConsoleView {
                 } else {
                     text
                 };
-                let n_parties = parties.len();
+                let n_sessions = session_ids.len();
                 let _ = tx.send(ControlMsg::GalaxyParley {
                     surface,
                     reason,
-                    parties,
+                    session_ids,
                 });
                 crate::audio::play(crate::audio::Cue::Dispatch);
                 self.control_flash = Some(format!(
-                    "convening parley with {n_parties} agents — outcome lands in Alerts"
+                    "convening parley from {n_sessions} verified sessions — outcome lands in Alerts"
                 ));
             }
             CmdKind::HarborSteer => {
@@ -2973,23 +3786,23 @@ impl ConsoleView {
                 self.control_flash =
                     Some("steer queued — watch the node's transcript for the guidance turn".into());
             }
-            // AddPane, Conjure, UseDaemon, and Verb are handled locally above
+            // AddPane, UseDaemon, and Verb are handled locally above
             // (early return) — never reach here.
-            CmdKind::AddPane | CmdKind::Conjure | CmdKind::UseDaemon | CmdKind::Verb => {}
+            CmdKind::AddPane | CmdKind::UseDaemon | CmdKind::Verb => {}
         }
     }
 
-    /// Kick off the Vello render of the current Conjure DAG. Serializes the DAG to
+    /// Kick off the Vello render of the current WorkPlan graph. Serializes the DAG to
     /// the proto's JSON shape on the foreground (cheap), then hands it to the
     /// background thread, which writes the JSON, shells `capture.sh` (release +
     /// unsandboxed) and `open`s the PNG. The gpui thread never blocks on the
     /// build/render — it only flips a flash and fires the message.
-    fn render_conjure_graph(&mut self) {
-        let title = self.conjure_dag.title.clone();
-        match crate::conjure::to_json(&self.conjure_dag) {
+    fn render_work_graph(&mut self) {
+        let title = self.work_plan_graph.title.clone();
+        match crate::work_plan::to_json(&self.work_plan_graph) {
             Ok(dag_json) => {
                 if let Some(tx) = &self.control_tx {
-                    let _ = tx.send(ControlMsg::RenderConjureGraph { dag_json, title });
+                    let _ = tx.send(ControlMsg::RenderWorkGraph { dag_json, title });
                     self.control_flash = Some(
                         "rendering the DAG with Vello… the PNG opens when the build lands".into(),
                     );
@@ -3004,63 +3817,36 @@ impl ConsoleView {
         }
     }
 
-    /// Dispatch the committed (non-HITL-gated) nodes of the current Conjure DAG to
-    /// live agents — the DISPATCH slice. Each node routes to the vendor backend its
-    /// `model_tier` names (the multi-vendor map in `agent::backend_for_tier`) and is
-    /// spawned through the EXACT spawn path the manual Spawn command uses
-    /// (`DaemonClient::spawn` → the daemon's existing multi-vendor spawner). HITL-
-    /// gated nodes (`ask_user_before_proceeding`) are EXCLUDED here by
-    /// `conjure::dispatch_targets`; they need an explicit per-node confirm, so a
-    /// "Dispatch DAG" sweep never auto-launches them. The foreground only shapes the
-    /// requests + flips a flash; the worker performs the spawns and reports each
-    /// outcome as an Alert (the same surface the Spawn command uses).
-    ///
-    /// HONEST FRAMING: live launch is env-dependent — the daemon must be up and the
-    /// target vendor CLI installed + launchable. The Giant Squid Harness (ADR-0091,
-    /// Proposed / not built) is the FUTURE upgrade for richer in-loop vendor-hook
-    /// coordination; this slice wires the real spawn path, not that harness.
-    fn dispatch_conjure_dag(&mut self) {
-        let targets = crate::conjure::dispatch_targets(&self.conjure_dag);
-        let gated = crate::conjure::gated_node_count(&self.conjure_dag);
-        if targets.is_empty() {
-            // A firm "wall" tone — the dispatch is held (all gated) or empty.
-            crate::audio::play(crate::audio::Cue::Gate);
-            self.control_flash = Some(if gated > 0 {
-                format!(
-                    "nothing to dispatch — all {gated} node(s) are HITL-gated; confirm each one"
-                )
-            } else {
-                "nothing to dispatch — the DAG has no nodes".into()
-            });
+    /// Reveal one Mission context source without replacing the conversation.
+    /// Reuse an already-open inspector when present; otherwise split it beside
+    /// Mission. The context rail therefore navigates real apps, not dead cards.
+    fn open_mission_context(&mut self, target: crate::mission_view::MissionContextTarget) {
+        use crate::mission_view::MissionContextTarget;
+        if target == MissionContextTarget::Plan {
+            self.render_work_graph();
             return;
         }
-        let requests: Vec<ConjureDispatchRequest> = targets
+        let nav = match target {
+            MissionContextTarget::Claims => "claims",
+            MissionContextTarget::Suggestions => "suggest",
+            MissionContextTarget::Activity => "activity",
+            MissionContextTarget::Cost => "ledger",
+            MissionContextTarget::Plan => unreachable!(),
+        };
+        let surface = SurfaceKind::Panel {
+            nav: nav.to_string(),
+        };
+        let existing = self
+            .ws()
+            .leaves()
             .into_iter()
-            .map(|r| ConjureDispatchRequest {
-                node_id: r.node_id,
-                backend: r.backend.as_str().to_string(),
-                skill_id: r.skill_id,
-                goal: r.goal,
-                model_tier: r.model_tier,
-            })
-            .collect();
-        let count = requests.len();
-        if let Some(tx) = &self.control_tx {
-            let _ = tx.send(ControlMsg::ConjureDispatch { requests, gated });
-            // A confident rising sweep — committed nodes are launching to their vendors.
-            crate::audio::play(crate::audio::Cue::Dispatch);
-            let held = if gated > 0 {
-                format!(" · {gated} held for your gate")
-            } else {
-                String::new()
-            };
-            self.control_flash = Some(format!(
-                "dispatching {count} node(s) to their vendors…{held} watch Alerts"
-            ));
+            .find(|pane_id| self.ws().surface_at(*pane_id) == Some(&surface));
+        if let Some(pane_id) = existing {
+            self.ws_mut().focus(pane_id);
         } else {
-            // No control plane (an isolated test view): nothing to spawn against.
-            self.control_flash = Some("dispatch unavailable — no control plane".into());
+            self.ws_mut().split(Dir::Row, surface);
         }
+        self.control_flash = Some(format!("Opened {nav} beside Mission."));
     }
 
     /// The pane launcher overlay (Ctrl-A Space / the ⊞ button): an animated grid
@@ -3097,18 +3883,14 @@ impl ConsoleView {
                     .items_center()
                     .justify_center()
                     .gap(px((layout.gap + 2.0).min(12.0)))
-                    .rounded(px(14.0))
                     .border_1()
+                    .border_t_2()
                     .border_color(rgb(if is_current { tone } else { t.line }))
                     .bg(rgb(t.raised))
                     .cursor_pointer()
-                    // Hover "lift" (no transforms): brighter card, tone border, and a
-                    // wide tone-coloured bloom — the big apparent-motion cue.
                     .hover(move |s| {
                         let t = current_theme();
-                        s.bg(rgb(t.panel))
-                            .border_color(rgb(tone))
-                            .shadow(motion::glow(tone, 0.55, 32.0, 3.0))
+                        s.bg(rgb(t.panel)).border_color(rgb(tone))
                     })
                     // Icon sits in a big tone-washed chip so colour reads even at a glance.
                     .child(
@@ -3118,14 +3900,13 @@ impl ConsoleView {
                             .flex()
                             .items_center()
                             .justify_center()
-                            .rounded(px((layout.icon_box * 0.22).clamp(8.0, 16.0)))
-                            .bg(tone_wash(tone, 0x26))
+                            .bg(rgb(tone))
                             .child(
                                 svg()
                                     .path(item.icon)
                                     .w(px(layout.icon))
                                     .h(px(layout.icon))
-                                    .text_color(rgb(tone)),
+                                    .text_color(rgb(knockout_ink(tone))),
                             ),
                     )
                     .child(
@@ -3139,18 +3920,13 @@ impl ConsoleView {
                         div()
                             .px(px(7.0))
                             .py(px(2.0))
-                            .rounded(px(7.0))
-                            .bg(tone_wash(tone, 0x1c))
-                            .text_color(rgb(t.muted))
+                            .border_1()
+                            .border_color(rgb(tone))
+                            .text_color(rgb(tone))
                             .text_size(px(layout.key_size))
                             .font_weight(FontWeight::SEMIBOLD)
                             .child(format!("⌃A {}", item.key)),
                     )
-                    // Owns its glow only in the static cases; the breathing branch below
-                    // owns it via the animation (one motion owner per surface).
-                    .when(is_current && reduced, |s| {
-                        s.shadow(motion::glow(tone, 0.5, 22.0, 2.0))
-                    })
                     .on_click(cx.listener(move |this, _ev, _window, cx| {
                         this.ws_mut().swap_surface(surface_for_launcher_id(id));
                         this.launcher_open = false;
@@ -3158,29 +3934,8 @@ impl ConsoleView {
                         cx.notify();
                     }));
 
-                if reduced {
-                    // Reduced motion: no travel, but keep the current-tile glow (above)
-                    // for orientation. All tiles render at rest.
+                if reduced || is_current {
                     tile.into_any_element()
-                } else if is_current {
-                    // The pane you're on *breathes* a tone-coloured glow — a single
-                    // looping owner, scoped to this modal overlay (so it only runs
-                    // while the launcher is open). This is the "where am I" beacon.
-                    tile.with_animation(
-                        SharedString::from(format!("launch-breathe-{id}")),
-                        Animation::new(Duration::from_millis(2200))
-                            .repeat()
-                            .with_easing(pulsating_between(0.0, 1.0)),
-                        move |el, delta| {
-                            el.shadow(motion::glow(
-                                tone,
-                                0.30 + 0.40 * delta,
-                                16.0 + 16.0 * delta,
-                                1.0,
-                            ))
-                        },
-                    )
-                    .into_any_element()
                 } else {
                     // One-shot staggered entrance fade — the stagger lives in the
                     // opacity curve, so each tile stays its own single animation owner.
@@ -3254,11 +4009,9 @@ impl ConsoleView {
                     .p(px(layout.card_pad))
                     .w(px(layout.card_w))
                     .h(px(layout.card_h))
-                    .rounded(px(22.0))
                     .bg(rgb(t.panel))
                     .border_1()
                     .border_color(rgb(t.line))
-                    .shadow(motion::glow(t.accent, 0.28, 40.0, 1.0))
                     // Header: big title + a colour legend, so the hue-coding is
                     // self-explaining at a glance (ADHD-friendly navigation).
                     .child(
@@ -3314,7 +4067,7 @@ impl ConsoleView {
             .collect();
         self.control_flash = Some(match alert.level {
             AlertLevel::Error => format!("✕ {} — {head}", alert.title),
-            AlertLevel::Warn => format!("⚑ {} — {head}", alert.title),
+            AlertLevel::Warn => format!("WARN · {} — {head}", alert.title),
             AlertLevel::Info => format!("✓ {}", alert.title),
         });
         self.alerts.insert(0, alert);
@@ -3325,30 +4078,106 @@ impl ConsoleView {
         }
     }
 
-    /// Apply one Conjure update pushed from the background worker: either a fresh
-    /// live-generated DAG (claude:cli) or a rendered Vello PNG path. A new DAG
-    /// swaps the focused pane to the Conjure surface so the operator SEES the
-    /// generated graph; a PNG just slots into the inline graphic.
-    pub fn apply_conjure_update(&mut self, update: ConjureUpdate) {
+    fn clear_work_projection_failure(&mut self) {
+        let failure_title = "Work projection unavailable";
+        self.alerts.retain(|alert| alert.title != failure_title);
+        if self
+            .control_flash
+            .as_deref()
+            .is_some_and(|flash| flash.contains(failure_title))
+        {
+            self.control_flash = None;
+        }
+    }
+
+    /// Apply daemon-backed Work truth or a visual artifact derived from it.
+    /// Command receipts focus the Mission surface; background rehydration never
+    /// steals focus from the operator.
+    pub fn apply_work_update(&mut self, update: WorkUpdate) {
         match update {
-            ConjureUpdate::Dag(dag) => {
-                let waves = dag.waves.len();
-                let title = dag.title.clone();
-                self.conjure_dag = dag;
-                // A fresh DAG — drop any node selection from the prior graph.
-                self.conjure_selected = None;
-                // The new DAG hasn't been rendered yet — drop the stale PNG so the
-                // surface shows the "rendering graph…" placeholder until it lands.
-                self.conjure_png_path = None;
-                self.ws_mut().swap_surface(SurfaceKind::Conjure);
-                // The signature "bloom" sting — a DAG just materialized from a prompt.
-                crate::audio::play(crate::audio::Cue::Bloom);
-                self.control_flash = Some(format!(
-                    "claude:cli conjured “{title}” — {waves} waves · rendering the Vello graphic…"
-                ));
+            WorkUpdate::Receipt(receipt) => {
+                self.clear_work_projection_failure();
+                self.work_mission =
+                    crate::mission_view::MissionViewModel::starting(&receipt.snapshot);
+                let intent_id = receipt.snapshot.intent_id().to_string();
+                let plan_state = receipt.snapshot.plan_state().to_string();
+                let dag = crate::work_plan::from_work_snapshot(&receipt.snapshot);
+                let duplicate = receipt.duplicate;
+                self.work_plan_graph = dag;
+                self.work_selected_node = None;
+                self.work_graph_png_path = None;
+                self.work_intent_id = Some(intent_id.clone());
+                self.work_plan_state = plan_state.clone();
+                self.work_correlation_id = Some(receipt.correlation_id.clone());
+                self.work_next_action = Some(receipt.next_action);
+                self.work_execution_state = "starting".into();
+                self.work_execution_id = None;
+                self.work_execution_projection = None;
+                self.work_execution_session = None;
+                self.work_execution_worktree = None;
+                self.ws_mut().swap_surface(SurfaceKind::Mission);
+                self.control_flash = Some(if duplicate {
+                    "Mission restored from its durable receipt.".into()
+                } else {
+                    "Mission recorded. Port Daddy is preparing the work.".into()
+                });
             }
-            ConjureUpdate::Png(path) => {
-                self.conjure_png_path = Some(path);
+            WorkUpdate::Execution(receipt) => {
+                self.clear_work_projection_failure();
+                self.work_mission = crate::mission_view::MissionViewModel::from_execution(&receipt);
+                self.work_intent_id = Some(receipt.snapshot.intent_id().to_string());
+                self.work_plan_state = receipt.snapshot.plan_state().to_string();
+                self.work_plan_graph = crate::work_plan::from_work_snapshot(&receipt.snapshot);
+                self.work_correlation_id = Some(receipt.correlation_id.clone());
+                self.work_next_action = Some(receipt.next_action);
+                self.work_execution_state = receipt.state.clone();
+                self.work_execution_id = Some(receipt.dispatch_id.clone());
+                self.work_execution_projection = Some(receipt.projection.clone());
+                self.work_execution_session = receipt.session_id.clone();
+                self.work_execution_worktree = receipt.worktree_path.clone();
+                self.ws_mut().swap_surface(SurfaceKind::Mission);
+                self.control_flash = Some(match self.work_mission.agent_id.as_deref() {
+                    Some(agent) => format!("{agent} is now working on this mission."),
+                    None => "Port Daddy admitted the mission and is assigning its agent.".into(),
+                });
+            }
+            WorkUpdate::Snapshot(snapshot) => {
+                self.clear_work_projection_failure();
+                self.work_mission = crate::mission_view::MissionViewModel::from_snapshot(&snapshot);
+                self.work_intent_id = Some(snapshot.intent_id().to_string());
+                self.work_plan_state = snapshot.plan_state().to_string();
+                self.work_plan_graph = crate::work_plan::from_work_snapshot(&snapshot);
+                self.work_selected_node = None;
+                self.work_graph_png_path = None;
+                if matches!(
+                    self.work_mission.state.as_str(),
+                    "settled" | "failed" | "rejected"
+                ) {
+                    self.chat.finish_waiting();
+                }
+            }
+            WorkUpdate::Reset => {
+                self.clear_work_projection_failure();
+                crate::mission_callbacks::WorkProjectionBindings {
+                    mission: &mut self.work_mission,
+                    plan_graph: &mut self.work_plan_graph,
+                    graph_png_path: &mut self.work_graph_png_path,
+                    intent_id: &mut self.work_intent_id,
+                    plan_state: &mut self.work_plan_state,
+                    correlation_id: &mut self.work_correlation_id,
+                    next_action: &mut self.work_next_action,
+                    execution_state: &mut self.work_execution_state,
+                    execution_id: &mut self.work_execution_id,
+                    execution_projection: &mut self.work_execution_projection,
+                    execution_session: &mut self.work_execution_session,
+                    execution_worktree: &mut self.work_execution_worktree,
+                    selected_node: &mut self.work_selected_node,
+                    control_flash: &mut self.control_flash,
+                }
+                .clear_for_daemon_rebind();
+            }
+            WorkUpdate::Png(path) => {
+                self.work_graph_png_path = Some(path);
             }
         }
     }
@@ -3362,10 +4191,16 @@ impl ConsoleView {
         updates: Vec<(usize, Vec<Block>)>,
         dispatch_head: Option<DispatchHead>,
         galaxy: crate::galaxy_pane::GalaxySnapshot,
+        daemon_connected: bool,
+        hitl_gate: crate::interruptions::HitlGate,
     ) -> bool {
         // First refresh dismisses the launch splash (a real visual change).
         let mut changed = !self.booted;
         self.booted = true;
+        if self.daemon_connected != daemon_connected {
+            self.daemon_connected = daemon_connected;
+            changed = true;
+        }
         for (idx, blocks) in updates {
             if let Some(slot) = self.pane_blocks.get_mut(idx) {
                 if *slot != blocks {
@@ -3376,6 +4211,10 @@ impl ConsoleView {
         }
         if self.dispatch_head != dispatch_head {
             self.dispatch_head = dispatch_head;
+            changed = true;
+        }
+        if self.hitl_gate != hitl_gate {
+            self.hitl_gate = hitl_gate;
             changed = true;
         }
 
@@ -3420,7 +4259,7 @@ impl ConsoleView {
             }),
             ScriptRequest::Panes => json!({
                 "ok": true,
-                "panes": NAV.iter().map(|n| n.id).collect::<Vec<_>>(),
+                "panes": launcher_items().iter().map(|item| item.id).collect::<Vec<_>>(),
                 "focused": self.ws().focused_surface().label(),
             }),
             ScriptRequest::Focus { pane } => {
@@ -3428,6 +4267,19 @@ impl ConsoleView {
                     reply
                 } else {
                     match surface_for_query(&pane) {
+                        Some(SurfaceKind::Editor { path, region }) => {
+                            match self.open_editor(path, region, EditorPlacement::ReplaceFocused) {
+                                Ok(()) => json!({
+                                    "ok": true,
+                                    "focused": self.ws().focused_surface().label(),
+                                }),
+                                Err(error) => json!({
+                                    "ok": false,
+                                    "error": error,
+                                    "focused": self.ws().focused_surface().label(),
+                                }),
+                            }
+                        }
                         Some(surface) => {
                             self.ws_mut().swap_surface(surface);
                             json!({"ok": true, "focused": self.ws().focused_surface().label()})
@@ -3435,12 +4287,44 @@ impl ConsoleView {
                         None => json!({
                             "ok": false,
                             "error": format!("unknown pane \"{pane}\""),
-                            "panes": NAV.iter().map(|n| n.id).collect::<Vec<_>>(),
+                            "panes": launcher_items().iter().map(|item| item.id).collect::<Vec<_>>(),
                         }),
                     }
                 }
             }
             ScriptRequest::State { pane } => {
+                if pane.is_none() {
+                    if let SurfaceKind::Editor { path, region } = self.ws().focused_surface() {
+                        let key = editor_key(path, *region);
+                        return match self.editors.get(&key) {
+                            Some(state) => {
+                                let blame = match &state.blame {
+                                    EditorBlameState::Off => "off",
+                                    EditorBlameState::Loading => "loading",
+                                    EditorBlameState::Ready(_) => "ready",
+                                    EditorBlameState::Stale => "stale",
+                                    EditorBlameState::Error(_) => "error",
+                                };
+                                json!({
+                                    "ok": true,
+                                    "pane": "editor",
+                                    "path": path,
+                                    "text": state.pane.text(),
+                                    "wrap": state.wrap_lines,
+                                    "showBlame": state.show_blame,
+                                    "blame": blame,
+                                    "syntax": crate::syntax::lang_for_path(path).label(),
+                                })
+                            }
+                            None => json!({
+                                "ok": false,
+                                "pane": "editor",
+                                "path": path,
+                                "error": "focused editor state is not loaded",
+                            }),
+                        };
+                    }
+                }
                 let target = pane.unwrap_or_else(|| {
                     nav_id_for_surface(self.ws().focused_surface())
                         .unwrap_or("fleet")
@@ -3449,18 +4333,18 @@ impl ConsoleView {
                 if let Some(reply) = retired_galaxy_pane_reply(&target) {
                     return reply;
                 }
-                let Some(idx) = NAV.iter().position(|n| n.id == target) else {
+                let Some(surface) = surface_for_query(&target) else {
                     return json!({
                         "ok": false,
                         "error": format!("unknown pane \"{target}\""),
-                        "panes": NAV.iter().map(|n| n.id).collect::<Vec<_>>(),
+                        "panes": launcher_items().iter().map(|item| item.id).collect::<Vec<_>>(),
                     });
                 };
                 let blocks: Vec<serde_json::Value> = self
-                    .pane_blocks
-                    .get(idx)
-                    .map(|bs| bs.iter().map(block_to_json).collect::<Vec<_>>())
-                    .unwrap_or_default();
+                    .blocks_for_surface(&surface)
+                    .iter()
+                    .map(block_to_json)
+                    .collect();
                 let mut out = json!({"ok": true, "pane": target, "blocks": blocks});
                 if target == "sextant" {
                     out["sextant"] = json!({
@@ -3529,6 +4413,46 @@ impl ConsoleView {
                     })
                 } else {
                     json!({"ok": false, "error": "chat needs non-empty \"text\""})
+                }
+            }
+            ScriptRequest::Work { goal } => {
+                let control_plane = self.control_tx.is_some();
+                self.submit_command(CommandLine::with_buffer(CmdKind::Mission, goal.clone()));
+                json!({
+                    "ok": control_plane,
+                    "work": {
+                        "submitted": control_plane,
+                        "goal": goal,
+                        "authority": "daemon-work-intent",
+                    },
+                    "error": if control_plane {
+                        serde_json::Value::Null
+                    } else {
+                        serde_json::Value::String("no control channel (view constructed without one)".into())
+                    },
+                })
+            }
+            ScriptRequest::StopMission => {
+                match (&self.control_tx, self.work_mission.agent_id.as_ref()) {
+                    (Some(tx), Some(agent_id)) if self.work_mission.state == "in_progress" => {
+                        let _ = tx.send(ControlMsg::InterruptAgent {
+                            agent_id: agent_id.clone(),
+                        });
+                        self.control_flash = Some(
+                        "Stop request delivered. This runtime has not acknowledged shutdown yet."
+                            .into(),
+                    );
+                        json!({
+                            "ok": true,
+                            "stopRequested": agent_id,
+                            "acknowledged": false,
+                            "hardStop": false,
+                        })
+                    }
+                    (None, _) => {
+                        json!({"ok": false, "error": "no control channel (view constructed without one)"})
+                    }
+                    _ => json!({"ok": false, "error": "no running mission to stop"}),
                 }
             }
             ScriptRequest::Rebind { url } => match &self.control_tx {
@@ -3631,8 +4555,10 @@ impl ConsoleView {
     /// Open a galaxy-detail file row in the Editor surface (read-only host).
     pub(crate) fn open_galaxy_file(&mut self, pane_id: PaneId, path: String) {
         self.ws_mut().focus(pane_id);
-        self.ws_mut()
-            .swap_surface(SurfaceKind::Editor { path, region: None });
+        if let Err(reason) = self.open_editor(path, None, EditorPlacement::ReplaceFocused) {
+            self.control_flash = Some(reason);
+            crate::audio::play(crate::audio::Cue::Error);
+        }
     }
 
     /// Fold one galaxy push from the background worker into the drawer state:
@@ -3677,6 +4603,24 @@ impl ConsoleView {
                     Some("no control plane — session detail is unavailable in this build".into());
             }
         }
+    }
+
+    /// Fold a producer editor edge into the window. A remote op is imported into
+    /// every foreground pane bound to the path before its collaboration Blocks
+    /// become visible, keeping the next local keystroke on the converged CRDT.
+    pub fn apply_editor_update(&mut self, update: EditorUpdate) {
+        for frame in &update.remote_frames {
+            for state in self.editors.values_mut() {
+                if state.pane.path_str() == update.path {
+                    let _ = state.pane.ingest_frame(frame);
+                    if let Some(text) = state.pane.text() {
+                        state.input.reconcile(&text);
+                    }
+                    invalidate_editor_blame(state);
+                }
+            }
+        }
+        self.editor_blocks = Some((update.path, update.blocks));
     }
 
     /// The launch splash — a centered brand lockup (spinning radar mark + "Port Daddy") shown
@@ -3790,6 +4734,13 @@ impl ConsoleView {
     ) -> AnyElement {
         let label = surface.label();
         let blocks = self.blocks_for_surface(surface);
+        let editor_failure = match surface {
+            SurfaceKind::Editor { path, .. } => {
+                editor_error_from_blocks(&blocks).map(|reason| (path.clone(), reason))
+            }
+            _ => None,
+        };
+        let sparse_status = story_sparse_status(&blocks);
         let motion = self.flag_motion; // Copy snapshot for this frame's flags.
         let is_agent = matches!(surface, SurfaceKind::AgentTranscript { .. });
         // The Harbor editor renders its CodeBuffer through a virtualized
@@ -3800,6 +4751,48 @@ impl ConsoleView {
                 .editors
                 .get(&editor_key(path, *region))
                 .map(|s| s.scroll.clone()),
+            _ => None,
+        };
+        let editor_input = match surface {
+            SurfaceKind::Editor { path, region } => self
+                .editors
+                .get(&editor_key(path, *region))
+                .and_then(|state| {
+                    state
+                        .pane
+                        .text()
+                        .map(|text| editor_paint_state(&state.input, &text))
+                }),
+            _ => None,
+        };
+        let editor_options = match surface {
+            SurfaceKind::Editor { path, region } => {
+                self.editors.get(&editor_key(path, *region)).map(|state| {
+                    let (blame_status, blame) = if !state.show_blame {
+                        ("OFF".to_string(), None)
+                    } else {
+                        match &state.blame {
+                            EditorBlameState::Off => ("OFF".to_string(), None),
+                            EditorBlameState::Loading => ("LOADING".to_string(), None),
+                            EditorBlameState::Ready(lines) => {
+                                ("ON".to_string(), Some(lines.clone()))
+                            }
+                            EditorBlameState::Stale => ("STALE".to_string(), None),
+                            EditorBlameState::Error(reason) => (format!("ERROR · {reason}"), None),
+                        }
+                    };
+                    EditorRenderOptions {
+                        wrap_lines: state.wrap_lines,
+                        show_blame: state.show_blame,
+                        blame,
+                        blame_status,
+                        syntax_label: crate::syntax::lang_for_path(path).label().to_string(),
+                        viewport_width: state
+                            .input_bounds
+                            .map(|bounds| f32::from(bounds.size.width)),
+                    }
+                })
+            }
             _ => None,
         };
         // The dispatch surface (focused) gets the interactive review GATE.
@@ -3813,50 +4806,90 @@ impl ConsoleView {
         };
         let is_dispatch = nav_id_for_surface(surface) == Some("dispatch");
         let is_conductor = nav_id_for_surface(surface) == Some("conductor");
-        // The Conjure surface (focused) gets the "Render graph" action bar — the
-        // discoverable control that ships the live DAG to the Vello PNG renderer.
-        let is_conjure = matches!(surface, SurfaceKind::Conjure);
+        // Mission is the conversation-first center: chat plus the daemon-backed
+        // plan/context/evidence projections. There is no separate Work pane.
+        let is_mission = matches!(surface, SurfaceKind::Mission);
         // The Sextant surface renders the bespoke interactive scatter canvas
         // (galaxy_canvas.rs) instead of the generic Block list — the daemon
         // precomputed the layout; the canvas only places, hits, and selects.
         let is_sextant = nav_id_for_surface(surface) == Some("sextant");
-        // The chat surface renders bespoke bubbles (from view state) + a focused
-        // composer, NOT the generic Block list. Snapshot the transcript for this frame.
-        let is_chat = matches!(surface, SurfaceKind::CartographerChat);
-        let chat_msgs: Vec<ChatMsg> = if is_chat {
+        // Snapshot the Mission conversation for this frame.
+        let chat_msgs: Vec<ChatMsg> = if is_mission {
             self.chat.messages.clone()
         } else {
             Vec::new()
         };
-        let chat_error: Option<String> = if is_chat {
+        let chat_error: Option<String> = if is_mission {
             self.chat.error.clone()
         } else {
             None
         };
-        let chat_state: Option<ChatState> = if is_chat {
+        let chat_state: Option<ChatState> = if is_mission {
             Some(self.chat.state())
         } else {
             None
         };
-        let chat_input = if is_chat {
+        let chat_input = if is_mission {
             self.chat_input.clone()
         } else {
             String::new()
         };
+        let chat_awaiting = is_mission && self.chat.awaiting_reply;
         let chat_reduced = reduced_motion();
-        let conjure_flash = self.control_flash.clone();
+        let work_flash = self.control_flash.clone();
         // The rendered Vello PNG (if any) for the inline node-graph at the top of
-        // the Conjure surface. `None` ⇒ a tasteful "rendering graph…" placeholder.
-        let conjure_png = if is_conjure {
-            self.conjure_png_path.clone()
+        // the Mission surface. `None` means the technical plan stays collapsed.
+        let work_graph_png = if is_mission {
+            self.work_graph_png_path.clone()
         } else {
             None
         };
-        let conjure_title = self.conjure_dag.title.clone();
-        let conjure_wave_count = self.conjure_dag.waves.len();
-        // How many nodes "Dispatch DAG" would spawn (non-HITL-gated) vs hold back.
-        let conjure_dispatch_count = crate::conjure::dispatch_targets(&self.conjure_dag).len();
-        let conjure_gated_count = crate::conjure::gated_node_count(&self.conjure_dag);
+        let work_title = self.work_plan_graph.title.clone();
+        let work_wave_count = self.work_plan_graph.waves.len();
+        let work_agent = if is_mission && self.work_mission.state == "in_progress" {
+            self.work_mission.agent_id.clone()
+        } else {
+            None
+        };
+        let mission_stage = self.work_mission.stage();
+        let mission_goal = self.work_mission.goal.clone();
+        let mission_actor = self.work_mission.agent_id.clone();
+        let mission_runtime = match (&self.work_mission.backend, &self.work_mission.model) {
+            (Some(backend), Some(model)) => Some(format!("{backend} · {model}")),
+            (Some(backend), None) => Some(backend.clone()),
+            (None, Some(model)) => Some(model.clone()),
+            (None, None) => None,
+        };
+        let mission_intent = self.work_mission.intent_id.clone();
+        let mission_worktree = self.work_mission.worktree.clone();
+        let mission_branch = self.work_mission.branch.clone();
+        let pane = |nav_id: &str| {
+            NAV.iter()
+                .position(|item| item.id == nav_id)
+                .and_then(|index| self.pane_blocks.get(index))
+                .cloned()
+                .unwrap_or_default()
+        };
+        let mission_live_work = if is_mission { pane("lane") } else { Vec::new() };
+        let mission_trace = if is_mission && self.work_mission.agent_id.is_some() {
+            crate::mission_view::live_trace_blocks(&mission_live_work)
+        } else {
+            Vec::new()
+        };
+        let mission_context = if is_mission {
+            crate::mission_view::context_cards(
+                &self.work_mission,
+                &self.work_plan_graph,
+                &pane("claims"),
+                &pane("suggest"),
+                &pane("activity"),
+                &pane("ledger"),
+                self.work_correlation_id.as_deref(),
+                self.work_execution_id.as_deref(),
+            )
+        } else {
+            Vec::new()
+        };
         // The FileTree surface (P0 Harbor wiring): clickable rows — a file row
         // opens the Editor surface; a directory row descends (rebinds the root).
         let filetree: Option<(Option<String>, Vec<FileEntry>)> = match surface {
@@ -3870,23 +4903,27 @@ impl ConsoleView {
         // interrupt). Both read `/agents`, so they share the roster.
         let is_fleet_ops = matches!(nav_id_for_surface(surface), Some("fleet") | Some("cockpit"));
         let dispatch_head = self.dispatch_head.clone();
+        // HITL contract §4.3: an open CRITICAL interruption refuses new
+        // fleet-dispatch work (the review gate's Approve), showing the ask's
+        // title as the reason and deep-linking the web answer surface.
+        let hitl_critical = self.hitl_gate.critical_title.clone();
+        let hitl_link = self.hitl_gate.deep_link.clone();
         let gate_flash = self.control_flash.clone();
         let cond_flash = self.control_flash.clone();
         let fleet_flash = self.control_flash.clone();
-        let border = if is_focused {
-            current_theme().accent_ink
-        } else {
-            current_theme().line
-        };
-        let title_color = if is_focused {
-            current_theme().accent_ink
-        } else {
-            current_theme().muted
+        let panel_title = label.to_ascii_uppercase();
+        let panel_signal = match nav_id_for_surface(surface) {
+            _ if is_mission => 0x006b5f,
+            Some("cockpit" | "roadmap") => 0x006b5f,
+            Some("ledger" | "cost") => current_theme().engaged,
+            Some("claims" | "parley" | "sessions") => current_theme().landed,
+            _ => current_theme().accent,
         };
         let control_flash = self.control_flash.clone();
 
         div()
             .id(SharedString::from(format!("pane-{id}")))
+            .relative()
             // Hover group: the title-bar controls reveal only when this pane is
             // hovered (macOS window-control feel).
             .group("pane")
@@ -3895,61 +4932,64 @@ impl ConsoleView {
             .size_full()
             .overflow_hidden()
             .border_1()
-            .border_color(rgb(border))
+            .border_color(rgb(current_theme().line))
             .bg(rgb(current_theme().panel))
-            // Focus glow: a soft mustard halo proves "this pane has the wheel".
-            // Unfocused panes preview the warm border + faint glow on hover.
-            .when(is_focused, |s| s.shadow(motion::glow(current_theme().accent, 0.45, 16.0, 1.0)))
-            .when(!is_focused, |s| {
-                s.hover(|h| {
-                    h.border_color(rgb(current_theme().accent))
-                        .shadow(motion::glow(current_theme().accent, 0.18, 10.0, 0.0))
-                })
-            })
-            .on_click(cx.listener(move |this, _ev, _window, cx| {
+            .on_click(cx.listener(move |this, _ev, window, cx| {
                 this.ws_mut().focus(id);
+                window.focus(&this.focus_handle);
                 cx.notify();
             }))
-            // Title bar: focus dot · label · spacer · hover controls
+            // One knockout zone per pane, matching apps.html's panel headers.
             .child(
                 div()
+                    .h(px(42.0))
                     .flex()
                     .items_center()
-                    .gap(px(6.0))
-                    .px(px(10.0))
-                    .py(px(4.0))
-                    .bg(rgb(if is_focused { current_theme().raised } else { current_theme().panel }))
+                    .bg(rgb(current_theme().panel))
                     .border_b_1()
                     .border_color(rgb(current_theme().line))
-                    .child({
-                        // The focused pane's dot breathes (presence beacon, the mock's
-                        // @keyframes beacon) via a looping with_animation; idle panes are static.
-                        let dot = div()
-                            .text_color(rgb(if is_focused { current_theme().accent } else { current_theme().line }))
-                            .text_size(px(13.0))
-                            .child(if is_focused { "●" } else { "○" });
-                        if is_focused {
-                            dot.with_animation(
-                                SharedString::from(format!("dot-pulse-{id}")),
-                                Animation::new(Duration::from_millis(2400))
-                                    .repeat()
-                                    .with_easing(pulsating_between(0.55, 1.0)),
-                                |el, delta| el.opacity(delta),
-                            )
-                            .into_any_element()
-                        } else {
-                            dot.into_any_element()
-                        }
-                    })
                     .child(
                         div()
-                            .text_color(rgb(title_color))
-                            .text_size(px(14.0))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .child(label),
+                            .h_full()
+                            .px(px(13.0))
+                            .flex()
+                            .items_center()
+                            .bg(rgb(if is_focused { panel_signal } else {
+                                current_theme().raised
+                            }))
+                            .text_color(rgb(if is_focused {
+                                knockout_ink(panel_signal)
+                            } else {
+                                current_theme().ink2
+                            }))
+                            .font_family("IBM Plex Mono")
+                            .text_size(px(12.0))
+                            .font_weight(FontWeight::BOLD)
+                            .child(panel_title),
                     )
-                    // Spacer pushes the controls to the right edge.
                     .child(div().flex_1())
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap(px(7.0))
+                            .mr(px(10.0))
+                            .font_family("IBM Plex Mono")
+                            .text_size(px(11.0))
+                            .text_color(rgb(current_theme().muted))
+                            .child(
+                                div()
+                                    .w(px(6.0))
+                                    .h(px(6.0))
+                                    .rounded(px(3.0))
+                                    .bg(rgb(if is_focused {
+                                        current_theme().landed
+                                    } else {
+                                        current_theme().resting
+                                    })),
+                            )
+                            .child(if is_focused { "live" } else { "idle" }),
+                    )
                     // Hover controls — invisible until the pane is hovered.
                     .child(
                         div()
@@ -3967,8 +5007,6 @@ impl ConsoleView {
             )
             // Surface body — scrollable so long rosters/ledgers/transcripts are
             // reachable instead of clipped (needs a stable id for scroll state).
-            // The Conjure surface leads with the INLINE Vello node-graph (the
-            // beautiful default view), then the per-node text/partition/contracts.
             .child({
                 let body = div()
                     .id(SharedString::from(format!("pane-body-{id}")))
@@ -3988,21 +5026,7 @@ impl ConsoleView {
                     .flex_col()
                     .gap(px(if is_daemons { tokens::SPACE_2 } else { 0.0 }))
                     .px(px(if is_daemons { tokens::SPACE_3 } else { 0.0 }))
-                    .pt(px(if is_daemons { tokens::SPACE_2 } else { 0.0 }))
-                    .when(is_conjure, |body| {
-                        // The LIVE native canvas is the default view (animated,
-                        // interactive); the Vello PNG is an optional poster below,
-                        // shown only once the operator renders it.
-                        body.child(conjure_canvas(
-                            id,
-                            &self.conjure_dag,
-                            self.conjure_selected.as_deref(),
-                            cx,
-                        ))
-                        .when_some(conjure_png, |b, path| {
-                            b.child(conjure_graphic(id, Some(path), &conjure_title))
-                        })
-                    });
+                    .pt(px(if is_daemons { tokens::SPACE_2 } else { 0.0 }));
                 match filetree {
                     // FileTree: interactive clickable rows (open file / descend dir).
                     Some((root, entries)) => {
@@ -4027,8 +5051,25 @@ impl ConsoleView {
                     // generic page-scroll `body` is deliberately NOT used —
                     // the uniform_list owns the wheel and paints only the
                     // visible line window.
+                    None if editor_failure.is_some() => {
+                        let (path, reason) = editor_failure
+                            .expect("editor failure guard guarantees recovery details");
+                        body.child(render_editor_open_failure(id, path, reason, cx))
+                    }
                     None if is_editor => {
+                        let editor_state_key = match surface {
+                            SurfaceKind::Editor { path, region } => editor_key(path, *region),
+                            _ => String::new(),
+                        };
                         let mut head = div().flex().flex_col().flex_shrink_0();
+                        if let Some(options) = editor_options.clone() {
+                            head = head.child(render_editor_toolbar(
+                                id,
+                                editor_state_key.clone(),
+                                &options,
+                                cx,
+                            ));
+                        }
                         let mut code: Option<AnyElement> = None;
                         for blk in blocks {
                             match blk {
@@ -4042,6 +5083,8 @@ impl ConsoleView {
                                         gutter_cols,
                                         bands,
                                         editor_scroll.clone(),
+                                        editor_input.clone(),
+                                        editor_options.as_ref(),
                                     ));
                                 }
                                 other => head = head.child(render_block(other, motion)),
@@ -4055,7 +5098,34 @@ impl ConsoleView {
                             .flex_col()
                             .child(head)
                             .when_some(code, |b, c| {
-                                b.child(div().flex_1().overflow_hidden().child(c))
+                                b.child(
+                                    div()
+                                        .relative()
+                                        .flex_1()
+                                        .overflow_hidden()
+                                        .cursor(CursorStyle::IBeam)
+                                        .child(c)
+                                        // Keep the hit-test/input layer mounted even
+                                        // while this pane is inactive. The first click
+                                        // must both focus the pane and place the caret.
+                                        .child(
+                                            div()
+                                                .absolute()
+                                                .size_full()
+                                                .on_mouse_down(
+                                                    MouseButton::Left,
+                                                    cx.listener(move |this, event, window, cx| {
+                                                        this.ws_mut().focus(id);
+                                                        window.focus(&this.focus_handle);
+                                                        this.handle_editor_mouse_down(event, cx);
+                                                    }),
+                                                )
+                                                .child(EditorInputElement {
+                                                    view: cx.entity(),
+                                                    editor_key: editor_state_key.clone(),
+                                                }),
+                                        ),
+                                )
                             })
                     }
                     None if is_daemons => body.children(daemon_rows),
@@ -4064,21 +5134,96 @@ impl ConsoleView {
                     None if is_sextant => {
                         body.child(crate::galaxy_canvas::render_galaxy(self, id, cx))
                     }
-                    // Chat: bespoke bubbles from view state (three states: empty
-                    // invitation / populated transcript / error banner) — never the
-                    // generic Block list.
-                    None if is_chat => {
-                        let mut b = body;
+                    // Mission: one conversation with its live plan/claims/skills/
+                    // evidence rail. Inspectors open beside it only on demand.
+                    None if is_mission => {
+                        let mut conversation = div()
+                            .flex_1()
+                            .min_w(px(420.0))
+                            .flex()
+                            .flex_col()
+                            .pb(px(tokens::SPACE_3))
+                            .child(mission_header(
+                                &mission_goal,
+                                mission_stage.0,
+                                mission_stage.1,
+                                mission_actor.as_deref(),
+                                mission_runtime.as_deref(),
+                                mission_intent.as_deref(),
+                                mission_worktree.as_deref(),
+                                mission_branch.as_deref(),
+                            ))
+                            .when_some(work_graph_png, |column, path| {
+                                column.child(work_graphic(id, Some(path), &work_title))
+                            });
                         if matches!(chat_state, Some(ChatState::Empty)) {
-                            b = b.child(chat_empty_state());
+                            conversation = conversation.child(mission_empty_state(cx));
                         }
                         if let Some(reason) = &chat_error {
-                            b = b.child(chat_error_banner(reason));
+                            conversation = conversation.child(chat_error_banner(reason));
                         }
                         for (i, m) in chat_msgs.iter().enumerate() {
-                            b = b.child(chat_bubble(i, m, chat_reduced));
+                            conversation = conversation.child(chat_bubble(i, m, chat_reduced));
                         }
-                        b
+                        if chat_awaiting {
+                            conversation = conversation.child(mission_waiting_state(chat_reduced));
+                        }
+                        if !mission_trace.is_empty() {
+                            let mut trace = div()
+                                .mx(px(tokens::SPACE_3))
+                                .mt(px(tokens::SPACE_3))
+                                .border_t_1()
+                                .border_color(rgb(current_theme().line))
+                                .pt(px(tokens::SPACE_2))
+                                .flex()
+                                .flex_col()
+                                .child(
+                                    div()
+                                        .text_color(rgb(current_theme().muted))
+                                        .text_size(px(tokens::TEXT_CAPTION))
+                                        .font_weight(FontWeight::BOLD)
+                                        .child("LIVE TOOL + ARTIFACT TRACE"),
+                                );
+                            for block in mission_trace {
+                                trace = trace.child(render_block(block, motion));
+                            }
+                            conversation = conversation.child(trace);
+                        }
+
+                        let mut context = div()
+                            .w(px(316.0))
+                            .flex_shrink_0()
+                            .flex()
+                            .flex_col()
+                            .gap(px(tokens::SPACE_2))
+                            .pl(px(tokens::SPACE_3))
+                            .border_l_1()
+                            .border_color(rgb(current_theme().line))
+                            .child(
+                                div()
+                                    .text_color(rgb(current_theme().muted))
+                                    .text_size(px(tokens::TEXT_CAPTION))
+                                    .font_weight(FontWeight::BOLD)
+                                    .child("LIVE MISSION CONTEXT"),
+                            );
+                        for card in mission_context {
+                            context = context.child(mission_context_card(card, cx));
+                        }
+
+                        body.flex_row()
+                            .flex_wrap()
+                            .items_start()
+                            .gap(px(tokens::SPACE_3))
+                            .p(px(tokens::SPACE_3))
+                            .child(conversation)
+                            .child(context)
+                    }
+                    None if sparse_status.is_some() => {
+                        body.child(story_sparse_poster(
+                            id,
+                            surface,
+                            sparse_status.as_deref().unwrap_or_default(),
+                        ))
                     }
                     // Every other surface: the generic read-agnostic Block
                     // renderer — except the two interactive Harbor blocks,
@@ -4086,8 +5231,19 @@ impl ConsoleView {
                     // compliance-gated control buttons; ch18 C3).
                     None => {
                         let mut b = body;
-                        for blk in blocks {
+                        for (index, blk) in blocks.into_iter().enumerate() {
+                            if index == 0
+                                && matches!(&blk, Block::Header(text) if text.eq_ignore_ascii_case(&label))
+                            {
+                                continue;
+                            }
                             b = match blk {
+                                blk @ Block::LedgerHeader { .. } => {
+                                    b.child(render_ledger_header(id, blk, cx))
+                                }
+                                blk @ Block::LedgerRow { .. } => {
+                                    b.child(render_ledger_row(id, blk, cx))
+                                }
                                 blk @ Block::NodeRow { .. } => {
                                     b.child(render_harbor_node_row(id, blk, cx))
                                 }
@@ -4118,20 +5274,12 @@ impl ConsoleView {
                                 .id(SharedString::from(format!("message-{id}")))
                                 .px(px(12.0))
                                 .py(px(5.0))
-                                .rounded(px(6.0))
                                 .bg(rgb(current_theme().accent))
                                 .text_color(rgb(current_theme().bg))
                                 .text_size(px(14.0))
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .cursor_pointer()
-                                .hover(|s| {
-                                    s.shadow(motion::glow(
-                                        current_theme().accent,
-                                        0.30,
-                                        10.0,
-                                        0.0,
-                                    ))
-                                })
+                                .hover(|s| s.bg(rgb(current_theme().accent_ink)))
                                 .child("Message")
                                 .on_click(cx.listener(|this, _ev, _window, cx| {
                                     this.command = Some(CommandLine::new(CmdKind::LaneMessage));
@@ -4145,7 +5293,6 @@ impl ConsoleView {
                                 .id(SharedString::from(format!("attach-file-{id}")))
                                 .px(px(10.0))
                                 .py(px(5.0))
-                                .rounded(px(6.0))
                                 .border_1()
                                 .border_color(rgb(current_theme().accent))
                                 .text_color(rgb(current_theme().accent_ink))
@@ -4169,7 +5316,6 @@ impl ConsoleView {
                                 .id(SharedString::from(format!("attach-photo-{id}")))
                                 .px(px(10.0))
                                 .py(px(5.0))
-                                .rounded(px(6.0))
                                 .border_1()
                                 .border_color(rgb(current_theme().accent))
                                 .text_color(rgb(current_theme().accent_ink))
@@ -4193,7 +5339,6 @@ impl ConsoleView {
                                 .id(SharedString::from(format!("invoke-skill-{id}")))
                                 .px(px(10.0))
                                 .py(px(5.0))
-                                .rounded(px(6.0))
                                 .border_1()
                                 .border_color(rgb(current_theme().engaged))
                                 .text_color(rgb(current_theme().engaged))
@@ -4217,7 +5362,6 @@ impl ConsoleView {
                                 .id(SharedString::from(format!("request-tool-{id}")))
                                 .px(px(10.0))
                                 .py(px(5.0))
-                                .rounded(px(6.0))
                                 .border_1()
                                 .border_color(rgb(current_theme().engaged))
                                 .text_color(rgb(current_theme().engaged))
@@ -4241,7 +5385,6 @@ impl ConsoleView {
                                 .id(SharedString::from(format!("interrupt-{id}")))
                                 .px(px(12.0))
                                 .py(px(5.0))
-                                .rounded(px(6.0))
                                 .border_1()
                                 .border_color(rgb(current_theme().gated))
                                 .text_color(rgb(current_theme().gated))
@@ -4253,8 +5396,10 @@ impl ConsoleView {
                                 .on_click(cx.listener(|this, _ev, _window, cx| {
                                     if let Some(tx) = &this.control_tx {
                                         let _ = tx.send(ControlMsg::InterruptLane);
-                                        this.control_flash =
-                                            Some("interrupt sent — watch the stream".into());
+                                        this.control_flash = Some(
+                                            "Interrupt requested. Runtime acknowledgement pending."
+                                                .into(),
+                                        );
                                         cx.notify();
                                     }
                                 })),
@@ -4269,10 +5414,10 @@ impl ConsoleView {
                         }),
                 )
             })
-            // Chat composer — only the focused chat pane mounts the input bar. This
+            // Mission composer — only the focused Mission mounts the input bar. This
             // is the rolled-own text field: the root focus handle captures keys and
             // routes them to handle_chat_key when chat is focused (gpui has no native input).
-            .when(is_chat && is_focused, |content| {
+            .when(is_mission && is_focused, |content| {
                 content.child(chat_composer(&chat_input, chat_reduced, cx))
             })
             // ── Dispatch review GATE (focused dispatch surface) — the operator's
@@ -4296,7 +5441,7 @@ impl ConsoleView {
                                 .text_size(px(14.0))
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .child(match &head {
-                                    Some(h) => format!("⚑ Review gate · {} awaiting", h.count),
+                                    Some(h) => format!("REVIEW GATE · {} awaiting", h.count),
                                     None => "Review gate · queue empty".to_string(),
                                 }),
                         )
@@ -4326,10 +5471,33 @@ impl ConsoleView {
                             .child(
                                 div()
                                     .flex()
+                                    .items_center()
                                     .gap(px(8.0))
-                                    .child(dispatch_gate_btn(
-                                        "approve", "✓ Approve", current_theme().landed, h.id.clone(), cx,
-                                    ))
+                                    // HITL §4.3: while a CRITICAL ask is open, the
+                                    // console refuses to start new fleet work. The
+                                    // Approve affordance is replaced by an honest
+                                    // refusal carrying the ask's title — never a
+                                    // silently dead button.
+                                    .when_some(hitl_critical.clone(), |c, blocked_by| {
+                                        c.child(
+                                            div()
+                                                .px(px(10.0))
+                                                .py(px(4.0))
+                                                .border_1()
+                                                .border_color(rgb(current_theme().gated))
+                                                .text_color(rgb(current_theme().gated))
+                                                .text_size(px(13.0))
+                                                .font_weight(FontWeight::SEMIBOLD)
+                                                .child(format!(
+                                                    "\u{26d4} Approve blocked \u{2014} critical interruption open: {blocked_by}"
+                                                )),
+                                        )
+                                    })
+                                    .when(hitl_critical.is_none(), |c| {
+                                        c.child(dispatch_gate_btn(
+                                            "approve", "✓ Approve", current_theme().landed, h.id.clone(), cx,
+                                        ))
+                                    })
                                     .child(dispatch_gate_btn(
                                         "reject", "✗ Reject…", current_theme().gated, h.id.clone(), cx,
                                     ))
@@ -4337,6 +5505,19 @@ impl ConsoleView {
                                         "cancel", "⊘ Cancel", current_theme().muted, h.id.clone(), cx,
                                     )),
                             )
+                            // Deep-link to the session-gated web answer surface
+                            // (answer/ack is never in-app by design).
+                            .when(hitl_critical.is_some(), |c| {
+                                let link = hitl_link
+                                    .clone()
+                                    .unwrap_or_else(|| "/account/interruptions".into());
+                                c.child(
+                                    div()
+                                        .text_color(rgb(current_theme().muted))
+                                        .text_size(px(13.0))
+                                        .child(format!("answer / ack \u{2192} {link}")),
+                                )
+                            })
                         })
                         .when_some(gate_flash, |c, flash| {
                             c.child(
@@ -4393,84 +5574,68 @@ impl ConsoleView {
                         }),
                 )
             })
-            // ── Conjure render action (focused Conjure surface) — the discoverable
-            //    "open the Vello PNG of this DAG" control. Serializes the live DAG
-            //    to the proto's JSON, shells capture.sh (release+unsandboxed), then
-            //    opens the PNG — all on the background/blocking worker, never the
-            //    gpui thread. Mirrors the dispatch/conductor gate footer pattern. ──
-            .when(is_conjure && is_focused, |content| {
+            // Mission actions stay human-facing. Runtime identifiers remain in
+            // the durable receipt and inspector surfaces, not in this primary row.
+            .when(is_mission && is_focused, |content| {
                 content.child(
                     div()
-                        .px(px(10.0))
-                        .py(px(8.0))
+                        .px(px(16.0))
+                        .py(px(10.0))
                         .border_t_1()
                         .border_color(rgb(current_theme().line))
                         .flex()
                         .items_center()
-                        .gap(px(8.0))
-                        .child(
+                        .gap(px(12.0))
+                        .when_some(work_agent, |row, agent_id| {
+                            let target = agent_id.clone();
+                            row.child(
+                                div()
+                                    .id(SharedString::from(format!("stop-mission-{agent_id}")))
+                                    .px(px(12.0))
+                                    .py(px(7.0))
+                                    .border_1()
+                                    .border_color(rgb(current_theme().gated))
+                                    .text_color(rgb(current_theme().gated))
+                                    .text_size(px(14.0))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .cursor_pointer()
+                                    .hover(|surface| surface.bg(rgb(current_theme().raised)))
+                                    .child("Ask agent to stop")
+                                    .on_click(cx.listener(move |this, _event, _window, cx| {
+                                        if let Some(tx) = &this.control_tx {
+                                            let _ = tx.send(ControlMsg::InterruptAgent {
+                                                agent_id: target.clone(),
+                                            });
+                                            this.control_flash = Some("Stop request delivered. This runtime has not acknowledged shutdown yet.".into());
+                                            cx.notify();
+                                        }
+                                    })),
+                            )
+                        })
+                        .when(work_wave_count > 0, |row| row.child(
                             div()
-                                .id("conjure-render")
+                                .id("work-plan-render")
                                 .px(px(12.0))
-                                .py(px(5.0))
-                                .rounded(px(6.0))
+                                .py(px(7.0))
                                 .border_1()
                                 .border_color(rgb(current_theme().accent))
                                 .text_color(rgb(current_theme().accent_ink))
                                 .text_size(px(14.0))
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .cursor_pointer()
-                                .hover(|s| {
-                                    s.bg(rgb(current_theme().raised))
-                                        .shadow(motion::glow(current_theme().accent, 0.24, 8.0, 0.0))
-                                })
-                                .child("\u{25c8} Render graph")
+                                .hover(|s| s.bg(rgb(current_theme().raised)))
+                                .child("View technical plan")
                                 .on_click(cx.listener(|this, _ev, _window, cx| {
-                                    this.render_conjure_graph();
+                                    this.render_work_graph();
                                     cx.notify();
                                 })),
-                        )
-                        // ── Dispatch DAG — spawn the committed (non-HITL-gated) nodes
-                        //    to their vendors (model_tier → backend), each through the
-                        //    SAME DaemonClient::spawn the manual Spawn command uses.
-                        //    Disabled-looking (muted) when there is nothing to send. ──
-                        .when(conjure_dispatch_count > 0, |row| {
-                            row.child(
-                                div()
-                                    .id("conjure-dispatch")
-                                    .px(px(12.0))
-                                    .py(px(5.0))
-                                    .rounded(px(6.0))
-                                    .border_1()
-                                    .border_color(rgb(current_theme().accent))
-                                    .text_color(rgb(current_theme().accent_ink))
-                                    .text_size(px(14.0))
-                                    .font_weight(FontWeight::SEMIBOLD)
-                                    .cursor_pointer()
-                                    .hover(|s| {
-                                        s.bg(rgb(current_theme().raised))
-                                            .shadow(motion::glow(current_theme().accent, 0.24, 8.0, 0.0))
-                                    })
-                                    .child(format!("\u{2693} Dispatch DAG ({conjure_dispatch_count})"))
-                                    .on_click(cx.listener(|this, _ev, _window, cx| {
-                                        this.dispatch_conjure_dag();
-                                        cx.notify();
-                                    })),
-                            )
-                        })
-                        .child(
-                            div()
-                                .text_color(rgb(current_theme().muted))
-                                .text_size(px(13.0))
-                                .child(format!(
-                                    "{conjure_wave_count} waves \u{00b7} dispatch {conjure_dispatch_count} to vendors \u{00b7} {conjure_gated_count} gated \u{00b7} Vello \u{2192} PNG"
-                                )),
-                        )
-                        .when_some(conjure_flash, |bar, flash| {
+                        ))
+                        .when_some(work_flash, |bar, flash| {
                             bar.child(
                                 div()
+                                    .flex_1()
                                     .text_color(rgb(current_theme().muted))
-                                    .text_size(px(13.0))
+                                    .text_size(px(14.0))
                                     .child(flash),
                             )
                         }),
@@ -4496,20 +5661,21 @@ impl ConsoleView {
                                 .text_color(rgb(current_theme().accent_ink))
                                 .text_size(px(14.0))
                                 .font_weight(FontWeight::SEMIBOLD)
-                                .child("\u{2693} Agent ops \u{2014} target by id"),
+                                .font_family("IBM Plex Mono")
+                                .child("AGENT OPS · TARGET BY ID"),
                         )
                         .child(
                             div()
                                 .text_color(rgb(current_theme().muted))
                                 .text_size(px(14.0))
-                                .child("kill = DELETE /agents/:id (unregister) \u{00b7} interrupt = stop a run"),
+                                .child("kill = unregister an agent \u{00b7} interrupt = request a run stop"),
                         )
                         .child(
                             div()
                                 .flex()
                                 .gap(px(8.0))
-                                .child(fleet_ops_btn("kill", "\u{2715} Kill agent\u{2026}", current_theme().conflict, cx))
-                                .child(fleet_ops_btn("interrupt", "\u{25fc} Interrupt\u{2026}", current_theme().gated, cx)),
+                                .child(fleet_ops_btn("kill", "KILL AGENT", current_theme().conflict, cx))
+                                .child(fleet_ops_btn("interrupt", "INTERRUPT", current_theme().gated, cx)),
                         )
                         .when_some(fleet_flash, |c, flash| {
                             c.child(
@@ -4520,6 +5686,13 @@ impl ConsoleView {
                             )
                         }),
                 )
+            })
+            // Paint focus ticks last so title and body backgrounds cannot cover
+            // them. Focus is a boundary, never a glow.
+            .children(if is_focused {
+                corner_ticks(format!("pane-{id}"), current_theme().ink)
+            } else {
+                Vec::new()
             })
             .into_any_element()
     }
@@ -4539,8 +5712,7 @@ struct ButtonOpts {
     leading: Option<(char, u32)>,
     /// Dimmed trailing text pushed to the right edge (a port, a shortcut hint).
     trailing: Option<String>,
-    /// Selected/active: a solid tone wash + a gated breathing halo (static under
-    /// reduced motion).
+    /// Selected/active: a solid tone wash plus a semantic color edge.
     selected: bool,
     /// Stretch to fill the row (a list item) instead of hugging its content.
     full_width: bool,
@@ -4548,12 +5720,9 @@ struct ButtonOpts {
 
 /// The console's one clickable-control primitive — reuse it for every operator
 /// button (daemon rows, future toolbar actions, gates) instead of hand-rolling a
-/// `div`. Motion is composed the gpui way, **no transforms**: hover lifts via a
-/// soft `glow` (free GPU-side `.hover` lane, no notify), press sinks via the
-/// `sunken` bg + a 1px `hard_offset`, and a `selected` button breathes a halo
-/// through a single `with_animation` owner (reduced-motion resolves it to a
-/// static glow — orientation kept, travel dropped). Colours read from theme
-/// roles so it survives the `Ctrl-A g` light⇄dark flip.
+/// `div`. The story-linework control language is flat: a hairline box, a
+/// semantic left edge for selection, and a quiet fill on hover/press. Colours
+/// read from theme roles so it survives the `Ctrl-A g` light/dark flip.
 fn console_button(
     id: impl Into<SharedString>,
     label: impl Into<String>,
@@ -4572,9 +5741,9 @@ fn console_button(
         .gap(px(tokens::SPACE_2))
         .px(px(tokens::SPACE_3))
         .py(px(tokens::SPACE_2))
-        .rounded(px(tokens::RADIUS_MD))
         .border_1()
         .border_color(rgb(if opts.selected { color } else { t.line }))
+        .when(opts.selected, |s| s.border_l_2())
         .cursor_pointer();
     if opts.full_width {
         row = row.w_full();
@@ -4594,7 +5763,6 @@ fn console_button(
                 .flex()
                 .items_center()
                 .justify_center()
-                .rounded(px(tokens::RADIUS_SM))
                 .bg(rgb(badge))
                 .text_color(rgb(knockout_ink(badge)))
                 .text_size(px(tokens::TEXT_EYEBROW))
@@ -4620,44 +5788,14 @@ fn console_button(
 
     // Cheap GPU-side interaction lane — restyles without a notify or re-render.
     row = row
-        .hover(move |s| {
-            s.bg(rgb(current_theme().raised))
-                .border_color(rgb(color))
-                .shadow(motion::glow(color, 0.22, 10.0, 0.0))
-        })
-        .active(move |s| {
-            s.bg(rgb(current_theme().sunken))
-                .shadow(motion::hard_offset(color, 0.0, 1.0))
-        })
+        .hover(move |s| s.bg(rgb(current_theme().raised)).border_color(rgb(color)))
+        .active(move |s| s.bg(tone_wash(color, 0x28)))
         .on_click(cx.listener(move |this, _ev, _window, cx| {
             on_click(this, cx);
             cx.notify();
         }));
 
-    // Selected → a breathing halo. One animation owner, id keyed per-button so
-    // siblings don't share a clock; reduced motion drops to a static glow.
-    if opts.selected && !reduced_motion() {
-        row.with_animation(
-            SharedString::from(format!("btn-pulse-{id}")),
-            Animation::new(Duration::from_millis(2000))
-                .repeat()
-                .with_easing(pulsating_between(0.5, 1.0)),
-            move |el, delta| {
-                el.shadow(motion::glow(
-                    color,
-                    0.10 + delta * 0.28,
-                    6.0 + delta * 8.0,
-                    0.0,
-                ))
-            },
-        )
-        .into_any_element()
-    } else if opts.selected {
-        row.shadow(motion::glow(color, 0.30, 10.0, 0.0))
-            .into_any_element()
-    } else {
-        row.into_any_element()
-    }
+    row.into_any_element()
 }
 
 /// A baked still of the living-harbor water shader as a bounded banner. The
@@ -4670,7 +5808,6 @@ fn harbor_banner() -> AnyElement {
         .h(px(132.0))
         .w_full()
         .flex_shrink_0()
-        .rounded(px(tokens::RADIUS_MD))
         .overflow_hidden()
         .border_1()
         .border_color(rgb(current_theme().line))
@@ -4705,18 +5842,13 @@ fn gate_btn(
         .id(id.into())
         .px(px(tokens::SPACE_3))
         .py(px(tokens::SPACE_1))
-        .rounded(px(tokens::RADIUS_MD))
         .border_1()
         .border_color(rgb(color))
         .text_color(rgb(color))
         .text_size(px(tokens::TEXT_BODY))
         .font_weight(FontWeight::SEMIBOLD)
         .cursor_pointer()
-        .child(label)
-        .hover(move |s| {
-            s.bg(rgb(current_theme().raised))
-                .shadow(motion::glow(color, 0.22, 8.0, 0.0))
-        })
+        .hover(move |s| s.bg(tone_wash(color, 0x22)))
         .active(|s| s.bg(rgb(current_theme().sunken)))
         .child(label)
         .on_click(cx.listener(move |this, _ev, _window, cx| {
@@ -4769,17 +5901,35 @@ fn commitment_accent(level: &str) -> u32 {
 /// Vendor-distinct chip accent (mirrors the Vello scene's `vendor_accent`): the
 /// tier label renders verbatim, but the chip color reads the vendor family so the
 /// operator scans vendors at a glance.
+///
+/// This is a DISPLAY-ONLY lookup against the WorkPlan/predicted-DAG's own
+/// `model_tier` vocabulary (vendor nicknames — "opus"/"sonnet"/"haiku"/
+/// "gemini"/"sol"/"terra"/"luna"/"codex"/"gpt"/"o1"/"o3"/"groq"/"llama"/"mixtral", see
+/// work_plan.rs's `PredictedNode::model_tier`) — it never selects a backend
+/// or spawns anything (per this crate's own doc comment: "the console has no
+/// backend/model selection or direct spawn... launch path", agent.rs:1-6).
+///
+/// EXACT-token match, not substring `contains()` (ADR-0057 model-abstraction
+/// unification — `contains()` is exactly the keyword/substring-NLP pattern
+/// the house rule forbids, and it risks a false-positive chip color on any
+/// tier label that merely CONTAINS a vendor nickname as a substring of an
+/// unrelated word). An unrecognized token falls through to the neutral
+/// `t.muted` — never a vendor default.
 fn vendor_accent(tier: &str) -> u32 {
     let t = current_theme();
     let s = tier.to_ascii_lowercase();
-    let has = |n: &str| s.contains(n);
-    if has("opus") || has("sonnet") || has("haiku") || has("claude") {
+    let tokens: Vec<&str> = s
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter(|tok| !tok.is_empty())
+        .collect();
+    let has_any = |names: &[&str]| tokens.iter().any(|tok| names.contains(tok));
+    if has_any(&["opus", "sonnet", "haiku", "claude"]) {
         t.accent
-    } else if has("gemini") {
+    } else if has_any(&["gemini"]) {
         t.landed
-    } else if has("codex") || has("gpt") || has("o1") || has("o3") {
+    } else if has_any(&["sol", "terra", "luna", "codex", "gpt", "o1", "o3"]) {
         0x_b6_9c_ff // violet — no palette role, matches the Vello codex chip
-    } else if has("groq") || has("llama") || has("mixtral") {
+    } else if has_any(&["groq", "llama", "mixtral"]) {
         t.engaged
     } else {
         t.muted
@@ -4796,22 +5946,17 @@ fn trunc_chars(s: &str, max: usize) -> String {
     }
 }
 
-/// One live, interactive node card in the Conjure canvas. Themed to the same
-/// maritime palette as the Vello render: a commitment-colored border + rail, a
-/// vendor chip, a cost/time footer, an HITL gate marker, hover-lift, and — for
-/// COMMITTED nodes — a continuously BREATHING glow (the "presence beacon", a
-/// looping `with_animation`) so the graph is visibly alive, not a static image.
-/// Clicking the card selects it, opening the inspector drawer.
-fn conjure_card(
+/// One interactive node in the WorkPlan wave deck. Wave color owns the boundary;
+/// commitment and HITL remain explicit text so color never carries state alone.
+fn work_node_card(
     id: PaneId,
-    node: &crate::conjure::PredictedNode,
+    node: &crate::work_plan::PredictedNode,
+    wave_color: u32,
     is_selected: bool,
     cx: &mut Context<ConsoleView>,
 ) -> AnyElement {
     let theme = current_theme();
-    let accent = commitment_accent(&node.commitment_level);
-    let committed = node.commitment_level.eq_ignore_ascii_case("COMMITTED");
-    let tentative = node.commitment_level.eq_ignore_ascii_case("TENTATIVE");
+    let commitment_color = commitment_accent(&node.commitment_level);
     let vchip = vendor_accent(&node.model_tier);
     let nid = node.id.clone();
     let skill = trunc_chars(&node.skill_id, 30);
@@ -4832,36 +5977,39 @@ fn conjure_card(
         }
     );
     let gate = node.ask_user_before_proceeding;
-    let border = if is_selected { theme.accent } else { accent };
+    let border = if gate {
+        theme.gated
+    } else if is_selected {
+        theme.accent_ink
+    } else {
+        wave_color
+    };
     let bg = if is_selected {
         theme.raised
     } else {
         theme.panel
     };
 
-    let card = div()
-        .id(SharedString::from(format!("conjure-card-{id}-{nid}")))
+    div()
+        .id(SharedString::from(format!("work-plan-card-{id}-{nid}")))
         .flex()
         .flex_col()
-        .gap(px(6.0))
-        .w(px(248.0))
-        .p(px(12.0))
-        .rounded(px(12.0))
+        .gap(px(8.0))
+        .w_full()
+        .min_h(px(132.0))
+        .p(px(14.0))
         .border_1()
+        .border_t_2()
         .border_color(rgb(border))
         .bg(rgb(bg))
         .cursor_pointer()
-        .hover(move |s| {
-            s.bg(rgb(theme.raised))
-                .border_color(rgb(theme.accent))
-                .shadow(motion::glow(theme.accent, 0.34, 16.0, 1.0))
-        })
+        .hover(move |s| s.bg(rgb(theme.raised)).border_color(rgb(theme.accent_ink)))
         .on_click(cx.listener(move |this, _ev, _window, cx| {
-            this.conjure_selected = Some(nid.clone());
+            this.work_selected_node = Some(nid.clone());
             crate::audio::play(crate::audio::Cue::Tick);
             cx.notify();
         }))
-        // Header: a commitment-colored skill eyebrow + an optional HITL gate flag.
+        // Header: skill plus a textual lifecycle marker.
         .child(
             div()
                 .flex()
@@ -4871,19 +6019,28 @@ fn conjure_card(
                     div()
                         .flex_1()
                         .text_size(px(13.0))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(rgb(accent))
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(rgb(theme.ink))
                         .child(skill),
                 )
-                .when(gate, |r| {
-                    r.child(
-                        div()
-                            .text_size(px(11.0))
-                            .font_weight(FontWeight::BOLD)
-                            .text_color(rgb(theme.gated))
-                            .child("\u{26d4} GATE"),
-                    )
-                }),
+                .child(
+                    div()
+                        .px(px(5.0))
+                        .py(px(2.0))
+                        .bg(rgb(if gate { theme.gated } else { commitment_color }))
+                        .text_color(rgb(knockout_ink(if gate {
+                            theme.gated
+                        } else {
+                            commitment_color
+                        })))
+                        .text_size(px(10.0))
+                        .font_weight(FontWeight::BOLD)
+                        .child(if gate {
+                            "GATE".to_string()
+                        } else {
+                            node.commitment_level.to_uppercase()
+                        }),
+                ),
         )
         // Role — what this agent does in context.
         .child(
@@ -4892,7 +6049,7 @@ fn conjure_card(
                 .text_color(rgb(theme.ink))
                 .child(role),
         )
-        // Footer: a vendor model-tier chip + a success-tinted cost/time line.
+        // Footer: solid provider knockout plus cost/time receipt.
         .child(
             div()
                 .flex()
@@ -4901,13 +6058,11 @@ fn conjure_card(
                 .child(
                     div()
                         .px(px(8.0))
-                        .py(px(2.0))
-                        .rounded_full()
-                        .border_1()
-                        .border_color(rgb(vchip))
+                        .py(px(3.0))
+                        .bg(rgb(vchip))
                         .text_size(px(12.0))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(rgb(vchip))
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(rgb(knockout_ink(vchip)))
                         .child(model),
                 )
                 .child(
@@ -4916,41 +6071,26 @@ fn conjure_card(
                         .text_color(rgb(theme.landed))
                         .child(metrics),
                 ),
-        );
-
-    if committed {
-        // The breathing glow — a looping halo that proves the graph is live.
-        card.with_animation(
-            SharedString::from(format!("conjure-pulse-{id}-{}", node.id)),
-            Animation::new(Duration::from_millis(2200))
-                .repeat()
-                .with_easing(pulsating_between(0.0, 1.0)),
-            move |el, delta| el.shadow(motion::glow(accent, 0.16 + 0.30 * delta, 15.0, 0.0)),
         )
         .into_any_element()
-    } else {
-        let a = if tentative { 0.16 } else { 0.07 };
-        card.shadow(motion::glow(accent, a, 10.0, 0.0))
-            .into_any_element()
-    }
 }
 
-/// The LIVE, interactive Conjure node-graph rendered natively in gpui — the
-/// default view of the Conjure surface. Replaces the static Vello PNG as the
-/// primary graphic: wave columns of [`conjure_card`]s (commitment-themed,
+/// The LIVE, interactive WorkPlan graph rendered natively in gpui — the
+/// default plan view inside Mission. Replaces the static Vello PNG as the
+/// primary graphic: wave columns of [`work_node_card`]s (commitment-themed,
 /// breathing, hover-lit, clickable), an editorial header, and — when a node is
 /// selected — a full inspector drawer. The Vello PNG remains reachable as an
 /// optional "poster" beneath, rendered on demand by the "Render graph" action.
-fn conjure_canvas(
+fn work_graph_canvas(
     id: PaneId,
-    dag: &crate::conjure::PredictedDag,
+    dag: &crate::work_plan::PredictedDag,
     selected: Option<&str>,
     cx: &mut Context<ConsoleView>,
 ) -> AnyElement {
     let theme = current_theme();
     let n_nodes: usize = dag.waves.iter().map(|w| w.nodes.len()).sum();
     let title = if dag.title.is_empty() {
-        "predicted DAG".to_string()
+        "work plan".to_string()
     } else {
         dag.title.clone()
     };
@@ -4973,6 +6113,19 @@ fn conjure_canvas(
         .waves
         .iter()
         .map(|wave| {
+            let wave_color = if wave
+                .nodes
+                .iter()
+                .any(|node| node.ask_user_before_proceeding)
+            {
+                theme.gated
+            } else if wave.parallelizable {
+                theme.accent
+            } else if wave.wave_number == 1 {
+                theme.engaged
+            } else {
+                theme.landed
+            };
             let cap = format!(
                 "WAVE {}  {}",
                 wave.wave_number,
@@ -4985,9 +6138,13 @@ fn conjure_canvas(
             let cards: Vec<AnyElement> = wave
                 .nodes
                 .iter()
-                .map(|node| conjure_card(id, node, selected == Some(node.id.as_str()), cx))
+                .map(|node| {
+                    work_node_card(id, node, wave_color, selected == Some(node.id.as_str()), cx)
+                })
                 .collect();
             div()
+                .flex_1()
+                .min_w(px(250.0))
                 .flex()
                 .flex_col()
                 .gap(px(12.0))
@@ -4995,7 +6152,7 @@ fn conjure_canvas(
                     div()
                         .text_size(px(12.0))
                         .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(rgb(theme.muted))
+                        .text_color(rgb(wave_color))
                         .child(cap),
                 )
                 .children(cards)
@@ -5011,7 +6168,7 @@ fn conjure_canvas(
                 .flat_map(|w| &w.nodes)
                 .find(|n| n.id == sel)
         })
-        .map(|node| conjure_inspector(node, cx));
+        .map(|node| work_node_inspector(node, cx));
 
     div()
         .flex()
@@ -5027,7 +6184,7 @@ fn conjure_canvas(
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(rgb(theme.accent_ink))
                 .child(SharedString::from(format!(
-                    "\u{2693} CONJURE \u{00b7} LIVE PREDICTED DAG \u{00b7} {}",
+                    "WORK \u{00b7} DAEMON PLAN \u{00b7} {}",
                     title.to_uppercase()
                 ))),
         )
@@ -5042,9 +6199,9 @@ fn conjure_canvas(
         // The scrolling wave-column canvas.
         .child(
             div()
-                .id(SharedString::from(format!("conjure-cols-{id}")))
+                .id(SharedString::from(format!("work-plan-cols-{id}")))
                 .flex()
-                .gap(px(30.0))
+                .gap(px(20.0))
                 .py(px(8.0))
                 .overflow_x_scroll()
                 .children(columns),
@@ -5055,8 +6212,8 @@ fn conjure_canvas(
 
 /// The node inspector drawer — the rich click-inspection the operator asked for:
 /// every field of the selected node, in full, with a close affordance.
-fn conjure_inspector(
-    node: &crate::conjure::PredictedNode,
+fn work_node_inspector(
+    node: &crate::work_plan::PredictedNode,
     cx: &mut Context<ConsoleView>,
 ) -> AnyElement {
     let theme = current_theme();
@@ -5085,11 +6242,10 @@ fn conjure_inspector(
     div()
         .mt(px(6.0))
         .p(px(14.0))
-        .rounded(px(12.0))
         .border_1()
+        .border_l_2()
         .border_color(rgb(accent))
         .bg(rgb(theme.raised))
-        .shadow(motion::glow(accent, 0.18, 14.0, 0.0))
         .flex()
         .flex_col()
         .gap(px(6.0))
@@ -5113,23 +6269,26 @@ fn conjure_inspector(
                 )
                 .child(
                     div()
-                        .id("conjure-inspector-close")
+                        .id("work-plan-inspector-close")
                         .px(px(8.0))
                         .py(px(2.0))
-                        .rounded(px(6.0))
+                        .border_l_1()
+                        .border_color(rgb(theme.line))
                         .cursor_pointer()
                         .text_size(px(13.0))
                         .text_color(rgb(theme.muted))
                         .hover(move |s| s.text_color(rgb(theme.ink)).bg(rgb(theme.panel)))
                         .on_click(cx.listener(|this, _ev, _window, cx| {
-                            this.conjure_selected = None;
+                            this.work_selected_node = None;
                             cx.notify();
                         }))
                         .child("\u{2715} close"),
                 ),
         )
         .child(row("role", node.role_description.clone()))
-        .when(!node.why.is_empty(), |c| c.child(row("why", node.why.clone())))
+        .when(!node.why.is_empty(), |c| {
+            c.child(row("why", node.why.clone()))
+        })
         .when(!node.input_contract.is_empty(), |c| {
             c.child(row("input contract", node.input_contract.clone()))
         })
@@ -5157,22 +6316,24 @@ fn conjure_inspector(
                     .text_size(px(13.0))
                     .font_weight(FontWeight::SEMIBOLD)
                     .text_color(rgb(theme.gated))
-                    .child("\u{26d4} HITL gate \u{2014} this node stops for your confirmation before it runs"),
+                    .child(
+                        "HITL GATE \u{2014} this node stops for your confirmation before it runs",
+                    ),
             )
         })
         .into_any_element()
 }
 
-/// The INLINE Vello node-graph at the top of the Conjure surface — the beautiful
+/// The inline Vello node-graph available from Mission's plan context — the
 /// default view the operator most wants. When a PNG has been rendered, it shows
 /// the graph image sized to fit the pane (capped width, rounded, maritime frame);
 /// until then it shows a tasteful "rendering graph…" placeholder so the region is
 /// never blank. The image is loaded from an ABSOLUTE path via `gpui::img(PathBuf)`
 /// (a `Resource::Path` read directly off disk — NOT through the embedded asset
 /// source), so it works for the live-rendered PNG outside the `assets/` dir.
-fn conjure_graphic(id: PaneId, png: Option<std::path::PathBuf>, title: &str) -> impl IntoElement {
+fn work_graphic(id: PaneId, png: Option<std::path::PathBuf>, title: &str) -> impl IntoElement {
     let frame = div()
-        .id(SharedString::from(format!("conjure-graphic-{id}")))
+        .id(SharedString::from(format!("work-plan-graphic-{id}")))
         .flex()
         .flex_col()
         .gap(px(6.0))
@@ -5187,7 +6348,7 @@ fn conjure_graphic(id: PaneId, png: Option<std::path::PathBuf>, title: &str) -> 
         .text_size(px(12.0))
         .font_weight(FontWeight::SEMIBOLD)
         .child(SharedString::from(format!(
-            "\u{2693} PREDICTED DAG \u{00b7} {}",
+            "PREDICTED DAG \u{00b7} {}",
             title.to_uppercase()
         )));
 
@@ -5197,7 +6358,6 @@ fn conjure_graphic(id: PaneId, png: Option<std::path::PathBuf>, title: &str) -> 
             // read straight off disk (PathBuf ⇒ Resource::Path).
             div()
                 .w_full()
-                .rounded(px(10.0))
                 .border_1()
                 .border_color(rgb(current_theme().line))
                 .bg(rgb(current_theme().bg))
@@ -5207,8 +6367,7 @@ fn conjure_graphic(id: PaneId, png: Option<std::path::PathBuf>, title: &str) -> 
                         .w_full()
                         .max_w(px(900.0))
                         .h(px(360.0))
-                        .object_fit(ObjectFit::Contain)
-                        .rounded(px(10.0)),
+                        .object_fit(ObjectFit::Contain),
                 ),
         ),
         None => frame.child(eyebrow).child(
@@ -5218,7 +6377,6 @@ fn conjure_graphic(id: PaneId, png: Option<std::path::PathBuf>, title: &str) -> 
                 .w_full()
                 .h(px(360.0))
                 .max_w(px(900.0))
-                .rounded(px(10.0))
                 .border_1()
                 .border_color(rgb(current_theme().line))
                 .bg(rgb(current_theme().raised))
@@ -5244,52 +6402,143 @@ fn conjure_graphic(id: PaneId, png: Option<std::path::PathBuf>, title: &str) -> 
     }
 }
 
-/// One always-visible operator-toolbar button. Clicking it opens the matching
-/// GUI input (placeholder-guided, no leader key, no memorized syntax) — the
-/// discoverable face of the spawn / cartographer / add-pane commands. This is
-/// the difference between an operator console and a CLI with hidden options.
-fn command_bar_btn(
-    kind: CmdKind,
-    label: &'static str,
-    cx: &mut Context<ConsoleView>,
-) -> impl IntoElement {
+/// Return to the single Mission flow without opening a second input surface.
+fn mission_home_btn(cx: &mut Context<ConsoleView>) -> impl IntoElement {
     let accent = current_theme().accent;
     div()
-        .id(SharedString::from(format!("cmdbar-{}", kind.prompt())))
-        .px(px(11.0))
-        .py(px(5.0))
-        .rounded(px(6.0))
-        .border_1()
+        .id("cmdbar-mission")
+        .h_full()
+        .px(px(12.0))
+        .flex()
+        .items_center()
+        .border_l_1()
         .border_color(rgb(current_theme().line))
-        .text_color(rgb(current_theme().ink2))
-        .text_size(px(13.0))
+        .text_color(rgb(knockout_ink(accent)))
+        .bg(rgb(accent))
+        .font_family("IBM Plex Mono")
+        .text_size(px(14.0))
         .font_weight(FontWeight::SEMIBOLD)
         .cursor_pointer()
         .hover(move |s| {
-            s.border_color(rgb(accent))
+            s.bg(rgb(current_theme().raised))
+                .border_color(rgb(accent))
                 .text_color(rgb(current_theme().accent_ink))
-                .shadow(motion::glow(accent, 0.20, 8.0, 0.0))
         })
-        .child(label)
+        .child("MISSION")
         .on_click(cx.listener(move |this, _ev, _window, cx| {
-            this.command = Some(CommandLine::new(kind));
+            this.ws_mut().swap_surface(SurfaceKind::Mission);
             cx.notify();
         }))
+}
+
+fn views_bar_btn(cx: &mut Context<ConsoleView>) -> impl IntoElement {
+    div()
+        .id("cmdbar-more-views")
+        .h_full()
+        .px(px(14.0))
+        .flex()
+        .items_center()
+        .border_l_1()
+        .border_color(rgb(current_theme().line))
+        .text_color(rgb(current_theme().ink2))
+        .text_size(px(14.0))
+        .font_weight(FontWeight::SEMIBOLD)
+        .cursor_pointer()
+        .hover(|surface| {
+            surface
+                .bg(rgb(current_theme().raised))
+                .text_color(rgb(current_theme().accent_ink))
+        })
+        .child("More views")
+        .on_click(cx.listener(|this, _event, _window, cx| {
+            this.launcher_open = true;
+            cx.notify();
+        }))
+}
+
+/// One member of the visible application-zoom group. The percentage member is
+/// an exact reset target; the outer buttons take one bounded ten-point step.
+fn presentation_zoom_btn(
+    id: &'static str,
+    label: String,
+    action: ZoomAction,
+    cx: &mut Context<ConsoleView>,
+) -> impl IntoElement {
+    let theme = current_theme();
+    let enabled = presentation::can_apply(action);
+    div()
+        .id(id)
+        .h(px(26.0))
+        .min_w(px(if action == ZoomAction::Reset {
+            46.0
+        } else {
+            28.0
+        }))
+        .px(px(tokens::SPACE_1))
+        .flex()
+        .items_center()
+        .justify_center()
+        .border_1()
+        .border_color(rgb(theme.line))
+        .bg(rgb(theme.panel))
+        .text_color(rgb(if enabled { theme.ink2 } else { theme.muted }))
+        .font_family("IBM Plex Mono")
+        .text_size(px(tokens::TEXT_CAPTION))
+        .font_weight(FontWeight::SEMIBOLD)
+        .when(enabled, |button| {
+            button.cursor_pointer().hover(|style| {
+                let t = current_theme();
+                style
+                    .bg(rgb(t.raised))
+                    .border_color(rgb(t.accent))
+                    .text_color(rgb(t.accent_ink))
+            })
+        })
+        .child(label)
+        .on_click(cx.listener(move |this, _event, window, cx| {
+            this.apply_presentation_zoom(action, window, cx);
+        }))
+}
+
+fn presentation_zoom_controls(cx: &mut Context<ConsoleView>) -> impl IntoElement {
+    let percent = presentation::zoom_percent();
+    div()
+        .id("presentation-zoom-controls")
+        .flex()
+        .items_center()
+        .mr(px(tokens::SPACE_2))
+        .child(presentation_zoom_btn(
+            "presentation-zoom-out",
+            "−".into(),
+            ZoomAction::Out,
+            cx,
+        ))
+        .child(presentation_zoom_btn(
+            "presentation-zoom-reset",
+            format!("{percent}%"),
+            ZoomAction::Reset,
+            cx,
+        ))
+        .child(presentation_zoom_btn(
+            "presentation-zoom-in",
+            "+".into(),
+            ZoomAction::In,
+            cx,
+        ))
 }
 
 /// Visible light/dark control. The old `Ctrl-A g` path still works; this makes
 /// the theme a discoverable operator action in the chrome.
 fn theme_toggle_btn(cx: &mut Context<ConsoleView>) -> impl IntoElement {
     let theme = current_theme();
-    let (icon, label) = match theme.mode {
-        ThemeMode::Dark => ("☀", "Light"),
-        ThemeMode::Light => ("◐", "Dark"),
+    let label = match theme.mode {
+        ThemeMode::Dark => "LIGHT",
+        ThemeMode::Light => "DARK",
     };
     div()
         .id("theme-toggle")
         .px(px(tokens::SPACE_2))
         .py(px(tokens::SPACE_1))
-        .rounded(px(tokens::RADIUS_MD))
         .border_1()
         .border_color(rgb(theme.line))
         .bg(rgb(theme.panel))
@@ -5299,15 +6548,12 @@ fn theme_toggle_btn(cx: &mut Context<ConsoleView>) -> impl IntoElement {
         .cursor_pointer()
         .flex()
         .items_center()
-        .gap(px(tokens::SPACE_1))
         .hover(|s| {
             let t = current_theme();
             s.bg(rgb(t.raised))
                 .border_color(rgb(t.accent))
                 .text_color(rgb(t.accent_ink))
-                .shadow(motion::glow(t.accent, 0.24, 10.0, 0.0))
         })
-        .child(div().text_size(px(tokens::TEXT_BODY)).child(icon))
         .child(label)
         .on_click(cx.listener(|this, _ev, _window, cx| {
             toggle_theme();
@@ -5316,20 +6562,242 @@ fn theme_toggle_btn(cx: &mut Context<ConsoleView>) -> impl IntoElement {
         }))
 }
 
-// ── Operator chat — bespoke bubbles + the rolled-own composer ─────────────────
+/// Visible motion policy control. Reduced motion is a state-preserving mode:
+/// travel and pulses stop immediately while color, edge, and labels remain.
+fn motion_toggle_btn(cx: &mut Context<ConsoleView>) -> impl IntoElement {
+    let reduced = reduced_motion();
+    let theme = current_theme();
+    div()
+        .id("motion-toggle")
+        .px(px(tokens::SPACE_2))
+        .py(px(tokens::SPACE_1))
+        .border_1()
+        .border_color(rgb(if reduced { theme.engaged } else { theme.line }))
+        .bg(rgb(theme.panel))
+        .text_color(rgb(if reduced { theme.engaged } else { theme.ink2 }))
+        .text_size(px(tokens::TEXT_CAPTION))
+        .font_weight(FontWeight::SEMIBOLD)
+        .cursor_pointer()
+        .hover(|style| {
+            let t = current_theme();
+            style
+                .bg(rgb(t.raised))
+                .border_color(rgb(t.accent))
+                .text_color(rgb(t.accent_ink))
+        })
+        .child(if reduced {
+            "MOTION REDUCED"
+        } else {
+            "MOTION ON"
+        })
+        .on_click(cx.listener(|this, _event, _window, cx| {
+            toggle_motion();
+            if reduced_motion() {
+                this.flag_motion.vx = 0.0;
+                this.flag_motion.vy = 0.0;
+                this.flag_ticking = false;
+            }
+            this.control_flash = Some(if reduced_motion() {
+                "motion reduced; state edges remain visible".into()
+            } else {
+                "motion enabled".into()
+            });
+            cx.notify();
+        }))
+}
 
-/// One chat bubble (bespoke, not a `Block`). Operator turns sit right-aligned in
-/// an accent-bordered raised card with a soft accent glow; agent replies sit
-/// left-aligned in a panel card with a cobalt left rail (mirrors `render_block`'s
-/// header rail). Each blooms in once (220ms swoosh fade) unless reduced-motion is
-/// set, in which case it renders static at full opacity.
+// ── Mission conversation — transcript, context, and composer ──────────────────
+
+fn mission_header(
+    goal: &str,
+    stage: &str,
+    stage_tone: Tone,
+    actor: Option<&str>,
+    runtime: Option<&str>,
+    intent_id: Option<&str>,
+    worktree: Option<&str>,
+    branch: Option<&str>,
+) -> AnyElement {
+    let t = current_theme();
+    let signal = tone_rgb(&stage_tone);
+    let actor_line = match (actor, runtime) {
+        (Some(actor), Some(runtime)) => format!("{actor} · {runtime}"),
+        (Some(actor), None) => actor.to_string(),
+        (None, _) => "No governed body attached yet".into(),
+    };
+    let provenance = intent_id
+        .map(|id| format!("WORK INTENT · {id}"))
+        .unwrap_or_else(|| "NO RECEIPT YET · first accepted turn creates one".into());
+    let execution_scope = match (worktree, branch) {
+        (Some(worktree), Some(branch)) => Some(format!("{worktree} · {branch}")),
+        (Some(worktree), None) => Some(worktree.to_string()),
+        (None, Some(branch)) => Some(branch.to_string()),
+        (None, None) => None,
+    };
+
+    div()
+        .mx(px(tokens::SPACE_3))
+        .mb(px(tokens::SPACE_3))
+        .pb(px(tokens::SPACE_3))
+        .border_b_1()
+        .border_color(rgb(t.line))
+        .flex()
+        .flex_col()
+        .gap(px(tokens::SPACE_2))
+        .child(
+            div()
+                .flex()
+                .flex_wrap()
+                .items_center()
+                .gap(px(tokens::SPACE_2))
+                .child(
+                    div()
+                        .px(px(tokens::SPACE_2))
+                        .py(px(tokens::SPACE_1))
+                        .bg(rgb(signal))
+                        .text_color(rgb(knockout_ink(signal)))
+                        .text_size(px(tokens::TEXT_CAPTION))
+                        .font_weight(FontWeight::BOLD)
+                        .child(stage.to_ascii_uppercase()),
+                )
+                .child(
+                    div()
+                        .text_color(rgb(t.muted))
+                        .text_size(px(tokens::TEXT_CAPTION))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .child(provenance),
+                ),
+        )
+        .child(
+            div()
+                .text_color(rgb(t.ink))
+                .text_size(px(20.0))
+                .font_weight(FontWeight::BOLD)
+                .child(chat_display_text(goal)),
+        )
+        .child(
+            div()
+                .text_color(rgb(if actor.is_some() {
+                    t.accent_ink
+                } else {
+                    t.muted
+                }))
+                .text_size(px(tokens::TEXT_BODY))
+                .child(actor_line),
+        )
+        .when_some(execution_scope, |header, scope| {
+            header.child(
+                div()
+                    .text_color(rgb(t.muted))
+                    .text_size(px(tokens::TEXT_CAPTION))
+                    .font_family("IBM Plex Mono")
+                    .child(format!("WORKTREE · {}", chat_display_text(&scope))),
+            )
+        })
+        .into_any_element()
+}
+
+fn mission_context_card(
+    card: crate::mission_view::MissionContextCard,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
+    let t = current_theme();
+    let signal = tone_rgb(&card.tone);
+    let target = card.target;
+    let id = format!(
+        "mission-context-{}",
+        card.eyebrow.to_ascii_lowercase().replace(' ', "-")
+    );
+    div()
+        .id(SharedString::from(id))
+        .group("mission-context-card")
+        .border_1()
+        .border_l_2()
+        .border_color(rgb(signal))
+        .bg(rgb(t.sunken))
+        .px(px(tokens::SPACE_3))
+        .py(px(tokens::SPACE_2))
+        .flex()
+        .flex_col()
+        .gap(px(tokens::SPACE_1))
+        .cursor_pointer()
+        .hover(|style| style.bg(rgb(t.raised)))
+        .child(
+            div()
+                .flex()
+                .items_center()
+                .gap(px(tokens::SPACE_2))
+                .child(div().w(px(6.0)).h(px(6.0)).bg(rgb(signal)))
+                .child(
+                    div()
+                        .text_color(rgb(t.muted))
+                        .text_size(px(tokens::TEXT_CAPTION))
+                        .font_weight(FontWeight::BOLD)
+                        .child(card.eyebrow),
+                )
+                .child(div().flex_1())
+                .child(
+                    div()
+                        .text_color(rgb(t.muted))
+                        .text_size(px(tokens::TEXT_CAPTION))
+                        .child("OPEN ↗"),
+                ),
+        )
+        .child(
+            div()
+                .text_color(rgb(t.ink))
+                .text_size(px(tokens::TEXT_BODY))
+                .font_weight(FontWeight::SEMIBOLD)
+                .child(chat_display_text(&card.headline)),
+        )
+        .child(
+            div()
+                .text_color(rgb(t.muted))
+                .text_size(px(tokens::TEXT_CAPTION))
+                .child(chat_display_text(&card.detail)),
+        )
+        .on_click(cx.listener(move |this, _event, _window, cx| {
+            this.open_mission_context(target);
+            cx.notify();
+        }))
+        .into_any_element()
+}
+
+fn mission_prompt(
+    id: &'static str,
+    label: &'static str,
+    prompt: &'static str,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
+    let t = current_theme();
+    div()
+        .id(id)
+        .px(px(tokens::SPACE_3))
+        .py(px(tokens::SPACE_2))
+        .border_1()
+        .border_color(rgb(t.line))
+        .bg(rgb(t.sunken))
+        .text_color(rgb(t.accent_ink))
+        .text_size(px(tokens::TEXT_BODY))
+        .cursor_pointer()
+        .hover(|style| style.border_color(rgb(t.accent)).bg(rgb(t.raised)))
+        .child(label)
+        .on_click(cx.listener(move |this, _event, _window, cx| {
+            this.send_chat_turn(prompt);
+            cx.notify();
+        }))
+        .into_any_element()
+}
+
+/// One chat turn in the shared linework grammar. Operator and agent alignment is
+/// retained; square boundaries and a cobalt rail carry identity without cards.
 fn chat_bubble(idx: usize, msg: &ChatMsg, reduced: bool) -> AnyElement {
     let t = current_theme();
-    let mine = msg.mine;
-    let sender_label = if mine {
-        "you".to_string()
-    } else {
-        chat_display_text(&msg.sender)
+    let mine = msg.kind == ChatMsgKind::Operator;
+    let receipt = msg.kind == ChatMsgKind::Receipt;
+    let sender_label = match msg.kind {
+        ChatMsgKind::Operator => "you".to_string(),
+        ChatMsgKind::Assistant | ChatMsgKind::Receipt => chat_display_text(&msg.sender),
     };
 
     // Eyebrow: who spoke (caption weight) — color = meaning, plus the label so a
@@ -5352,13 +6820,30 @@ fn chat_bubble(idx: usize, msg: &ChatMsg, reduced: bool) -> AnyElement {
             .gap(px(tokens::SPACE_1))
             .px(px(tokens::SPACE_3))
             .py(px(tokens::SPACE_2))
-            .rounded(px(tokens::RADIUS_LG))
             .border_1()
             .border_color(rgb(t.accent))
             .bg(rgb(t.raised))
-            .shadow(motion::glow(t.accent, 0.10, 8.0, 0.0))
             .child(eyebrow)
             .child(body)
+    } else if receipt {
+        div()
+            .max_w(px(620.0))
+            .flex()
+            .overflow_hidden()
+            .border_1()
+            .border_color(rgb(t.engaged))
+            .bg(tone_wash(t.engaged, 0x16))
+            .child(div().w(px(4.0)).bg(rgb(t.engaged)))
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(tokens::SPACE_1))
+                    .px(px(tokens::SPACE_3))
+                    .py(px(tokens::SPACE_2))
+                    .child(eyebrow)
+                    .child(body),
+            )
     } else {
         // The cobalt rail is a child div (a fixed-width colored strip), exactly the
         // render_block Header rail idiom — guaranteed across gpui border helpers.
@@ -5366,7 +6851,6 @@ fn chat_bubble(idx: usize, msg: &ChatMsg, reduced: bool) -> AnyElement {
             .max_w(px(560.0))
             .flex()
             .overflow_hidden()
-            .rounded(px(tokens::RADIUS_LG))
             .border_1()
             .border_color(rgb(t.line))
             .bg(rgb(t.panel))
@@ -5414,8 +6898,8 @@ fn chat_bubble(idx: usize, msg: &ChatMsg, reduced: bool) -> AnyElement {
     }
 }
 
-/// The empty chat state — an honest invitation, never a blank pane.
-fn chat_empty_state() -> AnyElement {
+/// The empty Mission state — one invitation plus three working suggestions.
+fn mission_empty_state(cx: &mut Context<ConsoleView>) -> AnyElement {
     let t = current_theme();
     div()
         .flex()
@@ -5428,21 +6912,69 @@ fn chat_empty_state() -> AnyElement {
                 .text_color(rgb(t.ink))
                 .text_size(px(tokens::TEXT_BODY_LG))
                 .font_weight(FontWeight::SEMIBOLD)
-                .child("Talk to the cartographer"),
+                .child("What should we work through?"),
         )
         .child(
             div()
                 .text_color(rgb(t.muted))
                 .text_size(px(tokens::TEXT_BODY))
-                .child(
-                    "Type below and press Enter. Your turn rides up the console-chat tube; \
-                     replies stream back here as they land.",
-                ),
+                .child("Ask a question or describe an outcome. Port Daddy records the turn, binds an attributed agent, and brings its plan, claims, tools, evidence, and receipts back into this conversation."),
+        )
+        .child(
+            div()
+                .mt(px(tokens::SPACE_2))
+                .flex()
+                .flex_wrap()
+                .gap(px(tokens::SPACE_2))
+                .child(mission_prompt(
+                    "mission-prompt-status",
+                    "What is actually working now?",
+                    "Inspect the current Port Daddy system and tell me what is actually working, what is only planned, and the strongest evidence for each.",
+                    cx,
+                ))
+                .child(mission_prompt(
+                    "mission-prompt-next",
+                    "Plan the next safe slice",
+                    "Use the current mission, claims, open work, and evidence to propose the next smallest safe slice. Name the skills and proof required.",
+                    cx,
+                ))
+                .child(mission_prompt(
+                    "mission-prompt-conflict",
+                    "Explain the hottest conflict",
+                    "Inspect the live claim and activity signals, explain the hottest coordination conflict in plain language, and suggest a bounded resolution.",
+                    cx,
+                )),
         )
         .into_any_element()
 }
 
-/// The chat error banner — a refused send/spawn, surfaced (never swallowed).
+fn mission_waiting_state(reduced: bool) -> AnyElement {
+    let t = current_theme();
+    let row = div()
+        .mx(px(tokens::SPACE_3))
+        .my(px(tokens::SPACE_2))
+        .flex()
+        .items_center()
+        .gap(px(tokens::SPACE_2))
+        .text_color(rgb(t.muted))
+        .text_size(px(tokens::TEXT_BODY))
+        .child(div().w(px(7.0)).h(px(7.0)).bg(rgb(t.engaged)))
+        .child("Waiting for an attributed agent reply · admission and runtime state are shown at right");
+    if reduced {
+        row.into_any_element()
+    } else {
+        row.with_animation(
+            SharedString::from("mission-awaiting-reply"),
+            Animation::new(Duration::from_millis(1100))
+                .repeat()
+                .with_easing(pulsating_between(0.45, 1.0)),
+            |element, delta| element.opacity(delta),
+        )
+        .into_any_element()
+    }
+}
+
+/// The chat error banner: a refused transport or WorkIntent capture, never swallowed.
 fn chat_error_banner(reason: &str) -> AnyElement {
     let t = current_theme();
     div()
@@ -5450,8 +6982,8 @@ fn chat_error_banner(reason: &str) -> AnyElement {
         .my(px(tokens::SPACE_1))
         .px(px(tokens::SPACE_3))
         .py(px(tokens::SPACE_2))
-        .rounded(px(tokens::RADIUS_MD))
         .border_1()
+        .border_l_2()
         .border_color(rgb(t.gated))
         .bg(tone_wash(t.gated, 0x1c))
         .child(
@@ -5486,8 +7018,40 @@ fn chat_caret(reduced: bool) -> AnyElement {
         .into_any_element()
 }
 
-/// The chat composer row — a sunken field that shows the rolled-own `chat_input`
-/// buffer (or a ghost placeholder) + the blinking caret, with a Send button. The
+fn composer_context_button(
+    id: &'static str,
+    label: &'static str,
+    prefix: &'static str,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
+    let t = current_theme();
+    div()
+        .id(id)
+        .px(px(tokens::SPACE_2))
+        .py(px(tokens::SPACE_1))
+        .border_1()
+        .border_color(rgb(t.line))
+        .text_color(rgb(t.muted))
+        .text_size(px(tokens::TEXT_CAPTION))
+        .cursor_pointer()
+        .hover(|style| {
+            style
+                .border_color(rgb(t.accent))
+                .text_color(rgb(t.accent_ink))
+        })
+        .child(label)
+        .on_click(cx.listener(move |this, _event, _window, cx| {
+            if !this.chat_input.is_empty() && !this.chat_input.ends_with(char::is_whitespace) {
+                this.chat_input.push(' ');
+            }
+            this.chat_input.push_str(prefix);
+            cx.notify();
+        }))
+        .into_any_element()
+}
+
+/// The Mission composer — a sunken multiline field that shows the rolled-own
+/// `chat_input` buffer (or a ghost placeholder) + context affordances and Send. The
 /// load-bearing text input: gpui 0.2.2 has no native field, so keydown fills the
 /// buffer and this renders it.
 fn chat_composer(input: &str, reduced: bool, cx: &mut Context<ConsoleView>) -> AnyElement {
@@ -5498,18 +7062,18 @@ fn chat_composer(input: &str, reduced: bool, cx: &mut Context<ConsoleView>) -> A
         .border_t_1()
         .border_color(rgb(t.line))
         .flex()
-        .items_center()
+        .flex_col()
         .gap(px(tokens::SPACE_2))
         .child(
             div()
-                .flex_1()
+                .w_full()
+                .min_h(px(58.0))
                 .min_w(px(0.0))
                 .flex()
-                .items_center()
+                .items_start()
                 .gap(px(4.0))
                 .px(px(tokens::SPACE_3))
                 .py(px(tokens::SPACE_2))
-                .rounded(px(tokens::RADIUS_LG))
                 .bg(rgb(t.sunken))
                 .border_1()
                 .border_color(rgb(t.line))
@@ -5527,9 +7091,9 @@ fn chat_composer(input: &str, reduced: bool, cx: &mut Context<ConsoleView>) -> A
                         .text_size(px(tokens::TEXT_BODY))
                         .font_family("IBM Plex Mono");
                     if input.is_empty() {
-                        field.text_color(rgb(t.muted)).child(
-                            "Message the cartographer…  (Enter to send · Shift+Enter newline)",
-                        )
+                        field
+                            .text_color(rgb(t.muted))
+                            .child("Ask, steer, or describe the outcome…")
                     } else {
                         field.text_color(rgb(t.ink)).child(chat_display_text(input))
                     }
@@ -5538,54 +7102,63 @@ fn chat_composer(input: &str, reduced: bool, cx: &mut Context<ConsoleView>) -> A
         )
         .child(
             div()
-                .id("chat-send")
-                .flex_shrink_0()
-                .min_w(px(54.0))
-                .px(px(12.0))
-                .py(px(5.0))
-                .rounded(px(tokens::RADIUS_MD))
-                .bg(rgb(t.accent))
-                .text_color(rgb(t.bg))
-                .text_size(px(tokens::TEXT_CAPTION))
-                .font_weight(FontWeight::SEMIBOLD)
-                .cursor_pointer()
-                .hover(|s| s.shadow(motion::glow(t.accent, 0.30, 10.0, 0.0)))
-                .child("Send")
-                .on_click(cx.listener(|this, _ev, _window, cx| {
-                    this.submit_chat();
-                    cx.notify();
-                })),
+                .w_full()
+                .flex()
+                .flex_wrap()
+                .items_center()
+                .gap(px(tokens::SPACE_2))
+                .child(composer_context_button(
+                    "mission-add-file",
+                    "+ File",
+                    "@file ",
+                    cx,
+                ))
+                .child(composer_context_button(
+                    "mission-add-skill",
+                    "# Skill",
+                    "@skill ",
+                    cx,
+                ))
+                .child(composer_context_button(
+                    "mission-add-tool",
+                    "/ Tool",
+                    "@tool ",
+                    cx,
+                ))
+                .child(div().flex_1())
+                .child(
+                    div()
+                        .text_color(rgb(t.muted))
+                        .text_size(px(tokens::TEXT_CAPTION))
+                        .child("Enter to send · Shift+Enter newline"),
+                )
+                .child(
+                    div()
+                        .id("chat-send")
+                        .flex_shrink_0()
+                        .min_w(px(64.0))
+                        .px(px(14.0))
+                        .py(px(7.0))
+                        .bg(rgb(t.accent))
+                        .text_color(rgb(t.bg))
+                        .text_size(px(tokens::TEXT_BODY))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .cursor_pointer()
+                        .hover(|s| s.bg(rgb(t.accent_ink)))
+                        .child("Send")
+                        .on_click(cx.listener(|this, _ev, _window, cx| {
+                            this.submit_chat();
+                            cx.notify();
+                        })),
+                ),
         )
         .into_any_element()
 }
 
-/// Render the open command line. For a Spawn still choosing backend/tier it
-/// shows the inline chip picker; otherwise the prompt field + Send/Cancel.
-fn render_open_command(
-    cmd: &CommandLine,
-    catalog: &ModelCatalog,
-    cx: &mut Context<ConsoleView>,
-) -> AnyElement {
-    if cmd.kind == CmdKind::Spawn && !cmd.spawn_ready() {
-        return render_spawn_picker(cmd, catalog, cx);
-    }
-    // Prompt step (or any non-Spawn command): label + input + Send/Cancel.
-    let prompt_label = if cmd.kind == CmdKind::Spawn {
-        // Breadcrumb of the picked backend (+ tier) so the operator sees exactly
-        // what Send will launch.
-        let b = cmd.backend.map(|b| b.as_str()).unwrap_or("spawn");
-        match cmd.tier {
-            Some(t) => format!("{b}·{}", t.as_str()),
-            None => b.to_string(),
-        }
-    } else {
-        cmd.kind.prompt().to_string()
-    };
-    let placeholder = if cmd.kind == CmdKind::Spawn {
-        "describe the task for this agent — Send to launch & stream".to_string()
-    } else {
-        cmd.kind.placeholder()
-    };
+/// Render the open command line: one label, one text field, Send/Cancel.
+fn render_open_command(cmd: &CommandLine, cx: &mut Context<ConsoleView>) -> AnyElement {
+    let prompt_label = cmd.kind.prompt().to_string();
+    let placeholder = cmd.kind.placeholder();
     div()
         .flex()
         .gap(px(8.0))
@@ -5618,13 +7191,12 @@ fn render_open_command(
                 .id("cmd-send")
                 .px(px(12.0))
                 .py(px(4.0))
-                .rounded(px(6.0))
                 .bg(rgb(current_theme().accent))
                 .text_color(rgb(current_theme().bg))
                 .text_size(px(13.0))
                 .font_weight(FontWeight::SEMIBOLD)
                 .cursor_pointer()
-                .hover(|s| s.shadow(motion::glow(current_theme().accent, 0.30, 10.0, 0.0)))
+                .hover(|s| s.bg(rgb(current_theme().accent_ink)))
                 .child("Send")
                 .on_click(cx.listener(|this, _ev, _window, cx| {
                     if let Some(cmd) = this.command.take() {
@@ -5638,7 +7210,8 @@ fn render_open_command(
                 .id("cmd-cancel")
                 .px(px(8.0))
                 .py(px(4.0))
-                .rounded(px(6.0))
+                .border_l_1()
+                .border_color(rgb(current_theme().line))
                 .text_color(rgb(current_theme().muted))
                 .text_size(px(13.0))
                 .cursor_pointer()
@@ -5650,114 +7223,6 @@ fn render_open_command(
                 })),
         )
         .into_any_element()
-}
-
-/// The inline Spawn picker: a breadcrumb, a step hint, and a row of option chips
-/// (`N  Label`) for the discrete known set — backends, then capability tiers.
-/// Type to filter, press the digit to pick, or click. This is the "dropdown that
-/// expands as you type with hotkeys" pattern instead of free-text syntax.
-fn render_spawn_picker(
-    cmd: &CommandLine,
-    catalog: &ModelCatalog,
-    cx: &mut Context<ConsoleView>,
-) -> AnyElement {
-    let step = cmd.spawn_step();
-    let chosen = cmd.backend.map(|b| b.as_str()).unwrap_or("");
-    let hint = match step {
-        SpawnStep::Backend => "pick a backend — type to filter, digit = hotkey",
-        SpawnStep::Tier => "pick a tier — high / mid / low",
-        SpawnStep::Prompt => "",
-    };
-    let mut row = div()
-        .flex()
-        .flex_wrap()
-        .gap(px(6.0))
-        .items_center()
-        .w_full()
-        .child(
-            div()
-                .text_color(rgb(current_theme().accent_ink))
-                .text_size(px(14.0))
-                .font_weight(FontWeight::SEMIBOLD)
-                .child(format!("spawn {chosen}").trim().to_string()),
-        )
-        .child(
-            div()
-                .text_color(rgb(current_theme().muted))
-                .text_size(px(13.0))
-                .child(hint),
-        );
-    match step {
-        SpawnStep::Backend => {
-            for (i, b) in filtered_backends(&cmd.buffer).into_iter().enumerate() {
-                let hot = i + 1;
-                row = row.child(
-                    div()
-                        .id(SharedString::from(format!("pick-b-{}", b.as_str())))
-                        .px(px(9.0))
-                        .py(px(4.0))
-                        .rounded(px(6.0))
-                        .border_1()
-                        .border_color(rgb(current_theme().line))
-                        .text_color(rgb(current_theme().ink2))
-                        .text_size(px(13.0))
-                        .font_weight(FontWeight::MEDIUM)
-                        .cursor_pointer()
-                        .hover(|s| {
-                            s.border_color(rgb(current_theme().accent))
-                                .text_color(rgb(current_theme().accent_ink))
-                        })
-                        .child(format!("{hot}  {}", b.label()))
-                        .on_click(cx.listener(move |this, _ev, _window, cx| {
-                            this.spawn_pick_backend(b);
-                            cx.notify();
-                        })),
-                );
-            }
-        }
-        SpawnStep::Tier => {
-            let backend = cmd.backend.unwrap_or(Backend::Claude);
-            for (i, t) in filtered_tiers(catalog, backend, &cmd.buffer)
-                .into_iter()
-                .enumerate()
-            {
-                let hot = i + 1;
-                row = row.child(
-                    div()
-                        .id(SharedString::from(format!("pick-t-{}", t.as_str())))
-                        .px(px(9.0))
-                        .py(px(4.0))
-                        .rounded(px(6.0))
-                        .border_1()
-                        .border_color(rgb(current_theme().line))
-                        .text_color(rgb(current_theme().ink2))
-                        .text_size(px(13.0))
-                        .font_weight(FontWeight::MEDIUM)
-                        .cursor_pointer()
-                        .hover(|s| {
-                            s.border_color(rgb(current_theme().accent))
-                                .text_color(rgb(current_theme().accent_ink))
-                        })
-                        .child(format!("{hot}  {}", t.label()))
-                        .on_click(cx.listener(move |this, _ev, _window, cx| {
-                            this.spawn_pick_tier(t);
-                            cx.notify();
-                        })),
-                );
-            }
-        }
-        SpawnStep::Prompt => {}
-    }
-    if !cmd.buffer.is_empty() {
-        row = row.child(
-            div()
-                .text_color(rgb(current_theme().ink))
-                .text_size(px(13.0))
-                .font_family("IBM Plex Mono")
-                .child(format!("/{}", cmd.buffer)),
-        );
-    }
-    row.into_any_element()
 }
 
 /// One dispatch review-gate button. Approve/Cancel fire a verdict immediately;
@@ -5779,13 +7244,13 @@ fn dispatch_gate_btn(
                 if let Some(tx) = &this.control_tx {
                     let _ = tx.send(ControlMsg::DispatchAccept { id: id.clone() });
                 }
-                this.control_flash = Some("dispatch approved \u{2192} landing".into());
+                this.control_flash = Some("gate approved \u{2192} landing".into());
             }
             "cancel" => {
                 if let Some(tx) = &this.control_tx {
                     let _ = tx.send(ControlMsg::DispatchCancel { id: id.clone() });
                 }
-                this.control_flash = Some("dispatch cancelled".into());
+                this.control_flash = Some("gate cancelled".into());
             }
             "reject" => {
                 this.reject_target = Some(id.clone());
@@ -5836,8 +7301,8 @@ fn conductor_gate_btn(
 /// Parse a verb-palette line (`<verb> <args>`) into its concrete `CmdKind` plus
 /// the trimmed argument string. The verb is the first whitespace-delimited token;
 /// everything after is the argument (which may be empty for `done`). Returns
-/// `None` for an unknown verb so the caller can flash a hint. Aliases keep the
-/// muscle memory short (`spawn`/`new`, `cartographer`/`chat`).
+/// `None` for an unknown or retired launch verb so the caller can show migration
+/// guidance instead of quietly aliasing a second runtime model.
 fn parse_verb(text: &str) -> Option<(CmdKind, String)> {
     let trimmed = text.trim();
     let (verb, arg) = match trimmed.split_once(char::is_whitespace) {
@@ -5853,44 +7318,26 @@ fn parse_verb(text: &str) -> Option<(CmdKind, String)> {
         _ => {}
     }
     let kind = match verb.as_str() {
+        "mission" => CmdKind::Mission,
         "note" => CmdKind::Note,
         "begin" => CmdKind::Begin,
         "done" | "end" => CmdKind::Done,
-        "propose" | "dispatch" => CmdKind::Propose,
-        "sortie" => CmdKind::Sortie,
         "claim" => CmdKind::Claim,
         "release" => CmdKind::Release,
         "kill" => CmdKind::Kill,
         "interrupt" | "stop" => CmdKind::InterruptAgent,
-        "spawn" | "new" => CmdKind::Spawn,
-        "cartographer" | "chat" => CmdKind::Cartographer,
-        "lane" | "agent" | "message" | "steer" => CmdKind::LaneMessage,
+        "lane" | "message" | "steer" => CmdKind::LaneMessage,
         "pane" | "addpane" => CmdKind::AddPane,
         _ => return None,
     };
     Some((kind, arg))
 }
 
-/// Split a spawn command into `(backend, prompt)`. If the first whitespace
-/// token is a known backend it is consumed as the backend; otherwise the whole
-/// string is the prompt and the backend defaults to `claude-cli`.
-fn split_backend(text: &str) -> (String, String) {
-    const BACKENDS: &[&str] = &[
-        "ollama",
-        "claude",
-        "claude-cli",
-        "gemini",
-        "cloudflare",
-        "codex",
-        "aider",
-        "custom",
-    ];
-    if let Some((first, rest)) = text.split_once(char::is_whitespace) {
-        if BACKENDS.contains(&first) && !rest.trim().is_empty() {
-            return (first.to_string(), rest.trim().to_string());
-        }
-    }
-    ("claude-cli".to_string(), text.to_string())
+fn is_legacy_launch_verb(verb: &str) -> bool {
+    matches!(
+        verb.trim().to_ascii_lowercase().as_str(),
+        "agent" | "conjure" | "dispatch" | "new" | "propose" | "sortie" | "spawn"
+    )
 }
 
 /// One macOS-style pane control (split / zoom / close). Targets a specific pane
@@ -5907,22 +7354,14 @@ fn pane_ctrl(
         .id(SharedString::from(format!("ctrl-{kind}-{id}")))
         .px(px(5.0))
         .py(px(1.0))
-        .rounded(px(4.0))
         .text_size(px(14.0))
         .text_color(rgb(color))
         .cursor_pointer()
-        // Hover pop: tint the glyph (crimson for close, ink otherwise), fill a
-        // raised chip, and snap a glow — the per-control "press" cue.
+        // Hover is a quiet fill and tint; pane focus remains the corner-tick cue.
         .hover(move |s| {
             let t = current_theme();
-            let (tint, glow) = if kind == "close" {
-                (t.gated, t.gated)
-            } else {
-                (t.ink, t.accent)
-            };
-            s.bg(rgb(t.raised))
-                .text_color(rgb(tint))
-                .shadow(motion::glow(glow, 0.22, 8.0, 0.0))
+            let tint = if kind == "close" { t.gated } else { t.ink };
+            s.bg(rgb(t.raised)).text_color(rgb(tint))
         })
         .child(glyph)
         .on_click(cx.listener(move |this, _ev, _window, cx| {
@@ -5952,6 +7391,166 @@ fn pane_ctrl(
             }
             cx.notify();
         }))
+}
+
+/// Sort controls for a responsive metadata ledger. Controls wrap as a group;
+/// they never force the pane to scroll sideways or hide a sort key.
+fn render_ledger_header(
+    id: PaneId,
+    block: Block,
+    cx: &mut Context<ConsoleView>,
+) -> impl IntoElement {
+    let Block::LedgerHeader {
+        surface,
+        columns,
+        active_sort,
+        descending,
+    } = block
+    else {
+        unreachable!("render_ledger_header called with a non-LedgerHeader block");
+    };
+    let t = current_theme();
+    div()
+        .flex()
+        .flex_wrap()
+        .items_center()
+        .gap(px(tokens::SPACE_1))
+        .mx(px(tokens::SPACE_3))
+        .my(px(tokens::SPACE_2))
+        .children(columns.into_iter().map(|(key, label)| {
+            let active = key == active_sort;
+            let surface = surface.clone();
+            let key_for_click = key.clone();
+            div()
+                .id(SharedString::from(format!(
+                    "ledger-sort-{id}-{surface}-{key}"
+                )))
+                .px(px(tokens::SPACE_2))
+                .py(px(tokens::SPACE_1))
+                .border_1()
+                .border_color(rgb(if active { t.accent } else { t.line }))
+                .bg(rgb(if active { t.raised } else { t.panel }))
+                .text_color(rgb(if active { t.accent_ink } else { t.muted }))
+                .text_size(px(tokens::TEXT_CAPTION))
+                .font_weight(FontWeight::SEMIBOLD)
+                .cursor_pointer()
+                .hover(|button| {
+                    button
+                        .border_color(rgb(current_theme().accent))
+                        .bg(rgb(current_theme().raised))
+                })
+                .on_click(cx.listener(move |this, _event, _window, cx| {
+                    this.ws_mut().focus(id);
+                    if let Some(tx) = &this.control_tx {
+                        let _ = tx.send(ControlMsg::LedgerSort {
+                            surface: surface.clone(),
+                            key: key_for_click.clone(),
+                        });
+                    }
+                    cx.notify();
+                }))
+                .child(if active {
+                    format!("{label} {}", if descending { "↓" } else { "↑" })
+                } else {
+                    label
+                })
+        }))
+}
+
+/// Translate pane-authored semantic width intent into GPUI layout units. The
+/// renderer never infers width from a label string, so new columns cannot
+/// silently inherit an arbitrary fallback merely because their name changed.
+fn ledger_cell_width_px(width: LedgerCellWidth) -> f32 {
+    match width {
+        LedgerCellWidth::Standard => 180.0,
+        LedgerCellWidth::Wide => 300.0,
+    }
+}
+
+/// One responsive ledger row. Every cell keeps its full value and carries its
+/// own label, so wrapping preserves meaning when columns collapse vertically.
+fn render_ledger_row(id: PaneId, block: Block, cx: &mut Context<ConsoleView>) -> impl IntoElement {
+    let Block::LedgerRow {
+        surface,
+        index,
+        selected,
+        cells,
+        tone,
+    } = block
+    else {
+        unreachable!("render_ledger_row called with a non-LedgerRow block");
+    };
+    let t = current_theme();
+    let color = tone_rgb(&tone);
+    let surface_for_click = surface.clone();
+    let row = div()
+        .id(SharedString::from(format!(
+            "ledger-row-{id}-{surface}-{index}"
+        )))
+        .flex()
+        .flex_wrap()
+        .items_start()
+        .gap(px(tokens::SPACE_2))
+        .mx(px(tokens::SPACE_3))
+        .my(px(2.0))
+        .px(px(tokens::SPACE_2))
+        .py(px(tokens::SPACE_2))
+        .border_1()
+        .border_color(rgb(if selected { t.accent } else { t.line }))
+        .bg(rgb(if selected { t.raised } else { t.panel }))
+        .when(selected, |row| row.border_l_2())
+        .when(!surface.is_empty(), |row| {
+            row.cursor_pointer().hover(|hovered| {
+                hovered
+                    .border_color(rgb(current_theme().accent))
+                    .bg(rgb(current_theme().raised))
+            })
+        })
+        .child(
+            div()
+                .w(px(3.0))
+                .min_h(px(34.0))
+                .flex_shrink_0()
+                .bg(rgb(color)),
+        )
+        .children(cells.into_iter().map(|cell| {
+            div()
+                .w(px(ledger_cell_width_px(cell.width)))
+                .max_w_full()
+                .flex_shrink_0()
+                .flex()
+                .flex_col()
+                .gap(px(2.0))
+                .child(
+                    div()
+                        .text_color(rgb(current_theme().muted))
+                        .text_size(px(11.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .child(cell.label.to_ascii_uppercase()),
+                )
+                .child(
+                    div()
+                        .text_color(rgb(current_theme().ink))
+                        .text_size(px(tokens::TEXT_BODY))
+                        .font_family("IBM Plex Mono")
+                        .whitespace_normal()
+                        .child(cell.value),
+                )
+        }));
+    if surface.is_empty() {
+        row
+    } else {
+        row.on_click(cx.listener(move |this, _event, _window, cx| {
+            this.ws_mut().focus(id);
+            if let Some(tx) = &this.control_tx {
+                let _ = tx.send(ControlMsg::LedgerSelect {
+                    surface: surface_for_click.clone(),
+                    index,
+                });
+            }
+            cx.notify();
+        }))
+    }
 }
 
 /// One clickable FileTree row. Activating a **file** focuses this pane and swaps
@@ -5993,13 +7592,10 @@ fn render_harbor_node_row(
         .my(px(2.0))
         .px(px(tokens::SPACE_3))
         .py(px(tokens::SPACE_2))
-        .rounded(px(tokens::RADIUS_MD))
         .border_1()
+        .when(selected, |s| s.border_l_2())
         .border_color(rgb(if selected { t.accent } else { t.line }))
         .bg(rgb(if selected { t.raised } else { t.panel }))
-        .when(selected, |s| {
-            s.shadow(motion::glow(t.accent, 0.25, 10.0, 0.0))
-        })
         .cursor_pointer()
         .hover(|s| {
             let t = current_theme();
@@ -6015,11 +7611,19 @@ fn render_harbor_node_row(
         )
         .child(
             div()
-                .text_color(rgb(row_tone))
-                .text_size(px(13.0))
-                .font_weight(FontWeight::BOLD)
+                .flex()
+                .items_center()
                 .flex_shrink_0()
-                .child(format!("⚑{flag}")),
+                .child(div().w(px(7.0)).h(px(10.0)).bg(rgb(row_tone)))
+                .child(div().w(px(7.0)).h(px(10.0)).bg(rgb(badge_color)))
+                .child(
+                    div()
+                        .ml(px(4.0))
+                        .text_color(rgb(row_tone))
+                        .text_size(px(12.0))
+                        .font_weight(FontWeight::BOLD)
+                        .child(flag.to_string()),
+                ),
         )
         .child(
             div()
@@ -6091,7 +7695,6 @@ fn render_harbor_control(
         .id(SharedString::from(format!("harbor-ctl-{id}-{verb}")))
         .px(px(tokens::SPACE_3))
         .py(px(4.0))
-        .rounded(px(tokens::RADIUS_MD))
         .border_1()
         .text_size(px(tokens::TEXT_BODY))
         .font_weight(FontWeight::SEMIBOLD)
@@ -6106,8 +7709,7 @@ fn render_harbor_control(
                 .cursor_pointer()
                 .hover(|s| {
                     let t = current_theme();
-                    s.border_color(rgb(t.accent))
-                        .shadow(motion::glow(t.accent, 0.2, 8.0, 0.0))
+                    s.bg(rgb(t.raised)).border_color(rgb(t.accent))
                 })
                 .on_click(cx.listener(move |this, _ev, _window, cx| {
                     if verb_for_click == "steer" {
@@ -6180,20 +7782,225 @@ fn render_filetree_row(
                 .font_family("IBM Plex Mono")
                 .child(entry.name.clone()),
         )
-        .on_click(cx.listener(move |this, _ev, _window, cx| {
+        .on_click(cx.listener(move |this, _ev, window, cx| {
             this.ws_mut().focus(id);
+            window.focus(&this.focus_handle);
             if is_dir {
                 // Descend: rebind the FileTree root to this directory.
                 this.ws_mut().bind_entity(Some(path.clone()));
             } else {
-                // Open the file in the Harbor Editor surface.
-                this.ws_mut().swap_surface(SurfaceKind::Editor {
-                    path: path.clone(),
-                    region: None,
-                });
+                // The file is fully read into its Loro buffer BEFORE the pane tree
+                // changes. Permission errors therefore leave this FileTree and its
+                // root intact instead of stranding the operator in an error pane.
+                if let Err(reason) =
+                    this.open_editor(path.clone(), None, EditorPlacement::ReplaceFocused)
+                {
+                    this.control_flash = Some(reason);
+                    crate::audio::play(crate::audio::Cue::Error);
+                }
             }
             cx.notify();
         }))
+}
+
+/// A failed legacy/deep-linked editor surface must always have an obvious way
+/// home. Normal file-tree opens are transactional and never reach this state,
+/// but stale scripts and daemon messages can still bind an unreadable path.
+fn render_editor_open_failure(
+    id: PaneId,
+    path: String,
+    reason: String,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
+    let t = current_theme();
+    let filename = std::path::Path::new(&path)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .filter(|name| !name.is_empty())
+        .unwrap_or(&path)
+        .to_string();
+    let path_for_click = path.clone();
+
+    div()
+        .flex_1()
+        .flex()
+        .items_center()
+        .justify_center()
+        .p(px(tokens::SPACE_4))
+        .child(
+            div()
+                .w_full()
+                .max_w(px(680.0))
+                .border_1()
+                .border_color(rgb(t.line))
+                .bg(rgb(t.raised))
+                .child(div().h(px(4.0)).w_full().bg(rgb(t.gated)))
+                .child(
+                    div()
+                        .p(px(tokens::SPACE_4))
+                        .flex()
+                        .flex_col()
+                        .gap(px(tokens::SPACE_3))
+                        .child(
+                            div()
+                                .font_family("IBM Plex Mono")
+                                .text_size(px(18.0))
+                                .font_weight(FontWeight::BOLD)
+                                .text_color(rgb(t.ink))
+                                .child(format!("Could not open {filename}")),
+                        )
+                        .child(
+                            div()
+                                .font_family("IBM Plex Mono")
+                                .text_size(px(tokens::TEXT_BODY))
+                                .text_color(rgb(t.gated))
+                                .child(reason),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(tokens::TEXT_BODY))
+                                .text_color(rgb(t.muted))
+                                .child(
+                                    "Nothing was changed. Return to Files and choose another file.",
+                                ),
+                        )
+                        .child(
+                            div()
+                                .flex()
+                                .items_center()
+                                .gap(px(tokens::SPACE_3))
+                                .child(
+                                    div()
+                                        .id(SharedString::from(format!(
+                                            "editor-open-error-back-{id}"
+                                        )))
+                                        .border_1()
+                                        .border_color(rgb(t.accent))
+                                        .bg(rgb(t.accent))
+                                        .text_color(rgb(knockout_ink(t.accent)))
+                                        .px(px(tokens::SPACE_4))
+                                        .py(px(tokens::SPACE_2))
+                                        .cursor_pointer()
+                                        .font_family("IBM Plex Mono")
+                                        .text_size(px(tokens::TEXT_BODY))
+                                        .font_weight(FontWeight::BOLD)
+                                        .hover(|style| {
+                                            style
+                                                .bg(rgb(current_theme().accent_ink))
+                                                .border_color(rgb(current_theme().accent_ink))
+                                        })
+                                        .on_click(cx.listener(move |this, _ev, window, cx| {
+                                            this.return_editor_to_files(id, &path_for_click);
+                                            window.focus(&this.focus_handle);
+                                            crate::audio::play(crate::audio::Cue::Tick);
+                                            cx.notify();
+                                        }))
+                                        .child("Back to Files"),
+                                )
+                                .child(
+                                    div()
+                                        .text_size(px(tokens::TEXT_BODY))
+                                        .text_color(rgb(t.muted))
+                                        .child("or press Esc"),
+                                ),
+                        ),
+                ),
+        )
+        .into_any_element()
+}
+
+/// Persistent, inspectable editor-view controls. These affect only this opened
+/// view: neither wrapping nor Git provenance mutates the Loro document.
+fn render_editor_toolbar(
+    id: PaneId,
+    editor_key: String,
+    options: &EditorRenderOptions,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
+    let t = current_theme();
+    let wrap_key = editor_key.clone();
+    let blame_key = editor_key;
+    let wrap_on = options.wrap_lines;
+    let blame_on = options.show_blame;
+    let blame_status = if options.blame_status.starts_with("ERROR") {
+        "ERROR"
+    } else {
+        options.blame_status.as_str()
+    };
+
+    div()
+        .h(px(38.0))
+        .flex()
+        .items_center()
+        .gap(px(tokens::SPACE_2))
+        .px(px(tokens::SPACE_3))
+        .border_b_1()
+        .border_color(rgb(t.line))
+        .bg(rgb(t.panel))
+        .font_family("IBM Plex Mono")
+        .text_size(px(tokens::TEXT_BODY))
+        .child(
+            div()
+                .text_color(rgb(t.muted))
+                .child(format!("SYNTAX {}", options.syntax_label)),
+        )
+        .child(div().text_color(rgb(t.muted)).child(if blame_on {
+            "COLUMNS REPLICA + GIT"
+        } else {
+            "COLUMN REPLICA"
+        }))
+        .child(div().flex_1())
+        .child(
+            div()
+                .id(SharedString::from(format!("editor-wrap-toggle-{id}")))
+                .px(px(tokens::SPACE_2))
+                .py(px(tokens::SPACE_1))
+                .border_1()
+                .border_color(rgb(if wrap_on { t.accent } else { t.line }))
+                .bg(rgb(if wrap_on { t.raised } else { t.panel }))
+                .text_color(rgb(if wrap_on { t.accent_ink } else { t.ink2 }))
+                .cursor_pointer()
+                .hover(|style| {
+                    style
+                        .border_color(rgb(current_theme().accent))
+                        .bg(rgb(current_theme().raised))
+                })
+                .on_click(cx.listener(move |this, _ev, window, cx| {
+                    this.ws_mut().focus(id);
+                    window.focus(&this.focus_handle);
+                    if this.toggle_editor_wrap(&wrap_key) {
+                        crate::audio::play(crate::audio::Cue::Tick);
+                    }
+                    cx.notify();
+                }))
+                .child(format!("WRAP {}", if wrap_on { "ON" } else { "OFF" })),
+        )
+        .child(
+            div()
+                .id(SharedString::from(format!("editor-blame-toggle-{id}")))
+                .px(px(tokens::SPACE_2))
+                .py(px(tokens::SPACE_1))
+                .border_1()
+                .border_color(rgb(if blame_on { t.engaged } else { t.line }))
+                .bg(rgb(if blame_on { t.raised } else { t.panel }))
+                .text_color(rgb(if blame_on { t.engaged } else { t.ink2 }))
+                .cursor_pointer()
+                .hover(|style| {
+                    style
+                        .border_color(rgb(current_theme().engaged))
+                        .bg(rgb(current_theme().raised))
+                })
+                .on_click(cx.listener(move |this, _ev, window, cx| {
+                    this.ws_mut().focus(id);
+                    window.focus(&this.focus_handle);
+                    if this.toggle_editor_blame(&blame_key) {
+                        crate::audio::play(crate::audio::Cue::Tick);
+                    }
+                    cx.notify();
+                }))
+                .child(format!("BLAME {blame_status}")),
+        )
+        .into_any_element()
 }
 
 /// Map an existing nav id to the richest matching surface (semantic where one
@@ -6222,19 +8029,230 @@ fn nav_id_for_surface(surface: &SurfaceKind) -> Option<&str> {
         SurfaceKind::Sessions => Some("sessions"),
         SurfaceKind::Dispatch => Some("dispatch"),
         SurfaceKind::Panel { nav } => Some(nav.as_str()),
-        // Hitl renders from the foreground alert log; Conjure from a fixture DAG —
-        // neither is backed by a bg NAV pane.
-        SurfaceKind::CartographerChat
+        // Mission and HITL are foreground projections, not generic NAV pane fetchers.
+        SurfaceKind::Mission
         | SurfaceKind::FileTree { .. }
         | SurfaceKind::Editor { .. }
-        | SurfaceKind::Hitl
-        | SurfaceKind::Conjure => None,
+        | SurfaceKind::Hitl => None,
     }
 }
 
 impl Focusable for ConsoleView {
     fn focus_handle(&self, _cx: &App) -> FocusHandle {
         self.focus_handle.clone()
+    }
+}
+
+impl EntityInputHandler for ConsoleView {
+    fn text_for_range(
+        &mut self,
+        range: std::ops::Range<usize>,
+        adjusted_range: &mut Option<std::ops::Range<usize>>,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) -> Option<String> {
+        let key = self.focused_editor_key()?;
+        let state = self.editors.get(&key)?;
+        let text = state.pane.text()?;
+        let (slice, adjusted) = state.input.text_for_utf16_range(&text, &range);
+        adjusted_range.replace(adjusted);
+        Some(slice)
+    }
+
+    fn selected_text_range(
+        &mut self,
+        _ignore_disabled_input: bool,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) -> Option<UTF16Selection> {
+        let key = self.focused_editor_key()?;
+        let state = self.editors.get(&key)?;
+        let text = state.pane.text()?;
+        Some(UTF16Selection {
+            range: state.input.selection_utf16(&text),
+            reversed: state.input.selection_reversed(),
+        })
+    }
+
+    fn marked_text_range(
+        &self,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) -> Option<std::ops::Range<usize>> {
+        let key = self.focused_editor_key()?;
+        let state = self.editors.get(&key)?;
+        let text = state.pane.text()?;
+        state.input.marked_utf16(&text)
+    }
+
+    fn unmark_text(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
+        let _ = self.move_focused_editor(|input, _| input.unmark(), cx);
+    }
+
+    fn replace_text_in_range(
+        &mut self,
+        range: Option<std::ops::Range<usize>>,
+        text: &str,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let replacement = text.to_string();
+        let _ = self.apply_focused_editor_edit(
+            move |input, before| Some(input.replace(before, range, &replacement, false, None)),
+            cx,
+        );
+    }
+
+    fn replace_and_mark_text_in_range(
+        &mut self,
+        range: Option<std::ops::Range<usize>>,
+        new_text: &str,
+        new_selected_range: Option<std::ops::Range<usize>>,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let replacement = new_text.to_string();
+        let _ = self.apply_focused_editor_edit(
+            move |input, before| {
+                Some(input.replace(before, range, &replacement, true, new_selected_range))
+            },
+            cx,
+        );
+    }
+
+    fn bounds_for_range(
+        &mut self,
+        range_utf16: std::ops::Range<usize>,
+        element_bounds: Bounds<Pixels>,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) -> Option<Bounds<Pixels>> {
+        let key = self.focused_editor_key()?;
+        let state = self.editors.get(&key)?;
+        let text = state.pane.text()?;
+        let byte = state.input.byte_range_for_utf16(&text, &range_utf16).start;
+        let (gutter_px, wrap_columns) = editor_text_layout(
+            &text,
+            f32::from(element_bounds.size.width),
+            state.wrap_lines,
+            state.show_blame,
+        );
+        let (visual_row, column) = editor_visual_position_for_byte(&text, byte, wrap_columns);
+        let top = state.scroll.0.borrow().base_handle.logical_scroll_top().0;
+        let visible_row = visual_row.saturating_sub(top) as f32;
+        Some(Bounds::new(
+            point(
+                element_bounds.left() + px(gutter_px + column as f32 * tokens::CODE_CH),
+                element_bounds.top() + px(visible_row * tokens::CODE_LINE_H),
+            ),
+            size(px(2.0), px(tokens::CODE_LINE_H)),
+        ))
+    }
+
+    fn character_index_for_point(
+        &mut self,
+        point: Point<Pixels>,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) -> Option<usize> {
+        let key = self.focused_editor_key()?;
+        let state = self.editors.get(&key)?;
+        let bounds = state.input_bounds?;
+        let text = state.pane.text()?;
+        let top = state.scroll.0.borrow().base_handle.logical_scroll_top().0;
+        let (gutter_px, wrap_columns) = editor_text_layout(
+            &text,
+            f32::from(bounds.size.width),
+            state.wrap_lines,
+            state.show_blame,
+        );
+        let row = ((f32::from(point.y - bounds.top()) / tokens::CODE_LINE_H).floor() as isize)
+            .max(0) as usize;
+        let column = ((f32::from(point.x - bounds.left()) - gutter_px) / tokens::CODE_CH)
+            .floor()
+            .max(0.0) as usize;
+        let (line, column) = editor_hit_position(&text, top + row, column, wrap_columns)?;
+        Some(state.input.utf16_index_for_line_column(&text, line, column))
+    }
+}
+
+struct EditorInputElement {
+    view: Entity<ConsoleView>,
+    /// Stable state key for the pane this element measures. Input focus is
+    /// shared at the window level, but geometry must remain pane-local.
+    editor_key: String,
+}
+
+impl IntoElement for EditorInputElement {
+    type Element = Self;
+
+    fn into_element(self) -> Self::Element {
+        self
+    }
+}
+
+impl Element for EditorInputElement {
+    type RequestLayoutState = ();
+    type PrepaintState = ();
+
+    fn id(&self) -> Option<ElementId> {
+        None
+    }
+
+    fn source_location(&self) -> Option<&'static core::panic::Location<'static>> {
+        None
+    }
+
+    fn request_layout(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> (LayoutId, Self::RequestLayoutState) {
+        let mut style = Style::default();
+        style.size.width = relative(1.0).into();
+        style.size.height = relative(1.0).into();
+        (window.request_layout(style, [], cx), ())
+    }
+
+    fn prepaint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
+        _bounds: Bounds<Pixels>,
+        _request_layout: &mut Self::RequestLayoutState,
+        _window: &mut Window,
+        _cx: &mut App,
+    ) -> Self::PrepaintState {
+    }
+
+    fn paint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&gpui::InspectorElementId>,
+        bounds: Bounds<Pixels>,
+        _request_layout: &mut Self::RequestLayoutState,
+        _prepaint: &mut Self::PrepaintState,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        let focus = self.view.read(cx).focus_handle(cx);
+        let is_focused =
+            self.view.read(cx).focused_editor_key().as_deref() == Some(self.editor_key.as_str());
+        if is_focused {
+            window.handle_input(
+                &focus,
+                ElementInputHandler::new(bounds, self.view.clone()),
+                cx,
+            );
+        }
+        let editor_key = self.editor_key.clone();
+        self.view.update(cx, |view, cx| {
+            if record_editor_input_bounds(&mut view.editors, &editor_key, bounds) {
+                cx.notify();
+            }
+        });
     }
 }
 
@@ -6298,74 +8316,880 @@ fn split_divider(
         )
 }
 
-/// The always-visible NAV rail — the GUI replacement for `Ctrl-A <key>` surface
-/// switching. Click a surface name to swap the focused pane to it; the active
-/// surface is highlighted. Keyboard chords still work as unadvertised
-/// accelerators, but nothing here requires them. (#32 retired: the chord is made
-/// unnecessary, not consistent — the operator hates leader-key core movement.)
-fn render_nav_rail(active: Option<&str>, cx: &mut Context<ConsoleView>) -> impl IntoElement {
-    let active = active.map(|s| s.to_string());
+/// The apps.html navigation deck: stack layers read as colored rules before the
+/// operator reads a label. The full 27-surface launcher remains behind the
+/// trailing ellipsis, so the compact deck is hierarchy rather than omission.
+fn render_story_nav_button(
+    query: &'static str,
+    label: &'static str,
+    active: Option<&str>,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
+    let is_active = active == Some(query)
+        || (query == "planner" && active == Some("roadmap"))
+        || (query == "ledger" && active == Some("cost"));
     div()
-        .id("nav-rail")
-        .flex()
-        .flex_col()
-        .flex_none()
-        .w(px(152.0))
+        .id(SharedString::from(format!("deck-nav-{query}-{label}")))
         .h_full()
-        .overflow_y_scroll()
-        .bg(rgb(current_theme().panel))
-        .border_r_1()
-        .border_color(rgb(current_theme().line))
-        .py(px(6.0))
-        // Eyebrow header — the allowed 12px exception (uppercase, weight ≥600).
+        .px(px(9.0))
+        .flex()
+        .items_center()
+        .flex_shrink_0()
+        .bg(rgb(if is_active {
+            current_theme().accent
+        } else {
+            current_theme().panel
+        }))
+        .text_color(rgb(if is_active {
+            0xfbf7ef
+        } else {
+            current_theme().muted
+        }))
+        .font_family("IBM Plex Mono")
+        .font_weight(FontWeight::SEMIBOLD)
+        .text_size(px(12.0))
+        .cursor_pointer()
+        .when(!is_active, |d| {
+            d.hover(|h| {
+                h.bg(rgb(current_theme().raised))
+                    .text_color(rgb(current_theme().ink))
+            })
+        })
+        .child(label)
+        .on_click(cx.listener(move |this, _event, _window, cx| {
+            if let Some(surface) = surface_for_query(query) {
+                this.ws_mut().swap_surface(surface);
+            }
+            cx.notify();
+        }))
+        .into_any_element()
+}
+
+fn render_story_nav_group(
+    layer: &'static str,
+    color: u32,
+    items: &'static [(&'static str, &'static str)],
+    active: Option<&str>,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
+    div()
+        .h_full()
+        .flex()
+        .flex_shrink_0()
+        .border_t_2()
+        .border_color(rgb(color))
         .child(
             div()
-                .px(px(12.0))
-                .pb(px(4.0))
-                .text_size(px(12.0))
-                .font_weight(FontWeight::SEMIBOLD)
-                .text_color(rgb(current_theme().muted))
-                .child("NAVIGATE"),
+                .h_full()
+                .px(px(7.0))
+                .flex()
+                .items_center()
+                .font_family("IBM Plex Mono")
+                .text_size(px(11.0))
+                .text_color(rgb(current_theme().resting))
+                .child(layer),
         )
-        .children(NAV.iter().map(|item| {
-            let nav_id: &'static str = item.id;
-            let is_active = active.as_deref() == Some(nav_id);
-            let accent = current_theme().accent;
+        .children(
+            items
+                .iter()
+                .map(|(query, label)| render_story_nav_button(query, label, active, cx)),
+        )
+        .into_any_element()
+}
+
+fn render_story_nav_bar(active: Option<&str>, cx: &mut Context<ConsoleView>) -> AnyElement {
+    const L0: &[(&str, &str)] = &[("daemons", "daemon"), ("health", "health")];
+    const L1: &[(&str, &str)] = &[
+        ("fleet", "fleet"),
+        ("claims", "claims"),
+        ("parley", "parley"),
+        ("sessions", "sessions"),
+    ];
+    const L2: &[(&str, &str)] = &[
+        ("cockpit", "cockpit"),
+        ("work", "work"),
+        ("planner", "roadmap"),
+    ];
+    const L3: &[(&str, &str)] = &[("ledger", "ledger"), ("ledger", "cost")];
+    let t = current_theme();
+    div()
+        .id("story-nav-deck")
+        .h(px(42.0))
+        .w_full()
+        .flex()
+        .overflow_hidden()
+        .bg(rgb(t.panel))
+        .border_b_1()
+        .border_color(rgb(t.line))
+        .child(render_story_nav_group("L0", t.accent, L0, active, cx))
+        .child(render_story_nav_group("L1", t.landed, L1, active, cx))
+        .child(render_story_nav_group("L2", 0x3f8f87, L2, active, cx))
+        .child(render_story_nav_group("L3", t.engaged, L3, active, cx))
+        .child(div().flex_1())
+        .child(
             div()
-                .id(SharedString::from(format!("nav-{nav_id}")))
-                .mx(px(6.0))
-                .my(px(1.0))
+                .id("deck-nav-more")
+                .h_full()
                 .px(px(10.0))
-                .py(px(5.0))
-                .rounded(px(6.0))
+                .flex()
+                .items_center()
+                .font_family("IBM Plex Mono")
                 .text_size(px(14.0))
-                .font_weight(if is_active {
-                    FontWeight::SEMIBOLD
-                } else {
-                    FontWeight::MEDIUM
-                })
-                .text_color(rgb(if is_active {
-                    current_theme().accent_ink
-                } else {
-                    current_theme().ink2
-                }))
+                .text_color(rgb(t.muted))
                 .cursor_pointer()
-                .when(is_active, |s| {
-                    s.bg(rgb(current_theme().raised))
-                        .shadow(motion::glow(accent, 0.28, 10.0, 0.0))
+                .hover(|d| {
+                    d.bg(rgb(current_theme().raised))
+                        .text_color(rgb(current_theme().ink))
                 })
-                .when(!is_active, |s| {
-                    s.hover(move |h| {
-                        h.bg(rgb(current_theme().raised))
-                            .text_color(rgb(current_theme().accent_ink))
-                    })
-                })
-                .child(item.label)
-                .on_click(cx.listener(move |this, _ev, _window, cx| {
-                    this.ws_mut().swap_surface(surface_for_nav_id(nav_id));
+                .child("…")
+                .on_click(cx.listener(|this, _event, _window, cx| {
+                    this.launcher_open = true;
                     cx.notify();
+                })),
+        )
+        .into_any_element()
+}
+
+/// A sparse pane should still look intentional. The ordinary two-line
+/// Header+status rendering leaves most of a large operator window as dead gray;
+/// detect that honest state and give it the same poster-scale color blocking as
+/// story-linework's large signal fields.
+fn story_sparse_status(blocks: &[Block]) -> Option<String> {
+    if blocks.len() != 2 {
+        return None;
+    }
+    match (&blocks[0], &blocks[1]) {
+        (Block::Header(_), Block::KeyVal(key, value)) if key == "status" => Some(value.clone()),
+        _ => None,
+    }
+}
+
+fn story_sparse_poster(id: PaneId, surface: &SurfaceKind, status: &str) -> AnyElement {
+    let t = current_theme();
+    let nav = nav_id_for_surface(surface).unwrap_or("surface");
+    let (eyebrow, left, right, measure, primary, secondary, detail) =
+        if status.contains("no fleet running") {
+            (
+                "L1 / FLEET TRUTH",
+                "NO FLEET",
+                "RUNNING",
+                "0 SHIPS ACTIVE",
+                0x003fb8,
+                0xcad900,
+                "No declared ships are active on this daemon berth.",
+            )
+        } else if status.contains("all clear") {
+            (
+                "HUMAN GATES / RECEIPTS",
+                "ALL",
+                "CLEAR",
+                "0 ALERTS",
+                0x006b5f,
+                0xcad900,
+                "No operator action is waiting in the local alert ledger.",
+            )
+        } else if status.contains("connecting") || status.contains("opening") {
+            (
+                "HOT BUS / QUERY",
+                "WAITING",
+                "FOR TRUTH",
+                "PENDING",
+                0x003fb8,
+                0x933fa5,
+                "The pane is waiting for its first confirmed daemon response.",
+            )
+        } else if status.contains("empty") || status.contains("no ") {
+            (
+                "DURABLE QUERY / EMPTY",
+                "NO",
+                "ENTRIES",
+                "CONFIRMED",
+                0x006b5f,
+                0xcad900,
+                status,
+            )
+        } else {
+            (
+                "OPERATOR TRUTH / QUIET",
+                "STATE",
+                "QUIET",
+                "CONFIRMED",
+                0x003fb8,
+                0x006b5f,
+                status,
+            )
+        };
+
+    let poster = div()
+        .id(SharedString::from(format!("story-sparse-poster-{id}")))
+        .relative()
+        .flex_1()
+        .min_h(px(280.0))
+        .flex()
+        .overflow_hidden()
+        .bg(rgb(t.panel))
+        .child(
+            div()
+                .flex_basis(relative(0.43))
+                .flex_shrink_0()
+                .h_full()
+                .p(px(24.0))
+                .flex()
+                .flex_col()
+                .bg(rgb(primary))
+                .text_color(rgb(0xfbf7ef))
+                .child(
+                    div()
+                        .text_size(px(11.0))
+                        .font_weight(FontWeight::BOLD)
+                        .child(eyebrow),
+                )
+                .child(div().flex_1())
+                .child(
+                    div()
+                        .text_size(px(34.0))
+                        .font_weight(FontWeight::BOLD)
+                        .child(left),
+                )
+                .child(
+                    div()
+                        .mt(px(18.0))
+                        .flex()
+                        .child(div().w(px(28.0)).h(px(18.0)).bg(rgb(0xfbf7ef)))
+                        .child(div().w(px(28.0)).h(px(18.0)).bg(rgb(secondary))),
+                ),
+        )
+        .child(
+            div()
+                .flex_1()
+                .h_full()
+                .flex()
+                .flex_col()
+                .child(
+                    div()
+                        .h(px(118.0))
+                        .px(px(24.0))
+                        .flex()
+                        .items_center()
+                        .bg(rgb(secondary))
+                        .text_color(rgb(knockout_ink(secondary)))
+                        .text_size(px(34.0))
+                        .font_weight(FontWeight::BOLD)
+                        .child(right),
+                )
+                .child(
+                    div()
+                        .flex_1()
+                        .p(px(24.0))
+                        .flex()
+                        .flex_col()
+                        .border_l_1()
+                        .border_color(rgb(t.line))
+                        .child(
+                            div()
+                                .text_size(px(11.0))
+                                .font_weight(FontWeight::BOLD)
+                                .text_color(rgb(t.accent_ink))
+                                .child(format!("{nav} / {measure}")),
+                        )
+                        .child(div().flex_1())
+                        .child(
+                            div()
+                                .max_w(px(520.0))
+                                .text_size(px(15.0))
+                                .text_color(rgb(t.ink2))
+                                .child(detail.to_string()),
+                        )
+                        .child(
+                            div()
+                                .mt(px(10.0))
+                                .text_size(px(11.0))
+                                .text_color(rgb(t.muted))
+                                .child("CONFIRMED QUERY / NO SPINNER / NEXT ACTION STAYS EXPLICIT"),
+                        ),
+                ),
+        )
+        .child(
+            div()
+                .absolute()
+                .bottom_0()
+                .left_0()
+                .right_0()
+                .h(px(4.0))
+                .flex()
+                .child(div().flex_basis(relative(0.43)).bg(rgb(primary)))
+                .child(div().flex_1().bg(rgb(secondary))),
+        );
+
+    // This surface can repaint whenever the live PTY or hot bus emits. A
+    // render-owned entry animation would restart on those unrelated events and
+    // temporarily erase operator truth behind the CLI drawer. Keep the large
+    // field stable; motion belongs to the drawer, cloth flags, and live marker.
+    poster.into_any_element()
+}
+
+fn terminal_rgb(color: TerminalColor, default: u32) -> u32 {
+    const ANSI: [u32; 16] = [
+        0x17191d, 0xd95d69, 0x78c895, 0xd7b84b, 0x5f8ee4, 0xc27acb, 0x63c5c2, 0xd8d5cd, 0x6f7682,
+        0xff8290, 0x9bddae, 0xf1d86b, 0x82adff, 0xe49bed, 0x87e4df, 0xffffff,
+    ];
+    match color {
+        TerminalColor::Default => default,
+        TerminalColor::Rgb(red, green, blue) => {
+            (u32::from(red) << 16) | (u32::from(green) << 8) | u32::from(blue)
+        }
+        TerminalColor::Indexed(index) if index < 16 => ANSI[index as usize],
+        TerminalColor::Indexed(index) if index < 232 => {
+            let cube = index - 16;
+            let channel = |value: u8| if value == 0 { 0 } else { 55 + value * 40 };
+            let red = channel(cube / 36);
+            let green = channel((cube % 36) / 6);
+            let blue = channel(cube % 6);
+            (u32::from(red) << 16) | (u32::from(green) << 8) | u32::from(blue)
+        }
+        TerminalColor::Indexed(index) => {
+            let gray = 8 + (index - 232) * 10;
+            (u32::from(gray) << 16) | (u32::from(gray) << 8) | u32::from(gray)
+        }
+    }
+}
+
+fn shell_failure_strip(
+    id: &'static str,
+    failure: &crate::shell_drawer::ShellFailure,
+    color: u32,
+) -> AnyElement {
+    let t = current_theme();
+    div()
+        .id(id)
+        .mx(px(10.0))
+        .mb(px(8.0))
+        .flex()
+        .bg(tone_wash(color, 0x20))
+        .child(state_stripe(format!("{id}-stripe"), color, 3.0, 52.0))
+        .child(
+            div()
+                .flex_1()
+                .px(px(9.0))
+                .py(px(6.0))
+                .font_family("IBM Plex Mono")
+                .text_size(px(12.0))
+                .child(
+                    div()
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(rgb(color))
+                        .child(format!("{} · {}", failure.code(), failure.summary())),
+                )
+                .child(
+                    div()
+                        .text_color(rgb(t.ink2))
+                        .child(failure.detail().to_string()),
+                )
+                .child(
+                    div()
+                        .text_color(rgb(color))
+                        .child(format!("NEXT · {}", failure.next_action())),
+                ),
+        )
+        .into_any_element()
+}
+
+const SHELL_ROW_HEIGHT_PX: f32 = 17.0;
+const SHELL_RESIZE_HANDLE_HEIGHT_PX: f32 = 12.0;
+const SHELL_HEADER_HEIGHT_PX: f32 = 34.0;
+const SHELL_FOOTER_HEIGHT_PX: f32 = 28.0;
+const SHELL_OUTPUT_PADDING_PX: f32 = 16.0;
+const SHELL_FAILURE_STRIP_HEIGHT_PX: f32 = 60.0;
+const SHELL_RECEIPT_STRIP_HEIGHT_PX: f32 = 56.0;
+
+/// Estimate the non-terminal height currently occupying the drawer.
+///
+/// These values mirror the authored GPUI elements below. Including transient
+/// failure and recovery strips keeps the PTY's row count honest when evidence
+/// appears instead of silently clipping rows behind operator-facing receipts.
+fn shell_drawer_chrome_height(view: &ConsoleView) -> f32 {
+    SHELL_RESIZE_HANDLE_HEIGHT_PX
+        + SHELL_HEADER_HEIGHT_PX
+        + SHELL_FOOTER_HEIGHT_PX
+        + SHELL_OUTPUT_PADDING_PX
+        + if view.shell.failure().is_some() {
+            SHELL_FAILURE_STRIP_HEIGHT_PX
+        } else {
+            0.0
+        }
+        + if view.shell.recovery_failure().is_some() {
+            SHELL_FAILURE_STRIP_HEIGHT_PX
+        } else {
+            0.0
+        }
+        + if view.shell.previous_receipt().is_some() {
+            SHELL_RECEIPT_STRIP_HEIGHT_PX
+        } else {
+            0.0
+        }
+}
+
+/// Render the one persistent terminal surface at its already-resolved height.
+///
+/// `terminal_rows` is calculated before this function and sent to the native
+/// PTY in the same render pass. The renderer therefore cannot show a geometry
+/// that disagrees with what an interactive child process believes it owns.
+fn render_shell_drawer(
+    view: &ConsoleView,
+    drawer_height_px: f32,
+    terminal_rows: u16,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
+    let t = current_theme();
+    let (shell_rows, shell_cols) = view.shell.size();
+    let live = view.shell.is_live();
+    let history_offset = view.shell.scrollback_offset();
+    let show_cursor = live && history_offset == 0;
+    let status_color = match view.shell.status() {
+        ShellStatus::Starting => t.engaged,
+        ShellStatus::Running => t.landed,
+        ShellStatus::Exited(0) => t.resting,
+        ShellStatus::Exited(_) | ShellStatus::Failed(_) => t.gated,
+    };
+    let status_dot = div()
+        .id("cli-status-dot")
+        .w(px(7.0))
+        .h(px(7.0))
+        .rounded(px(4.0))
+        .bg(rgb(status_color));
+    let status_dot: AnyElement = status_dot.into_any_element();
+    let retention = view.shell.retention();
+    let previous_receipt = view.shell.previous_receipt().cloned();
+    let terminal_failure = view.shell.failure().cloned();
+    let recovery_failure = view.shell.recovery_failure().cloned();
+    let output_stripe_height = (drawer_height_px
+        - SHELL_RESIZE_HANDLE_HEIGHT_PX
+        - SHELL_HEADER_HEIGHT_PX
+        - SHELL_FOOTER_HEIGHT_PX)
+        .max(1.0);
+
+    let lines = view.shell.styled_lines(terminal_rows as usize);
+    let output_rows = lines.into_iter().map(|line| {
+        let mut highlights: Vec<(std::ops::Range<usize>, HighlightStyle)> = line
+            .spans
+            .into_iter()
+            .filter(|span| !span.range.is_empty())
+            .map(|span| {
+                let background_color = match span.background {
+                    TerminalColor::Default => None,
+                    color => Some(rgb(terminal_rgb(color, t.sunken)).into()),
+                };
+                (
+                    span.range,
+                    HighlightStyle {
+                        color: Some(rgb(terminal_rgb(span.foreground, t.ink)).into()),
+                        background_color,
+                        font_weight: span.bold.then_some(FontWeight::BOLD),
+                        font_style: span.italic.then_some(FontStyle::Italic),
+                        ..Default::default()
+                    },
+                )
+            })
+            .collect();
+        if show_cursor {
+            if let Some(cursor) = line.cursor.filter(|range| !range.is_empty()) {
+                highlights.push((
+                    cursor,
+                    HighlightStyle {
+                        color: Some(rgb(t.sunken).into()),
+                        background_color: Some(rgb(t.accent_ink).into()),
+                        ..Default::default()
+                    },
+                ));
+            }
+        }
+        div()
+            .h(px(SHELL_ROW_HEIGHT_PX))
+            .w_full()
+            .flex_shrink_0()
+            .pl(px(10.0))
+            .pr(px(8.0))
+            .overflow_hidden()
+            .whitespace_nowrap()
+            .text_size(px(13.0))
+            .text_color(rgb(t.ink))
+            .child(
+                StyledText::new(SharedString::new(if line.text.is_empty() {
+                    " ".to_string()
+                } else {
+                    line.text
                 }))
-        }))
+                .with_highlights(highlights),
+            )
+    });
+
+    let drawer = div()
+        .id("cli-drawer")
+        .absolute()
+        .left(px(16.0))
+        .right(px(16.0))
+        .bottom(px(64.0))
+        .h(px(drawer_height_px))
+        .occlude()
+        .flex()
+        .flex_col()
+        .bg(rgb(t.sunken))
+        .shadow(vec![BoxShadow {
+            color: rgba(0x00000088).into(),
+            offset: point(px(0.0), px(-10.0)),
+            blur_radius: px(28.0),
+            spread_radius: px(1.0),
+        }])
+        // A real, named affordance replaces the old invisible fixed-height
+        // boundary. Root-level pointer tracking below keeps the resize alive
+        // even when the pointer leaves this twelve-pixel hit target.
+        .child(
+            div()
+                .id("cli-drawer-resize-handle")
+                .h(px(SHELL_RESIZE_HANDLE_HEIGHT_PX))
+                .w_full()
+                .flex_shrink_0()
+                .occlude()
+                .flex()
+                .items_center()
+                .justify_center()
+                .gap(px(7.0))
+                .cursor(CursorStyle::ResizeUpDown)
+                .border_b_1()
+                .border_color(rgb(t.line))
+                .bg(rgb(t.panel))
+                .text_color(rgb(t.muted))
+                .font_family("IBM Plex Mono")
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_size(px(9.0))
+                .hover(|style| style.bg(rgb(t.raised)).text_color(rgb(t.accent_ink)))
+                .child(div().w(px(38.0)).h(px(2.0)).bg(rgb(t.line)))
+                .child("RESIZE")
+                .child(div().w(px(38.0)).h(px(2.0)).bg(rgb(t.line)))
+                .on_drag(
+                    ShellResizeGesture,
+                    |_gesture, _position, _window, cx| cx.new(|_| ShellResizePreview),
+                )
+                .on_mouse_down(
+                    MouseButton::Left,
+                    cx.listener(
+                        |this, event: &MouseDownEvent, window, cx| {
+                            let viewport_height_px = f32::from(window.viewport_size().height);
+                            this.shell_resize_drag = Some(ShellResizeDrag {
+                                pointer_start_y: f32::from(event.position.y),
+                                drawer_start_height_px: this
+                                    .shell_geometry
+                                    .height_px(viewport_height_px),
+                            });
+                            cx.notify();
+                            cx.stop_propagation();
+                        },
+                    ),
+                )
+                .on_mouse_up(
+                    MouseButton::Left,
+                    cx.listener(|this, _event: &MouseUpEvent, _window, cx| {
+                        if this.shell_resize_drag.take().is_some() {
+                            cx.notify();
+                        }
+                    }),
+                )
+                .on_mouse_up_out(
+                    MouseButton::Left,
+                    cx.listener(|this, _event: &MouseUpEvent, _window, cx| {
+                        if this.shell_resize_drag.take().is_some() {
+                            cx.notify();
+                        }
+                    }),
+                ),
+        )
+        // One large color zone: command context. The rest of the terminal stays
+        // quiet enough that state stripes and actual ANSI output can speak.
+        .child(
+            div()
+                .h(px(34.0))
+                .w_full()
+                .flex_shrink_0()
+                .flex()
+                .items_center()
+                .bg(rgb(t.accent))
+                .text_color(rgb(0xffffff))
+                .child(state_stripe("cli-header-state", status_color, 5.0, 34.0))
+                .child(
+                    div()
+                        .ml(px(10.0))
+                        .flex()
+                        .items_center()
+                        .gap(px(8.0))
+                        .child(micro_flag("cli-context-flag", 0xffffff, t.engaged, 9.0, 14.0))
+                        .child(
+                            div()
+                                .font_family("IBM Plex Mono")
+                                .font_weight(FontWeight::BOLD)
+                                .text_size(px(13.0))
+                                .child("CLI · PORT DADDY"),
+                        ),
+                )
+                .child(div().flex_1())
+                .child(status_dot)
+                .child(
+                    div()
+                        .ml(px(7.0))
+                        .font_family("IBM Plex Mono")
+                        .text_size(px(12.0))
+                        .child(view.shell.status_label()),
+                )
+                .when(history_offset > 0, |header| {
+                    header.child(
+                        div()
+                            .id("cli-return-live")
+                            .ml(px(10.0))
+                            .px(px(7.0))
+                            .h(px(22.0))
+                            .flex()
+                            .items_center()
+                            .border_1()
+                            .border_color(rgb(0xffffff))
+                            .bg(rgba(0x00000022))
+                            .cursor_pointer()
+                            .font_family("IBM Plex Mono")
+                            .font_weight(FontWeight::BOLD)
+                            .text_size(px(10.0))
+                            .hover(|style| style.bg(rgba(0xffffff22)))
+                            .child(format!(
+                                "HISTORY ↑ {history_offset} · RETURN LIVE"
+                            ))
+                            .on_click(cx.listener(|this, _event, _window, cx| {
+                                this.shell.scroll_to_live();
+                                cx.notify();
+                            })),
+                    )
+                })
+                .child(
+                    div()
+                        .id("cycle-cli-receipt-retention")
+                        .ml(px(10.0))
+                        .px(px(7.0))
+                        .h(px(22.0))
+                        .flex()
+                        .items_center()
+                        .border_1()
+                        .border_color(rgba(0xffffff66))
+                        .cursor_pointer()
+                        .font_family("IBM Plex Mono")
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_size(px(11.0))
+                        .hover(|style| style.bg(rgba(0xffffff22)).border_color(rgb(0xffffff)))
+                        .child(format!("RECEIPT {}", retention.label().to_uppercase()))
+                        .on_click(cx.listener(|this, _event, _window, cx| {
+                            let retention = this.shell.cycle_retention();
+                            this.control_flash = Some(match retention {
+                                crate::shell_drawer::ShellRetention::Off => {
+                                    "shell receipt retention off".into()
+                                }
+                                crate::shell_drawer::ShellRetention::Metadata => {
+                                    "shell receipt stores launch metadata; environment and screen excluded".into()
+                                }
+                                crate::shell_drawer::ShellRetention::Screen => {
+                                    "shell receipt stores visible screen; environment excluded".into()
+                                }
+                            });
+                            cx.notify();
+                        })),
+                )
+                .child(
+                    div()
+                        .id("close-cli-drawer")
+                        .ml(px(12.0))
+                        .mr(px(10.0))
+                        .w(px(22.0))
+                        .h(px(22.0))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .cursor_pointer()
+                        .font_family("IBM Plex Mono")
+                        .text_size(px(15.0))
+                        .hover(|d| d.bg(rgba(0xffffff22)))
+                        .child("×")
+                        .on_click(cx.listener(|this, _event, _window, cx| {
+                            this.shell_open = false;
+                            this.shell_resize_drag = None;
+                            cx.notify();
+                        })),
+                ),
+        )
+        .child(
+            div()
+                .flex_1()
+                .overflow_hidden()
+                .flex()
+                .bg(rgb(t.sunken))
+                .on_scroll_wheel(cx.listener(
+                    move |this, event: &ScrollWheelEvent, _window, cx| {
+                        let pixels = match event.delta {
+                            ScrollDelta::Pixels(delta) => f32::from(delta.y),
+                            ScrollDelta::Lines(delta) => {
+                                delta.y * SHELL_ROW_HEIGHT_PX * presentation::zoom_factor()
+                            }
+                        };
+                        let alternate_screen = this.shell.is_alternate_screen();
+                        let rows = this
+                            .shell
+                            .scroll_wheel_pixels(
+                                pixels,
+                                SHELL_ROW_HEIGHT_PX * presentation::zoom_factor(),
+                            );
+                        if alternate_screen && rows != 0 {
+                            let key = if rows > 0 { "up" } else { "down" };
+                            if let Some(sequence) =
+                                terminal_key_bytes(key, None, false, false, false, false)
+                            {
+                                let repeats = rows
+                                    .unsigned_abs()
+                                    .min(u32::from(terminal_rows))
+                                    as usize;
+                                if !this.shell.send(sequence.repeat(repeats)) {
+                                    this.control_flash = Some(
+                                        "PTY_INPUT_CHANNEL_CLOSED · wheel navigation did not reach the shell · next: relaunch pd-console"
+                                            .into(),
+                                    );
+                                }
+                            }
+                        }
+                        if rows != 0 {
+                            cx.notify();
+                        }
+                        // The terminal is an occluding surface. Its wheel must
+                        // never leak through and move the pane underneath it.
+                        cx.stop_propagation();
+                    },
+                ))
+                .child(state_stripe(
+                    "cli-output-state",
+                    status_color,
+                    3.0,
+                    output_stripe_height,
+                ))
+                .child(
+                    div()
+                        .flex_1()
+                        .overflow_hidden()
+                        .py(px(8.0))
+                        .font_family("JetBrainsMono Nerd Font Mono")
+                        .children(output_rows),
+                ),
+        )
+        .when_some(terminal_failure, |drawer, failure| {
+            drawer.child(shell_failure_strip("cli-terminal-failure", &failure, t.gated))
+        })
+        .when_some(recovery_failure, |drawer, failure| {
+            drawer.child(shell_failure_strip("cli-recovery-failure", &failure, t.engaged))
+        })
+        .when_some(previous_receipt, |drawer, receipt| {
+            let preview = receipt.screen_preview_label();
+            let (rows, cols) = receipt.size();
+            drawer.child(
+                div()
+                    .mx(px(10.0))
+                    .mb(px(8.0))
+                    .flex()
+                    .border_t_1()
+                    .border_b_1()
+                    .border_color(rgb(t.line))
+                    .bg(rgb(t.panel))
+                    .child(state_stripe("cli-receipt-stripe", t.engaged, 3.0, 48.0))
+                    .child(
+                        div()
+                            .flex_1()
+                            .px(px(9.0))
+                            .py(px(5.0))
+                            .overflow_hidden()
+                            .font_family("IBM Plex Mono")
+                            .text_size(px(11.0))
+                            .child(
+                                div()
+                                    .font_weight(FontWeight::BOLD)
+                                    .text_color(rgb(t.engaged))
+                                    .child(format!(
+                                        "PREVIOUS SHELL RECEIPT · {} · {}",
+                                        receipt.age_label(),
+                                        receipt.honest_status()
+                                    )),
+                            )
+                            .child(
+                                div()
+                                    .text_color(rgb(t.muted))
+                                    .child(format!(
+                                        "{} · launch {} · PTY {rows}x{cols}",
+                                        receipt.shell_label(),
+                                        receipt.launch_cwd_label()
+                                    )),
+                            )
+                            .when_some(preview, |body, line| {
+                                body.child(
+                                    div()
+                                        .whitespace_nowrap()
+                                        .text_color(rgb(t.ink2))
+                                        .child(format!("SCREEN RETAINED · {line}")),
+                                )
+                            }),
+                    )
+                    .child(
+                        div()
+                            .id("clear-cli-recovery-receipt")
+                            .px(px(9.0))
+                            .flex()
+                            .items_center()
+                            .border_l_1()
+                            .border_color(rgb(t.line))
+                            .cursor_pointer()
+                            .text_color(rgb(t.muted))
+                            .font_family("IBM Plex Mono")
+                            .text_size(px(11.0))
+                            .hover(|style| {
+                                style.bg(rgb(current_theme().raised)).text_color(rgb(current_theme().ink))
+                            })
+                            .child("CLEAR")
+                            .on_click(cx.listener(|this, _event, _window, cx| {
+                                this.shell.clear_previous_receipt();
+                                this.control_flash = Some("previous shell receipt cleared".into());
+                                cx.notify();
+                            })),
+                    ),
+            )
+        })
+        .child(
+            div()
+                .h(px(28.0))
+                .flex_shrink_0()
+                .flex()
+                .items_center()
+                .gap(px(9.0))
+                .px(px(10.0))
+                .border_t_1()
+                .border_color(rgb(t.line))
+                .bg(rgb(t.panel))
+                .font_family("JetBrainsMono Nerd Font Mono")
+                .text_size(px(11.0))
+                .text_color(rgb(t.muted))
+                .child(format!(
+                    "{} · launch {}",
+                    view.shell.shell(),
+                    view.shell.launch_cwd_label()
+                ))
+                .child(div().flex_1())
+                .child(format!("PTY {shell_rows}×{shell_cols} · xterm-256color")),
+        )
+        // Focus ticks paint last so the color-block header and terminal output
+        // cannot cover the boundary language.
+        .children(corner_ticks("cli", t.accent_ink));
+
+    // The PTY repaints for every output chunk. Render-owned animations restart
+    // on those updates and invalidate GPUI's absolute-layer cache, which can
+    // erase unrelated pane pixels. The drawer stays static until its transition
+    // is owned by explicit view state with a durable start timestamp.
+    drawer.into_any_element()
 }
 
 impl Render for ConsoleView {
@@ -6378,27 +9202,47 @@ impl Render for ConsoleView {
         // viewport-width change (resize / pane reflow → left/right); scrolling
         // feeds vy via on_scroll_wheel. A width change kicks the settle loop,
         // which decays the velocity over subsequent frames (cx.on_next_frame).
-        {
-            let vw = f32::from(window.viewport_size().width);
-            if self.prev_viewport_w == 0.0 {
-                self.prev_viewport_w = vw;
-            }
-            let dvw = vw - self.prev_viewport_w;
-            self.prev_viewport_w = vw;
-            if dvw.abs() > 0.5 {
-                self.flag_motion.vx = (self.flag_motion.vx + dvw / 60.0).clamp(-1.6, 1.6);
-                self.kick_flag_motion(window, cx);
-            }
+        let viewport_size = window.viewport_size();
+        let viewport_width_px = f32::from(viewport_size.width);
+        let viewport_height_px = f32::from(viewport_size.height);
+        if self.prev_viewport_w == 0.0 {
+            self.prev_viewport_w = viewport_width_px;
         }
+        let dvw = viewport_width_px - self.prev_viewport_w;
+        self.prev_viewport_w = viewport_width_px;
+        if dvw.abs() > 0.5 {
+            self.flag_motion.vx = (self.flag_motion.vx + dvw / 60.0).clamp(-1.6, 1.6);
+            self.kick_flag_motion(window, cx);
+        }
+        // Keep the native PTY, vt100 model, and authored drawer geometry in one
+        // render transaction. Resize is idempotent, so ordinary renders emit no
+        // PTY control message when rows and columns are unchanged.
+        let presentation_scale = presentation::zoom_factor();
+        let authored_viewport_width_px = viewport_width_px / presentation_scale;
+        let authored_viewport_height_px = viewport_height_px / presentation_scale;
+        let shell_drawer_height_px = self.shell_geometry.height_px(authored_viewport_height_px);
+        let shell_terminal_rows = self.shell_geometry.terminal_rows(
+            authored_viewport_height_px,
+            shell_drawer_chrome_height(self),
+            SHELL_ROW_HEIGHT_PX,
+        );
+        let shell_cols = ((authored_viewport_width_px - 52.0) / 7.8)
+            .floor()
+            .clamp(40.0, 220.0) as u16;
+        let _ = self.shell.resize(shell_terminal_rows, shell_cols);
 
         let daemon_url = self.daemon_url.clone();
         let focused = self.ws().focused();
-        // Which NAV surface the focused pane is showing — drives the rail highlight.
-        let active_nav = nav_id_for_surface(self.ws().focused_surface()).map(|s| s.to_string());
+        // Compact deck identity, including non-NAV surfaces such as Work.
+        let active_nav = launcher_id_for_surface(self.ws().focused_surface());
         let armed = self.leader_armed;
         let command = self.command.clone();
         let lit = armed || command.is_some();
         let pane_count = self.ws().pane_count();
+        let daemon_connected = self.daemon_connected;
+        // HITL banner data (contract §4.2): surfaced window-wide when any ask
+        // is open; loud red (mayday) when a critical/blocking ask is waiting.
+        let hitl_banner = self.hitl_gate.clone();
         let zoomed = self.zoomed();
         // Tab bar data (index, name, is-active).
         let tabs: Vec<(usize, String, bool)> = self
@@ -6407,6 +9251,11 @@ impl Render for ConsoleView {
             .enumerate()
             .map(|(i, t)| (i, t.name.clone(), i == self.active_tab))
             .collect();
+        // Preserve the zoom controls at large presentation scales. Tabs and
+        // secondary preferences yield before primary operator controls can
+        // overflow beyond the right edge of a narrow logical viewport.
+        let compact_title_deck = authored_viewport_width_px < 960.0;
+        let minimal_title_deck = authored_viewport_width_px < 720.0;
         // Body: a single maximized pane, or the full tree.
         let body: AnyElement =
             match zoomed.and_then(|zid| self.ws().surface_at(zid).cloned().map(|s| (zid, s))) {
@@ -6422,6 +9271,17 @@ impl Render for ConsoleView {
         } else {
             None
         };
+        let shell_drawer = if self.shell_open {
+            Some(render_shell_drawer(
+                self,
+                shell_drawer_height_px,
+                shell_terminal_rows,
+                cx,
+            ))
+        } else {
+            None
+        };
+        let shell_resizing = self.shell_resize_drag.is_some();
         // The launch splash overlays everything until the first refresh lands.
         // Suppressed for the launcher screenshot hook and the PD_CONSOLE_NO_SPLASH
         // opt-out, so capture tooling / opted-out users never see the boot flash.
@@ -6436,6 +9296,36 @@ impl Render for ConsoleView {
             .track_focus(&self.focus_handle)
             .relative()
             .size_full()
+            .when(shell_resizing, |root| {
+                root.cursor(CursorStyle::ResizeUpDown)
+            })
+            .font_family("IBM Plex Mono")
+            // GPUI's capture-phase drag stream is the pointer-capture contract
+            // for resizers. It keeps delivering movement over the drawer's
+            // occluding children, which makes downward motion as immediate as
+            // upward motion.
+            .on_drag_move::<ShellResizeGesture>(cx.listener(
+                |this, ev: &DragMoveEvent<ShellResizeGesture>, window, cx| {
+                    let Some(drag) = this.shell_resize_drag else {
+                        return;
+                    };
+                    if ev.event.pressed_button != Some(MouseButton::Left) || !this.shell_open {
+                        this.shell_resize_drag = None;
+                        cx.notify();
+                        return;
+                    }
+                    let current_y = f32::from(ev.event.position.y);
+                    let total_delta_y = current_y - drag.pointer_start_y;
+                    let viewport_height_px =
+                        f32::from(window.viewport_size().height) / presentation::zoom_factor();
+                    this.shell_geometry.resize_from_anchor(
+                        drag.drawer_start_height_px,
+                        total_delta_y / presentation::zoom_factor(),
+                        viewport_height_px,
+                    );
+                    cx.notify();
+                },
+            ))
             // Grab-the-rope: while a divider drag is live, map the global mouse
             // position to the split's weight fraction and resize that boundary.
             .on_mouse_move(cx.listener(|this, ev: &MouseMoveEvent, _window, cx| {
@@ -6491,6 +9381,9 @@ impl Render for ConsoleView {
                 }
             }))
             .on_mouse_up(MouseButton::Left, cx.listener(|this, _ev: &MouseUpEvent, _window, cx| {
+                if this.shell_resize_drag.take().is_some() {
+                    cx.notify();
+                }
                 if this.dragging.take().is_some() {
                     cx.notify();
                 }
@@ -6549,13 +9442,20 @@ impl Render for ConsoleView {
             .bg(rgb(current_theme().bg))
             .flex()
             .flex_col()
-            .font_family("General Sans")
+            .font_family("IBM Plex Mono")
             // Leader-key dispatcher: Ctrl-A arms; the next keystroke is a
             // multiplexer command (split / close / focus / swap-surface).
-            .on_key_down(cx.listener(|this, ev: &KeyDownEvent, _window, cx| {
+            .on_key_down(cx.listener(|this, ev: &KeyDownEvent, window, cx| {
                 let key = ev.keystroke.key.clone();
                 let key_char = ev.keystroke.key_char.clone();
                 let ctrl = ev.keystroke.modifiers.control;
+                let platform = ev.keystroke.modifiers.platform;
+                let zoom_action = presentation::action_for_shortcut(&key, platform);
+                if let Some(action) = zoom_action {
+                    this.apply_presentation_zoom(action, window, cx);
+                    cx.stop_propagation();
+                    return;
+                }
                 if this.launcher_open {
                     // The launcher owns the keyboard while open: Esc closes; a
                     // tile's key jumps straight to that surface (and sidesteps the
@@ -6577,18 +9477,44 @@ impl Render for ConsoleView {
                 } else if ctrl && key == "a" {
                     this.leader_armed = true;
                     cx.notify();
-                } else if this.focused_is_chat() {
-                    // The focused chat pane captures printable keys into its composer
+                } else if this.shell_open {
+                    // The raised PTY owns ordinary keys. Global console control
+                    // remains reachable through the Ctrl-A leader handled above.
+                    this.handle_shell_key(
+                        key.as_str(),
+                        key_char.as_deref(),
+                        ev.keystroke.modifiers,
+                        cx,
+                    );
+                } else if key == "escape" && this.recover_failed_editor() {
+                    crate::audio::play(crate::audio::Cue::Tick);
+                    cx.notify();
+                    cx.stop_propagation();
+                } else if this.focused_editor_key().is_some() {
+                    // Printable text is delivered by GPUI's platform input
+                    // bridge (`EntityInputHandler`) so IME/dead-key composition
+                    // works. Navigation, deletion, clipboard, Enter and Tab are
+                    // commands and stay on the keydown path.
+                    if this.handle_editor_key(
+                        key.as_str(),
+                        ev.keystroke.modifiers,
+                        cx,
+                    ) {
+                        cx.stop_propagation();
+                    }
+                } else if this.focused_is_mission() {
+                    // The focused Mission captures printable keys into its composer
                     // (no native input widget) — the load-bearing "make it actually
                     // type" path. Ctrl-A still arms the leader (checked above first).
                     let shift = ev.keystroke.modifiers.shift;
                     this.handle_chat_key(key.as_str(), key_char.as_deref(), shift, cx);
                 }
             }))
-            // ── Tab bar (named workspaces, like tmux windows) ──
+            // ── Flat title deck. Named workspaces remain here, but the app frame
+            // follows apps.html: square, quiet, mono, and bounded by hairlines. ──
             .child(
                 div()
-                    .h(px(28.0))
+                    .h(px(48.0))
                     // The window titlebar is transparent (traffic lights drawn at
                     // x≈12–64), so the tab strip must start clear of them or the
                     // first tab + "+" hide behind the OS controls. Inset the left
@@ -6597,79 +9523,104 @@ impl Render for ConsoleView {
                     .pr(px(6.0))
                     .flex()
                     .items_center()
-                    .gap(px(4.0))
+                    .gap(px(0.0))
                     .bg(rgb(current_theme().panel))
                     .border_b_1()
                     .border_color(rgb(current_theme().line))
-                    // Persistent brand lockup — the P·d mark + "PORT DADDY",
-                    // pinned at the top-left of the chrome on every pane/tab.
+                    // Persistent brand lockup as two signal slabs. The identity
+                    // reads as color geometry before it reads as text, matching
+                    // the split-field typography in story-linework.
                     .child(
                         div()
+                            .h_full()
                             .flex()
                             .items_center()
-                            .gap(px(7.0))
-                            .px(px(4.0))
-                            .child(
-                                svg()
-                                    .path("icons/pd-mark-glyph.svg")
-                                    .w(px(18.0))
-                                    .h(px(18.0))
-                                    .text_color(rgb(current_theme().accent_ink)),
-                            )
+                            .gap(px(0.0))
                             .child(
                                 div()
-                                    .text_size(px(12.0))
+                                    .h_full()
+                                    .px(px(12.0))
+                                    .flex()
+                                    .items_center()
+                                    .bg(rgb(current_theme().accent))
+                                    .text_color(rgb(0xfbf7ef))
+                                    .font_family("IBM Plex Mono")
+                                    .text_size(px(13.0))
                                     .font_weight(FontWeight::BOLD)
-                                    .text_color(rgb(current_theme().ink))
-                                    .child("PORT DADDY"),
+                                    .child("PORT"),
                             )
                             .child(
                                 div()
-                                    .w(px(1.0))
-                                    .h(px(16.0))
-                                    .bg(rgb(current_theme().line)),
-                            ),
+                                    .h_full()
+                                    .px(px(12.0))
+                                    .flex()
+                                    .items_center()
+                                    .bg(rgb(current_theme().engaged))
+                                    .text_color(rgb(0x17191d))
+                                    .font_family("IBM Plex Mono")
+                                    .text_size(px(13.0))
+                                    .font_weight(FontWeight::BOLD)
+                                    .child("DADDY"),
+                            )
+                            .when(!compact_title_deck, |brand| brand.child(
+                                div()
+                                    .h_full()
+                                    .px(px(12.0))
+                                    .flex()
+                                    .items_center()
+                                    .border_r_1()
+                                    .border_color(rgb(current_theme().line))
+                                    .font_family("IBM Plex Mono")
+                                    .text_size(px(12.0))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(rgb(current_theme().muted))
+                                    .child(format!("pd-console · {}", env!("CARGO_PKG_VERSION"))),
+                            )),
                     )
-                    .children(tabs.into_iter().map(|(i, name, active)| {
-                        div()
-                            .id(SharedString::from(format!("tab-{i}")))
-                            .px(px(10.0))
-                            .py(px(3.0))
-                            .rounded(px(5.0))
-                            .text_size(px(13.0))
-                            .font_weight(FontWeight::MEDIUM)
-                            .text_color(rgb(if active { current_theme().accent_ink } else { current_theme().muted }))
-                            // Active tab: raised + a mustard glow. Inactive: lift on hover
-                            // (a hard offset shadow stands in for the mock's translateY(-1px)).
-                            .when(active, |s| {
-                                s.bg(rgb(current_theme().raised))
-                                    .shadow(motion::glow(current_theme().accent, 0.30, 12.0, 0.0))
-                            })
-                            .cursor_pointer()
-                            .when(!active, |s| {
-                                s.hover(|h| {
-                                    let t = current_theme();
-                                    h.bg(rgb(t.raised)).text_color(rgb(t.ink2)).shadow(motion::hard_offset(t.sunken, 0.0, 2.0))
+                    .when(!compact_title_deck, |title| {
+                        title.children(tabs.into_iter().map(|(i, name, active)| {
+                            div()
+                                .id(SharedString::from(format!("tab-{i}")))
+                                .px(px(10.0))
+                                .py(px(3.0))
+                                .font_family("IBM Plex Mono")
+                                .text_size(px(12.0))
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_color(rgb(if active {
+                                    current_theme().accent_ink
+                                } else {
+                                    current_theme().muted
+                                }))
+                                // Active tab: raised + a mustard glow. Inactive: lift on hover
+                                // (a hard offset shadow stands in for the mock's translateY(-1px)).
+                                .when(active, |s| {
+                                    s.border_b_2().border_color(rgb(current_theme().accent))
                                 })
-                            })
-                            .child(name)
-                            .on_click(cx.listener(move |this, _ev, _window, cx| {
-                                this.active_tab = i;
-                                cx.notify();
-                            }))
-                    }))
+                                .cursor_pointer()
+                                .when(!active, |s| {
+                                    s.hover(|h| {
+                                        let t = current_theme();
+                                        h.bg(rgb(t.raised)).text_color(rgb(t.ink2))
+                                    })
+                                })
+                                .child(name)
+                                .on_click(cx.listener(move |this, _ev, _window, cx| {
+                                    this.active_tab = i;
+                                    cx.notify();
+                                }))
+                        }))
+                    })
                     .child(
                         div()
                             .id("tab-new")
                             .px(px(8.0))
                             .py(px(3.0))
-                            .rounded(px(5.0))
                             .text_size(px(15.0))
                             .text_color(rgb(current_theme().muted))
                             .cursor_pointer()
                             .hover(|s| {
                                 let t = current_theme();
-                                s.bg(rgb(t.raised)).text_color(rgb(t.accent_ink)).shadow(motion::glow(t.accent, 0.30, 10.0, 0.0))
+                                s.bg(rgb(t.raised)).text_color(rgb(t.accent_ink))
                             })
                             .child("+")
                             .on_click(cx.listener(|this, _ev, _window, cx| {
@@ -6683,15 +9634,12 @@ impl Render for ConsoleView {
                             .id("open-launcher")
                             .px(px(8.0))
                             .py(px(3.0))
-                            .rounded(px(5.0))
                             .text_size(px(15.0))
                             .text_color(rgb(current_theme().muted))
                             .cursor_pointer()
                             .hover(|s| {
                                 let t = current_theme();
-                                s.bg(rgb(t.raised))
-                                    .text_color(rgb(t.accent_ink))
-                                    .shadow(motion::glow(t.accent, 0.30, 10.0, 0.0))
+                                s.bg(rgb(t.raised)).text_color(rgb(t.accent_ink))
                             })
                             .child("⊞")
                             .on_click(cx.listener(|this, _ev, _window, cx| {
@@ -6700,19 +9648,141 @@ impl Render for ConsoleView {
                             })),
                     )
                     .child(div().flex_1())
-                    .child(theme_toggle_btn(cx)),
+                    .child(presentation_zoom_controls(cx))
+                    .when(!minimal_title_deck, |title| {
+                        title
+                            .child(motion_toggle_btn(cx))
+                            .child(theme_toggle_btn(cx))
+                    })
+                    // The terminal is global operator chrome, not a pane. Its
+                    // two-block micro-flag and live dot stay visible everywhere.
+                    .child({
+                        let open = self.shell_open;
+                        let live = self.shell.is_live();
+                        let state = if live {
+                            current_theme().landed
+                        } else {
+                            current_theme().gated
+                        };
+                        div()
+                            .id("toggle-cli-drawer")
+                            .h(px(22.0))
+                            .px(px(7.0))
+                            .flex()
+                            .items_center()
+                            .gap(px(6.0))
+                            .cursor_pointer()
+                            .border_b_1()
+                            .border_color(rgb(if open {
+                                current_theme().accent_ink
+                            } else {
+                                current_theme().line
+                            }))
+                            .text_color(rgb(if open {
+                                current_theme().accent_ink
+                            } else {
+                                current_theme().ink2
+                            }))
+                            .hover(|d| {
+                                d.bg(rgb(current_theme().raised))
+                                    .text_color(rgb(current_theme().accent_ink))
+                            })
+                            .child(micro_flag(
+                                "cli-global-flag",
+                                current_theme().accent,
+                                state,
+                                7.0,
+                                10.0,
+                            ))
+                            .child(
+                                div()
+                                    .font_family("IBM Plex Mono")
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_size(px(12.0))
+                                    .child(">_ CLI"),
+                            )
+                            .on_click(cx.listener(|this, _event, _window, cx| {
+                                this.shell_open = !this.shell_open;
+                                if !this.shell_open {
+                                    this.shell_resize_drag = None;
+                                }
+                                cx.notify();
+                            }))
+                    })
+                    .when(!compact_title_deck, |title| title.child(
+                        div()
+                            .ml(px(10.0))
+                            .mr(px(8.0))
+                            .child(micro_flag(
+                                "title-deck-flag",
+                                current_theme().engaged,
+                                current_theme().accent,
+                                11.0,
+                                15.0,
+                            )),
+                    )),
             )
+            .child(render_story_nav_bar(active_nav.as_deref(), cx))
+            // ── HITL interruptions banner (docs/hitl-interruptions.md §4): any
+            // open operator ask is surfaced window-wide within one poll (≤30 s
+            // jittered, so ≤60 s from creation). Critical/blocking asks paint
+            // MAYDAY red; clicking opens the session-gated web answer surface —
+            // answer/ack is never offered in-app by design. ──
+            .when(hitl_banner.open_count > 0, |root| {
+                let critical = hitl_banner.critical_title.clone();
+                let link = hitl_banner
+                    .deep_link
+                    .clone()
+                    .unwrap_or_else(|| "/account/interruptions".into());
+                let n = hitl_banner.open_count;
+                let is_critical = critical.is_some();
+                let text = match &critical {
+                    Some(title) => format!(
+                        "\u{26a0} {n} INTERRUPTION{} \u{2014} critical: {title} \u{2014} fleet dispatch blocked \u{00b7} click to answer",
+                        if n == 1 { "" } else { "S" },
+                    ),
+                    None => format!(
+                        "\u{26a0} {n} interruption{} awaiting a human \u{00b7} click to answer",
+                        if n == 1 { "" } else { "s" },
+                    ),
+                };
+                root.child(
+                    div()
+                        .id("hitl-banner")
+                        .w_full()
+                        .px(px(16.0))
+                        .py(px(6.0))
+                        .bg(rgb(if is_critical {
+                            current_theme().mayday
+                        } else {
+                            current_theme().gated
+                        }))
+                        .text_color(rgb(0xfbf7ef))
+                        .font_family("IBM Plex Mono")
+                        .text_size(px(14.0))
+                        .font_weight(FontWeight::BOLD)
+                        .cursor_pointer()
+                        .child(text)
+                        .on_click(move |_ev, _window, _cx| {
+                            // Deep-link only: the web surface is where a HUMAN
+                            // session answers or acks (bearer tokens can't).
+                            if link.starts_with("http") {
+                                let _ = std::process::Command::new("open").arg(&link).spawn();
+                            }
+                        }),
+                )
+            })
             // ── Body row: clickable NAV rail (the GUI replacement for the
             // Ctrl-A <key> surface switch the operator hates) + the pane tree.
             // Click a surface name to swap the focused pane — no leader key. ──
             .child(
                 div()
                     .flex_1()
-                    .overflow_hidden()
                     .flex()
-                    .flex_row()
-                    .child(render_nav_rail(active_nav.as_deref(), cx))
-                    .child(div().flex_1().overflow_hidden().child(body)),
+                    .overflow_hidden()
+                    .p(px(16.0))
+                    .bg(rgb(current_theme().sunken))
+                    .child(div().flex_1().h_full().overflow_hidden().child(body)),
             )
             // ── Operator toolbar: always-visible GUI affordances. No leader keys,
             // no memorized syntax — click a button, a placeholder-guided input
@@ -6720,32 +9790,16 @@ impl Render for ConsoleView {
             // surface instead of a CLI with hidden options. ──
             .child(
                 div()
-                    .h(px(36.0))
-                    .px(px(12.0))
+                    .h(px(44.0))
+                    .pl(px(16.0))
                     .flex()
                     .items_center()
-                    .gap(px(8.0))
+                    .gap(px(0.0))
                     .bg(rgb(current_theme().panel))
                     .border_t_1()
                     .border_color(rgb(current_theme().line))
-                    .child(
-                        div()
-                            .text_size(px(12.0))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .text_color(rgb(current_theme().muted))
-                            .child("ACT"),
-                    )
-                    .child(command_bar_btn(CmdKind::Spawn, "Spawn agent", cx))
-                    .child(command_bar_btn(CmdKind::Cartographer, "Ask cartographer", cx))
-                    .child(command_bar_btn(CmdKind::AddPane, "Add pane", cx))
-                    .child(command_bar_btn(CmdKind::UseDaemon, "Use daemon", cx))
-                    // Conjure: always visible, next to the other ACT verbs. Click to
-                    // open the prompt input — type intent, Send blooms a predicted
-                    // DAG, the focused pane swaps to the Conjure surface to render it,
-                    // and "Render graph" there opens the Vello PNG. The discoverable
-                    // way in — no hidden keystroke. Uses the shared command_bar_btn so
-                    // it inherits the placeholder-guided input the other verbs use.
-                    .child(command_bar_btn(CmdKind::Conjure, "Conjure", cx))
+                    .child(mission_home_btn(cx))
+                    .child(views_bar_btn(cx))
                     // Alerts (HITL): always visible, glows red on errors, click to
                     // open the full untruncated log — the discoverable way to read
                     // a failure (no hidden keystroke).
@@ -6753,11 +9807,11 @@ impl Render for ConsoleView {
                         let n = self.alerts.len();
                         let has_err = self.alerts.iter().any(|a| a.level == AlertLevel::Error);
                         let label = if n == 0 {
-                            "Alerts".to_string()
+                            "ALERTS".to_string()
                         } else if has_err {
-                            format!("⚑ Alerts ({n})")
+                            format!("PAN-PAN ALERTS ({n})")
                         } else {
-                            format!("Alerts ({n})")
+                            format!("ALERTS ({n})")
                         };
                         let border = if has_err { current_theme().gated } else { current_theme().line };
                         let text = if n == 0 {
@@ -6769,18 +9823,20 @@ impl Render for ConsoleView {
                         };
                         div()
                             .id("act-alerts")
-                            .px(px(11.0))
-                            .py(px(5.0))
-                            .rounded(px(6.0))
-                            .border_1()
+                            .h_full()
+                            .px(px(12.0))
+                            .flex()
+                            .items_center()
+                            .border_l_1()
                             .border_color(rgb(border))
                             .text_color(rgb(text))
-                            .text_size(px(13.0))
+                            .font_family("IBM Plex Mono")
+                            .text_size(px(14.0))
                             .font_weight(FontWeight::SEMIBOLD)
                             .cursor_pointer()
-                            .when(has_err, |s| s.shadow(motion::glow(current_theme().gated, 0.25, 8.0, 0.0)))
                             .hover(|s| {
-                                s.text_color(rgb(current_theme().accent_ink))
+                                s.bg(rgb(current_theme().raised))
+                                    .text_color(rgb(current_theme().accent_ink))
                                     .border_color(rgb(current_theme().accent))
                             })
                             .child(label)
@@ -6801,32 +9857,62 @@ impl Render for ConsoleView {
                     .bg(rgb(if lit { current_theme().raised } else { current_theme().panel }))
                     .border_t_1()
                     .border_color(rgb(if lit { current_theme().accent_ink } else { current_theme().line }))
-                    // PREFIX / command mode glows unmistakably.
-                    .when(lit, |s| s.shadow(motion::glow(current_theme().accent, 0.25, 12.0, 0.0)))
                     .child(if let Some(cmd) = command.as_ref() {
-                        // Open command line — chip picker (Spawn) or prompt + Send.
-                        render_open_command(cmd, &self.catalog, cx)
+                        // Open command line for the selected operator action.
+                        render_open_command(cmd, cx)
                     } else if armed {
                         div()
                             .text_color(rgb(current_theme().accent_ink))
                             .text_size(px(13.0))
                             .font_weight(FontWeight::SEMIBOLD)
                             .child(
-                                "PREFIX  |  | split · - vsplit · x close · z zoom · o next · =/_ resize · w new-tab · [ ] tabs · n new-job · t cartographer · i insert-pane · : verb-palette (note/begin/done/propose/sortie/claim/release/kill/interrupt) · [1-9…] surface",
+                                "PREFIX  |  | split · - vsplit · x close · z zoom · o next · =/_ resize · w new-tab · [ ] tabs · n work · t cartographer · i insert-pane · : verb-palette (work/note/begin/done/claim/release/kill/interrupt) · [1-9…] surface",
                             )
                             .into_any_element()
                     } else {
                         div()
-                            .text_color(rgb(current_theme().muted))
-                            .text_size(px(13.0))
+                            .w_full()
+                            .flex()
+                            .items_center()
+                            .gap(px(9.0))
+                            .text_size(px(12.0))
                             .font_family("IBM Plex Mono")
-                            .child(format!(
-                                "daemon {daemon_url}  ·  {pane_count} panes  ·  Ctrl-A → space launcher · n new-job · i insert-pane · | split  ·  {}",
-                                build_stamp()
-                            ))
+                            .child(div().text_color(rgb(current_theme().muted)).child("daemon"))
+                            .child(
+                                div()
+                                    .font_weight(FontWeight::BOLD)
+                                    .text_color(rgb(if daemon_connected {
+                                        current_theme().landed
+                                    } else {
+                                        current_theme().engaged
+                                    }))
+                                    .child(if daemon_connected { "connected" } else { "connecting" }),
+                            )
+                            .child(
+                                div()
+                                    .w(px(20.0))
+                                    .h(px(10.0))
+                                    .flex()
+                                    .child(div().w(px(10.0)).h_full().bg(rgb(current_theme().engaged)))
+                                    .child(div().w(px(10.0)).h_full().bg(rgb(if daemon_connected {
+                                        current_theme().landed
+                                    } else {
+                                        current_theme().gated
+                                    }))),
+                            )
+                            .child(div().text_color(rgb(current_theme().muted)).child(daemon_url.clone()))
+                            .child(div().text_color(rgb(current_theme().muted)).child(format!("{pane_count} panes")))
+                            .child(div().flex_1())
+                            .child(
+                                div()
+                                    .text_color(rgb(current_theme().muted))
+                                    .child(format!("hot bus · PTY event-driven · ^A space · {}", build_stamp())),
+                            )
                             .into_any_element()
                     }),
             )
+            // Global PTY drawer: above the pane tree, below modal launcher/splash.
+            .children(shell_drawer)
             // Pane launcher overlay — last child, paints over everything.
             .children(launcher)
             // Splash paints last so it sits above all chrome while booting.
@@ -6837,6 +9923,121 @@ impl Render for ConsoleView {
 #[cfg(test)]
 mod add_pane_tests {
     use super::*;
+
+    #[test]
+    fn ledger_cell_width_is_semantic_not_inferred_from_its_label() {
+        assert_eq!(ledger_cell_width_px(LedgerCellWidth::Standard), 180.0);
+        assert_eq!(ledger_cell_width_px(LedgerCellWidth::Wide), 300.0);
+
+        let deliberately_wide_status = crate::pane::LedgerCell::wide("status", "ready");
+        assert_eq!(deliberately_wide_status.width, LedgerCellWidth::Wide);
+        assert_eq!(ledger_cell_width_px(deliberately_wide_status.width), 300.0);
+    }
+
+    #[test]
+    fn failed_editor_open_preserves_the_file_tree_and_cache() {
+        let root = env!("CARGO_MANIFEST_DIR").to_string();
+        let original = SurfaceKind::FileTree {
+            root: Some(root.clone()),
+        };
+        let mut workspace = Workspace::new(original.clone());
+        let mut editors = HashMap::new();
+
+        let error = open_editor_transaction(
+            &mut workspace,
+            &mut editors,
+            root,
+            None,
+            "test:operator".into(),
+            EditorPlacement::ReplaceFocused,
+        )
+        .expect_err("reading a directory as a file must fail");
+
+        assert!(error.contains("Could not open"));
+        assert_eq!(workspace.focused_surface(), &original);
+        assert!(
+            editors.is_empty(),
+            "failed candidates must not enter the cache"
+        );
+    }
+
+    #[test]
+    fn successful_editor_open_commits_surface_and_cache_together() {
+        let path = format!("{}/Cargo.toml", env!("CARGO_MANIFEST_DIR"));
+        let mut workspace = Workspace::new(SurfaceKind::FileTree { root: None });
+        let mut editors = HashMap::new();
+
+        open_editor_transaction(
+            &mut workspace,
+            &mut editors,
+            path.clone(),
+            None,
+            "test:operator".into(),
+            EditorPlacement::ReplaceFocused,
+        )
+        .expect("manifest is readable");
+
+        assert_eq!(
+            workspace.focused_surface(),
+            &SurfaceKind::Editor {
+                path: path.clone(),
+                region: None,
+            }
+        );
+        assert!(editors
+            .get(&editor_key(&path, None))
+            .is_some_and(|state| state.pane.buffer().is_some()));
+    }
+
+    #[test]
+    fn editor_input_bounds_remain_pane_local_regardless_of_paint_order() {
+        let root = env!("CARGO_MANIFEST_DIR");
+        let first_path = format!("{root}/Cargo.toml");
+        let second_path = format!("{root}/src/app.rs");
+        let first_key = editor_key(&first_path, None);
+        let second_key = editor_key(&second_path, None);
+        let mut editors = HashMap::from([
+            (
+                first_key.clone(),
+                editor_surface_state(first_path, None, "test:operator".into()),
+            ),
+            (
+                second_key.clone(),
+                editor_surface_state(second_path, None, "test:operator".into()),
+            ),
+        ]);
+        let first_bounds = Bounds::new(point(px(10.0), px(20.0)), size(px(300.0), px(200.0)));
+        let second_bounds = Bounds::new(point(px(410.0), px(20.0)), size(px(500.0), px(200.0)));
+
+        // Paint the inactive pane first, then the focused pane. Both must keep
+        // their own hit-test geometry so the first click can place the caret.
+        assert!(!record_editor_input_bounds(
+            &mut editors,
+            &second_key,
+            second_bounds
+        ));
+        assert!(!record_editor_input_bounds(
+            &mut editors,
+            &first_key,
+            first_bounds
+        ));
+
+        let first = editors[&first_key].input_bounds.expect("first bounds");
+        let second = editors[&second_key].input_bounds.expect("second bounds");
+        assert_eq!(f32::from(first.left()), 10.0);
+        assert_eq!(f32::from(first.size.width), 300.0);
+        assert_eq!(f32::from(second.left()), 410.0);
+        assert_eq!(f32::from(second.size.width), 500.0);
+    }
+
+    #[test]
+    fn failed_editor_recovery_returns_to_its_parent_directory() {
+        assert_eq!(
+            editor_recovery_root("/repo/private/file.rs").as_deref(),
+            Some("/repo/private")
+        );
+        assert!(editor_recovery_root("file.rs").is_none());
+    }
 
     #[test]
     fn picker_matches_nav_by_id_label_and_key() {
@@ -6876,8 +10077,8 @@ mod add_pane_tests {
     #[test]
     fn picker_matches_non_nav_surfaces() {
         assert!(matches!(
-            surface_for_query("chat"),
-            Some(SurfaceKind::CartographerChat)
+            surface_for_query("mission"),
+            Some(SurfaceKind::Mission)
         ));
         assert!(matches!(
             surface_for_query("files"),
@@ -6894,21 +10095,20 @@ mod add_pane_tests {
     }
 
     #[test]
-    fn picker_matches_conjure_surface() {
-        // Both the surface name and its alias "plan" resolve to Conjure.
+    fn picker_has_one_mission_surface() {
         assert!(matches!(
-            surface_for_query("conjure"),
-            Some(SurfaceKind::Conjure)
+            surface_for_query("mission"),
+            Some(SurfaceKind::Mission)
         ));
-        assert!(matches!(
-            surface_for_query("plan"),
-            Some(SurfaceKind::Conjure)
-        ));
-        // Conjure is not backed by a NAV pane — it renders the fixture DAG.
-        assert!(nav_id_for_surface(&SurfaceKind::Conjure).is_none());
+        assert!(surface_for_query("work").is_none());
+        assert!(surface_for_query("chat").is_none());
+        assert!(surface_for_query("plan").is_none());
+        assert!(surface_for_query("conjure").is_none());
+        // Mission is not backed by a generic NAV pane.
+        assert!(nav_id_for_surface(&SurfaceKind::Mission).is_none());
         assert_eq!(
-            launcher_id_for_surface(&SurfaceKind::Conjure).as_deref(),
-            Some("conjure")
+            launcher_id_for_surface(&SurfaceKind::Mission).as_deref(),
+            Some("mission")
         );
     }
 
@@ -6918,12 +10118,12 @@ mod add_pane_tests {
             .into_iter()
             .map(|item| item.id)
             .collect::<Vec<_>>();
-        for id in ["chat", "files", "alerts", "conjure"] {
+        for id in ["mission", "files", "alerts"] {
             assert!(ids.contains(&id), "launcher must expose {id}");
         }
         assert!(matches!(
-            surface_for_launcher_id("chat"),
-            SurfaceKind::CartographerChat
+            surface_for_launcher_id("mission"),
+            SurfaceKind::Mission
         ));
         assert!(matches!(
             surface_for_launcher_id("files"),
@@ -6932,10 +10132,6 @@ mod add_pane_tests {
         assert!(matches!(
             surface_for_launcher_id("alerts"),
             SurfaceKind::Hitl
-        ));
-        assert!(matches!(
-            surface_for_launcher_id("conjure"),
-            SurfaceKind::Conjure
         ));
     }
 
@@ -7046,14 +10242,9 @@ mod add_pane_tests {
                 "port-daddy:console:main",
             ),
             (
-                "propose land the console PR",
-                CmdKind::Propose,
+                "mission land the console PR",
+                CmdKind::Mission,
                 "land the console PR",
-            ),
-            (
-                "sortie refactor the executor",
-                CmdKind::Sortie,
-                "refactor the executor",
             ),
             (
                 "claim port-daddy:api:main",
@@ -7104,15 +10295,12 @@ mod add_pane_tests {
             parse_verb("end wrapped up"),
             Some((CmdKind::Done, "wrapped up".to_string()))
         );
-        // Aliases keep muscle memory short.
-        assert!(matches!(
-            parse_verb("dispatch land it"),
-            Some((CmdKind::Propose, _))
-        ));
-        assert!(matches!(
-            parse_verb("chat hey carto"),
-            Some((CmdKind::Cartographer, _))
-        ));
+        // Legacy launch words fail closed instead of aliasing hidden runtimes.
+        assert!(parse_verb("dispatch land it").is_none());
+        assert!(parse_verb("spawn land it").is_none());
+        assert!(parse_verb("sortie land it").is_none());
+        assert!(parse_verb("conjure land it").is_none());
+        assert!(parse_verb("chat hey carto").is_none());
         assert!(matches!(
             parse_verb("steer write the test first"),
             Some((CmdKind::LaneMessage, _))

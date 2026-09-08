@@ -1,6 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { PD_HOME } from '../shared/paths.js';
+import { BERTH_COLORS, BERTH_ENV } from '../shared/daemon-berths.js';
+import { STATE_PLANE_ENV } from './state-plane.js';
 
 export const DAEMON_PROFILE_DIRNAME = 'instances';
 export const RESERVED_DAEMON_PROFILES = new Set(['canonical', 'default', 'stable']);
@@ -40,6 +42,7 @@ export interface DaemonProfileEnvOptions {
   enableFleet?: boolean;
   enableFleetBar?: boolean;
   nodeEnv?: string;
+  sourceDir?: string | null;
 }
 
 export function getDaemonProfilesRoot(homeDir: string = PD_HOME): string {
@@ -143,6 +146,7 @@ export function buildDaemonProfileEnv(
   const env: NodeJS.ProcessEnv = { ...(opts.baseEnv ?? process.env) };
   for (const key of [
     'PD_URL',
+    'PD_ACTIVE_DAEMON',
     'PORT_DADDY_URL',
     'PORT_DADDY_DB',
     'PORT_DADDY_SOCK',
@@ -150,16 +154,48 @@ export function buildDaemonProfileEnv(
     'PORT_DADDY_PID_FILE',
     'PORT_DADDY_PORT_FILE',
     'PORT_DADDY_HEARTBEAT_FILE',
+    BERTH_ENV.tier,
+    BERTH_ENV.label,
+    BERTH_ENV.color,
+    BERTH_ENV.sourceDir,
+    // An inherited plane override (PORT_DADDY_PLANE) would poison the child
+    // daemon's state-plane classification — strip it so the berth self-classifies
+    // from its own prefix/port/profile signals (lib/state-plane.ts).
+    STATE_PLANE_ENV,
   ]) {
     delete env[key];
   }
 
   env.PORT_DADDY_PROFILE = profile.name;
   env.PORT_DADDY_PREFIX = profile.runtimeDir;
+  // A named profile is also a named berth. Without these explicit identity
+  // fields the isolated sidecar inherits the resolver's stable defaults and
+  // falsely reports itself as the canonical daemon in operator surfaces.
+  env[BERTH_ENV.tier] = 'codebase';
+  env[BERTH_ENV.label] = profile.name;
+  env[BERTH_ENV.color] = BERTH_COLORS.codebase;
+  if (opts.sourceDir) env[BERTH_ENV.sourceDir] = opts.sourceDir;
+  // A named profile is an isolation boundary, not merely a presentation hint.
+  // Set every mutable runtime path explicitly so child processes cannot fall
+  // back to the canonical daemon's durable home if prefix inference changes or
+  // a consumer only understands the dedicated path variables.
+  env.PORT_DADDY_DB = profile.dbPath;
+  env.PORT_DADDY_SOCK = profile.sockPath;
+  env.PORT_DADDY_IPC = profile.ipcPath;
+  env.PORT_DADDY_PID_FILE = profile.pidFile;
+  env.PORT_DADDY_PORT_FILE = profile.portFile;
+  env.PORT_DADDY_HEARTBEAT_FILE = profile.heartbeatFile;
   env.PORT_DADDY_NO_FLEET = opts.enableFleet ? '0' : '1';
   env.PORT_DADDY_NO_FLEETBAR = opts.enableFleetBar ? '0' : '1';
+  env.PD_ACTIVE_DAEMON = profile.name;
   if (typeof opts.port === 'number') {
     env.PORT_DADDY_PORT = String(opts.port);
+    // The daemon is also the parent of hooks and provider-neutral spawned
+    // bodies. Give those descendants the address of THIS profile, not the
+    // caller shell's canonical/default daemon. Without this a named berth can
+    // register a body locally while the body's own `pd` calls mutate another
+    // state plane.
+    env.PORT_DADDY_URL = `http://127.0.0.1:${opts.port}`;
   }
   if (opts.nodeEnv) {
     env.NODE_ENV = opts.nodeEnv;

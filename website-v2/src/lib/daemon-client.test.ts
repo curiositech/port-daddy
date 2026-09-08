@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   DaemonClientError,
+  daemonFetchJson,
   deleteOrchestratorRule,
   describeDaemonError,
   fetchDashboardStats,
@@ -13,7 +14,15 @@ const fetchMock = vi.fn()
 describe('daemon client', () => {
   beforeEach(() => {
     fetchMock.mockReset()
+    // These tests exercise the live-fetch path; a configured endpoint keeps
+    // them independent of whatever origin jsdom happens to use.
+    vi.stubEnv('VITE_PORT_DADDY_URL', 'http://127.0.0.1:9000')
     vi.stubGlobal('fetch', fetchMock)
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
   })
 
   it('assembles dashboard stats from live daemon routes', async () => {
@@ -84,6 +93,30 @@ describe('daemon client', () => {
     })
   })
 
+  it('describes configuration errors for ui consumers', () => {
+    const error = new DaemonClientError({
+      kind: 'configuration',
+      message: 'Select a daemon endpoint before opening this page.',
+    })
+
+    expect(describeDaemonError(error)).toEqual({
+      kind: 'configuration',
+      message: 'Select a daemon endpoint or open this page from the embedded dashboard',
+    })
+  })
+
+  it('rejects with a configuration error instead of guessing a daemon endpoint', async () => {
+    vi.unstubAllEnvs()
+
+    const location = { origin: 'http://localhost:3144', pathname: '/', search: '' }
+
+    await expect(daemonFetchJson('/health', { location })).rejects.toMatchObject({
+      name: 'DaemonClientError',
+      kind: 'configuration',
+    })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it('fetches orchestrator rules as a typed list', async () => {
     fetchMock.mockResolvedValueOnce(new Response(JSON.stringify([
       { id: 1, name: 'demo', channelPattern: 'build:*', action: 'spawn', enabled: true, payload: {} },
@@ -102,12 +135,12 @@ describe('daemon client', () => {
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
-      'http://127.0.0.1:9876/msg/fleet%3Atest',
+      'http://127.0.0.1:9000/msg/fleet%3Atest',
       expect.objectContaining({ method: 'POST' }),
     )
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      'http://127.0.0.1:9876/orchestrator/rules/7',
+      'http://127.0.0.1:9000/orchestrator/rules/7',
       expect.objectContaining({ method: 'DELETE' }),
     )
   })

@@ -11,11 +11,12 @@
  * Sandbox lives under the repo's .scratch/ — NEVER /tmp.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   installSlashCommand,
   installStatusline,
+  isSquidDaemonHeartbeatFresh,
   readMatrixSnapshot,
   stageStatusline,
   uninstallSlashCommand,
@@ -49,23 +50,38 @@ describe('statusline staging + settings wiring', () => {
 
     const r = installStatusline(PROJECT, staged!);
     expect(r.changed).toBe(true);
+    expect(r.ok).toBe(true);
     const s = readSettings();
     expect(s.statusLine.type).toBe('command');
     expect(s.statusLine.command).toContain(STATUSLINE_MARKER);
 
     // idempotent
-    expect(installStatusline(PROJECT, staged!).changed).toBe(false);
+    const again = installStatusline(PROJECT, staged!);
+    expect(again.changed).toBe(false);
+    expect(again.ok).toBe(true);
   });
 
-  test('NEVER clobbers a user-authored statusLine', () => {
+  test('reports ok:false — never a silent no-op — when the packaged build has no statusline script (the pd-adr-0091 dogfood defect)', () => {
+    // No stageStatusline() call: nothing staged at this path, simulating a
+    // packaged build that shipped without bin/pd-statusline.
+    const r = installStatusline(PROJECT, join(PD_BIN, 'pd-statusline'));
+    expect(r.changed).toBe(false);
+    expect(r.ok).toBe(false);
+    expect(r.reason).toBe('statusline not staged — run pd setup');
+  });
+
+  test('NEVER clobbers a user-authored statusLine, and treats that as ok — not a failure', () => {
     mkdirSync(join(PROJECT, '.claude'), { recursive: true });
     writeFileSync(settingsPath(), JSON.stringify({ statusLine: { type: 'command', command: 'my-own-line' } }));
     const staged = stageStatusline(REPO_BIN, PD_BIN)!;
     const r = installStatusline(PROJECT, staged);
     expect(r.changed).toBe(false);
+    expect(r.ok).toBe(true);
     expect(readSettings().statusLine.command).toBe('my-own-line');
     // and uninstall leaves it alone too
-    expect(uninstallStatusline(PROJECT).changed).toBe(false);
+    const u = uninstallStatusline(PROJECT);
+    expect(u.changed).toBe(false);
+    expect(u.ok).toBe(true);
     expect(readSettings().statusLine.command).toBe('my-own-line');
   });
 
@@ -77,6 +93,7 @@ describe('statusline staging + settings wiring', () => {
     expect(readSettings().statusLine).toBeDefined();
     const r = uninstallStatusline(PROJECT);
     expect(r.changed).toBe(true);
+    expect(r.ok).toBe(true);
     const s = readSettings();
     expect(s.statusLine).toBeUndefined();
     expect(s.permissions.allow).toEqual(['Bash(ls:*)']);
@@ -87,20 +104,26 @@ describe('/squid slash command', () => {
   test('installs, is idempotent, and uninstalls', () => {
     const r = installSlashCommand(PROJECT);
     expect(r.changed).toBe(true);
+    expect(r.ok).toBe(true);
     const body = readFileSync(join(PROJECT, '.claude', 'commands', 'squid.md'), 'utf8');
     expect(body).toContain('pd squid $ARGUMENTS');
     expect(body).toContain('allowed-tools: Bash(pd squid:*)');
     expect(installSlashCommand(PROJECT).changed).toBe(false);
-    expect(uninstallSlashCommand(PROJECT).changed).toBe(true);
+    const u = uninstallSlashCommand(PROJECT);
+    expect(u.changed).toBe(true);
+    expect(u.ok).toBe(true);
     expect(existsSync(join(PROJECT, '.claude', 'commands', 'squid.md'))).toBe(false);
   });
 });
 
 describe('readMatrixSnapshot (the non-diegetic readout source)', () => {
-  test('splits alerts / pheromones / locks and unquotes values', () => {
+  test('splits valid entries while ignoring malformed matrix lines', () => {
     const matrix = join(FAKE_PD_HOME, 'matrix.env');
     writeFileSync(matrix, [
       'PD_ALERT_OPERATOR="ship the harness"',
+      'PD_ALERT_MISSING_EQUALS',
+      '123_INVALID_KEY="ignored"',
+      'not an env assignment',
       'PD_PHEROMONE_A="edited cli/commands/squid.ts"',
       'PD_LOCK_MAIN="held by session-x"',
       'UNRELATED=ignored',
@@ -109,10 +132,36 @@ describe('readMatrixSnapshot (the non-diegetic readout source)', () => {
     expect(snap.alerts).toEqual(['ship the harness']);
     expect(snap.pheromones).toEqual(['edited cli/commands/squid.ts']);
     expect(snap.locks).toEqual(['held by session-x']);
+    expect(snap.window.truncated.any).toBe(false);
+  });
+
+  test('bounds adversarial legacy history and publishes explicit truncation metadata', () => {
+    const matrix = join(FAKE_PD_HOME, 'matrix.env');
+    const longValue = 'x'.repeat(2_000);
+    writeFileSync(matrix, Array.from({ length: 3_500 }, (_, index) =>
+      `PD_PHEROMONE_${String(index).padStart(4, '0')}="${longValue}-${index}"`,
+    ).join('\n'));
+
+    const snap = readMatrixSnapshot(matrix);
+    expect(snap.window.totals.pheromones).toBe(3_500);
+    expect(snap.pheromones).toHaveLength(20);
+    expect(snap.window.returned.pheromones).toBe(20);
+    expect(snap.window.truncated).toMatchObject({ pheromones: true, any: true });
+    expect(snap.window.valueCharsTruncated).toEqual({ alerts: 0, pheromones: 20, locks: 0, any: true });
+    expect(Math.max(...snap.pheromones.map((value) => value.length))).toBeLessThanOrEqual(512);
+    expect(Buffer.byteLength(JSON.stringify(snap))).toBeLessThan(16 * 1024);
   });
 });
 
 describe('pd-statusline script (the real sh, end-to-end)', () => {
+  const writeHeartbeat = (ageMs = 0): string => {
+    const heartbeat = join(FAKE_PD_HOME, 'heartbeat');
+    writeFileSync(heartbeat, '{}');
+    const modified = new Date(Date.now() - ageMs);
+    utimesSync(heartbeat, modified, modified);
+    return heartbeat;
+  };
+
   const runStatusline = (env: Record<string, string> = {}): string => {
     const staged = stageStatusline(REPO_BIN, PD_BIN)!;
     return execFileSync(staged, [], {
@@ -146,7 +195,7 @@ describe('pd-statusline script (the real sh, end-to-end)', () => {
   });
 
   test('live daemon + matrix counters show up', () => {
-    writeFileSync(join(FAKE_PD_HOME, 'daemon.pid'), String(process.pid));
+    writeHeartbeat();
     writeFileSync(join(FAKE_PD_HOME, 'matrix.env'), [
       'PD_ALERT_ONE="a"',
       'PD_ALERT_TWO="b"',
@@ -160,6 +209,30 @@ describe('pd-statusline script (the real sh, end-to-end)', () => {
     expect(out).toContain('1 trace');
     expect(out).toContain('1 lock');
     expect(out).toContain('Opus');
+  });
+
+  test('stale heartbeat renders daemon down in both TypeScript and shell probes', () => {
+    const heartbeat = writeHeartbeat(60_000);
+    expect(isSquidDaemonHeartbeatFresh(heartbeat)).toBe(false);
+    expect(runStatusline()).toContain('daemon down');
+  });
+
+  test('fresh heartbeat is visible without probing the daemon process', () => {
+    const heartbeat = writeHeartbeat();
+    expect(isSquidDaemonHeartbeatFresh(heartbeat)).toBe(true);
+    expect(runStatusline()).not.toContain('daemon down');
+  });
+
+  test('missing or unreadable heartbeat stays fail-open and renders daemon down', () => {
+    const missing = join(FAKE_PD_HOME, 'missing-heartbeat');
+    expect(isSquidDaemonHeartbeatFresh(missing)).toBe(false);
+    expect(runStatusline()).toContain('daemon down');
+
+    const fakeBin = join(SANDBOX, 'broken-stat-bin');
+    mkdirSync(fakeBin, { recursive: true });
+    writeFileSync(join(fakeBin, 'stat'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
+    writeHeartbeat();
+    expect(runStatusline({ PATH: `${fakeBin}:${process.env.PATH ?? ''}` })).toContain('daemon down');
   });
 });
 

@@ -11,40 +11,52 @@
  *
  * Idempotent: skips instantly if the model is already cached. Best-effort: if the
  * download fails (offline during install), it warns and exits 0 — the install must
- * not break, and the runtime will still lazily fetch on first use when a network is
- * available.
+ * not break. Running this script IS the explicit download consent; the runtime
+ * itself never fetches from huggingface.co unless the operator sets
+ * `PORT_DADDY_ALLOW_MODEL_DOWNLOAD=1` (it degrades to the lexical path instead).
  *
  * Usage:
  *   tsx scripts/prefetch-embedding-model.ts                 # into the default cache
  *   tsx scripts/prefetch-embedding-model.ts --cache-dir DIR # override
  */
 
-import { existsSync, mkdirSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
-import { DEFAULT_SEMANTIC_MODEL_ID, defaultTransformersCacheDir } from '../lib/semantic-resolver.js';
+import { mkdirSync } from 'node:fs';
+import {
+  DEFAULT_SEMANTIC_MODEL_ID,
+  defaultTransformersCacheDir,
+  isEmbeddingModelCached,
+} from '../lib/semantic-resolver.js';
 
+/**
+ * Resolve the cache directory to prefetch into.
+ *
+ * Why: the purpose of the prefetch is to warm the SAME cache the daemon reads
+ * (ADR-0061), so the default is `defaultTransformersCacheDir()`; `--cache-dir`
+ * exists for tests and non-standard installs.
+ *
+ * @returns The absolute cache directory the model artifacts land in.
+ */
 function parseCacheDir(): string {
   const i = process.argv.indexOf('--cache-dir');
   if (i >= 0 && process.argv[i + 1]) return process.argv[i + 1];
   return defaultTransformersCacheDir();
 }
 
-/** Cached if the model's directory exists under the cache and is non-empty. */
-function isCached(cacheDir: string, modelId: string): boolean {
-  // transformers.js lays the model out as <cacheDir>/<org>/<model>/...
-  const modelDir = join(cacheDir, ...modelId.split('/'));
-  try {
-    return existsSync(modelDir) && readdirSync(modelDir).length > 0;
-  } catch {
-    return false;
-  }
-}
-
+/**
+ * Download the embedding model into the shared cache, idempotently.
+ *
+ * Design/motivation: running this script is the operator's explicit consent to
+ * a huggingface.co download, which is why it may set `allowRemoteModels = true`
+ * while the runtime defaults to no egress. Skips instantly when cached; warns
+ * and exits 0 on failure so an offline install never breaks.
+ *
+ * @returns Resolves when the prefetch has completed, been skipped, or warned.
+ */
 async function main(): Promise<void> {
   const cacheDir = parseCacheDir();
   const modelId = DEFAULT_SEMANTIC_MODEL_ID;
 
-  if (isCached(cacheDir, modelId)) {
+  if (isEmbeddingModelCached(cacheDir, modelId)) {
     console.log(`[prefetch] ${modelId} already cached at ${cacheDir} — skipping.`);
     return;
   }
@@ -65,11 +77,13 @@ async function main(): Promise<void> {
 
     console.log(`[prefetch] done — ${modelId} cached at ${cacheDir}.`);
   } catch (err) {
-    // Best-effort: never break the install. The runtime lazily fetches on first
-    // use once a network is available.
+    // Best-effort: never break the install. Without the cached model the runtime
+    // stays local-only and degrades to lexical retrieval; re-run this script when
+    // online (or set PORT_DADDY_ALLOW_MODEL_DOWNLOAD=1 for a runtime download).
     console.warn(
       `[prefetch] could not pre-download ${modelId} (${(err as Error).message}). ` +
-        `Port Daddy will fetch it lazily on first semantic operation when online.`,
+        `Semantic retrieval will run degraded (lexical fallback) until this script is ` +
+        `re-run online or PORT_DADDY_ALLOW_MODEL_DOWNLOAD=1 is set.`,
     );
   }
 }

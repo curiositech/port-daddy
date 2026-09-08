@@ -235,6 +235,15 @@ export interface PortDaddyClientOptions {
   agentId?: string;
   pid?: number;
   timeout?: number;
+  /**
+   * ADR-0040 daemon-minted actor credential (`<actor_id>.<secret>`), presented
+   * as the `x-actor-credential` header on every request (#8877 / ADR-0122:
+   * attributed writes — sessions, notes, file claims, locks, salvage,
+   * commitments — REQUIRE it). Obtained from `POST /actors/register` or
+   * returned once by `begin()`; `begin()` also captures a freshly minted
+   * credential onto the client automatically.
+   */
+  credential?: string;
 }
 
 export interface ClaimResult {

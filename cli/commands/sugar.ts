@@ -7,19 +7,37 @@
 import { spawn } from 'node:child_process';
 import { highlightChannel } from '../../lib/maritime.js';
 import PortDaddy from '../../lib/client.js';
-import { pdFetch } from '../utils/fetch.js';
+import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
+import { ensureCliActorCredential, resolveCliActorCredential } from '../utils/actor-credential.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import { IS_TTY, relativeTime } from '../utils/output.js';
 import { canPrompt, promptText, promptSelect, promptIdentity, promptConfirm, printRoger } from '../utils/prompt.js';
 import { autoIdentityFromPackageJson } from './services.js';
 import { assertSafeId, posixShellQuote, fishShellQuote } from '../../lib/shell-quote.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
+import type { RoadmapSearchHit } from '../../lib/roadmap-search.js';
 import * as ui from '../utils/ui.js';
-import { clearCurrentContext, readCurrentContext, writeCurrentContext } from '../utils/current-context.js';
+import {
+  clearBeginAttempt,
+  clearCurrentContext,
+  readCurrentContext,
+  resolveCurrentContext,
+  writeBeginAttempt,
+  writeCurrentContext,
+} from '../utils/current-context.js';
+import {
+  BEGIN_IDEMPOTENCY_KEY_PATTERN,
+  generateBeginIdempotencyKey,
+  isValidBeginIdempotencyKey,
+} from '../../lib/begin-idempotency.js';
 import {
   attachCliSessionWorktreePolicy,
   resolveCliSessionWorktreePolicy,
 } from '../utils/session-worktree-policy.js';
+import { initDatabase } from '../../lib/db.js';
+import { createDispatchQueue } from '../../lib/dispatch/queue.js';
+import { checkAndCompleteDispatch } from '../../lib/dispatch/auto-merge.js';
+import { DEFAULT_SEMANTIC_REVIEW_THRESHOLD } from '../../lib/semantic-resolver.js';
 
 type BeginLifecycle = 'durable' | 'ephemeral';
 
@@ -53,26 +71,446 @@ function printBeginUsage(): void {
   console.error('Usage: pd begin <purpose> --lifecycle durable|ephemeral [--purpose "text"] [-P "text"]');
   console.error('       pd begin --identity ID --agent AGENT_ID --files f1 f2... --lifecycle durable|ephemeral');
   console.error('       pd begin                                 # interactive (TTY only)');
+  console.error('');
+  console.error('Roadmap rent (one required):');
+  console.error('  --roadmap <slug>              link to an existing roadmap item');
+  console.error('  --roadmap-new "<title>"       create a draft roadmap item and link it');
+  console.error('  --sidequest "<reason>"        opt out with a one-line reason (min 12 chars)');
+  console.error('');
+  console.error('Retry safety:');
+  console.error('  --idempotency-key <key>       reuse one key across retries of the SAME begin (default: a fresh UUID');
+  console.error('                                per invocation); a re-send after a lost response replays the original');
+  console.error('                                session instead of creating a second one. Recover with: pd session find');
+}
+
+// =============================================================================
+// Rent-at-claim (S3) — roadmap link-or-opt-out at session start
+// =============================================================================
+
+const SIDEQUEST_MIN_CHARS = 12;
+const RENT_EXEMPT_VALUES = ['hotfix', 'chore'] as const;
+
+/**
+ * The rent message. Names ONLY the correct actions — never a bypass.
+ */
+export const RENT_GATE_MESSAGE = [
+  'pd begin needs a roadmap link or an explicit opt-out. Pass exactly one:',
+  '  --roadmap <slug>              link this session to an existing roadmap item',
+  '  --roadmap-new "<title>"       create a draft roadmap item and link it',
+  `  --sidequest "<reason>"        opt out with a one-line reason (min ${SIDEQUEST_MIN_CHARS} chars)`,
+].join('\n');
+
+export interface BeginRentResolution {
+  ok: boolean;
+  roadmapLink?: string;
+  sidequestReason?: string;
+  roadmapNewTitle?: string;
+  /** TTY path: caller should run the interactive prompt. */
+  needsPrompt?: boolean;
+  error?: string;
+}
+
+/**
+ * Best-effort: fetch roadmap items matching `purpose` (lib/roadmap-search.ts,
+ * GET /roadmap/search) and print them so the rent-gate rejection carries a
+ * fix, not just a rule. Never throws — a daemon hiccup or an un-indexed
+ * roadmap degrades silently back to the plain gate message; suggestions are
+ * a convenience, not a dependency of the gate itself.
+ */
+export async function printRoadmapSuggestions(
+  purpose: string,
+  harbor: string | undefined,
+  fetcher: typeof pdFetch = pdFetch,
+): Promise<void> {
+  try {
+    const params = new URLSearchParams({ q: purpose, limit: '5' });
+    if (harbor) params.set('harbor', harbor);
+    const res = await fetcher(`${PORT_DADDY_URL}/roadmap/search?${params.toString()}`);
+    if (!res.ok) return;
+    const data = (await res.json().catch(() => ({}))) as { hits?: RoadmapSearchHit[] };
+    const hits = data.hits ?? [];
+    if (hits.length === 0) return;
+
+    ui.note(
+      hits.map((h) => `  --roadmap ${h.slug}\n    [${h.status}] ${h.summaryMd}`).join('\n'),
+      `Did you mean one of these? (matched "${purpose}")`,
+    );
+  } catch {
+    // Best-effort only — see docblock.
+  }
+}
+
+/**
+ * Pure resolver behind the rent gate. `interactive` is the canPrompt() result,
+ * injected so tests can exercise both TTY and non-TTY paths.
+ */
+export function resolveBeginRent(
+  options: Pick<CLIOptions, 'roadmap' | 'sidequest'> & Record<string, unknown>,
+  env: Record<string, string | undefined> = process.env,
+  interactive: boolean = canPrompt(),
+): BeginRentResolution {
+  const roadmap = options.roadmap;
+  const sidequest = options.sidequest;
+  const roadmapNew = options['roadmap-new'] ?? options.roadmapNew;
+
+  const given = [roadmap, sidequest, roadmapNew].filter((v) => v !== undefined && v !== null);
+  if (given.length > 1) {
+    return { ok: false, error: '--roadmap, --sidequest, and --roadmap-new are mutually exclusive — pass exactly one.' };
+  }
+
+  if (roadmap !== undefined) {
+    if (typeof roadmap !== 'string' || !roadmap.trim()) {
+      return { ok: false, error: '--roadmap requires a slug, e.g. --roadmap adr-0090-database-distribution' };
+    }
+    return { ok: true, roadmapLink: roadmap.trim() };
+  }
+
+  if (sidequest !== undefined) {
+    const reason = typeof sidequest === 'string' ? sidequest.trim() : '';
+    if (reason.length < SIDEQUEST_MIN_CHARS) {
+      return { ok: false, error: `--sidequest needs a real one-line reason (min ${SIDEQUEST_MIN_CHARS} chars) — say what the work actually is.` };
+    }
+    return { ok: true, sidequestReason: reason };
+  }
+
+  if (roadmapNew !== undefined) {
+    if (typeof roadmapNew !== 'string' || !roadmapNew.trim()) {
+      return { ok: false, error: '--roadmap-new requires a title, e.g. --roadmap-new "Rent at claim gate"' };
+    }
+    return { ok: true, roadmapNewTitle: roadmapNew.trim() };
+  }
+
+  // None given — a bounded env exemption is a sanctioned opt-out (never named
+  // in the rent message itself).
+  const exempt = typeof env.PD_RENT_EXEMPT === 'string' ? env.PD_RENT_EXEMPT.trim().toLowerCase() : '';
+  if (exempt) {
+    if (!(RENT_EXEMPT_VALUES as readonly string[]).includes(exempt)) {
+      return { ok: false, error: `PD_RENT_EXEMPT must be one of: ${RENT_EXEMPT_VALUES.join(', ')} (got "${exempt}").` };
+    }
+    return { ok: true, sidequestReason: `PD_RENT_EXEMPT: ${exempt}` };
+  }
+
+  if (interactive) {
+    return { ok: false, needsPrompt: true };
+  }
+
+  return { ok: false, error: RENT_GATE_MESSAGE };
+}
+
+/**
+ * Anti-Goodhart valve: the relink message. Two options — relink never
+ * creates roadmap items (use pd begin --roadmap-new / pd roadmap for that).
+ */
+export const RELINK_GATE_MESSAGE = [
+  'pd session relink updates the ACTIVE session\'s roadmap rent. Pass exactly one:',
+  '  --roadmap <slug>              re-link to an existing roadmap item',
+  `  --sidequest "<reason>"        switch to an opt-out with a one-line reason (min ${SIDEQUEST_MIN_CHARS} chars)`,
+].join('\n');
+
+export interface RelinkRentResolution {
+  ok: boolean;
+  roadmapLink?: string;
+  sidequestReason?: string;
+  error?: string;
+}
+
+/**
+ * Pure resolver behind `pd session relink`. Same validation as begin, minus
+ * roadmap-new / env exemptions / prompting — relinking is always deliberate.
+ */
+export function resolveRelinkRent(
+  options: Pick<CLIOptions, 'roadmap' | 'sidequest'> & Record<string, unknown>,
+): RelinkRentResolution {
+  const roadmap = options.roadmap;
+  const sidequest = options.sidequest;
+
+  const given = [roadmap, sidequest].filter((v) => v !== undefined && v !== null);
+  if (given.length > 1) {
+    return { ok: false, error: '--roadmap and --sidequest are mutually exclusive — pass exactly one.' };
+  }
+
+  if (roadmap !== undefined) {
+    if (typeof roadmap !== 'string' || !roadmap.trim()) {
+      return { ok: false, error: '--roadmap requires a slug, e.g. --roadmap adr-0090-database-distribution' };
+    }
+    return { ok: true, roadmapLink: roadmap.trim() };
+  }
+
+  if (sidequest !== undefined) {
+    const reason = typeof sidequest === 'string' ? sidequest.trim() : '';
+    if (reason.length < SIDEQUEST_MIN_CHARS) {
+      return { ok: false, error: `--sidequest needs a real one-line reason (min ${SIDEQUEST_MIN_CHARS} chars) — say what the work actually is.` };
+    }
+    return { ok: true, sidequestReason: reason };
+  }
+
+  return { ok: false, error: RELINK_GATE_MESSAGE };
+}
+
+/**
+ * The rent receipt line. Printed after every successful rent payment
+ * (pd begin, pd session relink) so agents know a wrong link is not sticky —
+ * that's the anti-Goodhart valve that keeps slugs honest.
+ */
+export function formatRentReceipt(rent: { roadmapLink?: string | null; sidequestReason?: string | null }): string | null {
+  const target = rent.roadmapLink
+    ? rent.roadmapLink
+    : rent.sidequestReason
+      ? `sidequest: ${rent.sidequestReason}`
+      : null;
+  if (!target) return null;
+  return `rent paid -> ${target} (change anytime: pd session relink)`;
+}
+
+/**
+ * TTY path: ask for the missing rent field. One line, three choices.
+ */
+async function promptBeginRent(): Promise<BeginRentResolution> {
+  const choice = await promptSelect({
+    label: 'Link this session to the roadmap?',
+    choices: [
+      { value: 'roadmap', label: 'Link an existing roadmap item (slug)' },
+      { value: 'roadmap-new', label: 'Create a draft roadmap item (title)' },
+      { value: 'sidequest', label: 'Sidequest — opt out with a reason' },
+    ],
+    default: 'roadmap',
+  });
+  if (choice === 'roadmap') {
+    const slug = await promptText({ label: 'Roadmap slug:', required: true });
+    return resolveBeginRent({ roadmap: slug || '' }, {}, false);
+  }
+  if (choice === 'roadmap-new') {
+    const title = await promptText({ label: 'New roadmap item title:', required: true });
+    return resolveBeginRent({ 'roadmap-new': title || '' }, {}, false);
+  }
+  const reason = await promptText({ label: `Sidequest reason (min ${SIDEQUEST_MIN_CHARS} chars):`, required: true });
+  return resolveBeginRent({ sidequest: reason || '' }, {}, false);
+}
+
+export const HELPFUL_SUGGESTION_LIMIT = 3;
+export const HELPFUL_SUGGESTION_TIMEOUT_MS = 75;
+
+export interface HelpfulPeerSuggestion {
+  agentId: string;
+  agentName?: string | null;
+  phrase: string;
+  score: number;
+  similarity: number;
+  stage: 'exact' | 'bm25' | 'semantic' | 'llm';
+}
+
+/**
+ * Keep arrival guidance genuinely selective. The daemon's whois service owns
+ * the shared BM25 + MiniLM cascade; this client only applies the published
+ * semantic review threshold, removes the just-created session, and enforces a
+ * hard display cap. The design intent is to make `pd begin` quiet unless a
+ * semantically reviewed peer is unusually relevant; there is deliberately no
+ * lexical or substring fallback.
+ *
+ * @param hits - Ranked candidates returned by the daemon's hybrid resolver.
+ * @param currentAgentId - Agent created by this begin call, which must not be suggested to itself.
+ * @returns At most three semantically reviewed peers in daemon rank order.
+ */
+export function selectHelpfulPeerSuggestions(
+  hits: HelpfulPeerSuggestion[],
+  currentAgentId: string | undefined,
+): HelpfulPeerSuggestion[] {
+  return hits
+    .filter((hit) => hit.agentId !== currentAgentId)
+    .filter((hit) => Number.isFinite(hit.score) && Number.isFinite(hit.similarity))
+    .filter((hit) => hit.stage === 'semantic' || hit.stage === 'llm')
+    .filter((hit) => hit.score >= DEFAULT_SEMANTIC_REVIEW_THRESHOLD)
+    .slice(0, HELPFUL_SUGGESTION_LIMIT);
+}
+
+/**
+ * Fetch bounded arrival guidance through the shared daemon resolver. The
+ * injected fetcher makes the latency and fail-open contract executable in a
+ * unit fixture without consulting a developer's live daemon.
+ *
+ * @param purpose - Natural-language purpose sent to hybrid peer resolution.
+ * @param currentAgentId - Newly created agent excluded from its own suggestions.
+ * @param fetcher - Daemon fetch implementation, injectable for timing-contract tests.
+ * @returns Reviewed peer suggestions, or an empty list on timeout or failure.
+ */
+export async function fetchHelpfulPeerSuggestions(
+  purpose: string,
+  currentAgentId: string | undefined,
+  fetcher: typeof pdFetch = pdFetch,
+): Promise<HelpfulPeerSuggestion[]> {
+  const controller = new AbortController();
+  let deadline: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const params = new URLSearchParams({
+      q: purpose,
+      kind: 'agent',
+      limit: String(HELPFUL_SUGGESTION_LIMIT + 1),
+    });
+    const request = fetcher(`/whois?${params.toString()}`, {
+      timeout: HELPFUL_SUGGESTION_TIMEOUT_MS,
+      retry: false,
+      signal: controller.signal,
+    });
+    const res = await Promise.race([
+      request,
+      new Promise<null>((resolveDeadline) => {
+        deadline = setTimeout(() => {
+          controller.abort();
+          resolveDeadline(null);
+        }, HELPFUL_SUGGESTION_TIMEOUT_MS);
+      }),
+    ]);
+    if (!res) return [];
+    if (!res.ok) return [];
+    const data = await res.json();
+    return selectHelpfulPeerSuggestions(
+      Array.isArray(data.hits) ? data.hits as unknown as HelpfulPeerSuggestion[] : [],
+      currentAgentId,
+    );
+  } catch {
+    return [];
+  } finally {
+    if (deadline) clearTimeout(deadline);
+  }
+}
+
+/**
+ * Render optional live-peer guidance after a successful begin. The purpose of
+ * the short deadline and silent catch is failure containment: coordination
+ * enrichment must never delay or invalidate session creation.
+ *
+ * @param purpose - Natural-language purpose used by the daemon's hybrid resolver.
+ * @param currentAgentId - Newly created agent excluded from its own suggestions.
+ * @returns A promise that settles after printing useful guidance or a silent no-op.
+ */
+async function showHelpfulSuggestions(purpose: string, currentAgentId: string | undefined): Promise<void> {
+  const hits = await fetchHelpfulPeerSuggestions(purpose, currentAgentId);
+  if (hits.length === 0) return;
+
+  try {
+    console.error(`\n${ui.fmtCyan('Useful live peers for this session:')}`);
+    for (const hit of hits) {
+      const label = hit.agentName ? `${hit.agentName} (${hit.agentId})` : hit.agentId;
+      console.error(`  - ${ui.fmtYellow(label)}: "${hit.phrase}" (semantic fit ${hit.similarity.toFixed(2)})`);
+    }
+    console.error('');
+  } catch {
+    // Rendering is optional too; session creation already succeeded.
+  }
+}
+
+async function fetchAndRenderWelcomeBriefing(harbor?: string): Promise<void> {
+  try {
+    const res = await pdFetch(`${PORT_DADDY_URL}/sugar/welcome?harbor=${encodeURIComponent(harbor || '')}`);
+    if (!res.ok) return;
+    const data = (await res.json()) as any;
+    if (!data || !data.success) return;
+
+    console.error(`\n👋 ${ui.fmtBold(ui.fmtCyan('WELCOME TO THE PORT DADDY HARBOR'))}`);
+    
+    // 1. Next roadmap item
+    if (data.nextRoadmap) {
+      console.error(`\n📌 ${ui.fmtBold('Next Roadmap Target:')}`);
+      console.error(`   ${ui.fmtGreen(data.nextRoadmap.slug)}: "${data.nextRoadmap.summaryMd}"`);
+    }
+
+    // 2. Ongoing projects
+    if (data.ongoing && data.ongoing.length > 0) {
+      console.error(`\n🚢 ${ui.fmtBold('Ongoing Fleet Missions:')}`);
+      for (const s of data.ongoing) {
+        const wt = s.worktree ? ` (worktree: ${s.worktree.name || s.worktree.id})` : '';
+        console.error(`   - ${ui.fmtYellow(s.agentName || s.agentId)}: "${s.purpose}"${wt}`);
+      }
+    }
+
+    // 3. High-priority bugs
+    if (data.highPriBugs && data.highPriBugs.length > 0) {
+      console.error(`\n🚨 ${ui.fmtBold('High-Priority Bugs Needing Attention:')}`);
+      for (const f of data.highPriBugs) {
+        const surf = f.surface ? ` in ${f.surface}` : '';
+        console.error(`   - [${ui.fmtRed(f.severity.toUpperCase())}] ${ui.fmtYellow(f.slug)}: "${f.summary}"${surf}`);
+      }
+    }
+
+    // 4. Dormant or engineering excellence opportunities
+    if (data.dormant && data.dormant.length > 0) {
+      console.error(`\n⚓ ${ui.fmtBold('Dormant Projects / Refactoring Opportunities:')}`);
+      for (const d of data.dormant) {
+        console.error(`   - Session ${ui.fmtYellow(d.sessionId)}: "${d.purpose}" (dormant for ${d.lastActiveAgoMinutes}m)`);
+      }
+    }
+    console.error('');
+  } catch (err) {
+    // Fail silently
+  }
 }
 
 // =============================================================================
 // handleBegin — pd begin "purpose" --lifecycle durable|ephemeral [--identity X] [--files f1 f2...]
 // =============================================================================
 
+/**
+ * The guided wizard is reserved for a truly bare interactive invocation.
+ * Supplying any session-scoping flag means the caller is scripting the command;
+ * missing purpose must fail with usage instead of blocking on stdin.
+ */
+export function shouldRunBeginWizard(
+  purpose: string | undefined,
+  options: CLIOptions,
+  interactive: boolean = canPrompt(),
+): boolean {
+  const hasScopingArgs = [
+    options.purpose,
+    options.identity,
+    options.agent,
+    options.files,
+    options.lifecycle,
+    options.name,
+  ].some((value) => value !== undefined);
+  return purpose === undefined && interactive && !hasScopingArgs;
+}
+
+/**
+ * The idempotency key for this `pd begin`. `--idempotency-key <key>` lets a
+ * scripted caller retry the same logical begin across processes; otherwise a
+ * fresh UUID v4 is minted per invocation (retries INSIDE this invocation —
+ * the transport's socket→TCP re-send — already share it).
+ *
+ * @param options - Parsed CLI options.
+ * @returns A key accepted by the daemon.
+ * @throws When an explicit key is malformed (never silently drop the flag).
+ */
+export function resolveBeginIdempotencyKey(options: CLIOptions): string {
+  const explicit = options['idempotency-key'] ?? options.idempotencyKey;
+  if (explicit === undefined || explicit === null || explicit === false) return generateBeginIdempotencyKey();
+  if (!isValidBeginIdempotencyKey(explicit)) {
+    throw new Error(`--idempotency-key must match ${BEGIN_IDEMPOTENCY_KEY_PATTERN.source} (e.g. a UUID v4)`);
+  }
+  return explicit;
+}
+
 export async function handleBegin(
   purpose: string | undefined,
-  rest: string[],
-  options: CLIOptions,
-): Promise<void> {
+ rest: string[],
+ options: CLIOptions,
+ ): Promise<void> {
+  const filesOption: unknown = options.files;
+  if (filesOption === true || (Array.isArray(filesOption) && filesOption.length === 0)) {
+    printBeginUsage();
+    throw new Error('--files requires at least one path');
+  }
+
   // Flag takes precedence over positional
   purpose = purpose || (options.purpose as string) || undefined;
 
-  if (!purpose && canPrompt()) {
+  if (shouldRunBeginWizard(purpose, options)) {
+    // Show welcome briefing first!
+    await fetchAndRenderWelcomeBriefing(options.harbor as string || undefined);
+
     // Interactive wizard
     purpose = await promptText({ label: 'What are you working on?', required: true }) || undefined;
     if (!purpose) {
-      ui.error('Purpose is required');
-      process.exit(1);
+      throw new Error('Purpose is required');
     }
 
     // Prompt for optional identity with auto-detection
@@ -103,15 +541,31 @@ export async function handleBegin(
       if (lifecycle) options.lifecycle = lifecycle;
     }
   } else if (!purpose) {
+    await fetchAndRenderWelcomeBriefing(options.harbor as string || undefined);
     printBeginUsage();
-    process.exit(1);
+    throw new Error('Purpose is required — see usage above.');
   }
 
   const lifecycle = resolveBeginLifecycle(options);
   if (!lifecycle.success) {
-    ui.error(lifecycle.error);
     printBeginUsage();
-    process.exit(1);
+    throw new Error(lifecycle.error);
+  }
+
+  // Rent-at-claim (S3): one line — link if obvious, opt-out reason if not.
+  let rent = resolveBeginRent(options, process.env);
+  if (!rent.ok && rent.needsPrompt) {
+    rent = await promptBeginRent();
+  }
+  if (!rent.ok) {
+    // The caller has purpose text but no --roadmap slug in hand — surface
+    // ranked candidates (lib/roadmap-search.ts) instead of a bare rejection,
+    // only on the generic "none given" gate (a specific --roadmap/--sidequest
+    // validation error already names the exact fix; suggestions would be noise).
+    if (rent.error === RENT_GATE_MESSAGE) {
+      await printRoadmapSuggestions(purpose, options.harbor as string | undefined);
+    }
+    throw new Error(rent.error || RENT_GATE_MESSAGE);
   }
 
   // Auto-detect identity from package.json if not provided
@@ -124,6 +578,9 @@ export async function handleBegin(
   if (options.type) body.type = options.type;
   if (options.force) body.force = true;
   body.lifecycle = lifecycle.lifecycle;
+  if (rent.roadmapLink) body.roadmapLink = rent.roadmapLink;
+  if (rent.sidequestReason) body.sidequestReason = rent.sidequestReason;
+  if (rent.roadmapNewTitle) body.roadmapNewTitle = rent.roadmapNewTitle;
 
   // Collect files from --files option or remaining positional args
   const files: string[] = [];
@@ -138,11 +595,25 @@ export async function handleBegin(
 
   const worktreePolicy = resolveCliSessionWorktreePolicy(options);
   if (!worktreePolicy.success) {
-    ui.error(worktreePolicy.error || 'Session worktree policy failed');
     if (worktreePolicy.hint) console.error(`  ${worktreePolicy.hint}`);
-    process.exit(1);
+    throw new Error(worktreePolicy.error || 'Session worktree policy failed');
   }
   attachCliSessionWorktreePolicy(body, worktreePolicy);
+
+  // Begin idempotency. One key per LOGICAL begin: the transport re-sends the
+  // same body on a socket reset / timeout (cli/utils/fetch.ts fallback), and
+  // the daemon answers a known key with the ORIGINAL session + credential
+  // instead of minting a second one. The key is persisted BEFORE the request
+  // goes out so a crash or lost response leaves `pd session find` a way back
+  // to the session the daemon committed.
+  const idempotencyKey = resolveBeginIdempotencyKey(options);
+  body.idempotencyKey = idempotencyKey;
+  try {
+    writeBeginAttempt({ idempotencyKey, purpose, identity: identity || null, startedAt: Date.now() });
+  } catch (error) {
+    // The begin still proceeds; only the crash-recovery breadcrumb is lost.
+    console.error(`  (could not persist begin attempt: ${(error as Error).message})`);
+  }
 
   const res: PdFetchResponse = await pdFetch('/sugar/begin', {
     method: 'POST',
@@ -153,11 +624,16 @@ export async function handleBegin(
   const data = await res.json();
 
   if (!res.ok) {
-    ui.error((data.error as string) || 'Failed to begin');
-    process.exit(1);
+    // Leave the attempt on disk only when the daemon may have committed
+    // something under this key; a plain rejection has nothing to recover.
+    if (res.status !== 409 || data.code !== 'IDEMPOTENCY_KEY_REUSED') clearBeginAttempt();
+    throw new Error((data.error as string) || 'Failed to begin');
   }
 
-  // Write local context file
+  // Write local context file. The daemon-minted actor credential (#8877 /
+  // ADR-0122) is returned ONCE when this begin minted a fresh soul; persist
+  // it so every subsequent attributed pd write (done, note, claims, locks)
+  // can present it via pdFetch's central header injection.
   writeCurrentContext({
     agentId: data.agentId as string,
     sessionId: data.sessionId as string,
@@ -166,7 +642,12 @@ export async function handleBegin(
     purpose,
     identity: (data.identity as string) || null,
     startedAt: Date.now(),
+    credential: typeof data.credential === 'string' && data.credential
+      ? data.credential
+      : (process.env.PD_ACTOR_CREDENTIAL?.trim() || process.env.PORT_DADDY_ACTOR_CREDENTIAL?.trim() || null),
+    idempotencyKey,
   });
+  clearBeginAttempt();
 
   if (isJson(options)) {
     console.log(JSON.stringify(data, null, 2));
@@ -184,12 +665,18 @@ export async function handleBegin(
       assertSafeId(agentId, 'agentId');
       assertSafeId(sessionId, 'sessionId');
       const shell = process.env.SHELL || '';
+      const mintedCredential = typeof data.credential === 'string' && data.credential ? data.credential : null;
       if (shell.endsWith('/fish')) {
         console.log(`set -x PD_AGENT_ID ${fishShellQuote(agentId)}`);
         console.log(`set -x PD_SESSION_ID ${fishShellQuote(sessionId)}`);
+        // The minted ADR-0040 credential (#8877): exported so mutating pd
+        // commands in this shell present it even when the context file is
+        // bypassed via PD_AGENT_ID env resolution.
+        if (mintedCredential) console.log(`set -x PD_ACTOR_CREDENTIAL ${fishShellQuote(mintedCredential)}`);
       } else {
         console.log(`export PD_AGENT_ID=${posixShellQuote(agentId)}`);
         console.log(`export PD_SESSION_ID=${posixShellQuote(sessionId)}`);
+        if (mintedCredential) console.log(`export PD_ACTOR_CREDENTIAL=${posixShellQuote(mintedCredential)}`);
       }
     } catch (err) {
       // Refuse to emit — write the reason to stderr so the caller sees it but
@@ -210,10 +697,67 @@ export async function handleBegin(
   const agentLabel = agentName ? `${agentName} (${data.agentId as string})` : (data.agentId as string);
   const sessionName = data.sessionName as string | undefined;
   const sessionLabel = sessionName ? `${sessionName} (${data.sessionId as string})` : (data.sessionId as string);
+  const rentReceipt = formatRentReceipt({
+    roadmapLink: data.roadmapLink as string | undefined,
+    sidequestReason: data.sidequestReason as string | undefined,
+  });
+  if (ui.lineworkEnabled({ stream: 'stderr' })) {
+    const rows: ui.LineworkRow[] = [
+      { state: 'confirmed', label: 'agent', text: String(agentLabel) },
+      { state: 'active', label: 'session', text: String(sessionLabel) },
+      { state: 'pending', label: 'purpose', text: String(purpose) },
+      { state: lifecycle.lifecycle === 'durable' ? 'healthy' : 'info', label: 'lifecycle', text: lifecycle.lifecycle },
+    ];
+    if (identity) rows.push({ state: 'active', label: 'identity', text: identity });
+    if (data.replayed) rows.push({ state: 'recovering', label: 'replayed', text: 'a retry of this begin: the original session was returned, nothing new was created' });
+    if (data.roadmapLink) rows.push({ state: 'confirmed', label: 'roadmap', text: String(data.roadmapLink) });
+    if (data.sidequestReason) rows.push({ state: 'info', label: 'sidequest', text: String(data.sidequestReason) });
+    if (rentReceipt) rows.push({ state: 'confirmed', label: 'rent', text: rentReceipt });
+    if (data.worktree && typeof data.worktree === 'object') {
+      const worktree = data.worktree as { name?: string; branch?: string | null; id?: string };
+      const branch = worktree.branch ? `:${worktree.branch}` : '';
+      rows.push({ state: 'active', label: 'worktree', text: `${worktree.name || worktree.id || 'linked'}${branch}` });
+    }
+    if (data.fileClaims) {
+      const claims = data.fileClaims as string[];
+      rows.push({ state: 'confirmed', label: 'files', text: `${claims.length} claimed` });
+    }
+    if (data.fileConflicts) {
+      const conflicts = data.fileConflicts as Array<{ filePath: string; sessionId: string }>;
+      rows.push({ state: 'conflict', label: 'conflicts', text: `${conflicts.length} file(s) claimed by other sessions` });
+    }
+    if (data.salvageHint) rows.push({ state: 'recovering', label: 'salvage', text: String(data.salvageHint) });
+    if (data.approvalsHint) rows.push({ state: 'awaiting-human', label: 'approval', text: String(data.approvalsHint) });
+    console.error(ui.renderLineworkPanel({
+      title: 'Session Anchored',
+      subtitle: identity || String(data.agentId || 'agent'),
+      tone: 'healthy',
+      zone: 'agent ready',
+      rows,
+      footer: 'claim files next with pd session files add <path>',
+      colorLevel: ui.lineworkColorLevel('stderr'),
+    }));
+    await showHelpfulSuggestions(purpose, data.agentId as string | undefined);
+    return;
+  }
   ui.success(`Agent ${highlightChannel(agentLabel)} ready`);
   console.error(`  Session: ${sessionLabel}`);
   console.error(`  Purpose: ${purpose}`);
   console.error(`  Lifecycle: ${lifecycle.lifecycle}`);
+  if (data.replayed) {
+    console.error('  Replayed: a retry of this begin — the original session was returned, nothing new was created');
+  }
+  if (data.roadmapLink) {
+    const suffix = data.roadmapCreated
+      ? ' (draft created)'
+      : data.roadmapExisting
+        ? ' (existing item — linked instead of creating a duplicate)'
+        : '';
+    console.error(`  Roadmap: ${data.roadmapLink}${suffix}`);
+  }
+  if (data.sidequestReason) console.error(`  Sidequest: ${data.sidequestReason}`);
+  // Rent receipt — a wrong link is never sticky (anti-Goodhart valve).
+  if (rentReceipt) console.error(`  ${rentReceipt}`);
   if (identity) console.error(`  Identity: ${identity}`);
   if (data.worktree && typeof data.worktree === 'object') {
     const worktree = data.worktree as { name?: string; branch?: string | null; id?: string };
@@ -236,11 +780,49 @@ export async function handleBegin(
     console.error('');
     ui.warn(String(data.approvalsHint));
   }
+  await showHelpfulSuggestions(purpose, data.agentId as string | undefined);
 }
 
 // =============================================================================
 // handleDone — pd done ["note"] [--status STATUS]
 // =============================================================================
+
+/**
+ * `pd done` as a manual confirmation point for `merge_policy='auto'`
+ * dispatches. The daemon's background sweep (server.ts, lib/dispatch/
+ * auto-merge.ts) merges these PRs on its own interval, but an operator
+ * running `pd done` right after a dispatch finishes shouldn't have to wait
+ * for the next tick — this runs the SAME check-and-complete logic inline so
+ * `pd done` either confirms the merge already happened (and worktree/branch
+ * are already scrapped) or reports honestly why it isn't ready yet. This is
+ * always best-effort: a failure here must never block the actual session end.
+ */
+async function reportAutoMergeOnDone(sessionId: string | undefined): Promise<string[]> {
+  if (!sessionId) return [];
+  const lines: string[] = [];
+  try {
+    const db = initDatabase();
+    const queue = createDispatchQueue({ db });
+    const dispatch = queue.getBySessionId(sessionId);
+    if (!dispatch || dispatch.mergePolicy !== 'auto') return [];
+    const outcome = await checkAndCompleteDispatch(dispatch);
+    if (outcome.outcome === 'merged') {
+      lines.push(`Auto-merge: merged ${dispatch.resultArtifact} (dispatch ${dispatch.id.slice(0, 8)}).`);
+      if (outcome.cleanup.worktreeReaped) lines.push('  worktree scrapped');
+      if (outcome.cleanup.branchDeleted) lines.push('  local branch deleted');
+    } else if (outcome.outcome === 'already_merged') {
+      lines.push(`Auto-merge: PR already merged (dispatch ${dispatch.id.slice(0, 8)}); confirmed cleanup.`);
+    } else if (outcome.outcome === 'not_ready') {
+      lines.push(`Auto-merge: dispatch ${dispatch.id.slice(0, 8)} not ready yet — ${outcome.reasons.join('; ')}`);
+      lines.push(`  the daemon's background sweep will retry, or run: pd dispatch merge-sweep`);
+    } else if (outcome.outcome === 'error') {
+      lines.push(`Auto-merge: check failed for dispatch ${dispatch.id.slice(0, 8)} — ${outcome.error}`);
+    }
+  } catch {
+    // Best-effort. A DB/gh hiccup here must never block `pd done`.
+  }
+  return lines;
+}
 
 export async function handleDone(
   note: string | undefined,
@@ -265,22 +847,38 @@ export async function handleDone(
     }
   }
 
-  // Try to read local context first
-  const ctx = readCurrentContext();
+  const explicitAgentId = typeof options.agent === 'string' && options.agent.trim() ? options.agent.trim() : undefined;
+  const explicitSessionId = typeof options.session === 'string' && options.session.trim() ? options.session.trim() : undefined;
+  const contextResolution = resolveCurrentContext();
+  if (!contextResolution.success && !explicitAgentId && !explicitSessionId) {
+    const conflict = {
+      success: false,
+      code: contextResolution.code,
+      error: contextResolution.error,
+      provenances: contextResolution.provenances,
+    };
+    if (isJson(options)) console.error(JSON.stringify(conflict, null, 2));
+    else {
+      ui.error(`${conflict.code}: ${conflict.error}`);
+      console.error(JSON.stringify({ provenances: conflict.provenances }, null, 2));
+    }
+    process.exit(1);
+  }
+  const ctx = contextResolution.success ? contextResolution.context : null;
 
   const body: Record<string, unknown> = {};
-  if (ctx) {
+  if (ctx && !explicitAgentId && !explicitSessionId) {
     body.agentId = ctx.agentId;
     body.sessionId = ctx.sessionId;
   }
-  if (options.agent) body.agentId = options.agent;
-  if (options.session) body.sessionId = options.session;
+  if (explicitAgentId) body.agentId = explicitAgentId;
+  if (explicitSessionId) body.sessionId = explicitSessionId;
   if (note) body.note = note;
   if (options.status) body.status = options.status;
 
-  // pd done origin-rule escape hatch (substrate fix 2026-05-20).
-  // --skip-origin-check requires --reason "<reason>". The reason is
-  // stamped into the result note with a loud [OPERATOR-OVERRIDE] prefix.
+  // Keep deprecated override flags in the wire request solely so older
+  // callers receive the daemon's structured, fail-closed capability error.
+  // Neither a reason string nor an actor credential grants operator authority.
   const skipOriginCheck = options.skipOriginCheck === true || options['skip-origin-check'] === true;
   const skipOriginCheckReason = (options.reason as string | undefined) || undefined;
   if (skipOriginCheck) {
@@ -288,13 +886,48 @@ export async function handleDone(
     if (skipOriginCheckReason) body.skipOriginCheckReason = skipOriginCheckReason;
   }
 
-  const pd = new PortDaddy({ agentId: typeof body.agentId === 'string' ? body.agentId : undefined });
+  const noPr = options.noPr === true || options['no-pr'] === true;
+  const subtask = options.subtask === true || options['subtask'] === true;
+  const forceIncomplete = options.forceIncomplete === true || options['force-incomplete'] === true;
+  const reason = (options.reason as string | undefined) || undefined;
+
+  // Resolve every alias to one exact daemon-observed tuple before mutation.
+  // Agent-only ambiguity and dormant contexts remain structured refusals.
+  const scopeClient = new PortDaddy({ agentId: typeof body.agentId === 'string' ? body.agentId : undefined });
+  const scope = await scopeClient.whoami({
+    agentId: typeof body.agentId === 'string' ? body.agentId : undefined,
+    sessionId: typeof body.sessionId === 'string' ? body.sessionId : undefined,
+  });
+  if (!scope.active || !scope.sessionId) {
+    ui.error(scope.error || scope.hint || 'No active session found');
+    if (Array.isArray(scope.candidates)) {
+      for (const candidate of scope.candidates) {
+        console.error(`  ${candidate.sessionId} (worktree ${candidate.worktreeId || '<unknown>'})`);
+      }
+    }
+    process.exit(1);
+  }
+  body.sessionId = scope.sessionId;
+  if (scope.agentId) body.agentId = scope.agentId;
+
+  // #8877 / ADR-0122: /sugar/done requires the actor credential minted at
+  // begin; resolve it from env or the context store (only when the context's
+  // agent matches the agent this done asserts).
+  const doneAgentId = typeof body.agentId === 'string' ? body.agentId : undefined;
+  const pd = new PortDaddy({
+    agentId: doneAgentId,
+    credential: resolveCliActorCredential(doneAgentId),
+  });
   const data = await pd.done(note, {
     agentId: typeof body.agentId === 'string' ? body.agentId : undefined,
     sessionId: typeof body.sessionId === 'string' ? body.sessionId : undefined,
     status: typeof body.status === 'string' ? body.status : undefined,
     skipOriginCheck: skipOriginCheck ? true : undefined,
     skipOriginCheckReason: skipOriginCheck ? skipOriginCheckReason : undefined,
+    noPr: noPr ? true : undefined,
+    subtask: subtask ? true : undefined,
+    forceIncomplete: forceIncomplete ? true : undefined,
+    forceIncompleteReason: forceIncomplete ? reason : undefined,
   });
 
   if (!data?.success) {
@@ -309,11 +942,17 @@ export async function handleDone(
     process.exit(1);
   }
 
+  // Auto-merge can delete a branch and worktree, so it MUST follow the
+  // credentialed exact-session completion. Scope discovery alone is not
+  // authorization: doing this earlier let a caller name another actor's
+  // session and trigger dispatch cleanup before `/sugar/done` rejected them.
+  const autoMergeLines = await reportAutoMergeOnDone(data.sessionId);
+
   // Clear local context
-  clearCurrentContext();
+  if (ctx?.sessionId === data.sessionId) clearCurrentContext();
 
   if (isJson(options)) {
-    console.log(JSON.stringify(data, null, 2));
+    console.log(JSON.stringify({ ...data, autoMerge: autoMergeLines }, null, 2));
     return;
   }
 
@@ -330,6 +969,7 @@ export async function handleDone(
   if (data.agentUnregistered) console.error(`  Agent ${data.agentId} unregistered`);
   if (data.notesCount) console.error(`  Notes: ${data.notesCount}`);
   if (note) console.error(`  Final note: "${note}"`);
+  for (const line of autoMergeLines) console.error(`  ${line}`);
 }
 
 // =============================================================================
@@ -337,10 +977,27 @@ export async function handleDone(
 // =============================================================================
 
 export async function handleWhoami(options: CLIOptions): Promise<void> {
-  // Try local context first
-  const ctx = readCurrentContext();
-  const agentId = (options.agent as string) || ctx?.agentId;
-  const sessionId = (options.session as string) || ctx?.sessionId;
+  const explicitAgentId = typeof options.agent === 'string' && options.agent.trim() ? options.agent.trim() : undefined;
+  const explicitSessionId = typeof options.session === 'string' && options.session.trim() ? options.session.trim() : undefined;
+  const contextResolution = resolveCurrentContext();
+  if (!contextResolution.success && !explicitAgentId && !explicitSessionId) {
+    const conflict = {
+      success: false,
+      active: false,
+      code: contextResolution.code,
+      error: contextResolution.error,
+      provenances: contextResolution.provenances,
+    };
+    if (isJson(options)) console.log(JSON.stringify(conflict, null, 2));
+    else {
+      ui.error(`${conflict.code}: ${conflict.error}`);
+      console.error(JSON.stringify({ provenances: conflict.provenances }, null, 2));
+    }
+    process.exit(1);
+  }
+  const ctx = contextResolution.success ? contextResolution.context : null;
+  const agentId = explicitAgentId || (explicitSessionId ? undefined : ctx?.agentId);
+  const sessionId = explicitSessionId || (explicitAgentId ? undefined : ctx?.sessionId);
 
   if (!agentId && !sessionId) {
     if (isJson(options)) {
@@ -378,7 +1035,18 @@ export async function handleWhoami(options: CLIOptions): Promise<void> {
 
   if (!data.active) {
     if (isQuiet(options)) return;
-    console.error(data.hint || 'No active session');
+    if (data.dormant && data.resumable) {
+      console.error(`Dormant ${data.lifecycle || 'durable'} session: ${data.sessionId}`);
+      if (data.status) console.error(`  Status: ${data.status}`);
+    } else {
+      console.error(data.error || data.hint || 'No active session');
+    }
+    if (data.hint) console.error(`  ${data.hint}`);
+    if (Array.isArray(data.candidates)) {
+      for (const candidate of data.candidates) {
+        console.error(`  ${candidate.sessionId} (${candidate.status || 'unknown'}, ${candidate.lifecycle || 'unknown'}, worktree ${candidate.worktreeId || '<unknown>'})`);
+      }
+    }
     return;
   }
 
@@ -393,6 +1061,8 @@ export async function handleWhoami(options: CLIOptions): Promise<void> {
   console.error(`  Agent:    ${agentName ? `${agentName} (${data.agentId})` : data.agentId}`);
   console.error(`  Session:  ${sessionName ? `${sessionName} (${data.sessionId})` : data.sessionId}`);
   console.error(`  Purpose:  ${data.purpose}`);
+  if (data.roadmapLink) console.error(`  Roadmap:  ${data.roadmapLink}`);
+  if (data.sidequestReason) console.error(`  Sidequest: ${data.sidequestReason}`);
   if (data.identity) console.error(`  Identity: ${data.identity}`);
   console.error(`  Phase:    ${data.phase}`);
   if (data.duration != null) {
@@ -431,8 +1101,19 @@ export async function handleWithLock(
   const owner = (options.owner as string) || current?.agentId || `cli-${process.pid}`;
   const pd = new PortDaddy({
     agentId: owner,
+    credential: resolveCliActorCredential(owner),
     pid: process.pid,
   });
+  // #8877 / ADR-0122: the acquire+release pair below must present ONE
+  // daemon-minted soul; mint (persisted per shell slot) when none is held.
+  if (!pd.credential) {
+    try {
+      pd.credential = await ensureCliActorCredential(owner);
+    } catch (error) {
+      ui.error(`Failed to mint actor credential: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  }
 
   // Acquire lock
   try {

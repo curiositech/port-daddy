@@ -50,7 +50,7 @@ The representation is **functional**—it describes objects by their potential f
 
 ## Why This Matters for Agent Systems
 
-For WinDAGs-style multi-agent orchestration:
+For Jury-rig-style multi-agent orchestration:
 
 1. **Transferable primitives**: SEARCHTRACK schemas are domain-general. The same Φ|σ_τ structure applies whether tracking visual motion, force signals, or abstract state variables. Agents can share a common vocabulary of control programs across diverse skills.
 

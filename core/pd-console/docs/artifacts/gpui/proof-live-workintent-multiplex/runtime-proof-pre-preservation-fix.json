@@ -1,0 +1,270 @@
+{
+  "capturedAt": "2026-07-13T23:47:29Z",
+  "health": {
+    "status": "ok",
+    "severity": "ok",
+    "version": "3.24.2",
+    "uptime_seconds": 1398,
+    "active_ports": 0,
+    "pid": 79782,
+    "fleet": {
+      "running": true,
+      "projects": 1,
+      "agents": 18,
+      "watchers": 3,
+      "launchableAgents": 17,
+      "skippedProjects": 0
+    },
+    "routes": {
+      "ok": true,
+      "missing": [],
+      "checked": 11
+    },
+    "runtime": {
+      "state": "nominal",
+      "degraded": false,
+      "reasons": [],
+      "arbiter": {
+        "state": "nominal",
+        "mode": "strict_enforcement",
+        "criticalAction": "man_overboard",
+        "strictMode": true,
+        "enforcerLoaded": false,
+        "rules": {
+          "total": 6,
+          "enforced": 6,
+          "degraded": 0,
+          "stubbed": 0
+        }
+      },
+      "fleet": {
+        "running": true,
+        "projects": 1,
+        "skippedProjects": 0,
+        "totalAgents": 18,
+        "totalWatchers": 3,
+        "launchableAgents": 17
+      },
+      "transcripts": {
+        "state": "nominal",
+        "degraded": false,
+        "hitlEmergency": false,
+        "liveRuns": 0,
+        "supportedRuns": 2,
+        "degradedRuns": 0,
+        "missingRuns": 0,
+        "backendCoverage": {
+          "supported": 5,
+          "degraded": 14,
+          "missing": 0
+        },
+        "issues": []
+      }
+    },
+    "daemon": {
+      "tier": "codebase",
+      "label": "pd-console-live",
+      "color": "#A855F7",
+      "sourceDir": "/Users/erichowens/coding/tmp/pd-console-story-linework-motion",
+      "gitBranch": "codex/pd-console-story-linework-motion",
+      "gitRev": "268051c05",
+      "builtAt": "2026-07-13T23:24:10.403Z",
+      "port": 3166,
+      "canonical": false,
+      "plane": "ephemeral:pd-console-live"
+    },
+    "plane": "ephemeral:pd-console-live",
+    "binaryDrift": {
+      "drifted": false,
+      "runningHash": "afa4c942abe4a63278b774da812c484ad2af66c86565d5fb36384494a0a5a3cb",
+      "onDiskHash": "afa4c942abe4a63278b774da812c484ad2af66c86565d5fb36384494a0a5a3cb",
+      "runningPath": "/Users/erichowens/coding/tmp/pd-console-story-linework-motion/dist/daemon/port-daddy-daemon",
+      "onDiskPath": "/Users/erichowens/coding/tmp/pd-console-story-linework-motion/dist/daemon/port-daddy-daemon",
+      "reason": "Running daemon matches comparable on-disk Port Daddy binary.",
+      "checkedAt": 1783986449262
+    }
+  },
+  "dispatches": {
+    "ok": true,
+    "dispatches": [
+      {
+        "id": "a99a69a3-ee4a-735c-083d-a4f0d6c8ee2a",
+        "slug": "take-roadmap-slice-operator-manual-fleet-dispatch-audit-the",
+        "goal": "Take roadmap slice operator-manual-fleet-dispatch. Audit the current operator routing surfaces, implement one bounded provider-neutral improvement with tests if safe, and report exact evidence through the Port Daddy transcript.",
+        "tags": [
+          "work-intent:work_intent_console_18c1fd1997084390-81099-56",
+          "surface:pd-console"
+        ],
+        "state": "settled",
+        "requestedBy": "operator:local",
+        "targetActorId": null,
+        "workerActorId": "daemon:dispatch-worker",
+        "reviewerActorId": "operator",
+        "baseBranch": "main",
+        "backend": null,
+        "budgetUsd": 10,
+        "timeoutMs": null,
+        "worktreePath": "/Users/erichowens/coding/tmp/port-daddy-dispatch-a99a69a3",
+        "branch": "dispatch/take-roadmap-slice-operator-manual-fleet-dispatch-audit-the-a99a69a3",
+        "sessionId": "dispatch-worker-a99a69a3-ee4a-735c-083d-a4f0d6c8ee2a",
+        "resultArtifact": null,
+        "costUsd": 0.01,
+        "durationMs": null,
+        "errorMessage": null,
+        "mergePolicy": "review",
+        "rejectReason": null,
+        "createdAt": 1783985213765,
+        "claimedAt": 1783985213767,
+        "startedAt": 1783985213768,
+        "producedAt": null,
+        "reviewedAt": null,
+        "settledAt": 1783986388168
+      },
+      {
+        "id": "b852b6b6-fd53-4b9d-fba5-043d52b5da45",
+        "slug": "take-roadmap-slice-daemon-introspection-api-inspect-the-exis",
+        "goal": "Take roadmap slice daemon-introspection-api. Inspect the existing daemon health surfaces, implement the smallest provider-agnostic first cut with tests if it is not already present, and report exact evidence through the Port Daddy transcript.",
+        "tags": [
+          "work-intent:work_intent_console_18c1fd1996874fd8-81099-54",
+          "surface:pd-console"
+        ],
+        "state": "settled",
+        "requestedBy": "operator:local",
+        "targetActorId": null,
+        "workerActorId": "daemon:dispatch-worker",
+        "reviewerActorId": "operator",
+        "baseBranch": "main",
+        "backend": null,
+        "budgetUsd": 10,
+        "timeoutMs": null,
+        "worktreePath": "/Users/erichowens/coding/tmp/port-daddy-dispatch-b852b6b6",
+        "branch": "dispatch/take-roadmap-slice-daemon-introspection-api-inspect-the-exis-b852b6b6",
+        "sessionId": "dispatch-worker-b852b6b6-fd53-4b9d-fba5-043d52b5da45",
+        "resultArtifact": null,
+        "costUsd": 0.01,
+        "durationMs": null,
+        "errorMessage": null,
+        "mergePolicy": "review",
+        "rejectReason": null,
+        "createdAt": 1783985213756,
+        "claimedAt": 1783985213761,
+        "startedAt": 1783985213762,
+        "producedAt": null,
+        "reviewedAt": null,
+        "settledAt": 1783986412984
+      }
+    ],
+    "count": 2
+  },
+  "activeAgents": {
+    "success": true,
+    "agents": [
+      {
+        "id": "spawned-5e1e258c3179",
+        "name": "cli:codex",
+        "pid": 87938,
+        "type": "spawned",
+        "registeredAt": 1783985217731,
+        "lastHeartbeat": 1783986387847,
+        "isActive": true,
+        "maxServices": 50,
+        "maxLocks": 20,
+        "metadata": {
+          "spawn": true,
+          "requiresEscrow": true,
+          "projectName": null,
+          "bondId": null,
+          "bondUsd": 10
+        },
+        "agentCard": null,
+        "skills": [],
+        "worktreeId": null,
+        "identity": null,
+        "identityProject": null,
+        "identityStack": null,
+        "identityContext": null,
+        "purpose": "Take roadmap slice daemon-introspection-api. Inspect the existing daemon health ",
+        "status": "busy",
+        "readiness": null,
+        "isReady": true,
+        "progress": "Running cli:codex via Port Daddy spawner",
+        "healthAssessment": {
+          "liveness": "alive",
+          "graceRemaining": 14338562
+        }
+      }
+    ],
+    "count": 1,
+    "localCount": 1,
+    "remoteCount": 0
+  },
+  "consoleState": {
+    "ok": true,
+    "pane": "conductor",
+    "blocks": [
+      {
+        "type": "header",
+        "text": "Conductor — Fleet Lineage"
+      },
+      {
+        "type": "gap"
+      },
+      {
+        "type": "row",
+        "cells": [
+          "root",
+          "fe1840dc-b0bb-4762-ba1c-0a03…",
+          "1 launch(es)",
+          "$0.01"
+        ]
+      },
+      {
+        "type": "row",
+        "cells": [
+          "  ◑",
+          "Take roadmap slice operator-manual-fleet…",
+          "cli:codex",
+          "dispatch",
+          "bond $10.00 · cost $0.01"
+        ]
+      },
+      {
+        "type": "chip",
+        "label": "produced"
+      },
+      {
+        "type": "gap"
+      },
+      {
+        "type": "row",
+        "cells": [
+          "root",
+          "26693034-ca02-4168-ae86-df53…",
+          "1 launch(es)",
+          "$0.01"
+        ]
+      },
+      {
+        "type": "row",
+        "cells": [
+          "  ◑",
+          "Take roadmap slice daemon-introspection-…",
+          "cli:codex",
+          "dispatch",
+          "bond $10.00 · cost $0.01"
+        ]
+      },
+      {
+        "type": "chip",
+        "label": "produced"
+      },
+      {
+        "type": "gap"
+      },
+      {
+        "type": "chip",
+        "label": "2 active · 2 root(s) · 0 halted · $0.02 spent"
+      }
+    ]
+  }
+}

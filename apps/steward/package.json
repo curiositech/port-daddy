@@ -1,0 +1,22 @@
+{
+  "name": "@port-daddy/steward",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cloudflare Worker — the Steward's seat (ADR-0109). One Durable Object per repo holding the durable merge-authority identity: charter, wake inbox, alarm heartbeat, and append-only deck-log / merge-ledger fabric. P1 PR 1 of docs/plans/THE_FULL_WHEEL.md.",
+  "type": "module",
+  "main": "src/worker.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy --config wrangler.deploy.toml",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260507.0",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.4.0",
+    "vitest": "^3.2.0",
+    "wrangler": "4.99.0"
+  }
+}

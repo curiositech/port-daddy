@@ -1,0 +1,365 @@
+/**
+ * registry-reunify — union-merge scattered roadmap truth into one registry.
+ *
+ *   npx tsx scripts/registry-reunify.ts --dest ~/.port-daddy/port-registry.db \
+ *     --shard ~/.port-daddy/instances/cloud-fleet-verify/port-daddy.db \
+ *     --shard ~/.port-daddy/instances/dev-latest/port-daddy.db \
+ *     --snapshot docs/roadmap/roadmap.snapshot.json \
+ *     [--dry-run]
+ *
+ * The registry fragmented across brew-Cellar wipes and per-instance dev
+ * daemons (ADR-0090; operator ruling 2026-07-14: "daemons cannot own
+ * different truths"). This script reunifies roadmap_items and their
+ * append-only status events into the durable home:
+ *
+ *   - Merge key: (slug, harbor) — matches the table's UNIQUE constraint.
+ *   - Precedence: live shard rows beat snapshot rows; among live rows the
+ *     newest last_touched_at wins whole-row. The committed snapshot is a
+ *     FLOOR: it only fills (slug, harbor) pairs no shard knows, never
+ *     overrides a fresher live row.
+ *   - Provenance: every imported/updated row gets an entry appended to its
+ *     notes_json — no schema change, the append-only field already exists.
+ *   - status events: unioned from all shards, item_id remapped to the
+ *     winning row's id, deduped on (slug, harbor, status, at).
+ *   - Sources are opened read-only. The destination is backed up via
+ *     VACUUM INTO <dest>.pre-reunify-<ts> before any write. Re-running
+ *     converges (idempotent upserts).
+ */
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import Database, { type DatabaseInstance } from '../lib/sqlite-runtime.js';
+import { initDatabase } from '../lib/db.js';
+
+export interface RoadmapRow {
+  id: string;
+  slug: string;
+  summary_md: string;
+  status: string;
+  promoted_from_feedback_id: string | null;
+  promoted_by_agent_id: string | null;
+  promoted_at: number | null;
+  last_touched_at: number;
+  dependencies_json: string;
+  notes_json: string;
+  harbor: string;
+  created_at: number;
+  kind: string;
+  priority: number;
+  assignee_id: string | null;
+  description_md: string | null;
+  started_at: number | null;
+  due_at: number | null;
+  estimate: number | null;
+  /** Derived-item provenance; pre-chomp shards lack the column (normalized to null). */
+  source_refs_json?: string | null;
+  /** Soft-delete tombstone; pre-tombstone shards lack the column (normalized to null). */
+  deleted_at?: number | null;
+}
+
+export interface StatusEventRow {
+  item_id: string;
+  slug: string;
+  status: string;
+  by_agent_id: string | null;
+  at: number;
+  harbor: string;
+}
+
+interface SourcedRow extends RoadmapRow {
+  __source: string;
+}
+
+export interface ReunifyPlan {
+  /** Winning row per (slug, harbor), with its source label. */
+  winners: SourcedRow[];
+  /** Rows synthesized from snapshot entries no shard knew about. */
+  snapshotOnly: Array<{ slug: string; harbor: string; status: string; summaryMd: string }>;
+  /** Unioned, deduped status events keyed for item_id remapping. */
+  events: Array<StatusEventRow & { __source: string }>;
+  /** (slug, harbor) pairs where a live row beat an older live row. */
+  superseded: Array<{ slug: string; harbor: string; loser: string; winner: string }>;
+}
+
+const key = (slug: string, harbor: string): string => `${slug}\u0000${harbor}`;
+
+const VALID_STATUSES = new Set(['now', 'backlog', 'parked', 'merge', 'done']);
+
+export function readShardRows(dbPath: string): { rows: RoadmapRow[]; events: StatusEventRow[] } {
+  const db: DatabaseInstance = new Database(dbPath, { readonly: true });
+  try {
+    const rows = (db
+      .prepare('SELECT * FROM roadmap_items')
+      .all() as RoadmapRow[]).map((r) => ({ ...r, deleted_at: r.deleted_at ?? null }));
+    let events: StatusEventRow[] = [];
+    try {
+      events = db
+        .prepare('SELECT item_id, slug, status, by_agent_id, at, harbor FROM roadmap_item_status_events')
+        .all() as StatusEventRow[];
+    } catch {
+      /* older shard without the events table */
+    }
+    return { rows, events };
+  } finally {
+    db.close();
+  }
+}
+
+export function planReunification(
+  shardSources: Array<{ label: string; rows: RoadmapRow[]; events: StatusEventRow[] }>,
+  snapshotItems: Array<{ slug: string; status: string; summaryMd: string }>,
+  snapshotHarbor: string,
+): ReunifyPlan {
+  const best = new Map<string, SourcedRow>();
+  const superseded: ReunifyPlan['superseded'] = [];
+
+  for (const source of shardSources) {
+    for (const row of source.rows) {
+      const k = key(row.slug, row.harbor);
+      const current = best.get(k);
+      if (!current) {
+        best.set(k, { ...row, __source: source.label });
+      } else if (row.last_touched_at > current.last_touched_at) {
+        superseded.push({ slug: row.slug, harbor: row.harbor, loser: current.__source, winner: source.label });
+        best.set(k, { ...row, __source: source.label });
+      } else {
+        superseded.push({ slug: row.slug, harbor: row.harbor, loser: source.label, winner: current.__source });
+      }
+    }
+  }
+
+  // Snapshot is a floor: dedupe within it (last occurrence wins — later
+  // union-append entries are fresher), then only fill pairs no shard has.
+  const snapshotDeduped = new Map<string, { slug: string; status: string; summaryMd: string }>();
+  for (const item of snapshotItems) {
+    if (!VALID_STATUSES.has(item.status)) continue;
+    snapshotDeduped.set(item.slug, item);
+  }
+  const snapshotOnly: ReunifyPlan['snapshotOnly'] = [];
+  for (const item of snapshotDeduped.values()) {
+    if (!best.has(key(item.slug, snapshotHarbor))) {
+      snapshotOnly.push({ slug: item.slug, harbor: snapshotHarbor, status: item.status, summaryMd: item.summaryMd });
+    }
+  }
+
+  // Union events, dedupe on (slug, harbor, status, at).
+  const seenEvents = new Set<string>();
+  const events: ReunifyPlan['events'] = [];
+  for (const source of shardSources) {
+    for (const ev of source.events) {
+      const dk = `${ev.slug}\u0000${ev.harbor}\u0000${ev.status}\u0000${ev.at}`;
+      if (seenEvents.has(dk)) continue;
+      seenEvents.add(dk);
+      events.push({ ...ev, __source: source.label });
+    }
+  }
+
+  return { winners: [...best.values()], snapshotOnly, events, superseded };
+}
+
+function provenanceNote(notesJson: string, source: string, now: number): string {
+  let notes: unknown[];
+  try {
+    const parsed = JSON.parse(notesJson);
+    notes = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    notes = [];
+  }
+  notes.push({ at: now, by: 'registry-reunify', note: `imported from ${source}` });
+  return JSON.stringify(notes);
+}
+
+export function applyReunification(
+  db: DatabaseInstance,
+  plan: ReunifyPlan,
+  now: number,
+  makeId: () => string,
+): { inserted: number; updated: number; unchanged: number; eventsInserted: number } {
+  let inserted = 0;
+  let updated = 0;
+  let unchanged = 0;
+  let eventsInserted = 0;
+
+  const getExisting = db.prepare(
+    'SELECT id, last_touched_at FROM roadmap_items WHERE slug = ? AND harbor = ?',
+  );
+  const insertRow = db.prepare(`
+    INSERT INTO roadmap_items (
+      id, slug, summary_md, status, promoted_from_feedback_id, promoted_by_agent_id,
+      promoted_at, last_touched_at, dependencies_json, notes_json, harbor, created_at,
+      kind, priority, assignee_id, description_md, started_at, due_at, estimate,
+      source_refs_json, deleted_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const updateRow = db.prepare(`
+    UPDATE roadmap_items SET
+      summary_md = ?, status = ?, promoted_from_feedback_id = ?, promoted_by_agent_id = ?,
+      promoted_at = ?, last_touched_at = ?, dependencies_json = ?, notes_json = ?,
+      created_at = ?, kind = ?, priority = ?, assignee_id = ?, description_md = ?,
+      started_at = ?, due_at = ?, estimate = ?, source_refs_json = ?, deleted_at = ?
+    WHERE slug = ? AND harbor = ?
+  `);
+  const insertEvent = db.prepare(`
+    INSERT INTO roadmap_item_status_events (item_id, slug, status, by_agent_id, at, harbor)
+    SELECT ?, ?, ?, ?, ?, ?
+    WHERE NOT EXISTS (
+      SELECT 1 FROM roadmap_item_status_events
+      WHERE slug = ? AND harbor = ? AND status = ? AND at = ?
+    )
+  `);
+
+  const idFor = new Map<string, string>();
+
+  const txn = db.transaction(() => {
+    for (const row of plan.winners) {
+      const existing = getExisting.get(row.slug, row.harbor) as
+        | { id: string; last_touched_at: number }
+        | undefined;
+      if (!existing) {
+        insertRow.run(
+          row.id, row.slug, row.summary_md, row.status, row.promoted_from_feedback_id,
+          row.promoted_by_agent_id, row.promoted_at, row.last_touched_at,
+          row.dependencies_json, provenanceNote(row.notes_json, row.__source, now),
+          row.harbor, row.created_at, row.kind, row.priority, row.assignee_id,
+          row.description_md, row.started_at, row.due_at, row.estimate,
+          row.source_refs_json ?? null, row.deleted_at ?? null,
+        );
+        idFor.set(key(row.slug, row.harbor), row.id);
+        inserted++;
+      } else if (row.last_touched_at > existing.last_touched_at) {
+        // deleted_at rides the whole-row LWW: a tombstone written after the
+        // stale live row wins (deletion propagates), and a fresher live
+        // upsert clears an older tombstone (resurrection propagates too).
+        updateRow.run(
+          row.summary_md, row.status, row.promoted_from_feedback_id, row.promoted_by_agent_id,
+          row.promoted_at, row.last_touched_at, row.dependencies_json,
+          provenanceNote(row.notes_json, row.__source, now), row.created_at,
+          row.kind, row.priority, row.assignee_id, row.description_md,
+          row.started_at, row.due_at, row.estimate, row.source_refs_json ?? null,
+          row.deleted_at ?? null,
+          row.slug, row.harbor,
+        );
+        idFor.set(key(row.slug, row.harbor), existing.id);
+        updated++;
+      } else {
+        idFor.set(key(row.slug, row.harbor), existing.id);
+        unchanged++;
+      }
+    }
+
+    for (const item of plan.snapshotOnly) {
+      const existing = getExisting.get(item.slug, item.harbor) as { id: string } | undefined;
+      if (existing) {
+        idFor.set(key(item.slug, item.harbor), existing.id);
+        unchanged++;
+        continue;
+      }
+      const id = makeId();
+      insertRow.run(
+        id, item.slug, item.summaryMd, item.status, null, null,
+        null, now, '[]', provenanceNote('[]', 'roadmap.snapshot.json', now),
+        item.harbor, now, 'task', 3, null, null, null, null, null, null, null,
+      );
+      idFor.set(key(item.slug, item.harbor), id);
+      inserted++;
+    }
+
+    for (const ev of plan.events) {
+      const itemId = idFor.get(key(ev.slug, ev.harbor));
+      if (!itemId) continue; // event for a row that lost everywhere and never landed
+      const res = insertEvent.run(
+        itemId, ev.slug, ev.status, ev.by_agent_id, ev.at, ev.harbor,
+        ev.slug, ev.harbor, ev.status, ev.at,
+      );
+      eventsInserted += Number(res.changes ?? 0);
+    }
+  });
+  txn();
+
+  return { inserted, updated, unchanged, eventsInserted };
+}
+
+// ── CLI ──────────────────────────────────────────────────────────────────────
+
+function parseArgs(argv: string[]): { dest: string; shards: string[]; snapshot: string | null; dryRun: boolean } {
+  const shards: string[] = [];
+  let dest = '';
+  let snapshot: string | null = null;
+  let dryRun = false;
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === '--dest') dest = argv[++i];
+    else if (argv[i] === '--shard') shards.push(argv[++i]);
+    else if (argv[i] === '--snapshot') snapshot = argv[++i];
+    else if (argv[i] === '--dry-run') dryRun = true;
+  }
+  if (!dest) {
+    throw new Error(
+      'usage: registry-reunify.ts --dest <db> [--shard <db>]... [--snapshot <json>] [--dry-run]',
+    );
+  }
+  return { dest, shards, snapshot, dryRun };
+}
+
+async function main(): Promise<void> {
+  const { dest, shards, snapshot, dryRun } = parseArgs(process.argv.slice(2));
+
+  const shardSources = shards
+    .filter((p) => {
+      if (existsSync(p)) return true;
+      console.warn(`[reunify] shard missing, skipping: ${p}`);
+      return false;
+    })
+    .map((p) => ({ label: p, ...readShardRows(p) }));
+
+  let snapshotItems: Array<{ slug: string; status: string; summaryMd: string }> = [];
+  let snapshotHarbor = 'port-daddy';
+  if (snapshot) {
+    const parsed = JSON.parse(readFileSync(snapshot, 'utf8')) as {
+      harbor?: string;
+      items: Array<{ slug: string; status: string; summaryMd: string }>;
+    };
+    snapshotItems = parsed.items;
+    snapshotHarbor = parsed.harbor ?? snapshotHarbor;
+  }
+
+  const plan = planReunification(shardSources, snapshotItems, snapshotHarbor);
+  console.log(
+    `[reunify] plan: ${plan.winners.length} live winners, ${plan.snapshotOnly.length} snapshot-only fills, ` +
+      `${plan.events.length} events, ${plan.superseded.length} superseded shard rows`,
+  );
+
+  if (dryRun) {
+    for (const s of plan.superseded) {
+      console.log(`  superseded: ${s.harbor}/${s.slug} — ${s.loser} lost to ${s.winner}`);
+    }
+    console.log('[reunify] dry run — no writes.');
+    return;
+  }
+
+  // initDatabase creates schema on a fresh home DB, sets WAL, and keeps the
+  // fail-closed test-context guard in the path.
+  const db: DatabaseInstance = initDatabase({ dbPath: dest });
+  try {
+    const backup = `${resolve(dest)}.pre-reunify-${Date.now()}`;
+    db.exec(`VACUUM INTO '${backup.replace(/'/g, "''")}'`);
+    console.log(`[reunify] destination backed up: ${backup}`);
+
+    const { randomUUID } = await import('node:crypto');
+    const result = applyReunification(db, plan, Date.now(), randomUUID);
+    console.log(
+      `[reunify] done: ${result.inserted} inserted, ${result.updated} updated, ` +
+        `${result.unchanged} unchanged, ${result.eventsInserted} events added`,
+    );
+    const total = db.prepare('SELECT COUNT(*) AS n FROM roadmap_items').get() as { n: number };
+    console.log(`[reunify] destination now holds ${total.n} roadmap items.`);
+  } finally {
+    db.close();
+  }
+}
+
+const isDirectRun = process.argv[1] && resolve(process.argv[1]).endsWith('registry-reunify.ts');
+if (isDirectRun) {
+  main().catch((err) => {
+    console.error(`[reunify] FAILED: ${(err as Error).message}`);
+    process.exit(1);
+  });
+}

@@ -112,6 +112,22 @@ Pre-turn context envelope:
 
 Hard behavior should be tied to this envelope, not vague token estimates.
 
+Context reconstruction tiers:
+
+When context is lost — to compaction, eviction, or a long wait between wakes —
+reconstruction has three tiers of increasing robustness. The weakest is **full
+replay** of the raw transcript: simple, but expensive and itself context-hungry.
+Stronger is a **stashed continuation summary** — a task description, handler set,
+and relevant context persisted before the agent goes quiet. The most robust is
+**plan-based recovery**: the durable plan itself supplies the context — "I am on
+step 3 of 7, and the result of step 3 just arrived" — so the agent re-anchors
+from structure rather than from a reconstructed narrative. Port Daddy's
+roadmap/planner DAG (roadmap items, atomic claims, planner board) is
+architecturally exactly this plan-based-recovery primitive; Cloudflare had to
+invent one, whereas Port Daddy already ships it as a control-plane object. It is
+simply not yet wired into the compaction and recovery flows — the gap that
+Opportunity #2 of the durable-agents landscape brief (2026-07) names.
+
 ## Memory tiers
 
 Core memory:
@@ -137,6 +153,39 @@ Blackboard memory:
   Shared working facts for active collaboration: current blockers, file heat,
   unresolved parleys, decisions waiting for operator, agents doing similar work,
   and "do not duplicate this" warnings.
+
+## Artifact harvest: booty
+
+Status: shipped behind PR #1723, pending merge.
+
+Archival memory owns artifacts, but until now nothing harvested them. Booty is
+the artifact-harvest layer: design workups, images, HTMLs, videos, and shaders
+produced during a session are deposited into the existing content-addressed
+blob store, with a provenance row per deposit. Bytes live in the blob store
+(`lib/blob.ts`); booty is only the provenance ledger
+(`lib/booty.ts`, will land with PR #1723). Each deposit records:
+
+```text
+{ hash, media_type, original_path, byte_size,
+  branch, worktree, session, agent_identity, roadmap_link, note }
+```
+
+Surfaces: `pd booty add <path...>` and `pd booty list`, plus `GET /booty` and
+`POST /booty`. Provenance is resolved from the active session context and git
+worktree, not typed by hand. Re-deposit of the same bytes on the same branch
+is idempotent; the same bytes on a different branch is a new provenance row.
+
+Doctrine:
+
+- artifacts are durable truth on ANY plane and any branch. A render produced
+  on an ephemeral daemon is still evidence and is never quarantined;
+- provenance travels with the artifact, always — who, where, which session,
+  which roadmap item;
+- "promote" is curation, not rescue: choosing which harvested artifacts to
+  surface, never a precondition for keeping them.
+
+Worktree-death sweep hooks, operator surfaces, and promote flows are
+follow-ups, not part of this slice.
 
 ## Retrieval policy
 
@@ -176,7 +225,25 @@ That keeps them helpful without becoming noisy.
 
 ## How Longshoremen compact Voyagers
 
-A compaction packet should contain:
+Compaction happens at two scales, and Port Daddy should keep them distinct.
+
+**Macro-compaction** summarizes *ranges* of older transcript events into a
+non-destructive overlay. The originals are never deleted — they stay in the
+event store for audit, citation, and search — and the overlay sits above them.
+When a range is re-summarized, the existing summary is passed back to the model
+to *update* rather than regenerated from scratch, so the summary accretes context
+across passes instead of drifting. The compaction packet described below is that
+macro overlay: a first-class, cited summary event laid over a range, never a
+replacement for the events it covers.
+
+**Micro-compaction** is read-time truncation of individual aged tool outputs.
+Old or oversized tool results are shortened or replaced with previews at the
+moment the next context window is assembled, while the most recent few (roughly
+the last handful) are kept intact. Micro-compaction writes no transcript events
+and produces no overlay; it is a projection applied when building context, not a
+durable summary.
+
+A compaction packet (the macro overlay) should contain:
 
 - agent identity and role;
 - current task and success criteria;
@@ -207,6 +274,24 @@ too easy to hallucinate.
 
 The validator fails uncited factual claims and warns when active obligations are
 missing.
+
+Boundary rule: a compaction range must never split a tool-call/tool-result pair.
+The macro summarizer shifts range boundaries so a `tool_use` event and its
+matching `tool_result` are always compacted together or left together — never
+one without the other. This is the direct defense against the orphaned-pair
+failure class documented in the field (claude-code #14173, #40305): drop a
+`tool_use` while retaining its `tool_result` (or the reverse) and the resulting
+message array is malformed, the provider rejects it with a hard 400, and `/clear`
+becomes the only recovery. The boundary check belongs in the validator alongside
+the uncited-claim check.
+
+Scope note: this chapter covers *in-session* compaction — keeping one running
+agent's context healthy. Cross-*process* continuation, where a dying or evicted
+agent stashes a sanitized handoff capsule for a successor to resume from, is a
+related but distinct concern governed by ADR-0118 (harness adapter contract);
+the two should not be conflated — a compaction overlay lives inside a live
+session's event stream, whereas a handoff capsule crosses the boundary between
+sessions.
 
 ## How Longshoremen compact themselves
 

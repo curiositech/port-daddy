@@ -1,0 +1,302 @@
+/**
+ * Real child-process lifecycle tests for cli-tube timeout handling.
+ *
+ * These intentionally avoid the node:child_process mock used by
+ * spawner-cli-tube-backend.test.js. The regression under audit is process-tree
+ * truth: forced settlement must not mark a timed-out CLI run final while an
+ * inherited-stdio descendant from that same invocation is still alive.
+ */
+
+import { describe, test, expect, beforeEach, afterEach, beforeAll, afterAll, jest } from '@jest/globals';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+const { spawnViaCliTube } = await import('../../lib/spawner/backends/cli-tube.js');
+
+jest.setTimeout(20_000);
+const REAL_CHILD_DEADLINE_MS = 2_000;
+
+let tempDir;
+let originalAgyBin;
+let originalPath;
+let originalCliBinDirs;
+
+beforeAll(() => {
+  originalAgyBin = process.env.PD_CLI_AGY_BIN;
+  originalPath = process.env.PATH;
+  originalCliBinDirs = process.env.PD_CLI_BIN_DIRS;
+});
+
+afterAll(() => {
+  restoreEnv('PD_CLI_AGY_BIN', originalAgyBin);
+  restoreEnv('PATH', originalPath);
+  restoreEnv('PD_CLI_BIN_DIRS', originalCliBinDirs);
+});
+
+beforeEach(() => {
+  tempDir = mkdtempSync(join(tmpdir(), 'pd-cli-tube-real-child-'));
+  process.env.PD_CLI_AGY_BIN = installEscapingAgy(tempDir);
+  process.env.PATH = '/usr/bin:/bin';
+  delete process.env.PD_CLI_BIN_DIRS;
+});
+
+afterEach(() => {
+  try {
+    for (const fileName of ['parent.pid', 'launcher.pid', 'survivor.pid']) {
+      const pidFile = join(tempDir, fileName);
+      if (existsSync(pidFile)) {
+        killPid(Number(readFileSync(pidFile, 'utf8')));
+      }
+    }
+  } catch { /* best effort cleanup */ }
+  rmSync(tempDir, { recursive: true, force: true });
+});
+
+describe('cli-tube real timeout lifecycle', () => {
+  test('process-tree sampling never delays a child that exits normally', async () => {
+    const previousAgyBin = process.env.PD_CLI_AGY_BIN;
+    process.env.PD_CLI_AGY_BIN = installSlowExitingAgy(tempDir, 150);
+
+    try {
+      const res = await spawnViaCliTube({
+        cli: 'agy',
+        prompt: 'exit normally while liveness is sampled',
+        timeoutMs: 10_000,
+      });
+
+      expect(res.error).toBeNull();
+      expect(res.exitCode).toBe(0);
+      expect(res.durationMs).toBeLessThan(5_000);
+    } finally {
+      restoreEnv('PD_CLI_AGY_BIN', previousAgyBin);
+    }
+  });
+
+  test('does not finalize a timed-out run until the CLI parent and inherited-stdio descendant are dead', async () => {
+    const parentPidFile = join(tempDir, 'parent.pid');
+    const survivorPidFile = join(tempDir, 'survivor.pid');
+
+    const res = await spawnViaCliTube({
+      cli: 'agy',
+      prompt: 'hold open inherited stdout',
+      timeoutMs: REAL_CHILD_DEADLINE_MS,
+      env: {
+        PD_PARENT_PID_FILE: parentPidFile,
+        PD_SURVIVOR_PID_FILE: survivorPidFile,
+      },
+    });
+
+    expect(res.error).toContain(`agy timed out after ${REAL_CHILD_DEADLINE_MS}ms`);
+    expect(existsSync(parentPidFile)).toBe(true);
+    expect(existsSync(survivorPidFile)).toBe(true);
+    const parentPid = Number(readFileSync(parentPidFile, 'utf8'));
+    const survivorPid = Number(readFileSync(survivorPidFile, 'utf8'));
+    await expectPidDead(parentPid);
+    await expectPidDead(survivorPid);
+  });
+
+  test('no deadline: a real child outliving the old hidden 5-minute default is never killed', async () => {
+    // Uses a fake clock on the PARENT (test) process only — the real child
+    // below runs on its own real V8/event loop and is unaffected by it. This
+    // lets the test prove "no termination timer fires even after 10 virtual
+    // minutes" without ever waiting real minutes.
+    const previousAgyBin = process.env.PD_CLI_AGY_BIN;
+    process.env.PD_CLI_AGY_BIN = installSlowExitingAgy(tempDir, 150);
+
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
+    try {
+      const resultPromise = spawnViaCliTube({
+        cli: 'agy',
+        prompt: 'run past the old hidden default',
+        // No timeoutMs: no deadline.
+      });
+
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(jest.getTimerCount()).toBe(0);
+
+      // Advance the parent's virtual clock ten minutes past the old hidden
+      // 5-minute default. The real child (a separate process) keeps running
+      // on real wall-clock time, unaffected.
+      await jest.advanceTimersByTimeAsync(10 * 60 * 1000);
+      expect(jest.getTimerCount()).toBe(0);
+
+      // The real child exits on its own (real ~150ms); the wait settles off
+      // its `close` event, never off a fake timer.
+      const res = await resultPromise;
+      expect(res.error).toBeNull();
+      expect(res.exitCode).toBe(0);
+      // Cleanup leaves no handles: nothing was ever scheduled to clear.
+      expect(jest.getTimerCount()).toBe(0);
+    } finally {
+      jest.useRealTimers();
+      restoreEnv('PD_CLI_AGY_BIN', previousAgyBin);
+    }
+  });
+
+  test('kills an inherited-stdio descendant even when the CLI parent exits before timeout', async () => {
+    const parentPidFile = join(tempDir, 'parent.pid');
+    const launcherPidFile = join(tempDir, 'launcher.pid');
+    const survivorPidFile = join(tempDir, 'survivor.pid');
+
+    expect(process.env.PATH).toBe('/usr/bin:/bin');
+
+    const res = await spawnViaCliTube({
+      cli: 'agy',
+      prompt: 'spawn survivor then exit parent',
+      timeoutMs: REAL_CHILD_DEADLINE_MS,
+      env: {
+        PD_PARENT_PID_FILE: parentPidFile,
+        PD_LAUNCHER_PID_FILE: launcherPidFile,
+        PD_SURVIVOR_PID_FILE: survivorPidFile,
+        PD_PARENT_EXITS_IMMEDIATELY: '1',
+      },
+    });
+
+    expect(res.error).toContain(`agy timed out after ${REAL_CHILD_DEADLINE_MS}ms`);
+    expect(existsSync(parentPidFile)).toBe(true);
+    expect(existsSync(launcherPidFile)).toBe(true);
+    expect(existsSync(survivorPidFile)).toBe(true);
+    const parentPid = Number(readFileSync(parentPidFile, 'utf8'));
+    const launcherPid = Number(readFileSync(launcherPidFile, 'utf8'));
+    const survivorPid = Number(readFileSync(survivorPidFile, 'utf8'));
+    await expectPidDead(parentPid);
+    await expectPidDead(launcherPid);
+    await expectPidDead(survivorPid);
+  });
+});
+
+function installEscapingAgy(dir) {
+  const binDir = join(dir, 'bin');
+  mkdirSync(binDir, { recursive: true });
+  const file = join(binDir, 'agy');
+  writeFileSync(file, `#!${process.execPath}
+const { spawn } = require('node:child_process');
+const { writeFileSync } = require('node:fs');
+
+const parentPidFile = process.env.PD_PARENT_PID_FILE;
+const pidFile = process.env.PD_SURVIVOR_PID_FILE;
+if (!parentPidFile || !pidFile) {
+  console.error('missing PID file env');
+  process.exit(2);
+}
+
+writeFileSync(parentPidFile, String(process.pid));
+console.log('parent emitted before timeout');
+process.on('SIGTERM', () => {});
+
+if (process.env.PD_PARENT_EXITS_IMMEDIATELY === '1') {
+  const launcher = spawn(process.execPath, ['-e', \`
+const { spawn } = require('node:child_process');
+const { writeFileSync } = require('node:fs');
+const pidFile = process.env.PD_SURVIVOR_PID_FILE;
+setTimeout(() => {
+  const survivor = spawn(process.execPath, ['-e', "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000);"], {
+    detached: true,
+    stdio: ['ignore', 'inherit', 'inherit'],
+  });
+  writeFileSync(pidFile, String(survivor.pid));
+  survivor.unref();
+}, 50);
+setTimeout(() => {}, 1000);
+\`], {
+    detached: true,
+    stdio: ['ignore', 'inherit', 'inherit'],
+    env: process.env,
+  });
+  if (process.env.PD_LAUNCHER_PID_FILE) {
+    writeFileSync(process.env.PD_LAUNCHER_PID_FILE, String(launcher.pid));
+  }
+  launcher.unref();
+  process.exit(0);
+}
+
+const survivor = spawn(process.execPath, ['-e', "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000);"], {
+  detached: true,
+  stdio: ['ignore', 'inherit', 'inherit'],
+});
+writeFileSync(pidFile, String(survivor.pid));
+survivor.unref();
+
+setInterval(() => {}, 1000);
+`);
+  chmodSync(file, 0o755);
+  return file;
+}
+
+function installSlowExitingAgy(dir, sleepMs) {
+  const binDir = join(dir, 'slow-exit-bin');
+  mkdirSync(binDir, { recursive: true });
+  const file = join(binDir, 'agy');
+  writeFileSync(file, `#!${process.execPath}
+setTimeout(() => {
+  console.log('done sleeping');
+  process.exit(0);
+}, ${sleepMs});
+`);
+  chmodSync(file, 0o755);
+  return file;
+}
+
+/**
+ * Alive means RUNNING, not merely "still has a pid".
+ *
+ * `process.kill(pid, 0)` succeeds for a ZOMBIE — a process that has exited but
+ * whose parent has not reaped it. That distinction decides this file. The kill
+ * path signals the child before its descendants, so a descendant is an orphan
+ * at the instant it dies and reparents to init; whether it disappears from the
+ * process table in 10ms or 2s is then a property of who PID 1 is on the
+ * machine, not of the code under test. Measured reap latency in one container
+ * here: 1016-1900ms across 12 trials, against a poll budget of 20 x 50ms.
+ *
+ * So `kill(pid, 0)` alone made this suite pass or fail on the runner's init
+ * behaviour: prompt under systemd/docker-init, slow under a lazy poller, and
+ * never under a node/npm PID 1 (libuv only waitpid()s its own children).
+ * Reading the state instead asks the question the test actually means.
+ */
+async function isPidAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+  } catch {
+    return false; // gone from the table entirely
+  }
+  // Present in the table — but a zombie is dead for our purposes.
+  try {
+    if (process.platform === 'linux') {
+      // /proc/<pid>/stat: "pid (comm) STATE ...". comm can contain spaces and
+      // parens, so split on the LAST ')' rather than parsing fields in order.
+      const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
+      const afterComm = stat.slice(stat.lastIndexOf(')') + 1).trim();
+      return afterComm[0] !== 'Z';
+    }
+    const out = execFileSync('ps', ['-o', 'state=', '-p', String(pid)], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    return out.length > 0 && out[0] !== 'Z';
+  } catch {
+    // No /proc, or ps refused: fall back to the liveness we already proved.
+    return true;
+  }
+}
+
+async function expectPidDead(pid) {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    if (!(await isPidAlive(pid))) return;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  expect(await isPidAlive(pid)).toBe(false);
+}
+
+function killPid(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return;
+  try { process.kill(pid, 'SIGKILL'); } catch {}
+}
+
+function restoreEnv(name, value) {
+  if (value === undefined) delete process.env[name];
+  else process.env[name] = value;
+}

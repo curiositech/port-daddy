@@ -1,5 +1,7 @@
 import { jest } from '@jest/globals';
 import Fastify from 'fastify';
+import { createAgentInbox } from '../../lib/agent-inbox.js';
+import { createTestDb } from '../setup-unit.js';
 
 const { agentsPlugin } = await import('../../routes/agents.js');
 
@@ -22,6 +24,7 @@ function buildApp(extraDeps = {}) {
         agentInbox: {
           send: jest.fn(),
           list: jest.fn(() => ({ success: true, messages: [], count: 0 })),
+          listSent: jest.fn(() => ({ success: true, messages: [], count: 0 })),
           markRead: jest.fn(() => ({ success: true })),
           markAllRead: jest.fn(() => ({ success: true, marked: 0 })),
           clear: jest.fn(() => ({ success: true, deleted: 0 })),
@@ -182,5 +185,31 @@ describe('agents routes', () => {
     expect(cloudAppTelemetry.getAgent).toHaveBeenCalledWith(remoteAgent.id);
 
     await app.close();
+  });
+
+  test('GET inbox and sent projections never expose internal delivery keys', async () => {
+    const db = createTestDb();
+    const agentInbox = createAgentInbox(db);
+    const delivered = agentInbox.internal.sendOnce('agent-b', 'automatic summons', {
+      from: 'agent-a',
+      type: 'parley_summons',
+      deliveryKey: 'parley_summons:p1:agent-b',
+    });
+    const { app, register } = buildApp({ agentInbox });
+    await register();
+
+    const inboxResponse = await app.inject({ method: 'GET', url: '/agents/agent-b/inbox' });
+    const sentResponse = await app.inject({ method: 'GET', url: '/agents/agent-a/sent' });
+
+    expect(delivered).toMatchObject({ success: true, replayed: false });
+    expect(inboxResponse.statusCode).toBe(200);
+    expect(sentResponse.statusCode).toBe(200);
+    expect(inboxResponse.json().messages[0]).not.toHaveProperty('deliveryKey');
+    expect(sentResponse.json().messages[0]).not.toHaveProperty('deliveryKey');
+    expect(db.prepare('SELECT delivery_key FROM agent_inbox WHERE id = ?').get(delivered.messageId))
+      .toEqual({ delivery_key: 'parley_summons:p1:agent-b' });
+
+    await app.close();
+    db.close();
   });
 });

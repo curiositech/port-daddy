@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Port Daddy API
-  version: 3.24.2
+  version: 3.30.6
   description: >
     Authoritative port management and service orchestration for multi-agent
     development. Provides atomic port assignment, pub/sub messaging, distributed
@@ -63,6 +63,14 @@ tags:
     description: Deterministic coordination preflight and suggestibility
   - name: actors
     description: Durable maritime actor directory
+  - name: memory
+    description: Episodic memory, session harvest, and backend-neutral continuation handoffs
+  - name: harness-adapters
+    description: Harness mechanics, runtime evidence, and N:N continuation compatibility
+  - name: editor-recovery
+    description: Registered fail-closed Harbor Editor recovery scaffolding; not a usable pipeline while P1 receipt production, P1B, canonical Rust Loro recovery, verified root identity minting, content-bound symbol/file-mutation authorities, and the P3 adapter remain unimplemented
+  - name: skill-graft
+    description: Read and reconcile checkpointed Tool2Vec catalog coverage
 
 paths:
   # ===========================================================================
@@ -986,7 +994,8 @@ paths:
 
     put:
       tags: [sessions]
-      summary: End or abandon a session
+      summary: Abandon a session
+      description: Direct mutation is limited to abandonment. Successful completion must use POST /sugar/done so delivery and plan gates run.
       operationId: updateSession
       parameters:
         - name: id
@@ -994,6 +1003,7 @@ paths:
           required: true
           schema:
             type: string
+        - $ref: '#/components/parameters/XActorCredential'
       requestBody:
         required: true
         content:
@@ -1003,11 +1013,8 @@ paths:
               properties:
                 status:
                   type: string
-                  enum: [completed, abandoned]
-                  description: Set to 'abandoned' to abandon the session
-                note:
-                  type: string
-                  description: Optional closing note
+                  enum: [abandoned]
+                  description: The only direct terminal state. completed returns GUARDED_COMPLETION_REQUIRED.
       responses:
         '200':
           description: Session updated
@@ -1026,12 +1033,18 @@ paths:
                       type: string
         '404':
           description: Session not found
+        '401':
+          description: Missing or forged actor credential
+        '403':
+          description: Verified actor does not own the exact target session, or the legacy owner cannot be verified
+        '400':
+          description: Direct completion refused with GUARDED_COMPLETION_REQUIRED
         '500':
           $ref: '#/components/responses/InternalError'
 
     delete:
       tags: [sessions]
-      summary: Delete session and cascade to notes and file claims
+      summary: Archive a session while preserving its append-only evidence
       operationId: deleteSession
       parameters:
         - name: id
@@ -1039,9 +1052,10 @@ paths:
           required: true
           schema:
             type: string
+        - $ref: '#/components/parameters/XActorCredential'
       responses:
         '200':
-          description: Session deleted
+          description: Session archived; notes and historical claims remain available as evidence
           content:
             application/json:
               schema:
@@ -1053,6 +1067,10 @@ paths:
                     type: string
         '404':
           description: Session not found
+        '401':
+          description: Missing or forged actor credential
+        '403':
+          description: Verified actor does not own the exact target session, or the legacy owner cannot be verified
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -1060,6 +1078,7 @@ paths:
     put:
       tags: [sessions]
       summary: Set session phase
+      description: Sets an exact owned session's non-completion phase. The completed phase must use POST /sugar/done so plan and delivery gates cannot be bypassed.
       operationId: setSessionPhase
       parameters:
         - name: id
@@ -1067,6 +1086,7 @@ paths:
           required: true
           schema:
             type: string
+        - $ref: '#/components/parameters/XActorCredential'
       requestBody:
         required: true
         content:
@@ -1077,7 +1097,7 @@ paths:
               properties:
                 phase:
                   type: string
-                  description: Phase name
+                  description: Phase name other than completed. Use POST /sugar/done for guarded completion.
       responses:
         '200':
           description: Phase set
@@ -1093,9 +1113,13 @@ paths:
                   previousPhase:
                     type: string
         '400':
-          $ref: '#/components/responses/ValidationError'
+          description: Invalid phase or GUARDED_COMPLETION_REQUIRED when requesting completed
         '404':
           description: Session not found
+        '401':
+          description: Missing or forged actor credential
+        '403':
+          description: Verified actor does not own the exact target session, or the legacy owner cannot be verified
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -1103,7 +1127,7 @@ paths:
     post:
       tags: [sessions]
       summary: Compatibility alias for adding a note to a session
-      description: Legacy spelling for targeted note writes. New callers should use POST /notes with sessionId in the request body; this route delegates to the same quickNote path.
+      description: Legacy spelling for targeted note writes. New callers should use POST /notes with sessionId in the request body; this route delegates to the same quickNote path. Durable sessions admit 60 ordinary appends per rolling 60 seconds without a lifetime count ceiling; ephemeral sessions retain their 500-note limit. Content is bounded to 10240 UTF-8 bytes and type to 128 bytes. The stored session project selects ordinary plaintext or the existing guarded envelope form; the request cannot select that policy. Envelope admission is not cryptographic verification. The overall HTTP body limit also applies.
       operationId: addSessionNote
       deprecated: true
       parameters:
@@ -1112,16 +1136,44 @@ paths:
           required: true
           schema:
             type: string
+        - $ref: '#/components/parameters/XActorCredential'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [content]
+              oneOf:
+                - required: [content]
+                  properties:
+                    content:
+                      type: string
+                      pattern: '\S'
+                      description: Ordinary-project plaintext; at most 10240 UTF-8 bytes before trimming.
+                - required: [envelope]
+                  properties:
+                    content:
+                      type: [string, 'null']
+                      enum: ['', null]
+                    payload:
+                      type: [string, 'null']
+                      enum: ['', null]
+                    message:
+                      type: [string, 'null']
+                      enum: ['', null]
+                    envelope:
+                      type: object
+                      required: [v, key_id, iv, ct, tag, ad, sig]
+                      properties:
+                        v: { type: integer, enum: [1] }
+                        key_id: { type: string, minLength: 1 }
+                        iv: { type: string, minLength: 1 }
+                        ct: { type: string, minLength: 1 }
+                        tag: { type: string, minLength: 1 }
+                        ad: { type: string, minLength: 1 }
+                        sig: { type: string, minLength: 1 }
+                      description: Existing protected-project envelope. The runtime guard also checks the stored session project's fleet-key namespace, 12-byte decoded IV and 16-byte decoded tag, and refuses nonempty plaintext fields. This is shape/namespace admission, not cryptographic verification. The serialized envelope must fit 10240 UTF-8 bytes.
               properties:
-                content:
-                  type: string
                 type:
                   type: string
                   description: Note type (e.g. note, progress, decision, blocker)
@@ -1141,6 +1193,18 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '404':
           description: Session not found
+        '401':
+          description: Missing or forged actor credential
+        '403':
+          description: Verified actor does not own the exact target session, or the legacy owner cannot be verified
+        '409':
+          description: Exact session inactive or ephemeral lifetime admission exhausted
+        '413':
+          description: NOTE_TOO_LARGE; no append accepted
+        '429':
+          description: NOTE_RATE_LIMITED; retryAt Unix milliseconds and retryAfterMs in body, Retry-After seconds header; no append accepted
+        '503':
+          description: NOTE_STORAGE_FAILED; no append accepted
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -1164,14 +1228,18 @@ paths:
           schema:
             type: integer
             default: 100
+            minimum: 1
+            maximum: 1000
         - name: since
           in: query
           schema:
             type: integer
-          description: Unix timestamp — only notes after this time
+            minimum: 0
+            maximum: 9007199254740991
+          description: Unix milliseconds, inclusive; only notes at or after this time
       responses:
         '200':
-          description: Session notes
+          description: Newest matching tail in chronological timestamp/id order; originals remain retained.
           content:
             application/json:
               schema:
@@ -1185,6 +1253,11 @@ paths:
                       $ref: '#/components/schemas/Note'
                   count:
                     type: integer
+                  total:
+                    type: integer
+                    description: Exact matching persisted total, not page length
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '404':
           description: Session not found
         '500':
@@ -1201,6 +1274,7 @@ paths:
           required: true
           schema:
             type: string
+        - $ref: '#/components/parameters/XActorCredential'
       requestBody:
         required: true
         content:
@@ -1226,7 +1300,7 @@ paths:
                         minimum: 1
                       endLine:
                         type: integer
-                      symbol:
+                      symbolPath:
                         type: string
                   description: Region-level claims
                 force:
@@ -1256,6 +1330,10 @@ paths:
           description: Session not found
         '409':
           description: File conflicts detected
+        '401':
+          description: Missing or forged actor credential
+        '403':
+          description: Verified actor does not own the exact target session, or the legacy owner cannot be verified
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -1274,6 +1352,7 @@ paths:
           schema:
             type: string
           description: Comma-separated file paths to release
+        - $ref: '#/components/parameters/XActorCredential'
       requestBody:
         content:
           application/json:
@@ -1295,6 +1374,8 @@ paths:
                         type: integer
                       endLine:
                         type: integer
+                      symbolPath:
+                        type: string
       responses:
         '200':
           description: Files released
@@ -1313,30 +1394,111 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '404':
           description: Session not found
+        '401':
+          description: Missing or forged actor credential
+        '403':
+          description: Verified actor does not own the exact target session, or the legacy owner cannot be verified
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /notes:
+  /sessions/{id}/symbols:
     post:
       tags: [sessions]
-      summary: Add a note through the canonical note write path
-      description: Canonical note write endpoint. Pass sessionId to target a known session, or omit it to resolve the active session/quick-note context.
-      operationId: quickNote
+      summary: Claim exact symbols for a session
+      operationId: claimSessionSymbols
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/XActorCredential'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [content]
+              required: [claims]
               properties:
-                content:
-                  type: string
+                claims:
+                  type: array
+                  items:
+                    type: object
+                    required: [filePath, symbolPath]
+                    properties:
+                      filePath:
+                        type: string
+                      symbolPath:
+                        type: string
+                      type:
+                        type: string
+                        enum: [read, modify, add-sibling, add-child, delete, rename]
+      responses:
+        '200':
+          description: Symbol claims recorded
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Missing or forged actor credential
+        '403':
+          description: Verified actor does not own the exact target session, or the legacy owner cannot be verified
+        '404':
+          description: Session not found
+        '409':
+          description: Blocking symbol conflict
+
+  /notes:
+    post:
+      tags: [sessions]
+      summary: Add a note through the canonical note write path
+      description: Canonical attributed note write endpoint. An exact active sessionId and its owner's actor credential are required. Durable sessions admit 60 ordinary appends per rolling 60 seconds without a lifetime count ceiling; ephemeral sessions retain their 500-note limit. Content is bounded to 10240 UTF-8 bytes and type to 128 bytes. The stored session project selects ordinary plaintext or the existing guarded envelope form; the request cannot select that policy. Envelope admission is not cryptographic verification. The overall HTTP body limit also applies.
+      operationId: quickNote
+      parameters:
+        - $ref: '#/components/parameters/XActorCredential'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sessionId]
+              oneOf:
+                - required: [content]
+                  properties:
+                    content:
+                      type: string
+                      pattern: '\S'
+                      description: Ordinary-project plaintext; at most 10240 UTF-8 bytes before trimming.
+                - required: [envelope]
+                  properties:
+                    content:
+                      type: [string, 'null']
+                      enum: ['', null]
+                    payload:
+                      type: [string, 'null']
+                      enum: ['', null]
+                    message:
+                      type: [string, 'null']
+                      enum: ['', null]
+                    envelope:
+                      type: object
+                      required: [v, key_id, iv, ct, tag, ad, sig]
+                      properties:
+                        v: { type: integer, enum: [1] }
+                        key_id: { type: string, minLength: 1 }
+                        iv: { type: string, minLength: 1 }
+                        ct: { type: string, minLength: 1 }
+                        tag: { type: string, minLength: 1 }
+                        ad: { type: string, minLength: 1 }
+                        sig: { type: string, minLength: 1 }
+                      description: Existing protected-project envelope. The runtime guard also checks the stored session project's fleet-key namespace, 12-byte decoded IV and 16-byte decoded tag, and refuses nonempty plaintext fields. This is shape/namespace admission, not cryptographic verification. The serialized envelope must fit 10240 UTF-8 bytes.
+              properties:
                 agentId:
                   type: string
                 sessionId:
                   type: string
-                  description: Target session ID. When omitted, the daemon resolves active session context or creates an implicit quick-note session.
+                  description: Exact active target session ID.
                 type:
                   type: string
       responses:
@@ -1355,6 +1517,20 @@ paths:
                     type: string
         '400':
           $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Missing or forged actor credential
+        '403':
+          description: Verified actor does not own the exact target session, or the legacy owner cannot be verified
+        '404':
+          description: Session not found
+        '409':
+          description: Exact session inactive or ephemeral lifetime admission exhausted
+        '413':
+          description: NOTE_TOO_LARGE; no append accepted
+        '429':
+          description: NOTE_RATE_LIMITED; retryAt Unix milliseconds and retryAfterMs in body, Retry-After seconds header; no append accepted
+        '503':
+          description: NOTE_STORAGE_FAILED; no append accepted
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -1368,6 +1544,8 @@ paths:
           schema:
             type: integer
             default: 50
+            minimum: 1
+            maximum: 1000
         - name: type
           in: query
           schema:
@@ -1376,10 +1554,12 @@ paths:
           in: query
           schema:
             type: integer
-          description: Unix timestamp
+            minimum: 0
+            maximum: 9007199254740991
+          description: Unix milliseconds, inclusive
       responses:
         '200':
-          description: Recent notes
+          description: Bounded note page and exact matching counts from one read snapshot; the returned page length is not the persisted total
           content:
             application/json:
               schema:
@@ -1393,6 +1573,18 @@ paths:
                       $ref: '#/components/schemas/Note'
                   count:
                     type: integer
+                    minimum: 0
+                    description: Number of notes returned in this bounded page
+                  total:
+                    type: integer
+                    minimum: 0
+                    description: Exact matching persisted count, at or after the inclusive since cutoff when supplied
+                  beforeSinceTotal:
+                    type: integer
+                    minimum: 0
+                    description: Present when since is supplied; exact matching count strictly before that same cutoff, using the identical base scope and type filters
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -2714,6 +2906,8 @@ paths:
           schema:
             type: integer
             default: 50
+            minimum: 1
+            maximum: 1000
         - name: agent
           in: query
           schema:
@@ -2725,6 +2919,10 @@ paths:
       responses:
         '200':
           description: Unified timeline
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '503':
+          description: TIMELINE_SOURCE_UNAVAILABLE; an activity or note source failed or returned malformed data, with no partial timeline presented as success
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -3698,9 +3896,19 @@ paths:
                   type: boolean
                 metadata:
                   type: object
+                idempotencyKey:
+                  type: string
+                  pattern: '^[A-Za-z0-9._-]{16,128}$'
+                  description: >-
+                    One key per LOGICAL begin (UUID v4 / ULID), sent unchanged on every
+                    retry of that begin. A retry carrying a known key returns the ORIGINAL
+                    session (same ids, same once-returned credential) flagged
+                    `replayed: true` instead of creating a second one. Also accepted as
+                    the `Idempotency-Key` header. Scoped to the (identity, agentId,
+                    worktree) it was recorded under.
       responses:
         '200':
-          description: Agent registered and session started
+          description: Agent registered and session started (or, for a known idempotencyKey, the original begin replayed)
           content:
             application/json:
               schema:
@@ -3712,8 +3920,89 @@ paths:
                     type: string
                   sessionId:
                     type: string
+                  replayed:
+                    type: boolean
+                    description: True when this response replays a begin the daemon had already committed.
+                  idempotencyKeyRecorded:
+                    type: boolean
         '400':
-          description: Validation error or registration failed
+          description: Validation error, registration failed, or IDEMPOTENCY_KEY_INVALID
+        '409':
+          description: >-
+            IDEMPOTENCY_KEY_SCOPE_MISMATCH (key recorded for another identity/agent/worktree;
+            no ids disclosed) or IDEMPOTENCY_KEY_REUSED (same key, different begin; names
+            the recorded session) — or AMBIGUOUS_ACTIVE_SESSION.
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sugar/find:
+    get:
+      tags: [sugar]
+      summary: Recover a session by begin idempotency key or by identity
+      description: >-
+        Successor discovery for an agent that lost its local state. `key` proves the caller
+        made that begin, so the session AND its sealed credential come back. `identity`
+        returns the most recent live session(s) for an identity — ids only, with hints that
+        point at `pd session takeover <id>` for closed sessions.
+      operationId: sugarFind
+      parameters:
+        - name: key
+          in: query
+          schema:
+            type: string
+            pattern: '^[A-Za-z0-9._-]{16,128}$'
+          description: The begin idempotency key.
+        - name: identity
+          in: query
+          schema:
+            type: string
+          description: project:stack:context identity to search for (ignored when key is given).
+        - name: worktreeId
+          in: query
+          schema:
+            type: string
+          description: Restrict the identity search to one worktree. Without it (and without allWorktrees) every worktree is searched.
+        - name: allWorktrees
+          in: query
+          schema:
+            type: string
+            enum: ['1', 'true']
+        - name: includeClosed
+          in: query
+          schema:
+            type: string
+            enum: ['1', 'true']
+          description: Include completed/abandoned sessions in an identity search.
+      responses:
+        '200':
+          description: Found (or an empty identity search with a hint)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  foundBy: { type: string, enum: [key, identity] }
+                  sessionId: { type: [string, 'null'] }
+                  agentId: { type: [string, 'null'] }
+                  actorId: { type: [string, 'null'] }
+                  status: { type: [string, 'null'] }
+                  driveable: { type: boolean }
+                  credential:
+                    type: string
+                    description: Only for `key`, and only when a credential was sealed under that key.
+                  sessions:
+                    type: array
+                    items: { type: object }
+                  hint: { type: string }
+        '400':
+          description: Neither key nor identity, or IDEMPOTENCY_KEY_INVALID
+        '404':
+          description: IDEMPOTENCY_KEY_UNKNOWN
+        '410':
+          description: IDEMPOTENCY_SESSION_GONE — the recorded session no longer exists
+        '503':
+          description: Store unavailable on this daemon
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -3722,6 +4011,8 @@ paths:
       tags: [sugar]
       summary: End session + unregister agent
       operationId: sugarDone
+      parameters:
+        - $ref: '#/components/parameters/XActorCredential'
       requestBody:
         content:
           application/json:
@@ -3739,6 +4030,28 @@ paths:
                   type: string
                   enum: [completed, abandoned]
                   default: completed
+                noPr:
+                  type: boolean
+                  description: Verify a clean ledger-only worktree instead of requiring a PR result.
+                subtask:
+                  type: boolean
+                  description: Append the standard subtask result sentinel; the origin publication gate still applies.
+                skipOriginCheck:
+                  type: boolean
+                  deprecated: true
+                  description: Always rejected with OPERATOR_CAPABILITY_REQUIRED. A reason string and an actor credential do not grant operator authority.
+                skipOriginCheckReason:
+                  type: string
+                  deprecated: true
+                  description: Retained only so older clients receive a structured refusal; never authorizes an override.
+                forceIncomplete:
+                  type: boolean
+                  deprecated: true
+                  description: Always rejected with OPERATOR_CAPABILITY_REQUIRED. Managed ephemeral completion uses a private exact-session daemon path.
+                forceIncompleteReason:
+                  type: string
+                  deprecated: true
+                  description: Retained only so older clients receive a structured refusal; never authorizes an override.
       responses:
         '200':
           description: Session ended and agent unregistered
@@ -3755,8 +4068,65 @@ paths:
                     type: string
                   sessionStatus:
                     type: string
+                  agentUnregistered:
+                    type: boolean
+                    description: True only when the actor has no other active session.
+                  remainingActiveSessions:
+                    type: integer
+                    minimum: 0
+                  candidates:
+                    type: array
+                    description: Exact sessions returned when agent-only completion is ambiguous.
+                    items:
+                      $ref: '#/components/schemas/SessionCandidate'
         '400':
-          description: Invalid status
+          description: Invalid status, missing exact context, failed delivery gate, or unchecked plan
+        '401':
+          description: Missing or forged actor credential
+        '403':
+          description: Session owner mismatch, unverifiable legacy owner, or unsupported public override
+        '409':
+          description: Multiple active sessions match the requested actor; response includes candidates
+        '404':
+          description: No active session found
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sugar/relink:
+    post:
+      tags: [sugar]
+      summary: Reconcile one exact active session's roadmap rent
+      operationId: sugarRelink
+      parameters:
+        - $ref: '#/components/parameters/XActorCredential'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sessionId]
+              properties:
+                agentId:
+                  type: string
+                  description: Display identity only; the stored session owner and credential establish authority.
+                sessionId:
+                  type: string
+                roadmapLink:
+                  type: string
+                sidequestReason:
+                  type: string
+      responses:
+        '200':
+          description: Exact session relinked
+        '400':
+          description: Invalid or missing rent selection or exact session scope
+        '401':
+          description: Missing or forged actor credential
+        '403':
+          description: Verified actor does not own the exact target session, or the legacy owner cannot be verified
+        '409':
+          description: Agent-only selection is ambiguous; response includes candidates
         '404':
           description: No active session found
         '500':
@@ -3772,9 +4142,36 @@ paths:
           in: query
           schema:
             type: string
+        - name: sessionId
+          in: query
+          schema:
+            type: string
+          description: Inspect one exact session, including dormant durable history, without resurrecting it.
       responses:
         '200':
-          description: Current context
+          description: Current, dormant, or ambiguous context
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  active: { type: boolean }
+                  dormant: { type: boolean }
+                  resumable: { type: boolean }
+                  agentId: { type: [string, 'null'] }
+                  sessionId: { type: [string, 'null'] }
+                  status: { type: [string, 'null'] }
+                  lifecycle:
+                    type: [string, 'null']
+                    enum: [durable, ephemeral, null]
+                  code: { type: string }
+                  error: { type: string }
+                  hint: { type: string }
+                  candidates:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SessionCandidate'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -3863,7 +4260,7 @@ paths:
               properties:
                 backend:
                   type: string
-                  enum: [ollama, claude, claude-cli, gemini, cloudflare, codex, aider, custom, cli:claude-code, cli:codex, cli:agy, cli:gemini, cli:groq, cli:grok]
+                  enum: [ollama, lmstudio, claude, claude-cli, gemini, cloudflare, openai, groq, deepseek, xai, codex, aider, custom, cli:claude-code, cli:codex, cli:agy, cli:gemini, cli:groq, cli:grok]
                 model:
                   type: string
                   description: Model name (backend-specific)
@@ -3876,7 +4273,8 @@ paths:
                   description: Semantic identity for the spawned agent and project budget attribution
                 budgetUsd:
                   type: number
-                  description: Positive spend ceiling for this launch in USD
+                  exclusiveMinimum: 0
+                  description: Positive finite hard spend ceiling for this launch in USD. Final telemetry over this cap returns status=over_budget with transcript telemetry preserved.
                 purpose:
                   type: string
                 task:
@@ -3910,8 +4308,33 @@ paths:
                     type: string
                   backend:
                     type: string
+                    enum: [ollama, lmstudio, claude, claude-cli, gemini, cloudflare, openai, groq, deepseek, xai, codex, aider, custom, cli:claude-code, cli:codex, cli:agy, cli:gemini, cli:groq, cli:grok]
+                    description: Effective backend that actually ran after preflight and forced-backend resolution.
+                  model:
+                    type: string
+                    description: Effective model used for telemetry/cost/result provenance.
+                  requestedBackend:
+                    type: string
+                    enum: [ollama, lmstudio, claude, claude-cli, gemini, cloudflare, openai, groq, deepseek, xai, codex, aider, custom, cli:claude-code, cli:codex, cli:agy, cli:gemini, cli:groq, cli:grok]
+                    description: Backend requested by the caller before any forced-backend override.
+                  effectiveBackend:
+                    type: string
+                    enum: [ollama, lmstudio, claude, claude-cli, gemini, cloudflare, openai, groq, deepseek, xai, codex, aider, custom, cli:claude-code, cli:codex, cli:agy, cli:gemini, cli:groq, cli:grok]
+                    description: Backend that actually ran after preflight and forced-backend resolution.
+                  requestedModel:
+                    type: string
+                    description: Model requested by the caller before any forced-backend override.
+                  effectiveModel:
+                    type: string
+                    description: Model used by the effective runtime for telemetry/cost/result provenance.
+                  backendOverrideSource:
+                    type: string
+                    enum: [none, env, persisted, preflight]
+                    description: Source that selected a different effective backend, or none when requested/effective are identical.
                   status:
                     type: string
+                    enum: [running, completed, failed, killed, over_budget]
+                    description: Spawn lifecycle status. over_budget is terminal and occurs when final exact telemetry cost exceeds the request budgetUsd hard cap after transcript telemetry is recorded.
         '400':
           $ref: '#/components/responses/ValidationError'
         '500':
@@ -4822,8 +5245,754 @@ paths:
         '200':
           description: Panic cleared
 
+  /harness-adapters/continuation-matrix:
+    get:
+      tags: [harness-adapters]
+      summary: Read the N:N harness continuation matrix and runtime evidence
+      operationId: getHarnessContinuationMatrix
+      description: >
+        Expands every registered source adapter family against every target
+        family. Mechanical native and sanitized-handoff paths come from the
+        backend catalog, while completed spawn transcripts and continuation
+        receipts are reported separately as timestamped witnesses. Discovery
+        and self-report never advance runtime conformance, stale witnesses stay
+        labeled, and this endpoint never emits a numeric compliance badge.
+      responses:
+        '200':
+          description: Mechanical compatibility and daemon-witnessed evidence
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '../schemas/agent-harbor/v0/harness-continuation-matrix.schema.json'
+        '500':
+          description: Harness evidence could not be read
+
+  /jury-rig/status:
+    get:
+      tags: [jury-rig]
+      summary: Read Tool2Vec catalog reconciliation coverage
+      operationId: getJuryRigStatus
+      description: >
+        Scans the full user-level skill catalog and compares current content
+        hashes with the checkpointed Tool2Vec centroid cache. This read never
+        generates a centroid or calls an LLM.
+      responses:
+        '200':
+          description: Current catalog coverage and reconciler state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tool2VecReconcileStatus'
+
+  /jury-rig/reconcile:
+    post:
+      tags: [jury-rig]
+      summary: Reconcile a bounded batch of Tool2Vec centroids
+      operationId: reconcileJuryRig
+      description: >
+        Acquires the shared checkpoint lease and fills current-hash misses up
+        to the requested bound. The daemon reconciler is local-generator-only,
+        daemon readiness never waits for this work, and non-loopback requests
+        fail closed.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                maxSkills:
+                  type: integer
+                  minimum: 1
+                  maximum: 64
+                  default: 8
+      responses:
+        '200':
+          description: The caller acquired the lease and completed this batch
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tool2VecReconcileResult'
+        '202':
+          description: Another caller owns the lease or no generator is configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tool2VecReconcileResult'
+        '403':
+          description: Reconciliation is available only to loopback callers
+
+  /agent-harbor/context-continuity:
+    get:
+      tags: [agent-harbor]
+      summary: Read witnessed context envelopes, verified packets, and successor receipts
+      operationId: getAgentHarborContextContinuity
+      description: >
+        Projects the append-only context-pressure and compaction-packet event
+        stream together with the standard episodic handoff and continuation
+        receipt stores. Packet validation and transcript-head verification run
+        again on every read. Broken proof is returned as explicit failure
+        evidence and never as a green packet. This is a disposable operator
+        projection, not a second context or episode store.
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+        - name: projectDir
+          in: query
+          schema: { type: string }
+          description: Restrict evidence to the selected canonical project directory.
+      responses:
+        '200':
+          description: Reverified context-continuity evidence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContextContinuityProjection'
+        '500':
+          description: Context-continuity evidence could not be read or verified
+
+  /durable-agents:
+    get:
+      tags: [agents]
+      summary: List durable named AgentNode identities
+      operationId: listDurableAgents
+      description: >
+        Reads append-only AgentNode profile facts. Durable identities remain
+        visible without a live body; the legacy /agent-roster endpoint remains
+        the separate process/session projection.
+      parameters:
+        - name: scopeKey
+          in: query
+          schema: { type: string }
+        - name: repoRoot
+          in: query
+          schema: { type: string }
+          description: Canonicalizes linked worktrees through the shared Git common directory.
+        - name: includeRetired
+          in: query
+          schema: { type: boolean }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 500 }
+      responses:
+        '200':
+          description: Durable roster
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, agents, count]
+                properties:
+                  success: { const: true }
+                  agents:
+                    type: array
+                    items: { $ref: '#/components/schemas/DurableAgentRecord' }
+                  count: { type: integer }
+    post:
+      tags: [agents]
+      summary: Mint a durable named AgentNode
+      operationId: createDurableAgent
+      description: >
+        Loopback-only. Secret-scans operator-authored profile text, mints an
+        opaque daemon-owned AgentNode id, and appends revision one. Human slugs
+        are aliases rather than principals. Permission and trigger declarations
+        do not claim runtime enforcement.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DurableAgentProfileInput' }
+      responses:
+        '201': { description: AgentNode profile appended }
+        '400': { description: Invalid scope, slug, or profile }
+        '409': { description: Alias already exists in this scope }
+        '422': { description: Profile quarantined by secret scanning }
+        '503': { description: Required scanner unavailable }
+
+  /durable-agents/search:
+    get:
+      tags: [agents]
+      summary: Find durable agents by expertise
+      operationId: searchDurableAgents
+      description: >
+        Fuses BM25 and shared Xenova/all-MiniLM-L6-v2 semantic rankings with
+        reciprocal-rank fusion. A semantic outage returns an explicitly degraded
+        lexical fallback with pd doctor remediation; it never silently presents
+        lexical-only ranking as normal.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 4096 }
+        - name: repoRoot
+          in: query
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50 }
+      responses:
+        '200': { description: Ranked agents with lexical and semantic rank evidence }
+        '400': { description: Invalid query }
+
+  /durable-agents/promote:
+    post:
+      tags: [agents]
+      summary: Promote a session into a durable named AgentNode
+      operationId: promoteSessionToDurableAgent
+      description: >
+        Loopback-only. Requires a sanitized handoff-capsule episode whose source
+        agrees with the native harness session being promoted. Port Daddy
+        coordination may enrich the handoff but is not required. Raw provider
+        transcripts are never stored in the profile.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sourceSessionId, handoffEpisodeId, slug, scope, remit, instructions]
+              properties:
+                sourceSessionId: { type: string }
+                handoffEpisodeId: { type: integer, minimum: 1 }
+                slug: { type: string }
+                scope: { type: object }
+                remit: { type: string }
+                instructions: { type: string }
+              additionalProperties: true
+      responses:
+        '201': { description: Session promoted with durable lineage }
+        '404': { description: Session or handoff episode not found }
+        '409': { description: Session and capsule lineage disagree }
+
+  /durable-agents/{id}:
+    get:
+      tags: [agents]
+      summary: Read one durable agent and all profile revisions
+      operationId: getDurableAgent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Current AgentNode profile, revision history, and continuation receipts }
+        '404': { description: Durable agent not found }
+    patch:
+      tags: [agents]
+      summary: Append a durable agent profile revision
+      operationId: updateDurableAgent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: New append-only profile revision }
+        '404': { description: Durable agent not found }
+
+  /durable-agents/{id}/handoffs:
+    post:
+      tags: [agents]
+      summary: Attach a sanitized handoff episode to a durable agent
+      operationId: attachDurableAgentHandoff
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [episodeId]
+              properties:
+                episodeId: { type: integer, minimum: 1 }
+      responses:
+        '201': { description: Handoff attached through a new profile revision }
+        '409': { description: Capsule identity does not match this AgentNode }
+
+  /durable-agents/{id}/retire:
+    post:
+      tags: [agents]
+      summary: Retire a durable agent without deleting history
+      operationId: retireDurableAgent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Retired profile revision appended }
+        '404': { description: Durable agent not found }
+
+  /memory/handoffs:
+    post:
+      tags: [memory]
+      summary: Sanitize and persist a backend-neutral session handoff
+      operationId: createMemoryHandoff
+      description: >
+        Reconstructs an allowlisted handoff capsule, preserves operator turns and
+        durable decisions, applies deterministic context budgeting, redacts
+        structured credentials, and requires a clean external gitleaks stdin
+        verdict before storing the sanitized capsule as episodic memory. The
+        request body is capped at 2 MiB. If a coordination session id is supplied,
+        that session's notes are harvested after the durable write; harvest
+        failures are returned as warnings and never discard a clean capsule.
+        Missing scanners and residual findings fail closed. Native-resume
+        identifiers must be UUID-shaped. Claude, Codex, and Gemini require an
+        explicit transcript reference; agy additionally requires an exact
+        workspace mapping in its local last-conversations metadata. Evidence is
+        descriptor-read under fixed bounds and checked against canonical
+        workspace identity. An unavailable witness does not discard the
+        sanitized handoff but is reported in the response and blocks later
+        native resume.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [capsule]
+              properties:
+                capsule:
+                  $ref: '../schemas/agent-harbor/v0/handoff-capsule.schema.json'
+                tokenBudget:
+                  type: integer
+                  minimum: 1
+                  maximum: 200000
+                coordinationSessionId:
+                  type: string
+                  minLength: 1
+                  maxLength: 1024
+      responses:
+        '201':
+          description: Sanitized capsule stored as an idempotent handoff episode
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, capsule, episode, harvest, nativeResume]
+                properties:
+                  success:
+                    const: true
+                  capsule:
+                    $ref: '../schemas/agent-harbor/v0/handoff-capsule.schema.json'
+                  episode:
+                    type: object
+                  harvest:
+                    type: object
+                  nativeResume:
+                    type: object
+                    additionalProperties: false
+                    required: [verified, adapterFamily, method, reason]
+                    properties:
+                      verified:
+                        type: boolean
+                      adapterFamily:
+                        type: string
+                      method:
+                        type: [string, 'null']
+                      reason:
+                        type: [string, 'null']
+        '400':
+          description: Malformed or incomplete capsule provenance
+        '413':
+          description: Token budget cannot fit mandatory operator context
+        '422':
+          description: Capsule quarantined by secret scanning
+        '503':
+          description: Required external scanner unavailable
+
+  /memory/handoffs/{episodeId}/continue:
+    post:
+      tags: [memory]
+      summary: Continue a handoff episode natively or through a successor runtime
+      operationId: continueMemoryHandoff
+      description: >
+        Revalidates the stored sanitized capsule and outgoing operator prompt,
+        resolves the effective backend after overrides, and selects auto, native,
+        or handoff execution. Auto restores a daemon-witnessed native session
+        only for a matching session-scoped adapter family; otherwise it creates
+        a successor from a versioned sanitized brief containing durable identity,
+        lineage, operator turns, decisions, coordination evidence, workspace,
+        artifacts, and compact recent context. Explicit native mode never falls
+        back, while explicit handoff mode always starts a successor. A per-daemon
+        generation lease and compare-and-swap gate the child side effect, and
+        success is returned only after durable completion by the same owner. The
+        receipt stores only prompt and idempotency hashes; raw provider
+        transcripts never cross the runtime boundary. Historical capsule paths
+        never authorize the child cwd: handoff mode reuses a reverified source
+        workspace witness or requires an explicit current targetWorkdir, captures
+        its canonical device/inode identity, and checks it again before spawn.
+      parameters:
+        - name: episodeId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [targetBackend, idempotencyKey]
+              properties:
+                targetBackend:
+                  type: string
+                  minLength: 1
+                  maxLength: 128
+                mode:
+                  type: string
+                  enum: [auto, native, handoff]
+                  default: auto
+                idempotencyKey:
+                  type: string
+                  minLength: 1
+                  maxLength: 512
+                prompt:
+                  type: string
+                  minLength: 1
+                  maxLength: 131072
+                model:
+                  type: string
+                  minLength: 1
+                  maxLength: 512
+                durableAgentId:
+                  type: string
+                  minLength: 1
+                  maxLength: 1024
+                targetWorkdir:
+                  type: string
+                  minLength: 1
+                  maxLength: 32768
+                  description: >
+                    Current operator-selected user-owned absolute directory.
+                    Required for handoff successors when the source adapter has
+                    no daemon-witnessed local workspace. It may not conflict
+                    with an available source witness.
+                timeoutMs:
+                  type: integer
+                  minimum: 1000
+                  maximum: 21600000
+      responses:
+        '201':
+          description: Native restoration or handoff successor completed with a durable receipt
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, replayed, receipt]
+                properties:
+                  success:
+                    const: true
+                  replayed:
+                    const: false
+                  receipt:
+                    $ref: '#/components/schemas/ContinuationReceipt'
+        '200':
+          description: Idempotent replay of a completed request
+        '202':
+          description: Idempotent replay of an accepted or running request; never a completed success
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, pending, replayed, receipt]
+                properties:
+                  success:
+                    const: false
+                  pending:
+                    const: true
+                  replayed:
+                    const: true
+                  receipt:
+                    $ref: '#/components/schemas/ContinuationReceipt'
+        '400':
+          description: Invalid episode id, backend, prompt, or request boundary
+        '404':
+          description: Sanitized handoff episode not found
+        '409':
+          description: Idempotency drift, orphaned replay, or continuation lease ownership conflict
+        '422':
+          description: Secret quarantine, unsupported requested mode, target without handoff input, or unavailable native-session witness
+        '502':
+          description: Target harness failed after durable acceptance
+        '503':
+          description: Continuation store, spawner, or required scanner unavailable
+
+  /memory/continuations:
+    get:
+      tags: [memory]
+      summary: List durable continuation receipts
+      operationId: listMemoryContinuations
+      parameters:
+        - name: sourceEpisodeId
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: durableAgentId
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [accepted, running, completed, failed, unsupported, orphaned]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+      responses:
+        '200':
+          description: Matching continuation receipts
+        '400':
+          description: Invalid filter
+        '503':
+          description: Continuation store unavailable
+
+  /memory/continuations/{continuationId}:
+    get:
+      tags: [memory]
+      summary: Read one durable continuation receipt
+      operationId: getMemoryContinuation
+      parameters:
+        - name: continuationId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 1024
+      responses:
+        '200':
+          description: Continuation receipt
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, receipt]
+                properties:
+                  success:
+                    const: true
+                  receipt:
+                    $ref: '#/components/schemas/ContinuationReceipt'
+        '404':
+          description: Continuation receipt not found
+        '503':
+          description: Continuation store unavailable
+
+  /editor/recovery/request:
+    post:
+      tags: [editor-recovery]
+      summary: Unavailable scaffold for a future scoped editor replay capability
+      description: >
+        Requires daemon-minted actor identity, a terminal daemon-owned abandonment
+        receipt, editor salvage capability, and exact project, harbor, worktree,
+        worktree-root, and canonical-path containment. Before any token write,
+        the route requires canonical scope, Rust Loro, a content-hash/parser-
+        generation symbol lease, a daemon file-mutation generation lease, and
+        P3 released-claim transfer authorities; any missing authority returns 503.
+        Registration is scaffolding only: P1 receipt production, P1B, canonical
+        Rust recovery, verified root identity minting, and the P3 adapter remain
+        unimplemented external gates.
+      operationId: requestEditorRecovery
+      parameters:
+        - $ref: '#/components/parameters/XActorCredential'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [dead_session_id, requester_session_id, file_path]
+              properties:
+                dead_session_id:
+                  type: string
+                requester_session_id:
+                  type: string
+                file_path:
+                  type: string
+      responses:
+        '401':
+          description: Daemon-minted actor identity is required
+        '403':
+          description: Scope containment or salvage capability rejected
+        '404':
+          description: Authoritative abandonment or acting session not found
+        '409':
+          description: Terminal receipt or sealed operation evidence is absent, stale, or already owned
+        '422':
+          description: Path traversal, alias, symlink, or file validation failed
+        '503':
+          description: Recovery pipeline gates remain unimplemented or unavailable; registered routes return 503 and no token is written
+
+  /editor/recovery/prepare:
+    post:
+      tags: [editor-recovery]
+      summary: Unavailable scaffold for future editor operation replay preparation
+      description: >
+        Requires the full public authority preflight, then returns the complete
+        append-only typed operation ledger from sequence zero after rechecking
+        scope, path identity, digest, terminal state, and one released
+        symbolPath claim. It does not consume the token or transfer a claim.
+      operationId: prepareEditorRecovery
+      parameters:
+        - $ref: '#/components/parameters/XActorCredential'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, successor_session_id]
+              properties:
+                token:
+                  type: string
+                  pattern: '^edrec_[0-9a-f]{64}$'
+                successor_session_id:
+                  type: string
+      responses:
+        '401':
+          description: Daemon-minted actor identity is required
+        '403':
+          description: Actor, capability, or exact scope mismatch
+        '404':
+          description: Editor token or authoritative session not found
+        '409':
+          description: Claim, symbol, abandonment, operation ledger, or file evidence drifted
+        '410':
+          description: Editor recovery token expired
+        '422':
+          description: Canonical path, symlink, alias, or file validation failed
+        '503':
+          description: Recovery pipeline gates remain unimplemented or unavailable; registered routes return 503 and no preparation is written
+
+  /editor/recovery/replay:
+    post:
+      tags: [editor-recovery]
+      summary: Unavailable scaffold for future canonical Rust Loro replay validation
+      description: >
+        Requires the full public authority preflight, recomputes the sealed
+        sequence, hashes, digest, count, high-water mark, and terminal state,
+        then invokes trusted canonical replay outside the write transaction.
+        An immediate transaction then re-reads every live authority and row and
+        persists one race-safe receipt only when the computed result still
+        matches the live abandonment and operation evidence.
+      operationId: validateEditorRecoveryReplay
+      parameters:
+        - $ref: '#/components/parameters/XActorCredential'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [preparation_id, successor_session_id]
+              properties:
+                preparation_id:
+                  type: string
+                successor_session_id:
+                  type: string
+      responses:
+        '401':
+          description: Daemon-minted actor identity is required
+        '403':
+          description: Verified actor does not own this preparation
+        '404':
+          description: Replay preparation or editor token not found
+        '409':
+          description: Scope, token, abandonment, sealed ledger, prior replay receipt, or file evidence drifted
+        '410':
+          description: Editor recovery token expired or was superseded
+        '422':
+          description: Canonical Rust replay rejected the exact operation stream or terminal state
+        '503':
+          description: Recovery pipeline gates remain unimplemented or unavailable; registered routes return 503 and no replay receipt is written
+
+  /editor/recovery/finalize:
+    post:
+      tags: [editor-recovery]
+      summary: Unavailable scaffold for future exactly-once editor recovery finalization
+      description: >
+        Requires the full public authority preflight and a replay receipt that
+        still matches the append-only sealed ledger and terminal state.
+        Converts an opaque content-hash/parser-generation symbol witness into a
+        transaction-held authority lease, retains O_NOFOLLOW root and file
+        descriptors, and holds a daemon file-mutation generation through P3's
+        same-database released-claim transfer and every finalization write.
+        Descriptor/path/hash identity and both leases are rechecked at the final
+        boundary; the mutation lease is consumed in that transaction and released
+        only after commit or rollback. An arbitrary OS process is outside that
+        cooperative lease, so P3 must reject later edits whose transferred
+        root/file device+inode, content hash, or generation witness is stale.
+        Outbox projection occurs only after commit through an atomically
+        idempotent sink. Without one the row remains pending without retry churn;
+        with publisher and scheduler dependencies, bounded startup/periodic drains
+        retry the same key and persist one publication receipt.
+      operationId: finalizeEditorRecovery
+      parameters:
+        - $ref: '#/components/parameters/XActorCredential'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, preparation_id, successor_session_id]
+              properties:
+                token:
+                  type: string
+                  pattern: '^edrec_[0-9a-f]{64}$'
+                preparation_id:
+                  type: string
+                successor_session_id:
+                  type: string
+      responses:
+        '401':
+          description: Daemon-minted actor identity is required
+        '403':
+          description: Verified actor, capability, or exact scope mismatch
+        '404':
+          description: Editor token, preparation, or authoritative session not found
+        '409':
+          description: Replay or sealed evidence stale, claim conflict, symbol drift, file drift, or already finalized
+        '410':
+          description: Editor recovery token expired or was superseded
+        '422':
+          description: Canonical path, symlink, alias, or file validation failed
+        '503':
+          description: Recovery pipeline gates remain unimplemented or unavailable; registered routes return 503 and no finalization effect occurs
+
 components:
   parameters:
+    XActorCredential:
+      name: x-actor-credential
+      in: header
+      required: true
+      schema:
+        type: string
+      description: Daemon-minted actor credential required at attributed write boundaries
+
     XAgentId:
       name: x-agent-id
       in: header
@@ -4839,6 +6008,276 @@ components:
       description: Process ID of the calling process
 
   schemas:
+    SessionCandidate:
+      type: object
+      additionalProperties: false
+      required: [sessionId, worktreeId, status, lifecycle]
+      properties:
+        sessionId:
+          type: string
+        worktreeId:
+          type: [string, 'null']
+        status:
+          type: [string, 'null']
+        lifecycle:
+          type: string
+          enum: [durable, ephemeral]
+
+    Tool2VecReconcileStatus:
+      type: object
+      required: [state, configured, backend, generatorModel, embedderModel, catalogHash, total, current, missing, stale, coveragePct, leaseOwner, leaseExpiresAt, lastTrigger, lastStartedAt, lastCompletedAt, lastErrorKind, lastError]
+      properties:
+        state:
+          type: string
+          enum: [current, cold, reconciling, embedder-down, generator-down]
+        configured: { type: boolean }
+        backend: { type: [string, 'null'] }
+        generatorModel: { type: [string, 'null'] }
+        embedderModel: { type: string }
+        catalogHash: { type: string, pattern: '^sha256:[a-f0-9]{64}$' }
+        total: { type: integer, minimum: 0 }
+        current: { type: integer, minimum: 0 }
+        missing: { type: integer, minimum: 0 }
+        stale: { type: integer, minimum: 0 }
+        coveragePct: { type: number, minimum: 0, maximum: 100 }
+        leaseOwner: { type: [string, 'null'] }
+        leaseExpiresAt: { type: [integer, 'null'] }
+        lastTrigger: { type: [string, 'null'] }
+        lastStartedAt: { type: [integer, 'null'] }
+        lastCompletedAt: { type: [integer, 'null'] }
+        lastErrorKind:
+          type: [string, 'null']
+          enum: [embedder-down, generator-down, null]
+        lastError: { type: [string, 'null'] }
+
+    Tool2VecReconcileResult:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/Tool2VecReconcileStatus'
+        - type: object
+          required: [trigger, acquired, embedded, reused, removed, stoppedEarly]
+          properties:
+            trigger: { type: string }
+            acquired: { type: boolean }
+            embedded: { type: integer, minimum: 0 }
+            reused: { type: integer, minimum: 0 }
+            removed: { type: integer, minimum: 0 }
+            stoppedEarly: { type: boolean }
+
+    ContextContinuityProjection:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, capturedAt, counts, items, failures]
+      properties:
+        schemaVersion: { const: 1 }
+        capturedAt: { type: string, format: date-time }
+        counts:
+          type: object
+          additionalProperties: false
+          required: [observed, packetReady, successorRequired, continuing, completed, verificationFailed]
+          properties:
+            observed: { type: integer, minimum: 0 }
+            packetReady: { type: integer, minimum: 0 }
+            successorRequired: { type: integer, minimum: 0 }
+            continuing: { type: integer, minimum: 0 }
+            completed: { type: integer, minimum: 0 }
+            verificationFailed: { type: integer, minimum: 0 }
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [agentNodeId, sessionId, runId, transcriptId, model, sourceAdapter, project, projectDir, envelopeId, measuredAt, pressure, packet, handoffEpisodeId, continuation, readiness]
+            properties:
+              agentNodeId: { type: string }
+              sessionId: { type: string }
+              runId: { type: [string, 'null'] }
+              transcriptId: { type: [string, 'null'] }
+              model: { type: [string, 'null'] }
+              sourceAdapter: { type: [string, 'null'] }
+              project: { type: [string, 'null'] }
+              projectDir: { type: [string, 'null'] }
+              envelopeId: { type: string }
+              measuredAt: { type: string, format: date-time }
+              pressure:
+                type: object
+                additionalProperties: false
+                required: [band, ratio, action, windowTokens, usedTokensEstimate, estimateMode, strategy, selfReportDrift]
+                properties:
+                  band: { type: string, enum: [low, medium, high, critical] }
+                  ratio: { type: number, minimum: 0, maximum: 1 }
+                  action: { type: string }
+                  windowTokens: { type: number }
+                  usedTokensEstimate: { type: number }
+                  estimateMode: { type: string }
+                  strategy: { type: string }
+                  selfReportDrift: { type: array, items: { type: string } }
+              packet:
+                type: [object, 'null']
+                required: [packetId, createdAt, validatorPassed, sourceHeadEventId, sourceHeadHash, transcriptEventId]
+                properties:
+                  packetId: { type: string }
+                  createdAt: { type: string, format: date-time }
+                  validatorPassed: { type: boolean }
+                  sourceHeadEventId: { type: string }
+                  sourceHeadHash: { type: string }
+                  transcriptEventId: { type: [string, 'null'] }
+              handoffEpisodeId: { type: [integer, 'null'] }
+              continuation:
+                type: [object, 'null']
+                required: [id, status, targetAdapter, successorRunId, successorSessionId, updatedAt]
+                properties:
+                  id: { type: string }
+                  status: { type: string }
+                  targetAdapter: { type: string }
+                  successorRunId: { type: [string, 'null'] }
+                  successorSessionId: { type: [string, 'null'] }
+                  updatedAt: { type: number }
+              readiness:
+                type: string
+                enum: [observed, packet-ready, successor-required, continuing, completed, failed]
+        failures:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [eventId, sessionId, agentNodeId, reason]
+            properties:
+              eventId: { type: string }
+              sessionId: { type: string }
+              agentNodeId: { type: string }
+              reason: { type: string }
+
+    DurableAgentProfileInput:
+      type: object
+      required: [slug, scope, remit, instructions]
+      properties:
+        slug:
+          type: string
+          pattern: '^[a-z][a-z0-9]*(?:-[a-z0-9]+)+$'
+        displayName: { type: string }
+        scope:
+          type: object
+          required: [kind]
+          properties:
+            kind: { type: string, enum: [system, repo] }
+            repoRoot: { type: [string, 'null'] }
+        remit: { type: string, minLength: 1 }
+        instructions: { type: string, minLength: 1 }
+        skills: { type: array, items: { type: string } }
+        tools: { type: array, items: { type: string } }
+        backendPreferences:
+          type: array
+          items:
+            type: object
+            required: [backend]
+            properties:
+              backend: { type: string }
+              model: { type: [string, 'null'] }
+        lifecycle: { type: string, enum: [ready, paused, retired] }
+      additionalProperties: true
+
+    DurableAgentRecord:
+      type: object
+      required: [agentNodeId, identity, class, authority, status, complianceLevel, profile, ledgerSeq, continuation]
+      properties:
+        agentNodeId: { type: string }
+        identity: { type: string }
+        class: { const: voyager }
+        authority: { const: local }
+        status: { type: string, enum: [active, paused, retired] }
+        complianceLevel: { type: string }
+        profile:
+          $ref: '../schemas/agent-harbor/v0/durable-agent-profile.schema.json'
+        ledgerSeq: { type: integer }
+        continuation:
+          type: object
+          required: [available, episodeId, endpoint, durableAgentId, receipts]
+          properties:
+            available: { type: boolean }
+            episodeId: { type: [integer, 'null'] }
+            endpoint: { type: [string, 'null'] }
+            durableAgentId: { type: string }
+            receipts:
+              type: array
+              items: { $ref: '#/components/schemas/ContinuationReceipt' }
+
+    ContinuationReceipt:
+      type: object
+      required:
+        - schema
+        - id
+        - sourceEpisodeId
+        - sourceCapsuleId
+        - mode
+        - sourceAdapter
+        - sourceSessionId
+        - targetAdapter
+        - requestedBackend
+        - status
+        - promptHash
+        - requestHash
+        - createdAt
+        - updatedAt
+        - leaseExpiresAt
+      properties:
+        schema:
+          const: pd.agent-harbor.continuation-receipt.v0
+        id:
+          type: string
+        sourceEpisodeId:
+          type: integer
+        sourceCapsuleId:
+          type: string
+        durableAgentId:
+          type: [string, 'null']
+        mode:
+          type: string
+          enum: [native, handoff]
+        sourceAdapter:
+          type: string
+        sourceSessionId:
+          type: string
+        sourceAgentId:
+          type: [string, 'null']
+        predecessorRunId:
+          type: [string, 'null']
+        targetAdapter:
+          type: string
+        requestedBackend:
+          type: string
+        effectiveBackend:
+          type: [string, 'null']
+        requestedModel:
+          type: [string, 'null']
+        effectiveModel:
+          type: [string, 'null']
+        successorRunId:
+          type: [string, 'null']
+        successorSessionId:
+          type: [string, 'null']
+        status:
+          type: string
+          enum: [accepted, running, completed, failed, unsupported, orphaned]
+        promptHash:
+          type: string
+          pattern: '^[a-f0-9]{64}$'
+        requestHash:
+          type: string
+          pattern: '^[a-f0-9]{64}$'
+        createdAt:
+          type: integer
+        updatedAt:
+          type: integer
+        startedAt:
+          type: [integer, 'null']
+        completedAt:
+          type: [integer, 'null']
+        leaseExpiresAt:
+          type: integer
+        error:
+          type: [string, 'null']
+
     Service:
       type: object
       properties:

@@ -30,6 +30,7 @@ import {
   createSecretKey,
   generateKeyPairSync,
   randomBytes,
+  sign as cryptoSign,
 } from 'node:crypto';
 import { SignJWT, decodeJwt, decodeProtectedHeader, jwtVerify } from 'jose';
 import { keychain, KEYCHAIN_SERVICE } from './keychain.js';
@@ -413,6 +414,50 @@ export function createHarborTokens(db: Database.Database) {
 
       phase2PrivateSigningKey = createPrivateKey(privatePem);
       phase2PublicVerifyKey   = createPublicKey(publicPem);
+    },
+
+    /**
+     * Sign the hex-decoded bytes of `msgHex` with the daemon's Phase 2
+     * Ed25519 identity; returns the hex signature.
+     *
+     * WHY THIS LIVES HERE and not in a caller holding the PEM: the design
+     * intent of this module is that the private key never leaves it — callers
+     * ask for an operation and receive a result ("use without see", the same
+     * custody posture as pd-vault). The relay connection lifecycle
+     * (lib/relay-connection.ts) needs exactly one operation — sign the
+     * SHA-256 handshake/binding digest the relay verifies with the daemon's
+     * registered pub_key (apps/relay verifyEd25519 signs/verifies the
+     * hex-DECODED digest bytes, so this must too) — and this method is that
+     * operation, nothing wider.
+     *
+     * @param msgHex Hex-encoded message digest to sign.
+     * @returns Hex-encoded Ed25519 signature.
+     */
+    async signHex(msgHex: string): Promise<string> {
+      if (!phase2PrivateSigningKey) {
+        throw new Error('initDaemonIdentity() must be called before signHex()');
+      }
+      return cryptoSign(null, Buffer.from(msgHex, 'hex'), phase2PrivateSigningKey).toString('hex');
+    },
+
+    /**
+     * The daemon's Phase 2 Ed25519 public key as raw 32-byte hex — the form
+     * the relay stores as `identity.pub_key` and the envelope signature's
+     * `key_id` carries.
+     *
+     * Purpose: gives wiring code (server.ts, the seal chokepoint's signer)
+     * the public half without ever exposing the private key object, keeping
+     * key custody inside this module.
+     *
+     * @returns Lowercase hex of the raw Ed25519 public key.
+     */
+    phase2PublicKeyHex(): string {
+      if (!phase2PublicVerifyKey) {
+        throw new Error('initDaemonIdentity() must be called before phase2PublicKeyHex()');
+      }
+      const der = phase2PublicVerifyKey.export({ type: 'spki', format: 'der' }) as Buffer;
+      // The raw Ed25519 key is the last 32 bytes of the SPKI DER (RFC 8410).
+      return der.subarray(-32).toString('hex');
     },
 
     /**

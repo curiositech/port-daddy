@@ -3,7 +3,8 @@
  * nightshift queue onto ADR-0035's schema and 8-state machine.
  *
  * Covers every transition in the state machine, the migration from
- * nightshift_intents, the merge_policy gate (auto refused without PR #141),
+ * nightshift_intents, the merge_policy column (review|auto|never — 'auto'
+ * merges are gated by lib/dispatch/auto-merge.ts, see dispatch-auto-merge.test.js),
  * and the base_branch column.
  */
 
@@ -52,6 +53,7 @@ describe('propose', () => {
       tags: ['design', 'marketing'],
       budgetUsd: 4,
       timeoutMs: 60 * 60 * 1000,
+      projectDir: '/Users/operator/coding/project',
     });
     expect(d.id).toEqual(expect.any(String));
     expect(d.slug).toBe('normalize-the-design-tokens-across-the-marketing-site');
@@ -63,6 +65,7 @@ describe('propose', () => {
     expect(d.tags).toEqual(['design', 'marketing']);
     expect(d.budgetUsd).toBe(4);
     expect(d.timeoutMs).toBe(60 * 60 * 1000);
+    expect(d.projectDir).toBe('/Users/operator/coding/project');
     expect(d.createdAt).toBe(clock);
     expect(d.claimedAt).toBeNull();
   });
@@ -115,24 +118,33 @@ describe('propose', () => {
     expect(() => queue.propose({ goal: '   ' })).toThrow(/goal text/);
   });
 
+  test('rejects a relative source project binding', () => {
+    expect(() => queue.propose({ goal: 'foo', projectDir: 'relative/project' }))
+      .toThrow(/projectDir must be an absolute path/);
+  });
+
   test('rejects goal over 4000 chars', () => {
     const huge = 'x'.repeat(4001);
     expect(() => queue.propose({ goal: huge })).toThrow(/4000/);
   });
 
-  test('rejects non-positive budget', () => {
-    expect(() => queue.propose({ goal: 'foo', budgetUsd: 0 })).toThrow(/budget/);
+  test('rejects negative / non-finite budget but ACCEPTS 0 (flat-rate CLI, BUG 1)', () => {
+    // BUG 1 (2026-07-14 halt-mandate): budgetUsd 0 is a legitimate "flat-rate
+    // backend, no real-dollar bond" budget — the Conductor's effectiveBond()
+    // decides the actual reservation from the backend, not this number. Only
+    // negative / non-finite is a caller error now.
     expect(() => queue.propose({ goal: 'foo', budgetUsd: -5 })).toThrow(/budget/);
+    expect(() => queue.propose({ goal: 'foo', budgetUsd: Number.NaN })).toThrow(/budget/);
+    expect(() => queue.propose({ goal: 'foo', budgetUsd: 0 })).not.toThrow();
   });
 
   test('rejects non-positive timeout', () => {
     expect(() => queue.propose({ goal: 'foo', timeoutMs: 0 })).toThrow(/timeout/);
   });
 
-  test('refuses merge_policy=auto without harbormaster (PR #141)', () => {
-    expect(() =>
-      queue.propose({ goal: 'auto-merge me', mergePolicy: 'auto' }),
-    ).toThrow(/harbormaster|PR #141/);
+  test("accepts merge_policy='auto' (lib/dispatch/auto-merge.ts owns the merge gate)", () => {
+    const d = queue.propose({ goal: 'auto-merge me', mergePolicy: 'auto' });
+    expect(d.mergePolicy).toBe('auto');
   });
 
   test("accepts merge_policy='never'", () => {
@@ -176,6 +188,16 @@ describe('claim (proposed -> claimed)', () => {
     expect(reclaim.claimedAt).toBe(d.claimedAt); // not overwritten
   });
 
+  test('claimProposed reports only the worker that won the state transition', () => {
+    const d = queue.propose({ goal: 'single winner' });
+    const first = queue.claimProposed({ id: d.id, worktreePath: '/w1', branch: 'b1', sessionId: 's1' });
+    const second = queue.claimProposed({ id: d.id, worktreePath: '/w2', branch: 'b2', sessionId: 's2' });
+
+    expect(first?.state).toBe('claimed');
+    expect(second).toBeNull();
+    expect(queue.get(d.id)).toMatchObject({ worktreePath: '/w1', branch: 'b1', sessionId: 's1' });
+  });
+
   test('refuses to claim a terminal dispatch', () => {
     const d = queue.propose({ goal: 'foo', autoClaim: true });
     queue.settle({ id: d.id, state: 'settled' });
@@ -191,7 +213,127 @@ describe('claim (proposed -> claimed)', () => {
   });
 });
 
+describe('prepareForRun', () => {
+  test('returns an unbound auto-claim to proposed so the daemon can attach a real worker lease', () => {
+    const d = queue.propose({
+      goal: 'run the auto-claimed dispatch',
+      autoClaim: true,
+      reviewerActorId: 'reviewer-bot',
+      mergePolicy: 'review',
+    });
+
+    const prepared = queue.prepareForRun(d.id);
+
+    expect(prepared).toMatchObject({
+      state: 'proposed',
+      runRequestedAt: clock,
+      claimedAt: null,
+      reviewerActorId: 'reviewer-bot',
+      mergePolicy: 'review',
+    });
+  });
+
+  test('prioritizes the explicitly requested id ahead of older proposed work', () => {
+    const older = queue.propose({ goal: 'older background work' });
+    advance(1000);
+    const requested = queue.propose({ goal: 'run this exact dispatch' });
+
+    const prepared = queue.prepareForRun(requested.id);
+
+    expect(prepared.runRequestedAt).toBe(clock);
+    expect(prepared.claimedAt).toBeNull();
+    expect(queue.peekNextProposed()?.id).toBe(requested.id);
+    expect(queue.get(older.id)?.state).toBe('proposed');
+
+    advance(500);
+    const claimed = queue.claimProposed({
+      id: requested.id,
+      worktreePath: '/work/exact-request',
+      branch: 'dispatch/exact-request-12345678',
+      sessionId: 'session-exact-request',
+      workerActorId: 'daemon:dispatch-worker',
+    });
+    expect(claimed?.runRequestedAt).toBeNull();
+    expect(claimed?.claimedAt).toBe(clock);
+  });
+
+  test('restores the auto-claim placeholder when daemon acknowledgement fails', () => {
+    const original = queue.propose({ goal: 'restore failed request', autoClaim: true });
+    const prepared = queue.prepareForRun(original.id);
+
+    const restored = queue.restorePreparedRun(original, prepared);
+
+    expect(restored).toEqual(original);
+    expect(queue.get(original.id)).toEqual(original);
+  });
+
+  test('rollback cannot steal a dispatch that obtained a real worker lease', () => {
+    const original = queue.propose({ goal: 'worker wins after preparation', autoClaim: true });
+    const prepared = queue.prepareForRun(original.id);
+    const claimed = queue.claimProposed({
+      id: original.id,
+      worktreePath: '/work/worker-won',
+      branch: 'dispatch/worker-won-12345678',
+      sessionId: 'session-worker-won',
+      workerActorId: 'daemon:dispatch-worker',
+    });
+
+    expect(queue.restorePreparedRun(original, prepared)).toEqual(claimed);
+    expect(queue.get(original.id)).toEqual(claimed);
+  });
+
+  test('does not release a claimed dispatch that already has a worker lease', () => {
+    const d = queue.propose({ goal: 'already owned' });
+    const claimed = queue.claim({
+      id: d.id,
+      worktreePath: '/work/already-owned',
+      branch: 'dispatch/already-owned-12345678',
+      sessionId: 'session-owned',
+      workerActorId: 'worker-owned',
+    });
+
+    expect(queue.prepareForRun(d.id)).toEqual(claimed);
+    expect(queue.get(d.id)).toEqual(claimed);
+  });
+});
+
+describe('getBySessionId', () => {
+  test('finds the dispatch claimed under a given session id', () => {
+    const d = queue.propose({ goal: 'foo' });
+    queue.claim({ id: d.id, worktreePath: '/w', branch: 'b', sessionId: 'sess-42' });
+    const found = queue.getBySessionId('sess-42');
+    expect(found?.id).toBe(d.id);
+  });
+
+  test('returns null for an unknown session id', () => {
+    expect(queue.getBySessionId('no-such-session')).toBeNull();
+  });
+});
+
 describe('nextProposed (atomic pop)', () => {
+  test('peekNextProposed uses the same oldest-row ordering without claiming', () => {
+    const first = queue.propose({ goal: 'first' });
+    advance(1000);
+    queue.propose({ goal: 'second' });
+
+    const peeked = queue.peekNextProposed();
+    expect(peeked.id).toBe(first.id);
+    expect(peeked.state).toBe('proposed');
+    expect(queue.get(first.id).state).toBe('proposed');
+  });
+
+  test('peekNextProposed scopes the oldest row to the requested base branch', () => {
+    queue.propose({ goal: 'main lane', baseBranch: 'main' });
+    advance(1000);
+    const release = queue.propose({ goal: 'release lane', baseBranch: 'release/2026.05' });
+
+    const peeked = queue.peekNextProposed('release/2026.05');
+
+    expect(peeked.id).toBe(release.id);
+    expect(peeked.baseBranch).toBe('release/2026.05');
+    expect(queue.get(release.id).state).toBe('proposed');
+  });
+
   test('picks oldest proposed and marks it claimed', () => {
     const first = queue.propose({ goal: 'first' });
     advance(1000);
@@ -525,6 +667,7 @@ describe('migration from nightshift_intents', () => {
     expect(migrated.branch).toBe('night-shift/fix-the-thing-abcd1234'); // preserved
     expect(migrated.resultArtifact).toBe('https://github.com/foo/bar/pull/7');
     expect(migrated.baseBranch).toBe('main'); // default
+    expect(migrated.projectDir).toBeNull(); // additive migration preserves old rows honestly
     expect(migrated.mergePolicy).toBe('review'); // default
     expect(migrated.requestedBy).toBe('operator');
     expect(migrated.costUsd).toBeCloseTo(1.23);
@@ -552,5 +695,34 @@ describe('migration from nightshift_intents', () => {
     expect(countAfterSecond).toBe(countAfterFirst);
 
     freshDb.close();
+  });
+});
+
+describe('runtime execution binding', () => {
+  test('persists launch, agent, and transcript identities before settlement', () => {
+    const dispatch = queue.propose({ goal: 'show the exact running body' });
+    queue.claim({
+      id: dispatch.id,
+      worktreePath: '/coding/tmp/runtime-binding',
+      branch: 'dispatch/runtime-binding',
+      sessionId: 'dispatch-worker-runtime-binding',
+    });
+    queue.start(dispatch.id);
+
+    queue.bindExecution({ id: dispatch.id, launchId: 'launch-live-1' });
+    queue.bindExecution({
+      id: dispatch.id,
+      agentId: 'spawned-live-1',
+      transcriptId: 'transcript-live-1',
+      model: 'gpt-5.3-codex',
+    });
+
+    expect(queue.get(dispatch.id)).toMatchObject({
+      launchId: 'launch-live-1',
+      agentId: 'spawned-live-1',
+      transcriptId: 'transcript-live-1',
+      model: 'gpt-5.3-codex',
+      state: 'in_progress',
+    });
   });
 });

@@ -17,8 +17,25 @@ import {
 } from '../src/crypto.js';
 
 describe('computeEventHash', () => {
-  it('matches Python reference vector', () => {
-    // Vector from skills/pd-relay-zero-trust/scripts/chain_verify.py selftest
+  // NOT a cross-implementation parity test, despite what this block used to be
+  // called. It was named "matches Python reference vector" and cited
+  // skills/pd-relay-zero-trust/scripts/chain_verify.py, but carried no expected
+  // digest — it asserted only shape and self-equality, which any deterministic
+  // function passes. The name promised the one property it did not check.
+  //
+  // The two implementations provably DISAGREE, so no such vector could have
+  // passed: this function joins its fields with '|' (crypto.ts:70-77), while
+  // chain_verify.py's hash_event makes six bare h.update() calls with NO
+  // separator and hashes canonical_json(ciphertext) of a dict rather than a
+  // base64 string. On the inputs below they yield
+  //   TS     aaa83dbccb9737acf814c44da0e710d87808bb208eab274387cce8c0e5d3f899
+  //   Python be55762f6ff4fd57278deffb5ea39e78d7ca4f95aa6f047c0c5e3fbb195c5d00
+  //
+  // Reconciling them is deliberately NOT done here: computeEventHash is the
+  // stored chain hash, so changing either side rewrites history and needs its
+  // own ADR plus a migration. Recorded as an open gap rather than silently
+  // renamed — cross-implementation parity for the chain hash is UNPINNED.
+  it('is deterministic and returns a 64-char lowercase hex digest', () => {
     const hash = computeEventHash({
       prev_hash: ZERO_HASH,
       sender: 'aabbccdd',

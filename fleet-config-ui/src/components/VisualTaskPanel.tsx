@@ -507,7 +507,6 @@ export default function VisualTaskPanel({
           type: 'visual-task',
           messageContent: summary,
           project: projectDir ?? project ?? undefined,
-          from: 'fleet-ui-visual',
           wake: true,
         });
         results.push(inbox.woke

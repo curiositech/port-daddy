@@ -47,6 +47,8 @@ jest.unstable_mockModule('../../lib/fleet-engine.js', () => ({
     const match = /^\*\/(\d+) \* \* \* \*$/.exec(cron ?? '');
     return match ? Number(match[1]) * 60_000 : 10 * 60_000;
   },
+  isIntervalCronSchedule: (cron) => /^\*\/[1-9]\d* \* \* \* \*$/.test(cron ?? ''),
+  isAbsoluteCronSchedule: (cron) => /^\d+ (?:\d+|\*) \* \* \*$/.test(cron ?? ''),
   resolveFleetAgentRuntime: (agent) => ({
     backend: agent?.backend ?? null,
     model: agent?.model ?? null,

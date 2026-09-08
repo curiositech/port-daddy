@@ -3,15 +3,15 @@
  * models" computation behind GET /fleet/forecast and the FleetBar dropdown.
  *
  * The forecast must mirror ENGINE reality, not YAML intent:
- *   - cron rates come from the same interval parser the engine arms
- *     setInterval with (a weekly cron REALLY fires every 10 minutes);
+ *   - cron rates come from the same admission helpers the engine uses;
+ *     unsupported schedules arm no timer and forecast zero launches;
  *   - cooldowns damp rates; max_spawns_per_hour caps project totals;
  *   - the forced CLI backend rewrites every agent's effective backend/model
  *     with the launcher's placeholder rules.
  */
 
 import { describe, expect, test } from '@jest/globals';
-import { computeSpawnForecast, cronPerHour, cronIsRepresentable } from '../../lib/spawn-forecast.js';
+import { computeSpawnForecast, cronPerHour, cronIsSupported } from '../../lib/spawn-forecast.js';
 import { resolveModel } from '../../lib/model-registry.js';
 
 function fleet(overrides = {}) {
@@ -29,7 +29,7 @@ function fleet(overrides = {}) {
   };
 }
 
-describe('cronPerHour mirrors the engine interval parser', () => {
+describe('cronPerHour mirrors engine schedule admission', () => {
   test('*/30 minutes → 2/hr; */10 → 6/hr', () => {
     expect(cronPerHour('*/30 * * * *')).toBe(2);
     expect(cronPerHour('*/10 * * * *')).toBe(6);
@@ -40,15 +40,17 @@ describe('cronPerHour mirrors the engine interval parser', () => {
     expect(cronPerHour('0 * * * *')).toBe(1);
   });
 
-  test('unrepresentable cron (weekly) falls to the 10-minute default → 6/hr', () => {
-    // This is the engine's ACTUAL behavior: startAgent arms
-    // setInterval(parseCronInterval(cron)) with no fire-time cron gate, so
-    // "0 8 * * 1" (weekly) really fires every 10 minutes.
-    expect(cronPerHour('0 8 * * 1')).toBe(6);
-    expect(cronIsRepresentable('0 8 * * 1')).toBe(false);
-    expect(cronIsRepresentable('*/30 * * * *')).toBe(true);
-    expect(cronIsRepresentable('0 */4 * * *')).toBe(true);
-    expect(cronIsRepresentable('0 * * * *')).toBe(true);
+  test('fixed daily schedule → 0.04/hr', () => {
+    expect(cronPerHour('0 1 * * *')).toBe(0.04);
+  });
+
+  test('unsupported weekly cron is fail-closed, never the old 6/hr fallback', () => {
+    expect(cronPerHour('0 8 * * 1')).toBeNull();
+    expect(cronIsSupported('0 8 * * 1')).toBe(false);
+    expect(cronIsSupported('*/30 * * * *')).toBe(true);
+    expect(cronIsSupported('0 */4 * * *')).toBe(true);
+    expect(cronIsSupported('0 * * * *')).toBe(true);
+    expect(cronIsSupported('0 1 * * *')).toBe(true);
   });
 });
 
@@ -79,14 +81,16 @@ describe('computeSpawnForecast', () => {
     expect(result.totals.scheduledPerHour).toBe(2);
   });
 
-  test('weekly cron is flagged approxSchedule and counted at its REAL 6/hr rate', () => {
+  test('weekly cron is flagged unsupported and counted at zero', () => {
     const result = computeSpawnForecast(
       [fleet({ agents: [{ name: 'tenderfoot', task: 't', backend: 'codex', schedule: '0 8 * * 1' }] })],
       { forcedCliBackend: null },
     );
     const agent = result.projects[0].agents[0];
-    expect(agent.approxSchedule).toBe(true);
-    expect(agent.perHour).toBe(6);
+    expect(agent.unsupportedSchedule).toBe(true);
+    expect(agent.perHour).toBe(0);
+    expect(result.projects[0].scheduledPerHour).toBe(0);
+    expect(result.totals.scheduledPerHour).toBe(0);
   });
 
   test('cooldown damps the effective rate', () => {

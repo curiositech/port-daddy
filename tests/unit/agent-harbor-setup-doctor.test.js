@@ -35,6 +35,7 @@ import {
   assessStaleVersions,
   remediationCardsFromProbe,
   transparentHookInventory,
+  HOOK_BINARY_FOR_PURPOSE,
   isOfficialAgentNode,
   firstOfficialAgentNode,
   computeFirstValue,
@@ -56,8 +57,8 @@ function brokenFacts() {
     daemon: { reachable: false, version: null, supervised: null },
     app: { platform: 'darwin', fleetBarInstalled: false },
     hooks: [
-      { providerName: 'claude-code', binaryName: 'claude', configPath: '/x/.claude/settings.json', ok: false, detail: 'hook config missing', hint: 'Run: pd squid hooks --provider claude' },
-      { providerName: 'codex', binaryName: 'codex', configPath: '/x/.codex/config.toml', ok: false, detail: 'missing or stale Port Daddy hook TOML block/metadata', hint: 'Run: pd squid hooks --provider codex' },
+      { providerName: 'claude-code', binaryName: 'claude', configPath: '/x/.claude/settings.json', ok: false, detail: 'hook config missing', hint: 'Run: pd squid on' },
+      { providerName: 'codex', binaryName: 'codex', configPath: '/x/.codex/config.toml', ok: false, detail: 'missing or stale Port Daddy hook TOML block/metadata', hint: 'Run: pd squid on' },
     ],
     mcp: { configured: false, detail: 'port-daddy MCP missing from 3 known agent config(s)' },
     transcriptPath: { path: '/x/port-registry.db', exists: true, writable: false },
@@ -204,11 +205,11 @@ describe('per-area judgments', () => {
     expect(assessApp({ platform: 'darwin', fleetBarInstalled: false }).status).toBe('missing');
   });
 
-  test('broken hooks name the providers and repair with pd squid hooks', () => {
+  test('broken hooks name the providers and repair with pd squid on', () => {
     const card = assessHooks(brokenFacts().hooks);
     expect(card.detail).toContain('claude-code');
     expect(card.detail).toContain('codex');
-    expect(card.repair.command).toBe('pd squid hooks');
+    expect(card.repair.command).toBe('pd squid on');
     // Honest governance copy: vanished hooks downgrade, never overclaim.
     expect(card.detail).toMatch(/observed mode/);
   });
@@ -299,10 +300,17 @@ describe('per-area judgments', () => {
 });
 
 describe('transparent hook inventory (ch18 output)', () => {
+  test('maps the composable pre-compact purpose to its shipped binary', () => {
+    // #9915 adds `preCompact` to SquidHookPurpose. Keep this forward-compatible
+    // seam explicit so metadata expansion cannot yield an undefined binary in
+    // the operator's setup/doctor inventory.
+    expect(HOOK_BINARY_FOR_PURPOSE.preCompact).toBe('pd-hook-precompact');
+  });
+
   test('every installed hook has a name, description, privacy note, and binary', () => {
     const inventory = transparentHookInventory();
     expect(inventory.map((h) => h.hookBinary).sort()).toEqual([
-      'pd-hook-post-tool', 'pd-hook-pre-tool', 'pd-hook-prompt',
+      'pd-hook-post-tool', 'pd-hook-pre-tool', 'pd-hook-precompact', 'pd-hook-prompt', 'pd-hook-stop',
     ]);
     for (const hook of inventory) {
       expect(hook.displayName).toMatch(/Port Daddy/);
@@ -442,7 +450,7 @@ describe('rendering (beautiful-cli: every error surface is a next-action surface
     expect(joined).toMatch(/✗ .*\[CRITICAL\]/);
     expect(joined).toMatch(/⚠ /);
     expect(joined).toMatch(/local-only/);
-    expect(joined).toMatch(/→ pd squid hooks/);
+    expect(joined).toMatch(/→ pd squid on/);
     // Every non-ok card contributed a "→" action line.
     const issueCount = assessHarborReadiness(brokenFacts()).filter((c) => c.repair).length;
     expect(lines.filter((l) => l.trimStart().startsWith('→')).length).toBe(issueCount);

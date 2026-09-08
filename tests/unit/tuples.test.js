@@ -1,5 +1,11 @@
 import { createTestDb } from '../setup-unit.js';
-import { createTupleSpace } from '../../lib/tuples.js';
+import Database from 'better-sqlite3';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+import {
+  createTupleSpace,
+  MAX_TUPLE_IDEMPOTENCY_KEY_CHARS,
+} from '../../lib/tuples.js';
 
 let db;
 let tuples;
@@ -19,6 +25,7 @@ describe('out (write)', () => {
     expect(t.id).toBeGreaterThan(0);
     expect(t.fields).toEqual(['connection', 'trie+pubsub', 'spider', 0.9]);
     expect(t.harbor).toBeNull();
+    expect(t.idempotencyKey).toBeNull();
     expect(t.writtenBy).toBeNull();
   });
 
@@ -32,6 +39,206 @@ describe('out (write)', () => {
     const t = tuples.out(['temp', 'data'], { ttlMs: 60000 });
     expect(t.expiresAt).toBeGreaterThan(Date.now());
     expect(t.expiresAt).toBeLessThanOrEqual(Date.now() + 60000);
+  });
+});
+
+describe('outOnce (durable idempotent write)', () => {
+  test('two TupleSpace instances on separate connections cannot create duplicates', () => {
+    const dir = mkdtempSync(join(process.cwd(), '.test-tuples-out-once-'));
+    const path = join(dir, 'tuples.db');
+    const dbA = new Database(path);
+    const dbB = new Database(path);
+    try {
+      const tuplesA = createTupleSpace(dbA);
+      const tuplesB = createTupleSpace(dbB);
+      const notified = [];
+      tuplesA.subscribe(['once'], { harbor: ' fleet ' }, (tuple) => notified.push(tuple.id));
+
+      const first = tuplesA.outOnce(['once', 'original'], {
+        harbor: ' fleet ',
+        idempotencyKey: ' durable-key ',
+      });
+      const replay = tuplesB.outOnce(['once', 'replacement'], {
+        harbor: 'fleet',
+        idempotencyKey: 'durable-key',
+      });
+
+      expect(first.inserted).toBe(true);
+      expect(replay.inserted).toBe(false);
+      expect(replay.tuple).toEqual(first.tuple);
+      expect(replay.tuple.fields).toEqual(['once', 'original']);
+      expect(replay.tuple.idempotencyKey).toBe('durable-key');
+      expect(tuplesA.rd(['once'], { harbor: 'fleet' })).toEqual([
+        expect.objectContaining({ id: first.tuple.id, idempotencyKey: null }),
+      ]);
+      expect(notified).toEqual([first.tuple.id]);
+    } finally {
+      dbA.close();
+      dbB.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('keeps internal projection rows exact-key-only across every generic public surface', () => {
+    const notified = [];
+    tuples.subscribe(['coordination:internal:lineage'], undefined, (tuple) => notified.push(tuple.id));
+    const projection = tuples.outOnce(
+      ['coordination:internal:lineage', 'lineage-1', 'signal-1', Date.now()],
+      {
+        harbor: ' fleet ',
+        idempotencyKey: 'coordination:internal:lineage:lineage-1',
+        internalOnly: true,
+      },
+    );
+
+    expect(projection.inserted).toBe(true);
+    expect(projection.tuple.idempotencyKey).toBe('coordination:internal:lineage:lineage-1');
+    expect(notified).toEqual([]);
+    expect(tuples.rd(['coordination:internal:lineage'], { harbor: 'fleet' })).toEqual([]);
+    expect(tuples.poll(['coordination:internal:lineage'], { harbor: 'fleet' }).tuple).toBeNull();
+    expect(tuples.scan('fleet')).toEqual([]);
+    expect(tuples.count(undefined, 'fleet')).toBe(0);
+    expect(tuples.take(['coordination:internal:lineage'], { harbor: 'fleet' })).toEqual([]);
+    expect(tuples.getByIdempotencyKey('coordination:internal:lineage:lineage-1', { harbor: 'fleet' }))
+      .toEqual(projection.tuple);
+  });
+
+  test('redacts reservation keys from generic reads, polls, scans, and takes', () => {
+    const written = tuples.outOnce(['visible', 'payload'], {
+      harbor: 'fleet',
+      idempotencyKey: 'visible-delivery-key',
+    });
+
+    expect(written.tuple.idempotencyKey).toBe('visible-delivery-key');
+    expect(tuples.rd(['visible'], { harbor: 'fleet' })[0].idempotencyKey).toBeNull();
+    expect(tuples.poll(['visible'], { harbor: 'fleet' }).tuple.idempotencyKey).toBeNull();
+    expect(tuples.scan('fleet')[0].idempotencyKey).toBeNull();
+    expect(tuples.take(['visible'], { harbor: 'fleet' })[0].idempotencyKey).toBeNull();
+    expect(tuples.getByIdempotencyKey('visible-delivery-key', { harbor: 'fleet' })).toBeNull();
+  });
+
+  test('isolates the same key by canonical harbor', () => {
+    const a = tuples.outOnce(['value', 'a'], { harbor: 'harbor-a', idempotencyKey: 'same' });
+    const b = tuples.outOnce(['value', 'b'], { harbor: 'harbor-b', idempotencyKey: 'same' });
+    const normalizedA = tuples.outOnce(['value', 'ignored'], {
+      harbor: ' harbor-a ',
+      idempotencyKey: 'same',
+    });
+
+    expect(a.inserted).toBe(true);
+    expect(b.inserted).toBe(true);
+    expect(normalizedA.inserted).toBe(false);
+    expect(normalizedA.tuple.id).toBe(a.tuple.id);
+    expect(b.tuple.id).not.toBe(a.tuple.id);
+  });
+
+  test('round-trips canonical whitespace and null harbors through every query API', () => {
+    const notified = [];
+    tuples.subscribe(['scope'], { harbor: '   ' }, (tuple) => notified.push(tuple.fields[1]));
+    const implicitNull = tuples.out(['scope', 'implicit-null']);
+    const whitespaceNull = tuples.out(['scope', 'whitespace-null'], { harbor: '   ' });
+    const named = tuples.out(['scope', 'named'], { harbor: ' fleet ' });
+
+    expect(implicitNull.harbor).toBeNull();
+    expect(whitespaceNull.harbor).toBeNull();
+    expect(named.harbor).toBe('fleet');
+    expect(tuples.rd(['scope'], { harbor: ' ' }).map((tuple) => tuple.fields[1]).sort()).toEqual([
+      'implicit-null',
+      'whitespace-null',
+    ]);
+    expect(tuples.poll(['scope'], { harbor: ' ' }).tuple.harbor).toBeNull();
+    expect(tuples.scan(' ')).toHaveLength(2);
+    expect(tuples.count(undefined, ' ')).toBe(2);
+    expect(tuples.scan()).toHaveLength(3);
+    expect(notified).toEqual(['implicit-null', 'whitespace-null']);
+  });
+
+  test('cleans an expired reservation before reusing its key', () => {
+    const first = tuples.outOnce(['lease', 'old'], { idempotencyKey: 'lease', ttlMs: 60_000 });
+    db.prepare('UPDATE tuples SET expires_at = ? WHERE id = ?').run(Date.now() - 1, first.tuple.id);
+
+    const reused = tuples.outOnce(['lease', 'new'], { idempotencyKey: 'lease' });
+
+    expect(reused.inserted).toBe(true);
+    expect(reused.tuple.id).not.toBe(first.tuple.id);
+    expect(reused.tuple.fields).toEqual(['lease', 'new']);
+    expect(tuples.rd(['lease'])).toHaveLength(1);
+  });
+
+  test('reads and compare-deletes reservations through the harbor-key index', () => {
+    const first = tuples.outOnce(['owner', 'a'], {
+      harbor: ' fleet ',
+      idempotencyKey: ' owner-key ',
+    });
+
+    expect(tuples.getByIdempotencyKey('owner-key', { harbor: 'fleet' })).toEqual(first.tuple);
+    expect(tuples.takeByIdempotencyKey('owner-key', {
+      harbor: 'fleet',
+      expectedTupleId: first.tuple.id + 1,
+    })).toBeNull();
+    expect(tuples.getByIdempotencyKey('owner-key', { harbor: ' fleet ' })).toEqual(first.tuple);
+    expect(tuples.takeByIdempotencyKey(' owner-key ', {
+      harbor: 'fleet',
+      expectedTupleId: first.tuple.id,
+    })).toEqual(first.tuple);
+    expect(tuples.getByIdempotencyKey('owner-key', { harbor: 'fleet' })).toBeNull();
+  });
+
+  test('uses the unique harbor-key index for keyed reads', () => {
+    const plan = db.prepare(`
+      EXPLAIN QUERY PLAN
+      SELECT * FROM tuples
+      WHERE COALESCE(harbor, '') = ?
+        AND idempotency_key = ?
+        AND (expires_at IS NULL OR expires_at > ?)
+      LIMIT 1
+    `).all('fleet', 'key', Date.now());
+
+    expect(plan.map((row) => row.detail).join(' ')).toMatch(/idx_tuples_harbor_idempotency/);
+  });
+
+  test('rejects empty and over-limit keys without truncating', () => {
+    expect(() => tuples.outOnce(['x'], { idempotencyKey: ' ' })).toThrow(/required/);
+    expect(() => tuples.outOnce(['x'], {
+      idempotencyKey: 'k'.repeat(MAX_TUPLE_IDEMPOTENCY_KEY_CHARS + 1),
+    })).toThrow(/exceeds/);
+    expect(tuples.count()).toBe(0);
+  });
+
+  test('migrates an existing tuples schema and installs the unique expression index', () => {
+    const legacyDb = createTestDb();
+    try {
+      legacyDb.exec(`
+        CREATE TABLE tuples (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          harbor TEXT,
+          fields TEXT NOT NULL,
+          written_by TEXT,
+          created_at INTEGER NOT NULL,
+          expires_at INTEGER
+        )
+      `);
+      legacyDb.prepare(`
+        INSERT INTO tuples (harbor, fields, written_by, created_at, expires_at)
+        VALUES (?, ?, ?, ?, ?)
+      `).run('legacy', JSON.stringify(['legacy']), null, Date.now(), null);
+
+      const migrated = createTupleSpace(legacyDb);
+      const columns = legacyDb.prepare('PRAGMA table_info(tuples)').all().map((column) => column.name);
+      const indexes = legacyDb.prepare('PRAGMA index_list(tuples)').all().map((index) => index.name);
+      const reservation = migrated.outOnce(['new'], {
+        harbor: 'legacy',
+        idempotencyKey: 'migration-key',
+      });
+
+      expect(columns).toContain('idempotency_key');
+      expect(columns).toContain('internal_only');
+      expect(indexes).toContain('idx_tuples_harbor_idempotency');
+      expect(reservation.inserted).toBe(true);
+      expect(migrated.rd(['legacy'], { harbor: 'legacy' })).toHaveLength(1);
+    } finally {
+      legacyDb.close();
+    }
   });
 });
 

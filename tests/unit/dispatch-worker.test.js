@@ -17,6 +17,7 @@ import { jest } from '@jest/globals';
 import { createTestDb } from '../setup-unit.js';
 import { createDispatchQueue } from '../../lib/dispatch/queue.js';
 import { createDispatchWorker as createDispatchWorkerBase } from '../../lib/dispatch/worker.js';
+import { deriveWorktreePath } from '../../lib/dispatch/runner.js';
 import { createWorkIntentService } from '../../lib/agent-harbor/work-intent-service.js';
 import { readEvents } from '../../lib/agent-harbor/event-ledger.js';
 
@@ -80,6 +81,59 @@ describe('DispatchWorker — autonomous drain', () => {
     expect(status.inFlight).toBe(0);
   });
 
+  test('a dispatch that names a backend runs on THAT backend, not the daemon default', async () => {
+    // The worker's `backend` option is a DEFAULT, not an override. It used to be
+    // applied as `this.backend ?? claimed.backend`, so a daemon-wide setting
+    // silently won over the per-dispatch column — which makes cross-backend
+    // failover impossible by construction, since a successor's entire identity
+    // is "the same work, on the NEXT backend".
+    const d = queue.propose({ goal: 'run me on claude-code', backend: 'cli:claude-code' });
+    const seen = [];
+    const adapter = jest.fn(async ({ plan, queue: q }) => {
+      seen.push(plan.backend);
+      q.start(plan.dispatch.id);
+      q.produce({ id: plan.dispatch.id });
+      q.requestReview(plan.dispatch.id);
+      return { state: 'settled' };
+    });
+    const worker = createDispatchWorker({
+      queue,
+      maxConcurrency: 1,
+      spawnAdapter: adapter,
+      reaper: async () => {},
+      backend: 'cli:codex', // daemon-wide default, must NOT shadow the dispatch
+    });
+
+    await worker.poll();
+    await new Promise((r) => setImmediate(r));
+
+    expect(seen).toEqual(['cli:claude-code']);
+    expect(queue.get(d.id).state).toBe('settled');
+  });
+
+  test('the worker backend applies when the dispatch names none', async () => {
+    queue.propose({ goal: 'no backend named' });
+    const seen = [];
+    const worker = createDispatchWorker({
+      queue,
+      maxConcurrency: 1,
+      spawnAdapter: jest.fn(async ({ plan, queue: q }) => {
+        seen.push(plan.backend);
+        q.start(plan.dispatch.id);
+        q.produce({ id: plan.dispatch.id });
+        q.requestReview(plan.dispatch.id);
+        return { state: 'settled' };
+      }),
+      reaper: async () => {},
+      backend: 'cli:claude-code',
+    });
+
+    await worker.poll();
+    await new Promise((r) => setImmediate(r));
+
+    expect(seen).toEqual(['cli:claude-code']);
+  });
+
   test('bounds concurrency to maxConcurrency', async () => {
     for (let i = 0; i < 5; i++) queue.propose({ goal: `g${i}` });
     let peakInFlight = 0;
@@ -115,6 +169,64 @@ describe('DispatchWorker — autonomous drain', () => {
     // Slots freed → next poll drains the rest (2 more, then 1 more).
     await worker.poll();
     await new Promise((r) => setImmediate(r));
+  });
+
+  test('derives execution identity from the exact row it atomically claims', async () => {
+    let now = 1_820_000_000_000;
+    queue = createDispatchQueue({ db, now: () => now });
+    const first = queue.propose({ goal: 'first lane' });
+    now += 1;
+    const second = queue.propose({ goal: 'second lane' });
+    const plans = [];
+    const adapter = jest.fn(async ({ plan, queue: q }) => {
+      plans.push(plan);
+      q.start(plan.dispatch.id);
+      q.produce({ id: plan.dispatch.id });
+      q.requestReview(plan.dispatch.id);
+      return { state: 'settled' };
+    });
+    const worker = createDispatchWorker({
+      queue,
+      maxConcurrency: 2,
+      spawnAdapter: adapter,
+      reaper: async () => {},
+    });
+
+    expect(await worker.poll()).toBe(2);
+    await new Promise((r) => setImmediate(r));
+
+    expect(plans.map((plan) => plan.dispatch.id)).toEqual([first.id, second.id]);
+    for (const plan of plans) {
+      expect(plan.worktreePath).toBe(deriveWorktreePath(plan.dispatch.id));
+      expect(plan.branch).toContain(plan.dispatch.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8));
+    }
+  });
+
+  test('does not execute a row claimed by a competing worker', async () => {
+    const dispatch = queue.propose({ goal: 'race-safe lane' });
+    const logger = {
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+    };
+    const claimProposed = queue.claimProposed.bind(queue);
+    jest.spyOn(queue, 'claimProposed').mockImplementationOnce((input) => {
+      claimProposed({ ...input, sessionId: 'competing-worker' });
+      return claimProposed(input);
+    });
+    const worker = createDispatchWorker({
+      queue,
+      logger,
+      spawnAdapter: settlingAdapter(),
+      reaper: async () => {},
+    });
+
+    expect(await worker.poll()).toBe(0);
+    expect(queue.get(dispatch.id)).toMatchObject({ state: 'claimed', sessionId: 'competing-worker' });
+    expect(logger.info).toHaveBeenCalledWith('dispatch_worker_claim_raced', {
+      dispatchId: dispatch.id,
+      error: `claim: failed to claim dispatch ${dispatch.id}`,
+    });
   });
 
   test('a failing dispatch never strands a slot and never crashes the worker', async () => {

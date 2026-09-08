@@ -229,7 +229,7 @@ Learning over time is delegating to future self:
 - Your decision-making changes as capabilities improve
 - Need to ensure learning preserves goal-directedness
 
-**For WinDAGs**:
+**For Jury-rig**:
 - **Don't assume skills stay aligned as they learn**: Monitor for drift
 - **Value preservation in updates**: When updating models/policies, check alignment not just performance
 - **Bounded learning**: Limit how much a skill can self-modify before oversight

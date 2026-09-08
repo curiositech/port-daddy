@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["userPrompt"],
+  "properties": {
+    "userPrompt": {
+      "type": "string",
+      "description": "Natural language task to orchestrate"
+    },
+    "targetProject": {
+      "type": "string",
+      "description": "Project context for skill matching"
+    },
+    "envVars": {
+      "type": "object",
+      "description": "Environment variables for execution"
+    },
+    "mcps": {
+      "type": "array",
+      "description": "Available MCP services"
+    },
+    "constraints": {
+      "type": "object",
+      "description": "Execution constraints (time, cost, model, etc.)"
+    }
+  },
+  "additionalProperties": false
+}

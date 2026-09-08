@@ -74,6 +74,23 @@ describe('Bosun heartbeat writer', () => {
     }));
   });
 
+  test('writeOnce carries the state plane into the heartbeat file when configured (S1)', () => {
+    const heartbeatPath = tmpHeartbeatPath();
+    const writer = createWriter({ heartbeatPath, plane: 'dev-latest' });
+    const payload = writer.writeOnce();
+    const raw = JSON.parse(readFileSync(heartbeatPath, 'utf8'));
+    expect(payload.plane).toBe('dev-latest');
+    expect(raw.plane).toBe('dev-latest');
+  });
+
+  test('writeOnce omits plane when none configured (legacy payload shape)', () => {
+    const heartbeatPath = tmpHeartbeatPath();
+    const writer = createWriter({ heartbeatPath });
+    writer.writeOnce();
+    const raw = JSON.parse(readFileSync(heartbeatPath, 'utf8'));
+    expect('plane' in raw).toBe(false);
+  });
+
   test('readBosunHeartbeat returns parsed V1 payloads and rejects missing files', () => {
     const heartbeatPath = tmpHeartbeatPath();
     const writer = createWriter({ heartbeatPath });
@@ -111,6 +128,26 @@ describe('Bosun heartbeat writer', () => {
       state: 'stopped',
       writeCount: 2,
     }));
+  });
+
+  test('bootstrap heartbeat advances before the request probe is armed', async () => {
+    jest.useFakeTimers();
+    const selfProbe = jest.fn(() => true);
+    const writer = createWriter({
+      selfProbe,
+      deferSelfProbeUntilReady: true,
+    });
+
+    writer.start();
+    jest.advanceTimersByTime(150);
+
+    expect(selfProbe).not.toHaveBeenCalled();
+    expect(writer.getStatus().writeCount).toBe(4);
+
+    writer.startProbing();
+    await Promise.resolve();
+    expect(selfProbe).toHaveBeenCalledTimes(1);
+    writer.stop();
   });
 
   test('canonical guard refuses to overwrite a heartbeat from a foreign daemon', () => {

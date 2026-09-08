@@ -1,7 +1,7 @@
 ---
 title: "Decision tree: when is skipping coordination actually OK?"
 purpose: "The default is COORDINATE. This is the small list of cases where skipping is safe."
-last_verified: 2026-04-30
+last_verified: 2026-08-21
 ---
 
 # When Skipping Coordination Is Actually OK
@@ -25,10 +25,10 @@ START: I'm tempted to skip pd ceremony for this task
 │   └─ NO  → don't skip.
 │
 ├─ Am I in EMERGENCY MODE (production down, security hot, user says "now")?
-│   ├─ YES → use PD_SHIM_OFF=1 for the immediate operation, BUT:
-│   │        - drop a pd note describing what you bypassed and why.
-│   │        - publish to coordination:inconsistency that you went off-protocol.
-│   │        - re-engage normal ceremony as soon as the fire is out.
+│   ├─ YES → shorten ceremony; do not self-authorize around a refusal:
+│   │        - publish the smallest useful pd note and claim.
+│   │        - publish the blocker to coordination:inconsistency.
+│   │        - surface any required operator action in FleetBar/dashboard.
 │   └─ NO  → don't skip. The task feels urgent but isn't.
 │
 ├─ Is the operation IDEMPOTENT and reversible in <30s?
@@ -63,21 +63,20 @@ START: I'm tempted to skip pd ceremony for this task
 - Reading documentation to answer a question (no edits planned).
 - Sanity-checking that a command exists with `which` or `command -v`.
 
-## Bypassing the git shim (PD_SHIM_OFF=1)
+## When the git shim or Coordination Guard refuses
 
-Only use when:
+Treat the refusal as input to repair, not an obstacle to suppress:
 
-- You're in an active recovery and the shim refusal is blocking the recovery.
-- The destructive verb is the right move and you've verified no active claims.
-- You will leave a pd note describing the bypass within the same session.
+- Re-anchor the intended session and claim the exact staged paths.
+- Add the missing coordination note or roadmap receipt.
+- Salvage a dead holder, or coordinate merge order with a live holder.
+- If runtime truth and the refusal still disagree, publish exact evidence to
+  `coordination:inconsistency` and make the blocker operator-visible.
 
-Never use to "make the warning go away." That's how anti-patterns harden.
-
-## Bypassing Coordination Guard
-
-There is no built-in bypass. If you NEED to commit without an active session, that's a signal that:
+If you cannot commit with an active session, that is a signal that:
 
 1. Your shell lost its session anchor (likely due to cwd mismatch). Run `pd begin "<task>" --lifecycle durable` here.
 2. The repo's guard mode shouldn't be `enforce` for this surface. Discuss before downgrading.
 
-Don't `git commit -c core.hooksPath=/dev/null`. That bypass is itself a violation worth a coordination:inconsistency post.
+Do not disable hooks or route around the guard. Escalate a genuinely incorrect
+refusal through durable coordination and the operator surface.

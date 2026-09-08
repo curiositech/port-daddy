@@ -24,6 +24,11 @@ export interface CLIOptions {
   // Session flags
   type?: string;
   lifecycle?: string;
+  // Rent-at-claim (S3): mutually exclusive roadmap link / opt-out flags.
+  // The parser assigns `true` when the flag is passed without a value.
+  roadmap?: string | boolean;
+  sidequest?: string | boolean;
+  'roadmap-new'?: string | boolean;
 
   // Lock flags
   owner?: string;

@@ -59,6 +59,7 @@ import {
   type FleetCircuitBreaker,
   type BreakerScope,
 } from './circuit-breaker.js';
+import { isSubscriptionBackend } from '../backend-catalog.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -118,6 +119,8 @@ export interface LaunchIntent {
 
   // safety envelope —
   capabilities?: string[];
+  /** Per-launch hard cap enforced by the spawner against final telemetry. */
+  budgetUsd?: number;
   bondUsd?: number;
   /** Shared ceiling for the whole subtree under rootId. Required for roots. */
   lineageCeilingUsd?: number;
@@ -149,6 +152,18 @@ export interface LaunchIntent {
   harborName?: string;
   /** Opt-in: agent genuinely needs a shared/main checkout (read-only observers). */
   allowSharedCheckout?: boolean;
+
+  // runtime witnesses — in-process only, never persisted as intent data.
+  // Dispatch uses these to bind its durable row before the body finishes, so
+  // operator surfaces can follow the exact launch/transcript in real time.
+  onAdmitted?: (launch: Launch) => void;
+  onAgentStarted?: (receipt: {
+    agentId: string;
+    transcriptId: string | null;
+    backend: string;
+    model: string;
+    startedAt: number;
+  }) => void;
 
   // provenance —
   source: LaunchSource;
@@ -182,7 +197,7 @@ export interface Launch {
 export interface ConductorSpawner {
   spawn(spec: Record<string, unknown>): Promise<{
     agentId: string;
-    status: 'running' | 'completed' | 'failed' | 'killed';
+    status: 'running' | 'completed' | 'failed' | 'killed' | 'over_budget';
     output: string | null;
     error: string | null;
     [k: string]: unknown;
@@ -546,8 +561,23 @@ export function createConductor(deps: ConductorDeps) {
    * floor so the breaker reserves a non-zero amount on every launch (arming
    * I4/I5 on the live sortie/orchestrator paths). A 0 floor preserves the legacy
    * "reserve nothing, let the spawner price it" behavior.
+   *
+   * EXEMPTION (2026-07-14 halt-mandate, BUG 1): a `backend` classified as
+   * `costModel:'subscription'` in lib/backend-catalog.ts (cli:claude-code,
+   * cli:codex, and the other CLI-tube backends riding a flat-rate account) has
+   * ZERO marginal dollar cost to Port Daddy — the operator already pays the
+   * subscription regardless of spawn volume. Reserving a real-dollar bond
+   * against a $0 backend is a category error: it lets a burst of ordinary,
+   * free CLI dispatches exhaust a finite ceiling (lineage OR global) and
+   * permanently trip GLOBAL_BREAKER for every future launch, metered or not —
+   * exactly the 2026-07-14 daemon-death incident's root cause. This override
+   * is UNCONDITIONAL: it ignores both `intent.bondUsd` and `defaultBondUsd` for
+   * a subscription backend, because there is no "operator override" that makes
+   * a $0-marginal-cost backend cost real dollars. Metered backends (claude,
+   * gemini, cloudflare, openai, groq, …) are completely unaffected.
    */
   function effectiveBond(intent: LaunchIntent): number {
+    if (isSubscriptionBackend(intent.backend)) return 0;
     if (intent.bondUsd != null && Number.isFinite(intent.bondUsd) && intent.bondUsd > 0) {
       return intent.bondUsd;
     }
@@ -769,6 +799,7 @@ export function createConductor(deps: ConductorDeps) {
     if (intent.allowedTools != null) spec.allowedTools = intent.allowedTools;
     if (intent.timeoutMs != null) spec.timeout = intent.timeoutMs;
     if (intent.maxTokens != null) spec.maxTokens = intent.maxTokens;
+    if (intent.budgetUsd != null) spec.budgetUsd = intent.budgetUsd;
     if (intent.bondUsd != null) spec.bondUsd = intent.bondUsd;
     if (intent.harborName != null) spec.harborName = intent.harborName;
     // ALWAYS forward the ADMITTED launch's effective caps (inherited / floored /
@@ -828,6 +859,19 @@ export function createConductor(deps: ConductorDeps) {
       return { launch: admitted, admitted: false, refusedReason: admitted.refusedReason, spawn: null };
     }
     emit('fleet:launch', { launchId: admitted.id, rootId: admitted.rootId, depth: admitted.depth, state: 'admitted' });
+    try {
+      intent.onAdmitted?.(admitted);
+    } catch (err) {
+      if (reserved > 0) {
+        breaker.release(lineageScope(admitted.rootId), reserved);
+        breaker.release(GLOBAL_SCOPE, reserved);
+      }
+      setState(admitted.id, 'failed', {
+        errorMessage: `launch witness failed: ${err instanceof Error ? err.message : String(err)}`,
+        settledAt: now(),
+      });
+      return { launch: get(admitted.id)!, admitted: true, refusedReason: null, spawn: null };
+    }
 
     // ── Embodiment ──────────────────────────────────────────────────────────
     // I2 — NO_SPAWN_ON_MAIN. For `worktree:'create'`, mint an off-main worktree;
@@ -880,6 +924,22 @@ export function createConductor(deps: ConductorDeps) {
     // Forward the ADMITTED launch's effective caps (inherited/floored/bounded),
     // not the raw intent caps — see intentToSpawnSpec.
     const spec = intentToSpawnSpec(intent, workdir, admitted.capabilities);
+    if (intent.onAgentStarted) {
+      spec.onStarted = (receipt: {
+        agentId: string;
+        transcriptId: string | null;
+        backend: string;
+        model: string;
+        startedAt: number;
+      }) => {
+        // Persist the body identity on the launch while it is still running,
+        // then let the caller bind its own projection. If the caller rejects
+        // the witness, the spawner refuses backend execution rather than run an
+        // untraceable body.
+        setState(admitted.id, 'running', { agentId: receipt.agentId });
+        intent.onAgentStarted?.(receipt);
+      };
+    }
     let spawnResult: Awaited<ReturnType<ConductorSpawner['spawn']>>;
     try {
       spawnResult = await spawner.spawn(spec);

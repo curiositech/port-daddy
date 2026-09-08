@@ -70,6 +70,17 @@
   --space-9: 96px;
   --space-10: 128px;
 
+  /* Fractional linework (binder ch. 20 "Story Linework"; reference
+     implementation docs/design/story-linework/ports/port.css, §04 ports).
+     Line-weight law: 1px = texture (hairlines), 1.5px = linework marks
+     (brackets, midlines, pulse rings), 2px = enclosure — never
+     adjacent-mixed. Stripes carry state at 3px. */
+  --lw-hairline: 1px;
+  --lw-weight: 1.5px;
+  --lw-enclosure: 2px;
+  --lw-stripe: 3px;
+  --lw-bracket: 14px;
+
   --radius-none: 0;
   --radius-sm: 0;
   --radius-md: 0;

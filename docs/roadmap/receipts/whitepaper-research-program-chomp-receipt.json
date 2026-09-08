@@ -1,0 +1,167 @@
+{
+  "receipt": "roadmap-chomp",
+  "generatedAt": 1787763785601,
+  "rootDir": "/home/user/port-daddy",
+  "sourceCommit": "8eafe045d49c8f25fa582444197b53510a701f50",
+  "harbor": "port-daddy",
+  "docs": [
+    {
+      "path": "docs/roadmap/whitepaper-research-program.md",
+      "format": "planning-doc",
+      "parsed": 10,
+      "missing": false
+    }
+  ],
+  "items": [
+    {
+      "slug": "coordination-papers-research-and-implementation-program",
+      "kind": "project",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": null,
+      "dependsOn": [],
+      "tags": [
+        "whitepaper-research-program"
+      ],
+      "sourcePath": "docs/roadmap/whitepaper-research-program.md"
+    },
+    {
+      "slug": "purpose",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "coordination-papers-research-and-implementation-program",
+      "dependsOn": [],
+      "tags": [
+        "whitepaper-research-program"
+      ],
+      "sourcePath": "docs/roadmap/whitepaper-research-program.md"
+    },
+    {
+      "slug": "roadmap-registry",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "coordination-papers-research-and-implementation-program",
+      "dependsOn": [],
+      "tags": [
+        "whitepaper-research-program"
+      ],
+      "sourcePath": "docs/roadmap/whitepaper-research-program.md"
+    },
+    {
+      "slug": "a-add-to-the-papers",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "coordination-papers-research-and-implementation-program",
+      "dependsOn": [],
+      "tags": [
+        "whitepaper-research-program"
+      ],
+      "sourcePath": "docs/roadmap/whitepaper-research-program.md"
+    },
+    {
+      "slug": "b-prove",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "coordination-papers-research-and-implementation-program",
+      "dependsOn": [],
+      "tags": [
+        "whitepaper-research-program"
+      ],
+      "sourcePath": "docs/roadmap/whitepaper-research-program.md"
+    },
+    {
+      "slug": "c-try-and-measure",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "coordination-papers-research-and-implementation-program",
+      "dependsOn": [],
+      "tags": [
+        "whitepaper-research-program"
+      ],
+      "sourcePath": "docs/roadmap/whitepaper-research-program.md"
+    },
+    {
+      "slug": "d-add-to-the-code",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "coordination-papers-research-and-implementation-program",
+      "dependsOn": [],
+      "tags": [
+        "whitepaper-research-program"
+      ],
+      "sourcePath": "docs/roadmap/whitepaper-research-program.md"
+    },
+    {
+      "slug": "current-implementation-evidence",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "coordination-papers-research-and-implementation-program",
+      "dependsOn": [],
+      "tags": [
+        "whitepaper-research-program"
+      ],
+      "sourcePath": "docs/roadmap/whitepaper-research-program.md"
+    },
+    {
+      "slug": "exit-criteria",
+      "kind": "epic",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "coordination-papers-research-and-implementation-program",
+      "dependsOn": [],
+      "tags": [
+        "whitepaper-research-program"
+      ],
+      "sourcePath": "docs/roadmap/whitepaper-research-program.md"
+    },
+    {
+      "slug": "publication-receipt-contract",
+      "kind": "story",
+      "status": "backlog",
+      "action": "inserted",
+      "protected": false,
+      "parent": "exit-criteria",
+      "dependsOn": [],
+      "tags": [
+        "whitepaper-research-program"
+      ],
+      "sourcePath": "docs/roadmap/whitepaper-research-program.md"
+    }
+  ],
+  "inserted": [
+    "coordination-papers-research-and-implementation-program",
+    "purpose",
+    "roadmap-registry",
+    "a-add-to-the-papers",
+    "b-prove",
+    "c-try-and-measure",
+    "d-add-to-the-code",
+    "current-implementation-evidence",
+    "exit-criteria",
+    "publication-receipt-contract"
+  ],
+  "updated": [],
+  "parentEdgesWritten": 9,
+  "skipped": {
+    "missingFiles": [],
+    "danglingDependencies": [],
+    "warnings": []
+  },
+  "enrichment": null
+}

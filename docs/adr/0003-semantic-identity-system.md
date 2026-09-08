@@ -101,7 +101,7 @@ Assign UUIDs and maintain a separate name registry.
 Use a **three-segment colon-delimited hierarchical identity** — `project:stack:context` — as the universal identifier for all services, agents, and other resources.
 
 The segments have defined semantics:
-- **project**: The repository or application name (`myapp`, `windags`, `port-daddy`)
+- **project**: The repository or application name (`myapp`, `jury_rig`, `port-daddy`)
 - **stack**: The service type within the project (`api`, `frontend`, `worker`, `db`)
 - **context**: The instance qualifier, typically the git branch or environment (`main`, `feature-auth`, `staging`)
 

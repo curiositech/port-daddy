@@ -15,9 +15,13 @@ beforeEach(() => {
   savedEnv = {
     PORT_DADDY_SOCK: process.env.PORT_DADDY_SOCK,
     PORT_DADDY_URL: process.env.PORT_DADDY_URL,
+    PORT_DADDY_PORT: process.env.PORT_DADDY_PORT,
+    PORT_DADDY_FORCE_TCP: process.env.PORT_DADDY_FORCE_TCP,
   };
   delete process.env.PORT_DADDY_SOCK;
   delete process.env.PORT_DADDY_URL;
+  delete process.env.PORT_DADDY_PORT;
+  delete process.env.PORT_DADDY_FORCE_TCP;
 });
 
 afterEach(() => {
@@ -31,6 +35,10 @@ afterEach(() => {
   } else {
     process.env.PORT_DADDY_URL = savedEnv.PORT_DADDY_URL;
   }
+  if (savedEnv.PORT_DADDY_PORT === undefined) delete process.env.PORT_DADDY_PORT;
+  else process.env.PORT_DADDY_PORT = savedEnv.PORT_DADDY_PORT;
+  if (savedEnv.PORT_DADDY_FORCE_TCP === undefined) delete process.env.PORT_DADDY_FORCE_TCP;
+  else process.env.PORT_DADDY_FORCE_TCP = savedEnv.PORT_DADDY_FORCE_TCP;
 });
 
 // ─── resolveTarget() ─────────────────────────────────────────────────────────
@@ -51,11 +59,11 @@ describe('resolveTarget()', () => {
     expect(target.port).toBe(3000);
   });
 
-  test('uses default port 9876 when URL has no explicit port', () => {
+  test('uses the URL protocol default when no explicit port is present', () => {
     process.env.PORT_DADDY_URL = 'http://myhost';
     const target = resolveTarget();
     expect(target.host).toBe('myhost');
-    expect(target.port).toBe(9876);
+    expect(target.port).toBe(80);
   });
 
   test('returns socket target when PORT_DADDY_SOCK is set', () => {
@@ -74,14 +82,11 @@ describe('resolveTarget()', () => {
     expect(target.socketPath).toBe('/tmp/custom.sock');
   });
 
-  test('falls back to TCP when no env vars set and no socket file', () => {
-    // No env vars set, and /tmp/port-daddy.sock likely doesn't exist in test env
-    // (or does — either way we get a valid target)
+  test('uses an explicitly published TCP port when socket transport is bypassed', () => {
+    process.env.PORT_DADDY_FORCE_TCP = '1';
+    process.env.PORT_DADDY_PORT = '19876';
     const target = resolveTarget();
-    expect(target).toBeDefined();
-    const isSocket = 'socketPath' in target && target.socketPath !== undefined;
-    const isTcp = 'host' in target && target.host !== undefined;
-    expect(isSocket || isTcp).toBe(true);
+    expect(target).toEqual({ host: '127.0.0.1', port: 19876 });
   });
 });
 
@@ -101,12 +106,16 @@ describe('getDisplayUrl()', () => {
   });
 
   test('returns a non-empty string', () => {
+    process.env.PORT_DADDY_FORCE_TCP = '1';
+    process.env.PORT_DADDY_PORT = '19876';
     const url = getDisplayUrl();
     expect(typeof url).toBe('string');
     expect(url.length).toBeGreaterThan(0);
   });
 
   test('starts with unix: or http://', () => {
+    process.env.PORT_DADDY_FORCE_TCP = '1';
+    process.env.PORT_DADDY_PORT = '19876';
     const url = getDisplayUrl();
     expect(url.startsWith('unix:') || url.startsWith('http://')).toBe(true);
   });

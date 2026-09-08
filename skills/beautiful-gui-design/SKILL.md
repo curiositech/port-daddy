@@ -46,7 +46,7 @@ metadata:
 
 # Beautiful GUI Design
 
-Treat the screen as a designed surface, not a dump of controls: hierarchy, color, type, motion, and accessibility are load-bearing, and every choice must survive light/dark mode, small and large viewports, keyboard and screen-reader use, and the conventions of the platform it ships on.
+Treat the screen as a designed surface, not a dump of controls: hierarchy, color, type, motion, and accessibility are structural, and every choice must survive light/dark mode, small and large viewports, keyboard and screen-reader use, and the conventions of the platform it ships on.
 
 ## When to Use
 
@@ -227,6 +227,30 @@ Machine-checkable governance layer, for turning a design brief into an auditable
 - `templates/output-template.md` — a fill-in template for the visual-design-system-and-layout deliverable.
 - `agents/openai.yaml` — a subagent descriptor for delegated GUI design work.
 
+## Layout QA gate (mechanical — run before shipping)
+
+Before calling any rendered page, artifact, dashboard, deck, or component done,
+run the mechanical overflow/collision checker. It renders the page headlessly and
+flags text-vs-text collisions, clipped/ellipsis-truncated elements, text escaping
+its container, and horizontal page scroll — the visual defects a screenshot hides
+and that only appear at a specific width or in one theme.
+
+Resolve `layout-overflow-guard` from the active skill catalog before running it.
+The command below shows the standard Claude install path; use the path reported
+by your harness. If the skill is absent, install or sync it instead of skipping
+this gate.
+
+```bash
+python3 ~/.claude/skills/layout-overflow-guard/scripts/check_layout.py <file-or-url> \
+  --widths 1280,1100,860,720,390 --themes light,dark
+```
+
+You do **not** need to read `check_layout.py` — invoke it with the Bash tool and
+act on its report and exit code (non-zero = a defect). The script's source never
+enters your context; only its findings do. Drive it to zero violations across
+every width and both themes before you ship. Full detail: the
+`layout-overflow-guard` skill.
+
 <!-- BEGIN BUNDLE INDEX (auto: index_references.py) -->
 
 ## Skill Bundle Index
@@ -235,7 +259,7 @@ Machine-checkable governance layer, for turning a design brief into an auditable
 
 **root**
 - [`CHANGELOG.md`](CHANGELOG.md) — Beautiful GUI Design — Changelog — - Upgraded to the agentic-family standard: `license`, block-style `provenance` (first-party/port-daddy), `pairs-with` (gpui-rust-console, ru
-- [`README.md`](README.md) — Beautiful GUI Design — Treat the screen as a designed surface, not a dump of controls: hierarchy, color, type, motion, and accessibility are load-bearing, and ever
+- [`README.md`](README.md) — Beautiful GUI Design — Treat the screen as a designed surface, not a dump of controls: hierarchy, color, type, motion, and accessibility are foundational, and ever
 
 **`agents/`**
 - [`agents/openai.yaml`](agents/openai.yaml) — openai (data/schema)

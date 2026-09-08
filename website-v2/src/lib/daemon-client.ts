@@ -1,6 +1,10 @@
-import { buildDaemonUrl, type ResolveDaemonBaseUrlOptions } from '@/lib/daemon-url'
+import {
+  DaemonEndpointConfigurationError,
+  buildDaemonUrl,
+  type ResolveDaemonBaseUrlOptions,
+} from '@/lib/daemon-url'
 
-export type DaemonErrorKind = 'network' | 'http' | 'invalid-response'
+export type DaemonErrorKind = 'network' | 'http' | 'invalid-response' | 'configuration'
 
 export interface DaemonClientErrorOptions {
   kind: DaemonErrorKind
@@ -82,6 +86,14 @@ function normalizeError(error: unknown): DaemonClientError {
     })
   }
 
+  if (error instanceof DaemonEndpointConfigurationError) {
+    return new DaemonClientError({
+      kind: 'configuration',
+      message: error.message,
+      cause: error,
+    })
+  }
+
   return new DaemonClientError({
     kind: 'invalid-response',
     message: error instanceof Error ? error.message : 'Unexpected daemon error',
@@ -152,6 +164,13 @@ export function describeDaemonError(error: unknown): { kind: DaemonErrorKind; me
 
   if (normalized.kind === 'network') {
     return { kind: normalized.kind, message: 'Cannot reach the local daemon' }
+  }
+
+  if (normalized.kind === 'configuration') {
+    return {
+      kind: normalized.kind,
+      message: 'Select a daemon endpoint or open this page from the embedded dashboard',
+    }
   }
 
   if (normalized.kind === 'http') {

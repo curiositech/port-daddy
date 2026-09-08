@@ -259,7 +259,7 @@ agents.example.com {
     
     # Agent identity headers
     header_up X-Request-ID {http.request.uuid}
-    header_up X-Gateway "windags-caddy"
+    header_up X-Gateway "jury_rig-caddy"
 }
 EOF
 

@@ -77,7 +77,7 @@ The representation is **functional**—it describes objects by their potential f
 
 ## Why This Matters for Agent Systems
 
-For WinDAGs-style multi-agent orchestration:
+For Jury-rig-style multi-agent orchestration:
 
 1. **Transferable primitives**: SEARCHTRACK schemas are domain-general. The same Φ|σ_τ structure applies whether tracking visual motion, force signals, or abstract state variables. Agents can share a common vocabulary of control programs across diverse skills.
 
@@ -232,7 +232,7 @@ Figure 1a shows the learned policy as a finite state machine over [p_search, p_t
 
 ## Implications for Multi-Agent Skill Acquisition
 
-In a WinDAGs context with 180+ skills:
+In a Jury-rig context with 180+ skills:
 
 **Skill discovery protocol**: Rather than hand-coding all 180 skills, provide a smaller set of primitive control programs and intrinsic motivation learning algorithms. Agents discover compositions that work reliably in their deployment environments. The skill library becomes *emergent* and *adaptive*.
 
@@ -256,7 +256,7 @@ The authors' framework operationalizes the developmental hypothesis: intelligenc
 
 For multi-agent coordination without centralized control, the challenge is establishing shared understanding without explicit communication protocols. Intrinsic motivation provides this: **agents that experience similar environments and have similar embodiments will independently discover similar affordance structures**.
 
-This is profound for WinDAGs. If agents A and B both learn in environments containing graspable objects, they'll both discover REACHGRASP schemas (though possibly with different implementation details). When A requests help from B, they share a basis set of control primitives even without prior coordination.
+This is profound for Jury-rig. If agents A and B both learn in environments containing graspable objects, they'll both discover REACHGRASP schemas (though possibly with different implementation details). When A requests help from B, they share a basis set of control primitives even without prior coordination.
 
 The alternative—hand-coding a shared ontology of 180+ skills—is brittle and requires centralized design. Intrinsically motivated learning makes the skill ontology *emergent from interaction with the world*, automatically adapted to the actual structure of the environment.
 
@@ -325,7 +325,7 @@ The arm must track the object's center (can't grasp if positioned wrong), but *s
 
 ## Translating to Agent Orchestration: Multi-Objective Skill Execution
 
-Consider a WinDAGs scenario: "Debug the authentication service while maintaining system uptime and preserving user data."
+Consider a Jury-rig scenario: "Debug the authentication service while maintaining system uptime and preserving user data."
 
 **Three objectives**:
 1. Fix the bug (primary task goal)
@@ -392,7 +392,7 @@ The nullspace projection framework makes this explicit. When you declare c₂ �
 
 *Prevention*: Careful priority assignment based on task semantics. Safety and correctness should almost always be highest priority.
 
-**Computational cost**: Computing pseudoinverses and nullspace projections for high-dimensional systems is expensive. For WinDAGs with 180 skills and complex state spaces, real-time nullspace projection may be prohibitive.
+**Computational cost**: Computing pseudoinverses and nullspace projections for high-dimensional systems is expensive. For Jury-rig with 180 skills and complex state spaces, real-time nullspace projection may be prohibitive.
 
 *Mitigation*: Pre-compute nullspaces for common constraint combinations. Cache projection matrices. Use approximate projections for near-real-time response.
 
@@ -413,7 +413,7 @@ For multi-agent systems, the redundancy is in the skill space: 180+ skills provi
 
 ## Design Pattern: Hierarchical Constraint Propagation
 
-**For WinDAGs orchestrators**:
+**For Jury-rig orchestrators**:
 
 1. **Identify constraint hierarchy**: Before decomposing a task, list all constraints and priority-order them. Example:
    - P0: Don't corrupt production data (safety)
@@ -651,7 +651,7 @@ The mutual information criterion provides a principled alternative to heuristics
 
 ## Design Pattern: Affordance-Driven Task Decomposition
 
-For WinDAGs orchestrators planning complex tasks:
+For Jury-rig orchestrators planning complex tasks:
 
 **1. Goal specification as affordance**:  
 Rather than "grasp radio," specify "achieve p_grasp=1 ∧ f_grasp satisfies task constraints"
@@ -949,7 +949,7 @@ Algorithm treats goal action as terminal (succeeds or fails, then reassess). If 
 
 ## Design Pattern: Information-Gain-Driven Task Decomposition
 
-For WinDAGs orchestrators:
+For Jury-rig orchestrators:
 
 **1. Identify task-critical parameters**: What must be known to execute the goal skill successfully?  
 - Example: "deploy security patch" requires knowing current system version, patch compatibility, deployment window availability
@@ -1181,7 +1181,7 @@ This lattice structure is similar to:
 
 ## Implications for Multi-Agent Task Decomposition
 
-**For WinDAGs with 180+ skills**:
+**For Jury-rig with 180+ skills**:
 
 **Design principle 1: Skill hierarchy metadata**  
 Each skill should be annotated with:
@@ -1261,7 +1261,7 @@ Sen et al.'s framework computationalizes this: Stage 1 skills become automatic (
 
 ## Design Pattern: Hierarchical Skill Graphs
 
-For WinDAGs orchestrators, represent skills as a directed acyclic graph (DAG):
+For Jury-rig orchestrators, represent skills as a directed acyclic graph (DAG):
 
 **Nodes**: Individual skills  
 **Edges**: Compositional dependencies (uses-as-component)

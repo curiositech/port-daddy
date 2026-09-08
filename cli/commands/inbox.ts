@@ -7,10 +7,21 @@ import { CLIOptions, isQuiet, isJson } from '../types.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import { handleSub } from './messaging.js';
 import { readCurrentContext } from '../utils/current-context.js';
+import { resolveCliActorCredential } from '../utils/actor-credential.js';
 import * as ui from '../utils/ui.js';
+import { inboxMessagePreview, inboxSenderLabel } from '../utils/message-preview.js';
 
 /**
  * Handle `pd inbox <subcommand>` command — top-level standalone inbox access.
+ *
+ * Purpose: durable direct messages have different identity requirements for
+ * reads and writes, so this one entry point makes the intent visible before
+ * any network request reaches the daemon.
+ *
+ * @param subcommand - Requested inbox operation, or undefined for the list view.
+ * @param args - Positional values consumed by the requested inbox operation.
+ * @param options - Parsed global CLI options such as agent, JSON, and quiet mode.
+ * @returns Resolves once the command has rendered its result or exited on an error.
  */
 export async function handleInbox(subcommand: string | undefined, args: string[], options: CLIOptions): Promise<void> {
   // Resolve the ACTIVE session's durable agentId before the throwaway `cli-<pid>`.
@@ -50,7 +61,7 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
     const messages = data.messages as Array<{
       id: number;
       from: string | null;
-      content: string;
+      content: unknown;
       type: string;
       read: boolean;
       createdAt: number;
@@ -65,8 +76,8 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
     for (const msg of messages) {
       const readMark = msg.read ? ' ' : '\u2709';
       const time = new Date(msg.createdAt).toISOString().slice(11, 19);
-      const from = msg.from || 'system';
-      console.log(`${readMark} [${time}] <${from}> ${msg.content.slice(0, 60)}${msg.content.length > 60 ? '...' : ''}`);
+      const from = inboxSenderLabel(msg);
+      console.log(`${readMark} [${time}] <${from}> ${inboxMessagePreview(msg.content)}`);
     }
     console.log('');
     console.log(`${data.count} message(s)`);
@@ -78,6 +89,25 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
 
     if (!targetAgent || !message) {
       console.error('Usage: pd send <agent-id> <message>   (alias: pd inbox send …)');
+      process.exit(1);
+    }
+
+    // A context written before ADR-0040 carries a display agent/session pair
+    // but no daemon-minted bearer credential. Sending it to the daemon would
+    // only produce a generic 401 after attempting an attributed write. Do not
+    // mint, reconstruct, or otherwise recover that old principal here: a
+    // takeover creates the durable, credentialed successor explicitly.
+    const context = readCurrentContext();
+    if (
+      context?.agentId === agentId
+      && context.sessionId
+      && !resolveCliActorCredential(agentId)
+    ) {
+      ui.error(
+        `Persisted session ${context.sessionId} predates daemon-minted actor credentials and cannot send attributed messages. `
+        + `No message was sent. Create a linked successor session, then retry: `
+        + `pd session takeover ${context.sessionId} "continue after credential cutover" --lifecycle durable`,
+      );
       process.exit(1);
     }
 
@@ -151,11 +181,78 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
       console.log(`Marked ${data.marked} message(s) as read`);
     }
 
+  } else if (subcommand === 'show' || subcommand === 'read') {
+    const targetId = args[0];
+    if (!targetId) {
+      console.error(`Usage: pd inbox ${subcommand} <message-id>`);
+      process.exit(1);
+    }
+
+    const res: PdFetchResponse = await pdFetch(
+      `${PORT_DADDY_URL}/agents/${encodeURIComponent(agentId)}/inbox`
+    );
+    const data = await res.json();
+
+    if (!res.ok) {
+      ui.error((data.error as string) || 'Failed to read inbox');
+      process.exit(1);
+    }
+
+    const messages = data.messages as Array<{
+      id: number;
+      from: string | null;
+      content: string;
+      type: string;
+      read: boolean;
+      createdAt: number;
+    }>;
+
+    const msg = messages.find((m) => String(m.id) === targetId.trim());
+
+    if (!msg) {
+      ui.error(`Message with ID ${targetId} not found in inbox`);
+      process.exit(1);
+    }
+
+    // Mark as read
+    if (!msg.read) {
+      try {
+        await pdFetch(`${PORT_DADDY_URL}/agents/${encodeURIComponent(agentId)}/inbox/${msg.id}/read`, {
+          method: 'PUT'
+        });
+      } catch (err) {
+        // Silently ignore or log warning if marking as read fails
+      }
+    }
+
+    if (isJson(options)) {
+      console.log(JSON.stringify(msg, null, 2));
+      return;
+    }
+
+    if (isQuiet(options)) {
+      console.log(msg.content);
+      return;
+    }
+
+    const time = new Date(msg.createdAt).toISOString();
+    const from = inboxSenderLabel(msg);
+
+    console.log('');
+    console.log(`From:      ${from}`);
+    console.log(`Timestamp: ${time}`);
+    console.log(`Content:`);
+    console.log('-'.repeat(40));
+    console.log(msg.content);
+    console.log('-'.repeat(40));
+
   } else if (subcommand === 'help') {
     console.log('Usage: pd inbox [subcommand] [--agent <id>] [-j] [-q]');
     console.log('');
     console.log('Subcommands:');
     console.log('  list (default)            Read inbox messages');
+    console.log('  show <message-id>         Show full content of a message');
+    console.log('  read <message-id>         Show full content of a message');
     console.log('  send <agent-id> <message> Send a message to an agent');
     console.log('  stats                     Get inbox statistics');
     console.log('  clear                     Clear all messages');
@@ -171,7 +268,7 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
 
   } else {
     console.error(`Unknown inbox subcommand: ${subcommand}`);
-    console.error('Available: list, send, stats, clear, read-all');
+    console.error('Available: list, show, read, send, stats, clear, read-all');
     process.exit(1);
   }
 }
@@ -180,17 +277,27 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
  * Handle `pd sent` — read receipts: the messages YOU sent and whether each was
  * read, and when. The sender side of the inbox (`pd inbox` is the recipient side).
  */
-export async function handleSent(options: CLIOptions): Promise<void> {
-  if (options.help) {
-    console.log('Usage: pd sent [--unread] [--limit <n>] [--agent <id>] [-j] [-q]');
-    console.log('');
-    console.log('Show messages YOU sent and their read receipts (read + when).');
-    console.log('  --unread        Only messages not yet read by the recipient');
-    console.log('  --limit <n>     Max messages to show (default 50)');
-    console.log('  --agent <id>    Sender identity (default: AGENT_ID env or current session)');
-    process.exit(0);
-  }
+export const SENT_HELP: string = [
+  'Usage: pd sent [--unread] [--limit <n>] [--agent <id>] [-j] [-q]',
+  '',
+  'Show messages YOU sent and their read receipts (read + when).',
+  '  --unread        Only messages not yet read by the recipient',
+  '  --limit <n>     Max messages to show (default 50)',
+  '  --agent <id>    Sender identity',
+  '                  (default: --agent, else $AGENT_ID, else the current',
+  '                   session, else cli-<pid>)',
+].join('\n');
 
+/**
+ * Render durable sender receipts for the current or explicitly selected agent.
+ *
+ * Purpose: receipt visibility lets an agent verify a durable handoff without
+ * inferring delivery from a terminal's successful write response.
+ *
+ * @param options - Parsed global CLI options used to select and render receipts.
+ * @returns Resolves once the sender receipt list has been rendered or an error exits.
+ */
+export async function handleSent(options: CLIOptions): Promise<void> {
   const agentId: string =
     (options.agent as string) || process.env.AGENT_ID || readCurrentContext()?.agentId || `cli-${process.pid}`;
 
@@ -216,7 +323,7 @@ export async function handleSent(options: CLIOptions): Promise<void> {
   const messages = data.messages as Array<{
     id: number;
     agentId: string;
-    content: string;
+    content: unknown;
     read: boolean;
     readAt: number | null;
     createdAt: number;
@@ -232,8 +339,7 @@ export async function handleSent(options: CLIOptions): Promise<void> {
     const receipt = msg.read
       ? `✓ read ${msg.readAt ? new Date(msg.readAt).toISOString().slice(11, 19) : ''}`.trim()
       : '✉ unread';
-    const preview = String(msg.content).slice(0, 50);
-    console.log(`${receipt}  → ${msg.agentId}  ${preview}${String(msg.content).length > 50 ? '...' : ''}`);
+    console.log(`${receipt}  → ${msg.agentId}  ${inboxMessagePreview(msg.content, 50)}`);
   }
   console.log('');
   const count = (data as { count: number }).count;

@@ -80,6 +80,12 @@ impl HealthPane {
     pub fn new() -> Self {
         Self::default()
     }
+
+    /// Ambient connection truth for the global chrome. Boot completion is not
+    /// connectivity: a daemon can disappear after the first successful frame.
+    pub fn is_connected(&self) -> bool {
+        self.last_error.is_none() && self.data.is_some()
+    }
 }
 
 impl Pane for HealthPane {
@@ -235,6 +241,7 @@ mod tests {
     #[test]
     fn view_no_data() {
         let p = HealthPane::default();
+        assert!(!p.is_connected());
         let b = p.view();
         assert!(matches!(&b[0], Block::Header(h) if h == "Daemon Health"));
     }
@@ -249,6 +256,7 @@ mod tests {
             "routes": {"ok": true, "missing": [], "checked": 11},
             "runtime": {"state": "nominal", "degraded": false}
         }));
+        assert!(p.is_connected());
         let blocks = p.view();
         let chips = blocks
             .iter()
@@ -272,6 +280,7 @@ mod tests {
     fn view_error() {
         let mut p = HealthPane::default();
         p.last_error = Some("timeout".into());
+        assert!(!p.is_connected());
         let b = p.view();
         // Unreachable daemon is a CRITICAL alarm, not a soft warning.
         assert!(

@@ -1,0 +1,9 @@
+# The runnable app target is assembled ephemerally by scripts/capture-screenshots.sh
+# (xcodegen generate). The repo's checked-in contract stays "no .xcodeproj,
+# no XcodeGen output committed" — only project.yml (the spec) is tracked.
+PortDaddy.xcodeproj/
+*.xcresult/
+.screenshots.xcresult/
+screenshots.xcresult/
+.build-xcode/
+pd-ios-screenshots/

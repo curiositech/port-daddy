@@ -128,7 +128,7 @@ These leaks don't invalidate the separation - they show it's a **useful abstract
 
 ## Design Implications for Task Decomposition
 
-For systems like WinDAGs that need to decompose complex tasks, this teaching suggests:
+For systems like Jury-rig that need to decompose complex tasks, this teaching suggests:
 
 **1. Separate "what can this skill do" from "when should this skill be invoked"**
 - Skill definitions should focus purely on capabilities (computation)

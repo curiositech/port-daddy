@@ -45,6 +45,24 @@ describe('episodic memory', () => {
     expect(memory.list({ query: 'stale status' })).toHaveLength(1);
   });
 
+  test('reads one durable episode by its canonical id', () => {
+    const created = memory.remember({
+      project: 'port-daddy',
+      episodeType: 'handoff',
+      title: 'Continuation source',
+      summary: 'Sanitized capsule source.',
+      sourceType: 'handoff-capsule',
+      sourceId: 'capsule-source-1',
+    });
+
+    expect(memory.get(created.id)).toEqual(expect.objectContaining({
+      id: created.id,
+      sourceId: 'capsule-source-1',
+    }));
+    expect(memory.get(0)).toBeNull();
+    expect(memory.get(999_999)).toBeNull();
+  });
+
   test('stats can scope by project dir and logical project name', () => {
     memory.remember({
       projectDir: '/tmp/port-daddy',

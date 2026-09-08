@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { platform } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 
@@ -18,6 +18,97 @@ export interface DaemonLaunchCommand {
 
 export function daemonBinaryName(os: NodeJS.Platform = platform()): string {
   return os === 'win32' ? 'port-daddy-daemon.exe' : 'port-daddy-daemon';
+}
+
+/**
+ * Resolve the packaged ONNX Runtime directory for one compiled executable.
+ *
+ * Why this resolver exists: release archives put `native/` beside the executable, while source builds
+ * put it below `dist/`. Keeping both layouts here prevents daemon launchers,
+ * installers, and semantic code from independently guessing the cargo path.
+ *
+ * @param resourceDir Distribution root published to the daemon.
+ * @param executablePath Compiled executable that will load ONNX Runtime.
+ * @param os Target operating system.
+ * @param cpu Target CPU architecture.
+ * @returns Existing packaged runtime directory, or null for source-only runs.
+ */
+export function resolveOnnxRuntimeNativeLibraryDir(
+  resourceDir: string,
+  executablePath: string,
+  os: NodeJS.Platform = platform(),
+  cpu: string = process.arch,
+): string | null {
+  if (os !== 'darwin' && os !== 'linux') return null;
+  const platformArch = `${os}-${cpu}`;
+  const candidates = [
+    join(resourceDir, 'dist', 'native', 'onnxruntime-node', platformArch),
+    join(resourceDir, 'native', 'onnxruntime-node', platformArch),
+    join(dirname(executablePath), 'native', 'onnxruntime-node', platformArch),
+  ];
+  return candidates.find(candidate => isOnnxRuntimeNativeLibraryDir(candidate, os)) ?? null;
+}
+
+/**
+ * Verify that a loader-path entry contains the platform's ONNX shared library.
+ * Why this verifier exists: named profiles may supply an equivalent versioned
+ * runtime root. This accepts those roots while rejecting unrelated
+ * existing directories that would still fail the native import.
+ *
+ * @param directory Candidate dynamic-loader directory.
+ * @param os Target operating system.
+ * @returns True only when the expected ONNX shared-library filename is present.
+ */
+export function isOnnxRuntimeNativeLibraryDir(
+  directory: string,
+  os: NodeJS.Platform = platform(),
+): boolean {
+  try {
+    const names = readdirSync(directory);
+    if (os === 'darwin') {
+      return names.some(name => /^libonnxruntime(?:\.[\d.]+)?\.dylib$/.test(name));
+    }
+    if (os === 'linux') {
+      return names.some(name => /^libonnxruntime\.so(?:\.[\d.]+)?$/.test(name));
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Build the Linux dynamic-loader environment required before a compiled
+ * daemon starts. The design rationale is that macOS uses an
+ * executable-relative LC_RPATH embedded in the
+ * N-API binding because hardened runtime deliberately strips DYLD_* without
+ * an injection-enabling entitlement. Linux still needs LD_LIBRARY_PATH at
+ * process admission; assigning process.env later cannot repair dlopen().
+ *
+ * @param resourceDir Distribution root published to the daemon.
+ * @param executablePath Compiled executable that will load ONNX Runtime.
+ * @param env Parent environment whose existing loader path must be preserved.
+ * @param os Target operating system.
+ * @param cpu Target CPU architecture.
+ * @returns Empty object when no packaged runtime applies, otherwise one loader variable.
+ */
+export function resolveOnnxRuntimeNativeLaunchEnv(
+  resourceDir: string,
+  executablePath: string,
+  env: NodeJS.ProcessEnv = process.env,
+  os: NodeJS.Platform = platform(),
+  cpu: string = process.arch,
+): Record<string, string> {
+  if (os !== 'linux') return {};
+  const nativeDir = resolveOnnxRuntimeNativeLibraryDir(resourceDir, executablePath, os, cpu);
+  if (!nativeDir) return {};
+  const variable = 'LD_LIBRARY_PATH';
+  const existing = env[variable]?.trim();
+  const entries = existing?.split(':').filter(Boolean) ?? [];
+  const value = entries.includes(nativeDir)
+    ? existing as string
+    : [nativeDir, ...entries].join(':');
+  return { [variable]: value };
 }
 
 export function sourceDaemonFallbackAllowed(env: NodeJS.ProcessEnv = process.env): boolean {
@@ -79,11 +170,42 @@ export function isBunCompiledRuntime(signals: BunRuntimeSignals): boolean {
 }
 
 /**
+ * Environment required by Port Daddy's pinned Bun 1.2.21 runtime to avoid the
+ * concurrent JSC crash family tracked in #676. JavaScriptCore reads these
+ * values only when the child process starts, so every long-lived Bun child
+ * must inherit them. Set PORT_DADDY_JSC_SAFE_MODE=0 to opt out.
+ */
+export function jscSafeModeEnv(env: NodeJS.ProcessEnv = process.env): Record<string, string> {
+  if (env.PORT_DADDY_JSC_SAFE_MODE === '0') return {};
+  return {
+    BUN_JSC_useConcurrentGC: '0',
+    BUN_JSC_useConcurrentJIT: '0',
+  };
+}
+
+/**
+ * Merge one or more child environments and apply the JSC mitigation last.
+ * The exact opt-out is read from the fully merged environment, so a named
+ * profile may disable safe mode deliberately while ordinary overlays cannot
+ * accidentally restore the crash-prone concurrent settings.
+ */
+export function mergeJscSafeModeEnv(
+  ...sources: Array<NodeJS.ProcessEnv | undefined>
+): NodeJS.ProcessEnv {
+  const merged: NodeJS.ProcessEnv = {};
+  for (const source of sources) {
+    if (source) Object.assign(merged, source);
+  }
+  return { ...merged, ...jscSafeModeEnv(merged) };
+}
+
+/**
  * One-shot guard so the unconventional-layout warning doesn't spam
  * stderr every time the resolver is called (CLI invocations chain
  * through it many times per command).
  */
 let warnedUnconventionalLayout = false;
+const PACKAGED_BIN_EXECUTABLE_RE = /^(?:pd|port-daddy|port-daddy-daemon)(?:\.exe)?$/i;
 
 export function resolveDistributionRoot(
   moduleDir: string,
@@ -92,7 +214,13 @@ export function resolveDistributionRoot(
 ): string {
   const explicit = env.PORT_DADDY_RESOURCE_DIR?.trim();
   if (explicit) return explicit;
-  if (!isBunVirtualPath(moduleDir)) return moduleDir;
+  // A compiled `bun build --compile` binary reports `__dirname` as a bun-virtual path OR,
+  // on some builds, literally `/` — so `join(__dirname,'..','..')` collapses to `/`. Treating
+  // `/` as a real distribution root made everything resolve under the filesystem root
+  // (`resolvedRoot=/`, `expectedBinary=/dist/daemon/...` MISSING) — which reported a green
+  // "Resource directory" check AND broke `pd setup` (it looked for `/node_modules/.bin/tsx`).
+  // `/` is never a real Port Daddy root: fall through to execPath-based resolution.
+  if (moduleDir !== '/' && !isBunVirtualPath(moduleDir)) return moduleDir;
 
   const execDir = dirname(execPath);
   const parentDir = dirname(execDir);
@@ -101,6 +229,12 @@ export function resolveDistributionRoot(
   }
   if (basename(execDir) === 'dist') {
     return parentDir;
+  }
+  // Homebrew and other flat package managers install the compiled entrypoint
+  // in a `bin/` directory and keep its runtime assets beside it. That is a
+  // supported distribution layout, not an operator-actionable anomaly.
+  if (basename(execDir) === 'bin' && PACKAGED_BIN_EXECUTABLE_RE.test(basename(execPath))) {
+    return execDir;
   }
 
   // Unconventional layout (user-built binary, non-Homebrew install
@@ -130,6 +264,61 @@ export function daemonBinaryPath(rootDir: string, env: NodeJS.ProcessEnv = proce
   return join(rootDir, 'dist', 'daemon', daemonBinaryName());
 }
 
+/**
+ * True when `path` names a regular file (not a directory, not missing). Used to
+ * disambiguate the flat bosun binary `<root>/pd-bosun` from the source-tree
+ * `core/pd-bosun/` DIRECTORY of the same leaf name.
+ */
+function isRegularFile(path: string): boolean {
+  try {
+    return statSync(path).isFile();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Resolve the Bosun supervisor binary (core/pd-bosun) for a given distribution
+ * root, in canonical-first order (2026-07-14 halt-mandate):
+ *
+ *   1. `<root>/pd-bosun` — the FLAT path the release tarball unpacks to
+ *      (release.yml stages `dist/pd-bosun` and packs it at the tar root next to
+ *      `pd`/`port-daddy`). This is the CANONICAL installed supervisor. It is
+ *      only accepted when it is a regular file, so a source checkout — whose
+ *      `<root>/pd-bosun` does NOT exist but whose `core/pd-bosun/` is a
+ *      DIRECTORY — never mistakes the crate dir for the binary.
+ *   2. `<root>/dist/core/pd-bosun` — a `npm run build:bosun:dist` output (dev).
+ *   3. `<root>/core/target/release/pd-bosun` — a raw `cargo build` release
+ *      artifact in a source checkout. NOTE: `core/` is a Cargo WORKSPACE, so a
+ *      member build (`--manifest-path core/pd-bosun/Cargo.toml`) outputs to the
+ *      SHARED workspace target dir `core/target/release`, NOT a per-crate
+ *      `core/pd-bosun/target`. The legacy code pointed at the per-crate path,
+ *      which never existed for a workspace build — a root cause of bosun never
+ *      shipping. The per-crate path is kept as a last-ditch fallback.
+ *
+ * The daemon installer and `pd doctor` both call this so they never disagree
+ * about WHICH bosun binary supervises — the stale-`dist/`-copy split-brain the
+ * mandate calls out.
+ */
+export function resolveBosunBinaryPath(rootDir: string): string {
+  const installed = join(rootDir, 'pd-bosun');
+  if (isRegularFile(installed)) return installed;
+  // Homebrew (and any bin/-layout install) lands the watchdog next to `pd` at
+  // `<root>/bin/pd-bosun`, NOT flat at the distribution root. Without these two
+  // candidates a brew install's resolver returned a non-existent flat path, so
+  // `pd doctor` reported "pd-bosun binary not built" and `install-bosun` could
+  // not locate the supervisor to wire it — even though the binary shipped.
+  const binInstalled = join(rootDir, 'bin', 'pd-bosun');
+  if (isRegularFile(binInstalled)) return binInstalled;
+  const libexecInstalled = join(rootDir, 'libexec', 'bin', 'pd-bosun');
+  if (isRegularFile(libexecInstalled)) return libexecInstalled;
+  const distBinary = join(rootDir, 'dist', 'core', 'pd-bosun');
+  if (existsSync(distBinary)) return distBinary;
+  const workspaceTarget = join(rootDir, 'core', 'target', 'release', 'pd-bosun');
+  if (existsSync(workspaceTarget)) return workspaceTarget;
+  return join(rootDir, 'core', 'pd-bosun', 'target', 'release', 'pd-bosun');
+}
+
 export function resolveDaemonLaunchCommand(
   rootDir: string,
   options: { env?: NodeJS.ProcessEnv; allowSourceFallback?: boolean } = {},
@@ -139,12 +328,27 @@ export function resolveDaemonLaunchCommand(
   const sourceTsxPath = join(rootDir, 'node_modules', '.bin', 'tsx');
   const sourceServerPath = join(rootDir, 'server.ts');
 
+  /**
+   * Compose the environment shared by every compiled launch mode.
+   *
+   * Why this closure exists: explicit, discovered, and self-hosted binaries
+   * must not drift on the resource root or native loader contract.
+   *
+   * @param resourceDir Distribution root published to the child.
+   * @param executablePath Compiled executable selected for the child.
+   * @returns Resource and native-loader variables to merge at spawn time.
+   */
+  const compiledEnv = (resourceDir: string, executablePath: string): Record<string, string> => ({
+    PORT_DADDY_RESOURCE_DIR: resourceDir,
+    ...resolveOnnxRuntimeNativeLaunchEnv(resourceDir, executablePath, env),
+  });
+
   if (env.PORT_DADDY_DAEMON_BINARY?.trim() && existsSync(binaryPath)) {
     return {
       mode: 'binary',
       program: binaryPath,
       args: [],
-      env: { PORT_DADDY_RESOURCE_DIR: rootDir },
+      env: compiledEnv(rootDir, binaryPath),
       binaryPath,
       sourceServerPath,
       sourceTsxPath,
@@ -159,7 +363,7 @@ export function resolveDaemonLaunchCommand(
       mode: 'self',
       program: process.execPath,
       args: ['__daemon'],
-      env: { PORT_DADDY_RESOURCE_DIR: resourceDir },
+      env: compiledEnv(resourceDir, process.execPath),
       binaryPath: process.execPath,
       sourceServerPath,
       sourceTsxPath,
@@ -173,7 +377,7 @@ export function resolveDaemonLaunchCommand(
       mode: 'binary',
       program: binaryPath,
       args: [],
-      env: { PORT_DADDY_RESOURCE_DIR: rootDir },
+      env: compiledEnv(rootDir, binaryPath),
       binaryPath,
       sourceServerPath,
       sourceTsxPath,

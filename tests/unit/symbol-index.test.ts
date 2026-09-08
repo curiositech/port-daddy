@@ -579,6 +579,214 @@ describe('caching', () => {
 });
 
 // =============================================================================
+// Incremental refresh (AST A1.4)
+// =============================================================================
+
+describe('incremental refresh', () => {
+  test('returns zeroed telemetry for an empty dirty-file batch', async () => {
+    const telemetry = await symbolIndex.refresh([]);
+
+    expect(telemetry).toMatchObject({
+      requestedFiles: 0,
+      uniqueFiles: 0,
+      reparsedFiles: 0,
+      unchangedFiles: 0,
+      deletedFiles: 0,
+      unsupportedFiles: 0,
+      failedFiles: 0,
+      symbolsRemoved: 0,
+      symbolsInserted: 0,
+      dependenciesRemoved: 0,
+      dependenciesInserted: 0,
+      files: [],
+    });
+  });
+
+  test('isolates malformed runtime elements without dropping valid paths', async () => {
+    const filePath = join(tempDir, 'refresh-valid-amid-malformed.ts');
+    writeFileSync(filePath, 'export function valid() { return 1; }');
+    await symbolIndex.parseFile(filePath);
+
+    const telemetry = await symbolIndex.refresh(
+      [filePath, null, '', undefined] as unknown as string[],
+    );
+
+    expect(telemetry.requestedFiles).toBe(4);
+    expect(telemetry.uniqueFiles).toBe(4);
+    expect(telemetry.unchangedFiles).toBe(1);
+    expect(telemetry.failedFiles).toBe(3);
+    expect(telemetry.files).toHaveLength(4);
+    expect(telemetry.files.map(file => file.filePath)).toEqual([
+      filePath,
+      '<invalid:1>',
+      '<invalid:2>',
+      '<invalid:3>',
+    ]);
+    expect(telemetry.files.filter(file => file.status === 'failed')).toEqual([
+      expect.objectContaining({ filePath: '<invalid:1>', error: 'filePaths[1] must be a non-empty string' }),
+      expect.objectContaining({ filePath: '<invalid:2>', error: 'filePaths[2] must be a non-empty string' }),
+      expect.objectContaining({ filePath: '<invalid:3>', error: 'filePaths[3] must be a non-empty string' }),
+    ]);
+    expect(symbolIndex.getSymbols(filePath).map(symbol => symbol.symbolName)).toContain('valid');
+  });
+
+  test('serializes concurrent refreshes for the same path', async () => {
+    const filePath = join(tempDir, 'refresh-concurrent.ts');
+    writeFileSync(filePath, 'export function before() { return 1; }');
+    await symbolIndex.parseFile(filePath);
+    writeFileSync(filePath, 'export function after() { return 2; }');
+
+    const telemetry = await Promise.all([
+      symbolIndex.refresh([filePath]),
+      symbolIndex.refresh([filePath]),
+    ]);
+
+    expect(telemetry.every(result => result.failedFiles === 0)).toBe(true);
+    expect(telemetry.reduce((count, result) => count + result.reparsedFiles, 0)).toBe(1);
+    expect(telemetry.reduce((count, result) => count + result.unchangedFiles, 0)).toBe(1);
+    expect(symbolIndex.getSymbols(filePath).map(symbol => symbol.symbolName)).toEqual(['after']);
+  });
+
+  test('reparses only changed files, coalesces duplicate events, and reports row churn', async () => {
+    const changedPath = join(tempDir, 'refresh-changed.ts');
+    const unchangedPath = join(tempDir, 'refresh-unchanged.ts');
+    writeFileSync(changedPath, `
+import { join } from 'path';
+export function staleSymbol() { return join('.', 'old'); }
+`);
+    writeFileSync(unchangedPath, 'export function untouched() { return 1; }');
+
+    await symbolIndex.parseFile(changedPath);
+    await symbolIndex.parseFile(unchangedPath);
+    const untouchedParsedAt = symbolIndex.getSymbols(unchangedPath)[0].parsedAt;
+
+    writeFileSync(changedPath, `
+export function freshSymbol() { return 'fresh'; }
+`);
+    const telemetry = await symbolIndex.refresh([changedPath, unchangedPath, changedPath]);
+
+    expect(telemetry.requestedFiles).toBe(3);
+    expect(telemetry.uniqueFiles).toBe(2);
+    expect(telemetry.reparsedFiles).toBe(1);
+    expect(telemetry.unchangedFiles).toBe(1);
+    expect(telemetry.deletedFiles).toBe(0);
+    expect(telemetry.failedFiles).toBe(0);
+    expect(telemetry.symbolsRemoved).toBe(1);
+    expect(telemetry.symbolsInserted).toBe(1);
+    expect(telemetry.dependenciesRemoved).toBeGreaterThan(0);
+    expect(telemetry.dependenciesInserted).toBe(0);
+
+    const changedSymbols = symbolIndex.getSymbols(changedPath);
+    expect(changedSymbols.some(symbol => symbol.symbolName === 'freshSymbol')).toBe(true);
+    expect(changedSymbols.some(symbol => symbol.symbolName === 'staleSymbol')).toBe(false);
+    expect(symbolIndex.getDependencies(changedPath)).toHaveLength(0);
+    expect(db.prepare(
+      'SELECT symbol_name FROM symbols WHERE file_path = ? ORDER BY symbol_name',
+    ).pluck().all(changedPath)).toEqual(['freshSymbol']);
+    expect(db.prepare(
+      'SELECT COUNT(*) FROM symbol_dependencies WHERE source_file = ?',
+    ).pluck().get(changedPath)).toBe(0);
+    expect(symbolIndex.getSymbols(unchangedPath)[0].parsedAt).toBe(untouchedParsedAt);
+    expect(telemetry.files.map(file => file.status).sort()).toEqual(['reparsed', 'unchanged']);
+  });
+
+  test('atomically removes symbols, dependencies, and parsed-file state for deletes', async () => {
+    const filePath = join(tempDir, 'refresh-deleted.ts');
+    writeFileSync(filePath, `
+import { readFileSync } from 'fs';
+export function doomed() { return readFileSync('gone'); }
+`);
+    await symbolIndex.parseFile(filePath);
+    expect(symbolIndex.getSymbols(filePath)).not.toHaveLength(0);
+    expect(symbolIndex.getDependencies(filePath)).not.toHaveLength(0);
+
+    rmSync(filePath);
+    const telemetry = await symbolIndex.refresh([filePath]);
+
+    expect(telemetry.deletedFiles).toBe(1);
+    expect(telemetry.reparsedFiles).toBe(0);
+    expect(telemetry.symbolsRemoved).toBeGreaterThan(0);
+    expect(telemetry.dependenciesRemoved).toBeGreaterThan(0);
+    expect(telemetry.files[0]).toMatchObject({
+      filePath,
+      status: 'deleted',
+      symbolsAfter: 0,
+      dependenciesAfter: 0,
+    });
+    expect(symbolIndex.getSymbols(filePath)).toHaveLength(0);
+    expect(symbolIndex.getDependencies(filePath)).toHaveLength(0);
+    expect(db.prepare('SELECT 1 FROM parsed_files WHERE file_path = ?').get(filePath)).toBeUndefined();
+  });
+
+  test('preserves the previous file snapshot when atomic replacement fails', async () => {
+    const filePath = join(tempDir, 'refresh-rollback.ts');
+    writeFileSync(filePath, `
+import { join } from 'path';
+export function original() { return join('.', 'old'); }
+`);
+    await symbolIndex.parseFile(filePath);
+    const dependenciesBefore = symbolIndex.getDependencies(filePath);
+
+    db.exec(`
+      CREATE TRIGGER reject_refresh_replacement
+      BEFORE INSERT ON symbols
+      WHEN NEW.symbol_name = 'replacement'
+      BEGIN
+        SELECT RAISE(ABORT, 'reject replacement');
+      END;
+    `);
+    writeFileSync(filePath, `
+export function replacement() { return 'new'; }
+`);
+
+    const telemetry = await symbolIndex.refresh([filePath]);
+
+    expect(telemetry.failedFiles).toBe(1);
+    expect(telemetry.files[0].status).toBe('failed');
+    expect(telemetry.files[0].error).toContain('reject replacement');
+    expect(symbolIndex.getSymbols(filePath).map(symbol => symbol.symbolName)).toContain('original');
+    expect(symbolIndex.getSymbols(filePath).map(symbol => symbol.symbolName)).not.toContain('replacement');
+    expect(symbolIndex.getDependencies(filePath)).toEqual(dependenciesBefore);
+    expect(symbolIndex.isStale(filePath)).toBe(true);
+  });
+
+  test('rolls back symbol writes when dependency insertion fails mid-transaction', async () => {
+    const filePath = join(tempDir, 'refresh-dependency-rollback.ts');
+    writeFileSync(filePath, `
+import { join } from 'path';
+export function original() { return join('.', 'old'); }
+`);
+    await symbolIndex.parseFile(filePath);
+    const symbolsBefore = symbolIndex.getSymbols(filePath);
+    const dependenciesBefore = symbolIndex.getDependencies(filePath);
+    const parsedFileBefore = db.prepare(
+      'SELECT * FROM parsed_files WHERE file_path = ?',
+    ).get(filePath);
+
+    db.exec(`
+      CREATE TRIGGER reject_refresh_dependency
+      BEFORE INSERT ON symbol_dependencies
+      BEGIN
+        SELECT RAISE(ABORT, 'reject dependency');
+      END;
+    `);
+    writeFileSync(filePath, `
+import { resolve } from 'path';
+export function replacement() { return resolve('.', 'new'); }
+`);
+
+    const telemetry = await symbolIndex.refresh([filePath]);
+
+    expect(telemetry.failedFiles).toBe(1);
+    expect(telemetry.files[0].error).toContain('reject dependency');
+    expect(symbolIndex.getSymbols(filePath)).toEqual(symbolsBefore);
+    expect(symbolIndex.getDependencies(filePath)).toEqual(dependenciesBefore);
+    expect(db.prepare('SELECT * FROM parsed_files WHERE file_path = ?').get(filePath)).toEqual(parsedFileBefore);
+    expect(symbolIndex.isStale(filePath)).toBe(true);
+  });
+});
+
+// =============================================================================
 // Invalidation
 // =============================================================================
 

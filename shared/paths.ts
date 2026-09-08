@@ -12,7 +12,7 @@ import { homedir } from 'os';
 import { join } from 'path';
 import { mkdirSync, chmodSync } from 'fs';
 
-const HOME = join(homedir(), '.port-daddy');
+const HOME = process.env.PD_HOME?.trim() || join(homedir(), '.port-daddy');
 
 // Ensure the directory exists with restrictive permissions
 try {
@@ -32,6 +32,9 @@ export const DEFAULT_IPC = process.env.PORT_DADDY_IPC || join(HOME, 'daemon.ipc'
 
 /** PID file */
 export const DEFAULT_PID_FILE = join(HOME, 'daemon.pid');
+
+/** Ready-generation lease (published only after the daemon can serve hooks) */
+export const DEFAULT_READY_FILE = process.env.PORT_DADDY_READY_FILE || join(HOME, 'daemon.ready');
 
 /** TCP port file (for CLI to discover the dashboard port) */
 export const DEFAULT_PORT_FILE = process.env.PORT_DADDY_PORT_FILE || join(HOME, 'daemon.port');

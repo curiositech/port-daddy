@@ -10,7 +10,7 @@ import { existsSync, unlinkSync, statSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createInterface } from 'node:readline';
-import { isStdinInteractive, isStdoutInteractive, openControllingTerminalInput } from './tty.js';
+import { isStdinInteractive, isStdoutInteractive, readLineFromControllingTerminal } from './tty.js';
 
 import { DEFAULT_SOCK } from '../../shared/paths.js';
 import { readDaemonPort } from '../../shared/daemon-discovery.js';
@@ -39,17 +39,27 @@ export async function confirmFix(prompt: string): Promise<boolean> {
   // Under the bun-compiled binary, process.stdin can look interactive yet feed
   // readline an immediate EOF — an empty answer would auto-accept the fix
   // without real consent. Read from the controlling terminal when available.
-  const tty = openControllingTerminalInput();
-  const input = tty ? tty.stream : process.stdin;
-  const rl = createInterface({ input, output: process.stdout });
+  // Reading /dev/tty as a *stream* crashed the caller (ENXIO under the bun
+  // binary, EBADF under node) — use the blocking line reader instead.
+  process.stdout.write(`  ${prompt} [Y/n] `);
+  const answer = readLineFromControllingTerminal();
+  if (answer !== null) {
+    const a = answer.trim().toLowerCase();
+    return a === '' || a === 'y' || a === 'yes';
+  }
+
+  // No controlling terminal to read despite fd 0 looking interactive. Fall back
+  // to stdin, and decline on EOF — an unanswered prompt is never consent.
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
   return new Promise((resolve) => {
-    rl.question(`  ${prompt} [Y/n] `, (answer) => {
+    let answered = false;
+    rl.question('', (line) => {
+      answered = true;
       rl.close();
-      tty?.close();
-      const a = answer.trim().toLowerCase();
+      const a = line.trim().toLowerCase();
       resolve(a === '' || a === 'y' || a === 'yes');
     });
-    rl.on('close', () => { tty?.close(); });
+    rl.on('close', () => { if (!answered) resolve(false); });
   });
 }
 

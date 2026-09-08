@@ -73,7 +73,7 @@ The paper divides interaction into two phases:
 
 This distinction is architecturally important. In the initialization phase, changing the world changes what is *observable*, which changes what is *knowable*. In the communication phase, the world is fixed but knowledge evolves through communication.
 
-For WinDAGs systems, this maps to:
+For Jury-rig systems, this maps to:
 - **Ontic phase**: Setting up tasks, deploying agents, ingesting data, running computations that produce new facts
 - **Epistemic phase**: Sharing results, confirming task completion, broadcasting state updates, coordinating handoffs
 

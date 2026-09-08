@@ -249,6 +249,26 @@ const marqueeCss = `
   position: relative;
   width: 100%;
   padding-inline: var(--layout-gutter-lg, 32px);
+  overflow: hidden;
+  /* The marquee is an infinite loop, so a card is always mid-crossing at the
+     viewport edge — that bleed is intentional in motion, but in a static
+     screenshot or a reduced-motion frame it reads as a clipping bug. Fade the
+     edges instead of hard-cutting so the crop always looks deliberate. */
+  --wd-marquee-fade: clamp(28px, 6vw, 64px);
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    black var(--wd-marquee-fade),
+    black calc(100% - var(--wd-marquee-fade)),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    black var(--wd-marquee-fade),
+    black calc(100% - var(--wd-marquee-fade)),
+    transparent 100%
+  );
 }
 .wd-marquee__track {
   display: flex;

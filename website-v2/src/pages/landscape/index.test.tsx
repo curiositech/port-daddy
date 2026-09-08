@@ -36,7 +36,7 @@ describe('Landscape page', () => {
     expect(tableContent).toContain('Cursor 2.0')
     expect(tableContent).toContain('Claude Code Task')
     expect(tableContent).toContain('ccswarm')
-    expect(tableContent).toContain('WinDAGs')
+    expect(tableContent).toContain('Jury-rig')
     expect(tableContent).toMatch(/Composes with PD\?/i)
     // Honest-comparison footnote
     expect(tableContent).toMatch(/None of these are competitors/i)

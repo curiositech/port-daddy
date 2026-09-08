@@ -5,9 +5,12 @@
  * transitions it to `review_pending`. The operator runs:
  *
  *   pd review <id> --accept              -> dispatch.state = 'accepted'
- *                                          (operator will merge, or
- *                                           harbormaster will when PR #141
- *                                           lands and merge_policy='auto')
+ *                                          (operator will merge by hand for
+ *                                           merge_policy='review'; a dispatch
+ *                                           with merge_policy='auto' merges
+ *                                           itself via lib/dispatch/auto-merge.ts
+ *                                           once ready and does not need this
+ *                                           accept step at all)
  *
  *   pd review <id> --reject "<reason>"   -> dispatch.state = 'rejected'
  *                                          (PR should be closed by the
@@ -143,8 +146,9 @@ export async function handleReview(args: string[], options: CLIOptions): Promise
       console.log(`  merge_policy: ${updated.mergePolicy}`);
       if (updated.mergePolicy === 'auto') {
         console.log('');
-        console.log('  merge_policy=auto: harbormaster (PR #141) would merge here.');
-        console.log('  PR #141 is not yet shipped; merge by hand for now.');
+        console.log('  merge_policy=auto: this dispatch merges itself once CI is green,');
+        console.log('  mergeable, and 0 unresolved review threads — no accept needed.');
+        console.log('  See `pd dispatch merge-sweep` to check/merge now.');
       } else if (updated.resultArtifact) {
         console.log('');
         console.log(`  Merge by hand: ${updated.resultArtifact}`);

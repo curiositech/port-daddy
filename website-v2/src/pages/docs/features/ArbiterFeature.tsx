@@ -7,6 +7,9 @@ export default function ArbiterFeature() {
     <div className="space-y-10">
       {/* Header */}
       <div className="space-y-4">
+        <p className="font-mono text-[length:var(--type-meta-size)] font-bold uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+          Feature · Arbiter
+        </p>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Arbiter
         </h1>
@@ -22,7 +25,10 @@ export default function ArbiterFeature() {
 
       {/* How It Works */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">How It Works</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">01</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">How It Works</h2>
+        </div>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           The Arbiter starts with the daemon and subscribes to every activity log entry.
           On each entry it applies the relevant rule checks. Violations are stored in memory
@@ -31,7 +37,7 @@ export default function ArbiterFeature() {
         </p>
 
         <div className="space-y-3">
-          <div className="flex items-start gap-3 border-l-4 border-[var(--brand-primary)] pl-4">
+          <div className="flex items-start gap-3 border-l-[length:var(--lw-stripe)] border-[var(--brand-primary)] pl-4">
             <CheckCircle size={16} className="text-[var(--brand-primary)] mt-0.5 shrink-0" />
             <div>
               <p className="text-sm font-bold text-[var(--text-primary)] mb-0.5">LOG (always)</p>
@@ -41,7 +47,7 @@ export default function ArbiterFeature() {
               </p>
             </div>
           </div>
-          <div className="flex items-start gap-3 border-l-4 border-[var(--border-subtle)] pl-4">
+          <div className="flex items-start gap-3 border-l-[length:var(--lw-stripe)] border-[var(--border-subtle)] pl-4">
             <AlertTriangle size={16} className="text-[var(--text-secondary)] mt-0.5 shrink-0" />
             <div>
               <p className="text-sm font-bold text-[var(--text-primary)] mb-0.5">ALERT (default)</p>
@@ -52,7 +58,7 @@ export default function ArbiterFeature() {
               </p>
             </div>
           </div>
-          <div className="flex items-start gap-3 border-l-4 border-[var(--border-subtle)] pl-4">
+          <div className="flex items-start gap-3 border-l-[length:var(--lw-stripe)] border-[var(--border-subtle)] pl-4">
             <ShieldAlert size={16} className="text-[var(--text-secondary)] mt-0.5 shrink-0" />
             <div>
               <p className="text-sm font-bold text-[var(--text-primary)] mb-0.5">HALT (strictMode: true)</p>
@@ -68,7 +74,10 @@ export default function ArbiterFeature() {
 
       {/* The Six Rules */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">The Six Rules</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">02</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">The Six Rules</h2>
+        </div>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           Rules map directly to the BondedCommons TLA+ specification. Each rule has a name,
           a trigger activity type, and a severity for violations.
@@ -113,10 +122,10 @@ export default function ArbiterFeature() {
               desc: 'If a heartbeat arrives for an agent already flagged as stale, a warning is recorded — the early signal before an agent is declared dead.',
             },
           ].map(({ name, severity, trigger, desc }) => (
-            <div key={name} className="border-l-4 border-[var(--border-subtle)] pl-4 py-2">
+            <div key={name} className="border-l-[length:var(--lw-stripe)] border-[var(--border-subtle)] pl-4 py-2">
               <div className="flex items-center gap-2 mb-1">
                 <code className="text-sm font-mono text-[var(--text-primary)] font-bold">{name}</code>
-                <span className={`text-[length:var(--type-meta-size)] px-1.5 py-0.5 rounded font-semibold uppercase ${
+                <span className={`text-[length:var(--type-meta-size)] px-1.5 py-0.5 font-semibold uppercase ${
                   severity === 'critical'
                     ? 'bg-[var(--badge-teal-bg)] text-[var(--badge-teal-text)]'
                     : severity === 'violation'
@@ -135,7 +144,10 @@ export default function ArbiterFeature() {
 
       {/* API Reference */}
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">API Endpoints</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">03</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">API Endpoints</h2>
+        </div>
 
         <div className="space-y-2">
           {[
@@ -155,8 +167,8 @@ export default function ArbiterFeature() {
               desc: 'Inject a synthetic violation for testing. Valid names: PID_SQUATTING, CAP_ESCALATION, NOTE_MONOTONICITY, ESCROW_POSITIVE, LOCK_OWNER_VALID, HEARTBEAT_FRESHNESS',
             },
           ].map(({ method, path, desc }) => (
-            <div key={path} className="flex items-start gap-3 border-l-4 border-[var(--border-subtle)] pl-4 py-1">
-              <span className={`text-[length:var(--type-meta-size)] font-mono font-bold px-2 py-0.5 rounded shrink-0 mt-0.5 ${
+            <div key={path} className="flex items-start gap-3 border-l-[length:var(--lw-stripe)] border-[var(--border-subtle)] pl-4 py-1">
+              <span className={`text-[length:var(--type-meta-size)] font-mono font-bold px-2 py-0.5 shrink-0 mt-0.5 ${
                 method === 'POST'
                   ? 'bg-[var(--badge-teal-bg)] text-[var(--badge-teal-text)]'
                   : 'bg-[var(--badge-green-bg)] text-[var(--badge-green-text)]'
@@ -200,7 +212,10 @@ curl -X POST http://localhost:9876/arbiter/test-invariant/PID_SQUATTING`}
 
       {/* Rust Enforcer */}
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Rust Enforcer (Optional)</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">04</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">Rust Enforcer (Optional)</h2>
+        </div>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           The <code className="text-[var(--brand-primary)] font-mono text-sm">CAP_ESCALATION</code> rule
           optionally uses a native Rust library (<code className="text-[var(--brand-primary)] font-mono text-sm">libharbor_card_rs</code>)
@@ -212,7 +227,7 @@ curl -X POST http://localhost:9876/arbiter/test-invariant/PID_SQUATTING`}
       </div>
 
       {/* Next */}
-      <div className="flex items-center justify-between p-5 rounded-xl bg-gradient-to-r from-[var(--brand-primary)]/5 to-transparent border border-[var(--brand-primary)]/20">
+      <div className="flex flex-wrap items-center justify-between gap-4 border border-[var(--border-subtle)] bg-[color-mix(in_oklab,var(--brand-primary)_10%,var(--surface-base))] p-5">
         <div>
           <div className="text-sm text-[var(--text-muted)] mb-1">Related Feature</div>
           <div className="font-semibold text-[var(--text-primary)]">Harbors</div>
@@ -220,7 +235,7 @@ curl -X POST http://localhost:9876/arbiter/test-invariant/PID_SQUATTING`}
         </div>
         <Link
           to="/docs/features/harbors"
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-[var(--text-inverse)] font-medium hover:opacity-90 transition-opacity"
+          className="flex items-center gap-2 bg-[var(--brand-primary)] px-4 py-2 font-medium text-[var(--text-inverse)]"
         >
           Learn More
           <ArrowRight size={16} />

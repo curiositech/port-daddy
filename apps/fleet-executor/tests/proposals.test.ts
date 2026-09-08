@@ -4,6 +4,7 @@ import {
   renderProposalComment,
   slugify,
   ideationOutputContract,
+  validateStackProposalFiles,
   type Proposal,
 } from '../src/proposals.js';
 
@@ -118,16 +119,6 @@ describe('renderProposalComment — REAL actionable syntax', () => {
     expect(body).toContain('Ready-to-paste agent prompt');
   });
 
-  it('parley → a real pd parley call command anchored on the evidence surface', () => {
-    const body = renderProposalComment(
-      [p({ action: 'parley', evidence: ['docs/adr/0095.md'], title: 'Resolve verb drift' })],
-      CTX,
-    );
-    // surface is quoted (it comes from untrusted evidence[0]).
-    expect(body).toContain('pd parley call --surface "docs/adr/0095.md"');
-    expect(body).toContain('--reason "Resolve verb drift"');
-  });
-
   it('skill → a pd dispatch propose that invokes the skill-architect skill', () => {
     const body = renderProposalComment(
       [p({ action: 'skill', prompt: 'make harbor fixtures trivial to author', title: 'Harbor fixture kit' })],
@@ -162,7 +153,7 @@ describe('renderProposalComment — REAL actionable syntax', () => {
 
   it('renders a severity badge for trouble-ahead proposals (lookout)', () => {
     const body = renderProposalComment(
-      [p({ action: 'parley', severity: 'HIGH', title: 'Contradiction ahead' })],
+      [p({ action: 'roadmap', severity: 'HIGH', title: 'Contradiction ahead' })],
       { ...CTX, shipName: 'lookout' },
     );
     expect(body).toContain('### ⚠ Contradiction ahead `HIGH`');
@@ -191,13 +182,97 @@ describe('slugify + contract', () => {
     expect(slugify('   ')).toBe('proposal');
   });
 
-  it('the ideation contract names the schema fields and the four actions', () => {
+  it('the ideation contract names the schema fields and all four actions', () => {
     const c = ideationOutputContract();
-    for (const field of ['title', 'rationale', 'evidence', 'action', 'prompt', 'severity']) {
+    for (const field of ['title', 'rationale', 'evidence', 'action', 'prompt', 'severity', 'files']) {
       expect(c).toContain(field);
     }
-    for (const action of ['roadmap', 'assign', 'parley', 'skill']) {
+    for (const action of ['roadmap', 'assign', 'skill', 'stack']) {
       expect(c).toContain(action);
     }
+    // The stack action demands confidence + self-authored code.
+    expect(c).toContain('CONFIDENT');
+    expect(c).toContain('code the solution yourself');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The `stack` action: the ship codes the fix itself.
+
+describe('stack proposals — parse, validate, render', () => {
+  const stackProposal = (files: Array<{ path: string; contents: string }>) =>
+    '```json\n' +
+    JSON.stringify([
+      { title: 'Fix the off-by-one', rationale: 'The loop misses the last row.', action: 'stack', files },
+    ]) +
+    '\n```';
+
+  it('parses a stack proposal with files', () => {
+    const parsed = parseProposals(stackProposal([{ path: 'src/fix.ts', contents: 'export const x = 1;' }]));
+    expect(parsed).not.toBeNull();
+    expect(parsed![0].action).toBe('stack');
+    expect(parsed![0].files).toEqual([{ path: 'src/fix.ts', contents: 'export const x = 1;' }]);
+  });
+
+  it('returns null (parse failure) when files is malformed', () => {
+    expect(parseProposals(stackProposal([{ path: 'src/fix.ts' } as never]))).toBeNull();
+    expect(
+      parseProposals(
+        '```json\n' + JSON.stringify([{ title: 'T', rationale: 'R', action: 'stack', files: 'not-an-array' }]) + '\n```',
+      ),
+    ).toBeNull();
+  });
+
+  it('validateStackProposalFiles enforces the tighter caps (≤5 files, ≤16KB each)', () => {
+    const ok = validateStackProposalFiles([{ path: 'src/fix.ts', contents: 'x' }]);
+    expect(ok.ok).toBe(true);
+
+    const six = Array.from({ length: 6 }, (_, i) => ({ path: `src/f${i}.ts`, contents: 'x' }));
+    const tooMany = validateStackProposalFiles(six);
+    expect(tooMany.ok).toBe(false);
+    expect((tooMany as { reason: string }).reason).toContain('too many files');
+
+    const big = validateStackProposalFiles([{ path: 'src/big.ts', contents: 'a'.repeat(16 * 1024 + 1) }]);
+    expect(big.ok).toBe(false);
+    expect((big as { reason: string }).reason).toContain('file too large');
+
+    expect(validateStackProposalFiles([]).ok).toBe(false);
+  });
+
+  it('validateStackProposalFiles applies the purser-grade path safety (traversal, absolute, backslash)', () => {
+    for (const path of ['../evil.ts', '/etc/passwd', 'a\\b.ts', 'src/../up.ts']) {
+      const v = validateStackProposalFiles([{ path, contents: 'x' }]);
+      expect(v.ok).toBe(false);
+    }
+  });
+
+  it('renders a link to the stacked PR when the ctx carries the stack outcome', () => {
+    const proposals = parseProposals(stackProposal([{ path: 'src/fix.ts', contents: 'x' }]))!;
+    const body = renderProposalComment(proposals, {
+      ...CTX,
+      shipName: 'spark',
+      stackedPr: { proposalIndex: 0, number: 8001, url: 'https://github.com/test/pr/8001' },
+    });
+    expect(body).toContain('#8001](https://github.com/test/pr/8001)');
+    expect(body).toContain('coded this solution itself');
+    expect(body).toContain('`src/fix.ts`');
+  });
+
+  it('renders an honest non-link when no stack PR was opened', () => {
+    const proposals = parseProposals(stackProposal([{ path: 'src/fix.ts', contents: 'x' }]))!;
+    const body = renderProposalComment(proposals, { ...CTX, shipName: 'spark' });
+    expect(body).toContain('no stacked PR was opened this run');
+    expect(body).not.toContain('#8001');
+  });
+
+  it('drops stack file CONTENTS from the hidden machine block (paths kept)', () => {
+    const proposals = parseProposals(
+      stackProposal([{ path: 'src/fix.ts', contents: 'SECRET-BULKY-CONTENTS' }]),
+    )!;
+    const body = renderProposalComment(proposals, { ...CTX, shipName: 'spark' });
+    const m = /<!-- pd-proposals-json\n([\s\S]*?)\n-->/.exec(body)!;
+    const arr = JSON.parse(m[1]);
+    expect(arr[0].files).toEqual(['src/fix.ts']);
+    expect(m[1]).not.toContain('SECRET-BULKY-CONTENTS');
   });
 });

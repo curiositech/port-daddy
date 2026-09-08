@@ -6,7 +6,7 @@
  */
 
 import { existsSync, mkdirSync, symlinkSync, lstatSync, unlinkSync, readlinkSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { homedir, platform } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,19 +17,23 @@ import { handleDaemon } from './daemon.js';
 import { handleGuard } from './guard.js';
 import { handleInit } from './init.js';
 import { handleMcpInstall } from './mcp-install.js';
-import { installSquidHooks } from './squid.js';
+import { silentHooksInstall, unregisterSquidProject } from './hooks-install.js';
 import {
   ensureGeminiPortDaddyExtension,
   formatSkillSyncSummary,
   syncAgentSkills,
 } from '../../lib/skill-sync.js';
 import { installPilotAgents, resolvePilotSourceDir } from '../../lib/pilot-agent-render.js';
+import { installSlashCommand, installStatusline, stageStatusline } from '../../lib/squid/identity.js';
+import { installPilotSessionStartHook, stagePilotSessionStartHook } from '../../lib/pilot-sessionstart-hook.js';
 import {
   HARBOR_AREAS,
   loadFirstValueRecord,
   saveFirstValueRecord,
   transparentHookInventory,
 } from '../../lib/agent-harbor/setup-doctor.js';
+import { resolvePortDaddyInvocation } from '../../lib/port-daddy-command.js';
+import { installFleetBarRelease, packageVersion } from '../../lib/fleetbar-release-installer.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // Walk up from __dirname looking for the repo marker (Formula/port-daddy.rb
@@ -56,7 +60,29 @@ const PROJECT_ROOT = findProjectRoot(__dirname);
 const AGENT_SKILL_ID = 'port-daddy-agent-skill';
 const TSX_BIN = join(PROJECT_ROOT, 'node_modules', '.bin', 'tsx');
 const INSTALL_DAEMON_SCRIPT = join(PROJECT_ROOT, 'install-daemon.ts');
-const FLEETBAR_INSTALL_SCRIPT = join(PROJECT_ROOT, 'apps', 'FleetBar', 'install.sh');
+
+/**
+ * Starts one detached, bounded, local-only warm-up after skill installation.
+ * The design keeps setup responsive and treats reconciliation as resumable
+ * background work; failures remain visible later through Doctor status.
+ */
+function startTool2VecWarmup(): void {
+  try {
+    const invocation = resolvePortDaddyInvocation();
+    const child = spawn(
+      invocation.command,
+      [...invocation.args, 'jury-rig', 'warm', '--max-skills', '32', '--local-only', '--quiet'],
+      { detached: true, stdio: 'ignore', env: process.env },
+    );
+    child.once('error', (error) => {
+      ui.warn(`Could not start Tool2Vec warm-up: ${error.message}`);
+    });
+    child.unref();
+    ui.info('Tool2Vec catalog warm-up started in the background; Doctor reports current, cold, or dependency-down coverage.');
+  } catch (error) {
+    ui.warn(`Could not start Tool2Vec warm-up: ${(error as Error).message}`);
+  }
+}
 
 const PROJECT_MARKERS = [
   '.git',
@@ -133,6 +159,18 @@ async function ensureDaemonInstalledAndRunning(): Promise<boolean> {
     return true;
   }
 
+  // A packaged / Homebrew install has no source `tsx` or `install-daemon.ts` — PROJECT_ROOT
+  // resolves off the compiled binary (often `/`), so those paths don't exist. The tsx-based
+  // install below only works in a source checkout; attempting it from a brew build fails and
+  // printed a FAKE remediation (`pd daemon install`, which is not a real subcommand — see
+  // `pd daemon <list|status|start|stop|env>`). A packaged daemon is supervised by Homebrew,
+  // not installed via `pd setup`. Detect that and give an honest, REAL command instead.
+  if (!existsSync(TSX_BIN) || !existsSync(INSTALL_DAEMON_SCRIPT)) {
+    ui.error('Daemon is not reachable, and `pd setup` cannot install it from a packaged build');
+    installRemediation('Daemon', 'brew services restart port-daddy');
+    return false;
+  }
+
   ui.step('Installing Port Daddy daemon');
   const install = spawnSync(TSX_BIN, [INSTALL_DAEMON_SCRIPT, 'install'], {
     cwd: PROJECT_ROOT,
@@ -141,7 +179,7 @@ async function ensureDaemonInstalledAndRunning(): Promise<boolean> {
 
   if ((install.status ?? 1) !== 0) {
     ui.error('Daemon install failed');
-    installRemediation('Daemon', 'pd daemon install && pd daemon start');
+    installRemediation('Daemon', 'pd daemon start   (or: brew services restart port-daddy)');
     return false;
   }
 
@@ -325,7 +363,7 @@ function installPilotAgentDefinitions(options: Record<string, unknown>): boolean
   const result = installPilotAgents({ sourceDir: source, dryRun });
   const changed = result.written.filter((w) => w.changed).length;
   ui.info(
-    `Port Daddy Pilot: ${dryRun ? 'would install' : 'installed'} ${result.written.length} runtime definition(s)` +
+    `Port Daddy Pilot: ${result.outcome}; ${dryRun ? 'would install' : 'installed'} ${result.written.length} runtime definition(s)` +
     (changed ? ` (${changed} updated)` : ' (all current)'),
   );
   for (const err of result.errors.slice(0, 3)) {
@@ -342,7 +380,7 @@ function lstatSyncSafe(p: string) {
   }
 }
 
-function installFleetBarIfEnabled(skipFleetBar: boolean): boolean {
+async function installFleetBarIfEnabled(skipFleetBar: boolean): Promise<boolean> {
   if (skipFleetBar) {
     ui.info('Skipping FleetBar (--no-fleetbar)');
     return true;
@@ -353,26 +391,19 @@ function installFleetBarIfEnabled(skipFleetBar: boolean): boolean {
     return true;
   }
 
-  if (!existsSync(FLEETBAR_INSTALL_SCRIPT)) {
-    ui.warn('FleetBar install script not found');
-    installRemediation('FleetBar', 'pd setup --no-fleetbar, or download the signed app from the Install page');
+  ui.step('Installing the matching signed FleetBar release');
+  try {
+    const version = packageVersion(PROJECT_ROOT);
+    const installed = await installFleetBarRelease(version);
+    ui.success(`FleetBar ${installed.version} installed and relaunched`);
+    ui.info(`App: ${installed.appPath}`);
+    if (installed.backupPath) ui.info(`Previous app retained at ${installed.backupPath}`);
+    return true;
+  } catch (error) {
+    ui.warn(`FleetBar install failed: ${(error as Error).message}`);
+    installRemediation('FleetBar', 'open FleetBar and use its signed update card; the previous app was preserved');
     return false;
   }
-
-  ui.step('Installing FleetBar');
-  const install = spawnSync('/bin/bash', [FLEETBAR_INSTALL_SCRIPT], {
-    cwd: PROJECT_ROOT,
-    stdio: 'inherit',
-  });
-
-  if ((install.status ?? 1) !== 0) {
-    ui.warn('FleetBar install failed');
-    installRemediation('FleetBar', 'pd setup --no-fleetbar, then install FleetBar from the signed zip');
-    return false;
-  }
-
-  ui.success('FleetBar installed');
-  return true;
 }
 
 async function maybeInitProject(projectDir: string | null, options: Record<string, unknown>): Promise<void> {
@@ -415,7 +446,7 @@ async function installProjectHarness(projectDir: string | null, options: Record<
 
   if (options['no-harness']) {
     ui.info('Skipping Squid hooks and Guard (--no-harness)');
-    installRemediation('Project harness', 'pd setup, or pd squid hooks && pd guard install --mode enforce');
+    installRemediation('Project harness', 'pd squid on && pd guard install --mode enforce');
     return true;
   }
 
@@ -424,19 +455,36 @@ async function installProjectHarness(projectDir: string | null, options: Record<
   if (!options['no-squid-hooks']) {
     ui.step('Installing Squid hooks for local agent runtimes');
     try {
-      const results = await installSquidHooks(projectDir);
-      for (const result of results) {
-        const proof = result.verified ? 'verified live' : 'contract installed';
-        ui.success(`${result.binaryName}: ${proof}`);
+      const result = silentHooksInstall(undefined, { cwd: projectDir });
+      if (result.tentaclesMissing) throw new Error('required pd-hook-* assets are missing from this build');
+      if (result.failures.length) throw new Error(result.failures.join('; '));
+      if (result.detected.length === 0) ui.info('No supported agent CLIs detected; pd squid on can be re-run after installation');
+      else ui.success(`Daemon-gated hooks wired: ${result.detected.join(', ')}`);
+
+      const stagedStatusline = stageStatusline();
+      if (!stagedStatusline) throw new Error('pd-statusline is missing from this build');
+      const statusline = installStatusline(projectDir, stagedStatusline);
+      if (!statusline.ok || statusline.reason.includes('user statusLine')) {
+        throw new Error(`visible ◆ PD identity was not installed: ${statusline.reason}`);
       }
+
+      const stagedPilot = stagePilotSessionStartHook();
+      if (!stagedPilot) throw new Error('Pilot SessionStart hook is missing from this build');
+      const pilot = installPilotSessionStartHook({ projectDir, scriptPath: stagedPilot });
+      if (!pilot.ok) throw new Error(`Pilot SessionStart hook was not installed: ${pilot.reason}`);
+
+      const slash = installSlashCommand(projectDir);
+      if (!slash.ok) throw new Error(`/squid command was not installed: ${slash.reason}`);
+      ui.success('◆ PD identity, Pilot steering, and /squid control are visible in new sessions');
     } catch (err) {
+      unregisterSquidProject(projectDir);
       ok = false;
       ui.warn(`Squid hooks could not be installed: ${(err as Error).message}`);
-      installRemediation('Squid hooks', 'pd squid hooks');
+      installRemediation('Squid hooks', 'pd squid on');
     }
   } else {
     ui.info('Skipping Squid hooks (--no-squid-hooks)');
-    installRemediation('Squid hooks', 'pd squid hooks');
+    installRemediation('Squid hooks', 'pd squid on');
   }
 
   if (!options['no-guard']) {
@@ -538,16 +586,19 @@ export async function handleSetup(options: Record<string, unknown>): Promise<voi
     ui.info('Skipping agent-CLI hooks (--no-hooks)');
   }
 
-  installFleetBarIfEnabled(!!options['no-fleetbar']);
+  await installFleetBarIfEnabled(!!options['no-fleetbar']);
 
   if (!options['no-skill']) {
     installAgentSkillUnion(options);
+    if (!options['no-skill-warmup']) startTool2VecWarmup();
+    else ui.info('Skipping Tool2Vec catalog warm-up (--no-skill-warmup)');
   } else {
     ui.info('Skipping agent skill symlink (--no-skill)');
   }
 
+  let pilotOk = true;
   if (!options['no-agents']) {
-    installPilotAgentDefinitions(options);
+    pilotOk = installPilotAgentDefinitions(options);
   } else {
     ui.info('Skipping Pilot agent definitions (--no-agents)');
   }
@@ -563,10 +614,14 @@ export async function handleSetup(options: Record<string, unknown>): Promise<voi
   const harnessOk = await installProjectHarness(projectDir, options);
 
   console.log('');
-  if (harnessOk) {
+  if (harnessOk && pilotOk) {
     ui.success('Setup complete');
   } else {
     ui.warn('Setup completed with remediation steps above');
+  }
+  if (!pilotOk) {
+    process.exitCode = 1;
+    return; // Do not record full setup completion after a refused/partial Pilot install.
   }
 
   // ── Agent Harbor onboarding receipt (binder ch18 Work Order C8) ──────────

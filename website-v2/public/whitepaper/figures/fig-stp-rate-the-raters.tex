@@ -1,56 +1,50 @@
-% Fig 12 — the rate-the-raters recursion and the contractive-tower conjecture.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-\providecolor{maydayred}{HTML}{8B0000}
-
+% Figure --- recursive audit closes by measurable contraction, not by height.
 \begin{figure}[H]
 \centering
-\resizebox{0.9\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  lvl/.style={draw=hhebony,thick,rounded corners=2pt,inner sep=4pt,align=center,
-              minimum width=42mm},
-  arr/.style={->,>=Latex,thick,draw=hhink},
-]
-% the recursion levels, incentive-to-corrupt shrinking upward
-% fills: maydayred (high) → amber → sand → teal!20 (near zero)
-\node[lvl,fill=maydayred!15,draw=maydayred,minimum width=64mm] (l0) at (0,0)
-  {\textbf{agent} does work \quad incentive to cheat: \textbf{high}};
-\node[lvl,fill=hhamber!25,minimum width=54mm,above=8mm of l0] (l1)
-  {\textbf{judge} grades it (bonded) \quad smaller};
-\node[lvl,fill=hhsand!40,minimum width=44mm,above=8mm of l1] (l2)
-  {\textbf{re-auditor} (bonded) \quad smaller still};
-\node[lvl,fill=hhteal!18,draw=hhteal,minimum width=34mm,above=8mm of l2] (l3)
-  {\textbf{re-re-auditor} \quad $\to 0$};
-\node[font=\itshape\footnotesize,above=4mm of l3] {\vdots\quad finite honest fixed point};
+\resizebox{0.96\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-6.8,3.15)
+    {remaining corrupt opportunity across audit levels};
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-6.0,-2.10) -- (6.4,-2.10);
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-6.0,-2.10) -- (-6.0,2.55);
+  \node[pd axis label,anchor=west] at (6.5,-2.10) {audit level $k$};
+  \node[pd axis label,anchor=center,rotate=90] at (-6.43,.20) {$G_k$ (log scale)};
 
-\draw[arr,draw=hhink,thick] (l0) -- node[midway,right,font=\scriptsize]
-  {rate} (l1);
-\draw[arr,draw=hhink,thick] (l1) -- node[midway,right,font=\scriptsize]
-  {rate the rater} (l2);
-\draw[arr,draw=hhink,thick] (l2) -- node[midway,right,font=\scriptsize]
-  {rate the raters' rater} (l3);
+  \foreach \x/\lab in {-5.8/0,-3.75/10,-1.7/20,.35/30,2.4/40,4.45/50,5.7/56} {
+    \draw[pd tick] (\x,-2.22) -- (\x,-1.98);
+    \node[pd axis label,anchor=north] at (\x,-2.32) {\lab};
+  }
+  \foreach \y in {-1.05,.0,1.05,2.10} \draw[pd guide] (-5.95,\y) -- (6.0,\y);
 
-% the conditions box
-\node[draw=hhcobalt,thick,fill=hhsand!30,rounded corners=3pt,inner sep=6pt,
-      right=14mm of l1,anchor=west,text width=64mm,align=left,font=\footnotesize] (cond)
-  {\textbf{Contractive iff} (Conj.~\ref{conj:contract}):\\[2pt]
-   (i) re-audit sampled w.p.\ $\rho$;\\
-   (ii) overturn slashes $B_J >$ max single bribe;\\
-   (iii) re-auditors drawn from a pool $>$ any clique.\\[2pt]
-   \emph{Conjectured, not proven} (\VISION).};
+  % Parameterized example: heterogeneous pools contract faster.
+  \draw[pd focus rule,line width=1.55pt]
+    plot[smooth] coordinates {(-5.8,2.15) (-4.75,1.72) (-3.70,1.25) (-2.65,.72) (-1.60,.15) (-.55,-.48) (.05,-1.55)};
+  \draw[pd caution rule,dashed,line width=1.55pt]
+    plot[smooth] coordinates {(-5.8,2.15) (-3.75,1.78) (-1.70,1.28) (.35,.72) (2.40,.10) (4.45,-.62) (5.45,-1.55)};
+  \node[pd direct label,text=hhteal,anchor=west] at (-2.65,1.02)
+    {$C=8$: heterogeneous cliques\\[-1pt]{\tiny reaches root near level 27}};
+  \node[pd direct label,text=hhamber,anchor=west] at (2.20,.55)
+    {$C=1$: monoculture\\[-1pt]{\tiny reaches root near level 53}};
+
+  % The theorem ends at a separately owed root.
+  \fill[hhamber!9] (-5.95,-1.95) rectangle (6.0,-1.45);
+  \draw[pd caution rule] (-5.95,-1.45) -- (6.0,-1.45);
+  \node[pd direct label,text=hhamber,anchor=west] at (-5.65,-1.70)
+    {exogenously honest root required; the contraction theorem does not manufacture it};
+
+  \node[pd direct label,anchor=west] at (-5.75,-3.05)
+    {$\rho d B\ge G_k$ at each level};
+  \node[pd direct label,anchor=west] at (-.65,-3.05)
+    {$G_{k+1}=(1-\rho d)G_k$ only under sealed sampling across $C$ disjoint cliques};
 \end{tikzpicture}}
-\caption{\textbf{The rate-the-raters recursion.} Bond-and-slash pushes the grading
-problem up a level: who audits the auditors? Under sampling, a slash exceeding the
-maximum bribe, and a conflict-free re-auditor pool larger than any clique, the
-incentive to corrupt each level is strictly smaller than the level below ---
-making the tower contractive with a finite honest fixed point. This is the precise
-statement of what the Harbor Economy paper's central IC theorem needs and currently lacks.}
+\caption{\textbf{Recursive auditing becomes finite only when corrupt opportunity
+contracts.} The parameterized example plots the chapter's reported depths:
+heterogeneous sealed sampling across $C=8$ cliques reaches the honest-root boundary
+near level 27, while a monoculture ($C=1$) requires roughly 53 levels. More boxes
+or more height would not prove this result; the governing conditions are local
+deterrence $\rho dB\ge G_k$ and contraction
+$G_{k+1}=(1-\rho d)G_k$. The amber floor is deliberately separate: the imported
+theorem bounds the tower but does not supply its exogenously honest root or the
+telemetry that estimates $d$.}
 \label{fig:rate-raters}
 \end{figure}

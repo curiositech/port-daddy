@@ -13,6 +13,7 @@ import type { BosunHeartbeatStatus } from '../lib/bosun-heartbeat.js';
 import type { createFleetDaemon } from '../lib/fleet-daemon.js';
 import type { Transcripts } from '../lib/transcripts.js';
 import { formatUptime } from '../shared/port-utils.js';
+import { resolveBosunBinaryPath } from '../shared/daemon-binary.js';
 import { detectDrift } from '../lib/binary-drift-detector.js';
 import { assessRouteHealth, registeredFromSet, type RouteHealth } from '../lib/route-health.js';
 import { daemonHealthSeverity, type Severity } from '../lib/health-severity.js';
@@ -88,6 +89,24 @@ interface InfoRouteDeps {
    * as the stable, canonical berth.
    */
   daemonBerth?: DaemonBerthIdentity;
+  /**
+   * State plane this daemon classified itself onto at boot (S1 —
+   * lib/state-plane.ts): 'prod' | 'dev-latest' | 'ephemeral:<label>'.
+   * Surfaced on `GET /version` and `GET /health` so CLIs and surfaces can
+   * warn before writing through a non-prod daemon. Optional so older route
+   * wirings stay compatible.
+   */
+  plane?: string;
+  /**
+   * ADR-0132 listening watch (lib/halt-watch.ts). When wired, `GET /health`
+   * carries a top-level `state` of `nominal | degraded | halted` plus the halt
+   * detail while the sentinel has been seen. Optional so older route wirings
+   * and tests stay compatible; phase 5 completes the vocabulary.
+   */
+  haltWatch?: {
+    state(): 'nominal' | 'halted';
+    halt(): { line: string; ref: string; detectedAt: number; complied: boolean } | null;
+  };
   cleanupStale: () => unknown[];
   getSystemPorts: () => SystemPort[];
   fleetDaemon?: ReturnType<typeof createFleetDaemon>;
@@ -278,16 +297,17 @@ function buildRecentHistory(deps: InfoRouteDeps) {
  *
  * ```ts
  * resolveBosunBinaryStatus('/Users/me/port-daddy-stable')
- * // => { binaryPath: '/Users/me/port-daddy-stable/dist/core/pd-bosun', binaryExists: true }
+ * // => { binaryPath: '/Users/me/port-daddy-stable/pd-bosun', binaryExists: true }
  * ```
  *
- * `dist/core/pd-bosun` is the release artifact. The source-tree release binary
- * is only a local-development fallback for checkouts that have not built `dist/`.
+ * The flat `<root>/pd-bosun` is the shipped release artifact (release.yml packs
+ * it at the tar root). `dist/core/pd-bosun` and the source-tree release binary
+ * are local-development fallbacks. Delegates to the shared resolver so the
+ * daemon, `pd doctor`, and the installer never disagree about the canonical
+ * supervisor binary (2026-07-14 halt-mandate).
  */
 function resolveBosunBinaryStatus(rootDir: string) {
-  const distBinary = join(rootDir, 'dist', 'core', 'pd-bosun');
-  const sourceBinary = join(rootDir, 'core', 'pd-bosun', 'target', 'release', 'pd-bosun');
-  const binaryPath = existsSync(distBinary) ? distBinary : sourceBinary;
+  const binaryPath = resolveBosunBinaryPath(rootDir);
   return {
     binaryPath,
     binaryExists: existsSync(binaryPath),
@@ -374,7 +394,10 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
       node_version: process.version,
       pid: process.pid,
       uptime: Math.floor(process.uptime()),
-      installDir: __dirname
+      installDir: __dirname,
+      // State plane (S1): which state this daemon mutates — prod / dev-latest
+      // / ephemeral:<label>. Absent on legacy wirings.
+      plane: deps.plane ?? undefined,
     };
   });
 
@@ -419,11 +442,19 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
       : null;
     const runtime = buildRuntimeSummary(deps, routeHealth);
     const severity = computeHealthSeverity(routeHealth, runtime, !!binaryDrift?.drifted);
+    const halt = deps.haltWatch?.state() === 'halted' ? deps.haltWatch.halt() : null;
     return {
       // #160: top-level liveness reflects whether the daemon can actually serve
       // its route contract. Arbiter/rule degradation is surfaced separately in
       // `runtime` (it does not mean the daemon is 404'ing its own endpoints).
       status: routeHealth && !routeHealth.ok ? 'degraded' : 'ok',
+      // ADR-0132 Area A2 state vocabulary: `nominal | degraded | halted`.
+      // `halted` means the listening watch has seen ~/.port-daddy/HALT and the
+      // sweeps are stopped; it is not a fault, it is a mode (SECURITE HALT).
+      state: halt ? 'halted' : runtime.state,
+      halt: halt
+        ? { ref: halt.ref, line: halt.line, since: new Date(halt.detectedAt).toISOString(), complied: halt.complied }
+        : undefined,
       // The shared three-tier severity (ok | warn | critical) that the Rust
       // console, FleetBar, and `pd doctor` all colour from. Folds routes +
       // runtime + binary drift via lib/health-severity.ts.
@@ -445,6 +476,9 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
       // Berth self-identity (ADR-0084). Always present: defaults to the stable,
       // canonical berth when PD_DAEMON_* env is unset.
       daemon: deps.daemonBerth ?? undefined,
+      // State plane (S1): prod / dev-latest / ephemeral:<label>. Same value as
+      // /version.plane; duplicated here so a single /health poll carries it.
+      plane: deps.plane ?? undefined,
       binaryDrift: binaryDrift ? {
         drifted: binaryDrift.drifted,
         runningHash: binaryDrift.runningHash,

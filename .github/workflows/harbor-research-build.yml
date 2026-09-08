@@ -1,0 +1,115 @@
+name: Harbor Research PDF Build
+
+# Renders the harbor-research corpus (docs/harbor-research/tex/*.tex — the
+# seven arXiv-style papers, the execution reports, and the treatise/portfolio
+# drafts) from LaTeX source under the same pinned texlive digest the
+# whitepaper build uses, so the two corpora never drift onto different TeX
+# Live dialects. No TeX toolchain exists in the interactive dev container;
+# this workflow is the only place these PDFs get rendered.
+#
+# Modes mirror whitepaper-build.yml:
+#   * feature-branch push / same-repo PR -> rebuild and COMMIT changed PDFs
+#     back onto the branch (self-healing).
+#   * main push -> rebuild and FAIL if a committed PDF is stale (main only
+#     receives fresh renders via merged PRs, which already healed themselves).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/harbor-research/tex/**/*.tex'
+      - 'docs/harbor-research/figures/**/*.png'
+      - 'docs/harbor-research/figures/**/*.tex'
+      - 'docs/harbor-research/Makefile'
+      - '.github/workflows/harbor-research-build.yml'
+  pull_request:
+    paths:
+      - 'docs/harbor-research/tex/**/*.tex'
+      - 'docs/harbor-research/figures/**/*.png'
+      - 'docs/harbor-research/figures/**/*.tex'
+      - 'docs/harbor-research/Makefile'
+      - '.github/workflows/harbor-research-build.yml'
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: harbor-research-build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    # Skipped jobs report success, so this advisory/healing workflow can never
+    # hang the merge queue — same reasoning as whitepaper-build.yml.
+    if: github.event_name != 'merge_group'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container:
+      # Same digest as whitepaper-build.yml, deliberately: one TeX Live
+      # dialect across the whole repository's rendered LaTeX. Bump both
+      # pins together.
+      image: texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa5c2bce1b45a977ab27
+    steps:
+      - name: Ensure git present
+        run: command -v git >/dev/null 2>&1 || (apt-get update && apt-get install -y git)
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+          fetch-depth: 0
+
+      - name: Trust the checkout dir (container runs as root)
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Render the harbor-research corpus
+        run: make -C docs/harbor-research docs
+
+      - name: Publish the seven papers + execution reports for the site
+        run: |
+          set -euo pipefail
+          mkdir -p website-v2/public/research
+          for f in paper1 paper2 paper3 paper4 paper5 paper6 paper7 exec4 exec5; do
+            cp "docs/harbor-research/pdf/$f.pdf" "website-v2/public/research/$f.pdf"
+          done
+
+      - name: Commit rebuilt PDFs (same-repo branch)
+        if: >-
+          (github.event_name == 'push' && github.ref_name != 'main') ||
+          (github.event_name == 'pull_request' &&
+           github.event.pull_request.head.repo.full_name == github.repository)
+        env:
+          TARGET_BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: |
+          set -euo pipefail
+          case "$(git log -1 --format=%s)" in
+            "build(harbor-research): regenerate PDFs from source"*)
+              echo "HEAD is already a build commit — nothing to do."; exit 0;;
+          esac
+          if [ -z "$(git status --porcelain --untracked-files=all -- docs/harbor-research/pdf/*.pdf website-v2/public/research/*.pdf)" ]; then
+            echo "PDFs already match source — nothing to commit."; exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/harbor-research/pdf/*.pdf website-v2/public/research/*.pdf
+          echo "Changed PDFs:"; git diff --cached --stat
+          git commit -m "build(harbor-research): regenerate PDFs from source"
+          git push origin "HEAD:$TARGET_BRANCH"
+
+      - name: Freshness check (advisory on PRs, enforced on main)
+        if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref_name == 'main')
+        run: |
+          set -uo pipefail
+          if [ -z "$(git status --porcelain --untracked-files=all -- docs/harbor-research/pdf/*.pdf website-v2/public/research/*.pdf)" ]; then
+            echo "All in-scope harbor-research PDFs match a fresh render. ✔"; exit 0
+          fi
+          echo "Rendered PDFs differ from what's committed:"
+          git diff --stat -- 'docs/harbor-research/pdf/*.pdf' 'website-v2/public/research/*.pdf' || true
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_name }}" = "main" ]; then
+            echo "::error::main is serving stale harbor-research PDFs — a PR must carry"
+            echo "rebuilt PDFs (the feature-branch build commits them automatically)."
+            exit 1
+          fi
+          echo "::notice::Advisory only — PDFs are regenerated and committed on the"
+          echo "feature branch, so the merge carries fresh artifacts to main."

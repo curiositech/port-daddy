@@ -38,6 +38,7 @@ const mockReadFileSync = jest.fn();
 
 jest.unstable_mockModule('node:fs', () => ({
   existsSync: mockExistsSync,
+  readdirSync: jest.fn(() => []),
   statSync: mockStatSync,
   readFileSync: mockReadFileSync,
   writeFileSync: jest.fn(),

@@ -1,0 +1,143 @@
+name: Deploy Relay Durable Object migration (atomic, exact SHA)
+
+# Cloudflare does not allow `wrangler versions upload` when a Worker version
+# contains a pending Durable Object lifecycle change (API error 10211). Those
+# migrations are atomic and must use `wrangler deploy`. This manual lane keeps
+# that exceptional cutover narrow and auditable; ordinary releases still use
+# deploy-relay-prod.yml and its version upload/deploy rollback path.
+
+on:
+  workflow_dispatch:
+    inputs:
+      baseline_sha:
+        description: Full SHA currently represented by the production migration prefix
+        required: true
+        type: string
+      migration_sha:
+        description: Full main-ancestor SHA containing exactly one new DO lifecycle migration
+        required: true
+        type: string
+      expected_migration_tag:
+        description: Exact new Wrangler migration tag, for example v0002
+        required: true
+        type: string
+      confirm_atomic_cutover:
+        description: Confirm this deploys migration_sha directly to 100% production traffic
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+# Serialize with the ordinary production release workflow. A lifecycle cutover
+# and a gradual deployment must never race for the same Worker script.
+concurrency:
+  group: deploy-relay-prod
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      github.repository == 'curiositech/port-daddy' &&
+      github.ref == 'refs/heads/main' &&
+      inputs.confirm_atomic_cutover
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/relay/package-lock.json
+
+      - name: Validate exact-SHA lifecycle boundary
+        env:
+          BASELINE_SHA: ${{ inputs.baseline_sha }}
+          MIGRATION_SHA: ${{ inputs.migration_sha }}
+          EXPECTED_MIGRATION_TAG: ${{ inputs.expected_migration_tag }}
+        run: |
+          git fetch --no-tags origin main
+          node scripts/check-relay-do-migration-boundary.mjs \
+            "$BASELINE_SHA" "$MIGRATION_SHA" "$EXPECTED_MIGRATION_TAG" \
+            | tee "${RUNNER_TEMP}/relay-do-boundary.json"
+          git checkout --detach "$MIGRATION_SHA"
+          test "$(git rev-parse HEAD)" = "$MIGRATION_SHA"
+
+      - name: Install locked Relay dependencies
+        working-directory: apps/relay
+        run: npm ci
+
+      - name: Typecheck isolated migration commit
+        working-directory: apps/relay
+        run: npx tsc --noEmit -p tsconfig.json
+
+      - name: Test isolated migration commit
+        working-directory: apps/relay
+        run: npx vitest run
+
+      - name: Prove production matches the submitted baseline
+        working-directory: apps/relay
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BASELINE_SHA: ${{ inputs.baseline_sha }}
+        run: |
+          npx wrangler deployments status --config wrangler.deploy.toml --env="" \
+            --json > current-deployment.json
+          version_id="$(jq -r \
+            'if (.versions | length) == 1 and .versions[0].percentage == 100
+             then .versions[0].version_id else empty end' \
+            current-deployment.json)"
+          test -n "$version_id"
+          npx wrangler versions view "$version_id" \
+            --config wrangler.deploy.toml --env="" --json > current-version.json
+          baseline_tag="$(jq -r '.baselineMigrationTag // empty' \
+            "${RUNNER_TEMP}/relay-do-boundary.json")"
+          test -n "$baseline_tag"
+          jq -e --arg sha "$BASELINE_SHA" --arg tag "$baseline_tag" \
+            '(.annotations["workers/message"] | contains("(" + $sha + ")")) and
+             .resources.script_runtime.migration_tag == $tag' \
+            current-version.json
+
+      - name: Apply atomic Durable Object lifecycle migration
+        id: deploy
+        working-directory: apps/relay
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          MIGRATION_SHA: ${{ inputs.migration_sha }}
+          EXPECTED_MIGRATION_TAG: ${{ inputs.expected_migration_tag }}
+          WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/wrangler-deploy.ndjson
+        run: |
+          short_sha="${MIGRATION_SHA:0:12}"
+          npx wrangler deploy --config wrangler.deploy.toml --env="" \
+            --strict \
+            --tag "do-${EXPECTED_MIGRATION_TAG}-${short_sha}" \
+            --message "atomic DO migration ${EXPECTED_MIGRATION_TAG} (${MIGRATION_SHA})"
+          version_id="$(jq -r 'select(.type == "deploy") | .version_id' \
+            "$WRANGLER_OUTPUT_FILE_PATH" | tail -1)"
+          test -n "$version_id" && test "$version_id" != "null"
+          echo "version_id=$version_id" >> "$GITHUB_OUTPUT"
+
+      - name: Read back production health and deployment
+        working-directory: apps/relay
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DEPLOYED_VERSION_ID: ${{ steps.deploy.outputs.version_id }}
+        run: |
+          curl --fail --silent --show-error --retry 5 --retry-all-errors \
+            --retry-delay 2 https://relay.portdaddy.dev/health \
+            | jq -e '.status == "ok"'
+          npx wrangler deployments status --config wrangler.deploy.toml --env="" \
+            --json > current-deployment.json
+          jq -e --arg id "$DEPLOYED_VERSION_ID" \
+            '(.versions | length) == 1 and
+             .versions[0].version_id == $id and
+             .versions[0].percentage == 100' \
+            current-deployment.json

@@ -7,7 +7,7 @@
     "recoveredAt": "2026-04-17T02:52:24-07:00",
     "recoveredFrom": "/Users/erichowens/coding/workgroup-ai/.claude/worktrees/agent-aa6fba4b/skills/steel-man-argument",
     "worktree": "agent-aa6fba4b",
-    "ctaOverlay": "/Users/erichowens/coding/workgroup-ai/.windags/cta-upgrades/steel-man-argument/after.md",
+    "ctaOverlay": "/Users/erichowens/coding/workgroup-ai/.skill-runtime-archive/cta-upgrades/steel-man-argument/after.md",
     "owners": [
       "some-claude-skills"
     ]

@@ -6,17 +6,22 @@ name: Whitepaper PDF Build & Deploy
 # render (retired cinnabar) eight days after the source moved to cobalt.
 #
 # Modes:
-#   * feature-branch push -> rebuild and COMMIT any changed PDFs back to the
-#       branch, so the merge carries fresh artifacts and the next
-#       deploy-website-v2 run (push to main) serves them.
-#   * PR -> rebuild as an advisory check (always green if it compiles); the
-#       feature-branch push above is what actually heals stale PDFs.
+#   * configured feature-branch push -> rebuild and COMMIT changed PDFs.
+#   * same-repository PR -> rebuild and COMMIT changed PDFs to the PR head;
+#       fork PRs remain advisory because their token is read-only.
 #   * main push -> rebuild and FAIL if a committed PDF is stale, since main is
 #       protected and should only ever receive fresh PDFs via merged PRs.
 #
-# Builds are reproducible (scripts/build-whitepapers.sh pins SOURCE_DATE_EPOCH
-# per paper), so a byte difference means a genuine source change, not timestamp
-# noise.
+# Builds are reproducible WITHIN one renderer version: build-whitepapers.sh pins
+# SOURCE_DATE_EPOCH per paper, so rebuilding unchanged source in the same
+# container is byte-identical, and timestamp noise is fully excluded.
+#
+# They are NOT reproducible ACROSS renderer versions. This job runs in
+# `texlive/texlive:latest`, a floating tag, and a TeX Live package update
+# changes output on its own: on 2026-08-18 a PGF/TikZ update emitted line widths
+# as `0.39851` where the 2026-08-05 render emitted `0.3985`. So a byte
+# difference does NOT by itself mean a genuine source change, and the build step
+# below deliberately restores artifacts whose TeX sources did not move.
 
 on:
   push:
@@ -25,13 +30,24 @@ on:
       - 'website-v2/public/whitepaper/**/*.tex'
       - 'whitepaper/**/*.tex'
       - 'scripts/build-whitepapers.sh'
+      - 'scripts/generate-mega-whitepaper.mjs'
+      - 'whitepaper/textbook.json'
+      - 'website-v2/public/whitepaper/plates/**'
       - '.github/workflows/whitepaper-build.yml'
   pull_request:
     paths:
       - 'website-v2/public/whitepaper/**/*.tex'
       - 'whitepaper/**/*.tex'
       - 'scripts/build-whitepapers.sh'
+      - 'scripts/generate-mega-whitepaper.mjs'
+      - 'whitepaper/textbook.json'
+      - 'website-v2/public/whitepaper/plates/**'
       - '.github/workflows/whitepaper-build.yml'
+  # Merge queue: trigger so this workflow reports a check context on the queued
+  # group. The `build` job is SKIPPED on merge_group (see its `if:`), and a
+  # skipped job reports success — so this healing/advisory workflow can never
+  # hang the merge queue, and no 30-min TeXLive build runs inside the queue.
+  merge_group:
   workflow_dispatch:
 
 permissions:
@@ -43,10 +59,25 @@ concurrency:
 
 jobs:
   build:
+    # Skip on merge_group — a skipped job reports success, keeping the merge
+    # queue from ever hanging on this workflow. This is a healing/advisory
+    # workflow (it commits regenerated PDFs on feature-branch push and is
+    # advisory on PRs), so it should not gate merges; skipping in the queue
+    # keeps it queue-safe even if it is ever added to required checks.
+    if: github.event_name != 'merge_group'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     container:
-      image: texlive/texlive:latest
+      # Pinned by digest, not by tag. `texlive/texlive:latest` moves: it was
+      # republished 2026-08-16, and the PGF/TikZ update that came with it began
+      # emitting line widths as `0.39851` where the 2026-08-05 render emitted
+      # `0.3985` — rewriting five PDFs whose sources had not changed and breaking
+      # the Chapter III digests pinned on main. SOURCE_DATE_EPOCH pinning cannot
+      # help with that; only pinning the renderer can.
+      #
+      # To upgrade deliberately: change this digest, and expect every published
+      # PDF and every digest that pins one to move in the same commit.
+      image: texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa5c2bce1b45a977ab27
     steps:
       - name: Ensure git present
         run: command -v git >/dev/null 2>&1 || (apt-get update && apt-get install -y git)
@@ -59,16 +90,107 @@ jobs:
           ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 0
 
+      # The TeX container has no JavaScript runtime; generate the Book's body,
+      # front-matter map, and bibliography from the canonical chapter sources
+      # and whitepaper/textbook.json first.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Trust the checkout dir (container runs as root)
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - name: Build all whitepaper PDFs
-        run: bash scripts/build-whitepapers.sh
+      - name: Build in-scope whitepaper PDFs reproducibly
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          base=""
+          case "$EVENT_NAME" in
+            pull_request) base="$PR_BASE_SHA" ;;
+            push) base="$PUSH_BEFORE_SHA" ;;
+          esac
+          # Detected before anything is built, because a renderer change has to
+          # drive BOTH decisions below: it forces a full rebuild (no TeX source
+          # moved, so the incremental path would build nothing at all and the
+          # re-pin would land with stale artifacts), and it stands the restore
+          # down (no TeX source moved, so the restore would revert the whole
+          # re-render). Miss either and the repository can never adopt a new
+          # TeX Live.
+          renderer_changed=0
+          if [ -n "$base" ] && git cat-file -e "$base^{commit}" 2>/dev/null; then
+            if git diff "$base"...HEAD -- .github/workflows/whitepaper-build.yml \
+               | grep -qE '^[-+][[:space:]]*image:[[:space:]]*texlive/texlive'; then
+              renderer_changed=1
+              echo "::notice::Renderer pin changed — rebuilding every paper and keeping the fresh renders."
+            fi
+          fi
 
-      - name: Commit rebuilt PDFs (feature-branch push)
-        # Auto-commit only on feature branches. main is protected and receives
-        # fresh PDFs through merged PRs, so we never push to it from CI.
-        if: github.event_name == 'push' && github.ref_name != 'main'
+          build_papers() {
+            if [ "$renderer_changed" = "1" ]; then
+              bash scripts/build-whitepapers.sh
+              return
+            fi
+            # PRs and pushes rebuild only papers whose transitive TeX inputs
+            # changed. A builder change intentionally rebuilds the full set,
+            # because it can alter every artifact. Manual runs also build all.
+            if [ -n "$base" ] && [ "$base" != "0000000000000000000000000000000000000000" ] \
+               && git cat-file -e "$base^{commit}" 2>/dev/null; then
+              if git diff --quiet "$base"...HEAD -- scripts/build-whitepapers.sh; then
+                bash scripts/build-whitepapers.sh --changed-since "$base"
+              else
+                bash scripts/build-whitepapers.sh
+              fi
+            else
+              bash scripts/build-whitepapers.sh
+            fi
+          }
+
+          build_papers
+          hash_file="$RUNNER_TEMP/whitepaper-pdfs.sha256"
+          sha256sum website-v2/public/whitepaper/*.pdf > "$hash_file"
+          build_papers
+          sha256sum --check "$hash_file"
+
+          # A builder change forces the full rebuild above so the determinism
+          # check covers every artifact. It must not also COMMIT artifacts the
+          # change had no source-level reason to touch: the renderer is only
+          # byte-stable within one TeX Live version, so a full rebuild restates
+          # every untouched paper in the current container's dialect. On
+          # 2026-08-18 that silently rewrote five unrelated PDFs and broke the
+          # Chapter III digests pinned on main, red-looping this PR. Restore
+          # anything whose transitive TeX sources did not move; a paper that
+          # really did change still ships its fresh render.
+          # NB: this step runs under the container's /bin/sh (dash), not bash, so
+          # no process substitution — the list goes through a temp file.
+          if [ "$renderer_changed" = "0" ] && [ -n "$base" ] && git cat-file -e "$base^{commit}" 2>/dev/null; then
+            unchanged_list="$RUNNER_TEMP/whitepaper-unchanged.txt"
+            bash scripts/build-whitepapers.sh --list-unchanged-since "$base" > "$unchanged_list"
+            restored=0
+            while IFS= read -r pdf; do
+              [ -n "$pdf" ] || continue
+              git diff --quiet -- "$pdf" && continue
+              git checkout -- "$pdf"
+              echo "restored $pdf (no TeX source changed since $base)"
+              restored=$((restored + 1))
+            done < "$unchanged_list"
+            if [ "$restored" -gt 0 ]; then
+              echo "::notice::Restored $restored PDF(s) that the full rebuild restated without any source change (renderer drift)."
+            fi
+          fi
+
+      - name: Commit rebuilt PDFs (same-repo branch)
+        # Heal configured feature-branch pushes and same-repository PR heads.
+        # Fork PRs retain a read-only token and stay advisory; main is protected
+        # and receives the already-healed artifact through the merge queue.
+        if: >-
+          (github.event_name == 'push' && github.ref_name != 'main') ||
+          (github.event_name == 'pull_request' &&
+           github.event.pull_request.head.repo.full_name == github.repository)
+        env:
+          TARGET_BRANCH: ${{ github.head_ref || github.ref_name }}
         run: |
           set -euo pipefail
           # Loop-breaker: never stack a second build commit on our own. This
@@ -79,7 +201,7 @@ jobs:
             "build(whitepaper): regenerate PDFs from source"*)
               echo "HEAD is already a build commit — nothing to do."; exit 0;;
           esac
-          if git diff --quiet -- 'website-v2/public/whitepaper/*.pdf'; then
+          if [ -z "$(git status --porcelain --untracked-files=all -- website-v2/public/whitepaper/*.pdf)" ]; then
             echo "PDFs already match source — nothing to commit."; exit 0
           fi
           git config user.name  "github-actions[bot]"
@@ -87,15 +209,16 @@ jobs:
           git add website-v2/public/whitepaper/*.pdf
           echo "Changed PDFs:"; git diff --cached --stat
           git commit -m "build(whitepaper): regenerate PDFs from source"
-          git push origin "HEAD:${{ github.ref_name }}"
+          git push origin "HEAD:$TARGET_BRANCH"
 
       - name: Freshness check (advisory on PRs, enforced on main)
-        # Skipped on feature-branch pushes (the step above already heals those).
+        # Feature-branch pushes are skipped; PRs verify the clean worktree after
+        # the healing commit above, while forks remain advisory.
         if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref_name == 'main')
         run: |
           set -uo pipefail
-          if git diff --quiet -- 'website-v2/public/whitepaper/*.pdf'; then
-            echo "All published PDFs match a fresh render. ✔"; exit 0
+          if [ -z "$(git status --porcelain --untracked-files=all -- website-v2/public/whitepaper/*.pdf)" ]; then
+            echo "All in-scope published PDFs match a fresh render. ✔"; exit 0
           fi
           echo "Published PDFs differ from a fresh render of current source:"
           git diff --stat -- 'website-v2/public/whitepaper/*.pdf' || true
@@ -106,3 +229,116 @@ jobs:
           fi
           echo "::notice::Advisory only — PDFs are regenerated and committed on the"
           echo "feature branch, so the merge carries fresh artifacts to main."
+
+  figure-gates:
+    # Born from the PR #10069 review: figcheck.py existed and caught real
+    # mechanical failures (a line through text, content off the page, text
+    # below the print floor), but nothing in CI ran it. This job compiles
+    # only what a PR actually touches (plus every fragment blockers.json
+    # already knows about), under the Book's own preamble — the only
+    # context a chapter figure is actually printed in — and fails on a T1-T5
+    # finding unless docs/harbor-research/exposition/figures/blockers.json
+    # already waives it. It never touches a TikZ fragment itself; it only
+    # reads and reports. Runs on ubuntu-latest, not the texlive container:
+    # compile_fragment.sh drives tectonic, a different, self-contained TeX
+    # engine, not the pdflatex/xelatex the texlive image ships.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install figure-QA Python dependencies (PyMuPDF, Pillow)
+        run: pip install --quiet pymupdf pillow
+
+      - name: Determine whether this PR touches figure-gates scope
+        id: scope
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          touched="$(git diff --name-only "$BASE_SHA"...HEAD -- \
+            'whitepaper/figures/**' \
+            'website-v2/public/whitepaper/figures/**' \
+            'whitepaper/*.tex' \
+            'website-v2/public/whitepaper/*.tex' || true)"
+          if [ -n "$touched" ]; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+            echo "PR touches figure-gates scope:"
+            echo "$touched"
+          else
+            echo "relevant=false" >> "$GITHUB_OUTPUT"
+            echo "PR touches none of the figure/chapter paths — skipping."
+          fi
+
+      - name: Install tectonic
+        if: steps.scope.outputs.relevant == 'true'
+        run: |
+          set -euo pipefail
+          curl --proto '=https' --tlsv1.2 -fsSL https://drop-sh.fullyjustified.net | sh
+          echo "TECTONIC=$PWD/tectonic" >> "$GITHUB_ENV"
+
+      - name: Determine which fragments to compile (changed in this PR, plus every current blocker)
+        if: steps.scope.outputs.relevant == 'true'
+        id: fragments
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          changed="$(git diff --name-only "$BASE_SHA"...HEAD -- whitepaper/figures website-v2/public/whitepaper/figures \
+            | grep -E '\.tex$' | xargs -r -n1 basename | sed 's/\.tex$//' || true)"
+          blocked="$(python3 -c "import json; print(chr(10).join(e['id'] for e in json.load(open('docs/harbor-research/exposition/figures/blockers.json'))))")"
+          { printf '%s\n' "$changed"; printf '%s\n' "$blocked"; } | grep -v '^$' | sort -u > /tmp/figure-gate-scope.txt
+          count="$(wc -l < /tmp/figure-gate-scope.txt)"
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          echo "compiling $count fragment(s):"
+          cat /tmp/figure-gate-scope.txt
+
+      - name: Compile each in-scope fragment under the Book preamble and run figcheck
+        if: steps.scope.outputs.relevant == 'true' && steps.fragments.outputs.count != '0'
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/figure-gate/pdf /tmp/figure-gate/json
+          while IFS= read -r stem; do
+            [ -n "$stem" ] || continue
+            frag=""
+            for d in whitepaper/figures website-v2/public/whitepaper/figures docs/harbor-research/figures; do
+              if [ -f "$d/$stem.tex" ]; then frag="$d/$stem.tex"; break; fi
+            done
+            if [ -z "$frag" ]; then
+              echo "::notice::$stem has no fragment on disk (already retired) — skipping compile"
+              continue
+            fi
+            skills/harbor-chartwork/scripts/compile_fragment.sh "$frag" --preamble book --out /tmp/figure-gate/pdf
+            python3 skills/harbor-chartwork/scripts/figcheck.py "/tmp/figure-gate/pdf/$stem.pdf" \
+              --textwidth-cm 11.43 --json "/tmp/figure-gate/json/$stem.json"
+          done < /tmp/figure-gate-scope.txt
+
+      - name: Build a contact sheet of every compiled fragment
+        if: steps.scope.outputs.relevant == 'true' && steps.fragments.outputs.count != '0'
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          pdfs=(/tmp/figure-gate/pdf/*.pdf)
+          if [ "${#pdfs[@]}" -gt 0 ]; then
+            python3 skills/harbor-chartwork/scripts/contact_sheet.py "${pdfs[@]}" --out /tmp/figure-gate/contact-sheet.png
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.scope.outputs.relevant == 'true'
+        with:
+          name: figure-gate-results
+          path: |
+            /tmp/figure-gate/json/*.json
+            /tmp/figure-gate/contact-sheet.png
+          if-no-files-found: ignore
+
+      - name: Fail on any unwaived T1-T5 failure
+        if: steps.scope.outputs.relevant == 'true' && steps.fragments.outputs.count != '0'
+        run: python3 scripts/harbor-research/check_figure_gate_results.py --results-dir /tmp/figure-gate/json

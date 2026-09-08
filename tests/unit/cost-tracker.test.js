@@ -216,13 +216,15 @@ describe('CostTracker', () => {
   });
 
   test('haiku model rate applied correctly', () => {
-    // Haiku: $0.80 input / $4.00 output per 1M
-    // 10000 input + 2000 output = $0.008 + $0.008 = $0.016
+    // Haiku 4.5: $1.00 input / $5.00 output per 1M (vendor rate; the table
+    // previously carried a stale $0.80/$4.00, corrected in the 2026-08-23
+    // canonical-registry supplant).
+    // 10000 input + 2000 output = $0.010 + $0.010 = $0.020
     const { costUsd, isEstimate } = costTracker.computeCost(
       'claude', 'claude-haiku-4-5', 10000, 2000
     );
     expect(isEstimate).toBe(false);
-    expect(costUsd).toBeCloseTo(0.016, 5);
+    expect(costUsd).toBeCloseTo(0.020, 5);
   });
 
   // ── claude-cli tier shorthands (opus/sonnet/haiku) ───────────────────────
@@ -659,5 +661,74 @@ describe('CostTracker', () => {
 
     expect(isEstimate).toBe(true);
     expect(costUsd).toBeGreaterThan(0);
+  });
+
+  // ── BUG 2 (2026-07-14 halt-mandate): CostAccrualEvent wired to metered ──────
+  //     spawns; flat-rate CLI subscriptions exempt.
+  //
+  // ADR-0095 cost-accrual (lib/agent-harbor) had ZERO production writers, so the
+  // harbor_events ledger was ALWAYS empty. record() now appends a durable
+  // CostAccrualEvent for every METERED backend and skips flat-rate CLI
+  // subscriptions (which have $0 marginal cost — a cost fact for them is a
+  // fiction). These tests read harbor_events directly to prove the wiring.
+  describe('BUG 2 — record() appends CostAccrualEvent for metered backends only', () => {
+    function countAccrualEvents() {
+      try {
+        return db
+          .prepare("SELECT COUNT(*) AS c FROM harbor_events WHERE stream_type = 'cost-accrual-event'")
+          .get().c;
+      } catch {
+        // No harbor_events table = nothing was ever appended = 0.
+        return 0;
+      }
+    }
+
+    test('a metered cloudflare call appends exactly one CostAccrualEvent', () => {
+      costTracker.record({
+        backend: 'cloudflare', model: '@cf/openai/gpt-oss-120b',
+        projectName: 'p', spawnId: 'agent-x', inputTokens: 1000, outputTokens: 500,
+      });
+      expect(countAccrualEvents()).toBe(1);
+    });
+
+    test('a metered direct-anthropic call appends a CostAccrualEvent', () => {
+      costTracker.record({
+        backend: 'claude', model: 'claude-sonnet-4-6',
+        projectName: 'p', spawnId: 'agent-y', inputTokens: 200, outputTokens: 100,
+      });
+      expect(countAccrualEvents()).toBe(1);
+    });
+
+    test('a flat-rate cli:claude-code call appends NO CostAccrualEvent', () => {
+      costTracker.record({
+        backend: 'cli:claude-code', model: 'claude-sonnet-4-6',
+        projectName: 'p', spawnId: 'agent-z',
+      });
+      expect(countAccrualEvents()).toBe(0);
+    });
+
+    test('a flat-rate cli:codex call appends NO CostAccrualEvent', () => {
+      costTracker.record({
+        backend: 'cli:codex', model: 'gpt-5-codex', projectName: 'p', spawnId: 'agent-w',
+      });
+      expect(countAccrualEvents()).toBe(0);
+    });
+
+    test('a metered call WITHOUT a spawnId appends no event (unattributable to an agent node)', () => {
+      costTracker.record({
+        backend: 'openai', model: 'gpt-5-mini', projectName: 'p',
+        inputTokens: 50, outputTokens: 20,
+      });
+      expect(countAccrualEvents()).toBe(0);
+    });
+
+    test('the primary cost_events row is still written for a flat-rate call (accrual is additive)', () => {
+      costTracker.record({
+        backend: 'cli:codex', model: 'gpt-5-codex', projectName: 'p', spawnId: 'agent-a',
+      });
+      const c = db.prepare('SELECT COUNT(*) AS c FROM cost_events').get().c;
+      expect(c).toBe(1);
+      expect(countAccrualEvents()).toBe(0);
+    });
   });
 });

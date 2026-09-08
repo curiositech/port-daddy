@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { parseFleetShips, defaultPRShips, resolveCfModel } from '../src/fleet.js';
+import { parseFleetShips, parseFleetSquidEvents, defaultPRShips, resolveCfModel } from '../src/fleet.js';
+import { CF_ADMITTED_MODELS, CF_ROLE_MODELS } from '../../shared/model-registry.generated.js';
 
 // The REAL pd-fleet.yml at the repo root (apps/fleet-executor/tests → ../../..).
 const REAL_YAML = readFileSync(
@@ -96,16 +97,25 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
     expect(lookout!.prompt.toLowerCase()).toContain('branch');
   });
 
-  it('routes the expensive gpt-oss-120b to the CODE REVIEW BOT only; everything else cheap qwen3-30b', () => {
-    // Operator directive: gpt-oss-120b is pricey — review bot only, nothing else.
-    //   - code-reviewer (pins kimi, not honored) → CODER = gpt-oss-120b.
-    //   - qa / red-team (pin gpt-oss, not honored) → the cheap default qwen3-30b.
+  it('honors deliberate premium pins (code-reviewer kimi, red-team 120b); qa stays cheap', () => {
+    // Operator recalibration 2026-08-22: the known-good set guards against
+    // silent-blank ids, not price. A ship's DECLARED verified pin is honored —
+    // code-reviewer's kimi-k2.7-code and red-team's gpt-oss-120b used to be
+    // silently remapped down, which made pd-fleet.yml lie about what ran. The
+    // stale gpt-oss-120b pins on the cheap-tier ships (qa and friends) were
+    // truthed-up to the cheap id in the same change, so cheap ships stay cheap
+    // by CONFIG rather than by a guard overriding config.
     const reviewer = ships!.find(s => s.name === 'code-reviewer');
-    expect(reviewer!.cfModel).toBe('@cf/openai/gpt-oss-120b');
+    expect(reviewer!.cfModel).toBe('@cf/zai-org/glm-5.2');
+    // qa moved to the agentic 30B specialist (same cost class, 4x context,
+    // 59.2% vs 22% SWE-bench over qwen3-30b) in the 2026-08-22 repertoire
+    // expansion; spark stays on qwen3-30b as the A/B control population.
     const qa = ships!.find(s => s.name === 'qa');
-    expect(qa!.cfModel).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+    expect(qa!.cfModel).toBe('@cf/zai-org/glm-4.7-flash');
+    const spark = ships!.find(s => s.name === 'spark');
+    expect(spark!.cfModel).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
     const redTeam = ships!.find(s => s.name === 'red-team');
-    expect(redTeam!.cfModel).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+    expect(redTeam!.cfModel).toBe('@cf/deepseek-ai/deepseek-v4-pro-0813');
   });
 });
 
@@ -114,12 +124,19 @@ describe('resolveCfModel — the empty-model guard', () => {
     expect(resolveCfModel('@cf/qwen/qwen3-30b-a3b-fp8')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
   });
 
-  it('remaps any non-honored id (gpt-oss/kimi/qwen-coder/unknown) to the cheap fallback', () => {
-    // gpt-oss reaches the review bot by ROLE, never by pin — so a bare pin of it
-    // (or any other id) is remapped to the cheap model, never the pricey one.
-    expect(resolveCfModel('@cf/openai/gpt-oss-120b')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
-    expect(resolveCfModel('@cf/moonshotai/kimi-k2.7-code')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
-    expect(resolveCfModel('@cf/qwen/qwen2.5-coder-32b-instruct')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+  it('passes through every verified id; remaps unverified ones to the cheap fallback', () => {
+    // The set guards existence, not price (2026-08-22): a verified premium id
+    // is honored, while an id with no verified catalog + rate + context entry
+    // is remapped — a nonexistent Workers AI id returns blank, not an error,
+    // and a blank reads as "clean" (#654).
+    expect(resolveCfModel('@cf/openai/gpt-oss-120b')).toBe('@cf/openai/gpt-oss-120b');
+    expect(resolveCfModel('@cf/moonshotai/kimi-k2.7-code')).toBe('@cf/moonshotai/kimi-k2.7-code');
+    expect(resolveCfModel('@cf/openai/gpt-oss-20b')).toBe('@cf/openai/gpt-oss-20b');
+    // Full-universe admission: qwen2.5-coder is verified+priced, so it now
+    // passes through too. Only unverified ids remap.
+    expect(resolveCfModel('@cf/qwen/qwen2.5-coder-32b-instruct')).toBe('@cf/qwen/qwen2.5-coder-32b-instruct');
+    // The #654 phantom tombstone stays OUT until a witnessed live call.
+    expect(resolveCfModel('@cf/moonshotai/kimi-k2.6')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
     expect(resolveCfModel('@cf/some/nonexistent-model')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
   });
 });
@@ -243,6 +260,39 @@ describe('parseFleetShips — model derivation + blocking coercion', () => {
   });
 });
 
+describe('parseFleetSquidEvents — tenancy consent for fleet-cloud events', () => {
+  it('defaults to false when the key is absent', () => {
+    expect(parseFleetSquidEvents('fleet:\n  agents: {}\n')).toBe(false);
+  });
+
+  it('is true only for an explicit squidEvents: true under fleet:', () => {
+    expect(parseFleetSquidEvents('fleet:\n  squidEvents: true\n  agents: {}\n')).toBe(true);
+    // String 'true' also opts in (same coercion rules as `blocking:`).
+    expect(parseFleetSquidEvents("fleet:\n  squidEvents: 'true'\n")).toBe(true);
+  });
+
+  it('rejects every not-quite-true value (fail-closed consent)', () => {
+    expect(parseFleetSquidEvents('fleet:\n  squidEvents: false\n')).toBe(false);
+    // NOTE: bare `yes` parses to boolean true only in YAML 1.1; the `yaml`
+    // package (1.2 core schema) yields the string 'yes' — not consent.
+    expect(parseFleetSquidEvents('fleet:\n  squidEvents: yes\n')).toBe(false);
+    expect(parseFleetSquidEvents('fleet:\n  squidEvents: 1\n')).toBe(false);
+    expect(parseFleetSquidEvents('fleet:\n  squidEvents: "TRUE"\n')).toBe(false);
+    expect(parseFleetSquidEvents('fleet:\n  squidEvents:\n')).toBe(false);
+  });
+
+  it('is false for a top-level squidEvents outside fleet:, unparseable docs, and empty docs', () => {
+    expect(parseFleetSquidEvents('squidEvents: true\n')).toBe(false);
+    expect(parseFleetSquidEvents(':::not yaml:::\n  - [')).toBe(false);
+    expect(parseFleetSquidEvents('')).toBe(false);
+    expect(parseFleetSquidEvents('fleet: 7\n')).toBe(false);
+  });
+
+  it('the REAL pd-fleet.yml opts Port Daddy itself in', () => {
+    expect(parseFleetSquidEvents(REAL_YAML)).toBe(true);
+  });
+});
+
 describe('defaultPRShips fallback', () => {
   it('returns real ships with non-empty prompts (code-reviewer + qa present)', () => {
     const ships = defaultPRShips();
@@ -250,5 +300,39 @@ describe('defaultPRShips fallback', () => {
     expect(names.has('code-reviewer')).toBe(true);
     expect(names.has('qa')).toBe(true);
     for (const s of ships) expect(s.prompt.trim().length).toBeGreaterThan(0);
+  });
+});
+
+describe('ship-level pins: both spellings, and admission at the resolver', () => {
+  const purser = (pin: string) =>
+    parseFleetShips(
+      `fleet:\n  agents:\n    purser:\n      class: purser\n      trigger: pull_request:opened\n${pin}\n      prompt: |\n        anything.\n`,
+      'pull_request:opened',
+    )!.find((s) => s.name === 'purser')!;
+
+  // EVERY fixture here pins something DIFFERENT from the ship default on
+  // purpose. A regression in this exact function hid behind a fixture that
+  // pinned the default value: the pin was being dropped entirely, and the
+  // assertion still passed because the fallback produced the same id. A pin
+  // test whose expected value equals the default proves nothing.
+  it('honors a ship-level `model:` literal — pd-fleet.yml\'s spelling', () => {
+    expect(CF_ROLE_MODELS.reviewBot).not.toBe(CF_ROLE_MODELS.shipDefault);
+    expect(purser(`      model: '${CF_ROLE_MODELS.reviewBot}'`).cfModel).toBe(
+      CF_ROLE_MODELS.reviewBot,
+    );
+  });
+
+  it('honors a ship-level `cf_role:` token', () => {
+    expect(purser('      cf_role: reviewBot').cfModel).toBe(CF_ROLE_MODELS.reviewBot);
+  });
+
+  it('drops an unadmitted role rather than running it', () => {
+    // `embed` resolves to a real catalogued model the fleet must never run: the
+    // ideas-store index would return vectors where a review should be. The
+    // resolver refuses it, so the ship falls back rather than being handed it.
+    expect(CF_ADMITTED_MODELS).not.toContain(CF_ROLE_MODELS.embed);
+    const cfModel = purser('      cf_role: embed').cfModel;
+    expect(cfModel).not.toBe(CF_ROLE_MODELS.embed);
+    expect(CF_ADMITTED_MODELS).toContain(cfModel);
   });
 });

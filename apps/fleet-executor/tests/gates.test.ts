@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isDocsOnly, decideShipGate } from '../src/gates.js';
+import { isDocsOnly, decideShipGate, isReviewableForBugs } from '../src/gates.js';
 import type { ShipConfig } from '../src/fleet.js';
 
 const ship = (over: Partial<ShipConfig>): ShipConfig => ({
@@ -13,6 +13,10 @@ const ship = (over: Partial<ShipConfig>): ShipConfig => ({
   blocking: false,
   needsExecution: false,
   ideation: false,
+  purser: false,
+  blockWithoutSandbox: false,
+  testPaths: [],
+  graft: [],
   ...over,
 });
 
@@ -28,6 +32,29 @@ describe('isDocsOnly', () => {
   });
   it('false for an empty diff', () => {
     expect(isDocsOnly([])).toBe(false);
+  });
+});
+
+describe('isReviewableForBugs', () => {
+  it('excludes generated Porthole artifacts and raw terminal recordings from model input', () => {
+    expect(
+      isReviewableForBugs(
+        'docs/artifacts/porthole-harness-proof-v2/harness-proof-current.html',
+      ),
+    ).toBe(false);
+    expect(
+      isReviewableForBugs('docs/artifacts/porthole-harness-proof-v2/parley-source.cast'),
+    ).toBe(false);
+    expect(isReviewableForBugs('website-v2/public/casts/porthole/collision.cast')).toBe(false);
+  });
+
+  it('excludes only the docs/artifacts directory, not same-prefix authored files', () => {
+    expect(isReviewableForBugs('docs/artifacts/porthole-harness-proof-v2/receipt.json')).toBe(false);
+    expect(isReviewableForBugs('docs/artifacts.txt')).toBe(true);
+  });
+
+  it('keeps authored source reviewable after evidence is excluded', () => {
+    expect(isReviewableForBugs('apps/fleet-executor/src/execute.ts')).toBe(true);
   });
 });
 
@@ -54,6 +81,17 @@ describe('decideShipGate', () => {
     const off = decideShipGate(rt, CODE, false);
     expect(off.run).toBe(false);
     expect(off.reason).toMatch(/surface not touched/);
+  });
+
+  it('red-team runs on key-wrap/vault crypto surfaces (PRs #9873, #9882 real diffs)', () => {
+    // Regression: none of these paths contained crypto|sign|verify|hash|token|
+    // secret|auth|capabilit, so red-team silently never spawned on either PR —
+    // the exact gap that made it look broken. key|vault|wrap|hpke close it.
+    const rt = ship({ name: 'red-team', blocking: true });
+    expect(decideShipGate(rt, ['core/kernel/pd-vault/src/hpke.rs'], false).run).toBe(true);
+    expect(decideShipGate(rt, ['core/kernel/pd-vault/src/keys.rs'], false).run).toBe(true);
+    expect(decideShipGate(rt, ['apps/relay/src/device-keys.ts'], false).run).toBe(true);
+    expect(decideShipGate(rt, ['apps/relay/migrations/2026-08-26-b3-device-keys.sql'], false).run).toBe(true);
   });
 
   it('tautology-sniffer runs only when the diff touches test files', () => {

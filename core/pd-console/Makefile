@@ -8,6 +8,7 @@
 #   make repl       → the headless TUI console (no GPU; builds anywhere)
 #   make shots      → capture window screenshots (needs Screen Recording perm)
 #   make proof      → off-screen visual proof: per-pane stills + a video clip
+#   make proof-check→ deterministic receipt/dry-run smoke for proof harness
 #   make proof-setup→ one-time virtual-display + permission setup (interactive)
 #   make headless-capture → Block-model PNG, NO window/display/TCC (agent-safe)
 #   make displays   → list the displays pd-console can target (for --display)
@@ -20,7 +21,7 @@
 .DEFAULT_GOAL := run
 DEVBUILD ?= harness-roster
 
-.PHONY: run dev install devapp repl shots proof proof-setup headless-capture displays test check help
+.PHONY: run dev install devapp repl shots proof proof-check proof-setup headless-capture displays test check help
 
 run: ## Build (release) and launch the native window
 	cargo run --release --features gpui --bin pd-console
@@ -43,6 +44,9 @@ shots: ## Capture window screenshots into docs/artifacts/gpui (needs Screen Reco
 proof: ## Off-screen visual proof — per-pane stills + a video clip on a virtual display
 	./scripts/proof/capture-proof.sh
 
+proof-check: ## Deterministic dry-run receipt smoke for the proof harness
+	./scripts/proof/check-capture-proof.sh
+
 proof-setup: ## One-time setup: create a virtual display + grant Screen Recording (interactive)
 	./scripts/proof/setup-virtual-display.sh
 
@@ -59,4 +63,4 @@ check: ## Type-check the Linux/CI path (no gpui)
 	cargo check
 
 help: ## Show this help
-	@grep -E '^[a-z]+:.*##' $(MAKEFILE_LIST) | sed 's/:.*## /\t/' | sort
+	@grep -E '^[a-zA-Z0-9_-]+:.*##' $(MAKEFILE_LIST) | sed 's/:.*## /\t/' | sort

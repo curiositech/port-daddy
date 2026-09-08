@@ -8,9 +8,18 @@
  */
 
 import { request } from '../helpers/integration-setup.js';
+import { registerTestActorVia } from '../helpers/actor-credentials.js';
 
 // Track agents for cleanup
 const createdAgents = [];
+
+// #8877 / ADR-0122: salvage mutations require a daemon-minted credential.
+// Mint one salvor actor for the whole suite through the public mint door.
+let salvor = null;
+async function salvorHeaders() {
+  if (!salvor) salvor = await registerTestActorVia(request, { alias: 'rescuer' });
+  return salvor.headers;
+}
 
 /**
  * Helper: register an agent via the API
@@ -26,16 +35,6 @@ async function registerAgent(id, opts = {}) {
   const res = await request('/agents', { method: 'POST', body });
   if (res.ok) createdAgents.push(id);
   return res;
-}
-
-/**
- * Helper: start a session for an agent
- */
-async function startSession(agentId, purpose) {
-  return request('/sessions', {
-    method: 'POST',
-    body: { agentId, purpose: purpose || 'Resurrection test session' },
-  });
 }
 
 /**
@@ -121,6 +120,7 @@ describe('Resurrection / Salvage Route Integration', () => {
       const res = await request('/resurrection/claim/nonexistent-ghost', {
         method: 'POST',
         body: { newAgentId: 'rescuer' },
+        headers: await salvorHeaders(),
       });
 
       // Should fail gracefully (not 500)
@@ -145,6 +145,7 @@ describe('Resurrection / Salvage Route Integration', () => {
     test('returns success even for non-queued agent (idempotent)', async () => {
       const res = await request('/resurrection/abandon/nonexistent-agent', {
         method: 'POST',
+        headers: await salvorHeaders(),
       });
 
       expect(res.ok).toBe(true);
@@ -156,6 +157,7 @@ describe('Resurrection / Salvage Route Integration', () => {
     test('returns success for dismissing non-existent agent (idempotent)', async () => {
       const res = await request('/resurrection/nonexistent-dismiss', {
         method: 'DELETE',
+        headers: await salvorHeaders(),
       });
 
       expect(res.ok).toBe(true);
@@ -224,6 +226,7 @@ describe('Resurrection / Salvage Route Integration', () => {
       const res = await request('/salvage/claim/nonexistent-ghost', {
         method: 'POST',
         body: { newAgentId: 'rescuer' },
+        headers: await salvorHeaders(),
       });
 
       // Same behavior as /resurrection/claim — fails for non-existent agent
@@ -244,6 +247,7 @@ describe('Resurrection / Salvage Route Integration', () => {
     test('POST /salvage/abandon/:agentId is idempotent', async () => {
       const res = await request('/salvage/abandon/nonexistent-agent', {
         method: 'POST',
+        headers: await salvorHeaders(),
       });
 
       expect(res.ok).toBe(true);
@@ -253,6 +257,7 @@ describe('Resurrection / Salvage Route Integration', () => {
     test('DELETE /salvage/:agentId is idempotent', async () => {
       const res = await request('/salvage/nonexistent-dismiss', {
         method: 'DELETE',
+        headers: await salvorHeaders(),
       });
 
       expect(res.ok).toBe(true);

@@ -74,6 +74,16 @@ describe('secrets routes', () => {
     await app.close();
   });
 
+  test('GET /secrets labels Jira fields as one operator-facing backend', async () => {
+    const app = await buildApp();
+    const res = await app.inject({ method: 'GET', url: '/secrets' });
+    const jira = res.json().secrets.filter((entry) => entry.key.startsWith('PD_JIRA_'));
+    expect(jira).toHaveLength(4);
+    expect(jira.every((entry) => entry.backend === 'jira')).toBe(true);
+    expect(res.payload).not.toContain(SECRET_VALUE);
+    await app.close();
+  });
+
   test('POST /secrets then GET shows set:true', async () => {
     const app = await buildApp();
 

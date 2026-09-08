@@ -90,7 +90,7 @@ _port_daddy() {
     # Agent coordination
     pub publish broadcast sub subscribe listen tube wait lock unlock locks
     # Agent registry
-    agent agents actor actors swarm
+    agent agents actor actors roster swarm
     # Activity
     log activity
     # Sessions & Notes
@@ -102,7 +102,7 @@ _port_daddy() {
     # File Claims & Integration
     files add who-owns integration
     # Sugar (compound commands)
-    begin b done whoami w attention nudge with-lock n u d learn tutorial
+    begin b done plan whoami w account attention nudge with-lock n u d learn tutorial
     # Briefing & History
     briefing history
     # Consolidated read/write (3.8.4)
@@ -125,6 +125,10 @@ _port_daddy() {
     coast-guard cg
     # Relay v0 — zero-trust event fabric (ADR-0049)
     relay
+    # Tender suggestion queue — list, approve, dismiss operator suggestions
+    suggest
+    # Skill registry — search, graft, sync, outcomes
+    seamanship skills
     # App-Native Development Cockpit
     cockpit
     # Roadmap popper — autonomous roadmap-to-dispatch task puller
@@ -140,7 +144,9 @@ _port_daddy() {
     # Tuple space
     tuple
     # Semantic graph + episodic memory
-    graph memory ideas skill-graft skillgraft
+    graph memory ideas jury-rig
+    # Artifact harvest provenance (slice S4a)
+    booty
     # Shared local embedder (ADR-0061)
     embed
     # Cartographer roadmap projection
@@ -162,9 +168,9 @@ _port_daddy() {
     # Project (+ alias)
     scan s projects p doctor diagnose hints
     # Project onboarding
-    setup init cut
+    setup init cut batten
     # Daemon lifecycle
-    start stop restart install uninstall dev use daemon ci-gate self-update upgrade mcp
+    start stop restart install install-bosun uninstall dev use daemon ci-gate self-update upgrade mcp
     # Bonds / Wallets — FleetControl hardening
     wallet bond
     # Info
@@ -691,6 +697,17 @@ _port_daddy() {
       _pd_opts '--project --limit --message --from --type --wake --json --quiet'
       ;;
 
+    roster)
+      case "$prev" in
+        roster) COMPREPLY=( $(compgen -W 'list show search create promote update attach continue retire help' -- "$cur") ) ;;
+        --scope) COMPREPLY=( $(compgen -W 'system repo' -- "$cur") ) ;;
+        --mode) COMPREPLY=( $(compgen -W 'auto native handoff' -- "$cur") ) ;;
+        --filesystem) COMPREPLY=( $(compgen -W 'inherit repo workspace read-only' -- "$cur") ) ;;
+        --network) COMPREPLY=( $(compgen -W 'inherit none restricted full' -- "$cur") ) ;;
+        *) _pd_opts '--repo --all --limit --slug --name --remit --instructions --scope --system --skills --tools --backend --model --episode --mode --prompt --timeout --lifecycle --filesystem --network --allow-tools --deny-tools --file --json --quiet' ;;
+      esac
+      ;;
+
     # -----------------------------------------------------------------------
     # log  [--limit N] [--type TYPE] [--agent ID] [--target ID] [--since TS]
     # -----------------------------------------------------------------------
@@ -751,7 +768,7 @@ _port_daddy() {
     # session  <subcommand> [args]
     # -----------------------------------------------------------------------
     session)
-      local session_subcommands='start end done abandon takeover rm files phase'
+      local session_subcommands='start end done abandon takeover find rm files phase'
       # Find which subcommand (if any) has been typed after "session".
       local subcmd=""
       for (( i = 1; i < cword; i++ )); do
@@ -788,6 +805,9 @@ _port_daddy() {
           ;;
         takeover)
           _pd_opts '--purpose -P --note -n --lifecycle --no-files --no-claims'
+          ;;
+        find)
+          _pd_opts '--key --identity --all-worktrees --all --no-adopt'
           ;;
         files)
           # files has sub-subcommands: add, rm
@@ -1394,6 +1414,25 @@ _port_daddy() {
       ;;
 
     # -----------------------------------------------------------------------
+    # plan  [show|set|check] [--session ID] [--agent ID]
+    # -----------------------------------------------------------------------
+    plan)
+      case "$prev" in
+        --agent|--session)
+          COMPREPLY=()  # Free-form
+          ;;
+        *)
+          if [[ "$cur" == -* ]]; then
+            _pd_opts '--session --agent'
+          else
+            # shellcheck disable=SC2207
+            COMPREPLY=( $(compgen -W "show set check" -- "$cur") )
+          fi
+          ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
     # whoami  [--agent ID]
     # -----------------------------------------------------------------------
     whoami|w)
@@ -1468,7 +1507,7 @@ _port_daddy() {
 
     # -----------------------------------------------------------------------
     # -----------------------------------------------------------------------
-    # learn / tutorial (interactive tutorial)
+    # learn / tutorial (operationally read-only agent orientation)
     # -----------------------------------------------------------------------
     learn|tutorial)
       _pd_opts ""
@@ -1916,9 +1955,9 @@ _port_daddy() {
       ;;
 
     # -----------------------------------------------------------------------
-    # skill-graft  query|warm|reference  [options]
+    # jury-rig  query|warm|reference  [options]
     # -----------------------------------------------------------------------
-    skill-graft|skillgraft)
+    jury-rig)
       local subcmd="${words[2]:-}"
       case "$subcmd" in
         '')
@@ -1951,6 +1990,25 @@ _port_daddy() {
           ;;
         stats)
           _pd_opts '--dir --json --quiet'
+          ;;
+        *) _pd_opts '' ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # booty  add|list  [options]  — artifact harvest provenance (slice S4a)
+    # -----------------------------------------------------------------------
+    booty)
+      local subcmd="${words[2]:-}"
+      case "$subcmd" in
+        '')
+          COMPREPLY=( $(compgen -W "add list help" -- "$cur") )
+          ;;
+        add)
+          _pd_opts '--roadmap --note --json --quiet'
+          ;;
+        list)
+          _pd_opts '--branch --session --limit --json --quiet'
           ;;
         *) _pd_opts '' ;;
       esac

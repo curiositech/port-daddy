@@ -119,6 +119,10 @@ export function createGraphEdges(db: Database.Database) {
       WHERE scope = ? AND source_type = ? AND source_id = ? AND edge_type = ? AND target_type = ? AND target_id = ?
       LIMIT 1
     `),
+    deleteExact: db.prepare(`
+      DELETE FROM graph_edges
+      WHERE scope = ? AND source_type = ? AND source_id = ? AND edge_type = ? AND target_type = ? AND target_id = ?
+    `),
     list: db.prepare(`
       SELECT * FROM graph_edges
       WHERE (? IS NULL OR project_dir = ?)
@@ -217,6 +221,36 @@ export function createGraphEdges(db: Database.Database) {
     return toEdge(row);
   }
 
+  /**
+   * Forget one exact edge — the inverse of `remember`.
+   *
+   * Why a keyed single delete and not another `replaceScope`: link-style
+   * edges (roadmap item → PR/doc/file/media) are individually authored facts,
+   * so removal must be surgical. `replaceScope` is the right tool for derived
+   * projections that converge to a plan; using it for authored links would
+   * force every remover to re-read and re-write the whole scope, and a racing
+   * writer would silently resurrect the removed edge. The design intent is
+   * symmetry: what `remember` upserts by its unique key, `forget` deletes by
+   * the same key.
+   *
+   * @param edge - The exact unique-key fields (scope, sourceType, sourceId,
+   *   edgeType, targetType, targetId); weight/metadata are ignored.
+   * @returns true when an edge existed and was deleted, false otherwise.
+   */
+  function forget(
+    edge: Pick<GraphEdgeInput, 'scope' | 'sourceType' | 'sourceId' | 'edgeType' | 'targetType' | 'targetId'>,
+  ): boolean {
+    const result = stmts.deleteExact.run(
+      edge.scope,
+      edge.sourceType,
+      edge.sourceId,
+      edge.edgeType,
+      edge.targetType,
+      edge.targetId,
+    );
+    return result.changes > 0;
+  }
+
   function list(options: {
     projectDir?: string;
     scope?: string;
@@ -279,6 +313,7 @@ export function createGraphEdges(db: Database.Database) {
   return {
     replaceScope,
     remember,
+    forget,
     list,
     stats,
   };
