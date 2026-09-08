@@ -105,7 +105,17 @@ does not replicate daemon databases, impose global order, authorize local
 effects, supply end-to-end secrecy by itself, or establish the witness-log and
 settlement institutions described in \pdchapref{fh}{The Federated Harbor}.
 
+% \flushbottom (the book's default) stretches every page to \vsize exactly;
+% this generated table set is a chain of xltabular blocks with no
+% stretchable glue of its own between rows, and one page break in it lands
+% 2.96pt over \vsize -- an Overfull \vbox from the output routine, not a
+% line of type. A dense reference appendix does not need flush-bottom
+% uniformity as strongly as body prose does, so it is scoped ragged here:
+% pages are free to fall a hair short instead of being forced to a height
+% no combination of its own rows actually fits.
+{\raggedbottom
 \pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-mechanized.tex}{mechanized claims}
+\par}
 
 \section{Result atlas}\label{app:result-atlas}\label{app:one-spine}
 

@@ -420,7 +420,7 @@ To prove the protocol's logical soundness against a Dolev-Yao adversary~\cite{do
 \label{thm:injective}
 For the modeled delegation phase, ProVerif confirmed the correspondence:
 \begin{align}
-\text{Accepted}(b, h, cap) \implies& \ (\text{IssuedRoot}(a, h, cap) \land \text{Delegated}(a, b, cap)) \nonumber\\
+\text{Accepted}(b, h, cap) \implies&(\text{IssuedRoot}(a, h, cap) \land \text{Delegated}(a, b, cap)) \nonumber\\
 & \lor \ \text{IssuedRoot}(b, h, cap).
 \end{align}
 The displayed query is a non-injective authentication correspondence: every accepted event has a matching modeled issuance/delegation event. It does not by itself prove replay freedom, capability attenuation, or arbitrary-depth transitivity; those are separate queries and bounds.
@@ -440,7 +440,7 @@ $\neg\;\text{attacker}(\mathit{master\_key})$ & v1 (HS256) & \texttt{v1\_refined
 $\text{Accepted} \implies \text{Issued}$ & v1 (HS256) & \texttt{v1\_refined.pv} & \textbf{TRUE} \\
 $\neg\;\text{attacker}(\mathit{harbor\_sk})$ & v2 (Ed25519) & \texttt{v2\_asymmetric.pv} & \textbf{TRUE} \\
 $\text{Accepted} \implies \text{Issued}$ & v2 (Ed25519) & \texttt{v2\_asymmetric.pv} & \textbf{TRUE} \\
-$\text{Accepted}(b) \implies \text{IssuedRoot}(a) \land \text{Delegated}(a,b)$ & v3 (Delegation) & \texttt{v3\_delegation.pv} & \textbf{TRUE} \\
+\shortstack[l]{$\text{Accepted}(b) \implies \text{IssuedRoot}(a)$\\$\land\ \text{Delegated}(a,b)$} & v3 (Delegation) & \texttt{v3\_delegation.pv} & \textbf{TRUE} \\
 \bottomrule
 \end{tabularx}
 \end{table}

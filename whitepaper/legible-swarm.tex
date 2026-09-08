@@ -272,7 +272,7 @@ Table~\ref{tab:ls-stack-map} shows how they interlock.}
 \renewcommand{\arraystretch}{1.15}\setlength{\tabcolsep}{3.5pt}
 % seven capability columns at the width of a mark; their heads stand at 60 degrees
 \newcommand{\lscaphead}[1]{\rotatebox[origin=l]{60}{\textbf{#1}}}
-\begin{tabular}{@{}l >{\raggedright\arraybackslash}p{8.5em} l *{7}{c}@{}}
+\begin{tabularx}{\linewidth}{@{}l >{\raggedright\arraybackslash}X l *{7}{c}@{}}
 \toprule
 \textbf{Layer} & \textbf{Stratum} & \textbf{For whom} & \lscaphead{state} & \lscaphead{order} & \lscaphead{identity} & \lscaphead{reason} & \lscaphead{outcome} & \lscaphead{reputation} & \lscaphead{exchange} \\
 \midrule
@@ -281,7 +281,7 @@ L2 & legibility \& authority (this chapter) & the operator & $\bullet$ & $\bulle
 L1 & coordination protocol & the agents & $\bullet$ & $\bullet$ & $\bullet$ & & & & \\
 L0 & daemon kernel & the machine & $\bullet$ & & & & & & \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 \newpage
