@@ -708,7 +708,7 @@ The appeals path does not weaken the immutability of the evidence chain (\S\ref{
 
 This subsection is intentionally short: full governance design is out of scope for a single paper. The point is that the bonded commons admits a clean, mechanizable appeals path---it is not the case that advisory claims plus bonding produces a regime where mistakes are unappealable.
 
-\pdexercisepointerone{\ref{ex:bonded-advisory-claims}}{\pageref{ex:bonded-advisory-claims}}
+\pdexercisepointerone*{\ref{ex:bonded-advisory-claims}}{\pageref{ex:bonded-advisory-claims}}
 
 \begin{pdrecitation}
 \item Without looking: what is the one thing an advisory claim never does that an enforced lock always does?
@@ -905,7 +905,7 @@ The forward reference is direct. Section~\ref{sec:youle:a6} reuses the same anal
 
 \paragraph{Mechanized claim-signaling.} The argument above is also checked by machine. Standard one-shot-deviation analysis yields the discount-factor threshold $\delta^\star$ as the unique real root in $(0,1)$ of $2\delta^3 + 2\delta^2 + 2\delta - 1 = 0$, numerically $\delta^\star \approx 0.342$ (matching $\delta^\star_{k=3}$ above). The cubic, the existence-and-uniqueness of its root in $[0.34,\,0.35]$, and a TLA$^{+}$ model checking that no one-shot deviation produces positive discounted payoff at $\delta = 0.35$ are mechanized as \texttt{proofs/economics/delta-threshold.z3} and \texttt{proofs/economics/claim\_signaling.tla}. Both run unattended in CI (\S\ref{app:mech}, Table~\ref{tab:verification-status}).
 
-\pdexercisepointerone{\ref{ex:bonded-claim-signaling-pd}}{\pageref{ex:bonded-claim-signaling-pd}}
+\pdexercisepointerone*{\ref{ex:bonded-claim-signaling-pd}}{\pageref{ex:bonded-claim-signaling-pd}}
 
 \begin{pdexample}{the claim-signaling threshold}
 Evaluate $f(\delta) = 2\delta^3+2\delta^2+2\delta-1$ at $\delta=0.3425$ by hand, using the factored form $f(\delta)=2\delta(1+\delta+\delta^2)-1$ to keep the arithmetic to two multiplications. First $\delta^2 = 0.3425 \times 0.3425 = 0.11730625$, so $1+\delta+\delta^2 = 1 + 0.3425 + 0.11730625 = 1.45980625$. Then $2\delta = 0.685$, and $0.685 \times 1.45980625 = 0.9999672813\ldots$, so $f(0.3425) \approx 0.9999672813 - 1 = -0.0000327$ [verified]. That is within $3.3\times10^{-5}$ of zero---close enough to call $0.3425$ a root by hand, and the small \emph{negative} residual is exactly consistent with the more precise value \texttt{delta-threshold.expected.txt} reports, $\delta^\star \approx 0.3425080314$: since $f$ is strictly increasing for $\delta>0$ (every term has a positive coefficient), a negative value at $0.3425$ means the true root sits slightly \emph{above} it, and $0.34250803 > 0.3425$ by exactly the sliver this residual predicts.
@@ -920,7 +920,7 @@ round, and the run ends with the deviator ahead.
 \input{figures/session-bc-delta30}
 
 
-\pdexercisepointer{\ref{ex:bonded-threshold-hand}}{\ref{ex:bonded-sweep-crossover}}{\pageref{ex:bonded-threshold-hand}}
+\pdexercisepointer*{\ref{ex:bonded-threshold-hand}}{\ref{ex:bonded-sweep-crossover}}{\pageref{ex:bonded-threshold-hand}}
 
 \begin{pdrecitation}
 \item Without looking: what is the one-shot Nash equilibrium of the stage game in Table~\ref{tab:claim-stage-game}, and why does that make truthful signaling impossible without a repeated game?
@@ -1426,7 +1426,7 @@ Instantiate Theorem~\ref{thm:conservation}'s proof sketch with round numbers. Be
 \emph{Now you try:} Exercise~\ref{ex:bonded-conservation-states} asks you to find the analogous check across all $1{,}716$ reachable states of the mechanized model, not just this one hand-picked settlement.
 \end{pdexample}
 
-\pdexercisepointer{\ref{ex:bonded-conservation-states}}{\ref{ex:bonded-conservation-weaken}}{\pageref{ex:bonded-conservation-states}}
+\pdexercisepointer*{\ref{ex:bonded-conservation-states}}{\ref{ex:bonded-conservation-weaken}}{\pageref{ex:bonded-conservation-states}}
 
 \begin{pdrecitation}
 \item Without looking: what does \texttt{EscrowInvariant} guarantee, and which TLA$^{+}$ action makes it hold ``by construction'' rather than by a separate check?

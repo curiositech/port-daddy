@@ -32,11 +32,20 @@ wave plan through 2026-09-07 are retired by this revision.
 
 ## Where the Book stands (measured 2026-09-08, local xelatex build)
 
-546 pages at 7 × 10 in, three editions from one source, 0 undefined
-references, 0 `Marginpar` warnings, **129 overfull lines** (3 over 20 pt, 16
-between 10 and 20), **10 margin-note collisions** found geometrically, 1
-overfull vbox (p. 498). The CI TeX Live build runs one line ahead of the local
-one from chapter 1 §1.8; page numbers are quoted from CI PDFs only.
+545, 550 and 546 pages at 7 × 10 in, three editions from one source. Measured on the pages
+of all three editions with `page_overflow.py`: **0 margin-note collisions, 0
+pieces of ink off the paper, 0 lines of column text over the running foot**;
+from the logs, 0 undefined references, 0 `Marginpar on page`, 0 `Float too
+large`, 0 `Float(s) lost`. Still open: **129 overfull lines** (3 over 20 pt, 16
+between 10 and 20) and 1 overfull vbox (p. 498). The CI TeX Live build runs one
+line ahead of the local one from chapter 1 §1.8; page numbers are quoted from
+CI PDFs only.
+
+Everything on this page is a measurement, and every measurement above has a
+check that reruns it: `page_overflow.py` over every edition in
+`whitepaper-build`, `star_exercise_pointers.py --check` and `margin_lint.py` in
+`library-checks`. A number here without a check behind it is a claim, and the
+next session should treat it as one.
 
 The author read about ten pages at random on 2026-09-08 and found a defect on
 every one. The working assumption for everything below is that the rest of
@@ -55,16 +64,17 @@ author saw look right.
 | 1.1 | "Pull quotes" that quote nothing: section theses set in large italic behind a coloured rule, the costume of a quotation with no speaker | p. 182 (read-poverty); 21 sites in 7 chapters | `grep -c '\\pullquote{'` on chapter sources; `check_style_sections.py` rule pending | **landed 2026-09-08** as `\pdthesis` with a Thesis margin head, all 21 sites renamed; rule in `check_style_sections.py` pending |
 | 1.2 | Bibliography back-references were links painted over in body grey, so nothing said the page numbers were clickable | every bibliography page | PyMuPDF: colour of numeral spans on pages carrying "Cited on" | **landed 2026-09-08**: numerals in cobalt, return arrow, verified 0x003fb8 on p. 520 |
 | 1.3 | Bibliography sorted on the author's *first* name as written, and the same work printed two, three, four times because chapters cite it in different house styles | pp. 517–542 | the generator's own near-duplicate report | **partly landed 2026-09-08**: sort by surname (corporate bodies under their first word; particle names under the main element), the sort and fingerprint functions exported and under test; 301 → 277 entries; 13 near-duplicate pairs reported by chapter. **Open:** the 13 (one wording per work, in every chapter), then the report becomes an error. **Then:** one `references.bib`, one record per work, biblatex `sorting=nyt` — the fix that makes the class impossible rather than caught |
-| 1.4 | Margin notes colliding: Recall block over the Exercises pointer on p. 162; ten collisions in all, the worst 107 pt on p. 48 | pp. 36, 48, 142, 184, 244, 368, 370, 372, 414 | `page_overflow.py` gains a margin-collision pass (vertical overlap of text blocks in the margin column); the check is written, in the session, not yet committed | open; commit the check, then fix by shifting or merging the notes |
+| 1.4 | Margin notes colliding, and margin notes off the paper entirely: a Recall block over an Exercises pointer on p. 162; a portrait and its caption 81 pt below the foot of p. 68; a Recall block 150 pt below the foot of p. 97 | pp. 36, 48, 68, 97, 142, 161, 184, 244, 252, 309, 368, 370, 372, 414 (edition-dependent) | `page_overflow.py`: a margin-collision pass on baselines, an off-the-paper pass that grows the mediabox before extracting (MuPDF drops text outside the page, and its no-clip flag returns a degenerate rect), and a foot-intrusion pass; 12 unit tests, each with a case it fails on | **landed 2026-09-08**: one margin-occupancy system in the `pd-pedagogy.tex` twins — every block measured, raised so its last line sits on the line that issues it, capped by the page top, the last head's own foot and the last block's foot, and recording where it came to rest; the file's last `\marginpar` is gone (the page builder never moves one up, which is how the portrait got off the page). 0 collisions, 0 off-paper, 0 over the foot in all three editions |
 | 1.5 | Lines running past the measure: 129 overfull, the worst 40 pt at generated line 6083 | p. 327 and 128 others | the build log; `page_overflow.py` | open; the previous pass took 281 → 130, the residue is figure fragments, generated tables and long monospace tokens; each needs a source fix, not a tolerance |
 | 1.6 | Description lists with a wide label column that push the body to a deep hanging indent and let the label overflow its column | pp. 161–162 (modes of cooperation, `leftmargin=2.2cm,style=nextline`) | grep `\begin{description}[leftmargin=` across chapters; every one is a candidate | open; recut as run-in heads (`style=sameline` with a bold label and no fixed column) or as a table |
 | 1.7 | A section or chapter ending on a verso leaves the facing recto blank; chapter openers should be title-left / chapter-right pairs | Part IV opener; every chapter end that falls on an even page | `page_spills.py` gains a blank-recto pass | open; a plate in the edition's register on every blank recto (image-model render, provenance sidecar; never TikZ), and `\cleardoublepage` discipline at every opener |
 | 1.8 | Tables whose narrow last column wraps every cell to one word per line (Table 4.8, "What it would take to fake") | p. 4.8 in chapter 4 | figcheck T1 on `xltabular`/`tabularx` output; column width vs longest cell | open; give the prose column the width and the glyph columns fixed narrow widths |
 | 1.9 | Ideas introduced and dropped: FIPA's Directory Facilitator introduced properly (ch. 4, l. 1825) and returned to only as a related-work row; Agentic Psychosis and BDI each one paragraph in ch. 7, never used again | ch. 4 §4.x, ch. 7 §sec:vibe and the BDI paragraph | the reading-flow audit's mechanism-without-a-run list, extended to *term-without-a-return*: every bold-at-definition term must be used at least once after its section | open; see §4 below for FIPA, and §7 for the density problem |
 | 1.10 | Overfull vbox on p. 498 | p. 498 | build log | open |
+| 1.11 | Tables too tall for their page printed over the running foot instead of breaking: `tab:honest-state` overran by 303 pt, `tab:handoff` by 51, `tab:app-status` by 60, and the only witness was a `Float too large for page` line in the log that nobody was reading | pp. 153, 305 and the two standalone twins | the foot-intrusion pass of `page_overflow.py`, plus `grep -c 'Float too large'` on every edition log | **landed 2026-09-08**: all three converted to `xltabular`, which breaks across pages and repeats its head, with the caption in `\endfirsthead` and a `(continued)` line on the runs after; 0 `Float too large` in every edition and in both standalone chapters |
 
-**Order.** 1.4 and 1.5 first (they are mechanical and the checks make them
-stay fixed), then 1.6 and 1.8 (both are the same mistake, a fixed column
+**Order.** 1.4 and 1.11 landed 2026-09-08. Next is 1.5 (mechanical, and the
+check makes it stay fixed), then 1.6 and 1.8 (both are the same mistake, a fixed column
 width in a narrower measure), then 1.7 (needs plates), then 1.3's biblatex
 migration, then 1.9 with the chapter work in §7.
 

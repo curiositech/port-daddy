@@ -297,6 +297,22 @@ jobs:
           python3 scripts/whitepaper-plates/check_cover_title_band.py \
             --pdf-dir /tmp/editions
 
+      # What the log cannot tell you about a page, measured on the page: ink
+      # past the paper edge, a picture set past its column, two margin notes
+      # printed on top of each other (\marginnote never warns), text placed
+      # outside the paper (extracted with the paper grown, since MuPDF drops
+      # it otherwise), and column text set over the running foot (a float too
+      # tall for its page overruns by up to the foot margin and stays on the
+      # paper -- Table 5.9 did, and the only witness was a "Float too large"
+      # warning nobody read). Every edition, because each lays out differently.
+      - name: Nothing on any page is where a reader cannot read it
+        run: |
+          set -euo pipefail
+          for pdf in /tmp/editions/*.pdf; do
+            echo "== $(basename "$pdf")"
+            python3 scripts/harbor-research/page_overflow.py "$pdf"
+          done
+
   figure-gates:
     # Born from the PR #10069 review: figcheck.py existed and caught real
     # mechanical failures (a line through text, content off the page, text

@@ -23,6 +23,7 @@
 \usepackage{xcolor}
 \usepackage{booktabs}
 \usepackage{tabularx}
+\usepackage{xltabular}
 \usepackage{graphicx}
 \usepackage{fancyhdr}
 \usepackage{tikz}
@@ -1172,7 +1173,7 @@ validator breaks the separating threshold (item R14 of the research ledger,
 At $\delta=0.05,w=1$: $u^\star=\delta w/(1+\delta w)=0.05/1.05=0.0476$ [verified, closed form] --- the fraction of the validation signal $u$ above which escalating clears its cost, one of twelve $(\delta,w)$ points the script confirms against bisection to machine precision. Under the R3 constants ($C_{\mathrm{miss}}=100,c_{\mathrm{att}}=1,C_{\mathrm{fa}}=5$, so $u_{\mathrm{crit}}=6/105\approx0.057$), the feasible debit interval is $[\delta_{\min},\delta_{\max}]=[0.0350,0.0720]$ at attention budget $A=3.3$, and it is \emph{empty} at $A=2.0$ (there $\delta_{\min}=0.396$ exceeds $\delta_{\max}=0.072$, so no debit satisfies both walls at once) [verified closed forms, grid-confirmed]. An empty band is not a bug to tune away: it is the honest signal that the fix is capacity or evidence quality, not a better $\delta$. \emph{Now you try:} run the script and confirm both bands (Exercise~\ref{ex:ls-b7-escalation-run}).
 \end{pdexample}
 
-\pdexercisepointer{\ref{ex:ls-adversarial-review-corollary}}{\ref{ex:ls-b7-escalation-run}}{\pageref{ex:ls-adversarial-review-corollary}}
+\pdexercisepointer*{\ref{ex:ls-adversarial-review-corollary}}{\ref{ex:ls-b7-escalation-run}}{\pageref{ex:ls-adversarial-review-corollary}}
 
 \begin{pdrecitation}
 \item Without looking: what is the exact condition under which sole ownership weakly dominates the pool, and what does Eq.~\ref{eq:specboundary} reduce to when $A=0$?
@@ -1470,7 +1471,7 @@ person must read to remain the operator rather than the audience. The modes
 are a design invariant; the costs per mode are an empirical hypothesis, and
 the study named in the front matter is where they will be measured.
 
-\pdexercisepointer{\ref{ex:ls-sdt-limits}}{\ref{ex:ls-freeze-probe-study}}{\pageref{ex:ls-sdt-limits}}
+\pdexercisepointer*{\ref{ex:ls-sdt-limits}}{\ref{ex:ls-freeze-probe-study}}{\pageref{ex:ls-sdt-limits}}
 
 \begin{pdrecitation}
 \item Without looking: what three quantities multiply to give the derived regret head, and what does calibration require of the anomaly term for that product to equal expected unrecoverable loss?
@@ -1804,7 +1805,7 @@ only for $f\ge 12(p-\delta)$, so at $p{=}0.05$ they are not jointly instantiated
 the flag budgets the frontier tabulates.
 \end{pdboundary}
 
-\pdexercisepointer{\ref{ex:ls-readpoverty-binding}}{\ref{ex:ls-b1-frontier-run}}{\pageref{ex:ls-readpoverty-binding}}
+\pdexercisepointer*{\ref{ex:ls-readpoverty-binding}}{\ref{ex:ls-b1-frontier-run}}{\pageref{ex:ls-readpoverty-binding}}
 
 \begin{pdrecitation}
 \item Without looking: what two terms does the legibility lower bound subtract to get the bit floor, and what happens to it as the review budget $m$ grows to $N$?
@@ -2421,7 +2422,7 @@ or reputation-score a swarm of disposable spawns, because Sybils dodge every
 per-agent mechanism. Context economics therefore \emph{demands} the identity layer it
 appears to precede.
 
-\pdexercisepointer{\ref{ex:ls-digest-is-compaction}}{\ref{ex:ls-paging-ratio-hand}}{\pageref{ex:ls-digest-is-compaction}}
+\pdexercisepointer*{\ref{ex:ls-digest-is-compaction}}{\ref{ex:ls-paging-ratio-hand}}{\pageref{ex:ls-digest-is-compaction}}
 
 \begin{pdrecitation}
 \item Without looking: what is the one reason the digest and the compaction must be authored by the same provenance-preserving projection, rather than a separate summarizer reading the already-compacted story?
@@ -3503,14 +3504,28 @@ target whose proof is not carried in this paper. The two keys are orthogonal on
 purpose --- a \Verified\ result about a \Vision\ mechanism is a perfectly ordinary
 state of affairs, and conflating them is the failure this appendix exists to prevent.
 
-\begin{table}[p]
-\centering
-\footnotesize
-\renewcommand{\arraystretch}{1.05}
-\begin{tabularx}{\textwidth}{@{}p{0.04\textwidth} >{\raggedright\arraybackslash}X p{0.15\textwidth} >{\raggedright\arraybackslash}p{0.25\textwidth}@{}}
+{\footnotesize\renewcommand{\arraystretch}{1.05}
+\begin{xltabular}{\textwidth}{@{}p{0.04\textwidth} >{\raggedright\arraybackslash}X p{0.15\textwidth} >{\raggedright\arraybackslash}p{0.25\textwidth}@{}}
+\caption{Implementation and status of every mechanism named in this paper.
+\textbf{L} = legibility half, \textbf{A} = authority half, \textbf{O} =
+operator-model. The legibility read-surfaces are largely built; the digest layer that
+unifies them is designed; the authority half --- the Leviathan actually \emph{ruling}
+--- and the operator-model are largely designed-to-proposed. The wedge is real but
+more than half-designed: the safety and reading exist; the deciding and landing are
+the work that remains.}\label{tab:honest-state}\\
 \toprule
 & \textbf{Mechanism} & \textbf{Status} & \textbf{Evidence / location} \\
 \midrule
+\endfirsthead
+\multicolumn{4}{@{}l}{\small\itshape (continued)}\\
+\toprule
+& \textbf{Mechanism} & \textbf{Status} & \textbf{Evidence / location} \\
+\midrule
+\endhead
+\midrule
+\endfoot
+\bottomrule
+\endlastfoot
 L & Attention composer (agent-facing) & \Built & \texttt{lib/attention.ts} \\
 L & Briefing projection (exemplary digest-with-zoom) & \Built & \texttt{lib/briefing.ts} \\
 L & Resurrection handoff & \BuiltWeak & \texttt{lib/resurrection.ts}; notes, not checkpoints \\
@@ -3535,17 +3550,7 @@ O & Trust calibration via canary + catch-rate & \Vision & no implementation \\
 O & Consent grant + inalienable override & \Vision & Def.~\ref{def:consent}, Prop.~\ref{prop:override} \\
 O & Time-axis legibility (replay, provenance) & \Designed & ADR-0046 replay scrubber; event log \Built \\
 O & Ambient legibility (menu-bar indicator on PASS$\to$FAIL) & \BuiltWeak & indicator exists; watchdog wire \Designed \\
-\bottomrule
-\end{tabularx}
-\caption{Implementation and status of every mechanism named in this paper.
-\textbf{L} = legibility half, \textbf{A} = authority half, \textbf{O} =
-operator-model. The legibility read-surfaces are largely built; the digest layer that
-unifies them is designed; the authority half --- the Leviathan actually \emph{ruling}
---- and the operator-model are largely designed-to-proposed. The wedge is real but
-more than half-designed: the safety and reading exist; the deciding and landing are
-the work that remains.}
-\label{tab:honest-state}
-\end{table}
+\end{xltabular}}
 
 Three points about the reference implementation are important enough to restate:
 \begin{enumerate}[leftmargin=1.5em]

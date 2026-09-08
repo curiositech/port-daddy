@@ -588,13 +588,13 @@ function Harbor.VerifyChain(chain, pk_root):
 
 \textbf{Security property.} Monotonic per-hop attenuation ($\text{cap}_i \subseteq \text{cap}_{i-1}$) prevents capability expansion across transitive delegations, including the \texttt{write} $\to$ \texttt{read} $\to$ \texttt{write} re-escalation. Property~\ref{thm:attn-sound} (\S\ref{sec:attn-soundness}) mechanizes the single hop, where the subset guard is necessary and sufficient. Depth beyond one is the per-hop discipline chained by transitivity of $\subseteq$; its mechanized confirmation at depth two is the attack-and-fix pair in the same section, which checks each hop against its immediate parent rather than against the root.
 
+\pdexercisepointer*{\ref{ex:anchor-algconfusion}}{\ref{ex:anchor-chain-replay}}{\pageref{ex:anchor-algconfusion}}
 \begin{pdrecitation}
 \item Without looking: name the three layers of Table~\ref{tab:anchor-verification-stack}, and the two gaps between them that are asserted by a human rather than a tool.
 \item What can the Arbiter's post-commit invariants do that ProVerif cannot, and what can they never do that a pre-commit guard could?
 \item Which Kani harness does this chapter itself call ``a unit test in a proof's clothing,'' and what property actually rests on the ProVerif model instead?
 \end{pdrecitation}
 
-\pdexercisepointer{\ref{ex:anchor-algconfusion}}{\ref{ex:anchor-chain-replay}}{\pageref{ex:anchor-algconfusion}}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{The verified code is the running code}\label{sec:implementation}
@@ -798,13 +798,13 @@ Capability subset check & Two vectors & Kani & Yes (FFI) & \cite{birgisson2014ma
   \item \textbf{Algorithm confusion at the token-encoding layer.} The threat model above targets delegation-chain authenticity and capability-subset soundness; it says nothing about attacks on the JWT encoding itself, such as an \texttt{alg:none} downgrade or an asymmetric-key-as-HMAC-secret confusion~\cite{ietf2024jwtbcp}. These are ruled out here by construction --- the verifier accepts one fixed algorithm and no negotiation --- rather than by anything ProVerif checked: no query in Table~\ref{tab:proverif-results} models the parser's algorithm-selection logic, so this boundary rests on the fixed-algorithm implementation, not on a mechanized proof of it.
 \end{enumerate}
 
+\pdexercisepointerone*{\ref{ex:anchor-security-envelope}}{\pageref{ex:anchor-security-envelope}}
 \begin{pdrecitation}
 \item Without looking: state the four properties of the Dolev-Yao adversary this chapter assumes.
 \item Of the three failure modes named in \S\ref{sec:problem}, which one's residual risk is enforced by the storage layer rather than proved by any tool in this chapter?
 \item Why is the PID-reuse fix a runtime conformance test rather than a ProVerif theorem?
 \end{pdrecitation}
 
-\pdexercisepointerone{\ref{ex:anchor-security-envelope}}{\pageref{ex:anchor-security-envelope}}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Proofs are leverage, not decoration}\label{sec:conclusion}

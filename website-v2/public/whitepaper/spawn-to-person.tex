@@ -24,6 +24,7 @@
 \usepackage{xcolor}
 \usepackage{booktabs}
 \usepackage{tabularx}
+\usepackage{xltabular}
 \usepackage{graphicx}
 \usepackage{fancyhdr}
 \usepackage{tikz}
@@ -734,7 +735,7 @@ psychological continuity is neither necessary nor sufficient for
 persistence~\cite{olson2007}. Neither is refuted; the ledger criterion is simply
 not defended against them.
 
-\pdexercisepointer{\ref{ex:stp-connected-vs-continuous}}{\ref{ex:stp-fork-inheritance}}{\pageref{ex:stp-connected-vs-continuous}}
+\pdexercisepointer*{\ref{ex:stp-connected-vs-continuous}}{\ref{ex:stp-fork-inheritance}}{\pageref{ex:stp-connected-vs-continuous}}
 
 \begin{pdexample}{No-mint inheritance: the closure-sum refutation and the copy-fork mint}
 The branching rule of Exercise~\ref{ex:stp-fork-inheritance} now carries an
@@ -771,7 +772,7 @@ to state the distinction, not a reason to leave Advogato unread.
 \input{figures/fig-stp-nomint-lineage}
 
 
-\pdexercisepointerone{\ref{ex:stp-nomint-sweep}}{\pageref{ex:stp-nomint-sweep}}
+\pdexercisepointerone*{\ref{ex:stp-nomint-sweep}}{\pageref{ex:stp-nomint-sweep}}
 
 \begin{pdrecitation}
 \item Without looking: what is the difference between connectedness and
@@ -1534,7 +1535,7 @@ welfare: nothing here says the checkpoint restored the agent's experience,
 only that the ledger followed the right body.
 \end{pdboundary}
 
-\pdexercisepointer{\ref{ex:stp-property-reality}}{\ref{ex:stp-resurrection-soundness}}{\pageref{ex:stp-property-reality}}
+\pdexercisepointer*{\ref{ex:stp-property-reality}}{\ref{ex:stp-resurrection-soundness}}{\pageref{ex:stp-property-reality}}
 
 \begin{pdrecitation}
 \item Without looking: what does a non-forgeable identity make necessary, and
@@ -2170,7 +2171,7 @@ a ``certain'' slash --- slashing stays probabilistic by construction --- but a
 contraction needs. What remains open is the root and the telemetry, not the
 recursion.}
 
-\pdexercisepointer{\ref{ex:stp-grading-oracle-hole}}{\ref{ex:stp-tower-amortization}}{\pageref{ex:stp-grading-oracle-hole}}
+\pdexercisepointer*{\ref{ex:stp-grading-oracle-hole}}{\ref{ex:stp-tower-amortization}}{\pageref{ex:stp-grading-oracle-hole}}
 
 \begin{pdrecitation}
 \item Without looking: what is Becker's condition for local deterrence, and
@@ -2299,14 +2300,29 @@ This paper is the bridge; its output is a precise hand-off to \pdchapref{he}{The
 Harbor Economy}. We summarize what is delivered, what is borrowed, and what is
 explicitly owed.
 
-\begin{table}[H]
-\centering
-\small
-\renewcommand{\arraystretch}{1.35}
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{2.6cm} >{\raggedright\arraybackslash}X@{}}
+{\small\renewcommand{\arraystretch}{1.35}
+\begin{xltabular}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{2.6cm} >{\raggedright\arraybackslash}X@{}}
+\caption{The bridge's hand-off to the market paper. One item still flows \emph{back}
+as a named, unsolved obligation --- cross-operator attestation
+(Def.~\ref{def:0040b}). The second historical debt, the grading oracle's
+incentive-compatibility, has been \emph{paid}: the companion inspection-game paper
+closes the rate-the-raters recursion as Theorem~\ref{thm:tower-imported}, leaving
+only the tower's honest root and its measurement obligation open. The series is
+coherent precisely because these debts are named --- and retired --- in the same
+words on both sides of the seam.}\label{tab:handoff}\\
 \toprule
 \textbf{Artifact} & \textbf{Maturity} & \textbf{Role in the market paper} \\
 \midrule
+\endfirsthead
+\multicolumn{3}{@{}l}{\small\itshape (continued)}\\
+\toprule
+\textbf{Artifact} & \textbf{Maturity} & \textbf{Role in the market paper} \\
+\midrule
+\endhead
+\midrule
+\endfoot
+\bottomrule
+\endlastfoot
 Role / person distinction (Defs.~\ref{def:role}--\ref{def:person}) & --- &
 The third side of the market is a \emph{tradeable person}, defined here. \\
 Principal-as-economic-entity (Def.~\ref{def:principal}) & \DESIGNED &
@@ -2325,18 +2341,7 @@ Cross-operator attestation (Def.~\ref{def:0040b}) & \VISION &
 \emph{Named dependency the market paper must build}; not assumed here. \\
 Tombstone revocation (Prop.~\ref{prop:tombstone}) & \DESIGNED &
 Reputation is revocable; convergence is the market paper's federation job. \\
-\bottomrule
-\end{tabularx}
-\caption{The bridge's hand-off to the market paper. One item still flows \emph{back}
-as a named, unsolved obligation --- cross-operator attestation
-(Def.~\ref{def:0040b}). The second historical debt, the grading oracle's
-incentive-compatibility, has been \emph{paid}: the companion inspection-game paper
-closes the rate-the-raters recursion as Theorem~\ref{thm:tower-imported}, leaving
-only the tower's honest root and its measurement obligation open. The series is
-coherent precisely because these debts are named --- and retired --- in the same
-words on both sides of the seam.}
-\label{tab:handoff}
-\end{table}
+\end{xltabular}}
 
 \pdthesis{Build the harbor first. The trade comes when the ships do --- but the
 thing that makes the trade possible (continuity that turns spawns into persons) is
@@ -3053,12 +3058,25 @@ coordination daemon for local agent swarms --- so a reader who wants to know
 this appendix; it exists so the maturity labels are falsifiable rather than
 rhetorical.
 
-\begin{table}[H]
-\centering\small\renewcommand{\arraystretch}{1.3}
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{2.2cm} >{\raggedright\arraybackslash}X@{}}
+{\small\renewcommand{\arraystretch}{1.3}
+\begin{xltabular}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{2.2cm} >{\raggedright\arraybackslash}X@{}}
+\caption{Maturity of each paper concept against a reference coordination daemon.
+The honest summary: the \emph{organs} of continuity exist (one weakly); the
+\emph{spine} of reputation --- a witnessed-outcome ledger keyed on a non-forgeable
+identity --- is specified but not yet shipped.}\label{tab:app-status}\\
 \toprule
 \textbf{Component (paper concept)} & \textbf{Maturity} & \textbf{Status in the reference system} \\
 \midrule
+\endfirsthead
+\multicolumn{3}{@{}l}{\small\itshape (continued)}\\
+\toprule
+\textbf{Component (paper concept)} & \textbf{Maturity} & \textbf{Status in the reference system} \\
+\midrule
+\endhead
+\midrule
+\endfoot
+\bottomrule
+\endlastfoot
 Episodic memory (Organ 1) & \BUILT &
 Durable typed episodes promoted from execution history; runs in production. \\
 Restart organ (Organ 2) & \BUILTWEAK &
@@ -3083,14 +3101,7 @@ Tombstone revocation (Proto.~\ref{proto:tombstone}) & \DESIGNED &
 Append-only ledger semantics are designed; cross-harbor propagation is \VISION. \\
 Cross-operator attestation & \VISION &
 The unbuilt keystone for the market; owed to \pdchapref{he}{The Harbor Economy}. \\
-\bottomrule
-\end{tabularx}
-\caption{Maturity of each paper concept against a reference coordination daemon.
-The honest summary: the \emph{organs} of continuity exist (one weakly); the
-\emph{spine} of reputation --- a witnessed-outcome ledger keyed on a non-forgeable
-identity --- is specified but not yet shipped.}
-\label{tab:app-status}
-\end{table}
+\end{xltabular}}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \bibliographystyle{plain}

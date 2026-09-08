@@ -165,6 +165,14 @@ jobs:
       - name: Margin apparatus rules hold in every chapter
         run: python3 skills/tufte-evidence-design/scripts/margin_lint.py
 
+      # Which exercise pointers ride on the Recall block that follows them is a
+      # measurement of the sources, not a memory: this fails if a pointer is
+      # starred or un-starred against what the section actually contains. The
+      # collision it prevents is only visible on the rendered page, where
+      # page_overflow.py measures it in whitepaper-build's cover-band job.
+      - name: Exercise pointers are starred exactly where a Recall block follows them
+        run: python3 scripts/harbor-research/star_exercise_pointers.py --check
+
       - name: Semantic figure atlas covers every canonical figure (no drift from textbook.json)
         run: python3 skills/whitepaper-figure-system/scripts/check_atlas_coverage.py
 
