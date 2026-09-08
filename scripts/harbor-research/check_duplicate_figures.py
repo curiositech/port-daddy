@@ -52,10 +52,71 @@ def strip_comments(text: str) -> str:
     return '\n'.join(COMMENT_RE.sub('', line) for line in text.splitlines())
 
 
+IFBOOK_RE = re.compile(r'\\ifpdbook\b')
+
+
+def book_branch(text: str) -> str:
+    r"""Keep only what the Book compiles: the \ifpdbook branch of each conditional.
+
+    A drawing two chapters share is a defect in the BOOK and not in either
+    standalone paper, which quite correctly carries its own copy -- this file
+    said so in its own docstring before the sources had any way to express it.
+    \ifpdbook is that way, so an \input sitting in the \else branch is not a
+    Book input and must not be counted as one.
+
+    A small scanner rather than a regex: the branches contain prose, nested
+    \ifnum and \ifx from other macros, and the conditionals must nest.
+    """
+    out, i, n = [], 0, len(text)
+    while i < n:
+        m = IFBOOK_RE.search(text, i)
+        if not m:
+            out.append(text[i:])
+            break
+        out.append(text[i:m.start()])
+        # Walk from here, tracking nesting, collecting the true branch only.
+        depth, j, keep, taking = 0, m.end(), [], True
+        while j < n:
+            nxt = min(
+                (x for x in (text.find('\\if', j), text.find('\\else', j),
+                             text.find('\\fi', j)) if x >= 0),
+                default=-1,
+            )
+            if nxt < 0:
+                keep.append(text[j:]); j = n; break
+            if taking:
+                keep.append(text[j:nxt])
+            if text.startswith('\\ifpdbook', nxt) or (
+                text.startswith('\\if', nxt) and not text.startswith('\\fi', nxt)
+            ):
+                depth += 1
+                if taking:
+                    keep.append(text[nxt:nxt + 3])
+                j = nxt + 3
+            elif text.startswith('\\else', nxt):
+                if depth == 0:
+                    taking = False
+                elif taking:
+                    keep.append(text[nxt:nxt + 5])
+                j = nxt + 5
+            else:  # \fi
+                if depth == 0:
+                    j = nxt + 3
+                    break
+                depth -= 1
+                if taking:
+                    keep.append(text[nxt:nxt + 3])
+                j = nxt + 3
+        out.append(''.join(keep))
+        i = j
+    return ''.join(out)
+
+
 def inputs_of(path: Path) -> set[str]:
     if not path.is_file():
         return set()
-    return set(INPUT_RE.findall(strip_comments(path.read_text(encoding='utf-8'))))
+    text = book_branch(strip_comments(path.read_text(encoding='utf-8')))
+    return set(INPUT_RE.findall(text))
 
 
 def fragment_path(name: str) -> Path | None:

@@ -809,6 +809,12 @@
 
 % Hyperlink and cross-reference discipline (must stay last).
 \input{figures/pd-hyperlinks}
+% \ifpdbook is declared (false) in pd-hyperlinks; the Book turns it on here,
+% AFTER the load, so nothing has to guard the \newif. It selects the Book
+% branch wherever a chapter and its standalone paper must diverge -- a
+% figure the Book prints once and cross-references, which the paper carries
+% its own copy of.
+\pdbooktrue
 
 % ---------------------------------------------------------------------------
 % Overflow safety net. A tikzpicture wider than the text column is set over the

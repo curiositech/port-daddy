@@ -36,6 +36,32 @@
 \providecommand{\pdchaplink}[2]{#2}
 \DeclareRobustCommand{\pdchapref}[2]{\pdchaplink{#1}{\emph{#2}}}
 
+% \ifpdbook -- true in the assembled Book, false in a standalone paper.
+%
+% WHY THIS EXISTS. A drawing that two chapters both \input prints twice in the
+% Book, under two figure numbers. The fix is for the chapter that develops the
+% idea to keep the figure and the other to point at it -- but a standalone
+% paper has nowhere to point, and rewriting the prose outright removed five
+% figures from harbor-economy-whitepaper.pdf and left it telling a conference
+% reader that a ceremony is "drawn in The Federated Harbor", a document that
+% reader does not have.
+%
+% So the divergence is per-build. A CONDITIONAL and not a two-argument macro:
+% the generator inlines each \input, so a figure branch is a whole table or
+% tikzpicture, and as a macro argument that is scanned as one token list --
+% which is how \pdinbook produced "runaway argument" on the first attempt.
+% \ifpdbook skips the untaken branch at the TeX level instead.
+%
+% Guarded, because the Book's preamble declares and sets it before loading this
+% file; an unguarded \newif here would reset it to false.
+% Declared unconditionally and defaulting FALSE, which is the standalone
+% answer. The Book's preamble sets \pdbooktrue immediately after loading
+% this file. A guard here would have to mention \ifpdbook or \newif inside a
+% branch TeX may skip, and a conditional token in skipped text is counted as
+% a nested \if -- which is how two attempts at a guard both produced
+% "Incomplete \ifdefined". Ordering is cheaper than cleverness.
+\newif\ifpdbook
+
 % cleveref: "Theorem 3.1", "Figure 2.4", "Section 1.3", capitalised, never
 % abbreviated, with the whole phrase clickable. Names are declared explicitly
 % because the theorem environments are created before this file is loaded.
