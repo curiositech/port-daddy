@@ -105,22 +105,30 @@ convention (asymmetric page, wide margin column, sidenotes over footnotes) —
 the same convention `HANDOFF-TEXTBOOK.md` §3 states the Book adopted (7×10 in,
 one-sided, 4.5 in column, 1.3 in margin column always on the right).
 
-## Corpus at `github.com/curiositech/some_claude_skills`, `corpus/`
+## The external corpus: `curiositech/some_claude_skills`
+
+Every bare `corpus/...` path below names a directory inside the **author's
+separate, public GitHub repository** `curiositech/some_claude_skills` — it is
+an external, read-only reference this skill was written against, not a path
+that exists (or should ever exist) inside *this* repository. Do not go
+looking for `corpus/` here; follow the paths on GitHub at
+`github.com/curiositech/some_claude_skills`.
 
 Fetched over HTTPS from `raw.githubusercontent.com` and `github.com` (tree/blob
 views; the API host returned 403 to this session's unauthenticated egress, so
 the tree/blob HTML views were used for listings and `raw.githubusercontent.com`
 for file bodies) on 2026-09-07. Directory listing at
-`corpus/`: `books/`, `books_retry/`, `books_skill_draft/`, `for_erik/`,
-`meta-skills-experiment/`, `output/`, `scripts/`, plus
-`COMPLETION_REPORT.md`, `QUICK_START.md`, `README.md`,
-`README_SKILL_GENERATION.md`, `SKILL_DRAFT_RESUMPTION_PLAN.md`. Per
-`corpus/README.md`, the pipeline is a three-pass Haiku→Sonnet→Sonnet
+`curiositech/some_claude_skills`'s `corpus/`: `books/`, `books_retry/`,
+`books_skill_draft/`, `for_erik/`, `meta-skills-experiment/`, `output/`,
+`scripts/`, plus `COMPLETION_REPORT.md`, `QUICK_START.md`, `README.md`,
+`README_SKILL_GENERATION.md`, `SKILL_DRAFT_RESUMPTION_PLAN.md`. Per that
+repo's `corpus/README.md`, the pipeline is a three-pass Haiku→Sonnet→Sonnet
 distillation of books in `corpus/books/` into `corpus/output/*_knowledge_map.json`
 and, sometimes, a draft `*_SKILL.md`.
 
 Files on textbook craft, exposition, Pólya, Lakatos, Hersh, Meadows, or Gawande
-found and used, each cited by path where it informed this skill:
+found and used, each cited by its path within `curiositech/some_claude_skills`
+where it informed this skill:
 
 - `corpus/books/George_Polya_How_To_Solve_It_.pdf` and
   `corpus/output/Polya_G._How_to_solve_it__1957_pass1_extractions.json` /
@@ -159,7 +167,8 @@ found and used, each cited by path where it informed this skill:
   for the exercise-rating discipline in `references/exercise-design.md`.
 
 Not fetched (out of scope for this pass, or no textbook-craft content found by
-directory name): `corpus/books/clean_code.md`, `design_patterns.md`,
+directory name), all still within `curiositech/some_claude_skills`:
+`corpus/books/clean_code.md`, `design_patterns.md`,
 `philosophy_of_software_design.md`, `passionate_programmer.md`,
 `data_science_for_business.md`, `mythical-man-month.pdf`, `7_principles_of_public_speaking.md`,
 `Gödel Escher Bach_ An Eternal Golden Braid.pdf` (already covered directly from
