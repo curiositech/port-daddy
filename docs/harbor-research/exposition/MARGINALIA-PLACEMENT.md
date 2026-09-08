@@ -1,7 +1,7 @@
 # Marginalia placement proposal (Wave 12 §12.2)
 
 A proposal, not a placement: where each cleared portrait's subject is
-load-bearing in the chapter sources, found by searching each chapter for the
+critical in the chapter sources, found by searching each chapter for the
 surname. The lead decides whether to place, move, or skip any of these.
 Plates and sidecars are at `website-v2/public/whitepaper/plates/marginalia/`;
 credits are in `website-v2/public/whitepaper/figures/pd-marginalia-credits.tex`.
@@ -29,7 +29,7 @@ not a same-named copy under `website-v2/`); the rest are under
 ## Notes for the lead
 
 - **Kernel chapter has three candidates in two nearby subsections.** Lamport's
-  most load-bearing line (`single-writer-kernel.tex:1108`, "prefix-closed
+  most critical line (`single-writer-kernel.tex:1108`, "prefix-closed
   languages are exactly Lamport's safety properties") sits in the *same*
   subsection as Wonham's citation (§"The general boundary: regimentation is
   controllability"). To respect the "at most one per section" rule from

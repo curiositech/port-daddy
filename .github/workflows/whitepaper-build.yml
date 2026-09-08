@@ -229,3 +229,116 @@ jobs:
           fi
           echo "::notice::Advisory only — PDFs are regenerated and committed on the"
           echo "feature branch, so the merge carries fresh artifacts to main."
+
+  figure-gates:
+    # Born from the PR #10069 review: figcheck.py existed and caught real
+    # mechanical failures (a line through text, content off the page, text
+    # below the print floor), but nothing in CI ran it. This job compiles
+    # only what a PR actually touches (plus every fragment blockers.json
+    # already knows about), under the Book's own preamble — the only
+    # context a chapter figure is actually printed in — and fails on a T1-T5
+    # finding unless docs/harbor-research/exposition/figures/blockers.json
+    # already waives it. It never touches a TikZ fragment itself; it only
+    # reads and reports. Runs on ubuntu-latest, not the texlive container:
+    # compile_fragment.sh drives tectonic, a different, self-contained TeX
+    # engine, not the pdflatex/xelatex the texlive image ships.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install figure-QA Python dependencies (PyMuPDF, Pillow)
+        run: pip install --quiet pymupdf pillow
+
+      - name: Determine whether this PR touches figure-gates scope
+        id: scope
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          touched="$(git diff --name-only "$BASE_SHA"...HEAD -- \
+            'whitepaper/figures/**' \
+            'website-v2/public/whitepaper/figures/**' \
+            'whitepaper/*.tex' \
+            'website-v2/public/whitepaper/*.tex' || true)"
+          if [ -n "$touched" ]; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+            echo "PR touches figure-gates scope:"
+            echo "$touched"
+          else
+            echo "relevant=false" >> "$GITHUB_OUTPUT"
+            echo "PR touches none of the figure/chapter paths — skipping."
+          fi
+
+      - name: Install tectonic
+        if: steps.scope.outputs.relevant == 'true'
+        run: |
+          set -euo pipefail
+          curl --proto '=https' --tlsv1.2 -fsSL https://drop-sh.fullyjustified.net | sh
+          echo "TECTONIC=$PWD/tectonic" >> "$GITHUB_ENV"
+
+      - name: Determine which fragments to compile (changed in this PR, plus every current blocker)
+        if: steps.scope.outputs.relevant == 'true'
+        id: fragments
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          changed="$(git diff --name-only "$BASE_SHA"...HEAD -- whitepaper/figures website-v2/public/whitepaper/figures \
+            | grep -E '\.tex$' | xargs -r -n1 basename | sed 's/\.tex$//' || true)"
+          blocked="$(python3 -c "import json; print(chr(10).join(e['id'] for e in json.load(open('docs/harbor-research/exposition/figures/blockers.json'))))")"
+          { printf '%s\n' "$changed"; printf '%s\n' "$blocked"; } | grep -v '^$' | sort -u > /tmp/figure-gate-scope.txt
+          count="$(wc -l < /tmp/figure-gate-scope.txt)"
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          echo "compiling $count fragment(s):"
+          cat /tmp/figure-gate-scope.txt
+
+      - name: Compile each in-scope fragment under the Book preamble and run figcheck
+        if: steps.scope.outputs.relevant == 'true' && steps.fragments.outputs.count != '0'
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/figure-gate/pdf /tmp/figure-gate/json
+          while IFS= read -r stem; do
+            [ -n "$stem" ] || continue
+            frag=""
+            for d in whitepaper/figures website-v2/public/whitepaper/figures docs/harbor-research/figures; do
+              if [ -f "$d/$stem.tex" ]; then frag="$d/$stem.tex"; break; fi
+            done
+            if [ -z "$frag" ]; then
+              echo "::notice::$stem has no fragment on disk (already retired) — skipping compile"
+              continue
+            fi
+            skills/harbor-chartwork/scripts/compile_fragment.sh "$frag" --preamble book --out /tmp/figure-gate/pdf
+            python3 skills/harbor-chartwork/scripts/figcheck.py "/tmp/figure-gate/pdf/$stem.pdf" \
+              --textwidth-cm 11.43 --json "/tmp/figure-gate/json/$stem.json"
+          done < /tmp/figure-gate-scope.txt
+
+      - name: Build a contact sheet of every compiled fragment
+        if: steps.scope.outputs.relevant == 'true' && steps.fragments.outputs.count != '0'
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          pdfs=(/tmp/figure-gate/pdf/*.pdf)
+          if [ "${#pdfs[@]}" -gt 0 ]; then
+            python3 skills/harbor-chartwork/scripts/contact_sheet.py "${pdfs[@]}" --out /tmp/figure-gate/contact-sheet.png
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.scope.outputs.relevant == 'true'
+        with:
+          name: figure-gate-results
+          path: |
+            /tmp/figure-gate/json/*.json
+            /tmp/figure-gate/contact-sheet.png
+          if-no-files-found: ignore
+
+      - name: Fail on any unwaived T1-T5 failure
+        if: steps.scope.outputs.relevant == 'true' && steps.fragments.outputs.count != '0'
+        run: python3 scripts/harbor-research/check_figure_gate_results.py --results-dir /tmp/figure-gate/json

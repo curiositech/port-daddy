@@ -1,0 +1,43 @@
+{
+  "phrases": [
+    "held to account",
+    "load-bearing",
+    "load bearing"
+  ],
+  "paths": [
+    "skills/**",
+    "docs/**/*.md",
+    "*.md",
+    ".github/PULL_REQUEST_TEMPLATE.md",
+    ".github/**/*.md",
+    "website-v2/src/**/*.ts",
+    "website-v2/src/**/*.tsx",
+    "website-v2/src/**/*.md",
+    "website-v2/src/**/*.mdx",
+    "website-v2/public/**/*.md",
+    "website-v2/public/**/*.txt",
+    "website-v2/public/**/*.html",
+    "whitepaper/**/*.tex",
+    "website-v2/public/whitepaper/**/*.tex",
+    "docs/harbor-research/**/*.tex",
+    "docs/harbor-research/library-index.json",
+    "whitepaper/textbook.json",
+    "whitepaper/figures/figure-register.json",
+    "docs/harbor-research/exposition/**/*.json"
+  ],
+  "exclude": [
+    "**/CHANGELOG*.md",
+    "**/*.pv",
+    "**/*.tla",
+    "**/*.cfg",
+    "**/*.z3",
+    "**/*.ec",
+    "apps/**",
+    "lib/**",
+    "src/**",
+    "core/**",
+    "tests/**",
+    "**/*.test.*",
+    ".scratch/**"
+  ]
+}

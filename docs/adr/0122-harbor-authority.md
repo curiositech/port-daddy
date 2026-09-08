@@ -250,7 +250,7 @@ non-goals) stays closed.
   lease, epoch, ACL, or retention fields is rejected on sight, the same
   way a payload-decrypting diff would be.
 - Hosted remote nodes carrying temporary authority means the UI obligation
-  from binder ch02 is load-bearing: every Agent Node card must say which
+  from binder ch02 is critical: every Agent Node card must say which
   harbor owns it right now. "Cloud agent" may never mean "mysterious thing
   somewhere."
 
