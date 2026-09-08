@@ -63,13 +63,29 @@
 \Crefname{exercise}{Exercise}{Exercises}
 \Crefname{solution}{Solution}{Solutions}
 
-% Back-references: "Cited on pages 12, 40, and 87." after every bibliography
-% entry, each page number a link. Distinct pages only (#3/#4), small and gray.
+% Back-references: "^ Cited on pages 12, 40, and 87." after every bibliography
+% entry, each page number a live link back to the page that cited the work.
+% Distinct pages only (#3/#4).
+%
+% The page numbers used to be wrapped in \color{hhgray} along with the words,
+% which painted over the link colour hyperref had just given them: the links
+% were there -- 29 annotations on a typical bibliography page -- and looked
+% exactly like the grey prose around them, so nobody knew they could click.
+% Restoring the quiet link colour would not have fixed it either; pdinkmuted
+% against hhgray is 1.53:1, which is no signal at footnote size.
+%
+% So the numbers take pdcobalt (7.55:1 on the cream, and a hue a reader cannot
+% mistake for grey), and the line opens with the return arrow this book already
+% uses to send a solution back to its exercise. This is a deliberate exception
+% to the quiet-link discipline above, and the reason is that back-matter
+% navigation is the one place where the link IS the content: in prose the
+% surrounding sentence tells you a phrase is a destination, and in a
+% bibliography nothing does.
 \renewcommand*{\backref}[1]{}
 \renewcommand*{\backrefalt}[4]{%
   \ifcase #3\relax
-  \or {\footnotesize\color{hhgray}Cited on page~#4.}%
-  \else {\footnotesize\color{hhgray}Cited on pages~#4.}%
+  \or {\footnotesize{\color{hhgray}$\uparrow$~Cited on page}~{\hypersetup{linkcolor=pdcobalt}#4}{\color{hhgray}.}}%
+  \else {\footnotesize{\color{hhgray}$\uparrow$~Cited on pages}~{\hypersetup{linkcolor=pdcobalt}#4}{\color{hhgray}.}}%
   \fi}
 \renewcommand*{\backrefsep}{, }
 \renewcommand*{\backreftwosep}{ and }

@@ -1500,7 +1500,7 @@ can be consulted, so participants fall back to $O(n)$ eyeball search over the
 population, or, worse, act blind.
 \end{definition}
 
-\pullquote{Read-poverty, not write-contention, is the binding constraint on swarm
+\pdthesis{Read-poverty, not write-contention, is the binding constraint on swarm
 scale. The write side has known fixes --- claims, locks, merge queues, and anomaly
 detection --- which mature coordination systems already provide. The read side has
 been left implicit, and it is where the next order of magnitude is won or lost.}
@@ -3072,7 +3072,7 @@ The wedge is the single-player product. But the same legibility discipline appli
 \emph{continuity} is the foundation of everything above it. The through-line
 the accompanying chapters depend on is one sentence:
 
-\pullquote{The economy rests on three continuity organs --- memory, checkpoint
+\pdthesis{The economy rests on three continuity organs --- memory, checkpoint
 (today, notes rather than true execution state), and a witnessed-outcome ledger
 (today, commitments and oracle closure rather than neutral graded outcomes) ---
 and reputation keys on the richer third organ; the checkpoint organ is the weakest continuity link, and a

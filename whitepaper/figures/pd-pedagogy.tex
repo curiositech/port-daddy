@@ -403,16 +403,27 @@
 % \begin{document} in the same page grammar -- a run-in or margin head and
 % plain prose, no fill -- so no chapter source and no preamble has to change
 % for the boxes to disappear. \long\def so a body may contain \par.
+%
+% \pdthesis was \pullquote, and the rename is a correction, not a preference.
+% A pull quote is by definition an excerpt LIFTED from the body text on the
+% same spread and set larger to give a skimming reader a way in; it repeats
+% something the page already says, and it is attributed to the page. Not one
+% of the twenty-one so-called pull quotes in this book is a quote of anything.
+% Each is a sentence written for that slot and appearing nowhere else, set in
+% large italic behind a coloured rule -- which is the costume of a quotation
+% with no speaker behind it, and reads as gravitas the sentence has not
+% earned. What every one of them actually is, is the section's claim said once
+% and memorably: its thesis. So it is called that, and set the way this book
+% sets every other kind of content -- a margin head and plain prose, no rule,
+% no fill, no borrowed authority. \pullquote survives as a deprecated alias so
+% nothing breaks mid-flight; check_style_sections.py fails on new uses.
 % ---------------------------------------------------------------------------
 \AtBeginDocument{%
   \long\def\keyidea#1{\par\addvspace{6pt plus 1pt}\noindent\pd@marginhead{Key idea}#1\par\addvspace{6pt plus 1pt}}%
   \long\def\pitfall#1{\par\addvspace{6pt plus 1pt}\noindent\pd@marginhead{Pitfall}#1\par\addvspace{6pt plus 1pt}}%
   \long\def\scene#1#2{\par\addvspace{6pt plus 1pt}\noindent\pd@marginhead{Scene}{\bfseries #1}\enspace{\itshape #2}\par\addvspace{6pt plus 1pt}}%
   \long\def\xrefbox#1{\par\addvspace{4pt}\noindent\pd@marginhead{See also}{\small #1}\par\addvspace{4pt}}%
-  \long\def\pullquote#1{\par\addvspace{8pt plus 1pt}%
-    \begin{mdframed}[linecolor=\pd@chaptercolor,linewidth=1.5pt,leftline=true,topline=false,%
-        rightline=false,bottomline=false,backgroundcolor=white,innerleftmargin=10pt,innerrightmargin=0pt,%
-        innertopmargin=1pt,innerbottommargin=1pt,skipabove=4pt,skipbelow=4pt]%
-    {\itshape\large #1}\end{mdframed}\addvspace{8pt plus 1pt}}%
+  \long\def\pdthesis#1{\par\addvspace{6pt plus 1pt}\noindent\pd@marginhead{Thesis}#1\par\addvspace{6pt plus 1pt}}%
+  \long\def\pullquote#1{\pdthesis{#1}}%
 }
 \makeatother
