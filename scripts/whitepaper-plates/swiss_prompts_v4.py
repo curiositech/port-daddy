@@ -66,12 +66,16 @@ PLATES = {
     "cover": dict(
         aspect="2:3", image_size="4K", style=None,
         subject=(
+            "THE MOST IMPORTANT CONSTRAINT: the upper 40 percent of this image, full width, is one "
+            "clean empty plane of bare paper. Nothing at all appears in it -- no photograph, no "
+            "colour plane, no grid rule, no mark of any kind. The title is typeset into that space "
+            "afterwards and must not fight anything. Everything described below happens strictly "
+            "BELOW that band. "
             "Subject: a great container port seen from above and slightly oblique -- gantry cranes "
             "in a row, stacked containers in strict rows, a ship alongside -- as one large "
-            "high-contrast halftone photograph occupying the lower two thirds, cropped hard on the "
+            "high-contrast halftone photograph filling the lower 60 percent, cropped hard on the "
             "grid. Over it, three flat colour planes of the dominant ink, offset from one another "
-            "on the grid, one of them running off the right edge. The upper third is a clean empty "
-            "plane reserved for the title."
+            "on the grid, one of them running off the right edge."
         ), colour="#001489 reflex blue"),
     "part-I": dict(
         aspect="3:2", image_size="4K", style="cover",
