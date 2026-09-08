@@ -103,6 +103,20 @@ jobs:
         with:
           python-version: '3.12'
 
+      # Installed here, before any step that reads a PDF or an image, because
+      # the tests for page_overflow.py import pymupdf and ran before this when
+      # it sat lower in the job -- 11 of them failed to import and the suite
+      # reported 201 tests instead of 212, which is a check quietly measuring
+      # less than it claims.
+      # Pinned, because every page measurement the Book makes comes out of
+      # these: the contrast of type over a plate, the baselines the collision
+      # pass compares, the extraction that finds ink off the paper. A patch
+      # release that changes extraction changes what the checks mean, and a
+      # green check whose meaning moved under it is worse than a red one.
+      # These are the versions the current measurements were taken with.
+      - name: Install the image and PDF readers the checks need, pinned
+        run: pip install --quiet 'pillow==12.3.0' 'numpy==2.4.6' 'scipy==1.17.1' 'pymupdf==1.28.2'
+
       - name: textbook.json is the one source of chapter order (generated mirrors match)
         run: node scripts/generate-mega-whitepaper.mjs --check-shared
 
@@ -144,7 +158,20 @@ jobs:
         run: python3 scripts/harbor-research/check_research_program.py
 
       - name: Every marginalia plate has a licence sidecar in the allow-list
-        run: python3 scripts/harbor-research/check_marginalia_sidecars.py && python3 -m unittest discover -s tests/harbor-research -p 'test_*.py'
+        run: |
+          set -euo pipefail
+          python3 scripts/harbor-research/check_marginalia_sidecars.py
+          # A test module that cannot import is reported as one error and the
+          # run still says "Ran N tests" -- which is how 11 page-measurement
+          # tests went missing while the line above looked like it had run
+          # them. Count what actually ran.
+          out=$(python3 -m unittest discover -s tests/harbor-research -p 'test_*.py' 2>&1)
+          echo "$out"
+          ran=$(printf '%s' "$out" | sed -n 's/^Ran \([0-9]*\) tests.*/\1/p')
+          if [ "${ran:-0}" -lt 212 ]; then
+            echo "::error::the harbor-research suite ran ${ran:-0} tests, fewer than the 212 it has; a module failed to import"
+            exit 1
+          fi
 
       - name: Every rendered plate has honest provenance and every TeX plate path resolves
         run: python3 scripts/harbor-research/check_plate_provenance.py
@@ -153,8 +180,6 @@ jobs:
       # plate's pixels to find where its artwork starts, and render a page to
       # see what a line of type actually lands on -- neither of which can be
       # answered from the source. Wheels, so it costs seconds.
-      - name: Install the image and PDF readers the plate checks need
-        run: pip install --quiet pillow numpy scipy pymupdf
 
       # The plate half of the type-over-art check: no build needed, so it runs
       # here. The page half needs freshly built PDFs and runs in
