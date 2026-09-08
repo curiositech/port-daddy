@@ -86,6 +86,19 @@
       \ifdim\pagetotal<\pd@blockbottom
         \setlength{\pd@headshift}{\dimexpr\pd@blockbottom-\pagetotal+3pt\relax}\fi
     \fi
+    % And around the last HEAD on this page, which this macro recorded below
+    % and then never read. Blocks stepped around heads, heads stepped around
+    % blocks, and two heads walked straight through each other: a Pitfall head
+    % printed 1.0 pt from a Recall head at the top of p. 306 of the maritime
+    % edition, inside the 10.4 pt leading the collision check measures. The
+    % rule is the same one \pd@placemargin already obeys three lines at a
+    % time -- never above what is already in the column -- so it is applied
+    % here in the same shape, after the block cap so whichever foot sits
+    % lower wins.
+    \ifnum\pd@lastheadpage=\thepage\relax
+      \ifdim\dimexpr\pagetotal+\pd@headshift\relax<\pd@lastheadbottom
+        \setlength{\pd@headshift}{\dimexpr\pd@lastheadbottom-\pagetotal+3pt\relax}\fi
+    \fi
     % A twin of the head, set at the margin's width and font, measured but
     % never shipped: a head of three or four words wraps to two lines there,
     % and a block raised later on the page has to clear the head's real foot.

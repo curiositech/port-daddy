@@ -329,7 +329,7 @@
       ],
       "method": "ProVerif",
       "owner": "lib/agent-harbor",
-      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte. Relocated from docs/adr/models/ to proofs/coordination/ without re-running the prover: only the header comment and the transcript's leading File line changed, the RESULT lines and the line numbers they cite are untouched. Run by proverif-estate, whose runner globs every .pv under analyses/ and proofs/**, so the new path is in scope and proofs/** already sits in the workflow path filter; lib/agent-harbor/suggestibility-authority.ts parses this same transcript as the ADR-0096 suggestibility honesty gate, so a drifted or missing file also caps that axis at C0 in shipped code.",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run; RESULT lines verified byte-for-byte. Relocated from docs/adr/models/ to proofs/coordination/ without re-running the prover. proofs/** is in proverif-estate's glob and path filter; lib/agent-harbor/suggestibility-authority.ts parses this transcript as the ADR-0096 suggestibility gate, so a drifted file caps that axis at C0.",
       "ci": {
         "status": "wired",
         "job": [
@@ -347,7 +347,7 @@
       ],
       "method": "ProVerif",
       "owner": "lib/agent-harbor",
-      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte. Relocated from docs/adr/models/ to proofs/coordination/ without re-running the prover: only the header comment and the transcript's leading File line changed. A negative control that must keep failing -- both agreement queries are committed 'is false.', the filename still matches the runner's *_vuln*.pv glob, and proverif-estate fails the build if the forgery ever stops reproducing; a green run here would mean the check went vacuous, not that a bug was fixed. Nothing reads these false results as a regression: the suggestibility gate parses only the signed model's transcript. Run by proverif-estate, whose runner globs every .pv under analyses/ and proofs/**, so the new path is in scope.",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run; RESULT lines verified byte-for-byte. Relocated from docs/adr/models/ to proofs/coordination/ without re-running the prover. A negative control that must keep failing: both agreement queries are committed 'is false.', the filename still matches the runner's *_vuln*.pv glob, and a green run here would mean the check went vacuous.",
       "ci": {
         "status": "wired",
         "job": [
