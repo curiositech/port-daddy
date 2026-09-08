@@ -20,6 +20,9 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+// Jest runs from the repository root, which is the MAIN git worktree -- the one
+// the session policy refuses. One test below relies on that.
+const repoRoot = process.cwd();
 
 // CLAUDE.md hard rule: never scratch to /tmp. Use ~/coding/tmp.
 function scratchDir(prefix) {
@@ -288,6 +291,32 @@ describe('pd begin / pd session find — idempotency key on the client', () => {
     expect(printed.adopted).toBe(false);
     expect(printed.hint).toContain('pd session takeover session-by-identity');
     expect(existsSync(join(contextDir, 'contexts'))).toBe(false);
+  });
+
+  // The flag the other tests set is only honest if something checks what it
+  // opts out OF. Two review bots made the same point about BEGIN_DEFAULTS on
+  // the same day and they were right: every begin in this file passed
+  // allow-main-worktree, so the suite verified the opt-out and never once
+  // verified the production default it opts out of. This is that test, and it
+  // is the only one here that overrides the default deliberately.
+  test('without the opt-out, a begin in the MAIN worktree is refused before any request', async () => {
+    const { handleBegin } = await import('../../cli/commands/sugar.js');
+    const previousCwd = process.cwd();
+    process.chdir(repoRoot); // the main worktree, not a linked one
+    try {
+      await expect(
+        handleBegin('policy check', [], beginOptions({
+          'allow-main-worktree': false,
+          sidequest: 'the worktree policy is what is under test here',
+        })),
+      ).rejects.toThrow(/main Git worktree/i);
+    } finally {
+      process.chdir(previousCwd);
+    }
+    // Refused before the wire, not after: no request, and no attempt written
+    // that a later `pd session find` could adopt.
+    expect(requests).toHaveLength(0);
+    expect(attemptsIn(contextDir)).toHaveLength(0);
   });
 
   test('pd session find with nothing to search by explains itself and exits 1', async () => {
