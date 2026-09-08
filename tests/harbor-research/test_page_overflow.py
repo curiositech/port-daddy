@@ -226,6 +226,29 @@ class FootIntrusionTests(unittest.TestCase):
             page.insert_text((X0 + 10, po.TEXT_FOOT - 12), "last line of the page, where it belongs", fontsize=10)
         self.assertEqual(self.intrusions(build), [])
 
+    def test_a_deep_display_descending_a_few_points_is_not_an_intrusion(self):
+        """The threshold's lower edge, pinned. Theorem 8.4.1's display carries a
+        radical over a nested subscript and its box bottom lands 6.1 pt below
+        the block's foot -- and 17.5 pt clear of the running foot, measured on
+        the built PDF, so a reader sees an ordinary last line. Slack was 6.0,
+        fitted to a sample without that construct, and it named p. 426 of the
+        Swiss edition and p. 422 of the technical."""
+        def build(page):
+            page.insert_text((X0 + 10, po.TEXT_FOOT + 5.5), "r = |s| sqrt(1 - R^{K_c}_eff(e))", fontsize=8)
+        self.assertEqual(self.intrusions(build), [])
+
+    def test_the_threshold_sits_between_the_two_populations(self):
+        """The upper edge. Ordinary last lines land 0-3 pt below the block over
+        all three editions; the defect this check exists for -- a longtable row
+        whose cell cannot break, six lines of it -- lands 50 to 70. Nothing was
+        measured between 8 and 50, so the threshold is in empty space and a
+        real overrun cannot slip under it."""
+        def build(page):
+            page.insert_text((X0 + 10, po.TEXT_FOOT + 60), "Run by proverif-estate, whose runner globs", fontsize=8)
+        found = self.intrusions(build)
+        self.assertEqual(len(found), 1, found)
+        self.assertGreater(found[0]["below_foot_pt"], 50)
+
 
 if __name__ == "__main__":
     unittest.main()

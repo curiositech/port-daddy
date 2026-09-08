@@ -73,12 +73,26 @@ TEXT_FOOT = PAPER_H - 0.95 * 72
 # band than the body's).
 FOOTER_TEXT = ("The Harbor, the Person, and the Economy", "Textbook Edition")
 
-def foot_intrusions(page, x0, x1, slack=6.0):
+def foot_intrusions(page, x0, x1, slack=8.0):
     """Column text set below the text block's foot that is not the running foot.
     The slack is half a line: the last line of every full page carries its
     descenders 2.9 pt below the block's foot, and a display with a deep
     subscript reaches 4.5, so a threshold at 2 pt named ninety pages that were
-    fine. A table overrunning the block is 50 to 70 pt below it."""
+    fine. A table overrunning the block is 50 to 70 pt below it.
+
+    6.0 was fitted to a sample that had no radical over a nested subscript.
+    Theorem 8.4.1's display -- r=|s|sqrt(1-R^{K_c}_eff(e)), on C_n: |s|/sqrt n
+    -- reaches 6.1, and it was reported as one line over the running foot on
+    p. 426 of the Swiss edition and p. 422 of the technical. It is not over
+    the running foot: measured on the built PDF, that line's box bottom sits
+    657.7 and the running foot's box top sits 675.2, so there is 17.5 pt of
+    clear air between them and a reader sees an ordinary last line. Measured
+    across all three editions, ordinary last lines land at 0-3 pt (364 of
+    them), a handful of deep displays at 4-6, and the real defects -- a
+    longtable row running off the block -- at 50 to 70. 8.0 sits in the empty
+    gap between those two populations, which is where a threshold belongs.
+    Verified on the PDF that had the real one: the 63.9 pt, six-line
+    intrusion on p. 505 still fails at this slack."""
     out = []
     for b in page.get_text("dict")["blocks"]:
         if b.get("type") != 0:

@@ -136,7 +136,29 @@
   % onto it (132 collisions on the merge, all of them pairs of citations on
   % one line). Below the anchor is exactly where a second note belongs.
   \ifdim\pd@blockoff>0pt \setlength{\pd@blockoff}{0pt}\fi
-  \ifdim\pd@blockoff<-\pagetotal \setlength{\pd@blockoff}{-\pagetotal}\fi
+  \ifdim\pd@blockoff<-\pagetotal
+    \setlength{\pd@blockoff}{-\pagetotal}%
+    % Headroom at the column top, and the reason is the one hole left in the
+    % occupancy model. Every cap below is keyed on \thepage, which is the
+    % page the device was ISSUED on -- and a head issued in the last line of
+    % a page whose paragraph then breaks prints at the top of the NEXT page
+    % while having recorded the page before. That is exactly the Recall-on-
+    % Pitfall collision at the top of p. 306 of the maritime edition: the
+    % Pitfall head began its paragraph at the foot of p. 305, migrated with
+    % the break, and the Recall block clamped flush to p. 306's column top
+    % and landed 1.0 pt from a head no cap could see. TeX cannot tell us the
+    % shipout page here, so the fix is not a better cap but a reservation:
+    % when the top clamp binds, leave two lines for whatever may have come
+    % over the break. Two, not one, because a head of three or four words
+    % wraps to two lines at the margin's width. Only when there is room --
+    % \pagegoal is \maxdimen on an empty page, which is room enough for
+    % anything, and a block already too tall for its page is left where the
+    % clamp put it rather than pushed off the paper.
+    \ifdim\dimexpr\pagetotal+\pd@blockoff+2\baselineskip+\ht#1+\dp#1\relax>\pagegoal
+      \ifdim\dimexpr\pagetotal+\pd@blockoff+\baselineskip+\ht#1+\dp#1\relax>\pagegoal
+      \else\setlength{\pd@blockoff}{\dimexpr\pd@blockoff+\baselineskip\relax}\fi
+    \else\setlength{\pd@blockoff}{\dimexpr\pd@blockoff+2\baselineskip\relax}\fi
+  \fi
   \ifnum\pd@lastheadpage=\thepage\relax
     \ifdim\pd@blockoff<\dimexpr\pd@lastheadbottom-\pagetotal\relax
       \setlength{\pd@blockoff}{\dimexpr\pd@lastheadbottom-\pagetotal\relax}\fi
