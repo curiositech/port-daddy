@@ -95,18 +95,27 @@ if [ ! -d "$REPO/.git" ]; then
 fi
 git -C "$REPO" fetch --quiet origin main --tags 2>/dev/null || { log "✗ git fetch failed (offline?)"; exit 0; }
 
-run_lanes() { # run_lanes <lane-flag> <log-slug>  → 0 iff both apps built+launched
-  local flag="$1" slug="$2" stamp blog rc=0
+run_lanes() { # run_lanes <lane-flag> <log-slug>  → 0 iff pd-console built+launched
+  # Sets LANE_CONSOLE_RC / LANE_FLEETBAR_RC as side channels so callers can gate
+  # per-app state (e.g. built-main-sha) on pd-console alone: FleetBar's relaunch
+  # depends on a separate launchd bootstrap step (com.portdaddy.fleetbar.*) that
+  # can fail for reasons that have nothing to do with whether pd-console itself
+  # built correctly (e.g. that label being administratively disabled) — folding
+  # both into one rc previously made a good pd-console build register as a
+  # total lane FAILURE and permanently masked forever which SHA it was actually
+  # built from.
+  local flag="$1" slug="$2" stamp blog
   stamp="$(date +%Y%m%d-%H%M%S)"
   blog="$BUILD_LOGS/$stamp-$slug.log"
   log "building $slug lanes (log: $blog)"
-  bash "$REPO/core/pd-console/scripts/package-console.sh" "$flag" >>"$blog" 2>&1 || rc=1
+  LANE_CONSOLE_RC=0; LANE_FLEETBAR_RC=0
+  bash "$REPO/core/pd-console/scripts/package-console.sh" "$flag" >>"$blog" 2>&1 || LANE_CONSOLE_RC=1
   if [ -f "$REPO/apps/FleetBar/scripts/package-fleetbar-lane.sh" ]; then
-    bash "$REPO/apps/FleetBar/scripts/package-fleetbar-lane.sh" "$flag" >>"$blog" 2>&1 || rc=1
+    bash "$REPO/apps/FleetBar/scripts/package-fleetbar-lane.sh" "$flag" >>"$blog" 2>&1 || LANE_FLEETBAR_RC=1
   else
     log "⚠ FleetBar lane script not on this ref yet — console only" | tee -a "$blog"
   fi
-  return $rc
+  return $LANE_CONSOLE_RC
 }
 
 # ── LATEST: did origin/main move? ──────────────────────────────────────────────
@@ -142,6 +151,10 @@ if [ "$FORCE_LATEST" = 1 ] || { [ "$MAIN_SHA" != "$(state_get built-main-sha)" ]
   else
     log "✗ latest lane build FAILED for ${MAIN_SHA:0:10} — see newest log in $BUILD_LOGS"
     notify "Port Daddy apps" "latest lane build FAILED @ ${MAIN_SHA:0:10} — check $BUILD_LOGS"
+  fi
+  if [ "${LANE_FLEETBAR_RC:-0}" = 1 ]; then
+    log "⚠ FleetBar (dev-latest) relaunch failed for ${MAIN_SHA:0:10} — pd-console itself is unaffected, see $BUILD_LOGS"
+    notify "Port Daddy apps" "FleetBar dev-latest relaunch failed @ ${MAIN_SHA:0:10} — pd-console OK, check $BUILD_LOGS"
   fi
 fi
 
@@ -183,6 +196,10 @@ elif [ "$FORCE_PROD" = 1 ] || { [ "$TAP_VERSION" != "$(state_get built-prod-vers
     else
       log "✗ prod lane build FAILED for v$TAP_VERSION — see newest log in $BUILD_LOGS"
       notify "Port Daddy apps" "prod lane build FAILED @ v$TAP_VERSION — check $BUILD_LOGS"
+    fi
+    if [ "${LANE_FLEETBAR_RC:-0}" = 1 ]; then
+      log "⚠ FleetBar (prod) relaunch failed for v$TAP_VERSION — pd-console-prod itself is unaffected, see $BUILD_LOGS"
+      notify "Port Daddy apps" "FleetBar prod relaunch failed @ v$TAP_VERSION — pd-console-prod OK, check $BUILD_LOGS"
     fi
     # Leave the clone back on main so the next latest build starts from the right ref.
     git -C "$REPO" checkout --quiet --force --detach origin/main || log "⚠ could not return clone to origin/main after prod build"
