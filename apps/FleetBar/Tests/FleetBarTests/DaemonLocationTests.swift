@@ -29,6 +29,32 @@ final class DaemonLocationTests: XCTestCase {
         )
     }
 
+    func testLoopbackHostUsesInjectedEnvironmentOverrideDefaultAndBlankValues() throws {
+        let home = try makeHome()
+        try write("3174\n", to: ".port-daddy/daemon.port", home: home)
+
+        XCTAssertEqual(
+            DaemonLocation.resolveBaseURL(
+                channel: .production,
+                environment: ["PORT_DADDY_TCP_HOST": " 10.8.0.42 "],
+                homeDirectory: home
+            ),
+            "http://10.8.0.42:3174"
+        )
+        XCTAssertEqual(
+            DaemonLocation.resolveBaseURL(channel: .production, environment: [:], homeDirectory: home),
+            "http://127.0.0.1:3174"
+        )
+        XCTAssertEqual(
+            DaemonLocation.resolveBaseURL(
+                channel: .production,
+                environment: ["PORT_DADDY_TCP_HOST": "   \n\t  "],
+                homeDirectory: home
+            ),
+            "http://127.0.0.1:3174"
+        )
+    }
+
     func testLegacyConsoleSelectorCannotShadowThePublishedEndpoint() throws {
         let home = try makeHome()
         let legacyName = ["console", "daemon", "url"].joined(separator: ".")
