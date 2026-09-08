@@ -43,7 +43,7 @@ describe('pd begin / pd session find — idempotency key on the client', () => {
   const ENV_KEYS = [
     'PORT_DADDY_URL', 'PD_URL', 'PORT_DADDY_SOCK', 'PORT_DADDY_FORCE_TCP', 'PORT_DADDY_NO_RETRY',
     'PORT_DADDY_CONTEXT_DIR', 'PD_ACTOR_CREDENTIAL', 'PORT_DADDY_ACTOR_CREDENTIAL', 'PD_AGENT_ID', 'PD_SESSION_ID',
-    'PORT_DADDY_CONTEXT_SLOT', 'CI',
+    'PORT_DADDY_CONTEXT_SLOT', 'CI', 'PORT_DADDY_ALLOW_MAIN_WORKTREE_SESSION',
   ];
   let server;
   let baseUrl;
@@ -92,6 +92,12 @@ describe('pd begin / pd session find — idempotency key on the client', () => {
     process.env.PORT_DADDY_NO_RETRY = '1';
     process.env.PORT_DADDY_CONTEXT_DIR = contextDir;
     process.env.PORT_DADDY_CONTEXT_SLOT = 'idem-test';
+    // These tests run `handleBegin` straight out of this repo's own checkout,
+    // which in CI is always the main Git worktree (no linked worktree exists
+    // to run from). Match the CI/single-user convention used elsewhere
+    // (tests/helpers/integration-setup.js) so the client-side worktree gate
+    // doesn't refuse the session before the scripted request is even sent.
+    process.env.PORT_DADDY_ALLOW_MAIN_WORKTREE_SESSION = '1';
     for (const key of ['PD_URL', 'PORT_DADDY_SOCK', 'PORT_DADDY_FORCE_TCP', 'PD_ACTOR_CREDENTIAL', 'PORT_DADDY_ACTOR_CREDENTIAL', 'PD_AGENT_ID', 'PD_SESSION_ID']) {
       delete process.env[key];
     }
