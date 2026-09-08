@@ -46,12 +46,20 @@ const SLUG = 'some-real-work';
 let db: DatabaseSync;
 let SQL: string;
 
-/** One claim attempt, binding exactly what claimSlug binds, in its order. */
-function claim(agent: string, at: number, headline = ''): number {
+/**
+ * One claim attempt, binding exactly what claimSlug binds, in its order.
+ *
+ * These binds are positional against a statement read out of the module, so
+ * they move when it moves -- and when `owner` was added to the INSERT, every
+ * test here failed on a NOT NULL constraint until they were updated. That is
+ * the extraction discipline paying for itself: a retyped copy would have gone
+ * on passing against a statement the Worker no longer runs.
+ */
+function claim(agent: string, at: number, headline = '', owner: string | null = null): number {
   const staleBefore = at - CLAIM_STALE_AFTER_SECONDS;
   const stmt = db.prepare(SQL);
   const res = stmt.run(
-    REPO, SLUG, 'registered', agent, 'session', headline,
+    REPO, SLUG, 'registered', agent, 'session', owner, headline,
     null, null, at, at, at, staleBefore,
   );
   return res.changes;
@@ -146,11 +154,23 @@ describe('the claim race, on real SQLite', () => {
     expect(claim('agent-b', 9000 + CLAIM_STALE_AFTER_SECONDS + 1)).toBe(1);
   });
 
+  it('the owner survives a salvage, so orphaned work still has someone to ask', () => {
+    // The owner is who ANSWERS for the work; the agent is who is typing. A
+    // salvage replaces the second and must not erase the first, which is
+    // exactly the moment somebody wants to know whose work this was.
+    claim('agent-a', 1000, 'first', 'erich');
+    claim('agent-b', 1000 + CLAIM_STALE_AFTER_SECONDS + 1);   // names no owner
+    const row = db.prepare('SELECT agent, owner FROM work_claims WHERE slug = ?').get(SLUG) as
+      { agent: string; owner: string };
+    expect(row.agent).toBe('agent-b');
+    expect(row.owner).toBe('erich');
+  });
+
   it('claims on different slugs do not contend', () => {
     claim('agent-a', 1000);
     const stmt = db.prepare(SQL);
     const at = 1000;
-    const res = stmt.run(REPO, 'another-slug', 'registered', 'agent-b', 'session', '',
+    const res = stmt.run(REPO, 'another-slug', 'registered', 'agent-b', 'session', null, '',
       null, null, at, at, at, at - CLAIM_STALE_AFTER_SECONDS);
     expect(res.changes).toBe(1);
   });

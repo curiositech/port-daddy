@@ -37,6 +37,8 @@ import {
   dateCacheMeta,
   describeAge,
   registryWarning,
+  parseBoardQuery,
+  applyBoardQuery,
   type ClaimRow,
 } from '../src/work-register.js';
 import type { Env } from '../src/types.js';
@@ -253,5 +255,98 @@ describe('registryWarning — the sentence the page and the JSON share', () => {
     expect(w).toContain('main');
     expect(w).toContain('318');
     expect(w).toMatch(/unknown rather than as absent/);
+  });
+});
+
+describe('parseBoardQuery — the convenient API, refusing what it cannot mean', () => {
+  const q = (s: string) => parseBoardQuery(new URLSearchParams(s));
+
+  it('an empty query asks for nothing, so the default answer is unchanged', () => {
+    expect(q('')).toEqual({});
+  });
+
+  it('reads order, filters, limit and cursor', () => {
+    expect(q('order=priority&state=held&agent=a-1&owner=erich&provenance=proposed&limit=50&cursor=x'))
+      .toEqual({
+        order: 'priority', state: 'held', agent: 'a-1', owner: 'erich',
+        provenance: 'proposed', limit: 50, cursor: 'x',
+      });
+  });
+
+  it('refuses an unknown order or state rather than silently ignoring it', () => {
+    // Ignoring an unknown parameter is how a caller comes to believe it is
+    // filtering when it is reading the whole board.
+    expect(q('order=whenever')).toHaveProperty('error');
+    expect(q('state=vibing')).toHaveProperty('error');
+    expect(q('provenance=invented')).toHaveProperty('error');
+  });
+
+  it('refuses a limit it would have to clamp', () => {
+    for (const bad of ['limit=0', 'limit=-1', 'limit=501', 'limit=2.5', 'limit=lots']) {
+      expect(q(bad), bad).toHaveProperty('error');
+    }
+    expect(q('limit=500')).toEqual({ limit: 500 });
+  });
+});
+
+describe('applyBoardQuery — ordering, filtering and paging', () => {
+  const row = (slug: string, priority: number | null, over: Partial<ClaimRow> | null = null) => ({
+    slug, priority: priority ?? undefined, claim: over ? claim({ slug, ...over }) : null, stale: false,
+  });
+  // c-work is held, a-work and b-work are free; priorities are deliberately
+  // not in slug order so the two orderings cannot coincide by accident.
+  const board = [
+    row('a-work', 3),
+    row('b-work', 1),
+    row('c-work', 2, { state: 'held', agent: 'agent-1', owner: 'erich' }),
+    row('d-work', null),
+  ];
+
+  it('defaults to what the board returned before any of this existed', () => {
+    const { items } = applyBoardQuery(board, {});
+    expect(items.map((r) => r.slug)).toEqual(['c-work', 'a-work', 'b-work', 'd-work']);
+  });
+
+  it('orders by the registry priority when asked', () => {
+    const { items } = applyBoardQuery(board, { order: 'priority' });
+    expect(items.map((r) => r.slug)).toEqual(['b-work', 'c-work', 'a-work', 'd-work']);
+  });
+
+  it('sorts an unranked slug last, because unranked is unknown, not urgent', () => {
+    const { items } = applyBoardQuery(board, { order: 'priority' });
+    expect(items[items.length - 1].slug).toBe('d-work');
+  });
+
+  it('filters by state, agent, owner and provenance', () => {
+    expect(applyBoardQuery(board, { state: 'held' }).items.map((r) => r.slug)).toEqual(['c-work']);
+    expect(applyBoardQuery(board, { agent: 'agent-1' }).items.map((r) => r.slug)).toEqual(['c-work']);
+    expect(applyBoardQuery(board, { owner: 'erich' }).items.map((r) => r.slug)).toEqual(['c-work']);
+    expect(applyBoardQuery(board, { state: 'open' }).items).toHaveLength(3);
+  });
+
+  it('reports the filtered total, not just the page', () => {
+    const page = applyBoardQuery(board, { order: 'slug', limit: 2 });
+    expect(page.items.map((r) => r.slug)).toEqual(['a-work', 'b-work']);
+    expect(page.total, 'a caller that sees only count reads a page as the board').toBe(4);
+    expect(page.next_cursor).toBe('b-work');
+  });
+
+  it('pages forward from the cursor without repeating or skipping', () => {
+    const first = applyBoardQuery(board, { order: 'slug', limit: 2 });
+    const second = applyBoardQuery(board, { order: 'slug', limit: 2, cursor: first.next_cursor! });
+    expect(second.items.map((r) => r.slug)).toEqual(['c-work', 'd-work']);
+    expect(second.next_cursor, 'the last page has no next').toBeNull();
+  });
+
+  it('a cursor whose slug has left the board restarts rather than returning nothing', () => {
+    // An empty page reads as "walk finished". Duplicates a caller can see.
+    const page = applyBoardQuery(board, { order: 'slug', limit: 2, cursor: 'deleted-since' });
+    expect(page.items.map((r) => r.slug)).toEqual(['a-work', 'b-work']);
+  });
+
+  it('does not mutate the board it was handed', () => {
+    const before = board.map((r) => r.slug);
+    applyBoardQuery(board, { order: 'slug' });
+    expect(board.map((r) => r.slug)).toEqual(before);
   });
 });

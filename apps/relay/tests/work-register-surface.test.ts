@@ -200,3 +200,98 @@ describe('an agent claims, and the next one is told who has it', () => {
     expect(cols.repo_full_name).toBe(REPO);
   });
 });
+
+describe('owners and links: who answers for it, and what else is about it', () => {
+  beforeEach(() => {
+    db.raw
+      .prepare(
+        `INSERT INTO work_board_members (repo_full_name, user_id, first_seen_at, last_seen_at)
+         VALUES (?, ?, ?, ?)`,
+      )
+      .run(REPO, 'u_erich', 1, 1);
+  });
+
+  const post = (action: string, body: Record<string, unknown>) =>
+    handleRegisterApi(
+      asAgent(`/v1/register/${action}?repo=${REPO}`, { method: 'POST', body: JSON.stringify(body) }),
+      env,
+    );
+
+  it('an owner outlives the agent that held the slug', async () => {
+    await post('claim', { slug: 'kernel-figures', agent: 'agent-a', owner: 'erich' });
+    await post('release', { slug: 'kernel-figures', agent: 'agent-a', body: 'ran out of turn' });
+    const row = db.raw
+      .prepare('SELECT agent, owner, state FROM work_claims WHERE slug = ?')
+      .get('kernel-figures') as { agent: string | null; owner: string; state: string };
+    expect(row.state).toBe('open');
+    expect(row.agent, 'the holder is gone').toBeNull();
+    expect(row.owner, 'but the work still belongs to someone').toBe('erich');
+  });
+
+  it('a later claim that names no owner keeps the one already recorded', async () => {
+    await post('claim', { slug: 'kernel-figures', agent: 'agent-a', owner: 'erich' });
+    await post('release', { slug: 'kernel-figures', agent: 'agent-a' });
+    await post('claim', { slug: 'kernel-figures', agent: 'agent-b' });
+    const row = db.raw
+      .prepare('SELECT agent, owner FROM work_claims WHERE slug = ?')
+      .get('kernel-figures') as { agent: string; owner: string };
+    expect(row.agent).toBe('agent-b');
+    expect(row.owner).toBe('erich');
+  });
+
+  it('links attach, and the same link twice is one link', async () => {
+    await post('claim', { slug: 'kernel-figures', agent: 'agent-a' });
+    await post('link', { slug: 'kernel-figures', kind: 'pr', ref: '10097', agent: 'agent-a' });
+    await post('link', { slug: 'kernel-figures', kind: 'pr', ref: '10097', title: 'The register', agent: 'agent-a' });
+    await post('link', { slug: 'kernel-figures', kind: 'adr', ref: 'docs/adr/0119.md', agent: 'agent-a' });
+    const res = await handleRegisterApi(
+      asAgent(`/v1/register/item?repo=${REPO}&slug=kernel-figures`), env,
+    );
+    const body = (await res.json()) as { links: Array<{ kind: string; ref: string; title: string }> };
+    expect(body.links).toHaveLength(2);
+    const pr = body.links.find((l) => l.kind === 'pr');
+    expect(pr?.title, 'a repeat carries the better title').toBe('The register');
+  });
+
+  it('refuses a link kind the board could not render', async () => {
+    await post('claim', { slug: 'kernel-figures', agent: 'agent-a' });
+    const res = await post('link', { slug: 'kernel-figures', kind: 'vibes', ref: 'x', agent: 'agent-a' });
+    expect(res.status).toBe(400);
+  });
+
+  it('a link survives the claim being finished, because it is the answer to "where did this go"', async () => {
+    await post('claim', { slug: 'kernel-figures', agent: 'agent-a' });
+    await post('link', { slug: 'kernel-figures', kind: 'pr', ref: '10097', agent: 'agent-a' });
+    await post('finish', { slug: 'kernel-figures', agent: 'agent-a', body: 'merged' });
+    const res = await handleRegisterApi(
+      asAgent(`/v1/register/item?repo=${REPO}&slug=kernel-figures`), env,
+    );
+    const body = (await res.json()) as { links: unknown[] };
+    expect(body.links).toHaveLength(1);
+  });
+
+  it('the board carries links and pages without losing the total', async () => {
+    await post('claim', { slug: 'kernel-figures', agent: 'agent-a', owner: 'erich' });
+    await post('link', { slug: 'kernel-figures', kind: 'pr', ref: '10097', agent: 'agent-a' });
+    await post('claim', { slug: 'other-work', agent: 'agent-b' });
+    const res = await handleRegisterApi(
+      asAgent(`/v1/register/board?repo=${REPO}&order=slug&limit=1`), env,
+    );
+    const body = (await res.json()) as {
+      count: number; total: number; next_cursor: string | null; order: string;
+      items: Array<{ slug: string; links?: unknown[] }>;
+    };
+    expect(body.order).toBe('slug');
+    expect(body.count).toBe(1);
+    expect(body.total).toBe(2);
+    expect(body.next_cursor).toBe('kernel-figures');
+    expect(body.items[0].links).toHaveLength(1);
+  });
+
+  it('refuses a query it cannot mean, rather than serving the whole board', async () => {
+    const res = await handleRegisterApi(
+      asAgent(`/v1/register/board?repo=${REPO}&order=whenever`), env,
+    );
+    expect(res.status).toBe(400);
+  });
+});

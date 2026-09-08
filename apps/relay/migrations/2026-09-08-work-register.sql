@@ -69,6 +69,13 @@ CREATE TABLE IF NOT EXISTS work_claims (
   agent_kind     TEXT
     CHECK (agent_kind IS NULL OR agent_kind IN ('session', 'human', 'fleet')),
 
+  -- Who ANSWERS for it, which is not who is typing. An agent holds a slug for
+  -- an hour; the owner is whoever the work belongs to across every agent that
+  -- ever touches it, and survives release, salvage and hand-off. Keeping them
+  -- in one column would have meant losing the owner every time a claim moved,
+  -- which is exactly when you most want to know who to ask.
+  owner          TEXT,
+
   -- What the holder is actually doing, in their words, plus where to look.
   headline       TEXT    NOT NULL DEFAULT '',
   branch         TEXT,
@@ -115,6 +122,37 @@ CREATE TABLE IF NOT EXISTS work_notes (
 
 CREATE INDEX IF NOT EXISTS idx_work_notes_thread
   ON work_notes(repo_full_name, slug, at DESC);
+
+-- What else is about this slug: the PR that carries it, the ADR that decided
+-- it, the plan it came out of, the CI run that proves it.
+--
+-- A separate table rather than more columns on the claim, for two reasons. A
+-- slug routinely has several of these and exactly one claim, so columns would
+-- mean `pr_number_2`. And links outlive claims: the PR that carried a slug is
+-- still the answer to "where did this go" long after the agent released it,
+-- and would be erased by a release if it lived on the claim. `pr_number` stays
+-- on the claim as the holder's current PR -- what they are working in now --
+-- which is a different question from what this slug is linked to.
+CREATE TABLE IF NOT EXISTS work_links (
+  repo_full_name TEXT    NOT NULL,
+  slug           TEXT    NOT NULL,
+  -- 'pr' and 'issue' carry a number in `ref`; the rest carry a repo-relative
+  -- path or a URL. The kind is closed so a board can render them differently
+  -- without guessing from the string.
+  kind           TEXT    NOT NULL
+    CHECK (kind IN ('pr', 'issue', 'doc', 'adr', 'run', 'branch', 'other')),
+  ref            TEXT    NOT NULL,
+  title          TEXT    NOT NULL DEFAULT '',
+  added_by       TEXT    NOT NULL DEFAULT '',
+  at             INTEGER NOT NULL,
+  -- Same link added twice is one link, whoever added it. Agents re-post what
+  -- they know on every turn, and a board that grew a row each time would bury
+  -- the thread it is meant to summarise.
+  PRIMARY KEY (repo_full_name, slug, kind, ref)
+);
+
+CREATE INDEX IF NOT EXISTS idx_work_links_slug
+  ON work_links(repo_full_name, slug, at DESC);
 
 -- The registry projection, cached so an agent holding only a device token can
 -- ask what work exists without carrying a GitHub credential of its own.

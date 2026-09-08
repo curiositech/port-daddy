@@ -82,6 +82,8 @@ export interface ClaimRow {
   state: ClaimState;
   agent: string | null;
   agent_kind: AgentKind | null;
+  /** Who answers for the work, across every agent that ever holds it. */
+  owner: string | null;
   headline: string;
   branch: string | null;
   pr_number: number | null;
@@ -132,6 +134,144 @@ export interface BoardRow extends Partial<RegistryRow> {
   claim: ClaimRow | null;
   /** True when the claim's holder has gone quiet past the TTL. */
   stale: boolean;
+  /** PRs, ADRs, plans and runs attached to this slug. Absent on /item. */
+  links?: WorkLink[];
+}
+
+export type BoardOrder = 'priority' | 'updated' | 'slug';
+const BOARD_ORDERS: BoardOrder[] = ['priority', 'updated', 'slug'];
+
+/**
+ * How a caller asks for a slice of the board.
+ *
+ * Every field is optional and the defaults reproduce what the surface returned
+ * before any of this existed — 300 slugs unordered was fine, and the point of
+ * adding order and paging is 3,000, not to change the answer anybody is
+ * already reading.
+ */
+export interface BoardQuery {
+  order?: BoardOrder;
+  state?: ClaimState;
+  agent?: string;
+  owner?: string;
+  provenance?: Provenance;
+  limit?: number;
+  cursor?: string;
+}
+
+/** Ordering, filtering and paging read off the query string, safely. */
+export function parseBoardQuery(params: URLSearchParams): BoardQuery | { error: string } {
+  const q: BoardQuery = {};
+
+  const order = params.get('order');
+  if (order !== null) {
+    if (!(BOARD_ORDERS as string[]).includes(order)) {
+      return { error: `order must be one of ${BOARD_ORDERS.join(', ')}` };
+    }
+    q.order = order as BoardOrder;
+  }
+
+  const state = params.get('state');
+  if (state !== null) {
+    if (!(CLAIM_STATES as string[]).includes(state)) {
+      return { error: `state must be one of ${CLAIM_STATES.join(', ')}` };
+    }
+    q.state = state as ClaimState;
+  }
+
+  const provenance = params.get('provenance');
+  if (provenance !== null) {
+    if (provenance !== 'registered' && provenance !== 'proposed') {
+      return { error: 'provenance must be registered or proposed' };
+    }
+    q.provenance = provenance;
+  }
+
+  for (const key of ['agent', 'owner'] as const) {
+    const v = params.get(key);
+    if (v !== null) {
+      if (v.length > 200) return { error: `${key} is too long` };
+      q[key] = v;
+    }
+  }
+
+  const limit = params.get('limit');
+  if (limit !== null) {
+    const n = Number(limit);
+    // Rejected rather than clamped: a caller that asks for 10,000 and silently
+    // gets 500 will read the short page as the whole board and stop.
+    if (!Number.isInteger(n) || n < 1 || n > 500) {
+      return { error: 'limit must be an integer from 1 to 500' };
+    }
+    q.limit = n;
+  }
+
+  const cursor = params.get('cursor');
+  if (cursor !== null) {
+    if (cursor.length > 300) return { error: 'cursor is not one of ours' };
+    q.cursor = cursor;
+  }
+
+  return q;
+}
+
+/**
+ * Apply a query to a board that has already been read.
+ *
+ * In memory rather than in SQL, deliberately and with a ceiling on it: the
+ * board is one repository's slugs — 318 today — and the join that builds it is
+ * a UNION the filters cannot push into without being rewritten per filter.
+ * Sorting a few hundred rows costs nothing and keeps one code path. If a board
+ * ever reaches the tens of thousands this becomes wrong, and the honest signal
+ * for that is `total` in the response outgrowing what any page returns.
+ *
+ * The cursor is the slug last returned under the current order — not an index,
+ * which would skip or repeat rows when the board changes between pages.
+ */
+export function applyBoardQuery(
+  rows: BoardRow[],
+  q: BoardQuery,
+): { items: BoardRow[]; total: number; next_cursor: string | null } {
+  let items = rows;
+
+  if (q.state) items = items.filter((r) => (r.claim?.state ?? 'open') === q.state);
+  if (q.provenance) items = items.filter((r) => (r.claim?.provenance ?? 'registered') === q.provenance);
+  if (q.agent) items = items.filter((r) => r.claim?.agent === q.agent);
+  if (q.owner) items = items.filter((r) => r.claim?.owner === q.owner);
+
+  const order = q.order ?? 'updated';
+  const byBusy = (r: BoardRow) =>
+    r.claim && r.claim.state !== 'open' && r.claim.state !== 'done' ? 0 : r.claim?.state === 'done' ? 2 : 1;
+  items = [...items].sort((a, b) => {
+    if (order === 'slug') return a.slug.localeCompare(b.slug);
+    if (order === 'priority') {
+      // The registry's own priority, which the board was throwing away. A slug
+      // the projection does not rank sorts after every ranked one rather than
+      // ahead of them: unranked is unknown, not urgent.
+      const pa = a.priority ?? Number.POSITIVE_INFINITY;
+      const pb = b.priority ?? Number.POSITIVE_INFINITY;
+      return pa - pb || a.slug.localeCompare(b.slug);
+    }
+    // 'updated' — the pre-existing order: what is being worked on, first.
+    return byBusy(a) - byBusy(b) || a.slug.localeCompare(b.slug);
+  });
+
+  const total = items.length;
+  if (q.cursor) {
+    const from = items.findIndex((r) => r.slug === q.cursor);
+    // A cursor whose slug has since left the board pages from the start rather
+    // than returning nothing: a caller mid-walk gets duplicates, which it can
+    // see, instead of an empty page it would read as "done".
+    items = from >= 0 ? items.slice(from + 1) : items;
+  }
+
+  let next: string | null = null;
+  if (q.limit !== undefined && items.length > q.limit) {
+    items = items.slice(0, q.limit);
+    next = items[items.length - 1]?.slug ?? null;
+  }
+
+  return { items, total, next_cursor: next };
 }
 
 const now = (): number => Math.floor(Date.now() / 1000);
@@ -356,6 +496,7 @@ export async function readBoard(
             c.state       AS c_state,
             c.agent       AS c_agent,
             c.agent_kind  AS c_agent_kind,
+            c.owner       AS c_owner,
             c.headline    AS c_headline,
             c.branch      AS c_branch,
             c.pr_number   AS c_pr_number,
@@ -369,7 +510,7 @@ export async function readBoard(
       WHERE r.repo_full_name = ?
       UNION ALL
      SELECT c.slug, NULL, NULL, NULL, NULL,
-            c.provenance, c.state, c.agent, c.agent_kind, c.headline, c.branch,
+            c.provenance, c.state, c.agent, c.agent_kind, c.owner, c.headline, c.branch,
             c.pr_number, c.claimed_at, c.heartbeat_at, c.finished_at, c.updated_at
        FROM work_claims c
       WHERE c.repo_full_name = ?
@@ -391,6 +532,7 @@ export async function readBoard(
             state: row.c_state as ClaimState,
             agent: (row.c_agent as string | null) ?? null,
             agent_kind: (row.c_agent_kind as AgentKind | null) ?? null,
+            owner: (row.c_owner as string | null) ?? null,
             headline: String(row.c_headline ?? ''),
             branch: (row.c_branch as string | null) ?? null,
             pr_number: (row.c_pr_number as number | null) ?? null,
@@ -417,7 +559,7 @@ export async function readClaim(
   slug: string,
 ): Promise<ClaimRow | null> {
   const row = await env.DB.prepare(
-    `SELECT slug, provenance, state, agent, agent_kind, headline, branch, pr_number,
+    `SELECT slug, provenance, state, agent, agent_kind, owner, headline, branch, pr_number,
             claimed_at, heartbeat_at, finished_at, updated_at
        FROM work_claims
       WHERE repo_full_name = ? AND slug = ?`,
@@ -459,6 +601,76 @@ async function appendNote(
     .run();
 }
 
+// ── links: what else is about this slug ────────────────────────────────────
+
+export type LinkKind = 'pr' | 'issue' | 'doc' | 'adr' | 'run' | 'branch' | 'other';
+const LINK_KINDS: LinkKind[] = ['pr', 'issue', 'doc', 'adr', 'run', 'branch', 'other'];
+
+export interface WorkLink {
+  kind: LinkKind;
+  ref: string;
+  title: string;
+  added_by: string;
+  at: number;
+}
+
+export const isLinkKind = (v: unknown): v is LinkKind =>
+  typeof v === 'string' && (LINK_KINDS as string[]).includes(v);
+
+/**
+ * Attach a document, PR, ADR or run to a slug.
+ *
+ * Idempotent on (kind, ref) because agents re-post what they know on every
+ * turn: a board that grew a row per repetition would bury the thread it exists
+ * to summarise. A repeat updates the title, since the later one is usually the
+ * better one — a PR gets its real title after it stops being "WIP".
+ */
+export async function addLink(
+  env: Env, repoFullName: string, slug: string,
+  kind: LinkKind, ref: string, title: string, addedBy: string,
+): Promise<void> {
+  await env.DB.prepare(
+    `INSERT INTO work_links (repo_full_name, slug, kind, ref, title, added_by, at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(repo_full_name, slug, kind, ref) DO UPDATE SET
+       title = CASE WHEN excluded.title <> '' THEN excluded.title ELSE work_links.title END`,
+  )
+    .bind(repoFullName, slug, kind, ref, title, addedBy, now())
+    .run();
+}
+
+export async function readLinks(
+  env: Env, repoFullName: string, slug: string,
+): Promise<WorkLink[]> {
+  const { results } = await env.DB.prepare(
+    `SELECT kind, ref, title, added_by, at FROM work_links
+      WHERE repo_full_name = ? AND slug = ? ORDER BY at DESC`,
+  )
+    .bind(repoFullName, slug)
+    .all<WorkLink>();
+  return results ?? [];
+}
+
+/** Every link on a board, grouped by slug, so /board needs one query not N. */
+export async function readAllLinks(
+  env: Env, repoFullName: string,
+): Promise<Map<string, WorkLink[]>> {
+  const { results } = await env.DB.prepare(
+    `SELECT slug, kind, ref, title, added_by, at FROM work_links
+      WHERE repo_full_name = ? ORDER BY at DESC`,
+  )
+    .bind(repoFullName)
+    .all<WorkLink & { slug: string }>();
+  const out = new Map<string, WorkLink[]>();
+  for (const r of results ?? []) {
+    const { slug, ...link } = r;
+    const list = out.get(slug);
+    if (list) list.push(link);
+    else out.set(slug, [link]);
+  }
+  return out;
+}
+
 // ── claiming: the refusal is the coordination ──────────────────────────────
 
 export type ClaimOutcome =
@@ -489,6 +701,8 @@ export async function claimSlug(
     headline?: string;
     branch?: string | null;
     prNumber?: number | null;
+    /** Who answers for the work. Absent leaves any owner already recorded. */
+    owner?: string | null;
     registered: boolean;
   },
 ): Promise<ClaimOutcome> {
@@ -504,13 +718,16 @@ export async function claimSlug(
   // able to ask again), or when the holder has gone quiet.
   const res = await env.DB.prepare(
     `INSERT INTO work_claims
-       (repo_full_name, slug, provenance, state, agent, agent_kind,
+       (repo_full_name, slug, provenance, state, agent, agent_kind, owner,
         headline, branch, pr_number, claimed_at, heartbeat_at, updated_at)
-     VALUES (?, ?, ?, 'held', ?, ?, ?, ?, ?, ?, ?, ?)
+     VALUES (?, ?, ?, 'held', ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(repo_full_name, slug) DO UPDATE SET
        state        = 'held',
        agent        = excluded.agent,
        agent_kind   = excluded.agent_kind,
+       -- The owner survives a hand-off: a claim that names none keeps the one
+       -- already recorded, so releasing work does not orphan it.
+       owner        = COALESCE(excluded.owner, work_claims.owner),
        headline     = CASE WHEN excluded.headline <> '' THEN excluded.headline
                            ELSE work_claims.headline END,
        branch       = COALESCE(excluded.branch, work_claims.branch),
@@ -524,7 +741,7 @@ export async function claimSlug(
         OR COALESCE(work_claims.heartbeat_at, work_claims.claimed_at, 0) < ?`,
   )
     .bind(
-      repoFullName, slug, provenance, agent, kind, headline,
+      repoFullName, slug, provenance, agent, kind, opts.owner ?? null, headline,
       opts.branch ?? null, opts.prNumber ?? null, at, at, at, staleBefore,
     )
     .run();
@@ -725,14 +942,21 @@ async function isRegistered(
  *
  *   GET  /v1/register/board      every slug, its claim, and the cache's own age
  *   GET  /v1/register/available  the subset nothing holds — what to ask for
- *   GET  /v1/register/item       one slug with its note thread
+ *   GET  /v1/register/item       one slug with its note thread and its links
  *   POST /v1/register/claim      take it, or be told who has it (409)
  *   POST /v1/register/heartbeat  still working; resets the salvage clock
  *   POST /v1/register/state      blocked / review / held, with a reason
  *   POST /v1/register/note       leave the next agent what the diff cannot say
+ *   POST /v1/register/link       attach a PR, ADR, plan or run to a slug
  *   POST /v1/register/release    give it back, with why
  *   POST /v1/register/finish     done, with the PR that carries it
  *   POST /v1/register/refresh    re-read the registry projection (session only)
+ *
+ * The two list paths take `order` (priority|updated|slug), the filters `state`,
+ * `agent`, `owner` and `provenance`, and `limit` with a `cursor` for paging.
+ * All optional; omitting them returns exactly what this surface returned before
+ * any of them existed, because a query parameter that changes the default
+ * answer is a breaking change wearing a feature's clothes.
  */
 export async function handleRegisterApi(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
@@ -746,11 +970,19 @@ export async function handleRegisterApi(request: Request, env: Env): Promise<Res
   if (request.method === 'GET') {
     const meta = dateCacheMeta(await readCacheMeta(env, repoFullName));
     if (action === 'board' || action === 'available') {
+      const q = parseBoardQuery(url.searchParams);
+      if ('error' in q) return json({ error: q.error }, 400);
       const rows = await readBoard(env, repoFullName);
+      const links = await readAllLinks(env, repoFullName);
+      for (const r of rows) {
+        const l = links.get(r.slug);
+        if (l) r.links = l;
+      }
       const board =
         action === 'available'
           ? rows.filter((r) => !r.claim || r.claim.state === 'open' || r.claim.state === 'abandoned' || r.stale)
           : rows;
+      const page = applyBoardQuery(board, q);
       // The warning rides on the response an agent already reads, in the same
       // words the page uses. An agent deciding what to pick up needs to know
       // that this list is six hours behind main before it acts on it, not
@@ -759,8 +991,14 @@ export async function handleRegisterApi(request: Request, env: Env): Promise<Res
         repo: repoFullName,
         registry: meta,
         warning: registryWarning(meta),
-        count: board.length,
-        items: board,
+        order: q.order ?? 'updated',
+        // `count` is this page; `total` is what the filters matched. Reporting
+        // only one of them is how a paged caller comes to believe a 50-row page
+        // is the whole board.
+        count: page.items.length,
+        total: page.total,
+        next_cursor: page.next_cursor,
+        items: page.items,
       });
     }
     if (action === 'item') {
@@ -768,9 +1006,10 @@ export async function handleRegisterApi(request: Request, env: Env): Promise<Res
       if (!isSlug(slug)) return json({ error: 'slug required' }, 400);
       const claim = await readClaim(env, repoFullName, slug);
       const notes = await readNotes(env, repoFullName, slug);
+      const links = await readLinks(env, repoFullName, slug);
       return json({
         repo: repoFullName, slug, registry: meta, warning: registryWarning(meta),
-        claim, stale: isStale(claim), notes,
+        claim, stale: isStale(claim), owner: claim?.owner ?? null, links, notes,
       });
     }
     return json({ error: `unknown action ${action}` }, 404);
@@ -809,6 +1048,7 @@ export async function handleRegisterApi(request: Request, env: Env): Promise<Res
         headline: String(body.headline ?? '').slice(0, 300),
         branch: body.branch === undefined ? null : String(body.branch).slice(0, 300),
         prNumber: typeof body.pr_number === 'number' ? body.pr_number : null,
+        owner: body.owner === undefined ? null : String(body.owner).slice(0, 200),
         registered,
       });
       if (!outcome.ok) {
@@ -834,6 +1074,20 @@ export async function handleRegisterApi(request: Request, env: Env): Promise<Res
             ? 'this slug has no row in the registry projection; it is queued, not scheduled'
             : undefined,
       });
+    }
+    case 'link': {
+      // Deliberately not restricted to the holder. Anyone on the board may say
+      // "the ADR that decided this is here" -- a reviewer, the operator, an
+      // agent that read it in passing -- and a link is additive evidence, not
+      // a change to who holds the work. The claim's own fields stay holder-only.
+      const kind = body.kind;
+      if (!isLinkKind(kind)) {
+        return json({ error: `kind must be one of ${LINK_KINDS.join(', ')}` }, 400);
+      }
+      const ref = String(body.ref ?? '').slice(0, 500);
+      if (!ref) return json({ error: 'ref required: a PR number, a path, or a URL' }, 400);
+      await addLink(env, repoFullName, slug, kind, ref, String(body.title ?? '').slice(0, 300), agent);
+      return json({ slug, links: await readLinks(env, repoFullName, slug) });
     }
     case 'heartbeat': {
       const row = await heartbeat(env, repoFullName, slug, agent);
@@ -907,6 +1161,11 @@ td.slug{font-family:"IBM Plex Mono",monospace;font-size:12.5px;white-space:nowra
    you act on it". */
 .warn{border-left:4px solid var(--amber);background:var(--surface-raised);padding:12px 18px;margin:16px 0;
       max-width:78ch;color:var(--text-primary)}
+td.pri{color:var(--text-muted);text-align:right;width:3ch}
+.owner{font-size:11px;color:var(--text-muted)}
+.links{white-space:nowrap}
+.lk{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:11px;padding:1px 6px;
+    border:1px solid var(--hair);color:var(--text-secondary)}
 code{font-size:.92em}`;
 
 const shell = (title: string, inner: string): Response =>
@@ -970,9 +1229,19 @@ export async function handleRegisterPage(request: Request, env: Env): Promise<Re
   }
   const meta = dateCacheMeta(await readCacheMeta(env, repoFullName));
   const rows = await readBoard(env, repoFullName);
+  const links = await readAllLinks(env, repoFullName);
+  for (const r of rows) {
+    const l = links.get(r.slug);
+    if (l) r.links = l;
+  }
+  // Held work first, then by the registry's own priority. The priority arrived
+  // in the cache from the projection and was being thrown away, so the board
+  // ordered a 318-slug repository alphabetically and told a reader nothing
+  // about what mattered.
   rows.sort((a, b) => {
     const rank = (r: BoardRow) => (r.claim && r.claim.state !== 'open' && r.claim.state !== 'done' ? 0 : r.claim?.state === 'done' ? 2 : 1);
-    return rank(a) - rank(b) || a.slug.localeCompare(b.slug);
+    const pri = (r: BoardRow) => r.priority ?? Number.POSITIVE_INFINITY;
+    return rank(a) - rank(b) || pri(a) - pri(b) || a.slug.localeCompare(b.slug);
   });
 
   const body = rows
@@ -980,13 +1249,19 @@ export async function handleRegisterPage(request: Request, env: Env): Promise<Re
       const c = r.claim;
       const state = c?.state ?? 'open';
       const prov = c?.provenance === 'proposed';
+      const link = (l: WorkLink) =>
+        l.kind === 'pr' || l.kind === 'issue'
+          ? `<span class="lk">${esc(l.kind)}&nbsp;#${esc(l.ref)}</span>`
+          : `<span class="lk" title="${esc(l.title || l.ref)}">${esc(l.kind)}</span>`;
       return `<tr>
         <td class="slug${prov ? ' prop' : ''}">${esc(r.slug)}</td>
+        <td class="mono pri">${r.priority ?? ''}</td>
         <td><span class="pill s-${esc(state)}">${esc(state)}</span>${r.stale ? ' <span class="stale">stale</span>' : ''}</td>
-        <td>${esc(c?.agent ?? '')}</td>
+        <td>${esc(c?.agent ?? '')}${c?.owner && c.owner !== c.agent ? `<div class="owner">for ${esc(c.owner)}</div>` : ''}</td>
         <td>${esc(c?.headline || r.summary || '')}</td>
         <td class="mono">${c?.pr_number ? `#${c.pr_number}` : ''}</td>
         <td class="mono">${esc(ago(c?.heartbeat_at ?? c?.claimed_at ?? null))}</td>
+        <td class="links">${(r.links ?? []).map(link).join(' ')}</td>
       </tr>`;
     })
     .join('');
@@ -1015,8 +1290,8 @@ export async function handleRegisterPage(request: Request, env: Env): Promise<Re
     projection — it is queued, not scheduled, and draining that queue is the first thing to do when the roadmap
     authority comes back.</div>
     <div class="wrap"><table>
-      <tr><th>Slug</th><th>State</th><th>Agent</th><th>What</th><th>PR</th><th>Last heard</th></tr>
-      ${body || '<tr><td colspan="6">Nothing on the board yet.</td></tr>'}
+      <tr><th>Slug</th><th>Pri</th><th>State</th><th>Agent / owner</th><th>What</th><th>PR</th><th>Last heard</th><th>Links</th></tr>
+      ${body || '<tr><td colspan="8">Nothing on the board yet.</td></tr>'}
     </table></div>`,
   );
 }
