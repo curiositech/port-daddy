@@ -34,6 +34,7 @@ from __future__ import annotations
 import argparse
 import glob
 import os
+import re
 import subprocess
 import sys
 
@@ -63,10 +64,83 @@ def collect_pdfs(args: argparse.Namespace) -> list[str]:
     return list(args.pdfs)
 
 
-def run(cmd: list[str]) -> int:
+def run(cmd: list[str]) -> tuple[int, str]:
+    """Run one check, print everything it said, and hand back what it said.
+
+    The output is captured and then printed rather than streamed. That costs
+    live progress on a check that takes a few seconds, and buys the thing the
+    log alone could not give: the finding itself, quoted into the run summary
+    by `summarize` below. Today a red cover-band means opening the job log and
+    reading a few hundred lines to learn "p309, 8.2 pt" -- the measurement is
+    there, and nothing puts it where the failure is announced.
+    """
     full_cmd = [sys.executable, *cmd]
     print(f"$ {' '.join(full_cmd)}")
-    return subprocess.run(full_cmd).returncode
+    proc = subprocess.run(full_cmd, capture_output=True, text=True)
+    out = (proc.stdout or "") + (proc.stderr or "")
+    if out:
+        print(out, end="" if out.endswith("\n") else "\n")
+    return proc.returncode, out
+
+
+# A finding header from the page checks: "-- 3 page/kind rows with loss ...".
+# "-- 0 ..." is the clean case and is deliberately not matched, and neither is
+# "-- advisory: 52 ...": a check may report rows it does not fail on, and
+# quoting those into a failure summary buries the finding that caused the red
+# under the ones that did not. A check says which is which; this reads it.
+FINDING_HEADER = re.compile(r"^-{2}\s*(?!advisory\b)[1-9]\d*\s")
+ADVISORY_HEADER = re.compile(r"^-{2}\s*advisory\b")
+# A per-page detail row: "p309 text off-page 8.2 pt ..." / "p 21 +108.0 pt ...".
+DETAIL_ROW = re.compile(r"^p\s*\d+\b")
+
+
+def salient(output: str, max_rows: int = 12) -> list[str]:
+    """The lines worth quoting: every nonzero finding header, with the detail
+    rows under it, capped so one loud check cannot bury the others. When a
+    check reports in some other shape, fall back to its last lines rather than
+    quoting nothing -- an unrecognized format is not a reason to say less."""
+    lines = [ln.rstrip() for ln in output.splitlines()]
+    picked: list[str] = []
+    i = 0
+    while i < len(lines):
+        if FINDING_HEADER.match(lines[i]):
+            picked.append(lines[i])
+            rows = 0
+            i += 1
+            while i < len(lines) and DETAIL_ROW.match(lines[i]) and rows < max_rows:
+                picked.append(f"    {lines[i]}")
+                rows, i = rows + 1, i + 1
+            if i < len(lines) and DETAIL_ROW.match(lines[i]):
+                picked.append("    ...")
+                while i < len(lines) and DETAIL_ROW.match(lines[i]):
+                    i += 1
+            continue
+        i += 1
+    if picked:
+        return picked
+    tail = [ln for ln in lines if ln.strip()][-8:]
+    return tail
+
+
+def summarize(failures: list[tuple[str, str, str]]) -> None:
+    """Write the failing checks and what they found to the run summary, so the
+    defect is legible where the red mark is rather than only in the log."""
+    path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not path:
+        return
+    parts = ["### Pages a reader could not read", ""]
+    for name, target, output in failures:
+        parts.append(f"**{name}** — `{target}`")
+        parts.append("")
+        parts.append("```")
+        parts.extend(salient(output))
+        parts.append("```")
+        parts.append("")
+    try:
+        with open(path, "a", encoding="utf-8") as fh:
+            fh.write("\n".join(parts) + "\n")
+    except OSError:
+        pass  # the summary is best-effort; the exit code is the gate
 
 
 def main() -> int:
@@ -83,29 +157,30 @@ def main() -> int:
 
     print(f"checking {len(pdfs)} PDF(s): {', '.join(os.path.basename(p) for p in pdfs)}")
 
-    failures: list[str] = []
+    failures: list[tuple[str, str, str]] = []
 
     for script, extra_args in PER_PDF_CHECKS:
         name = os.path.basename(script)
         for pdf in pdfs:
             print(f"\n== {name} -- {os.path.basename(pdf)} ==")
-            rc = run([script, pdf, *extra_args])
+            rc, out = run([script, pdf, *extra_args])
             if rc != 0:
-                failures.append(f"{name} failed on {os.path.basename(pdf)}")
+                failures.append((name, os.path.basename(pdf), out))
 
     pdf_dir = args.pdf_dir or os.path.dirname(os.path.abspath(pdfs[0]))
     for script, extra_args_fn in PER_DIR_CHECKS:
         name = os.path.basename(script)
         print(f"\n== {name} -- {pdf_dir} ==")
-        rc = run([script, *extra_args_fn(pdf_dir)])
+        rc, out = run([script, *extra_args_fn(pdf_dir)])
         if rc != 0:
-            failures.append(f"{name} failed on {pdf_dir}")
+            failures.append((name, pdf_dir, out))
 
     print()
     if failures:
         print(f"run_pdf_checks: FAIL ({len(failures)} check/PDF combination(s) failed)")
-        for f in failures:
-            print(f"  - {f}")
+        for name, target, _ in failures:
+            print(f"  - {name} failed on {target}")
+        summarize(failures)
         return 1
     print(
         f"run_pdf_checks: {len(pdfs)} PDF(s), "

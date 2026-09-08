@@ -13,9 +13,11 @@ Run:
 """
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import unittest
+import unittest.mock
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -63,6 +65,88 @@ class TestRegistry(unittest.TestCase):
         # trivially, which is the fail-open this script exists to prevent.
         self.assertGreater(len(module.PER_PDF_CHECKS), 0)
         self.assertGreater(len(module.PER_DIR_CHECKS), 0)
+
+
+# ── the failure summary: what gets quoted where the red mark is ────────────
+#
+# Added with the summary itself. The rule under test is the one that makes a
+# summary worth having: a check may print rows it does NOT fail on, and
+# quoting those beside the ones that caused the red turns the summary back
+# into the log it was meant to replace. On the Book today that ratio is one
+# real finding to fifty-two advisory ones, which is exactly enough noise to
+# hide a line 8 pt off the paper.
+
+sys.path.insert(0, str(REPO_ROOT / "scripts" / "harbor-research"))
+import run_pdf_checks  # noqa: E402  (path set immediately above)
+
+
+class TestSalient(unittest.TestCase):
+    def test_quotes_a_finding_and_the_rows_under_it(self):
+        picked = run_pdf_checks.salient(
+            "-- 1 page/kind rows with loss (ink past the paper edge)\n"
+            "p309 text     off-page    8.2 pt  past column 0.0 pt  Exercises 6.20\n"
+        )
+        self.assertTrue(picked[0].startswith("-- 1 page/kind rows"))
+        self.assertIn("p309", picked[1])
+
+    def test_leaves_advisory_rows_out_of_a_failure_summary(self):
+        picked = run_pdf_checks.salient(
+            "-- 1 page/kind rows with loss (ink past the paper edge)\n"
+            "p309 text off-page 8.2 pt\n"
+            "-- advisory: 52 pictures set past the column by the safety net\n"
+            "p 21 +108.0 pt\n"
+            "p 29 + 18.0 pt\n"
+        )
+        self.assertTrue(any("p309" in line for line in picked))
+        self.assertFalse(any("advisory" in line for line in picked))
+        self.assertFalse(any("p 21" in line for line in picked))
+
+    def test_a_zero_count_header_is_not_a_finding(self):
+        # All-clean output has no finding header at all, so the tail fallback
+        # is what answers -- and it must not read "0 collisions" as a finding.
+        picked = run_pdf_checks.salient(
+            "-- 0 margin-column collisions\n-- 0 page(s) with text below the foot\n"
+        )
+        self.assertEqual(len(picked), 2)
+        self.assertTrue(all(line.startswith("-- 0") for line in picked))
+
+    def test_caps_the_rows_so_one_loud_check_cannot_bury_the_others(self):
+        out = "-- 40 page/kind rows with loss\n" + "".join(
+            f"p{i} text off-page 1.0 pt\n" for i in range(40)
+        )
+        picked = run_pdf_checks.salient(out, max_rows=5)
+        self.assertEqual(len([p for p in picked if p.strip().startswith("p")]), 5)
+        self.assertEqual(picked[-1].strip(), "...")
+
+    def test_falls_back_to_the_tail_for_a_check_that_reports_another_way(self):
+        # check_cover_title_band.py uses no "-- N" header. An unrecognized
+        # shape is not a reason for the summary to say nothing at all.
+        picked = run_pdf_checks.salient(
+            "type over art: FAIL\n  - maritime: no built PDF to check\n"
+        )
+        self.assertIn("type over art: FAIL", picked)
+
+
+class TestSummarize(unittest.TestCase):
+    def test_is_a_no_op_off_a_runner(self):
+        # No GITHUB_STEP_SUMMARY locally; writing anywhere would be wrong.
+        with unittest.mock.patch.dict("os.environ", {}, clear=False):
+            os.environ.pop("GITHUB_STEP_SUMMARY", None)
+            run_pdf_checks.summarize([("page_overflow.py", "book.pdf", "-- 1 rows\np1 x\n")])
+
+    def test_appends_rather_than_replacing_an_earlier_step_s_summary(self):
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "summary.md"
+            path.write_text("### An earlier step said something\n", encoding="utf-8")
+            with unittest.mock.patch.dict("os.environ", {"GITHUB_STEP_SUMMARY": str(path)}):
+                run_pdf_checks.summarize(
+                    [("page_overflow.py", "book.pdf", "-- 1 rows with loss\np309 text 8.2 pt\n")]
+                )
+            written = path.read_text(encoding="utf-8")
+        self.assertIn("An earlier step said something", written)
+        self.assertIn("page_overflow.py", written)
+        self.assertIn("p309", written)
+
 
 
 if __name__ == "__main__":

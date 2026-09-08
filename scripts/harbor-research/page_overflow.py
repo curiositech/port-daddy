@@ -245,7 +245,12 @@ def main():
         print(f"-- {len(loss)} page/kind rows with loss (ink past the paper edge or past the full width)")
         for r in loss:
             print(f"p{r['page']:>3} {r['kind']:<8} off-page {r['off_page_pt']:>6.1f} pt  past column {r['past_column_pt']:>6.1f} pt  {r['caption']}")
-        print(f"-- {len(wide)} pictures set past the column by the safety net (redraw to the column):")
+        # "advisory" is load-bearing in this string, not decoration: these rows
+        # do NOT fail the run (see the exit below) and run_pdf_checks.py reads
+        # the word to keep them out of the failure summary. Without it, one
+        # real finding — a line 8 pt off the paper — was quoted underneath
+        # fifty-two legal ones, which is how a summary becomes a log again.
+        print(f"-- advisory: {len(wide)} pictures set past the column by the safety net (redraw to the column):")
         for r in wide:
             print(f"p{r['page']:>3} +{r['past_column_pt']:>5.1f} pt  {r['caption'][:70]}")
         print(f"-- {len(collisions)} margin-column collisions (two pieces of text in the same vertical space):")
