@@ -51,6 +51,47 @@ Operator directives (2026-07-04, superseded and expanded 2026-09-01). Any search
 
 The current local embedding source uses `Xenova/all-MiniLM-L6-v2`; treat it as an explicit local/degraded fallback while the provider-neutral fabric in [`docs/proposals/provider-neutral-retrieval-fabric.md`](docs/proposals/provider-neutral-retrieval-fabric.md) is implemented. The registry foundation is source-present, but its profiles remain declarative-only: it does not activate role selection or prove producer conformance. Verify installed CLI support before relying on the source `pd embed` command or its cache-management subcommands; do not infer a daemon upgrade from a merged PR. Lexical-only degradation is allowed only when corpus policy permits it, it is labeled degraded, and it warns with the agent repair path `pd doctor`; a requested semantic contract must never silently downgrade.
 
+## The Harbor Work Register — read it before you start, write to it as you go
+
+The register is the shared board telling every agent in this repository who is
+on what, right now. It lives on the relay, not in the tree, so it is current
+rather than as-of-your-last-pull, and it survives an operator halt because it
+does not depend on the daemon.
+
+**Read it first.** `GET https://relay.portdaddy.dev/v1/register/available?repo=curiositech/port-daddy`
+answers "what may I take" — every slug nothing holds, plus every slug whose
+holder has gone quiet past the salvage clock. `.../board` is the whole picture
+including who is on what. The human view is `/account/register?repo=...`, which
+is gated to the operator's own GitHub identity and is not linked from anywhere.
+
+**Claim before you work.** `POST .../claim` with `{"slug": "...", "agent":
+"<your session id>", "headline": "what you are about to do"}`. A `409` means
+somebody else has it and names them — that refusal is the whole point, and it
+is cheaper than two agents discovering the collision in a merge. Go and ask for
+something else.
+
+**Say you are alive.** `POST .../heartbeat` while you work. A claim that stops
+reporting for forty-five minutes is offered to the next agent as salvage, which
+is what stops a dead session holding work until a human notices.
+
+**Leave the note.** `POST .../note` as you learn things, and always on
+`.../release`: what you tried, what you ruled out, what you would do next. A
+claim released without a note makes the next agent start from the beginning.
+`POST .../finish` with the PR number when it lands.
+
+**What the register is not.** It says who *holds* work. It does not say what
+work *exists* — that is the roadmap registry (`roadmap_items` in the daemon,
+projected append-only to `docs/roadmap/roadmap.snapshot.json`), and the register
+reads it rather than rivalling it. A slug you claim that has no row there is
+stored as `proposed`: queued, not scheduled, and counted alongside
+`docs/roadmap/unregistered.json`. Do not treat a green claim as evidence that
+work is registered. See `docs/roadmap/AUTHORITY.md`.
+
+**It is cooperative, and that is stated rather than papered over.** The register
+refuses a second claim and tells you who holds the first; it cannot stop an
+agent that never asks. The enforcement point is your own harness reading this
+file. Behave as though it could stop you.
+
 ## Port Daddy First
 
 - On this computer, use Port Daddy for repo work by default, not only when a task already looks multi-agent.
