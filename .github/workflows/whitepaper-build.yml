@@ -362,11 +362,28 @@ jobs:
           echo "compiling $count fragment(s):"
           cat /tmp/figure-gate-scope.txt
 
+      # The loop must not stop at the first finding. figcheck.py exits 1 when a
+      # fragment has a T1-T5 finding -- and it writes its JSON first -- so
+      # under `set -e` the step died on the first blocker in the scope list.
+      # That took the whole design down with it: the remaining fragments were
+      # never compiled, the contact sheet step was skipped so reviewers had no
+      # artifact to look at, and "Fail on any unwaived T1-T5 failure" -- the
+      # step that reads blockers.json and is the only thing that knows which
+      # findings are waived -- never ran at all. The job reported a hard red
+      # for a backlog it was explicitly built to hold open.
+      #
+      # So findings do not abort the loop; the evaluator judges them at the
+      # end. A fragment that fails to COMPILE is different -- there is no JSON
+      # for the evaluator to read and nothing waivable about a broken
+      # fragment -- so those are collected and the step fails on them once,
+      # after every other fragment has had its turn.
       - name: Compile each in-scope fragment under the Book preamble and run figcheck
         if: steps.scope.outputs.relevant == 'true' && steps.fragments.outputs.count != '0'
         run: |
-          set -euo pipefail
+          set -uo pipefail
           mkdir -p /tmp/figure-gate/pdf /tmp/figure-gate/json
+          uncompilable=""
+          findings=0
           while IFS= read -r stem; do
             [ -n "$stem" ] || continue
             frag=""
@@ -377,10 +394,21 @@ jobs:
               echo "::notice::$stem has no fragment on disk (already retired) — skipping compile"
               continue
             fi
-            skills/harbor-chartwork/scripts/compile_fragment.sh "$frag" --preamble book --out /tmp/figure-gate/pdf
-            python3 skills/harbor-chartwork/scripts/figcheck.py "/tmp/figure-gate/pdf/$stem.pdf" \
-              --textwidth-cm 11.43 --json "/tmp/figure-gate/json/$stem.json"
+            if ! skills/harbor-chartwork/scripts/compile_fragment.sh "$frag" --preamble book --out /tmp/figure-gate/pdf; then
+              echo "::error::$stem failed to compile under the Book preamble"
+              uncompilable="$uncompilable $stem"
+              continue
+            fi
+            if ! python3 skills/harbor-chartwork/scripts/figcheck.py "/tmp/figure-gate/pdf/$stem.pdf" \
+                 --textwidth-cm 11.43 --json "/tmp/figure-gate/json/$stem.json"; then
+              findings=$((findings + 1))
+            fi
           done < /tmp/figure-gate-scope.txt
+          echo "$findings fragment(s) have a figcheck finding; blockers.json decides which are waived."
+          if [ -n "$uncompilable" ]; then
+            echo "::error::fragments that would not compile:$uncompilable"
+            exit 1
+          fi
 
       - name: Build a contact sheet of every compiled fragment
         if: steps.scope.outputs.relevant == 'true' && steps.fragments.outputs.count != '0'
