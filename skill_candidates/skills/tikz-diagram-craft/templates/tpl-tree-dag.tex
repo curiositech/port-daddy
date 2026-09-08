@@ -1,0 +1,30 @@
+% TEMPLATE: tree / DAG (a lineage or a fork; time runs left to right).
+% Nodes on a column grid, one edge per relation, the offending edge dashed in
+% the breach hue. No edge crosses another; if one must, redraw the columns.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdviolet}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\cx{3.30}   % column pitch
+  \def\ry{1.15}   % row pitch
+  \foreach \i/\l in {0/{root grant}, 1/{delegated}, 2/{re-delegated}}{
+    \node[pd title,anchor=south] at ({0.05+\i*\cx+1.35},{1.35*\ry+.22}) {\l};}
+  \node[pd focus state,minimum width=2.7cm] (a) at (1.40,{0.5*\ry}) {\texttt{fs:read} /w};
+  \node[pd focus state,minimum width=2.7cm] (b) at ({1.40+\cx},{1*\ry}) {\texttt{fs:read} /w/src};
+  \node[pd focus state,minimum width=2.7cm] (c) at ({1.40+\cx},0) {\texttt{net:*} /w};
+  \node[pd focus state,minimum width=2.7cm] (d) at ({1.40+2*\cx},{1*\ry}) {\texttt{fs:read} /w/src/a};
+  \draw[pd focus arrow] (a) -- (b);
+  \draw[pd focus arrow] (b) -- (d);
+  \draw[pd breach arrow] (a) -- (c);
+  \node[pd tag,text=pderror,anchor=north west] at ({1.40+\cx/2-.55},-0.42)
+    {wider than its parent: refused};
+  \node[pd note,anchor=north west,text width=10.4cm] at (0.05,-1.15)
+    {every child's scope is a subset of its parent's, on both axes};
+\end{tikzpicture}
+\caption{A delegation lineage, time left to right. Each hop narrows the
+capability: \texttt{fs:read} on \texttt{/w} yields \texttt{/w/src} and then
+\texttt{/w/src/a}. The one dashed red edge is the delegation a checker refuses
+--- \texttt{net:*} is not a subset of \texttt{fs:read} --- and it is drawn once
+so the reader sees the rule and its violation in the same picture. [internal]}
+\label{fig:tpl-tree-dag}
+\end{figure}
