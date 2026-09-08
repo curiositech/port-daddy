@@ -307,31 +307,20 @@ jobs:
           name: freshly-built-editions
           path: /tmp/editions
 
-      - name: No line of type prints illegibly over the plate behind it
-        run: |
-          set -euo pipefail
-          if [ ! -d /tmp/editions ] || [ -z "$(ls -A /tmp/editions 2>/dev/null)" ]; then
-            echo "::error::freshly-built-editions is empty: the build job produced no PDFs to check. This job cannot pass without them."
-            exit 1
-          fi
-          python3 scripts/whitepaper-plates/check_cover_title_band.py \
-            --pdf-dir /tmp/editions
-
-      # What the log cannot tell you about a page, measured on the page: ink
-      # past the paper edge, a picture set past its column, two margin notes
-      # printed on top of each other (\marginnote never warns), text placed
-      # outside the paper (extracted with the paper grown, since MuPDF drops
-      # it otherwise), and column text set over the running foot (a float too
-      # tall for its page overruns by up to the foot margin and stays on the
-      # paper -- Table 5.9 did, and the only witness was a "Float too large"
-      # warning nobody read). Every edition, because each lays out differently.
+      # One command for every check that reads a rendered PDF -- the page
+      # half of type-over-art (illegible type over a plate) and page_overflow
+      # (ink past the paper edge, a picture set past its column, two margin
+      # notes printed on top of each other, text placed outside the paper,
+      # column text over the running foot). Before this script the two lived
+      # as separate steps naming scripts one at a time, which is exactly how
+      # check_plate_provenance.py sat unwired in library-checks until this
+      # round: a checker that exists is not a checker that runs. Adding a
+      # third page-reading check now means one line in
+      # run_pdf_checks.py's registry, not a new step here to remember.
+      # run_pdf_checks.py itself fails if handed no PDFs, so the empty-
+      # artifact case is still covered without a separate check for it.
       - name: Nothing on any page is where a reader cannot read it
-        run: |
-          set -euo pipefail
-          for pdf in /tmp/editions/*.pdf; do
-            echo "== $(basename "$pdf")"
-            python3 scripts/harbor-research/page_overflow.py "$pdf"
-          done
+        run: python3 scripts/harbor-research/run_pdf_checks.py --pdf-dir /tmp/editions
 
   figure-gates:
     # Born from the PR #10069 review: figcheck.py existed and caught real

@@ -146,6 +146,13 @@ jobs:
       - name: LaTeX palette matches the design tokens (pd-palette.tex lockstep)
         run: node website-v2/scripts/check-figure-palette.mjs
 
+      # BRAND.md:56: the maritime-gold print ink is plate trim, opener
+      # ornament, and a gilt fillet under a title rule -- nothing else -- and
+      # it never sits beside --story-gold/pdgold, which is a different colour
+      # for a different meaning 15.6 DeltaE2000 away.
+      - name: The maritime-gold print ink stays plate trim and never sits beside the story colour
+        run: python3 scripts/harbor-research/check_maritime_gold_ink.py
+
       - name: Every \cite has a \bibitem across the three TeX corpora
         run: python3 scripts/harbor-research/check_citations.py
 
