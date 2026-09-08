@@ -1,13 +1,15 @@
 # Skill candidates
 
-One genuinely new, not-on-`main`, non-windags skill found across the branches
-checked (the 6 branches flagged TREASURE in the original harvest, plus a further
-10 spot-checked on request): **`tikz-diagram-craft`**, from `wave-11/tikz-craft-skill`.
+One genuinely new, not-on-`main` skill found across the branches checked (the 6
+branches flagged TREASURE in the original harvest, plus a further 10 spot-checked
+on request) that isn't part of the retired orchestration tool's skill suite:
+**`tikz-diagram-craft`**, from `wave-11/tikz-craft-skill`.
 
 No other candidate turned up. `skill/agent-governance-family` and
 `skill/pd-shim-roadmap-pop` (their names suggested skill content) in fact only
-added `windags-*` skills, per your instruction excluded here as deleted on
-purpose. Nothing else compared against `tikz-diagram-craft` — it's the only entry.
+added skills belonging to that same retired tool, per your instruction excluded
+here as deleted on purpose. Nothing else compared against `tikz-diagram-craft` —
+it's the only entry.
 
 ## tikz-diagram-craft
 

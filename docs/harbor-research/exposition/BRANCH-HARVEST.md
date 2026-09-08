@@ -48,7 +48,7 @@ each other.
 - **the ADR for a durable security forensics journal** (pulled into this PR at `whitepaper-foundlings/adr-0060-forensics-journal/`; recurs across many `worktree-agent-*`/`recover/*` branches) — an ADR for an append-only, fsync'd, 7-day-prune-independent security violation log (PID-squatting, cap-escalation, note-monotonicity). Concrete, checkable design.
 - **the Convoy platform requirements RFC** (pulled into this PR at `whitepaper-foundlings/convoy-platform-requirements/`; source: `worktree-convoy-platform-requirements`) — a substantial RFC from Port Daddy's first real external consumer (expungement.guide), distinguishing a control-plane layer from a business-application layer, with an honesty scorecard against current implementation. Real customer signal, not speculative.
 - **`.scratch/pr306-body.md`, `verify_red_to_green.py`, `tube_autoresponder.py`, `crop_demo.py`** (`recover/wt-pd-humanize`, `recover/wt-pd-console-ship`) — a working Playwright E2E harness that drives a mock listening agent to verify a "red test → diagnosis → green" demo end to end, with before/after screenshots. Concrete test infrastructure, not a mockup.
-- **the soma/windags source audit** (pulled into this PR at `whitepaper-foundlings/soma-windags-source-audit/`) — a line-cited audit separating shipped/scaffolded/aspirational claims in two external codebases (soma, windags), identifying three "portable kernels" (graph-diffusion medium, active-inference action selection, retrieval cascade) worth porting. Recurs across dozens of branches; one copy is enough.
+- **the soma / retired-orchestration-tool source audit** — a line-cited audit separating shipped/scaffolded/aspirational claims in two external codebases, identifying three "portable kernels" (graph-diffusion medium, active-inference action selection, retrieval cascade) worth porting. Recurs across dozens of branches; one copy is enough. **Not pulled into this PR**: its entire subject is the retired DAG-of-agents orchestration tool named in §2 below, which this repo's `jury-rig-custodian-contract` test permanently bans by name — in both tracked paths and file text, with no exemption mechanism — and the audit can't be genericized without erasing what it's actually about (its citations are to that tool's own source paths). The original file is intact on its source branch (`recover/*` snapshots that carry it) if the author wants to read it directly before that branch is pruned.
 - **`cartographer-index.md` + `spider-connections-2026-06-15.md`** (`recover/wt-agent-aea86f95171b9cfd3`) — a dated roadmap-health snapshot (naming a specific 47-day-stalled blocker) and a systems-thinking note on three concrete feature combinations, each with confidence/effort/risk scored.
 - **the v2.5-to-v2.6 red-team dialogue** (pulled into this PR at `whitepaper-foundlings/redteam-dialogue-v25-v26/dialogue-v2.5-to-v2.6.RED.json`; source: `worktree-agent-a7572be08e1ebc1c6`) — a structured red-team review of the whitepaper draft with 5 severity-scored findings (a false correlated-equilibrium framing, an unsourced bond-sizing assumption, uncalibrated bootstrap-transition metrics). If these findings were never resolved, they're still live bugs in the argument.
 
@@ -77,16 +77,18 @@ Related, larger design work:
 
 ## 2. The redundant giant: one piece of work, snapshotted ~20+ times
 
-A `skills/windags-architect/` skill suite (8-9 companion skills: `-curator`, `-decomposer`,
-`-evaluator`, `-looking-back`, `-mutator`, `-premortem`, `-resilience`, `-sensemaker`, plus
-10+ reference docs on execution engines, business model, LLM routing, skill lifecycle,
-Thompson-sampling skill selection) and PD-AGENT-SORTIE-PLAN.md (a product
+A retired DAG-of-agents orchestration platform's "architect" skill suite lives at
+`skills/<that-tool>-architect/` on these branches (8-9 companion skills: `-curator`,
+`-decomposer`, `-evaluator`, `-looking-back`, `-mutator`, `-premortem`, `-resilience`,
+`-sensemaker`, plus 10+ reference docs on execution engines, business model, LLM routing,
+skill lifecycle, Thompson-sampling skill selection) and PD-AGENT-SORTIE-PLAN.md (a product
 spec for a `pd sortie` ephemeral-multi-agent-mission surface, distinct from `pd fleet` and
 `pd agent`; not pulled into this PR — described here only as it exists on those other
 branches) appear, byte-for-byte or near-identical, in **more than twenty** of the 139
 branches — nearly every anonymous `worktree-agent-*` and `recover/wt-agent-*` hash branch,
-plus several named ones. This is clearly one substantial design effort (a DAG-of-agents
-orchestration platform, "WinDAGs") that got carried along in every stale worktree snapshot
+plus several named ones. This is clearly one substantial design effort — its own proper
+name is the exact string this repo's `jury-rig-custodian-contract` test bans, so it's not
+spelled out here — that got carried along in every stale worktree snapshot
 before pruning, not twenty separate finds. Also riding along in most of the same branches:
 eight `fleet/*.sh` scripts (a working background-agent supervisor: `dock-master.sh`,
 `documentarian.sh`, `git-gardener.sh`, `research-scout.sh`, `simplifier.sh`, `spark.sh`) and
@@ -116,9 +118,10 @@ those folders' own READMEs) rather than left on their source branches:
 `recover/wt-gh-relay-ingress`, `recover/wt-pd-anchor-mac`, `recover/wt-pd-berth-demo` —
 one scanning pass hit git object corruption on these mid-run and reported them
 inaccessible; a second, later pass (after the corruption cleared or a fresh fetch) *did*
-read most of these and found the same windags/fleet/sortie content as their siblings (see
-§2) plus, on `recover/wt-pd-anchor-mac` specifically, a `.windags/triples/*.json` execution
-trace. Nothing branch-unique beyond §2 was found once they were actually readable.
+read most of these and found the same retired-tool/fleet/sortie content as their siblings
+(see §2) plus, on `recover/wt-pd-anchor-mac` specifically, a dotfile execution trace under
+that same retired tool's config directory. Nothing branch-unique beyond §2 was found once
+they were actually readable.
 `recover/wt-agent-a075f83ad9fc7c89d`, `-a0bf7c2d6db14481f`, `-a219c103a639cb87a`,
 `worktree-agent-a48a736d234b1da43`, `recover/wt-agent-a515e48ab09916ec9`,
 `-a6e675ccc26efa634`, `-aaf53b0ad59db2300` do not exist on the remote (never pushed, or
@@ -165,7 +168,7 @@ Given the number of genuinely distinct finds above (§1.1–1.3 especially), I'd
 1. Reconcile §1.1 against the live PR's open decisions (§6 of `HANDOFF-TEXTBOOK.md`) first
    — several of these branches look like they may already answer questions the handoff
    lists as open (the Swiss plates, the literature review, the thread-inventory).
-2. For §2 (the windags/sortie/fleet redundant giant), a single yes/no on "is this still a
+2. For §2 (the retired-tool/sortie/fleet redundant giant), a single yes/no on "is this still a
    live direction" decides ~20 branches at once.
 3. Everything in §5 can be deleted now; the branches in §4 that don't exist need no action.
 4. Nothing else should be deleted until someone has actually opened the specific

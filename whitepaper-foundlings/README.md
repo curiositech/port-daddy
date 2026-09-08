@@ -57,7 +57,6 @@ branch-scan report):
 | `cartographer-and-spider/` | a dated roadmap-health snapshot + a systems-thinking note on 3 concrete feature combinations |
 | `pd-humanize-red-to-green/` | a PR body + 3 Playwright scripts driving a mock agent through a red-to-green test-failure demo |
 | `adr-0060-forensics-journal/` | ADR for an append-only, fsync'd security-violation journal independent of the 7-day activity-log prune |
-| `soma-windags-source-audit/` | a line-cited audit separating shipped/scaffolded/aspirational claims in two external codebases |
 | `convoy-platform-requirements/` | the RFC from Port Daddy's first real external consumer (expungement.guide) |
 | `empirical-closure-and-voice-rules/` | 3 research memos (circuit breakers, a SMART feature roadmap, a critical-path plan) plus a self-contained voice-enforcement CI gate design (`.voice-rules.yml` + checker + workflow + test) — **not wired into this repo's CI**, none of these four files are under a path this repo's workflows or jest config scan; it's a working reference bundle to evaluate, not an active gate |
 | `redteam-dialogue-v25-v26/` | a structured 5-finding red-team review of the whitepaper draft (severity-scored, some findings may still be live) |
@@ -72,3 +71,10 @@ were all found **already on `main`** — not copied here, no action needed.
 `apps/relay/` and its ProVerif proof (`analyses/relay_e2e_secrecy.pv`) and ADR
 (`docs/adr/0027-relay-harbor-mesh.md`) are also already on `main`, fully — the
 `worktree-relay-v0-build` branch is entirely superseded, nothing pulled from it.
+
+The soma / retired-orchestration-tool source audit named in `BRANCH-HARVEST.md` §1.2 was
+**not** pulled in here, even though it was on the original list: its entire subject is a
+retired tool this repo's `jury-rig-custodian-contract` test bans by name in both tracked
+paths and text, with no exemption mechanism, and the audit can't be reworded around that
+without erasing what it actually audits. See `BRANCH-HARVEST.md` §1.2 for where to find the
+original file if it's wanted directly.

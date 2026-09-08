@@ -1,14 +1,14 @@
 //! Conjure — the prompt → predicted-DAG surface (foundation slice).
 //!
-//! The operator types intent; windags blooms a hypertree DAG of skill-equipped
+//! The operator types intent; the planner blooms a hypertree DAG of skill-equipped
 //! agent nodes. This module is the *foundation* slice: the serde-portable
 //! `PredictedDag`/`PredictedWave`/`PredictedNode` types (ported from
 //! `workgroup-ai/packages/core/src/types/next-move.ts`, field names matching the
-//! JSON so a future `windags_next_move` response deserializes straight in) and a
+//! JSON so a future `planner_next_move` response deserializes straight in) and a
 //! render that turns a DAG into the console's render-agnostic [`Block`]s.
 //!
 //! Explicitly NOT in this slice (later rungs, per `docs/CONJURE-DAG-SURFACE.md`):
-//!   - the network call to `windags_next_move`,
+//!   - the network call to `planner_next_move`,
 //!   - the Vello/GPU node-graph,
 //!   - agent dispatch.
 //! The surface renders a hardcoded [`fixture`] DAG through the existing Block UI.
@@ -22,7 +22,7 @@ use crate::pane::{Block, Tone};
 use serde::{Deserialize, Serialize};
 
 /// Top-level planner output. Mirrors the TS `PredictedDAG`. Optional/extra fields
-/// carry `#[serde(default)]` so a partial windags payload still deserializes.
+/// carry `#[serde(default)]` so a partial planner payload still deserializes.
 /// `Serialize` is what closes the loop to the Vello renderer: the console
 /// serializes its live `PredictedDag` back out to the exact JSON shape
 /// `pd-conjure-proto` reads (`fixture.json`), so a prompt-derived DAG renders to
@@ -103,7 +103,7 @@ pub struct PredictedNode {
     pub ask_user_before_proceeding: bool,
 }
 
-/// Parse a windags `next_move` JSON payload into a [`PredictedDag`]. Tolerant of
+/// Parse a planner `next_move` JSON payload into a [`PredictedDag`]. Tolerant of
 /// missing optional fields (all carry `#[serde(default)]`), so a partial response
 /// still yields a renderable DAG rather than an error.
 pub fn parse(json: &str) -> anyhow::Result<PredictedDag> {
@@ -122,18 +122,18 @@ pub fn to_json(dag: &PredictedDag) -> anyhow::Result<String> {
 
 /// Build a [`PredictedDag`] for an operator prompt.
 ///
-/// LIVE WINDAGS HOOK (TODO — this slice ships the fixture path):
-///   The real planner is `windags_next_move` (the MCP tool) /
+/// LIVE PLANNER HOOK (TODO — this slice ships the fixture path):
+///   The real planner is `planner_next_move` (the MCP tool) /
 ///   `workgroup-ai` `next-move --json --legacy-predictor`. Neither is a clean
 ///   one-shot from this binary today:
 ///     - the MCP server is stdio and gathers repo context itself (no prompt arg
 ///       on the CLI — it auto-derives intent from git/files), and is deprecated
 ///       behind `--legacy-predictor`;
-///     - it needs a *valid* provider key. In the build environment the stored
-///       `~/.windags/providers.json` anthropic key returned 401 invalid x-api-key,
+///     - it needs a *valid* provider key. In the build environment the anthropic
+///       key stored in the planner's `providers.json` returned 401 invalid x-api-key,
 ///       so no live DAG could be produced for this slice.
 ///   When a clean hook lands, replace the body below with:
-///     1. spawn `windags next-move --json --legacy-predictor` (or POST the MCP
+///     1. spawn `planner next-move --json --legacy-predictor` (or POST the MCP
 ///        tool) with `ANTHROPIC_API_KEY` in env and the prompt as the
 ///        conversation summary,
 ///     2. read stdout, `parse(json)` it,
@@ -162,7 +162,7 @@ pub fn seeded_from_prompt(prompt: &str) -> PredictedDag {
     dag
 }
 
-/// Map a commitment level to a semantic [`Tone`]. Matches windags' own stroke
+/// Map a commitment level to a semantic [`Tone`]. Matches the planner's own stroke
 /// semantics: COMMITTED is the strongest signal, EXPLORATORY the faintest.
 /// Unknown levels fall back to the neutral default tone.
 pub fn commitment_tone(level: &str) -> Tone {
@@ -677,8 +677,8 @@ pub fn generate_dag_via_cli(prompt: &str) -> anyhow::Result<PredictedDag> {
 }
 
 /// A real 3-wave fixture DAG mirroring `docs/CONJURE-DAG-SURFACE.md` — the
-/// foundation surface renders this until the windags call lands (later slice).
-/// foundation surface renders this until the windags call lands (later slice).
+/// foundation surface renders this until the planner call lands (later slice).
+/// foundation surface renders this until the planner call lands (later slice).
 /// The three nodes deliberately span the three commitment levels so the toned
 /// chips are visible, and one node carries the HITL gate.
 pub fn fixture() -> PredictedDag {
@@ -957,10 +957,10 @@ mod tests {
     }
 
     #[test]
-    fn parse_accepts_a_windags_next_move_shaped_payload() {
-        // A representative windags `next_move` JSON (snake_case fields matching the
+    fn parse_accepts_a_planner_next_move_shaped_payload() {
+        // A representative planner `next_move` JSON (snake_case fields matching the
         // TS PredictedDAG -> serde) parses into a renderable DAG. This is the exact
-        // shape the live windags hook will hand back when a provider key is valid.
+        // shape the live planner hook will hand back when a provider key is valid.
         let json = r#"{
             "title": "Wire the Conjure prompt box to the Vello renderer",
             "problem_classification": "well-structured",
@@ -1012,7 +1012,7 @@ mod tests {
                 }
             ]
         }"#;
-        let dag = parse(json).expect("a windags next_move payload parses");
+        let dag = parse(json).expect("a planner next_move payload parses");
         assert_eq!(dag.title, "Wire the Conjure prompt box to the Vello renderer");
         assert_eq!(dag.problem_classification, "well-structured");
         assert_eq!(dag.waves.len(), 2);

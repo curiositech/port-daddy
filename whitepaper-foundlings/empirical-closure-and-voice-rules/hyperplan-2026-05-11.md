@@ -253,7 +253,7 @@ Cross-cutting always-on: `cartographer`, `auditor`, `archivist`, `researcher`, p
 
 One question:
 
-1. **Greenlight Wave 0 now?** (kicks off H1–H7 diagnostic + voice-rule CI, parallel, ~1 working day) — OR — **do you want me to run `/next-move` over this plan first** for the windags meta-DAG critique (sensemaker → decomposer → skill-selector + premortem → synthesizer → PredictedDAG) before I touch anything?
+1. **Greenlight Wave 0 now?** (kicks off H1–H7 diagnostic + voice-rule CI, parallel, ~1 working day) — OR — **do you want me to run `/next-move` over this plan first** for the retired orchestration tool's meta-DAG critique (sensemaker → decomposer → skill-selector + premortem → synthesizer → PredictedDAG) before I touch anything?
 
 The first answer puts agents on the substrate within minutes. The second buys you an adversarial gate from your own meta-system before any work starts. Both are reasonable.
 
