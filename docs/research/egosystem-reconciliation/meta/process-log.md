@@ -10,7 +10,7 @@ is authorized by this project. Local Git operations use a command-local empty
 hook path so suspended coordination hooks cannot execute.
 
 The six disciplinary lenses, steel-man review, consolidation and editorial
-checks will be performed sequentially by one author. They are useful design
+checks were performed sequentially by one author. They are useful design
 analysis but are not independent positions, fresh reviewers, or evidence for
 H3. The independent Field Guide feedback already supplied by the source task
 is retained with that limited provenance. No completed Phase 1 paper was found
@@ -24,11 +24,36 @@ explicit order is sufficient authority for the halt; no runtime check is needed.
 Local completion plan:
 
 - [x] Preserve existing research and mark the halt/method amendment.
-- [ ] Reconcile the branch with current remote source using Git alone.
-- [ ] Complete constitution, practitioner guide, architecture and dissent.
-- [ ] Produce a static impact preview and offline audit skill.
-- [ ] Run bounded local checks and record evidence and limitations.
-- [ ] Commit a complete publication packet; perform no external publication.
+- [x] Reconcile the branch with current remote source using Git alone.
+- [x] Complete constitution, practitioner guide, architecture and dissent.
+- [x] Produce a static impact preview and offline audit skill.
+- [x] Run bounded local checks and record evidence and limitations.
+- [x] Prepare the complete publication packet for this local handoff commit; perform no external publication.
+
+## September 8 local handoff
+
+The branch `codex/egosystem-reconciliation-constitution` was reconciled to
+`origin/main@02a10b2848a1d8c53f39e42f652c0bc2595617b4`. The preserved setup,
+inventory and halt checkpoints are now `f96d47ce7`, `e47f1f4f8` and `e1bba1bd3`.
+The original hashes below remain historical input references, not current heads.
+
+The final package adds a constitution, practitioner guide, event/API/ACL and
+detector design, staged delivery gates, six solo analytical lenses, amendment
+ledger, retained dissent and local publication content. A new offline skill
+and static preview are the only executable surfaces. Root README and changelog
+entries make them discoverable without claiming a runtime feature.
+
+Validation: 50 declaration tests; strict skill, self-containment and reference
+checks; 8 initial and 48 expanded responsive checks; keyboard and enlarged-text
+checks; 25 package Markdown citation checks. The conditional design score is
+78/100, not a complete pass because human studies are missing. Full details and
+limitations are in [validation](../final/validation.md).
+
+The unrelated `.codex/environments/` directory remains untouched and excluded.
+No push, PR, App publication, roadmap mutation, runtime test or reviewer was
+triggered. The next permitted work is local human examination. Further paid,
+runtime or publication work requires explicit authority; the halt is not lifted
+by completion of this packet.
 
 ## 2026-09-05 — Phase 0 opened
 

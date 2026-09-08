@@ -2,6 +2,7 @@
 
 Status: bounded primary-source map, not a systematic review  
 Search window: focused verification on 2025–2026 neighbors plus foundational standards  
+Follow-up verification: September 8, 2026, for PROJECTMEM, Hindsight, APEC-PS and ArgRE
 Rule: no priority or “first” claim is authorized by this artifact
 
 ## Narrow claim
@@ -40,7 +41,11 @@ flowchart LR
 
 ## Direct neighbors
 
-| Work | What it establishes | Direct overlap | Remaining gap this program tests |
+The last column identifies this program's evaluation scope, not a demonstrated
+absence from each neighboring system. Reported results retain the authors'
+experimental conditions; this map is not an independent replication.
+
+| Work | What the authors propose or report | Direct overlap | Dimensions this program would evaluate |
 | --- | --- | --- | --- |
 | [PROJECTMEM](https://arxiv.org/abs/2606.12329) (2026) | local-first append-only typed events, deterministic projections, MCP summaries, and a pre-action judgment gate for coding agents | event-sourced project memory and memory-as-governance | multi-principal beliefs, institutional authority transitions, argument/value structures, controlled disclosure, and cross-project ACL composition |
 | [Hindsight](https://aclanthology.org/2026.acl-demo.27/) (ACL 2026) | world, experience, observation, and opinion networks; temporal and hybrid recall | fact/belief separation and structured long-term memory | authority-owned project decisions, multiple durable principals, value conflicts, consequence paths, and software-control-plane enforcement |

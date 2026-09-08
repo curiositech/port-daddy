@@ -7,7 +7,11 @@ spend enforcement. Actual provider spend for these runs was not established.
 Any row marked running describes the September 5 observation only; there is
 no live-status claim and no post-halt status query.
 
-The budget is expressed as bounded reasoning work, not a fabricated dollar total. Provider and model costs are not assumed without a current price source and an actual configured backend.
+The original budget below was expressed as bounded reasoning work, not a measured
+dollar total. This envelope is suspended. Provider costs and total spend for the
+interactive authoring session have not been measured here.
+
+## Original envelope (suspended)
 
 | Phase | Maximum work | Parallelism | Stop condition |
 | --- | ---: | ---: | --- |
@@ -21,7 +25,7 @@ The budget is expressed as bounded reasoning work, not a fabricated dollar total
 | Phase 6 | 1 final merge | 1 | P0/P1 demand ledger closed and deliverables stand alone |
 | Validation | targeted checks only | 2 | Citation, accessibility, HTML, skill, diff, and governance gates pass |
 
-## Cost controls
+## Original cost controls (suspended)
 
 - Reuse current repository truth and primary sources; do not ask multiple agents to repeat the same inventory.
 - Reserve multi-agent work for divergent judgment, adversarial review, and fresh-eyes checks.
@@ -33,14 +37,22 @@ The budget is expressed as bounded reasoning work, not a fabricated dollar total
 
 ## Spend receipts
 
-| Work | Runtime | Ceiling or actual | State |
+| Work | Historical runtime | Requested budget or cost evidence | September 5 state |
 | --- | --- | ---: | --- |
-| Phase 0 setup and local source triage | Synthesis Steward local tools | $0 external inference recorded | complete |
-| authority inventory | `gpt-5.4-mini` through `pd spawn` | $0.75 ceiling; actual unavailable | incomplete; process exited without terminal receipt |
-| mechanics inventory | `gpt-5.4-mini` through `pd spawn` | $0.75 ceiling; actual unavailable | incomplete; upstream transport timeout recorded |
-| surface inventory | `gpt-5.4-mini` through `pd spawn` | $0.75 ceiling; actual unavailable | incomplete; process exited without terminal receipt |
-| independent Field Guide review attempt | `gpt-5.4-mini` through `pd spawn` | $0; refused before execution | closed; no duplicate retry after delegated review arrived |
+| Phase 0 setup and local source triage | Synthesis Steward local tools | total session spend not established | complete |
+| authority inventory | `gpt-5.4-mini` through `pd spawn` | $0.75 requested; actual unavailable | incomplete; process exited without terminal receipt |
+| mechanics inventory | `gpt-5.4-mini` through `pd spawn` | $0.75 requested; actual unavailable | incomplete; upstream transport timeout recorded |
+| surface inventory | `gpt-5.4-mini` through `pd spawn` | $0.75 requested; actual unavailable | incomplete; process exited without terminal receipt |
+| independent Field Guide review attempt | `gpt-5.4-mini` through `pd spawn` | launch refused before execution; cost not measured | closed; no duplicate retry after delegated review arrived |
 | independent Field Guide review, source task | separately commissioned delegated reviewer | actual cost unavailable to this session | complete; result adopted without a duplicate retry |
-| Phase 1 A privacy/authority | `gpt-5.6-luna` through `pd spawn` | $0.60 ceiling; actual pending | running, frozen head `e8426c635` |
-| Phase 1 B provenance/formal | `gpt-5.6-luna` through `pd spawn` | $0.60 ceiling; actual pending | running, frozen head `e8426c635` |
-| Phase 1 C distributed/durability | `gpt-5.6-luna` through `pd spawn` | $0.60 ceiling; actual pending | running, frozen head `e8426c635` |
+| Phase 1 A privacy/authority | `gpt-5.6-luna` through `pd spawn` | $0.60 requested; actual unavailable | historical running observation, frozen head `e8426c635` |
+| Phase 1 B provenance/formal | `gpt-5.6-luna` through `pd spawn` | $0.60 requested; actual unavailable | historical running observation, frozen head `e8426c635` |
+| Phase 1 C distributed/durability | `gpt-5.6-luna` through `pd spawn` | $0.60 requested; actual unavailable | historical running observation, frozen head `e8426c635` |
+
+## September 8 continuation
+
+One author continued with local files, Git, primary-source reading and offline
+tests. No new reviewer, agent, daemon, publication or paid experiment was
+launched. This is a statement about the actions taken, not a claim that the
+interactive model session or the earlier program had zero cost. No live spend
+query was attempted through the prohibited service.
