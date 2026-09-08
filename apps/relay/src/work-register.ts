@@ -56,6 +56,18 @@ export const SNAPSHOT_PATH = 'docs/roadmap/roadmap.snapshot.json';
  */
 export const CLAIM_STALE_AFTER_SECONDS = 45 * 60;
 
+/**
+ * How old the registry projection may be before the board says so out loud.
+ *
+ * Six hours, not forty-five minutes: unlike a claim, the snapshot has no
+ * heartbeat and no agent behind it, and it goes out of date only when somebody
+ * merges to main. A shorter clock would cry stale on a quiet afternoon and
+ * teach every reader to ignore the word, which is the failure that matters
+ * here — a warning nobody reads is worse than no warning, because it looks
+ * like one.
+ */
+export const REGISTRY_STALE_AFTER_SECONDS = 6 * 60 * 60;
+
 export type ClaimState = 'open' | 'held' | 'blocked' | 'review' | 'done' | 'abandoned';
 export type Provenance = 'registered' | 'proposed';
 export type AgentKind = 'session' | 'human' | 'fleet';
@@ -94,6 +106,24 @@ export interface CacheMeta {
   path: string;
   read_at: number;
   item_count: number;
+  /** Which account's GitHub token produced this read. '' on pre-existing rows. */
+  refreshed_by?: string;
+}
+
+/**
+ * The registry projection with its own age attached, which is the only form
+ * any caller should ever see it in.
+ *
+ * `read_at` was returned from the first version and nothing looked at it, so a
+ * week-old item list rendered exactly like a fresh one. An age nobody reads is
+ * not provenance; it is a number in a response. So the age is computed here,
+ * once, and every surface — the JSON, the page, an agent's decision about
+ * whether to trust the list — reads the same words.
+ */
+export interface DatedCacheMeta extends CacheMeta {
+  age_seconds: number;
+  age: string;
+  stale: boolean;
 }
 
 /** A board row: the registry's view of a slug joined to who holds it. */
@@ -114,6 +144,41 @@ export function isStale(claim: ClaimRow | null, at: number = now()): boolean {
   const beat = claim.heartbeat_at ?? claim.claimed_at;
   if (beat === null) return false;
   return at - beat > CLAIM_STALE_AFTER_SECONDS;
+}
+
+/**
+ * An age in the words a person would use, so the page and the JSON agree.
+ *
+ * Rounded down and never precise past the unit that matters: "3 hours ago" is
+ * the whole of what a reader does with it, and "3 hours 14 minutes ago" invites
+ * them to believe the clock is more meaningful than it is.
+ */
+export function describeAge(seconds: number): string {
+  if (seconds < 0) return 'just now';
+  if (seconds < 90) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} minutes ago`;
+  const hours = Math.floor(seconds / 3600);
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  const days = Math.floor(seconds / 86400);
+  return `${days} day${days === 1 ? '' : 's'} ago`;
+}
+
+/**
+ * Attach the projection's age to it. Null in, null out: a board with no cache
+ * row at all is a different condition from one with an old cache row, and
+ * flattening the two would tell an agent the registry is merely stale when in
+ * fact nobody has ever read it.
+ */
+export function dateCacheMeta(meta: CacheMeta | null, at: number = now()): DatedCacheMeta | null {
+  if (!meta) return null;
+  const age = Math.max(0, at - meta.read_at);
+  return {
+    ...meta,
+    age_seconds: age,
+    age: describeAge(age),
+    stale: age > REGISTRY_STALE_AFTER_SECONDS,
+  };
 }
 
 /** `owner/name` split, rejecting anything that is not exactly two segments. */
@@ -185,9 +250,9 @@ export function parseSnapshot(text: string): RegistryRow[] {
  */
 export async function refreshRegistryCache(
   env: Env,
-  userId: string,
   repoFullName: string,
   ghToken: string,
+  refreshedBy = '',
   ref = 'main',
 ): Promise<CacheMeta> {
   const parts = splitRepo(repoFullName);
@@ -199,40 +264,75 @@ export async function refreshRegistryCache(
 
   const statements = [
     env.DB.prepare(
-      'DELETE FROM work_registry_cache WHERE user_id = ? AND repo_full_name = ?',
-    ).bind(userId, repoFullName),
+      'DELETE FROM work_registry_cache WHERE repo_full_name = ?',
+    ).bind(repoFullName),
     ...rows.map((r) =>
       env.DB.prepare(
         `INSERT INTO work_registry_cache
-           (user_id, repo_full_name, slug, status, kind, priority, summary)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      ).bind(userId, repoFullName, r.slug, r.status, r.kind, r.priority, r.summary),
+           (repo_full_name, slug, status, kind, priority, summary)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      ).bind(repoFullName, r.slug, r.status, r.kind, r.priority, r.summary),
     ),
     env.DB.prepare(
       `INSERT INTO work_registry_cache_meta
-         (user_id, repo_full_name, ref, path, read_at, item_count)
+         (repo_full_name, ref, path, read_at, item_count, refreshed_by)
        VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT(user_id, repo_full_name) DO UPDATE SET
+       ON CONFLICT(repo_full_name) DO UPDATE SET
          ref = excluded.ref, path = excluded.path,
-         read_at = excluded.read_at, item_count = excluded.item_count`,
-    ).bind(userId, repoFullName, ref, SNAPSHOT_PATH, at, rows.length),
+         read_at = excluded.read_at, item_count = excluded.item_count,
+         refreshed_by = excluded.refreshed_by`,
+    ).bind(repoFullName, ref, SNAPSHOT_PATH, at, rows.length, refreshedBy),
   ];
   await env.DB.batch(statements);
-  return { ref, path: SNAPSHOT_PATH, read_at: at, item_count: rows.length };
+  return { ref, path: SNAPSHOT_PATH, read_at: at, item_count: rows.length, refreshed_by: refreshedBy };
 }
 
 export async function readCacheMeta(
   env: Env,
-  userId: string,
   repoFullName: string,
 ): Promise<CacheMeta | null> {
   const row = await env.DB.prepare(
-    `SELECT ref, path, read_at, item_count FROM work_registry_cache_meta
-      WHERE user_id = ? AND repo_full_name = ?`,
+    `SELECT ref, path, read_at, item_count, refreshed_by FROM work_registry_cache_meta
+      WHERE repo_full_name = ?`,
   )
-    .bind(userId, repoFullName)
+    .bind(repoFullName)
     .first<CacheMeta>();
   return row ?? null;
+}
+
+// ── membership: who may reach this board without a GitHub token ────────────
+
+/**
+ * Record that this account reached this board with live GitHub read access.
+ *
+ * Written on every session request rather than only the first, because
+ * `last_seen_at` is how an operator answers "who else is on my board" — and
+ * because access revoked upstream should eventually show as a cold row here
+ * rather than as a membership that looks freshly granted.
+ */
+export async function recordMembership(
+  env: Env, repoFullName: string, userId: string,
+): Promise<void> {
+  const at = now();
+  await env.DB.prepare(
+    `INSERT INTO work_board_members (repo_full_name, user_id, first_seen_at, last_seen_at)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT(repo_full_name, user_id) DO UPDATE SET last_seen_at = excluded.last_seen_at`,
+  )
+    .bind(repoFullName, userId, at, at)
+    .run();
+}
+
+/** Has this account ever opened this board while signed in? */
+export async function isMember(
+  env: Env, repoFullName: string, userId: string,
+): Promise<boolean> {
+  const row = await env.DB.prepare(
+    'SELECT 1 AS ok FROM work_board_members WHERE repo_full_name = ? AND user_id = ?',
+  )
+    .bind(repoFullName, userId)
+    .first<{ ok: number }>();
+  return Boolean(row);
 }
 
 // ── the board ──────────────────────────────────────────────────────────────
@@ -244,7 +344,6 @@ export async function readCacheMeta(
  */
 export async function readBoard(
   env: Env,
-  userId: string,
   repoFullName: string,
 ): Promise<BoardRow[]> {
   const { results } = await env.DB.prepare(
@@ -266,20 +365,19 @@ export async function readBoard(
             c.updated_at  AS c_updated_at
        FROM work_registry_cache r
        LEFT JOIN work_claims c
-         ON c.user_id = r.user_id AND c.repo_full_name = r.repo_full_name AND c.slug = r.slug
-      WHERE r.user_id = ? AND r.repo_full_name = ?
+         ON c.repo_full_name = r.repo_full_name AND c.slug = r.slug
+      WHERE r.repo_full_name = ?
       UNION ALL
      SELECT c.slug, NULL, NULL, NULL, NULL,
             c.provenance, c.state, c.agent, c.agent_kind, c.headline, c.branch,
             c.pr_number, c.claimed_at, c.heartbeat_at, c.finished_at, c.updated_at
        FROM work_claims c
-      WHERE c.user_id = ? AND c.repo_full_name = ?
+      WHERE c.repo_full_name = ?
         AND NOT EXISTS (
           SELECT 1 FROM work_registry_cache r
-           WHERE r.user_id = c.user_id AND r.repo_full_name = c.repo_full_name
-             AND r.slug = c.slug)`,
+           WHERE r.repo_full_name = c.repo_full_name AND r.slug = c.slug)`,
   )
-    .bind(userId, repoFullName, userId, repoFullName)
+    .bind(repoFullName, repoFullName)
     .all<Record<string, unknown>>();
 
   const at = now();
@@ -315,7 +413,6 @@ export async function readBoard(
 
 export async function readClaim(
   env: Env,
-  userId: string,
   repoFullName: string,
   slug: string,
 ): Promise<ClaimRow | null> {
@@ -323,33 +420,31 @@ export async function readClaim(
     `SELECT slug, provenance, state, agent, agent_kind, headline, branch, pr_number,
             claimed_at, heartbeat_at, finished_at, updated_at
        FROM work_claims
-      WHERE user_id = ? AND repo_full_name = ? AND slug = ?`,
+      WHERE repo_full_name = ? AND slug = ?`,
   )
-    .bind(userId, repoFullName, slug)
+    .bind(repoFullName, slug)
     .first<ClaimRow>();
   return row ?? null;
 }
 
 export async function readNotes(
   env: Env,
-  userId: string,
   repoFullName: string,
   slug: string,
   limit = 50,
 ): Promise<Array<{ at: number; agent: string; kind: string; body: string }>> {
   const { results } = await env.DB.prepare(
     `SELECT at, agent, kind, body FROM work_notes
-      WHERE user_id = ? AND repo_full_name = ? AND slug = ?
+      WHERE repo_full_name = ? AND slug = ?
       ORDER BY at DESC LIMIT ?`,
   )
-    .bind(userId, repoFullName, slug, limit)
+    .bind(repoFullName, slug, limit)
     .all<{ at: number; agent: string; kind: string; body: string }>();
   return results ?? [];
 }
 
 async function appendNote(
   env: Env,
-  userId: string,
   repoFullName: string,
   slug: string,
   agent: string,
@@ -357,10 +452,10 @@ async function appendNote(
   body: string,
 ): Promise<void> {
   await env.DB.prepare(
-    `INSERT INTO work_notes (id, user_id, repo_full_name, slug, at, agent, kind, body)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO work_notes (id, repo_full_name, slug, at, agent, kind, body)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
   )
-    .bind(crypto.randomUUID(), userId, repoFullName, slug, now(), agent, kind, body)
+    .bind(crypto.randomUUID(), repoFullName, slug, now(), agent, kind, body)
     .run();
 }
 
@@ -386,7 +481,6 @@ export type ClaimOutcome =
  */
 export async function claimSlug(
   env: Env,
-  userId: string,
   repoFullName: string,
   slug: string,
   agent: string,
@@ -410,10 +504,10 @@ export async function claimSlug(
   // able to ask again), or when the holder has gone quiet.
   const res = await env.DB.prepare(
     `INSERT INTO work_claims
-       (user_id, repo_full_name, slug, provenance, state, agent, agent_kind,
+       (repo_full_name, slug, provenance, state, agent, agent_kind,
         headline, branch, pr_number, claimed_at, heartbeat_at, updated_at)
-     VALUES (?, ?, ?, ?, 'held', ?, ?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT(user_id, repo_full_name, slug) DO UPDATE SET
+     VALUES (?, ?, ?, 'held', ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(repo_full_name, slug) DO UPDATE SET
        state        = 'held',
        agent        = excluded.agent,
        agent_kind   = excluded.agent_kind,
@@ -430,13 +524,13 @@ export async function claimSlug(
         OR COALESCE(work_claims.heartbeat_at, work_claims.claimed_at, 0) < ?`,
   )
     .bind(
-      userId, repoFullName, slug, provenance, agent, kind, headline,
+      repoFullName, slug, provenance, agent, kind, headline,
       opts.branch ?? null, opts.prNumber ?? null, at, at, at, staleBefore,
     )
     .run();
 
   const changed = (res.meta?.changes ?? 0) > 0;
-  const after = await readClaim(env, userId, repoFullName, slug);
+  const after = await readClaim(env, repoFullName, slug);
   if (!changed || !after) {
     // The WHERE guard rejected it: somebody else holds it and is still alive.
     return { ok: false, reason: 'held', claim: after as ClaimRow };
@@ -444,7 +538,7 @@ export async function claimSlug(
   const salvaged = after.claimed_at !== null && after.claimed_at < at && after.agent === agent
     && after.claimed_at !== at;
   await appendNote(
-    env, userId, repoFullName, slug, agent,
+    env, repoFullName, slug, agent,
     salvaged ? 'salvaged' : 'claimed',
     headline,
   );
@@ -454,7 +548,6 @@ export async function claimSlug(
 /** Only the holder may change a claim; anyone else gets a refusal, not a write. */
 async function mutateAsHolder(
   env: Env,
-  userId: string,
   repoFullName: string,
   slug: string,
   agent: string,
@@ -463,29 +556,29 @@ async function mutateAsHolder(
 ): Promise<ClaimRow | null> {
   const res = await env.DB.prepare(
     `UPDATE work_claims SET ${set}, updated_at = ?
-      WHERE user_id = ? AND repo_full_name = ? AND slug = ? AND agent = ?`,
+      WHERE repo_full_name = ? AND slug = ? AND agent = ?`,
   )
-    .bind(...binds, now(), userId, repoFullName, slug, agent)
+    .bind(...binds, now(), repoFullName, slug, agent)
     .run();
   if ((res.meta?.changes ?? 0) === 0) return null;
-  return readClaim(env, userId, repoFullName, slug);
+  return readClaim(env, repoFullName, slug);
 }
 
 export async function heartbeat(
-  env: Env, userId: string, repoFullName: string, slug: string, agent: string,
+  env: Env, repoFullName: string, slug: string, agent: string,
 ): Promise<ClaimRow | null> {
-  return mutateAsHolder(env, userId, repoFullName, slug, agent, 'heartbeat_at = ?', [now()]);
+  return mutateAsHolder(env, repoFullName, slug, agent, 'heartbeat_at = ?', [now()]);
 }
 
 export async function setState(
-  env: Env, userId: string, repoFullName: string, slug: string, agent: string,
+  env: Env, repoFullName: string, slug: string, agent: string,
   state: ClaimState, body = '',
 ): Promise<ClaimRow | null> {
   const row = await mutateAsHolder(
-    env, userId, repoFullName, slug, agent,
+    env, repoFullName, slug, agent,
     'state = ?, heartbeat_at = ?', [state, now()],
   );
-  if (row) await appendNote(env, userId, repoFullName, slug, agent, 'state', `${state}${body ? `: ${body}` : ''}`);
+  if (row) await appendNote(env, repoFullName, slug, agent, 'state', `${state}${body ? `: ${body}` : ''}`);
   return row;
 }
 
@@ -495,33 +588,33 @@ export async function setState(
  * written unconditionally and the caller's words go in it when there are any.
  */
 export async function releaseSlug(
-  env: Env, userId: string, repoFullName: string, slug: string, agent: string, body = '',
+  env: Env, repoFullName: string, slug: string, agent: string, body = '',
 ): Promise<ClaimRow | null> {
   const row = await mutateAsHolder(
-    env, userId, repoFullName, slug, agent,
+    env, repoFullName, slug, agent,
     "state = 'open', agent = NULL, agent_kind = NULL, heartbeat_at = NULL", [],
   );
-  if (row) await appendNote(env, userId, repoFullName, slug, agent, 'released', body);
+  if (row) await appendNote(env, repoFullName, slug, agent, 'released', body);
   return row;
 }
 
 export async function finishSlug(
-  env: Env, userId: string, repoFullName: string, slug: string, agent: string,
+  env: Env, repoFullName: string, slug: string, agent: string,
   body = '', prNumber?: number | null,
 ): Promise<ClaimRow | null> {
   const row = await mutateAsHolder(
-    env, userId, repoFullName, slug, agent,
+    env, repoFullName, slug, agent,
     "state = 'done', finished_at = ?, pr_number = COALESCE(?, pr_number)",
     [now(), prNumber ?? null],
   );
-  if (row) await appendNote(env, userId, repoFullName, slug, agent, 'finished', body);
+  if (row) await appendNote(env, repoFullName, slug, agent, 'finished', body);
   return row;
 }
 
 export async function note(
-  env: Env, userId: string, repoFullName: string, slug: string, agent: string, body: string,
+  env: Env, repoFullName: string, slug: string, agent: string, body: string,
 ): Promise<void> {
-  await appendNote(env, userId, repoFullName, slug, agent, 'note', body);
+  await appendNote(env, repoFullName, slug, agent, 'note', body);
 }
 
 // ── HTTP ───────────────────────────────────────────────────────────────────
@@ -535,12 +628,19 @@ const json = (body: unknown, status = 200): Response =>
 /**
  * Who is asking, and may they see this repository's board?
  *
+ * The board itself is keyed on the repository, so this function answers only
+ * the access question — deliberately a different question from occupancy, and
+ * kept in a different table, because the first draft of this schema answered
+ * both with one key and thereby gave every account its own private board of a
+ * shared repository.
+ *
  * A session carries a GitHub token, so it is checked against the live repo ACL
- * and may refresh the registry cache. A `pdu_` device bearer carries no GitHub
- * credential, so it is admitted only to a repository whose board this account
- * has already opened — which is what the cache row proves. An agent therefore
- * cannot use its device token to discover repositories the operator never
- * brought here.
+ * on every request; passing that check also records membership. A `pdu_` device
+ * bearer — what an agent carries — has no GitHub credential to check, so it is
+ * admitted only where its account has already passed that check in a browser.
+ * An agent therefore cannot use its device token to discover repositories its
+ * operator never brought here, while two operators who both have read access
+ * work one board rather than two.
  */
 async function authorize(
   request: Request,
@@ -557,6 +657,7 @@ async function authorize(
   if (session) {
     const allowed = await userCanReadRepo(env, session, parts.owner, parts.repo);
     if (!allowed) return { ok: false, response: json({ error: 'no access to that repository' }, 403) };
+    await recordMembership(env, repoFullName, session.user.id);
     return {
       ok: true,
       userId: session.user.id,
@@ -567,12 +668,25 @@ async function authorize(
 
   const user: UserRow | null = await resolveUserFromRequest(request, env);
   if (!user) return { ok: false, response: json({ error: 'sign in, or send a pdu_ bearer' }, 401) };
-  const opened = await readCacheMeta(env, user.id, repoFullName);
-  if (!opened) {
+  if (!(await isMember(env, repoFullName, user.id))) {
+    // S3, the cold start: the first agent in a fresh repository used to get a
+    // bare 403 and no way forward, which reads as a broken register rather than
+    // as a step nobody has taken yet. Name the step, and name it the same way
+    // the page does, so an agent can put the answer in its own note instead of
+    // retrying a refusal it cannot fix on its own.
     return {
       ok: false,
       response: json(
-        { error: 'this account has not opened a board for that repository yet; sign in at /account/register once' },
+        {
+          error: 'no board here yet for this account',
+          detail:
+            `Nobody signed in to ${repoFullName} has opened this board, so a device token has ` +
+            'nothing to be admitted against. An operator with GitHub read access on the ' +
+            'repository opens it once, in a browser, and every agent on that repository can ' +
+            'reach it from then on.',
+          operator_step: `open https://relay.portdaddy.dev/register?repo=${encodeURIComponent(repoFullName)} while signed in with GitHub`,
+          repo: repoFullName,
+        },
         403,
       ),
     };
@@ -580,14 +694,28 @@ async function authorize(
   return { ok: true, userId: user.id, ghToken: null, agentDefault: 'agent' };
 }
 
+/**
+ * One sentence about the projection's freshness, or null when there is nothing
+ * to say. Returned beside the data rather than instead of it: a stale list is
+ * still the best list there is, and refusing to serve it would strand every
+ * agent whenever a refresh is overdue.
+ */
+export function registryWarning(meta: DatedCacheMeta | null): string | null {
+  if (!meta) {
+    return 'No registry projection has been read for this repository yet, so every slug an agent names will land in the proposed queue. An operator signs in and refreshes once.';
+  }
+  if (!meta.stale) return null;
+  return `The registry projection was last read ${meta.age} (${meta.ref}, ${meta.item_count} items). Work merged since then is not on this board. An operator refreshes it, or an agent treats a missing slug as unknown rather than as absent.`;
+}
+
 /** Is this slug one the registry admitted? Decides `registered` vs `proposed`. */
 async function isRegistered(
-  env: Env, userId: string, repoFullName: string, slug: string,
+  env: Env, repoFullName: string, slug: string,
 ): Promise<boolean> {
   const row = await env.DB.prepare(
-    'SELECT 1 AS ok FROM work_registry_cache WHERE user_id = ? AND repo_full_name = ? AND slug = ?',
+    'SELECT 1 AS ok FROM work_registry_cache WHERE repo_full_name = ? AND slug = ?',
   )
-    .bind(userId, repoFullName, slug)
+    .bind(repoFullName, slug)
     .first<{ ok: number }>();
   return Boolean(row);
 }
@@ -616,21 +744,34 @@ export async function handleRegisterApi(request: Request, env: Env): Promise<Res
   const { userId, ghToken, agentDefault } = auth;
 
   if (request.method === 'GET') {
-    const meta = await readCacheMeta(env, userId, repoFullName);
+    const meta = dateCacheMeta(await readCacheMeta(env, repoFullName));
     if (action === 'board' || action === 'available') {
-      const rows = await readBoard(env, userId, repoFullName);
+      const rows = await readBoard(env, repoFullName);
       const board =
         action === 'available'
           ? rows.filter((r) => !r.claim || r.claim.state === 'open' || r.claim.state === 'abandoned' || r.stale)
           : rows;
-      return json({ repo: repoFullName, registry: meta, count: board.length, items: board });
+      // The warning rides on the response an agent already reads, in the same
+      // words the page uses. An agent deciding what to pick up needs to know
+      // that this list is six hours behind main before it acts on it, not
+      // after a human notices the board looks wrong.
+      return json({
+        repo: repoFullName,
+        registry: meta,
+        warning: registryWarning(meta),
+        count: board.length,
+        items: board,
+      });
     }
     if (action === 'item') {
       const slug = url.searchParams.get('slug') ?? '';
       if (!isSlug(slug)) return json({ error: 'slug required' }, 400);
-      const claim = await readClaim(env, userId, repoFullName, slug);
-      const notes = await readNotes(env, userId, repoFullName, slug);
-      return json({ repo: repoFullName, slug, registry: meta, claim, stale: isStale(claim), notes });
+      const claim = await readClaim(env, repoFullName, slug);
+      const notes = await readNotes(env, repoFullName, slug);
+      return json({
+        repo: repoFullName, slug, registry: meta, warning: registryWarning(meta),
+        claim, stale: isStale(claim), notes,
+      });
     }
     return json({ error: `unknown action ${action}` }, 404);
   }
@@ -647,7 +788,7 @@ export async function handleRegisterApi(request: Request, env: Env): Promise<Res
   if (action === 'refresh') {
     if (!ghToken) return json({ error: 'refreshing the registry needs a signed-in session' }, 403);
     try {
-      const meta = await refreshRegistryCache(env, userId, repoFullName, ghToken);
+      const meta = await refreshRegistryCache(env, repoFullName, ghToken);
       return json({ repo: repoFullName, registry: meta });
     } catch (err) {
       return json({ error: `could not read the registry projection: ${(err as Error).message}` }, 502);
@@ -661,9 +802,9 @@ export async function handleRegisterApi(request: Request, env: Env): Promise<Res
 
   switch (action) {
     case 'claim': {
-      const registered = await isRegistered(env, userId, repoFullName, slug);
+      const registered = await isRegistered(env, repoFullName, slug);
       const kindRaw = String(body.agent_kind ?? 'session');
-      const outcome = await claimSlug(env, userId, repoFullName, slug, agent, {
+      const outcome = await claimSlug(env, repoFullName, slug, agent, {
         agentKind: AGENT_KINDS.includes(kindRaw as AgentKind) ? (kindRaw as AgentKind) : 'session',
         headline: String(body.headline ?? '').slice(0, 300),
         branch: body.branch === undefined ? null : String(body.branch).slice(0, 300),
@@ -695,27 +836,27 @@ export async function handleRegisterApi(request: Request, env: Env): Promise<Res
       });
     }
     case 'heartbeat': {
-      const row = await heartbeat(env, userId, repoFullName, slug, agent);
+      const row = await heartbeat(env, repoFullName, slug, agent);
       return row ? json({ slug, claim: row }) : json({ error: 'you do not hold that slug' }, 409);
     }
     case 'state': {
       const state = String(body.state ?? '');
       if (!CLAIM_STATES.includes(state as ClaimState)) return json({ error: 'unknown state' }, 400);
-      const row = await setState(env, userId, repoFullName, slug, agent, state as ClaimState, text);
+      const row = await setState(env, repoFullName, slug, agent, state as ClaimState, text);
       return row ? json({ slug, claim: row }) : json({ error: 'you do not hold that slug' }, 409);
     }
     case 'note': {
       if (!text) return json({ error: 'a note needs a body' }, 400);
-      await note(env, userId, repoFullName, slug, agent, text);
+      await note(env, repoFullName, slug, agent, text);
       return json({ slug, ok: true });
     }
     case 'release': {
-      const row = await releaseSlug(env, userId, repoFullName, slug, agent, text);
+      const row = await releaseSlug(env, repoFullName, slug, agent, text);
       return row ? json({ slug, claim: row }) : json({ error: 'you do not hold that slug' }, 409);
     }
     case 'finish': {
       const pr = typeof body.pr_number === 'number' ? body.pr_number : null;
-      const row = await finishSlug(env, userId, repoFullName, slug, agent, text, pr);
+      const row = await finishSlug(env, repoFullName, slug, agent, text, pr);
       return row ? json({ slug, claim: row }) : json({ error: 'you do not hold that slug' }, 409);
     }
     default:
@@ -761,6 +902,11 @@ td.slug{font-family:"IBM Plex Mono",monospace;font-size:12.5px;white-space:nowra
 .prop{border-left:3px solid var(--amber);padding-left:8px}
 .note{border:1px solid var(--border-strong);background:var(--surface-raised);padding:14px 18px;margin:18px 0;max-width:78ch}
 .note b{color:var(--text-primary)}
+/* An age the reader must not skim past: the amber rail is the same signal the
+   board uses for a proposed slug, meaning "this is second-class, read it before
+   you act on it". */
+.warn{border-left:4px solid var(--amber);background:var(--surface-raised);padding:12px 18px;margin:16px 0;
+      max-width:78ch;color:var(--text-primary)}
 code{font-size:.92em}`;
 
 const shell = (title: string, inner: string): Response =>
@@ -804,16 +950,26 @@ export async function handleRegisterPage(request: Request, env: Env): Promise<Re
     return shell('Harbor Work Register', '<header class="h"><h1>No access</h1></header>');
   }
 
+  // Reaching the page with live read access is what opens the board for this
+  // account's agents. Recorded here as well as in the JSON path's authorize()
+  // because the browser is the only surface that can do it: an agent's device
+  // token has no GitHub credential to check, so it can never be the first
+  // through the door.
+  await recordMembership(env, repoFullName, session.user.id);
+
   let refreshError = '';
   if (session.ghToken) {
     try {
-      await refreshRegistryCache(env, session.user.id, repoFullName, session.ghToken);
+      await refreshRegistryCache(
+        env, repoFullName, session.ghToken,
+        session.user.login ? `@${session.user.login}` : session.user.id,
+      );
     } catch (err) {
       refreshError = (err as Error).message;
     }
   }
-  const meta = await readCacheMeta(env, session.user.id, repoFullName);
-  const rows = await readBoard(env, session.user.id, repoFullName);
+  const meta = dateCacheMeta(await readCacheMeta(env, repoFullName));
+  const rows = await readBoard(env, repoFullName);
   rows.sort((a, b) => {
     const rank = (r: BoardRow) => (r.claim && r.claim.state !== 'open' && r.claim.state !== 'done' ? 0 : r.claim?.state === 'done' ? 2 : 1);
     return rank(a) - rank(b) || a.slug.localeCompare(b.slug);
@@ -837,6 +993,10 @@ export async function handleRegisterPage(request: Request, env: Env): Promise<Re
 
   const held = rows.filter((r) => r.claim && r.claim.state === 'held').length;
   const proposed = rows.filter((r) => r.claim?.provenance === 'proposed').length;
+  // The same sentence the JSON returns, from the same function, so the page
+  // and an agent reading /available never disagree about whether this list can
+  // be trusted.
+  const warning = registryWarning(meta);
 
   return shell(
     'Harbor Work Register',
@@ -845,9 +1005,10 @@ export async function handleRegisterPage(request: Request, env: Env): Promise<Re
       <p class="lede">Who is on what, in <code>${esc(repoFullName)}</code>, right now. The registry says what work
       exists; this board says who holds it. A claim refused is the coordination working.</p>
       <p class="meta">${rows.length} slug(s) · ${held} held · ${proposed} proposed ·
-      registry read ${meta ? `${esc(ago(meta.read_at))} from <code>${esc(meta.path)}</code> at <code>${esc(meta.ref)}</code> (${meta.item_count} rows)` : 'never'}
+      registry read ${meta ? `${esc(meta.age)} from <code>${esc(meta.path)}</code> at <code>${esc(meta.ref)}</code> (${meta.item_count} rows${meta.refreshed_by ? `, by ${esc(meta.refreshed_by)}` : ''})` : 'never'}
       ${refreshError ? `· <span class="stale">refresh failed: ${esc(refreshError)}</span>` : ''}</p>
     </header>
+    ${warning ? `<div class="warn">${esc(warning)}</div>` : ''}
     <div class="note"><b>This board is cooperative.</b> It refuses a second claim on a held slug and tells you who
     holds it; it cannot stop an agent that never asks. The enforcement point is each agent's own harness, and the
     contract it reads is in <code>AGENTS.md</code>. A slug marked <b>proposed</b> has no row in the registry

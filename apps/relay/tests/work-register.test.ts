@@ -13,14 +13,15 @@
  * request guards that need no database: a malformed repo, an unauthenticated
  * caller, a method the surface does not offer.
  *
- * NOT COVERED, and said plainly rather than faked: the claim compare-and-set.
- * Its correctness lives entirely in one SQL statement — an INSERT ... ON
- * CONFLICT ... DO UPDATE whose WHERE clause is what stops two agents holding
- * one slug — and a hand-written fake D1 would have to reimplement that clause
- * to answer. A test like that proves the fake works, not the code. The honest
- * gate for it is a real SQLite (wrangler's local D1) or the staging deploy;
- * until one of those runs it, the race is argued rather than checked, and this
- * comment is the record of which.
+ * NOT COVERED HERE, and covered next door rather than faked: anything that
+ * reads a row before deciding. Chief among them the claim compare-and-set,
+ * whose correctness lives entirely in one INSERT ... ON CONFLICT ... DO UPDATE
+ * whose WHERE clause is what stops two agents holding one slug. A hand-written
+ * fake D1 would have to reimplement that clause to answer, which proves the
+ * fake works and leaves the shipped statement unexamined. Those tests run
+ * against real SQLite over the committed migration instead:
+ * work-register-race.test.ts for the statement, work-register-surface.test.ts
+ * for the HTTP paths that read before they answer.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -32,6 +33,10 @@ import {
   handleRegisterApi,
   CLAIM_STALE_AFTER_SECONDS,
   SNAPSHOT_PATH,
+  REGISTRY_STALE_AFTER_SECONDS,
+  dateCacheMeta,
+  describeAge,
+  registryWarning,
   type ClaimRow,
 } from '../src/work-register.js';
 import type { Env } from '../src/types.js';
@@ -183,5 +188,70 @@ describe('handleRegisterApi guards that need no database', () => {
   it('answers no-store on its refusals, so a proxy cannot cache an authorization', async () => {
     const res = await handleRegisterApi(new Request(`${BASE}/v1/register/board?repo=nope`), env);
     expect(res.headers.get('cache-control')).toBe('no-store');
+  });
+});
+
+describe('the registry projection knows how old it is', () => {
+  // S4: read_at was returned from the first version and nothing looked at it,
+  // so a week-old item list rendered exactly like a fresh one. These are the
+  // boundary and the wording, because a warning is only as good as the moment
+  // it starts appearing and the sentence it appears as.
+  const meta = (read_at: number) => ({
+    ref: 'main', path: SNAPSHOT_PATH, read_at, item_count: 318, refreshed_by: '@erich-owens',
+  });
+
+  it('a projection read a minute ago is not stale', () => {
+    expect(dateCacheMeta(meta(at - 60), at)?.stale).toBe(false);
+  });
+
+  it('one second inside the threshold is still fresh', () => {
+    expect(dateCacheMeta(meta(at - REGISTRY_STALE_AFTER_SECONDS), at)?.stale).toBe(false);
+  });
+
+  it('one second past it is stale', () => {
+    expect(dateCacheMeta(meta(at - REGISTRY_STALE_AFTER_SECONDS - 1), at)?.stale).toBe(true);
+  });
+
+  it('a clock that ran backwards reads as "just now", never as a negative age', () => {
+    // The relay's clock and the row's can disagree by a second across a
+    // deploy. Reporting "-1 seconds ago" would make a correct board look broken.
+    const dated = dateCacheMeta(meta(at + 30), at);
+    expect(dated?.age_seconds).toBe(0);
+    expect(dated?.age).toBe('just now');
+  });
+
+  it('no cache row at all is not the same condition as an old one', () => {
+    expect(dateCacheMeta(null, at)).toBeNull();
+  });
+
+  it('describes an age in the units a reader would use', () => {
+    expect(describeAge(5)).toBe('just now');
+    expect(describeAge(600)).toBe('10 minutes ago');
+    expect(describeAge(3600)).toBe('1 hour ago');
+    expect(describeAge(7200)).toBe('2 hours ago');
+    expect(describeAge(86_400 * 3)).toBe('3 days ago');
+  });
+});
+
+describe('registryWarning — the sentence the page and the JSON share', () => {
+  it('says nothing when there is nothing to say', () => {
+    expect(registryWarning(dateCacheMeta({
+      ref: 'main', path: SNAPSHOT_PATH, read_at: at - 60, item_count: 318,
+    }, at))).toBeNull();
+  });
+
+  it('a never-read registry warns that slugs will queue as proposed', () => {
+    const w = registryWarning(null);
+    expect(w).toMatch(/proposed queue/i);
+  });
+
+  it('a stale one names the age, the ref and the count, and what to do', () => {
+    const w = registryWarning(dateCacheMeta({
+      ref: 'main', path: SNAPSHOT_PATH, read_at: at - 86_400, item_count: 318,
+    }, at));
+    expect(w).toContain('1 day ago');
+    expect(w).toContain('main');
+    expect(w).toContain('318');
+    expect(w).toMatch(/unknown rather than as absent/);
   });
 });

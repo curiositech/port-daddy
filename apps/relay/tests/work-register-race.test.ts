@@ -40,7 +40,6 @@ function schema(): string {
   return readFileSync(MIGRATION, 'utf8').replace(/\s+REFERENCES users\(id\)/g, '');
 }
 
-const USER = 'u_test';
 const REPO = 'curiositech/port-daddy';
 const SLUG = 'some-real-work';
 
@@ -52,7 +51,7 @@ function claim(agent: string, at: number, headline = ''): number {
   const staleBefore = at - CLAIM_STALE_AFTER_SECONDS;
   const stmt = db.prepare(SQL);
   const res = stmt.run(
-    USER, REPO, SLUG, 'registered', agent, 'session', headline,
+    REPO, SLUG, 'registered', agent, 'session', headline,
     null, null, at, at, at, staleBefore,
   );
   return res.changes;
@@ -151,8 +150,24 @@ describe('the claim race, on real SQLite', () => {
     claim('agent-a', 1000);
     const stmt = db.prepare(SQL);
     const at = 1000;
-    const res = stmt.run(USER, REPO, 'another-slug', 'registered', 'agent-b', 'session', '',
+    const res = stmt.run(REPO, 'another-slug', 'registered', 'agent-b', 'session', '',
       null, null, at, at, at, at - CLAIM_STALE_AFTER_SECONDS);
     expect(res.changes).toBe(1);
+  });
+
+  // The S2 decision, checked rather than asserted in a comment: the sharing key
+  // is the repository, so a second account's agent contends with the first
+  // instead of getting its own private copy of the same slug. Under the
+  // previous (user_id, repo, slug) key this test passed with TWO winners --
+  // which is the whole product silently absent.
+  it('one repository is one board, whichever account an agent belongs to', () => {
+    expect(claim('erich-agent', 3000, 'kernel chapter')).toBe(1);
+    // A different operator's agent, same repo, same slug, one minute later.
+    expect(claim('collaborator-agent', 3060)).toBe(0);
+    expect(holder().agent).toBe('erich-agent');
+    const boards = db
+      .prepare('SELECT COUNT(*) AS n FROM work_claims WHERE slug = ?')
+      .get(SLUG) as { n: number };
+    expect(boards.n, 'one row per (repo, slug), not one per account').toBe(1);
   });
 });
