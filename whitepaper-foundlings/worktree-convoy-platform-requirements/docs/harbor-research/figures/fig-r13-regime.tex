@@ -1,0 +1,105 @@
+% Theorem 2 regime: two panels, both closed forms at the worked instance
+% (theta_H=1, theta_L=0.4, c_H=0.5, c_L=0.2) recomputed directly from
+% make_r13_regime() in figures/src/paper5_figures.py. Panel A: pooled price
+% = mu*theta_H + (1-mu)*theta_L, mu_star = (c_H-theta_L)/(theta_H-theta_L)
+% = 1/6 exactly [verified: script paper5_figures.py]. Panel B: unattested
+% swap gain is the constant Delta c = 0.3; attested gain is Delta c -
+% Delta theta under FULL pass-through of the quality difference (the pricing
+% hypothesis stated in Theorem 2b, not a consequence of attestation),
+% flipping sign at Delta theta = 0.3, worked instance marked at
+% Delta theta = 0.6 -> gain -0.3, matching "keep 0.5 vs swap 0.2" in the
+% prose (0.5 - 0.2 = 0.3 = -(-0.3)). [verified: script paper5_figures.py]
+%
+% LAYOUT REBUILT (paper5 review B4). The previous version put both panels
+% side by side in minipage{0.48\textwidth}, which left Panel B -- the paper's
+% headline result -- about 2cm of plotted width. Five successive local
+% patches were spent on that: the legend was deleted after four rounds of
+% narrower/repositioned/smaller-font attempts, the "swap pays" annotation was
+% deleted after a fifth reposition, the remaining labels were cut to \tiny,
+% and the ticks were thinned to three. Those were all symptoms of the
+% side-by-side layout, not of the legend. The panels are now STACKED at
+% width=0.82\textwidth each, the layout fig-r12-regime.tex and
+% fig-b6-probation.tex already use successfully, and the legends are replaced
+% by DIRECT LINE LABELS -- which, unlike a legend, survive greyscale, where
+% the red/green convention carries no information at all.
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  harbor curve,
+  width=0.82\textwidth,height=5.4cm,
+  xlabel={committed high-engine share $\mu$},
+  ylabel={pooled price $\mu\theta_H+(1-\mu)\theta_L$},
+  title={\textbf{A} --- unattested: the pool must clear $c_H$},
+  xmin=0,xmax=1,ymin=0.3,ymax=1.05,
+  % mu* is this section's most-quoted number; at full width it can carry its
+  % own tick instead of being a dot with nothing under it.
+  xtick={0,0.1667,0.5,1},
+  xticklabels={$0$,$\tfrac16$,$0.5$,$1$},
+]
+\fill[shipred,opacity=0.08] (axis cs:0,0.3) rectangle (axis cs:0.16667,1.05);
+\fill[seagreen,opacity=0.08] (axis cs:0.16667,0.3) rectangle (axis cs:1,1.05);
+\draw[black,dotted,thick] (axis cs:0.16667,0.3) -- (axis cs:0.16667,1.05);
+\addplot[harborblue,thick] coordinates {
+  (0,0.4) (0.1,0.46) (0.2,0.52) (0.3,0.58) (0.4,0.64) (0.5,0.7)
+  (0.6,0.76) (0.7,0.82) (0.8,0.88) (0.9,0.94) (1.0,1.0)
+};
+\addplot[shipred,dashed,thick] coordinates {(0,0.5) (1,0.5)};
+\addplot[black,only marks,mark=*,mark size=2pt,forget plot] coordinates {(0.16667,0.5)};
+% Direct labels in place of a legend. The pooled-price label rides above its
+% own line at mu=0.85 (line at 0.91, ymax 1.05); the cost label sits below the
+% dashed line on the right, where the gap to the pooled-price curve is widest.
+\node[harborblue,font=\scriptsize,anchor=south east] at (axis cs:0.88,0.93) {pooled price $\mu\theta_H+(1-\mu)\theta_L$};
+\node[shipred,font=\scriptsize,anchor=north west] at (axis cs:0.62,0.485) {strong-engine cost $c_H=0.5$};
+\node[font=\scriptsize,anchor=north west] at (axis cs:0.19,0.47) {$\mu^\star=1/6$};
+\node[shipred,font=\scriptsize\bfseries,align=center,anchor=north] at (axis cs:0.083,1.0) {death\\spiral};
+\node[seagreen,font=\scriptsize\bfseries,anchor=south] at (axis cs:0.62,0.32) {committed sellers stay};
+\end{axis}
+\end{tikzpicture}
+
+\vspace{6pt}
+
+\begin{tikzpicture}
+\begin{axis}[
+  harbor curve,
+  width=0.82\textwidth,height=5.4cm,
+  xlabel={quality gap $\Delta\theta$},
+  ylabel={one-period gain from swapping},
+  title={\textbf{B} --- attestation flips the incentive (full pass-through, $p_H-p_L=\Delta\theta$)},
+  xmin=0,xmax=0.8,ymin=-0.65,ymax=0.45,
+  xtick={0,0.2,0.3,0.4,0.6,0.8},
+]
+\fill[shipred,opacity=0.08] (axis cs:0,0) rectangle (axis cs:0.8,0.45);
+\fill[seagreen,opacity=0.08] (axis cs:0,-0.65) rectangle (axis cs:0.8,0);
+\draw[black,thick] (axis cs:0,0) -- (axis cs:0.8,0);
+\addplot[shipred,thick] coordinates {(0,0.3) (0.8,0.3)};
+\addplot[seagreen,thick] coordinates {
+  (0,0.3) (0.1,0.2) (0.2,0.1) (0.3,0.0) (0.4,-0.1) (0.5,-0.2)
+  (0.6,-0.3) (0.7,-0.4) (0.8,-0.5)
+};
+\addplot[black,only marks,mark=*,mark size=2pt,forget plot] coordinates {(0.3,0.0)};
+\addplot[seagreen,only marks,mark=*,mark size=2.4pt,forget plot] coordinates {(0.6,-0.3)};
+% Direct line labels, restored region labels. Each is anchored so it grows
+% away from the nearer axis edge and into an empty quadrant: the red label
+% rides above its own flat line (ymax 0.45 leaves 0.15 of clear space), the
+% green label sits below its line in the region where the line has already
+% dropped past it, and the worked-instance callout grows leftward from
+% x=0.58, where the attested line is still above -0.25 across its whole span.
+\node[shipred,font=\small,anchor=south east] at (axis cs:0.78,0.315) {unattested: $\Delta c=0.3$, at every price};
+\node[seagreen,font=\small,anchor=north west] at (axis cs:0.40,-0.15) {attested: $\Delta c-\Delta\theta$};
+\node[font=\scriptsize,anchor=south west] at (axis cs:0.315,0.02) {flip: $\Delta\theta=\Delta c$};
+\node[seagreen,font=\scriptsize,anchor=north east] at (axis cs:0.58,-0.33) {worked instance: keep $0.5$ vs.\ swap $0.2$};
+\node[shipred,font=\small\bfseries,anchor=north west] at (axis cs:0.03,0.43) {swap pays};
+\node[seagreen,font=\small\bfseries,anchor=south west] at (axis cs:0.03,-0.63) {strong engine pays};
+\end{axis}
+\end{tikzpicture}
+\caption{Regime diagram for Theorem 2 at the worked instance ($\theta_H{=}1$, $\theta_L{=}0.4$, $c_H{=}0.5$, $c_L{=}0.2$).
+\textbf{A}: unattested, the pooled price clears $c_H$ only right of $\mu^\star=1/6$; left of it the spiral rests at $\theta_L$.
+\textbf{B}: the swap gain is a price-independent $\Delta c$ without attestation, and $\Delta c-\Delta\theta$ with it --- negative
+exactly when the strong engine is efficient, so the market's incentive and the planner's rule coincide. Panel B plots the
+\emph{full pass-through} case $p_H-p_L=\Delta\theta$, which is Theorem 2b's pricing hypothesis rather than a consequence of
+attestation: pass through less than the whole quality difference and the attested line tilts, moving the flip point; under Bertrand
+competition on attested keys $p_\theta=c_\theta$ and it flattens onto zero [verified; regenerated by
+\texttt{paper5\_figures.py}].}
+\label{fig:r13reg}
+\end{figure}

@@ -1,0 +1,43 @@
+% Sen-inspired governance choice as a schematic loss frontier, not quadrants.
+\begin{figure}[H]
+\centering
+\resizebox{0.90\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  % Regions between the two schematic loss curves.
+  \fill[hhsand!24]
+    (-5.0,-.70)--(-3.2,-.52)--(-1.3,-.08)--(.30,.56)--(1.35,1.12)
+    --(.30,1.18)--(-1.3,1.06)--(-3.2,.96)--(-5.0,.90)--cycle;
+  \fill[hhamber!8]
+    (1.35,1.12)--(2.2,1.75)--(3.7,3.05)--(5.0,4.00)
+    --(5.0,1.88)--(3.7,1.66)--(2.2,1.43)--cycle;
+
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-5.15,-.90)--(5.55,-.90);
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-5.15,-.90)--(-5.15,4.05);
+  \node[pd axis label,anchor=west] at (5.65,-.90) {private information about future needs};
+  \node[pd axis label,rotate=90,anchor=south] at (-5.48,1.55) {coordination loss};
+  \node[pd note,anchor=north west] at (-5.0,-1.05) {shared / forecastable};
+  \node[pd note,anchor=north east] at (5.0,-1.05) {local / exploratory};
+
+  \draw[pd caution rule,line width=1.45pt,smooth]
+    plot coordinates {(-5.0,-.70)(-3.2,-.52)(-1.3,-.08)(.30,.56)(1.35,1.12)(2.2,1.75)(3.7,3.05)(5.0,4.00)};
+  \node[pd direct label,text=hhamber,anchor=west] at (2.72,2.66)
+    {exclusive allocation};
+
+  \draw[pd focus rule,line width=1.45pt,smooth]
+    plot coordinates {(-5.0,.90)(-3.2,.96)(-1.3,1.06)(.30,1.18)(1.35,1.12)(2.2,1.43)(3.7,1.66)(5.0,1.88)};
+  \node[pd direct label,text=hhteal,anchor=east] at (1.15,.68)
+    {advisory claims};
+
+  \draw[pd guide] (1.35,-.90)--(1.35,3.40);
+  \node[pd caution datum] at (1.35,1.12) {};
+  \node[pd direct label,anchor=south] at (1.35,3.42) {design boundary $x^*$};
+
+  \node[pd focus datum] at (4.35,1.78) {};
+  \draw[pd focus rule] (4.35,1.98)--(4.35,2.32);
+  \node[pd direct label,text=hhteal,anchor=south,align=center] at (4.35,2.32)
+    {LLM coding agents\\retain task-local knowledge};
+\end{tikzpicture}%
+}
+\caption{The governance choice is a loss frontier, not a four-quadrant taxonomy. Exclusive allocation is cheap when work needs are shared and forecastable, then becomes brittle as relevant knowledge remains local to the agent. Advisory claims carry a persistent negotiation cost but preserve local choice. Past the schematic crossing $x^*$, advisory coordination has the lower modeled loss. The curves are conceptual: the figure identifies the decision boundary the deployment must estimate; it does not claim a measured universal threshold.}
+\label{fig:bonded-sen-regime}
+\end{figure}

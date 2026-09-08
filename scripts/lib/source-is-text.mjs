@@ -85,6 +85,24 @@ export const TEXT_EXTENSIONS = ['ts', 'tsx', 'js', 'mjs', 'cjs', 'rs', 'json'];
 export const ALLOWED_BINARY_SOURCE = new Set([]);
 
 /**
+ * `.gitattributes` patterns that are path-scoped (not a bare `*.ext`) and
+ * explicitly mark their files `-text` (binary, LFS-tracked). These sit
+ * outside this guard's invariant entirely — a "keep source text" scan has
+ * nothing to say about a PNG or PDF that is deliberately non-text — so they
+ * are named here rather than left to fall into `unparsed`, which exists to
+ * catch a pattern nobody has looked at, not one that is intentionally binary.
+ * Give the path AND the reason if you add one; do not use this list for a
+ * pattern that declares `text` (positive) for a real source extension.
+ *
+ * @type {Set<string>}
+ */
+export const ALLOWED_NON_TEXT_PATTERNS = new Set([
+  'whitepaper-foundlings/**/*.png', // LFS-tracked archival screenshots, PR #10105
+  'whitepaper-foundlings/**/*.pdf', // LFS-tracked archival PDFs, PR #10105
+  'skill_candidates/**/*.pdf', // LFS-tracked archival PDF, PR #10105
+]);
+
+/**
  * Every file git tracks under a source extension, minus the allowlist.
  *
  * @param {string} repoRoot Absolute path to the repository root.
@@ -184,10 +202,18 @@ export function declaredExtensions(repoRoot) {
   for (const raw of readFileSync(resolve(repoRoot, '.gitattributes'), 'utf8').split('\n')) {
     const line = raw.trim();
     if (!line || line.startsWith('#')) continue;
-    const pattern = line.split(/\s+/)[0];
+    const [pattern, ...attrs] = line.split(/\s+/);
     const simple = /^\*\.([A-Za-z0-9]+)$/.exec(pattern);
-    if (simple) declared.add(simple[1]);
-    else unparsed.push(pattern);
+    if (simple) {
+      declared.add(simple[1]);
+      continue;
+    }
+    // The allowlist exempts a pattern only while its line still actually
+    // declares `-text` — matching the pattern string alone would let a
+    // later edit repurpose the same glob for a positive `text` declaration
+    // and keep sailing through unnoticed, exactly what this list must not do.
+    if (ALLOWED_NON_TEXT_PATTERNS.has(pattern) && attrs.includes('-text')) continue;
+    unparsed.push(pattern);
   }
   return { declared, unparsed };
 }
