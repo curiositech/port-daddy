@@ -192,9 +192,14 @@ def last_word(name: str) -> str:
     parts = name.split()
     if not parts:
         return name
-    if len(parts) >= 2 and parts[-2].lower().lstrip("~-") in NAME_PARTICLES:
-        return f"{parts[-2]} {parts[-1]}"
-    return parts[-1]
+    # Walk back over EVERY leading particle, not just one: "van der Waals" and
+    # "de la Cruz" carry two, and stopping after the first drops the head of
+    # the surname ("der Waals", "la Cruz"). Guard the index so a name that is
+    # nothing but particles cannot consume the whole list.
+    i = len(parts) - 1
+    while i > 0 and parts[i - 1].lower().lstrip("~-") in NAME_PARTICLES:
+        i -= 1
+    return " ".join(parts[i:])
 
 
 def parse_authors(raw: str) -> str | None:
