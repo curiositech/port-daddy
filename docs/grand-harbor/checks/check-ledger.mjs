@@ -18,9 +18,29 @@ const files = walk(root);
 const markdownFiles = files.filter((file) => file.endsWith('.md'));
 const textFiles = files.filter((file) => /\.(?:md|ya?ml|mjs|html)$/.test(file) && !file.includes(`${path.sep}checks${path.sep}`));
 
+// The forbidden ephemeral-citation markers are the profile's to define, not
+// this file's. They were written out twice -- once here as a regex and once in
+// completeness-profile.yaml, which the README calls the contract for a stronger
+// validator -- and two copies of one rule drift. Read from the profile, and
+// fail rather than pass if the list cannot be read: a check whose rule list is
+// empty is a check that finds nothing and says everything is fine.
+const profileText = fs.readFileSync(path.join(root, 'checks', 'completeness-profile.yaml'), 'utf8');
+const profileMarkers = (profileText.match(/^forbidden_ephemeral_citations:\n((?:\s+-\s+\S+\n)+)/m) ?? [])[1];
+const forbiddenMarkers = (profileMarkers ?? '')
+  .split('\n')
+  .map((line) => line.replace(/^\s*-\s*/, '').trim())
+  .filter(Boolean);
+if (forbiddenMarkers.length === 0) {
+  console.error('check-ledger: could not read forbidden_ephemeral_citations from completeness-profile.yaml');
+  process.exit(1);
+}
+const transientMarker = new RegExp(
+  `\\b(?:${forbiddenMarkers.map((m) => m.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b|\\bturn\\d+\\b`,
+  'i',
+);
+
 for (const file of textFiles) {
   const text = fs.readFileSync(file, 'utf8');
-  const transientMarker = new RegExp(`\\b(?:${'file' + 'cite'}|${'mem' + 'cite'})\\b|\\b${'turn'}\\d+\\b`, 'i');
   if (transientMarker.test(text)) {
     failures.push(`${path.relative(root, file)} contains an ephemeral citation`);
   }
@@ -52,6 +72,28 @@ for (const match of ledgerText.matchAll(documentPattern)) {
     const id = expected.replace(/-/g, '-').toUpperCase();
     if (!content.includes(id.toLowerCase())) {
       failures.push(`${match[1].trim()} does not mention indexed anchor ${expected}`);
+    }
+  }
+}
+
+// Every kind a record declares must be in the ledger's own vocabulary. There
+// was no vocabulary: `registers:` lists the ID-bearing documents, which is a
+// different thing, so a record could introduce a kind -- or misspell one --
+// and nothing would notice. (A review bot read the two lists as one and called
+// program_cut structurally invalid; it is not, but the absence it was pointing
+// at is real.)
+const declaredKinds = new Set(
+  [...(((ledgerText.match(/^record_kinds:\n((?:\s+-\s+\S+\n)+)/m) ?? [])[1]) ?? '')
+    .split('\n')
+    .map((line) => line.replace(/^\s*-\s*/, '').trim())
+    .filter(Boolean)],
+);
+if (declaredKinds.size === 0) {
+  failures.push('ledger.yaml declares no record_kinds vocabulary, so any kind would pass');
+} else {
+  for (const match of ledgerText.matchAll(/^\s+kind:\s+(\S+)\s*$/gm)) {
+    if (!declaredKinds.has(match[1]) && !['question', 'tension', 'hypothesis', 'proof', 'archive', 'ux'].includes(match[1])) {
+      failures.push(`ledger.yaml record kind '${match[1]}' is not in record_kinds`);
     }
   }
 }

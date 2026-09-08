@@ -32,6 +32,14 @@ registers:
     document: archive/README.md
   - kind: ux
     document: ux/README.md
+# The kinds a record may declare. Without this the checker had nothing to check
+# a kind against, so a misspelling would have entered the ledger as a new kind.
+record_kinds:
+  - contract
+  - decision
+  - experience
+  - invariant
+  - program_cut
 relation_vocabulary:
   - EXTENDS
   - REFINES
