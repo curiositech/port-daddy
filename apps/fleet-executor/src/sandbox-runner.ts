@@ -1,3 +1,5 @@
+import { FleetStoppedError } from "../../../shared/fleet-controls.js";
+
 /**
  * Optional sandboxed test execution for the purser ship.
  *
@@ -196,6 +198,8 @@ function shq(s: string): string {
 }
 
 export interface SandboxRunParams {
+  /** Required action authority; rechecked for every new command/process/grant. */
+  beforeAction: () => Promise<void>;
   /** The raw `env.SANDBOX` binding (or undefined when not deployed). */
   sandboxBinding: unknown;
   owner: string;
@@ -758,6 +762,7 @@ function notExecuted(reason: string, output = ''): SandboxRunOutcome {
  * Never throws: every failure mode returns an honest non-executed outcome.
  */
 export async function runTestsInSandbox(params: SandboxRunParams): Promise<SandboxRunOutcome> {
+  await params.beforeAction();
   if (params.testCommand === undefined && params.files.length === 0) {
     return notExecuted(
       'no Purser-authored test files were supplied — nothing was executed',
@@ -817,11 +822,13 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
   // the daemon macaroon, not a compatibility-breaking runner rewrite.
   if (!coordinationEnrollment) {
     try {
+      await params.beforeAction();
       const result = await sandbox.exec(
         `bash -lc ${shq([...cloneLines, ...setupLines, runner.script].join('\n'))}`,
       );
       return classifyRunnerResult(result, runner.usesDefaultJestRunner);
     } catch (err) {
+      if (err instanceof FleetStoppedError) throw err;
       return notExecuted(`sandbox execution failed: ${String(err).slice(0, 300)}`);
     }
   }
@@ -831,6 +838,7 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
     // Scope the installation token to Git alone. npm lifecycle and authored
     // repository code run in later exec calls without this environment.
     const auth = btoa(`x-access-token:${params.token}`);
+    await params.beforeAction();
     const cloneResult = await sandbox.exec(`bash -lc ${shq(cloneLines.join('\n'))}`, {
       env: {
         GIT_CONFIG_COUNT: '1',
@@ -842,6 +850,7 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
       return notExecuted('sandbox checkout failed before the test runner started', combinedOutput(cloneResult));
     }
 
+    await params.beforeAction();
     const setupResult = await sandbox.exec(`bash -lc ${shq(setupLines.join('\n'))}`, {
       cwd: REPOSITORY_ROOT,
     });
@@ -851,15 +860,18 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
 
     let coordinationPeer: SandboxCoordinationPeer;
     try {
+      await params.beforeAction();
       coordinationPeer = await mintSandboxCoordinationPeer(
         coordinationEnrollment,
       );
     } catch (err) {
+      if (err instanceof FleetStoppedError) throw err;
       return notExecuted(
         `cloud coordination grant failed: ${String(err).slice(0, 240)}`,
       );
     }
 
+    await params.beforeAction();
     daemonProcess = await sandbox.startProcess!(
       './dist/port-daddy __daemon',
       {
@@ -876,6 +888,7 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
         'SANDBOX startProcess returned no controllable daemon handle',
       );
     }
+    await params.beforeAction();
     const writerPublicationResult = await sandbox.exec(cloudPeerPublicationProbeCommand(CLOUD_PEER_ROOT), {
       cwd: REPOSITORY_ROOT,
     });
@@ -889,6 +902,7 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
       );
     }
     const writerPort = writerPublication.port;
+    await params.beforeAction();
     await daemonProcess.waitForPort(writerPort, { path: '/health' });
     const writerClientEnv = cloudPeerClientEnv(writerPort);
     const identity = coordinationPeer.actorId;
@@ -915,6 +929,7 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
       shq(enrollmentNote),
       '--type progress',
     ].join(' ');
+    await params.beforeAction();
     const beginResult = await sandbox.exec(beginCommand, {
       cwd: REPOSITORY_ROOT,
       env: writerClientEnv,
@@ -925,6 +940,7 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
         combinedOutput(beginResult),
       );
     }
+    await params.beforeAction();
     const convergenceResult = await sandbox.exec(cloudPeerConvergenceProbeCommand(writerPort), {
       cwd: REPOSITORY_ROOT,
       env: writerClientEnv,
@@ -950,12 +966,15 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
       // A second real peer gets its own actor-scoped capability. Grants are
       // deliberately not treated as replica credentials or replayed across
       // process lifetimes, even though both replicas share the exact actor.
+      await params.beforeAction();
       witnessPeer = await mintSandboxCoordinationPeer(coordinationEnrollment);
     } catch (err) {
+      if (err instanceof FleetStoppedError) throw err;
       return notExecuted(
         `cloud coordination witness grant failed: ${String(err).slice(0, 240)}`,
       );
     }
+    await params.beforeAction();
     daemonProcess = await sandbox.startProcess!(
       './dist/port-daddy __daemon',
       {
@@ -972,6 +991,7 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
         'SANDBOX startProcess returned no controllable witness daemon handle',
       );
     }
+    await params.beforeAction();
     const witnessPublicationResult = await sandbox.exec(cloudPeerPublicationProbeCommand(CLOUD_PEER_WITNESS_ROOT), {
       cwd: REPOSITORY_ROOT,
     });
@@ -985,8 +1005,10 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
       );
     }
     const witnessPort = witnessPublication.port;
+    await params.beforeAction();
     await daemonProcess.waitForPort(witnessPort, { path: '/health' });
     const witnessClientEnv = cloudPeerClientEnv(witnessPort, CLOUD_PEER_WITNESS_ROOT);
+    await params.beforeAction();
     const witnessConvergence = await sandbox.exec(cloudPeerConvergenceProbeCommand(
       witnessPort,
       writerCursor,
@@ -1003,6 +1025,7 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
         combinedOutput(witnessConvergence),
       );
     }
+    await params.beforeAction();
     const witnessResult = await sandbox.exec(
       cloudPeerWitnessCommand(coordinationPeer, markerPath, enrollmentNote),
       {
@@ -1020,11 +1043,13 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
         combinedOutput(witnessResult),
       );
     }
+    await params.beforeAction();
     const testResult = await sandbox.exec(`bash -lc ${shq(runner.script)}`, {
       cwd: REPOSITORY_ROOT,
     });
     return classifyRunnerResult(testResult, runner.usesDefaultJestRunner);
   } catch (err) {
+    if (err instanceof FleetStoppedError) throw err;
     return notExecuted(`sandbox execution failed: ${String(err).slice(0, 300)}`);
   } finally {
     if (daemonProcess && typeof daemonProcess.kill === 'function') {

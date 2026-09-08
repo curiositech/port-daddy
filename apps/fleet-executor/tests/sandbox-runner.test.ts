@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { controlDb } from '../../relay/tests/support/fleet-controls.js';
+import { FleetStoppedError, writeFleetControl } from '../../../shared/fleet-controls.js';
+import { fleetInvocationGuard } from '../src/fleet-stop.js';
 import {
   buildDefaultSandboxTestCommand,
   buildSandboxDaemonBootstrap,
@@ -83,9 +86,43 @@ describe('buildDefaultSandboxTestCommand', () => {
 });
 
 describe('runTestsInSandbox', () => {
+  it.each(['clone', 'setup', 'grant', 'process'])('refuses all later sandbox actions after stop during %s, preserving cleanup', async phase => {
+    const controls = controlDb([42]);
+    const stop = () => writeFleetControl(controls, 'installation:42', false, 1, 'u_owner');
+    let execs = 0, grants = 0, starts = 0, kills = 0;
+    await expect(runTestsInSandbox({
+      beforeAction: fleetInvocationGuard(controls, 42),
+      sandboxBinding: {
+        async exec() {
+          execs++;
+          if ((phase === 'clone' && execs === 1) || (phase === 'setup' && execs === 2)) await stop();
+          return { exitCode: 0 };
+        },
+        async startProcess() {
+          starts++;
+          if (phase === 'process') await stop();
+          return { waitForPort: async () => {}, kill: async () => { kills++; } };
+        },
+      },
+      owner: 'curiositech', repo: 'port-daddy', headSha: 'abc123',
+      files: [{ path: 'tests/unit/contract.test.ts', contents: 'synthetic fixture' }], token: 'synthetic-token',
+      coordinationEnrollment: { url: 'https://relay.example', project: 'curiositech/port-daddy', actorId: 'fleet:run:fixture', grants: {
+        async mintCoordinationGrant(input) {
+          grants++;
+          if (phase === 'grant') await stop();
+          return grantService().mintCoordinationGrant(input);
+        },
+      } },
+    })).rejects.toBeInstanceOf(FleetStoppedError);
+    expect(execs).toBe(phase === 'clone' ? 1 : 2);
+    expect(grants).toBe(['clone', 'setup'].includes(phase) ? 0 : 1);
+    expect(starts).toBe(phase === 'process' ? 1 : 0);
+    expect(kills).toBe(starts);
+  });
   it('fails closed before touching the sandbox when no authored files exist', async () => {
     let calls = 0;
     const outcome = await runTestsInSandbox({
+      beforeAction: async () => {},
       sandboxBinding: {
         async exec() {
           calls += 1;
@@ -110,6 +147,7 @@ describe('runTestsInSandbox', () => {
 
   it('does not call an installation failure a test execution', async () => {
     const outcome = await runTestsInSandbox({
+      beforeAction: async () => {},
       sandboxBinding: {
         async exec() {
           return { exitCode: 1, stdout: 'npm ci failed before Jest started' };
@@ -133,6 +171,7 @@ describe('runTestsInSandbox', () => {
 
   it('separates Jest load and zero-test errors from assertion failures', async () => {
     const outcome = await runTestsInSandbox({
+      beforeAction: async () => {},
       sandboxBinding: {
         async exec() {
           return {
@@ -169,6 +208,7 @@ describe('runTestsInSandbox', () => {
 
   it('attributes failures only when structured Jest evidence reports failed cases', async () => {
     const outcome = await runTestsInSandbox({
+      beforeAction: async () => {},
       sandboxBinding: {
         async exec() {
           return {
@@ -204,6 +244,7 @@ describe('runTestsInSandbox', () => {
   it('keeps an explicit repository-specific test command authoritative', async () => {
     const commands: string[] = [];
     const outcome = await runTestsInSandbox({
+      beforeAction: async () => {},
       sandboxBinding: {
         async exec(value: string) {
           commands.push(value);
@@ -240,6 +281,7 @@ describe('runTestsInSandbox', () => {
     const waitedForPorts: number[] = [];
     let kills = 0;
     const outcome = await runTestsInSandbox({
+      beforeAction: async () => {},
       sandboxBinding: {
         async exec(value: string, received?: Record<string, unknown>) {
           lifecycle.push(`exec:${execCalls.length + 1}`);
@@ -388,6 +430,7 @@ describe('runTestsInSandbox', () => {
   it('does not request a grant when the sandbox binding is absent', async () => {
     let grants = 0;
     const outcome = await runTestsInSandbox({
+      beforeAction: async () => {},
       sandboxBinding: undefined,
       owner: 'curiositech',
       repo: 'port-daddy',
@@ -426,6 +469,7 @@ describe('runTestsInSandbox', () => {
     let execCalls = 0;
     let starts = 0;
     const outcome = await runTestsInSandbox({
+      beforeAction: async () => {},
       sandboxBinding: {
         async exec() {
           execCalls += 1;
@@ -463,6 +507,7 @@ describe('runTestsInSandbox', () => {
     const run = async () => {
       let calls = 0;
       return runTestsInSandbox({
+        beforeAction: async () => {},
         sandboxBinding: {
           async exec() {
             calls += 1;
@@ -508,6 +553,7 @@ describe('runTestsInSandbox', () => {
   it('fails closed before checkout when a configured binding lacks startProcess', async () => {
     let calls = 0;
     const outcome = await runTestsInSandbox({
+      beforeAction: async () => {},
       sandboxBinding: {
         async exec() {
           calls += 1;
@@ -544,6 +590,7 @@ describe('runTestsInSandbox', () => {
     let calls = 0;
     let kills = 0;
     const outcome = await runTestsInSandbox({
+      beforeAction: async () => {},
       sandboxBinding: {
         async exec() {
           calls += 1;
@@ -587,6 +634,7 @@ describe('runTestsInSandbox', () => {
     let calls = 0;
     let kills = 0;
     const outcome = await runTestsInSandbox({
+      beforeAction: async () => {},
       sandboxBinding: {
         async exec() {
           calls += 1;

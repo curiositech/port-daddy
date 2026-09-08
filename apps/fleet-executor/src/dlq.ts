@@ -118,6 +118,7 @@ export async function handleDlqJob(job: FleetRunJob, env: ExecutorEnv): Promise<
       env.GITHUB_APP_PRIVATE_KEY,
       installationId,
       env.FLEET_TOKENS,
+      () => assertFleetMayRun(env.DB, installationId),
     );
     const checkRunId = await findFleetCheckRun(
       owner,
@@ -144,6 +145,7 @@ export async function handleDlqJob(job: FleetRunJob, env: ExecutorEnv): Promise<
         token,
         detailsUrl,
         DLQ_CHECK_OUTPUT_TITLE,
+        () => assertFleetMayRun(env.DB, installationId),
       );
     } else {
       console.error(

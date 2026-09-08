@@ -6,6 +6,18 @@ export interface FleetControl {
   available: boolean;
 }
 
+/** Minimal primary-session contract, usable by Workers and Node typecheck graphs. */
+export interface FleetControlDatabase {
+  withSession(constraint: 'first-primary'): { prepare(query: string): FleetControlStatement };
+}
+
+/** D1's structural query surface; no ambient Worker globals leak into shared code. */
+interface FleetControlStatement {
+  bind(...values: unknown[]): FleetControlStatement;
+  all<T>(): Promise<{ success: boolean; results: T[] }>;
+  first<T>(): Promise<T | null>;
+}
+
 /** Purpose: identify the billed installation, never a caller's login alias.
  * @param id Verified positive GitHub installation ID.
  * @returns Its canonical storage key; invalid identities throw.
@@ -44,7 +56,7 @@ function decode(scope: string, row: Record<string, unknown> | undefined): FleetC
  * @param scopes Exact server-derived control keys.
  * @returns Validated current settings; missing rows are off, failures throw.
  */
-async function readControls(db: D1Database | undefined, scopes: string[]): Promise<FleetControl[]> {
+async function readControls(db: FleetControlDatabase | undefined, scopes: string[]): Promise<FleetControl[]> {
   if (!db || scopes.some(scope => !validScope(scope))) throw new Error('CONTROL_UNAVAILABLE');
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -63,12 +75,12 @@ async function readControls(db: D1Database | undefined, scopes: string[]): Promi
   }
 }
 
-/** Read-side purpose: an unavailable control is visibly unknown and effectively off.
+/** Read-side purpose: an unavailable control is unknown, never a saved stop.
  * @param db Shared primary database, potentially absent.
  * @param scope Exact server-derived control key.
  * @returns Displayable state that distinguishes missing from unavailable.
  */
-export async function readFleetControl(db: D1Database | undefined, scope: string): Promise<FleetControl> {
+export async function readFleetControl(db: FleetControlDatabase | undefined, scope: string): Promise<FleetControl> {
   try { return (await readControls(db, [scope]))[0]!; }
   catch { return { scope, enabled: false, revision: 0, available: false }; }
 }
@@ -79,7 +91,7 @@ export async function readFleetControl(db: D1Database | undefined, scope: string
  * @param installationId Trusted webhook/job installation identity.
  * @returns False on absent, malformed, unreadable or stopped control state.
  */
-export async function fleetMayRun(db: D1Database | undefined, installationId: number | null | undefined): Promise<boolean> {
+export async function fleetMayRun(db: FleetControlDatabase | undefined, installationId: number | null | undefined): Promise<boolean> {
   try {
     if (installationId == null) return false;
     return (await readControls(db, ['global', installationScope(installationId)])).every(control => control.enabled);
@@ -96,7 +108,7 @@ export class FleetStoppedError extends Error {
  * @param installationId Verified logical run's installation.
  * @returns Completion only while both controls allow; otherwise a terminal stop error.
  */
-export async function assertFleetMayRun(db: D1Database | undefined, installationId: number | null | undefined): Promise<void> {
+export async function assertFleetMayRun(db: FleetControlDatabase | undefined, installationId: number | null | undefined): Promise<void> {
   if (!(await fleetMayRun(db, installationId))) throw new FleetStoppedError();
 }
 
@@ -110,7 +122,7 @@ export async function assertFleetMayRun(db: D1Database | undefined, installation
  * @param actor Authenticated account id, never supplied by the form.
  * @returns The durable updated row; a failed precondition throws STALE_CONTROL.
  */
-export async function writeFleetControl(db: D1Database, scope: string, enabled: boolean, revision: number, actor: string): Promise<FleetControl> {
+export async function writeFleetControl(db: FleetControlDatabase, scope: string, enabled: boolean, revision: number, actor: string): Promise<FleetControl> {
   if (!validScope(scope) || typeof enabled !== 'boolean' || !Number.isSafeInteger(revision)
     || revision < 0 || revision >= Number.MAX_SAFE_INTEGER || !actor.trim()) throw new Error('INVALID_CONTROL');
   const row = await db.withSession('first-primary').prepare(`

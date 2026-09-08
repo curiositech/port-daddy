@@ -404,11 +404,16 @@ invent a command, switch identities or replay an uncertain write.
 contract for Relay and the executor. Never reintroduce a KV allow, an absent-row
 allow, or a free-tier bypass. Check both global and installation state from a
 fresh `first-primary` session before every model invocation and guarded action.
+Retain an observed stop for the invocation; preserve its terminal exception
+through model/repair catches. Recheck after cache, metadata and channel-tail
+waits, before every new token request, mutation retry and sandbox action.
+An unavailable page read is unverified state, not proof a durable stop was saved.
 Missing/broken state cancels admission; it does not authorize minting a token or
 posting a neutral check. Global control writes require the Cloudflare numeric-ID
 allowlist, not an operator role. See `docs/operations/fleet-cloud-controls.md` for
 rollout and in-flight limits. Under the operator halt, tests use synthetic local
 bindings only: no daemon, Fleet, paid reviewer, workflow dispatch or deployment.
+Bounded read-only review subagents require separate explicit operator authority.
 
 **Update** (review + CI). Read live comments, replies and checks through the
 permitted inspection path. Respond graciously, incorporating actionable

@@ -1,3 +1,5 @@
+import { FleetStoppedError } from "../../../shared/fleet-controls.js";
+
 /**
  * Bounded resilience at the Workers AI dependency boundary.
  *
@@ -244,6 +246,7 @@ export class FleetAiCircuit {
       });
       return await Promise.race([call(), timedOut]);
     } catch (error) {
+      if (error instanceof FleetStoppedError) throw error;
       const wrapped = new FleetAiDependencyError(describeAiFailure(error, elapsedSince(startedAt)));
       if (wrapped.failure.retryable) this.openedBy = wrapped;
       throw wrapped;
@@ -281,6 +284,7 @@ export class FleetAiCircuit {
       stats.maxElapsedMs = Math.max(stats.maxElapsedMs, elapsed);
       return result;
     } catch (error) {
+      if (error instanceof FleetStoppedError) throw error;
       stats.calls += 1;
       stats.errorCalls += 1;
       const elapsedMs =

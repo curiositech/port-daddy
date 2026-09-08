@@ -22,7 +22,7 @@
 
 import type { ExecutorEnv, FleetRunJob } from './env.js';
 import { assertFleetMayRun, FleetStoppedError } from '../../../shared/fleet-controls.js';
-import { withFleetControls } from './fleet-stop.js';
+import { fleetInvocationGuard, withFleetControls } from './fleet-stop.js';
 import { TRANSCRIPT_EMERGENCY_EVENT } from '../../../lib/transcript-emergency-constants.js';
 import {
   getInstallationTokenCached,
@@ -1347,7 +1347,11 @@ async function reportMergeGroupPassThrough(job: FleetRunJob, env: ExecutorEnv): 
     env.GITHUB_APP_PRIVATE_KEY,
     job.installationId,
     env.FLEET_TOKENS,
-  ).catch(() => null);
+    () => assertFleetMayRun(env.DB, job.installationId),
+  ).catch(error => {
+    if (error instanceof FleetStoppedError) throw error;
+    return null;
+  });
   if (!token) return;
 
   try {
@@ -1364,6 +1368,8 @@ async function reportMergeGroupPassThrough(job: FleetRunJob, env: ExecutorEnv): 
         'merge_group. The fleet does not re-review each queue permutation.',
       token,
       null,
+      undefined,
+      () => assertFleetMayRun(env.DB, job.installationId),
     );
   } catch (err) {
     // Absent check == today's behaviour. Never throw: a failure here must not
@@ -1489,9 +1495,10 @@ export async function executeFleet(
   env: ExecutorEnv,
   options: FleetExecutionOptions = {},
 ): Promise<FleetExecutionDisposition | void> {
-  await assertFleetMayRun(env.DB, job.installationId);
+  const assertFleetEnabled = fleetInvocationGuard(env.DB, job.installationId);
+  await assertFleetEnabled();
   if (!env.AI) return;
-  env = withFleetControls(env, job.installationId);
+  env = withFleetControls(env, job.installationId, assertFleetEnabled);
 
   // MERGE QUEUE: handled before every guard below, all of which assume a PR.
   // A merge_group delivery has no pull_request and no prNumber, so it would
@@ -1546,7 +1553,7 @@ export async function executeFleet(
 
   // A stop is not a request to mint credentials or publish a neutral check.
   // Missing/malformed/unavailable settings all refuse before external effects.
-  await assertFleetMayRun(env.DB, job.installationId);
+  await assertFleetEnabled();
 
   // --- Token (KV-cached; remint once on 401) -------------------------------
   let token: string;
@@ -1556,8 +1563,10 @@ export async function executeFleet(
       env.GITHUB_APP_PRIVATE_KEY,
       job.installationId,
       env.FLEET_TOKENS,
+      assertFleetEnabled,
     );
   } catch (err) {
+    if (err instanceof FleetStoppedError) throw err;
     // Token mint is infrastructure — let the queue retry.
     throw new Error(`token mint failed: ${String(err)}`);
   }
@@ -1576,13 +1585,14 @@ export async function executeFleet(
     } catch (err) {
       // One automatic remint on a likely-401, then retry the fetch.
       if (!is401(err)) throw err;
-      await assertFleetMayRun(env.DB, job.installationId);
       await invalidateInstallationToken(job.installationId, env.FLEET_TOKENS);
+      await assertFleetEnabled();
       token = await getInstallationTokenCached(
         env.GITHUB_APP_ID,
         env.GITHUB_APP_PRIVATE_KEY,
         job.installationId,
         env.FLEET_TOKENS,
+        assertFleetEnabled,
         true,
       );
       [prCtx, fleetYaml] = await Promise.all([
@@ -1604,8 +1614,8 @@ export async function executeFleet(
         env.GITHUB_APP_ID,
         runId,
         async () => {
-          await assertFleetMayRun(env.DB, job.installationId);
           if (options.enforceIntentOwnership) await assertFleetIntentCurrent(env, job);
+          await assertFleetEnabled();
         },
       );
     }
@@ -1698,7 +1708,7 @@ export async function executeFleet(
     merged: prCtx.merged,
   };
   const assertCurrentReviewInput: PullRequestHeadGuard = async boundary => {
-    await assertFleetMayRun(env.DB, job.installationId);
+    await assertFleetEnabled();
     if (options.enforceIntentOwnership) await assertFleetIntentCurrent(env, job);
     let live: Awaited<ReturnType<typeof fetchPullRequestMetadataWitness>>;
     try {
@@ -1730,7 +1740,10 @@ export async function executeFleet(
         `pull request head changed at ${boundary}: expected ${prCtx.headSha}, current ${live.headSha}`,
       );
     }
-    if (JSON.stringify(live) === JSON.stringify(frozenReviewMetadata)) return;
+    if (JSON.stringify(live) === JSON.stringify(frozenReviewMetadata)) {
+      await assertFleetEnabled();
+      return;
+    }
     const changedFields = Object.fromEntries(
       Object.keys(frozenReviewMetadata).map(key => [
         key,
@@ -1881,7 +1894,7 @@ export async function executeFleet(
   // newest run of a given name, so the new one is what the branch rule reads.
   let checkRunId = completedNeedsReplacement || generationMismatch ? null : existing?.id ?? null;
   if (!checkRunId) {
-    if (options.enforceIntentOwnership) await assertFleetIntentCurrent(env, job);
+    await assertCurrentReviewInput('before initial check creation');
     // No swallow: a createCheckRun failure must propagate so the job RETRIES.
     checkRunId = await createCheckRun(
       owner,
@@ -2015,8 +2028,8 @@ export async function executeFleet(
       `${error.boundary}. Output computed for the superseded head was discarded; ` +
       `no later review, issue, branch, retarget, checkpoint, or aggregate verdict was published.`;
     const assertCurrentIntent = async (): Promise<void> => {
-      await assertFleetMayRun(env.DB, job.installationId);
       if (options.enforceIntentOwnership) await assertFleetIntentCurrent(env, job);
+      await assertFleetEnabled();
     };
     await assertCurrentIntent();
     const checkNeutralized = await completeCheckRun(
@@ -2339,7 +2352,7 @@ export async function executeFleet(
       return stopSupersededRun(error, results.length > 0);
     }
     // A stop is terminal and does not authorize a final GitHub publication.
-    await assertFleetMayRun(env.DB, job.installationId);
+    await assertFleetEnabled();
 
     // RESUME: an earlier attempt of this delivery already completed this ship.
     // Its comment is already posted (edit-in-place inside runShip), its
@@ -2751,6 +2764,7 @@ export async function executeFleet(
         owner,
         repo,
         token,
+        beforeAction: assertFleetEnabled,
         listOpenPrs: fetchOpenPullRequestsDetailed,
         fetchPatches: fetchPRFilePatches,
         createCheckRun,
@@ -3422,6 +3436,7 @@ async function runShip(
     return { ship: ship.name, blocking: ship.blocking, verdict, errored: false, findings, ...reviewCoverage };
   } catch (error) {
     if (
+      error instanceof FleetStoppedError ||
       error instanceof PullRequestHeadValidationError ||
       error instanceof ShipCommentPublicationError
     ) throw error;
@@ -3549,6 +3564,7 @@ async function maybeStackProposal(
 
   await assertCurrentHead(`before pd-${ship.name} stack sandbox`);
   const sandbox = await runTestsInSandbox({
+    beforeAction: () => assertCurrentHead('before sandbox action'),
     sandboxBinding: env.SANDBOX,
     owner: prCtx.owner,
     repo: prCtx.repo,
@@ -3618,7 +3634,7 @@ async function maybeStackProposal(
     }, squidConsent);
     return { proposalIndex, number: pr.number, url: pr.url };
   } catch (err) {
-    if (err instanceof PullRequestHeadValidationError) throw err;
+    if (err instanceof FleetStoppedError || err instanceof PullRequestHeadValidationError) throw err;
     const reason =
       err instanceof GitHubApiError && err.status === 403
         ? 'the GitHub App lacks the `contents: write` permission'
@@ -3736,7 +3752,7 @@ async function captureIdeas(
       { results },
     );
   } catch (err) {
-    if (err instanceof PullRequestHeadValidationError) throw err;
+    if (err instanceof FleetStoppedError || err instanceof PullRequestHeadValidationError) throw err;
     if (err instanceof FleetAiDependencyError && err.failure.retryable) throw err;
     console.error(`[fleet-executor] captureIdeas failed pd-${ctx.shipName}: ${String(err)}`);
   }

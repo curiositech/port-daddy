@@ -1,3 +1,5 @@
+import { FleetStoppedError } from "../../../shared/fleet-controls.js";
+
 /**
  * BROKEN-SHIP ADJUDICATION — decide WHO a persistent breakage gates.
  *
@@ -115,6 +117,7 @@ export async function countOtherBrokenPrs(
       .first<{ n: number }>();
     return row && typeof row.n === 'number' ? row.n : 0;
   } catch (err) {
+    if (err instanceof FleetStoppedError) throw err;
     console.error(`[fleet-executor] epidemic query failed ship=${ship}: ${String(err)}`);
     return null;
   }
@@ -223,6 +226,7 @@ export async function adjudicateBrokenShips(
         newlyDeclared = true;
       }
     } catch (err) {
+      if (err instanceof FleetStoppedError) throw err;
       if (err instanceof PullRequestHeadValidationError) throw err;
       // Issue plumbing failing must not change the adjudication itself — the
       // evidence for the epidemic is real either way.

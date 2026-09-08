@@ -56,11 +56,12 @@ button,input{font:inherit;color:inherit}
     <main><p class="eyebrow">Administrator / Global control</p><h1>Fleet administration</h1>
     <p class="lede">One stop control for Cloud Fleet across every installation. Only Cloudflare-allowlisted administrators can change it.</p>
     <p class="notice" role="status">Offline rendering fixture. No deployed service or real account data.</p>
+    <a href="/admin/fleet">Reload current settings</a>
 
     <section class="control" aria-label="All Cloud Fleet">
-      <div class="control-head"><h2>All Cloud Fleet</h2><strong class="status">Unavailable · off</strong></div>
+      <div class="control-head"><h2>All Cloud Fleet</h2><strong class="status">Unverified</strong></div>
       <p>This switch overrides every account. Turning it on preserves each installation’s own setting.</p>
-      <p class="notice">The saved setting could not be verified. Fleet admission stays closed. Reload to try again.</p>
+      <p class="notice">The saved setting could not be verified. Work may continue. A failed read does not save a stop.</p>
     </section>
     <p class="limits">Turning Fleet off blocks new jobs, queued continuations and subsequent guarded actions. A request already sent may finish. This does not start or stop your local daemon, or control unrelated automation.</p>
     </main></body></html>

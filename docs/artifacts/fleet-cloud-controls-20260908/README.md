@@ -10,7 +10,8 @@ paid model or automation was started. The fixture notice remains visible.
 - [Account, dark mobile](account-dark-390.png)
 - [Global override, light mobile](stopped-light-390.png)
 - [Unavailable controls, dark mobile](unavailable-dark-390.png)
-- [Real headless-browser interaction recording](motion/f47d4a3775188d37e5db98ace2b77e05.webm)
+- [Refreshed headless-browser interaction recording](motion/9ed0fba9c446f39d88162516005cf1ef.webm)
+- [Adversarial review and fixes](adversarial-review.md)
 
 The recording shows navigation between rendered fixtures, keyboard focus, hover
 and scrolling. It does not simulate a successful production mutation. Handler

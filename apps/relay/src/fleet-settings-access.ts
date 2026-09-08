@@ -61,15 +61,19 @@ const GH_API = 'https://api.github.com';
  * @param session Verified session holding its own OAuth credential.
  * @param path Server-constructed GitHub API path.
  * @param deadline Shared authorization deadline across pagination.
+ * @param missingMembershipIsDenied Treat only a membership 404 as a local denial.
  * @returns GitHub JSON, validated by the caller; failed requests throw.
  */
-async function githubRead(session: ResolvedSession, path: string, deadline: AbortSignal): Promise<any> {
+async function githubRead(session: ResolvedSession, path: string, deadline: AbortSignal, missingMembershipIsDenied = false): Promise<any> {
   if (!session.ghToken) throw new Error('NO_GITHUB_AUTHORIZATION');
   const response = await fetch(`${GH_API}${path}`, {
     headers: { Authorization: `Bearer ${session.ghToken}`, Accept: 'application/vnd.github+json',
       'User-Agent': 'port-daddy-relay', 'X-GitHub-Api-Version': '2022-11-28' },
     signal: AbortSignal.any([deadline, AbortSignal.timeout(5000)]),
   });
+  // Accessible installations include outside collaborators. Their absent org
+  // membership denies that installation, not independently verified controls.
+  if (missingMembershipIsDenied && response.status === 404) return null;
   if (!response.ok) throw new Error('GITHUB_AUTHORIZATION_UNAVAILABLE');
   return response.json();
 }
@@ -97,7 +101,7 @@ export async function managedFleetInstallations(session: ResolvedSession, onlyId
         if (account?.type === 'Organization' && typeof account.login === 'string'
           && /^[A-Za-z0-9][A-Za-z0-9-]{0,38}$/.test(account.login)) {
           if (++organizationChecks > 20) return null;
-          const membership = await githubRead(session, `/user/memberships/orgs/${encodeURIComponent(account.login)}`, deadline);
+          const membership = await githubRead(session, `/user/memberships/orgs/${encodeURIComponent(account.login)}`, deadline, true);
           allowed = membership?.state === 'active' && membership?.role === 'admin';
         }
         if (allowed) out.push({ id: installation.id, name: typeof account.login === 'string' ? account.login : `Installation ${installation.id}` });

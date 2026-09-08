@@ -48,14 +48,15 @@ export function renderFleetSettings(view: FleetSettingsView): string {
    */
   const card = (name: string, control: FleetControl, id?: number) => `
     <section class="control" aria-label="${esc(name)}">
-      <div class="control-head"><h2>${esc(name)}</h2><strong class="status">${!control.available ? 'Unavailable · off' : control.enabled ? 'On' : 'Off'}</strong></div>
+      <div class="control-head"><h2>${esc(name)}</h2><strong class="status">${!control.available ? 'Unverified' : control.enabled ? 'On' : 'Off'}</strong></div>
       <p>${view.admin ? 'This switch overrides every account. Turning it on preserves each installation’s own setting.'
+        : !view.global.available ? 'The global setting could not be verified. Work may continue; this page has not saved a global stop.'
         : view.global.enabled ? 'Your installation’s setting controls new Cloud Fleet work.' : 'Globally stopped. This installation cannot run, even if its own setting is on.'}</p>
       ${control.available ? `<form method="post" action="${view.admin ? '/admin/fleet' : '/account/fleet'}">
         <input type="hidden" name="revision" value="${control.revision}">
         ${id === undefined ? '' : `<input type="hidden" name="installationId" value="${id}">`}
         <button name="enabled" value="${control.enabled ? 'false' : 'true'}" ${!view.admin && !view.global.enabled && !control.enabled ? 'disabled' : ''}>${control.enabled ? view.admin ? 'Turn Fleet off globally' : 'Turn Fleet off' : view.admin ? 'Allow Fleet globally' : 'Turn Fleet on'}</button>
-      </form>` : '<p class="notice">The saved setting could not be verified. Fleet admission stays closed. Reload to try again.</p>'}
+      </form>` : '<p class="notice">The saved setting could not be verified. Work may continue. A failed read does not save a stop.</p>'}
     </section>`;
   return `<!DOCTYPE html><html lang="en"><head><title>${title} — Port Daddy</title>${HEAD}<style>${TOKENS}
     .fleet-header{border-bottom:2px solid var(--border-strong);padding:18px max(20px,calc((100vw - 900px)/2));display:flex;gap:24px;align-items:center}
@@ -73,7 +74,8 @@ export function renderFleetSettings(view: FleetSettingsView): string {
     <main><p class="eyebrow">${view.admin ? 'Administrator / Global control' : 'Account / Automation'}</p><h1>${title}</h1>
     <p class="lede">${view.admin ? 'One stop control for Cloud Fleet across every installation. Only Cloudflare-allowlisted administrators can change it.' : 'Choose where Cloud Fleet may review code and run agents. Only GitHub installations you administer appear here.'}</p>
     ${view.notice ? `<p class="notice" role="status">${esc(view.notice)}</p>` : ''}
-    ${view.admin ? card('All Cloud Fleet', view.global) : `<p class="global"><strong>Global status: ${view.global.enabled ? 'allowed' : view.global.available ? 'off' : 'unavailable · off'}.</strong> An installation runs only when both controls allow it.</p>
+    <a href="${view.admin ? '/admin/fleet' : '/account/fleet'}">Reload current settings</a>
+    ${view.admin ? card('All Cloud Fleet', view.global) : `<p class="global"><strong>Global status: ${!view.global.available ? 'unverified' : view.global.enabled ? 'allowed' : 'off'}.</strong> An installation runs only when both saved controls allow it.</p>
       ${view.installations === null ? '<p class="notice">Could not verify your GitHub administration rights. No installation settings are available. Sign in again or retry.</p>' : view.installations.length === 0 ? '<p class="notice">No installations you administer were found. GitHub read access alone does not grant Fleet control.</p>' : view.installations.map(inst => card(inst.name, inst.control, inst.id)).join('')}`}
     <p class="limits">Turning Fleet off blocks new jobs, queued continuations and subsequent guarded actions. A request already sent may finish. This does not start or stop your local daemon, or control unrelated automation.</p>
     </main></body></html>`;
@@ -139,6 +141,6 @@ export async function handleFleetSettingsPage(request: Request, env: Env, admin 
   } catch (error) {
     const stale = error instanceof Error && error.message === 'STALE_CONTROL';
     return page(renderFleetSettings({ global: { scope: 'global', enabled: false, revision: 0, available: false }, installations: null, admin,
-      notice: stale ? 'This form is out of date. Reload before making another change; nothing was changed.' : 'The control could not be saved or read. Do not assume it changed; reload to verify.' }), stale ? 409 : 503);
+      notice: stale ? 'This form is out of date; nothing was changed. Follow “Reload current settings” before making another change.' : 'The control could not be saved or read. Do not assume it changed; follow “Reload current settings” to verify.' }), stale ? 409 : 503);
   }
 }

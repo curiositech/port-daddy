@@ -1,3 +1,5 @@
+import { FleetStoppedError } from "../../../shared/fleet-controls.js";
+
 /**
  * D1-backed fleet idea tracking + semantic dedup.
  *
@@ -349,6 +351,7 @@ export async function captureProposals(opts: {
         .run();
       results.push({ slug, outcome: 'tracked-new', issueUrl: issue.url });
     } catch (err) {
+      if (err instanceof FleetStoppedError) throw err;
       console.error(
         `[fleet-executor] idea capture failed slug=${slug} title="${p.title}": ${String(err)}`,
       );

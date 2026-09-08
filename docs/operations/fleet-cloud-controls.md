@@ -1,7 +1,10 @@
 # Cloud Fleet stop controls
 
-Implementation record, September 8, 2026. Owner: Codex, solo under the operator
-halt. Branch: `codex/fleet-cloud-controls-20260908`, based on `02a10b284`.
+Implementation record, September 8, 2026. Owner: Codex, solo implementation under
+the operator halt; three read-only review subagents separately authorized by
+Erich. Branch: `codex/fleet-cloud-controls-20260908`, based on `02a10b284`.
+Reconciled with `origin/main` at `0aba23b58` before publishing the review fixes;
+that upstream change did not overlap the control implementation or tests.
 This work does not restart Port Daddy, enable workflows, or deploy Workers.
 The operator explicitly requested a commit and PR for these controls.
 
@@ -12,6 +15,7 @@ The operator explicitly requested a commit and PR for these controls.
 - [x] Enforce controls at webhook admission, queued/continuation deliveries,
   and running Fleet action boundaries; remove the old permissive KV path.
 - [x] Test authorization, stale forms, storage failures, execution and rendered UI.
+- [x] Obtain adversarial subagent reviews, fix demonstrated defects and add regressions.
 
 Publication witness: the PR's actual commit, author and read-back, recorded in
 its body. Local checkboxes are not a publication receipt.
@@ -22,6 +26,9 @@ The account surface controls Cloud Fleet for the GitHub installations the
 signed-in person administers. Organization membership alone is not administration.
 The global control overrides every installation. Turning the global control on
 does not turn any installation on. Missing or unreadable state means off.
+An unreadable setting refuses the particular admission check; it does not save
+a stop. The page labels failed reads unverified and warns that work may continue
+if another consumer can read enabled state successfully.
 
 Global administrators are authenticated accounts whose immutable GitHub numeric
 ID is in Cloudflare's `FLEET_ADMIN_GITHUB_IDS` Worker variable. The committed
@@ -57,6 +64,8 @@ is not an admin grant. Organization control additionally verifies an
 [active admin membership](https://docs.github.com/en/rest/orgs/members#get-an-organization-membership-for-the-authenticated-user).
 The GitHub App must have the necessary organization-membership read permission;
 unavailable authorization exposes no installation controls and makes no change.
+A definitive organization membership 404 denies that organization alone;
+independently verified personal/admin installation controls remain available.
 
 `fleet_controls` stores one setting per `global` or `installation:<id>` scope.
 SQL triggers append every successful revision to `fleet_control_audit` in the
@@ -76,6 +85,12 @@ cancelled work; a newly admitted delivery is required. Model calls recheck even
 between chunks/retries, and returned model output is discarded if the next
 publication boundary observes a stop. Relay's manual Fleet model-test and prompt
 optimization endpoints also require global enablement; they have no tenant job.
+An observed stop is retained for the rest of an executor invocation, even if
+storage recovers or a nested best-effort handler sees the error. Stop exceptions
+remain terminal through model resilience/repair. Fresh checks run after cache,
+signing, metadata and channel-tail waits, immediately before new credential or
+publication requests; completion retries recheck too. Every new sandbox command,
+process and coordination grant is guarded. Cleanup remains allowed.
 
 ## Deployment and rollback gate
 
@@ -107,11 +122,17 @@ Do **not** roll back to a pre-control Worker and assume a saved D1 stop protects
 you. Contain its queue consumer independently first. Keep control and audit data;
 never undo the migration as a way to resume or erase a stop.
 
+The current automatic deployment path filters do not include shared-only edits
+to `shared/fleet-controls.ts`. Do not infer deployment of a later shared-contract
+fix from a merge or a skipped workflow: an authorized release must explicitly
+publish both consumers and verify their versions. This slice does not change,
+enable or dispatch deployment workflows.
+
 ## Validation and product evidence
 
-- Relay: 1,450 tests pass. Executor: 1,027 tests pass. Both suites use synthetic
+- Relay: 1,455 tests pass. Executor: 1,041 tests pass. Both suites use synthetic
   GitHub/model bindings, not paid agents or live services. Both application
-  typechecks and offline Worker bundles pass. Migration-chain
+  typechecks, the repository-root typecheck and offline Worker bundles pass. Migration-chain
   check passes (25 migrations, 64 tables).
 - Real SQLite proves compare-and-swap, trigger audit, audit-failure rollback,
   missing state and independent installation decisions. Tests cover unavailable
@@ -123,8 +144,11 @@ never undo the migration as a way to resume or erase a stop.
 - Shared account styles moved to dependency-free `account-theme.ts` after the
   real renderer exposed an auth/page import cycle. Existing account pages use
   the exact same tokens; no alternate theme or authentication path was added.
-- Solo review under the halt: no Fleet reviewer, subagent, daemon, app launch,
-  workflow dispatch, merge or deployment. The PR owns source/test evidence only.
+- Three read-only adversarial subagents reviewed account/admin security,
+  execution boundaries, and rollout/UI truth at `1e77bc12`. Ten demonstrated
+  defects were fixed and re-reviewed; see the [review record](../artifacts/fleet-cloud-controls-20260908/adversarial-review.md).
+  No Fleet reviewer, daemon, app launch, workflow dispatch, merge or deployment.
+  The PR owns source/test evidence only.
 
 Architecture check: this slice enforces explicit, revocable, scoped admission;
 it does not claim new cryptographic authority, an autonomous actuator or complete

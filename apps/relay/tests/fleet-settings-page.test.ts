@@ -4,7 +4,7 @@ import { isFleetAdmin, managedFleetInstallations } from '../src/fleet-settings-a
 import { handleFleetSettingsPage, renderFleetSettings } from '../src/fleet-settings-page.js';
 import { handleFleetPause } from '../src/fleet-observability.js';
 import { controlDb } from './support/fleet-controls.js';
-import { readFleetControl, writeFleetControl } from '../../../shared/fleet-controls.js';
+import { fleetMayRun, readFleetControl, writeFleetControl } from '../../../shared/fleet-controls.js';
 import type { Env } from '../src/types.js';
 import type { ResolvedSession } from '../src/auth-github.js';
 
@@ -77,6 +77,34 @@ describe('account settings authorization and durable writes', () => {
     installations({ id: 8, type: 'User', login: 'someone-else' });
     expect((await handleFleetSettingsPage(request('/account/fleet', 'enabled=true&revision=0&installationId=42'), env)).status).toBe(403);
   });
+  it('retains owned installation controls when an unrelated organization denies membership', async () => {
+    env.DB = controlDb([42]);
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => url.includes('/memberships/')
+      ? new Response('Not Found', { status: 404 })
+      : Response.json({ installations: [
+        { id: 42, account: { id: 2093678, type: 'User', login: 'erichowens' } },
+        { id: 99, account: { id: 900, type: 'Organization', login: 'outside-org' } },
+      ] })));
+    expect(await managedFleetInstallations(session)).toEqual([{ id: 42, name: 'erichowens' }]);
+    const response = await handleFleetSettingsPage(request('/account/fleet'), env);
+    expect(response.status).toBe(200);
+    const html = await response.text();
+    expect(html).toContain('name="installationId" value="42"');
+    expect(html).not.toContain('outside-org');
+    expect((await handleFleetSettingsPage(request('/account/fleet', 'enabled=false&revision=0&installationId=99'), env)).status).toBe(403);
+    expect(await readFleetControl(env.DB, 'installation:99')).toMatchObject({ enabled: false, revision: 0 });
+    expect(await readFleetControl(env.DB, 'installation:42')).toMatchObject({ enabled: true, revision: 1 });
+    expect((await handleFleetSettingsPage(request('/account/fleet', 'enabled=false&revision=1&installationId=42'), env)).status).toBe(303);
+    expect(await readFleetControl(env.DB, 'installation:42')).toMatchObject({ enabled: false, revision: 2 });
+  });
+  it.each([401, 403, 503])('still fails closed on an organization authorization HTTP %i outage', async status => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => url.includes('/memberships/')
+      ? new Response('unavailable', { status })
+      : Response.json({ installations: [{ id: 99, account: { id: 900, type: 'Organization', login: 'outside-org' } }] })));
+    expect(await managedFleetInstallations(session)).toBeNull();
+    expect((await handleFleetSettingsPage(request('/account/fleet', 'enabled=true&revision=0&installationId=99'), env)).status).toBe(503);
+    expect((await readFleetControl(env.DB, 'installation:99')).revision).toBe(0);
+  });
   it('fails closed on a GitHub authorization outage', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('unavailable', { status: 503 })));
     expect((await handleFleetSettingsPage(request('/account/fleet', 'enabled=true&revision=0&installationId=42'), env)).status).toBe(503);
@@ -90,8 +118,14 @@ describe('account settings authorization and durable writes', () => {
     expect((await handleFleetSettingsPage(request('/admin/fleet', 'enabled=true&enabled=false&revision=0'), env, true)).status).toBe(400);
     await writeFleetControl(env.DB, 'global', true, 0, session.user.id);
     await writeFleetControl(env.DB, 'global', false, 1, session.user.id);
-    expect((await handleFleetSettingsPage(request('/admin/fleet', 'enabled=true&revision=1'), env, true)).status).toBe(409);
+    const stale = await handleFleetSettingsPage(request('/admin/fleet', 'enabled=true&revision=1'), env, true);
+    expect(stale.status).toBe(409);
+    expect(await stale.text()).toContain('<a href="/admin/fleet">Reload current settings</a>');
     expect((await readFleetControl(env.DB, 'global')).enabled).toBe(false);
+    const current = await handleFleetSettingsPage(request('/admin/fleet'), env, true);
+    expect(await current.text()).toContain('name="revision" value="2"');
+    expect((await handleFleetSettingsPage(request('/admin/fleet', 'enabled=true&revision=2'), env, true)).status).toBe(303);
+    expect((await readFleetControl(env.DB, 'global')).enabled).toBe(true);
   });
   it('renders private script-free pages and identifies global override', async () => {
     const response = await handleFleetSettingsPage(request('/account/fleet'), env);
@@ -103,7 +137,19 @@ describe('account settings authorization and durable writes', () => {
   it('escapes displayed installation names and never presents read failures as enabled', () => {
     const unknown = { scope: 'global', enabled: false, revision: 0, available: false };
     const html = renderFleetSettings({ global: unknown, installations: [{ id: 42, name: '<script>bad</script>', control: unknown }], admin: false });
-    expect(html).toContain('&lt;script&gt;bad'); expect(html).toContain('Unavailable · off');
+    expect(html).toContain('&lt;script&gt;bad'); expect(html).toContain('Unverified');
     expect(html).not.toContain('<button');
+  });
+  it('does not claim a durable stop after a request-local read failure', async () => {
+    env.DB = controlDb([42]);
+    const primary = env.DB.withSession.bind(env.DB);
+    vi.spyOn(env.DB, 'withSession').mockImplementationOnce(() => { throw new Error('one read failed'); }).mockImplementation(primary);
+    const response = await handleFleetSettingsPage(request('/account/fleet'), env);
+    const html = await response.text();
+    expect(html).toContain('Global status: unverified');
+    expect(html).toContain('Work may continue');
+    expect(html).not.toContain('Globally stopped');
+    expect(html).not.toContain('Fleet admission stays closed');
+    expect(await fleetMayRun(env.DB, 42)).toBe(true);
   });
 });

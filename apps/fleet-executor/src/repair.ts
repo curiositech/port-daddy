@@ -1,3 +1,5 @@
+import { FleetStoppedError } from "../../../shared/fleet-controls.js";
+
 /**
  * CONTRACT REPAIR — in-run self-healing for broken ship output.
  *
@@ -143,6 +145,7 @@ export async function repairContractOutput(opts: {
     try {
       text = await opts.call(model, system, user);
     } catch (error) {
+      if (error instanceof FleetStoppedError) throw error;
       if (opts.abortOnError?.(error)) throw error;
       // A transport error during repair is just a failed attempt — the run's
       // own error handling (broken-ship doctrine) is the caller's job.

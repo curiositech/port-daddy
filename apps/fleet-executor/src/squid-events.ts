@@ -373,12 +373,15 @@ export interface ChainedPublishResult {
  * @param bodyObj JSON-serializable event body (rides base64url in ciphertext).
  * @param url The relay endpoint to POST `{ card, event }` to — /v1/publish
  *        or a mediator route that delegates to it.
+ * @param beforePublish Fresh action authority checked after channel-tail waits;
+ *        refusals propagate without advancing the chain or sending an event.
  */
 export async function publishChainedEvent(
   env: SquidEnv,
   channelSuffix: string,
   bodyObj: unknown,
   url: string,
+  beforePublish: () => Promise<void>,
 ): Promise<ChainedPublishResult> {
   const none: ChainedPublishResult = { ok: false, code: 'disabled', status: null, seq: null, hash: null, channel: null, body: null };
   const keyHex = env.FLEET_EXECUTOR_ED25519_PRIVATE_KEY_HEX;
@@ -397,6 +400,7 @@ export async function publishChainedEvent(
 
   // Serialize behind any in-flight event on this channel, then sign + send.
   const run = chained.tail.catch(() => undefined).then(async (): Promise<ChainedPublishResult> => {
+    await beforePublish();
     const ciphertext = base64UrlEncode(new TextEncoder().encode(JSON.stringify(bodyObj)));
     const seq = chained.seq + 1;
     const prev_hash = chained.prevHash;
