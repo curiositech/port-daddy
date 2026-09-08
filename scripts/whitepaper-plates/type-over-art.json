@@ -1,0 +1,87 @@
+{
+  "_comment": [
+    "Which pages of the Book set type over a plate, and what the check holds them to.",
+    "Read by scripts/whitepaper-plates/check_cover_title_band.py; see that file's",
+    "docstring for the two halves and why the thresholds are what they are.",
+    "",
+    "Pages are NOT listed by number. A page number in a 550-page book that is",
+    "rebuilt on every push is a maintenance burden that goes stale silently, and",
+    "the rule we actually want is not 'page 279 must be legible' but 'any page",
+    "that sets type over a plate must be legible'. So each edition declares a",
+    "scope, and the check discovers the pages: every page carrying an image over",
+    "min_plate_page_fraction of its area is measured, and every line of type that",
+    "lands inside that image is held to the contrast floor.",
+    "",
+    "The covers additionally carry a plate-only floor, because that one can be",
+    "checked with no build at all -- it is what stops a plate being committed in",
+    "the first place, before there is a PDF to read."
+  ],
+
+  "min_plate_page_fraction": 0.20,
+
+  "contrast": {
+    "_comment": [
+      "WCAG 2.2 AA: 4.5:1 for normal text, 3:1 for large text (>= 18pt, or 14pt",
+      "bold). The ground under a line is not one colour -- it is a watercolour",
+      "wash, a halftone, a colour plane -- so the ratio is computed against the",
+      "10th percentile of the ground's luminance inside the line's own bounding",
+      "box: the darker end of what the glyphs actually cross, not the average,",
+      "which a small dark passage would hide.",
+      "",
+      "Measured on the corpus the day this landed: every line that reads cleanly",
+      "sits at 6.4:1 or better (the maritime cover's worst is 9.75:1, the fresh",
+      "Swiss cover's imprint 6.43:1). The lines that are genuinely hard to read",
+      "sit at 2.6-3.7:1. The AA floor lands between them without tuning.",
+      "",
+      "This replaced an ink-share test (fail above 8% inked pixels under a line).",
+      "That test worked on the hard-edged covers and was wrong for the",
+      "watercolour part openers, where a pale wash inks a lot of pixels and is",
+      "perfectly readable. Contrast against the type's own colour is the",
+      "question; ink share was a proxy for it that only held on two pages."
+    ],
+    "normal": 4.5,
+    "large": 3.0,
+    "large_point_size": 18.0,
+    "ground_percentile": 10
+  },
+
+  "editions": [
+    {
+      "id": "maritime",
+      "pdf": "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf",
+      "scope": "every page with a plate",
+      "note": "Part openers bleed plates/part-N.jpg over the page and set the part title, blurb and chapter list on top; chapter openers cut their plate to the room the type leaves."
+    },
+    {
+      "id": "swiss",
+      "pdf": "website-v2/public/whitepaper/coordination-papers-mega-volume-swiss.pdf",
+      "scope": "every page with a plate",
+      "note": "The cover is full-bleed photomontage with the type at fixed TikZ coordinates; part plates take the room left below the type."
+    },
+    {
+      "id": "technical",
+      "pdf": "website-v2/public/whitepaper/coordination-papers-mega-volume-technical.pdf",
+      "scope": "every page with a plate",
+      "note": "The cover hangs its engraving from the foot of a drawing sheet and sets every line of type in the bare paper above it or in the title block below, so no line is measured here at all -- which is the point of registering it: if the plate is ever raised or the title block moved, a line would land on the engraving and this check would say so."
+    }
+  ],
+
+  "covers": [
+    {
+      "id": "maritime-cover",
+      "edition": "maritime",
+      "plate": "website-v2/public/whitepaper/plates/jacket.jpg",
+      "clean_band_floor": 0.30,
+      "measured": { "clean_band": 0.392 },
+      "note": "Full-bleed jacket, type placed by a \\vspace* from the top margin."
+    },
+    {
+      "id": "swiss-cover",
+      "edition": "swiss",
+      "plate": "website-v2/public/whitepaper/plates/swiss/cover.jpg",
+      "clean_band_floor": 0.30,
+      "measured": { "clean_band": 0.326 },
+      "note": "Full-bleed photomontage, type placed at absolute TikZ coordinates."
+    }
+  ]
+}

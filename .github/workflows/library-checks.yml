@@ -137,13 +137,16 @@ jobs:
       - name: Every rendered plate has honest provenance and every TeX plate path resolves
         run: python3 scripts/harbor-research/check_plate_provenance.py
 
-      # The only step here that is not stdlib-only. It has to decode the plate's
-      # pixels to find where its artwork starts, and read the built PDF's text
-      # boxes to see where the type actually landed -- the two things that
-      # cannot be answered from the source. Wheels, so it costs seconds.
+      # The only steps here that are not stdlib-only. They have to decode a
+      # plate's pixels to find where its artwork starts, and render a page to
+      # see what a line of type actually lands on -- neither of which can be
+      # answered from the source. Wheels, so it costs seconds.
       - name: Install the image and PDF readers the plate checks need
         run: pip install --quiet pillow numpy scipy pymupdf
 
+      # The plate half of the type-over-art check: no build needed, so it runs
+      # here. The page half needs freshly built PDFs and runs in
+      # whitepaper-build's cover-band job.
       - name: Full-bleed covers leave room for the type set over them
         run: python3 scripts/whitepaper-plates/check_cover_title_band.py
 

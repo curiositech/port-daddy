@@ -21,6 +21,12 @@ decision the checks make:
   * that a line of type is judged where it actually lands, not against one
     global band, because both covers set the imprint at the foot of the page
     on purpose;
+  * that the ground is read off the RENDERED page rather than the embedded
+    plate, so a scrim, a tint or a panel drawn between the two counts -- the
+    maritime Part IV opener is fixed by exactly such a scrim, and a check that
+    read the plate file would still call it broken;
+  * that contrast, not ink coverage, is what decides, so a pale wash under a
+    line is not mistaken for artwork the line cannot survive;
   * that two arcs on one circle measure as concentric and two on different
     circles do not.
 
@@ -116,51 +122,153 @@ class CleanBandTests(unittest.TestCase):
             with self.assertRaises(band.UnreadablePlate):
                 band.clean_band(write(plate(), directory))
 
-    def test_the_floor_the_committed_covers_are_held_to_is_the_one_they_pass(self) -> None:
-        """Both full-bleed editions are registered, and the technical one --
-        whose type sits in the paper above its plate, not over it -- is not."""
-        self.assertEqual(set(band.COVERS), {"maritime", "swiss"})
-        for edition, (path, _pdf, floor) in band.COVERS.items():
-            with self.subTest(edition=edition):
-                self.assertTrue(os.path.exists(path), f"{path} is missing")
-                self.assertGreaterEqual(band.clean_band(path), floor)
+
+class ManifestTests(unittest.TestCase):
+    """The manifest is the register of what gets checked; if it goes stale the
+    check quietly stops covering a page and nothing says so."""
+
+    def setUp(self) -> None:
+        self.manifest = band.load_manifest()
+
+    def test_every_registered_cover_plate_is_on_disk_and_clears_its_floor(self) -> None:
+        self.assertTrue(self.manifest["covers"])
+        for cover in self.manifest["covers"]:
+            with self.subTest(cover=cover["id"]):
+                path = os.path.join(band.REPO, cover["plate"])
+                self.assertTrue(os.path.exists(path), f"{cover['plate']} is missing")
+                self.assertGreaterEqual(band.clean_band(path),
+                                        cover["clean_band_floor"])
+
+    def test_every_cover_still_measures_what_the_manifest_records(self) -> None:
+        for cover in self.manifest["covers"]:
+            recorded = cover.get("measured", {}).get("clean_band")
+            if recorded is None:
+                continue
+            with self.subTest(cover=cover["id"]):
+                measured = band.clean_band(os.path.join(band.REPO, cover["plate"]))
+                self.assertAlmostEqual(measured, recorded, delta=0.005)
+
+    def test_all_three_editions_are_registered(self) -> None:
+        """Registering an edition whose type never lands on a plate is not
+        redundant: the technical cover hangs its engraving from the foot of a
+        drawing sheet, and this is what would speak if it were ever raised."""
+        self.assertEqual({e["id"] for e in self.manifest["editions"]},
+                         {"maritime", "swiss", "technical"})
+        for edition in self.manifest["editions"]:
+            with self.subTest(edition=edition["id"]):
+                self.assertTrue(os.path.exists(os.path.join(band.REPO, edition["pdf"])))
+
+    def test_the_floors_are_the_wcag_aa_ones(self) -> None:
+        contrast = self.manifest["contrast"]
+        self.assertEqual(contrast["normal"], 4.5)
+        self.assertEqual(contrast["large"], 3.0)
+        self.assertEqual(contrast["large_point_size"], 18.0)
 
 
-class TypeOverArtTests(unittest.TestCase):
-    """The page half: each line judged where it lands, not against one band."""
+class ContrastTests(unittest.TestCase):
+    def test_luminance_endpoints(self) -> None:
+        self.assertAlmostEqual(float(band.relative_luminance(np.array((255, 255, 255)))), 1.0)
+        self.assertAlmostEqual(float(band.relative_luminance(np.array((0, 0, 0)))), 0.0)
 
-    def build(self, directory: str, ys: list[float]) -> str:
+    def test_black_on_white_is_the_maximum_ratio(self) -> None:
+        self.assertAlmostEqual(band.contrast_ratio(1.0, 0.0), 21.0)
+
+    def test_the_ratio_does_not_care_which_way_round_it_is_given(self) -> None:
+        self.assertEqual(band.contrast_ratio(0.2, 0.8), band.contrast_ratio(0.8, 0.2))
+
+
+class PageCheckTests(unittest.TestCase):
+    """The page half: each line judged on the ground it actually lands on."""
+
+    def build(self, directory: str, lines, plate_rect=(0, 0, 300, 400),
+              scrim=None) -> str:
+        """A one-page PDF with a plate: dark in its lower half, paper above."""
         import pymupdf
+        pixels = plate(400, 300)
+        pixels[200:, :, :] = (24, 24, 24)
+        image_path = write(pixels, directory)
         document = pymupdf.open()
-        page = document.new_page(width=300, height=400)   # 1pt per plate pixel
-        for y in ys:
-            page.insert_text((30, y), "Erich Owens", fontsize=11)
-        path = os.path.join(directory, "cover.pdf")
+        page = document.new_page(width=300, height=400)
+        page.insert_image(pymupdf.Rect(*plate_rect), filename=image_path)
+        if scrim is not None:
+            page.draw_rect(pymupdf.Rect(*scrim), color=None,
+                           fill=(0.984, 0.969, 0.937), fill_opacity=0.9)
+        for text, y, size, colour in lines:
+            page.insert_text((20, y), text, fontsize=size, color=colour)
+        path = os.path.join(directory, "page.pdf")
         document.save(path)
         return path
 
-    def test_a_line_over_bare_paper_passes_however_far_down_it_sits(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            pixels = plate()
-            pixels[100:300, :, :] = (20, 20, 20)      # artwork in the middle band
-            plate_path = write(pixels, directory)
-            pdf = self.build(directory, [380.0])      # the imprint, at the foot
-            self.assertEqual(band.type_over_art(pdf, plate_path), [])
+    CONTRAST = {"normal": 4.5, "large": 3.0, "large_point_size": 18.0,
+                "ground_percentile": 10}
 
-    def test_a_line_over_artwork_is_reported_with_its_ink_share(self) -> None:
+    def test_a_line_on_bare_paper_passes_however_far_down_it_sits(self) -> None:
+        """Both covers set the imprint at the foot of the page on purpose, so
+        depth on the page is not the question."""
         with tempfile.TemporaryDirectory() as directory:
-            pixels = plate()
-            pixels[100:300, :, :] = (20, 20, 20)
-            plate_path = write(pixels, directory)
-            pdf = self.build(directory, [200.0])      # straight into the artwork
-            offenders = band.type_over_art(pdf, plate_path)
+            pdf = self.build(directory, [("Erich Owens", 150.0, 9, (0, 0, 0))])
+            self.assertEqual(band.illegible_lines(pdf, self.CONTRAST), [])
+
+    def test_dark_type_on_a_dark_ground_is_reported_with_its_ratio(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            pdf = self.build(directory, [("Erich Owens", 300.0, 9, (0, 0, 0))])
+            offenders = band.illegible_lines(pdf, self.CONTRAST)
             self.assertEqual(len(offenders), 1)
             self.assertIn("Erich Owens", offenders[0])
-            self.assertIn("100% ink", offenders[0])
+            self.assertIn(":1", offenders[0])
 
-    def test_the_ceiling_sits_between_a_hairline_and_a_photograph(self) -> None:
-        self.assertGreater(band.LINE_INK_FRACTION, 0.02)
-        self.assertLess(band.LINE_INK_FRACTION, 0.30)
+    def test_reversed_type_on_the_same_dark_ground_passes(self) -> None:
+        """The measure is contrast against the line's OWN colour, so white on
+        the headland is fine where black on it is not."""
+        with tempfile.TemporaryDirectory() as directory:
+            pdf = self.build(directory, [("Erich Owens", 300.0, 9, (1, 1, 1))])
+            self.assertEqual(band.illegible_lines(pdf, self.CONTRAST), [])
+
+    def test_a_scrim_between_the_plate_and_the_type_counts(self) -> None:
+        """The reason the ground is read off the rendered page and not off the
+        plate file: this is the fix the maritime Part IV opener needed, and a
+        check reading the plate would still call the page broken."""
+        with tempfile.TemporaryDirectory() as directory:
+            without = self.build(directory, [("Erich Owens", 300.0, 9, (0, 0, 0))])
+            self.assertEqual(len(band.illegible_lines(without, self.CONTRAST)), 1)
+        with tempfile.TemporaryDirectory() as directory:
+            withscrim = self.build(directory, [("Erich Owens", 300.0, 9, (0, 0, 0))],
+                                   scrim=(10, 280, 290, 320))
+            self.assertEqual(band.illegible_lines(withscrim, self.CONTRAST), [])
+
+    def test_large_type_is_held_to_the_lower_wcag_floor(self) -> None:
+        """A ground that fails a 9pt line can still carry a 24pt one; the two
+        floors are 4.5:1 and 3:1, and the check must apply the right one."""
+        # Chosen by the arithmetic, not by eye: against this fixture's paper
+        # (luminance 0.925) a 50% grey reads 3.76:1 -- under the 4.5:1 floor
+        # for normal text and over the 3:1 floor for large.
+        grey = (0.50, 0.50, 0.50)
+        with tempfile.TemporaryDirectory() as directory:
+            small = self.build(directory, [("Erich Owens", 150.0, 9, grey)])
+            self.assertEqual(len(band.illegible_lines(small, self.CONTRAST)), 1)
+        with tempfile.TemporaryDirectory() as directory:
+            large = self.build(directory, [("Erich Owens", 150.0, 24, grey)])
+            self.assertEqual(band.illegible_lines(large, self.CONTRAST), [])
+
+    def test_a_page_whose_image_is_too_small_to_be_a_ground_is_not_checked(self) -> None:
+        """Below the fraction it is a margin figure or an inline diagram, and
+        the figure gates own those."""
+        with tempfile.TemporaryDirectory() as directory:
+            pdf = self.build(directory, [("Erich Owens", 300.0, 9, (0, 0, 0))],
+                             plate_rect=(0, 0, 90, 90))
+            self.assertEqual(band.illegible_lines(pdf, self.CONTRAST), [])
+
+    def test_the_ground_raster_has_the_type_taken_out_of_it(self) -> None:
+        """Otherwise the glyphs themselves would be measured as the ground and
+        every line would look like it sits on ink."""
+        import pymupdf
+        with tempfile.TemporaryDirectory() as directory:
+            pdf = self.build(directory, [("Erich Owens", 150.0, 9, (0, 0, 0))])
+            document = pymupdf.open(pdf)
+            page = document[0]
+            self.assertIn("Erich Owens", page.get_text())
+            band.ground_raster(pymupdf, page, 150)
+            self.assertEqual(page.get_text().strip(), "")
 
 
 class BrokenArcTests(unittest.TestCase):

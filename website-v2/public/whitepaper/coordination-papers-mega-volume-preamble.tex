@@ -548,7 +548,7 @@
   \vspace*{1.6cm}
   \end{adjustwidth}}
 \makeatother
-\newsavebox{\pdqbox}\newlength{\pdplateh}
+\newsavebox{\pdqbox}\newsavebox{\pdpartbox}\newlength{\pdplateh}
 \makeatletter
 \newcommand{\pdchapter}[4]{%
   \clearpage
@@ -651,6 +651,25 @@
     \AddToShipoutPictureBG*{\AtPageLowerLeft{\includegraphics[width=\paperwidth,height=\paperheight]{plates/part-#1.jpg}}}%
     \begin{adjustwidth}{0pt}{-\dimexpr\marginparsep+\marginparwidth\relax}
     \vspace*{1.1cm}
+    % The whole type block is set into a box first, then printed over a soft
+    % paper scrim. The plates are page-shaped watercolours painted to bleed, so
+    % cutting one to the room the type leaves (the maritime chapter idiom)
+    % would crop the composition; and the type cannot simply move, because how
+    % far down it reaches depends on how many chapters the part lists. Part IV
+    % lists three, which pushes its last block into the dark headland of its
+    % wash: measured against ink-coloured type at 9.5pt, those lines read
+    % 2.57:1, 3.20:1 and 3.74:1, all under the 4.5:1 WCAG AA floor, and they
+    % are visibly hard to read in the rendered page.
+    %
+    % A scrim fixes it without touching the art or the layout. Over the pale
+    % upper wash, paper over paper is imperceptible; over the headland it lifts
+    % the ground and the panel that appears reads as a deliberate label on the
+    % painting. 0.35 is chosen with margin, not to the floor: the worst line's
+    % ground goes from luminance 0.103 to 0.391, which is 7.4:1, so a future
+    % plate can be a good deal darker before this page is in trouble again.
+    % scripts/whitepaper-plates/check_cover_title_band.py measures every such
+    % page of every edition and is what found this one.
+    \sbox{\pdpartbox}{\begin{minipage}{\linewidth}
     \noindent\pdweightrule{\csname pdpartindexof#1\endcsname}{0.42\linewidth}{2pt}\par
     \vspace{2.6pt}\noindent{\color{pdmaritimegold}\rule{0.42\linewidth}{0.4pt}}\par
     \vspace{\dimexpr0.55cm-3pt\relax}
@@ -661,6 +680,15 @@
     \noindent\begin{minipage}{0.66\linewidth}{\pdpartface\itshape\fontsize{12.5}{16.5}\selectfont\hyphenpenalty=10000\exhyphenpenalty=10000\raggedright #4\par}\end{minipage}\par
     \vspace{0.85cm}
     {\hypersetup{linkcolor=hhink}\noindent\begin{minipage}{0.74\linewidth}#5\end{minipage}\par}
+    \end{minipage}}%
+    \noindent\begin{tikzpicture}
+      \node[inner sep=0pt,outer sep=0pt,anchor=north west] (pdparttype) at (0,0) {\usebox{\pdpartbox}};
+      \begin{scope}[on background layer]
+        \fill[hhpaper,fill opacity=0.35]
+          ($(pdparttype.north west)+(-0.5cm,0.5cm)$)
+          rectangle ($(pdparttype.south east)+(0.5cm,-0.5cm)$);
+      \end{scope}
+    \end{tikzpicture}\par
     \end{adjustwidth}
     \vfill}
 % swiss: the part's colour fills the page; grotesk type on a hard grid
