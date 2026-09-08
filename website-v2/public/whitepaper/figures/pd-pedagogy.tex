@@ -52,6 +52,32 @@
 \newcommand{\pd@marginglyph}{%
   \ifpdmargincolumn\marginnote{\textcolor{\pd@chaptercolor}{\rule[-0.5pt]{4.5pt}{4.5pt}}}\fi}
 
+% \pdgloss{Term}{one-line definition} -- a defined term set bold where it is
+% defined, in the running text, the way the Book already sets any term of art
+% at its point of definition; the definition itself is carried as a margin
+% note rather than left inline, so a reader can recall it from the margin
+% without re-parsing the sentence. In the margin column (Book) this reuses
+% the small-caps head convention \pd@marginhead sets for \keyidea, \pitfall
+% and \xrefbox's own heads, but folds head and body into ONE \marginnote call
+% -- calling \pd@marginhead and a separate \marginnote back to back would
+% place two independent margin boxes at the same source line and risk them
+% colliding, exactly what \pdmarginfigure avoids by building one combined box
+% for its image and caption. The margin text renders at \marginfont, the
+% same footnotesize sidenote size every other margin note in this file uses.
+% Outside the margin column (standalone chapters) the definition folds back
+% into the sentence as a parenthetical, so no content is lost. No box, no
+% rule -- a bare labelled aside like every other device here. No trailing
+% \ignorespaces: unlike \pdboundary/\pdexample (environments whose content
+% starts on the next source line), \pdgloss is called mid-sentence and the
+% genuine word space that follows it in the prose must survive.
+\newcommand{\pdgloss}[2]{%
+  {\bfseries #1}%
+  \ifpdmargincolumn
+    \marginnote{{\scshape #1}\par\nobreak\vspace{1pt plus 1pt}#2}%
+  \else
+    \space{\itshape (#2)}%
+  \fi}
+
 % Marginalia (Wave 12, 12.2): a duotone portrait or title page in the margin
 % column at the point where the person's idea is load-bearing, with a
 % one-sentence caption. Book only: the standalone chapters have no margin
