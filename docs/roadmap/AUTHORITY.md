@@ -25,27 +25,61 @@ There is exactly **one** of each. Narrative prose is not gate truth; the table
 is not the story. A roadmap item is legible when it is a row in the table **and**
 every narrative mention carries `link:<slug>` or a one-line `optout:<reason>`.
 
-### Doc-authority is per domain, and each domain has exactly one
+### One database. Documents are projections over it.
 
-The doc-authority above governs execution order across the whole programme.
-Two domains carry their own, because they answer questions the execution
-narrative does not and would otherwise sprout a second plan wherever they were
-discussed:
+An earlier revision of this file said doc-authority is per domain and gave the
+Grand Harbor ledger one of its own. That was wrong, and wrong in the direction
+this repository keeps failing in. A Markdown file is not a planning database.
+Work exists when it is a row the registry admitted; a document that names work
+joins to that row by slug, or it is a note about a plan somebody hopes to make.
+The ledger's own authority order says exactly this in its rule 4 -- maps,
+programmes, UX documents and roadmaps are projections over records -- and the
+earlier edit failed to carry it across.
 
-| Domain | Its doc-authority | What it decides |
+So the two authorities above stand as the only two, and the domain documents
+are projections:
+
+| Document | What it is | What it is not |
 |---|---|---|
-| The Book and the research programme | [`whitepaper-research-program.md`](whitepaper-research-program.md) | what the Book claims and in what order the work lands |
-| The product architecture | [`../grand-harbor/`](../grand-harbor/README.md) — constitution, contract registry, decisions | what each noun means, what each boundary guarantees, and which questions are deliberately still open |
+| [`whitepaper-research-program.md`](whitepaper-research-program.md) | the Book's forward plan and its status | a place work becomes real |
+| [`../grand-harbor/`](../grand-harbor/README.md) | what each architectural noun means, what each boundary guarantees, which questions are open | a schedule |
 
-Both are subordinate to the registry: a thing is not scheduled because a
-document says so, it is scheduled when it is a row in the table. And both are
-single-writer, which is the point. A session that wants to change what the
-Book claims edits the programme file; a session that wants to change what the
-architecture promises goes through the ledger's own decision path, where a
-proposal must name the records it touches and declare one relation to them.
-Neither accepts a plan invented in a chat, a mock, or a pull-request
-description. "Newest prose wins" is exactly the failure both were built to
-refuse.
+Each is single-writer, and neither schedules anything. A row does.
+
+### Why the queue exists, and what it is not
+
+That rule is currently observed in the breach, and pretending otherwise would
+be the exact failure the rule is against. The runtime is halted after the
+September spend failure, so no session can mutate the registry. Every programme
+that needs to record work therefore writes prose: PR #10107 spawns ten
+`drydock-*` packages and says in its own body that they are "proposed rather
+than registered"; PR #10108 names `chartroom-grand-harbor-authority-cutover`
+and states that it reuses Harbor authority rather than adding a parallel store;
+the Grand Harbor ledger carries a programme cut of its own. Not one of those
+slugs is in the committed 318-row projection -- including
+`port-daddy-unified-product-hypertree`, which #10107 calls its prior verified
+canonical parent.
+
+The documents are not wrong to exist. The work is real and the authority is
+down. What was missing is anyone counting how far the prose had drifted from
+the register, which is how a repository ends up with four constitutions and no
+database.
+
+[`unregistered.json`](unregistered.json) counts it:
+`scripts/roadmap/check_unregistered.py` reads every slug a document schedules,
+diffs it against the projection, and writes what has no row. It is a **queue of
+rows to write when the authority returns**, not a second registry -- nothing in
+it is scheduled work until it is a row. `--check` fails when the queue is
+stale, so it cannot quietly grow. It deliberately does not fail on the queue
+being non-empty: that would only mean failing until the halt lifts, and a check
+that cannot pass is a check nobody reads.
+
+Two consequences worth stating for whoever reads this next. The queue covers
+what is in the tree, so a slug living only in a pull-request body is invisible
+to it until that branch lands -- the twelve above are in that state today. And
+the first thing to do when the halt lifts is not to write more prose: it is to
+drain this file into the registry, and delete the rows that turn out to have
+been somebody thinking out loud.
 
 ## Rules
 
