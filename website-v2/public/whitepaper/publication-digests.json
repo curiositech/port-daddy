@@ -3,8 +3,8 @@
   "pdfs": {
     "website-v2/public/whitepaper/agent-transactions-whitepaper.pdf": {
       "pages": 60,
-      "bytes": 992737,
-      "sha256": "e9c2167106576f6dcb35148c8700ffc40097024525b5d219df21d428a96d4127"
+      "bytes": 992630,
+      "sha256": "ea845640bad75259cd43b8d59a64023003d457328c05886f339918e1dc49e9cf"
     },
     "website-v2/public/whitepaper/anchor-protocol-whitepaper.pdf": {
       "pages": 38,
@@ -12,19 +12,19 @@
       "sha256": "7e848e9d4cee2e5d5f0204fe6d5b6663aa7d0e4b032a4885f720262f74402260"
     },
     "website-v2/public/whitepaper/coordination-papers-mega-volume-swiss.pdf": {
-      "pages": 544,
-      "bytes": 9715195,
-      "sha256": "694a33fb67cc029b382ef6c7e125c98f79d9745eb20144e8fe1f15b42abcc2c5"
+      "pages": 543,
+      "bytes": 9714980,
+      "sha256": "51c52db4369332b0fb34e3a0cb71fc243078624024bf4c9d1169bc4c96255a32"
     },
     "website-v2/public/whitepaper/coordination-papers-mega-volume-technical.pdf": {
-      "pages": 540,
-      "bytes": 7631582,
-      "sha256": "f86296ebae61459b82de79d69a6926b4563f2f30d81a1b42b0cb2893c0d4b22f"
+      "pages": 539,
+      "bytes": 7631376,
+      "sha256": "ada616968f60c90b5ff9178de05178e3b1e82dc5418a24ce3e65a6f15aabf5d0"
     },
     "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf": {
-      "pages": 540,
-      "bytes": 7960525,
-      "sha256": "1c60c06306879d4b8a5084f5a76f8679c98fb4f782d27c2eb2e0c3fb6b5111a8"
+      "pages": 539,
+      "bytes": 7960082,
+      "sha256": "b65999a4549ca6e5f9c35866ea0060109ea276c5f2cc5e717079c6084f33b012"
     },
     "website-v2/public/whitepaper/federated-harbor-whitepaper.pdf": {
       "pages": 45,
@@ -53,8 +53,8 @@
     },
     "website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf": {
       "pages": 52,
-      "bytes": 808165,
-      "sha256": "a6526e89dc5ee45bcaeaa9f190adfff0160787ef492e6b6dda6ff0998cccb5b2"
+      "bytes": 808119,
+      "sha256": "44119403ea45d29f2bc4320a02aff0115d2a97ce4a18f1e3a05cfd661ce0c86b"
     }
   }
 }
