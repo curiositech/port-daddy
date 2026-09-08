@@ -229,7 +229,27 @@ jobs:
           git add website-v2/public/whitepaper/*.pdf
           echo "Changed PDFs:"; git diff --cached --stat
           git commit -m "build(whitepaper): regenerate PDFs from source"
-          git push origin "HEAD:$TARGET_BRANCH"
+          # The branch moves while the Book compiles -- five to eight minutes in
+          # which a session can push four commits -- so a bare push loses the
+          # race and the job reports red for a build that succeeded. Rebase the
+          # one PDF commit onto whatever arrived and try again, a few times,
+          # because the same race can be lost twice. No force: if the rebase
+          # cannot replay the commit, that is a real conflict over the PDFs and
+          # a person should see it.
+          for attempt in 1 2 3; do
+            if git push origin "HEAD:$TARGET_BRANCH"; then
+              echo "pushed the regenerated PDFs on attempt $attempt"; exit 0
+            fi
+            echo "push rejected (attempt $attempt) — the branch moved; rebasing onto it"
+            git fetch origin "$TARGET_BRANCH"
+            git rebase "origin/$TARGET_BRANCH" || {
+              git rebase --abort || true
+              echo "::error::the regenerated PDFs conflict with $TARGET_BRANCH and cannot be replayed automatically"
+              exit 1
+            }
+          done
+          echo "::error::could not push the regenerated PDFs after three attempts; the branch is moving faster than the Book builds"
+          exit 1
 
       - name: Freshness check (advisory on PRs, enforced on main)
         # Feature-branch pushes are skipped; PRs verify the clean worktree after

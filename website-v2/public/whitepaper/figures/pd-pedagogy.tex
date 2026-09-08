@@ -157,9 +157,15 @@
     \ifdim\pd@blockoff<\dimexpr\pd@blockbottom-\pagetotal+2pt\relax
       \setlength{\pd@blockoff}{\dimexpr\pd@blockbottom-\pagetotal+2pt\relax}\fi
   \fi
-  % room left on this page, measured to the block's foot. \pagegoal is
-  % \maxdimen while the page is empty, which is room enough for anything.
-  \ifdim\dimexpr\pagetotal+\pd@blockoff+\ht#1+\dp#1\relax>\pagegoal
+  % Room left on this page, measured to the block's foot, with two lines of
+  % slack. \pagegoal is \maxdimen while the page is empty, which is room
+  % enough for anything. The slack is there because \pagetotal under-reads
+  % mid-paragraph, which is where most of these are called: without it the
+  % guard believed there was room and put an Exercises pointer 8.2 pt off the
+  % foot of p. 309 of the Swiss edition -- a page that only exists in the CI
+  % build's pagination, which is why the local builds were clean and the check
+  % running over every edition in CI is what found it.
+  \ifdim\dimexpr\pagetotal+\pd@blockoff+\ht#1+\dp#1+2\baselineskip\relax>\pagegoal
   \else
     \marginnote{\usebox#1}[\pd@blockoff]%
     \xdef\pd@blockpage{\thepage}%
