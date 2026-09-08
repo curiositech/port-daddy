@@ -47,18 +47,46 @@ Ramadge was found.
 - Group/press-conference photos of Ostrom, Aumann, and Coase (e.g. "Nobel Prize 2009-Press Conference KVA-30.jpg") — multi-person shots, not usable as solo margin portraits; the tighter cropped derivatives were used instead where available.
 - Peter Ramadge's Princeton faculty-bio photo, LinkedIn photo — university/platform-copyrighted, not freely licensed. No Commons file exists for him. Reported as **none**, per the task's own fallback instruction.
 
-## Sidecar JSON schema (`candidates.json`)
+## Shape of `candidates.json` (an example, not a schema)
 
-```
+The scratch file is a plain JSON object. One abbreviated entry, with the field
+names as they appear in the file:
+
+```json
 {
-  generated, method_note,
-  attribution_rules: { source, CC_BY_SA_3.0{url,quoted_clause}, CC_BY_SA_4.0{...}, CC_BY_4.0{...}, TASL_best_practice{...}, practical_rule_for_this_book },
-  subjects: [
-    { subject, candidates: [ { commons_file_page, direct_original_file_url, licence, attribution, source_date, pixel_dimensions, face_view_background, confidence } ], notes }
+  "generated": "2026-09-07",
+  "method_note": "Wikimedia Commons file pages read by hand; licence taken from the file's own tag, never from the site footer.",
+  "attribution_rules": {
+    "source": "https://commons.wikimedia.org/wiki/Commons:Credit_line",
+    "CC_BY_SA_3.0": { "url": "https://creativecommons.org/licenses/by-sa/3.0/", "quoted_clause": "You must give appropriate credit ..." },
+    "practical_rule_for_this_book": "Author, title, source URL, licence name with link, on the credits page."
+  },
+  "subjects": [
+    {
+      "subject": "Elinor Ostrom",
+      "candidates": [
+        {
+          "commons_file_page": "https://commons.wikimedia.org/wiki/File:...",
+          "direct_original_file_url": "https://upload.wikimedia.org/...",
+          "licence": "CC BY-SA 3.0",
+          "attribution": "Photographer name / Wikimedia Commons",
+          "source_date": "2009",
+          "pixel_dimensions": "1200x1600",
+          "face_view_background": "three-quarter, plain",
+          "confidence": "high"
+        }
+      ],
+      "notes": "why this candidate over the others"
+    }
   ],
-  unresolved: [ { subject, attempted } ]
+  "unresolved": [ { "subject": "Peter Ramadge", "attempted": "Commons search, faculty page; no free image" } ]
 }
 ```
+
+The per-licence objects under `attribution_rules` all carry the same two keys,
+`url` and `quoted_clause`; the committed sidecars under
+`website-v2/public/whitepaper/plates/marginalia/` are the authoritative shape,
+and `scripts/harbor-research/check_marginalia_sidecars.py` is what checks them.
 
 ## File locations (nothing committed to the repo)
 

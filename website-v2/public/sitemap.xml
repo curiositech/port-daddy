@@ -793,6 +793,9 @@
     <loc>https://portdaddy.dev/pd-tube</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/research</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/scout</loc>
   </url>
   <url>
@@ -884,6 +887,9 @@
   </url>
   <url>
     <loc>https://portdaddy.dev/whitepaper/legible-swarm</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/whitepaper/sealed-harbor</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/whitepaper/single-writer-kernel</loc>

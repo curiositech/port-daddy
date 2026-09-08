@@ -102,12 +102,30 @@ def strip_tex_comments(text: str) -> str:
     return "".join(cleaned)
 
 
-def resolve_include(parent: Path, raw_target: str) -> Path:
+def resolve_include(parent: Path, raw_target: str, document_root: Path | None = None) -> Path:
+    """Resolve an \\input target the way TeX does.
+
+    TeX has no per-file relative resolution: a relative \\input is looked up
+    from the directory the *document* is compiled in, not from the directory of
+    the file that issued it. So figures/pd-pedagogy.tex saying
+    \\input{figures/pd-cite-shortforms} is correct -- it is read from the
+    document root like every other path -- and resolving it against the
+    including file's own directory instead looks for figures/figures/... and
+    finds nothing.
+
+    Document root first, then the including file's directory, because a file
+    included from a sibling directory can still name its neighbour relatively
+    and both spellings appear in this corpus.
+    """
     target = Path(raw_target.strip())
     if not target.suffix:
         target = target.with_suffix(".tex")
     if target.is_absolute():
         return target.resolve()
+    if document_root is not None:
+        from_root = (document_root / target).resolve()
+        if from_root.is_file():
+            return from_root
     return (parent / target).resolve()
 
 
@@ -133,6 +151,7 @@ def walk_tex(root: Path) -> list[tuple[Path, str]]:
 
     visited: set[Path] = set()
     ordered: list[tuple[Path, str]] = []
+    document_root = root.resolve().parent
 
     def visit(path: Path) -> None:
         resolved = path.resolve()
@@ -155,7 +174,7 @@ def walk_tex(root: Path) -> list[tuple[Path, str]]:
             )
         ordered.append((resolved, text))
         for match in INPUT_RE.finditer(text):
-            visit(resolve_include(resolved.parent, match.group(1)))
+            visit(resolve_include(resolved.parent, match.group(1), document_root))
 
     visit(root)
     return ordered

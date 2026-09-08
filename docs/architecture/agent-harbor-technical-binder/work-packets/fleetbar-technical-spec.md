@@ -212,7 +212,7 @@ sparse color blocks, fractional borders):
     breaks line ends.
 - **Fractional borders**, exactly four patterns and no others: panel-scope
   corner brackets (12 px L-ticks, 1.5 px stroke) · left-edge accent stripes
-  (3 px, the load-bearing state carrier) · midline rules (64 px, 32 %
+  (3 px, the decisive state carrier) · midline rules (64 px, 32 %
   opacity, section boundaries) · one color zone maximum (the singular
   currently-running highlight; a second concurrent runner stays in the list
   with a pulsing stripe). Never: box-shadow, border-radius card chrome,

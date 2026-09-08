@@ -43,7 +43,7 @@ Clarification questions address linguistic and conceptual vagueness. Many argume
 
 ### Family 2: Probing Assumptions
 
-Assumptions are the invisible load-bearing walls of a belief structure. Probing assumptions doesn't attack the belief — it makes the scaffolding visible.
+Assumptions are the invisible critical walls of a belief structure. Probing assumptions doesn't attack the belief — it makes the scaffolding visible.
 
 **Purpose:** Expose premises that are being treated as axiomatic without examination.
 

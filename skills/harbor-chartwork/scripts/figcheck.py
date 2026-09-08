@@ -40,6 +40,15 @@ Units: T1 works in PDF points (a span's reported font size already IS points).
 T2-T6, T8 all work in PDF points internally; T7's --textwidth-cm is converted
 to points (1cm = 28.346456692913385pt) before comparing.
 
+Ink metrics (advisory, not a check): each page's report also carries an
+"ink" entry -- ink_fraction, edge_density, distinct_colors, and the plain-
+English flags -- computed by rendering the same content region T6/T7 already
+measure to a pixmap and running it through tufte-evidence-design's
+scripts/ink_audit.py (imported, not copied). These numbers can never affect
+figcheck's exit code; they exist to give a Tufte data-ink second opinion
+alongside the geometry checks, the same way ink_audit.py itself is a prompt
+for a human look, not a gate, when run standalone.
+
 Usage:
   figcheck.py PDF [--json OUT.json] [--md OUT.md] [--min-font-pt 7] [--textwidth-cm 16.3]
 
@@ -49,6 +58,7 @@ Exit status:
   2  usage error, or the PDF could not be opened
 """
 import argparse
+import importlib.util
 import json
 import re
 import sys
@@ -59,6 +69,23 @@ try:
 except ImportError:  # pragma: no cover - environment guard, not a code path under test
     print("figcheck.py: requires the 'pymupdf' package", file=sys.stderr)
     sys.exit(2)
+
+# The ink block (below) is a heuristic second opinion, not a check: it must
+# never be able to change figcheck's exit code, so failing to import
+# ink_audit.py (the skill moved, the file is missing) degrades to "no ink
+# data" per page rather than crashing figcheck itself.
+INK_AUDIT_PATH = Path(__file__).resolve().parents[3] / "skills" / "tufte-evidence-design" / "scripts" / "ink_audit.py"
+
+
+def _load_ink_audit():
+    try:
+        spec = importlib.util.spec_from_file_location("ink_audit", INK_AUDIT_PATH)
+        module = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(module)
+        return module
+    except Exception:  # noqa: BLE001 - advisory feature, never fatal
+        return None
 
 PT_PER_CM = 72.0 / 2.54
 HARD_CHECKS = ("T1", "T2", "T3", "T4", "T5", "T8")
@@ -550,6 +577,69 @@ def check_t8(lines, drawings, page_no):
 
 
 # --------------------------------------------------------------------------- #
+# Ink metrics -- advisory only, borrowed from tufte-evidence-design's
+# ink_audit.py rather than reimplemented here.
+# --------------------------------------------------------------------------- #
+
+INK_RENDER_ZOOM = 2.0  # 144 "dpi"-equivalent: enough for the pixel-level ink/edge
+                        # heuristics to mean something without being slow on a
+                        # one-page figure fragment.
+
+
+def _pixmap_to_decoded_image(pix, ink_audit):
+    """Build an ink_audit.DecodedImage directly from a rendered PyMuPDF
+    Pixmap's sample bytes -- no PNG round-trip, no Pillow dependency, and no
+    duplication of ink_audit's own PNG decoder (which exists for files on
+    disk, not for a pixmap this script already has in memory)."""
+    n = pix.n  # channels actually present, excluding any separate alpha plane
+    has_alpha = bool(pix.alpha)
+    samples = pix.samples
+    width, height = pix.width, pix.height
+    pixels = []
+    stride = n
+    for i in range(0, len(samples), stride):
+        chunk = samples[i:i + stride]
+        if has_alpha:
+            r, g, b, a = chunk[0], chunk[1], chunk[2], chunk[3]
+        elif n >= 3:
+            r, g, b, a = chunk[0], chunk[1], chunk[2], 255
+        else:  # grayscale, no alpha
+            g = chunk[0]
+            r, g2, b, a = g, g, g, 255
+            g = g2
+        pixels.append((r, g, b, a))
+    return ink_audit.DecodedImage(width, height, pixels)
+
+
+def compute_page_ink(page, content_rect, page_rect, page_no, ink_audit):
+    """Render the page's already-measured content region (the same
+    content_rect check_t6/check_t7 use) to a pixmap and run it through
+    ink_audit's own audit(), so figcheck's report carries a Tufte data-ink
+    heuristic alongside its geometry checks. Advisory only: any failure here
+    is swallowed into a `{"page":..., "error": ...}` entry, never raised, so
+    it can never change figcheck's pass/fail exit code."""
+    if ink_audit is None:
+        return {"page": page_no, "error": "ink_audit.py not importable"}
+    region = content_rect if content_rect is not None else page_rect
+    try:
+        clip = pymupdf.Rect(region) & pymupdf.Rect(page_rect)
+        if clip.is_empty or clip.width <= 0 or clip.height <= 0:
+            return {"page": page_no, "error": "no content region to render"}
+        pix = page.get_pixmap(matrix=pymupdf.Matrix(INK_RENDER_ZOOM, INK_RENDER_ZOOM), clip=clip)
+        img = _pixmap_to_decoded_image(pix, ink_audit)
+        result = ink_audit.audit(img)
+        return {
+            "page": page_no,
+            "ink_fraction": result["ink_fraction"],
+            "edge_density": result["edge_density"],
+            "distinct_colors": result["distinct_colors"],
+            "flags": result["flags"],
+        }
+    except Exception as exc:  # noqa: BLE001 - advisory feature, never fatal
+        return {"page": page_no, "error": str(exc)}
+
+
+# --------------------------------------------------------------------------- #
 # Driver
 # --------------------------------------------------------------------------- #
 
@@ -557,6 +647,8 @@ def run_figcheck(pdf_path, min_font_pt=7.0, textwidth_cm=16.3):
     doc = pymupdf.open(pdf_path)
     textwidth_pt = textwidth_cm * PT_PER_CM
     findings = []
+    ink_audit = _load_ink_audit()
+    ink_report = []
     for page_no in range(len(doc)):
         page = doc[page_no]
         page_rect = tuple(page.mediabox)
@@ -575,6 +667,7 @@ def run_figcheck(pdf_path, min_font_pt=7.0, textwidth_cm=16.3):
         findings += check_t6(content_rect, page_rect, page_no)
         findings += check_t7(content_rect, textwidth_pt, textwidth_cm, page_no)
         findings += check_t8(lines, drawings, page_no)
+        ink_report.append(compute_page_ink(page, content_rect, page_rect, page_no, ink_audit))
 
     by_check = {c: [] for c in ALL_CHECKS}
     for f in findings:
@@ -597,6 +690,7 @@ def run_figcheck(pdf_path, min_font_pt=7.0, textwidth_cm=16.3):
         "page_count": len(doc),
         "params": {"min_font_pt": min_font_pt, "textwidth_cm": textwidth_cm},
         "checks": checks_report,
+        "ink": ink_report,
         "summary": {
             "result": "fail" if hard_failed else "pass",
             "failed_checks": hard_failed,
@@ -625,6 +719,16 @@ def render_markdown(report):
     lines.append("")
     lines.append(f"Result: **{report['summary']['result'].upper()}** "
                  f"({report['page_count']} page(s))")
+    lines.append("")
+    for entry in report.get("ink", []):
+        if "error" in entry:
+            lines.append(f"Ink (page {entry['page']}): unavailable -- {entry['error']}")
+        else:
+            lines.append(
+                f"Ink (page {entry['page']}): fraction {entry['ink_fraction']:.3f}, "
+                f"edge density {entry['edge_density']:.3f} "
+                "(heuristic proxy, advisory only -- see tufte-evidence-design/scripts/ink_audit.py)"
+            )
     lines.append("")
     lines.append("| Check | What it means | Status | Findings |")
     lines.append("|---|---|---|---|")

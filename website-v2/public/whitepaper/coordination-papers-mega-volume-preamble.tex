@@ -202,6 +202,16 @@
 \input{figures/pd-pedagogy}
 \pdmargincolumntrue
 \input{figures/pd-figure-language}
+\ifpdswiss
+  % Swiss inks (docs/harbor-research/exposition/SWISS-BRIEF.md, B): Reflex
+  % Blue and Konkret Violet stand in for the screen-lit cobalt and violet in
+  % this edition only, and one red is reserved for the single mark that must
+  % be seen. The Konkrete plates and the cover geometry live beside the root.
+  % (pdswissblue, pdswissviolet and pdswissred are defined in figures/pd-palette.tex,
+  % registered in the palette guard and lockstepped with the print tokens.)
+  \colorlet{pdcobalt}{pdswissblue}\colorlet{pdviolet}{pdswissviolet}
+  \input{coordination-papers-mega-volume-swiss-plates}
+\fi
 
 % One maturity vocabulary for the collected volume. Uppercase aliases preserve
 % the independently buildable Chapter III source.
@@ -481,6 +491,8 @@
   {\noindent\fontsize{21}{26}\selectfont\color{hhink}\hyphenpenalty=10000\exhyphenpenalty=10000\raggedright\pdchapterquestion\par}
   \vspace{9pt}
   {\noindent\small\itshape\pdchapteroneline\par}
+  \vspace{0.9cm}
+  \noindent\pdswissplate{#3}{0.7\linewidth}\par
   \vfill
   \begin{flushright}
     \begin{minipage}{0.84\linewidth}\raggedleft
@@ -500,10 +512,10 @@
   \noindent{\pdgrotesk\footnotesize Chapter #1 of \pdchaptercount\hfill\pdchapterpartlabel}\par
   \vspace{0.3cm}\noindent{\color{hhink}\rule{\linewidth}{0.5pt}}\par
   \vspace{0.9cm}
-  \noindent{\pdgrotesk\fontsize{96}{96}\selectfont\color{pdamber}#1\par}
-  \vspace{0.6cm}
+  \noindent{\pdgrotesk\fontsize{60}{60}\selectfont\color{pdamber}#1\par}
+  \vspace{0.2cm}
   \noindent{\pdgrotesk\fontsize{26}{31}\selectfont\hyphenpenalty=10000\exhyphenpenalty=10000\raggedright #2\par}
-  \vspace{0.9cm}
+  \vspace{0.3cm}
   \begin{flushright}
     \begin{minipage}{0.84\linewidth}\raggedleft
       {\itshape\pdchapterepigraph\par}
@@ -511,13 +523,26 @@
       {\pdgrotesk\footnotesize\color{hhgray}\pdchapterepigraphsource\par}
     \end{minipage}
   \end{flushright}
+  % The question block is measured first; the plate takes what the page still
+  % has above it, less the 1.6 cm the title block occupies at the sheet's foot.
+  \sbox{\pdqbox}{\begin{minipage}{\linewidth}
+    \noindent{\pdgrotesk\footnotesize\bfseries\color{hhgray}The question this chapter answers}\par
+    \vspace{6pt}
+    {\noindent\fontsize{20}{25}\selectfont\color{hhink}\hyphenpenalty=10000\exhyphenpenalty=10000\raggedright\pdchapterquestion\par}
+    \vspace{6pt}
+    {\noindent\small\itshape\pdchapteroneline\par}
+  \end{minipage}}%
+  \par
+  \IfFileExists{plates/technical/chapter-#1.jpg}{%
+    \ifdim\pagegoal=\maxdimen\setlength{\pdplateh}{\dimexpr\textheight-\pagetotal\relax}\else\setlength{\pdplateh}{\dimexpr\pagegoal-\pagetotal\relax}\fi
+    \addtolength{\pdplateh}{-\ht\pdqbox}\addtolength{\pdplateh}{-\dp\pdqbox}\addtolength{\pdplateh}{-3.0cm}%
+    \ifdim\pdplateh>0.36\textheight \setlength{\pdplateh}{0.36\textheight}\fi
+    \ifdim\pdplateh>3cm
+      \vspace{0.35cm}\noindent\makebox[\linewidth][c]{\includegraphics[width=\linewidth,height=\pdplateh,keepaspectratio]{plates/technical/chapter-#1.jpg}}\par
+    \fi}{}%
   \vfill
-  \noindent{\pdgrotesk\footnotesize\bfseries\color{hhgray}The question this chapter answers}\par
-  \vspace{6pt}
-  {\noindent\fontsize{21}{26}\selectfont\color{hhink}\hyphenpenalty=10000\exhyphenpenalty=10000\raggedright\pdchapterquestion\par}
-  \vspace{9pt}
-  {\noindent\small\itshape\pdchapteroneline\par}
-  \vspace{2.6cm}
+  \noindent\usebox{\pdqbox}\par
+  \vspace*{1.6cm}
   \end{adjustwidth}}
 \makeatother
 \newsavebox{\pdqbox}\newlength{\pdplateh}
@@ -585,13 +610,19 @@
 \makeatletter
 % The drawing sheet of the technical edition: frame, inch ticks, faint grid,
 % title block bottom right. #1 title, #2 sheet name.
-\def\pd@techsheet#1#2{%
-  \AddToShipoutPictureBG*{\AtPageLowerLeft{\begin{tikzpicture}[x=1in,y=1in]
+\def\pd@techsheet{\pd@techsheet@{\draw[hhgray!18,line width=.3pt,step=0.5] (0.5,0.5) grid (6.5,9.5);}}
+\def\pd@techsheetplain{\pd@techsheet@{}}
+\newcommand{\pdtechsheetplain}[2]{\pd@techsheetplain{#1}{#2}}
+% #1 the grid command or nothing, #2 title, #3 sheet name
+\def\pd@techsheet@#1#2#3{%
+  % The overflow safety net must not touch a page background: it would scale
+  % the sheet to the column width. It is switched off for this picture only.
+  \AddToShipoutPictureBG*{\AtPageLowerLeft{\begingroup\let\pgfsys@typesetpicturebox\pd@typesetpicturebox\begin{tikzpicture}[x=1in,y=1in]
     % The picture is placed by its bounding box, so without this the sheet's
     % (0.5,0.5) corner landed on the page corner and the whole frame sat half
     % an inch low and left, cutting through the running head and epigraphs.
     \useasboundingbox (0,0) rectangle (\paperwidth,\paperheight);
-    \draw[hhgray!18,line width=.3pt,step=0.5] (0.5,0.5) grid (6.5,9.5);
+    #1
     \draw[hhink,line width=.7pt] (0.5,0.5) rectangle (6.5,9.5);
     \foreach \x in {1,...,6} \draw[hhink,line width=.5pt] (\x,0.5)--(\x,0.6) (\x,9.4)--(\x,9.5);
     \foreach \y in {1,...,9} \draw[hhink,line width=.5pt] (0.5,\y)--(0.6,\y) (6.4,\y)--(6.5,\y);
@@ -599,9 +630,9 @@
     \draw[hhink,line width=.6pt] (2.9,0.5) rectangle (6.5,1.45);
     \draw[hhink,line width=.4pt] (2.9,0.98)--(6.5,0.98) (4.9,0.5)--(4.9,1.45) (5.9,0.5)--(5.9,1.45);
     \node[anchor=north west,font=\pdgrotesk\fontsize{5.5}{6}\selectfont,text=hhgray,inner sep=2pt] at (2.9,1.45) {TITLE};
-    \node[anchor=south west,font=\pdgrotesk\footnotesize,text=hhink,text width=1.9in,align=left,inner sep=3pt] at (2.9,0.98) {#1};
+    \node[anchor=south west,font=\pdgrotesk\footnotesize,text=hhink,text width=1.9in,align=left,inner sep=3pt] at (2.9,0.98) {#2};
     \node[anchor=north west,font=\pdgrotesk\fontsize{5.5}{6}\selectfont,text=hhgray,inner sep=2pt] at (4.9,1.45) {SHEET};
-    \node[anchor=south west,font=\pdgrotesk\footnotesize,text=hhink,inner sep=3pt] at (4.9,0.98) {#2};
+    \node[anchor=south west,font=\pdgrotesk\footnotesize,text=hhink,inner sep=3pt] at (4.9,0.98) {#3};
     \node[anchor=north west,font=\pdgrotesk\fontsize{5.5}{6}\selectfont,text=hhgray,inner sep=2pt] at (5.9,1.45) {REV};
     \node[anchor=south west,font=\pdgrotesk\footnotesize,text=hhink,inner sep=3pt] at (5.9,0.98) {3.0};
     \node[anchor=north west,font=\pdgrotesk\fontsize{5.5}{6}\selectfont,text=hhgray,inner sep=2pt] at (2.9,0.98) {WORK};
@@ -610,7 +641,7 @@
     \node[anchor=south west,font=\pdgrotesk\fontsize{7.5}{9}\selectfont,text=hhink,inner sep=3pt] at (4.9,0.5) {\pdeditiondate};
     \node[anchor=north west,font=\pdgrotesk\fontsize{5.5}{6}\selectfont,text=hhgray,inner sep=2pt] at (5.9,0.98) {SCALE};
     \node[anchor=south west,font=\pdgrotesk\footnotesize,text=hhink,inner sep=3pt] at (5.9,0.5) {1:1};
-  \end{tikzpicture}}}}
+  \end{tikzpicture}\endgroup}}}
 % maritime: the wash fills the sheet; type in ink over its open upper wash
 \def\pd@part@maritime#1#2#3#4#5{%
     \pagecolor{hhpaper}\color{hhink}%
@@ -635,34 +666,74 @@
     \vspace*{0.3cm}
     \noindent{\pdgrotesk\fontsize{9.5}{12}\selectfont\bfseries Part #1}\hfill{\pdgrotesk\fontsize{9.5}{12}\selectfont\pdeditiontitle}\par
     \vspace{0.3cm}\noindent{\color{hhpaper}\rule{\linewidth}{1.4pt}}\par
-    \vspace{0.9cm}
-    \noindent{\pdgrotesk\fontsize{120}{120}\selectfont\bfseries #1\par}
-    \vspace{0.7cm}
-    \noindent{\pdgrotesk\fontsize{30}{34}\selectfont\bfseries\hyphenpenalty=10000\raggedright #2\par}
-    \vspace{0.7cm}
-    \noindent\begin{minipage}{0.62\linewidth}{\pdgrotesk\fontsize{11}{15}\selectfont\hyphenpenalty=10000\raggedright #4\par}\end{minipage}\par
-    \vfill
-    {\pdcompactpartlisttrue\hypersetup{linkcolor=hhpaper}\noindent\begin{minipage}{0.74\linewidth}\pdgrotesk #5\end{minipage}\par}
+    \vspace{0.6cm}
+    \noindent{\pdgrotesk\fontsize{84}{84}\selectfont\bfseries #1\par}
     \vspace{0.5cm}
+    \noindent{\pdgrotesk\fontsize{30}{34}\selectfont\bfseries\hyphenpenalty=10000\raggedright #2\par}
+    \vspace{0.5cm}
+    \noindent\begin{minipage}{0.75\linewidth}{\pdgrotesk\fontsize{11}{15}\selectfont\hyphenpenalty=10000\raggedright #4\par}\end{minipage}\par
+    \par
+    % The plate gets the page (the author's decision, 2026-09-07): the painted
+    % Nano Banana render (plates/swiss/part-#1.jpg) takes all the room left at
+    % the foot, 24 x 16 units like the TikZ drawing it replaced, never wider
+    % than the line; the chapter list moves to the facing page below.
+    \ifdim\pagegoal=\maxdimen\setlength{\pdplateh}{\dimexpr\textheight-\pagetotal\relax}\else\setlength{\pdplateh}{\dimexpr\pagegoal-\pagetotal\relax}\fi
+    \addtolength{\pdplateh}{-1.0cm}%
+    \ifdim\dimexpr1.5\pdplateh\relax>\linewidth \setlength{\pdplateh}{\dimexpr\linewidth/3*2\relax}\fi
+    \vfill
+    \ifdim\pdplateh>2cm
+      \noindent\pdswisspartplate{#1}{\dimexpr1.5\pdplateh\relax}\par
+    \fi
+    \clearpage
+    \thispagestyle{empty}%
+    % The facing page, still in the part's ink: the chapters of the part with
+    % their one-line claims, set full size now that they have the page.
+    \vspace*{0.3cm}
+    \noindent{\pdgrotesk\fontsize{9.5}{12}\selectfont\bfseries Part #1\quad #2}\hfill{\pdgrotesk\fontsize{9.5}{12}\selectfont The chapters}\par
+    \vspace{0.3cm}\noindent{\color{hhpaper}\rule{\linewidth}{1.4pt}}\par
+    \vspace{0.8cm}
+    {\hypersetup{linkcolor=hhpaper}\noindent\begin{minipage}{0.86\linewidth}\pdgrotesk #5\end{minipage}\par}
+    \vfill
     \end{adjustwidth}}
 % technical: a drawing sheet with the part's numeral in the one warm accent
 \def\pd@part@technical#1#2#3#4#5{%
-    \pagecolor{hhpaper}\color{hhink}%
-    \pd@techsheet{#2}{Part #1}%
-    \begin{adjustwidth}{0pt}{-1.0in}
-    \vspace*{0.9cm}
-    \noindent{\pdgrotesk\footnotesize Part #1\hfill\pdeditiontitle}\par
-    \vspace{0.3cm}\noindent{\color{hhink}\rule{\linewidth}{0.5pt}}\par
-    \vspace{0.9cm}
-    \noindent{\pdgrotesk\fontsize{120}{120}\selectfont\color{pdamber}#1\par}
-    \vspace{0.7cm}
-    \noindent{\pdgrotesk\fontsize{26}{31}\selectfont\hyphenpenalty=10000\raggedright #2\par}
-    \vspace{0.6cm}
-    \noindent\begin{minipage}{0.62\linewidth}{\itshape\hyphenpenalty=10000\raggedright #4\par}\end{minipage}\par
-    \vfill
-    {\pdcompactpartlisttrue\hypersetup{linkcolor=hhink}\noindent\begin{minipage}{0.74\linewidth}#5\end{minipage}\par}
-    \vspace{2.4cm}
-    \end{adjustwidth}}
+    % The engraving system: the part's ink fills the page, the type is paper,
+    % and the plate (a white-line exploded drawing composited on the same ink)
+    % sits in the lower half. Without a plate the page falls back to the sheet.
+    \IfFileExists{plates/technical/part-#1.jpg}{%
+      \pagecolor{#3}\color{hhpaper}%
+      % the engraving (composited on this ink) fills the lower half of the page
+      \AddToShipoutPictureBG*{\AtPageLowerLeft{\makebox[\paperwidth][c]{\includegraphics[width=0.62\paperwidth]{plates/technical/part-#1.jpg}}}}%
+      \begin{adjustwidth}{0pt}{-\dimexpr\marginparsep+\marginparwidth\relax}
+      \vspace*{0.3cm}
+      \noindent{\pdgrotesk\fontsize{9.5}{12}\selectfont Part #1}\hfill{\pdgrotesk\fontsize{9.5}{12}\selectfont\pdeditiontitle}\par
+      \vspace{0.3cm}\noindent{\color{hhpaper}\rule{\linewidth}{0.5pt}}\par
+      \vspace{0.7cm}
+      \noindent{\pdgrotesk\fontsize{64}{64}\selectfont\color{hhpaper}#1\par}
+      \vspace{0.3cm}
+      \noindent{\pdgrotesk\fontsize{28}{32}\selectfont\hyphenpenalty=10000\raggedright #2\par}
+      \vspace{0.45cm}
+      \noindent\begin{minipage}{0.78\linewidth}{\pdgrotesk\fontsize{10.5}{14}\selectfont\hyphenpenalty=10000\raggedright #4\par}\end{minipage}\par
+      \vspace{0.45cm}
+      {\pdcompactpartlisttrue\hypersetup{linkcolor=hhpaper}\noindent\begin{minipage}{0.8\linewidth}\pdgrotesk #5\end{minipage}\par}
+      \vfill
+      \end{adjustwidth}}{%
+      \pagecolor{hhpaper}\color{hhink}%
+      \pd@techsheet{#2}{Part #1}%
+      \begin{adjustwidth}{0pt}{-1.0in}
+      \vspace*{0.9cm}
+      \noindent{\pdgrotesk\footnotesize Part #1\hfill\pdeditiontitle}\par
+      \vspace{0.3cm}\noindent{\color{hhink}\rule{\linewidth}{0.5pt}}\par
+      \vspace{0.9cm}
+      \noindent{\pdgrotesk\fontsize{120}{120}\selectfont\color{pdamber}#1\par}
+      \vspace{0.7cm}
+      \noindent{\pdgrotesk\fontsize{26}{31}\selectfont\hyphenpenalty=10000\raggedright #2\par}
+      \vspace{0.6cm}
+      \noindent\begin{minipage}{0.62\linewidth}{\itshape\hyphenpenalty=10000\raggedright #4\par}\end{minipage}\par
+      \vfill
+      {\pdcompactpartlisttrue\hypersetup{linkcolor=hhink}\noindent\begin{minipage}{0.74\linewidth}#5\end{minipage}\par}
+      \vspace*{2.4cm}
+      \end{adjustwidth}}}
 \newcommand{\pdpart}[5]{%
   \clearpage
   \thispagestyle{empty}%

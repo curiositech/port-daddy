@@ -23,20 +23,42 @@
 \hypersetup{pageanchor=false}
 \begin{titlepage}
 \pagecolor{hhpaper}\color{hhink}
+\ifpdswiss
+  % Swiss cover A (SWISS-BRIEF, C): the arcs block on the lower 56 per cent,
+  % three type sizes on one left datum at 14 mm, the imprint in the foot.
+  \pdswisscoverart
+  \begin{tikzpicture}[remember picture,overlay,shift={(current page.north west)},x=1mm,y=-1mm]
+    \node[anchor=north west,inner sep=0pt,text width=140mm,align=left,font=\pdgrotesk\fontsize{34}{38}\selectfont\bfseries,text=hhink] at (14,18) {The Harbor,\\the Person,\\and the Economy};
+    \node[anchor=north west,inner sep=0pt,text width=125mm,align=left,font=\pdgrotesk\fontsize{13}{17}\selectfont,text=hhink] at (14,70) {\pdeditionsubtitle};
+    \node[anchor=south west,inner sep=0pt,font=\pdgrotesk\fontsize{9}{11}\selectfont,text=hhink] at (14,246) {Erich Owens\quad\textperiodcentered\quad Curiositech\quad\textperiodcentered\quad Textbook Edition};
+  \end{tikzpicture}
+\else\ifpdtechnical
+  % Technical cover: the engraving in the lower two thirds of the sheet, the
+  % type in the paper above it, the sheet's frame and title block over all.
+  \pdtechsheetplain{\pdeditiontitle}{Cover}%
+  \begin{tikzpicture}[remember picture,overlay,shift={(current page.south west)},x=1in,y=1in]
+    \IfFileExists{plates/technical/cover.jpg}{%
+      \node[anchor=south,inner sep=0pt] at (3.5,1.55) {\includegraphics[height=4.55in]{plates/technical/cover.jpg}};}{}
+    \node[anchor=north west,inner sep=0pt,text width=5.2in,align=left,font=\pdgrotesk\fontsize{30}{34}\selectfont,text=hhink] at (0.9,9.15) {The Harbor, the Person, and the Economy};
+    \node[anchor=north west,inner sep=0pt,text width=5.2in,align=left,font=\pdgrotesk\fontsize{11}{14}\selectfont,text=hhink] at (0.9,7.8) {\pdeditionsubtitle};
+    \node[anchor=north west,inner sep=0pt,font=\pdgrotesk\fontsize{9}{11}\selectfont,text=hhink] at (0.9,7.35) {Erich Owens\quad\textperiodcentered\quad Curiositech\quad\textperiodcentered\quad Textbook Edition};
+  \end{tikzpicture}
+\else
 % Cover: the wash plate bleeds over the whole page; the type stays minimal and set in Times.
 \IfFileExists{plates/jacket.jpg}{%
   \AddToShipoutPictureBG*{\AtPageLowerLeft{\includegraphics[width=\paperwidth,height=\paperheight]{plates/jacket.jpg}}}}{}%
 \vspace*{1.2cm}
 \noindent\begin{minipage}{0.88\textwidth}
-{\pdpartface\fontsize{38}{46}\selectfont The Harbor, the Person,\\ and the Economy\par}
+{\pdpartface\fontsize{38}{46}\selectfont\raggedright The Harbor,\\ the Person,\\ and the Economy\par}
 \vspace{0.6cm}
 \noindent{\color{pdcobalt}\rule{0.24\textwidth}{1pt}}\par
 \vspace{0.45cm}
 {\pdpartface\itshape\fontsize{14.5}{19}\selectfont \pdeditionsubtitle\par}
 \end{minipage}
 \vfill
-\noindent{\pdpartface\scshape\small Erich Owens\par\vspace{3pt}Mundus Press\ \textperiodcentered\ Textbook Edition\par}
+\noindent{\pdpartface\scshape\small Erich Owens\par\vspace{3pt}Curiositech\ \textperiodcentered\ Textbook Edition\par}
 \vspace*{0.4cm}
+\fi\fi
 \end{titlepage}
 % Imprint page: the claim, the ordering rule, and the publication data that the cover no longer carries.
 \clearpage\thispagestyle{empty}\pagecolor{hhpaper}\color{hhink}
@@ -52,7 +74,7 @@ across principals, economic interests, and mutually distrustful systems. Its \pd
 chapters are ordered by what they stand on; each proof chapter follows the chapter whose promises it
 keeps.}\par\vspace{12pt}
 Erich Owens \textperiodcentered\ Curiositech LLC \textperiodcentered\ \texttt{engineering@portdaddy.dev}\par
-Mundus Press \textperiodcentered\ Version \pdeditionversion\ \textperiodcentered\ \pdeditiondate\ \textperiodcentered\ \url{https://portdaddy.dev/whitepaper}\par
+Curiositech \textperiodcentered\ Version \pdeditionversion\ \textperiodcentered\ \pdeditiondate\ \textperiodcentered\ \url{https://portdaddy.dev/whitepaper}\par
 \end{minipage}
 \vspace*{1.0cm}
 \clearpage
@@ -87,6 +109,45 @@ without moving either machine's sovereignty. The result is not a plea to trust
 agents. It is a design for making trust unnecessary where structure can
 suffice, measurable where uncertainty remains, and contestable everywhere else.
 \end{abstract}
+
+\section*{What is built, what is modelled, what is proposed}
+\addcontentsline{toc}{section}{What is built, what is modelled, what is proposed}
+This book is ahead of the product, and it says so here rather than in a
+footnote. What runs today is a local daemon --- a single-writer SQLite/WAL
+path for sessions, claims, messages, commitments, and coordination state ---
+together with the operator projections derived from those records (each with
+a route back to the artifact it summarizes), durable work and obligation
+records that outlive any one process, a Rust card verifier whose harnesses
+are bounded proofs rather than full ones, and a relay that carries
+authenticated events outbound. Those parts are built and regression-tested,
+and each of them is graded \emph{built, weakly} in
+\hyperref[app:volume-status]{the implementation boundary}, because
+filesystem and network effects outside the mediated paths lie outside the
+transaction, and the grade is honest about that. Most of the rest is
+modelled and machine-checked but not running: the sealed room's
+noninterference and its release ledger, attenuation at every hop, the
+incentive to signal claims truthfully, conservation of the bond ledger, and
+the seventeen executed results whose numbers the chapters work by hand. And
+some of it is proposed, neither built nor modelled --- the confined mode
+itself (an enforcement point below the agent: a per-agent machine with
+brokered system calls and metered egress), custody and settlement across
+authorities, and the federation's witness log.
+
+Two consequences follow for how to read the chapters. First, the kernel
+chapter's supervisory-control result says that an interceptor at the tool
+level can observe but not regiment; the git shim and the coordination guard
+that ship today are such interceptors, and the book treats them as interim.
+The confinement the book prescribes requires the enforcement point below the
+agent. Second, whether the single-writer rail is the right \emph{collaboration}
+model, and not only the right confinement model, is an open empirical
+question, and a pre-registered study kept separate from the product
+(\texttt{studies/substrate-study} in the repository) is testing it against
+per-agent worktrees with a merge queue. Until that study reports, the rail
+stands as a design invariant; the book does not yet know whether it is also a
+good model of collaboration, and it would rather say so than guess. Every
+important statement in the chapters is labelled by kind (theorem, design
+invariant, model-checked property, or empirical hypothesis), every runtime
+claim names its assurance mode, and the appendix keeps the ledger of both.
 
 \section*{How to use this textbook}
 \addcontentsline{toc}{section}{How to use this textbook}
@@ -133,6 +194,34 @@ means a running slice that does not yet satisfy its full contract;
 \Vision{} is a research direction. Mathematical proofs, imported frameworks,
 finite model checks, repository experiments, and running code remain separate
 kinds of evidence throughout, and none is silently promoted into another.
+
+\paragraph{How a claim about the harness earns its grade.} The vocabulary
+above grades claims about mechanisms. Claims about the harness itself ---
+that a compaction preserved the agent's intent, that a conflict was settled
+rather than papered over, that a resumed body actually continued the work ---
+are graded the same way, and for them the book borrows the vocabulary its own
+experiments use. A
+\emph{Genesis} is a reproducible initial world and a schedule of
+perturbations: a repository, some agents, and the failures, messages, and
+context pressure they will meet. A \emph{Voyage} is one execution of a Genesis
+under a particular model and harness. The \emph{Wake} is the behaviour it
+leaves; the \emph{Logbook} is the structured record of that behaviour; the
+\emph{Receipt} is the set of claims we are willing to assert afterwards,
+adjudicated against the Logbook. The unit of evidence is the provable
+transition: a before-state, a stimulus, what the harness observed and put in
+front of the model, which authority permitted or refused the next act, what
+the agent did, the after-state, and the receipt that binds them. That is the
+work unit's receipt chain of \pdchapref{swk}{The Single-Writer Kernel} applied
+to the harness's own conduct. The invariant is the one this book applies to
+everything else. Watching a feature run once and behave establishes nothing
+(one of us has watched a harness behave beautifully for an evening and fall
+over at breakfast); what establishes a harness claim is a controlled Genesis
+that produces a Voyage whose consequential transitions are supported by
+durable evidence and an adjudication receipt. The first Genesis the book
+cites is the substrate study
+named above, and the same Genesis replayed under different harness conditions
+is how the questions in this book that are still empirical hypotheses become
+results.
 
 Evidence is typed as well. When a chapter reports what a harbor observed, it
 names the channel that produced the observation, and each channel has a blind
@@ -241,6 +330,7 @@ artifact. The chapters stand alone; the book's claim is the chain they make.
 \clearpage
 \pagenumbering{arabic}
 \hypersetup{pageanchor=true}
+\pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-cite-aliases.tex}{citation short-form aliases}
 \pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex}{chapter body}
 \pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-solutions.tex}{solutions}
 \input{coordination-papers-mega-volume-appendices.tex}
