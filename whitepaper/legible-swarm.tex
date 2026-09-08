@@ -1383,20 +1383,22 @@ one full-window conversation, the \emph{Mission} view, and opens inspectors
 from it: fleet, cockpit, claims, parley, lineage, the cost ledger, the active
 harnesses, the interruptions awaiting a human, and some two dozen more, each
 pane fetching one route from the daemon and rendering the records that route
-returns. Two facts about it follow from this chapter, and neither is a
-compliment or a complaint.
+returns. Two things about it follow from this chapter; neither flatters it,
+and neither is a complaint.
 
 First, every pane is a projection, and the information floor applies to each
 one separately. A pane is a channel with a coverage, an omission rate, and a
-review latency, and the front matter's question, which channel and what can
-it not show, has a per-pane answer. The claims pane shows what cooperating
-clients registered, not what a non-cooperating process wrote; the lineage
-pane shows the witnessed record, not the unrecorded fork; the cost ledger
-shows a protected meter's count, not its cause. A console that draws all of
-them beautifully on one screen has not lowered the floor; it has made the
-floor easier to forget. The design rule this chapter derives, that every
-digest line must carry a route back to its artifact, is the rule the panes
-are held to, and it is what distinguishes an instrument from a dashboard.
+review latency, and the front matter's question --- which channel, and what
+can it not show? --- has a separate answer for every pane. The claims pane
+shows what cooperating clients registered and nothing about what a
+non-cooperating process wrote; the lineage pane shows the witnessed record
+and is blind to the unrecorded fork; the cost ledger shows a protected
+meter's count (and, being a meter, has no opinion about the cause). A console
+that draws all of them beautifully on one screen has not lowered the floor;
+it has made the floor easier to forget. The design rule this chapter derives,
+that every digest line must carry a route back to its artifact, is the rule
+the panes are held to, and it is what makes the thing an instrument rather
+than a dashboard.
 
 Second, the console is not only a viewer. It issues commands: claim and
 release, begin and done, a note, a lane message, a dispatch rejection, an
@@ -1408,10 +1410,11 @@ operator's own work units, receipted like anyone else's. The rendering stack
 behind the window (a native shell with vector surfaces for the bespoke
 charts) is a separate decision record and carries no claim in this book. What
 carries a claim is the grade: the default build and the continuous
-integration gate compile and test the console's model on every platform; the
-window itself builds only on one platform, behind a feature flag, in one
-dedicated job. Built, weakly, and the weakness is exactly that the instrument
-most readers will picture is the part least often exercised by the tests.
+integration gate compile and test the console's model on every platform,
+while the window itself builds on one platform only, behind a feature flag,
+in one dedicated job. The grade is \emph{built, weakly}, and the weakness is
+a specific one --- the window most readers will picture when they hear
+``console'' is the part of it the tests exercise least.
 
 \subsection{Modes of cooperation}\label{sec:cooperation-modes}
 

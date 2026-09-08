@@ -49,7 +49,7 @@
   \AddToShipoutPictureBG*{\AtPageLowerLeft{\includegraphics[width=\paperwidth,height=\paperheight]{plates/jacket.jpg}}}}{}%
 \vspace*{1.2cm}
 \noindent\begin{minipage}{0.88\textwidth}
-{\pdpartface\fontsize{38}{46}\selectfont The Harbor, the Person,\\ and the Economy\par}
+{\pdpartface\fontsize{38}{46}\selectfont\raggedright The Harbor,\\ the Person,\\ and the Economy\par}
 \vspace{0.6cm}
 \noindent{\color{pdcobalt}\rule{0.24\textwidth}{1pt}}\par
 \vspace{0.45cm}
@@ -112,24 +112,26 @@ suffice, measurable where uncertainty remains, and contestable everywhere else.
 
 \section*{What is built, what is modelled, what is proposed}
 \addcontentsline{toc}{section}{What is built, what is modelled, what is proposed}
-This book is ahead of the product, and says so here rather than in a
-footnote. What runs today is a local daemon: a single-writer SQLite/WAL path
-for sessions, claims, messages, commitments, and coordination state; operator
-projections derived from those records, with routes back to the artifacts;
-durable work and obligation records that outlive one process; a Rust card
-verifier whose harnesses are bounded proofs, not full ones; and a relay that
-carries authenticated events outbound. Those parts are built and
-regression-tested, and each is graded \emph{built, weakly} in
-\hyperref[app:volume-status]{the implementation boundary} because filesystem
-and network effects outside the mediated paths lie outside the transaction.
-What is modelled and machine-checked but not running is most of the rest: the
-sealed room's noninterference and its release ledger, attenuation at every
-hop, the incentive to signal claims truthfully, conservation of the bond
-ledger, and the seventeen executed results whose numbers the chapters work by
-hand. What is proposed, and neither built nor modelled, is the confined mode
-itself: an enforcement point below the agent, a per-agent machine with
-brokered system calls and metered egress; cross-authority custody and
-settlement; and the federation's witness log.
+This book is ahead of the product, and it says so here rather than in a
+footnote. What runs today is a local daemon --- a single-writer SQLite/WAL
+path for sessions, claims, messages, commitments, and coordination state ---
+together with the operator projections derived from those records (each with
+a route back to the artifact it summarizes), durable work and obligation
+records that outlive any one process, a Rust card verifier whose harnesses
+are bounded proofs rather than full ones, and a relay that carries
+authenticated events outbound. Those parts are built and regression-tested,
+and each of them is graded \emph{built, weakly} in
+\hyperref[app:volume-status]{the implementation boundary}, because
+filesystem and network effects outside the mediated paths lie outside the
+transaction, and the grade is honest about that. Most of the rest is
+modelled and machine-checked but not running: the sealed room's
+noninterference and its release ledger, attenuation at every hop, the
+incentive to signal claims truthfully, conservation of the bond ledger, and
+the seventeen executed results whose numbers the chapters work by hand. And
+some of it is proposed, neither built nor modelled --- the confined mode
+itself (an enforcement point below the agent: a per-agent machine with
+brokered system calls and metered egress), custody and settlement across
+authorities, and the federation's witness log.
 
 Two consequences follow for how to read the chapters. First, the kernel
 chapter's supervisory-control result says that an interceptor at the tool
@@ -138,13 +140,14 @@ that ship today are such interceptors, and the book treats them as interim.
 The confinement the book prescribes requires the enforcement point below the
 agent. Second, whether the single-writer rail is the right \emph{collaboration}
 model, and not only the right confinement model, is an open empirical
-question; a pre-registered study separate from the product
+question, and a pre-registered study kept separate from the product
 (\texttt{studies/substrate-study} in the repository) is testing it against
-per-agent worktrees with a merge queue, and until it reports, the rail is a
-design invariant, not a theorem about collaboration. Every important
-statement in the chapters is labelled by kind, theorem, design invariant,
-model-checked property, or empirical hypothesis, and every runtime claim names
-its assurance mode; the appendix keeps the ledger.
+per-agent worktrees with a merge queue. Until that study reports, the rail
+stands as a design invariant; the book does not yet know whether it is also a
+good model of collaboration, and it would rather say so than guess. Every
+important statement in the chapters is labelled by kind (theorem, design
+invariant, model-checked property, or empirical hypothesis), every runtime
+claim names its assurance mode, and the appendix keeps the ledger of both.
 
 \section*{How to use this textbook}
 \addcontentsline{toc}{section}{How to use this textbook}
@@ -193,10 +196,11 @@ finite model checks, repository experiments, and running code remain separate
 kinds of evidence throughout, and none is silently promoted into another.
 
 \paragraph{How a claim about the harness earns its grade.} The vocabulary
-above grades claims about mechanisms. Claims about the harness itself, that a
-compaction preserved the agent's intent, that a conflict was settled rather
-than papered over, that a resumed body continued the work, are graded the same
-way, and the book adopts for them the vocabulary its own experiments use. A
+above grades claims about mechanisms. Claims about the harness itself ---
+that a compaction preserved the agent's intent, that a conflict was settled
+rather than papered over, that a resumed body actually continued the work ---
+are graded the same way, and for them the book borrows the vocabulary its own
+experiments use. A
 \emph{Genesis} is a reproducible initial world and a schedule of
 perturbations: a repository, some agents, and the failures, messages, and
 context pressure they will meet. A \emph{Voyage} is one execution of a Genesis
@@ -209,10 +213,12 @@ front of the model, which authority permitted or refused the next act, what
 the agent did, the after-state, and the receipt that binds them. That is the
 work unit's receipt chain of \pdchapref{swk}{The Single-Writer Kernel} applied
 to the harness's own conduct. The invariant is the one this book applies to
-everything else: a harness claim is not established because a feature
-executed; it is established when a controlled Genesis produces a Voyage whose
-consequential transitions are supported by durable evidence and an
-adjudication receipt. The first Genesis the book cites is the substrate study
+everything else. Watching a feature run once and behave establishes nothing
+(one of us has watched a harness behave beautifully for an evening and fall
+over at breakfast); what establishes a harness claim is a controlled Genesis
+that produces a Voyage whose consequential transitions are supported by
+durable evidence and an adjudication receipt. The first Genesis the book
+cites is the substrate study
 named above, and the same Genesis replayed under different harness conditions
 is how the questions in this book that are still empirical hypotheses become
 results.
