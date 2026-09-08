@@ -60,6 +60,7 @@ const ALLOWED_HEX = new Set([
   '001489', // pdswissblue   — Swiss edition ink (print)  --print-swiss-blue
   '582C83', // pdswissviolet — Swiss edition ink (print)  --print-swiss-violet
   'DA291C', // pdswissred    — Swiss edition red (print)  --print-swiss-red
+  '805A14', // pdmaritimegold — maritime edition trim (print) --print-maritime-gold
 ])
 
 // pd* color -> the light token it must equal. figures/pd-palette.tex is the
@@ -84,6 +85,7 @@ const PD_TOKEN_LOCKSTEP = {
   pdswissblue: '--print-swiss-blue',
   pdswissviolet: '--print-swiss-violet',
   pdswissred: '--print-swiss-red',
+  pdmaritimegold: '--print-maritime-gold',
 }
 const PD_PALETTE_COPIES = [
   join(REPO, 'website-v2', 'public', 'whitepaper', 'figures', 'pd-palette.tex'),

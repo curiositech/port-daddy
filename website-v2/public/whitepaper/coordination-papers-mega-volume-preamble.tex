@@ -434,7 +434,10 @@
   \noindent{\scshape\footnotesize\color{hhgray}Chapter #1 of \pdchaptercount\hfill\pdchapterpartlabel}\par
   \vspace{0.25cm}
   \noindent\pdweightrule{\pdchapterpartindex}{\textwidth}{2pt}\par
-  \vspace{1.3cm}
+  % The gilt fillet: the trim line of the engraved plates, carried onto the
+  % page. Hairline, under the weight rule, and nowhere else on the spread.
+  \vspace{2.6pt}\noindent{\color{pdmaritimegold}\rule{\textwidth}{0.4pt}}\par
+  \vspace{\dimexpr1.3cm-3pt\relax}
   {\noindent\fontsize{34}{40}\selectfont\color{hhink}\hyphenpenalty=10000\exhyphenpenalty=10000\raggedright #2\par}
   \vspace{1.0cm}
   \begin{flushright}
@@ -649,7 +652,8 @@
     \begin{adjustwidth}{0pt}{-\dimexpr\marginparsep+\marginparwidth\relax}
     \vspace*{1.1cm}
     \noindent\pdweightrule{\csname pdpartindexof#1\endcsname}{0.42\linewidth}{2pt}\par
-    \vspace{0.55cm}
+    \vspace{2.6pt}\noindent{\color{pdmaritimegold}\rule{0.42\linewidth}{0.4pt}}\par
+    \vspace{\dimexpr0.55cm-3pt\relax}
     \noindent{\pdpartface\scshape\large Part #1}\par
     \vspace{0.22cm}
     \noindent{\pdpartface\fontsize{34}{40}\selectfont\hyphenpenalty=10000\exhyphenpenalty=10000\raggedright #2\par}
