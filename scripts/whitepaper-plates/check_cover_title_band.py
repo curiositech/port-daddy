@@ -53,8 +53,16 @@ COVERS = {
               0.30),
 }
 
-INK_THRESHOLD = 60      # channel distance from paper that counts as real ink
-ROW_FRACTION = 0.02     # share of a row that must be inked for the row to count
+# Both thresholds are set from the plates themselves rather than picked round.
+# INK_THRESHOLD: the grid hairlines these plates print sit within ~35 channel
+# units of the paper tone and the photographs and colour planes are 90 or more
+# away, so 60 separates the two with room on each side.
+# ROW_FRACTION: a hairline crossing the full width inks well under 1% of a row's
+# pixels; the shallowest real artwork band measured here inks 14% of its first
+# row. 2% sits between them, nearer the hairline end so the check errs toward
+# calling a row inked.
+INK_THRESHOLD = 60
+ROW_FRACTION = 0.02
 
 
 def clean_band(path: str) -> float:

@@ -58,7 +58,12 @@ POST = ("inset 2% to remove the render edge, center-crop-fit to the exact target
 
 
 def encode(src: str, dest: str, size: tuple[int, int]) -> tuple[list[int], int]:
-    im = Image.open(src).convert("RGB")
+    try:
+        im = Image.open(src).convert("RGB")
+    except (OSError, ValueError) as err:
+        # A truncated or half-written render is the likely cause: the generator
+        # writes into this directory while a long run is still going.
+        raise SystemExit(f"cannot read render {src}: {err}") from err
     raw = list(im.size)
     w, h = im.size
     inset = (int(w * 0.02), int(h * 0.02))
@@ -77,10 +82,18 @@ def main() -> int:
 
     chosen: dict[str, tuple[int, str]] = {}
     for pick in args.picks:
-        name, _, rest = pick.partition("=")
+        name, sep, rest = pick.partition("=")
         index, _, why = rest.partition(":")
+        if not sep:
+            raise SystemExit(f"pick {pick!r} is not NAME=INDEX")
         if name not in TARGETS:
-            raise SystemExit(f"unknown plate: {name}")
+            raise SystemExit(f"unknown plate: {name} (expected one of {', '.join(sorted(TARGETS))})")
+        if not index.isdigit():
+            # A rationale full of commas and colons is easy to mis-quote, and a
+            # shell that eats the quoting hands us "NAME=" or "NAME=the only
+            # candidate...". Say which pick is malformed instead of dying in
+            # int() with a ValueError that names neither the plate nor the pick.
+            raise SystemExit(f"pick for {name!r} has no candidate index: {pick!r}")
         chosen[name] = (int(index), why or args.why)
 
     path = os.path.join(PLATE_DIR, "PROVENANCE.json")
