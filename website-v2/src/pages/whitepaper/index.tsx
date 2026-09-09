@@ -204,6 +204,22 @@ function LimitsPanel() {
 }
 
 function ReadPanel() {
+  // The bound volume plus any alternate typographic editions published beside
+  // it. The volume has a downloadUrl; an edition only has its pdfPath, and the
+  // union of the two shapes is why this is not one field. The Book publishes
+  // one edition today, so this is usually a single card — the grid takes its
+  // column count from the list rather than assuming three, which is what left
+  // a lone third-width card when the other two editions stopped being built.
+  const downloads = [
+    { id: COLLECTED_VOLUME.id, title: COLLECTED_VOLUME.title, pages: COLLECTED_VOLUME.pages, href: COLLECTED_VOLUME.downloadUrl },
+    ...(COLLECTED_VOLUME.editions ?? []).map((edition) => ({
+      id: edition.id,
+      title: edition.title,
+      pages: edition.pages,
+      href: edition.pdfPath,
+    })),
+  ]
+
   return (
     <div className="space-y-5">
       <p className="max-w-[74ch] text-[15px] leading-[1.65] text-[var(--text-secondary)]">
@@ -212,19 +228,8 @@ function ReadPanel() {
         argument for whoever you happen to be — the operator, the security reviewer, the
         economist, the person who just wants the thing to stop losing their work.
       </p>
-      <div className="grid gap-4 md:grid-cols-3">
-        {/* The bound volume plus its alternate typographic editions. The
-            volume has a downloadUrl; an edition only has its pdfPath, and the
-            union of the two shapes is why this is not one field. */}
-        {[
-          { id: COLLECTED_VOLUME.id, title: COLLECTED_VOLUME.title, pages: COLLECTED_VOLUME.pages, href: COLLECTED_VOLUME.downloadUrl },
-          ...(COLLECTED_VOLUME.editions ?? []).map((edition) => ({
-            id: edition.id,
-            title: edition.title,
-            pages: edition.pages,
-            href: edition.pdfPath,
-          })),
-        ].map((edition) => {
+      <div className={`grid gap-4 ${downloads.length > 1 ? 'md:grid-cols-3' : 'md:max-w-[22rem]'}`}>
+        {downloads.map((edition) => {
           const href = edition.href
           return (
             <a
@@ -243,9 +248,10 @@ function ReadPanel() {
         })}
       </div>
       <p className="max-w-[74ch] text-[14px] leading-[1.6] text-[var(--text-muted)]">
-        Three typographic editions, one set of sources: the same eight chapters, the same
-        generated bibliography, three different characters. Nothing in the argument changes
-        between them.
+        One set of sources, set in the Swiss character: colour blocking, grotesk display,
+        flat marks. Two other typographies of the same eight chapters and the same generated
+        bibliography live in the repository and build from the same sources; nothing in the
+        argument changes between them.
       </p>
     </div>
   )
@@ -311,9 +317,9 @@ export default function WhitepaperPage() {
         meaning: 'Hotel — I have a pilot on board',
         color: '#666a00',
         onColor: '#fbf7ef',
-        headline: 'One PDF, three editions, free.',
+        headline: 'One PDF, free.',
         standfirst:
-          'No form, no email, no chapter paywalled behind a newsletter — the whole book, in whichever typography you like reading in.',
+          'No form, no email, no chapter paywalled behind a newsletter — the whole book, eight chapters in four parts.',
         render: () => <ReadPanel />,
       },
     ],

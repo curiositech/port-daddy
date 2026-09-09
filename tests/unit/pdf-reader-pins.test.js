@@ -12,12 +12,14 @@
 //    install from it; this test fails on any workflow that names one of
 //    those packages inline again.
 //
-// 2. The edition count. whitepaper-build.yml uploads exactly three built
-//    editions and the cover-band job checks them with --expect 3. Without
-//    the flag, an artifact that arrived with two of three passed over the
-//    missing one; with it, the count is asserted -- but only as long as the
-//    two numbers stay equal, which is what the last test here is for. Add a
-//    fourth edition and this fails until --expect moves with it.
+// 2. The edition count. whitepaper-build.yml uploads exactly the editions it
+//    built and the cover-band job checks them with a matching --expect (one
+//    today: the Book has one central edition, and the other two typographic
+//    characters are switchable but unbuilt). Without the flag, an artifact
+//    that arrived short passed over whatever went missing; with it, the count
+//    is asserted -- but only as long as the two numbers stay equal, which is
+//    what the last test here is for. Publish a second edition and this fails
+//    until --expect moves with it.
 import { describe, expect, test } from '@jest/globals';
 import { readFileSync } from 'node:fs';
 import { parse as parseYaml } from 'yaml';

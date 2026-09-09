@@ -148,15 +148,30 @@ class ManifestTests(unittest.TestCase):
                 measured = band.clean_band(os.path.join(band.REPO, cover["plate"]))
                 self.assertAlmostEqual(measured, recorded, delta=0.005)
 
-    def test_all_three_editions_are_registered(self) -> None:
-        """Registering an edition whose type never lands on a plate is not
-        redundant: the technical cover hangs its engraving from the foot of a
-        drawing sheet, and this is what would speak if it were ever raised."""
-        self.assertEqual({e["id"] for e in self.manifest["editions"]},
-                         {"maritime", "swiss", "technical"})
+    def test_the_built_edition_is_registered_and_no_other(self) -> None:
+        """One edition is built; three drivers are present. The page half of
+        this check reads built PDFs, so registering an edition nothing builds
+        would fail it on a file that never arrives -- check_pages counts a
+        registered edition with no PDF as a finding, which is the right rule
+        and the reason the register has to track what the build produces."""
+        self.assertEqual({e["id"] for e in self.manifest["editions"]}, {"swiss"})
         for edition in self.manifest["editions"]:
             with self.subTest(edition=edition["id"]):
                 self.assertTrue(os.path.exists(os.path.join(band.REPO, edition["pdf"])))
+
+    def test_every_character_still_has_a_driver_root(self) -> None:
+        """The other two characters are switchable, not deleted. Their driver
+        roots stay in the tree so either can be built by hand or made central
+        again by moving \\pdedition's default in the preamble."""
+        whitepaper = os.path.join(band.REPO, "website-v2", "public", "whitepaper")
+        for edition in ("maritime", "swiss", "technical"):
+            with self.subTest(edition=edition):
+                driver = os.path.join(
+                    whitepaper, f"coordination-papers-mega-volume-{edition}.tex")
+                self.assertTrue(os.path.exists(driver), f"{driver} is missing")
+                with open(driver, encoding="utf-8") as handle:
+                    source = handle.read()
+                self.assertIn(rf"\def\pdedition{{{edition}}}", source)
 
     def test_the_floors_are_the_wcag_aa_ones(self) -> None:
         contrast = self.manifest["contrast"]

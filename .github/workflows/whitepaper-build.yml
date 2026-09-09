@@ -190,7 +190,13 @@ jobs:
       # the freshly built covers ride out as an artifact and the check runs in
       # the cover-band job below, on ubuntu-latest, where the figure-gates job
       # already installs the same three wheels.
-      - name: Hand the freshly built editions to the type-over-art check
+      # Only the Book that this job actually built rides out. The maritime and
+      # technical drivers are switchable but unbuilt, so their committed PDFs
+      # (still in the tree) are the last render of an older source. Uploading
+      # one would hand the cover-band job a stale page and let it report a
+      # green it had not earned -- the same fail-open the --expect flag below
+      # exists to close.
+      - name: Hand the freshly built Book to the type-over-art check
         uses: actions/upload-artifact@v4
         with:
           name: freshly-built-editions
@@ -198,8 +204,6 @@ jobs:
           retention-days: 1
           path: |
             website-v2/public/whitepaper/coordination-papers-mega-volume.pdf
-            website-v2/public/whitepaper/coordination-papers-mega-volume-swiss.pdf
-            website-v2/public/whitepaper/coordination-papers-mega-volume-technical.pdf
 
       - name: Commit rebuilt PDFs (same-repo branch)
         # Heal configured feature-branch pushes and same-repository PR heads.
@@ -324,7 +328,7 @@ jobs:
       # run_pdf_checks.py itself fails if handed no PDFs, so the empty-
       # artifact case is still covered without a separate check for it.
       - name: Nothing on any page is where a reader cannot read it
-        run: python3 scripts/harbor-research/run_pdf_checks.py --pdf-dir /tmp/editions --expect 3
+        run: python3 scripts/harbor-research/run_pdf_checks.py --pdf-dir /tmp/editions --expect 1
 
   figure-gates:
     # Born from the PR #10069 review: figcheck.py existed and caught real
