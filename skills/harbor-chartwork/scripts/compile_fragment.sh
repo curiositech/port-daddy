@@ -199,6 +199,16 @@ else
     for piece in coordination-papers-mega-volume-preamble.tex coordination-papers-mega-volume-seams.tex; do
       cp "$BOOK_DIR/$piece" "$BUILD/$piece"
     done
+    # Every edition's plate file, not just the one the current default needs.
+    # The preamble \input`s the plate set for whichever character \pdedition
+    # selects, and that used to be maritime, which inputs none -- so this copy
+    # was invisible until Swiss became the default and all 36 fragments failed
+    # at once with "File `coordination-papers-mega-volume-swiss-plates.tex' not
+    # found". Globbing the family rather than naming today's file means the
+    # next edition to grow a plate set does not reopen the same hole.
+    for plates in "$BOOK_DIR"/coordination-papers-mega-volume-*plates*.tex; do
+      [ -f "$plates" ] && cp "$plates" "$BUILD/$(basename "$plates")"
+    done
     cp "$FRAGMENT_ABS" "$BUILD/figures/$STEM.tex"
     extract_preamble "$BOOK_ROOT" > "$WRAPPER"
     {
