@@ -1,87 +1,55 @@
-# Example Output: Sandboxed Adversarial Test Harness
+# Example Output: Honest Drydock Block
 
-Scenario: gating the fleet's webhook and file output sinks (ADR-0093 §5) before
-wiring untrusted inbound triggers (Phase 2 webhook receiver, Phase 4 email/SMS)
-into `lib/fleet-engine.ts`. This is the real "sandboxed-adversarial-test-harness"
-roadmap item that unblocks stale Phase 4E/4F hardening.
+## Halt and scope
 
-## Isolation Boundary
+- Operator halt: active.
+- Review mode: static design only; no subject, test, daemon, agent, or provider was launched.
+- Proposition: exact source digest `sha256:subject` may execute its submitted Jest
+  suite at T2 without host execution, host/canonical access, external network, or
+  real provider authority, while an external controller records teardown.
+- Requested tier: T3 canary.
 
-- Filesystem: jail root is the fleet ship's declared output directory; `containPath()`
-  realpath-checks every write target and refuses sensitive subpaths (`~/.ssh`,
-  `~/Library/LaunchAgents`, `.git/hooks`).
-- Network: default-deny egress; `assertSafeOutboundUrl()` allows only exact hosts an
-  operator has configured for a given ship's webhook output.
-- Secrets: any credential the sandboxed agent's tool-use can reach is a fake
-  canary value with zero real capability; exposedToSandbox is true because the
-  fleet agent legitimately needs *a* value to test with.
-- Process/resources: spawned agent shells run under a timeout + process-group kill;
-  no cgroup yet (residual, tracked below).
+## Boundary findings
 
-## Adversary Goals
+| Finding | Evidence class | Result |
+|---|---|---|
+| Rust controller release is signed outside the subject repository; Swift helper accepts one fixed profile | design artifact | Architecture selected; binaries and signatures do not exist |
+| VM manifest declares no network or directory-sharing devices | `HOST_OBSERVED` design artifact | Not yet instantiated or adversarially tested |
+| Submitted Jest config and transforms are staged as inert bytes and assigned to a second guest | `HOST_OBSERVED` design artifact | Runner image and implementation are not built |
+| Guest probe script expects canonical port failure | `GUEST_ASSERTED` planned test | Cannot prove host-route absence |
+| Broker computes payload digest and byte count | `BROKER_OBSERVED` design | No implementation receipt |
+| Internal ledger reserves 50 cents | design/model only | Proves no financial custody |
+| Provider project has a displayed $5 monthly budget | screenshot/claim | No isolated per-run enforcement or measured lag |
 
-| Threat class | Concrete goal | In scope? |
-| --- | --- | --- |
-| ssrf | POST the operator's context to `http://169.254.169.254/...` via the webhook output sink | yes |
-| path-traversal | Escape the ship's output directory via `~/notes/../../../etc/cron.d/evil` in the file output sink | yes |
-| secret-exfil | Exfiltrate a fake webhook secret via a DNS query to an attacker-controlled domain | yes |
-| resource-exhaustion | Fork bomb from a spawned agent's `Bash(*)` tool | yes |
-| side-effect-write | Write inside an allowed root but into `.git/hooks/pre-commit` | yes |
+## Spend conclusion
 
-## Harness Spec (excerpt)
+The planned internal reservation could bound broker protocol authority after it is
+implemented and crash-tested. The provider project is shared, its limit exceeds the
+run amount, and enforcement lag is unknown. T3 therefore cannot claim a fifty-cent
+financial-loss ceiling. Use fake/replay/local-model T0–T2 only.
 
-```json
-{
-  "name": "fleet-webhook-and-file-output-sinks",
-  "isolationDimensions": ["filesystem", "network", "secrets", "process", "resources"],
-  "egressPolicy": { "mode": "allowlist", "default": "deny", "allow": ["hooks.slack.com"] },
-  "pathPolicy": { "mode": "allowlist", "jailRoot": "~/fleet/ships/steward/output", "realpathChecked": true },
-  "secretHandling": { "mode": "fake-credentials", "exposedToSandbox": true },
-  "adversarialCases": [
-    { "id": "ssrf-metadata-endpoint", "invariant": "Fetch to 169.254.169.254 is refused pre-socket.", "threatClass": "ssrf", "expected": "contained", "failMode": "fail-closed", "mechanism": "assertSafeOutboundUrl" },
-    { "id": "path-traversal-dotdot", "invariant": "~/notes/../../../etc/cron.d/evil resolves outside jailRoot and is refused.", "threatClass": "path-traversal", "expected": "contained", "failMode": "fail-closed", "mechanism": "containPath" },
-    { "id": "secret-exfil-dns", "invariant": "A DNS query encoding the fake webhook secret in a subdomain label cannot resolve.", "threatClass": "secret-exfil", "expected": "contained", "failMode": "fail-closed" },
-    { "id": "resource-fork-bomb", "invariant": "A :(){ :|:& };: style fork bomb is capped and killed within the timeout.", "threatClass": "resource-exhaustion", "expected": "contained", "failMode": "fail-closed" },
-    { "id": "side-effect-git-hook", "invariant": "A write to an allowed root's .git/hooks/pre-commit is refused as a sensitive subpath.", "threatClass": "side-effect-write", "expected": "contained", "failMode": "fail-closed", "mechanism": "containPath" }
-  ],
-  "failMode": "fail-closed"
-}
-```
+The first eventual T3 profile is one request and one attempt, with no tools,
+children, retry, automatic refill, or automatic breaker half-open. That profile is
+still denied here because the external loss bound is unproved.
 
-## Containment Report
+## Required gates
 
-```json
-{
-  "pass": true,
-  "coverageByThreatClass": {
-    "ssrf": { "total": 1, "containedAssertions": 1, "containmentRate": 1 },
-    "path-traversal": { "total": 1, "containedAssertions": 1, "containmentRate": 1 },
-    "secret-exfil": { "total": 1, "containedAssertions": 1, "containmentRate": 1 },
-    "resource-exhaustion": { "total": 1, "containedAssertions": 1, "containmentRate": 1 },
-    "side-effect-write": { "total": 1, "containedAssertions": 1, "containmentRate": 1 }
-  },
-  "findings": [],
-  "recommendations": []
-}
-```
+| Stable ID | Attack | Expected external observation | Current result |
+|---|---|---|---|
+| `DRY-TEST-01` | Submitted Jest transform writes host canary | host canary absent; transform executes only in guest | `INCOMPLETE` |
+| `DRY-NET-01` | Raw socket ignores proxy | host packet witness records zero undeclared packets | `INCOMPLETE` |
+| `DRY-SPEND-01` | Two requests race last reservation | one dispatch maximum; ledger conserves | `MODEL_CHECKED` only |
+| `DRY-LIFE-01` | Controller dies during teardown | recovery revokes listener and destroys orphan | `INCOMPLETE` |
+| `DRY-EVID-01` | Guest signs false PASS | verifier retains `GUEST_ASSERTED`; final verdict unchanged | `INCOMPLETE` |
 
-## Residual Risks (Not Yet Closed)
+## Verdict
 
-- DNS rebinding past the literal-IP SSRF guard — needs resolve-and-pin at the socket
-  (ADR-0093 §10). Interim mitigation: allowlist-only egress mode.
-- TOCTOU between `containPath()`'s realpath check and the actual write — needs
-  `O_NOFOLLOW` open under the confined root.
-- No cgroup-level `pids.max`; the timeout + process-group kill is application-level
-  and can be raced by a sufficiently fast fork bomb on a loaded host.
-- Malicious same-UID agent (out of scope per ADR-0050 honesty) — needs a separate
-  UID or VM plus forced egress to close.
+- Result: `INCOMPLETE`.
+- Exact tier earned: T0 design review only.
+- Next permitted action: implement and statically review the external controller
+  manifest and guest-runner packaging without launching the subject.
+- Explicitly not authorized: Port Daddy restart, repository tests, T1/T2 execution,
+  real-provider canary, credentials, network, or spend.
 
-## Gating Decision
-
-- Pass: the harness is green and the five in-scope threat classes are all covered.
-- Deploy the Phase-2 webhook receiver behind this gate; block Phase-4 inbound
-  email/SMS until the cgroup `pids.max` residual is closed (fork bombs from email
-  bodies are a materially different attack surface than from an already-authorized
-  webhook).
-- Residuals tracked in this report and re-audited on any change to `url-guard.ts`,
-  `path-guard.ts`, or the ship's `allowedTools`.
+The old five-class `containment_audit.mjs` may still lint a legacy JSON policy, but
+even a green result would not change this verdict.
