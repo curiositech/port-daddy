@@ -50,6 +50,51 @@ class TestFailClosed(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
 
 
+class TestExpectedCount(unittest.TestCase):
+    """--expect: the half of the empty-artifact hole the zero case leaves.
+
+    "No PDFs" already failed. "Two of the three editions" did not, and read
+    as a pass over whichever edition went missing. These check the count is
+    asserted before any checker runs, so a short artifact fails as a short
+    artifact rather than as a green run over a subset.
+    """
+
+    def test_a_short_count_fails_before_any_check_runs(self):
+        with TemporaryDirectory() as tmp:
+            for name in ("one.pdf", "two.pdf"):
+                (Path(tmp) / name).write_bytes(b"%PDF-1.4\n")  # never opened
+            result = run("--pdf-dir", tmp, "--expect", "3")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("expected 3 PDF(s) to check, found 2", result.stdout + result.stderr)
+        # It must not have reached a checker: a truncated stub would make
+        # page_overflow.py fail for its own reasons and hide the real cause.
+        self.assertNotIn("page_overflow.py", result.stdout)
+
+    def test_a_long_count_fails_too(self):
+        # An edition appearing that the caller does not know about is the
+        # same disagreement, and quietly checking it is the same wrong answer.
+        with TemporaryDirectory() as tmp:
+            for name in ("one.pdf", "two.pdf"):
+                (Path(tmp) / name).write_bytes(b"%PDF-1.4\n")
+            result = run("--pdf-dir", tmp, "--expect", "1")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("found 2", result.stdout + result.stderr)
+
+    def test_zero_pdfs_still_reports_the_empty_case_not_the_count(self):
+        with TemporaryDirectory() as tmp:
+            result = run("--pdf-dir", tmp, "--expect", "3")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("no PDFs found", result.stdout + result.stderr)
+
+    def test_without_expect_the_count_is_not_asserted(self):
+        # Local runs over one edition stay possible; only the caller that
+        # knows the number says it.
+        with TemporaryDirectory() as tmp:
+            (Path(tmp) / "one.pdf").write_bytes(b"%PDF-1.4\n")
+            result = run("--pdf-dir", tmp)
+        self.assertNotIn("expected", result.stderr)
+
+
 class TestRegistry(unittest.TestCase):
     def test_every_registered_check_script_exists(self):
         import importlib.util

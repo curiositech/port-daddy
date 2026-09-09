@@ -290,17 +290,12 @@ jobs:
         with:
           python-version: '3.12'
 
-      # Pinned to the same versions library-checks pins, and for the same
-      # reason it wrote down: every page measurement the Book makes comes out
-      # of these readers, so a patch release that changes text extraction
-      # changes what the checks mean, and a green check whose meaning moved
-      # under it is worse than a red one. This job runs page_overflow.py, whose
-      # foot threshold sits at 8.0 pt because that is the empty gap measured
-      # between ordinary last lines (0-3 pt) and a longtable row falling off
-      # the block (50-70) -- measured with THIS PyMuPDF. It was unpinned here
-      # while pinned there, which is the same reader gated two different ways.
-      - name: Install the cover-check dependencies, pinned to library-checks
-        run: pip install --quiet 'pillow==12.3.0' 'numpy==2.4.6' 'pymupdf==1.28.2'
+      # One pin file for every job that measures a page, so "the same reader
+      # everywhere" is a fact about the repository rather than a comment
+      # asking two workflows to stay in step. The rationale for each version
+      # lives in the file.
+      - name: Install the readers every page measurement is taken with
+        run: pip install --quiet -r scripts/harbor-research/requirements-pdf.txt
 
       # No continue-on-error here, and no quiet exit below when the directory
       # is empty. Both were in place, and together they meant a build that
@@ -329,7 +324,7 @@ jobs:
       # run_pdf_checks.py itself fails if handed no PDFs, so the empty-
       # artifact case is still covered without a separate check for it.
       - name: Nothing on any page is where a reader cannot read it
-        run: python3 scripts/harbor-research/run_pdf_checks.py --pdf-dir /tmp/editions
+        run: python3 scripts/harbor-research/run_pdf_checks.py --pdf-dir /tmp/editions --expect 3
 
   figure-gates:
     # Born from the PR #10069 review: figcheck.py existed and caught real
@@ -355,10 +350,10 @@ jobs:
         with:
           python-version: '3.12'
 
-      # Same pin, same reason: figcheck's T1-T8 findings are geometry read out
-      # of PyMuPDF, so the reader is part of the gate's definition.
-      - name: Install figure-QA Python dependencies, pinned to library-checks
-        run: pip install --quiet 'pymupdf==1.28.2' 'pillow==12.3.0'
+      # Same file, same reason: figcheck's T1-T8 findings are geometry read
+      # out of PyMuPDF, so the reader is part of the gate's definition.
+      - name: Install the readers every page measurement is taken with
+        run: pip install --quiet -r scripts/harbor-research/requirements-pdf.txt
 
       - name: Determine whether this PR touches figure-gates scope
         id: scope
@@ -384,7 +379,22 @@ jobs:
         if: steps.scope.outputs.relevant == 'true'
         run: |
           set -euo pipefail
-          curl --proto '=https' --tlsv1.2 -fsSL https://drop-sh.fullyjustified.net | sh
+          # Retried, and to a file rather than into a pipe. This was the one
+          # tool download in the repository fetched with a bare `curl -fsSL`
+          # while proofs.yml and deploy-relay-do-migration.yml already retry
+          # theirs -- so a blip on a third-party host reddened figure-gates
+          # with a network error dressed up as a figure finding.
+          #
+          # Piping the installer straight into `sh` is what makes the retry
+          # worth spelling out: on a mid-stream failure curl would retry, and
+          # sh would already have been fed the truncated first attempt, so the
+          # second copy arrives appended to a half-executed script. Landing it
+          # in a file first means a retry replaces the download instead of
+          # continuing it, and sh sees one whole script or nothing.
+          curl --proto '=https' --tlsv1.2 -fsSL \
+            --retry 5 --retry-all-errors --retry-delay 3 --max-time 600 \
+            -o /tmp/install-tectonic.sh https://drop-sh.fullyjustified.net
+          sh /tmp/install-tectonic.sh
           echo "TECTONIC=$PWD/tectonic" >> "$GITHUB_ENV"
 
       - name: Determine which fragments to compile (changed in this PR, plus every current blocker)
