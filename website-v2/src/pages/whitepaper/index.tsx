@@ -176,13 +176,22 @@ function ContentsPanel() {
               No radius, no border, no shadow: the colour edge IS the edge.
             */}
             <div
-              className="grid grid-cols-[auto_1fr] items-end gap-x-4 px-4 py-3"
+              className="on-block grid grid-cols-[auto_1fr] items-end gap-x-5 px-5 py-5"
               style={{ background: ink.block, color: ink.on }}
             >
-              <span className="font-mono text-[clamp(40px,6vw,60px)] font-bold leading-[0.8] tracking-[-0.045em] tabular-nums">
+              {/*
+                The numeral is set at display size, not label size. On the
+                book's part page it is the largest thing on the sheet and it
+                is what you navigate by on a flip-through; at 60px it was a
+                caption sitting next to a heading, and a Roman numeral is
+                narrow enough that it read smaller still. Tabular figures are
+                off on purpose — I, II, III and IV are letters here, and
+                forcing them onto a digit advance opens gaps inside III.
+              */}
+              <span className="font-mono text-[clamp(56px,9.5vw,108px)] font-bold leading-[0.74] tracking-[-0.05em]">
                 {part.numeral}
               </span>
-              <h2 className="pb-[0.14em] text-[clamp(17px,2.1vw,23px)] font-bold leading-[1.04] tracking-[-0.02em]">
+              <h2 className="pb-[0.18em] text-[clamp(20px,2.7vw,30px)] font-bold leading-[1.02] tracking-[-0.025em]">
                 {part.title}
               </h2>
             </div>
@@ -366,7 +375,11 @@ function ReadPanel() {
         argument for whoever you happen to be — the operator, the security reviewer, the
         economist, the person who just wants the thing to stop losing their work.
       </p>
-      <div className={`grid gap-4 ${downloads.length > 1 ? 'md:grid-cols-3' : 'md:max-w-[22rem]'}`}>
+      {/* One edition gets a slab the width of the reading measure, not a
+          card-sized tile stranded in a panel with nothing beside it. The
+          single download IS the panel; making it small to keep the shape it
+          had when there were three of them is what left the dead space. */}
+      <div className={`grid gap-4 ${downloads.length > 1 ? 'md:grid-cols-3' : 'md:max-w-[42rem]'}`}>
         {downloads.map((edition) => {
           const href = edition.href
           return (

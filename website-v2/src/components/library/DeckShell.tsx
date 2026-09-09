@@ -207,7 +207,7 @@ export function DeckShell({
           {/* The colour block. The head sits ON it, and the standfirst
               switches to the casual face over the block — the face change
               is the signal that you have crossed from chrome into voice. */}
-          <div className="shrink-0 px-6 py-5 lg:px-9 lg:py-6" style={{ background: active.color, color: active.onColor }}>
+          <div className="on-block shrink-0 px-6 py-5 lg:px-9 lg:py-6" style={{ background: active.color, color: active.onColor }}>
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={active.id}
