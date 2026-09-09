@@ -1434,14 +1434,51 @@ row whose prohibition names an uncontrollable event or an unwitnessed trigger. D
 buys the assurance modes the rest of the book uses to describe what a runtime can see and
 control, the design rule behind the sealed room, and the pricing stance of the market
 chapters: detect-only policies are enforced by audit, reputation, and bond-slashing, which
-must be sized for violations that \emph{will} occur. The ladder these modes form sits beside
-two public gradings of a different variable: Sheridan and
-Parasuraman--Sheridan--Wickens's levels of automation grade a system by how much
-of a task it performs unassisted~\pdcite{parasuraman2000}, and the Common
-Criteria's evaluation assurance levels grade a security claim by how much
-independent verification backs it~\pdcite{cciso15408}; this ladder grades a
-runtime claim by the evidence a mechanism itself produces, a third axis next to
-those two.
+must be sized for violations that \emph{will} occur.
+
+The ladder these modes form has two obvious public neighbours, and since the
+resemblance is real it's worth saying exactly what each of the three grades
+before somebody assumes they're the same instrument in different clothes.
+Sheridan and Verplank rank a system on a ten-point scale by how much of the
+decide-and-act loop the computer holds rather than the
+human~\pdcite{sheridanverplank1978}; Parasuraman, Sheridan and Wickens later
+split that single scale across four stages of processing --- acquisition,
+analysis, decision selection, action implementation --- each carrying its own
+level~\pdcite{parasuraman2000}. Both grade the \emph{allocation of the work}:
+who does it. The Common Criteria's evaluation assurance levels, EAL1 through
+EAL7, rank a security claim by how much independent evaluation effort was spent
+before deployment and against how deep a body of design evidence, from
+functionally tested at the bottom to formally verified design at the
+top~\pdcite{cciso15408}. EAL grades \emph{how hard somebody looked}, once, at
+evaluation time, for a whole product. This ladder grades neither, and the
+question it does ask is narrower than both: of one runtime claim about one
+mechanism, \emph{what would have to be defeated for the claim to be false?}
+Nothing at all at Observed --- the act may have happened somewhere else
+entirely and the record was written afterwards --- then a client's willingness
+to declare at Coordinated, a daemon-owned broker at Brokered, the operating
+system's own confinement at Confined, and a measured environment plus a
+conditional key release at Attested. That is an adversary's work factor, per
+mechanism, at run time, and neither neighbour measures it.
+
+\begin{pdclaim}{Design invariant}{The three gradings are independent axes}
+No mechanism's rung in this book is assigned from its automation level or from
+its evaluation depth, and the corners are all occupiable. A fully autonomous
+component (Sheridan level~10) whose actions are merely logged is
+\pdassurance{Observed}; a component that stops for human approval at every step
+(level~3) but routes its one effect through an attested broker is
+\pdassurance{Attested}. An EAL7 product can contain \pdassurance{Observed}
+mechanisms and an unevaluated one can contain \pdassurance{Attested} mechanisms,
+because EAL scores the evaluation and this ladder scores the mechanism.
+\end{pdclaim}
+
+The boundary on that is worth stating in the same breath: the ladder is a design
+vocabulary, not a measured scale. No procedure assigns a rung by measurement, no
+inter-rater agreement stands behind the assignments, and the five rungs are not
+claimed to be evenly spaced or even totally ordered --- Brokered and Confined
+defeat different adversaries rather than the same adversary harder, which is why
+the appendix says these modes are not a maturity staircase. What the ladder is
+for is naming which part of the system a claim rests on, and it earns that only
+by being applied consistently.
 
 \begin{pdboundary}
 (i) The theorem does not say detect-only policies are hopeless. Detection feeding audit,
@@ -3098,15 +3135,22 @@ Thanumalayan Sankaranarayana Pillai, Vijay Chidambaram, Ramnatthan Alagappan, Sa
 \newblock All File Systems Are Not Created Equal: On the Complexity of Crafting Crash-Consistent Applications.
 \newblock In \textit{Symposium on Operating Systems Design and Implementation (OSDI)}, pages 433--448, 2014.
 
+\bibitem{sheridanverplank1978}
+Thomas B. Sheridan and William L. Verplank.
+\newblock \textit{Human and Computer Control of Undersea Teleoperators}.
+\newblock Man--Machine Systems Laboratory, Department of Mechanical Engineering, MIT;
+ONR Technical Report, 1978. NTIS ADA057655.
+
 \bibitem{parasuraman2000}
 Raja Parasuraman, Thomas B. Sheridan, and Christopher D. Wickens.
 \newblock A Model for Types and Levels of Human Interaction with Automation.
 \newblock \textit{IEEE Transactions on Systems, Man, and Cybernetics -- Part A}, 30(3):286--297, 2000.
 
 \bibitem{cciso15408}
-ISO/IEC 15408.
-\newblock \textit{Common Criteria for Information Technology Security Evaluation}.
-\newblock International Organization for Standardization, current edition.
+ISO/IEC 15408-1:2022.
+\newblock \textit{Information security, cybersecurity and privacy protection --- Evaluation
+criteria for IT security --- Part 1: Introduction and general model} (Common Criteria, CC:2022).
+\newblock International Organization for Standardization, 2022.
 
 \end{thebibliography}
 
