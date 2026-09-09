@@ -50,14 +50,25 @@ and an available route does not prove that every effect passes through it.
   on a verifiable runtime identity.
 \end{description}
 
-These modes are not a maturity staircase. They answer different questions about
-which channels the institution can see and control. Two public gradings sit
-beside this one on different axes: Sheridan's levels of automation grade how
-much of a task a system performs unassisted, and the Common Criteria's
-evaluation assurance levels grade a security claim by how much independent
-verification backs it. This ladder grades neither task share nor verification
-effort; it grades a runtime claim by the evidence the mechanism itself
-produces.
+These modes are not a maturity staircase, and the rungs are not evenly spaced or
+even totally ordered --- Brokered and Confined defeat different adversaries
+rather than the same adversary harder. What each rung names is what an adversary
+would have to defeat for a claim about that mechanism to be false: nothing at
+Observed, a client's willingness to declare at Coordinated, a daemon-owned
+broker at Brokered, the operating system at Confined, a measured environment and
+a conditional key release at Attested.
+
+Two public gradings sit beside this one, and the chapter that buys these modes
+(\pdchapref{swk}{The Single-Writer Kernel}, \S``What it buys'') argues at length
+why all three axes are independent rather than versions of one another.
+Sheridan and Verplank's levels of automation --- refined by Parasuraman,
+Sheridan and Wickens into four processing stages, each with its own level ---
+grade how much of the decide-and-act loop the machine holds rather than the
+human. The Common Criteria's evaluation assurance levels, EAL1 through EAL7,
+grade how much independent evaluation effort a security claim received before
+deployment, and grade it once, for a whole product. This ladder grades neither
+work allocation nor evaluation effort. It grades one runtime claim about one
+mechanism, by what carries it.
 
 \subsection{What exists now}
 

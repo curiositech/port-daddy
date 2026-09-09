@@ -41,7 +41,18 @@ test('generator namespaces identical chapter-local labels and preserves the 8/30
       // gives exactly those three added and none removed, and
       // check_citations.py reports 0 dangling cites, 0 orphaned bibitems and 0
       // duplicates, so nothing anyone cites went missing on the way.
-      { chapters: 8, references: 265, sources: 8 },
+      //
+      // Now 266. The contested-and-open pass places the assurance ladder
+      // against the two public gradings it resembles, and that needed
+      // Sheridan and Verplank (1978) itself -- the origin of levels of
+      // automation -- which the Book had been gesturing at through
+      // Parasuraman--Sheridan--Wickens alone. One key, sheridanverplank1978,
+      // cited from both the kernel chapter and the sealed room; the collated
+      // bibliography dedupes it to a single reference, hence +1 and not +2.
+      // Confirmed as growth and not churn the same way: diffing the \bibitem
+      // keys across the chapter sources against the parent commit gives
+      // exactly that one added and none removed.
+      { chapters: 8, references: 266, sources: 8 },
     );
   } finally {
     cleanupFixture(root);

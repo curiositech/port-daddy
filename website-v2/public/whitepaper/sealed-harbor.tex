@@ -567,13 +567,19 @@ tool-level instruments of \pdchapref{swk}{The Single-Writer Kernel}, the
 guard, the shim, and the hook harness that rides inside a vendor's agent
 loop, sit below even that rung: they are the Observed and Coordinated modes,
 and the room replaces them rather than extending them, because a hook a
-process can decline to invoke gates nothing. This ladder grades a runtime
-claim by the evidence a mechanism itself produces, a different variable from
-Sheridan and Parasuraman--Sheridan--Wickens's levels of automation, which
-grade how much of a task a system performs unassisted \pdcite{parasuraman2000}, and
-from the Common Criteria's evaluation assurance levels, which grade a
-security claim by how much independent verification backs it
-\pdcite{cciso15408}.
+process can decline to invoke gates nothing. What this ladder grades ---
+argued at length where the modes are bought, in
+\pdchapref{swk}{The Single-Writer Kernel} --- is what an adversary would have
+to defeat for one runtime claim about one mechanism to be false. That is a
+third axis, and it is independent of the two public gradings it resembles:
+Sheridan and Verplank's levels of automation, refined into four processing
+stages by Parasuraman, Sheridan and Wickens, grade how much of the
+decide-and-act loop the machine holds rather than the human
+\pdcite{sheridanverplank1978,parasuraman2000}, and the Common Criteria's
+evaluation assurance levels grade how much independent evaluation effort a
+security claim received before deployment \pdcite{cciso15408}. Neither says
+which component's failure would falsify a particular record, which is the only
+question this ladder asks.
 
 \begin{pdboundary}
 Controllability is relative to the mediated alphabet: partial observation
@@ -1254,12 +1260,17 @@ p.~100, 2004.
 using sequential hypothesis testing. In \emph{Proc.\ IEEE Symposium on Security and Privacy},
 2004.
 
+\bibitem{sheridanverplank1978} T.~B. Sheridan and W.~L. Verplank. \emph{Human and Computer
+Control of Undersea Teleoperators}. Man--Machine Systems Laboratory, Department of Mechanical
+Engineering, MIT; ONR Technical Report, 1978. NTIS ADA057655.
+
 \bibitem{parasuraman2000} R.~Parasuraman, T.~B. Sheridan, and C.~D. Wickens. A model for types
 and levels of human interaction with automation. \emph{IEEE Transactions on Systems, Man, and
 Cybernetics -- Part A}, 30(3):286--297, 2000.
 
-\bibitem{cciso15408} ISO/IEC 15408. \emph{Common Criteria for Information Technology Security
-Evaluation}. International Organization for Standardization, current edition.
+\bibitem{cciso15408} ISO/IEC 15408-1:2022. \emph{Information security, cybersecurity and privacy
+protection --- Evaluation criteria for IT security --- Part 1: Introduction and general model}
+(Common Criteria, CC:2022). International Organization for Standardization, 2022.
 
 \end{thebibliography}
 

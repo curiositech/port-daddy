@@ -840,17 +840,57 @@ NP-complete, and the language designer is offered nothing in between. The same
 step is familiar one formalism over, where the simple temporal problem is
 polynomial and admitting disjunctions of difference constraints makes
 consistency NP-complete~\pdcite{dmp91,sk00}; the claim here is the location of the
-boundary, not the pattern. Nor is the pattern new in normative conflict
-checking specifically: Colombo Tosatto, Governatori and van Beest prove a
-closely-shaped dichotomy for regulatory compliance --- checking a business
-process against a set of conditional obligations is polynomial, against one
-natural, more expressive extension it is coNP-complete~\pdcite{ctgvb2020,ctgvb2021}.
-Their formal object (structured business processes, conditional obligations)
-and complexity class (coNP) differ from $\mathcal{L}_c$'s (ground Horn-triggered
-deontic tokens, NP, a different reduction), so one does not subsume the other;
-what carries over is the dichotomy's shape, and Theorems~\ref{thm:deontic-detect}
-and~\ref{thm:deontic-frontier} are a second, independent instance of it, not its
-discovery.
+boundary, not the pattern.
+
+Nor is the pattern new in normative conflict checking specifically, and it is
+worth being exact about where $\mathcal{L}_c$ lands, because ``a similar
+dichotomy exists over there'' is the sort of sentence that can conceal either a
+rediscovery or a real difference. Colombo Tosatto, Governatori and van Beest map
+the regulatory-compliance problem across eight variants cut by three binary
+choices --- one obligation or many, obligations in force for a whole trace or
+triggered conditionally, and elements written as bare propositional literals or
+as arbitrary propositional formulae --- and for \emph{full} compliance (does
+\emph{every} execution of a business-process model satisfy the norms?) only the
+last of the three moves the answer at all: with literals the problem is in P in
+all four variants, and with formulae it is coNP-complete in all
+four~\pdcite{ctgvb2020,ctgvb2021}.
+
+Run $\mathcal{L}_c$ against that axis and the answer is not the flattering one.
+A deontic rule here fires on a Horn body --- a conjunction, and one derived
+through a program that may chain --- which is a formula and not a literal, so
+$\mathcal{L}_c$ sits on the \emph{hard} side of the only coordinate that moves
+their result, and is polynomial anyway (Theorem~\ref{thm:deontic-detect}). That
+is neither a contradiction nor a sharper theorem; it is the tell that the two
+problems are not the same problem. Their hardness never came from the
+obligations. It comes from the process model: the coNP-completeness proof
+reduces \textsc{tautology} by building a workflow net with one exclusive branch
+per propositional variable, so the model's $2^n$ executions enumerate every
+interpretation and full compliance holds exactly when the formula is a
+tautology~\pdcite{ctgvb2021}. The exponential object is the \emph{branching of
+the process}, and the problem quantifies over it universally. $\mathcal{L}_c$
+has no process model to branch. Conflict-freedom asks whether one set of
+commitments can be jointly discharged at all --- an existential question over
+schedules --- which is exactly why one step outside the fragment lands in NP
+(Theorem~\ref{thm:deontic-frontier}) rather than coNP. The two results sit on
+opposite sides of their expressivity boundary and run the quantifier over
+executions in opposite directions.
+
+So the placement is \emph{orthogonal}: $\mathcal{L}_c$ is not an instance of
+their tractable side, and their hard side is not a harder case of ours. The
+residue is worth naming rather than smoothing away. The variant of their problem
+closest in shape to conflict-freedom is not full compliance but \emph{partial}
+compliance --- does there exist a compliant execution --- which on their own map
+is NP-complete in six of the eight variants, polynomial in one, and, for a single
+conditional obligation over literals, still open~\pdcite{ctgvb2021}. Theorems
+\ref{thm:deontic-detect} and~\ref{thm:deontic-frontier} do not close that hole
+and cannot, since they quantify over schedules rather than over the traces of a
+given model. What would settle the relation properly is a reduction in one
+direction or the other between $\mathcal{L}_c$-conflict-freedom and partial
+compliance for that conditional-literal variant; nobody has written one, here or
+there, so the claim that survives is the modest one --- this is a second
+instance of a dichotomy shape whose earlier instances are Schaefer's and
+Dechter--Meiri--Pearl's, on a different formal object, for a different decision
+problem, by a different reduction, and not its discovery.
 
 \noindent\textbf{Checked.} $3{,}000$ random in-fragment policy sets against a
 brute-force oracle (all $2^5$ Horn models intersected, pairwise overlap checks,
@@ -2862,11 +2902,11 @@ Programming} 1(3):267--284, 1984.
 Disjunctions of Temporal Constraints.'' \emph{Artificial Intelligence}
 120(1):81--117, 2000.
 
-\bibitem{ctgvb2020} S. Colombo Tosatto, G. Governatori \& P. van Beest. ``Business
+\bibitem{ctgvb2020} S. Colombo Tosatto, G. Governatori \& N. van Beest. ``Business
 Process Full Compliance with Respect to a Set of Conditional Obligations in
 Polynomial Time.'' arXiv:2001.10148, 2020.
 
-\bibitem{ctgvb2021} S. Colombo Tosatto, G. Governatori \& P. van Beest. ``Proving
+\bibitem{ctgvb2021} S. Colombo Tosatto, G. Governatori \& N. van Beest. ``Proving
 Regulatory Compliance: Full Compliance Against an Expressive Unconditional
 Obligation is coNP-Complete.'' arXiv:2105.05431, 2021.
 
