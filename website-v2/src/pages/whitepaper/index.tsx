@@ -110,18 +110,29 @@ function ContentsPanel() {
         const ink = PART_INK[part.color] ?? PART_INK.pdcobalt
         return (
           <section key={part.id}>
-            <div className="flex flex-wrap items-baseline gap-3 border-b border-[var(--hair-strong)] pb-2">
-              <span
-                className="px-2 py-0.5 font-mono text-[12px] font-bold uppercase tracking-[0.12em]"
-                style={{ background: ink.block, color: ink.on }}
-              >
-                Part {part.numeral}
+            {/*
+              The part band, in the Swiss edition's own idiom rather than a
+              chip beside a heading. The book sets a part opener as a slab of
+              the part's ink carrying an oversized numeral and the title in
+              paper; this is that at web scale. The numeral is the size it is
+              because it is the thing you navigate by on a flip-through, and
+              it sits on the same baseline as the title so the two read as one
+              mark rather than a number next to some words.
+
+              No radius, no border, no shadow: the colour edge IS the edge.
+            */}
+            <div
+              className="grid grid-cols-[auto_1fr] items-end gap-x-4 px-4 py-3"
+              style={{ background: ink.block, color: ink.on }}
+            >
+              <span className="font-mono text-[clamp(40px,6vw,60px)] font-bold leading-[0.8] tracking-[-0.045em] tabular-nums">
+                {part.numeral}
               </span>
-              <h2 className="text-[19px] font-bold tracking-[-0.015em] text-[var(--text-primary)]">
+              <h2 className="pb-[0.14em] text-[clamp(17px,2.1vw,23px)] font-bold leading-[1.04] tracking-[-0.02em]">
                 {part.title}
               </h2>
             </div>
-            <p className="mt-2 max-w-[76ch] text-[14px] leading-[1.6] text-[var(--text-muted)]">
+            <p className="mt-3 max-w-[76ch] text-[14px] leading-[1.6] text-[var(--text-muted)]">
               {part.blurb}
             </p>
             <div className="mt-2">
