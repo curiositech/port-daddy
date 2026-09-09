@@ -712,7 +712,11 @@ jobs:
           python3 -m pip install --user asciinema
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           mkdir -p "$HOME/.local/bin"
-          curl -fsSL -o "$HOME/.local/bin/agg" \
+          # Retried: a third-party release host blipping should not red a
+          # build. Already lands in a file, so a retry replaces the download
+          # rather than appending to a half-consumed one.
+          curl -fsSL --retry 5 --retry-all-errors --retry-delay 3 --max-time 600 \
+            -o "$HOME/.local/bin/agg" \
             "https://github.com/asciinema/agg/releases/download/${AGG_VERSION}/agg-x86_64-unknown-linux-gnu"
           chmod +x "$HOME/.local/bin/agg"
           "$HOME/.local/bin/agg" --version
