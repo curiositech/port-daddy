@@ -214,36 +214,35 @@ event before promising prevention that a supervisor can prevent it.
 
 ## 5. Trust and process topology
 
-```text
-Operator
-   |
-   | explicit tier + budget approval
-   v
-+--------------------------- HOST TRUST BOUNDARY ----------------------------+
-| Drydock Controller                                                       |
-|  - verifies image/source/scenario digests                                 |
-|  - creates and destroys VM                                                |
-|  - owns clock, resource limits, kill switch, run state                    |
-|                                                                           |
-| Budget + Effect Broker             External Receipt Log                   |
-|  - holds provider credentials      - append-only host observations         |
-|  - reserves worst-case cost        - reservation/settlement chain          |
-|  - exposes typed operations        - packet/effect attempts                |
-|  - denies undeclared effects       - bounded logs + artifact digests       |
-|             |                                    ^                        |
-|             | narrow vsock or isolated NIC       | host observation        |
-|             v                                    |                        |
-|  +---------------------- DISPOSABLE GUEST ------------------------------+  |
-|  | Trial Basin driver                                                 |  |
-|  |  - virtual clock + deterministic scheduler                         |  |
-|  |  - fake/replay actors and services                                 |  |
-|  |  - fault injection + assertions                                    |  |
-|  |                                                                    |  |
-|  | Port Daddy test subject                                            |  |
-|  |  - no host mounts, no raw credentials, no general network          |  |
-|  |  - read-only source + disposable state + bounded output            |  |
-|  +--------------------------------------------------------------------+  |
-+----------------------------------------------------------------------------+
+```mermaid
+flowchart TB
+    Operator([Operator])
+    Approval[/"Explicit tier and budget approval"/]
+
+    subgraph Host["Host trust boundary"]
+        Controller["Drydock controller<br/>Verifies digests and owns VM, clock, limits, kill switch, and run state"]
+        Broker["Budget and effect broker<br/>Holds credentials, reserves cost, exposes typed operations, and denies undeclared effects"]
+        Log[("External receipt log<br/>Append-only observations, settlements, effects, and artifact digests")]
+
+        subgraph Guest["Disposable guest"]
+            Driver["Trial Basin driver<br/>Virtual clock, deterministic scheduler, fake services, faults, and assertions"]
+            Subject["Port Daddy test subject<br/>No host mounts, raw credentials, or general network"]
+            Storage[("Read-only source, disposable state, and bounded output")]
+        end
+    end
+
+    Operator --> Approval
+    Approval --> Controller
+    Controller -->|Creates, constrains, and destroys| Driver
+    Controller --> Broker
+    Broker -->|Capabilities and bounded results| Driver
+    Driver -->|Typed effect requests| Broker
+    Driver -->|Schedules and injects faults| Subject
+    Subject -->|Events and effect requests| Driver
+    Storage --> Subject
+    Driver -.->|Guest evidence over controller-owned channel| Controller
+    Controller -->|Host observations and bounded guest evidence| Log
+    Broker -->|Reservations and effect attempts| Log
 ```
 
 ### 5.1 Trusted computing base
@@ -675,21 +674,20 @@ Unknown, missing, contradictory, or stale price means **deny** or **use a fake p
 
 ### 10.2 Request lifecycle
 
-```text
-PROPOSED
-   |
-   | validate capability, catalog, nested ceilings, idempotency
-   v
-RESERVED ---------> EXPIRED/REFUNDED
-   |
-   | provider dispatch begins
-   v
-DISPATCHED
-   |
-   +-------------> UNCERTAIN (provider outcome unknown; reservation remains held)
-   |
-   v
-SETTLED + REFUNDED_REMAINDER
+```mermaid
+stateDiagram-v2
+    state "EXPIRED / REFUNDED" as EXPIRED_REFUNDED
+    state "SETTLED + REFUNDED REMAINDER" as SETTLED
+
+    [*] --> PROPOSED
+    PROPOSED --> RESERVED: capability, catalog, ceilings, and idempotency valid
+    RESERVED --> EXPIRED_REFUNDED: dispatch lease expires
+    RESERVED --> DISPATCHED: provider dispatch begins
+    DISPATCHED --> UNCERTAIN: outcome unknown; hold reservation
+    DISPATCHED --> SETTLED: usage reconciled
+    UNCERTAIN --> SETTLED: reconcile or settle conservatively
+    EXPIRED_REFUNDED --> [*]
+    SETTLED --> [*]
 ```
 
 No provider connection is opened before `RESERVED` is durably committed. For a real canary, the controller also proves that the dedicated external cell's configured limit plus finite documented-and-measured enforcement tolerance fits the run's approved financial-loss ceiling. Internal reservation is necessary but not sufficient for that claim.

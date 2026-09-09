@@ -98,29 +98,49 @@ does not yet preserve one authoritative principal across the handoff.
 The lifecycle authority belongs beside the Drydock controller and effect broker,
 outside the Port Daddy guest.
 
-```text
-                          read projections
-  pd-console   iOS   FleetBar   Scout   Relay/Cloudflare
-       \        |       |        |             /
-        +-------+-------+--------+-------------+
-                        |
-             signed, one-use control command
-                        |
-       +----------------v-------------------------------+
-       | EXTERNAL DRYDOCK TRUSTED CONTROLLER            |
-       |                                                 |
-       | Admission writer       Agent Lifecycle Ledger  |
-       | Breaker + watchdog     Process/VM witnesses    |
-       | Budget/effect broker   Receipt/outbox writer   |
-       +-------------+-------------------+---------------+
-                     |                   |
-             capability channel   host process/VM handle
-                     |                   |
-       +-------------v-------------------v---------------+
-       | DISPOSABLE GUEST / UNTRUSTED SUBJECT            |
-       | Port Daddy build, backend adapter, worker body  |
-       | sealed source worktree, bounded transcript     |
-       +-------------------------------------------------+
+```mermaid
+flowchart TB
+    subgraph Surfaces["Read projections and control surfaces"]
+        Views["pd-console · iOS · FleetBar · Scout"]
+        Relay["Relay / Cloudflare"]
+    end
+
+    Command[/"Signed one-use control command"/]
+
+    subgraph Controller["External Drydock trusted controller"]
+        Admission["Admission writer"]
+        Ledger[("Agent Lifecycle Ledger")]
+        Safety["Breaker and watchdog"]
+        Witness[("Process / VM witnesses")]
+        Broker["Budget and effect broker"]
+        Receipts[("Receipt and outbox writer")]
+    end
+
+    subgraph Guest["Disposable guest / untrusted subject"]
+        Subject["Port Daddy build"]
+        Worker["Backend adapter and worker body"]
+        Inputs[("Sealed source worktree and bounded transcript")]
+    end
+
+    Views --> Command
+    Relay --> Command
+    Command --> Admission
+    Admission --> Ledger
+    Ledger --> Safety
+    Ledger --> Broker
+    Safety --> Witness
+    Safety -->|Controls host process or VM handle| Worker
+    Witness -.->|Observes process and VM identity| Worker
+    Inputs --> Subject
+    Subject --> Worker
+    Worker -->|Capability requests| Broker
+    Broker -->|Bounded results| Worker
+    Ledger --> Receipts
+    Safety --> Receipts
+    Witness --> Receipts
+    Broker --> Receipts
+    Receipts -.->|Read projection| Views
+    Receipts -.->|Remote projection| Relay
 ```
 
 Port Daddy may request a spawn inside a permitted test tier. It cannot commit the
@@ -309,22 +329,32 @@ proof. A default is not a hidden configuration knob the guest may override.
 
 ## 5. Lifecycle state machine
 
-```text
-INTENT_CAPTURED
-      |
-      v
-PLANNED -> ADMISSION_PENDING -> RESERVED -> STARTING -> HANDSHAKING -> RUNNING
-                     |             |           |             |          |
-                     +-------------+-----------+-------------+----------+
-                                           |
-                                           v
-                                        DRAINING
-                                           |
-                  +-----------+------------+-------------+-------------+
-                  v           v                          v             v
-             COMPLETED     FAILED                    KILLED          LOST
-                                                           \
-                                                            -> QUARANTINED
+```mermaid
+stateDiagram-v2
+    [*] --> INTENT_CAPTURED
+    INTENT_CAPTURED --> PLANNED: shape one plan
+    PLANNED --> ADMISSION_PENDING: request admission
+    ADMISSION_PENDING --> RESERVED: all gates pass
+    RESERVED --> STARTING: claim launch ownership
+    STARTING --> HANDSHAKING: process or VM exists
+    HANDSHAKING --> RUNNING: identity and sinks verified
+
+    ADMISSION_PENDING --> DRAINING: denied or cancelled
+    RESERVED --> DRAINING: revoked or expired
+    STARTING --> DRAINING: launch stopped
+    HANDSHAKING --> DRAINING: proof failed
+    RUNNING --> DRAINING: complete, fail, or cancel
+
+    DRAINING --> COMPLETED: acceptance recorded
+    DRAINING --> FAILED: known failure recorded
+    DRAINING --> KILLED: termination proved
+    DRAINING --> LOST: liveness unresolved
+    LOST --> QUARANTINED: evidence conflicts
+
+    COMPLETED --> [*]
+    FAILED --> [*]
+    KILLED --> [*]
+    QUARANTINED --> [*]
 ```
 
 Every transition is a compare-and-swap over `state + ownerGeneration`. The
