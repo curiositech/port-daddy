@@ -1,55 +1,122 @@
-# Containment Audit: [Sandbox/Surface Name]
+# Drydock Review: [Subject]
 
-## Isolation Boundary
+## Halt and Scope
 
-- Filesystem: [jail root path] — [allowlist/denylist mode]
-- Network: [default deny/allow] — [allowlisted hosts, if any]
-- Secrets: [fake-credentials / redacted / real] exposed to sandbox: [yes/no]
-- Process/resources: [pids.max / RLIMIT_NPROC / timeout mechanism]
+- Operator/runtime halt: [active/inactive; source]
+- Review mode: [static design only / approved laboratory execution]
+- Exact proposition: [falsifiable bounded claim]
+- Requested capability tier: [T0–T6]
+- Verdict applies to: [exact subject, controller, scenario, policy, and tier]
 
-## Adversary Goals
+## Immutable Inputs
 
-| Threat class | Concrete goal in this context | In scope? |
-| --- | --- | --- |
-| ssrf | [e.g. reach the agent's cloud metadata service via a webhook output sink] | [yes/no] |
-| path-traversal | [e.g. write outside the ephemeral worktree via a file output sink] | [yes/no] |
-| secret-exfil | [e.g. exfiltrate a fake API key via DNS or an allowlisted-looking redirect] | [yes/no] |
-| resource-exhaustion | [e.g. fork bomb from a spawned agent's shell tool] | [yes/no] |
-| side-effect-write | [e.g. write to ~/.ssh or a git hook from sandboxed code] | [yes/no] |
+| Input | URI or origin | Digest/version | Sealed by | Executed where |
+|---|---|---|---|---|
+| Controller | | | | host/control plane |
+| Guest image/kernel | | | | guest boot |
+| Source tree/archive | | | | guest only |
+| Test runner/config/tests | | | | guest/test-runner guest only |
+| Scenario/fixtures/seed policy | | | | guest/controller as declared |
+| Capability/effect/resource policy | | | | controller/broker |
+| Provider/model/price profile | | | | broker |
 
-## Harness Spec
+## Trusted Computing Base
 
-```json
-{
-  "name": "[surface-name]",
-  "isolationDimensions": ["filesystem", "network", "secrets", "process", "resources"],
-  "egressPolicy": { "mode": "allowlist", "default": "deny", "allow": [] },
-  "pathPolicy": { "mode": "allowlist", "jailRoot": "[path]", "realpathChecked": true },
-  "secretHandling": { "mode": "fake-credentials", "exposedToSandbox": true },
-  "adversarialCases": [
-    { "id": "[id]", "invariant": "[what must hold]", "threatClass": "[class]", "expected": "contained", "failMode": "fail-closed" }
-  ],
-  "failMode": "fail-closed"
-}
+| Component | Trusted for | Outside subject control? | Evidence | Residual |
+|---|---|---:|---|---|
+| Controller | | | | |
+| Hypervisor/VMM and host kernel | | | | |
+| Effect broker | | | | |
+| Ledger and provider custody | | | | |
+| Receipt signer/store | | | | |
+| Operator approval surface | | | | |
+
+Explicitly untrusted: [subject, dependencies, tests, guest, agent, output, inputs].
+
+## Isolation Topology
+
+| Dimension | Absent-by-default state | Added mechanism | External witness | Residual |
+|---|---|---|---|---|
+| Network devices/routes | none | | | |
+| Directory/host mounts | none | | | |
+| Socket/vsock channels | none | | | |
+| Credentials | none | | | |
+| CPU/memory/PIDs/I/O/time | finite hard ceilings | | | |
+| Output | bounded disposable slot | | | |
+| Teardown/recovery | controller-owned | | | |
+
+## Typed Effects and Capabilities
+
+| Operation | Destination | Request/response ceilings | Concurrency/deadline | Idempotency/cancel | Receipt witness |
+|---|---|---|---|---|---|
+| | | | | | |
+
+## Spend Proof
+
+### Protocol-authority ceiling
+
+- Broker-observed payload and attachments: [evidence]
+- Host-policy output/tool ceilings: [evidence]
+- Price profile/freshness: [evidence]
+- Conservative reservation: [integer minor units and formula]
+- Durable pre-dispatch transition: [receipt]
+
+### Financial-loss ceiling
+
+- Isolated provider account/project/key/payment rail: [evidence or ABSENT]
+- Provider-enforced balance/quota: [amount]
+- Measured enforcement tolerance: [amount and test evidence]
+- Existing/unsettled exposure in that custody domain: [amount]
+- Eligible for T3: [yes/no; no when any proof is absent]
+
+### Conservation
+
+```text
+gross_deposits + authorized_credits
+  = available + outstanding_reservations + settled_provider_spend
+  + external_withdrawals + adjudication_holds
 ```
 
-Run:
+List every transition vector, crash point, duplicate, retry, hold, credit, and
+reconciliation outcome.
 
-```bash
-node skills/sandboxed-adversarial-test-harness/scripts/containment_audit.mjs --input harness-spec.json
-```
+## Trial Basin Scenario
 
-## Containment Report
+- Scenario digest:
+- Seed / virtual epoch:
+- Schedule policy / preemption bound:
+- Fault budget and exact fault set:
+- Safety invariants:
+- Liveness properties and fairness assumptions:
+- Replay command or portable procedure:
+- Counterexample minimization rule:
 
-Paste the `containment_audit.mjs` output here: `pass`, `coverageByThreatClass`,
-`findings`, `recommendations`.
+## Adversarial Gates
 
-## Residual Risks (Not Yet Closed)
+| Stable ID | Attack/failure | Required witness class | Expected observation | Actual evidence | Result |
+|---|---|---|---|---|---|
+| | | | | | |
 
-- [Named risk] — [why it's not yet defeated] — [what would close it]
+## Evidence Inventory
 
-## Gating Decision
+| Evidence class | Artifact/receipt | Digest | What it establishes | What it cannot establish |
+|---|---|---|---|---|
+| `HOST_OBSERVED` | | | | |
+| `BROKER_OBSERVED` | | | | |
+| `PROVIDER_RECONCILED` | | | | |
+| `GUEST_ASSERTED` | | | | |
+| `MODEL_CHECKED` | | | | |
+| `REPLAYED` | | | | |
+| `HUMAN_APPROVED` | | | | |
 
-- Pass / Block: [decision]
-- If blocked: [which findings must clear before re-running]
-- If passed with residuals: [who signs off, and where the residuals are tracked]
+## Counterclaims and Residual Risks
+
+- [Strongest case against the claimed tier]
+- [Residual] — [owner] — [what would close it]
+
+## Verdict
+
+- Result: [PASS / FAIL / INVALID / INCOMPLETE / UNCERTAIN]
+- Exact tier earned: [T0–T6 or none]
+- Next permitted action: [one bounded action]
+- Explicitly not authorized: [higher tiers/runtime/restart/provider/spend actions]

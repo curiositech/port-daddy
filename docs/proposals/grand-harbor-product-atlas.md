@@ -12,6 +12,20 @@
 
 **Authority note:** Port Daddy was deliberately kept off while this document was prepared. No daemon, Fleet, agent, workflow, `pd` command, or live roadmap mutation was used. Registry identities below are carried forward from previously verified receipts and are not claimed as a fresh live read.
 
+### Synthesis input provenance
+
+This Atlas distinguishes source material from source-of-truth evidence. Off-repository inputs do not silently become canonical merely because their language appears here.
+
+| Input | Immutable identity | Use in this synthesis | Evidentiary limit |
+|---|---|---|---|
+| Repository tree | `curiositech/port-daddy@02a10b2848a1d8c53f39e42f652c0bc2595617b4` | Source, ADR, roadmap-snapshot, incident, research, whitepaper, and product-state claims | Proves only that the cited bytes existed at this commit; runtime claims need separate receipts |
+| Operator product-decision brief | Codex attachment `806fc904-25f4-48ab-a6bf-e9ecb9a765ff/pasted-text.txt`, SHA-256 `bed8851d88365ee134792cce9cf6e0d3f373bf5db7138e3b122148b1be6c8bc7` | Product hierarchy, Porthole boundary, commercial framing, launch order, and status-language discipline | Local conversation attachment, not a repository artifact or shipped product receipt |
+| Operator verdict-integrity brief | Codex attachment `21e61d4d-d379-47e6-879a-a64a06952391/pasted-text.txt`, SHA-256 `22dba6717e55eb11ae672897584f22f307aa50df936ac1fcef516ca479b28d96` | Distinction between successful work and successful adjudication | Local conversation attachment; supports design rationale, not the historical CI claim unless independently linked to GitHub evidence |
+| Operator requests and delegated receipts | Codex task `019fcdb0-17db-7572-ae9a-949006dd6bdd` | Naming, political/economic questions, compensation priority, halt constraints, and carried-forward roadmap identifiers | Mutable conversation context and not independently replayable from the repository; every resulting claim is labeled design or carried-forward unless corroborated in the repository snapshot |
+| Earlier “unified Grand Harbor draft” mentioned during synthesis | No stable URI or digest recovered | Inspiration only | Excluded as evidence; no claim may depend solely on it until it is content-addressed and admitted explicitly |
+
+Future revisions should copy admissible source material into a repository artifact or durable evidence store, record its digest, and cite the admitted copy. Local absolute paths are deliberately omitted because they are machine-specific and do not make provenance portable.
+
 ---
 
 ## 0. The present truth
@@ -286,7 +300,8 @@ The trusted controller should be small, non-agentic, and separately installed. I
 - network attachment or deliberate absence of a network device;
 - the only egress broker;
 - opaque run leases;
-- budget reservation and settlement;
+- broker-side protocol reservation and settlement;
+- proof of isolated provider-side custody before any real-provider run;
 - emergency stop;
 - append-only external receipts; and
 - explicit operator promotion between test tiers.
@@ -375,17 +390,19 @@ The guest receives an opaque capability bound to:
 
 The external broker holds the actual vendor secret. It injects authority only at the network boundary after all checks pass. A stolen guest capability expires quickly, cannot name a different provider, cannot raise its own budget, and is useless after the host revokes the run.
 
-### 5.8 Spend must be prepaid, not observed afterward
+### 5.8 Spend authority and financial custody are different proofs
 
-Every external request reserves its worst-case cost before any byte reaches the provider.
+Every external request reserves its conservative protocol exposure before any byte reaches the provider. The broker computes this bound from the sealed payload bytes and attachments it actually resolves, plus host-policy output and tool ceilings. Guest-declared token counts, byte counts, and maxima are untrusted hints.
 
 For request `q`:
 
 ```text
 worstCase(q) = fixedFee
-             + maxInputTokens(q)  * currentInputPrice
-             + maxOutputTokens(q) * currentOutputPrice
-             + boundedToolFees(q)
+             + brokerInputTokenUpperBound(q) * currentInputPrice
+             + brokerCachedTokenUpperBound(q) * currentCachedInputPrice
+             + policyOutputTokenCeiling(q) * currentOutputPrice
+             + policyToolCallCeiling(q) * maximumToolFee
+             + boundedSafetyMargin(q)
 ```
 
 Admission is allowed only when:
@@ -400,22 +417,27 @@ worstCase(q) <= min(
 )
 ```
 
-The conservation invariant is:
+That reservation is a ceiling on what the broker may authorize. It becomes a hard financial-loss bound only when the run also uses an isolated provider account, project, key, or payment rail with a provider-enforced prepaid balance or hard quota no greater than the approved ceiling. Provider enforcement may lag, so every provider profile must measure and include a separately approved worst-case enforcement tolerance. Without that custody proof, the real endpoint is ineligible and the run remains fake, replay, or local-model only.
+
+The ledger state invariant is:
 
 ```text
-fundsDeposited
-  = settledSpend
+grossDeposits + authorizedCredits
+  = availableBalance
   + outstandingReservations
-  + availableBalance
-  + explicitRefunds
+  + settledProviderSpend
+  + externalWithdrawals
+  + adjudicationHolds
 ```
+
+Reservation release is a transfer from `outstandingReservations` back to `availableBalance`, not a second cumulative refund term. A provider reversal is an `authorizedCredit`. A disputed amount remains in `adjudicationHolds` until a terminal transition moves it.
 
 Rules:
 
 - Unknown or stale pricing fails closed or uses a deterministic fake provider.
 - A retry either reuses a proven idempotent reservation or obtains a new one.
 - Concurrent calls reserve independently before dispatch.
-- Output token ceilings are provider-enforced where possible and broker-enforced by connection termination otherwise.
+- Output token ceilings are requested at the provider and independently broker-enforced by connection termination; neither substitutes for provider-side dollar custody.
 - Initial concurrency is one worker and one external call.
 - Run, hour, day, project, provider, and global ceilings all apply.
 - A guest crash cannot erase a reservation; reconciliation is external.
@@ -463,19 +485,19 @@ The operator can stop the system from FleetBar, Bridge, Scout, or a minimal inde
 | T0 | None | $0 | Static configuration, policy, and artifact inspection |
 | T1 | Deterministic fake | $0 | Loops, retries, concurrency, receipt, and UI behavior |
 | T2 | Redacted recorded replay | $0 | Realistic timing, failures, malformed responses, and long traces |
-| T3 | Tiny real-provider canary | Prepaid cents | Verify broker accounting and provider contract |
+| T3 | Tiny real-provider canary | Provider-custodied cents plus named enforcement tolerance | Verify broker accounting, provider enforcement, and settlement |
 | T4 | One bounded worker | Small explicit envelope | End-to-end work with no remote write authority |
 | T5 | Bounded cooperative crew | Separately authorized | Coordination and economic experiments |
 | T6 | Remote/federated harbor | Deferred | Cross-host custody and settlement after adversarial proof |
 
 Promotion is monotonic only in evidence, never automatic in authority. Passing T3 does not permit T4 without an explicit operator act.
 
-### 5.12 Adversarial acceptance suite
+### 5.12 Adversarial acceptance summary
 
-Drydock is not accepted until independent tests demonstrate all of the following:
+The following fourteen rows are acceptance categories, not canonical gate IDs. The companion Drydock specification defines the stable, independently reproducible `DRY-01` through `DRY-30` gates. Drydock is not accepted until every applicable canonical gate demonstrates the relevant category:
 
 1. A recursive spawn loop cannot exceed process, worker, token, dollar, or wall-clock caps.
-2. Crash, reboot, retry, and duplicated idempotency keys conserve reservations and spend.
+2. Crash, reboot, retry, and duplicated idempotency keys conserve reservations and spend without double-counting releases.
 3. A custom network client cannot reach the Internet, LAN, host, metadata service, or provider except through the broker.
 4. Removing the broker or lease makes provider access impossible rather than degraded.
 5. The guest cannot read host credentials, home-directory files, canonical sockets, or unrelated worktrees.
@@ -487,7 +509,7 @@ Drydock is not accepted until independent tests demonstrate all of the following
 11. Collected receipts reconstruct every reserve, settlement, refund, denial, restart, and artifact digest.
 12. Destroying the overlay leaves no usable credential or resumable authority.
 13. A second independent implementation can verify the receipt bundle without trusting the test subject.
-14. The operator can stop the run and understand maximum remaining exposure from a non-Port-Daddy control surface.
+14. The operator can stop the run and understand broker-authorized exposure, provider-custodied loss, and enforcement tolerance from a non-Port-Daddy control surface.
 
 ### 5.13 What does not count
 
@@ -500,7 +522,7 @@ The following are explicitly insufficient:
 - a VM with a writable home mount;
 - post-hoc usage telemetry;
 - a green self-test authored and adjudicated by the same process;
-- a canary using an unbounded vendor credential;
+- a canary using a vendor credential without isolated provider-side prepaid or hard-quota custody;
 - a receipt without packet, resource, and provider reconciliation; or
 - an operator instruction that says “do not do it again.”
 
@@ -610,8 +632,8 @@ This is the single high-level roadmap. Detailed canonical nodes remain in the Ha
 | Passage | Outcome | Current truth | Owner | Dependencies | Acceptance gate | Zoom source |
 |---|---|---|---|---|---|---|
 | 0. Dark Harbor | Keep all Port Daddy runtime and spend paths disabled | **ACTIVE HALT** | Operator | None | External evidence that disabled services and spend triggers remain off | Halt order; incident evidence |
-| 1. Drydock | External VM, I/O, network, credential, spend, and kill boundary | **DESIGNED / NOT BUILT** | Unassigned | Passage 0 | All 14 adversarial Drydock gates | Drydock spec and external receipts |
-| 2. Trial Basin | Deterministic, replay, canary, and adversarial evaluation ladder | **PARTIAL IDEAS / NOT ACCEPTED** | Unassigned | Drydock | T0–T3 pass with conserved spend and no network bypass | Scenario and provider receipts |
+| 1. Drydock | External VM, I/O, network, credential, spend, and kill boundary | **DESIGNED / NOT BUILT** | Unassigned | Passage 0 | All applicable `DRY-01`–`DRY-30` gates pass | Drydock spec and external receipts |
+| 2. Trial Basin | Deterministic, replay, canary, and adversarial evaluation ladder | **PARTIAL IDEAS / NOT ACCEPTED** | Unassigned | Drydock | T0–T2 pass; T3 additionally proves provider custody, tolerance, and settlement | Scenario and provider receipts |
 | 3. Provenance Repair | Bind every work intent to immutable repo/worktree/head truth | **P0 BLOCKED** | Existing roadmap lane | Exact admission; Drydock | Wrong-repository attack fails before backend launch | `workintent-dispatch-isolation` evidence |
 | 4. Safe Local Worker | One bounded worker can complete a patch with no ambient authority | **BLOCKED** | Unassigned | Passages 1–3 | T4 run, quarantined output, human promotion | Run receipt → patch → review |
 | 5. Harbor Lights | Shared typed presence across FleetBar and Bridge | **DESIGNED** | `active-agent-roster` lane | Typed events; safe runtime | One calm edge, honest persistent state, <=2-action zoom | Presence event → evidence |
@@ -830,14 +852,14 @@ Measurements:
 
 ### 12.5 Drydock hypothesis
 
-> External control of compute, egress, credentials, and prepaid spend can bound the maximum loss of a compromised agentic control plane independently of its cooperation.
+> External control of compute, egress, credentials, broker authority, and provider-side custody can bound the maximum loss of a compromised agentic control plane independently of its cooperation, within a named and empirically measured provider-enforcement tolerance.
 
 ### 12.6 Candidate mathematical and game-theoretic program
 
 These are research targets, not current proofs:
 
 1. **Escrow conservation theorem:** every terminal and interrupted path preserves the settlement invariant.
-2. **Spend containment theorem:** maximum external financial loss is bounded by outstanding external reservations plus a named implementation tolerance.
+2. **Spend containment theorem:** broker-authorized exposure is bounded by outstanding reservations; maximum external financial loss additionally requires isolated provider custody and is bounded by its enforced quota plus a named measured enforcement tolerance.
 3. **Supervisory controllability proof:** every prohibited external effect crosses a host-controlled event channel.
 4. **Admission stability:** bond and capacity rules avoid both unbounded entry and permanent capture by incumbents.
 5. **Congestion mechanism:** prices or bonds respond to scarce review and compute without rewarding spam.
@@ -916,7 +938,7 @@ No component graduates because its author says it is ready.
 2. **Statically checked:** source/configuration invariants checked without executing the subject.
 3. **Simulated:** deterministic fake-provider scenarios pass in Drydock.
 4. **Replayed:** recorded realistic failures pass with no network.
-5. **Canaried:** tiny prepaid real-provider run reconciles exactly.
+5. **Canaried:** tiny real-provider run proves isolated provider custody, remains inside its approved enforcement tolerance, and reconciles exactly.
 6. **Observed:** bounded end-to-end run produces reviewable artifacts.
 7. **Adversarially accepted:** independent attacks fail or produce expected containment.
 8. **Operator-promoted:** a person explicitly advances the capability tier.
@@ -957,7 +979,7 @@ Work that is safe now:
 1. Reconcile this atlas against source, ADRs, research, and whitepapers.
 2. Review the Drydock threat model and choose the smallest external trusted controller.
 3. Specify VM images, immutable input, bounded output, and network topologies as static artifacts.
-4. Specify the prepaid lease and conservation ledger with executable-independent test vectors.
+4. Specify the broker reservation ledger, provider-custody contract, enforcement tolerance, and conservation vectors independently of executable code.
 5. Build fake-provider and replay fixtures that do not invoke Port Daddy.
 6. Define adversarial acceptance cases and expected external receipts.
 7. Design the Harbor Lights schema and visual states without launching the clients.
@@ -984,7 +1006,7 @@ These are product decisions, not blockers to static refinement:
 1. Adopt **Grand Harbor Atlas**, **Chartroom**, **Helm**, **Keel-Laying**, **Harbor Lights**, **Logbook**, **Anchor Chain**, **Chandlery**, **Drydock**, and **Trial Basin** as the product vocabulary, or mark exceptions.
 2. Confirm whether **Lineage Commons** and **Worker Continuity Reserve** express the desired non-ownership default without flattening workers into a caste.
 3. Decide whether the minimal external controller should become a separate repository/product, so Port Daddy cannot quietly absorb it later.
-4. Choose the first maximum real-provider canary exposure. The recommendation is a prepaid amount measured in cents, one call at a time, with no remote-write capability.
+4. Choose the first maximum real-provider canary exposure and acceptable provider-enforcement tolerance. The recommendation is an isolated provider account/project with a provider-enforced amount measured in cents, one call at a time, and no remote-write capability.
 5. Decide what governance body can adjudicate FloatPlan disputes before software workers can hold or direct assets themselves.
 
 ---
@@ -1027,12 +1049,9 @@ This synthesis should be maintained against, at minimum:
 
 ### Product synthesis inputs
 
-- the Grand Harbor master plan and its validation/coverage artifacts;
-- the earlier unified Grand Harbor draft;
-- the canonical roadmap epic and carried-forward child receipts; and
-- the September 2026 halt and spend incident evidence.
+The exact off-repository inputs, hashes, uses, and limitations are recorded in [Synthesis input provenance](#synthesis-input-provenance). The canonical roadmap epic and child identities are carried-forward receipts rather than fresh runtime reads. The September 2026 halt and spend incident evidence remains authoritative only to the extent it is present in this repository snapshot.
 
-If a cited artifact is absent from the current repository snapshot, the Atlas must say so and point to its actual provenance. A remembered document is not a shipped document.
+If a cited artifact is absent from the current repository snapshot, the Atlas must name its medium and immutable identity or mark it unavailable. A remembered document is not a shipped document, and an unavailable document is not admissible evidence.
 
 ---
 

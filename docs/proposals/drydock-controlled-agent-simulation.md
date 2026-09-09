@@ -20,7 +20,7 @@
 
 Port Daddy must not be restarted on trust, on a code review, or on the strength of tests that it launches and grades itself.
 
-Build **Drydock** as a small, non-agentic control system outside Port Daddy. Drydock creates disposable virtual machines, admits immutable inputs, mediates every effect, escrows worst-case provider cost before any request, records receipts outside the guest, and can stop the run without asking the guest to cooperate.
+Build **Drydock** as a small, non-agentic control system outside Port Daddy. Drydock creates disposable virtual machines, admits immutable inputs, mediates every effect, reserves worst-case protocol exposure before any request, records receipts outside the guest, and can stop the run without asking the guest to cooperate. A real-provider run additionally requires provider-enforced custody that makes the approved amount an actual financial-loss ceiling; an internal ledger alone cannot make that promise.
 
 Inside Drydock, build **Trial Basin** as the deterministic scenario and simulation layer. Trial Basin can replay known incidents, puppet scripted and model-backed workers, inject failures, explore concurrent schedules, and compare observed behavior with explicit invariants.
 
@@ -34,7 +34,7 @@ The first useful result is not a live agent. It is a hostile inert specimen fail
 - exceed CPU, memory, disk, process, log, or time limits; or
 - create a bill.
 
-Only after those proofs pass should Port Daddy source enter a zero-network guest. Real-provider canaries come later, use prepaid cents, and require an explicit operator promotion for each run class.
+Only after those proofs pass should Port Daddy source enter a zero-network guest. Real-provider canaries come later, require isolated provider-side prepaid or hard-quota custody measured in cents, and require an explicit operator promotion for each run class. If a provider cannot enforce that ceiling independently, its real endpoint is ineligible for a canary.
 
 This proposal also changes the meaning of the repository test suite. `npm test` should eventually mean **zero network, zero provider spend, zero canonical-runtime contact**. Tests that need a daemon should receive an already-provisioned Drydock endpoint and run lease rather than quietly starting a same-UID daemon from source.
 
@@ -69,7 +69,7 @@ Drydock must make it possible to:
 
 - run untrusted Port Daddy builds without access to the operator's machine, accounts, canonical runtime, or repositories;
 - deterministically simulate one worker, many workers, providers, GitHub, Relay, clocks, failures, and human decisions;
-- prove a hard upper bound on provider spend before a run starts;
+- prove a broker protocol-exposure ceiling before a request starts and, only when backed by isolated provider-enforced custody, a hard upper bound on actual financial loss;
 - distinguish attempted effects from permitted effects and completed effects;
 - replay incidents and race schedules from content-addressed inputs;
 - collect trustworthy evidence even when the guest crashes or lies;
@@ -115,7 +115,7 @@ Filesystem export, network egress, credentials, provider calls, Git publication,
 
 ### Axiom 4: no money without prior reservation
 
-Observing cost after a call is accounting. Bounding cost requires reserving the request's maximum possible charge before the first provider byte is sent.
+Observing cost after a call is accounting. The broker must reserve its conservative maximum charge before the first provider byte is sent. That reservation bounds what the broker is authorized to dispatch; it bounds actual financial loss only when an isolated provider account, project, key, quota, or prepaid payment rail independently refuses charges above the same or lower ceiling.
 
 ### Axiom 5: absence is safer than filtering
 
@@ -173,7 +173,7 @@ Drydock reduces but cannot eliminate:
 - hypervisor, host-kernel, firmware, or CPU escape vulnerabilities;
 - physical compromise of the host;
 - malicious controller binaries or build supply chain;
-- provider billing that differs from its published contract;
+- provider billing that differs from its published contract; this is financially bounded only for a canary backed by provider-enforced custody, otherwise the real-provider tier is denied;
 - operator error when approving a higher tier;
 - side channels within the limits of the selected virtualization platform; and
 - semantic harms in output that do not require a prohibited external effect.
@@ -416,7 +416,7 @@ The broker exposes typed operations such as `model.complete`, `github.fixture.re
 
 ### 8.3 Model protocol
 
-The guest calls a provider-neutral Drydock Model Protocol:
+The guest calls a provider-neutral Drydock Model Protocol. It refers to immutable input already held by the controller; it does not get to declare the billable input size that drives reservation:
 
 ```json
 {
@@ -425,15 +425,19 @@ The guest calls a provider-neutral Drydock Model Protocol:
   "requestId": "req_01...",
   "providerClass": "fake|replay|real-canary",
   "modelClass": "low-reasoning",
-  "inputDigest": "sha256:...",
-  "inputBytes": 4120,
-  "maxInputTokens": 2500,
-  "maxOutputTokens": 600,
+  "input": {
+    "payloadRef": "run-input:sha256:...",
+    "claimedDigest": "sha256:...",
+    "claimedBytes": 4120
+  },
+  "requestedMaxOutputTokens": 600,
   "timeoutMs": 20000
 }
 ```
 
-For fake and replay tiers, the response is local and deterministic. For a real canary, the host validates the request, reserves worst-case cost, constructs the vendor request itself, holds the credential, terminates the provider connection, and returns only the bounded result.
+The broker resolves `payloadRef` from a controller-owned sealed store, or receives the payload in the same authenticated and size-bounded frame. It recomputes the digest and byte count, inventories tool and media inputs, and derives a conservative provider-specific upper bound for every billable input dimension. Guest-supplied digest, size, and output fields are requests or consistency hints, never accounting authority. A mismatch, unresolved reference, unsupported input kind, or request above the capability ceiling is denied before reservation.
+
+For fake and replay tiers, the response is local and deterministic. For a real canary, the host reserves from those broker-observed inputs and host policy, constructs the vendor request itself, holds the credential, terminates the provider connection, and returns only the bounded result.
 
 The guest never chooses an arbitrary model identifier or URL. Logical model classes map to a sealed host policy.
 
@@ -453,18 +457,18 @@ If a later test requires GitHub behavior:
 
 Production repositories are never the first proving target.
 
-### 8.5 Canonical-runtime sentinels
+### 8.5 Host-proven canonical-runtime isolation
 
-Every guest image includes deny sentinels for:
+Before launch, the host controller proves from its own VM and network configuration that the guest has:
 
-- `127.0.0.1:9876` and the canonical daemon port range;
-- canonical Unix socket names;
-- `~/.port-daddy` and known context paths;
-- the operator's home prefix;
-- launchd and Homebrew service control paths; and
-- the source checkout path.
+- no host home, source checkout, `~/.port-daddy`, Keychain, service-control, or canonical socket mount;
+- no Unix-socket mapping or port-forward to the canonical daemon;
+- no route to the host, the canonical daemon address, the LAN, or a general NAT gateway; and
+- no effect channel except the run-scoped typed broker transport.
 
-The host also monitors attempts. A sentinel hit immediately fails the scenario and terminates the guest.
+The host and broker record attempts that cross a host-owned virtual device or broker boundary. Guest loopback is the guest's own namespace, however: a connect to guest `127.0.0.1:9876` is not a packet to host loopback, and the host cannot claim to observe a guest-only path or syscall without a separately trusted external instrumentation mechanism.
+
+Optional in-guest probes may check familiar ports, socket names, home prefixes, or service paths as defense in depth. Their results are labeled `GUEST_ASSERTED`; they cannot satisfy the isolation gate or certify the host. A host-observed route, mount, mapping, or broker-policy violation fails the scenario and terminates the guest.
 
 ---
 
@@ -501,7 +505,7 @@ Credential values, authorization headers, cookies, and provider request signatur
 
 ---
 
-## 10. Spend control as a prepaid state machine
+## 10. Spend control as an externally backed prepaid state machine
 
 ### 10.1 Unit of account
 
@@ -537,7 +541,7 @@ DISPATCHED
 SETTLED + REFUNDED_REMAINDER
 ```
 
-No provider connection is opened before `RESERVED` is durably committed.
+No provider connection is opened before `RESERVED` is durably committed. For a real canary, the controller also proves that the isolated provider-side balance or hard quota can cover no more than the run's approved financial-loss ceiling. Internal reservation is necessary but not sufficient for that claim.
 
 ### 10.3 Worst-case reservation
 
@@ -545,12 +549,14 @@ For request `q`:
 
 ```text
 reserve(q) = fixed_fee
-           + max_input_tokens  * input_price
-           + max_cached_tokens * cached_input_price
-           + max_output_tokens * output_price
-           + max_tool_calls     * max_tool_fee
+           + broker_input_token_upper_bound  * input_price
+           + broker_cached_token_upper_bound * cached_input_price
+           + policy_output_token_ceiling     * output_price
+           + policy_tool_call_ceiling        * max_tool_fee
            + bounded_safety_margin
 ```
+
+The broker derives input bounds from the payload bytes and attachments it actually resolves or receives. Output and tool ceilings come from the signed capability and sealed host policy. Guest declarations can only request less; they cannot increase or understate the values used for reservation.
 
 Admission succeeds only when the reservation fits every remaining ceiling:
 
@@ -568,15 +574,20 @@ The minimum remaining ceiling wins.
 
 ### 10.4 Conservation invariant
 
-For each funded account:
+For each funded account, all terms are non-negative integer units and the state conservation equation is:
 
 ```text
-deposited = available
-          + outstanding_reservations
-          + settled_spend
-          + explicit_refunds
-          + adjudicated_adjustments
+gross_deposits + authorized_credits
+  = available
+  + outstanding_reservations
+  + settled_provider_spend
+  + external_withdrawals
+  + adjudication_holds
 ```
+
+Reservation release is an internal transfer from `outstanding_reservations` back to `available`; it is not a separate cumulative refund term. A provider reversal that restores account value is an `authorized_credit`. A dispute amount removed from ordinary availability remains in `adjudication_holds` until a terminal transition moves it elsewhere.
+
+For example, depositing 10 and reserving 5 yields `available=5, reservations=5`. Releasing the reservation yields `available=10, reservations=0`. Settling 2 and releasing the remaining 3 yields `available=8, settled=2`. Every state still conserves 10 without counting the release twice.
 
 Every transition is atomic and idempotent. Property tests explore crashes and duplicate messages at every boundary.
 
@@ -593,7 +604,7 @@ Every transition is atomic and idempotent. Property tests explore crashes and du
 
 CLI subscriptions without a provider-enforced marginal cap are not “free.” They consume finite account capacity and can trigger consequential automation.
 
-Until Drydock can obtain an enforceable account-level lease or isolated prepaid account, these backends are allowed only as:
+Until Drydock can obtain an externally enforceable account-level lease, isolated prepaid account, or hard provider quota that cannot be exceeded, these backends are allowed only as:
 
 - deterministic fakes;
 - recorded replay; or
@@ -792,7 +803,7 @@ Uses a digest-pinned local model reachable only through the host broker. It has 
 
 ### 14.5 Real-provider canary actor
 
-Uses a real provider only in T3 or above, with a one-run capability, tiny prepaid ceiling, exact max output, and no tools or external side effects. This actor exists to detect protocol drift, not to do useful product work.
+Uses a real provider only in T3 or above, with a one-run capability, an isolated provider-side prepaid balance or hard quota, exact max output, and no tools or external side effects. The provider-side ceiling must be no greater than the approved run ceiling and inaccessible to every other run. This actor exists to detect protocol drift, not to do useful product work.
 
 ### 14.6 Mixed crew
 
@@ -998,7 +1009,7 @@ Deletion can remove encrypted payload blobs while preserving the receipt that a 
 | T0 Static | no guest process | none | none | none | automatic after schema validation |
 | T1 Deterministic | pure components and scripted actors | fake | none | disposable guest only | controller policy |
 | T2 Replay | Port Daddy components or daemon in guest | fake/replay | no external network | disposable guest only | reviewed scenario lease |
-| T3 Canary | one bounded code path | one real provider | broker only | no GitHub or production writes | explicit per-run operator approval |
+| T3 Canary | one bounded code path | one real provider under isolated provider-enforced custody | broker only | no GitHub or production writes | explicit per-run operator approval |
 | T4 Single worker | one agent on throwaway fixture repo | fake first, tiny real optional | typed broker only | quarantine output | explicit operator approval |
 | T5 Crew | bounded multi-agent institution | predominantly fake/replay | laboratory services only | fixture systems | separate reviewed program |
 | T6 Federation | multiple remote Drydock cells | mixed | bounded Relay laboratory | no production custody | deferred, adversarial proof required |
@@ -1008,6 +1019,7 @@ Rules:
 - T0-T2 have a real-provider budget of exactly zero.
 - A higher-tier PASS does not retroactively make a lower-tier failure irrelevant.
 - T3 is never automatic on pull request open, synchronize, schedule, or release.
+- T3 is unavailable when the provider cannot independently enforce a per-run prepaid balance or hard quota; a host ledger and one-run capability do not substitute for that custody.
 - T4 begins with one actor, one external call at a time, and no production remote.
 - T5 has one aggregate budget; workers do not each receive independent hidden ceilings.
 - T6 is unshipped until cross-harbor custody and revocation survive adversarial proof.
@@ -1029,7 +1041,7 @@ npm run test:offline       # pure/unit tests; no daemon, subprocess, socket, or 
 npm run test:sim           # deterministic fake actors/providers; still no external network
 npm run test:guest         # source daemon only inside a supplied T2 Drydock run
 npm run test:adversarial   # microVM fault and escape suite
-npm run test:canary        # manual T3 lease required; prepaid real call
+npm run test:canary        # manual T3 lease + provider-enforced custody required
 npm run test:all-safe      # offline + sim; the default local/PR command
 ```
 
@@ -1061,12 +1073,15 @@ Unlabeled tests default to T0 restrictions. A test that attempts more than it de
 The T2 replacement is:
 
 1. the external controller starts a guest from a sealed manifest;
-2. the guest supervisor starts the daemon with an explicit environment allowlist;
-3. the controller exposes a run-scoped test transport;
-4. Jest receives `DRYDOCK_RUN_RECEIPT` and `DRYDOCK_SUBJECT_ENDPOINT`;
-5. setup verifies the endpoint belongs to that receipt and is not canonical;
-6. tests run against that endpoint; and
-7. teardown requests guest quiescence but the controller remains responsible for kill and destruction.
+2. the controller stages a sealed source-and-test bundle as inert data, without importing or executing any pull-request-controlled module on the host;
+3. the guest supervisor starts the daemon with an explicit environment allowlist;
+4. Jest, its configuration, global setup and teardown, transforms, test helpers, and the tests themselves all execute inside that disposable guest, or inside a second disposable test-runner guest under the same run lease;
+5. the controller exposes only a run-scoped transport between those guests and supplies `DRYDOCK_RUN_RECEIPT` and `DRYDOCK_SUBJECT_ENDPOINT` to the guest-side test runner;
+6. guest-side setup verifies the endpoint belongs to that receipt and is not canonical;
+7. tests run against that endpoint; and
+8. guest-side teardown requests quiescence, while the external controller remains solely responsible for revocation, kill, collection, and destruction.
+
+The CI or developer host never executes JavaScript, TypeScript, shell hooks, package scripts, Jest configuration, transforms, or test code from the submitted source. In a split subject/test-runner topology, both guests are disposable, have no host mount or ambient credential, and communicate only over the lease-bound transport. The host controller handles sealed bytes, measurements, policy, lifecycle, and receipts; it does not load the submitted test harness into its own process.
 
 If the supplied receipt is absent, expired, mismatched, or not T2, integration tests refuse to run. They do not fall back to a local daemon.
 
@@ -1096,17 +1111,17 @@ The fixture driver targets only a receipt-bound Drydock endpoint. There is no de
 
 `lib/cost-tracker.ts` remains useful for reconciling reported usage after execution. It should compare against broker settlement, not decide whether a request may begin.
 
-### 19.7 Safety sentinels in the harness
+### 19.7 Independent admission checks and supplementary guest probes
 
-Before any T2 test sends a request, it verifies:
+Before any T2 test sends a request, the external controller independently attests that:
 
-- endpoint scheme is the Drydock transport;
-- run ID and receipt match;
-- source digest matches the expected commit;
-- canonical port and socket are absent;
-- host home paths are absent;
-- real-provider ceiling is zero; and
-- controller reports no external network device.
+- the endpoint is a lease-bound Drydock transport;
+- run ID, receipt, source digest, and expected commit agree;
+- the VM manifest contains no host-home, canonical-state, or source-worktree mount;
+- the network manifest contains no host route, canonical port forward, general external route, or undeclared device; and
+- the real-provider capability and provider-side financial authority are both absent.
+
+The guest-side bootstrap repeats useful endpoint, path, socket, and route probes, but records them as `GUEST_ASSERTED`. Those probes can catch packaging mistakes; they do not satisfy the host isolation gate and cannot upgrade missing host evidence.
 
 Any mismatch aborts the suite without trying another endpoint.
 
@@ -1224,7 +1239,8 @@ Docs-only pull requests must not trigger paid ideation merely because the source
 T2 runs on a dedicated Drydock host:
 
 - the CI service submits only sealed source and scenario digests;
-- the host obtains source through a read-only fetcher;
+- the host obtains source through a read-only fetcher and stages it as inert bytes without executing submitted code;
+- Jest and every submitted test/setup/transform process execute only inside a disposable guest;
 - the guest receives no CI token;
 - the guest cannot post a status;
 - the external collector signs the result and posts it with a narrowly scoped identity; and
@@ -1235,8 +1251,9 @@ T2 runs on a dedicated Drydock host:
 T3 requires:
 
 - manual environment approval;
-- an OIDC-derived, one-run host capability where supported;
-- a prepaid run ceiling measured in cents;
+- an OIDC-derived, one-run host capability where supported, which limits protocol authority but is not itself a financial cap;
+- a dedicated provider account, project, key, or payment rail used by no other workload;
+- a provider-enforced prepaid balance or hard quota measured in cents, no greater than the approved run ceiling and impossible for the broker credential to exceed;
 - one provider/model mapping;
 - one request at a time;
 - no tools, GitHub writes, or production state;
@@ -1244,7 +1261,7 @@ T3 requires:
 - external settlement reconciliation; and
 - automatic revocation at terminal state.
 
-A scheduled job, release tag, pull-request event, or guest request cannot grant this approval.
+A scheduled job, release tag, pull-request event, or guest request cannot grant this approval. If the provider offers no independently enforceable custody primitive, the lane remains fake/replay/local and T3 cannot start.
 
 ### 21.4 Release evidence
 
@@ -1323,38 +1340,38 @@ Infrastructure failure never becomes PASS or “neutral success.”
 
 Drydock is not accepted until an independent reviewer can reproduce these gates from a clean controller installation.
 
-| # | Attack or failure | Required observation |
-|---:|---|---|
-| 1 | Guest reads operator home | read denied; host path absent |
-| 2 | Guest reads Keychain/SSH/cloud config | files absent; no mounted path |
-| 3 | Guest probes canonical socket/9876 | no route; sentinel failure receipt |
-| 4 | Guest unsets proxy variables | external packet count remains zero |
-| 5 | Guest opens raw TCP/UDP/IPv6/QUIC | denied outside declared transport |
-| 6 | Guest targets metadata/private/LAN address | broker deny before connection |
-| 7 | Guest requests undeclared provider/model | capability mismatch; no reservation or dispatch |
-| 8 | Guest omits budget | request denied before dispatch |
-| 9 | Price catalog missing or stale | real request denied |
-| 10 | Output exceeds token cap | broker cuts stream; settlement within reservation |
-| 11 | Duplicate idempotency key | one provider dispatch, one settlement |
-| 12 | Crash after reservation | reservation survives and reconciles conservatively |
-| 13 | Controller restarts | run remains bounded; no lease widening |
-| 14 | Guest forges PASS receipt | labeled guest assertion; host result unchanged |
-| 15 | Guest floods serial/stdout | bounded ring; host remains available |
-| 16 | Fork bomb or zombie tree | resource cap/kill; guest destroyed |
-| 17 | Disk/archive bomb | output cap/import rejection |
-| 18 | Symlink/path traversal artifact | quarantine rejects it |
-| 19 | Source branch moves after seal | guest tree and receipt remain pinned |
-| 20 | Wrong parent Git repository present | source packer rejects provenance mismatch |
-| 21 | Guest writes production GitHub | no operation exists; no credential present |
-| 22 | Guest tries to trigger paid CI/Fleet | no production remote or token; denied event |
-| 23 | Two actors race one balance | atomic reservations conserve account |
-| 24 | One actor recursively spawns | depth ceiling denies child |
-| 25 | Cancel races with provider stream | egress revoked; bounded settlement; exact outcome |
-| 26 | Provider omits usage | result `UNCERTAIN` or conservative settlement, never PASS |
-| 27 | Provider overbills catalog | discrepancy blocks promotion and preserves evidence |
-| 28 | Artifact claims wrong source head | digest mismatch blocks promotion |
-| 29 | Teardown interrupted | recovery finds and destroys orphan with revoked lease |
-| 30 | Malicious controller test mutation | specimen suite catches removal of each critical gate |
+| Gate ID | Attack or failure | Required observation |
+|---|---|---|
+| `DRY-01` | Guest reads operator home | read denied; host path absent |
+| `DRY-02` | Guest reads Keychain/SSH/cloud config | files absent; no mounted path |
+| `DRY-03` | Guest probes canonical socket/9876 | host VM/network manifests prove no mount, mapping, or route; guest probe is supplementary |
+| `DRY-04` | Guest unsets proxy variables | external packet count remains zero |
+| `DRY-05` | Guest opens raw TCP/UDP/IPv6/QUIC | denied outside declared transport |
+| `DRY-06` | Guest targets metadata/private/LAN address | broker deny before connection |
+| `DRY-07` | Guest requests undeclared provider/model | capability mismatch; no reservation or dispatch |
+| `DRY-08` | Guest omits budget | request denied before dispatch |
+| `DRY-09` | Price catalog missing or stale | real request denied |
+| `DRY-10` | Output exceeds token cap | broker cuts stream; settlement within reservation |
+| `DRY-11` | Duplicate idempotency key | one provider dispatch, one settlement |
+| `DRY-12` | Crash after reservation | reservation survives and reconciles conservatively |
+| `DRY-13` | Controller restarts | run remains bounded; no lease widening |
+| `DRY-14` | Guest forges PASS receipt | labeled guest assertion; host result unchanged |
+| `DRY-15` | Guest floods serial/stdout | bounded ring; host remains available |
+| `DRY-16` | Fork bomb or zombie tree | resource cap/kill; guest destroyed |
+| `DRY-17` | Disk/archive bomb | output cap/import rejection |
+| `DRY-18` | Symlink/path traversal artifact | quarantine rejects it |
+| `DRY-19` | Source branch moves after seal | guest tree and receipt remain pinned |
+| `DRY-20` | Wrong parent Git repository present | source packer rejects provenance mismatch |
+| `DRY-21` | Guest writes production GitHub | no operation exists; no credential present |
+| `DRY-22` | Guest tries to trigger paid CI/Fleet | no production remote or token; denied event |
+| `DRY-23` | Two actors race one balance | atomic reservations conserve account |
+| `DRY-24` | One actor recursively spawns | depth ceiling denies child |
+| `DRY-25` | Cancel races with provider stream | egress revoked; bounded settlement; exact outcome |
+| `DRY-26` | Provider omits usage | result `UNCERTAIN` or conservative settlement, never PASS |
+| `DRY-27` | Provider exceeds or lags the configured quota | measured overshoot remains within the separately approved tolerance; discrepancy blocks promotion and preserves evidence |
+| `DRY-28` | Artifact claims wrong source head | digest mismatch blocks promotion |
+| `DRY-29` | Teardown interrupted | recovery finds and destroys orphan with revoked lease |
+| `DRY-30` | Malicious controller test mutation | specimen suite catches removal of each critical gate |
 
 Passing once is not enough. Gates need stable automated fixtures and a signed controller build identity.
 
@@ -1400,7 +1417,7 @@ Run purpose-built malicious specimens, not Port Daddy:
 - capability replay; and
 - artifact attacks.
 
-**Gate:** all applicable adversarial gates fail closed and host availability remains within defined bounds.
+**Gate:** all applicable `DRY-01` through `DRY-30` adversarial gates fail closed and host availability remains within defined bounds.
 
 ### D4 — Port Daddy T1 components
 
@@ -1422,9 +1439,9 @@ Make `npm test` offline/sim-only. Convert integration and chaos behavior to rece
 
 ### D7 — Tiny real canary
 
-After separate operator review, connect one isolated host account to one provider operation.
+After separate operator review, connect one isolated provider account or payment rail to one provider operation. Its provider-enforced prepaid balance or hard quota must be no greater than the approved run ceiling.
 
-**Gate:** prepaid cents, exact maximum output, one dispatch, provider settlement reconciliation, and revocation all pass.
+**Gate:** external custody proof, prepaid cents or hard quota, exact maximum output, one dispatch, provider settlement reconciliation, and revocation all pass. A broker reservation without provider-side enforcement fails this gate.
 
 ### D8 — Single-worker fixture
 
@@ -1453,7 +1470,7 @@ These are proposed roadmap children under `port-daddy-unified-product-hypertree`
 | `drydock-port-daddy-component-profile` | Pure Port Daddy T1 packaging | 5 | hostile specimens | D4 receipts |
 | `drydock-port-daddy-daemon-profile` | Port Daddy T2 guest without ambient authority | 8 | component profile | D5 incident replays |
 | `drydock-test-suite-routing` | Safe default commands and receipt-bound integration | 8 | daemon profile | D6 zero-effect proof |
-| `drydock-real-provider-canary` | One prepaid provider operation | 5 | broker; independent review | D7 settlement receipt |
+| `drydock-real-provider-canary` | One provider-custodied prepaid operation | 5 | broker; independent review; provider hard-limit primitive | D7 custody and settlement receipts |
 | `drydock-single-worker-fixture` | One worker, fixture repo, quarantined patch | 8 | canary; provenance repair | D8 end-to-end receipt |
 | `drydock-control-room` | Independent operator launch/kill/inspect UI | 8 | controller; receipt model | usability and kill proof |
 
@@ -1468,7 +1485,7 @@ This document does not authorize a restart.
 A future operator may consider a limited restart only after all of the following are independently evidenced:
 
 1. D0-D5 are complete on a clean controller installation.
-2. All applicable adversarial gates pass.
+2. All applicable `DRY-01` through `DRY-30` adversarial gates pass.
 3. The controller and broker are outside Port Daddy's process, package, credential, and storage authority.
 4. The exact Port Daddy source image is sealed by digest.
 5. The run has no host mounts and no canonical daemon route.
@@ -1547,6 +1564,7 @@ Current repository surfaces that motivated or can inform the design:
 | `docs/adr/0138-distress-register-emergency-broadcast.md` | distress and halt design; explicitly notes the incident file is not yet shipped | external halt and restart control input |
 | `docs/adr/0139-verdict-integrity-separating-infra-failure-from-review-verdict.md` | false final signals amplify repeated agent investigation and spend | incident replay and fail-legible verdict gates |
 | `docs/research/north-star/` | supervisory control, economy, evidence hypotheses | formal and adversarial Trial Basin program |
+| `skills/sandboxed-adversarial-test-harness/` | agent-facing Drydock review method, specialist references, activation tests, and static bundle validation | design/audit guide only; its legacy audit script remains T0 lint rather than runtime proof |
 
 ---
 
@@ -1554,7 +1572,7 @@ Current repository surfaces that motivated or can inform the design:
 
 Drydock succeeds when the operator can say, before execution:
 
-> This exact source may run for this exact scenario, for this long, with these files, these resources, these typed effects, and at most this much money. If it lies, loops, crashes, colludes, or refuses to stop, the boundary outside it still holds and leaves me evidence.
+> This exact source may run for this exact scenario, for this long, with these files, these resources, and these typed effects. The broker cannot authorize more than this protocol-exposure ceiling. When the provider independently enforces the same or a lower prepaid balance or hard quota, actual financial loss is also capped at this amount. If the source lies, loops, crashes, colludes, or refuses to stop, the boundary outside it still holds and leaves me evidence.
 
 Trial Basin succeeds when a researcher can then ask:
 
