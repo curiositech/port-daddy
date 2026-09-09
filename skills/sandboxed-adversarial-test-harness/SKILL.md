@@ -453,6 +453,7 @@ observed fields, isolation, and downstream verification.
 | `references/threat-classes-and-adversarial-recipes.md` | Building the complete hostile-specimen and failure matrix. |
 | `templates/output-template.md` | Writing the integrated Drydock review and promotion verdict. |
 | `tests/activation.md` | Evaluating skill activation and rejection behavior. |
+| `examples/sample-input.json` | Inspecting the paired legacy T0 policy-lint input used by the abbreviated example. |
 | `examples/expected-output.md` | Seeing an abbreviated review with honest limits. |
 | `schemas/harness-spec.schema.json` | Using the legacy five-class T0 policy-lint input. |
 | `scripts/containment_audit.mjs` | Running legacy policy-shape lint only, never containment proof. |
