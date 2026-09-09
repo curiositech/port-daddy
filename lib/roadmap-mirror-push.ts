@@ -111,6 +111,38 @@ export function repoFromGitRemote(remote: string | null | undefined): string | n
   return m ? normalizeRepoFullName(`${m[1]}/${m[2]}`) : null;
 }
 
+/**
+ * Decide which repository a mirror push is for: what the operator named, or
+ * the origin remote, or nothing.
+ *
+ * The rule that matters is the second clause. The remote is consulted ONLY
+ * when the operator named nothing at all -- a named-but-unusable value is an
+ * error, never a reason to fall back. A mirror is keyed by repository, so a
+ * silent fallback from a typo'd `--repo` would push this roadmap over
+ * somebody else's board, and the operator would see a success line. Failing
+ * with the value they typed is the only safe answer.
+ *
+ * Split out of the push handler so the branch is reachable by a test without
+ * standing up an account, a daemon and a git remote first: the handler reads
+ * the remote and passes it in, and this decides.
+ *
+ * @param named - What the operator gave, positionally or via --repo; null when they gave nothing.
+ * @param remote - The origin remote URL, or null when it could not be read. Consulted only when `named` is null.
+ * @returns `{ repo }` with the resolved `owner/name`, or `{ repo: null, reason }` saying which failure it was.
+ */
+export function resolveMirrorRepo(
+  named: string | null | undefined,
+  remote: string | null | undefined,
+): { repo: string; reason?: undefined } | { repo: null; reason: 'named-unusable' | 'no-remote' } {
+  const hasNamed = typeof named === 'string' && named.trim().length > 0;
+  if (hasNamed) {
+    const repo = normalizeRepoFullName(named);
+    return repo ? { repo } : { repo: null, reason: 'named-unusable' };
+  }
+  const guessed = repoFromGitRemote(remote);
+  return guessed ? { repo: guessed } : { repo: null, reason: 'no-remote' };
+}
+
 /** A translation that could not be made, naming the item that broke it. */
 export class MirrorTranslationError extends Error {}
 

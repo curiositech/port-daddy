@@ -27,6 +27,7 @@ import {
   pushRoadmapMirror,
   normalizeRepoFullName,
   repoFromGitRemote,
+  resolveMirrorRepo,
   MirrorTranslationError,
   MIRROR_MAX_ITEMS,
 } from '../../lib/roadmap-mirror-push.js';
@@ -149,6 +150,39 @@ describe('repository naming', () => {
     expect(repoFromGitRemote(null)).toBeNull();
   });
 });
+
+  // The rule the push handler used to carry inline, where no test could reach
+  // it without an account, a daemon and a git remote. It is the branch that
+  // decides whose board this roadmap lands on, so it is worth being able to
+  // state in four cases rather than inferring it from a comment.
+  describe('which repository a push is for', () => {
+    const REMOTE = 'git@github.com:someone-else/their-repo.git';
+
+    it('takes what the operator named, and never looks at the remote', () => {
+      expect(resolveMirrorRepo('curiositech/port-daddy', REMOTE))
+        .toEqual({ repo: 'curiositech/port-daddy' });
+    });
+
+    it('falls back to the remote only when the operator named nothing', () => {
+      expect(resolveMirrorRepo(null, REMOTE)).toEqual({ repo: 'someone-else/their-repo' });
+      expect(resolveMirrorRepo('   ', REMOTE)).toEqual({ repo: 'someone-else/their-repo' });
+    });
+
+    it('fails on an unusable name rather than pushing to the remote instead', () => {
+      // The one that matters. A typo'd --repo silently resolving to the origin
+      // remote would mirror this roadmap over another repository's board and
+      // print a success line while doing it.
+      for (const typo of ['port-dady', 'curiositech/port-daddy/extra', '../etc/passwd', 'a/']) {
+        expect(resolveMirrorRepo(typo, REMOTE)).toEqual({ repo: null, reason: 'named-unusable' });
+      }
+    });
+
+    it('says which failure it was when there is no name and no readable remote', () => {
+      expect(resolveMirrorRepo(null, null)).toEqual({ repo: null, reason: 'no-remote' });
+      expect(resolveMirrorRepo(null, 'not a url')).toEqual({ repo: null, reason: 'no-remote' });
+    });
+  });
+
 
 describe('the push itself', () => {
   function capturingFetch(response) {
