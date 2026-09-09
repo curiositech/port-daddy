@@ -108,14 +108,10 @@ jobs:
       # it sat lower in the job -- 11 of them failed to import and the suite
       # reported 201 tests instead of 212, which is a check quietly measuring
       # less than it claims.
-      # Pinned, because every page measurement the Book makes comes out of
-      # these: the contrast of type over a plate, the baselines the collision
-      # pass compares, the extraction that finds ink off the paper. A patch
-      # release that changes extraction changes what the checks mean, and a
-      # green check whose meaning moved under it is worse than a red one.
-      # These are the versions the current measurements were taken with.
-      - name: Install the image and PDF readers the checks need, pinned
-        run: pip install --quiet 'pillow==12.3.0' 'numpy==2.4.6' 'scipy==1.17.1' 'pymupdf==1.28.2'
+      # Pinned in one place for every job that measures a page; the reason
+      # each version is the version lives in the file.
+      - name: Install the readers every page measurement is taken with
+        run: pip install --quiet -r scripts/harbor-research/requirements-pdf.txt
 
       - name: textbook.json is the one source of chapter order (generated mirrors match)
         run: node scripts/generate-mega-whitepaper.mjs --check-shared

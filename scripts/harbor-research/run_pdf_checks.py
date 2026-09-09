@@ -23,11 +23,22 @@ add it to PER_PDF_CHECKS.
 
 Usage:
     python3 scripts/harbor-research/run_pdf_checks.py --pdf-dir DIR
+    python3 scripts/harbor-research/run_pdf_checks.py --pdf-dir DIR --expect 3
     python3 scripts/harbor-research/run_pdf_checks.py PDF [PDF ...]
 
 Exit 1 if handed no PDFs to check (a check that can pass having checked
-nothing is a defect in the check, not a pass), or if any registered check
-fails on any PDF.
+nothing is a defect in the check, not a pass), if --expect says how many
+there should be and fewer or more arrived, or if any registered check fails
+on any PDF.
+
+--expect closes the half of the empty-artifact hole the zero case leaves
+open. "No PDFs at all" already fails; "two of the three editions" did not,
+and read as a pass over whichever edition went missing -- the same shape of
+fail-open as the green cover-band that had checked nothing, one edition
+narrower. The caller knows the count (whitepaper-build.yml uploads exactly
+the three editions it names, if-no-files-found: error), so it can say it,
+and tests/unit/pdf-reader-pins.test.js keeps the number it says equal to
+the number the upload step lists.
 """
 from __future__ import annotations
 
@@ -154,12 +165,29 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("pdfs", nargs="*", help="PDF paths to check")
     parser.add_argument("--pdf-dir", help="directory holding freshly built PDFs (checks every *.pdf in it)")
+    parser.add_argument(
+        "--expect",
+        type=int,
+        metavar="N",
+        help="how many PDFs the caller knows should be here; a short (or long) count fails",
+    )
     args = parser.parse_args()
 
     pdfs = collect_pdfs(args)
     if not pdfs:
         where = args.pdf_dir or "(no --pdf-dir or PDF given)"
         print(f"::error::no PDFs found to check ({where}) -- this cannot pass having checked nothing", file=sys.stderr)
+        return 1
+
+    if args.expect is not None and len(pdfs) != args.expect:
+        found = ", ".join(os.path.basename(p) for p in pdfs) or "(none)"
+        print(
+            f"::error::expected {args.expect} PDF(s) to check, found {len(pdfs)}: {found}"
+            " -- checking a subset and reporting green is the fail-open this flag exists to stop."
+            " Either the build did not produce every edition, the artifact arrived incomplete,"
+            " or the edition list changed and --expect was not moved with it.",
+            file=sys.stderr,
+        )
         return 1
 
     print(f"checking {len(pdfs)} PDF(s): {', '.join(os.path.basename(p) for p in pdfs)}")
