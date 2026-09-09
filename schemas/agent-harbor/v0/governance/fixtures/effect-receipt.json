@@ -1,0 +1,16 @@
+{
+  "schema": "pd.agent-harbor.effect-receipt.v0",
+  "effectId": "eff_01KCXADJUDICATION",
+  "actionDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+  "adjudicationDigest": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+  "effect": {
+    "kind": "github.pull-request.merged",
+    "targetDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "resultDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "witness": {
+    "observedBy": "github-api",
+    "evidenceDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "occurredAt": "2026-09-08T07:37:00.000Z"
+}

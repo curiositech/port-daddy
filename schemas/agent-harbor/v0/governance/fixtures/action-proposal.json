@@ -1,0 +1,21 @@
+{
+  "schema": "pd.agent-harbor.action-proposal.v0",
+  "actionId": "act_01KCXADJUDICATION",
+  "actionClass": "repository.merge",
+  "operation": "merge.pull-request",
+  "subject": {
+    "actorId": "actor_operator_fixture",
+    "bodyId": null,
+    "sessionId": null,
+    "executionEnvelopeDigest": null
+  },
+  "target": {
+    "kind": "github.pull-request",
+    "id": "port-daddy#10104",
+    "scopeDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "parametersDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+  "policyInputDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+  "requestedAt": "2026-09-08T07:35:00.000Z",
+  "expiresAt": "2026-09-08T07:40:00.000Z"
+}
