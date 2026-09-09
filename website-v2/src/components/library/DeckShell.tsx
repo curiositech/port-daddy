@@ -143,14 +143,14 @@ export function DeckShell({
                JS in the path. */
             <figure className="deck-art mt-auto border-2 border-[var(--border-strong)]">
               <img
-                className="deck-art-light block h-auto w-full"
+                className="plate-light block h-auto w-full"
                 src={art.light}
                 alt={art.alt}
                 loading="lazy"
                 decoding="async"
               />
               <img
-                className="deck-art-dark block h-auto w-full"
+                className="plate-dark block h-auto w-full"
                 src={art.dark}
                 alt={art.alt}
                 loading="lazy"
@@ -207,7 +207,7 @@ export function DeckShell({
           {/* The colour block. The head sits ON it, and the standfirst
               switches to the casual face over the block — the face change
               is the signal that you have crossed from chrome into voice. */}
-          <div className="shrink-0 px-6 py-5 lg:px-9 lg:py-6" style={{ background: active.color, color: active.onColor }}>
+          <div className="on-block shrink-0 px-6 py-5 lg:px-9 lg:py-6" style={{ background: active.color, color: active.onColor }}>
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={active.id}

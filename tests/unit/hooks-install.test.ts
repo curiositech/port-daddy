@@ -862,7 +862,11 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     expect(out).toBe(''); // fails open
     // Returns near its own 150ms deadline (plus a bounded kill grace period),
     // never anywhere close to the ~15s the fake hook would otherwise run.
-    expect(elapsedMs).toBeLessThan(2_000);
+    // Same reasoning as the forced-kill case below: the nominal budget here is
+    // 150ms plus one fifteen-iteration escalation window, and the iterations
+    // cost a spawn apiece, so the bound is set to discriminate against the
+    // 15s hang rather than to measure how busy the runner is.
+    expect(elapsedMs).toBeLessThan(6_000);
     const health = readSquidHookHealth(pdHome);
     expect(health.circuits[0]).toMatchObject({ hook: 'pd-hook-prompt', lastReason: 'timeout', lastExitCode: 124 });
     expect(health.circuits[0].consecutiveFailures).toBeGreaterThanOrEqual(1);
@@ -902,9 +906,19 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     const elapsedMs = Date.now() - startedAt;
 
     expect(out).toBe('');
-    // Bounded by the deadline plus the escalation grace windows, not the ~15s
-    // hang — proves the forced-kill path actually ran, not just the TERM.
-    expect(elapsedMs).toBeLessThan(3_000);
+    // Bounded well under the ~15s hang, which is the whole discrimination
+    // this makes: the forced-kill path ran rather than the fake hook running
+    // to completion. The bound is deliberately not tight against the nominal
+    // budget. That budget is 150ms of deadline plus two escalation windows of
+    // fifteen `sleep 0.02` iterations each (pd_kill_child in
+    // cli/commands/hooks-install.ts), so about 750ms on paper -- but each of
+    // those thirty iterations pays a fork+exec for `sleep`, and on a loaded
+    // shared runner the spawns, not the sleeps, dominate the wall clock. A
+    // 3000ms line was close enough to that jitter to fail at 3002ms on
+    // macos-latest while the path under test worked correctly. 8000ms is an
+    // order of magnitude above the nominal budget and still half the hang, so
+    // it separates the two outcomes without measuring the runner's load.
+    expect(elapsedMs).toBeLessThan(8_000);
     const health = readSquidHookHealth(pdHome);
     expect(health.circuits[0]).toMatchObject({ hook: 'pd-hook-prompt', lastReason: 'timeout', lastExitCode: 124 });
     expect(health.circuits[0].consecutiveFailures).toBeGreaterThanOrEqual(1);

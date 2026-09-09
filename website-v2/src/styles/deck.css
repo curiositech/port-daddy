@@ -50,10 +50,8 @@
   }
 }
 
-/* Theme-paired plates. Both images are in the DOM so the swap is a CSS
-   toggle rather than a state change — no flash on first paint, nothing in
-   the JS path, and the browser only fetches the visible one because the
-   hidden one is display:none before layout. */
-.deck-art-dark { display: none; }
-[data-theme='dark'] .deck-art-light { display: none; }
-[data-theme='dark'] .deck-art-dark { display: block; }
+/* The deck's plates were the first theme-paired pair on the site and carried
+   their own copy of the rule. /library needs the same thing for its own
+   plates, so the mechanism moved to index.css as .plate-light/.plate-dark and
+   this file no longer defines one — two identical rules under two names is
+   how they drift. */

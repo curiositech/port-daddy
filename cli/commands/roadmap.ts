@@ -1133,8 +1133,7 @@ async function handleRoadmapPush(args: string[], options: CLIOptions): Promise<v
     toMirrorPayload,
     checkMirrorPayloadFits,
     pushRoadmapMirror,
-    normalizeRepoFullName,
-    repoFromGitRemote,
+    resolveMirrorRepo,
     MirrorTranslationError,
   } = await import('../../lib/roadmap-mirror-push.js');
   const { readStoredAccount } = await import('./account.js');
@@ -1147,30 +1146,29 @@ async function handleRoadmapPush(args: string[], options: CLIOptions): Promise<v
   }
 
   const repoArg = args.find((a) => !a.startsWith('--')) ?? readOption(options, 'repo');
-  let repoFullName = normalizeRepoFullName(repoArg ?? null);
-  if (!repoFullName && !repoArg) {
-    // Only guessed from the remote when the operator named nothing: a mirror is
-    // keyed by repository, and silently mirroring the wrong one would be a
-    // quiet corruption of somebody else's board rather than a visible error.
-    try {
-      const remote = execFileSync('git', ['remote', 'get-url', 'origin'], {
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'ignore'],
-      });
-      repoFullName = repoFromGitRemote(remote);
-    } catch {
-      repoFullName = null;
-    }
+  // The remote is read unconditionally and handed over; resolveMirrorRepo
+  // decides whether it is allowed to matter. Reading it is free and cannot
+  // change the answer when the operator named a repository.
+  let remote: string | null = null;
+  try {
+    remote = execFileSync('git', ['remote', 'get-url', 'origin'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+  } catch {
+    remote = null;
   }
-  if (!repoFullName) {
+  const resolved = resolveMirrorRepo(repoArg ?? null, remote);
+  if (resolved.repo === null) {
     ui.error(
-      repoArg
+      resolved.reason === 'named-unusable'
         ? `--repo must be owner/name (got "${repoArg}")`
         : 'Could not read owner/name from the origin remote. Pass --repo owner/name.',
     );
     process.exit(1);
     return;
   }
+  const repoFullName = resolved.repo;
 
   const harbor = readOption(options, 'harbor') ?? process.env.PD_HARBOR ?? 'port-daddy';
   const snapshotPath = resolve(readOption(options, 'snapshot') ?? 'docs/roadmap/roadmap.snapshot.json');
