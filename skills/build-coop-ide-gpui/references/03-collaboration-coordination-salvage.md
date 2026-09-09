@@ -22,27 +22,27 @@ The battle plan's sharpest line (`harbor-editor-battle-plan.md:65`):
 
 This is the structural break from Zed, where "agents are **tools on a human's session** — thin identity, no provenance, no attestation, no salvage when the process drops" (`:23`). In the harbor, an agent is not a feature *of* a human's editor. It is a **peer** with its own PeerID, its own cursor, its own claimed range, its own op-log, and its own row in the daemon's session table. It renders identically to a human in the Quay — the interaction model already treats every running agent as "a clickable card flying its ICS signal flag" (`harbor-interaction-model.md:5`).
 
-### The identity binding: PD identity → Loro PeerID
+### The identity binding: principal + device/session → replica incarnation
 
-A **Loro PeerID** is a 64-bit replica identifier that Loro stamps on every op so concurrent inserts order deterministically (Lamport clocks) and authorship is attributable. The harbor *mints* that PeerID from the PD identity rather than letting it be random:
+A **Loro PeerID** is a 64-bit replica identifier. The 2026-09-08 operator-approved Cooperative Harbor plan supersedes the identity-hashing rule: each new writing incarnation receives a fresh PeerID, and shared admission separately binds it to a verified principal, device, session and current grant. A display label never authenticates an actor.
 
 | Actor | PD identity | PeerID source |
 |---|---|---|
-| Human operator | OS user (`pd whoami`) | hash(os_user) |
-| Dispatched agent | `project:stack:context` (e.g. `port-daddy:editor:p3`) | hash(identity) |
+| Human operator | Existing verified principal and device/session | Fresh editing incarnation |
+| Dispatched agent | Existing AgentNode embodiment and delegated grant | Fresh editing incarnation |
 
-From the plan (`:42`): "Every actor gets a stable Loro **PeerID minted from its PD identity** (OS user for humans, `project:stack:context` for agents); Lamport clocks order concurrent inserts so attribution and merge are correct under conflict."
+Two devices belonging to one person must not share an operation counter. Import a predecessor's exact operations with their original authorship; do not write new operations using the predecessor's ID. Authoritative recovery still requires the separate typed receipt, abandonment and atomic transfer gates below.
 
-This binding is **critical and fragile** — the plan flags it as a named risk (`:97`): "Loro-replica↔PD-identity binding must survive reconnect/salvage; a mismatch corrupts authorship/audit. Needs a clean identity↔replica contract." See §4 — salvage replays a *dead* replica's ops, so the PeerID must outlive the process that created it. **The PeerID is derived, never generated**, so the same identity reconnecting (or a successor inheriting a corpse's work) lands on the same replica lineage.
+Bind transport to DocumentRef (canonical scope, Harbor, repository, worktree/ref and document identity), never an absolute path. Paths are local mappings. A reference is routing information, not a capability; local file opening must not automatically publish or subscribe.
 
 ### Decision Point — one `LoroDoc` per file, one `LoroText` inside it
 
 ```rust
-// editor.rs (new) — the Buffer wraps one LoroDoc per open file.
+// Reuse the existing HarborBuffer and EditorPane; do not scaffold a second editor.
 struct Buffer {
     doc:  LoroDoc,          // the whole-file CRDT
     text: LoroText,         // the editable rope inside it
-    me:   PeerId,           // minted from `pd whoami` / the dispatch identity
+    me:   PeerId,           // fresh incarnation, separately admitted by the Harbor
 }
 ```
 

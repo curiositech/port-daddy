@@ -202,12 +202,16 @@ pub enum ControlMsg {
     OpenEditor {
         path: String,
         region: Option<(u32, u32)>,
+        document: crate::editor_sync::DocumentRef,
+        snapshot: Vec<u8>,
+        viewer_peer: crate::buffer::PeerId,
     },
     /// One accepted foreground keystroke as the exact incremental Loro delta,
     /// plus its resulting caret/selection. The producer imports this frame into
     /// its live-lane mirror and broadcasts it; it never recreates the edit.
     EditorLocalChange {
         path: String,
+        document: crate::editor_sync::DocumentRef,
         frame: Option<String>,
         presence: PresenceState,
     },
@@ -219,6 +223,7 @@ pub enum ControlMsg {
 #[derive(Debug, Clone)]
 pub struct EditorUpdate {
     pub path: String,
+    pub document: crate::editor_sync::DocumentRef,
     pub blocks: Vec<Block>,
     pub remote_frames: Vec<String>,
 }
@@ -2204,7 +2209,7 @@ pub struct ConsoleView {
     /// surface opens. `blocks_for_surface` prefers these (when the bound path matches)
     /// over a cold synchronous load, so the running window shows the LIVE wedge — not a
     /// static file re-read that never saw the collaboration lanes.
-    editor_blocks: Option<(String, Vec<Block>)>,
+    editor_blocks: Option<(crate::editor_sync::DocumentRef, Vec<Block>)>,
     daemon_url: String,
     /// Provider→tier→model map, loaded from config (not compiled-in), so the
     /// Spawn picker resolves models that can change without a rebuild.
@@ -2759,7 +2764,14 @@ impl ConsoleView {
             placement,
         )?;
         if let Some(tx) = &self.control_tx {
-            let _ = tx.send(ControlMsg::OpenEditor { path, region });
+            if let Some(state) = self.editors.get(&editor_key(&path, region)) {
+                if let Some(snapshot) = state.pane.snapshot_blob() {
+                    let _ = tx.send(ControlMsg::OpenEditor {
+                        path, region, document: state.pane.document().clone(), snapshot,
+                        viewer_peer: state.pane.buffer().expect("snapshot requires buffer").local_peer(),
+                    });
+                }
+            }
         }
         Ok(())
     }
@@ -2814,8 +2826,10 @@ impl ConsoleView {
         let live_failed = self
             .editor_blocks
             .as_ref()
-            .is_some_and(|(live_path, blocks)| {
-                live_path == path && editor_error_from_blocks(blocks).is_some()
+            .is_some_and(|(document, blocks)| {
+                self.editors.get(&editor_key(path, *region))
+                    .is_some_and(|state| state.pane.document() == document)
+                    && editor_error_from_blocks(blocks).is_some()
             });
         (local_failed || live_failed).then(|| path.clone())
     }
@@ -2953,8 +2967,9 @@ impl ConsoleView {
             // no live snapshot has landed yet — or it's for a different file — fall back
             // to the persistent `self.editors` state (opened once by
             // `ensure_editor_states`) so the surface still renders honestly.
-            if let Some((live_path, blocks)) = &self.editor_blocks {
-                if live_path == path {
+            if let Some((document, blocks)) = &self.editor_blocks {
+                if self.editors.get(&editor_key(path, *region))
+                    .is_some_and(|state| state.pane.document() == document) {
                     return blocks.clone();
                 }
             }
@@ -3309,7 +3324,7 @@ impl ConsoleView {
                     invalidate_editor_blame(state);
                     let presence = Self::presence_for_editor(state, &after);
                     state.pane.set_local_presence(presence);
-                    Ok((state.pane.path_str().to_string(), frame, presence))
+                    Ok((state.pane.path_str().to_string(), state.pane.document().clone(), frame, presence))
                 }
                 Err(reason) => {
                     state.input = prior_input;
@@ -3319,20 +3334,21 @@ impl ConsoleView {
         };
 
         match outcome {
-            Ok((path, frame, presence)) => {
+            Ok((path, document, frame, presence)) => {
                 // The foreground buffer paints the keystroke immediately. The
                 // producer's collaboration Blocks return after importing this
                 // exact delta; until then they must not cover the newer local view.
                 if self
                     .editor_blocks
                     .as_ref()
-                    .is_some_and(|(live_path, _)| live_path == &path)
+                    .is_some_and(|(live_document, _)| live_document == &document)
                 {
                     self.editor_blocks = None;
                 }
                 if let Some(tx) = &self.control_tx {
                     let _ = tx.send(ControlMsg::EditorLocalChange {
                         path,
+                        document,
                         frame: Some(frame),
                         presence,
                     });
@@ -3364,11 +3380,12 @@ impl ConsoleView {
             update(&mut state.input, &text);
             let presence = Self::presence_for_editor(state, &text);
             state.pane.set_local_presence(presence);
-            (state.pane.path_str().to_string(), presence)
+            (state.pane.path_str().to_string(), presence, state.pane.document().clone())
         };
         if let Some(tx) = &self.control_tx {
             let _ = tx.send(ControlMsg::EditorLocalChange {
                 path: change.0,
+                document: change.2,
                 frame: None,
                 presence: change.1,
             });
@@ -4611,16 +4628,16 @@ impl ConsoleView {
     pub fn apply_editor_update(&mut self, update: EditorUpdate) {
         for frame in &update.remote_frames {
             for state in self.editors.values_mut() {
-                if state.pane.path_str() == update.path {
-                    let _ = state.pane.ingest_frame(frame);
-                    if let Some(text) = state.pane.text() {
-                        state.input.reconcile(&text);
+                if state.pane.document() == &update.document {
+                    if state.pane.ingest_preserving_selection(frame, &mut state.input) {
+                        invalidate_editor_blame(state);
                     }
-                    invalidate_editor_blame(state);
                 }
             }
         }
-        self.editor_blocks = Some((update.path, update.blocks));
+        if self.editors.values().any(|state| state.pane.document() == &update.document) {
+            self.editor_blocks = Some((update.document, update.blocks));
+        }
     }
 
     /// The launch splash — a centered brand lockup (spinning radar mark + "Port Daddy") shown

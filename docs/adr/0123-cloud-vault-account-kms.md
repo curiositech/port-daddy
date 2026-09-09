@@ -15,6 +15,24 @@
 - **Doctrine drawn from:** `skills/macaroon-capability-credentials`,
   `skills/local-first-tenancy-boundary`
 
+## 2026-09-08 amendment: explicitly shared managed projects
+
+The operator-approved [Cooperative Harbor implementation](../strategy/cooperative-harbor-implementation.md)
+amends the blanket server-processing prohibition below **only for an explicitly
+consented managed shared project**. Its authorized managed Harbor kernel may
+decrypt published project contributions. That service and its infrastructure
+operator are therefore inside this mode's trust boundary; do not describe this
+mode as protected against them. Local-only/device-private custody remains valid.
+There is no automatic upload of personal histories or assistant memories.
+
+The managed runtime is separate from relay transport, with separate service
+identities, bindings and project-scoped key access. Relay and protected object
+storage remain ciphertext-only. Personal account roots/private-data keys remain
+outside managed custody. Revocation, independent epoch keys, scoped grants,
+Rust-owned cryptography and the distinction between data recovery and control
+recovery still apply. This is an accepted design amendment, not deployed behavior
+or authorization to activate any service during the operator halt.
+
 ## Context
 
 `docs/NOTE_ENCRYPTION_DESIGN.md` shipped envelope encryption for session

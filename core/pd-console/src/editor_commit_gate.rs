@@ -172,7 +172,7 @@ pub fn check_staged_regions(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::buffer::peer_id_for_identity;
+    use crate::buffer::fixture_peer_id;
     use crate::editor_wedge::BYPASS_TOKENS;
 
     fn ledger_with(claims: Vec<RegionClaim>) -> ClaimLedger {
@@ -195,8 +195,8 @@ mod tests {
     /// symbol, with a typed message that advertises NO bypass (HARD RULE 5).
     #[test]
     fn out_of_claim_edit_against_a_live_actor_is_refused() {
-        let a = peer_id_for_identity("port-daddy:editor:agent-A");
-        let b = peer_id_for_identity("port-daddy:editor:agent-B");
+        let a = fixture_peer_id("port-daddy:editor:agent-A");
+        let b = fixture_peer_id("port-daddy:editor:agent-B");
         let ledger = ledger_with(vec![RegionClaim::new(a, 0, 12, 40, "parse_header", 100)]);
 
         // B stages an edit at lines 20–25 — inside A's live region.
@@ -223,8 +223,8 @@ mod tests {
     /// adjacent UNCLAIMED region (L200–260) of the same file A partly holds — it clears.
     #[test]
     fn adjacent_region_edit_passes_the_gate() {
-        let a = peer_id_for_identity("port-daddy:editor:agent-A");
-        let b = peer_id_for_identity("port-daddy:editor:agent-B");
+        let a = fixture_peer_id("port-daddy:editor:agent-A");
+        let b = fixture_peer_id("port-daddy:editor:agent-B");
         let ledger = ledger_with(vec![RegionClaim::new(a, 0, 12, 40, "parse_header", 1)]);
 
         // A hunk entirely below A's span, plus the boundary lines just outside it.
@@ -240,8 +240,8 @@ mod tests {
     /// not wedge the commit forever).
     #[test]
     fn a_dead_actors_stale_claim_does_not_gate() {
-        let a = peer_id_for_identity("port-daddy:editor:agent-A");
-        let b = peer_id_for_identity("port-daddy:editor:agent-B");
+        let a = fixture_peer_id("port-daddy:editor:agent-A");
+        let b = fixture_peer_id("port-daddy:editor:agent-B");
         let ledger = ledger_with(vec![RegionClaim::new(a, 0, 12, 40, "parse_header", 1)]);
         // A is dead → not live; B's edit into A's old region clears.
         let is_live = |p: PeerId| p != a;
@@ -254,9 +254,9 @@ mod tests {
     /// seq 9) overlap; C staging into the overlap is told A holds it (the earlier grant).
     #[test]
     fn first_granted_owner_is_named_on_contention() {
-        let a = peer_id_for_identity("port-daddy:editor:agent-A");
-        let b = peer_id_for_identity("port-daddy:editor:agent-B");
-        let c = peer_id_for_identity("port-daddy:editor:agent-C");
+        let a = fixture_peer_id("port-daddy:editor:agent-A");
+        let b = fixture_peer_id("port-daddy:editor:agent-B");
+        let c = fixture_peer_id("port-daddy:editor:agent-C");
         let ledger = ledger_with(vec![
             RegionClaim::new(b, 0, 18, 30, "b_work", 9),
             RegionClaim::new(a, 0, 20, 40, "a_work", 3),
@@ -271,8 +271,8 @@ mod tests {
     /// another actor overlaps — I win the line I granted first (HARD RULE 6).
     #[test]
     fn first_granted_owner_edits_its_own_region_freely() {
-        let a = peer_id_for_identity("port-daddy:editor:agent-A");
-        let b = peer_id_for_identity("port-daddy:editor:agent-B");
+        let a = fixture_peer_id("port-daddy:editor:agent-A");
+        let b = fixture_peer_id("port-daddy:editor:agent-B");
         let ledger = ledger_with(vec![
             RegionClaim::new(a, 0, 20, 40, "a_work", 3), // A granted first
             RegionClaim::new(b, 0, 18, 30, "b_work", 9), // B granted later, overlapping
@@ -287,9 +287,9 @@ mod tests {
     /// contended owner, de-duplicated and in deterministic ClaimKey order.
     #[test]
     fn multiple_contended_owners_each_named_once() {
-        let a = peer_id_for_identity("port-daddy:editor:agent-A");
-        let b = peer_id_for_identity("port-daddy:editor:agent-B");
-        let me = peer_id_for_identity("port-daddy:editor:agent-Z");
+        let a = fixture_peer_id("port-daddy:editor:agent-A");
+        let b = fixture_peer_id("port-daddy:editor:agent-B");
+        let me = fixture_peer_id("port-daddy:editor:agent-Z");
         let ledger = ledger_with(vec![
             RegionClaim::new(a, 0, 12, 40, "parse_header", 1),
             RegionClaim::new(b, 0, 200, 260, "write_footer", 2),
@@ -307,7 +307,7 @@ mod tests {
     /// blocks nothing when there is no live contention.
     #[test]
     fn no_contention_clears() {
-        let me = peer_id_for_identity("port-daddy:editor:agent-Z");
+        let me = fixture_peer_id("port-daddy:editor:agent-Z");
         assert!(check_staged_regions(&ClaimLedger::new(), &[(1, 100)], me, |_| true, label).is_clear());
         let ledger = ledger_with(vec![RegionClaim::new(me, 0, 12, 40, "mine", 1)]);
         assert!(check_staged_regions(&ledger, &[], me, |_| true, label).is_clear(), "nothing staged clears");
