@@ -1,5 +1,17 @@
 # Sandboxed Adversarial Test Harness — Changelog
 
+## v2.2.0 (2026-09-08)
+
+- Added an Agent Lifecycle Ledger discipline that separates durable worker,
+  attempt, body generation, backend session, process witness, transcript, and
+  capability identities.
+- Added atomic global pre-spawn reservations, closed-before-recovery startup,
+  PID-reuse and host-reboot defenses, durable idempotency, and persistent scoped
+  safety breakers.
+- Added zero-retry agent birth, bounded ancestry/fan-out, 1,000-request flood
+  tests, identity-preserving backend continuation, and content-addressed
+  MCP/skill/prompt/hook capability transfer without secret copying.
+
 ## v2.1.1 (2026-09-08)
 
 - Made the canonical checkout a protected, exact `origin/main` projection that

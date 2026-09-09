@@ -4,7 +4,8 @@ description: >-
   Designs and audits Drydock-style hostile-execution laboratories for untrusted,
   AI-authored, or pull-request-controlled code, including VM isolation, brokered I/O,
   provider spend custody, deterministic simulation, sealed provenance, external receipts,
-  trusted-language/process selection, fail-cheap controls, and promotion gates. Use before a daemon, agent, test suite, build, or skill may touch
+  trusted-language/process selection, durable agent lifecycle accounting, crash-storm
+  breakers, fail-cheap controls, and promotion gates. Use before a daemon, agent, test suite, build, or skill may touch
   real machines, networks, credentials, providers, repositories, or money. NOT for running
   the hostile workload, treating same-UID guards as containment, routine correctness tests,
   agent training, or implementing a provider integration without a separately reviewed
@@ -96,6 +97,7 @@ not start the daemon, UI, agent backend, test suite, workflow, or provider canar
 | Can any effect bypass the broker? | Capability security, protocol framing, network and artifact mediation | `references/isolation-mechanisms-macos-linux.md` |
 | Can the bill exceed the operator's consent? | Integer accounting, concurrency, provider quota semantics, reconciliation | `references/spend-custody-and-accounting.md` |
 | Can a race or crash be replayed? | Deterministic simulation, fault injection, state exploration, safety/liveness | `references/deterministic-simulation-and-formal-models.md` |
+| Can a crash orphan a body or multiply spawns? | Durable admission, identity/body separation, process witnesses, scoped breakers, backend handoff | `references/agent-lifecycle-and-crash-storms.md` |
 | Who can truthfully attest what happened? | Supply-chain provenance, witness classes, append-only receipts | `references/provenance-receipts-and-evidence.md` |
 | Which attacks must the gate cover? | SSRF, traversal, exfiltration, resource, authority, billing, replay, teardown | `references/threat-classes-and-adversarial-recipes.md` |
 
@@ -185,6 +187,23 @@ the canonical checkout. It must remain an exact clean projection of the live
 worktrees; approved output may enter only a fresh host linked review worktree on a
 non-default branch. Record before/after canonical integrity receipts, but rely on
 path and authority absence for prevention.
+
+### 4.5 Account for every agent body before launch
+
+Containment does not prove how many workers exist. When the subject can launch,
+retry, resume, or replace an agent-like process, require one external durable
+admission writer before every ingress. Separate the durable agent node, admitted
+run, expiring body generation, backend session, host process/VM witness,
+transcript, and capability set.
+
+Reserve global and scoped capacity before asynchronous launch. Start every
+controller boot with admission closed until all nonterminal runs and platform
+handles reconcile. Treat a PID as one field in a host witness, never as identity.
+Set automatic agent-birth retries and child depth to zero in the first tier. A
+durable safety breaker survives restart, reboot, deployment, and calendar reset.
+Read `references/agent-lifecycle-and-crash-storms.md` before designing an agent
+launcher, process registry, retry, startup recovery, remote session, or backend
+handoff.
 
 ### 5. Make channels absent before making them filtered
 
@@ -276,6 +295,9 @@ Produce one review using `templates/output-template.md` with:
 - typed effect and capability manifest;
 - protocol-exposure calculation and financial-custody proof or explicit absence;
 - deterministic scenario, seeds, invariants, and fault schedule;
+- durable lifecycle states, global reservation scopes, process/VM witness,
+  retry owner, breaker reset contract, and backend-continuation proof when agents
+  can be launched;
 - stable adversarial gate matrix;
 - evidence grouped by witness class;
 - residual risks and counterclaims; and
@@ -320,6 +342,31 @@ friendly diagnostics, not enforcement.
 **Timeline:** Main stays clean during cooperative testing, then one wrong working
 directory, inherited `GIT_DIR`, or path alias stages unrelated operator bytes and
 turns source provenance into guesswork.
+
+### In-Memory Roster Called Global Accounting
+
+**Novice:** Counts children in a process-local map, writes the PID later, and
+restarts a worker when a heartbeat disappears.
+
+**Expert:** Atomically reserves global capacity in a durable external ledger,
+witnesses boot/process-start/nonce/sandbox identity before `RUNNING`, and keeps
+admission closed after restart until every old body is adopted, terminated,
+settled, lost, or quarantined.
+
+**Timeline:** The normal path respects its limit, then a crash erases the count
+while detached children survive. Startup retries create another generation and a
+crash-plus-spawn loop multiplies processes and bills.
+
+### Backoff Called A Spawn Safety Boundary
+
+**Novice:** Adds exponential delay to recursive or crash-triggered spawning.
+
+**Expert:** Denies all but the atomically reserved number of births, gives one
+layer ownership of retries, persists attempt/ancestry limits, and opens a durable
+breaker. Full-jitter backoff only desynchronizes a later, already bounded retry.
+
+**Timeline:** Delay makes the first graph look calm, then restart resets the
+counter or 1,000 distinct requests bypass exact idempotency and all eventually run.
 
 ### Guest Self-Attestation
 
@@ -400,6 +447,7 @@ observed fields, isolation, and downstream verification.
 | `references/implementation-language-and-fail-cheap-controls.md` | Selecting languages/processes, separating offline and canary packages, designing durable state, retries, UI authority, or a release-independent TCB. |
 | `references/isolation-mechanisms-macos-linux.md` | Choosing VM, microVM, device, network, filesystem, kernel, and process boundaries. |
 | `references/spend-custody-and-accounting.md` | Designing broker reservation, provider custody, settlement, refunds, retries, or real canaries. |
+| `references/agent-lifecycle-and-crash-storms.md` | Designing spawn admission, durable identity/body/run joins, PID/VM witnesses, crash recovery, scoped breakers, or backend handoff. |
 | `references/deterministic-simulation-and-formal-models.md` | Designing Trial Basin seeds, virtual time, faults, schedule exploration, safety, and liveness. |
 | `references/provenance-receipts-and-evidence.md` | Sealing inputs and deciding which witness may assert each receipt field. |
 | `references/threat-classes-and-adversarial-recipes.md` | Building the complete hostile-specimen and failure matrix. |
@@ -415,9 +463,9 @@ observed fields, isolation, and downstream verification.
 - `SKILL.md`: activation, decision process, evidence classes, tiers, and anti-patterns.
 - `README.md` and `CHANGELOG.md`: bundle orientation and version history.
 - `references/`: implementation language, fail-cheap controls, isolation, spend,
-  simulation, provenance, and adversarial recipes.
+  durable agent lifecycle, simulation, provenance, and adversarial recipes.
 - `templates/output-template.md`: integrated review artifact.
-- `tests/activation.md`: five positive and five negative activation prompts.
+- `tests/activation.md`: positive, negative, and boundary activation prompts.
 - `examples/`: abbreviated legacy and Drydock examples.
 - `schemas/harness-spec.schema.json` and `scripts/containment_audit.mjs`: legacy T0 lint.
 - `agents/openai.yaml`: optional specialist descriptor, subject to local fan-out policy.

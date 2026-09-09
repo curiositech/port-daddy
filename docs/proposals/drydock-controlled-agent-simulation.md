@@ -4,11 +4,14 @@
 
 **Status:** PROPOSED / PORT DADDY RUNTIME REMAINS HALTED
 
-**Source snapshot:** `curiositech/port-daddy@02a10b2848a1d8c53f39e42f652c0bc2595617b4`
+**Source snapshot:** `curiositech/port-daddy@ea797e6244ca5153bcf0faed926a53ac306d5b26`
 
 **Parent roadmap:** `port-daddy-unified-product-hypertree`
 
-**Companion:** [The Grand Harbor Atlas](./grand-harbor-product-atlas.md)
+**Companions:**
+
+- [The Grand Harbor Atlas](./grand-harbor-product-atlas.md)
+- [Drydock Agent Lifecycle and Operator Control](./drydock-agent-lifecycle-and-operator-control.md)
 
 **Prepared:** 2026-09-08
 
@@ -23,6 +26,13 @@ Port Daddy must not be restarted on trust, on a code review, or on the strength 
 Build **Drydock** as a small, non-agentic control system outside Port Daddy. Drydock creates disposable virtual machines, admits immutable inputs, mediates every effect, reserves worst-case protocol exposure before any request, records receipts outside the guest, and can stop the run without asking the guest to cooperate. A real-provider run additionally requires an independently enforced, dedicated provider or payment cell whose nominal limit plus finite measured overshoot fits the approved financial exposure; an internal ledger alone cannot make that promise.
 
 Inside Drydock, build **Trial Basin** as the deterministic scenario and simulation layer. Trial Basin can replay known incidents, puppet scripted and model-backed workers, inject failures, explore concurrent schedules, and compare observed behavior with explicit invariants.
+
+Agent execution additionally passes through the companion **Agent Lifecycle
+Ledger**. It atomically reserves global capacity before birth, separates one
+durable worker from replaceable backend/process bodies, witnesses process identity
+without treating a PID as identity, reconciles every nonterminal run before
+reopening after a crash, and keeps crash-storm breakers durable. No test tier may
+route around that ledger merely because its provider cost appears to be zero.
 
 The first useful result is not a live agent. It is a hostile inert specimen failing to:
 
@@ -75,7 +85,9 @@ Drydock must make it possible to:
 - collect trustworthy evidence even when the guest crashes or lies;
 - graduate the repository test suite from process isolation to system isolation;
 - exercise failure paths that are unsafe or expensive on a developer machine;
-- compare implementations against the same typed scenario and invariant set; and
+- compare implementations against the same typed scenario and invariant set;
+- prove that crashes, retries, duplicate ingress, backend handoff, and host reboot
+  cannot create an unaccounted process or second authoritative body; and
 - make promotion from simulation to tiny real canary deliberate and reversible.
 
 ### 2.2 Non-goals
@@ -1755,6 +1767,18 @@ Drydock is not accepted until an independent reviewer can reproduce these gates 
 | `DRY-30` | Malicious controller test mutation | specimen suite catches removal of each critical gate |
 | `DRY-31` | Guest or submitted test targets the canonical checkout by direct path, symlink, parent traversal, inherited descriptor, or caller-selected Git environment | path and descriptor absent; host access denied; checkout-integrity receipt unchanged |
 | `DRY-32` | Artifact promotion names the canonical checkout, default branch, stale worktree, wrong common directory, or path alias | broker rejects before extraction or Git mutation; no canonical file, index, object, or ref changes |
+| `DRY-33` | 1,000 simultaneous launch requests reuse one idempotency key | one run, one reservation, at most one body; duplicates return the same receipt |
+| `DRY-34` | Controller crashes after reservation and before process creation | durable reservation remains; no process appears; admission stays closed until reconciliation |
+| `DRY-35` | Controller crashes after process/VM creation and before witness or handshake commit | platform reaper revokes effects and terminates the uncommitted body; no automatic replacement |
+| `DRY-36` | PID is reused or the host reboots while a run is nonterminal | stale witness cannot attach, signal, or authorize a process; continuation requires a new fenced generation |
+| `DRY-37` | Crash-triggered, recursive, or semantically varied requests attempt 1,000 births through every ingress | aggregate reservation admits only the configured maximum; durable breaker opens; queue remains bounded; time/reset does not clear it |
+| `DRY-38` | Fenced old body calls a tool, appends current transcript, writes output, or settles work | every stale-generation operation is denied and linked to the handoff receipt |
+| `DRY-39` | Same-family or cross-family backend handoff races old output and new startup | at most one authoritative body; AgentNode and transcript lineage remain intact; unsupported context is explicit |
+| `DRY-40` | Destination lacks or changes an MCP, skill, prompt, hook, permission, or policy digest | compatibility narrows, quarantines, or blocks before launch; no secret or ambient permission is copied |
+| `DRY-41` | iOS/Relay command is replayed, expired, targets an old generation, or uses an old authority epoch | local authority denies it exactly once and preserves a zoomable receipt |
+| `DRY-42` | Remote session hibernates, restarts, disconnects, reorders, or redelivers events | projection reconstructs from a durable cursor; no duplicated control or spawn effect occurs |
+| `DRY-43` | Lifecycle database is locked, corrupt, missing, or partially migrated | admission remains closed; no fallback database or spawn loop starts; exact repair evidence is shown |
+| `DRY-44` | Concurrent local and remote cells try to spend or spawn from one aggregate envelope | leased slices conserve the global vector; disconnected cells fail closed and cannot double spend |
 
 Passing once is not enough. Gates need stable automated fixtures and a signed controller build identity.
 
@@ -1772,11 +1796,13 @@ Deliver without running Port Daddy:
 - controller/guest boundary;
 - versioned `RunManifest`, `TrialScenario`, capability, event, budget, and receipt schemas;
 - invariant catalog;
-- attack matrix; and
+- attack matrix;
 - accepted implementation-language/process matrix, including the explicit
   Drydock application of ADR-0120;
 - pure `step(state, action, virtual_time, entropy)` transition contract;
-- fail-cheap breaker, retry, deadline, storage, and retention contracts; and
+- fail-cheap breaker, retry, deadline, storage, and retention contracts;
+- durable agent-lifecycle identity, admission, reservation, process-witness,
+  generation-fencing, backend-continuation, and closed-before-recovery contracts;
 - canonical-checkout exclusion, bare-vault provenance, worktree-only authorship,
   and checkout-integrity receipt contracts; and
 - explicit non-goals.
@@ -1804,8 +1830,11 @@ denied and before/after canonical integrity receipts are identical.
 ### D2 — Fake broker and budget ledger
 
 Implement typed fake-provider operations, integer reservation/settlement, the
-durable breaker, fencing generations, absolute deadlines, and the single-writer
-authority store. The Trial Basin transition function remains usable without a VM.
+durable breaker, fencing generations, absolute deadlines, the single-writer
+authority store, and the Agent Lifecycle Ledger. The ledger joins one durable
+worker to its run, body lease, process witness, backend session, transcript,
+capability envelope, and reservations before reporting `RUNNING`. The Trial Basin
+transition function remains usable without a VM.
 
 **Gate:** property, replay, migration, corruption, power-loss-policy, and
 crash/retry traces preserve conservation, at-most-once dispatch, stale-lease
@@ -1822,7 +1851,7 @@ Run purpose-built malicious specimens, not Port Daddy:
 - capability replay; and
 - artifact attacks.
 
-**Gate:** all applicable `DRY-01` through `DRY-32` adversarial gates fail closed and host availability remains within defined bounds.
+**Gate:** all applicable `DRY-01` through `DRY-44` adversarial gates fail closed and host availability remains within defined bounds.
 
 ### D4 — Port Daddy T1 components
 
@@ -1872,13 +1901,18 @@ These are proposed roadmap children under `port-daddy-unified-product-hypertree`
 | `drydock-source-vault-worktree-gate` | Bare remote source vault, live-ref witness, canonical-checkout exclusion, disposable source worktrees, and fresh review-worktree promotion | 5 | safety model | identical before/after canonical receipts plus DRY-31/32 |
 | `drydock-inert-vm-controller` | Separate Rust controller/watchdog release plus minimal Swift VZ helper and inert guest | 8 | safety model | D1 signed-build and runtime receipts |
 | `drydock-budget-effect-broker` | Separate Rust broker, prepaid integer ledger, durable breaker, fake provider, and single-writer store | 8 | safety model | D2 property, migration, corruption, and crash receipts |
+| `drydock-agent-lifecycle-ledger` | Global atomic admission, durable person/run/body separation, process witnesses, generation fencing, restart reconciliation, and typed event outbox | 8 | safety model; broker | DRY-33–39 and DRY-43 |
+| `drydock-spawn-storm-breakers` | Persistent scoped breakers, bounded queue, ancestry ceilings, deadlines, and zero-retry birth default | 5 | lifecycle ledger; broker | DRY-33–37 |
+| `drydock-capability-capsules` | Content-addressed MCP, skill, prompt, hook, tool, and permission environment with quarantine and compatibility compilation | 8 | lifecycle ledger | DRY-38–40 |
+| `drydock-cross-backend-continuation` | Identity-preserving same-family resume and cross-family successor handoff with at most one authoritative body | 8 | lifecycle ledger; capability capsules | DRY-36 and DRY-38–40 |
 | `drydock-hostile-specimens` | Escape, network, resource, protocol, and artifact attacks | 8 | controller; broker | D3 matrix |
 | `drydock-port-daddy-component-profile` | Pure Port Daddy T1 packaging | 5 | hostile specimens | D4 receipts |
 | `drydock-port-daddy-daemon-profile` | Port Daddy T2 guest without ambient authority | 8 | component profile | D5 incident replays |
 | `drydock-test-suite-routing` | Safe default commands and receipt-bound integration | 8 | daemon profile | D6 zero-effect proof |
 | `drydock-real-provider-canary` | One externally bounded-loss provider operation | 5 | broker; independent review; dedicated external cell with finite overshoot | D7 custody and settlement receipts |
 | `drydock-single-worker-fixture` | One worker, fixture repo, quarantined patch | 8 | canary; provenance repair | D8 end-to-end receipt |
-| `drydock-control-room` | Independent operator launch/kill/inspect UI | 8 | controller; receipt model | usability and kill proof |
+| `drydock-control-room` | Independent operator launch/kill/inspect UI plus pd-console single-worker conversation, session switcher, and backend-continuation projection | 8 | controller; lifecycle ledger; receipt model | usability, identity-continuity, and kill proof |
+| `drydock-mobile-session-join` | Passkey-backed iOS/Relay conversation join and one-use remote control commands | 8 | lifecycle ledger; control room; typed presence | DRY-41/42 |
 
 Owners remain unassigned until a safe work mechanism exists. Building Drydock must not require restarting Port Daddy or spending on coordinated agents.
 
@@ -1891,7 +1925,7 @@ This document does not authorize a restart.
 A future operator may consider a limited restart only after all of the following are independently evidenced:
 
 1. D0-D5 are complete on a clean controller installation.
-2. All applicable `DRY-01` through `DRY-32` adversarial gates pass.
+2. All applicable `DRY-01` through `DRY-44` adversarial gates pass.
 3. The controller and broker are outside Port Daddy's process, package, credential, and storage authority.
 4. The exact Port Daddy source image is sealed by digest.
 5. The run has no host mounts and no canonical daemon route.

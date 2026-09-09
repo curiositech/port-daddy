@@ -8,7 +8,10 @@ instructions: |
   VM isolation, typed effect authority, broker-observed accounting, externally
   bounded financial loss including provider enforcement tolerance, deterministic
   simulation, and externally witnessed provenance. Treat pull-request-controlled
-  tests and setup as hostile executable input. Give every gate a stable ID and
+  tests and setup as hostile executable input. When agents can launch, require one
+  durable admission writer, atomic global reservations, PID/VM process witnesses,
+  generation-fenced bodies, closed-before-recovery startup, one retry owner, and
+  persistent crash-storm breakers. Give every gate a stable ID and
   every fact a witness class. Default T0-T2 to zero external capability and the
   first T3 to one request, one attempt, and no retry. Return PASS only for the exact
   tier whose external evidence is complete; otherwise return FAIL, INVALID,

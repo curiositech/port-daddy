@@ -4,7 +4,7 @@
 
 **Status:** DESIGN SYNTHESIS / RUNTIME HALTED
 
-**Source snapshot:** `curiositech/port-daddy@02a10b2848a1d8c53f39e42f652c0bc2595617b4`
+**Source snapshot:** `curiositech/port-daddy@ea797e6244ca5153bcf0faed926a53ac306d5b26`
 
 **Canonical parent:** `port-daddy-unified-product-hypertree` (`2df9b851-effa-4c41-9f85-2274d3007661`)
 
@@ -19,20 +19,13 @@ roadmaps for execution-order storytelling. It joins work by slug. It does not
 reconcile, supersede, or mutate either authority, and a status written here cannot
 advance a registry row.
 
-**Projection note:** This Atlas is a narrative projection over the two authorities
-declared in [`docs/roadmap/AUTHORITY.md`](../roadmap/AUTHORITY.md): the
-`roadmap_items` registry for machine/gate truth and the canonical narrative
-roadmaps for execution-order storytelling. It joins work by slug. It does not
-reconcile, supersede, or mutate either authority, and a status written here cannot
-advance a registry row.
-
 ### Synthesis input provenance
 
 This Atlas distinguishes source material from source-of-truth evidence. Off-repository inputs do not silently become canonical merely because their language appears here.
 
 | Input | Immutable identity | Use in this synthesis | Evidentiary limit |
 |---|---|---|---|
-| Repository tree | `curiositech/port-daddy@02a10b2848a1d8c53f39e42f652c0bc2595617b4` | Source, ADR, roadmap-snapshot, incident, research, whitepaper, and product-state claims | Proves only that the cited bytes existed at this commit; runtime claims need separate receipts |
+| Repository tree | `curiositech/port-daddy@ea797e6244ca5153bcf0faed926a53ac306d5b26` | Source, ADR, roadmap-snapshot, incident, research, whitepaper, and product-state claims | Proves only that the cited bytes existed at this commit; runtime claims need separate receipts |
 | Operator product-decision brief | Codex attachment `806fc904-25f4-48ab-a6bf-e9ecb9a765ff/pasted-text.txt`, SHA-256 `bed8851d88365ee134792cce9cf6e0d3f373bf5db7138e3b122148b1be6c8bc7` | Product hierarchy, Porthole boundary, commercial framing, launch order, and status-language discipline | Local conversation attachment, not a repository artifact or shipped product receipt |
 | Operator verdict-integrity brief | Codex attachment `21e61d4d-d379-47e6-879a-a64a06952391/pasted-text.txt`, SHA-256 `22dba6717e55eb11ae672897584f22f307aa50df936ac1fcef516ca479b28d96` | Distinction between successful work and successful adjudication | Local conversation attachment; supports design rationale, not the historical CI claim unless independently linked to GitHub evidence |
 | Operator requests and delegated receipts | Codex task `019fcdb0-17db-7572-ae9a-949006dd6bdd` | Naming, political/economic questions, compensation priority, halt constraints, and carried-forward roadmap identifiers | Mutable conversation context and not independently replayable from the repository; every resulting claim is labeled design or carried-forward unless corroborated in the repository snapshot |
@@ -153,6 +146,8 @@ Names should teach the architecture. The following is the proposed product vocab
 | Beat Zed IDE | **Helm prototype lineage** | The editor experiments that inform the Helm, preserved by provenance |
 | Genesis | **Keel-Laying** | Project creation, identity, policy, and initial trust ceremony |
 | Harbor Editor | **Harbor Editor** | Structured artifact editor used inside the Chartroom and Helm |
+| spawn registry / process roster | **Agent Lifecycle Ledger** | External atomic authority joining durable worker, run, body generation, process/VM witness, capabilities, and reservations |
+| global agent list | **Muster** | Calm operator projection of the Agent Lifecycle Ledger; never a second authority |
 | agent roster / ambient presence | **Harbor Lights** | Shared, typed, calm projection of meaningful worker presence |
 | transcripts / tribal memory | **Logbook** | Durable attributable history, receipts, handoffs, and learned context |
 | Merkle receipt chain | **Anchor Chain** | Tamper-evident commitment and inclusion proof over Logbook evidence |
@@ -160,7 +155,7 @@ Names should teach the architecture. The following is the proposed product vocab
 | private skill marketplace | **Chandlery** | Provenance-aware exchange for skills, tools, and capability bundles |
 | sandboxed research frontier | **Trial Basin** | Scenario and evaluation program |
 | external runtime containment | **Drydock** | Hypervisor, I/O, egress, credential, and spend boundary |
-| iOS operator client / Scout | **Scout** | Mobile observation, approval, and emergency control surface |
+| Scout browser extension; future mobile Scout family | **Scout** | Explicit visual intake and roaming operator observation; not an ambient recorder or execution authority |
 | pd-console | **Bridge** (product label) | Deep local operator console; `pd-console` can remain the implementation name |
 | FleetBar | **FleetBar** | Ambient menu-bar awareness and immediate control |
 | Relay | **Relay** | Cross-machine event transport, never the source of authority |
@@ -271,11 +266,21 @@ Their evidence classes remain distinct:
 | Transcript | Deliberation and instruction history | Truth of unsupported assertions |
 | Settlement | Agreed value transfer | Moral adequacy of the agreement |
 
+Scout and Porthole are related, not interchangeable. Scout is the explicit
+browser-context intake surface today and may become a roaming browser/mobile
+operator family. Porthole is the shared consent, capture, redaction, replay, and
+evidence subsystem. A Scout client may invoke a platform-appropriate Porthole
+adapter; it does not own the recording protocol or evidence ledger. Porthole may
+be viewed inside the Bridge, FleetBar, Scout, a PR, or Trial Basin; it does not
+become agent identity or control authority.
+
 ### 4.6 Scout, Relay, FleetBar, Bridge, and Public Harbor
 
 - **FleetBar** gives ambient presence, spend pressure, blockers, and immediate pause/cancel/inspect controls.
 - **Bridge** gives deep local operations, evidence, roadmap, sessions, costs, and recovery.
-- **Scout** gives mobile observation, bounded approvals, distress control, and handoff. Consequential actions require recent step-up and target-pinned confirmation.
+- **Scout** gives explicit browser-context intake today and is the target family
+  for mobile observation, bounded approvals, distress control, and handoff.
+  Consequential actions require recent step-up and target-pinned confirmation.
 - **Relay** carries signed events between machines. It is transport, not authority, memory, custody, or truth.
 - **Public Harbor** at portdaddy.dev explains the system, hosts public artifacts and evidence, supports accounts and private-harbor discovery, and eventually presents the Chandlery. Private data never becomes public merely because it traverses Relay.
 
@@ -306,15 +311,17 @@ not a second research program or registry. That program owns the questions and
 claim-to-artifact discipline; Trial Basin executes admitted scenarios and returns
 result cards that may support, narrow, or falsify a claim.
 
-Trial Basin is also the execution harness for the proof and empirical work in the
-[Coordination Papers Research and Implementation Program](../roadmap/whitepaper-research-program.md),
-not a second research program or registry. That program owns the questions and
-claim-to-artifact discipline; Trial Basin executes admitted scenarios and returns
-result cards that may support, narrow, or falsify a claim.
-
 Port Daddy can be the test subject. It cannot own either layer.
 
-The implementable controller, broker, VM, scenario, test-suite, threat-model, and promotion design lives in [Drydock: Controlled Port Daddy Execution and Agent Simulation](./drydock-controlled-agent-simulation.md). That companion specification is the detailed Passage 0 contract; this Atlas remains the integrated product and research map.
+The implementable controller, broker, VM, scenario, test-suite, threat-model, and
+promotion design lives in [Drydock: Controlled Port Daddy Execution and Agent
+Simulation](./drydock-controlled-agent-simulation.md). The global spawn ledger,
+PID-proof recovery, crash-storm breakers, cross-backend identity continuity,
+pd-console conversation flow, secure iOS join, and Scout/Porthole boundary live in
+[Drydock Agent Lifecycle and Operator
+Control](./drydock-agent-lifecycle-and-operator-control.md). Those companions are
+the detailed Passage 0 contracts; this Atlas remains the integrated product and
+research map.
 
 ### 5.3 The minimal trusted host controller
 
@@ -520,7 +527,7 @@ Promotion is monotonic only in evidence, never automatic in authority. Passing T
 
 ### 5.12 Adversarial acceptance summary
 
-The following fourteen rows are acceptance categories, not canonical gate IDs. The companion Drydock specification defines the stable, independently reproducible `DRY-01` through `DRY-30` gates. Drydock is not accepted until every applicable canonical gate demonstrates the relevant category:
+The following fourteen rows are acceptance categories, not canonical gate IDs. The companion Drydock specifications define the stable, independently reproducible `DRY-01` through `DRY-44` gates. Drydock is not accepted until every applicable canonical gate demonstrates the relevant category:
 
 1. A recursive spawn loop cannot exceed process, worker, token, dollar, or wall-clock caps.
 2. Crash, reboot, retry, and duplicated idempotency keys conserve reservations and spend without double-counting releases.
@@ -625,6 +632,32 @@ The roadmap item `exact-operator-admission-grant` is the narrow bootstrap target
 
 This actuator remains a prerequisite for `workintent-dispatch-isolation`; it is not a reason to weaken admission while the runtime is halted.
 
+### 6.5 Accounted agent birth and continuation
+
+One operator action, **Start work**, should create one bounded worker by default.
+Roadmap work, prototyping, and ad hoc work are source/policy presets behind that
+same action, not separate spawning systems. A proposed split into several workers
+must be shown and authorized separately under one aggregate envelope.
+
+The external Agent Lifecycle Ledger is the missing join. It binds one durable
+`AgentNode` to each admitted attempt, expiring body generation, native backend
+session, host-observed process or VM witness, transcript, capabilities, and
+resource/effect/spend reservations. A PID, provider chat ID, alias, or worktree is
+never the identity. New admission remains closed after a crash until every
+nonterminal row and process is reconciled. Ambiguity revokes effects and
+quarantines the run; it never launches a replacement.
+
+pd-console projects that ledger as a durable conversation directory. The operator
+can launch one worker, watch and join its chat, switch among conversations, pause
+or stop a witnessed body, and continue the same durable worker in another backend.
+Cross-backend continuation fences the old generation, creates a sanitized handoff,
+and reissues a content-addressed capability environment. MCPs, skills, prompts,
+hooks, and permissions are verified and re-authorized; credentials are not copied.
+
+The complete contract and its 1,000-request crash-loop tests are in [Drydock Agent
+Lifecycle and Operator
+Control](./drydock-agent-lifecycle-and-operator-control.md).
+
 ---
 
 ## 7. Work intent and dispatch provenance
@@ -658,21 +691,22 @@ This is the single high-level roadmap. Detailed canonical nodes remain in the Ha
 | Passage | Outcome | Current truth | Owner | Dependencies | Acceptance gate | Zoom source |
 |---|---|---|---|---|---|---|
 | 0. Dark Harbor | Keep all Port Daddy runtime and spend paths disabled | **ACTIVE HALT** | Operator | None | External evidence that disabled services and spend triggers remain off | Halt order; incident evidence |
-| 1. Drydock | External VM, I/O, network, credential, spend, and kill boundary | **DESIGNED / NOT BUILT** | Unassigned | Passage 0 | All applicable `DRY-01`–`DRY-30` gates pass | Drydock spec and external receipts |
+| 1. Drydock | External VM, I/O, network, credential, spend, and kill boundary | **DESIGNED / NOT BUILT** | Unassigned | Passage 0 | All applicable `DRY-01`–`DRY-44` gates pass | Drydock specs and external receipts |
 | 2. Trial Basin | Deterministic, replay, canary, and adversarial evaluation ladder | **PARTIAL IDEAS / NOT ACCEPTED** | Unassigned | Drydock | T0–T2 pass; T3 additionally proves provider custody, tolerance, and settlement | Scenario and provider receipts |
 | 3. Provenance Repair | Bind every work intent to immutable repo/worktree/head truth | **P0 BLOCKED** | Existing roadmap lane | Exact admission; Drydock | Wrong-repository attack fails before backend launch | `workintent-dispatch-isolation` evidence |
-| 4. Safe Local Worker | One bounded worker can complete a patch with no ambient authority | **BLOCKED** | Unassigned | Passages 1–3 | T4 run, quarantined output, human promotion | Run receipt → patch → review |
-| 5. Harbor Lights | Shared typed presence across FleetBar and Bridge | **DESIGNED** | `active-agent-roster` lane | Typed events; safe runtime | One calm edge, honest persistent state, <=2-action zoom | Presence event → evidence |
-| 6. Chartroom | Reconcile roadmap, ADRs, research, incidents, and evidence | **PARTIAL SOURCE / DESIGNED PRODUCT** | Unified hypertree epic | Static atlas; safe local worker | Contradictions and maturity visible; no duplicate authority | Atlas node → primary artifact |
-| 7. Helm | Conversation-first cooperative coding environment | **PROTOTYPE LINEAGES / DESIGNED** | Unassigned | Chartroom; Harbor Lights; Drydock | Intent-to-diff loop with interruption, scope, tests, spend, and resume | Work card → symbol/diff/test |
-| 8. Logbook + Anchor | Durable memory, receipts, inclusion proofs, and salvage | **PARTIAL SOURCE / RESEARCH** | Existing Anchor lanes | Exact identity; evidence schema | Independent reconstruction and tamper detection | Summary → receipt → inclusion proof |
-| 9. FloatPlan | Guaranteed, evidence-settled compensation for labor | **LOCAL BOND FOUNDATION ONLY** | Unified hypertree epic | Anchor; identity; adjudication; Drydock | Escrow conservation, partial settlement, dispute, salvage carry | Commission → work → settlement |
-| 10. Cooperative Crew | Multiple bounded workers collaborate without spend or authority explosion | **DEFERRED** | Unassigned | T4; Harbor Lights; FloatPlan | T5 adversarial crew run under fixed aggregate budget | Crew view → each worker receipt |
-| 11. Relay Harbor | Safe cross-machine events and remote work handoff | **SOURCE-PRESENT IN PART / RUNTIME SUSPENDED** | Existing Relay lanes | Anchor; capability model; Drydock | Signed transport with no authority amplification | Remote event → local verification |
-| 12. Federated Harbors | Independent harbors cooperate under bounded trust | **RESEARCH / DEFERRED** | Unassigned | Relay; FloatPlan; remote custody proofs | Cross-harbor dispute and custody attacks survive | Federation agreement → receipts |
-| 13. Chandlery | Buy, sell, license, inspect, and revoke private skills | **DESIGNED / DEFERRED** | Unassigned | Identity; Anchor; Drydock; FloatPlan | Malicious-skill containment, provenance, license, payout, revocation | Listing → provenance → sandbox result |
-| 14. Scout + Public Harbor | Mobile control and public/commercial product surface | **PARTIAL SOURCE / DESIGNED** | Existing UI lanes | Shared projections; step-up authority | Mobile and web never create parallel truth; emergency path works daemon-down | UI state → canonical evidence |
-| 15. Open Water Program | Publish and test the Harbor and Float hypotheses | **ACTIVE RESEARCH / NO GRAND CLAIM PROVEN** | Research program | All prior passages | Reproducible models, experiments, counterexamples, and public artifacts | Hypothesis → dataset/model/proof |
+| 4. Agent Lifecycle | Atomically account for every durable worker, attempt, body, PID/VM witness, backend, capability, and reservation | **DESIGNED / NOT BUILT** | Unassigned | Drydock; provenance repair | DRY-33–44; closed-before-recovery; at most one authoritative body | Start receipt → body/process → transcript/cost |
+| 5. Safe Local Worker | One bounded worker can complete a patch with no ambient authority | **BLOCKED** | Unassigned | Passages 1–4 | T4 run, quarantined output, human promotion | Run receipt → patch → review |
+| 6. Harbor Lights | Shared typed presence across FleetBar and Bridge | **DESIGNED** | `active-agent-roster` lane | Typed events; safe runtime | One calm edge, honest persistent state, <=2-action zoom | Presence event → evidence |
+| 7. Chartroom | Reconcile roadmap, ADRs, research, incidents, and evidence | **PARTIAL SOURCE / DESIGNED PRODUCT** | Unified hypertree epic | Static atlas; safe local worker | Contradictions and maturity visible; no duplicate authority | Atlas node → primary artifact |
+| 8. Helm | Conversation-first cooperative coding environment | **PROTOTYPE LINEAGES / DESIGNED** | Unassigned | Chartroom; Harbor Lights; Drydock | Intent-to-diff loop with interruption, scope, tests, spend, and resume | Work card → symbol/diff/test |
+| 9. Logbook + Anchor | Durable memory, receipts, inclusion proofs, and salvage | **PARTIAL SOURCE / RESEARCH** | Existing Anchor lanes | Exact identity; evidence schema | Independent reconstruction and tamper detection | Summary → receipt → inclusion proof |
+| 10. FloatPlan | Guaranteed, evidence-settled compensation for labor | **LOCAL BOND FOUNDATION ONLY** | Unified hypertree epic | Anchor; identity; adjudication; Drydock | Escrow conservation, partial settlement, dispute, salvage carry | Commission → work → settlement |
+| 11. Cooperative Crew | Multiple bounded workers collaborate without spend or authority explosion | **DEFERRED** | Unassigned | T4; Harbor Lights; FloatPlan | T5 adversarial crew run under fixed aggregate budget | Crew view → each worker receipt |
+| 12. Relay Harbor | Safe cross-machine events and remote work handoff | **SOURCE-PRESENT IN PART / RUNTIME SUSPENDED** | Existing Relay lanes | Anchor; capability model; Drydock | Signed transport with no authority amplification | Remote event → local verification |
+| 13. Federated Harbors | Independent harbors cooperate under bounded trust | **RESEARCH / DEFERRED** | Unassigned | Relay; FloatPlan; remote custody proofs | Cross-harbor dispute and custody attacks survive | Federation agreement → receipts |
+| 14. Chandlery | Buy, sell, license, inspect, and revoke private skills | **DESIGNED / DEFERRED** | Unassigned | Identity; Anchor; Drydock; FloatPlan | Malicious-skill containment, provenance, license, payout, revocation | Listing → provenance → sandbox result |
+| 15. Scout + Public Harbor | Browser/mobile intake, remote control, and public/commercial surfaces | **PARTIAL SOURCE / DESIGNED** | Existing UI lanes | Shared projections; step-up authority; lifecycle ledger | Scout/Porthole stay distinct; mobile/web never create parallel truth; emergency path works daemon-down | UI state → canonical evidence |
+| 16. Open Water Program | Publish and test the Harbor and Float hypotheses | **ACTIVE RESEARCH / NO GRAND CLAIM PROVEN** | Research program | All prior passages | Reproducible models, experiments, counterexamples, and public artifacts | Hypothesis → dataset/model/proof |
 
 Passages are not release dates. They are dependency truth. Work may explore later passages in static research, but no runtime authority advances around an unmet earlier gate.
 
@@ -1008,10 +1042,13 @@ Work that is safe now:
 4. Specify the broker reservation ledger, provider-custody contract, enforcement tolerance, and conservation vectors independently of executable code.
 5. Build fake-provider and replay fixtures that do not invoke Port Daddy.
 6. Define adversarial acceptance cases and expected external receipts.
-7. Design the Harbor Lights schema and visual states without launching the clients.
-8. Define FloatPlan settlement vectors and attack simulations as pure data.
-9. Mark every current roadmap claim with evidence class and staleness.
-10. Obtain operator review of the proposed names, constitution, and promotion doctrine.
+7. Specify the Agent Lifecycle Ledger, PID/VM witness, durable breaker, restart
+   recovery, capability capsule, and cross-backend handoff as inert schemas and
+   transition vectors.
+8. Design the Harbor Lights schema and visual states without launching the clients.
+9. Define FloatPlan settlement vectors and attack simulations as pure data.
+10. Mark every current roadmap claim with evidence class and staleness.
+11. Obtain operator review of the proposed names, constitution, and promotion doctrine.
 
 Work that remains forbidden until the operator explicitly changes the halt:
 

@@ -14,6 +14,7 @@ stays out of unrelated implementation or ordinary test work.
 | “What receipts prove a guest had no route to my daemon and that its patch came from the exact admitted commit?” | Activate | Requires host-observed isolation and sealed provenance/witness classification. |
 | “Should the dry-dock controller be Rust, Swift, or TypeScript, and how do we keep its offline build incapable of spending?” | Activate | Language, process, packaging, and spend authority are part of the external TCB. |
 | “Guarantee agents can never dirty or commit from my main checkout; all source and authored work must use worktrees.” | Activate | Canonical-checkout exclusion, source-vault provenance, and worktree-only promotion are security invariants. |
+| “Where is the plan for how agents spawn? How do we avoid losing their PIDs or sessions, and what stops a crash-plus-spawn-times-1000 loop?” | Activate | Durable admission, process witnessing, identity/body separation, restart reconciliation, and persistent breakers are Drydock safety boundaries. |
 
 ## Negative activation queries
 

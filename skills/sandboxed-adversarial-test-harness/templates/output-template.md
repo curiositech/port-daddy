@@ -142,6 +142,31 @@ concurrency one, zero tools, zero children, zero retries, and no automatic refil
 - WAL/FULL transaction and migration probe: [evidence]
 - backup/restore, integrity, chain, and conservation proof: [evidence]
 
+## Agent Lifecycle And Spawn-Storm Control
+
+| Identity or authority | Durable ID / binding | Writer or witness | Expiry / generation | Evidence |
+|---|---|---|---|---|
+| principal + work intent | | | | |
+| durable agent node | | | | |
+| admitted agent run | | | | |
+| body lease | | | | |
+| backend-native session | | | | |
+| process/VM witness | | | | |
+| transcript lineage | | | | |
+| capability environment | | | | |
+
+- Every launch ingress enters one admission writer: [yes/no + enumeration]
+- Atomic global/project/backend/ancestry/resource/spend reservation: [evidence]
+- Agent-birth retry owner and automatic attempt count: [component + integer]
+- Child depth/direct child/total descendant ceilings: [values]
+- Durable idempotency and equivalent-intent flood handling: [evidence]
+- Boot state is admission-closed until reconciliation: [evidence]
+- PID witness includes host boot, process start, nonce, executable, sandbox, and controller epoch: [evidence]
+- Safety breaker persistence and authenticated reset preconditions: [evidence]
+- At most one authoritative body generation: [invariant and race evidence]
+- Cross-backend capability diff and credential non-transfer: [evidence]
+- 1,000-request duplicate and varied-flood results: [process/reservation/queue counts]
+
 ## Trial Basin Scenario
 
 - Scenario digest:
