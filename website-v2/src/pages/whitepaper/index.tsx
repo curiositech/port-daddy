@@ -27,11 +27,43 @@ import {
  * linking off to eight separate PDFs, because there are not eight PDFs.
  */
 
+/**
+ * The four part inks, as tokens rather than hexes.
+ *
+ * These were the Book's light-mode values pasted in literally, which had two
+ * costs. The palette guard forbids colour literals in a component for a
+ * reason -- a hex here cannot follow the token when the story palette moves --
+ * and, more visibly, a literal does not know what theme it is in. Every one of
+ * these already exists as a theme-aware pair: cobalt and teal are the brand
+ * tokens the story palette reuses for L0 truth and L2 legibility, violet and
+ * gold are its own. The dark block redefines all four, so the slabs now darken
+ * with the page instead of printing light-mode ink on a dark ground.
+ *
+ * `on` matters most. It was fixed at cream, which is only correct while the
+ * block stays dark; pairing each block with its own foreground token is what
+ * lets the Swiss slab treatment carry paper-coloured type in either theme.
+ */
 const PART_INK: Record<string, { block: string; on: string; rule: string }> = {
-  pdcobalt: { block: '#003fb8', on: '#fbf7ef', rule: 'var(--fl-cobalt)' },
-  pdteal: { block: '#006b5f', on: '#fbf7ef', rule: '#006b5f' },
-  pdviolet: { block: '#933fa5', on: '#fbf7ef', rule: '#933fa5' },
-  pdgold: { block: '#666a00', on: '#fbf7ef', rule: '#666a00' },
+  pdcobalt: {
+    block: 'var(--brand-primary)',
+    on: 'var(--brand-primary-foreground)',
+    rule: 'var(--brand-primary)',
+  },
+  pdteal: {
+    block: 'var(--brand-accent)',
+    on: 'var(--brand-accent-foreground)',
+    rule: 'var(--brand-accent)',
+  },
+  pdviolet: {
+    block: 'var(--story-violet)',
+    on: 'var(--story-violet-foreground)',
+    rule: 'var(--story-violet)',
+  },
+  pdgold: {
+    block: 'var(--story-gold)',
+    on: 'var(--story-gold-foreground)',
+    rule: 'var(--story-gold)',
+  },
 }
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
@@ -261,8 +293,8 @@ export default function WhitepaperPage() {
         label: 'Contents',
         flag: 'fl-papa',
         meaning: 'Papa — about to proceed to sea',
-        color: '#003fb8',
-        onColor: '#fbf7ef',
+        color: 'var(--brand-primary)',
+        onColor: 'var(--brand-primary-foreground)',
         headline: 'Four parts, eight chapters, one question each.',
         standfirst:
           'Each chapter stands on the ones before it, and every proving chapter follows the chapter whose promises it keeps — so the numbers are the argument, not a filing order.',
@@ -273,8 +305,8 @@ export default function WhitepaperPage() {
         label: 'The spine',
         flag: 'fl-kilo',
         meaning: 'Kilo — I wish to communicate with you',
-        color: '#006b5f',
-        onColor: '#fbf7ef',
+        color: 'var(--brand-accent)',
+        onColor: 'var(--brand-accent-foreground)',
         headline: 'One sentence, threaded through eight chapters.',
         standfirst:
           'If you read nothing else, read this: it is the whole book compressed to the point where you can decide whether you disagree with it.',
@@ -285,8 +317,8 @@ export default function WhitepaperPage() {
         label: 'The proofs',
         flag: 'fl-charlie',
         meaning: 'Charlie — affirmative',
-        color: '#353a85',
-        onColor: '#fbf7ef',
+        color: 'var(--story-indigo)',
+        onColor: 'var(--story-indigo-foreground)',
         headline: 'Where the prose stops and a checker starts.',
         standfirst:
           'Three chapters exist to keep another chapter honest, and each one names the tool that holds it — ProVerif, TLA⁺, Kani, Z3.',
@@ -297,8 +329,8 @@ export default function WhitepaperPage() {
         label: 'Limits',
         flag: 'fl-uniform',
         meaning: 'Uniform — you are running into danger',
-        color: '#7a4514',
-        onColor: '#fbf7ef',
+        color: 'var(--story-rust)',
+        onColor: 'var(--story-rust-foreground)',
         headline: 'What is built, what is modelled, what is proposed.',
         standfirst:
           'The seam between working software and a finished argument is the most interesting thing on this page, so it is not buried at the back.',
@@ -309,8 +341,8 @@ export default function WhitepaperPage() {
         label: 'Read it',
         flag: 'fl-hotel',
         meaning: 'Hotel — I have a pilot on board',
-        color: '#666a00',
-        onColor: '#fbf7ef',
+        color: 'var(--story-gold)',
+        onColor: 'var(--story-gold-foreground)',
         headline: 'One PDF, three editions, free.',
         standfirst:
           'No form, no email, no chapter paywalled behind a newsletter — the whole book, in whichever typography you like reading in.',
