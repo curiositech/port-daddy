@@ -55,11 +55,27 @@ Explicitly untrusted: [subject, dependencies, tests, guest, agent, output, input
 |---|---|---|---|---|
 | Network devices/routes | none | | | |
 | Directory/host mounts | none | | | |
+| Canonical checkout/common directory | absent and invalid as source or target | | | |
+| Source materialization | exact remote object -> bare vault -> fresh sealed worktree | | | |
+| Promotion target | fresh linked review worktree; non-default branch | | | |
 | Socket/vsock channels | none | | | |
 | Credentials | none | | | |
 | CPU/memory/PIDs/I/O/time | finite hard ceilings | | | |
 | Output | bounded disposable slot | | | |
 | Teardown/recovery | controller-owned | | | |
+
+## Canonical Checkout and Worktree Integrity
+
+- Canonical checkout path identity: [path plus device/inode or platform identity]
+- Live remote witness: [normalized remote, refs/heads/main commit, observation receipt]
+- Canonical HEAD/index/worktree/untracked proof before: [values]
+- Canonical HEAD/index/worktree/untracked proof after: [values]
+- Bare source-vault identity: [path identity, remote, object/commit/tree]
+- Sealed source worktree: [path identity, detached commit, tree, common directory]
+- Guest-local authoring worktree: [guest identity, commit/tree, no production remote]
+- Quarantined output: [patch/bundle digest and ceilings]
+- Host review worktree: [fresh path identity, non-default branch, base, remote, clean proof]
+- Default-branch/canonical-target rejection receipt: [attack and denial]
 
 ## Typed Effects and Capabilities
 

@@ -170,13 +170,21 @@ Record devices and mounts by enumeration. For hostile runs, empty network and
 directory-sharing device lists are the baseline. “No route” must be proven from
 host configuration, not inferred from a failed guest request.
 
-### 4. Seal every executable input
+### 4. Seal every executable input and exclude the canonical checkout
 
 Content-address the guest image, source tree, test bundle, configuration, scenario,
 policy, price catalog, fixture set, and controller build. Treat submitted Jest
 configuration, transforms, setup, shell hooks, and tests as executable adversary
 input. Run them inside a disposable guest or second test-runner guest, never on the
 developer or CI host.
+
+Fetch the exact remote commit into a dedicated bare source vault and materialize it
+through a fresh linked worktree. Never package, test, stage, commit, or promote from
+the canonical checkout. It must remain an exact clean projection of the live
+`origin/main` tree and be absent from the guest. Guest work stays in guest-local
+worktrees; approved output may enter only a fresh host linked review worktree on a
+non-default branch. Record before/after canonical integrity receipts, but rely on
+path and authority absence for prevention.
 
 ### 5. Make channels absent before making them filtered
 
@@ -299,6 +307,19 @@ the entire test runner inside a disposable guest.
 
 **Timeline:** Looks efficient in CI, then a configuration file or transform gains
 host code execution before the supposedly isolated subject starts.
+
+### Clean Main As A Social Convention
+
+**Novice:** Ask agents to avoid the main checkout and add a pre-commit hook.
+
+**Expert:** Make the canonical checkout absent from guests and invalid in every
+packer, broker, and promotion schema. Fetch through a bare source vault, author in
+worktrees only, and admit output only into a new linked review worktree. Hooks are
+friendly diagnostics, not enforcement.
+
+**Timeline:** Main stays clean during cooperative testing, then one wrong working
+directory, inherited `GIT_DIR`, or path alias stages unrelated operator bytes and
+turns source provenance into guesswork.
 
 ### Guest Self-Attestation
 

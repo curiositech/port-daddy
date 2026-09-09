@@ -99,7 +99,7 @@ Containment, correctness, usefulness, and moral legitimacy are separate claims.
 
 ## 3. Safety axioms
 
-Every design decision follows from seven axioms.
+Every design decision follows from eight axioms.
 
 ### Axiom 1: the subject is adversarial
 
@@ -128,6 +128,16 @@ Run state, budget state, kill decisions, packet attempts, and final evidence are
 ### Axiom 7: promotion is a new authority grant
 
 A simulation PASS does not silently authorize a canary. A canary PASS does not silently authorize multi-agent execution. Each tier requires a separate, explicit, expiring lease.
+
+### Axiom 8: the canonical checkout is a read-only projection
+
+The host checkout of `main` is not a workplace, cache, staging directory, source
+authority, artifact destination, or place from which an agent may commit. It must
+equal the independently fetched `origin/main` tree and contain nothing else.
+Agents work only in disposable linked worktrees created from a dedicated bare
+source vault. The guest cannot see the canonical checkout at all. Detection is
+not the primary defense: the path, file descriptors, Git common directory, and
+write authority are absent from the guest and denied to every promotion channel.
 
 ---
 
@@ -327,7 +337,9 @@ Required profile:
 - host-enforced wall-clock deadline; and
 - teardown that detaches and destroys the overlay before the run can be reused.
 
-The source bundle should be an archive or filesystem image created from an exact Git tree, not the developer's mutable worktree.
+The source bundle should be an archive or filesystem image created from an exact
+Git tree in a dedicated bare source vault, never from the canonical checkout or a
+developer's mutable worktree.
 
 ### 6.2 Linux high-assurance profile
 
@@ -392,6 +404,7 @@ Every run begins from a sealed `RunManifest`. The controller resolves no floatin
 The manifest binds:
 
 - normalized repository remote;
+- independently observed remote-ref commit for `refs/heads/main`;
 - exact source commit;
 - source-tree digest;
 - source archive or input-volume digest;
@@ -406,16 +419,24 @@ The manifest binds:
 
 ### 7.2 Source packaging
 
-The source packer runs outside the guest and must:
+The source packer runs outside the guest, reads only a dedicated bare source
+vault, and must:
 
-1. resolve the requested commit in the named repository;
-2. verify the normalized remote against policy;
-3. export only the exact tree, never a parent checkout discovered by walking upward;
-4. reject submodules or large-file pointers not pinned by digest;
-5. reject sockets, devices, setuid files, and absolute symlinks;
-6. produce a deterministic archive or filesystem image;
-7. hash the result; and
-8. seal the digest into the run lease.
+1. query the named remote for the exact `refs/heads/main` object without consulting
+   a developer checkout's remote-tracking ref;
+2. fetch that exact object into the dedicated bare vault;
+3. verify the normalized remote, object reachability, commit, and tree against policy;
+4. create a fresh detached linked worktree in the approved worktree root from that
+   object, never a parent checkout discovered by walking upward;
+5. reject a path equal to, inside, or resolving through the canonical checkout and
+   reject a Git common directory that is not the approved vault;
+6. export only the exact tree from that fresh worktree;
+7. reject submodules or large-file pointers not pinned by digest;
+8. reject sockets, devices, setuid files, and absolute symlinks;
+9. produce a deterministic archive or filesystem image;
+10. hash the result; and
+11. seal the remote witness, commit, tree, worktree identity, and archive digest
+    into the run lease.
 
 This directly addresses the dispatch provenance regression in which a worktree operation could inherit the wrong parent Git repository. The guest receives a sealed tree and has no authority to reinterpret its origin.
 
@@ -428,15 +449,68 @@ fetch, export, verification, image construction, artifact promotion, or receipt
 publication. Therefore a product feature that arms hooks is testable behavior; it
 never becomes a Drydock controller extension.
 
-### 7.3 No ambient package installation
+### 7.3 Canonical-checkout exclusion and worktree-only authorship
+
+Drydock treats the host's canonical checkout as a protected projection whose only
+valid state is the exact tree of the independently witnessed `origin/main` commit,
+with a clean index, clean worktree, no untracked files, and no local commit. It is
+not trusted merely because `git status` happens to be clean: a stale clean checkout
+is still not `origin/main`, and a mutable remote-tracking ref is not a live remote
+witness.
+
+Prevention has four independent layers:
+
+1. **No path:** the canonical checkout, its parent directories, and its Git common
+   directory are absent from every guest device and mount manifest.
+2. **No host authority:** agents and guest-facing helpers run as identities that
+   cannot traverse or write the canonical checkout. A read-only snapshot or ACL is
+   defense in depth; absence from the guest remains the primary boundary.
+3. **No valid target:** the artifact broker accepts only a newly created linked
+   review worktree beneath an approved worktree root. It rejects `main`, `master`,
+   detached canonical paths, path aliases, symlink aliases, ancestor traversal,
+   caller-selected `GIT_DIR`/`GIT_WORK_TREE`, and an unexpected Git common directory.
+4. **No direct publication:** the guest exports a bounded patch or Git bundle into
+   quarantine. A separate promoter may apply it only to the named review worktree
+   on a non-default branch after re-verifying remote, base, clean state, and target
+   identity. The guest has no production remote or GitHub credential.
+
+The source worktree used to build a guest is disposable and read-only after
+sealing. Authoring happens in a separate guest-local worktree backed by a
+guest-local repository copy. Its commits are evidence objects only. They cannot
+move a host ref. When output is approved, the promoter creates another fresh host
+linked worktree from the current independently fetched `origin/main`, verifies it
+is outside the canonical checkout, and applies the quarantined change there. No
+agent command ever runs with the canonical checkout as its working directory.
+
+Before and after every run and promotion attempt, a checkout-integrity witness
+records the canonical path identity, HEAD, index tree, worktree tree, untracked
+count, Git common-directory identity, and comparison with the live remote witness.
+Any disagreement blocks new work and is surfaced as a host-integrity incident. The
+witness detects host activity outside Drydock; it does not retroactively make an
+exposed path safe.
+
+Drydock never resets, stashes, deletes, restores, relocates, or otherwise “cleans”
+a divergent canonical checkout. Those bytes may belong to a person or another
+tool. Only a separately authorized checkout custodian may replace the projection
+from the verified remote tree, and that replacement has its own destructive-action
+preview and receipt. A host operator or root process outside Drydock remains able
+to mutate host storage; that residual is stated plainly rather than misrepresented
+as a hypervisor guarantee.
+
+Repository hooks and wrappers may provide a friendly error when someone tries to
+commit from the canonical checkout, but they are bypassable ergonomics, not the
+security boundary. Remote branch protection remains independently required.
+
+### 7.4 No ambient package installation
 
 Initial tiers use prebuilt, digest-pinned images. `npm install`, package-manager hooks, Homebrew, `curl | sh`, and arbitrary dependency downloads are denied inside a run.
 
 A future dependency-fetch stage is a separate, networked build chamber whose outputs are scanned, pinned, and promoted into an image. It is not the same trust tier as executing the result.
 
-### 7.4 Output quarantine
+### 7.5 Output quarantine
 
-Guest output never lands directly in a developer worktree or Git remote. It enters a quarantine store with:
+Guest output never lands directly in the canonical checkout, a developer
+worktree, or a Git remote. It enters a quarantine store with:
 
 - file-count and byte ceilings;
 - path normalization;
@@ -447,7 +521,9 @@ Guest output never lands directly in a developer worktree or Git remote. It ente
 - explicit operator or reviewer promotion; and
 - an immutable link to the run receipt.
 
-A patch is evidence, not an instruction to apply itself.
+A patch is evidence, not an instruction to apply itself. Promotion creates and
+targets a fresh linked review worktree; a canonical-checkout or default-branch
+target is structurally invalid rather than an overrideable warning.
 
 ---
 
@@ -1302,6 +1378,8 @@ Every test file or manifest declares:
   "credentials": "none|opaque-run-capability",
   "realProviderBudgetMicroUsd": 0,
   "canonicalRuntime": "forbidden",
+  "sourceMaterialization": "sealed-vault-worktree",
+  "hostPromotionTarget": "fresh-linked-review-worktree",
   "retention": "digests|redacted|full-approved"
 }
 ```
@@ -1359,7 +1437,11 @@ Before any T2 test sends a request, the external controller independently attest
 
 - the endpoint is a lease-bound Drydock transport;
 - run ID, receipt, source digest, and expected commit agree;
+- the source remote witness, bare-vault object, sealed source worktree, and input
+  image agree on one commit and tree;
 - the VM manifest contains no host-home, canonical-state, or source-worktree mount;
+- the canonical-checkout path and Git common directory are absent, and their
+  before-run integrity witness still equals the live `origin/main` witness;
 - the network manifest contains no host route, canonical port forward, general external route, or undeclared device; and
 - the real-provider capability and provider-side financial authority are both absent.
 
@@ -1671,6 +1753,8 @@ Drydock is not accepted until an independent reviewer can reproduce these gates 
 | `DRY-28` | Artifact claims wrong source head | digest mismatch blocks promotion |
 | `DRY-29` | Teardown interrupted | recovery finds and destroys orphan with revoked lease |
 | `DRY-30` | Malicious controller test mutation | specimen suite catches removal of each critical gate |
+| `DRY-31` | Guest or submitted test targets the canonical checkout by direct path, symlink, parent traversal, inherited descriptor, or caller-selected Git environment | path and descriptor absent; host access denied; checkout-integrity receipt unchanged |
+| `DRY-32` | Artifact promotion names the canonical checkout, default branch, stale worktree, wrong common directory, or path alias | broker rejects before extraction or Git mutation; no canonical file, index, object, or ref changes |
 
 Passing once is not enough. Gates need stable automated fixtures and a signed controller build identity.
 
@@ -1693,6 +1777,8 @@ Deliver without running Port Daddy:
   Drydock application of ADR-0120;
 - pure `step(state, action, virtual_time, entropy)` transition contract;
 - fail-cheap breaker, retry, deadline, storage, and retention contracts; and
+- canonical-checkout exclusion, bare-vault provenance, worktree-only authorship,
+  and checkout-integrity receipt contracts; and
 - explicit non-goals.
 
 **Gate:** independent design review can identify exactly which process, language,
@@ -1711,7 +1797,9 @@ launcher, dynamic plugin loader, or networked update path.
 **Gate:** controller/helper/VMM/image/source digests, fixed device profile,
 resource ceilings, no-network boot, bounded output, independent watchdog kill,
 destruction, restart recovery, and external receipt all pass. Cooperative stop is
-tested separately from forced stop; a forced-stop disk is never reused.
+tested separately from forced stop; a forced-stop disk is never reused. The source
+vault creates a sealed disposable worktree while canonical-checkout path access is
+denied and before/after canonical integrity receipts are identical.
 
 ### D2 — Fake broker and budget ledger
 
@@ -1734,7 +1822,7 @@ Run purpose-built malicious specimens, not Port Daddy:
 - capability replay; and
 - artifact attacks.
 
-**Gate:** all applicable `DRY-01` through `DRY-30` adversarial gates fail closed and host availability remains within defined bounds.
+**Gate:** all applicable `DRY-01` through `DRY-32` adversarial gates fail closed and host availability remains within defined bounds.
 
 ### D4 — Port Daddy T1 components
 
@@ -1781,6 +1869,7 @@ These are proposed roadmap children under `port-daddy-unified-product-hypertree`
 | Proposed slug | Outcome | Estimate | Dependencies | Acceptance evidence |
 |---|---|---:|---|---|
 | `drydock-safety-model` | Schemas, threat model, language/process boundary, pure transition function, invariant and tier contracts | 5 | none | reviewed D0 artifacts |
+| `drydock-source-vault-worktree-gate` | Bare remote source vault, live-ref witness, canonical-checkout exclusion, disposable source worktrees, and fresh review-worktree promotion | 5 | safety model | identical before/after canonical receipts plus DRY-31/32 |
 | `drydock-inert-vm-controller` | Separate Rust controller/watchdog release plus minimal Swift VZ helper and inert guest | 8 | safety model | D1 signed-build and runtime receipts |
 | `drydock-budget-effect-broker` | Separate Rust broker, prepaid integer ledger, durable breaker, fake provider, and single-writer store | 8 | safety model | D2 property, migration, corruption, and crash receipts |
 | `drydock-hostile-specimens` | Escape, network, resource, protocol, and artifact attacks | 8 | controller; broker | D3 matrix |
@@ -1802,7 +1891,7 @@ This document does not authorize a restart.
 A future operator may consider a limited restart only after all of the following are independently evidenced:
 
 1. D0-D5 are complete on a clean controller installation.
-2. All applicable `DRY-01` through `DRY-30` adversarial gates pass.
+2. All applicable `DRY-01` through `DRY-32` adversarial gates pass.
 3. The controller and broker are outside Port Daddy's process, package, credential, and storage authority.
 4. The exact Port Daddy source image is sealed by digest.
 5. The run has no host mounts and no canonical daemon route.
@@ -1830,6 +1919,11 @@ Reject:
 - passing provider or GitHub credentials into the guest;
 - exposing a generic HTTP CONNECT proxy;
 - mounting the developer worktree writable;
+- mounting or exposing the canonical checkout at all, even read-only;
+- using the canonical checkout, its Git common directory, or a mutable local
+  `origin/main` ref as source authority;
+- creating, amending, applying, staging, committing, or promoting from the
+  canonical checkout or directly on the default branch;
 - using the canonical daemon with a temporary database;
 - discovering a default daemon endpoint;
 - allowing integration tests to fall back when no Drydock receipt exists;

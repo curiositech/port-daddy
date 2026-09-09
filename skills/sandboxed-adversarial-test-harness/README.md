@@ -23,6 +23,11 @@ not authorize execution.
 4. Check the activation cases in `tests/activation.md`.
 5. Validate the skill bundle with the external skill-architect validators.
 
+The canonical default-branch checkout is never a Drydock worksite or source
+authority. Fetch through a dedicated bare vault, materialize exact commits in
+disposable worktrees, author in guest-local worktrees, and promote only into a
+fresh host linked review worktree on a non-default branch.
+
 ## Safe validation
 
 These checks inspect the skill bundle itself. They do not execute Port Daddy or a

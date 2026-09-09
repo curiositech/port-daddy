@@ -426,6 +426,12 @@ from a cache is not receipt proof.
 - [ ] Stale fencing generation cannot complete, publish, or settle.
 - [ ] SQLite power-loss policy, migrations, backups, corruption, and disk-reserve failures are exercised.
 - [ ] T0-T2 external packet and provider-call counts are externally observed zero.
+- [ ] Source comes from an independently witnessed remote object in a dedicated
+      bare vault; the canonical checkout is never mounted, opened, packaged, or
+      accepted as an artifact target.
+- [ ] Every authoring or promotion path is a fresh linked worktree on a
+      non-default branch, and before/after receipts prove canonical HEAD, index,
+      worktree, untracked inventory, object store, and refs unchanged.
 - [ ] First T3 has one request, one attempt, no tool, one dedicated custody cell, and a durable forced-open path.
 - [ ] No automatic refill, promotion, breaker half-open, agent spawn, or retry exists.
 - [ ] Switchboard can revoke and kill without Observatory or guest cooperation.

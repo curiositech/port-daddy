@@ -126,8 +126,25 @@ Primary sources:
 
 - Never mount the developer home, source worktree, credential store, canonical
   socket, service manager, or production checkout.
-- Stage source and tests as a digest-pinned read-only image or archive. Never let
-  Git discover a parent repository by walking upward.
+- Treat the canonical checkout of the default branch as a protected read-only
+  projection, not a source, cache, staging area, output target, or worksite. It
+  must equal a live independently witnessed `origin/main` tree with a clean
+  index/worktree and no untracked files; a stale clean checkout still fails.
+- Fetch exact remote objects into a dedicated bare source vault. Create a fresh
+  detached linked worktree beneath the approved worktree root, seal its identity,
+  then stage source and tests as a digest-pinned read-only image or archive. Never
+  export from a developer or canonical checkout and never let Git discover a
+  parent repository by walking upward.
+- The guest may author only in a guest-local worktree backed by a guest-local
+  repository copy. Return a bounded patch or bundle to quarantine. Promotion may
+  apply it only to a newly created host linked review worktree on a non-default
+  branch after path, common-directory, base, remote, and clean-state verification.
+- Reject canonical/default-branch targets before artifact extraction. Also reject
+  symlink aliases, ancestor traversal, inherited descriptors, caller-selected
+  `GIT_DIR`/`GIT_WORK_TREE`, and unexpected Git common directories.
+- A stale or dirty canonical checkout blocks admission but is never reset, stashed,
+  deleted, restored, or auto-cleaned by the harness. Preserve it for its owner and
+  require a separately authorized projection-replacement receipt.
 - Give the guest one bounded disposable output filesystem. Enforce byte, inode,
   file-count, path-depth, and archive-expansion ceilings outside the guest.
 - Quarantine output. Reject absolute paths, traversal, symlink or hardlink escape,
@@ -148,6 +165,11 @@ A containment receipt includes controller-observed:
 - broker listener identity and absence of undeclared listeners or routes;
 - lifecycle transitions, revocation, kill, overlay destruction, and orphan scan;
 - output inventory and quarantine decision; and
+- source-vault remote witness, source/review worktree identities, and before/after
+  proof that the canonical checkout path, HEAD, index, worktree, untracked count,
+  object store, and refs did not change; and
 - all known residuals, including host-kernel, hypervisor, and controller compromise.
 
 Guest logs may accompany this receipt but cannot fill a missing host field.
+The hypervisor cannot constrain an operator or root process acting outside the
+harness; record that host-authority residual explicitly.

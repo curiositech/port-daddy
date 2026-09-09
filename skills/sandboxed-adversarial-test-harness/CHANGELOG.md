@@ -1,5 +1,14 @@
 # Sandboxed Adversarial Test Harness — Changelog
 
+## v2.1.1 (2026-09-08)
+
+- Made the canonical checkout a protected, exact `origin/main` projection that
+  is absent from guests and invalid as a source, worksite, or promotion target.
+- Added dedicated bare-vault provenance, disposable source worktrees,
+  guest-local authoring worktrees, and fresh host review-worktree promotion.
+- Added before/after checkout-integrity receipts and adversarial path, Git-context,
+  default-branch, and artifact-target rejection gates.
+
 ## v2.1.0 (2026-09-08)
 
 - Chose a Rust controller/watchdog/broker/Trial Basin nucleus, a tiny Swift
