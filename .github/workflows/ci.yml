@@ -1467,6 +1467,7 @@ jobs:
       - fleetbar
       - integration-tests
       - lint
+      - mcp-catalog-guard
       - pd-ios
       - porthole-cast-gate
       - porthole-stage
