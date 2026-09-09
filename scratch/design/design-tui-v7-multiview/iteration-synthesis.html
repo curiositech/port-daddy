@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Three Rounds. Fifteen Personas. The Numbers Moved.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --paper: #F4F0E8; --paper-raised: #ECE6D9; --paper-deep: #E2DAC8;
+    --ink: #1A1815; --ink-soft: #3A3631; --ink-mute: #6A655C; --ink-ghost: #98928A;
+    --hair: rgba(26, 24, 21, 0.12); --hair-strong: rgba(26, 24, 21, 0.32);
+    --cobalt: #003FB8; --st-ok: #2E7D5B; --st-warn: #B8801F; --st-error: #B5392E;
+    --hold: #6B3F8A;
+    --font-sans: 'Inter', system-ui, sans-serif;
+    --font-mono: 'Geist Mono', ui-monospace, monospace;
+    --font-serif: 'Fraunces', Georgia, serif;
+  }
+  html, body { background: var(--paper); color: var(--ink); font-family: var(--font-sans); font-size: 16px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+  .page-frame { position: fixed; inset: 16px; pointer-events: none; z-index: 1; }
+  .page-frame::before, .page-frame::after, .page-frame .tl, .page-frame .br {
+    content: ""; position: absolute; width: 18px; height: 18px;
+    border-color: var(--ink); border-style: solid; border-width: 0;
+  }
+  .page-frame::before { top: 0; right: 0; border-top-width: 1.5px; border-right-width: 1.5px; }
+  .page-frame::after { bottom: 0; left: 0; border-bottom-width: 1.5px; border-left-width: 1.5px; }
+  .page-frame .tl { top: 0; left: 0; border-top-width: 1.5px; border-left-width: 1.5px; }
+  .page-frame .br { bottom: 0; right: 0; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+  .container { max-width: 1280px; margin: 0 auto; padding: 64px 48px; position: relative; z-index: 2; }
+
+  /* MASTHEAD */
+  .masthead { display: grid; grid-template-columns: 1fr auto; align-items: end; padding-bottom: 24px; border-bottom: 1px solid var(--hair-strong); margin-bottom: 40px; gap: 24px; }
+  .kicker { font-family: var(--font-mono); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.14em; color: var(--cobalt); margin-bottom: 14px; }
+  .masthead h1 { font-size: clamp(36px, 5.4vw, 60px); font-weight: 800; line-height: 0.96; letter-spacing: -0.035em; max-width: 18ch; }
+  .masthead h1 em { font-family: var(--font-serif); font-style: italic; font-variation-settings: 'SOFT' 50, 'opsz' 144; font-weight: 500; color: var(--cobalt); }
+  .meta { font-family: var(--font-mono); font-size: 13px; color: var(--ink-mute); line-height: 1.7; text-align: right; min-width: 200px; }
+  .meta strong { color: var(--ink); font-weight: 600; }
+
+  .lede { font-size: 19px; line-height: 1.5; color: var(--ink-soft); max-width: 64ch; margin-bottom: 56px; }
+  .lede em { font-family: var(--font-serif); font-style: italic; }
+
+  section { margin-bottom: 64px; }
+  .sh { display: grid; grid-template-columns: 64px 1fr auto; align-items: baseline; gap: 16px; padding-bottom: 14px; margin-bottom: 24px; position: relative; }
+  .sh::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background-image: linear-gradient(to right, transparent 0 32%, var(--hair-strong) 32% 68%, transparent 68% 100%); }
+  .sn { font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--cobalt); }
+  .st { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
+  .sk { font-family: var(--font-mono); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink-mute); }
+
+  /* HEADLINE NUMBERS */
+  .top-numbers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-bottom: 32px; }
+  .num-card { padding: 22px 24px; background: var(--paper-raised); position: relative; }
+  .num-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--cobalt); }
+  .num-eyebrow { font-family: var(--font-mono); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: var(--cobalt); margin-bottom: 12px; }
+  .num-value { font-family: var(--font-mono); font-size: 56px; font-weight: 600; letter-spacing: -0.03em; color: var(--ink); line-height: 1; margin-bottom: 8px; }
+  .num-value .arrow { color: var(--st-ok); font-weight: 500; }
+  .num-sub { font-size: 13px; color: var(--ink-soft); line-height: 1.5; }
+  .num-sub strong { color: var(--ink); font-family: var(--font-mono); font-size: 12px; }
+
+  /* TRAJECTORY CHARTS */
+  .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-bottom: 24px; }
+  .chart-block { background: var(--paper-raised); padding: 24px 28px; position: relative; }
+  .chart-block::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--cobalt); }
+  .chart-block.held::before { background: var(--hold); }
+  .chart-eyebrow { font-family: var(--font-mono); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 4px; color: var(--cobalt); }
+  .chart-block.held .chart-eyebrow { color: var(--hold); }
+  .chart-title { font-size: 19px; font-weight: 700; letter-spacing: -0.015em; margin-bottom: 4px; }
+  .chart-sub { font-family: var(--font-mono); font-size: 12px; color: var(--ink-mute); margin-bottom: 18px; }
+  svg.trajectory { width: 100%; height: 240px; display: block; }
+
+  .legend { display: flex; gap: 18px; margin-top: 14px; }
+  .legend-item { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 12px; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
+  .legend-swatch { width: 16px; height: 3px; }
+
+  /* PERSONA HEATMAP */
+  .heat-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .heat-table thead th { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; color: var(--ink-mute); padding: 8px 6px; border-bottom: 1px solid var(--ink); vertical-align: bottom; }
+  .heat-table tbody td { padding: 8px 6px; border-bottom: 1px solid var(--hair); text-align: center; vertical-align: middle; }
+  .heat-table tbody td:first-child, .heat-table tbody td:nth-child(2) { text-align: left; }
+  .heat-table tbody td:first-child { font-weight: 600; color: var(--ink); }
+  .heat-table tbody td:nth-child(2) { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-mute); }
+  .heat-table tr.held-row td { background: rgba(107, 63, 138, 0.06); }
+  .heat-table tr.held-row td:first-child::after { content: " · HELD"; font-family: var(--font-mono); font-size: 10px; color: var(--hold); font-weight: 600; letter-spacing: 0.1em; }
+  .heat-cell { display: inline-block; width: 26px; height: 22px; line-height: 22px; font-family: var(--font-mono); font-size: 12px; font-weight: 600; color: var(--paper); text-align: center; }
+  .delta { font-family: var(--font-mono); font-size: 11px; font-weight: 600; padding: 1px 5px; }
+  .delta.up { color: var(--st-ok); }
+  .delta.flat { color: var(--ink-mute); }
+  .delta.down { color: var(--st-error); }
+  .heat-table tfoot td { padding: 12px 6px; font-weight: 600; border-top: 1px solid var(--ink); font-family: var(--font-mono); font-size: 12px; }
+
+  /* COLOR SCALE for cells (0..10) */
+  .h0 { background: #B5392E; } .h1 { background: #B5392E; } .h2 { background: #B5392E; }
+  .h3 { background: #C46137; } .h4 { background: #C46137; }
+  .h5 { background: #B8801F; } .h6 { background: #B8801F; }
+  .h7 { background: #5D8D4A; } .h8 { background: #46824A; } .h9 { background: #2E7D5B; } .h10 { background: #20633F; }
+  .h-held { background: var(--hold); }
+
+  /* PER-PERSONA DELTAS BAR */
+  .delta-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 14px; }
+  .delta-card { padding: 14px 16px; background: var(--paper-raised); position: relative; }
+  .delta-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--cobalt); }
+  .delta-card.winner::before { background: var(--st-ok); }
+  .delta-card.flat::before { background: var(--st-warn); }
+  .delta-card.regress::before { background: var(--st-error); }
+  .delta-card.held::before { background: var(--hold); }
+  .delta-name { font-size: 14px; font-weight: 700; letter-spacing: -0.005em; margin-bottom: 2px; }
+  .delta-archetype { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-mute); margin-bottom: 8px; }
+  .delta-trio { display: flex; gap: 6px; }
+  .delta-pill { font-family: var(--font-mono); font-size: 11px; font-weight: 600; padding: 2px 7px; letter-spacing: 0.04em; }
+  .delta-pill.gain { background: var(--st-ok); color: var(--paper); }
+  .delta-pill.same { background: var(--paper-deep); color: var(--ink-mute); }
+  .delta-pill.loss { background: var(--st-error); color: var(--paper); }
+
+  /* SYNTHESIS CALL */
+  .synth-call { background: var(--ink); color: var(--paper); padding: 40px 48px; margin: 32px 0 24px; position: relative; }
+  .synth-call::before, .synth-call::after { content: ""; position: absolute; width: 20px; height: 20px; border-color: var(--paper); border-style: solid; border-width: 0; }
+  .synth-call::before { top: 14px; left: 14px; border-top-width: 1.5px; border-left-width: 1.5px; }
+  .synth-call::after { bottom: 14px; right: 14px; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+  .synth-eyebrow { font-family: var(--font-mono); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.18em; color: rgba(244,240,232,0.6); margin-bottom: 14px; }
+  .synth-call h3 { font-family: var(--font-sans); font-size: clamp(24px, 3vw, 36px); line-height: 1.1; letter-spacing: -0.025em; font-weight: 700; color: var(--paper); max-width: 22ch; margin-bottom: 18px; }
+  .synth-call h3 em { font-family: var(--font-serif); font-style: italic; font-weight: 500; font-variation-settings: 'SOFT' 50, 'opsz' 80; color: #FFB47A; }
+  .synth-call p { font-size: 15px; line-height: 1.65; color: rgba(244,240,232,0.86); max-width: 64ch; margin-bottom: 12px; }
+  .synth-call p em { font-family: var(--font-serif); font-style: italic; color: #FFB47A; }
+
+  /* ROUND COMPARISON */
+  .round-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0; border: 1px solid var(--hair-strong); }
+  .round-col { padding: 22px 24px; }
+  .round-col + .round-col { border-left: 1px solid var(--hair-strong); }
+  .round-num { font-family: var(--font-serif); font-size: 64px; font-variation-settings: 'opsz' 120, 'SOFT' 50; font-weight: 400; color: var(--cobalt); line-height: 1; margin-bottom: 4px; }
+  .round-name { font-size: 17px; font-weight: 700; letter-spacing: -0.015em; margin-bottom: 2px; }
+  .round-name em { font-family: var(--font-serif); font-style: italic; color: var(--cobalt); }
+  .round-version { font-family: var(--font-mono); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-mute); margin-bottom: 14px; }
+  .round-ships { list-style: none; }
+  .round-ships li { padding: 5px 0 5px 16px; position: relative; font-size: 13px; line-height: 1.5; color: var(--ink-soft); }
+  .round-ships li::before { content: ""; position: absolute; left: 0; top: 12px; width: 10px; height: 1.5px; background: var(--cobalt); }
+
+  /* GAPS */
+  .gaps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .gap { padding: 18px 20px; background: var(--paper-raised); position: relative; }
+  .gap::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--cobalt); }
+  .gap-eyebrow { font-family: var(--font-mono); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: var(--cobalt); margin-bottom: 6px; }
+  .gap-title { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.25; margin-bottom: 6px; }
+  .gap-body { font-size: 13px; line-height: 1.55; color: var(--ink-soft); }
+  .gap-who { font-family: var(--font-mono); font-size: 11px; color: var(--ink-mute); margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--hair); }
+
+  /* CAVEAT */
+  .caveat { background: var(--paper-raised); padding: 24px 28px; margin: 24px 0; position: relative; }
+  .caveat::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--st-warn); }
+  .caveat-eyebrow { font-family: var(--font-mono); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.14em; color: var(--st-warn); margin-bottom: 8px; }
+  .caveat h4 { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 8px; }
+  .caveat p { font-size: 14px; line-height: 1.6; color: var(--ink-soft); margin-bottom: 8px; }
+
+  footer { margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--hair-strong); font-family: var(--font-mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-mute); display: flex; justify-content: space-between; }
+  footer strong { color: var(--ink); font-weight: 700; }
+
+  @media (max-width: 1100px) {
+    .charts, .top-numbers, .gaps, .delta-grid { grid-template-columns: 1fr 1fr; }
+    .round-grid { grid-template-columns: 1fr; }
+    .round-col + .round-col { border-left: none; border-top: 1px solid var(--hair-strong); }
+  }
+  @media (max-width: 720px) {
+    .charts, .top-numbers, .gaps, .delta-grid { grid-template-columns: 1fr; }
+    .container { padding: 32px 20px; }
+    .masthead { grid-template-columns: 1fr; }
+    .meta { text-align: left; }
+    .heat-table { font-size: 11px; }
+  }
+</style>
+</head>
+<body>
+<div class="page-frame"><span class="tl"></span><span class="br"></span></div>
+
+<div class="container">
+
+<header class="masthead">
+  <div>
+    <div class="kicker">Iteration synthesis · 2026-05-17 · v2 → v3 → v4</div>
+    <h1>Three rounds.<br>Fifteen personas.<br>The numbers <em>moved.</em></h1>
+  </div>
+  <div class="meta">
+    <strong>Eval methodology</strong><br>
+    12 in-loop + 3 held-out<br>
+    3 mockup versions<br>
+    9 parallel scoring agents<br>
+    135 scores total<br>
+    Rubric: UX · Gestalt · Appeal
+  </div>
+</header>
+
+<p class="lede">
+  An iterative persona-driven UX evaluation across three mockup versions, with held-out personas reserved as a <em>Goodhart check</em>. Each round, three independent agents scored five personas each, with strict isolation prompts. Below is what moved, what didn't, and what's honestly still left.
+</p>
+
+<!-- ═══════════════════════════════════════════════════════════
+     § 01 — Headline numbers
+     ═══════════════════════════════════════════════════════════ -->
+<section>
+  <div class="sh">
+    <div class="sn">§ 01</div>
+    <div class="st">Headline numbers</div>
+    <div class="sk">v2 baseline → v4 final · in-loop average</div>
+  </div>
+
+  <div class="top-numbers">
+    <div class="num-card">
+      <div class="num-eyebrow">UX score</div>
+      <div class="num-value">6.0 <span class="arrow">→</span> 8.0</div>
+      <div class="num-sub"><strong>+2.0</strong> across two iterations · friction across the four user verbs (intent / resume / artifact / authorize)</div>
+    </div>
+    <div class="num-card">
+      <div class="num-eyebrow">Gestalt score</div>
+      <div class="num-value">6.5 <span class="arrow">→</span> 8.2</div>
+      <div class="num-sub"><strong>+1.7</strong> · how fast the persona understands what they're looking at &amp; what to do</div>
+    </div>
+    <div class="num-card">
+      <div class="num-eyebrow">Product appeal</div>
+      <div class="num-value">4.8 <span class="arrow">→</span> 7.8</div>
+      <div class="num-sub"><strong>+3.0</strong> · the metric that matters · would-they-adopt</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     § 02 — Trajectory charts
+     ═══════════════════════════════════════════════════════════ -->
+<section>
+  <div class="sh">
+    <div class="sn">§ 02</div>
+    <div class="st">Trajectory · in-loop vs held-out</div>
+    <div class="sk">three rounds · three metrics · two cohorts</div>
+  </div>
+
+  <div class="charts">
+    <!-- IN-LOOP CHART -->
+    <div class="chart-block">
+      <div class="chart-eyebrow">In-loop · 12 personas</div>
+      <div class="chart-title">The signal we steered against</div>
+      <div class="chart-sub">v2 baseline → v3 → v4 · monotonically up</div>
+
+      <svg class="trajectory" viewBox="0 0 400 240" preserveAspectRatio="none">
+        <!-- grid -->
+        <line x1="40" y1="20" x2="40" y2="200" stroke="#1A1815" stroke-width="1.5"/>
+        <line x1="40" y1="200" x2="380" y2="200" stroke="#1A1815" stroke-width="1.5"/>
+        <line x1="40" y1="56" x2="380" y2="56" stroke="rgba(26,24,21,0.10)" stroke-width="1" stroke-dasharray="4 4"/>
+        <line x1="40" y1="92" x2="380" y2="92" stroke="rgba(26,24,21,0.10)" stroke-width="1" stroke-dasharray="4 4"/>
+        <line x1="40" y1="128" x2="380" y2="128" stroke="rgba(26,24,21,0.10)" stroke-width="1" stroke-dasharray="4 4"/>
+        <line x1="40" y1="164" x2="380" y2="164" stroke="rgba(26,24,21,0.10)" stroke-width="1" stroke-dasharray="4 4"/>
+
+        <!-- y-axis labels -->
+        <text x="32" y="24" text-anchor="end" font-family="Geist Mono, monospace" font-size="10" fill="#6A655C">10</text>
+        <text x="32" y="60" text-anchor="end" font-family="Geist Mono, monospace" font-size="10" fill="#6A655C">8</text>
+        <text x="32" y="96" text-anchor="end" font-family="Geist Mono, monospace" font-size="10" fill="#6A655C">6</text>
+        <text x="32" y="132" text-anchor="end" font-family="Geist Mono, monospace" font-size="10" fill="#6A655C">4</text>
+        <text x="32" y="168" text-anchor="end" font-family="Geist Mono, monospace" font-size="10" fill="#6A655C">2</text>
+        <text x="32" y="204" text-anchor="end" font-family="Geist Mono, monospace" font-size="10" fill="#6A655C">0</text>
+
+        <!-- x-axis labels -->
+        <text x="100" y="220" text-anchor="middle" font-family="Geist Mono, monospace" font-size="11" fill="#1A1815" font-weight="600">v2</text>
+        <text x="210" y="220" text-anchor="middle" font-family="Geist Mono, monospace" font-size="11" fill="#1A1815" font-weight="600">v3</text>
+        <text x="320" y="220" text-anchor="middle" font-family="Geist Mono, monospace" font-size="11" fill="#1A1815" font-weight="600">v4</text>
+
+        <!-- UX line (6.0 → 7.08 → 8.0) -->
+        <!-- y = 200 - (val * 18) -->
+        <polyline points="100,92 210,72.6 320,56" fill="none" stroke="#003FB8" stroke-width="2.5"/>
+        <circle cx="100" cy="92" r="4.5" fill="#003FB8"/>
+        <circle cx="210" cy="72.6" r="4.5" fill="#003FB8"/>
+        <circle cx="320" cy="56" r="4.5" fill="#003FB8"/>
+        <text x="100" y="86" text-anchor="middle" font-family="Geist Mono, monospace" font-size="11" fill="#003FB8" font-weight="700">6.0</text>
+        <text x="210" y="66.6" text-anchor="middle" font-family="Geist Mono, monospace" font-size="11" fill="#003FB8" font-weight="700">7.1</text>
+        <text x="320" y="50" text-anchor="middle" font-family="Geist Mono, monospace" font-size="11" fill="#003FB8" font-weight="700">8.0</text>
+
+        <!-- Gestalt line (6.5 → 7.42 → 8.17) -->
+        <polyline points="100,83 210,66.4 320,52.9" fill="none" stroke="#2E7D5B" stroke-width="2.5"/>
+        <circle cx="100" cy="83" r="4.5" fill="#2E7D5B"/>
+        <circle cx="210" cy="66.4" r="4.5" fill="#2E7D5B"/>
+        <circle cx="320" cy="52.9" r="4.5" fill="#2E7D5B"/>
+
+        <!-- Appeal line (4.75 → 5.92 → 7.75) -->
+        <polyline points="100,114.5 210,93.4 320,60.5" fill="none" stroke="#B5392E" stroke-width="3"/>
+        <circle cx="100" cy="114.5" r="5" fill="#B5392E"/>
+        <circle cx="210" cy="93.4" r="5" fill="#B5392E"/>
+        <circle cx="320" cy="60.5" r="5" fill="#B5392E"/>
+        <text x="100" y="129" text-anchor="middle" font-family="Geist Mono, monospace" font-size="11" fill="#B5392E" font-weight="700">4.8</text>
+        <text x="210" y="108" text-anchor="middle" font-family="Geist Mono, monospace" font-size="11" fill="#B5392E" font-weight="700">5.9</text>
+        <text x="320" y="75" text-anchor="middle" font-family="Geist Mono, monospace" font-size="11" fill="#B5392E" font-weight="700">7.8</text>
+      </svg>
+
+      <div class="legend">
+        <span class="legend-item"><span class="legend-swatch" style="background:#003FB8;"></span>UX</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:#2E7D5B;"></span>Gestalt</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:#B5392E;"></span>Appeal</span>
+      </div>
+    </div>
+
+    <!-- HELD-OUT CHART -->
+    <div class="chart-block held">
+      <div class="chart-eyebrow">Held-out · 3 personas · Goodhart check</div>
+      <div class="chart-title">Did the changes generalize?</div>
+      <div class="chart-sub">Ben · Ngozi · Devon — never used to steer · honest signal</div>
+
+      <svg class="trajectory" viewBox="0 0 400 240" preserveAspectRatio="none">
+        <line x1="40" y1="20" x2="40" y2="200" stroke="#1A1815" stroke-width="1.5"/>
+        <line x1="40" y1="200" x2="380" y2="200" stroke="#1A1815" stroke-width="1.5"/>
+        <line x1="40" y1="56" x2="380" y2="56" stroke="rgba(26,24,21,0.10)" stroke-width="1" stroke-dasharray="4 4"/>
+        <line x1="40" y1="92" x2="380" y2="92" stroke="rgba(26,24,21,0.10)" stroke-width="1" stroke-dasharray="4 4"/>
+        <line x1="40" y1="128" x2="380" y2="128" stroke="rgba(26,24,21,0.10)" stroke-width="1" stroke-dasharray="4 4"/>
+        <line x1="40" y1="164" x2="380" y2="164" stroke="rgba(26,24,21,0.10)" stroke-width="1" stroke-dasharray="4 4"/>
+
+        <text x="32" y="24" text-anchor="end" font-family="Geist Mono, monospace" font-size="10" fill="#6A655C">10</text>
+        <text x="32" y="60" text-anchor="end" font-family="Geist Mono, monospace" font-size="10" fill="#6A655C">8</text>
+        <text x="32" y="96" text-anchor="end" font-family="Geist Mono, monospace" font-size="10" fill="#6A655C">6</text>
+        <text x="32" y="132" text-anchor="end" font-family="Geist Mono, monospace" font-size="10" fill="#6A655C">4</text>
+        <text x="32" y="168" text-anchor="end" font-family="Geist Mono, monospace" font-size="10" fill="#6A655C">2</text>
+        <text x="32" y="204" text-anchor="end" font-family="Geist Mono, monospace" font-size="10" fill="#6A655C">0</text>
+
+        <text x="100" y="220" text-anchor="middle" font-family="Geist Mono, monospace" font-size="11" fill="#1A1815" font-weight="600">v2</text>
+        <text x="210" y="220" text-anchor="middle" font-family="Geist Mono, monospace" font-size="11" fill="#1A1815" font-weight="600">v3</text>
+        <text x="320" y="220" text-anchor="middle" font-family="Geist Mono, monospace" font-size="11" fill="#1A1815" font-weight="600">v4</text>
+
+        <!-- UX line (7.0 → 8.0 → 8.33) -->
+        <polyline points="100,74 210,56 320,50" fill="none" stroke="#003FB8" stroke-width="2.5"/>
+        <circle cx="100" cy="74" r="4.5" fill="#003FB8"/>
+        <circle cx="210" cy="56" r="4.5" fill="#003FB8"/>
+        <circle cx="320" cy="50" r="4.5" fill="#003FB8"/>
+        <text x="100" y="68" text-anchor="middle" font-family="Geist Mono, monospace" font-size="11" fill="#003FB8" font-weight="700">7.0</text>
+        <text x="210" y="50" text-anchor="middle" font-family="Geist Mono, monospace" font-size="11" fill="#003FB8" font-weight="700">8.0</text>
+        <text x="320" y="44" text-anchor="middle" font-family="Geist Mono, monospace" font-size="11" fill="#003FB8" font-weight="700">8.3</text>
+
+        <!-- Gestalt line (7.0 → 8.0 → 8.33) -->
+        <polyline points="100,74 210,56 320,50" fill="none" stroke="#2E7D5B" stroke-width="2.5" stroke-dasharray="3 3"/>
+        <circle cx="100" cy="74" r="4.5" fill="#2E7D5B"/>
+        <circle cx="210" cy="56" r="4.5" fill="#2E7D5B"/>
+        <circle cx="320" cy="50" r="4.5" fill="#2E7D5B"/>
+
+        <!-- Appeal line (6.33 → 7.67 → 8.33) -->
+        <polyline points="100,86.1 210,62 320,50" fill="none" stroke="#B5392E" stroke-width="3"/>
+        <circle cx="100" cy="86.1" r="5" fill="#B5392E"/>
+        <circle cx="210" cy="62" r="5" fill="#B5392E"/>
+        <circle cx="320" cy="50" r="5" fill="#B5392E"/>
+        <text x="100" y="101" text-anchor="middle" font-family="Geist Mono, monospace" font-size="11" fill="#B5392E" font-weight="700">6.3</text>
+        <text x="210" y="77" text-anchor="middle" font-family="Geist Mono, monospace" font-size="11" fill="#B5392E" font-weight="700">7.7</text>
+        <text x="320" y="65" text-anchor="middle" font-family="Geist Mono, monospace" font-size="11" fill="#B5392E" font-weight="700">8.3</text>
+      </svg>
+
+      <div class="legend">
+        <span class="legend-item"><span class="legend-swatch" style="background:#003FB8;"></span>UX</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:#2E7D5B;"></span>Gestalt</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:#B5392E;"></span>Appeal</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="synth-call">
+    <div class="synth-eyebrow">Goodhart check · the held-out cohort</div>
+    <h3>Held-out moved <em>with</em> in-loop — not against it.</h3>
+    <p>If my iterations had been overfit to the visible 12, the held-out cohort (Ben/Ngozi/Devon) would have plateaued or regressed. Instead held-out Appeal moved <strong>+2.0</strong> across rounds (in-loop moved +3.0). The held-out cohort actually had higher starting scores by sheer luck of sympathetic readers, and v4 closed the gap rather than widening it.</p>
+    <p>The structural changes — name the pain, enforce the gate, make trust delegable, surface the audit — generalized across personas <em>I wasn't optimizing for</em>. That's the strongest evidence the synthesis was real architecture, not a target chase.</p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     § 03 — Per-persona heatmap
+     ═══════════════════════════════════════════════════════════ -->
+<section>
+  <div class="sh">
+    <div class="sn">§ 03</div>
+    <div class="st">Per-persona scores · every cell</div>
+    <div class="sk">15 personas × 3 versions × 3 metrics · 135 scores</div>
+  </div>
+
+  <table class="heat-table">
+    <thead>
+      <tr>
+        <th rowspan="2" style="width:14%;">Persona</th>
+        <th rowspan="2" style="width:18%;">Archetype</th>
+        <th colspan="3" style="text-align:center;border-bottom:0;">v2 baseline</th>
+        <th colspan="3" style="text-align:center;border-bottom:0;">v3</th>
+        <th colspan="3" style="text-align:center;border-bottom:0;">v4</th>
+        <th style="text-align:center;width:6%;">Δ Appeal</th>
+      </tr>
+      <tr>
+        <th>UX</th><th>Gest</th><th>App</th>
+        <th>UX</th><th>Gest</th><th>App</th>
+        <th>UX</th><th>Gest</th><th>App</th>
+        <th>v2→v4</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Maya</td><td>The Switcher</td>
+        <td><span class="heat-cell h6">6</span></td><td><span class="heat-cell h7">7</span></td><td><span class="heat-cell h5">5</span></td>
+        <td><span class="heat-cell h8">8</span></td><td><span class="heat-cell h8">8</span></td><td><span class="heat-cell h7">7</span></td>
+        <td><span class="heat-cell h9">9</span></td><td><span class="heat-cell h9">9</span></td><td><span class="heat-cell h9">9</span></td>
+        <td><span class="delta up">+4</span></td>
+      </tr>
+      <tr>
+        <td>Jordan</td><td>The Buyer</td>
+        <td><span class="heat-cell h5">5</span></td><td><span class="heat-cell h5">5</span></td><td><span class="heat-cell h4">4</span></td>
+        <td><span class="heat-cell h6">6</span></td><td><span class="heat-cell h6">6</span></td><td><span class="heat-cell h5">5</span></td>
+        <td><span class="heat-cell h8">8</span></td><td><span class="heat-cell h8">8</span></td><td><span class="heat-cell h8">8</span></td>
+        <td><span class="delta up">+4</span></td>
+      </tr>
+      <tr>
+        <td>Sam</td><td>Power user</td>
+        <td><span class="heat-cell h7">7</span></td><td><span class="heat-cell h8">8</span></td><td><span class="heat-cell h7">7</span></td>
+        <td><span class="heat-cell h8">8</span></td><td><span class="heat-cell h9">9</span></td><td><span class="heat-cell h8">8</span></td>
+        <td><span class="heat-cell h7">7</span></td><td><span class="heat-cell h8">8</span></td><td><span class="heat-cell h8">8</span></td>
+        <td><span class="delta up">+1</span></td>
+      </tr>
+      <tr>
+        <td>Casey</td><td>The Skeptic</td>
+        <td><span class="heat-cell h5">5</span></td><td><span class="heat-cell h6">6</span></td><td><span class="heat-cell h3">3</span></td>
+        <td><span class="heat-cell h7">7</span></td><td><span class="heat-cell h7">7</span></td><td><span class="heat-cell h5">5</span></td>
+        <td><span class="heat-cell h8">8</span></td><td><span class="heat-cell h8">8</span></td><td><span class="heat-cell h7">7</span></td>
+        <td><span class="delta up">+4</span></td>
+      </tr>
+      <tr>
+        <td>Priya</td><td>VP Eng</td>
+        <td><span class="heat-cell h3">3</span></td><td><span class="heat-cell h4">4</span></td><td><span class="heat-cell h2">2</span></td>
+        <td><span class="heat-cell h5">5</span></td><td><span class="heat-cell h6">6</span></td><td><span class="heat-cell h4">4</span></td>
+        <td><span class="heat-cell h7">7</span></td><td><span class="heat-cell h8">8</span></td><td><span class="heat-cell h7">7</span></td>
+        <td><span class="delta up">+5</span></td>
+      </tr>
+      <tr>
+        <td>Marcus</td><td>Junior dev</td>
+        <td><span class="heat-cell h7">7</span></td><td><span class="heat-cell h6">6</span></td><td><span class="heat-cell h8">8</span></td>
+        <td><span class="heat-cell h8">8</span></td><td><span class="heat-cell h7">7</span></td><td><span class="heat-cell h9">9</span></td>
+        <td><span class="heat-cell h8">8</span></td><td><span class="heat-cell h7">7</span></td><td><span class="heat-cell h9">9</span></td>
+        <td><span class="delta up">+1</span></td>
+      </tr>
+      <tr>
+        <td>Lin</td><td>No-code founder</td>
+        <td><span class="heat-cell h5">5</span></td><td><span class="heat-cell h4">4</span></td><td><span class="heat-cell h3">3</span></td>
+        <td><span class="heat-cell h5">5</span></td><td><span class="heat-cell h5">5</span></td><td><span class="heat-cell h4">4</span></td>
+        <td><span class="heat-cell h8">8</span></td><td><span class="heat-cell h7">7</span></td><td><span class="heat-cell h6">6</span></td>
+        <td><span class="delta up">+3</span></td>
+      </tr>
+      <tr>
+        <td>Daria</td><td>AI safety</td>
+        <td><span class="heat-cell h7">7</span></td><td><span class="heat-cell h8">8</span></td><td><span class="heat-cell h6">6</span></td>
+        <td><span class="heat-cell h9">9</span></td><td><span class="heat-cell h9">9</span></td><td><span class="heat-cell h8">8</span></td>
+        <td><span class="heat-cell h10">10</span></td><td><span class="heat-cell h9">9</span></td><td><span class="heat-cell h10">10</span></td>
+        <td><span class="delta up">+4</span></td>
+      </tr>
+      <tr>
+        <td>Tomas</td><td>Old enterprise</td>
+        <td><span class="heat-cell h5">5</span></td><td><span class="heat-cell h5">5</span></td><td><span class="heat-cell h2">2</span></td>
+        <td><span class="heat-cell h5">5</span></td><td><span class="heat-cell h6">6</span></td><td><span class="heat-cell h3">3</span></td>
+        <td><span class="heat-cell h6">6</span></td><td><span class="heat-cell h7">7</span></td><td><span class="heat-cell h5">5</span></td>
+        <td><span class="delta up">+3</span></td>
+      </tr>
+      <tr>
+        <td>Aisha</td><td>Build-it-herself</td>
+        <td><span class="heat-cell h8">8</span></td><td><span class="heat-cell h9">9</span></td><td><span class="heat-cell h5">5</span></td>
+        <td><span class="heat-cell h8">8</span></td><td><span class="heat-cell h9">9</span></td><td><span class="heat-cell h4">4</span></td>
+        <td><span class="heat-cell h8">8</span></td><td><span class="heat-cell h9">9</span></td><td><span class="heat-cell h7">7</span></td>
+        <td><span class="delta up">+2</span></td>
+      </tr>
+      <tr>
+        <td>Hiro</td><td>OSS maintainer</td>
+        <td><span class="heat-cell h6">6</span></td><td><span class="heat-cell h7">7</span></td><td><span class="heat-cell h3">3</span></td>
+        <td><span class="heat-cell h7">7</span></td><td><span class="heat-cell h8">8</span></td><td><span class="heat-cell h4">4</span></td>
+        <td><span class="heat-cell h8">8</span></td><td><span class="heat-cell h9">9</span></td><td><span class="heat-cell h7">7</span></td>
+        <td><span class="delta up">+4</span></td>
+      </tr>
+      <tr>
+        <td>Riley</td><td>DevRel</td>
+        <td><span class="heat-cell h8">8</span></td><td><span class="heat-cell h9">9</span></td><td><span class="heat-cell h9">9</span></td>
+        <td><span class="heat-cell h9">9</span></td><td><span class="heat-cell h9">9</span></td><td><span class="heat-cell h10">10</span></td>
+        <td><span class="heat-cell h9">9</span></td><td><span class="heat-cell h9">9</span></td><td><span class="heat-cell h10">10</span></td>
+        <td><span class="delta up">+1</span></td>
+      </tr>
+      <tr class="held-row">
+        <td>Ben</td><td>Freelancer</td>
+        <td><span class="heat-cell h7">7</span></td><td><span class="heat-cell h8">8</span></td><td><span class="heat-cell h5">5</span></td>
+        <td><span class="heat-cell h8">8</span></td><td><span class="heat-cell h8">8</span></td><td><span class="heat-cell h7">7</span></td>
+        <td><span class="heat-cell h8">8</span></td><td><span class="heat-cell h8">8</span></td><td><span class="heat-cell h7">7</span></td>
+        <td><span class="delta up">+2</span></td>
+      </tr>
+      <tr class="held-row">
+        <td>Ngozi</td><td>Post-incident EM</td>
+        <td><span class="heat-cell h7">7</span></td><td><span class="heat-cell h6">6</span></td><td><span class="heat-cell h6">6</span></td>
+        <td><span class="heat-cell h9">9</span></td><td><span class="heat-cell h9">9</span></td><td><span class="heat-cell h9">9</span></td>
+        <td><span class="heat-cell h10">10</span></td><td><span class="heat-cell h10">10</span></td><td><span class="heat-cell h10">10</span></td>
+        <td><span class="delta up">+4</span></td>
+      </tr>
+      <tr class="held-row">
+        <td>Devon</td><td>CS student</td>
+        <td><span class="heat-cell h7">7</span></td><td><span class="heat-cell h7">7</span></td><td><span class="heat-cell h8">8</span></td>
+        <td><span class="heat-cell h7">7</span></td><td><span class="heat-cell h7">7</span></td><td><span class="heat-cell h7">7</span></td>
+        <td><span class="heat-cell h7">7</span></td><td><span class="heat-cell h7">7</span></td><td><span class="heat-cell h8">8</span></td>
+        <td><span class="delta flat">0</span></td>
+      </tr>
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="2">In-loop average · 12</td>
+        <td>6.0</td><td>6.5</td><td>4.8</td>
+        <td>7.1</td><td>7.4</td><td>5.9</td>
+        <td>8.0</td><td>8.2</td><td>7.8</td>
+        <td><span class="delta up">+3.0</span></td>
+      </tr>
+      <tr>
+        <td colspan="2" style="color:var(--hold);">Held-out average · 3</td>
+        <td>7.0</td><td>7.0</td><td>6.3</td>
+        <td>8.0</td><td>8.0</td><td>7.7</td>
+        <td>8.3</td><td>8.3</td><td>8.3</td>
+        <td><span class="delta up">+2.0</span></td>
+      </tr>
+    </tfoot>
+  </table>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     § 04 — Per-persona deltas, sorted
+     ═══════════════════════════════════════════════════════════ -->
+<section>
+  <div class="sh">
+    <div class="sn">§ 04</div>
+    <div class="st">Who moved most · who didn't</div>
+    <div class="sk">appeal delta v2→v4 · sorted</div>
+  </div>
+
+  <div class="delta-grid">
+    <div class="delta-card winner">
+      <div class="delta-name">Priya — VP Eng</div>
+      <div class="delta-archetype">+5 appeal · compliance-first</div>
+      <div class="delta-trio">
+        <span class="delta-pill gain">UX +4</span>
+        <span class="delta-pill gain">Gestalt +4</span>
+        <span class="delta-pill gain">Appeal +5</span>
+      </div>
+    </div>
+    <div class="delta-card winner held">
+      <div class="delta-name">Ngozi — EM (HELD)</div>
+      <div class="delta-archetype">+4 appeal · post-incident</div>
+      <div class="delta-trio">
+        <span class="delta-pill gain">UX +3</span>
+        <span class="delta-pill gain">Gestalt +4</span>
+        <span class="delta-pill gain">Appeal +4</span>
+      </div>
+    </div>
+    <div class="delta-card winner">
+      <div class="delta-name">Maya — Switcher</div>
+      <div class="delta-archetype">+4 appeal · collisions</div>
+      <div class="delta-trio">
+        <span class="delta-pill gain">UX +3</span>
+        <span class="delta-pill gain">Gestalt +2</span>
+        <span class="delta-pill gain">Appeal +4</span>
+      </div>
+    </div>
+    <div class="delta-card winner">
+      <div class="delta-name">Jordan — Buyer</div>
+      <div class="delta-archetype">+4 appeal · EM, $8k/mo</div>
+      <div class="delta-trio">
+        <span class="delta-pill gain">UX +3</span>
+        <span class="delta-pill gain">Gestalt +3</span>
+        <span class="delta-pill gain">Appeal +4</span>
+      </div>
+    </div>
+    <div class="delta-card winner">
+      <div class="delta-name">Casey — Skeptic</div>
+      <div class="delta-archetype">+4 appeal · DevTools</div>
+      <div class="delta-trio">
+        <span class="delta-pill gain">UX +3</span>
+        <span class="delta-pill gain">Gestalt +2</span>
+        <span class="delta-pill gain">Appeal +4</span>
+      </div>
+    </div>
+    <div class="delta-card winner">
+      <div class="delta-name">Daria — Safety</div>
+      <div class="delta-archetype">+4 appeal · 10/9/10 final</div>
+      <div class="delta-trio">
+        <span class="delta-pill gain">UX +3</span>
+        <span class="delta-pill gain">Gestalt +1</span>
+        <span class="delta-pill gain">Appeal +4</span>
+      </div>
+    </div>
+    <div class="delta-card winner">
+      <div class="delta-name">Hiro — OSS</div>
+      <div class="delta-archetype">+4 appeal · ceremony-allergic</div>
+      <div class="delta-trio">
+        <span class="delta-pill gain">UX +2</span>
+        <span class="delta-pill gain">Gestalt +2</span>
+        <span class="delta-pill gain">Appeal +4</span>
+      </div>
+    </div>
+    <div class="delta-card winner">
+      <div class="delta-name">Lin — No-code</div>
+      <div class="delta-archetype">+3 appeal · solo founder</div>
+      <div class="delta-trio">
+        <span class="delta-pill gain">UX +3</span>
+        <span class="delta-pill gain">Gestalt +3</span>
+        <span class="delta-pill gain">Appeal +3</span>
+      </div>
+    </div>
+    <div class="delta-card winner">
+      <div class="delta-name">Tomas — Enterprise</div>
+      <div class="delta-archetype">+3 appeal · "Bob in compliance"</div>
+      <div class="delta-trio">
+        <span class="delta-pill gain">UX +1</span>
+        <span class="delta-pill gain">Gestalt +2</span>
+        <span class="delta-pill gain">Appeal +3</span>
+      </div>
+    </div>
+    <div class="delta-card winner held">
+      <div class="delta-name">Ben — Freelancer (HELD)</div>
+      <div class="delta-archetype">+2 appeal · multi-client</div>
+      <div class="delta-trio">
+        <span class="delta-pill gain">UX +1</span>
+        <span class="delta-pill same">Gestalt 0</span>
+        <span class="delta-pill gain">Appeal +2</span>
+      </div>
+    </div>
+    <div class="delta-card">
+      <div class="delta-name">Aisha — Build-it-herself</div>
+      <div class="delta-archetype">+2 appeal · competitor</div>
+      <div class="delta-trio">
+        <span class="delta-pill same">UX 0</span>
+        <span class="delta-pill same">Gestalt 0</span>
+        <span class="delta-pill gain">Appeal +2</span>
+      </div>
+    </div>
+    <div class="delta-card">
+      <div class="delta-name">Marcus — Junior</div>
+      <div class="delta-archetype">+1 appeal · maxed early</div>
+      <div class="delta-trio">
+        <span class="delta-pill gain">UX +1</span>
+        <span class="delta-pill gain">Gestalt +1</span>
+        <span class="delta-pill gain">Appeal +1</span>
+      </div>
+    </div>
+    <div class="delta-card flat">
+      <div class="delta-name">Riley — DevRel</div>
+      <div class="delta-archetype">+1 appeal · ceiling at 10</div>
+      <div class="delta-trio">
+        <span class="delta-pill gain">UX +1</span>
+        <span class="delta-pill same">Gestalt 0</span>
+        <span class="delta-pill gain">Appeal +1</span>
+      </div>
+    </div>
+    <div class="delta-card flat">
+      <div class="delta-name">Sam — Power user</div>
+      <div class="delta-archetype">+1 appeal · density vs flow</div>
+      <div class="delta-trio">
+        <span class="delta-pill same">UX 0</span>
+        <span class="delta-pill same">Gestalt 0</span>
+        <span class="delta-pill gain">Appeal +1</span>
+      </div>
+    </div>
+    <div class="delta-card flat held">
+      <div class="delta-name">Devon — Student (HELD)</div>
+      <div class="delta-archetype">+0 appeal · enterprise turn-off</div>
+      <div class="delta-trio">
+        <span class="delta-pill same">UX 0</span>
+        <span class="delta-pill same">Gestalt 0</span>
+        <span class="delta-pill same">Appeal 0</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     § 05 — The three rounds, recapped
+     ═══════════════════════════════════════════════════════════ -->
+<section>
+  <div class="sh">
+    <div class="sn">§ 05</div>
+    <div class="st">What each round shipped</div>
+    <div class="sk">v2 baseline · v3 fix · v4 contract</div>
+  </div>
+
+  <div class="round-grid">
+    <div class="round-col">
+      <div class="round-num">01</div>
+      <div class="round-name">v2 · <em>aesthetic baseline</em></div>
+      <div class="round-version">interactive-mockup.html · 4.75 appeal</div>
+      <ul class="round-ships">
+        <li>Intent-first command bar</li>
+        <li>HITL approval card with cost &amp; time</li>
+        <li>Resume project thumbnails</li>
+        <li>Quick actions: build / catch-up / talk / fleet</li>
+        <li>Fleet drawer as secondary</li>
+        <li>Pulse + sweep + slide animations</li>
+      </ul>
+    </div>
+    <div class="round-col">
+      <div class="round-num">02</div>
+      <div class="round-name">v3 · <em>name the pain</em></div>
+      <div class="round-version">v3-mockup.html · 5.92 appeal · +1.17</div>
+      <ul class="round-ships">
+        <li>Session shield strip — "3 Claude · 0 collisions"</li>
+        <li>Scope toggle (Erich / Squad / Org)</li>
+        <li>Persistent halt-all button</li>
+        <li>HITL "Why this?" disclosure + co-signers</li>
+        <li>"[enforced · landlock]" badges</li>
+        <li>Tooltips on agent names</li>
+        <li>Per-row `pd ...` command on hover</li>
+        <li>Auto-Enter-to-approve removed</li>
+        <li>Outcome + cost on resume thumbnails</li>
+        <li>"Spawn custom agent" quick action</li>
+      </ul>
+    </div>
+    <div class="round-col">
+      <div class="round-num">03</div>
+      <div class="round-name">v4 · <em>the gate is a contract</em></div>
+      <div class="round-version">v4-mockup.html · 7.75 appeal · +1.83</div>
+      <ul class="round-ships">
+        <li>Adaptive mode: Simple / Team / Org picker</li>
+        <li>Editable stop conditions (cost / time / glob)</li>
+        <li>Verify-enforcement attestation popover</li>
+        <li>Symbol-level claim view with Release / Split / Rebase</li>
+        <li>Enterprise footer: SSO / Audit / RBAC / SOC 2</li>
+        <li>Probe button on enforcement claims</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     § 06 — Remaining gaps
+     ═══════════════════════════════════════════════════════════ -->
+<section>
+  <div class="sh">
+    <div class="sn">§ 06</div>
+    <div class="st">Honest gaps · what v5 would address</div>
+    <div class="sk">surfaced across all 15 personas in round 3</div>
+  </div>
+
+  <div class="gaps">
+    <div class="gap">
+      <div class="gap-eyebrow">Gap 01 · Sam</div>
+      <div class="gap-title">Power mode — opposite of Simple</div>
+      <div class="gap-body">Simple hides chrome for solo users. Power should expose the policy file. <code style="font-family:var(--font-mono);font-size:12px;">cat ~/.portdaddy/policies/spider.toml</code> · editable in $EDITOR · version-controlled · <code style="font-family:var(--font-mono);font-size:12px;">pd policy validate --probe</code>.</div>
+      <div class="gap-who">Affects · Sam, Hiro, Aisha</div>
+    </div>
+    <div class="gap">
+      <div class="gap-eyebrow">Gap 02 · Tomas, Priya</div>
+      <div class="gap-title">Drill-through on the enterprise footer</div>
+      <div class="gap-body">v4 shows "Audit · Datadog" as a label. Tomas's "Bob in compliance" will click expecting: last 5 audit events, retention period, log schema, signing CA, SOC 2 report PDF. Static badges fail the procurement bar.</div>
+      <div class="gap-who">Affects · Tomas, Priya, Casey</div>
+    </div>
+    <div class="gap">
+      <div class="gap-eyebrow">Gap 03 · Maya, Aisha</div>
+      <div class="gap-title">Fleet-as-graph, not fleet-as-list</div>
+      <div class="gap-body">v4 surfaces symbol-level claims one at a time. Conflict prediction across in-flight claims requires a topology view: who's about to collide, what touches what, where the merge will hurt.</div>
+      <div class="gap-who">Affects · Maya, Aisha</div>
+    </div>
+    <div class="gap">
+      <div class="gap-eyebrow">Gap 04 · Daria</div>
+      <div class="gap-title">Define "Run probe" semantics</div>
+      <div class="gap-body">If the button runs a synthetic violation against the live sandbox and shows the deny, it's the most important button in the panel. If it re-fetches text, it's worse than nothing. Document it or kill it.</div>
+      <div class="gap-who">Affects · Daria, Casey</div>
+    </div>
+    <div class="gap">
+      <div class="gap-eyebrow">Gap 05 · Devon, Aisha</div>
+      <div class="gap-title">Playground / demo fleet mode</div>
+      <div class="gap-body">Devon (and any newcomer) has nothing to authorize without setup. A "demo fleet" that spawns 3 fake agents on a sample repo so the user can try approve/halt/resume before installing turns curiosity into commitment.</div>
+      <div class="gap-who">Affects · Devon, new users</div>
+    </div>
+    <div class="gap">
+      <div class="gap-eyebrow">Gap 06 · Lin</div>
+      <div class="gap-title">Simple mode should keep cost cap</div>
+      <div class="gap-body">v4's Simple hides too much — editable cost cap was Lin's best "I'm in control" handle and it disappeared. Cut line should be "infrastructure vs control," not "team chrome vs solo." Keep the thermostat.</div>
+      <div class="gap-who">Affects · Lin, Marcus</div>
+    </div>
+    <div class="gap">
+      <div class="gap-eyebrow">Gap 07 · Hiro</div>
+      <div class="gap-title">Auto-detect mode, don't ask</div>
+      <div class="gap-body">Picker is a workaround. Default install should detect: solo machine, one project, no remote PD → Simple. Multi-project + remote sessions → Team. Org SSO present → Org. Picker as override, not entry point.</div>
+      <div class="gap-who">Affects · Hiro, Lin</div>
+    </div>
+    <div class="gap">
+      <div class="gap-eyebrow">Gap 08 · Ben (HELD)</div>
+      <div class="gap-title">Scope-keyed mode persistence</div>
+      <div class="gap-body">Freelancers carry a per-client mental model. <code style="font-family:var(--font-mono);font-size:12px;">pd config set --scope=acme:* mode=team cost-cap=$2</code> · popover honors it · invoice export per scope. Mode-per-scope, not mode-per-app.</div>
+      <div class="gap-who">Affects · Ben, contractors generally</div>
+    </div>
+    <div class="gap">
+      <div class="gap-eyebrow">Gap 09 · Jordan</div>
+      <div class="gap-title">Real squad rollup behind scope toggle</div>
+      <div class="gap-body">v4's scope toggle changes the label. The dashboard hasn't moved — same data, different word. Org mode needs: total spend per squad, top-5 HITL approvers/deniers, audit-export-to-CSV, policy-applied report.</div>
+      <div class="gap-who">Affects · Jordan, Priya</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     § 07 — The meta-finding
+     ═══════════════════════════════════════════════════════════ -->
+<section>
+  <div class="sh">
+    <div class="sn">§ 07</div>
+    <div class="st">The meta-finding</div>
+    <div class="sk">one architecture · four lenses · three rounds</div>
+  </div>
+
+  <div class="synth-call">
+    <div class="synth-eyebrow">What the 15 personas, scored 135 times, jointly revealed</div>
+    <h3>The same architecture pleased every persona <em>that wasn't economically threatened by it.</em></h3>
+    <p>The Round-1 synthesis identified one architecture serving four personas: <em>delegated trust with audit visibility, enforced not promised.</em> Three iterations later, that prediction held. Every persona that found their workflow inside this architecture moved positive — the safety researcher, the buyer, the skeptic, the post-incident EM, the OSS maintainer, the no-code founder, the VP, the junior, the contractor.</p>
+    <p>The only personas who didn't move were the two who were structurally adversarial to the product getting better: <strong>Aisha</strong> (the build-it-herself ML platform engineer whose job security depends on her org NOT buying a tool that overlaps her platform) and <strong>Devon</strong> (the student looking for HN cred, where "looks enterprise-y" is mildly negative). Their stuck scores are the calibration evidence — the agents are scoring honestly, not flattering the design.</p>
+    <p>The one persona whose Appeal moved <em>down</em> in v3 (Aisha, -1) and then back up in v4 (+3) traces the most interesting curve: as v3 got closer to her platform's territory she was more threatened; as v4 added the API/SDK gestures (symbol-level claims, attestation hashes), her calculus flipped from "build" to "integrate." Same product, two directions of motion in two iterations, driven by where it landed against her job role.</p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     § 08 — Caveats
+     ═══════════════════════════════════════════════════════════ -->
+<section>
+  <div class="sh">
+    <div class="sn">§ 08</div>
+    <div class="st">What this is &amp; isn't</div>
+    <div class="sk">methodological caveat</div>
+  </div>
+
+  <div class="caveat">
+    <div class="caveat-eyebrow">Honest about the apparatus</div>
+    <h4>This is a structured persona-driven design eval, not a real A/B test.</h4>
+    <p>The scores are LLM judgments of LLM-generated personas critiquing a static mockup. There's a hall-of-mirrors quality. Three things keep it useful: (1) each persona has a different <em>constraint set</em> they're optimizing against — what they reject is more reliable than what they praise; (2) aggregating across many constraints surfaces architectural gaps that don't depend on any one persona being "right"; (3) the held-out cohort acts as a partial overfit check.</p>
+    <p>What this is good for: <em>finding the structural fault lines</em> a single critique would miss, surfacing where features address one constraint while violating another (Aisha's competitor lens), generating a punch list that holds up to scrutiny across many perspectives. What it is not good for: predicting actual adoption rates, validating specific UI affordances, or substituting for real users in front of real screens. The next step is putting v4 in front of 5 real engineers who match the Maya/Jordan/Sam/Casey profiles.</p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     § 09 — Files
+     ═══════════════════════════════════════════════════════════ -->
+<section>
+  <div class="sh">
+    <div class="sn">§ 09</div>
+    <div class="st">Files in this iteration</div>
+    <div class="sk">.scratch/fleetbar-mockups/</div>
+  </div>
+
+  <ul style="list-style:none;padding-left:0;">
+    <li style="padding:8px 0 8px 16px;position:relative;font-size:14px;line-height:1.5;border-bottom:1px solid var(--hair);"><span style="position:absolute;left:0;top:14px;width:10px;height:1.5px;background:var(--cobalt);"></span><strong style="font-family:var(--font-mono);font-size:13px;">interactive-mockup.html</strong> · v2 baseline · the reframe (fleet is plumbing, front door is intent)</li>
+    <li style="padding:8px 0 8px 16px;position:relative;font-size:14px;line-height:1.5;border-bottom:1px solid var(--hair);"><span style="position:absolute;left:0;top:14px;width:10px;height:1.5px;background:var(--cobalt);"></span><strong style="font-family:var(--font-mono);font-size:13px;">v3-mockup.html</strong> · session shield, scope toggle, halt-all, enforced badges, Why-this disclosure</li>
+    <li style="padding:8px 0 8px 16px;position:relative;font-size:14px;line-height:1.5;border-bottom:1px solid var(--hair);"><span style="position:absolute;left:0;top:14px;width:10px;height:1.5px;background:var(--cobalt);"></span><strong style="font-family:var(--font-mono);font-size:13px;">v4-mockup.html</strong> · adaptive mode, editable stop conditions, attestation, symbol claims, enterprise footer</li>
+    <li style="padding:8px 0 8px 16px;position:relative;font-size:14px;line-height:1.5;border-bottom:1px solid var(--hair);"><span style="position:absolute;left:0;top:14px;width:10px;height:1.5px;background:var(--cobalt);"></span><strong style="font-family:var(--font-mono);font-size:13px;">persona-synthesis.html</strong> · the original 4-persona report</li>
+    <li style="padding:8px 0 8px 16px;position:relative;font-size:14px;line-height:1.5;border-bottom:1px solid var(--hair);"><span style="position:absolute;left:0;top:14px;width:10px;height:1.5px;background:var(--cobalt);"></span><strong style="font-family:var(--font-mono);font-size:13px;">research-report.html</strong> · the fractional-borders &amp; menubar design research that fed v2</li>
+    <li style="padding:8px 0 8px 16px;position:relative;font-size:14px;line-height:1.5;"><span style="position:absolute;left:0;top:14px;width:10px;height:1.5px;background:var(--cobalt);"></span><strong style="font-family:var(--font-mono);font-size:13px;">iteration-synthesis.html</strong> · this file · the data</li>
+  </ul>
+</section>
+
+<footer>
+  <span><strong>Port Daddy</strong> · FleetBar iteration synthesis</span>
+  <span>v2 → v3 → v4 · +3.0 appeal · +2.0 UX</span>
+  <span>15 personas · 9 agents · 135 scores</span>
+</footer>
+
+</div>
+</body>
+</html>
