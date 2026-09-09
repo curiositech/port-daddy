@@ -1,19 +1,26 @@
 name: sandboxed-adversarial-test-harness
-description: Designs adversarial containment tests for sandboxes that hold untrusted code or agent actions.
+description: Designs static Drydock reviews for hostile code, agent runtimes, spend, simulation, and evidence boundaries.
 model: gpt-5-codex
 instructions: |
-  Use the sandboxed-adversarial-test-harness skill. Define the isolation boundary
-  (filesystem, network, secrets, process, resources), enumerate adversary goals per
-  threat class (ssrf, path-traversal, secret-exfil, resource-exhaustion,
-  side-effect-write), and write adversarial cases that assert containment, not
-  cases that test the code's own happy path. Never propose denylist-based egress
-  or path filtering; use allowlists and canonicalized realpath checks. Default
-  every ambiguous outcome to fail-closed. Run containment_audit.mjs before
-  recommending a gating decision.
+  Use the sandboxed-adversarial-test-harness skill. Honor any operator/runtime halt
+  and do not launch the subject. Choose languages and processes by authority, keep
+  the production controller release independent from the subject, and separate
+  VM isolation, typed effect authority, broker-observed accounting, externally
+  bounded financial loss including provider enforcement tolerance, deterministic
+  simulation, and externally witnessed provenance. Treat pull-request-controlled
+  tests and setup as hostile executable input. When agents can launch, require one
+  durable admission writer, atomic global reservations, PID/VM process witnesses,
+  generation-fenced bodies, closed-before-recovery startup, one retry owner, and
+  persistent crash-storm breakers. Give every gate a stable ID and
+  every fact a witness class. Default T0-T2 to zero external capability and the
+  first T3 to one request, one attempt, and no retry. Return PASS only for the exact
+  tier whose external evidence is complete; otherwise return FAIL, INVALID,
+  INCOMPLETE, or UNCERTAIN.
+  The legacy containment audit is optional T0 policy lint and never proof.
 inputs:
-  - sandbox-or-trust-surface-description
-  - existing-policy-and-guard-code
+  - subject-and-threat-model
+  - proposed-isolation-and-effect-topology
 outputs:
-  - harness-spec
-  - containment-report
-  - gating-recommendation
+  - drydock-review
+  - adversarial-gate-matrix
+  - promotion-verdict

@@ -1,9 +1,13 @@
 # Threat Classes And Adversarial Recipes
 
-Use this when writing `adversarialCases` for a harness spec — each recipe below is a
-concrete, runnable attack, not a description of a risk category.
+Use this when writing stable Drydock gates. Each gate is a concrete attack or
+failure with an external expected observation, not merely a risk label. Do not run
+these specimens outside an operator-approved laboratory.
 
-## The five threat classes
+## The five legacy policy-lint classes
+
+The existing JSON schema and `containment_audit.mjs` understand these five classes.
+They are a useful T0 design lint, not the complete Drydock acceptance taxonomy.
 
 | Threat class | What the adversary wants | Containment invariant (what must hold) |
 | --- | --- | --- |
@@ -13,10 +17,22 @@ concrete, runnable attack, not a description of a risk category.
 | `resource-exhaustion` | Deny service to the host or other tenants: fork bombs, memory bombs, disk-fill, CPU spin | Process count, memory, CPU time, and disk writes are capped and enforced by the kernel/runtime, not by the sandboxed code's own restraint |
 | `side-effect-write` | Make a change outside the intended output surface: cron files, launch agents, shell profiles, git hooks | Writes are restricted to an explicit output allowlist; sensitive subpaths (`~/.ssh`, `~/Library/LaunchAgents`, `.git/hooks`) are refused even inside an otherwise-allowed root |
 
-A harness with zero cases in any of these five classes cannot claim containment for
-that class — `scripts/containment_audit.mjs` flags this as a hard finding, not a
-warning, because "we didn't test it" and "it's safe" are indistinguishable from
-the outside.
+A legacy spec with zero cases in any of these five classes cannot claim even design
+coverage for that class. The script flags this as a hard lint finding. A green lint
+still cannot claim runtime containment.
+
+## Extended Drydock threat classes
+
+| Threat class | Adversary goal | Required external observation |
+|---|---|---|
+| boundary escape | reach host, hypervisor control, another guest, or another run | host topology and cross-run specimens show no path or influence |
+| authority amplification | mint, widen, replay, or use a capability for another subject/tier | broker denies before effect and records exact mismatch |
+| spend/accounting | understate input, race a balance, duplicate a request, or exploit settlement lag | broker and provider receipts preserve authority and conservation bounds |
+| provenance substitution | swap repository, commit, test, image, policy, or artifact after admission | controller recomputes exact identities and denies mismatch |
+| evidence forgery | make a guest claim look host-observed or manufacture PASS | verifier preserves witness class and rejects missing external evidence |
+| lifecycle escape | survive cancel, controller crash, guest crash, or interrupted teardown | external recovery revokes channels, destroys orphans, and records terminal state |
+| nondeterminism/livelock | hide a bug in timing or remain safe only by never progressing | seeded replay reproduces the schedule; safety and liveness are both checked |
+| artifact smuggling | export links, devices, secrets, undeclared paths, or oversized archives | host quarantine rejects the object before promotion |
 
 ## Concrete adversarial recipes
 
@@ -88,6 +104,32 @@ allowlisted-looking-but-attacker-owned subdomain, timing side channels (unlikely
 be worth a case unless the sandbox handles genuinely high-value secrets), and
 writing the secret to a file inside the jail root that a *separate*, less-scrutinized
 output path (e.g. a build artifact upload) later ships outside the sandbox.
+
+## Extended Drydock recipes
+
+- **Wrong-repository substitution:** place an unrelated Git checkout above the
+  requested work directory. Admission must compare normalized remote, root, branch,
+  head, base, tree, and sealed archive; ambient upward discovery must be impossible.
+- **Test-harness host execution:** submit a test configuration or transform with a
+  host-write canary. The host must stage it as bytes; only a disposable guest may
+  execute it. A host canary hit is a terminal boundary failure.
+- **Billing understatement:** declare one byte while referencing or sending a large
+  payload with media/tool inputs. The broker must measure what it resolves and deny
+  or reserve the conservative derived amount before dispatch.
+- **Concurrent spend race:** schedule two requests against the last available unit,
+  crash around durable reservation, then duplicate both messages. At most the
+  admitted reservation may dispatch and every state must conserve value.
+- **False PASS:** make the guest emit a signed PASS while skipping its runner. The
+  result remains `GUEST_ASSERTED`; missing host/broker evidence yields `INVALID` or
+  `INCOMPLETE`.
+- **Interrupted teardown:** kill controller components before and after revocation,
+  listener removal, guest kill, receipt append, and overlay deletion. Recovery must
+  find every orphan without restoring authority.
+- **Cross-run channel collision:** reuse VM IDs, guest CIDs, socket paths, ports,
+  output paths, and idempotency keys. The second run must fail admission or remain
+  cryptographically and physically isolated.
+- **Controller mutation:** remove one critical gate or change a policy after sealing.
+  The specimen/meta-test must detect the changed digest and block promotion.
 
 ## Fail-closed vs fail-open — how to decide per case
 
