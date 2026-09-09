@@ -7,6 +7,7 @@ import { resolveSession, isSameOrigin, type ResolvedSession } from './auth-githu
 import { HEAD, TOKENS } from './account-page.js';
 import { normalizeRepoFullName } from './repo-settings-page.js';
 import { parse as parseYaml } from 'yaml';
+import { readRepoShipTelemetry, renderShipTelemetry, type RepoShipTelemetry } from './repo-ship-telemetry.js';
 import {
   fleetShipsFromDocument, defaultPRShips, fleetXoFromDocument, fleetMediatorFromDocument,
 } from '../../shared/fleet-config.js';
@@ -15,7 +16,7 @@ import {
   validShipControlName, type RepoShipControls,
 } from '../../shared/repo-ship-controls.js';
 
-interface ShipView { name: string; role: string; trigger: string; }
+interface ShipView { name: string; role: string; trigger: string; model?: string; blocking?: boolean; }
 interface RepoWitness { admin: boolean; headers: Record<string, string>; }
 
 /** Why escape: source-controlled names and descriptions are untrusted HTML input.
@@ -98,7 +99,7 @@ async function shipInventory(env: Env, repo: string, witness: RepoWitness): Prom
   const inventory = new Map<string, ShipView>();
   for (const ship of [...defaultPRShips(), ...configured]) {
     if (ship.needsExecution || ship.name === '*' || !validShipControlName(ship.name)) continue;
-    inventory.set(ship.name, { name: ship.name, role: ship.role.slice(0, 220),
+    inventory.set(ship.name, { name: ship.name, role: ship.role.slice(0, 220), model: ship.cfModel, blocking: ship.blocking,
       trigger: Array.isArray(ship.trigger) ? ship.trigger.join(', ') : ship.trigger });
   }
   if (fleetXoFromDocument(document)) inventory.set('xo', { name: 'xo', role: 'Curates advisory findings and proposals.', trigger: 'After review findings' });
@@ -115,21 +116,23 @@ async function shipInventory(env: Env, repo: string, witness: RepoWitness): Prom
  * @param admin Whether the viewer has write authority.
  * @returns The row's HTML.
  */
-function controlRow(repo: string, ship: ShipView, controls: RepoShipControls, admin: boolean): string {
+function controlRow(repo: string, ship: ShipView, controls: RepoShipControls, admin: boolean, telemetry?: RepoShipTelemetry): string {
   const row = controls.rows.find(item => item.ship === ship.name);
   const allowed = repoShipEnabled(controls, ship.name);
   const savedOn = row?.enabled !== 0;
   const label = ship.name === '*' ? 'All cloud ships' : ship.name;
   const state = !controls.available ? 'Unavailable · stopped' : !allowed ? 'Off' : 'On · permitted';
   return `<article class="ship-row"><div><h2>${esc(label)}</h2><p>${esc(ship.role)}</p>
-    <p class="meta">${esc(ship.trigger)}${row ? ` · saved ${esc(new Date(row.updated_at * 1000).toISOString())}` : ' · inherited from trusted configuration'}</p></div>
+    <p class="meta">${esc(ship.trigger)}${row ? ` · saved ${esc(new Date(row.updated_at * 1000).toISOString())}` : ' · inherited from trusted configuration'}</p>
+    ${ship.model ? `<p class="meta">Configured model: ${esc(ship.model)} · ${ship.blocking ? 'Blocking review' : 'Advisory'}</p>` : ''}</div>
     <div class="controls"><strong class="state ${allowed ? 'on' : 'off'}">${state}</strong>
     ${admin && controls.available ? `<form method="post" action="/account/ships/set">
       <input type="hidden" name="repo" value="${esc(repo)}"><input type="hidden" name="ship" value="${esc(ship.name)}">
       <input type="hidden" name="revision" value="${row?.revision ?? 0}">
       <button name="enabled" value="${savedOn ? 'off' : 'on'}" aria-label="Turn ${esc(label)} ${savedOn ? 'off' : 'on'} for ${esc(repo)}">Turn ${savedOn ? 'off' : 'on'}</button>
     </form>` : `<span class="meta">${controls.available ? 'Repository admin required to change' : 'Controls unavailable; changes blocked'}</span>`}
-    ${controls.available && ship.name !== '*' && savedOn && !allowed ? '<span class="meta">Held by All cloud ships</span>' : ''}</div></article>`;
+    ${controls.available && ship.name !== '*' && savedOn && !allowed ? '<span class="meta">Held by All cloud ships</span>' : ''}</div>
+    <details class="evidence-drawer" ${ship.name === '*' ? 'open' : ''}><summary>${ship.name === '*' ? 'Repository' : esc(ship.name)} activity, costs and transcripts</summary>${renderShipTelemetry(telemetry, ship.name)}</details></article>`;
 }
 
 /** Why shared account design tokens: real-state proof must match the signed-in site.
@@ -140,7 +143,7 @@ function controlRow(repo: string, ship: ShipView, controls: RepoShipControls, ad
  * @param notice Outcome or unavailable explanation.
  * @returns Script-free account HTML.
  */
-export function renderRepoShipsPage(repo: string, ships: ShipView[], controls: RepoShipControls, admin: boolean, notice = ''): string {
+export function renderRepoShipsPage(repo: string, ships: ShipView[], controls: RepoShipControls, admin: boolean, notice = '', telemetry?: RepoShipTelemetry): string {
   return `<!doctype html><html lang="en"><head>${HEAD}<title>Repository ships · Port Daddy</title><style>${TOKENS}
     .shell{max-width:1100px;margin:auto;padding:28px 32px 72px}nav{display:flex;gap:20px;border-bottom:2px solid var(--border-strong);padding-bottom:18px}
     h1{font-size:clamp(28px,4vw,44px);margin:32px 0 12px}h2{font-size:19px;margin:0 0 8px}p{font-size:16px;line-height:1.6;max-width:72ch}
@@ -150,14 +153,20 @@ export function renderRepoShipsPage(repo: string, ships: ShipView[], controls: R
     .ship-row{display:grid;grid-template-columns:minmax(0,1fr) 210px;gap:24px;padding:24px;margin-top:16px;border:2px solid var(--border-strong);background:var(--surface-raised)}
     .controls{display:flex;flex-direction:column;gap:12px;align-items:flex-start}.state{font-size:16px}.on{color:var(--health)}.off{color:var(--text-secondary)}
     .meta{font-size:14px;color:var(--text-secondary);overflow-wrap:anywhere}.notice{padding:16px;border:2px solid var(--cobalt);margin:20px 0}.scope{margin-top:28px;border-top:1px solid var(--border-strong);padding-top:20px}
+    .evidence-drawer{grid-column:1/-1;border-top:1px solid var(--border-strong);padding-top:16px;min-width:0}summary{cursor:pointer;font-size:16px;font-weight:600;padding:8px 0}summary:focus-visible{outline:3px solid var(--health)}
+    .ship-metrics{display:flex;flex-wrap:wrap;gap:18px;margin:16px 0}.ship-metrics dt{font-size:14px;color:var(--text-secondary)}.ship-metrics dd{margin:4px 0;font-size:20px;font-weight:700}
+    .cost-chart{height:95px;display:flex;gap:6px;align-items:flex-end;margin:12px 0}.cost-day{flex:1;min-width:0;text-align:center}.cost-day span{display:block;background:var(--cobalt);min-height:2px}.cost-day small{font-size:12px}.ship-evidence figure{margin:16px 0}.ship-evidence figcaption{font-size:14px}
+    .cost-day span.unreported{background:transparent;border-bottom:1px dotted var(--text-secondary)}
+    .recent-ships{padding-left:22px}.recent-ships li{padding:12px 0;border-bottom:1px solid var(--border-strong);overflow-wrap:anywhere}.recent-ships p{margin:6px 0}.recent-ships small{display:block;font-size:13px;color:var(--text-secondary)}.ship-evidence table{width:100%;text-align:left}.telemetry-note{color:var(--text-secondary);border-left:3px solid var(--cobalt);padding-left:12px}.ship-evidence p{overflow-wrap:anywhere}
     @media(max-width:650px){.shell{padding:20px 16px}.ship-row{grid-template-columns:1fr}.controls{flex-direction:row;align-items:center;flex-wrap:wrap}}
   </style></head><body><main class="shell"><nav><a href="/account">Port Daddy / Account</a><a href="/account/repos">Repo settings</a><a href="/account/runs">Fleet runs</a></nav>
-  <h1>Ships, repository by repository.</h1><p>Choose which cloud ships may work here. Each button saves immediately. Turning a ship on permits future events; it does not launch a job.</p>
+  <h1>Ships, repository by repository.</h1><p>See what each ship does, what happened, and what it cost. Open a ship’s activity for recent transcripts. Each control saves immediately. Turning a ship on permits future events; it does not launch a job.</p>
   <form class="picker" method="get" action="/account/ships"><label>Repository <input required name="repo" value="${esc(repo)}" placeholder="owner/repository"></label><button>Show ships</button></form>
   ${notice ? `<p class="notice" role="status">${esc(notice)}</p>` : ''}
   ${repo ? `<h2>${esc(repo)}</h2><p class="meta">${admin ? 'Repository admin · you can save controls' : 'Read-only · a repository admin can change controls'}</p>
-    ${controlRow(repo, { name: '*', role: 'Pause all cloud review ships in this repository without changing other repositories.', trigger: 'Repository master permission' }, controls, admin)}
-    ${ships.map(ship => controlRow(repo, ship, controls, admin)).join('')}` : ''}
+    <p class="meta">${telemetry ? `Snapshot ${esc(new Date(telemetry.now * 1000).toISOString())} · last 14 UTC days, at most 200 recent runs${telemetry.truncated ? ' · clipped: not a complete total' : ''}.` : 'Telemetry not loaded.'} <a href="/account/ships?repo=${encodeURIComponent(repo)}">Refresh activity →</a></p>
+    ${controlRow(repo, { name: '*', role: 'Pause all cloud review ships in this repository without changing other repositories.', trigger: 'Repository master permission' }, controls, admin, telemetry)}
+    ${ships.map(ship => controlRow(repo, ship, controls, admin, telemetry)).join('')}` : ''}
   <section class="scope"><h2>What Off means</h2><p>The executor reads these controls before each ship, including queued retries. Work already in progress may finish; this is not a process-kill button. A skipped review is reported as not reviewed, never as a passing review.</p>
   <p>A global Fleet pause still wins. These controls govern cloud PR review ships, XO, and new Mediator scans. Existing signed human orders remain in force. They do not start or stop local agents, GitHub Actions, or the separate Steward service. Removing a repo from personal settings does not remove its ship controls.</p></section>
   </main></body></html>`;
@@ -207,8 +216,11 @@ export async function handleRepoShips(request: Request, env: Env): Promise<Respo
   let inventoryError = '';
   try { ships = await shipInventory(env, repo, witness); }
   catch { inventoryError = 'Trusted ship list unavailable. The repository master Off control remains available; no new ship can be enabled until the list is verified.'; }
-  if (!writing) return html(renderRepoShipsPage(repo, ships, controls, witness.admin,
-    !controls.available ? controls.reason : inventoryError || (url.searchParams.get('saved') === '1' ? 'Saved. The state below was read back from storage.' : '')));
+  if (!writing) {
+    const telemetry = await readRepoShipTelemetry(env.DB, repo);
+    return html(renderRepoShipsPage(repo, ships, controls, witness.admin,
+      !controls.available ? controls.reason : inventoryError || (url.searchParams.get('saved') === '1' ? 'Saved. The state below was read back from storage.' : ''), telemetry));
+  }
   const ship = form?.get('ship');
   const enabled = form?.get('enabled');
   const revisionText = form?.get('revision');

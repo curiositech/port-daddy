@@ -21,6 +21,7 @@
  */
 
 import type { ExecutorEnv, FleetRunJob } from './env.js';
+import { shipAiOptions, type ShipCallContext } from './ship-ai-options.js';
 import { readRepoShipControls, repoShipEnabled, validShipControlName } from '../../shared/repo-ship-controls.js';
 import { TRANSCRIPT_EMERGENCY_EVENT } from '../../../lib/transcript-emergency-constants.js';
 import {
@@ -472,12 +473,9 @@ function partitionMapDiff(
 function aiOptions(
   env: ExecutorEnv,
   shipName: string,
-): { extraHeaders: Record<string, string>; gateway?: { id: string } } {
-  const opts: { extraHeaders: Record<string, string>; gateway?: { id: string } } = {
-    extraHeaders: { 'x-session-affinity': `pd-fleet-${shipName}` },
-  };
-  if (env.AI_GATEWAY_ID) opts.gateway = { id: env.AI_GATEWAY_ID };
-  return opts;
+  context?: ShipCallContext | null,
+) {
+  return shipAiOptions(env.AI_GATEWAY_ID, shipName, context);
 }
 
 /**
@@ -2628,7 +2626,7 @@ export async function executeFleet(
     // buffered per (run, ship, attempt), flushed once to R2 + the D1 index on
     // BOTH exits below — a thrown ship still leaves its partial conversation
     // behind, which is exactly when the forensics matter most.
-    const capture = new ShipTranscript(runId, ship.name, providerAttempt);
+    const capture = new ShipTranscript(runId, ship.name, providerAttempt, job.repoFullName);
     let result: ShipResult;
     try {
       result = ship.purser
@@ -2809,6 +2807,7 @@ export async function executeFleet(
           advisories,
           changedPaths,
           gatewayId: env.AI_GATEWAY_ID,
+          telemetryContext: { runId, attempt: providerAttempt, repoFullName: job.repoFullName },
           aiCircuit,
         });
         await assertCurrentHead('after XO triage model work');
@@ -3234,7 +3233,7 @@ async function runShip(
             env.AI.run(
               mapModel as Parameters<typeof env.AI.run>[0],
               request,
-              aiOptions(env, ship.name),
+              aiOptions(env, ship.name, capture),
             ),
           ),
       );
@@ -3382,6 +3381,7 @@ async function runShip(
           proposals,
           recentIdeas,
           gatewayId: env.AI_GATEWAY_ID,
+          telemetryContext: capture ?? undefined,
           aiCircuit,
         });
         await assertCurrentHead(`after pd-${ship.name} XO editor`);
@@ -4135,7 +4135,7 @@ async function runReduceGroup(
         env.AI.run(
           model as Parameters<typeof env.AI.run>[0],
           request,
-          aiOptions(env, ship.name),
+          aiOptions(env, ship.name, capture),
         ),
       ),
   );
@@ -4246,7 +4246,7 @@ async function shipRepairCall(
       env.AI.run(
         model as Parameters<typeof env.AI.run>[0],
         request,
-        aiOptions(env, ship.name),
+        aiOptions(env, ship.name, capture),
       ),
     ),
   );

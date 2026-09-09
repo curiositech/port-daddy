@@ -150,7 +150,6 @@ function deriveIdeation(name: string, agentClass: unknown): boolean {
 // (see KNOWN_GOOD_CF_MODELS).
 const REVIEW_BOT_CF_MODEL = CF_ROLE_MODELS.reviewBot; // code review bot ONLY
 const CHEAP_CF_MODEL = CF_ROLE_MODELS.shipDefault; // every other ship
-const WORKING_CF_MODEL = CHEAP_CF_MODEL; // guard fallback: cheap + verified working
 const DEFAULT_CF_MODEL = CHEAP_CF_MODEL; // every ship except the review bot
 const CODER_CF_MODEL = REVIEW_BOT_CF_MODEL; // the code review bot only
 

@@ -32,7 +32,54 @@ replacement for a hard spend cap. Local agents, GitHub Actions, and the separate
 Steward service are outside this control. A skipped review is **not reviewed**;
 it does not become a passing required review.
 
-## Authority and persistence
+## Activity and cost evidence
+
+Expand a ship's **activity, costs and transcripts** drawer. The repository
+overview starts open. Both show 14 UTC days of recorded cost, tokens, models,
+call errors/timeouts and mean latency, plus the latest three relevant runs,
+their latest recorded step and an authorized transcript-attempt link. Models
+observed in history are distinct from the currently configured model.
+
+These are recorded estimates, not a Cloudflare invoice or a live process check.
+Zero/unreported ledger rows are not proof of free usage. The snapshot includes
+at most 200 recently created runs and 1,000 rows from each evidence source;
+clipping and source failures are labelled. Long-running jobs created before
+the window, queued jobs without a run receipt, and pruned history are outside
+this view. Refresh is manual: opening the page does not poll or launch work.
+Transcript links recheck repository access and may report missing retained R2
+content; the overview does not copy raw messages or storage keys into HTML.
+
+The additive `2026-09-08-repo-ship-telemetry.sql` migration supplies scoped
+history indexes. It removes no data and is safe to apply repeatedly.
+
+### Cloudflare configuration and remaining instrumentation
+
+The committed Relay and executor deployment files enable Worker observability;
+the executor accepts an optional `AI_GATEWAY_ID`. This is source configuration,
+not proof of live deployment. On 2026-09-09 UTC, read-only settings requests for
+`fleet-executor` and `port-daddy-relay` returned HTTP 403 / Cloudflare code 10000.
+The available credential cannot verify their deployed logging or gateway binding.
+No production settings, migrations, retention policies, or model calls were made.
+
+The shared ship AI options preserve existing gateway routing and session affinity,
+add repo/run/ship/attempt metadata where context exists, and request
+`cf-aig-collect-log-payload: false`. They do not enable logging or change caching.
+MAP, REDUCE, repair, Purser, and XO use these options. Standalone callers without
+run context report only the ship; other provider/agent paths are not claimed
+instrumented by this change. XO does not yet capture a full conversation in R2.
+
+Before release, an authorized deployment owner must read back both Workers'
+settings and the selected existing gateway. If a new gateway or logging policy
+is needed, approve its exact ID, access controls and bounded retention separately.
+Verify metadata-only entries and correlation on an explicitly approved fixture
+run before claiming live telemetry. Do not enable full payload logs, add an
+unbounded collector, delete retained evidence, or incur test-model spend implicitly.
+
+Cloudflare documents [metadata-only payload suppression](https://developers.cloudflare.com/ai-gateway/observability/logging/),
+[custom correlation metadata](https://developers.cloudflare.com/ai-gateway/observability/custom-metadata/),
+and [Worker logging configuration](https://developers.cloudflare.com/workers/observability/logs/workers-logs/).
+
+## Authority and persistence contract
 
 The page uses the existing signed-in session. Every mutation requires a fresh
 GitHub repository-admin witness and a same-origin form POST. Repository names
@@ -62,7 +109,8 @@ the executor before the production migration stops all cloud review work.
 1. Have the deployment owner approve the exact release and preserve the current
    global pause. Do not lift any local Port Daddy halt.
 2. Rehearse `2026-09-08-repo-ship-controls.sql` through the staging migration
-   process and retain its receipt. Do not forge the staging ledger.
+   process together with `2026-09-08-repo-ship-telemetry.sql` and retain their
+   receipts. Do not forge the staging ledger.
 3. Through the approved production migration path, add both tables and audit
    triggers to the **same production D1 database** used by Relay and the executor.
    Read back the schema before admitting the executor update. Do not reset data.

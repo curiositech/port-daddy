@@ -24,6 +24,10 @@
 for repository admins, with per-ship On/Off permissions and a repository-wide Off
 control. Decisions are saved immediately and checked before cloud ship work and
 queued retries. Turning On does not launch an agent; Off is not an in-flight kill.
+Each ship also exposes its configured role/model, recent run evidence, transcript
+links, recorded cost trend, token use, call errors/timeouts, and latency. Missing
+telemetry is labelled unavailable, not free or healthy. History reads are bounded
+and repository-authorized; opening the page does not launch work.
 The [control contract and deployment order](docs/operations/repo-ship-controls.md)
 describe the cloud-only scope and required schema-first release. A source merge
 does not by itself update `relay.portdaddy.dev`.

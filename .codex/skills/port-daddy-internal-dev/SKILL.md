@@ -634,6 +634,11 @@ explicit: this does not control local agents or the separate Steward service.
 Follow `docs/operations/repo-ship-controls.md` for schema-first release ordering.
 Browser form proof must exercise real Origin and redirect behavior, not only
 synthetic Request objects.
+Ship history must stay repo-authorized and bounded. Missing cost is not zero,
+permission is not running status, and a transcript index is not proof its R2
+object survives. Keep additional Cloudflare logs metadata-only; verify deployed
+settings separately from committed configuration and never probe with paid work
+under the operator halt.
 
 Every Workers AI model decision — a ship's tier, a purser step model, a new
 admission — is made against `references/cloudflare-model-roster.md` (the

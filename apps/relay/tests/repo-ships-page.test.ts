@@ -3,6 +3,7 @@ import { resolveSession } from '../src/auth-github.js';
 import { handleRepoShips, renderRepoShipsPage } from '../src/repo-ships-page.js';
 import { readRepoShipControls, repoShipEnabled, setRepoShipControl } from '../../shared/repo-ship-controls.js';
 import { shipControlsDb } from './ship-controls-db.js';
+import { seedShipTelemetry } from './ship-telemetry-fixture.js';
 import type { Env } from '../src/types.js';
 
 vi.mock('../src/auth-github.js', async importOriginal => ({
@@ -104,6 +105,16 @@ describe('repository ship storage and authority', () => {
 });
 
 describe('signed-in ship UI', () => {
+  it('does not query private telemetry before fresh repository authorization', async () => {
+    const prepare = vi.spyOn(store.db, 'prepare');
+    vi.mocked(fetch).mockResolvedValue(new Response('', { status: 404 }));
+    const denied = await handleRepoShips(new Request(`${BASE}/account/ships?repo=private/other`), env);
+    expect(denied.status).toBe(403);
+    expect(prepare).not.toHaveBeenCalled();
+    vi.mocked(resolveSession).mockResolvedValue(null);
+    expect((await handleRepoShips(new Request(`${BASE}/account/ships?repo=private/other`), env)).status).toBe(302);
+    expect(prepare).not.toHaveBeenCalled();
+  });
   it('reads saved state, names the repo, and presents an explicit save action', async () => {
     await handleRepoShips(request(off), env);
     const result = await handleRepoShips(new Request(`${BASE}/account/ships?repo=owner/repo&saved=1`), env);
@@ -128,6 +139,7 @@ describe('signed-in ship UI', () => {
 // GitHub identity/config mocked. An ephemeral loopback HTTP adapter preserves
 // browser redirects and Origin semantics; no deployed relay, PD, or paid AI runs.
 it.skipIf(!process.env.SHIP_CONTROLS_PROOF_DIR)('records browser control round-trip and responsive proof', async () => {
+  seedShipTelemetry(store.sqlite);
   const { chromium } = await import('playwright');
   const { createServer } = await import('node:http');
   const directory = process.env.SHIP_CONTROLS_PROOF_DIR!;
@@ -144,7 +156,7 @@ it.skipIf(!process.env.SHIP_CONTROLS_PROOF_DIR)('records browser control round-t
       outgoing.end(await response.text());
     } catch { outgoing.writeHead(500); outgoing.end('Fixture request failed'); }
   });
-  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+  await new Promise<void>((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
   const address = server.address() as { port: number };
   base = `http://127.0.0.1:${address.port}`;
   env.PUBLIC_BASE_URL = base;
@@ -158,6 +170,9 @@ it.skipIf(!process.env.SHIP_CONTROLS_PROOF_DIR)('records browser control round-t
     await expect.poll(() => page.locator('body').innerText(), { timeout: 5000 }).toContain('Saved.');
     await expect.poll(() => page.getByRole('button', { name: 'Turn purser on for owner/repo', exact: true }).count()).toBe(1);
     expect(repoShipEnabled(await readRepoShipControls(store.db, 'owner/repo'), 'purser')).toBe(false);
+    await page.getByText('purser activity, costs and transcripts', { exact: true }).click();
+    await expect.poll(() => page.getByRole('link', { name: 'Read purser transcript · 8 turns · incomplete →', exact: true }).count()).toBe(2);
+    expect(await page.getByText('Sandbox test import failed; contract was not tested.', { exact: false }).count()).toBeGreaterThan(0);
     await page.screenshot({ path: `${directory}/ships-light.png`, fullPage: true });
     await page.evaluate(() => document.documentElement.dataset.theme = 'dark');
     await page.screenshot({ path: `${directory}/ships-dark.png`, fullPage: true });

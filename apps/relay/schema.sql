@@ -130,6 +130,8 @@ CREATE TABLE IF NOT EXISTS fleet_runs (
   created_at         INTEGER NOT NULL DEFAULT (unixepoch())
 );
 CREATE INDEX IF NOT EXISTS fleet_runs_created_idx ON fleet_runs (created_at DESC);
+CREATE INDEX IF NOT EXISTS fleet_runs_repo_created_idx
+  ON fleet_runs (repo_full_name COLLATE NOCASE, created_at DESC, id DESC);
 
 -- Durable queue-admission truth, written before the queue consumer starts.
 -- One PR can have many immutable generations as new heads arrive; only the
@@ -389,6 +391,8 @@ CREATE TABLE IF NOT EXISTS fleet_run_spend (
   created_at      INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS fleet_run_spend_installation_idx ON fleet_run_spend (installation_id, created_at);
+CREATE INDEX IF NOT EXISTS fleet_run_spend_run_created_idx
+  ON fleet_run_spend (run_id, created_at DESC);
 
 -- Aggregate, per-ship Workers AI call stats (ADR none; see
 -- apps/relay/migrations/2026-08-23-fleet-ai-call-stats.sql for full design
