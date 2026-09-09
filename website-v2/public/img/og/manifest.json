@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-06T04:53:27.904Z",
+  "generatedAt": "2026-09-09T06:55:03.494Z",
   "generator": "website-v2/scripts/generate-og-cards.mjs",
   "renderer": "website-v2/scripts/render-og-cards.py",
   "siteName": "Port Daddy",
@@ -1389,8 +1389,8 @@
     {
       "image": "/img/og/docs-features-fleet.jpg",
       "route": "/docs/features/fleet",
-      "title": "Fleet YAML - Port Daddy",
-      "description": "Learn the Port Daddy fleet yaml feature, what problem it solves, and how to use it with agent work.",
+      "title": "Fleet & GitHub App - Port Daddy",
+      "description": "Learn the Port Daddy fleet & github app feature, what problem it solves, and how to use it with agent work.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/virtual-actor-fleet.jpg"
@@ -2287,15 +2287,6 @@
       "sourceImage": "/img/generated/agent-runtime-map.jpg"
     },
     {
-      "image": "/img/og/library.jpg",
-      "route": "/library",
-      "title": "The Harbor Library - Port Daddy",
-      "description": "The seven-paper Harbor Library, read as one volume: four chapters explain local-first agent coordination, identity, and the harbor economy; three prove it with machine-checked formal verification.",
-      "section": "whitepaper",
-      "sectionLabel": "Whitepaper",
-      "sourceImage": "/img/generated/library-og.jpg"
-    },
-    {
       "image": "/img/og/mac-preview.jpg",
       "route": "/mac-preview",
       "title": "Mac Preview - Port Daddy",
@@ -2330,6 +2321,15 @@
       "section": "product",
       "sectionLabel": "pd tube",
       "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/research.jpg",
+      "route": "/research",
+      "title": "The Harbor Research Program - Port Daddy",
+      "description": "What the whitepaper proves, what it measures, and what it does not know yet: seven conference-form papers, every executed result and where it lives, the mechanized proof estate, the studies still running, and the open problems the book names for itself.",
+      "section": "whitepaper",
+      "sectionLabel": "Whitepaper",
+      "sourceImage": "/img/generated/library-og.jpg"
     },
     {
       "image": "/img/og/scout.jpg",
@@ -2587,7 +2587,7 @@
       "image": "/img/og/whitepaper-harbor-economy.jpg",
       "route": "/whitepaper/harbor-economy",
       "title": "The Harbor Economy - Port Daddy",
-      "description": "A guided read of the market chapter: the three-sided market and its one conserving ledger, the cross-harbor transfer ceremony and federation, and the honest reconciliations — the cohomology of double-spend, the lax functor of conservation, and the Myerson–Satterthwaite tax on any honest market.",
+      "description": "A guided read of the market chapter: the three-sided market and its one conserving ledger, additive trace composition within a unit of account, explicit cross-currency exposure accounting, conditionally restricted custody, and the precise bilateral assumptions under which Myerson–Satterthwaite applies.",
       "section": "whitepaper",
       "sectionLabel": "Whitepaper",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -2596,7 +2596,16 @@
       "image": "/img/og/whitepaper-legible-swarm.jpg",
       "route": "/whitepaper/legible-swarm",
       "title": "The Legible Swarm - Port Daddy",
-      "description": "A guided read of the volume’s flagship: legibility-with-zoom as the product a solo developer pays for today, the read-poverty bottleneck that decides the next order of magnitude, and an attention queue spined on Signal Detection Theory rather than raw throughput.",
+      "description": "A guided read of the series’ flagship: legibility-with-zoom as the product a solo developer pays for today, the read-poverty bottleneck that decides the next order of magnitude, and an attention queue using Signal Detection Theory as an explicit decision objective rather than a universal fitted detector.",
+      "section": "whitepaper",
+      "sectionLabel": "Whitepaper",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/whitepaper-sealed-harbor.jpg",
+      "route": "/whitepaper/sealed-harbor",
+      "title": "The Sealed Harbor - Port Daddy",
+      "description": "A guided read of the Sealed Harbor chapter: why a confident-sounding \"cannot phone home\" claim has to be replaced by a narrower, provable one, the four-pillar argument that replaces it (silence except through the slot, the channel as the only enforceable boundary, a conserving budget ledger, and a canary detector with a quotable curve), and the honest list of what none of it promises.",
       "section": "whitepaper",
       "sectionLabel": "Whitepaper",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -2614,7 +2623,7 @@
       "image": "/img/og/whitepaper-spawn-to-person.jpg",
       "route": "/whitepaper/spawn-to-person",
       "title": "From Spawn to Person - Port Daddy",
-      "description": "A guided read of the bridge chapter: the role-vs-person distinction made load-bearing, why reputation is not a bandit problem, a multi-dimensional reputation scored by neutral conflict-free judges, and the honest naming of cross-operator attestation as the unbuilt keystone.",
+      "description": "A guided read of the bridge chapter: the role-vs-person distinction made consequential, why reputation is not a bandit problem, a multi-dimensional reputation scored by neutral conflict-free judges, and the honest naming of cross-operator attestation as the unbuilt keystone.",
       "section": "whitepaper",
       "sectionLabel": "Whitepaper",
       "sourceImage": "/img/generated/virtual-actor-fleet.jpg"
@@ -2622,11 +2631,11 @@
     {
       "image": "/img/og/whitepaper.jpg",
       "route": "/whitepaper",
-      "title": "Whitepaper - Port Daddy",
-      "description": "Read the technical whitepaper behind Port Daddy: local-first agent coordination, signed identity, capability boundaries, sessions, and recoverable work.",
+      "title": "The Harbor, the Person, and the Economy - Port Daddy",
+      "description": "The Port Daddy whitepaper, read as one book: eight chapters in four parts on what has to stay coupled when software works while you are not watching, with every claim labelled by kind, worked examples, exercises, and proofs that run in CI. A free PDF.",
       "section": "whitepaper",
       "sectionLabel": "Whitepaper",
-      "sourceImage": "/img/generated/control-plane-og.jpg"
+      "sourceImage": "/img/generated/library-og.jpg"
     }
   ]
 }
