@@ -1,0 +1,1717 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Port Daddy — Viewport Feedback Extension · Design Concept</title>
+<style>
+/* =============================================================================
+   PORT DADDY DESIGN TOKENS — neobrutalist maritime
+   ============================================================================= */
+:root {
+  /* Primitives */
+  --cream:       #f2eee6;
+  --cream-light: #faf7f2;
+  --cobalt:      #003fb8;
+  --cobalt-dark: #002b82;
+  --cobalt-dim:  #0033961a;
+  --forest:      #006b5f;
+  --forest-dim:  #006b5f22;
+  --ink:         #121212;
+  --ink-dim:     #12121280;
+  --terminal:    #12161f;
+  --terminal-fg: #e8e4dc;
+  --brand-yellow:#ffdb33;
+  --cinnabar:    #cc3d2e;
+  --cinnabar-dim:#cc3d2e22;
+  --sandstone:   #d4c5a9;
+  --white:       #ffffff;
+
+  /* Status */
+  --nit-bg:      #fffbeb; --nit-border:  #d97706; --nit-fg: #78350f;
+  --bug-bg:      #fef2f2; --bug-border:  #cc3d2e; --bug-fg: #7a0a1a;
+  --feed-bg:     #eff6ff; --feed-border: #003fb8; --feed-fg: #001a37;
+  --tang-bg:     #f5f3ff; --tang-border: #7c3aed; --tang-fg: #2e1065;
+  --ques-bg:     #f0fdf4; --ques-border: #006b5f; --ques-fg: #14532d;
+
+  /* Neobrutalist structure */
+  --border:      2px solid #121212;
+  --border-heavy:3px solid #121212;
+  --shadow-sm:   3px 3px 0 0 #121212;
+  --shadow-md:   4px 4px 0 0 #121212;
+  --shadow-lg:   6px 6px 0 0 #121212;
+  --shadow-xl:   8px 8px 0 0 #121212;
+  --shadow-cobalt: 4px 4px 0 0 #003fb8;
+  --shadow-forest: 4px 4px 0 0 #006b5f;
+
+  /* Typography */
+  --font-display: "Georgia", "Times New Roman", serif;
+  --font-body:    system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono:    "SF Mono", "Cascadia Code", ui-monospace, "Menlo", monospace;
+}
+
+/* =============================================================================
+   SHELL — page layout for the design concept doc
+   ============================================================================= */
+*, *::before, *::after { box-sizing: border-box; }
+html { background: #1a1a1a; }
+
+body {
+  margin: 0;
+  padding: 2rem;
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--ink);
+  background: #1a1a1a;
+  min-height: 100vh;
+}
+
+.concept-header {
+  max-width: 1400px;
+  margin: 0 auto 2rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--terminal);
+  border: var(--border);
+  border-color: #333;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.concept-header__title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--brand-yellow);
+}
+
+.concept-header__badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--terminal-fg);
+  background: #ffffff18;
+  border: 1px solid #ffffff22;
+  padding: 0.25rem 0.6rem;
+}
+
+.stages {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+  border: var(--border-heavy);
+  border-color: #444;
+}
+
+.stage {
+  background: var(--cream);
+  border-right: var(--border);
+  border-color: #444;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.stage:last-child { border-right: none; }
+
+.stage__label {
+  background: var(--terminal);
+  color: var(--terminal-fg);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  padding: 0.6rem 1rem;
+  border-bottom: 2px solid #333;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.stage__label-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: var(--brand-yellow);
+  color: var(--ink);
+  font-size: 9px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.stage__content {
+  flex: 1;
+  position: relative;
+}
+
+/* =============================================================================
+   SIMULATED WEBPAGE BACKGROUND — what the dev is looking at
+   ============================================================================= */
+.fake-browser {
+  background: var(--white);
+  height: 100%;
+  min-height: 420px;
+  position: relative;
+  overflow: hidden;
+  font-family: var(--font-body);
+}
+
+.fake-browser__chrome {
+  background: #f0f0f0;
+  border-bottom: 1px solid #d0d0d0;
+  padding: 0.5rem 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.fake-browser__dots {
+  display: flex;
+  gap: 5px;
+}
+.fake-browser__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ccc;
+}
+.fake-browser__dot:nth-child(1) { background: #ff5f56; }
+.fake-browser__dot:nth-child(2) { background: #ffbd2e; }
+.fake-browser__dot:nth-child(3) { background: #27c93f; }
+
+.fake-browser__url {
+  flex: 1;
+  background: #fff;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  padding: 0.2rem 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #555;
+}
+
+.fake-browser__ext-icon {
+  width: 24px;
+  height: 24px;
+  background: var(--cobalt);
+  border: 2px solid var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 2px 2px 0 0 var(--ink);
+  transition: transform 80ms, box-shadow 80ms;
+  flex-shrink: 0;
+}
+.fake-browser__ext-icon:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 0 var(--ink);
+}
+.fake-browser__ext-icon svg { display: block; }
+
+/* The actual webpage body content */
+.fake-webpage {
+  padding: 1.5rem;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #333;
+  position: relative;
+}
+
+.fake-webpage__nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 1rem;
+}
+.fake-webpage__nav-logo {
+  font-weight: 700;
+  font-size: 14px;
+  color: #111;
+}
+.fake-webpage__nav-link {
+  font-size: 12px;
+  color: #666;
+}
+
+.fake-webpage__hero {
+  background: #0f172a;
+  color: #f1f5f9;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  border-radius: 6px;
+}
+.fake-webpage__hero h2 {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0 0 0.4rem;
+  color: #f8fafc;
+}
+.fake-webpage__hero p {
+  font-size: 12px;
+  color: #94a3b8;
+  margin: 0;
+}
+
+/* THE BROKEN THING — pricing table with alignment bug */
+.fake-webpage__cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.fake-webpage__card {
+  border: 1px solid #e5e7eb;
+  padding: 0.75rem;
+  border-radius: 4px;
+  position: relative;
+}
+.fake-webpage__card-name {
+  font-weight: 600;
+  font-size: 12px;
+  margin-bottom: 0.25rem;
+  color: #111;
+}
+.fake-webpage__card-price {
+  font-size: 20px;
+  font-weight: 800;
+  color: #111;
+  line-height: 1;
+}
+.fake-webpage__card-price-bug {
+  /* INTENTIONAL BUG: text-overflow hidden cuts off the price */
+  font-size: 20px;
+  font-weight: 800;
+  color: #111;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 60px; /* too narrow — "$499/m" clips */
+}
+.fake-webpage__card-sub {
+  font-size: 10px;
+  color: #9ca3af;
+  margin-top: 0.2rem;
+}
+.fake-webpage__card-badge {
+  position: absolute;
+  top: -1px;
+  right: 6px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0 0 4px 4px;
+  letter-spacing: 0.04em;
+}
+
+/* =============================================================================
+   STAGE 1: IDLE STATE — extension popup + dim indicator
+   ============================================================================= */
+
+/* The extension popup */
+.ext-popup {
+  position: absolute;
+  top: 42px;
+  right: 8px;
+  width: 220px;
+  background: var(--cream);
+  border: var(--border);
+  box-shadow: var(--shadow-xl);
+  z-index: 200;
+  font-family: var(--font-body);
+}
+
+.ext-popup__header {
+  background: var(--cobalt);
+  color: var(--white);
+  padding: 0.6rem 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-bottom: var(--border);
+}
+
+.ext-popup__logo-mark {
+  width: 22px;
+  height: 22px;
+  background: var(--brand-yellow);
+  border: 2px solid var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--ink);
+  flex-shrink: 0;
+}
+
+.ext-popup__title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+.ext-popup__subtitle {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.7;
+  margin-top: 1px;
+}
+
+.ext-popup__status {
+  padding: 0.6rem 0.75rem;
+  border-bottom: 2px solid var(--ink);
+  background: var(--cream-light);
+}
+
+.ext-popup__status-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 11px;
+}
+
+.ext-popup__status-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--forest);
+  flex-shrink: 0;
+  position: relative;
+}
+.ext-popup__status-dot::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border: 1.5px solid var(--forest);
+  animation: ping 2s ease-in-out infinite;
+  opacity: 0;
+}
+@keyframes ping {
+  0%   { opacity: 0.7; transform: scale(1); }
+  100% { opacity: 0;   transform: scale(2); }
+}
+
+.ext-popup__status-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--forest);
+  letter-spacing: 0.06em;
+}
+
+.ext-popup__status-detail {
+  font-size: 10px;
+  color: #555;
+  margin-top: 0.2rem;
+  font-family: var(--font-mono);
+}
+
+.ext-popup__body {
+  padding: 0.75rem;
+}
+
+.ext-popup__cta {
+  width: 100%;
+  background: var(--cobalt);
+  color: var(--white);
+  border: var(--border);
+  padding: 0.6rem 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  transition: transform 80ms, box-shadow 80ms;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.ext-popup__cta:hover { transform: translate(-2px,-2px); box-shadow: var(--shadow-lg); }
+.ext-popup__cta:active { transform: translate(2px,2px); box-shadow: var(--shadow-sm); }
+
+.ext-popup__shortcut {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: #777;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+}
+
+.kbd {
+  display: inline-block;
+  background: var(--white);
+  border: 1.5px solid #ccc;
+  border-bottom-width: 2.5px;
+  border-radius: 3px;
+  padding: 0.1em 0.35em;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  color: #333;
+  line-height: 1.4;
+}
+
+.ext-popup__recents {
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px dashed #ccc;
+}
+
+.ext-popup__recents-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #888;
+  margin-bottom: 0.4rem;
+}
+
+.ext-popup__recent-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0;
+  font-size: 10px;
+  color: #555;
+  border-bottom: 1px solid #eee;
+}
+.ext-popup__recent-item:last-child { border-bottom: none; }
+
+.ext-popup__recent-cat {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+}
+
+.ext-popup__recent-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+}
+
+.ext-popup__recent-time {
+  color: #aaa;
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+
+.ext-popup__footer {
+  padding: 0.4rem 0.75rem;
+  border-top: var(--border);
+  background: var(--terminal);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.ext-popup__footer-text {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: #777;
+  flex: 1;
+}
+.ext-popup__footer-text span {
+  color: var(--brand-yellow);
+}
+
+/* =============================================================================
+   STAGE 2: SELECTION MODE — the active overlay state
+   ============================================================================= */
+
+/* Full-page dim with exclusion zone */
+.selection-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+}
+
+/* Four dark curtains surrounding the selection */
+.curtain {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.55);
+}
+.curtain--top    { top: 0; left: 0; right: 0; }
+.curtain--bottom { bottom: 0; left: 0; right: 0; }
+.curtain--left   { }
+.curtain--right  { }
+
+/* The actual selection rectangle */
+.selection-rect {
+  position: absolute;
+  border: 2.5px dashed #fff;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.15);
+  pointer-events: none;
+}
+
+/* Corner handles */
+.selection-handle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--brand-yellow);
+  border: 2px solid var(--ink);
+}
+.selection-handle--tl { top: -5px;  left: -5px; }
+.selection-handle--tr { top: -5px;  right: -5px; }
+.selection-handle--bl { bottom: -5px; left: -5px; }
+.selection-handle--br { bottom: -5px; right: -5px; }
+
+/* Dimension readout */
+.selection-dims {
+  position: absolute;
+  bottom: -26px;
+  left: 0;
+  background: var(--terminal);
+  color: var(--brand-yellow);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 0.2rem 0.45rem;
+  border: 1.5px solid #333;
+  white-space: nowrap;
+  letter-spacing: 0.06em;
+}
+
+/* Crosshair cursor indicator — shown as static illustration */
+.cursor-crosshair {
+  position: absolute;
+  pointer-events: none;
+  z-index: 110;
+}
+.cursor-crosshair__h {
+  position: absolute;
+  height: 1px;
+  background: rgba(255,255,255,0.6);
+  left: 0;
+  right: 0;
+}
+.cursor-crosshair__v {
+  position: absolute;
+  width: 1px;
+  background: rgba(255,255,255,0.6);
+  top: 0;
+  bottom: 0;
+}
+.cursor-crosshair__center {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--brand-yellow);
+  background: transparent;
+  transform: translate(-50%, -50%);
+}
+
+/* Mode banner */
+.selection-banner {
+  position: absolute;
+  top: 38px; /* below browser chrome */
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--cobalt);
+  color: var(--white);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.4rem 1rem;
+  border: var(--border);
+  box-shadow: var(--shadow-md);
+  z-index: 120;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.selection-banner__icon {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--brand-yellow);
+  display: inline-block;
+  position: relative;
+  flex-shrink: 0;
+}
+.selection-banner__icon::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  background: var(--brand-yellow);
+  opacity: 0.4;
+}
+
+.selection-banner__esc {
+  background: rgba(255,255,255,0.15);
+  padding: 0.1rem 0.35rem;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
+
+/* Element inspector tooltip */
+.element-tooltip {
+  position: absolute;
+  z-index: 115;
+  background: var(--terminal);
+  border: var(--border);
+  border-color: #444;
+  padding: 0.4rem 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--terminal-fg);
+  box-shadow: 4px 4px 0 0 #000;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.element-tooltip__path {
+  color: #7ec8ff;
+  margin-bottom: 0.15rem;
+}
+.element-tooltip__dims {
+  color: var(--brand-yellow);
+}
+
+/* =============================================================================
+   STAGE 3: ANNOTATION PANEL
+   ============================================================================= */
+
+/* Dimmed page underneath */
+.annotation-dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  z-index: 90;
+}
+
+/* The selected area stays visible */
+.annotation-highlight {
+  position: absolute;
+  border: 3px solid var(--cobalt);
+  box-shadow:
+    0 0 0 1px rgba(0,63,184,0.3),
+    inset 0 0 0 1px rgba(0,63,184,0.2),
+    4px 4px 0 0 var(--cobalt);
+  z-index: 95;
+  pointer-events: none;
+}
+
+/* Annotation panel — the star of this stage */
+.annotation-panel {
+  position: absolute;
+  width: 260px;
+  background: var(--cream);
+  border: var(--border-heavy);
+  box-shadow: var(--shadow-xl);
+  z-index: 200;
+  font-family: var(--font-body);
+}
+
+.annotation-panel__header {
+  background: var(--cobalt);
+  color: var(--white);
+  padding: 0.55rem 0.75rem;
+  border-bottom: var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.annotation-panel__title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.annotation-panel__close {
+  width: 18px;
+  height: 18px;
+  background: rgba(255,255,255,0.15);
+  border: 1.5px solid rgba(255,255,255,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  color: rgba(255,255,255,0.7);
+  font-family: var(--font-mono);
+}
+
+/* Preview strip */
+.annotation-panel__preview {
+  border-bottom: var(--border);
+  overflow: hidden;
+  background: var(--white);
+}
+
+.annotation-panel__preview-label {
+  background: var(--cream);
+  padding: 0.3rem 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #888;
+  border-bottom: 1px dashed #ccc;
+}
+
+.annotation-panel__preview-img {
+  /* Simulated screenshot of the selected pricing card */
+  background: #fff;
+  padding: 0.5rem 0.6rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.4rem;
+  font-size: 11px;
+}
+
+.preview-card {
+  border: 1px solid #e5e7eb;
+  padding: 0.5rem 0.45rem;
+  border-radius: 3px;
+  position: relative;
+}
+.preview-card--active {
+  border: 2px solid var(--cobalt);
+  box-shadow: 0 0 0 2px rgba(0,63,184,0.15);
+}
+.preview-card__name {
+  font-size: 9px;
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 0.2rem;
+}
+.preview-card__price {
+  font-size: 14px;
+  font-weight: 800;
+  color: #111;
+  line-height: 1;
+}
+.preview-card__price-clipped {
+  font-size: 14px;
+  font-weight: 800;
+  color: #111;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 42px;
+}
+.preview-card__sub {
+  font-size: 8px;
+  color: #9ca3af;
+  margin-top: 0.15rem;
+}
+.preview-card__badge {
+  position: absolute;
+  top: -1px;
+  right: 4px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 7px;
+  font-weight: 700;
+  padding: 0.1rem 0.3rem;
+  border-radius: 0 0 3px 3px;
+}
+
+.preview-annotation-arrow {
+  position: relative;
+  padding: 0.3rem 0.6rem 0.3rem 0.75rem;
+  background: var(--bug-bg);
+  border-top: 1px dashed var(--bug-border);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--bug-fg);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* Category picker */
+.annotation-panel__section {
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px dashed #ccc;
+}
+
+.annotation-panel__section-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #888;
+  margin-bottom: 0.4rem;
+}
+
+.category-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.3rem;
+}
+.category-grid--5 {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+.cat-btn {
+  border: var(--border);
+  padding: 0.3rem 0.25rem;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  text-align: center;
+  transition: transform 60ms, box-shadow 60ms;
+  line-height: 1.2;
+}
+.cat-btn:hover {
+  transform: translate(-1px,-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.cat-btn--nit      { background: var(--nit-bg);  color: var(--nit-fg);  border-color: var(--nit-border); }
+.cat-btn--bug      { background: var(--bug-bg);  color: var(--bug-fg);  border-color: var(--bug-border); }
+.cat-btn--feedback { background: var(--feed-bg); color: var(--feed-fg); border-color: var(--feed-border); }
+.cat-btn--tangent  { background: var(--tang-bg); color: var(--tang-fg); border-color: var(--tang-border); }
+.cat-btn--question { background: var(--ques-bg); color: var(--ques-fg); border-color: var(--ques-border); }
+
+.cat-btn--selected {
+  transform: translate(2px, 2px);
+  box-shadow: none !important;
+}
+.cat-btn--bug.cat-btn--selected {
+  background: var(--cinnabar);
+  color: var(--white);
+  border-color: var(--ink);
+}
+
+.cat-btn__dot {
+  width: 6px;
+  height: 6px;
+  display: inline-block;
+  margin-right: 3px;
+  vertical-align: middle;
+}
+
+/* Comment textarea */
+.annotation-panel__textarea {
+  display: block;
+  width: 100%;
+  background: var(--white);
+  border: var(--border);
+  font-family: var(--font-body);
+  font-size: 13px; /* exception: compact panel UI — min readable prose in dense tool */
+  color: var(--ink);
+  padding: 0.5rem 0.6rem;
+  resize: none;
+  height: 60px;
+  line-height: 1.5;
+  outline: none;
+}
+.annotation-panel__textarea:focus {
+  border-color: var(--cobalt);
+  box-shadow: 0 0 0 2px var(--cobalt-dim);
+}
+
+/* DOM context strip */
+.annotation-panel__dom {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px dashed #ccc;
+  background: var(--cream-light);
+}
+
+.annotation-panel__dom-path {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: #666;
+  line-height: 1.4;
+}
+
+.annotation-panel__dom-path mark {
+  background: var(--brand-yellow);
+  color: var(--ink);
+  padding: 0 0.2em;
+  font-weight: 700;
+}
+
+/* Submit row */
+.annotation-panel__footer {
+  padding: 0.6rem 0.75rem;
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.btn-submit {
+  flex: 1;
+  background: var(--cobalt);
+  color: var(--white);
+  border: var(--border);
+  padding: 0.5rem 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  transition: transform 80ms, box-shadow 80ms;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+.btn-submit:hover { transform: translate(-2px,-2px); box-shadow: var(--shadow-lg); }
+.btn-submit:active { transform: translate(2px,2px); box-shadow: var(--shadow-sm); }
+
+.btn-cancel {
+  background: var(--cream);
+  color: #666;
+  border: var(--border);
+  border-color: #ccc;
+  padding: 0.5rem 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: transform 80ms;
+}
+.btn-cancel:hover { transform: translate(-1px,-1px); }
+
+/* Fire animation icon */
+.fire-icon {
+  display: inline-block;
+  width: 10px;
+  height: 12px;
+  position: relative;
+}
+
+/* =============================================================================
+   BONUS: CONFIRMATION TOAST + AGENT PANEL
+   ============================================================================= */
+.toast-area {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  align-items: center;
+  min-width: 280px;
+}
+
+.toast {
+  background: var(--terminal);
+  color: var(--terminal-fg);
+  border: var(--border);
+  border-color: #333;
+  padding: 0.55rem 0.8rem;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  width: 100%;
+}
+
+.toast__icon {
+  width: 16px;
+  height: 16px;
+  background: var(--forest);
+  border: 1.5px solid var(--forest);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.toast__body { flex: 1; }
+.toast__title {
+  color: var(--brand-yellow);
+  font-weight: 700;
+  margin-bottom: 0.15rem;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+.toast__detail { color: #9ca3af; font-size: 10px; line-height: 1.4; }
+
+.toast--agent {
+  border-color: var(--cobalt);
+  background: #0a0f1a;
+}
+.toast--agent .toast__icon {
+  background: var(--cobalt);
+  border-color: var(--cobalt);
+}
+
+/* Agent log lines */
+.agent-log {
+  background: var(--terminal);
+  border: var(--border);
+  border-color: #333;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--terminal-fg);
+  padding: 0.5rem 0.75rem;
+  width: 100%;
+  box-shadow: var(--shadow-md);
+}
+
+.agent-log__title {
+  color: var(--brand-yellow);
+  font-weight: 700;
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.agent-log__dot {
+  width: 6px;
+  height: 6px;
+  background: var(--brand-yellow);
+  display: inline-block;
+  animation: blink 1s step-end infinite;
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+.agent-log__line {
+  color: var(--terminal-fg);
+  line-height: 1.6;
+  padding-left: 0.5rem;
+  border-left: 2px solid #333;
+  margin-bottom: 0.1rem;
+}
+.agent-log__line .prompt { color: var(--brand-yellow); }
+.agent-log__line .info   { color: #7ec8ff; }
+.agent-log__line .ok     { color: #6ee7a0; }
+.agent-log__line .dim    { color: #555; }
+.agent-log__line .path   { color: #c8a8ff; }
+.agent-log__line .cursor {
+  display: inline-block;
+  width: 7px;
+  height: 1em;
+  background: var(--terminal-fg);
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  animation: blink 1s step-end infinite;
+}
+
+/* =============================================================================
+   DESIGN NOTES SIDEBAR (below stages)
+   ============================================================================= */
+
+.notes-row {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 2px solid #333;
+  border-top: none;
+  background: var(--terminal);
+}
+
+.note-cell {
+  padding: 1rem 1.25rem;
+  border-right: 1px solid #333;
+}
+.note-cell:last-child { border-right: none; }
+
+.note-cell__heading {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--brand-yellow);
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.note-cell__heading::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 2px;
+  background: var(--brand-yellow);
+}
+
+.note-cell__text {
+  font-size: 11px;
+  color: #9ca3af;
+  line-height: 1.6;
+}
+
+.note-cell__text code {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  background: #ffffff12;
+  padding: 0.1em 0.3em;
+  color: #c8a8ff;
+}
+
+/* =============================================================================
+   SVG ICON HELPER CLASSES
+   ============================================================================= */
+.icon-crosshair, .icon-anchor, .icon-send {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* Tiny colored squares for category dots */
+.dot-nit      { background: var(--nit-border);  }
+.dot-bug      { background: var(--bug-border);  }
+.dot-feedback { background: var(--feed-border); }
+.dot-tangent  { background: var(--tang-border); }
+.dot-question { background: var(--ques-border); }
+
+</style>
+</head>
+<body>
+
+<!-- ============================================================================
+     HEADER
+     =========================================================================== -->
+<header class="concept-header">
+  <div class="concept-header__title">Port Daddy — Viewport Feedback Extension · Design Concept · Three States</div>
+  <div style="display:flex;gap:0.5rem;align-items:center">
+    <div class="concept-header__badge">Neobrutalist · Maritime · v0</div>
+    <div class="concept-header__badge" style="color:var(--brand-yellow)">All States Shown</div>
+  </div>
+</header>
+
+<!-- ============================================================================
+     THREE-STAGE LAYOUT
+     =========================================================================== -->
+<div class="stages">
+
+  <!-- =========================================================================
+       STAGE 1 — IDLE STATE: Extension popup open, ready to activate
+       ========================================================================= -->
+  <div class="stage">
+    <div class="stage__label">
+      <span class="stage__label-step">1</span>
+      Idle — Extension Open
+    </div>
+    <div class="stage__content">
+      <div class="fake-browser">
+
+        <!-- Browser chrome -->
+        <div class="fake-browser__chrome">
+          <div class="fake-browser__dots">
+            <div class="fake-browser__dot"></div>
+            <div class="fake-browser__dot"></div>
+            <div class="fake-browser__dot"></div>
+          </div>
+          <div class="fake-browser__url">localhost:3000/pricing</div>
+          <!-- Extension icon in toolbar -->
+          <div class="fake-browser__ext-icon" title="Port Daddy Viewport Feedback">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <!-- Anchor icon — PD's maritime signature -->
+              <circle cx="6.5" cy="3" r="1.5" stroke="#ffdb33" stroke-width="1.5"/>
+              <line x1="6.5" y1="4.5" x2="6.5" y2="11" stroke="#ffdb33" stroke-width="1.5"/>
+              <line x1="3" y1="7" x2="10" y2="7" stroke="#ffdb33" stroke-width="1.5"/>
+              <path d="M3 11 C3 8.5, 6.5 8.5, 6.5 11" stroke="#ffdb33" stroke-width="1.2" fill="none"/>
+              <path d="M10 11 C10 8.5, 6.5 8.5, 6.5 11" stroke="#ffdb33" stroke-width="1.2" fill="none"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Webpage content (clean, no overlay) -->
+        <div class="fake-webpage">
+          <div class="fake-webpage__nav">
+            <div class="fake-webpage__nav-logo">Acme SaaS</div>
+            <div class="fake-webpage__nav-link">Features</div>
+            <div class="fake-webpage__nav-link">Pricing</div>
+            <div class="fake-webpage__nav-link">Docs</div>
+          </div>
+          <div class="fake-webpage__hero">
+            <h2>Simple, transparent pricing</h2>
+            <p>No contracts. No hidden fees. Cancel anytime.</p>
+          </div>
+          <div class="fake-webpage__cards">
+            <div class="fake-webpage__card">
+              <div class="fake-webpage__card-name">Starter</div>
+              <div class="fake-webpage__card-price">$29<span style="font-size:11px;font-weight:400;color:#9ca3af">/mo</span></div>
+              <div class="fake-webpage__card-sub">Up to 5 users</div>
+            </div>
+            <div class="fake-webpage__card">
+              <div class="fake-webpage__card-badge">POPULAR</div>
+              <div class="fake-webpage__card-name">Growth</div>
+              <div class="fake-webpage__card-price-bug">$199/m</div>
+              <div class="fake-webpage__card-sub">Up to 25 users</div>
+            </div>
+            <div class="fake-webpage__card">
+              <div class="fake-webpage__card-name">Enterprise</div>
+              <div class="fake-webpage__card-price">$499<span style="font-size:11px;font-weight:400;color:#9ca3af">/mo</span></div>
+              <div class="fake-webpage__card-sub">Unlimited users</div>
+            </div>
+          </div>
+          <p style="font-size:11px;color:#9ca3af">All plans include 14-day free trial. No credit card required.</p>
+        </div>
+
+        <!-- Extension popup — floating over the page -->
+        <div class="ext-popup">
+          <div class="ext-popup__header">
+            <div class="ext-popup__logo-mark">PD</div>
+            <div>
+              <div class="ext-popup__title">Viewport Feedback</div>
+              <div class="ext-popup__subtitle">Port Daddy Fleet</div>
+            </div>
+          </div>
+
+          <div class="ext-popup__status">
+            <div class="ext-popup__status-row">
+              <div class="ext-popup__status-dot"></div>
+              <div class="ext-popup__status-label">Fleet daemon online</div>
+            </div>
+            <div class="ext-popup__status-detail">localhost:9876 · 3 agents ready</div>
+          </div>
+
+          <div class="ext-popup__body">
+            <button class="ext-popup__cta">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <rect x="1" y="1" width="10" height="10" stroke="white" stroke-width="1.8" stroke-dasharray="2.5 1.5"/>
+                <circle cx="6" cy="6" r="1.5" fill="white"/>
+              </svg>
+              Select Region
+            </button>
+            <div class="ext-popup__shortcut">
+              <span>or press</span>
+              <span class="kbd">⇧</span>
+              <span class="kbd">⌘</span>
+              <span class="kbd">F</span>
+            </div>
+
+            <div class="ext-popup__recents">
+              <div class="ext-popup__recents-label">Recent Feedback</div>
+              <div class="ext-popup__recent-item">
+                <div class="ext-popup__recent-cat dot-bug" style="width:6px;height:6px;"></div>
+                <div class="ext-popup__recent-text">Nav dropdown z-index...</div>
+                <div class="ext-popup__recent-time">2m</div>
+              </div>
+              <div class="ext-popup__recent-item">
+                <div class="ext-popup__recent-cat dot-nit" style="width:6px;height:6px;"></div>
+                <div class="ext-popup__recent-text">Button hover state...</div>
+                <div class="ext-popup__recent-time">14m</div>
+              </div>
+              <div class="ext-popup__recent-item">
+                <div class="ext-popup__recent-cat dot-feedback" style="width:6px;height:6px;"></div>
+                <div class="ext-popup__recent-text">Mobile breakpoint at...</div>
+                <div class="ext-popup__recent-time">1h</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="ext-popup__footer">
+            <div class="ext-popup__footer-text"><span>pd</span> · Viewport Feedback v0.3.1</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       STAGE 2 — SELECTION MODE: Crosshair active, region being drawn
+       ========================================================================= -->
+  <div class="stage">
+    <div class="stage__label">
+      <span class="stage__label-step">2</span>
+      Selection Mode — Drawing
+    </div>
+    <div class="stage__content">
+      <div class="fake-browser">
+
+        <div class="fake-browser__chrome">
+          <div class="fake-browser__dots">
+            <div class="fake-browser__dot"></div>
+            <div class="fake-browser__dot"></div>
+            <div class="fake-browser__dot"></div>
+          </div>
+          <div class="fake-browser__url">localhost:3000/pricing</div>
+          <div class="fake-browser__ext-icon" style="background:var(--cobalt);outline:2px solid var(--brand-yellow);outline-offset:1px;" title="Active">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <circle cx="6.5" cy="3" r="1.5" stroke="#ffdb33" stroke-width="1.5"/>
+              <line x1="6.5" y1="4.5" x2="6.5" y2="11" stroke="#ffdb33" stroke-width="1.5"/>
+              <line x1="3" y1="7" x2="10" y2="7" stroke="#ffdb33" stroke-width="1.5"/>
+              <path d="M3 11 C3 8.5, 6.5 8.5, 6.5 11" stroke="#ffdb33" stroke-width="1.2" fill="none"/>
+              <path d="M10 11 C10 8.5, 6.5 8.5, 6.5 11" stroke="#ffdb33" stroke-width="1.2" fill="none"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="fake-webpage" style="cursor:crosshair; user-select:none;">
+          <div class="fake-webpage__nav">
+            <div class="fake-webpage__nav-logo">Acme SaaS</div>
+            <div class="fake-webpage__nav-link">Features</div>
+            <div class="fake-webpage__nav-link">Pricing</div>
+            <div class="fake-webpage__nav-link">Docs</div>
+          </div>
+          <div class="fake-webpage__hero">
+            <h2>Simple, transparent pricing</h2>
+            <p>No contracts. No hidden fees. Cancel anytime.</p>
+          </div>
+          <div class="fake-webpage__cards">
+            <div class="fake-webpage__card">
+              <div class="fake-webpage__card-name">Starter</div>
+              <div class="fake-webpage__card-price">$29<span style="font-size:11px;font-weight:400;color:#9ca3af">/mo</span></div>
+              <div class="fake-webpage__card-sub">Up to 5 users</div>
+            </div>
+            <div class="fake-webpage__card">
+              <div class="fake-webpage__card-badge">POPULAR</div>
+              <div class="fake-webpage__card-name">Growth</div>
+              <div class="fake-webpage__card-price-bug">$199/m</div>
+              <div class="fake-webpage__card-sub">Up to 25 users</div>
+            </div>
+            <div class="fake-webpage__card">
+              <div class="fake-webpage__card-name">Enterprise</div>
+              <div class="fake-webpage__card-price">$499<span style="font-size:11px;font-weight:400;color:#9ca3af">/mo</span></div>
+              <div class="fake-webpage__card-sub">Unlimited users</div>
+            </div>
+          </div>
+          <p style="font-size:11px;color:#9ca3af">All plans include 14-day free trial. No credit card required.</p>
+        </div>
+
+        <!-- Dim overlay with cutout approach: four curtains -->
+        <!-- Top curtain: above selection -->
+        <div class="curtain" style="top:28px;left:0;right:0;height:128px;background:rgba(0,0,0,0.55);pointer-events:none;position:absolute;z-index:100;"></div>
+        <!-- Bottom curtain: below selection -->
+        <div class="curtain" style="top:218px;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);pointer-events:none;position:absolute;z-index:100;"></div>
+        <!-- Left curtain -->
+        <div class="curtain" style="top:128px;left:0;width:60px;height:90px;background:rgba(0,0,0,0.55);pointer-events:none;position:absolute;z-index:100;"></div>
+        <!-- Right curtain -->
+        <div class="curtain" style="top:128px;right:0;width:30px;height:90px;background:rgba(0,0,0,0.55);pointer-events:none;position:absolute;z-index:100;"></div>
+
+        <!-- Crosshair lines (static illustration of cursor position) -->
+        <div class="cursor-crosshair" style="top:0;left:0;right:0;bottom:0;pointer-events:none;position:absolute;z-index:110;">
+          <!-- Horizontal line at cursor y (218px from top of browser) -->
+          <div class="cursor-crosshair__h" style="top:218px;"></div>
+          <!-- Vertical line at cursor x (right edge of selection) -->
+          <div class="cursor-crosshair__v" style="left:calc(100% - 30px);"></div>
+          <!-- Cursor center marker -->
+          <div class="cursor-crosshair__center" style="top:218px;left:calc(100% - 30px);"></div>
+        </div>
+
+        <!-- Selection rectangle being drawn -->
+        <div class="selection-rect" style="
+          top: 128px;
+          left: 60px;
+          right: 30px;
+          height: 90px;
+          position: absolute;
+          z-index: 105;
+        ">
+          <div class="selection-handle selection-handle--tl"></div>
+          <div class="selection-handle selection-handle--tr"></div>
+          <div class="selection-handle selection-handle--bl"></div>
+          <div class="selection-handle selection-handle--br"></div>
+          <!-- Dimension readout -->
+          <div class="selection-dims">342 × 90 px</div>
+        </div>
+
+        <!-- Element inspector tooltip -->
+        <div class="element-tooltip" style="top:133px;left:65px;position:absolute;z-index:115;">
+          <div class="element-tooltip__path">.fake-webpage__cards</div>
+          <div class="element-tooltip__dims">342 × 72px · grid · 3 cols</div>
+        </div>
+
+        <!-- Top banner -->
+        <div class="selection-banner">
+          <span class="selection-banner__icon"></span>
+          Feedback Mode
+          <span style="opacity:0.5;font-size:9px;letter-spacing:0.06em">— drag to select</span>
+          <span class="selection-banner__esc">ESC to cancel</span>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       STAGE 3 — ANNOTATION PANEL: Selection done, panel open, fill and send
+       ========================================================================= -->
+  <div class="stage">
+    <div class="stage__label">
+      <span class="stage__label-step">3</span>
+      Annotation Panel — Ready to Fire
+    </div>
+    <div class="stage__content">
+      <div class="fake-browser" style="position:relative;">
+
+        <div class="fake-browser__chrome">
+          <div class="fake-browser__dots">
+            <div class="fake-browser__dot"></div>
+            <div class="fake-browser__dot"></div>
+            <div class="fake-browser__dot"></div>
+          </div>
+          <div class="fake-browser__url">localhost:3000/pricing</div>
+          <div class="fake-browser__ext-icon" style="background:var(--cinnabar);" title="Feedback active">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <circle cx="6.5" cy="3" r="1.5" stroke="white" stroke-width="1.5"/>
+              <line x1="6.5" y1="4.5" x2="6.5" y2="11" stroke="white" stroke-width="1.5"/>
+              <line x1="3" y1="7" x2="10" y2="7" stroke="white" stroke-width="1.5"/>
+              <path d="M3 11 C3 8.5, 6.5 8.5, 6.5 11" stroke="white" stroke-width="1.2" fill="none"/>
+              <path d="M10 11 C10 8.5, 6.5 8.5, 6.5 11" stroke="white" stroke-width="1.2" fill="none"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Dimmed page content -->
+        <div class="fake-webpage" style="user-select:none;">
+          <div class="fake-webpage__nav">
+            <div class="fake-webpage__nav-logo">Acme SaaS</div>
+            <div class="fake-webpage__nav-link">Features</div>
+            <div class="fake-webpage__nav-link">Pricing</div>
+            <div class="fake-webpage__nav-link">Docs</div>
+          </div>
+          <div class="fake-webpage__hero">
+            <h2>Simple, transparent pricing</h2>
+            <p>No contracts. No hidden fees. Cancel anytime.</p>
+          </div>
+          <div class="fake-webpage__cards">
+            <div class="fake-webpage__card">
+              <div class="fake-webpage__card-name">Starter</div>
+              <div class="fake-webpage__card-price">$29<span style="font-size:11px;font-weight:400;color:#9ca3af">/mo</span></div>
+              <div class="fake-webpage__card-sub">Up to 5 users</div>
+            </div>
+            <div class="fake-webpage__card">
+              <div class="fake-webpage__card-badge">POPULAR</div>
+              <div class="fake-webpage__card-name">Growth</div>
+              <div class="fake-webpage__card-price-bug">$199/m</div>
+              <div class="fake-webpage__card-sub">Up to 25 users</div>
+            </div>
+            <div class="fake-webpage__card">
+              <div class="fake-webpage__card-name">Enterprise</div>
+              <div class="fake-webpage__card-price">$499<span style="font-size:11px;font-weight:400;color:#9ca3af">/mo</span></div>
+              <div class="fake-webpage__card-sub">Unlimited users</div>
+            </div>
+          </div>
+          <p style="font-size:11px;color:#9ca3af">All plans include 14-day free trial.</p>
+        </div>
+
+        <!-- Full-page dim -->
+        <div class="annotation-dim"></div>
+
+        <!-- The selected region stays lit and highlighted -->
+        <div class="annotation-highlight" style="
+          top: 128px;
+          left: 60px;
+          right: 30px;
+          height: 90px;
+          position: absolute;
+        "></div>
+
+        <!-- Annotation panel — anchored to the right of the selection -->
+        <div class="annotation-panel" style="top:100px;right:4px;">
+
+          <div class="annotation-panel__header">
+            <div class="annotation-panel__title">
+              <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                <rect x="0.75" y="0.75" width="9.5" height="9.5" stroke="white" stroke-width="1.5" stroke-dasharray="2.5 1.5"/>
+                <circle cx="5.5" cy="5.5" r="1.5" fill="white"/>
+              </svg>
+              Annotate Selection
+            </div>
+            <div class="annotation-panel__close">×</div>
+          </div>
+
+          <!-- Preview of captured region -->
+          <div class="annotation-panel__preview">
+            <div class="annotation-panel__preview-label">Captured Region — 342 × 90px</div>
+            <div class="annotation-panel__preview-img">
+              <div class="preview-card">
+                <div class="preview-card__name">Starter</div>
+                <div class="preview-card__price">$29</div>
+                <div class="preview-card__sub">/mo · 5 users</div>
+              </div>
+              <div class="preview-card preview-card--active">
+                <div class="preview-card__badge">POPULAR</div>
+                <div class="preview-card__name">Growth</div>
+                <div class="preview-card__price-clipped">$199/m</div>
+                <div class="preview-card__sub">/mo · 25 users</div>
+              </div>
+              <div class="preview-card">
+                <div class="preview-card__name">Enterprise</div>
+                <div class="preview-card__price">$499</div>
+                <div class="preview-card__sub">/mo · unlimited</div>
+              </div>
+            </div>
+            <div class="preview-annotation-arrow">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style="flex-shrink:0">
+                <path d="M5 1 L5 7 M2 5 L5 8 L8 5" stroke="var(--bug-border)" stroke-width="1.5" stroke-linecap="square"/>
+              </svg>
+              Middle card price truncated — max-width: 60px too narrow
+            </div>
+          </div>
+
+          <!-- Category selection -->
+          <div class="annotation-panel__section">
+            <div class="annotation-panel__section-label">Category</div>
+            <div class="category-grid category-grid--5">
+              <button class="cat-btn cat-btn--nit" title="Minor polish, not blocking">
+                <span class="cat-btn__dot dot-nit" style="width:5px;height:5px;display:inline-block;vertical-align:middle;margin-right:2px;"></span>
+                nit
+              </button>
+              <button class="cat-btn cat-btn--bug cat-btn--selected" title="Something is broken">
+                <span class="cat-btn__dot dot-bug" style="width:5px;height:5px;display:inline-block;vertical-align:middle;margin-right:2px;background:white;"></span>
+                bug
+              </button>
+              <button class="cat-btn cat-btn--feedback" title="Design feedback">
+                feed
+              </button>
+              <button class="cat-btn cat-btn--tangent" title="Unrelated idea">
+                tang
+              </button>
+              <button class="cat-btn cat-btn--question" title="Question for the team">
+                q?
+              </button>
+            </div>
+          </div>
+
+          <!-- Comment -->
+          <div class="annotation-panel__section" style="border-bottom:none;">
+            <div class="annotation-panel__section-label">Comment</div>
+            <textarea class="annotation-panel__textarea" readonly>Growth card price clips to "$199/m" — max-width is too tight. Needs ~80px min or remove the constraint entirely.</textarea>
+          </div>
+
+          <!-- DOM context -->
+          <div class="annotation-panel__dom">
+            <div class="annotation-panel__section-label" style="font-family:var(--font-mono);font-size:9px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:#888;margin-bottom:0.3rem;">DOM Path</div>
+            <div class="annotation-panel__dom-path">
+              .fake-webpage__cards &gt;
+              <mark>.fake-webpage__card</mark>:nth-child(2) &gt;
+              .fake-webpage__card-price-bug
+            </div>
+          </div>
+
+          <!-- Submit -->
+          <div class="annotation-panel__footer">
+            <button class="btn-cancel">Cancel</button>
+            <button class="btn-submit">
+              <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                <path d="M1 5.5 L9 5.5 M6 2.5 L9 5.5 L6 8.5" stroke="white" stroke-width="1.8" stroke-linecap="square"/>
+              </svg>
+              Send to Fleet
+            </button>
+          </div>
+
+        </div>
+
+        <!-- Post-submit: agent confirmation toasts appear at bottom -->
+        <div class="toast-area">
+          <div class="toast">
+            <div class="toast__icon">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                <polyline points="1.5,5.5 4,8 8.5,2.5" stroke="white" stroke-width="1.8" stroke-linecap="square" stroke-linejoin="miter"/>
+              </svg>
+            </div>
+            <div class="toast__body">
+              <div class="toast__title">Fired to Port Daddy · localhost:9876</div>
+              <div class="toast__detail">feedback-001 · bug · pricing-cards region</div>
+            </div>
+          </div>
+          <div class="agent-log">
+            <div class="agent-log__title">
+              <span class="agent-log__dot"></span>
+              qa-agent:pricing
+            </div>
+            <div class="agent-log__line"><span class="prompt">$</span> <span class="info">Received feedback-001</span></div>
+            <div class="agent-log__line"><span class="dim">→</span> Inspecting DOM at <span class="path">.card-price-bug</span></div>
+            <div class="agent-log__line"><span class="ok">✓</span> Found: max-width: 60px in <span class="path">pricing.css:47</span></div>
+            <div class="agent-log__line"><span class="dim">→</span> Writing fix + Playwright test<span class="cursor"></span></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div><!-- /stages -->
+
+<!-- ============================================================================
+     DESIGN NOTES
+     =========================================================================== -->
+<div class="notes-row">
+
+  <div class="note-cell">
+    <div class="note-cell__heading">Selection Overlay Logic</div>
+    <div class="note-cell__text">
+      Four dark curtains surround the live selection rectangle — no actual cutout or canvas compositing needed. The selected area stays at full opacity by rendering underneath.
+      Crosshair lines are full-viewport <code>position:absolute</code> <code>div</code>s tracking mouse coordinates.
+      Corner handles are <code>8×8px</code> yellow squares with <code>2px</code> black borders — unmissable, unmistakably a selection.
+      The live dimension readout uses the terminal palette so it reads as a system annotation, not UI chrome.
+    </div>
+  </div>
+
+  <div class="note-cell">
+    <div class="note-cell__heading">Annotation Panel UX</div>
+    <div class="note-cell__text">
+      Panel anchors to the nearest viewport edge of the selection — snaps right, flips left if collision. Never obscures the selected element.
+      The preview strip re-renders a scaled capture of the region inline. No <code>canvas</code> required in extension context — use the <code>chrome.tabs.captureVisibleTab</code> API and crop.
+      Five category pills use the same color semantics as PD coordination states: bug → cinnabar, nit → amber, feedback → cobalt, tangent → purple, question → forest.
+      DOM path auto-resolves via <code>document.elementFromPoint</code> on mouseup.
+    </div>
+  </div>
+
+  <div class="note-cell">
+    <div class="note-cell__heading">Fleet Integration Wire</div>
+    <div class="note-cell__text">
+      On submit, the extension <code>POST</code>s to <code>localhost:9876/inbox</code> (Port Daddy's existing inbox route) with payload: <code>{ type: "viewport-feedback", screenshot, domPath, category, comment, url, viewport }</code>.
+      The waiting fleet agent subscribes via <code>GET /msg/viewport-feedback/subscribe</code> (SSE). When the event lands, it inspects the DOM snapshot, traces the CSS rule to its source file, proposes a fix, and writes a Playwright test targeting the reported selector.
+      The blinking agent log in stage 3 is a live tail of <code>pd notes</code> filtered by the feedback session — no extra infrastructure.
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

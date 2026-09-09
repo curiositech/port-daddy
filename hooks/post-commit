@@ -1,4 +1,34 @@
-#!/usr/bin/env zsh
+#!/bin/sh
+# POSIX sh, not zsh: this hook has no zsh-specific syntax and every machine
+# without zsh was silently skipping it.
+PD_HOOK_HOME="${PD_HOME:-$HOME/.port-daddy}"
+[ -e "$PD_HOOK_HOME/hooks.disabled" ] && exit 0
+PD_HOOK_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+PD_HOOK_COMMON=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || exit 0
+[ -f "$PD_HOOK_ROOT/.portdaddy/coordination-guard.json" ] ||
+  [ -f "$PD_HOOK_COMMON/port-daddy/coordination-guard.json" ] || exit 0
+PD_HOOK_READY="${PORT_DADDY_READY_FILE:-$PD_HOOK_HOME/daemon.ready}"
+PD_HOOK_PID="${PORT_DADDY_PID_FILE:-$PD_HOOK_HOME/daemon.pid}"
+PD_HOOK_HEARTBEAT="${PORT_DADDY_HEARTBEAT_FILE:-$PD_HOOK_HOME/heartbeat}"
+[ -f "$PD_HOOK_READY" ] && [ ! -L "$PD_HOOK_READY" ] || exit 0
+[ -f "$PD_HOOK_PID" ] && [ ! -L "$PD_HOOK_PID" ] || exit 0
+[ -f "$PD_HOOK_HEARTBEAT" ] && [ ! -L "$PD_HOOK_HEARTBEAT" ] || exit 0
+PD_HOOK_READY_PID=$(tr -d '[:space:]' < "$PD_HOOK_READY" 2>/dev/null || true)
+PD_HOOK_DAEMON_PID=$(tr -d '[:space:]' < "$PD_HOOK_PID" 2>/dev/null || true)
+[ -n "$PD_HOOK_READY_PID" ] && [ "$PD_HOOK_READY_PID" = "$PD_HOOK_DAEMON_PID" ] || exit 0
+# See hooks/pre-commit: `stat -f %m FILE` on GNU coreutils prints a filesystem
+# block and exits 1, so the old `-f || -c` chain captured both outputs and the
+# digit check below took the hook out on every Linux machine. Ask each dialect
+# separately and keep whichever answers in digits.
+PD_HOOK_HEARTBEAT_MTIME=$(stat -c %Y "$PD_HOOK_HEARTBEAT" 2>/dev/null || true)
+case "$PD_HOOK_HEARTBEAT_MTIME" in
+  ''|*[!0-9]*) PD_HOOK_HEARTBEAT_MTIME=$(stat -f %m "$PD_HOOK_HEARTBEAT" 2>/dev/null || true) ;;
+esac
+PD_HOOK_NOW=$(date +%s 2>/dev/null || true)
+case "$PD_HOOK_HEARTBEAT_MTIME" in ''|*[!0-9]*) exit 0 ;; esac
+case "$PD_HOOK_NOW" in ''|*[!0-9]*) exit 0 ;; esac
+PD_HOOK_AGE=$((PD_HOOK_NOW - PD_HOOK_HEARTBEAT_MTIME))
+[ "$PD_HOOK_AGE" -ge -30 ] && [ "$PD_HOOK_AGE" -le 30 ] || exit 0
 # =============================================================================
 # Port Daddy Post-Commit Hook
 # =============================================================================
@@ -9,11 +39,11 @@
 # =============================================================================
 
 PORT_FILE="${PORT_DADDY_PORT_FILE:-$HOME/.port-daddy/daemon.port}"
-if [[ -n "${PD_URL:-}" ]]; then
+if [ -n "${PD_URL:-}" ]; then
   PORT_DADDY_BASE="$PD_URL"
-elif [[ -n "${PORT_DADDY_URL:-}" ]]; then
+elif [ -n "${PORT_DADDY_URL:-}" ]; then
   PORT_DADDY_BASE="$PORT_DADDY_URL"
-elif [[ -f "$PORT_FILE" ]]; then
+elif [ -f "$PORT_FILE" ]; then
   PORT_DADDY_BASE="http://localhost:$(tr -d '[:space:]' < "$PORT_FILE")"
 else
   PORT_DADDY_BASE="http://localhost:9876"
@@ -21,7 +51,10 @@ fi
 
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 PROJECT_SLUG=$(basename "$PROJECT_ROOT" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g' | cut -c1-24)
-PROJECT_HASH=$(printf '%s' "$PROJECT_ROOT" | shasum -a 256 | cut -c1-12)
+# shasum is Perl's; sha256sum is coreutils'. Linux boxes routinely have only
+# the second, and a project hash that comes back empty silently collapses every
+# checkout onto one channel.
+PROJECT_HASH=$(printf '%s' "$PROJECT_ROOT" | { shasum -a 256 2>/dev/null || sha256sum 2>/dev/null; } | cut -c1-12)
 CHANNEL="project:${PROJECT_SLUG:-project}:${PROJECT_HASH}:git:committed"
 
 # Gather commit info
@@ -62,7 +95,7 @@ command -v git-lfs >/dev/null 2>&1 && git lfs post-commit "$@"
 # every agent tool sees the same library. Fire-and-forget: never blocks or fails
 # a commit (the fan-out is gitignored, machine-local state). Manual: npm run skills:sync
 if git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | grep -q '^skills/'; then
-  if command -v npx >/dev/null 2>&1 && [[ -f "$PROJECT_ROOT/scripts/sync-skills.ts" ]]; then
+  if command -v npx >/dev/null 2>&1 && [ -f "$PROJECT_ROOT/scripts/sync-skills.ts" ]; then
     ( cd "$PROJECT_ROOT" && npx tsx scripts/sync-skills.ts --scope project --quiet >/dev/null 2>&1 & )
   fi
 fi
