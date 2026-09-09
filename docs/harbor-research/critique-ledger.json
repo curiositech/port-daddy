@@ -8088,5 +8088,45 @@
     "Prior adjudication": "",
     "Status": "DONE 0ac32d8b2",
     "Notes": "Added a new Related Work paragraph citing \\cite{activitypub2018,matrixspec,spkisdsi1999} with one sentence each distinguishing them from the chapter's design; bibitems added. Not part of the paper7 twin's folded R6 section, so chapter-only per the twin rule (LIBRARY-SYSTEM.md sec.2/7)."
+  },
+  {
+    "#": "LR-501",
+    "Section / page": "README.md 'Contested or open' -- the assurance ladder placed against levels of automation and the Common Criteria",
+    "Kind": "contested",
+    "Item": "The five assurance modes (Observed/Coordinated/Brokered/Confined/Attested) are the Book's one taxonomy of its own and had never been placed against Sheridan's levels of automation, Parasuraman-Sheridan-Wickens, or the Common Criteria's EALs. Either the ladder is a restatement -- say whose and cite it -- or it is a different axis, in which case say precisely what it measures that those do not.",
+    "Targets": "The Single-Writer Kernel; The Sealed Harbor; front matter (coordination-papers-mega-volume-appendices.tex)",
+    "Prior adjudication": "Supersedes the one-sentence gesture landed for LR-111 (e62037ada), which asserted 'a third axis' without saying what it measured.",
+    "Status": "DONE fa34a3581",
+    "Notes": "Not a restatement; the three axes are independent and the placement now says why. Sheridan & Verplank (1978) grade the allocation of the decide-and-act loop (who does it) and Parasuraman-Sheridan-Wickens split that across four processing stages; Common Criteria EAL1-EAL7 grade how much independent evaluation effort a claim received before deployment, once, for a whole product; the ladder grades what an adversary would have to defeat for one runtime claim about one mechanism to be false. Stated at the kernel chapter's 'What it buys', with the independence written as a pdclaim{Design invariant} exhibiting the corners (a Sheridan-level-10 component whose actions are merely logged is Observed; a level-3 component routing its one effect through an attested broker is Attested; EAL7 products can contain Observed mechanisms), and the boundary in the same breath (a design vocabulary, not a measured scale; the rungs are not evenly spaced or totally ordered). sheridanverplank1978 added as a bibitem to the kernel chapter and the sealed room -- it was uncited, only parasuraman2000 was present; cciso15408 sharpened from 'current edition' to ISO/IEC 15408-1:2022. The appendix's 'Five assurance modes' prose was rewritten to match but stays citation-free, since that file has no reachable bibliography (the constraint LR-111 recorded)."
+  },
+  {
+    "#": "LR-502",
+    "Section / page": "README.md 'Contested or open' -- the deontic frontier against the compliance-checking dichotomy",
+    "Kind": "contested",
+    "Item": "The tractable-then-NP-complete frontier of ch.6 stands against Colombo Tosatto, Governatori and van Beest's compliance-checking dichotomy. Determine whether L_c is inside their tractable side, outside it, or orthogonal, and make the chapter say so.",
+    "Targets": "The Harbor Economy",
+    "Prior adjudication": "Supersedes LR-408 (0ac32d8b2), which added the citations and a hedge ('one does not subsume the other') but did not answer inside/outside/orthogonal.",
+    "Status": "DONE fa34a3581",
+    "Notes": "ORTHOGONAL, and now demonstrated rather than asserted. Both papers read in full (arXiv:2001.10148, arXiv:2105.05431). Their axis across all eight variants is literals vs formulae in the obligation's elements: for full compliance, literals give P in all four variants and formulae coNP-complete in all four; the 1/n and G/L coordinates do not move the class. L_c fires on Horn bodies -- conjunctions, derived through a program that may chain -- so it is on the HARD side of their only decisive coordinate and is polynomial anyway, which is the tell that the problems differ. Their hardness comes from the process model, not the obligations: the coNP-completeness reduction builds an interpretation WF-net with one XOR bond per propositional variable so the 2^n executions enumerate every interpretation, and quantifies over them universally. L_c has no process model to branch and conflict-freedom is existential over schedules, which is exactly why one step out is NP rather than coNP. Honest residue recorded in the chapter: the nearest variant in their lattice is PARTIAL compliance (NP-complete in six of eight, P in one, and still open for 1L-, a single conditional obligation over literals); our theorems neither close that hole nor can, and a reduction in either direction between L_c-conflict-freedom and 1L- partial compliance would settle the relation. Nobody has written one. Also fixed: both ctgvb bibitems gave van Beest the initial P; he is Nick."
+  },
+  {
+    "#": "LR-503",
+    "Section / page": "README.md 'Contested or open' -- the Anchor chapter's silence on algorithm-confusion attacks",
+    "Kind": "correction",
+    "Item": "The Anchor chapter was described as silent on algorithm-confusion attacks on its token encoding while proofs/anchor/token-verify/algconfusion.pv models exactly that and passes; a chapter whose ProVerif model covers an attack its prose never names is under-claiming.",
+    "Targets": "The Anchor Protocol",
+    "Prior adjudication": "Supersedes LR-106 (e62037ada), whose added sentence is the one this row corrects.",
+    "Status": "DONE fa34a3581",
+    "Notes": "Sharper than the review's framing: the chapter was not silent, it CONTRADICTED ITSELF. Table tab:properties already claimed 'Algorithm Confusion Immunity / Yes / ProVerif' while limitation (iv) said the boundary 'rests on the fixed-algorithm implementation, not on a mechanized proof of it' and that 'no query in Table 4 models the parser's algorithm-selection logic' -- false, since algconfusion.pv had been passing. Limitation (iv) rewritten to name both attacks (alg:none downgrade; asymmetric public key as HMAC secret), state the Model-checked property (accepted_pinned(m) => issued_A(m) TRUE under an adversary handed the AlgB symmetric key outright), give the naive verifier's counter-trace in its four steps as ProVerif returns it, and cite the model by path; the two queries added as rows to tab:proverif-results so the prose's reference is honest. Boundary moved rather than closed and said so: the model gives the signature slot two non-coercible types, which is the type-safety a real parser must supply and which no query checks, so the decoder remains covered only by the bounded Kani harness. Also fixed: ietf2024jwtbcp was cited as a 2024 IETF draft; it has been RFC 8725 (BCP 225) since February 2020."
+  },
+  {
+    "#": "LR-504",
+    "Section / page": "README.md 'One factual correction found' -- Liu & Skrzypacz venue, re-verified",
+    "Kind": "correction",
+    "Item": "Liu and Skrzypacz (2014) is in the Journal of Economic Theory, not the Review of Economic Studies; correct wherever it appears.",
+    "Targets": "From Spawn to Person; The Harbor Economy",
+    "Prior adjudication": "Confirms LR-310 and LR-312 (0ac32d8b2) independently rather than re-applying them.",
+    "Status": "DONE fa34a3581",
+    "Notes": "NO CHANGE NEEDED, verified a second time from primary sources rather than trusted from the prior row. Both bibitems (liuskrzypacz2014 in spawn-to-person.tex, liu2014 in harbor-economy.tex) already read 'Journal of Economic Theory 151:2-29, 2014'; confirmed against the publisher's table of contents for JET vol. 151 (May 2014), the IDEAS/RePEc record, and the authors' posted PDF, which give pages 2-29 and doi 10.1016/j.jet.2013.12.014. Grepped the corpus for 'Review of Economic Studies': the three hits are other works (Mailath-Samuelson, Faure-Grimaud/Laffont/Martimort, and a 1984 entry in a deep-dive reading list), none of them this paper. No mis-citation of Liu-Skrzypacz exists anywhere in the tree."
   }
 ]
