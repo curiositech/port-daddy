@@ -198,11 +198,18 @@ function EstatePanel() {
           </div>
         ))}
       </div>
+      {/*
+        This pointed at /library/proofs, a page that was planned and never
+        built -- so the panel that exists to say "every artifact is wired or
+        retired, on the record" ended in a link to nothing. The record is the
+        manifest, and the manifest is a file anyone can read, so the link goes
+        there instead of to a page that would only paraphrase it.
+      */}
       <a
-        href="/library/proofs"
+        href="https://github.com/curiositech/port-daddy/blob/main/whitepaper/corpus.json"
         className="inline-block font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-[var(--brand-primary)] no-underline hover:underline"
       >
-        Every mechanised claim, and the job that runs it →
+        Read the manifest: every artifact, and the job that runs it →
       </a>
     </div>
   )
@@ -218,8 +225,8 @@ export default function ResearchProgramPage() {
         label: 'The papers',
         flag: 'fl-papa',
         meaning: 'Papa — about to proceed to sea',
-        color: '#003fb8',
-        onColor: '#fbf7ef',
+        color: 'var(--brand-primary)',
+        onColor: 'var(--brand-primary-foreground)',
         headline: 'Seven papers, in the form a referee would want them.',
         standfirst:
           'Every one of these results is also in the Book, folded into a chapter with the worked examples a reader needs — these are the same results with the pedagogy taken out and the apparatus left in.',
@@ -230,8 +237,8 @@ export default function ResearchProgramPage() {
         label: 'Method',
         flag: 'fl-kilo',
         meaning: 'Kilo — I wish to communicate with you',
-        color: '#006b5f',
-        onColor: '#fbf7ef',
+        color: 'var(--brand-accent)',
+        onColor: 'var(--brand-accent-foreground)',
         headline: 'Four moves, and the third one is the expensive one.',
         standfirst:
           'Pre-register the attack, run it, mechanise what a machine can hold, and publish the review that found the hole — in that order, because doing them out of order is how you end up believing your own abstract.',
@@ -242,8 +249,8 @@ export default function ResearchProgramPage() {
         label: 'Prior art',
         flag: 'fl-uniform',
         meaning: 'Uniform — you are running into danger',
-        color: '#7a4514',
-        onColor: '#fbf7ef',
+        color: 'var(--story-rust)',
+        onColor: 'var(--story-rust-foreground)',
         headline: 'Somebody probably proved it first. Go and look.',
         standfirst:
           'A dive that comes back SUBSUMED costs a claim and buys a citation, which is a trade worth making every time — and the ones we have not run yet are named rather than left for you to spot.',
@@ -254,8 +261,8 @@ export default function ResearchProgramPage() {
         label: 'The estate',
         flag: 'fl-charlie',
         meaning: 'Charlie — affirmative',
-        color: '#353a85',
-        onColor: '#fbf7ef',
+        color: 'var(--story-indigo)',
+        onColor: 'var(--story-indigo-foreground)',
         headline: 'Wired, or retired. There is no third state.',
         standfirst:
           'A model checked into a repository and never run again is decoration; the manifest exists so that every artifact has to be one thing or the other, on the record.',

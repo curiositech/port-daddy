@@ -159,6 +159,18 @@ h3 { line-height: 1.3; }
    back to inheriting the foreground it chose. */
 .on-block :is(h1, h2, h3) { color: inherit; }
 
+/* Theme-paired plates. The cut-paper set is photographed twice — warm studio
+   light on cream, low-key with a cool rim on near-black — because a light-lit
+   subject on a near-black page reads as a hole in it. Both images are in the
+   DOM and CSS picks, so the swap is not a state change: no flash on first
+   paint, nothing in the JS path, and the browser only fetches the visible one
+   because the hidden one is display:none before layout. The site stamps
+   data-theme before paint (see lib/theme.tsx and the inline script in
+   index.html), so keying on the attribute alone is sound here. */
+.plate-dark { display: none; }
+[data-theme='dark'] .plate-light { display: none; }
+[data-theme='dark'] .plate-dark { display: block; }
+
 @layer utilities {
   .tracking-tight,
   .tracking-tighter {

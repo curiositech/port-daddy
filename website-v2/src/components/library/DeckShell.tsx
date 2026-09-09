@@ -143,14 +143,14 @@ export function DeckShell({
                JS in the path. */
             <figure className="deck-art mt-auto border-2 border-[var(--border-strong)]">
               <img
-                className="deck-art-light block h-auto w-full"
+                className="plate-light block h-auto w-full"
                 src={art.light}
                 alt={art.alt}
                 loading="lazy"
                 decoding="async"
               />
               <img
-                className="deck-art-dark block h-auto w-full"
+                className="plate-dark block h-auto w-full"
                 src={art.dark}
                 alt={art.alt}
                 loading="lazy"
