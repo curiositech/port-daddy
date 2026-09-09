@@ -379,7 +379,22 @@ jobs:
         if: steps.scope.outputs.relevant == 'true'
         run: |
           set -euo pipefail
-          curl --proto '=https' --tlsv1.2 -fsSL https://drop-sh.fullyjustified.net | sh
+          # Retried, and to a file rather than into a pipe. This was the one
+          # tool download in the repository fetched with a bare `curl -fsSL`
+          # while proofs.yml and deploy-relay-do-migration.yml already retry
+          # theirs -- so a blip on a third-party host reddened figure-gates
+          # with a network error dressed up as a figure finding.
+          #
+          # Piping the installer straight into `sh` is what makes the retry
+          # worth spelling out: on a mid-stream failure curl would retry, and
+          # sh would already have been fed the truncated first attempt, so the
+          # second copy arrives appended to a half-executed script. Landing it
+          # in a file first means a retry replaces the download instead of
+          # continuing it, and sh sees one whole script or nothing.
+          curl --proto '=https' --tlsv1.2 -fsSL \
+            --retry 5 --retry-all-errors --retry-delay 3 --max-time 600 \
+            -o /tmp/install-tectonic.sh https://drop-sh.fullyjustified.net
+          sh /tmp/install-tectonic.sh
           echo "TECTONIC=$PWD/tectonic" >> "$GITHUB_ENV"
 
       - name: Determine which fragments to compile (changed in this PR, plus every current blocker)
