@@ -130,6 +130,12 @@ describe('provable action adjudication evidence contract', () => {
     ['malformed proposal expiry', (action, decision, ctx) => [
       { ...action, expiresAt: 'never' }, decision, ctx,
     ], 'proposal-expired'],
+    ['malformed proposal request time', (action, decision, ctx) => [
+      { ...action, requestedAt: 'not a date' }, decision, ctx,
+    ], 'invalid-proposal-time'],
+    ['non-string proposal request time', (action, decision, ctx) => [
+      { ...action, requestedAt: 0 }, decision, ctx,
+    ], 'invalid-proposal-time'],
   ])('fails closed for %s', (_name, mutate, expected) => {
     const action = proposal();
     const decision = receipt(action);
@@ -155,6 +161,23 @@ describe('provable action adjudication evidence contract', () => {
       context(),
     );
     expect(result).toEqual({ executable: false, findings: ['obligations-missing'] });
+  });
+
+  it.each([
+    ['malformed', 'eventually', 'obligation-due-at-invalid'],
+    ['already due', '2026-09-08T12:01:30.000Z', 'obligation-already-due'],
+  ])('rejects a %s obligation deadline before execution', (_name, dueAt, expected) => {
+    const action = proposal();
+    const result = verifyAdjudication(
+      action,
+      receipt(action, {
+        decision: 'permit-with-obligations',
+        obligations: [{ obligationId: 'obl_1', predicateDigest: HASH('b'), dueAt }],
+      }),
+      context(),
+    );
+    expect(result.executable).toBe(false);
+    expect(result.findings).toContain(expected);
   });
 
   it('classifies an exact permit and preserves open obligations', () => {

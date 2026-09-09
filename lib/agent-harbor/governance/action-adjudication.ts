@@ -94,9 +94,13 @@ export type AdjudicationFindingCode =
   | 'obligations-missing'
   | 'non-production-authority'
   | 'missing-authority-grant'
+  | 'invalid-proposal-time'
+  | 'invalid-receipt-time'
   | 'proposal-not-yet-valid'
   | 'receipt-not-yet-valid'
   | 'invalid-evaluation-time'
+  | 'obligation-due-at-invalid'
+  | 'obligation-already-due'
   | 'effect-action-digest-mismatch'
   | 'effect-adjudication-digest-mismatch'
   | 'effect-target-digest-mismatch'
@@ -136,7 +140,8 @@ export function computeAdjudicationDigest(receipt: AdjudicationReceipt): string 
   return digest(receipt);
 }
 
-function validTime(value: string): number | null {
+function validTime(value: unknown): number | null {
+  if (typeof value !== 'string') return null;
   const millis = Date.parse(value);
   return Number.isFinite(millis) ? millis : null;
 }
@@ -166,6 +171,8 @@ export function verifyAdjudication(
     findings.push('proposal-expired');
   }
   if (!Number.isFinite(now)) findings.push('invalid-evaluation-time');
+  if (requestedAt === null) findings.push('invalid-proposal-time');
+  if (issuedAt === null || receiptExpiry === null) findings.push('invalid-receipt-time');
   if (requestedAt !== null && requestedAt > now) findings.push('proposal-not-yet-valid');
   if (receiptExpiry === null || receiptExpiry <= now) findings.push('receipt-expired');
   if (requestedAt === null || issuedAt === null || issuedAt < requestedAt) {
@@ -193,6 +200,14 @@ export function verifyAdjudication(
   if (receipt.reasonCodes.length === 0) findings.push('missing-reason');
   if (receipt.decision === 'permit-with-obligations' && receipt.obligations.length === 0) {
     findings.push('obligations-missing');
+  }
+  if (receipt.decision === 'permit-with-obligations') {
+    for (const obligation of receipt.obligations) {
+      if (obligation.dueAt === null) continue;
+      const dueAt = validTime(obligation.dueAt);
+      if (dueAt === null) findings.push('obligation-due-at-invalid');
+      else if (dueAt <= now) findings.push('obligation-already-due');
+    }
   }
 
   const permits = receipt.decision === 'permit' || receipt.decision === 'permit-with-obligations';

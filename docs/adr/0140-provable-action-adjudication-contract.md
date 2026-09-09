@@ -76,6 +76,8 @@ hold:
 - the decision claims a pre-effect interception point;
 - a named reason exists;
 - `permit-with-obligations` names at least one concrete predicate; and
+- every obligation deadline is well formed and still satisfiable at the
+  pre-effect decision point; and
 - the decision is `permit` or `permit-with-obligations`.
 
 The TypeScript verifier deliberately does not implement signatures. ADR-0120
