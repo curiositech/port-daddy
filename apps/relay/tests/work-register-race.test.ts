@@ -7,7 +7,7 @@
  * claim is admitted, and a hand-written fake D1 would have to reimplement that
  * clause to answer -- which proves the fake works, not the code. This file is
  * that gap closed. D1 is SQLite, node:sqlite is SQLite, and the schema here is
- * the committed migration read off disk.
+ * the whole committed migration chain read off disk.
  *
  * THE RULE THAT MAKES IT WORTH ANYTHING: the statement under test is EXTRACTED
  * FROM src/work-register.ts, not retyped here. Retyping it would test the copy
@@ -21,8 +21,8 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { CLAIM_STALE_AFTER_SECONDS } from '../src/work-register.js';
+import { applyAllMigrations } from './helpers/d1-sqlite.js';
 
-const MIGRATION = fileURLToPath(new URL('../migrations/2026-09-08-work-register.sql', import.meta.url));
 const SOURCE = fileURLToPath(new URL('../src/work-register.js', import.meta.url).href.replace(/\.js$/, '.ts'));
 
 /** The shipped upsert, lifted out of the module rather than restated. */
@@ -35,9 +35,20 @@ function claimStatementFromSource(): string {
   return src.slice(start, end);
 }
 
-/** The committed migration, minus the users(id) FK the Worker's schema owns. */
+/**
+ * The whole committed migration chain, in filename order.
+ *
+ * This file used to load 2026-09-08-work-register.sql alone and strip its
+ * `REFERENCES users(id)` by regex, because `users` is created by an earlier
+ * migration. That is the schema-that-never-exists-in-production failure the
+ * shared helper was written to close: the test ran against a work_claims with
+ * a foreign key the shipped table has and this one did not, and the strip had
+ * to be maintained by hand every time the migration grew another reference.
+ * applyAllMigrations() loads the chain the same way check-migrations.mjs does,
+ * so the schema under test is the schema that ships, users table included.
+ */
 function schema(): string {
-  return readFileSync(MIGRATION, 'utf8').replace(/\s+REFERENCES users\(id\)/g, '');
+  return applyAllMigrations();
 }
 
 const REPO = 'curiositech/port-daddy';
@@ -70,6 +81,10 @@ const holder = (): { agent: string | null; claimed_at: number | null } =>
 
 beforeEach(() => {
   db = new DatabaseSync(':memory:');
+  // On for the same reason the shared helper turns them on: the migrations
+  // declare these keys, and a test that ignored them could let a claim row
+  // exist here that production would refuse.
+  db.exec('PRAGMA foreign_keys = ON');
   db.exec(schema());
   SQL = claimStatementFromSource();
 });

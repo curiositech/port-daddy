@@ -81,6 +81,23 @@ jobs:
         # need not touch the manifest. Cheap — it walks markdown and YAML only.
         run: node scripts/doc-retirement-guard.mjs
 
+  mcp-catalog-guard:
+    # website-v2/src/data/mcpAgentToolCatalog.ts is generated straight out of
+    # mcp/server.ts, and the site's published tool counts are read off it. Nothing
+    # regenerated it when a tool was added, so it fell 53 tools behind the server
+    # while the docs page kept telling readers a number typed by hand. This is a
+    # source-to-source check with no daemon and no browser: it re-derives the
+    # catalogue and fails if the committed one differs.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: MCP tool catalogue matches mcp/server.ts
+        run: npm --prefix website-v2 run test:mcp-catalog
+
   porthole-cast-gate:
     # Cheap, blocking companion to website-terminal-recordings' raw-text regex
     # scan: replays every committed website-v2/public/casts/porthole/*.cast
@@ -1450,6 +1467,7 @@ jobs:
       - fleetbar
       - integration-tests
       - lint
+      - mcp-catalog-guard
       - pd-ios
       - porthole-cast-gate
       - porthole-stage
