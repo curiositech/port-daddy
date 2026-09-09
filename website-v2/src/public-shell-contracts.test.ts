@@ -300,7 +300,7 @@ describe('public shell contracts', () => {
     expect(footer).toContain('/docs/sdk')
     expect(footer).toContain('/docs/mcp')
     expect(footer).toContain('/docs/api')
-    expect(footer).toContain('/library')
+    expect(footer).toContain('/whitepaper')
     expect(footer).toContain('/agents/templates')
     expect(footer).toContain('/tutorials')
 

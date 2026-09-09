@@ -78,7 +78,9 @@ const redirectOnlyRoutes = new Set([
   '/mcp',
   '/pd-tube/playground',
   '/templates',
-  '/whitepaper',
+  // /whitepaper used to be the redirect and /library the page. The deck
+  // inverted that and this set was not turned around with it.
+  '/library',
 ])
 
 const agentSectionSlugs = new Set([

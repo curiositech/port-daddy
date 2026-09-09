@@ -34,7 +34,7 @@ const PRIMARY_NAV_ITEMS = [
   { label: "Agent Tubes", href: "/pd-tube", end: false },
   // The book and the research program sit in the primary row: they are the
   // argument the product stands on, and each page links to the other.
-  { label: "Whitepaper", href: "/library", end: true },
+  { label: "Whitepaper", href: "/whitepaper", end: true },
   { label: "Research", href: "/research", end: false },
   { label: "Blog", href: "/blog", end: false },
   // The tail of the row folds into "More" until the viewport is ultra-wide:
