@@ -1,0 +1,168 @@
+/* ============================================================
+   Swiss-Modern Maritime — shared token system (revised per operator)
+   A genuine reconsideration, not a reskin of ch20 — WITH THREE
+   OPERATOR CORRECTIONS baked in after the first pass:
+   1. KEEP THE SPINNING RADAR WORDMARK (website-v2 SpinningWordmark.tsx
+      / pd-console's equivalent). It is NOT replaced. The flag hoist
+      below is a SECONDARY, complementary editorial motif — used in
+      section dividers, footers, and "signature" moments — never as
+      the primary logo lockup. Every surface build must render the
+      existing spinning mark in its header/primary position.
+   2. TYPE IS IBM PLEX + RECURSIVE, not Helvetica/Arial. Swiss-modern's
+      "one family carries the page" principle is kept; the family
+      itself is the product's own established system (matches every
+      other ch20 surface + the binder), not a generic Swiss default.
+   3. NOT NEOBRUTALIST. Dialed back from the first pass: hairline
+      rules (1/1.5px), not thick 3-4px black-outlined blocks. Swiss
+      restraint means generous whitespace and quiet structure — it is
+      the OPPOSITE of neobrutalism's loud borders and hard shadows.
+      Flag glyphs get a thin 1px edge, not a heavy frame.
+   Retained from the first pass:
+   - ONE accent (signal red), not hue-per-layer ("Accent Sprawl" is
+     the named Swiss failure mode this replaces).
+   - Flags are DENOTATIVE and RARE: exactly the 9 glyphs verified
+     against Pub. 102, used large and sparingly, never as scattered
+     iconography chips.
+   - Grid is Müller-Brockmann: strict columns, flush-left, generous
+     margins, asymmetric-but-measured.
+   - Papa + Delta spell P·D (secondary motif, see correction 1) — the
+     real maritime convention of a vessel hoisting its call sign in
+     individual letter flags; not a manufactured coincidence.
+   ============================================================ */
+:root {
+  --paper:     #F7F5EF;   /* chart paper, not ch20's cream-dashboard */
+  --paper-2:   #EFEBE0;
+  --ink:       #14130F;
+  --ink-2:     #4B473C;
+  --ink-3:     #8C8574;
+  --line:      rgba(20,19,15,0.14);
+  --line-2:    rgba(20,19,15,0.30);
+  --rule:      #14130F;   /* structural rules are always ink, never accent */
+
+  --accent:    #C81E1E;   /* THE one accent — signal red (flag Bravo's hue) */
+  --accent-ink:#FBEDEC;   /* text-on-accent */
+  --ensign:    #1B3A6B;   /* structural blue — masts/rules/flag devices only, never state */
+
+  /* the 9 verified flag glyphs — colors as literally specified */
+  --fl-y:      #F5C518;   /* signal yellow */
+  --fl-b:      #1B3A6B;   /* signal blue (ensign) */
+  --fl-r:      #C81E1E;   /* signal red */
+  --fl-k:      #14130F;   /* flag black */
+  --fl-w:      #FBF8F0;   /* flag white */
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper:   #101114;
+    --paper-2: #17181C;
+    --ink:     #EDEAE0;
+    --ink-2:   #B9B3A4;
+    --ink-3:   #726C5E;
+    --line:    rgba(237,234,224,0.14);
+    --line-2:  rgba(237,234,224,0.30);
+    --rule:    #EDEAE0;
+    --accent:  #FF5A4E;   /* signal red, lit for dark ground */
+    --accent-ink:#1A0B0A;
+    --ensign:  #6F97D6;
+    --fl-y:#F5C518; --fl-b:#6F97D6; --fl-r:#FF5A4E; --fl-k:#0A0A08; --fl-w:#EDEAE0;
+  }
+}
+:root[data-theme="dark"] {
+  --paper:#101114; --paper-2:#17181C; --ink:#EDEAE0; --ink-2:#B9B3A4; --ink-3:#726C5E;
+  --line:rgba(237,234,224,0.14); --line-2:rgba(237,234,224,0.30); --rule:#EDEAE0;
+  --accent:#FF5A4E; --accent-ink:#1A0B0A; --ensign:#6F97D6;
+  --fl-y:#F5C518; --fl-b:#6F97D6; --fl-r:#FF5A4E; --fl-k:#0A0A08; --fl-w:#EDEAE0;
+}
+:root[data-theme="light"] {
+  --paper:#F7F5EF; --paper-2:#EFEBE0; --ink:#14130F; --ink-2:#4B473C; --ink-3:#8C8574;
+  --line:rgba(20,19,15,0.14); --line-2:rgba(20,19,15,0.30); --rule:#14130F;
+  --accent:#C81E1E; --accent-ink:#FBEDEC; --ensign:#1B3A6B;
+  --fl-y:#F5C518; --fl-b:#1B3A6B; --fl-r:#C81E1E; --fl-k:#14130F; --fl-w:#FBF8F0;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+/* Type: IBM Plex Sans (display/body) + IBM Plex Mono (data) + Recursive
+   casual (the one display em-word per page, per the product's existing
+   ch20 convention) — link in the consuming page:
+   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600;700&family=Recursive:CASL,wght@1,600..800&display=swap"> */
+body.swiss-maritime {
+  background:var(--paper); color:var(--ink);
+  font-family: "IBM Plex Sans", -apple-system, system-ui, sans-serif;
+  font-feature-settings:"kern" 1, "liga" 1;
+  -webkit-font-smoothing:antialiased;
+}
+.sm-mono { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+.sm-casual { font-family: "Recursive", "IBM Plex Sans", sans-serif; font-variation-settings: "CASL" 1; }
+
+/* strict Müller-Brockmann column grid: 12 col desktop / 4 tablet / 2 mobile */
+.sm-grid {
+  display:grid; grid-template-columns:repeat(12,1fr); gap:clamp(1rem,2vw,1.75rem);
+  max-width:1400px; margin:0 auto; padding:0 clamp(1.25rem,4vw,3rem);
+}
+@media (max-width:900px){ .sm-grid{ grid-template-columns:repeat(4,1fr);} }
+@media (max-width:520px){ .sm-grid{ grid-template-columns:repeat(2,1fr);} }
+
+/* the lettered/numbered index system — Swiss labeling that doubles
+   as a call-sign reference (A. B. C. rather than decorative bullets) */
+.sm-idx { font-family: var(--sm-mono, ui-monospace); font-weight:700; font-size:0.8rem;
+  letter-spacing:0.02em; color:var(--ink-3); }
+
+/* structural rule — a quiet hairline, never accent, never a "card border" */
+.sm-rule { border:0; border-top:1px solid var(--line-2); }
+.sm-hair { border:0; border-top:1px solid var(--line); }
+
+/* the ONE accent, used exactly once per view */
+.sm-accent-block { background:var(--accent); color:var(--accent-ink); }
+.sm-accent-text { color:var(--accent); }
+
+/* ---- the 9 verified flag glyphs (real Pub. 102 designs) ----
+   Meanings verified: python3 icos_lookup.py code <letter>, 2026-07-06.
+   P = about to proceed to sea / all aboard.  D = keep clear, maneuvering
+   with difficulty.  Q = vessel healthy, free pratique.  K = I wish to
+   communicate with you.  L = stop your vessel instantly.  N = negative.
+   U = you are running into danger.  C = affirmative (yes).
+   F = I am disabled, communicate with me. */
+/* thin edge only — a quiet register mark, not a neobrutalist frame */
+.sm-flag { display:inline-block; flex:none; border:1px solid var(--line-2); }
+.sm-flag.sz-sm { width:22px; height:16px; }
+.sm-flag.sz-md { width:48px; height:34px; }
+.sm-flag.sz-lg { width:120px; height:86px; border-width:1.5px; }
+.sm-flag.sz-xl { width:220px; height:158px; border-width:1.5px; }
+
+/* Papa — Blue Peter: blue field, white/black rectangle center */
+.fl-P { background:var(--fl-b); position:relative; }
+.fl-P::after { content:""; position:absolute; left:22%; right:22%; top:22%; bottom:22%; background:var(--fl-w); }
+/* Delta — yellow / blue / yellow horizontal bands */
+.fl-D { background:linear-gradient(to bottom, var(--fl-y) 0 30%, var(--fl-b) 30% 70%, var(--fl-y) 70%); }
+/* Quebec — solid yellow */
+.fl-Q { background:var(--fl-y); }
+/* Kilo — yellow / blue vertical halves */
+.fl-K { background:linear-gradient(to right, var(--fl-y) 0 50%, var(--fl-b) 50%); }
+/* Lima — black/yellow quartered (checkerboard) */
+.fl-L { background:
+  linear-gradient(to right, var(--fl-k) 0 50%, var(--fl-y) 50%) top left / 50% 50% no-repeat,
+  linear-gradient(to right, var(--fl-y) 0 50%, var(--fl-k) 50%) top right / 50% 50% no-repeat,
+  linear-gradient(to right, var(--fl-y) 0 50%, var(--fl-k) 50%) bottom left / 50% 50% no-repeat,
+  linear-gradient(to right, var(--fl-k) 0 50%, var(--fl-y) 50%) bottom right / 50% 50% no-repeat; }
+/* November — blue/white checkerboard (4 quarters) */
+.fl-N { background:
+  linear-gradient(var(--fl-b),var(--fl-b)) top left / 50% 50% no-repeat,
+  linear-gradient(var(--fl-w),var(--fl-w)) top right / 50% 50% no-repeat,
+  linear-gradient(var(--fl-w),var(--fl-w)) bottom left / 50% 50% no-repeat,
+  linear-gradient(var(--fl-b),var(--fl-b)) bottom right / 50% 50% no-repeat; }
+/* Uniform — red/white quartered (diagonal) */
+.fl-U { background:
+  linear-gradient(var(--fl-r),var(--fl-r)) top left / 50% 50% no-repeat,
+  linear-gradient(var(--fl-w),var(--fl-w)) top right / 50% 50% no-repeat,
+  linear-gradient(var(--fl-w),var(--fl-w)) bottom left / 50% 50% no-repeat,
+  linear-gradient(var(--fl-r),var(--fl-r)) bottom right / 50% 50% no-repeat; }
+/* Charlie — blue/white/red/white/blue horizontal bands */
+.fl-C { background:linear-gradient(to bottom,
+  var(--fl-b) 0 20%, var(--fl-w) 20% 40%, var(--fl-r) 40% 60%, var(--fl-w) 60% 80%, var(--fl-b) 80%); }
+/* Foxtrot — white field, red rectangle center */
+.fl-F { background:var(--fl-w); position:relative; }
+.fl-F::after { content:""; position:absolute; left:22%; right:22%; top:22%; bottom:22%; background:var(--fl-r); }
+
+/* the masthead device: Papa + Delta hoist, spelling P·D */
+.sm-mark { display:inline-flex; align-items:center; gap:0.5rem; }
+.sm-mark .sm-flag { }
+.sm-mark .sm-mark-label { font-weight:800; letter-spacing:-0.01em; }

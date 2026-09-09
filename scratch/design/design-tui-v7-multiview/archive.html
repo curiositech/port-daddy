@@ -1,0 +1,1319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FleetBar Archive · 15 personas · 3 rounds · all files</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --paper: #F4F0E8; --paper-raised: #ECE6D9; --paper-deep: #E2DAC8; --paper-press: #D6CCB4;
+    --ink: #1A1815; --ink-soft: #3A3631; --ink-mute: #6A655C; --ink-ghost: #98928A;
+    --hair: rgba(26,24,21,0.12); --hair-strong: rgba(26,24,21,0.32);
+    --cobalt: #003FB8; --cobalt-soft: #2F5FC5; --cobalt-bg: rgba(0,63,184,0.08);
+    --st-ok: #2E7D5B; --st-warn: #B8801F; --st-error: #B5392E;
+    --hold: #6B3F8A;
+    /* persona colors */
+    --p-maya:#2E7D5B; --p-jordan:#B8801F; --p-sam:#003FB8; --p-casey:#B5392E;
+    --p-priya:#6B3F8A; --p-marcus:#5D8D4A; --p-lin:#A66F00; --p-daria:#1B5E7A;
+    --p-tomas:#704A2A; --p-aisha:#5C4AAD; --p-hiro:#3C3631; --p-riley:#CC3D2E;
+    --p-ben:#0B6E5F; --p-ngozi:#6B3F8A; --p-devon:#A04A8A;
+    --font-sans:'Inter',system-ui,sans-serif;
+    --font-mono:'Geist Mono',ui-monospace,monospace;
+    --font-serif:'Fraunces',Georgia,serif;
+    --ease-spring:cubic-bezier(0.22,1,0.36,1);
+    --ease-quick:cubic-bezier(0.4,0,0.2,1);
+  }
+  html, body { height: 100%; background: var(--paper); color: var(--ink); font-family: var(--font-sans); font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; overflow: hidden; }
+
+  .app {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    height: 100vh;
+  }
+
+  /* ── SIDEBAR ── */
+  aside.sidebar {
+    background: var(--paper-raised);
+    border-right: 1px solid var(--hair-strong);
+    overflow-y: auto;
+    padding: 24px 20px;
+    position: relative;
+  }
+  aside.sidebar::-webkit-scrollbar { width: 8px; }
+  aside.sidebar::-webkit-scrollbar-thumb { background: var(--hair-strong); }
+  aside.sidebar::-webkit-scrollbar-track { background: transparent; }
+
+  .sb-header { margin-bottom: 20px; }
+  .sb-kicker { font-family: var(--font-mono); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.14em; color: var(--cobalt); margin-bottom: 8px; }
+  .sb-title { font-size: 24px; font-weight: 800; letter-spacing: -0.025em; line-height: 1.05; margin-bottom: 4px; }
+  .sb-title em { font-family: var(--font-serif); font-style: italic; font-variation-settings: 'SOFT' 50, 'opsz' 36; font-weight: 500; color: var(--cobalt); }
+  .sb-sub { font-family: var(--font-mono); font-size: 12px; color: var(--ink-mute); letter-spacing: 0.02em; }
+
+  .sb-section { margin-top: 18px; }
+  .sb-heading {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ink-mute);
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+    position: relative;
+  }
+  .sb-heading::after {
+    content: "";
+    position: absolute;
+    bottom: 0; left: 0;
+    width: 32px; height: 1px;
+    background: var(--hair-strong);
+  }
+
+  .sb-btn {
+    display: grid;
+    grid-template-columns: 14px 1fr auto;
+    gap: 8px;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: none;
+    padding: 6px 8px;
+    margin: 1px 0;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink);
+    letter-spacing: -0.005em;
+    transition: background 100ms var(--ease-quick), padding-left 180ms var(--ease-spring);
+    align-items: center;
+    line-height: 1.3;
+    position: relative;
+  }
+  .sb-btn:hover { background: var(--paper); padding-left: 10px; }
+  .sb-btn:active { background: var(--paper-press); }
+  .sb-btn.active { background: var(--ink); color: var(--paper); padding-left: 10px; }
+  .sb-btn.active .sb-meta, .sb-btn.active .sb-glyph { color: rgba(244,240,232,0.7); }
+
+  .sb-glyph {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--cobalt);
+    line-height: 1;
+  }
+  .sb-meta {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-mute);
+    letter-spacing: 0.04em;
+  }
+  .sb-btn[data-persona] .sb-glyph::before { content: "●"; }
+  .sb-btn[data-persona="maya"]    .sb-glyph { color: var(--p-maya); }
+  .sb-btn[data-persona="jordan"]  .sb-glyph { color: var(--p-jordan); }
+  .sb-btn[data-persona="sam"]     .sb-glyph { color: var(--p-sam); }
+  .sb-btn[data-persona="casey"]   .sb-glyph { color: var(--p-casey); }
+  .sb-btn[data-persona="priya"]   .sb-glyph { color: var(--p-priya); }
+  .sb-btn[data-persona="marcus"]  .sb-glyph { color: var(--p-marcus); }
+  .sb-btn[data-persona="lin"]     .sb-glyph { color: var(--p-lin); }
+  .sb-btn[data-persona="daria"]   .sb-glyph { color: var(--p-daria); }
+  .sb-btn[data-persona="tomas"]   .sb-glyph { color: var(--p-tomas); }
+  .sb-btn[data-persona="aisha"]   .sb-glyph { color: var(--p-aisha); }
+  .sb-btn[data-persona="hiro"]    .sb-glyph { color: var(--p-hiro); }
+  .sb-btn[data-persona="riley"]   .sb-glyph { color: var(--p-riley); }
+  .sb-btn[data-persona="ben"]     .sb-glyph { color: var(--p-ben); }
+  .sb-btn[data-persona="ngozi"]   .sb-glyph { color: var(--p-ngozi); }
+  .sb-btn[data-persona="devon"]   .sb-glyph { color: var(--p-devon); }
+
+  .sb-btn[data-held] .sb-meta::before { content: "HELD · "; color: var(--hold); }
+
+  .sb-tabs {
+    display: flex;
+    gap: 0;
+    margin: 6px 0 10px;
+    border: 1px solid var(--hair-strong);
+  }
+  .sb-tab {
+    flex: 1;
+    background: transparent;
+    border: none;
+    padding: 5px 8px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: all 120ms;
+    border-right: 1px solid var(--hair-strong);
+  }
+  .sb-tab:last-child { border-right: none; }
+  .sb-tab:hover { background: var(--paper); color: var(--ink); }
+  .sb-tab.active { background: var(--ink); color: var(--paper); }
+
+  /* ── VIEWER ── */
+  main.viewer {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: var(--paper);
+    position: relative;
+  }
+  .viewer-toolbar {
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--hair-strong);
+    background: var(--paper);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-mute);
+    letter-spacing: 0.02em;
+    flex-shrink: 0;
+  }
+  .vt-crumb {
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .vt-crumb.cobalt { color: var(--cobalt); }
+  .vt-divider { color: var(--hair-strong); }
+  .vt-title {
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: -0.005em;
+    text-transform: none;
+  }
+  .vt-action {
+    margin-left: auto;
+    background: var(--paper-raised);
+    color: var(--ink);
+    border: none;
+    padding: 5px 12px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: background 120ms;
+  }
+  .vt-action:hover { background: var(--paper-press); }
+
+  .viewer-body { flex: 1; overflow: hidden; position: relative; }
+
+  iframe.viewer-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: var(--paper);
+    display: none;
+  }
+  iframe.viewer-iframe.active { display: block; }
+
+  .content-pane {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    padding: 40px 56px 80px;
+    display: none;
+  }
+  .content-pane.active { display: block; }
+  .content-pane::-webkit-scrollbar { width: 10px; }
+  .content-pane::-webkit-scrollbar-thumb { background: var(--hair-strong); }
+  .content-pane::-webkit-scrollbar-track { background: transparent; }
+
+  /* ── WELCOME ── */
+  .welcome { max-width: 720px; margin: 40px auto 0; }
+  .welcome .kicker { font-family: var(--font-mono); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.14em; color: var(--cobalt); margin-bottom: 12px; }
+  .welcome h1 { font-size: 44px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.02; margin-bottom: 14px; }
+  .welcome h1 em { font-family: var(--font-serif); font-style: italic; font-variation-settings: 'SOFT' 50, 'opsz' 144; font-weight: 500; color: var(--cobalt); }
+  .welcome p { font-size: 17px; line-height: 1.6; color: var(--ink-soft); margin-bottom: 14px; }
+  .welcome p em { font-family: var(--font-serif); font-style: italic; }
+  .welcome .quick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 28px; }
+  .welcome .qc {
+    padding: 18px 20px;
+    background: var(--paper-raised);
+    position: relative;
+    cursor: pointer;
+    transition: background 140ms, transform 220ms var(--ease-spring);
+  }
+  .welcome .qc::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--cobalt); }
+  .welcome .qc:hover { background: var(--paper-press); transform: translateX(2px); }
+  .welcome .qc-eyebrow { font-family: var(--font-mono); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: var(--cobalt); margin-bottom: 4px; }
+  .welcome .qc-title { font-size: 16px; font-weight: 700; letter-spacing: -0.015em; margin-bottom: 4px; }
+  .welcome .qc-sub { font-size: 13px; color: var(--ink-soft); line-height: 1.5; }
+
+  /* ── CRITIQUE LAYOUT ── */
+  .critique-pane { max-width: 880px; margin: 0 auto; }
+  .crit-header {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: baseline;
+    gap: 16px;
+    padding-bottom: 16px;
+    margin-bottom: 28px;
+    border-bottom: 1px solid var(--hair-strong);
+  }
+  .crit-tag {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    padding: 4px 9px;
+    color: var(--paper);
+    background: var(--cobalt);
+  }
+  .crit-tag.r1 { background: var(--ink-mute); }
+  .crit-tag.r2 { background: var(--st-warn); }
+  .crit-tag.r3 { background: var(--st-ok); }
+  .crit-tag.held { background: var(--hold); }
+  .crit-name { font-size: 32px; font-weight: 800; letter-spacing: -0.025em; line-height: 1; }
+  .crit-name em { font-family: var(--font-serif); font-style: italic; font-variation-settings: 'SOFT' 50, 'opsz' 80; font-weight: 500; }
+  .crit-archetype {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ink-mute);
+    text-align: right;
+  }
+
+  .crit-scores {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+  .crit-score {
+    padding: 16px 18px;
+    background: var(--paper-raised);
+    position: relative;
+  }
+  .crit-score::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--cobalt); }
+  .crit-score.ux::before { background: var(--cobalt); }
+  .crit-score.gestalt::before { background: var(--st-ok); }
+  .crit-score.appeal::before { background: var(--st-error); }
+  .crit-score-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-mute);
+    margin-bottom: 6px;
+  }
+  .crit-score-value {
+    font-family: var(--font-mono);
+    font-size: 38px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    margin-bottom: 6px;
+  }
+  .crit-score-value .max { color: var(--ink-ghost); font-size: 18px; }
+  .crit-score-delta {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 1px 6px;
+    margin-bottom: 6px;
+    display: inline-block;
+  }
+  .crit-score-delta.up { background: var(--st-ok); color: var(--paper); }
+  .crit-score-delta.down { background: var(--st-error); color: var(--paper); }
+  .crit-score-delta.flat { background: var(--paper-deep); color: var(--ink-mute); }
+  .crit-score-justify { font-size: 12px; line-height: 1.5; color: var(--ink-soft); }
+
+  .crit-block { margin-bottom: 24px; }
+  .crit-block-label {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--cobalt);
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    position: relative;
+  }
+  .crit-block-label::after {
+    content: "";
+    position: absolute;
+    bottom: 0; left: 0;
+    width: 40px; height: 1px;
+    background: var(--cobalt);
+  }
+  .crit-text { font-size: 15px; line-height: 1.65; color: var(--ink-soft); max-width: 68ch; }
+  .crit-text p { margin-bottom: 8px; }
+  .crit-text em { font-style: italic; }
+  .crit-text strong { color: var(--ink); font-weight: 600; }
+  .crit-text code { font-family: var(--font-mono); font-size: 13px; color: var(--cobalt); background: var(--cobalt-bg); padding: 1px 5px; }
+
+  .crit-list { list-style: none; padding: 0; max-width: 68ch; }
+  .crit-list li {
+    padding: 8px 0 8px 28px;
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    position: relative;
+    border-bottom: 1px solid var(--hair);
+  }
+  .crit-list li::before {
+    content: counter(li);
+    counter-increment: li;
+    position: absolute;
+    left: 0; top: 8px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--cobalt);
+    width: 20px;
+  }
+  .crit-list { counter-reset: li; }
+  .crit-list li strong { color: var(--ink); }
+
+  .crit-callout {
+    padding: 14px 18px;
+    background: var(--paper-raised);
+    border-left: 3px solid var(--cobalt);
+    margin: 12px 0;
+    max-width: 68ch;
+  }
+  .crit-callout-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--cobalt);
+    margin-bottom: 6px;
+  }
+  .crit-callout p { font-size: 14px; line-height: 1.55; color: var(--ink); }
+  .crit-callout em { font-family: var(--font-serif); font-style: italic; color: var(--cobalt); }
+
+  .crit-disposition {
+    margin-top: 24px;
+    padding: 12px 16px;
+    background: var(--ink);
+    color: var(--paper);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    position: relative;
+  }
+  .crit-disposition::before { content: "▸ "; color: #FFB47A; }
+  .crit-disposition .dl {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: rgba(244,240,232,0.55);
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  .crit-nav {
+    margin-top: 32px;
+    padding-top: 20px;
+    border-top: 1px solid var(--hair-strong);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .crit-nav-btn {
+    padding: 14px 18px;
+    background: var(--paper-raised);
+    cursor: pointer;
+    transition: background 140ms;
+    border: none;
+    text-align: left;
+    font-family: var(--font-sans);
+  }
+  .crit-nav-btn:hover { background: var(--paper-press); }
+  .crit-nav-btn.right { text-align: right; }
+  .crit-nav-eyebrow { font-family: var(--font-mono); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-mute); margin-bottom: 4px; }
+  .crit-nav-title { font-size: 15px; font-weight: 700; color: var(--ink); letter-spacing: -0.005em; }
+
+  /* ── PERSONA TRAJECTORY (single persona, all 3 rounds) ── */
+  .traj-pane { max-width: 880px; margin: 0 auto; }
+  .traj-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin: 16px 0 28px;
+  }
+  .traj-cell {
+    padding: 16px 18px;
+    background: var(--paper-raised);
+    position: relative;
+    cursor: pointer;
+    transition: background 120ms, transform 220ms var(--ease-spring);
+  }
+  .traj-cell::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--ink-mute); }
+  .traj-cell[data-round="r1"]::before { background: var(--ink-mute); }
+  .traj-cell[data-round="r2"]::before { background: var(--st-warn); }
+  .traj-cell[data-round="r3"]::before { background: var(--st-ok); }
+  .traj-cell:hover { background: var(--paper-press); transform: translateY(-1px); }
+  .traj-version { font-family: var(--font-mono); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink-mute); margin-bottom: 8px; }
+  .traj-scoreline { display: flex; gap: 6px; margin-bottom: 10px; }
+  .traj-pill {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 3px 7px;
+    color: var(--paper);
+    letter-spacing: 0.02em;
+    flex: 1;
+    text-align: center;
+  }
+  .traj-pill .lbl { font-size: 10px; opacity: 0.7; }
+  .traj-arrow { font-family: var(--font-mono); font-size: 12px; color: var(--ink-mute); font-weight: 600; }
+  .traj-cell:hover .traj-arrow { color: var(--cobalt); }
+
+  /* hidden critique bank */
+  .bank { display: none; }
+
+  @media (max-width: 980px) {
+    .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+    aside.sidebar { max-height: 280px; }
+    .content-pane { padding: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <header class="sb-header">
+      <div class="sb-kicker">2026-05-18 · archive</div>
+      <div class="sb-title">The full <em>archive</em></div>
+      <div class="sb-sub">15 personas · 3 rounds · 11 files</div>
+    </header>
+
+    <div class="sb-section">
+      <div class="sb-heading">Mockups · iframe</div>
+      <button class="sb-btn" data-iframe="interactive-mockup.html" data-title="v2 · interactive mockup · baseline">
+        <span class="sb-glyph">v2</span>
+        <span>Interactive mockup</span>
+        <span class="sb-meta">baseline</span>
+      </button>
+      <button class="sb-btn" data-iframe="v3-mockup.html" data-title="v3 · session shield + enforced gates">
+        <span class="sb-glyph">v3</span>
+        <span>Session shield + gates</span>
+        <span class="sb-meta">+1.17</span>
+      </button>
+      <button class="sb-btn" data-iframe="v4-mockup.html" data-title="v4 · adaptive + contract">
+        <span class="sb-glyph">v4</span>
+        <span>Contract + attestation</span>
+        <span class="sb-meta">+1.83</span>
+      </button>
+    </div>
+
+    <div class="sb-section">
+      <div class="sb-heading">Reports · iframe</div>
+      <button class="sb-btn" data-iframe="iteration-synthesis.html" data-title="Iteration synthesis · 3 rounds × 15 personas">
+        <span class="sb-glyph">§</span>
+        <span>Iteration synthesis</span>
+        <span class="sb-meta">data</span>
+      </button>
+      <button class="sb-btn" data-iframe="persona-synthesis.html" data-title="Persona synthesis · original 4">
+        <span class="sb-glyph">§</span>
+        <span>Persona synthesis</span>
+        <span class="sb-meta">4-cast</span>
+      </button>
+      <button class="sb-btn" data-iframe="research-report.html" data-title="Design research · fractional borders">
+        <span class="sb-glyph">§</span>
+        <span>Design research</span>
+        <span class="sb-meta">research</span>
+      </button>
+    </div>
+
+    <div class="sb-section">
+      <div class="sb-heading">Original concepts · iframe</div>
+      <button class="sb-btn" data-iframe="gallery.html" data-title="Three concepts gallery">
+        <span class="sb-glyph">◇</span>
+        <span>Concept gallery</span>
+        <span class="sb-meta">3-up</span>
+      </button>
+      <button class="sb-btn" data-iframe="ask-agent-panel.html" data-title="Ask Agent panel">
+        <span class="sb-glyph">①</span>
+        <span>Ask Agent panel</span>
+        <span class="sb-meta">neob</span>
+      </button>
+      <button class="sb-btn" data-iframe="extension-feedback.html" data-title="Viewport feedback extension">
+        <span class="sb-glyph">②</span>
+        <span>Viewport feedback</span>
+        <span class="sb-meta">ext</span>
+      </button>
+      <button class="sb-btn" data-iframe="fleet-activity-feed.html" data-title="Fleet activity feed">
+        <span class="sb-glyph">③</span>
+        <span>Fleet activity feed</span>
+        <span class="sb-meta">outcomes</span>
+      </button>
+      <button class="sb-btn" data-iframe="typography-comparison.html" data-title="Swiss modern vs neobrutalist refined">
+        <span class="sb-glyph">Aa</span>
+        <span>Typography comparison</span>
+        <span class="sb-meta">type</span>
+      </button>
+    </div>
+
+    <div class="sb-section">
+      <div class="sb-heading">Personas — by name</div>
+      <div class="sb-sub" style="margin-bottom:6px;font-size:11px;">Click → see all 3 rounds</div>
+      <button class="sb-btn" data-persona="maya"><span class="sb-glyph"></span><span>Maya</span><span class="sb-meta">switcher</span></button>
+      <button class="sb-btn" data-persona="jordan"><span class="sb-glyph"></span><span>Jordan</span><span class="sb-meta">buyer</span></button>
+      <button class="sb-btn" data-persona="sam"><span class="sb-glyph"></span><span>Sam</span><span class="sb-meta">power</span></button>
+      <button class="sb-btn" data-persona="casey"><span class="sb-glyph"></span><span>Casey</span><span class="sb-meta">skeptic</span></button>
+      <button class="sb-btn" data-persona="priya"><span class="sb-glyph"></span><span>Priya</span><span class="sb-meta">vp eng</span></button>
+      <button class="sb-btn" data-persona="marcus"><span class="sb-glyph"></span><span>Marcus</span><span class="sb-meta">junior</span></button>
+      <button class="sb-btn" data-persona="lin"><span class="sb-glyph"></span><span>Lin</span><span class="sb-meta">no-code</span></button>
+      <button class="sb-btn" data-persona="daria"><span class="sb-glyph"></span><span>Daria</span><span class="sb-meta">safety</span></button>
+      <button class="sb-btn" data-persona="tomas"><span class="sb-glyph"></span><span>Tomas</span><span class="sb-meta">enterprise</span></button>
+      <button class="sb-btn" data-persona="aisha"><span class="sb-glyph"></span><span>Aisha</span><span class="sb-meta">platform</span></button>
+      <button class="sb-btn" data-persona="hiro"><span class="sb-glyph"></span><span>Hiro</span><span class="sb-meta">oss</span></button>
+      <button class="sb-btn" data-persona="riley"><span class="sb-glyph"></span><span>Riley</span><span class="sb-meta">devrel</span></button>
+      <button class="sb-btn" data-persona="ben" data-held><span class="sb-glyph"></span><span>Ben</span><span class="sb-meta">freelance</span></button>
+      <button class="sb-btn" data-persona="ngozi" data-held><span class="sb-glyph"></span><span>Ngozi</span><span class="sb-meta">post-incid</span></button>
+      <button class="sb-btn" data-persona="devon" data-held><span class="sb-glyph"></span><span>Devon</span><span class="sb-meta">student</span></button>
+    </div>
+
+    <div class="sb-section">
+      <div class="sb-heading">Critiques — by round</div>
+      <div class="sb-tabs">
+        <button class="sb-tab active" data-tab="r1">R1 · v2</button>
+        <button class="sb-tab" data-tab="r2">R2 · v3</button>
+        <button class="sb-tab" data-tab="r3">R3 · v4</button>
+      </div>
+      <div id="critique-list">
+        <!-- Populated by JS from data -->
+      </div>
+    </div>
+  </aside>
+
+  <main class="viewer">
+    <div class="viewer-toolbar">
+      <span class="vt-crumb cobalt" id="crumbCat">Welcome</span>
+      <span class="vt-divider">·</span>
+      <span class="vt-title" id="crumbTitle">FleetBar archive</span>
+      <button class="vt-action" id="openExternal" style="display:none;">Open file</button>
+    </div>
+    <div class="viewer-body">
+      <iframe class="viewer-iframe" id="viewerIframe" title="Embedded viewer"></iframe>
+
+      <div class="content-pane active" id="contentPane">
+        <!-- Default welcome -->
+        <div class="welcome">
+          <div class="kicker">2026-05-18 · The full archive</div>
+          <h1>Three rounds.<br>Fifteen personas.<br>Every <em>file</em>.</h1>
+          <p>This is the navigable archive of the FleetBar design exercise — every mockup, every report, every persona critique across three rounds, in one place. The sidebar groups everything four ways: by file, by report, by persona, and by round. Mockups load in an embedded iframe. Critiques render inline.</p>
+          <p>Use the tabs in the sidebar to switch the critique list between R1 (v2 baseline), R2 (v3 session-shield), and R3 (v4 contract). Click a persona name to see their three-round trajectory in one view.</p>
+
+          <div class="quick-grid">
+            <div class="qc" data-iframe="v4-mockup.html" data-title="v4 · contract + attestation">
+              <div class="qc-eyebrow">Start here</div>
+              <div class="qc-title">v4 mockup — the final design</div>
+              <div class="qc-sub">Adaptive Simple/Team/Org modes · editable stop conditions · attestation popovers · symbol-level claims · enterprise footer.</div>
+            </div>
+            <div class="qc" data-iframe="iteration-synthesis.html" data-title="Iteration synthesis">
+              <div class="qc-eyebrow">The data</div>
+              <div class="qc-title">Iteration synthesis</div>
+              <div class="qc-sub">135 scores. In-loop appeal 4.75 → 7.75. Held-out 6.33 → 8.33. Trajectory charts, per-persona deltas, remaining gaps.</div>
+            </div>
+            <div class="qc" data-persona="maya">
+              <div class="qc-eyebrow">A persona</div>
+              <div class="qc-title">Maya · the switcher</div>
+              <div class="qc-sub">Parallel Claude collisions. 6 → 8 → 9 UX across three rounds. The persona the session-shield was built for.</div>
+            </div>
+            <div class="qc" data-persona="daria">
+              <div class="qc-eyebrow">Top scorer</div>
+              <div class="qc-title">Daria · AI safety</div>
+              <div class="qc-sub">Hit 10/9/10 on v4. Attestation popovers + editable stop conditions answer her exact v3 critique.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     CRITIQUE BANK — hidden, cloned into viewer on click
+     ═══════════════════════════════════════════════════════════ -->
+<div class="bank" id="bank" aria-hidden="true">
+  <!-- Populated by subsequent piece(s). Each entry:
+       <div data-bank="<persona>-<round>">
+         <div class="critique-pane">...</div>
+       </div>
+  -->
+</div>
+
+<!-- DATA -->
+<script>
+  // Critique data — per persona, per round. Compact but full-signal.
+  // shape: { scores: [...], js: [3 justifications], crit: "paragraph", fric: [3 items], dream: "...", disp: "..." , delta?: "..."}
+  const CRIT = {
+    "maya-r1": { scores:[6,7,5], js:["Command bar fast, but four verbs don't address parallel-Claude collision pain","Popover legible in 15s; HITL/Coxswain/swarm reads marketing-y","Would install to try, but mockup never shows collision-prevention story"], crit:"Maya opens with one question: 'does it prevent my three Claude sessions from stepping on each other?' The mockup answers an adjacent question — 'how do you talk to your agents?' — beautifully, but not hers. She sees an Approver blocked on PR #91 and infers some coordination exists, but there's no visible 'file claim,' 'conflict prediction,' or 'agent A is editing daemon.ts:182, agent B told to wait.' She came for the plumbing; the reframe says 'fleet is plumbing' and hides it. Without that, this looks like a prettier wrapper around the same coordination she already lacks.", fric:["No visible file claim / conflict-prevention surface — the actual problem is invisible","Quick actions feel demo-shaped, not workflow-shaped","'Swarm'/'Coxswain' naming reads as theater"], dream:"A 'Conflicts' section on home: 'Cursor (A) editing daemon.ts:182. Claude (B) requested same region — held.' One click to diff and decide.", disp:"Conditional — installs if README shows file-claim coordination in first screenshot." },
+    "maya-r2": { scores:[8,8,7], delta:[2,1,2], js:["Shield strip directly answers parallel-Claude question in one glance; pd-cmd hover stays keyboard-native","'3 sessions · 0 collisions · 1 file claim' reads in <1s; iTerm-3/VSCode/wt-2 match mental model","Auto-Enter removal earns trust; pd-cmd parity means actual install vs screenshot-and-dismiss"], crit:"The session shield is the v2→v3 unlock. v2 forced her to dig into the fleet drawer to figure out collisions; v3 names them by terminal/worktree on row one, in her words. The pd-cmd hover is a credibility hit she didn't expect — it tells her 'this isn't a walled garden, the CLI is real.' Removing auto-Enter neutralizes her #1 v2 objection. 'Why this proposal?' with co-signers and stop conditions reads like a code-review trace, which is her vocabulary.", fric:["Shield click goes to generic fleet drawer instead of collision-resolution view with diff","No symbol-level claim surface — file-level only; her real collisions are function-level","pd-cmd shown on hover is read-only; can't copy with a keystroke"], dream:"Click shield → collision-resolution panel showing exactly which symbols/lines two sessions overwrite, with 'rebase' or 'split claim' action.", disp:"" },
+    "maya-r3": { scores:[9,9,9], delta:[1,1,2], js:["Clicking shield finally lands in real symbol-level claim view; db.ts:initSchema() lines 40-120, who holds, who queues","'Holding ... · queued behind ... · auto-acquire on release' is the mental model she carries","Claim view IS the product. Symbol-level claims with queue semantics is the unique thing"], crit:"v3 named the pain with the shield strip; v4 actually opens the box. The dedicated claims view is the coordination primitive I've been asking for — it shows the symbol range, the queue, and the operations I'd do by hand (release, split, rebase). Editable stop conditions are nice for novel agents but neutral for me — I trust Spider's defaults and now have one more thing to skip past. Attestation popovers I'll click once during eval, never again.", fric:["No keyboard shortcut to jump straight to claims view","Editable stop conditions add a click before approve for known-safe runs","Enterprise footer is irrelevant noise; Team mode should hide it"], dream:"Cmd+shift+K → claims view from anywhere; shield-strip is the only door now.", disp:"Strong buy — claim view alone is worth the install; would advocate at team standup." },
+
+    "jordan-r1": { scores:[5,5,4], js:["Popover is clean, but Jordan doesn't drive a popover; he wants a dashboard URL and CSV export","Gets 'approve thing' and 'resume project'; cost/attribution/audit are nearly invisible","Nothing defends $8k/mo line item or solves onboarding for juniors"], crit:"Jordan reads this as a power-user toy, not a budget defense. He sees $0.42 on the HITL card and $1.84-today in fleet meta — that's the entire cost story. No per-engineer breakdown, no per-repo, no monthly trend. No team view — every signal is 'you, the operator,' and Jordan doesn't operate; his ICs do. HITL implies an audit trail exists, but mockup doesn't expose it. Onboarding juniors isn't addressed: no guardrails, no policy, no manager approval for actions above $X.", fric:["No team/org dashboard — only single-operator popover","Cost is decorative ($0.42, $1.84) — no attribution, trend, or breakdown","HITL implies audit but doesn't expose trail or policy controls"], dream:"'Team' link in footer opens web dashboard: spend per repo/engineer/agent, approval audit log, policy editor.", disp:"Conditional — won't buy org-wide; might let one squad pilot if individual installs are free." },
+    "jordan-r2": { scores:[6,6,5], delta:[1,1,1], js:["Editable stop conditions are an unlock; cost-per-resume gives budget vocabulary","Enforced badges + Why-this map to audit instinct; still translating sessions → engineers","Can imagine board slide; can't yet imagine procurement conversation"], crit:"v3 throws Jordan two bones: the scope toggle and per-project cost. Both are gestures, not deliverables — the toggle relabels but doesn't roll up; the cost is per-project, not per-engineer. Still, those gestures show the team understood his complaint. The 'enforced · landlock/allowlist' badges convert 'AI is doing stuff' into 'AI is doing stuff WITHIN A SANDBOX,' which is the sentence he needs to give his VP. Why-this with proposer + co-signers + stop conditions is the audit trail his security team will demand.", fric:["Scope toggle reads 'Backend Squad' but doesn't aggregate cost/HITLs across squad","No per-engineer or per-squad cost dashboard","'Spawn custom agent' is a foot-gun for a 200-eng co"], dream:"Real squad rollup behind scope toggle: total spend, per-engineer breakdown, top-5 approvers, audit-export-to-CSV.", disp:"" },
+    "jordan-r3": { scores:[8,8,8], delta:[2,2,3], js:["Editable stop conditions are THE unlock. Approve becomes a budget decision","'Gate is a contract' is how I'd describe it to my director","Adoption blocker dropped from 'needs attribution + audit' to 'needs per-engineer rollup'"], crit:"v3 had enforced gates but no way for me to enforce policy. v4 gives me three things: (1) editable caps turn each approval into an auditable contract — I can train squad leads to never approve without narrowing the glob; (2) cost-per-project on tiles is the per-project rollup my finance team demands; (3) the compliance footer (Okta SSO, Datadog audit, RBAC, SOC 2 Type II) shortens procurement loop dramatically. 'Run probe' buttons in the attestation popovers are a nice 'trust but verify' demo for my CISO.", fric:["No org-level dashboard view in popover — want 30-day trend by project + 'policies applied' report","Footer says SOC 2 but doesn't show the actual audit pipe","Compliance footer items are static badges — no click-through"], dream:"Org mode adds real per-engineer rollup, policy templates, and click-through audit log access.", disp:"Pilot with one squad for 30 days; if cost rollup ships, full rollout." },
+
+    "sam-r1": { scores:[7,8,7], js:["⌘K + keyboard shortcuts + esc-to-close = Sam's love language. Popover-only is tmux-life click-trap","Gets the reframe fast: command palette + HITL + resume + fleet. 'Plumbing/front-door' lands","Coordination + persistent context + observable agents is his stack; CLI/API hidden"], crit:"Sam is the closest thing this mockup has to an ideal user: verbs map to his life, keyboard model is right, HITL gate is what he's been hand-rolling. Resume thumbnails with cursor restore are exactly his flow. Likes Coxswain (lighter than LangGraph/AutoGen). What he doesn't see: a CLI surface, config file, way to pipe events into tmux/nvim, programmatic API. Popover-first signals 'macOS GUI tool' and his workflow is terminal-native — if there's no `pd watch` or stdout stream, the popover is dead weight.", fric:["Popover-first framing — no visible CLI/TUI/API surface","Named agents (Spider, Coxswain, Spark) feel hard-coded","No visible memory / context-restore architecture (the Letta thing)"], dream:"`pd watch --json` or visible CLI parity in footer ('everything here is `pd <verb>`') makes the popover a courtesy, not a requirement.", disp:"Install now — within an hour either fall in love or rage-quit based on CLI depth." },
+    "sam-r2": { scores:[8,9,8], delta:[1,1,1], js:["pd-cmd parity on every row is exactly what he wants; reads GUI as docs for the CLI","Why-this trace (proposer/signal/considered/co-signers/stop) is what Letta/AutoGen never showed","First multi-agent UI he'd leave running"], crit:"v3 is Sam-shaped. The Why-this disclosure surfaces agent's reasoning, alternatives rejected, stop conditions — the same thing he hand-rolls into Langfuse traces. pd-cmd on every hover means he can read this whole popover as 'what would the CLI do?' 'Spawn a custom agent · pd spawn --backend=...' is a love letter. Auto-Enter removal is a non-issue; he'd wrap in his own script anyway. Halt-all is the kill switch he assumed didn't exist.", fric:["Why-this is read-only — wants to edit stop conditions before approving","No plugin/extension surface for own agents","Scope toggle is org-shaped; wants project- or backend-shaped"], dream:"Editable stop conditions in HITL — turn approval gate into a contract he writes, not a checkbox.", disp:"" },
+    "sam-r3": { scores:[7,8,8], delta:[-1,-1,0], js:["Editable stop conditions great — exactly the contract semantics. Home view visibly busier","landlock LSM (ABI 4), FS_BIND mount, sha256 hash — speaking his dialect","Contract framing is novel; still can't program against it"], crit:"v4 trades surface simplicity for proof, and for me that's the right trade — attestation popovers and editable stop conditions are exactly the legibility I demand from a sandbox. But the home popover is genuinely dense now, and Simple mode is the wrong escape hatch: I want dense + programmable, not 'hide the chrome.' Power mode would keep everything visible AND surface the underlying JSON: show me the policy doc, let me edit it in $EDITOR, let me `pd policy validate --probe`.", fric:["Simple is the wrong escape hatch for power users — want Power mode that exposes JSON","No view of the policy as text/code — 'contract' is a UI affordance, not a primitive","Landlock assumes Linux; macOS Seatbelt story unstated"], dream:"`cat ~/.portdaddy/policies/spider.toml` equivalent surfaced; version-controllable; `pd policy validate --probe`.", disp:"Try it — but only if there's a CLI/file-backed policy I can version-control." },
+
+    "casey-r1": { scores:[5,6,3], js:["Surface UX competent; her bar is 'does it interop and audit' and mockup shows neither","Understands what it claims; doesn't understand how it interacts with Datadog/Sentry/PagerDuty/SSO","Yet another shiny AI control plane with named agents; default is no"], crit:"Casey has seen this movie. A beautiful menu-bar popover with named 'agents' (Spider, Cartographer, Coxswain) that promise to make AI coding 'feel good' is the exact aesthetic that has burned her org twice. Where's the OIDC/SAML? Audit log endpoint? Egress policy for 'network access · read-only'? What happens when an agent shells out — what's the sandbox? $0.42 with no breakdown of what was sent to whom is precisely the opaque approval she refuses to sign.", fric:["Zero visible auth/RBAC/audit-export surface — security is invisible","No interop story — doesn't reference GitHub, Linear, Datadog, Sentry, CI","Cost number with no provenance — what data, which model, which provider, retained how long"], dream:"Visible 'Security & Audit' surface showing SSO status, audit-log endpoint, network egress per agent, data-sent → model trail.", disp:"Decline — would block org-wide; might tolerate individual installs on non-prod laptops." },
+    "casey-r2": { scores:[7,7,5], delta:[2,1,2], js:["Halt-all visible, explicit approve, enforcement badges all earn points; still no Datadog/Sentry/PagerDuty","Enforced-landlock/allowlist with ⚿ is the first agent UI distinguishing claimed from enforced policy","Default no, but v3 moved from 'absolutely not' to 'let me read the threat model'"], crit:"The single biggest v3 move is the [enforced · landlock] and [enforced · allowlist] badges. v2's HITL said 'Network: read-only' and he correctly read that as a promise, not a mechanism. v3 names the mechanism (landlock = Linux LSM; allowlist on filesystem) and that's the difference between marketing copy and a threat model. Why-this with stop-conditions is his vocabulary — he wants to know what causes the agent to self-terminate.", fric:["No visible integration surface (Datadog/Sentry/Splunk/SIEM/PagerDuty)","'Enforced · landlock' assumes Linux; macOS Seatbelt / Windows AppContainer story invisible","No tamper-evidence on Why-this trace — what stops compromised agent from writing clean trace?"], dream:"Observability section: where audit logs ship, which SIEM connected, last integrity check on trace store.", disp:"" },
+    "casey-r3": { scores:[8,8,7], delta:[1,1,2], js:["Editable stop conditions move from 'trust the vendor's defaults' to 'I write the contract'","Naming landlock ABI 4 + FS_BIND mount tells me the team read LSM docs, not marketing brief","Moved from 'default no' to 'default investigate'; compliance footer closes procurement gate"], crit:"The attestation popover is the single best move in v4. 'enforced ·' badges in v3 were unfalsifiable marketing words; v4 makes them clickable, hashable, and probe-able. That's a different category of claim. 'Run probe' and 'Try violation' as first-class affordances means the team is signaling 'we want you to test us' — which is what an actual sandbox tool does. Editable stop conditions matter because every approval becomes an auditable record of what was permitted, against what attestation hash.", fric:["Policy hash without `pd policy verify <hash>` is still trust-me","landlock LSM is Linux-only — macOS/Windows enforcement story unstated","No documented threat model — what does attestation NOT defend against?"], dream:"Click-through on every footer item — audit log sample (last 5 events), RBAC matrix, SSO config, SOC 2 report.", disp:"Move from 'default no' to 'schedule a security review and pen-test cycle'." },
+
+    "priya-r1": { scores:[3,4,2], js:["Priya never touches this surface; UX irrelevant. Score reflects 'did demo answer staff's questions'","Grasps 'coordinator for AI coders' but nothing addresses SOC2, PCI, vendor risk, ROI","Nothing answers CFO's question; nothing reduces vendor count"], crit:"Priya doesn't open menu-bar popovers. Her staff hands her a one-pager and she asks three questions: (1) what compliance posture do they have — SOC2 Type II, ISO 27001, PCI scope, GDPR? (2) does this consolidate or add to vendor footprint? (3) does it answer the $40k/mo ROI question with hard numbers? Mockup answers none. The 'fleet' framing actively hurts: sounds like more tools, not fewer. No executive view, no monthly digest, no 'org shipped 312 PRs at $X with Y reverts.'", fric:["No compliance/legal surface — no SOC2, DPA, data residency, sub-processor list","No ROI artifact — $40k spend question unanswered","Adds a vendor instead of consolidating; no 'replaces X, Y' story"], dream:"Buyer-grade artifact: SOC2 status, SSO/SCIM, sub-processor list, monthly ROI dashboard showing PRs/$ and revert rate per repo.", disp:"Block — won't approve procurement without compliance + ROI artifacts; staff may pilot individually." },
+    "priya-r2": { scores:[5,6,4], delta:[2,2,2], js:["She won't open the dashboard, but staff demo means she could describe what she saw to CISO","Enforced badges + Why-this trace + org-aware scope finally use her vocabulary","Moves from 'no' to 'show me the SOC2 mapping doc'"], crit:"v3 is the first iteration that speaks any of Priya's language. The 'enforced · landlock/allowlist' badges map directly onto SOC2 CC6.1 (logical access controls) and CC7.2 (system monitoring) — she can imagine her auditor checking those boxes. Why-this trace with proposer/signal/co-signers/stop reads like an immutable audit log (PCI DSS 10 vocabulary). Scope toggle suggests org-aware RBAC even though it's currently cosmetic. Removing auto-Enter was an instant disqualification fix.", fric:["No visible compliance posture surface (SOC2 status, data residency, retention, encryption)","Cost shown but no 'vendor consolidation ROI' framing","Why-this trace lives in UI; she needs to know it's immutable, signed, shippable to GRC tool"], dream:"'Compliance' view showing SOC2 Type II, data residency, retention, encryption, SSO/SCIM, one-click 'Export audit pack' for annual review.", disp:"" },
+    "priya-r3": { scores:[7,8,7], delta:[2,2,3], js:["Enterprise footer is what procurement asks for first and what v3 didn't show","Frames AI permission boundary as a contract, not a prompt — board language","Real movement; still need data residency, FedRAMP, BYOK/HSM, DPA, per-user audit panel"], crit:"v3 read like a power-user tool with security theater. v4 reads like a tool a CISO could approve with conditions. Three changes: (1) compliance footer surfaces SOC 2 Type II + SSO/audit/RBAC — minimum bar for fintech procurement; (2) editable stop conditions make each approval a written contract with policy hash and verification timestamp — that's the audit trail SOC 2 auditor wants exported as JSONL; (3) symbol-level claim view answers 'who touched what code, when, with whose authorization' at the granularity of db.ts:initSchema() lines 40-120 — what forensic IR would demand.", fric:["No view of audit log itself — 'Audit · Datadog' tells me where, doesn't show schema/retention","No data residency / FedRAMP / BYOK story","'Org' mode picker implies multi-tenant but it's cosmetic"], dream:"View of the audit log itself with retention, schema, SIEM-agnostic export. BYOK story. DPA template.", disp:"Conditional yes — pending data residency answer, BYOK story, DPA review." }
+  };
+
+  // Persona registry — name, archetype, in/out flag, scores per round
+  // Scores: [UX, Gestalt, Appeal]
+  const PERSONAS = {
+    maya:   { name: "Maya",   archetype: "The Switcher",        full: "Sr Backend Eng · parallel Claude collisions", held: false,
+              r1: [6,7,5], r2: [8,8,7], r3: [9,9,9] },
+    jordan: { name: "Jordan", archetype: "The Buyer",           full: "EM 200 eng · $8k/mo on agents", held: false,
+              r1: [5,5,4], r2: [6,6,5], r3: [8,8,8] },
+    sam:    { name: "Sam",    archetype: "Power User",          full: "Indie AI/ML · Letta/LangGraph vet", held: false,
+              r1: [7,8,7], r2: [8,9,8], r3: [7,8,8] },
+    casey:  { name: "Casey",  archetype: "The Skeptic",         full: "Staff DevTools · 1000-eng platform", held: false,
+              r1: [5,6,3], r2: [7,7,5], r3: [8,8,7] },
+    priya:  { name: "Priya",  archetype: "VP Engineering",      full: "Fintech · compliance-first · vendor consolidation", held: false,
+              r1: [3,4,2], r2: [5,6,4], r3: [7,8,7] },
+    marcus: { name: "Marcus", archetype: "Junior Dev",          full: "Post-incident anxiety · team-follower", held: false,
+              r1: [7,6,8], r2: [8,7,9], r3: [8,7,9] },
+    lin:    { name: "Lin",    archetype: "No-Code Founder",     full: "Solo SaaS · infra-allergic · outcomes-only", held: false,
+              r1: [5,4,3], r2: [5,5,4], r3: [8,7,6] },
+    daria:  { name: "Daria",  archetype: "AI Safety",           full: "Non-profit researcher · autonomy boundaries", held: false,
+              r1: [7,8,6], r2: [9,9,8], r3: [10,9,10] },
+    tomas:  { name: "Tomas",  archetype: "Old Enterprise",      full: "Principal eng · F500 insurance · 'Bob in compliance'", held: false,
+              r1: [5,5,2], r2: [5,6,3], r3: [6,7,5] },
+    aisha:  { name: "Aisha",  archetype: "Build-It-Herself",    full: "ML Platform · buyer/competitor split", held: false,
+              r1: [8,9,5], r2: [8,9,4], r3: [8,9,7] },
+    hiro:   { name: "Hiro",   archetype: "OSS Maintainer",      full: "50M npm DLs · ceremony-allergic", held: false,
+              r1: [6,7,3], r2: [7,8,4], r3: [8,9,7] },
+    riley:  { name: "Riley",  archetype: "DevRel",              full: "Screencast-driven · Twitter-thread-shaped", held: false,
+              r1: [8,9,9], r2: [9,9,10], r3: [9,9,10] },
+    ben:    { name: "Ben",    archetype: "Freelancer",          full: "Multi-client context-switching · time-billed", held: true,
+              r1: [7,8,5], r2: [8,8,7], r3: [8,8,7] },
+    ngozi:  { name: "Ngozi",  archetype: "Post-Incident EM",    full: "Agent-runaway PTSD · wants kill switch + audit", held: true,
+              r1: [7,6,6], r2: [9,9,9], r3: [10,10,10] },
+    devon:  { name: "Devon",  archetype: "CS Student",          full: "Installs everything · HN cred-driven", held: true,
+              r1: [7,7,8], r2: [7,7,7], r3: [7,7,8] }
+  };
+  const PERSONA_ORDER = Object.keys(PERSONAS);
+  const ROUND_INFO = {
+    r1: { label: "R1 · v2", version: "v2 baseline", mockup: "interactive-mockup.html", title: "interactive mockup" },
+    r2: { label: "R2 · v3", version: "v3 · session shield",       mockup: "v3-mockup.html",       title: "session shield" },
+    r3: { label: "R3 · v4", version: "v4 · contract",             mockup: "v4-mockup.html",       title: "contract + attestation" }
+  };
+
+  // ── State ──
+  let currentTab = "r1";
+  let currentTarget = null;
+
+  // ── DOM refs ──
+  const iframe = document.getElementById("viewerIframe");
+  const contentPane = document.getElementById("contentPane");
+  const crumbCat = document.getElementById("crumbCat");
+  const crumbTitle = document.getElementById("crumbTitle");
+  const openExternal = document.getElementById("openExternal");
+  const bank = document.getElementById("bank");
+  const critiqueList = document.getElementById("critique-list");
+
+  // ── Build the critique list for the currently-selected round tab ──
+  function rebuildCritiqueList() {
+    while (critiqueList.firstChild) critiqueList.removeChild(critiqueList.firstChild);
+    for (const key of PERSONA_ORDER) {
+      const p = PERSONAS[key];
+      const scores = p[currentTab];
+      const btn = document.createElement("button");
+      btn.className = "sb-btn";
+      btn.dataset.critique = `${key}-${currentTab}`;
+      if (p.held) btn.dataset.held = "true";
+
+      const glyph = document.createElement("span");
+      glyph.className = "sb-glyph";
+      btn.dataset.persona = key;
+      btn.appendChild(glyph);
+
+      const name = document.createElement("span");
+      name.textContent = p.name;
+      btn.appendChild(name);
+
+      const meta = document.createElement("span");
+      meta.className = "sb-meta";
+      meta.textContent = `${scores[0]}·${scores[1]}·${scores[2]}`;
+      btn.appendChild(meta);
+
+      critiqueList.appendChild(btn);
+    }
+  }
+
+  // ── Click routing ──
+  document.addEventListener("click", (e) => {
+    const tabBtn = e.target.closest(".sb-tab");
+    if (tabBtn) {
+      document.querySelectorAll(".sb-tab").forEach(t => t.classList.remove("active"));
+      tabBtn.classList.add("active");
+      currentTab = tabBtn.dataset.tab;
+      rebuildCritiqueList();
+      return;
+    }
+
+    const iframeBtn = e.target.closest("[data-iframe]");
+    if (iframeBtn) {
+      showIframe(iframeBtn.dataset.iframe, iframeBtn.dataset.title || iframeBtn.dataset.iframe, "file");
+      setActive(iframeBtn);
+      return;
+    }
+
+    const personaBtn = e.target.closest("[data-persona]:not([data-critique])");
+    if (personaBtn) {
+      const key = personaBtn.dataset.persona;
+      showPersona(key);
+      setActive(personaBtn);
+      return;
+    }
+
+    const critBtn = e.target.closest("[data-critique]");
+    if (critBtn) {
+      const id = critBtn.dataset.critique;
+      showCritique(id);
+      setActive(critBtn);
+      return;
+    }
+
+    const trajCell = e.target.closest(".traj-cell");
+    if (trajCell) {
+      const id = trajCell.dataset.critiqueTarget;
+      if (id) showCritique(id);
+      return;
+    }
+  });
+
+  function setActive(el) {
+    document.querySelectorAll(".sb-btn.active").forEach(b => b.classList.remove("active"));
+    el.classList.add("active");
+  }
+
+  function showIframe(path, title, category) {
+    iframe.src = path;
+    iframe.classList.add("active");
+    contentPane.classList.remove("active");
+    crumbCat.textContent = category;
+    crumbTitle.textContent = title;
+    openExternal.style.display = "inline-block";
+    openExternal.onclick = () => window.open(path, "_blank");
+  }
+
+  function showPersona(key) {
+    const p = PERSONAS[key];
+    if (!p) return;
+    iframe.classList.remove("active");
+    iframe.src = "about:blank";
+    openExternal.style.display = "none";
+    crumbCat.textContent = p.held ? "Held-out · round-over-round" : "Round-over-round";
+    crumbTitle.textContent = `${p.name} · ${p.archetype}`;
+    renderPersonaRoundOverRound(key);
+    contentPane.classList.add("active");
+  }
+
+  // Build a single critique block (used in stacked round-over-round and in single-critique view)
+  function buildCritiqueBlock(personaKey, round, opts = {}) {
+    const p = PERSONAS[personaKey];
+    const ri = ROUND_INFO[round];
+    const data = CRIT[`${personaKey}-${round}`];
+    const wrap = document.createElement("section");
+    wrap.className = "critique-pane";
+    wrap.style.marginBottom = "48px";
+    wrap.style.paddingBottom = "32px";
+    wrap.style.borderBottom = opts.last ? "none" : "1px dashed var(--hair-strong)";
+
+    // Mini-header
+    const header = document.createElement("div");
+    header.className = "crit-header";
+    const tag = document.createElement("span");
+    tag.className = `crit-tag ${round}`;
+    tag.textContent = ri.label + " · " + ri.title;
+    header.appendChild(tag);
+    const name = document.createElement("h2");
+    name.className = "crit-name";
+    name.style.fontSize = "26px";
+    name.textContent = opts.showName ? p.name : ri.version;
+    if (opts.showName) name.appendChild(document.createTextNode(" "));
+    header.appendChild(name);
+
+    const linkBtn = document.createElement("button");
+    linkBtn.className = "crit-archetype";
+    linkBtn.style.background = "transparent";
+    linkBtn.style.border = "none";
+    linkBtn.style.cursor = "pointer";
+    linkBtn.style.fontFamily = "var(--font-mono)";
+    linkBtn.style.fontSize = "11px";
+    linkBtn.style.color = "var(--cobalt)";
+    linkBtn.textContent = "▸ open mockup";
+    linkBtn.onclick = () => showIframe(ri.mockup, ri.version, "Mockup");
+    header.appendChild(linkBtn);
+    wrap.appendChild(header);
+
+    // Scores
+    const scoreGrid = document.createElement("div");
+    scoreGrid.className = "crit-scores";
+    const labels = ["UX","Gestalt","Appeal"];
+    const classes = ["ux","gestalt","appeal"];
+    const scores = p[round];
+    scores.forEach((s, i) => {
+      const card = document.createElement("div");
+      card.className = `crit-score ${classes[i]}`;
+      const lb = document.createElement("div");
+      lb.className = "crit-score-label";
+      lb.textContent = labels[i];
+      card.appendChild(lb);
+      const val = document.createElement("div");
+      val.className = "crit-score-value";
+      val.textContent = s;
+      const max = document.createElement("span");
+      max.className = "max";
+      max.textContent = "/10";
+      val.appendChild(max);
+      card.appendChild(val);
+      if (round !== "r1") {
+        const prevRound = round === "r2" ? "r1" : "r2";
+        const delta = s - p[prevRound][i];
+        const d = document.createElement("div");
+        d.className = "crit-score-delta " + (delta > 0 ? "up" : delta < 0 ? "down" : "flat");
+        d.textContent = (delta > 0 ? "+" : "") + delta + " vs " + prevRound.toUpperCase();
+        card.appendChild(d);
+      }
+      if (data && data.js && data.js[i]) {
+        const j = document.createElement("div");
+        j.className = "crit-score-justify";
+        j.textContent = data.js[i];
+        card.appendChild(j);
+      }
+      scoreGrid.appendChild(card);
+    });
+    wrap.appendChild(scoreGrid);
+
+    if (!data) {
+      const note = document.createElement("div");
+      note.className = "crit-callout";
+      const nL = document.createElement("div");
+      nL.className = "crit-callout-label";
+      nL.textContent = "Critique pending";
+      note.appendChild(nL);
+      const nP = document.createElement("p");
+      nP.textContent = "Full critique text for this persona-round is being added in the next file update. The score above is final and authoritative.";
+      note.appendChild(nP);
+      wrap.appendChild(note);
+      return wrap;
+    }
+
+    // Critique
+    const critBlock = document.createElement("div");
+    critBlock.className = "crit-block";
+    const critLbl = document.createElement("div");
+    critLbl.className = "crit-block-label";
+    critLbl.textContent = "Critique";
+    critBlock.appendChild(critLbl);
+    const critText = document.createElement("div");
+    critText.className = "crit-text";
+    const p1 = document.createElement("p");
+    p1.textContent = data.crit;
+    critText.appendChild(p1);
+    critBlock.appendChild(critText);
+    wrap.appendChild(critBlock);
+
+    // Frictions
+    if (data.fric && data.fric.length) {
+      const fb = document.createElement("div");
+      fb.className = "crit-block";
+      const fL = document.createElement("div");
+      fL.className = "crit-block-label";
+      fL.textContent = round === "r1" ? "Top frictions" : "Remaining frictions";
+      fb.appendChild(fL);
+      const ul = document.createElement("ul");
+      ul.className = "crit-list";
+      data.fric.forEach(item => {
+        const li = document.createElement("li");
+        li.textContent = item;
+        ul.appendChild(li);
+      });
+      fb.appendChild(ul);
+      wrap.appendChild(fb);
+    }
+
+    // Dream
+    if (data.dream) {
+      const callout = document.createElement("div");
+      callout.className = "crit-callout";
+      const cL = document.createElement("div");
+      cL.className = "crit-callout-label";
+      cL.textContent = round === "r3" ? "The single thing for a v5 +3" : "The single thing that moves appeal +3";
+      callout.appendChild(cL);
+      const cP = document.createElement("p");
+      cP.textContent = data.dream;
+      callout.appendChild(cP);
+      wrap.appendChild(callout);
+    }
+
+    // Disposition
+    if (data.disp) {
+      const disp = document.createElement("div");
+      disp.className = "crit-disposition";
+      const dL = document.createElement("span");
+      dL.className = "dl";
+      dL.textContent = "Adoption disposition";
+      disp.appendChild(dL);
+      disp.appendChild(document.createTextNode(data.disp));
+      wrap.appendChild(disp);
+    }
+
+    return wrap;
+  }
+
+  function renderPersonaRoundOverRound(key) {
+    const p = PERSONAS[key];
+
+    while (contentPane.firstChild) contentPane.removeChild(contentPane.firstChild);
+
+    // Header at top: persona name + archetype + score summary across rounds
+    const header = document.createElement("header");
+    header.className = "critique-pane";
+    header.style.maxWidth = "880px";
+    header.style.margin = "0 auto 24px";
+    header.style.paddingBottom = "24px";
+    header.style.borderBottom = "1px solid var(--hair-strong)";
+
+    const kicker = document.createElement("div");
+    kicker.style.fontFamily = "var(--font-mono)";
+    kicker.style.fontSize = "12px";
+    kicker.style.fontWeight = "600";
+    kicker.style.textTransform = "uppercase";
+    kicker.style.letterSpacing = "0.14em";
+    kicker.style.color = "var(--cobalt)";
+    kicker.style.marginBottom = "10px";
+    kicker.textContent = (p.held ? "Held-out · " : "") + "Round-over-round trajectory";
+    header.appendChild(kicker);
+
+    const h1 = document.createElement("h1");
+    h1.style.fontSize = "48px";
+    h1.style.fontWeight = "800";
+    h1.style.letterSpacing = "-0.03em";
+    h1.style.lineHeight = "1.02";
+    h1.style.marginBottom = "8px";
+    h1.textContent = p.name + ".";
+    header.appendChild(h1);
+
+    const sub = document.createElement("div");
+    sub.style.fontSize = "17px";
+    sub.style.color = "var(--ink-soft)";
+    sub.style.maxWidth = "60ch";
+    sub.style.lineHeight = "1.5";
+    sub.textContent = p.archetype + " — " + p.full;
+    header.appendChild(sub);
+
+    // Score summary across rounds
+    const summary = document.createElement("div");
+    summary.className = "traj-grid";
+    summary.style.marginTop = "24px";
+    for (const round of ["r1","r2","r3"]) {
+      const cell = document.createElement("a");
+      cell.className = "traj-cell";
+      cell.dataset.round = round;
+      cell.href = `#${key}-${round}`;
+      cell.style.textDecoration = "none";
+      cell.style.color = "inherit";
+      cell.style.display = "block";
+      cell.onclick = (e) => {
+        e.preventDefault();
+        const target = document.getElementById(`anchor-${key}-${round}`);
+        if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+      };
+
+      const ver = document.createElement("div");
+      ver.className = "traj-version";
+      ver.textContent = ROUND_INFO[round].label;
+      cell.appendChild(ver);
+
+      const line = document.createElement("div");
+      line.className = "traj-scoreline";
+      const scores = p[round];
+      const labels = ["UX","GES","APP"];
+      const colors = ["var(--cobalt)","var(--st-ok)","var(--st-error)"];
+      scores.forEach((s, i) => {
+        const pill = document.createElement("span");
+        pill.className = "traj-pill";
+        pill.style.background = colors[i];
+        const lblSpan = document.createElement("div");
+        lblSpan.className = "lbl";
+        lblSpan.textContent = labels[i];
+        pill.appendChild(lblSpan);
+        const valSpan = document.createElement("div");
+        valSpan.textContent = s;
+        pill.appendChild(valSpan);
+        line.appendChild(pill);
+      });
+      cell.appendChild(line);
+
+      const arrow = document.createElement("div");
+      arrow.className = "traj-arrow";
+      arrow.textContent = "▸ jump to round";
+      cell.appendChild(arrow);
+
+      summary.appendChild(cell);
+    }
+    header.appendChild(summary);
+    contentPane.appendChild(header);
+
+    // Now stack all three rounds, each with full critique
+    const stack = document.createElement("div");
+    stack.style.maxWidth = "880px";
+    stack.style.margin = "0 auto";
+
+    ["r1","r2","r3"].forEach((round, idx) => {
+      const anchor = document.createElement("div");
+      anchor.id = `anchor-${key}-${round}`;
+      anchor.style.position = "relative";
+      anchor.style.top = "-20px";
+      stack.appendChild(anchor);
+
+      const block = buildCritiqueBlock(key, round, { last: idx === 2, showName: false });
+      stack.appendChild(block);
+    });
+
+    contentPane.appendChild(stack);
+    contentPane.scrollTop = 0;
+  }
+
+  function showCritique(id) {
+    iframe.classList.remove("active");
+    iframe.src = "about:blank";
+    openExternal.style.display = "none";
+
+    const [personaKey, round] = id.split("-");
+    const p = PERSONAS[personaKey];
+    const ri = ROUND_INFO[round];
+    crumbCat.textContent = ri.label;
+    crumbTitle.textContent = `${p.name} · ${p.archetype}`;
+
+    while (contentPane.firstChild) contentPane.removeChild(contentPane.firstChild);
+
+    const wrap = document.createElement("div");
+    wrap.style.maxWidth = "880px";
+    wrap.style.margin = "0 auto";
+
+    // Persona context strip linking to round-over-round
+    const strip = document.createElement("button");
+    strip.style.background = "var(--paper-raised)";
+    strip.style.border = "none";
+    strip.style.padding = "10px 16px";
+    strip.style.fontFamily = "var(--font-mono)";
+    strip.style.fontSize = "12px";
+    strip.style.fontWeight = "600";
+    strip.style.textTransform = "uppercase";
+    strip.style.letterSpacing = "0.1em";
+    strip.style.color = "var(--cobalt)";
+    strip.style.cursor = "pointer";
+    strip.style.marginBottom = "20px";
+    strip.style.width = "100%";
+    strip.style.textAlign = "left";
+    strip.textContent = "▸ See all 3 rounds for " + p.name + " (round-over-round)";
+    strip.onclick = () => showPersona(personaKey);
+    wrap.appendChild(strip);
+
+    const block = buildCritiqueBlock(personaKey, round, { last: true, showName: true });
+    block.style.marginBottom = "0";
+    block.style.paddingBottom = "0";
+    block.style.borderBottom = "none";
+    wrap.appendChild(block);
+
+    contentPane.appendChild(wrap);
+    contentPane.classList.add("active");
+    contentPane.scrollTop = 0;
+  }
+
+  function renderPersonaTrajectory(key) {
+    const p = PERSONAS[key];
+    const pane = document.createElement("div");
+    pane.className = "traj-pane";
+
+    const header = document.createElement("div");
+    header.className = "crit-header";
+
+    const tag = document.createElement("span");
+    tag.className = "crit-tag" + (p.held ? " held" : "");
+    tag.textContent = p.held ? "Held-out" : p.archetype;
+    header.appendChild(tag);
+
+    const name = document.createElement("h1");
+    name.className = "crit-name";
+    name.textContent = p.name;
+    header.appendChild(name);
+
+    const archetype = document.createElement("div");
+    archetype.className = "crit-archetype";
+    archetype.textContent = p.full;
+    header.appendChild(archetype);
+
+    pane.appendChild(header);
+
+    const intro = document.createElement("p");
+    intro.className = "crit-text";
+    intro.style.marginBottom = "16px";
+    intro.textContent = "Click any round below to see the full critique.";
+    pane.appendChild(intro);
+
+    const grid = document.createElement("div");
+    grid.className = "traj-grid";
+    for (const round of ["r1","r2","r3"]) {
+      const cell = document.createElement("div");
+      cell.className = "traj-cell";
+      cell.dataset.round = round;
+      cell.dataset.critiqueTarget = `${key}-${round}`;
+
+      const ver = document.createElement("div");
+      ver.className = "traj-version";
+      ver.textContent = `${ROUND_INFO[round].label} · ${ROUND_INFO[round].title}`;
+      cell.appendChild(ver);
+
+      const line = document.createElement("div");
+      line.className = "traj-scoreline";
+      const scores = p[round];
+      const labels = ["UX","GES","APP"];
+      const colors = ["var(--cobalt)","var(--st-ok)","var(--st-error)"];
+      scores.forEach((s, i) => {
+        const pill = document.createElement("span");
+        pill.className = "traj-pill";
+        pill.style.background = colors[i];
+        const lblSpan = document.createElement("div");
+        lblSpan.className = "lbl";
+        lblSpan.textContent = labels[i];
+        pill.appendChild(lblSpan);
+        const valSpan = document.createElement("div");
+        valSpan.textContent = s;
+        pill.appendChild(valSpan);
+        line.appendChild(pill);
+      });
+      cell.appendChild(line);
+
+      const arrow = document.createElement("div");
+      arrow.className = "traj-arrow";
+      arrow.textContent = "▸ open critique";
+      cell.appendChild(arrow);
+
+      grid.appendChild(cell);
+    }
+    pane.appendChild(grid);
+
+    while (contentPane.firstChild) contentPane.removeChild(contentPane.firstChild);
+    contentPane.appendChild(pane);
+    contentPane.scrollTop = 0;
+  }
+
+  function renderCritiquePlaceholder(id) {
+    const [personaKey, round] = id.split("-");
+    const p = PERSONAS[personaKey];
+    const ri = ROUND_INFO[round];
+    const scores = p[round];
+
+    const pane = document.createElement("div");
+    pane.className = "critique-pane";
+
+    const header = document.createElement("div");
+    header.className = "crit-header";
+    const tag = document.createElement("span");
+    tag.className = `crit-tag ${round}` + (p.held ? " held" : "");
+    tag.textContent = ri.label;
+    header.appendChild(tag);
+    const name = document.createElement("h1");
+    name.className = "crit-name";
+    name.textContent = p.name;
+    header.appendChild(name);
+    const arch = document.createElement("div");
+    arch.className = "crit-archetype";
+    arch.textContent = p.archetype + (p.held ? " · HELD-OUT" : "");
+    header.appendChild(arch);
+    pane.appendChild(header);
+
+    const scoreGrid = document.createElement("div");
+    scoreGrid.className = "crit-scores";
+    const labels = ["UX","Gestalt","Appeal"];
+    const classes = ["ux","gestalt","appeal"];
+    scores.forEach((s, i) => {
+      const card = document.createElement("div");
+      card.className = `crit-score ${classes[i]}`;
+      const lb = document.createElement("div");
+      lb.className = "crit-score-label";
+      lb.textContent = labels[i];
+      card.appendChild(lb);
+      const val = document.createElement("div");
+      val.className = "crit-score-value";
+      val.textContent = s;
+      const max = document.createElement("span");
+      max.className = "max";
+      max.textContent = "/10";
+      val.appendChild(max);
+      card.appendChild(val);
+      if (round !== "r1") {
+        const prevRound = round === "r2" ? "r1" : "r2";
+        const delta = s - p[prevRound][i];
+        const d = document.createElement("div");
+        d.className = "crit-score-delta " + (delta > 0 ? "up" : delta < 0 ? "down" : "flat");
+        d.textContent = (delta > 0 ? "+" : "") + delta + " vs " + prevRound;
+        card.appendChild(d);
+      }
+      scoreGrid.appendChild(card);
+    });
+    pane.appendChild(scoreGrid);
+
+    const note = document.createElement("div");
+    note.className = "crit-callout";
+    const noteLbl = document.createElement("div");
+    noteLbl.className = "crit-callout-label";
+    noteLbl.textContent = "Critique pending";
+    note.appendChild(noteLbl);
+    const noteP = document.createElement("p");
+    noteP.textContent = "Full critique text is being added in incremental file updates. Scores above are final and authoritative. Use the persona's trajectory view or the iteration synthesis report (in the Reports section) to see the analysis summarized.";
+    note.appendChild(noteP);
+    pane.appendChild(note);
+
+    while (contentPane.firstChild) contentPane.removeChild(contentPane.firstChild);
+    contentPane.appendChild(pane);
+  }
+
+  // Initial build
+  rebuildCritiqueList();
+
+  // Quick-card click on welcome screen
+  document.querySelectorAll(".qc[data-iframe]").forEach(qc => {
+    qc.addEventListener("click", () => {
+      showIframe(qc.dataset.iframe, qc.dataset.title, "Quick");
+    });
+  });
+  document.querySelectorAll(".qc[data-persona]").forEach(qc => {
+    qc.addEventListener("click", () => showPersona(qc.dataset.persona));
+  });
+</script>
+
+</body>
+</html>
