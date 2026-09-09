@@ -45,24 +45,29 @@
     "ground_percentile": 10
   },
 
+  "_editions_comment": [
+    "The page half of this check reads built PDFs, so it registers the editions",
+    "that are built -- one. The Book's typographic character is chosen by",
+    "\\pdedition's default in coordination-papers-mega-volume-preamble.tex, and",
+    "the canonical coordination-papers-mega-volume.pdf renders it; Swiss is the",
+    "central edition today. The maritime and technical drivers stay in the tree",
+    "and build on demand, but nothing publishes them, so registering them here",
+    "would ask this check to read a PDF no build produces -- and check_pages",
+    "treats a registered edition with no built PDF as a failure, correctly.",
+    "Making one of them central again is a one-line move in the preamble plus",
+    "the matching id and note below.",
+    "",
+    "The covers below are a separate register: their half measures the plate",
+    "files, which are all still in the tree, so it keeps guarding every",
+    "character's cover with no build at all."
+  ],
+
   "editions": [
     {
-      "id": "maritime",
+      "id": "swiss",
       "pdf": "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf",
       "scope": "every page with a plate",
-      "note": "Part openers bleed plates/part-N.jpg over the page and set the part title, blurb and chapter list on top; chapter openers cut their plate to the room the type leaves."
-    },
-    {
-      "id": "swiss",
-      "pdf": "website-v2/public/whitepaper/coordination-papers-mega-volume-swiss.pdf",
-      "scope": "every page with a plate",
-      "note": "The cover is full-bleed photomontage with the type at fixed TikZ coordinates; part plates take the room left below the type."
-    },
-    {
-      "id": "technical",
-      "pdf": "website-v2/public/whitepaper/coordination-papers-mega-volume-technical.pdf",
-      "scope": "every page with a plate",
-      "note": "The cover hangs its engraving from the foot of a drawing sheet and sets every line of type in the bare paper above it or in the title block below, so no line is measured here at all -- which is the point of registering it: if the plate is ever raised or the title block moved, a line would land on the engraving and this check would say so."
+      "note": "The central edition, rendered into the canonical Book PDF. The cover is full-bleed photomontage with the type at fixed TikZ coordinates; part plates take the room left below the type."
     }
   ],
 

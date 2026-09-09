@@ -359,7 +359,7 @@ const productRoutes: SiteMetadata[] = [
   metadata(
     '/whitepaper',
     'The Harbor, the Person, and the Economy',
-    'The Port Daddy whitepaper, read as one book: eight chapters in four parts on what has to stay coupled when software works while you are not watching, with every claim labelled by kind, worked examples, exercises, and proofs that run in CI. A free PDF, in three typographic editions.',
+    'The Port Daddy whitepaper, read as one book: eight chapters in four parts on what has to stay coupled when software works while you are not watching, with every claim labelled by kind, worked examples, exercises, and proofs that run in CI. A free PDF.',
     { section: 'whitepaper' },
   ),
   metadata(

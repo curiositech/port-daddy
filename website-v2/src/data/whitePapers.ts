@@ -211,13 +211,23 @@ export interface Textbook {
 export const TEXTBOOK = textbookJson as Textbook
 
 /**
- * A secondary typographic edition of the Book: same chapters, same
- * generated body/bibliography, a different driver root
- * (coordination-papers-mega-volume-<id-suffix>.tex sets \pdedition then
- * \input's the main root). `pages`/`sizeKb` are 0 until the edition's PDF
- * has actually been built at least once — check-whitepaper-metadata.ts
- * WARNs (not fails) while the file is missing, and `--fix` fills the real
- * numbers in from disk the first time it exists. Never hand-fill a guess.
+ * A secondary typographic edition of the Book, published alongside the
+ * canonical PDF: same chapters, same generated body/bibliography, a different
+ * driver root (coordination-papers-mega-volume-<id-suffix>.tex sets
+ * \pdedition then \input's the main root). `pages`/`sizeKb` are 0 until the
+ * edition's PDF has actually been built at least once —
+ * check-whitepaper-metadata.ts WARNs (not fails) while the file is missing,
+ * and `--fix` fills the real numbers in from disk the first time it exists.
+ * Never hand-fill a guess.
+ *
+ * Nothing is registered here today, and that is the point: the Book has one
+ * central edition (Swiss, set by \pdedition's default in
+ * coordination-papers-mega-volume-preamble.tex and rendered into the canonical
+ * coordination-papers-mega-volume.pdf), and the maritime and technical
+ * characters remain switchable but unbuilt. This registry describes what is
+ * published, so it describes one PDF. The shape stays because publishing a
+ * second edition beside the central one is one array entry plus one row in
+ * scripts/build-whitepapers.sh away.
  */
 export interface CollectedVolumeEdition {
   id: string
@@ -238,7 +248,11 @@ export interface CollectedVolume {
   pages: number
   sizeKb: number
   references: number
-  /** Alternate-typography editions built from the same sources; see coordination-papers-mega-volume-{swiss,technical}.tex. */
+  /**
+   * Alternate-typography editions published beside the canonical PDF, built
+   * from the same sources; see coordination-papers-mega-volume-{maritime,swiss,technical}.tex.
+   * Absent while the Book publishes only its central edition.
+   */
   editions?: CollectedVolumeEdition[]
 }
 
@@ -250,25 +264,11 @@ export const COLLECTED_VOLUME: CollectedVolume = {
   downloadUrl:
     'https://raw.githubusercontent.com/curiositech/port-daddy/main/website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
   date: TEXTBOOK.edition.date,
-  pages: 543,
-  sizeKb: 7789,
+  pages: 548,
+  sizeKb: 9502,
   references: 221,
-  editions: [
-    {
-      id: 'coordination-papers-mega-volume-swiss',
-      title: 'Swiss edition',
-      pdfPath: '/whitepaper/coordination-papers-mega-volume-swiss.pdf',
-      pages: 548,
-      sizeKb: 9503,
-    },
-    {
-      id: 'coordination-papers-mega-volume-technical',
-      title: 'Technical edition',
-      pdfPath: '/whitepaper/coordination-papers-mega-volume-technical.pdf',
-      pages: 544,
-      sizeKb: 7468,
-    },
-  ],
+  // No `editions` while the Book publishes only its central edition. See the
+  // CollectedVolumeEdition doc comment above.
 }
 
 /**

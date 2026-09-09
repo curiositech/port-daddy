@@ -131,9 +131,26 @@
 % watercolour plates), swiss (colour blocking, grotesk display, flat marks) and
 % technical (the Seventies manual: monoline ink, halftone, one warm accent,
 % drawing-sheet openers). A driver root sets \pdedition before \input-ing the
-% Book; without one, the Book is the maritime edition.
+% Book; without one, the Book takes the default set on the next line.
+%
+% Swiss is the central edition. The canonical artifact --
+% coordination-papers-mega-volume.pdf, the file every published link on the
+% site already points at -- renders Swiss because this default says so, which
+% is the whole of the switch: no path, no link and no registry entry moves
+% when the central edition changes, only this macro.
+%
+% Maritime and technical remain switchable and are NOT built for now. Their
+% driver roots (coordination-papers-mega-volume-{maritime,technical}.tex),
+% their plates and their branches in this preamble and in the root all stay in
+% the tree, so either one still builds by hand:
+%
+%   scripts/build-whitepapers.sh coordination-papers-mega-volume-maritime
+%
+% They are simply out of the default build list in scripts/build-whitepapers.sh
+% (see UNBUILT_EDITIONS there) and out of the published registry, because
+% nothing publishes them today.
 % ---------------------------------------------------------------------------
-\providecommand{\pdedition}{maritime}
+\providecommand{\pdedition}{swiss}
 \newif\ifpdmaritime\newif\ifpdswiss\newif\ifpdtechnical
 \makeatletter
 \edef\pd@ed{\pdedition}
