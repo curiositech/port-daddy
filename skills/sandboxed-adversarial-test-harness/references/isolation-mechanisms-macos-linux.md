@@ -19,8 +19,10 @@ host controller independent from arbitrary same-identity code.
 
 ## macOS: Virtualization.framework baseline
 
-For the first Mac-native lane, build a minimal Linux guest with Apple's
-Virtualization framework. Configure from absence:
+For the first Mac-native lane, use the Rust controller with a tiny signed,
+out-of-process Swift 6 helper over Apple's Virtualization framework. The helper
+mechanically applies a fixed profile; it does not decide policy, hold credentials,
+write receipts, or issue verdicts. Configure from absence:
 
 - `networkDevices = []`;
 - `directorySharingDevices = []`;
@@ -28,6 +30,13 @@ Virtualization framework. Configure from absence:
   names and tests it;
 - immutable boot and input storage plus a bounded disposable output disk; and
 - one explicitly configured socket device only if it is the typed broker transport.
+
+Keep the guest entropy device enabled. Deterministic scenarios replace time and
+randomness inside their fixture instead of weakening VM entropy. Test cooperative
+stop and externally forced termination as separate paths, and never reuse writable
+state after forced termination. Virtualization.framework save/restore is a boot
+optimization, not deterministic replay; defer it until cold-boot isolation,
+identity reseeding, socket teardown, and snapshot custody are proven.
 
 Apple documents `networkDevices` as the devices exposed to the guest and says its
 default value is an empty array. Network access is added by configuring a device;
@@ -69,6 +78,14 @@ guidance requires more than starting the VMM:
 - use an external overwatcher for wall-clock and controller failure; and
 - configure host packet filtering because Firecracker does not filter guest
   traffic before forwarding it to the TAP device.
+
+The initial profile has no virtual NIC at all. Use one bounded per-run vsock
+endpoint for the typed broker protocol, verify cgroup v2 membership after launch,
+and keep one run globally until teardown and accounting invariants survive hostile
+tests. Drydock orchestrates a pinned upstream Firecracker/Jailer pair; it does not
+fork or reimplement the VMM. Firecracker snapshots remain deferred because they
+contain sensitive, version-coupled runtime state and do not provide deterministic
+replay.
 
 Primary sources:
 

@@ -13,6 +13,7 @@
 
 | Finding | Evidence class | Result |
 |---|---|---|
+| Rust controller release is signed outside the subject repository; Swift helper accepts one fixed profile | design artifact | Architecture selected; binaries and signatures do not exist |
 | VM manifest declares no network or directory-sharing devices | `HOST_OBSERVED` design artifact | Not yet instantiated or adversarially tested |
 | Submitted Jest config and transforms are staged as inert bytes and assigned to a second guest | `HOST_OBSERVED` design artifact | Runner image and implementation are not built |
 | Guest probe script expects canonical port failure | `GUEST_ASSERTED` planned test | Cannot prove host-route absence |
@@ -26,6 +27,10 @@ The planned internal reservation could bound broker protocol authority after it 
 implemented and crash-tested. The provider project is shared, its limit exceeds the
 run amount, and enforcement lag is unknown. T3 therefore cannot claim a fifty-cent
 financial-loss ceiling. Use fake/replay/local-model T0–T2 only.
+
+The first eventual T3 profile is one request and one attempt, with no tools,
+children, retry, automatic refill, or automatic breaker half-open. That profile is
+still denied here because the external loss bound is unproved.
 
 ## Required gates
 

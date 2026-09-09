@@ -1,13 +1,15 @@
 # Sandboxed Adversarial Test Harness / Drydock Safety Engineering
 
 This skill designs and audits laboratories for untrusted code, tests, daemons, and
-agent runtimes. It separates five proof domains that are often blurred:
+agent runtimes. It separates six proof domains that are often blurred:
 
-1. VM and host isolation.
-2. Typed I/O and capability brokering.
-3. Broker-authorized spend versus provider-enforced financial custody.
-4. Deterministic fault and schedule exploration.
-5. Sealed provenance and externally witnessed receipts.
+1. Trusted-language, process, package, and release boundaries.
+2. VM and host isolation.
+3. Typed I/O and capability brokering.
+4. Broker-authorized spend versus externally bounded financial loss, including
+   provider enforcement lag and overshoot.
+5. Deterministic fault and schedule exploration.
+6. Sealed provenance and externally witnessed receipts.
 
 The legacy JSON schema and `containment_audit.mjs` remain available for narrow T0
 policy-shape lint. Their `pass` result is not runtime containment evidence and does

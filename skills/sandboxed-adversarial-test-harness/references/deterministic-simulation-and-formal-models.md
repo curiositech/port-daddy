@@ -5,6 +5,19 @@ cancellation, distributed workers, spend ledgers, teardown, or recovery.
 
 ## Determinism is an input contract
 
+Make the product nucleus a pure transition:
+
+```text
+step(state, action, virtual_time, entropy_word)
+  -> (next_state, declared_effects)
+```
+
+Adapters perform only admitted declared effects and return typed observations for
+the next transition. Begin with one explicit event queue. Wall time, random IDs,
+sleep, filesystem outcomes, transport delivery, provider chunks, faults, and
+operator decisions are inputs rather than hidden calls. This keeps test schedulers
+and failpoint APIs out of the production authority path.
+
 A deterministic simulation records and controls every source that can change an
 execution:
 
@@ -55,6 +68,11 @@ liveness:
 The replay receipt adds the chosen schedule, generated values, event trace,
 counterexample, and minimization history.
 
+`virtualEpoch` is the sealed mapping from virtual time zero to a display timestamp.
+The virtual clock is the evolving integer offset from that epoch, represented in
+nanoseconds in the canonical schema. Advancing virtual time changes the offset,
+not `virtualEpoch`; wall-clock reads never rewrite either value.
+
 ## Safety and liveness
 
 Write both:
@@ -95,6 +113,12 @@ Use layers rather than one enormous state space:
 5. **Long soak:** deterministic seeds selected to maximize new states, not merely
    wall-clock duration.
 
+Use table tests and Proptest for the pure sequential state machine, Tokio paused
+time only where production code uses Tokio time, Loom for tiny synchronization
+primitives, Shuttle for larger sampled schedules, Turmoil for later Tokio network
+models, and TLA+ for a small abstract lease/budget/retry/teardown model. None of
+these substitutes for a real VM or SQLite crash witness.
+
 Loom can permute Rust concurrency-sensitive operations and reduce the explored
 state space, but only operations using Loom replacements are visible, and complex
 models still face combinatorial explosion. Use it for small concrete concurrency
@@ -117,6 +141,11 @@ At minimum include:
 - controller restart with live guest and guest restart with revoked controller state;
 - false guest PASS, wrong source digest, stale policy, and stale price catalog; and
 - two workers attempting the same capability, balance, output path, or settlement.
+
+Include a stale-lease fencing case in the minimum suite: worker A holds generation
+`g`; its lease expires; worker B receives `g+1`; then A attempts completion,
+publication, or settlement. Every effect and charge carries holder identity plus
+the current generation. A job ID alone is not authority.
 
 Fault injection is not the oracle. Invariants and externally witnessed terminal
 states decide the outcome.

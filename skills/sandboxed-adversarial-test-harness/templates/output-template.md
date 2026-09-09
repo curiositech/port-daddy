@@ -20,6 +20,22 @@
 | Capability/effect/resource policy | | | | controller/broker |
 | Provider/model/price profile | | | | broker |
 
+## Language, Process, Package, And Release Boundary
+
+| Component | Language/runtime | Process identity | Package/release | Network/secrets | Positive authority | Negative authority only |
+|---|---|---|---|---|---|---|
+| Controller/core | | | | | | |
+| Watchdog | | | | | | |
+| Provider broker | | | | | | |
+| Platform VM helper/VMM | | | | | | |
+| Trial Basin | | | | | | |
+| Switchboard | | | | | | |
+| Observatory | | | | | | |
+
+- Subject repository can build/replace/sign its judge: [yes/no + proof]
+- Offline package contains provider adapter or credential loader: [yes/no + proof]
+- Cross-process protocol version, frame limit, and rejection fixtures: [evidence]
+
 ## Trusted Computing Base
 
 | Component | Trusted for | Outside subject control? | Evidence | Residual |
@@ -64,8 +80,9 @@ Explicitly untrusted: [subject, dependencies, tests, guest, agent, output, input
 ### Financial-loss ceiling
 
 - Isolated provider account/project/key/payment rail: [evidence or ABSENT]
-- Provider-enforced balance/quota: [amount]
-- Measured enforcement tolerance: [amount and test evidence]
+- Dedicated external cell's configured limit: [amount]
+- Documented and measured enforcement tolerance: [amount and test evidence]
+- Maximum financial exposure = configured limit + tolerance: [amount]
 - Existing/unsettled exposure in that custody domain: [amount]
 - Eligible for T3: [yes/no; no when any proof is absent]
 
@@ -79,6 +96,35 @@ gross_deposits + authorized_credits
 
 List every transition vector, crash point, duplicate, retry, hold, credit, and
 reconciliation outcome.
+
+### Fail-cheap controls
+
+| Control | Sealed value | External witness | Failure state |
+|---|---|---|---|
+| Requests / total attempts / concurrency | | | |
+| Tools / children / recursive work | | | |
+| Automatic retry / refill / half-open | | | |
+| Absolute deadline propagation | | | |
+| Durable breaker and unresolved exposure | | | |
+| Receipt-storage reserve | | | |
+
+For the first T3 canary, the only acceptable values are one request, one attempt,
+concurrency one, zero tools, zero children, zero retries, and no automatic refill.
+
+## Durable State And Recovery
+
+| Concern | Authority/store | Crash or corruption behavior | Receipt/evidence |
+|---|---|---|---|
+| approvals and one-shot grants | | | |
+| reservations and settlement | | | |
+| lease holder + fencing generation | | | |
+| breaker and uncertain calls | | | |
+| teardown and orphan recovery | | | |
+| segment roots, blobs, retention, compaction | | | |
+
+- SQLite resolved path and single-writer proof: [evidence]
+- WAL/FULL transaction and migration probe: [evidence]
+- backup/restore, integrity, chain, and conservation proof: [evidence]
 
 ## Trial Basin Scenario
 
@@ -108,6 +154,21 @@ reconciliation outcome.
 | `MODEL_CHECKED` | | | | |
 | `REPLAYED` | | | | |
 | `HUMAN_APPROVED` | | | | |
+
+## Operator Controls And Evidence Zoom
+
+| Goal | Maximum actions | Command/receipt terminal state | Exact evidence target |
+|---|---:|---|---|
+| understand whether this run can spend | 0 | | |
+| cut egress | 1 | | |
+| kill guest | 1 | | |
+| inspect warning/activity | 2 | | |
+| export receipt | 2 | | |
+
+- Mutation UI is separate from rich read-only evidence UI: [yes/no + proof]
+- Honest stale/offline/unknown state: [evidence]
+- Reduced-motion meaningful-activity indicator: [evidence]
+- Visual manifest covers active/historical/blocked/stale/approval/kill/recovery: [evidence]
 
 ## Counterclaims and Residual Risks
 

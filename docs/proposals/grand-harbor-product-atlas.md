@@ -12,6 +12,20 @@
 
 **Authority note:** Port Daddy was deliberately kept off while this document was prepared. No daemon, Fleet, agent, workflow, `pd` command, or live roadmap mutation was used. Registry identities below are carried forward from previously verified receipts and are not claimed as a fresh live read.
 
+**Projection note:** This Atlas is a narrative projection over the two authorities
+declared in [`docs/roadmap/AUTHORITY.md`](../roadmap/AUTHORITY.md): the
+`roadmap_items` registry for machine/gate truth and the canonical narrative
+roadmaps for execution-order storytelling. It joins work by slug. It does not
+reconcile, supersede, or mutate either authority, and a status written here cannot
+advance a registry row.
+
+**Projection note:** This Atlas is a narrative projection over the two authorities
+declared in [`docs/roadmap/AUTHORITY.md`](../roadmap/AUTHORITY.md): the
+`roadmap_items` registry for machine/gate truth and the canonical narrative
+roadmaps for execution-order storytelling. It joins work by slug. It does not
+reconcile, supersede, or mutate either authority, and a status written here cannot
+advance a registry row.
+
 ### Synthesis input provenance
 
 This Atlas distinguishes source material from source-of-truth evidence. Off-repository inputs do not silently become canonical merely because their language appears here.
@@ -285,6 +299,18 @@ A prompt-level budget, an environment variable containing a limit, or a daemon-m
 
 - **Drydock** is the external containment boundary. It controls compute, filesystem, process lifetime, network, credentials, and spend.
 - **Trial Basin** is the scenario runner inside that boundary. It supplies deterministic providers, recorded traces, adversarial workloads, evaluation rubrics, and promotion evidence.
+
+Trial Basin is also the execution harness for the proof and empirical work in the
+[Coordination Papers Research and Implementation Program](../roadmap/whitepaper-research-program.md),
+not a second research program or registry. That program owns the questions and
+claim-to-artifact discipline; Trial Basin executes admitted scenarios and returns
+result cards that may support, narrow, or falsify a claim.
+
+Trial Basin is also the execution harness for the proof and empirical work in the
+[Coordination Papers Research and Implementation Program](../roadmap/whitepaper-research-program.md),
+not a second research program or registry. That program owns the questions and
+claim-to-artifact discipline; Trial Basin executes admitted scenarios and returns
+result cards that may support, narrow, or falsify a claim.
 
 Port Daddy can be the test subject. It cannot own either layer.
 

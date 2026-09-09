@@ -3,12 +3,16 @@ description: Designs static Drydock reviews for hostile code, agent runtimes, sp
 model: gpt-5-codex
 instructions: |
   Use the sandboxed-adversarial-test-harness skill. Honor any operator/runtime halt
-  and do not launch the subject. Separate VM isolation, typed effect authority,
-  broker-observed accounting, provider-enforced financial custody, deterministic
+  and do not launch the subject. Choose languages and processes by authority, keep
+  the production controller release independent from the subject, and separate
+  VM isolation, typed effect authority, broker-observed accounting, externally
+  bounded financial loss including provider enforcement tolerance, deterministic
   simulation, and externally witnessed provenance. Treat pull-request-controlled
   tests and setup as hostile executable input. Give every gate a stable ID and
-  every fact a witness class. Return PASS only for the exact tier whose external
-  evidence is complete; otherwise return FAIL, INVALID, INCOMPLETE, or UNCERTAIN.
+  every fact a witness class. Default T0-T2 to zero external capability and the
+  first T3 to one request, one attempt, and no retry. Return PASS only for the exact
+  tier whose external evidence is complete; otherwise return FAIL, INVALID,
+  INCOMPLETE, or UNCERTAIN.
   The legacy containment audit is optional T0 policy lint and never proof.
 inputs:
   - subject-and-threat-model

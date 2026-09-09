@@ -20,13 +20,28 @@ An internal ledger proves the first claim. It does not prove the second. API
 credentials, OIDC, output-token limits, rate limits, usage dashboards, alerts, and
 post-hoc reconciliation do not become financial custody by being combined.
 
-OpenAI's current documentation is a useful warning: configured organization and
-project spend limits are described as hard limits, but changes and enforcement are
-not instantaneous and recorded spend can slightly exceed them. A Drydock provider
-profile must therefore measure a conservative tolerance rather than promising an
-exact zero-overshoot cutoff.
+Current provider controls illustrate why this separation is mandatory:
 
-Primary source: [OpenAI: Troubleshooting API usage and spend limits](https://help.openai.com/en/articles/6614457).
+| Control | Documented behavior | Drydock classification |
+|---|---|---|
+| OpenAI enforced spend limit | enforcement and changes are not instantaneous; recorded spend can exceed the configured amount | outer stop with measured overshoot, not exact per-run custody |
+| OpenAI prepaid balance | processed usage may appear as a negative balance after exhaustion | delayed outer stop, not exact custody |
+| Cloudflare AI Gateway spend limit | eventually consistent; a concurrent burst may exceed the limit; cost is a best-effort estimate | useful gateway stop, not exact custody |
+| Anthropic monthly spend cap | requests pause when the organization or configured limit is reached | candidate outer stop; dedicated account/cell and completion overshoot still require proof |
+| AWS Budgets | cost data generally refreshes only a few times per day | observability and delayed action, never a request-time cap |
+
+A Drydock profile must include a conservative finite tolerance supported by current
+documentation and a dedicated-cell probe. If no finite bound can be established,
+the financial-loss ceiling is unknown and T3 is denied; the system must not hide
+that uncertainty in a large “safety margin.”
+
+Primary sources:
+
+- [OpenAI: API usage and spend limits](https://help.openai.com/en/articles/6614457)
+- [OpenAI: prepaid billing](https://help.openai.com/en/articles/8264644)
+- [Cloudflare AI Gateway spend limits](https://developers.cloudflare.com/ai-gateway/features/spend-limits/)
+- [Anthropic API rate and spend limits](https://platform.claude.com/docs/en/api/rate-limits)
+- [AWS Budgets update cadence](https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-managing-costs.html)
 
 ## Broker admission authority
 
@@ -91,6 +106,8 @@ Example: deposit 10; reserve 5 gives `available=5`, `outstanding=5`. Release giv
 
 ## Crash, retry, and concurrency rules
 
+- The first real-provider canary permits one request and one attempt. A network,
+  provider, parsing, timeout, or reconciliation failure ends it without a retry.
 - Reservation, dispatch intent, and idempotency key commit atomically before any
   provider byte is sent.
 - One idempotency key identifies one logical provider operation and one terminal
@@ -105,6 +122,14 @@ Example: deposit 10; reserve 5 gives `available=5`, `outstanding=5`. Release giv
   bound to the exact request/account/time window.
 - A controller restart reconstructs reservations and dispatch state from durable
   records before accepting new work.
+- Timeout after any provider byte may have been written leaves the full reservation
+  stranded and opens a durable breaker. Time alone never re-arms it.
+
+Retries are a later capability, not a resilience default. Before enabling even one,
+prove that one layer owns retry, provider SDK retries are disabled, all attempts are
+pre-reserved, the operation is idempotent, and the remaining absolute deadline can
+contain the whole attempt. Auth, permission, invalid input, stale pricing/custody,
+unknown-commit, receipt, and billing-limit failures never retry.
 
 Model these transitions under duplicate messages, crash between every pair of
 writes, delayed provider responses, cancellation races, and two concurrent actors.
@@ -140,5 +165,8 @@ If any item is unknown, mark `financialCustody: unproven` and deny the real lane
 - provider-reported usage/invoice evidence and discrepancies; and
 - whether the result proves protocol authority only or financial loss as well.
 
-Use `cost-verification-auditor` for post-run price and usage reconciliation. It
-cannot retroactively create pre-run custody.
+Post-run reconciliation is a required capability, not a hard dependency on one
+named skill or tool. If `cost-verification-auditor` is available, it may guide the
+review; otherwise the provider profile must implement and independently review the
+same receipt fields. Its absence cannot waive the gate, and no post-run audit can
+retroactively create pre-run custody.

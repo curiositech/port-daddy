@@ -12,6 +12,7 @@ stays out of unrelated implementation or ordinary test work.
 | “Prove a model canary can never bill more than fifty cents, including retries and delayed provider usage.” | Activate | Requires broker accounting, provider custody, and enforcement-tolerance analysis. |
 | “Build deterministic crash and cancellation races for reservation, dispatch, cancel, and settlement, with exact replay.” | Activate | Requires Trial Basin deterministic simulation and safety/liveness guidance. |
 | “What receipts prove a guest had no route to my daemon and that its patch came from the exact admitted commit?” | Activate | Requires host-observed isolation and sealed provenance/witness classification. |
+| “Should the dry-dock controller be Rust, Swift, or TypeScript, and how do we keep its offline build incapable of spending?” | Activate | Language, process, packaging, and spend authority are part of the external TCB. |
 
 ## Negative activation queries
 

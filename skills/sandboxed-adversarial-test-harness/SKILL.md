@@ -4,7 +4,7 @@ description: >-
   Designs and audits Drydock-style hostile-execution laboratories for untrusted,
   AI-authored, or pull-request-controlled code, including VM isolation, brokered I/O,
   provider spend custody, deterministic simulation, sealed provenance, external receipts,
-  and promotion gates. Use before a daemon, agent, test suite, build, or skill may touch
+  trusted-language/process selection, fail-cheap controls, and promotion gates. Use before a daemon, agent, test suite, build, or skill may touch
   real machines, networks, credentials, providers, repositories, or money. NOT for running
   the hostile workload, treating same-UID guards as containment, routine correctness tests,
   agent training, or implementing a provider integration without a separately reviewed
@@ -91,6 +91,7 @@ not start the daemon, UI, agent backend, test suite, workflow, or provider canar
 
 | Question | Required expertise | Load |
 |---|---|---|
+| Which language and process may hold each authority? | TCB minimization, cross-language protocol, release independence, fail-cheap packaging | `references/implementation-language-and-fail-cheap-controls.md` |
 | What belongs outside the adversary's control? | TCB design, virtualization, kernel isolation, device topology | `references/isolation-mechanisms-macos-linux.md` |
 | Can any effect bypass the broker? | Capability security, protocol framing, network and artifact mediation | `references/isolation-mechanisms-macos-linux.md` |
 | Can the bill exceed the operator's consent? | Integer accounting, concurrency, provider quota semantics, reconciliation | `references/spend-custody-and-accounting.md` |
@@ -142,6 +143,19 @@ List the transitive closure of components trusted to enforce or report the claim
 The subject, its dependencies, its tests, and its agent are untrusted. The controller,
 broker, signing key, ledger, halt state, and final verdict must be outside the guest
 and inaccessible from guest-writable storage. Minimize this set.
+
+While an operator halt is active, this skill can produce static D0 design and
+validation only. Every dynamic tier is `NOT_PROVISIONED` or `BLOCKED`, never PASS.
+Building D1 in a separate Drydock project needs its own later authorization; the
+existence of this skill does not authorize execution of the subject.
+
+Choose implementation languages by authority, not fashion. The Drydock default is
+a Rust controller/watchdog/broker/transition core, a tiny out-of-process Swift
+Virtualization.framework adapter on macOS, upstream Firecracker plus a Rust adapter
+on Linux, and a read-only TypeScript/React evidence viewer. Rust reduces
+memory-unsafe TCB risk; it does not supply isolation. Read
+`references/implementation-language-and-fail-cheap-controls.md` before adding a
+language, process, provider adapter, database writer, UI mutation path, or retry.
 
 ### 3. Choose isolation by adversary strength
 
@@ -306,6 +320,29 @@ custody plus measured enforcement lag bounds actual financial loss.
 **Timeline:** Works in mocks, then delayed usage reporting, concurrent requests, or
 quota propagation allows overshoot.
 
+### One Language Everywhere
+
+**Novice:** Rewrites the controller, Apple adapter, UI, guest, and subject in Rust
+and calls the result safer.
+
+**Expert:** Keeps one Rust implementation for trusted state and receipt logic,
+uses a mechanical Swift helper for Apple's native VM API, confines rich web UI to
+read-only evidence, and measures every process/channel added to the TCB.
+
+**Timeline:** A uniform prototype feels elegant, then unsafe FFI, duplicated native
+policy, or a WebView command bridge quietly becomes the broadest authority path.
+
+### Presentation As Containment
+
+**Novice:** Treats a gallery, `chroot`, `sandbox-exec`, or a same-UID wrapper as
+evidence that hostile code was contained.
+
+**Expert:** Uses the gallery only to inspect evidence, labels fixtures honestly,
+and requires an approved external controller's host receipt for containment.
+
+**Timeline:** The specimen looks boxed in while its process can still inherit host
+paths, hooks, credentials, sockets, or network authority.
+
 ### Guest-Declared Billing Inputs
 
 **Novice:** Trust `inputTokens`, `inputBytes`, or `maxOutput` in the guest request.
@@ -339,6 +376,7 @@ observed fields, isolation, and downstream verification.
 
 | File | Load When |
 |---|---|
+| `references/implementation-language-and-fail-cheap-controls.md` | Selecting languages/processes, separating offline and canary packages, designing durable state, retries, UI authority, or a release-independent TCB. |
 | `references/isolation-mechanisms-macos-linux.md` | Choosing VM, microVM, device, network, filesystem, kernel, and process boundaries. |
 | `references/spend-custody-and-accounting.md` | Designing broker reservation, provider custody, settlement, refunds, retries, or real canaries. |
 | `references/deterministic-simulation-and-formal-models.md` | Designing Trial Basin seeds, virtual time, faults, schedule exploration, safety, and liveness. |
@@ -355,7 +393,8 @@ observed fields, isolation, and downstream verification.
 
 - `SKILL.md`: activation, decision process, evidence classes, tiers, and anti-patterns.
 - `README.md` and `CHANGELOG.md`: bundle orientation and version history.
-- `references/`: isolation, spend, simulation, provenance, and adversarial recipes.
+- `references/`: implementation language, fail-cheap controls, isolation, spend,
+  simulation, provenance, and adversarial recipes.
 - `templates/output-template.md`: integrated review artifact.
 - `tests/activation.md`: five positive and five negative activation prompts.
 - `examples/`: abbreviated legacy and Drydock examples.
