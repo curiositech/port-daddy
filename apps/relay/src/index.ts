@@ -150,6 +150,7 @@ import {
   handleAudit,
 } from './handlers.js';
 import { handleGithubWebhook } from './github-webhook.js';
+import { handleRepoShips } from './repo-ships-page.js';
 import { handleProvisionFleetExecutor } from './fleet-executor-identity.js';
 import { handleRunReport } from './run-report.js';
 import { recordSloSample } from './mercy-hooks.js';
@@ -660,6 +661,9 @@ export default {
     }
     // Per-repo agent settings screen (session + GitHub repo ACL; the sitrep
     // dial lives here; src/repo-settings-page.ts).
+    else if ((pathname === '/account/ships' && method === 'GET') || (pathname === '/account/ships/set' && method === 'POST')) {
+      response = await handleRepoShips(request, env);
+    }
     else if (pathname === '/account/repos' && method === 'GET') {
       response = await handleRepoSettingsPage(request, env);
     }
