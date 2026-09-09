@@ -1,0 +1,51 @@
+{
+  "incident": "PR #10104 was force-landed without a pre-effect adjudication receipt",
+  "source": "operator report plus local Git merge object",
+  "evidence": {
+    "kind": "local-git-merge-object",
+    "commit": "02a10b2848a1d8c53f39e42f652c0bc2595617b4",
+    "parents": [
+      "07d76bf66a1827fe9825874762ab1f1d4b974ee0",
+      "9397df5eb4814e613b749f0ab3ef8ae776ea59f7"
+    ]
+  },
+  "proposal": {
+    "schema": "pd.agent-harbor.action-proposal.v0",
+    "actionId": "act_pr_10104_force_merge",
+    "actionClass": "repository.merge",
+    "operation": "merge.pull-request",
+    "subject": {
+      "actorId": "operator:erichowens",
+      "bodyId": null,
+      "sessionId": null,
+      "executionEnvelopeDigest": null
+    },
+    "target": {
+      "kind": "github.pull-request",
+      "id": "port-daddy#10104",
+      "scopeDigest": "sha256:e07c0561c551b4d66de0177dcf887ee74f1bce60bd0bbfdbcd5bf1a5af55d902"
+    },
+    "parametersDigest": "sha256:ac6365be4135dff2cb96aafe2151328f81466b006021fd57639f6c986020d1d5",
+    "policyInputDigest": "sha256:e3c9e8eaaa48b4c4cd90cd73834a4e31aa9fcf211eebaca4ccdf4436b6dd3400",
+    "requestedAt": "2026-09-08T07:35:00.000Z",
+    "expiresAt": "2026-09-08T07:40:00.000Z"
+  },
+  "adjudication": null,
+  "effect": {
+    "schema": "pd.agent-harbor.effect-receipt.v0",
+    "effectId": "eff_pr_10104_force_merge",
+    "actionDigest": "sha256:6c199dbe8c18cbafc74d3038066cd1bf1bc10085f5769807202dddcebf46368b",
+    "adjudicationDigest": null,
+    "effect": {
+      "kind": "github.pull-request.merged",
+      "targetDigest": "sha256:e07c0561c551b4d66de0177dcf887ee74f1bce60bd0bbfdbcd5bf1a5af55d902",
+      "resultDigest": "sha256:407ea047c87db10f26fbf15ecb31222ad1ac78d2a1738bd6d48885860ebf75ee"
+    },
+    "witness": {
+      "observedBy": "github-api",
+      "evidenceDigest": "sha256:34e04ff6345824d9184d20f62b72efd0599fd0e7fd8f271698ab928f8b92728f"
+    },
+    "occurredAt": "2026-09-08T07:36:08.000Z"
+  },
+  "expectedStatus": "bypass-unadjudicated"
+}
