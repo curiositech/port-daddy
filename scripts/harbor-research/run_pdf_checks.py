@@ -23,7 +23,7 @@ add it to PER_PDF_CHECKS.
 
 Usage:
     python3 scripts/harbor-research/run_pdf_checks.py --pdf-dir DIR
-    python3 scripts/harbor-research/run_pdf_checks.py --pdf-dir DIR --expect 3
+    python3 scripts/harbor-research/run_pdf_checks.py --pdf-dir DIR --expect 1
     python3 scripts/harbor-research/run_pdf_checks.py PDF [PDF ...]
 
 Exit 1 if handed no PDFs to check (a check that can pass having checked
@@ -36,9 +36,13 @@ open. "No PDFs at all" already fails; "two of the three editions" did not,
 and read as a pass over whichever edition went missing -- the same shape of
 fail-open as the green cover-band that had checked nothing, one edition
 narrower. The caller knows the count (whitepaper-build.yml uploads exactly
-the three editions it names, if-no-files-found: error), so it can say it,
-and tests/unit/pdf-reader-pins.test.js keeps the number it says equal to
-the number the upload step lists.
+the editions it names, if-no-files-found: error), so it can say it, and
+tests/unit/pdf-reader-pins.test.js keeps the number it says equal to the
+number the upload step lists. That number is 1 today: the Book has one
+central edition -- whichever character \\pdedition defaults to in
+coordination-papers-mega-volume-preamble.tex, rendered into the canonical
+coordination-papers-mega-volume.pdf -- and the other two characters are
+switchable but not built.
 """
 from __future__ import annotations
 
