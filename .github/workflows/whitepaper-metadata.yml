@@ -116,7 +116,7 @@ jobs:
             "build(whitepaper): carry the derived metadata"*)
               echo "HEAD is already a heal commit — nothing to do."; exit 0;;
           esac
-          # `|| true` is load-bearing, not laziness: --fix returns 1 when it
+          # `|| true` is required, not laziness: --fix returns 1 when it
           # found nothing to rewrite, which is the ordinary already-in-sync
           # case, so without it this step would fail on every clean run. It
           # does mean a real failure inside --fix is swallowed here too. That
