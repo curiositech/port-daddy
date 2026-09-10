@@ -133,7 +133,10 @@ async function runSpark(opts: {
 function sandboxExecResult(exitCode: number, output: string) {
   return {
     exitCode,
-    stdout: `__PD_PURSER_TEST_STARTED__\n${output}`,
+    stdout: `__PD_PURSER_TEST_STARTED__\n${output}\n__PD_PURSER_JEST_SUMMARY__:` + btoa(JSON.stringify({
+      numTotalTests: 1, numPassedTests: exitCode === 0 ? 1 : 0, numFailedTests: exitCode === 0 ? 0 : 1,
+      numFailedTestSuites: exitCode === 0 ? 0 : 1, numRuntimeErrorTestSuites: 0, success: exitCode === 0,
+    })),
     stderr: '',
   };
 }
@@ -252,7 +255,8 @@ describe('stack proposals — guards degrade honestly (no PR, transcript note)',
     await runSpark({
       db,
       sandbox: {
-        exec: async () => sandboxExecResult(1, 'FAIL src/fix 1 failed'),
+        exec: async (command: string) => command.includes('__PD_PURSER_TEST_STARTED__')
+          ? sandboxExecResult(1, 'FAIL src/fix 1 failed') : { exitCode: 0, stdout: '' },
       },
     });
     expect(state.stackedPrs).toHaveLength(0);

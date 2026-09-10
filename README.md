@@ -900,6 +900,13 @@ Two model layers: `--codex-model` / `--codex-effort` / `--codex-config key=value
 
 ## ⛴ Fleet Engine (Declarative Agent Orchestration)
 
+Purser's [review workflow and rollout limits](docs/operations/purser-workflow-repair.md)
+require an exact-head source checkout before fresh authoring, bounded file inspection,
+and actual test-case results before publishing a test branch above the implementation.
+Missing capabilities, harness errors, and branch collisions stop publication and request
+operator attention. This source change is not evidence of deployment; the operator's
+Port Daddy shutdown order remains in force.
+
 Declare your background agent fleet in `pd-fleet.yml` — like docker-compose for AI agent swarms. The daemon auto-discovers and starts fleets in known repos on boot; no terminal to keep open.
 
 ```yaml
