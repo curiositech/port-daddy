@@ -1,4 +1,4 @@
-#!/usr/bin/env zsh
+#!/bin/sh
 # =============================================================================
 # Port Daddy Post-Commit Hook
 # =============================================================================
@@ -8,11 +8,11 @@
 # =============================================================================
 
 PORT_FILE="${PORT_DADDY_PORT_FILE:-$HOME/.port-daddy/daemon.port}"
-if [[ -n "${PD_URL:-}" ]]; then
+if [ -n "${PD_URL:-}" ]; then
   PORT_DADDY_BASE="$PD_URL"
-elif [[ -n "${PORT_DADDY_URL:-}" ]]; then
+elif [ -n "${PORT_DADDY_URL:-}" ]; then
   PORT_DADDY_BASE="$PORT_DADDY_URL"
-elif [[ -f "$PORT_FILE" ]]; then
+elif [ -f "$PORT_FILE" ]; then
   PORT_DADDY_BASE="http://localhost:$(tr -d '[:space:]' < "$PORT_FILE")"
 else
   PORT_DADDY_BASE="http://localhost:9876"
@@ -20,7 +20,9 @@ fi
 
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 PROJECT_SLUG=$(basename "$PROJECT_ROOT" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g' | cut -c1-24)
-PROJECT_HASH=$(printf '%s' "$PROJECT_ROOT" | shasum -a 256 | cut -c1-12)
+# shasum is Perl's, sha256sum is coreutils'. Plenty of machines have only one,
+# and an empty hash silently collapses every checkout onto a single channel.
+PROJECT_HASH=$(printf '%s' "$PROJECT_ROOT" | { shasum -a 256 2>/dev/null || sha256sum 2>/dev/null; } | cut -c1-12)
 CHANNEL="project:${PROJECT_SLUG:-project}:${PROJECT_HASH}:git:committed"
 
 SHA=$(git rev-parse --short HEAD 2>/dev/null)
@@ -42,7 +44,7 @@ curl -s -X POST "${PORT_DADDY_BASE}/msg/${CHANNEL}" \
 # fails a commit (the fan-out is gitignored machine-local state).
 # Manual: npm run skills:sync  ·  Drift check: npm run skills:sync:check
 if git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | grep -q '^skills/'; then
-  if command -v npx >/dev/null 2>&1 && [[ -f "$PROJECT_ROOT/scripts/sync-skills.ts" ]]; then
+  if command -v npx >/dev/null 2>&1 && [ -f "$PROJECT_ROOT/scripts/sync-skills.ts" ]; then
     ( cd "$PROJECT_ROOT" && npx tsx scripts/sync-skills.ts --scope project --quiet >/dev/null 2>&1 & )
   fi
 fi

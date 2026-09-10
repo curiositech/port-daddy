@@ -143,6 +143,8 @@ function checkCi(ci, label) {
 const FORMAL_EXTENSIONS = /\.(?:tla|cfg|z3|smt2|pv|ec|spthy|als|thy)$/iu;
 const EXCLUDED_DIR_NAMES = new Set(['node_modules', '.git', '.claude', '.cache']);
 
+const EVIDENCE_POLICY_MAX = 500;
+
 const formalArtifactIds = new Set();
 const registeredFormalPaths = new Set();
 const registeredKaniHarnesses = new Set(); // "path::harnessName"
@@ -167,6 +169,23 @@ for (const artifact of corpus.formalArtifacts ?? []) {
     }
   }
   checkCi(artifact.ci, label);
+
+  // An evidencePolicy is not free prose: generate-mega-mechanized.mjs sets it
+  // verbatim into one ~133 pt column of the "Mechanized claims" appendix
+  // table, and a longtable row cannot break across a page. An 856-character
+  // policy written during the .pv rehoming produced a single row 617 pt tall
+  // that ran 63.9 pt past the text block's foot and printed six lines over
+  // the running foot in all three editions -- caught only by page_overflow.py
+  // on the built PDF, which is a slow way to learn that a sentence was too
+  // long. The cap is measured, not guessed: the cell renders at roughly
+  // 0.72 pt of height per character, so 500 characters is about 360 pt --
+  // half a page, which is as much of a table as one row should ever take.
+  if (typeof artifact.evidencePolicy === 'string' && artifact.evidencePolicy.length > EVIDENCE_POLICY_MAX) {
+    fail(
+      `${label}: evidencePolicy is ${artifact.evidencePolicy.length} characters; the appendix table's `
+      + `column cannot break a row across a page, so keep it to ${EVIDENCE_POLICY_MAX} or move the detail into prose`,
+    );
+  }
 }
 
 // 3a. Every formal-extension file outside the excluded dirs must be declared.

@@ -249,6 +249,7 @@ import {
   handleRepoSettingsRemove,
   handleRepoSettingsApi,
 } from './repo-settings-page.js';
+import { handleRegisterPage, handleRegisterApi } from './work-register.js';
 import { handleShipwrightPage } from './shipwright-page.js';
 import {
   handleShipwrightChat,
@@ -675,6 +676,18 @@ export default {
     // Device-facing read path for per-repo settings (pdu_ bearer or cookie).
     else if (pathname === '/v1/repo-settings' && method === 'GET') {
       response = await handleRepoSettingsApi(request, env);
+    }
+    // The Harbor Work Register: who is on what, for the agents sharing a repo.
+    // The page is session + GitHub repo ACL and refreshes the registry cache on
+    // every visit; the JSON paths also take a pdu_ device bearer, which is how
+    // an agent coordinates without carrying a GitHub credential of its own.
+    // The register owns occupancy only — what work EXISTS stays the roadmap
+    // registry's to say, and this Worker never writes it (src/work-register.ts).
+    else if (pathname === '/account/register' && method === 'GET') {
+      response = await handleRegisterPage(request, env);
+    }
+    else if (pathname.startsWith('/v1/register/')) {
+      response = await handleRegisterApi(request, env);
     }
     // Billing storefront (session + GitHub installation ownership; ADR-0116).
     else if (pathname === '/account/billing' && method === 'GET') {

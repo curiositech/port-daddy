@@ -1,6 +1,8 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 @import "./styles/tokens.css";
+@import "./styles/signal-flags.css";
+@import "./styles/deck.css";
 
 @theme inline {
   /* ── Port Daddy custom color tokens ──────────────────────────────────────── */
@@ -147,6 +149,27 @@ h3 {
 h1 { line-height: 1.1; }
 h2 { line-height: 1.2; }
 h3 { line-height: 1.3; }
+
+/* The rule above is an element selector, so it beats inheritance: a heading
+   inside a container that paints its own ground still takes --text-primary
+   and prints ink on ink. That is invisible in a component test and obvious
+   on the page — every panel head and every part band the library deck draws
+   was near-black on a saturated block. A container that sets its own
+   background and foreground marks itself `on-block`, and its headings go
+   back to inheriting the foreground it chose. */
+.on-block :is(h1, h2, h3) { color: inherit; }
+
+/* Theme-paired plates. The cut-paper set is photographed twice — warm studio
+   light on cream, low-key with a cool rim on near-black — because a light-lit
+   subject on a near-black page reads as a hole in it. Both images are in the
+   DOM and CSS picks, so the swap is not a state change: no flash on first
+   paint, nothing in the JS path, and the browser only fetches the visible one
+   because the hidden one is display:none before layout. The site stamps
+   data-theme before paint (see lib/theme.tsx and the inline script in
+   index.html), so keying on the attribute alone is sound here. */
+.plate-dark { display: none; }
+[data-theme='dark'] .plate-light { display: none; }
+[data-theme='dark'] .plate-dark { display: block; }
 
 @layer utilities {
   .tracking-tight,

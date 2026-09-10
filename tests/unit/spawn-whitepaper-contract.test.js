@@ -35,9 +35,10 @@ const publicationPdfs = [
   'website-v2/public/whitepaper/anchor-protocol-whitepaper.pdf',
   'website-v2/public/whitepaper/agent-transactions-whitepaper.pdf',
   'website-v2/public/whitepaper/federated-harbor-whitepaper.pdf',
+  // One published Book. Which typographic character it carries is set by
+  // \pdedition's default in the preamble (Swiss today); the maritime and
+  // technical drivers remain switchable, are not built, and publish nothing.
   'website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
-  'website-v2/public/whitepaper/coordination-papers-mega-volume-swiss.pdf',
-  'website-v2/public/whitepaper/coordination-papers-mega-volume-technical.pdf',
 ];
 
 function publicationDigests() {
@@ -228,12 +229,9 @@ describe('Spawn-to-Person publication contract', () => {
     // digests live now that the PDFs are regenerated per edition.
     // The proof manifest is a frozen record of the first-edition review
     // (August 2026, seven chapters plus the Book); the Sealed Harbor chapter
-    // and the Book's Swiss and technical editions postdate it and are bound by
-    // publication-digests.json alone.
+    // postdates it and is bound by publication-digests.json alone.
     const postdatesReview = [
       'sealed-harbor-whitepaper.pdf',
-      'coordination-papers-mega-volume-swiss.pdf',
-      'coordination-papers-mega-volume-technical.pdf',
     ];
     const firstEditionPdfs = publicationPdfs.filter(
       (artifact) => !postdatesReview.some((suffix) => artifact.endsWith(suffix)),

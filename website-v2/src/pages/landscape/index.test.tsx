@@ -23,7 +23,7 @@ describe('Landscape page', () => {
     ).toBeTruthy()
   })
 
-  test('comparison table has all five tools and a "Composes with PD?" column', () => {
+  test('comparison table has all five tools and a "works with Port Daddy" column', () => {
     render(
       <MemoryRouter>
         <LandscapePage />
@@ -37,7 +37,10 @@ describe('Landscape page', () => {
     expect(tableContent).toContain('Claude Code Task')
     expect(tableContent).toContain('ccswarm')
     expect(tableContent).toContain('Jury-rig')
-    expect(tableContent).toMatch(/Composes with PD\?/i)
+    // The column header used to read "Composes with PD?". The plain-language
+    // copy pass rewrote it, and the shorthand went with it -- what the column
+    // has to keep is the question, not the jargon.
+    expect(tableContent).toMatch(/Works with Port Daddy\?/i)
     // Honest-comparison footnote
     expect(tableContent).toMatch(/None of these are competitors/i)
   })
