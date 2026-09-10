@@ -316,6 +316,51 @@ is a real red you cannot fix unilaterally (missing secrets, infra outage).
 Operator, 2026-06-11: "Why are you waiting on me? Why do I have to tell
 every Claude this?" — don't be the Claude that has to be told.
 
+### Base `main`. Do not stack PRs onto feature branches.
+
+**Open every PR against `main`.** A PR whose base is another feature branch is
+not shipped when it merges — it is moved one branch sideways, and GitHub tells
+its author "Merged" either way. That badge is the whole problem: it retires the
+work from everyone's attention while leaving it outside the product.
+
+The measurement that produced this rule (2026-09-10, over the whole repository):
+1,255 PRs have merged in this repo's life. **99 of them merged into a base other
+than `main`, and 72 of those 99 are from the last five weeks** — the practice is
+accelerating. Testing every one of the 72 against `main` twice, by patch-id
+(`git cherry`, which survives squash and rebase) and by whether the files it
+added exist on `main` at all, **six** are confirmed absent from the product
+today, one of them for over a month. Four more sit in a single branch that is
+233 commits ahead of `main` and has never merged. Meanwhile **917 branches are
+alive** in the remote, 138 of them `purser/`.
+
+So:
+
+- **Base every PR on `main`.** If your change genuinely depends on unmerged
+  work, say so in the body and wait for that work to land, or carry the
+  dependency as a commit in your own branch. Waiting is cheaper than a merged
+  PR nobody can find.
+- **Never retarget a PR onto a branch that is not `main`** — not to satisfy a
+  bot, not to stack a test contract underneath it, not for review convenience.
+  A tool that wants to retarget your PR is asking you to hide it.
+- **"Merged" is not "shipped."** Before you record a PR as done, in a note, a
+  ledger row, a changelog fragment or a reply: check that its base was `main`,
+  or that its base has itself reached `main`. `git cherry origin/main <head>`
+  answers it — every line starting `+` is a commit that is NOT in `main`.
+- **If you find yourself merging into a long-lived integration branch,** that
+  branch is now a second `main` with none of `main`'s protections and no one
+  watching whether it lands. Merge it or delete it; do not let it accumulate.
+
+The same discipline applies to the two failure modes that hide a PR from its
+own author. Before claiming a PR is ready, ready to re-queue, or done:
+
+1. **Every review thread is RESOLVED, not merely replied to.** A reply
+   satisfies `pr-comments-guard` (it only asks who spoke last) and still leaves
+   the merge blocked. Enumerate the threads and check `is_resolved` on each.
+2. **Re-check for conflicts against the base after every push to it.** A
+   conflict against a moving base emits no webhook and no notification; it is
+   silent until someone tries to merge. `git merge-tree --write-tree
+   origin/main <head>` answers it in one command.
+
 **Two PR-body checks are REQUIRED and fail closed — fill them in or the PR is
 bounced (it cannot enter the merge queue):**
 
