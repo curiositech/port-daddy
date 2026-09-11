@@ -2,6 +2,7 @@ import SwiftUI
 
 struct FleetProposalSection: View {
     @ObservedObject var store: FleetProposalStore
+    var criticalBlockTitle: String? = nil
     @Environment(\.openURL) private var openURL
 
     @State private var rejectingId: String?
@@ -12,6 +13,9 @@ struct FleetProposalSection: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Fleet.Space.l) {
                 header
+                if let blockReason {
+                    CriticalAttentionBanner(reason: blockReason)
+                }
                 pendingCard
                 recentCard
 
@@ -23,6 +27,13 @@ struct FleetProposalSection: View {
         }
         .background(Fleet.Chrome.popoverBackground)
         .task { await store.refresh() }
+    }
+
+    private var blockReason: String? {
+        CriticalAttentionGate.blockReason(
+            for: .assignProposal,
+            criticalTitle: criticalBlockTitle
+        )
     }
 
     private var header: some View {
@@ -190,6 +201,7 @@ struct FleetProposalSection: View {
                     Spacer()
 
                     Button {
+                        guard blockReason == nil else { return }
                         Task { await store.approve(id: proposal.id) }
                     } label: {
                         Label("Yes, Assign", systemImage: "checkmark.circle.fill")
@@ -203,6 +215,9 @@ struct FleetProposalSection: View {
                             .foregroundStyle(.white)
                     }
                     .buttonStyle(.plain)
+                    .disabled(blockReason != nil)
+                    .opacity(blockReason == nil ? 1 : 0.48)
+                    .help(blockReason ?? "")
 
                     Button {
                         if rejectingId == proposal.id {

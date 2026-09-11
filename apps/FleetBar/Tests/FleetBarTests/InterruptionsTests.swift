@@ -54,6 +54,20 @@ final class InterruptionsStoreTests: XCTestCase {
         XCTAssertLessThanOrEqual(request.timeoutInterval, 10)
     }
 
+    func testRelayPollDoesNotDependOnLocalDaemonAvailability() async {
+        var requestedHosts: [String] = []
+        StubURLProtocol.handler = { request in
+            requestedHosts.append(request.url?.host ?? "")
+            return StubURLProtocol.Stub(status: 200, body: Self.emptyEnvelope)
+        }
+        let store = makeStore()
+
+        await store.refresh()
+
+        XCTAssertEqual(requestedHosts, ["relay.example"])
+        XCTAssertEqual(store.phase, .open([]))
+    }
+
     func testHealthyPollDelayIsFullJitterWithinThirtySeconds() {
         var samples: [TimeInterval] = []
         for _ in 0..<200 {
@@ -160,6 +174,63 @@ final class InterruptionsStoreTests: XCTestCase {
             ),
         ]))
         XCTAssertNil(high.criticalSpawnBlockTitle)
+    }
+
+    func testFailedRefreshPreservesLastKnownCriticalGate() async {
+        var succeeds = true
+        StubURLProtocol.handler = { _ in
+            if succeeds {
+                return StubURLProtocol.Stub(status: 200, body: Self.twoAskEnvelope)
+            }
+            return StubURLProtocol.Stub(status: 503, body: Data())
+        }
+        let store = makeStore()
+
+        await store.refresh()
+        XCTAssertEqual(store.criticalSpawnBlockTitle, "Sandbox missing — provision one")
+
+        succeeds = false
+        await store.refresh()
+        guard case .unknown = store.phase else { return XCTFail("failed poll must remain unknown") }
+        XCTAssertEqual(store.criticalSpawnBlockTitle, "Sandbox missing — provision one")
+    }
+
+    func testAccountChangeWakesParkedPollAndUsesReplacementCredential() async {
+        var account = OperatorAccount(
+            token: "pdu_old", relayUrl: "https://old-relay.example", login: "operator"
+        )
+        var oldRequests = 0
+        let replacementPolled = expectation(description: "replacement account polled")
+        StubURLProtocol.handler = { request in
+            if request.url?.host == "old-relay.example" {
+                oldRequests += 1
+                return StubURLProtocol.Stub(status: 401, body: Data())
+            }
+            XCTAssertEqual(request.url?.host, "new-relay.example")
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer pdu_new")
+            replacementPolled.fulfill()
+            return StubURLProtocol.Stub(status: 200, body: Self.emptyEnvelope)
+        }
+        let store = InterruptionsStore(
+            autoStart: false,
+            session: StubURLProtocol.makeSession(),
+            loadAccount: { account }
+        )
+        defer { store.stop() }
+
+        await store.refresh()
+        XCTAssertEqual(store.consecutiveFailures, InterruptionsStore.parkedFailures)
+
+        account = OperatorAccount(
+            token: "pdu_new", relayUrl: "https://new-relay.example", login: "operator"
+        )
+        store.accountDidChange()
+        await fulfillment(of: [replacementPolled], timeout: 1)
+        for _ in 0..<10 where store.phase != .open([]) { await Task.yield() }
+
+        XCTAssertEqual(oldRequests, 1)
+        XCTAssertEqual(store.phase, .open([]))
+        XCTAssertEqual(store.consecutiveFailures, 0)
     }
 
     func testSpawnApprovalApproveIsDisabledWithReasonWhileCriticalAskOpen() throws {
@@ -335,6 +406,9 @@ final class InterruptionsStoreTests: XCTestCase {
 
         let inspected = try InterruptionsSection(store: store).inspect()
         XCTAssertNoThrow(try inspected.find(text: "Status unknown — not signed in."))
+        XCTAssertNoThrow(try inspected.find(text: "Connect your account in FleetBar so operator asks can surface here."))
+        XCTAssertNoThrow(try inspected.find(button: "Open Account Settings"))
+        XCTAssertThrowsError(try inspected.find(text: "Run pd account login so operator asks can surface here."))
         XCTAssertThrowsError(try inspected.find(text: "No open operator asks."))
     }
 
@@ -366,32 +440,30 @@ final class InterruptionsStoreTests: XCTestCase {
     // MARK: Account file
 
     func testAccountFileLoadReadsTokenAndTrimsRelaySlash() throws {
-        let dir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("fleetbar-interruptions-tests", isDirectory: true)
+        let dir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("coding/tmp/fleetbar-interruptions-tests-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let file = dir.appendingPathComponent("account.json")
-        let json = "{ \(Self.q)token\(Self.q): \(Self.q)pdu_abc\(Self.q), \(Self.q)login\(Self.q): \(Self.q)erich\(Self.q), \(Self.q)relayUrl\(Self.q): \(Self.q)https://relay.example/\(Self.q) }"
+        let token = "pdu_" + String(repeating: "a", count: 64)
+        let json = "{ \(Self.q)token\(Self.q): \(Self.q)\(token)\(Self.q), \(Self.q)login\(Self.q): \(Self.q)erich\(Self.q), \(Self.q)relayUrl\(Self.q): \(Self.q)https://relay.example/\(Self.q) }"
         try json.data(using: .utf8)!.write(to: file)
-        defer { try? FileManager.default.removeItem(at: file) }
+        defer { try? FileManager.default.removeItem(at: dir) }
 
-        let account = OperatorAccountFile.load(from: file, environment: [:])
-        XCTAssertEqual(account?.token, "pdu_abc")
+        let account = OperatorAccountFile.load(from: file)
+        XCTAssertEqual(account?.token, token)
         XCTAssertEqual(account?.relayUrl, "https://relay.example")
         XCTAssertEqual(account?.login, "erich")
-
-        // PD_ACCOUNTS_RELAY_URL wins over the stored relay, like the CLI.
-        let overridden = OperatorAccountFile.load(
-            from: file,
-            environment: ["PD_ACCOUNTS_RELAY_URL": "https://staging.example/"]
-        )
-        XCTAssertEqual(overridden?.relayUrl, "https://staging.example")
     }
 
     func testAccountFileLoadReturnsNilWithoutAToken() {
-        let missing = FileManager.default.temporaryDirectory
-            .appendingPathComponent("fleetbar-interruptions-tests-none", isDirectory: true)
+        let missing = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("coding/tmp/fleetbar-interruptions-tests-none", isDirectory: true)
             .appendingPathComponent("absent.json")
-        XCTAssertNil(OperatorAccountFile.load(from: missing, environment: [:]))
+        XCTAssertNil(OperatorAccountFile.load(from: missing))
+    }
+
+    func testAccountFileUsesCanonicalPublicRelay() {
+        XCTAssertEqual(OperatorAccountFile.defaultRelay, "https://relay.portdaddy.dev")
     }
 
     // MARK: Fixtures
