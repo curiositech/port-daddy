@@ -24,7 +24,7 @@ const {
   renderSkillGraftContext,
   renderSkillSearchResults,
 } = await import('../../lib/skill-graft.js');
-const { porterStem, tokenizeAndStem, bm25Rank } = await import('../../lib/skill-graft-bm25.js');
+const { porterStem, tokenizeAndStem, bm25Rank, buildBm25SkillCorpus } = await import('../../lib/skill-graft-bm25.js');
 const { createTool2VecStore, computeCentroid, getOrBuildCentroid } = await import('../../lib/skill-graft-tool2vec.js');
 
 const __dir = dirname(fileURLToPath(import.meta.url));
@@ -142,6 +142,11 @@ describe('createSkillGraftIndex().search', () => {
     const result = await graft.search('parquet columnar olap analytics duckdb');
 
     expect(result.semanticTier).toBe('hybrid');
+    expect(result.lexicalCorpus).toMatchObject({
+      documentCount: 2,
+      documentSchema: 'skill-name-description-category-tags-v1',
+      statisticsScope: 'current-deduplicated-skill-catalog',
+    });
     expect(result.shortlist[0].id).toBe('duckdb-analytics');
     expect(result).not.toHaveProperty('top');
     for (const entry of result.shortlist) {
@@ -585,6 +590,34 @@ describe('bm25Rank', () => {
   test('an empty query returns no results', () => {
     const skills = [{ id: 'a', name: 'a', description: 'anything', category: '', tags: [], sourcePath: '', contentHash: '1' }];
     expect(bm25Rank('   ', skills)).toEqual([]);
+  });
+
+  test('publishes the exact stable corpus used for TF/DF statistics', () => {
+    const first = { id: 'a', name: 'Alpha', description: 'database pooling', category: 'Data', tags: ['postgres'], sourcePath: '', contentHash: '1' };
+    const second = { id: 'b', name: 'Beta', description: 'browser checks', category: 'Test', tags: ['playwright'], sourcePath: '', contentHash: '2' };
+    const forward = buildBm25SkillCorpus([first, second]).descriptor;
+    const reversed = buildBm25SkillCorpus([second, first]).descriptor;
+
+    expect(forward).toMatchObject({
+      documentCount: 2,
+      documentSchema: 'skill-name-description-category-tags-v1',
+      statisticsScope: 'current-deduplicated-skill-catalog',
+      tokenizer: 'lowercase-alphanumeric-porter-v1',
+      k1: 1.2,
+      b: 0.75,
+    });
+    expect(forward.corpusId).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(forward.documentFrequencyDigest).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(forward.averageDocumentLength).toBeGreaterThan(0);
+    expect(forward.vocabularySize).toBeGreaterThan(0);
+    expect(reversed).toEqual(forward);
+  });
+
+  test('changes corpus identity when indexed skill metadata changes', () => {
+    const base = { id: 'a', name: 'Alpha', description: 'database pooling', category: 'Data', tags: [], sourcePath: '', contentHash: '1' };
+    const changed = { ...base, description: 'browser automation' };
+    expect(buildBm25SkillCorpus([base]).descriptor.corpusId)
+      .not.toBe(buildBm25SkillCorpus([changed]).descriptor.corpusId);
   });
 });
 

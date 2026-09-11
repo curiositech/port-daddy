@@ -60,6 +60,16 @@ test('pd jury-rig search emits metadata-only JSON for a local skill catalog', as
   const body = JSON.parse(logs.join('\n'));
   expect(body.scannedCount).toBe(2);
   expect(body.semanticTier).toBe('lexical-only');
+  expect(body.lexicalCorpus).toMatchObject({
+    documentCount: 2,
+    documentSchema: 'skill-name-description-category-tags-v1',
+    statisticsScope: 'current-deduplicated-skill-catalog',
+    tokenizer: 'lowercase-alphanumeric-porter-v1',
+    k1: 1.2,
+    b: 0.75,
+  });
+  expect(body.lexicalCorpus.corpusId).toMatch(/^sha256:[a-f0-9]{64}$/);
+  expect(body.lexicalCorpus.documentFrequencyDigest).toMatch(/^sha256:[a-f0-9]{64}$/);
   expect(body.shortlist[0].id).toBe('fleet-test-author');
   expect(body).not.toHaveProperty('top');
   expect(JSON.stringify(body)).not.toContain('# fleet-test-author');

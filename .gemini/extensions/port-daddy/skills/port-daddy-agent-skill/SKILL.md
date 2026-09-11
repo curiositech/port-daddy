@@ -1185,7 +1185,7 @@ pd jury-rig reference <skill-id> <path>   # guarded read inside that skill
 
 Default reflexes:
 
-- **Before every meaningful task** — one `pd jury-rig search` call. It returns metadata only. Graft a selected skill only when its full guidance is needed, then load only the references the task needs.
+- **Before every meaningful task** — one `pd jury-rig search` call. It returns metadata only, plus a compact receipt identifying the exact deduplicated skill corpus used for BM25 TF/DF. Graft a selected skill only when its full guidance is needed, then load only the references the task needs.
 - **When you find yourself reasoning about a domain you don't own** — the catalog has a skill for that. Search.
 - **When a skill would help on this project long-term** — install it into the project's `.claude/skills/` and leave a `pd note` recording the install.
 - **When you used a skill and it was wrong / stale** — that's a Maintain-These-Skills moment (next section).

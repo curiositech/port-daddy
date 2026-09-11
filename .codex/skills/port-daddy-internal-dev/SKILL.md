@@ -675,7 +675,10 @@ pd jury-rig graft "<the thing you're about to do>"  # only when full guidance is
 pd jury-rig reference <skill-id> <path-within-skill>
 ```
 
-**Before every contributor slice**, one search. Examples that have paid off:
+**Before every contributor slice**, one search. The result's `lexicalCorpus`
+receipt identifies the exact deduplicated skill metadata corpus used for BM25
+TF/DF without injecting its term table or any skill body. Examples that have
+paid off:
 
 - Editing the daemon's lock-acquire path? `pd jury-rig search "distributed lock semantics"` surfaces the closest local metadata.
 - Adding a new MCP tool description? `pd jury-rig search "MCP tool description writing"` surfaces `mcp-creator` when installed.

@@ -84,7 +84,10 @@ import {
 } from './shipwright/skill-index.js';
 import { containPath, PathEscapeError } from './fleet/path-guard.js';
 import type { LLMClient } from './llm-call.js';
-import { bm25Rank } from './skill-graft-bm25.js';
+import {
+  buildBm25SkillCorpus,
+  type Bm25SkillCorpusDescriptor,
+} from './skill-graft-bm25.js';
 import { extractPairsWithTargets } from './skill-pairs-with.js';
 import {
   createLLMClientSyntheticQueryGenerator,
@@ -152,6 +155,8 @@ export interface SkillSearchResult {
   /** Total skills scanned across all roots (not just the shortlist size). */
   scannedCount: number;
   roots: SkillGraftRoot[];
+  /** Exact bounded receipt for the corpus and TF/DF statistics BM25 used. */
+  lexicalCorpus: Bm25SkillCorpusDescriptor;
   /** Cheap: id + description + similarity for up to `shortlistLimit` skills. */
   shortlist: SkillShortlistEntry[];
   /**
@@ -186,7 +191,7 @@ export interface SkillReferenceResult {
 }
 
 export interface SkillSearchOptions {
-  /** How many skills to include in the cheap shortlist. Default 10, capped at 50. */
+  /** How many skills to include in the cheap shortlist. Default and hard cap: 10. */
   shortlistLimit?: number;
 }
 
@@ -412,12 +417,20 @@ export function createSkillGraftIndex(options: SkillGraftOptions = {}): SkillGra
 
     const trimmed = query.trim();
     const shortlistLimit = clampSearchLimit(callOptions.shortlistLimit, defaultShortlistLimit);
+    const lexicalCorpus = buildBm25SkillCorpus(catalog);
 
     if (!trimmed) {
-      return { query, scannedCount: catalog.length, roots, shortlist: [], semanticTier: 'lexical-only' };
+      return {
+        query,
+        scannedCount: catalog.length,
+        roots,
+        lexicalCorpus: lexicalCorpus.descriptor,
+        shortlist: [],
+        semanticTier: 'lexical-only',
+      };
     }
 
-    const lexicalRank = bm25Rank(trimmed, catalog);
+    const lexicalRank = lexicalCorpus.rank(trimmed);
     let semanticRank: Tool2VecRankedEntry[] = [];
     if (centroidStore) {
       const [queryVector] = await embedder.embed([trimmed]);
@@ -450,6 +463,7 @@ export function createSkillGraftIndex(options: SkillGraftOptions = {}): SkillGra
       query,
       scannedCount: catalog.length,
       roots,
+      lexicalCorpus: lexicalCorpus.descriptor,
       shortlist,
       semanticTier: semanticRank.length > 0 ? 'hybrid' : 'lexical-only',
     };

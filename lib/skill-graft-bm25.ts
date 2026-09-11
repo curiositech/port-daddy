@@ -18,6 +18,7 @@
  * Stripping") is public-domain and small enough to implement directly.
  */
 
+import { createHash } from 'node:crypto';
 import type { SkillEntry } from './shipwright/skill-index.js';
 
 // ─── Tokenizer + Porter stemmer ─────────────────────────────────────────────
@@ -198,10 +199,34 @@ export function tokenizeAndStem(text: string): string[] {
 
 const K1 = 1.2;
 const B = 0.75;
+const DOCUMENT_SCHEMA = 'skill-name-description-category-tags-v1' as const;
+const TOKENIZER_SCHEMA = 'lowercase-alphanumeric-porter-v1' as const;
+const STATISTICS_SCOPE = 'current-deduplicated-skill-catalog' as const;
 
 interface Bm25Doc {
   id: string;
   tokens: string[];
+}
+
+export interface Bm25SkillCorpusDescriptor {
+  /** Hash of the scoring contract and every stemmed document in this corpus. */
+  corpusId: string;
+  /** One document per deduplicated skill returned by the live catalog scan. */
+  documentCount: number;
+  documentSchema: typeof DOCUMENT_SCHEMA;
+  statisticsScope: typeof STATISTICS_SCOPE;
+  tokenizer: typeof TOKENIZER_SCHEMA;
+  k1: number;
+  b: number;
+  averageDocumentLength: number;
+  vocabularySize: number;
+  /** Compact proof of the exact term -> document-frequency table used. */
+  documentFrequencyDigest: string;
+}
+
+export interface Bm25SkillCorpus {
+  descriptor: Bm25SkillCorpusDescriptor;
+  rank(query: string): Bm25RankedEntry[];
 }
 
 /** Combine name + description + category + tags into one lexical document
@@ -225,6 +250,60 @@ function buildCorpusStats(docs: Bm25Doc[]): { totalDocs: number; avgDocLen: numb
     totalDocs: docs.length,
     avgDocLen: docs.length > 0 ? totalLen / docs.length : 0,
     docFreq,
+  };
+}
+
+function digestJson(value: unknown): string {
+  return `sha256:${createHash('sha256').update(JSON.stringify(value)).digest('hex')}`;
+}
+
+/**
+ * Materialize the exact corpus behind BM25's TF/DF statistics. The caller's
+ * catalog has already been deduplicated by skill id; this stage creates one
+ * document per skill from name, description, category, and tags, then computes
+ * all statistics over that complete current scan. No hidden global corpus or
+ * previously persisted IDF table participates.
+ */
+export function buildBm25SkillCorpus(skills: readonly SkillEntry[]): Bm25SkillCorpus {
+  const docs: Bm25Doc[] = skills.map((skill) => ({
+    id: skill.id,
+    tokens: tokenizeAndStem(skillDocumentText(skill)),
+  }));
+  const stats = buildCorpusStats(docs);
+  const sortedDocuments = docs
+    .map((doc) => ({ id: doc.id, tokens: doc.tokens }))
+    .sort((a, b) => a.id.localeCompare(b.id));
+  const sortedDocumentFrequencies = [...stats.docFreq.entries()]
+    .sort(([left], [right]) => left.localeCompare(right));
+  const descriptor: Bm25SkillCorpusDescriptor = {
+    corpusId: digestJson({
+      documentSchema: DOCUMENT_SCHEMA,
+      tokenizer: TOKENIZER_SCHEMA,
+      k1: K1,
+      b: B,
+      documents: sortedDocuments,
+    }),
+    documentCount: stats.totalDocs,
+    documentSchema: DOCUMENT_SCHEMA,
+    statisticsScope: STATISTICS_SCOPE,
+    tokenizer: TOKENIZER_SCHEMA,
+    k1: K1,
+    b: B,
+    averageDocumentLength: stats.avgDocLen,
+    vocabularySize: stats.docFreq.size,
+    documentFrequencyDigest: digestJson(sortedDocumentFrequencies),
+  };
+
+  return {
+    descriptor,
+    rank(query: string): Bm25RankedEntry[] {
+      const queryTokens = tokenizeAndStem(query);
+      if (queryTokens.length === 0 || docs.length === 0) return [];
+      return docs
+        .map((doc) => ({ id: doc.id, score: scoreOne(queryTokens, doc, stats) }))
+        .filter((entry) => entry.score > 0)
+        .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
+    },
   };
 }
 
@@ -266,17 +345,5 @@ export interface Bm25RankedEntry {
  *   // → [{ id: 'postgres-connection-pooling', score: 4.1 }, ...]
  */
 export function bm25Rank(query: string, skills: readonly SkillEntry[]): Bm25RankedEntry[] {
-  const queryTokens = tokenizeAndStem(query);
-  if (queryTokens.length === 0 || skills.length === 0) return [];
-
-  const docs: Bm25Doc[] = skills.map((skill) => ({
-    id: skill.id,
-    tokens: tokenizeAndStem(skillDocumentText(skill)),
-  }));
-  const corpus = buildCorpusStats(docs);
-
-  return docs
-    .map((doc) => ({ id: doc.id, score: scoreOne(queryTokens, doc, corpus) }))
-    .filter((entry) => entry.score > 0)
-    .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
+  return buildBm25SkillCorpus(skills).rank(query);
 }
