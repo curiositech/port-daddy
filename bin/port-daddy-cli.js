@@ -46,10 +46,14 @@ function localRuntimeEnabled() {
 }
 
 const args = process.argv.slice(2);
-if (!(args.length === 1 && ['--help', '--version'].includes(args[0])) && !localRuntimeEnabled()) {
-  console.error('Port Daddy is Off or local control is unavailable. No CLI runtime was started.');
-  process.exit(1);
+const informationalOnly = args.length === 1 && ['--help', '--version'].includes(args[0]);
+function requireRuntimeAdmission() {
+  if (!informationalOnly && !localRuntimeEnabled()) {
+    console.error('Port Daddy is Off or local control is unavailable. No CLI runtime was started.');
+    process.exit(1);
+  }
 }
+requireRuntimeAdmission();
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const requireFromShim = createRequire(import.meta.url);
@@ -67,7 +71,9 @@ try {
   process.exit(1);
 }
 
-const child = spawn(process.execPath, ['--import', tsxLoader, cliScript, ...process.argv.slice(2)], {
+// Loader resolution must not leave an earlier On observation as launch authority.
+requireRuntimeAdmission();
+const child = spawn(process.execPath, ['--import', tsxLoader, cliScript, ...args], {
   stdio: 'inherit',
   env: process.env
 });

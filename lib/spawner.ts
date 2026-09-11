@@ -593,11 +593,13 @@ interface ChildRunOpts {
   timeout?: number;
   stdio?: ('ignore' | 'pipe')[];
   onChild?: (child: ChildProcess) => void;
+  beforeSpawn?: () => void;
 }
 
 function runChild(opts: ChildRunOpts): Promise<{ output: string; error: string | null; child: ChildProcess }> {
   return new Promise((resolve) => {
     const timeoutMs = typeof opts.timeout === 'number' && opts.timeout > 0 ? opts.timeout : null;
+    opts.beforeSpawn?.();
     const child = spawnChild(opts.cmd, opts.args, {
       cwd: opts.cwd || process.cwd(),
       env: opts.env as NodeJS.ProcessEnv,
@@ -706,6 +708,11 @@ interface ConfinedChildOpts {
 async function runConfinedChild(
   opts: ConfinedChildOpts,
 ): Promise<{ output: string; error: string | null; child: ChildProcess; coastGuardReceipt: CoastGuardReceipt }> {
+  const runtimeAllowed = createLocalRuntimeGate(opts.context?.runtimeAllowed);
+  const requireRuntimeAdmission = () => {
+    if (!runtimeAllowed()) throw new Error('Local Port Daddy is Off; child launch refused');
+  };
+  requireRuntimeAdmission();
   const cwd = opts.cwd ?? opts.spec.workdir;
   // Scope-tier write confinement (ADR-VI containment): derive the same priced
   // tier from the spawn's capabilities that the bond was priced on, so a
@@ -743,6 +750,8 @@ async function runConfinedChild(
       timeout: opts.timeout,
       stdio: opts.stdio,
       onChild: opts.context?.onChildProcess,
+      // Synchronous: an async witness callback is not the final effect boundary.
+      beforeSpawn: requireRuntimeAdmission,
     });
     return { ...res, coastGuardReceipt: cg.receipt() };
   } finally {
@@ -783,6 +792,8 @@ interface BackendRunResult {
 }
 
 interface BackendRunContext {
+  /** Private lifetime-latched Off observation, never supplied by a spawn request. */
+  runtimeAllowed?: () => boolean;
   /** Prevent a child launch if its managed lifecycle ended during sandbox setup. */
   signal?: AbortSignal;
   /** Private daemon witness check, repeated after asynchronous sandbox setup. */
@@ -856,6 +867,11 @@ async function runClaude(
 
   const sink = apiDeltaSink(context);
   try {
+    // The optional SDK import above yielded; do not authorize a paid request
+    // using the observation from before that await.
+    if (!createLocalRuntimeGate(context?.runtimeAllowed)()) {
+      throw new Error('Local Port Daddy is Off; provider request refused');
+    }
     const client = new (Anthropic as new (opts?: { apiKey?: string }) => {
       messages: {
         create(opts: Record<string, unknown>): Promise<{
@@ -1255,6 +1271,7 @@ async function runCliTube(
     workspaceIdentity: spec.nativeResume?.workspaceIdentity ?? spec.workspaceIdentity,
     signal: context?.signal,
     beforeChildLaunch: context?.beforeChildLaunch,
+    runtimeAllowed: context?.runtimeAllowed,
     // Live observability (ADR-0060): publish the exchange on the operator-
     // discoverable channel (dispatch:<id>) when both a channel and a tube client
     // are present. When `tubeChannel` is undefined, spawnViaCliTube falls back to
@@ -2868,6 +2885,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       } else {
         const childContext: BackendRunContext = {
           agentId,
+          runtimeAllowed,
           signal: record.lifecycleAbort.signal,
           beforeChildLaunch: async () => {
             await revalidateManagedWorktree?.();

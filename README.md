@@ -353,6 +353,9 @@ and deny new local work; shutdown receipts remain separate from the saved settin
 FleetBar orders task creation with its local Off latch and cancels tracked
 requests/streams when another app writes Off. Automatic appwatch and deferred
 packager starts honor the same markers; ordinary hooks and LFS stay installed.
+The CLI shim, final subprocess handoff and Fleet I/O bridge recheck Off after
+asynchronous preparation. Effects deferred inside individual provider/sink
+adapters remain an explicit unfinished boundary.
 Runtime admission, native visual proof, and outstanding adversarial findings are
 tracked explicitly; this is not a packaged or zero-spend guarantee. See
 [local Off controls and remaining work](docs/operations/local-off-control.md).

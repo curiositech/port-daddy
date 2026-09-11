@@ -167,14 +167,57 @@ The ten watcher cases plus 46 existing hook-gate cases pass together. Shell synt
 pass. No app, daemon, provider, service or real network socket was started. These
 are source/fixture results, not installed or independently contained runtime proof.
 
+### TypeScript admission follow-up (2026-09-11)
+
+The plain-JS package entry now rechecks Off after resolving its loader and before
+spawning the TypeScript CLI. The actual shim is evaluated against the typed
+control's filesystem fixtures in a VM with synthetic filesystem, process and
+module adapters; the installed CLI is never invoked by these tests.
+
+Both confined subprocess paths now repeat synchronous admission after their final
+asynchronous witness callback. The Claude SDK path also rechecks after its dynamic
+import, before credential access/request creation (source-reviewed, not a live
+provider test). A standalone CLI-tube adapter defaults to canonical controls and
+does not publish a new result message after observing Off.
+
+Fleet rechecks before declared output dispatch. Its I/O bridge checks before and
+after availability probes, before each sink invocation and between targets.
+Trigger startup likewise checks after availability, suppresses late callbacks,
+and stops handles returned after Off. Failed late cleanup is explicit and retains
+the handle for the engine's cleanup path; saving Off is not a shutdown receipt.
+The engine installs that cleanup closure before async-only trigger handles arrive,
+so later handle registration remains reachable from shutdown.
+
+Evidence for this slice: 53 synthetic tests across local-control/shim, spawner and
+I/O bridge suites, plus eight explicitly selected Fleet/Dispatch Off tests pass.
+The other 115 cases in those two legacy suites were excluded. The broad spawner,
+CLI-tube and Fleet I/O wiring suites were not run: their existing HOME/temp-dir,
+watcher or effect fixtures are outside this halt-safe validation path. All new
+child, sandbox, transport and trigger adapters are inert; no stop marker was
+removed and HOME was not changed. Ordinary full-project TypeScript checking could
+not resolve the worktree's absent dependencies; this is not a full build receipt.
+A static compiler-host comparison using the existing shared dependency declarations
+reported six diagnostics on both the unchanged branch baseline and this slice,
+with no added diagnostics and none in the four changed TypeScript source files.
+
+These are cooperative effect-admission checks. A filesystem write by another
+process is not atomic with a JavaScript check/spawn or a remote request. An
+already-admitted child/request is not recalled. Nor does the bridge mediate awaits
+inside every sink: in particular, Google Calendar's create-event path awaits an
+OAuth token inside `sink.dispatch` before its POST. Off during that await can
+still permit the already-admitted calendar effect. That effect-level gate remains
+unresolved, and the synthetic sink fixture is not evidence for the real adapter.
+
 Remaining adversarial gates:
 
 - Retain the limits of file-check versus effect races in shell scripts and
   already-running package-manager children; none is an external effect mediator.
 - Audit other installer/resurrection paths and dynamic app lanes; do not infer
   exhaustive supervisor coverage from the named appwatch fix.
-- Complete plain-JS shim parity and spawner race tests; check final
-  `dispatchAgentOutputs` admission and truthful watcher compliance on stop errors.
+- Close Google Calendar's OAuth-to-POST gap and audit other sink/provider awaits
+  at the actual effect boundary, beyond the now-guarded dispatch bridge.
+- Make runtime watcher compliance truthful on swallowed stop errors; retain
+  independently verifiable shutdown state rather than reporting Off as stopped.
 - Obtain full final-head builds, independent review of console/runtime changes,
   packaged no-start/no-egress proof, and actual native light/dark/keyboard evidence.
 

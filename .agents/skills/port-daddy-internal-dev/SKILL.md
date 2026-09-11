@@ -473,6 +473,15 @@ work; never reset or clobber the main checkout.
   markers. Watcher/packager checks are cooperative source gates, not process-tree
   containment or atomicity with external writes; preserve those limits in reports.
 
+  JavaScript admission must be synchronous at the actual effect call after every
+  awaited launch witness or availability probe. A check inside an async callback
+  is stale by the time its caller resumes; test that gap with a queued microtask
+  and inert adapters. Check standalone adapters as well as the parent runner.
+  A guarded sink invocation does not guard awaits inside that sink (for example,
+  OAuth refresh before a calendar POST); name those remaining effect boundaries.
+  Late trigger handles must be stopped, and a failed stop must remain visible
+  with its cleanup handle rather than turning the saved Off state into proof.
+
 - **Disabling PD hooks must not discard Git LFS publication.** If an authorized
   publisher disables all Git hooks, explicitly upload LFS objects reachable from
   its exact head before pushing pointers, using the same scoped repository
