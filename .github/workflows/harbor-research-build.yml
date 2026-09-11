@@ -7,11 +7,8 @@ name: Harbor Research PDF Build
 # Live dialects. No TeX toolchain exists in the interactive dev container;
 # this workflow is the only place these PDFs get rendered.
 #
-# Modes mirror whitepaper-build.yml:
-#   * feature-branch push / same-repo PR -> rebuild and COMMIT changed PDFs
-#     back onto the branch (self-healing).
-#   * main push -> rebuild and FAIL if a committed PDF is stale (main only
-#     receives fresh renders via merged PRs, which already healed themselves).
+# Every event rebuilds and verifies the committed PDFs. CI never advances a PR
+# branch: an artifact-only GITHUB_TOKEN commit would become an untested head.
 
 on:
   push:
@@ -33,16 +30,16 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: harbor-research-build-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
-    # Skipped jobs report success, so this advisory/healing workflow can never
-    # hang the merge queue — same reasoning as whitepaper-build.yml.
+    # Skipped jobs report success, so this path-specific verifier cannot hang
+    # the merge queue.
     if: github.event_name != 'merge_group'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -57,14 +54,33 @@ jobs:
 
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref || github.ref_name }}
+          # Bind the verdict to the SHA named by the check run. A branch-name
+          # checkout can silently test a newer push while reporting on an old SHA.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Trust the checkout dir (container runs as root)
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Render the harbor-research corpus
-        run: make -C docs/harbor-research docs
+        run: |
+          set -euo pipefail
+          # pdfTeX honors SOURCE_DATE_EPOCH for document dates and trailer IDs.
+          # Derive it from the latest actual renderer input, not HEAD: artifact
+          # commits and unrelated source commits must remain byte-identical.
+          SOURCE_DATE_EPOCH="$(git log -1 --format=%ct -- \
+            docs/harbor-research/tex \
+            docs/harbor-research/figures \
+            docs/harbor-research/Makefile)"
+          test -n "$SOURCE_DATE_EPOCH"
+          export SOURCE_DATE_EPOCH FORCE_SOURCE_DATE=1
+          make -C docs/harbor-research clean
+          make -C docs/harbor-research docs
+          hash_file="$RUNNER_TEMP/harbor-research-pdfs.sha256"
+          sha256sum docs/harbor-research/pdf/*.pdf > "$hash_file"
+          make -C docs/harbor-research clean
+          make -C docs/harbor-research docs
+          sha256sum --check "$hash_file"
 
       - name: Publish the seven papers + execution reports for the site
         run: |
@@ -74,52 +90,18 @@ jobs:
             cp "docs/harbor-research/pdf/$f.pdf" "website-v2/public/research/$f.pdf"
           done
 
-      - name: Commit rebuilt PDFs (same-repo branch)
-        if: >-
-          (github.event_name == 'push' && github.ref_name != 'main') ||
-          (github.event_name == 'pull_request' &&
-           github.event.pull_request.head.repo.full_name == github.repository)
-        env:
-          TARGET_BRANCH: ${{ github.head_ref || github.ref_name }}
-        run: |
-          set -euo pipefail
-          case "$(git log -1 --format=%s)" in
-            "build(harbor-research): regenerate PDFs from source"*)
-              echo "HEAD is already a build commit — nothing to do."; exit 0;;
-          esac
-          if [ -z "$(git status --porcelain --untracked-files=all -- docs/harbor-research/pdf/*.pdf website-v2/public/research/*.pdf)" ]; then
-            echo "PDFs already match source — nothing to commit."; exit 0
-          fi
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/harbor-research/pdf/*.pdf website-v2/public/research/*.pdf
-          echo "Changed PDFs:"; git diff --cached --stat
-          git commit -m "build(harbor-research): regenerate PDFs from source"
-          # The same race whitepaper-build already survives, and this job did
-          # not: the branch moves while the papers compile, so a bare push is
-          # rejected and the job reports red for a build that succeeded --
-          # exactly what happened at c11b5d073, where the PDFs were built and
-          # committed and the push lost to a source commit pushed meanwhile.
-          # Rebase the one PDF commit onto whatever arrived and try again, a
-          # few times, because the same race can be lost twice. No force: if
-          # the rebase cannot replay the commit, that is a real conflict over
-          # the PDFs and a person should see it.
-          for attempt in 1 2 3; do
-            if git push origin "HEAD:$TARGET_BRANCH"; then
-              echo "pushed the regenerated PDFs on attempt $attempt"; exit 0
-            fi
-            echo "push rejected (attempt $attempt) — the branch moved; rebasing onto it"
-            git fetch origin "$TARGET_BRANCH"
-            git rebase "origin/$TARGET_BRANCH" || {
-              git rebase --abort || true
-              echo "::error::the regenerated PDFs conflict with $TARGET_BRANCH and cannot be replayed automatically"
-              exit 1
-            }
-          done
-          echo "::error::could not push the regenerated PDFs after three attempts; the branch is moving faster than the papers build"
-          exit 1
+      - name: Preserve the exact render when freshness fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: harbor-research-render-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 1
+          path: |
+            docs/harbor-research/pdf/*.pdf
+            website-v2/public/research/*.pdf
 
-      - name: Freshness check (advisory on PRs, enforced on main)
+      - name: Freshness check
         if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref_name == 'main')
         run: |
           set -uo pipefail
@@ -127,11 +109,7 @@ jobs:
             echo "All in-scope harbor-research PDFs match a fresh render. ✔"; exit 0
           fi
           echo "Rendered PDFs differ from what's committed:"
-          git diff --stat -- 'docs/harbor-research/pdf/*.pdf' 'website-v2/public/research/*.pdf' || true
-          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_name }}" = "main" ]; then
-            echo "::error::main is serving stale harbor-research PDFs — a PR must carry"
-            echo "rebuilt PDFs (the feature-branch build commits them automatically)."
-            exit 1
-          fi
-          echo "::notice::Advisory only — PDFs are regenerated and committed on the"
-          echo "feature branch, so the merge carries fresh artifacts to main."
+          git diff --stat -- 'docs/harbor-research/pdf/*.pdf' 'website-v2/public/research/*.pdf'
+          echo "::error::committed harbor-research PDFs are stale — the change must carry"
+          echo "the rebuilt PDFs before this workflow can pass."
+          exit 1

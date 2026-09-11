@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""chapter_lint.py -- report a LaTeX chapter's structure against the
+r"""chapter_lint.py -- report a LaTeX chapter's structure against the
 textbook-craft template's floors.
 
 A DO-CONFIRM checklist (Gawande, references/canon.md), not a READ-DO
@@ -50,10 +50,10 @@ chapter paths and picks up a ninth chapter for free the day textbook.json
 gains one.
 
 Some floors are advisory: reported (status WARN when unmet) but never the
-reason --strict exits 1 -- today that is `exercises_at_chapter_end` (the
-Book's chapters have not been relocated to the template's chapter-end-only
-rule yet) and `chapter_opener_and_claim_labeling` (no chapter yet opens with
-an epigraph macro). Every other floor is blocking.
+reason --strict exits 1. These are corpus-wide template debt that predates the
+gate: worked examples per section, chapter-end exercise placement, claim-kind
+labels, the composite opener/claim-label rule, and complete close apparatus.
+The remaining floors are blocking.
 
 Exit code: 0 always, unless --strict is given and at least one BLOCKING
 floor is violated (then 1), or a chapter file cannot be found/read/parsed
@@ -530,6 +530,7 @@ def build_report(path: Path) -> ChapterReport:
     ]
     report.floors["worked_example_per_section"] = {
         "ok": not sections_with_zero_examples,
+        "advisory": True,
         "detail": (
             f"{len(sections_with_zero_examples)}/{len(top_sections)} top-level sections have zero "
             "worked examples (pdexample/example): "
@@ -574,6 +575,7 @@ def build_report(path: Path) -> ChapterReport:
     untagged = [c for c in claims if not c.tagged]
     report.floors["claims_carry_epistemic_kind"] = {
         "ok": not untagged,
+        "advisory": True,
         "detail": (
             f"{len(untagged)}/{len(claims)} claim-like environments (theorem/lemma/definition/"
             "property/corollary) carry no epistemic-kind tag INSIDE THEIR OWN BODY (pdclaim kind, "
@@ -674,6 +676,7 @@ def build_report(path: Path) -> ChapterReport:
     missing_close = [k for k, v in chapter_close.items() if not v["present"]]
     report.floors["chapter_close_apparatus"] = {
         "ok": not missing_close,
+        "advisory": True,
         "detail": (
             "missing: " + ", ".join(missing_close)
             if missing_close
@@ -810,6 +813,29 @@ def default_chapter_sources(repo_root: Path) -> list:
     return [repo_root / ch["source"] for ch in data["chapters"]]
 
 
+def unmet_advisory_keys(reports: list, repo_root: Path) -> list[str]:
+    """Stable repo-relative keys for acknowledged WARN rows."""
+    root = repo_root.resolve()
+    keys = []
+    for report in reports:
+        path = Path(report.path).resolve()
+        try:
+            rel = path.relative_to(root)
+        except ValueError:
+            rel = path
+        for name, floor in report.floors.items():
+            if floor.get("advisory") and not floor["ok"]:
+                keys.append(f"{rel}::{name}")
+    return sorted(keys)
+
+
+def compare_advisory_baseline(current: list[str], baseline: list[str]) -> tuple[list[str], list[str]]:
+    """Return (new debt, stale exceptions); both must fail CI."""
+    current_set = set(current)
+    baseline_set = set(baseline)
+    return sorted(current_set - baseline_set), sorted(baseline_set - current_set)
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("chapters", nargs="*", type=Path,
@@ -817,6 +843,8 @@ def main(argv=None) -> int:
     ap.add_argument("--json", action="store_true", help="Emit a JSON report instead of text")
     ap.add_argument("--md", action="store_true", help="Emit a markdown report instead of text")
     ap.add_argument("--strict", action="store_true", help="Exit 1 if any BLOCKING floor is violated (advisory floors never trigger this)")
+    ap.add_argument("--advisory-baseline", type=Path,
+                    help="Fail if WARN rows differ from this exact JSON list (new debt or stale exceptions)")
     ap.add_argument("--table", action="store_true", help="Force the one-table consolidated report even for a single chapter")
     ap.add_argument("--repo-root", type=Path, default=REPO_ROOT,
                      help="Repository root used to resolve the default chapter list (default: inferred from this script's location)")
@@ -860,6 +888,24 @@ def main(argv=None) -> int:
             print(render_md(report))
         else:
             print(render_text(report))
+
+    if args.advisory_baseline:
+        try:
+            baseline = json.loads(args.advisory_baseline.read_text(encoding="utf-8"))
+            if not isinstance(baseline, list) or not all(isinstance(item, str) for item in baseline):
+                raise ValueError("baseline must be a JSON array of strings")
+        except Exception as exc:  # noqa: BLE001
+            print(f"error: could not read advisory baseline: {exc}", file=sys.stderr)
+            return 2
+        added, resolved = compare_advisory_baseline(
+            unmet_advisory_keys(reports, args.repo_root), baseline
+        )
+        for key in added:
+            print(f"error: new advisory template debt: {key}", file=sys.stderr)
+        for key in resolved:
+            print(f"error: stale advisory exception (remove it): {key}", file=sys.stderr)
+        if added or resolved:
+            return 1
 
     any_blocking = any(is_blocking(f) for r in reports for f in r.floors.values())
     if args.strict and any_blocking:

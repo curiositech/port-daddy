@@ -187,7 +187,10 @@ class TestPdPedagogyDrivenDeadMacros(RepoFixtureTestCase):
     def test_find_pd_pedagogy_file_walks_upward_from_the_chapter(self):
         chapter = self.fixture.chapter("\\section{One}\n")
         found = chapter_lint.find_pd_pedagogy_file(chapter)
-        self.assertEqual(found, self.fixture.root / "whitepaper" / "figures" / "pd-pedagogy.tex")
+        self.assertEqual(
+            found.resolve(),
+            (self.fixture.root / "whitepaper" / "figures" / "pd-pedagogy.tex").resolve(),
+        )
 
     def test_find_pd_pedagogy_file_returns_none_when_absent(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -359,6 +362,32 @@ class TestConsolidatedReportAndStrictExit(RepoFixtureTestCase):
         blocking = [name for name, f in report.floors.items() if chapter_lint.is_blocking(f)]
         self.assertEqual(blocking, [])
         self.assertFalse(report.floors["exercises_at_chapter_end"]["ok"])
+
+    def test_acknowledged_corpus_debt_is_warn_only(self):
+        chapter = self.fixture.chapter(
+            "\\input{figures/pd-pedagogy}\n\\begin{document}\n"
+            "\\section{One}\nProse with no worked example.\n"
+            "\\begin{theorem}[T]\nNo kind tag.\n\\end{theorem}\n"
+            "\\section{Exercises}\n\\end{document}\n"
+        )
+        report = chapter_lint.build_report(chapter)
+        for name in (
+            "worked_example_per_section",
+            "claims_carry_epistemic_kind",
+            "chapter_close_apparatus",
+        ):
+            floor = report.floors[name]
+            self.assertFalse(floor["ok"])
+            self.assertTrue(floor["advisory"])
+            self.assertFalse(chapter_lint.is_blocking(floor))
+
+    def test_advisory_baseline_detects_new_debt_and_stale_exceptions(self):
+        current = ["chapter-a.tex::floor-a", "chapter-b.tex::floor-b"]
+        baseline = ["chapter-a.tex::floor-a", "chapter-c.tex::floor-c"]
+        self.assertEqual(
+            chapter_lint.compare_advisory_baseline(current, baseline),
+            (["chapter-b.tex::floor-b"], ["chapter-c.tex::floor-c"]),
+        )
 
     def test_strict_exits_zero_when_only_advisory_floors_fail(self):
         chapter = self._fully_compliant_chapter()

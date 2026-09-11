@@ -1,0 +1,38 @@
+[
+  {
+    "id": "1123686",
+    "package": "adm-zip",
+    "severity": "high",
+    "url": "https://github.com/advisories/GHSA-xcpc-8h2w-3j85"
+  },
+  {
+    "id": "1123898",
+    "package": "brace-expansion",
+    "severity": "high",
+    "url": "https://github.com/advisories/GHSA-3jxr-9vmj-r5cp"
+  },
+  {
+    "id": "1124066",
+    "package": "sharp",
+    "severity": "high",
+    "url": "https://github.com/advisories/GHSA-f88m-g3jw-g9cj"
+  },
+  {
+    "id": "1130591",
+    "package": "brace-expansion",
+    "severity": "high",
+    "url": "https://github.com/advisories/GHSA-mh99-v99m-4gvg"
+  },
+  {
+    "id": "1130734",
+    "package": "brace-expansion",
+    "severity": "high",
+    "url": "https://github.com/advisories/GHSA-rgw5-rvv9-x895"
+  },
+  {
+    "id": "1193725",
+    "package": "sharp",
+    "severity": "high",
+    "url": "https://github.com/advisories/GHSA-rgj7-g3m4-5g8c"
+  }
+]
