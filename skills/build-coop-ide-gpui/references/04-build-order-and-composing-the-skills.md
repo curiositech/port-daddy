@@ -156,8 +156,9 @@ GPUI window; the same file shows read-only in the TUI. No buffer yet.
 160/250), a *documented embeddable Rust crate* (Zed's CRDT is internal and not reusable),
 Fugue + Eg-Walker lineage, and it ships `EphemeralStore`, `Awareness`, stable cursors
 (`get_cursor`/`get_cursor_pos`), and the multiplexed Loro Protocol you need later. Each
-open file = one `LoroDoc` holding a `LoroText`; each actor gets a **PeerID minted from its
-PD identity** (`pd whoami` for humans, `project:stack:context` for agents).
+open file = one `LoroDoc` holding a `LoroText`. Each writing incarnation gets a fresh
+PeerID; shared admission separately binds it to a verified principal, device/session
+and current grant. Neither a principal hash nor a CLI display label is that binding.
 
 > **Web-check before you pin.** Loro's API surface moves; before coding, confirm the
 > current `loro` crate version, that `LoroText` + `EphemeralStore` + `Cursor` are stable
@@ -188,11 +189,15 @@ the gutter shows authorship.
 
 **Quality Gate P1:**
 - [ ] `loro` crate pinned + version re-verified by web-check; `Buffer` wraps one
-      `LoroDoc`/`LoroText`; PeerID minted from PD identity.
+      `LoroDoc`/`LoroText`; distinct replica incarnations with verified shared admission.
 - [ ] Local edit → Loro op → **viewport-diff re-render only** (proven: idle = 0 re-renders,
       no frame-time climb with doc length).
 - [ ] Authorship gutter colors spans from OKLCH tokens, contrast-checked, ≤ ~8 hues in view.
-- [ ] Undo via Loro undo-map; tree-sitter incremental reparse on CRDT deltas.
+- [ ] Undo via Loro's per-replica UndoManager, never whole-document rollback;
+      disk seeds/imports are not local undo steps; exact deltas reach the mirror;
+      claim refusal precedes mutation. Without an affected-operation preview,
+      another replica's claim holds undo/redo, not ordinary region-safe typing.
+      Tree-sitter incremental reparse on CRDT deltas remains a separate gate.
 - [ ] **Property-test harness scaffolded** for Loro op-replay convergence (the
       salvage-correctness foundation — start it here even though salvage lands in P3.5).
 
