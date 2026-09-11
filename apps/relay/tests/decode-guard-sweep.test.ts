@@ -29,7 +29,6 @@ import worker from '../src/index.js';
 import {
   makeParleyDb,
   makeParleyEnv,
-  req,
   ALICE_TOKEN,
   ALICE_SESSION,
 } from './support/parley-fixture.js';
