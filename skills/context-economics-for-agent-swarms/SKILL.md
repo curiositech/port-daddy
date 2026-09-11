@@ -1,18 +1,21 @@
 ---
 name: context-economics-for-agent-swarms
 description: >
-  Treat tokens as a coding swarm's cost-of-goods-sold AND its legibility engine.
-  Covers per-agent context budgeting, compaction strategies (in-context summarization,
-  structured note-taking, sub-agent isolation), the shared digest as compaction-for-humans-
-  and-agents, the context-degradation cascade (lost-in-the-middle, context rot, recursive-
-  summarization collapse), and mechanism design for metering token spend across a fleet.
-  Activate on: "token budget", "context budget per agent", "compaction strategy", "digest /
-  briefing as compression", "context window degradation / context rot", "summarization
-  collapse", "COGS for agents", "metering agent token spend", "pheromone decay as forgetting",
-  "/context-economics-for-agent-swarms". NOT for: memory storage architecture (use
-  always-on-agent-architecture), single-prompt wording (use prompt-engineer), pure
-  mechanism-design proofs (use nisan-et-al-2007-algorithmic-game-theory).
+  Treat tokens as a coding swarm's cost-of-goods-sold and legibility engine while
+  accounting for finite subscription allowance when per-call price is unknown.
+  Covers provider windows, remaining-usage evidence, burn forecasts, preemptive
+  checkpoint/model switching, per-agent budgets, compaction, shared digests,
+  context degradation, and spend metering. Activate on: "token budget", "context
+  budget", "compaction strategy", "briefing as compression", "context rot",
+  "summarization collapse", "COGS for agents", "subscription usage remaining",
+  "five-hour or weekly limit", "burn forecast", "model switch before limit", or
+  "/context-economics-for-agent-swarms". NOT for: memory architecture (use
+  always-on-agent-architecture), single-prompt wording (use prompt-engineer),
+  mechanism-design proofs (use nisan-et-al-2007-algorithmic-game-theory), physical
+  containment (use sandboxed-adversarial-test-harness), or production rebodiment
+  and fencing (use agent-resurrection-and-body-continuity).
 license: Apache-2.0
+allowed-tools: Read,Write,Edit,Grep,Glob,Bash(node:*)
 metadata:
   category: AI & Agents
   tags:
@@ -23,6 +26,10 @@ metadata:
     - digest
     - agent-swarms
     - cogs
+  provenance:
+    kind: first-party
+    owners:
+      - port-daddy
   pairs-with:
     - skill: always-on-agent-inputs
       reason: Per-tier context budgeting + retrieval strategy this skill prices
@@ -32,14 +39,29 @@ metadata:
       reason: Mechanism design for metering and charging token spend
     - skill: episodic-memory-algorithms
       reason: Promotion of transient turns into durable compressed episodes
-io-contract:
-  kind: deliverable
-  produces:
-    - kind: design-doc
-      description: Context budget allocation, caching, and compaction strategy across a swarm with cost accounting
+    - skill: agent-resurrection-and-body-continuity
+      reason: Consumes capacity evidence when a living worker may need a new body.
+    - skill: sandboxed-adversarial-test-harness
+      reason: Falsifies forecasts and reservations in an inert laboratory.
+  io-contract:
+    kind: deliverable
+    produces:
+      - kind: capacity-evidence
+        format: json
+        description: Native-window observations, shared-bucket reservations, holds, eligibility, and forecast uncertainty without launch authority
+      - kind: design-doc
+        description: Context budget allocation, caching, and compaction strategy across a swarm with cost accounting
 ---
 
 # Context Economics for Agent Swarms
+
+## Halt and authority gate
+
+This skill observes, forecasts, and returns capacity evidence. It does not admit
+a body, authorize a provider call, transfer identity, clear an operator/runtime
+halt, or issue a rebodiment verdict. During a halt, work only from inert files,
+schemas, fixtures, PR evidence, and fake observations. Any live observation or
+durable note must use an independently authorized interface outside this skill.
 
 **The two-sentence thesis.** In a fleet of coding agents, *tokens are simultaneously
 the bill and the map.* They are the **cost-of-goods-sold (COGS)** — the metered,
@@ -56,13 +78,14 @@ the failure cascade when compaction lies.**
 
 ---
 
-## CORE FRAME — three identities of one resource
+## CORE FRAME — four economic views that must not collapse
 
 | Identity | What a token is here | Who pays attention | The optimization target |
 |---|---|---|---|
 | **COGS** | a metered variable cost charged per task | the operator / the market | minimize $ per landed unit of work |
 | **Working memory** | a slot in a finite **attention budget** | the agent mid-task | maximize signal density before degradation |
 | **Legibility lens** | a unit of the digest someone else reads | the human + successor agents | maximize recall-of-truth, zoom preserved |
+| **Scarce allowance** | a provider-native subscription window consumed without a stable per-call price | the operator + capacity broker | preserve useful headroom and reset-aware optionality |
 
 > **Legibility-with-zoom (the cardinal rule).** Every digest is a *lens onto the real
 > artifact, never a replacement for it.* Over-flattening — a summary you cannot zoom
@@ -90,20 +113,21 @@ What is this agent's role on the task?
        Re-derive from artifacts (git, claims) over scrollback.
 ```
 
-Rule of thumb: **budget to the effective context, not the advertised window.** Empirically
-the window where models stay within ~85% of short-context accuracy is far smaller than
-the marketing number (often single-digit-thousands of tokens), so packing to 200K is
-buying degradation, not capability.
+Rule of thumb: **budget to measured effective context, not the advertised
+window.** Context degradation depends on model, task, tool traffic, and evidence
+placement; no universal accuracy percentage or token threshold is asserted
+here. Establish a versioned benchmark for the exact route and task class before
+using a threshold for automation.
 
 ### 2. Which compaction strategy when context fills
 
 **Two families of move, both non-destructive when done right.** *Macro-compaction*
 operates on message *ranges*: lay a non-destructive **overlay** over a span of cold
 history — a pointer overlay when the range is reconstructable, a summary overlay when it
-isn't — and never delete the original, so you can always zoom back. When you re-summarize,
-pass the *old summary back in view* and update it rather than re-deriving from scratch
-(that iterative discipline is what stops recursive-summarization collapse — see FAILURE
-MODES). *Micro-compaction* is the cheap read-time pass underneath: truncate individual
+isn't — and never delete the original, so you can always zoom back. When you
+re-summarize, regenerate factual claims from immutable artifacts. The previous
+summary may remain in view only as untrusted comparison input for omission and
+drift detection; it is never the factual source. *Micro-compaction* is the cheap read-time pass underneath: truncate individual
 aged tool outputs (keep the last ~4 intact, replace oversized rows with previews)
 continuously, long before you reach for a macro pass.
 
@@ -121,7 +145,7 @@ Is the dropped content reconstructable from a durable artifact (git, DB, files)?
     │     Maximize RECALL first, then trim for precision.
     ├─ Long task with milestones
     │   → STRUCTURED NOTE-TAKING: agent writes durable notes OUTSIDE the window,
-    │     pulls them back on demand. (PD: `pd note`, episodic memory.)
+    │     pulls them back on demand through an authorized durable artifact or note interface.
     └─ Parallel exploration
         → SUB-AGENT ISOLATION: spawn clean-window workers, each returns a
           1–2K digest. Isolation IS compaction — the parent never sees the bloat.
@@ -130,9 +154,10 @@ Is the dropped content reconstructable from a durable artifact (git, DB, files)?
 > **Boundary rule — never split a pair.** Any move that summarizes or truncates message
 > history — macro range overlays and micro tool-output truncation alike — must shift its
 > boundaries so a `tool_use` and its matching `tool_result` are never separated. Drop one
-> and keep the other and you get a hard 400 that only `/clear` fixes: this is the
-> claude-code #14173 / #40305 failure class, and it is exactly why boundary-aware ranges
-> exist. Make it a precondition on every compaction step, not a cleanup afterthought.
+> and keep the other can make a provider reject the reconstructed history. This
+> has been observed in specific harness versions, but is not asserted as a
+> universal status code or recovery command. Make pair integrity a precondition
+> on every compaction step and keep a versioned reproduction fixture.
 
 *Durable-agents cross-reference:* micro/macro compaction, overlays, and boundary-aware
 ranges are the *in-session* half of the durable-agent picture. For the full industry
@@ -167,6 +192,39 @@ Are agents under one operator (cooperative) or across operators (strategic)?
       costly, persistent identity (see reputation/continuity).
 ```
 
+### 5. Subscription capacity when per-call cost is unknowable
+
+A prepaid subscription is not `FREE`. Keep two ledgers:
+
+- **financial:** recurring commitment, API/prepaid dollars, product credits,
+  reservations, charges, and refunds;
+- **capacity:** provider-native percentage/request/token windows, reset times,
+  context, concurrency, and observation quality.
+
+Do not invent a cross-provider exchange rate or “tasks remaining.” Condition a
+burn distribution on provider, model, effort, task class, context, tool pack, and
+execution mode. Return `eligible` only when fresh allocatable native capacity—
+after operator reserve, outstanding reservations, unresolved-attempt holds,
+drift margin, and checkpoint tail—covers forecast p95 burn. A separate lifecycle
+authority decides admission. Tighten capabilities and checkpoint before the hard
+wall; hibernate with no process when no route fits. `null`, stale, unsupported,
+or contradictory observations mean `UNKNOWN`, not unlimited use.
+
+Port Daddy coordination commands such as `pd` are outside this skill and remain
+subject to the active operator/runtime policy. Never invoke them merely to fill
+or persist a capacity report, especially while a halt is active.
+
+Read `references/subscription-capacity-ledger.md` before designing an allowance
+observer, backend ranking, model switch, or subscription-backed fleet budget.
+Emit `capacity-evidence` that validates against
+`schemas/capacity-evidence.schema.json`, then run
+`scripts/validate-capacity-evidence.mjs` for native-unit arithmetic, alias
+conservation, freshness, reservation coverage, and execution-class separation.
+`fake-or-replay` evidence can fit only a simulation; `real-provider` evidence
+that supports automatic use must come from a documented structured provider or
+first-party client source. The evidence says whether a route fits; it never
+grants admission or launch authority.
+
 ---
 
 ## FAILURE MODES (the context-degradation cascade)
@@ -200,6 +258,14 @@ or task spent it. *Root cause:* tokens never metered per task. *Detection:* no t
 keyed to outcomes. *Fix:* account first (a per-task token row), price later (only in the
 multi-operator market).
 
+**Subscription-as-free fiction.** *Symptom:* the scheduler exhausts the operator's
+included Codex or Claude allowance while the ledger reports `$0`. *Root cause:*
+incremental cash was confused with economic scarcity and authentication mode was
+not witnessed. *Detection:* subscription route has no native-window observation,
+reset horizon, reserve, or before/after delta. *Fix:* preserve provider units,
+show observation quality, reserve p95 burden, and block autonomous launch when
+remaining capacity is unknown.
+
 **Schema/tool bloat.** *Symptom:* agents pick the right tool with wrong params; high cost,
 low accuracy. *Root cause:* 50 tools loaded into every window. *Detection:* >30% of context
 unused per response. *Fix:* 3–5 always-loaded tools, discover the rest (context precision).
@@ -208,12 +274,13 @@ unused per response. *Fix:* 3–5 always-loaded tools, discover the rest (contex
 
 ## WORKED EXAMPLE — a 6-agent feature swarm
 
-**Task:** ship a feature across 6 parallel agents under one operator, $-capped.
+**Task:** ship a feature across 6 parallel agents under one operator, cash- and
+subscription-capacity-capped.
 
 1. **Budget by role.** Orchestrator: 12K (plan + six 1.5K digests). Each worker: 40K clean
    window, ≤4 tools. Reviewer: 8K anchored on the diff.
 2. **Compact by reconstructability.** Worker tool output that's in git → evict + pointer.
-   Worker reasoning that isn't → structured note (`pd note`) so the successor can re-read it.
+   Worker reasoning that isn't → an authorized structured artifact or note so the successor can re-read it.
 3. **Build the shared digest twice, for two readers.** For the operator's Attention Queue:
    "6 agents, 4 landed, 1 blocked on a claim conflict (→PR #123), 1 over budget (→kill?)."
    Every clause deep-links. For an arriving 7th agent: open claims + unfinished obligations
@@ -222,6 +289,9 @@ unused per response. *Fix:* 3–5 always-loaded tools, discover the rest (contex
    in the same digest. No auction (single operator) — just visibility.
 5. **Watch the cascade.** Reviewer compacts from the *diff*, never from worker summaries, so a
    worker's hallucinated claim can't propagate into the merge decision.
+6. **Preserve allowance.** The five-hour window enters `TIGHTENING`; the scheduler
+   launches no seventh worker, checkpoints the two longest episodes, and waits
+   rather than calling the subscription route free.
 
 **Novice vs expert:** novice gives all 6 agents 200K windows and one flat end-of-run summary
 (bankrupt + illegible + hallucinated). Expert budgets to effective context, isolates workers,
@@ -237,6 +307,10 @@ compacts from artifacts, and ships a zoomable digest plus a per-task bill.
 - [ ] Every digest item deep-links to its source artifact (zoom-back enforced; no terminal summaries).
 - [ ] The digest is produced per-reader (operator vs successor agent vs billing), not one-size-fits-all.
 - [ ] Token spend is metered per agent-task in a ledger keyed to outcomes; cap breaches loud-fail.
+- [ ] Cash, product credits, and subscription windows remain distinct native-unit ledgers.
+- [ ] Every subscription route records authentication mode, observation quality, remaining/reset evidence, reserve, and forecast error.
+- [ ] Missing capacity is `UNKNOWN`; no scheduler infers unlimited, empty, or zero-cost capacity.
+- [ ] p95 action burn plus checkpoint tail fits allocatable capacity after reserve, outstanding reservations, unresolved-attempt holds, and drift margin.
 - [ ] Pricing/auctions appear ONLY in the multi-operator case; the single-operator case accounts, it does not charge.
 - [ ] Tool exposure ≤3–5 always-loaded; the rest discovered (context precision).
 - [ ] A position/length sanity check exists (critical facts at edges; accuracy-vs-length curve known).
@@ -256,3 +330,21 @@ compacts from artifacts, and ships a zoomable digest plus a per-task bill.
 - Acon (arXiv:2510.00615), Parallel Context Compaction (arXiv:2605.23296), Slipstream (arXiv:2605.08580) — compaction validation + collapse.
 - Nisan, Roughgarden, Tardos, Vazirani, *Algorithmic Game Theory* (2007) — metering, externalities, sybil.
 - Scott, *Seeing Like a State* (1998); Hobbes, *Leviathan* (1651) — legibility-with-zoom, the consented authority.
+- `references/subscription-capacity-ledger.md` — official provider observation
+  surfaces, native-unit schema, evidence quality, and fail-cheap preemption.
+
+## Bundle Index
+
+- `references/subscription-capacity-ledger.md` — subscription-capacity truth and
+  preemption rules.
+- `schemas/capacity-evidence.schema.json` — versioned native-unit evidence and
+  reservation contract; load whenever capacity may gate a body or model call.
+- `scripts/validate-capacity-evidence.mjs` — deterministic arithmetic, freshness,
+  alias, and reservation verifier.
+- `examples/capacity-evidence.ready.json` — admissible fake-observer fixture.
+- `examples/capacity-evidence.unknown.json` — supported fail-closed unknown
+  fixture.
+- `agents/openai.yaml` — optional specialist descriptor with explicit
+  non-authority and no-live-observation boundaries.
+- `tests/activation.md` — positive and negative routing cases.
+- `CHANGELOG.md` — evolution of the skill contract.

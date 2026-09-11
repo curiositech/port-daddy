@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "1.0.0",
+  "operation": "rebody",
+  "halt": { "state": "inactive", "sourceAuthority": "operator-receipt:halt-clear-1", "observedAt": "2026-09-11T17:00:00Z" },
+  "person": { "principalId": "principal-demo", "agentNodeId": "agent-demo-014", "identityRevision": 3 },
+  "work": { "workIntentId": "wi-demo-014", "workPlanId": "plan-demo-014-r4", "workEpisodeId": "episode-demo-014", "objective": "Prepare a static operator storyboard", "nonGoals": ["Do not merge"], "planFrontier": ["validate static artifact"] },
+  "predecessor": {
+    "agentRunId": "run-demo-g1", "bodyLeaseId": "body-demo-g1", "generation": 1, "state": "fenced", "fenceOrAbsenceReceipt": "receipt:fence-g1",
+    "processWitness": { "state": "gone", "receipt": "receipt:process-gone", "observedAt": "2026-09-11T17:00:01Z" },
+    "ledgerRoots": {
+      "lifecycle": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "effects": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "claims": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "transcript": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+    }
+  },
+  "source": {
+    "remote": "https://github.com/curiositech/port-daddy.git",
+    "baseCommit": "1111111111111111111111111111111111111111",
+    "headCommit": "2222222222222222222222222222222222222222",
+    "treeDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+    "worktree": "/sealed/review-worktree",
+    "statusDigest": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+    "claimsRoot": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+    "outputRoot": "sha256:8888888888888888888888888888888888888888888888888888888888888888"
+  },
+  "effects": {
+    "ledgerRoot": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+    "completeForGeneration": true,
+    "items": [{
+      "effectSlotId": "effect-slot-1",
+      "canonicalFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "logicalIdentity": "wi-demo-014/node-3/github-pr-create",
+      "operation": "github.pr.create",
+      "normalizedDestination": "github.com/curiositech/port-daddy",
+      "state": "committed",
+      "idempotencyKeys": ["idem-demo-02"],
+      "reconciliationEvidence": ["receipt:github-pr-14"],
+      "replayAllowed": false
+    }]
+  },
+  "capsule": {
+    "capsuleId": "capsule-demo-4", "sequence": 4,
+    "predecessorDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "digestAlgorithm": "sha256", "canonicalEncoding": "RFC8785-JCS",
+    "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "signer": { "keyId": "controller-key-1", "algorithm": "ed25519", "signature": "demo-signature" },
+    "audience": "body-demo-g2", "issuedAt": "2026-09-11T17:00:02Z", "expiresAt": "2026-09-11T17:10:02Z",
+    "retentionRoot": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "artifactAvailabilityRoot": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "signatureVerificationReceipt": "receipt:capsule-signature-4",
+    "lineageVerificationReceipt": "receipt:capsule-lineage-4",
+    "availabilityVerificationReceipt": "receipt:capsule-availability-4",
+    "requiredFactTypes": ["objective", "source", "plan", "effects"],
+    "satisfiedFactTypes": ["objective", "source", "plan", "effects"],
+    "verifiedFacts": [{ "statement": "The predecessor generation is fenced", "evidenceRefs": ["receipt:fence-g1"] }],
+    "unsupportedClaims": [],
+    "decisions": [{ "statement": "Use a cross-harness successor", "evidenceRefs": ["receipt:adapter-fit-4"] }],
+    "toolPairs": [{ "callReceipt": "receipt:tool-call-1", "resultReceipt": "receipt:tool-result-1" }],
+    "tests": [{ "commandReceipt": "receipt:test-command-1", "outputReceipt": "receipt:test-output-1", "state": "passed" }],
+    "transcript": { "cursor": "turn-42", "tailDigest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "omittedRanges": ["turns 1-20 summarized with citations"] },
+    "memoryDisposition": [{ "artifact": "episode scratch", "disposition": "discard", "reason": "one-off implementation detail" }],
+    "omissions": [{ "field": "raw provider history", "reason": "not portable authority", "impact": "native provider UI context unavailable" }],
+    "oneTime": true,
+    "redemption": { "state": "pending", "receipt": null }
+  },
+  "destination": {
+    "adapter": "claude-code", "mode": "successor-handoff", "generation": 2, "proposedBodyLeaseId": "body-demo-g2",
+    "bootstrapLease": { "leaseId": "bootstrap-g2", "allowedOperations": ["nonce-challenge", "heartbeat", "bounded-evidence-append"], "expiresAt": "2026-09-11T17:02:00Z" },
+    "workingCapabilitySetId": "caps-demo-g2",
+    "workingCapabilitiesIssued": false,
+    "capabilityReport": [{ "surfaceId": "repo.patch", "authenticatedServerIdentity": null, "required": true, "disposition": "EXACT", "requestedScope": "two symbols", "grantedScope": "two symbols", "evidenceRefs": ["receipt:capability-1"] }],
+    "requiredCapabilitiesSatisfied": true,
+    "nativeSessionLease": { "required": false, "exclusive": false, "receipt": null },
+    "inheritedToolsReset": true
+  },
+  "capacity": { "capacityEvidenceSchemaVersion": "1.0.0", "capacityEvidenceDigestAlgorithm": "sha256", "capacityEvidenceCanonicalEncoding": "RFC8785-JCS", "capacityEvidenceId": "capacity-demo-0004", "capacityEvidenceDigest": "sha256:8b9b5b935ea02cbf20fe18d21158fd685726daab08377b55756080041b88bb23", "permittedExecutionClass": "fake-or-replay", "reservationId": "capacity-reservation-demo-4", "quality": "observed", "admissible": true, "buckets": ["bucket:provider-demo:seat-demo:five-hour"] },
+  "execution": { "planIsLaunchAuthority": false, "executionClass": "fake-or-replay", "authorizationState": "not-issued", "authorizedExecutor": null, "authorizationReceipt": null },
+  "verdict": "REBODIMENT_READY",
+  "nextSafeAction": "Request separate one-shot launch authorization from the external controller"
+}

@@ -10,6 +10,9 @@
 **Companions:**
 
 - [Drydock: Controlled Port Daddy Execution and Agent Simulation](./drydock-controlled-agent-simulation.md)
+- [Drydock Resurrection, Capacity, and Context Control](./drydock-resurrection-capacity-and-context-control.md)
+- [Drydock execution hypertree](./drydock-resurrection-hypertree.json)
+- [Drydock operator journey storyboard](../design/drydock-operator-journeys/index.html)
 - [The Grand Harbor Atlas](./grand-harbor-product-atlas.md)
 - [ADR-0093: Event Spawn Trust Substrate](../adr/0093-event-spawn-trust-substrate.md)
 - [ADR-0121: Durable Agent Roster](../adr/0121-durable-agent-roster.md)

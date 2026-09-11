@@ -7,7 +7,7 @@
 - Proposition: exact source digest `sha256:subject` may execute its submitted Jest
   suite at T2 without host execution, host/canonical access, external network, or
   real provider authority, while an external controller records teardown.
-- Requested tier: T3 canary.
+- Requested tier: T3A billable canary.
 
 ## Boundary findings
 
@@ -25,10 +25,10 @@
 
 The planned internal reservation could bound broker protocol authority after it is
 implemented and crash-tested. The provider project is shared, its limit exceeds the
-run amount, and enforcement lag is unknown. T3 therefore cannot claim a fifty-cent
+run amount, and enforcement lag is unknown. T3A therefore cannot claim a fifty-cent
 financial-loss ceiling. Use fake/replay/local-model T0–T2 only.
 
-The first eventual T3 profile is one request and one attempt, with no tools,
+The first eventual T3A profile is one request and one attempt, with no tools,
 children, retry, automatic refill, or automatic breaker half-open. That profile is
 still denied here because the external loss bound is unproved.
 

@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/drydock-resurrection-hypertree.schema.json",
+  "title": "Drydock resurrection hypertree",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schemaVersion",
+    "kind",
+    "id",
+    "status",
+    "sourceSnapshot",
+    "artifactIdentity",
+    "root",
+    "roleDefinitions",
+    "nodes",
+    "hyperedges",
+    "assignmentPolicy",
+    "launcherNodes",
+    "criticalPath"
+  ],
+  "properties": {
+    "$schema": { "const": "./drydock-resurrection-hypertree.schema.json" },
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "DrydockHypertree" },
+    "id": { "type": "string", "minLength": 1 },
+    "status": { "const": "proposed-static-design" },
+    "sourceSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "sourceInputsCommit", "observedAt", "localRuntimeUsed", "roadmapMutated"],
+      "properties": {
+        "repository": { "type": "string", "pattern": "^https://github\\.com/[^/]+/[^/]+(?:\\.git)?$" },
+        "sourceInputsCommit": { "$ref": "#/$defs/gitOid" },
+        "observedAt": { "type": "string", "format": "date-time" },
+        "localRuntimeUsed": { "const": false },
+        "roadmapMutated": { "const": false }
+      }
+    },
+    "artifactIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["publicationState", "publicationCommit", "publicationTree", "publicationReceiptLocation", "digestAlgorithm", "digestScope", "planDigest"],
+      "properties": {
+        "publicationState": { "const": "external-receipt-required" },
+        "publicationCommit": { "type": "null" },
+        "publicationTree": { "type": "null" },
+        "publicationReceiptLocation": { "type": "string", "minLength": 1 },
+        "digestAlgorithm": { "const": "sha256-canonical-json-v1" },
+        "digestScope": {
+          "const": ["root", "roleDefinitions", "nodes", "hyperedges", "assignmentPolicy", "criticalPath"]
+        },
+        "planDigest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "root": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["intent", "nonGoals", "invariants"],
+      "properties": {
+        "intent": { "type": "string", "minLength": 1 },
+        "nonGoals": { "$ref": "#/$defs/nonemptyStrings" },
+        "invariants": { "$ref": "#/$defs/nonemptyStrings" }
+      }
+    },
+    "roleDefinitions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/role" }
+    },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/node" }
+    },
+    "hyperedges": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/hyperedge" }
+    },
+    "assignmentPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fogNodes", "ephemeralDefault", "durablePromotion", "oneOffIsolation", "managerRule", "retryOwner"],
+      "properties": {
+        "fogNodes": { "type": "string", "minLength": 1 },
+        "ephemeralDefault": { "type": "string", "minLength": 1 },
+        "durablePromotion": { "type": "string", "minLength": 1 },
+        "oneOffIsolation": { "type": "string", "minLength": 1 },
+        "managerRule": { "type": "string", "minLength": 1 },
+        "retryOwner": { "type": "string", "minLength": 1 }
+      }
+    },
+    "launcherNodes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/nodeId" }
+    },
+    "criticalPath": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/nodeId" }
+    }
+  },
+  "$defs": {
+    "gitOid": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "nodeId": { "type": "string", "pattern": "^DD-[0-9]{3}[A-Z]?$" },
+    "nonemptyStrings": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "role": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "identityClass", "inputs", "outputs", "may", "mustNot", "skills"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "name": { "type": "string", "minLength": 1 },
+        "identityClass": { "type": "string", "minLength": 1 },
+        "inputs": { "$ref": "#/$defs/nonemptyStrings" },
+        "outputs": { "$ref": "#/$defs/nonemptyStrings" },
+        "may": { "$ref": "#/$defs/nonemptyStrings" },
+        "mustNot": { "$ref": "#/$defs/nonemptyStrings" },
+        "skills": { "$ref": "#/$defs/nonemptyStrings" }
+      }
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "intentClass", "deliveryState", "ownerRole", "workerLifetime", "inputs", "skills", "outputs", "dependencies", "acceptanceGates"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nodeId" },
+        "title": { "type": "string", "minLength": 1 },
+        "intentClass": { "enum": ["executable", "fog"] },
+        "deliveryState": { "enum": ["this-proposal", "partial-source-foundation", "target", "deferred", "deferred-until-halt-lifted", "deferred-operator-decision"] },
+        "ownerRole": { "type": "string", "minLength": 1 },
+        "workerLifetime": { "type": "string", "minLength": 1 },
+        "inputs": { "$ref": "#/$defs/nonemptyStrings" },
+        "skills": { "$ref": "#/$defs/nonemptyStrings" },
+        "outputs": { "$ref": "#/$defs/nonemptyStrings" },
+        "dependencies": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/nodeId" }
+        },
+        "acceptanceGates": { "$ref": "#/$defs/nonemptyStrings" }
+      }
+    },
+    "hyperedge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "from", "to", "meaning"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^HE-[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "from": { "type": "array", "minItems": 2, "uniqueItems": true, "items": { "$ref": "#/$defs/nodeId" } },
+        "to": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/nodeId" } },
+        "meaning": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
