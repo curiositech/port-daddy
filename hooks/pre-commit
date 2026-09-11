@@ -5,36 +5,70 @@
 # and every CI runner we use. A guard that silently does not run is a guard
 # that fails open, so the floors are a here-doc now and the shell is the one
 # every POSIX system has.
-PD_HOOK_HOME="${PD_HOME:-$HOME/.port-daddy}"
-[ -e "$PD_HOOK_HOME/hooks.disabled" ] && exit 0
+# >>> Port Daddy automatic-hook runtime gate
+pd_hook_runtime_enabled() (
+  [ "$#" -eq 2 ] && [ -n "$1" ] && [ -n "$2" ] || exit 1
+  pd_gate_home="$2"
+  for pd_gate_root in "$1" "$pd_gate_home"; do
+    if [ ! -e "$pd_gate_root" ] && [ ! -L "$pd_gate_root" ]; then
+      [ -d "${pd_gate_root%/*}" ] && [ -r "${pd_gate_root%/*}" ] && [ -x "${pd_gate_root%/*}" ] || exit 1
+      continue
+    fi
+    [ -d "$pd_gate_root" ] && [ -r "$pd_gate_root" ] && [ -x "$pd_gate_root" ] && [ ! -L "$pd_gate_root" ] || exit 1
+    for pd_gate_marker in "$pd_gate_root/hooks.disabled" "$pd_gate_root/HALT"; do
+      [ ! -e "$pd_gate_marker" ] && [ ! -L "$pd_gate_marker" ] || exit 1
+    done
+  done
+  pd_gate_halt="${PD_HALT_FILE:-$pd_gate_home/HALT}"
+  case "$pd_gate_halt" in /*) ;; *) exit 1 ;; esac
+  pd_gate_parent="${pd_gate_halt%/*}"
+  [ -d "$pd_gate_parent" ] && [ -r "$pd_gate_parent" ] && [ -x "$pd_gate_parent" ] || exit 1
+  [ ! -e "$pd_gate_halt" ] && [ ! -L "$pd_gate_halt" ]
+)
+pd_hook_read_pid() (
+  # Read at most eleven bytes plus one overflow witness. Decode octets rather
+  # than command-substituting raw bytes (shells discard NUL and final newlines).
+  pd_pid_octets=$(od -An -tu1 -N12 "$1" 2>/dev/null) || exit 1
+  pd_pid_value=
+  pd_pid_newline=0
+  for pd_pid_octet in $pd_pid_octets; do
+    [ "$pd_pid_newline" -eq 0 ] || exit 1
+    case "$pd_pid_octet" in
+      48|49|50|51|52|53|54|55|56|57) pd_pid_value="$pd_pid_value$((pd_pid_octet - 48))" ;;
+      10) pd_pid_newline=1 ;;
+      *) exit 1 ;;
+    esac
+    [ "${#pd_pid_value}" -le 10 ] || exit 1
+  done
+  case "$pd_pid_value" in ''|0*) exit 1 ;; esac
+  printf '%s' "$pd_pid_value"
+)
+pd_hook_runtime_ready() (
+  pd_hook_runtime_enabled "$@" || exit 1
+  pd_gate_home="$2"
+  pd_gate_ready="${PORT_DADDY_READY_FILE:-$pd_gate_home/daemon.ready}"
+  pd_gate_pid="${PORT_DADDY_PID_FILE:-$pd_gate_home/daemon.pid}"
+  pd_gate_heartbeat="${PORT_DADDY_HEARTBEAT_FILE:-$pd_gate_home/heartbeat}"
+  for pd_gate_file in "$pd_gate_ready" "$pd_gate_pid" "$pd_gate_heartbeat"; do
+    [ -f "$pd_gate_file" ] && [ -r "$pd_gate_file" ] && [ ! -L "$pd_gate_file" ] || exit 1
+  done
+  pd_gate_ready_pid=$(pd_hook_read_pid "$pd_gate_ready") || exit 1
+  pd_gate_daemon_pid=$(pd_hook_read_pid "$pd_gate_pid") || exit 1
+  [ "$pd_gate_ready_pid" = "$pd_gate_daemon_pid" ] || exit 1
+  pd_gate_mtime=$(stat -c %Y "$pd_gate_heartbeat" 2>/dev/null || true)
+  case "$pd_gate_mtime" in ''|*[!0-9]*) pd_gate_mtime=$(stat -f %m "$pd_gate_heartbeat" 2>/dev/null || true) ;; esac
+  pd_gate_now=$(date +%s 2>/dev/null || true)
+  case "$pd_gate_mtime:$pd_gate_now" in *[!0-9:]*|:*|*:) exit 1 ;; esac
+  pd_gate_age=$((pd_gate_now - pd_gate_mtime))
+  [ "$pd_gate_age" -ge 0 ] && [ "$pd_gate_age" -le 30 ] || exit 1
+  pd_hook_runtime_enabled "$@"
+)
+pd_hook_runtime_ready "${HOME:+$HOME/.port-daddy}" "${PD_HOME:-${HOME:+$HOME/.port-daddy}}" || exit 0
+# <<< Port Daddy automatic-hook runtime gate
 PD_HOOK_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 PD_HOOK_COMMON=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || exit 0
 [ -f "$PD_HOOK_ROOT/.portdaddy/coordination-guard.json" ] ||
   [ -f "$PD_HOOK_COMMON/port-daddy/coordination-guard.json" ] || exit 0
-PD_HOOK_READY="${PORT_DADDY_READY_FILE:-$PD_HOOK_HOME/daemon.ready}"
-PD_HOOK_PID="${PORT_DADDY_PID_FILE:-$PD_HOOK_HOME/daemon.pid}"
-PD_HOOK_HEARTBEAT="${PORT_DADDY_HEARTBEAT_FILE:-$PD_HOOK_HOME/heartbeat}"
-[ -f "$PD_HOOK_READY" ] && [ ! -L "$PD_HOOK_READY" ] || exit 0
-[ -f "$PD_HOOK_PID" ] && [ ! -L "$PD_HOOK_PID" ] || exit 0
-[ -f "$PD_HOOK_HEARTBEAT" ] && [ ! -L "$PD_HOOK_HEARTBEAT" ] || exit 0
-PD_HOOK_READY_PID=$(tr -d '[:space:]' < "$PD_HOOK_READY" 2>/dev/null || true)
-PD_HOOK_DAEMON_PID=$(tr -d '[:space:]' < "$PD_HOOK_PID" 2>/dev/null || true)
-[ -n "$PD_HOOK_READY_PID" ] && [ "$PD_HOOK_READY_PID" = "$PD_HOOK_DAEMON_PID" ] || exit 0
-# GNU stat and BSD stat spell mtime differently, and neither fails the way the
-# other's flag suggests: `stat -f %m FILE` on GNU coreutils treats %m as a
-# second FILE, prints a whole filesystem block to stdout, and exits 1 -- so
-# `stat -f %m || stat -c %Y` captures the dump AND the timestamp concatenated,
-# which then fails the digit check below and takes the hook out entirely.
-# Ask each dialect separately and keep whichever answers in digits.
-PD_HOOK_HEARTBEAT_MTIME=$(stat -c %Y "$PD_HOOK_HEARTBEAT" 2>/dev/null || true)
-case "$PD_HOOK_HEARTBEAT_MTIME" in
-  ''|*[!0-9]*) PD_HOOK_HEARTBEAT_MTIME=$(stat -f %m "$PD_HOOK_HEARTBEAT" 2>/dev/null || true) ;;
-esac
-PD_HOOK_NOW=$(date +%s 2>/dev/null || true)
-case "$PD_HOOK_HEARTBEAT_MTIME" in ''|*[!0-9]*) exit 0 ;; esac
-case "$PD_HOOK_NOW" in ''|*[!0-9]*) exit 0 ;; esac
-PD_HOOK_AGE=$((PD_HOOK_NOW - PD_HOOK_HEARTBEAT_MTIME))
-[ "$PD_HOOK_AGE" -ge -30 ] && [ "$PD_HOOK_AGE" -le 30 ] || exit 0
 
 # =============================================================================
 # Port Daddy Pre-Commit Guard

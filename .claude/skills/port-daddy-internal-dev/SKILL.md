@@ -451,6 +451,16 @@ work; never reset or clobber the main checkout.
 
 ### Test + session gotchas (dev-loop shibboleths)
 
+- **Off is checked before invoking Port Daddy, not inside its CLI.** Git
+  guards, publishers and wrappers embed `lib/hook-runtime-gate.ts`; canonical
+  stop markers outrank selected runtime paths. Keep the standalone Pilot's
+  gate fixture-equivalent and preserve unrelated merged hooks/Git LFS. A scoped
+  publisher is not necessarily a gated publisher, and source changes do not
+  repair previously installed copies. Test with inert CLI/network stand-ins;
+  never start the daemon to prove it stays off. See
+  `docs/operations/local-off-control.md` for the unfinished whole-app boundary.
+
+
 - **Research reuse is not another authority.** The Project Epistemology D1a lab
   (`docs/research/egosystem-reconciliation/harness/`) imports the existing Harbor
   R17 checker without running its sweep at import. Keep fixture envelopes out of

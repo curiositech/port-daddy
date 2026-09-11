@@ -46,16 +46,6 @@
     ]
   },
   "hooks": {
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "[ -e \"${PD_HOME:-$HOME/.port-daddy}/hooks.disabled\" ] || pd attention --json 2>/dev/null || true"
-          }
-        ]
-      }
-    ],
     "UserPromptSubmit": [
       {
         "hooks": [

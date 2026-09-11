@@ -3,6 +3,8 @@ import {
   isLegacyPortDaddyPostCommitHook,
   isPortDaddyPostCommitHook,
   isScopedPortDaddyPostCommitHook,
+  isCurrentPortDaddyPostCommitHook,
+  loadPostCommitHookTemplate,
 } from '../../cli/utils/post-commit-hook.js';
 
 describe('post-commit hook detection', () => {
@@ -27,6 +29,11 @@ curl -s -X POST "\${PORT_DADDY_BASE}/msg/\${CHANNEL}" -d "{}"
     expect(isPortDaddyPostCommitHook(content)).toBe(true);
     expect(isLegacyPortDaddyPostCommitHook(content)).toBe(false);
     expect(isScopedPortDaddyPostCommitHook(content)).toBe(true);
+    expect(isCurrentPortDaddyPostCommitHook(content)).toBe(false);
+  });
+
+  test('the shipped scoped template includes the current Off boundary', () => {
+    expect(isCurrentPortDaddyPostCommitHook(loadPostCommitHookTemplate())).toBe(true);
   });
 
   test('does not treat foreign hooks as Port Daddy hooks', () => {

@@ -7,9 +7,8 @@
  * the agent to operate as the Port Daddy Pilot for the rest of the session —
  * UNLESS a non-default agent was explicitly selected, or steering is disabled.
  *
- * Deliberately dependency-free and daemon-independent: it must work on a cold
- * session before any daemon, identity, or MCP connection exists. Detection is
- * purely filesystem-local (presence of .portdaddy/ or pd-fleet.yml).
+ * Dependency-free, but not permission to summon a stopped runtime. Filesystem
+ * readiness and the operator off latch are checked before stdin or networking.
  *
  * Contract: emits the Claude Code SessionStart hook JSON on stdout:
  *   {"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"…"}}
@@ -17,8 +16,57 @@
  * disrupts a session it doesn't apply to.
  */
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, lstatSync, accessSync, constants } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
+import { homedir } from 'node:os';
+import { fileURLToPath } from 'node:url';
+
+/**
+ * Standalone filesystem gate: this asset is staged without package imports.
+ * Motivation: a SessionStart must not awaken a CLI or contact a stopped daemon.
+ * @param canonical Machine-wide control directory (cannot be overridden by PD_HOME).
+ * @param selected Selected runtime directory.
+ * @param env Explicit readiness paths, still subordinate to the canonical stop.
+ * @param now Clock for the bounded readiness witness.
+ * @returns Whether this hook may observe an already-ready local runtime.
+ */
+export function pilotRuntimeReady(canonical, selected, env = {}, now = Date.now()) {
+  try {
+    for (const root of new Set([canonical, selected])) {
+      try {
+        const info = lstatSync(root);
+        if (!info.isDirectory() || info.isSymbolicLink()) return false;
+        accessSync(root, constants.R_OK | constants.X_OK);
+      } catch (error) {
+        if (error.code !== 'ENOENT') return false;
+        accessSync(dirname(root), constants.R_OK | constants.X_OK);
+      }
+    }
+    for (const marker of [join(canonical, 'hooks.disabled'), join(canonical, 'HALT'),
+      join(selected, 'hooks.disabled'), join(selected, 'HALT'), env.PD_HALT_FILE].filter(Boolean)) {
+      try { lstatSync(marker); return false; }
+      catch (error) { if (error.code !== 'ENOENT') return false; }
+    }
+    const paths = [env.PORT_DADDY_READY_FILE || join(selected, 'daemon.ready'),
+      env.PORT_DADDY_PID_FILE || join(selected, 'daemon.pid'),
+      env.PORT_DADDY_HEARTBEAT_FILE || join(selected, 'heartbeat')];
+    const metadata = paths.map(path => lstatSync(path));
+    if (metadata.some(info => !info.isFile() || info.isSymbolicLink())) return false;
+    if (metadata[0].size > 11 || metadata[1].size > 11) return false;
+    for (const path of paths) accessSync(path, constants.R_OK);
+    const ready = readFileSync(paths[0], 'utf8');
+    const pid = readFileSync(paths[1], 'utf8');
+    const age = Math.floor(now / 1000) - Math.floor(metadata[2].mtimeMs / 1000);
+    return /^[1-9][0-9]{0,9}\n?$/.test(ready) && /^[1-9][0-9]{0,9}\n?$/.test(pid)
+      && ready.replace(/\n$/, '') === pid.replace(/\n$/, '')
+      && age >= 0 && age <= 30;
+  } catch { return false; }
+}
+
+function runtimeReady() {
+  const canonical = join(homedir(), '.port-daddy');
+  return pilotRuntimeReady(canonical, process.env.PD_HOME || canonical, process.env);
+}
 
 function readStdin() {
   // Read the whole SessionStart payload (small JSON) from fd 0 in one shot.
@@ -190,7 +238,7 @@ const STEERING = [
 ].join('\n');
 
 async function main() {
-  if (process.env.PD_PILOT_DISABLE) return;
+  if (process.env.PD_PILOT_DISABLE || !runtimeReady()) return;
 
   const payload = parsePayload(readStdin());
   if (explicitNonDefaultAgent(payload)) return;
@@ -203,6 +251,7 @@ async function main() {
   // the end-of-turn table is the harness's visible value surface, and the
   // session should learn the contract at birth, not at its first turn.
   let steering = sitrepLevel(cwd) === 'off' ? STEERING : STEERING + SITREP_DUTY;
+  if (!runtimeReady()) return;
   const salvage = await salvageNudge(basename(root));
   if (salvage) steering += `\n\n${salvage}`;
 
@@ -212,7 +261,7 @@ async function main() {
       additionalContext: steering,
     },
   };
-  process.stdout.write(JSON.stringify(out));
+  if (runtimeReady()) process.stdout.write(JSON.stringify(out));
 }
 
-main().catch(() => {});
+if (process.argv[1] === fileURLToPath(import.meta.url)) main().catch(() => {});
