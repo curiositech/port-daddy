@@ -28,6 +28,12 @@ authority.
 `pr-requirements-guard` · `doc-citation-guard` · `version-drift-guard` ·
 `brand-color-guard` · `website-terminal-recordings` · `Port Daddy Fleet`
 
+`.github/workflows/ci.yml`'s `ci-gate` is a summary over the fourteen CI job
+IDs represented in that list (the two Node 22 matrix contexts share the
+`unit-tests` job ID). It must not absorb advisory jobs merely because they live
+in the same workflow. `roadmap-link`, `pr-requirements-guard`, and
+`Port Daddy Fleet` report from separate workflows.
+
 ## Editing the ruleset — use `PUT`, NOT `PATCH`
 
 GitHub's "update a repository ruleset" endpoint is **`PUT`**:
