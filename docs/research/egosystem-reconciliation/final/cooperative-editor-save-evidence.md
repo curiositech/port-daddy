@@ -1,6 +1,7 @@
 # CH2: revision-bound local text Save
 
-Source continuation of #10134, under `harbor-editor-local-text-input` and the
+Regular PR [#10141](https://github.com/curiositech/port-daddy/pull/10141) continues
+#10134, under `harbor-editor-local-text-input` and the
 existing Cooperative Harbor program. Regular PR readiness is not release proof.
 
 ## Behavior

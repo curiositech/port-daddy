@@ -86,7 +86,8 @@ CH2's remaining implementation queue, in order:
   asynchronous writes tied to an exact document/revision, external-change refusal
   and no false clean state when edits race completion. Device-local saving is
   not shared acceptance or a canonical filesystem compare-and-swap guarantee.
-  Source now includes Cmd-S/Ctrl-S, exact-revision completion, process-local write
+  Regular PR [#10141](https://github.com/curiositech/port-daddy/pull/10141) includes
+  Cmd-S/Ctrl-S, exact-revision completion, process-local write
   serialization, optimistic disk-conflict checks and metadata preservation/refusal.
   See [local-save evidence](../research/egosystem-reconciliation/final/cooperative-editor-save-evidence.md).
   Native interaction, Save As, richer file metadata/platform coverage and packaged
