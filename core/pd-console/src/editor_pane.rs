@@ -86,6 +86,9 @@ const DEFAULT_IDENTITY: &str = "port-daddy:console:operator";
 /// unavailable. Kept synchronous and cheap; the caller invokes it at pane
 /// construction, not per render tick.
 pub fn resolve_operator_identity() -> String {
+    if crate::local_control::ensure_allowed().is_err() {
+        return DEFAULT_IDENTITY.to_string();
+    }
     let out = std::process::Command::new("pd")
         .args(["whoami", "--identity"])
         .output();

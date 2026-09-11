@@ -14,6 +14,8 @@
 mod berths; // agent.rs's DaemonClient::discover() needs crate::berths::default_url()
 #[path = "../src/agent.rs"]
 mod agent;
+#[path = "../src/local_control.rs"]
+mod local_control;
 
 use agent::DaemonClient;
 use std::io::{Read, Write};

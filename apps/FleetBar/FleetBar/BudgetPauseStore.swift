@@ -106,7 +106,7 @@ final class BudgetPauseStore: ObservableObject {
     func refresh() async {
         guard let baseURL, let url = URL(string: "\(baseURL)/budget/pending") else { return }
         do {
-            let (data, response) = try await URLSession.shared.data(from: url)
+            let (data, response) = try await URLSession.shared.pdData(from: url)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 lastError = "HTTP \((response as? HTTPURLResponse)?.statusCode ?? 0)"
                 return
@@ -144,7 +144,7 @@ final class BudgetPauseStore: ObservableObject {
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.httpBody = try? JSONSerialization.data(withJSONObject: body)
         do {
-            let (data, response) = try await URLSession.shared.data(for: req)
+            let (data, response) = try await URLSession.shared.pdData(for: req)
             if let http = response as? HTTPURLResponse, http.statusCode >= 400 {
                 let errMsg = (try? JSONDecoder().decode([String: String].self, from: data))?["error"] ?? "HTTP \(http.statusCode)"
                 self.lastError = errMsg
@@ -166,13 +166,13 @@ final class BudgetPauseStore: ObservableObject {
             guard let baseURL, let url = URL(string: "\(baseURL)/msg/\(channel)/subscribe") else { return }
             while !Task.isCancelled {
                 do {
-                    let (stream, response) = try await URLSession.shared.bytes(from: url)
+                    let (stream, response) = try await URLSession.shared.pdLines(from: url)
                     guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                         try await Task.sleep(for: .seconds(5))
                         continue
                     }
                     await MainActor.run { self?.isConnected = true }
-                    for try await line in stream.lines {
+                    for try await line in stream {
                         guard !Task.isCancelled else { break }
                         guard line.hasPrefix("data: ") else { continue }
                         let jsonStr = String(line.dropFirst(6))

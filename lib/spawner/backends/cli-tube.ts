@@ -47,6 +47,7 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { createLocalRuntimeGate } from '../../local-runtime-control.js';
 import { cliBinarySearchPath, resolveCliBinary } from '../../cli-bin-dirs.js';
 import type { CoastGuardReceipt } from '../../coast-guard.js';
 import {
@@ -180,6 +181,8 @@ export interface CliTubeOptions {
   signal?: AbortSignal;
   /** Internal daemon callback; never reconstructed from a public spawn request. */
   beforeChildLaunch?: () => Promise<void>;
+  /** Internal observation seam for the spawner and inert tests, not request authority. */
+  runtimeAllowed?: () => boolean;
   /**
    * Receipt metadata and policy controls for Coast Guard. The wrapper itself is
    * not optional: every CLI child is routed through Coast Guard, even when this
@@ -295,6 +298,11 @@ export function buildArgs(
 export async function spawnViaCliTube(
   opts: CliTubeOptions,
 ): Promise<CliTubeResult> {
+  const runtimeAllowed = createLocalRuntimeGate(opts.runtimeAllowed);
+  if (!runtimeAllowed()) {
+    return { output: '', exitCode: 1, error: 'Local Port Daddy is Off; child launch refused',
+      tube: null, durationMs: 0, rawStdout: '', coastGuardReceipt: null };
+  }
   const cli = opts.cli;
   const provider = (CLI_TUBE_PROVIDER_SPECS as Partial<Record<string, CliTubeProviderSpec<CliTubeTool>>>)[cli];
   if (!provider) {
@@ -383,6 +391,7 @@ export async function spawnViaCliTube(
   const startedAt = Date.now();
 
   const launchError = (): string | null => {
+    if (!runtimeAllowed()) return 'Local Port Daddy is Off; child launch refused';
     if (opts.signal?.aborted) return 'Spawn cancelled before child launch.';
     if ((opts.resumeSessionId && !opts.workspaceIdentity)
       || (opts.workspaceIdentity && (!opts.cwd || !sameWorkspaceIdentity(opts.cwd, opts.workspaceIdentity)))) {
@@ -589,7 +598,7 @@ export async function spawnViaCliTube(
   // Optional: publish the result on the tube so subscribed observers
   // see what came out. Failures here never block the spawn — tube
   // publish is best-effort transparency.
-  if (tubeChannel && opts.tubeClient) {
+  if (tubeChannel && opts.tubeClient && runtimeAllowed()) {
     try {
       await opts.tubeClient.publish(
         tubeChannel,

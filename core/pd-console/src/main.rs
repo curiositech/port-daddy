@@ -45,6 +45,7 @@ mod interruptions_pane;
 mod lane_pane;
 mod ledger_pane;
 mod lineage_pane;
+mod local_control;
 mod maritime;
 mod mission_callbacks;
 mod mission_view;
@@ -200,6 +201,7 @@ fn augmented_tool_path() -> String {
 /// captured stderr otherwise (surfaced as a HITL alert, never swallowed).
 fn render_work_graph_png(dag_json: &str) -> anyhow::Result<std::path::PathBuf> {
     use anyhow::{bail, Context};
+    local_control::ensure_allowed()?;
     let proto = work_graph_proto_dir();
     let script = proto.join("scripts").join("capture.sh");
     if !script.exists() {
@@ -222,6 +224,7 @@ fn render_work_graph_png(dag_json: &str) -> anyhow::Result<std::path::PathBuf> {
     // PATH FIX: a macOS .app launched from Finder does NOT inherit a login shell's
     // PATH, so `cargo` inside capture.sh is "command not found". We hand the child
     // an augmented PATH (~/.cargo/bin + …) so the release build resolves.
+    local_control::ensure_allowed()?;
     let status = std::process::Command::new("bash")
         .arg(&script)
         .arg(&input)
@@ -442,15 +445,11 @@ fn main() {
         eprintln!("{warning}");
     }
 
-    // Canonical daemon discovery: PORT_DADDY_URL env var → daemon.port file →
-    // the stable berth default. All fallback logic lives in
-    // DaemonClient::discover(); no literals here. Discovery is infallible now —
-    // with nothing registered the console opens against the stable berth and the
-    // panes render reachability honestly instead of panicking pre-window.
+    // The Off button and local editor must exist without a discoverable daemon.
+    // An empty endpoint is disconnected, never guessed startup authority.
     let daemon_url = DaemonClient::discover()
-        .expect("daemon discovery is infallible")
-        .base()
-        .to_string();
+        .map(|client| client.base().to_string())
+        .unwrap_or_default();
 
     let cli_args = parse_console_args(std::env::args());
     let initial_pane = cli_args.initial_pane.clone();
@@ -633,7 +632,9 @@ fn main() {
         // answers with full ConsoleView access (`--control-sock` / env).
         let (script_tx, script_rx) = mpsc::channel::<script::ScriptEnvelope>();
         if let Some(sock) = control_sock.clone() {
-            script::start_server(sock, script_tx);
+            if local_control::ensure_allowed().is_ok() {
+                script::start_server(sock, script_tx);
+            }
         }
         let url = daemon_url.clone();
         std::thread::spawn(move || {
@@ -747,9 +748,25 @@ fn main() {
                 loop {
                     tokio::time::sleep(Duration::from_secs(2)).await;
 
+                    if local_control::ensure_allowed().is_err() || client.base().is_empty() {
+                        // No queued action is replayed after Off or reconnection.
+                        while control_rx.try_recv().is_ok() {}
+                        lane_stream = None;
+                        harbor_stream = None;
+                        editor_stream = None;
+                        if tx.send((Vec::new(), None, galaxy.snapshot(), false, hitl.gate())).is_err() {
+                            break;
+                        }
+                        continue;
+                    }
+
                     // Operator control: drain any Interrupt requests from the UI and
                     // perform them against the agent the lane is watching.
                     while let Ok(msg) = control_rx.try_recv() {
+                        if local_control::ensure_allowed().is_err() {
+                            let _ = alert_tx.send(pane::Alert::error("Local Off", "Queued action cancelled; no new request was sent."));
+                            continue;
+                        }
                         // Every arm captures the daemon's outcome and, on failure,
                         // pushes a full-detail Alert up the bus. No `let _ =` swallow.
                         match msg {
@@ -893,7 +910,9 @@ fn main() {
                                             // it update in-pane.
                                             let _ = work_tx.send(app::WorkUpdate::Png(png.clone()));
                                             // Surface the PNG to the operator (best-effort `open`).
-                                            let _ = std::process::Command::new("open").arg(&png).status();
+                                            if local_control::ensure_allowed().is_ok() {
+                                                let _ = std::process::Command::new("open").arg(&png).status();
+                                            }
                                             let _ = alert_tx.send(pane::Alert::info(
                                                 format!("rendered “{title}”"),
                                                 format!("Vello PNG written + opened: {}", png.display()),
@@ -1577,6 +1596,13 @@ fn main() {
                 let mut size_nudged = false;
                 loop {
                     bg.timer(Duration::from_millis(500)).await;
+                    let _ = async_cx.update(|app| {
+                        let _ = window.update(app, |view: &mut ConsoleView, window, cx| {
+                            if view.refresh_local_control() {
+                                present_changed_frame(window, cx, &mut size_nudged);
+                            }
+                        });
+                    });
                     while let Ok((panes, dispatch_head, galaxy_snapshot, daemon_connected, hitl_gate)) =
                         rx.try_recv()
                     {

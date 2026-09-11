@@ -465,6 +465,29 @@ work; never reset or clobber the main checkout.
   validation or LFS. Test On → Off → On with unchanged hook bytes and inert
   commands; absence of PD activity while Off alone misses deleted functionality.
 
+  Native adapters must register cancellation and create/resume effects under
+  the same in-process Off lock; a precheck plus an asynchronous task snapshot
+  misses races. Exercise idle streams, buffered delivery, unused stream release,
+  cancellation before headers, and overflow with intercepted transport. Give
+  older store fixtures explicit synthetic controls instead of clearing HOME
+  markers. Watcher/packager checks are cooperative source gates, not process-tree
+  containment or atomicity with external writes; preserve those limits in reports.
+
+  JavaScript admission must be synchronous at the actual effect call after every
+  awaited launch witness or availability probe. A check inside an async callback
+  is stale by the time its caller resumes; test that gap with a queued microtask
+  and inert adapters. Check standalone adapters as well as the parent runner.
+  A guarded sink invocation does not guard awaits inside that sink (for example,
+  OAuth refresh before a calendar POST); name those remaining effect boundaries.
+  Late trigger handles must be stopped, and a failed stop must remain visible
+  with its cleanup handle rather than turning the saved Off state into proof.
+
+- **Disabling PD hooks must not discard Git LFS publication.** If an authorized
+  publisher disables all Git hooks, explicitly upload LFS objects reachable from
+  its exact head before pushing pointers, using the same scoped repository
+  credential. Never enable PD merely to run LFS, allow incomplete pushes, or
+  rewrite a custom hook to reinstall the LFS block.
+
 
 - **Research reuse is not another authority.** The Project Epistemology D1a lab
   (`docs/research/egosystem-reconciliation/harness/`) imports the existing Harbor

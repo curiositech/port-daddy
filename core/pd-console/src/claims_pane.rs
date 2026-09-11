@@ -82,7 +82,7 @@ fn session_detail_url(base: &str, session_id: &str) -> std::result::Result<reqwe
 }
 
 async fn fetch_session_meta(
-    client: reqwest::Client,
+    client: crate::agent::controlled_http::ControlledHttp,
     base: String,
     session_id: String,
 ) -> std::result::Result<(String, SessionMeta), (String, String)> {
@@ -90,7 +90,7 @@ async fn fetch_session_meta(
 }
 
 async fn fetch_session_meta_with_timeout(
-    client: reqwest::Client,
+    client: crate::agent::controlled_http::ControlledHttp,
     base: String,
     session_id: String,
     timeout: Duration,
@@ -103,7 +103,7 @@ async fn fetch_session_meta_with_timeout(
         .send()
         .await
         .map_err(|error| {
-            let reason = if error.is_timeout() {
+            let reason = if crate::agent::controlled_http::is_timeout(&error) {
                 format!("timed out after {} ms", timeout.as_millis())
             } else {
                 format!("request failed: {error}")
@@ -842,10 +842,7 @@ mod tests {
     #[tokio::test]
     async fn exact_session_recovery_has_its_own_bounded_deadline() {
         let (base, server) = stalled_session_daemon(Duration::from_millis(100));
-        let client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(2))
-            .build()
-            .expect("claims test client");
+        let client = crate::agent::controlled_http::ControlledHttp::new();
 
         let error = fetch_session_meta_with_timeout(
             client,

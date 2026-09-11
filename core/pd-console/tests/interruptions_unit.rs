@@ -10,6 +10,8 @@
 
 #[path = "../src/agent.rs"]
 mod agent;
+#[path = "../src/local_control.rs"]
+mod local_control;
 // agent.rs resolves the stable-berth default via crate::berths (daemon
 // discovery's final fallback), so every target hosting agent.rs must also
 // host the berths module.

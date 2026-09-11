@@ -101,6 +101,7 @@ pub fn parse_porcelain(text: &str) -> Result<Vec<BlameLine>, String> {
 }
 
 fn run_git(cwd: &Path, args: &[&str]) -> Result<String, String> {
+    crate::local_control::ensure_allowed().map_err(|error| error.to_string())?;
     let output = Command::new("git")
         .arg("-C")
         .arg(cwd)
@@ -173,6 +174,7 @@ pub fn load_with_contents(path: &Path, contents: &str) -> Result<Vec<BlameLine>,
         .ok_or_else(|| "Git blame does not support this non-UTF-8 path yet".to_string())?
         .to_string();
 
+    crate::local_control::ensure_allowed().map_err(|error| error.to_string())?;
     let mut child = Command::new("git")
         .arg("-C")
         .arg(&root)

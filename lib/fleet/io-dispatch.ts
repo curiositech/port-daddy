@@ -39,6 +39,7 @@ import {
   type OutputRegistry,
 } from './outputs/index.js';
 import { getSharedConsentGate } from './consent-gate.js';
+import { createLocalRuntimeGate } from '../local-runtime-control.js';
 import {
   parseTriggerSpec,
   parseOutputTarget,
@@ -113,6 +114,8 @@ export function classifyTrigger(raw: string): TriggerClassification {
  * no-op, which is the honest behavior.
  */
 export interface IoDispatchDeps {
+  /** Internal observation seam; production defaults to canonical local controls. */
+  runtimeAllowed?: () => boolean;
   channelSubscribe?: (channel: string, callback: (message: unknown) => void) => (() => void) | null;
   resolveChannel?: (channel: string) => string;
   scheduleCron?: (expression: string, fn: () => void) => () => void;
@@ -145,8 +148,10 @@ function defaultPdDeps(): Parameters<typeof buildOutputRegistry>[0]['pd'] {
 export class IoDispatch {
   private readonly triggerRegistry: TriggerRegistry;
   private readonly outputRegistry: OutputRegistry;
+  private readonly runtimeAllowed: () => boolean;
 
   constructor(deps: IoDispatchDeps = {}) {
+    this.runtimeAllowed = createLocalRuntimeGate(deps.runtimeAllowed);
     this.triggerRegistry = buildTriggerRegistry({
       channelSubscribe: deps.channelSubscribe ?? noopUnsub,
       resolveChannel: deps.resolveChannel ?? ((c) => c),
@@ -178,12 +183,15 @@ export class IoDispatch {
     raw: string,
     onFire: (event: FleetTriggerEvent) => void,
   ): Promise<StartTriggerResult> {
+    const offReason = 'Local Port Daddy is Off or control state is unavailable; trigger refused';
+    if (!this.runtimeAllowed()) return { started: false, reason: offReason };
     const resolved = resolveTrigger(raw, this.triggerRegistry);
     if (!resolved) {
       return { started: false, reason: `unknown or malformed trigger: "${raw}"` };
     }
     const { source, spec } = resolved;
     const availability = await source.available();
+    if (!this.runtimeAllowed()) return { started: false, reason: offReason };
     if (!availability.ready) {
       return {
         started: false,
@@ -194,7 +202,20 @@ export class IoDispatch {
       };
     }
     try {
-      const handle = await source.start(spec, onFire);
+      const handle = await source.start(spec, (event) => {
+        if (this.runtimeAllowed()) onFire(event);
+      });
+      if (!this.runtimeAllowed()) {
+        try {
+          await handle.stop();
+          return { started: false, reason: offReason };
+        } catch (error) {
+          // Do not pretend that saving Off proves this admitted source stopped.
+          // Keep the handle available for the caller's shutdown/retry path.
+          return { started: false, reason: `${offReason}; late trigger cleanup failed: ${String(error)}`,
+            cleanupHandle: handle };
+        }
+      }
       return { started: true, handle, sourceKind: spec.kind };
     } catch (err) {
       return {
@@ -214,12 +235,16 @@ export class IoDispatch {
     target: string,
     payload: Omit<OutputPayload, 'sink' | 'type'>,
   ): Promise<DispatchOutputResult> {
+    const off = (): DispatchOutputResult => ({ ok: false, target,
+      reason: 'Local Port Daddy is Off or control state is unavailable; output refused' });
+    if (!this.runtimeAllowed()) return off();
     const resolved = resolveOutput(target, payload, this.outputRegistry);
     if (!resolved) {
       return { ok: false, target, reason: `unknown or malformed output target: "${target}"` };
     }
     const { sink, payload: full } = resolved;
     const availability = await sink.available();
+    if (!this.runtimeAllowed()) return off();
     if (!availability.ready) {
       return {
         ok: false,
@@ -241,6 +266,9 @@ export class IoDispatch {
       if ((full.pii ?? 'high') === 'high') {
         getSharedConsentGate().assertAllowed(full.sink, full);
       }
+      // Availability may await I/O. Repeat admission in the dispatch stack,
+      // and again for each subsequent output in a multi-target delivery.
+      if (!this.runtimeAllowed()) return off();
       const result = await sink.dispatch(full);
       return { ok: true, target, sinkKind: full.sink, result };
     } catch (err) {
@@ -309,7 +337,7 @@ export interface IoChannelHealth {
 
 export type StartTriggerResult =
   | { started: true; handle: TriggerHandle; sourceKind: TriggerSourceKind }
-  | { started: false; reason: string; requires?: string[] };
+  | { started: false; reason: string; requires?: string[]; cleanupHandle?: TriggerHandle };
 
 export type DispatchOutputResult =
   | { ok: true; target: string; sinkKind: OutputSinkKind; result: OutputResult }
