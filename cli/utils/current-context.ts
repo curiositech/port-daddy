@@ -174,9 +174,23 @@ export function readCurrentContext(cwd: string = process.cwd()): CurrentContext 
   const slotRecord = readContextFile(getContextPathForSlot(slot, cwd));
   if (slotRecord) return slotRecord;
   const legacy = readContextFile(getLegacyContextPath(cwd));
-  if (!legacy) return null;
-  if (!canUseLegacyContextForSlot(legacy, slot)) return null;
+  if (!legacy || !canUseLegacyContextForSlot(legacy, slot)) return null;
   return legacy;
+}
+
+/**
+ * Read only the context record selected by resolveContextSlot(). Unlike the
+ * general reader, this intentionally ignores PD_AGENT_ID / PD_SESSION_ID:
+ * those environment assertions carry no credential and therefore cannot
+ * authorize exceptional same-owner recovery. Only the matching slot file is
+ * accepted here: a legacy compatibility pointer is not exact slot evidence.
+ *
+ * @param cwd - Checkout used to derive the context-store namespace.
+ * @returns The exact selected-slot record, or null when that slot has none.
+ */
+export function readCurrentContextSlot(cwd: string = process.cwd()): CurrentContext | null {
+  const slot = resolveContextSlot();
+  return readContextFile(getContextPathForSlot(slot, cwd));
 }
 
 export function clearCurrentContext(cwd: string = process.cwd()): void {

@@ -471,6 +471,7 @@ describe('Sessions', () => {
 
     expect(receivedRequests[0].method).toBe('DELETE');
     expect(receivedRequests[0].url).toBe('/sessions/session-123');
+    expect(receivedRequests[0].headers['x-agent-id']).toBeUndefined();
     expect(result.success).toBe(true);
   });
 
@@ -490,6 +491,50 @@ describe('Sessions', () => {
       agentId: 'session-agent',
     });
     expect(result.successorId).toBe('session-456');
+  });
+
+  test('actor-only continuation forces credentialed HTTP and omits every agent assertion', async () => {
+    const actorOnly = createClient({
+      agentId: 'synthetic-migrated-alias',
+      credential: 'ORIGINALACTOR.context-secret',
+    });
+    queueResponse({
+      success: true,
+      predecessorId: 'session-legacy',
+      successorId: 'session-successor',
+      actorId: 'ORIGINALACTOR',
+      actorOnlyContinuation: true,
+      durableOwnershipTransferred: false,
+    });
+
+    const result = await actorOnly.takeoverSession('session-legacy', {
+      sameOwner: true,
+      note: 'Resume exact checkpoint',
+      lifecycle: 'durable',
+    });
+
+    expect(receivedRequests[0]).toMatchObject({
+      method: 'POST',
+      url: '/sessions/session-legacy/takeover',
+      body: { sameOwner: true, note: 'Resume exact checkpoint', lifecycle: 'durable' },
+    });
+    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ORIGINALACTOR.context-secret');
+    expect(receivedRequests[0].headers['x-agent-id']).toBeUndefined();
+    expect(receivedRequests[0].body.agentId).toBeUndefined();
+    expect(result.actorOnlyContinuation).toBe(true);
+  });
+
+  test('actor-only continuation refuses auto-mint inputs and partial/no-file transfer', async () => {
+    const actorOnly = createClient({ credential: 'ORIGINALACTOR.context-secret' });
+    await expect(actorOnly.takeoverSession('session-legacy', {
+      sameOwner: true,
+      agentId: 'spoofed-label',
+    })).rejects.toMatchObject({ body: { code: 'SESSION_AGENT_ASSERTION_FORBIDDEN' } });
+    await expect(actorOnly.takeoverSession('session-legacy', {
+      sameOwner: true,
+      claimFiles: false,
+    })).rejects.toMatchObject({ body: { code: 'ACTOR_ONLY_EXACT_TRANSFER_REQUIRED' } });
+    expect(receivedRequests).toHaveLength(0);
   });
 
   test('sessions encodes filters', async () => {
@@ -1095,28 +1140,22 @@ describe('IPC fast paths', () => {
     });
   });
 
-  test('endSession prefers IPC before HTTP when sessionId is explicit', async () => {
+  test('endSession bypasses unauthenticated IPC for exact-session cleanup', async () => {
     pd._requestViaIpc = jest.fn().mockResolvedValue({
       success: true,
-      id: 'session-123',
-      purpose: 'Ship it',
-      status: 'completed',
-      createdAt: 1,
-      updatedAt: 2,
-      releasedFiles: ['src/auth.ts'],
+      id: 'wrong-ipc-result',
     });
+    queueResponse({ success: true, id: 'session-123', status: 'completed', releasedFiles: ['src/auth.ts'] });
 
     const result = await pd.endSession('session-123', { status: 'completed', note: 'wrapped up' });
 
-    expect(pd._requestViaIpc).toHaveBeenCalledWith(
-      'session.end',
-      {
-        sessionId: 'session-123',
-        status: 'completed',
-        note: 'wrapped up',
-      },
-    );
-    expect(receivedRequests).toHaveLength(0);
+    expect(pd._requestViaIpc).not.toHaveBeenCalled();
+    expect(receivedRequests[0]).toMatchObject({
+      method: 'PUT',
+      url: '/sessions/session-123',
+      body: { status: 'completed', note: 'wrapped up' },
+    });
+    expect(receivedRequests[0].headers['x-agent-id']).toBeUndefined();
     expect(result.releasedFiles).toEqual(['src/auth.ts']);
   });
 
@@ -1153,19 +1192,18 @@ describe('IPC fast paths', () => {
     expect(result.worktreeId).toBe('wt-1');
   });
 
-  test('removeSession prefers IPC before HTTP', async () => {
+  test('removeSession bypasses unauthenticated IPC', async () => {
     pd._requestViaIpc = jest.fn().mockResolvedValue({
       success: true,
-      message: 'Session removed',
+      message: 'wrong IPC result',
     });
+    queueResponse({ success: true, message: 'Session archived' });
 
     const result = await pd.removeSession('session-123');
 
-    expect(pd._requestViaIpc).toHaveBeenCalledWith(
-      'session.remove',
-      { sessionId: 'session-123' },
-    );
-    expect(receivedRequests).toHaveLength(0);
+    expect(pd._requestViaIpc).not.toHaveBeenCalled();
+    expect(receivedRequests[0]).toMatchObject({ method: 'DELETE', url: '/sessions/session-123' });
+    expect(receivedRequests[0].headers['x-agent-id']).toBeUndefined();
     expect(result.success).toBe(true);
   });
 

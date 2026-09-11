@@ -918,7 +918,19 @@ interface SessionTakeoverResponse {
   session?: Record<string, unknown>;
   predecessorStatus?: string;
   notesPreserved?: boolean;
-  claimsTransferred?: boolean;
+  claimsTransferred?: boolean | number;
+  actorId?: string;
+  predecessorAgentId?: string | null;
+  actorOnlyContinuation?: boolean;
+  durableOwnershipTransferred?: boolean;
+  agentNodeId?: string | null;
+  agentNodeUpgradeRequired?: boolean;
+  claimReadback?: {
+    compatibilityRows: number;
+    forestRows: number;
+    nodeIds: string[];
+  };
+  aliasRepair?: Record<string, unknown>;
   releasedFiles?: string[];
   claimedFiles?: string[];
   conflicts?: Array<{ filePath: string; sessionId: string; purpose: string; claimedAt: number }>;
@@ -1385,11 +1397,27 @@ class PortDaddy {
   // Internal helpers
   // ===========================================================================
 
-  /** @private */
-  _headers(hasBody: boolean = false): Record<string, string> {
+  /**
+   * Build transport headers while allowing an exceptional request to suppress
+   * the client's display-agent assertion. The design keeps credentials and
+   * attribution separate so actor-only recovery can prove identity solely from
+   * the daemon-minted credential.
+   *
+   * @param hasBody - Whether the request carries a JSON body.
+   * @param identity - Optional per-request attribution override; null omits it.
+   * @returns Headers for the selected HTTP request.
+   * @private
+   */
+  _headers(
+    hasBody: boolean = false,
+    identity?: { agentId?: string | null },
+  ): Record<string, string> {
     const h: Record<string, string> = {};
     if (hasBody) h['Content-Type'] = 'application/json';
-    if (this.agentId) h['X-Agent-Id'] = this.agentId;
+    const requestAgentId = identity && Object.prototype.hasOwnProperty.call(identity, 'agentId')
+      ? identity.agentId
+      : this.agentId;
+    if (requestAgentId) h['X-Agent-Id'] = requestAgentId;
     if (this.credential) h['X-Actor-Credential'] = this.credential;
     if (this.pid) h['X-Pid'] = String(this.pid);
     return h;
@@ -1423,11 +1451,27 @@ class PortDaddy {
       error.code === 'ECONNRESET';
   }
 
-  /** @private */
-  async _request(method: string, path: string, body?: Record<string, unknown>): Promise<unknown> {
+  /**
+   * Send one HTTP request through the resolved daemon target. The purpose of
+   * the identity override is narrowly to omit spoofable display attribution on
+   * credential-canonical session recovery and cleanup routes.
+   *
+   * @param method - HTTP method for the daemon route.
+   * @param path - Absolute daemon path, including any query string.
+   * @param body - Optional JSON request body.
+   * @param identity - Optional per-request attribution override.
+   * @returns Parsed daemon response or a typed request error.
+   * @private
+   */
+  async _request(
+    method: string,
+    path: string,
+    body?: Record<string, unknown>,
+    identity?: { agentId?: string | null },
+  ): Promise<unknown> {
     const target = this._resolveTarget();
     const jsonBody = body !== undefined ? JSON.stringify(body) : null;
-    const headers = this._headers(jsonBody !== null);
+    const headers = this._headers(jsonBody !== null, identity);
 
     if (jsonBody) {
       headers['Content-Length'] = String(Buffer.byteLength(jsonBody));
@@ -2361,6 +2405,7 @@ class PortDaddy {
   async endSession(sessionIdOrNote?: string, options?: {
     status?: string;
     note?: string;
+    agentId?: string;
   }): Promise<SessionResponse> {
     // If first arg looks like a session ID, use it directly
     // Otherwise treat it as a note and find active session
@@ -2369,24 +2414,10 @@ class PortDaddy {
     const note = isSessionId ? options?.note : sessionIdOrNote;
 
     if (sessionId) {
-      const ipcResult = await this._requestViaIpc<SessionResponse>(
-        IpcAction.SESSION_END,
-        {
-          sessionId,
-          status: options?.status || 'completed',
-          note,
-        },
-      );
-      if (ipcResult) {
-        if (ipcResult.success === false) {
-          this._throwIpcParityError(ipcResult, 'Failed to end session', 404);
-        }
-        return ipcResult;
-      }
       return this._request('PUT', `/sessions/${sessionId}`, {
         status: options?.status || 'completed',
         note,
-      }) as Promise<SessionResponse>;
+      }, { agentId: null }) as Promise<SessionResponse>;
     }
 
     // Find active session
@@ -2402,7 +2433,7 @@ class PortDaddy {
     return this._request('PUT', `/sessions/${list.sessions[0].id}`, {
       status: options?.status || 'completed',
       note,
-    }) as Promise<SessionResponse>;
+    }, { agentId: null }) as Promise<SessionResponse>;
   }
 
   /**
@@ -2416,23 +2447,19 @@ class PortDaddy {
    * Delete a session entirely.
    */
   async removeSession(sessionId: string): Promise<{ success: boolean }> {
-    const ipcResult = await this._requestViaIpc<{ success: boolean; error?: string }>(
-      IpcAction.SESSION_REMOVE,
-      { sessionId },
-    );
-    if (ipcResult) {
-      if (ipcResult.success === false) {
-        this._throwIpcParityError(ipcResult, 'Failed to remove session', 404);
-      }
-      return ipcResult;
-    }
-    return this._request('DELETE', `/sessions/${sessionId}`) as Promise<{ success: boolean }>;
+    return this._request(
+      'DELETE',
+      `/sessions/${sessionId}`,
+      undefined,
+      { agentId: null },
+    ) as Promise<{ success: boolean }>;
   }
 
   /**
    * Start a successor session from an existing one without deleting its notes.
    */
   async takeoverSession(sessionId: string, options?: {
+    sameOwner?: boolean;
     grantId?: string;
     nonce?: string;
     agentId?: string;
@@ -2448,6 +2475,50 @@ class PortDaddy {
     lifecycle?: 'durable' | 'ephemeral';
     claimFiles?: boolean;
   }): Promise<SessionTakeoverResponse> {
+    if (options?.sameOwner === true) {
+      if (!this.credential) {
+        throw new PortDaddyError(
+          'actor-only continuation requires the predecessor context-slot credential; no credential was loaded',
+          401,
+          { code: 'IDENTITY_CREDENTIAL_REQUIRED' },
+        );
+      }
+      if (options.agentId !== undefined || options.grantId !== undefined || options.nonce !== undefined) {
+        throw new PortDaddyError(
+          'actor-only continuation accepts no agentId or signed-grant fields; identity comes only from the credential',
+          400,
+          { code: 'SESSION_AGENT_ASSERTION_FORBIDDEN' },
+        );
+      }
+      if (options.project !== undefined || options.worktreeId !== undefined || options.claimFiles === false) {
+        throw new PortDaddyError(
+          'actor-only continuation preserves project, claim world, and the complete claim set',
+          400,
+          { code: 'ACTOR_ONLY_EXACT_TRANSFER_REQUIRED' },
+        );
+      }
+      const body: Record<string, unknown> = {
+        sameOwner: true,
+        purpose: options.purpose,
+        note: options.note,
+        metadata: options.metadata,
+        worktree: options.worktree,
+        requireLinkedWorktree: options.requireLinkedWorktree,
+        allowMainWorktree: options.allowMainWorktree,
+        lifecycle: options.lifecycle,
+      };
+      for (const key of Object.keys(body)) {
+        if (body[key] === undefined) delete body[key];
+      }
+      // Deliberately no IPC and no X-Agent-Id: the credential is the sole
+      // caller-controlled authority input on this legacy path.
+      return this._request(
+        'POST',
+        `/sessions/${sessionId}/takeover`,
+        body,
+        { agentId: null },
+      ) as Promise<SessionTakeoverResponse>;
+    }
     if (!options?.grantId?.trim() || !options.nonce?.trim()) {
       throw new PortDaddyError(
         'session takeover requires a signed durable-ownership grantId and one-shot nonce',

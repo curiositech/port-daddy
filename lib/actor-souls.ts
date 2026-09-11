@@ -217,6 +217,89 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
       PRIMARY KEY (harbor, alias)
     )
   `);
+  runDDL(`
+    CREATE TABLE IF NOT EXISTS legacy_actor_alias_retirements (
+      harbor             TEXT NOT NULL,
+      alias              TEXT NOT NULL,
+      synthetic_actor_id TEXT NOT NULL,
+      successor_actor_id TEXT NOT NULL,
+      retired_credential_hash TEXT NOT NULL
+        CHECK(length(retired_credential_hash) = 64
+          AND retired_credential_hash = lower(retired_credential_hash)
+          AND retired_credential_hash NOT GLOB '*[^0-9a-f]*'),
+      retired_at         INTEGER NOT NULL,
+      reason             TEXT NOT NULL CHECK(reason = 'grandfather-migration-split-alias'),
+      PRIMARY KEY (harbor, alias, synthetic_actor_id),
+      UNIQUE (harbor, alias)
+    )
+  `);
+  runDDL(`
+    CREATE TRIGGER IF NOT EXISTS legacy_actor_alias_retirements_no_update
+    BEFORE UPDATE ON legacy_actor_alias_retirements
+    BEGIN
+      SELECT RAISE(ABORT, 'legacy actor alias retirement records are immutable');
+    END
+  `);
+  runDDL(`
+    CREATE TRIGGER IF NOT EXISTS legacy_actor_alias_retirements_no_delete
+    BEFORE DELETE ON legacy_actor_alias_retirements
+    BEGIN
+      SELECT RAISE(ABORT, 'legacy actor alias retirement records are immutable');
+    END
+  `);
+  runDDL(`
+    CREATE TRIGGER IF NOT EXISTS legacy_actor_retired_soul_no_reactivate
+    BEFORE UPDATE OF credential_hash, credential_salt, operator_trusted ON actor_souls
+    WHEN EXISTS (
+      SELECT 1 FROM legacy_actor_alias_retirements r
+      WHERE r.harbor = OLD.harbor AND r.synthetic_actor_id = OLD.actor_id
+    ) AND (
+      NEW.credential_hash IS NOT NULL
+      OR NEW.credential_salt IS NOT NULL
+      OR NEW.operator_trusted <> 0
+    )
+    BEGIN
+      SELECT RAISE(ABORT, 'retired synthetic actor verifier cannot be reactivated');
+    END
+  `);
+  runDDL(`
+    CREATE TRIGGER IF NOT EXISTS legacy_actor_retired_soul_no_delete
+    BEFORE DELETE ON actor_souls
+    WHEN EXISTS (
+      SELECT 1 FROM legacy_actor_alias_retirements r
+      WHERE r.harbor = OLD.harbor AND r.synthetic_actor_id = OLD.actor_id
+    )
+    BEGIN
+      SELECT RAISE(ABORT, 'retired synthetic actor evidence is immutable');
+    END
+  `);
+  runDDL(`
+    CREATE TRIGGER IF NOT EXISTS legacy_actor_retired_alias_no_rebind
+    BEFORE UPDATE OF harbor, alias, actor_id ON actor_alias
+    WHEN EXISTS (
+      SELECT 1 FROM legacy_actor_alias_retirements r
+      WHERE r.harbor = OLD.harbor AND r.alias = OLD.alias
+        AND (
+          NEW.harbor <> OLD.harbor
+          OR NEW.alias <> OLD.alias
+          OR r.successor_actor_id <> NEW.actor_id
+        )
+    )
+    BEGIN
+      SELECT RAISE(ABORT, 'retired synthetic actor alias cannot be rebound');
+    END
+  `);
+  runDDL(`
+    CREATE TRIGGER IF NOT EXISTS legacy_actor_retired_alias_no_delete
+    BEFORE DELETE ON actor_alias
+    WHEN EXISTS (
+      SELECT 1 FROM legacy_actor_alias_retirements r
+      WHERE r.harbor = OLD.harbor AND r.alias = OLD.alias
+    )
+    BEGIN
+      SELECT RAISE(ABORT, 'retired synthetic actor alias is immutable');
+    END
+  `);
   // Shared newcomer budget pool — the anti-launder core (metered by budget-guard).
   runDDL(`
     CREATE TABLE IF NOT EXISTS newcomer_pool (
@@ -249,6 +332,26 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
   `);
   const selectAlias = db.prepare(`
     SELECT actor_id FROM actor_alias WHERE harbor = ? AND alias = ?
+  `);
+  const selectLegacyAliasRetirement = db.prepare(`
+    SELECT r.successor_actor_id, r.retired_credential_hash
+    FROM legacy_actor_alias_retirements r
+    JOIN actor_souls s
+      ON s.harbor = r.harbor AND s.actor_id = r.synthetic_actor_id
+    WHERE r.harbor = ? AND r.alias = ? AND r.synthetic_actor_id = ?
+      AND r.reason = 'grandfather-migration-split-alias'
+      AND s.credential_kind = 'migrated'
+      AND s.display_alias = r.alias
+      AND s.credential_hash IS NULL
+      AND s.credential_salt IS NULL
+      AND s.operator_trusted = 0
+  `);
+  const selectSyntheticCredentialRetirement = db.prepare(`
+    SELECT 1
+    FROM legacy_actor_alias_retirements
+    WHERE harbor = ? AND synthetic_actor_id = ?
+      AND reason = 'grandfather-migration-split-alias'
+    LIMIT 1
   `);
   const upsertAlias = db.prepare(`
     INSERT INTO actor_alias (harbor, alias, actor_id, bound_at)
@@ -312,13 +415,40 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
    * spend choke floors to the shared newcomer pool — NEVER an above-floor ceiling.
    */
   function resolveActor(handle: string, harbor = defaultHarbor): ResolvedActor {
-    // Direct soul hit first (handle already a minted id)?
+    // Direct soul ids ordinarily outrank display aliases. The sole exception
+    // is the grandfather migration's exact retired split-alias artifact: a
+    // demoted migrated self-id whose verifier was erased and whose identical
+    // display alias was explicitly redirected to a different principal.
+    // Keeping the synthetic soul preserves credential/history evidence, but
+    // continuing to prefer it here would make the alias CAS ineffective.
     const direct = getSoul(handle, harbor);
-    if (direct) return { actorId: direct.actorId, soulClass: classifyRow(direct) };
-    // Alias → id?
     const viaAlias = resolveAlias(handle, harbor);
+    const aliasTarget = viaAlias && viaAlias !== direct?.actorId
+      ? getSoul(viaAlias, harbor)
+      : null;
+    const retirement = direct
+      ? selectLegacyAliasRetirement.get(harbor, handle, direct.actorId) as
+          | { successor_actor_id: string; retired_credential_hash: string }
+          | undefined
+      : undefined;
+    const retiredSynthetic = Boolean(
+      direct
+      && direct.credentialKind === 'migrated'
+      && !direct.operatorTrusted
+      && direct.displayAlias === handle
+      && viaAlias
+      && viaAlias !== direct.actorId
+      && retirement?.successor_actor_id === viaAlias,
+    );
+    if (direct && !retiredSynthetic) {
+      return { actorId: direct.actorId, soulClass: classifyRow(direct) };
+    }
+    if (retiredSynthetic && !aliasTarget) {
+      return { actorId: asActorId(handle), soulClass: 'unknown' };
+    }
+    // Alias → id (including a guarded retired-synthetic redirect).
     if (viaAlias) {
-      const soul = getSoul(viaAlias, harbor);
+      const soul = aliasTarget ?? getSoul(viaAlias, harbor);
       if (soul) return { actorId: soul.actorId, soulClass: classifyRow(soul) };
     }
     // Unknown / un-souled — pool-floored by the caller.
@@ -364,9 +494,13 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
       | undefined;
     if (!soul || !soul.credential_hash || !soul.credential_salt) return null;
     const candidate = hashCredential(soul.credential_salt, parsed.secret);
-    return constantTimeEqualHex(candidate, soul.credential_hash)
-      ? asActorId(parsed.actorId)
-      : null;
+    if (!constantTimeEqualHex(candidate, soul.credential_hash)) return null;
+    // The stored verifier is also CAS-cleared by the repair transaction, so
+    // this append-only check is defense in depth for readers that race a
+    // corrupt or partially migrated store. Older hash-only verifiers fail too
+    // because no credential hash or salt remains on the retired soul row.
+    if (selectSyntheticCredentialRetirement.get(harbor, parsed.actorId)) return null;
+    return asActorId(parsed.actorId);
   }
 
   // ─── Operator token (advisory-above-floor; see §2.4 honesty note) ─────────────

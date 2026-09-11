@@ -996,18 +996,25 @@ paths:
       tags: [sessions]
       summary: End or abandon a session
       operationId: updateSession
+      description: >
+        Credential-authenticated exact-session cleanup. The credential actor
+        must equal the session's daemon-written metadata.identity.actorId.
+        agentId and X-Agent-Id assertions are forbidden, and unauthenticated IPC
+        has no fallback to this mutation.
       parameters:
         - name: id
           in: path
           required: true
           schema:
             type: string
+        - $ref: '#/components/parameters/XActorCredential'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               properties:
                 status:
                   type: string
@@ -1034,22 +1041,36 @@ paths:
                       type: string
         '404':
           description: Session not found
+        '400':
+          description: An agentId or X-Agent-Id assertion was supplied
+        '401':
+          description: Actor credential missing or invalid
+        '403':
+          description: Credential actor does not equal the session's stamped actor
+        '409':
+          description: Session lacks a daemon-verified actor stamp
         '500':
           $ref: '#/components/responses/InternalError'
 
     delete:
       tags: [sessions]
-      summary: Delete session and cascade to notes and file claims
+      summary: Archive a session while preserving notes and claim history
       operationId: deleteSession
+      description: >
+        Releases active claims and writes a non-destructive archive tombstone.
+        The credential actor must equal the exact session's daemon-written
+        metadata.identity.actorId. agentId and X-Agent-Id assertions are
+        forbidden; no unauthenticated IPC form is accepted.
       parameters:
         - name: id
           in: path
           required: true
           schema:
             type: string
+        - $ref: '#/components/parameters/XActorCredential'
       responses:
         '200':
-          description: Session deleted
+          description: Session archived; notes and historical claim rows preserved
           content:
             application/json:
               schema:
@@ -1061,6 +1082,14 @@ paths:
                     type: string
         '404':
           description: Session not found
+        '400':
+          description: An agentId or X-Agent-Id assertion was supplied
+        '401':
+          description: Actor credential missing or invalid
+        '403':
+          description: Credential actor does not equal the session's stamped actor
+        '409':
+          description: Session lacks a daemon-verified actor stamp
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -5095,44 +5124,74 @@ paths:
   /sessions/{id}/takeover:
     post:
       tags: [sessions]
-      summary: Accept a signed takeover grant as its already-admitted successor
+      summary: Accept signed AgentNode takeover or exact pre-AgentNode actor continuity
       operationId: takeoverSession
       description: >
-        The id is the predecessor session, not the successor. Requires the
-        named successor's verified actor credential and the exact grantId and
-        one-shot nonce from issuance. Acceptance rechecks signed evidence,
-        expiry, current epoch, admissions, worktrees, heads, and claims before
-        atomically enacting the explicit dispositions and new ownership epoch.
-        Old ownership and notes remain historical evidence. Does not spawn or
-        admit a session. The SDK is takeoverSession(sourceSessionId, { grantId,
-        nonce }); the legacy takeover CLI lacks these fields and is denied.
+        The id is always the predecessor session. AgentNode-bound work requires
+        the named successor's verified actor credential plus the exact grantId
+        and one-shot nonce. Acceptance rechecks signed evidence, expiry, epoch,
+        admissions, worktrees, heads, and claims before applying the explicit
+        dispositions and new ownership epoch. A distinct sameOwner=true form is
+        limited to pre-AgentNode sessions: header credential actor must equal
+        the predecessor's daemon stamp; caller and predecessor physical Git
+        worktree/HEAD must match; and the complete unreleased dual-store claim
+        set moves in one IMMEDIATE transaction. That form preserves the legacy
+        agent label but transfers no AgentNode, roadmap owner, or durable epoch.
+        Both forms preserve old notes and claim history.
       parameters:
-        - { name: id, in: path, required: true, schema: { type: string }, description: Predecessor session id bound into the signed grant }
-        - $ref: '#/components/parameters/XAgentId'
+        - { name: id, in: path, required: true, schema: { type: string }, description: Predecessor session id }
+        - name: x-agent-id
+          in: header
+          schema: { type: string }
+          description: Optional asserted alias for signed AgentNode acceptance; forbidden on actor-only continuation.
         - name: x-actor-credential
           in: header
           schema: { type: string }
-          description: Named successor actor credential; required unless the legacy body credential field is used.
+          description: Required for actor-only continuation; named successor credential for signed acceptance, where the legacy body carrier also remains supported.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties: false
-              required: [grantId, nonce]
-              properties:
-                grantId: { type: string, minLength: 1 }
-                nonce: { type: string, minLength: 1, writeOnly: true, description: One-shot nonce from authenticated issuance; never include it in public notes }
-                agentId: { type: string, description: Optional asserted alias verified against the credential }
-                credential: { type: string, writeOnly: true, description: Legacy credential transport; prefer the actor credential header }
+              oneOf:
+                - title: Signed AgentNode takeover acceptance
+                  type: object
+                  additionalProperties: false
+                  required: [grantId, nonce]
+                  properties:
+                    grantId: { type: string, minLength: 1 }
+                    nonce: { type: string, minLength: 1, writeOnly: true, description: One-shot nonce from authenticated issuance; never include it in public notes }
+                    agentId: { type: string, description: Optional asserted alias verified against the credential }
+                    credential: { type: string, writeOnly: true, description: Legacy credential transport; prefer the actor credential header }
+                - title: Pre-AgentNode actor-only continuation
+                  type: object
+                  additionalProperties: false
+                  required: [sameOwner, worktree]
+                  properties:
+                    sameOwner: { type: boolean, const: true }
+                    purpose: { type: string }
+                    note: { type: string }
+                    lifecycle: { type: string, enum: [durable, ephemeral] }
+                    requireLinkedWorktree: { type: boolean }
+                    allowMainWorktree: { type: boolean }
+                    metadata: { type: object }
+                    worktree:
+                      type: object
+                      additionalProperties: false
+                      required: [id, root, name, branch, isMain]
+                      properties:
+                        id: { type: string, minLength: 1 }
+                        root: { type: string, minLength: 1, description: Canonical absolute path re-probed by the daemon }
+                        name: { type: string, minLength: 1 }
+                        branch: { type: string, minLength: 1 }
+                        isMain: { type: boolean }
       responses:
-        '200': { description: 'success, predecessorId, successorId, signed ownership epoch summary, receipt, explicit claim disposition, and context continuation' }
-        '400': { description: Unknown request field }
+        '200': { description: 'Signed form: ownership epoch and disposition receipt. Actor-only form: successor, canonical actor, preserved label, exact claim readback, alias repair state, and explicit no-AgentNode flags.' }
+        '400': { description: Unknown/ignored field, forbidden actor assertion, missing exact worktree, malformed lifecycle, or body credential on actor-only form }
         '401': { description: Missing or invalid actor credential }
-        '403': { description: Credential is not the named successor or another signed authority check fails }
+        '403': { description: Credential is not the signed successor or does not equal the actor-only predecessor stamp }
         '404': { description: Grant or bound resource not found }
-        '409': { description: 'RECOVERY_GRANT_REQUIRED, expired or consumed grant, route binding mismatch, or changed epoch/admission/worktree/head/claims' }
+        '409': { description: 'RECOVERY_GRANT_REQUIRED; signed grant expiry/replay/binding drift; or actor-only AgentNode, replay, alias, worktree/head, claim snapshot, or owner-stamp conflict' }
         '500': { description: Unexpected internal error; acceptance must not be inferred }
         '503': { description: Canonical ownership service or verifiable signed evidence unavailable }
 
