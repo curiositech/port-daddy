@@ -202,6 +202,8 @@ describe('release-candidate E2E contract', () => {
     expect(runner).toMatch(/manifest\.smoke\?\.status !== 'ok'/);
     expect(runner).not.toContain('PD_MATRIX_FILE');
     expect(runner).toContain('matrixEnvRequired: false');
+    expect(runner).toContain('PORT_DADDY_DB: db');
+    expect(runner).toContain('PORT_DADDY_TEST_DB: db');
     expect(runner).toContain('confirmedGone: true');
     expect(runner).toContain("throw new Error(`colliding daemon ${pid} remained alive after its exit receipt`)");
     expect(runner).not.toMatch(/child\.kill\('SIGKILL'\);\s*this\.activeChildren\.delete\(child\)/);
