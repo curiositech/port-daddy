@@ -6,7 +6,7 @@ Model. Resident context = a cache of capacity k tokens over spans f with
 size s(f) tokens and refetch cost c(f); the context-window case has UNIT
 COST DENSITY c(f) = s(f) (refetching a span costs the tokens re-read).
 Requests follow the agent's action sequence; eviction is online.
-Load-bearing spans are PINNED by a feature oracle; an adversary corrupts
+Critical spans are PINNED by a feature oracle; an adversary corrupts
 oracle consultations at rate phi: a corrupted consultation either unpins a
 true pin (evictable for that eviction pass) or pins a junk span
 (unevictable for that pass). REPAIR-ON-TOUCH: a span's pin bit is
@@ -65,7 +65,7 @@ Falsification-first protocol (skills/falsification-first):
  (5) Mutation: a policy that TRUSTS pins blindly (never verifies residency
      on touch, never refetches a corrupted-unpinned span) must show
      unbounded degradation — Theta(N) loss from a SINGLE corruption —
-     proving repair-on-touch is the load-bearing guard.
+     proving repair-on-touch is the critical guard.
 
 House seed 20260816. Exit nonzero on any violation.
 """
@@ -542,7 +542,7 @@ else:
           "term do not.)")
 
 # ============================================== (5) MUTATION: blind pin trust
-print("\n=== (5) MUTATION: blind pin-trust must be catastrophic (repair-on-touch is load-bearing) ===")
+print("\n=== (5) MUTATION: blind pin-trust must be catastrophic (repair-on-touch is critical) ===")
 # Cyclic working set {1,2,3,4} (8 tokens) thrashes in the unpinned region
 # with OR without the pin resident, so evicting the pin buys nothing back:
 # the corruption's whole effect is on the pin itself.
@@ -578,7 +578,7 @@ print(f"  graceful pays exactly ONE refetch (extra = {rows5[-1][1]:.0f} = c(f) =
       f"{costs5[0]:.0f}), independent of N;")
 print(f"  blind-trust never repairs: damage grows linearly, {ratio5:.0f} refetch-"
       f"equivalents at N=1920 from ONE corruption —")
-print(f"  and the true cost of acting on absent load-bearing context is a "
+print(f"  and the true cost of acting on absent critical context is a "
       f"correctness failure, i.e. unbounded;")
 print(f"  pricing it at c_refetch is the CHARITABLE accounting. Mutation caught ✓")
 if ratio5 < 20 or rows5[-1][1] > costs5[0] + EPS:

@@ -13,11 +13,15 @@ import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
 import {
+  clearBeginAttempt,
+  readBeginAttempt,
   readCurrentContext,
   resolveCurrentContext,
   writeCurrentContext,
   type CurrentContextProvenance,
 } from '../utils/current-context.js';
+import { autoIdentityFromPackageJson } from './services.js';
+import { isValidBeginIdempotencyKey } from '../../lib/begin-idempotency.js';
 import { resolveCliActorCredential } from '../utils/actor-credential.js';
 import { loadFleetConfig } from '../../lib/fleet-engine.js';
 import { deriveChangelogFromNote } from '../../lib/changelog-from-note.js';
@@ -338,7 +342,7 @@ export async function handleSession(
   useDirect = false
 ): Promise<void> {
   if (!subcommand) {
-    console.error('Usage: port-daddy session <start|end|done|abandon|takeover|rm|files|phase|relink> [args]');
+    console.error('Usage: port-daddy session <start|end|done|abandon|takeover|find|rm|files|phase|relink> [args]');
     console.error('');
     console.error('Commands:');
     console.error('  start <purpose> [--files file1 file2...] [--agent AGENT_ID] [--force]');
@@ -346,6 +350,8 @@ export async function handleSession(
     console.error('  done [note]           # Alias for "end" with status=completed');
     console.error('  abandon [note]        # End session with status=abandoned');
     console.error('  takeover <id> [note]  # Start a successor session; preserve old notes');
+    console.error('  find [--key K | --identity ID] [--all-worktrees] [--all] [--no-adopt]');
+    console.error('                        # Recover "my session" after a lost begin response or crash');
     console.error('  rm <id>               # Archive a session; preserve old notes');
     console.error('  files add <paths...> [--session ID]  # Claim files in active session');
     console.error('  files rm <paths...> [--session ID]   # Release files in active session');
@@ -371,6 +377,8 @@ export async function handleSession(
       return sessionEnd(rest, options, 'abandoned');
     case 'takeover':
       return sessionTakeover(rest, options);
+    case 'find':
+      return sessionFind(rest, options);
     case 'rm':
       return sessionRemove(rest, options);
     case 'files':
@@ -676,6 +684,142 @@ async function sessionRemove(rest: string[], options: CLIOptions): Promise<void>
     }
     console.log('  Notes preserved: yes');
   }
+}
+
+/**
+ * `pd session find` — successor discovery for an agent that lost its local
+ * state (a `pd begin` whose response never arrived, a crash before the
+ * context file was written, a wiped worktree).
+ *
+ * Two doors, tried in this order:
+ *   1. `--key <k>` (or the pending begin attempt / current context on disk):
+ *      the daemon returns the session that begin created together with the
+ *      credential it sealed under the key, and this shell adopts it — the
+ *      agent is exactly where it would have been had the response arrived.
+ *   2. `--identity <p:s:c>` (or the package.json identity): the most recent
+ *      live session(s) for that identity in this worktree. Ids only; the
+ *      hint says how to continue, which is `pd session takeover <id>` for a
+ *      closed session. Nothing here bypasses takeover's ownership rules.
+ */
+async function sessionFind(rest: string[], options: CLIOptions): Promise<void> {
+  const positionalKey = rest[0] && !rest[0].startsWith('-') ? rest[0] : undefined;
+  let key = typeof options.key === 'string' ? options.key : positionalKey;
+  const explicitIdentity = typeof options.identity === 'string' ? options.identity : undefined;
+  let keySource: 'flag' | 'begin-attempt' | 'context' | null = key ? 'flag' : null;
+
+  if (!key && !explicitIdentity) {
+    const attempt = readBeginAttempt();
+    if (attempt?.idempotencyKey) {
+      key = attempt.idempotencyKey;
+      keySource = 'begin-attempt';
+    } else {
+      const context = readCurrentContext();
+      if (context?.idempotencyKey) {
+        key = context.idempotencyKey;
+        keySource = 'context';
+      }
+    }
+  }
+
+  if (key && !isValidBeginIdempotencyKey(key)) {
+    ui.error('--key must be the begin idempotency key (16-128 URL-safe chars, e.g. a UUID v4)');
+    process.exit(1);
+  }
+
+  const identity = key ? undefined : (explicitIdentity || autoIdentityFromPackageJson());
+  if (!key && !identity) {
+    ui.error('Nothing to search by: pass --key <begin key> or --identity <project:stack:context>');
+    console.error('  (no pending begin attempt or context with a key was found in this worktree)');
+    process.exit(1);
+  }
+
+  const params = new URLSearchParams();
+  if (key) {
+    params.set('key', key);
+  } else {
+    params.set('identity', identity as string);
+    const allWorktrees = Boolean(options['all-worktrees'] || options.aw);
+    if (allWorktrees) {
+      params.set('allWorktrees', '1');
+    } else {
+      const worktreePolicy = resolveCliSessionWorktreePolicy(options);
+      if (worktreePolicy.success && worktreePolicy.worktree?.id) params.set('worktreeId', worktreePolicy.worktree.id);
+      else params.set('allWorktrees', '1');
+    }
+    if (options.all) params.set('includeClosed', '1');
+  }
+
+  let res: PdFetchResponse;
+  try {
+    res = await pdFetch(`/sugar/find?${params.toString()}`);
+  } catch (error) {
+    ui.error(`Failed to reach the daemon: ${(error as Error).message}`);
+    process.exit(1);
+  }
+  const data = await res.json();
+  if (!res.ok) {
+    ui.error((data.error as string) || 'Failed to find session');
+    if (typeof data.hint === 'string') console.error(`  ${data.hint}`);
+    if (typeof data.sessionId === 'string') console.error(`  Recorded session: ${data.sessionId}`);
+    process.exit(1);
+  }
+
+  // Adopt a key-recovered session locally: the context file is exactly what
+  // the lost `pd begin` response would have written.
+  let adopted = false;
+  const adopt = !(options['no-adopt'] === true || options.noAdopt === true);
+  if (data.foundBy === 'key' && adopt && typeof data.sessionId === 'string' && typeof data.agentId === 'string' && data.driveable === true) {
+    const priorContext = readCurrentContext();
+    writeCurrentContext({
+      agentId: data.agentId,
+      sessionId: data.sessionId,
+      purpose: typeof data.purpose === 'string' ? data.purpose : undefined,
+      identity: typeof data.identity === 'string' ? data.identity : null,
+      startedAt: typeof data.createdAt === 'number' ? data.createdAt : Date.now(),
+      credential: typeof data.credential === 'string' && data.credential
+        ? data.credential
+        : (priorContext?.sessionId === data.sessionId ? priorContext.credential ?? null : null),
+      idempotencyKey: key as string,
+    });
+    clearBeginAttempt();
+    adopted = true;
+  }
+
+  if (isJson(options)) {
+    const { credential: _hidden, ...rest } = data;
+    void _hidden;
+    console.log(JSON.stringify({ ...rest, adopted, keySource, credentialRecovered: typeof data.credential === 'string' }, null, 2));
+    return;
+  }
+  if (isQuiet(options)) {
+    if (typeof data.sessionId === 'string') console.log(data.sessionId);
+    return;
+  }
+
+  if (data.foundBy === 'key') {
+    ui.success(`Found session ${String(data.sessionId)} (agent ${String(data.agentId)})`);
+    if (keySource && keySource !== 'flag') console.error(`  Key source: ${keySource === 'begin-attempt' ? 'pending begin attempt on disk' : 'current context file'}`);
+    if (data.purpose) console.error(`  Purpose: ${String(data.purpose)}`);
+    console.error(`  Status: ${String(data.status ?? 'unknown')}${data.lifecycle ? ` (${String(data.lifecycle)})` : ''}`);
+    if (adopted) {
+      console.error(`  Context restored${typeof data.credential === 'string' ? ' with credential' : ' (no credential sealed under this key)'} — continue with pd note / pd done`);
+    }
+    if (typeof data.hint === 'string' && !adopted) console.error(`  ${data.hint}`);
+    return;
+  }
+
+  const rows = Array.isArray(data.sessions) ? data.sessions as Array<Record<string, unknown>> : [];
+  if (rows.length === 0) {
+    ui.warn(`No ${options.all ? '' : 'active '}session for ${String(data.identity)}${data.worktreeId ? ' in this worktree' : ''}`);
+  } else {
+    ui.success(`${rows.length} session(s) for ${String(data.identity)} (newest first)`);
+    for (const row of rows) {
+      const when = typeof row.createdAt === 'number' ? new Date(row.createdAt).toISOString() : '';
+      console.error(`  ${String(row.sessionId)}  ${String(row.status ?? '')}  agent=${String(row.agentId ?? '-')}  ${when}`);
+      if (row.purpose) console.error(`      ${String(row.purpose)}`);
+    }
+  }
+  if (typeof data.hint === 'string') console.error(`  ${data.hint}`);
 }
 
 async function sessionTakeover(rest: string[], options: CLIOptions): Promise<void> {

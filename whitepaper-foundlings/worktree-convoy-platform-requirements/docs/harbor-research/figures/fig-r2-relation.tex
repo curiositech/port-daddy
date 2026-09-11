@@ -1,0 +1,65 @@
+% R2 relation-map: NEW figure (no source script -- this result had no
+% relation-map in figures/src/, which is the Rail-B gap the round-2 review
+% flagged: section sec:split carried a regime diagram and no analogy map at
+% all). Drawn to the same base||target||relation-arrow grammar and the same
+% unit length as fig-r1-relation.tex / fig-r4-relation.tex so the corpus
+% keeps one drawing convention.
+%
+% Base is the house repertoire's assigned base for this result
+% (skills/harbor-exposition/references/style-template-v2.md: "thermometer ->
+% scalar heads (comonotonicity)"). Row 3 draws the crossing pair that
+% Theorem 2's proof constructs; it carries no numbers -- the two items are
+% qualitative positions in the (fit, regret) plane, exactly as the theorem
+% states them -- so there is nothing here to recompute or tag.
+% [internal, drawn for paper1.tex Theorem 2]
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[x=0.78cm,y=0.78cm]
+\node[align=center,font=\normalsize\bfseries,text=harborblue] at (6,12.35)
+  {R2 --- one scalar is one order; two readers need two heads};
+
+% Base domain (left): the thermometer
+\draw[draw=harborblue,thick,fill=harborblue,fill opacity=0.12] (0.2,0.7) rectangle (3.8,10.6);
+\node[align=center,font=\small\bfseries] at (2.0,11.4) {Base: a thermometer\\read by two people};
+
+% Target domain (right): the scalar compaction head
+\draw[draw=seagreen,thick,fill=seagreen,fill opacity=0.12] (8.2,0.7) rectangle (11.8,10.6);
+\node[align=center,font=\small\bfseries] at (10.0,11.4) {Target: one scalar head\\read by two readers};
+
+% Row 1 --- one number
+\draw[draw=black!55,fill=white,thick,rounded corners=1.5pt] (0.62,8.05) rectangle (0.88,9.35);
+\fill[shipred] (0.75,7.88) circle (0.22);
+\fill[shipred] (0.64,8.05) rectangle (0.86,8.80);
+\node[align=center,font=\scriptsize,text width=1.9cm] at (2.55,8.70)
+  {One mercury column: every patient gets exactly one number};
+\node[align=center,font=\scriptsize,text width=2.6cm] at (10.0,8.70) {One scalar head $h(x)$: every artifact gets exactly one number};
+\draw[<->,>=Stealth,thick,shipred] (3.9,8.30) -- (8.1,8.30);
+\node[align=center,font=\small\bfseries,text=shipred] at (6.0,9.85) {one scalar $\Rightarrow$\\exactly ONE total order};
+
+% Row 2 --- what each reader wants
+\node[align=center,font=\scriptsize,text width=2.6cm] at (2.0,5.70) {Nurse and pharmacist both want the hottest patient first: their orders agree};
+\node[align=center,font=\scriptsize,text width=2.6cm] at (10.0,5.70) {Successor wants highest continuation value; operator wants highest regret-if-ignored};
+\draw[<->,>=Stealth,thick,shipred] (3.9,5.30) -- (8.1,5.30);
+\node[align=center,font=\small\bfseries,text=shipred] at (6.0,6.85) {two readers served $\Leftrightarrow$\\their orders never cross};
+
+% Row 3 --- the crossing pair, drawn
+\node[align=center,font=\scriptsize,text width=2.6cm] at (2.0,2.20) {For temperature no crossing pair exists: hotter is hotter for everybody};
+\draw[->,>=Stealth,black!55] (8.80,1.15) -- (11.45,1.15);
+\draw[->,>=Stealth,black!55] (8.80,1.15) -- (8.80,3.15);
+\node[font=\tiny,text=black!60] at (10.2,0.90) {successor value (fit)};
+\node[font=\tiny,text=black!60,rotate=90] at (8.52,2.15) {operator regret};
+\fill[harborblue] (11.05,1.45) circle (0.10);
+\fill[shipred] (9.15,2.85) circle (0.10);
+\node[font=\tiny,align=right,anchor=east,text=harborblue] at (10.88,1.78) {$A$: routine\\working state};
+\node[font=\tiny,align=left,anchor=west,text=shipred] at (9.35,2.52) {$B$: abandoned\\dead-end};
+\draw[->,>=Stealth,seagreen,thick] (9.15,2.85) to[bend left=22] (11.05,1.45);
+\draw[->,>=Stealth,shipred,thick,dashed] (11.05,1.45) to[bend left=22] (9.15,2.85);
+\draw[<->,>=Stealth,thick,shipred] (3.9,1.70) -- (8.1,1.70);
+\node[align=center,font=\small\bfseries,text=shipred] at (6.0,3.35) {one crossing pair in the\\domain $\Rightarrow$ NO shared head};
+
+\node[align=center,font=\scriptsize,text width=10.6cm] at (6.0,0.25)
+  {\itshape Row 3: the solid green arrow is the successor's order ($A\succ B$), the dashed red arrow is the operator's ($B\succ A$) --- the same two items, ranked oppositely. The obstruction is ordinal, not numeric: a scalar head of \emph{infinite} precision fails identically, because what fails is that one number induces one order and the two readers' orders cross.};
+\end{tikzpicture}
+\caption{The relation-map for Theorem 2. The transferred relation is not that a summary resembles a temperature; it is that a single scalar induces exactly one total order, so a shared head exists iff the two readers' induced orders are comonotone. Row 3 draws the crossing pair the proof constructs --- a routine working state (high continuation value, negligible regret) against an abandoned dead-end with irreversible side effects (zero continuation value, maximal regret) --- which is what makes the impossibility bite in real fleets rather than merely in principle.}
+\label{fig:r2rel}
+\end{figure}

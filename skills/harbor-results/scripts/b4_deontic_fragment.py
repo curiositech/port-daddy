@@ -495,7 +495,7 @@ assert not mut["conflict"], "mutant must MISS the indirect conflict"
 print(f"  in the sweep above, the same mutant missed {mutant_misses} of the"
       f" {counts['conflict']} conflicting instances")
 assert mutant_misses > 0
-print("  Horn propagation is load-bearing  [OK]")
+print("  Horn propagation is critical  [OK]")
 
 # ------------------------------------------------------------------
 print("\n" + "=" * 72)

@@ -1,0 +1,18 @@
+% The federation topology as a table, shared by chapters 6 and 8 (one source).
+\begin{table}[H]
+\centering
+\caption{Federation is four independent rails between two sovereign harbors, each keeping its own signing root; there is no shared root. The witness rail correlates and exposes equivocation but authorizes nothing; the capability and revocation rails carry attenuated authority and later invalidation in opposite directions; the settlement rail relates a bond posted at A to damage measured at B, and its custody bound is conditional on the settlement gate, not an invariant. No rail makes either harbor a root of authority for the other. [internal]}
+\label{tab:fh-topology}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\linewidth}{@{}l >{\raggedright\arraybackslash}X l >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Rail} & \textbf{What crosses} & \textbf{Direction} & \textbf{What it does not do} \\
+\midrule
+witness & the signed epoch roots $R_A^{(e)}, R_B^{(e)}$ and any equivocation evidence & both ways & authorize work: correlation, not authorization \\
+capability & an attenuated card, $C_A \mapsto C'_B \subseteq C_A$ & A to B & widen scope or lifetime at any hop \\
+revocation & the anti-entropy delta of revoked ids & B to A & promise a finite deadline under partition \\
+settlement & a bond posted at A against damage measured at B & both ways & bound custody unconditionally: it holds only if the settlement gate holds \\
+\bottomrule
+\end{tabularx}
+\end{table}

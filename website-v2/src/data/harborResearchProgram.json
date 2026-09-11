@@ -1,0 +1,710 @@
+{
+  "$schema": "./program.schema.json",
+  "version": 1,
+  "updated": "2026-09-08",
+  "statement": "The Harbor research program is the part of the whitepaper that has to be proved, measured, or openly admitted unsolved rather than argued for. Seven conference-form papers carry the theorems; a results index says where each executed result lives in the book; a manifest names every mechanized artifact and whether it still runs in CI; pre-registered studies take on the questions the book can't settle from its own results; and a ledger keeps every review objection alongside what was done about it. This file is what the website renders, and it is checked against the index, the manifest, the ledger, and the repository on every pull request — so the page can't drift from the program without the build going red.",
+  "checker": "scripts/harbor-research/check_research_program.py",
+  "mirror": "website-v2/src/data/harborResearchProgram.json",
+  "papers": [
+    {
+      "number": 1,
+      "siteId": "price-of-a-summary",
+      "tex": "docs/harbor-research/tex/paper1.tex"
+    },
+    {
+      "number": 2,
+      "siteId": "regimented-or-enforced",
+      "tex": "docs/harbor-research/tex/paper2.tex"
+    },
+    {
+      "number": 3,
+      "siteId": "reputation-is-amortized-verification",
+      "tex": "docs/harbor-research/tex/paper3.tex"
+    },
+    {
+      "number": 4,
+      "siteId": "the-sealed-harbor",
+      "tex": "docs/harbor-research/tex/paper4.tex"
+    },
+    {
+      "number": 5,
+      "siteId": "continuity-without-metaphysics",
+      "tex": "docs/harbor-research/tex/paper5.tex"
+    },
+    {
+      "number": 6,
+      "siteId": "what-needs-an-authority",
+      "tex": "docs/harbor-research/tex/paper6.tex"
+    },
+    {
+      "number": 7,
+      "siteId": "the-cohomology-of-equivocation",
+      "tex": "docs/harbor-research/tex/paper7.tex"
+    }
+  ],
+  "deepDives": [
+    {
+      "dir": "flag-1-bonded-tower-vs-hierarchical-collusion",
+      "paper": 3,
+      "verdict": "CLEAR",
+      "oneLine": "Kofman and Lawarrée leave the unbounded-collateral regress as an open question in their conclusion, almost word for word the question the tower theorem answers, which makes them a supporting citation rather than a competitor. The same pass caught an arithmetic slip in the paper's own C=1 counter-case and fixed it.",
+      "findings": "docs/harbor-research/deep-dives/flag-1-bonded-tower-vs-hierarchical-collusion/findings.md"
+    },
+    {
+      "dir": "flag-2-runtime-enforceability-priority",
+      "paper": 2,
+      "verdict": "NARROW",
+      "oneLine": "The rumoured same-year preprint turned out to be real but orthogonal; the prior work that actually mattered was Basin et al. (TISSEC 2013), which nobody had flagged. Two correctness bugs against Schneider's theorem were found and fixed along the way, and the Ramadge–Wonham identification (the paper's real contribution) survived.",
+      "findings": "docs/harbor-research/deep-dives/flag-2-runtime-enforceability-priority/findings.md"
+    },
+    {
+      "dir": "flag-3-deontic-tractability-frontier",
+      "paper": 6,
+      "verdict": "NARROW",
+      "oneLine": "The tractable-then-NP-complete shape was already mapped by the compliance-checking literature, so the framing had to narrow; the specific fragment, and conflict-freedom rather than compliance as the decision problem, survive as novel. An iff with the wrong strictness had been stated three different ways across four sites, and was unified.",
+      "findings": "docs/harbor-research/deep-dives/flag-3-deontic-tractability-frontier/findings.md"
+    },
+    {
+      "dir": "flag-4-topological-consensus-citation-audit",
+      "paper": 7,
+      "verdict": "CLEAR",
+      "oneLine": "The citation the sweep had flagged as fabricated is real (just irrelevant), so it was excluded on relevance rather than fraud. The genuine omission was the combinatorial-topology canon: Herlihy–Shavit and three foundational citations were added to close it.",
+      "findings": "docs/harbor-research/deep-dives/flag-4-topological-consensus-citation-audit/findings.md"
+    },
+    {
+      "dir": "paper4-sealed-harbor",
+      "paper": 4,
+      "verdict": "NARROW",
+      "oneLine": "Each of the four pillars narrows to a known result (delimited release, a privacy filter) that the paper mostly concedes up front; one corollary had leaned on a composition bound that doesn't hold in its setting and was rewritten to the model where it does.",
+      "findings": "docs/harbor-research/deep-dives/paper4-sealed-harbor/findings.md"
+    },
+    {
+      "dir": "paper5-continuity-without-metaphysics",
+      "paper": 5,
+      "verdict": "NARROW",
+      "oneLine": "No prior work proves the theorems, but Theorem 2a is Akerlof's lemons result wearing the wrong name (it had been called the unraveling theorem) and was renamed, and a crossing value that the paper's own figure contradicted was corrected.",
+      "findings": "docs/harbor-research/deep-dives/paper5-continuity-without-metaphysics/findings.md"
+    }
+  ],
+  "wrongTurns": [
+    {
+      "file": "a7_experiment.py",
+      "result": "R1",
+      "lesson": "The meter was charging bits for tie-breaking as well as identification, which manufactured 8 spurious floor violations out of 14 and briefly looked like a refutation of the theorem. The corrected experiment is the one the paper cites."
+    },
+    {
+      "file": "b1_experiment.py",
+      "result": "R4",
+      "lesson": "Zoom was tested in the dense-flag regime, which is exactly where it can't help, and duly showed a 0.5× \"advantage\" that meant nothing. The frontier only exists where flags are sparse, and the experiment now says so."
+    },
+    {
+      "file": "sheaf_experiment.py",
+      "result": "R6",
+      "lesson": "Computed the dimension of the abstract sheaf's first cohomology, a number that doesn't depend on the data at all, when the quantity that detects a lie is the obstruction of the particular observed assignment."
+    },
+    {
+      "file": "sheaf_verdict.py",
+      "result": "R6",
+      "lesson": "A vector-stalk wrapper whose random restriction maps were surjective (so the cokernel was always zero), on top of inconsistent masking and the wrong partition detector. Thrown out and rebuilt from a minimal proof of the mechanism."
+    }
+  ],
+  "studies": [
+    {
+      "id": "substrate-study",
+      "dir": "substrate-study",
+      "title": "Is the single-writer rail the right collaboration model, and is the enforcement point below the agent the right substrate?",
+      "status": "pilot running",
+      "protocol": "studies/substrate-study/PROTOCOL.md",
+      "preRegistered": "2026-09-07",
+      "chapters": [
+        1
+      ],
+      "question": "The kernel chapter argues that confinement needs an enforcement point below the agent, and that much is a theorem. What it doesn't know is whether the single-writer rail is also the right way for several agents to share one repository, compared with a worktree per agent and a merge queue, which is what most of the industry does. Until this study reports, the rail is a design invariant and nothing stronger.",
+      "design": "Real commit histories from three public repositories, replayed through six coordination substrates (an uncoordinated shared tree; advisory claims with a bypass rate; the enforced rail; a worktree per agent with a merge queue; and the rail with region-level claims) at 2, 4, 8, and 16 agents, with cooperative and impatient temperaments and twenty seeds per cell. The five metrics were fixed before the first run, so none could be added after the data came in.",
+      "hypotheses": [
+        {
+          "id": "H1",
+          "title": "Confinement",
+          "statement": "Torn-tree incidents under advisory claims grow with the bypass rate, the agent count, and file overlap, and are zero under every enforced substrate. This one is the self-check: if it fails for the rail, the harness is broken, and we fix the harness before believing anything else it says."
+        },
+        {
+          "id": "H2",
+          "title": "The real question",
+          "statement": "At low overlap the merge queue matches or beats the rail on throughput and time to land. At high overlap the rail beats the merge queue on wasted work by at least a factor of two and matches it on throughput within 20%. If the merge queue matches or beats the rail on every metric in every high-overlap cell, the book demotes the rail to a confinement mechanism."
+        },
+        {
+          "id": "H3",
+          "title": "Enforcement, or only confinement",
+          "statement": "The shim used exactly as designed and the enforced rail are indistinguishable on every coordination metric. If that holds, the case for the enforcement point rests on confinement alone, and the book has to say so plainly."
+        },
+        {
+          "id": "H4",
+          "title": "Granularity",
+          "statement": "Region claims recover at least half of the rail's throughput deficit against the merge queue at high overlap, where a deficit exists."
+        }
+      ],
+      "notRunnableHere": "S1, the substrate cost and controllability table (bare process, seccomp and Landlock, gVisor, Firecracker), needs KVM or unprivileged user namespaces, which the build container doesn't have, so it runs on the author's machine.",
+      "reportRule": "One report, whatever the outcome. If H2's kill condition holds, the report says so in its first sentence, and the kernel chapter and the front matter are amended in the same pull request rather than in some later one. Numbers reach the book with the verified tag only once the pinned corpora and seeds regenerate them."
+    }
+  ],
+  "plannedLifts": [
+    {
+      "id": "r8-apalache",
+      "title": "Lift the work-unit machine to TLA+ and Apalache",
+      "status": "planned",
+      "chapters": [
+        1
+      ],
+      "result": "R8",
+      "statement": "The 536-state work-unit machine is checked exhaustively today by a Python model each of whose guards is proven necessary by mutation, which is real evidence but not the same kind as the rest of the estate. The lift restates it in TLA+ and checks it with Apalache, so the kernel's invariants sit in the same checker as the relay's and the ledger's.",
+      "source": "docs/harbor-research/HANDOFF.md"
+    },
+    {
+      "id": "r9-isabelle",
+      "title": "Lift sealed-room noninterference to Isabelle",
+      "status": "planned",
+      "chapters": [
+        3
+      ],
+      "result": "R9",
+      "statement": "Noninterference holds under every interleaving to depth seven in the finite model, and depth seven is where the model checker stops, not where the property does. The unbounded statement is an unwinding argument, and the lift is to state it in Isabelle against the Archive of Formal Proofs' noninterference library.",
+      "source": "docs/harbor-research/HANDOFF.md"
+    },
+    {
+      "id": "merkle-binding-easycrypt",
+      "title": "Discharge the three admitted steps in the Merkle binding proof",
+      "status": "partial",
+      "chapters": [
+        7
+      ],
+      "statement": "The bond ledger's Merkle binding is sketched in EasyCrypt with three admitted tactics, and EasyCrypt doesn't run in CI, so right now this is a proof outline that a person reviewed rather than a proof a machine checked. The manifest grades it partial until the admits are discharged and the tool is pinned.",
+      "source": "whitepaper/corpus.json"
+    },
+    {
+      "id": "c2-take-rate",
+      "title": "The minimum viable take-rate",
+      "status": "planned",
+      "chapters": [
+        6
+      ],
+      "statement": "The economy chapter prices the three-sided market on one conserving ledger, but it doesn't yet derive the smallest platform take that keeps that market open, and that number is the one a pricing page would eventually have to cite.",
+      "source": "docs/harbor-research/HANDOFF.md"
+    }
+  ],
+  "openProblems": [
+    {
+      "id": "authority-transfer",
+      "title": "Authority transfer between harbors",
+      "chapters": [
+        1,
+        8
+      ],
+      "statement": "Writer epochs appear in the book only as a revocation mechanism. There is no written procedure for freezing a harbor's authority, exporting it, importing it under verification, activating the new epoch, and rolling back by epoch, and the Chartroom cutover decision can't be graded until there is. Of the silences, this is the one we'd fix first.",
+      "source": "docs/harbor-research/exposition/PORTHOLE-DECISIONS-FROM-THE-BOOK.md#the-silences-which-are-the-books-next-work"
+    },
+    {
+      "id": "ledger-other-direction",
+      "title": "The release ledger in the other direction",
+      "chapters": [
+        3
+      ],
+      "statement": "The release ledger meters the customer's data leaving the sealed room. A provider's implementation leaking out through the customer's queries is the same ledger with the roles swapped, and nobody has written it down yet, so no claim about protecting provider IP can be graded until someone does.",
+      "source": "docs/harbor-research/exposition/PORTHOLE-DECISIONS-FROM-THE-BOOK.md#the-silences-which-are-the-books-next-work"
+    },
+    {
+      "id": "dispute-arithmetic",
+      "title": "Dispute windows, partial work, and refunds",
+      "chapters": [
+        6,
+        7
+      ],
+      "statement": "The Bonded Commons gives you conservation and two-of-three settlement, and the economy chapter gives you prices, but neither says anything about the time and arithmetic of a dispute: how long the window stays open, what a half-delivered work order is worth, and how a refund conserves.",
+      "source": "docs/harbor-research/exposition/PORTHOLE-DECISIONS-FROM-THE-BOOK.md#the-silences-which-are-the-books-next-work"
+    },
+    {
+      "id": "registry-constitution",
+      "title": "A constitution for the registry",
+      "chapters": [
+        7
+      ],
+      "statement": "Who may suspend a publisher, under what review, and with what appeal. The book has the bond and the audit worked out; the emergency path, the one you need on the bad day, isn't written.",
+      "source": "docs/harbor-research/exposition/PORTHOLE-DECISIONS-FROM-THE-BOOK.md#the-silences-which-are-the-books-next-work"
+    },
+    {
+      "id": "one-label-scheme",
+      "title": "One label scheme for product, roadmap, and book",
+      "chapters": [
+        1
+      ],
+      "statement": "The product's five evidence labels, the book's five assurance modes, and its four statement kinds ought to be one table, so that a product badge, a roadmap item, and a chapter claim all speak the same words and nobody has to translate between them.",
+      "source": "docs/harbor-research/exposition/PORTHOLE-DECISIONS-FROM-THE-BOOK.md#the-silences-which-are-the-books-next-work"
+    },
+    {
+      "id": "cr-coalitions",
+      "title": "Equivocation by a coalition on a cycle",
+      "chapters": [
+        8
+      ],
+      "statement": "The consistency radius certifies a lower bound on any single equivocator's lie, but two liars placed on the same cycle can cancel each other to a residual of zero (measured at 6×10⁻¹⁵, which is to say exactly zero up to floating point). Catching coordinated equivocation needs a different invariant, and we don't have it.",
+      "source": "docs/harbor-research/library-index.json"
+    },
+    {
+      "id": "r16-adaptive-adversary",
+      "title": "Context paging against an adaptive pin adversary",
+      "chapters": [
+        4
+      ],
+      "statement": "The paging bound holds against a pin oracle corrupted at a fixed rate, with repair on touch. An adversary that adapts its corruptions to the operator's access pattern is strictly stronger than the greedy one the proof assumes, and nobody has tested against it.",
+      "source": "docs/harbor-research/library-index.json"
+    },
+    {
+      "id": "r17-incremental-checker",
+      "title": "An incremental conflict checker for the tractable fragment",
+      "chapters": [
+        6
+      ],
+      "statement": "Conflict-freedom inside the tractable fragment is decided in polynomial time, with a witness, from scratch every time. An amortized checker that updates the witness as a single policy changes is stated in the paper and hasn't been built.",
+      "source": "docs/harbor-research/library-index.json"
+    },
+    {
+      "id": "unowned-work",
+      "title": "Origination of unowned work",
+      "chapters": [
+        7,
+        1,
+        5
+      ],
+      "statement": "Every mechanism the book has -- receipts, bonds, escrow, reputation as a ledger position, the deterrence and discount thresholds -- binds an agent to something it agreed to do. A dead daemon or a red test has no counterparty and no price, and nothing in the institution assigns a defect nobody chartered; Ostrom's monitoring and graduated sanctions presuppose a promise to monitor against. Four parts: what mechanism makes an unowned defect somebody's and prices it (a bounty on the commons' own invariants, a rotation, an obligation attached to proximity, a market in noticing); how variable agent lifetimes change the answer, since a worker alive only for one pull request values nothing after it and the reviewers who check it face the same question one level up; who remembers old plans and old ideas, and whether memory induction into standing orders is measurable; and whether this is solved by a market in which agents that do the thing better win the work, or requires evaluators who give feedback immediately and in aggregate, or both, with the boundary between them unwritten.",
+      "source": "docs/roadmap/whitepaper-research-program.md#7-open-problem-9-origination-of-unowned-work"
+    }
+  ],
+  "results": [
+    {
+      "id": "R1",
+      "kind": "theorem",
+      "title": "Read-poverty and the information floor",
+      "oneBreath": "A human overseeing a fleet of software agents reads digests, not transcripts, and any digest that guarantees catching all k critical artifacts among N while opening only m must carry at least log2 C(N,k) - log2 C(m,k) bits.",
+      "status": "folded",
+      "chapters": [
+        4
+      ],
+      "paper": 1,
+      "scripts": [
+        "skills/harbor-results/scripts/a7_experiment.py"
+      ],
+      "numbers": {
+        "verified": 1,
+        "internal": 2
+      },
+      "mechanized": false
+    },
+    {
+      "id": "R2",
+      "kind": "theorem",
+      "title": "Split-digest theorem (comonotone characterization)",
+      "oneBreath": "A scalar head serves a reader iff ranking by it realizes that reader's optimal selection at every budget; one head serves two readers iff their preference orders are comonotone, and the successor and operator readers provably are not.",
+      "status": "folded",
+      "chapters": [
+        4
+      ],
+      "paper": 1,
+      "scripts": [
+        "skills/harbor-results/scripts/a7_experiment.py"
+      ],
+      "numbers": {
+        "verified": 2,
+        "internal": 0
+      },
+      "mechanized": false
+    },
+    {
+      "id": "R3",
+      "kind": "theorem",
+      "title": "The derived regret head",
+      "oneBreath": "Inspect iff C_miss(x)*a(x) >= c_att + C_fa*(1-a(x)); the folklore ranking key stakes x irreversibility x anomaly is the Bayes-optimal surfacing rule iff anomaly is a calibrated posterior.",
+      "status": "folded",
+      "chapters": [
+        4
+      ],
+      "paper": 1,
+      "scripts": [],
+      "numbers": {
+        "verified": 2,
+        "internal": 0
+      },
+      "mechanized": false
+    },
+    {
+      "id": "R4",
+      "kind": "result-family",
+      "title": "Digest-zoom Pareto frontier and the zoom-advantage theorem",
+      "oneBreath": "A two-constraint rate-distortion program R(delta,f) prices misses separately from flag rate with a closed form for Bernoulli sources, and adaptive halving finds the k criticals inside F flagged items in at most 2k*ceil(log2(F/k))+4k group opens versus F flat.",
+      "status": "folded",
+      "chapters": [
+        4
+      ],
+      "paper": 1,
+      "scripts": [
+        "skills/harbor-results/scripts/b1_frontier.py",
+        "skills/harbor-results/scripts/zoom_bound_check.py"
+      ],
+      "numbers": {
+        "verified": 2,
+        "internal": 2
+      },
+      "mechanized": false
+    },
+    {
+      "id": "R5",
+      "kind": "theorem",
+      "title": "Hypervisor enforceability = supervisory control",
+      "oneBreath": "A safety policy is regimentable (preventable pre-effect) by an agent hypervisor iff it is controllable in the Ramadge-Wonham sense with respect to the uncontrollable event set; gate the channel, never the token.",
+      "status": "folded",
+      "chapters": [
+        1
+      ],
+      "paper": 2,
+      "scripts": [
+        "skills/harbor-results/scripts/b3_controllability.py"
+      ],
+      "numbers": {
+        "verified": 0,
+        "internal": 0
+      },
+      "mechanized": false
+    },
+    {
+      "id": "R6",
+      "kind": "theorem",
+      "title": "Sheaf verdict: cohomology of equivocation",
+      "oneBreath": "In gossip of signed logs, the least-squares completion residual detects a single equivocator's split-view lie beyond pairwise comparison iff the unchecked edge lies on a cycle of the visible coordinate subgraph, and its endpoints' reports are relayed to the analyst.",
+      "status": "folded",
+      "chapters": [
+        8
+      ],
+      "paper": 7,
+      "scripts": [
+        "skills/harbor-results/scripts/sheaf_mechanism_proof.py",
+        "skills/harbor-results/scripts/sheaf_harness_v2.py"
+      ],
+      "numbers": {
+        "verified": 0,
+        "internal": 1
+      },
+      "mechanized": false
+    },
+    {
+      "id": "R7",
+      "kind": "result-family",
+      "title": "Inspection tower: reputation is amortized verification",
+      "oneBreath": "A bonded judge is deterred iff rho*d*B >= G; auditors sampled sealed from C disjoint cliques make bribery all-or-nothing and unprofitable below corrupt value C*B, so finite bond capital certifies a tower of logarithmic depth, and lifetime audit spend falls from Theta(T) to Theta(log T) or O(1) as reputation accumulates.",
+      "status": "folded",
+      "chapters": [
+        5
+      ],
+      "paper": 3,
+      "scripts": [
+        "skills/harbor-results/scripts/b2_tower.py"
+      ],
+      "numbers": {
+        "verified": 0,
+        "internal": 1
+      },
+      "mechanized": false
+    },
+    {
+      "id": "R8",
+      "kind": "result-family",
+      "title": "The work-unit machine",
+      "oneBreath": "The state machine (phase, policy, receipt, epoch/holder/stale-token, grants-with-parentage, effect journal, idempotency journal, settlement) satisfies six safety invariants in all 536 reachable states, each guard shown critical by mutation.",
+      "status": "folded",
+      "chapters": [
+        1
+      ],
+      "paper": null,
+      "scripts": [
+        "skills/harbor-results/scripts/c0_workunit.py"
+      ],
+      "numbers": {
+        "verified": 0,
+        "internal": 1
+      },
+      "mechanized": false
+    },
+    {
+      "id": "R9",
+      "kind": "theorem",
+      "title": "Sealed-room noninterference",
+      "oneBreath": "With declared release g(s) = s mod 2, Erin's observations are identical whenever g(s)=g(s') for every interleaving, and may differ only at explicit gate-release steps otherwise -- noninterference modulo declassification, verified exhaustively to depth 7 on the finite clean-room model.",
+      "status": "folded",
+      "chapters": [
+        3
+      ],
+      "paper": 4,
+      "scripts": [
+        "skills/harbor-results/scripts/c1_noninterference.py"
+      ],
+      "numbers": {
+        "verified": 1,
+        "internal": 0
+      },
+      "mechanized": false
+    },
+    {
+      "id": "R10",
+      "kind": "theorem",
+      "title": "Epsilon-conservation of the release ledger",
+      "oneBreath": "The release ledger's only spending transition atomically appends the record and adds the spend, so every reachable state satisfies sigma = sum of the ledger's epsilons and sigma <= epsilon_max, including under concurrent invocation.",
+      "status": "folded",
+      "chapters": [
+        3
+      ],
+      "paper": 4,
+      "scripts": [
+        "skills/harbor-results/scripts/a3_epsilon_ledger.py"
+      ],
+      "numbers": {
+        "verified": 1,
+        "internal": 0
+      },
+      "mechanized": false
+    },
+    {
+      "id": "R11",
+      "kind": "result-family",
+      "title": "Canary detection power and SPRT latency",
+      "oneBreath": "Independent per-canary misses turn k smuggled canaries into detection probability 1 - beta^k; Wald's sequential probability ratio test against the permutation null turns leak intensity into an expected time-to-detection with realized error rates at or below target.",
+      "status": "folded",
+      "chapters": [
+        3
+      ],
+      "paper": 4,
+      "scripts": [
+        "skills/harbor-results/scripts/a4_canary_sprt.py"
+      ],
+      "numbers": {
+        "verified": 0,
+        "internal": 1
+      },
+      "mechanized": false
+    },
+    {
+      "id": "R12",
+      "kind": "theorem",
+      "title": "No-mint reputation inheritance",
+      "oneBreath": "Discount-and-split as transfer -- the child receives a discounted, debited share of each source's spend -- keeps total live creditable reputation below total witnessed value under any sequence of forks, merges, chains, or re-derivation cycles.",
+      "status": "folded",
+      "chapters": [
+        5
+      ],
+      "paper": 5,
+      "scripts": [
+        "skills/harbor-results/scripts/a6_no_mint.py"
+      ],
+      "numbers": {
+        "verified": 0,
+        "internal": 1
+      },
+      "mechanized": false
+    },
+    {
+      "id": "R13",
+      "kind": "result-family",
+      "title": "Engine substitution and resurrection soundness",
+      "oneBreath": "Unattested, the period-2 price never depends on the actual engine so swapping to a cheap one always pays; daemon-attested engine ids flip the incentive to the planner's efficiency rule at zero audit stake, and sanction-respecting reputation survives provider migration under three named clauses, each individually critical.",
+      "status": "folded",
+      "chapters": [
+        5
+      ],
+      "paper": 5,
+      "scripts": [
+        "skills/harbor-results/scripts/b5_engine_substitution.py"
+      ],
+      "numbers": {
+        "verified": 3,
+        "internal": 2
+      },
+      "mechanized": false
+    },
+    {
+      "id": "R14",
+      "kind": "theorem",
+      "title": "Costly-escalation threshold equilibrium and the debit tuning band",
+      "oneBreath": "A strictly increasing escalation payoff gives a unique separating threshold u*(delta); the feasible debit set between the alarm-fatigue wall and the distress-silencing wall is an interval that can be empty, in which case the honest fix is capacity or evidence quality, not tuning.",
+      "status": "chapter-only",
+      "chapters": [
+        4
+      ],
+      "paper": null,
+      "scripts": [
+        "skills/harbor-results/scripts/b7_escalation_band.py"
+      ],
+      "numbers": {
+        "verified": 0,
+        "internal": 0
+      },
+      "mechanized": false
+    },
+    {
+      "id": "R15",
+      "kind": "result-family",
+      "title": "Queueing specialization boundary and the succession price",
+      "oneBreath": "Sole ownership weakly dominates the pool iff the skill premium clears the exact Erlang-C boundary g_A(rho,c), falsifying the whitepaper's proposed threshold in both directions; with mortality and succession, pooling dominates at every skill premium once xi/eta exceeds D* = etaK/(1-etaK).",
+      "status": "folded",
+      "chapters": [
+        4,
+        6
+      ],
+      "paper": 6,
+      "scripts": [
+        "skills/harbor-results/scripts/b8_specialization.py"
+      ],
+      "numbers": {
+        "verified": 0,
+        "internal": 0
+      },
+      "mechanized": false
+    },
+    {
+      "id": "R16",
+      "kind": "theorem",
+      "title": "Context paging with an untrusted pin oracle",
+      "oneBreath": "Landlord's k/(k-h+1) competitiveness against offline OPT imports to variable-size context spans; a pin oracle corrupted on a psi fraction of consultations costs only an additive, linear psi*N*c_refetch penalty under repair-on-touch, sharing its corruption budget with R1's forgeable-feature budget.",
+      "status": "chapter-only",
+      "chapters": [
+        4
+      ],
+      "paper": null,
+      "scripts": [
+        "skills/harbor-results/scripts/b9_context_paging.py"
+      ],
+      "numbers": {
+        "verified": 0,
+        "internal": 1
+      },
+      "mechanized": false
+    },
+    {
+      "id": "R17",
+      "kind": "result-family",
+      "title": "Tractable deontic-conflict fragment and its NP-complete frontier",
+      "oneBreath": "Inside a fragment of facts, definite Horn rules, ground deontic O/F rules, exclusive interval claims and difference constraints, conflict detection is polynomial and witness-producing; one expressive step out (disjunctive obligations under discharge choice) makes conflict-freedom NP-complete.",
+      "status": "standalone-only",
+      "chapters": [
+        6
+      ],
+      "paper": 6,
+      "scripts": [
+        "skills/harbor-results/scripts/b4_deontic_fragment.py"
+      ],
+      "numbers": {
+        "verified": 0,
+        "internal": 4
+      },
+      "mechanized": false
+    },
+    {
+      "id": "CR",
+      "kind": "result-family",
+      "title": "Consistency radius of the completion residual (CR-1/2/3)",
+      "oneBreath": "The completion residual r is a certified lower bound on any injected lie (equality at the completion, closed form r = |s| * sqrt(1 - R_eff) for a single-edge lie), localizes to visible cycles through the equivocator, and computes as at most L scalar graph-Laplacian solves.",
+      "status": "standalone-only",
+      "chapters": [
+        8
+      ],
+      "paper": 7,
+      "scripts": [
+        "skills/harbor-results/scripts/sheaf_consistency_radius.py"
+      ],
+      "numbers": {
+        "verified": 0,
+        "internal": 1
+      },
+      "mechanized": false
+    },
+    {
+      "id": "B6",
+      "kind": "theorem",
+      "title": "The probation cliff (front-loaded newcomer restriction)",
+      "oneBreath": "Among all newcomer-restriction schedules with equal power to deter a short-horizon whitewasher, the maximally front-loaded feasible one -- a cliff, not a ramp -- uniquely minimizes the tax on honest newcomers.",
+      "status": "folded",
+      "chapters": [
+        5
+      ],
+      "paper": 5,
+      "scripts": [
+        "skills/harbor-results/scripts/b6_probation.py"
+      ],
+      "numbers": {
+        "verified": 1,
+        "internal": 0
+      },
+      "mechanized": false
+    },
+    {
+      "id": "prop:claim-signaling-ic",
+      "kind": "proposition",
+      "title": "Claim-signaling incentive compatibility (mechanized discount-factor thresholds)",
+      "oneBreath": "In the corrected claim-signaling stage game, a grim trigger is subgame-perfect iff delta >= 1/3 and a three-round graduated trigger iff delta exceeds the unique real root delta* = 0.3425080314 of 2*delta^3+2*delta^2+2*delta-1=0, both mechanically checked by Z3 and TLA+/Apalache.",
+      "status": "folded",
+      "chapters": [
+        7
+      ],
+      "paper": 3,
+      "scripts": [],
+      "numbers": {
+        "verified": 1,
+        "internal": 0
+      },
+      "mechanized": true
+    }
+  ],
+  "estate": {
+    "manifest": "whitepaper/corpus.json",
+    "formalArtifacts": 36,
+    "researchProgramArtifacts": 5,
+    "ci": {
+      "wired": 36,
+      "retired": 5
+    },
+    "byMethod": {
+      "EasyCrypt": 1,
+      "Kani": 3,
+      "ProVerif": 26,
+      "TLA+/TLC": 4,
+      "TLA+/TLC + Apalache": 1,
+      "Z3": 1
+    },
+    "byKind": {
+      "negative-control": 6,
+      "proof-skeleton": 1,
+      "protocol-model": 19,
+      "rust-proof-harness": 3,
+      "smt-model": 1,
+      "state-machine-model": 5,
+      "teaching-template": 1
+    },
+    "notCurrent": [
+      {
+        "id": "bonded-merkle-binding-easycrypt",
+        "status": "partial",
+        "method": "EasyCrypt",
+        "note": "EasyCrypt is not installed anywhere in this estate's CI; 3 `admit.` tactics remain undischarged (see binding.ec around lines 346, 371, 397 -- hashLeafE's algebraic combination). binding.run.log documents a manual proof-sketch review, not a machine-checked result."
+      },
+      {
+        "id": "pd-relay-zero-trust-skill-template-proverif",
+        "status": "historical",
+        "method": "ProVerif",
+        "note": "a skill scaffold with open TODO queries (capability containment, revocation effectiveness, non-equivocation are all unfinished); not a claim about a real Port Daddy protocol and has no committed evidence file"
+      }
+    ]
+  },
+  "critiqueLedger": {
+    "source": "docs/harbor-research/critique-ledger.json",
+    "total": 813,
+    "done": 593,
+    "declined": 220,
+    "inWave": 0,
+    "other": 0
+  }
+}

@@ -113,7 +113,9 @@ describe('exact-session bounded history and authenticated admission', () => {
     clock.mockReturnValue(1_060_000);
     expect((await write('same owner, recovered')).statusCode).toBe(200);
     expect(sessions.get(id).notes).toHaveLength(61);
-  });
+    // 61 credentialed writes at ~170 ms each sit right at the 10 s default; the
+    // burst boundary is the point, not the wall clock.
+  }, 30_000);
 
   it('rejects wrong/missing caller before consuming admission or mutating history', async () => {
     for (let i = 0; i < 65; i++) {

@@ -38,7 +38,6 @@ describe('shared GitHub App key parser parity', () => {
     expect(() => githubAppPrivateKeyDer(`${pkcs8}\n${pkcs8}`)).toThrow(/one unencrypted/);
   });
 });
-
 describe('repository-scoped GitHub App authority', () => {
   it('uses the Bot user id, not the App id, for commit attribution', async () => {
     const { pkcs8 } = fixtures();

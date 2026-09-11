@@ -65,7 +65,7 @@ RESULT not attacker(def_msg[]) is true.
 RESULT inj-event(DefenseLearnsRed(x)) ==> inj-event(LeadEmitsToDefense(x)) is true.
 ```
 
-The first says no message a red-team persona sends in Phase 1 is derivable by the daemon. The second says no message a white-hat persona sends in Phase 2 is derivable by the daemon. The third is the load-bearing claim: any red plaintext that the white-hat fleet eventually learns must have been emitted by `sec-eng-lead` at Gate B. There is no direct red-to-white forgery path the daemon can construct.
+The first says no message a red-team persona sends in Phase 1 is derivable by the daemon. The second says no message a white-hat persona sends in Phase 2 is derivable by the daemon. The third is the pivotal claim: any red plaintext that the white-hat fleet eventually learns must have been emitted by `sec-eng-lead` at Gate B. There is no direct red-to-white forgery path the daemon can construct.
 
 ProVerif checked all three under the symbolic model. The artifact lives at `proofs/coordination/isolation.pv`, the run log next to it. Anyone can re-run them with `eval $(opam env) && proverif proofs/coordination/isolation.pv`.
 

@@ -1,0 +1,145 @@
+{
+ "figure": "fig-stp-sybil-whitewash",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "fail",
+   "count": 1,
+   "findings": [
+    {
+     "check": "T3",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      224.55810546875,
+      163.43092346191406,
+      256.6665954589844,
+      171.12525939941406
+     ],
+     "other_bbox": [
+      228.23306274414062,
+      165.0765380859375,
+      232.31875610351562,
+      172.7708740234375
+     ],
+     "text": "respawns",
+     "other_text": "3",
+     "overlap_fraction": 0.786,
+     "message": "text 'respawns' overlaps '3' by 78.6% of the smaller bbox"
+    }
+   ]
+  },
+  "T4": {
+   "status": "fail",
+   "count": 3,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      155.28704833984375,
+      57.06304168701172,
+      242.010009765625,
+      64.75738525390625
+     ],
+     "text": "principal-bound identity",
+     "line_segment": [
+      [
+       186.4910888671875,
+       158.87106323242188
+      ],
+      [
+       186.4910888671875,
+       63.09006118774414
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'principal-bound identity'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      155.28704833984375,
+      133.61505126953125,
+      237.88583374023438,
+      141.30938720703125
+     ],
+     "text": "fresh self-asserted label",
+     "line_segment": [
+      [
+       186.4910888671875,
+       158.87106323242188
+      ],
+      [
+       186.4910888671875,
+       63.09006118774414
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'fresh self-asserted label'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      382.42498779296875,
+      73.4099349975586,
+      456.2060546875,
+      81.10427856445312
+     ],
+     "text": "one label = one vote",
+     "line_segment": [
+      [
+       304.1650085449219,
+       150.6611785888672
+      ],
+      [
+       438.25830078125,
+       61.721683502197266
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'one label = one vote'"
+    }
+   ]
+  },
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T3",
+   "T4"
+  ],
+  "warned_checks": []
+ }
+}

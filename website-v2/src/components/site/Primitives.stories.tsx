@@ -304,7 +304,7 @@ export const TruthBadgeStates: Story = {
 
 // ─── Theme matrix ───────────────────────────────────────────────
 // The Storybook theme toolbar (light/dark) drives data-theme; this
-// story bundles the load-bearing primitives so we can flip theme and
+// story bundles the critical primitives so we can flip theme and
 // eyeball the contrast on every primitive at once.
 
 export const ThemeMatrix: Story = {

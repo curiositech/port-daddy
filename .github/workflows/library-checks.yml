@@ -1,0 +1,333 @@
+name: Library Checks
+
+# The Harbor library's drift guards, in one place: the Book's single source of
+# record (whitepaper/textbook.json) against its generated mirrors, the LaTeX
+# palette against the design tokens, every \cite against a \bibitem across the
+# three TeX corpora, and every reviewer correction against the sites that echo
+# it. Each check is stdlib-only (Python) or dependency-free (Node), so the job
+# is fast and never needs TeX. The PDFs themselves are built by
+# whitepaper-build.yml and harbor-research-build.yml.
+#
+# Born from the PR #9911 review: check_citations.py and
+# check_propagated_corrections.py existed but nothing ran them.
+#
+# The banned-phrases prose gate (scripts/lint/check-banned-phrases.mjs) rides
+# along here too: it is dependency-free like everything else in this job, and
+# its scope (skills/, docs/, top-level READMEs, the PR template, the website's
+# content modules, and the whitepaper corpora) is exactly this job's "prose
+# that ships to a reader" footprint, so the path filters below are widened to
+# match its scope rather than standing up a second workflow for one script.
+
+on:
+  pull_request:
+    paths:
+      - 'whitepaper/**'
+      - 'website-v2/public/whitepaper/**'
+      - 'website-v2/src/data/textbook.json'
+      - 'website-v2/src/styles/tokens.semantic.css'
+      - 'website-v2/scripts/check-figure-palette.mjs'
+      - 'docs/harbor-research/**'
+      - 'studies/**'
+      - 'whitepaper/corpus.json'
+      - 'website-v2/src/data/harborResearchProgram.json'
+      - 'website-v2/src/data/researchPapers.ts'
+      - 'scripts/harbor-research/**'
+      - 'scripts/whitepaper-plates/**'
+      - 'docs/grand-harbor/**'
+      - 'tests/whitepaper-plates/**'
+      - 'tests/harbor-research/**'
+      - 'scripts/generate-mega-whitepaper.mjs'
+      - 'scripts/generate-mega-whitepaper.test.mjs'
+      - 'scripts/build-whitepapers.sh'
+      - 'skills/whitepaper-figure-system/**'
+      - 'skills/**'
+      - 'docs/**/*.md'
+      - '*.md'
+      - '.github/PULL_REQUEST_TEMPLATE.md'
+      - '.github/**/*.md'
+      - 'website-v2/src/**'
+      - 'website-v2/public/**'
+      - 'scripts/lint/**'
+      - '.github/workflows/library-checks.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'whitepaper/**'
+      - 'website-v2/public/whitepaper/**'
+      - 'website-v2/src/data/textbook.json'
+      - 'website-v2/src/styles/tokens.semantic.css'
+      - 'website-v2/scripts/check-figure-palette.mjs'
+      - 'docs/harbor-research/**'
+      - 'studies/**'
+      - 'whitepaper/corpus.json'
+      - 'website-v2/src/data/harborResearchProgram.json'
+      - 'website-v2/src/data/researchPapers.ts'
+      - 'scripts/harbor-research/**'
+      - 'scripts/whitepaper-plates/**'
+      - 'docs/grand-harbor/**'
+      - 'tests/whitepaper-plates/**'
+      - 'tests/harbor-research/**'
+      - 'scripts/generate-mega-whitepaper.mjs'
+      - 'scripts/generate-mega-whitepaper.test.mjs'
+      - 'scripts/build-whitepapers.sh'
+      - 'skills/whitepaper-figure-system/**'
+      - 'skills/**'
+      - 'docs/**/*.md'
+      - '*.md'
+      - '.github/PULL_REQUEST_TEMPLATE.md'
+      - '.github/**/*.md'
+      - 'website-v2/src/**'
+      - 'website-v2/public/**'
+      - 'scripts/lint/**'
+      - '.github/workflows/library-checks.yml'
+  # Merge queue: run unconditionally so a required check context always
+  # appears (a path-filtered workflow that does not match would hang the
+  # queue). Every check here is seconds long and passes when nothing drifted.
+  merge_group:
+
+permissions:
+  contents: read
+
+jobs:
+  library-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # Installed here, before any step that reads a PDF or an image, because
+      # the tests for page_overflow.py import pymupdf and ran before this when
+      # it sat lower in the job -- 11 of them failed to import and the suite
+      # reported 201 tests instead of 212, which is a check quietly measuring
+      # less than it claims.
+      # Pinned in one place for every job that measures a page; the reason
+      # each version is the version lives in the file.
+      - name: Install the readers every page measurement is taken with
+        run: pip install --quiet -r scripts/harbor-research/requirements-pdf.txt
+
+      - name: textbook.json is the one source of chapter order (generated mirrors match)
+        run: node scripts/generate-mega-whitepaper.mjs --check-shared
+
+      # The architecture ledger's own checker, on the ledger's own terms: it
+      # rejects an indexed document that is missing, a duplicate stable ID, a
+      # broken local link, an unlabelled stub, and a citation that points at a
+      # conversation rather than a record. That last one is the ledger's whole
+      # thesis mechanised -- an idea does not become architecture by having
+      # been said recently.
+      - name: The Grand Harbor architecture ledger indexes what it claims to
+        run: node checks/check-ledger.mjs
+        working-directory: docs/grand-harbor
+
+      # The queue of work that documents schedule and the registry has no row
+      # for. It fails on the queue being stale, never on the queue being
+      # non-empty: the runtime is halted, nobody can write rows, and a check
+      # that cannot pass until that changes is a check nobody reads.
+      - name: The unregistered-work queue is a current count of the drift
+        run: python3 scripts/roadmap/check_unregistered.py --check
+
+      - name: Book generator contract (namespacing, apparatus stripping, seams, shared files)
+        run: node --test scripts/generate-mega-whitepaper.test.mjs scripts/generate-mega-mechanized.test.mjs
+
+      - name: Book body generates from the chapter sources (fails closed on drift)
+        run: node scripts/generate-mega-whitepaper.mjs .cache/library-checks/mega-volume
+
+      - name: LaTeX palette matches the design tokens (pd-palette.tex lockstep)
+        run: node website-v2/scripts/check-figure-palette.mjs
+
+      # BRAND.md:56: the maritime-gold print ink is plate trim, opener
+      # ornament, and a gilt fillet under a title rule -- nothing else -- and
+      # it never sits beside --story-gold/pdgold, which is a different colour
+      # for a different meaning 15.6 DeltaE2000 away.
+      - name: The maritime-gold print ink stays plate trim and never sits beside the story colour
+        run: python3 scripts/harbor-research/check_maritime_gold_ink.py
+
+      - name: Every \cite has a \bibitem across the three TeX corpora
+        run: python3 scripts/harbor-research/check_citations.py
+
+      - name: Reviewer corrections reached every site that echoes them
+        run: python3 scripts/harbor-research/check_propagated_corrections.py
+
+      - name: Library index matches the corpora it claims to index
+        run: python3 scripts/harbor-research/check_library_index.py
+
+      - name: LIBRARY-INDEX.md is a fresh render of library-index.json
+        run: python3 scripts/harbor-research/check_library_index.py --check-md
+
+      - name: Critique ledger Markdown and JSON agree and every Status cell is well-formed
+        run: python3 scripts/harbor-research/check_critique_ledger.py
+
+      - name: The research program the website renders is current (index, manifest, ledger, studies, dives, silences, site mirror)
+        run: python3 scripts/harbor-research/check_research_program.py
+
+      - name: Every marginalia plate has a licence sidecar in the allow-list
+        run: |
+          set -euo pipefail
+          python3 scripts/harbor-research/check_marginalia_sidecars.py
+          # A test module that cannot import is reported as one error and the
+          # run still says "Ran N tests" -- which is how 11 page-measurement
+          # tests went missing while the line above looked like it had run
+          # them. Count what actually ran.
+          # `|| true`, because errexit kills the step at a failing command
+          # substitution before the echo runs -- which is how a genuinely
+          # failing suite produced a red step with no output at all, the same
+          # silence this counter was added to end. The exit status is taken
+          # from the captured status, not from the substitution.
+          out=$(python3 -m unittest discover -s tests/harbor-research -p 'test_*.py' 2>&1) || suite_failed=1
+          echo "$out"
+          if [ "${suite_failed:-0}" = "1" ]; then
+            echo "::error::the harbor-research suite failed; its output is above"
+            exit 1
+          fi
+          ran=$(printf '%s' "$out" | sed -n 's/^Ran \([0-9]*\) tests.*/\1/p')
+          if [ "${ran:-0}" -lt 212 ]; then
+            echo "::error::the harbor-research suite ran ${ran:-0} tests, fewer than the 212 it has; a module failed to import"
+            exit 1
+          fi
+
+      - name: Every rendered plate has honest provenance and every TeX plate path resolves
+        run: python3 scripts/harbor-research/check_plate_provenance.py
+
+      # The only steps here that are not stdlib-only. They have to decode a
+      # plate's pixels to find where its artwork starts, and render a page to
+      # see what a line of type actually lands on -- neither of which can be
+      # answered from the source. Wheels, so it costs seconds.
+
+      # The plate half of the type-over-art check: no build needed, so it runs
+      # here. The page half needs freshly built PDFs and runs in
+      # whitepaper-build's cover-band job.
+      - name: Full-bleed covers leave room for the type set over them
+        run: python3 scripts/whitepaper-plates/check_cover_title_band.py
+
+      # score_broken_arc.py measured the chapter-stp pick and corrected a
+      # rationale that had been written from a thumbnail, and then ran nowhere.
+      # It cannot be a threshold gate -- the chosen render is 6.3% of a radius
+      # off concentric and the record says so, and a bar the plate fails would
+      # be theatre -- so it is a regression gate instead: re-measure the
+      # committed plate and fail if it has drifted from its own record.
+      - name: The measured plates still match the geometry their record claims
+        run: python3 scripts/whitepaper-plates/score_broken_arc.py --verify-provenance
+
+      - name: Plate-check unit tests (band, ink thresholds, arc fitting)
+        run: python3 -m unittest discover -s tests/whitepaper-plates -p 'test_*.py'
+
+      - name: Margin apparatus rules hold in every chapter
+        run: python3 skills/tufte-evidence-design/scripts/margin_lint.py
+
+      # The margin apparatus is generated from the chapters and committed. Each
+      # of these four ships a --check mode whose docstring says it exists for
+      # CI, and until now nothing ran them -- which is the same gap PR #9911
+      # closed for check_citations.py and is why this workflow exists at all.
+      # Without them: rename a \label, add a \bibitem, or edit a chapter's
+      # citations, and the generated tables go quietly stale while the macros
+      # fall back to a blank margin note or a bare key.
+      # First, because it is the cheapest and the one whose absence was most
+      # expensive. On 2026-09-08 one table opened \begin{tabularx} and closed
+      # \end{xltabular} -- half a conversion -- and the Book stopped compiling
+      # in every edition. TeX reported it as a brace error at a generated line
+      # four hundred lines away, so three more commits landed on top before
+      # anyone noticed, each marked "unbuilt" in its own subject. A compile
+      # takes five to eight minutes; this takes under a second and refuses the
+      # first of those commits.
+      - name: Every \begin has its \end, and every source file balances
+        run: python3 scripts/harbor-research/check_tex_environments.py
+
+      # Every chapter source is also a submission paper. An edit made for the
+      # Book -- five figure sites in chapter 6 rewritten to point at the
+      # chapters that own the drawings -- took five figures out of
+      # harbor-economy-whitepaper.pdf, and the only thing that noticed was a
+      # regen commit 50 KB lighter. This reads the \else side of every
+      # \ifpdbook, which is what the standalone paper compiles, and compares
+      # its figure sites with the committed record; a paper that lost a site
+      # fails, and so does a stale record (refresh it with --write when the
+      # change to the paper is the point).
+      - name: No Book-side edit has shrunk a standalone paper
+        run: python3 scripts/harbor-research/check_standalone_figures.py
+
+      # A drawing shared by two chapters is invisible in either chapter's source
+      # and invisible in either standalone PDF; it shows only in the assembled
+      # Book, as one figure printed twice under two numbers. That is how seven
+      # of them survived to a 530-page draft until an outside reader noticed two.
+      - name: No drawing is rendered twice in the Book
+        run: python3 scripts/harbor-research/check_duplicate_figures.py
+
+      # A theorem two chapters share has no \input line for the step above to
+      # see. The generator namespaces every label per chapter so two chapters
+      # can reuse a name without the Book failing to compile -- which is also
+      # what let chapters 6 and 8 each print the conditional escrow bound
+      # under their own number, with different titles, until someone read
+      # both. The label is the signal, so the check keys on it. The two
+      # definitions allowed here are restated on purpose in different words
+      # (the cross-operator attestation problem in chapters 5 and 6, the float
+      # plan in chapters 6 and 7); each is a known duplicate still waiting for
+      # an owner, and the allow is the record of that, not a verdict that a
+      # reader should meet either twice.
+      - name: No theorem is stated twice in the Book
+        run: >-
+          python3 scripts/harbor-research/check_duplicate_theorems.py
+          --allow def:0040b --allow def:float-plan
+
+      - name: Margin citation short-forms are a fresh render of the bibliographies
+        run: python3 scripts/harbor-research/build_cite_shortforms.py --check
+
+      - name: Discharge pointers are a fresh render of the discharge pairs
+        run: python3 scripts/harbor-research/build_discharge_pointers.py --check
+
+      - name: Every eligible \cite is promoted to \pdcite
+        run: python3 scripts/harbor-research/promote_cites.py --check
+
+      - name: Every provenance tag is promoted to a margin note
+        run: python3 scripts/harbor-research/promote_provenance.py --check
+
+      # Which exercise pointers ride on the Recall block that follows them is a
+      # measurement of the sources, not a memory: this fails if a pointer is
+      # starred or un-starred against what the section actually contains. The
+      # collision it prevents is only visible on the rendered page, where
+      # page_overflow.py measures it in whitepaper-build's cover-band job.
+      - name: Exercise pointers are starred exactly where a Recall block follows them
+        run: python3 scripts/harbor-research/star_exercise_pointers.py --check
+
+      - name: Semantic figure atlas covers every canonical figure (no drift from textbook.json)
+        run: python3 skills/whitepaper-figure-system/scripts/check_atlas_coverage.py
+
+      - name: Banned phrases ("held to account", "load-bearing") never appear in prose
+        run: node scripts/lint/check-banned-phrases.mjs
+
+      - name: textbook-craft chapter_lint unit tests
+        run: python3 -m unittest discover -s skills/textbook-craft/tests -p 'test_*.py' -v
+
+      # Advisory (continue-on-error) for the same reason 7c2c5e16f made the
+      # figure-blocker check advisory: two of chapter_lint's BLOCKING floors
+      # (worked_example_per_section, claims_carry_epistemic_kind) already
+      # fail on 6 of the 8 Book chapters today, pre-dating this check --
+      # making the step required now would freeze every PR that merely
+      # touches a whitepaper path (this job also runs unconditionally on
+      # merge_group, so a required failure here would freeze the whole
+      # queue). Drop continue-on-error once those two floors are clean
+      # chapter-by-chapter; the floors made advisory in the linter itself
+      # (exercises_at_chapter_end, chapter_opener_and_claim_labeling) stay
+      # advisory here too -- --strict only fails on a BLOCKING floor.
+      - name: Chapter template floors hold across every Book chapter (advisory)
+        continue-on-error: true
+        run: python3 skills/textbook-craft/scripts/chapter_lint.py --strict
+
+      - name: Figure register and triage are well-formed (enums, ids, chapters, fragment paths)
+        run: python3 scripts/harbor-research/check_figure_register.py
+
+      - name: FIGURE-AUDIT-DIGEST.md and FIGURE-AUDIT-FAILURES.md are a fresh render of figcheck/*.json
+        run: python3 scripts/harbor-research/render_figure_audit.py --check
+
+      # Advisory until the redraw wave clears the 38 fragments that fail T1-T5
+      # today; the report is the release blocker's ledger, and the step turns
+      # required (drop continue-on-error) once blockers.json has no unwaived
+      # rows. Making it required now would freeze the book branch.
+      - name: No unwaived (or expired-waiver) mechanical figure blocker (advisory)
+        continue-on-error: true
+        run: python3 scripts/harbor-research/check_figure_blockers.py --verbose

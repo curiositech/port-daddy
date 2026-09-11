@@ -1,0 +1,71 @@
+% R5 relation-map: structural diagram (no numeric axes), transcribed from
+% create_relation_map() in figures/src/r5_figures.py -- same base/target
+% two-column layout, same connective labels. Layout note: the coordinate
+% grid and text widths below were redone from the first CI render (row
+% spacing and text widths were too tight for the wrapped paragraph nodes at
+% this font size, so every row's text bled into its neighbors and the row-2
+% connector label -- text width=6.6cm literal -- overran both side boxes).
+% Two content changes from the source script, both deliberate: (1) the
+% source's third row (the compound-case punchline: "naive read: forbid the
+% secret" vs. "regimentable rewrite: gate egress") is DROPPED -- it told the
+% same read/taint/gate story as the right panel of fig-r5-regime.tex and
+% spoiled section 6's payoff some 190 source lines before the reader
+% reaches it; (2) the event counts are corrected from 5/3 to 6/4 to match
+% paper2.tex section 3 and the execution report tex/exec2.tex, which are the
+% canonical statement of the alphabet (Sigma_c adds api_call, Sigma_u adds
+% hidden_activation). Dropping row 3 also retired the fixed-height
+% \resizebox/[p] float hack the three-row version needed.
+% [internal, script r5_figures.py]
+\begin{figure}[t]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[x=1cm,y=1cm]
+\node[align=center,font=\normalsize\bfseries] at (7.5,11.75)
+  {R5 --- gate the door, never the thought};
+\node[align=center,font=\footnotesize\itshape,text=black!55] at (7.5,11.3)
+  {hypervisor enforceability = Ramadge--Wonham supervisory control};
+
+% Base domain (left): the door
+\draw[draw=harborblue,thick,fill=harborblue,fill opacity=0.10] (0.2,1.5) rectangle (5.0,10.9);
+\node[align=center,font=\small\bfseries,text=harborblue,text width=4.4cm] at (2.6,10.5) {Base: the door};
+
+% Target domain (right): the daemon
+\draw[draw=seagreen,thick,fill=seagreen,fill opacity=0.10] (10.0,1.5) rectangle (14.8,10.9);
+\node[align=center,font=\small\bfseries,text=seagreen,text width=4.4cm] at (12.4,10.5) {Target: the daemon};
+
+% ===== Row 1: the analogy =====
+\node[align=center,font=\small\bfseries,text width=4.4cm] at (2.6,9.7) {Bouncer at the one door};
+\node[align=center,font=\footnotesize,text width=4.3cm] at (2.6,8.4)
+  {Refuses \emph{entry} (controllable). Cannot refuse a \emph{thought} (uncontrollable) --- it never crosses the door.};
+
+\node[align=center,font=\small\bfseries,text width=4.4cm] at (12.4,9.7) {Daemon at the mediation boundary};
+\node[align=center,font=\footnotesize,text width=4.3cm] at (12.4,8.4)
+  {Refuses mediated \emph{effects} (writes, calls, spawns). Cannot refuse internal \emph{state} --- it never crosses.};
+
+\draw[<->,>=Stealth,thick,shipred] (5.15,8.4) -- (9.85,8.4);
+\node[align=center,font=\small\bfseries\itshape,text=shipred,text width=4.4cm] at (7.5,9.7)
+  {the analogy holds exactly:\\ gate the channel, never the mind};
+
+% ===== Row 2: the 6-vs-4 split =====
+\node[align=center,font=\small\bfseries,text=harborblue,text width=4.4cm] at (2.6,4.4) {$\Sigma_c$ --- controllable (6 events)};
+\node[align=center,font=\footnotesize,text width=4.3cm] at (2.6,2.9)
+  {\texttt{fs\_write} $\cdot$ \texttt{net\_egress} $\cdot$ \texttt{exec\_tool}\\ \texttt{git\_push} $\cdot$ \texttt{spawn\_child} $\cdot$ \texttt{api\_call}\\[3pt] cross the boundary --- each can be refused.};
+
+\node[align=center,font=\small\bfseries,text=seagreen,text width=4.4cm] at (12.4,4.4) {$\Sigma_u$ --- uncontrollable (4 events)};
+\node[align=center,font=\footnotesize,text width=4.3cm] at (12.4,2.9)
+  {\texttt{model\_emit\_token}\\ \texttt{in\_context\_read} $\cdot$ \texttt{internal\_plan}\\ \texttt{hidden\_activation}\\[3pt] stay inside the model --- they never reach the daemon.};
+
+\draw[<->,>=Stealth,thick,shipred] (5.15,2.9) -- (9.85,2.9);
+\node[align=center,font=\small\bfseries\itshape,text=shipred,text width=4.4cm] at (7.5,4.4)
+  {6 refusable vs.\ 4 that never arrive\\ criterion: $\overline{K}\Sigma_u\cap\overline{L}\subseteq\overline{K}$};
+\end{tikzpicture}%
+}
+\caption{What a runtime can prevent is decided by \emph{where an event crosses}, not by what the rule is about. Left: a club
+with one door --- the bouncer refuses entry (controllable) and cannot refuse a thought (uncontrollable). Right: the daemon's
+mediation boundary --- it can refuse fs\_write, net\_egress, exec\_tool, git\_push, spawn\_child and api\_call, and cannot
+refuse token emission, in-context reads, internal plans or hidden activations. The arrows carry the theorem:
+refusable-at-the-boundary $\Leftrightarrow$ preventable (regimentable); internal $\Leftrightarrow$ detect-only forever. The
+criterion under the map, $\overline{K}\Sigma_u\cap\overline{L}\subseteq\overline{K}$, is Ramadge--Wonham controllability
+[verified framework].}
+\label{fig:relation}
+\end{figure}

@@ -56,6 +56,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { isReservedIdentityName } from './reserved-identity-names.js';
+import type { ForensicsSink } from './forensics-archive.js';
 
 // ─── Branded principal type (ADR-0040 §8 widening boundary) ─────────────────────
 // A minted ULID *or* a migrated legacy string satisfies this via asActorId().
@@ -83,6 +84,14 @@ export interface ActorSoulsConfig {
   operatorSecretPath?: string;
   /** Injectable clock for deterministic tests. */
   now?: () => number;
+  /**
+   * Durable security-forensics journal (ADR-0089). Every retirement and every
+   * resurrection of a soul is written here, in full, the moment it happens —
+   * a retire-and-respawn whitewash must leave a trail that outlives the
+   * 7-day activity_log prune. Optional so embedded/test stores still work;
+   * server.ts always wires it.
+   */
+  forensicsSink?: ForensicsSink;
 }
 
 export type SoulClass = 'newcomer' | 'graduated' | 'operator' | 'unknown';
@@ -96,7 +105,27 @@ export interface ActorSoulRow {
   operatorTrusted: boolean;
   createdAt: number;
   lastSeenAt: number;
+  /** Retirement tombstone (ms). Non-null ⇒ the soul cannot act or be re-minted. */
+  retiredAt: number | null;
+  retiredReason: string | null;
+  retiredBy: string | null;
+  /** Set only by an audited resurrection; the trigger requires a fresh one. */
+  resurrectionReceipt: string | null;
+  resurrectedAt: number | null;
+  resurrectedBy: string | null;
 }
+
+export type RetireOutcome =
+  | { ok: true; actorId: ActorId; retiredAt: number }
+  | { ok: false; code: 'SOUL_NOT_FOUND' | 'ALREADY_RETIRED' };
+
+export type ResurrectOutcome =
+  | { ok: true; actorId: ActorId; receipt: string; resurrectedAt: number }
+  | { ok: false; code: 'SOUL_NOT_FOUND' | 'NOT_RETIRED' };
+
+/** Journal rule names for the two identity-lifecycle transitions (ADR-0089). */
+export const IDENTITY_RETIRED_RULE = 'IDENTITY_RETIRED';
+export const IDENTITY_RESURRECTED_RULE = 'IDENTITY_RESURRECTED';
 
 export interface MintResult {
   actorId: ActorId;
@@ -109,6 +138,9 @@ export type RegisterOutcome =
   | { ok: true; status: 'minted';     actorId: ActorId; soulClass: SoulClass; credential: string }
   | { ok: false; status: 'rejected';  code: 'CREDENTIAL_INVALID'; httpStatus: 401 }
   | { ok: false; status: 'rejected';  code: 'RESERVED_ALIAS'; httpStatus: 403 }
+  // The credential VERIFIED (so nothing leaks to a guesser) but the soul is
+  // retired: it may not act again until an audited resurrection.
+  | { ok: false; status: 'rejected';  code: 'IDENTITY_RETIRED'; httpStatus: 403 }
   | { ok: false; status: 'rejected';  code: 'STORE_UNAVAILABLE'; httpStatus: 503 };
 
 export interface ResolvedActor {
@@ -194,6 +226,98 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
     CREATE UNIQUE INDEX IF NOT EXISTS uq_soul_cred
       ON actor_souls(harbor, credential_hash) WHERE credential_hash IS NOT NULL
   `);
+
+  // ─── Retirement tombstone + audited resurrection (identity keystone) ─────────
+  // A soul that earned a slash, a throttle, or a halt must not come back by
+  // having "its status flipped" — that is the retire-and-respawn whitewash
+  // ADR-0040 exists to close. The columns are additive (PRAGMA-guarded ALTER,
+  // same style as roadmap_items.deleted_at in lib/db.ts) so a DB written by an
+  // older daemon migrates on first boot with no failing CREATE. The RULES live
+  // in SQLite triggers, not in this module: a raw UPDATE from any code path —
+  // or any process holding the file — meets the same wall as the app layer.
+  //
+  //   retired_at / retired_reason / retired_by   — the tombstone
+  //   resurrection_receipt / resurrected_at / _by — the audited way back
+  //
+  // Why a same-statement receipt column and not a session PRAGMA/temp-table
+  // token: the receipt is durable evidence ON THE ROW (greppable, joinable to
+  // the forensics journal by value), it is unique across the table so it cannot
+  // be replayed, and it needs no connection-scoped state that a second handle
+  // on the same file would not see. A temp-table token would be invisible in
+  // the DB after the fact — exactly the property a forensic reviewer needs.
+  {
+    const soulColumns = new Set(
+      (db.prepare('PRAGMA table_info(actor_souls)').all() as Array<{ name: string }>).map((c) => c.name),
+    );
+    const additive: Array<[string, string]> = [
+      ['retired_at', 'INTEGER'],
+      ['retired_reason', 'TEXT'],
+      ['retired_by', 'TEXT'],
+      ['resurrection_receipt', 'TEXT'],
+      ['resurrected_at', 'INTEGER'],
+      ['resurrected_by', 'TEXT'],
+    ];
+    for (const [column, type] of additive) {
+      if (!soulColumns.has(column)) runDDL(`ALTER TABLE actor_souls ADD COLUMN ${column} ${type}`);
+    }
+    // Post-apply verification ("migration history is not migration"): inspect
+    // the live table, fail closed if the ALTER did not land.
+    const after = new Set(
+      (db.prepare('PRAGMA table_info(actor_souls)').all() as Array<{ name: string }>).map((c) => c.name),
+    );
+    const missing = additive.map(([column]) => column).filter((column) => !after.has(column));
+    if (missing.length > 0) {
+      throw new Error(`actor_souls retirement migration verification failed: missing ${missing.join(', ')}`);
+    }
+  }
+  // A receipt is minted once, for one resurrection, of one soul.
+  runDDL(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_soul_resurrection_receipt
+      ON actor_souls(resurrection_receipt) WHERE resurrection_receipt IS NOT NULL
+  `);
+  // Rule 1 — no silent resurrection. Clearing retired_at requires a receipt
+  // that differs from whatever receipt the row already carried (a replayed
+  // receipt from a previous resurrection is not a fresh audit).
+  runDDL(`
+    CREATE TRIGGER IF NOT EXISTS actor_souls_retired_no_silent_resurrection
+    BEFORE UPDATE ON actor_souls
+    WHEN OLD.retired_at IS NOT NULL AND NEW.retired_at IS NULL
+     AND (NEW.resurrection_receipt IS NULL OR NEW.resurrection_receipt IS OLD.resurrection_receipt)
+    BEGIN
+      SELECT RAISE(ABORT, 'ACTOR_SOUL_RETIRED: a retired soul can only be reactivated by an audited resurrection carrying a fresh resurrection_receipt');
+    END
+  `);
+  // Rule 2 — a retired soul is frozen. While the tombstone stands, nothing that
+  // confers authority or reputation may change: not the credential (re-keying
+  // a retired soul is a resurrection in disguise), not operator trust, not the
+  // clean-exit count, not the tombstone timestamp, not the identity key.
+  runDDL(`
+    CREATE TRIGGER IF NOT EXISTS actor_souls_retired_frozen
+    BEFORE UPDATE ON actor_souls
+    WHEN OLD.retired_at IS NOT NULL AND NEW.retired_at IS NOT NULL
+     AND (NEW.credential_hash IS NOT OLD.credential_hash
+       OR NEW.credential_salt IS NOT OLD.credential_salt
+       OR NEW.operator_trusted IS NOT OLD.operator_trusted
+       OR NEW.clean_exits IS NOT OLD.clean_exits
+       OR NEW.retired_at IS NOT OLD.retired_at
+       OR NEW.actor_id IS NOT OLD.actor_id
+       OR NEW.harbor IS NOT OLD.harbor)
+    BEGIN
+      SELECT RAISE(ABORT, 'ACTOR_SOUL_RETIRED: a retired soul is frozen; resurrect it through the audited path before changing it');
+    END
+  `);
+  // Rule 3 — the tombstone cannot be removed. Together with the (harbor,
+  // actor_id) PRIMARY KEY this is what makes "re-mint under the same identity
+  // key while retired" a constraint failure instead of a clean slate: the
+  // only way to INSERT that key again would be to DELETE the tombstone first.
+  runDDL(`
+    CREATE TRIGGER IF NOT EXISTS actor_souls_retired_tombstone
+    BEFORE DELETE ON actor_souls
+    WHEN OLD.retired_at IS NOT NULL
+    BEGIN
+      SELECT RAISE(ABORT, 'ACTOR_SOUL_RETIRED: a retired soul is a tombstone; it cannot be deleted and its identity key cannot be re-minted');
+    END
+  `);
   runDDL(`
     CREATE TABLE IF NOT EXISTS actor_alias (
       harbor    TEXT NOT NULL,
@@ -218,7 +342,9 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
 
   const selectSoul = db.prepare(`
     SELECT actor_id, harbor, credential_hash, credential_salt, credential_kind,
-           display_alias, clean_exits, operator_trusted, created_at, last_seen_at
+           display_alias, clean_exits, operator_trusted, created_at, last_seen_at,
+           retired_at, retired_reason, retired_by,
+           resurrection_receipt, resurrected_at, resurrected_by
       FROM actor_souls WHERE harbor = ? AND actor_id = ?
   `);
   const insertSoul = db.prepare(`
@@ -227,13 +353,30 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
        display_alias, clean_exits, operator_trusted, created_at, last_seen_at)
     VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?)
   `);
+  // Touch/bump are scoped to LIVE souls: a retired soul neither "was seen"
+  // nor earns graduation. (The frozen trigger would abort a clean_exits bump
+  // on a tombstone anyway; the WHERE keeps the app path a quiet no-op.)
   const touchSoul = db.prepare(`
     UPDATE actor_souls SET last_seen_at = ?, display_alias = ?
-     WHERE harbor = ? AND actor_id = ?
+     WHERE harbor = ? AND actor_id = ? AND retired_at IS NULL
   `);
   const bumpCleanExits = db.prepare(`
     UPDATE actor_souls SET clean_exits = clean_exits + 1, last_seen_at = ?
-     WHERE harbor = ? AND actor_id = ?
+     WHERE harbor = ? AND actor_id = ? AND retired_at IS NULL
+  `);
+  const retireSoul = db.prepare(`
+    UPDATE actor_souls
+       SET retired_at = ?, retired_reason = ?, retired_by = ?
+     WHERE harbor = ? AND actor_id = ? AND retired_at IS NULL
+  `);
+  // The audited way back: clears the tombstone and stamps a fresh receipt IN
+  // THE SAME STATEMENT — the only shape the no-silent-resurrection trigger lets through.
+  const resurrectSoul = db.prepare(`
+    UPDATE actor_souls
+       SET retired_at = NULL, retired_reason = NULL, retired_by = NULL,
+           resurrection_receipt = ?, resurrected_at = ?, resurrected_by = ?,
+           last_seen_at = ?
+     WHERE harbor = ? AND actor_id = ? AND retired_at IS NOT NULL
   `);
   const selectAlias = db.prepare(`
     SELECT actor_id FROM actor_alias WHERE harbor = ? AND alias = ?
@@ -262,6 +405,12 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
       operatorTrusted: row.operator_trusted === 1,
       createdAt: row.created_at,
       lastSeenAt: row.last_seen_at,
+      retiredAt: row.retired_at ?? null,
+      retiredReason: row.retired_reason ?? null,
+      retiredBy: row.retired_by ?? null,
+      resurrectionReceipt: row.resurrection_receipt ?? null,
+      resurrectedAt: row.resurrected_at ?? null,
+      resurrectedBy: row.resurrected_by ?? null,
     };
   }
 
@@ -270,8 +419,14 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
     return row ? rowToSoul(row) : null;
   }
 
-  /** Classify a KNOWN soul row. Newcomer until it graduates on clean exits. */
+  /**
+   * Classify a KNOWN soul row. Newcomer until it graduates on clean exits.
+   * A RETIRED soul classifies as 'unknown': every consumer already floors
+   * 'unknown' to the shared newcomer pool / no verified principal, which is
+   * exactly the standing a tombstone should have — no more than a forged id.
+   */
   function classifyRow(soul: ActorSoulRow): SoulClass {
+    if (soul.retiredAt !== null) return 'unknown';
     if (soul.operatorTrusted) return 'operator';
     if (soul.cleanExits >= graduationThreshold) return 'graduated';
     return 'newcomer';
@@ -319,6 +474,13 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
     const harbor = opts.harbor ?? defaultHarbor;
     const ts = now();
     const actorId = opts.explicitActorId ?? ulid(ts);
+    if (opts.explicitActorId) {
+      // The PK would refuse this anyway (the tombstone cannot be deleted); say why.
+      const existing = getSoul(opts.explicitActorId, harbor);
+      if (existing?.retiredAt !== null && existing?.retiredAt !== undefined) {
+        throw new Error(`ACTOR_SOUL_RETIRED: ${opts.explicitActorId} is a retired tombstone and cannot be re-minted`);
+      }
+    }
     const secret = randomBytes(32).toString('base64url'); // 256-bit verifier
     const salt = randomBytes(16).toString('base64url');
     const credentialHash = hashCredential(salt, secret);
@@ -340,16 +502,29 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
    * alias cannot mine ids, §2.1).
    */
   function verifyCredential(credential: string, harbor = defaultHarbor): ActorId | null {
+    const verified = verifyCredentialDetailed(credential, harbor);
+    return verified && !verified.retired ? verified.actorId : null;
+  }
+
+  /**
+   * Same selector-then-verify, but tells a caller that already holds the
+   * secret WHY it is refused. Only a VERIFIED credential can learn that its
+   * soul is retired — an unknown selector and a bad verifier stay
+   * indistinguishable (§2.1), so this leaks nothing to a guesser.
+   */
+  function verifyCredentialDetailed(
+    credential: string,
+    harbor = defaultHarbor,
+  ): { actorId: ActorId; retired: boolean } | null {
     const parsed = parseCredential(credential);
     if (!parsed) return null;
     const soul = selectSoul.get(harbor, parsed.actorId) as
-      | { credential_hash: string | null; credential_salt: string | null }
+      | { credential_hash: string | null; credential_salt: string | null; retired_at: number | null }
       | undefined;
     if (!soul || !soul.credential_hash || !soul.credential_salt) return null;
     const candidate = hashCredential(soul.credential_salt, parsed.secret);
-    return constantTimeEqualHex(candidate, soul.credential_hash)
-      ? asActorId(parsed.actorId)
-      : null;
+    if (!constantTimeEqualHex(candidate, soul.credential_hash)) return null;
+    return { actorId: asActorId(parsed.actorId), retired: soul.retired_at !== null && soul.retired_at !== undefined };
   }
 
   // ─── Operator token (advisory-above-floor; see §2.4 honesty note) ─────────────
@@ -397,10 +572,17 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
     try {
       // 1. Credential present ⇒ MUST verify. Never mint from a failed credential.
       if (params.credential) {
-        const actorId = verifyCredential(params.credential, harbor);
-        if (!actorId) {
+        const verified = verifyCredentialDetailed(params.credential, harbor);
+        if (!verified) {
           return { ok: false, status: 'rejected', code: 'CREDENTIAL_INVALID', httpStatus: 401 };
         }
+        // A retired soul holds a valid secret and still may not act. It is
+        // refused here — never re-minted from its own credential, never
+        // touched (touchSoul is scoped to live souls), never re-aliased.
+        if (verified.retired) {
+          return { ok: false, status: 'rejected', code: 'IDENTITY_RETIRED', httpStatus: 403 };
+        }
+        const actorId = verified.actorId;
         // Reserved-alias guard (#8877): a valid soul-secret is still a
         // SELF-SERVICE principal. It may re-bind a reserved authority alias
         // (`system`, `coxswain`, …) ONLY when it is an operator-trusted soul,
@@ -463,9 +645,63 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
     bumpCleanExits.run(now(), harbor, actorId);
   }
 
+  // ─── Retirement + audited resurrection ────────────────────────────────────────
+  function journal(rule: string, actorId: string, harbor: string, metadata: Record<string, unknown>, details: string): void {
+    config.forensicsSink?.record({
+      timestamp: now(),
+      rule,
+      severity: 'warning',
+      details,
+      agentId: actorId,
+      metadata: { surface: 'actor_souls', harbor, ...metadata },
+    });
+  }
+
+  /**
+   * Retire a soul: stamp the tombstone. From this moment the credential no
+   * longer verifies, registration is refused (IDENTITY_RETIRED), resolution
+   * floors to 'unknown', the row is frozen and undeletable, and the identity
+   * key cannot be re-minted. Journaled to the forensics sink (ADR-0089).
+   */
+  function retire(actorId: string, opts: { reason: string; by: string; harbor?: string }): RetireOutcome {
+    const harbor = opts.harbor ?? defaultHarbor;
+    const soul = getSoul(actorId, harbor);
+    if (!soul) return { ok: false, code: 'SOUL_NOT_FOUND' };
+    if (soul.retiredAt !== null) return { ok: false, code: 'ALREADY_RETIRED' };
+    const ts = now();
+    const info = retireSoul.run(ts, opts.reason, opts.by, harbor, actorId);
+    if (info.changes !== 1) return { ok: false, code: 'ALREADY_RETIRED' };
+    journal(IDENTITY_RETIRED_RULE, actorId, harbor, { reason: opts.reason, by: opts.by, retiredAt: ts },
+      `actor soul ${actorId} retired by ${opts.by}: ${opts.reason}`);
+    return { ok: true, actorId: asActorId(actorId), retiredAt: ts };
+  }
+
+  /**
+   * The ONLY legitimate way back from retirement. Mints a fresh, table-unique
+   * receipt and clears the tombstone in the same statement (the shape the
+   * trigger admits), then journals the receipt so the row and the forensics
+   * journal can be joined by value.
+   */
+  function resurrect(actorId: string, opts: { reason: string; by: string; harbor?: string }): ResurrectOutcome {
+    const harbor = opts.harbor ?? defaultHarbor;
+    const soul = getSoul(actorId, harbor);
+    if (!soul) return { ok: false, code: 'SOUL_NOT_FOUND' };
+    if (soul.retiredAt === null) return { ok: false, code: 'NOT_RETIRED' };
+    const ts = now();
+    const receipt = ulid(ts);
+    const info = resurrectSoul.run(receipt, ts, opts.by, ts, harbor, actorId);
+    if (info.changes !== 1) return { ok: false, code: 'NOT_RETIRED' };
+    journal(IDENTITY_RESURRECTED_RULE, actorId, harbor,
+      { receipt, reason: opts.reason, by: opts.by, resurrectedAt: ts, retiredAt: soul.retiredAt, retiredReason: soul.retiredReason, retiredBy: soul.retiredBy },
+      `actor soul ${actorId} resurrected by ${opts.by} (receipt ${receipt}): ${opts.reason}`);
+    return { ok: true, actorId: asActorId(actorId), receipt, resurrectedAt: ts };
+  }
+
   return {
     mint,
     register,
+    retire,
+    resurrect,
     verifyCredential,
     verifyOperatorToken,
     resolveAlias,

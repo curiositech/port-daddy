@@ -358,6 +358,7 @@ export const ENDPOINTS: Endpoint[] = [
   { method: 'POST',   path: '/sugar/begin',             description: 'Register agent + start session in one call',  group: 'Sessions' },
   { method: 'POST',   path: '/sugar/done',              description: 'End session + unregister agent in one call',  group: 'Sessions' },
   { method: 'GET',    path: '/sugar/whoami',            description: 'Get current agent identity and session',      group: 'Sessions' },
+  { method: 'GET',    path: '/sugar/find',              description: 'Recover a session by begin idempotency key or identity', group: 'Sessions' },
   { method: 'POST',   path: '/agents/:id',              description: 'Register an agent',                           group: 'Agents' },
   { method: 'DELETE', path: '/agents/:id',              description: 'Unregister an agent',                         group: 'Agents' },
   { method: 'PUT',    path: '/agents/:id/heartbeat',    description: 'Send agent heartbeat',                        group: 'Agents' },

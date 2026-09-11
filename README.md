@@ -20,6 +20,18 @@
 
 ## Overview
 
+**Repository ship controls:** the Relay account surface provides **Ship controls**
+for repository admins, with per-ship On/Off permissions and a repository-wide Off
+control. Decisions are saved immediately and checked before cloud ship work and
+queued retries. Turning On does not launch an agent; Off is not an in-flight kill.
+Each ship also exposes its configured role/model, recent run evidence, transcript
+links, recorded cost trend, token use, call errors/timeouts, and latency. Missing
+telemetry is labelled unavailable, not free or healthy. History reads are bounded
+and repository-authorized; opening the page does not launch work.
+The [control contract and deployment order](docs/operations/repo-ship-controls.md)
+describe the cloud-only scope and required schema-first release. A source merge
+does not by itself update `relay.portdaddy.dev`.
+
 **Port Daddy** is a daemon that gives every AI agent its own port, coordinates file access, sandboxes what agents spawn, meters what they spend, and recovers their work when they crash. One install, zero config.
 
 While individual agents are brilliant, **coordination** is the bottleneck. Port Daddy provides the missing primitives: atomic port assignment, sessions with append-only notes, advisory file/symbol claims, distributed locks, pub/sub messaging, budget-bonded spawning, and automatic salvage.
@@ -420,7 +432,7 @@ Session-scoped MCP tools (`add_note`, `list_notes`, `claim_files`, `claim_symbol
 
 **Spawning & delegation** — `spawn`, `spawned`, `agent`, `sortie`, `dispatch` (né `nightshift`), `review`, `fleet`, `harbormaster`/`hm`, `cockpit`, `backend`, `squid`, `transcripts`/`transcript`, `benchmark`, `coast-guard`/`cg`, `wallet`, `bond`, `popper`, `shipwright`
 
-**Roadmap & ideas** — `roadmap`, `ideas`, `commit` (durable commitments/obligations), `feedback`. `pd roadmap chomp <doc.md…>` ingests any markdown planning doc into roadmap items (headings → project/epic/story/task hierarchy, checklists → tasks, explicit "depends on" → dependencies); the default run is a preview, and `--emit-pr-plan <dir>` performs the write while emitting the doc-removal PR artifacts (regenerated snapshot, work receipt, git-rm list, ready PR body). `pd roadmap import-markdown` remains as the legacy alias that chomps the three canonical curated piles. `pd roadmap search <text>` currently ranks roadmap items with BM25 → cosine over the local MiniLM fallback (the same cascade as `pd whois`); `pd roadmap reindex` backfills that current index. `pd begin "<purpose>"` calls this automatically and prints ranked candidates when its rent gate would otherwise just reject you for omitting `--roadmap`/`--roadmap-new`/`--sidequest`. `pd roadmap export <slug> --to github|linear|jira` pushes one item to an external tracker (one-way, repeatable; the created issue's URL is recorded back as a typed link on the card).
+**Roadmap & ideas** — `roadmap`, `ideas`, `commit` (durable commitments/obligations), `feedback`. `pd roadmap chomp <doc.md…>` ingests any markdown planning doc into roadmap items (headings → project/epic/story/task hierarchy, checklists → tasks, explicit "depends on" → dependencies); the default run is a preview, and `--emit-pr-plan <dir>` performs the write while emitting the doc-removal PR artifacts (regenerated snapshot, work receipt, git-rm list, ready PR body). `pd roadmap import-markdown` remains as the legacy alias that chomps the three canonical curated piles. `pd roadmap search <text>` currently ranks roadmap items with BM25 → cosine over the local MiniLM fallback (the same cascade as `pd whois`); `pd roadmap reindex` backfills that current index. `pd begin "<purpose>"` calls this automatically and prints ranked candidates when its rent gate would otherwise just reject you for omitting `--roadmap`/`--roadmap-new`/`--sidequest`. `pd roadmap export <slug> --to github|linear|jira` pushes one item to an external tracker (one-way, repeatable; the created issue's URL is recorded back as a typed link on the card). `pd roadmap push` is the different verb for a different destination — it replaces the relay's mirror of this repository's *whole* roadmap, so the board is readable from a phone or from an agent that has no checkout, and it reads the daemon first and falls back to the committed `docs/roadmap/roadmap.snapshot.json` when the daemon is down (either way the snapshot's own `generatedAt` travels with it, so a fallback push shows up in the mirror as old rather than as fresh; `--dry-run` prints what would go without sending it).
 
 **Daemon & host** — `start`, `stop`, `restart`, `install`, `uninstall`, `daemon`, `dev`, `use`, `doctor`, `diagnose`, `attest`, `health`, `metrics`, `bench`, `ci-gate`, `backup`, `restore`, `cut`, `upgrade`, `self-update`, `safe`, `secret`, `guard`, `config`, `init`, `setup`, `mcp`, `relay`, `tunnel`, `webhook`/`webhooks`, `version`
 
@@ -824,6 +836,14 @@ installed; session claims and notes are the cumulative outcome record.
 
 Provider configuration always calls the stable user-owned
 `~/.port-daddy/bin/pd-hook-*` shims, never a versioned Homebrew Cellar path.
+Creating `~/.port-daddy/hooks.disabled` is the operator emergency kill switch:
+every Port Daddy-provided interactive or Git hook exits before reading input,
+writing diagnostics, handling the `HALT` listening watch, inspecting a project,
+probing a daemon, or publishing a commit event.
+Removing that marker re-enables the normal project and daemon gates; it does not
+start Port Daddy or arm a project. Port Daddy's commit hooks also no-op when a
+repository has no Coordination Guard configuration or when the local daemon's
+ready generation and fresh heartbeat cannot be verified.
 Hooks do not retry. After three consecutive unexpected exits or executions over
 250 ms, that hook opens a five-minute fail-open circuit: subsequent calls are
 immediate no-ops, the next turn gets one concise remediation notice, and
@@ -1009,7 +1029,7 @@ Session notes use AES-256-GCM with per-session keys wrapped by a master key. The
 
 ### Formal verification
 
-ProVerif models cover the Anchor Protocol (agent identity), anchor attenuation, event-relay secrecy, and note escrow; Kani proofs cover Rust kernel invariants. Two white papers ship at `/whitepaper` on the website: **The Anchor Protocol** (formally verified cryptographic identity for agent swarms) and **The Bonded Commons** (pre-transactional trust infrastructure).
+ProVerif models cover the Anchor Protocol (agent identity), anchor attenuation, event-relay secrecy, and note escrow; bounded Kani harnesses cover the Rust card verifier's parsing and comparison paths. Two white papers ship at `/whitepaper` on the website: **The Anchor Protocol** (mechanically analyzed cryptographic identity for agent swarms) and **The Bonded Commons** (pre-transactional trust infrastructure).
 
 ---
 
@@ -1136,7 +1156,7 @@ The **agent field manual** ships as a portable skill at [`skills/port-daddy-agen
 
 ## 🌐 HTTP API
 
-The full API contract lives at [`docs/openapi.yaml`](docs/openapi.yaml) — OpenAPI 3.1, **135 paths, 168 operations**, covering everything the CLI and MCP server can do plus SSE streams (`/fleet/events`, inbox watch, channel subscribe). The daemon binds loopback with a DNS-rebinding guard; secret routes are additionally loopback-gated per-route.
+The full API contract lives at [`docs/openapi.yaml`](docs/openapi.yaml) — OpenAPI 3.1, **136 paths, 169 operations**, covering everything the CLI and MCP server can do plus SSE streams (`/fleet/events`, inbox watch, channel subscribe). The daemon binds loopback with a DNS-rebinding guard; secret routes are additionally loopback-gated per-route.
 
 The `editor_recovery` Harbor Editor salvage routes are authenticated, fail-closed scaffolding at `POST /editor/recovery/request`, `/prepare`, `/replay`, and `/finalize`; registration does **not** make a usable recovery pipeline. Four external build gates remain unimplemented: the P1 Rust operation-receipt producer, P1B, the canonical Rust Loro recovery adapter, and the P3 same-database released-claim transfer adapter. Daemon scope minting also cannot yet supply the required verified worktree root device/inode witness, and production has no content-hash/parser-generation symbol lease or daemon file-mutation generation authority. The routes therefore remain 503-gated with no CLI/MCP bypass.
 
@@ -1210,7 +1230,7 @@ We maintain an extreme standard of reliability for the control plane:
 - **README freshness gate:** the pre-commit hook runs `scripts/check-readme-freshness.mjs` — staged changes to the CLI verb registry, MCP tool surface, OpenAPI contract, feature manifest, or fleet topology are blocked unless README.md is updated in the same commit (bypass with `PD_README_OK=1` when the change is genuinely internal). `tests/unit/feature-parity.test.js` additionally enforces that every `docs.readme=true` manifest feature stays mentioned here.
 - **Compiled-CLI smoke:** CI hard-fails when the compiled CLI or daemon doesn't actually run.
 - **Surface parity:** new CLI verbs must reach API/MCP parity (`npm run parity`).
-- **Formal verification:** ProVerif protocol models + Kani proofs for Rust kernel invariants.
+- **Formal verification:** ProVerif protocol models + bounded Kani harnesses over the Rust card verifier.
 - **Benchmarking:** `pd bench` measures atomic commit latency.
 
 ### Contributing

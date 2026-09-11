@@ -1,0 +1,267 @@
+{
+ "figure": "fig-stp-tombstone",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "fail",
+   "count": 9,
+   "findings": [
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      130.5498046875,
+      63.853389739990234,
+      134.80528259277344,
+      70.81816864013672
+     ],
+     "text": "1",
+     "size_pt": 6.96,
+     "message": "text '1' renders at 6.96pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      190.00030517578125,
+      63.853389739990234,
+      194.2557830810547,
+      70.81816864013672
+     ],
+     "text": "2",
+     "size_pt": 6.96,
+     "message": "text '2' renders at 6.96pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      232.20733642578125,
+      63.853389739990234,
+      236.4628143310547,
+      70.81816864013672
+     ],
+     "text": "3",
+     "size_pt": 6.96,
+     "message": "text '3' renders at 6.96pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      367.6132507324219,
+      62.82155227661133,
+      371.8687438964844,
+      69.78633117675781
+     ],
+     "text": "3",
+     "size_pt": 6.96,
+     "message": "text '3' renders at 6.96pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      113.39862060546875,
+      103.7878646850586,
+      117.65409851074219,
+      110.75264739990234
+     ],
+     "text": "3",
+     "size_pt": 6.96,
+     "message": "text '3' renders at 6.96pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      224.52818298339844,
+      103.7878646850586,
+      228.78366088867188,
+      110.75264739990234
+     ],
+     "text": "3",
+     "size_pt": 6.96,
+     "message": "text '3' renders at 6.96pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      170.52078247070312,
+      128.08631896972656,
+      174.77626037597656,
+      135.0511016845703
+     ],
+     "text": "3",
+     "size_pt": 6.96,
+     "message": "text '3' renders at 6.96pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      280.564697265625,
+      292.2162780761719,
+      284.5328063964844,
+      299.19012451171875
+     ],
+     "text": "3",
+     "size_pt": 6.97,
+     "message": "text '3' renders at 6.97pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      488.08099365234375,
+      292.2162780761719,
+      492.0491027832031,
+      299.19012451171875
+     ],
+     "text": "3",
+     "size_pt": 6.97,
+     "message": "text '3' renders at 6.97pt, below the 7.00pt floor"
+    }
+   ]
+  },
+  "T2": {
+   "status": "fail",
+   "count": 2,
+   "findings": [
+    {
+     "check": "T2",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      125.78079223632812,
+      60.74922561645508,
+      134.80528259277344,
+      70.81816864013672
+     ],
+     "container_bbox": [
+      124.03958129882812,
+      62.26726531982422,
+      137.12777709960938,
+      71.0378189086914
+     ],
+     "text": "o1",
+     "message": "text 'o1' escapes its containing rect (124.0, 62.3, 137.1, 71.0)"
+    },
+    {
+     "check": "T2",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      185.23129272460938,
+      60.74922561645508,
+      194.2557830810547,
+      70.81816864013672
+     ],
+     "container_bbox": [
+      183.4900665283203,
+      62.26726531982422,
+      196.57827758789062,
+      71.0378189086914
+     ],
+     "text": "o2",
+     "message": "text 'o2' escapes its containing rect (183.5, 62.3, 196.6, 71.0)"
+    }
+   ]
+  },
+  "T3": {
+   "status": "fail",
+   "count": 1,
+   "findings": [
+    {
+     "check": "T3",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      80.55537414550781,
+      124.20393371582031,
+      308.7724304199219,
+      135.8118896484375
+     ],
+     "other_bbox": [
+      79.22307586669922,
+      107.45698547363281,
+      88.50945281982422,
+      185.0631561279297
+     ],
+     "text": "contribution of o3 to spendable reputation",
+     "other_text": "score contribution",
+     "overlap_fraction": 0.128,
+     "message": "text 'contribution of o3 to spendable reputation' overlaps 'score contribution' by 12.8% of the smaller bbox"
+    }
+   ]
+  },
+  "T4": {
+   "status": "fail",
+   "count": 1,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      274.5782775878906,
+      146.897216796875,
+      501.630126953125,
+      156.18359375
+     ],
+     "text": "fraud remains spendable while correction propagates",
+     "line_segment": [
+      [
+       388.203857421875,
+       226.5028076171875
+      ],
+      [
+       388.203857421875,
+       95.71110534667969
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'fraud remains spendable while correction propagates'"
+    }
+   ]
+  },
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T1",
+   "T2",
+   "T3",
+   "T4"
+  ],
+  "warned_checks": []
+ }
+}

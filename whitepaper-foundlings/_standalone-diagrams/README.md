@@ -1,0 +1,1 @@
+diag-auction-mechanisms.tex and diag-cartel-game.tex declare their own \documentclass but reference macros not defined within themselves (undefined control sequence on compile) -- did not render; open the .tex directly to review.

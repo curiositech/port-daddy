@@ -1,0 +1,653 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+<title>Port Daddy — Merge as Light · a motif study</title>
+<!-- ════════════════════════════════════════════════════════════════════════════
+  MERGE AS LIGHT — a motif study (proto/merge-as-light)
+  ─────────────────────────────────────────────────────────────────────────────
+  ONE idea, rendered as a real event you can FEEL:
+
+    A ghost worktree branch and the bright main CONVERGE in a quick BRIGHT FLASH
+    of light, then the changed section SETTLES into main. A PR WRAPS its filetree
+    section in a new color/cast. Before -> after is legible without the motion.
+
+  The filetree is a DOM tree (it owns layout + hit-testing). A single <canvas>
+  "biofield" sits over it (pointer-events:none, mix-blend-mode multiply/screen)
+  and owns the alive: the firefly agents, the merge light-burst, sparks. One
+  shared rAF loop, dpr<=2, paused via IntersectionObserver, never started under
+  prefers-reduced-motion. Every event ALSO flips a DOM class so the state is
+  legible frozen. Sound is opt-in, master gain <=0.18, ramped envelopes.
+
+  Canon: tokens + motion curves lifted from operator-tui-v9.html / tokens.semantic.css
+  (--swoosh .16,1,.3,1 ; --snap .34,1.56,.64,1 ; --float .45,.05,.55,.95 ;
+   warm paper --surface-base #f2eee6 ; --brand-primary #003fb8 ; accent teal).
+  Hard rules honored: 14px floor on readable text; no emoji-as-icon (inline SVG);
+  prefers-reduced-motion collapses motion but keeps the signal; sound opt-in/mutable.
+═════════════════════════════════════════════════════════════════════════════ -->
+<style>
+@font-face{font-family:'Geist';font-style:normal;font-weight:400;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist@5.2.6/files/geist-latin-400-normal.woff2) format('woff2');}
+@font-face{font-family:'Geist';font-style:normal;font-weight:500;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist@5.2.6/files/geist-latin-500-normal.woff2) format('woff2');}
+@font-face{font-family:'Geist';font-style:normal;font-weight:600;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist@5.2.6/files/geist-latin-600-normal.woff2) format('woff2');}
+@font-face{font-family:'Geist';font-style:normal;font-weight:700;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist@5.2.6/files/geist-latin-700-normal.woff2) format('woff2');}
+@font-face{font-family:'Geist Mono';font-style:normal;font-weight:400;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist-mono@5.2.6/files/geist-mono-latin-400-normal.woff2) format('woff2');}
+@font-face{font-family:'Geist Mono';font-style:normal;font-weight:500;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist-mono@5.2.6/files/geist-mono-latin-500-normal.woff2) format('woff2');}
+
+:root, [data-theme='light']{
+  --surface-base:#f2eee6; --surface-raised:#f7f3eb; --surface-strong:#e9e2d5;
+  --surface-sunken:#e0d9cb; --scrim:rgba(18,18,18,.62);
+  --text-primary:#121212; --text-secondary:#403b34; --text-muted:#5a544b; --text-inverse:#fbf7ef;
+  --brand-primary:#003fb8; --brand-primary-on-tint:#002d83;
+  --brand-accent:#004a42; --accent-teal:#006b5f;
+  --border-subtle:rgba(18,18,18,.16); --border-default:rgba(18,18,18,.42); --border-strong:#121212;
+  --status-success:#2d7a43; --status-warning:#a66f00; --status-error:#bf2f2f; --status-info:#0055ff;
+  --code-bg:#12161f;
+  /* PR cast — the color a section takes on once a PR wraps it (cobalt tint) */
+  --pr-cast-bg:rgba(0,63,184,.10); --pr-cast-border:rgba(0,63,184,.55); --pr-cast-ink:#002d83;
+  /* ghost worktree — spectral, dashed, not-yet-real */
+  --ghost-ink:#5a544b; --ghost-stem:rgba(0,85,255,.50);
+  --canvas-blend:multiply;
+  --sp1:4px; --sp2:8px; --sp3:12px; --sp4:16px; --sp5:24px; --sp6:32px;
+  --radius:6px; --radius-lg:12px;
+  --sans:'Geist',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'Geist Mono',ui-monospace,'SF Mono',Menlo,monospace;
+  --t-body:0.9375rem; --t-cap:0.875rem; --t-eyebrow:0.8125rem;
+  --swoosh:cubic-bezier(.16,1,.3,1); --snap:cubic-bezier(.34,1.56,.64,1);
+  --ease:cubic-bezier(.4,0,.2,1); --float:cubic-bezier(.45,.05,.55,.95);
+  --dur-micro:140ms; --dur-quick:220ms; --dur-settle:340ms; --dur-flourish:480ms;
+  --lift:-2px;
+}
+[data-theme='dark']{
+  --surface-base:#101216; --surface-raised:#181c22; --surface-strong:#222833;
+  --surface-sunken:#0b0d11; --scrim:rgba(0,0,0,.68);
+  --text-primary:#f5f3ed; --text-secondary:#d3cec2; --text-muted:#a8a293; --text-inverse:#121212;
+  --brand-primary:#7db4ff; --brand-primary-on-tint:#dbeaff;
+  --brand-accent:#8fd0a7; --accent-teal:#5fd3bf;
+  --border-subtle:rgba(245,243,237,.18); --border-default:rgba(245,243,237,.44); --border-strong:#f5f3ed;
+  --status-success:#66d28a; --status-warning:#f2be51; --status-error:#ff7d7d; --status-info:#7db4ff;
+  --code-bg:#0b0d11;
+  --pr-cast-bg:rgba(125,180,255,.13); --pr-cast-border:rgba(125,180,255,.55); --pr-cast-ink:#dbeaff;
+  --ghost-ink:#a8a293; --ghost-stem:rgba(125,180,255,.55);
+  --canvas-blend:screen;
+}
+*{box-sizing:border-box;}
+html{font-size:16px;}
+body{margin:0; min-height:100vh; background:var(--surface-base); color:var(--text-primary);
+  font-family:var(--sans); font-size:var(--t-body); line-height:1.5; -webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(1200px 700px at 78% -10%, color-mix(in srgb, var(--brand-primary) 7%, transparent), transparent 60%);}
+.mono{font-family:var(--mono); font-feature-settings:"tnum" 1,"zero" 1;}
+.eyebrow{font-size:var(--t-eyebrow); font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:var(--text-muted);}
+button{font:inherit; color:inherit; cursor:pointer; background:none; border:none;}
+:focus-visible{outline:2px solid var(--status-info); outline-offset:2px; border-radius:3px;}
+svg{display:block;}
+
+/* ── Shell ─────────────────────────────────────────────────────────────────── */
+.wrap{max-width:1180px; margin:0 auto; padding:var(--sp6) var(--sp5) 64px;}
+.mast{display:flex; align-items:center; gap:var(--sp4); flex-wrap:wrap; margin-bottom:var(--sp5);}
+.mast .badge{display:inline-flex; align-items:center; gap:var(--sp2); padding:5px 10px; border:1px solid var(--border-subtle);
+  border-radius:999px; background:var(--surface-raised); font-size:var(--t-eyebrow); font-weight:600; letter-spacing:.04em;}
+.mast .badge svg{color:var(--brand-primary);}
+h1{font-size:clamp(1.5rem,2.6vw,2.1rem); line-height:1.12; letter-spacing:-.02em; margin:0; font-weight:700;}
+h1 em{font-style:normal; color:var(--brand-primary);}
+.sub{color:var(--text-secondary); max-width:62ch; margin:10px 0 0; font-size:var(--t-body);}
+.toolbar{margin-left:auto; display:flex; gap:var(--sp2); align-items:center;}
+.tbtn{display:inline-flex; align-items:center; gap:6px; padding:8px 12px; border:1px solid var(--border-subtle);
+  border-radius:var(--radius); background:var(--surface-raised); font-size:var(--t-cap); font-weight:600;
+  transition:transform var(--dur-quick) var(--snap), border-color var(--dur-quick) var(--ease), background var(--dur-quick) var(--ease);}
+.tbtn:hover{transform:translateY(var(--lift)); border-color:var(--border-default);}
+.tbtn[aria-pressed="true"]{background:var(--brand-primary); color:var(--text-inverse); border-color:transparent;}
+.tbtn svg{width:16px; height:16px;}
+
+/* ── Stage: filetree DOM + canvas overlay ─────────────────────────────────── */
+.stage-grid{display:grid; grid-template-columns:1.35fr 1fr; gap:var(--sp5); margin-top:var(--sp5);}
+@media(max-width:880px){.stage-grid{grid-template-columns:1fr;}}
+.panel{position:relative; border:1px solid var(--border-subtle); border-radius:var(--radius-lg);
+  background:var(--surface-raised); overflow:hidden;}
+.panel-head{display:flex; align-items:center; gap:var(--sp3); padding:var(--sp3) var(--sp4);
+  border-bottom:1px solid var(--border-subtle); background:var(--surface-strong);}
+.panel-head .eyebrow{flex:1;}
+.legend{display:flex; gap:var(--sp3); flex-wrap:wrap; font-size:var(--t-eyebrow); color:var(--text-muted);}
+.legend i{display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:5px; vertical-align:-1px;}
+
+/* the tree + canvas live in a positioned host */
+.tree-host{position:relative;}
+#biofield{position:absolute; inset:0; width:100%; height:100%; pointer-events:none;
+  mix-blend-mode:var(--canvas-blend); z-index:3;}
+.tree{position:relative; z-index:1; padding:var(--sp3) var(--sp3) var(--sp4); margin:0; list-style:none; font-family:var(--mono);
+  font-size:var(--t-cap);}
+.tree ul{list-style:none; margin:0; padding-left:18px; position:relative;}
+.tree ul::before{content:""; position:absolute; left:7px; top:2px; bottom:8px; width:1px; background:var(--border-subtle);}
+.row{position:relative; display:flex; align-items:center; gap:8px; padding:5px 8px; border-radius:5px; min-height:30px;
+  transition:background var(--dur-quick) var(--ease), color var(--dur-quick) var(--ease), box-shadow var(--dur-settle) var(--ease);}
+.row:hover{background:color-mix(in srgb, var(--text-primary) 5%, transparent);}
+.row .ico{width:15px; height:15px; flex:none; color:var(--text-muted);}
+.row.dir > .ico{color:var(--brand-primary);}
+.row .name{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.row .tag{margin-left:auto; font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+  padding:2px 7px; border-radius:999px; white-space:nowrap;}
+.row .tag.added{background:color-mix(in srgb, var(--status-success) 16%, transparent); color:var(--status-success);}
+.row .tag.changed{background:color-mix(in srgb, var(--status-warning) 18%, transparent); color:var(--status-warning);}
+
+/* GHOST worktree rows — spectral, dashed, "not yet real" */
+.row.ghost{color:var(--ghost-ink); opacity:.86;}
+.row.ghost .name{font-style:italic;}
+.row.ghost::after{content:""; position:absolute; left:-12px; top:50%; width:11px; height:0; border-top:1.5px dashed var(--ghost-stem);}
+.row.ghost .ico{color:var(--ghost-stem);}
+/* breathing on hypothetical-only rows */
+@keyframes ghostBreathe{0%,100%{opacity:.55;}50%{opacity:.92;}}
+.row.ghost.hypo{animation:ghostBreathe 3.1s var(--float) infinite;}
+
+/* MERGED state — the row settled into main: solid, brand-true, a soft retained glow */
+.row.merged{color:var(--text-primary); opacity:1; animation:none;}
+.row.merged .name{font-style:normal;}
+.row.merged::after{display:none;}
+@keyframes settleIn{0%{transform:translateX(-10px); box-shadow:0 0 0 0 transparent;}
+  60%{transform:translateX(2px);} 100%{transform:translateX(0); box-shadow:inset 2px 0 0 0 var(--brand-primary);}}
+.row.settling{animation:settleIn var(--dur-flourish) var(--snap) both;}
+.row.merged{box-shadow:inset 2px 0 0 0 var(--brand-primary);}
+
+/* the DOM light-sweep that runs in lockstep with the canvas burst */
+.row .sweep{position:absolute; inset:0; border-radius:5px; pointer-events:none; opacity:0;
+  background:linear-gradient(100deg, transparent 20%, color-mix(in srgb, var(--brand-primary) 55%, #fff) 50%, transparent 80%);
+  background-size:240% 100%; background-position:120% 0;}
+@keyframes sweepLight{0%{opacity:0; background-position:120% 0;}15%{opacity:.9;}100%{opacity:0; background-position:-120% 0;}}
+.row.swept .sweep{animation:sweepLight var(--dur-flourish) var(--swoosh) both;}
+
+/* PR CAST — a PR wraps a whole subtree in a new color/cast ──────────────────── */
+.subtree{position:relative; border-radius:8px; transition:background var(--dur-settle) var(--ease),
+  box-shadow var(--dur-settle) var(--ease), padding var(--dur-settle) var(--ease);}
+.subtree.pr-wrapped{background:var(--pr-cast-bg); box-shadow:inset 0 0 0 1px var(--pr-cast-border); padding:6px 8px;}
+.subtree.pr-wrapped > .row .name{color:var(--pr-cast-ink);}
+.pr-chip{position:absolute; top:-11px; left:10px; display:none; align-items:center; gap:6px;
+  padding:2px 9px; border-radius:999px; background:var(--brand-primary); color:var(--text-inverse);
+  font-family:var(--sans); font-size:11px; font-weight:700; letter-spacing:.04em; z-index:4;
+  box-shadow:0 2px 6px rgba(0,0,0,.18);}
+.subtree.pr-wrapped > .pr-chip{display:inline-flex; animation:chipPop var(--dur-settle) var(--snap) both;}
+@keyframes chipPop{0%{transform:scale(.6) translateY(4px); opacity:0;}100%{transform:scale(1) translateY(0); opacity:1;}}
+.pr-chip svg{width:12px; height:12px;}
+
+/* ── Control / story column ───────────────────────────────────────────────── */
+.story{display:flex; flex-direction:column; gap:var(--sp4); padding:var(--sp4);}
+.event-card{border:1px solid var(--border-subtle); border-radius:var(--radius); background:var(--surface-base); padding:var(--sp3) var(--sp4);}
+.event-card h3{margin:0 0 4px; font-size:var(--t-body); font-weight:700;}
+.event-card p{margin:0; color:var(--text-secondary); font-size:var(--t-cap);}
+.event-card .who{font-family:var(--mono); font-size:var(--t-eyebrow); color:var(--accent-teal); font-weight:700;}
+
+.cta{display:flex; flex-direction:column; gap:var(--sp3);}
+.big-btn{position:relative; overflow:hidden; display:flex; align-items:center; gap:var(--sp3); width:100%;
+  padding:var(--sp4); border-radius:var(--radius-lg); border:1px solid var(--border-default);
+  background:var(--surface-base); text-align:left;
+  transition:transform var(--dur-quick) var(--snap), border-color var(--dur-quick) var(--ease), box-shadow var(--dur-quick) var(--ease);}
+.big-btn:hover{transform:translateY(var(--lift)); border-color:var(--brand-primary); box-shadow:0 8px 24px -12px rgba(0,63,184,.4);}
+.big-btn:disabled{opacity:.45; cursor:not-allowed; transform:none; box-shadow:none;}
+.big-btn .glyph{width:42px; height:42px; flex:none; display:grid; place-items:center; border-radius:10px;
+  background:color-mix(in srgb, var(--brand-primary) 14%, transparent); color:var(--brand-primary);}
+.big-btn.pr .glyph{background:color-mix(in srgb, var(--accent-teal) 16%, transparent); color:var(--accent-teal);}
+.big-btn .glyph svg{width:22px; height:22px;}
+.big-btn .lbl{display:flex; flex-direction:column; gap:2px;}
+.big-btn .lbl b{font-size:var(--t-body);}
+.big-btn .lbl span{font-size:var(--t-cap); color:var(--text-muted);}
+.big-btn kbd{margin-left:auto; font-family:var(--mono); font-size:12px; font-weight:600; padding:3px 7px;
+  border:1px solid var(--border-subtle); border-radius:5px; background:var(--surface-strong); color:var(--text-secondary);}
+
+.beforeafter{display:flex; gap:var(--sp3); align-items:stretch; font-size:var(--t-eyebrow);}
+.ba-col{flex:1; border:1px solid var(--border-subtle); border-radius:var(--radius); padding:var(--sp3); background:var(--surface-base);}
+.ba-col .eyebrow{margin-bottom:6px;}
+.ba-col .ba-state{font-family:var(--mono); font-size:var(--t-cap); color:var(--text-secondary);}
+.ba-col.now{border-color:var(--brand-primary); box-shadow:inset 0 0 0 1px var(--pr-cast-border);}
+
+.hint{font-size:var(--t-eyebrow); color:var(--text-muted); display:flex; align-items:center; gap:6px; line-height:1.45;}
+.hint svg{width:14px; height:14px; flex:none; color:var(--brand-primary);}
+
+.note{margin-top:var(--sp6); border-top:1px dashed var(--border-subtle); padding-top:var(--sp4);
+  font-size:var(--t-cap); color:var(--text-muted); max-width:78ch;}
+.note b{color:var(--text-secondary);}
+
+@media(prefers-reduced-motion:reduce){
+  *{animation-duration:.001ms !important; transition-duration:.001ms !important;}
+  .row.ghost.hypo{animation:none;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="mast">
+    <span class="badge">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M6 9v6"/><path d="M18 6a9 9 0 0 1-9 9"/><circle cx="18" cy="6" r="3"/></svg>
+      MOTIF STUDY · MERGE AS LIGHT
+    </span>
+    <div class="toolbar">
+      <button class="tbtn" id="soundBtn" aria-pressed="false" title="Toggle sound (opt-in)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+        <span id="soundLbl">Sound off</span>
+      </button>
+      <button class="tbtn" id="themeBtn" title="Toggle theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        Theme
+      </button>
+    </div>
+  </header>
+
+  <h1>A merge is a <em>real event</em>: light converging, then settling into main.</h1>
+  <p class="sub">The filetree is live DOM. A canvas biofield breathes over it — firefly agents hovering near the work,
+    a bright burst when a ghost worktree branch fuses with the bright main. A PR doesn't just "open" — it
+    <strong>wraps its section in a new cast of color</strong>. Watch the before / after.</p>
+
+  <div class="stage-grid">
+    <!-- ── FILETREE PANEL ───────────────────────────────────────────────── -->
+    <section class="panel">
+      <div class="panel-head">
+        <span class="eyebrow">repo · port-daddy</span>
+        <span class="legend">
+          <span><i style="background:var(--ghost-stem)"></i>ghost worktree</span>
+          <span><i style="background:var(--brand-primary)"></i>main</span>
+          <span><i style="background:var(--accent-teal)"></i>agent</span>
+        </span>
+      </div>
+      <div class="tree-host" id="treeHost">
+        <canvas id="biofield"></canvas>
+        <ul class="tree" id="tree">
+          <li>
+            <div class="row dir" data-node="root">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+              <span class="name">port-daddy/</span>
+            </div>
+            <ul>
+              <li>
+                <!-- PR-wrappable subtree: lib/ -->
+                <div class="subtree" id="subtree-lib" data-subtree="lib">
+                  <span class="pr-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 3v12"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg><span id="prChipLbl">PR #248 · merge-as-light</span></span>
+                  <div class="row dir" data-node="lib">
+                    <span class="sweep"></span>
+                    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                    <span class="name">lib/</span>
+                  </div>
+                  <ul>
+                    <li><div class="row" data-node="lib/db.ts"><span class="sweep"></span><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="name">db.ts</span></div></li>
+                    <li><div class="row" data-node="lib/spawner.ts"><span class="sweep"></span><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="name">spawner.ts</span></div></li>
+                    <!-- the GHOST branch rows — exist only in the worktree, will merge into main -->
+                    <li><div class="row ghost hypo" data-node="lib/merge-light.ts" data-merge="1"><span class="sweep"></span><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="name">merge-light.ts</span><span class="tag added">added</span></div></li>
+                    <li><div class="row ghost hypo" data-node="lib/tube-router.ts" data-merge="1"><span class="sweep"></span><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="name">tube-router.ts</span><span class="tag changed">changed</span></div></li>
+                  </ul>
+                </div>
+              </li>
+              <li>
+                <div class="row dir" data-node="routes">
+                  <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                  <span class="name">routes/</span>
+                </div>
+                <ul>
+                  <li><div class="row" data-node="routes/spawn.ts"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="name">spawn.ts</span></div></li>
+                  <li><div class="row" data-node="routes/sugar.ts"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="name">sugar.ts</span></div></li>
+                </ul>
+              </li>
+              <li><div class="row" data-node="README.md"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="name">README.md</span></div></li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ── STORY / CONTROL COLUMN ───────────────────────────────────────── -->
+    <section class="panel">
+      <div class="panel-head"><span class="eyebrow">live event log</span><span class="mono" id="clock" style="font-size:var(--t-eyebrow); color:var(--text-muted)"></span></div>
+      <div class="story">
+        <div class="event-card" id="evCard">
+          <h3 id="evTitle">2 fireflies hovering over <span class="mono">lib/</span></h3>
+          <p id="evBody"><span class="who">orion</span> and <span class="who">vega</span> are working a worktree branch off <span class="mono">lib/</span>. The ghost rows are not in main yet.</p>
+        </div>
+
+        <div class="beforeafter">
+          <div class="ba-col" id="baBefore">
+            <div class="eyebrow">Before</div>
+            <div class="ba-state">2 ghost rows · dashed stems · breathing</div>
+          </div>
+          <div class="ba-col now" id="baAfter">
+            <div class="eyebrow">After</div>
+            <div class="ba-state" id="baAfterState">— run a merge —</div>
+          </div>
+        </div>
+
+        <div class="cta">
+          <button class="big-btn" id="mergeBtn">
+            <span class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M6 9v6"/><path d="M18 6a9 9 0 0 1-9 9"/><circle cx="18" cy="6" r="3"/></svg></span>
+            <span class="lbl"><b>Merge worktree → main</b><span>Ghost branch fuses with the bright main · flash · settle</span></span>
+            <kbd>M</kbd>
+          </button>
+          <button class="big-btn pr" id="prBtn">
+            <span class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v12"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg></span>
+            <span class="lbl"><b>Open PR around <span class="mono">lib/</span></b><span>Wrap the section in a new color cast · chip · tint</span></span>
+            <kbd>P</kbd>
+          </button>
+          <button class="big-btn" id="resetBtn">
+            <span class="glyph" style="background:color-mix(in srgb,var(--text-muted) 16%,transparent);color:var(--text-muted)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></span>
+            <span class="lbl"><b>Reset the worktree</b><span>Back to two ghost rows, before any merge</span></span>
+            <kbd>R</kbd>
+          </button>
+        </div>
+
+        <div class="hint">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+          <span id="rmHint">Motion is gated on <span class="mono">prefers-reduced-motion</span>. State stays legible frozen: ghost dashed → solid + brand spine; PR → tinted cast + chip.</span>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <p class="note">
+    <b>Grounded in real Port Daddy concepts:</b> ghost rows are a <span class="mono">git worktree</span> branch
+    (<span class="mono">proto/merge-as-light</span>); fireflies are live <span class="mono">sessions</span> / agents hovering near a claimed file;
+    the burst is a <span class="mono">merge</span>; the cast + chip are a <span class="mono">PR</span> wrapping a subtree.
+    The biofield is one capped <code>rAF</code> loop on a single <code>&lt;canvas&gt;</code> with pooled, short-lived particles — never new DOM nodes, no per-frame blur.
+  </p>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const reduce = matchMedia('(prefers-reduced-motion:reduce)').matches;
+  const $ = s => document.querySelector(s);
+  const host = $('#treeHost'), tree = $('#tree'), cv = $('#biofield'), ctx = cv.getContext('2d');
+
+  /* ── DPR-capped sizing ─────────────────────────────────────────────────── */
+  let W = 0, H = 0, dpr = Math.min(window.devicePixelRatio || 1, 2);
+  function resize(){
+    const r = host.getBoundingClientRect();
+    W = r.width; H = r.height;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    cv.style.width = W + 'px'; cv.style.height = H + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  const ro = new ResizeObserver(resize); ro.observe(host);
+
+  /* center of a tree row, in canvas-local px */
+  function nodeCenter(sel){
+    const el = tree.querySelector(`[data-node="${sel}"]`);
+    if(!el) return null;
+    const hr = host.getBoundingClientRect(), rr = el.getBoundingClientRect();
+    return { x: rr.left - hr.left + 14, y: rr.top - hr.top + rr.height/2 };
+  }
+
+  /* ── Pre-baked firefly glow sprite (radial), drawn once ────────────────── */
+  function makeGlow(rgb){
+    const s = 64, c = document.createElement('canvas'); c.width = c.height = s;
+    const g = c.getContext('2d'); const grd = g.createRadialGradient(s/2,s/2,0,s/2,s/2,s/2);
+    grd.addColorStop(0, `rgba(${rgb},0.95)`); grd.addColorStop(.35,`rgba(${rgb},0.45)`); grd.addColorStop(1,`rgba(${rgb},0)`);
+    g.fillStyle = grd; g.fillRect(0,0,s,s); return c;
+  }
+  const glowTeal = makeGlow('0,107,95');
+  const glowWhite = makeGlow('255,255,255');
+  const glowBlue = makeGlow('40,110,230');
+
+  /* ── Fireflies (agents) — boid seek toward target node + layered noise ──── */
+  const AGENTS = [
+    { name:'orion', target:'lib/merge-light.ts', seed:Math.random()*99, x:0,y:0,vx:0,vy:0, idle:false },
+    { name:'vega',  target:'lib/tube-router.ts', seed:Math.random()*99, x:0,y:0,vx:0,vy:0, idle:false },
+  ];
+  let placed = false;
+  function placeAgents(){
+    for(const a of AGENTS){ const c = nodeCenter(a.target); if(c){ a.x=c.x+(Math.random()*30-15); a.y=c.y+(Math.random()*16-8);} }
+    placed = true;
+  }
+
+  /* ── Particle pool (sparks, rings) — short-lived, capped ───────────────── */
+  const parts = []; const MAX = 200;
+  function spawnSpark(x,y){
+    if(parts.length>MAX) return;
+    const a = Math.random()*Math.PI*2, sp = 1.5+Math.random()*3.2;
+    parts.push({k:'spark', x,y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp - 1, life:1, decay:0.025+Math.random()*0.02});
+  }
+  function spawnFlash(x,y){ parts.push({k:'flash', x,y, life:1, decay:0.045}); }
+
+  /* ── The MERGE light-burst sequence ────────────────────────────────────── */
+  let burst = null; // {x,y,gx,gy,t,phase}
+  function runMergeBurst(targetSel, onContact){
+    const c = nodeCenter(targetSel); if(!c){ onContact && onContact(); return; }
+    const mainC = nodeCenter('lib/'); // bright main anchor (the lib/ dir row)
+    if(!mainC){ onContact && onContact(); return; }
+    // ghost sprite starts offset left ("the worktree plane") and eases to main along a bezier
+    burst = {
+      gx: c.x - 80, gy: c.y - 18, // ghost start
+      x: c.x, y: c.y,             // contact point (the row)
+      mx: mainC.x, my: mainC.y,
+      t: 0, phase:'travel', contacted:false, onContact
+    };
+  }
+
+  /* ── Single shared rAF loop ────────────────────────────────────────────── */
+  let running = false, raf = 0, lastT = performance.now();
+  function loop(now){
+    raf = requestAnimationFrame(loop);
+    const dt = Math.min(40, now - lastT); lastT = now; const t = now/1000;
+    if(!placed) placeAgents();
+    ctx.clearRect(0,0,W,H);
+
+    // FIREFLIES
+    for(const a of AGENTS){
+      const tgt = nodeCenter(a.target);
+      if(tgt){
+        // boid seek (gentle)
+        const dx = tgt.x - a.x, dy = tgt.y - a.y, d = Math.hypot(dx,dy)||1;
+        const maxF = 0.02, maxS = 1.1;
+        if(d > 6){ a.vx += (dx/d)*maxF*dt; a.vy += (dy/d)*maxF*dt; }
+        // layered value-noise drift
+        a.vx += (Math.sin(t*0.7+a.seed)*0.4 + Math.sin(t*0.23+a.seed*3)*0.9)*0.02*dt;
+        a.vy += (Math.cos(t*0.6+a.seed*2)*0.4 + Math.sin(t*0.31+a.seed)*0.8)*0.02*dt;
+        const s = Math.hypot(a.vx,a.vy); if(s>maxS){ a.vx=a.vx/s*maxS; a.vy=a.vy/s*maxS; }
+        a.vx*=0.92; a.vy*=0.92; a.x+=a.vx; a.y+=a.vy;
+      }
+      const breathe = 0.55 + 0.45*Math.sin(t*1.6 + a.seed);
+      const alpha = (a.idle?0.3:1) * breathe;
+      const R = 4.4;
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = alpha;
+      const gs = R*5;
+      ctx.drawImage(glowTeal, a.x-gs, a.y-gs, gs*2, gs*2);
+      ctx.globalAlpha = Math.min(1, alpha+0.2);
+      ctx.beginPath(); ctx.fillStyle = '#006b5f'; ctx.arc(a.x, a.y, R*0.45, 0, Math.PI*2); ctx.fill();
+    }
+
+    // MERGE BURST
+    if(burst){
+      burst.t += dt;
+      if(burst.phase === 'travel'){
+        const p = Math.min(1, burst.t/280);
+        // swoosh-ish ease
+        const e = 1 - Math.pow(1-p, 3);
+        // quadratic bezier ghost -> contact, control pulled toward bright main
+        const cx = (burst.gx+burst.x)/2 + (burst.mx-burst.x)*0.3;
+        const cy = (burst.gy+burst.y)/2 - 26;
+        const sx = (1-e)*(1-e)*burst.gx + 2*(1-e)*e*cx + e*e*burst.x;
+        const sy = (1-e)*(1-e)*burst.gy + 2*(1-e)*e*cy + e*e*burst.y;
+        // draw the travelling ghost-spark with a faint trail
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = 0.85;
+        ctx.drawImage(glowBlue, sx-22, sy-22, 44, 44);
+        if(p>=1 && !burst.contacted){
+          burst.contacted = true; burst.phase='flash'; burst.t=0;
+          spawnFlash(burst.x, burst.y);
+          for(let i=0;i<11;i++) spawnSpark(burst.x, burst.y);
+          burst.onContact && burst.onContact();
+        }
+      } else if(burst.phase === 'flash'){
+        if(burst.t > 260) burst = null;
+      }
+    }
+
+    // PARTICLES
+    ctx.globalCompositeOperation = 'lighter';
+    for(let i=parts.length-1;i>=0;i--){
+      const p = parts[i];
+      if(p.k==='spark'){
+        p.vy += 0.05; p.vx*=0.96; p.vy*=0.96; p.x+=p.vx; p.y+=p.vy; p.life-=p.decay;
+        if(p.life<=0){ parts.splice(i,1); continue; }
+        ctx.globalAlpha = p.life;
+        const gs = 10*p.life+3;
+        ctx.drawImage(glowWhite, p.x-gs, p.y-gs, gs*2, gs*2);
+      } else if(p.k==='flash'){
+        // single-frame pop: scale 0.2 -> 2.4, alpha 1 -> 0 over ~240ms (snap overshoot)
+        const u = 1 - p.life; // 0..1
+        const scale = 0.2 + u*2.2 + (u<0.3? u*1.2 : 0);
+        const r = 60*scale;
+        ctx.globalAlpha = p.life;
+        ctx.drawImage(glowWhite, p.x-r, p.y-r, r*2, r*2);
+        ctx.globalAlpha = p.life*0.7;
+        ctx.drawImage(glowBlue, p.x-r*0.8, p.y-r*0.8, r*1.6, r*1.6);
+        p.life -= p.decay;
+        if(p.life<=0) parts.splice(i,1);
+      }
+    }
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  }
+  function start(){ if(running||reduce) return; running=true; resize(); placed=false; lastT=performance.now(); raf=requestAnimationFrame(loop); }
+  function stop(){ running=false; cancelAnimationFrame(raf); ctx.clearRect(0,0,W,H); }
+
+  // Pause off-screen
+  const io = new IntersectionObserver(es => { for(const e of es){ e.isIntersecting ? start() : stop(); } }, {threshold:0.05});
+  io.observe(host);
+  if(reduce){ resize(); /* draw static teal dots at anchors as the frozen signal */ drawStaticFrozen(); }
+  function drawStaticFrozen(){
+    resize(); ctx.clearRect(0,0,W,H);
+    for(const a of AGENTS){ const c = nodeCenter(a.target); if(!c) continue;
+      ctx.globalAlpha=0.85; ctx.fillStyle='#006b5f'; ctx.beginPath(); ctx.arc(c.x,c.y,4,0,Math.PI*2); ctx.fill(); }
+    ctx.globalAlpha=1;
+  }
+
+  /* ── SOUND (opt-in, mutable, master <=0.18, ramped envelopes) ──────────── */
+  let actx = null, master = null, soundOn = false;
+  function ensureAudio(){
+    if(actx) return;
+    actx = new (window.AudioContext||window.webkitAudioContext)();
+    master = actx.createGain(); master.gain.value = 0.18; master.connect(actx.destination);
+  }
+  function blip(freq, dur, type, peak){
+    if(!soundOn || !actx) return;
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type||'sine'; o.frequency.value = freq;
+    const t = actx.currentTime;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(peak||0.12, t+0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+(dur||0.09));
+    o.connect(g).connect(master); o.start(t); o.stop(t+(dur||0.09)+0.02);
+  }
+  // merge chime: two-note major third bell E5 -> G#5 + octave shimmer
+  function mergeChime(){ [659.25, 830.6, 1318.5].forEach((f,i)=> setTimeout(()=> blip(f,0.6,'sine',0.09-i*0.02), i*60)); }
+  // PR swell: soft shimmer pad (3 detuned partials)
+  function prSwell(){ [392, 494, 587].forEach((f,i)=> blip(f,0.8,'sine',0.05)); }
+
+  $('#soundBtn').addEventListener('click', () => {
+    soundOn = !soundOn; ensureAudio();
+    if(actx && actx.state==='suspended') actx.resume();
+    $('#soundBtn').setAttribute('aria-pressed', soundOn);
+    $('#soundLbl').textContent = soundOn ? 'Sound on' : 'Sound off';
+    const ic = $('#soundBtn svg');
+    ic.innerHTML = soundOn
+      ? '<path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/>'
+      : '<path d="M11 5 6 9H2v6h4l5 4z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>';
+  });
+
+  /* ── EVENT CHOREOGRAPHY ────────────────────────────────────────────────── */
+  let merged = false, prOpen = false;
+  function setEvent(title, body){ $('#evTitle').innerHTML = title; $('#evBody').innerHTML = body; }
+
+  function doMerge(){
+    if(merged) return; merged = true;
+    $('#mergeBtn').disabled = true;
+    const ghosts = [...tree.querySelectorAll('[data-merge="1"]')];
+    setEvent('Merging worktree → main…', '<span class="who">orion</span>+<span class="who">vega</span>\'s branch is converging with the bright main.');
+
+    // For each ghost row, fire a light-burst that settles it into main, staggered
+    ghosts.forEach((row, i) => {
+      const sel = row.getAttribute('data-node');
+      setTimeout(() => {
+        if(!reduce){
+          // DOM sweep runs in lockstep with the canvas burst
+          row.classList.remove('swept'); void row.offsetWidth; row.classList.add('swept');
+          runMergeBurst(sel, () => {
+            mergeChime();
+            row.classList.remove('ghost','hypo');
+            row.classList.add('settling','merged');
+            const tag = row.querySelector('.tag'); if(tag){ tag.classList.remove('added','changed'); tag.classList.add('changed'); tag.textContent='merged'; tag.style.background='color-mix(in srgb,var(--brand-primary) 16%,transparent)'; tag.style.color='var(--brand-primary)'; }
+          });
+        } else {
+          // reduced motion: instant recolor + the tag flips; no travel/sparks
+          row.classList.remove('ghost','hypo'); row.classList.add('merged');
+          const tag = row.querySelector('.tag'); if(tag){ tag.textContent='merged'; tag.style.background='color-mix(in srgb,var(--brand-primary) 16%,transparent)'; tag.style.color='var(--brand-primary)'; }
+        }
+      }, i * (reduce?0:260) + 120);
+    });
+
+    setTimeout(() => {
+      setEvent('Merged into <span class="mono">main</span>.', '2 rows fused into the bright main. The dashed stems are gone; each row carries main\'s spine.');
+      $('#baAfterState').textContent = '2 rows fused · solid · brand spine';
+      $('#prBtn').disabled = false;
+    }, ghosts.length * (reduce?0:260) + 700);
+  }
+
+  function doPR(){
+    if(prOpen) return; prOpen = true;
+    $('#prBtn').disabled = true;
+    const st = $('#subtree-lib');
+    st.classList.add('pr-wrapped');
+    prSwell();
+    setEvent('PR #248 wraps <span class="mono">lib/</span>', 'New work looks <em>different</em>: the whole section takes on the PR\'s cast of color, with a chip on its shoulder.');
+    $('#baAfterState').textContent = 'lib/ wrapped · cobalt cast · PR #248';
+  }
+
+  function doReset(){
+    merged = false; prOpen = false; burst = null; parts.length = 0;
+    $('#mergeBtn').disabled = false; $('#prBtn').disabled = true;
+    $('#subtree-lib').classList.remove('pr-wrapped');
+    for(const row of tree.querySelectorAll('[data-merge="1"]')){
+      row.classList.remove('merged','settling','swept');
+      row.classList.add('ghost','hypo');
+      const tag = row.querySelector('.tag');
+      if(tag){
+        const isAdd = row.getAttribute('data-node').includes('merge-light');
+        tag.className = 'tag ' + (isAdd?'added':'changed');
+        tag.textContent = isAdd?'added':'changed';
+        tag.style.background=''; tag.style.color='';
+      }
+    }
+    setEvent('2 fireflies hovering over <span class="mono">lib/</span>',
+      '<span class="who">orion</span> and <span class="who">vega</span> are working a worktree branch off <span class="mono">lib/</span>. The ghost rows are not in main yet.');
+    $('#baAfterState').textContent = '— run a merge —';
+    if(reduce) drawStaticFrozen();
+  }
+
+  $('#mergeBtn').addEventListener('click', doMerge);
+  $('#prBtn').addEventListener('click', doPR);
+  $('#prBtn').disabled = true;
+  $('#resetBtn').addEventListener('click', doReset);
+
+  // keyboard
+  addEventListener('keydown', e => {
+    if(e.target.tagName === 'INPUT') return;
+    const k = e.key.toLowerCase();
+    if(k==='m' && !merged) doMerge();
+    else if(k==='p' && merged && !prOpen) doPR();
+    else if(k==='r') doReset();
+  });
+
+  // theme toggle
+  $('#themeBtn').addEventListener('click', () => {
+    const cur = document.documentElement.getAttribute('data-theme');
+    document.documentElement.setAttribute('data-theme', cur==='dark'?'light':'dark');
+    if(reduce) drawStaticFrozen();
+  });
+
+  // tiny clock for the log header
+  function tick(){ const d=new Date(); $('#clock').textContent = d.toTimeString().slice(0,8); }
+  tick(); setInterval(tick, 1000);
+
+  // reduced-motion hint copy
+  if(reduce){ $('#rmHint').innerHTML = '<strong>Reduced motion on.</strong> No travel or sparks — merges recolor instantly, PRs tint instantly. Every state stays legible.'; }
+
+  // ensure first paint sizing once fonts/layout settle
+  requestAnimationFrame(() => { resize(); if(reduce) drawStaticFrozen(); });
+  addEventListener('resize', () => { resize(); if(reduce) drawStaticFrozen(); });
+})();
+</script>
+</body>
+</html>

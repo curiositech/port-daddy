@@ -1,0 +1,55 @@
+% The no-mint law drawn as three lineages of one witnessed episode: the refuted
+% budget-only phrasing (every derivation stays live), the transfer restatement
+% (each derivation debits its source), and the copy-fork mutant the checker
+% refuses. Numbers from the chapter's worked example and a6_no_mint.py
+% (seed 20260816). [verified for the chain; internal for the copy-fork]
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
+  live/.style={pd state,circle,minimum size=7.5mm,inner sep=0pt,font=\footnotesize,fill=hhteal!24,draw=hhteal},
+  spent/.style={pd state,circle,minimum size=7.5mm,inner sep=0pt,font=\footnotesize,fill=white,draw=hhgray,text=hhgray}]
+  % panel A: budget-only, refuted
+  \node[pd row label,anchor=south,align=center,text width=3.4cm] at (0,2.55) {budget-only\\\normalfont refuted};
+  \node[live] (a0) at (0,1.6) {1};
+  \node[live] (a1) at (0,0.4) {.9};
+  \node[live] (a2) at (0,-0.8) {.81};
+  \node[live] (a3) at (0,-2.0) {.729};
+  \draw[pd arrow] (a0) -- node[pd direct label,right=2pt] {$\gamma=0.9$} (a1);
+  \draw[pd arrow] (a1) -- (a2);
+  \draw[pd arrow] (a2) -- (a3);
+  \node[pd note,anchor=north,align=center,text width=3.4cm] at (0,-2.7) {live total $2.439>1$\\three terms, one episode};
+  % panel B: transfer, the theorem
+  \begin{scope}[xshift=4.2cm]
+  \node[pd row label,anchor=south,align=center,text width=3.4cm] at (0,2.55) {transfer\\\normalfont the theorem};
+  \node[spent] (b0) at (0,1.6) {0};
+  \node[spent] (b1) at (0,0.4) {0};
+  \node[spent] (b2) at (0,-0.8) {0};
+  \node[live] (b3) at (0,-2.0) {.729};
+  \draw[pd arrow] (b0) -- node[pd direct label,right=2pt] {debit $1$, grant $.9$} (b1);
+  \draw[pd arrow] (b1) -- node[pd direct label,right=2pt] {debit $.9$, grant $.81$} (b2);
+  \draw[pd arrow] (b2) -- node[pd direct label,right=2pt] {debit $.81$, grant $.729$} (b3);
+  \node[pd note,anchor=north,align=center,text width=3.4cm] at (0,-2.7) {live total $0.729\le 1$\\a supermartingale};
+  \end{scope}
+  % panel C: copy-fork mutant
+  \begin{scope}[xshift=9.6cm]
+  \node[pd row label,anchor=south,align=center,text width=3.6cm] at (0,2.55) {copy-fork mutant\\\normalfont refused by the checker};
+  \node[live] (c0) at (0,1.6) {1};
+  \foreach \i/\x in {1/-1.5,2/-1.0,3/-0.5,4/0,5/0.5,6/1.0,7/1.5} {
+    \node[live,minimum size=5.5mm] (c\i) at (\x,-0.2) {1};
+    \draw[pd caution arrow] (c0) -- (c\i);
+  }
+  \node[pd direct label,text=hhamber,anchor=west] at (1.85,-0.2) {$\ldots$};
+  \node[pd note,anchor=north,align=center,text width=3.6cm] at (0,-1.0) {eight copies of one episode\\$8.2\times$ its quorum weight\\shortest crime: two operations};
+  \end{scope}
+\end{tikzpicture}
+\caption{Three lineages of one witnessed episode of weight $1$, derived at
+$\gamma=0.9$. Under the budget-only phrasing every derivation stays live and the
+closure sums to $0.9+0.81+0.729=2.439>1$: reputation minted from nothing, which is why
+that phrasing was refuted before proving. Under transfer each derivation grants the child
+$\gamma\,w_p$ and debits the source $w_p$, so only the leaf is live and the total never
+exceeds what was witnessed. The copy-full mutant, which forks the undebited record,
+turns one episode into $8.2\times$ its quorum weight in two operations, and the checker
+refuses it. [verified for the chain by hand; internal, \texttt{a6\_no\_mint.py}, seed
+20260816]}
+\label{fig:stp-nomint-lineage}
+\end{figure}

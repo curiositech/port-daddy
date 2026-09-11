@@ -1,0 +1,252 @@
+{
+ "figure": "fig-swk-stack-map",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T2": {
+   "status": "fail",
+   "count": 2,
+   "findings": [
+    {
+     "check": "T2",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      478.6836853027344,
+      124.69851684570312,
+      487.3628234863281,
+      207.3412322998047
+     ],
+     "container_bbox": [
+      87.7345962524414,
+      164.783203125,
+      507.5469665527344,
+      214.17257690429688
+     ],
+     "text": "THIS CHAPTER",
+     "message": "text 'THIS CHAPTER' escapes its containing rect (87.7, 164.8, 507.5, 214.2)"
+    },
+    {
+     "check": "T2",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      347.90032958984375,
+      210.86337280273438,
+      380.31689453125,
+      219.54251098632812
+     ],
+     "container_bbox": [
+      346.2729797363281,
+      212.2821044921875,
+      381.9585876464844,
+      219.27377319335938
+     ],
+     "text": "assumes",
+     "message": "text 'assumes' escapes its containing rect (346.3, 212.3, 382.0, 219.3)"
+    }
+   ]
+  },
+  "T3": {
+   "status": "fail",
+   "count": 2,
+   "findings": [
+    {
+     "check": "T3",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      102.71520233154297,
+      46.06270217895508,
+      222.888671875,
+      56.91162109375
+     ],
+     "other_bbox": [
+      209.21157836914062,
+      47.16688919067383,
+      251.00161743164062,
+      55.84602355957031
+     ],
+     "text": "economy + federation",
+     "other_text": "settlement",
+     "overlap_fraction": 0.327,
+     "message": "text 'economy + federation' overlaps 'settlement' by 32.7% of the smaller bbox"
+    },
+    {
+     "check": "T3",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      347.90032958984375,
+      210.86337280273438,
+      380.31689453125,
+      219.54251098632812
+     ],
+     "other_bbox": [
+      341.157958984375,
+      218.48739624023438,
+      382.253662109375,
+      227.16653442382812
+     ],
+     "text": "assumes",
+     "other_text": "supervisor",
+     "overlap_fraction": 0.122,
+     "message": "text 'assumes' overlaps 'supervisor' by 12.2% of the smaller bbox"
+    }
+   ]
+  },
+  "T4": {
+   "status": "fail",
+   "count": 5,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      478.6836853027344,
+      124.69851684570312,
+      487.3628234863281,
+      207.3412322998047
+     ],
+     "text": "THIS CHAPTER",
+     "line_segment": [
+      [
+       87.7345962524414,
+       164.783203125
+      ],
+      [
+       507.5469665527344,
+       164.783203125
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'THIS CHAPTER'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      211.24269104003906,
+      206.69537353515625,
+      244.5966033935547,
+      215.37451171875
+     ],
+     "text": "provides",
+     "line_segment": [
+      [
+       87.7345962524414,
+       214.17257690429688
+      ],
+      [
+       507.5469665527344,
+       214.17257690429688
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'provides'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      347.90032958984375,
+      210.86337280273438,
+      380.31689453125,
+      219.54251098632812
+     ],
+     "text": "assumes",
+     "line_segment": [
+      [
+       87.7345962524414,
+       214.17257690429688
+      ],
+      [
+       507.5469665527344,
+       214.17257690429688
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'assumes'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      228.42466735839844,
+      218.48739624023438,
+      259.4178466796875,
+      227.16653442382812
+     ],
+     "text": "\ufb01le lock",
+     "line_segment": [
+      [
+       246.7073974609375,
+       227.44631958007812
+      ],
+      [
+       246.7073974609375,
+       203.38157653808594
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text '\ufb01le lock'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      341.157958984375,
+      218.48739624023438,
+      382.253662109375,
+      227.16653442382812
+     ],
+     "text": "supervisor",
+     "line_segment": [
+      [
+       345.79559326171875,
+       199.66433715820312
+      ],
+      [
+       345.79559326171875,
+       223.72906494140625
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'supervisor'"
+    }
+   ]
+  },
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T2",
+   "T3",
+   "T4"
+  ],
+  "warned_checks": []
+ }
+}

@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/governance/adjudication-receipt.schema.json",
+  "title": "AdjudicationReceipt",
+  "description": "A pre-effect Permit, Deny, Permit-with-Obligations, or Indeterminate decision bound to an exact action and policy. The receipt is executable only after independent authority-proof verification.",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.adjudication-receipt.v0" },
+    "receiptId": { "type": "string", "minLength": 1 },
+    "actionDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "decision": { "enum": ["permit", "deny", "permit-with-obligations", "indeterminate"] },
+    "reasonCodes": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1 },
+    "policy": {
+      "type": "object",
+      "properties": {
+        "policyId": { "type": "string", "minLength": 1 },
+        "policyDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "evaluatorDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+      },
+      "required": ["policyId", "policyDigest", "evaluatorDigest"],
+      "additionalProperties": true
+    },
+    "authority": {
+      "type": "object",
+      "properties": {
+        "issuer": { "type": "string", "minLength": 1 },
+        "domain": { "enum": ["external-controller", "operator", "test-fixture"] },
+        "grantDigest": { "type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$" },
+        "proof": { "type": ["string", "null"] }
+      },
+      "required": ["issuer", "domain", "grantDigest", "proof"],
+      "additionalProperties": true
+    },
+    "mediation": {
+      "type": "object",
+      "properties": {
+        "interceptionPoint": { "type": "string", "minLength": 1 },
+        "evaluatorSeparatedFromSubject": { "type": "boolean" },
+        "decisionBeforeEffect": { "type": "boolean" }
+      },
+      "required": ["interceptionPoint", "evaluatorSeparatedFromSubject", "decisionBeforeEffect"],
+      "additionalProperties": true
+    },
+    "obligations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "obligationId": { "type": "string", "minLength": 1 },
+          "predicateDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+          "dueAt": { "type": ["string", "null"] }
+        },
+        "required": ["obligationId", "predicateDigest", "dueAt"],
+        "additionalProperties": true
+      }
+    },
+    "issuedAt": { "type": "string", "minLength": 1 },
+    "expiresAt": { "type": "string", "minLength": 1 }
+  },
+  "required": ["schema", "receiptId", "actionDigest", "decision", "reasonCodes", "policy", "authority", "mediation", "obligations", "issuedAt", "expiresAt"],
+  "additionalProperties": true
+}

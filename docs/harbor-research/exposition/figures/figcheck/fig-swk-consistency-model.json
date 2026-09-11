@@ -1,0 +1,161 @@
+{
+ "figure": "fig-swk-consistency-model",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "fail",
+   "count": 1,
+   "findings": [
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      292.5741882324219,
+      178.42767333984375,
+      305.7343444824219,
+      184.43963623046875
+     ],
+     "text": "lose",
+     "size_pt": 6.01,
+     "message": "text 'lose' renders at 6.01pt, below the 7.00pt floor"
+    }
+   ]
+  },
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T4": {
+   "status": "fail",
+   "count": 4,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      208.35275268554688,
+      40.712127685546875,
+      228.2162322998047,
+      48.728065490722656
+     ],
+     "text": "claim",
+     "line_segment": [
+      [
+       162.695068359375,
+       44.2158203125
+      ],
+      [
+       507.6638488769531,
+       44.2158203125
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'claim'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      236.7901611328125,
+      70.64751434326172,
+      299.5469665527344,
+      78.6634521484375
+     ],
+     "text": "claim: loses to A",
+     "line_segment": [
+      [
+       162.695068359375,
+       74.15119934082031
+      ],
+      [
+       507.6638488769531,
+       74.15119934082031
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'claim: loses to A'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      349.9336853027344,
+      40.712127685546875,
+      374.58270263671875,
+      48.728065490722656
+     ],
+     "text": "release",
+     "line_segment": [
+      [
+       162.695068359375,
+       44.2158203125
+      ],
+      [
+       507.6638488769531,
+       44.2158203125
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'release'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      416.49810791015625,
+      100.58287811279297,
+      459.11083984375,
+      108.59881591796875
+     ],
+     "text": "claim: wins",
+     "line_segment": [
+      [
+       162.695068359375,
+       104.08656311035156
+      ],
+      [
+       507.6638488769531,
+       104.08656311035156
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'claim: wins'"
+    }
+   ]
+  },
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T1",
+   "T4"
+  ],
+  "warned_checks": []
+ }
+}

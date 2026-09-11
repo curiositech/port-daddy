@@ -1,6 +1,6 @@
 I have full, verified knowledge of the API surface. Key facts confirmed for gpui 0.2.2 (crates.io):
 
-- `.hover(|s: StyleRefinement| s...)` and `.group_hover("name", |s| s...)` — closures return `StyleRefinement`, and `box_shadow_style_methods!()` IS on `StyleRefinement`, so `.shadow(vec![...])` and `.shadow_md()` work **inside hover closures**. This is the load-bearing detail: I can glow/lift on hover.
+- `.hover(|s: StyleRefinement| s...)` and `.group_hover("name", |s| s...)` — closures return `StyleRefinement`, and `box_shadow_style_methods!()` IS on `StyleRefinement`, so `.shadow(vec![...])` and `.shadow_md()` work **inside hover closures**. This is the essential detail: I can glow/lift on hover.
 - **No** `scale`/`translate`/transform builder on `Styled`. "Lift"/"scale" must be faked via `px()` size/padding deltas or shadow; true spring motion needs `with_animation`.
 - `Animation::new(Duration).with_easing(fn)` + `.with_animation(id, anim, |el, delta| ...)` exists, with `ease_out_quint()`, `pulsating_between(min,max)`, `bounce()`. `oneshot` by default; `.repeat()` loops.
 - `shadow(Vec<BoxShadow>)` with `color: Hsla` (use `rgb(0xRRGGBB).into()` → `Hsla`, then `.opacity()` on `Hsla` for alpha), `offset: point(px,px)`, `blur_radius`, `spread_radius`.

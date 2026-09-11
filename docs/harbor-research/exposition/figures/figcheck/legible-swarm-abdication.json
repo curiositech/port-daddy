@@ -1,0 +1,99 @@
+{
+ "figure": "legible-swarm-abdication",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "fail",
+   "count": 1,
+   "findings": [
+    {
+     "check": "T3",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      438.8482360839844,
+      168.9011993408203,
+      520.6774291992188,
+      176.87130737304688
+     ],
+     "other_bbox": [
+      425.1426696777344,
+      173.37539672851562,
+      454.97381591796875,
+      182.34178161621094
+     ],
+     "text": "automation autonomy",
+     "other_text": "absent",
+     "overlap_fraction": 0.211,
+     "message": "text 'automation autonomy' overlaps 'absent' by 21.1% of the smaller bbox"
+    }
+   ]
+  },
+  "T4": {
+   "status": "fail",
+   "count": 1,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      118.44459533691406,
+      150.19735717773438,
+      347.5455322265625,
+      158.16746520996094
+     ],
+     "text": "schematic: the freeze-probe study is the missing measurement",
+     "line_segment": [
+      [
+       120.91649627685547,
+       165.1728057861328
+      ],
+      [
+       120.91649627685547,
+       50.87934875488281
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'schematic: the freeze-probe study is the missing measurement'"
+    }
+   ]
+  },
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T3",
+   "T4"
+  ],
+  "warned_checks": []
+ }
+}

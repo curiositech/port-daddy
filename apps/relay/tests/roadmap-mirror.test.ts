@@ -29,10 +29,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { readdirSync, readFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
+import { makeDb, applyAllMigrations } from './helpers/d1-sqlite.js';
 import {
   normalizeRepoFullName,
   validateSnapshotPayload,
@@ -54,62 +52,25 @@ import { hashHex } from '../src/crypto.js';
 import type { Env } from '../src/types.js';
 
 const BASE = 'https://relay.example';
-const MIGRATIONS_DIR = join(dirname(dirname(fileURLToPath(import.meta.url))), 'migrations');
 
 const ALICE_TOKEN = `pdu_${'aa'.repeat(32)}`;
 const BOB_TOKEN = `pdu_${'bb'.repeat(32)}`;
 const COOKIE_VALUE = 'sess-alice';
 
-/** D1 adapter over node:sqlite with the REAL migration chain applied. */
+/**
+ * The real migration chain over node:sqlite, from the shared test adapter.
+ *
+ * This function used to carry its own copy of that adapter. A second copy grew
+ * in tests/helpers/d1-sqlite.ts for the work register, in ignorance of this
+ * one, and two adapters over the same engine is how two suites come to disagree
+ * about what `batch()` does. They are one adapter now; this keeps the
+ * `{ d1, sql }` shape the rest of the file reads.
+ *
+ * @returns The D1-shaped handle and the engine under it.
+ */
 function makeRealDb(): { d1: D1Database; sql: DatabaseSync } {
-  const sql = new DatabaseSync(':memory:');
-  sql.exec('PRAGMA foreign_keys = ON');
-  const migrations = readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith('.sql')).sort();
-  for (const name of migrations) {
-    sql.exec(readFileSync(join(MIGRATIONS_DIR, name), 'utf8'));
-  }
-  type Stmt = {
-    bind(...v: unknown[]): Stmt;
-    first<T>(): Promise<T | null>;
-    all<T>(): Promise<{ results: T[] }>;
-    run(): Promise<{ success: boolean; meta: { changes: number } }>;
-  };
-  const prepare = (query: string): Stmt => {
-    let args: unknown[] = [];
-    const stmt: Stmt = {
-      bind(...v: unknown[]) {
-        args = v.map((x) => (x === undefined ? null : x));
-        return stmt;
-      },
-      async first<T>() {
-        return ((sql.prepare(query).get(...(args as never[])) as T | undefined) ?? null);
-      },
-      async all<T>() {
-        return { results: sql.prepare(query).all(...(args as never[])) as T[] };
-      },
-      async run() {
-        const info = sql.prepare(query).run(...(args as never[]));
-        return { success: true, meta: { changes: Number(info.changes) } };
-      },
-    };
-    return stmt;
-  };
-  const d1 = {
-    prepare,
-    async batch(stmts: Stmt[]) {
-      sql.exec('BEGIN');
-      try {
-        const results = [];
-        for (const s of stmts) results.push(await s.run());
-        sql.exec('COMMIT');
-        return results;
-      } catch (e) {
-        sql.exec('ROLLBACK');
-        throw e;
-      }
-    },
-  } as unknown as D1Database;
-  return { d1, sql };
+  const db = makeDb(applyAllMigrations());
+  return { d1: db.DB as D1Database, sql: db.raw };
 }
 
 /** Seed two accounts + their pdu_ device tokens + one browser session for alice. */

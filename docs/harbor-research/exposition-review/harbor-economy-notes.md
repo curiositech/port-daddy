@@ -365,7 +365,7 @@ Proposed numbers: Bob's refactor float plan bounties Alice's firm 400\,\textsc{c
 
 **Where:** §Gaps the design must still close (currently a flat six-item `\begin{enumerate}`, lines 1287–1306).
 
-**What it would show:** Convert (or supplement) the flat list into a small table crossing each of the six gaps against which of the paper's own load-bearing promises it threatens (conservation, Sybil-resistance, incentive-compatibility, cross-boundary safety), in the same visual family as `tab:honest-state`.
+**What it would show:** Convert (or supplement) the flat list into a small table crossing each of the six gaps against which of the paper's own critical promises it threatens (conservation, Sybil-resistance, incentive-compatibility, cross-boundary safety), in the same visual family as `tab:honest-state`.
 
 **Why it helps:** the six gaps currently read as an undifferentiated list, but they're not equally dangerous — "operator exit / harbor death" threatens conservation directly, while "multi-dimensional reputation aggregation" threatens IC further downstream. A reader trying to prioritize (e.g. an implementer per the reader's-map) currently has to infer the stakes; a table would make triage possible at a glance.
 
