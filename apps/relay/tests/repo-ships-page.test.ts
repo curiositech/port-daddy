@@ -215,6 +215,10 @@ it.skipIf(!process.env.SHIP_CONTROLS_PROOF_DIR)('records browser control round-t
     await page.evaluate(() => document.documentElement.style.zoom = '2');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: `${directory}/ships-200pct.png`, fullPage: true });
+    vi.mocked(resolveSession).mockResolvedValue({ user: { id: 'admin-1' }, ghToken: null, cacheNamespace: 'test' } as never);
+    await page.goto(`${base}/account/ships?repo=owner/repo`);
+    await expect.poll(() => page.getByRole('link', { name: 'Continue with GitHub', exact: true }).count()).toBe(1);
+    await page.screenshot({ path: `${directory}/ships-auth-renew.png`, fullPage: true });
   } finally {
     await context.close(); await browser.close();
     await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
