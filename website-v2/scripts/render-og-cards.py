@@ -15,17 +15,36 @@ BLUE = (15, 38, 57)
 LIME = (155, 182, 47)
 
 
-def font(size, bold=False):
-    candidates = [
+# The committed cards were rendered with Arial, and the layout is measured
+# against Arial's metrics: the title and description wrap to a fixed pixel
+# width, and the footer line is placed at a fixed x with no wrap at all. A face
+# with wider metrics does not merely look different -- the description truncates
+# with an ellipsis and the footer runs off the right edge of the card. So the
+# ladder holds only Arial and the faces designed to match its metrics, and it
+# raises rather than falling through to whatever else the machine has.
+def font_candidates(bold):
+    return [
         "/System/Library/Fonts/Supplemental/Arial Bold.ttf" if bold else "/System/Library/Fonts/Supplemental/Arial.ttf",
         "/System/Library/Fonts/HelveticaNeue.ttc",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        # Liberation Sans is metric-compatible with Arial by design. Debian and
+        # Ubuntu ship it here; the older `liberation2` path this list used to
+        # name alone is not where fonts-liberation installs it, so every Linux
+        # render silently fell through to DejaVu and produced clipped cards.
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
         "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
     ]
+
+
+def font(size, bold=False):
+    candidates = font_candidates(bold)
     for candidate in candidates:
         if candidate and Path(candidate).exists():
             return ImageFont.truetype(candidate, size=size)
-    return ImageFont.load_default(size=size)
+    raise SystemExit(
+        "render-og-cards.py: no Arial-metric font found, so the cards would not match "
+        "the committed set. Install one (Debian/Ubuntu: apt-get install fonts-liberation) "
+        "or run on macOS. Searched:\n  " + "\n  ".join(candidates)
+    )
 
 
 def crop_cover(image, size):

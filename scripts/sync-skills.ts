@@ -151,8 +151,10 @@ function main(): void {
       result.created > 0 ||
       result.replaced > 0 ||
       result.errors.length > 0 ||
+      result.removed > 0 ||
       result.audit.missingLinks > 0 ||
-      result.audit.staleSymlinks > 0;
+      result.audit.staleSymlinks > 0 ||
+      result.audit.orphanedLinks > 0;
     if (!cli.quiet || changed) {
       for (const line of formatSkillSyncSummary(result)) {
         process.stdout.write(line + '\n');
@@ -162,7 +164,10 @@ function main(): void {
 
   // In --check mode, drift is a non-zero exit so CI / hooks can gate on it.
   if (cli.check) {
-    const drift = result.audit.missingLinks + result.audit.staleSymlinks;
+    // An orphan is drift too, and the kind that used to be invisible: the
+    // audit only ever walked skills the catalog still has, so a link left
+    // behind by a deleted skill was never counted and never reported.
+    const drift = result.audit.missingLinks + result.audit.staleSymlinks + result.audit.orphanedLinks;
     if (drift > 0) {
       process.stderr.write(
         `sync-skills: ${drift} runtime skill link(s) out of date. Run: npm run skills:sync\n`,

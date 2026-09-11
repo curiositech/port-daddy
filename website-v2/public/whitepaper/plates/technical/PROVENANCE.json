@@ -148,6 +148,21 @@
       "model": "gemini-3-pro-image-preview",
       "post": "centre crop 7:10, paper balance to #FBF7EF, 1400x2000 JPEG q85",
       "file": "cover.jpg"
+    },
+    "frontispiece": {
+      "file": "frontispiece.jpg",
+      "source_render": "frontispiece-technical-a.png",
+      "size": [
+        1342,
+        2000
+      ],
+      "bytes": 421677,
+      "note": "Technical frontispiece: the Leviathan as a 1970s drawing sheet -- ruled frame with inch ticks, empty ruled title block, monoline orthographic assembly with blank numbered callout balloons, the searchlight drawn as a halftone-screened projection cone rather than as light.",
+      "chosen": "a",
+      "candidates": 2,
+      "model": "gemini-3-pro-image-preview",
+      "generation_aspect": "2:3",
+      "prompt": "scripts/whitepaper-plates/frontispiece_prompts.py"
     }
   }
 }

@@ -22,7 +22,13 @@
 \usepackage{listings}
 \usepackage{xcolor}
 \usepackage{booktabs}
+% For \needspace at the two subsections that were landing in the last
+% two lines of a page. The Book's own preamble already loads it; the
+% generator strips this block, so adding it here only reaches the
+% standalone twin, which would otherwise fail on an undefined command.
+\usepackage{needspace}
 \usepackage{tabularx}
+\usepackage{xltabular}
 \usepackage{graphicx}
 \usepackage{fancyhdr}
 \usepackage{tikz}
@@ -62,7 +68,10 @@
 % These commands are defined locally because this file is a standalone paper;
 % in particular, \BuiltWeak is not inherited from a shared preamble.
 \newcommand{\Built}{{\textcolor{hhink}{\textsc{\textbf{built}}}}}
-\newcommand{\BuiltWeak}{{\textcolor{hhink}{\textsc{built\,\textit{(weak)}}}}}
+% A normal space, not \, -- the thin space has no stretch and no break
+% point, so "built (weak)" in small caps never wrapped in a narrow Status
+% column and sat 2.7-5.5pt over the measure on every row that used it.
+\newcommand{\BuiltWeak}{{\textcolor{hhink}{\textsc{built \textit{(weak)}}}}}
 \newcommand{\Designed}{{\textcolor{hhgray}{\textsc{designed}}}}
 \newcommand{\Vision}{{\textcolor{hhgray}{\textit{vision}}}}
 
@@ -268,10 +277,14 @@ Table~\ref{tab:ls-stack-map} shows how they interlock.}
 \caption{The system as four strata rather than four products. A mark is a capability the layer provides to the layer above; reading down a column shows where each capability is born. This chapter owns the operator surface (L2) and uses the directory substrate of L1; it assumes ordered kernel state below and supplies accountable identity, reasons and outcomes to reputation and exchange above. [internal]}
 \label{tab:ls-stack-map}
 \footnotesize
-\renewcommand{\arraystretch}{1.15}\setlength{\tabcolsep}{3.5pt}
+% 2pt, not the table's earlier 3.5pt: the seven rotated capability headers
+% (60 degrees each) plus nine column gaps at 3.5pt still overflowed the
+% measure by 14.7pt even after the Stratum column below became tabularx's
+% X -- the intercolumn padding, not the prose column, was the rest of it.
+\renewcommand{\arraystretch}{1.15}\setlength{\tabcolsep}{1.6pt}
 % seven capability columns at the width of a mark; their heads stand at 60 degrees
 \newcommand{\lscaphead}[1]{\rotatebox[origin=l]{60}{\textbf{#1}}}
-\begin{tabular}{@{}l >{\raggedright\arraybackslash}p{8.5em} l *{7}{c}@{}}
+\begin{tabularx}{\linewidth}{@{}l >{\raggedright\arraybackslash}X l *{7}{c}@{}}
 \toprule
 \textbf{Layer} & \textbf{Stratum} & \textbf{For whom} & \lscaphead{state} & \lscaphead{order} & \lscaphead{identity} & \lscaphead{reason} & \lscaphead{outcome} & \lscaphead{reputation} & \lscaphead{exchange} \\
 \midrule
@@ -280,7 +293,7 @@ L2 & legibility \& authority (this chapter) & the operator & $\bullet$ & $\bulle
 L1 & coordination protocol & the agents & $\bullet$ & $\bullet$ & $\bullet$ & & & & \\
 L0 & daemon kernel & the machine & $\bullet$ & & & & & & \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 \newpage
@@ -578,12 +591,15 @@ that does not exist, but the artifact the mechanism would have to produce.
 \centering
 \small
 \renewcommand{\arraystretch}{1.25}
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\centering\arraybackslash}p{0.08\textwidth} >{\raggedright\arraybackslash}p{0.28\textwidth} >{\raggedright\arraybackslash}p{0.23\textwidth}@{}}
+\setlength{\tabcolsep}{4pt}
+% Regret column widened 0.08 -> 0.10\textwidth: its own bold header,
+% "Regret", was 2.8pt wider than the column at this size.
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\centering\arraybackslash}p{0.10\textwidth} >{\raggedright\arraybackslash}p{0.27\textwidth} >{\raggedright\arraybackslash}p{0.22\textwidth}@{}}
 \toprule
 \textbf{Suppressed item} & \textbf{Regret} & \textbf{Why it was not shown} & \textbf{Re-surface trigger} \\
 \midrule
 \texttt{agent-7} escalation: ``migration ordering unclear'' & $0.31$ & below the distress threshold $(0.45)$ for this action class & threshold drops, or the item is restated \\
-\texttt{agent-3} note on \path{auth/session.ts} & $0.12$ & aged out; recency weight decayed past the floor & any new claim on the same file \\
+\texttt{agent-3} note on \path{auth/}\allowbreak\path{session.ts} & $0.12$ & aged out; recency weight decayed past the floor & any new claim on the same file \\
 Third retry of the same failing test & $0.58$ & de-duplicated into the first occurrence & a fourth retry, or a different failure mode \\
 \bottomrule
 \end{tabularx}
@@ -625,14 +641,17 @@ its active grants.
 \end{definition}
 
 Consent so defined gives the design something Hume's critique cannot reach: a
-discrete authorization event, a bounded scope, and an exit. Supervisory-control
-research calls a per-action-class autonomy scoping like this a \textbf{level of
-automation}: Sheridan's ten-point scale and its four-stage
-acquisition/analysis/decision/action refinement give the scope/stakes-ceiling/
-reversibility-floor/TTL tuple above its formal
-home~\pdcite{sheridan1992,parasuraman2000}; this section builds the same selector
-from a Hobbesian covenant instead, and the two routes reach compatible
-conclusions. It also hands the
+discrete authorization event, a bounded scope, and an exit. It is also an object
+supervisory-control research named long before this chapter did: a
+\textbf{level of automation}, in Sheridan's ten-point sense and in the
+four-stage refinement (acquire, analyse, decide, act) that Parasuraman,
+Sheridan and Wickens later gave it~\pdcite{sheridan1992,parasuraman2000}. Read
+that way, a grant's $\langle\textsc{scope}, s_{\max}, v_{\min},
+\textsc{ttl}\rangle$ is a level-of-automation setting chosen per action class
+rather than once for the whole system, which is roughly what that literature
+has been recommending since 1978. This section built the same selector from a
+Hobbesian covenant, and that two routes so far apart arrive at a compatible
+object is some evidence the object is the right one. It also hands the
 accompanying chapters a concrete object. A grant is precisely what a \emph{hosted-trust}
 offering transfers --- ``we make this fleet legible to you, under this scope'' is
 the sale of a consent grant to a third party, which \pdchapref{he}{The Harbor Economy}
@@ -676,11 +695,12 @@ dual --- the operator-to-daemon channel --- and it is a \emph{right}, not a feat
 it preempts every grant, every in-flight landing, every coordinator decision.
 \end{property}
 
-Computer security has an independently-arrived-at, near-exact structural analog to the
-consent grant: a \textbf{capability with contextual caveats that can only narrow, never
-widen, as it delegates}~\pdcite{macaroons2014}, unforgeable and revocable by
-construction --- the security literature's route to the same object this section
-builds from a Hobbesian covenant.
+Computer security reached the same object by its own road. A consent grant is,
+to a capability theorist, a \textbf{capability with contextual caveats} ---
+unforgeable, revocable, and able only to narrow as it is passed
+along~\pdcite{macaroons2014} --- and that a Hobbesian covenant and a Macaroon
+agree about what the object has to be is a small reassurance that neither
+derivation was decorative.
 
 This pairs with \textbf{Hirschman}'s \emph{Exit, Voice, and Loyalty}
 (1970~\pdcite{hirschman1970} --- \emph{the choice between leaving (exit) and
@@ -807,6 +827,12 @@ reviews its own work is two LLMs agreeing, which by Prop.~\ref{prop:verifiable-z
 is one error twice. We return to adversarial review as the authority's quality organ
 in \S\ref{sec:authority-rules}.
 
+% This heading and its lead-in sentence were landing in the last two lines of
+% p. 165, with the enumerate they introduce beginning on p. 166 -- a decision
+% procedure whose first question is on the other side of a page turn. Six
+% baselines is the head, the one-sentence lead-in, and the first item: enough
+% that the reader sees what is being decided before turning.
+\needspace{6\baselineskip}
 \subsection{The four design questions (a decision procedure)}\label{sec:four-questions}
 
 For any read-surface --- Attention Queue, briefing, resurrection digest, TUI pane ---
@@ -1132,9 +1158,13 @@ response, with explicit flood-suppression}). An uncontrolled-false-alarm distres
 lane self-destructs into habituated uselessness within days, exactly as clinical
 alarms do (\textbf{Cvach 2012}, \emph{Monitor Alarm Fatigue}~\pdcite{cvach2012} ---
 \emph{85--99\% of clinical alarms are non-actionable; staff learn to ignore channels
-that cry wolf}). We make escalation a \emph{costly signal} (\S\ref{sec:gates}): an
-escalation the operator dismisses debits the agent's standing, so crying wolf has a
-price.
+that cry wolf}). We make escalation a \emph{costly signal} in Spence's
+sense~\pdcite{spence1973} --- the job-market model in which a credential nobody
+strictly needs is still worth buying, because it costs the able less than it
+costs everyone else and so sorts them (\S\ref{sec:gates}): an escalation the
+operator dismisses debits the agent's standing, so crying wolf has a price, and
+the price falls harder on the agent whose alarm was baseless than on the one
+whose alarm was right.
 
 \noindent\Verified. The costly-signal lane has a unique equilibrium, and the
 debit that makes it work is a fitted quantity with a feasible range.
@@ -1159,9 +1189,14 @@ one direction; the miss-loss wall bounds the suppressed mass and is monotone in 
 other; the feasible set is the intersection of two half-lines, an interval, possibly
 empty.
 \end{proof}
-This is the Spence mold, job-market signaling's separating equilibrium
-transplanted to an escalation lane~\pdcite{spence1973}: the dismissal debit is money
-only a genuine signal is worth risking. The free parameter $\delta$ is fit from measured validation rates
+This is Spence's separating equilibrium arriving through a different door. In
+the job market the signal costs the able type less by assumption; here nobody's
+debit is cheaper than anybody else's, but a true alarm is dismissed less often,
+so the \emph{expected} debit $\delta w\,(1-V(u))$ falls with $u$ and the
+single-crossing condition his separation needs comes out of the validator rather
+than being put in by hand. (Which is also why monotone $V$ is not a technicality
+below: it is the whole of the single-crossing.) The dismissal debit is money only
+a genuine signal is worth risking. The free parameter $\delta$ is fit from measured validation rates
 (\texttt{instrumentation.md}), and an empty band is a finding, not a tuning problem:
 a tight attention budget with high miss costs admits no good debit, and the fix is
 capacity or evidence quality. Monotone $V$ is required throughout; a non-monotone
@@ -1172,7 +1207,7 @@ validator breaks the separating threshold (item R14 of the research ledger,
 At $\delta=0.05,w=1$: $u^\star=\delta w/(1+\delta w)=0.05/1.05=0.0476$ [verified, closed form] --- the fraction of the validation signal $u$ above which escalating clears its cost, one of twelve $(\delta,w)$ points the script confirms against bisection to machine precision. Under the R3 constants ($C_{\mathrm{miss}}=100,c_{\mathrm{att}}=1,C_{\mathrm{fa}}=5$, so $u_{\mathrm{crit}}=6/105\approx0.057$), the feasible debit interval is $[\delta_{\min},\delta_{\max}]=[0.0350,0.0720]$ at attention budget $A=3.3$, and it is \emph{empty} at $A=2.0$ (there $\delta_{\min}=0.396$ exceeds $\delta_{\max}=0.072$, so no debit satisfies both walls at once) [verified closed forms, grid-confirmed]. An empty band is not a bug to tune away: it is the honest signal that the fix is capacity or evidence quality, not a better $\delta$. \emph{Now you try:} run the script and confirm both bands (Exercise~\ref{ex:ls-b7-escalation-run}).
 \end{pdexample}
 
-\pdexercisepointer{\ref{ex:ls-adversarial-review-corollary}}{\ref{ex:ls-b7-escalation-run}}{\pageref{ex:ls-adversarial-review-corollary}}
+\pdexercisepointer*{\ref{ex:ls-adversarial-review-corollary}}{\ref{ex:ls-b7-escalation-run}}{\pageref{ex:ls-adversarial-review-corollary}}
 
 \begin{pdrecitation}
 \item Without looking: what is the exact condition under which sole ownership weakly dominates the pool, and what does Eq.~\ref{eq:specboundary} reduce to when $A=0$?
@@ -1240,11 +1275,15 @@ Equation~\ref{eq:sdt} is a decision objective, not by itself a fitted detector.
 
 \input{figures/legible-swarm-sdt}
 
-This is a normative claim (a Bayesian SDT decision-maker is the target to calibrate
-toward), not a descriptive one: naturalistic decision-making research argues skilled
-operators under time pressure pattern-match against recognized cases rather than
-compute a likelihood-ratio threshold~\pdcite{klein1998}, a live rival account of what
-the operator's instrument actually measures that this objective does not adjudicate.
+This is a normative claim --- a Bayesian SDT decision-maker is the target to
+calibrate toward --- and not a descriptive one. Naturalistic decision-making
+research argues that skilled operators under time pressure do something else
+entirely: they recognize the situation as a case they have seen before and act
+on the match, rather than computing a likelihood ratio and holding it against a
+threshold~\pdcite{klein1998}. That is a live rival account of what the
+operator's instrument actually measures, and this objective does not adjudicate
+it; it says what Mara should be calibrated toward, not what Mara is doing at
+3:25 in the afternoon.
 
 Figure~\ref{fig:sdt} lays the same decision out visually: the operator's criterion
 $\beta$ trading misses against false alarms. The miss-cost term prevents the
@@ -1265,7 +1304,16 @@ through it at $C_{\text{fa}}=1$ and $c_{\mathrm{att}}=0.2$ attention-seconds.
 \centering
 \small
 \renewcommand{\arraystretch}{1.25}
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\centering\arraybackslash}p{0.05\textwidth} >{\centering\arraybackslash}p{0.09\textwidth} >{\centering\arraybackslash}p{0.11\textwidth} >{\centering\arraybackslash}p{0.11\textwidth} >{\raggedright\arraybackslash}p{0.12\textwidth}@{}}
+% Six columns, five gaps: the default 6pt \tabcolsep alone was 60pt of the
+% measure, and the table came in 5.6pt over it. 4pt cut that to 0.8pt; 2pt
+% clears it with room.
+\setlength{\tabcolsep}{2pt}
+% C_{\text{miss}} column widened 0.09 -> 0.14\textwidth (its own header,
+% set in math, was still overfull at 0.11); "Never zoom"/"Always zoom"
+% widened 0.09 -> 0.115 each for their own bold headers, shrunk by the
+% previous round's fix -- taken from the X column, which has the most
+% slack of the six.
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\centering\arraybackslash}p{0.05\textwidth} >{\centering\arraybackslash}p{0.14\textwidth} >{\centering\arraybackslash}p{0.115\textwidth} >{\centering\arraybackslash}p{0.115\textwidth} >{\raggedright\arraybackslash}p{0.11\textwidth}@{}}
 \toprule
 \textbf{Action class} & $\pi$ & $C_{\text{miss}}$ & \textbf{Never zoom} & \textbf{Always zoom} & \textbf{Verdict} \\
 \midrule
@@ -1427,7 +1475,14 @@ settled. The binder's names for the two kinds of agent are worth keeping:
 continuous-integration state, the memory, the claims, and the transcripts in
 view.
 
-\begin{description}[leftmargin=2.2cm,style=nextline,itemsep=3pt]
+% Recut from leftmargin=2.2cm,style=nextline (a hanging indent a fifth of
+% the measure, set for the book's earlier A4 trim, plus a label-on-its-own-
+% line style that left "weird indentation" on pp. 161-162 in the author's
+% own screenshot) to a run-in head: a bold term on the SAME line as its
+% text, with a small hanging indent in em -- the unit the correct sites in
+% single-writer-kernel.tex already use -- not the 2.2cm this list was set to
+% under a wider column.
+\begin{description}[leftmargin=1.4em,itemsep=3pt]
   \item[Solo with staff] One person writes. Longshoremen observe and suggest;
   they hold no write authority. The person must see the staff's suggestions
   as suggestions, and the legibility cost is the smallest of the five:
@@ -1470,7 +1525,7 @@ person must read to remain the operator rather than the audience. The modes
 are a design invariant; the costs per mode are an empirical hypothesis, and
 the study named in the front matter is where they will be measured.
 
-\pdexercisepointer{\ref{ex:ls-sdt-limits}}{\ref{ex:ls-freeze-probe-study}}{\pageref{ex:ls-sdt-limits}}
+\pdexercisepointer*{\ref{ex:ls-sdt-limits}}{\ref{ex:ls-freeze-probe-study}}{\pageref{ex:ls-sdt-limits}}
 
 \begin{pdrecitation}
 \item Without looking: what three quantities multiply to give the derived regret head, and what does calibration require of the anomaly term for that product to equal expected unrecoverable loss?
@@ -1500,7 +1555,7 @@ can be consulted, so participants fall back to $O(n)$ eyeball search over the
 population, or, worse, act blind.
 \end{definition}
 
-\pullquote{Read-poverty, not write-contention, is the binding constraint on swarm
+\pdthesis{Read-poverty, not write-contention, is the binding constraint on swarm
 scale. The write side has known fixes --- claims, locks, merge queues, and anomaly
 detection --- which mature coordination systems already provide. The read side has
 been left implicit, and it is where the next order of magnitude is won or lost.}
@@ -1535,8 +1590,18 @@ reputation over an unranked registry has nothing to attach a score to.
 
 \pdmarginfigure{shannon}{Shannon's information theory is why a digest has a hard floor: nothing compresses below the entropy of what the reader must recover.}%
 Section~\ref{sec:zoom} forbade the Potemkin digest by fiat. We can also state the
-prohibition as a theorem: there is an information floor below which a digest
-\emph{cannot} be a faithful zoomable index, no matter how it is written.
+prohibition as a theorem --- and the theorem, it should be said before the box
+and not after it, is the classical counting bound of group testing, the one
+Dorfman's pooled blood tests~\pdcite{dorfman} and Hwang's splitting
+procedures~\pdcite{hwang} rest on, and the same move that gives coding theory
+its covering bound: so many messages, each covering so many cases, must
+between them cover every case there is. What is ours is the reading, not the
+arithmetic. A digest that must never miss is a message that picks out $m$
+items to open, and there is a floor below which no such message can be a
+faithful zoomable index, however cleverly it is written. That the floor was
+derived here before it was recognized is, if anything, a point in its favor:
+a two-line proof that lands on a 1943 bound by a different door is behaving
+the way a true bound behaves.
 
 \begin{pdclaim}{Theorem}{Legibility lower bound with a review budget}
 \label{thm:lowerbound}
@@ -1804,7 +1869,7 @@ only for $f\ge 12(p-\delta)$, so at $p{=}0.05$ they are not jointly instantiated
 the flag budgets the frontier tabulates.
 \end{pdboundary}
 
-\pdexercisepointer{\ref{ex:ls-readpoverty-binding}}{\ref{ex:ls-b1-frontier-run}}{\pageref{ex:ls-readpoverty-binding}}
+\pdexercisepointer*{\ref{ex:ls-readpoverty-binding}}{\ref{ex:ls-b1-frontier-run}}{\pageref{ex:ls-readpoverty-binding}}
 
 \begin{pdrecitation}
 \item Without looking: what two terms does the legibility lower bound subtract to get the bit floor, and what happens to it as the review budget $m$ grows to $N$?
@@ -1897,7 +1962,14 @@ ranked-retrieval scorer (BM25, character-bigram TF--IDF, or learned embeddings).
 \label{tab:ls-pushpull}
 \small
 \renewcommand{\arraystretch}{1.15}
-\begin{tabularx}{\linewidth}{@{}l l c c >{\raggedright\arraybackslash}X@{}}
+% Table 4.8 ("What it would take to fake"): A and B were plain c columns,
+% which never wrap -- fine for every row but the verdict row, whose "small
+% verified weight" and "ranks first" are prose, not a glyph, and so sized
+% the WHOLE column to that one unwrapped line, pushing the table over the
+% measure. Narrow, fixed p{} columns keep the glyph rows exactly as they
+% were and let the verdict row's prose wrap inside the same width instead of
+% forcing it.
+\begin{tabularx}{\linewidth}{@{}l l >{\centering\arraybackslash}p{1.7cm} >{\centering\arraybackslash}p{1.7cm} >{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{Evidence} & \textbf{Kind} & \textbf{A} & \textbf{B} & \textbf{What it would take to fake} \\
 \midrule
@@ -1957,15 +2029,25 @@ fact says when sharing \emph{is} safe, which is the statement a designer needs.
 Two readers want two numbers from one thermometer. The successor wants the reading
 that predicts tomorrow's weather; the operator wants the reading that says whether
 to act now. One scalar can serve both only when the two orderings agree item by
-item, and the theorem says exactly when that holds.
+item, and decision theory has had a word for that agreement since the 1980s:
+the two readers' losses are \textbf{comonotone} --- they move together across
+the items, never one rising while the other falls --- the property Yaari and
+Schmeidler built rank-dependent and Choquet expected utility
+on~\pdcite{yaari1987,schmeidler1989}. Their theorems are about how a decision
+maker prices comonotone acts; the theorem below borrows only the concept, and
+once the concept is named the rest is elementary: two real-valued functions on
+a finite set are comonotone exactly when they induce the same ranking, which is
+exactly when one number can stand in for both. So the box says when a shared
+head is safe, and the crossing pair after it says why, for these two readers,
+it isn't. (The super-additive price of serving both --- the $2.13\times$ of
+Theorem~\ref{thm:split-digest}, unbounded in $k$ --- is the part that is not
+in Yaari or Schmeidler, and the part this chapter is actually claiming.)
 
 \begin{pdclaim}{Theorem}{Comonotone characterization}
 \label{thm:comonotone}
 A scalar head $h:X\to\mathbb R$ \emph{serves} a reader with loss $L_r$ if ranking by
 $h$ realizes $r$'s optimal selection at every budget. A single head serves two
-readers iff their induced preference orders are \textbf{comonotone} --- the property
-decision theory names for acts that ``move together,'' admitting no
-hedge~\pdcite{schmeidler1989,yaari1987} (they agree on every
+readers iff their induced preference orders are comonotone (they agree on every
 pair). The successor and operator orders are not comonotone: a routine-but-essential
 working state (high continuation value, negligible regret) and an anomalously
 abandoned dead end with irreversible side effects (zero continuation value, maximal
@@ -2339,13 +2421,17 @@ instances, not a closed proof for every adversary class; a stronger-than-greedy
 adaptive adversary remains untested, and unit cost density is assumed (general
 refetch costs need $c_{\mathrm{refetch}}\ge$ max-density $\times$ max-size). The
 classical and weighted bounds themselves are Sleator--Tarjan and Young, imported
-unchanged. What field calls a classical competitive algorithm consulting an
-untrusted external oracle and degrading gracefully as its error grows
-\textbf{online algorithms with (untrusted) predictions}: Lykouris and
-Vassilvitskii's competitive-caching-with-machine-learned-advice line
-gives the closest published shape to this additive corruption
-term~\pdcite{lykouris2018}, arrived at here independently and without that
-literature's consistency/robustness vocabulary.
+unchanged. The field's name for the rest of it --- a classical competitive
+algorithm that consults an oracle it cannot trust and is asked to degrade
+gracefully as the oracle's error grows --- is \textbf{online algorithms with
+predictions}, and Lykouris and Vassilvitskii's competitive caching with
+machine-learned advice~\pdcite{lykouris2018} is the closest published shape to
+the corruption term above. We reached the additive term without that
+literature's vocabulary (they speak of consistency and robustness, and their
+degradation curves are multiplicative in the prediction error where ours is
+additive in the corruption rate), which is a reason to read them next, not a
+reason to distrust the sweep: two routes into the same neighborhood is what
+one hopes to see.
 \end{pdboundary}
 
 \begin{pdexample}{The Landlord ratio, at a size an operator can hold in one head}
@@ -2421,7 +2507,7 @@ or reputation-score a swarm of disposable spawns, because Sybils dodge every
 per-agent mechanism. Context economics therefore \emph{demands} the identity layer it
 appears to precede.
 
-\pdexercisepointer{\ref{ex:ls-digest-is-compaction}}{\ref{ex:ls-paging-ratio-hand}}{\pageref{ex:ls-digest-is-compaction}}
+\pdexercisepointer*{\ref{ex:ls-digest-is-compaction}}{\ref{ex:ls-paging-ratio-hand}}{\pageref{ex:ls-digest-is-compaction}}
 
 \begin{pdrecitation}
 \item Without looking: what is the one reason the digest and the compaction must be authored by the same provenance-preserving projection, rather than a separate summarizer reading the already-compacted story?
@@ -3072,7 +3158,7 @@ The wedge is the single-player product. But the same legibility discipline appli
 \emph{continuity} is the foundation of everything above it. The through-line
 the accompanying chapters depend on is one sentence:
 
-\pullquote{The economy rests on three continuity organs --- memory, checkpoint
+\pdthesis{The economy rests on three continuity organs --- memory, checkpoint
 (today, notes rather than true execution state), and a witnessed-outcome ledger
 (today, commitments and oracle closure rather than neutral graded outcomes) ---
 and reputation keys on the richer third organ; the checkpoint organ is the weakest continuity link, and a
@@ -3159,7 +3245,8 @@ the ships do.}
 
 \bibitem{hobbes1651}
 Thomas Hobbes.
-\newblock \textit{Leviathan, or The Matter, Forme and Power of a Common-Wealth Ecclesiasticall and Civill}. 1651.
+\newblock \textit{Leviathan, or The Matter, Forme and Power of a Common-Wealth Ecclesiasticall and Civill}.
+\newblock Andrew Crooke, London, 1651.
 
 \bibitem{sep-hobbes}
 \textit{Hobbes's Moral and Political Philosophy}. Stanford Encyclopedia of Philosophy.
@@ -3184,9 +3271,9 @@ Gordon Dai, Weijia Zhang, Jinhan Li, Siqi Yang, Chidera Onochie Ibe, Srihas Rao,
 \newblock arXiv:2406.14373, 2024. \url{https://arxiv.org/abs/2406.14373}
 
 \bibitem{park2023}
-Joon Sung Park, Joseph C.\ O'Brien, Carrie J.\ Cai, Meredith Ringel Morris, Percy Liang, and Michael S.\ Bernstein.
+Joon Sung Park, Joseph C. O'Brien, Carrie J. Cai, Meredith Ringel Morris, Percy Liang, and Michael S. Bernstein.
 \newblock Generative Agents: Interactive Simulacra of Human Behavior.
-\newblock In \textit{UIST}, 2023. arXiv:2304.03442.
+\newblock In \textit{ACM Symposium on User Interface Software and Technology (UIST)}, 2023.
 
 \bibitem{hume1748}
 David Hume.
@@ -3210,8 +3297,8 @@ Friedrich A.\ Hayek.
 
 \bibitem{raft2014}
 Diego Ongaro and John Ousterhout.
-\newblock In Search of an Understandable Consensus Algorithm (Raft).
-\newblock In \textit{USENIX ATC}, 2014.
+\newblock In Search of an Understandable Consensus Algorithm.
+\newblock In \textit{USENIX Annual Technical Conference (ATC)}, pages 305--320, 2014.
 
 \bibitem{schneider2000}
 Fred B.\ Schneider.
@@ -3323,8 +3410,8 @@ Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N
 
 \bibitem{grasse1959}
 Pierre-Paul Grass\'e.
-\newblock La reconstruction du nid et les coordinations interindividuelles\ldots La th\'eorie de la stigmergie.
-\newblock \textit{Insectes Sociaux}, 6:41--80, 1959.
+\newblock La reconstruction du nid et les coordinations interindividuelles\ldots: la th\'eorie de la stigmergie.
+\newblock \textit{Insectes Sociaux}, 6(1):41--80, 1959.
 
 \bibitem{fipa00023}
 Foundation for Intelligent Physical Agents.
@@ -3337,9 +3424,9 @@ V.\ Ren et al.
 \newblock arXiv:2505.10609, 2025.
 
 \bibitem{kamvar2003}
-Sepandar D.\ Kamvar, Mario T.\ Schlosser, and Hector Garcia-Molina.
+Sepandar D. Kamvar, Mario T. Schlosser, and Hector Garcia-Molina.
 \newblock The EigenTrust Algorithm for Reputation Management in P2P Networks.
-\newblock In \textit{WWW}, 2003.
+\newblock In \textit{International World Wide Web Conference (WWW)}, 2003.
 
 \bibitem{strathern1997}
 Marilyn Strathern.
@@ -3467,9 +3554,10 @@ Abraham Wald.
 \newblock Wiley, 1947.
 
 \bibitem{macaroons2014}
-Arnar Birgisson, Joe Gibbs Politz, \'Ulfar Erlingsson, Ankur Taly, Michael Vrable, and Mark Lentczner.
+Arnar Birgisson, Joe Gibbs Politz, Úlfar Erlingsson, Ankur Taly, Michael Vrable, and Mark Lentczner.
 \newblock Macaroons: Cookies with Contextual Caveats for Decentralized Authorization in the Cloud.
-\newblock In \textit{NDSS}, 2014.
+\newblock In \textit{Network and Distributed System Security Symposium (NDSS)}, 2014.
+\newblock \url{https://doi.org/10.14722/ndss.2014.23212}
 
 \end{thebibliography}
 
@@ -3503,21 +3591,39 @@ target whose proof is not carried in this paper. The two keys are orthogonal on
 purpose --- a \Verified\ result about a \Vision\ mechanism is a perfectly ordinary
 state of affairs, and conflating them is the failure this appendix exists to prevent.
 
-\begin{table}[p]
-\centering
-\footnotesize
-\renewcommand{\arraystretch}{1.05}
-\begin{tabularx}{\textwidth}{@{}p{0.04\textwidth} >{\raggedright\arraybackslash}X p{0.15\textwidth} >{\raggedright\arraybackslash}p{0.25\textwidth}@{}}
+{\footnotesize\renewcommand{\arraystretch}{1.05}\setlength{\tabcolsep}{4pt}
+% Status column widened 0.15 -> 0.18\textwidth: apparatus stripping drops
+% this chapter's own local \Built ("built") when it merges into the Book,
+% leaving the shared preamble's \Built ("implemented", 11 letters bold
+% small caps) in effect -- narrower than that word even hyphenated.
+\begin{xltabular}{\textwidth}{@{}p{0.04\textwidth} >{\raggedright\arraybackslash}X p{0.18\textwidth} >{\raggedright\arraybackslash}p{0.22\textwidth}@{}}
+\caption{Implementation and status of every mechanism named in this paper.
+\textbf{L} = legibility half, \textbf{A} = authority half, \textbf{O} =
+operator-model. The legibility read-surfaces are largely built; the digest layer that
+unifies them is designed; the authority half --- the Leviathan actually \emph{ruling}
+--- and the operator-model are largely designed-to-proposed. The wedge is real but
+more than half-designed: the safety and reading exist; the deciding and landing are
+the work that remains.}\label{tab:honest-state}\\
 \toprule
 & \textbf{Mechanism} & \textbf{Status} & \textbf{Evidence / location} \\
 \midrule
+\endfirsthead
+\multicolumn{4}{@{}l}{\small\itshape (continued)}\\
+\toprule
+& \textbf{Mechanism} & \textbf{Status} & \textbf{Evidence / location} \\
+\midrule
+\endhead
+\midrule
+\endfoot
+\bottomrule
+\endlastfoot
 L & Attention composer (agent-facing) & \Built & \texttt{lib/attention.ts} \\
 L & Briefing projection (exemplary digest-with-zoom) & \Built & \texttt{lib/briefing.ts} \\
 L & Resurrection handoff & \BuiltWeak & \texttt{lib/resurrection.ts}; notes, not checkpoints \\
 L & Durable commitment / outcome substrate & \BuiltWeak & \path{lib/commitments.ts}, \path{lib/obligation-monitor.ts}; grading and reputation binding absent \\
 L & Local actor identity root & \BuiltWeak & \path{lib/actor-souls.ts}, \path{lib/budget-guard.ts}; universal write gating absent \\
 L & Honest attestation / legible sovereign & \Built & \texttt{lib/attest.ts}; ADR-0045 \\
-L & Episodic memory; pheromone decay; skill index & \Built & \path{lib/episodic-memory.ts}, \path{lib/pheromone.ts}, \path{lib/shipwright/skill-index.ts} \\
+L & Episodic memory; pheromone decay; skill index & \Built & \path{lib/}\allowbreak\path{episodic-}\allowbreak\path{memory.ts}, \path{lib/}\allowbreak\path{pheromone.ts}, \path{lib/}\allowbreak\path{shipwright/}\allowbreak\path{skill-}\allowbreak\path{index.ts} \\
 L & Anomaly monitor (detect-and-compensate, post-commit) & \BuiltWeak & \texttt{lib/arbiter.ts:328} is a log subscriber (Prop.~\ref{prop:regiment}) \\
 L & Operator attention queue (regret-ranked lanes) & \Designed & ADR-0046; not yet ranked into lanes \\
 L & Discovery router (relevance ranking) & \Designed & ADR-0030; \texttt{lib/router.ts} not yet on disk \\
@@ -3529,23 +3635,13 @@ A & Adversarial / conflict-free review organ & \Designed & ADR-0047 Phase 1 \\
 A & Sole-responsibility roles (assigned against the boundary) & \Vision & Thm.~\ref{thm:specialization} is \Verified; no role-assignment mechanism in code \\
 A & Completionist completion (verifier-gated) & \Vision & Def.~\ref{def:completionist}; no design doc yet \\
 A & Escalation (typed prioritized interrupt) & \Designed & ADR-0047 $\to$ ADR-0046 distress lane; predicate unspecified \\
-A & Thoughtful landing / merge ordering & \BuiltWeak & \texttt{lib/merge-queue.ts} present, not wired \\
+A & Thoughtful landing / merge ordering & \BuiltWeak & \path{lib/}\allowbreak\path{merge-}\allowbreak\path{queue.ts} present, not wired \\
 O & Operator-attention objective (SDT-spined) & \Vision & Def.~\ref{def:sdt}; unmodeled in code \\
 O & Trust calibration via canary + catch-rate & \Vision & no implementation \\
 O & Consent grant + inalienable override & \Vision & Def.~\ref{def:consent}, Prop.~\ref{prop:override} \\
 O & Time-axis legibility (replay, provenance) & \Designed & ADR-0046 replay scrubber; event log \Built \\
 O & Ambient legibility (menu-bar indicator on PASS$\to$FAIL) & \BuiltWeak & indicator exists; watchdog wire \Designed \\
-\bottomrule
-\end{tabularx}
-\caption{Implementation and status of every mechanism named in this paper.
-\textbf{L} = legibility half, \textbf{A} = authority half, \textbf{O} =
-operator-model. The legibility read-surfaces are largely built; the digest layer that
-unifies them is designed; the authority half --- the Leviathan actually \emph{ruling}
---- and the operator-model are largely designed-to-proposed. The wedge is real but
-more than half-designed: the safety and reading exist; the deciding and landing are
-the work that remains.}
-\label{tab:honest-state}
-\end{table}
+\end{xltabular}}
 
 Three points about the reference implementation are important enough to restate:
 \begin{enumerate}[leftmargin=1.5em]

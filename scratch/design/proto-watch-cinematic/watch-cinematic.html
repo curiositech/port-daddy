@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
+<title>Port Daddy — Watch Programming Happen</title>
+<style>
+/* ─────────────────────────────────────────────────────────────────────
+   CANON TOKENS (lifted from operator-tui-v9.html). Warm-paper light /
+   deep-harbor dark. This is a MOTIF STUDY — extends the v9 vocabulary.
+   ───────────────────────────────────────────────────────────────────── */
+:root[data-theme="dark"]{
+  --surface-base:#101216; --surface-raised:#181c22; --surface-strong:#222833;
+  --surface-overlay:rgba(16,18,22,.95); --surface-sunken:#0b0d11;
+  --text-primary:#f5f3ed; --text-secondary:#d3cec2; --text-muted:#b3ad9f;
+  --brand-primary:#7db4ff; --brand-accent:#8fd0a7;
+  --status-success:#66d28a; --status-warning:#f2be51; --status-error:#ff7d7d; --status-info:#7db4ff;
+  --border-subtle:rgba(245,243,237,.18); --border-default:rgba(245,243,237,.44);
+  --ph-hot:#f2be51; --ph-recent:#7db4ff; --ph-cold:#8a8378; --ph-blocked:#7db4ff;
+  --ph-test:#f2be51; --ph-fail:#ff7d7d; --ph-cost:#ff7d7d; --ph-conflict:#ff7d7d;
+  --signal-kilo:#7db4ff; --mayday:#ff7d7d;
+  --blend:screen;
+  --firefly-core:#aef0c8; --firefly-glow:143,208,167;
+}
+:root[data-theme="light"]{
+  --surface-base:#f2eee6; --surface-raised:#f7f3eb; --surface-strong:#e9e2d5;
+  --surface-overlay:rgba(242,238,230,.97); --surface-sunken:#e0d9cb;
+  --text-primary:#121212; --text-secondary:#403b34; --text-muted:#47423a;
+  --brand-primary:#003fb8; --brand-accent:#004a42;
+  --status-success:#2d7a43; --status-warning:#a66f00; --status-error:#bf2f2f; --status-info:#0055ff;
+  --border-subtle:rgba(18,18,18,.16); --border-default:rgba(18,18,18,.42);
+  --ph-hot:#a66f00; --ph-recent:#0055ff; --ph-cold:#6b6457; --ph-blocked:#003fb8;
+  --ph-test:#a66f00; --ph-fail:#a51f1f; --ph-cost:#8c1d1d; --ph-conflict:#a51f1f;
+  --signal-kilo:#0055ff; --mayday:#a51f1f;
+  --blend:multiply;
+  --firefly-core:#006b5f; --firefly-glow:0,107,95;
+}
+:root{
+  --swoosh:cubic-bezier(.16,1,.3,1);
+  --snap:cubic-bezier(.34,1.56,.64,1);
+  --float:cubic-bezier(.45,.05,.55,.95);
+  --ease:cubic-bezier(.4,0,.2,1);
+  --dur-micro:140ms; --dur-quick:220ms; --dur-settle:340ms; --dur-flourish:480ms;
+  --mono:'Geist Mono',ui-monospace,'SF Mono',Menlo,monospace;
+  --sans:'Geist',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{
+  background:var(--surface-base);color:var(--text-primary);
+  font-family:var(--sans);font-size:14px;line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  background-image:
+    radial-gradient(1200px 800px at 70% 20%, rgba(125,180,255,.06), transparent 60%),
+    radial-gradient(900px 700px at 20% 90%, rgba(143,208,167,.05), transparent 55%);
+}
+:root[data-theme="light"] body{
+  background-image:
+    radial-gradient(1200px 800px at 70% 20%, rgba(0,63,184,.045), transparent 60%),
+    radial-gradient(900px 700px at 20% 90%, rgba(0,107,95,.04), transparent 55%);
+}
+
+#stage{position:fixed;inset:0}
+#galaxy{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab}
+#galaxy:active{cursor:grabbing}
+/* the biofield: alive overlay, owns nothing structural */
+#biofield{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;
+  mix-blend-mode:var(--blend)}
+
+/* ── Title plate ─────────────────────────────────────────────── */
+.plate{position:absolute;top:22px;left:26px;z-index:6;pointer-events:none;
+  max-width:340px}
+.plate h1{font-size:15px;font-weight:600;letter-spacing:-.01em;
+  color:var(--text-primary);display:flex;align-items:center;gap:9px}
+.plate .pip{width:9px;height:9px;border-radius:50%;background:var(--brand-accent);
+  box-shadow:0 0 14px 2px rgba(var(--firefly-glow),.8);animation:breathe 2.6s var(--float) infinite}
+@keyframes breathe{0%,100%{opacity:.55;transform:scale(.85)}50%{opacity:1;transform:scale(1.15)}}
+.plate .sub{font-size:13px;color:var(--text-muted);margin-top:6px;line-height:1.45;
+  font-family:var(--mono);letter-spacing:-.02em}
+.plate .clk{font-family:var(--mono);font-size:13px;color:var(--text-secondary);
+  margin-top:7px;letter-spacing:.04em}
+
+/* ── HUD dock (right rail) ───────────────────────────────────── */
+.dock{position:absolute;top:22px;right:22px;z-index:7;display:flex;flex-direction:column;
+  gap:10px;align-items:flex-end}
+.card{background:var(--surface-overlay);border:1px solid var(--border-subtle);
+  border-radius:14px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  box-shadow:0 8px 30px rgba(0,0,0,.28)}
+.controls{padding:9px;display:flex;gap:7px;flex-wrap:wrap;max-width:280px;justify-content:flex-end}
+.btn{font-family:var(--mono);font-size:13px;font-weight:500;letter-spacing:-.01em;
+  background:transparent;color:var(--text-secondary);border:1px solid var(--border-subtle);
+  border-radius:9px;padding:7px 11px;cursor:pointer;display:flex;align-items:center;gap:6px;
+  transition:background var(--dur-micro) var(--ease),color var(--dur-micro) var(--ease),
+    border-color var(--dur-micro) var(--ease),transform var(--dur-micro) var(--snap)}
+.btn:hover{color:var(--text-primary);border-color:var(--border-default);
+  background:rgba(125,180,255,.08);transform:translateY(-1px)}
+.btn[aria-pressed="true"]{color:var(--brand-accent);border-color:var(--brand-accent);
+  background:rgba(143,208,167,.1)}
+:root[data-theme="light"] .btn[aria-pressed="true"]{background:rgba(0,107,95,.08)}
+.btn .ic{width:14px;height:14px;flex:0 0 auto}
+.btn .ic *{stroke:currentColor;stroke-width:1.6;fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+/* ── Situation report (stats) ────────────────────────────────── */
+.sitrep{padding:13px 15px;min-width:218px}
+.sitrep h2{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;
+  color:var(--text-muted);margin-bottom:10px}
+.stat{display:flex;justify-content:space-between;align-items:baseline;
+  font-family:var(--mono);font-size:13px;padding:3px 0}
+.stat .k{color:var(--text-muted);letter-spacing:-.02em}
+.stat .v{color:var(--text-primary);font-weight:600;font-variant-numeric:tabular-nums;
+  font-size:14px}
+.stat .v.hl{color:var(--brand-accent)}
+.bar{height:5px;border-radius:3px;background:var(--surface-sunken);overflow:hidden;
+  margin-top:9px}
+.bar > i{display:block;height:100%;border-radius:3px;
+  background:linear-gradient(90deg,var(--brand-primary),var(--brand-accent));
+  transition:width var(--dur-settle) var(--swoosh)}
+
+/* ── Inspect panel ───────────────────────────────────────────── */
+.inspect{position:absolute;top:0;right:0;bottom:0;width:442px;max-width:90vw;z-index:9;
+  background:var(--surface-overlay);border-left:1px solid var(--border-default);
+  backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
+  transform:translateX(100%);transition:transform var(--dur-flourish) var(--swoosh);
+  display:flex;flex-direction:column;box-shadow:-16px 0 50px rgba(0,0,0,.34)}
+.inspect.open{transform:translateX(0)}
+.inspect header{padding:18px 20px 14px;border-bottom:1px solid var(--border-subtle);
+  display:flex;align-items:flex-start;gap:12px}
+.inspect .glyph{width:34px;height:34px;border-radius:9px;flex:0 0 auto;display:grid;
+  place-items:center;font-family:var(--mono);font-size:15px;font-weight:600;
+  background:rgba(125,180,255,.14);color:var(--brand-primary)}
+.inspect .glyph.agent{background:rgba(143,208,167,.16);color:var(--brand-accent)}
+.inspect h3{font-size:15px;font-weight:600;letter-spacing:-.01em;word-break:break-all}
+.inspect .path{font-family:var(--mono);font-size:13px;color:var(--text-muted);margin-top:3px;
+  word-break:break-all;letter-spacing:-.02em}
+.inspect .x{margin-left:auto;cursor:pointer;color:var(--text-muted);font-size:20px;
+  background:none;border:none;line-height:1;padding:2px 4px}
+.inspect .x:hover{color:var(--text-primary)}
+.tabs{display:flex;gap:2px;padding:0 16px;border-bottom:1px solid var(--border-subtle)}
+.tab{font-family:var(--mono);font-size:13px;color:var(--text-muted);background:none;border:none;
+  padding:11px 12px;cursor:pointer;border-bottom:2px solid transparent;letter-spacing:-.02em}
+.tab[aria-selected="true"]{color:var(--text-primary);border-bottom-color:var(--brand-accent)}
+.inspect .body{padding:16px 20px;overflow-y:auto;flex:1;font-size:14px}
+.kv{display:grid;grid-template-columns:96px 1fr;gap:7px 14px;font-family:var(--mono);font-size:13px;
+  margin-bottom:14px}
+.kv dt{color:var(--text-muted)}
+.kv dd{color:var(--text-primary);word-break:break-word}
+.feed{display:flex;flex-direction:column;gap:9px}
+.feed .ev{font-family:var(--mono);font-size:13px;line-height:1.5;padding:9px 11px;border-radius:9px;
+  background:var(--surface-raised);border:1px solid var(--border-subtle);
+  display:flex;gap:9px;align-items:baseline}
+.feed .ev .t{color:var(--text-muted);flex:0 0 auto;font-size:12px}
+.feed .ev .dot{width:7px;height:7px;border-radius:50%;flex:0 0 auto;margin-top:5px}
+.swatch{display:inline-block;width:9px;height:9px;border-radius:2px;vertical-align:middle;
+  margin-right:6px}
+
+/* ── Legend ─────────────────────────────────────────────────── */
+.legend{position:absolute;bottom:18px;left:26px;z-index:6;display:flex;gap:18px;
+  flex-wrap:wrap;font-family:var(--mono);font-size:13px;color:var(--text-muted);
+  background:var(--surface-overlay);border:1px solid var(--border-subtle);border-radius:12px;
+  padding:9px 14px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);max-width:62vw}
+.legend span{display:flex;align-items:center;gap:6px;white-space:nowrap}
+
+/* ── Notes ground gutter ─────────────────────────────────────── */
+#gutter{position:absolute;bottom:0;left:0;right:0;height:54px;z-index:5;pointer-events:none;
+  border-top:1px solid var(--border-subtle);
+  background:linear-gradient(0deg,var(--surface-sunken),transparent);
+  display:flex;align-items:flex-end;gap:5px;padding:0 26px 7px;overflow:hidden}
+.leaf-rest{font-size:13px;font-family:var(--mono);padding:3px 8px;border-radius:7px;
+  background:var(--surface-raised);border:1px solid var(--border-subtle);
+  color:var(--text-secondary);white-space:nowrap;max-width:180px;overflow:hidden;
+  text-overflow:ellipsis;animation:land var(--dur-settle) var(--snap)}
+@keyframes land{0%{transform:translateY(14px);opacity:0}60%{transform:translateY(-3px)}100%{transform:translateY(0);opacity:1}}
+
+.tooltip{position:absolute;z-index:8;pointer-events:none;font-family:var(--mono);font-size:13px;
+  background:var(--surface-overlay);border:1px solid var(--border-default);border-radius:9px;
+  padding:7px 10px;color:var(--text-primary);box-shadow:0 6px 20px rgba(0,0,0,.3);
+  opacity:0;transform:translateY(4px);transition:opacity var(--dur-micro),transform var(--dur-micro);
+  max-width:260px;line-height:1.45}
+.tooltip.on{opacity:1;transform:translateY(0)}
+.tooltip .tt-sub{color:var(--text-muted);font-size:12px;margin-top:2px}
+
+@media (prefers-reduced-motion:reduce){
+  .plate .pip{animation:none;opacity:.9}
+  .leaf-rest{animation:none}
+}
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="galaxy"></canvas>
+  <canvas id="biofield"></canvas>
+</div>
+
+<div class="plate">
+  <h1><span class="pip"></span> Port Daddy — Watch Programming Happen</h1>
+  <div class="sub">a living force-graph of the fleet</div>
+  <div class="clk" id="clk">--:--:-- UTC</div>
+</div>
+
+<div class="dock">
+  <div class="card controls">
+    <button class="btn" id="soundBtn" aria-pressed="false" title="Toggle the fleet-breathing soundscape">
+      <svg class="ic" viewBox="0 0 16 16"><path d="M2 6v4h3l4 3V3L5 6H2Z"/><path d="M11 5.5a3 3 0 0 1 0 5" id="snd2"/></svg>
+      <span>Sound</span>
+    </button>
+    <button class="btn" id="themeBtn" title="Toggle warm-paper / harbor-dark">
+      <svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3.4"/><path d="M8 1v1.6M8 13.4V15M1 8h1.6M13.4 8H15M3 3l1.1 1.1M11.9 11.9 13 13M13 3l-1.1 1.1M4.1 11.9 3 13"/></svg>
+      <span>Theme</span>
+    </button>
+    <button class="btn" id="roadmapBtn" aria-pressed="false" title="Dim everything except roadmap-linked files">
+      <svg class="ic" viewBox="0 0 16 16"><path d="M8 1.5 14 5 8 8.5 2 5 8 1.5Z"/><path d="M2 11l6 3.5L14 11"/></svg>
+      <span>Roadmap</span>
+    </button>
+    <button class="btn" id="spawnBtn" title="Spawn a new agent firefly">
+      <svg class="ic" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></svg>
+      <span>Spawn</span>
+    </button>
+  </div>
+
+  <div class="card sitrep">
+    <h2>Situation Report</h2>
+    <div class="stat"><span class="k">worktrees</span><span class="v" id="s-planes">—</span></div>
+    <div class="stat"><span class="k">files</span><span class="v" id="s-files">—</span></div>
+    <div class="stat"><span class="k">live agents</span><span class="v hl" id="s-agents">—</span></div>
+    <div class="stat"><span class="k">open PRs</span><span class="v" id="s-prs">—</span></div>
+    <div class="stat"><span class="k">notes today</span><span class="v" id="s-notes">—</span></div>
+    <div class="stat"><span class="k">merge-ready</span><span class="v" id="s-merge">—</span></div>
+    <div class="bar"><i id="s-bar" style="width:0%"></i></div>
+  </div>
+</div>
+
+<aside class="inspect" id="inspect" aria-hidden="true">
+  <header>
+    <div class="glyph" id="i-glyph">·</div>
+    <div style="min-width:0">
+      <h3 id="i-name">—</h3>
+      <div class="path" id="i-path">—</div>
+    </div>
+    <button class="x" id="i-close" aria-label="Close">×</button>
+  </header>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-tab="sitrep">sitrep</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="transcript">transcript</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="telos">telos</button>
+  </div>
+  <div class="body" id="i-body"></div>
+</aside>
+
+<div class="legend" id="legend"></div>
+<div id="gutter"></div>
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   THE LIVING FILETREE — one rAF loop, DPR-capped, IntersectionObserver-paused.
+   DOM owns HUD; two canvases own the alive. Grounded in PD concepts:
+   worktrees → Z-planes, agents → fireflies, edits → pheromone bloom,
+   merges → light-burst, notes → falling leaves, inbox → lasers,
+   comms → soundwave ripples. Reduced-motion collapses motion, keeps signal.
+   ═══════════════════════════════════════════════════════════════════════ */
+(() => {
+'use strict';
+const REDUCE = matchMedia('(prefers-reduced-motion:reduce)').matches;
+const TAU = Math.PI * 2;
+const rand = (a, b) => a + Math.random() * (b - a);
+const pick = a => a[(Math.random() * a.length) | 0];
+const lerp = (a, b, t) => a + (b - a) * t;
+const clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+/* ── canvases + DPR ──────────────────────────────────────────── */
+const gal = document.getElementById('galaxy'), gx = gal.getContext('2d');
+const bio = document.getElementById('biofield'), bx = bio.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+function resize(){
+  DPR = Math.min(devicePixelRatio || 1, 2);
+  W = innerWidth; H = innerHeight;
+  for (const c of [gal, bio]){
+    c.width = W * DPR; c.height = H * DPR;
+    c.getContext('2d').setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+}
+addEventListener('resize', resize); resize();
+
+/* ── DATA SPINE — synthetic PD-grounded fleet (a real console polls
+      pd sessions --all-worktrees / pd notes / claims / activity SSE) ── */
+const DIRS = ['lib','routes','cli','mcp','tests','docs','public','fleet','scripts'];
+const EXT  = {ts:'#7db4ff', js:'#f2be51', md:'#8fd0a7', css:'#c4a6ff', json:'#ff9d6e', sql:'#9fe0b4'};
+const FILESEED = [
+  ['lib','sugar.ts'],['lib','spawner.ts'],['lib','watch.ts'],['lib','db.ts'],
+  ['lib','merge-queue.ts'],['lib','symbol-index.ts'],['lib','tube-spawner-router.ts'],
+  ['lib','llm-backend-resolver.ts'],['lib','orchestrator-plugins.ts'],
+  ['routes','sugar.ts'],['routes','spawn.ts'],['routes','merge-queue.ts'],['routes','symbols.ts'],
+  ['routes','index.ts'],['cli','spawn.ts'],['cli','index.ts'],['mcp','server.ts'],
+  ['tests','setup-unit.js'],['tests','ephemeral-daemon.js'],['tests','distribution.test.js'],
+  ['docs','VISION.md'],['docs','adr-0045.md'],['docs','daemon-topology.md'],
+  ['public','index.html'],['fleet','gardener.sh'],['fleet','qa.sh'],['scripts','promote-stable.sh'],
+  ['lib','attest.ts'],['lib','guard.ts'],['routes','guard.ts'],['cli','attest.ts'],
+  ['lib','pheromone.ts'],['lib','sessions.ts'],['lib','claims.ts'],['routes','notes.ts'],
+  ['mcp','tools.ts'],['tests','guard.test.js'],['docs','roadmap.md'],['lib','inbox.ts']
+];
+const AGENT_NAMES = ['gardener','qa','test-gap','documentarian','simplifier','dock-master','spark','cartographer'];
+const ROADMAP = new Set([2,4,6,10,14,18,26,29]); // file indices linked to a roadmap_item
+
+/* layout: a radial force-relaxed tree, frozen. Root at center; depth=radius. */
+const cx0 = () => W / 2, cy0 = () => H / 2;
+const dirNodes = [], fileNodes = [];
+DIRS.forEach((d, i) => {
+  const a = (i / DIRS.length) * TAU - Math.PI/2;
+  const r = Math.min(W, H) * 0.21;
+  dirNodes.push({ name:d, kind:'dir', x:Math.cos(a)*r, y:Math.sin(a)*r, ang:a, R:r, base:r });
+});
+FILESEED.forEach(([d, f], idx) => {
+  const dn = dirNodes.find(n => n.name === d) || dirNodes[0];
+  const spread = rand(-0.34, 0.34);
+  const a = dn.ang + spread;
+  const r = dn.base + rand(70, 220);
+  const ext = f.split('.').pop();
+  fileNodes.push({
+    id: idx, dir: d, name: f, kind:'file', path: d + '/' + f,
+    x: Math.cos(a)*r, y: Math.sin(a)*r, ext, color: EXT[ext] || '#9aa6bd',
+    loc: (40 + Math.random()*900)|0, dn, ang:a, r,
+    heat: 0, pulse: 0, lastTouch: 0, owner: null, roadmap: ROADMAP.has(idx),
+    events: []
+  });
+});
+// a light force relax: collide-nudge files that overlap (few iterations, frozen)
+for (let it = 0; it < 60; it++){
+  for (let i = 0; i < fileNodes.length; i++){
+    for (let j = i+1; j < fileNodes.length; j++){
+      const a = fileNodes[i], b = fileNodes[j];
+      const dx = b.x-a.x, dy = b.y-a.y, d = Math.hypot(dx,dy) || 1;
+      if (d < 34){ const f = (34-d)/d*0.5; a.x-=dx*f; a.y-=dy*f; b.x+=dx*f; b.y+=dy*f; }
+    }
+  }
+}
+
+/* worktrees → spectral parallel planes. Plane 0 = main, opaque, true color. */
+const planes = [
+  { id:0, name:'main', dx:0, dy:0, hue:0, alpha:1, label:'origin/main' },
+  { id:1, name:'feat/tube-router', dx:18, dy:-12, hue:24, alpha:0.82, label:'agent worktree' },
+  { id:2, name:'design/tui', dx:36, dy:-24, hue:48, alpha:0.66, label:'agent worktree' }
+];
+
+/* AGENTS → fireflies. boid-seek toward current file + layered value-noise drift. */
+function makeAgent(name, planeId){
+  const home = pick(fileNodes);
+  return {
+    name, plane: planeId|0, seed: rand(0, 1000),
+    x: home.x + rand(-60,60), y: home.y + rand(-60,60), vx:0, vy:0,
+    target: home, hue: Math.abs(hash(name)) % 360,
+    idle: false, idleT: 0, sinceTouch: 0,
+    trail: [], log: [`spawned on ${planes[planeId|0]?.name||'main'}`]
+  };
+}
+function hash(s){ let h=0; for(let i=0;i<s.length;i++){h=(h<<5)-h+s.charCodeAt(i)|0;} return h; }
+const agents = AGENT_NAMES.slice(0,6).map((n,i)=>makeAgent(n, i%3));
+agents.forEach(a => { a.target.owner = a.name; });
+
+/* ── transient particle pools (≤200 live, short-lived, pooled) ── */
+const rings = [], bursts = [], sparks = [], lasers = [], ripples = [], leaves = [];
+const MAX = 220;
+
+function pheromoneRing(node, kind){
+  const colMap = {edit:'--ph-recent', test:'--ph-test', fail:'--ph-fail', blocked:'--ph-blocked'};
+  rings.push({ x:node.x, y:node.y, t:0, dur:700, col: css(colMap[kind]||'--ph-recent'), r0:0, r1:32 });
+  node.heat = Math.min(node.heat + (kind==='fail'?1.4:0.8), 4);
+  node.pulse = 1; node.lastTouch = now;
+}
+function mergeBurst(node){
+  bursts.push({ x:node.x, y:node.y, t:0, dur:240, phase:0, ghostX:node.x+rand(-120,120), ghostY:node.y+rand(-120,120) });
+  for (let i=0;i<10;i++){ const a=rand(0,TAU), s=rand(1.4,3.4);
+    sparks.push({x:node.x,y:node.y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,t:0,dur:400}); }
+}
+function laser(a, b){
+  lasers.push({ x0:a.x, y0:a.y, x1:b.x, y1:b.y, t:0, dur:360 });
+}
+function soundwave(node, kind){
+  for (let i=0;i<3;i++) ripples.push({ x:node.x, y:node.y, t:-i*120, dur:800, col: css('--signal-kilo') });
+}
+function fallingLeaf(node, text){
+  leaves.push({ x:node.x, y:node.y, vx:0, vy:0, rot:rand(-0.3,0.3), t:0, sx:1, text,
+    col: node.color, landed:false, sway: rand(0, TAU) });
+}
+
+/* ── tooltip + hit test ──────────────────────────────────────── */
+const tooltip = document.getElementById('tooltip');
+let hover = null, cursorX = W/2, cursorY = H/2;
+function worldHit(mx, my){
+  // account for current camera (pan/zoom)
+  const wx = (mx - cam.x) / cam.k, wy = (my - cam.y) / cam.k;
+  let best = null, bd = 26;
+  for (const f of fileNodes){
+    const d = Math.hypot(f.x - wx, f.y - wy);
+    if (d < bd){ bd = d; best = f; }
+  }
+  for (const a of agents){
+    const sx = a.x, sy = a.y;
+    const d = Math.hypot(sx - wx, sy - wy);
+    if (d < 16){ bd = d; best = a; }
+  }
+  return best;
+}
+
+/* ── camera (pan/zoom) ───────────────────────────────────────── */
+const cam = { x: cx0(), y: cy0(), k: 1, tx: cx0(), ty: cy0(), tk: 1 };
+function worldToScreen(x, y){ return [x*cam.k + cam.x, y*cam.k + cam.y]; }
+gal.addEventListener('wheel', e => {
+  e.preventDefault();
+  const factor = e.deltaY < 0 ? 1.12 : 1/1.12;
+  const nk = clamp(cam.tk * factor, 0.4, 4);
+  // zoom toward cursor
+  cam.tx = e.clientX - (e.clientX - cam.x) * (nk/cam.k);
+  cam.ty = e.clientY - (e.clientY - cam.y) * (nk/cam.k);
+  cam.tk = nk;
+}, { passive:false });
+let dragging = false, dragLast = null;
+gal.addEventListener('pointerdown', e => { dragging = true; dragLast = [e.clientX, e.clientY]; gal.setPointerCapture(e.pointerId); });
+gal.addEventListener('pointerup', e => { dragging = false; });
+gal.addEventListener('pointermove', e => {
+  cursorX = e.clientX; cursorY = e.clientY;
+  if (dragging && dragLast){
+    cam.tx += e.clientX - dragLast[0]; cam.ty += e.clientY - dragLast[1];
+    cam.x = cam.tx; cam.y = cam.ty;
+    dragLast = [e.clientX, e.clientY];
+    tooltip.classList.remove('on'); return;
+  }
+  const hit = worldHit(e.clientX, e.clientY);
+  if (hit){
+    hover = hit;
+    tooltip.classList.add('on');
+    tooltip.style.left = (e.clientX + 14) + 'px';
+    tooltip.style.top = (e.clientY + 14) + 'px';
+    if (hit.kind === 'file'){
+      const age = hit.lastTouch ? `${Math.round((now-hit.lastTouch)/1000)}s ago` : 'idle';
+      tooltip.innerHTML = `<b>${hit.path}</b><div class="tt-sub">${hit.loc} loc · last touch ${age}` +
+        (hit.owner?` · ◆ ${hit.owner}`:'') + (hit.roadmap?` · ★ roadmap`:'') + `</div>`;
+    } else {
+      tooltip.innerHTML = `<b>◆ ${hit.name}</b><div class="tt-sub">firefly · plane ${planes[hit.plane]?.name||'main'} · → ${hit.target.name}</div>`;
+    }
+  } else { hover = null; tooltip.classList.remove('on'); }
+});
+gal.addEventListener('click', e => {
+  if (dragLast && (Math.abs(e.clientX-cursorX)>4)) return;
+  const hit = worldHit(e.clientX, e.clientY);
+  if (hit) openInspect(hit);
+});
+gal.addEventListener('dblclick', e => {
+  const hit = worldHit(e.clientX, e.clientY);
+  if (hit){ // flyTo
+    cam.tk = clamp(cam.k * 1.8, 0.4, 4);
+    cam.tx = W/2 - hit.x*cam.tk; cam.ty = H/2 - hit.y*cam.tk;
+  }
+});
+
+/* ── INSPECT panel ───────────────────────────────────────────── */
+const inspect = document.getElementById('inspect');
+let inspectEntity = null;
+function openInspect(ent){
+  inspectEntity = ent;
+  inspect.classList.add('open'); inspect.setAttribute('aria-hidden','false');
+  const g = document.getElementById('i-glyph');
+  if (ent.kind === 'file'){
+    g.textContent = ent.ext; g.className = 'glyph';
+    document.getElementById('i-name').textContent = ent.name;
+    document.getElementById('i-path').textContent = ent.path;
+  } else {
+    g.textContent = '◆'; g.className = 'glyph agent';
+    document.getElementById('i-name').textContent = ent.name;
+    document.getElementById('i-path').textContent = 'agent · plane ' + (planes[ent.plane]?.name||'main');
+  }
+  renderInspectTab(currentTab);
+}
+let currentTab = 'sitrep';
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected','false'));
+  t.setAttribute('aria-selected','true'); currentTab = t.dataset.tab; renderInspectTab(currentTab);
+}));
+document.getElementById('i-close').addEventListener('click', () => {
+  inspect.classList.remove('open'); inspect.setAttribute('aria-hidden','true'); inspectEntity = null;
+});
+function renderInspectTab(tab){
+  const ent = inspectEntity; if (!ent) return;
+  const body = document.getElementById('i-body');
+  if (ent.kind === 'file'){
+    if (tab === 'sitrep'){
+      const heatPct = Math.round(clamp(ent.heat/4,0,1)*100);
+      body.innerHTML = `<dl class="kv">
+        <dt>directory</dt><dd>${ent.dir}/</dd>
+        <dt>lines</dt><dd>${ent.loc}</dd>
+        <dt>owner</dt><dd>${ent.owner?'◆ '+ent.owner:'— unclaimed'}</dd>
+        <dt>roadmap</dt><dd>${ent.roadmap?'★ linked to roadmap_item':'—'}</dd>
+        <dt>heat</dt><dd>${heatPct}% <span class="swatch" style="background:${css('--ph-hot')}"></span></dd>
+      </dl>
+      <div class="bar"><i style="width:${heatPct}%;background:${css('--ph-hot')}"></i></div>`;
+    } else if (tab === 'transcript'){
+      body.innerHTML = `<div class="feed">` + (ent.events.length
+        ? ent.events.slice(-12).reverse().map(e => `<div class="ev"><span class="t">${e.ago}</span><span>${e.msg}</span></div>`).join('')
+        : `<div class="ev"><span class="t">—</span><span>no activity yet. watch the field — edits bloom here.</span></div>`) + `</div>`;
+    } else {
+      body.innerHTML = `<div class="feed"><div class="ev"><span class="dot" style="background:${ent.roadmap?css('--brand-accent'):css('--text-muted')}"></span><span>${ent.roadmap?'This file advances a roadmap_item currently at <b>now</b>. Edits here move the needle.':'No telos: not roadmap-linked. Touches here are incidental to current goals.'}</span></div></div>`;
+    }
+  } else {
+    if (tab === 'transcript'){
+      body.innerHTML = `<div class="feed">` + ent.log.slice(-14).reverse().map(l =>
+        `<div class="ev"><span class="dot" style="background:hsl(${ent.hue} 60% 60%)"></span><span>${l}</span></div>`).join('') + `</div>`;
+    } else if (tab === 'sitrep'){
+      body.innerHTML = `<dl class="kv">
+        <dt>plane</dt><dd>${planes[ent.plane]?.name||'main'}</dd>
+        <dt>focus</dt><dd>${ent.target.path}</dd>
+        <dt>state</dt><dd>${ent.idle?'<span style="color:'+css('--ph-cold')+'">idle</span>':'<span style="color:'+css('--brand-accent')+'">working</span>'}</dd>
+        <dt>identity</dt><dd><span class="swatch" style="background:hsl(${ent.hue} 60% 60%)"></span>hsl ${ent.hue}</dd>
+      </dl>`;
+    } else {
+      body.innerHTML = `<div class="feed"><div class="ev"><span class="dot" style="background:hsl(${ent.hue} 60% 60%)"></span><span>Telos: hover near where work happens, deposit pheromone on edit, broadcast to peers, fall back to drift when idle. A firefly is a session's attention made visible.</span></div></div>`;
+    }
+  }
+}
+
+/* ── pre-baked firefly glow sprite (drawImage only in loop) ───── */
+function bakeGlow(rgb){
+  const s = 64, c = document.createElement('canvas'); c.width = c.height = s;
+  const k = c.getContext('2d');
+  const g = k.createRadialGradient(s/2,s/2,0,s/2,s/2,s/2);
+  g.addColorStop(0, `rgba(${rgb},0.95)`);
+  g.addColorStop(0.4, `rgba(${rgb},0.35)`);
+  g.addColorStop(1, `rgba(${rgb},0)`);
+  k.fillStyle = g; k.fillRect(0,0,s,s);
+  return c;
+}
+let glowSprite = bakeGlow(css('--firefly-glow') || '143,208,167');
+
+/* ── SOUND: fleet breathing (WebAudio, default OFF, reduce forces mute) ─ */
+const Sound = (() => {
+  let ctx=null, master=null, bedGain=null, lfo=null, filter=null, on=false, lastCue={};
+  function init(){
+    if (ctx) return;
+    ctx = new (window.AudioContext||window.webkitAudioContext)();
+    master = ctx.createGain(); master.gain.value = 0.18; master.connect(ctx.destination);
+    // breath bed: 2 sines + brown noise → shared lowpass → LFO-modulated gain
+    filter = ctx.createBiquadFilter(); filter.type='lowpass'; filter.frequency.value=320; filter.Q.value=0.6;
+    bedGain = ctx.createGain(); bedGain.gain.value = 0.0;
+    filter.connect(bedGain).connect(master);
+    [65.4, 98].forEach(f => { const o=ctx.createOscillator(); o.type='sine'; o.frequency.value=f;
+      const g=ctx.createGain(); g.gain.value=0.5; o.connect(g).connect(filter); o.start(); });
+    // brown noise
+    const buf = ctx.createBuffer(1, ctx.sampleRate*2, ctx.sampleRate); const d = buf.getChannelData(0);
+    let last=0; for(let i=0;i<d.length;i++){ const wn=Math.random()*2-1; d[i]=(last+0.02*wn)/1.02; last=d[i]; d[i]*=3.5; }
+    const ns = ctx.createBufferSource(); ns.buffer=buf; ns.loop=true; const ng=ctx.createGain(); ng.gain.value=0.12;
+    ns.connect(ng).connect(filter); ns.start();
+    lfo = ctx.createOscillator(); lfo.type='sine'; lfo.frequency.value=0.1;
+    const lfoG = ctx.createGain(); lfoG.gain.value=0.05;
+    lfo.connect(lfoG).connect(bedGain.gain); lfo.start();
+  }
+  function blip(freq=440, dur=0.09, type='sine', peak=0.12){
+    if (!on||!ctx) return;
+    const k = type+'-'+Math.round(freq); const t = ctx.currentTime;
+    if (lastCue[k] && t - lastCue[k] < 0.08) return; lastCue[k] = t;
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.type=type; o.frequency.value=freq;
+    g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(peak,t+0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(g).connect(master); o.start(t); o.stop(t+dur+0.02);
+  }
+  return {
+    toggle(){
+      if (REDUCE) return false;
+      if (!ctx) init();
+      if (ctx.state==='suspended') ctx.resume();
+      on = !on;
+      if (bedGain) bedGain.gain.setTargetAtTime(on?1:0, ctx.currentTime, 0.4);
+      return on;
+    },
+    get on(){ return on; },
+    comm(h){ blip(320 + (Math.abs(h)%200), 0.09, 'sine', 0.10); },
+    laser(){ if(!on||!ctx)return; const t=ctx.currentTime; const o=ctx.createOscillator(),g=ctx.createGain();
+      o.type='sine'; o.frequency.setValueAtTime(400,t); o.frequency.linearRampToValueAtTime(900,t+0.14);
+      g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(0.09,t+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t+0.14);
+      o.connect(g).connect(master); o.start(t); o.stop(t+0.16); },
+    note(){ blip(180,0.07,'triangle',0.08); },
+    merge(){ [659.25,830.6,1318.5].forEach((f,i)=>setTimeout(()=>blip(f,0.6,'sine',0.09-i*0.02),i*40)); },
+    spawn(){ [523,698,784].forEach((f,i)=>setTimeout(()=>blip(f,0.3,'sine',0.08),i*120)); },
+    breathe(rate, cutoff){ if(!ctx)return; const t=ctx.currentTime;
+      lfo.frequency.linearRampToValueAtTime(rate,t+4); filter.frequency.linearRampToValueAtTime(cutoff,t+4); }
+  };
+})();
+
+document.getElementById('soundBtn').addEventListener('click', e => {
+  const btn = e.currentTarget; const s = Sound.toggle();
+  btn.setAttribute('aria-pressed', String(!!s));
+  localStorage.setItem('pd_sound', s ? '1' : '0');
+});
+
+/* ── THEME toggle (rebake glow + sprite) ─────────────────────── */
+document.getElementById('themeBtn').addEventListener('click', () => {
+  const r = document.documentElement;
+  r.setAttribute('data-theme', r.getAttribute('data-theme')==='dark'?'light':'dark');
+  glowSprite = bakeGlow(css('--firefly-glow'));
+  buildLegend();
+  if (inspectEntity) renderInspectTab(currentTab);
+});
+
+/* ── ROADMAP focus + SPAWN ───────────────────────────────────── */
+let roadmapFocus = false;
+document.getElementById('roadmapBtn').addEventListener('click', e => {
+  roadmapFocus = !roadmapFocus; e.currentTarget.setAttribute('aria-pressed', String(roadmapFocus));
+});
+document.getElementById('spawnBtn').addEventListener('click', () => {
+  const n = pick(AGENT_NAMES) + '-' + ((Math.random()*90+10)|0);
+  const a = makeAgent(n, (Math.random()*3)|0);
+  agents.push(a);
+  if (!REDUCE) soundwave(a.target, 'spawn');
+  Sound.spawn();
+  a.target.events.push({ ago:'now', msg:`◆ ${n} spawned here` });
+});
+
+/* ── EVENT GENERATOR — synthetic fleet activity, PD-grounded ──── */
+let now = performance.now();
+function scheduleEvents(){
+  // each tick we sometimes fire a real-feeling fleet event
+  const r = Math.random();
+  const a = pick(agents);
+  if (r < 0.34){ // edit → pheromone bloom + agent retargets
+    const f = pick(fileNodes); a.target = f; f.owner = a.name;
+    if (!REDUCE) pheromoneRing(f, Math.random()<0.15?'fail':'edit');
+    else { f.pulse = 1; f.lastTouch = now; f.heat = Math.min(f.heat+0.8,4); }
+    Sound.comm(hash(a.name));
+    f.events.push({ ago:'now', msg:`◆ ${a.name} edited ${f.name}` });
+    a.log.push(`edit → ${f.path}`);
+  } else if (r < 0.50){ // test run
+    const f = pick(fileNodes.filter(n=>n.dir==='tests')) || pick(fileNodes);
+    if (!REDUCE) pheromoneRing(f, 'test'); Sound.comm(hash(a.name)+40);
+    f.events.push({ ago:'now', msg:`✓ ${a.name} ran ${f.name}` });
+  } else if (r < 0.62){ // inbox laser agent→agent
+    const b = pick(agents.filter(x=>x!==a)) || a;
+    if (b!==a){ if(!REDUCE) laser(a,b); Sound.laser();
+      a.log.push(`→ DM ${b.name}`); b.log.push(`← DM ${a.name}`); }
+  } else if (r < 0.74){ // comms broadcast soundwave
+    const f = a.target; if(!REDUCE) soundwave(f,'comm');
+  } else if (r < 0.86){ // note → falling leaf
+    const f = pick(fileNodes); const msg = pick(['scope claimed','TTL renewed','blocker cleared','sitrep posted','done']);
+    if (!REDUCE) fallingLeaf(f, `${a.name}: ${msg}`);
+    else restLeaf(`${a.name}: ${msg}`);
+    Sound.note(); stats.notes++;
+    f.events.push({ ago:'now', msg:`✎ note: ${msg}` });
+  } else if (r < 0.96){ // merge → light burst
+    const f = pick(fileNodes); if(!REDUCE) mergeBurst(f);
+    else { f.pulse = 1; f.heat = 4; }
+    Sound.merge(); stats.merge = Math.min(stats.merge+1, planes.length);
+    f.events.push({ ago:'now', msg:`⟂ merge landed → ${f.path}` });
+    a.log.push(`merge → ${f.name}`);
+  } else { // PR open
+    stats.prs++;
+  }
+}
+
+/* ── stats + sitrep ──────────────────────────────────────────── */
+const stats = { prs: 3, notes: 12, merge: 1 };
+function updateSitrep(){
+  const live = agents.filter(a => !a.idle).length;
+  document.getElementById('s-planes').textContent = planes.length;
+  document.getElementById('s-files').textContent = fileNodes.length;
+  document.getElementById('s-agents').textContent = live + '/' + agents.length;
+  document.getElementById('s-prs').textContent = stats.prs;
+  document.getElementById('s-notes').textContent = stats.notes;
+  document.getElementById('s-merge').textContent = stats.merge + '/' + planes.length;
+  document.getElementById('s-bar').style.width = Math.round((stats.merge/planes.length)*100) + '%';
+  // sound bed breathes harder with more live agents
+  Sound.breathe(0.08 + (live/agents.length)*0.07, 200 + (live/agents.length)*700);
+}
+
+/* ── reduced-motion leaf fallback (instant rest in gutter) ───── */
+const gutter = document.getElementById('gutter');
+function restLeaf(text){
+  const el = document.createElement('div'); el.className='leaf-rest'; el.textContent = text;
+  gutter.appendChild(el);
+  while (gutter.children.length > 14) gutter.removeChild(gutter.firstChild);
+}
+
+/* ── LEGEND ──────────────────────────────────────────────────── */
+function buildLegend(){
+  const L = document.getElementById('legend');
+  const items = [
+    ['◆ agents', css('--firefly-core')],
+    ['edit bloom', css('--ph-recent')],
+    ['test', css('--ph-test')],
+    ['fail', css('--ph-fail')],
+    ['merge ⟂', css('--brand-primary')],
+    ['note leaf', css('--brand-accent')],
+    ['★ roadmap', css('--brand-accent')],
+  ];
+  L.innerHTML = items.map(([t,c]) =>
+    `<span><i style="width:10px;height:10px;border-radius:50%;background:${c};display:inline-block"></i>${t}</span>`).join('');
+}
+buildLegend();
+
+/* ── clock ───────────────────────────────────────────────────── */
+function tickClock(){
+  const d = new Date();
+  document.getElementById('clk').textContent =
+    d.toISOString().slice(11,19) + ' UTC';
+}
+setInterval(tickClock, 1000); tickClock();
+
+/* ── MAIN rAF LOOP (paused off-screen via IntersectionObserver) ─ */
+let running = true, last = performance.now(), evClock = 0;
+new IntersectionObserver(es => { running = es[0].isIntersecting; if (running) { last = performance.now(); requestAnimationFrame(frame);} }, {threshold:0.01}).observe(gal);
+
+function frame(t){
+  if (!running) return;
+  const dt = Math.min(t - last, 50); last = t; now = t;
+  // ── reduced motion: paint a frozen, fully-legible field, no loop churn ──
+  if (REDUCE){ drawStatic(); return; } // drawn once via separate call below
+
+  // camera easing
+  cam.x = lerp(cam.x, cam.tx, 0.12); cam.y = lerp(cam.y, cam.ty, 0.12); cam.k = lerp(cam.k, cam.tk, 0.12);
+  // parallax: planes shift with cursor-x for volume
+  const px = (cursorX/W - 0.5) * 12;
+
+  gx.clearRect(0,0,W,H); bx.clearRect(0,0,W,H);
+  gx.save(); gx.translate(cam.x, cam.y); gx.scale(cam.k, cam.k);
+  bx.save(); bx.translate(cam.x, cam.y); bx.scale(cam.k, cam.k);
+
+  // event cadence ~ every 480ms
+  evClock += dt; if (evClock > 460){ evClock = 0; scheduleEvents(); }
+
+  drawPlanes(px);
+  drawHeatAndNodes();
+  drawRings(dt); drawRipples(dt); drawLasers(dt);
+  drawBursts(dt); drawSparks(dt);
+  drawAgents(dt);
+  drawLeaves(dt);
+
+  gx.restore(); bx.restore();
+
+  // periodically refresh sitrep / decay heat
+  for (const f of fileNodes){ f.heat *= 0.992; f.pulse *= 0.94; }
+  requestAnimationFrame(frame);
+}
+
+/* ── draw: ghost planes (spectral worktrees) ─────────────────── */
+function drawPlanes(px){
+  // ghost worktree planes: parallax-offset, hue-shifted diff-stems only
+  for (let p = planes.length-1; p >= 1; p--){
+    const pl = planes[p];
+    gx.save();
+    gx.translate(pl.dx + px*p*0.4, pl.dy);
+    gx.globalAlpha = pl.alpha * 0.5;
+    gx.strokeStyle = `hsla(${(p*24+200)%360}, 55%, ${document.documentElement.dataset.theme==='dark'?70:45}%, 0.5)`;
+    gx.lineWidth = 1; gx.setLineDash([2,3]);
+    // draw a handful of "diverged" diff stems from dir → file
+    for (let i = p; i < fileNodes.length; i += 6){
+      const f = fileNodes[i];
+      gx.beginPath(); gx.moveTo(f.dn.x, f.dn.y); gx.lineTo(f.x, f.y); gx.stroke();
+      gx.beginPath(); gx.arc(f.x, f.y, 3, 0, TAU); gx.stroke();
+    }
+    gx.setLineDash([]); gx.restore();
+  }
+}
+
+/* ── draw: dir rings + edges + file dots + heat (plane 0) ─────── */
+function drawHeatAndNodes(){
+  const dark = document.documentElement.dataset.theme === 'dark';
+  // edges dir → root, file → dir (connectedness / common region)
+  gx.lineWidth = 1; gx.strokeStyle = css('--border-subtle');
+  for (const dn of dirNodes){
+    gx.beginPath(); gx.moveTo(0,0); gx.lineTo(dn.x, dn.y); gx.stroke();
+  }
+  for (const f of fileNodes){
+    gx.globalAlpha = roadmapFocus && !f.roadmap ? 0.12 : 0.55;
+    gx.beginPath(); gx.moveTo(f.dn.x, f.dn.y); gx.lineTo(f.x, f.y); gx.stroke();
+  }
+  gx.globalAlpha = 1;
+  // directory rings (hollow)
+  for (const dn of dirNodes){
+    gx.beginPath(); gx.arc(dn.x, dn.y, 9, 0, TAU);
+    gx.strokeStyle = css('--text-muted'); gx.lineWidth = 1.4; gx.stroke();
+    gx.fillStyle = css('--text-muted'); gx.font = `600 13px ${css('--mono')||'monospace'}`;
+    if (cam.k > 0.6){ gx.globalAlpha = 0.7; gx.fillText(dn.name+'/', dn.x+12, dn.y+4); gx.globalAlpha=1; }
+  }
+  // heat blooms on biofield (additive, under fireflies)
+  bx.globalCompositeOperation = 'lighter';
+  for (const f of fileNodes){
+    if (f.heat > 0.04){
+      const r = 10 + f.heat*16;
+      const g = bx.createRadialGradient(f.x,f.y,0,f.x,f.y,r);
+      const hot = css('--ph-hot');
+      g.addColorStop(0, hexA(hot, clamp(f.heat*0.16,0,0.42)));
+      g.addColorStop(1, hexA(hot, 0));
+      bx.fillStyle = g; bx.beginPath(); bx.arc(f.x,f.y,r,0,TAU); bx.fill();
+    }
+  }
+  bx.globalCompositeOperation = 'source-over';
+  // file dots
+  for (const f of fileNodes){
+    const dim = roadmapFocus && !f.roadmap;
+    const rad = (4 + Math.log2(f.loc/50 + 1)) * (1 + f.pulse*0.25);
+    gx.globalAlpha = dim ? 0.18 : 1;
+    gx.beginPath(); gx.arc(f.x, f.y, clamp(rad,3,14), 0, TAU);
+    gx.fillStyle = f.color; gx.fill();
+    if (f.roadmap){ gx.lineWidth = 1.4; gx.strokeStyle = css('--brand-accent'); gx.stroke(); }
+    if (f.pulse > 0.05){
+      gx.globalAlpha = dim ? 0.2 : f.pulse * 0.8;
+      gx.beginPath(); gx.arc(f.x, f.y, clamp(rad,3,14)+5, 0, TAU);
+      gx.strokeStyle = f.color; gx.lineWidth = 1.4; gx.stroke();
+    }
+    if (cam.k > 1.1 && !dim){
+      gx.globalAlpha = 0.78; gx.fillStyle = css('--text-secondary');
+      gx.font = `13px ${css('--mono')||'monospace'}`;
+      gx.fillText(f.name, f.x + clamp(rad,3,14) + 5, f.y + 4);
+    }
+    gx.globalAlpha = 1;
+  }
+}
+
+/* ── draw: agents (fireflies) — boid seek + value-noise drift ── */
+function drawAgents(dt){
+  const f = dt/16.7;
+  for (const a of agents){
+    a.sinceTouch += dt;
+    a.idle = a.sinceTouch > 6000; // dim when not retargeted recently
+    // value-noise drift (cheap layered sines)
+    const tt = now*0.001;
+    const driftx = Math.sin(tt*0.7 + a.seed)*0.4 + Math.sin(tt*0.23 + a.seed*3)*0.9;
+    const drifty = Math.cos(tt*0.61 + a.seed)*0.4 + Math.cos(tt*0.27 + a.seed*2)*0.9;
+    // boid seek toward current target file (max force, max speed, perception)
+    const tx = a.target.x, ty = a.target.y;
+    let dx = tx - a.x, dy = ty - a.y; const dist = Math.hypot(dx,dy)||1;
+    if (dist < 80){ // arrive: hover, weaker pull
+      const fx = dx/dist*0.012, fy = dy/dist*0.012;
+      a.vx += fx; a.vy += fy;
+    } else {
+      a.vx += dx/dist*0.02; a.vy += dy/dist*0.02;
+    }
+    a.vx += driftx*0.04; a.vy += drifty*0.04;
+    // clamp speed
+    const sp = Math.hypot(a.vx,a.vy), maxsp = a.idle?0.6:1.1;
+    if (sp > maxsp){ a.vx = a.vx/sp*maxsp; a.vy = a.vy/sp*maxsp; }
+    a.x += a.vx*f; a.y += a.vy*f;
+    // trail
+    a.trail.push([a.x,a.y]); if (a.trail.length > 12) a.trail.shift();
+    // breathe (bioluminescent, out of phase)
+    const breath = 0.55 + 0.45*Math.sin(tt*1.6 + a.seed);
+    const alpha = (a.idle ? 0.3 : 1) * breath;
+    // tail
+    bx.globalCompositeOperation = 'lighter';
+    for (let i=0;i<a.trail.length-1;i++){
+      const [x0,y0] = a.trail[i]; const ta = (i/a.trail.length)*0.4*alpha;
+      bx.globalAlpha = ta; bx.fillStyle = `hsl(${a.hue} 60% 65%)`;
+      bx.beginPath(); bx.arc(x0,y0,1.6,0,TAU); bx.fill();
+    }
+    // glow sprite (drawImage only)
+    const gr = 22;
+    bx.globalAlpha = alpha; bx.drawImage(glowSprite, a.x-gr, a.y-gr, gr*2, gr*2);
+    bx.globalCompositeOperation = 'source-over';
+    // core
+    gx.globalAlpha = clamp(alpha+0.2,0,1);
+    gx.beginPath(); gx.arc(a.x, a.y, a.idle?2.4:3.4, 0, TAU);
+    gx.fillStyle = css('--firefly-core'); gx.fill();
+    gx.globalAlpha = 1;
+    // reset sinceTouch when at target sometimes (handled in events)
+    if (dist < 24 && Math.random() < 0.02) a.sinceTouch = 0;
+  }
+}
+
+/* ── draw: pheromone rings ───────────────────────────────────── */
+function drawRings(dt){
+  for (let i = rings.length-1; i >= 0; i--){
+    const r = rings[i]; r.t += dt; const p = r.t/r.dur;
+    if (p >= 1){ rings.splice(i,1); continue; }
+    const e = 1 - Math.pow(1-p, 3); // swoosh-ish ease-out
+    const rad = lerp(r.r0, r.r1, e);
+    bx.globalCompositeOperation = 'lighter';
+    bx.globalAlpha = (1-p)*0.6;
+    bx.beginPath(); bx.arc(r.x, r.y, rad, 0, TAU);
+    bx.strokeStyle = r.col; bx.lineWidth = 2; bx.stroke();
+    bx.globalCompositeOperation = 'source-over'; bx.globalAlpha = 1;
+  }
+}
+/* ── draw: soundwave ripples ─────────────────────────────────── */
+function drawRipples(dt){
+  for (let i = ripples.length-1; i >= 0; i--){
+    const r = ripples[i]; r.t += dt; if (r.t < 0) continue;
+    const p = r.t/r.dur; if (p >= 1){ ripples.splice(i,1); continue; }
+    const e = 1 - Math.pow(1-p,3);
+    bx.globalCompositeOperation = 'lighter';
+    bx.globalAlpha = (0.5)*(1-p);
+    bx.beginPath(); bx.arc(r.x, r.y, e*48, 0, TAU);
+    bx.strokeStyle = r.col; bx.lineWidth = lerp(2,0.3,p); bx.stroke();
+    bx.globalCompositeOperation = 'source-over'; bx.globalAlpha = 1;
+  }
+}
+/* ── draw: lasers (inbox/DM travel) ──────────────────────────── */
+function drawLasers(dt){
+  for (let i = lasers.length-1; i >= 0; i--){
+    const l = lasers[i]; l.t += dt; const p = l.t/l.dur;
+    if (p >= 1){ lasers.splice(i,1); continue; }
+    const e = 1 - Math.pow(1-p,3);
+    const col = css('--signal-kilo');
+    // faint full afterglow
+    bx.globalCompositeOperation = 'lighter';
+    bx.globalAlpha = 0.15*(1-p); bx.strokeStyle = col; bx.lineWidth = 1.5;
+    bx.beginPath(); bx.moveTo(l.x0,l.y0); bx.lineTo(l.x1,l.y1); bx.stroke();
+    // bright traveling segment
+    const hx = lerp(l.x0,l.x1,clamp(e,0,1)), hy = lerp(l.y0,l.y1,clamp(e,0,1));
+    const tx = lerp(l.x0,l.x1,clamp(e-0.12,0,1)), ty = lerp(l.y0,l.y1,clamp(e-0.12,0,1));
+    bx.globalAlpha = 1; bx.lineWidth = 1.8;
+    bx.beginPath(); bx.moveTo(tx,ty); bx.lineTo(hx,hy); bx.stroke();
+    if (p > 0.92){ bx.globalAlpha = (1-p)/0.08; bx.beginPath(); bx.arc(l.x1,l.y1,4,0,TAU); bx.fillStyle=col; bx.fill(); }
+    bx.globalCompositeOperation = 'source-over'; bx.globalAlpha = 1;
+  }
+}
+/* ── draw: merge light-burst ─────────────────────────────────── */
+function drawBursts(dt){
+  for (let i = bursts.length-1; i >= 0; i--){
+    const b = bursts[i]; b.t += dt;
+    if (b.phase === 0){ // ghost branch eases toward main (280ms)
+      const p = clamp(b.t/280, 0, 1); const e = 1-Math.pow(1-p,3);
+      const gx2 = lerp(b.ghostX, b.x, e), gy2 = lerp(b.ghostY, b.y, e);
+      bx.globalCompositeOperation = 'lighter'; bx.globalAlpha = 0.6*(1-p*0.4);
+      bx.beginPath(); bx.arc(gx2, gy2, 4, 0, TAU); bx.fillStyle = css('--brand-primary'); bx.fill();
+      bx.globalCompositeOperation = 'source-over'; bx.globalAlpha = 1;
+      if (p >= 1){ b.phase = 1; b.t = 0; }
+      continue;
+    }
+    const p = b.t/b.dur; if (p >= 1){ bursts.splice(i,1); continue; }
+    // snap-overshoot flash quad scaling 0.2→2.4
+    const e = 1 + 1.4*Math.sin(p*Math.PI*0.5); // ease-out overshoot-ish
+    const sc = lerp(0.2, 2.4, p) * 18;
+    bx.globalCompositeOperation = 'lighter'; bx.globalAlpha = (1-p);
+    const g = bx.createRadialGradient(b.x,b.y,0,b.x,b.y,sc);
+    g.addColorStop(0, 'rgba(255,255,255,0.95)');
+    g.addColorStop(0.5, hexA(css('--brand-primary'),0.6));
+    g.addColorStop(1, hexA(css('--brand-primary'),0));
+    bx.fillStyle = g; bx.beginPath(); bx.arc(b.x,b.y,sc,0,TAU); bx.fill();
+    bx.globalCompositeOperation = 'source-over'; bx.globalAlpha = 1;
+  }
+}
+function drawSparks(dt){
+  for (let i = sparks.length-1; i >= 0; i--){
+    const s = sparks[i]; s.t += dt; const p = s.t/s.dur;
+    if (p >= 1){ sparks.splice(i,1); continue; }
+    s.vy += 0.05; s.vx *= 0.96; s.vy *= 0.96; s.x += s.vx; s.y += s.vy;
+    bx.globalCompositeOperation = 'lighter'; bx.globalAlpha = (1-p);
+    bx.beginPath(); bx.arc(s.x, s.y, 1.6, 0, TAU); bx.fillStyle = css('--brand-primary'); bx.fill();
+    bx.globalCompositeOperation = 'source-over'; bx.globalAlpha = 1;
+  }
+}
+/* ── draw: falling leaves (notes) ────────────────────────────── */
+function drawLeaves(dt){
+  const f = dt/16.7;
+  const groundY = (H - 60 - cam.y)/cam.k; // gutter top in world space
+  for (let i = leaves.length-1; i >= 0; i--){
+    const l = leaves[i]; l.t += dt;
+    if (!l.landed){
+      l.vy = Math.min(l.vy + 0.12*f, 2.2);
+      const swayDecay = clamp(1 - l.t/4000, 0.2, 1);
+      l.vx = Math.sin(now*0.0022 + l.sway) * 1.4 * swayDecay;
+      l.rot = Math.sin(now*0.0018 + l.sway) * 0.31;
+      l.x += l.vx*f; l.y += l.vy*f;
+      // periodic tumble (fake edge-on)
+      l.sx = 0.6 + 0.4*Math.abs(Math.sin(now*0.004 + l.sway));
+      if (l.y >= groundY){ l.landed = true; restLeaf(l.text); leaves.splice(i,1); continue; }
+    }
+    gx.save();
+    gx.translate(l.x, l.y); gx.rotate(l.rot); gx.scale(l.sx, 1);
+    gx.globalAlpha = 0.9;
+    gx.fillStyle = l.col;
+    gx.beginPath();
+    gx.ellipse(0, 0, 5, 8, 0, 0, TAU); gx.fill();
+    gx.strokeStyle = css('--surface-base'); gx.lineWidth = 0.6;
+    gx.beginPath(); gx.moveTo(0,-7); gx.lineTo(0,7); gx.stroke();
+    gx.restore(); gx.globalAlpha = 1;
+  }
+}
+
+/* ── hex → rgba helper ───────────────────────────────────────── */
+function hexA(hex, a){
+  hex = hex.replace('#','');
+  if (hex.length === 3) hex = hex.split('').map(c=>c+c).join('');
+  const r = parseInt(hex.slice(0,2),16), g = parseInt(hex.slice(2,4),16), b = parseInt(hex.slice(4,6),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+/* ── REDUCED MOTION: static, fully legible field. Loop never churns. ── */
+function drawStatic(){
+  gx.clearRect(0,0,W,H); bx.clearRect(0,0,W,H);
+  gx.save(); gx.translate(cx0(), cy0());
+  bx.save(); bx.translate(cx0(), cy0());
+  drawHeatAndNodes();
+  // fireflies → static brand-accent dots at their target node anchors
+  for (const a of agents){
+    gx.beginPath(); gx.arc(a.target.x + rand(-6,6), a.target.y + rand(-6,6), 3.4, 0, TAU);
+    gx.fillStyle = css('--firefly-core'); gx.fill();
+  }
+  gx.restore(); bx.restore();
+}
+
+/* ── reduced-motion: event cadence still fires, but state flips DOM/color
+     not motion. We drive sitrep + leaf gutter + frozen field on an interval. */
+function bootstrap(){
+  // restore sound preference (still requires a gesture to actually resume)
+  // restore is intentionally not auto-on (sound is opt-in)
+  updateSitrep();
+  if (REDUCE){
+    // seed some heat so the static field reads as "alive history"
+    fileNodes.forEach(f => { if (Math.random()<0.4) f.heat = rand(0.5,3); f.pulse = Math.random()<0.3?1:0; });
+    drawStatic();
+    setInterval(() => { scheduleEvents(); for(const f of fileNodes){f.heat*=0.97;} drawStatic(); updateSitrep(); }, 1200);
+    // legend already built; nothing animates.
+    return;
+  }
+  requestAnimationFrame(frame);
+  setInterval(updateSitrep, 700);
+  // age the inspect feed labels
+  setInterval(() => {
+    for (const f of fileNodes) for (const e of f.events){ if (e.ago==='now') e.ago='1s'; }
+    if (inspectEntity && currentTab==='transcript') renderInspectTab('transcript');
+  }, 1000);
+}
+bootstrap();
+
+// expose a tiny harness hook for headless verification
+window.__pdProto = { agents, fileNodes, planes, get rings(){return rings.length;}, REDUCE };
+})();
+</script>
+</body>
+</html>

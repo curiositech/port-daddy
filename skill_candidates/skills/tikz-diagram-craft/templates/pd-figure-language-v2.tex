@@ -1,0 +1,213 @@
+% Shared visual language for the Book's figures -- VERSION 2.
+% Proposed drop-in replacement for whitepaper/figures/pd-figure-language.tex and
+% its twin website-v2/public/whitepaper/figures/pd-figure-language.tex; the two
+% must stay byte-identical.  The case for it, the before/after measurements and
+% the swap are in skills/tikz-diagram-craft/references/style-v2-migration.md.
+%
+% This file defines voices, hues, weights and marks -- not layouts.  Every
+% figure still chooses a grammar from its reader question.
+%
+% ===========================================================================
+% 1.  THE TYPE LADDER.  Three voices, one size, each tied to a role, never to
+%     taste.  A fragment names a role; a fragment never sets a font.
+%
+%       pd title   BOLD        panel titles, row and actor heads, column heads
+%       pd label   upright     node text, state names, axis titles, tick words,
+%                              relation words on an edge, badge numerals
+%       pd note    italic      the one annotation a figure is allowed
+%
+%     Bold, mixed case, for the TITLE voice.  Small caps was the other
+%     candidate and it is wrong here: set on a whole title it renders as a line
+%     of capitals, which shouts at 9 pt, loses word shape (the outline a reader
+%     recognises before the letters) and hyphenates badly.  Bold in newpxtext
+%     is a compact, quiet weight that separates a head from its labels without
+%     changing case at all.  Small caps survives only as `pd kind`, for a tag
+%     of one or two mixed-case words -- never a title, never a label.
+%
+%     EVERY piece of figure text is mixed case.  A state name is sentence case
+%     in the LABEL voice, never ALL CAPS.  \texttt is reserved for identifiers
+%     that are literally code (fs:read, git push, tr); math mode is for symbols
+%     only.  At most three voices appear in any one figure.
+%
+% 2.  THE COLOUR SYSTEM.  Hue is meaning, and the meanings cross chapters.
+%     Every figure's own subject is drawn in the CHAPTER hue, resolved from
+%     \pdcurrentchaptercolor (the Book sets it per chapter) with a per-fragment
+%     fallback for standalone compiles, declared as \pdfigurehue{pdindigo}.
+%     Anything the figure names that is NOT its chapter's subject takes its
+%     concept hue from the map below and is named in the caption or a legend.
+%     Two to four hues per figure is the norm.  Colour is never the only cue:
+%     it is always doubled by shape, dash, weight or a word.
+%
+%       pd truth       pdcobalt   kernel, truth, the thing being specified
+%       pd legible     pdteal     legibility, digest, inspection
+%       pd ready       pdhealth   ready, coordinated, admitted, passing
+%       pd protocol    pdindigo   protocol, federation, the wire
+%       pd identity    pdviolet   identity, continuity, a card, an ID
+%       pd reputation  pdrust     reputation, trust earned over time
+%       pd value       pdgold     economy, value, settlement, payment
+%       pd breach      pderror    breach, refusal, revocation, correction
+%       pd warn        pdamber    warning; display sizes and rules only
+%
+%     Each concept name X yields five styles: X (a coloured stroke), X rule,
+%     X arrow, X state (a tinted, edged box), X fill and X datum.
+%     Fills sit at 24 % (never below 22 %), edged in the SAME hue at full
+%     strength; text is always ink.  A tint of blue!NN / red!NN / any stock
+%     colour is not a hue -- it is the default palette, and it is refused.
+%     Amber is never small text (3.71:1 on cream); it is stripes and rules.
+%
+% 3.  THE WEIGHT LADDER.  Four stroke weights in a 1 : 1.8 : 3.2 ratio
+%     (.5 / .9 / 1.6 pt) so a reader can see which line is the subject.  v1 ran
+%     .40-1.05 pt across five roles -- too little separation to read in print.
+%
+% 4.  THE SURFACE LADDER.  Three ranks -- pd state (paper, ink edge),
+%     pd artifact (subordinate, grey edge), pd focus state / concept states
+%     (tinted in a hue, edged in that hue) -- so a figure has a foreground.
+%     v1 gave every node the same 30 % sand fill and the same hairline, which
+%     is why every figure read as an undifferentiated field of beige boxes.
+%     Every fill carries an edge.
+%
+% 5.  ARROW TIPS scale with the stroke: `length=2.6pt 3.2` means "2.6 pt plus
+%     3.2 x the line width" (PGF/TikZ manual, "The Line Width Factors"), so a
+%     heavy stroke gets a heavy tip automatically.  v1 pinned every tip at
+%     2.0mm x 1.25mm regardless of the line it ended.
+% ===========================================================================
+\usetikzlibrary{matrix,patterns.meta}
+
+% --- the chapter hue, resolved late --------------------------------------
+% The Book defines \pdcurrentchaptercolor per chapter, after this file; a
+% standalone chapter never does, so a fragment declares its own fallback with
+% \pdfigurehue{...} on the line before its tikzpicture.
+\newcommand{\pdfigfraghue}{pdcobalt}
+% \pdfigurehue{pdindigo} on the line before a tikzpicture declares which
+% chapter's hue this figure is drawn in. Inside the Book it agrees with the
+% \pdcurrentchaptercolor the chapter opener already set; standalone -- a lone
+% chapter build, or this skill's renderer -- it supplies it. Both assignments
+% are local to the figure's own group, so one figure never colours the next.
+\newcommand{\pdfigurehue}[1]{%
+  \renewcommand{\pdfigfraghue}{#1}%
+  \providecommand{\pdcurrentchaptercolor}{#1}%
+  \renewcommand{\pdcurrentchaptercolor}{#1}}
+\newcommand{\pdsetfocushue}{%
+  \ifdefined\pdcurrentchaptercolor
+    \colorlet{pdfocus}{\pdcurrentchaptercolor}%
+  \else
+    \colorlet{pdfocus}{\pdfigfraghue}%
+  \fi}
+\colorlet{pdfocus}{pdcobalt}
+
+\tikzset{
+  % --- picture level: one font size, one default tip, the chapter hue ------
+  % A figure label is a name, not prose: it never hyphenates. Setting the two
+  % penalties once here is what makes "no hyphenated labels" a property of the
+  % style rather than a thing a worker has to remember per node.
+  pd figure/.style={font=\footnotesize,text=pdink,line cap=round,line join=round,
+    >={Stealth[length=2.6pt 3.2,width=2.0pt 2.4]},/utils/exec=\pdsetfocushue,
+    every node/.append style={execute at begin node={%
+      \hyphenpenalty=10000\exhyphenpenalty=10000\relax}}},
+%
+  % --- 1. the three voices -------------------------------------------------
+  pd title/.style={font=\footnotesize\bfseries,text=pdink,align=center},
+  pd label/.style={font=\footnotesize,text=pdink,align=center},
+  pd note/.style={font=\footnotesize\itshape,text=pdinkmuted,align=left},
+  % a kind tag: one or two mixed-case words, never a title and never a label
+  pd kind/.style={font=\footnotesize\scshape,text=pdinkmuted,align=center},
+  % the LABEL voice with page backing, for a word that must sit near a rule
+  pd tag/.style={pd label,fill=pdcreamraised,inner sep=1.7pt},
+%
+  % --- 4. surfaces ---------------------------------------------------------
+  pd state/.style={pd label,draw=pdink,line width=.9pt,fill=pdcreamraised,
+    rounded corners=1pt,inner xsep=6pt,inner ysep=4.5pt,minimum height=7.4mm},
+  pd terminal/.style={pd state,line width=1.5pt},
+  pd artifact/.style={pd label,draw=pdinkmuted!70,line width=.6pt,
+    fill=pdcreamstrong,rounded corners=1pt,inner xsep=5pt,inner ysep=3.5pt,
+    minimum height=6.2mm},
+  pd panel/.style={draw=pdinkmuted!55,line width=.5pt,
+    dash pattern=on 2.4pt off 2pt,rounded corners=2.5pt,inner sep=7pt,align=center},
+  pd hatch/.style={pattern={Lines[angle=45,distance=4pt,line width=.3pt]},
+    pattern color=pdinkmuted!70},
+%
+  % --- 3. strokes ----------------------------------------------------------
+  pd hairline/.style={draw=pdinkmuted!45,line width=.5pt},
+  pd guide/.style={draw=pdinkmuted!40,line width=.5pt,densely dotted},
+  pd tick/.style={draw=pdinkmuted!75,line width=.6pt},
+  pd rule/.style={draw=pdink,line width=.9pt},
+  pd spine/.style={draw=pdink,line width=1.6pt},
+  pd thin arrow/.style={draw=pdinkmuted!75,line width=.7pt,->},
+  pd arrow/.style={pd rule,->},
+  pd spine arrow/.style={pd spine,->},
+%
+  % --- the chapter hue, as the figure's focus ------------------------------
+  pd focus rule/.style={draw=pdfocus,line width=1.6pt},
+  pd focus arrow/.style={pd focus rule,->},
+  pd focus state/.style={pd state,draw=pdfocus,line width=1.4pt,fill=pdfocus!24},
+  pd focus fill/.style={fill=pdfocus!24,draw=pdfocus,line width=.6pt},
+  pd focus datum/.style={circle,fill=pdfocus,draw=pdcreamraised,line width=.6pt,
+    inner sep=2.6pt},
+  pd neutral fill/.style={fill=pdcreamstrong,draw=pdinkmuted!70,line width=.6pt},
+%
+  % --- marks ---------------------------------------------------------------
+  pd datum/.style={circle,fill=pdink,draw=pdcreamraised,line width=.6pt,inner sep=2.3pt},
+  pd badge/.style={pd label,circle,draw=pdink,line width=.7pt,fill=pdcreamraised,
+    inner sep=.5pt,minimum size=5.0mm},
+  pd focus badge/.style={pd badge,draw=pdfocus,line width=.9pt,fill=pdfocus!24},
+  % a stroke that ends at a badge is shortened, so no rule touches the numeral
+  pd to badge/.style={shorten >=2pt},
+  pd from badge/.style={shorten <=2pt},
+}
+
+% --- 2. the concept map, as styles, so a worker never chooses a hue --------
+\newcommand{\pdconcept}[2]{%
+  \tikzset{%
+    #1/.style={draw=#2,text=pdink},
+    #1 rule/.style={draw=#2,line width=1.6pt},
+    #1 arrow/.style={draw=#2,line width=1.2pt,->},
+    #1 state/.style={pd state,draw=#2,line width=1.4pt,fill=#2!24},
+    #1 fill/.style={fill=#2!24,draw=#2,line width=.6pt},
+    #1 datum/.style={circle,fill=#2,draw=pdcreamraised,line width=.6pt,inner sep=2.6pt},
+  }}
+\pdconcept{pd truth}{pdcobalt}
+\pdconcept{pd legible}{pdteal}
+\pdconcept{pd ready}{pdhealth}
+\pdconcept{pd protocol}{pdindigo}
+\pdconcept{pd identity}{pdviolet}
+\pdconcept{pd reputation}{pdrust}
+\pdconcept{pd value}{pdgold}
+\pdconcept{pd breach}{pderror}
+\pdconcept{pd warn}{pdamber}
+% breach and warning read as refusals, so they are dashed as well as coloured
+\tikzset{
+  pd breach rule/.append style={dash pattern=on 3.2pt off 2.2pt},
+  pd breach arrow/.append style={dash pattern=on 3.2pt off 2.2pt},
+  pd warn rule/.append style={dash pattern=on 3.2pt off 2.2pt},
+  pd warn arrow/.append style={dash pattern=on 3.2pt off 2.2pt},
+  pd breach datum/.style={diamond,fill=pderror,draw=pdcreamraised,line width=.6pt,
+    inner sep=2.6pt},
+}
+
+% ===========================================================================
+% DEPRECATED v1 ALIASES.  Kept so every existing fragment still compiles; they
+% now resolve to the v2 roles, so an untouched figure inherits the new ladder.
+% Do not use them in new work -- style-v2-migration.md lists each replacement.
+% ===========================================================================
+\tikzset{
+  pd row label/.style={pd title,anchor=east},     % -> pd title
+  pd panel title/.style={pd title,align=left},    % -> pd title
+  pd axis label/.style={pd label},                % -> pd label
+  pd direct label/.style={pd tag},                % -> pd tag
+  pd actor/.style={pd state},                     % -> pd state
+  pd boundary/.style={pd panel},                  % -> pd panel
+  pd caution rule/.style={pd breach rule},        % -> pd breach rule
+  pd caution arrow/.style={pd breach arrow,dash pattern=on 3.2pt off 2.2pt},
+  pd caution fill/.style={pd breach fill},        % -> pd breach fill
+  pd caution datum/.style={pd breach datum},      % -> pd breach datum
+}
+
+% Small reusable marks.  They deliberately avoid prose-bearing boxes.
+\newcommand{\pdfigaxis}[4]{%
+  \draw[pd rule,-{Stealth[length=1.9pt 3.2,width=1.5pt 2.4]}] (#1,#2) -- (#3,#2);
+  \node[pd label,anchor=west] at (#3,#2) {#4};
+}
+\newcommand{\pdfigvaxis}[4]{%
+  \draw[pd rule,-{Stealth[length=1.9pt 3.2,width=1.5pt 2.4]}] (#1,#2) -- (#1,#3);
+  \node[pd label,anchor=south] at (#1,#3) {#4};
+}

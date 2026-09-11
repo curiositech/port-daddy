@@ -78,7 +78,9 @@ const redirectOnlyRoutes = new Set([
   '/mcp',
   '/pd-tube/playground',
   '/templates',
-  '/whitepaper',
+  // /whitepaper used to be the redirect and /library the page. The deck
+  // inverted that and this set was not turned around with it.
+  '/library',
 ])
 
 const agentSectionSlugs = new Set([
@@ -344,6 +346,27 @@ function shouldHaveDarkPair(value: string) {
   if (assetPath.endsWith('.svg')) return false
   if (assetPath.includes('/img/og/')) return false
   if (assetPath.includes('/logos/')) return false
+  // The line this rule draws is between images that DEPICT something and
+  // images that REPRODUCE an artifact. Site illustration depicts: the light in
+  // a cut-paper plate is a choice the render makes, and a light-lit subject on
+  // a near-black page reads as a hole in it, so those must pair. A
+  // reproduction has no such choice -- the Book is printed on cream, so its
+  // cover in dark mode is still its cover, and a "dark variant" would be a
+  // jacket that does not exist on the object the download hands you. Same for
+  // a shipped product mark.
+  //
+  // Everything under the plates directory is a reproduction; that is what the
+  // directory is for. The rest are named one at a time, with the reason, so
+  // that exempting an image stays a deliberate act rather than something a
+  // path prefix does quietly to whatever gets added next to it.
+  if (assetPath.includes('/whitepaper/plates/')) return false
+  const REPRODUCTIONS: Record<string, string> = {
+    // The icon the extension actually ships with, on its own fixed ground.
+    '/img/generated/scout-extension-icon.png': 'shipped product mark',
+    // A capture of the extension's own surface, which has its own theme.
+    '/img/generated/scout-extension-preview.png': 'product UI capture',
+  }
+  if (assetPath in REPRODUCTIONS) return false
   if (/-dark(?=\.[a-z0-9]+$)/i.test(assetPath)) return false
 
   return true

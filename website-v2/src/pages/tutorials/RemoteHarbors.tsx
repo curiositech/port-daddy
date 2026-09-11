@@ -209,12 +209,21 @@ pd watch deploy:events --exec ./notify.sh
 Watching deploy:events...`}
           </CodeBlock>
 
+          {/*
+            This linked /account#harbors, which is not a route on this site --
+            the account page is served by the relay, the way every other
+            account link here is written. The copy was stale in the same
+            direction: the Harbors section stopped being an empty state that
+            promised memberships later and became a door into a real
+            /account/harbors backed by memberships and presence.
+          */}
           <p>
-            Your account page has a live <a href="/account#harbors">Harbors
-            section</a> too: today it shows your personal harbor and tells
-            you plainly that team and guest harbors surface there once
-            membership is linked to your account -- it doesn't pretend the
-            multi-person case is live before it is.
+            Your account page has a live{' '}
+            <a href="https://relay.portdaddy.dev/account/harbors">Harbors
+            section</a> too, and it is no longer the placeholder it started as:
+            it lists the harbors you actually belong to, with who is present in
+            each, rather than telling you that memberships will show up here
+            one day.
           </p>
 
           <div className="flex items-center justify-center gap-8 py-4">

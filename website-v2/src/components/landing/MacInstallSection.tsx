@@ -7,11 +7,12 @@ import {
   PanelEyebrow,
   PanelTitle,
   SurfacePanel,
+  useCopyToClipboard,
 } from '@/components/site/primitives'
 import { ProductLogoLockup, type ProductLogoKey } from '@/components/site/ProductLogos'
 import { ThemedImage } from '@/components/site/ThemedImage'
 import { MCP_TOOL_TOTAL } from '@/data/mcp'
-import { useState, type ReactNode } from 'react'
+import { type ReactNode } from 'react'
 
 /**
  * MacInstallSection is the single public install story: run setup, let doctor
@@ -214,18 +215,14 @@ function Mono({ children }: { children: ReactNode }) {
   return <code className="font-mono text-[var(--brand-primary)]">{children}</code>
 }
 
+/**
+ * The compact single-row variant of a copyable command. It is a different
+ * shape from CopyableCommandBlock -- no eyebrow, no separate button row --
+ * which is why it exists, but the copy behaviour underneath is the shared
+ * one rather than a second implementation with its own timer.
+ */
 function CopyableInlineCommand({ command }: { command: string }) {
-  const [copied, setCopied] = useState(false)
-
-  async function copyCommand() {
-    try {
-      await navigator.clipboard.writeText(command)
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 1400)
-    } catch {
-      setCopied(false)
-    }
-  }
+  const { copied, copy: copyCommand } = useCopyToClipboard(command)
 
   return (
     <button

@@ -38,7 +38,20 @@ describe('reproducible whitepaper source scoping', () => {
     ).split('\n');
 
     expect(sources[0]).toBe('website-v2/public/whitepaper/spawn-to-person.tex');
-    expect(sources).toHaveLength(17);
+    // 19, not the 17 this pinned when it was written. The two additions are
+    // generated apparatus that pd-pedagogy pulls in -- pd-cite-shortforms.tex
+    // and pd-discharges.tex -- which arrived with the margin citations and the
+    // discharge pointers. The chapter did not grow a figure; its apparatus grew
+    // a dependency, and paper_sources is right to follow it transitively.
+    expect(sources).toHaveLength(19);
+    for (const generated of [
+      'website-v2/public/whitepaper/figures/pd-cite-shortforms.tex',
+      'website-v2/public/whitepaper/figures/pd-discharges.tex',
+    ]) {
+      // Named rather than left to the count, so the next person who moves this
+      // number can see which files it is made of.
+      expect(sources).toContain(generated);
+    }
     expect(sources).toContain(
       'website-v2/public/whitepaper/figures/pd-figure-language.tex',
     );
@@ -68,10 +81,56 @@ describe('reproducible whitepaper source scoping', () => {
     ).split('\n');
     expect(sources).toContain('whitepaper/textbook.json');
     expect(sources).toContain('scripts/generate-mega-whitepaper.mjs');
+    // The preamble \input's the Swiss plate macros unconditionally on the
+    // Swiss branch, and Swiss is what the canonical root renders, so the
+    // published PDF's freshness depends on that file.
+    expect(sources).toContain(
+      'website-v2/public/whitepaper/coordination-papers-mega-volume-swiss-plates.tex',
+    );
   });
 
-  test('the Swiss and Technical editions share the Book\'s dependency set plus their own driver', () => {
+  // One edition is built; three drivers are present. The Book's central
+  // edition is whichever character \pdedition defaults to in the preamble, and
+  // the canonical coordination-papers-mega-volume.pdf renders it — so
+  // switching the Book's character moves one macro and no path, link or
+  // registry entry. The other two characters stay switchable and unbuilt.
+  test('one edition is built, and all three driver roots are present and distinct', () => {
+    const pub = 'website-v2/public/whitepaper';
+    const preamble = readFileSync(
+      join(repoRoot, pub, 'coordination-papers-mega-volume-preamble.tex'),
+      'utf8',
+    );
+    // The central edition, declared in exactly one place.
+    const central = preamble.match(/\\providecommand\{\\pdedition\}\{(\w+)\}/);
+    expect(central).not.toBeNull();
+    expect(central[1]).toBe('swiss');
+
+    // Every character has a driver, and each driver names its own character.
+    for (const edition of ['maritime', 'swiss', 'technical']) {
+      const driver = readFileSync(
+        join(repoRoot, pub, `coordination-papers-mega-volume-${edition}.tex`),
+        'utf8',
+      );
+      expect(driver).toContain(`\\def\\pdedition{${edition}}`);
+      expect(driver).toContain('\\input{coordination-papers-mega-volume.tex}');
+    }
+
+    // Exactly one of them is in the default build list — the canonical root,
+    // which carries the central edition. A driver root in PAPERS would mean a
+    // second published Book PDF and a second registry entry to keep in step.
+    const megaVolumeRoots = listUnchangedSince(git('rev-parse', 'HEAD')).filter((pdf) =>
+      pdf.includes('coordination-papers-mega-volume'),
+    );
+    expect(megaVolumeRoots).toEqual([`${pub}/coordination-papers-mega-volume.pdf`]);
+  });
+
+  // Swiss is the Book's central edition: \pdedition defaults to it in the
+  // preamble, so the canonical coordination-papers-mega-volume.pdf renders
+  // Swiss and the three driver roots publish nothing. They stay in the tree
+  // and stay buildable by hand, which is what these two tests hold.
+  test('every edition driver shares the Book\'s dependency set plus its own driver', () => {
     for (const driver of [
+      'coordination-papers-mega-volume-maritime.tex',
       'coordination-papers-mega-volume-swiss.tex',
       'coordination-papers-mega-volume-technical.tex',
     ]) {
@@ -180,8 +239,6 @@ describe('reproducible whitepaper source scoping', () => {
       'website-v2/public/whitepaper/legible-swarm-whitepaper.pdf',
       'website-v2/public/whitepaper/single-writer-kernel-whitepaper.pdf',
       'website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
-      'website-v2/public/whitepaper/coordination-papers-mega-volume-swiss.pdf',
-      'website-v2/public/whitepaper/coordination-papers-mega-volume-technical.pdf',
     ]);
   });
 

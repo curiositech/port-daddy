@@ -1,0 +1,1120 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<title>Attention Pheromone Trails — Mock — Port Daddy</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<style>
+/* ----------------------------------------------------------------------
+   Tokens — OKLCH only. No hex literals. Mirrors the semantic surface in
+   website-v2/src/styles/tokens.semantic.css (light + dark) but reduced
+   to the slice this mock actually uses, plus the proposed
+   --pheromone-* block from pheromone-vocabulary-v1.md § 4.3.
+
+   This file is design fiction, not production. The real version will
+   import from tokens.semantic.css; this is a self-contained mock so
+   you can open it without a build step.
+   ---------------------------------------------------------------------- */
+
+:root, [data-theme='light'] {
+  --surface-base:    oklch(95% 0.012 88);
+  --surface-raised:  oklch(96.5% 0.010 88);
+  --surface-strong:  oklch(92% 0.014 88);
+  --surface-sunken:  oklch(89.5% 0.018 86);
+  --surface-glass:   oklch(96.5% 0.010 88 / 0.92);
+  --scrim-backdrop:  oklch(15% 0 0 / 0.62);
+
+  --text-primary:    oklch(20% 0.01 80);
+  --text-secondary:  oklch(35% 0.012 80);
+  --text-muted:      oklch(45% 0.013 80);
+  --text-inverse:    oklch(96% 0.012 88);
+
+  --brand-primary:   oklch(48% 0.20 264);   /* cobalt — matches website cobalt */
+  --brand-accent:    oklch(50% 0.10 180);   /* teal */
+
+  --border-subtle:   oklch(20% 0.01 80 / 0.16);
+  --border-default:  oklch(20% 0.01 80 / 0.42);
+  --border-strong:   oklch(20% 0.01 80);
+
+  --status-success:  oklch(50% 0.14 145);
+  --status-warning:  oklch(60% 0.14 70);
+  --status-error:    oklch(50% 0.20 28);
+  --status-info:     var(--brand-primary);
+
+  /* --- pheromone palette (proposed; lives under --pheromone-* in v1) --- */
+  /* Topological — warm amber family */
+  --pheromone-hot-editing:        oklch(72% 0.18 60);    /* amber */
+  --pheromone-recent-touched:     oklch(78% 0.10 65);    /* pale amber */
+  --pheromone-flow-hotpath:       oklch(65% 0.16 50);    /* deeper amber */
+  --pheromone-cold-abandoned:     oklch(55% 0.02 250);   /* slate-gray */
+
+  /* Economic */
+  --pheromone-cost-burning:       oklch(55% 0.20 28);    /* cinnabar */
+  --pheromone-budget-cap:         oklch(45% 0.20 28);    /* deeper cinnabar */
+  --pheromone-human-blocked:      oklch(48% 0.22 250);   /* cobalt */
+  --pheromone-overdue:            oklch(60% 0.16 75);    /* ochre */
+
+  /* Reputational */
+  --pheromone-exp-succeeded:      oklch(60% 0.14 145);   /* sage */
+  --pheromone-exp-failed:         oklch(55% 0.20 28);
+  --pheromone-exp-reverted:       oklch(40% 0.22 25);
+  --pheromone-test-failing:       oklch(58% 0.18 70);    /* ochre */
+  --pheromone-test-flaky:         oklch(65% 0.10 75);
+  --pheromone-stale-doc:          oklch(60% 0.06 65);    /* sandstone */
+  --pheromone-upstream-changed:   oklch(70% 0.08 200);   /* pale teal */
+
+  /* Coordination */
+  --pheromone-contested:          oklch(55% 0.22 35);    /* red-orange */
+  --pheromone-salvage-pending:    oklch(25% 0.02 250);   /* ebony */
+  --pheromone-group-overlap:      oklch(72% 0.08 200);
+}
+
+[data-theme='dark'] {
+  --surface-base:    oklch(15% 0.012 250);
+  --surface-raised:  oklch(19% 0.014 250);
+  --surface-strong:  oklch(24% 0.014 250);
+  --surface-sunken:  oklch(11% 0.010 250);
+  --surface-glass:   oklch(19% 0.014 250 / 0.88);
+  --scrim-backdrop:  oklch(0% 0 0 / 0.68);
+
+  --text-primary:    oklch(95% 0.012 80);
+  --text-secondary:  oklch(85% 0.012 80);
+  --text-muted:      oklch(70% 0.013 80);
+  --text-inverse:    oklch(20% 0.01 80);
+
+  --brand-primary:   oklch(74% 0.14 250);
+  --brand-accent:    oklch(80% 0.14 165);
+
+  --border-subtle:   oklch(95% 0.012 80 / 0.18);
+  --border-default:  oklch(95% 0.012 80 / 0.44);
+  --border-strong:   oklch(95% 0.012 80);
+
+  --status-success:  oklch(78% 0.15 150);
+  --status-warning:  oklch(82% 0.15 75);
+  --status-error:    oklch(72% 0.18 25);
+
+  --pheromone-hot-editing:        oklch(78% 0.16 65);
+  --pheromone-recent-touched:     oklch(82% 0.08 70);
+  --pheromone-flow-hotpath:       oklch(72% 0.14 55);
+  --pheromone-cold-abandoned:     oklch(60% 0.02 250);
+
+  --pheromone-cost-burning:       oklch(68% 0.18 28);
+  --pheromone-budget-cap:         oklch(58% 0.20 28);
+  --pheromone-human-blocked:      oklch(74% 0.16 250);
+  --pheromone-overdue:            oklch(70% 0.15 75);
+
+  --pheromone-exp-succeeded:      oklch(75% 0.14 145);
+  --pheromone-exp-failed:         oklch(72% 0.18 28);
+  --pheromone-exp-reverted:       oklch(55% 0.22 25);
+  --pheromone-test-failing:       oklch(72% 0.16 72);
+  --pheromone-test-flaky:         oklch(78% 0.10 75);
+  --pheromone-stale-doc:          oklch(70% 0.06 65);
+  --pheromone-upstream-changed:   oklch(80% 0.10 200);
+
+  --pheromone-contested:          oklch(72% 0.20 35);
+  --pheromone-salvage-pending:    oklch(35% 0.04 250);
+  --pheromone-group-overlap:      oklch(82% 0.10 200);
+}
+
+/* ----------------------------------------------------------------------
+   Reset + base
+   ---------------------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+html { font-size: 16px; }                      /* 1rem === 16px floor */
+body {
+  margin: 0;
+  font-family: 'Söhne', 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 0.9375rem;                         /* 15px body — above 14px floor */
+  line-height: 1.55;
+  color: var(--text-primary);
+  background: var(--surface-base);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+code, .mono { font-family: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, monospace; font-feature-settings: 'ss01', 'cv02'; }
+
+/* ----------------------------------------------------------------------
+   Layout — three columns + transport bar
+   col 1 (260px): file tree
+   col 2 (flex):  file viewer with gutter heatmap + replay
+   col 3 (320px): pheromone panel + agent filter + cross-file links
+   ---------------------------------------------------------------------- */
+.app {
+  display: grid;
+  grid-template-columns: 280px minmax(420px, 1fr) 340px;
+  grid-template-rows: 56px 1fr 64px;
+  grid-template-areas:
+    "topbar  topbar  topbar"
+    "tree    viewer  inspector"
+    "scrub   scrub   scrub";
+  height: 100vh;
+  width: 100vw;
+}
+
+.topbar {
+  grid-area: topbar;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0 1rem;
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--border-subtle);
+  backdrop-filter: blur(8px);
+}
+.topbar .brand {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  font-size: 0.95rem;
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.topbar .brand-glyph {
+  width: 18px; height: 18px;
+  background: var(--brand-primary);
+  -webkit-mask: var(--anchor-mask) center/contain no-repeat;
+          mask: var(--anchor-mask) center/contain no-repeat;
+}
+.topbar .crumb { color: var(--text-muted); font-size: 0.875rem; }
+.topbar .crumb code { color: var(--text-secondary); }
+.topbar .grow { flex: 1; }
+.topbar .actions { display: flex; gap: 0.5rem; }
+.topbar .pill {
+  display: inline-flex; align-items: center; gap: 0.375rem;
+  height: 32px; padding: 0 0.75rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: var(--surface-strong);
+  font-size: 0.8125rem;                         /* 13px — eyebrow */
+  font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--text-secondary);
+  transition: border-color 160ms cubic-bezier(.2,.6,.2,1), background 160ms cubic-bezier(.2,.6,.2,1);
+}
+.topbar .pill[aria-pressed='true'] {
+  border-color: var(--brand-primary);
+  background: color-mix(in oklch, var(--brand-primary) 18%, var(--surface-strong));
+  color: var(--text-primary);
+}
+.topbar .pill:hover { border-color: var(--border-default); }
+.topbar .pill .dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--status-success);
+  box-shadow: 0 0 0 0 color-mix(in oklch, var(--status-success) 50%, transparent);
+  animation: live-pulse 2s cubic-bezier(.4,0,.6,1) infinite;
+}
+@keyframes live-pulse {
+  0%,100% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--status-success) 50%, transparent); }
+  50%     { box-shadow: 0 0 0 6px color-mix(in oklch, var(--status-success) 0%, transparent); }
+}
+
+/* ----------------------------------------------------------------------
+   File tree
+   ---------------------------------------------------------------------- */
+.tree {
+  grid-area: tree;
+  background: var(--surface-raised);
+  border-right: 1px solid var(--border-subtle);
+  overflow-y: auto;
+  padding: 0.75rem 0;
+}
+.tree .section-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  padding: 0.5rem 1rem 0.25rem;
+}
+.tree .row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 14px 1fr auto auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem 0.25rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-left: 2px solid transparent;
+}
+.tree .row[aria-selected='true'] {
+  background: color-mix(in oklch, var(--brand-primary) 12%, transparent);
+  color: var(--text-primary);
+  border-left-color: var(--brand-primary);
+}
+.tree .row:hover:not([aria-selected='true']) {
+  background: color-mix(in oklch, var(--text-primary) 4%, transparent);
+}
+.tree .row .name {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tree .row[data-depth='1'] { padding-left: 1.5rem; }
+.tree .row[data-depth='2'] { padding-left: 2.25rem; }
+.tree .row .caret { font-size: 0.75rem; opacity: 0.55; } /* 12px chevron — purely decorative, no text content */
+.tree .row .icon {
+  width: 14px; height: 14px;
+  flex: 0 0 14px;
+  background: currentColor;
+  -webkit-mask-size: contain; mask-size: contain;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-position: center; mask-position: center;
+  opacity: 0.75;
+}
+.tree .row .icon.folder { -webkit-mask-image: var(--icon-folder); mask-image: var(--icon-folder); }
+.tree .row .icon.file   { -webkit-mask-image: var(--icon-file);   mask-image: var(--icon-file); }
+
+/* Heat bar on each row — proportional to attention recently received */
+.tree .heat {
+  --intensity: 0;
+  --hue: var(--pheromone-hot-editing);
+  position: relative;
+  width: 64px; height: 6px;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--text-primary) 8%, transparent);
+  overflow: hidden;
+}
+.tree .heat::before {
+  content: '';
+  position: absolute; inset: 0;
+  width: calc(var(--intensity) * 100%);
+  background: linear-gradient(90deg,
+    color-mix(in oklch, var(--hue) 30%, transparent),
+    var(--hue));
+  border-radius: inherit;
+  transition: width 600ms cubic-bezier(.2,.6,.2,1), background 600ms cubic-bezier(.2,.6,.2,1);
+}
+.tree .row .glyphs {
+  display: inline-flex; gap: 2px;
+  font-size: 0.875rem;                             /* 14px badge — not an eyebrow, just single-char glyph stack */
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+.tree .row .glyphs .always-visible { color: var(--pheromone-human-blocked); }
+.tree .row .glyphs .always-visible.test-failing { color: var(--pheromone-test-failing); }
+.tree .row .glyphs .always-visible.cost-burning { color: var(--pheromone-cost-burning); }
+
+/* ----------------------------------------------------------------------
+   Viewer — code + line-level gutter
+   ---------------------------------------------------------------------- */
+.viewer {
+  grid-area: viewer;
+  background: var(--surface-base);
+  display: grid;
+  grid-template-rows: auto 1fr;
+  overflow: hidden;
+  position: relative;
+}
+.viewer .header {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.625rem 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+}
+.viewer .header .path {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+.viewer .header .path .scope { color: var(--brand-primary); }
+.viewer .header .path .sep   { color: var(--text-muted); }
+.viewer .header .dom {
+  margin-left: auto;
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  font-size: 0.8125rem; color: var(--text-muted);
+}
+.viewer .header .dom .badge {
+  display: inline-flex; align-items: center; gap: 0.375rem;
+  padding: 0.25rem 0.5rem;
+  background: color-mix(in oklch, var(--pheromone-human-blocked) 22%, transparent);
+  color: var(--text-primary);
+  border: 1px solid color-mix(in oklch, var(--pheromone-human-blocked) 40%, transparent);
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 0.75rem;                              /* 12px eyebrow — uppercase + weight 700 + letter-spacing 0.1em */
+  text-transform: uppercase; letter-spacing: 0.1em;
+}
+
+.viewer .body {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  overflow: auto;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.65;
+}
+
+/* Line-number + heat gutter — the part that earns this whole project */
+.gutter {
+  position: sticky; left: 0;
+  background: var(--surface-raised);
+  border-right: 1px solid var(--border-subtle);
+  user-select: none;
+}
+.gutter .line {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  align-items: center;
+  height: 1.65em;
+  font-size: 0.8125rem;                          /* 13px — line-number column, tabular-nums + weight 600. Above the 12px caption floor. */
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  padding-left: 6px;
+}
+.gutter .line .n  { text-align: right; padding-right: 6px; font-weight: 600; }
+.gutter .line .heat-cell {
+  position: relative;
+  height: 100%;
+  width: 18px;
+}
+.gutter .line .heat-cell::before {
+  content: '';
+  position: absolute;
+  left: 2px; right: 2px;
+  top: 1px; bottom: 1px;
+  border-radius: 2px;
+  background: var(--cell-color, transparent);
+  transition: background 800ms cubic-bezier(.2,.6,.2,1), opacity 800ms cubic-bezier(.2,.6,.2,1);
+  opacity: var(--cell-opacity, 0);
+}
+/* The replayable "fade" loop — when .live, cells throb subtly */
+[data-replay='live'] .gutter .line .heat-cell::before {
+  animation: heat-throb 5s cubic-bezier(.4,0,.6,1) infinite;
+  animation-delay: calc(var(--cell-seed, 0) * 1s);
+}
+@keyframes heat-throb {
+  0%, 100% { opacity: var(--cell-opacity, 0); }
+  50%      { opacity: calc(var(--cell-opacity, 0) * 0.45); }
+}
+
+.code {
+  padding: 0 0.75rem;
+  white-space: pre;
+}
+.code .line {
+  display: block;
+  height: 1.65em;
+  padding: 0 0.5rem;
+  border-radius: 4px;
+  margin-right: 0.75rem;
+  position: relative;
+  transition: background 200ms ease;
+}
+.code .line[data-attn='hot']    { background: color-mix(in oklch, var(--pheromone-hot-editing) 16%, transparent); }
+.code .line[data-attn='warm']   { background: color-mix(in oklch, var(--pheromone-hot-editing) 8%, transparent); }
+.code .line[data-attn='pinned'] {
+  background: color-mix(in oklch, var(--brand-primary) 20%, transparent);
+  box-shadow: inset 3px 0 0 var(--brand-primary);
+}
+.code .line[data-attn='test-failing'] {
+  background: color-mix(in oklch, var(--pheromone-test-failing) 20%, transparent);
+  box-shadow: inset 3px 0 0 var(--pheromone-test-failing);
+}
+.code .line[data-attn='contested'] {
+  background: color-mix(in oklch, var(--pheromone-contested) 18%, transparent);
+  box-shadow: inset 3px 0 0 var(--pheromone-contested);
+}
+.code .tok-kw      { color: var(--pheromone-human-blocked); font-weight: 600; }
+.code .tok-fn      { color: var(--brand-accent); }
+.code .tok-str     { color: var(--status-success); }
+.code .tok-com     { color: var(--text-muted); font-style: italic; }
+.code .tok-num     { color: var(--pheromone-overdue); }
+.code .tok-type    { color: var(--pheromone-upstream-changed); }
+
+/* Floating annotations bubbling out of hot lines */
+.code .marginalia {
+  position: absolute;
+  right: -0.25rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex; align-items: center; gap: 0.375rem;
+  background: var(--surface-glass);
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  padding: 0.1875rem 0.625rem 0.1875rem 0.4375rem;
+  font-family: 'Söhne', 'Inter', system-ui, sans-serif;
+  font-size: 0.75rem;                              /* 12px eyebrow — meets exemption: uppercase + weight 700 + letter-spacing 0.12em */
+  text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700;
+  color: var(--text-secondary);
+  backdrop-filter: blur(6px);
+}
+.code .marginalia .who {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-weight: 600; text-transform: none; letter-spacing: 0;
+  color: var(--text-primary);
+}
+.code .marginalia .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--pheromone-hot-editing);
+}
+.code .marginalia.contested .dot { background: var(--pheromone-contested); }
+.code .marginalia.test-failing .dot { background: var(--pheromone-test-failing); }
+.code .marginalia.pinned .dot { background: var(--brand-primary); }
+
+/* ----------------------------------------------------------------------
+   Inspector (right column) — agent filter, dominant kind, cross-file links
+   ---------------------------------------------------------------------- */
+.inspector {
+  grid-area: inspector;
+  background: var(--surface-raised);
+  border-left: 1px solid var(--border-subtle);
+  overflow-y: auto;
+}
+.inspector .group {
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.inspector h3 {
+  margin: 0 0 0.625rem 0;
+  font-size: 0.75rem;                              /* 12px eyebrow — exemption: uppercase + weight 700 + letter-spacing 0.14em */
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* Agent chips */
+.agent-chips { display: flex; flex-wrap: wrap; gap: 0.375rem; }
+.agent-chip {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  padding: 0.3125rem 0.625rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: var(--surface-strong);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: all 160ms cubic-bezier(.2,.6,.2,1);
+}
+.agent-chip[aria-pressed='true'] {
+  color: var(--text-primary);
+  border-color: var(--agent-color, var(--brand-primary));
+  background: color-mix(in oklch, var(--agent-color, var(--brand-primary)) 16%, var(--surface-strong));
+}
+.agent-chip .swatch {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--agent-color, var(--brand-primary));
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--agent-color, var(--brand-primary)) 30%, transparent);
+}
+
+/* Pheromone meter (one per kind active on the target) */
+.pmeter {
+  display: grid;
+  grid-template-columns: 16px 1fr 32px;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  font-size: 0.8125rem;
+}
+.pmeter .glyph {
+  width: 16px; text-align: center; font-size: 0.875rem;
+  color: var(--pheromone-color, var(--text-secondary));
+}
+.pmeter .kind {
+  display: flex; flex-direction: column; gap: 0.125rem;
+}
+.pmeter .kind .name {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8125rem;                            /* 13px — monospace code-identifier text, above caption floor */
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.pmeter .kind .bar {
+  height: 6px; width: 100%;
+  background: color-mix(in oklch, var(--text-primary) 8%, transparent);
+  border-radius: 999px; overflow: hidden;
+  position: relative;
+}
+.pmeter .kind .bar::before {
+  content: '';
+  position: absolute; inset: 0;
+  width: calc(var(--strength, 0) * 100%);
+  background: var(--pheromone-color, var(--brand-primary));
+  border-radius: inherit;
+  transition: width 600ms cubic-bezier(.2,.6,.2,1);
+}
+.pmeter .val {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8125rem; font-variant-numeric: tabular-nums;  /* 13px tabular numeric readout */
+  font-weight: 600;
+  color: var(--text-muted); text-align: right;
+}
+
+/* Advice strings (from sniff API enriched response, vocab v1 § 6) */
+.advice {
+  margin-top: 0.625rem;
+  border-left: 2px solid var(--brand-primary);
+  padding-left: 0.625rem;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* Cross-file link graph — radial stigmergic chain */
+.crosslinks {
+  position: relative;
+  height: 200px;
+  margin-top: 0.5rem;
+}
+.crosslinks svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.crosslinks .node circle {
+  fill: var(--surface-base);
+  stroke: var(--node-color, var(--brand-primary));
+  stroke-width: 1.5;
+  transition: r 200ms ease, fill 200ms ease;
+}
+.crosslinks .node[data-active='1'] circle { fill: var(--node-color, var(--brand-primary)); }
+.crosslinks .node[data-active='1'] text { fill: var(--text-inverse); } /* active nodes fill circle, so label must use inverse to keep contrast */
+.crosslinks .node text {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.75rem;                              /* 12px chart label — exemption: uppercase + weight 700 + letter-spacing 0.1em */
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  fill: var(--text-primary);
+  text-anchor: middle;
+}
+.crosslinks .edge {
+  fill: none;
+  stroke: var(--pheromone-hot-editing);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-dasharray: 4 4;
+  opacity: 0.65;
+  animation: trail-flow 3s linear infinite;
+}
+.crosslinks .edge.contested { stroke: var(--pheromone-contested); stroke-dasharray: 6 3; }
+.crosslinks .edge.cool      { stroke: var(--pheromone-recent-touched); opacity: 0.4; }
+@keyframes trail-flow {
+  0%   { stroke-dashoffset: 16; }
+  100% { stroke-dashoffset: 0;  }
+}
+
+/* ----------------------------------------------------------------------
+   Time-scrubber transport
+   ---------------------------------------------------------------------- */
+.scrub {
+  grid-area: scrub;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 0 1rem;
+  background: var(--surface-raised);
+  border-top: 1px solid var(--border-subtle);
+}
+.scrub .transport {
+  display: inline-flex; gap: 0.25rem;
+  padding: 0.25rem;
+  background: var(--surface-strong);
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+}
+.scrub .transport button {
+  width: 32px; height: 32px;
+  border-radius: 6px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--text-secondary);
+  transition: background 140ms ease, color 140ms ease;
+}
+.scrub .transport button:hover { background: color-mix(in oklch, var(--text-primary) 6%, transparent); color: var(--text-primary); }
+.scrub .transport button[aria-pressed='true'] { background: var(--brand-primary); color: var(--text-inverse); }
+.scrub .transport svg { width: 14px; height: 14px; fill: currentColor; }
+
+.scrub .timeline {
+  position: relative;
+  height: 48px;
+}
+.scrub .timeline .track {
+  position: absolute; left: 0; right: 0; top: 50%;
+  height: 32px; transform: translateY(-50%);
+  background: var(--surface-strong);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.scrub .timeline .density {
+  position: absolute; inset: 0;
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+  align-items: end;
+  pointer-events: none;
+}
+.scrub .timeline .density div {
+  height: calc(var(--h, 0) * 100%);
+  background: linear-gradient(180deg,
+    color-mix(in oklch, var(--pheromone-hot-editing) 80%, transparent),
+    color-mix(in oklch, var(--pheromone-hot-editing) 10%, transparent));
+  opacity: 0.85;
+}
+.scrub .timeline .playhead {
+  position: absolute;
+  top: 0; bottom: 0;
+  left: calc(var(--pos, 78) * 1%);
+  width: 2px;
+  background: var(--brand-primary);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--brand-primary) 30%, transparent);
+}
+.scrub .timeline .ticks {
+  position: absolute; left: 0; right: 0; top: 100%;
+  display: flex; justify-content: space-between;
+  font-size: 0.75rem;                              /* 12px eyebrow — uppercase + weight 700 + tracked */
+  text-transform: uppercase; font-weight: 700; letter-spacing: 0.12em;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  margin-top: 0.25rem;
+}
+.scrub .range {
+  display: inline-flex; gap: 0.25rem;
+  padding: 0.25rem;
+  background: var(--surface-strong);
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+}
+.scrub .range button {
+  padding: 0.3125rem 0.6875rem;
+  font-size: 0.75rem;                              /* 12px eyebrow — uppercase + weight 700 + 0.1em */
+  font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--text-secondary);
+  border-radius: 4px;
+}
+.scrub .range button[aria-pressed='true'] {
+  background: var(--brand-primary); color: var(--text-inverse);
+}
+
+/* ----------------------------------------------------------------------
+   Lucide-ish inline icons via CSS masks (no emojis as UI)
+   ---------------------------------------------------------------------- */
+:root {
+  --anchor-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'><circle cx='12' cy='5' r='2.4'/><path d='M12 7v12M3 13a9 9 0 0 0 18 0' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'/></svg>");
+  --icon-folder: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'><path d='M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6z'/></svg>");
+  --icon-file:   url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z'/></svg>");
+}
+
+/* Theme toggle is intentionally last */
+.theme-toggle {
+  display: inline-flex; align-items: center; gap: 0.375rem;
+  padding: 0.4375rem 0.6875rem;
+  font-size: 0.75rem; font-weight: 700;            /* 12px eyebrow — uppercase + weight 700 + 0.1em */
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text-secondary);
+  background: var(--surface-strong);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body data-replay="live">
+
+<div class="app">
+
+  <!-- ====== TOP BAR ====== -->
+  <header class="topbar">
+    <div class="brand"><span class="brand-glyph"></span> Port Daddy / Attention</div>
+    <div class="crumb">
+      <code>port-daddy</code>
+      <span>›</span>
+      <code>main</code>
+      <span>›</span>
+      <code>lib/pheromone.ts</code>
+    </div>
+    <div class="grow"></div>
+    <div class="actions">
+      <button class="pill" aria-pressed="true"><span class="dot"></span> live</button>
+      <button class="pill" aria-pressed="false">replay</button>
+      <button class="theme-toggle" onclick="document.documentElement.setAttribute('data-theme', document.documentElement.getAttribute('data-theme')==='dark' ? 'light' : 'dark')">theme</button>
+    </div>
+  </header>
+
+  <!-- ====== FILE TREE ====== -->
+  <aside class="tree" aria-label="File tree with attention heat">
+    <div class="section-label">port-daddy</div>
+
+    <div class="row" data-depth="0" aria-selected="false">
+      <span class="caret">▾</span><span class="icon folder"></span>
+      <span class="name">lib/</span>
+      <span class="heat" style="--intensity: 0.95; --hue: var(--pheromone-hot-editing);"></span>
+      <span class="glyphs"><span class="always-visible test-failing">!</span></span>
+    </div>
+
+    <div class="row" data-depth="1" aria-selected="true">
+      <span></span><span class="icon file"></span>
+      <span class="name">pheromone.ts</span>
+      <span class="heat" style="--intensity: 0.98; --hue: var(--pheromone-hot-editing);"></span>
+      <span class="glyphs"><span>z</span></span>
+    </div>
+    <div class="row" data-depth="1">
+      <span></span><span class="icon file"></span>
+      <span class="name">sessions.ts</span>
+      <span class="heat" style="--intensity: 0.74; --hue: var(--pheromone-contested);"></span>
+      <span class="glyphs"><span class="always-visible">b</span></span>
+    </div>
+    <div class="row" data-depth="1">
+      <span></span><span class="icon file"></span>
+      <span class="name">sugar.ts</span>
+      <span class="heat" style="--intensity: 0.61; --hue: var(--pheromone-hot-editing);"></span>
+      <span class="glyphs"></span>
+    </div>
+    <div class="row" data-depth="1">
+      <span></span><span class="icon file"></span>
+      <span class="name">bonds.ts</span>
+      <span class="heat" style="--intensity: 0.42; --hue: var(--pheromone-cost-burning);"></span>
+      <span class="glyphs"><span class="always-visible cost-burning">$</span></span>
+    </div>
+    <div class="row" data-depth="1">
+      <span></span><span class="icon file"></span>
+      <span class="name">attention.ts</span>
+      <span class="heat" style="--intensity: 0.18; --hue: var(--pheromone-recent-touched);"></span>
+      <span class="glyphs"></span>
+    </div>
+    <div class="row" data-depth="1">
+      <span></span><span class="icon file"></span>
+      <span class="name">tuples.ts</span>
+      <span class="heat" style="--intensity: 0.08; --hue: var(--pheromone-recent-touched);"></span>
+      <span class="glyphs"></span>
+    </div>
+
+    <div class="row" data-depth="0">
+      <span class="caret">▾</span><span class="icon folder"></span>
+      <span class="name">routes/</span>
+      <span class="heat" style="--intensity: 0.55; --hue: var(--pheromone-hot-editing);"></span>
+      <span class="glyphs"></span>
+    </div>
+    <div class="row" data-depth="1">
+      <span></span><span class="icon file"></span>
+      <span class="name">pheromone.ts</span>
+      <span class="heat" style="--intensity: 0.78; --hue: var(--pheromone-hot-editing);"></span>
+      <span class="glyphs"></span>
+    </div>
+    <div class="row" data-depth="1">
+      <span></span><span class="icon file"></span>
+      <span class="name">spawn.ts</span>
+      <span class="heat" style="--intensity: 0.36; --hue: var(--pheromone-recent-touched);"></span>
+      <span class="glyphs"></span>
+    </div>
+    <div class="row" data-depth="1">
+      <span></span><span class="icon file"></span>
+      <span class="name">sessions.ts</span>
+      <span class="heat" style="--intensity: 0.22; --hue: var(--pheromone-recent-touched);"></span>
+      <span class="glyphs"></span>
+    </div>
+
+    <div class="row" data-depth="0">
+      <span class="caret">▾</span><span class="icon folder"></span>
+      <span class="name">cli/commands/</span>
+      <span class="heat" style="--intensity: 0.28; --hue: var(--pheromone-recent-touched);"></span>
+      <span class="glyphs"></span>
+    </div>
+    <div class="row" data-depth="1">
+      <span></span><span class="icon file"></span>
+      <span class="name">pheromone.ts</span>
+      <span class="heat" style="--intensity: 0.31; --hue: var(--pheromone-recent-touched);"></span>
+      <span class="glyphs"></span>
+    </div>
+
+    <div class="row" data-depth="0">
+      <span class="caret">▾</span><span class="icon folder"></span>
+      <span class="name">docs/</span>
+      <span class="heat" style="--intensity: 0.46; --hue: var(--pheromone-stale-doc);"></span>
+      <span class="glyphs"></span>
+    </div>
+    <div class="row" data-depth="1">
+      <span></span><span class="icon file"></span>
+      <span class="name">ROADMAP.md</span>
+      <span class="heat" style="--intensity: 0.51; --hue: var(--pheromone-stale-doc);"></span>
+      <span class="glyphs"></span>
+    </div>
+    <div class="row" data-depth="1">
+      <span></span><span class="icon file"></span>
+      <span class="name">design/pheromone-vocabulary-v1.md</span>
+      <span class="heat" style="--intensity: 0.62; --hue: var(--pheromone-hot-editing);"></span>
+      <span class="glyphs"></span>
+    </div>
+
+    <div class="section-label" style="margin-top:.75rem;">cold corner</div>
+    <div class="row" data-depth="0">
+      <span></span><span class="icon file"></span>
+      <span class="name">lib/legacy/dock.ts</span>
+      <span class="heat" style="--intensity: 0.08; --hue: var(--pheromone-cold-abandoned);"></span>
+      <span class="glyphs"><span>t</span></span>
+    </div>
+  </aside>
+
+  <!-- ====== VIEWER ====== -->
+  <main class="viewer" aria-label="File viewer with line-level heat gutter">
+    <div class="header">
+      <div class="path">
+        <span class="scope">lib</span><span class="sep">/</span>pheromone<span class="sep">.</span><span class="scope">ts</span>
+      </div>
+      <div class="dom">
+        dominant:
+        <span class="badge">attention:human-blocked</span>
+        <span class="mono" style="font-size:.8125rem; color:var(--text-muted); font-variant-numeric: tabular-nums; font-weight: 600;">urgency 0.86</span>
+      </div>
+    </div>
+
+    <div class="body">
+      <!-- LINE NUMBER + HEAT GUTTER -->
+      <div class="gutter" aria-hidden="true">
+        <!-- Each .line: --cell-color (which kind), --cell-opacity (strength), --cell-seed (anim offset) -->
+        <div class="line"><span class="n">  1</span><span class="heat-cell" style="--cell-color: var(--pheromone-recent-touched); --cell-opacity: 0.30; --cell-seed: 0.1;"></span></div>
+        <div class="line"><span class="n">  2</span><span class="heat-cell" style="--cell-color: var(--pheromone-recent-touched); --cell-opacity: 0.30; --cell-seed: 0.2;"></span></div>
+        <div class="line"><span class="n">  3</span><span class="heat-cell" style="--cell-color: var(--pheromone-recent-touched); --cell-opacity: 0.32; --cell-seed: 0.3;"></span></div>
+        <div class="line"><span class="n">  4</span><span class="heat-cell" style="--cell-color: var(--pheromone-hot-editing); --cell-opacity: 0.55; --cell-seed: 0.4;"></span></div>
+        <div class="line"><span class="n">  5</span><span class="heat-cell" style="--cell-color: var(--pheromone-hot-editing); --cell-opacity: 0.72; --cell-seed: 0.5;"></span></div>
+        <div class="line"><span class="n">  6</span><span class="heat-cell" style="--cell-color: var(--pheromone-hot-editing); --cell-opacity: 0.78; --cell-seed: 0.05;"></span></div>
+        <div class="line"><span class="n">  7</span><span class="heat-cell" style="--cell-color: var(--pheromone-hot-editing); --cell-opacity: 0.86; --cell-seed: 0.25;"></span></div>
+        <div class="line"><span class="n">  8</span><span class="heat-cell" style="--cell-color: var(--pheromone-test-failing); --cell-opacity: 0.95; --cell-seed: 0.6;"></span></div>
+        <div class="line"><span class="n">  9</span><span class="heat-cell" style="--cell-color: var(--pheromone-test-failing); --cell-opacity: 0.95; --cell-seed: 0.6;"></span></div>
+        <div class="line"><span class="n"> 10</span><span class="heat-cell" style="--cell-color: var(--pheromone-test-failing); --cell-opacity: 0.93; --cell-seed: 0.7;"></span></div>
+        <div class="line"><span class="n"> 11</span><span class="heat-cell" style="--cell-color: var(--pheromone-test-failing); --cell-opacity: 0.82; --cell-seed: 0.8;"></span></div>
+        <div class="line"><span class="n"> 12</span><span class="heat-cell" style="--cell-color: var(--pheromone-hot-editing); --cell-opacity: 0.62; --cell-seed: 0.15;"></span></div>
+        <div class="line"><span class="n"> 13</span><span class="heat-cell" style="--cell-color: var(--pheromone-recent-touched); --cell-opacity: 0.45; --cell-seed: 0.35;"></span></div>
+        <div class="line"><span class="n"> 14</span><span class="heat-cell" style="--cell-color: var(--pheromone-recent-touched); --cell-opacity: 0.40; --cell-seed: 0.45;"></span></div>
+        <div class="line"><span class="n"> 15</span><span class="heat-cell" style="--cell-color: var(--pheromone-recent-touched); --cell-opacity: 0.38; --cell-seed: 0.55;"></span></div>
+        <div class="line"><span class="n"> 16</span><span class="heat-cell" style="--cell-color: var(--pheromone-contested); --cell-opacity: 0.78; --cell-seed: 0.65;"></span></div>
+        <div class="line"><span class="n"> 17</span><span class="heat-cell" style="--cell-color: var(--pheromone-contested); --cell-opacity: 0.85; --cell-seed: 0.05;"></span></div>
+        <div class="line"><span class="n"> 18</span><span class="heat-cell" style="--cell-color: var(--pheromone-contested); --cell-opacity: 0.80; --cell-seed: 0.15;"></span></div>
+        <div class="line"><span class="n"> 19</span><span class="heat-cell" style="--cell-color: var(--pheromone-hot-editing); --cell-opacity: 0.50; --cell-seed: 0.85;"></span></div>
+        <div class="line"><span class="n"> 20</span><span class="heat-cell" style="--cell-color: var(--pheromone-hot-editing); --cell-opacity: 0.44; --cell-seed: 0.25;"></span></div>
+        <div class="line"><span class="n"> 21</span><span class="heat-cell" style="--cell-color: var(--pheromone-recent-touched); --cell-opacity: 0.20; --cell-seed: 0.95;"></span></div>
+        <div class="line"><span class="n"> 22</span><span class="heat-cell" style="--cell-color: var(--pheromone-recent-touched); --cell-opacity: 0.18; --cell-seed: 0.05;"></span></div>
+        <div class="line"><span class="n"> 23</span><span class="heat-cell" style="--cell-color: var(--pheromone-recent-touched); --cell-opacity: 0.12; --cell-seed: 0.15;"></span></div>
+      </div>
+
+      <!-- ACTUAL CODE -->
+      <div class="code">
+        <span class="line" data-attn="warm"><span class="tok-com">// lib/pheromone.ts — single global decayRate today; per-kind tomorrow.</span></span>
+        <span class="line" data-attn="warm"><span class="tok-com">// See docs/design/pheromone-vocabulary-v1.md § 3 for the half-life model.</span></span>
+        <span class="line"></span>
+        <span class="line" data-attn="hot"><span class="tok-kw">import</span> <span class="tok-fn">type</span> { <span class="tok-type">DatabaseInstance</span> } <span class="tok-kw">from</span> <span class="tok-str">'./sqlite-runtime.js'</span>;</span>
+        <span class="line" data-attn="hot"><span class="tok-kw">import</span> { <span class="tok-fn">KIND_CATALOG</span> } <span class="tok-kw">from</span> <span class="tok-str">'./pheromone-kinds.js'</span>;</span>
+        <span class="line"></span>
+        <span class="line" data-attn="pinned"><span class="tok-kw">export</span> <span class="tok-kw">function</span> <span class="tok-fn">createPheromoneManager</span>(db: <span class="tok-type">DatabaseInstance</span>) {
+          <span class="marginalia pinned"><span class="dot"></span> operator pin · <span class="who">erich</span></span>
+        </span>
+        <span class="line" data-attn="test-failing">  <span class="tok-kw">const</span> <span class="tok-fn">decayOnRead</span> = (key: <span class="tok-type">string</span>, v: <span class="tok-type">number</span>, dt: <span class="tok-type">number</span>) => {
+          <span class="marginalia test-failing"><span class="dot"></span> tests red · <span class="who">2 fail</span></span>
+        </span>
+        <span class="line" data-attn="test-failing">    <span class="tok-kw">const</span> meta = <span class="tok-fn">KIND_CATALOG</span>[key];</span>
+        <span class="line" data-attn="test-failing">    <span class="tok-kw">if</span> (!meta) <span class="tok-kw">return</span> v; <span class="tok-com">// legacy kind, no decay</span></span>
+        <span class="line" data-attn="test-failing">    <span class="tok-kw">return</span> v * <span class="tok-fn">Math</span>.pow(<span class="tok-num">0.5</span>, dt / meta.halfLifeS);</span>
+        <span class="line" data-attn="hot">  };</span>
+        <span class="line"></span>
+        <span class="line"></span>
+        <span class="line"></span>
+        <span class="line" data-attn="contested">  <span class="tok-kw">function</span> <span class="tok-fn">spray</span>(table: <span class="tok-type">string</span>, id: <span class="tok-type">string</span>, key: <span class="tok-type">string</span>, strength: <span class="tok-type">number</span>) {
+          <span class="marginalia contested"><span class="dot"></span> contested · <span class="who">claude · codex</span></span>
+        </span>
+        <span class="line" data-attn="contested">    <span class="tok-kw">const</span> kind = <span class="tok-fn">KIND_CATALOG</span>[key];</span>
+        <span class="line" data-attn="contested">    <span class="tok-kw">if</span> (!kind) <span class="tok-fn">warn</span>(<span class="tok-str">`pheromone: unknown kind ${key}`</span>);</span>
+        <span class="line"></span>
+        <span class="line"></span>
+        <span class="line"></span>
+        <span class="line"></span>
+        <span class="line"></span>
+        <span class="line"></span>
+      </div>
+    </div>
+  </main>
+
+  <!-- ====== INSPECTOR ====== -->
+  <aside class="inspector" aria-label="Pheromone inspector">
+
+    <div class="group">
+      <h3>Filter by agent</h3>
+      <div class="agent-chips">
+        <button class="agent-chip" aria-pressed="true" style="--agent-color: oklch(74% 0.14 250);">
+          <span class="swatch"></span><span>claude-cli</span>
+        </button>
+        <button class="agent-chip" aria-pressed="true" style="--agent-color: oklch(75% 0.14 145);">
+          <span class="swatch"></span><span>codex</span>
+        </button>
+        <button class="agent-chip" aria-pressed="false" style="--agent-color: oklch(70% 0.18 28);">
+          <span class="swatch"></span><span>nightshift</span>
+        </button>
+        <button class="agent-chip" aria-pressed="true" style="--agent-color: oklch(82% 0.10 75);">
+          <span class="swatch"></span><span>gardener</span>
+        </button>
+        <button class="agent-chip" aria-pressed="false" style="--agent-color: oklch(78% 0.10 200);">
+          <span class="swatch"></span><span>operator</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="group">
+      <h3>Pheromones on this file</h3>
+
+      <div class="pmeter" style="--pheromone-color: var(--pheromone-human-blocked);">
+        <span class="glyph">!</span>
+        <div class="kind">
+          <span class="name">attention:human-blocked</span>
+          <span class="bar" style="--strength: 1.0;"></span>
+        </div>
+        <span class="val">1.00</span>
+      </div>
+
+      <div class="pmeter" style="--pheromone-color: var(--pheromone-test-failing);">
+        <span class="glyph">!</span>
+        <div class="kind">
+          <span class="name">quality:test-failing</span>
+          <span class="bar" style="--strength: 0.95;"></span>
+        </div>
+        <span class="val">0.95</span>
+      </div>
+
+      <div class="pmeter" style="--pheromone-color: var(--pheromone-hot-editing);">
+        <span class="glyph">z</span>
+        <div class="kind">
+          <span class="name">hot:editing</span>
+          <span class="bar" style="--strength: 0.78;"></span>
+        </div>
+        <span class="val">0.78</span>
+      </div>
+
+      <div class="pmeter" style="--pheromone-color: var(--pheromone-contested);">
+        <span class="glyph">+</span>
+        <div class="kind">
+          <span class="name">claim:contested</span>
+          <span class="bar" style="--strength: 0.62;"></span>
+        </div>
+        <span class="val">0.62</span>
+      </div>
+
+      <div class="pmeter" style="--pheromone-color: var(--pheromone-cost-burning);">
+        <span class="glyph">$</span>
+        <div class="kind">
+          <span class="name">cost:burning</span>
+          <span class="bar" style="--strength: 0.41;"></span>
+        </div>
+        <span class="val">0.41</span>
+      </div>
+
+      <div class="pmeter" style="--pheromone-color: var(--pheromone-recent-touched);">
+        <span class="glyph">·</span>
+        <div class="kind">
+          <span class="name">recent:touched</span>
+          <span class="bar" style="--strength: 0.32;"></span>
+        </div>
+        <span class="val">0.32</span>
+      </div>
+
+      <div class="advice">
+        an agent is waiting on the operator here; don't dispatch parallel work that depends on this resolution.
+      </div>
+    </div>
+
+    <div class="group">
+      <h3>Cross-file trails (last 30 min)</h3>
+      <div class="crosslinks">
+        <svg viewBox="0 0 300 200">
+          <!-- edges drawn before nodes so the dots land on top -->
+          <path class="edge"           d="M150 90 C 180 50, 230 50, 250 80" />
+          <path class="edge"           d="M150 90 C 110 70, 70 80, 50 105" />
+          <path class="edge contested" d="M150 90 C 145 120, 155 140, 165 165" />
+          <path class="edge cool"      d="M150 90 C 220 130, 250 150, 245 175" />
+          <path class="edge cool"      d="M150 90 C 80 140, 55 160, 55 175" />
+
+          <g class="node" data-active="1" style="--node-color: var(--pheromone-human-blocked);">
+            <circle cx="150" cy="90" r="14"></circle>
+            <text x="150" y="93">pheromone.ts</text>
+          </g>
+          <g class="node" style="--node-color: var(--pheromone-hot-editing);">
+            <circle cx="250" cy="80" r="10"></circle>
+            <text x="250" y="62">routes/pheromone.ts</text>
+          </g>
+          <g class="node" style="--node-color: var(--pheromone-hot-editing);">
+            <circle cx="50" cy="105" r="10"></circle>
+            <text x="50" y="87">pheromone-kinds.ts</text>
+          </g>
+          <g class="node" style="--node-color: var(--pheromone-contested);">
+            <circle cx="165" cy="165" r="11"></circle>
+            <text x="165" y="190">sessions.ts</text>
+          </g>
+          <g class="node" style="--node-color: var(--pheromone-recent-touched);">
+            <circle cx="245" cy="175" r="8"></circle>
+            <text x="245" y="195">tuples.ts</text>
+          </g>
+          <g class="node" style="--node-color: var(--pheromone-recent-touched);">
+            <circle cx="55" cy="175" r="8"></circle>
+            <text x="55" y="195">bonds.ts</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+
+    <div class="group">
+      <h3>Recent attention events</h3>
+      <div class="mono" style="font-size: 0.8125rem; line-height: 1.7; color: var(--text-secondary); font-variant-numeric: tabular-nums;">
+        <div><span style="color:var(--brand-primary);">17:42:13</span> claude-cli  read  lines 4-12  · 1.2k tok</div>
+        <div><span style="color:var(--brand-primary);">17:42:09</span> codex       claim L16-L18 · contested</div>
+        <div><span style="color:var(--brand-primary);">17:41:58</span> claude-cli  cited line 7 → routes/pheromone.ts L46</div>
+        <div><span style="color:var(--brand-primary);">17:41:31</span> gardener    note "decay-per-kind landed in spray hook"</div>
+        <div><span style="color:var(--brand-primary);">17:40:04</span> operator    pinned L6 "createPheromoneManager"</div>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- ====== TIME SCRUBBER ====== -->
+  <footer class="scrub">
+    <div class="transport" role="group" aria-label="Replay transport">
+      <button type="button" title="back 1 min" aria-label="Back 1 minute">
+        <svg viewBox="0 0 24 24"><path d="M11 5l-7 7 7 7zM21 5l-7 7 7 7z"/></svg>
+      </button>
+      <button type="button" title="play/pause" aria-pressed="true" aria-label="Play or pause replay">
+        <svg viewBox="0 0 24 24"><path d="M8 5v14h3V5H8zm5 0v14h3V5h-3z"/></svg>
+      </button>
+      <button type="button" title="forward 1 min" aria-label="Forward 1 minute">
+        <svg viewBox="0 0 24 24"><path d="M4 5l7 7-7 7zM14 5l7 7-7 7z"/></svg>
+      </button>
+    </div>
+
+    <div class="timeline">
+      <div class="track">
+        <div class="density">
+          <!-- 60 bars; --h is normalized 0..1 — generated to feel real, not random -->
+          <div style="--h:.10"></div><div style="--h:.15"></div><div style="--h:.20"></div>
+          <div style="--h:.16"></div><div style="--h:.18"></div><div style="--h:.22"></div>
+          <div style="--h:.30"></div><div style="--h:.42"></div><div style="--h:.55"></div>
+          <div style="--h:.48"></div><div style="--h:.38"></div><div style="--h:.30"></div>
+          <div style="--h:.25"></div><div style="--h:.20"></div><div style="--h:.22"></div>
+          <div style="--h:.34"></div><div style="--h:.46"></div><div style="--h:.58"></div>
+          <div style="--h:.70"></div><div style="--h:.82"></div><div style="--h:.74"></div>
+          <div style="--h:.62"></div><div style="--h:.55"></div><div style="--h:.48"></div>
+          <div style="--h:.45"></div><div style="--h:.50"></div><div style="--h:.62"></div>
+          <div style="--h:.70"></div><div style="--h:.78"></div><div style="--h:.86"></div>
+          <div style="--h:.92"></div><div style="--h:.88"></div><div style="--h:.82"></div>
+          <div style="--h:.70"></div><div style="--h:.60"></div><div style="--h:.52"></div>
+          <div style="--h:.46"></div><div style="--h:.40"></div><div style="--h:.42"></div>
+          <div style="--h:.50"></div><div style="--h:.62"></div><div style="--h:.72"></div>
+          <div style="--h:.80"></div><div style="--h:.78"></div><div style="--h:.74"></div>
+          <div style="--h:.68"></div><div style="--h:.60"></div><div style="--h:.52"></div>
+          <div style="--h:.55"></div><div style="--h:.68"></div><div style="--h:.78"></div>
+          <div style="--h:.85"></div><div style="--h:.92"></div><div style="--h:.98"></div>
+          <div style="--h:.95"></div><div style="--h:.92"></div><div style="--h:.86"></div>
+          <div style="--h:.80"></div><div style="--h:.75"></div><div style="--h:.66"></div>
+        </div>
+        <div class="playhead" style="--pos: 88;"></div>
+      </div>
+      <div class="ticks">
+        <span>1h ago</span><span>45m</span><span>30m</span><span>15m</span><span>now</span>
+      </div>
+    </div>
+
+    <div class="range">
+      <button>1h</button>
+      <button aria-pressed="true">4h</button>
+      <button>1d</button>
+      <button>sprint</button>
+    </div>
+  </footer>
+
+</div>
+
+</body>
+</html>
