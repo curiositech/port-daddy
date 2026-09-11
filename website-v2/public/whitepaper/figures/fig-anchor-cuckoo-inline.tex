@@ -1,64 +1,79 @@
 % Semantic contract: lossy filter encodings do not have a safe union operation;
-% authoritative IDs do. Tiny slot rails are data marks, not a storage UI.
+% authoritative IDs do. A before/after pair, same six-bucket geometry in both
+% panels, so the reader compares bucket occupancy directly, not a metaphor.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \newcommand{\slotrail}[3]{%
-    \foreach \i in {0,...,7} {
-      \draw[hhgray!70,line width=.45pt,fill=hhsand!12]
-        (#1+\i*.48,#2) rectangle ++(.42,.42);
-    }
-    \node[pd axis label,anchor=east] at (#1-.18,#2+.21) {#3};
-  }
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
+    bucket/.style={pd state,minimum width=.82cm,minimum height=.82cm,
+      inner sep=0pt,font=\footnotesize\bfseries,rounded corners=1pt},
+    idtext/.style={font=\footnotesize\bfseries,text=hhpaper}]
+  \newcommand{\rowlabelnode}[2]{\node[pd row label,anchor=east] at (-.3,#1) {#2};}
 
-  \node[pd panel title,anchor=west] at (-5.7,3.45) {lossy encodings remember insertion history};
-  \slotrail{-4.9}{2.25}{peer $A$}
-  \slotrail{1.15}{2.25}{peer $B$}
-  \fill[hhteal] (-4.9+.96,2.25) rectangle ++(.42,.42);
-  \node[font=\tiny\bfseries,text=white] at (-4.9+.96+.21,2.46) {c1};
-  \fill[hhteal] (1.15+2.88,2.25) rectangle ++(.42,.42);
-  \node[font=\tiny\bfseries,text=white] at (1.15+2.88+.21,2.46) {c1};
-  \fill[hhgray!65] (-4.9+2.4,2.25) rectangle ++(.42,.42);
-  \fill[hhgray!65] (1.15+.48,2.25) rectangle ++(.42,.42);
-  \node[pd direct label,anchor=south] at (-2.98,2.8) {same revoked ID};
-  \node[pd direct label,anchor=south] at (3.07,2.8) {different resting bucket};
+  % ---------- panel 1: filters do not merge ----------
+  \node[pd panel title,anchor=west] at (-.3,8.85) {filters do not merge};
 
-  \draw[pd caution arrow] (-2.98,2.05) to[out=-70,in=160] (-.9,.95);
-  \draw[pd caution arrow] (3.07,2.05) to[out=-110,in=20] (.9,.95);
-  \slotrail{-1.92}{.36}{bitwise OR}
-  \fill[hhamber] (-1.92+.96,.36) rectangle ++(.42,.42);
-  \fill[hhamber] (-1.92+2.88,.36) rectangle ++(.42,.42);
-  \node[font=\tiny\bfseries,text=white] at (-1.92+.96+.21,.57) {c1};
-  \node[font=\tiny\bfseries,text=white] at (-1.92+2.88+.21,.57) {c1};
-  \draw[draw=hhamber,line width=.85pt,decorate,decoration={brace,amplitude=4pt,mirror}]
-    (-.75,.24) -- (1.47,.24);
-  \node[pd direct label,text=hhamber,anchor=north] at (.36,-.12)
-    {no valid single-filter history};
+  \rowlabelnode{7.55}{peer $A$}
+  \foreach \i in {1,...,6} \node[bucket] (a\i) at (\i-1,7.55) {};
+  \node[bucket,pd caution fill,idtext,text=hhink] at (a2) {c1};
 
-  \draw[pd hairline] (-5.7,-.75) -- (5.7,-.75);
-  \node[pd panel title,anchor=west] at (-5.7,-1.12) {authoritative IDs have a lawful union};
-  \foreach \x/\id in {-4.85/a7,-3.85/c1,-2.85/f4} {
-    \node[circle,draw=hhink,fill=hhpaper,minimum size=7mm,inner sep=0pt,font=\tiny] at (\x,-2.0) {\texttt{\id}};
+  \rowlabelnode{6.35}{peer $B$}
+  \foreach \i in {1,...,6} \node[bucket] (b\i) at (\i-1,6.35) {};
+  \node[bucket,pd caution fill,idtext,text=hhink] at (b5) {c1};
+
+  \rowlabelnode{5.15}{$A$ OR $B$}
+  \foreach \i in {1,...,6} \node[bucket] (o\i) at (\i-1,5.15) {};
+  \node[bucket,pd caution fill,idtext,text=hhink] at (o2) {c1};
+  \node[bucket,pd caution fill,idtext,text=hhink] at (o5) {c1};
+
+  \foreach \i in {1,...,6} {
+    \draw[pd tick] (\i-1,4.7) -- (\i-1,4.58);
+    \node[pd axis label,anchor=north] at (\i-1,4.55) {\i};
   }
-  \foreach \x/\id in {-4.35/b2,-3.35/c1,-2.35/e9} {
-    \node[circle,draw=hhgray,fill=hhpaper,minimum size=7mm,inner sep=0pt,font=\tiny] at (\x,-2.72) {\texttt{\id}};
+  \node[pd note,align=center,text width=8.6cm,anchor=north] at (2.5,4.05)
+    {two placements, one id: not a filter anyone built};
+
+  % ---------- divider ----------
+  \draw[pd hairline] (-.9,3.3) -- (5.9,3.3);
+
+  % ---------- panel 2: the log merges ----------
+  \node[pd panel title,anchor=west] at (-.3,2.75) {the log merges};
+
+  \node[pd direct label,anchor=west,font=\footnotesize\ttfamily,inner sep=3pt] (lA) at (-.3,1.9)
+    {A: c1 c7 c4};
+  \node[pd direct label,anchor=west,font=\footnotesize\ttfamily,inner sep=3pt] (lB) at (-.3,1.15)
+    {B: c2 c1 c9};
+  \draw[pd focus arrow] (lA.east) ++(2.55,.375) to[out=0,in=160] (5.2,1.9);
+  \draw[pd focus arrow] (lB.east) ++(2.55,-.375) to[out=0,in=200] (5.2,1.9);
+  \node[pd direct label,anchor=west,font=\footnotesize\bfseries,text=hhteal] at (5.35,1.9)
+    {union: c1 c2 c4 c7 c9};
+
+  \draw[pd focus arrow] (2.5,.65) -- (2.5,-.15);
+  \node[pd note,anchor=north,align=center,text width=5.1cm] at (7.6,1.55)
+    {\hyphenpenalty=10000\exhyphenpenalty=10000
+     set union over IDs is always well defined};
+
+  \rowlabelnode{-.85}{rebuilt}
+  \foreach \i in {1,...,6} \node[bucket] (r\i) at (\i-1,-.85) {};
+  \node[bucket,pd neutral fill,idtext,text=hhink] at (r1) {c2};
+  \node[bucket,pd focus fill,idtext,text=hhink] at (r2) {c1};
+  \node[bucket,pd neutral fill,idtext,text=hhink] at (r3) {c4};
+  \node[bucket,pd neutral fill,idtext,text=hhink] at (r4) {c7};
+  \node[bucket,pd neutral fill,idtext,text=hhink] at (r5) {c9};
+  \foreach \i in {1,...,6} {
+    \draw[pd tick] (\i-1,-1.3) -- (\i-1,-1.42);
+    \node[pd axis label,anchor=north] at (\i-1,-1.45) {\i};
   }
-  \node[pd axis label,anchor=east] at (-5.28,-2.0) {$R_A$};
-  \node[pd axis label,anchor=east] at (-5.28,-2.72) {$R_B$};
-  \draw[pd focus arrow] (-1.92,-2.36) -- (.0,-2.36);
-  \node[pd direct label,text=hhteal,anchor=south] at (-.95,-2.28) {set union};
-  \draw[pd focus arrow] (.2,-2.36) -- (1.75,-2.36);
-  \slotrail{2.05}{-2.57}{rebuild}
-  \fill[hhteal] (2.05+.48,-2.57) rectangle ++(.42,.42);
-  \fill[hhteal] (2.05+1.92,-2.57) rectangle ++(.42,.42);
-  \fill[hhteal] (2.05+2.88,-2.57) rectangle ++(.42,.42);
-  \node[pd note,anchor=west] at (2.05,-3.05) {one consistent local projection};
+  \node[pd note,align=center,text width=8.6cm,anchor=north] at (2.5,-1.95)
+    {c1 occupies one bucket once: one valid local projection};
 \end{tikzpicture}
-\caption{Filter state is not a mergeable set representation. The same revoked
-ID can occupy different buckets after different insertion and eviction histories;
-bitwise OR preserves both lossy placements and yields no coherent deletion
-history. Revocation IDs, by contrast, admit ordinary set union. Each daemon can
-therefore merge the append-only log and rebuild one valid local filter without
-risking a false negative through cross-peer filter mutation.}
+\caption{Two six-bucket cuckoo filters compared before and after the design
+change. Top: peer $A$ inserts \texttt{c1} into bucket 2 and peer $B$ inserts
+the same \texttt{c1} into bucket 5, an artifact of each peer's own insertion
+and eviction history; bitwise \texttt{OR} keeps both placements, which is a
+state no single filter build could have produced. Bottom: gossiping the
+append-only ID log instead---peer $A$'s \texttt{c1 c7 c4} and peer $B$'s
+\texttt{c2 c1 c9}---and taking the ordinary set union gives \texttt{c1 c2 c4
+c7 c9}; each daemon rebuilds one local filter with \texttt{c1} in a single
+bucket. [internal]}
 \label{fig:anchor-cuckoo-inline}
 \end{figure}

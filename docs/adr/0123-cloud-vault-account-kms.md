@@ -314,7 +314,7 @@ grand plan's N1 ruling, adopted here as a launch precondition.
 
 This ADR is one of the Phase-0 groundwork set (ADR-0122 through ADR-0126)
 that the binder requires before the hosted tier ships. ADR-0122 (harbor
-authority epochs) is load-bearing here: §4's rekey epoch *is* that ADR's
+authority epochs) is core here: §4's rekey epoch *is* that ADR's
 epoch counter — one counter, two consumers, no second clock. ADR-0124,
 ADR-0125, and ADR-0126 land alongside and build on the custody rules fixed
 here; where they move keys or content across a boundary, this ADR's §2

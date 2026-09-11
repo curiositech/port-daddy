@@ -240,7 +240,7 @@ The planning outline is an externalized, inspectable data structure, not hidden 
 - Partial execution and resume-from-checkpoint
 - Structure reuse for similar queries
 
-For WinDAGs, materialize the DAG structure before executing it, allowing inspection and modification.
+For Jury-rig, materialize the DAG structure before executing it, allowing inspection and modification.
 
 **Principle 3: Defer Knowledge Loading**
 Don't query knowledge bases during structure generation. Determine *what* knowledge is needed, then load it during execution *when* needed. This prevents:

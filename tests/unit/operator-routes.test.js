@@ -77,6 +77,43 @@ describe('operator routes', () => {
     });
   });
 
+  test('GET /operator/session-directory returns the daemon-authored cross-berth projection', async () => {
+    const directory = {
+      schema: 'pd.operator.session-directory.v0',
+      generatedAt: 1_777_777_777_777,
+      sessions: [{
+        id: 'session-shared',
+        purpose: 'Continue one conversation across berths',
+        status: 'active',
+        locations: [
+          { id: 'stable', state: 'online' },
+          { id: 'profile:feature-a', state: 'online' },
+        ],
+      }],
+      locations: [],
+      summary: {
+        sessions: 1,
+        active: 1,
+        onlineLocations: 2,
+        offlineLocations: 0,
+        unknownProviders: 1,
+      },
+    };
+    const sessionDirectory = jest.fn(async () => directory);
+    const { app, register } = buildApp({ sessionDirectory });
+    await register();
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/operator/session-directory',
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual(directory);
+    expect(sessionDirectory).toHaveBeenCalledTimes(1);
+    await app.close();
+  });
+
   test('POST /operator/open-file opens a relative file in the default editor', async () => {
     const { app, register } = buildApp();
     await register();

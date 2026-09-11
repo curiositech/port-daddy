@@ -42,7 +42,7 @@ The interaction history grows beyond the model's maximum context window. In Agen
 
 **What this indicates**: The environment's information density exceeds the agent's memory capacity. This is fundamentally an architectural limitation, not a reasoning failure. For agent systems, this reveals tasks that require either context summarization, external memory systems, or hierarchical decomposition.
 
-**Design implication for WinDAGs**: Long-running agent workflows must implement memory management strategies—periodic summarization, hierarchical state representation, or delegation to specialized sub-agents that operate on compressed state representations.
+**Design implication for Jury-rig**: Long-running agent workflows must implement memory management strategies—periodic summarization, hierarchical state representation, or delegation to specialized sub-agents that operate on compressed state representations.
 
 ### 3. Invalid Format (IF)
 The agent produces output that doesn't match the specified format, making it unparseable by the environment. This occurred in 6.0% of commercial API cases but 10.4% of open-source model cases.
@@ -69,7 +69,7 @@ The "Action: Operation" label is missing, making the output unparseable.
 
 **Critical insight**: Format adherence is not a linguistic capability but an executive function capability. Models must simultaneously (1) solve the problem cognitively and (2) maintain awareness of output constraints. The latter is a form of meta-cognitive monitoring that many models lack.
 
-**Design implication for WinDAGs**: Skills that invoke LLM agents should implement format validation layers with retry logic. When format violations occur, the system should extract the semantic intent and reformat it, rather than treating the entire response as failed. This separates the cognitive output (which may be correct) from the formatting output (which may be wrong).
+**Design implication for Jury-rig**: Skills that invoke LLM agents should implement format validation layers with retry logic. When format violations occur, the system should extract the semantic intent and reformat it, rather than treating the entire response as failed. This separates the cognitive output (which may be correct) from the formatting output (which may be wrong).
 
 ### 4. Invalid Action (IA)
 The agent produces correctly formatted output, but the action itself is invalid—it references non-existent entities, violates action space constraints, or has malformed parameters. This occurred in 4.6% of commercial API cases and 13.6% of open-source cases.
@@ -83,7 +83,7 @@ The agent produces correctly formatted output, but the action itself is invalid�
 
 **The grounding problem**: Models trained on text corpora learn action-language associations ("take X from Y" is a common pattern) but struggle to ground those patterns in the specific entities present in the current state. They generate plausible-sounding actions rather than environmentally-valid actions.
 
-**Design implication for WinDAGs**: Agent skills should separate action *generation* from action *validation*. After an LLM proposes an action, a deterministic validation layer checks it against the current action space. If invalid, the system can either (1) request a retry with explicit constraint listing, (2) find the nearest valid action (e.g., via BLEU similarity to valid options, as AgentBench does for ALFWorld), or (3) prompt for clarification of intent.
+**Design implication for Jury-rig**: Agent skills should separate action *generation* from action *validation*. After an LLM proposes an action, a deterministic validation layer checks it against the current action space. If invalid, the system can either (1) request a retry with explicit constraint listing, (2) find the nearest valid action (e.g., via BLEU similarity to valid options, as AgentBench does for ALFWorld), or (3) prompt for clarification of intent.
 
 ### 5. Task Limit Exceeded (TLE)
 The agent exhausts the maximum allowed interaction rounds without completing the task. This is the most common failure mode, occurring in 24.9% of commercial API cases and 36.9% of open-source cases.
@@ -165,11 +165,11 @@ This failure taxonomy is specific to **multi-turn interactive tasks with defined
 - **Open-ended creative tasks**: No "invalid action" when action space is unrestricted
 - **Human-in-the-loop workflows**: Human can interpret and repair malformed outputs
 
-The taxonomy is most valuable for **autonomous agent systems operating in structured environments**—exactly the domain WinDAGs targets.
+The taxonomy is most valuable for **autonomous agent systems operating in structured environments**—exactly the domain Jury-rig targets.
 
 ## Connection to Skill Design
 
-When designing skills for WinDAGs:
+When designing skills for Jury-rig:
 
 1. **Define explicit failure modes in skill specifications**: Don't just return success/failure. Return structured failure information (CLE, IF, IA, TLE) so orchestrator can respond appropriately.
 
@@ -363,7 +363,7 @@ AgentBench uses 1-shot examples in most tasks. This isn't just for task demonstr
 
 **Why this helps**: Few-shot examples prime the generation process with a high-probability trajectory that already embeds the format constraint. The model is more likely to continue an existing pattern than to generate a new one.
 
-**Design principle for WinDAGs skills**: When invoking LLMs, include not just task instructions but complete examples showing correct format adherence in realistic scenarios. The example serves as an execution trace the model can pattern-match against.
+**Design principle for Jury-rig skills**: When invoking LLMs, include not just task instructions but complete examples showing correct format adherence in realistic scenarios. The example serves as an execution trace the model can pattern-match against.
 
 ## The Code Training Effect: A Special Case
 
@@ -384,7 +384,7 @@ This teaching applies to **structured, protocol-driven agent tasks**. It's less 
 - **Single-turn completions**: Less cognitive load, format easier to maintain
 - **Human-in-the-loop**: Humans can interpret and repair malformed outputs
 
-The instruction following problem is most acute in **autonomous, multi-turn, structured interaction**—exactly what agent orchestration systems like WinDAGs require.
+The instruction following problem is most acute in **autonomous, multi-turn, structured interaction**—exactly what agent orchestration systems like Jury-rig require.
 
 ## Summary: Executive Function as a First-Class Capability
 
@@ -775,7 +775,7 @@ This reveals a critical principle for agent system design: **Task structure dete
 
 **Key insight**: Code grounding rewards *procedural precision*. The model must generate exact syntax and compose operations correctly. There's little room for ambiguity—code either executes or fails. Models trained on code gain this precision but may sacrifice flexibility.
 
-**Design implications for WinDAGs**:
+**Design implications for Jury-rig**:
 - Skills that interact with code-grounded environments (CLI tools, databases, APIs) should prefer code-trained models when syntax precision is critical
 - Implement error-recovery loops: When code fails, feed error messages back to the agent for debugging
 - For complex tasks (multi-step queries), separate planning (what queries to run) from execution (generate actual syntax)
@@ -805,7 +805,7 @@ This reveals a critical principle for agent system design: **Task structure dete
 **The Code Training Trade-Off**:
 AgentBench shows CodeLlama-34b outperforms Llama2-70b on Web Shopping (procedural, template-following task) but underperforms on Digital Card Game (strategic reasoning task). Code training optimizes for deterministic execution at the cost of strategic flexibility.
 
-**Design implications for WinDAGs**:
+**Design implications for Jury-rig**:
 - Skills requiring strategic reasoning (planning, competitive scenarios, puzzle-solving) should prefer generally-trained models over code-specialized ones
 - Game-grounded skills need explicit state tracking mechanisms—don't rely on implicit attention to maintain game state
 - For adversarial scenarios (card game), consider multi-agent simulations where models play against each other to generate training data
@@ -834,7 +834,7 @@ AgentBench shows CodeLlama-34b outperforms Llama2-70b on Web Shopping (procedura
 - **Template-following (Web Shopping)**: Task has clear procedure (search → filter → select → buy). Code-trained models excel because it's essentially procedural execution.
 - **Open-ended navigation (Web Browsing)**: Task requires flexible exploration of unfamiliar websites. Requires adaptability more than procedural execution.
 
-**Design implications for WinDAGs**:
+**Design implications for Jury-rig**:
 - Distinguish template-following web skills (booking flights, shopping) from open-ended web skills (research, exploration)
 - For template-following, use code-trained models and explicit step-by-step templates
 - For open-ended browsing, use generally-capable models with strong instruction following
@@ -958,7 +958,7 @@ The core teaching: **Agent performance is grounding-dependent. Code, game, and w
 
 The success of GPT-4 across grounding types indicates that general capability eventually overcomes specialization. But for resource-constrained systems, grounding-aware routing enables using smaller, specialized models effectively. A 13B code-trained model may match a 70B general model on code-grounded tasks while being 5× cheaper to run.
 
-The lesson for WinDAGs: Don't build a monolithic agent. Build a routing system that matches tasks to appropriate specialists based on grounding type.
+The lesson for Jury-rig: Don't build a monolithic agent. Build a routing system that matches tasks to appropriate specialists based on grounding type.
 ```
 
 ### FILE: the-gap-between-planning-and-execution.md
@@ -1276,7 +1276,7 @@ This is an open research problem. AgentBench shows the pain points but doesn't p
 
 The planning-execution gap is one of the fundamental challenges in LLM agents. Models can articulate what they should do but struggle to reliably do it. This creates brittleness—agents fail not from cognitive limitations but from operational inconsistencies.
 
-**For agent orchestration systems like WinDAGs**:
+**For agent orchestration systems like Jury-rig**:
 
 1. **Don't trust thoughts alone**—monitor actual actions
 2. **Make plans explicit structures**, not just text
@@ -1560,7 +1560,7 @@ For agent systems:
 - **Monitor for procedural bias** (repetition, lack of adaptation) as a failure signal
 - **Consider task-specific fine-tuning** instead of general code training
 
-The lesson for WinDAGs: Don't assume "better at code = better at agents." Task structure matters more than raw capability. A weaker model with the right reasoning style can outperform a stronger model with the wrong style.
+The lesson for Jury-rig: Don't assume "better at code = better at agents." Task structure matters more than raw capability. A weaker model with the right reasoning style can outperform a stronger model with the wrong style.
 ```
 
 ### FILE: decomposition-principles-from-multi-environment-evaluation.md
@@ -1760,7 +1760,7 @@ Bad: "Break card game into 'early game', 'mid game', 'end game' phases"
 
 **AgentBench evidence**: Models that try to follow fixed strategic plans (always use AOE attack in rounds 1-5, always target low-health enemy in rounds 6-10) lose to models that adapt flexibly to current board state.
 
-## Decomposition Strategies for WinDAGs
+## Decomposition Strategies for Jury-rig
 
 ### Strategy 1: Detect Decomposability Automatically
 

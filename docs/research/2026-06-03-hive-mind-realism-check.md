@@ -37,7 +37,7 @@ This is not a naïve question. It compresses four distinct sub-questions:
 | **(C) Substrate.** Multi-process vs many-prompt? | When does OS-process isolation buy you something beyond context-window isolation? |
 | **(D) Path.** PD on Cloudflare rivaling Opus? | What is the realistic shape of "PD becomes a SOTA product," and how far is it from where PD is now? |
 
-The answer to (A) is the load-bearing one. Everything else follows from it. So that is what I argue first.
+The answer to (A) is the pivotal one. Everything else follows from it. So that is what I argue first.
 
 ---
 
@@ -226,7 +226,7 @@ Cloudflare Workers AI today (June 2026) does not offer fine-tuning [#cloudflare-
 
 ## 7. Three PD refactors worth doing in the next 30 days, regardless
 
-These are decoupled from the hive-mind question. They are good ideas because they fix coordination failures PD already has. They become *load-bearing* if the operator chooses to pursue (ii).
+These are decoupled from the hive-mind question. They are good ideas because they fix coordination failures PD already has. They become *central* if the operator chooses to pursue (ii).
 
 ### 7.1 Symbol-region claim conflict resolution (the one to do)
 

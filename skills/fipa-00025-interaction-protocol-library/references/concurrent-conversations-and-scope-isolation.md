@@ -90,7 +90,7 @@ Understanding this distinction is critical for correct orchestration. When shoul
 
 ## Implications for DAG-Based Orchestration
 
-For WinDAGs or similar orchestration systems, the concurrent conversations model has direct implications:
+For Jury-rig or similar orchestration systems, the concurrent conversations model has direct implications:
 
 **DAG Nodes as Conversations**: Each node in the orchestration DAG could correspond to a conversation. When a node executes, it initiates or participates in a conversation following some protocol.
 

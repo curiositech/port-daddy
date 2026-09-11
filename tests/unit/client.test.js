@@ -456,15 +456,20 @@ describe('Sessions', () => {
       sessions: [{ id: 'session-123', purpose: 'Ship it', status: 'active', agentId: 'session-agent', createdAt: 1, updatedAt: 1, completedAt: null, metadata: null }],
       count: 1,
     });
-    queueResponse({ success: true, id: 'session-123', purpose: 'Ship it', status: 'completed', createdAt: 1, updatedAt: 2, releasedFiles: ['src/auth.ts'] });
+    queueResponse({ success: true, sessionId: 'session-123', sessionStatus: 'completed', releasedFiles: ['src/auth.ts'] });
 
     const result = await pd.endSession('wrapped up', { status: 'completed' });
 
     expect(receivedRequests).toHaveLength(2);
-    expect(receivedRequests[0].url).toBe('/sessions?status=active&agent=session-agent&limit=1');
-    expect(receivedRequests[1].url).toBe('/sessions/session-123');
-    expect(receivedRequests[1].method).toBe('PUT');
-    expect(receivedRequests[1].body).toEqual({ status: 'completed', note: 'wrapped up' });
+    expect(receivedRequests[0].url).toBe('/sessions?status=active&agent=session-agent&allWorktrees=true&limit=50');
+    expect(receivedRequests[1].url).toBe('/sugar/done');
+    expect(receivedRequests[1].method).toBe('POST');
+    expect(receivedRequests[1].body).toEqual(expect.objectContaining({
+      agentId: 'session-agent',
+      sessionId: 'session-123',
+      status: 'completed',
+      note: 'wrapped up',
+    }));
     expect(result.releasedFiles).toEqual(['src/auth.ts']);
   });
 
@@ -476,6 +481,29 @@ describe('Sessions', () => {
     expect(receivedRequests[0].method).toBe('DELETE');
     expect(receivedRequests[0].url).toBe('/sessions/session-123');
     expect(result.success).toBe(true);
+  });
+
+  test('endSession refuses to choose among multiple active sessions', async () => {
+    queueResponse({
+      success: true,
+      sessions: [
+        { id: 'session-one', status: 'active', worktreeId: 'wt-one' },
+        { id: 'session-two', status: 'active', worktreeId: 'wt-two' },
+      ],
+      count: 2,
+    });
+
+    const result = await pd.endSession('wrapped up', { status: 'completed' });
+
+    expect(receivedRequests).toHaveLength(1);
+    expect(result).toMatchObject({
+      success: false,
+      code: 'AMBIGUOUS_ACTIVE_SESSION',
+      candidates: [
+        { sessionId: 'session-one', worktreeId: 'wt-one' },
+        { sessionId: 'session-two', worktreeId: 'wt-two' },
+      ],
+    });
   });
 
   test('takeoverSession sends successor request', async () => {
@@ -490,13 +518,14 @@ describe('Sessions', () => {
 
     expect(receivedRequests[0].method).toBe('POST');
     expect(receivedRequests[0].url).toBe('/sessions/session-123/takeover');
-    expect(receivedRequests[0].headers['x-agent-id']).toBe('session-agent');
+    // main: an exact session id is already the target, so no ambient display
+    // alias is grafted onto the request; only the credential travels.
+    expect(receivedRequests[0].headers['x-agent-id']).toBeUndefined();
     expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTORSESSION.same-actor-secret');
     expect(receivedRequests[0].body).toEqual({
       note: 'continuing here',
       purpose: 'Continue ship',
       claimFiles: false,
-      agentId: 'session-agent',
       durable: true,
     });
     expect(result.successorId).toBe('session-456');
@@ -963,7 +992,8 @@ describe('IPC fast paths', () => {
     });
   });
 
-  test('note bypasses weaker IPC and carries actor identity over canonical HTTP', async () => {
+  test('note is credentialed HTTP-only when agent/session context is available', async () => {
+    pd = createClient({ agentId: 'registered-agent', credential: 'ACTOR.secret' });
     pd._requestViaIpc = jest.fn().mockResolvedValue({
       success: true,
       sessionId: 'sess-wrong-transport',
@@ -977,7 +1007,6 @@ describe('IPC fast paths', () => {
     });
 
     expect(pd._requestViaIpc).not.toHaveBeenCalled();
-    expect(receivedRequests).toHaveLength(1);
     expect(receivedRequests[0]).toMatchObject({
       method: 'POST',
       url: '/notes',
@@ -987,7 +1016,8 @@ describe('IPC fast paths', () => {
         type: 'progress',
       },
     });
-    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTORIPC.strict-http-secret');
+    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTOR.secret');
+    expect(receivedRequests[0].headers['x-agent-id']).toBeUndefined();
     expect(result.sessionId).toBe('sess-123');
   });
 
@@ -1013,15 +1043,13 @@ describe('IPC fast paths', () => {
       agentId: 'agent-readable-work-def456',
       type: 'progress',
     });
+    expect(receivedRequests[0].headers['x-agent-id']).toBe('agent-readable-work-def456');
     expect(result.sessionId).toBe('session-readable-work-abc123');
   });
 
-  test('done bypasses weaker IPC and carries actor identity over canonical HTTP', async () => {
-    pd._requestViaIpc = jest.fn().mockResolvedValue({
-      success: true,
-      sessionId: 'sess-wrong-transport',
-      sessionStatus: 'completed',
-    });
+  test('done is HTTP-only and carries the actor credential', async () => {
+    pd = createClient({ agentId: 'session-agent', credential: 'ACTOR.secret', pid: 1234 });
+    pd._requestViaIpc = jest.fn().mockResolvedValue({ success: true, sessionId: 'wrong-ipc-session' });
     queueResponse({ success: true, sessionId: 'sess-123', sessionStatus: 'completed' });
 
     const result = await pd.done('all set', { sessionId: 'sess-123' });
@@ -1029,8 +1057,9 @@ describe('IPC fast paths', () => {
     expect(pd._requestViaIpc).not.toHaveBeenCalled();
     expect(receivedRequests[0].url).toBe('/sugar/done');
     expect(receivedRequests[0].body.note).toBe('all set');
-    expect(receivedRequests[0].headers['x-agent-id']).toBe('registered-agent');
-    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTORIPC.strict-http-secret');
+    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTOR.secret');
+    expect(receivedRequests[0].headers['x-agent-id']).toBeUndefined();
+    expect(pd._requestViaIpc).not.toHaveBeenCalled();
     expect(result.sessionId).toBe('sess-123');
   });
 
@@ -1075,7 +1104,25 @@ describe('IPC fast paths', () => {
     expect(result.sessionId).toBe('sess-123');
   });
 
-  test('startSession bypasses weaker IPC and carries actor identity over canonical HTTP', async () => {
+  test('whoami explicit session suppresses the client ambient agent unless explicitly paired', async () => {
+    pd._requestViaIpc = jest.fn().mockResolvedValue(null);
+    queueResponse({
+      success: true,
+      active: true,
+      agentId: 'stored-session-owner',
+      sessionId: 'session-explicit-b',
+      purpose: 'Exact B',
+    });
+
+    const result = await pd.whoami({ sessionId: 'session-explicit-b' });
+
+    expect(pd._requestViaIpc).not.toHaveBeenCalled();
+    expect(receivedRequests[0].url).toBe('/sugar/whoami?sessionId=session-explicit-b');
+    expect(result.agentId).toBe('stored-session-owner');
+  });
+
+  test('startSession is credentialed HTTP-only', async () => {
+    pd = createClient({ agentId: 'registered-agent', credential: 'ACTOR.secret' });
     pd._requestViaIpc = jest.fn().mockResolvedValue({
       success: true,
       id: 'session-wrong-transport',
@@ -1092,18 +1139,13 @@ describe('IPC fast paths', () => {
     expect(receivedRequests[0]).toMatchObject({
       method: 'POST',
       url: '/sessions',
-      body: {
-        purpose: 'Ship it',
-        files: ['src/auth.ts'],
-        force: true,
-      },
+      body: { purpose: 'Ship it', files: ['src/auth.ts'], force: true },
     });
-    expect(receivedRequests[0].headers['x-agent-id']).toBe('registered-agent');
-    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTORIPC.strict-http-secret');
+    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTOR.secret');
     expect(result.id).toBe('session-123');
   });
 
-  test('startSession preserves lifecycle enum on canonical HTTP', async () => {
+  test('startSession preserves lifecycle enum over HTTP', async () => {
     pd._requestViaIpc = jest.fn().mockResolvedValue({
       success: true,
       id: 'session-wrong-transport',
@@ -1117,10 +1159,14 @@ describe('IPC fast paths', () => {
     await pd.startSession({ purpose: 'Ship it', lifecycle: 'durable' });
 
     expect(pd._requestViaIpc).not.toHaveBeenCalled();
-    expect(receivedRequests[0].body).toEqual({ purpose: 'Ship it', lifecycle: 'durable' });
+    expect(receivedRequests[0]).toMatchObject({
+      method: 'POST',
+      url: '/sessions',
+      body: { purpose: 'Ship it', lifecycle: 'durable' },
+    });
   });
 
-  test('startSession canonical HTTP preserves file conflict semantics', async () => {
+  test('startSession HTTP file conflict preserves 409 semantics', async () => {
     pd._requestViaIpc = jest.fn().mockResolvedValue({
       success: true,
       id: 'session-wrong-transport',
@@ -1139,40 +1185,25 @@ describe('IPC fast paths', () => {
     expect(pd._requestViaIpc).not.toHaveBeenCalled();
   });
 
-  test('endSession bypasses weaker IPC and carries actor identity over canonical HTTP', async () => {
-    pd._requestViaIpc = jest.fn().mockResolvedValue({
-      success: true,
-      id: 'session-wrong-transport',
-      purpose: 'Ship it',
-      status: 'completed',
-      createdAt: 1,
-      updatedAt: 2,
-      releasedFiles: ['src/wrong.ts'],
-    });
-    queueResponse({
-      success: true,
-      id: 'session-123',
-      purpose: 'Ship it',
-      status: 'completed',
-      createdAt: 1,
-      updatedAt: 2,
-      releasedFiles: ['src/auth.ts'],
-    });
+  test('endSession is HTTP-only when sessionId is explicit', async () => {
+    pd = createClient({ agentId: 'session-agent', credential: 'ACTOR.secret', pid: 1234 });
+    pd._requestViaIpc = jest.fn().mockResolvedValue({ success: true, id: 'wrong-ipc-session' });
+    queueResponse({ success: true, sessionId: 'session-123', sessionStatus: 'completed', releasedFiles: ['src/auth.ts'] });
 
     const result = await pd.endSession('session-123', { status: 'completed', note: 'wrapped up' });
 
     expect(pd._requestViaIpc).not.toHaveBeenCalled();
     expect(receivedRequests).toHaveLength(1);
     expect(receivedRequests[0]).toMatchObject({
-      method: 'PUT',
-      url: '/sessions/session-123',
-      body: {
+      method: 'POST',
+      url: '/sugar/done',
+      body: expect.objectContaining({
+        sessionId: 'session-123',
         status: 'completed',
         note: 'wrapped up',
-      },
+      }),
     });
-    expect(receivedRequests[0].headers['x-agent-id']).toBe('registered-agent');
-    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTORIPC.strict-http-secret');
+    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTOR.secret');
     expect(result.releasedFiles).toEqual(['src/auth.ts']);
   });
 
@@ -1209,59 +1240,46 @@ describe('IPC fast paths', () => {
     expect(result.worktreeId).toBe('wt-1');
   });
 
-  test('removeSession bypasses weaker IPC and carries actor identity over canonical HTTP', async () => {
-    pd._requestViaIpc = jest.fn().mockResolvedValue({
-      success: true,
-      message: 'wrong transport',
-    });
+  test('removeSession is HTTP-only and carries the actor credential', async () => {
+    pd = createClient({ agentId: 'session-agent', credential: 'ACTOR.secret', pid: 1234 });
+    pd._requestViaIpc = jest.fn().mockResolvedValue({ success: true, message: 'wrong IPC result' });
     queueResponse({ success: true, message: 'Session removed' });
 
     const result = await pd.removeSession('session-123');
 
     expect(pd._requestViaIpc).not.toHaveBeenCalled();
     expect(receivedRequests).toHaveLength(1);
-    expect(receivedRequests[0]).toMatchObject({
-      method: 'DELETE',
-      url: '/sessions/session-123',
-    });
-    expect(receivedRequests[0].headers['x-agent-id']).toBe('registered-agent');
-    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTORIPC.strict-http-secret');
+    expect(receivedRequests[0]).toMatchObject({ method: 'DELETE', url: '/sessions/session-123' });
+    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTOR.secret');
+    expect(receivedRequests[0].headers['x-agent-id']).toBeUndefined();
     expect(result.success).toBe(true);
   });
 
-  test('takeoverSession bypasses weaker IPC and carries actor continuity over HTTP', async () => {
+  test('takeoverSession is credentialed HTTP-only', async () => {
+    pd = createClient({ agentId: 'registered-agent', credential: 'ACTOR.secret' });
     pd._requestViaIpc = jest.fn().mockResolvedValue({
       success: true,
       predecessorId: 'session-123',
       successorId: 'session-wrong-transport',
       notesPreserved: true,
     });
-    queueResponse({
-      success: true,
-      predecessorId: 'session-123',
-      successorId: 'session-456',
-      notesPreserved: true,
-    });
+    queueResponse({ success: true, predecessorId: 'session-123', successorId: 'session-456', notesPreserved: true });
 
     const result = await pd.takeoverSession('session-123', { note: 'take over', lifecycle: 'ephemeral' });
 
     expect(pd._requestViaIpc).not.toHaveBeenCalled();
-    expect(receivedRequests).toHaveLength(1);
     expect(receivedRequests[0]).toMatchObject({
       method: 'POST',
       url: '/sessions/session-123/takeover',
-      body: {
-        note: 'take over',
-        agentId: 'registered-agent',
-        durable: false,
-      },
+      body: { note: 'take over', durable: false },
     });
-    expect(receivedRequests[0].headers['x-agent-id']).toBe('registered-agent');
-    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTORIPC.strict-http-secret');
+    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTOR.secret');
+    expect(receivedRequests[0].headers['x-agent-id']).toBeUndefined();
     expect(result.successorId).toBe('session-456');
   });
 
-  test('claimFiles bypasses weaker IPC and carries actor identity over HTTP', async () => {
+  test('claimFiles is credentialed HTTP-only', async () => {
+    pd = createClient({ agentId: 'registered-agent', credential: 'ACTOR.secret' });
     pd._requestViaIpc = jest.fn().mockResolvedValue({
       success: true,
       sessionId: 'sess-wrong-transport',
@@ -1275,17 +1293,14 @@ describe('IPC fast paths', () => {
     expect(receivedRequests[0]).toMatchObject({
       method: 'POST',
       url: '/sessions/sess-123/files',
-      body: {
-        files: ['src/auth.ts'],
-        force: true,
-        agentId: 'registered-agent',
-      },
+      body: { files: ['src/auth.ts'], force: true },
     });
-    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTORIPC.strict-http-secret');
+    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTOR.secret');
+    expect(receivedRequests[0].headers['x-agent-id']).toBeUndefined();
     expect(result.success).toBe(true);
   });
 
-  test('claimFiles preserves regions and force over canonical HTTP', async () => {
+  test('claimFiles preserves regions and force over HTTP', async () => {
     pd._requestViaIpc = jest.fn().mockResolvedValue({
       success: true,
       sessionId: 'sess-wrong-transport',
@@ -1294,18 +1309,18 @@ describe('IPC fast paths', () => {
     queueResponse({ success: true, sessionId: 'sess-123', claimed: ['src/auth.ts'] });
     const regions = [{ path: 'src/auth.ts', startLine: 10, endLine: 20, symbol: 'login' }];
 
-    await pd.claimFiles('sess-123', ['src/auth.ts'], { force: true, regions });
+    await pd.claimFiles('sess-123', ['src/auth.ts'], { force: true, regions, agentId: 'explicit-owner' });
 
     expect(pd._requestViaIpc).not.toHaveBeenCalled();
-    expect(receivedRequests[0].body).toEqual({
-      files: ['src/auth.ts'],
-      regions,
-      force: true,
-      agentId: 'registered-agent',
+    expect(receivedRequests[0]).toMatchObject({
+      method: 'POST',
+      url: '/sessions/sess-123/files',
+      body: { files: ['src/auth.ts'], regions, force: true, agentId: 'explicit-owner' },
     });
+    expect(receivedRequests[0].headers['x-agent-id']).toBe('explicit-owner');
   });
 
-  test('releaseFiles bypasses weaker IPC and preserves regions over canonical HTTP', async () => {
+  test('releaseFiles preserves regions over credentialed HTTP', async () => {
     pd._requestViaIpc = jest.fn().mockResolvedValue({
       success: true,
       sessionId: 'sess-wrong-transport',
@@ -1320,32 +1335,45 @@ describe('IPC fast paths', () => {
     expect(receivedRequests[0]).toMatchObject({
       method: 'DELETE',
       url: '/sessions/sess-123/files',
-      body: {
-        files: ['src/auth.ts'],
-        regions,
-        agentId: 'registered-agent',
-      },
+      body: { files: ['src/auth.ts'], regions },
     });
-    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTORIPC.strict-http-secret');
+    expect(receivedRequests[0].headers['x-agent-id']).toBeUndefined();
   });
 
-  test('lock bypasses weaker IPC and carries actor identity over canonical HTTP', async () => {
-    pd._requestViaIpc = jest.fn().mockResolvedValue({
-      success: true,
-      name: 'wrong-transport',
-      owner: 'registered-agent',
-      acquiredAt: Date.now(),
-      expiresAt: Date.now() + 60000,
-      message: 'acquired lock: deploy-prod',
-    });
-    queueResponse({
-      success: true,
-      name: 'deploy-prod',
-      owner: 'registered-agent',
-      acquiredAt: Date.now(),
-      expiresAt: Date.now() + 60000,
-      message: 'acquired lock: deploy-prod',
-    });
+  test('exact session mutations never graft an unrelated ambient agent header', async () => {
+    pd = createClient({ agentId: 'ambient-agent-a', credential: 'OWNER_B.secret' });
+    for (const response of [
+      { success: true, id: 'session-b', status: 'abandoned' },
+      { success: true },
+      { success: true, sessionId: 'session-b', noteId: 1 },
+      { success: true, phase: 'testing' },
+      { success: true, claimed: ['src/b.ts'] },
+      { success: true, released: ['src/b.ts'] },
+      { success: true, predecessorId: 'session-b', successorId: 'session-b-next' },
+      { success: true, sessionId: 'session-b', sessionStatus: 'abandoned', agentId: 'owner-b' },
+    ]) queueResponse(response);
+
+    await pd.endSession('session-b', { status: 'abandoned' });
+    await pd.removeSession('session-b');
+    await pd.note('exact note', { sessionId: 'session-b' });
+    await pd.setSessionPhase('session-b', 'testing');
+    await pd.claimFiles('session-b', ['src/b.ts']);
+    await pd.releaseFiles('session-b', ['src/b.ts']);
+    await pd.takeoverSession('session-b', { note: 'continue exactly' });
+    await pd.done('close exactly', { sessionId: 'session-b', status: 'abandoned' });
+
+    expect(receivedRequests).toHaveLength(8);
+    for (const request of receivedRequests) {
+      expect(request.headers['x-actor-credential']).toBe('OWNER_B.secret');
+      expect(request.headers['x-agent-id']).toBeUndefined();
+    }
+    expect(pd.agentId).toBe('ambient-agent-a');
+  });
+
+  test('lock uses credentialed HTTP and never raw IPC', async () => {
+    pd = createClient({ agentId: 'registered-agent', credential: 'ACTOR.secret' });
+    pd._requestViaIpc = jest.fn().mockResolvedValue({ success: true, message: 'wrong IPC result' });
+    queueResponse({ success: true, name: 'deploy-prod', owner: 'registered-agent' });
 
     const result = await pd.lock('deploy-prod', { ttl: 60000 });
 
@@ -1353,26 +1381,16 @@ describe('IPC fast paths', () => {
     expect(receivedRequests[0]).toMatchObject({
       method: 'POST',
       url: '/locks/deploy-prod',
-      body: {
-        owner: 'registered-agent',
-        ttl: 60000,
-      },
+      body: expect.objectContaining({ owner: 'registered-agent', ttl: 60000 }),
     });
-    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTORIPC.strict-http-secret');
+    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTOR.secret');
     expect(result.success).toBe(true);
   });
 
-  test('lock canonical HTTP preserves contention semantics', async () => {
-    pd._requestViaIpc = jest.fn().mockResolvedValue({
-      success: true,
-      name: 'wrong-transport',
-    });
-    queueResponse({
-      success: false,
-      error: 'lock is held',
-      code: 'LOCK_HELD',
-      holder: 'other-agent',
-    }, 409);
+  test('lock HTTP failure preserves contention semantics', async () => {
+    pd = createClient({ agentId: 'registered-agent', credential: 'ACTOR.secret' });
+    pd._requestViaIpc = jest.fn().mockResolvedValue({ success: true, acquired: true });
+    queueResponse({ success: false, error: 'lock is held', code: 'LOCK_HELD', holder: 'other-agent' }, 409);
 
     await expect(pd.lock('deploy-prod')).rejects.toMatchObject({
       name: 'PortDaddyError',
@@ -1381,14 +1399,10 @@ describe('IPC fast paths', () => {
     expect(pd._requestViaIpc).not.toHaveBeenCalled();
   });
 
-  test('unlock bypasses weaker IPC and carries actor identity over canonical HTTP', async () => {
-    pd._requestViaIpc = jest.fn().mockResolvedValue({
-      success: true,
-      released: false,
-      name: 'wrong-transport',
-      message: 'released lock: deploy-prod',
-    });
-    queueResponse({ success: true, released: true, name: 'deploy-prod', message: 'released lock: deploy-prod' });
+  test('unlock uses credentialed HTTP and never raw IPC', async () => {
+    pd = createClient({ agentId: 'registered-agent', credential: 'ACTOR.secret' });
+    pd._requestViaIpc = jest.fn().mockResolvedValue({ success: true, message: 'wrong IPC result' });
+    queueResponse({ success: true, released: true, name: 'deploy-prod' });
 
     const result = await pd.unlock('deploy-prod');
 
@@ -1396,11 +1410,9 @@ describe('IPC fast paths', () => {
     expect(receivedRequests[0]).toMatchObject({
       method: 'DELETE',
       url: '/locks/deploy-prod',
-      body: {
-        owner: 'registered-agent',
-      },
+      body: expect.objectContaining({ owner: 'registered-agent' }),
     });
-    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTORIPC.strict-http-secret');
+    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTOR.secret');
     expect(result.released).toBe(true);
   });
 
@@ -1423,19 +1435,10 @@ describe('IPC fast paths', () => {
     expect(result.held).toBe(true);
   });
 
-  test('extendLock bypasses weaker IPC and carries actor identity over canonical HTTP', async () => {
-    pd._requestViaIpc = jest.fn().mockResolvedValue({
-      success: true,
-      name: 'wrong-transport',
-      expiresAt: Date.now() + 60000,
-      message: 'extended lock: deploy-prod',
-    });
-    queueResponse({
-      success: true,
-      name: 'deploy-prod',
-      expiresAt: Date.now() + 60000,
-      message: 'extended lock: deploy-prod',
-    });
+  test('extendLock uses credentialed HTTP and never raw IPC', async () => {
+    pd = createClient({ agentId: 'registered-agent', credential: 'ACTOR.secret' });
+    pd._requestViaIpc = jest.fn().mockResolvedValue({ success: true, message: 'wrong IPC result' });
+    queueResponse({ success: true, name: 'deploy-prod', expiresAt: Date.now() + 60000 });
 
     const result = await pd.extendLock('deploy-prod', { ttl: 60000 });
 
@@ -1443,12 +1446,9 @@ describe('IPC fast paths', () => {
     expect(receivedRequests[0]).toMatchObject({
       method: 'PUT',
       url: '/locks/deploy-prod',
-      body: {
-        owner: 'registered-agent',
-        ttl: 60000,
-      },
+      body: expect.objectContaining({ owner: 'registered-agent', ttl: 60000 }),
     });
-    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTORIPC.strict-http-secret');
+    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTOR.secret');
     expect(result.success).toBe(true);
   });
 
@@ -1609,6 +1609,33 @@ describe('Webhooks', () => {
 
     expect(receivedRequests[0].method).toBe('DELETE');
     expect(receivedRequests[0].url).toContain('/webhooks/wh-123');
+  });
+});
+
+// =============================================================================
+// Actor identity
+// =============================================================================
+
+describe('Actor identity', () => {
+  test('registerActor sends only active registration fields', async () => {
+    const pd = createClient();
+    queueResponse({
+      success: true,
+      status: 'minted',
+      actorId: 'soul_test',
+      soulClass: 'newcomer',
+      credential: 'soul_test.secret',
+    }, 201);
+
+    await pd.registerActor({ alias: 'port-daddy:test:client' });
+
+    expect(receivedRequests).toHaveLength(1);
+    expect(receivedRequests[0]).toMatchObject({
+      method: 'POST',
+      url: '/actors/register',
+      body: { alias: 'port-daddy:test:client' },
+    });
+    expect(receivedRequests[0].body).not.toHaveProperty('project');
   });
 });
 
@@ -2022,10 +2049,11 @@ describe('Salvage listing with filters', () => {
 describe('Salvage lifecycle methods', () => {
   let pd;
   beforeEach(() => {
-    pd = createClient({ agentId: 'rescue-agent', pid: 9999 });
+    pd = createClient({ agentId: 'rescue-agent', credential: 'RESCUE.secret', pid: 9999 });
   });
 
   test('salvageClaim sends POST to /resurrection/claim/:agentId', async () => {
+    pd._requestViaIpc = jest.fn().mockResolvedValue({ success: true, message: 'wrong IPC result' });
     queueResponse({
       success: true,
       message: 'Claimed dead-agent-1 for resurrection',
@@ -2042,19 +2070,22 @@ describe('Salvage lifecycle methods', () => {
     expect(receivedRequests[0].method).toBe('POST');
     expect(receivedRequests[0].url).toBe('/resurrection/claim/dead-agent-1');
     expect(receivedRequests[0].body.newAgentId).toBe('rescue-agent');
+    expect(receivedRequests[0].headers['x-actor-credential']).toBe('RESCUE.secret');
+    expect(pd._requestViaIpc).not.toHaveBeenCalled();
     expect(result.success).toBe(true);
     expect(result.context.sessionId).toBe('sess-123');
     expect(result.context.notes).toHaveLength(2);
   });
 
-  test('salvageClaim uses fallback agentId when none set', async () => {
+  test('salvageClaim never synthesizes a pid-based successor identity', async () => {
     const pd2 = createClient({ pid: 4242 });
     pd2.agentId = undefined;
-    queueResponse({ success: true, message: 'Claimed' });
+    queueResponse({ success: false, error: 'actor credential required' }, 401);
 
-    await pd2.salvageClaim('dead-agent-2');
+    await expect(pd2.salvageClaim('dead-agent-2')).rejects.toMatchObject({ status: 401 });
 
-    expect(receivedRequests[0].body.newAgentId).toBe('sdk-4242');
+    expect(receivedRequests[0].body.newAgentId).toBeUndefined();
+    expect(receivedRequests[0].headers['x-actor-credential']).toBeUndefined();
   });
 
   test('salvageClaim encodes agentId in URL', async () => {

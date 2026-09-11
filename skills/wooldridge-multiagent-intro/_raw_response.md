@@ -123,7 +123,7 @@ Example: A vision system must translate pixels → "there is a red cube at (2,3)
 - Skills that tolerate partial/uncertain inputs
 - Explicit re-checking of assumptions before dependent actions
 
-## Transfer to Complex Systems: WinDAGs with 180+ Skills
+## Transfer to Complex Systems: Jury-rig with 180+ Skills
 
 When you have 180 skills in a directed acyclic graph, each skill effectively operates in a **sub-environment** defined by:
 - What observations it receives (from sensors or upstream skills)
@@ -1187,7 +1187,7 @@ If (r, u) ~ᵢ (r', u'), then action(i, r, u) = action(i, r', u')
 
 The agent **cannot** take different actions in indistinguishable states (it doesn't know which state it's in).
 
-**For WinDAGs orchestration**:
+**For Jury-rig orchestration**:
 - If skill A's optimal action depends on skill B's internal state, but A can't observe B's state, then:
   - A must either: (1) query B for state, OR (2) make conservative assumptions
   - This is **coordination via information exchange**, not independent reasoning
@@ -1321,7 +1321,7 @@ None are fully satisfactory; logical omniscience remains an open problem.
 
 ## Transfer to Multi-Agent Orchestration
 
-### WinDAGs with 180+ Skills: Grounding Knowledge
+### Jury-rig with 180+ Skills: Grounding Knowledge
 
 **Challenge**: How do you verify that orchestration correctly coordinates 180 skills?
 
@@ -1674,7 +1674,7 @@ Sensors → [Map builder] → [Path planner] → [Move toward unexplored] → Ac
 
 **Critical point**: For ~5-10 behaviors, subsumption is elegant. Beyond that, **interaction complexity explodes**. You can't predict what the robot will do in novel situations without exhaustive testing.
 
-**Implication for WinDAGs**: Pure reactive orchestration (each skill triggers based on local observations) won't scale to 180+ skills. You need **deliberative planning** at higher levels, with reactive execution at lower levels.
+**Implication for Jury-rig**: Pure reactive orchestration (each skill triggers based on local observations) won't scale to 180+ skills. You need **deliberative planning** at higher levels, with reactive execution at lower levels.
 
 ## The TouringMachines Architecture: Explicit Mediation
 

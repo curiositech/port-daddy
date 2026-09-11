@@ -26,7 +26,7 @@ import {
   evaluateSessionWorktreePolicy,
   mergeSessionWorktreeMetadata,
 } from '../lib/worktree-policy.js';
-import { coerceClaimType, type ClaimType } from '../lib/symbol-conflict-matrix.js';
+import { ALL_CLAIM_TYPES, type ClaimType } from '../lib/symbol-conflict-matrix.js';
 import type { SymbolConflict } from '../lib/symbol-claims.js';
 import type { Suggestions } from '../lib/suggestions.js';
 import {
@@ -35,6 +35,7 @@ import {
   type BrokerInbox,
 } from '../lib/suggestion-broker.js';
 import {
+  authorizeSessionOwner,
   deriveSessionCredentialUseContext,
   extractActorCredential,
   resolveWriteIdentity,
@@ -114,7 +115,7 @@ interface SessionsRouteDeps {
       includeNotes?: boolean;
       limit?: number;
     }): Record<string, unknown>;
-    get(sessionId: string): Record<string, unknown>;
+    get(sessionId: string, options?: { metadataOnly?: boolean }): Record<string, unknown>;
     cleanup(options?: {
       olderThan?: number;
       status?: string;
@@ -371,9 +372,17 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
    */
   const errorStatus = (result: Record<string, unknown>) => {
     switch (result.code) {
+      case 'NOTE_TOO_LARGE':
+        return 413;
+      case 'NOTE_RATE_LIMITED':
+        return 429;
+      case 'NOTE_STORAGE_FAILED':
+        return 503;
       case 'VALIDATION_ERROR':
         return 400;
       case 'SESSION_AGENT_MISMATCH':
+      case 'SESSION_OWNERSHIP_MISMATCH':
+      case 'SESSION_OWNER_UNVERIFIABLE':
         return 403;
       case 'SESSION_NOT_ACTIVE':
       case 'SESSION_AGENT_REQUIRED':
@@ -397,6 +406,12 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
    */
   const noteWriteStatus = (result: Record<string, unknown>) => {
     switch (result.code) {
+      case 'NOTE_TOO_LARGE':
+        return 413;
+      case 'NOTE_RATE_LIMITED':
+        return 429;
+      case 'NOTE_STORAGE_FAILED':
+        return 503;
       case 'SESSION_NOT_FOUND':
         return 404;
       case 'SESSION_NOT_ACTIVE':
@@ -480,7 +495,12 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     route: string,
     options?: {
       requireIdentity?: boolean;
-      credentialUse?: { sessionId: string; action: SessionBodyCredentialAction };
+      credentialUse?: {
+        sessionId: string;
+        action: SessionBodyCredentialAction;
+        /** Already-read session lookup, so one read serves the whole route. */
+        session?: Record<string, unknown>;
+      };
     },
   ):
     | { success: true; agentId: string | null; verdict: Extract<IdentityWriteVerdict, { ok: true }> }
@@ -489,11 +509,12 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     if (!base.success) {
       return { success: false, httpStatus: 400, result: base.result };
     }
-    const credentialUseContext: ActorCredentialUseContext | null = options?.credentialUse
+    const credentialUse = options?.credentialUse;
+    const credentialUseContext: ActorCredentialUseContext | null = credentialUse
       ? deriveSessionCredentialUseContext(
-          options.credentialUse.sessionId,
-          options.credentialUse.action,
-          (sessionId) => sessions.get(sessionId),
+          credentialUse.sessionId,
+          credentialUse.action,
+          (sessionId) => credentialUse.session ?? sessions.get(sessionId),
         )
       : null;
     const verdict = resolveWriteIdentity({
@@ -513,6 +534,97 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       };
     }
     return { success: true, agentId: verdict.agentId, verdict };
+  };
+
+  /**
+   * Authenticate a direct mutation and bind it to the actor stored on the
+   * target session.
+   *
+   * Purpose: route parameters are selectors, not authority. A caller may omit
+   * a display `agentId` for explicit-session usability, but the verified
+   * credential must still match the daemon-stamped session owner. The stored
+   * owner returned here is the only agent identity downstream code may use.
+   *
+   * @param request - Incoming mutation request carrying the actor credential.
+   * @param bodyAgentId - Optional caller assertion, used only by the identity
+   *        boundary to reject alias laundering.
+   * @param sessionId - Exact stored session being mutated.
+   * @param route - Stable route label for rejection logs.
+   * @param action - The scoped-body action this route performs. A recovered
+   *        `session-body-v1` credential is only valid for an exact
+   *        (action, session, agent, project, worktree, branch) tuple, so the
+   *        route must name what it is doing; the coordinates themselves are
+   *        derived from daemon-owned state, never from the request.
+   * @returns Verified request identity and canonical stored session owner, or
+   *          a structured HTTP rejection.
+   */
+  const authorizeSessionMutationRoute = (
+    request: FastifyRequest,
+    bodyAgentId: unknown,
+    sessionId: string,
+    route: string,
+    action: SessionBodyCredentialAction,
+  ):
+    | {
+        success: true;
+        ownerAgentId: string;
+        ownerActorId: string;
+        verdict: Extract<IdentityWriteVerdict, { ok: true; kind: 'verified' }>;
+        session: Record<string, unknown>;
+      }
+    | { success: false; httpStatus: number; result: Record<string, unknown> } => {
+    // ONE metadata-only read serves both jobs: deriving the scoped body's
+    // exact resource and proving stored ownership. Reading twice would make an
+    // authorization check quietly cost a second session read on every mutation.
+    const lookup = sessions.get(sessionId, { metadataOnly: true });
+    const session = lookup.success && lookup.session && typeof lookup.session === 'object'
+      ? lookup.session as Record<string, unknown>
+      : null;
+    if (!session) {
+      return {
+        success: false,
+        httpStatus: 404,
+        result: { ...lookup, success: false, code: 'SESSION_NOT_FOUND' },
+      };
+    }
+
+    const identity = mutationIdentity(request, bodyAgentId, route, {
+      requireIdentity: true,
+      credentialUse: { sessionId, action, session: lookup },
+    });
+    if (!identity.success) return identity;
+    if (identity.verdict.kind !== 'verified') {
+      return {
+        success: false,
+        httpStatus: 401,
+        result: {
+          success: false,
+          code: 'IDENTITY_CREDENTIAL_REQUIRED',
+          error: 'session mutation requires a verified actor credential',
+        },
+      };
+    }
+
+    const authorization = authorizeSessionOwner(session, identity.verdict, actorSouls);
+    if (!authorization.ok) {
+      return {
+        success: false,
+        httpStatus: authorization.httpStatus,
+        result: {
+          success: false,
+          code: authorization.code,
+          error: authorization.error,
+        },
+      };
+    }
+
+    return {
+      success: true,
+      ownerAgentId: authorization.ownerAgentId,
+      ownerActorId: authorization.ownerActorId,
+      verdict: identity.verdict,
+      session,
+    };
   };
 
   /**
@@ -542,8 +654,10 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     agentId: string | null,
     action: 'claiming' | 'releasing',
     verdict?: Extract<IdentityWriteVerdict, { ok: true }>,
-  ): { success: true } | { success: false; result: Record<string, unknown> } => {
-    if (!agentId) {
+  ):
+    | { success: true; ownerAgentId: string }
+    | { success: false; result: Record<string, unknown> } => {
+    if (!agentId || verdict?.kind !== 'verified') {
       return {
         success: false,
         result: {
@@ -562,18 +676,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       };
     }
 
-    const session = lookup.session as { agentId?: unknown; status?: unknown } | undefined;
-    const owner = typeof session?.agentId === 'string' ? session.agentId.trim() : '';
-    if (!owner) {
-      return {
-        success: false,
-        result: {
-          success: false,
-          error: `agentId is required before ${action} files for a session`,
-          code: 'SESSION_AGENT_REQUIRED',
-        },
-      };
-    }
+    const session = lookup.session as Record<string, unknown> | undefined;
     if (session?.status !== 'active') {
       return {
         success: false,
@@ -584,210 +687,32 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         },
       };
     }
-    if (owner !== agentId) {
+    const authorization = authorizeSessionOwner(session ?? {}, verdict, actorSouls);
+    if (!authorization.ok) {
+      // Preserve the established file-claim transport code while delegating
+      // the actual owner proof to the shared session authorization boundary.
+      const code = authorization.code === 'SESSION_OWNERSHIP_MISMATCH'
+        ? 'SESSION_AGENT_MISMATCH'
+        : authorization.code;
       return {
         success: false,
         result: {
           success: false,
-          error: `agentId "${agentId}" cannot mutate file claims for session owned by "${owner}"`,
-          code: 'SESSION_AGENT_MISMATCH',
+          error: authorization.error,
+          code,
         },
       };
     }
 
-    // When the session record carries a verified identity stamp, the caller's
-    // minted actor must be the SAME soul — knowing the owner's display string
-    // is not ownership.
-    const stamped = (session as { metadata?: { identity?: { verified?: unknown; actorId?: unknown } } })
-      ?.metadata?.identity;
-    if (
-      stamped &&
-      stamped.verified === true &&
-      typeof stamped.actorId === 'string' &&
-      verdict?.kind === 'verified' &&
-      verdict.actorId !== stamped.actorId
-    ) {
-      return {
-        success: false,
-        result: {
-          success: false,
-          error: `the presented credential's actor does not own session "${sessionId}"`,
-          code: 'SESSION_AGENT_MISMATCH',
-        },
-      };
-    }
-
-    return { success: true };
+    return { success: true, ownerAgentId: authorization.ownerAgentId };
   };
 
-  /**
-   * Authorize a terminal session mutation against both durable ownership
-   * coordinates: the session's display owner and its verified actor stamp.
-   *
-   * Why both checks matter: a valid credential proves a soul, but it does not
-   * by itself prove that soul owns the target session; conversely, knowing the
-   * stored `agentId` string is not proof of actor continuity. Ending or
-   * archiving releases coordination state, so the design requires the
-   * credential's actor id to match `metadata.identity.actorId` AND the
-   * effective display id to match `session.agentId` before any mutating
-   * sessions service, symbol-release, activity, or logging side effect runs.
-   * Legacy/anonymous sessions without a verified actor stamp fail closed and
-   * must be rebound through the explicit recovery surface rather than silently
-   * accepting a newly minted actor.
-   *
-   * @param sessionId - Target session id from the route path.
-   * @param agentId - Effective display id from the identity verdict.
-   * @param verdict - Successful canonical identity-write verdict.
-   * @param action - Terminal mutation being authorized, for stable error text.
-   * @returns Authorization success, or a typed HTTP failure response.
-   */
-  const authorizeTerminalSessionMutation = (
-    sessionId: string,
-    agentId: string | null,
-    verdict: Extract<IdentityWriteVerdict, { ok: true }>,
-    action: 'ending' | 'archiving',
-  ):
-    | { success: true }
-    | { success: false; httpStatus: 403 | 404 | 409; result: Record<string, unknown> } => {
-    const lookup = sessions.get(sessionId);
-    if (!lookup.success) {
-      return {
-        success: false,
-        httpStatus: 404,
-        result: { ...lookup, code: lookup.code || 'SESSION_NOT_FOUND' },
-      };
-    }
-
-    const session = lookup.session as {
-      agentId?: unknown;
-      metadata?: { identity?: { verified?: unknown; actorId?: unknown } };
-    } | undefined;
-    const owner = typeof session?.agentId === 'string' ? session.agentId.trim() : '';
-    const stamped = session?.metadata?.identity;
-
-    if (
-      !owner ||
-      stamped?.verified !== true ||
-      typeof stamped.actorId !== 'string' ||
-      !stamped.actorId.trim()
-    ) {
-      return {
-        success: false,
-        httpStatus: 409,
-        result: {
-          success: false,
-          error: `session "${sessionId}" has no verified actor binding; rebind it before ${action}`,
-          code: 'SESSION_REBIND_REQUIRED',
-        },
-      };
-    }
-
-    if (!agentId || owner !== agentId) {
-      return {
-        success: false,
-        httpStatus: 403,
-        result: {
-          success: false,
-          error: `agentId "${agentId ?? ''}" cannot ${action === 'ending' ? 'end' : 'archive'} session owned by "${owner}"`,
-          code: 'SESSION_AGENT_MISMATCH',
-        },
-      };
-    }
-
-    if (verdict.kind !== 'verified' || verdict.actorId !== stamped.actorId) {
-      return {
-        success: false,
-        httpStatus: 403,
-        result: {
-          success: false,
-          error: `the presented credential's actor does not own session "${sessionId}"`,
-          code: 'SESSION_AGENT_MISMATCH',
-        },
-      };
-    }
-
-    return { success: true };
-  };
-
-  /**
-   * Authorize a non-terminal mutation of one existing session.
-   *
-   * A verified actor credential proves a durable soul, but it does not by
-   * itself prove ownership of an arbitrary session. Session-scoped notes,
-   * phase changes, symbol claims, and ordinary takeover therefore require the
-   * same two coordinates as terminal mutations: the effective display owner
-   * and the daemon-stamped actor id. Sessions without that stamp must use the
-   * explicit operator-recovery path; they never silently accept a newly minted
-   * actor that happens to know the old display name.
-   */
-  const authorizeOwnedSessionMutation = (
-    sessionId: string,
-    agentId: string | null,
-    verdict: Extract<IdentityWriteVerdict, { ok: true }>,
-    action: string,
-    options: { requireActive?: boolean } = {},
-  ):
-    | { success: true; session: Record<string, any> }
-    | { success: false; httpStatus: 403 | 404 | 409; result: Record<string, unknown> } => {
-    const lookup = sessions.get(sessionId);
-    if (!lookup.success) {
-      return {
-        success: false,
-        httpStatus: 404,
-        result: { ...lookup, code: lookup.code || 'SESSION_NOT_FOUND' },
-      };
-    }
-
-    const session = lookup.session as Record<string, any>;
-    const owner = typeof session?.agentId === 'string' ? session.agentId.trim() : '';
-    const stamped = session?.metadata?.identity as
-      | { verified?: unknown; actorId?: unknown }
-      | undefined;
-    if (
-      !owner ||
-      stamped?.verified !== true ||
-      typeof stamped.actorId !== 'string' ||
-      !stamped.actorId.trim()
-    ) {
-      return {
-        success: false,
-        httpStatus: 409,
-        result: {
-          success: false,
-          error: `session "${sessionId}" has no verified actor binding; rebind it before ${action}`,
-          code: 'SESSION_REBIND_REQUIRED',
-        },
-      };
-    }
-    if (options.requireActive !== false && session.status !== 'active') {
-      return {
-        success: false,
-        httpStatus: 409,
-        result: {
-          success: false,
-          error: `session "${sessionId}" is ${String(session.status)}; it cannot ${action}`,
-          code: 'SESSION_NOT_ACTIVE',
-        },
-      };
-    }
-    if (
-      !agentId ||
-      owner !== agentId ||
-      verdict.kind !== 'verified' ||
-      verdict.actorId !== stamped.actorId
-    ) {
-      return {
-        success: false,
-        httpStatus: 403,
-        result: {
-          success: false,
-          error: `the presented credential does not own session "${sessionId}" for ${action}`,
-          code: 'SESSION_AGENT_MISMATCH',
-        },
-      };
-    }
-    return { success: true, session };
-  };
+  // NOTE (merge): this branch also grew its own `authorizeTerminalSessionMutation`
+  // and `authorizeOwnedSessionMutation` helpers, which proved exactly the same
+  // two coordinates main's `authorizeSessionMutationRoute` above proves — the
+  // session's stored display owner and its daemon-stamped actor id. They were
+  // dropped rather than duplicated; the scoped-credential half of this branch's
+  // work survives as the `credentialUse` action threaded through that helper.
 
   /**
    * Shared handler for the canonical `POST /notes` and the compat alias
@@ -816,52 +741,31 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
   ) => {
     const { content, sessionId: bodySessionId, agentId, type } = request.body as any;
 
-    if (!content || typeof content !== 'string') {
+    const sessionId = routeSessionId ?? bodySessionId;
+    if (typeof sessionId !== 'string' || !sessionId.trim()) {
       reply.code(400);
       return {
         success: false,
-        error: 'content must be a non-empty string',
-        code: 'VALIDATION_ERROR'
+        code: 'SESSION_SCOPE_REQUIRED',
+        error: 'note writes require an exact sessionId; implicit agent/worktree selection is disabled',
       };
     }
 
-    const sessionId = routeSessionId ?? bodySessionId;
-
-    // #8877: notes are durable attributed records — enforce the identity
-    // write boundary before anything is persisted. A note targeting a session
-    // is always attributed and must also prove ownership of that exact target;
-    // only a truly sessionless quick note may remain anonymous.
-    const noteIdentity = mutationIdentity(
+    // Notes are immutable attributed evidence. Bind the presented credential
+    // to the exact session's daemon-stamped owner before inspecting project
+    // policy or writing any bytes. The action distinguishes a plan write from
+    // an ordinary note so a scoped recovery body is checked against the right
+    // one (`session.plan.write` vs `session.note.write`).
+    const noteIdentity = authorizeSessionMutationRoute(
       request,
       agentId,
+      sessionId.trim(),
       routeSessionId ? 'POST /sessions/:id/notes' : 'POST /notes',
-      {
-        requireIdentity: Boolean(sessionId),
-        ...(sessionId ? {
-          credentialUse: {
-            sessionId,
-            action: type === 'todo_list' ? 'session.plan.write' : 'session.note.write',
-          },
-        } : {}),
-      },
+      type === 'todo_list' ? 'session.plan.write' : 'session.note.write',
     );
     if (!noteIdentity.success) {
       reply.code(noteIdentity.httpStatus);
       return noteIdentity.result;
-    }
-
-    if (sessionId) {
-      const routeAuth = authorizeOwnedSessionMutation(
-        sessionId,
-        noteIdentity.agentId,
-        noteIdentity.verdict,
-        'receive notes',
-        { requireActive: false },
-      );
-      if (!routeAuth.success) {
-        reply.code(routeAuth.httpStatus);
-        return routeAuth.result;
-      }
     }
 
     // Adversarial-fleet projects (redteam-review, whitehat-defense) require
@@ -870,9 +774,8 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     // daemon persists the envelope JSON, never the plaintext content.
     let writtenContent: string = content;
     if (sessionId) {
-      const lookup = sessions.get(sessionId);
-      const sess = (lookup as any)?.session as { identity_project?: string | null } | undefined;
-      const project = sess?.identity_project ?? null;
+      const project = typeof noteIdentity.session.identityProject === 'string'
+        ? noteIdentity.session.identityProject : null;
       const guard = checkAdversarialProjectWrite(project, request.body);
       if (guard.ok === false) {
         reply.code(guard.code);
@@ -887,31 +790,43 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       }
     }
 
-    const result = sessions.quickNote(writtenContent, { sessionId, agentId: noteIdentity.agentId, type });
+    // Validate the guarded representation, not an unconditional plaintext
+    // field: protected projects supply only the existing envelope form.
+    if (!writtenContent || typeof writtenContent !== 'string') {
+      reply.code(400);
+      return { success: false, error: 'content must be a non-empty string', code: 'VALIDATION_ERROR' };
+    }
+
+    const result = sessions.quickNote(writtenContent, {
+      sessionId: sessionId.trim(),
+      agentId: noteIdentity.ownerAgentId,
+      type,
+    });
 
     if (!result.success) {
       reply.code(noteWriteStatus(result));
+      if (result.code === 'NOTE_RATE_LIMITED' && typeof result.retryAfterMs === 'number') {
+        reply.header('Retry-After', Math.max(1, Math.ceil(result.retryAfterMs / 1000)));
+      }
       return result;
     }
 
     // Surface the verified identity verdict on the response so the caller
     // sees which minted actor the note was attributed to.
-    if (noteIdentity.verdict.kind !== 'anonymous') {
-      result.identity = noteIdentity.verdict.identity;
-    }
+    result.identity = noteIdentity.verdict.identity;
 
-    logger.info('session_note_added', {
+    try { logger.info('session_note_added', {
       noteId: result.noteId,
       sessionId: result.sessionId,
       type: type || 'note',
-      identityVerified: noteIdentity.verdict.kind === 'verified'
-    });
+      identityVerified: true,
+    }); } catch { /* Logging cannot negate an accepted append receipt. */ }
 
     if (activityLog?.log) {
-      activityLog.log('session_note', {
+      try { activityLog.log('session_note', {
         details: `Note added to session ${result.sessionId}`,
         metadata: { noteId: result.noteId as number, sessionId: result.sessionId as string, type: type || 'note' }
-      });
+      }); } catch { /* The durable note identity remains the write receipt. */ }
     }
 
     return result;
@@ -1106,34 +1021,25 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     try {
       const sessionIdParam = (request.params as any).id;
       const sessionId = typeof sessionIdParam === 'string' ? sessionIdParam : sessionIdParam[0];
-      const body = (request.body || {}) as any;
-      const { status, note } = body;
-      const requestAgent = mutationIdentity(request, body.agentId, 'PUT /sessions/:id', {
-        requireIdentity: true,
-        credentialUse: { sessionId, action: 'session.end' },
-      });
-      if (!requestAgent.success) {
-        reply.code(requestAgent.httpStatus);
-        return requestAgent.result;
-      }
-      const routeAuth = authorizeTerminalSessionMutation(
-        sessionId,
-        requestAgent.agentId,
-        requestAgent.verdict,
-        'ending',
-      );
+      const { status, agentId } = (request.body || {}) as any;
+
+      const routeAuth = authorizeSessionMutationRoute(request, agentId, sessionId, 'PUT /sessions/:id', 'session.end');
       if (!routeAuth.success) {
         reply.code(routeAuth.httpStatus);
         return routeAuth.result;
       }
 
-      let result: Record<string, unknown>;
-
-      if (status === 'abandoned') {
-        result = sessions.abandon(sessionId);
-      } else {
-        result = sessions.end(sessionId, { note, status });
+      if (status !== 'abandoned') {
+        reply.code(400);
+        return {
+          success: false,
+          code: 'GUARDED_COMPLETION_REQUIRED',
+          error: 'completed sessions must pass the guarded /sugar/done completion boundary',
+          hint: 'Use POST /sugar/done with this exact sessionId and actor credential.',
+        };
       }
+
+      const result = sessions.abandon(sessionId);
 
       // Symbol claims release with the session (advisory reservations are session-scoped).
       if (result.success && symbolClaims) {
@@ -1147,6 +1053,8 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
 
       logger.info('session_ended', {
         sessionId,
+        actorId: routeAuth.ownerActorId,
+        agentId: routeAuth.ownerAgentId,
         status: result.status,
         releasedFiles: Array.isArray(result.releasedFiles) ? result.releasedFiles.length : 0
       });
@@ -1154,7 +1062,12 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       if (activityLog?.log) {
         activityLog.log('session_end', {
           details: `Ended session: ${sessionId} (${result.status})`,
-          metadata: { sessionId, status: result.status as string }
+          metadata: {
+            sessionId,
+            status: result.status as string,
+            actorId: routeAuth.ownerActorId,
+            agentId: routeAuth.ownerAgentId,
+          }
         });
       }
 
@@ -1174,25 +1087,28 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       const sessionIdParam = (request.params as any).id;
       const sessionId = typeof sessionIdParam === 'string' ? sessionIdParam : sessionIdParam[0];
       const body = (request.body || {}) as any;
-      // Takeover is ALWAYS attributed: when no agentId is asserted the
-      // successor inherits the predecessor's agent id, so an anonymous
-      // takeover would write an attributed record under someone else's name.
-      // requireIdentity turns even a bare no-claim takeover into a 401.
-      const sessionAgent = mutationIdentity(request, body.agentId, 'POST /sessions/:id/takeover', { requireIdentity: true });
-      if (!sessionAgent.success) {
-        reply.code(sessionAgent.httpStatus);
-        return sessionAgent.result;
-      }
-      const takeoverAuth = authorizeOwnedSessionMutation(
+      // Takeover resumes one exact durable owner. A valid credential proves
+      // the caller, but the target session's daemon stamp proves ownership;
+      // never let a caller select a new successor identity in the request.
+      const routeAuth = authorizeSessionMutationRoute(
+        request,
+        body.agentId,
         sessionId,
-        sessionAgent.agentId,
-        sessionAgent.verdict,
-        'be taken over',
-        { requireActive: false },
+        'POST /sessions/:id/takeover',
+        'session.relink',
       );
-      if (!takeoverAuth.success) {
-        reply.code(takeoverAuth.httpStatus);
-        return takeoverAuth.result;
+      if (!routeAuth.success) {
+        reply.code(routeAuth.httpStatus);
+        return routeAuth.result;
+      }
+      const predecessorSession = routeAuth.session;
+      if (predecessorSession.status === 'active') {
+        reply.code(409);
+        return {
+          success: false,
+          code: 'SESSION_STILL_ACTIVE',
+          error: `session ${sessionId} is still active; its current owner must abandon it before takeover`,
+        };
       }
       const lifecycle = parseSessionLifecycle(body.lifecycle);
       const worktreePolicy = evaluateSessionWorktreePolicy({
@@ -1214,25 +1130,25 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       );
 
       const result = sessions.takeover(sessionId, {
-        agentId: sessionAgent.agentId,
+        agentId: routeAuth.ownerAgentId,
         purpose: typeof body.purpose === 'string' ? body.purpose : null,
         note: typeof body.note === 'string' ? body.note : null,
         project: typeof body.project === 'string' ? body.project : null,
         worktreeId: typeof body.worktreeId === 'string' ? body.worktreeId : worktreePolicy.worktree?.id ?? null,
-        metadata: stampIdentityMetadata(metadata, sessionAgent.verdict),
+        metadata: stampIdentityMetadata(metadata, routeAuth.verdict),
         durable: lifecycle ? lifecycle === 'durable' : typeof body.durable === 'boolean' ? body.durable : undefined,
         claimFiles: typeof body.claimFiles === 'boolean' ? body.claimFiles : undefined,
       });
 
       if (!result.success) {
-        const statusCode = result.code === 'VALIDATION_ERROR' ? 400 : 404;
-        reply.code(statusCode);
+        reply.code(noteWriteStatus(result));
+        if (result.code === 'NOTE_RATE_LIMITED' && typeof result.retryAfterMs === 'number') {
+          reply.header('Retry-After', Math.max(1, Math.ceil(result.retryAfterMs / 1000)));
+        }
         return result;
       }
 
-      if (sessionAgent.verdict.kind !== 'anonymous') {
-        result.identity = sessionAgent.verdict.identity;
-      }
+      result.identity = routeAuth.verdict.identity;
 
       // `sessions.takeover` is the durable lineage writer. Do not trust a
       // predecessor field in the request body: only the returned predecessor
@@ -1248,7 +1164,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         predecessorId: result.predecessorId,
         successorId: result.successorId,
         claimsTransferred: result.claimsTransferred,
-        identityVerified: sessionAgent.verdict.kind === 'verified',
+        identityVerified: true,
       });
 
       return result;
@@ -1266,8 +1182,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     try {
       const sessionIdParam = (request.params as any).id;
       const sessionId = typeof sessionIdParam === 'string' ? sessionIdParam : sessionIdParam[0];
-      const body = (request.body ?? {}) as any;
-      const { phase } = body;
+      const { phase, agentId } = (request.body || {}) as any;
 
       if (!phase || typeof phase !== 'string') {
         reply.code(400);
@@ -1278,29 +1193,23 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         };
       }
 
-      const requestAgent = mutationIdentity(
-        request,
-        body.agentId,
-        'PUT /sessions/:id/phase',
-        {
-          requireIdentity: true,
-          credentialUse: { sessionId, action: 'session.phase.write' },
-        },
-      );
-      if (!requestAgent.success) {
-        reply.code(requestAgent.httpStatus);
-        return requestAgent.result;
+      const routeAuth = authorizeSessionMutationRoute(request, agentId, sessionId, 'PUT /sessions/:id/phase', 'session.phase.write');
+      if (!routeAuth.success) {
+        reply.code(routeAuth.httpStatus);
+        return routeAuth.result;
       }
-      const phaseAuth = authorizeOwnedSessionMutation(
-        sessionId,
-        requestAgent.agentId,
-        requestAgent.verdict,
-        'change phase',
-        { requireActive: false },
-      );
-      if (!phaseAuth.success) {
-        reply.code(phaseAuth.httpStatus);
-        return phaseAuth.result;
+
+      // setPhase also updates status and releases claims for terminal phases.
+      // Normalize exactly as the store does so alternate casing/whitespace
+      // cannot bypass the sole guarded completion boundary.
+      if (phase.toLowerCase().trim() === 'completed') {
+        reply.code(400);
+        return {
+          success: false,
+          code: 'GUARDED_COMPLETION_REQUIRED',
+          error: 'completed sessions must pass the guarded /sugar/done completion boundary',
+          hint: 'Use POST /sugar/done with this exact sessionId and actor credential.',
+        };
       }
 
       const result = sessions.setPhase(sessionId, phase);
@@ -1343,21 +1252,9 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     try {
       const sessionIdParam = (request.params as any).id;
       const sessionId = typeof sessionIdParam === 'string' ? sessionIdParam : sessionIdParam[0];
-      const body = (request.body || {}) as any;
-      const requestAgent = mutationIdentity(request, body.agentId, 'DELETE /sessions/:id', {
-        requireIdentity: true,
-        credentialUse: { sessionId, action: 'session.archive' },
-      });
-      if (!requestAgent.success) {
-        reply.code(requestAgent.httpStatus);
-        return requestAgent.result;
-      }
-      const routeAuth = authorizeTerminalSessionMutation(
-        sessionId,
-        requestAgent.agentId,
-        requestAgent.verdict,
-        'archiving',
-      );
+      const { agentId } = (request.body || {}) as any;
+
+      const routeAuth = authorizeSessionMutationRoute(request, agentId, sessionId, 'DELETE /sessions/:id', 'session.archive');
       if (!routeAuth.success) {
         reply.code(routeAuth.httpStatus);
         return routeAuth.result;
@@ -1412,15 +1309,15 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       const projectParam = q.project;
 
       const type = typeof typeParam === 'string' ? typeParam : undefined;
-      const limit = typeof limitParam === 'string' ? parseInt(limitParam, 10) : 100;
-      const since = typeof sinceParam === 'string' ? parseInt(sinceParam, 10) : undefined;
+      const limit = limitParam === undefined ? 100 : typeof limitParam === 'string' && /^\d+$/.test(limitParam) ? Number(limitParam) : NaN;
+      const since = sinceParam === undefined ? undefined : typeof sinceParam === 'string' && /^\d+$/.test(sinceParam) ? Number(sinceParam) : NaN;
       const project = typeof projectParam === 'string' && projectParam.trim() ? projectParam.trim() : undefined;
 
       const result = sessions.getNotes(sessionId, { type, limit, since, project });
 
       if (!result.success) {
-        reply.code(404);
-        return { ...result, code: 'SESSION_NOT_FOUND' };
+        reply.code(result.code === 'VALIDATION_ERROR' ? 400 : 404);
+        return { ...result, code: result.code ?? 'SESSION_NOT_FOUND' };
       }
 
       return result;
@@ -1519,7 +1416,11 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         }
       }
 
-      const result = sessions.claimFiles(sessionId, files || [], { regions, force, agentId: requestAgent.agentId });
+      const result = sessions.claimFiles(sessionId, files || [], {
+        regions,
+        force,
+        agentId: routeAuth.ownerAgentId,
+      });
 
       if (!result.success) {
         reply.code(errorStatus(result));
@@ -1577,36 +1478,38 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         reply.code(400);
         return { success: false, error: 'each claim needs filePath and symbolPath', code: 'VALIDATION_ERROR' };
       }
-      // read | modify | add-sibling | add-child | delete | rename (unknown → modify)
-      claims.push({ filePath: c.filePath, symbolPath: c.symbolPath, type: coerceClaimType(c.type) });
+      if (typeof c.type !== 'string' || !(ALL_CLAIM_TYPES as readonly string[]).includes(c.type)) {
+        reply.code(400);
+        return {
+          success: false,
+          error: `claim type must be one of: ${ALL_CLAIM_TYPES.join(', ')}`,
+          code: 'VALIDATION_ERROR',
+        };
+      }
+      claims.push({ filePath: c.filePath, symbolPath: c.symbolPath, type: c.type as ClaimType });
     }
     if (!claims.length) {
       reply.code(400);
       return { success: false, error: 'claims must be a non-empty array', code: 'VALIDATION_ERROR' };
     }
     try {
-      const requestAgent = mutationIdentity(
-        request,
-        body.agentId,
-        'POST /sessions/:id/symbols',
-        {
-          requireIdentity: true,
-          credentialUse: { sessionId, action: 'session.symbol.claim' },
-        },
-      );
+      const requestAgent = mutationIdentity(request, body.agentId, 'POST /sessions/:id/symbols', {
+        requireIdentity: true,
+        credentialUse: { sessionId, action: 'session.symbol.claim' },
+      });
       if (!requestAgent.success) {
         reply.code(requestAgent.httpStatus);
         return requestAgent.result;
       }
-      const symbolAuth = authorizeOwnedSessionMutation(
+      const routeAuth = authorizeFileMutationRoute(
         sessionId,
         requestAgent.agentId,
+        'claiming',
         requestAgent.verdict,
-        'claim symbols',
       );
-      if (!symbolAuth.success) {
-        reply.code(symbolAuth.httpStatus);
-        return symbolAuth.result;
+      if (!routeAuth.success) {
+        reply.code(errorStatus(routeAuth.result));
+        return routeAuth.result;
       }
 
       const result = symbolClaims.claim(sessionId, claims, {
@@ -1725,7 +1628,10 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         return routeAuth.result;
       }
 
-      const result = sessions.releaseFiles(sessionId, files, { regions, agentId: requestAgent.agentId });
+      const result = sessions.releaseFiles(sessionId, files, {
+        regions,
+        agentId: routeAuth.ownerAgentId,
+      });
 
       if (!result.success) {
         reply.code(errorStatus(result));
@@ -1837,13 +1743,13 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       const sinceParam = q.since;
       const projectParam = q.project;
 
-      const limit = typeof limitParam === 'string' ? parseInt(limitParam, 10) : 50;
+      const limit = limitParam === undefined ? 50 : typeof limitParam === 'string' && /^\d+$/.test(limitParam) ? Number(limitParam) : NaN;
       const type = typeof typeParam === 'string' ? typeParam : undefined;
-      const since = typeof sinceParam === 'string' ? parseInt(sinceParam, 10) : undefined;
+      const since = sinceParam === undefined ? undefined : typeof sinceParam === 'string' && /^\d+$/.test(sinceParam) ? Number(sinceParam) : NaN;
       const project = typeof projectParam === 'string' && projectParam.trim() ? projectParam.trim() : undefined;
 
       const result = sessions.getNotes(null, { limit, type, since, project });
-
+      if (!result.success) reply.code(result.code === 'VALIDATION_ERROR' ? 400 : 404);
       return result;
 
     } catch (error) {

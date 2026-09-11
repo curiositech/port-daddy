@@ -37,7 +37,7 @@ Session: `session-a7366433-5e18-4deb-b78a-561b77163e23`
 
 ## Next Skill Slices
 
-1. Normalize first-party Port Daddy skills first: `port-daddy-agent-skill`, `skill-architect`, `next-move`, `windags-*`, and any Fleet/actor lifecycle skills.
+1. Normalize first-party Port Daddy skills first: `port-daddy-agent-skill`, `skill-architect`, `next-move`, `jury_rig-*`, and any Fleet/actor lifecycle skills.
 2. Keep imported literature skills read-only until explicitly opted into structural mutation.
 3. Add a native FleetBar popover alert for `coordination:inconsistency` if operator-worthy warnings should be visible before opening the embedded web control plane.
 4. Add `agents/openai.yaml` or mirror metadata only after deciding which skills are distribution surfaces.

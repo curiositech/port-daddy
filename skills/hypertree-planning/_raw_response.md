@@ -327,7 +327,7 @@ Additionally, **rules can be incomplete or misspecified**. If the TravelPlanner 
 
 ## Practical Implications for Agent Orchestration
 
-For a system like WinDAGs with 180+ skills, the rule-based approach suggests:
+For a system like Jury-rig with 180+ skills, the rule-based approach suggests:
 
 **1. Skill Taxonomy as Decomposition Rules**: Organize skills into hierarchical categories that mirror problem structure. Rather than a flat list of 180 skills, create a rule structure like:
 
@@ -538,7 +538,7 @@ The empirical results suggest a practical heuristic: **design your decomposition
 - Chains are short enough to maintain coherence and accuracy
 - Error rates remain manageable (95%^15 ≈ 46% success per chain)
 
-For a WinDAGs system with 180+ skills:
+For a Jury-rig system with 180+ skills:
 
 **Poor decomposition** (targeting 5-step chains):
 ```
@@ -655,7 +655,7 @@ But does NOT need capability in:
 - Restaurant selection
 - Attraction planning
 
-In a WinDAGs-style system with 180+ skills, this enables **automatic skill routing**. The node type [Accommodation for City] maps to a skill cluster:
+In a Jury-rig-style system with 180+ skills, this enables **automatic skill routing**. The node type [Accommodation for City] maps to a skill cluster:
 - database_query (to fetch available accommodations)
 - constraint_filter (to apply house rules, room types)
 - optimization (to minimize cost)
@@ -782,7 +782,7 @@ HTP handles this through the **hyperchain concept**. The system doesn't assign f
 
 This is analogous to **dynamic thread creation** in concurrent programming. You don't pre-allocate a fixed thread pool; you spawn threads as needed based on problem structure, then join them at synchronization points.
 
-For WinDAGs implementation: **don't pre-define agent instances**. Define agent *types* (or skill clusters) and instantiate them on-demand based on the decomposition structure that emerges from the query.
+For Jury-rig implementation: **don't pre-define agent instances**. Define agent *types* (or skill clusters) and instantiate them on-demand based on the decomposition structure that emerges from the query.
 
 ## Pruning Strategies as Load Management
 
@@ -1422,7 +1422,7 @@ The planning outline is an externalized, inspectable data structure, not hidden 
 - Partial execution and resume-from-checkpoint
 - Structure reuse for similar queries
 
-For WinDAGs, materialize the DAG structure before executing it, allowing inspection and modification.
+For Jury-rig, materialize the DAG structure before executing it, allowing inspection and modification.
 
 **Principle 3: Defer Knowledge Loading**
 Don't query knowledge bases during structure generation. Determine *what* knowledge is needed, then load it during execution *when* needed. This prevents:

@@ -20,9 +20,6 @@ export const subjectRoot = resolve(process.env.MEGA_VOLUME_SUBJECT_ROOT ?? repoR
 
 const generatorRelative = 'scripts/generate-mega-whitepaper.mjs';
 const buildScriptRelative = 'scripts/build-whitepapers.sh';
-const chapterPlateRelative =
-  'website-v2/public/whitepaper/art/collected-volume/chapter-vii-federated-harbor.jpg';
-
 export function subjectAvailable() {
   return existsSync(resolve(subjectRoot, generatorRelative));
 }
@@ -30,7 +27,9 @@ export function subjectAvailable() {
 export function fallbackAvailable() {
   if (!subjectAvailable()) return false;
   const buildScript = resolve(subjectRoot, buildScriptRelative);
-  return existsSync(buildScript) && readFileSync(buildScript, 'utf8').includes('pdflatex fallback pass');
+  // The fallback loop prints "<engine> fallback pass N/4"; the engine is a
+  // literal pdflatex in older scripts and a variable once the Book moved to xelatex.
+  return existsSync(buildScript) && /(pdflatex|\$engine) fallback pass/u.test(readFileSync(buildScript, 'utf8'));
 }
 
 function copyTexTree(from, to) {
@@ -38,7 +37,7 @@ function copyTexTree(from, to) {
     recursive: true,
     filter(path) {
       if (!existsSync(path)) return false;
-      return !path.includes('/.cache/') && (!path.includes('.') || path.endsWith('.tex'));
+      return !path.includes('/.cache/') && (!path.includes('.') || path.endsWith('.tex') || path.endsWith('.json'));
     },
   });
 }
@@ -58,8 +57,6 @@ export function makeFixture() {
     resolve(subjectRoot, 'website-v2/public/whitepaper'),
     resolve(root, 'website-v2/public/whitepaper'),
   );
-  mkdirSync(dirname(resolve(root, chapterPlateRelative)), { recursive: true });
-  cpSync(resolve(subjectRoot, chapterPlateRelative), resolve(root, chapterPlateRelative));
   return root;
 }
 

@@ -1,0 +1,326 @@
+{
+ "figure": "fig-worked-example",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "fail",
+   "count": 8,
+   "findings": [
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      256.25732421875,
+      117.88763427734375,
+      259.6863708496094,
+      123.49980926513672
+     ],
+     "text": "1",
+     "size_pt": 5.61,
+     "message": "text '1' renders at 5.61pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      276.66229248046875,
+      117.88763427734375,
+      280.0913391113281,
+      123.49980926513672
+     ],
+     "text": "5",
+     "size_pt": 5.61,
+     "message": "text '5' renders at 5.61pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      387.99639892578125,
+      117.88763427734375,
+      391.4254455566406,
+      123.49980926513672
+     ],
+     "text": "6",
+     "size_pt": 5.61,
+     "message": "text '6' renders at 5.61pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      408.4013671875,
+      117.88763427734375,
+      411.8304138183594,
+      123.49980926513672
+     ],
+     "text": "8",
+     "size_pt": 5.61,
+     "message": "text '8' renders at 5.61pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      300.1887512207031,
+      218.9803466796875,
+      304.1568603515625,
+      225.95419311523438
+     ],
+     "text": "1",
+     "size_pt": 6.97,
+     "message": "text '1' renders at 6.97pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      325.34185791015625,
+      218.9803466796875,
+      329.3099670410156,
+      225.95419311523438
+     ],
+     "text": "5",
+     "size_pt": 6.97,
+     "message": "text '5' renders at 6.97pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      351.3733215332031,
+      218.9803466796875,
+      355.3414306640625,
+      225.95419311523438
+     ],
+     "text": "6",
+     "size_pt": 6.97,
+     "message": "text '6' renders at 6.97pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      376.5264587402344,
+      218.9803466796875,
+      380.49456787109375,
+      225.95419311523438
+     ],
+     "text": "8",
+     "size_pt": 6.97,
+     "message": "text '8' renders at 6.97pt, below the 7.00pt floor"
+    }
+   ]
+  },
+  "T2": {
+   "status": "fail",
+   "count": 1,
+   "findings": [
+    {
+     "check": "T2",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      359.7925109863281,
+      56.1072883605957,
+      405.84979248046875,
+      63.590187072753906
+     ],
+     "container_bbox": [
+      358.38946533203125,
+      57.33045196533203,
+      407.2735595703125,
+      64.81344604492188
+     ],
+     "text": "successor cap",
+     "message": "text 'successor cap' escapes its containing rect (358.4, 57.3, 407.3, 64.8)"
+    }
+   ]
+  },
+  "T3": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T4": {
+   "status": "fail",
+   "count": 6,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      124.02643585205078,
+      52.178653717041016,
+      158.02874755859375,
+      59.66155242919922
+     ],
+     "text": "capability",
+     "line_segment": [
+      [
+       141.03231811523438,
+       157.4147491455078
+      ],
+      [
+       141.03231811523438,
+       54.950836181640625
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'capability'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      211.59820556640625,
+      53.63368606567383,
+      230.1408233642578,
+      61.11658477783203
+     ],
+     "text": "claim",
+     "line_segment": [
+      [
+       220.8742218017578,
+       157.4147491455078
+      ],
+      [
+       220.8742218017578,
+       54.950836181640625
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'claim'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      309.7547302246094,
+      81.18817901611328,
+      359.2615966796875,
+      88.67108154296875
+     ],
+     "text": "salvage parent",
+     "line_segment": [
+      [
+       327.330078125,
+       157.4147491455078
+      ],
+      [
+       327.330078125,
+       54.950836181640625
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'salvage parent'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      153.62197875976562,
+      127.46781158447266,
+      181.65293884277344,
+      134.95071411132812
+     ],
+     "text": "bond $6",
+     "line_segment": [
+      [
+       167.64627075195312,
+       157.4147491455078
+      ],
+      [
+       167.64627075195312,
+       54.950836181640625
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'bond $6'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      455.1521911621094,
+      127.88684844970703,
+      491.1598205566406,
+      135.3697509765625
+     ],
+     "text": "settle to P",
+     "line_segment": [
+      [
+       473.7069396972656,
+       157.4147491455078
+      ],
+      [
+       473.7069396972656,
+       54.950836181640625
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'settle to P'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      231.79269409179688,
+      152.8685760498047,
+      409.6463317871094,
+      160.35147094726562
+     ],
+     "text": "cleanup exposure remains funded through the crash",
+     "line_segment": [
+      [
+       327.330078125,
+       157.4147491455078
+      ],
+      [
+       327.330078125,
+       54.950836181640625
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'cleanup exposure remains funded through the crash'"
+    }
+   ]
+  },
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T1",
+   "T2",
+   "T4"
+  ],
+  "warned_checks": []
+ }
+}

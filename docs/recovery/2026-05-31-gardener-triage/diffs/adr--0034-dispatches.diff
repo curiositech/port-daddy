@@ -37,7 +37,7 @@ Plus the smaller fixes:
   `dispatch_stuck_no_progress_30min`
 - F17: diff-counting contract for merge_policy='auto'
 - F12: migration runner contract (BEGIN IMMEDIATE) + 083 guard
-- F16: dropped phantom `windags_skills` references; use `agents.skills`
+- F16: dropped phantom `jury_rig_skills` references; use `agents.skills`
 - F11: cost tracks on body_leases (per ADR-0022 amend), not on dispatch
 - F18: `routing_blocked` not a state; rejected at HTTP 422 instead
 
@@ -305,7 +305,7 @@ index 00000000..1b649581
 +### Routing (Path B fix #3)
 +
 +The default for Phase B is `--to <actor>` required. Auto-routing via
-+`mcp__windags__windags_skill_search` (see ADR-0039) is behind a feature
++`pd jury-rig query` (see ADR-0039) is behind a feature
 +flag with a quantitatively defined gate:
 +
 +> Auto-routing enables when all three hold:
@@ -330,10 +330,10 @@ index 00000000..1b649581
 +
 +Routing has two stages once the gate opens:
 +
-+1. **Stage 1 — Skill match via Windags.** Call
-+   `mcp__windags__windags_skill_search` with the goal as query.
++1. **Stage 1 — Skill match via Jury-rig.** Call
++   `pd jury-rig query` with the goal as query.
 +   Intersect the ranked skills with each actor's `agents.skills` array
-+   (the existing JSON column; the plan's earlier `windags_skills`
++   (the existing JSON column; the plan's earlier `jury_rig_skills`
 +   framing was a phantom — `agents.skills` is the real column).
 +   Produce a ranked actor list.
 +2. **Stage 2 — Capability + availability filter.** Drop actors whose
@@ -341,7 +341,7 @@ index 00000000..1b649581
 +   no live attached lease. Drop actors over their in-flight dispatch
 +   cap.
 +
-+If Windags is unreachable, fall back to **MiniLM cosine similarity over
++If Jury-rig is unreachable, fall back to **MiniLM cosine similarity over
 +the actor profile string** `concat(purpose, skills, identity_context,
 +last-48h session_notes window capped at 500 notes)`, reusing the
 +embedder in `lib/shipwright/skill-index.ts`. Log

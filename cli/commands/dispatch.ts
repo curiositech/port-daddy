@@ -375,6 +375,7 @@ export async function handleDispatch(args: string[], options: CLIOptions): Promi
           : typeof options.baseBranch === 'string'
             ? options.baseBranch
             : undefined,
+        projectDir: process.cwd(),
         autoClaim: !!options['auto-claim'] || !!options.autoClaim,
         targetActorId: typeof options.to === 'string' ? options.to : undefined,
         reviewerActorId: typeof options.reviewer === 'string' ? options.reviewer : undefined,

@@ -22,7 +22,9 @@ import { resolveDaemonTcpTarget, resolvePublishedDaemonUrl } from '../shared/dae
 import type { DaemonTarget as ConnectionTarget } from '../shared/daemon-discovery.js';
 import { createIpcClient } from './ipc-client.js';
 import { IpcAction, Performative } from './ipc-types.js';
+import { generateBeginIdempotencyKey } from './begin-idempotency.js';
 import { DEFAULT_SOCK, DEFAULT_IPC } from '../shared/paths.js';
+import type { SalvageQueueStatus } from './resurrection.js';
 
 // =============================================================================
 // SDK option / result interfaces
@@ -434,7 +436,9 @@ interface StaleAgent {
   sessionId: string | null;
   lastHeartbeat: number;
   staleSince: number;
-  status: 'stale' | 'dead' | 'resurrecting';
+  status: SalvageQueueStatus;
+  holdReason?: 'durable_session_active';
+  replacementAlreadyAdmitted?: boolean;
   notes?: string[];
   identityProject: string | null;
   identityStack: string | null;
@@ -909,6 +913,12 @@ interface SessionResponse {
   conflicts?: Array<{ filePath: string; sessionId: string; purpose: string; claimedAt: number }>;
   error?: string;
   code?: string;
+  candidates?: Array<{
+    sessionId: string;
+    worktreeId: string | null;
+    status?: string | null;
+    lifecycle?: 'durable' | 'ephemeral';
+  }>;
 }
 
 interface SessionTakeoverResponse {
@@ -1361,10 +1371,16 @@ class PortDaddy {
   // ===========================================================================
 
   /** @private */
-  _headers(hasBody: boolean = false): Record<string, string> {
+  _headers(
+    hasBody: boolean = false,
+    identity?: { agentId?: string | null },
+  ): Record<string, string> {
     const h: Record<string, string> = {};
     if (hasBody) h['Content-Type'] = 'application/json';
-    if (this.agentId) h['X-Agent-Id'] = this.agentId;
+    const requestAgentId = identity && Object.prototype.hasOwnProperty.call(identity, 'agentId')
+      ? identity.agentId
+      : this.agentId;
+    if (requestAgentId) h['X-Agent-Id'] = requestAgentId;
     if (this.credential) h['X-Actor-Credential'] = this.credential;
     if (this.pid) h['X-Pid'] = String(this.pid);
     return h;
@@ -1399,10 +1415,15 @@ class PortDaddy {
   }
 
   /** @private */
-  async _request(method: string, path: string, body?: Record<string, unknown>): Promise<unknown> {
+  async _request(
+    method: string,
+    path: string,
+    body?: Record<string, unknown>,
+    identity?: { agentId?: string | null },
+  ): Promise<unknown> {
     const target = this._resolveTarget();
     const jsonBody = body !== undefined ? JSON.stringify(body) : null;
-    const headers = this._headers(jsonBody !== null);
+    const headers = this._headers(jsonBody !== null, identity);
 
     if (jsonBody) {
       headers['Content-Length'] = String(Buffer.byteLength(jsonBody));
@@ -2272,34 +2293,75 @@ class PortDaddy {
   async endSession(sessionIdOrNote?: string, options?: {
     status?: string;
     note?: string;
+    /** Explicit owner paired by a preceding daemon resolution, never ambient. */
+    agentId?: string;
   }): Promise<SessionResponse> {
     // If first arg looks like a session ID, use it directly
     // Otherwise treat it as a note and find active session
     const isSessionId = sessionIdOrNote?.startsWith('session-');
     const sessionId = isSessionId ? sessionIdOrNote : undefined;
     const note = isSessionId ? options?.note : sessionIdOrNote;
+    const status = options?.status || 'completed';
 
     if (sessionId) {
+      if (status === 'completed') {
+        const result = await this.done(note, { sessionId, status: 'completed', agentId: options?.agentId });
+        return {
+          ...result,
+          id: result.sessionId || sessionId,
+          purpose: '',
+          status: result.sessionStatus || 'completed',
+          createdAt: 0,
+          updatedAt: Date.now(),
+        } as SessionResponse;
+      }
       return this._request('PUT', `/sessions/${sessionId}`, {
-        status: options?.status || 'completed',
+        status,
         note,
-      }) as Promise<SessionResponse>;
+        agentId: options?.agentId,
+      }, { agentId: options?.agentId ?? null }) as Promise<SessionResponse>;
     }
 
     // Find active session
     const list = await this.sessions({
       status: 'active',
       agentId: this.agentId,
-      limit: 1,
+      allWorktrees: true,
+      limit: 50,
     });
     if (!list.sessions.length) {
-      return { success: false, id: '', purpose: '', status: '', createdAt: 0, updatedAt: 0 } as SessionResponse;
+      return {
+        success: false,
+        id: '',
+        purpose: '',
+        status: '',
+        createdAt: 0,
+        updatedAt: 0,
+        code: 'NO_ACTIVE_SESSION',
+        error: 'No active session found',
+      } as SessionResponse;
+    }
+    if (list.sessions.length > 1) {
+      return {
+        success: false,
+        id: '',
+        purpose: '',
+        status: '',
+        createdAt: 0,
+        updatedAt: 0,
+        code: 'AMBIGUOUS_ACTIVE_SESSION',
+        error: 'Multiple active sessions match this actor; pass an exact sessionId.',
+        candidates: list.sessions.map((session) => {
+          const row = session as unknown as Record<string, unknown>;
+          return {
+            sessionId: session.id,
+            worktreeId: typeof row.worktreeId === 'string' ? row.worktreeId : null,
+          };
+        }),
+      } as SessionResponse;
     }
 
-    return this._request('PUT', `/sessions/${list.sessions[0].id}`, {
-      status: options?.status || 'completed',
-      note,
-    }) as Promise<SessionResponse>;
+    return this.endSession(list.sessions[0].id, { status, note, agentId: list.sessions[0].agentId ?? undefined });
   }
 
   /**
@@ -2312,8 +2374,16 @@ class PortDaddy {
   /**
    * Delete a session entirely.
    */
-  async removeSession(sessionId: string): Promise<{ success: boolean }> {
-    return this._request('DELETE', `/sessions/${sessionId}`) as Promise<{ success: boolean }>;
+  async removeSession(
+    sessionId: string,
+    options?: { agentId?: string | null },
+  ): Promise<{ success: boolean }> {
+    return this._request(
+      'DELETE',
+      `/sessions/${sessionId}`,
+      undefined,
+      { agentId: options?.agentId ?? null },
+    ) as Promise<{ success: boolean }>;
   }
 
   /**
@@ -2342,20 +2412,21 @@ class PortDaddy {
       throw new PortDaddyError(failure.error, 401, failure);
     }
 
-    const body: Record<string, unknown> = {
-      ...(options || {}),
-      agentId: options?.agentId || this.agentId,
-    };
+    const body: Record<string, unknown> = { ...(options || {}) };
     if (options?.lifecycle) {
       body.durable = options.lifecycle === 'durable';
       delete body.lifecycle;
     }
-    return this._request('POST', `/sessions/${sessionId}/takeover`, body) as Promise<SessionTakeoverResponse>;
+
+    return this._request(
+      'POST',
+      `/sessions/${sessionId}/takeover`,
+      body,
+      { agentId: options?.agentId ?? null },
+    ) as Promise<SessionTakeoverResponse>;
   }
 
-  /**
-   * Add a quick note (auto-creates session if needed).
-   */
+  /** Add an attributed note to one exact session. */
   async note(content: string, options?: {
     type?: string;
     agentId?: string;
@@ -2366,6 +2437,8 @@ class PortDaddy {
       sessionId: options?.sessionId,
       agentId: options?.agentId,
       type: options?.type,
+    }, {
+      agentId: options?.sessionId ? (options.agentId ?? null) : options?.agentId,
     }) as Promise<NoteResponse>;
   }
 
@@ -2464,8 +2537,16 @@ class PortDaddy {
       regions = options.regions;
       agentId = options.agentId;
     }
-    const callerAgentId = agentId ?? this.agentId;
-    return this._request('POST', `/sessions/${sessionId}/files`, { files, regions, force, agentId: callerAgentId }) as Promise<FileClaimResponse>;
+    // An exact session id is already the target. Never graft the client's
+    // ambient display alias onto it; only an explicitly paired agentId may
+    // travel with the session tuple.
+    const callerAgentId = agentId ?? undefined;
+    return this._request(
+      'POST',
+      `/sessions/${sessionId}/files`,
+      { files, regions, force, agentId: callerAgentId },
+      { agentId: callerAgentId ?? null },
+    ) as Promise<FileClaimResponse>;
   }
 
   /**
@@ -2476,8 +2557,13 @@ class PortDaddy {
     files: string[],
     options?: { regions?: FileRegion[]; agentId?: string | null }
   ): Promise<FileReleaseResponse> {
-    const callerAgentId = options?.agentId ?? this.agentId;
-    return this._request('DELETE', `/sessions/${sessionId}/files`, { files, regions: options?.regions, agentId: callerAgentId }) as Promise<FileReleaseResponse>;
+    const callerAgentId = options?.agentId ?? undefined;
+    return this._request(
+      'DELETE',
+      `/sessions/${sessionId}/files`,
+      { files, regions: options?.regions, agentId: callerAgentId },
+      { agentId: callerAgentId ?? null },
+    ) as Promise<FileReleaseResponse>;
   }
 
   // ──────────────────────────────────────────────────────────────
@@ -2488,8 +2574,17 @@ class PortDaddy {
    * Set the phase of a session.
    * Valid phases: planning, in_progress, testing, reviewing, completed, abandoned
    */
-  async setSessionPhase(sessionId: string, phase: string): Promise<Record<string, unknown>> {
-    return this._request('PUT', `/sessions/${sessionId}/phase`, { phase }) as Promise<Record<string, unknown>>;
+  async setSessionPhase(
+    sessionId: string,
+    phase: string,
+    options?: { agentId?: string | null },
+  ): Promise<Record<string, unknown>> {
+    return this._request(
+      'PUT',
+      `/sessions/${sessionId}/phase`,
+      { phase, agentId: options?.agentId },
+      { agentId: options?.agentId ?? null },
+    ) as Promise<Record<string, unknown>>;
   }
 
   // ──────────────────────────────────────────────────────────────
@@ -2600,10 +2695,9 @@ class PortDaddy {
    *
    * @param options.alias - Display alias to bind to the minted soul
    *        (typically the agentId this client asserts on writes).
-   * @param options.project - Project scope for the shared newcomer pool.
    * @returns The mint outcome ({ actorId, credential? }) from the daemon.
    */
-  async registerActor(options: { alias?: string; project?: string } = {}): Promise<{
+  async registerActor(options: { alias?: string } = {}): Promise<{
     success: boolean;
     status: 'minted' | 'resolved';
     actorId: string;
@@ -2612,7 +2706,6 @@ class PortDaddy {
   }> {
     const body: Record<string, unknown> = {};
     if (options.alias) body.alias = options.alias;
-    if (options.project) body.project = options.project;
     if (this.credential) body.credential = this.credential;
     const result = await this._request('POST', '/actors/register', body) as {
       success: boolean;
@@ -2665,6 +2758,11 @@ class PortDaddy {
     if (options.requireLinkedWorktree) body.requireLinkedWorktree = true;
     if (options.allowMainWorktree) body.allowMainWorktree = true;
     body.lifecycle = options.lifecycle;
+    // One key per logical begin: `_request` re-sends the same body on a
+    // socket reset, and the daemon replays the original session for a known
+    // key instead of minting a second one. Callers retrying across processes
+    // pass their own key so those retries replay too.
+    body.idempotencyKey = options.idempotencyKey ?? generateBeginIdempotencyKey();
 
     const result = await this._request('POST', '/sugar/begin', body) as BeginSugarResponse;
 
@@ -2692,7 +2790,7 @@ class PortDaddy {
    */
   async done(note?: string, options: DoneSugarOptions = {}): Promise<DoneSugarResponse> {
     const body: Record<string, unknown> = {};
-    if (this.agentId) body.agentId = this.agentId;
+    if (this.agentId && !options.sessionId) body.agentId = this.agentId;
     if (options.agentId) body.agentId = options.agentId;
     if (options.sessionId) body.sessionId = options.sessionId;
     if (note) body.note = note;
@@ -2704,10 +2802,15 @@ class PortDaddy {
     if (options.forceIncomplete) body.forceIncomplete = true;
     if (options.forceIncompleteReason) body.forceIncompleteReason = options.forceIncompleteReason;
 
-    const result = await this._request('POST', '/sugar/done', body) as DoneSugarResponse;
+    const result = await this._request(
+      'POST',
+      '/sugar/done',
+      body,
+      { agentId: options.sessionId ? (options.agentId ?? null) : options.agentId },
+    ) as DoneSugarResponse;
 
     // Clear agentId since we just unregistered
-    if (result.agentUnregistered) {
+    if (result.agentUnregistered && (!result.agentId || result.agentId === this.agentId)) {
       this.agentId = undefined;
     }
 
@@ -2725,8 +2828,9 @@ class PortDaddy {
     const whoamiOptions = typeof agentIdOrOptions === 'string'
       ? { agentId: agentIdOrOptions }
       : (agentIdOrOptions || {});
-    const resolvedAgentId = whoamiOptions.agentId || this.agentId;
     const sessionId = whoamiOptions.sessionId;
+    const resolvedAgentId = whoamiOptions.agentId
+      || (sessionId ? undefined : this.agentId);
 
     if (resolvedAgentId) {
       const payload: Record<string, unknown> = { agentId: resolvedAgentId };
@@ -2783,7 +2887,7 @@ class PortDaddy {
    */
   async salvageClaim(agentId: string): Promise<SalvageClaimResponse> {
     return this._request('POST', `/resurrection/claim/${encodeURIComponent(agentId)}`, {
-      newAgentId: this.agentId || `sdk-${this.pid}`,
+      newAgentId: this.agentId,
     }) as Promise<SalvageClaimResponse>;
   }
 
@@ -3720,10 +3824,18 @@ interface BeginSugarOptions {
   worktree?: Record<string, unknown>;
   requireLinkedWorktree?: boolean;
   allowMainWorktree?: boolean;
+  /**
+   * Idempotency key for this logical begin (UUID v4 / ULID, 16..128 URL-safe
+   * chars). Send the same key on every retry of the same begin; the daemon
+   * replays the original session for a known key. Auto-generated when omitted.
+   */
+  idempotencyKey?: string;
 }
 
 interface BeginSugarResponse {
   success: boolean;
+  /** True when this response replays a begin the daemon had already committed. */
+  replayed?: boolean;
   agentId: string;
   agentName?: string;
   name?: string;
@@ -3748,11 +3860,7 @@ interface DoneSugarOptions {
   agentId?: string;
   sessionId?: string;
   status?: string;
-  /**
-   * Operator escape hatch for the origin-push + PR-URL precondition.
-   * When true, pass `skipOriginCheckReason` as well — it is required
-   * server-side and gets stamped into the result note.
-   */
+  /** Deprecated public flag; the daemon now rejects it without an internal action-scoped capability. */
   skipOriginCheck?: boolean;
   skipOriginCheckReason?: string;
   noPr?: boolean;
@@ -3771,6 +3879,15 @@ interface DoneSugarResponse {
   finalNote: boolean;
   releasedFiles?: string[];
   error?: string;
+  code?: string;
+  hint?: string;
+  remainingActiveSessions?: number;
+  candidates?: Array<{
+    sessionId: string;
+    worktreeId: string | null;
+    status?: string | null;
+    lifecycle?: 'durable' | 'ephemeral';
+  }>;
 }
 
 interface WhoamiSugarResponse {
@@ -3792,6 +3909,20 @@ interface WhoamiSugarResponse {
   roadmapLink?: string | null;
   sidequestReason?: string | null;
   hint?: string;
+  error?: string;
+  code?: string;
+  dormant?: boolean;
+  resumable?: boolean;
+  state?: string;
+  lifecycle?: 'durable' | 'ephemeral';
+  status?: string;
+  worktreeId?: string | null;
+  candidates?: Array<{
+    sessionId: string;
+    worktreeId: string | null;
+    status?: string | null;
+    lifecycle?: 'durable' | 'ephemeral';
+  }>;
   localContext?: {
     agentId: string;
     sessionId: string;
@@ -3919,6 +4050,7 @@ interface SpawnSpec {
   purpose?: string;
   task: string;
   files?: string[];
+  /** Existing absolute directory; required for local agents. API-only projectless runs may omit it. No daemon-cwd default. */
   workdir?: string;
   env?: Record<string, string>;
   timeout?: number;

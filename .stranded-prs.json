@@ -1,0 +1,5 @@
+{
+  "_comment": "Merged PRs whose base was not main. Rebuild with: gh pr list --state merged --search 'is:merged -base:main' --limit 500 --json number --jq '{prs:[.[].number]}'  — or the GitHub search 'repo:curiositech/port-daddy is:pr is:merged -base:main'. Consumed by scripts/find-stranded-prs.mjs.",
+  "generated": "2026-09-10",
+  "prs": [10122, 10120, 10113, 10112, 9903, 9887, 9884, 9814, 9813, 9775, 9764, 9753, 9750, 9730, 9661, 9639, 9638, 9376, 9255, 8935, 8910, 8908, 8889, 8761, 8683, 8679, 8565, 8545, 8476, 8468, 8449, 8403, 8332, 7788, 7487, 7339, 7278, 7184, 7175, 7159, 7148, 7122, 7091, 7080, 7020, 6802, 6727, 6667, 6420, 6367, 6366, 6365, 6309, 6206, 6193, 6161, 6138, 6065, 5825, 5804, 5761, 5722, 5716, 5399, 5251, 5241, 5239, 5197, 5199, 5064, 5046, 5003]
+}

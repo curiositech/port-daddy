@@ -176,6 +176,10 @@ export interface CliTubeOptions {
   resumeSessionId?: string;
   /** Canonical workspace identity rechecked immediately before child spawn. */
   workspaceIdentity?: WorkspaceIdentity;
+  /** Managed lifecycle cancellation checked immediately before child launch. */
+  signal?: AbortSignal;
+  /** Internal daemon callback; never reconstructed from a public spawn request. */
+  beforeChildLaunch?: () => Promise<void>;
   /**
    * Receipt metadata and policy controls for Coast Guard. The wrapper itself is
    * not optional: every CLI child is routed through Coast Guard, even when this
@@ -378,19 +382,21 @@ export async function spawnViaCliTube(
 
   const startedAt = Date.now();
 
-  if (
-    opts.resumeSessionId
-    && (
-      !opts.workspaceIdentity
-      || !opts.cwd
-      || !sameWorkspaceIdentity(opts.cwd, opts.workspaceIdentity)
-    )
-  ) {
+  const launchError = (): string | null => {
+    if (opts.signal?.aborted) return 'Spawn cancelled before child launch.';
+    if ((opts.resumeSessionId && !opts.workspaceIdentity)
+      || (opts.workspaceIdentity && (!opts.cwd || !sameWorkspaceIdentity(opts.cwd, opts.workspaceIdentity)))) {
+      return `${opts.resumeSessionId ? 'Native resume' : 'Spawn'} blocked: canonical workspace identity changed before child launch.`;
+    }
+    return null;
+  };
+  const initialLaunchError = launchError();
+  if (initialLaunchError) {
     if (tempDir) rmSync(tempDir, { recursive: true, force: true });
     return {
       output: '',
       exitCode: 1,
-      error: 'Native resume blocked: canonical workspace identity changed before child launch.',
+      error: initialLaunchError,
       tube: tubeChannel,
       durationMs: Date.now() - startedAt,
       rawStdout: '',
@@ -441,6 +447,11 @@ export async function spawnViaCliTube(
 
   let child: ChildProcess;
   try {
+    await opts.beforeChildLaunch?.();
+    // Sandbox preparation awaits I/O. Recheck afterwards, with no intervening
+    // await before the actual spawn; a cancelled/replaced target must not run.
+    const finalLaunchError = launchError();
+    if (finalLaunchError) throw new Error(finalLaunchError);
     child = spawnChild(cg.cmd, cg.args, {
       cwd,
       env: cg.env,

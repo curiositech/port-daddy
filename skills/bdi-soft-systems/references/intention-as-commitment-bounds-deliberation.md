@@ -20,7 +20,7 @@ The key insight: **"intentions are commitments to act towards the fulfilment of 
 
 When an agent forms an intention, it's not just deciding what to do—it's deciding what *not to reconsider*. If a multi-agent orchestration system forms the intention "retrieve user data from database," it shouldn't continuously re-evaluate whether database access is still the right approach. The intention creates a boundary: within this intention's scope, certain questions are settled.
 
-For WinDAGs-like systems, this suggests:
+For Jury-rig-like systems, this suggests:
 - **Intention scopes should be explicit**: Each intention should clearly define what remains open for deliberation and what is now fixed
 - **Intention revision should be costly**: Breaking an intention should require clear evidence, not just marginal doubt
 - **Sub-intentions inherit commitment**: When an intention spawns sub-tasks, those inherit the commitment context
@@ -78,7 +78,7 @@ Systems that don't maintain intention consistency will pursue contradictory goal
 
 ## Implications for Hierarchical Agent Systems
 
-In systems where multiple agents coordinate (like WinDAGs), intention-as-commitment has profound implications:
+In systems where multiple agents coordinate (like Jury-rig), intention-as-commitment has profound implications:
 
 ### Higher-Level Intentions Constrain Lower-Level Deliberation
 If a coordinating agent forms the intention "deliver security audit by end of day," subordinate agents inherit a time constraint that limits their deliberation. A code analysis agent can't spend three hours optimizing its scanning approach—the parent intention has bounded its reasoning time.

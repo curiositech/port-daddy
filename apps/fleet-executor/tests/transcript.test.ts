@@ -119,7 +119,7 @@ describe('kill switch (KV fleet:paused)', () => {
     expect(d1.steps.map(s => s.kind)).toEqual(['delivery-attempt', 'check-completed']);
   });
 
-  it('paused ⇒ reuses an existing check run for the same head SHA (idempotent retry)', async () => {
+  it('paused ⇒ creates a distinct gate for a distinct webhook delivery on the same head', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -129,13 +129,13 @@ describe('kill switch (KV fleet:paused)', () => {
     await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: memoryD1().db }));
     expect(state.checkRunsCreated).toBe(1);
 
-    // A retried delivery for the SAME head SHA must reuse the check run, not
-    // create a second one.
+    // A different webhook delivery is a new generation even on the same head;
+    // only a queue retry with the exact same delivery/run may reuse a check.
     await executeFleet(
       makeJob({ deliveryId: 'delivery-retry' }),
       makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: memoryD1().db }),
     );
-    expect(state.checkRunsCreated).toBe(1);
+    expect(state.checkRunsCreated).toBe(2);
     expect(state.completed).toHaveLength(2);
     expect(state.completed.every(c => c.conclusion === 'neutral')).toBe(true);
   });

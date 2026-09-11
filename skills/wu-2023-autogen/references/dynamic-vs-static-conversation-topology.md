@@ -112,7 +112,7 @@ Application A5 provides the most detailed examination of dynamic topology throug
 - Multiple agents (user proxy, engineer, critic, code executor) in a group
 - GroupChatManager orchestrates by: 1) selecting a speaker, 2) asking them to respond, 3) broadcasting response
 
-**Speaker selection mechanism**: 
+**Speaker selection mechanism**:
 The paper compares two approaches:
 
 1. **Task-based selection**: Append role info + chat history + next speaker's task into a prompt
@@ -254,7 +254,7 @@ While the paper shows dynamic topology's benefits, it's less explicit about fail
 3. If tasks vary significantly, introduce dynamic speaker selection (group chat)
 4. If expertise needs are unpredictable, add dynamic function-based routing (expert consultation)
 
-For WinDAGs with 180+ skills: 
+For Jury-rig with 180+ skills:
 - Don't make every skill routing decision dynamic (too much overhead)
 - Identify core workflow patterns that are consistent across tasks (static topology)
 - Add dynamic routing for:

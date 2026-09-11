@@ -184,7 +184,9 @@ export interface CleanupOptions {
    * predicate built from `sessions`.
    */
   agentOwnsSoul?: (agentId: string, actorId: string) => boolean;
-  sessions?: SessionBindingLookup | null;
+  sessions?: (SessionBindingLookup & {
+    activeDurableSessionIdsByAgent?(agentId: string, options: { verifiedOnly: boolean }): string[];
+  }) | null;
 }
 
 interface AgentsOptions {
@@ -534,10 +536,10 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
     const readiness = safeJsonParse(agent.readiness) as ReadinessCheck[] | null;
     const sinceHeartbeat = now - agent.last_heartbeat;
 
-    // isReady: status must be ready|busy AND all readiness checks must pass (or none reported)
+    // Dormant directory presence is not dispatch readiness, even with stale passing checks.
     const statusReady = agentStatus === 'ready' || agentStatus === 'busy';
     const checksPass = !readiness || readiness.every(c => c.ok);
-    const isReady = statusReady && checksPass;
+    const isReady = sinceHeartbeat < DEFAULT_AGENT_TTL && statusReady && checksPass;
 
     // Health assessment using adaptive thresholds
     const deadThreshold = getDeadThresholdForStatus(agentStatus);
@@ -860,15 +862,23 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
       }
     }
 
+    const retainedAgentIds: string[] = [];
+    const cleanedAgentIds: string[] = [];
     for (const agent of cleanupCandidates) {
+      if (options.sessions?.activeDurableSessionIdsByAgent?.(agent.id, { verifiedOnly: true }).length) {
+        retainedAgentIds.push(agent.id);
+        continue;
+      }
       stmts.deleteById.run(agent.id);
+      cleanedAgentIds.push(agent.id);
     }
 
     return {
-      cleaned: cleanupCandidates.length,
-      cleanedAgentIds: cleanupCandidates.map((agent) => agent.id),
+      cleaned: cleanedAgentIds.length,
+      cleanedAgentIds,
+      retainedAgentIds,
       releasedLocks,
-      message: `cleaned ${cleanupCandidates.length} stale agent(s)`
+      message: `cleaned ${cleanedAgentIds.length} stale agent(s)`
     };
   }
 

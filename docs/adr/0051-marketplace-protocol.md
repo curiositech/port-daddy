@@ -25,7 +25,7 @@ assumptions honestly lie. This ADR fills that gap.
 
 ### What is already shipped
 
-The following primitives exist in code today and are load-bearing substrates for
+The following primitives exist in code today and are essential substrates for
 the protocol below.
 
 | Primitive | What it does | Source |
@@ -444,7 +444,7 @@ the **bounded-convergence window** named in ADR-0027 — an honest gap, not a hi
 
 ### Trust and Identity Assumptions
 
-These are the load-bearing assumptions; each is honestly labeled.
+These are the structural assumptions; each is honestly labeled.
 
 | Assumption | Label | Source |
 |---|---|---|

@@ -30,6 +30,13 @@ describe('cli/utils/freshness', () => {
     expect(shouldCheckDaemonFreshness('find', ['find', 'api', '--direct'])).toBe(false);
   });
 
+  test('keeps both orientation aliases from restarting the daemon', async () => {
+    const { shouldCheckDaemonFreshness } = await import('../../cli/utils/freshness.js');
+
+    expect(shouldCheckDaemonFreshness('learn')).toBe(false);
+    expect(shouldCheckDaemonFreshness('tutorial')).toBe(false);
+  });
+
   test('treats named profiles and explicit URLs as owned daemon targets', async () => {
     const { hasExplicitDaemonTarget } = await import('../../cli/utils/freshness.js');
 

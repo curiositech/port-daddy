@@ -11,23 +11,15 @@
 // ---------------------------------------------------------------------------
 // GitHub App JWT (no @octokit/auth-app — Workers-native Web Crypto)
 
-async function signJwt(payload: Record<string, unknown>, pemKey: string): Promise<string> {
-  // Decode PEM → DER
-  const pem = pemKey
-    .replace(/-----BEGIN RSA PRIVATE KEY-----/, '')
-    .replace(/-----END RSA PRIVATE KEY-----/, '')
-    .replace(/-----BEGIN PRIVATE KEY-----/, '')
-    .replace(/-----END PRIVATE KEY-----/, '')
-    .replace(/\s/g, '');
-  const der = Uint8Array.from(atob(pem), c => c.charCodeAt(0));
+import {
+  githubAppPrivateKeyDer,
+  importGitHubAppSigningKey,
+} from '../../shared/github-app-crypto.js';
 
-  const key = await crypto.subtle.importKey(
-    'pkcs8',
-    der,
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  );
+export { githubAppPrivateKeyDer };
+
+async function signJwt(payload: Record<string, unknown>, pemKey: string): Promise<string> {
+  const key = await importGitHubAppSigningKey(pemKey);
 
   const header = { alg: 'RS256', typ: 'JWT' };
   const enc = (obj: unknown) =>

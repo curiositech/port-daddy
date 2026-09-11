@@ -94,7 +94,17 @@ describe('mac install contract', () => {
 
   test('install commands are individually copyable real commands, not prose fragments', () => {
     expect(installSection).toContain('function CopyableInlineCommand')
-    expect(installSection).toContain('navigator.clipboard.writeText(command)')
+    // This asserted the literal `navigator.clipboard.writeText(command)`,
+    // which pinned one component's private implementation of copying and so
+    // held the duplicate in place: the same behaviour was written out here and
+    // in the shared block, with two different acknowledgement windows and only
+    // one of them surviving a denied clipboard. What the test is named for is
+    // that each lane's command is a real command with its own copy control,
+    // and that survives the behaviour moving into the design system.
+    expect(installSection).toContain('useCopyToClipboard(command)')
+    for (const command of ['pd setup', 'pd doctor', 'pd squid codex --tier strong']) {
+      expect(installSection).toContain(`'${command}'`)
+    }
     expect(installSection).not.toContain('brew or npm install -g port-daddy')
     expect(installSection).not.toContain('pd setup or pd mcp install')
     expect(installSection).not.toContain('pd setup, or signed .zip')

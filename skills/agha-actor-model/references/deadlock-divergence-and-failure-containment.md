@@ -113,7 +113,7 @@ else send (communication) to buffer
 ```
 (p. 80)
 
-## Application to WinDAGs Failure Modes
+## Application to Jury-rig Failure Modes
 
 ### Designing for contained divergence
 
@@ -123,9 +123,9 @@ else send (communication) to buffer
 
 3. **Design for partial results**: Long computations that might diverge should produce partial results along the way, sent to the orchestrator. The orchestrator can use whatever partial results are available when it needs to proceed.
 
-### Deadlock detection in WinDAGs
+### Deadlock detection in Jury-rig
 
-WinDAGs should implement a deadlock monitor that:
+Jury-rig should implement a deadlock monitor that:
 1. Maintains a "wait-for" graph: which agent is waiting for which other agent
 2. Periodically scans for cycles in this graph
 3. On cycle detection, selects the lowest-priority task in the cycle for cancellation
@@ -135,7 +135,7 @@ Because actor systems guarantee that agents remain responsive, the deadlock moni
 
 ### The insensitive actor for atomic operations
 
-When a WinDAGs agent needs to perform a multi-step operation that must appear atomic (e.g., read-modify-write on a shared resource), it should:
+When a Jury-rig agent needs to perform a multi-step operation that must appear atomic (e.g., read-modify-write on a shared resource), it should:
 1. Create a buffer actor to hold incoming messages
 2. Create a proxy actor to perform the operation
 3. Become an insensitive actor that forwards to the buffer

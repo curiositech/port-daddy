@@ -3,17 +3,22 @@
  *
  * Durable sessions are work contexts, not process lifetimes. They survive
  * without a live heartbeat: the orphan reaper skips them, whoami reports
- * them active even after an abandonment write, and resurrect() flips an
- * abandoned durable session back to active. Only pd done (or worktree
- * removal / branch merge) ends them.
+ * abandonment as dormant/resumable without mutating it, and an explicit
+ * resume/takeover path may later continue the work. Only pd done (or
+ * worktree removal / branch merge) ends them.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createTestDb } from '../setup-unit.js';
 import { createAgents } from '../../lib/agents.js';
 import { createSessions } from '../../lib/sessions.js';
 import { createActivityLog } from '../../lib/activity.js';
 import { createSugar } from '../../lib/sugar.js';
+import { resolveActiveSessionForFiles } from '../../cli/commands/sessions.js';
+import { writeCurrentContext } from '../../cli/utils/current-context.js';
 
 function passingChecker() {
   return {
@@ -210,29 +215,51 @@ describe('Durable Sessions', () => {
       expect(row.is_durable).toBe(0);
     });
 
-    it('whoami reports an abandoned durable session as active and resurrects it', () => {
+    it('whoami reports an explicitly selected abandoned durable session as dormant without resurrecting it', () => {
       const begun = sugar.begin({ purpose: 'Long-running build', lifecycle: 'durable' });
       db.prepare("UPDATE sessions SET status = 'abandoned' WHERE id = ?").run(begun.sessionId);
 
       const who = sugar.whoami({ sessionId: begun.sessionId });
 
       expect(who.success).toBe(true);
-      expect(who.active).toBe(true);
+      expect(who.active).toBe(false);
+      expect(who.dormant).toBe(true);
+      expect(who.resumable).toBe(true);
+      expect(who.lifecycle).toBe('durable');
       expect(who.sessionId).toBe(begun.sessionId);
-      // Side effect: status flipped back to active in the DB.
-      expect(sessions.get(begun.sessionId).session.status).toBe('active');
+      expect(sessions.get(begun.sessionId).session.status).toBe('abandoned');
     });
 
-    it('whoami by agentId (no explicit sessionId) finds and resurrects an abandoned durable session', () => {
+    it('whoami by agentId finds one abandoned durable session but leaves it dormant', () => {
       const begun = sugar.begin({ purpose: 'Long-running build', lifecycle: 'durable' });
       db.prepare("UPDATE sessions SET status = 'abandoned' WHERE id = ?").run(begun.sessionId);
 
       const who = sugar.whoami({ agentId: begun.agentId });
 
       expect(who.success).toBe(true);
-      expect(who.active).toBe(true);
+      expect(who.active).toBe(false);
+      expect(who.dormant).toBe(true);
+      expect(who.resumable).toBe(true);
       expect(who.sessionId).toBe(begun.sessionId);
-      expect(sessions.get(begun.sessionId).session.status).toBe('active');
+      expect(sessions.get(begun.sessionId).session.status).toBe('abandoned');
+    });
+
+    it('whoami can report a dormant durable session after its process-agent row is gone', () => {
+      const begun = sugar.begin({ purpose: 'Detached durable build', lifecycle: 'durable' });
+      db.prepare("UPDATE sessions SET status = 'abandoned' WHERE id = ?").run(begun.sessionId);
+      agents.unregister(begun.agentId);
+
+      const who = sugar.whoami({ agentId: begun.agentId });
+
+      expect(who).toMatchObject({
+        success: true,
+        active: false,
+        dormant: true,
+        resumable: true,
+        agentId: begun.agentId,
+        sessionId: begun.sessionId,
+      });
+      expect(sessions.get(begun.sessionId).session.status).toBe('abandoned');
     });
 
     it('whoami by agentId still reports inactive for an abandoned non-durable session', () => {
@@ -256,5 +283,221 @@ describe('Durable Sessions', () => {
       expect(who.active).toBe(false);
       expect(sessions.get(begun.sessionId).session.status).toBe('abandoned');
     });
+  });
+});
+
+describe('CLI file-claim session selection', () => {
+  describe.each(['slot', 'environment', 'explicit'])('exact %s selector is terminal', (carrier) => {
+    let contextDir;
+    let saved;
+    const keys = ['PORT_DADDY_CONTEXT_DIR', 'PORT_DADDY_CONTEXT_SLOT', 'PD_AGENT_ID', 'PD_SESSION_ID'];
+
+    beforeEach(() => {
+      saved = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+      contextDir = mkdtempSync(join(tmpdir(), 'pd-exact-session-'));
+      process.env.PORT_DADDY_CONTEXT_DIR = contextDir;
+      process.env.PORT_DADDY_CONTEXT_SLOT = 'exact-test';
+      delete process.env.PD_AGENT_ID;
+      delete process.env.PD_SESSION_ID;
+      writeCurrentContext({ agentId: 'exact-agent', sessionId: 'exact-session' });
+      if (carrier === 'environment') {
+        process.env.PD_AGENT_ID = 'exact-agent';
+        process.env.PD_SESSION_ID = 'exact-session';
+      }
+    });
+
+    afterEach(() => {
+      for (const key of keys) {
+        if (saved[key] === undefined) delete process.env[key];
+        else process.env[key] = saved[key];
+      }
+      rmSync(contextDir, { recursive: true, force: true });
+    });
+
+    const active = { success: true, active: true, sessionId: 'exact-session', agentId: 'exact-agent' };
+    it.each([
+      ['dormant', { ...active, active: false, dormant: true, resumable: true }, 'SESSION_NOT_ACTIVE'],
+      ['missing', { success: true, active: false }, 'SESSION_NOT_ACTIVE'],
+      ['failed response', { ...active, success: false }, 'SESSION_RESOLUTION_FAILED'],
+      ['transport error', new Error('lookup failed'), 'SESSION_RESOLUTION_FAILED'],
+      ['wrong session', { ...active, sessionId: 'other-session' }, 'SESSION_SCOPE_MISMATCH'],
+      ['wrong agent', { ...active, agentId: 'other-agent' }, 'SESSION_SCOPE_MISMATCH'],
+      ['missing session', { ...active, sessionId: undefined }, 'SESSION_SCOPE_MISMATCH'],
+      ['missing owner', { ...active, agentId: undefined }, 'SESSION_SCOPE_MISMATCH'],
+    ])('rejects %s without discovering another session', async (_label, response, code) => {
+      const pd = {
+        agentId: 'exact-agent',
+        whoami: response instanceof Error
+          ? jest.fn().mockRejectedValue(response)
+          : jest.fn().mockResolvedValue(response),
+        sessions: jest.fn().mockResolvedValue({
+          success: true,
+          count: 1,
+          sessions: [{ id: 'other-session', agentId: 'exact-agent', worktreeId: 'other-worktree' }],
+        }),
+      };
+      const options = carrier === 'explicit' ? { session: 'exact-session', agent: 'exact-agent' } : {};
+
+      const result = await resolveActiveSessionForFiles(pd, options);
+
+      expect(result).toMatchObject({ success: false, code });
+      expect(pd.whoami).toHaveBeenCalledTimes(1);
+      expect(pd.whoami).toHaveBeenCalledWith({ sessionId: 'exact-session', agentId: 'exact-agent' });
+      expect(pd.sessions).not.toHaveBeenCalled();
+    });
+  });
+
+  it('returns AMBIGUOUS_ACTIVE_SESSION with every candidate session/worktree id', async () => {
+    const pd = {
+      whoami: jest.fn(),
+      sessions: jest.fn().mockResolvedValue({
+        success: true,
+        count: 2,
+        sessions: [
+          { id: 'session-one', agentId: 'agent-many', worktreeId: 'worktree-one' },
+          { id: 'session-two', agentId: 'agent-many', worktreeId: 'worktree-two' },
+        ],
+      }),
+    };
+
+    const result = await resolveActiveSessionForFiles(pd, { agent: 'agent-many' });
+
+    expect(result).toEqual({
+      success: false,
+      code: 'AMBIGUOUS_ACTIVE_SESSION',
+      error: 'Agent "agent-many" has multiple active sessions; pass --session explicitly.',
+      candidates: [
+        { sessionId: 'session-one', worktreeId: 'worktree-one' },
+        { sessionId: 'session-two', worktreeId: 'worktree-two' },
+      ],
+    });
+  });
+
+  it('lets the exact session/agent tuple used by done, relink, and phase outrank contradictory ambient context', async () => {
+    const contextDir = mkdtempSync(join(tmpdir(), 'pd-session-selection-'));
+    const keys = ['PORT_DADDY_CONTEXT_DIR', 'PORT_DADDY_CONTEXT_SLOT', 'PD_AGENT_ID', 'PD_SESSION_ID'];
+    const saved = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+    try {
+      process.env.PORT_DADDY_CONTEXT_DIR = contextDir;
+      process.env.PORT_DADDY_CONTEXT_SLOT = 'selection-test';
+      writeCurrentContext({ agentId: 'slot-agent', sessionId: 'slot-session' });
+      process.env.PD_AGENT_ID = 'env-agent';
+      process.env.PD_SESSION_ID = 'env-session';
+
+      const pd = {
+        whoami: jest.fn().mockResolvedValue({
+          success: true,
+          active: true,
+          agentId: 'explicit-agent',
+          sessionId: 'explicit-session',
+        }),
+        sessions: jest.fn(),
+      };
+
+      const result = await resolveActiveSessionForFiles(pd, {
+        agent: 'explicit-agent',
+        session: 'explicit-session',
+      });
+
+      expect(result).toEqual({
+        success: true,
+        sessionId: 'explicit-session',
+        agentId: 'explicit-agent',
+        source: 'explicit-session',
+      });
+      expect(pd.whoami).toHaveBeenCalledWith({
+        agentId: 'explicit-agent',
+        sessionId: 'explicit-session',
+      });
+      expect(pd.sessions).not.toHaveBeenCalled();
+    } finally {
+      for (const key of keys) {
+        if (saved[key] === undefined) delete process.env[key];
+        else process.env[key] = saved[key];
+      }
+      rmSync(contextDir, { recursive: true, force: true });
+    }
+  });
+
+  it('derives the stored owner for an exact session without grafting a conflicting ambient agent', async () => {
+    const contextDir = mkdtempSync(join(tmpdir(), 'pd-session-owner-selection-'));
+    const keys = ['PORT_DADDY_CONTEXT_DIR', 'PORT_DADDY_CONTEXT_SLOT', 'PD_AGENT_ID', 'PD_SESSION_ID'];
+    const saved = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+    try {
+      process.env.PORT_DADDY_CONTEXT_DIR = contextDir;
+      process.env.PORT_DADDY_CONTEXT_SLOT = 'owner-selection-test';
+      writeCurrentContext({ agentId: 'ambient-agent', sessionId: 'ambient-session' });
+      process.env.PD_AGENT_ID = 'different-env-agent';
+      process.env.PD_SESSION_ID = 'different-env-session';
+
+      const pd = {
+        agentId: undefined,
+        whoami: jest.fn().mockResolvedValue({
+          success: true,
+          active: true,
+          agentId: 'stored-owner',
+          sessionId: 'exact-session',
+        }),
+        sessions: jest.fn(),
+      };
+
+      const result = await resolveActiveSessionForFiles(pd, { session: 'exact-session' });
+
+      expect(result).toEqual({
+        success: true,
+        sessionId: 'exact-session',
+        agentId: 'stored-owner',
+        source: 'explicit-session',
+      });
+      expect(pd.whoami).toHaveBeenCalledWith({ sessionId: 'exact-session' });
+      expect(pd.sessions).not.toHaveBeenCalled();
+    } finally {
+      for (const key of keys) {
+        if (saved[key] === undefined) delete process.env[key];
+        else process.env[key] = saved[key];
+      }
+      rmSync(contextDir, { recursive: true, force: true });
+    }
+  });
+
+  it('suppresses an internally consistent but stale ambient tuple for an explicit session', async () => {
+    const contextDir = mkdtempSync(join(tmpdir(), 'pd-session-stale-ambient-'));
+    const keys = ['PORT_DADDY_CONTEXT_DIR', 'PORT_DADDY_CONTEXT_SLOT', 'PD_AGENT_ID', 'PD_SESSION_ID'];
+    const saved = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+    try {
+      process.env.PORT_DADDY_CONTEXT_DIR = contextDir;
+      process.env.PORT_DADDY_CONTEXT_SLOT = 'stale-ambient-test';
+      writeCurrentContext({ agentId: 'ambient-agent-a', sessionId: 'ambient-session-a' });
+      process.env.PD_AGENT_ID = 'ambient-agent-a';
+      process.env.PD_SESSION_ID = 'ambient-session-a';
+
+      const pd = {
+        agentId: 'ambient-agent-a',
+        whoami: jest.fn().mockResolvedValue({
+          success: true,
+          active: true,
+          agentId: 'stored-owner-b',
+          sessionId: 'explicit-session-b',
+        }),
+        sessions: jest.fn(),
+      };
+
+      const result = await resolveActiveSessionForFiles(pd, { session: 'explicit-session-b' });
+
+      expect(result).toEqual({
+        success: true,
+        sessionId: 'explicit-session-b',
+        agentId: 'stored-owner-b',
+        source: 'explicit-session',
+      });
+      expect(pd.whoami).toHaveBeenCalledWith({ sessionId: 'explicit-session-b' });
+      expect(pd.sessions).not.toHaveBeenCalled();
+    } finally {
+      for (const key of keys) {
+        if (saved[key] === undefined) delete process.env[key];
+        else process.env[key] = saved[key];
+      }
+      rmSync(contextDir, { recursive: true, force: true });
+    }
   });
 });

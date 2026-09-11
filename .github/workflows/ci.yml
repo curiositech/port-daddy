@@ -81,6 +81,23 @@ jobs:
         # need not touch the manifest. Cheap — it walks markdown and YAML only.
         run: node scripts/doc-retirement-guard.mjs
 
+  mcp-catalog-guard:
+    # website-v2/src/data/mcpAgentToolCatalog.ts is generated straight out of
+    # mcp/server.ts, and the site's published tool counts are read off it. Nothing
+    # regenerated it when a tool was added, so it fell 53 tools behind the server
+    # while the docs page kept telling readers a number typed by hand. This is a
+    # source-to-source check with no daemon and no browser: it re-derives the
+    # catalogue and fails if the committed one differs.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: MCP tool catalogue matches mcp/server.ts
+        run: npm --prefix website-v2 run test:mcp-catalog
+
   porthole-cast-gate:
     # Cheap, blocking companion to website-terminal-recordings' raw-text regex
     # scan: replays every committed website-v2/public/casts/porthole/*.cast
@@ -103,8 +120,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Install locked Porthole gate dependencies
+        run: npm ci --prefix website-v2 --ignore-scripts
       - name: Replay every porthole cast and scan the decoded transcript
-        run: npx tsx website-v2/scripts/check-porthole-casts.mjs
+        run: npm --prefix website-v2 run test:porthole
 
   changelog-guard:
     # CHANGELOG.md's [Unreleased] section is ASSEMBLED from one file per PR under
@@ -151,6 +170,7 @@ jobs:
       fleetbar: ${{ steps.filter.outputs.fleetbar }}
       console: ${{ steps.filter.outputs.console }}
       pd-ios: ${{ steps.filter.outputs.pd-ios }}
+      porthole-stage: ${{ steps.filter.outputs.porthole-stage }}
     steps:
       - id: filter
         env:
@@ -160,19 +180,25 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           if [ "$EVENT_NAME" != "pull_request" ]; then
-            echo "recordings=true" >> "$GITHUB_OUTPUT"
-            echo "fleetbar=true" >> "$GITHUB_OUTPUT"
-            echo "console=true" >> "$GITHUB_OUTPUT"
-            echo "pd-ios=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "recordings=true"
+              echo "fleetbar=true"
+              echo "console=true"
+              echo "pd-ios=true"
+              echo "porthole-stage=true"
+            } >> "$GITHUB_OUTPUT"
             exit 0
           fi
           # Fail safe: if the files API errors (outage, rate limit), run the
           # gated jobs rather than silently skipping a required gate.
           if ! changed="$(gh api "repos/${REPO}/pulls/${PR_NUMBER}/files" --paginate --jq '.[].filename')"; then
-            echo "recordings=true" >> "$GITHUB_OUTPUT"
-            echo "fleetbar=true" >> "$GITHUB_OUTPUT"
-            echo "console=true" >> "$GITHUB_OUTPUT"
-            echo "pd-ios=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "recordings=true"
+              echo "fleetbar=true"
+              echo "console=true"
+              echo "pd-ios=true"
+              echo "porthole-stage=true"
+            } >> "$GITHUB_OUTPUT"
             exit 0
           fi
           if printf '%s\n' "$changed" | grep -qE '^(website-v2/|bin/|cli/|lib/|scripts/|server\.ts$|package(-lock)?\.json$|\.github/workflows/ci\.yml$)'; then
@@ -210,6 +236,14 @@ jobs:
             echo "pd-ios=true" >> "$GITHUB_OUTPUT"
           else
             echo "pd-ios=false" >> "$GITHUB_OUTPUT"
+          fi
+          # Native Porthole Stage is a self-contained SwiftPM package plus its
+          # strict ad-hoc CI packager. Merge-group and API-error runs fail safe
+          # to true above, while unrelated pull requests avoid a macOS runner.
+          if printf '%s\n' "$changed" | grep -qE '^(apps/porthole-stage-capture/|\.github/workflows/ci\.yml$)'; then
+            echo "porthole-stage=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "porthole-stage=false" >> "$GITHUB_OUTPUT"
           fi
 
   # PR-blocking unit tests: only the node-22 legs (the required checks). The
@@ -580,6 +614,70 @@ jobs:
         #   npm run sync:skill-mirrors
         run: node scripts/sync-skill-mirrors.mjs --check
 
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: The whole catalog can still fan out to every runtime
+        # WHY A FRESH BASE AND NOT --check. The per-runtime link trees
+        # (.claude/skills, .codex/skills, and fourteen more) are gitignored, so a
+        # CI checkout never has them and `--check` would report all 5203 missing
+        # on a perfectly healthy repo -- a gate that fails always teaches people
+        # to ignore it.
+        #
+        # What is worth guarding is that the CATALOG still resolves: every skill
+        # id reachable, every collision decided by source priority, every one of
+        # the sixteen runtime targets writable. Fanning out into a throwaway
+        # directory proves exactly that and nothing about anyone's checkout.
+        #
+        # This gate exists because nothing guarded the sync at all, and the drift
+        # that follows is silent: the repo's own project-scope tree was at 0 of
+        # 5203 links on 2026-09-08 with every check green, because no workflow
+        # and no git hook ever ran the sync or asked after it.
+        run: |
+          set -euo pipefail
+          BASE="$(mktemp -d)"
+          npx tsx scripts/sync-skills.ts --scope project --base "$BASE" --json > /tmp/skill-fanout.json
+          python3 - <<'PY'
+          import json, sys
+          d = json.load(open('/tmp/skill-fanout.json'))
+          # The result mixes shapes and it matters: skillCount/created/replaced
+          # are INTS, while errors/skippedExisting/targets are LISTS. len() on
+          # the ints is what broke this step the first time it ran, and the
+          # probe that was supposed to catch it printed `len(v) if isinstance(v,
+          # list) else v`, which renders 5232 identically either way -- a
+          # measurement that could not have told me which I had.
+          errors = d.get('errors') or []
+          blocked = d.get('skippedExisting') or []
+          targets = d.get('targets') or []
+          created = d.get('created') or 0
+          skills = d.get('skillCount') or 0
+          audit = d.get('audit') or {}
+          orphaned = audit.get('orphanedLinks') or 0
+          print(f'fanned out {skills} skill(s) to {len(targets)} runtime(s): '
+                f'{created} link(s), {len(errors)} error(s), {len(blocked)} blocked, '
+                f'{orphaned} orphaned')
+          if errors:
+              print('-- the catalog could not fan out:', file=sys.stderr)
+              for e in errors[:20]:
+                  print(f'     {e}', file=sys.stderr)
+              sys.exit(1)
+          if skills == 0 or created == 0:
+              print('-- fan-out produced no links, which means no catalog was found at all',
+                    file=sys.stderr)
+              sys.exit(1)
+          # A fan-out into an empty directory cannot inherit anyone's stale
+          # links, so the only way this is nonzero is a catalog that resolves a
+          # skill id it then fails to own -- worth knowing about immediately.
+          if orphaned:
+              print(f'-- {orphaned} orphaned link(s) in a directory that was empty '
+                    'a second ago:', file=sys.stderr)
+              for o in (audit.get('examples') or {}).get('orphaned', [])[:20]:
+                  print(f"     {o.get('target')} -> {o.get('current')}", file=sys.stderr)
+              sys.exit(1)
+          PY
+
       - name: Audit every skill bundle
         run: |
           python3 skills/skill-hygiene/scripts/audit_skill_library.py \
@@ -631,7 +729,11 @@ jobs:
           python3 -m pip install --user asciinema
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           mkdir -p "$HOME/.local/bin"
-          curl -fsSL -o "$HOME/.local/bin/agg" \
+          # Retried: a third-party release host blipping should not red a
+          # build. Already lands in a file, so a retry replaces the download
+          # rather than appending to a half-consumed one.
+          curl -fsSL --retry 5 --retry-all-errors --retry-delay 3 --max-time 600 \
+            -o "$HOME/.local/bin/agg" \
             "https://github.com/asciinema/agg/releases/download/${AGG_VERSION}/agg-x86_64-unknown-linux-gnu"
           chmod +x "$HOME/.local/bin/agg"
           "$HOME/.local/bin/agg" --version
@@ -882,6 +984,50 @@ jobs:
       - name: vitest (incl. hv:2 harbor-card parity fixture ⇄ core/harbor-card-rs)
         run: npx vitest run
 
+  fleet-executor-tests:
+    # apps/fleet-executor is the LIVE cloud fleet bot (the Cloudflare Queues
+    # consumer that posts PR review comments and check runs) with its own
+    # tsconfig graph and vitest suite; root jest never compiles or runs it
+    # (jest.config only matches tests/unit/** and tests/integration/**). Until
+    # now the ONLY workflow that ran `npx vitest run` for it was
+    # deploy-fleet-executor.yml, which fires on push to main — i.e. after the
+    # merge. Every fleet-executor PR before this job (#5915 among them) merged
+    # with a green ci-gate that had never executed one line of its own diff.
+    #
+    # Always-run, NOT path-gated on apps/fleet-executor/**: src/ imports from
+    # apps/shared/ (model-registry.generated, github-app-crypto, repo-ai-
+    # settings) and from the root lib/ (coordination-ledger, coordination-
+    # grant-contract, transcript-emergency-constants), so a lib/ change can
+    # break this Worker without touching a file under its directory. A gate
+    # that skips on exactly the PRs that can break it silently is not a gate.
+    # The whole job is ~30s on ubuntu (npm ci ~20s, suite ~4s). Wired into
+    # ci-gate's needs like every other enforced job.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/fleet-executor
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: apps/fleet-executor/package-lock.json
+
+      - name: Install dependencies
+        # The lockfile has no onnxruntime-node (no CUDA binary fetch to guard),
+        # so this retry only covers registry flakes.
+        run: npm ci --no-audit --no-fund || (echo "npm ci failed (registry flake); retrying once in 30s" && sleep 30 && npm ci --no-audit --no-fund)
+
+      - name: Type check (tsc --noEmit)
+        run: npx tsc --noEmit
+
+      - name: vitest (verdict/conclusion logic, zero-trust ref invariant, purser, sandbox runner)
+        run: npx vitest run
+
   steward-tests:
     # apps/steward is the Steward's seat (ADR-0109; docs/plans/THE_FULL_WHEEL.md
     # P1) — a Cloudflare Worker with its own tsconfig graph and vitest suite
@@ -942,6 +1088,112 @@ jobs:
 
       - name: Test FleetBar
         run: swift test
+
+  porthole-stage:
+    # Compile and test the exact-window Stage, then emit a strictly verified,
+    # ad-hoc CI artifact. This is deliberately not a release lane: it has no
+    # secrets or write grant, and every artifact surface says non-production.
+    name: porthole-stage
+    runs-on: macos-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.porthole-stage == 'true'
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Record the Apple toolchain
+        run: |
+          set -euo pipefail
+          swift --version
+          xcodebuild -version
+
+      - name: Install the deterministic icon renderer
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: '1'
+        run: brew install librsvg
+
+      - name: Test the Stage policy and capture core
+        run: swift test --package-path apps/porthole-stage-capture
+
+      - name: Assemble two ad-hoc CI packages from one release build
+        env:
+          PACKAGE_ROOT: apps/porthole-stage-capture
+        run: |
+          set -euo pipefail
+          "$PACKAGE_ROOT/Scripts/package-apps.sh" \
+            --configuration release \
+            --output "$RUNNER_TEMP/porthole-stage-pass-a" \
+            --signing-identity - \
+            --allow-ad-hoc
+          "$PACKAGE_ROOT/Scripts/package-apps.sh" \
+            --configuration release \
+            --skip-build \
+            --output "$RUNNER_TEMP/porthole-stage-pass-b" \
+            --signing-identity - \
+            --allow-ad-hoc
+
+      - name: Strict-verify and prove deterministic CI assembly
+        env:
+          PACKAGE_ROOT: apps/porthole-stage-capture
+        run: |
+          set -euo pipefail
+          source_sha="$(git rev-parse HEAD)"
+          source_epoch="$(git show -s --format=%ct HEAD)"
+          mkdir -p "$RUNNER_TEMP/porthole-stage-artifacts"
+          /usr/bin/python3 "$PACKAGE_ROOT/Scripts/build-ci-artifact.py" \
+            --input "$RUNNER_TEMP/porthole-stage-pass-a" \
+            --output "$RUNNER_TEMP/porthole-stage-artifacts/porthole-stage-ci-a.tar" \
+            --source-sha "$source_sha" \
+            --source-date-epoch "$source_epoch"
+          /usr/bin/python3 "$PACKAGE_ROOT/Scripts/build-ci-artifact.py" \
+            --input "$RUNNER_TEMP/porthole-stage-pass-b" \
+            --output "$RUNNER_TEMP/porthole-stage-artifacts/porthole-stage-ci-b.tar" \
+            --source-sha "$source_sha" \
+            --source-date-epoch "$source_epoch"
+          cmp \
+            "$RUNNER_TEMP/porthole-stage-artifacts/porthole-stage-ci-a.tar" \
+            "$RUNNER_TEMP/porthole-stage-artifacts/porthole-stage-ci-b.tar"
+          mv \
+            "$RUNNER_TEMP/porthole-stage-artifacts/porthole-stage-ci-a.tar" \
+            "$RUNNER_TEMP/porthole-stage-artifacts/porthole-stage-ci-adhoc-NOT-FOR-DISTRIBUTION.tar"
+          (
+            cd "$RUNNER_TEMP/porthole-stage-artifacts"
+            shasum -a 256 porthole-stage-ci-adhoc-NOT-FOR-DISTRIBUTION.tar \
+              > porthole-stage-ci-adhoc-NOT-FOR-DISTRIBUTION.tar.sha256
+          )
+
+      - name: Prove the verifier rejects package authority and privacy drift
+        env:
+          PORTHOLE_TEST_CONFIGURATION: release
+        run: /usr/bin/python3 apps/porthole-stage-capture/Scripts/test-ci-artifact.py
+
+      - name: Render synthetic light-dark UI and motion without screen capture
+        run: |
+          set -euo pipefail
+          apps/porthole-stage-capture/.build/release/PortholeStageCapture \
+            --render-synthetic-proof "$RUNNER_TEMP/porthole-stage-synthetic-ui"
+
+      - name: Upload synthetic presentation evidence, not capture proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: porthole-stage-SYNTHETIC-UI-NOT-CAPTURE-${{ github.sha }}
+          path: ${{ runner.temp }}/porthole-stage-synthetic-ui/
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+      - name: Upload the explicitly non-production CI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: porthole-stage-adhoc-NOT-FOR-DISTRIBUTION-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/porthole-stage-artifacts/porthole-stage-ci-adhoc-NOT-FOR-DISTRIBUTION.tar
+            ${{ runner.temp }}/porthole-stage-artifacts/porthole-stage-ci-adhoc-NOT-FOR-DISTRIBUTION.tar.sha256
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
 
   pd-ios:
     # Build + unit-test the Port Daddy iOS operator app (ADR-0125).
@@ -1210,14 +1462,20 @@ jobs:
       - changelog-guard
       - compiled-daemon-smoke
       - doc-citation-guard
+      - fleet-executor-tests
       - fleet-ui
       - fleetbar
       - integration-tests
       - lint
+      - mcp-catalog-guard
       - pd-ios
       - porthole-cast-gate
+      - porthole-stage
+      - relay-tests
+      - rust-broker
       - rust-console
       - rust-console-gpui
+      - rust-harbor-card
       - rust-kernel
       - skill-hygiene
       - steward-tests

@@ -23,7 +23,7 @@ rides only in metadata.sender for allowlist matching); all timestamps are
 UTC-internal; recurring events are expanded to per-occurrence instances
 before dedup.
 
-The honesty rule is load-bearing: a channel is only "shipped"
+The honesty rule is critical: a channel is only "shipped"
 when it has real creds-or-no-creds dispatch AND a green end-to-end test. Anything
 short of that is tagged `WIRED` (resolves through the engine but `available()`
 returns `{ready:false}`) or `STUB`.

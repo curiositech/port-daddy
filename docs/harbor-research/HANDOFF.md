@@ -7,11 +7,13 @@
 |---|---|
 | `skills/harbor-exposition/`, `skills/harbor-results/`, `skills/falsification-first/` | The three codified skills, incl. all reproduction scripts (`skills/harbor-results/scripts/`), the sweep tool, and the style linter. THE core context: read the three SKILL.md files first, then `skills/harbor-results/references/l3-tacit-lessons.md` in full. |
 | `docs/harbor-research/HANDOFF.md` | This file. |
+| `docs/harbor-research/mega-volume-editorial-architecture.md` | The collected book's thesis, seven propositions, causal chain, chapter jobs, and editorial admission rules. |
+| `docs/harbor-research/mega-volume-epistemic-manifest.yaml` | Stable result ledger: result id, status, claim, conditions, boundary, chapter home, and recomputation evidence. |
 | `docs/harbor-research/tex/` | LaTeX sources of every document: `doc1_treatise.tex` (8 corrections + adjudications + re-spine), `doc2_product.tex` (roadmap), `doc3_research.tex` (program), `doc4_papers.tex` (papers 1–8), `review.tex`, `portfolio.tex` (the 18 A/B/C items with proof paths), `exec1/2/3.tex` (executed results), `preamble.tex`. PDFs are intentionally NOT committed — rebuild with `make -C docs/harbor-research docs`. |
 | `docs/harbor-research/wrong-turns/` | The four failed formulations (a7 v1, b1 v1, sheaf_experiment.py, sheaf_verdict.py) + README mapping each to its tacit lesson. Kept per falsification-first §5. |
 | `docs/harbor-research/research/` | Rescued research reports: `exposition-craft.md` (the nine expository treatments, verbatim), plus extract-stubs `tooling-notes.md` and `sheaf-assessment-notes.md`. |
 | `docs/harbor-research/Makefile`, `b1_figure.py` | `make figures` regenerates the three figure PNGs from the skill scripts (seed 20260816); `make docs` compiles the PDFs. |
-| (not in repo) `coordination-papers-mega-volume.pdf` | The 247-page treatise (user upload). Attach for treatise waves. |
+| `website-v2/public/whitepaper/coordination-papers-mega-volume.pdf` | Canonical rendered collected volume; rebuild from the seven chapter sources with `scripts/build-whitepapers.sh coordination-papers-mega-volume`. |
 | (not in repo) `GeminiFeedback.pdf`, `harbor-feedback-and-exercise-solutions.pdf`, `port_daddy_feedback_analysis_v2.pdf` | The three external reviews (user uploads). Attach for W4. |
 
 **Standing directives for every wave prompt below (assume them even if a prompt is trimmed):**
@@ -145,7 +147,7 @@ Floor B*(N=60,k=2,m=8)=5.98 bits [V]; disjoint-readers floor 12.77 [V]; ratio 2.
 - **B2's exact-indifference outputs (+0.000000, max deviation +1.78e-15)** are machine-epsilon zeros; phrase as "≤0 up to float epsilon".
 - **R4 formulation flag** (also in exposition audit): the two-constraint objective is custom, not Cover–Thomas; only the (δ=0) corner coincides with H(p).
 - **C0's settle(p2!) mutation** required walking the full legitimate path (7 steps) — reuse as the production fraud-detection playbook example.
-- **Chat-artifact rescue status:** artifact (3) below is now in-repo at docs/harbor-research/research/exposition-craft.md (nine treatments verbatim + caveats); (1) and (2) exist only as extracts (HANDOFF §3.1–§3.3 + research/*-notes.md stubs) — their full texts remain chat-only: (1) "Multi-Agent Coordination Theorem-Proving Stack: State of the Art (August 2026)"; (2) "Sheaf Cohomology for Federated Witness-Log Systems: Literature Review, Assessment, and Prototyping Plan"; (3) "The Craft of Technical Exposition: Seven Moves Plus Two Rails and Nine Harbor Applications". §3.1–3.3 extract the load-bearing content of (1) and (2); rescue their full texts (esp. the sheaf experiment matrix) into research/ when convenient.
+- **Chat-artifact rescue status:** artifact (3) below is now in-repo at docs/harbor-research/research/exposition-craft.md (nine treatments verbatim + caveats); (1) and (2) exist only as extracts (HANDOFF §3.1–§3.3 + research/*-notes.md stubs) — their full texts remain chat-only: (1) "Multi-Agent Coordination Theorem-Proving Stack: State of the Art (August 2026)"; (2) "Sheaf Cohomology for Federated Witness-Log Systems: Literature Review, Assessment, and Prototyping Plan"; (3) "The Craft of Technical Exposition: Seven Moves Plus Two Rails and Nine Harbor Applications". §3.1–3.3 extract the decisive content of (1) and (2); rescue their full texts (esp. the sheaf experiment matrix) into research/ when convenient.
 - **Exposition template revisit-triggers** (pre-registered): drop the express lane's prominence if experts read linearly anyway; simplify figure grammar if >~2h/figure; fold misread-line into Move 7 if usually empty.
 - **Product-side numbers to never overclaim:** the assurance-level ladder means hook/MCP integrations are level 2–3; "level 4 confined" claims require the hypervisor + a red-team pass of the enumerated channel set (raw sockets, DNS, /proc, inherited FDs, git helpers, package managers, child processes, clipboard, provider callbacks).
 
@@ -184,7 +186,7 @@ B7 escalation signaling (single-crossing threshold; tuning band from measured va
 
 ---
 ## 8. DELTA v7 (2026-08-24) — the blocking register runs dry
-- **W6 + W13 + W8-tail + B4 executed in one six-prover round**: B5 (R13, `b5_engine_substitution.py` — unraveling inside one identity, IC flip under attestation, resurrection soundness with 4 shortest-crime mutants), B7 (R14, `b7_escalation_band.py` — threshold equilibrium + two-walled tuning band, empty-band regime exhibited), B8 (R15, `b8_specialization.py` — the whitepaper's proposed specialization threshold FALSIFIED both directions; exact Erlang-C boundary g(ρ,c) + succession price D*), B9 (R16, `b9_context_paging.py` — Landlord import vs exact OPT + linear φ-degradation, repair-on-touch load-bearing), B4 (R17, `b4_deontic_fragment.py` — polynomial witness-producing conflict checker + NP-complete frontier via verified 3-SAT reduction), consistency radius (`sheaf_consistency_radius.py` — CR-1/2/3: r is the exact minimum lie, localizes to cycles through the equivocator, computes as ≤L Laplacian solves; the R6 1.2247 number has closed form 3·√(1−5/6); coalition cancellation located as the honest scope).
+- **W6 + W13 + W8-tail + B4 executed in one six-prover round**: B5 (R13, `b5_engine_substitution.py` — unraveling inside one identity, IC flip under attestation, resurrection soundness with 4 shortest-crime mutants), B7 (R14, `b7_escalation_band.py` — threshold equilibrium + two-walled tuning band, empty-band regime exhibited), B8 (R15, `b8_specialization.py` — the whitepaper's proposed specialization threshold FALSIFIED both directions; exact Erlang-C boundary g(ρ,c) + succession price D*), B9 (R16, `b9_context_paging.py` — Landlord import vs exact OPT + linear φ-degradation, repair-on-touch required for the bound), B4 (R17, `b4_deontic_fragment.py` — polynomial witness-producing conflict checker + NP-complete frontier via verified 3-SAT reduction), consistency radius (`sheaf_consistency_radius.py` — CR-1/2/3: r is the exact minimum lie, localizes to cycles through the equivocator, computes as ≤L Laplacian solves; the R6 1.2247 number has closed form 3·√(1−5/6); coalition cancellation located as the honest scope).
 - **Blocking-before-arXiv register (A3, A4, B5, B7, B8, B9): CLEAR.** Compendium now R1–R17 + the CR theorem block; Execution Report #5 (`tex/exec5.tex`, style gate 7/7); all six scripts added to the harbor-results-estate CI job (now 19 scripts).
 - **Whitepaper folds now owed (from these results)**: thm:specialization at legible-swarm.tex:868 must adopt the exact g (the current statement is refuted — tex draft in R15's provenance); context-paging thm (~line 1549) and escalation §951/1449 upgrade "proposed" → executed; B5/B7 Status lines gain ledger-code citations.
 - **Next: Papers 5–7 assemblies** — Paper 5 "Continuity Without Metaphysics" (R12+R13+B6), Paper 6 "What Needs an Authority" (R17+R15), Paper 7 "Cohomology of Equivocation" (R6+harness+CR). All inputs in hand; house style per papers 1–4.
@@ -192,6 +194,143 @@ B7 escalation signaling (single-crossing threshold; tuning band from measured va
 
 ---
 ## 9. DELTA v8 (2026-08-24) — all seven papers drafted
-- **Papers 5–7 written** (`tex/paper{5,6,7}.tex`, Makefile TEXS updated; all 7/7 on the style gate; new canon figures paper6_*/paper7_*/r13_regime/b6_figure via figures/src/paper{5,6,7}_figures.py, figlint clean): Paper 5 "Continuity Without Metaphysics" (R12 no-mint + R13 unraveling/IC-flip/resurrection + B6 probation cliff — "not a soul but a ledger position"); Paper 6 "What Needs an Authority" (R17 fragment/frontier + R15 boundary/succession, the authority inventory priced); Paper 7 "The Cohomology of Equivocation" (R6 mechanism + harness COMMIT + CR-1/2/3, boundary section load-bearing). With Papers 1–4 (delta v6), the paper program's writing phase is COMPLETE — all seven drafted from executed results.
+- **Papers 5–7 written** (`tex/paper{5,6,7}.tex`, Makefile TEXS updated; all 7/7 on the style gate; new canon figures paper6_*/paper7_*/r13_regime/b6_figure via figures/src/paper{5,6,7}_figures.py, figlint clean): Paper 5 "Continuity Without Metaphysics" (R12 no-mint + R13 unraveling/IC-flip/resurrection + B6 probation cliff — "not a soul but a ledger position"); Paper 6 "What Needs an Authority" (R17 fragment/frontier + R15 boundary/succession, the authority inventory priced); Paper 7 "The Cohomology of Equivocation" (R6 mechanism + harness COMMIT + CR-1/2/3, boundary section is decisive). With Papers 1–4 (delta v6), the paper program's writing phase is COMPLETE — all seven drafted from executed results.
 - **Compendium accuracy fix** (caught by Paper 6's author at assembly): R15's succession numbers conflated two script instances — W=1.376 (μs=10⁸ still-loses test) occurs at ξ/η=1.5·D*, while ξ/η=2 is the mutation canary. Corrected. Lesson: paper assembly re-verifying against scripts is itself a check layer.
 - **Next**: whitepaper folds owed from R14–R17 (thm:specialization exact g; paging/escalation upgrades; B5/B7 Status lines), C2, lifts (Apalache/Isabelle), instrumentation.md (W12), F1/F5; PDF renders of papers 1–7 + exec5 happen in the CI TeX container (no local TeX), then the F3 pin-resync cycle if pins move.
+
+---
+## 10. DELTA v9 (2026-08-30) — the research becomes one book
+- **One thesis now governs the collected volume:** autonomy scales only when authority, evidence, and consequence remain coupled at every effect boundary. The seven papers now serve seven propositions in one causal chain: supervision cost; local effect control; durable accountability; separated exchange instruments; monotone delegation; institutions for residual uncertainty; and federation without transferred sovereignty.
+- **The PDF archive is no longer the editorial index.** `mega-volume-epistemic-manifest.yaml` records 21 durable result families, including the R6 counterexample and the verified current Relay boundary. `mega-volume-editorial-architecture.md` maps those results into chapter jobs, handoffs, evidence types, and admission rules.
+- **The collected source now owns its seams.** Every chapter receives a short opening that names the question and result ids, plus a handoff that says what the next chapter may assume and what remains unresolved. The introduction states the book's seven propositions; the appendices now contain only the implementation boundary, result atlas, and notation.
+- **Editorial illustration is out of this edition.** Jacket, chapter-plate, coda, speculative-expansion, condominium, and clean-room material no longer render in the collected book. Art assets remain available for a later, separately judged edition.
+- **Current Relay scope was checked against source.** Relay v0 transports authenticated events over outbound HTTPS/SSE. It is not daemon-state replication, global consensus, local effect authorization, end-to-end secrecy, a witness log, or a settlement institution.
+
+---
+## 11. DELTA v10 (2026-09-07) — outside literature review credited into the canon
+Four independent outside reviewers were pointed at the Book, one per part, and told to
+search the live literature for prior work behind every formal idea, ignoring the Book's own framing. Their four write-ups live
+at `docs/harbor-research/exposition/literature/README.md`, `part-I-ground-truth.md`, `part-II-cost-of-seeing.md`,
+`part-III-what-survives-the-restart.md`, and `part-IV-trade-between-strangers.md` on the `research/literature-review` branch
+(Part I landed after Parts II–IV, in a second pass on the same wave): a verdict per idea (firm / known result
+restated / novel / contested), a `[verified]`-or-`[unverified]`-tagged Prior Work list, a reading list, and a closing table of
+the Book's private coinages against the public terms the fields already use. The reviews found no theorem wrong as stated;
+what they found was missing canon. This wave (`wave-16/credit-the-canon`) closed the citable gaps: it added the missing
+`\cite`/`\bibitem` pairs at the sentence where the Book states each idea (propagated to the research-paper twin per the
+twin rule, `LIBRARY-SYSTEM.md` §2/7, when the section is folded), named the public term before the Book's private one where
+the closing tables called for it (e.g. "level of automation" before "auto-land grant," "algorithms with predictions" before
+"context paging with a corrupted pin oracle," the fencing token before the fencing epoch, self-composition before "run the
+world twice"), added the one-sentence reframing of the deontic fragment against Colombo
+Tosatto/Governatori/van Beest's compliance-checking dichotomy the Part IV review recommended, placed the five-rung assurance
+ladder beside Sheridan's levels of automation and the Common Criteria's evaluation assurance levels, and verified the
+Liu–Skrzypacz venue correction the reviews flagged was already applied. Every finding is logged as a row in
+`docs/harbor-research/critique-ledger.json` / `CRITIQUE-LEDGER.md` under ids `LR-1xx` (Part I), `LR-2xx` (Part II), `LR-3xx`
+(Part III), and `LR-4xx` (Part IV) — see the ledger's "Outside literature review" section for the full per-idea disposition
+(`DONE`, or `DECLINED` with the reason: already fully cited, no citable source exists, or a self-reported open item in the
+Book itself). No theorem statement, number, or label changed.
+
+---
+## 9. WHAT TO DO NEXT — written 2026-09-08, for whoever picks this up cold
+
+Four things landed today that are only half-useful until somebody else uses
+them. Each one is written here as a job with a first command, because the
+failure mode for all four is the same: they sit there, correct and unread, and
+the next agent solves the problem they already solve.
+
+### 9.1 `pd roadmap push` exists now. Somebody has to run it, on a schedule.
+
+`lib/roadmap-mirror-push.ts` + `pd roadmap push` fill the relay's roadmap mirror
+(`apps/relay/src/roadmap-mirror.ts`, migration `2026-08-22-roadmap-mirror.sql`,
+applied in staging). That mirror shipped in August as "PR 1 of 4" and **nothing
+ever pushed to it** — PR 2 was never written — so it was a well-tested empty
+table for a fortnight, and every reader built since went and found the roadmap
+somewhere else instead. That is the shape of failure to watch for here: the
+storage is convincing enough that people assume the pipeline exists.
+
+The job: run it on `git:committed`, the way `scripts/export-roadmap-snapshot.ts`
+was always meant to be run — its own docstring names "a `pd-fleet.yml`
+Cartographer trigger" as the intended automation and nobody built that either.
+Same trigger, both verbs.
+
+    pd roadmap push --dry-run          # prints source, item count, bytes, age
+    pd roadmap push                    # needs `pd account login` first
+
+**The one invariant not to break.** `generatedAt` is the DAEMON's clock and it
+travels with the data, so a fallback push of a fortnight-old committed snapshot
+arrives in the mirror reading as a fortnight old. Re-stamping it with
+`Date.now()` is a one-character "fix" that turns the only staleness signal the
+mirror has into a lie. Two tests in `tests/unit/roadmap-mirror-push.test.js`
+hold that line; if one of them ever looks like an obstacle, it is not.
+
+### 9.2 The Work Register is PR 3 of 4. Say so, and finish it.
+
+`apps/relay/src/work-register.ts` now reads `roadmap_mirror_items` rather than a
+`work_registry_cache` of its own (that table and its meta table are gone, along
+with the GitHub round trip and the `refresh` verb, which answers 410 with the
+command). The register was built beside the roadmap programme without either
+knowing about the other; now they share a table, and the honest move is to stop
+treating them as two projects. `docs/reports/relay-roadmap-mirror/MANIFEST.md`
+says the board pages were PR 3 — the register IS those pages.
+
+What is left:
+- The site surface. The author asked for "an API only my account can talk to,
+  and a web viewer only I can see". The mirror is account-scoped, so that is
+  already the shape; `/register?repo=owner/name` is the page.
+- The limitation, which is written into `2026-09-08-work-register.sql` where the
+  deleted tables used to be: claims are per-repository and shared, the registry
+  half is per-account. One operator with many agents is one set. Two operators
+  are not. Do not "fix" this by reaching around the mirror's tenancy rule —
+  `apps/relay/tests/roadmap-mirror.test.ts` asserts a cross-account read is a
+  404 and that assertion is correct.
+
+### 9.3 `\ifpdbook` is the tool for every Book/paper divergence from here on.
+
+Declared in `figures/pd-hyperlinks.tex` (false), set true in the Book preamble
+immediately after that file loads. Not a two-argument macro — the generator
+inlines every `\input`, so a figure branch is a whole table environment and a
+macro argument is scanned as one token list whether or not it is used. Not
+guarded with `\ifdefined` either: a conditional token inside skipped text counts
+as a nested `\if` and desynchronises `\fi` matching. Ordering is cheaper than
+cleverness, and the three failed attempts are written out in commit `76d18bf82`
+so nobody has to rediscover them.
+
+Use it whenever a chapter and its standalone twin should say different things.
+The next instance is already known: `thm:fh-escrow-bound` is stated in BOTH
+chapter 6 and chapter 8 under two numbers, and `check_duplicate_figures.py`
+catches duplicated drawings but nothing catches a duplicated theorem.
+
+**Whoever generalises that checker: read only the `\ifpdbook` branch**, the way
+`check_duplicate_figures.py` already does, with a scanner rather than a regex —
+the branches contain prose and nested `\ifnum` from other macros.
+
+### 9.4 One D1 test adapter, and it earned its keep in ten minutes.
+
+`apps/relay/tests/helpers/d1-sqlite.ts` is now the only D1-over-`node:sqlite`
+adapter; `roadmap-mirror.test.ts`'s `makeRealDb` delegates to it. Use
+`applyAllMigrations()`, not `migration('one-file.sql')`. A suite that loads a
+single migration is testing a schema that has never existed anywhere: the table
+is there but the foreign keys pointing at the rest of the database are not, so a
+constraint that bites in production cannot bite in the test. Switching the
+register's surface suite over immediately caught two rows production would have
+refused — a `users` insert with no `github_user_id` and no `created_at`, and a
+`work_board_members` row pointing at a user id that did not exist — both of
+which had been passing green.
+
+### 9.5 The half-fix, as a habit rather than an anecdote
+
+Twice today a correct-looking fix was half of one, and both halves cost a CI
+round trip:
+
+- Chapter 6 stopped re-inputting drawings chapters 7 and 8 develop. True, and it
+  silently removed five figures from `harbor-economy-whitepaper.pdf`, a
+  submission artifact whose reader has no other chapters to be pointed at.
+- The five atlas rows for those figures were deleted. Also true at the time, and
+  wrong within a day, because the figures never left the corpus — they moved
+  into the `\else` branch.
+
+The generalisable check, which does not exist yet and should:
+**no edit to a twin source may change the standalone paper's figure count.**
+Both failures would have been caught at the desk instead of in CI. Until it
+exists, the manual version is: after editing any file that appears in
+`scripts/build-whitepapers.sh` as both a chapter and a paper root, rebuild the
+paper and count its figures.

@@ -123,7 +123,7 @@ line 23 (replace the middle clause):
 
 > \emph{Express lane: skip to \S\ref{sec:stage}; the terms below are defined again at first use in the theorems.} This paper is economics, and its terms are cheap to define but expensive to guess at. A software reader who has never taken a mechanism-design course loses nothing but the dictionary; here it is, in the order the terms are needed.
 
-and move the two forward-referencing entries — *sealed* (lines 76–78) and *clique* (lines 80–82) — down to §5, where they are first load-bearing, leaving §3 with the five terms that stand on their own (inspection game, mixed strategy/equilibrium, incentive-compatible, bond/slash, amortization).
+and move the two forward-referencing entries — *sealed* (lines 76–78) and *clique* (lines 80–82) — down to §5, where they are first critical, leaving §3 with the five terms that stand on their own (inspection game, mixed strategy/equilibrium, incentive-compatible, bond/slash, amortization).
 
 **(b)** If the section must stay whole, demote it to an appendix titled "Glossary, in the order the terms are needed" and cross-reference it once from line 44.
 
@@ -260,7 +260,7 @@ and the caption's final sentence with
 
 ### B4. Tables: none exist
 
-**Verdict:** a gap. Three of the paper's load-bearing structures are *comparisons* — keep-gain vs. confiscation, Model A vs. Model B, and the six boundary conditions with their measurement obligations — and all three are currently prose the reader has to hold in working memory. See C4 and C5.
+**Verdict:** a gap. Three of the paper's critical structures are *comparisons* — keep-gain vs. confiscation, Model A vs. Model B, and the six boundary conditions with their measurement obligations — and all three are currently prose the reader has to hold in working memory. See C4 and C5.
 
 ---
 

@@ -94,6 +94,22 @@
     {
       "file": "2026-08-24-fleet-run-transcripts.sql",
       "appliedAt": "2026-08-28T02:08:50Z"
+    },
+    {
+      "file": "2026-08-26-b3-device-keys.sql",
+      "appliedAt": "2026-08-30T01:47:43Z"
+    },
+    {
+      "file": "2026-09-08-repo-ship-controls.sql",
+      "appliedAt": "2026-09-11T00:00:17Z"
+    },
+    {
+      "file": "2026-09-08-repo-ship-telemetry.sql",
+      "appliedAt": "2026-09-11T00:00:17Z"
+    },
+    {
+      "file": "2026-09-08-work-register.sql",
+      "appliedAt": "2026-09-11T00:00:17Z"
     }
   ]
 }

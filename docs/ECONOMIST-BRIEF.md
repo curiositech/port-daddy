@@ -84,7 +84,7 @@ $\pi(\mathcal{F})$ must exceed the expected reconstruction cost if the agent cau
 $\pi(\mathcal{F})$ must be affordable for legitimate agents. If bonds are too high, only well-funded principals participate, and routine development work (the majority of all work) is priced out.
 
 ### 3. Risk Sensitivity
-Writing to `src/auth/middleware.ts` for 30 minutes should cost more than reading `docs/README.md` for 5 minutes. The function should be monotonically increasing in scope, criticality, and duration.
+Writing to `src/auth/middleware.ts` for 30 minutes should cost more than reading `README.md` for 5 minutes. The function should be monotonically increasing in scope, criticality, and duration.
 
 ### 4. History Adjustment
 A principal with 100 clean completions and 0% failure rate should post less collateral than a new principal with no track record. Reputation is a discount on collateral — but never eliminates it entirely (one-shot defection must always be costly).
@@ -125,7 +125,7 @@ An agent posts a bond, claims critical files, works very slowly, and effectively
 
 Two papers are attached:
 
-1. **"The Anchor Protocol"** — The cryptographic identity layer. How agents authenticate, how capabilities are delegated with attenuation, and how the whole thing is formally verified (ProVerif + Rust/Kani). This is the security foundation.
+1. **"The Anchor Protocol"** — The cryptographic identity layer. How agents authenticate, how capabilities are delegated with attenuation, and how the protocol model is checked (ProVerif) and the Rust verifier is bounded-checked (Kani). This is the security foundation.
 
 2. **"The Bonded Commons"** — The governance and economic argument. Why multi-agent systems need a commons authority (Hobbes), why advisory claims are formally correct (Sen), what morality means when agents can be resurrected (Krakoa), and why collateralized work contracts transform the moral question of trustworthiness into the economic question of adequate bonding. **Section 7 ("Layer 3: Economic Alignment") and particularly Section 7.4 ("The Open Problem: Pricing the Bond") are the direct handoff to you.**
 
@@ -216,7 +216,7 @@ If an agent dies mid-task, the Merkle-chained evidence trail enables pro-rata as
 ### The Formal Verification
 
 - **ProVerif 2.05**: Symbolic protocol analyzer. Proves that capability tokens can't be forged, delegation can't escalate privileges, and encrypted notes can't be read without authorization. All models verified: `RESULT ... is true`.
-- **Kani Rust Verifier**: Bounded model checking on the cryptographic comparison and capability subset functions. The same binary that's verified is the one deployed in production (via FFI from the Node.js daemon).
+- **Kani Rust Verifier**: Bounded no-panic harnesses over the token parser (cryptography stubbed) and the byte comparator, plus two concrete vectors for the capability subset function. The crate the harnesses are compiled from is the one deployed in production (via FFI from the Node.js daemon); Kani checks the source, not the shipped binary.
 - **TLA+ Specification**: State machine model of the session lifecycle with crash recovery. Safety properties (note monotonicity, escrow positivity, lock owner validity) and liveness properties (crash recovery, lock release) specified and ready for model checking.
 
 ### The Advisory Claims Design (Sen's Impossibility)

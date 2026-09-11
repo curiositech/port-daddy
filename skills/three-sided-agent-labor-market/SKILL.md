@@ -48,7 +48,7 @@ not just on the worker side.
 
 The governing slogan: **you don't sell crypto — crypto is the substrate; you sell
 hosted trust** (a verified ledger + relay + reputation). Keep that sentence
-load-bearing in every design decision below.
+critical in every design decision below.
 
 ## Decision Points
 

@@ -22,6 +22,97 @@ use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 
 pub const DEFAULT_ROWS: u16 = 24;
 pub const DEFAULT_COLS: u16 = 120;
+/// Initial terminal-drawer height. The value preserves roughly the existing
+/// visual footprint while allowing [`ShellDrawerGeometry`] to adapt it to the
+/// current window instead of treating 360 pixels as an invariant.
+pub const DEFAULT_DRAWER_HEIGHT_PX: f32 = 360.0;
+/// Smallest useful drawer: header, footer, resize affordance, and several PTY
+/// rows remain visible even when the operator drags aggressively downward.
+pub const MIN_DRAWER_HEIGHT_PX: f32 = 180.0;
+/// Largest share of the window the terminal may occupy. Keeping part of the
+/// work surface visible preserves context while the drawer is being resized.
+pub const MAX_DRAWER_VIEWPORT_RATIO: f32 = 0.72;
+
+/// Renderer-independent geometry for the terminal drawer.
+///
+/// GPUI owns pointer capture, but this model owns height clamping and PTY row
+/// calculation. Keeping those decisions outside the renderer makes window
+/// resizing and drag behavior deterministic, reusable, and headless-testable.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ShellDrawerGeometry {
+    height_px: f32,
+}
+
+impl Default for ShellDrawerGeometry {
+    fn default() -> Self {
+        Self {
+            height_px: DEFAULT_DRAWER_HEIGHT_PX,
+        }
+    }
+}
+
+impl ShellDrawerGeometry {
+    /// Return the visible drawer height for `viewport_height_px`.
+    ///
+    /// The stored operator preference is not destroyed when a window briefly
+    /// shrinks; it is projected through the current minimum and maximum every
+    /// frame, then becomes fully visible again if the window grows.
+    pub fn height_px(&self, viewport_height_px: f32) -> f32 {
+        self.height_px
+            .clamp(MIN_DRAWER_HEIGHT_PX, Self::max_height(viewport_height_px))
+    }
+
+    /// Apply one vertical drag delta to the top edge of the bottom drawer.
+    ///
+    /// `delta_y_px` follows window coordinates, so a negative value means the
+    /// pointer moved upward and therefore grows the drawer. The resulting
+    /// preference is clamped against `viewport_height_px` before storage.
+    pub fn resize_by_drag(&mut self, delta_y_px: f32, viewport_height_px: f32) {
+        let anchor_height_px = self.height_px(viewport_height_px);
+        self.resize_from_anchor(anchor_height_px, delta_y_px, viewport_height_px);
+    }
+
+    /// Resolve a whole resize gesture from an immutable starting height.
+    ///
+    /// Re-rendering moves the drawer's top edge under the pointer. Accumulating
+    /// frame-to-frame deltas against that moving edge creates a one-way feedback
+    /// loop in which growing works but shrinking can be lost. Anchoring every
+    /// event to the pointer and height captured at mouse-down makes direction
+    /// reversal deterministic.
+    pub fn resize_from_anchor(
+        &mut self,
+        anchor_height_px: f32,
+        total_delta_y_px: f32,
+        viewport_height_px: f32,
+    ) {
+        self.height_px = (anchor_height_px - total_delta_y_px)
+            .clamp(MIN_DRAWER_HEIGHT_PX, Self::max_height(viewport_height_px));
+    }
+
+    /// Convert the drawer's usable content area into a PTY row count.
+    ///
+    /// `chrome_height_px` accounts for the header, footer, handle, padding, and
+    /// any visible receipt strips. `row_height_px` must match the GPUI terminal
+    /// row height so the native PTY, vt100 screen, and authored pixels agree.
+    pub fn terminal_rows(
+        &self,
+        viewport_height_px: f32,
+        chrome_height_px: f32,
+        row_height_px: f32,
+    ) -> u16 {
+        let row_height_px = row_height_px.max(1.0);
+        let content_height =
+            (self.height_px(viewport_height_px) - chrome_height_px).max(row_height_px);
+        (content_height / row_height_px)
+            .floor()
+            .clamp(2.0, u16::MAX as f32) as u16
+    }
+
+    /// Compute the context-preserving upper bound for a viewport.
+    fn max_height(viewport_height_px: f32) -> f32 {
+        (viewport_height_px * MAX_DRAWER_VIEWPORT_RATIO).max(MIN_DRAWER_HEIGHT_PX)
+    }
+}
 const RECOVERY_STATE_VERSION: u8 = 1;
 const CHECKPOINT_INTERVAL: Duration = Duration::from_secs(2);
 const MAX_RECOVERY_LINES: usize = 80;
@@ -270,6 +361,7 @@ pub struct ShellTerminal {
     previous_receipt: Option<ShellRecoveryReceipt>,
     recovery_failure: Option<ShellFailure>,
     last_checkpoint_at: Option<Instant>,
+    wheel_remainder: f32,
 }
 
 impl ShellTerminal {
@@ -424,6 +516,7 @@ impl ShellTerminal {
             previous_receipt: recovery.receipt,
             recovery_failure,
             last_checkpoint_at: None,
+            wheel_remainder: 0.0,
         };
         terminal.checkpoint(true);
         Ok((terminal, event_rx))
@@ -444,6 +537,7 @@ impl ShellTerminal {
             previous_receipt: None,
             recovery_failure: None,
             last_checkpoint_at: None,
+            wheel_remainder: 0.0,
         }
     }
 
@@ -464,6 +558,7 @@ impl ShellTerminal {
             previous_receipt: recovery.receipt,
             recovery_failure,
             last_checkpoint_at: None,
+            wheel_remainder: 0.0,
         };
         terminal.checkpoint(true);
         terminal
@@ -490,6 +585,76 @@ impl ShellTerminal {
         self.input_tx
             .as_ref()
             .is_some_and(|tx| tx.send(ShellInput::Bytes(bytes.into())).is_ok())
+    }
+
+    /// Return the number of retained primary-screen rows above the live prompt.
+    ///
+    /// Zero means the view follows current output. A positive value is also the
+    /// exact state surfaced by the drawer's HISTORY / RETURN LIVE affordance.
+    pub fn scrollback_offset(&self) -> usize {
+        self.parser.screen().scrollback()
+    }
+
+    /// Report whether the child application currently owns the alternate
+    /// terminal screen, as full-screen programs such as `less` and `vim` do.
+    ///
+    /// Alternate screens do not expose the shell's retained history. The GPUI
+    /// layer uses this signal to translate wheel rows into cursor navigation.
+    pub fn is_alternate_screen(&self) -> bool {
+        self.parser.screen().alternate_screen()
+    }
+
+    /// Move through retained primary-screen history by a signed row count.
+    ///
+    /// Positive `rows` reveal older output; negative values move toward the
+    /// live prompt. Alternate-screen applications are intentionally left alone
+    /// because their wheel intent must be sent to the child process instead.
+    pub fn scroll_rows(&mut self, rows: i32) {
+        if self.is_alternate_screen() {
+            return;
+        }
+        let current = self.scrollback_offset();
+        let next = if rows >= 0 {
+            current.saturating_add(rows as usize)
+        } else {
+            current.saturating_sub(rows.unsigned_abs() as usize)
+        };
+        self.parser.set_scrollback(next);
+    }
+
+    /// Fold high-resolution wheel or touchpad pixels into signed terminal rows.
+    ///
+    /// Fractional deltas are retained between events so a trackpad does not
+    /// feel dead. Direction reversals discard the old fractional remainder,
+    /// preventing a small upward gesture from being consumed by prior downward
+    /// motion. On the primary screen the rows are applied to scrollback; on an
+    /// alternate screen they are returned without mutation so the caller can
+    /// forward equivalent up/down navigation to the child application.
+    pub fn scroll_wheel_pixels(&mut self, pixels: f32, row_height_px: f32) -> i32 {
+        let row_delta = pixels / row_height_px.max(1.0);
+        if self.wheel_remainder != 0.0
+            && row_delta != 0.0
+            && self.wheel_remainder.signum() != row_delta.signum()
+        {
+            self.wheel_remainder = 0.0;
+        }
+        self.wheel_remainder += row_delta;
+        let rows = self.wheel_remainder.trunc() as i32;
+        self.wheel_remainder -= rows as f32;
+        if rows != 0 && !self.is_alternate_screen() {
+            self.scroll_rows(rows);
+        }
+        rows
+    }
+
+    /// Return to the live prompt and discard any fractional wheel intent.
+    ///
+    /// Keyboard input calls this before writing to the PTY, matching familiar
+    /// terminal behavior: reading history is sticky, but typing resumes the
+    /// active conversation immediately and visibly.
+    pub fn scroll_to_live(&mut self) {
+        self.parser.set_scrollback(0);
+        self.wheel_remainder = 0.0;
     }
 
     pub fn resize(&mut self, rows: u16, cols: u16) -> bool {
@@ -1046,6 +1211,97 @@ mod tests {
         assert_eq!(json["version"], RECOVERY_STATE_VERSION);
         assert_eq!(json["retention"], "screen");
         assert_eq!(json["receipt"]["screenLines"][1], "daemon healthy");
+    }
+
+    #[test]
+    fn drawer_geometry_resizes_independently_and_yields_terminal_rows() {
+        let mut geometry = ShellDrawerGeometry::default();
+        assert_eq!(geometry.height_px(1_000.0), DEFAULT_DRAWER_HEIGHT_PX);
+        assert_eq!(geometry.terminal_rows(1_000.0, 88.0, 17.0), 16);
+
+        geometry.resize_by_drag(-170.0, 1_000.0);
+        assert_eq!(geometry.height_px(1_000.0), 530.0);
+        assert_eq!(geometry.terminal_rows(1_000.0, 88.0, 17.0), 26);
+
+        geometry.resize_by_drag(1_000.0, 1_000.0);
+        assert_eq!(geometry.height_px(1_000.0), MIN_DRAWER_HEIGHT_PX);
+    }
+
+    #[test]
+    fn drawer_geometry_projects_a_large_preference_into_a_smaller_window() {
+        let mut geometry = ShellDrawerGeometry::default();
+        geometry.resize_by_drag(-1_000.0, 1_000.0);
+        assert_eq!(geometry.height_px(1_000.0), 720.0);
+        assert_eq!(geometry.height_px(500.0), 360.0);
+    }
+
+    #[test]
+    fn drawer_geometry_anchor_allows_shrinking_and_direction_reversal() {
+        let mut geometry = ShellDrawerGeometry::default();
+        let anchor = geometry.height_px(1_000.0);
+
+        geometry.resize_from_anchor(anchor, -160.0, 1_000.0);
+        assert_eq!(geometry.height_px(1_000.0), 520.0);
+
+        // The same gesture crosses back below its starting point. Its result is
+        // computed from the immutable mouse-down anchor, not the moving edge.
+        geometry.resize_from_anchor(anchor, 100.0, 1_000.0);
+        assert_eq!(geometry.height_px(1_000.0), 260.0);
+
+        // A fresh downward gesture can always reclaim space after growth.
+        let taller_anchor = 520.0;
+        geometry.resize_from_anchor(taller_anchor, 220.0, 1_000.0);
+        assert_eq!(geometry.height_px(1_000.0), 300.0);
+    }
+
+    #[test]
+    fn wheel_scrolls_primary_history_and_can_return_live() {
+        let mut terminal = ShellTerminal::disconnected(PathBuf::from("."), "offline");
+        for index in 0..40 {
+            terminal.apply(ShellEvent::Bytes(format!("line {index}\r\n").into_bytes()));
+        }
+        assert_eq!(terminal.scrollback_offset(), 0);
+
+        assert_eq!(terminal.scroll_wheel_pixels(34.0, 17.0), 2);
+        assert_eq!(terminal.scrollback_offset(), 2);
+        assert!(terminal
+            .styled_lines(24)
+            .iter()
+            .any(|line| line.text.contains("line 36")));
+
+        terminal.apply(ShellEvent::Bytes(b"new output\r\n".to_vec()));
+        assert_eq!(terminal.scrollback_offset(), 3);
+        terminal.scroll_rows(-1);
+        assert_eq!(terminal.scrollback_offset(), 2);
+        terminal.scroll_to_live();
+        assert_eq!(terminal.scrollback_offset(), 0);
+    }
+
+    #[test]
+    fn high_resolution_wheel_deltas_accumulate_without_direction_debt() {
+        let mut terminal = ShellTerminal::disconnected(PathBuf::from("."), "offline");
+        for index in 0..40 {
+            terminal.apply(ShellEvent::Bytes(format!("line {index}\r\n").into_bytes()));
+        }
+        assert_eq!(terminal.scroll_wheel_pixels(8.0, 17.0), 0);
+        assert_eq!(terminal.scroll_wheel_pixels(9.0, 17.0), 1);
+        assert_eq!(terminal.scrollback_offset(), 1);
+
+        terminal.scroll_to_live();
+        assert_eq!(terminal.scroll_wheel_pixels(12.0, 17.0), 0);
+        assert_eq!(terminal.scroll_wheel_pixels(-12.0, 17.0), 0);
+        assert_eq!(terminal.scroll_wheel_pixels(-5.0, 17.0), -1);
+        assert_eq!(terminal.scrollback_offset(), 0);
+    }
+
+    #[test]
+    fn alternate_screen_wheel_rows_are_returned_for_child_navigation() {
+        let mut terminal = ShellTerminal::disconnected(PathBuf::from("."), "offline");
+        terminal.apply(ShellEvent::Bytes(b"\x1b[?1049h".to_vec()));
+        assert!(terminal.is_alternate_screen());
+
+        assert_eq!(terminal.scroll_wheel_pixels(34.0, 17.0), 2);
+        assert_eq!(terminal.scrollback_offset(), 0);
     }
 
     #[test]

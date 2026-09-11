@@ -1,0 +1,33 @@
+% Technical edition overrides: the Seventies manual. Monoline ink, halftone
+% dots and hatching for regions, one warm accent (amber) and one caution
+% (rust), open arrowheads, square corners, grotesk labels. Loaded by
+% pd-figure-language.tex.
+\tikzset{
+  pd figure/.append style={font=\pdgrotesk\footnotesize,text=hhink},
+  pd hairline/.append style={draw=hhink,line width=.35pt},
+  pd rule/.append style={draw=hhink,line width=.5pt},
+  pd focus rule/.append style={draw=pdamber,line width=1pt},
+  pd caution rule/.append style={draw=pdrust,line width=1pt,dash pattern=on 3pt off 1.5pt},
+  pd guide/.append style={draw=hhink,line width=.3pt,dash pattern=on .6pt off 1.2pt},
+  pd arrow/.append style={-{Stealth[length=1.9mm,width=1.3mm,open]},draw=hhink,line width=.5pt},
+  pd focus arrow/.append style={-{Stealth[length=1.9mm,width=1.3mm]},draw=pdamber,line width=.8pt},
+  pd caution arrow/.append style={-{Stealth[length=1.9mm,width=1.3mm]},draw=pdrust,line width=.8pt,dash pattern=on 3pt off 1.5pt},
+  pd row label/.append style={font=\pdgrotesk\footnotesize,text=hhink,anchor=east},
+  pd panel title/.append style={font=\pdgrotesk\footnotesize\bfseries,text=hhink,align=left},
+  pd axis label/.append style={font=\pdgrotesk\footnotesize,text=hhink},
+  pd direct label/.append style={font=\pdgrotesk\footnotesize,text=hhink,align=left,inner sep=1.5pt,fill=hhpaper},
+  pd note/.append style={font=\pdgrotesk\footnotesize\itshape,text=hhink,align=left},
+  pd tick/.append style={draw=hhink,line width=.4pt},
+  pd datum/.append style={circle,fill=hhpaper,draw=hhink,line width=.5pt,inner sep=1.8pt},
+  pd focus datum/.append style={circle,fill=pdamber,draw=hhink,line width=.4pt,inner sep=2.2pt},
+  pd caution datum/.append style={diamond,fill=pdrust,draw=hhink,line width=.4pt,inner sep=2.2pt},
+  pd state/.append style={draw=hhink,line width=.5pt,fill=hhpaper,rounded corners=0pt,inner xsep=6pt,inner ysep=4pt,minimum height=6.5mm},
+  pd terminal/.append style={pd state,double,double distance=1pt},
+  pd actor/.append style={draw=hhink,line width=.5pt,fill=hhpaper,rounded corners=0pt,inner xsep=6pt,inner ysep=4pt},
+  pd artifact/.append style={draw=hhink,line width=.5pt,fill=hhpaper,rounded corners=0pt,inner xsep=6pt,inner ysep=4pt},
+  pd boundary/.append style={draw=hhink,line width=.5pt,dash pattern=on 4pt off 2pt,rounded corners=0pt},
+  pd focus fill/.append style={pattern={Dots[distance=2.4pt,radius=.35pt]},pattern color=pdamber,draw=hhink,line width=.4pt},
+  pd caution fill/.append style={pattern={Lines[angle=45,distance=3pt,line width=.3pt]},pattern color=pdrust,draw=hhink,line width=.4pt},
+  pd neutral fill/.append style={pattern={Dots[distance=2.4pt,radius=.3pt]},pattern color=hhgray,draw=hhink,line width=.4pt},
+  pd hatch/.append style={pattern={Lines[angle=45,distance=3pt,line width=.3pt]},pattern color=hhink},
+}

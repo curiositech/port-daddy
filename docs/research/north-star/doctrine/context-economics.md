@@ -55,7 +55,7 @@ the **digest IS compaction.** When an agent decides which 2,000 tokens of a 50,0
 token session to forward, it is simultaneously (a) cutting the bill for the next
 inference (COGS) and (b) choosing the map the successor navigates by (legibility).
 You cannot tune one without moving the other. That is why context economics is the
-**load-bearing seam between L2 (legibility) and L3 (a market you can only meter in
+**foundational seam between L2 (legibility) and L3 (a market you can only meter in
 COGS you actually accounted)** — and why this doc and `legibility.md` are siblings:
 they score the two faces of one mechanism.
 

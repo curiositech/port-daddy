@@ -193,7 +193,7 @@ Bad: "Break card game into 'early game', 'mid game', 'end game' phases"
 
 **AgentBench evidence**: Models that try to follow fixed strategic plans (always use AOE attack in rounds 1-5, always target low-health enemy in rounds 6-10) lose to models that adapt flexibly to current board state.
 
-## Decomposition Strategies for WinDAGs
+## Decomposition Strategies for Jury-rig
 
 ### Strategy 1: Detect Decomposability Automatically
 

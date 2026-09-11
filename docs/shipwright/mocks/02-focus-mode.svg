@@ -22,7 +22,7 @@
 
   <line x1="0" y1="64" x2="1440" y2="64" stroke="#121212" stroke-width="2"/>
   <text x="48" y="40" font-size="20" font-weight="900" letter-spacing="-0.02em" fill="#121212">◀ HARBOR · PORT-DADDY</text>
-  <text x="48" y="56" font-size="11" letter-spacing="0.14em" fill="#67645d">FOCUS · SURVEYED 07:52 UTC · CONFIDENCE 0.82 · PATTERN MATCH windags:2026-02</text>
+  <text x="48" y="56" font-size="11" letter-spacing="0.14em" fill="#67645d">FOCUS · SURVEYED 07:52 UTC · CONFIDENCE 0.82 · PATTERN MATCH jury_rig:2026-02</text>
 
   <!-- LEFT: command block -->
   <g transform="translate(48 96)">
@@ -328,7 +328,7 @@
       <text x="0" y="-6" font-size="11" letter-spacing="0.14em" fill="#67645d">SHIPWRIGHT RATIONALE · KLEIN-RPD PATTERN MATCH</text>
       <line x1="0" y1="0" x2="884" y2="0" stroke="#121212" stroke-width="1"/>
       <text x="0" y="22" font-size="13" fill="#121212">
-        <tspan x="0" dy="0">Recognized pattern: windags 2026-02 — similar test density, PR cadence, strict TS. That fleet survived 30d at $2.20/d with 0 violations.</tspan>
+        <tspan x="0" dy="0">Recognized pattern: jury_rig 2026-02 — similar test density, PR cadence, strict TS. That fleet survived 30d at $2.20/d with 0 violations.</tspan>
         <tspan x="0" dy="20">QA Sentinel catches regressions early; Typesafety sweeps the 23 `any`s in routes/. Documentarian keeps CLAUDE.md in sync with features.manifest (4 stale entries).</tspan>
         <tspan x="0" dy="20">Perf Hawk on merge-queue hot path — CI time drifted +14% last week. No Sentry config found → Sentry Responder parked as GHOST until the webhook is wired.</tspan>
         <tspan x="0" dy="20">Expected daily spend $3.15; envelope allows $5.00. Bond pool at $1.25 escrow. Simulator confidence 0.91 across 10 seeded runs.</tspan>

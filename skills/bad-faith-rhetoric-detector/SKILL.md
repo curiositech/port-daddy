@@ -32,7 +32,7 @@ metadata:
     recoveredAt: "2026-04-19T06:57:25-07:00"
     recoveredFrom: /Users/erichowens/coding/workgroup-ai/.claude/worktrees/agent-aa6fba4b/skills/bad-faith-rhetoric-detector
     worktree: agent-aa6fba4b
-    ctaOverlay: /Users/erichowens/coding/workgroup-ai/.windags/cta-upgrades/bad-faith-rhetoric-detector/after.md
+    ctaOverlay: /Users/erichowens/coding/workgroup-ai/.skill-runtime-archive/cta-upgrades/bad-faith-rhetoric-detector/after.md
     owners:
       - some-claude-skills
   authorship:

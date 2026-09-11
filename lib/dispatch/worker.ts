@@ -353,6 +353,7 @@ export class DispatchWorker {
               goal: req.goal,
               backend: req.backend,
               baseBranch: req.predecessor.baseBranch,
+              projectDir: req.predecessor.projectDir ?? undefined,
               mergePolicy: req.predecessor.mergePolicy,
               requestedBy: req.predecessor.requestedBy,
               tags: [...req.predecessor.tags, `failover:${req.failoverFromBackend}`],

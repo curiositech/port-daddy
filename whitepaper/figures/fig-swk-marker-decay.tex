@@ -1,0 +1,34 @@
+% Stigmergic marker weight under exponential decay: the arithmetic of the worked
+% example in the communication organ, drawn. [internal; analytic]
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure]
+\begin{axis}[
+  width=\linewidth, height=0.55\linewidth,
+  xlabel={ticks since the marker was deposited}, ylabel={marker weight $w(t)$},
+  xmin=0, xmax=64, ymin=0, ymax=1.02,
+  xtick={0,10,20,29,40,50,59}, ytick={0,0.05,0.25,0.5,0.75,1},
+  yticklabels={0,0.05,0.25,0.5,0.75,1},
+  axis lines=left, axis line style={pd hairline},
+  tick label style={font=\footnotesize,text=hhink!80!hhgray},
+  label style={font=\footnotesize,text=hhink},
+  legend style={font=\footnotesize,draw=none,fill=none,at={(0.97,0.95)},anchor=north east},
+  every axis plot/.append style={line width=1.05pt},
+]
+\addplot[hhteal,domain=0:64,samples=129] {0.9^x};
+\addlegendentry{$r=0.9$: pruned at tick 29}
+\addplot[hhink,domain=0:64,samples=129] {0.95^x};
+\addlegendentry{$r=0.95$: pruned at tick 59}
+\addplot[hhamber,dashed,line width=0.7pt,domain=0:64] {0.05};
+\addlegendentry{prune threshold $0.05$}
+\addplot[only marks,mark=*,mark size=2.3pt,hhteal] coordinates {(29,0.047)};
+\addplot[only marks,mark=*,mark size=2.3pt,hhink] coordinates {(59,0.048)};
+\end{axis}
+\end{tikzpicture}
+\caption{Marker weight $w(t)=r^{t}$ for two decay rates against the prune threshold
+of $0.05$. At $r=0.9$ the marker survives $28$ ticks and is pruned at tick $29$; at
+$r=0.95$ it lives until tick $59$, since $\ln 0.05/\ln 0.95 = 58.4$. Moving the rate
+half the distance to one more than doubles the lifetime, which is the whole content of
+the calibration question. [internal; analytic]}
+\label{fig:swk-marker-decay}
+\end{figure}

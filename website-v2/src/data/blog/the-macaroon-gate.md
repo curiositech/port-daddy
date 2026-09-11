@@ -71,7 +71,7 @@ So we wrote the construction down in **ProVerif** and let it look for that attac
 <!-- sidenote: 4 -->
 > ProVerif is an automated protocol verifier. You describe the messages and the secrets in a small modelling language; it explores every interleaving an attacker could produce — replays, reorderings, forgeries — and either finds an attack trace or proves the property holds for all of them. It is the same family of tool used to check TLS handshakes and signal protocols.
 
-The load-bearing property — call it Q1 — is that the gate authorizes a push *only if* the daemon actually issued a discharge bound to that exact grant. Not a discharge for some other grant. Not a forged one. That one.
+The essential property — call it Q1 — is that the gate authorizes a push *only if* the daemon actually issued a discharge bound to that exact grant. Not a discharge for some other grant. Not a forged one. That one.
 
 <!-- syllogism: macaroon_discharge_v1.pv -->
 ```
@@ -86,7 +86,7 @@ ProVerif returns `RESULT ... is true` for that query, under an active attacker w
 That model is unsound, and ProVerif finds the attack: two grants that share a rent caveat, one of them legitimately discharged, and the attacker replays that discharge onto the *other* grant. The check passes; the wrong push goes through.
 
 <!-- sidenote: 5 -->
-> This is not a bug we shipped — it's the regression test for the design. The attack ProVerif reconstructs is exactly the one the request-binding exists to stop. Proving the lazy verifier *breaks* is what tells you the binding in the real verifier is load-bearing and not decoration.
+> This is not a bug we shipped — it's the regression test for the design. The attack ProVerif reconstructs is exactly the one the request-binding exists to stop. Proving the lazy verifier *breaks* is what tells you the binding in the real verifier is structural and not decoration.
 
 Which is the entire point of doing this with a machine instead of a whiteboard: the binding is not there because it felt rigorous. It is there because removing it produces a concrete, named, reconstructable attack, and keeping it produces a property that holds against every interleaving the checker can build.
 

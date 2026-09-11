@@ -7,14 +7,13 @@
  *
  * FAIL-CLOSED / DLQ CONTRACT
  * --------------------------
- * The orchestrator creates the 'Port Daddy Fleet' check run in 'in_progress'
- * at the START of a run, BEFORE running any ship. That ordering is the whole
- * safety story: if a blocking ship's job is later lost — retries exhausted, the
- * message dead-lettered, the Worker evicted — GitHub still shows an unresolved
- * 'in_progress' (never green, never absent) gate. A separate DLQ handler
- * (configured via `dead_letter_queue = "fleet-runs-dlq"`) must then complete
- * that check run as 'failure' so a lost blocking job can never let a merge
- * through. We never ack a job whose check we could not even create.
+ * After admission, the orchestrator creates a delivery-bound 'Port Daddy
+ * Fleet' check run in_progress before model work. A lost admitted job normally
+ * leaves that owned check unresolved until the DLQ claims the same intent and
+ * marks the exact creator-run check failure. The webhook-to-check interval,
+ * degraded legacy admission, and GitHub's lack of atomic metadata/check
+ * mutation remain explicit residual windows; this code does not claim they are
+ * closed by the queue consumer.
  *
  * Retry semantics: on a thrown (recoverable) error we record the cause against
  * the run's transcript (delivery-failure.ts) and call `message.retry()`;
@@ -93,9 +92,9 @@ export default {
     ctx: ExecutionContext,
   ): Promise<void> {
     // DLQ path: a job that exhausted retries on the main queue lands here. Its
-    // 'Port Daddy Fleet' check is stuck in_progress — complete it as failure so a
-    // lost blocking job can never leave a green/absent gate. Always ack (the
-    // message already exhausted retries; re-queuing it would loop).
+    // exact creator-run 'Port Daddy Fleet' check may be stuck in_progress. The
+    // DLQ first claims the active intent, then marks only that check failure.
+    // Missing/degraded authority is logged and leaves GitHub untouched.
     // OBSERVABILITY (#7743 follow-up): one line per invocation, before any
     // branch can return early. The OOM investigation cost two cycles partly
     // because nothing recorded that the consumer had even been reached — an
@@ -220,6 +219,7 @@ export default {
             ? attempt
             : explicitContinuation + attempt,
           maxNewShipsPerInvocation: MAX_NEW_SHIPS_PER_INVOCATION,
+          enforceIntentOwnership: intentDecision === 'run',
         });
         if (disposition?.kind === 'continuation') {
           const recorded = await recordDeliveryContinuation(
@@ -352,10 +352,10 @@ export default {
                 `${providerDelaySeconds}s`,
             );
         // Recoverable infrastructure error — re-deliver. After max_retries the
-        // platform routes this to fleet-runs-dlq, where the DLQ handler MUST
-        // complete the (already-created) check run as 'failure'. Because the
-        // check was created in_progress before any ship ran, a job lost here
-        // never leaves a green or absent gate.
+        // platform routes this to fleet-runs-dlq, where the handler attempts an
+        // intent-claimed failure of this delivery's exact check. An authority
+        // outage or pre-check crash can still leave the gate absent/pending;
+        // those residuals must remain visible rather than be described away.
         console.error(
           `[fleet-executor] delivery=${message.body?.deliveryId} retry: ${String(durableError)}`,
         );

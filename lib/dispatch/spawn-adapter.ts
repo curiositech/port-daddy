@@ -45,8 +45,10 @@
  */
 
 import { execFileSync, execFile } from 'node:child_process';
+import { isWitnessedBackendFailure, witnessedBackendFailure } from '../agent-resilience.js';
+import type { AgentError } from '../event-envelope.js';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { isAbsolute, join, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { promisify } from 'node:util';
 
@@ -113,20 +115,35 @@ export async function gitWorktreeAdd(
   branch: string,
   baseRef: string,
   options: {
-    execFileFn?: (file: string, args: string[]) => Promise<unknown>;
+    repoWorkdir: string;
+    execFileFn?: (
+      file: string,
+      args: string[],
+      options?: { cwd: string },
+    ) => Promise<unknown>;
     existsFn?: (path: string) => boolean;
     sleepFn?: (delayMs: number) => Promise<void>;
     randomFn?: () => number;
     maxAttempts?: number;
-  } = {},
+  },
 ): Promise<void> {
-  const run = options.execFileFn ?? ((file: string, args: string[]) => execFileAsync(file, args));
+  const run = options.execFileFn
+    ?? ((file: string, args: string[], execOptions?: { cwd: string }) => execFileAsync(file, args, execOptions));
   const pathExists = options.existsFn ?? existsSync;
   const sleep = options.sleepFn ?? ((delayMs: number) => new Promise<void>((resolveSleep) => {
     setTimeout(resolveSleep, delayMs);
   }));
   const random = options.randomFn ?? Math.random;
   const maxAttempts = Math.max(1, options.maxAttempts ?? 4);
+  const rawRepoWorkdir = options.repoWorkdir?.trim();
+  if (!rawRepoWorkdir || !isAbsolute(rawRepoWorkdir)) {
+    throw new Error('gitWorktreeAdd requires an absolute source project binding');
+  }
+  const repoWorkdir = resolve(rawRepoWorkdir);
+
+  // Fail closed before creating anything: the daemon may be running from an
+  // app bundle or unrelated checkout, so its cwd is never source authority.
+  await run('git', ['rev-parse', '--show-toplevel'], { cwd: repoWorkdir });
 
   if (pathExists(worktreePath)) {
     // Already exists — may be from a previous interrupted run. Re-use it.
@@ -143,13 +160,14 @@ export async function gitWorktreeAdd(
     const remote = baseRef.slice(0, slash);
     const branchName = baseRef.slice(slash + 1);
     try {
-      await run('git', ['fetch', remote, branchName]);
+      await run('git', ['fetch', remote, branchName], { cwd: repoWorkdir });
     } catch {
       /* offline or no remote — branch from the local tracking ref */
     }
   }
-  // git worktree add <path> -b <branch> <baseRef>
-  // Run from the repo root (process.cwd() when running as the pd CLI).
+  // git worktree add <path> -b <branch> <baseRef>. Every Git operation is
+  // anchored to the dispatch's durable source-project binding; daemon cwd is
+  // intentionally irrelevant because packaged apps launch from elsewhere.
   let reuseCreatedBranch = false;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
@@ -161,7 +179,7 @@ export async function gitWorktreeAdd(
             worktreePath,
             '-b', branch,
             baseRef,
-          ]);
+          ], { cwd: repoWorkdir });
       return;
     } catch (error) {
       // Concurrent worktree creation briefly contends on the repository-wide
@@ -336,13 +354,19 @@ export async function openDraftPr(params: {
 // The per-agent egress cap is a Phase 2 concern for dispatch (the CLI tools
 // manage their own auth and billing on the operator's subscription).
 
-async function runAgentInWorktree(params: {
+/**
+ * Observe actual child lifecycle facts; stderr remains display-only by design.
+ * @param params Bound worktree, command, timeout and optional test transport.
+ * @returns Display output plus an in-process failure witness when locally known.
+ */
+export async function runAgentInWorktree(params: {
   worktreePath: string;
   command: string;
   args: string[];
   env: Record<string, string | undefined>;
   timeoutMs: number;
-}): Promise<{ output: string; error: string | null }> {
+  execFileFn?: typeof execFile;
+}): Promise<{ output: string; error: string | null; failure?: AgentError }> {
   // Backend-aware confinement. `codex` self-sandboxes via `--sandbox
   // workspace-write` (which on macOS is itself a `sandbox-exec` profile);
   // wrapping it a SECOND time in the Coast Guard seatbelt nests two
@@ -363,7 +387,7 @@ async function runAgentInWorktree(params: {
     let settled = false;
     let timedOut = false;
 
-    const child = execFile(
+    const child = (params.execFileFn ?? execFile)(
       wrap.cmd,
       wrap.args,
       {
@@ -387,6 +411,7 @@ async function runAgentInWorktree(params: {
 
     const stdout: string[] = [];
     const stderr: string[] = [];
+    let forceKill: ReturnType<typeof setTimeout> | undefined;
 
     child.stdout?.on('data', (d: Buffer) => stdout.push(d.toString()));
     child.stderr?.on('data', (d: Buffer) => stderr.push(d.toString()));
@@ -394,10 +419,10 @@ async function runAgentInWorktree(params: {
     const timeoutId = setTimeout(() => {
       if (settled) return;
       timedOut = true;
-      try { process.kill(-child.pid!, 'SIGTERM'); } catch { /* already gone */ }
+      // execFile did not create an owned process group. Signal only this
+      // child; a negative PID would pretend to own an unrelated group.
       try { child.kill('SIGTERM'); } catch { /* already gone */ }
-      const forceKill = setTimeout(() => {
-        try { process.kill(-child.pid!, 'SIGKILL'); } catch {}
+      forceKill = setTimeout(() => {
         try { child.kill('SIGKILL'); } catch {}
       }, 5_000);
       forceKill.unref?.();
@@ -408,6 +433,7 @@ async function runAgentInWorktree(params: {
       if (settled) return;
       settled = true;
       clearTimeout(timeoutId);
+      clearTimeout(forceKill);
       // Clean up Coast Guard temp files (e.g. seatbelt profile).
       for (const f of wrap.cleanup) {
         try { execFileSync('rm', ['-rf', f]); } catch {}
@@ -415,6 +441,9 @@ async function runAgentInWorktree(params: {
       const out = stdout.join('');
       const err = stderr.join('');
       if (timedOut) {
+        // Direct-child close does not prove descendants stopped. Keep this
+        // display failure non-authorizing until an owned-tree supervisor can
+        // provide physical completion evidence for the entire execution.
         res({ output: out, error: `Agent timed out after ${Math.round(params.timeoutMs / 60000)} min${err ? `: ${err.slice(0, 200)}` : ''}` });
       } else if (code !== 0) {
         res({ output: out, error: err || `${params.command} exited with code ${code}` });
@@ -427,7 +456,11 @@ async function runAgentInWorktree(params: {
       if (settled) return;
       settled = true;
       clearTimeout(timeoutId);
-      res({ output: '', error: `Failed to start ${params.command}: ${err.message}` });
+      clearTimeout(forceKill);
+      const code = Object.getOwnPropertyDescriptor(err, 'code')?.value;
+      res({ output: '', error: `Failed to start ${params.command}: ${err.message}`,
+        ...(typeof code === 'string' ? { failure: witnessedBackendFailure({ kind: 'os', code }) } : {}),
+      });
     });
   });
 }
@@ -446,13 +479,18 @@ export interface SpawnAdapterOptions {
     cwd: string;
     env: Record<string, string | undefined>;
     timeoutMs: number;
-  }) => Promise<{ output: string; error: string | null }>;
+  }) => Promise<{ output: string; error: string | null; failure?: unknown }>;
 
   /**
    * Injectable git-worktree creation function for unit tests.
    * When provided, no real git subprocess is spawned.
    */
-  worktreeAddFn?: (worktreePath: string, branch: string, baseRef: string) => Promise<void>;
+  worktreeAddFn?: (
+    worktreePath: string,
+    branch: string,
+    baseRef: string,
+    options: { repoWorkdir: string },
+  ) => Promise<void>;
 
   /**
    * Injectable gh-pr-create function for unit tests.
@@ -494,6 +532,12 @@ export function createSpawnAdapter(opts: SpawnAdapterOptions = {}): SpawnAdapter
     const { plan, queue } = input;
     const dispatch = plan.dispatch;
 
+    if (!dispatch.projectDir) {
+      const msg = 'Dispatch has no durable source project binding; refusing daemon-cwd fallback';
+      queue.settle({ id: dispatch.id, state: 'failed', errorMessage: msg });
+      return { state: 'failed', errorMessage: msg };
+    }
+
     // ── 0. Verify CLI binaries are on PATH (loud-fail, not silent no-op) ──────
     if (!opts.spawnFn) {
       const cliBin = plan.backend === 'cli:claude-code' ? 'claude' : 'codex';
@@ -504,7 +548,9 @@ export function createSpawnAdapter(opts: SpawnAdapterOptions = {}): SpawnAdapter
 
     // ── 1. Create the isolated git worktree ─────────────────────────────────
     try {
-      await _worktreeAdd(plan.worktreePath, plan.branch, plan.baseRef);
+      await _worktreeAdd(plan.worktreePath, plan.branch, plan.baseRef, {
+        repoWorkdir: dispatch.projectDir,
+      });
     } catch (err) {
       const msg = `Failed to create worktree at ${plan.worktreePath} (branch ${plan.branch} from ${plan.baseRef}): ${(err as Error).message}`;
       queue.settle({ id: dispatch.id, state: 'failed', errorMessage: msg });
@@ -533,6 +579,7 @@ export function createSpawnAdapter(opts: SpawnAdapterOptions = {}): SpawnAdapter
     };
 
     let agentError: string | null = null;
+    let failure: AgentError | undefined;
     const spawnStart = Date.now();
 
     try {
@@ -544,6 +591,7 @@ export function createSpawnAdapter(opts: SpawnAdapterOptions = {}): SpawnAdapter
         timeoutMs: plan.timeoutMs,
       });
       agentError = result.error;
+      if (isWitnessedBackendFailure(result.failure)) failure = result.failure;
     } catch (err) {
       agentError = (err as Error).message;
     }
@@ -607,6 +655,7 @@ export function createSpawnAdapter(opts: SpawnAdapterOptions = {}): SpawnAdapter
         state: 'settled',
         resultArtifact: prUrl,
         errorMessage: combinedError,
+        error: failure,
       };
     }
 
@@ -619,6 +668,7 @@ export function createSpawnAdapter(opts: SpawnAdapterOptions = {}): SpawnAdapter
     return {
       state: 'failed',
       errorMessage: finalError,
+      error: failure,
       resultArtifact: null,
     };
   };

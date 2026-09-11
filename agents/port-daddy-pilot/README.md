@@ -6,7 +6,7 @@ runtime's native format. This directory is the single source of truth.
 - `AGENT.md` — the persona / system prompt. The text between the
   `BEGIN/END SYSTEM PROMPT` marker lines is embedded verbatim into every
   runtime. Edit this to change how the agent behaves.
-- `agent.config.json` — model, tools (Port Daddy MCP + WinDAGs + custom),
+- `agent.config.json` — model, tools (Port Daddy MCP + custom),
   skills, permission policy, and the multi-agent roster.
 - `agent.config.schema.json` — JSON schema for the config.
 

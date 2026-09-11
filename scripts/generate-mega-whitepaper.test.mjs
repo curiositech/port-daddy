@@ -1,12 +1,5 @@
 import assert from 'node:assert/strict';
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  rmSync,
-  symlinkSync,
-  writeFileSync,
-} from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import test from 'node:test';
 
@@ -15,75 +8,254 @@ import {
   collateReferences,
   compareNormalizedReferences,
   inlineInputs,
+  loadCiteShortforms,
+  loadTextbook,
   namespaceLabels,
+  renderChapter,
+  renderCiteShortformAliases,
+  renderContents,
+  renderSolutions,
+  renderTextbookMap,
   rewriteCitations,
-  validateEditorialPlate,
+  sharedMapDrift,
+  sharedMapTargets,
+  sourceDeclaresExercises,
+  stripPaperApparatus,
+  validateTextbook,
 } from './generate-mega-whitepaper.mjs';
 
 const generatorSource = readFileSync(
   resolve('scripts/generate-mega-whitepaper.mjs'),
   'utf8',
 );
-
 const collectedVolumeSource = readFileSync(
   resolve('website-v2/public/whitepaper/coordination-papers-mega-volume.tex'),
   'utf8',
 );
-
-const collectedVolumeAppendices = readFileSync(
-  resolve('website-v2/public/whitepaper/coordination-papers-mega-volume-appendices.tex'),
+const seamsSource = readFileSync(
+  resolve('website-v2/public/whitepaper/coordination-papers-mega-volume-seams.tex'),
   'utf8',
 );
 
-test('the new Chapter VII plate is inserted before its typeset chapter opening', () => {
-  assert.match(
-    generatorSource,
-    /plate: 'art\/collected-volume\/chapter-vii-federated-harbor\.jpg'/,
-  );
-  assert.match(
-    generatorSource,
-    /paper\.plate \? `\\\\pdchapterplate\{\$\{paper\.plate\}\}`/,
-  );
+test('the Book generator inserts prefix-keyed prose seams and no editorial plates', () => {
+  assert.match(generatorSource, /pdchapteropening\$\{paper\.prefix\}/);
+  assert.match(generatorSource, /pdchapterhandoff\$\{paper\.prefix\}/);
+  assert.doesNotMatch(generatorSource, /paper\.roman/);
+  assert.doesNotMatch(generatorSource, /pdchapterplate|paper\.plate|editorial plate/i);
 });
 
-test('every collected-volume editorial plate resolves to a committed asset', () => {
-  const sources = [generatorSource, collectedVolumeSource, collectedVolumeAppendices];
-  const referencedArt = sources.flatMap((source) =>
-    [...source.matchAll(/art\/collected-volume\/[A-Za-z0-9._-]+\.(?:jpe?g|png)/g)]
-      .map((match) => match[0]),
+test('every chapter in textbook.json has exactly one opening and one handoff seam', () => {
+  assert.match(
+    collectedVolumeSource,
+    /\\input\{coordination-papers-mega-volume-seams\.tex\}/,
+    'the Book must load the seam definitions before the generated body',
   );
+  const textbook = loadTextbook();
+  for (const chapter of textbook.chapters) {
+    for (const kind of ['opening', 'handoff']) {
+      const command = `\\newcommand{\\pdchapter${kind}${chapter.prefix}}`;
+      assert.equal(
+        seamsSource.split(command).length - 1,
+        1,
+        `expected exactly one definition of \\pdchapter${kind}${chapter.prefix}`,
+      );
+    }
+  }
+  // No seam is keyed by a Roman numeral any more: reordering the book must
+  // move a chapter's rails with it.
+  assert.doesNotMatch(seamsSource, /\\pdchapter(?:opening|handoff)(?:I|V|X)+\b/);
+});
 
-  assert.equal(referencedArt.length, 7, 'expected jacket, inside jacket, Chapter VII, and four coda plates');
-  for (const asset of referencedArt) {
-    assert.ok(
-      existsSync(resolve('website-v2/public/whitepaper', asset)),
-      `missing collected-volume editorial plate: ${asset}`,
+test('textbook.json is the single source of record and is internally consistent', () => {
+  const textbook = loadTextbook();
+  assert.equal(textbook.chapters.length, 8);
+  assert.deepEqual(textbook.chapters.map((c) => c.number), [1, 2, 3, 4, 5, 6, 7, 8]);
+  assert.deepEqual(
+    textbook.chapters.map((c) => c.prefix),
+    ['swk', 'anchor', 'sealed', 'ls', 'stp', 'he', 'bonded', 'fh'],
+  );
+  for (const chapter of textbook.chapters) {
+    assert.ok(existsSync(resolve(chapter.source)), `${chapter.source} exists`);
+    const source = readFileSync(resolve(chapter.source), 'utf8');
+    assert.match(
+      source,
+      new RegExp(`\\\\newcommand\\{\\\\pdchapterprefix\\}\\{${chapter.prefix}\\}`),
+      `${chapter.source} declares its own prefix so the shared map can number it`,
+    );
+    assert.match(source, /\\input\{figures\/pd-textbook-map\}/);
+    assert.match(source, /\\input\{figures\/pd-palette\}/);
+    assert.match(
+      source,
+      /\\input\{figures\/pd-textbook-map\}\s*\n\\input\{figures\/pd-pedagogy\}/,
+      `${chapter.source} must input the pedagogy macros right after the textbook map`,
+    );
+    assert.match(source, /\\input\{figures\/pd-hyperlinks\}\s*\n\s*\\begin\{document\}/);
+    assert.doesNotMatch(source, /\\usepackage\[hidelinks\]\{hyperref\}/);
+    assert.doesNotMatch(
+      source.replace(/^\s*%.*$/gm, ''),
+      /Chapters?[~ ]+\(?(?:I|II|III|IV|V|VI|VII)\b/,
+      `${chapter.source} must not refer to chapters by first-edition numeral`,
     );
   }
 });
 
-test('the generator rejects missing, escaping, and unsupported editorial plates clearly', () => {
-  const fixtureDir = resolve('.cache/mega-generator-plate-test');
-  mkdirSync(fixtureDir, { recursive: true });
-  writeFileSync(resolve(fixtureDir, 'plate.png'), 'fixture', 'utf8');
-  try {
-    assert.doesNotThrow(() =>
-      validateEditorialPlate({ title: 'Fixture', plate: 'plate.png' }, fixtureDir));
-    assert.throws(
-      () => validateEditorialPlate({ title: 'Fixture', plate: 'missing.png' }, fixtureDir),
-      /Fixture: editorial plate is missing or unreadable: missing\.png/,
-    );
-    assert.throws(
-      () => validateEditorialPlate({ title: 'Fixture', plate: '../outside.png' }, fixtureDir),
-      /Fixture: editorial plate escapes/,
-    );
-    assert.throws(
-      () => validateEditorialPlate({ title: 'Fixture', plate: 'plate.pdf' }, fixtureDir),
-      /Fixture: editorial plate has an unsupported format: plate\.pdf/,
-    );
-  } finally {
-    rmSync(fixtureDir, { recursive: true, force: true });
+test('textbook.json validation fails closed on structural drift', () => {
+  const base = JSON.parse(readFileSync(resolve('whitepaper/textbook.json'), 'utf8'));
+  const clone = () => JSON.parse(JSON.stringify(base));
+
+  const gap = clone();
+  gap.chapters[6].number = 9;
+  assert.throws(() => validateTextbook(gap, 't.json'), /contiguous/);
+
+  const early = clone();
+  early.chapters.find((c) => c.id === 'anchor-protocol').discharges = 'legible-swarm';
+  assert.throws(() => validateTextbook(early, 't.json'), /must come after the chapter it discharges/);
+
+  const orphan = clone();
+  orphan.parts[3].chapters = orphan.parts[3].chapters.filter((id) => id !== 'federated-harbor');
+  assert.throws(() => validateTextbook(orphan, 't.json'), /belongs to no part/);
+
+  const badPrefix = clone();
+  badPrefix.chapters[0].prefix = 'swk-1';
+  assert.throws(() => validateTextbook(badPrefix, 't.json'), /lowercase letters/);
+});
+
+test('every chapter opens on a question and an attributed epigraph', () => {
+  for (const chapter of loadTextbook().chapters) {
+    assert.match(chapter.question, /\?$/, `${chapter.id}: the question ends with a question mark`);
+    assert.ok(chapter.epigraph.text.length > 10, `${chapter.id}: epigraph text`);
+    assert.match(chapter.epigraph.source, /\d{4}/, `${chapter.id}: epigraph source names a year`);
+    assert.match(chapter.color, /^pd[a-z]+$/, `${chapter.id}: inherits its part's hue`);
   }
+  const rendered = renderTextbookMap(loadTextbook());
+  assert.match(rendered, /pdchapterquestionofswk\\endcsname\{Where can a rule be made real\?\}/);
+  assert.match(rendered, /pdchapterepigraphsourceofstp\\endcsname\{John Locke/);
+  // chapters inherit their part's hue: both Part I chapters are cobalt
+  assert.match(rendered, /pdchaptercolorofswk\\endcsname\{pdcobalt\}/);
+  assert.match(rendered, /pdchaptercolorofanchor\\endcsname\{pdcobalt\}/);
+  assert.match(rendered, /\\pdweightsegment\{IV\}\{pdgold\}\{book:appendices\}\{3\}/);
+});
+
+test('Book chapters shed their paper apparatus and open on their first section', () => {
+  const body = [
+    '\\begin{abstract}\\noindent',
+    'An abstract.',
+    '\\end{abstract}',
+    '',
+    '\\noindent\\textbf{Keywords:} one, two,',
+    'three',
+    '',
+    '\\noindent\\textit{Reading time: about 40 minutes (\\S\\ref{sec:a}--\\ref{sec:b}). Read this first.}',
+    '',
+    '\\vspace{0.6cm}',
+    '% --- Series locator box ---',
+    '\\begin{center}',
+    '\\begin{tikzpicture}\\node{locator};\\end{tikzpicture}',
+    '\\end{center}',
+    '\\newpage',
+    "\\section*{Reader's Map}\\label{sec:readers-map}",
+    'A table of routes.',
+    '',
+    '\\noindent\\textbf{Volume Context.} Written for the old collection.',
+    '',
+    '\\newpage',
+    '\\section{Introduction}\\label{sec:a}',
+    'Exposition. See \\ref{sec:readers-map}.',
+    '\\begin{center}\\begin{tikzpicture}\\node{a real figure};\\end{tikzpicture}\\end{center}',
+    '\\begin{tikzpicture}\\node{\\textbf{\\scshape Volume Context.} old};\\end{tikzpicture}',
+    '\\section{Second}\\label{sec:b}',
+  ].join('\n');
+  const { body: stripped, stripped: kinds } = stripPaperApparatus(body);
+  assert.deepEqual(
+    [...new Set(kinds)].sort(),
+    ['abstract', 'keywords', 'locator-box', 'page-furniture', 'readers-map', 'reading-time', 'volume-context'],
+  );
+  assert.match(stripped, /^\s*(?:\\phantomsection\\label\{sec:readers-map\}\n)?\\section\{Introduction\}/, 'the first thing left is the first section');
+  assert.match(stripped, /\\phantomsection\\label\{sec:readers-map\}/, 'a referenced label from the removed map survives as a stub');
+  assert.match(stripped, /a real figure/, 'figures after the first section are untouched');
+  assert.doesNotMatch(stripped, /Volume Context|Keywords|Reading time|locator|An abstract/);
+});
+
+test('the committed shared textbook map matches textbook.json in both copies', () => {
+  assert.deepEqual(sharedMapDrift(), []);
+  const [first, second] = sharedMapTargets.map((target) => readFileSync(resolve(target), 'utf8'));
+  assert.equal(first, second);
+  const rendered = renderTextbookMap(loadTextbook());
+  assert.match(rendered, /\\providecommand\{\\pdchaptercount\}\{8\}/);
+  assert.match(rendered, /pdchapternumberofswk\\endcsname\{1\}/);
+  assert.match(rendered, /pdchapternumberofls\\endcsname\{4\}/);
+  assert.match(rendered, /\\pdtextbookmap/);
+});
+
+test('the shared palette and hyperlink files are byte-identical in both source trees', () => {
+  for (const name of ['pd-palette.tex', 'pd-hyperlinks.tex', 'pd-figure-language.tex', 'pd-pedagogy.tex']) {
+    assert.equal(
+      readFileSync(resolve(`whitepaper/figures/${name}`), 'utf8'),
+      readFileSync(resolve(`website-v2/public/whitepaper/figures/${name}`), 'utf8'),
+      `${name} drifted between whitepaper/figures and website-v2/public/whitepaper/figures`,
+    );
+  }
+});
+
+test('the front-matter map lists every chapter in order with a first-edition concordance', () => {
+  const contents = renderContents(loadTextbook());
+  const numbers = [...contents.matchAll(/\\pdcontentschapter\{(\d+)\}/g)].map((m) => Number(m[1]));
+  assert.deepEqual(numbers, [1, 2, 3, 4, 5, 6, 7, 8]);
+  assert.match(contents, /I & 4 & \\pdchapref\{ls\}\{The Legible Swarm\}/);
+  assert.match(contents, /VII & 8 & \\pdchapref\{fh\}\{The Federated Harbor\}/);
+  assert.match(contents, /Proves what \\pdchapref\{swk\}/);
+});
+
+test('a reference whose label already names another chapter by its prefix is left alone', () => {
+  // Chapter 6's Book-only branch points at chapter 8's escrow bound as
+  // \ref{fh:thm:fh-escrow-bound} instead of printing the theorem a second
+  // time. Namespacing that again would yield he:fh:thm:..., which nothing
+  // defines; a label whose head merely resembles a prefix is still local.
+  const source = [
+    '\\ref{fh:thm:fh-escrow-bound}',
+    '\\Cref{thm:local}',
+    '\\cref{fh:thm:a,thm:b}',
+    '\\ref{fhx:thm:not-a-chapter}',
+  ].join('\n');
+  assert.equal(
+    namespaceLabels(source, 'he', ['he', 'fh']),
+    [
+      '\\ref{fh:thm:fh-escrow-bound}',
+      '\\Cref{he:thm:local}',
+      '\\cref{fh:thm:a,he:thm:b}',
+      '\\ref{he:fhx:thm:not-a-chapter}',
+    ].join('\n'),
+  );
+  // With no chapter list, nothing is foreign and the old behaviour stands.
+  assert.equal(namespaceLabels('\\ref{fh:thm:x}', 'he'), '\\ref{he:fh:thm:x}');
+});
+
+test('every cross-reference macro is namespaced, comma lists split, book anchors kept', () => {
+  const source = [
+    '\\cref{thm:a,lem:b}',
+    '\\Cref{sec:x}',
+    '\\cpageref{fig:y}',
+    '\\cref*{eq:z}',
+    '\\crefrange{ex:1}{ex:9}',
+    '\\hyperref[sec:contract]{the contract}',
+    '\\hyperref[chap:he]{the market}',
+    '\\pageref{chap:swk}',
+    '\\labelcref{def:w}',
+  ].join('\n');
+  assert.equal(
+    namespaceLabels(source, 'stp'),
+    [
+      '\\cref{stp:thm:a,stp:lem:b}',
+      '\\Cref{stp:sec:x}',
+      '\\cpageref{stp:fig:y}',
+      '\\cref*{stp:eq:z}',
+      '\\crefrange{stp:ex:1}{stp:ex:9}',
+      '\\hyperref[stp:sec:contract]{the contract}',
+      '\\hyperref[chap:he]{the market}',
+      '\\pageref{chap:swk}',
+      '\\labelcref{stp:def:w}',
+    ].join('\n'),
+  );
 });
 
 test('missing local citations fail closed', () => {
@@ -277,6 +449,91 @@ test('one paper cannot map a bibliography key to two references', () => {
   );
 });
 
+// --- pd-pedagogy: exercises and their deferred solutions in the Book -------
+
+test('cleanStandaloneChrome strips the standalone solution-file open/print lines', () => {
+  const source = [
+    '\\begin{document}',
+    '\\pdopensolutions',
+    '\\maketitle',
+    '\\section{Kept}',
+    'Body text survives.',
+    '\\pdprintsolutions',
+    '\\begin{thebibliography}{99}',
+  ].join('\n');
+
+  const cleaned = cleanStandaloneChrome(source);
+  assert.doesNotMatch(cleaned, /\\pdopensolutions|\\pdprintsolutions/);
+  assert.match(cleaned, /\\section\{Kept\}/);
+  assert.match(cleaned, /Body text survives\./);
+});
+
+test('renderChapter opens and closes the chapter-owned solution stream around the seams', () => {
+  const paper = { source: 'fixture.tex', number: 3, title: 'The Fixture', prefix: 'fx', color: 'pdgold' };
+  const rendered = renderChapter(paper, 'BODY GOES HERE');
+
+  const openIndex = rendered.indexOf('\\Opensolutionfile{pdsol}[book-sol-fx]');
+  const chapterIndex = rendered.indexOf('\\pdchapter{3}{The Fixture}{fx}{pdgold}');
+  const closeIndex = rendered.lastIndexOf('\\Closesolutionfile{pdsol}');
+  const bodyIndex = rendered.indexOf('BODY GOES HERE');
+
+  assert.ok(chapterIndex >= 0, 'the \\pdchapter line is present');
+  assert.ok(openIndex > chapterIndex, '\\Opensolutionfile follows \\pdchapter{...}');
+  assert.ok(openIndex < bodyIndex, '\\Opensolutionfile precedes the chapter body');
+  assert.ok(closeIndex > bodyIndex, '\\Closesolutionfile follows the chapter body');
+  assert.equal(closeIndex, rendered.length - '\\Closesolutionfile{pdsol}'.length, '\\Closesolutionfile is the very last thing emitted');
+});
+
+test('namespaceLabels rewrites the pdexercise and pdsolution label argument like \\label{...}', () => {
+  const source = [
+    '\\begin{pdexercise}[kind=Check,rating=1]{ex-basics}',
+    'What is the invariant?',
+    '\\end{pdexercise}',
+    '\\begin{pdsolution}{ex-basics}',
+    'The write path is serialized.',
+    '\\end{pdsolution}',
+    '\\begin{pdexercise}{ex-no-optional}',
+    'No key=value group at all.',
+    '\\end{pdexercise}',
+  ].join('\n');
+
+  const namespaced = namespaceLabels(source, 'swk');
+  assert.match(namespaced, /\\begin\{pdexercise\}\[kind=Check,rating=1\]\{swk:ex-basics\}/);
+  assert.match(namespaced, /\\begin\{pdsolution\}\{swk:ex-basics\}/);
+  assert.match(namespaced, /\\begin\{pdexercise\}\{swk:ex-no-optional\}/, 'an absent optional argument is tolerated');
+  // The kind=Check,rating=1 key-value text itself is untouched, commas and all.
+  assert.doesNotMatch(namespaced, /swk:kind|swk:Check|swk:rating/);
+});
+
+test('sourceDeclaresExercises scans for a literal \\begin{pdexercise}', () => {
+  assert.equal(sourceDeclaresExercises('\\begin{pdexercise}[kind=Trace]{ex:x}\n...'), true);
+  assert.equal(sourceDeclaresExercises('no exercises anywhere in this chapter'), false);
+});
+
+test('renderSolutions renders nothing but a comment when no chapter has an exercise', () => {
+  const rendered = renderSolutions([]);
+  assert.match(rendered, /^% .*nothing to print/i);
+  assert.doesNotMatch(rendered, /\\section|\\input|Solutions to the exercises/);
+});
+
+test('renderSolutions lists every chapter with exercises under its own heading, and only those', () => {
+  const rendered = renderSolutions([
+    { number: 1, prefix: 'swk', title: 'The Single-Writer Kernel' },
+    { number: 5, prefix: 'he', title: 'The Harbor Economy' },
+  ]);
+
+  assert.match(rendered, /Solutions to the exercises/);
+  assert.match(rendered, /\\section\*\{Chapter 1: The Single-Writer Kernel\}/);
+  assert.match(rendered, /\\IfFileExists\{book-sol-swk\.tex\}\{\\input\{book-sol-swk\}\}\{\}/);
+  assert.match(rendered, /\\section\*\{Chapter 5: The Harbor Economy\}/);
+  assert.match(rendered, /\\IfFileExists\{book-sol-he\.tex\}\{\\input\{book-sol-he\}\}\{\}/);
+  // Book order, not insertion order: chapter 1's section precedes chapter 5's.
+  assert.ok(rendered.indexOf('Chapter 1:') < rendered.indexOf('Chapter 5:'));
+  // texText escaping runs on the title.
+  const escaped = renderSolutions([{ number: 2, prefix: 'x', title: 'A & B' }]);
+  assert.match(escaped, /Chapter 2: A \\& B/);
+});
+
 // --- ported from PR #7698 suite (features main's copy lacked tests for) ---
 
 test('standalone title, page style, and contents chrome is removed', () => {
@@ -334,4 +591,149 @@ test('one paper cannot map a bibliography key to two references', () => {
     () => collateReferences(prepared),
     /collision\.tex: bibliography key shared maps to two references/,
   );
+});
+
+// ---------------------------------------------------------------------------
+// The collated bibliography: sorted by the name a reader looks up, and one
+// entry per work however a chapter chose to write it.
+// ---------------------------------------------------------------------------
+import { firstAuthorSurname, referenceFingerprint, referenceParts, referenceSortKey } from './generate-mega-whitepaper.mjs';
+
+const entry = (body) => ({ key: 'k', source: 's.tex', body });
+
+test('the bibliography sorts on the surname, not on the first name as written', () => {
+  const keys = [
+    'E. Owens.\n\\newblock \\textit{What Needs an Authority}. Paper 6, 2026.',
+    'Elinor Ostrom.\n\\newblock \\textit{Governing the Commons}. Cambridge University Press, 1990.',
+    'Eric Bach.\n\\newblock Sheaf Cohomology is \\#P-hard. \\textit{JSC}, 27(4), 1999.',
+    'Erich Owens.\n\\newblock The Anchor Protocol. Technical White Paper, 2026.',
+  ].map((b) => referenceSortKey(entry(b)));
+  // Bach < Ostrom < Owens < Owens: "E." and "Erich" land together under O, and
+  // within Owens the two 2026 works fall to title order ("the anchor" before
+  // "what needs").
+  const surnames = [...keys].sort().map((k) => k.split(' ')[0]);
+  assert.deepEqual(surnames, ['bach', 'ostrom', 'owens', 'owens']);
+  assert.ok(keys[3] < keys[0], 'within one author and year, title order');
+});
+
+test('first-author surname: comma lists, ampersands, surname-first, particles, corporate bodies', () => {
+  assert.equal(firstAuthorSurname('Rico Sennrich, Barry Haddow, and Alexandra Birch.'), 'sennrich');
+  assert.equal(firstAuthorSurname('W. F. Dowling \\& J. H. Gallier.'), 'dowling');
+  assert.equal(firstAuthorSurname('Owens, Erich.'), 'owens');
+  assert.equal(firstAuthorSurname('James C.\\ Scott.'), 'scott');
+  assert.equal(firstAuthorSurname('R.~van der Meyden.'), 'meyden');      // Chicago 8.10: the main element
+  // corporate authors file under their first word, however they are shaped
+  assert.equal(firstAuthorSurname('Foundation for Intelligent Physical Agents.'), 'foundation');
+  assert.equal(firstAuthorSurname('AWS Automated Reasoning Group.'), 'aws');
+  assert.equal(firstAuthorSurname('UCAN Working Group.'), 'ucan');
+  assert.equal(firstAuthorSurname('Ethereum Foundation.'), 'ethereum');
+  assert.equal(firstAuthorSurname('HashiCorp.'), 'hashicorp');
+  assert.equal(firstAuthorSurname('The Matrix.org Foundation.'), 'matrix');
+  // "et al." and "(ed.)" are not names and must not read as corporate marks
+  assert.equal(firstAuthorSurname('Alan Demers et al.'), 'demers');
+  assert.equal(firstAuthorSurname('D. Richard Hipp et al.'), 'hipp');
+  assert.equal(firstAuthorSurname('Roland Hedberg (ed.), Michael B. Jones, and Andreas Solberg.'), 'hedberg');
+  assert.equal(firstAuthorSurname(''), '');
+});
+
+test('the same work in two house styles is one fingerprint; \\newblock count is not identity', () => {
+  const a = 'F.~Lin and W.~M. Wonham. On observability of discrete-event systems. \\emph{Information Sciences}, 44(3):173--198, 1988.';
+  const b = 'Feng Lin and W. Murray Wonham.\n\\newblock On observability of discrete-event systems.\n\\newblock \\textit{Information Sciences}, 44(3):173--198, 1988.';
+  // Both reduce to surname "lin", year 1988 -- the surname half of the key agrees
+  // whichever way the chapter wrote the first name.
+  assert.equal(firstAuthorSurname(referenceParts(a).authorField), firstAuthorSurname(referenceParts(b).authorField));
+
+  const one = 'Elinor Ostrom.\n\\newblock \\textit{Governing the Commons: The Evolution of Institutions for Collective Action}. Cambridge University Press, 1990.';
+  const two = 'Elinor Ostrom.\n\\newblock \\textit{Governing the Commons: The Evolution of Institutions for Collective Action}.\n\\newblock Cambridge University Press, 1990.';
+  assert.equal(referenceFingerprint(one), referenceFingerprint(two));
+  assert.equal(referenceSortKey(entry(one)), referenceSortKey(entry(two)));
+  assert.ok(!referenceSortKey(entry(two)).includes('newblock'), 'a control word leaked into the sort key');
+});
+
+test('two genuinely different papers by the same authors in the same year stay distinct', () => {
+  const x = 'Peter J. Ramadge and W. Murray Wonham.\n\\newblock Supervisory Control of a Class of Discrete Event Processes.\n\\newblock \\textit{SIAM J. Control}, 25(1), 1987.';
+  const y = 'Peter J. Ramadge and W. Murray Wonham.\n\\newblock On the supremal controllable sublanguage of a given language.\n\\newblock \\textit{SIAM J. Control}, 25(3), 1987.';
+  assert.notEqual(referenceFingerprint(x), referenceFingerprint(y));
+});
+
+// --- Wave 16 marginalia: \pdcite, \pdprov, \pdprovedon in Book vs standalone
+
+test('rewriteCitations rewrites \\pdcite the same way it rewrites \\cite, preserving the command name', () => {
+  const citationMap = new Map([['lampson1974', 'mega002'], ['saltzer1975protection', 'mega003']]);
+  assert.equal(
+    rewriteCitations('\\pdcite{lampson1974}', citationMap, 'chapter.tex'),
+    '\\pdcite{mega002}',
+  );
+  assert.equal(
+    rewriteCitations('\\pdcite{lampson1974,saltzer1975protection}', citationMap, 'chapter.tex'),
+    '\\pdcite{mega002,mega003}',
+  );
+  // \cite (never promoted, e.g. inside a footnote) still rewrites too.
+  assert.equal(rewriteCitations('\\cite{lampson1974}', citationMap, 'chapter.tex'), '\\cite{mega002}');
+});
+
+test('cleanStandaloneChrome and stripPaperApparatus leave \\pdcite, \\pdprov, and \\pdprovedon untouched', () => {
+  // Unlike \\pdopensolutions (Book-owned, stripped by cleanStandaloneChrome)
+  // or the abstract/keywords (stripped by stripPaperApparatus), these three
+  // macros are the SAME call in the Book and a standalone chapter -- the
+  // fold-back to an inline form happens inside the macro itself
+  // (\\ifpdmargincolumn, figures/pd-pedagogy.tex), not by the generator
+  // rewriting the chapter body, so nothing here should touch them.
+  const body = [
+    '\\section{A section}',
+    'A sentence with a citation~\\pdcite{lampson1974} and a number',
+    '$5.98$ \\pdprov{a7\\_experiment.py}{20260816}{verified}.',
+    '\\begin{pdclaim}{Theorem}{Example}\\label{thm:example}\\pdprovedon{thm:example}',
+    'Statement.',
+    '\\end{pdclaim}',
+  ].join('\n');
+
+  const cleaned = cleanStandaloneChrome(body);
+  assert.equal(cleaned, body, 'cleanStandaloneChrome must not alter the three macro calls');
+
+  const stripped = stripPaperApparatus(cleaned).body;
+  assert.match(stripped, /\\pdcite\{lampson1974\}/);
+  assert.match(stripped, /\\pdprov\{a7\\_experiment\.py\}\{20260816\}\{verified\}/);
+  assert.match(stripped, /\\pdprovedon\{thm:example\}/);
+});
+
+test('namespaceLabels leaves \\pdprovedon\'s own argument alone (it is the LOCAL promise label, not namespaced)', () => {
+  // \\pdprovedon is not in LABEL_COMMANDS: its argument must reach the Book
+  // exactly as written, matching the key build_discharge_pointers.py used
+  // when it generated figures/pd-discharges.tex's \\pdprovedonentry rows.
+  const body = '\\begin{pdclaim}{Theorem}{X}\\label{thm:example}\\pdprovedon{thm:example}\nBody.\\end{pdclaim}';
+  const namespaced = namespaceLabels(body, 'swk');
+  assert.match(namespaced, /\\label\{swk:thm:example\}/);
+  assert.match(namespaced, /\\pdprovedon\{thm:example\}/, '\\pdprovedon argument must stay un-namespaced');
+});
+
+test("renderCiteShortformAliases aliases each paper's local \\bibitem keys to their collated mega-keys", () => {
+  const prepared = [
+    { citationMap: new Map([['lampson1974', 'mega001'], ['unindexed2020', 'mega002']]) },
+    { citationMap: new Map([['lampson1974', 'mega001']]) }, // same reference, second chapter
+  ];
+  const shortforms = new Map([['lampson1974', 'Lampson 1974, \\textit{Protection}']]);
+
+  const rendered = renderCiteShortformAliases(prepared, shortforms);
+  assert.match(rendered, /\\pdciteshort\{mega001\}\{Lampson 1974, \\textit\{Protection\}\}/);
+  // unindexed2020 has no short form (an UNPARSED bibitem) -- no alias row, and
+  // no crash.
+  assert.doesNotMatch(rendered, /mega002/);
+  // The shared reference (mega001) is aliased once, not twice.
+  assert.equal(rendered.match(/mega001/g).length, 1);
+});
+
+test('loadCiteShortforms parses the generated \\pdciteshort table', () => {
+  const path = resolve('.cache/tmp-cite-shortforms-test.tex');
+  writeFileSync(
+    path,
+    '% generated\n\\pdciteshort{lampson1974}{Lampson 1974, \\textit{Protection}}\n',
+    'utf8',
+  );
+  try {
+    const map = loadCiteShortforms(path);
+    assert.equal(map.get('lampson1974'), 'Lampson 1974, \\textit{Protection}');
+  } finally {
+    rmSync(path, { force: true });
+  }
 });

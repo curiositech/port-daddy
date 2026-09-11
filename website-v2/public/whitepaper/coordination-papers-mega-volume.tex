@@ -1,11 +1,8 @@
 \documentclass[11pt,a4paper]{article}
-\input{coordination-papers-mega-volume-preamble.tex}
-\hypersetup{
-  pdftitle={The Harbor, the Person, and the Economy: The Collected Coordination Papers},
-  pdfauthor={Erich Owens},
-  pdfsubject={Port Daddy coordination architecture, protocols, implementation status, and research roadmap},
-  pdfkeywords={Port Daddy, multi-agent systems, capability security, coordination, accountability, federation}
-}
+% The Book: the textbook edition of the coordination papers. Chapter order,
+% numbering, parts, and edition metadata come from whitepaper/textbook.json;
+% scripts/generate-mega-whitepaper.mjs renders the body, the front-matter map,
+% the shared figures/pd-textbook-map.tex, and the single bibliography.
 \newcommand{\pdgeneratedinput}[2]{%
   \IfFileExists{#1}{\input{#1}}{%
     \PackageError{coordination-papers-mega-volume}{Generated #2 is missing}{%
@@ -13,243 +10,356 @@
       .cache/whitepaper-build/coordination-papers-mega-volume}%
   }%
 }
+\input{coordination-papers-mega-volume-preamble.tex}
+\input{coordination-papers-mega-volume-seams.tex}
+\hypersetup{
+  pdftitle={\pdeditiontitle: \pdeditionsubtitle},
+  pdfauthor={Erich Owens},
+  pdfsubject={Eight chapters, in dependency order, on accountable autonomous work},
+  pdfkeywords={Port Daddy, multi-agent systems, capability security, coordination, accountability, federation}
+}
 
 \begin{document}
 \hypersetup{pageanchor=false}
 \begin{titlepage}
-\pagecolor{hhink}\color{hhpaper}\thispagestyle{empty}
-\null\vfill
-\begin{center}
-  \includegraphics[
-    width=\textwidth,
-    height=0.94\textheight,
-    keepaspectratio
-  ]{art/collected-volume/collected-treatise-jacket.jpg}
-\end{center}
-\vfill\null
-\end{titlepage}
-\nopagecolor\color{hhink}
-
-\begin{titlepage}
 \pagecolor{hhpaper}\color{hhink}
-\vspace*{-0.8cm}
-\noindent{\scshape\bfseries\large Port Daddy Coordination Papers \hfill Collected Treatise \textperiodcentered\ August 2026}\par
-\vspace{0.25cm}
-\noindent{\color{hhcobalt}\rule{\textwidth}{2.2pt}}\par
+\ifpdswiss
+  % Swiss cover A (SWISS-BRIEF, C): the arcs block on the lower 56 per cent,
+  % three type sizes on one left datum at 14 mm, the imprint in the foot.
+  \pdswisscoverart
+  \begin{tikzpicture}[remember picture,overlay,shift={(current page.north west)},x=1mm,y=-1mm]
+    % The type block ends at about 28% of the 254mm page, which is the number
+    % the cover plate's reserved band has to clear: see
+    % scripts/whitepaper-plates/check_cover_title_band.py, which measures the
+    % plate and fails the build rather than leaving it to the eye. Round 4a's
+    % cover looked clean in a contact sheet, started its photograph 2% down,
+    % and printed the subtitle over a container port.
+    % All three lines live in the plate's reserved band, top-left, and the
+    % image has the rest of the sheet. The imprint used to sit at the foot,
+    % which put 9pt type over a halftone photograph that is 37% lighter than
+    % luminance 140 -- neither black nor reversed white reads on that.
+    \node[anchor=north west,inner sep=0pt,text width=140mm,align=left,font=\pdgrotesk\fontsize{34}{38}\selectfont\bfseries,text=hhink] at (14,14) {The Harbor,\\the Person,\\and the Economy};
+    \node[anchor=north west,inner sep=0pt,text width=125mm,align=left,font=\pdgrotesk\fontsize{13}{17}\selectfont,text=hhink] at (14,66) {\pdeditionsubtitle};
+    \node[anchor=north west,inner sep=0pt,font=\pdgrotesk\fontsize{9}{11}\selectfont,text=hhgray] at (14,75) {Erich Owens\quad\textperiodcentered\quad Curiositech\quad\textperiodcentered\quad Textbook Edition};
+  \end{tikzpicture}
+\else\ifpdtechnical
+  % Technical cover: the engraving in the lower two thirds of the sheet, the
+  % type in the paper above it, the sheet's frame and title block over all.
+  \pdtechsheetplain{\pdeditiontitle}{Cover}%
+  \begin{tikzpicture}[remember picture,overlay,shift={(current page.south west)},x=1in,y=1in]
+    \IfFileExists{plates/technical/cover.jpg}{%
+      \node[anchor=south,inner sep=0pt] at (3.5,1.55) {\includegraphics[height=4.55in]{plates/technical/cover.jpg}};}{}
+    \node[anchor=north west,inner sep=0pt,text width=5.2in,align=left,font=\pdgrotesk\fontsize{30}{34}\selectfont,text=hhink] at (0.9,9.15) {The Harbor, the Person, and the Economy};
+    \node[anchor=north west,inner sep=0pt,text width=5.2in,align=left,font=\pdgrotesk\fontsize{11}{14}\selectfont,text=hhink] at (0.9,7.8) {\pdeditionsubtitle};
+    \node[anchor=north west,inner sep=0pt,font=\pdgrotesk\fontsize{9}{11}\selectfont,text=hhink] at (0.9,7.35) {Erich Owens\quad\textperiodcentered\quad Curiositech\quad\textperiodcentered\quad Textbook Edition};
+  \end{tikzpicture}
+\else
+% Cover: the wash plate bleeds over the whole page; the type stays minimal and set in Times.
+\IfFileExists{plates/jacket.jpg}{%
+  \AddToShipoutPictureBG*{\AtPageLowerLeft{\includegraphics[width=\paperwidth,height=\paperheight]{plates/jacket.jpg}}}}{}%
+\vspace*{1.2cm}
+\noindent\begin{minipage}{0.88\textwidth}
+{\pdpartface\fontsize{38}{46}\selectfont\raggedright The Harbor,\\ the Person,\\ and the Economy\par}
 \vspace{0.6cm}
-
-\begin{center}
-{\fontsize{26}{32}\selectfont\bfseries The Harbor, the Person,\\[0.15cm]and the Economy}\par
-\vspace{0.35cm}
-{\large\itshape A Unified Architecture for Accountable Autonomous Multi-Agent Work}\par
-\vspace{0.25cm}
-{\footnotesize\color{hhgray} Seven cross-referenced treatises on local effect hypervisors, evidence-bearing work units,\\capability attenuation, multi-hop delegation, bounded underwriting, and federated institutions}\par
-\vspace{0.5cm}
-
-% ─── Pure Abstract Geometric & Harmonic Lattice Artwork ───────────────────────
-\begin{tikzpicture}[scale=0.96]
-  % Subtle background canvas frame with soft vignette
-  \fill[fill=hhpaper!30, rounded corners=6pt] (-7.4, -4.6) rectangle (7.4, 4.6);
-  \draw[hhgray!30, line width=0.45pt, rounded corners=6pt] (-7.4, -4.6) rectangle (7.4, 4.6);
-
-  \begin{scope}
-    \clip[rounded corners=5pt] (-7.3, -4.5) rectangle (7.3, 4.5);
-    
-    % Subtle coordinate field grid
-    \draw[hhgray!12, line width=0.25pt, step=0.8cm] (-7.3, -4.5) grid (7.3, 4.5);
-
-    % Radiating azimuth rays from focal origin (0.3, 0.0)
-    \foreach \ang in {0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210, 225, 240, 255, 270, 285, 300, 315, 330, 345} {
-      \draw[hhgray!18, line width=0.25pt] (0.3, 0.0) -- ++(\ang:11cm);
-    }
-    
-    % Concentric navigation & harmonic rings
-    \foreach \r in {0.7, 1.5, 2.4, 3.4, 4.5, 5.7, 7.0} {
-      \draw[hhgray!22, line width=0.35pt] (0.3, 0.0) circle (\r cm);
-    }
-    \foreach \r in {1.1, 1.9, 2.9, 3.9, 5.1, 6.4} {
-      \draw[hhcobalt!20, line width=0.3pt, dashed] (0.3, 0.0) circle (\r cm);
-    }
-
-    % Abstract translucent constructivist planes with golden-ratio proportions
-    \fill[hhcobalt!6, draw=hhcobalt!30, line width=0.5pt, rounded corners=3pt] (-3.9, -2.4) rectangle (3.3, 2.7);
-    \fill[hhsanddeep!18, draw=hhink!20, line width=0.45pt] (-2.3, -3.3) rectangle (4.7, 1.9);
-    \fill[hhcobalt!9, draw=hhcobalt!45, line width=0.6pt] (-0.9, -1.9) rectangle (5.5, 3.3);
-
-    % Parabolic wavefront interference curves
-    \draw[domain=-6.8:6.8, variable=\x, smooth, samples=120, line width=0.55pt, color=hhink!30]
-      plot ({\x}, {0.065*\x*\x - 2.5});
-    \draw[domain=-6.8:6.8, variable=\x, smooth, samples=120, line width=0.45pt, dashed, color=hhcobalt!40]
-      plot ({\x}, {0.048*\x*\x - 1.8});
-
-    % Golden-ratio harmonic logarithmic spiral (sweeping outward gracefully)
-    \draw[domain=0:15.8, variable=\t, smooth, samples=160, line width=1.1pt, color=hhcobalt!90]
-      plot ({0.3 + 0.09*exp(0.25*\t)*cos(\t r)}, {0.0 + 0.09*exp(0.25*\t)*sin(\t r)});
-
-    % Linear coordinate axes with calibration ticks
-    \draw[hhink!50, line width=0.55pt] (-7.0, 0.0) -- (7.0, 0.0);
-    \draw[hhink!50, line width=0.55pt] (0.3, -4.3) -- (0.3, 4.3);
-    \foreach \x in {-5, -4, -3, -2, -1, 1, 2, 3, 4, 5} {
-      \draw[hhink!40, line width=0.4pt] (\x+0.3, -0.1) -- (\x+0.3, 0.1);
-    }
-    \foreach \y in {-3, -2, -1, 1, 2, 3} {
-      \draw[hhink!40, line width=0.4pt] (0.2, \y) -- (0.4, \y);
-    }
-
-    % Swarm-to-Lattice constellation: stochastic swarm on left converging to structured lattice on right
-    % Stochastic left nodes (Delaunay triangulation network)
-    \coordinate (n1) at (-5.6, 2.7);
-    \coordinate (n2) at (-4.7, 1.4);
-    \coordinate (n3) at (-5.9, -1.3);
-    \coordinate (n4) at (-4.9, -2.7);
-    \coordinate (n5) at (-3.7, 3.2);
-    \coordinate (n6) at (-5.7, 0.3);
-    \coordinate (n7) at (-4.0, -1.9);
-    \coordinate (n8) at (-2.9, -0.9);
-    \coordinate (n9) at (-3.3, 1.7);
-
-    \draw[hhgray!35, line width=0.35pt] (n1) -- (n2) -- (n6) -- (n3) -- (n7) -- (n4);
-    \draw[hhgray!35, line width=0.35pt] (n1) -- (n5) -- (n9) -- (n2) -- (n6);
-    \draw[hhgray!35, line width=0.35pt] (n6) -- (n7) -- (n8) -- (n9);
-    \draw[hhgray!35, line width=0.35pt] (n3) -- (n4);
-
-    \foreach \pt in {(n1), (n2), (n3), (n4), (n5), (n6), (n7), (n8), (n9)} {
-      \fill[hhink!65] \pt circle (1.9pt);
-      \draw[hhpaper, line width=0.3pt] \pt circle (1.9pt);
-    }
-
-    % Crystalline structured lattice nodes on right
-    \foreach \x in {1.7, 2.9, 4.1, 5.3} {
-      \foreach \y in {-1.2, 0.0, 1.2, 2.4} {
-        \fill[hhcobalt] (\x, \y) circle (2.3pt);
-        \draw[hhcobalt!40, line width=0.45pt] (\x, \y) circle (4.8pt);
-      }
-    }
-    % Lattice horizontal & vertical grid lines
-    \foreach \x in {1.7, 2.9, 4.1, 5.3} {
-      \draw[hhcobalt!45, line width=0.4pt] (\x, -1.2) -- (\x, 2.4);
-    }
-    \foreach \y in {-1.2, 0.0, 1.2, 2.4} {
-      \draw[hhcobalt!45, line width=0.4pt] (1.7, \y) -- (5.3, \y);
-    }
-    % Lattice diagonal tension paths
-    \draw[hhcobalt!25, line width=0.35pt, dashed] (1.7, -1.2) -- (5.3, 2.4);
-    \draw[hhcobalt!25, line width=0.35pt, dashed] (1.7, 2.4) -- (5.3, -1.2);
-
-    % Convergence flow vectors (connecting swarm to structured lattice)
-    \draw[-{Stealth[length=2.0mm,width=1.2mm]}, hhcobalt!70, line width=0.55pt] (n8) -- (1.7, -1.2);
-    \draw[-{Stealth[length=2.0mm,width=1.2mm]}, hhcobalt!70, line width=0.55pt] (n9) -- (1.7, 1.2);
-    \draw[-{Stealth[length=2.0mm,width=1.2mm]}, hhcobalt!70, line width=0.55pt] (n6) -- (0.3, 0.0);
-    \draw[-{Stealth[length=2.0mm,width=1.2mm]}, hhcobalt!70, line width=0.55pt] (n5) -- (1.7, 2.4);
-
-    % Central Keystone Nexus at focal origin (0.3, 0.0)
-    \fill[hhpaper, draw=hhcobalt, line width=1.4pt] (0.3, 0.0) circle (6.5pt);
-    \fill[hhcobalt] (0.3, 0.0) circle (3.0pt);
-    \draw[hhcobalt!60, line width=0.6pt] (0.3, 0.0) circle (11pt);
-    \draw[hhcobalt!30, line width=0.35pt, dashed] (0.3, 0.0) circle (16pt);
-  \end{scope}
-\end{tikzpicture}
-\end{center}
-
-\vspace{0.4cm}
-\noindent{\color{hhcobalt}\rule{\textwidth}{0.8pt}}\par
-\vspace{0.25cm}
-\noindent\begin{tabularx}{\textwidth}{@{}Xr@{}}
-\textbf{Erich Owens} \textperiodcentered\ Curiositech LLC & \textbf{August 2026} \textperiodcentered\ Version 3.0 (Illuminated Edition)\\
-\texttt{engineering@portdaddy.dev} & \url{https://portdaddy.dev/whitepaper}\\
-\end{tabularx}
+\noindent{\color{pdcobalt}\rule{0.24\textwidth}{1pt}}\par
+\vspace{0.45cm}
+{\pdpartface\itshape\fontsize{14.5}{19}\selectfont \pdeditionsubtitle\par}
+\end{minipage}
+\vfill
+\noindent{\pdpartface\scshape\small Erich Owens\par\vspace{3pt}Curiositech\ \textperiodcentered\ Textbook Edition\par}
+\vspace*{0.4cm}
+\fi\fi
 \end{titlepage}
+% Imprint page: the claim, the ordering rule, and the publication data that the cover no longer carries.
+\clearpage\thispagestyle{empty}\pagecolor{hhpaper}\color{hhink}
+\vspace*{\fill}
+\noindent\pdweightrule{0}{\textwidth}{2.6pt}\par
+\vspace{0.6cm}
+\noindent\begin{minipage}{0.84\textwidth}\small
+{\large\bfseries\pdeditiontitle}\par
+{\pdeditionsubtitle}\par\vspace{8pt}
+{\bfseries\pdeditionclaim}\par\vspace{6pt}
+{\color{hhgray}This book follows that claim from one machine and one operator to work shared
+across principals, economic interests, and mutually distrustful systems. Its \pdchaptercountword{}
+chapters are ordered by what they stand on; each proof chapter follows the chapter whose promises it
+keeps.}\par\vspace{12pt}
+Erich Owens \textperiodcentered\ Curiositech LLC \textperiodcentered\ \texttt{engineering@portdaddy.dev}\par
+Curiositech \textperiodcentered\ Version \pdeditionversion\ \textperiodcentered\ \pdeditiondate\ \textperiodcentered\ \url{https://portdaddy.dev/whitepaper}\par
+\end{minipage}
+\vspace*{1.0cm}
+\clearpage
+% Frontispiece: the plate faces the title matter, in the edition's own register.
+%
+% It used to be one maritime etching printed in all three editions and wrapped
+% in \IfFileExists, which is two defects in four lines. The etching's vellum and
+% cross-hatching in front of the Swiss edition's flat colour blocks announced
+% that the character stops at the cover; and a missing plate printed NOTHING, so
+% the book would have shipped without a frontispiece and told nobody -- the
+% silent fallback the plate rule exists to forbid (see the \PackageError in
+% coordination-papers-mega-volume-swiss-plates.tex, which this now matches).
+\newcommand{\pdfrontispiece}[1]{%
+  \IfFileExists{#1}{%
+    \thispagestyle{empty}\pagecolor{hhpaper}\color{hhink}%
+    \vspace*{\fill}
+    \begin{center}\includegraphics[height=0.92\textheight,width=\textwidth,keepaspectratio]{#1}\end{center}
+    \vspace*{\fill}
+    \clearpage}{%
+    \PackageError{coordination-papers-mega-volume}{Missing plate render #1}%
+      {Generate this edition's frontispiece and place it at #1 before building.}}}
+\ifpdswiss
+  \pdfrontispiece{plates/swiss/frontispiece.jpg}
+\else\ifpdtechnical
+  \pdfrontispiece{plates/technical/frontispiece.jpg}
+\else
+  \pdfrontispiece{plates/frontispiece.jpg}
+\fi\fi
 \nopagecolor\color{hhink}
-
-\begin{titlepage}
-\thispagestyle{empty}
-\null\vfill
-\begin{center}
-  \includegraphics[
-    width=\textwidth,
-    height=0.78\textheight,
-    keepaspectratio
-  ]{art/collected-volume/collected-treatise-inside-jacket.jpg}
-\end{center}
-\vfill\null
-\end{titlepage}
 
 \pagenumbering{roman}
 \begin{abstract}\noindent
-Autonomous coding agents are useful alone and institutionally fragile together.
-This collected volume develops one continuous answer across seven independently readable
-papers: a single local writer decides what is true; a legibility layer lets the
-operator see and revoke what the swarm is doing; continuity turns an ephemeral
-spawn into an accountable participant; capability attenuation bounds what that
-participant may do; commitments, evidence, and bonds price failures; and a
-federation boundary states what two mutually sovereign harbors may safely owe one
-another. The collection separates running mechanisms from partial integrations,
-precise specifications, and research proposals. Its final appendices consolidate
-that implementation ledger and turn every important open claim into a proof,
-experiment, or engineering obligation.
+Agentic development fails in a predictable way when concurrency grows faster
+than accountability. More processes produce more work, but they also create more
+unread evidence, more overlapping effects, more disposable identities, and more
+ways for a confident report to outrun what actually happened. Better models do
+not remove this institutional problem.
+
+This book makes one claim: \emph{autonomy scales only when authority, evidence,
+and consequence remain coupled at every effect boundary}. Eight chapters
+establish that claim in the order the argument requires. They place one serial
+authority at the local write boundary; prove that delegated capability only
+narrows on its way there; seal the room in which two distrustful owners compute
+one answer, and price what its only slot can leak; derive the information cost
+of legible supervision;
+bind work to a durable principal and outcome history; separate payment,
+collateral, evidence, and settlement; connect witnessed acts to audit and
+bounded remedy; and state what may cross between mutually distrustful machines
+without moving either machine's sovereignty. The result is not a plea to trust
+agents. It is a design for making trust unnecessary where structure can
+suffice, measurable where uncertainty remains, and contestable everywhere else.
 \end{abstract}
 
-\section*{How to use this volume}
-\addcontentsline{toc}{section}{How to use this volume}
-Read Chapters I--IV for the product argument, Chapters V--VII for the protocol
-and assurance case, or use the chapter abstracts and reader maps as independent
-entry points. The status vocabulary is deliberately strict: \Built{} means
-running code exercised by tests; \BuiltWeak{} means a running slice that does not
-yet satisfy the full contract; \Designed{} means a concrete design without a
-shipping realization; \Vision{} is a research direction. A closed model result
-is never silently promoted to a whole-runtime guarantee.
+\section*{What is built, what is modelled, what is proposed}
+\addcontentsline{toc}{section}{What is built, what is modelled, what is proposed}
+This book is ahead of the product, and it says so here rather than in a
+footnote. What runs today is a local daemon --- a single-writer SQLite/WAL
+path for sessions, claims, messages, commitments, and coordination state ---
+together with the operator projections derived from those records (each with
+a route back to the artifact it summarizes), durable work and obligation
+records that outlive any one process, a Rust card verifier whose harnesses
+are bounded proofs rather than full ones, and a relay that carries
+authenticated events outbound. Those parts are built and regression-tested,
+and each of them is graded \emph{built, weakly} in
+\hyperref[app:volume-status]{the implementation boundary}, because
+filesystem and network effects outside the mediated paths lie outside the
+transaction, and the grade is honest about that. Most of the rest is
+modelled and machine-checked but not running: the sealed room's
+noninterference and its release ledger, attenuation at every hop, the
+incentive to signal claims truthfully, conservation of the bond ledger, and
+the seventeen executed results whose numbers the chapters work by hand. And
+some of it is proposed, neither built nor modelled --- the confined mode
+itself (an enforcement point below the agent: a per-agent machine with
+brokered system calls and metered egress), custody and settlement across
+authorities, and the federation's witness log.
 
+Two consequences follow for how to read the chapters. First, the kernel
+chapter's supervisory-control result says that an interceptor at the tool
+level can observe but not regiment; the git shim and the coordination guard
+that ship today are such interceptors, and the book treats them as interim.
+The confinement the book prescribes requires the enforcement point below the
+agent. Second, whether the single-writer rail is the right \emph{collaboration}
+model, and not only the right confinement model, is an open empirical
+question, and a pre-registered study kept separate from the product
+(\texttt{studies/substrate-study} in the repository) is testing it against
+per-agent worktrees with a merge queue. Until that study reports, the rail
+stands as a design invariant; the book does not yet know whether it is also a
+good model of collaboration, and it would rather say so than guess. Every
+important statement in the chapters is labelled by kind (theorem, design
+invariant, model-checked property, or empirical hypothesis), every runtime
+claim names its assurance mode, and the appendix keeps the ledger of both.
+
+\section*{How to use this textbook}
+\addcontentsline{toc}{section}{How to use this textbook}
+The unit of account in this book is the work, not the agent. A work unit is a
+case file: who authorized it, what it may touch, what it did, what evidence it
+left, what it still owes, and who pays if it fails. Every chapter builds or
+defends one part of that file. The chapters are ordered so that each stands on
+the ones before it, and each proving chapter follows the chapter whose promises
+it discharges. Read in order for the argument, or enter at the question you
+need: where a rule can be made real (\pdchapref{swk}{The Single-Writer
+Kernel}); how authority travels without growing (\pdchapref{anchor}{The Anchor
+Protocol}); what two owners who distrust each other may compute together,
+and what its only exit may leak (\pdchapref{sealed}{The Sealed Harbor});
+what an operator must be able to see (\pdchapref{ls}{The Legible
+Swarm}); what remains long enough to owe anything (\pdchapref{stp}{From Spawn
+to Person}); what makes exchange rational (\pdchapref{he}{The Harbor Economy});
+who may decide, on what evidence (\pdchapref{bonded}{The Bonded Commons}); and
+what may cross a trust boundary (\pdchapref{fh}{The Federated Harbor}). The
+standalone editions of the chapters keep their abstracts and reader maps; here
+each chapter opens on the question it answers and begins with its argument.
+
+There are two ways through every result. Each opens with an express lane, the
+claim in one breath and a pointer to the box that states it precisely; readers
+who know the field read the lane and the box and move on, and everyone else
+reads straight through the scene, the analogy, the box, the numbers worked by
+hand, what the result buys, and where it stops. Worked numbers carry a tag:
+\textsf{[verified]} when a named script in the repository regenerates them,
+\textsf{[internal]} when only the chapter's own derivation does. Exercises come
+in three kinds, \textsc{Check}, \textsc{Trace}, and \textsc{Open}, rated one to
+three; their solutions are collected at the back of the book, and each
+exercise and solution links to the other.
+
+Every important statement is labeled by what backs it. A \emph{Theorem} follows
+from a stated formal model with explicit assumptions. A \emph{Design invariant}
+is intended to hold and is backed by the implementation and its tests. A
+\emph{Model-checked property} holds for a bounded model that a checker
+exhausted. An \emph{Empirical hypothesis} awaits measurement. Runtime claims
+name one of five assurance modes, \emph{Observed}, \emph{Coordinated},
+\emph{Brokered}, \emph{Confined}, and \emph{Attested}, in increasing order of
+what the harbor itself enforces. The implementation status vocabulary is
+equally strict: \Built{} means running code exercised by tests; \BuiltWeak{}
+means a running slice that does not yet satisfy its full contract;
+\Designed{} means a concrete design without a shipping realization;
+\Vision{} is a research direction. Mathematical proofs, imported frameworks,
+finite model checks, repository experiments, and running code remain separate
+kinds of evidence throughout, and none is silently promoted into another.
+
+\paragraph{How a claim about the harness earns its grade.} The vocabulary
+above grades claims about mechanisms. Claims about the harness itself ---
+that a compaction preserved the agent's intent, that a conflict was settled
+rather than papered over, that a resumed body actually continued the work ---
+are graded the same way, and for them the book borrows the vocabulary its own
+experiments use. A
+\emph{Genesis} is a reproducible initial world and a schedule of
+perturbations: a repository, some agents, and the failures, messages, and
+context pressure they will meet. A \emph{Voyage} is one execution of a Genesis
+under a particular model and harness. The \emph{Wake} is the behaviour it
+leaves; the \emph{Logbook} is the structured record of that behaviour; the
+\emph{Receipt} is the set of claims we are willing to assert afterwards,
+adjudicated against the Logbook. The unit of evidence is the provable
+transition: a before-state, a stimulus, what the harness observed and put in
+front of the model, which authority permitted or refused the next act, what
+the agent did, the after-state, and the receipt that binds them. That is the
+work unit's receipt chain of \pdchapref{swk}{The Single-Writer Kernel} applied
+to the harness's own conduct. The invariant is the one this book applies to
+everything else. Watching a feature run once and behave establishes nothing
+(one of us has watched a harness behave beautifully for an evening and fall
+over at breakfast); what establishes a harness claim is a controlled Genesis
+that produces a Voyage whose consequential transitions are supported by
+durable evidence and an adjudication receipt. The first Genesis the book
+cites is the substrate study
+named above, and the same Genesis replayed under different harness conditions
+is how the questions in this book that are still empirical hypotheses become
+results.
+
+Evidence is typed as well. When a chapter reports what a harbor observed, it
+names the channel that produced the observation, and each channel has a blind
+spot that no amount of volume removes. A \emph{deterministic verifier} (a test,
+a type checker, a model checker) shows that a stated property holds of the
+artifact it examined, and nothing about properties it did not state. A
+\emph{provenance witness} (a signature, a hash, a Merkle inclusion, an
+append-only log) shows attribution and tamper-evidence relative to a
+commitment, never that every event was logged or that a description is true. A
+\emph{protected meter} (a counter its subject cannot rewrite) shows a quantity,
+not its cause. \emph{Expert judgment} shows an assessment under a named rubric
+and carries the assessor's error rate. \emph{Buyer preference} shows what was
+chosen, not that the choice was right. A \emph{delayed outcome} shows what
+happened, and arrives too late to prevent it. The reader should ask the same
+question of any dashboard: which channel, and what can it not show.
+
+Cross-references are live. Chapter titles, section numbers, theorems, figures,
+tables, exercises, page numbers, and citations are links, and every
+bibliography entry ends with the pages that cite it. The standalone research
+papers and earlier printings cite chapters by first-edition numerals; the
+concordance on the next page translates.
+
+\clearpage
+\pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-contents.tex}{chapter map}
+
+\clearpage
 \begingroup\small\sloppy\tableofcontents\endgroup\clearpage
 
-\section{Introduction: one institution, seven views}
-The papers form a dependency ladder rather than a pile. The single-writer kernel
-provides local truth. The legibility layer turns that truth into an operator's
-usable picture. Continuity binds actions and outcomes to something that survives
-a process. The harbor economy prices cooperation over that identity. Anchor and
-Bonded Commons discharge the cryptographic and incentive obligations; the
-Federated Harbor identifies the boundary that remains when authority crosses a
-machine and an operator.
+\section{Introduction: the unit of account is the work}
 
-\begin{figure}[H]
-\centering
-\begin{tikzpicture}[
-  node distance=7mm and 8mm,
-  rung/.style={draw=hhink,line width=0.55pt,fill=hhsand!22,rounded corners=2pt,
-    minimum width=0.43\textwidth,minimum height=12mm,align=left,inner sep=7pt},
-  proof/.style={rung,draw=hhcobalt,line width=0.9pt,fill=hhpaper},
-  arr/.style={-{Stealth[length=2.4mm]},line width=0.7pt,draw=hhink},
-  parr/.style={arr,draw=hhcobalt,dashed},
-]
-\node[rung] (kernel) {\textbf{II. Single-Writer Kernel}\\local transactional truth};
-\node[rung,above=of kernel] (legible) {\textbf{I. Legible Swarm}\\operator sight, consent, attention};
-\node[rung,above=of legible] (person) {\textbf{III. Spawn to Person}\\continuity and witnessed outcomes};
-\node[rung,above=of person] (economy) {\textbf{IV. Harbor Economy}\\bonded exchange between principals};
-\node[proof,right=of kernel] (anchor) {\textbf{V. Anchor Protocol}\\authentication and attenuation};
-\node[proof,above=of anchor] (bonded) {\textbf{VI. Bonded Commons}\\evidence, incentives, conservation};
-\node[proof,above=of bonded] (federated) {\textbf{VII. Federated Harbor}\\cross-realm transfer and settlement};
-\draw[arr] (kernel) -- (legible); \draw[arr] (legible) -- (person); \draw[arr] (person) -- (economy);
-\draw[parr] (anchor) -- (kernel); \draw[parr] (bonded) -- (economy); \draw[parr] (federated) -- (economy);
-\end{tikzpicture}
-\caption{The volume's argument and assurance spine. Solid arrows build upward;
-dashed cobalt arrows discharge or delimit a binding obligation.}
-\label{fig:volume-spine}
-\end{figure}
+Agentic software is usually measured by the agent: capability, runtime, tool
+access, and parallel copies. That is the wrong unit of account. A process may
+disappear, rename itself, summarize its mistakes, or hand work off. The durable
+object must be the work: its authorization, permitted effects, evidence, open
+obligations, and liability for the outcome.
 
-\subsection{The claim discipline}
-The central editorial rule is the same as the system's operational rule: every
-summary must remain a lens onto inspectable evidence. The chapters therefore
-scope theorems to their assumptions, distinguish finite model checks from
-unbounded proofs, and state when a runtime path is merely available in a library
-rather than enforced at the write boundary. Appendix~\ref{app:volume-status}
-consolidates those grades; Appendix~\ref{app:volume-roadmap} names the work needed
-to move them. Appendix~\ref{app:one-spine} states the converse discipline: why
-this particular set of mechanisms and not some other clever grab bag, by
-naming the one ontology and four theorem families every mechanism in the
-volume answers to.
+This book develops that claim in eight propositions, one per chapter, in the
+order the book is read.
+
+\begin{enumerate}[leftmargin=2.1em,itemsep=2pt,topsep=4pt]
+  \item \textbf{Prevention begins at the effect boundary.} Rules can be enforced
+  before an act only when the system controls the channel through which the act
+  occurs. Local effects therefore pass through one serial authority; semantic
+  failures that no gate can decide remain matters of detection and remedy.
+
+  \item \textbf{Delegation only narrows.} Every child capability is a strict
+  subset of its parent's authority and lifetime. Authentication says who signed;
+  attenuation says what the signature may authorize. Both are needed at every
+  hop.
+
+  \item \textbf{Confinement is a property of the room, not of the tenant.}
+  Two owners who trust neither each other nor the venue can still take one
+  answer out of a sealed room when its only exit is a metered slot: silence
+  except through the slot, a gate on the only enforceable boundary, a budget
+  that conserves, and canaries for what the gate cannot prove. What the room
+  cannot promise is stated as a limit, at the same prominence as the claims.
+
+  \item \textbf{Supervision has an information cost.} A digest cannot guarantee
+  that a human will notice any one of many relevant events unless it spends
+  enough bits, attention, or artifact openings to distinguish them. A summary
+  is therefore an index into evidence, not a substitute for it.
+
+  \item \textbf{Accountability must outlive the process.} A task acquires a
+  durable principal, capability history, evidence record, obligations, and
+  outcome. Restarting an agent or choosing a new name must not erase that case
+  file or refill the resources it already consumed.
+
+  \item \textbf{Exchange requires separated instruments.} Payment rewards the
+  requested work. Collateral prices a bounded failure. Evidence supports a
+  claim. Settlement closes it exactly once. Combining those functions in one
+  score or token makes each of them less trustworthy.
+
+  \item \textbf{Uncertainty needs an institution.} Some harms cannot be
+  prevented and some outcomes cannot be judged mechanically. Witnesses,
+  randomized audits, bounded bonds, appeals, and conservation rules turn that
+  residual uncertainty into a process that can be inspected and contested.
+
+  \item \textbf{Federation relays evidence, not sovereignty.} Mutually
+  distrustful machines may exchange signed capabilities, revocations, witness
+  roots, and settlement claims without sharing a database or accepting a global
+  ruler. Transport can carry evidence; it cannot decide what either machine is
+  permitted to do with it.
+\end{enumerate}
+
+Together they form one causal chain. The kernel marks where effects become
+real; the protocol keeps delegated authority from growing on its way there;
+legibility states what a human must recover; continuity gives the record a
+durable subject; the economy bounds consequence and prices it; the commons
+connects evidence to remedy; federation carries those objects without
+pretending that transport creates consensus.
+
+\subsection{What counts as knowing}
+Every consequential statement has a status and a boundary. Derivations establish
+relations under named assumptions. Finite checks exhaust a stated state space,
+not every deployment. Simulations estimate behavior under a stated generator;
+repository tests exercise named paths; running code proves availability, not
+universal mediation. Counterexamples remain in the record because they mark
+claims the research killed rather than conclusions it merely failed to prove.
+
+\Cref{app:volume-status} gives the implementation boundary;
+\cref{app:result-atlas} records the results and their limits. The companion
+\path{docs/harbor-research/mega-volume-epistemic-manifest.yaml} preserves each
+result's source, status, conditions, boundary, chapter home, and verification
+artifact. The chapters stand alone; the book's claim is the chain they make.
 
 \clearpage
 \pagenumbering{arabic}
 \hypersetup{pageanchor=true}
+\pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-cite-aliases.tex}{citation short-form aliases}
 \pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex}{chapter body}
+\pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-solutions.tex}{solutions}
 \input{coordination-papers-mega-volume-appendices.tex}
 \end{document}

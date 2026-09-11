@@ -220,7 +220,7 @@ describe('spawner ↔ transcripts integration', () => {
       identity: 'port-daddy:test:harbor-wiring',
       task: 'Prove the production bridge is called.',
       ship: 'harbor-wiring',
-      workdir: '/workspace',
+      workdir: process.cwd(),
     });
 
     expect(result.status).toBe('completed');
@@ -253,8 +253,8 @@ describe('spawner ↔ transcripts integration', () => {
       daemonUsedTokensEstimate: 150,
       adapterUsedTokensEstimate: 150,
       project: 'port-daddy',
-      projectDir: '/workspace',
-      workdir: '/workspace',
+      projectDir: process.cwd(),
+      workdir: process.cwd(),
     }));
     expect(harborBridge.runProbeAndRecord).toHaveBeenCalledWith(result.agentId);
   });

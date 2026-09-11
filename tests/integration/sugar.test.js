@@ -39,21 +39,17 @@ async function sugarBegin(body) {
 /**
  * Helper: POST /sugar/done
  *
- * NOTE: pd done now enforces "branch must be on origin + result note must
- * have a PR-URL / no-pr-yet / not-applicable sentinel" (substrate fix
- * 2026-05-20). The ephemeral test daemon runs against an in-memory DB
- * and not necessarily a clean git worktree, so by default we bypass the
- * rule via the documented escape hatch. Tests that intentionally
- * exercise the precondition should pass `skipOriginCheck: false`
- * explicitly. See lib/git-origin-check.ts.
+ * Completion tests provide a result sentinel and exercise the real origin
+ * gate. Teardown uses status=abandoned because cleanup is not a claim that
+ * repository work landed. Public override flags are deliberately never used.
  */
 async function sugarDone(body) {
   const finalBody = { ...body };
-  if (finalBody.skipOriginCheck === undefined) {
-    finalBody.skipOriginCheck = true;
-    finalBody.skipOriginCheckReason = 'integration-test default bypass';
-  } else if (finalBody.skipOriginCheck === false) {
-    delete finalBody.skipOriginCheck;
+  if ((finalBody.status || 'completed') === 'completed') {
+    const sentinel = 'not-applicable: integration lifecycle verification';
+    finalBody.note = typeof finalBody.note === 'string' && finalBody.note.trim()
+      ? `${finalBody.note.trim()}\n\n${sentinel}`
+      : sentinel;
   }
   const credential = (finalBody.agentId && credentialsByAgent.get(finalBody.agentId)) || lastCredential;
   return request('/sugar/done', {
@@ -78,12 +74,22 @@ async function sugarWhoami(options = {}) {
   return request(`/sugar/whoami${query ? `?${query}` : ''}`);
 }
 
+/** Add one note through the exact credentialed session boundary. */
+async function sessionNote(sessionId, agentId, content, type) {
+  const credential = credentialsByAgent.get(agentId);
+  return request(`/sessions/${sessionId}/notes`, {
+    method: 'POST',
+    body: { content, ...(type ? { type } : {}) },
+    headers: credential ? { 'x-actor-credential': credential } : {},
+  });
+}
+
 /**
  * Cleanup helper: best-effort done + unregister for leaked agents
  */
 async function cleanupAgent(agentId) {
   try {
-    await sugarDone({ agentId });
+    await sugarDone({ agentId, status: 'abandoned' });
   } catch {
     // Agent may already be cleaned up
   }
@@ -147,23 +153,20 @@ describe('Sugar Integration Tests', () => {
     });
 
     test('can add a note to the session', async () => {
-      const res = await request(`/sessions/${sessionId}/notes`, {
-        method: 'POST',
-        body: { content: 'Progress update from integration test' },
-      });
+      const res = await sessionNote(sessionId, agentId, 'Progress update from integration test');
 
       expect(res.ok).toBe(true);
       expect(res.data.success).toBe(true);
     });
 
     test('done ends session + unregisters agent', async () => {
-      const res = await sugarDone({ agentId });
+      const res = await sugarDone({ agentId, status: 'abandoned' });
 
       expect(res.ok).toBe(true);
       expect(res.data.success).toBe(true);
       expect(res.data.agentUnregistered).toBe(true);
       expect(res.data.sessionId).toBe(sessionId);
-      expect(res.data.sessionStatus).toBe('completed');
+      expect(res.data.sessionStatus).toBe('abandoned');
     });
 
     test('whoami shows inactive after done', async () => {
@@ -219,7 +222,7 @@ describe('Sugar Integration Tests', () => {
     });
 
     test('done cleans up session and agent', async () => {
-      const res = await sugarDone({ agentId });
+      const res = await sugarDone({ agentId, status: 'abandoned' });
 
       expect(res.ok).toBe(true);
       expect(res.data.success).toBe(true);
@@ -253,7 +256,7 @@ describe('Sugar Integration Tests', () => {
     });
 
     test('cleanup', async () => {
-      const res = await sugarDone({ agentId });
+      const res = await sugarDone({ agentId, status: 'abandoned' });
       expect(res.ok).toBe(true);
     });
   });
@@ -278,6 +281,7 @@ describe('Sugar Integration Tests', () => {
       const doneRes = await sugarDone({
         agentId,
         note: 'All done!',
+        status: 'abandoned',
       });
 
       expect(doneRes.ok).toBe(true);
@@ -291,9 +295,6 @@ describe('Sugar Integration Tests', () => {
       const notes = notesRes.data.notes || [];
       const handoffNotes = notes.filter(n => n.type === 'handoff');
       expect(handoffNotes.length).toBeGreaterThanOrEqual(1);
-      // Note: the integration-test sugarDone helper uses the
-      // [OPERATOR-OVERRIDE skip-origin-check] escape hatch by default so
-      // the daemon's note ends with the original text after the stamp.
       expect(handoffNotes.some(n => typeof n.content === 'string' && n.content.includes('All done!'))).toBe(true);
     });
   });
@@ -372,7 +373,7 @@ describe('Sugar Integration Tests', () => {
       expect(whoamiRes.data.purpose).toBe('Whoami stale agent fallback');
       expect(whoamiRes.data.identity).toBeNull();
 
-      const doneRes = await sugarDone({ sessionId });
+      const doneRes = await sugarDone({ sessionId, status: 'abandoned' });
       expect(doneRes.ok).toBe(true);
       expect(doneRes.data.success).toBe(true);
     });
@@ -463,36 +464,48 @@ describe('Sugar Integration Tests', () => {
       expect(res.data.code).toBe('NO_ACTIVE_SESSION');
     });
 
-    test('done returns 409 when explicit agentId does not own the explicit sessionId', async () => {
+    test('done returns 403 when one verified actor targets another actor\'s explicit session', async () => {
       const beginRes = await sugarBegin({
         purpose: 'Ownership guard test',
         agentId: `owner-agent-${Date.now()}`,
       });
 
       expect(beginRes.ok).toBe(true);
-      const { sessionId } = beginRes.data;
+      const { agentId: ownerAgentId, sessionId } = beginRes.data;
+      const intruderRes = await sugarBegin({
+        purpose: 'Ownership guard intruder',
+        agentId: `intruder-agent-${Date.now()}`,
+      });
+      expect(intruderRes.ok).toBe(true);
 
       const res = await sugarDone({
-        agentId: `intruder-agent-${Date.now()}`,
+        agentId: intruderRes.data.agentId,
         sessionId,
+        status: 'abandoned',
       });
 
-      expect(res.status).toBe(409);
+      expect(res.status).toBe(403);
       expect(res.data.success).toBe(false);
       expect(res.data.code).toBe('SESSION_OWNERSHIP_MISMATCH');
+      const ownerStillActive = await sugarWhoami({ agentId: ownerAgentId, sessionId });
+      expect(ownerStillActive.data.active).toBe(true);
 
-      const cleanupRes = await sugarDone({ sessionId });
+      const cleanupRes = await sugarDone({ agentId: ownerAgentId, sessionId, status: 'abandoned' });
       expect(cleanupRes.ok).toBe(true);
+      const intruderCleanup = await sugarDone({
+        agentId: intruderRes.data.agentId,
+        sessionId: intruderRes.data.sessionId,
+        status: 'abandoned',
+      });
+      expect(intruderCleanup.ok).toBe(true);
     });
 
-    test('done with no body at all does not crash server', async () => {
+    test('done with no body never selects and closes a global session', async () => {
       const res = await sugarDone({});
 
-      // Without agentId, done falls back to finding the most recent active session.
-      // If one exists (from other tests), it succeeds. If not, it returns failure.
-      // Either way, it must not be a 500.
-      expect(res.status).not.toBe(500);
-      expect(typeof res.data.success).toBe('boolean');
+      expect(res.status).toBe(404);
+      expect(res.data.success).toBe(false);
+      expect(res.data.code).toBe('NO_ACTIVE_SESSION');
     });
   });
 
@@ -520,7 +533,7 @@ describe('Sugar Integration Tests', () => {
       }
 
       // Cleanup
-      await sugarDone({ agentId });
+      await sugarDone({ agentId, status: 'abandoned' });
     });
   });
 
@@ -607,10 +620,7 @@ describe('Sugar Integration Tests', () => {
       sessionId = beginRes.data.sessionId;
 
       // Add a note
-      await request(`/sessions/${sessionId}/notes`, {
-        method: 'POST',
-        body: { content: 'Working on it' },
-      });
+      await sessionNote(sessionId, agentId, 'Working on it');
 
       const res = await sugarWhoami(agentId);
 
@@ -640,19 +650,14 @@ describe('Sugar Integration Tests', () => {
       const { agentId, sessionId } = beginRes.data;
 
       // Add two notes
-      await request(`/sessions/${sessionId}/notes`, {
-        method: 'POST',
-        body: { content: 'Note 1' },
-      });
-      await request(`/sessions/${sessionId}/notes`, {
-        method: 'POST',
-        body: { content: 'Note 2' },
-      });
+      await sessionNote(sessionId, agentId, 'Note 1');
+      await sessionNote(sessionId, agentId, 'Note 2');
 
       // Done with a final note
       const doneRes = await sugarDone({
         agentId,
         note: 'Final note',
+        status: 'abandoned',
       });
 
       expect(doneRes.ok).toBe(true);

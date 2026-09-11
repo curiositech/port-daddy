@@ -32,8 +32,10 @@ const PRIMARY_NAV_ITEMS = [
   { label: "Home", href: "/", end: true },
   { label: "Agent Harness", href: "/harness", end: true },
   { label: "Agent Tubes", href: "/pd-tube", end: false },
-  { label: "Scout", href: "/scout", end: false },
-  { label: "Examples", href: "/examples", end: false },
+  // The book and the research program sit in the primary row: they are the
+  // argument the product stands on, and each page links to the other.
+  { label: "Whitepaper", href: "/whitepaper", end: true },
+  { label: "Research", href: "/research", end: false },
   { label: "Blog", href: "/blog", end: false },
   // The tail of the row folds into "More" until the viewport is ultra-wide:
   // below ~1800px the centered nav otherwise collides with the search box and
@@ -61,13 +63,20 @@ const FOLDING_PRIMARY_ITEMS: readonly NavItem[] = PRIMARY_NAV_ITEMS.filter(
 );
 
 // Secondary destinations live behind the "More" dropdown to keep the top bar
-// uncrowded. Docs dropped out of the primary row but stays reachable here.
+// uncrowded. Docs, Scout and Examples dropped out of the primary row but stay
+// reachable here.
 const OVERFLOW_NAV_ITEMS = [
   { label: "Docs", href: "/docs", end: false },
   { label: "Mac app", href: "/mac-preview", end: false },
+  // Install is the one thing a first visit is usually trying to reach, and it
+  // had no entry of its own: you had to know it was a section of the Mac app
+  // page. It sits next to that page rather than in the top row, because the
+  // top row is already at its width and this is a destination, not a section.
+  { label: "Install", href: "/mac-preview#install", end: false },
   { label: "Run agents on your subscription", href: "/cli-backend", end: true },
   { label: "Tutorials", href: "/tutorials", end: false },
-  { label: "Library", href: "/library", end: false },
+  { label: "Scout", href: "/scout", end: false },
+  { label: "Examples", href: "/examples", end: false },
   { label: "Landscape", href: "/landscape", end: false },
 ] satisfies readonly NavItem[];
 

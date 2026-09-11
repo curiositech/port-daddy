@@ -248,7 +248,7 @@ When multiple agents coordinate, temporal dynamics create patterns:
 
 **Hierarchical Execution**: Agent B executes subtask for Agent A. Requires B's deadline < A's means-end coherence threat time.
 
-For WinDAGs orchestrating 180+ skills across multiple agents:
+For Jury-rig orchestrating 180+ skills across multiple agents:
 
 **Temporal coordination overhead scales with plan precision**:
 - High-level plans ("implement authentication", "update tests") → minimal coordination needed, can execute concurrently

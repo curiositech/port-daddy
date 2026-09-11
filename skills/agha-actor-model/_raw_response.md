@@ -80,9 +80,9 @@ Actors subsume both. Any functional program or sequential process can be express
 
 This is a *mathematical result*, not an opinion. It has direct consequences for agent system design.
 
-## Application to WinDAGs Agent System Design
+## Application to Jury-rig Agent System Design
 
-### Every WinDAGs skill invocation is an actor step
+### Every Jury-rig skill invocation is an actor step
 
 When an agent invokes a skill, it is executing the actor pattern:
 - **Messages sent**: Requests to other agents/skills, sub-task delegations
@@ -97,13 +97,13 @@ Agha introduces the *customer* pattern — creating a new agent whose sole purpo
 
 "The factorial actor relies on creating a customer which waits for the appropriate reply, in this case from the factorial itself, so that the factorial is concurrently free to process the next communication." (p. 53)
 
-This pattern is directly applicable to WinDAGs: when an agent delegates a subtask and needs to continue processing after the result arrives, it should create a continuation agent (customer) rather than blocking. This enables the delegating agent to immediately accept new work.
+This pattern is directly applicable to Jury-rig: when an agent delegates a subtask and needs to continue processing after the result arrives, it should create a continuation agent (customer) rather than blocking. This enables the delegating agent to immediately accept new work.
 
 ### Dynamic agent creation scales concurrency to problem size
 
 A critical advantage of the actor model: "Extensibility allows a system to dynamically allocate resources to a problem by generating computational agents in response to the magnitude of a computation required to solve a problem. The precise magnitude of the problem need not be known in advance: more agents can be created as the computation proceeds and the maximal amount of concurrency can be exploited." (p. 29)
 
-In WinDAGs, this means orchestration strategies should not pre-determine the number of parallel agents. The computation itself should drive spawning decisions.
+In Jury-rig, this means orchestration strategies should not pre-determine the number of parallel agents. The computation itself should drive spawning decisions.
 
 ## What This Teaches About Skill Design
 
@@ -210,11 +210,11 @@ The reasoning parallels special relativity: information is localized within each
 
 This has immediate consequences for agent system design: any algorithm that requires global timestamps, global sequence numbers, or global ordering of events is not faithfully modeling the distributed reality. It is imposing a sequential fiction on a parallel fact.
 
-## Application to WinDAGs Orchestration
+## Application to Jury-rig Orchestration
 
 ### Routing and dispatch must be asynchronous
 
-WinDAGs skills should be dispatched asynchronously. An orchestrating agent that sends a skill request should not block waiting for the result — it should specify a continuation (customer agent) to handle the result and immediately move on to other available work.
+Jury-rig skills should be dispatched asynchronously. An orchestrating agent that sends a skill request should not block waiting for the result — it should specify a continuation (customer agent) to handle the result and immediately move on to other available work.
 
 This is the difference between:
 ```
@@ -230,7 +230,7 @@ send(skill_A, input, continuation=my_handler)  // ASYNCHRONOUS — continues
 
 ### The mail queue as the coordination abstraction
 
-WinDAGs' task queue is an implementation of the actor mail system. The design principles follow directly:
+Jury-rig' task queue is an implementation of the actor mail system. The design principles follow directly:
 - Tasks should be uniquely tagged (Agha uses tag strings like `w.n` to ensure global uniqueness)
 - Task delivery should be guaranteed (failed tasks should be retried, not dropped)
 - No task should be permanently delayed by the presence of other tasks (fairness)
@@ -241,7 +241,7 @@ Orchestration patterns that require all agents to "check in" before proceeding c
 
 ### Nondeterminism is a design constraint, not an implementation bug
 
-When two WinDAGs agents independently produce outputs that will be consumed by a third, the order of arrival is nondeterministic. Systems must be designed to be correct regardless of arrival order. If ordering matters semantically, it must be enforced explicitly using sequence numbers and buffering (the *message channel* pattern Agha describes in §6.2.2) — not assumed from the infrastructure.
+When two Jury-rig agents independently produce outputs that will be consumed by a third, the order of arrival is nondeterministic. Systems must be designed to be correct regardless of arrival order. If ordering matters semantically, it must be enforced explicitly using sequence numbers and buffering (the *message channel* pattern Agha describes in §6.2.2) — not assumed from the infrastructure.
 
 ## Boundary Conditions
 
@@ -340,18 +340,18 @@ A forwarding actor — one that sends all communications to another actor — is
 
 This enables hot-swapping of agent implementations: replace an actor with a forwarding actor pointing to a new implementation, and all in-flight messages seamlessly redirect. This is the theoretical basis for versioning and live updates in agent systems.
 
-## Application to WinDAGs Routing and Orchestration
+## Application to Jury-rig Routing and Orchestration
 
 ### Skills as receptionists
 
-Each WinDAGs skill endpoint is a receptionist. Skills should be designed with this in mind:
+Each Jury-rig skill endpoint is a receptionist. Skills should be designed with this in mind:
 - Skills may receive their own address as part of a message, enabling callbacks
 - Skills can spawn sub-skills and pass their addresses for direct communication
 - Skills can be dynamically routed by sending their address to appropriate orchestrators
 
 ### Capability-based routing
 
-The actor model suggests that routing decisions should be based on *who has the address*, not on central routing tables. In WinDAGs:
+The actor model suggests that routing decisions should be based on *who has the address*, not on central routing tables. In Jury-rig:
 - An orchestrator that learns of a skill's address during runtime can route to it directly
 - Skills can introduce agents to each other by sending addresses
 - Access control is implicit: if an agent doesn't know a skill's address, it cannot invoke it
@@ -360,7 +360,7 @@ This is more flexible than central routing: new skills can be introduced into a 
 
 ### The resource manager pattern
 
-The printing resource manager maps directly to WinDAGs skill scheduling:
+The printing resource manager maps directly to Jury-rig skill scheduling:
 - The orchestrator is the resource manager
 - Skills are the "printing devices"  
 - The orchestrator should not statically assign work to specific skill instances
@@ -368,14 +368,14 @@ The printing resource manager maps directly to WinDAGs skill scheduling:
 
 ### Dynamic agent spawning for adaptive parallelism
 
-For tasks of unknown size, WinDAGs should support the balanced addition pattern: spawn agents as needed, scaling parallelism to problem size. This requires:
+For tasks of unknown size, Jury-rig should support the balanced addition pattern: spawn agents as needed, scaling parallelism to problem size. This requires:
 - Agents that can create other agents
 - A tagging scheme that guarantees unique task IDs even for dynamically created tasks
 - A DAG structure that grows as computation proceeds
 
 ### Open system composition
 
-When WinDAGs integrates with external systems, the external actor pattern applies:
+When Jury-rig integrates with external systems, the external actor pattern applies:
 - Define external stubs that buffer communications until the external system is connected
 - When integration occurs, send the stub a "become" message with the real address
 - Buffered messages then flow to the real system
@@ -514,7 +514,7 @@ else send (communication) to buffer
 ```
 (p. 80)
 
-## Application to WinDAGs Failure Modes
+## Application to Jury-rig Failure Modes
 
 ### Designing for contained divergence
 
@@ -524,9 +524,9 @@ else send (communication) to buffer
 
 3. **Design for partial results**: Long computations that might diverge should produce partial results along the way, sent to the orchestrator. The orchestrator can use whatever partial results are available when it needs to proceed.
 
-### Deadlock detection in WinDAGs
+### Deadlock detection in Jury-rig
 
-WinDAGs should implement a deadlock monitor that:
+Jury-rig should implement a deadlock monitor that:
 1. Maintains a "wait-for" graph: which agent is waiting for which other agent
 2. Periodically scans for cycles in this graph
 3. On cycle detection, selects the lowest-priority task in the cycle for cancellation
@@ -536,7 +536,7 @@ Because actor systems guarantee that agents remain responsive, the deadlock moni
 
 ### The insensitive actor for atomic operations
 
-When a WinDAGs agent needs to perform a multi-step operation that must appear atomic (e.g., read-modify-write on a shared resource), it should:
+When a Jury-rig agent needs to perform a multi-step operation that must appear atomic (e.g., read-modify-write on a shared resource), it should:
 1. Create a buffer actor to hold incoming messages
 2. Create a proxy actor to perform the operation
 3. Become an insensitive actor that forwards to the buffer
@@ -664,25 +664,25 @@ The composition mechanism is pure message-passing: external actors in one system
 
 "The composition of two programs is carried out by mapping them to the initial configurations they define and composing these configurations using the rules of composition." (p. 156)
 
-## Application to WinDAGs System Design
+## Application to Jury-rig System Design
 
-### The Brock-Ackerman warning for WinDAGs
+### The Brock-Ackerman warning for Jury-rig
 
-When evaluating whether two WinDAGs agent configurations are interchangeable, I/O equivalence testing is not sufficient. You must test them in composition with realistic orchestration patterns, not just in isolation.
+When evaluating whether two Jury-rig agent configurations are interchangeable, I/O equivalence testing is not sufficient. You must test them in composition with realistic orchestration patterns, not just in isolation.
 
 Specifically: if agent version B produces the same outputs as agent version A for all test inputs, that does NOT guarantee B can replace A in a running system without behavioral changes. The timing of when B produces its outputs relative to its inputs may differ from A, and downstream agents may be sensitive to this timing difference.
 
-**Recommendation**: Define behavioral contracts for WinDAGs agents that include:
+**Recommendation**: Define behavioral contracts for Jury-rig agents that include:
 - Not just what outputs are produced, but when (relative to which inputs)
 - What the agent's state is after producing each output (what subsequent inputs it will accept and how it will respond)
 
 ### Observation equivalence as the agent upgrade criterion
 
-Two WinDAGs agent implementations should be considered safely interchangeable if and only if they are observation equivalent: no realistic orchestration pattern can distinguish their behavior. This is a stronger criterion than I/O equivalence but the correct one.
+Two Jury-rig agent implementations should be considered safely interchangeable if and only if they are observation equivalent: no realistic orchestration pattern can distinguish their behavior. This is a stronger criterion than I/O equivalence but the correct one.
 
 ### Receptionist-based modularity
 
-In WinDAGs, each skill should have a clearly defined *interface surface* — the messages it accepts from the outside. Internal implementation details (how the skill decomposes a task, what sub-skills it calls, how it maintains state) should be hidden.
+In Jury-rig, each skill should have a clearly defined *interface surface* — the messages it accepts from the outside. Internal implementation details (how the skill decomposes a task, what sub-skills it calls, how it maintains state) should be hidden.
 
 When a skill is updated or replaced, the guarantee is that its receptionist interface is preserved. The internal changes are not observable by callers.
 
@@ -699,7 +699,7 @@ This implements atomic multi-skill transactions without a global lock manager.
 
 ### Abstraction levels for debugging
 
-The receptionist model suggests WinDAGs should support multiple levels of observability:
+The receptionist model suggests Jury-rig should support multiple levels of observability:
 - **Fine-grained**: Individual skill invocations and their timings (for debugging)
 - **Transaction-level**: The inputs and outputs of complete sub-plans (for monitoring)
 - **Goal-level**: High-level outcomes (for reporting)
@@ -843,11 +843,11 @@ One of Agha's most important theoretical results: "Concurrent composition is int
 
 Sequential composition, in actor systems, is not a primitive — it is pattern of causally ordered message-passing. This means that any time you write sequential code in an agent system, you are implicitly creating a causal chain that could be parallelized if the dependencies were not actually necessary.
 
-## Application to WinDAGs Agent Design
+## Application to Jury-rig Agent Design
 
 ### The insensitive agent pattern for skill invocations
 
-When a WinDAGs agent invokes a skill that requires an external result before its next state can be determined:
+When a Jury-rig agent invokes a skill that requires an external result before its next state can be determined:
 
 1. Create a buffer agent to hold incoming task requests
 2. Create a continuation agent (customer) to handle the skill result
@@ -859,7 +859,7 @@ This prevents the orchestrating agent from being unavailable during skill invoca
 
 ### Customer chains for parallel sub-plans
 
-When a WinDAGs plan requires multiple sequential steps, implement each step as a customer agent:
+When a Jury-rig plan requires multiple sequential steps, implement each step as a customer agent:
 
 - Step N creates customer N+1 and sends work to step N's executor
 - Step N's executor sends the result to customer N+1
@@ -872,7 +872,7 @@ Each customer is a small, focused agent whose only job is to receive one result 
 
 ### Making "waiting" explicit
 
-WinDAGs orchestration should distinguish between:
+Jury-rig orchestration should distinguish between:
 - **Active agents**: Currently executing their primary behavior
 - **Insensitive agents**: Waiting for a specific result before they can proceed
 - **Customer agents**: Waiting for a result to continue a computation chain
@@ -884,7 +884,7 @@ Making these states observable enables:
 
 ### The continuation/callback pattern
 
-Rather than polling for results, WinDAGs should adopt the customer model throughout:
+Rather than polling for results, Jury-rig should adopt the customer model throughout:
 
 ```
 # Instead of:
@@ -907,7 +907,7 @@ skill.invoke(task, reply_to=customer)
 
 **The proxy authentication requirement**
 
-The insensitive actor pattern requires that only the correct proxy can send the "become" message. Without this, any actor could maliciously or erroneously change the insensitive actor's state. In WinDAGs, continuation agents should have authenticated channels back to the agents they serve.
+The insensitive actor pattern requires that only the correct proxy can send the "become" message. Without this, any actor could maliciously or erroneously change the insensitive actor's state. In Jury-rig, continuation agents should have authenticated channels back to the agents they serve.
 
 **Buffer overflow**
 
@@ -1011,17 +1011,17 @@ The only consistent global ordering of events is a *partial order* — the causa
 
 "The important point to be made is that any such global synchronization creates a bottleneck which can be extremely inefficient in the context of a distributed environment." (p. 17)
 
-## Application to WinDAGs Open System Design
+## Application to Jury-rig Open System Design
 
-### WinDAGs is an open system by nature
+### Jury-rig is an open system by nature
 
-WinDAGs operates in a world where:
+Jury-rig operates in a world where:
 - New tasks arrive from external sources at any time
 - New skills are added to the system as needed
 - User requirements change during execution
 - External services the system depends on come and go
 
-The closed-world assumption fails immediately. WinDAGs design must embrace openness.
+The closed-world assumption fails immediately. Jury-rig design must embrace openness.
 
 ### Design for dynamic skill registration
 
@@ -1045,7 +1045,7 @@ The system continues operating with reduced capability rather than failing.
 
 ### Avoid assuming knowledge of system state
 
-Orchestration algorithms in WinDAGs should not assume they know the current state of other agents. When an orchestrator needs to know if a skill is available, it should *ask* (send a status query) rather than assuming based on stale information.
+Orchestration algorithms in Jury-rig should not assume they know the current state of other agents. When an orchestrator needs to know if a skill is available, it should *ask* (send a status query) rather than assuming based on stale information.
 
 The actor model guarantees this query will eventually be answered. If the skill is busy, the response will say so. If the skill is down, the buffer will eventually drain or timeout.
 
@@ -1057,7 +1057,7 @@ An orchestrating agent that remembers "skill X was faster than skill Y for tasks
 
 ### Multi-level interface surfaces
 
-WinDAGs should define explicit interface surfaces at multiple levels:
+Jury-rig should define explicit interface surfaces at multiple levels:
 - **Task interface**: What tasks the system accepts from external clients
 - **Skill interface**: What the orchestrator exposes to skills
 - **Monitoring interface**: What the monitoring system can observe
@@ -1181,11 +1181,11 @@ Integers, booleans, strings — these are actors, not data. Operations on them a
 
 The `unserialized` property of primitive actors means their behavior never changes: "The unserialized nature of primitive actors implies that there is no theoretical reason to differentiate between the expression `new 3` and simply `3`." (p. 87) You can create as many copies of the actor `3` as you want; they all behave identically.
 
-## Application to WinDAGs Skill and State Design
+## Application to Jury-rig Skill and State Design
 
 ### Every shared resource should be an actor
 
-Any resource in WinDAGs that is accessed by multiple agents — a knowledge base, a configuration store, a result cache, a rate limiter — should be implemented as an actor with a message interface. Do not use shared memory, shared databases with optimistic locking, or any other shared-variable pattern.
+Any resource in Jury-rig that is accessed by multiple agents — a knowledge base, a configuration store, a result cache, a rate limiter — should be implemented as an actor with a message interface. Do not use shared memory, shared databases with optimistic locking, or any other shared-variable pattern.
 
 The actor encapsulates:
 - The resource state
@@ -1195,7 +1195,7 @@ The actor encapsulates:
 
 ### Agent state should be encoded in behavior, not in variables
 
-When a WinDAGs agent needs to track history (how many tasks it has processed, what the last result was, whether it is in an error state), this state should be encoded in the agent's replacement behavior, not in shared variables:
+When a Jury-rig agent needs to track history (how many tasks it has processed, what the last result was, whether it is in an error state), this state should be encoded in the agent's replacement behavior, not in shared variables:
 
 ```
 # Agent encoding state in replacement:
@@ -1210,7 +1210,7 @@ This makes state transitions explicit and auditable. Every state change is a "be
 
 ### Use message-passing for coordination, not shared state
 
-When two WinDAGs agents need to coordinate — one waits for the other's result — the coordination should be through message-passing (customer pattern), not through a shared status variable that one polls.
+When two Jury-rig agents need to coordinate — one waits for the other's result — the coordination should be through message-passing (customer pattern), not through a shared status variable that one polls.
 
 Instead of:
 ```
@@ -1230,7 +1230,7 @@ send(task, agent_A, reply_to=customer)
 
 ### Capability-based access control
 
-In WinDAGs, access to resources should be controlled by mail address knowledge, not by access control lists or central authority. If an agent knows a skill's address, it can invoke the skill. If it doesn't know the address, it cannot.
+In Jury-rig, access to resources should be controlled by mail address knowledge, not by access control lists or central authority. If an agent knows a skill's address, it can invoke the skill. If it doesn't know the address, it cannot.
 
 This means:
 - Sensitive skills should have their addresses distributed only to authorized agents
@@ -1239,7 +1239,7 @@ This means:
 
 ### The acquaintance structure as capability transfer
 
-When a WinDAGs agent creates a sub-agent, it should carefully consider which addresses (capabilities) to give the sub-agent. The sub-agent can only interact with the agents whose addresses it knows.
+When a Jury-rig agent creates a sub-agent, it should carefully consider which addresses (capabilities) to give the sub-agent. The sub-agent can only interact with the agents whose addresses it knows.
 
 This provides a natural security boundary: a sub-agent given only the address of a specific data store can only access that store, not the broader system. Capabilities are *minimal by default* and must be explicitly granted.
 
@@ -1367,11 +1367,11 @@ The right granularity for actors is *coarse*: each actor should do enough work t
 - Shared resources (not individual data items)
 - Long-running processes with substantial state
 
-## Application to WinDAGs Performance Design
+## Application to Jury-rig Performance Design
 
 ### Exploit replacement pipelining
 
-WinDAGs orchestrators should be designed so that their replacement behavior is determined as early as possible in their message processing. Specifically:
+Jury-rig orchestrators should be designed so that their replacement behavior is determined as early as possible in their message processing. Specifically:
 
 1. Parse the incoming message and determine routing decisions first
 2. Create customer agents for continuations
@@ -1400,7 +1400,7 @@ Do not wait for A to complete before starting C. The actor model enables this na
 
 ### Granularity calibration
 
-The minimum profitable granularity for WinDAGs actors:
+The minimum profitable granularity for Jury-rig actors:
 - A skill invocation is a good granularity unit (milliseconds to seconds of work)
 - Individual line-of-code operations within a skill are too fine
 - An entire multi-step plan is too coarse (prevents parallelism)
@@ -1409,7 +1409,7 @@ Design skills to be actors with meaningful grain — not so fine that overhead d
 
 ### Monitor and exploit the actual parallelism
 
-Since actor systems expose maximal logical concurrency, the question becomes: how much physical parallelism is being realized? WinDAGs should instrument:
+Since actor systems expose maximal logical concurrency, the question becomes: how much physical parallelism is being realized? Jury-rig should instrument:
 - Actor queue depths (backlog indicates a bottleneck)
 - Actor idle times (idle actors that could be doing work)
 - Message latencies (overhead of the coordination mechanism)
@@ -1428,7 +1428,7 @@ Eager evaluation wastes resources if the eagerly evaluated computation turns out
 
 **The message-passing overhead threshold**
 
-Actor-level decomposition is beneficial when the work per actor is significantly more expensive than the message-passing overhead. For WinDAGs, where each "message" invokes a potentially expensive skill, this threshold is comfortably exceeded. But for internal skill implementation (how a skill does its computation), finer-grained actor decomposition may not pay off.
+Actor-level decomposition is beneficial when the work per actor is significantly more expensive than the message-passing overhead. For Jury-rig, where each "message" invokes a potentially expensive skill, this threshold is comfortably exceeded. But for internal skill implementation (how a skill does its computation), finer-grained actor decomposition may not pay off.
 ```
 
 ---
@@ -1439,7 +1439,7 @@ Actor-level decomposition is beneficial when the work per actor is significantly
 
 - **Agent Orchestration**: The receptionist concept directly maps to orchestration interfaces. The insensitive actor pattern should be the standard pattern for orchestrators that invoke long-running skills. Dynamic topology shows why orchestrators must communicate addresses, not assume static skill routing tables. The resource manager example is a direct template for skill scheduling.
 
-- **Debugging and Monitoring**: The actor event diagram (life-lines with causal activation arrows) is a debugging tool directly applicable to WinDAGs. Every agent interaction should be loggable as a transition event: (tag, target, communication). The subsequent transition relation is the formal basis for liveness monitoring — checking that every dispatched task eventually completes.
+- **Debugging and Monitoring**: The actor event diagram (life-lines with causal activation arrows) is a debugging tool directly applicable to Jury-rig. Every agent interaction should be loggable as a transition event: (tag, target, communication). The subsequent transition relation is the formal basis for liveness monitoring — checking that every dispatched task eventually completes.
 
 - **Security Auditing**: The capability-based access model (you can communicate with an agent only if you know its address) is the actor model's security model. Auditing should verify that addresses are distributed only to authorized agents. The external actor pattern shows how to implement audit logging: buffer all external communications through an audit actor before forwarding.
 
@@ -1455,10 +1455,10 @@ Actor-level decomposition is beneficial when the work per actor is significantly
 
 ## CROSS-DOMAIN CONNECTIONS
 
-- **Agent Orchestration**: WinDAGs' orchestration layer is an actor system. Every design decision — how tasks are dispatched, how results are routed, how agents coordinate — should be evaluated against the actor model's primitives. The key insight: orchestration should not be a central controller that "understands everything" but a community of agents that coordinate through message-passing, each understanding only its local context.
+- **Agent Orchestration**: Jury-rig' orchestration layer is an actor system. Every design decision — how tasks are dispatched, how results are routed, how agents coordinate — should be evaluated against the actor model's primitives. The key insight: orchestration should not be a central controller that "understands everything" but a community of agents that coordinate through message-passing, each understanding only its local context.
 
 - **Task Decomposition**: The actor model provides formal criteria for correct decomposition: (1) each subtask should be processable by a single actor that sends messages, creates actors, and specifies a replacement; (2) dependencies between subtasks should be explicit message-passing, not shared state; (3) decomposition should enable maximum concurrency consistent with genuine data dependencies. The customer pattern is the mechanism for decomposing sequential dependencies.
 
-- **Failure Prevention**: The three failure modes of concurrent systems — divergence, deadlock, mutual exclusion violations — all have precise actor-model solutions. Divergence is contained by the replacement requirement; deadlock is detectable because all actors remain responsive; mutual exclusion is the default (actors process one message at a time). WinDAGs failure prevention should be designed around these formal properties, not ad hoc timeouts and retries.
+- **Failure Prevention**: The three failure modes of concurrent systems — divergence, deadlock, mutual exclusion violations — all have precise actor-model solutions. Divergence is contained by the replacement requirement; deadlock is detectable because all actors remain responsive; mutual exclusion is the default (actors process one message at a time). Jury-rig failure prevention should be designed around these formal properties, not ad hoc timeouts and retries.
 
 - **Expert Decision-Making**: Agha's observation about natural parallel systems — "the brain of animals, ecological communities, social organizations... are all examples of distributed systems that exploit concurrency" (p. 4) — suggests that expert coordination looks like actor-model coordination: local agents with local knowledge, coordinating through messages, with no central authority. This implies that replicating expert decision-making in agent systems should favor distributed, message-passing architectures over centralized planners.

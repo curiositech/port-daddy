@@ -13,6 +13,8 @@ Two artifacts, three checkers (Z3, TLC, Apalache), one closed-form threshold.
 | ------------------------------- | ------------------------------------------------------ | ------------------------------------------- |
 | `claim_signaling.tla`           | TLA+ model of the repeated game + graduated trigger    | `tlc -config claim_signaling.cfg claim_signaling.tla` (or Apalache, see below) |
 | `claim_signaling.cfg`           | TLC / Apalache config; defaults to δ = 0.35, Horizon=4 | (consumed by the model checker)             |
+| `claim_signaling_delta30.cfg`   | **Negative control**: δ = 0.30 (below threshold); TLC MUST violate `NoUnilateralDeviationPositive` | `tlc -config claim_signaling_delta30.cfg claim_signaling.tla` |
+| `claim_signaling_delta30.run.log` | Committed counterexample trace (6 states) from the δ = 0.30 run | (reference; CI greps it for the violation string and the trace-state count) |
 | `sweep-delta.sh`                | Sweeps δ ∈ {0.30, …, 0.40}; reports crossover          | `./sweep-delta.sh`                          |
 | `delta-threshold.z3`            | SMT-LIB script: the IC cubic + uniqueness in (0, 1)    | `z3 delta-threshold.z3`                     |
 | `delta-threshold.expected.txt`  | Expected Z3 output (3 `(check-sat)` results)           | (reference; CI greps it)                    |
@@ -204,6 +206,25 @@ closed-form root (delta-threshold.z3)            = 0.3425
 PASS: crossover matches closed-form within integer-grid rounding.
 ```
 
+### Negative control
+
+`sweep-delta.sh` re-derives "VIOLATED at δ = 0.30" on every run, but it
+doesn't commit a trace. `claim_signaling_delta30.cfg` and its companion
+`claim_signaling_delta30.run.log` do: the `.cfg` pins δ = 30/100 = 0.30
+(below δ\* ≈ 0.3425), and the `.run.log` is the committed TLC
+counterexample -- `Invariant NoUnilateralDeviationPositive is violated.`,
+a 6-state trace ending with the deviator's actual score (441700000)
+strictly ahead of its follow score (425100000) at round = Horizon. CI's
+`tla-claim-signaling` job re-runs this cfg on every PR
+("Negative control: delta 0.30 must violate") and fails the build if
+either the violation stops reproducing or the printed trace's state
+count drifts from the committed log's. This is the same
+run-and-assert-it-still-fails pattern as
+`proofs/relay/CardRevocation_rollback.cfg` and
+`proofs/relay/WebhookDelivery_vuln.cfg`, and it is the artifact the
+whitepaper's `ex:bonded-tla-two-deltas` solution now cites by name
+instead of describing the counterexample only in prose.
+
 ## CI
 
 `.github/workflows/proofs.yml` runs five jobs on every PR touching
@@ -212,8 +233,10 @@ PASS: crossover matches closed-form within integer-grid rounding.
 - **z3-delta-threshold** — installs Z3 via `apt-get`, runs
   `z3 delta-threshold.z3`, greps for the expected `sat … sat … unsat` triple.
 - **tla-claim-signaling** — sets up JDK 17, downloads
-  `tla2tools.jar v1.8.0`, runs TLC on `claim_signaling.{tla,cfg}` and
-  then the sweep script.
+  `tla2tools.jar v1.8.0`, runs TLC on `claim_signaling.{tla,cfg}`, then
+  the δ = 0.30 negative control (asserts violation + matching
+  trace-state count against `claim_signaling_delta30.run.log`), then
+  the sweep script.
 - **tla-claim-signaling-apalache** — sets up JDK 17, downloads Apalache
   v0.57.0 (~130 MB) and runs the same model under SMT. Greps for
   `The outcome is: NoError`.

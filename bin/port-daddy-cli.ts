@@ -86,7 +86,7 @@ import {
   handleAttention, ATTENTION_HELP,
   // Nudge (suggestibility layer — claim-overlap heads-up, ADR-0039)
   handleNudge,
-  // Tutorial
+  // Agent orientation
   handleLearn,
   // File claims
   handleWhoOwns,
@@ -112,7 +112,7 @@ import {
   handleGraph, handleIdeas,
   // Shared local embedder (ADR-0061)
   handleEmbed,
-  handleSkillGraft,
+  handleJuryRig,
   handleRoadmap,
   // Durable commitments (ADR-0041)
   handleCommit, handleObligations,
@@ -189,10 +189,6 @@ import {
 } from '../cli/utils/remote-daemon.js';
 import { maybeNudgeStaleness } from '../cli/utils/staleness-nudge.js';
 import { readCurrentContext } from '../cli/utils/current-context.js';
-import {
-  attachCliSessionWorktreePolicy,
-  resolveCliSessionWorktreePolicy,
-} from '../cli/utils/session-worktree-policy.js';
 import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../cli/utils/destructive-confirm.js';
 import { resolveTier, tierBadge, TIER_LEGEND, type Tier } from '../cli/permission-tiers.js';
 
@@ -214,11 +210,10 @@ const TIER_1_COMMANDS: Set<string> = new Set([
   'claim', 'c',
   'release', 'r',
   'find', 'f', 'list', 'l', 'ps',
-  'lock', 'unlock', 'locks',
+  'locks',
   'status', 'version',
   'ports',               // 'ports cleanup' is Tier 1
-  'session', 'sessions', 'takeover',
-  'note', 'notes',
+  'sessions', 'notes',
 ]);
 
 const TIER_2_COMMANDS: Set<string> = new Set([
@@ -229,7 +224,11 @@ const TIER_2_COMMANDS: Set<string> = new Set([
   'advise', 'preflight', 'compass', 'guard',
   'metrics', 'health', 'dashboard',
   'bench', 'benchmark', 'demo', 'tuple', 'sortie', 'roadmap',
-  'secret', 'secrets', 'skill-graft', 'plan'
+  'secret', 'secrets', 'jury-rig', 'plan',
+  // Session and note writes require the daemon's credential verifier and
+  // exact-owner policy. Direct SQLite is a read-only recovery surface for
+  // this state; it must never become a second identity authority.
+  'session', 'takeover', 'note', 'lock', 'unlock'
 ]);
 
 /**
@@ -360,7 +359,7 @@ function printLaunchHints(hints: {
       '',
       '  pd init          Full project onboarding (scan, fleet, MCP, git hook)',
       '  pd scan          Detect all services in this project',
-      '  pd learn         Interactive tutorial (5 min)',
+      '  pd learn         Operationally read-only agent orientation',
       '  pd mcp install   Add to your AI agent\'s MCP config',
     ].join('\n');
     ui.note(body, 'New project detected');
@@ -676,8 +675,8 @@ export const HELP_TOPIC_ALIASES: Record<string, string> = {
   memory: 'semantic', graph: 'semantic',
   advise: 'advisor', preflight: 'advisor', compass: 'advisor',
   secrets: 'secret',
-  learn: 'tutorial',
-  skillgraft: 'skill-graft',
+  tutorial: 'learn',
+  'jury-rig': 'jury-rig',
 };
 
 /** Precise per-verb help whose source lives beside the flags it documents. */
@@ -759,15 +758,15 @@ function buildHelp(): string {
     `  ${G}pd memory tiers${Z}          ${tag('silent')} Core/Recall/Archival mapping with live counts`,
     `  ${G}pd ideas search${Z} "text"   ${tag('silent')} Search ideas, notes, tuples, and repo markdown`,
     `  ${G}pd roadmap${Z}               ${tag('silent')} Show Cartographer's current roadmap projection`,
-    `  ${G}pd skill-graft${Z} "task"     ${tag('silent')} Preview native skill guidance for fleet ships`,
+    `  ${G}pd jury-rig${Z} "task"        ${tag('silent')} Discover and safely load native skill guidance`,
     `  ${G}pd secret list${Z}           ${tag('silent')} Manage keychain-backed provider credentials`,
     `  ${G}pd daemon list${Z}           ${tag('silent')} Inspect named sidecar daemon profiles`,
     '',
     `${A}Permission tiers:${Z}`,
     TIER_LEGEND,
     '',
-    `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, actors, ports, messaging, dns, orchestration, sugar, semantic, advisor, guard, ideas, roadmap, skill-graft, secret, daemon, tutorial${Z}`,
-    `${D}Dashboard: ${PORT_DADDY_URL}  •  Tutorial: pd learn${Z}`,
+    `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, actors, ports, messaging, dns, orchestration, sugar, semantic, advisor, guard, ideas, roadmap, jury-rig, secret, daemon, learn${Z}`,
+    `${D}Dashboard: ${PORT_DADDY_URL}  •  Agent orientation: pd learn (operationally read-only)${Z}`,
   );
 
   return lines.join('\n');
@@ -831,6 +830,9 @@ Commands:
   session abandon [note]     End active session (abandoned)
   session takeover <id> [note]  Create successor; preserve predecessor notes
   takeover <id> [note]       Alias for "session takeover"
+  session find [--key K | --identity ID]
+                             Recover "my session" after a lost begin response
+                             or crash (restores context + credential by key)
   session rm <id>            Archive a session; preserve notes
   session files add <paths>  Claim files in active session
   session files rm <paths>   Release files from active session
@@ -1144,6 +1146,8 @@ Commands:
                            Writes context to .portdaddy/current.json
     --lifecycle <mode>     Required: durable for work contexts, ephemeral for heartbeat-bound process sessions
     --allow-main-worktree  Explicitly allow an integration session in the main worktree
+    --idempotency-key <k>  Reuse one key across retries of the SAME begin (default: fresh UUID);
+                           a re-send after a lost response replays the original session
 
   done "summary"           End session + unregister agent atomically
                            Cleans up .portdaddy/current.json
@@ -1380,34 +1384,38 @@ Examples:
   pd roadmap chomp PLAN.md --emit-pr-plan /tmp/chomp-pr
   pd roadmap ack 5a8e37de --as cartographer --into coordination-guard`,
 
-  'skill-graft': `Skill Graft — Native local skill guidance for fleet ships
+  'jury-rig': `Jury-rig — Native skill discovery and guarded skill loading
 
 Commands:
-  skill-graft "<task>"           Shorthand for query
-  skill-graft query "<task>"     Rank local skills and render bounded guidance
+  jury-rig "<task>"              Shorthand for query
+  jury-rig query "<task>"        Rank local skills and render bounded guidance
     --root <path>                Project root to scan (default: cwd)
     --shortlist-limit <n>        Number of cheap matches to show
     --top-limit <n>              Number of full SKILL.md bodies to include
     --body-chars <n>             Hard cap per inlined SKILL.md body
     --json                       Emit the structured SkillGraftResult
 
-  skill-graft warm               Reconcile a checkpointed Tool2Vec batch
+  jury-rig warm                  Reconcile a checkpointed Tool2Vec batch
     --max-skills <n>             Bound this run (default: 32)
     --all                        Reconcile every current-hash miss
     --local-only                 Permit only loopback Ollama; reject cloud/remote hosts
-  skill-graft reference <id> <path>
+  jury-rig reference <id> <path>
                                  Read one file from inside a skill directory
 
 This is the same lib/skill-graft.ts index used by lib/fleet-engine.ts when a
-pd-fleet.yml ship opts into skill_graft: true. Query is safe on a cold cache:
+pd-fleet.yml ship opts into jury_rig: true. Query is safe on a cold cache:
 it scans the full user catalog and ranks via BM25 until Tool2Vec centroids are
 warmed. Setup and daemon callers are local-only. A manual warm may use an
 explicit PD_SKILL_GRAFT_BACKEND; the fleet default is never inherited.
 
+The catalog is assembled from Port Daddy, user agent/Claude skill directories,
+and explicit PORT_DADDY_SKILL_SOURCE_ROOTS. It does not require Jury-rig or any
+other external skill runtime. Reference reads reject traversal and symlink escape.
+
 Examples:
-  pd skill-graft "write tests for a flaky fleet trigger"
-  pd skill-graft warm --local-only --json
-  pd skill-graft reference rag-retrieval-pattern-design scripts/audit.mjs`,
+  pd jury-rig "write tests for a flaky fleet trigger"
+  pd jury-rig warm --local-only --json
+  pd jury-rig reference rag-retrieval-pattern-design scripts/audit.mjs`,
 
   secret: `Managed Secrets \u2014 keychain-backed provider credentials
 
@@ -1454,21 +1462,39 @@ Examples:
   eval "$(pd daemon env dev)"
   pd daemon stop dev`,
 
-  tutorial: `Interactive Tutorial \u2014 Learn Port Daddy step by step
+  learn: `Agent Orientation \u2014 Operationally read-only coordination, retrieval, and evidence guide
 
 Commands:
-  learn                    Start the interactive tutorial
+  learn                    Render the agent orientation
+  tutorial                 Alias of learn
 
-The tutorial walks you through:
-  1. Claiming and releasing ports
-  2. Using semantic identities
-  3. Starting sessions and leaving notes
-  4. Multi-agent coordination with locks
-  5. Service orchestration with up/down
-  6. Agent resurrection and salvage
+The orientation explains:
+  1. FleetBar and the selected daemon dashboard for people; CLI, SDK, and MCP for agents
+  2. Attention, status, sitrep, briefing, and salvage before work begins
+  3. Attributable sessions with a roadmap or an explicit sidequest
+  4. Plans, notes, exact claims, Guard, validation, and finish receipts
+  5. Search and retrieval as distinct from ingestion, indexing, or model training
+
+Safety contract:
+  The handler makes no headless daemon request. Interactive terminals may make one
+  bounded GET /health request (750 ms, no reconnect retry).
+  The handler creates no work resources or files and does not rebuild an index.
+  The CLI envelope makes exactly one append-only usage-telemetry attempt.
 
 Run: pd learn`,
 };
+
+/**
+ * Resolve a canonical help topic or one of its command aliases. The design
+ * keeps `pd help <topic>` consistent with `pd <verb> --help` without treating
+ * arbitrary verbs as topics.
+ *
+ * @param topic - User-supplied topic or command alias.
+ * @returns The topic help text, or null when no documented topic exists.
+ */
+export function resolveTopicHelp(topic: string): string | null {
+  return TOPIC_HELP[topic] ?? TOPIC_HELP[HELP_TOPIC_ALIASES[topic]] ?? null;
+}
 
 /** The exact resolver used by `pd <verb> --help`; null means honest global help. */
 export function resolveVerbHelp(command: string): string | null {
@@ -1498,7 +1524,7 @@ export const ALL_COMMANDS: string[] = [
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'backup', 'restore', 'attest', 'shipwright',
   'spawn', 'spawned', 'watch', 'work', 'transcripts', 'transcript', 'relay',
-  'harbor', 'harbors', 'harbor-ledger', 'whois', 'demo', 'fleet', 'backend', 'squid', 'tuple', 'sortie', 'graph', 'embed', 'skill-graft', 'skillgraft', 'memory', 'ideas',
+  'harbor', 'harbors', 'harbor-ledger', 'whois', 'demo', 'fleet', 'backend', 'squid', 'tuple', 'sortie', 'graph', 'embed', 'jury-rig', 'memory', 'ideas',
   'quorum', 'parley',
   'feedback',
   'commit', 'obligations',
@@ -1771,113 +1797,6 @@ async function executeDirectMode(
       return true;
     }
 
-    case 'lock': {
-      const name = positional[0];
-      const lk = getDirectLocks();
-
-      // Handle 'lock extend'
-      if (name === 'extend') {
-        const extArgs = process.argv.slice(process.argv.indexOf('extend') + 1);
-        let extName: string | undefined;
-        let extTtl: string | undefined;
-        for (let i = 0; i < extArgs.length; i++) {
-          if (extArgs[i] === '--ttl' && extArgs[i + 1]) {
-            extTtl = extArgs[++i];
-          } else if (!extArgs[i].startsWith('-') && !extName) {
-            extName = extArgs[i];
-          }
-        }
-        if (!extName) {
-          console.error('Usage: port-daddy lock extend <name> [--ttl <ms>]');
-          process.exit(1);
-        }
-
-        const result = lk.extend(extName, {
-          ttl: extTtl ? parseInt(extTtl, 10) : 300000,
-          owner: options.owner as string | undefined,
-        });
-
-        if (!result.success) {
-          ui.error(result.error || 'Failed to extend lock');
-          process.exit(1);
-        }
-        if (options.json) {
-          console.log(JSON.stringify(result, null, 2));
-        } else if (!options.quiet) {
-          console.log(`Extended lock: ${extName}`);
-        }
-        return true;
-      }
-
-      if (!name) {
-        console.error('Usage: port-daddy lock <name> [--ttl <ms>] [--owner <id>]');
-        process.exit(1);
-      }
-
-      const result = lk.acquire(name, {
-        owner: options.owner as string | undefined,
-        ttl: options.ttl ? parseInt(options.ttl as string, 10) : 300000,
-        pid: process.pid,
-      });
-
-      if (!result.success) {
-        if (result.error === 'lock is held') {
-          console.error(`Lock '${name}' is held by ${result.holder}`);
-          if (result.heldSince) console.error(`  Held since: ${new Date(result.heldSince as number).toISOString()}`);
-          if (result.expiresAt) {
-            const remaining = Math.max(0, (result.expiresAt as number) - Date.now());
-            console.error(`  Expires in: ${Math.ceil(remaining / 1000)}s`);
-          }
-          process.exit(1);
-        }
-        ui.error(result.error || 'Failed to acquire lock');
-        process.exit(1);
-      }
-
-      if (options.json) {
-        console.log(JSON.stringify(result, null, 2));
-      } else if (options.quiet) {
-        // Silent success for scripting
-      } else {
-        ui.success(`Acquired lock: ${name}`);
-        if (result.expiresAt) {
-          const ttlSeconds = Math.ceil(((result.expiresAt as number) - (result.acquiredAt as number)) / 1000);
-          console.log(`  TTL: ${ttlSeconds}s`);
-        }
-      }
-      return true;
-    }
-
-    case 'unlock': {
-      const name = positional[0];
-      if (!name) {
-        console.error('Usage: port-daddy unlock <name> [--force]');
-        process.exit(1);
-      }
-
-      const lk = getDirectLocks();
-      const result = lk.release(name, {
-        owner: options.owner as string | undefined,
-        force: options.force === true,
-      });
-
-      if (!result.success) {
-        ui.error(result.error || 'Failed to release lock');
-        process.exit(1);
-      }
-
-      if (options.json) {
-        console.log(JSON.stringify(result, null, 2));
-      } else if (!options.quiet) {
-        if (result.released) {
-          ui.success(`Released lock: ${name}`);
-        } else {
-          ui.warn(`Lock '${name}' was not held`);
-        }
-      }
-      return true;
-    }
-
     case 'locks': {
       const lk = getDirectLocks();
       const result = lk.list();
@@ -1966,279 +1885,6 @@ async function executeDirectMode(
       return true;
     }
 
-    case 'session': {
-      const subcommand = positional[0];
-      const rest = positional.slice(1);
-      const sess = getDirectSessions();
-
-      if (!subcommand) {
-        console.error('Usage: port-daddy session <start|end|done|abandon|takeover|rm> [args]');
-        process.exit(1);
-      }
-
-      switch (subcommand) {
-        case 'start': {
-          const purpose = rest[0];
-          if (!purpose) {
-            console.error('Usage: port-daddy session start <purpose> --lifecycle durable|ephemeral [--agent AGENT_ID] [--force]');
-            process.exit(1);
-          }
-
-          const lifecycle = typeof options.lifecycle === 'string' ? options.lifecycle.trim().toLowerCase() : '';
-          if (lifecycle !== 'durable' && lifecycle !== 'ephemeral') {
-            console.error('Usage: port-daddy session start <purpose> --lifecycle durable|ephemeral [--agent AGENT_ID] [--force]');
-            process.exit(1);
-          }
-
-          const startOpts: Record<string, unknown> = {};
-          const current = readCurrentSession();
-          const agentId = typeof options.agent === 'string'
-            ? options.agent
-            : current?.agentId || `cli-${process.pid}`;
-          if (agentId) startOpts.agentId = agentId;
-          if (options.force) startOpts.force = true;
-          startOpts.durable = lifecycle === 'durable';
-
-          // Collect files: --files may appear as a single string (one occurrence)
-          // or an array (repeated --files flags). Positional tail also accepted.
-          const files: string[] = [];
-          if (typeof options.files === 'string') files.push(options.files);
-          else if (Array.isArray(options.files)) files.push(...(options.files as string[]));
-          for (let i = 1; i < rest.length; i++) {
-            if (!rest[i].startsWith('-')) files.push(rest[i]);
-          }
-          if (files.length > 0) startOpts.files = files;
-
-          const worktreePolicy = resolveCliSessionWorktreePolicy(options);
-          if (!worktreePolicy.success) {
-            ui.error(worktreePolicy.error || 'Session worktree policy failed');
-            if (worktreePolicy.hint) console.error(`  ${worktreePolicy.hint}`);
-            process.exit(1);
-          }
-          attachCliSessionWorktreePolicy(startOpts, worktreePolicy);
-          if (worktreePolicy.worktree) startOpts.worktreeId = worktreePolicy.worktree.id;
-
-          const result = sess.start(purpose, startOpts as Parameters<typeof sess.start>[1]);
-
-          if (!(result as Record<string, unknown>).success) {
-            console.error((result as Record<string, unknown>).error || 'Failed to start session');
-            process.exit(1);
-          }
-
-          // sessions.start() returns 'id' not 'sessionId'
-          const sessionId = (result as Record<string, unknown>).id;
-          if (options.json) {
-            console.log(JSON.stringify(result, null, 2));
-          } else if (options.quiet) {
-            console.log(sessionId);
-          } else {
-            ui.success(`Started session: ${sessionId}`);
-            console.log(`  Purpose: ${purpose}`);
-            if (files.length > 0) console.log(`  Files claimed: ${files.length}`);
-          }
-          break;
-        }
-
-        case 'end':
-        case 'done': {
-          const note = rest[0];
-          const status = (options.status as string) || 'completed';
-
-          // Find active session
-          const listResult = sess.list({ status: 'active', limit: 1 });
-          const sessionsList = (listResult as Record<string, unknown>).sessions as Array<{ id: string }>;
-          if (!sessionsList || sessionsList.length === 0) {
-            ui.error('No active session found');
-            process.exit(1);
-          }
-
-          const sessionId = sessionsList[0].id;
-          const endOpts: Record<string, unknown> = { status };
-          if (note) endOpts.note = note;
-
-          const result = sess.end(sessionId, endOpts as Parameters<typeof sess.end>[1]);
-
-          if (!result.success) {
-            ui.error(result.error || 'Failed to end session');
-            process.exit(1);
-          }
-
-          if (options.json) {
-            console.log(JSON.stringify({ success: true, id: sessionId, status }, null, 2));
-          } else if (!options.quiet) {
-            ui.success(`Ended session: ${sessionId}`);
-            console.log(`  Status: ${status}`);
-          }
-          break;
-        }
-
-        case 'abandon': {
-          const note = rest[0];
-
-          const listResult = sess.list({ status: 'active', limit: 1 });
-          const sessionsList = (listResult as Record<string, unknown>).sessions as Array<{ id: string }>;
-          if (!sessionsList || sessionsList.length === 0) {
-            ui.error('No active session found');
-            process.exit(1);
-          }
-
-          const sessionId = sessionsList[0].id;
-          const result = sess.abandon(sessionId);
-
-          if (!result.success) {
-            ui.error(result.error || 'Failed to abandon session');
-            process.exit(1);
-          }
-
-          if (options.json) {
-            console.log(JSON.stringify({ success: true, id: sessionId, status: 'abandoned' }, null, 2));
-          } else if (!options.quiet) {
-            ui.warn(`Abandoned session: ${sessionId}`);
-          }
-          break;
-        }
-
-        case 'takeover': {
-          const sessionId = rest[0];
-          if (!sessionId) {
-            console.error('Usage: port-daddy session takeover <id> [note]');
-            process.exit(1);
-          }
-
-          const current = readCurrentSession();
-          const agentId = typeof options.agent === 'string'
-            ? options.agent
-            : current?.agentId || `cli-${process.pid}`;
-          const takeoverOpts: Record<string, unknown> = {
-            agentId,
-            note: rest.slice(1).join(' ') || undefined,
-            purpose: typeof options.purpose === 'string' ? options.purpose : undefined,
-            claimFiles: !(options['no-files'] || options['no-claims']),
-          };
-
-          const lifecycle = typeof options.lifecycle === 'string' ? options.lifecycle.trim().toLowerCase() : '';
-          if (lifecycle) {
-            if (lifecycle !== 'durable' && lifecycle !== 'ephemeral') {
-              console.error('Usage: port-daddy session takeover <id> [note] --lifecycle durable|ephemeral');
-              process.exit(1);
-            }
-            takeoverOpts.durable = lifecycle === 'durable';
-          }
-
-          const worktreePolicy = resolveCliSessionWorktreePolicy(options);
-          if (!worktreePolicy.success) {
-            ui.error(worktreePolicy.error || 'Session worktree policy failed');
-            if (worktreePolicy.hint) console.error(`  ${worktreePolicy.hint}`);
-            process.exit(1);
-          }
-          attachCliSessionWorktreePolicy(takeoverOpts, worktreePolicy);
-          if (worktreePolicy.worktree) takeoverOpts.worktreeId = worktreePolicy.worktree.id;
-
-          const result = sess.takeover(sessionId, takeoverOpts as Parameters<typeof sess.takeover>[1]);
-          if (!result.success) {
-            ui.error(typeof result.error === 'string' ? result.error : 'Failed to take over session');
-            process.exit(1);
-          }
-
-          if (options.json) {
-            console.log(JSON.stringify(result, null, 2));
-          } else if (options.quiet) {
-            console.log(result.successorId);
-          } else {
-            ui.success(`Took over session: ${sessionId}`);
-            console.log(`  Successor: ${result.successorId}`);
-            console.log('  Notes preserved: yes');
-          }
-          break;
-        }
-
-        case 'rm': {
-          const sessionId = rest[0];
-          if (!sessionId) {
-            console.error('Usage: port-daddy session rm <id>');
-            process.exit(1);
-          }
-
-          const result = sess.remove(sessionId);
-          if (!result.success) {
-            console.error(result.error || 'Failed to archive session');
-            process.exit(1);
-          }
-
-          if (options.json) {
-            console.log(JSON.stringify(result, null, 2));
-          } else if (!options.quiet) {
-            console.log(`Archived session: ${sessionId}`);
-            console.log('  Notes preserved: yes');
-          }
-          break;
-        }
-
-        case 'files': {
-          const rawFilesCmd = rest[0];
-          const filesCmd = rawFilesCmd === 'claim'
-            ? 'add'
-            : rawFilesCmd === 'release'
-              ? 'rm'
-              : rawFilesCmd;
-          if (!filesCmd || !['add', 'rm'].includes(filesCmd)) {
-            console.error('Usage: port-daddy session files <add|rm> <paths...>');
-            console.error('       Compatibility aliases: claim -> add, release -> rm');
-            process.exit(1);
-          }
-
-          const paths = rest.slice(1);
-          if (paths.length === 0) {
-            console.error(`Usage: port-daddy session files ${filesCmd} <paths...>`);
-            process.exit(1);
-          }
-
-          const current = readCurrentSession();
-          const agentId = typeof options.agent === 'string'
-            ? options.agent
-            : current?.agentId || `cli-${process.pid}`;
-          const listResult = sess.list({ status: 'active', agentId, limit: 1 });
-          const sessionsList = (listResult as Record<string, unknown>).sessions as Array<{ id: string }>;
-          if (!sessionsList || sessionsList.length === 0) {
-            console.error('No active session found');
-            process.exit(1);
-          }
-
-          const sessionId = sessionsList[0].id;
-
-          if (filesCmd === 'add') {
-            const result = sess.claimFiles(sessionId, paths, { agentId });
-            if (!(result as Record<string, unknown>).success) {
-              console.error((result as Record<string, unknown>).error || 'Failed to claim files');
-              process.exit(1);
-            }
-            if (options.json) {
-              console.log(JSON.stringify(result, null, 2));
-            } else if (!options.quiet) {
-              console.log(`Claimed ${paths.length} file(s) in session ${sessionId}`);
-            }
-          } else {
-            const result = sess.releaseFiles(sessionId, paths, { agentId });
-            if (!(result as Record<string, unknown>).success) {
-              console.error((result as Record<string, unknown>).error || 'Failed to release files');
-              process.exit(1);
-            }
-            if (options.json) {
-              console.log(JSON.stringify(result, null, 2));
-            } else if (!options.quiet) {
-              console.log(`Released file(s) from session ${sessionId}`);
-            }
-          }
-          break;
-        }
-
-        default:
-          console.error(`Unknown session command: ${subcommand}`);
-          process.exit(1);
-      }
-      return true;
-    }
-
     case 'sessions': {
       const sess = getDirectSessions();
       const listOpts: Record<string, unknown> = {};
@@ -2298,65 +1944,6 @@ async function executeDirectMode(
       }
       console.log('');
       console.log(`Total: ${count} session(s)`);
-      return true;
-    }
-
-    case 'note': {
-      const content = positional[0];
-      if (!content) {
-        console.error('Usage: port-daddy note <content> [--type TYPE]');
-        process.exit(1);
-      }
-
-      const sess = getDirectSessions();
-      const context = readCurrentContext();
-      const noteOpts: Record<string, unknown> = {};
-      if (options.type) noteOpts.type = options.type;
-      const explicitSessionId = typeof options.session === 'string' ? options.session : undefined;
-      const explicitAgentId = typeof options.agent === 'string' ? options.agent : undefined;
-      let sessionId = explicitSessionId;
-      let agentId = explicitAgentId;
-
-      if (!sessionId && !explicitAgentId && context?.sessionId) {
-        const currentSession = sess.get(context.sessionId) as { success?: boolean };
-        if (currentSession?.success) {
-          sessionId = context.sessionId;
-          agentId = context.agentId;
-        }
-      }
-
-      if (!sessionId && !agentId && context?.agentId) {
-        const activeForAgent = sess.list({
-          status: 'active',
-          agentId: context.agentId,
-          allWorktrees: true,
-          limit: 1,
-        }) as { success?: boolean; sessions?: unknown[] };
-        if (activeForAgent?.success && Array.isArray(activeForAgent.sessions) && activeForAgent.sessions.length > 0) {
-          agentId = context.agentId;
-        }
-      }
-
-      if (sessionId) noteOpts.sessionId = sessionId;
-      if (agentId) noteOpts.agentId = agentId;
-
-      const result = sess.quickNote(content, noteOpts as Parameters<typeof sess.quickNote>[1]);
-      const data = result as Record<string, unknown>;
-
-      if (!data.success) {
-        console.error(data.error || 'Failed to create note');
-        process.exit(1);
-      }
-
-      if (options.quiet) {
-        console.log(data.noteId);
-      } else {
-        console.log(`Created note: ${data.noteId}`);
-        console.log(`  Session: ${data.sessionId}`);
-        if (data.sessionCreated) {
-          console.log(`  (New session auto-created)`);
-        }
-      }
       return true;
     }
 
@@ -2472,7 +2059,7 @@ export async function main(): Promise<void> {
       // First-run hint
       const portdaddyDir = join(process.cwd(), '.portdaddy');
       if (!existsSync(portdaddyDir)) {
-        ui.info('First time here? Run pd learn for an interactive tutorial.');
+        ui.info('First time here? Run pd learn for the operationally read-only agent orientation.');
       }
     }
 
@@ -2488,7 +2075,7 @@ export async function main(): Promise<void> {
       process.exit(0);
     }
 
-    const topicHelp = TOPIC_HELP[topic];
+    const topicHelp = resolveTopicHelp(topic);
     if (topicHelp) {
       console.log(topicHelp);
       process.exit(0);
@@ -3342,7 +2929,7 @@ export async function main(): Promise<void> {
         await handleWhois(positional, options);
         break;
 
-      // Tutorial
+      // Agent orientation
       case 'learn':
       case 'tutorial':
         await handleLearn();
@@ -3400,11 +2987,10 @@ export async function main(): Promise<void> {
         await handleEmbed(positional, options);
         break;
 
-      // Native local skill grafting for fleet ships: inspect/warm the same
-      // lib/skill-graft.ts index used by skill_graft: true in pd-fleet.yml.
-      case 'skill-graft':
-      case 'skillgraft':
-        await handleSkillGraft(positional, options);
+      // Native local skill discovery for fleet ships: inspect/warm the same
+      // lib/skill-graft.ts index used by jury_rig: true in pd-fleet.yml.
+      case 'jury-rig':
+        await handleJuryRig(positional, options);
         break;
 
       case 'memory':
@@ -3453,7 +3039,7 @@ export async function main(): Promise<void> {
           await handleClaim(command, options);
         } else {
           ui.error(`Unknown command: ${command}`);
-          ui.info('Run pd help for usage — or pd learn for a tutorial');
+          ui.info('Run pd help for usage — or pd learn for the operationally read-only agent orientation');
           process.exit(1);
         }
         break;

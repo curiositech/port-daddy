@@ -20,8 +20,9 @@
 #   scripts/build-whitepapers.sh            # build all papers
 #   scripts/build-whitepapers.sh federated-harbor-whitepaper   # build one (by root basename)
 #   scripts/build-whitepapers.sh --changed-since <git-ref>      # build papers whose imported TeX changed
+#   scripts/build-whitepapers.sh coordination-papers-mega-volume-maritime  # a switchable, unbuilt edition, on demand
 #
-# Requires: latexmk + pdflatex (TeX Live). No bibtex/biber — all papers embed
+# Requires: latexmk + pdflatex, plus xelatex for the Book (TeX Live). No bibtex/biber — all papers embed
 # \begin{thebibliography}.
 
 set -uo pipefail
@@ -61,10 +62,39 @@ PAPERS=(
   "$PUB|anchor-protocol-whitepaper.tex|$PUB/anchor-protocol-whitepaper.pdf"
   "$PUB|federated-harbor-whitepaper.tex|$PUB/federated-harbor-whitepaper.pdf"
   "$PUB|harbor-economy.tex|$PUB/harbor-economy-whitepaper.pdf"
+  "$PUB|sealed-harbor.tex|$PUB/sealed-harbor-whitepaper.pdf"
   "$PUB|spawn-to-person.tex|$PUB/spawn-to-person-whitepaper.pdf"
   "whitepaper|legible-swarm.tex|$PUB/legible-swarm-whitepaper.pdf"
   "whitepaper|single-writer-kernel.tex|$PUB/single-writer-kernel-whitepaper.pdf"
   "$PUB|coordination-papers-mega-volume.tex|$PUB/coordination-papers-mega-volume.pdf"
+)
+
+# Editions that are switchable but not built. The Book has one set of chapter
+# sources and three typographic characters; which one the canonical artifact
+# above renders is decided by \pdedition's default in
+# coordination-papers-mega-volume-preamble.tex, and that default is Swiss. So
+# coordination-papers-mega-volume.pdf IS the Swiss edition, every published
+# link keeps working, and the other two characters publish nothing: no site
+# link points at them and no entry in whitePapers.ts or
+# publication-digests.json describes them.
+#
+# Their driver roots stay in the tree and stay reachable by name --
+#
+#   scripts/build-whitepapers.sh coordination-papers-mega-volume-maritime
+#
+# -- which writes a PDF that is not committed and not registered. A full run,
+# --changed-since and --list-unchanged-since never touch these rows: they own
+# no published artifact to keep fresh.
+#
+# This is also why the `case "$roottex"` statements below still enumerate every
+# edition root by name rather than only the canonical one. Recognising a root
+# is what makes a manual build of it correct (right dependency set, right
+# generator handling, right engine); it is independent of whether the default
+# build list contains it.
+UNBUILT_EDITIONS=(
+  "$PUB|coordination-papers-mega-volume-maritime.tex|$PUB/coordination-papers-mega-volume-maritime.pdf"
+  "$PUB|coordination-papers-mega-volume-swiss.tex|$PUB/coordination-papers-mega-volume-swiss.pdf"
+  "$PUB|coordination-papers-mega-volume-technical.tex|$PUB/coordination-papers-mega-volume-technical.pdf"
 )
 
 CHANGED_SINCE=""
@@ -92,26 +122,43 @@ BUILT=()
 # a dependency: changing fig-stp-* must not retimestamp every other PDF.
 paper_sources() {
   local srcdir="$1" roottex="$2"
-  if [ "$roottex" = "coordination-papers-mega-volume.tex" ]; then
-    printf '%s\n' "$srcdir/$roottex" "$srcdir/coordination-papers-mega-volume-preamble.tex" \
-      "$srcdir/coordination-papers-mega-volume-appendices.tex" \
-      "scripts/generate-mega-whitepaper.mjs" \
-      "$srcdir/art/collected-volume/collected-treatise-jacket.jpg" \
-      "$srcdir/art/collected-volume/collected-treatise-inside-jacket.jpg" \
-      "$srcdir/art/collected-volume/chapter-vii-federated-harbor.jpg" \
-      "$srcdir/art/collected-volume/coda-chapter-i-legible-swarm.png" \
-      "$srcdir/art/collected-volume/coda-chapter-ii-single-writer-kernel.png" \
-      "$srcdir/art/collected-volume/coda-chapter-iii-spawn-to-person.jpg" \
-      "$srcdir/art/collected-volume/coda-chapter-vi-bonded-commons.png"
-    paper_sources "whitepaper" "legible-swarm.tex"
-    paper_sources "whitepaper" "single-writer-kernel.tex"
-    paper_sources "$PUB" "spawn-to-person.tex"
-    paper_sources "$PUB" "harbor-economy.tex"
-    paper_sources "$PUB" "anchor-protocol-whitepaper.tex"
-    paper_sources "$PUB" "agent-transactions-whitepaper.tex"
-    paper_sources "$PUB" "federated-harbor-whitepaper.tex"
-    return
-  fi
+  case "$roottex" in
+    coordination-papers-mega-volume.tex|coordination-papers-mega-volume-maritime.tex|coordination-papers-mega-volume-swiss.tex|coordination-papers-mega-volume-technical.tex)
+      # Every edition driver is a two-line root (\def\pdedition{...} then
+      # \input of the main root) that shares every source the main root does,
+      # plus its own driver file. All three drivers stay listed here even
+      # though only the canonical root is in the default build list, so that a
+      # manual build of one still gets the right dependency set.
+      if [ "$roottex" != "coordination-papers-mega-volume.tex" ]; then
+        printf '%s\n' "$srcdir/$roottex"
+      fi
+      # whitepaper/textbook.json is the one source of chapter order, numbering,
+      # parts, and edition metadata; the generator renders the Book from it.
+      # The preamble \input's the Swiss plate macros, so they are a dependency
+      # of the Swiss render and, now that Swiss is the central edition, of the
+      # canonical artifact itself. Listing the file keeps a change to a plate
+      # path or a \PackageError message from leaving the published PDF behind
+      # its own source.
+      printf '%s\n' "$srcdir/coordination-papers-mega-volume.tex" "$srcdir/coordination-papers-mega-volume-preamble.tex" \
+        "$srcdir/coordination-papers-mega-volume-seams.tex" \
+        "$srcdir/coordination-papers-mega-volume-appendices.tex" \
+        "$srcdir/coordination-papers-mega-volume-swiss-plates.tex" \
+        "scripts/generate-mega-whitepaper.mjs" "whitepaper/textbook.json"
+      # Art plates (jacket, part and chapter openers) are Book inputs too.
+      if [ -d "$srcdir/plates" ]; then
+        find "$srcdir/plates" -type f | sort
+      fi
+      paper_sources "whitepaper" "single-writer-kernel.tex"
+      paper_sources "$PUB" "anchor-protocol-whitepaper.tex"
+      paper_sources "$PUB" "sealed-harbor.tex"
+      paper_sources "whitepaper" "legible-swarm.tex"
+      paper_sources "$PUB" "spawn-to-person.tex"
+      paper_sources "$PUB" "harbor-economy.tex"
+      paper_sources "$PUB" "agent-transactions-whitepaper.tex"
+      paper_sources "$PUB" "federated-harbor-whitepaper.tex"
+      return
+      ;;
+  esac
   local pending=("$roottex")
   local seen="|" rel full ref index=0
 
@@ -169,35 +216,59 @@ build_one() {
   local outdir="$BUILD_DIR/$base"
   mkdir -p "$outdir"
 
-  if [ "$roottex" = "coordination-papers-mega-volume.tex" ]; then
-    command -v node >/dev/null 2>&1 || {
-      echo "::error::Node.js is required to generate the collected-volume body and bibliography" >&2
-      return 1
-    }
-    node scripts/generate-mega-whitepaper.mjs "$outdir" || return 1
-  fi
+  case "$roottex" in
+    coordination-papers-mega-volume.tex|coordination-papers-mega-volume-maritime.tex|coordination-papers-mega-volume-swiss.tex|coordination-papers-mega-volume-technical.tex)
+      # Every edition root \pdgeneratedinput's from the SAME fixed path
+      # (.cache/whitepaper-build/coordination-papers-mega-volume/, hardcoded
+      # in the .tex, independent of which root is being built), so the
+      # generator only needs to run once. The main root always regenerates
+      # (it is the only edition in PAPERS and is the source of truth); the
+      # drivers reuse that output, regenerating themselves only as a
+      # self-heal when asked to build standalone (which, now that they are in
+      # UNBUILT_EDITIONS, is the only way they are ever built) without the
+      # main root having run first in this invocation. All of them stay named
+      # here for the same reason they stay named in paper_sources: a root the
+      # default build list skips must still build correctly by hand.
+      local shared_outdir="$BUILD_DIR/coordination-papers-mega-volume"
+      mkdir -p "$shared_outdir"
+      if [ "$roottex" = "coordination-papers-mega-volume.tex" ] || [ ! -f "$shared_outdir/mega-volume-body.tex" ]; then
+        command -v node >/dev/null 2>&1 || {
+          echo "::error::Node.js is required to generate the collected-volume body and bibliography" >&2
+          return 1
+        }
+        node scripts/generate-mega-whitepaper.mjs "$shared_outdir" || return 1
+      fi
+      ;;
+  esac
 
   local epoch; epoch="$(paper_epoch "$srcdir" "$roottex")"
   echo "::group::build $roottex  (SOURCE_DATE_EPOCH=$epoch)"
   (
     cd "$srcdir"
     export SOURCE_DATE_EPOCH="$epoch" FORCE_SOURCE_DATE=1
+    # The Book sets its monospace face through fontspec (a Unicode-engine
+    # package) and turns off XeTeX's glyph-metric line boxes, so it is
+    # compiled with xelatex; the standalone chapters stay on pdfTeX.
+    local engine=pdflatex latexmk_engine=-pdf
+    case "$roottex" in
+      coordination-papers-mega-volume*.tex) engine=xelatex; latexmk_engine=-xelatex ;;
+    esac
     if command -v latexmk >/dev/null 2>&1; then
-      latexmk -pdf -interaction=nonstopmode -halt-on-error -file-line-error \
+      latexmk "$latexmk_engine" -interaction=nonstopmode -halt-on-error -file-line-error \
               -outdir="$outdir" "$roottex"
     else
       # BasicTeX can ship pdfTeX without latexmk. These papers use inline
       # bibliographies, so bounded pdflatex passes are a complete fallback:
       # pass 1 writes labels/TOC, pass 2 resolves them, and two extra passes
       # cover the rare long-TOC case that still reports changed labels.
-      if ! command -v pdflatex >/dev/null 2>&1; then
-        echo "error: whitepaper build requires latexmk or pdflatex" >&2
+      if ! command -v "$engine" >/dev/null 2>&1; then
+        echo "error: whitepaper build requires latexmk or $engine" >&2
         exit 127
       fi
       local pass
       for pass in 1 2 3 4; do
-        echo "pdflatex fallback pass $pass/4"
-        pdflatex -interaction=nonstopmode -halt-on-error -file-line-error \
+        echo "$engine fallback pass $pass/4"
+        "$engine" -interaction=nonstopmode -halt-on-error -file-line-error \
                  -output-directory="$outdir" "$roottex" || exit $?
         if [ "$pass" -ge 2 ] && [ -f "$outdir/$base.log" ] \
           && ! grep -Eq 'Rerun to get cross-references right|Label\(s\) may have changed' "$outdir/$base.log"; then
@@ -223,7 +294,7 @@ build_one() {
 list_unchanged_since() {
   local ref="$1" row srcdir roottex dest
   for row in "${PAPERS[@]}"; do
-    IFS='|' read -r srcdir roottex dest <<< "$row"
+    IFS='|' read -r srcdir roottex dest < <(printf '%s\n' "$row")
     paper_changed_since "$ref" "$srcdir" "$roottex" || printf '%s\n' "$dest"
   done
 }
@@ -234,8 +305,14 @@ main() {
     list_unchanged_since "$LIST_UNCHANGED_SINCE"
     return 0
   fi
-  for row in "${PAPERS[@]}"; do
-    IFS='|' read -r srcdir roottex dest <<< "$row"
+  # A named filter can also reach an edition that is not in the default build
+  # list; a full run, --changed-since and --list-unchanged-since never do.
+  local rows=("${PAPERS[@]}")
+  if [ -n "$FILTER" ]; then
+    rows+=("${UNBUILT_EDITIONS[@]}")
+  fi
+  for row in "${rows[@]}"; do
+    IFS='|' read -r srcdir roottex dest < <(printf '%s\n' "$row")
     base="${roottex%.tex}"
     if [ -n "$FILTER" ] && [ "$FILTER" != "$base" ] && [ "$FILTER" != "${dest##*/}" ]; then
       continue

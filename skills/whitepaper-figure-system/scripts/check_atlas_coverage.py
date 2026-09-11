@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-r"""Fail when the seven whitepaper TeX sources and semantic atlas drift.
+r"""Fail when the eight whitepaper TeX sources and semantic atlas drift.
 
 The checker deliberately uses source labels rather than printed figure numbers. It follows
 \input and \include directives recursively, extracts every figure/figure* environment, and
@@ -43,7 +43,7 @@ REUSE_MEMBERS_CELL_RE = re.compile(
     r"`[IVX]+/(?:fig|alg):[^`]+`"
     r"(?:\s*,\s*`[IVX]+/(?:fig|alg):[^`]+`)*"
 )
-EXPECTED_VOLUMES = {"I", "II", "III", "IV", "V", "VI", "VII"}
+EXPECTED_VOLUMES = {"I", "II", "III", "IV", "V", "VI", "VII", "VIII"}
 ENVIRONMENT_RE = re.compile(r"\\begin\s*\{([^{}]+)\}")
 UNSUPPORTED_INCLUDE_RE = re.compile(
     r"\\(subfile|import|subimport|inputfrom|subinputfrom|includefrom|subincludefrom)"
@@ -52,10 +52,7 @@ UNSUPPORTED_INCLUDE_RE = re.compile(
 BUILD_PAPER_RE = re.compile(
     r'^\s*"(?P<src>[^"|]+)\|(?P<root>[^"|]+\.tex)\|[^\"]+"\s*$', re.MULTILINE
 )
-MEGA_PAPER_RE = re.compile(
-    r"\{\s*roman:\s*'(?P<roman>[IVX]+)'[^{}\n]*"
-    r"source:\s*'(?P<source>[^']+\.tex)'[^{}\n]*\}"
-)
+FORMER_NUMERAL_RE = re.compile(r"^[IVX]+$")
 
 
 @dataclass(frozen=True)
@@ -105,12 +102,30 @@ def strip_tex_comments(text: str) -> str:
     return "".join(cleaned)
 
 
-def resolve_include(parent: Path, raw_target: str) -> Path:
+def resolve_include(parent: Path, raw_target: str, document_root: Path | None = None) -> Path:
+    """Resolve an \\input target the way TeX does.
+
+    TeX has no per-file relative resolution: a relative \\input is looked up
+    from the directory the *document* is compiled in, not from the directory of
+    the file that issued it. So figures/pd-pedagogy.tex saying
+    \\input{figures/pd-cite-shortforms} is correct -- it is read from the
+    document root like every other path -- and resolving it against the
+    including file's own directory instead looks for figures/figures/... and
+    finds nothing.
+
+    Document root first, then the including file's directory, because a file
+    included from a sibling directory can still name its neighbour relatively
+    and both spellings appear in this corpus.
+    """
     target = Path(raw_target.strip())
     if not target.suffix:
         target = target.with_suffix(".tex")
     if target.is_absolute():
         return target.resolve()
+    if document_root is not None:
+        from_root = (document_root / target).resolve()
+        if from_root.is_file():
+            return from_root
     return (parent / target).resolve()
 
 
@@ -136,12 +151,18 @@ def walk_tex(root: Path) -> list[tuple[Path, str]]:
 
     visited: set[Path] = set()
     ordered: list[tuple[Path, str]] = []
+    document_root = root.resolve().parent
 
     def visit(path: Path) -> None:
         resolved = path.resolve()
         if resolved in visited:
             return
         if not resolved.is_file():
+            if "\\" in str(path):
+                # An \input whose path is built from a macro (the generated
+                # per-chapter solutions file, sol-\pdchapterprefix) resolves
+                # only at TeX time; it carries no figure environments.
+                return
             raise FileNotFoundError(f"included TeX source does not exist: {resolved}")
         visited.add(resolved)
         text = strip_tex_comments(resolved.read_text(encoding="utf-8"))
@@ -153,7 +174,7 @@ def walk_tex(root: Path) -> list[tuple[Path, str]]:
             )
         ordered.append((resolved, text))
         for match in INPUT_RE.finditer(text):
-            visit(resolve_include(resolved.parent, match.group(1)))
+            visit(resolve_include(resolved.parent, match.group(1), document_root))
 
     visit(root)
     return ordered
@@ -216,7 +237,7 @@ def extract_atlas_ids(atlas: Path) -> list[str]:
 
 
 def extract_atlas_volume_roots(atlas: Path) -> dict[str, str]:
-    """Read the seven canonical TeX roots from the human-facing atlas."""
+    """Read the eight canonical TeX roots from the human-facing atlas."""
 
     text = atlas.read_text(encoding="utf-8")
     matches = list(ATLAS_VOLUME_ROOT_RE.finditer(text))
@@ -227,12 +248,12 @@ def extract_atlas_volume_roots(atlas: Path) -> dict[str, str]:
     volumes = [match.group("roman") for match in matches]
     root_paths = [match.group("root") for match in matches]
     if (
-        len(matches) != 7
+        len(matches) != len(EXPECTED_VOLUMES)
         or set(volumes) != EXPECTED_VOLUMES
         or len(set(volumes)) != len(volumes)
         or len(set(root_paths)) != len(root_paths)
     ):
-        raise ValueError("atlas must declare exactly one canonical root per volume I--VII")
+        raise ValueError("atlas must declare exactly one canonical root per volume I--VIII")
     return roots
 
 
@@ -274,9 +295,46 @@ def extract_reuse_contracts(atlas: Path) -> list[ReuseContract]:
                 requirement=requirement,
             )
         )
-    if not contracts:
-        raise ValueError("atlas declares no cross-volume reuse contracts")
+    # No "at least one contract" assertion. That was true of the corpus when
+    # this was written -- five contracts existed -- but it is not an invariant:
+    # zero contracts is the correct state when no figure appears under two
+    # volume roots, which is where the atlas landed on 2026-09-08 once the
+    # Book stopped printing five drawings twice.
+    #
+    # The guarantee worth keeping is the converse, and it was never checked:
+    # a figure SHARED across volumes must have a contract saying what stays
+    # identical. That is uncovered_reuse() below, so an empty table now passes
+    # only while nothing is shared, and fails the moment something is.
     return contracts
+
+
+def uncovered_reuse(
+    atlas_ids: Iterable[str],
+    contracts: Iterable[ReuseContract],
+) -> list[str]:
+    """Figure ids under two or more volume roots with no contract covering them.
+
+    The direction that matters. A declared contract over figures nobody shares
+    is harmless; a shared figure with no contract is two drawings free to drift
+    apart while the atlas says nothing.
+    """
+    by_figure: dict[str, set[str]] = {}
+    for full in atlas_ids:
+        volume, _, figure = full.partition("/")
+        if not figure:
+            continue
+        by_figure.setdefault(figure, set()).add(volume)
+    covered = {
+        member.split("/", 1)[1]
+        for contract in contracts
+        for member in contract.members
+        if "/" in member
+    }
+    return sorted(
+        f"{figure}:shared-by-{','.join(sorted(volumes))}-without-a-contract"
+        for figure, volumes in by_figure.items()
+        if len(volumes) > 1 and figure not in covered
+    )
 
 
 def reuse_contract_issues(
@@ -330,7 +388,10 @@ def canonical_roots_from_build_script(repo_root: Path) -> set[str]:
     roots: set[str] = set()
     for match in BUILD_PAPER_RE.finditer(text):
         root = match.group("root")
-        if root == "coordination-papers-mega-volume.tex":
+        # The Book and its edition drivers (coordination-papers-mega-volume-<edition>.tex,
+        # two-line roots that set \pdedition and \input the Book) carry no figures of
+        # their own; the chapters they assemble are the canonical roots.
+        if root.startswith("coordination-papers-mega-volume"):
             continue
         source_dir = match.group("src")
         if source_dir == "$PUB":
@@ -339,14 +400,51 @@ def canonical_roots_from_build_script(repo_root: Path) -> set[str]:
     return roots
 
 
-def canonical_roots_from_mega_generator(repo_root: Path) -> dict[str, str]:
-    text = (repo_root / "scripts/generate-mega-whitepaper.mjs").read_text(
-        encoding="utf-8"
-    )
-    return {
-        match.group("roman"): match.group("source")
-        for match in MEGA_PAPER_RE.finditer(text)
-    }
+def canonical_roots_from_textbook(repo_root: Path) -> dict[str, str]:
+    """Read the eight chapter roots from the book's one source of chapter truth.
+
+    ``scripts/generate-mega-whitepaper.mjs`` no longer carries its own
+    roman-numeral-to-source table; it renders the Book straight from
+    ``whitepaper/textbook.json``. Atlas volume numerals map to textbook
+    chapters by ``formerNumeral`` (the pre-textbook volume numbering); the
+    Sealed Harbor chapter has no former numeral and is the fixed Volume VIII.
+    """
+
+    path = repo_root / "whitepaper/textbook.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    chapters = data.get("chapters")
+    if not isinstance(chapters, list) or not chapters:
+        raise ValueError(f"{path}: chapters must be a non-empty array")
+
+    roots: dict[str, str] = {}
+    sealed_harbor_source: str | None = None
+    for chapter in chapters:
+        chapter_id = chapter.get("id")
+        source = chapter.get("source")
+        if not isinstance(source, str) or not source:
+            raise ValueError(f"{path}: chapter {chapter_id!r} is missing a source")
+        if chapter_id == "sealed-harbor":
+            sealed_harbor_source = source
+        former = chapter.get("formerNumeral") or ""
+        if not former:
+            continue
+        if not FORMER_NUMERAL_RE.match(former):
+            raise ValueError(
+                f"{path}: chapter {chapter_id!r} has an invalid formerNumeral {former!r}"
+            )
+        if former in roots:
+            raise ValueError(f"{path}: duplicate formerNumeral {former!r}")
+        roots[former] = source
+
+    if sealed_harbor_source is None:
+        raise ValueError(f"{path}: missing the sealed-harbor chapter")
+    if "VIII" in roots:
+        raise ValueError(
+            f"{path}: unexpected formerNumeral VIII already assigned to "
+            f"{roots['VIII']!r}"
+        )
+    roots["VIII"] = sealed_harbor_source
+    return roots
 
 
 def canonical_root_drift(
@@ -362,10 +460,10 @@ def canonical_root_drift(
     if build_extra:
         failures.append(f"build-whitepapers:extra={','.join(build_extra)}")
 
-    mega_mapping = canonical_roots_from_mega_generator(repo_root)
-    for volume in sorted(set(expected_roots) | set(mega_mapping)):
+    textbook_mapping = canonical_roots_from_textbook(repo_root)
+    for volume in sorted(set(expected_roots) | set(textbook_mapping)):
         expected_source = expected_roots.get(volume)
-        observed_source = mega_mapping.get(volume)
+        observed_source = textbook_mapping.get(volume)
         if expected_source != observed_source:
             failures.append(
                 f"mega-generator:{volume}:expected={expected_source}:"
@@ -455,7 +553,8 @@ def main(argv: list[str] | None = None) -> int:
             atlas_ids,
             atlas_row_issues=incomplete_atlas_rows(atlas_rows),
             root_drift=canonical_root_drift(repo_root, canonical_roots),
-            reuse_issues=reuse_contract_issues(contracts, atlas_ids, source_ids),
+            reuse_issues=reuse_contract_issues(contracts, atlas_ids, source_ids)
+            + uncovered_reuse(atlas_ids, contracts),
         )
     except (FileNotFoundError, OSError, ValueError) as error:
         if args.as_json:

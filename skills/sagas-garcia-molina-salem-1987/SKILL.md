@@ -32,7 +32,7 @@ activation_triggers:
   - designing state management between workflow steps
   - building orchestration layers on top of stateless infrastructure (LLMs, APIs)
   - diagnosing deadlocks, resource starvation, or reliability failures in workflows
-  - WinDAGs, saga executors, or durable execution systems
+  - Jury-rig, saga executors, or durable execution systems
 ---
 ```
 
@@ -106,7 +106,7 @@ The paper demonstrates — via the "saga daemon" pattern — that saga semantics
 3. **Subroutine wrappers** that make each step and its compensation a callable unit
 4. **A recovery procedure** that reads the log and drives execution to a terminal state
 
-**Agent translation**: WinDAGs, LangGraph, and similar orchestration layers *are* saga daemons. You don't need the LLM to understand workflow recovery — you need the *orchestration layer* to maintain the log and drive recovery. This is why orchestration is not optional for reliable agent systems.
+**Agent translation**: Jury-rig, LangGraph, and similar orchestration layers *are* saga daemons. You don't need the LLM to understand workflow recovery — you need the *orchestration layer* to maintain the log and drive recovery. This is why orchestration is not optional for reliable agent systems.
 
 ---
 
@@ -213,7 +213,7 @@ The paper's key quantitative claim — that deadlock frequency grows with the fo
 **They design state stores before they design workflow steps.**
 The "funds in transit" insight — that intermediate state must live in the database, not in application memory — changes how you think about system design. Someone who's absorbed this designs the state schema *before* they design the orchestration logic.
 
-**They see WinDAGs / LangGraph / Temporal as saga daemons.**
+**They see Jury-rig / LangGraph / Temporal as saga daemons.**
 The specific connection between the paper's "saga daemon" pattern and modern orchestration frameworks is the key cross-domain insight. Someone who's internalized the paper recognizes that these systems are solving the exact problem García-Molina and Salem solved in 1987 — and can reason about what guarantees those systems should and shouldn't provide.
 
 **They push back on "can't we just make it one big transaction?"**

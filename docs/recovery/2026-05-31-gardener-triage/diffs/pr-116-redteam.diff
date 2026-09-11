@@ -15,7 +15,7 @@ feat(landscape): multi-agent comparison page positioning PD as coordination laye
 
 New /landscape page with three screens:
 - Comparison table (Port Daddy, Cursor 2.0, Claude Code Task, ccswarm,
-  WinDAGs) with a "Composes with PD?" column and the "none of these are
+  Jury-rig) with a "Composes with PD?" column and the "none of these are
   competitors" honest-framing footnote.
 - Four-layer architecture diagram (Isolation / Communication / Coordination
   / Integration) rendered as an inline themable layer stack; PD lives at
@@ -107,7 +107,7 @@ index 00000000..75428bd0
 +    expect(tableContent).toContain('Cursor 2.0')
 +    expect(tableContent).toContain('Claude Code Task')
 +    expect(tableContent).toContain('ccswarm')
-+    expect(tableContent).toContain('WinDAGs')
++    expect(tableContent).toContain('Jury-rig')
 +    expect(tableContent).toMatch(/Composes with PD\?/i)
 +    // Honest-comparison footnote
 +    expect(tableContent).toMatch(/None of these are competitors/i)
@@ -225,7 +225,7 @@ index 00000000..1523aa5d
 +    composesWithPd: 'Yes — PD sits beside the coordinator',
 +  },
 +  {
-+    tool: 'WinDAGs',
++    tool: 'Jury-rig',
 +    isolation: 'ProcessExecutor / WorktreeExecutor',
 +    coordination: 'Wave-based (parallel inside wave, serial across)',
 +    agents: 'Per wave',
@@ -274,7 +274,7 @@ index 00000000..1523aa5d
 +    id: '01',
 +    label: 'Isolation',
 +    role: 'Where each agent does its work without stomping the others.',
-+    occupants: 'Git worktrees. Container sandboxes. Docker. Cursor backgrounds. WinDAGs executors.',
++    occupants: 'Git worktrees. Container sandboxes. Docker. Cursor backgrounds. Jury-rig executors.',
 +    tone: 'paper',
 +    icon: Workflow,
 +  },

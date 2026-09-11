@@ -31,6 +31,10 @@ from docs or pages:
 - Touched-file actions resolve against the project/workdir, not a bare relative
   path.
 - FleetBar and console agree on daemon provenance.
+- When FleetBar trails the daemon, its update card stays inside FleetBar,
+  installs the daemon's exact version-pinned signed release, shows progress or
+  a durable failure, preserves the previous app, and relaunches itself. A link
+  to a generic website or a terminal remediation is not an operator surface.
 
 ## Failure Smells
 
@@ -40,3 +44,5 @@ from docs or pages:
   lens.
 - Screenshots prove only a loading state.
 - A popover clips diagnostic text that the operator needs to act on.
+- An out-of-date card opens a download page, or `pd setup` compiles whatever
+  checkout happens to be present instead of installing the exact signed release.

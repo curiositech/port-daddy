@@ -40,9 +40,9 @@ Disadvantages:
 - Does not scale to truly autonomous, distributed agents
 - The "knowledge" computed may not match what a physically separate agent could actually know
 
-## The WinDAGs Analogue
+## The Jury-rig Analogue
 
-This tension appears in every multi-agent orchestration system. Consider a WinDAGs deployment:
+This tension appears in every multi-agent orchestration system. Consider a Jury-rig deployment:
 
 **Centralized (orchestrator-knows-all):**
 The orchestrator tracks every agent's state, every task's progress, every output's location. Agents report to the orchestrator; the orchestrator computes what each agent knows and routes accordingly. This is easy to build and reason about, but the orchestrator becomes a bottleneck and a single point of failure.
@@ -60,7 +60,7 @@ The paper makes a subtle but important point about true distributed architecture
 
 This is what real distributed epistemic computation would look like: agent a1 observes agent a2, and from that observation, *infers* a2's internal state (its orientation). This inference is based on perceptual data, not on privileged access to a2's internal registers.
 
-In WinDAGs terms: a truly distributed agent should be able to infer another agent's state from observable outputs and behaviors, without direct access to that agent's internal state. This is harder but more robust — and it reflects the actual epistemic situation of autonomous agents that don't share memory.
+In Jury-rig terms: a truly distributed agent should be able to infer another agent's state from observable outputs and behaviors, without direct access to that agent's internal state. This is harder but more robust — and it reflects the actual epistemic situation of autonomous agents that don't share memory.
 
 The inference gap matters for agent design:
 - What can agent A observe about agent B's behavior?
@@ -105,7 +105,7 @@ The paper ends by noting that handling *mobile agents* — agents whose position
 
 Mobile agents introduce temporal dynamics into the epistemic model. As agents move, their vision sets change, the worlds they can distinguish change, and their knowledge states evolve. This requires temporal epistemic logic — reasoning about what agents know at what times, and how knowledge evolves as agents act and move.
 
-For WinDAGs: agents are in a sense "mobile" — their information access changes as tasks are assigned and completed, as they receive new inputs, as they invoke sub-skills. The temporal dynamics of knowledge are just as important as the spatial dynamics in the camera system. Building systems that track how agent knowledge evolves over time, and that can reason about what agents will know after future events, is an open but important research direction.
+For Jury-rig: agents are in a sense "mobile" — their information access changes as tasks are assigned and completed, as they receive new inputs, as they invoke sub-skills. The temporal dynamics of knowledge are just as important as the spatial dynamics in the camera system. Building systems that track how agent knowledge evolves over time, and that can reason about what agents will know after future events, is an open but important research direction.
 
 ## The Lesson: Be Honest About Your Epistemic Architecture
 

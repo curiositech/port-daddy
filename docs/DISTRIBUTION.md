@@ -28,7 +28,7 @@ cloud-deployed, or documentation.
 | Pilot agent | `agents/port-daddy-pilot` — rendered by `pd setup` per runtime | Same tarball from **3.28.0** | **Yes (3.28+)** |
 | MCP server | `mcp/server.ts`, compiled into the binaries; wired by `pd mcp install` | Inside the daemon/CLI binaries | **Yes** (wiring is a post-install `pd mcp install`) |
 | SDK (`port-daddy/client`) | Zero-dep JS client (`lib/client.ts`, docs/sdk.md) | **npm — RETIRED 2026-07-04 and ~8 releases stale.** docs/sdk.md still says `npm install port-daddy` | No — and its documented channel is dead (see Gaps) |
-| FleetBar | macOS menu-bar GUI | Signed .zip on each GitHub Release (`PortDaddy-FleetBar-macOS-*.zip`); `latest.json` feed for updates | **No** — manual download |
+| FleetBar | macOS menu-bar GUI | Exact signed/notarized `.zip` on each GitHub Release (`PortDaddy-FleetBar-macOS-*.zip`); installed by `pd setup` and by FleetBar's version-skew update card | **Not in the formula archive** — `pd setup` installs the matching release |
 | pd-console | GPUI console .app | Signed .zip on each GitHub Release | **No** — manual download |
 | Relay / storefront | portdaddy.dev cloud relay (accounts, run pages) | Cloudflare Workers deploy (`deploy-relay*.yml`) | No (cloud service) |
 | Fleet executor | Cloud fleet runner | Cloudflare deploy (`deploy-fleet-executor.yml`) | No (cloud service) |
@@ -80,9 +80,10 @@ Two invariants with teeth:
    docs/sdk.md around a brew-installed import path, or revive the npm publish
    with a working token inside release.yml. Don't leave the doc pointing at a
    stale package.
-3. **FleetBar/pd-console are not brew-installable.** A `brew install --cask
-   port-daddy-fleetbar` cask in the same tap is the obvious consolidation once
-   notarization works (casks of quarantined apps are a support nightmare).
+3. **FleetBar is installed after brew, not embedded in the formula archive.**
+   `pd setup` fetches the exact release tag matching its package version and
+   applies the same checksum, Developer-ID, notarization, backup, and relaunch
+   gates as FleetBar's in-app updater. `pd-console` remains a manual download.
 4. **The Chrome extension is pre-release by design** — absorption into
    pd-console is the plan of record; don't build a Web Store pipeline for it.
 5. **Operator machines still upgrade by hand** (`brew upgrade port-daddy &&

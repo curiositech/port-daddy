@@ -204,7 +204,7 @@ server.tool('mything_search', '...', schema, async (args) => {
 });
 ```
 
-Never block on telemetry. Wrap in a 1.5s AbortController. Default to anonymous. Document `WINDAGS_TELEMETRY=off` (or your equivalent) prominently.
+Never block on telemetry. Wrap in a 1.5s AbortController. Default to anonymous. Document `JURY_RIG_TELEMETRY=off` (or your equivalent) prominently.
 
 ### Distribution
 

@@ -1,6 +1,6 @@
 # L0 — Round-2 response to reviewers
 
-The graft returned ACID/lakehouse and distributed-transaction (Saga) skills. The Saga pattern (Garcia-Molina & Salem 1987) is directly load-bearing — both reviewers independently invoked it. The lakehouse skill reinforces the ACID-on-storage / time-travel framing for the durability-by-fault-class correction. Both critiques are deeply technical and substantially correct; I'll concede the blocking findings and rebut only where I genuinely can. I have everything I need to write the response.
+The graft returned ACID/lakehouse and distributed-transaction (Saga) skills. The Saga pattern (Garcia-Molina & Salem 1987) is directly essential — both reviewers independently invoked it. The lakehouse skill reinforces the ACID-on-storage / time-travel framing for the durability-by-fault-class correction. Both critiques are deeply technical and substantially correct; I'll concede the blocking findings and rebut only where I genuinely can. I have everything I need to write the response.
 
 ## Grafted skills (what you pulled + the one idea from each that changed your answer)
 
@@ -43,7 +43,7 @@ The graft returned ACID/lakehouse and distributed-transaction (Saga) skills. The
 **CONCEDE** (and this is raised independently by the security reviewer — see B5). Fix in lockstep with B5: re-scope I9 as **L3-provisioning** (tamper-evidence for future cross-machine sync or a non-same-user tamperer), explicitly *not* an L0-active defense under the current threat model. Stop implying it protects the local registry today.
 
 **A8 (expert-would-add). Missing consistency-model theorem (serializable / linearizable).**
-**CONCEDE — accept the addition.** Single-writer SQLite under WAL gives **serializable** transactions; because there is one decider, claims/locks exhibit **linearizable** external behavior. Fix: add this as an explicit theorem — it is the formal payoff of the single-writer choice and the thing that makes L1's typed ownership trustworthy. It was left implicit; make it load-bearing.
+**CONCEDE — accept the addition.** Single-writer SQLite under WAL gives **serializable** transactions; because there is one decider, claims/locks exhibit **linearizable** external behavior. Fix: add this as an explicit theorem — it is the formal payoff of the single-writer choice and the thing that makes L1's typed ownership trustworthy. It was left implicit; make it structural.
 
 **A9 (expert-would-add). No kernel-recovery / boot-integrity story; the dossier covers agent death exhaustively and kernel death barely.**
 **CONCEDE.** Fix: add a named invariant for **kernel-restart-with-dirty-WAL**: on boot, who replays the WAL (SQLite does, automatically), who runs `PRAGMA integrity_check`, who verifies the Merkle chain, and what happens to a half-applied cross-organ op (A3) after a crash. `pd attest`'s refuse-to-serve-on-CRITICAL is the hook; boot-time WAL recovery + integrity check + chain verification should be a stated invariant, not assumed.
@@ -91,7 +91,7 @@ The graft returned ACID/lakehouse and distributed-transaction (Saga) skills. The
 **B10 (expert-would-add). `isPortAvailable()` bind-test then claim-the-port is a classic TOCTOU against any other process; listed BUILT with no caveat.**
 **CONCEDE.** Fix: label the port-availability check as **TOCTOU-racy by nature** — the OS bind-test is advisory; another process can grab the port between check and claim. The authoritative resolution is the claim-row PK + the OS bind at *use* time, not the pre-check. Add the caveat to the `services.ts` row.
 
-## Revised layer position (load-bearing claims, now corrected)
+## Revised layer position (foundational claims, now corrected)
 
 1. **Durability is stated per fault class, anchored to the checkpoint horizon.** I1a (process-crash, BUILT) and I1b (power-loss, NOT GUARANTEED under `synchronous=NORMAL`). The kernel's foundational promise is "durable as of the last checkpoint," never unqualified. (was A1)
 

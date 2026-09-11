@@ -28,7 +28,7 @@ class PortDaddy < Formula
 
   def post_install
     # Refresh the cross-tool skill symlink union after every install/upgrade so
-    # Codex, Claude, Gemini, and editor runtimes follow the current Windags and
+    # Codex, Claude, Gemini, and editor runtimes follow the current Jury-rig and
     # workgroup skill sources without a manual copy step. Daemon, MCP, FleetBar,
     # and project init each have their own lifecycle and are skipped here.
     #

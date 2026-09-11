@@ -133,7 +133,7 @@ The worst consequence of Option B (baby dying/remaining unhealthy from lack of l
 
 ## Connection to Multi-Agent Orchestration
 
-For a DAG-based orchestration system like WinDAGs:
+For a DAG-based orchestration system like Jury-rig:
 
 **Skill composition conflicts**: When multiple skills could be invoked to solve a problem, but their preconditions/effects conflict:
 - Generate maximal compatible skill chains (paths through the DAG)
@@ -330,7 +330,7 @@ When an orchestrator decomposes a complex task into subtasks:
 
 **Skill Composition with Normative Constraints**:
 
-Skills in WinDAGs may have embedded norms:
+Skills in Jury-rig may have embedded norms:
 - Authentication skill requires: O(verify_identity) before allowing access
 - Data processing skill has: F(log_PII) to comply with privacy regulations
 - Code generation skill has: O(include_license_header) for legal compliance
@@ -435,7 +435,7 @@ This is weak consistency reasoning in action—the agent can satisfy the obligat
 
 ## Implementation Patterns
 
-**For WinDAGs orchestration**:
+**For Jury-rig orchestration**:
 
 ```python
 def adopt_norm(agent, new_norm):
@@ -674,7 +674,7 @@ The key is that norm recognition (step 3) happens *before* internalization (step
 
 **Distributed Norm Environments**:
 
-In a WinDAGs system with multiple coordinating agents:
+In a Jury-rig system with multiple coordinating agents:
 
 **Scenario**: Different agents operate under different regulatory frameworks
 - Agent A (medical domain): HIPAA norms about patient data
@@ -713,7 +713,7 @@ The separation enables different communication patterns:
 
 **Skill-Specific Norms**:
 
-Skills in WinDAGs can ship with "norm recommendations" (ANB-level):
+Skills in Jury-rig can ship with "norm recommendations" (ANB-level):
 ```python
 class DataProcessingSkill:
     recommended_norms = [
@@ -1030,7 +1030,7 @@ Numeric comparisons in belief-set.
 
 **Dynamic Task Allocation with Normative Constraints**:
 
-In WinDAGs, tasks may have normative requirements that only activate under certain conditions:
+In Jury-rig, tasks may have normative requirements that only activate under certain conditions:
 
 **Abstract norm for a data processing task**:
 ```
@@ -1155,7 +1155,7 @@ For instantiation to work, the belief-set must contain:
 
 ## Implementation Patterns
 
-**For WinDAGs orchestration**:
+**For Jury-rig orchestration**:
 
 ```python
 class NormInstantiationEngine:
@@ -1534,7 +1534,7 @@ Interpreted: The worst consequences of not loving (death) are worse than the wor
 
 **Distributed Task Allocation with Conflicting Constraints**:
 
-In WinDAGs, an orchestrator must assign subtasks to agents, but faces constraints:
+In Jury-rig, an orchestrator must assign subtasks to agents, but faces constraints:
 - Agent A: Fast at task X, but currently overloaded
 - Agent B: Slower at task X, available
 - Deadline: Tight

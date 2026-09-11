@@ -169,9 +169,9 @@ See `references/description-guide.md` for full guide with more examples.
 
 **Claude Code extension keys** may also be top-level when the skill relies on Claude Code behavior: `when_to_use`, `argument-hint`, `arguments`, `disable-model-invocation`, `user-invocable`, `disallowed-tools`, `model`, `effort`, `context`, `agent`, `hooks`, `paths`, `shell`.
 
-**WinDAGs/library metadata goes under `metadata`**. That includes repo and UX hints such as `category`, `tags`, `pairs-with`, `version`, `visibility`, `triggers`, `see-also`, `trigger_phrases`, and `io-contract`.
+**Jury-rig/library metadata goes under `metadata`**. That includes repo and UX hints such as `category`, `tags`, `pairs-with`, `version`, `visibility`, `triggers`, `see-also`, `trigger_phrases`, and `io-contract`.
 
-Anthropic's open Agent Skills validator rejects arbitrary extra top-level keys. Do not weaken validation to accept WinDAGs-only fields; move them into `metadata`. Keep Claude Code extension keys top-level only when their runtime behavior matters.
+Anthropic's open Agent Skills validator rejects arbitrary extra top-level keys. Do not weaken validation to accept Jury-rig-only fields; move them into `metadata`. Keep Claude Code extension keys top-level only when their runtime behavior matters.
 
 **Invalid keys** → `tools:` (use `allowed-tools:`), top-level `category:` / `tags:` / `pairs-with:` / `version:` / `visibility:` / `io-contract:` (move into `metadata:`), `triggers:` and `outputs:` (encode in `metadata` or the SKILL.md body).
 

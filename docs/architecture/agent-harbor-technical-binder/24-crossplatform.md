@@ -20,7 +20,7 @@ and `architecture-binder-of-record` (every capability below carries an owner,
 a gate, and an evidence slot; prose without proof is not coverage).
 
 The design pass added three surface lenses that bind the W2 native work:
-`beautiful-gui-design` (platform-native idioms are load-bearing — tray-flyout
+`beautiful-gui-design` (platform-native idioms are essential — tray-flyout
 vs menu-bar popover, close-means-minimize, semantic tokens that survive
 light/dark on both hosts), `typography-expert` (the IT-24D legibility gates:
 Segoe UI Variable in the Windows token font stack, tabular figures for

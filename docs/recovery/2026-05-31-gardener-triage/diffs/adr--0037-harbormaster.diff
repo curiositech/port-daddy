@@ -243,7 +243,7 @@ index 00000000..d70985fb
 +  harbormaster is one actor across all three layers.
 +- **0035** (draft): dispatches — what the queue is full of.
 +- **0038** (draft): qa-gate — runs before harbormaster sees a dispatch.
-+- **0039** (draft): windags-routing — does not route to harbormaster
++- **0039** (draft): jury_rig-routing — does not route to harbormaster
 +  (harbormaster is summoned by dispatch lifecycle, not by goal text).
 +- **`lib/merge-queue.ts`**: existing module that harbormaster drives.
 +

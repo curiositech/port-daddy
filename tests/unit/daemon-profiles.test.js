@@ -63,6 +63,7 @@ describe('daemon profiles', () => {
         PORT_DADDY_PLANE: 'prod',
       },
       port: 9888,
+      sourceDir: '/code/port-daddy',
     });
 
     expect(env.PD_URL).toBeUndefined();
@@ -79,6 +80,10 @@ describe('daemon profiles', () => {
     expect(env.PORT_DADDY_PLANE).toBeUndefined();
     expect(env.PORT_DADDY_PROFILE).toBe('dogfood');
     expect(env.PORT_DADDY_PREFIX).toBe(profile.runtimeDir);
+    expect(env.PD_DAEMON_TIER).toBe('codebase');
+    expect(env.PD_DAEMON_LABEL).toBe('dogfood');
+    expect(env.PD_DAEMON_COLOR).toBe('#A855F7');
+    expect(env.PD_DAEMON_SOURCE_DIR).toBe('/code/port-daddy');
     expect(env.PORT_DADDY_PORT).toBe('9888');
     expect(env.PORT_DADDY_NO_FLEET).toBe('1');
     expect(env.PORT_DADDY_NO_FLEETBAR).toBe('1');

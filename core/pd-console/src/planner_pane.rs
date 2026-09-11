@@ -21,11 +21,12 @@
 //! relative schedule exactly as before this field pair was read.
 
 use crate::agent::DaemonClient;
-use crate::pane::{Block, Pane, Tone};
-use crate::util::{arr, s, trunc};
+use crate::pane::{Block, LedgerCell, Pane, SurfaceAction, Tone};
+use crate::util::{arr, n, s, trunc};
 use anyhow::Result;
 use pd_anchor::schedule::{schedule, SchedEdge, SchedNode};
 use serde_json::Value;
+use std::cmp::Ordering;
 
 #[derive(Debug, Clone)]
 struct PlannerItem {
@@ -68,13 +69,19 @@ impl PlannerItem {
             .filter_map(|d| d.as_str().map(|x| x.to_string()))
             .collect();
         let adr = adr_number_of(&slug, &summary, &notes_text);
-        let estimate = v.get("estimate").and_then(|e| e.as_i64()).filter(|e| *e > 0);
+        let estimate = v
+            .get("estimate")
+            .and_then(|e| e.as_i64())
+            .filter(|e| *e > 0);
         // startedAt/dueAt ride the wire as JSON numbers (epoch ms) or JSON
         // null — `lib/roadmap-items.ts` stores them as `number | null` and
         // spreads the raw row into the `GET /roadmap/items` response with no
         // re-encoding (confirmed in `routes/roadmap.ts`'s list handler), so
         // `.as_i64()` is the correct extraction with no string/ISO parsing.
-        let started_at = v.get("startedAt").and_then(|e| e.as_i64()).filter(|e| *e > 0);
+        let started_at = v
+            .get("startedAt")
+            .and_then(|e| e.as_i64())
+            .filter(|e| *e > 0);
         let due_at = v.get("dueAt").and_then(|e| e.as_i64()).filter(|e| *e > 0);
         Self {
             slug,
@@ -87,6 +94,99 @@ impl PlannerItem {
             started_at,
             due_at,
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct JiraItem {
+    id: String,
+    key: String,
+    url: String,
+    summary: String,
+    status: String,
+    status_category: String,
+    priority: String,
+    assignee: String,
+    issue_type: String,
+    parent_key: String,
+    labels: Vec<String>,
+    created: String,
+    updated: String,
+    due_date: String,
+}
+
+impl JiraItem {
+    fn from_value(v: &Value) -> Self {
+        Self {
+            id: s(v, "id"),
+            key: s(v, "key"),
+            url: s(v, "url"),
+            summary: s(v, "summary"),
+            status: s(v, "status"),
+            status_category: s(v, "statusCategory"),
+            priority: s(v, "priority"),
+            assignee: s(v, "assignee"),
+            issue_type: s(v, "issueType"),
+            parent_key: s(v, "parentKey"),
+            labels: arr(v, "labels")
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::to_string)
+                .collect(),
+            created: s(v, "created"),
+            updated: s(v, "updated"),
+            due_date: s(v, "dueDate"),
+        }
+    }
+
+    fn tone(&self) -> Tone {
+        match self.status_category.to_ascii_lowercase().as_str() {
+            "done" => Tone::Landed,
+            "in progress" => Tone::Engaged,
+            "blocked" => Tone::Conflicted,
+            _ => Tone::Resting,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum JiraSort {
+    Key,
+    Summary,
+    Status,
+    Priority,
+    Assignee,
+    IssueType,
+    Updated,
+    Due,
+}
+
+impl JiraSort {
+    fn key(self) -> &'static str {
+        match self {
+            Self::Key => "key",
+            Self::Summary => "summary",
+            Self::Status => "status",
+            Self::Priority => "priority",
+            Self::Assignee => "assignee",
+            Self::IssueType => "type",
+            Self::Updated => "updated",
+            Self::Due => "due",
+        }
+    }
+
+    fn parse(key: &str) -> Option<Self> {
+        Some(match key {
+            "key" => Self::Key,
+            "summary" => Self::Summary,
+            "status" => Self::Status,
+            "priority" => Self::Priority,
+            "assignee" => Self::Assignee,
+            "type" => Self::IssueType,
+            "updated" => Self::Updated,
+            "due" => Self::Due,
+            _ => return None,
+        })
     }
 }
 
@@ -172,6 +272,18 @@ struct Epic {
 
 pub struct PlannerPane {
     items: Vec<PlannerItem>,
+    jira_items: Vec<JiraItem>,
+    jira_loaded: bool,
+    jira_configured: bool,
+    jira_missing: Vec<String>,
+    jira_error: Option<String>,
+    jira_project_key: String,
+    jira_base_url: String,
+    jira_page_count: i64,
+    jira_truncated: bool,
+    selected_jira_key: Option<String>,
+    jira_sort: JiraSort,
+    jira_descending: bool,
     /// slug → who currently holds the live roadmap-pop claim, when present.
     /// From GET /cartographer/roadmap-claims (active = releasedAt null).
     claims: std::collections::HashMap<String, String>,
@@ -186,6 +298,18 @@ impl Default for PlannerPane {
     fn default() -> Self {
         Self {
             items: Vec::new(),
+            jira_items: Vec::new(),
+            jira_loaded: false,
+            jira_configured: false,
+            jira_missing: Vec::new(),
+            jira_error: None,
+            jira_project_key: String::new(),
+            jira_base_url: String::new(),
+            jira_page_count: 0,
+            jira_truncated: false,
+            selected_jira_key: None,
+            jira_sort: JiraSort::Updated,
+            jira_descending: true,
             claims: std::collections::HashMap::new(),
             agents: Vec::new(),
             last_error: None,
@@ -196,6 +320,181 @@ impl Default for PlannerPane {
 impl PlannerPane {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    fn sorted_jira_indices(&self) -> Vec<usize> {
+        let mut indices: Vec<usize> = (0..self.jira_items.len()).collect();
+        indices.sort_by(|a, b| {
+            let left = &self.jira_items[*a];
+            let right = &self.jira_items[*b];
+            let order = match self.jira_sort {
+                JiraSort::Key => planner_cmp(&left.key, &right.key),
+                JiraSort::Summary => planner_cmp(&left.summary, &right.summary),
+                JiraSort::Status => planner_cmp(&left.status, &right.status),
+                JiraSort::Priority => planner_cmp(&left.priority, &right.priority),
+                JiraSort::Assignee => planner_cmp(&left.assignee, &right.assignee),
+                JiraSort::IssueType => planner_cmp(&left.issue_type, &right.issue_type),
+                JiraSort::Updated => planner_cmp(&left.updated, &right.updated),
+                JiraSort::Due => planner_cmp(&left.due_date, &right.due_date),
+            };
+            let order = if self.jira_descending {
+                order.reverse()
+            } else {
+                order
+            };
+            order.then_with(|| left.key.cmp(&right.key))
+        });
+        indices
+    }
+
+    fn selected_jira(&self) -> Option<&JiraItem> {
+        let key = self.selected_jira_key.as_deref()?;
+        self.jira_items.iter().find(|item| item.key == key)
+    }
+
+    fn jira_blocks(&self) -> Vec<Block> {
+        let mut blocks = vec![Block::Gap, Block::Header("Jira · live read-through".into())];
+        blocks.push(Block::KeyVal(
+            "authority".into(),
+            "Jira Cloud · read only".into(),
+        ));
+        if !self.jira_loaded {
+            blocks.push(Block::KeyVal(
+                "status".into(),
+                "loading Jira configuration…".into(),
+            ));
+            return blocks;
+        }
+        if !self.jira_configured {
+            let missing = if self.jira_missing.is_empty() {
+                "Jira connection tuple".into()
+            } else {
+                self.jira_missing.join(", ")
+            };
+            blocks.push(Block::WrappedText {
+                text: format!(
+                    "JIRA NOT CONFIGURED\nSet {missing} in FleetBar Credentials. Port Daddy's local roadmap remains available."
+                ),
+                tone: Tone::Gated,
+            });
+            return blocks;
+        }
+        blocks.push(Block::KeyVal(
+            "project".into(),
+            format!("{} · {}", self.jira_project_key, self.jira_base_url),
+        ));
+        if let Some(error) = &self.jira_error {
+            blocks.push(Block::WrappedText {
+                text: format!("JIRA READ FAILED\n{error}\nLocal roadmap data is unaffected."),
+                tone: Tone::Conflicted,
+            });
+            return blocks;
+        }
+        blocks.push(Block::KeyVal(
+            "issues".into(),
+            self.jira_items.len().to_string(),
+        ));
+        blocks.push(Block::KeyVal(
+            "fetch".into(),
+            format!(
+                "{} page(s) · {}",
+                self.jira_page_count,
+                if self.jira_truncated {
+                    "partial result"
+                } else {
+                    "complete result"
+                }
+            ),
+        ));
+        if self.jira_truncated {
+            blocks.push(Block::WrappedText {
+                text: "JIRA RESULT CAPPED\nThe bounded read has more issues upstream; this list is explicitly partial."
+                    .into(),
+                tone: Tone::Gated,
+            });
+        }
+        if self.jira_items.is_empty() {
+            blocks.push(Block::KeyVal(
+                "status".into(),
+                "Jira returned no visible issues".into(),
+            ));
+            return blocks;
+        }
+
+        blocks.push(Block::LedgerHeader {
+            surface: self.id().into(),
+            columns: vec![
+                ("key".into(), "Key".into()),
+                ("summary".into(), "Summary".into()),
+                ("status".into(), "Status".into()),
+                ("priority".into(), "Priority".into()),
+                ("assignee".into(), "Assignee".into()),
+                ("type".into(), "Type".into()),
+                ("updated".into(), "Updated".into()),
+                ("due".into(), "Due".into()),
+            ],
+            active_sort: self.jira_sort.key().into(),
+            descending: self.jira_descending,
+        });
+        for (row_index, item_index) in self.sorted_jira_indices().into_iter().enumerate() {
+            let item = &self.jira_items[item_index];
+            blocks.push(Block::LedgerRow {
+                surface: self.id().into(),
+                index: row_index,
+                selected: self.selected_jira_key.as_deref() == Some(item.key.as_str()),
+                cells: vec![
+                    LedgerCell::standard("source", "JIRA"),
+                    LedgerCell::standard("key", planner_breakable(&item.key)),
+                    LedgerCell::wide("summary", planner_breakable(&item.summary)),
+                    LedgerCell::standard("status", item.status.clone()),
+                    LedgerCell::standard("priority", item.priority.clone()),
+                    LedgerCell::standard("assignee", planner_breakable(&item.assignee)),
+                    LedgerCell::standard("type", item.issue_type.clone()),
+                    LedgerCell::standard("updated", planner_breakable(&item.updated)),
+                    LedgerCell::standard("due", planner_breakable(&item.due_date)),
+                ],
+                tone: item.tone(),
+            });
+        }
+        if let Some(item) = self.selected_jira() {
+            blocks.push(Block::Gap);
+            blocks.push(Block::Header(format!("Jira inspector · {}", item.key)));
+            let fields = [
+                ("source", "Jira Cloud".into()),
+                ("id", item.id.clone()),
+                ("key", item.key.clone()),
+                ("url", item.url.clone()),
+                ("summary", item.summary.clone()),
+                ("status", item.status.clone()),
+                ("status category", item.status_category.clone()),
+                ("priority", item.priority.clone()),
+                ("assignee", item.assignee.clone()),
+                ("issue type", item.issue_type.clone()),
+                ("parent", item.parent_key.clone()),
+                ("labels", item.labels.join(", ")),
+                ("created", item.created.clone()),
+                ("updated", item.updated.clone()),
+                ("due", item.due_date.clone()),
+            ];
+            blocks.extend(fields.into_iter().map(|(label, value)| Block::WrappedText {
+                text: format!(
+                    "{}\n{}",
+                    label.to_ascii_uppercase(),
+                    planner_breakable(&value)
+                ),
+                tone: if value.is_empty() {
+                    Tone::Resting
+                } else {
+                    item.tone()
+                },
+            }));
+        } else {
+            blocks.push(Block::WrappedText {
+                text: "Select a Jira issue to inspect its complete metadata and permalink.".into(),
+                tone: Tone::Resting,
+            });
+        }
+        blocks
     }
 
     /// Group items into ADR epics (sorted by number; unsorted last), deduping by slug
@@ -310,8 +609,7 @@ impl PlannerPane {
         if nodes.is_empty() {
             return Ok((Vec::new(), 0));
         }
-        let ids: std::collections::HashSet<&str> =
-            nodes.iter().map(|n| n.id.as_str()).collect();
+        let ids: std::collections::HashSet<&str> = nodes.iter().map(|n| n.id.as_str()).collect();
         let mut edges: Vec<SchedEdge> = Vec::new();
         let mut edge_seen: std::collections::HashSet<(String, String)> =
             std::collections::HashSet::new();
@@ -432,13 +730,15 @@ impl PlannerPane {
                 blocks.extend(axis_rows(span, today));
                 for r in rows.iter().take(MAX_ROWS) {
                     let lead = (r.start * BAR_CELLS / span) as usize;
-                    let fill = (((r.finish - r.start) * BAR_CELLS + span - 1) / span).max(1) as usize;
+                    let fill =
+                        (((r.finish - r.start) * BAR_CELLS + span - 1) / span).max(1) as usize;
+                    // Preserve the polished native distinction between a solid
+                    // critical path and a shaded non-critical path. The
+                    // deterministic proof raster carries explicit bitmap glyphs
+                    // for both characters, so visual proof does not dictate a
+                    // lower-quality alphabet for GPUI or the terminal renderer.
                     let glyph = if r.critical { '█' } else { '▓' };
-                    let bar = format!(
-                        "{}{}",
-                        " ".repeat(lead),
-                        glyph.to_string().repeat(fill)
-                    );
+                    let bar = format!("{}{}", " ".repeat(lead), glyph.to_string().repeat(fill));
                     let claim = self
                         .claims
                         .get(&r.slug)
@@ -465,6 +765,17 @@ impl PlannerPane {
         }
         blocks
     }
+}
+
+fn planner_cmp(left: &str, right: &str) -> Ordering {
+    left.to_ascii_lowercase().cmp(&right.to_ascii_lowercase())
+}
+
+fn planner_breakable(value: &str) -> String {
+    value
+        .replace('/', "/\u{200b}")
+        .replace(':', ":\u{200b}")
+        .replace('-', "-\u{200b}")
 }
 
 /// One bar of the Planner Gantt: a task's CPM window plus the fields the
@@ -614,10 +925,18 @@ fn axis_rows(span: i64, today: time::Date) -> Vec<Block> {
     vec![
         Block::Row(vec![
             String::new(),
-            labels.into_iter().collect::<String>().trim_end().to_string(),
+            labels
+                .into_iter()
+                .collect::<String>()
+                .trim_end()
+                .to_string(),
             String::new(),
         ]),
-        Block::Row(vec![String::new(), ruler.into_iter().collect(), String::new()]),
+        Block::Row(vec![
+            String::new(),
+            ruler.into_iter().collect(),
+            String::new(),
+        ]),
     ]
 }
 
@@ -634,10 +953,12 @@ impl Pane for PlannerPane {
 
         if let Some(err) = &self.last_error {
             blocks.push(Block::KeyVal("error".into(), err.clone()));
+            blocks.extend(self.jira_blocks());
             return blocks;
         }
         if self.items.is_empty() {
             blocks.push(Block::KeyVal("status".into(), "no roadmap items".into()));
+            blocks.extend(self.jira_blocks());
             return blocks;
         }
 
@@ -645,6 +966,13 @@ impl Pane for PlannerPane {
         // plan and where is the critical path" before any tree or roster.
         blocks.extend(self.gantt_blocks());
         blocks.push(Block::Gap);
+        blocks.push(Block::Chip {
+            label: format!("PORT DADDY · LOCAL AUTHORITY · {} ITEMS", self.items.len()),
+            tone: Tone::Accent,
+        });
+        blocks.extend(self.jira_blocks());
+        blocks.push(Block::Gap);
+        blocks.push(Block::Header("Port Daddy · local roadmap detail".into()));
 
         let epics = self.epics();
         let task_total: usize = epics.iter().map(|e| e.tasks.len()).sum();
@@ -718,10 +1046,16 @@ impl Pane for PlannerPane {
                 "fleet — {} agent(s) working",
                 self.agents.len()
             )));
-            for (identity, purpose, status) in self.agents.iter().take(12) {
-                blocks.push(Block::Row(vec![trunc(identity, 34), trunc(purpose, 46)]));
-                blocks.push(Block::Chip {
-                    label: status.clone(),
+            for (index, (identity, purpose, status)) in self.agents.iter().take(12).enumerate() {
+                blocks.push(Block::LedgerRow {
+                    surface: String::new(),
+                    index,
+                    selected: false,
+                    cells: vec![
+                        LedgerCell::standard("identity", planner_breakable(identity)),
+                        LedgerCell::wide("purpose", planner_breakable(purpose)),
+                        LedgerCell::standard("status", status.clone()),
+                    ],
                     tone: status_tone(status),
                 });
             }
@@ -750,21 +1084,27 @@ impl Pane for PlannerPane {
                     format!("⛓{}", it.deps.len())
                 };
                 let claimed = self.claims.get(&it.slug);
-                let claim_col = claimed
-                    .map(|b| format!("◆ {}", trunc(b, 24)))
-                    .unwrap_or_default();
-                blocks.push(Block::Row(vec![
-                    trunc(&it.slug, 38),
-                    it.status.clone(),
-                    format!("P{p}"),
-                    dep_note,
-                    claim_col,
-                ]));
+                let claim_col = claimed.map(|by| format!("◆ {by}")).unwrap_or_default();
+                blocks.push(Block::LedgerRow {
+                    surface: String::new(),
+                    index: idx,
+                    selected: false,
+                    cells: vec![
+                        LedgerCell::standard("source", "PORT DADDY"),
+                        LedgerCell::wide("item", planner_breakable(&it.slug)),
+                        LedgerCell::wide("summary", planner_breakable(&it.summary)),
+                        LedgerCell::standard("status", it.status.clone()),
+                        LedgerCell::standard("priority", format!("P{p}")),
+                        LedgerCell::standard("dependencies", dep_note),
+                        LedgerCell::standard("working", planner_breakable(&claim_col)),
+                    ],
+                    tone: status_tone(&it.status),
+                });
                 // Status chip; and when an agent holds the live claim, surface it
                 // (the "who's working on this task" axis) in the Engaged tone.
                 if let Some(by) = claimed {
                     blocks.push(Block::Chip {
-                        label: format!("working: {}", trunc(by, 30)),
+                        label: format!("working: {by}"),
                         tone: Tone::Engaged,
                     });
                 } else {
@@ -789,49 +1129,157 @@ impl Pane for PlannerPane {
                     self.last_error = Some(format!("daemon unreachable: {e}"));
                     self.items.clear();
                 }
-                Ok(resp) => match resp.json::<Value>().await {
-                    Err(e) => self.last_error = Some(format!("bad response: {e}")),
-                    Ok(data) => {
-                        self.last_error = None;
-                        self.items = arr(&data, "items")
-                            .iter()
-                            .map(PlannerItem::from_value)
-                            .collect();
-                        // Who's working on what: active roadmap claims (releasedAt null).
-                        self.claims.clear();
-                        let curl = format!("{}/cartographer/roadmap-claims", daemon.base());
-                        if let Ok(cr) = daemon.http_client().get(&curl).send().await {
-                            if let Ok(cv) = cr.json::<Value>().await {
-                                for c in arr(&cv, "claims") {
-                                    let active =
-                                        matches!(c.get("releasedAt"), None | Some(Value::Null));
-                                    let slug = s(c, "slug");
-                                    let by = s(c, "claimedBy");
-                                    if active && !slug.is_empty() && !by.is_empty() {
-                                        self.claims.insert(slug, by);
+                Ok(resp) => {
+                    let status = resp.status();
+                    match resp.json::<Value>().await {
+                        Err(e) => {
+                            self.last_error = Some(format!("invalid local roadmap response: {e}"))
+                        }
+                        Ok(data) if !status.is_success() => {
+                            self.last_error = Some(format!(
+                                "GET /roadmap/items returned {status}: {}",
+                                s(&data, "error")
+                            ));
+                            self.items.clear();
+                        }
+                        Ok(data) => {
+                            self.last_error = None;
+                            self.items = arr(&data, "items")
+                                .iter()
+                                .map(PlannerItem::from_value)
+                                .collect();
+                            // Who's working on what: active roadmap claims (releasedAt null).
+                            self.claims.clear();
+                            let curl = format!("{}/cartographer/roadmap-claims", daemon.base());
+                            if let Ok(cr) = daemon.http_client().get(&curl).send().await {
+                                if let Ok(cv) = cr.json::<Value>().await {
+                                    for c in arr(&cv, "claims") {
+                                        let active =
+                                            matches!(c.get("releasedAt"), None | Some(Value::Null));
+                                        let slug = s(c, "slug");
+                                        let by = s(c, "claimedBy");
+                                        if active && !slug.is_empty() && !by.is_empty() {
+                                            self.claims.insert(slug, by);
+                                        }
                                     }
                                 }
                             }
-                        }
-                        // The live fleet — who's working on what (each agent's purpose).
-                        self.agents.clear();
-                        let aurl = format!("{}/agents", daemon.base());
-                        if let Ok(ar) = daemon.http_client().get(&aurl).send().await {
-                            if let Ok(av) = ar.json::<Value>().await {
-                                for a in arr(&av, "agents") {
-                                    let identity = s(a, "identity");
-                                    if !identity.is_empty() {
-                                        self.agents.push((
-                                            identity,
-                                            s(a, "purpose"),
-                                            s(a, "status"),
-                                        ));
+                            // The live fleet — who's working on what (each agent's purpose).
+                            self.agents.clear();
+                            let aurl = format!("{}/agents", daemon.base());
+                            if let Ok(ar) = daemon.http_client().get(&aurl).send().await {
+                                if let Ok(av) = ar.json::<Value>().await {
+                                    for a in arr(&av, "agents") {
+                                        let identity = s(a, "identity");
+                                        if !identity.is_empty() {
+                                            self.agents.push((
+                                                identity,
+                                                s(a, "purpose"),
+                                                s(a, "status"),
+                                            ));
+                                        }
                                     }
                                 }
                             }
                         }
                     }
-                },
+                }
+            }
+
+            // Jira is an independent read-through source. Its failure must not
+            // erase or relabel Port Daddy's local roadmap authority.
+            self.jira_loaded = true;
+            self.jira_error = None;
+            let jira_url = format!("{}/roadmap/jira", daemon.base());
+            match daemon.http_client().get(&jira_url).send().await {
+                Err(error) => {
+                    self.jira_configured = true;
+                    self.jira_items.clear();
+                    self.jira_error = Some(format!("GET /roadmap/jira unavailable: {error}"));
+                }
+                Ok(response) => {
+                    let status = response.status();
+                    match response.json::<Value>().await {
+                        Err(error) => {
+                            self.jira_configured = true;
+                            self.jira_items.clear();
+                            self.jira_error =
+                                Some(format!("Invalid Jira roadmap response: {error}"));
+                        }
+                        Ok(data) => {
+                            self.jira_configured = data
+                                .get("configured")
+                                .and_then(Value::as_bool)
+                                .unwrap_or(false);
+                            self.jira_missing = arr(&data, "missing")
+                                .iter()
+                                .filter_map(Value::as_str)
+                                .map(str::to_string)
+                                .collect();
+                            self.jira_project_key = s(&data, "projectKey");
+                            self.jira_base_url = s(&data, "baseUrl");
+                            self.jira_page_count = n(&data, "pageCount");
+                            self.jira_truncated = data
+                                .get("truncated")
+                                .and_then(Value::as_bool)
+                                .unwrap_or(false);
+                            if !status.is_success() {
+                                self.jira_items.clear();
+                                let detail = s(&data, "error");
+                                self.jira_error = Some(if detail.is_empty() {
+                                    format!("GET /roadmap/jira returned {status}")
+                                } else {
+                                    detail
+                                });
+                            } else if !self.jira_configured {
+                                self.jira_items.clear();
+                                self.jira_error = None;
+                            } else {
+                                self.jira_items = arr(&data, "issues")
+                                    .iter()
+                                    .map(JiraItem::from_value)
+                                    .filter(|item| !item.key.is_empty())
+                                    .collect();
+                            }
+                        }
+                    }
+                }
+            }
+            if self
+                .selected_jira_key
+                .as_deref()
+                .is_some_and(|key| !self.jira_items.iter().any(|item| item.key == key))
+            {
+                self.selected_jira_key = None;
+            }
+            Ok(())
+        })
+    }
+
+    fn mutate<'a>(
+        &'a mut self,
+        _daemon: &'a DaemonClient,
+        action: SurfaceAction,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
+        Box::pin(async move {
+            match action {
+                SurfaceAction::SelectRow { index } => {
+                    if let Some(item_index) = self.sorted_jira_indices().get(index).copied() {
+                        self.selected_jira_key = Some(self.jira_items[item_index].key.clone());
+                    }
+                }
+                SurfaceAction::Sort { key } => {
+                    if let Some(sort) = JiraSort::parse(&key) {
+                        if self.jira_sort == sort {
+                            self.jira_descending = !self.jira_descending;
+                        } else {
+                            self.jira_sort = sort;
+                            self.jira_descending =
+                                matches!(sort, JiraSort::Updated | JiraSort::Due);
+                        }
+                    }
+                }
+                _ => {}
             }
             Ok(())
         })
@@ -847,6 +1295,25 @@ mod tests {
         PlannerItem::from_value(&json!({
             "slug": slug, "status": status, "summaryMd": summary,
             "dependencies": [], "harbor": "port-daddy", "notes": []
+        }))
+    }
+
+    fn jira_item(key: &str, summary: &str, updated: &str) -> JiraItem {
+        JiraItem::from_value(&json!({
+            "id": format!("id-{key}"),
+            "key": key,
+            "url": format!("https://example.atlassian.net/browse/{key}"),
+            "summary": summary,
+            "status": "In Progress",
+            "statusCategory": "In Progress",
+            "priority": "High",
+            "assignee": "Ada Lovelace",
+            "issueType": "Story",
+            "parentKey": "HARBOR-1",
+            "labels": ["harbor", "console"],
+            "created": "2026-08-01T10:00:00.000+0000",
+            "updated": updated,
+            "dueDate": "2026-09-15"
         }))
     }
 
@@ -1056,7 +1523,10 @@ mod tests {
         // The critical path is exactly fork → c-long → d-join.
         for slug in ["fork", "c-long", "d-join"] {
             let r = row(slug);
-            assert!(r.critical, "{slug} sits on the longer branch: must be critical");
+            assert!(
+                r.critical,
+                "{slug} sits on the longer branch: must be critical"
+            );
             assert_eq!(r.slack, 0, "{slug} is critical: slack must be 0");
         }
         // …and the short branch is off it, holding exactly the branch
@@ -1404,7 +1874,168 @@ mod tests {
         assert!(b.iter().any(
             |blk| matches!(blk, Block::Header(h) if h.contains("fleet") && h.contains("2 agent"))
         ));
-        assert!(b.iter().any(|blk| matches!(blk, Block::Row(c) if c.iter().any(|x| x.contains("roadmap delete verb")))));
+        assert!(b.iter().any(|blk| matches!(
+            blk,
+            Block::LedgerRow { cells, .. }
+                if cells.iter().any(|cell| {
+                    cell.label == "purpose"
+                        && cell.value.replace('\u{200b}', "").contains("roadmap delete verb")
+                })
+        )));
+    }
+
+    #[test]
+    fn jira_unconfigured_state_names_the_missing_connection_without_hiding_local_authority() {
+        let mut pane = PlannerPane::default();
+        pane.items = vec![item("harbor-chat", "now", "Conversation-first console")];
+        pane.jira_loaded = true;
+        pane.jira_missing = vec![
+            "PD_JIRA_BASE_URL".into(),
+            "PD_JIRA_PROJECT_KEY".into(),
+            "PD_JIRA_EMAIL".into(),
+            "PD_JIRA_API_TOKEN".into(),
+        ];
+
+        let blocks = pane.view();
+        assert!(blocks.iter().any(|block| matches!(
+            block,
+            Block::Chip { label, .. }
+                if label == "PORT DADDY · LOCAL AUTHORITY · 1 ITEMS"
+        )));
+        assert!(blocks.iter().any(|block| matches!(
+            block,
+            Block::WrappedText { text, .. }
+                if text.contains("JIRA NOT CONFIGURED")
+                    && text.contains("PD_JIRA_API_TOKEN")
+                    && text.contains("local roadmap remains available")
+        )));
+    }
+
+    #[tokio::test]
+    async fn jira_rows_sort_select_and_reveal_complete_source_metadata() {
+        let mut pane = PlannerPane::default();
+        pane.jira_loaded = true;
+        pane.jira_configured = true;
+        pane.jira_project_key = "HARBOR".into();
+        pane.jira_base_url = "https://example.atlassian.net".into();
+        pane.jira_items = vec![
+            jira_item(
+                "HARBOR-22",
+                "Zeta: preserve every claim identity in narrow windows",
+                "2026-08-28T12:00:00.000+0000",
+            ),
+            jira_item(
+                "HARBOR-11",
+                "Alpha: expose the complete shared Harbor roadmap",
+                "2026-08-29T12:00:00.000+0000",
+            ),
+        ];
+        let daemon = DaemonClient::new("http://127.0.0.1:9".into());
+
+        pane.mutate(
+            &daemon,
+            SurfaceAction::Sort {
+                key: "summary".into(),
+            },
+        )
+        .await
+        .unwrap();
+        pane.mutate(&daemon, SurfaceAction::SelectRow { index: 0 })
+            .await
+            .unwrap();
+
+        assert_eq!(pane.selected_jira_key.as_deref(), Some("HARBOR-11"));
+        let blocks = pane.jira_blocks();
+        assert!(blocks.iter().any(|block| matches!(
+            block,
+            Block::LedgerHeader {
+                active_sort,
+                descending: false,
+                columns,
+                ..
+            } if active_sort == "summary"
+                && columns.iter().any(|(key, label)| key == "assignee" && label == "Assignee")
+                && columns.iter().any(|(key, label)| key == "due" && label == "Due")
+        )));
+        assert!(blocks.iter().any(|block| matches!(
+            block,
+            Block::LedgerRow {
+                selected: true,
+                cells,
+                ..
+            } if cells.iter().any(|cell| {
+                cell.label == "summary"
+                    && cell.value.replace('\u{200b}', "")
+                        == "Alpha: expose the complete shared Harbor roadmap"
+            })
+        )));
+        assert!(blocks.iter().any(|block| matches!(
+            block,
+            Block::WrappedText { text, .. }
+                if text.replace('\u{200b}', "")
+                    == "URL\nhttps://example.atlassian.net/browse/HARBOR-11"
+        )));
+        assert!(blocks.iter().any(|block| matches!(
+            block,
+            Block::WrappedText { text, .. } if text == "LABELS\nharbor, console"
+        )));
+    }
+
+    #[tokio::test]
+    async fn jira_priority_and_assignee_sorts_follow_the_visible_order() {
+        let mut pane = PlannerPane::default();
+        pane.jira_loaded = true;
+        pane.jira_configured = true;
+        let mut critical = jira_item(
+            "HARBOR-22",
+            "Critical issue owned by Grace",
+            "2026-08-28T12:00:00.000+0000",
+        );
+        critical.priority = "Critical".into();
+        critical.assignee = "Grace Hopper".into();
+        let mut low = jira_item(
+            "HARBOR-11",
+            "Low issue owned by Ada",
+            "2026-08-29T12:00:00.000+0000",
+        );
+        low.priority = "Low".into();
+        low.assignee = "Ada Lovelace".into();
+        pane.jira_items = vec![low, critical];
+        let daemon = DaemonClient::new("http://127.0.0.1:9".into());
+
+        pane.mutate(
+            &daemon,
+            SurfaceAction::Sort {
+                key: "priority".into(),
+            },
+        )
+        .await
+        .unwrap();
+        pane.mutate(&daemon, SurfaceAction::SelectRow { index: 0 })
+            .await
+            .unwrap();
+        assert_eq!(pane.selected_jira_key.as_deref(), Some("HARBOR-22"));
+
+        pane.mutate(
+            &daemon,
+            SurfaceAction::Sort {
+                key: "assignee".into(),
+            },
+        )
+        .await
+        .unwrap();
+        pane.mutate(&daemon, SurfaceAction::SelectRow { index: 0 })
+            .await
+            .unwrap();
+        assert_eq!(pane.selected_jira_key.as_deref(), Some("HARBOR-11"));
+        assert!(pane.jira_blocks().iter().any(|block| matches!(
+            block,
+            Block::LedgerHeader {
+                active_sort,
+                descending: false,
+                ..
+            } if active_sort == "assignee"
+        )));
     }
 
     /// Epoch ms of `now + days` — the same shape `lib/roadmap-items.ts` stores

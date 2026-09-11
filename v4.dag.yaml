@@ -15,7 +15,7 @@
 # ============================================================================
 
 # Port Daddy V4 Implementation DAG
-# Format: WinDAGs V3-compatible DAGDefinition
+# Format: Jury-rig V3-compatible DAGDefinition
 #
 # This file encodes the dependency graph for implementing V4.
 # Validate with: node scripts/validate-dag.js v4.dag.yaml

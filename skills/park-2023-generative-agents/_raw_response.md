@@ -573,7 +573,7 @@ Agents misclassified what's appropriate in certain spaces: "the college dorm has
 
 ## Implications for Agent Orchestration Systems
 
-### Task Decomposition in WinDAGs
+### Task Decomposition in Jury-rig
 
 The recursive decomposition pattern directly applies to complex task orchestration:
 

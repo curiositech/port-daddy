@@ -26,6 +26,9 @@ mod interruptions;
 mod interruptions_pane;
 #[path = "../src/pane.rs"]
 mod pane;
+#[allow(dead_code)]
+#[path = "../src/presentation.rs"]
+mod presentation; // headless zoom proof shares the production bounds contract
 #[path = "../src/theme.rs"]
 mod theme;
 #[path = "../src/util.rs"]

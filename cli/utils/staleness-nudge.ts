@@ -20,7 +20,8 @@ import { evaluateStaleness, OPT_OUT_ENV } from '../../lib/version-staleness.js';
  *   - version: redundant with the explicit version output.
  *   - completion(s): output is shell-eval'd — a stray line would break the shell.
  *   - mcp / __daemon: protocol / long-running processes.
- *   - help / splash: meta surfaces.
+ *   - help / splash / learn / tutorial: meta or orientation surfaces whose
+ *     command contract excludes freshness cache writes and release probes.
  * Everything else (claim, begin, note, status, …) is fair game — the nudge goes
  * to stderr, so even those commands' stdout stays clean.
  */
@@ -34,6 +35,8 @@ const NUDGE_SKIP_COMMANDS = new Set([
   '__daemon',
   'splash',
   'help',
+  'learn',
+  'tutorial',
 ]);
 
 export function shouldNudgeStaleness(command: string | undefined, isQuiet: boolean): boolean {

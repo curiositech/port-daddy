@@ -97,6 +97,15 @@ function asStringArray(val: unknown): string[] | null {
   return val;
 }
 
+// Binary IPC does not yet transport or verify daemon-minted actor
+// credentials. Destructive lifecycle mutations therefore stay on the HTTP
+// stack, where the shared identity-write boundary binds the credential actor
+// to the stored session owner. Both sides of this merge added the same guard;
+// the action set now has a single home in lib/ipc-auth.ts
+// (`actionRequiresCredentialedTransport`), which enumerates exactly the same
+// actions main listed inline here. `recoverableSessionAction` and the
+// IPC session-agent recovery it fed are gone with that bypass.
+
 // ─── Route Handler Type ─────────────────────────────────────────────────────
 
 type RouteHandler = (
@@ -451,10 +460,12 @@ export function createIpcRouter(deps: IpcRouterDeps) {
         type: Performative.REFUSE,
         convId: frame.convId,
         payload: {
-          error: 'IDENTITY_TRANSPORT_REQUIRED',
+          // `error` keeps main's established wire string; `code` carries the
+          // recovery branch's stable machine-readable identifier alongside it.
+          error: 'actor_credential_transport_required',
           code: 'IDENTITY_TRANSPORT_REQUIRED',
           action,
-          message: `Action '${action}' requires the canonical credentialed HTTP transport`,
+          message: `Action '${action}' requires the credentialed HTTP transport`,
         },
       });
       return;

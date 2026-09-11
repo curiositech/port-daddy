@@ -59,7 +59,7 @@ Four-bullet version:
   recursive-summarization collapse compound; the cure is *legibility-with-zoom* (every
   digest a lens onto the artifact, never a replacement), which is Scott's warning made a
   rule (ADR-0048).
-- **Context economics is the load-bearing seam between L2 and L3** — you cannot meter a
+- **Context economics is the foundational seam between L2 and L3** — you cannot meter a
   market in COGS you never accounted, and you cannot make a swarm legible with summaries
   that lie. Both reduce to budgeting and compacting tokens honestly.
 
@@ -245,7 +245,7 @@ beginning or end … and significantly degrades when models must access informat
 middle," even for long-context models*). *Failure:* an agent retrieves the right fact but
 reasons as if it hadn't, because the fact sat mid-window. *Cost angle:* you paid to carry a
 fact the model then ignored. *Legibility angle:* the obligation buried in scrollback is
-invisible to the agent that owns it. *Cure:* put load-bearing facts at edges; shorten the
+invisible to the agent that owns it. *Cure:* put critical facts at edges; shorten the
 window; surface obligations as pinned digest items, not history.
 
 **4.2 Context rot.** Quality decays as the window grows even with nothing dropped
@@ -260,7 +260,7 @@ induce cascading hallucinations and ultimately long-horizon collapse"* (Slipstre
 [\[9\]](#refs)), and the broader compaction literature notes that retained information
 *"fluctuates substantially from run to run, making the agent's retained knowledge
 unpredictable"* (Parallel Context Compaction 2026 [\[10\]](#refs)). *Failure:* the digest
-asserts things that never happened. *Cure (the load-bearing one):* **compact from the
+asserts things that never happened. *Cure (the pivotal one):* **compact from the
 durable artifacts on each round — git, notes, the DB — never from the previous summary.**
 PD is unusually well-placed here because its artifacts (claims, notes, tuples, episodes)
 are durable and addressable; a PD compaction can re-derive from source instead of recursing
@@ -320,7 +320,7 @@ apply directly:
 Both regimes share one operational gate, lifted from Anthropic's compaction guidance and
 made checkable:
 
-1. **Recall first:** does the compaction capture every load-bearing fact (obligations, open
+1. **Recall first:** does the compaction capture every central fact (obligations, open
    claims, architectural decisions, unresolved bugs)? Test by asking the successor to act
    from the digest alone.
 2. **Precision second:** trim redundancy *after* recall is satisfied, never before.
@@ -335,7 +335,7 @@ made checkable:
 ADR-0048's stack is L0 (daemon) → L1 (protocol) → L2 (legibility/authority) → L3
 (economy/federation), sequenced single-player-wedge → federation → market, on the
 through-line *memory → continuity → person → reputation → asset → economy.* Context
-economics is load-bearing at three joints:
+economics is decisive at three joints:
 
 1. **It is the engine under L2's "legibility-with-zoom."** Phase 3 is literally "the
    digest/legibility-with-zoom + tokens/compaction as the digest engine." This paper supplies

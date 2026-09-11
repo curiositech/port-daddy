@@ -1,0 +1,53 @@
+schema_version: 1
+snapshot_revision: 5e438c7f932d26e6b313534fd6bc02dc472ba9e4
+sources:
+  - id: SRC-CONVOY-RFC
+    kind: pull_request_file
+    status: accepted_revision_in_unmerged_draft
+    url: https://github.com/curiositech/port-daddy/blob/9a4f8a515acbf97fe6bf504702f665613e1221da/docs/design/convoy-platform-requirements.md
+    accepted_revision: 31105d4fc819df323ce1315f6aa8471c49bf010a
+  - id: SRC-GRAND-HARBOR-ADDENDUM
+    kind: maintainer_intake_comment
+    status: proposed
+    url: https://github.com/curiositech/port-daddy/pull/9987#issuecomment-5504039547
+  - id: SRC-KEYSTONE
+    kind: maintainer_intake_comment
+    status: proposed
+    url: https://github.com/curiositech/port-daddy/pull/9987#issuecomment-5504065272
+  - id: SRC-CHARTROOM-PR
+    kind: pull_request
+    status: draft_unmerged
+    url: https://github.com/curiositech/port-daddy/pull/9989
+  - id: SRC-ADR-0022
+    kind: adr
+    status: accepted
+    path: docs/adr/0022-durable-actor-souls-and-body-leases.md
+  - id: SRC-ADR-0120
+    kind: adr
+    status: accepted
+    path: docs/adr/0120-rust-kernel-boundary.md
+  - id: SRC-ADR-0121
+    kind: adr
+    status: accepted
+    path: docs/adr/0121-durable-agent-roster.md
+  - id: SRC-ADR-0122
+    kind: adr
+    status: accepted
+    path: docs/adr/0122-harbor-authority.md
+  - id: SRC-ADR-0040
+    kind: adr
+    status: proposed_with_partial_implementation
+    path: docs/adr/0040-non-forgeable-actor-identity.md
+  - id: SRC-ADR-0038
+    kind: adr
+    status: proposed_implemented_differently
+    path: docs/adr/0038-claim-tree.md
+  - id: SRC-CEDAR-PAPER
+    kind: primary_research
+    status: evidence
+    url: https://arxiv.org/pdf/2403.04651
+  - id: SRC-FORGE
+    kind: primary_research
+    status: motivation
+    url: https://arxiv.org/html/2602.16708
+

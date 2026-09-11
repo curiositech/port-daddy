@@ -29,7 +29,7 @@ The GitHub App is registered. Its credentials live in
 **`GITHUB_WEBHOOK_SECRET` is the single value that must match in three places:**
 the GitHub App webhook settings, the **receiver Worker** secret, and (because
 the daemon route also supports direct-HMAC auth) optionally the daemon's
-`PD_GITHUB_WEBHOOK_SECRET`. Treat it as the load-bearing shared secret.
+`PD_GITHUB_WEBHOOK_SECRET`. Treat it as the decisive shared secret.
 
 ---
 
@@ -115,7 +115,7 @@ printf '%s' "$FORWARD_AUTH_TOKEN" | npx wrangler secret put FORWARD_AUTH_TOKEN
 
 ### 2c. Point the Worker at the daemon
 
-Edit `apps/github-app-receiver/wrangler.toml`, `[vars]`:
+Edit `apps/github-app-receiver/wrangler.toml`, `[vars]`: <!-- cite-exempt -->
 
 ```toml
 [vars]
@@ -293,7 +293,7 @@ A project claims a repo two ways (see `lib/github-repo-registry.ts`):
    github:
      repo: curiositech/port-daddy
      # or several:
-     # repos: [curiositech/port-daddy, curiositech/windags]
+     # repos: [curiositech/port-daddy, curiositech/example-service]
    ```
 
 2. **Inferred** from the project's git `origin` remote when no explicit

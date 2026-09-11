@@ -140,9 +140,9 @@ The pattern is identical to MetaGPT: identify a human workflow with specialized 
 
 The "meta" in meta-programming isn't just "code about code"—it's **systems that encode and execute expert processes**.
 
-## Implications for WinDAGs: Orchestration as Meta-Capability
+## Implications for Jury-rig: Orchestration as Meta-Capability
 
-For WinDAGs with 180+ skills, the meta-programming perspective suggests a different architecture than traditional orchestration:
+For Jury-rig with 180+ skills, the meta-programming perspective suggests a different architecture than traditional orchestration:
 
 **Traditional Orchestration**:
 ```
