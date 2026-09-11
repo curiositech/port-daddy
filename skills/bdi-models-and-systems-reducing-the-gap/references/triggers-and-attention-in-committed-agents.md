@@ -95,7 +95,7 @@ This signals deliberation. The robot reconsiders, finds battery desire (importan
 
 Attention shifted from "focus on storage" to "focus on battery" not because the robot constantly asked "should I still store?" but because a specific belief change (battery status) violated a trigger constraint.
 
-## Implementation Pattern for WinDAG Systems
+## Implementation Pattern for Port Daddy Systems
 
 For orchestration systems, this trigger architecture suggests:
 

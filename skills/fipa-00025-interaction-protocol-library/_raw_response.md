@@ -2,7 +2,7 @@
 **Title**: FIPA Interaction Protocol Library Specification (XC00025E)
 **Author**: FIPA TC C (Foundation for Intelligent Physical Agents Technical Committee)
 **Core Question**: How can agents with different implementations, goals, and internal architectures reliably coordinate with one another through standardized, pre-specified patterns of message exchange — without requiring each agent to fully understand the other's internal state?
-**Irreplaceable Contribution**: This specification is one of the foundational documents of multi-agent systems engineering. It codifies something that most AI orchestration systems rediscover ad hoc: that *conversation patterns* between agents are themselves first-class design artifacts. The FIPA IP Library doesn't just describe how agents talk — it provides a formal language (AUML) for specifying, parameterizing, composing, and reusing interaction protocols as modular, inspectable, and verifiable structures. This is the closest thing to a "grammar of agent coordination" that the pre-LLM era produced, and its lessons about protocol composability, role abstraction, and the limits of interoperability without agreement are directly applicable to modern WinDAG-style orchestration systems.
+**Irreplaceable Contribution**: This specification is one of the foundational documents of multi-agent systems engineering. It codifies something that most AI orchestration systems rediscover ad hoc: that *conversation patterns* between agents are themselves first-class design artifacts. The FIPA IP Library doesn't just describe how agents talk — it provides a formal language (AUML) for specifying, parameterizing, composing, and reusing interaction protocols as modular, inspectable, and verifiable structures. This is the closest thing to a "grammar of agent coordination" that the pre-LLM era produced, and its lessons about protocol composability, role abstraction, and the limits of interoperability without agreement are directly applicable to modern Port Daddy-style orchestration systems.
 
 ---
 
@@ -36,7 +36,7 @@ This is not a trivial observation. Most agent systems — and most modern AI orc
 
 ## Why This Matters for Agent Orchestration Systems
 
-In a WinDAG-style system with 180+ skills, agents are constantly in conversation: one agent requests a subtask, another proposes an approach, a third accepts or rejects, a fourth confirms completion or reports failure. If these conversations are not governed by explicit protocols, several failure modes emerge:
+In a Port Daddy-style system with 180+ skills, agents are constantly in conversation: one agent requests a subtask, another proposes an approach, a third accepts or rejects, a fourth confirms completion or reports failure. If these conversations are not governed by explicit protocols, several failure modes emerge:
 
 - **Ambiguity about conversation state**: An agent doesn't know whether a silence means "thinking," "failed," or "done."
 - **Incompatible assumptions**: Agent A expects a `propose` message before proceeding; Agent B assumes permission is implied by the initial `request`.
@@ -57,7 +57,7 @@ This is a fundamental tradeoff:
 
 **Philosophy B — Pre-specified Protocols**: Define conversation patterns ahead of time. Agents don't need to reason about *why* the pattern works — they just follow it. A simple agent can participate in a sophisticated negotiation by pattern-matching on message types and following the prescribed responses.
 
-For a WinDAG system, the lesson is clear: **use pre-specified protocols wherever the coordination pattern is predictable and reusable, and reserve emergent coordination for genuinely novel situations**. The overhead of specifying protocols is paid once; the overhead of emergent coordination is paid every time.
+For a Port Daddy system, the lesson is clear: **use pre-specified protocols wherever the coordination pattern is predictable and reusable, and reserve emergent coordination for genuinely novel situations**. The overhead of specifying protocols is paid once; the overhead of emergent coordination is paid every time.
 
 ## The ContractNet Protocol as an Archetype
 
@@ -77,7 +77,7 @@ The FIPA ContractNet Protocol is the canonical example of an interaction protoco
 
 What makes this powerful is that every state in the conversation is named, every transition is specified, and every message type has a defined semantic. An agent implementing this protocol knows exactly what state it's in at every moment, exactly what messages are valid next, and exactly what it must do with each incoming message.
 
-For WinDAG skill orchestration, this pattern maps directly to: skill invocation (`cfp`), capability assessment (`propose`/`refuse`), skill selection (`accept-proposal`/`reject-proposal`), and result reporting (`inform`/`failure`). Any orchestration system that has these message types and follows this pattern is implementing ContractNet, whether or not it names it.
+For Port Daddy skill orchestration, this pattern maps directly to: skill invocation (`cfp`), capability assessment (`propose`/`refuse`), skill selection (`accept-proposal`/`reject-proposal`), and result reporting (`inform`/`failure`). Any orchestration system that has these message types and follows this pattern is implementing ContractNet, whether or not it names it.
 
 ## Naming Protocols Enables Reasoning About Systems
 
@@ -85,7 +85,7 @@ There is a meta-benefit to naming protocols that goes beyond the protocol itself
 
 This observability is only possible because the protocol is named and specified. In an ad hoc communication system, the same information might be embedded in unstructured message content, invisible to any automated reasoning system.
 
-## Practical Implications for WinDAG Design
+## Practical Implications for Port Daddy Design
 
 1. **Build a protocol library alongside your skill library.** For every recurring coordination pattern in your system — task delegation, result verification, escalation, parallel subtask coordination — name the protocol and specify its message sequence.
 
@@ -158,11 +158,11 @@ The Directory Facilitator is a role — a behavioral specification of a service 
 
 This is role-based design in practice: the protocol is designed against the role interface, not against any specific implementation.
 
-## Implications for WinDAG Skill Architecture
+## Implications for Port Daddy Skill Architecture
 
 ### Skills as Roles, Not Agents
 
-In a WinDAG system, the 180+ skills can be understood as **role specifications**. Each skill defines:
+In a Port Daddy system, the 180+ skills can be understood as **role specifications**. Each skill defines:
 - What inputs it accepts (the role's interface)
 - What outputs it produces (the role's contract)
 - What communicative acts it participates in (the role's protocol compliance)
@@ -175,11 +175,11 @@ When an agent plays multiple roles in concurrent conversations, the system must 
 
 > "Note that, by their nature, agents can engage in multiple dialogues, perhaps with different agents, simultaneously. The term conversation is used to denote any particular instance of such a dialogue." (Section 2.1)
 
-This means the `conversation-id` (or its WinDAG equivalent) is not just an administrative tag — it is the scope within which role assignments are meaningful. An agent receiving a message labeled with conversation-id X knows it is playing role R in that conversation, even if it is simultaneously playing role S in conversation Y.
+This means the `conversation-id` (or its Port Daddy equivalent) is not just an administrative tag — it is the scope within which role assignments are meaningful. An agent receiving a message labeled with conversation-id X knows it is playing role R in that conversation, even if it is simultaneously playing role S in conversation Y.
 
 ### Dynamic Role Assignment as Adaptive Routing
 
-Dynamic classification — the ability for agents to change their roles over time — suggests that WinDAG routing should be adaptive. An agent that has just completed a complex code generation task has contextual state that makes it particularly good at code review for the same codebase, temporarily qualifying it for a `CodeReviewer` role it might not have satisfied an hour earlier. Role satisfaction should be evaluated dynamically, not assigned statically at agent creation.
+Dynamic classification — the ability for agents to change their roles over time — suggests that Port Daddy routing should be adaptive. An agent that has just completed a complex code generation task has contextual state that makes it particularly good at code review for the same codebase, temporarily qualifying it for a `CodeReviewer` role it might not have satisfied an hour earlier. Role satisfaction should be evaluated dynamically, not assigned statically at agent creation.
 
 ### Protocol Compliance as Role Qualification
 
@@ -187,7 +187,7 @@ The FIPA specification makes clear that claiming a role is not enough — an age
 
 > "A FIPA ACL-compliant agent need not implement any of the standard IPs, nor is it restricted from using other IP names. However, if one of the standard IP names is used, the agent must behave consistently with the IP specification given here." (Section 2.2)
 
-This is a strong design principle for WinDAG: **skill registration should include protocol compliance verification**. An agent that claims to support skill X must be able to respond correctly to all valid messages in skill X's interaction protocol, not just produce outputs when invoked. This includes handling refusals, failures, partial results, and timeout scenarios correctly.
+This is a strong design principle for Port Daddy: **skill registration should include protocol compliance verification**. An agent that claims to support skill X must be able to respond correctly to all valid messages in skill X's interaction protocol, not just produce outputs when invoked. This includes handling refusals, failures, partial results, and timeout scenarios correctly.
 
 ## Designing Protocols for Roles That Don't Exist Yet
 
@@ -212,7 +212,7 @@ One of the most important passages in the FIPA Interaction Protocol Library Spec
 
 This is a remarkable admission for a standards document. It says: *compliance with our standard is not sufficient for your agents to actually work together*. The protocols define the happy-path structure of interactions. But real conversations between agents happen in environments where things go wrong, where timing is unpredictable, where one party may disappear mid-conversation, where the same message might arrive twice. The protocols are silent on all of this.
 
-For any agent system designer — and especially for designers of WinDAG-style orchestration systems — this gap between *protocol compliance* and *genuine interoperability* is one of the most dangerous failure modes to underestimate.
+For any agent system designer — and especially for designers of Port Daddy-style orchestration systems — this gap between *protocol compliance* and *genuine interoperability* is one of the most dangerous failure modes to underestimate.
 
 ## What the Protocols Cover: The Happy Path
 
@@ -259,7 +259,7 @@ The gap between protocol compliance and genuine interoperability is precisely th
 
 This is not a failure of the FIPA specification — it is an honest acknowledgment of the scope of the problem. The specification correctly identifies that these issues require "further agreement between agents about the issues above." This additional agreement is typically handled at the infrastructure layer (reliable message delivery, exactly-once semantics), the application layer (explicit timeout agreements), or through additional protocol extensions (cancel sub-protocols, acknowledgment messages).
 
-## Implications for WinDAG Orchestration
+## Implications for Port Daddy Orchestration
 
 ### Protocols Are Necessary But Not Sufficient
 
@@ -275,7 +275,7 @@ These decisions should be documented alongside the protocol name, not left as im
 
 ### The Danger of Assuming Compliance Equals Correctness
 
-A WinDAG skill that correctly implements the ContractNet protocol — sending and receiving the right message types in the right order — can still be a source of system failures if it leaves the above questions unanswered. A skill that hangs waiting for a response to an `accept-proposal` that was never delivered, with no timeout, will block indefinitely. A skill that processes duplicate `cfp` messages will produce duplicate results, potentially causing conflicts downstream.
+A Port Daddy skill that correctly implements the ContractNet protocol — sending and receiving the right message types in the right order — can still be a source of system failures if it leaves the above questions unanswered. A skill that hangs waiting for a response to an `accept-proposal` that was never delivered, with no timeout, will block indefinitely. A skill that processes duplicate `cfp` messages will produce duplicate results, potentially causing conflicts downstream.
 
 ### Infrastructure Obligations
 
@@ -396,11 +396,11 @@ Binding creates a *concrete* protocol — one that can be registered in the prot
 
 Critically: "If the referencing scope is itself a parameterised protocol, then the parameters of the referencing parameterised protocol can be used as actual values in binding the referenced parameterised protocol." (Section 3.2.11.1) This enables *composition* of parameterized protocols — a higher-level protocol template can use another parameterized protocol as a sub-component, passing its own parameters through.
 
-## Implications for WinDAG Skill Protocol Design
+## Implications for Port Daddy Skill Protocol Design
 
 ### Skills Have Protocol Templates
 
-In a WinDAG system, each skill category should have an associated protocol *template* that governs how that skill is invoked, how it responds to various conditions, and how its results are reported. The template has parameters for:
+In a Port Daddy system, each skill category should have an associated protocol *template* that governs how that skill is invoked, how it responds to various conditions, and how its results are reported. The template has parameters for:
 - The specific skill variant being invoked
 - The timeout and retry constraints for this invocation
 - The expected output format and content
@@ -408,7 +408,7 @@ In a WinDAG system, each skill category should have an associated protocol *temp
 
 When an orchestrator invokes skill X on task Y, it is instantiating the skill's protocol template with specific bindings for that invocation.
 
-### Building a WinDAG Protocol Library
+### Building a Port Daddy Protocol Library
 
 The FIPA approach suggests that Jury-rig should maintain a **protocol library** analogous to the skill library: a registry of named, parameterized protocol templates that can be instantiated for specific coordination needs. This library would contain:
 
@@ -467,7 +467,7 @@ One of AUML's contributions beyond standard UML sequence diagrams is the explici
 
 An agent role that exists before the protocol starts is shown at the top of the diagram. An agent that is created during the protocol has an arrow pointing to its role box, and its lifeline begins there. An agent that terminates during the protocol has its lifeline end with a large "X."
 
-This explicit lifecycle modeling is significant for orchestration system design. In a WinDAG system, the equivalent of agent creation is skill instantiation or agent spawning — dynamically creating a new agent to handle a specific subtask. The AUML convention makes this creation event a named, visible point in the coordination diagram, not an implementation detail. You can see, from the protocol diagram alone, that "at this point, a new specialist agent is created and handed the sub-problem."
+This explicit lifecycle modeling is significant for orchestration system design. In a Port Daddy system, the equivalent of agent creation is skill instantiation or agent spawning — dynamically creating a new agent to handle a specific subtask. The AUML convention makes this creation event a named, visible point in the coordination diagram, not an implementation detail. You can see, from the protocol diagram alone, that "at this point, a new specialist agent is created and handed the sub-problem."
 
 ## Lifeline Splitting: Parallelism and Decisions Made Visible
 
@@ -495,7 +495,7 @@ AUML introduces the "thread of interaction" — shown as a tall thin rectangle o
 
 This is more than visual decoration. The thread of interaction distinguishes between an agent's *existence* (its lifeline) and its *active processing* (the thread). An agent can exist — be present in the conversation — without actively processing; it might be waiting for a message, or waiting for a resource. The thread of interaction makes this distinction visible.
 
-For WinDAG systems, this distinction corresponds to the difference between a skill being *registered* (lifeline exists) and a skill being *invoked* (thread of interaction active). A busy skill has an active thread of interaction; an available skill has a lifeline but no current thread.
+For Port Daddy systems, this distinction corresponds to the difference between a skill being *registered* (lifeline exists) and a skill being *invoked* (thread of interaction active). A busy skill has an active thread of interaction; an available skill has a lifeline but no current thread.
 
 The thread also has a branching semantics: when an agent receives different types of messages, each possible response follows a different thread of interaction. The AUML diagram shows all possible threads — the designer must specify the response to every valid incoming message type, not just the happy-path case.
 
@@ -538,7 +538,7 @@ AUML distinguishes message types by their synchronicity:
 
 In an orchestration system, this distinction has direct performance implications. An agent sending a synchronous message is blocked until it receives a response — it cannot process other messages. An agent sending an asynchronous message continues execution and handles the response when it arrives.
 
-For WinDAG skill invocation, this maps to:
+For Port Daddy skill invocation, this maps to:
 - **Synchronous invocation**: The orchestrating agent waits for the skill to complete before proceeding. Simpler to reason about, but blocks the orchestrator.
 - **Asynchronous invocation**: The orchestrating agent fires off the skill invocation and continues with other work. More complex to reason about (what state are we in when the response arrives?), but enables parallelism.
 
@@ -602,7 +602,7 @@ In a social community:
 
 This is precisely the design model that FIPA formalizes. The "shared language" is FIPA ACL (Agent Communication Language). The "shared conventions" are the interaction protocols in the IP Library. The "norms of interaction" are the protocol specifications. The "role" system is AUML's AgentRole mechanism.
 
-For WinDAG system design, this social metaphor has practical implications: **design your agent ecosystem as a society, not as a call graph**. A call graph specifies who calls whom and in what order; this is the right model for objects. A social design specifies who plays which roles, what protocols govern their interactions, and what norms apply when protocols don't fully specify behavior — this is the right model for agents.
+For Port Daddy system design, this social metaphor has practical implications: **design your agent ecosystem as a society, not as a call graph**. A call graph specifies who calls whom and in what order; this is the right model for objects. A social design specifies who plays which roles, what protocols govern their interactions, and what norms apply when protocols don't fully specify behavior — this is the right model for agents.
 
 ## Why Objects Are Not Enough, Even for Simple Orchestration
 
@@ -616,9 +616,9 @@ The answer is no, even for apparently simple orchestration scenarios, for three 
 
 **Reason 3: Agents have opinions.** An object doesn't decide whether to fulfill a method call — it just executes. An agent may decide that it cannot, should not, or will not fulfill a request — and it communicates this decision through the protocol (`refuse`, `not-understood`, `failure`). This means the system designer must account for agent agency in their coordination designs, not assume that every invocation will be honored.
 
-## The Implications for Designing Skills in WinDAG
+## The Implications for Designing Skills in Port Daddy
 
-A WinDAG skill is, in the FIPA sense, an agent — not an object. This has concrete design implications:
+A Port Daddy skill is, in the FIPA sense, an agent — not an object. This has concrete design implications:
 
 **Skills may decline requests.** Unlike an object method that executes when called, a skill may legitimately respond to an invocation with `refuse` (I cannot do this) or `not-understood` (I don't understand this request). The orchestration system must handle these responses gracefully, not assume they cannot occur.
 
@@ -626,7 +626,7 @@ A WinDAG skill is, in the FIPA sense, an agent — not an object. This has concr
 
 **Skills act in a social context.** A skill invocation is not an isolated method call — it is a message in an ongoing conversation within a protocol. The skill's response should be understood in terms of the protocol state, not just the message content. A `failure` message means something different at the beginning of a task than at the end.
 
-**Skills may initiate interactions.** In a pure object model, objects are passive responders. In an agent model, an agent may initiate interactions on its own — reporting a discovered problem, requesting additional information, or proactively coordinating with related agents. WinDAG skills that can initiate interactions provide richer coordination capabilities than purely reactive skills.
+**Skills may initiate interactions.** In a pure object model, objects are passive responders. In an agent model, an agent may initiate interactions on its own — reporting a discovered problem, requesting additional information, or proactively coordinating with related agents. Port Daddy skills that can initiate interactions provide richer coordination capabilities than purely reactive skills.
 
 ## The Limits of the Agent Model
 
@@ -634,7 +634,7 @@ The FIPA specification is honest that the agent model introduces complexity that
 
 This suggests a practical design principle: **use the agent model where its properties are genuinely needed, and use the object model where they are not**.
 
-Not every component of a WinDAG system needs to be a full agent. A deterministic text-processing utility that always produces the same output for the same input and has no goals, no protocol obligations, and no need for autonomous action is better modeled as a function than as an agent. The overhead of protocol-based interaction, role specification, and message-passing semantics is not justified for components with no social dimension.
+Not every component of a Port Daddy system needs to be a full agent. A deterministic text-processing utility that always produces the same output for the same input and has no goals, no protocol obligations, and no need for autonomous action is better modeled as a function than as an agent. The overhead of protocol-based interaction, role specification, and message-passing semantics is not justified for components with no social dimension.
 
 The agent model is justified when:
 - The component has goals that may lead it to decline or modify requests
@@ -688,7 +688,7 @@ Within a conversation, the protocol defines the *state space* — the set of sta
 
 Both the Initiator and the Participants in the conversation share an understanding of this state space. When either side sends a message, it is making a transition in this shared state machine. This shared understanding is what makes protocol-based coordination work — not that the agents have identical internal representations, but that they agree on the conversational state and on what messages are valid in each state.
 
-For WinDAG orchestration, this suggests that **every orchestrated task should have an explicit conversational state machine**, not just a "task in progress / task done" binary. The conversational state machine should reflect the protocol being used, and the orchestrator should be able to query the current state of any active conversation.
+For Port Daddy orchestration, this suggests that **every orchestrated task should have an explicit conversational state machine**, not just a "task in progress / task done" binary. The conversational state machine should reflect the protocol being used, and the orchestrator should be able to query the current state of any active conversation.
 
 ## Threads of Interaction: Processing State Within Conversations
 
@@ -700,7 +700,7 @@ A critical note: "Note we do not mean a physical thread in this context. The spe
 
 This separation between the *conceptual* thread of interaction (a period of active processing in response to a message) and the *physical* implementation (which may or may not use OS threads) is important. The conceptual thread is a protocol-level concept — it says "this agent is currently processing message X and will continue until it can send a response." The physical implementation is a separate concern.
 
-For WinDAG, this means that "skill is active" is a protocol-level state, not just an implementation state. An agent should be able to report, in protocol terms, which conversations it currently has active threads in — this is information that the orchestrator can use for load estimation, scheduling, and routing.
+For Port Daddy, this means that "skill is active" is a protocol-level state, not just an implementation state. An agent should be able to report, in protocol terms, which conversations it currently has active threads in — this is information that the orchestrator can use for load estimation, scheduling, and routing.
 
 ## Parallel Branching in Conversations
 
@@ -718,7 +718,7 @@ The FIPA specification treats nested protocols as part of the same conversation.
 
 Interleaved protocols, by contrast, represent *distinct* conversations that happen to be concurrent. A Broker engaged in a ContractNet with a Retailer and simultaneously in a Request protocol with a Wholesaler is running two separate conversations — each with its own state, each with its own conversation ID.
 
-This distinction matters for WinDAG design: when should a complex workflow be structured as a single conversation with nested sub-protocols, and when should it be structured as multiple interleaved conversations?
+This distinction matters for Port Daddy design: when should a complex workflow be structured as a single conversation with nested sub-protocols, and when should it be structured as multiple interleaved conversations?
 
 The answer turns on *dependency*. If the sub-tasks are logically part of a single coordinated interaction — where the state of one sub-task directly affects the options available in another — they should be nested within a single conversation. If the sub-tasks are independent — where each is a self-contained interaction that happens to be concurrent — they should be separate conversations.
 
@@ -735,9 +735,9 @@ For conversations, there is an analogous lifecycle:
 
 Terminated conversations should be cleaned up: their state can be archived (for audit or learning purposes), but it should no longer consume active resources. An orchestration system that fails to terminate conversations — leaving them in "limbo" states where neither party is sure whether the conversation is still active — will accumulate stale state and eventually fail.
 
-## Practical Conversation Management for WinDAG
+## Practical Conversation Management for Port Daddy
 
-Based on the FIPA framework, a WinDAG conversation management system should:
+Based on the FIPA framework, a Port Daddy conversation management system should:
 
 1. **Assign a unique conversation ID to every protocol invocation.** This ID must travel with every message in the conversation and be used by all participants to route messages to the correct conversation state.
 
@@ -809,7 +809,7 @@ The protocol provides no mechanism for detecting dishonest proposals. The `failu
 
 This is a fundamental limitation of protocol-based coordination: protocols can specify the *form* of messages but not their *truthfulness*. A protocol compliance checker verifies that an agent sends the right types of messages; it cannot verify that those messages accurately reflect the agent's capabilities or intentions.
 
-For WinDAG systems, this has practical implications for skill capability registration. If skills self-report their capabilities (the protocol analog of a `propose` message), those self-reports may not accurately reflect actual performance under load, on edge cases, or on tasks that are superficially similar but substantially different from the skill's training distribution. The system should maintain empirical performance records alongside self-reported capabilities, and use historical performance data to calibrate expectations.
+For Port Daddy systems, this has practical implications for skill capability registration. If skills self-report their capabilities (the protocol analog of a `propose` message), those self-reports may not accurately reflect actual performance under load, on edge cases, or on tasks that are superficially similar but substantially different from the skill's training distribution. The system should maintain empirical performance records alongside self-reported capabilities, and use historical performance data to calibrate expectations.
 
 ## Protocol Rigidity and the Need for Discretion
 
@@ -833,9 +833,9 @@ Given that protocol wisdom cannot be specified in the protocol itself, how can p
 
 **Strategy 4: Allow richer failure reporting.** The ContractNet `failure` message carries a `reason-3` parameter — the reason for the failure. This enables the Initiator to learn from failures, adapt its future proposals, and potentially re-allocate the task more successfully. Rich failure information converts failures from dead ends into learning opportunities.
 
-## Implications for WinDAG Agent Design
+## Implications for Port Daddy Agent Design
 
-The distinction between protocol compliance and protocol wisdom suggests several design priorities for WinDAG agents:
+The distinction between protocol compliance and protocol wisdom suggests several design priorities for Port Daddy agents:
 
 **Priority 1: Build in calibrated self-assessment.** A skill that can accurately assess its ability to perform a task before accepting it — and communicate that assessment honestly in the proposal — creates better system outcomes than a skill that either always accepts (and sometimes fails) or always refuses (and misses opportunities). Calibrated self-assessment is a form of protocol wisdom.
 
@@ -843,7 +843,7 @@ The distinction between protocol compliance and protocol wisdom suggests several
 
 **Priority 3: Maintain conversational memory.** Protocol wisdom often depends on context from previous interactions in the same conversation. A skill that remembers why a previous `propose` was rejected is better positioned to make a more relevant proposal on the second attempt. Within a conversation, contextual memory enables better decisions.
 
-**Priority 4: Design meta-protocols for protocol failures.** When the standard protocol is not working — when a conversation is stuck, when messages are ambiguous, when conditions have changed beyond the protocol's scope — there must be a way for agents to step outside the primary protocol and negotiate about the conversation itself. This is the WinDAG equivalent of FIPA's meta-level cancellation and modification protocols.
+**Priority 4: Design meta-protocols for protocol failures.** When the standard protocol is not working — when a conversation is stuck, when messages are ambiguous, when conditions have changed beyond the protocol's scope — there must be a way for agents to step outside the primary protocol and negotiate about the conversation itself. This is the Port Daddy equivalent of FIPA's meta-level cancellation and modification protocols.
 
 ## The Wisdom That Protocols Cannot Contain
 
@@ -858,7 +858,7 @@ This judgment cannot be specified formally. It can only be cultivated through de
 
 ## The Modularity Problem in Agent Systems
 
-As agent systems grow in complexity, they face a fundamental scalability challenge: the interaction patterns between agents become too complex to be specified or reasoned about as a single monolithic coordination scheme. A large WinDAG system with 180+ skills and dozens of concurrent workflows cannot have its coordination specified in a single protocol diagram — the complexity would be unmanageable.
+As agent systems grow in complexity, they face a fundamental scalability challenge: the interaction patterns between agents become too complex to be specified or reasoned about as a single monolithic coordination scheme. A large Port Daddy system with 180+ skills and dozens of concurrent workflows cannot have its coordination specified in a single protocol diagram — the complexity would be unmanageable.
 
 The FIPA Interaction Protocol Library addresses this through a principled approach to **modular protocol composition** — the ability to build complex interaction patterns from simpler, well-specified components. Three distinct composition mechanisms are provided, each suited to different structural relationships between protocols.
 
@@ -892,7 +892,7 @@ The example in Section 3.2.7.4 shows a Broker simultaneously running:
 
 These are separate conversations with separate states. The Broker maintains both simultaneously, and the outcome of one may influence decisions made in the other — but this influence happens through the Broker's internal reasoning, not through a formal protocol dependency.
 
-For WinDAG, interleaved protocols are the natural model for **parallel subtask dispatch**: an orchestrating agent distributes subtasks to multiple specialist agents simultaneously, each subtask being a separate conversation, and waits for results before proceeding. The orchestrator's internal state tracks all active conversations, and when sufficient results have arrived, it synthesizes them.
+For Port Daddy, interleaved protocols are the natural model for **parallel subtask dispatch**: an orchestrating agent distributes subtasks to multiple specialist agents simultaneously, each subtask being a separate conversation, and waits for results before proceeding. The orchestrator's internal state tracks all active conversations, and when sufficient results have arrived, it synthesizes them.
 
 ### Mechanism 3: Parameterized Protocols — Reusable Templates with Bound Instantiation
 
@@ -913,7 +913,7 @@ The FIPA notation supports recursive protocol structure: nested protocols can th
 
 This recursive structure is powerful: it means that complex coordination patterns can be built up layer by layer, with each layer being fully specified and independently verifiable. A high-level protocol might specify "run the task-allocation sub-protocol, then run the execution-monitoring sub-protocol, then run the result-verification sub-protocol" — with each sub-protocol being separately defined, separately testable, and separately reusable.
 
-This is precisely the architecture that enables complex WinDAG workflows to remain comprehensible: each level of the protocol hierarchy is simple enough to understand on its own, even though the full protocol is complex.
+This is precisely the architecture that enables complex Port Daddy workflows to remain comprehensible: each level of the protocol hierarchy is simple enough to understand on its own, even though the full protocol is complex.
 
 ## The Role of AUML's Complex Message Structures
 
@@ -955,9 +955,9 @@ Modular composition of protocols has boundaries and preconditions that must be r
 
 **Boundary 4: Complexity imposes cognitive costs.** The ability to compose protocols recursively is powerful but can produce specifications that are formally correct but humanly incomprehensible. Good protocol design requires judgment about when to flatten a recursive structure into a more explicit (but less reusable) form for the sake of clarity.
 
-## Architectural Lessons for WinDAG
+## Architectural Lessons for Port Daddy
 
-The FIPA compositional approach suggests a specific architecture for WinDAG protocol management:
+The FIPA compositional approach suggests a specific architecture for Port Daddy protocol management:
 
 1. **Maintain a tiered protocol library**: Base protocols (Request, ContractNet, Query-If) at the bottom; domain-specific protocols (task-allocation, code-review, result-verification) in the middle; application-specific protocols at the top.
 
@@ -982,13 +982,13 @@ The FIPA compositional framework is ultimately an argument for treating protocol
 
 - **API/Interface Design**: The AgentRole as behavioral contract concept applies directly to skill interface design. Skills should be specified as role interfaces, not as specific implementations. The distinction between role interface (what any satisfying implementation must do) and instance (a specific implementation) should be explicit.
 
-- **Error Handling and Resilience**: The explicit enumeration of what protocols do NOT cover (exceptions, out-of-sequence messages, dropped messages, timeouts, cancellation) provides a checklist for resilience engineering. Any WinDAG skill invocation should have explicit answers to all six identified failure modes.
+- **Error Handling and Resilience**: The explicit enumeration of what protocols do NOT cover (exceptions, out-of-sequence messages, dropped messages, timeouts, cancellation) provides a checklist for resilience engineering. Any Port Daddy skill invocation should have explicit answers to all six identified failure modes.
 
 - **System Monitoring and Debugging**: The AUML protocol diagram formalism provides a specification language for what *should* happen in a coordination. Any deviation from the specified protocol diagram is a potential bug. Monitors can be designed that compare observed message sequences to the expected protocol state machine.
 
 - **Architecture Documentation**: The discipline of specifying agent roles, lifelines, thread of interaction, and branching type (AND/OR/XOR) provides a vocabulary for documenting multi-agent architectures that is more precise than prose and more agent-appropriate than UML.
 
-- **Security Auditing**: The honest agent problem — that protocol compliance cannot guarantee honest communication — has direct security implications. A security audit of a WinDAG system should specifically look for where self-reported capabilities are trusted without verification, and where protocol compliance is assumed to imply correct behavior.
+- **Security Auditing**: The honest agent problem — that protocol compliance cannot guarantee honest communication — has direct security implications. A security audit of a Port Daddy system should specifically look for where self-reported capabilities are trusted without verification, and where protocol compliance is assumed to imply correct behavior.
 
 - **Code Review**: The distinction between syntactic compliance (right message type), semantic compliance (correct content), and protocol compliance (correct sequence) maps to a three-layer code review framework for agent interaction code: does it speak correctly, does it say correct things, and does it follow the right conversation flow?
 

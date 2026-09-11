@@ -61,7 +61,7 @@ The proof constructs a non-terminating execution by carefully choosing which age
 
 For agent systems, this reveals that **the order in which agents receive information and take actions can prevent decision-making even when the system is "making progress."**
 
-Imagine a WinDAG orchestrator scheduling agent actions:
+Imagine a Port Daddy orchestrator scheduling agent actions:
 1. Agent A completes analysis, sends "approve" recommendation
 2. Before Agent B receives this, Agent C sends "reject" recommendation  
 3. Orchestrator delivers C's message to B first
@@ -88,7 +88,7 @@ This case is subtle: if the same process p is involved in both the critical even
 
 Case 2 reveals a profound issue: **If a single agent is critical to making a decision, its delayed participation can keep the system indefinitely bivalent**.
 
-Consider a WinDAG system where:
+Consider a Port Daddy system where:
 - Agent P is the architecture expert
 - Agents A, B, C perform analyses
 - Decision requires P's integration of their findings

@@ -113,7 +113,7 @@ This inverts the typical approach in AI. Usually: (1) define idealized rational 
 
 The alternative: (1) choose a formalism with both logical semantics and proof theory, (2) define rationality concepts within it, (3) the implementation *is* the formal model executing. There's no gap because there's no translation step—the formal model is already computational.
 
-For WinDAG systems: When designing cognitive capabilities (goal management, commitment tracking, conflict resolution), favor representations that are directly executable rather than requiring interpretation. Logic programming with well-defined semantics, production systems with proven control algorithms, constraint solvers with sound propagation—these provide both formal specification and operational implementation.
+For Port Daddy systems: When designing cognitive capabilities (goal management, commitment tracking, conflict resolution), favor representations that are directly executable rather than requiring interpretation. Logic programming with well-defined semantics, production systems with proven control algorithms, constraint solvers with sound propagation—these provide both formal specification and operational implementation.
 
 The lesson applies beyond BDI agents: Any intelligent system component bridging deliberation and execution benefits from representations where formal properties and computational behavior aren't separate concerns but unified through operational semantics.
 ```
@@ -191,7 +191,7 @@ The preference relation determines which candidate sets to prefer. There may be 
 
 Once selected, they gain commitment properties (see previous document). But they start as desires.
 
-## Implementation Architecture for WinDAG Systems
+## Implementation Architecture for Port Daddy Systems
 
 This suggests a specific agent architecture:
 
@@ -238,7 +238,7 @@ The BDI architecture provides a middle layer: goals (desires) that persist over 
 - **Graceful overload**: When under-resourced, select objective subset rather than fail/thrash
 - **Justification**: Explain why goals were adopted or rejected (deliberation trace)
 
-For WinDAG orchestration: When designing task decomposition or skill selection, distinguish "possible tasks to consider" from "committed execution plan." The skills capability database is like the desire set—the full space of options. Route selection and orchestration logic performs deliberation—choosing a feasible, preferred subset to commit to.
+For Port Daddy orchestration: When designing task decomposition or skill selection, distinguish "possible tasks to consider" from "committed execution plan." The skills capability database is like the desire set—the full space of options. Route selection and orchestration logic performs deliberation—choosing a feasible, preferred subset to commit to.
 
 The gap many systems have: They jump from "here's a request" to "execute this plan" without an explicit deliberation layer that considers alternatives, checks feasibility, and applies preferences. Building that layer means implementing something like the desire → eligible → candidate → intention pipeline.
 
@@ -378,7 +378,7 @@ Mitigations:
 
 The paper's architecture assumes a deliberative layer (where abduction happens) and an execution layer (where plans run). Purely reactive agents don't fit this model.
 
-## Application to WinDAG Agent Systems
+## Application to Port Daddy Agent Systems
 
 For orchestration systems with 180+ skills, abduction provides a feasibility check for skill chains:
 
@@ -620,11 +620,11 @@ This unification is powerful: You can mix multiple reasoning forms (defeasible r
 
 ## Implementation Considerations for Agent Systems
 
-For WinDAG orchestration, revision-based deliberation suggests specific architectural patterns:
+For Port Daddy orchestration, revision-based deliberation suggests specific architectural patterns:
 
 **1. Maintain a Contradiction-Tolerant Knowledge Base**: Don't reject inconsistent information at input—accept it and use contradiction detection as a signal. When skill outputs conflict (skill A says "vulnerability found," skill B says "no vulnerability"), don't crash or arbitrarily pick one. Record both, detect contradiction, trigger reconciliation.
 
-**2. Define Revisable vs. Non-Revisable**: Clearly distinguish beliefs/intentions that are negotiable from those that are fixed. In a WinDAG system:
+**2. Define Revisable vs. Non-Revisable**: Clearly distinguish beliefs/intentions that are negotiable from those that are fixed. In a Port Daddy system:
 - **Revisable**: Skill selection (which skills to invoke), goal prioritization (which objectives to pursue), hypothesized facts (abduced intermediate results)
 - **Non-Revisable**: User constraints (security policy), physical laws (system architecture facts), verified results (test outcomes)
 
@@ -659,7 +659,7 @@ The profound insight: Contradiction is not a failure mode—it's a *computationa
 
 Paraconsistent semantics + revision mechanisms turn contradiction into a driver for search: Detect conflicts, systematically explore resolutions, prefer minimal mutilations. This is more principled than ad-hoc conflict resolution (e.g., "last update wins," "majority vote," "user resolves").
 
-For WinDAG systems: Embrace contradiction at the design level. When skills produce conflicting outputs, when goals are over-constrained, when beliefs are inconsistent—don't treat these as crashes. Treat them as signals that deliberation is needed. Implement revision mechanisms to systematically explore and resolve conflicts based on declared preferences.
+For Port Daddy systems: Embrace contradiction at the design level. When skills produce conflicting outputs, when goals are over-constrained, when beliefs are inconsistent—don't treat these as crashes. Treat them as signals that deliberation is needed. Implement revision mechanisms to systematically explore and resolve conflicts based on declared preferences.
 
 This requires a mindset shift: Instead of "my system must never be inconsistent" → "my system uses inconsistency as information." The architecture must *expect* contradiction and have well-defined responses (revision procedures) rather than *fear* contradiction and add defensive checks that prevent reasoning when conflicts arise.
 
@@ -766,7 +766,7 @@ This signals deliberation. The robot reconsiders, finds battery desire (importan
 
 Attention shifted from "focus on storage" to "focus on battery" not because the robot constantly asked "should I still store?" but because a specific belief change (battery status) violated a trigger constraint.
 
-## Implementation Pattern for WinDAG Systems
+## Implementation Pattern for Port Daddy Systems
 
 For orchestration systems, this trigger architecture suggests:
 
@@ -943,7 +943,7 @@ When the preference relation is indifferent, the agent can:
 
 The paper leaves this open: "When multiple candidate sets exist (different ways to satisfy desires), apply preference relation. This could be a scoring function, constraint optimization, or the revision preference graph approach" (implied throughout section 4.1).
 
-For WinDAG systems: Implement secondary preference as a scoring function applied to tied minimal revisions. The preference graph does the heavy lifting (pruning most of the space), then scoring resolves final ties.
+For Port Daddy systems: Implement secondary preference as a scoring function applied to tied minimal revisions. The preference graph does the heavy lifting (pruning most of the space), then scoring resolves final ties.
 
 ## Example: Incremental Preference Levels
 
@@ -1006,7 +1006,7 @@ Similarly for plan repair: When a plan becomes infeasible, the preference graph 
 
 The lesson: Preference graphs are a general mechanism for encoding search strategies in revision problems. Not specific to BDI desires.
 
-## Implementation for WinDAG Orchestration
+## Implementation for Port Daddy Orchestration
 
 For skill composition/orchestration:
 
@@ -1101,7 +1101,7 @@ This separation of policy (graph) and mechanism (search) is powerful:
 - **Reusable**: Same algorithm works for different problems (desires, beliefs, plans) with different graphs
 - **Debuggable**: Trace which graph levels were explored, why certain revisions were chosen
 
-For WinDAG systems: When designing decision-making components (task decomposition, skill selection, resource allocation), favor declarative specification of preferences (graphs, constraints, scoring functions) over procedural logic. This makes the system's priorities explicit, auditable, and reconfigurable without code changes.
+For Port Daddy systems: When designing decision-making components (task decomposition, skill selection, resource allocation), favor declarative specification of preferences (graphs, constraints, scoring functions) over procedural logic. This makes the system's priorities explicit, auditable, and reconfigurable without code changes.
 
 Móra et al. demonstrate that this approach bridges theory and practice: The preference graph is both a formal specification (precisely defines preference semantics) and an operational implementation (directly drives the search algorithm). No gap between "what we want" and "how to compute it."
 ```

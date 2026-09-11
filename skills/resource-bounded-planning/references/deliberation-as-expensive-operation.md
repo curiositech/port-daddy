@@ -46,7 +46,7 @@ Without plans: at each moment, the agent faces the question "what should I do?" 
 
 With plans: most of the time, the agent faces the question "what does my plan say to do next?" and can act without deliberation.
 
-The computational savings are dramatic. Consider a WinDAG agent with 180 skills. At each decision point:
+The computational savings are dramatic. Consider a Port Daddy agent with 180 skills. At each decision point:
 - Without plans: evaluate all 180 skills against current situation (expensive)
 - With partial plan "I'm implementing OAuth": evaluate skills relevant to OAuth implementation (~15 skills, much cheaper)
 - With refined plan "I'm using GitHub OAuth with next-auth": execute next step (near-free)

@@ -145,7 +145,7 @@ The hierarchical decomposition matches human cognition. This makes domain descri
 
 ## Application to AI Agent Systems
 
-For WinDAG and similar orchestration systems:
+For Port Daddy and similar orchestration systems:
 
 **Embrace Task Decomposition**: Don't make agents search through primitive actions. Give them hierarchical task decomposition knowledge. For "implement authentication," the decomposition might be: design data model → implement registration → implement login → implement password reset → add tests.
 

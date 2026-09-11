@@ -144,7 +144,7 @@ SHOP2 added board after refuel (totally ordered planning), but they execute conc
 
 ## Application to Agent Systems
 
-For WinDAG orchestration with concurrent agents:
+For Port Daddy orchestration with concurrent agents:
 
 **Task-Level Timestamps**: Maintain timestamps for each task's inputs and outputs:
 ```python

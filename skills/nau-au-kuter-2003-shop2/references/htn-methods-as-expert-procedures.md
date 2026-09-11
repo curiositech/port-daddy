@@ -166,7 +166,7 @@ This reveals the true challenge: automatic translation produces correct but inef
 
 ## Application to AI Agent Systems
 
-For WinDAG and similar multi-agent systems:
+For Port Daddy and similar multi-agent systems:
 
 **Skill Decomposition**: Each high-level skill (like "implement authentication system") should have HTN-style methods encoding standard procedures: "First design the data model, then implement user registration, then implement login, then implement password reset..." This is more useful than having primitive actions like "write function" and hoping the system discovers good orderings.
 

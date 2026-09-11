@@ -106,7 +106,7 @@ When you actually need to *verify* that a resource is not over-subscribed at a s
 
 ## Implications for Agent System Resource Modeling
 
-For a WinDAG orchestration system, the resource modeling spectrum has direct implications:
+For a Port Daddy orchestration system, the resource modeling spectrum has direct implications:
 
 **Model agent capabilities as state variables, not just availability flags.** An agent is not just "available" or "busy." It may be WARMING_UP (loading a model), PROCESSING(?task), RATE_LIMITED, AWAITING_CLARIFICATION, or DEGRADED (running on reduced capacity). Each state has different duration characteristics, different compatibility constraints, and different implications for downstream tasks. Tracking only availability discards information that is often crucial for scheduling.
 

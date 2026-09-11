@@ -199,7 +199,7 @@ Use agent-specific and task-specific timeouts
 - Slow path: Fall back to asynchronous when assumptions violated
 - Escalation path: Human intervention when both fail
 
-**Example in WinDAG**:
+**Example in Port Daddy**:
 ```
 1. Assign task to Agent A with 60s timeout (synchronous assumption)
 2. If timeout, log warning and continue waiting (asynchronous fallback)  
@@ -309,7 +309,7 @@ Real systems aren't inherently synchronous or asynchronous. They have:
 
 Your job as a system designer: **Choose synchrony assumptions that match reality most of the time, and design graceful degradation for when they don't**.
 
-For WinDAG-style agent systems:
+For Port Daddy-style agent systems:
 
 1. **Measure your reality**: What are actual agent response times? Failure rates? Network characteristics?
 

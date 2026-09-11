@@ -87,11 +87,11 @@ Binding creates a *concrete* protocol — one that can be registered in the prot
 
 Critically: "If the referencing scope is itself a parameterised protocol, then the parameters of the referencing parameterised protocol can be used as actual values in binding the referenced parameterised protocol." (Section 3.2.11.1) This enables *composition* of parameterized protocols — a higher-level protocol template can use another parameterized protocol as a sub-component, passing its own parameters through.
 
-## Implications for WinDAG Skill Protocol Design
+## Implications for Port Daddy Skill Protocol Design
 
 ### Skills Have Protocol Templates
 
-In a WinDAG system, each skill category should have an associated protocol *template* that governs how that skill is invoked, how it responds to various conditions, and how its results are reported. The template has parameters for:
+In a Port Daddy system, each skill category should have an associated protocol *template* that governs how that skill is invoked, how it responds to various conditions, and how its results are reported. The template has parameters for:
 - The specific skill variant being invoked
 - The timeout and retry constraints for this invocation
 - The expected output format and content
@@ -99,7 +99,7 @@ In a WinDAG system, each skill category should have an associated protocol *temp
 
 When an orchestrator invokes skill X on task Y, it is instantiating the skill's protocol template with specific bindings for that invocation.
 
-### Building a WinDAG Protocol Library
+### Building a Port Daddy Protocol Library
 
 The FIPA approach suggests that Jury-rig should maintain a **protocol library** analogous to the skill library: a registry of named, parameterized protocol templates that can be instantiated for specific coordination needs. This library would contain:
 

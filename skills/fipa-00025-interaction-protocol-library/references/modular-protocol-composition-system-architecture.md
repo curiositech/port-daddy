@@ -2,7 +2,7 @@
 
 ## The Modularity Problem in Agent Systems
 
-As agent systems grow in complexity, they face a fundamental scalability challenge: the interaction patterns between agents become too complex to be specified or reasoned about as a single monolithic coordination scheme. A large WinDAG system with 180+ skills and dozens of concurrent workflows cannot have its coordination specified in a single protocol diagram — the complexity would be unmanageable.
+As agent systems grow in complexity, they face a fundamental scalability challenge: the interaction patterns between agents become too complex to be specified or reasoned about as a single monolithic coordination scheme. A large Port Daddy system with 180+ skills and dozens of concurrent workflows cannot have its coordination specified in a single protocol diagram — the complexity would be unmanageable.
 
 The FIPA Interaction Protocol Library addresses this through a principled approach to **modular protocol composition** — the ability to build complex interaction patterns from simpler, well-specified components. Three distinct composition mechanisms are provided, each suited to different structural relationships between protocols.
 
@@ -36,7 +36,7 @@ The example in Section 3.2.7.4 shows a Broker simultaneously running:
 
 These are separate conversations with separate states. The Broker maintains both simultaneously, and the outcome of one may influence decisions made in the other — but this influence happens through the Broker's internal reasoning, not through a formal protocol dependency.
 
-For WinDAG, interleaved protocols are the natural model for **parallel subtask dispatch**: an orchestrating agent distributes subtasks to multiple specialist agents simultaneously, each subtask being a separate conversation, and waits for results before proceeding. The orchestrator's internal state tracks all active conversations, and when sufficient results have arrived, it synthesizes them.
+For Port Daddy, interleaved protocols are the natural model for **parallel subtask dispatch**: an orchestrating agent distributes subtasks to multiple specialist agents simultaneously, each subtask being a separate conversation, and waits for results before proceeding. The orchestrator's internal state tracks all active conversations, and when sufficient results have arrived, it synthesizes them.
 
 ### Mechanism 3: Parameterized Protocols — Reusable Templates with Bound Instantiation
 
@@ -57,7 +57,7 @@ The FIPA notation supports recursive protocol structure: nested protocols can th
 
 This recursive structure is powerful: it means that complex coordination patterns can be built up layer by layer, with each layer being fully specified and independently verifiable. A high-level protocol might specify "run the task-allocation sub-protocol, then run the execution-monitoring sub-protocol, then run the result-verification sub-protocol" — with each sub-protocol being separately defined, separately testable, and separately reusable.
 
-This is precisely the architecture that enables complex WinDAG workflows to remain comprehensible: each level of the protocol hierarchy is simple enough to understand on its own, even though the full protocol is complex.
+This is precisely the architecture that enables complex Port Daddy workflows to remain comprehensible: each level of the protocol hierarchy is simple enough to understand on its own, even though the full protocol is complex.
 
 ## The Role of AUML's Complex Message Structures
 
@@ -99,9 +99,9 @@ Modular composition of protocols has boundaries and preconditions that must be r
 
 **Boundary 4: Complexity imposes cognitive costs.** The ability to compose protocols recursively is powerful but can produce specifications that are formally correct but humanly incomprehensible. Good protocol design requires judgment about when to flatten a recursive structure into a more explicit (but less reusable) form for the sake of clarity.
 
-## Architectural Lessons for WinDAG
+## Architectural Lessons for Port Daddy
 
-The FIPA compositional approach suggests a specific architecture for WinDAG protocol management:
+The FIPA compositional approach suggests a specific architecture for Port Daddy protocol management:
 
 1. **Maintain a tiered protocol library**: Base protocols (Request, ContractNet, Query-If) at the bottom; domain-specific protocols (task-allocation, code-review, result-verification) in the middle; application-specific protocols at the top.
 
