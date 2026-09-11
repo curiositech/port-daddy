@@ -796,6 +796,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   // `email`/`sms`/`calendar` resolve through the registry and are honestly
   // refused at available() until their connectors ship (ROADMAP).
   const ioDispatch = new IoDispatch({
+    runtimeAllowed,
     channelSubscribe: options?.messaging?.subscribe,
     resolveChannel,
     // schedule registry kind stays on the legacy cron path (see startAgent);
@@ -1308,6 +1309,16 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
           // context (e.g. a test) has finished ("Cannot log after tests are
           // done") and a live handle would leak.
           const aborted = stopped || !running.has(agent.name);
+          if (!result.started && result.cleanupHandle) {
+            const handle = result.cleanupHandle;
+            const retryCleanup = () => {
+              void handle.stop().catch((error: unknown) => {
+                console.error(`[Fleet] Trigger "${raw}" shutdown remains unverified:`, String(error));
+              });
+            };
+            if (aborted) retryCleanup();
+            else cleanupHandles.push(retryCleanup);
+          }
           if (result.started) {
             const stopHandle = result.handle;
             if (aborted) {
@@ -1409,7 +1420,9 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       record.tuplePollInterval.unref?.();
     }
 
-    if (cleanupHandles.length > 0) {
+    // Async registry starts append their handles after this synchronous setup.
+    // Install the cleanup closure now, even while that list is still empty.
+    if (cleanupHandles.length > 0 || registryTriggers.length > 0) {
       record.watchHandle = () => {
         for (const cleanup of cleanupHandles) {
           try {
@@ -1745,6 +1758,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     agent: FleetAgent,
     runMeta: { status?: string; agentId?: string; backend?: string | null },
   ): void {
+    if (!runtimeAllowed()) return;
     const targets = agent.outputs;
     if (!targets || targets.length === 0) return;
     const status = runMeta.status ?? 'completed';

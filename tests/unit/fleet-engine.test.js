@@ -202,6 +202,51 @@ afterEach(() => {
 });
 
 describe('local Off at Fleet execution boundaries', () => {
+  test('retains a failed late-trigger cleanup handle and reports retry failure', async () => {
+    const { IoDispatch } = await import('../../lib/fleet/io-dispatch.js');
+    const stop = jest.fn().mockRejectedValue(new Error('synthetic stop failure'));
+    const source = jest.spyOn(IoDispatch.prototype, 'startTrigger').mockResolvedValue({
+      started: false, reason: 'Off; late trigger cleanup failed', cleanupHandle: { stop },
+    });
+    const errors = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const config = makeConfig({ trigger: 'file:changed(path:/fixture/project)' });
+    const runner = createFleetRunner(config, '/fixture/project', { runtimeAllowed: () => true });
+    try {
+      runner.startAgent(config.agents[0]);
+      await runner.whenTriggersReady();
+      expect(source).toHaveBeenCalledTimes(1);
+      expect(stop).not.toHaveBeenCalled();
+      runner.stopAll();
+      await Promise.resolve();
+      expect(stop).toHaveBeenCalledTimes(1);
+      expect(errors).toHaveBeenCalledWith(expect.stringContaining('shutdown remains unverified'), expect.stringContaining('synthetic stop failure'));
+    } finally {
+      runner.stopAll();
+      source.mockRestore();
+      errors.mockRestore();
+    }
+  });
+
+  test('a completion received after Off does not dispatch declared outputs', async () => {
+    let allowed = true;
+    const { IoDispatch } = await import('../../lib/fleet/io-dispatch.js');
+    const outputs = jest.spyOn(IoDispatch.prototype, 'dispatchOutputs').mockResolvedValue([]);
+    global.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => {
+      allowed = false;
+      return { agentId: 'fixture-agent', status: 'spawned' };
+    } });
+    const config = makeConfig({ backend: 'cli:codex', outputs: ['file:fixture'] });
+    const runner = createFleetRunner(config, '/fixture/project', { runtimeAllowed: () => allowed });
+    try {
+      await runner.hailAgent(config.agents[0].name);
+      expect(global.fetch).toHaveBeenCalled();
+      expect(outputs).not.toHaveBeenCalled();
+    } finally {
+      runner.stopAll();
+      outputs.mockRestore();
+    }
+  });
+
   test('Off prevents both automatic start and manual hail', async () => {
     const runner = createFleetRunner(makeConfig(), '/fixture/project', { runtimeAllowed: () => false });
     runner.startAll();
