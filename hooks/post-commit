@@ -69,7 +69,7 @@ pd_hook_runtime_ready "${HOME:+$HOME/.port-daddy}" "${PD_HOME:-${HOME:+$HOME/.po
 # Publishes to a project-scoped git:committed channel after every commit.
 # Fleet agents trigger without cross-project bleed across multiple checkouts.
 #
-# Disable: chmod -x .git/hooks/post-commit
+# Operator Off skips only Port Daddy work; keep this hook installed for Git LFS.
 # =============================================================================
 
 PORT_FILE="${PORT_DADDY_PORT_FILE:-$HOME/.port-daddy/daemon.port}"
