@@ -21,6 +21,8 @@
  */
 
 import type { ExecutorEnv, FleetRunJob } from './env.js';
+import { shipAiOptions, type ShipCallContext } from './ship-ai-options.js';
+import { readRepoShipControls, repoShipEnabled, validShipControlName } from '../../shared/repo-ship-controls.js';
 import { assertFleetMayRun, FleetStoppedError } from '../../../shared/fleet-controls.js';
 import { fleetInvocationGuard, withFleetControls } from './fleet-stop.js';
 import { TRANSCRIPT_EMERGENCY_EVENT } from '../../../lib/transcript-emergency-constants.js';
@@ -473,12 +475,9 @@ function partitionMapDiff(
 function aiOptions(
   env: ExecutorEnv,
   shipName: string,
-): { extraHeaders: Record<string, string>; gateway?: { id: string } } {
-  const opts: { extraHeaders: Record<string, string>; gateway?: { id: string } } = {
-    extraHeaders: { 'x-session-affinity': `pd-fleet-${shipName}` },
-  };
-  if (env.AI_GATEWAY_ID) opts.gateway = { id: env.AI_GATEWAY_ID };
-  return opts;
+  context?: ShipCallContext | null,
+) {
+  return shipAiOptions(env.AI_GATEWAY_ID, shipName, context);
 }
 
 /**
@@ -703,6 +702,45 @@ function withIncompletePrSourceCoverage(result: ShipResult, reason: string | nul
     reviewCoverage: 'partial',
     reviewCoverageReason: appendReviewCoverageReason(result.reviewCoverageReason, reason),
   };
+}
+
+/**
+ * Kill-switch flag key in the relay's CONTROL_KV namespace (the relay writes it
+ * via POST /v1/fleet/pause; the executor reads it via env.CONTROL_KV). Value is
+ * either JSON `{ paused: boolean, pausedAt: number }` or the literal
+ * `"true"`/`"false"`. When paused, a job is acked WITHOUT any AI spend or posts.
+ */
+const PAUSE_KEY = 'fleet:paused';
+
+
+/**
+ * Read the kill-switch flag. Tolerates both the JSON object form and the bare
+ * `"true"`/`"false"` string. Best-effort: a KV read failure means "not paused"
+ * — the fail-safe here is to keep running the gate, never to silently skip it.
+ */
+async function isFleetPaused(env: ExecutorEnv): Promise<boolean> {
+  // Read the kill switch from the relay's CONTROL-PLANE KV — the SAME namespace
+  // the relay's POST /v1/fleet/pause writes to. (Previously read FLEET_TOKENS, a
+  // DIFFERENT namespace, so a pause toggle never reached the executor.) Absent
+  // binding ⇒ NOT paused (fail-safe: the gate keeps running).
+  const kv = env.CONTROL_KV;
+  if (!kv) return false;
+  try {
+    const raw = await kv.get(PAUSE_KEY);
+    if (!raw) return false;
+    if (raw === 'true') return true;
+    if (raw === 'false') return false;
+    try {
+      const parsed = JSON.parse(raw) as { paused?: boolean };
+      return parsed.paused === true;
+    } catch {
+      // Non-JSON, non-boolean payload — treat anything truthy-but-unknown as
+      // NOT paused so a corrupt flag can never silently disable the gate.
+      return false;
+    }
+  } catch {
+    return false;
+  }
 }
 
 function validDeliveryId(raw: unknown): string | null {
@@ -1554,6 +1592,151 @@ export async function executeFleet(
   // A stop is not a request to mint credentials or publish a neutral check.
   // Missing/malformed/unavailable settings all refuse before external effects.
   await assertFleetEnabled();
+  // --- KILL SWITCH ---------------------------------------------------------
+  // Checked at the very START, before any AI spend or review/comment post.
+  // STILL posts a neutral 'Port Daddy Fleet' check rather than returning
+  // silently, because an absent check looks like nothing at all in GitHub's UI
+  // — no failing check to investigate, just permanent silence.
+  //
+  // CORRECTED 2026-09-11: this comment used to assert that "Port Daddy Fleet"
+  // is a REQUIRED status check and that its absence blocks the whole merge
+  // queue forever. That is not true of main's ruleset today, which requires
+  // exactly two contexts — `ci-gate` and `unit-tests (macos-latest, 22)`. An
+  // absent Fleet check is invisible, which is bad, but it does not gate a
+  // merge. The legibility argument below stands on its own; the queue-wide
+  // blocking claim did not survive checking and is why the Cloud Fleet stop
+  // added alongside this is allowed to cancel without publishing anything.
+  //
+  // The incident the argument came from, 2026-07-16: an
+  // out-of-band `fleet:paused=true` (written straight into CONTROL_KV,
+  // bypassing the audited POST /v1/fleet/pause endpoint — no audit_log row
+  // exists for the toggle) left the check silently ABSENT on every PR for 4
+  // days, and every PR needed an admin bypass past a check that never even
+  // attempted to run. One token mint + one create/complete(neutral) check-run
+  // pair is a small, worthwhile cost to keep the gate legible while paused.
+  // Any infra failure here is swallowed (never thrown) so a broken pause path
+  // can never spiral into queue retries/DLQ churn — pausing must stay cheap.
+  const initialShipControls = await readRepoShipControls(env.DB, job.repoFullName);
+  const repositoryStopped = !repoShipEnabled(initialShipControls, '*');
+  if (await isFleetPaused(env) || repositoryStopped) {
+    console.log(`[fleet-executor] delivery=${deliveryId} paused; posting neutral check (no AI spend, no posts)`);
+    const head = prPayload.head as { sha?: unknown } | undefined;
+    const headSha = typeof head?.sha === 'string' ? head.sha : null;
+    if (!headSha) {
+      console.warn(`[fleet-executor] delivery=${deliveryId} paused; no head sha in payload, cannot post check`);
+      return;
+    }
+    try {
+      const token = await getInstallationTokenCached(
+        env.GITHUB_APP_ID,
+        env.GITHUB_APP_PRIVATE_KEY,
+        job.installationId,
+        env.FLEET_TOKENS,
+        assertFleetEnabled,
+      );
+      const assertPausedGateCurrent = async (boundary: string): Promise<void> => {
+        if (options.enforceIntentOwnership) await assertFleetIntentCurrent(env, job);
+        const live = await fetchPullRequestMetadataWitness(owner, repo, prNumber, token);
+        if (live.headSha !== headSha) {
+          throw new PullRequestHeadValidationError(
+            'changed',
+            headSha,
+            live.headSha || null,
+            boundary,
+            `pull request head changed at ${boundary}: expected ${headSha}, current ${live.headSha || 'unknown'}`,
+          );
+        }
+      };
+      await assertPausedGateCurrent('before paused check admission');
+      let checkRunId = await findFleetCheckRun(
+        owner,
+        repo,
+        headSha,
+        CHECK_NAME,
+        token,
+        env.GITHUB_APP_ID,
+        runId,
+      ).catch(() => null);
+      if (!checkRunId) {
+        await assertPausedGateCurrent('immediately before paused check creation');
+        checkRunId = await createCheckRun(
+          owner,
+          repo,
+          CHECK_NAME,
+          headSha,
+          token,
+          detailsUrl,
+          undefined,
+          runId,
+        );
+      }
+      const summary = repositoryStopped
+        ? `${initialShipControls.available ? 'Cloud ships are off for this repository.' : initialShipControls.reason} ` +
+          'No automated review was performed. Manage permissions in the signed-in account Ship controls page.'
+        : 'Fleet paused by operator; no automated review was performed for this delivery. ' +
+          'Resume the fleet (POST /v1/fleet/pause {"paused":false}) or review this PR manually.';
+      if (checkRunId) {
+        await completeCheckRun(
+          owner,
+          repo,
+          checkRunId,
+          'neutral',
+          summary,
+          token,
+          detailsUrl,
+          'Port Daddy Fleet',
+          () => assertPausedGateCurrent('immediately before paused neutral PATCH'),
+        );
+      }
+      await transcript.step(
+        'check-completed',
+        null,
+        'Check concluded: neutral (paused at job start)',
+        { checkRunId, conclusion: 'neutral', reason: 'paused-at-start' },
+      );
+      const base = prPayload.base as { sha?: unknown } | undefined;
+      const stubPrCtx: PRContext = {
+        owner,
+        repo,
+        prNumber,
+        title: '',
+        body: '',
+        headSha,
+        baseSha: typeof base?.sha === 'string' ? base.sha : '',
+        // Stub context for a short-circuited (paused) run: no ship ever acts on
+        // it, so refs stay empty and isFork stays conservatively true (a fork is
+        // never retargeted/stacked — the safe default for an unknown PR).
+        headRef: '',
+        baseRef: '',
+        isFork: true,
+        // Authorship is unknown on a short-circuited run and nothing reads it
+        // here; empty classifies as "not the fleet", the conservative default.
+        authorLogin: '',
+        authorType: '',
+        // Likewise unknown: the run is already short-circuited by the pause, so
+        // the lifecycle gate never sees this. Empty/false is the fail-open pair
+        // (`classifyPrLifecycle` reads it as "still open").
+        state: '',
+        merged: false,
+        installationId: job.installationId,
+        files: [],
+        diff: '',
+        // Nothing was fetched on a short-circuited run, so zero is the honest
+        // measurement rather than a placeholder.
+        diffBytes: 0,
+        diffTruncated: false,
+        filesTruncated: false,
+        diffSource: 'raw',
+      };
+      await recordRunStart(env, runId, job, stubPrCtx, prNumber, []);
+      await recordRunEnd(env, runId, 'neutral', startMs);
+    } catch (err) {
+      console.error(
+        `[fleet-executor] delivery=${deliveryId} paused-check post failed: ${String(err)}`,
+      );
+    }
+    return;
+  }
 
   // --- Token (KV-cached; remint once on 401) -------------------------------
   let token: string;
@@ -2353,6 +2536,36 @@ export async function executeFleet(
     }
     // A stop is terminal and does not authorize a final GitHub publication.
     await assertFleetEnabled();
+    // Re-check the operator kill switch before each ship. The start-of-job
+    // check prevents any setup work while paused; this second gate closes the
+    // TOCTOU gap where the operator pauses after the GitHub check is created
+    // but before additional AI spend or review posts. Complete neutral rather
+    // than leaving the already-created check run in progress forever.
+    const shipControls = await readRepoShipControls(env.DB, job.repoFullName);
+    if (await isFleetPaused(env) || !repoShipEnabled(shipControls, '*')) {
+      const summary = !shipControls.available ? shipControls.reason
+        : `Fleet paused before pd-${ship.name}; stopped before additional AI spend or review posts.`;
+      await transcript.step('check-completed', null, 'Check concluded: neutral (paused)', {
+        checkRunId,
+        conclusion: 'neutral',
+        pausedBeforeShip: ship.name,
+      });
+      await completeOwnedCheck('neutral', summary, `before pd-${ship.name} paused neutral completion`);
+      await recordRunEnd(env, runId, 'neutral', startMs);
+      return;
+    }
+
+    // Admin OFF is not a PASS and not a broken ship. Check BEFORE checkpoint
+    // resume: changing permission must not reuse a prior verdict as approval.
+    if (!repoShipEnabled(shipControls, ship.name) || !validShipControlName(ship.name) || ship.name === '*') {
+      const reason = !validShipControlName(ship.name) || ship.name === '*'
+        ? 'Unsupported ship control name; cannot safely admit this ship'
+        : 'Disabled by a repository admin in Ship controls';
+      await transcript.step('ship-skipped', ship.name, `pd-${ship.name}: off — not reviewed`, { reason });
+      results.push({ ship: ship.name, blocking: ship.blocking, verdict: 'PASS', errored: false,
+        findings: [], reviewCoverage: 'none', reviewCoverageReason: reason });
+      continue;
+    }
 
     // RESUME: an earlier attempt of this delivery already completed this ship.
     // Its comment is already posted (edit-in-place inside runShip), its
@@ -2453,7 +2666,7 @@ export async function executeFleet(
     // buffered per (run, ship, attempt), flushed once to R2 + the D1 index on
     // BOTH exits below — a thrown ship still leaves its partial conversation
     // behind, which is exactly when the forensics matter most.
-    const capture = new ShipTranscript(runId, ship.name, providerAttempt);
+    const capture = new ShipTranscript(runId, ship.name, providerAttempt, job.repoFullName);
     let result: ShipResult;
     try {
       result = ship.purser
@@ -2483,7 +2696,7 @@ export async function executeFleet(
             graftText,
             runId,
             squidConsent,
-            xoEnabled,
+            xoEnabled && repoShipEnabled(shipControls, 'xo'),
             mediatorOrders,
             ship.name === 'lookout' ? frozenLookoutProjection : null,
             aiCircuit,
@@ -2622,7 +2835,7 @@ export async function executeFleet(
   // budget is exhausted, then this optional section disables itself and the
   // already-computed check conclusion remains untouched.
   let reviewBody = summary;
-  if (xoEnabled) {
+  if (xoEnabled && !(await isFleetPaused(env)) && repoShipEnabled(await readRepoShipControls(env.DB, job.repoFullName), 'xo')) {
     const advisories = collectAdvisoryFindings(results);
     if (advisories.length > 0) {
       let section: string;
@@ -2634,6 +2847,7 @@ export async function executeFleet(
           advisories,
           changedPaths,
           gatewayId: env.AI_GATEWAY_ID,
+          telemetryContext: { runId, attempt: providerAttempt, repoFullName: job.repoFullName },
           aiCircuit,
         });
         await assertCurrentHead('after XO triage model work');
@@ -2755,10 +2969,11 @@ export async function executeFleet(
   // closed to inert; the whole call is additionally fenced here so no scan
   // failure can ever surface as a run failure.
   try {
+    const mediatorAllowed = !(await isFleetPaused(env)) && repoShipEnabled(await readRepoShipControls(env.DB, job.repoFullName), 'mediator');
     const scan = await runMediatorScan(env, {
       repo: job.repoFullName,
       deliveredPr: prNumber,
-      config: mediatorConfig,
+      config: mediatorAllowed ? mediatorConfig : { ...mediatorConfig, enabled: false },
       io: buildMediatorScanIo({
         env,
         owner,
@@ -3059,7 +3274,7 @@ async function runShip(
             env.AI.run(
               mapModel as Parameters<typeof env.AI.run>[0],
               request,
-              aiOptions(env, ship.name),
+              aiOptions(env, ship.name, capture),
             ),
           ),
       );
@@ -3195,7 +3410,8 @@ async function runShip(
       // failures keep `proposals` untouched. A provider-circuit fault instead
       // propagates to the ship boundary so the queue owns the bounded retry.
       let curated = proposals;
-      if (xoEnabled && proposals && proposals.length > 0) {
+      if (xoEnabled && proposals && proposals.length > 0 && !(await isFleetPaused(env))
+        && repoShipEnabled(await readRepoShipControls(env.DB, `${prCtx.owner}/${prCtx.repo}`), 'xo')) {
         await assertCurrentHead(`before pd-${ship.name} XO editor`);
         const recentIdeas = env.DB
           ? await listRecentIdeas(env.DB, XO_RECENT_IDEAS_LIMIT)
@@ -3206,6 +3422,7 @@ async function runShip(
           proposals,
           recentIdeas,
           gatewayId: env.AI_GATEWAY_ID,
+          telemetryContext: capture ?? undefined,
           aiCircuit,
         });
         await assertCurrentHead(`after pd-${ship.name} XO editor`);
@@ -3961,7 +4178,7 @@ async function runReduceGroup(
         env.AI.run(
           model as Parameters<typeof env.AI.run>[0],
           request,
-          aiOptions(env, ship.name),
+          aiOptions(env, ship.name, capture),
         ),
       ),
   );
@@ -4072,7 +4289,7 @@ async function shipRepairCall(
       env.AI.run(
         model as Parameters<typeof env.AI.run>[0],
         request,
-        aiOptions(env, ship.name),
+        aiOptions(env, ship.name, capture),
       ),
     ),
   );

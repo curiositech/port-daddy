@@ -23,7 +23,13 @@
 \usepackage{listings}
 \usepackage{xcolor}
 \usepackage{booktabs}
+% For \needspace at the two subsections that were landing in the last
+% two lines of a page. The Book's own preamble already loads it; the
+% generator strips this block, so adding it here only reaches the
+% standalone twin, which would otherwise fail on an undefined command.
+\usepackage{needspace}
 \usepackage{tabularx}
+\usepackage{xltabular}
 \usepackage{graphicx}
 \usepackage{fancyhdr}
 \usepackage{tikz}
@@ -379,7 +385,7 @@ uses --- so that every abstract mechanism has a concrete
 scene to land in. Alice wants to eventually \emph{rent Heron out} to Bob; Bob will
 only pay if Heron's track record means something he can check.
 
-\pullquote{A market cannot price what cannot persist. The first job of an agent
+\pdthesis{A market cannot price what cannot persist. The first job of an agent
 economy is not to compute a score --- it is to manufacture a self that the score
 can be \emph{about}.}
 
@@ -702,7 +708,7 @@ the general would be the officer and the officer the boy, but the general would
 memory/intention connections, which is transitive even when direct connectedness
 is not}) is the version that survives, and it dictates the engineering:
 
-\pullquote{An agent that keeps a memory stream but loses its \emph{outcome ledger}
+\pdthesis{An agent that keeps a memory stream but loses its \emph{outcome ledger}
 between incarnations is \emph{connected}, not \emph{continuous}. Continuity is the
 transitive chain --- and reputation, which must accumulate across arbitrarily many
 incarnations, can only attach to the transitive thing.}
@@ -723,18 +729,23 @@ its past''). Parfit shows the identity-bearing organ is the \emph{transitive
 chain of witnessed outcomes}, not the memory stream. Build the ledger, not just
 the memory.}
 
-Two of Parfit's strongest rivals go unanswered here, and should be named rather
-than left silent. Williams's body-swap thought experiments show that the
-\emph{same} facts, narrated first-personally versus third-personally, flip
-readers' intuitions between the bodily and the psychological
-criterion~\pdcite{williams1970} --- a live worry for a chapter that is, after all,
-choosing which continuity criterion the ledger encodes. And Olson's
-\emph{animalism} holds we are essentially biological organisms, for whom
-psychological continuity is neither necessary nor sufficient for
-persistence~\pdcite{olson2007}. Neither is refuted; the ledger criterion is simply
-not defended against them.
+Parfit is not the last word, and two of his strongest rivals belong here rather
+than in a footnote, because both bear on the choice this chapter is actually
+making. Williams showed, with a pair of body-swap cases that differ only in
+how they are narrated, that the \emph{same} facts told first-personally and
+third-personally flip a reader's intuition between the bodily and the
+psychological criterion~\pdcite{williams1970}; for a chapter deciding which
+continuity criterion the ledger will encode, that is not a curiosity but a
+warning that any criterion argued from one framing will feel compelling from
+that framing. And Olson's animalism holds that we are essentially organisms,
+for whom psychological continuity is neither necessary nor sufficient for
+persistence~\pdcite{olson2007}. Neither is answered here. The ledger criterion
+is chosen because reputation has to accumulate on something transitive, which
+is an engineering reason, and we are candid that it is not a metaphysical one
+--- which is also why the chapter takes Parfit's move (dissolve the question)
+and not his thesis.
 
-\pdexercisepointer{\ref{ex:stp-connected-vs-continuous}}{\ref{ex:stp-fork-inheritance}}{\pageref{ex:stp-connected-vs-continuous}}
+\pdexercisepointer*{\ref{ex:stp-connected-vs-continuous}}{\ref{ex:stp-fork-inheritance}}{\pageref{ex:stp-connected-vs-continuous}}
 
 \begin{pdexample}{No-mint inheritance: the closure-sum refutation and the copy-fork mint}
 The branching rule of Exercise~\ref{ex:stp-fork-inheritance} now carries an
@@ -757,21 +768,25 @@ by hand], so budgets without debiting conserve nothing for $\gamma>\tfrac12$;
 the transfer restatement is the theorem. \emph{Now you try:} check by hand
 that under transfer semantics the same chain's live total is
 $0.9\cdot 1=0.9\le 1$, not $2.439$ (Exercise~\ref{ex:stp-nomint-sweep}).
-This conservation discipline has an uncited, twenty-five-year-old cousin in
-peer-to-peer trust systems: Levien's Advogato attack-resistant trust metric
-computes certified trust as \emph{maximum flow} from a small seed set of
-trusted nodes through a capacity-bounded graph, so that no set of newly
-created accounts can manufacture trust beyond what genuinely flows from the
-seed~\pdcite{levien-advogato}. The two conserve in different directions ---
-Advogato bounds trust flowing \emph{outward} from a root; the theorem above
-bounds value extracted \emph{upward} through derivation --- which is a reason
-to state the distinction, not a reason to leave Advogato unread.
+The discipline is older than this chapter, and it is worth saying where it
+came from. Levien and Aiken's attack-resistant trust metric, running at
+Advogato from 1999, computes certified trust as a \emph{maximum flow} from a
+small seed of trusted nodes through a capacity-bounded graph, precisely so
+that no crop of freshly minted accounts can manufacture more trust than
+genuinely flows from the seed~\pdcite{levien-advogato}. Same enemy, same
+conservation instinct, opposite direction: Advogato bounds trust flowing
+\emph{outward} from a root, and the theorem above bounds value extracted
+\emph{upward} through derivation. That the two land on the same discipline
+from opposite ends is a reason to trust the discipline, and the difference in
+direction is exactly what the richer DAG shapes above (diamonds, multi-parent
+merges, re-derivation cycles) turn on --- a single-seed flow bound has nothing
+to say about a merge.
 \end{pdexample}
 
 \input{figures/fig-stp-nomint-lineage}
 
 
-\pdexercisepointerone{\ref{ex:stp-nomint-sweep}}{\pageref{ex:stp-nomint-sweep}}
+\pdexercisepointerone*{\ref{ex:stp-nomint-sweep}}{\pageref{ex:stp-nomint-sweep}}
 
 \begin{pdrecitation}
 \item Without looking: what is the difference between connectedness and
@@ -781,6 +796,11 @@ continuity, and which one does reputation require?
 \end{pdrecitation}
 
 % ═════════════════════════════════════════════════════════════════════════════
+% CI (TeX Live) put this heading within two lines of the page foot with its
+% body on the next page -- p. 234 of the maritime edition. A heading is a
+% promise that something follows it; four lines is the smallest reservation
+% that keeps the promise on the same page as its first paragraph.
+\needspace{8\baselineskip}
 \section{The three organs of continuity}\label{sec:organs}
 % ═════════════════════════════════════════════════════════════════════════════
 
@@ -837,13 +857,16 @@ inherits a note about what the predecessor was doing, not the live belief state 
 was doing it with. The goal is sometimes called a ``checkpoint with teeth''
 (the same phrase this paper uses everywhere else for it, \S\ref{sec:open},
 Appendix~\ref{app:status}); the current organ has gums. Operating systems have
-named this exact distinction for fifty years as \textbf{checkpoint/restore}
-versus live execution state --- Condor's process checkpoint-and-migrate
-system~\pdcite{litzkow1997condor} freezes and serializes full process state for
-resumption elsewhere, and Orleans's \emph{virtual actor} abstraction keeps an
-actor's durable identity distinct from its transient in-memory
-activation~\pdcite{bernstein2014orleans}, which the restart organ's
-identity/state split above is the LLM-agent instance of.
+drawn this exact line for decades, between \textbf{checkpoint/restore} of a
+process and the live execution state a checkpoint has to carry to deserve the
+name: Condor freezes a running process, serializes the whole of it, and resumes
+it on another machine~\pdcite{litzkow1997condor}, and Orleans's \emph{virtual
+actor} keeps an actor's durable identity distinct from whichever in-memory
+activation currently embodies it~\pdcite{bernstein2014orleans}. The restart
+organ's identity/state split is the LLM-agent instance of the second idea, and
+its ``gums'' are the honest measure of how far it is from the first: what
+Condor serializes is registers and memory, and what would have to be serialized
+here is a KV-cache and a sampling state the provider does not export.
 
 \pitfall{Selling a summary-forwarding restart organ as real checkpointing would
 violate the system's own \textbf{honest-attestation} discipline: \emph{only report
@@ -1073,12 +1096,18 @@ is worth. We make that ``costs more'' precise in Theorem~\ref{thm:whitewash-cost
   whose creation is rate-limited and, in the economy, \emph{bonded}.
 \end{itemize}
 
-Theorem~\ref{thm:necessity} is a special case of a tighter, formally closer
-result: Cheng and Friedman prove that no \emph{symmetric} reputation function
-can be Sybil-proof, and that only asymmetric, flow-based functions with stated
-conditions can be~\pdcite{chengfriedman2005}. That paper, not just Douceur's
-informal statement of the problem, is the impossibility family
-Theorem~\ref{thm:necessity} instantiates.
+The theorem is not new, and it is a good sign that it isn't. Cheng and Friedman
+proved the general form in 2005: no \emph{symmetric} reputation function --- one
+that scores a node the same however it is placed in the graph, so a fresh
+identity is worth what any fresh identity is worth --- can be Sybil-proof, and
+only asymmetric, flow-based functions anchored somewhere
+can~\pdcite{chengfriedman2005}. Theorem~\ref{thm:necessity} is the
+sanction-respecting corner of that impossibility, and its proof is two lines
+because ``sanction-respecting'' already carries the symmetry inside it: a
+newcomer's score is the same newcomer's score whoever the newcomer used to be.
+Douceur named the attack and Friedman and Resnick priced it; Cheng and Friedman
+are the ones who proved the family this theorem belongs to, and the theorem is
+stronger for having been reached independently.
 
 \noindent Theorem~\ref{thm:necessity} says abandonment must cost \emph{something};
 the design question is \emph{how much}. The newcomer policy answers it as a
@@ -1298,6 +1327,11 @@ a sanction and Sybil-multiplying a quorum --- and the non-forgeable root that cl
 both.
 \input{figures/fig-stp-sybil-whitewash}
 
+% Stranded at the foot of p. 246, its body opening on p. 247. The heading
+% follows a figure, so the room has to be asked for after the float is placed
+% rather than by moving prose around. Six baselines: the head plus the first
+% two lines, which are where "principal" is defined.
+\needspace{7\baselineskip}
 \subsection{The principal above the actor}
 
 The economic counterparty in every trade is not the agent but the
@@ -1534,7 +1568,7 @@ welfare: nothing here says the checkpoint restored the agent's experience,
 only that the ledger followed the right body.
 \end{pdboundary}
 
-\pdexercisepointer{\ref{ex:stp-property-reality}}{\ref{ex:stp-resurrection-soundness}}{\pageref{ex:stp-property-reality}}
+\pdexercisepointer*{\ref{ex:stp-property-reality}}{\ref{ex:stp-resurrection-soundness}}{\pageref{ex:stp-property-reality}}
 
 \begin{pdrecitation}
 \item Without looking: what does a non-forgeable identity make necessary, and
@@ -1591,7 +1625,7 @@ boundary. This is what the market paper needs and does \emph{not} yet have.
 % Left as a comment, not adopted/glossed/renamed, since resolving it is Chapter~IV's
 % job and outside this paper's bounded-scope naming check.
 
-\pullquote{This paper depends on a \emph{local non-forgeable identity} and
+\pdthesis{This paper depends on a \emph{local non-forgeable identity} and
 \emph{hands the market paper} the unsolved \emph{cross-operator attestation} as a
 named dependency --- not an assumption. Every cross-operator sentence that says
 ``the boundary neither operator controls'' is resting on cross-operator
@@ -1638,7 +1672,7 @@ standardized serialization, which is progress of the unglamorous kind.
 Here is the hinge of the whole series, stated as the canonical cross-paper
 sentence:
 
-\pullquote{The reputation \emph{estimator is cheap}; the \emph{substrate it scores
+\pdthesis{The reputation \emph{estimator is cheap}; the \emph{substrate it scores
 over} --- witnessed outcomes on a non-forgeable identity --- is the gate.}
 
 \noindent A team tempted to start an agent economy by ``building an Elo
@@ -1716,7 +1750,7 @@ theorem, it has no numbered formal counterpart in any companion paper of this
 series. It is stated in the confident register because we believe it, and because
 getting it wrong is expensive --- not because it has been proved.
 
-\pullquote{\emph{Internal routing} --- one operator privately choosing which of
+\pdthesis{\emph{Internal routing} --- one operator privately choosing which of
 their own agents to spawn next --- is bandit-shaped. \emph{Reputation} --- a public,
 adversarial, multi-dimensional, persistent substrate other parties trade on --- is
 not. Modeling reputation as a bandit imports four assumptions that are all false in
@@ -2031,16 +2065,23 @@ Amortized Verification}~\pdcite{harborpaper3} proves it as a parameterized theor
 (Theorem~\ref{thm:tower-imported} below), and the two mechanisms this section
 mandates --- model heterogeneity and VRF-selected honeypots --- are exactly the two
 hypotheses that theorem needs. Figure~\ref{fig:rate-raters} draws the recursion and
-where the two mechanisms arrest it. ``Who audits the auditor'' is a named question
-in two literatures this section does not otherwise engage: economics has
-Kofman and Lawarrée's collusion-in-hierarchical-agency
-model~\pdcite{kofmanlawarree1993} and Tirole's three-tier
-principal/supervisor/agent analysis~\pdcite{tirole1986}, and applied
-cryptoeconomics converged on the same shape independently --- TrueBit's
-forced-error verifier's-dilemma solution~\pdcite{truebit2017} and Arbitrum's
-recursive bisection dispute game~\pdcite{arbitrum-fraud-proofs} are both bonded,
-recursive answers to the identical incentive problem the tower theorem solves
-with sealed clique sampling instead.
+where the two mechanisms arrest it. ``Who audits the auditor'' is not a question
+this book invented, and two literatures had it before us. Economics has studied
+collusion in exactly this three-tier shape --- principal, supervisor, agent,
+where the supervisor can be bought --- since Tirole's hierarchies
+paper~\pdcite{tirole1986}, and Kofman and Lawarrée worked out when an auditor is
+worth having at all given that it can collude~\pdcite{kofmanlawarree1993}; their
+worry that supervisor and agent will renegotiate a side contract unless the
+model forbids it is the same worry the disjoint-clique hypothesis below exists
+to answer, reached from the other side. And applied cryptoeconomics converged
+on the same shape independently: TrueBit's answer to the verifier's dilemma
+(why verify at all, if verification is costly and cheating is rare) is forced
+errors and a bonded challenge game~\pdcite{truebit2017}, and Arbitrum's dispute
+protocol bisects a disagreement level by level until a single checkable step
+remains~\pdcite{arbitrum-fraud-proofs}. Both are bonded, recursive answers to
+the incentive problem the tower theorem solves with sealed clique sampling
+instead --- three different tools on one problem, which is about what one
+expects when the problem is real.
 
 % --- FIGURE 12: rate-the-raters recursion ---
 \input{figures/fig-stp-rate-the-raters}
@@ -2143,6 +2184,22 @@ value of $+1.78\times10^{-15}$ for each, zero to floating-point precision.
 beat (Exercise~\ref{ex:stp-tower-amortization}).
 \end{pdexample}
 
+``Reputation is amortized verification'' is the companion paper's phrase, and
+the idea under it is not the companion paper's. It is Kreps and Wilson's, and
+Fudenberg and Levine's after them: reputation as \emph{continuation value}, the
+discounted future a long-lived player forfeits by deviating, which is what
+sustains honest play in a repeated game with no auditor
+anywhere~\pdcite{krepswilson1982,fudenberglevine1989}. Model~A above is that
+result with the invoice itemized. The deterrent is $d(B+vt)$, bond plus stake,
+and as the stake $vt$ accumulates the verification the platform has to buy,
+$\rho_t$, can retreat while the total stays pinned at $G$; set $B=0$ and
+$\rho=0$ and the bonded game \emph{is} the repeated game, with the discount
+thresholds of \pdchapref{bonded}{The Bonded Commons} ($\delta\ge\tfrac13$ under
+grim trigger, $\delta^\star\approx0.3425$ under the graduated one) as the
+limiting case where the future carries all of the deterrence. The connection
+is exact rather than analogical, which is why the phrase earns its keep as a
+name for the accounting and not as a claim to a new mechanism.
+
 \input{figures/fig-stp-deterrence-regime}
 
 \noindent\textbf{What heterogeneity actually buys --- and three riders.} The honest
@@ -2170,7 +2227,7 @@ a ``certain'' slash --- slashing stays probabilistic by construction --- but a
 contraction needs. What remains open is the root and the telemetry, not the
 recursion.}
 
-\pdexercisepointer{\ref{ex:stp-grading-oracle-hole}}{\ref{ex:stp-tower-amortization}}{\pageref{ex:stp-grading-oracle-hole}}
+\pdexercisepointer*{\ref{ex:stp-grading-oracle-hole}}{\ref{ex:stp-tower-amortization}}{\pageref{ex:stp-grading-oracle-hole}}
 
 \begin{pdrecitation}
 \item Without looking: what is Becker's condition for local deterrence, and
@@ -2299,14 +2356,29 @@ This paper is the bridge; its output is a precise hand-off to \pdchapref{he}{The
 Harbor Economy}. We summarize what is delivered, what is borrowed, and what is
 explicitly owed.
 
-\begin{table}[H]
-\centering
-\small
-\renewcommand{\arraystretch}{1.35}
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{2.6cm} >{\raggedright\arraybackslash}X@{}}
+{\small\renewcommand{\arraystretch}{1.35}
+\begin{xltabular}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{2.6cm} >{\raggedright\arraybackslash}X@{}}
+\caption{The bridge's hand-off to the market paper. One item still flows \emph{back}
+as a named, unsolved obligation --- cross-operator attestation
+(Def.~\ref{def:0040b}). The second historical debt, the grading oracle's
+incentive-compatibility, has been \emph{paid}: the companion inspection-game paper
+closes the rate-the-raters recursion as Theorem~\ref{thm:tower-imported}, leaving
+only the tower's honest root and its measurement obligation open. The series is
+coherent precisely because these debts are named --- and retired --- in the same
+words on both sides of the seam.}\label{tab:handoff}\\
 \toprule
 \textbf{Artifact} & \textbf{Maturity} & \textbf{Role in the market paper} \\
 \midrule
+\endfirsthead
+\multicolumn{3}{@{}l}{\small\itshape (continued)}\\
+\toprule
+\textbf{Artifact} & \textbf{Maturity} & \textbf{Role in the market paper} \\
+\midrule
+\endhead
+\midrule
+\endfoot
+\bottomrule
+\endlastfoot
 Role / person distinction (Defs.~\ref{def:role}--\ref{def:person}) & --- &
 The third side of the market is a \emph{tradeable person}, defined here. \\
 Principal-as-economic-entity (Def.~\ref{def:principal}) & \DESIGNED &
@@ -2325,20 +2397,9 @@ Cross-operator attestation (Def.~\ref{def:0040b}) & \VISION &
 \emph{Named dependency the market paper must build}; not assumed here. \\
 Tombstone revocation (Prop.~\ref{prop:tombstone}) & \DESIGNED &
 Reputation is revocable; convergence is the market paper's federation job. \\
-\bottomrule
-\end{tabularx}
-\caption{The bridge's hand-off to the market paper. One item still flows \emph{back}
-as a named, unsolved obligation --- cross-operator attestation
-(Def.~\ref{def:0040b}). The second historical debt, the grading oracle's
-incentive-compatibility, has been \emph{paid}: the companion inspection-game paper
-closes the rate-the-raters recursion as Theorem~\ref{thm:tower-imported}, leaving
-only the tower's honest root and its measurement obligation open. The series is
-coherent precisely because these debts are named --- and retired --- in the same
-words on both sides of the seam.}
-\label{tab:handoff}
-\end{table}
+\end{xltabular}}
 
-\pullquote{Build the harbor first. The trade comes when the ships do --- but the
+\pdthesis{Build the harbor first. The trade comes when the ships do --- but the
 thing that makes the trade possible (continuity that turns spawns into persons) is
 the same thing that makes the single-player tool good. The bridge is not a detour;
 it is the load path.}
@@ -3035,7 +3096,7 @@ but individually revocable, and bounded memory is a parameter, not a virtue).
 Reputation is not a bandit problem --- it is non-stationary, multi-dimensional,
 strategically adversarial, and graded by an oracle with its own incentives.
 
-\pullquote{A spawn does work and disappears. A person does work and \emph{stays} ---
+\pdthesis{A spawn does work and disappears. A person does work and \emph{stays} ---
 and only what stays can be priced. The harbor's whole economy is the machinery for
 manufacturing, and then formally grading, a self.}
 
@@ -3053,12 +3114,25 @@ coordination daemon for local agent swarms --- so a reader who wants to know
 this appendix; it exists so the maturity labels are falsifiable rather than
 rhetorical.
 
-\begin{table}[H]
-\centering\small\renewcommand{\arraystretch}{1.3}
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{2.2cm} >{\raggedright\arraybackslash}X@{}}
+{\small\renewcommand{\arraystretch}{1.3}
+\begin{xltabular}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{2.2cm} >{\raggedright\arraybackslash}X@{}}
+\caption{Maturity of each paper concept against a reference coordination daemon.
+The honest summary: the \emph{organs} of continuity exist (one weakly); the
+\emph{spine} of reputation --- a witnessed-outcome ledger keyed on a non-forgeable
+identity --- is specified but not yet shipped.}\label{tab:app-status}\\
 \toprule
 \textbf{Component (paper concept)} & \textbf{Maturity} & \textbf{Status in the reference system} \\
 \midrule
+\endfirsthead
+\multicolumn{3}{@{}l}{\small\itshape (continued)}\\
+\toprule
+\textbf{Component (paper concept)} & \textbf{Maturity} & \textbf{Status in the reference system} \\
+\midrule
+\endhead
+\midrule
+\endfoot
+\bottomrule
+\endlastfoot
 Episodic memory (Organ 1) & \BUILT &
 Durable typed episodes promoted from execution history; runs in production. \\
 Restart organ (Organ 2) & \BUILTWEAK &
@@ -3083,14 +3157,7 @@ Tombstone revocation (Proto.~\ref{proto:tombstone}) & \DESIGNED &
 Append-only ledger semantics are designed; cross-harbor propagation is \VISION. \\
 Cross-operator attestation & \VISION &
 The unbuilt keystone for the market; owed to \pdchapref{he}{The Harbor Economy}. \\
-\bottomrule
-\end{tabularx}
-\caption{Maturity of each paper concept against a reference coordination daemon.
-The honest summary: the \emph{organs} of continuity exist (one weakly); the
-\emph{spine} of reputation --- a witnessed-outcome ledger keyed on a non-forgeable
-identity --- is specified but not yet shipped.}
-\label{tab:app-status}
-\end{table}
+\end{xltabular}}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \bibliographystyle{plain}
@@ -3195,7 +3262,7 @@ Marilyn Strathern.
 \bibitem{garcia1987sagas}
 Hector Garcia-Molina and Kenneth Salem.
 \newblock Sagas.
-\newblock In \textit{ACM SIGMOD International Conference on Management of Data}, 1987.
+\newblock In \textit{ACM SIGMOD International Conference on Management of Data}, pages 249--259, 1987.
 
 \bibitem{chiu2025strategic}
 Wei-Fan Chiu, Yuxuan Zhang, and Mihaela van der Schaar.
@@ -3263,7 +3330,7 @@ Universal Commerce Protocol.
 
 \bibitem{ap2mandates2026}
 Agent Payments Protocol (AP2): Mandates.
-\newblock Verifiable-credential authorization chain: SD-JWT+kb, JWS detached content, JCS canonicalization, 2026.
+\newblock Verifiable-credential authorization chain: SD-JWT+kb checkout mandate, JWS detached-content merchant authorization, JCS canonicalization, 2026.
 \newblock \texttt{https://ap2-protocol.org}.
 
 \bibitem{williams1970}
@@ -3277,9 +3344,20 @@ Eric T.\ Olson.
 \newblock Oxford University Press, 2007.
 
 \bibitem{levien-advogato}
-Raph Levien.
-\newblock Attack-Resistant Trust Metrics.
-\newblock Ph.D.\ thesis; deployed at Advogato.org, c.\ 1999--2000.
+Raph Levien and Alexander Aiken.
+\newblock Attack-Resistant Trust Metrics for Public Key Certification.
+\newblock In \textit{Proceedings of the 7th USENIX Security Symposium}, 1998.
+\newblock Deployed as the Advogato trust metric, 1999.
+
+\bibitem{krepswilson1982}
+David M.\ Kreps and Robert Wilson.
+\newblock Reputation and Imperfect Information.
+\newblock \textit{Journal of Economic Theory}, 27(2):253--279, 1982.
+
+\bibitem{fudenberglevine1989}
+Drew Fudenberg and David K.\ Levine.
+\newblock Reputation and Equilibrium Selection in Games with a Patient Player.
+\newblock \textit{Econometrica}, 57(4):759--778, 1989.
 
 \bibitem{kofmanlawarree1993}
 Fred Kofman and Jacques Lawarrée.

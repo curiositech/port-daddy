@@ -1,95 +1,95 @@
 {
-  "pdf": "/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/figaudit/pdf/fig-he-assurance/fig-he-assurance.pdf",
-  "page_count": 1,
-  "params": {
-    "min_font_pt": 7.0,
-    "textwidth_cm": 16.3
-  },
-  "checks": {
-    "T1": {
-      "status": "fail",
-      "count": 3,
-      "findings": [
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            495.58343505859375,
-            161.78810119628906,
-            500.72607421875,
-            167.33572387695312
-          ],
-          "text": "B",
-          "size_pt": 5.55,
-          "message": "text 'B' renders at 5.55pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            356.88739013671875,
-            132.0531768798828,
-            360.5543518066406,
-            137.60079956054688
-          ],
-          "text": "k",
-          "size_pt": 5.55,
-          "message": "text 'k' renders at 5.55pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            395.3023681640625,
-            128.1379852294922,
-            398.9693298339844,
-            133.68560791015625
-          ],
-          "text": "k",
-          "size_pt": 5.55,
-          "message": "text 'k' renders at 5.55pt, below the 7.00pt floor"
-        }
-      ]
+ "figure": "fig-he-assurance",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "fail",
+   "count": 3,
+   "findings": [
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      495.58343505859375,
+      161.78810119628906,
+      500.72607421875,
+      167.33572387695312
+     ],
+     "text": "B",
+     "size_pt": 5.55,
+     "message": "text 'B' renders at 5.55pt, below the 7.00pt floor"
     },
-    "T2": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      356.88739013671875,
+      132.0531768798828,
+      360.5543518066406,
+      137.60079956054688
+     ],
+     "text": "k",
+     "size_pt": 5.55,
+     "message": "text 'k' renders at 5.55pt, below the 7.00pt floor"
     },
-    "T3": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T4": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T5": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T6": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T7": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      395.3023681640625,
+      128.1379852294922,
+      398.9693298339844,
+      133.68560791015625
+     ],
+     "text": "k",
+     "size_pt": 5.55,
+     "message": "text 'k' renders at 5.55pt, below the 7.00pt floor"
     }
+   ]
   },
-  "summary": {
-    "result": "fail",
-    "failed_checks": [
-      "T1"
-    ],
-    "warned_checks": []
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T4": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
   }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T1"
+  ],
+  "warned_checks": []
+ }
 }

@@ -1,165 +1,165 @@
 {
-  "pdf": "/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/figaudit/pdf/fig-stp-three-organs/fig-stp-three-organs.pdf",
-  "page_count": 1,
-  "params": {
-    "min_font_pt": 7.0,
-    "textwidth_cm": 16.3
-  },
-  "checks": {
-    "T1": {
-      "status": "fail",
-      "count": 8,
-      "findings": [
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            77.29295349121094,
-            70.59151458740234,
-            116.98831176757812,
-            76.41194915771484
-          ],
-          "text": "implemented",
-          "size_pt": 5.82,
-          "message": "text 'implemented' renders at 5.82pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            99.56353759765625,
-            113.37401580810547,
-            120.31920623779297,
-            119.19445037841797
-          ],
-          "text": "partial",
-          "size_pt": 5.82,
-          "message": "text 'partial' renders at 5.82pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            83.29397583007812,
-            158.91641235351562,
-            104.04964447021484,
-            164.73684692382812
-          ],
-          "text": "partial",
-          "size_pt": 5.82,
-          "message": "text 'partial' renders at 5.82pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            172.3511199951172,
-            174.640869140625,
-            175.90740966796875,
-            180.4613037109375
-          ],
-          "text": "1",
-          "size_pt": 5.82,
-          "message": "text '1' renders at 5.82pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            219.48074340820312,
-            174.640869140625,
-            223.0370330810547,
-            180.4613037109375
-          ],
-          "text": "1",
-          "size_pt": 5.82,
-          "message": "text '1' renders at 5.82pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            293.7978820800781,
-            174.640869140625,
-            297.3541564941406,
-            180.4613037109375
-          ],
-          "text": "2",
-          "size_pt": 5.82,
-          "message": "text '2' renders at 5.82pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            360.2489013671875,
-            174.640869140625,
-            363.80517578125,
-            180.4613037109375
-          ],
-          "text": "2",
-          "size_pt": 5.82,
-          "message": "text '2' renders at 5.82pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            432.0127258300781,
-            174.640869140625,
-            435.5690002441406,
-            180.4613037109375
-          ],
-          "text": "3",
-          "size_pt": 5.82,
-          "message": "text '3' renders at 5.82pt, below the 7.00pt floor"
-        }
-      ]
+ "figure": "fig-stp-three-organs",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "fail",
+   "count": 8,
+   "findings": [
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      77.29295349121094,
+      70.59151458740234,
+      116.98831176757812,
+      76.41194915771484
+     ],
+     "text": "implemented",
+     "size_pt": 5.82,
+     "message": "text 'implemented' renders at 5.82pt, below the 7.00pt floor"
     },
-    "T2": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      99.56353759765625,
+      113.37401580810547,
+      120.31920623779297,
+      119.19445037841797
+     ],
+     "text": "partial",
+     "size_pt": 5.82,
+     "message": "text 'partial' renders at 5.82pt, below the 7.00pt floor"
     },
-    "T3": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      83.29397583007812,
+      158.91641235351562,
+      104.04964447021484,
+      164.73684692382812
+     ],
+     "text": "partial",
+     "size_pt": 5.82,
+     "message": "text 'partial' renders at 5.82pt, below the 7.00pt floor"
     },
-    "T4": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      172.3511199951172,
+      174.640869140625,
+      175.90740966796875,
+      180.4613037109375
+     ],
+     "text": "1",
+     "size_pt": 5.82,
+     "message": "text '1' renders at 5.82pt, below the 7.00pt floor"
     },
-    "T5": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      219.48074340820312,
+      174.640869140625,
+      223.0370330810547,
+      180.4613037109375
+     ],
+     "text": "1",
+     "size_pt": 5.82,
+     "message": "text '1' renders at 5.82pt, below the 7.00pt floor"
     },
-    "T6": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      293.7978820800781,
+      174.640869140625,
+      297.3541564941406,
+      180.4613037109375
+     ],
+     "text": "2",
+     "size_pt": 5.82,
+     "message": "text '2' renders at 5.82pt, below the 7.00pt floor"
     },
-    "T7": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      360.2489013671875,
+      174.640869140625,
+      363.80517578125,
+      180.4613037109375
+     ],
+     "text": "2",
+     "size_pt": 5.82,
+     "message": "text '2' renders at 5.82pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      432.0127258300781,
+      174.640869140625,
+      435.5690002441406,
+      180.4613037109375
+     ],
+     "text": "3",
+     "size_pt": 5.82,
+     "message": "text '3' renders at 5.82pt, below the 7.00pt floor"
     }
+   ]
   },
-  "summary": {
-    "result": "fail",
-    "failed_checks": [
-      "T1"
-    ],
-    "warned_checks": []
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T4": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
   }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T1"
+  ],
+  "warned_checks": []
+ }
 }

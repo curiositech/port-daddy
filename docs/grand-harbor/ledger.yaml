@@ -1,0 +1,226 @@
+schema_version: 1
+ledger_status: proposed
+snapshot:
+  repository: curiositech/port-daddy
+  base_revision: 5e438c7f932d26e6b313534fd6bc02dc472ba9e4
+  captured_at: 2026-09-02
+  intended_successor: chartroom-signed-production-authority
+authority:
+  constitution: 00-constitution.md
+  decisions: decisions/
+  contracts: 02-contract-registry.md
+  sources: sources/sources.yaml
+projections:
+  - 01-system-map.md
+  - 03-product-experiences.md
+  - 04-program.md
+  - ux/
+registers:
+  - kind: question
+    document: 05-open-questions.md
+    ids: [GH-Q-001, GH-Q-002, GH-Q-003, GH-Q-004, GH-Q-005, GH-Q-006, GH-Q-007, GH-Q-008, GH-Q-009, GH-Q-010, GH-Q-011, GH-Q-012, GH-Q-013, GH-Q-014, GH-Q-015, GH-Q-016, GH-Q-017, GH-Q-018, GH-Q-019, GH-Q-020, GH-Q-021, GH-Q-022, GH-Q-023, GH-Q-024, GH-Q-025, GH-Q-026, GH-Q-027, GH-Q-028, GH-Q-029, GH-Q-030, GH-Q-031, GH-Q-032, GH-Q-033, GH-Q-034, GH-Q-035, GH-Q-036, GH-Q-037, GH-Q-038, GH-Q-039]
+  - kind: tension
+    document: 06-tensions.md
+    ids: [GH-T-001, GH-T-002, GH-T-003, GH-T-004, GH-T-005, GH-T-006, GH-T-007, GH-T-008, GH-T-009, GH-T-010, GH-T-011, GH-T-012]
+  - kind: hypothesis
+    document: 09-protected-hypotheses.md
+    ids: [GH-H-001, GH-H-002, GH-H-003, GH-H-004, GH-H-005, GH-H-006, GH-H-007, GH-H-008, GH-H-009]
+  - kind: proof
+    document: 11-proof-catalog.md
+    ids: [GH-P-001, GH-P-002, GH-P-003, GH-P-004, GH-P-005, GH-P-006, GH-P-007, GH-P-008, GH-P-009, GH-P-010, GH-P-011, GH-P-012]
+  - kind: archive
+    document: archive/README.md
+  - kind: ux
+    document: ux/README.md
+# The kinds a record may declare. Without this the checker had nothing to check
+# a kind against, so a misspelling would have entered the ledger as a new kind.
+# Every kind a register may declare. This list was written from the kinds the
+# records themselves used and missed four the registers below actually carry:
+# question, tension, archive and ux. Declaring a vocabulary that the documents
+# already exceed is worse than declaring none, because it reads as checked.
+record_kinds:
+  - archive
+  - contract
+  - decision
+  - experience
+  - hypothesis
+  - invariant
+  - program_cut
+  - proof
+  - question
+  - tension
+  - ux
+relation_vocabulary:
+  - EXTENDS
+  - REFINES
+  - IMPLEMENTS
+  - EXPERIMENTS_WITH
+  - CONTRADICTS
+  - SUPERSEDES
+  - ORTHOGONAL_TO
+maturity_order:
+  - observed
+  - hypothesis
+  - designed
+  - contracted
+  - implemented
+  - proved
+  - dogfooded
+  - shipped
+records:
+  - id: GH-D-001
+    kind: decision
+    status: proposed
+    document: decisions/GH-D-0001-establish-architecture-ledger.md#gh-d-001
+  - id: GH-I-001
+    kind: invariant
+    status: provisional_import
+    document: 00-constitution.md#gh-i-001
+  - id: GH-I-002
+    kind: invariant
+    status: provisional_import
+    document: 00-constitution.md#gh-i-002
+  - id: GH-I-003
+    kind: invariant
+    status: provisional_import
+    document: 00-constitution.md#gh-i-003
+  - id: GH-I-004
+    kind: invariant
+    status: provisional_import
+    document: 00-constitution.md#gh-i-004
+  - id: GH-I-005
+    kind: invariant
+    status: provisional_import
+    document: 00-constitution.md#gh-i-005
+  - id: GH-I-006
+    kind: invariant
+    status: provisional_import
+    document: 00-constitution.md#gh-i-006
+  - id: GH-I-007
+    kind: invariant
+    status: provisional_import
+    document: 00-constitution.md#gh-i-007
+  - id: GH-I-008
+    kind: invariant
+    status: provisional_import
+    document: 00-constitution.md#gh-i-008
+  - id: GH-I-009
+    kind: invariant
+    status: provisional_import
+    document: 00-constitution.md#gh-i-009
+  - id: GH-I-010
+    kind: invariant
+    status: provisional_import
+    document: 00-constitution.md#gh-i-010
+  - id: GH-I-011
+    kind: invariant
+    status: provisional_import
+    document: 00-constitution.md#gh-i-011
+  - id: GH-I-012
+    kind: invariant
+    status: provisional_import
+    document: 00-constitution.md#gh-i-012
+  - id: GH-I-013
+    kind: invariant
+    status: provisional_import
+    document: 00-constitution.md#gh-i-013
+  - id: GH-I-014
+    kind: invariant
+    status: provisional_import
+    document: 00-constitution.md#gh-i-014
+  - id: GH-C-001
+    kind: contract
+    status: proposed
+    document: 02-contract-registry.md#gh-c-001
+  - id: GH-C-002
+    kind: contract
+    status: proposed
+    document: 02-contract-registry.md#gh-c-002
+  - id: GH-C-003
+    kind: contract
+    status: proposed
+    document: 02-contract-registry.md#gh-c-003
+  - id: GH-C-004
+    kind: contract
+    status: proposed
+    document: 02-contract-registry.md#gh-c-004
+  - id: GH-C-005
+    kind: contract
+    status: proposed
+    document: 02-contract-registry.md#gh-c-005
+  - id: GH-C-006
+    kind: contract
+    status: proposed
+    document: 02-contract-registry.md#gh-c-006
+  - id: GH-C-007
+    kind: contract
+    status: proposed
+    document: 02-contract-registry.md#gh-c-007
+  - id: GH-C-008
+    kind: contract
+    status: proposed
+    document: 02-contract-registry.md#gh-c-008
+  - id: GH-C-009
+    kind: contract
+    status: proposed
+    document: 02-contract-registry.md#gh-c-009
+  - id: GH-C-010
+    kind: contract
+    status: proposed
+    document: 02-contract-registry.md#gh-c-010
+  - id: GH-C-011
+    kind: contract
+    status: proposed
+    document: 02-contract-registry.md#gh-c-011
+  - id: GH-C-012
+    kind: contract
+    status: proposed
+    document: 02-contract-registry.md#gh-c-012
+  - id: GH-E-001
+    kind: experience
+    status: proposed
+    document: 03-product-experiences.md#gh-e-001
+  - id: GH-E-002
+    kind: experience
+    status: proposed
+    document: 03-product-experiences.md#gh-e-002
+  - id: GH-E-003
+    kind: experience
+    status: proposed
+    document: 03-product-experiences.md#gh-e-003
+  - id: GH-E-004
+    kind: experience
+    status: proposed
+    document: 03-product-experiences.md#gh-e-004
+  - id: GH-E-005
+    kind: experience
+    status: proposed
+    document: 03-product-experiences.md#gh-e-005
+  - id: GH-E-006
+    kind: experience
+    status: proposed
+    document: 03-product-experiences.md#gh-e-006
+  - id: GH-E-007
+    kind: experience
+    status: proposed
+    document: 03-product-experiences.md#gh-e-007
+  - id: GH-E-008
+    kind: experience
+    status: proposed
+    document: 03-product-experiences.md#gh-e-008
+  - id: GH-E-009
+    kind: experience
+    status: proposed
+    document: 03-product-experiences.md#gh-e-009
+  - id: GH-E-010
+    kind: experience
+    status: proposed
+    document: 03-product-experiences.md#gh-e-010
+  - id: GH-E-011
+    kind: experience
+    status: proposed
+    document: 03-product-experiences.md#gh-e-011
+  - id: GH-CUT-001
+    kind: program_cut
+    status: proposed
+    document: program/CUT-001-first-vertical-proof.md#gh-cut-001

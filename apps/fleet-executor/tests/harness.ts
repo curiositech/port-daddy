@@ -700,11 +700,18 @@ export function memoryD1(): D1Capture {
           // ON CONFLICT update differently. The logical-run upsert refreshes
           // pending metadata but preserves the first timestamp and any terminal
           // result, while ensureRunRow remains a true no-op on an existing row.
+          const isTerminalRepair = /conclusion = excluded.conclusion/i.test(sql);
           const isIgnore = /INSERT OR IGNORE/i.test(sql);
           const isLogicalRunUpsert = /ON CONFLICT\s*\(id\)/i.test(sql);
           const isTerminalUpsert = /conclusion = excluded.conclusion/i.test(sql);
           const existing = runsById.get(String(args[0]));
-          if (isIgnore && runsById.has(String(args[0]))) {
+          if (isTerminalRepair) {
+            runsById.set(String(args[0]), {
+              id: args[0], deliveryId: args[1], repo: args[2], prNumber: args[3],
+              prUrl: args[4], headSha: args[5], conclusion: String(args[6]), shipsCsv: args[7],
+              createdAt: existing?.createdAt ?? args[8], ms: existing ? Math.max(0, Number(args[9]) - Number(existing.createdAt) * 1000) : 0,
+            });
+          } else if (isIgnore && runsById.has(String(args[0]))) {
             // no-op, matching real D1
           } else if (isTerminalUpsert && existing) {
             existing.conclusion = String(args[6]);
@@ -764,6 +771,11 @@ export function memoryD1(): D1Capture {
         return { success: true, meta: {} };
       },
       async first() {
+        if (/SELECT conclusion FROM fleet_runs WHERE id = \?/i.test(sql)) {
+          if (cap.failAll) throw new Error('D1 unavailable');
+          const row = runsById.get(String(args[0]));
+          return row ? { conclusion: row.conclusion } : null;
+        }
         // Run-deadline read-back (getRunStartedAtSec): the logical run's TRUE
         // first-attempt created_at, surviving every continuation/retry —
         // served from the same runsById map the INSERT path above maintains.

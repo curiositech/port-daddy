@@ -29,6 +29,8 @@ import {
   runIdForDelivery,
 } from '../src/delivery-failure.js';
 
+const ONE_SHIP_YAML = 'fleet:\n  agents:\n    code-reviewer:\n      trigger: pull_request:opened\n      blocking: true\n      prompt: code-reviewer ship\n';
+
 function seedToken(kv: KVNamespace, installationId: number): void {
   void kv.put(
     `github_inst_${installationId}`,
@@ -424,7 +426,7 @@ describe('queue consumer', () => {
   });
 
   it('acks a message on successful run', async () => {
-    state.files.set('main:pd-fleet.yml', SINGLE_REVIEWER_YAML);
+    state.files.set('main:pd-fleet.yml', ONE_SHIP_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
     const ai = aiStub({
@@ -637,7 +639,7 @@ describe('queue consumer', () => {
 
   it('retries instead of acking when the required check cannot be completed', async () => {
     vi.useFakeTimers();
-    state.files.set('main:pd-fleet.yml', SINGLE_REVIEWER_YAML);
+    state.files.set('main:pd-fleet.yml', ONE_SHIP_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
     const ai = aiStub({
@@ -690,7 +692,7 @@ describe('queue consumer', () => {
   });
 
   it('carries a long provider Retry-After into the Cloudflare redelivery delay', async () => {
-    state.files.set('main:pd-fleet.yml', SINGLE_REVIEWER_YAML);
+    state.files.set('main:pd-fleet.yml', ONE_SHIP_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
     const ai = aiStub({

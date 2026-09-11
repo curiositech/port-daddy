@@ -101,11 +101,13 @@
       ],
       "bytes": 205335,
       "final_aspect": "7:10",
-      "use": "the bookseller panel on /library and /research — a thumbnail of the edition, not a plate printed inside it"
+      "use": "retired from the site when Swiss became the central edition; kept as the record of the maritime cover, which still builds from its own driver root",
+      "brief": "scripts/whitepaper-plates/leviathan_cover_brief.txt",
+      "brief_note": "The written brief the cover was generated from: full-bleed copper-plate etching after the frontispiece of Hobbes's Leviathan, four registers, gold leaf as trim only. It was committed without a pointer from this record, which is why a reviewer found it orphaned."
     },
     "cover-swiss": {
       "file": "cover-swiss.jpg",
-      "derived_from": "website-v2/public/whitepaper/coordination-papers-mega-volume-swiss.pdf, page 1 — the cover of the Swiss edition, built by whitepaper-build.yml",
+      "derived_from": "website-v2/public/whitepaper/coordination-papers-mega-volume-swiss.pdf, page 1 — the cover of the Swiss edition, built by whitepaper-build.yml (that PDF is no longer committed; it builds on demand via scripts/build-whitepapers.sh with a named --filter)",
       "render": "rasterised from page one of that PDF at 1000x1429 and JPEG-encoded; no image model was involved, and the generation record for the artwork on that page lives with the plates the edition itself uses",
       "size": [
         1000,
@@ -113,11 +115,11 @@
       ],
       "bytes": 105680,
       "final_aspect": "7:10",
-      "use": "the bookseller panel on /library and /research — a thumbnail of the edition, not a plate printed inside it"
+      "use": "the bookseller panel on /library — the cover of the Book as published, since the canonical PDF renders the Swiss edition"
     },
     "cover-technical": {
       "file": "cover-technical.jpg",
-      "derived_from": "website-v2/public/whitepaper/coordination-papers-mega-volume-technical.pdf, page 1 — the cover of the technical edition, built by whitepaper-build.yml",
+      "derived_from": "website-v2/public/whitepaper/coordination-papers-mega-volume-technical.pdf, page 1 — the cover of the technical edition, built by whitepaper-build.yml (that PDF is no longer committed; it builds on demand via scripts/build-whitepapers.sh with a named --filter)",
       "render": "rasterised from page one of that PDF at 1000x1429 and JPEG-encoded; no image model was involved, and the generation record for the artwork on that page lives with the plates the edition itself uses",
       "size": [
         1000,
@@ -125,18 +127,22 @@
       ],
       "bytes": 136247,
       "final_aspect": "7:10",
-      "use": "the bookseller panel on /library and /research — a thumbnail of the edition, not a plate printed inside it"
+      "use": "not shown on the site; kept as the record of the technical cover, which still builds from its own driver root"
     },
     "frontispiece": {
       "file": "frontispiece.jpg",
-      "source_render": "E2-etch-clerks.png",
+      "source_render": "lev-2.png",
       "size": [
         1334,
         2000
       ],
-      "bytes": 766959,
-      "note": "frontispiece etching, the colossus of clerks, paper balanced to the page stock",
-      "prompt": "A seventeenth-century copper-plate etching in the manner of a baroque book frontispiece, printed in dark brown-black ink on aged laid paper with a visible plate mark, chain lines, and foxing; dense cross-hatching, fine stipple skies, a landscape below and an allegorical colossus above; an ornate empty cartouche at the bottom left blank. No lettering. Scene: a colossal figure rises out of the sea behind a lighthouse, its torso a lattice of tiny identical clerks at desks each holding a ledger; its face is calm and machine-like, made of concentric rings; below, a harbor with two facing quays and a small ferry between them."
+      "bytes": 1117385,
+      "note": "frontispiece etching in the Leviathan's four registers -- blank banner, the colossus between pilasters, ten framed vignettes in two columns, blank plinth. The body is an open clockwork movement worked over with engraved circuit tracery, gold in the trim of every detail; the colossus of clerks it replaces is retired. Style reference: the retired plate, for etching craft only. Best of six candidates.",
+      "prompt": "FULL BLEED: the etching fills the image edge to edge to edge to edge. No plate mark, no border\nrule, no surrounding sheet, no blank margin on any side.\n\nReference image 1 is the STYLE TEMPLATE for craft only: match its seventeenth-century copper-plate\netching technique, its aged laid paper -- warm, toned, lightly foxed, the ink slightly uneven as a\nworn plate prints -- its dense burin cross-hatching and fine stipple, its baroque frontispiece\ncharacter. The line is a single dark brown-black ink, and burnished GOLD LEAF picks out the trim of\nevery detail: the fillets and ruled borders of each compartment, the ornament of the banner, the\ncapitals and bases of the pilasters, the bezels and rims of the machinery, the highlights on metal.\nThe gold is trim and highlight only, never a fill.\n\nCOMPOSITION, after the frontispiece of Hobbes's Leviathan, in four registers stacked down the page:\n\nTOP REGISTER: a wide ornamental banner spanning the full width, its interior a completely blank,\nsmooth, empty panel. Nothing is written in it.\n\nUPPER REGISTER, the largest: a colossal allegorical figure rising from the sea, filling the centre,\nits body an armoured mechanism -- NOT made of people. Its torso is an open clockwork movement of\ntoothed gears, escapements, mainspring barrels and jewelled bearings, and over and through that\nmovement runs extremely fine engraved circuit tracery, the etched lines of a printed circuit board\nrendered in burin hatching, with gold on every gear rim, bezel and trace. Its head is a calm helm of\nconcentric rings around a single lens. In its\nright hand it holds a surveyor's staff upright; in its left, an unrolled scroll whose surface is\nblank. Behind it a lighthouse on a rock and a working harbour of stone quays. Flanking the figure,\none tall stone pilaster at the far left and one at the far right, each carrying a narrow vertical\nblank panel down its shaft -- smooth and empty, no writing.\n\nLOWER REGISTER: two symmetrical columns of small framed vignettes, five stacked down the left edge\nand five down the right edge, each in its own thin ruled compartment, each a separate little\nengraved still life in the same ink: a single open ledger with one pen laid across it and a\ngilt fillet round its board; a lighthouse seen close; an anchor with a coil of chain; a heavy\nstrongroom door with one slot; a pair of balance scales; a mariner's compass rose with a gilt limb;\na bonded chest with a broken seal; a fleet of small boats seen from above; an escapement and\ntrain of gears drawn as a horologist would draw them; a bridge of one span between two shores.\n\nBASE REGISTER: a low plinth running the full width, its face a blank empty panel.\n\nAbsolutely no lettering, numerals, words, letterforms, inscriptions, signatures or symbols that\nresemble writing anywhere in the image. Every banner, panel, scroll, pilaster and plinth face is\nleft smooth and completely empty; the lettering is typeset afterwards.",
+      "style_reference": "the previous frontispiece.jpg (craft only: etching technique, paper, hatching)",
+      "candidates": 6,
+      "chosen": "lev-2",
+      "chosen_rationale": "the only candidate where the torso reads as a real movement -- gears, escapement and circuit tracery together -- with all four registers intact and every type area left empty"
     },
     "jacket": {
       "file": "jacket.jpg",
@@ -192,6 +198,17 @@
       "bytes": 535826,
       "note": "Part IV wash, full page behind the part type, sheet edges cropped away, paper balanced to the page stock",
       "prompt": "A faded watercolor wash landscape reproduced on aged, lightly embossed paper stock: visible paper tooth, salt texture and pigment blooms in the washes, offset print grain, colors muted and slightly bled as in an old lithographed reproduction, no hard outlines, no ink linework, no bright saturated color. Palette: pale greys, cobalt and violet washes faded almost to paper, one warm lamp-glow. Space-opera scale: one colossal, smooth, unearthly presence dominates the picture, rendered as soft masses of pale wash with almost no detail, and one small everyday human-scale thing sits beneath it, tiny and exact. Tall vertical picture: the upper third is open, nearly empty pale wash (sky and mist), the colossal presence occupies the middle, the small thing sits low. No people's faces, no crews, no lettering, no border; the wash runs to all four edges. Scene: two colossal smooth masses, one dark and one pale, facing each other across a narrow strait in evening haze, their tops lost in cloud, and between them, low in the picture, one tiny sail crossing under a single hair-thin line of light strung from one to the other."
+    }
+  },
+  "frontispieces": {
+    "generated": "2026-09-08",
+    "model": "gemini-3-pro-image-preview",
+    "prompts": "scripts/whitepaper-plates/frontispiece_prompts.py (swiss, technical); scripts/whitepaper-plates/frontispiece-maritime.prompt.txt",
+    "why": "The Leviathan brief measured against the plate already in the book: the cyclopean lens emitted nothing, the scroll was blank rather than a Float Plan of hashes, there was no subterranean Merkle-and-gearing cutaway, the sceptre was a plain staff, and the colossus waded in the harbour instead of towering over it. One plate also served all three editions, so the etching faced the Swiss edition's flat colour blocks.",
+    "plates": {
+      "plates/frontispiece.jpg": "maritime, watercolour, variant w3. The first pass was a sepia intaglio engraving, which is the TECHNICAL edition's register -- the maritime plates are faded watercolour washes, so the frontispiece was out of family with the book it opens. Redrawn as a wash: a benign colossus at the water whose body is a swarm of small robots, one hand beckoning open-palmed rather than commanding, holding Hobbes's sword and crozier translated as a braided ethernet trunk and a fibre-optic crook. Copper commands, glass attests.",
+      "plates/swiss/frontispiece.jpg": "swiss, variant c; a and b read as a toy robot and were rejected",
+      "plates/technical/frontispiece.jpg": "technical, variant a"
     }
   }
 }

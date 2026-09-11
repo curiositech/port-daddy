@@ -157,15 +157,17 @@ export class ShipTranscript {
   readonly runId: string;
   readonly ship: string;
   readonly attempt: number;
+  readonly repoFullName?: string;
   private readonly turns: TranscriptTurn[] = [];
   private readonly seenSystemHashes = new Set<string>();
   private seq = 0;
   private approxBytes = 0;
   private droppedTurns = 0;
 
-  constructor(runId: string, ship: string, attempt: number) {
+  constructor(runId: string, ship: string, attempt: number, repoFullName?: string) {
     this.runId = runId;
     this.ship = ship;
+    this.repoFullName = repoFullName;
     this.attempt = Number.isFinite(attempt) && attempt > 0 ? Math.floor(attempt) : 1;
   }
 

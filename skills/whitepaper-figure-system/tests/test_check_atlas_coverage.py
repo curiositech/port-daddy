@@ -286,8 +286,27 @@ class AtlasCoverageTests(unittest.TestCase):
                 contracts, atlas_ids, source_ids
             ),
         )
+        # 66 again, and the round trip is the lesson. It was 66, then 61 on
+        # 2026-09-08 when five volume-IV rows left the atlas because chapter 6
+        # had stopped re-inputting drawings chapters 7 and 8 develop -- the Book
+        # was printing each of them twice under two figure numbers -- and 66
+        # once more the same day, because deleting them was half a fix.
+        # harbor-economy.tex is also the source of a standalone submission
+        # paper, and rewriting its prose to point at chapters removed five
+        # figures from a PDF whose reader has no other chapters to be pointed
+        # at. The whole fix is \ifpdbook: the Book takes the cross-reference,
+        # the paper keeps its copy, and the SOURCE therefore still carries all
+        # 66. A pinned count is the right shape for this assertion; it just has
+        # to move when the corpus does, and it has now moved twice.
         self.assertEqual(report["source_count"], 66)
         self.assertEqual(report["atlas_count"], 66)
+        # Five, and the previous revision of this comment is why the assertion
+        # was kept at zero rather than deleted: it said it would "notice when a
+        # contract legitimately reappears -- a standalone paper carrying its own
+        # copy of a chapter's figure is exactly that". That is what happened,
+        # inside a day. uncovered_reuse() is what fails if one is needed and
+        # missing, and it is the invariant doing the real work here; this count
+        # only pins today's corpus.
         self.assertEqual(len(contracts), 5)
         self.assertTrue(coverage.is_clean(report), report)
 
@@ -301,5 +320,58 @@ class AtlasCoverageTests(unittest.TestCase):
                 self.assertEqual(missing_one["missing_from_atlas"], [removed])
 
 
+class TestUncoveredReuse(unittest.TestCase):
+    """The invariant that replaced "the atlas must declare at least one contract".
+
+    That assertion was true of the corpus when it was written and stopped being
+    true on 2026-09-08, when the Book stopped printing five drawings twice and
+    the five contracts describing that duplication went with them. Zero is the
+    right answer when nothing is shared. What was never checked, and is what
+    the table exists for, is the converse: a figure under two volume roots with
+    no contract is two drawings free to drift apart in silence.
+    """
+
+    def test_shared_figure_without_a_contract_is_reported(self):
+        issues = coverage.uncovered_reuse(
+            ["IV/fig:threat-bands", "VII/fig:threat-bands", "I/fig:alone"], []
+        )
+        self.assertEqual(
+            issues, ["fig:threat-bands:shared-by-IV,VII-without-a-contract"]
+        )
+
+    def test_a_contract_covering_it_clears_the_finding(self):
+        contract = coverage.ReuseContract(
+            name="Threat bands",
+            members=("IV/fig:threat-bands", "VII/fig:threat-bands"),
+            requirement="same rows and status vocabulary",
+        )
+        self.assertEqual(
+            coverage.uncovered_reuse(
+                ["IV/fig:threat-bands", "VII/fig:threat-bands"], [contract]
+            ),
+            [],
+        )
+
+    def test_nothing_shared_means_nothing_to_report(self):
+        # The state the atlas is actually in now: an empty contract table is
+        # correct here, and must not be reported as a defect.
+        self.assertEqual(
+            coverage.uncovered_reuse(
+                ["IV/fig:one", "VI/fig:two", "VII/fig:three"], []
+            ),
+            [],
+        )
+
+    def test_the_same_figure_twice_in_one_volume_is_not_cross_volume_reuse(self):
+        self.assertEqual(
+            coverage.uncovered_reuse(["IV/fig:one", "IV/fig:one"], []), []
+        )
+
+
+# The entry point belongs at the END of the file. It sat above TestUncoveredReuse,
+# which meant `python3 test_check_atlas_coverage.py` ran the suite before that
+# class was even defined and reported a pass over tests it had never seen.
+# `unittest discover` imports the module and finds everything, so CI was fine and
+# only a person running the file directly got the silent partial pass.
 if __name__ == "__main__":
     unittest.main()

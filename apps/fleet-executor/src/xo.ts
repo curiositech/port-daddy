@@ -34,6 +34,7 @@ import { FleetStoppedError } from "../../../shared/fleet-controls.js";
  */
 
 import { CF_ROLE_MODELS } from '../../shared/model-registry.generated.js';
+import { shipAiOptions, type ShipCallContext } from './ship-ai-options.js';
 import type { Proposal } from './proposals.js';
 import type { Severity, ShipResult } from './verdict.js';
 import { extractAiText } from './ai-response.js';
@@ -183,12 +184,9 @@ function oneLine(text: string): string {
  */
 function xoAiOptions(
   gatewayId: string | undefined,
-): { extraHeaders: Record<string, string>; gateway?: { id: string } } {
-  const opts: { extraHeaders: Record<string, string>; gateway?: { id: string } } = {
-    extraHeaders: { 'x-session-affinity': 'pd-fleet-xo' },
-  };
-  if (gatewayId) opts.gateway = { id: gatewayId };
-  return opts;
+  context?: ShipCallContext,
+) {
+  return shipAiOptions(gatewayId, 'xo', context);
 }
 
 // ---------------------------------------------------------------------------
@@ -426,6 +424,7 @@ export async function runXoEditorPass(opts: {
   proposals: Proposal[];
   recentIdeas: Array<{ title: string; rationale: string }>;
   gatewayId?: string;
+  telemetryContext?: ShipCallContext;
   /** Shared per-delivery circuit; omitted by standalone callers and tests. */
   aiCircuit?: FleetAiCircuit;
 }): Promise<XoEditorOutcome> {
@@ -450,7 +449,7 @@ export async function runXoEditorPass(opts: {
     const call = () => ai.run(
       model as Parameters<typeof ai.run>[0],
       request,
-      xoAiOptions(opts.gatewayId),
+      xoAiOptions(opts.gatewayId, opts.telemetryContext),
     );
     const res = opts.aiCircuit ? await opts.aiCircuit.run(call) : await call();
     const { text } = extractAiText(res);
@@ -684,6 +683,7 @@ export async function xoOrdersSection(opts: {
   advisories: AdvisoryRef[];
   changedPaths: string[];
   gatewayId?: string;
+  telemetryContext?: ShipCallContext;
   /** Shared per-delivery circuit; omitted by standalone callers and tests. */
   aiCircuit?: FleetAiCircuit;
 }): Promise<string> {
@@ -706,7 +706,7 @@ export async function xoOrdersSection(opts: {
     const call = () => opts.ai.run(
       opts.model as Parameters<typeof opts.ai.run>[0],
       request,
-      xoAiOptions(opts.gatewayId),
+      xoAiOptions(opts.gatewayId, opts.telemetryContext),
     );
     const res = opts.aiCircuit ? await opts.aiCircuit.run(call) : await call();
     const { text } = extractAiText(res);

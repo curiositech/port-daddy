@@ -310,7 +310,7 @@ A mechanism designer &
   Thm.~\ref{thm:ms} \\
 A cryptographer / distributed-systems reviewer &
   \S\ref{sec:keystone} (the keystone) $\to$ \S\ref{sec:federation} &
-  Table~\ref{tab:keystone-split}, Fig.~\ref{fig:fh-xfer} \\
+  \S\ref{sec:keystone}; \ifpdbook the transfer ceremony in \pdchapref{fh}{The Federated Harbor}\else Table~\ref{tab:keystone-split}, Fig.~\ref{fig:fh-xfer}\fi \\
 A category theorist &
   \S\ref{sec:conservation} $\to$ \S\ref{sec:sheaf} &
   Fig.~\ref{fig:he-conservation-functor}, Conj.~\ref{conj:sheaf} \\
@@ -361,7 +361,7 @@ principal you do not trust, using skills you cannot inspect. That is a
 \emph{market-design} problem before it is a cryptography problem. Cryptography is
 the substrate that makes the ledger unforgeable; it is not the product.
 
-\pullquote{You don't sell crypto --- crypto is the substrate; you sell
+\pdthesis{You don't sell crypto --- crypto is the substrate; you sell
 \textbf{hosted trust}: a verified ledger, a relay, and a reputation system that
 lets mutually-distrustful fleets transact across a boundary they do not share.}
 
@@ -406,7 +406,7 @@ cross-layer sentence, repeated in \pdchapref{stp}{From Spawn to Person} and
 here, states the dependency
 exactly:
 
-\pullquote{The score is cheap; the substrate it scores over --- witnessed outcomes
+\pdthesis{The score is cheap; the substrate it scores over --- witnessed outcomes
 on a non-forgeable identity --- is the gate.}
 
 \pdexercisepointer{\ref{ex:he-clone-word}}{\ref{ex:he-no-identity-market}}{\pageref{ex:he-clone-word}}
@@ -605,7 +605,7 @@ third side'' is the natural structure once agents compete for paid work.
 The canonical statement of the market's shape carries a rider that must never be
 dropped:
 
-\pullquote{The harbor economy is a three-sided market \emph{by design}; two-sided
+\pdthesis{The harbor economy is a three-sided market \emph{by design}; two-sided
 until reputation ships. The third side \emph{is} the tradeable-person terminus of
 \pdchapref{stp}{From Spawn to Person}.}
 
@@ -741,7 +741,7 @@ Agent $a_2$ completes $40\%$ of the verifiable evidence chain (refactoring two o
 \end{enumerate}
 Conservation check: $\Delta \text{Bob} = -160$, $\Delta \text{Alice} = +160 - 60 = +100$ net, $\Delta \text{commons} = +60$. The ledger sums to $0$ net delta, and the separate escrow buckets $\text{escrow}_{\text{bounty}} \to 0$ and $\text{escrow}_{\text{bond}} \to 0$ clear completely. No value was created or destroyed.
 
-\pdexercisepointer{\ref{ex:he-partial-settlement-trace}}{\ref{ex:he-floatplan-amendment}}{\pageref{ex:he-partial-settlement-trace}}
+\pdexercisepointer*{\ref{ex:he-partial-settlement-trace}}{\ref{ex:he-floatplan-amendment}}{\pageref{ex:he-partial-settlement-trace}}
 
 \begin{pdrecitation}
 \item Without looking: name the three parties in the float-plan escrow ceremony, and the one thing the daemon does before either bounty or bond can move.
@@ -840,17 +840,57 @@ NP-complete, and the language designer is offered nothing in between. The same
 step is familiar one formalism over, where the simple temporal problem is
 polynomial and admitting disjunctions of difference constraints makes
 consistency NP-complete~\pdcite{dmp91,sk00}; the claim here is the location of the
-boundary, not the pattern. Nor is the pattern new in normative conflict
-checking specifically: Colombo Tosatto, Governatori and van Beest prove a
-closely-shaped dichotomy for regulatory compliance --- checking a business
-process against a set of conditional obligations is polynomial, against one
-natural, more expressive extension it is coNP-complete~\pdcite{ctgvb2020,ctgvb2021}.
-Their formal object (structured business processes, conditional obligations)
-and complexity class (coNP) differ from $\mathcal{L}_c$'s (ground Horn-triggered
-deontic tokens, NP, a different reduction), so one does not subsume the other;
-what carries over is the dichotomy's shape, and Theorems~\ref{thm:deontic-detect}
-and~\ref{thm:deontic-frontier} are a second, independent instance of it, not its
-discovery.
+boundary, not the pattern.
+
+Nor is the pattern new in normative conflict checking specifically, and it is
+worth being exact about where $\mathcal{L}_c$ lands, because ``a similar
+dichotomy exists over there'' is the sort of sentence that can conceal either a
+rediscovery or a real difference. Colombo Tosatto, Governatori and van Beest map
+the regulatory-compliance problem across eight variants cut by three binary
+choices --- one obligation or many, obligations in force for a whole trace or
+triggered conditionally, and elements written as bare propositional literals or
+as arbitrary propositional formulae --- and for \emph{full} compliance (does
+\emph{every} execution of a business-process model satisfy the norms?) only the
+last of the three moves the answer at all: with literals the problem is in P in
+all four variants, and with formulae it is coNP-complete in all
+four~\pdcite{ctgvb2020,ctgvb2021}.
+
+Run $\mathcal{L}_c$ against that axis and the answer is not the flattering one.
+A deontic rule here fires on a Horn body --- a conjunction, and one derived
+through a program that may chain --- which is a formula and not a literal, so
+$\mathcal{L}_c$ sits on the \emph{hard} side of the only coordinate that moves
+their result, and is polynomial anyway (Theorem~\ref{thm:deontic-detect}). That
+is neither a contradiction nor a sharper theorem; it is the tell that the two
+problems are not the same problem. Their hardness never came from the
+obligations. It comes from the process model: the coNP-completeness proof
+reduces \textsc{tautology} by building a workflow net with one exclusive branch
+per propositional variable, so the model's $2^n$ executions enumerate every
+interpretation and full compliance holds exactly when the formula is a
+tautology~\pdcite{ctgvb2021}. The exponential object is the \emph{branching of
+the process}, and the problem quantifies over it universally. $\mathcal{L}_c$
+has no process model to branch. Conflict-freedom asks whether one set of
+commitments can be jointly discharged at all --- an existential question over
+schedules --- which is exactly why one step outside the fragment lands in NP
+(Theorem~\ref{thm:deontic-frontier}) rather than coNP. The two results sit on
+opposite sides of their expressivity boundary and run the quantifier over
+executions in opposite directions.
+
+So the placement is \emph{orthogonal}: $\mathcal{L}_c$ is not an instance of
+their tractable side, and their hard side is not a harder case of ours. The
+residue is worth naming rather than smoothing away. The variant of their problem
+closest in shape to conflict-freedom is not full compliance but \emph{partial}
+compliance --- does there exist a compliant execution --- which on their own map
+is NP-complete in six of the eight variants, polynomial in one, and, for a single
+conditional obligation over literals, still open~\pdcite{ctgvb2021}. Theorems
+\ref{thm:deontic-detect} and~\ref{thm:deontic-frontier} do not close that hole
+and cannot, since they quantify over schedules rather than over the traces of a
+given model. What would settle the relation properly is a reduction in one
+direction or the other between $\mathcal{L}_c$-conflict-freedom and partial
+compliance for that conditional-literal variant; nobody has written one, here or
+there, so the claim that survives is the modest one --- this is a second
+instance of a dichotomy shape whose earlier instances are Schaefer's and
+Dechter--Meiri--Pearl's, on a different formal object, for a different decision
+problem, by a different reduction, and not its discovery.
 
 \noindent\textbf{Checked.} $3{,}000$ random in-fragment policy sets against a
 brute-force oracle (all $2^5$ Horn models intersected, pairwise overlap checks,
@@ -992,10 +1032,17 @@ the series' single \emph{blocking} reconciliation: the identity primitive the
 whole market leans on covers a threat model that \emph{excludes the cross-operator
 adversary the market is defined by}.
 
+\ifpdbook
+The keystone-split table in \pdchapref{stp}{From Spawn to Person} sets the two stones
+apart --- the local root that chapter leans on, and the cross-operator stone it
+hands forward. This is the chapter that inherits the handoff, so the table is
+not reprinted here; what follows is what the market does about it.
+\else
 Table~\ref{tab:keystone-split} sets the two stones apart: the local root this
 paper leans on, and the cross-operator stone it does not yet have.
 
 \input{figures/tab-keystone-split}
+\fi
 
 \subsection{Local non-forgeable identity is the keystone --- for one operator}
 
@@ -1054,7 +1101,7 @@ any reputation or quorum system}). Defining the principal as a first-class econo
 entity is the cleanest Sybil fix; its cryptographic binding is the identity object
 specified in \pdchapref{stp}{From Spawn to Person} and consumed here.
 
-\pdexercisepointer{\ref{ex:he-sybil-no-mechanism}}{\ref{ex:he-principal-binding}}{\pageref{ex:he-sybil-no-mechanism}}
+\pdexercisepointer*{\ref{ex:he-sybil-no-mechanism}}{\ref{ex:he-principal-binding}}{\pageref{ex:he-sybil-no-mechanism}}
 
 \begin{pdrecitation}
 \item Without looking: what is the one word in the market's own definition that local non-forgeable identity's threat model directly contradicts?
@@ -1103,14 +1150,16 @@ Bounding that exposure by $\varphi$ requires a separate oracle-latency and price
 assumption that this paper has not proved. (\Open{}.)
 \end{property}
 
-\pullquote{Conservation is exact per unit of account. A cross-currency scalar is a
+\pdthesis{Conservation is exact per unit of account. A cross-currency scalar is a
 valuation, and every valuation must name its rate source, time, fees, and exposure
 bound. ``Lax functor'' is not a substitute for those data.}
 
 \subsection{The Myerson--Satterthwaite corner}\label{sec:ms}
 
 Strict conservation (Design Invariant~\ref{prop:conservation}) is exactly \emph{budget
-balance}. That is not free.
+balance}. That is not free, and the theorem that says so is Myerson and
+Satterthwaite's, not ours; what is ours is the number it produces when it is
+pointed at this market's own running example.
 
 \begin{pdclaim}{Theorem}{Conditional bilateral-trade boundary}
 \label{thm:ms}
@@ -1156,7 +1205,7 @@ proved truthfulness. An AGV-style mechanism changes the incentive and participat
 notions and generally offers expected rather than ex-post balance. Comparing those
 alternatives requires a fully specified type and transfer model, which remains open.
 
-\pdexercisepointer{\ref{ex:he-ms-assumptions}}{\ref{ex:he-phi-exposure-bound}}{\pageref{ex:he-ms-assumptions}}
+\pdexercisepointer*{\ref{ex:he-ms-assumptions}}{\ref{ex:he-phi-exposure-bound}}{\pageref{ex:he-ms-assumptions}}
 
 \begin{pdrecitation}
 \item Without looking: state the composition law $\Delta(g\circ f)=\,?$, and say which kind of ledger trace always has $\Delta=0$.
@@ -1176,10 +1225,14 @@ authorization chain checked by protocol models plus a bounded Rust verification
 layer); \emph{this} section is the ceremony that rides that substrate across a
 boundary.
 
-\input{figures/fig-fh-xfer-ceremony}
-
+\ifpdbook
+The four-message ceremony is drawn in \pdchapref{fh}{The Federated Harbor}, which develops
+the protocol; written out as Protocol~\ref{prot:xfer} below, it
+\else
+\input{figures/fig-fh-xfer-ceremony}%
 The four-message ceremony (Figure~\ref{fig:fh-xfer}, written out as
-Protocol~\ref{prot:xfer}) has one decisive liveness property: after message (3),
+Protocol~\ref{prot:xfer})
+\fi has one decisive liveness property: after message (3),
 no further synchronous interaction with Harbor~$A$ is needed. The transferred card
 $C_B'$ is verifiable under Harbor~$B$'s key alone, so federation does not turn every
 authorization into a synchronous inter-machine round trip. The epoch root $R_A^{(e)}$
@@ -1236,12 +1289,12 @@ evidence in \pdchapref{anchor}{The Anchor Protocol}. The \emph{federation} claim
 bounded TLA\textsuperscript{+} extension; they are \Designed{}, not deployed. Two different confidence levels,
 never blurred.}
 
-\pdexercisepointer{\ref{ex:he-four-message-why}}{\ref{ex:he-replay-freshness}}{\pageref{ex:he-four-message-why}}
+\pdexercisepointer*{\ref{ex:he-four-message-why}}{\ref{ex:he-replay-freshness}}{\pageref{ex:he-four-message-why}}
 
 \begin{pdrecitation}
 \item Without looking: after which numbered message does Harbor~$A$'s continued participation stop being required?
 \item State the attenuation-monotonicity property of $C_B'$ in one sentence.
-\item What must $B$ check before accepting an offer if $A$ may have rotated its signing key since it was issued?
+\item If $A$ rotated its signing key after issuing, what must $B$ check?
 \end{pdrecitation}
 
 % ═══════════════════════════════════════════════════════════════════════════════
@@ -1253,11 +1306,17 @@ federation design \emph{refuses consensus} rather than trying to route around
 Fischer--Lynch--Paterson --- which is the correct reading of the impossibility the
 next box states.
 
+\ifpdbook
+The topology this section defends has four rails --- independent
+harbors linked only by gossip and a shared witness log, with no global consensus
+step --- and they are tabulated in \pdchapref{fh}{The Federated Harbor}.
+\else
 Table~\ref{tab:fh-topology} lists the four rails of the topology this section defends: independent
 harbors linked only by gossip and a shared witness log, with no global consensus
 step.
 
 \input{figures/tab-fh-topology}
+\fi
 
 \subsection{No consensus, by design}
 
@@ -1278,17 +1337,37 @@ state it as such rather than burying it.
 
 \subsection{Settlement and the cross-chain-deals lineage}\label{sec:fh-settlement}\label{sec:fh-escrow}
 
+\ifpdbook
+\pdchapref{fh}{The Federated Harbor} places this construction against the atomic-swap and
+adversarial-commerce baselines it is compared to below.
+\else
 Figure~\ref{fig:fh-settlement} places this construction against the atomic-swap and
 adversarial-commerce baselines it is compared to below.
 
 \input{figures/fig-fh-settlement}
+\fi
 
+\ifpdbook
+The escrow construction states its trust assumption outright: it does \emph{not}
+claim trustless settlement. Its loss bound is conditional, and the condition is the
+whole content of the claim --- which is why the claim is stated once, as Design
+Invariant~\ref{fh:thm:fh-escrow-bound} in \pdchapref{fh}{The Federated Harbor}, the
+chapter that proves it by case analysis over the custody ledger's two terminal
+transitions, and is not printed again here under a second number. What it says, in
+one breath: \emph{if} the custody ledger is non-bypassable --- a recipient
+whitelist, a fee cap, one atomic terminal transition, and no operator path around
+any of the three --- then a counterparty's worst-case loss on a cross-harbor
+settlement is the pre-agreed fee $\varphi$ and the outcome is exactly
+\textbf{Clear} or \textbf{Refuse}; if that boundary \emph{can} be bypassed, the
+worst-case loss is the whole balance in custody. What this section adds is where
+that construction sits.
+\else
 The escrow construction states its trust assumption outright: it does \emph{not}
 claim trustless settlement. Its loss bound is conditional, and the condition is the whole
 content of the claim:
 
 \begin{pdclaim}{Design invariant}{Bounded custody loss, conditional}
-\label{thm:fh-escrow-bound}\pdprovedon{thm:fh-escrow-bound}
+\label{thm:fh-escrow-bound}
 \emph{If} the custody ledger is non-bypassable --- exposing only a recipient
 whitelist, a fee cap, and one atomic terminal transition, with no operator path
 around any of the three --- then a counterparty's worst-case loss on a cross-harbor
@@ -1298,6 +1377,7 @@ bypassed, the worst-case loss is instead the full balance in custody.
 (\Designed{}, conditional: no runtime conformance check establishes the hypothesis
 for a deployed system; 2-of-3 threshold signing is one candidate way to arrange it.)
 \end{pdclaim}
+\fi
 
 \noindent This is a deliberate departure from the
 hash-timelock baseline (\textbf{Herlihy}~2018~\pdcite{herlihy2018}, atomic cross-chain
@@ -1316,7 +1396,12 @@ prove impossibility because the asset and adjudication models differ. (\Open{}.)
 
 \subsection{Revocation gossip and the equivocation race}\label{sec:fh-revocation}\label{sec:revocation}
 
+\ifpdbook
+The gossip mechanism itself is drawn and analysed in \pdchapref{fh}{The Federated Harbor};
+what this section prices is the window it leaves open.
+\else
 \input{figures/fig-fh-revocation-gossip}
+\fi
 
 Federated revocation propagates by anti-entropy gossip
 (\textbf{Demers et al.}~1987~\pdcite{demers1987}) with a probabilistic-membership
@@ -1374,12 +1459,18 @@ case; the system must instead fail closed on stale roots or cap spend independen
 (\Open{}; analogue of the cleanup lower bound.)
 \end{conjecture}
 
+\ifpdbook
+The threat bands in \pdchapref{fh}{The Federated Harbor} set the window
+Conjecture~\ref{conj:eq-bound} must price against the connectivity assumptions
+each band needs.
+\else
 Figure~\ref{fig:fh-threat-bands} bands the window Conjecture~\ref{conj:eq-bound}
 must price against the connectivity assumptions each band needs.
 
 \input{figures/fig-fh-threat-bands}
+\fi
 
-\pdexercisepointer{\ref{ex:he-gossip-assumptions}}{\ref{ex:he-equivocation-lower-bound}}{\pageref{ex:he-gossip-assumptions}}
+\pdexercisepointer*{\ref{ex:he-gossip-assumptions}}{\ref{ex:he-equivocation-lower-bound}}{\pageref{ex:he-gossip-assumptions}}
 
 \begin{pdrecitation}
 \item Without looking: name the three things federation requires in place of consensus.
@@ -1471,7 +1562,7 @@ became exogenous again not because Judy was honest but because lying was bonded 
 the re-audit made it expensive --- and the recursion stops at the second panel,
 whose own evidence is machine-checkable (the same diff, the same tests).
 
-\pdexercisepointer{\ref{ex:he-folk-signal-assumption}}{\ref{ex:he-rate-the-raters}}{\pageref{ex:he-folk-signal-assumption}}
+\pdexercisepointer*{\ref{ex:he-folk-signal-assumption}}{\ref{ex:he-rate-the-raters}}{\pageref{ex:he-folk-signal-assumption}}
 
 \begin{pdrecitation}
 \item Without looking: what CAN a reputation tombstone do, and what can it NOT undo?
@@ -1509,7 +1600,7 @@ successful trade is what hosted trust produces.
 
 \noindent As \S\ref{sec:thesis} put it, before any of the machinery was on the page:
 
-\pullquote{You don't sell crypto --- crypto is the substrate. Here is what
+\pdthesis{You don't sell crypto --- crypto is the substrate. Here is what
 \emph{is} scarce: attestation $+$ federation membership $+$ reputation.}
 
 % ═══════════════════════════════════════════════════════════════════════════════
@@ -1549,7 +1640,12 @@ determined; only the reserve formula is open.
 
 \subsection{Cartels and wash-trading}\label{sec:fh-failure-modes}
 
+\ifpdbook
+The per-round decision node and the closed-form sustainability
+inequality are drawn in \pdchapref{bonded}{The Bonded Commons}, which develops the repeated game.
+\else
 \input{figures/fig-cartel-game-inline}
+\fi
 
 Multi-homing plus portable reputation enables cross-harbor \emph{cartels} --- a
 rating-agency cartel is the closest real-world analogue: several independent
@@ -1564,7 +1660,7 @@ reputation returns (a concavity that caps the wash-trade payoff regardless of
 price), plus sampled adversarial re-audit of high-velocity pairs.
 
 Whether a cartel of colluding operators can actually hold its rating floor is a
-\emph{repeated} game, and that is what Figure~\ref{fig:cartel-game-inline} draws.
+\emph{repeated} game, and that is what \ifpdbook the cartel game in \pdchapref{bonded}{The Bonded Commons}\else Figure~\ref{fig:cartel-game-inline}\fi draws.
 Each round a member either \emph{colludes} (holds the agreed floor
 $q_{\mathrm{floor}}$, collecting the cartel payoff $\pi_C$) or \emph{defects}
 (undercuts the floor by $\varepsilon$ for a one-time gain $\pi_D$, after which the
@@ -1580,7 +1676,7 @@ one-shot deviation, which is exactly the inequality the figure's box states, and
 $\delta$ clearing its threshold is exactly what the defenses above are trying to
 prevent.
 
-\pdexercisepointer{\ref{ex:he-phase1-subsidize}}{\ref{ex:he-poa-resale-reframe}}{\pageref{ex:he-phase1-subsidize}}
+\pdexercisepointer*{\ref{ex:he-phase1-subsidize}}{\ref{ex:he-poa-resale-reframe}}{\pageref{ex:he-phase1-subsidize}}
 
 \begin{pdrecitation}
 \item Without looking: which side does Phase~1 subsidize, and by what rule?
@@ -1610,7 +1706,7 @@ Fong and Spivak's compositionality program~\pdcite{fong2019} suggests vocabulary
 a future formalization. Until the site and coefficient data are defined, the paper
 uses ``gluing'' only to organize engineering questions.
 
-\pdexercisepointer{\ref{ex:he-sheaf-site-cover}}{\ref{ex:he-gluing-model-build}}{\pageref{ex:he-sheaf-site-cover}}
+\pdexercisepointer*{\ref{ex:he-sheaf-site-cover}}{\ref{ex:he-gluing-model-build}}{\pageref{ex:he-sheaf-site-cover}}
 
 \begin{pdrecitation}
 \item Without looking: name three of the four things Conjecture~\ref{conj:sheaf} says this paper has not specified about the proposed gluing model.
@@ -2097,7 +2193,7 @@ model, which is exactly why worst-case dissemination time under partition is
 infinite rather than merely large.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:he-revocation-window-trace}
-Trace a revoked capability through Figure~\ref{fig:fh-revocation}: at which
+Trace a revoked capability through \ifpdbook the revocation-gossip figure in \pdchapref{fh}{The Federated Harbor}\else Figure~\ref{fig:fh-revocation}\fi: at which
   harbor, and at what time, can it still be spent? That window is what
   Conjecture~\ref{conj:eq-bound} must price.
 \end{pdexercise}
@@ -2194,12 +2290,12 @@ the side worth paying to show up, and the flip to charging demand happens once a
 liquidity threshold is met, not on a calendar date.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:he-grim-trigger-delta}
-Use Figure~\ref{fig:cartel-game-inline} to identify the grim-trigger
+Use \ifpdbook the cartel game in \pdchapref{bonded}{The Bonded Commons}\else Figure~\ref{fig:cartel-game-inline}\fi to identify the grim-trigger
   condition under which the cartel is self-sustaining. What raises the critical
   discount factor $\delta$ enough to break it?
 \end{pdexercise}
 \begin{pdsolution}{ex:he-grim-trigger-delta}
-Under the grim-trigger timing Figure~\ref{fig:cartel-game-inline} draws,
+Under the grim-trigger timing \ifpdbook \pdchapref{bonded}{The Bonded Commons}\else Figure~\ref{fig:cartel-game-inline}\fi draws,
 collusion is self-sustaining exactly when the discounted colluding stream beats
 the one-shot defection payoff: $(\pi_C - p_d L)/(1-\delta(1-p_d)) \ge \pi_D$,
 equivalently $\delta \ge [\pi_D - \pi_C + p_d L]\,/\,[\pi_D(1-p_d)]$. Raising the
@@ -2690,8 +2786,10 @@ Economics} 9(2):79--101, 2006.
 \bibitem{tadelis2016} S. Tadelis. ``Reputation and Feedback Systems in Online
 Platform Markets.'' \emph{Annual Review of Economics} 8:321--340, 2016.
 
-\bibitem{zheng2023} L. Zheng et al. ``Judging LLM-as-a-Judge with MT-Bench and
-Chatbot Arena.'' \emph{NeurIPS} 2023.
+\bibitem{zheng2023}
+Lianmin Zheng, Wei-Lin Chiang, Ying Sheng, Siyuan Zhuang, Zhanghao Wu, Yonghao Zhuang, et al.
+\newblock Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena.
+\newblock In \textit{Advances in Neural Information Processing Systems (NeurIPS), Datasets and Benchmarks}, 2023.
 
 \bibitem{douceur2002} J. Douceur. ``The Sybil Attack.'' \emph{IPTPS} 2002.
 
@@ -2705,16 +2803,23 @@ of Partial Synchrony.'' \emph{Journal of the ACM} 35(2):288--323, 1988.
 \bibitem{laurie2014} B. Laurie. ``Certificate Transparency.'' \emph{Communications
 of the ACM} 57(10):40--46, 2014.
 
-\bibitem{laurie2013ct} B. Laurie, A. Langley \& E. Kasper. ``Certificate
-Transparency.'' RFC 6962, IETF, 2013.
+\bibitem{laurie2013ct}
+Ben Laurie, Adam Langley, and Emilia Kasper.
+\newblock Certificate Transparency.
+\newblock IETF RFC 6962, June 2013.
 
-\bibitem{demers1987} A. Demers et al. ``Epidemic Algorithms for Replicated Database
-Maintenance.'' \emph{PODC} 1987.
+\bibitem{demers1987}
+Alan Demers, Dan Greene, Carl Hauser, Wes Irish, John Larson, Scott Shenker, Howard Sturgis, Dan Swinehart, and Doug Terry.
+\newblock Epidemic Algorithms for Replicated Database Maintenance.
+\newblock In \textit{ACM Symposium on Principles of Distributed Computing (PODC)}, 1987.
 
 \bibitem{heilman2015} E. Heilman, A. Kendler, A. Zohar \& S. Goldberg. ``Eclipse
 Attacks on Bitcoin's Peer-to-Peer Network.'' \emph{USENIX Security} 2015.
 
-\bibitem{herlihy2018} M. Herlihy. ``Atomic Cross-Chain Swaps.'' \emph{PODC} 2018.
+\bibitem{herlihy2018}
+Maurice Herlihy.
+\newblock Atomic Cross-Chain Swaps.
+\newblock In \textit{ACM Symposium on Principles of Distributed Computing (PODC)}, 2018.
 
 \bibitem{hls2022} M. Herlihy, B. Liskov \& L. Shrira. ``Cross-Chain Deals and
 Adversarial Commerce.'' \emph{The VLDB Journal} 31:1291--1309, 2022.
@@ -2797,11 +2902,11 @@ Programming} 1(3):267--284, 1984.
 Disjunctions of Temporal Constraints.'' \emph{Artificial Intelligence}
 120(1):81--117, 2000.
 
-\bibitem{ctgvb2020} S. Colombo Tosatto, G. Governatori \& P. van Beest. ``Business
+\bibitem{ctgvb2020} S. Colombo Tosatto, G. Governatori \& N. van Beest. ``Business
 Process Full Compliance with Respect to a Set of Conditional Obligations in
 Polynomial Time.'' arXiv:2001.10148, 2020.
 
-\bibitem{ctgvb2021} S. Colombo Tosatto, G. Governatori \& P. van Beest. ``Proving
+\bibitem{ctgvb2021} S. Colombo Tosatto, G. Governatori \& N. van Beest. ``Proving
 Regulatory Compliance: Full Compliance Against an Expressive Unconditional
 Obligation is coNP-Complete.'' arXiv:2105.05431, 2021.
 
