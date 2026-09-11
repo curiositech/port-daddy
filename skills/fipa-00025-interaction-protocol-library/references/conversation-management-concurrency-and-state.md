@@ -30,7 +30,7 @@ Within a conversation, the protocol defines the *state space* — the set of sta
 
 Both the Initiator and the Participants in the conversation share an understanding of this state space. When either side sends a message, it is making a transition in this shared state machine. This shared understanding is what makes protocol-based coordination work — not that the agents have identical internal representations, but that they agree on the conversational state and on what messages are valid in each state.
 
-For WinDAG orchestration, this suggests that **every orchestrated task should have an explicit conversational state machine**, not just a "task in progress / task done" binary. The conversational state machine should reflect the protocol being used, and the orchestrator should be able to query the current state of any active conversation.
+For Port Daddy orchestration, this suggests that **every orchestrated task should have an explicit conversational state machine**, not just a "task in progress / task done" binary. The conversational state machine should reflect the protocol being used, and the orchestrator should be able to query the current state of any active conversation.
 
 ## Threads of Interaction: Processing State Within Conversations
 
@@ -42,7 +42,7 @@ A critical note: "Note we do not mean a physical thread in this context. The spe
 
 This separation between the *conceptual* thread of interaction (a period of active processing in response to a message) and the *physical* implementation (which may or may not use OS threads) is important. The conceptual thread is a protocol-level concept — it says "this agent is currently processing message X and will continue until it can send a response." The physical implementation is a separate concern.
 
-For WinDAG, this means that "skill is active" is a protocol-level state, not just an implementation state. An agent should be able to report, in protocol terms, which conversations it currently has active threads in — this is information that the orchestrator can use for load estimation, scheduling, and routing.
+For Port Daddy, this means that "skill is active" is a protocol-level state, not just an implementation state. An agent should be able to report, in protocol terms, which conversations it currently has active threads in — this is information that the orchestrator can use for load estimation, scheduling, and routing.
 
 ## Parallel Branching in Conversations
 
@@ -60,7 +60,7 @@ The FIPA specification treats nested protocols as part of the same conversation.
 
 Interleaved protocols, by contrast, represent *distinct* conversations that happen to be concurrent. A Broker engaged in a ContractNet with a Retailer and simultaneously in a Request protocol with a Wholesaler is running two separate conversations — each with its own state, each with its own conversation ID.
 
-This distinction matters for WinDAG design: when should a complex workflow be structured as a single conversation with nested sub-protocols, and when should it be structured as multiple interleaved conversations?
+This distinction matters for Port Daddy design: when should a complex workflow be structured as a single conversation with nested sub-protocols, and when should it be structured as multiple interleaved conversations?
 
 The answer turns on *dependency*. If the sub-tasks are logically part of a single coordinated interaction — where the state of one sub-task directly affects the options available in another — they should be nested within a single conversation. If the sub-tasks are independent — where each is a self-contained interaction that happens to be concurrent — they should be separate conversations.
 
@@ -77,9 +77,9 @@ For conversations, there is an analogous lifecycle:
 
 Terminated conversations should be cleaned up: their state can be archived (for audit or learning purposes), but it should no longer consume active resources. An orchestration system that fails to terminate conversations — leaving them in "limbo" states where neither party is sure whether the conversation is still active — will accumulate stale state and eventually fail.
 
-## Practical Conversation Management for WinDAG
+## Practical Conversation Management for Port Daddy
 
-Based on the FIPA framework, a WinDAG conversation management system should:
+Based on the FIPA framework, a Port Daddy conversation management system should:
 
 1. **Assign a unique conversation ID to every protocol invocation.** This ID must travel with every message in the conversation and be used by all participants to route messages to the correct conversation state.
 

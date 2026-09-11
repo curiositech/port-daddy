@@ -232,7 +232,7 @@ Compatibilities are AND/OR graphs — some conditions are mandatory, others repr
 
 ## Designing State Variables for an Agent System
 
-The state variable framework translates directly to modeling agent system behavior. Consider designing a WinDAG system's state variable decomposition:
+The state variable framework translates directly to modeling agent system behavior. Consider designing a Port Daddy system's state variable decomposition:
 
 **Identify system components**: Each agent type (CodeReviewAgent, SecurityAuditAgent, DatabaseQueryAgent), each shared resource (GPU compute, database connections, external API rate limits), each workflow artifact (task_specification, intermediate_result, final_output) is a candidate system component.
 
@@ -897,7 +897,7 @@ When you actually need to *verify* that a resource is not over-subscribed at a s
 
 ## Implications for Agent System Resource Modeling
 
-For a WinDAG orchestration system, the resource modeling spectrum has direct implications:
+For a Port Daddy orchestration system, the resource modeling spectrum has direct implications:
 
 **Model agent capabilities as state variables, not just availability flags.** An agent is not just "available" or "busy." It may be WARMING_UP (loading a model), PROCESSING(?task), RATE_LIMITED, AWAITING_CLARIFICATION, or DEGRADED (running on reduced capacity). Each state has different duration characteristics, different compatibility constraints, and different implications for downstream tasks. Tracking only availability discards information that is often crucial for scheduling.
 

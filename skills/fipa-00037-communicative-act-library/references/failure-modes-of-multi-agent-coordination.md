@@ -86,7 +86,7 @@ class Worker:
 
 ### Why Refuse is Critical for Orchestration
 
-In a WinDAG orchestration system, refuse enables:
+In a Port Daddy orchestration system, refuse enables:
 
 1. **Graceful degradation**: Orchestrator can try alternative agents or plans
 2. **Root cause analysis**: The reason φ provides actionable diagnostic information

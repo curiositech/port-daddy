@@ -10,7 +10,7 @@ This tension cannot be eliminated. It can only be managed. And the management me
 
 Plans only provide computational leverage if they're stable: "If an agent constantly reconsiders her plans, they will not limit her deliberation in the way they need to for a resource-bounded agent" (p. 8). 
 
-Consider a WinDAG agent tasked with "add logging to all API endpoints." If the agent:
+Consider a Port Daddy agent tasked with "add logging to all API endpoints." If the agent:
 - 9:00 AM: Commits to using library L1
 - 9:05 AM: Reconsiders, switches to library L2
 - 9:10 AM: Reconsiders again, switches to L3

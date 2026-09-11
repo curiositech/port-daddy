@@ -65,7 +65,7 @@ function fixture() {
   const legacySkill = join(root, 'legacy', LEGACY_NAME, 'libexec', 'skills', 'demo-skill');
 
   put(pdBinary, 'fixture installed pd binary\n', 0o755);
-  put(nativeHookPath, '// Native Jury-rig Pilot hook\nconst command = "pd jury-rig query";\n', 0o644);
+  put(nativeHookPath, '// Native Jury-rig Pilot hook\nconst command = "pd jury-rig search";\n', 0o644);
   put(installedHook, `// legacy ${LEGACY_NAME} SessionStart authority\n`, 0o755);
   put(join(home, 'AGENTS.md'), `# AGENTS.md — User-Level Agent Guide
 
@@ -204,7 +204,7 @@ function proof(f, overrides = {}) {
     installedKeg: f.keg,
     nativeHookPath: f.nativeHookPath,
     nativeHookSha256: sha256(readFileSync(f.nativeHookPath)),
-    juryRigQueryScannedCount: 1,
+    juryRigSearchScannedCount: 1,
     verifiedAt: NOW.toISOString(),
     ...overrides,
   };
@@ -368,7 +368,8 @@ describe('native Jury-rig machine cutover', () => {
     expect(claude.permissions.allow).toEqual(['mcp__port-daddy__status']);
     expect(claude.unrelated).toEqual({ nested: 42 });
 
-    expect(readFileSync(join(f.home, 'AGENTS.md'), 'utf8')).toContain('pd jury-rig query');
+    expect(readFileSync(join(f.home, 'AGENTS.md'), 'utf8')).toContain('pd jury-rig search');
+    expect(readFileSync(join(f.home, 'AGENTS.md'), 'utf8')).toContain('pd jury-rig graft');
     expect(readFileSync(join(f.home, '.gemini', 'GEMINI.md'), 'utf8')).toContain('Keep this unrelated sentence.');
     expect(readFileSync(join(f.home, '.claude', 'CLAUDE.md'), 'utf8')).toContain(`Historical note: the ${LEGACY_NAME} migration`);
     expect(readFileSync(f.installedHook, 'utf8')).toBe(readFileSync(f.nativeHookPath, 'utf8'));
@@ -761,5 +762,43 @@ describe('native Jury-rig machine cutover', () => {
       pdCommand: fake,
       now: NOW,
     })).toThrow(/installed Homebrew keg/);
+  });
+
+  test('native verifier rejects missing shortlist metadata and leaked skill bodies before GitHub proof', () => {
+    const f = make();
+    put(f.nativeHookPath, readFileSync(join(process.cwd(), 'hooks', 'sessionstart-pilot.mjs')));
+
+    const writePdFixture = (searchPayload) => {
+      put(f.pdBinary, `#!/bin/sh
+if [ "$1" = "--version" ]; then
+  echo 9.9.9
+  exit 0
+fi
+if [ "$1" = "jury-rig" ] && [ "$2" = "search" ]; then
+  printf '%s\\n' '${JSON.stringify(searchPayload)}'
+  exit 0
+fi
+exit 1
+`, 0o755);
+    };
+
+    writePdFixture({ scannedCount: 1 });
+    expect(() => verifyNativeJuryRigRuntime({
+      repository: 'curiositech/port-daddy',
+      replacementPr: 9965,
+      pdCommand: f.pdBinary,
+      now: NOW,
+    })).toThrow(/did not prove metadata-only native discovery/);
+
+    writePdFixture({
+      scannedCount: 1,
+      shortlist: [{ id: 'leaky-skill', label: 'Leaky skill', summary: 'metadata', body: '# full body' }],
+    });
+    expect(() => verifyNativeJuryRigRuntime({
+      repository: 'curiositech/port-daddy',
+      replacementPr: 9965,
+      pdCommand: f.pdBinary,
+      now: NOW,
+    })).toThrow(/did not prove metadata-only native discovery/);
   });
 });

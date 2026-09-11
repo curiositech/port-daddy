@@ -150,7 +150,7 @@ describe('delivery instruction contract', () => {
         'complete', 'pd plan set', 'prior plan history', 'all GitHub access is', 'broker-routed',
         'repository/operator policy', 'is not a shipped surface', 'CONTEXT_CONFLICT',
         'genuinely new child with its own context slot', 'exact successor/claim',
-        'Jury-rig', 'pd jury-rig query', 'pd jury-rig reference']) {
+        'Jury-rig', 'pd jury-rig search', 'pd jury-rig graft', 'pd jury-rig reference']) {
         expect(target.content.replace(/\s+/g, ' ').toLowerCase()).toContain(phrase.toLowerCase());
       }
       expect(target.content).not.toContain('PD_SESSION_ID="" PD_AGENT_ID=""');

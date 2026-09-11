@@ -49,7 +49,7 @@ The authors identify three specific ways plans constrain reasoning:
 
 For multi-agent orchestration systems like Jury-rig, this architectural insight has profound implications:
 
-**Decomposition**: When a WinDAG agent receives a complex task, the act of forming even a partial plan (deciding on high-level approach) immediately constrains what skills need to be considered next. The partial plan doesn't solve the problem, but it transforms an intractable "consider everything" problem into a focused "how do I accomplish X?" problem.
+**Decomposition**: When a Port Daddy agent receives a complex task, the act of forming even a partial plan (deciding on high-level approach) immediately constrains what skills need to be considered next. The partial plan doesn't solve the problem, but it transforms an intractable "consider everything" problem into a focused "how do I accomplish X?" problem.
 
 **Coordination**: When multiple agents operate, each agent's plans serve as commitment signals that other agents can rely on for their own planning. If Agent A has committed to producing data in format X by time T, Agent B can plan around this assumption without constantly checking whether A has changed its mind. The stability of plans enables distributed reasoning without constant synchronization.
 
@@ -146,7 +146,7 @@ This tension cannot be eliminated. It can only be managed. And the management me
 
 Plans only provide computational leverage if they're stable: "If an agent constantly reconsiders her plans, they will not limit her deliberation in the way they need to for a resource-bounded agent" (p. 8). 
 
-Consider a WinDAG agent tasked with "add logging to all API endpoints." If the agent:
+Consider a Port Daddy agent tasked with "add logging to all API endpoints." If the agent:
 - 9:00 AM: Commits to using library L1
 - 9:05 AM: Reconsiders, switches to library L2
 - 9:10 AM: Reconsiders again, switches to L3
@@ -351,7 +351,7 @@ The plan is partial not because it has temporal gaps, but because it's **hierarc
 
 ## Why Structural Partiality Matters for Agent Systems
 
-Consider a WinDAG agent receiving: "Implement user authentication for the web application."
+Consider a Port Daddy agent receiving: "Implement user authentication for the web application."
 
 A **complete plan** would specify:
 - Which authentication scheme (OAuth, JWT, session-based)
@@ -613,7 +613,7 @@ Without plans: at each moment, the agent faces the question "what should I do?" 
 
 With plans: most of the time, the agent faces the question "what does my plan say to do next?" and can act without deliberation.
 
-The computational savings are dramatic. Consider a WinDAG agent with 180 skills. At each decision point:
+The computational savings are dramatic. Consider a Port Daddy agent with 180 skills. At each decision point:
 - Without plans: evaluate all 180 skills against current situation (expensive)
 - With partial plan "I'm implementing OAuth": evaluate skills relevant to OAuth implementation (~15 skills, much cheaper)
 - With refined plan "I'm using GitHub OAuth with next-auth": execute next step (near-free)

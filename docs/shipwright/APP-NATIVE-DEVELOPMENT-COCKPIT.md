@@ -108,8 +108,8 @@ Before any agent launches, Port Daddy should run a real planning pass:
 1. classify the task and halt on ambiguity
 2. decompose into 3-7 nodes
 3. narrow skills through the Jury-rig MCP skill search path
-4. call `pd jury-rig query` for every executable node
-5. attach the selected skill, runner-up skills, references, output contract, and failure pre-mortem to the node
+4. call metadata-only `pd jury-rig search` for every executable node
+5. graft only the selected skill when full guidance is warranted, then attach needed references, output contract, and failure pre-mortem to the node
 6. store the plan as a sortie proposal, not loose prose
 
 The app should render this as a DAG with inspectable node cards:
@@ -384,7 +384,7 @@ That proves the loop. Multi-agent Cloudflare/Codex/Claude fanout can come after 
 ## Open Product Questions
 
 - Should the cockpit be a new top-level `surface=cockpit`, or should it be the evolved `sorties` surface?
-- What is the first honest `pd jury-rig query` storage shape in Port Daddy: tuple, mission-node field, or both?
+- What is the first honest Jury-rig search/graft receipt shape in Port Daddy: tuple, mission-node field, or both?
 - Should ChatGPT/Claude Chat via Tube be read-only collaborators by default, or can they receive attenuated mutation authority through a local body lease?
 - What is the minimum viable worktree collapse operation: merge only, or merge/cherry-pick/archive from the first slice?
 - How aggressive should automatic roadmap assignment be before the user explicitly approves a mission plan?

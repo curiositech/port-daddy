@@ -12,7 +12,7 @@ The authors prove that for any DAG with width w, the number of non-transitive ed
 
 ### Translation to Multi-Agent Orchestration
 
-In a WinDAG system with 180+ skills:
+In a Port Daddy system with 180+ skills:
 
 1. **Most skill invocations are compositionally redundant**. If skill A enables skill B, and B enables skill C, then the system doesn't need to explicitly represent that A enables C—this is transitive and can be computed when needed.
 
@@ -54,7 +54,7 @@ The experimental results (Tables 1-2, Figures 4-7) across four different graph g
 
 **Don't over-optimize the decomposition**. The authors' fastest algorithm (Algorithm 4, "H3") runs in linear time and produces decompositions good enough that downstream operations (indexing, query answering) perform nearly optimally. The lesson: **A fast 90% solution for problem structure beats a slow 100% solution**, because the structural analysis is just a preprocessing step.
 
-For WinDAG routing:
+For Port Daddy routing:
 
 - **Use greedy skill chaining with lookahead-1 or lookahead-2** rather than exhaustive planning. Algorithm 4's strategy of "choose an available vertex with the lowest out-degree" (line 19) suggests preferring skills that constrain future options least.
 

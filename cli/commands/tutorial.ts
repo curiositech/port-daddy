@@ -266,7 +266,8 @@ export async function runLearnOrientation(options: LearnOrientationOptions = {})
   line(`    ${ANSI.fgCyan}pd ideas search "rough memory of the thing"${ANSI.reset}`);
   line(`    ${ANSI.fgCyan}pd memory episodes --query "handoff or decision"${ANSI.reset}`);
   line(`    ${ANSI.fgCyan}pd roster search "expertise needed" --repo <path>${ANSI.reset}`);
-  line(`    ${ANSI.fgCyan}pd skill-graft "task you are about to do"${ANSI.reset}`);
+  line(`    ${ANSI.fgCyan}pd jury-rig search "task you are about to do"${ANSI.reset}`);
+  line(`    ${ANSI.fgCyan}pd jury-rig graft "task"  # only after selecting full guidance${ANSI.reset}`);
   line();
   line('  Target invariant: semantic results carry model/space metadata and label degraded');
   line('  lexical fallback. Until a surface proves that contract, treat it as unverified;');

@@ -194,8 +194,8 @@ these slugs:
 ## Jury-rig Skill Graft
 
 Each phase carries a Jury-rig skill graft. Before opening implementation work for
-that phase, the agent must load the named skill files or call
-`pd jury-rig query` for the phase task, then apply the phase gates below.
+that phase, the agent must run `pd jury-rig search` for the phase task, graft
+only the selected guidance when needed, then apply the phase gates below.
 
 | Phase | Primary graft | Support graft | Required output |
 |---|---|---|---|
@@ -256,8 +256,9 @@ The June 15, 2026 ecosystem check changes the graft design:
 Therefore Port Daddy should assume skills are a software supply chain:
 discoverable, scoped, versioned, bundled, validated, compiled, and attacked.
 
-`pd jury-rig query` keeps its existing job: attach existing Jury-rig skills to
-a task, node, or implementation phase.
+`pd jury-rig search` narrows existing skills without body injection;
+`pd jury-rig graft` explicitly attaches selected guidance to a task, node, or
+implementation phase.
 
 Port Daddy names a new proposed tool, **`pd seamanship sync`**, for the
 different job: discover global skills, user skills, organization/shared

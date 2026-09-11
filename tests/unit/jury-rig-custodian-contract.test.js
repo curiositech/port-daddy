@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 
 const REPO = process.cwd();
-const RETIRED_TOKEN = ['win', 'dags'].join('');
+const RETIRED_PATTERN = new RegExp(['win', 'dags?'].join(''), 'i');
 
 function read(relativePath) {
   return readFileSync(join(REPO, relativePath), 'utf8');
@@ -56,7 +56,8 @@ describe('tracked cross-harness authority', () => {
     ['.gemini/extensions/port-daddy/GEMINI.md', ['Gemini']],
   ])('%s delegates discovery to native Jury-rig without granting catalog execution', (path) => {
     const text = prose(read(path));
-    expect(text).toContain('pd jury-rig query');
+    expect(text).toContain('pd jury-rig search');
+    expect(text).toContain('pd jury-rig graft');
     expect(text).toMatch(/provenance-labelled catalog input|catalog selection never authorizes/i);
     expect(text).toMatch(/scripts, hooks, MCP servers/);
     expect(text).toMatch(/Seamanship.*(?:not yet a shipped verb|not a currently shipped)/i);
@@ -65,16 +66,16 @@ describe('tracked cross-harness authority', () => {
   test('the checked-in SessionStart hook injects Jury-rig, not legacy runtime authority', () => {
     const hook = read('hooks/sessionstart-pilot.mjs');
     expect(hook).toContain('Jury-rig skill discovery');
-    expect(hook.toLowerCase()).not.toContain(RETIRED_TOKEN);
+    expect(hook).not.toMatch(RETIRED_PATTERN);
   });
 
   test('the tracked repository contains no retired product token in paths or text', () => {
     const files = execFileSync('git', ['ls-files', '-z'], { cwd: REPO })
       .toString('utf8').split('\0').filter(Boolean);
-    expect(files.filter((path) => path.toLowerCase().includes(RETIRED_TOKEN))).toEqual([]);
+    expect(files.filter((path) => RETIRED_PATTERN.test(path))).toEqual([]);
     const offenders = files.filter((path) => {
       try {
-        return read(path).toLowerCase().includes(RETIRED_TOKEN);
+        return RETIRED_PATTERN.test(read(path));
       } catch {
         return false;
       }

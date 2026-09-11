@@ -438,7 +438,7 @@ For coordination protocols:
   - How close to timeout boundary typical executions are
   - What delays are normal vs. exceptional
 
-## Example: Complete Testing Strategy for WinDAG
+## Example: Complete Testing Strategy for Port Daddy
 
 A comprehensive testing strategy for a multi-agent orchestration system:
 

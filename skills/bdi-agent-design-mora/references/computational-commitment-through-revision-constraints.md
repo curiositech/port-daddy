@@ -88,6 +88,6 @@ This inverts the typical approach in AI. Usually: (1) define idealized rational 
 
 The alternative: (1) choose a formalism with both logical semantics and proof theory, (2) define rationality concepts within it, (3) the implementation *is* the formal model executing. There's no gap because there's no translation step—the formal model is already computational.
 
-For WinDAG systems: When designing cognitive capabilities (goal management, commitment tracking, conflict resolution), favor representations that are directly executable rather than requiring interpretation. Logic programming with well-defined semantics, production systems with proven control algorithms, constraint solvers with sound propagation—these provide both formal specification and operational implementation.
+For Port Daddy systems: When designing cognitive capabilities (goal management, commitment tracking, conflict resolution), favor representations that are directly executable rather than requiring interpretation. Logic programming with well-defined semantics, production systems with proven control algorithms, constraint solvers with sound propagation—these provide both formal specification and operational implementation.
 
 The lesson applies beyond BDI agents: Any intelligent system component bridging deliberation and execution benefits from representations where formal properties and computational behavior aren't separate concerns but unified through operational semantics.

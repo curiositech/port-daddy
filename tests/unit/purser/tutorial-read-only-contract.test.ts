@@ -105,7 +105,8 @@ describe('pd learn adversarial safety contract', () => {
     expect(output).toContain('pd ideas search');
     expect(output).toContain('pd memory episodes --query');
     expect(output).toContain('pd roster search');
-    expect(output).toContain('pd skill-graft');
+    expect(output).toContain('pd jury-rig search');
+    expect(output).toContain('pd jury-rig graft');
     expect(output).toContain('Target invariant: semantic results carry model/space metadata');
     expect(output).toContain('never compare vectors from incompatible model spaces.');
   });

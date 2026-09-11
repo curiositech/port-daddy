@@ -12,6 +12,7 @@ import {
   createSkillGraftIndex,
   defaultSkillGraftRoots,
   renderSkillGraftContext,
+  renderSkillSearchResults,
   type SkillGraftIndex,
 } from '../../lib/skill-graft.js';
 import { defaultSkillCatalogRoots } from '../../lib/skill-sync.js';
@@ -220,10 +221,10 @@ function createIndex(options: JuryRigCliOptions): SkillGraftIndex {
  * @param args Positional words forming the task query.
  * @returns The normalized query, or an empty string after recording failure.
  */
-function queryFromArgs(args: string[]): string {
+function queryFromArgs(args: string[], operation: 'search' | 'graft'): string {
   const text = args.join(' ').trim();
   if (!text) {
-    console.error('Usage: pd jury-rig query "<task>" [--root <path>] [--json]');
+    console.error(`Usage: pd jury-rig ${operation} "<task>" [--root <path>] [--json]`);
     process.exitCode = 1;
   }
   return text;
@@ -237,8 +238,8 @@ function queryFromArgs(args: string[]): string {
  * @param options Parsed ranking, catalog, and output options.
  * @returns A promise resolving after discovery output is emitted.
  */
-async function handleQuery(args: string[], options: JuryRigCliOptions): Promise<void> {
-  const query = queryFromArgs(args);
+async function handleGraft(args: string[], options: JuryRigCliOptions): Promise<void> {
+  const query = queryFromArgs(args, 'graft');
   if (!query) return;
 
   const index = createIndex(options);
@@ -258,6 +259,33 @@ async function handleQuery(args: string[], options: JuryRigCliOptions): Promise<
     return;
   }
   console.log(rendered);
+  if (result.semanticTier === 'lexical-only') {
+    ui.info('Semantic Tool2Vec tier is cold or unconfigured; run `pd jury-rig warm` after setting PD_SKILL_GRAFT_BACKEND, or `pd doctor` to repair the shared embedder cache.');
+  }
+}
+
+/** Rank skill metadata without injecting any SKILL.md body into output. */
+async function handleSearch(args: string[], options: JuryRigCliOptions): Promise<void> {
+  const query = queryFromArgs(args, 'search');
+  if (!query) return;
+
+  const index = createIndex(options);
+  const result = await index.search(query, {
+    shortlistLimit: optionalPositiveInt(options['shortlist-limit'] ?? options.limit),
+  });
+
+  if (isJson(options)) {
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+
+  const rendered = renderSkillSearchResults(result);
+  if (!rendered) {
+    ui.info(`No skills matched ${JSON.stringify(query)} (${result.scannedCount} scanned).`);
+    return;
+  }
+  console.log(rendered);
+  ui.info('Metadata only; no SKILL.md body was loaded. Use `pd jury-rig graft "<task>"` only when full guidance is needed.');
   if (result.semanticTier === 'lexical-only') {
     ui.info('Semantic Tool2Vec tier is cold or unconfigured; run `pd jury-rig warm` after setting PD_SKILL_GRAFT_BACKEND, or `pd doctor` to repair the shared embedder cache.');
   }
@@ -349,7 +377,8 @@ function printHelp(): void {
   console.log(`Jury-rig — discover and safely load native skill guidance
 
 Usage:
-  pd jury-rig query "<task>" [--root <path>] [--shortlist-limit <n>] [--top-limit <n>] [--body-chars <n>] [--json]
+  pd jury-rig search "<task>" [--root <path>] [--shortlist-limit <n>] [--json]
+  pd jury-rig graft "<task>" [--root <path>] [--shortlist-limit <n>] [--top-limit <n>] [--body-chars <n>] [--json]
   pd jury-rig warm [--root <path>] [--max-skills <n> | --all] [--local-only] [--json]
   pd jury-rig reference <skill-id> <path-within-skill> [--root <path>] [--json]
   pd jury-rig bootstrap plan [--expected-head <sha>] [--json]
@@ -358,9 +387,10 @@ Usage:
   pd jury-rig bootstrap rollback --receipt <apply-receipt.json> [--json]
 
 The same lib/skill-graft.ts index is used by lib/fleet-engine.ts when a
-pd-fleet.yml ship opts into jury_rig: true. query is safe on a cold cache:
-it scans the full user skill catalog and ranks via BM25 until Tool2Vec
-centroids are warmed. Warm-up is content-hash checkpointed and safe to resume.`);
+pd-fleet.yml ship opts into jury_rig: true. search is metadata-only and is
+the default shorthand. graft is the explicit bounded SKILL.md body load.
+Both rank via BM25 until Tool2Vec centroids are warmed. Warm-up is
+content-hash checkpointed and safe to resume.`);
 }
 
 /**
@@ -376,9 +406,14 @@ export async function handleJuryRig(positional: string[], options: JuryRigCliOpt
   const args = positional.slice(1);
 
   switch (subcommand) {
-    case 'query':
-      await handleQuery(args, options);
+    case 'search':
+      await handleSearch(args, options);
       return;
+    case 'graft':
+      await handleGraft(args, options);
+      return;
+    case 'query':
+      throw new Error('Unknown Jury-rig operation "query". Use `pd jury-rig search` for metadata or `pd jury-rig graft` for full guidance.');
     case 'warm':
     case 'refresh':
       await handleWarm(options);
@@ -396,6 +431,6 @@ export async function handleJuryRig(positional: string[], options: JuryRigCliOpt
       printHelp();
       return;
     default:
-      await handleQuery(positional, options);
+      await handleSearch(positional, options);
   }
 }

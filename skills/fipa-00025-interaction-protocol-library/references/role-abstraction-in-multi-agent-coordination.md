@@ -52,11 +52,11 @@ The Directory Facilitator is a role — a behavioral specification of a service 
 
 This is role-based design in practice: the protocol is designed against the role interface, not against any specific implementation.
 
-## Implications for WinDAG Skill Architecture
+## Implications for Port Daddy Skill Architecture
 
 ### Skills as Roles, Not Agents
 
-In a WinDAG system, the 180+ skills can be understood as **role specifications**. Each skill defines:
+In a Port Daddy system, the 180+ skills can be understood as **role specifications**. Each skill defines:
 - What inputs it accepts (the role's interface)
 - What outputs it produces (the role's contract)
 - What communicative acts it participates in (the role's protocol compliance)
@@ -69,11 +69,11 @@ When an agent plays multiple roles in concurrent conversations, the system must 
 
 > "Note that, by their nature, agents can engage in multiple dialogues, perhaps with different agents, simultaneously. The term conversation is used to denote any particular instance of such a dialogue." (Section 2.1)
 
-This means the `conversation-id` (or its WinDAG equivalent) is not just an administrative tag — it is the scope within which role assignments are meaningful. An agent receiving a message labeled with conversation-id X knows it is playing role R in that conversation, even if it is simultaneously playing role S in conversation Y.
+This means the `conversation-id` (or its Port Daddy equivalent) is not just an administrative tag — it is the scope within which role assignments are meaningful. An agent receiving a message labeled with conversation-id X knows it is playing role R in that conversation, even if it is simultaneously playing role S in conversation Y.
 
 ### Dynamic Role Assignment as Adaptive Routing
 
-Dynamic classification — the ability for agents to change their roles over time — suggests that WinDAG routing should be adaptive. An agent that has just completed a complex code generation task has contextual state that makes it particularly good at code review for the same codebase, temporarily qualifying it for a `CodeReviewer` role it might not have satisfied an hour earlier. Role satisfaction should be evaluated dynamically, not assigned statically at agent creation.
+Dynamic classification — the ability for agents to change their roles over time — suggests that Port Daddy routing should be adaptive. An agent that has just completed a complex code generation task has contextual state that makes it particularly good at code review for the same codebase, temporarily qualifying it for a `CodeReviewer` role it might not have satisfied an hour earlier. Role satisfaction should be evaluated dynamically, not assigned statically at agent creation.
 
 ### Protocol Compliance as Role Qualification
 
@@ -81,7 +81,7 @@ The FIPA specification makes clear that claiming a role is not enough — an age
 
 > "A FIPA ACL-compliant agent need not implement any of the standard IPs, nor is it restricted from using other IP names. However, if one of the standard IP names is used, the agent must behave consistently with the IP specification given here." (Section 2.2)
 
-This is a strong design principle for WinDAG: **skill registration should include protocol compliance verification**. An agent that claims to support skill X must be able to respond correctly to all valid messages in skill X's interaction protocol, not just produce outputs when invoked. This includes handling refusals, failures, partial results, and timeout scenarios correctly.
+This is a strong design principle for Port Daddy: **skill registration should include protocol compliance verification**. An agent that claims to support skill X must be able to respond correctly to all valid messages in skill X's interaction protocol, not just produce outputs when invoked. This includes handling refusals, failures, partial results, and timeout scenarios correctly.
 
 ## Designing Protocols for Roles That Don't Exist Yet
 

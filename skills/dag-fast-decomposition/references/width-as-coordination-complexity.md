@@ -50,7 +50,7 @@ This is expensive (requires transitive closure), which is why the authors develo
 
 **Width represents required parallelism**. If a problem has width w, the system fundamentally cannot reduce its coordination complexity below w parallel threads. This is a hard lower bound, analogous to Amdahl's law in parallel computing.
 
-For a WinDAG orchestrator:
+For a Port Daddy orchestrator:
 
 1. **Estimate width early through fast heuristics** (their H3 conc. algorithm provides kc ≈ width in linear time)
 2. **Provision resources for w parallel agents** as the minimum viable parallelism
@@ -111,7 +111,7 @@ This creates **containment boundaries**. A failure in chain i directly affects a
 
 ### Designing for Graceful Degradation
 
-For a WinDAG system:
+For a Port Daddy system:
 
 1. **Place risky operations in separate chains when possible**: If two operations have high failure probability but don't order-depend on each other, putting them in separate chains limits failure propagation.
 

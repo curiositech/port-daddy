@@ -92,7 +92,7 @@ The paper addresses this through two mechanisms:
 
 ## Application to Multi-Agent Orchestration
 
-For WinDAG systems, the ordered decomposition principle suggests:
+For Port Daddy systems, the ordered decomposition principle suggests:
 
 **Agent Coordination Pattern**: When multiple agents must coordinate, designate one agent as the "planner" who sequences subtasks in execution order. That agent maintains the definite current state and assigns subtasks to other agents only when the preconditions are definitively satisfied. This is superior to having all agents reason about possible world states.
 
@@ -291,7 +291,7 @@ This reveals the true challenge: automatic translation produces correct but inef
 
 ## Application to AI Agent Systems
 
-For WinDAG and similar multi-agent systems:
+For Port Daddy and similar multi-agent systems:
 
 **Skill Decomposition**: Each high-level skill (like "implement authentication system") should have HTN-style methods encoding standard procedures: "First design the data model, then implement user registration, then implement login, then implement password reset..." This is more useful than having primitive actions like "write function" and hoping the system discovers good orderings.
 
@@ -472,7 +472,7 @@ The cost of an action depends on what other actions will be executed concurrentl
 
 ## Application to Agent Systems
 
-For WinDAG orchestration:
+For Port Daddy orchestration:
 
 **Skill Selection with Cost Estimates**: When multiple skills could accomplish a task, use sort-by style ranking:
 
@@ -693,7 +693,7 @@ SHOP2 added board after refuel (totally ordered planning), but they execute conc
 
 ## Application to Agent Systems
 
-For WinDAG orchestration with concurrent agents:
+For Port Daddy orchestration with concurrent agents:
 
 **Task-Level Timestamps**: Maintain timestamps for each task's inputs and outputs:
 ```python
@@ -922,7 +922,7 @@ The hierarchical decomposition matches human cognition. This makes domain descri
 
 ## Application to AI Agent Systems
 
-For WinDAG and similar orchestration systems:
+For Port Daddy and similar orchestration systems:
 
 **Embrace Task Decomposition**: Don't make agents search through primitive actions. Give them hierarchical task decomposition knowledge. For "implement authentication," the decomposition might be: design data model → implement registration → implement login → implement password reset → add tests.
 
@@ -1013,7 +1013,7 @@ This workflow provides a safety net: you start from a correct baseline and enhan
 
 ### The Lesson for Agent Systems
 
-For WinDAG orchestration:
+For Port Daddy orchestration:
 
 **Validation Gap**: When skills are described declaratively (preconditions, effects) but implemented procedurally (code), there's risk of mismatch. The description says "this skill generates authentication code given a schema" but the implementation might fail to handle edge cases in the schema.
 
