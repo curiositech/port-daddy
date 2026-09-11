@@ -119,6 +119,17 @@ class TestAuditor(unittest.TestCase):
         self.assertEqual(rc, 1)
         self.assertIn("references", report["missing_indexes_failure"])
 
+    def test_module_javascript_files_are_audited_as_documents(self) -> None:
+        write(self.bundle / "SKILL.md", self._skill_md(
+            "\nRun `scripts/alpha.mjs` and `scripts/beta.mjs`.\n"))
+        write(self.bundle / "scripts" / "alpha.mjs", "export const alpha = true;\n")
+        write(self.bundle / "scripts" / "beta.mjs", "export const beta = true;\n")
+        rc, report = run_audit(self.bundle)
+        self.assertEqual(rc, 0, msg=str(report))
+        self.assertEqual(report["orphans"], [])
+        self.assertIn("scripts", report["missing_indexes_warning"])
+        self.assertNotIn("scripts", report["missing_indexes_failure"])
+
     def test_ghost_entry_detected(self) -> None:
         write(self.bundle / "SKILL.md", self._skill_md())
         write(self.bundle / "references" / "INDEX.md", textwrap.dedent("""
