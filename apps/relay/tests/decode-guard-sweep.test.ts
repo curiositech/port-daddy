@@ -154,8 +154,9 @@ describe('decode-guard sweep: malformed percent-escapes never reach the 500 boun
     expect(body).toContain('NOT_FOUND');
   });
 
-  it('DELETE /v1/cache/jwks/%ZZ — 200 ok:true, the route never distinguishes any issuer id (unconditional cache-bust)', async () => {
+  it('DELETE /v1/cache/jwks/%ZZ — 400, and no audit row is written for the empty id', async () => {
     const res = await fetchWith('/v1/cache/jwks/%ZZ', { method: 'DELETE', headers: OPERATOR_AUTH });
-    await assertNo500(res, 200);
+    const body = await assertNo500(res, 400);
+    expect(body).toContain('BAD_REQUEST');
   });
 });
