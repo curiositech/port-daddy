@@ -13,6 +13,7 @@
  */
 
 import type { Env } from './types.js';
+import { sha1 } from '@noble/hashes/sha1';
 import {
   FLEETBOT_ACTION_SCHEMA,
   FLEETBOT_PUBLISHER_CAPABILITY_SCHEMA,
@@ -886,6 +887,38 @@ function commitMessage(
   ].join('\n');
 }
 
+function gitObjectSha(type: 'blob' | 'commit', content: Uint8Array): string {
+  const header = new TextEncoder().encode(`${type} ${content.byteLength}\0`);
+  const bytes = new Uint8Array(header.byteLength + content.byteLength);
+  bytes.set(header);
+  bytes.set(content, header.byteLength);
+  return toHex(sha1(bytes));
+}
+
+function decodedBase64(value: string): Uint8Array {
+  const binary = atob(value);
+  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+}
+
+function expectedCommitSha(
+  treeSha: string,
+  parentSha: string,
+  message: string,
+  app: GitHubAppIdentity,
+  committedAt: number,
+): string {
+  const actor = `${app.botName} <${app.botEmail}> ${committedAt} +0000`;
+  const content = [
+    `tree ${treeSha}`,
+    `parent ${parentSha}`,
+    `author ${actor}`,
+    `committer ${actor}`,
+    '',
+    message,
+  ].join('\n');
+  return gitObjectSha('commit', new TextEncoder().encode(content));
+}
+
 function pullWitness(value: unknown): PullRequestWitness {
   const row = record(value);
   const user = record(row?.user);
@@ -971,34 +1004,69 @@ async function createCommit(
     const batch = payload.changes.slice(start, start + 10);
     const resolved = await Promise.all(batch.map(async (change) => {
       if (change.delete) return { path: change.path, mode: change.mode ?? '100644', type: 'blob' as const, sha: null };
-      const blob = await fetchJson<{ sha?: string }>(`${GH_API}/repos/${owner}/${repo}/git/blobs`, token, {
-        method: 'POST',
-        body: { content: change.contentBase64, encoding: 'base64' },
-        mutation: mutated,
-      });
-      if (!isGitSha(blob.body?.sha)) failure('GITHUB_RESPONSE_INVALID', 502, 'created blob has no valid SHA', true);
-      return { path: change.path, mode: change.mode ?? '100644', type: 'blob' as const, sha: blob.body.sha.toLowerCase() };
+      const expectedSha = gitObjectSha('blob', decodedBase64(change.contentBase64!));
+      let blobSha: string | undefined;
+      try {
+        const blob = await fetchJson<{ sha?: string }>(`${GH_API}/repos/${owner}/${repo}/git/blobs`, token, {
+          method: 'POST',
+          body: { content: change.contentBase64, encoding: 'base64' },
+          mutation: mutated,
+        });
+        blobSha = blob.body?.sha;
+      } catch (error) {
+        if (!(error instanceof PublisherFailure) || !error.ambiguous) throw error;
+        const observed = await fetchJson<{ sha?: string }>(
+          `${GH_API}/repos/${owner}/${repo}/git/blobs/${expectedSha}`, token,
+        );
+        blobSha = observed.body?.sha;
+      }
+      if (blobSha?.toLowerCase() !== expectedSha) {
+        failure('BLOB_CREATE_AMBIGUOUS', 409, 'created blob did not read back at its exact content address', true);
+      }
+      return { path: change.path, mode: change.mode ?? '100644', type: 'blob' as const, sha: expectedSha };
     }));
     entries.push(...resolved);
   }
 
-  const tree = await fetchJson<{ sha?: string }>(`${GH_API}/repos/${owner}/${repo}/git/trees`, token, {
-    method: 'POST',
-    body: { base_tree: parentTree, tree: entries },
-    mutation: mutated,
-  });
-  if (!isGitSha(tree.body?.sha) || tree.body.sha.toLowerCase() !== payload.sourceTreeSha) {
+  let treeSha: string | undefined;
+  try {
+    const tree = await fetchJson<{ sha?: string }>(`${GH_API}/repos/${owner}/${repo}/git/trees`, token, {
+      method: 'POST',
+      body: { base_tree: parentTree, tree: entries },
+      mutation: mutated,
+    });
+    treeSha = tree.body?.sha;
+  } catch (error) {
+    if (!(error instanceof PublisherFailure) || !error.ambiguous) throw error;
+    const observed = await fetchJson<{ sha?: string }>(
+      `${GH_API}/repos/${owner}/${repo}/git/trees/${payload.sourceTreeSha}`, token,
+    );
+    treeSha = observed.body?.sha;
+  }
+  if (treeSha?.toLowerCase() !== payload.sourceTreeSha) {
     failure('SOURCE_TREE_MISMATCH', 409, 'GitHub tree does not match the daemon-verified source tree', true);
   }
   const message = commitMessage(payload, authorship, receiptId);
   const identity = { name: app.botName, email: app.botEmail, date: new Date(payload.sourceCommittedAt * 1000).toISOString() };
-  const commit = await fetchJson<{ sha?: string }>(`${GH_API}/repos/${owner}/${repo}/git/commits`, token, {
-    method: 'POST',
-    body: { message, tree: payload.sourceTreeSha, parents: [parentSha], author: identity, committer: identity },
-    mutation: mutated,
-  });
-  if (!isGitSha(commit.body?.sha)) failure('GITHUB_RESPONSE_INVALID', 502, 'created commit has no valid SHA', true);
-  const commitSha = commit.body.sha.toLowerCase();
+  const expectedSha = expectedCommitSha(payload.sourceTreeSha, parentSha, message, app, payload.sourceCommittedAt);
+  let commitSha: string | undefined;
+  try {
+    const commit = await fetchJson<{ sha?: string }>(`${GH_API}/repos/${owner}/${repo}/git/commits`, token, {
+      method: 'POST',
+      body: { message, tree: payload.sourceTreeSha, parents: [parentSha], author: identity, committer: identity },
+      mutation: mutated,
+    });
+    commitSha = commit.body?.sha?.toLowerCase();
+  } catch (error) {
+    if (!(error instanceof PublisherFailure) || !error.ambiguous) throw error;
+    const observed = await fetchJson<{ sha?: string }>(
+      `${GH_API}/repos/${owner}/${repo}/git/commits/${expectedSha}`, token,
+    );
+    commitSha = observed.body?.sha?.toLowerCase();
+  }
+  if (commitSha !== expectedSha) {
+    failure('COMMIT_CREATE_AMBIGUOUS', 409, 'created commit did not read back at its exact content address', true);
+  }
   const observed = await fetchJson<{
     sha?: string;
     message?: string;
@@ -1584,5 +1652,7 @@ export const __fleetbotPublisherTest = {
   finishIntent,
   listAllPages,
   executeExisting,
+  gitObjectSha,
+  expectedCommitSha,
   maxOuterRequestBytes: MAX_OUTER_REQUEST_BYTES,
 };

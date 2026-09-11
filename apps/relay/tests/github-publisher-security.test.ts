@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { createHash } from 'node:crypto';
 import {
   FLEETBOT_ACTION_SCHEMA,
   FLEETBOT_PUBLISHER_CAPABILITY_SCHEMA,
@@ -143,6 +144,23 @@ function intentDb() {
 }
 
 describe('Fleetbot publisher authority hardening', () => {
+  it('derives exact Git object addresses for ambiguity readback', () => {
+    expect(subject.gitObjectSha('blob', new TextEncoder().encode('hello\n')))
+      .toBe('ce013625030ba8dba906f756967f9e9ca394464a');
+    const app = { id: 1, slug: 'port-daddy', botName: 'port-daddy[bot]', botEmail: 'bot@example.test' };
+    const message = 'Governed commit\n\nRoadmap-Item: publisher';
+    const tree = '1'.repeat(40);
+    const parent = '2'.repeat(40);
+    const timestamp = 2_000_000_000;
+    const actor = `${app.botName} <${app.botEmail}> ${timestamp} +0000`;
+    const content = [`tree ${tree}`, `parent ${parent}`, `author ${actor}`, `committer ${actor}`, '', message].join('\n');
+    const bytes = Buffer.from(content);
+    const independentlyHashed = createHash('sha1')
+      .update(Buffer.concat([Buffer.from(`commit ${bytes.length}\0`), bytes]))
+      .digest('hex');
+    expect(subject.expectedCommitSha(tree, parent, message, app, timestamp)).toBe(independentlyHashed);
+  });
+
   it('bounds the complete request before JSON parsing', async () => {
     const request = new Request('https://relay.example/v1/fleetbot/publish', {
       method: 'POST',
