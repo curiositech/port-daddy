@@ -6,8 +6,9 @@
  *
  * GMDSS mandated silence periods so weak distress calls could be heard. The
  * daemon's equivalent is a 30-second `setInterval` (unref'd, so it never keeps
- * a stopping process alive) that does one `existsSync` on
- * `~/.port-daddy/HALT`. On the nominal → halted transition it:
+ * a stopping process alive) that checks canonical and selected HALT and
+ * hooks.disabled markers. Unknown control state also denies work. On the
+ * nominal → halted transition it:
  *
  *   1. appends a registry-format `SEEN` line to the distress file,
  *   2. runs the injected `onHalt` callback — server.ts uses it to stop every
@@ -23,18 +24,15 @@
  * single line if the file disappears, so nothing resumes on an agent deleting
  * the sentinel.
  *
- * Everything here is guarded so a missing `~/.port-daddy` directory, an
- * unreadable sentinel, or an unwritable distress file is degraded evidence,
- * never an error that takes the daemon down.
- *
- * TODO(ADR-0132 phase 0): the sentinel read and the O_APPEND distress write are
- * inline below; switch to `lib/distress.ts` (`haltActive()`, `readHalt()`,
- * `appendDistress()`) once that module lands. The wire format is identical.
+ * A verifiably absent control root is nominal; an uninspectable path is Off.
+ * Distress writes remain best-effort evidence. Do not replace the passive
+ * reader with distress.readHalt(): its ALL-CLEAR processing may remove HALT.
  */
 
-import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { appendFileSync, closeSync, constants, existsSync, fstatSync, mkdirSync, openSync, readSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { inspectLocalStopPath, readLocalRuntimeControl, type LocalRuntimeControlOptions } from './local-runtime-control.js';
 
 /** ADR-0132 phase 3: the listening interval every long-running entity keeps. */
 export const HALT_WATCH_INTERVAL_MS = 30_000;
@@ -59,6 +57,8 @@ export interface HaltWatchLogger {
 }
 
 export interface HaltWatchOptions {
+  /** Explicit roots for isolated fixtures; production retains canonical control. */
+  controlPaths?: LocalRuntimeControlOptions;
   /** `<kind>:<id>` this entity signs distress lines with, e.g. `daemon:prod`. */
   entity: string;
   /** Called exactly once, on the nominal → halted transition. Stop the sweeps here. */
@@ -109,21 +109,25 @@ export function distressFilePath(env: NodeJS.ProcessEnv = process.env): string {
  * because a sentinel that exists but cannot be read is not "no halt".
  */
 export function readHaltSentinel(path: string, now: () => number = Date.now): HaltInfo | null {
-  let exists = false;
-  try {
-    exists = existsSync(path);
-  } catch {
-    exists = false;
-  }
-  if (!exists) return null;
+  const state = inspectLocalStopPath(path);
+  if (state === 'absent') return null;
   let line = '';
+  let fd: number | undefined;
   try {
-    const raw = readFileSync(path, 'utf8').slice(0, 1024);
+    // Never follow a symlink, block on a FIFO, or allocate an arbitrary file.
+    fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+    if (!fstatSync(fd).isFile()) throw new Error('not a regular sentinel');
+    const bytes = Buffer.alloc(1024);
+    const raw = bytes.subarray(0, readSync(fd, bytes, 0, bytes.length, 0)).toString('utf8');
     line = raw.split(/\r?\n/).map((l) => l.trim()).find((l) => l.length > 0) ?? '';
   } catch {
     line = '';
+  } finally {
+    if (fd !== undefined) { try { closeSync(fd); } catch { /* Admission remains denied. */ } }
   }
-  if (!line) line = 'SECURITE HALT (sentinel present, no text)';
+  if (!line) line = state === 'unknown'
+    ? 'SECURITE HALT (local control state unavailable)'
+    : 'SECURITE HALT (sentinel present, no text)';
   const token = line.split(/\s+/, 1)[0] ?? '';
   const ref = /^\d{4}-\d{2}-\d{2}T/.test(token) ? token : 'sentinel';
   return { line, ref, detectedAt: now(), complied: false };
@@ -178,6 +182,7 @@ export function createHaltWatch(options: HaltWatchOptions): HaltWatch {
   const logger = options.logger ?? noopLogger;
   const intervalMs = options.intervalMs ?? HALT_WATCH_INTERVAL_MS;
   const sentinelPath = options.sentinelPath ?? haltSentinelPath();
+  const controlPaths = { ...options.controlPaths, haltFile: sentinelPath };
   const distressPath = options.distressPath ?? distressFilePath();
   const repoDistressPath = options.repoDistressPath ?? null;
   const [kind, ...idParts] = options.entity.split(':');
@@ -214,8 +219,7 @@ export function createHaltWatch(options: HaltWatchOptions): HaltWatch {
     checks += 1;
     if (halted) {
       // Absence is not all-clear (ADR-0132 §4). Note it once; stay halted.
-      let stillThere: boolean;
-      try { stillThere = existsSync(sentinelPath); } catch { stillThere = true; }
+      const stillThere = !readLocalRuntimeControl(controlPaths).enabled;
       if (!stillThere && !sentinelGoneLogged) {
         sentinelGoneLogged = true;
         logger.warn('halt_sentinel_removed_awaiting_all_clear', { sentinel: sentinelPath, ref: halted.ref });
@@ -224,8 +228,10 @@ export function createHaltWatch(options: HaltWatchOptions): HaltWatch {
       if (checks % 20 === 0) logger.info('halt_watch_listening', { ref: halted.ref, checks });
       return true;
     }
-    const info = readHaltSentinel(sentinelPath, now);
-    if (!info) return false;
+    const control = readLocalRuntimeControl(controlPaths);
+    if (control.enabled) return false;
+    const info = readHaltSentinel(control.path ?? sentinelPath, now)
+      ?? { line: 'SECURITE HALT (local control changed during inspection)', ref: 'sentinel', detectedAt: now(), complied: false };
     transition(info);
     return true;
   }

@@ -281,7 +281,7 @@ enum SquidHarnessCLI {
                 process.standardOutput = stdout
                 process.standardError = stderr
                 do {
-                    try process.run()
+                    try process.pdRun()
                     process.waitUntilExit()
                     continuation.resume(returning: SquidCommandResult(
                         status: process.terminationStatus,
@@ -371,7 +371,7 @@ final class SquidHarnessStore: ObservableObject {
             return
         }
         do {
-            let (data, response) = try await session.data(from: url)
+            let (data, response) = try await session.pdData(from: url)
             guard let http = response as? HTTPURLResponse else {
                 continuitySnapshot = nil
                 continuityMessage = "Context continuity evidence has no daemon response."
