@@ -197,4 +197,20 @@ describe('decode-guard sweep: malformed percent-escapes never reach the 500 boun
     // Pinned because `!x` on a string is easy to misread as a numeric check.
     await assertNo500(res, 200);
   });
+
+  it.each([
+    ['%C0%AF', 'an overlong UTF-8 sequence: decodeURIComponent throws here for a different reason than %ZZ'],
+    ['%',      'a bare percent with nothing following it'],
+    ['',       'no segment at all — this path never throws; it is empty by construction'],
+  ])('DELETE /v1/cache/jwks/%s — 400 (%s)', async (seg) => {
+    const fx = makeParleyDb();
+    const res = await worker.fetch(
+      new Request('https://relay.example/v1/cache/jwks/' + seg, { method: 'DELETE', headers: OPERATOR_AUTH }),
+      makeParleyEnv(fx.db, { RELAY_OPERATOR_TOKEN: OPERATOR_TOKEN }),
+      {} as ExecutionContext,
+    );
+    const body = await assertNo500(res, 400);
+    expect(body).toContain('BAD_REQUEST');
+    expect(fx.statements.some((sql) => /INSERT INTO audit_log/i.test(sql))).toBe(false);
+  });
 });
