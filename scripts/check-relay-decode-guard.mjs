@@ -57,6 +57,10 @@ import { fileURLToPath } from 'node:url';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_TARGET = 'apps/relay/src/index.ts';
+// This is deliberately coupled to the canonical router helper. Renaming the
+// helper requires changing this constant in the same commit; otherwise the
+// missing-anchor branch exits 2, and the unit test below pins that fail-closed
+// behavior so a rename cannot silently disable the rule.
 const HELPER_NAME = 'safeDecodeSegment';
 const BANNED = 'decodeURIComponent';
 

@@ -15,9 +15,9 @@
  *   - a file with no `safeDecodeSegment` anchor at all errors out (exit 2),
  *     distinct from a real violation (exit 1), rather than silently passing.
  *
- * It also runs the guard against the REAL, live apps/relay/src/index.ts and
- * pins its ACTUAL current result — which is presently two known, pre-existing
- * violations, not zero. See the test below for why.
+ * It also runs the guard against the real apps/relay/src/index.ts. That live
+ * contract must pass; known violations belong in code fixes, not in a test
+ * that blesses a permanently red required job.
  */
 import { describe, expect, test } from '@jest/globals';
 import { execFileSync } from 'node:child_process';
@@ -78,6 +78,13 @@ describe('relay decode guard (scripts/check-relay-decode-guard.mjs)', () => {
     expect(stderr).toMatch(/could not find `safeDecodeSegment`/);
   });
 
+  test('an unreadable target errors (exit 2), not a silent pass', () => {
+    const missing = fixture('does-not-exist.ts');
+    const { code, stderr } = run(missing);
+    expect(code).toBe(2);
+    expect(stderr).toMatch(/cannot read .*does-not-exist\.ts/);
+  });
+
   test(
     'pure-NAME shapes (object-literal key, import/export specifier name, ' +
       'type-member and class-member names, plain parameter/variable ' +
@@ -108,20 +115,10 @@ describe('relay decode guard (scripts/check-relay-decode-guard.mjs)', () => {
     },
   );
 
-  test(
-    'the LIVE apps/relay/src/index.ts currently has exactly two pre-existing, ' +
-      'known-deferred violations (NOT zero) -- /account/parleys/ and /account/harbors/, ' +
-      'both explicitly left out of PR #10150 per its own commit message (parleys is owned ' +
-      'by a separate stacked PR; harbors was already try/catch-guarded locally, just not ' +
-      'through the canonical helper). This test pins the CURRENT real count and sites so ' +
-      'a THIRD raw site cannot slip in unnoticed, and so fixing either existing one requires ' +
-      'a deliberate, visible edit to this test rather than a silent guard downgrade.',
-    () => {
-      const { code, stderr } = run(); // no override -- real apps/relay/src/index.ts
-      expect(code).toBe(1);
-      expect(stderr).toMatch(/2 raw `decodeURIComponent` reference\(s\)/);
-      expect(stderr).toMatch(/apps\/relay\/src\/index\.ts:795\s+const seg = .*\/account\/parleys\//);
-      expect(stderr).toMatch(/apps\/relay\/src\/index\.ts:836\s+seg = .*\/account\/harbors\//);
-    },
-  );
+  test('the live router passes with no raw decode references', () => {
+    const { code, stdout, stderr } = run();
+    expect(code).toBe(0);
+    expect(stderr).toBe('');
+    expect(stdout).toMatch(/apps\/relay\/src\/index\.ts has no raw decodeURIComponent/);
+  });
 });

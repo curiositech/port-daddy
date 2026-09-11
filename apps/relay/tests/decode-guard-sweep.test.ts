@@ -1,8 +1,8 @@
 /**
  * Router-boundary sweep: EVERY route in src/index.ts that pulled a path
- * segment through a raw `decodeURIComponent` call, other than the two
- * routes that already guard their own decode (the transcript-family routes
- * via `safeDecodeSegment`, and `/account/harbors/` via an inline try/catch).
+ * segment through a raw `decodeURIComponent` call. Transcript-family routes
+ * already used `safeDecodeSegment`; every remaining router site is covered
+ * here.
  *
  * `decodeURIComponent` throws `URIError` on a malformed percent-escape
  * (`%ZZ`). Unguarded, that throw escapes routing entirely and lands on the
@@ -18,10 +18,6 @@
  *      answer bucket (a 404, a 400, or an unconditional-idempotent 200),
  *      never a new distinguishable one.
  *
- * `/account/parleys/` is deliberately NOT covered here — it is still a raw,
- * unguarded `decodeURIComponent` on `main` as of this sweep, but it is the
- * exact route PR #10147 (branch `claude/rescue-9730-parley-404`) fixes; fixing
- * it here too would just race that PR's own routing change.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -112,6 +108,16 @@ describe('decode-guard sweep: malformed percent-escapes never reach the 500 boun
     const res = await fetchWith('/v1/skills/%ZZ');
     const body = await assertNo500(res, 404);
     expect(body).toContain('NOT_FOUND');
+  });
+
+  it('GET /account/parleys/%ZZ/name — 404, never the global 500 boundary', async () => {
+    const res = await fetchWith('/account/parleys/%ZZ/name');
+    await assertNo500(res, 404);
+  });
+
+  it('GET /account/harbors/%ZZ/name — 404, never the global 500 boundary', async () => {
+    const res = await fetchWith('/account/harbors/%ZZ/name');
+    await assertNo500(res, 404);
   });
 
   it('GET /billing/balance/%ZZ — 400, same bucket as any non-numeric installation id', async () => {
