@@ -35,6 +35,32 @@ jobs:
       - name: Brand-color guard (retired Harbor Heritage hexes must not return)
         run: node scripts/check-brand-colors.mjs
 
+  relay-decode-guard:
+    # No raw `decodeURIComponent` anywhere in apps/relay/src/index.ts outside
+    # `safeDecodeSegment`'s own body. decodeURIComponent throws URIError on a
+    # malformed percent-escape ("%ZZ"); a raw call OR bare reference (e.g.
+    # `.map(decodeURIComponent)`) anywhere else in the router lets that throw
+    # escape to the worker's global boundary, which answers a bare 500
+    # INTERNAL_ERROR for what is only a bad URL. PR #10150 fixed 13 routes
+    # that had exactly this bug by routing them through safeDecodeSegment;
+    # four independent review bots on that PR asked for this generalization
+    # so route #14 cannot reintroduce the same defect class. AST-based (the
+    # TypeScript compiler API), not text/regex — see
+    # scripts/check-relay-decode-guard.mjs for why a text search would miss
+    # the bare-reference shape.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
+      - name: Relay decode guard (no raw decodeURIComponent outside safeDecodeSegment)
+        run: node scripts/check-relay-decode-guard.mjs
+
   version-drift-guard:
     # ADR-0057 phase dist-version-authority: package.json is the sole version
     # authority and scripts/sync-version.ts stamps it across every distribution
@@ -1471,6 +1497,7 @@ jobs:
       - pd-ios
       - porthole-cast-gate
       - porthole-stage
+      - relay-decode-guard
       - relay-tests
       - rust-broker
       - rust-console
