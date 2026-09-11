@@ -133,12 +133,12 @@ function repoWitnessFailure(repo: string, result: Exclude<RepoWitnessResult, { k
     renew: {
       title: 'Reconnect GitHub to continue.',
       detail: 'Your Port Daddy login is still active, but its GitHub repository credential is missing or expired.',
-      action: `<a class="button" href="/auth/github/login?return_to=${encodeURIComponent(`/account/ships?repo=${repo}`)}">Continue with GitHub</a>`,
+      action: `<a class="button" href="/auth/github/login?return_to=${encodeURIComponent(`/account/ships?repo=${repo}`)}&amp;reauth=1">Choose GitHub account</a>`,
     },
     denied: {
       title: 'GitHub did not grant repository access.',
-      detail: `The current GitHub identity cannot read ${esc(repo)}. If access changed, reconnect GitHub and approve repository access.`,
-      action: `<a class="button" href="/auth/github/login?return_to=${encodeURIComponent(`/account/ships?repo=${repo}`)}">Reconnect GitHub</a>`,
+      detail: `The selected GitHub account and the Port Daddy GitHub App do not both have access to ${esc(repo)}. Choose the account again, or change the app's repository access in GitHub.`,
+      action: `<a class="button" href="/auth/github/login?return_to=${encodeURIComponent(`/account/ships?repo=${repo}`)}&amp;reauth=1">Choose GitHub account</a><a class="button secondary" href="https://github.com/settings/installations">Manage GitHub App access</a>`,
     },
     'rate-limited': {
       title: 'GitHub API limit reached.',
@@ -154,7 +154,7 @@ function repoWitnessFailure(repo: string, result: Exclude<RepoWitnessResult, { k
           : result.kind === 'unavailable' && result.reason === 'repository-mismatch'
             ? 'GitHub returned a different repository identity. No permission decision was made and no ship setting changed.'
             : 'The Relay could not complete the GitHub repository check. No permission decision was made and no ship setting changed.',
-      action: `<a class="button" href="/account/ships?repo=${encodeURIComponent(repo)}">Retry repository check</a><a class="button secondary" href="/auth/github/login?return_to=${encodeURIComponent(`/account/ships?repo=${repo}`)}">Reconnect GitHub</a>`,
+      action: `<a class="button" href="/account/ships?repo=${encodeURIComponent(repo)}">Retry repository check</a><a class="button secondary" href="/auth/github/login?return_to=${encodeURIComponent(`/account/ships?repo=${repo}`)}&amp;reauth=1">Reconnect GitHub</a>`,
     },
   }[result.kind];
   return html(`<!doctype html><html lang="en"><head>${HEAD}<title>Repository access · Port Daddy</title><style>${TOKENS}

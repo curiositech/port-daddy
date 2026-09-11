@@ -112,15 +112,15 @@ describe('signed-in ship UI', () => {
     const body = await result.text();
     expect(result.status).toBe(403);
     expect(body).toContain('Reconnect GitHub to continue.');
-    expect(body).toContain('href="/auth/github/login?return_to=%2Faccount%2Fships%3Frepo%3Downer%2Frepo"');
+    expect(body).toContain('href="/auth/github/login?return_to=%2Faccount%2Fships%3Frepo%3Downer%2Frepo&amp;reauth=1"');
     expect(body).toContain('Back to account');
     expect(prepare).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled();
   });
   it.each([
-    [401, 'Reconnect GitHub to continue.', '/auth/github/login?return_to=%2Faccount%2Fships%3Frepo%3Downer%2Frepo', 403, 1],
-    [403, 'GitHub did not grant repository access.', '/auth/github/login?return_to=%2Faccount%2Fships%3Frepo%3Downer%2Frepo', 403, 1],
-    [404, 'GitHub did not grant repository access.', '/auth/github/login?return_to=%2Faccount%2Fships%3Frepo%3Downer%2Frepo', 403, 1],
+    [401, 'Reconnect GitHub to continue.', '/auth/github/login?return_to=%2Faccount%2Fships%3Frepo%3Downer%2Frepo&amp;reauth=1', 403, 1],
+    [403, 'GitHub did not grant repository access.', '/auth/github/login?return_to=%2Faccount%2Fships%3Frepo%3Downer%2Frepo&amp;reauth=1', 403, 1],
+    [404, 'GitHub did not grant repository access.', '/auth/github/login?return_to=%2Faccount%2Fships%3Frepo%3Downer%2Frepo&amp;reauth=1', 403, 1],
     [429, 'GitHub API limit reached.', '/account/ships?repo=owner%2Frepo', 503, 1],
     [503, 'GitHub repository check failed.', '/account/ships?repo=owner%2Frepo', 503, 2],
   ])('distinguishes GitHub status %s without querying private telemetry', async (upstream, message, action, status, calls) => {
@@ -132,6 +132,10 @@ describe('signed-in ship UI', () => {
     expect(result.status).toBe(status);
     expect(body).toContain(message);
     expect(body).toContain(`href="${action}"`);
+    if (upstream === 403 || upstream === 404) {
+      expect(body).toContain('href="https://github.com/settings/installations"');
+      expect(body).toContain('Manage GitHub App access');
+    }
     expect(prepare).not.toHaveBeenCalled();
     expect(fetch).toHaveBeenCalledTimes(calls);
     warning.mockRestore();
@@ -323,7 +327,8 @@ it.skipIf(!process.env.SHIP_CONTROLS_PROOF_DIR)('records browser control round-t
     await page.screenshot({ path: `${directory}/ships-200pct.png`, fullPage: true });
     vi.mocked(resolveSession).mockResolvedValue({ user: { id: 'admin-1' }, ghToken: null, cacheNamespace: 'test' } as never);
     await page.goto(`${base}/account/ships?repo=owner/repo`);
-    await expect.poll(() => page.getByRole('link', { name: 'Continue with GitHub', exact: true }).count()).toBe(1);
+    await expect.poll(() => page.getByRole('link', { name: 'Choose GitHub account', exact: true }).count()).toBe(1);
+    expect(await page.getByRole('link', { name: 'Choose GitHub account', exact: true }).getAttribute('href')).toContain('reauth=1');
     await page.screenshot({ path: `${directory}/ships-auth-renew.png`, fullPage: true });
     vi.mocked(resolveSession).mockResolvedValue({ user: { id: 'admin-1' }, ghToken: 'mock-user-token', cacheNamespace: 'test' } as never);
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 429, headers: {
@@ -338,6 +343,7 @@ it.skipIf(!process.env.SHIP_CONTROLS_PROOF_DIR)('records browser control round-t
     await page.goto(`${base}/account/ships?repo=owner/repo`);
     await expect.poll(() => page.getByRole('heading', { name: 'GitHub repository check failed.', exact: true }).count()).toBe(1);
     await expect.poll(() => page.getByRole('link', { name: 'Reconnect GitHub', exact: true }).count()).toBe(1);
+    expect(await page.getByRole('link', { name: 'Reconnect GitHub', exact: true }).getAttribute('href')).toContain('reauth=1');
     await page.screenshot({ path: `${directory}/ships-repository-check-failed.png`, fullPage: true });
   } finally {
     await context.close(); await browser.close();

@@ -24,11 +24,11 @@
  *   PUBLIC_BASE_URL         (var, the relay's public origin; redirect_uri base)
  */
 
-import { randomHex, hashHex, fromHex, base64UrlEncode, base64UrlDecode } from './crypto.js';
+import { randomHex, hashHex, hashBytes, timingSafeEqual, fromHex, base64UrlEncode, base64UrlDecode } from './crypto.js';
 import {
   getWebSession,
   upsertUser,
-  createWebSession,
+  replaceWebSession,
   deleteWebSession,
   countUserSessions,
   eraseUser,
@@ -97,6 +97,7 @@ function parseGitHubEmails(x: unknown): GitHubEmail[] {
 }
 
 const SESSION_COOKIE = '__Host-pd_session';
+const OAUTH_TX_COOKIE = '__Host-pd_oauth_tx';
 const STATE_TTL_SECONDS = 600; // 10 min to complete the redirect round-trip
 const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
 const GH_AUTHORIZE = 'https://github.com/login/oauth/authorize';
@@ -198,50 +199,86 @@ function sessionSetCookie(value: string, maxAge: number): string {
   );
 }
 
-function readSessionCookie(request: Request): string | null {
+function oauthTransactionSetCookie(value: string, maxAge: number): string {
+  return `${OAUTH_TX_COOKIE}=${value}; Max-Age=${maxAge}; Path=/; Secure; HttpOnly; SameSite=Lax`;
+}
+
+function readCookie(request: Request, name: string): string | null {
   const raw = request.headers.get('Cookie');
   if (!raw) return null;
   for (const part of raw.split(';')) {
     const [k, ...rest] = part.trim().split('=');
-    if (k === SESSION_COOKIE) return rest.join('=') || null;
+    if (k === name) return rest.join('=') || null;
   }
   return null;
 }
 
-// ── Handlers ──────────────────────────────────────────────────────────────────
+function readSessionCookie(request: Request): string | null {
+  return readCookie(request, SESSION_COOKIE);
+}
 
-/**
- * The web session's OAuth scope. `repo` is required — not merely
- * convenient — because every repo-access check this session's token backs
- * (`userCanReadRepo`, `userIsRepoAdmin` in this file) calls
- * `GET /repos/:owner/:repo` and treats a 404 as "not readable." GitHub
- * returns 404 (not 403) for a private repository the token's scope can't
- * see, which is indistinguishable from the repo not existing — so a token
- * scoped to only `read:user user:email` silently fails every private-repo
- * check, including a repo the user personally owns. `permissions.admin` in
- * that same response (which `userIsRepoAdmin` reads) is also only populated
- * for a sufficiently-scoped, authenticated request. `public_repo` alone
- * would fix public repos but not private ones, which is exactly the
- * lockout an operator with private repos hits.
- */
-const WEB_SESSION_SCOPE = 'read:user user:email repo';
+interface OAuthStateRecord {
+  returnTo: string;
+  transactionHash: string;
+  codeVerifier: string;
+  priorSessionHash: string | null;
+}
+
+function parseOAuthState(value: string): OAuthStateRecord | null {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!isRecord(parsed)) return null;
+    if (typeof parsed.returnTo !== 'string') return null;
+    if (typeof parsed.transactionHash !== 'string' || !/^[0-9a-f]{64}$/.test(parsed.transactionHash)) return null;
+    if (typeof parsed.codeVerifier !== 'string' || !/^[A-Za-z0-9._~-]{43,128}$/.test(parsed.codeVerifier)) return null;
+    if (parsed.priorSessionHash !== null && (typeof parsed.priorSessionHash !== 'string' || !/^[0-9a-f]{64}$/.test(parsed.priorSessionHash))) return null;
+    return {
+      returnTo: safeAccountReturn(parsed.returnTo),
+      transactionHash: parsed.transactionHash,
+      codeVerifier: parsed.codeVerifier,
+      priorSessionHash: parsed.priorSessionHash,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// ── Handlers ──────────────────────────────────────────────────────────────────
 
 /** GET /auth/github/login — mint single-use state, 302 to GitHub. */
 export async function handleGithubLogin(request: Request, env: Env): Promise<Response> {
   if (!loginConfigured(env)) return json(503, { code: 'LOGIN_UNCONFIGURED', error: 'GitHub login is not configured' });
 
+  const requestUrl = new URL(request.url);
   const state = randomHex(32);
+  const transaction = randomHex(32);
+  const codeVerifier = randomHex(32);
+  const priorSession = readSessionCookie(request);
   // Single-use: stored in KV with a short TTL, consumed exactly once at callback.
-  const returnTo = safeAccountReturn(new URL(request.url).searchParams.get('return_to'));
-  await env.KV.put(`oauth_state:${state}`, JSON.stringify({ returnTo }), { expirationTtl: STATE_TTL_SECONDS });
+  const returnTo = safeAccountReturn(requestUrl.searchParams.get('return_to'));
+  await env.KV.put(`oauth_state:${state}`, JSON.stringify({
+    returnTo,
+    transactionHash: hashHex(transaction),
+    codeVerifier,
+    priorSessionHash: priorSession ? hashHex(priorSession) : null,
+  } satisfies OAuthStateRecord), { expirationTtl: STATE_TTL_SECONDS });
 
   const url = new URL(GH_AUTHORIZE);
   url.searchParams.set('client_id', env.GITHUB_OAUTH_CLIENT_ID);
   url.searchParams.set('redirect_uri', redirectUri(env));
-  url.searchParams.set('scope', WEB_SESSION_SCOPE);
   url.searchParams.set('state', state);
   url.searchParams.set('allow_signup', 'false');
-  return Response.redirect(url.toString(), 302);
+  url.searchParams.set('code_challenge', base64UrlEncode(hashBytes(new TextEncoder().encode(codeVerifier))));
+  url.searchParams.set('code_challenge_method', 'S256');
+  // GitHub App user tokens derive repository permissions from the app
+  // installation and the authorizing user, not classic OAuth App scopes. An
+  // explicit reconnect asks GitHub to show account selection so the operator
+  // can see which identity is signing in.
+  if (requestUrl.searchParams.get('reauth') === '1') url.searchParams.set('prompt', 'select_account');
+  return new Response(null, { status: 302, headers: {
+    Location: url.toString(),
+    'Set-Cookie': oauthTransactionSetCookie(transaction, STATE_TTL_SECONDS),
+  } });
 }
 
 /** GET /auth/github/callback — validate state, exchange code, set session. */
@@ -252,17 +289,18 @@ export async function handleGithubCallback(request: Request, env: Env): Promise<
   const code = url.searchParams.get('code');
   const state = url.searchParams.get('state');
   if (!code || !state) return json(400, { code: 'BAD_REQUEST', error: 'code and state required' });
+  if (!/^[0-9a-f]{64}$/.test(state)) return json(400, { code: 'BAD_STATE', error: 'state had an invalid shape' });
 
   // CSRF: the state must be one we minted, and it is consumed exactly once.
   const stateKey = `oauth_state:${state}`;
   const seen = await env.KV.get(stateKey);
   if (!seen) return json(400, { code: 'BAD_STATE', error: 'state did not match or expired (possible CSRF)' });
   await env.KV.delete(stateKey);
-  let returnTo = '/account';
-  try {
-    const stored = JSON.parse(seen) as { returnTo?: unknown };
-    returnTo = safeAccountReturn(typeof stored.returnTo === 'string' ? stored.returnTo : null);
-  } catch { /* Backward-compatible with states minted by the previous release. */ }
+  const stored = parseOAuthState(seen);
+  const transaction = readCookie(request, OAUTH_TX_COOKIE);
+  if (!stored || !transaction || !timingSafeEqual(hashHex(transaction), stored.transactionHash)) {
+    return json(400, { code: 'BAD_STATE', error: 'state was not bound to this browser (possible login CSRF)' });
+  }
 
   // Exchange the authorization code for a user-to-server token.
   const tokRes = await fetch(GH_TOKEN, {
@@ -273,6 +311,7 @@ export async function handleGithubCallback(request: Request, env: Env): Promise<
       client_secret: env.GITHUB_OAUTH_CLIENT_SECRET,
       code,
       redirect_uri: redirectUri(env),
+      code_verifier: stored.codeVerifier,
     }),
   });
   if (!tokRes.ok) return json(502, { code: 'TOKEN_EXCHANGE_FAILED', error: 'GitHub token exchange failed' });
@@ -313,7 +352,7 @@ export async function handleGithubCallback(request: Request, env: Env): Promise<
   // Opaque session id; only its SHA-256 is stored. The gh token is sealed.
   const sessionValue = randomHex(32);
   const { enc, iv } = await sealToken(env, accessToken);
-  await createWebSession(env.DB, {
+  await replaceWebSession(env.DB, {
     tokenHash: hashHex(sessionValue),
     userId: user.id,
     ghTokenEnc: enc,
@@ -321,13 +360,16 @@ export async function handleGithubCallback(request: Request, env: Env): Promise<
     createdAt: now,
     expiresAt: now + SESSION_TTL_SECONDS,
     userAgent: request.headers.get('User-Agent'),
-  });
+  }, stored.priorSessionHash);
 
   // Return to the account surface that requested renewed GitHub authority.
-  const dest = (env.PUBLIC_BASE_URL ?? '').replace(/\/+$/, '') + returnTo;
+  const dest = (env.PUBLIC_BASE_URL ?? '').replace(/\/+$/, '') + stored.returnTo;
+  const responseHeaders = new Headers({ Location: dest });
+  responseHeaders.append('Set-Cookie', sessionSetCookie(sessionValue, SESSION_TTL_SECONDS));
+  responseHeaders.append('Set-Cookie', oauthTransactionSetCookie('', 0));
   return new Response(null, {
     status: 302,
-    headers: { Location: dest, 'Set-Cookie': sessionSetCookie(sessionValue, SESSION_TTL_SECONDS) },
+    headers: responseHeaders,
   });
 }
 
