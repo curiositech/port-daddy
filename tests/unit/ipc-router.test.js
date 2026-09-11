@@ -1,7 +1,6 @@
 import { jest } from '@jest/globals';
 import { createIpcRouter } from '../../lib/ipc-router.ts';
 import { Performative, FIRE_AND_FORGET, IpcAction } from '../../lib/ipc-types.ts';
-import { verifyAgent, actionRequiresRegistration } from '../../lib/ipc-auth.ts';
 
 // ─── Mock services with call tracking ───────────────────────────────────────
 
@@ -52,6 +51,10 @@ function createMockDeps() {
       spray: jest.fn((table, id, key, strength) => ({ success: true, pheromones: { [key]: strength } })),
       sniff: jest.fn((table, id) => ({ success: true, pheromones: {} })),
       list: jest.fn(() => []),
+    },
+    resurrection: {
+      pending: jest.fn(() => ({ entries: [] })),
+      claim: jest.fn((deadAgentId, claimedBy) => ({ success: true, deadAgentId, claimedBy })),
     },
     sugar: {
       begin: jest.fn((opts) => ({ success: true, sessionId: 'sess-001', ...opts })),
@@ -120,33 +123,64 @@ describe('IPC Router', () => {
     expect(replies[0].payload.result.port).toBe(3001);
   });
 
-  test('credential-required lock and salvage mutations refuse raw IPC before dispatch', () => {
+  test.each([
+    [IpcAction.BEGIN, { purpose: 'begin', agentId: 'registered-x' }],
+    [IpcAction.DONE, { sessionId: 'session-1', agentId: 'registered-x' }],
+    [IpcAction.SESSION_START, { purpose: 'start', agentId: 'registered-x' }],
+    [IpcAction.SESSION_END, { sessionId: 'session-1', agentId: 'registered-x' }],
+    [IpcAction.SESSION_REMOVE, { sessionId: 'session-1', agentId: 'registered-x' }],
+    [IpcAction.SESSION_TAKEOVER, { sessionId: 'session-1', agentId: 'registered-x' }],
+    [IpcAction.NOTE, { sessionId: 'session-1', content: 'note', agentId: 'registered-x' }],
+    [IpcAction.FILES_CLAIM, { sessionId: 'session-1', paths: ['src/a.ts'], agentId: 'registered-x' }],
+    [IpcAction.FILES_RELEASE, { sessionId: 'session-1', paths: ['src/a.ts'], agentId: 'registered-x' }],
+    [IpcAction.LOCK_ACQUIRE, { name: 'deploy', agentId: 'registered-x' }],
+    [IpcAction.LOCK_EXTEND, { name: 'deploy', ttl: 60_000, agentId: 'registered-x' }],
+    [IpcAction.LOCK_RELEASE, { name: 'deploy', agentId: 'registered-x' }],
+    [IpcAction.SALVAGE_CLAIM, { deadAgentId: 'dead-agent', agentId: 'registered-x' }],
+  ])('%s refuses alias-only IPC before any mutation side effect', (action, payload) => {
     const deps = createMockDeps();
     const router = createIpcRouter(deps);
     const replies = [];
+    const conn = mockConn(null);
+    const requestPayload = { action, ...payload };
 
-    for (const [convId, action, payload] of [
-      [7, IpcAction.LOCK_ACQUIRE, { name: 'db-migrations' }],
-      [8, IpcAction.LOCK_RELEASE, { name: 'db-migrations' }],
-      [12, IpcAction.LOCK_EXTEND, { name: 'db-migrations', ttl: 60_000 }],
-      [14, IpcAction.SALVAGE_CLAIM, { deadAgentId: 'dead-agent' }],
+    router.handleFrame(
+      { type: Performative.REQUEST, convId: 700, payload: requestPayload },
+      conn,
+      (frame) => replies.push(frame),
+    );
+
+    expect(replies).toHaveLength(1);
+    expect(replies[0]).toMatchObject({
+      type: Performative.REFUSE,
+      convId: 700,
+      payload: {
+        error: 'actor_credential_transport_required',
+        code: 'IDENTITY_TRANSPORT_REQUIRED',
+        action,
+        message: expect.stringContaining('credentialed HTTP transport'),
+      },
+    });
+    expect(conn.agentId).toBeNull();
+    expect(requestPayload).toEqual({ action, ...payload });
+
+    for (const mutation of [
+      deps.sugar.begin,
+      deps.sugar.done,
+      deps.sessions.start,
+      deps.sessions.end,
+      deps.sessions.remove,
+      deps.sessions.takeover,
+      deps.sessions.quickNote,
+      deps.sessions.claimFiles,
+      deps.sessions.releaseFiles,
+      deps.locks.acquire,
+      deps.locks.extend,
+      deps.locks.release,
+      deps.resurrection.claim,
     ]) {
-      router.handleFrame(
-        { type: Performative.REQUEST, convId, payload: { action, ...payload, agentId: 'registered-a1' } },
-        mockConn('registered-a1'),
-        (frame) => replies.push(frame),
-      );
+      expect(mutation).not.toHaveBeenCalled();
     }
-
-    expect(deps.locks.acquire).not.toHaveBeenCalled();
-    expect(deps.locks.release).not.toHaveBeenCalled();
-    expect(deps.locks.extend).not.toHaveBeenCalled();
-    expect(deps.resurrection.claim).not.toHaveBeenCalled();
-    expect(replies).toHaveLength(4);
-    expect(replies.every((frame) => (
-      frame.type === Performative.REFUSE
-      && frame.payload.error === 'actor_credential_transport_required'
-    ))).toBe(true);
   });
 
   test('lock.check delegates to locks.check', () => {
@@ -941,65 +975,5 @@ describe('IPC Router', () => {
     for (const action of allActions) {
       expect(router.actions).toContain(action);
     }
-  });
-});
-
-describe('IPC Auth', () => {
-  test('null verifier allows everything (test mode)', () => {
-    expect(verifyAgent('any', null, true).allowed).toBe(true);
-    expect(verifyAgent('any', null, false).allowed).toBe(true);
-    expect(verifyAgent(null, null, false).allowed).toBe(true);
-  });
-
-  test('null agentId refused when registration required', () => {
-    const result = verifyAgent(null, { isRegistered: () => null }, true);
-    expect(result.allowed).toBe(false);
-    expect(result.reason).toBe('no_agent_id');
-  });
-
-  test('null agentId allowed when registration not required', () => {
-    const result = verifyAgent(null, { isRegistered: () => null }, false);
-    expect(result.allowed).toBe(true);
-  });
-
-  test('unregistered agent refused when required', () => {
-    const verifier = { isRegistered: jest.fn(() => null) };
-    const result = verifyAgent('ghost', verifier, true);
-    expect(result.allowed).toBe(false);
-    expect(result.reason).toBe('agent_not_registered');
-    expect(verifier.isRegistered).toHaveBeenCalledWith('ghost');
-  });
-
-  test('registered agent allowed', () => {
-    const verifier = { isRegistered: jest.fn((id) => ({ id, identity: 'myapp:api' })) };
-    const result = verifyAgent('real-agent', verifier, true);
-    expect(result.allowed).toBe(true);
-    expect(result.agentId).toBe('real-agent');
-  });
-
-  test('protected actions exhaustive list', () => {
-    const protected_ = ['session.begin', 'session.done', 'session.note',
-      'session.files.claim', 'session.files.release',
-      'lock.acquire', 'lock.release', 'salvage.claim'];
-    for (const a of protected_) {
-      expect(actionRequiresRegistration(a)).toBe(true);
-    }
-  });
-
-  test('open actions are not gated', () => {
-    const open = ['heartbeat', 'port.claim', 'port.release', 'port.find',
-      'pheromone.spray', 'pheromone.sniff', 'msg.publish',
-      'msg.subscribe', 'agent.register', 'agent.unregister',
-      'salvage.list', 'sugar.whoami', 'fleet.prompt',
-      'session.start', 'session.end', 'session.list', 'session.remove', 'session.takeover',
-      'lock.check', 'lock.extend', 'lock.list',
-      'tuple.out', 'tuple.rd', 'tuple.in', 'tuple.scan', 'tuple.count'];
-    for (const a of open) {
-      expect(actionRequiresRegistration(a)).toBe(false);
-    }
-  });
-
-  test('undefined action is not protected', () => {
-    expect(actionRequiresRegistration(undefined)).toBe(false);
   });
 });

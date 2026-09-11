@@ -79,6 +79,60 @@ describe('agent-harbor event ledger', () => {
     });
   });
 
+  describe('operator recovery event ordering', () => {
+    it('allows the initial challenge to precede enrollment, then requires its event id', () => {
+      const challenge = fixture('operator-recovery-event');
+      delete challenge.deviceKeyId;
+      delete challenge.enrollmentEventId;
+      delete challenge.enrollmentActivationEventId;
+      expect(appendEvent(db, {
+        streamType: 'operator-recovery-event',
+        payload: challenge,
+      }).duplicate).toBe(false);
+
+      const approved = {
+        ...challenge,
+        eventId: 'operator-recovery:recovery-fixture:approved:02',
+        kind: 'approved',
+        predecessorEventIds: [challenge.eventId],
+      };
+      expect(() => appendEvent(db, {
+        streamType: 'operator-recovery-event',
+        payload: approved,
+      })).toThrow(/deviceKeyId, enrollmentEventId, enrollmentActivationEventId.*required after challenge-created/);
+
+      approved.deviceKeyId = 'se-p256:fixture-device-key';
+      approved.enrollmentEventId = 'operator-authority:enrollment-pinned:fixture';
+      approved.enrollmentActivationEventId = 'operator-authority:enrollment-activated:fixture';
+      expect(appendEvent(db, {
+        streamType: 'operator-recovery-event',
+        payload: approved,
+      }).duplicate).toBe(false);
+    });
+
+    it('rejects raw credential, signature, grant identifier, and nested body material before append', () => {
+      for (const forbidden of [
+        { credential: 'pdab1.actor.body.secret' },
+        { signatureDerBase64: 'MAA=' },
+        { macaroonIdentifier: 'operator-recovery-secret-jti' },
+        { nested: { grant: { identifier: 'raw-jti', signature: 'raw-signature' } } },
+      ]) {
+        const payload = {
+          ...fixture('operator-recovery-event'),
+          eventId: `operator-recovery:secret-refused:${Object.keys(forbidden)[0]}`,
+          ...forbidden,
+        };
+        expect(() => appendEvent(db, {
+          streamType: 'operator-recovery-event',
+          payload,
+        })).toThrow(/credential material|forbidden field/);
+      }
+      expect(db.prepare(`
+        SELECT COUNT(*) AS n FROM harbor_events WHERE stream_type = 'operator-recovery-event'
+      `).get()).toEqual({ n: 0 });
+    });
+  });
+
   describe('append-only enforcement', () => {
     it('rejects UPDATE and DELETE on persisted events', () => {
       appendEvent(db, { streamType: 'transcript-event', payload: transcriptFixture() });

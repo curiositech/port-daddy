@@ -4,23 +4,38 @@
  * Proves the three keystone properties:
  *   (a) a minted id verifies against its credential;
  *   (b) a self-asserted / forged / mismatched credential is REJECTED (never mints);
- *   (c) the exhaustive register() outcome table + fail-mode semantics hold;
- *   plus the grandfather migration maps existing ids forward losslessly.
+ *   (c) the exhaustive register() outcome table + fail-mode semantics hold.
  */
 
-import { mkdtempSync, rmSync, existsSync, readFileSync } from 'node:fs';
-import { tmpdir as _osTmp } from 'node:os';
-import { homedir } from 'node:os';
+import { createHash } from 'node:crypto';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { createTestDb } from '../setup-unit.js';
-import { createActorSouls } from '../../lib/actor-souls.js';
-import { migrateActorSouls } from '../../scripts/migrate-actor-souls.js';
+import {
+  createActorSouls,
+  LegacyActorCredentialRetirementError,
+  MAX_ACTIVE_BODY_CREDENTIALS,
+  retireLegacyActorCredentialFiles,
+} from '../../lib/actor-souls.js';
 
-// CLAUDE.md hard rule: never scratch to /tmp. Use ~/coding/tmp.
-function scratchDir(prefix) {
-  const base = join(homedir(), 'coding', 'tmp');
-  try { require('node:fs').mkdirSync(base, { recursive: true }); } catch { /* ok */ }
-  return mkdtempSync(join(base, prefix));
+function createLegacyActorSoulsTable(db) {
+  db.prepare(`
+    CREATE TABLE actor_souls (
+      actor_id TEXT NOT NULL, harbor TEXT NOT NULL,
+      credential_hash TEXT, credential_salt TEXT,
+      credential_kind TEXT NOT NULL, display_alias TEXT,
+      clean_exits INTEGER NOT NULL, operator_trusted INTEGER NOT NULL,
+      created_at INTEGER NOT NULL, last_seen_at INTEGER NOT NULL,
+      PRIMARY KEY (harbor, actor_id)
+    )
+  `).run();
 }
 
 describe('actor-souls: mint + verify (property a)', () => {
@@ -31,7 +46,7 @@ describe('actor-souls: mint + verify (property a)', () => {
   test('a minted credential verifies back to the same actor_id', () => {
     const { actorId, credential } = souls.mint({ alias: 'proj:stack:ctx' });
     expect(actorId).toMatch(/^[0-9A-HJKMNP-TV-Z]{26}$/); // ULID (Crockford base32)
-    expect(credential.startsWith(`${actorId}.`)).toBe(true);
+    expect(credential.startsWith(`pdab1.${actorId}.`)).toBe(true);
 
     const verified = souls.verifyCredential(credential);
     expect(verified).toBe(actorId);
@@ -104,16 +119,11 @@ describe('actor-souls: register() outcome table (property c)', () => {
     expect(second.soulClass).toBe('newcomer');
   });
 
-  test('valid operatorToken ⇒ mints operator-trusted, skipping the newcomer pool', () => {
+  test('a legacy operatorToken has no authority and mints only a metered newcomer', () => {
     const out = souls.register({ operatorToken: 'operator-shibboleth', alias: 'proj:stack:op' });
     expect(out.ok && out.status).toBe('minted');
-    expect(out.soulClass).toBe('operator');
-    expect(souls.classify(out.actorId)).toBe('operator');
-  });
-
-  test('a wrong operatorToken falls through to a plain newcomer (advisory-above-floor)', () => {
-    const out = souls.register({ operatorToken: 'wrong', alias: 'proj:stack:notop' });
-    expect(out.ok && out.soulClass).toBe('newcomer');
+    expect(out.soulClass).toBe('newcomer');
+    expect(souls.classify(out.actorId)).toBe('newcomer');
   });
 
   test('more than 25 project and projectless newcomers mint unique credentials without changing the legacy counter', () => {
@@ -169,13 +179,11 @@ describe('actor-souls: register() outcome table (property c)', () => {
     expect(souls.resolveActor('coxswain').soulClass).toBe('unknown');
   });
 
-  test('an operator-token register MAY bind a reserved alias (the only legit provisioning path)', () => {
-    const out = souls.register({ operatorToken: 'operator-shibboleth', alias: 'system' });
-    expect(out.ok).toBe(true);
-    expect(out.soulClass).toBe('operator');
-    expect(souls.resolveActor('system').actorId).toBe(out.actorId);
-    // …and that operator soul may re-present its credential to keep the alias.
-    const again = souls.register({ credential: out.credential, alias: 'system' });
+  test('a daemon-provisioned operator soul MAY own and retain a reserved alias', () => {
+    const operator = souls.mint({ operatorTrusted: true, credentialKind: 'operator', alias: 'system' });
+    expect(souls.classify(operator.actorId)).toBe('operator');
+    expect(souls.resolveActor('system').actorId).toBe(operator.actorId);
+    const again = souls.register({ credential: operator.credential, alias: 'system' });
     expect(again.ok).toBe(true);
     expect(again.status).toBe('resolved');
   });
@@ -184,7 +192,297 @@ describe('actor-souls: register() outcome table (property c)', () => {
     expect(souls.register({ alias: 'proj:node:dev' }).ok).toBe(true);
     const cred = souls.register({ alias: 'proj:node:other' });
     expect(souls.register({ credential: cred.credential, alias: 'proj:node:renamed' }).ok).toBe(true);
-    expect(souls.register({ operatorToken: 'operator-shibboleth', alias: 'proj:node:op' }).ok).toBe(true);
+  });
+});
+
+describe('actor-souls: durable actor + disposable body credentials', () => {
+  let db;
+  let clock;
+  let souls;
+  let actor;
+  const sessionScope = (overrides = {}) => ({
+    intendedAgentId: 'port-daddy:test:body',
+    successorSessionId: 'session-successor-1',
+    project: 'port-daddy',
+    canonicalWorktree: '/Users/example/coding/tmp/body-worktree',
+    branch: 'codex/body-work',
+    recoveryId: 'recovery-1',
+    contextSlot: 'slot-a',
+    issuedDaemonGeneration: 'daemon-before-restart',
+    ...overrides,
+  });
+  const useContext = (overrides = {}) => ({
+    action: 'session.note.write',
+    resource: {
+      sessionId: 'session-successor-1',
+      intendedAgentId: 'port-daddy:test:body',
+      project: 'port-daddy',
+      canonicalWorktree: '/Users/example/coding/tmp/body-worktree',
+      branch: 'codex/body-work',
+      status: 'active',
+      ...(overrides.resource ?? {}),
+    },
+    ...Object.fromEntries(Object.entries(overrides).filter(([key]) => key !== 'resource')),
+  });
+
+  beforeEach(() => {
+    db = createTestDb();
+    clock = 1_800_000_000_000;
+    souls = createActorSouls(db, { now: () => clock });
+    actor = souls.mint({ alias: 'port-daddy:test:body' });
+  });
+  afterEach(() => db.close());
+
+  test('two simultaneous bodies authenticate as one durable actor and survive store reconstruction', () => {
+    const first = souls.issueBodyCredential({
+      actorId: actor.actorId,
+      profile: 'session-body-v1',
+      scope: sessionScope(),
+      expiresAt: clock + 60_000,
+    });
+    const second = souls.issueBodyCredential({
+      actorId: actor.actorId,
+      profile: 'session-body-v1',
+      scope: sessionScope({ successorSessionId: 'session-successor-2' }),
+      expiresAt: clock + 60_000,
+    });
+
+    expect(first.bodyCredentialId).not.toBe(second.bodyCredentialId);
+    expect(souls.verifyCredentialUse(first.credential, { context: useContext() }))
+      .toEqual(expect.objectContaining({ ok: true, actorId: actor.actorId }));
+    expect(souls.verifyCredentialUse(second.credential, {
+      context: useContext({ resource: { sessionId: 'session-successor-2' } }),
+    })).toEqual(expect.objectContaining({ ok: true, actorId: actor.actorId }));
+
+    const afterRestart = createActorSouls(db, { now: () => clock });
+    expect(afterRestart.verifyCredential(actor.credential)).toBe(actor.actorId);
+    expect(afterRestart.verifyCredentialUse(first.credential, { context: useContext() }))
+      .toEqual(expect.objectContaining({ ok: true, actorId: actor.actorId }));
+  });
+
+  test('session body requires an allowed action, exact five resource coordinates, and active status', () => {
+    const body = souls.issueBodyCredential({
+      actorId: actor.actorId,
+      profile: 'session-body-v1',
+      scope: sessionScope(),
+      expiresAt: clock + 60_000,
+    });
+    expect(souls.verifyCredential(body.credential)).toBeNull();
+    expect(souls.verifyCredentialUse(body.credential)).toEqual({
+      ok: false,
+      code: 'CREDENTIAL_SCOPE_MISMATCH',
+    });
+    for (const resource of [
+      { sessionId: 'other' },
+      { intendedAgentId: 'other' },
+      { project: 'other' },
+      { canonicalWorktree: '/other' },
+      { branch: 'other' },
+      { status: 'completed' },
+    ]) {
+      expect(souls.verifyCredentialUse(body.credential, { context: useContext({ resource }) }))
+        .toEqual({ ok: false, code: 'CREDENTIAL_SCOPE_MISMATCH' });
+    }
+    expect(souls.verifyCredentialUse(body.credential, {
+      context: useContext({ action: 'locks.acquire' }),
+    })).toEqual({ ok: false, code: 'CREDENTIAL_SCOPE_MISMATCH' });
+  });
+
+  test('expiry is exact: valid one millisecond before, expired at now >= expiresAt', () => {
+    const expiresAt = clock + 10;
+    const body = souls.issueBodyCredential({
+      actorId: actor.actorId,
+      profile: 'session-body-v1',
+      scope: sessionScope(),
+      expiresAt,
+    });
+    clock = expiresAt - 1;
+    expect(souls.verifyCredentialUse(body.credential, { context: useContext() }).ok).toBe(true);
+    clock = expiresAt;
+    expect(souls.verifyCredentialUse(body.credential, { context: useContext() }))
+      .toEqual({ ok: false, code: 'CREDENTIAL_EXPIRED' });
+  });
+
+  test('revocation is exact, idempotent, and participates in an existing transaction', () => {
+    let rolledBack;
+    expect(() => db.transaction(() => {
+      rolledBack = souls.issueBodyCredential({
+        actorId: actor.actorId,
+        profile: 'session-body-v1',
+        scope: sessionScope(),
+        expiresAt: clock + 60_000,
+      });
+      throw new Error('rollback');
+    })()).toThrow('rollback');
+    expect(souls.verifyCredentialUse(rolledBack.credential, { context: useContext() }))
+      .toEqual({ ok: false, code: 'CREDENTIAL_INVALID' });
+
+    const body = souls.issueBodyCredential({
+      actorId: actor.actorId,
+      profile: 'session-body-v1',
+      scope: sessionScope(),
+      expiresAt: clock + 60_000,
+    });
+    db.transaction(() => {
+      expect(souls.revokeBodyCredential({
+        actorId: actor.actorId,
+        bodyCredentialId: body.bodyCredentialId,
+      })).toBe(true);
+    })();
+    expect(souls.verifyCredentialUse(body.credential, { context: useContext() }))
+      .toEqual({ ok: false, code: 'CREDENTIAL_REVOKED' });
+    expect(souls.revokeBodyCredential({
+      actorId: actor.actorId,
+      bodyCredentialId: body.bodyCredentialId,
+    })).toBe(false);
+  });
+
+  test('the 16-body cap counts only roots and bodies for live successor sessions', () => {
+    const bodies = [];
+    const addSession = (id, status = 'active') => db.prepare(`
+      INSERT INTO sessions (
+        id, purpose, status, phase, agent_id, worktree_id, identity_project,
+        created_at, updated_at, completed_at, metadata
+      ) VALUES (?, 'body-cap-test', ?, ?, 'body-agent', NULL, 'port-daddy', ?, ?, ?, '{}')
+    `).run(
+      id,
+      status,
+      status === 'active' ? 'in_progress' : status,
+      clock,
+      clock,
+      status === 'active' ? null : clock,
+    );
+    // mint() already issued the actor-root, leaving 15 active slots.
+    for (let i = 1; i < MAX_ACTIVE_BODY_CREDENTIALS; i++) {
+      addSession(`session-successor-${i}`);
+      bodies.push(souls.issueBodyCredential({
+        actorId: actor.actorId,
+        profile: 'session-body-v1',
+        scope: sessionScope({ successorSessionId: `session-successor-${i}` }),
+        expiresAt: clock + 60_000,
+      }));
+    }
+    addSession('overflow');
+    expect(() => souls.issueBodyCredential({
+      actorId: actor.actorId,
+      profile: 'session-body-v1',
+      scope: sessionScope({ successorSessionId: 'overflow' }),
+      expiresAt: clock + 60_000,
+    })).toThrow(expect.objectContaining({ code: 'BODY_CREDENTIAL_LIMIT' }));
+
+    db.prepare(`
+      UPDATE sessions
+      SET status = 'completed', phase = 'completed', completed_at = ?, updated_at = ?
+      WHERE id = 'session-successor-1'
+    `).run(clock, clock);
+    expect(souls.issueBodyCredential({
+      actorId: actor.actorId,
+      profile: 'session-body-v1',
+      scope: sessionScope({ successorSessionId: 'overflow' }),
+      expiresAt: clock + 60_000,
+    }).actorId).toBe(actor.actorId);
+    expect(souls.verifyCredentialUse(bodies[0].credential, {
+      context: useContext({ resource: { status: 'completed' } }),
+    })).toEqual({ ok: false, code: 'CREDENTIAL_SCOPE_MISMATCH' });
+  });
+
+  test('actor-root remains unrestricted but is verified only from the body table', () => {
+    expect(souls.verifyCredentialUse(actor.credential, {
+      context: useContext({ action: 'locks.acquire', resource: { status: 'completed' } }),
+    })).toEqual(expect.objectContaining({
+      ok: true,
+      actorId: actor.actorId,
+      profile: 'actor-root',
+      intendedAgentId: null,
+    }));
+    const soulAuthority = db.prepare(
+      'SELECT credential_hash, credential_salt FROM actor_souls WHERE actor_id = ?',
+    ).get(actor.actorId);
+    expect(soulAuthority).toEqual({ credential_hash: null, credential_salt: null });
+  });
+});
+
+describe('actor-souls: legacy root authority retirement', () => {
+  test('deletes both historical selectors and rejects the old plaintext token', () => {
+    const db = createTestDb();
+    const salt = 'legacy-salt';
+    const secret = 'legacy-secret';
+    const hash = createHash('sha256').update(salt).update('|').update(secret).digest('hex');
+    createLegacyActorSoulsTable(db);
+    db.prepare(`
+      INSERT INTO actor_souls VALUES (?, 'local', ?, ?, 'migrated', ?, 3, 1, 10, 10)
+    `).run('legacy-actor', hash, salt, 'legacy-actor');
+
+    const souls = createActorSouls(db, { now: () => 20 });
+    expect(souls.verifyCredential(`legacy-actor.${secret}`)).toBeNull();
+    expect(db.prepare(
+      'SELECT credential_hash, credential_salt FROM actor_souls WHERE actor_id = ?',
+    ).get('legacy-actor')).toEqual({ credential_hash: null, credential_salt: null });
+    expect(db.prepare(
+      'SELECT COUNT(*) AS count FROM actor_body_credentials WHERE actor_id = ?',
+    ).get('legacy-actor').count).toBe(0);
+
+    expect(db.prepare(`
+      INSERT INTO actor_body_credentials
+        (harbor, actor_id, body_credential_id, credential_hash, credential_salt,
+         profile, issued_at, expires_at, revoked_at)
+      VALUES ('local', ?, 'legacy-root', ?, ?, 'actor-root', 10, NULL, NULL)
+    `).run('legacy-actor', hash, salt).changes).toBe(1);
+    createActorSouls(db, { now: () => 30 });
+    expect(db.prepare(
+      'SELECT COUNT(*) AS count FROM actor_body_credentials WHERE actor_id = ?',
+    ).get('legacy-actor').count).toBe(0);
+    db.close();
+  });
+
+  test('removes only owner-controlled legacy credential leaves from the exact state root', () => {
+    mkdirSync(join(process.cwd(), '.scratch'), { recursive: true });
+    const scratch = mkdtempSync(join(process.cwd(), '.scratch', 'legacy-actor-creds-'));
+    try {
+      const selectedRoot = join(scratch, 'selected');
+      const otherRoot = join(scratch, 'other');
+      const selectedDirectory = join(selectedRoot, 'actor-credentials');
+      const otherDirectory = join(otherRoot, 'actor-credentials');
+      mkdirSync(selectedDirectory, { recursive: true });
+      mkdirSync(otherDirectory, { recursive: true });
+      writeFileSync(join(selectedDirectory, 'actor-a.cred'), 'retired-a', { mode: 0o600 });
+      writeFileSync(join(selectedDirectory, 'actor-b.cred'), 'retired-b', { mode: 0o600 });
+      writeFileSync(join(otherDirectory, 'actor-c.cred'), 'must-remain', { mode: 0o600 });
+
+      expect(retireLegacyActorCredentialFiles(selectedRoot)).toEqual({
+        directory: selectedDirectory,
+        removedFiles: 2,
+        directoryRemoved: true,
+      });
+      expect(existsSync(selectedDirectory)).toBe(false);
+      expect(existsSync(join(otherDirectory, 'actor-c.cred'))).toBe(true);
+      expect(retireLegacyActorCredentialFiles(selectedRoot)).toEqual({
+        directory: selectedDirectory,
+        removedFiles: 0,
+        directoryRemoved: false,
+      });
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
+  });
+
+  test('refuses a symlinked legacy credential directory without touching its target', () => {
+    mkdirSync(join(process.cwd(), '.scratch'), { recursive: true });
+    const scratch = mkdtempSync(join(process.cwd(), '.scratch', 'legacy-actor-creds-link-'));
+    try {
+      const selectedRoot = join(scratch, 'selected');
+      const target = join(scratch, 'target');
+      mkdirSync(selectedRoot, { recursive: true });
+      mkdirSync(target, { recursive: true });
+      writeFileSync(join(target, 'actor.cred'), 'must-remain', { mode: 0o600 });
+      symlinkSync(target, join(selectedRoot, 'actor-credentials'));
+
+      expect(() => retireLegacyActorCredentialFiles(selectedRoot))
+        .toThrow(LegacyActorCredentialRetirementError);
+      expect(existsSync(join(target, 'actor.cred'))).toBe(true);
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
   });
 });
 
@@ -201,61 +499,5 @@ describe('actor-souls: graduation on clean exits', () => {
     expect(souls.classify(actorId)).toBe('newcomer'); // 2 < 3
     souls.recordCleanExit(actorId);
     expect(souls.classify(actorId)).toBe('graduated'); // 3 >= 3
-  });
-});
-
-describe('actor-souls: grandfather migration (§7, lossless + idempotent)', () => {
-  let db, credDir;
-  beforeEach(() => {
-    db = createTestDb();
-    // Seed historical self-asserted principals across ledger/escrow/agents.
-    db.prepare(`CREATE TABLE IF NOT EXISTS budget_ledger (
-      project TEXT, agent_id TEXT, day TEXT, spend_usd REAL, kill_armed_at INTEGER,
-      PRIMARY KEY (project, agent_id, day))`).run();
-    db.prepare(`INSERT INTO budget_ledger VALUES ('p','legacy-qa','2026-07-15',0.5,NULL)`).run();
-    db.prepare(`CREATE TABLE IF NOT EXISTS bond_escrow (
-      id TEXT, project TEXT, agent_id TEXT, archetype TEXT, bond_usd REAL, state TEXT, escrowed_at INTEGER)`).run();
-    db.prepare(`INSERT INTO bond_escrow VALUES ('b1','p','legacy-spider','x',0.1,'refunded',1)`).run();
-    // agents table already exists in setup-unit schema (registered_at/last_heartbeat,
-    // not created_at/last_seen — current main's agents schema).
-    db.prepare(`INSERT INTO agents (id, registered_at, last_heartbeat) VALUES ('legacy-gardener', 1, 1)`).run();
-    credDir = scratchDir('actor-souls-mig-');
-  });
-  afterEach(() => { db.close(); rmSync(credDir, { recursive: true, force: true }); });
-
-  test('dry-run reports principals but writes nothing', () => {
-    const res = migrateActorSouls(db, { apply: false, credentialsDir: credDir });
-    expect(res.scanned).toBe(3);
-    const souls = createActorSouls(db);
-    expect(souls.getSoul('legacy-qa')).toBeNull(); // nothing minted in dry-run
-  });
-
-  test('apply mints identity-mapped, credentialed, operator-trusted souls (no ledger rewrite)', () => {
-    const res = migrateActorSouls(db, { apply: true, credentialsDir: credDir });
-    expect(res.minted).toBe(3);
-
-    const souls = createActorSouls(db);
-    for (const id of ['legacy-qa', 'legacy-spider', 'legacy-gardener']) {
-      const soul = souls.getSoul(id);
-      expect(soul).not.toBeNull();
-      expect(soul.actorId).toBe(id);          // identity mapping — PK unchanged
-      expect(soul.credentialKind).toBe('migrated');
-      expect(soul.operatorTrusted).toBe(true); // trusted-by-history, not throttled
-      // A real credential file was delivered 0600 and re-authenticates the id.
-      const credPath = join(credDir, `${encodeURIComponent(id)}.cred`);
-      expect(existsSync(credPath)).toBe(true);
-      const cred = readFileSync(credPath, 'utf8');
-      expect(souls.verifyCredential(cred)).toBe(id);
-    }
-    // Ledger row untouched (lossless).
-    const row = db.prepare(`SELECT spend_usd FROM budget_ledger WHERE agent_id='legacy-qa'`).get();
-    expect(row.spend_usd).toBe(0.5);
-  });
-
-  test('re-running apply is idempotent (skips existing souls)', () => {
-    migrateActorSouls(db, { apply: true, credentialsDir: credDir });
-    const second = migrateActorSouls(db, { apply: true, credentialsDir: credDir });
-    expect(second.minted).toBe(0);
-    expect(second.skipped).toBe(3);
   });
 });

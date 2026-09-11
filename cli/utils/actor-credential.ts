@@ -28,7 +28,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
-import { getContextDir, resolveCurrentContext, resolveContextSlot } from './current-context.js';
+import { getContextDir, resolveCurrentContext, resolveContextSlot, type CurrentContext } from './current-context.js';
 
 interface StoredCliActor {
   agentId?: string | null;
@@ -95,10 +95,12 @@ function readStoredCliActor(): StoredCliActor | null {
 /**
  * Resolve the actor credential this CLI invocation should present.
  *
- * Precedence: explicit env (PD_ACTOR_CREDENTIAL, then
- * PORT_DADDY_ACTOR_CREDENTIAL), then the context-file credential — but the
- * context credential is returned ONLY when `expectedAgentId` is absent or
- * matches the context's agentId. Why: presenting soul A's credential while
+ * Precedence: a live operator-recovered exact-slot body, explicit env
+ * (PD_ACTOR_CREDENTIAL, then PORT_DADDY_ACTOR_CREDENTIAL), then an ordinary
+ * context-file credential. The recovered body comes first because inherited
+ * predecessor env cannot be rewritten by a daemon after restart. A context
+ * credential is returned ONLY when `expectedAgentId` is absent or matches
+ * the context's agentId. Why: presenting soul A's credential while
  * asserting agent B's name is exactly the laundering the daemon rejects
  * (403 IDENTITY_ALIAS_MISMATCH); withholding the mismatched credential
  * yields the clearer 401 IDENTITY_CREDENTIAL_REQUIRED instead.
@@ -115,6 +117,30 @@ function readStoredCliActor(): StoredCliActor | null {
  *          reject attributed writes 401 — fail-closed by design).
  */
 export function resolveCliActorCredential(expectedAgentId?: string): string | undefined {
+  // Resolve the context ONCE, through main's provenance-aware resolver: a
+  // disagreement between the environment and the stored slot must fail closed
+  // here rather than silently pick one. The recovered-body check below then
+  // reads that same resolution, so both credential precedences agree on which
+  // context they are talking about.
+  let context: CurrentContext | null = null;
+  try {
+    const resolution = resolveCurrentContext();
+    context = resolution.success ? resolution.context : null;
+    if (
+      context
+      && typeof context.recoveryId === 'string'
+      && context.recoveryId.length > 0
+      && typeof context.credentialExpiresAt === 'number'
+      && context.credentialExpiresAt > Date.now()
+      && typeof context.credential === 'string'
+      && context.credential.trim()
+      && (!expectedAgentId || context.agentId === expectedAgentId)
+    ) {
+      return context.credential.trim();
+    }
+  } catch {
+    // Fall through to explicit env and ordinary context lookup.
+  }
   const envCredential = process.env.PD_ACTOR_CREDENTIAL?.trim()
     || process.env.PORT_DADDY_ACTOR_CREDENTIAL?.trim();
   const pairedEnvAgentId = process.env.PD_AGENT_ID?.trim();
@@ -122,10 +148,9 @@ export function resolveCliActorCredential(expectedAgentId?: string): string | un
     return envCredential;
   }
   try {
-    const resolution = resolveCurrentContext();
-    const context = resolution.success ? resolution.context : null;
     if (
       context &&
+      !(typeof context.recoveryId === 'string' && context.recoveryId.length > 0) &&
       typeof context.credential === 'string' &&
       context.credential.trim() &&
       (!expectedAgentId || context.agentId === expectedAgentId)

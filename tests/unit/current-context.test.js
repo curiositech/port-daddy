@@ -1,17 +1,37 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import { chmodSync, existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  fstatSync,
+  linkSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   clearCurrentContext,
   getContextDir,
   getContextPathForSlot,
+  getContextStoreDir,
   getLegacyContextPath,
   readCurrentContext,
+  readCurrentContextForExactSlot,
+  removeCurrentContextForExactSlot,
   resolveCurrentContext,
   resolveContextSlot,
   writeCurrentContext,
+  writeCurrentContextForExactSlot,
 } from '../../cli/utils/current-context.js';
+import {
+  __setContextSlotLockKernelForTests,
+  acquireContextSlotLock,
+} from '../../lib/context-slot-lock.js';
 
 // Every env var resolveContextSlot() consults, so tests get a clean slate
 // regardless of which agent harness (if any) is actually running them —
@@ -35,10 +55,25 @@ const CONTEXT_ENV_VARS = [
 describe('current-context helper', () => {
   let projectDir;
   let originalEnv;
+  let heldLockInodes;
 
   beforeEach(() => {
     projectDir = mkdtempSync(join(tmpdir(), 'pd-current-context-'));
     originalEnv = {};
+    heldLockInodes = new Set();
+    __setContextSlotLockKernelForTests({
+      tryLock(descriptor) {
+        const stat = fstatSync(descriptor);
+        const key = `${stat.dev}:${stat.ino}`;
+        if (heldLockInodes.has(key)) return 'busy';
+        heldLockInodes.add(key);
+        return 'acquired';
+      },
+      unlock(descriptor) {
+        const stat = fstatSync(descriptor);
+        return heldLockInodes.delete(`${stat.dev}:${stat.ino}`);
+      },
+    });
     for (const name of CONTEXT_ENV_VARS) {
       originalEnv[name] = process.env[name];
       delete process.env[name];
@@ -46,10 +81,12 @@ describe('current-context helper', () => {
   });
 
   afterEach(() => {
+    __setContextSlotLockKernelForTests(null);
     for (const name of CONTEXT_ENV_VARS) {
       if (originalEnv[name] === undefined) delete process.env[name];
       else process.env[name] = originalEnv[name];
     }
+    rmSync(projectDir, { recursive: true, force: true });
   });
 
   it('isolates context by slot while keeping a legacy pointer', () => {
@@ -285,6 +322,214 @@ describe('current-context helper', () => {
     expect(existsSync(getLegacyContextPath(projectDir))).toBe(true);
     expect(existsSync(join(projectDir, '.portdaddy', 'current.json'))).toBe(false);
     expect(readCurrentContext(projectDir)?.sessionId).toBe('session-a');
+  });
+
+  it('publishes credential-bearing context files atomically with owner-only permissions', () => {
+    process.env.PORT_DADDY_CONTEXT_SLOT = 'credential-body';
+    const written = writeCurrentContext({
+      agentId: 'agent-secure',
+      sessionId: 'session-secure',
+      credential: 'pdab1.actor.body.secret',
+    }, projectDir);
+    const slotPath = getContextPathForSlot(written.contextSlot, projectDir);
+    const legacyPath = getLegacyContextPath(projectDir);
+
+    expect(statSync(slotPath).mode & 0o777).toBe(0o600);
+    expect(statSync(legacyPath).mode & 0o777).toBe(0o600);
+    expect(readCurrentContext(projectDir)?.credential).toBe('pdab1.actor.body.secret');
+  });
+
+  it('tightens a pre-existing permissive context inode on rewrite', () => {
+    process.env.PORT_DADDY_CONTEXT_SLOT = 'permission-repair';
+    const written = writeCurrentContext({
+      agentId: 'agent-before',
+      sessionId: 'session-before',
+      credential: 'first-secret',
+    }, projectDir);
+    const slotPath = getContextPathForSlot(written.contextSlot, projectDir);
+    chmodSync(slotPath, 0o644);
+
+    writeCurrentContext({
+      agentId: 'agent-after',
+      sessionId: 'session-after',
+      credential: 'replacement-secret',
+    }, projectDir);
+
+    expect(statSync(slotPath).mode & 0o777).toBe(0o600);
+    expect(readCurrentContext(projectDir)?.credential).toBe('replacement-secret');
+  });
+
+  it('refuses an ordinary writer while operator recovery holds the exact kernel lease', () => {
+    process.env.PORT_DADDY_CONTEXT_SLOT = 'locked-recovery-slot';
+    const original = writeCurrentContext({
+      agentId: 'agent-before-lock',
+      sessionId: 'session-before-lock',
+      credential: 'pdab1.actor.body.before-lock',
+    }, projectDir);
+    const slotPath = getContextPathForSlot(original.contextSlot, projectDir);
+    const lockPath = join(
+      getContextStoreDir(projectDir),
+      `.${original.contextSlot}.operator-recovery.lock`,
+    );
+    const recoveryLease = acquireContextSlotLock(lockPath, {
+      schema: 'pd.operator-recovery-context-lock.v1',
+      recoveryId: 'recovery-live-lock',
+      daemonGeneration: 'daemon-red-round-three',
+    });
+    try {
+      expect(() => writeCurrentContext({
+        agentId: 'agent-must-not-overwrite',
+        sessionId: 'session-must-not-overwrite',
+        credential: 'pdab1.actor.body.must-not-overwrite',
+      }, projectDir)).toThrow(expect.objectContaining({ code: 'CONTEXT_SLOT_BUSY' }));
+      expect(JSON.parse(readFileSync(slotPath, 'utf8'))).toMatchObject({
+        agentId: 'agent-before-lock',
+        sessionId: 'session-before-lock',
+        credential: 'pdab1.actor.body.before-lock',
+      });
+    } finally {
+      recoveryLease.release();
+    }
+  });
+
+  it('reuses the persistent lock inode after the prior kernel lease is released', () => {
+    process.env.PORT_DADDY_CONTEXT_SLOT = 'dead-recovery-slot';
+    const original = writeCurrentContext({
+      agentId: 'agent-before-dead-lock',
+      sessionId: 'session-before-dead-lock',
+    }, projectDir);
+    const lockPath = join(
+      getContextStoreDir(projectDir),
+      `.${original.contextSlot}.operator-recovery.lock`,
+    );
+    const priorLease = acquireContextSlotLock(lockPath, {
+      schema: 'pd.operator-recovery-context-lock.v1',
+      recoveryId: 'recovery-dead-lock',
+      daemonGeneration: 'daemon-red-round-three',
+    });
+    priorLease.release();
+
+    writeCurrentContext({
+      agentId: 'agent-after-dead-lock',
+      sessionId: 'session-after-dead-lock',
+    }, projectDir);
+    expect(readCurrentContext(projectDir)).toMatchObject({
+      agentId: 'agent-after-dead-lock',
+      sessionId: 'session-after-dead-lock',
+    });
+    expect(existsSync(lockPath)).toBe(true);
+    expect(JSON.parse(readFileSync(lockPath, 'utf8'))).toMatchObject({
+      writer: 'cli-current-context',
+      lease: 'pd-anchor-flock-v1',
+    });
+  });
+
+  it('fails closed when the required kernel lease is unavailable', () => {
+    __setContextSlotLockKernelForTests({
+      tryLock: () => 'unavailable',
+      unlock: () => false,
+    });
+    process.env.PORT_DADDY_CONTEXT_SLOT = 'kernel-unavailable';
+    expect(() => writeCurrentContext({
+      agentId: 'agent-refused',
+      sessionId: 'session-refused',
+    }, projectDir)).toThrow(expect.objectContaining({ code: 'CONTEXT_SLOT_LOCK_UNSAFE' }));
+  });
+
+  it('installs and removes one exact recovery slot without widening to legacy or siblings', () => {
+    process.env.PORT_DADDY_CONTEXT_SLOT = 'ordinary-sibling';
+    writeCurrentContext({
+      agentId: 'agent-ordinary',
+      sessionId: 'session-ordinary',
+      credential: 'pdab1.actor.body.ordinary',
+    }, projectDir);
+    const legacyBefore = readFileSync(getLegacyContextPath(projectDir), 'utf8');
+
+    const recovered = writeCurrentContextForExactSlot({
+      agentId: 'agent-recovered',
+      sessionId: 'session-recovered',
+      credential: 'pdab1.actor.body.recovered',
+    }, 'recovery-only', projectDir);
+    expect(recovered.contextSlot).toBe('recovery-only');
+    expect(readCurrentContextForExactSlot('recovery-only', projectDir)).toMatchObject({
+      agentId: 'agent-recovered',
+      sessionId: 'session-recovered',
+      credential: 'pdab1.actor.body.recovered',
+    });
+    expect(statSync(getContextPathForSlot('recovery-only', projectDir)).mode & 0o777).toBe(0o600);
+    expect(readFileSync(getLegacyContextPath(projectDir), 'utf8')).toBe(legacyBefore);
+
+    expect(() => writeCurrentContextForExactSlot({
+      agentId: 'agent-mismatch',
+      sessionId: 'session-mismatch',
+      contextSlot: 'different-slot',
+    }, 'recovery-only', projectDir)).toThrow('context contextSlot does not match');
+
+    removeCurrentContextForExactSlot('recovery-only', projectDir);
+    expect(readCurrentContextForExactSlot('recovery-only', projectDir)).toBeNull();
+    expect(readCurrentContextForExactSlot('ordinary-sibling', projectDir)).toMatchObject({
+      sessionId: 'session-ordinary',
+    });
+    expect(readFileSync(getLegacyContextPath(projectDir), 'utf8')).toBe(legacyBefore);
+  });
+
+  it('never promotes exact recovery custody into legacy when an ordinary sibling is cleared', () => {
+    process.env.PORT_DADDY_CONTEXT_SLOT = 'ordinary-sibling';
+    writeCurrentContext({
+      agentId: 'agent-ordinary',
+      sessionId: 'session-ordinary',
+      credential: 'pdab1.actor.root.ordinary',
+    }, projectDir);
+
+    writeCurrentContextForExactSlot({
+      agentId: 'agent-recovered',
+      sessionId: 'session-recovered',
+      recoveryId: 'recovery-exact-custody',
+      credentialExpiresAt: Date.now() + 60_000,
+      credential: 'pdab1.actor.recovered.secret',
+    }, 'recovery-only', projectDir);
+
+    clearCurrentContext(projectDir);
+
+    expect(existsSync(getLegacyContextPath(projectDir))).toBe(false);
+    expect(readCurrentContextForExactSlot('recovery-only', projectDir)).toMatchObject({
+      sessionId: 'session-recovered',
+      recoveryId: 'recovery-exact-custody',
+      credential: 'pdab1.actor.recovered.secret',
+    });
+    expect(readCurrentContext(projectDir)).toBeNull();
+  });
+
+  it('refuses the ordinary writer for recovery custody instead of widening it to legacy', () => {
+    process.env.PORT_DADDY_CONTEXT_SLOT = 'recovery-must-be-exact';
+    expect(() => writeCurrentContext({
+      agentId: 'agent-recovered',
+      sessionId: 'session-recovered',
+      recoveryId: 'recovery-misrouted',
+      credentialExpiresAt: Date.now() + 60_000,
+      credential: 'pdab1.actor.recovered.secret',
+    }, projectDir)).toThrow('recovery custody must use writeCurrentContextForExactSlot');
+    expect(existsSync(getLegacyContextPath(projectDir))).toBe(false);
+  });
+
+  it('lets a live recovered slot replace stale inherited predecessor ids', () => {
+    process.env.PORT_DADDY_CONTEXT_SLOT = 'restart-recovery';
+    process.env.PD_AGENT_ID = 'agent-stranded-before-restart';
+    process.env.PD_SESSION_ID = 'session-stranded-before-restart';
+    writeCurrentContextForExactSlot({
+      agentId: 'agent-recovered',
+      sessionId: 'session-recovered',
+      recoveryId: 'recovery-after-restart',
+      credentialExpiresAt: Date.now() + 60_000,
+      credential: 'pdab1.actor.recovered.secret',
+    }, 'restart-recovery', projectDir);
+
+    expect(readCurrentContext(projectDir)).toMatchObject({
+      agentId: 'agent-recovered',
+      sessionId: 'session-recovered',
+      recoveryId: 'recovery-after-restart',
+      credential: 'pdab1.actor.recovered.secret',
+    });
   });
 
   it('creates context directories as 0700 and credential-bearing files as 0600', () => {

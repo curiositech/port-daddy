@@ -69,6 +69,13 @@ repo-specific mechanics:
   When inheriting stale work, prefer `pd takeover <old-session-id> [reason]`
   (or `pd session takeover <old-session-id> [reason]`) over deleting or silently reusing the old session; notes and claim
   history are append-only evidence.
+- **Restart identity is not a mint retry.** If the daemon restarted and the
+  exact actor body is unavailable, ordinary takeover must fail closed. Use the
+  native FleetBar operator-presence card to approve one actor/predecessor/
+  worktree/branch/session-intent/context-slot/claim-map action, then read back
+  the successor, body-profile, custody, and ledger receipt. Never copy a
+  credential, invoke a loopback approval as authority, or release unrelated
+  claims to make the lane fit.
 - **Supplant, don't migrate.** No users yet (operator directive, 2026-08-22):
   a new mechanism that overlaps an old one replaces it exhaustively in the same
   slice — delete the legacy path, fix every caller, no compat shims, no

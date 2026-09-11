@@ -17,7 +17,11 @@ import { Performative, IpcAction, FIRE_AND_FORGET } from './ipc-types.js';
 import type { IpcFrame } from './ipc-types.js';
 import { encodeFrame } from './ipc-frame.js';
 import type { IpcConnection } from './ipc-server.js';
-import { verifyAgent, actionRequiresRegistration } from './ipc-auth.js';
+import {
+  verifyAgent,
+  actionRequiresRegistration,
+  actionRequiresCredentialedTransport,
+} from './ipc-auth.js';
 import type { AgentVerifier } from './ipc-auth.js';
 import type { Tuple } from './tuples.js';
 
@@ -93,31 +97,14 @@ function asStringArray(val: unknown): string[] | null {
   return val;
 }
 
-function recoverableSessionAction(action: string): boolean {
-  return action === IpcAction.DONE ||
-    action === IpcAction.NOTE;
-}
-
 // Binary IPC does not yet transport or verify daemon-minted actor
 // credentials. Destructive lifecycle mutations therefore stay on the HTTP
 // stack, where the shared identity-write boundary binds the credential actor
-// to the stored session owner. Refuse before handler dispatch so raw IPC
-// callers cannot bypass the HTTP authorization gate.
-const HTTP_ONLY_CREDENTIAL_MUTATIONS = new Set<string>([
-  IpcAction.BEGIN,
-  IpcAction.DONE,
-  IpcAction.NOTE,
-  IpcAction.SESSION_END,
-  IpcAction.SESSION_START,
-  IpcAction.SESSION_REMOVE,
-  IpcAction.SESSION_TAKEOVER,
-  IpcAction.FILES_CLAIM,
-  IpcAction.FILES_RELEASE,
-  IpcAction.LOCK_ACQUIRE,
-  IpcAction.LOCK_EXTEND,
-  IpcAction.LOCK_RELEASE,
-  IpcAction.SALVAGE_CLAIM,
-]);
+// to the stored session owner. Both sides of this merge added the same guard;
+// the action set now has a single home in lib/ipc-auth.ts
+// (`actionRequiresCredentialedTransport`), which enumerates exactly the same
+// actions main listed inline here. `recoverableSessionAction` and the
+// IPC session-agent recovery it fed are gone with that bypass.
 
 // ─── Route Handler Type ─────────────────────────────────────────────────────
 
@@ -133,31 +120,6 @@ export function createIpcRouter(deps: IpcRouterDeps) {
   const verifier: AgentVerifier | null = deps.agents.isRegistered
     ? { isRegistered: (id: string) => deps.agents.isRegistered!(id) }
     : null;
-
-  function resolveRecoverableSessionAgentId(
-    action: string,
-    payload: Record<string, unknown>,
-    requestedAgentId: string | null,
-  ): string | null {
-    if (!recoverableSessionAction(action) || !deps.sessions.get) return null;
-
-    const sessionId = typeof payload.sessionId === 'string' ? payload.sessionId.trim() : '';
-    if (!sessionId) return null;
-
-    const sessionInfo = deps.sessions.get(sessionId) as
-      | { success?: boolean; session?: Record<string, unknown> | null }
-      | null
-      | undefined;
-    if (!sessionInfo?.success || !sessionInfo.session || typeof sessionInfo.session !== 'object') return null;
-
-    const sessionAgentId = typeof sessionInfo.session.agentId === 'string'
-      ? sessionInfo.session.agentId
-      : null;
-    if (!sessionAgentId) return null;
-
-    if (requestedAgentId && requestedAgentId !== sessionAgentId) return null;
-    return sessionAgentId;
-  }
 
   // ── Action → Handler map ──────────────────────────────────────────────
 
@@ -493,18 +455,22 @@ export function createIpcRouter(deps: IpcRouterDeps) {
     reply: (response: IpcFrame) => void,
   ): void {
     const action = String(frame.payload.action ?? '');
-    if (HTTP_ONLY_CREDENTIAL_MUTATIONS.has(action)) {
+    if (actionRequiresCredentialedTransport(action)) {
       reply({
         type: Performative.REFUSE,
         convId: frame.convId,
         payload: {
+          // `error` keeps main's established wire string; `code` carries the
+          // recovery branch's stable machine-readable identifier alongside it.
           error: 'actor_credential_transport_required',
+          code: 'IDENTITY_TRANSPORT_REQUIRED',
           action,
           message: `Action '${action}' requires the credentialed HTTP transport`,
         },
       });
       return;
     }
+
     const payloadAgentId = typeof frame.payload.agentId === 'string' && frame.payload.agentId.trim()
       ? frame.payload.agentId.trim()
       : null;
@@ -527,23 +493,16 @@ export function createIpcRouter(deps: IpcRouterDeps) {
     if (actionRequiresRegistration(action)) {
       const auth = verifyAgent(agentId, verifier, true);
       if (!auth.allowed) {
-        const recoveredAgentId = resolveRecoverableSessionAgentId(action, frame.payload, requestedAgentId);
-        if (recoveredAgentId) {
-          agentId = recoveredAgentId;
-          if (!frame.payload.agentId) frame.payload.agentId = recoveredAgentId;
-          if (!conn.agentId) conn.agentId = recoveredAgentId;
-        } else {
-          reply({
-            type: Performative.REFUSE,
-            convId: frame.convId,
-            payload: {
-              error: auth.reason ?? 'unauthorized',
-              action,
-              message: `Action '${action}' requires a registered agent`,
-            },
-          });
-          return;
-        }
+        reply({
+          type: Performative.REFUSE,
+          convId: frame.convId,
+          payload: {
+            error: auth.reason ?? 'unauthorized',
+            action,
+            message: `Action '${action}' requires a registered agent`,
+          },
+        });
+        return;
       }
     }
 

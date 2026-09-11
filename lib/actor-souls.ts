@@ -17,15 +17,22 @@
  * the minted id — never the other way around.
  *
  * ════════════════════════════════════════════════════════════════════════════
- *  THE CREDENTIAL IS A SELECTOR.VERIFIER LOOKUP TOKEN (verifiable, O(1))
+ *  THE CREDENTIAL IS A VERSIONED SELECTOR.VERIFIER TOKEN (verifiable, O(1))
  * ════════════════════════════════════════════════════════════════════════════
- *   credential = "<actor_id>.<secret>"     — daemon-issued once, opaque to the agent
+ *   credential = "pdab1.<actor_id>.<body_id>.<secret>"
  *
- * The `actor_id` half is the **selector**: parse it, look the row up by the PK
- * `(harbor, actor_id)` in O(1), read *that row's* salt, and check
+ * The `(actor_id, body_id)` pair is the **selector**: parse it, look the row up
+ * by the PK `(harbor, actor_id, body_id)` in O(1), read *that row's* salt, and check
  * `sha256(salt | secret) == credential_hash` in constant time. This is the
- * standard "lookup-token" pattern; it fixes the v1 per-row-salt scheme that could
- * not be selected without already knowing the row.
+ * standard "lookup-token" pattern. The durable actor is a person/principal;
+ * each revocable body credential is a disposable invocation lease. A daemon or
+ * computer restart therefore does not manufacture a new actor.
+ *
+ * Historical `<actor_id>.<secret>` roots are retired on first startup of this
+ * version. Their database hashes are deleted, their plaintext delivery files
+ * are removed from the exact state root, and the parser accepts only `pdab1`
+ * credentials. Restart continuity therefore never depends on a compatibility
+ * root that cannot be scoped, expired, or independently revoked.
  *
  * ════════════════════════════════════════════════════════════════════════════
  *  HONEST POSTURE — fail-CLOSED above the floor, fail-OPEN at a bounded floor
@@ -42,17 +49,26 @@
  *     is fail-OPEN-at-a-bounded-floor. It is safe only because the floor is a
  *     shared, capped pool — minting fresh ids buys NO new budget.
  *
- * NOT CLAIMED: this slice is not "Sybil-proof". A fleet agent running as the same
- * UID as the daemon can read `~/.port-daddy/operator.secret` (0600) and forge an
- * operatorToken, and — until the `door` lane makes the SQLite write-boundary real
- * — can write a `budget_ledger`/`newcomer_pool` row directly and bypass the pool.
- * Both are explicitly within ADR-0040's non-goal (no defense against a same-UID /
- * malicious human operator). See the operator-token note below.
+ * NOT CLAIMED: this slice is not "Sybil-proof" against a process that can write
+ * the daemon's SQLite database directly. Operator recovery is deliberately NOT
+ * an alternate mint door: it proves operator presence and re-binds the same
+ * durable actor without rotating actor_souls credentials or creating a person.
  */
 
 import type { Database } from 'better-sqlite3';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import {
+  closeSync,
+  constants as fsConstants,
+  existsSync,
+  fsyncSync,
+  lstatSync,
+  openSync,
+  readFileSync,
+  readdirSync,
+  rmdirSync,
+  unlinkSync,
+} from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { isReservedIdentityName } from './reserved-identity-names.js';
@@ -78,6 +94,12 @@ export interface ActorSoulsConfig {
    * ~/.port-daddy/operator.secret (0600). HONEST LIMIT: a same-UID agent can read
    * that file — the operator escape hatch is *advisory-above-floor*, not a
    * cryptographic capability (ADR-0040 non-goal).
+   *
+   * The recovery branch deleted this because it deleted the operator MINT door.
+   * That mint door stays deleted, but the secret itself is kept: main added the
+   * audited retire/resurrect lifecycle (routes/actors.ts) on top of
+   * `verifyOperatorToken`, so removing it here would delete a symbol main's new
+   * routes call.
    */
   operatorSecret?: string | null;
   /** Override for the operator secret path (testing). */
@@ -129,13 +151,240 @@ export const IDENTITY_RESURRECTED_RULE = 'IDENTITY_RESURRECTED';
 
 export interface MintResult {
   actorId: ActorId;
+  bodyCredentialId: string;
+  credentialProfile: 'actor-root';
   /** Plaintext credential — returned to the caller ONCE, never stored plaintext. */
   credential: string;
 }
 
+export const ACTOR_BODY_CREDENTIAL_VERSION = 'pdab1';
+const RETIRED_LEGACY_ROOT_BODY_CREDENTIAL_ID = 'legacy-root';
+export const MAX_ACTIVE_BODY_CREDENTIALS = 16;
+
+export interface LegacyActorCredentialRetirementReceipt {
+  directory: string;
+  removedFiles: number;
+  directoryRemoved: boolean;
+}
+
+export class LegacyActorCredentialRetirementError extends Error {
+  readonly code = 'LEGACY_ACTOR_CREDENTIAL_RETIREMENT_UNSAFE';
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'LegacyActorCredentialRetirementError';
+  }
+}
+
+/**
+ * Remove plaintext files emitted by the deleted historical actor migration.
+ *
+ * The purpose is exhaustive retirement, not compatibility cleanup: callers
+ * pass the daemon's exact state root so a named development berth can never
+ * mutate the canonical harbor. The function refuses symlinked directories and
+ * unexpected nested content, unlinks only the migration's `.cred` leaves, and
+ * fsyncs the parent directory before reporting success.
+ *
+ * @param stateRoot Canonical state-plane root containing `actor-credentials`.
+ * @returns A credential-free receipt with the exact removal count.
+ */
+export function retireLegacyActorCredentialFiles(
+  stateRoot: string,
+): LegacyActorCredentialRetirementReceipt {
+  const directory = join(stateRoot, 'actor-credentials');
+  if (!existsSync(directory)) {
+    return { directory, removedFiles: 0, directoryRemoved: false };
+  }
+
+  const directoryStat = lstatSync(directory);
+  const currentUid = typeof process.getuid === 'function' ? process.getuid() : null;
+  if (
+    !directoryStat.isDirectory()
+    || directoryStat.isSymbolicLink()
+    || (currentUid !== null && directoryStat.uid !== currentUid)
+  ) {
+    throw new LegacyActorCredentialRetirementError(
+      'the historical actor credential directory is not an owner-controlled directory',
+    );
+  }
+
+  const retiredEntries = readdirSync(directory, { withFileTypes: true }).map((entry) => {
+    const entryPath = join(directory, entry.name);
+    const entryStat = lstatSync(entryPath);
+    if (
+      !entry.name.endsWith('.cred')
+      || (!entryStat.isFile() && !entryStat.isSymbolicLink())
+      || (currentUid !== null && entryStat.uid !== currentUid)
+    ) {
+      throw new LegacyActorCredentialRetirementError(
+        'refusing unexpected content in the historical actor credential directory',
+      );
+    }
+    return {
+      path: entryPath,
+      dev: entryStat.dev,
+      ino: entryStat.ino,
+      uid: entryStat.uid,
+      symbolicLink: entryStat.isSymbolicLink(),
+    };
+  });
+
+  let removedFiles = 0;
+  for (const entry of retiredEntries) {
+    const current = lstatSync(entry.path);
+    if (
+      current.dev !== entry.dev
+      || current.ino !== entry.ino
+      || current.uid !== entry.uid
+      || current.isSymbolicLink() !== entry.symbolicLink
+    ) {
+      throw new LegacyActorCredentialRetirementError(
+        'the historical actor credential directory changed during retirement',
+      );
+    }
+    unlinkSync(entry.path);
+    removedFiles += 1;
+  }
+  rmdirSync(directory);
+
+  let parentDescriptor: number | null = null;
+  try {
+    parentDescriptor = openSync(stateRoot, fsConstants.O_RDONLY | fsConstants.O_DIRECTORY);
+    fsyncSync(parentDescriptor);
+  } finally {
+    if (parentDescriptor !== null) closeSync(parentDescriptor);
+  }
+  return { directory, removedFiles, directoryRemoved: true };
+}
+
+export type ActorBodyCredentialProfile = 'actor-root' | 'session-body-v1';
+
+export const SESSION_BODY_CREDENTIAL_ACTIONS = [
+  'session.note.write',
+  'session.plan.write',
+  'session.claim.add',
+  'session.claim.release',
+  'session.phase.write',
+  'session.symbol.claim',
+  'session.end',
+  'session.archive',
+  'session.relink',
+  'session.done',
+] as const;
+export type SessionBodyCredentialAction = (typeof SESSION_BODY_CREDENTIAL_ACTIONS)[number];
+export type CredentialSessionStatus = 'active' | 'completed' | 'abandoned';
+
+/** Daemon-derived facts at the exact write being authorized. Never accept these from a request body. */
+export interface ActorCredentialUseContext {
+  action: SessionBodyCredentialAction;
+  resource: {
+    sessionId: string;
+    intendedAgentId: string;
+    project: string;
+    canonicalWorktree: string;
+    branch: string;
+    status: CredentialSessionStatus;
+  };
+}
+
+export type ActorBodyCredentialScope =
+  | { profile: 'actor-root' }
+  | {
+      profile: 'session-body-v1';
+      intendedAgentId: string;
+      successorSessionId: string;
+      project: string;
+      canonicalWorktree: string;
+      branch: string;
+      recoveryId: string;
+      contextSlot: string | null;
+      /** Receipt evidence only. Later use deliberately survives daemon restarts. */
+      issuedDaemonGeneration: string;
+    };
+
+export interface IssuedBodyCredential {
+  actorId: ActorId;
+  bodyCredentialId: string;
+  profile: ActorBodyCredentialProfile;
+  scope: ActorBodyCredentialScope;
+  issuedAt: number;
+  expiresAt: number | null;
+  /** Plaintext is returned exactly once and is never persisted. */
+  credential: string;
+}
+
+export type IssueBodyCredentialInput =
+  | {
+      actorId: string;
+      harbor?: string;
+      profile: 'actor-root';
+      expiresAt?: null;
+    }
+  | {
+      actorId: string;
+      harbor?: string;
+      profile: 'session-body-v1';
+      scope: Omit<Extract<ActorBodyCredentialScope, { profile: 'session-body-v1' }>, 'profile'>;
+      expiresAt: number;
+    };
+
+export interface RevokeBodyCredentialInput {
+  actorId: string;
+  bodyCredentialId: string;
+  harbor?: string;
+  revokedAt?: number;
+}
+
+export interface VerifyCredentialUseInput {
+  harbor?: string;
+  /** Required for session-body-v1; ignored by unrestricted actor-root credentials. */
+  context?: ActorCredentialUseContext | null;
+}
+
+export type CredentialUseVerdict =
+  | {
+      ok: true;
+      actorId: ActorId;
+      bodyCredentialId: string;
+      profile: ActorBodyCredentialProfile;
+      scope: ActorBodyCredentialScope;
+      intendedAgentId: string | null;
+    }
+  | {
+      ok: false;
+      code:
+        | 'CREDENTIAL_INVALID'
+        | 'CREDENTIAL_EXPIRED'
+        | 'CREDENTIAL_REVOKED'
+        | 'CREDENTIAL_SCOPE_MISMATCH';
+    };
+
+export class ActorBodyCredentialError extends Error {
+  constructor(
+    public readonly code:
+      | 'ACTOR_NOT_FOUND'
+      | 'BODY_CREDENTIAL_LIMIT'
+      | 'BODY_CREDENTIAL_SCOPE_INVALID'
+      | 'BODY_CREDENTIAL_EXPIRY_INVALID'
+      | 'BODY_CREDENTIAL_REVOCATION_INVALID',
+    message: string,
+  ) {
+    super(message);
+    this.name = 'ActorBodyCredentialError';
+  }
+}
+
 export type RegisterOutcome =
   | { ok: true; status: 'resolved';   actorId: ActorId; soulClass: SoulClass }              // valid credential ⇒ same id
-  | { ok: true; status: 'minted';     actorId: ActorId; soulClass: SoulClass; credential: string }
+  | {
+      ok: true;
+      status: 'minted';
+      actorId: ActorId;
+      soulClass: SoulClass;
+      bodyCredentialId: string;
+      credentialProfile: 'actor-root';
+      credential: string;
+    }
   | { ok: false; status: 'rejected';  code: 'CREDENTIAL_INVALID'; httpStatus: 401 }
   | { ok: false; status: 'rejected';  code: 'RESERVED_ALIAS'; httpStatus: 403 }
   // The credential VERIFIED (so nothing leaks to a guesser) but the soul is
@@ -187,15 +436,34 @@ function constantTimeEqualHex(a: string, b: string): boolean {
   return timingSafeEqual(ba, bb);
 }
 
-/** Split "<actor_id>.<secret>" — actor_id is the selector, secret the verifier. */
-function parseCredential(credential: string): { actorId: string; secret: string } | null {
-  const dot = credential.indexOf('.');
-  if (dot <= 0 || dot >= credential.length - 1) return null;
-  const actorId = credential.slice(0, dot);
-  const secret = credential.slice(dot + 1);
-  if (!actorId || !secret) return null;
-  return { actorId, secret };
+type ParsedCredential = {
+  actorId: string;
+  bodyCredentialId: string;
+  secret: string;
+};
+
+/** Parse the sole supported versioned body-token shape. */
+function parseCredential(credential: string): ParsedCredential | null {
+  if (!credential.startsWith(`${ACTOR_BODY_CREDENTIAL_VERSION}.`)) return null;
+  const payload = credential.slice(ACTOR_BODY_CREDENTIAL_VERSION.length + 1);
+  const secretDot = payload.lastIndexOf('.');
+  if (secretDot > 0 && secretDot < payload.length - 1) {
+    const selector = payload.slice(0, secretDot);
+    const bodyDot = selector.lastIndexOf('.');
+    if (bodyDot > 0 && bodyDot < selector.length - 1) {
+      const actorId = selector.slice(0, bodyDot);
+      const bodyCredentialId = selector.slice(bodyDot + 1);
+      const secret = payload.slice(secretDot + 1);
+      if (actorId && bodyCredentialId && secret) {
+        return { actorId, bodyCredentialId, secret };
+      }
+    }
+  }
+  return null;
 }
+
+const DUMMY_CREDENTIAL_SALT = 'pd-actor-body-dummy-salt-v1';
+const DUMMY_CREDENTIAL_HASH = hashCredential(DUMMY_CREDENTIAL_SALT, 'pd-actor-body-dummy-secret-v1');
 
 // ─── Module factory ─────────────────────────────────────────────────────────────
 export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
@@ -221,10 +489,43 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
       PRIMARY KEY (harbor, actor_id)
     )
   `);
-  // Kept only to reject accidental hash reuse; NOT the lookup path (lookup is by PK).
+  // The legacy hash columns stay only so existing databases can be upgraded in
+  // place. They become inert immediately after the transaction below.
+  runDDL(`DROP INDEX IF EXISTS uq_soul_cred`);
   runDDL(`
-    CREATE UNIQUE INDEX IF NOT EXISTS uq_soul_cred
-      ON actor_souls(harbor, credential_hash) WHERE credential_hash IS NOT NULL
+    CREATE TABLE IF NOT EXISTS actor_body_credentials (
+      harbor                    TEXT NOT NULL,
+      actor_id                  TEXT NOT NULL,
+      body_credential_id        TEXT NOT NULL,
+      credential_hash           TEXT NOT NULL,
+      credential_salt           TEXT NOT NULL,
+      profile                   TEXT NOT NULL CHECK (profile IN ('actor-root', 'session-body-v1')),
+      intended_agent_id         TEXT,
+      successor_session_id      TEXT,
+      project                   TEXT,
+      canonical_worktree        TEXT,
+      branch                    TEXT,
+      recovery_id               TEXT,
+      context_slot              TEXT,
+      issued_daemon_generation  TEXT,
+      issued_at                 INTEGER NOT NULL,
+      expires_at                INTEGER,
+      revoked_at                INTEGER,
+      CHECK (
+        profile = 'actor-root' OR (
+          intended_agent_id IS NOT NULL AND successor_session_id IS NOT NULL
+          AND project IS NOT NULL AND canonical_worktree IS NOT NULL
+          AND branch IS NOT NULL AND recovery_id IS NOT NULL
+          AND issued_daemon_generation IS NOT NULL AND expires_at IS NOT NULL
+        )
+      ),
+      PRIMARY KEY (harbor, actor_id, body_credential_id),
+      FOREIGN KEY (harbor, actor_id) REFERENCES actor_souls(harbor, actor_id) ON DELETE CASCADE
+    )
+  `);
+  runDDL(`
+    CREATE INDEX IF NOT EXISTS idx_actor_body_credentials_active
+      ON actor_body_credentials(harbor, actor_id, revoked_at, expires_at)
   `);
 
   // ─── Retirement tombstone + audited resurrection (identity keystone) ─────────
@@ -340,8 +641,35 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
     )
   `);
 
+  // One-time authority retirement. Supplanting the restart-fragile root means
+  // deleting both possible database selectors in one transaction. Durable
+  // actors remain; FleetBar can bind a fresh, scoped session body to the exact
+  // actor without any compatibility credential surviving the upgrade.
+  const retireLegacyCredentialRows = () => {
+    db.prepare(`
+      DELETE FROM actor_body_credentials
+       WHERE body_credential_id = ?
+    `).run(RETIRED_LEGACY_ROOT_BODY_CREDENTIAL_ID);
+    // `AND retired_at IS NULL` is required by main's tombstone triggers: a
+    // retired soul is FROZEN, and clearing its credential_hash would abort the
+    // whole boot transaction with ACTOR_SOUL_RETIRED. Leaving the hash on a
+    // tombstone is inert — verification now reads only actor_body_credentials,
+    // never actor_souls.credential_hash — and a frozen tombstone keeping its
+    // forensic columns is exactly the invariant those triggers exist to hold.
+    db.prepare(`
+      UPDATE actor_souls
+         SET credential_hash = NULL, credential_salt = NULL
+       WHERE (credential_hash IS NOT NULL OR credential_salt IS NOT NULL)
+         AND retired_at IS NULL
+    `).run();
+  };
+  if (db.inTransaction) retireLegacyCredentialRows();
+  else db.transaction(retireLegacyCredentialRows)();
+
   const selectSoul = db.prepare(`
-    SELECT actor_id, harbor, credential_hash, credential_salt, credential_kind,
+    -- The soul row no longer carries the verifier (credentials live in
+    -- actor_body_credentials), but it does carry main's retirement tombstone.
+    SELECT actor_id, harbor, credential_kind,
            display_alias, clean_exits, operator_trusted, created_at, last_seen_at,
            retired_at, retired_reason, retired_by,
            resurrection_receipt, resurrected_at, resurrected_by
@@ -351,7 +679,62 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
     INSERT INTO actor_souls
       (actor_id, harbor, credential_hash, credential_salt, credential_kind,
        display_alias, clean_exits, operator_trusted, created_at, last_seen_at)
-    VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?)
+    VALUES (?, ?, NULL, NULL, ?, ?, 0, ?, ?, ?)
+  `);
+  const selectBodyCredential = db.prepare(`
+    SELECT actor_id, body_credential_id, credential_hash, credential_salt,
+           profile, intended_agent_id, successor_session_id, project,
+           canonical_worktree, branch, recovery_id, context_slot,
+           issued_daemon_generation, issued_at, expires_at, revoked_at
+      FROM actor_body_credentials
+     WHERE harbor = ? AND actor_id = ? AND body_credential_id = ?
+  `);
+  const hasSessionsTable = db.prepare(`
+    SELECT 1 AS present FROM sqlite_master
+    WHERE type = 'table' AND name = 'sessions'
+    LIMIT 1
+  `);
+  const countActiveBodyCredentials = (harbor: string, actorId: string, timestamp: number) => {
+    // Some isolated stores construct actor souls before the sessions module.
+    // Prepare the join only when that table exists; once sessions appears,
+    // terminal successor bodies stop consuming the cap. Without the table we
+    // conservatively count every live body rather than weakening the limit.
+    const sessionsAvailable = Boolean(hasSessionsTable.get());
+    const statement = sessionsAvailable
+      ? db.prepare(`
+          SELECT COUNT(*) AS count
+            FROM actor_body_credentials AS body
+            LEFT JOIN sessions AS successor ON successor.id = body.successor_session_id
+           WHERE body.harbor = ? AND body.actor_id = ?
+             AND body.revoked_at IS NULL
+             AND (body.expires_at IS NULL OR body.expires_at > ?)
+             AND (
+               body.profile = 'actor-root'
+               OR (body.profile = 'session-body-v1' AND successor.status = 'active')
+             )
+        `)
+      : db.prepare(`
+          SELECT COUNT(*) AS count
+            FROM actor_body_credentials
+           WHERE harbor = ? AND actor_id = ?
+             AND revoked_at IS NULL
+             AND (expires_at IS NULL OR expires_at > ?)
+        `);
+    return statement.get(harbor, actorId, timestamp) as { count: number };
+  };
+  const insertBodyCredential = db.prepare(`
+    INSERT INTO actor_body_credentials
+      (harbor, actor_id, body_credential_id, credential_hash, credential_salt,
+       profile, intended_agent_id, successor_session_id, project,
+       canonical_worktree, branch, recovery_id, context_slot,
+       issued_daemon_generation, issued_at, expires_at, revoked_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+  `);
+  const revokeBodyCredentialRow = db.prepare(`
+    UPDATE actor_body_credentials
+       SET revoked_at = ?
+     WHERE harbor = ? AND actor_id = ? AND body_credential_id = ?
+       AND revoked_at IS NULL
   `);
   // Touch/bump are scoped to LIVE souls: a retired soul neither "was seen"
   // nor earns graduation. (The frozen trigger would abort a clean_exits bump
@@ -414,9 +797,198 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
     };
   }
 
+  function exactNonEmpty(value: unknown, field: string): string {
+    if (typeof value !== 'string' || value.length === 0 || value !== value.trim()) {
+      throw new ActorBodyCredentialError(
+        'BODY_CREDENTIAL_SCOPE_INVALID',
+        `${field} must be a non-empty, already-canonical string`,
+      );
+    }
+    return value;
+  }
+
+  function sessionScopeFromInput(
+    input: Extract<IssueBodyCredentialInput, { profile: 'session-body-v1' }>,
+  ): Extract<ActorBodyCredentialScope, { profile: 'session-body-v1' }> {
+    if (!input.scope || typeof input.scope !== 'object') {
+      throw new ActorBodyCredentialError(
+        'BODY_CREDENTIAL_SCOPE_INVALID',
+        'session-body-v1 requires an exact persisted scope',
+      );
+    }
+    const contextSlot = input.scope.contextSlot == null
+      ? null
+      : exactNonEmpty(input.scope.contextSlot, 'scope.contextSlot');
+    return {
+      profile: 'session-body-v1',
+      intendedAgentId: exactNonEmpty(input.scope.intendedAgentId, 'scope.intendedAgentId'),
+      successorSessionId: exactNonEmpty(input.scope.successorSessionId, 'scope.successorSessionId'),
+      project: exactNonEmpty(input.scope.project, 'scope.project'),
+      canonicalWorktree: exactNonEmpty(input.scope.canonicalWorktree, 'scope.canonicalWorktree'),
+      branch: exactNonEmpty(input.scope.branch, 'scope.branch'),
+      recoveryId: exactNonEmpty(input.scope.recoveryId, 'scope.recoveryId'),
+      contextSlot,
+      issuedDaemonGeneration: exactNonEmpty(
+        input.scope.issuedDaemonGeneration,
+        'scope.issuedDaemonGeneration',
+      ),
+    };
+  }
+
+  function scopeFromBodyRow(row: any): ActorBodyCredentialScope | null {
+    if (row.profile === 'actor-root') return { profile: 'actor-root' };
+    if (row.profile !== 'session-body-v1') return null;
+    const required = [
+      row.intended_agent_id,
+      row.successor_session_id,
+      row.project,
+      row.canonical_worktree,
+      row.branch,
+      row.recovery_id,
+      row.issued_daemon_generation,
+    ];
+    if (required.some((value) => typeof value !== 'string' || value.length === 0)) return null;
+    if (row.context_slot !== null && typeof row.context_slot !== 'string') return null;
+    return {
+      profile: 'session-body-v1',
+      intendedAgentId: row.intended_agent_id,
+      successorSessionId: row.successor_session_id,
+      project: row.project,
+      canonicalWorktree: row.canonical_worktree,
+      branch: row.branch,
+      recoveryId: row.recovery_id,
+      contextSlot: row.context_slot,
+      issuedDaemonGeneration: row.issued_daemon_generation,
+    };
+  }
+
+  function withCredentialTransaction<T>(operation: () => T): T {
+    return db.inTransaction ? operation() : db.transaction(operation)();
+  }
+
+  /**
+   * Commit one mint-door admission and its attributed work as a single write.
+   *
+   * The intent is narrow: `/sugar/begin` must not spend newcomer admission or
+   * leave an actor-root when the session operation fails afterward. A thrown
+   * callback error rolls back the pool counter, soul, root body, agent, session,
+   * claim, and ledger rows together; nested callers reuse the surrounding
+   * transaction rather than opening a second authority boundary.
+   *
+   * @param operation Exact mint-door work that must either commit or disappear.
+   * @returns The callback result after one successful immediate transaction.
+   */
+  function withMintDoorTransaction<T>(operation: () => T): T {
+    if (db.inTransaction) return operation();
+    return db.transaction(operation).immediate();
+  }
+
   function getSoul(actorId: string, harbor = defaultHarbor): ActorSoulRow | null {
     const row = selectSoul.get(harbor, actorId);
     return row ? rowToSoul(row) : null;
+  }
+
+  function issueBodyCredential(input: IssueBodyCredentialInput): IssuedBodyCredential {
+    return withCredentialTransaction(() => {
+      const harbor = input.harbor ?? defaultHarbor;
+      const actorId = exactNonEmpty(input.actorId, 'actorId');
+      const ts = now();
+      if (!getSoul(actorId, harbor)) {
+        throw new ActorBodyCredentialError(
+          'ACTOR_NOT_FOUND',
+          `cannot issue a body credential for unknown actor ${actorId}`,
+        );
+      }
+
+      const active = countActiveBodyCredentials(harbor, actorId, ts);
+      if (active.count >= MAX_ACTIVE_BODY_CREDENTIALS) {
+        throw new ActorBodyCredentialError(
+          'BODY_CREDENTIAL_LIMIT',
+          `actor ${actorId} already has ${MAX_ACTIVE_BODY_CREDENTIALS} active body credentials`,
+        );
+      }
+
+      let scope: ActorBodyCredentialScope;
+      let expiresAt: number | null;
+      if (input.profile === 'actor-root') {
+        if ('scope' in input || input.expiresAt != null) {
+          throw new ActorBodyCredentialError(
+            'BODY_CREDENTIAL_SCOPE_INVALID',
+            'actor-root credentials cannot carry session scope or expiry',
+          );
+        }
+        scope = { profile: 'actor-root' };
+        expiresAt = null;
+      } else if (input.profile === 'session-body-v1') {
+        scope = sessionScopeFromInput(input);
+        expiresAt = input.expiresAt;
+        if (!Number.isSafeInteger(expiresAt) || expiresAt <= ts) {
+          throw new ActorBodyCredentialError(
+            'BODY_CREDENTIAL_EXPIRY_INVALID',
+            'session-body-v1 expiresAt must be a future integer timestamp',
+          );
+        }
+      } else {
+        throw new ActorBodyCredentialError(
+          'BODY_CREDENTIAL_SCOPE_INVALID',
+          'unsupported body credential profile',
+        );
+      }
+
+      const bodyCredentialId = randomBytes(16).toString('base64url');
+      const secret = randomBytes(32).toString('base64url');
+      const salt = randomBytes(16).toString('base64url');
+      const credentialHash = hashCredential(salt, secret);
+      const sessionScope = scope.profile === 'session-body-v1' ? scope : null;
+      insertBodyCredential.run(
+        harbor,
+        actorId,
+        bodyCredentialId,
+        credentialHash,
+        salt,
+        scope.profile,
+        sessionScope?.intendedAgentId ?? null,
+        sessionScope?.successorSessionId ?? null,
+        sessionScope?.project ?? null,
+        sessionScope?.canonicalWorktree ?? null,
+        sessionScope?.branch ?? null,
+        sessionScope?.recoveryId ?? null,
+        sessionScope?.contextSlot ?? null,
+        sessionScope?.issuedDaemonGeneration ?? null,
+        ts,
+        expiresAt,
+      );
+      return {
+        actorId: asActorId(actorId),
+        bodyCredentialId,
+        profile: scope.profile,
+        scope,
+        issuedAt: ts,
+        expiresAt,
+        credential: `${ACTOR_BODY_CREDENTIAL_VERSION}.${actorId}.${bodyCredentialId}.${secret}`,
+      };
+    });
+  }
+
+  function revokeBodyCredential(input: RevokeBodyCredentialInput): boolean {
+    return withCredentialTransaction(() => {
+      const harbor = input.harbor ?? defaultHarbor;
+      const ts = now();
+      const revokedAt = input.revokedAt ?? ts;
+      if (!Number.isSafeInteger(revokedAt) || revokedAt < 0 || revokedAt > ts) {
+        throw new ActorBodyCredentialError(
+          'BODY_CREDENTIAL_REVOCATION_INVALID',
+          'revokedAt must be a non-negative integer timestamp no later than now',
+        );
+      }
+      const result = revokeBodyCredentialRow.run(
+        revokedAt,
+        harbor,
+        exactNonEmpty(input.actorId, 'actorId'),
+        exactNonEmpty(input.bodyCredentialId, 'bodyCredentialId'),
+      );
+      return result.changes === 1;
+    });
   }
 
   /**
@@ -463,71 +1035,152 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
     return { actorId: asActorId(handle), soulClass: 'unknown' };
   }
 
-  /** Mint a fresh soul. `explicitActorId` is used by the migration (identity map). */
+  /** Mint a fresh daemon-selected soul and its initial actor-root body. */
   function mint(opts: {
     harbor?: string;
     alias?: string | null;
     operatorTrusted?: boolean;
-    credentialKind?: 'soul-secret' | 'operator' | 'migrated';
+    credentialKind?: 'soul-secret' | 'operator';
+    /**
+     * Caller-chosen identity key. The migration that used to supply this is
+     * gone, but main's retirement keystone relies on it to prove that a
+     * tombstoned key cannot be re-minted, so the parameter is kept along with
+     * that guard.
+     */
     explicitActorId?: string;
   } = {}): MintResult {
-    const harbor = opts.harbor ?? defaultHarbor;
-    const ts = now();
-    const actorId = opts.explicitActorId ?? ulid(ts);
-    if (opts.explicitActorId) {
-      // The PK would refuse this anyway (the tombstone cannot be deleted); say why.
-      const existing = getSoul(opts.explicitActorId, harbor);
-      if (existing?.retiredAt !== null && existing?.retiredAt !== undefined) {
-        throw new Error(`ACTOR_SOUL_RETIRED: ${opts.explicitActorId} is a retired tombstone and cannot be re-minted`);
+    return withCredentialTransaction(() => {
+      const harbor = opts.harbor ?? defaultHarbor;
+      const ts = now();
+      const actorId = opts.explicitActorId ?? ulid(ts);
+      if (opts.explicitActorId) {
+        // The PK would refuse this anyway (the tombstone cannot be deleted); say why.
+        const existing = getSoul(opts.explicitActorId, harbor);
+        if (existing && existing.retiredAt !== null) {
+          throw new Error(`ACTOR_SOUL_RETIRED: ${opts.explicitActorId} is a retired tombstone and cannot be re-minted`);
+        }
       }
-    }
-    const secret = randomBytes(32).toString('base64url'); // 256-bit verifier
-    const salt = randomBytes(16).toString('base64url');
-    const credentialHash = hashCredential(salt, secret);
-    insertSoul.run(
-      actorId, harbor, credentialHash, salt,
-      opts.credentialKind ?? 'soul-secret',
-      opts.alias ?? null,
-      opts.operatorTrusted ? 1 : 0,
-      ts, ts,
-    );
-    if (opts.alias) upsertAlias.run(harbor, opts.alias, actorId, ts);
-    return { actorId: asActorId(actorId), credential: `${actorId}.${secret}` };
+      insertSoul.run(
+        actorId,
+        harbor,
+        opts.credentialKind ?? 'soul-secret',
+        opts.alias ?? null,
+        opts.operatorTrusted ? 1 : 0,
+        ts,
+        ts,
+      );
+      if (opts.alias) upsertAlias.run(harbor, opts.alias, actorId, ts);
+      const body = issueBodyCredential({ actorId, harbor, profile: 'actor-root' });
+      return {
+        actorId: asActorId(actorId),
+        bodyCredentialId: body.bodyCredentialId,
+        credentialProfile: 'actor-root',
+        credential: body.credential,
+      };
+    });
   }
 
   /**
-   * Verify a "<actor_id>.<secret>" credential. Selector-then-constant-time-verify.
-   * Returns the resolved actorId on a match, null on unknown selector OR mismatch
-   * (the two failures are indistinguishable to the caller by design — a stolen
-   * alias cannot mine ids, §2.1).
+   * Verify a body credential for one exact daemon-derived use. Unknown selectors
+   * still perform the same hash/compare work against a dummy row. A scoped body
+   * is cryptographically valid but refuses every non-session and cross-session
+   * use with a typed scope-mismatch verdict.
    */
-  function verifyCredential(credential: string, harbor = defaultHarbor): ActorId | null {
-    const verified = verifyCredentialDetailed(credential, harbor);
-    return verified && !verified.retired ? verified.actorId : null;
+  function verifyCredentialUse(
+    credential: string,
+    input: VerifyCredentialUseInput = {},
+  ): CredentialUseVerdict {
+    const harbor = input.harbor ?? defaultHarbor;
+    const parsed = parseCredential(credential);
+    const row = parsed
+      ? selectBodyCredential.get(harbor, parsed.actorId, parsed.bodyCredentialId) as any
+      : undefined;
+    const candidate = hashCredential(
+      row?.credential_salt ?? DUMMY_CREDENTIAL_SALT,
+      parsed?.secret ?? credential,
+    );
+    const matches = constantTimeEqualHex(
+      candidate,
+      row?.credential_hash ?? DUMMY_CREDENTIAL_HASH,
+    );
+    if (!parsed || !row || !matches) return { ok: false, code: 'CREDENTIAL_INVALID' };
+
+    const scope = scopeFromBodyRow(row);
+    if (!scope) return { ok: false, code: 'CREDENTIAL_INVALID' };
+    if (row.revoked_at !== null) return { ok: false, code: 'CREDENTIAL_REVOKED' };
+    if (row.expires_at !== null && now() >= row.expires_at) {
+      return { ok: false, code: 'CREDENTIAL_EXPIRED' };
+    }
+    // main's identity keystone: a retired soul still holds a valid secret and
+    // still may not act. Its bodies die with it, so the check belongs here,
+    // where every caller of the write boundary passes through — not only in
+    // register(). `verifyCredentialDetailed` below separates this case from an
+    // ordinarily revoked body for the callers that need to say which.
+    const retiredOwner = getSoul(parsed.actorId, harbor);
+    if (retiredOwner && retiredOwner.retiredAt !== null) {
+      return { ok: false, code: 'CREDENTIAL_REVOKED' };
+    }
+
+    if (scope.profile === 'session-body-v1') {
+      const use = input.context;
+      const allowedAction = typeof use?.action === 'string'
+        && (SESSION_BODY_CREDENTIAL_ACTIONS as readonly string[]).includes(use.action);
+      const resource = use?.resource;
+      const exactResource = allowedAction
+        && resource?.status === 'active'
+        && resource.sessionId === scope.successorSessionId
+        && resource.intendedAgentId === scope.intendedAgentId
+        && resource.project === scope.project
+        && resource.canonicalWorktree === scope.canonicalWorktree
+        && resource.branch === scope.branch;
+      if (!exactResource) return { ok: false, code: 'CREDENTIAL_SCOPE_MISMATCH' };
+    }
+
+    return {
+      ok: true,
+      actorId: asActorId(parsed.actorId),
+      bodyCredentialId: parsed.bodyCredentialId,
+      profile: scope.profile,
+      scope,
+      intendedAgentId: scope.profile === 'session-body-v1' ? scope.intendedAgentId : null,
+    };
   }
 
   /**
-   * Same selector-then-verify, but tells a caller that already holds the
-   * secret WHY it is refused. Only a VERIFIED credential can learn that its
+   * Same verify, but tells a caller that already holds the secret WHY it is
+   * refused. Only a CRYPTOGRAPHICALLY VERIFIED credential can learn that its
    * soul is retired — an unknown selector and a bad verifier stay
-   * indistinguishable (§2.1), so this leaks nothing to a guesser.
+   * indistinguishable (§2.1), so this leaks nothing to a guesser. Rebuilt on
+   * the body table (the soul row no longer stores a verifier), so an ordinarily
+   * revoked or expired body still reports as simply invalid.
    */
   function verifyCredentialDetailed(
     credential: string,
     harbor = defaultHarbor,
   ): { actorId: ActorId; retired: boolean } | null {
+    const verdict = verifyCredentialUse(credential, { harbor });
+    if (verdict.ok) return { actorId: verdict.actorId, retired: false };
+    if (verdict.code !== 'CREDENTIAL_REVOKED') return null;
     const parsed = parseCredential(credential);
     if (!parsed) return null;
-    const soul = selectSoul.get(harbor, parsed.actorId) as
-      | { credential_hash: string | null; credential_salt: string | null; retired_at: number | null }
-      | undefined;
-    if (!soul || !soul.credential_hash || !soul.credential_salt) return null;
-    const candidate = hashCredential(soul.credential_salt, parsed.secret);
-    if (!constantTimeEqualHex(candidate, soul.credential_hash)) return null;
-    return { actorId: asActorId(parsed.actorId), retired: soul.retired_at !== null && soul.retired_at !== undefined };
+    const soul = getSoul(parsed.actorId, harbor);
+    return soul && soul.retiredAt !== null
+      ? { actorId: asActorId(parsed.actorId), retired: true }
+      : null;
+  }
+
+  /** Root-only convenience check, implemented solely by the canonical body table. */
+  function verifyCredential(credential: string, harbor = defaultHarbor): ActorId | null {
+    const verdict = verifyCredentialUse(credential, { harbor });
+    return verdict.ok ? verdict.actorId : null;
   }
 
   // ─── Operator token (advisory-above-floor; see §2.4 honesty note) ─────────────
+  // The recovery branch deleted this along with the operator MINT door. The
+  // mint door stays deleted, but the token reader is restored: main's audited
+  // soul retire/resurrect lifecycle (routes/actors.ts) is gated on it, so
+  // dropping it here would have left main's routes calling a symbol that no
+  // longer existed — a clean-merge contract break.
   function readOperatorSecret(): string | null {
     if (config.operatorSecret !== undefined) return config.operatorSecret;
     const path = config.operatorSecretPath ?? join(homedir(), '.port-daddy', 'operator.secret');
@@ -564,7 +1217,12 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
     harbor?: string;
     alias?: string | null;
     credential?: string | null;
-    operatorToken?: string | null;
+    // Both sides deleted a parameter here, for unrelated reasons, and both
+    // deletions stand: main retired the per-project/day newcomer ADMIT cap
+    // (`project`/`day`), and the recovery branch retired the operator MINT door
+    // (`operatorToken`). The operator token itself survives on this module for
+    // main's audited retire/resurrect lifecycle — it is just no longer a way to
+    // mint an operator-trusted soul through the public registration door.
   }): RegisterOutcome {
     const harbor = params.harbor ?? defaultHarbor;
     const ts = now();
@@ -602,16 +1260,7 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
         return { ok: true, status: 'resolved', actorId, soulClass: classify(actorId, harbor) };
       }
 
-      // 2. Operator token ⇒ mint operator-trusted (skips the newcomer pool).
-      if (params.operatorToken && verifyOperatorToken(params.operatorToken)) {
-        const minted = mint({
-          harbor, alias: params.alias ?? null,
-          operatorTrusted: true, credentialKind: 'operator',
-        });
-        return { ok: true, status: 'minted', actorId: minted.actorId, soulClass: 'operator', credential: minted.credential };
-      }
-
-      // 3. No credential, no operatorToken. A KNOWN alias WITHOUT a matching
+      // 2. No credential. A KNOWN alias WITHOUT a matching
       //    credential MUST NOT resolve to the existing id — it fails closed to a
       //    NEW newcomer (F2 impersonation guard). So we intentionally do NOT look
       //    the alias up here; every uncredentialed registration mints fresh.
@@ -628,7 +1277,15 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
       // count is not an authority or spend control: credential/provenance
       // checks protect writes, and budget-guard enforces the shared spend cap.
       const minted = mint({ harbor, alias: params.alias ?? null, credentialKind: 'soul-secret' });
-      return { ok: true, status: 'minted', actorId: minted.actorId, soulClass: 'newcomer', credential: minted.credential };
+      return {
+        ok: true,
+        status: 'minted',
+        actorId: minted.actorId,
+        soulClass: 'newcomer',
+        bodyCredentialId: minted.bodyCredentialId,
+        credentialProfile: minted.credentialProfile,
+        credential: minted.credential,
+      };
     } catch {
       // Store-unavailable / cannot-persist ⇒ register NOTHING. Never silently
       // fall back to a self-asserted id.
@@ -700,10 +1357,14 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
   return {
     mint,
     register,
+    withMintDoorTransaction,
     retire,
     resurrect,
     verifyCredential,
+    verifyCredentialUse,
     verifyOperatorToken,
+    issueBodyCredential,
+    revokeBodyCredential,
     resolveAlias,
     resolveActor,
     classify,

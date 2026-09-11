@@ -85,8 +85,9 @@ function parseSessionLifecycle(value: unknown): SessionLifecycle | null {
  * but the context credential is used ONLY when the context's agentId matches
  * the agent this client will assert, because presenting soul A's credential
  * while asserting agent B's name is exactly the laundering the daemon now
- * rejects (403 IDENTITY_ALIAS_MISMATCH). Commands that mint (session start /
- * takeover) call `pd.ensureActorCredential()` when nothing resolves here.
+ * rejects (403 IDENTITY_ALIAS_MISMATCH). Session start may mint a new actor
+ * when nothing resolves here. Takeover is continuity of an existing actor and
+ * must instead fail closed until that actor's credential is rebound.
  *
  * @param options - Parsed CLI options (`--agent` wins over context).
  * @returns A PortDaddy client with agentId + credential set when available.
@@ -837,15 +838,23 @@ async function sessionTakeover(rest: string[], options: CLIOptions): Promise<voi
   }
 
   const pd = createSessionClient(options);
-  // #8877: takeover rewrites session lineage — always attributed, credential
-  // required. Mint one when this shell holds none.
-  if (!pd.credential && pd.agentId) {
-    try {
-      await pd.ensureActorCredential(pd.agentId);
-    } catch (error) {
-      ui.error(`Failed to mint actor credential: ${(error as Error).message}`);
-      process.exit(1);
+  // Takeover continues an existing attributed actor. A missing credential is
+  // a rebind/recovery condition, never permission to mint a different actor
+  // under the same display alias. Fail before either /actors/register or the
+  // takeover route can observe a request.
+  if (!pd.credential) {
+    const failure = {
+      success: false,
+      code: 'ACTOR_CONTINUITY_REQUIRED',
+      error: 'Session takeover requires the existing actor credential; rebind that actor before continuing. No new actor was minted.',
+      sessionId,
+    };
+    if (isJson(options)) {
+      console.log(JSON.stringify(failure, null, 2));
+    } else {
+      ui.error(`${failure.error} [${failure.code}]`);
     }
+    process.exit(1);
   }
   const body: Parameters<PortDaddy['takeoverSession']>[1] = {
     note,
@@ -1043,7 +1052,7 @@ async function sessionPhase(rest: string[], options: CLIOptions): Promise<void> 
       'Content-Type': 'application/json',
       ...(credential ? { 'X-Actor-Credential': credential } : {}),
     },
-    body: JSON.stringify({ phase })
+    body: JSON.stringify({ phase, agentId: ownerAgentId })
   });
 
   const data = await res.json();

@@ -1,9 +1,11 @@
 import {
   constants as fsConstants,
+  chmodSync,
   closeSync,
   existsSync,
   fchmodSync,
   fstatSync,
+  fsyncSync,
   lstatSync,
   mkdirSync,
   openSync,
@@ -11,10 +13,17 @@ import {
   readdirSync,
   renameSync,
   rmSync,
+  statSync,
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { basename, join } from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { basename, dirname, join } from 'node:path';
+import {
+  acquireContextSlotLock,
+  contextSlotLockPath,
+  type ContextSlotLockLease,
+} from '../../lib/context-slot-lock.js';
 
 export interface CurrentContext {
   agentId: string;
@@ -25,8 +34,13 @@ export interface CurrentContext {
   identity?: string | null;
   startedAt?: number;
   contextSlot?: string;
+  /** Marks an operator-approved exact-slot body that outranks stale inherited IDs. */
+  recoveryId?: string | null;
+  /** Expiry of the recovered body credential; expired custody never outranks env. */
+  credentialExpiresAt?: number | null;
   /**
-   * ADR-0040 daemon-minted actor credential (`<actor_id>.<secret>`) captured
+   * ADR-0040 daemon-minted body credential
+   * (`pdab1.<actor_id>.<body_id>.<secret>`) captured
    * from `pd begin` (#8877 / ADR-0122). Attributed writes (done, notes, file
    * claims, locks, salvage, commitments) are rejected 401 without it, so
    * `pdFetch` reads it from here and presents it as the `x-actor-credential`
@@ -150,7 +164,19 @@ export function resolveContextSlot(): string {
 }
 
 function canUseLegacyContextForSlot(legacy: CurrentContext, slot: string): boolean {
-  return !legacy.contextSlot || legacy.contextSlot === slot;
+  return isLegacyEligibleContext(legacy)
+    && (!legacy.contextSlot || legacy.contextSlot === slot);
+}
+
+/**
+ * Recovery custody is deliberately exact-slot only. A recovered body must
+ * never be projected through `.portdaddy/current.json`, even as a fallback
+ * after an ordinary sibling is cleared: that legacy pointer is consulted by
+ * unrelated shells and would widen the signed recovery scope.
+ */
+function isLegacyEligibleContext(context: CurrentContext): boolean {
+  return !(typeof context.recoveryId === 'string' && context.recoveryId.length > 0)
+    && context.credentialExpiresAt == null;
 }
 
 export function getContextDir(cwd: string = process.cwd()): string {
@@ -221,6 +247,22 @@ function ensureContextDirs(cwd: string): void {
   repairPrivateDirectory(getContextStoreDir(cwd), true);
 }
 
+function acquireSlotWriteLock(
+  slot: string,
+  cwd: string,
+  operation: 'write' | 'remove',
+): ContextSlotLockLease {
+  return acquireContextSlotLock(
+    contextSlotLockPath(getContextStoreDir(cwd), slot),
+    {
+      schema: 'pd.context-slot-lock.v1',
+      writer: 'cli-current-context',
+      operation,
+      contextSlot: slot,
+    },
+  );
+}
+
 function contextDirectoryTreeIsSafeForMutation(cwd: string): boolean {
   const contextDir = getContextDir(cwd);
   try {
@@ -247,9 +289,15 @@ function unlinkContextFile(path: string, cwd: string, storeScoped: boolean): boo
   }
 }
 
+// Context files carry daemon-minted body credentials. Both sides of this merge
+// hardened the writer for the same reason and in compatible ways, so both
+// hardenings are kept: main's refusal to publish over a symlink/non-file and
+// its owner-only fchmod on the temp inode, and the recovery branch's fsync of
+// the file AND its parent directory plus the post-rename chmod clamp (the
+// `mode` option alone does not tighten a pre-existing destination file).
 function writeJson(path: string, value: CurrentContext | BeginAttempt): void {
-  const temporaryPath = `${path}.tmp-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  let fd: number | null = null;
+  const temporaryPath = `${path}.${process.pid}.${randomUUID()}.tmp`;
+  let temporaryFd: number | null = null;
   try {
     if (existsSync(path)) {
       const destination = lstatSync(path);
@@ -257,19 +305,86 @@ function writeJson(path: string, value: CurrentContext | BeginAttempt): void {
         throw new Error(`refusing unsafe context file: ${path}`);
       }
     }
-    fd = openSync(temporaryPath, 'wx', 0o600);
-    fchmodSync(fd, 0o600);
-    writeFileSync(fd, JSON.stringify(value, null, 2));
-    closeSync(fd);
-    fd = null;
+    temporaryFd = openSync(temporaryPath, 'wx', 0o600);
+    fchmodSync(temporaryFd, 0o600);
+    writeFileSync(temporaryFd, JSON.stringify(value, null, 2), 'utf8');
+    fsyncSync(temporaryFd);
+    closeSync(temporaryFd);
+    temporaryFd = null;
     renameSync(temporaryPath, path);
+    chmodSync(path, 0o600);
+    const directoryFd = openSync(dirname(path), 'r');
+    try {
+      fsyncSync(directoryFd);
+    } finally {
+      closeSync(directoryFd);
+    }
   } catch (error) {
-    if (fd !== null) {
-      try { closeSync(fd); } catch {}
+    if (temporaryFd !== null) {
+      try { closeSync(temporaryFd); } catch {}
     }
     try { unlinkSync(temporaryPath); } catch {}
     throw error;
   }
+}
+
+function exactSlot(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed || sanitizeSlot(trimmed) !== trimmed) {
+    throw new Error('contextSlot must already be a non-empty canonical slot identifier');
+  }
+  return trimmed;
+}
+
+/**
+ * Install one recovery body into exactly the signed context slot. Unlike the
+ * ordinary interactive writer, this deliberately does not update the legacy
+ * `.portdaddy/current.json` projection: widening a scoped credential to a
+ * second lookup path would violate the operator-approved action.
+ */
+export function writeCurrentContextForExactSlot(
+  context: CurrentContext,
+  slot: string,
+  cwd: string = process.cwd(),
+): CurrentContext {
+  const canonicalSlot = exactSlot(slot);
+  if (context.contextSlot && context.contextSlot !== canonicalSlot) {
+    throw new Error('context contextSlot does not match the exact custody slot');
+  }
+  const record: CurrentContext = { ...context, contextSlot: canonicalSlot };
+  ensureContextDirs(cwd);
+  const lease = acquireSlotWriteLock(canonicalSlot, cwd, 'write');
+  try {
+    writeJson(getContextPathForSlot(canonicalSlot, cwd), record);
+  } finally {
+    lease.release();
+  }
+  return record;
+}
+
+/** Remove only one exact recovery slot; legacy and sibling contexts survive. */
+export function removeCurrentContextForExactSlot(
+  slot: string,
+  cwd: string = process.cwd(),
+): void {
+  const canonicalSlot = exactSlot(slot);
+  const storeDir = getContextStoreDir(cwd);
+  if (!existsSync(storeDir)) return;
+  const path = getContextPathForSlot(canonicalSlot, cwd);
+  const lease = acquireSlotWriteLock(canonicalSlot, cwd, 'remove');
+  try {
+    if (existsSync(path)) unlinkSync(path);
+  } finally {
+    lease.release();
+  }
+}
+
+/** Read one exact slot without consulting env or the legacy projection. */
+export function readCurrentContextForExactSlot(
+  slot: string,
+  cwd: string = process.cwd(),
+): CurrentContext | null {
+  return readContextFile(getContextPathForSlot(exactSlot(slot), cwd));
 }
 
 function listStoredContexts(cwd: string): Array<{ path: string; context: CurrentContext; mtimeMs: number }> {
@@ -318,6 +433,34 @@ export function resolveCurrentContext(cwd: string = process.cwd()): CurrentConte
   const slot = resolveContextSlot();
   const slotPath = getContextPathForSlot(slot, cwd);
   const slotRecord = readContextFile(slotPath);
+  // A signed operator recovery intentionally replaces stale inherited session
+  // IDs in this exact harness slot. Without this precedence, PD_AGENT_ID and
+  // PD_SESSION_ID from the stranded predecessor either hide the newly
+  // installed body or make it look like a CONTEXT_CONFLICT — which recreates
+  // the restart dead-end the operator just repaired. Only a live (unexpired)
+  // recovered body outranks the environment; an expired one falls through to
+  // the ordinary provenance rules below.
+  if (
+    slotRecord
+    && typeof slotRecord.recoveryId === 'string'
+    && slotRecord.recoveryId.length > 0
+    && typeof slotRecord.credential === 'string'
+    && slotRecord.credential.length > 0
+    && Number.isSafeInteger(slotRecord.credentialExpiresAt)
+    && Number(slotRecord.credentialExpiresAt) > Date.now()
+  ) {
+    return {
+      success: true,
+      context: slotRecord,
+      provenance: {
+        source: 'slot',
+        agentId: slotRecord.agentId,
+        sessionId: slotRecord.sessionId,
+        contextSlot: slotRecord.contextSlot || slot,
+        path: slotPath,
+      },
+    };
+  }
   const legacyPath = getLegacyContextPath(cwd);
   const legacyRecord = slotRecord ? null : readContextFile(legacyPath);
   const storedRecord = slotRecord || (legacyRecord && canUseLegacyContextForSlot(legacyRecord, slot) ? legacyRecord : null);
@@ -386,11 +529,19 @@ export function resolveCurrentContext(cwd: string = process.cwd()): CurrentConte
 }
 
 export function writeCurrentContext(context: CurrentContext, cwd: string = process.cwd()): CurrentContext {
+  if (!isLegacyEligibleContext(context)) {
+    throw new Error('recovery custody must use writeCurrentContextForExactSlot');
+  }
   const slot = sanitizeSlot(context.contextSlot || resolveContextSlot());
   const record: CurrentContext = { ...context, contextSlot: slot };
   ensureContextDirs(cwd);
-  writeJson(getContextPathForSlot(slot, cwd), record);
-  writeJson(getLegacyContextPath(cwd), record);
+  const lease = acquireSlotWriteLock(slot, cwd, 'write');
+  try {
+    writeJson(getContextPathForSlot(slot, cwd), record);
+    writeJson(getLegacyContextPath(cwd), record);
+  } finally {
+    lease.release();
+  }
   return record;
 }
 
@@ -499,43 +650,66 @@ export function clearCurrentContext(cwd: string = process.cwd()): void {
   if (!contextDirectoryTreeIsSafeForMutation(cwd)) return;
 
   const slot = resolveContextSlot();
-  const slotPath = getContextPathForSlot(slot, cwd);
-  unlinkContextFile(slotPath, cwd, true);
-
-  const legacyPath = getLegacyContextPath(cwd);
-  if (!contextDirectoryTreeIsSafeForMutation(cwd)) return;
-  const legacy = readContextFile(legacyPath);
-  if (!legacy) return;
-
-  const clearLegacy = canUseLegacyContextForSlot(legacy, slot);
-  if (legacy.contextSlot && legacy.contextSlot !== slot) {
-    if (!clearLegacy) return;
-    unlinkContextFile(getContextPathForSlot(legacy.contextSlot, cwd), cwd, true);
-  }
-  if (!legacy.contextSlot && legacy.sessionId) {
-    const fallback = listStoredContexts(cwd)[0];
-    if (fallback) {
-      if (!contextDirectoryTreeIsSafeForMutation(cwd)) return;
-      writeJson(legacyPath, fallback.context);
-      return;
-    }
-  }
-
-  const replacement = listStoredContexts(cwd)[0];
-  if (replacement) {
-    if (!contextDirectoryTreeIsSafeForMutation(cwd)) return;
-    writeJson(legacyPath, replacement.context);
+  const storeDir = getContextStoreDir(cwd);
+  if (!existsSync(storeDir)) {
+    unlinkContextFile(getLegacyContextPath(cwd), cwd, false);
     return;
   }
+  // Both sides hardened this clear for different reasons and both are kept:
+  // the recovery branch's exact-slot write lease (so a concurrent recovery
+  // install and a `pd done` cleanup cannot interleave on the same slot) and
+  // main's symlink-refusing unlink/re-validation helpers.
+  const slotPath = getContextPathForSlot(slot, cwd);
+  const lease = acquireSlotWriteLock(slot, cwd, 'remove');
+  try {
+    unlinkContextFile(slotPath, cwd, true);
 
-  unlinkContextFile(legacyPath, cwd, false);
+    const legacyPath = getLegacyContextPath(cwd);
+    if (!contextDirectoryTreeIsSafeForMutation(cwd)) return;
+    const legacy = readContextFile(legacyPath);
+    if (!legacy) return;
+
+    const clearLegacy = canUseLegacyContextForSlot(legacy, slot);
+    if (legacy.contextSlot && legacy.contextSlot !== slot) {
+      if (!clearLegacy) return;
+      unlinkContextFile(getContextPathForSlot(legacy.contextSlot, cwd), cwd, true);
+    }
+    // A recovered body is exact-slot custody: it must never be promoted into
+    // the legacy `current.json` projection that other shells read.
+    if (!legacy.contextSlot && legacy.sessionId) {
+      const fallback = listStoredContexts(cwd)
+        .find(({ context }) => isLegacyEligibleContext(context));
+      if (fallback) {
+        if (!contextDirectoryTreeIsSafeForMutation(cwd)) return;
+        writeJson(legacyPath, fallback.context);
+        return;
+      }
+    }
+
+    const replacement = listStoredContexts(cwd)
+      .find(({ context }) => isLegacyEligibleContext(context));
+    if (replacement) {
+      if (!contextDirectoryTreeIsSafeForMutation(cwd)) return;
+      writeJson(legacyPath, replacement.context);
+      return;
+    }
+
+    unlinkContextFile(legacyPath, cwd, false);
+  } finally {
+    lease.release();
+  }
 }
 
 export function readCurrentContextFromPaths(paths: string[]): CurrentContext | null {
   for (const basePath of paths) {
+    // main: a CONTEXT_CONFLICT is fatal here, never silently skipped.
     const resolution = resolveCurrentContext(basePath);
     if (!resolution.success) return null;
     if (resolution.context) return resolution.context;
+    // recovery branch: the legacy projection is still a valid last resort, but
+    // only for contexts that are legacy-eligible (never a scoped recovery body).
+    const legacy = readContextFile(getLegacyContextPath(basePath));
+    if (legacy && isLegacyEligibleContext(legacy)) return legacy;
   }
   return null;
 }

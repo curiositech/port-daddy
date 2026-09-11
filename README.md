@@ -286,6 +286,19 @@ pd takeover <old-session-id>       # successor session with recorded lineage
 
 Session context is deterministic. `PD_SESSION_ID` and `PD_AGENT_ID` are an atomic pair; a partial pair cannot hide a complete context slot, and a disagreeing complete pair returns `CONTEXT_CONFLICT` with both provenances. Agent-only mutations fail with `AMBIGUOUS_ACTIVE_SESSION` when more than one active session matches. Session, note, claim, lock, and salvage mutations use credentialed daemon HTTP; raw IPC and direct SQLite expose only their safe read surfaces.
 
+Ordinary takeover requires the same actor's valid credential; a daemon restart
+is never permission to mint a look-alike actor. If a durable actor's body is no
+longer available, FleetBar presents the exact predecessor, project, canonical
+worktree, branch, successor intent, context slot, and every claim disposition.
+After Touch ID, the daemon verifies the signed FleetBar process and Secure
+Enclave signature, atomically binds one successor, and installs a short-lived
+session body into that exact owner-only context slot. A lost response is safe to
+retry: the same non-secret binding and custody receipt is reconstructed from the
+append-only ledger. Pending approvals terminate when the daemon generation
+changes; an already-bound sealed custody handoff may finish after restart. There
+is no CLI token, loopback approval, broad claim release, or plaintext credential
+directory fallback.
+
 ### Say / Look — the consolidated verbs
 
 When you return from a break, or want to tell every other session about a finding:

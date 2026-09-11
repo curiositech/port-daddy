@@ -12,13 +12,186 @@ import Fastify from 'fastify';
 import { createTestDb } from '../setup-unit.js';
 import { createLocks } from '../../lib/locks.js';
 import { createCommitments } from '../../lib/commitments.js';
+import { createAgents } from '../../lib/agents.js';
+import { createSessions } from '../../lib/sessions.js';
+import { createActivityLog } from '../../lib/activity.js';
+import { createSugar } from '../../lib/sugar.js';
 import { createTestActorSouls, mintTestActor } from '../helpers/actor-credentials.js';
 import { sugarPlugin } from '../../routes/sugar.js';
 import { locksPlugin } from '../../routes/locks.js';
 import { resurrectionPlugin } from '../../routes/resurrection.js';
 import { commitmentsPlugin } from '../../routes/commitments.js';
+import {
+  deriveSessionCredentialUseContext,
+  resolveWriteIdentity,
+} from '../../lib/identity-write-boundary.js';
+import { getWorktreeInfo } from '../../lib/worktree.js';
 
 const silentLogger = { info() {}, warn() {}, error() {} };
+
+describe('identity write boundary — scoped body credentials', () => {
+  let db;
+  let souls;
+  let root;
+  let body;
+  const resource = (overrides = {}) => ({
+    sessionId: 'session-recovered',
+    intendedAgentId: 'port-daddy:test:recovered',
+    project: 'port-daddy',
+    canonicalWorktree: '/Users/example/coding/tmp/recovered',
+    branch: 'codex/recovered',
+    status: 'active',
+    ...overrides,
+  });
+
+  beforeEach(() => {
+    db = createTestDb();
+    souls = createTestActorSouls(db, { now: () => 1_800_000_000_000 });
+    root = mintTestActor(souls, 'port-daddy:test:recovered');
+    body = souls.issueBodyCredential({
+      actorId: root.actorId,
+      profile: 'session-body-v1',
+      scope: {
+        intendedAgentId: 'port-daddy:test:recovered',
+        successorSessionId: 'session-recovered',
+        project: 'port-daddy',
+        canonicalWorktree: '/Users/example/coding/tmp/recovered',
+        branch: 'codex/recovered',
+        recoveryId: 'recovery-route-boundary',
+        contextSlot: 'slot-recovered',
+        issuedDaemonGeneration: 'daemon-issued',
+      },
+      expiresAt: 1_800_000_060_000,
+    });
+  });
+  afterEach(() => db.close());
+
+  test('exact daemon-derived use succeeds and stamps the body selector, profile, and display owner', () => {
+    const verdict = resolveWriteIdentity({
+      souls,
+      credential: body.credential,
+      assertedAgentId: 'port-daddy:test:recovered',
+      route: 'POST /sessions/:id/notes',
+      requireIdentity: true,
+      credentialUseContext: {
+        action: 'session.note.write',
+        resource: resource(),
+      },
+    });
+    expect(verdict).toEqual(expect.objectContaining({
+      ok: true,
+      kind: 'verified',
+      actorId: root.actorId,
+      agentId: 'port-daddy:test:recovered',
+      intendedAgentId: 'port-daddy:test:recovered',
+      bodyCredentialId: body.bodyCredentialId,
+      credentialProfile: 'session-body-v1',
+    }));
+    expect(verdict.identity).toEqual(expect.objectContaining({
+      actorId: root.actorId,
+      intendedAgentId: 'port-daddy:test:recovered',
+      bodyCredentialId: body.bodyCredentialId,
+      credentialProfile: 'session-body-v1',
+    }));
+  });
+
+  test('missing, cross-session, non-active, and display-owner drift all reject 403 with zero root fallback', () => {
+    for (const params of [
+      {},
+      { credentialUseContext: { action: 'session.note.write', resource: resource({ sessionId: 'other' }) } },
+      { credentialUseContext: { action: 'session.note.write', resource: resource({ status: 'completed' }) } },
+      {
+        assertedAgentId: 'unbound-other-display',
+        credentialUseContext: { action: 'session.note.write', resource: resource() },
+      },
+    ]) {
+      const verdict = resolveWriteIdentity({
+        souls,
+        credential: body.credential,
+        assertedAgentId: 'port-daddy:test:recovered',
+        route: 'scoped-test',
+        requireIdentity: true,
+        ...params,
+      });
+      expect(verdict).toEqual(expect.objectContaining({
+        ok: false,
+        httpStatus: 403,
+        code: 'IDENTITY_CREDENTIAL_SCOPE_MISMATCH',
+      }));
+    }
+  });
+
+  test('the migrated actor-root profile preserves ordinary unrestricted route behavior', () => {
+    const verdict = resolveWriteIdentity({
+      souls,
+      credential: root.credential,
+      assertedAgentId: 'port-daddy:test:recovered',
+      route: 'POST /locks/example',
+      requireIdentity: true,
+    });
+    expect(verdict).toEqual(expect.objectContaining({
+      ok: true,
+      actorId: root.actorId,
+      credentialProfile: 'actor-root',
+      intendedAgentId: 'port-daddy:test:recovered',
+    }));
+  });
+
+  test('the scoped resource is derived from stored session and live Git state, never request coordinates', () => {
+    const expected = {
+      root: '/canonical/recovered',
+      branch: 'codex/recovered',
+      id: 'worktree-id',
+      name: 'recovered',
+      isMain: false,
+      commonDir: '/repo/.git',
+    };
+    const context = deriveSessionCredentialUseContext(
+      'session-recovered',
+      'session.plan.write',
+      () => ({
+        success: true,
+        session: {
+          id: 'session-recovered',
+          agentId: 'port-daddy:test:recovered',
+          identityProject: 'port-daddy',
+          status: 'active',
+          metadata: { worktree: { root: expected.root } },
+        },
+      }),
+      (rootPath) => rootPath === expected.root ? expected : null,
+    );
+    expect(context).toEqual({
+      action: 'session.plan.write',
+      resource: resource({ canonicalWorktree: expected.root }),
+    });
+  });
+
+  test('worktree movement, branch detachment, and inactive sessions withhold scoped authority', () => {
+    const lookup = () => ({
+      success: true,
+      session: {
+        id: 'session-recovered',
+        agentId: 'port-daddy:test:recovered',
+        identityProject: 'port-daddy',
+        status: 'active',
+        metadata: { worktree: { root: '/stored/root' } },
+      },
+    });
+    expect(deriveSessionCredentialUseContext(
+      'session-recovered',
+      'session.note.write',
+      lookup,
+      () => ({ root: '/moved/root', branch: 'codex/recovered' }),
+    )).toBeNull();
+    expect(deriveSessionCredentialUseContext(
+      'session-recovered',
+      'session.note.write',
+      lookup,
+      () => ({ root: '/stored/root', branch: null }),
+    )).toBeNull();
+  });
+});
 
 // =============================================================================
 // /sugar/begin, /sugar/done, /sugar/relink
@@ -28,6 +201,7 @@ describe('identity write boundary — sugar routes', () => {
   let db;
   let souls;
   let beginCalls;
+  let beginResult;
   let doneCalls;
   let relinkCalls;
   let sessionRows;
@@ -36,6 +210,7 @@ describe('identity write boundary — sugar routes', () => {
     db = createTestDb();
     souls = createTestActorSouls(db);
     beginCalls = [];
+    beginResult = null;
     doneCalls = [];
     relinkCalls = [];
     sessionRows = new Map();
@@ -46,6 +221,7 @@ describe('identity write boundary — sugar routes', () => {
           begin: (options) => {
             beginCalls.push(options);
             const ownerAgentId = options.agentId || 'generated-agent';
+            if (beginResult) return beginResult;
             sessionRows.set('session-1', {
               id: 'session-1',
               agentId: ownerAgentId,
@@ -107,6 +283,73 @@ describe('identity write boundary — sugar routes', () => {
     expect(beginCalls[0].metadata.identity).toEqual(
       expect.objectContaining({ verified: true, actorId: body.actorId }),
     );
+    expect(beginCalls[0].verifiedActorId).toBe(body.actorId);
+    // main retired the per-project/day newcomer ADMIT counter; the shared
+    // SPEND pool is what still meters an uncredentialed mint.
+    expect(souls.poolState('demo', new Date().toISOString().slice(0, 10))).toEqual({
+      spendUsd: 0,
+    });
+  });
+
+  test.each([
+    ['ROADMAP_SLUG_UNKNOWN', 'unknown roadmap link'],
+    ['SIDEQUEST_REASON_TOO_SHORT', 'short sidequest'],
+    ['MAIN_WORKTREE_CROWDED', 'crowded main worktree'],
+    ['AGENT_REGISTRATION_FAILED', 'agent registration failure'],
+  ])('an uncredentialed downstream %s refusal rolls back actor, root body, and newcomer admission', async (code, error) => {
+    beginResult = { success: false, code, error };
+    const before = {
+      actors: db.prepare('SELECT COUNT(*) AS count FROM actor_souls').get().count,
+      bodies: db.prepare('SELECT COUNT(*) AS count FROM actor_body_credentials').get().count,
+      pool: souls.poolState('rollback-demo', new Date().toISOString().slice(0, 10)),
+    };
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/sugar/begin',
+      payload: {
+        purpose: `exercise ${code}`,
+        identity: 'rollback-demo:test:atomic-mint',
+        lifecycle: 'durable',
+      },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toEqual(expect.objectContaining({ success: false, code }));
+    expect(db.prepare('SELECT COUNT(*) AS count FROM actor_souls').get().count).toBe(before.actors);
+    expect(db.prepare('SELECT COUNT(*) AS count FROM actor_body_credentials').get().count).toBe(before.bodies);
+    expect(souls.poolState('rollback-demo', new Date().toISOString().slice(0, 10))).toEqual(before.pool);
+  });
+
+  test('a storage failure after newcomer debit returns 503 and rolls back the debit', async () => {
+    db.exec(`
+      CREATE TRIGGER force_sugar_actor_insert_failure
+      BEFORE INSERT ON actor_souls
+      BEGIN
+        SELECT RAISE(ABORT, 'forced actor storage failure');
+      END
+    `);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/sugar/begin',
+      payload: {
+        purpose: 'prove typed atomic storage failure',
+        identity: 'storage-failure:test:atomic-mint',
+        lifecycle: 'durable',
+      },
+    });
+
+    expect(res.statusCode).toBe(503);
+    expect(res.json()).toEqual(expect.objectContaining({
+      success: false,
+      code: 'STORE_UNAVAILABLE',
+    }));
+    expect(souls.poolState('storage-failure', new Date().toISOString().slice(0, 10))).toEqual({
+      spendUsd: 0,
+    });
+    expect(db.prepare('SELECT COUNT(*) AS count FROM actor_souls').get().count).toBe(0);
+    expect(db.prepare('SELECT COUNT(*) AS count FROM actor_body_credentials').get().count).toBe(0);
   });
 
   test('an uncredentialed begin asserting a name OWNED by a minted soul is rejected 401', async () => {
@@ -161,6 +404,141 @@ describe('identity write boundary — sugar routes', () => {
     expect(body.credential).toBeUndefined();
     expect(body.actorId).toBe(minted.actorId);
     expect(body.actorIdentity).toEqual(expect.objectContaining({ verified: true, actorId: minted.actorId }));
+    expect(beginCalls[0].verifiedActorId).toBe(minted.actorId);
+  });
+
+  test('caller-controlled verifiedActorId is ignored in favor of the credential verdict', async () => {
+    const minted = mintTestActor(souls, 'returning:stack:trusted');
+    const res = await app.inject({
+      method: 'POST',
+      url: '/sugar/begin',
+      payload: {
+        purpose: 'resume with forged actor field',
+        identity: 'returning:stack:trusted',
+        lifecycle: 'durable',
+        verifiedActorId: 'actor-attacker-controlled',
+      },
+      headers: minted.headers,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(beginCalls).toHaveLength(1);
+    expect(beginCalls[0].verifiedActorId).toBe(minted.actorId);
+    expect(beginCalls[0].verifiedActorId).not.toBe('actor-attacker-controlled');
+  });
+
+  test.each([
+    ['SESSION_ACTOR_MISMATCH', 403],
+    ['SESSION_REBIND_REQUIRED', 409],
+  ])('typed Sugar predecessor refusal %s preserves its HTTP boundary', async (code, statusCode) => {
+    const minted = mintTestActor(souls, `returning:stack:${code.toLowerCase()}`);
+    beginResult = { success: false, code, error: 'typed predecessor refusal' };
+    const res = await app.inject({
+      method: 'POST',
+      url: '/sugar/begin',
+      payload: {
+        purpose: 'attempt bounded resume',
+        identity: `returning:stack:${code.toLowerCase()}`,
+        lifecycle: 'durable',
+      },
+      headers: minted.headers,
+    });
+    expect(res.statusCode).toBe(statusCode);
+    expect(res.json()).toEqual(expect.objectContaining({ success: false, code }));
+  });
+
+  test('uncredentialed implicit resume is refused before newcomer quota or actor state changes', async () => {
+    const realDb = createTestDb();
+    const realSouls = createTestActorSouls(realDb);
+    const agents = createAgents(realDb);
+    const sessions = createSessions(realDb);
+    const activityLog = createActivityLog(realDb);
+    sessions.setActivityLog(activityLog);
+    const realSugar = createSugar({
+      agents,
+      sessions,
+      activityLog,
+      gitOriginChecker: {
+        checkBranchOnOrigin: () => ({ ok: true, branch: 'feat/test', upstream: 'origin/feat/test', ahead: 0 }),
+        checkLedgerOnly: () => ({ ok: true, dirtyEntries: 0, unpublishedCommits: 0 }),
+      },
+    });
+    const realApp = Fastify();
+    await realApp.register(sugarPlugin, {
+      deps: {
+        sugar: realSugar,
+        metrics: { errors: 0 },
+        logger: silentLogger,
+        actorSouls: realSouls,
+      },
+    });
+    await realApp.ready();
+    try {
+      const first = await realApp.inject({
+        method: 'POST',
+        url: '/sugar/begin',
+        payload: {
+          purpose: 'First anonymous mint is a fresh begin',
+          identity: 'demo:test:no-orphan-mint',
+          lifecycle: 'durable',
+        },
+      });
+      expect(first.statusCode).toBe(200);
+      // Push the real predecessor past the historical UI-sized 50-row scan.
+      // These are direct service starts, so they do not spend newcomer quota.
+      for (let index = 0; index < 55; index += 1) {
+        const filler = realSugar.begin({
+          purpose: `Newer unrelated session ${index}`,
+          identity: `demo:test:filler-${index}`,
+          agentId: `agent-filler-${index}`,
+          lifecycle: 'ephemeral',
+        });
+        expect(filler.success).toBe(true);
+      }
+      const actorCountBefore = realDb.prepare('SELECT COUNT(*) AS count FROM actor_souls').get().count;
+      const poolBefore = realSouls.poolState('demo');
+      const sessionCountBefore = sessions.list({ allWorktrees: true, limit: 100 }).sessions.length;
+
+      const refused = await realApp.inject({
+        method: 'POST',
+        url: '/sugar/begin',
+        payload: {
+          purpose: 'Display identity is not recovery authority',
+          identity: 'demo:test:no-orphan-mint',
+          lifecycle: 'durable',
+        },
+      });
+
+      expect(refused.statusCode).toBe(401);
+      expect(refused.json().code).toBe('IDENTITY_CREDENTIAL_REQUIRED');
+      expect(realDb.prepare('SELECT COUNT(*) AS count FROM actor_souls').get().count).toBe(actorCountBefore);
+      expect(realSouls.poolState('demo')).toEqual(poolBefore);
+      expect(sessions.list({ allWorktrees: true, limit: 100 }).sessions).toHaveLength(sessionCountBefore);
+
+      const legacy = sessions.start('Legacy unstamped session', {
+        agentId: 'agent-legacy-unstamped',
+        project: 'demo',
+        metadata: { identityString: 'demo:test:legacy-no-mint' },
+      });
+      expect(legacy.success).toBe(true);
+      const actorCountBeforeLegacy = realDb.prepare('SELECT COUNT(*) AS count FROM actor_souls').get().count;
+      const poolBeforeLegacy = realSouls.poolState('demo');
+      const legacyRefused = await realApp.inject({
+        method: 'POST',
+        url: '/sugar/begin',
+        payload: {
+          purpose: 'Legacy work requires explicit recovery',
+          identity: 'demo:test:legacy-no-mint',
+          lifecycle: 'durable',
+        },
+      });
+      expect(legacyRefused.statusCode).toBe(409);
+      expect(legacyRefused.json().code).toBe('SESSION_REBIND_REQUIRED');
+      expect(realDb.prepare('SELECT COUNT(*) AS count FROM actor_souls').get().count).toBe(actorCountBeforeLegacy);
+      expect(realSouls.poolState('demo')).toEqual(poolBeforeLegacy);
+    } finally {
+      await realApp.close();
+      realDb.close();
+    }
   });
 
   test('public begin strips caller-forged managed-spawn proof metadata', async () => {
@@ -435,6 +813,96 @@ describe('identity write boundary — sugar routes', () => {
     });
     expect(res.statusCode).toBe(401);
     expect(res.json().code).toBe('IDENTITY_CREDENTIAL_REQUIRED');
+  });
+
+  test('a recovered session body can finish only its exact live successor session', async () => {
+    const live = getWorktreeInfo(process.cwd());
+    expect(live?.branch).toBeTruthy();
+    const recovered = mintTestActor(souls, 'port-daddy:test:recovered-sugar');
+    const scoped = souls.issueBodyCredential({
+      actorId: recovered.actorId,
+      profile: 'session-body-v1',
+      scope: {
+        intendedAgentId: 'port-daddy:test:recovered-sugar',
+        successorSessionId: 'session-recovered-sugar',
+        project: 'port-daddy',
+        canonicalWorktree: live.root,
+        branch: live.branch,
+        recoveryId: 'recovery-sugar-route',
+        contextSlot: 'slot-sugar-route',
+        issuedDaemonGeneration: 'daemon-before-restart',
+      },
+      expiresAt: Date.now() + 60_000,
+    });
+    const doneCalls = [];
+    const recoveredApp = Fastify();
+    await recoveredApp.register(sugarPlugin, {
+      deps: {
+        sugar: {
+          begin: () => ({ success: false }),
+          done: (options) => {
+            doneCalls.push(options);
+            return {
+              success: true,
+              agentId: options.agentId,
+              sessionId: options.sessionId,
+              sessionStatus: 'completed',
+            };
+          },
+          relink: () => ({ success: false }),
+          whoami: () => ({ success: true }),
+        },
+        sessions: {
+          get: (sessionId) => ({
+            success: sessionId === 'session-recovered-sugar',
+            session: sessionId === 'session-recovered-sugar' ? {
+              id: sessionId,
+              agentId: 'port-daddy:test:recovered-sugar',
+              identityProject: 'port-daddy',
+              status: 'active',
+              metadata: { worktree: { root: live.root } },
+            } : undefined,
+          }),
+        },
+        metrics: { errors: 0 },
+        logger: silentLogger,
+        actorSouls: souls,
+      },
+    });
+    await recoveredApp.ready();
+    try {
+      const denied = await recoveredApp.inject({
+        method: 'POST',
+        url: '/sugar/done',
+        headers: { 'x-actor-credential': scoped.credential },
+        payload: {
+          agentId: 'port-daddy:test:recovered-sugar',
+          sessionId: 'session-other',
+        },
+      });
+      expect(denied.statusCode).toBe(403);
+      expect(denied.json().code).toBe('IDENTITY_CREDENTIAL_SCOPE_MISMATCH');
+      expect(doneCalls).toHaveLength(0);
+
+      const allowed = await recoveredApp.inject({
+        method: 'POST',
+        url: '/sugar/done',
+        headers: { 'x-actor-credential': scoped.credential },
+        payload: {
+          agentId: 'port-daddy:test:recovered-sugar',
+          sessionId: 'session-recovered-sugar',
+        },
+      });
+      expect(allowed.statusCode).toBe(200);
+      expect(doneCalls).toEqual([
+        expect.objectContaining({
+          agentId: 'port-daddy:test:recovered-sugar',
+          sessionId: 'session-recovered-sugar',
+        }),
+      ]);
+    } finally {
+      await recoveredApp.close();
+    }
   });
 });
 

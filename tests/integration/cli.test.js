@@ -10,13 +10,13 @@ import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import Database from 'better-sqlite3';
 import { registerTestActorVia } from '../helpers/actor-credentials.js';
 import {
   clearTestCurrentContext,
   getDaemonState,
   request,
   runCli,
-  runCliViaIpc,
   writeTestCurrentContext,
 } from '../helpers/integration-setup.js';
 
@@ -353,6 +353,7 @@ describe('CLI Integration Tests', () => {
 
         const sessionId = begin.data.sessionId;
         expect(sessionId).toBeTruthy();
+        expect(begin.data.credential).toBeTruthy();
 
         writeTestCurrentContext({
           agentId,
@@ -1445,6 +1446,54 @@ describe('CLI Integration Tests', () => {
       const doneData = JSON.parse(doneResult.stdout);
       expect(doneData.success).toBe(true);
       expect(doneData.sessionId).toBe(takeoverData.successorId);
+    });
+
+    test('pd session takeover refuses missing actor continuity without minting or requesting takeover', () => {
+      const slot = `missing-takeover-credential-${Date.now()}`;
+      const agentId = `existing-actor-with-lost-body-${Date.now()}`;
+      const missingSessionId = `session-continuity-probe-${Date.now()}`;
+      const { dbPath } = getDaemonState();
+      const db = new Database(dbPath, { readonly: true });
+
+      try {
+        writeTestCurrentContext({
+          agentId,
+          sessionId: missingSessionId,
+          purpose: 'Prove takeover never remints after restart',
+          identity: 'port-daddy:test:missing-takeover-continuity',
+          contextSlot: slot,
+          credential: null,
+        });
+
+        const beforeSouls = db.prepare('SELECT COUNT(*) AS count FROM actor_souls').get().count;
+        const beforeAlias = db.prepare('SELECT COUNT(*) AS count FROM actor_alias WHERE alias = ?').get(agentId).count;
+
+        const result = runCli(
+          ['session', 'takeover', missingSessionId, 'must not mint actor B', '--json'],
+          {
+            env: {
+              PORT_DADDY_CONTEXT_SLOT: slot,
+              PD_ACTOR_CREDENTIAL: '',
+              PORT_DADDY_ACTOR_CREDENTIAL: '',
+            },
+          },
+        );
+
+        expect(result.success).toBe(false);
+        expect(result.stderr).toBe('');
+        expect(JSON.parse(result.stdout)).toEqual({
+          success: false,
+          code: 'ACTOR_CONTINUITY_REQUIRED',
+          error: expect.stringContaining('No new actor was minted'),
+          sessionId: missingSessionId,
+        });
+        expect(db.prepare('SELECT COUNT(*) AS count FROM actor_souls').get().count).toBe(beforeSouls);
+        expect(db.prepare('SELECT COUNT(*) AS count FROM actor_alias WHERE alias = ?').get(agentId).count).toBe(beforeAlias);
+        expect(db.prepare('SELECT COUNT(*) AS count FROM sessions WHERE id = ?').get(missingSessionId).count).toBe(0);
+      } finally {
+        db.close();
+        clearTestCurrentContext(slot);
+      }
     });
 
     test('pd session files add uses stored session context across worktree drift', async () => {

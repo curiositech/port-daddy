@@ -34,6 +34,7 @@ private func agentStatusColor(_ status: FleetAgent.AgentStatus) -> Color {
 struct FleetPopover: View {
     @Environment(\.openWindow) private var openWindow
     @Environment(\.openSettings) private var openSettings
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject var store: FleetStore
     @ObservedObject var costStore: CostStore
     @ObservedObject var secretsStore: SecretsStore
@@ -41,6 +42,7 @@ struct FleetPopover: View {
     @ObservedObject var interruptionsStore: InterruptionsStore
     @StateObject private var budgetStore = BudgetPauseStore()
     @StateObject private var approvalStore = SpawnApprovalStore()
+    @StateObject private var operatorRecoveryStore = OperatorRecoveryStore()
     @StateObject private var coastGuardReceiptStore: CoastGuardReceiptStore
     @StateObject private var berthStore = BerthStore()
     @StateObject private var cloudFleetStore = CloudFleetStore()
@@ -106,15 +108,21 @@ struct FleetPopover: View {
         .background(Fleet.Chrome.popoverBackground)
         .preferredColorScheme(selectedThemeRaw == "light" ? .light : .dark)
         .onAppear {
-            withAnimation(.smooth(duration: 0.4)) { appeared = true }
+            if reduceMotion {
+                appeared = true
+            } else {
+                withAnimation(.smooth(duration: 0.4)) { appeared = true }
+            }
             budgetStore.start()
             approvalStore.start()
+            operatorRecoveryStore.start()
             coastGuardReceiptStore.start()
             Task { await interruptionsStore.refresh() }
         }
         .onDisappear {
             budgetStore.stop()
             approvalStore.stop()
+            operatorRecoveryStore.stop()
             coastGuardReceiptStore.stop()
         }
     }
@@ -127,6 +135,7 @@ struct FleetPopover: View {
             // dropdown — a pending human gate is unmissable.
             InterruptionsSection(store: interruptionsStore)
             Divider().opacity(0.5)
+            OperatorRecoverySection(store: operatorRecoveryStore)
             SpawnApprovalSection(
                 store: approvalStore,
                 criticalBlockTitle: interruptionsStore.criticalSpawnBlockTitle,
@@ -1071,9 +1080,11 @@ struct FleetPopover: View {
                     }
                 )
                 .opacity(appeared ? 1 : 0)
-                .offset(y: appeared ? 0 : 8)
+                .offset(y: reduceMotion || appeared ? 0 : 8)
                 .animation(
-                    Fleet.Motion.expandSpring.delay(Double(index) * Fleet.Motion.sectionStagger),
+                    reduceMotion
+                        ? nil
+                        : Fleet.Motion.expandSpring.delay(Double(index) * Fleet.Motion.sectionStagger),
                     value: appeared
                 )
             }

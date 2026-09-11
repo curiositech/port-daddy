@@ -286,6 +286,24 @@
         "sdk": true
       }
     },
+    "operator_recovery": {
+      "description": "Provenance-bound operator presence recovery: daemon-supplied signed challenges create daemon-internal one-shot, generation-bound grants that atomically bind the same durable actor to a successor session and append typed authority receipts. Challenge creation grants no authority; native verifier absence fails closed; no recovery bearer crosses HTTP.",
+      "module": "lib/operator-recovery.ts",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "POST /operator-recovery/challenges",
+        "POST /operator-recovery/:param/decision",
+        "GET /operator-recovery",
+        "GET /operator-recovery/:param"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "The normal operator surface is FleetBar. No pd CLI, MCP, loopback-approval, operatorToken, or ~/.port-daddy/operator.secret authority exists. Signed decision verification is injected from canonical pd-anchor P-256 FFI and remains fail-closed until signed/notarized FleetBar enrollment is pinned."
+    },
     "cartographer": {
       "description": "Cartographer roadmap progress + atomic claim from the curated pile (ADR-0033) + session/agent linkage (ADR-0034)",
       "cli": [],

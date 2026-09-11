@@ -6,8 +6,9 @@
  *  WHY THIS MODULE EXISTS (motivation)
  * ════════════════════════════════════════════════════════════════════════════
  * ADR-0040 gave the daemon a mint (`lib/actor-souls.ts`): the only component
- * that issues principals, each bound to a `<actor_id>.<secret>` lookup-token
- * credential. But the mint was only *wired into the economic choke*
+ * that issues principals. Actor roots and scoped invocation bodies now use the
+ * versioned `pdab1.<actor_id>.<body_id>.<secret>` lookup-token. But the mint was
+ * only *wired into the economic choke*
  * (budget-guard) — the write routes (sessions, notes, file claims, locks,
  * salvage, commitments) kept accepting a bare self-asserted `agentId` string
  * from the body or an `x-agent-id` header. Issue #8877 records the
@@ -43,18 +44,23 @@
  *   - A credential presented while the souls store is unavailable is a 503
  *     `IDENTITY_VERIFIER_UNAVAILABLE` — never verified by assumption.
  *
- * This EXTENDS actor-souls rather than inventing a parallel mechanism: the
- * credential format, verification, and alias resolution are all ADR-0040's,
- * unchanged. Credentials are obtained from the two mint doors — POST
- * /actors/register, and POST /sugar/begin (which mints for uncredentialed
- * callers and returns the credential once).
+ * This EXTENDS actor-souls rather than inventing a parallel mechanism. Root
+ * credentials come from POST /actors/register and POST /sugar/begin; scoped
+ * session bodies come only from the provenance-bound recovery transaction.
+ * The boundary never accepts scope coordinates asserted by the request.
  */
 
-import type { ActorSouls } from './actor-souls.js';
-import type { SoulClass } from './actor-souls.js';
+import type {
+  ActorBodyCredentialProfile,
+  ActorCredentialUseContext,
+  ActorSouls,
+  SessionBodyCredentialAction,
+  SoulClass,
+} from './actor-souls.js';
+import { getWorktreeInfo, type WorktreeInfo } from './worktree.js';
 
 /** The subset of the ADR-0040 souls store this boundary needs. */
-export type IdentityVerifier = Pick<ActorSouls, 'verifyCredential' | 'resolveActor'>;
+export type IdentityVerifier = Pick<ActorSouls, 'verifyCredentialUse' | 'resolveActor'>;
 
 /** Structured logger shape (matches the daemon's route logger). */
 export interface BoundaryLogger {
@@ -67,6 +73,9 @@ export interface VerifiedIdentityStamp {
   verified: true;
   actorId: string;
   soulClass: SoulClass;
+  bodyCredentialId: string;
+  credentialProfile: ActorBodyCredentialProfile;
+  intendedAgentId: string;
 }
 
 export type IdentityWriteVerdict =
@@ -78,6 +87,9 @@ export type IdentityWriteVerdict =
       /** Effective attribution id for the record (display alias or actorId). */
       agentId: string;
       soulClass: SoulClass;
+      bodyCredentialId: string;
+      credentialProfile: ActorBodyCredentialProfile;
+      intendedAgentId: string;
       /** Metadata fragment routes persist on the written record. */
       identity: VerifiedIdentityStamp;
     }
@@ -88,6 +100,7 @@ export type IdentityWriteVerdict =
       code:
         | 'IDENTITY_CREDENTIAL_REQUIRED'
         | 'IDENTITY_CREDENTIAL_INVALID'
+        | 'IDENTITY_CREDENTIAL_SCOPE_MISMATCH'
         | 'IDENTITY_ALIAS_MISMATCH'
         | 'IDENTITY_VERIFIER_UNAVAILABLE';
       error: string;
@@ -96,7 +109,7 @@ export type IdentityWriteVerdict =
 export interface ResolveWriteIdentityParams {
   /** ADR-0040 souls store; absent only in stripped daemon modes. */
   souls?: IdentityVerifier | null;
-  /** `<actor_id>.<secret>` from the request (body `credential` / header). */
+  /** Versioned body/root credential from the request carrier. */
   credential?: string | null;
   /** Self-asserted display identifier from body/header, already trimmed. */
   assertedAgentId?: string | null;
@@ -104,6 +117,11 @@ export interface ResolveWriteIdentityParams {
   route: string;
   /** Multi-tenant scope; defaults to the souls store's default harbor. */
   harbor?: string;
+  /**
+   * Daemon-derived action + live resource coordinates. Required for a scoped
+   * session body; callers must never copy these fields from the request body.
+   */
+  credentialUseContext?: ActorCredentialUseContext | null;
   logger?: BoundaryLogger;
   /**
    * When true the route's writes are ALWAYS attributed (locks, file claims,
@@ -111,6 +129,70 @@ export interface ResolveWriteIdentityParams {
    * rejected 401 instead of resolving anonymous.
    */
   requireIdentity?: boolean;
+}
+
+interface SessionCredentialSource {
+  success?: boolean;
+  session?: {
+    id?: unknown;
+    agentId?: unknown;
+    identityProject?: unknown;
+    status?: unknown;
+    metadata?: { worktree?: unknown };
+  };
+}
+
+/**
+ * Derive a scoped body's exact resource from daemon-owned session state and
+ * the live Git checkout. A request never supplies these coordinates. Missing,
+ * moved, detached, or branch-switched worktrees fail closed as null.
+ */
+export function deriveSessionCredentialUseContext(
+  sessionId: string,
+  action: SessionBodyCredentialAction,
+  lookup: (sessionId: string) => SessionCredentialSource,
+  inspectWorktree: (cwd?: string) => WorktreeInfo | null = getWorktreeInfo,
+): ActorCredentialUseContext | null {
+  const result = lookup(sessionId);
+  const session = result.success ? result.session : undefined;
+  const storedWorktree = session?.metadata?.worktree;
+  const root = storedWorktree && typeof storedWorktree === 'object'
+    ? (storedWorktree as Record<string, unknown>).root
+    : null;
+  const liveWorktree = typeof root === 'string' && root.trim()
+    ? inspectWorktree(root)
+    : null;
+  if (
+    !session
+    || typeof session.id !== 'string'
+    || session.id !== sessionId
+    || typeof session.agentId !== 'string'
+    || !session.agentId.trim()
+    || typeof session.identityProject !== 'string'
+    || !session.identityProject.trim()
+    || session.status !== 'active'
+    || !liveWorktree
+    || liveWorktree.root !== root
+    || typeof liveWorktree.branch !== 'string'
+    || !liveWorktree.branch.trim()
+  ) {
+    return null;
+  }
+  const intendedAgentId = session.agentId;
+  const project = session.identityProject;
+  const canonicalWorktree = liveWorktree.root;
+  const branch = liveWorktree.branch;
+  return {
+    action,
+    resource: {
+      sessionId,
+      intendedAgentId,
+      project,
+      canonicalWorktree,
+      branch,
+      status: 'active',
+    },
+  };
 }
 
 /** Minimal durable session fields needed to prove mutation ownership. */
@@ -189,7 +271,15 @@ export function extractActorCredential(
  *          HTTP status the route should return.
  */
 export function resolveWriteIdentity(params: ResolveWriteIdentityParams): IdentityWriteVerdict {
-  const { souls, credential, assertedAgentId, route, harbor, logger } = params;
+  const {
+    souls,
+    credential,
+    assertedAgentId,
+    route,
+    harbor,
+    logger,
+    credentialUseContext,
+  } = params;
   const asserted = typeof assertedAgentId === 'string' && assertedAgentId.trim()
     ? assertedAgentId.trim()
     : null;
@@ -207,11 +297,28 @@ export function resolveWriteIdentity(params: ResolveWriteIdentityParams): Identi
         error: 'a credential was presented but the identity store is unavailable; refusing to write unverified',
       };
     }
-    const actorId = souls.verifyCredential(credential, harbor);
-    if (!actorId) {
+    const credentialVerdict = souls.verifyCredentialUse(credential, {
+      harbor,
+      context: credentialUseContext,
+    });
+    if (!credentialVerdict.ok && credentialVerdict.code === 'CREDENTIAL_SCOPE_MISMATCH') {
+      logger?.error('identity_write_rejected', {
+        route,
+        code: 'IDENTITY_CREDENTIAL_SCOPE_MISMATCH',
+        assertedAgentId: asserted,
+      });
+      return {
+        ok: false,
+        httpStatus: 403,
+        code: 'IDENTITY_CREDENTIAL_SCOPE_MISMATCH',
+        error: 'this body credential is not authorized for the daemon-derived action and session resource',
+      };
+    }
+    if (!credentialVerdict.ok) {
       logger?.error('identity_write_rejected', {
         route,
         code: 'IDENTITY_CREDENTIAL_INVALID',
+        credentialFailure: credentialVerdict.code,
         assertedAgentId: asserted,
       });
       return {
@@ -219,6 +326,23 @@ export function resolveWriteIdentity(params: ResolveWriteIdentityParams): Identi
         httpStatus: 401,
         code: 'IDENTITY_CREDENTIAL_INVALID',
         error: 'actor credential did not verify; forged or stale credentials are rejected',
+      };
+    }
+    const actorId = credentialVerdict.actorId;
+    const scopedIntendedAgentId = credentialVerdict.intendedAgentId;
+    if (scopedIntendedAgentId && asserted && asserted !== scopedIntendedAgentId) {
+      logger?.error('identity_write_rejected', {
+        route,
+        code: 'IDENTITY_CREDENTIAL_SCOPE_MISMATCH',
+        actorId,
+        assertedAgentId: asserted,
+        intendedAgentId: scopedIntendedAgentId,
+      });
+      return {
+        ok: false,
+        httpStatus: 403,
+        code: 'IDENTITY_CREDENTIAL_SCOPE_MISMATCH',
+        error: `this body credential is bound to agentId "${scopedIntendedAgentId}", not "${asserted}"`,
       };
     }
     if (asserted) {
@@ -239,13 +363,24 @@ export function resolveWriteIdentity(params: ResolveWriteIdentityParams): Identi
       }
     }
     const soulClass = souls.resolveActor(actorId, harbor).soulClass;
+    const intendedAgentId = scopedIntendedAgentId ?? asserted ?? actorId;
     return {
       ok: true,
       kind: 'verified',
       actorId,
-      agentId: asserted ?? actorId,
+      agentId: intendedAgentId,
       soulClass,
-      identity: { verified: true, actorId, soulClass },
+      bodyCredentialId: credentialVerdict.bodyCredentialId,
+      credentialProfile: credentialVerdict.profile,
+      intendedAgentId,
+      identity: {
+        verified: true,
+        actorId,
+        soulClass,
+        bodyCredentialId: credentialVerdict.bodyCredentialId,
+        credentialProfile: credentialVerdict.profile,
+        intendedAgentId,
+      },
     };
   }
 

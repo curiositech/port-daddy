@@ -2402,6 +2402,16 @@ class PortDaddy {
     lifecycle?: 'durable' | 'ephemeral';
     claimFiles?: boolean;
   }): Promise<SessionTakeoverResponse> {
+    if (!this.credential) {
+      const failure = {
+        success: false,
+        code: 'ACTOR_CONTINUITY_REQUIRED',
+        error: 'Session takeover requires the existing actor credential; rebind that actor before continuing. No new actor was minted.',
+        sessionId,
+      };
+      throw new PortDaddyError(failure.error, 401, failure);
+    }
+
     const body: Record<string, unknown> = { ...(options || {}) };
     if (options?.lifecycle) {
       body.durable = options.lifecycle === 'durable';

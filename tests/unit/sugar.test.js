@@ -60,6 +60,19 @@ function setup(overrides = {}) {
  */
 const VALID_RESULT_NOTE_WITH_PR = 'Result: shipped. PR opened: https://github.com/curiositech/port-daddy/pull/999';
 
+function verifiedActorMetadata(actorId, intendedAgentId) {
+  return {
+    identity: {
+      verified: true,
+      actorId,
+      soulClass: 'newcomer',
+      bodyCredentialId: `body-${actorId}`,
+      credentialProfile: 'actor-root',
+      intendedAgentId,
+    },
+  };
+}
+
 // =============================================================================
 // begin
 // =============================================================================
@@ -151,6 +164,188 @@ describe('sugar.begin', () => {
 
     expect(result.success).toBe(true);
     expect(result.fileClaims).toEqual(['lib/sugar.ts', 'routes/sugar.ts']);
+  });
+
+  test('a shared display identity cannot resume or claim through another verified actor', () => {
+    const { sugar, sessions } = setup();
+    const identity = 'port-daddy:test:shared-display';
+    const ownerActorId = 'actor-owner';
+    const attackerActorId = 'actor-attacker';
+    const first = sugar.begin({
+      lifecycle: 'durable',
+      purpose: 'Owner work',
+      identity,
+      agentId: 'agent-owned-session',
+      verifiedActorId: ownerActorId,
+      metadata: verifiedActorMetadata(ownerActorId, 'agent-owned-session'),
+      files: ['lib/owned.ts'],
+    });
+    expect(first.success).toBe(true);
+    const before = sessions.list({ allWorktrees: true, limit: 100 });
+
+    const attack = sugar.begin({
+      lifecycle: 'durable',
+      purpose: 'Steal the matching display session',
+      identity,
+      verifiedActorId: attackerActorId,
+      metadata: verifiedActorMetadata(attackerActorId, 'agent-attacker'),
+      files: ['lib/attacker.ts'],
+    });
+
+    // Canonical code after the merge: main's shared session-ownership verdict.
+    expect(attack).toEqual(expect.objectContaining({
+      success: false,
+      code: 'SESSION_OWNERSHIP_MISMATCH',
+    }));
+    const after = sessions.list({ allWorktrees: true, limit: 100 });
+    expect(after.sessions).toHaveLength(before.sessions.length);
+    expect(sessions.get(first.sessionId)).toEqual(expect.objectContaining({
+      success: true,
+      session: expect.objectContaining({ status: 'active', agentId: 'agent-owned-session' }),
+    }));
+    expect(JSON.stringify(sessions.get(first.sessionId))).not.toContain('lib/attacker.ts');
+  });
+
+  test('an unstamped matching predecessor refuses implicit resume without mutation', () => {
+    const { sugar, sessions } = setup();
+    const identity = 'port-daddy:test:legacy-display';
+    const legacy = sugar.begin({
+      lifecycle: 'durable',
+      purpose: 'Legacy unstamped work',
+      identity,
+      agentId: 'agent-legacy-session',
+    });
+    expect(legacy.success).toBe(true);
+    const before = sessions.list({ allWorktrees: true, limit: 100 });
+
+    const refused = sugar.begin({
+      lifecycle: 'durable',
+      purpose: 'Cannot infer legacy ownership',
+      identity,
+      verifiedActorId: 'actor-returning',
+      metadata: verifiedActorMetadata('actor-returning', 'agent-returning'),
+      files: ['lib/must-not-be-claimed.ts'],
+    });
+
+    // Canonical code after the merge: an unstamped stored owner is
+    // SESSION_OWNER_UNVERIFIABLE; the no-mutation guarantee is unchanged.
+    expect(refused).toEqual(expect.objectContaining({
+      success: false,
+      code: 'SESSION_OWNER_UNVERIFIABLE',
+    }));
+    const after = sessions.list({ allWorktrees: true, limit: 100 });
+    expect(after.sessions).toHaveLength(before.sessions.length);
+    expect(JSON.stringify(sessions.get(legacy.sessionId))).not.toContain('must-not-be-claimed');
+  });
+
+  test('the same verified actor resumes the exact active session and may add claims', () => {
+    const { sugar, sessions } = setup();
+    const identity = 'port-daddy:test:owned-resume';
+    const actorId = 'actor-continuous';
+    const first = sugar.begin({
+      lifecycle: 'durable',
+      purpose: 'Initial owned work',
+      identity,
+      agentId: 'agent-continuous',
+      verifiedActorId: actorId,
+      metadata: verifiedActorMetadata(actorId, 'agent-continuous'),
+    });
+
+    const resumed = sugar.begin({
+      lifecycle: 'durable',
+      purpose: 'Resume owned work',
+      identity,
+      verifiedActorId: actorId,
+      metadata: verifiedActorMetadata(actorId, 'agent-continuous'),
+      files: ['lib/continuation.ts'],
+    });
+
+    expect(resumed).toEqual(expect.objectContaining({
+      success: true,
+      resumed: true,
+      sessionId: first.sessionId,
+      agentId: 'agent-continuous',
+    }));
+    expect(JSON.stringify(sessions.get(first.sessionId))).toContain('lib/continuation.ts');
+  });
+
+  test('verified resume remains exact after more than fifty newer same-project sessions', () => {
+    const { sugar, sessions } = setup();
+    const identity = 'port-daddy:test:deep-resume';
+    const actorId = 'actor-deep-resume';
+    const first = sugar.begin({
+      lifecycle: 'durable',
+      purpose: 'Old exact predecessor',
+      identity,
+      agentId: 'agent-deep-resume',
+      verifiedActorId: actorId,
+      metadata: verifiedActorMetadata(actorId, 'agent-deep-resume'),
+    });
+    expect(first.success).toBe(true);
+
+    for (let index = 0; index < 55; index += 1) {
+      expect(sugar.begin({
+        lifecycle: 'ephemeral',
+        purpose: `Newer unrelated session ${index}`,
+        identity: `port-daddy:test:deep-filler-${index}`,
+        agentId: `agent-deep-filler-${index}`,
+      }).success).toBe(true);
+    }
+
+    const resumed = sugar.begin({
+      lifecycle: 'durable',
+      purpose: 'Resume the old exact predecessor',
+      identity,
+      verifiedActorId: actorId,
+      metadata: verifiedActorMetadata(actorId, 'agent-deep-resume'),
+    });
+
+    expect(resumed).toEqual(expect.objectContaining({
+      success: true,
+      resumed: true,
+      sessionId: first.sessionId,
+      agentId: 'agent-deep-resume',
+    }));
+    expect(sessions.listIdentityCandidates({ project: 'port-daddy' }).count).toBeGreaterThan(50);
+  });
+
+  test('closed-session history refuses implicit revival and preserves the predecessor stamp', () => {
+    const { sugar, sessions } = setup();
+    const identity = 'port-daddy:test:owned-takeover';
+    const actorId = 'actor-takeover-owner';
+    const first = sugar.begin({
+      lifecycle: 'durable',
+      purpose: 'Initial takeover work',
+      identity,
+      agentId: 'agent-takeover-owner',
+      verifiedActorId: actorId,
+      metadata: verifiedActorMetadata(actorId, 'agent-takeover-owner'),
+    });
+    expect(first.success).toBe(true);
+    expect(sessions.end(first.sessionId, { status: 'completed' }).success).toBe(true);
+
+    const resumed = sugar.begin({
+      lifecycle: 'durable',
+      purpose: 'Continue the same actor',
+      identity,
+      verifiedActorId: actorId,
+      metadata: verifiedActorMetadata(actorId, 'agent-takeover-owner'),
+    });
+
+    // Automatic revival of a CLOSED session is disabled outright now: even the
+    // predecessor's own actor must run an explicit `pd session takeover`. The
+    // property this test guards — no silent replacement identity over closed
+    // work, and the predecessor's stamp untouched — is stronger, not weaker.
+    expect(resumed).toEqual(expect.objectContaining({
+      success: false,
+      code: 'CLOSED_SESSION_REQUIRES_EXPLICIT_TAKEOVER',
+    }));
+    expect(resumed.candidates).toEqual([
+      expect.objectContaining({ sessionId: first.sessionId, status: 'completed' }),
+    ]);
+    expect(sessions.get(first.sessionId).session.metadata.identity).toEqual(
+      expect.objectContaining({ verified: true, actorId }),
+    );
   });
 
   test('rejects required worktree sessions without worktree context', () => {

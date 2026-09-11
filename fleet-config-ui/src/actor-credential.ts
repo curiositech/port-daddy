@@ -20,11 +20,10 @@
 //      is no name it is entitled to, so it lets the daemon derive attribution
 //      from the credential itself — which is unforgeable by construction.
 //
-// The long-run answer for an operator-class UI principal is the operator
-// token door (`operatorToken` on POST /actors/register, secret at
-// ~/.port-daddy/operator.secret). That needs a way to get the secret to a
-// browser, which is its own design question and is NOT solved here — this UI
-// is a newcomer-class principal today.
+// This browser remains a newcomer-class principal. It has no privileged
+// operator-token or filesystem-secret fallback. Durable agent recovery belongs
+// to signed FleetBar + the daemon's one-shot operator-presence service; it does
+// not elevate this localStorage credential or expose a body to browser code.
 
 const CREDENTIAL_STORAGE_PREFIX = 'port-daddy.actor-credential';
 
@@ -86,7 +85,7 @@ async function mint(daemonUrl: string): Promise<string | null> {
  * own 401 is what surfaces to the operator rather than a UI-invented error.
  *
  * @param daemonUrl - The daemon base URL the credential is scoped to.
- * @returns The `<actor_id>.<secret>` credential, or null.
+ * @returns The `pdab1.<actor_id>.<body_id>.<secret>` credential, or null.
  */
 export async function resolveActorCredential(daemonUrl: string): Promise<string | null> {
   const cached = readCached(daemonUrl);

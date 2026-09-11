@@ -424,7 +424,11 @@ describe('Messaging', () => {
 describe('Sessions', () => {
   let pd;
   beforeEach(() => {
-    pd = createClient({ agentId: 'session-agent', pid: 1234 });
+    pd = createClient({
+      agentId: 'session-agent',
+      credential: 'ACTORSESSION.same-actor-secret',
+      pid: 1234,
+    });
   });
 
   test('startSession sends correct request', async () => {
@@ -514,6 +518,10 @@ describe('Sessions', () => {
 
     expect(receivedRequests[0].method).toBe('POST');
     expect(receivedRequests[0].url).toBe('/sessions/session-123/takeover');
+    // main: an exact session id is already the target, so no ambient display
+    // alias is grafted onto the request; only the credential travels.
+    expect(receivedRequests[0].headers['x-agent-id']).toBeUndefined();
+    expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTORSESSION.same-actor-secret');
     expect(receivedRequests[0].body).toEqual({
       note: 'continuing here',
       purpose: 'Continue ship',
@@ -521,6 +529,27 @@ describe('Sessions', () => {
       durable: true,
     });
     expect(result.successorId).toBe('session-456');
+  });
+
+  test('takeoverSession fails before transport when actor continuity is missing', async () => {
+    const unbound = createClient({ agentId: 'session-agent', pid: 1234 });
+    unbound._requestViaIpc = jest.fn().mockResolvedValue({
+      success: true,
+      successorId: 'session-wrong-actor',
+    });
+
+    await expect(unbound.takeoverSession('session-123', { note: 'continue' })).rejects.toMatchObject({
+      name: 'PortDaddyError',
+      status: 401,
+      body: {
+        success: false,
+        code: 'ACTOR_CONTINUITY_REQUIRED',
+        sessionId: 'session-123',
+      },
+    });
+
+    expect(unbound._requestViaIpc).not.toHaveBeenCalled();
+    expect(receivedRequests).toHaveLength(0);
   });
 
   test('sessions encodes filters', async () => {
@@ -957,15 +986,18 @@ describe('IPC fast paths', () => {
   let pd;
 
   beforeEach(() => {
-    pd = createClient({ agentId: 'registered-agent' });
+    pd = createClient({
+      agentId: 'registered-agent',
+      credential: 'ACTORIPC.strict-http-secret',
+    });
   });
 
   test('note is credentialed HTTP-only when agent/session context is available', async () => {
     pd = createClient({ agentId: 'registered-agent', credential: 'ACTOR.secret' });
     pd._requestViaIpc = jest.fn().mockResolvedValue({
       success: true,
-      sessionId: 'sess-123',
-      noteId: 7,
+      sessionId: 'sess-wrong-transport',
+      noteId: 999,
     });
     queueResponse({ success: true, sessionId: 'sess-123', noteId: 7 });
 
@@ -989,8 +1021,8 @@ describe('IPC fast paths', () => {
     expect(result.sessionId).toBe('sess-123');
   });
 
-  test('note falls back to the quick-note route even with an explicit session', async () => {
-    pd._requestViaIpc = jest.fn().mockResolvedValue(null);
+  test('note uses the canonical quick-note route even with an explicit actor', async () => {
+    pd._requestViaIpc = jest.fn().mockResolvedValue({ success: true, sessionId: 'wrong' });
     queueResponse({
       success: true,
       sessionId: 'session-readable-work-abc123',
@@ -1003,6 +1035,7 @@ describe('IPC fast paths', () => {
       type: 'progress',
     });
 
+    expect(pd._requestViaIpc).not.toHaveBeenCalled();
     expect(receivedRequests[0].url).toBe('/notes');
     expect(receivedRequests[0].body).toEqual({
       content: 'progress update',
@@ -1021,6 +1054,7 @@ describe('IPC fast paths', () => {
 
     const result = await pd.done('all set', { sessionId: 'sess-123' });
 
+    expect(pd._requestViaIpc).not.toHaveBeenCalled();
     expect(receivedRequests[0].url).toBe('/sugar/done');
     expect(receivedRequests[0].body.note).toBe('all set');
     expect(receivedRequests[0].headers['x-actor-credential']).toBe('ACTOR.secret');
@@ -1091,7 +1125,7 @@ describe('IPC fast paths', () => {
     pd = createClient({ agentId: 'registered-agent', credential: 'ACTOR.secret' });
     pd._requestViaIpc = jest.fn().mockResolvedValue({
       success: true,
-      id: 'session-123',
+      id: 'session-wrong-transport',
       purpose: 'Ship it',
       status: 'active',
       createdAt: 1,
@@ -1114,7 +1148,7 @@ describe('IPC fast paths', () => {
   test('startSession preserves lifecycle enum over HTTP', async () => {
     pd._requestViaIpc = jest.fn().mockResolvedValue({
       success: true,
-      id: 'session-123',
+      id: 'session-wrong-transport',
       purpose: 'Ship it',
       status: 'active',
       createdAt: 1,
@@ -1134,10 +1168,8 @@ describe('IPC fast paths', () => {
 
   test('startSession HTTP file conflict preserves 409 semantics', async () => {
     pd._requestViaIpc = jest.fn().mockResolvedValue({
-      success: false,
-      error: 'File conflicts detected',
-      code: 'FILE_CONFLICT',
-      conflicts: [{ filePath: 'src/auth.ts', sessionId: 'session-999', purpose: 'other', claimedAt: 1 }],
+      success: true,
+      id: 'session-wrong-transport',
     });
     queueResponse({
       success: false,
@@ -1150,6 +1182,7 @@ describe('IPC fast paths', () => {
       name: 'PortDaddyError',
       status: 409,
     });
+    expect(pd._requestViaIpc).not.toHaveBeenCalled();
   });
 
   test('endSession is HTTP-only when sessionId is explicit', async () => {
@@ -1227,7 +1260,7 @@ describe('IPC fast paths', () => {
     pd._requestViaIpc = jest.fn().mockResolvedValue({
       success: true,
       predecessorId: 'session-123',
-      successorId: 'session-456',
+      successorId: 'session-wrong-transport',
       notesPreserved: true,
     });
     queueResponse({ success: true, predecessorId: 'session-123', successorId: 'session-456', notesPreserved: true });
@@ -1249,8 +1282,8 @@ describe('IPC fast paths', () => {
     pd = createClient({ agentId: 'registered-agent', credential: 'ACTOR.secret' });
     pd._requestViaIpc = jest.fn().mockResolvedValue({
       success: true,
-      sessionId: 'sess-123',
-      claimed: ['src/auth.ts'],
+      sessionId: 'sess-wrong-transport',
+      claimed: [],
     });
     queueResponse({ success: true, sessionId: 'sess-123', claimed: ['src/auth.ts'] });
 
@@ -1270,8 +1303,8 @@ describe('IPC fast paths', () => {
   test('claimFiles preserves regions and force over HTTP', async () => {
     pd._requestViaIpc = jest.fn().mockResolvedValue({
       success: true,
-      sessionId: 'sess-123',
-      claimed: ['src/auth.ts'],
+      sessionId: 'sess-wrong-transport',
+      claimed: [],
     });
     queueResponse({ success: true, sessionId: 'sess-123', claimed: ['src/auth.ts'] });
     const regions = [{ path: 'src/auth.ts', startLine: 10, endLine: 20, symbol: 'login' }];
@@ -1290,8 +1323,8 @@ describe('IPC fast paths', () => {
   test('releaseFiles preserves regions over credentialed HTTP', async () => {
     pd._requestViaIpc = jest.fn().mockResolvedValue({
       success: true,
-      sessionId: 'sess-123',
-      released: ['src/auth.ts'],
+      sessionId: 'sess-wrong-transport',
+      released: [],
     });
     queueResponse({ success: true, sessionId: 'sess-123', released: ['src/auth.ts'] });
     const regions = [{ path: 'src/auth.ts', startLine: 10, endLine: 20 }];
@@ -1356,12 +1389,14 @@ describe('IPC fast paths', () => {
 
   test('lock HTTP failure preserves contention semantics', async () => {
     pd = createClient({ agentId: 'registered-agent', credential: 'ACTOR.secret' });
+    pd._requestViaIpc = jest.fn().mockResolvedValue({ success: true, acquired: true });
     queueResponse({ success: false, error: 'lock is held', code: 'LOCK_HELD', holder: 'other-agent' }, 409);
 
     await expect(pd.lock('deploy-prod')).rejects.toMatchObject({
       name: 'PortDaddyError',
       status: 409,
     });
+    expect(pd._requestViaIpc).not.toHaveBeenCalled();
   });
 
   test('unlock uses credentialed HTTP and never raw IPC', async () => {

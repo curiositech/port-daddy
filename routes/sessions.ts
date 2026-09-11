@@ -17,6 +17,10 @@
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { createHash } from 'node:crypto';
+import type {
+  ActorCredentialUseContext,
+  SessionBodyCredentialAction,
+} from '../lib/actor-souls.js';
 import { checkAdversarialProjectWrite } from '../lib/coordination-route-guard.js';
 import {
   evaluateSessionWorktreePolicy,
@@ -32,6 +36,7 @@ import {
 } from '../lib/suggestion-broker.js';
 import {
   authorizeSessionOwner,
+  deriveSessionCredentialUseContext,
   extractActorCredential,
   resolveWriteIdentity,
   stampIdentityMetadata,
@@ -488,7 +493,15 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     request: FastifyRequest,
     bodyAgentId: unknown,
     route: string,
-    options?: { requireIdentity?: boolean },
+    options?: {
+      requireIdentity?: boolean;
+      credentialUse?: {
+        sessionId: string;
+        action: SessionBodyCredentialAction;
+        /** Already-read session lookup, so one read serves the whole route. */
+        session?: Record<string, unknown>;
+      };
+    },
   ):
     | { success: true; agentId: string | null; verdict: Extract<IdentityWriteVerdict, { ok: true }> }
     | { success: false; httpStatus: number; result: Record<string, unknown> } => {
@@ -496,12 +509,21 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     if (!base.success) {
       return { success: false, httpStatus: 400, result: base.result };
     }
+    const credentialUse = options?.credentialUse;
+    const credentialUseContext: ActorCredentialUseContext | null = credentialUse
+      ? deriveSessionCredentialUseContext(
+          credentialUse.sessionId,
+          credentialUse.action,
+          (sessionId) => credentialUse.session ?? sessions.get(sessionId),
+        )
+      : null;
     const verdict = resolveWriteIdentity({
       souls: actorSouls,
       credential: extractActorCredential(request.headers as Record<string, unknown>, request.body),
       assertedAgentId: base.agentId,
       route,
       logger,
+      credentialUseContext,
       requireIdentity: options?.requireIdentity,
     });
     if (!verdict.ok) {
@@ -528,6 +550,11 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
    *        boundary to reject alias laundering.
    * @param sessionId - Exact stored session being mutated.
    * @param route - Stable route label for rejection logs.
+   * @param action - The scoped-body action this route performs. A recovered
+   *        `session-body-v1` credential is only valid for an exact
+   *        (action, session, agent, project, worktree, branch) tuple, so the
+   *        route must name what it is doing; the coordinates themselves are
+   *        derived from daemon-owned state, never from the request.
    * @returns Verified request identity and canonical stored session owner, or
    *          a structured HTTP rejection.
    */
@@ -536,6 +563,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     bodyAgentId: unknown,
     sessionId: string,
     route: string,
+    action: SessionBodyCredentialAction,
   ):
     | {
         success: true;
@@ -545,7 +573,25 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         session: Record<string, unknown>;
       }
     | { success: false; httpStatus: number; result: Record<string, unknown> } => {
-    const identity = mutationIdentity(request, bodyAgentId, route, { requireIdentity: true });
+    // ONE metadata-only read serves both jobs: deriving the scoped body's
+    // exact resource and proving stored ownership. Reading twice would make an
+    // authorization check quietly cost a second session read on every mutation.
+    const lookup = sessions.get(sessionId, { metadataOnly: true });
+    const session = lookup.success && lookup.session && typeof lookup.session === 'object'
+      ? lookup.session as Record<string, unknown>
+      : null;
+    if (!session) {
+      return {
+        success: false,
+        httpStatus: 404,
+        result: { ...lookup, success: false, code: 'SESSION_NOT_FOUND' },
+      };
+    }
+
+    const identity = mutationIdentity(request, bodyAgentId, route, {
+      requireIdentity: true,
+      credentialUse: { sessionId, action, session: lookup },
+    });
     if (!identity.success) return identity;
     if (identity.verdict.kind !== 'verified') {
       return {
@@ -556,18 +602,6 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
           code: 'IDENTITY_CREDENTIAL_REQUIRED',
           error: 'session mutation requires a verified actor credential',
         },
-      };
-    }
-
-    const lookup = sessions.get(sessionId, { metadataOnly: true });
-    const session = lookup.success && lookup.session && typeof lookup.session === 'object'
-      ? lookup.session as Record<string, unknown>
-      : null;
-    if (!session) {
-      return {
-        success: false,
-        httpStatus: 404,
-        result: { ...lookup, success: false, code: 'SESSION_NOT_FOUND' },
       };
     }
 
@@ -673,6 +707,13 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     return { success: true, ownerAgentId: authorization.ownerAgentId };
   };
 
+  // NOTE (merge): this branch also grew its own `authorizeTerminalSessionMutation`
+  // and `authorizeOwnedSessionMutation` helpers, which proved exactly the same
+  // two coordinates main's `authorizeSessionMutationRoute` above proves — the
+  // session's stored display owner and its daemon-stamped actor id. They were
+  // dropped rather than duplicated; the scoped-credential half of this branch's
+  // work survives as the `credentialUse` action threaded through that helper.
+
   /**
    * Shared handler for the canonical `POST /notes` and the compat alias
    * `POST /sessions/:id/notes`.
@@ -712,12 +753,15 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
 
     // Notes are immutable attributed evidence. Bind the presented credential
     // to the exact session's daemon-stamped owner before inspecting project
-    // policy or writing any bytes.
+    // policy or writing any bytes. The action distinguishes a plan write from
+    // an ordinary note so a scoped recovery body is checked against the right
+    // one (`session.plan.write` vs `session.note.write`).
     const noteIdentity = authorizeSessionMutationRoute(
       request,
       agentId,
       sessionId.trim(),
       routeSessionId ? 'POST /sessions/:id/notes' : 'POST /notes',
+      type === 'todo_list' ? 'session.plan.write' : 'session.note.write',
     );
     if (!noteIdentity.success) {
       reply.code(noteIdentity.httpStatus);
@@ -979,7 +1023,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       const sessionId = typeof sessionIdParam === 'string' ? sessionIdParam : sessionIdParam[0];
       const { status, agentId } = (request.body || {}) as any;
 
-      const routeAuth = authorizeSessionMutationRoute(request, agentId, sessionId, 'PUT /sessions/:id');
+      const routeAuth = authorizeSessionMutationRoute(request, agentId, sessionId, 'PUT /sessions/:id', 'session.end');
       if (!routeAuth.success) {
         reply.code(routeAuth.httpStatus);
         return routeAuth.result;
@@ -1051,6 +1095,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         body.agentId,
         sessionId,
         'POST /sessions/:id/takeover',
+        'session.relink',
       );
       if (!routeAuth.success) {
         reply.code(routeAuth.httpStatus);
@@ -1148,7 +1193,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         };
       }
 
-      const routeAuth = authorizeSessionMutationRoute(request, agentId, sessionId, 'PUT /sessions/:id/phase');
+      const routeAuth = authorizeSessionMutationRoute(request, agentId, sessionId, 'PUT /sessions/:id/phase', 'session.phase.write');
       if (!routeAuth.success) {
         reply.code(routeAuth.httpStatus);
         return routeAuth.result;
@@ -1209,7 +1254,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       const sessionId = typeof sessionIdParam === 'string' ? sessionIdParam : sessionIdParam[0];
       const { agentId } = (request.body || {}) as any;
 
-      const routeAuth = authorizeSessionMutationRoute(request, agentId, sessionId, 'DELETE /sessions/:id');
+      const routeAuth = authorizeSessionMutationRoute(request, agentId, sessionId, 'DELETE /sessions/:id', 'session.archive');
       if (!routeAuth.success) {
         reply.code(routeAuth.httpStatus);
         return routeAuth.result;
@@ -1341,7 +1386,10 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         }
       }
 
-      const requestAgent = mutationIdentity(request, agentId, 'POST /sessions/:id/files', { requireIdentity: true });
+      const requestAgent = mutationIdentity(request, agentId, 'POST /sessions/:id/files', {
+        requireIdentity: true,
+        credentialUse: { sessionId, action: 'session.claim.add' },
+      });
       if (!requestAgent.success) {
         reply.code(requestAgent.httpStatus);
         return requestAgent.result;
@@ -1445,7 +1493,10 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       return { success: false, error: 'claims must be a non-empty array', code: 'VALIDATION_ERROR' };
     }
     try {
-      const requestAgent = mutationIdentity(request, body.agentId, 'POST /sessions/:id/symbols', { requireIdentity: true });
+      const requestAgent = mutationIdentity(request, body.agentId, 'POST /sessions/:id/symbols', {
+        requireIdentity: true,
+        credentialUse: { sessionId, action: 'session.symbol.claim' },
+      });
       if (!requestAgent.success) {
         reply.code(requestAgent.httpStatus);
         return requestAgent.result;
@@ -1562,7 +1613,10 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         };
       }
 
-      const requestAgent = mutationIdentity(request, agentId, 'DELETE /sessions/:id/files', { requireIdentity: true });
+      const requestAgent = mutationIdentity(request, agentId, 'DELETE /sessions/:id/files', {
+        requireIdentity: true,
+        credentialUse: { sessionId, action: 'session.claim.release' },
+      });
       if (!requestAgent.success) {
         reply.code(requestAgent.httpStatus);
         return requestAgent.result;

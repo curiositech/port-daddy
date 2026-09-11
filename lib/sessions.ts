@@ -123,6 +123,62 @@ interface TakeoverOptions {
   claimFiles?: boolean;
 }
 
+export interface OperatorRecoveryClaimChange {
+  id: number;
+  nodeId: string;
+  disposition: 'transfer' | 'release';
+  repoId: string;
+  worldKind: 'worktree' | 'ref' | 'commit' | 'harbor';
+  worldId: string;
+  gitOid: string | null;
+  selectorKind: 'repo' | 'directory' | 'file' | 'symbol' | 'range';
+  filePath: string;
+  startLine: number | null;
+  endLine: number | null;
+  symbol: string | null;
+  symbolPath: string | null;
+  sessionId: string;
+  purpose: string;
+  agentId: string | null;
+  phase: string;
+  mode: 'S' | 'X' | 'IS' | 'IX' | 'SIX';
+  intent: string | null;
+  claimedAt: number;
+  releasedAt: null;
+  observedBy: string | null;
+  confidence: number;
+  legacySessionFileId: number | null;
+}
+
+export interface OperatorRecoveryBindReceipt {
+  predecessorSessionId: string;
+  successorSessionId: string;
+  actorId: string;
+  intendedAgentId: string;
+  transferredClaimNodeIds: string[];
+  releasedClaimNodeIds: string[];
+  boundAt: number;
+}
+
+export interface OperatorRecoveryBindInput {
+  recoveryId: string;
+  actionHash: string;
+  actorId: string;
+  intendedAgentId: string;
+  project: string;
+  canonicalWorktree: string;
+  branch: string;
+  predecessorSessionId: string;
+  sessionIntent: string;
+  claimChanges: OperatorRecoveryClaimChange[];
+  daemonGeneration: string;
+  /** Re-evaluated inside the same SQLite transaction as the bind. */
+  authorize: () => void;
+  /** Ledger writes for grant-consumed + session-bound, in the same transaction. */
+  beforeCommit: (receipt: OperatorRecoveryBindReceipt) => void;
+  now?: number;
+}
+
 interface AddNoteOptions {
   type?: string;
   /** Quick writes must recheck liveness inside the admission transaction. */
@@ -152,6 +208,12 @@ interface ListOptions {
   allWorktrees?: boolean;
   includeNotes?: boolean;
   limit?: number;
+}
+
+interface IdentityCandidateOptions {
+  project: string;
+  status?: string;
+  worktreeId?: string | null;
 }
 
 interface CleanupOptions {
@@ -390,6 +452,16 @@ export function createSessions(
     `),
     listAll: db.prepare(`
       SELECT * FROM sessions ORDER BY updated_at DESC LIMIT ?
+    `),
+    listIdentityCandidates: db.prepare(`
+      SELECT * FROM sessions
+      WHERE identity_project = ? AND worktree_id IS ?
+      ORDER BY updated_at DESC
+    `),
+    listIdentityCandidatesByStatus: db.prepare(`
+      SELECT * FROM sessions
+      WHERE identity_project = ? AND worktree_id IS ? AND status = ?
+      ORDER BY updated_at DESC
     `),
     // Worktree-filtered queries
     listByWorktree: db.prepare(`
@@ -774,18 +846,29 @@ export function createSessions(
 
   function formatClaimForestFile(row: ClaimForestClaim) {
     return {
+      id: row.id,
+      nodeId: row.nodeId,
+      repoId: row.repoId,
+      worldKind: row.worldKind,
+      worldId: row.worldId,
+      gitOid: row.gitOid,
+      selectorKind: row.selectorKind,
       sessionId: row.sessionId,
       filePath: row.filePath,
       startLine: row.startLine,
       endLine: row.endLine,
       symbol: row.symbol,
       symbolPath: row.symbolPath,
+      purpose: row.purpose,
+      agentId: row.agentId,
+      phase: row.phase,
+      mode: row.mode,
+      intent: row.intent,
       claimedAt: row.claimedAt,
       releasedAt: row.releasedAt,
-      repoId: row.repoId,
-      worldKind: row.worldKind,
-      worldId: row.worldId,
-      nodeId: row.nodeId,
+      observedBy: row.observedBy,
+      confidence: row.confidence,
+      legacySessionFileId: row.legacySessionFileId,
     };
   }
 
@@ -1653,6 +1736,252 @@ export function createSessions(
   }
 
   /**
+   * Atomically bind a restarted body to the SAME durable actor by creating a
+   * successor session and applying an exhaustive, operator-approved claim map.
+   *
+   * This is intentionally separate from ordinary takeover. Recovery is a
+   * provenance-bound authority path: the caller supplies two callbacks which
+   * are executed inside this function's IMMEDIATE SQLite transaction. The first
+   * must re-verify the one-shot grant; the second appends the consumed/bound
+   * authority events. If either callback or any claim/session invariant fails,
+   * every session, claim, and ledger write rolls back together.
+   */
+  function bindOperatorRecovery(input: OperatorRecoveryBindInput) {
+    const tx = db.transaction(() => {
+      input.authorize();
+
+      const predecessor = stmts.getById.get(input.predecessorSessionId) as SessionRow | undefined;
+      if (!predecessor) {
+        throw Object.assign(new Error('operator recovery predecessor session not found'), {
+          code: 'OPERATOR_RECOVERY_PREDECESSOR_NOT_FOUND',
+        });
+      }
+      if (predecessor.status !== 'active' && predecessor.status !== 'abandoned') {
+        throw Object.assign(new Error(`operator recovery predecessor is ${predecessor.status}`), {
+          code: 'OPERATOR_RECOVERY_PREDECESSOR_TERMINAL',
+        });
+      }
+      if (predecessor.identity_project !== input.project) {
+        throw Object.assign(new Error('operator recovery project drifted from the approved request'), {
+          code: 'OPERATOR_RECOVERY_DRIFTED',
+        });
+      }
+
+      const predecessorMetadata = safeJsonParse(predecessor.metadata) ?? {};
+      const identity = predecessorMetadata.identity as Record<string, unknown> | undefined;
+      if (identity?.verified !== true || identity.actorId !== input.actorId) {
+        throw Object.assign(new Error('predecessor has no matching daemon-verified actor stamp'), {
+          code: 'OPERATOR_RECOVERY_ACTOR_MISMATCH',
+        });
+      }
+      const worktree = predecessorMetadata.worktree as Record<string, unknown> | undefined;
+      if (worktree?.root !== input.canonicalWorktree || worktree?.branch !== input.branch) {
+        throw Object.assign(new Error('operator recovery worktree or branch drifted from the approved request'), {
+          code: 'OPERATOR_RECOVERY_DRIFTED',
+        });
+      }
+
+      const activeClaims = claimForest.listClaimsForSession(input.predecessorSessionId)
+        .filter((claim) => claim.releasedAt === null);
+      const approvedByNode = new Map<string, OperatorRecoveryClaimChange>();
+      for (const change of input.claimChanges) {
+        if (!change.nodeId || approvedByNode.has(change.nodeId)) {
+          throw Object.assign(new Error('operator recovery claim map contains a missing or duplicate node id'), {
+            code: 'OPERATOR_RECOVERY_CLAIM_MAP_INVALID',
+          });
+        }
+        approvedByNode.set(change.nodeId, change);
+      }
+      const liveNodeIds = new Set(activeClaims.map((claim) => claim.nodeId));
+      if (
+        liveNodeIds.size !== approvedByNode.size ||
+        [...liveNodeIds].some((nodeId) => !approvedByNode.has(nodeId))
+      ) {
+        throw Object.assign(new Error('active claims drifted from the exhaustive operator-approved claim map'), {
+          code: 'OPERATOR_RECOVERY_DRIFTED',
+        });
+      }
+      for (const claim of activeClaims) {
+        const approved = approvedByNode.get(claim.nodeId)!;
+        if (
+          approved.id !== claim.id ||
+          approved.repoId !== claim.repoId ||
+          approved.worldKind !== claim.worldKind ||
+          approved.worldId !== claim.worldId ||
+          approved.gitOid !== claim.gitOid ||
+          approved.selectorKind !== claim.selectorKind ||
+          approved.filePath !== claim.filePath ||
+          approved.startLine !== claim.startLine ||
+          approved.endLine !== claim.endLine ||
+          approved.symbol !== claim.symbol ||
+          approved.symbolPath !== claim.symbolPath ||
+          approved.sessionId !== claim.sessionId ||
+          approved.purpose !== claim.purpose ||
+          approved.agentId !== claim.agentId ||
+          approved.phase !== claim.phase ||
+          approved.mode !== claim.mode ||
+          approved.intent !== claim.intent ||
+          approved.claimedAt !== claim.claimedAt ||
+          approved.releasedAt !== claim.releasedAt ||
+          approved.observedBy !== claim.observedBy ||
+          approved.confidence !== claim.confidence ||
+          approved.legacySessionFileId !== claim.legacySessionFileId
+        ) {
+          throw Object.assign(new Error(`claim ${claim.nodeId} descriptor drifted from the signed recovery`), {
+            code: 'OPERATOR_RECOVERY_DRIFTED',
+          });
+        }
+      }
+
+      const boundAt = input.now ?? Date.now();
+      const successorSessionId = generateSessionId(input.sessionIntent);
+      const successorMetadata = {
+        identity: {
+          verified: true,
+          actorId: input.actorId,
+          recoveredBy: 'operator-presence',
+          verifiedAt: boundAt,
+        },
+        worktree: {
+          ...(worktree ?? {}),
+          root: input.canonicalWorktree,
+          branch: input.branch,
+        },
+        operatorRecovery: {
+          recoveryId: input.recoveryId,
+          actionHash: input.actionHash,
+          daemonGeneration: input.daemonGeneration,
+          predecessorSessionId: input.predecessorSessionId,
+          boundAt,
+        },
+      };
+      stmts.insert.run(
+        successorSessionId,
+        input.sessionIntent,
+        'active',
+        input.intendedAgentId,
+        predecessor.worktree_id,
+        input.project,
+        boundAt,
+        boundAt,
+        null,
+        JSON.stringify(successorMetadata),
+        predecessor.is_durable === 1 ? 1 : 0,
+      );
+
+      const transferredClaimNodeIds: string[] = [];
+      const releasedClaimNodeIds: string[] = [];
+      for (const claim of activeClaims) {
+        const approved = approvedByNode.get(claim.nodeId)!;
+        const forestRelease = db.prepare(`
+          UPDATE claim_forest_claims
+          SET released_at = ?
+          WHERE id = ? AND session_id = ? AND released_at IS NULL
+        `).run(boundAt, claim.id, input.predecessorSessionId);
+        if (forestRelease.changes !== 1) {
+          throw Object.assign(new Error(`claim ${claim.nodeId} changed during recovery`), {
+            code: 'OPERATOR_RECOVERY_DRIFTED',
+          });
+        }
+        if (claim.legacySessionFileId !== null) {
+          db.prepare(`
+            UPDATE session_files
+            SET released_at = ?
+            WHERE id = ? AND session_id = ? AND released_at IS NULL
+          `).run(boundAt, claim.legacySessionFileId, input.predecessorSessionId);
+        }
+
+        if (approved.disposition === 'release') {
+          releasedClaimNodeIds.push(claim.nodeId);
+          continue;
+        }
+
+        const legacy = db.prepare(`
+          INSERT INTO session_files (
+            session_id, file_path, start_line, end_line, symbol, symbol_path,
+            claimed_at, released_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL)
+        `).run(
+          successorSessionId,
+          claim.filePath,
+          claim.startLine,
+          claim.endLine,
+          claim.symbol,
+          claim.symbolPath,
+          boundAt,
+        );
+        const successorLegacyId = Number(legacy.lastInsertRowid);
+        db.prepare(`
+          INSERT INTO claim_forest_claims (
+            node_id, session_id, agent_id, mode, intent, claimed_at, released_at,
+            observed_by, confidence, legacy_session_file_id, metadata
+          ) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)
+        `).run(
+          claim.nodeId,
+          successorSessionId,
+          input.intendedAgentId,
+          claim.mode,
+          claim.intent,
+          boundAt,
+          'operator-recovery',
+          claim.confidence,
+          successorLegacyId,
+          JSON.stringify({ recoveryId: input.recoveryId, predecessorClaimId: claim.id }),
+        );
+        transferredClaimNodeIds.push(claim.nodeId);
+      }
+
+      const predecessorMetadataNext = {
+        ...predecessorMetadata,
+        takenOverAt: boundAt,
+        takenOverBySessionId: successorSessionId,
+        takenOverByActorId: input.actorId,
+        operatorRecoveryId: input.recoveryId,
+      };
+      stmts.setMetadata.run(JSON.stringify(predecessorMetadataNext), boundAt, input.predecessorSessionId);
+      stmts.setPhase.run('abandoned', boundAt, input.predecessorSessionId);
+      stmts.updateStatus.run('abandoned', boundAt, boundAt, input.predecessorSessionId);
+
+      const receipt: OperatorRecoveryBindReceipt = {
+        predecessorSessionId: input.predecessorSessionId,
+        successorSessionId,
+        actorId: input.actorId,
+        intendedAgentId: input.intendedAgentId,
+        transferredClaimNodeIds,
+        releasedClaimNodeIds,
+        boundAt,
+      };
+      input.beforeCommit(receipt);
+
+      const successor = stmts.getById.get(successorSessionId) as SessionRow | undefined;
+      const successorIdentity = safeJsonParse(successor?.metadata ?? null)?.identity as
+        | Record<string, unknown>
+        | undefined;
+      if (
+        !successor || successor.status !== 'active' || successor.agent_id !== input.intendedAgentId ||
+        successorIdentity?.verified !== true || successorIdentity.actorId !== input.actorId
+      ) {
+        throw Object.assign(new Error('successor failed canonical actor readback before commit'), {
+          code: 'OPERATOR_RECOVERY_BINDING_READBACK_FAILED',
+        });
+      }
+      const successorClaims = claimForest.listClaimsForSession(successorSessionId)
+        .filter((claim) => claim.releasedAt === null)
+        .map((claim) => claim.nodeId)
+        .sort();
+      if (JSON.stringify(successorClaims) !== JSON.stringify([...transferredClaimNodeIds].sort())) {
+        throw Object.assign(new Error('successor claim readback disagrees with approved transfers'), {
+          code: 'OPERATOR_RECOVERY_BINDING_READBACK_FAILED',
+        });
+      }
+
+      return { success: true, ...receipt, session: formatSession(successor) };
+    });
+
+    return tx.immediate();
+  }
+
+  /**
    * Append immutable history without turning durable age into a permanent ban.
    * Design: an IMMEDIATE transaction shares admission across database handles;
    * the retained notes themselves are the sliding-window witness, not a second
@@ -2271,6 +2600,32 @@ export function createSessions(
   }
 
   /**
+   * Exhaustively read the bounded predecessor set used by Sugar identity
+   * recovery. This deliberately has no display limit: a UI-sized `list()`
+   * page must never hide an older exact session and turn that omission into
+   * authority to mint a replacement actor.
+   */
+  function listIdentityCandidates(options: IdentityCandidateOptions) {
+    const project = typeof options.project === 'string' ? options.project.trim() : '';
+    if (!project) {
+      return { success: false, error: 'project must be a non-empty string', sessions: [], count: 0 };
+    }
+    const effectiveWorktreeId = options.worktreeId === undefined
+      ? getWorktreeId()
+      : options.worktreeId;
+    const rows = options.status
+      ? stmts.listIdentityCandidatesByStatus.all(project, effectiveWorktreeId, options.status) as SessionRow[]
+      : stmts.listIdentityCandidates.all(project, effectiveWorktreeId) as SessionRow[];
+    const formatted = rows.map((row) => formatSession(row));
+    return {
+      success: true,
+      sessions: formatted,
+      count: formatted.length,
+      worktreeId: effectiveWorktreeId,
+    };
+  }
+
+  /**
    * Read exact session detail or its owner/lifecycle metadata only.
    * Design: metadata authorization avoids content, claim and count reads;
    * callers that omit the option retain the complete-history detail contract.
@@ -2576,6 +2931,7 @@ export function createSessions(
     activeDurableSessionIdsByAgent,
     remove,
     takeover,
+    bindOperatorRecovery,
     addNote,
     applyReplicatedPage,
     quickNote,
@@ -2587,6 +2943,7 @@ export function createSessions(
     listAllActiveClaims,
     getClaimOwner,
     list,
+    listIdentityCandidates,
     get,
     cleanup,
     abandonOrphanedActive,

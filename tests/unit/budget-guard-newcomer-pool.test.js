@@ -99,10 +99,10 @@ describe('budget-guard ADR-0040 spend choke', () => {
   });
 
   test('operator-trusted souls also bypass the pool (individual ledger)', () => {
-    const souls2 = createActorSouls(db, { operatorSecret: 'op-secret', newcomerPoolCeilingUsd: POOL_CEILING });
+    const souls2 = createActorSouls(db, { newcomerPoolCeilingUsd: POOL_CEILING });
     const guard2 = createBudgetGuard(db, {}, { souls: souls2 });
-    const out = souls2.register({ operatorToken: 'op-secret', alias: 'p:s:op' });
-    expect(out.soulClass).toBe('operator');
+    const out = souls2.mint({ alias: 'p:s:op', operatorTrusted: true });
+    expect(souls2.classify(out.actorId)).toBe('operator');
     const d = guard2.onCharge({ project: 'proj2', agentId: out.actorId, budgetUsdPerDay: 3.0, usd: 1.0 });
     expect(d.kill).toBe(false);
     expect(d.budgetUsdPerDay).toBe(3.0);

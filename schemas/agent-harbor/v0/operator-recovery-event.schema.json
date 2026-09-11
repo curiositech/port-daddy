@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/operator-recovery-event.schema.json",
+  "title": "Operator Recovery Event",
+  "description": "Append-only authority record for a provenance-bound, one-shot operator recovery. Signature bytes are forbidden; only a digest may be recorded.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema",
+    "eventId",
+    "recoveryId",
+    "kind",
+    "actionHash",
+    "harbor",
+    "project",
+    "worktree",
+    "branch",
+    "predecessorSessionId",
+    "sessionIntent",
+    "actorId",
+    "intendedAgentId",
+    "daemonGeneration",
+    "nonce",
+    "expiresAt",
+    "bodyExpiresAt",
+    "jtiDigest",
+    "contextSlot",
+    "priorContextDigest",
+    "claims",
+    "occurredAt",
+    "predecessorEventIds"
+  ],
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.operator-recovery-event.v0" },
+    "eventId": { "type": "string", "minLength": 1 },
+    "recoveryId": { "type": "string", "minLength": 1 },
+    "kind": {
+      "enum": [
+        "challenge-created",
+        "enrollment-pinned",
+        "enrollment-activated",
+        "approved",
+        "denied",
+        "expired",
+        "drift-refused",
+        "replay-refused",
+        "grant-minted",
+        "grant-consumed",
+        "grant-revoked",
+        "session-bound",
+        "context-custody-installed"
+      ]
+    },
+    "actionHash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "harbor": { "type": "string", "minLength": 1 },
+    "project": { "type": "string", "minLength": 1 },
+    "worktree": { "type": "string", "minLength": 1 },
+    "branch": { "type": "string", "minLength": 1 },
+    "predecessorSessionId": { "type": "string", "minLength": 1 },
+    "successorSessionId": { "type": ["string", "null"] },
+    "sessionIntent": { "type": "string", "minLength": 1 },
+    "actorId": { "type": "string", "minLength": 1 },
+    "intendedAgentId": { "type": "string", "minLength": 1 },
+    "daemonGeneration": { "type": "string", "minLength": 1 },
+    "nonce": { "type": "string", "minLength": 16 },
+    "expiresAt": { "type": "integer", "minimum": 1 },
+    "bodyExpiresAt": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Independent expiry for the successor session body; it is never shortened to the presence challenge TTL."
+    },
+    "deviceKeyId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Required after challenge-created. A first-use recovery intent can exist before FleetBar pins its key."
+    },
+    "enrollmentEventId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Required after challenge-created. The initial intent event cannot cite a later enrollment-pinned event."
+    },
+    "enrollmentActivationEventId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Preallocated immutable activation event bound into the signed action after enrollment selection."
+    },
+    "activationNonceDigest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "activationCommandDigest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "activationReceiptDigest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "jtiDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "contextSlot": { "type": "string", "minLength": 1 },
+    "priorContextDigest": {
+      "type": ["string", "null"],
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "Digest of the exact slot occupant frozen before approval, or null when the slot was empty."
+    },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "predecessorEventIds": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "signatureDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "signedRequestDigest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "Digest of the complete canonical signed decision request; raw signature and key bytes are never logged."
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id", "nodeId", "disposition", "repoId", "worldKind", "worldId",
+          "gitOid", "selectorKind", "filePath", "startLine", "endLine", "symbol",
+          "symbolPath", "sessionId", "purpose", "agentId", "phase", "mode",
+          "intent", "claimedAt", "releasedAt", "observedBy", "confidence",
+          "legacySessionFileId"
+        ],
+        "properties": {
+          "id": { "type": "integer", "minimum": 1 },
+          "nodeId": { "type": "string", "minLength": 1 },
+          "disposition": { "enum": ["transfer", "release"] },
+          "repoId": { "type": "string", "minLength": 1 },
+          "worldKind": { "enum": ["worktree", "ref", "commit", "harbor"] },
+          "worldId": { "type": "string", "minLength": 1 },
+          "gitOid": { "type": ["string", "null"] },
+          "selectorKind": { "enum": ["repo", "directory", "file", "symbol", "range"] },
+          "filePath": { "type": "string", "minLength": 1 },
+          "startLine": { "type": ["integer", "null"], "minimum": 1 },
+          "endLine": { "type": ["integer", "null"], "minimum": 1 },
+          "symbol": { "type": ["string", "null"] },
+          "symbolPath": { "type": ["string", "null"] },
+          "sessionId": { "type": "string", "minLength": 1 },
+          "purpose": { "type": "string", "minLength": 1 },
+          "agentId": { "type": ["string", "null"] },
+          "phase": { "type": "string", "minLength": 1 },
+          "mode": { "enum": ["S", "X", "IS", "IX", "SIX"] },
+          "intent": { "type": ["string", "null"] },
+          "claimedAt": { "type": "integer", "minimum": 1 },
+          "releasedAt": { "type": "null" },
+          "observedBy": { "type": ["string", "null"] },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+          "legacySessionFileId": { "type": ["integer", "null"], "minimum": 1 }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

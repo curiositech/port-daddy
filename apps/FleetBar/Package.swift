@@ -11,7 +11,12 @@ let package = Package(
         .executableTarget(
             name: "FleetBar",
             path: "FleetBar",
-            resources: [.process("Resources")]
+            resources: [.process("Resources")],
+            linkerSettings: [
+                .linkedFramework("CryptoKit"),
+                .linkedFramework("LocalAuthentication"),
+                .linkedFramework("Security"),
+            ]
         ),
         .testTarget(
             name: "FleetBarTests",

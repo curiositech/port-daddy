@@ -3,25 +3,30 @@
  * ADR-0040 daemon-minted actor credential (#8877 / ADR-0122).
  *
  * Pins the precedence contract resolveCliActorCredential documents:
- *   1. PD_ACTOR_CREDENTIAL, then PORT_DADDY_ACTOR_CREDENTIAL env vars;
- *   2. the per-worktree context store (only when the asserted agentId
+ *   1. a live operator-recovered exact-slot body;
+ *   2. PD_ACTOR_CREDENTIAL, then PORT_DADDY_ACTOR_CREDENTIAL env vars;
+ *   3. the per-worktree context store (only when the asserted agentId
  *      matches — a mismatched credential is WITHHELD so the daemon returns
  *      the clearer 401 IDENTITY_CREDENTIAL_REQUIRED, never a laundering 403);
- *   3. the per-slot actor file persistCliActorCredential writes
+ *   4. the per-slot actor file persistCliActorCredential writes
  *      (.portdaddy/actors/<slot>.json), so `pd lock`/`pd unlock` pairs in a
  *      shell that never ran `pd begin` keep ONE soul.
  * And the fail-closed floor: nothing resolvable → undefined (daemon 401s).
  */
 
 import { describe, test, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import { chmodSync, linkSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, fstatSync, linkSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   persistCliActorCredential,
   resolveCliActorCredential,
 } from '../../cli/utils/actor-credential.js';
-import { writeCurrentContext } from '../../cli/utils/current-context.js';
+import {
+  writeCurrentContext,
+  writeCurrentContextForExactSlot,
+} from '../../cli/utils/current-context.js';
+import { __setContextSlotLockKernelForTests } from '../../lib/context-slot-lock.js';
 
 // Every env var the resolver (directly or via current-context) consults.
 // Cleared per-test so an ambient harness (Claude Code sets
@@ -58,9 +63,24 @@ describe('cli/utils/actor-credential', () => {
     // actor file the resolver reads back.
     process.env.PORT_DADDY_CONTEXT_DIR = contextDir;
     process.env.PORT_DADDY_CONTEXT_SLOT = 'test-slot';
+    const held = new Set();
+    __setContextSlotLockKernelForTests({
+      tryLock(descriptor) {
+        const stat = fstatSync(descriptor);
+        const key = `${stat.dev}:${stat.ino}`;
+        if (held.has(key)) return 'busy';
+        held.add(key);
+        return 'acquired';
+      },
+      unlock(descriptor) {
+        const stat = fstatSync(descriptor);
+        return held.delete(`${stat.dev}:${stat.ino}`);
+      },
+    });
   });
 
   afterEach(() => {
+    __setContextSlotLockKernelForTests(null);
     for (const key of ENV_VARS) {
       if (originalEnv[key] === undefined) delete process.env[key];
       else process.env[key] = originalEnv[key];
@@ -137,6 +157,41 @@ describe('cli/utils/actor-credential', () => {
     expect(resolveCliActorCredential('someone-else')).toBe('ENV0001.env-secret');
   });
 
+  test('an operator-recovered body outranks stale inherited predecessor env', () => {
+    process.env.PORT_DADDY_CONTEXT_SLOT = 'restart-recovery';
+    process.env.PD_AGENT_ID = 'agent-before-restart';
+    process.env.PD_SESSION_ID = 'session-before-restart';
+    process.env.PD_ACTOR_CREDENTIAL = 'pdab1.actor.old-body.old-secret';
+    writeCurrentContextForExactSlot({
+      agentId: 'agent-after-recovery',
+      sessionId: 'session-after-recovery',
+      recoveryId: 'recovery-env-precedence',
+      credentialExpiresAt: Date.now() + 60_000,
+      credential: 'pdab1.actor.new-body.new-secret',
+    }, 'restart-recovery');
+
+    expect(resolveCliActorCredential('agent-after-recovery'))
+      .toBe('pdab1.actor.new-body.new-secret');
+  });
+
+  test.each([
+    ['expired', Date.now() - 1],
+    ['missing expiry', undefined],
+  ])('never reclassifies an %s recovery body as an ordinary context credential', (_label, expiresAt) => {
+    process.env.PORT_DADDY_CONTEXT_SLOT = 'restart-recovery-expired';
+    writeCurrentContextForExactSlot({
+      agentId: 'agent-after-recovery',
+      sessionId: 'session-after-recovery',
+      recoveryId: 'recovery-no-longer-live',
+      ...(expiresAt === undefined ? {} : { credentialExpiresAt: expiresAt }),
+      credential: 'pdab1.actor.expired-body.secret',
+    }, 'restart-recovery-expired');
+
+    expect(resolveCliActorCredential('agent-after-recovery')).toBeUndefined();
+    persistCliActorCredential('ACTOR01.ordinary-slot-secret', 'agent-after-recovery');
+    expect(resolveCliActorCredential('agent-after-recovery')).toBe('ACTOR01.ordinary-slot-secret');
+  });
+
   test('PORT_DADDY_ACTOR_CREDENTIAL is the fallback env spelling; PD_ACTOR_CREDENTIAL beats it', () => {
     process.env.PORT_DADDY_ACTOR_CREDENTIAL = 'LONGVAR.secret';
     expect(resolveCliActorCredential()).toBe('LONGVAR.secret');
@@ -196,6 +251,19 @@ describe('cli/utils/actor-credential', () => {
   test('nothing resolvable → undefined, so the daemon 401s the attributed write (fail-closed)', () => {
     expect(resolveCliActorCredential()).toBeUndefined();
     expect(resolveCliActorCredential('any-agent')).toBeUndefined();
+  });
+
+  test('an attributed predecessor context without its credential remains unbound for takeover recovery', () => {
+    writeCurrentContext({
+      agentId: 'durable-actor-alias',
+      sessionId: 'session-before-daemon-restart',
+      credential: null,
+    });
+
+    // Credential resolution is observation-only. It must not convert the
+    // predecessor's display alias into authority for a newly minted actor.
+    expect(resolveCliActorCredential('durable-actor-alias')).toBeUndefined();
+    expect(existsSync(actorFile())).toBe(false);
   });
 
   test('a symlinked actor directory cannot exfiltrate a persisted credential', () => {

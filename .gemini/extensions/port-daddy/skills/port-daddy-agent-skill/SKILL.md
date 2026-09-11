@@ -261,6 +261,15 @@ Use a supported same-owner `pd session takeover <old-session-id> [reason]`
 is authorized for that predecessor. Read back the actual successor, retained
 notes and claim disposition; the command name alone does not prove a transfer.
 
+Takeover is ordinary continuity, not credential recovery. After a daemon
+restart, do not retry uncredentialed takeover or register a replacement actor:
+that burns newcomer capacity and cannot own the predecessor's stamped work.
+When the existing actor body is unavailable, stop mutating and use FleetBar's
+operator-presence recovery card. Verify its receipt names the same actor, exact
+predecessor, successor session, canonical worktree/branch/context slot, and the
+specific transferred or released claim nodes before resuming. No CLI bearer
+grant or copied credential is part of this flow.
+
 Start a new linked session when the product goal changed, the previous slice
 was completed or merged, the branch no longer descends cleanly from the old
 work, or the next edit would touch unrelated surfaces. Continuity comes from
