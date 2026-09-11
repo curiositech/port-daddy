@@ -33,7 +33,7 @@ or independent reviews. No historical human-authored commit was rewritten.
 - [x] Commit the loose general publisher implementation.
 - [x] Verify existing E2E and counter commits still exist.
 - [x] Query exact E2E, counter, and publisher branch PR matches.
-- [ ] Establish that PR creation/push cannot trigger paid Fleet or other paid reviewers.
+- [x] Operator explicitly allowed PR publication regardless of automatic reviewer cost on September 10, 2026. This does not lift the Port Daddy runtime halt.
 - [ ] Publish the four recovered implementation branches as appropriately scoped PRs based on main, without overwriting existing branches or disguising WIP as merge-ready.
 - [ ] Reconcile recovery's dependency on #10010 with current main; do not bulk-retarget or blindly rebase preserved work.
 - [ ] Fix recovery response-loss idempotency, retired authority-field immutability, and credential-file custody.
@@ -66,7 +66,8 @@ events. Thus draft status, a docs-only diff, disabled review workflows, and an
 empty repository-webhook list are not proof of paid-agent containment. That PR
 is still open. Do not spend money merely to learn whether the warning is stale.
 
-Publishing remains requested by the operator. The remaining authority question
-is disabling automatic paid reviewers, not permission to commit or use Git.
-No source changes or settings changes can be described as deployed containment
-without an actual readback. Do not run PD to resolve this boundary.
+Publishing is explicitly authorized even if automatic reviewers run. Reviewer
+cost is no longer a publication gate for this recovery wave. This narrow change
+does not authorize Port Daddy, Fleet, services, releases, deployments, or local
+application launches, and it does not turn historical validation into current
+proof.
