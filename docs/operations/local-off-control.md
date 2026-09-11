@@ -44,7 +44,9 @@ made here.
 - [x] Gate automatic post-merge console rebuilding.
 - [x] Repair this operator's identified installed Git hooks, Git shim, stale
   pre-compaction pair and Pilot script; preserve unrelated hook bodies.
-- [ ] Complete adversarial regression validation and publish the hook PR.
+- [x] Complete adversarial regression validation and publish hook PR #10137:
+  149 tests pass; nine old socket-based cases remain excluded after a safety
+  denial. Independent source re-review found no remaining bounded-diff findings.
 - [ ] Implement a daemon-independent, persistent local Off button. Write the
   stop state before requesting shutdown; display partial failure honestly.
 - [ ] Enforce that state across native startup, login-shell/boot-command paths,
