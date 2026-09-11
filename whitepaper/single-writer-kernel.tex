@@ -296,7 +296,7 @@ precisely and, where the promise has an edge, to draw the edge in ink.
 
 \subsection{The one-sentence thesis}
 
-\pullquote{The kernel is a single-writer transactional reference monitor over a
+\pdthesis{The kernel is a single-writer transactional reference monitor over a
 local SQLite/WAL database --- the one process that mediates contended resources,
 and the one place where ``true'' is decided rather than asserted.}
 
@@ -780,6 +780,19 @@ function acquire(key, requester, ttl):
 \end{minipage}
 \end{figure}
 
+The second half of the theorem below is the \textbf{fencing token}, and it should
+be named before it is proved, because it is the part of the design that was not
+invented here. Kleppmann's rule is the whole of it --- ``a number that increases
+every time a client acquires the lock,'' handed to the resource along with every
+write, so that the resource itself and not the lock service can refuse a holder
+who paused past its lease and woke up still believing it held
+it~\pdcite{kleppmann2016locking} --- and Chubby shipped it first, as the
+\emph{sequencer} a lock holder passes downstream so a storage server can tell a
+current handle from a stale predecessor's~\pdcite{burrows2006chubby}. This
+chapter calls the number an \emph{epoch} because it is kept per resource and
+survives reallocation, but the protocol shape is the same one: acquire, receive
+a monotone number, present it with every effect, get refused when it is stale.
+
 \begin{theorem}[Atomic Mutual Exclusion and Fenced Leases]\label{thm:exclusion}
 Within a canonical conflict domain (exact normalized key, transactional interval overlap $[a, b] \cap [c, d] \neq \emptyset$, or path prefix hierarchy), at most one holder can hold an active lease at any logical instant. Furthermore, every granted lease carries a strictly monotonic fencing epoch $e \in \mathbb{N}$; downstream effect brokers reject any operation bearing an expired epoch $e' < e_{\text{current}}$.
 \end{theorem}
@@ -788,15 +801,16 @@ Within a canonical conflict domain (exact normalized key, transactional interval
 Within an immediate SQLite transaction (\texttt{BEGIN IMMEDIATE}), the daemon evaluates the conflict predicate against all currently unexpired leases. For exact keys, this is enforced by primary-key uniqueness; for intervals and hierarchies, by an indexed range check within the same transaction. Because all writes funnel through the single connection (Def.~\ref{def:single-writer}), predicate evaluation and insert are atomic. Upon grant or reallocation, the daemon increments the resource's fencing epoch $e$. Downstream effect brokers validate that $e$ matches the active lease at execution time, preventing stale or paused holders from producing side effects after lease expiration.
 \end{proof}
 
-The fencing epoch is the \textbf{fencing token}: ``a number that increases every
-time a client acquires the lock,'' rejected by the resource itself if a paused or
-stale holder tries to act after a newer epoch has issued~\pdcite{kleppmann2016locking}
---- the exact mechanism Chubby shipped first, where a sequence number lets a
-storage server tell a current handle from a stale predecessor's and reject the
-latter~\pdcite{burrows2006chubby}. The setting differs (Chubby and Raft's leader term
-fence across machines that cannot otherwise agree on liveness; this rail fences a
-single process's own async handlers against each other), but the reject-below-current-epoch
-rule is the identical protocol shape.
+What differs from Chubby is the setting, and it is worth being exact about how
+much smaller our problem is. Chubby's sequencer and Raft's leader term fence
+across machines that cannot otherwise agree on who is alive; the danger they
+answer is a paused JVM or a partitioned node still acting on a lease the rest
+of the world has moved past. This rail fences one process's own asynchronous
+handlers against each other, so the race the epoch defends against is logical
+rather than physical, and the whole apparatus fits inside one SQLite
+transaction. That is a good reason not to need Raft (the related-work section
+makes the argument by way of Fischer, Lynch and Paterson); it is not a reason
+to let the token pass as new.
 
 \paragraph{Worked dramatization: Alice and Bob race for one port.}
 Alice and Bob are two agents, started a millisecond apart, that both want to bind a
@@ -1022,12 +1036,15 @@ allows) so that ``able but forbidden'' stays expressible.}
 \label{tab:swk-deontic-split}
 \small
 \renewcommand{\arraystretch}{1.18}
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.13\textwidth} >{\raggedright\arraybackslash}p{0.17\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.2\textwidth}@{}}
+% Modality column widened 0.13 -> 0.16\textwidth: "prohibition" (11
+% letters) hyphenated at its one legal point and was still 5.7pt over
+% even split.
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.16\textwidth} >{\raggedright\arraybackslash}p{0.17\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.17\textwidth}@{}}
 \toprule
 \textbf{Modality} & \textbf{Trigger} & \textbf{Mechanism} & \textbf{Holds / fails when} & \textbf{Example} \\
 \midrule
 prohibition & an act the policy forbids is attempted & regimented before commit by a gate when the event is controllable; otherwise detected after commit and compensated & holds when the effect never commits; fails as detect-and-compensate when the gate could not see the trigger & a tool's emergency override flag: the agent is \emph{able} to call it and \emph{forbidden} to \\
-obligation & a commitment is recorded & an oracle-bound commitment: closure only through a receipt the daemon can re-check, before a daemon-set deadline & holds when a typed receipt closes it in time; fails by staying open and escalating, never by free-text assertion & ``release the claim on \texttt{lib/webhooks.ts} within thirty minutes'' \\
+obligation & a commitment is recorded & an oracle-bound commitment: closure only through a receipt the daemon can re-check, before a daemon-set deadline & holds when a typed receipt closes it in time; fails by staying open and escalating, never by free-text assertion & ``release the claim on \texttt{lib/\allowbreak webhooks.ts} within thirty minutes'' \\
 permission & a grant is issued & a recorded capability row, attenuable, never widened downstream & holds while the grant is live; an act without a grant is a prohibition case & ``may read the audit log until the session ends'' \\
 \bottomrule
 \end{tabularx}
@@ -1417,14 +1434,51 @@ row whose prohibition names an uncontrollable event or an unwitnessed trigger. D
 buys the assurance modes the rest of the book uses to describe what a runtime can see and
 control, the design rule behind the sealed room, and the pricing stance of the market
 chapters: detect-only policies are enforced by audit, reputation, and bond-slashing, which
-must be sized for violations that \emph{will} occur. The ladder these modes form sits beside
-two public gradings of a different variable: Sheridan and
-Parasuraman--Sheridan--Wickens's levels of automation grade a system by how much
-of a task it performs unassisted~\pdcite{parasuraman2000}, and the Common
-Criteria's evaluation assurance levels grade a security claim by how much
-independent verification backs it~\pdcite{cciso15408}; this ladder grades a
-runtime claim by the evidence a mechanism itself produces, a third axis next to
-those two.
+must be sized for violations that \emph{will} occur.
+
+The ladder these modes form has two obvious public neighbours, and since the
+resemblance is real it's worth saying exactly what each of the three grades
+before somebody assumes they're the same instrument in different clothes.
+Sheridan and Verplank rank a system on a ten-point scale by how much of the
+decide-and-act loop the computer holds rather than the
+human~\pdcite{sheridanverplank1978}; Parasuraman, Sheridan and Wickens later
+split that single scale across four stages of processing --- acquisition,
+analysis, decision selection, action implementation --- each carrying its own
+level~\pdcite{parasuraman2000}. Both grade the \emph{allocation of the work}:
+who does it. The Common Criteria's evaluation assurance levels, EAL1 through
+EAL7, rank a security claim by how much independent evaluation effort was spent
+before deployment and against how deep a body of design evidence, from
+functionally tested at the bottom to formally verified design at the
+top~\pdcite{cciso15408}. EAL grades \emph{how hard somebody looked}, once, at
+evaluation time, for a whole product. This ladder grades neither, and the
+question it does ask is narrower than both: of one runtime claim about one
+mechanism, \emph{what would have to be defeated for the claim to be false?}
+Nothing at all at Observed --- the act may have happened somewhere else
+entirely and the record was written afterwards --- then a client's willingness
+to declare at Coordinated, a daemon-owned broker at Brokered, the operating
+system's own confinement at Confined, and a measured environment plus a
+conditional key release at Attested. That is an adversary's work factor, per
+mechanism, at run time, and neither neighbour measures it.
+
+\begin{pdclaim}{Design invariant}{The three gradings are independent axes}
+No mechanism's rung in this book is assigned from its automation level or from
+its evaluation depth, and the corners are all occupiable. A fully autonomous
+component (Sheridan level~10) whose actions are merely logged is
+\pdassurance{Observed}; a component that stops for human approval at every step
+(level~3) but routes its one effect through an attested broker is
+\pdassurance{Attested}. An EAL7 product can contain \pdassurance{Observed}
+mechanisms and an unevaluated one can contain \pdassurance{Attested} mechanisms,
+because EAL scores the evaluation and this ladder scores the mechanism.
+\end{pdclaim}
+
+The boundary on that is worth stating in the same breath: the ladder is a design
+vocabulary, not a measured scale. No procedure assigns a rung by measurement, no
+inter-rater agreement stands behind the assignments, and the five rungs are not
+claimed to be evenly spaced or even totally ordered --- Brokered and Confined
+defeat different adversaries rather than the same adversary harder, which is why
+the appendix says these modes are not a maturity staircase. What the ladder is
+for is naming which part of the system a claim rests on, and it earns that only
+by being applied consistently.
 
 \begin{pdboundary}
 (i) The theorem does not say detect-only policies are hopeless. Detection feeding audit,
@@ -1581,7 +1635,7 @@ the canonical statement of the layer's own softest link.
 Figure~\ref{fig:swk-continuity-organs} names the three continuity organs and states
 the canonical sentence the rest of the series depends on:
 
-\pullquote{The economy rests on three continuity organs --- memory
+\pdthesis{The economy rests on three continuity organs --- memory
 (\textsc{implemented}), checkpoint (\textsc{partial}: notes, not execution state),
 and a witnessed-outcome ledger (\textsc{partial}: commitments and oracle-bound closure,
 not neutral graded outcomes) --- and reputation keys on the richer third organ,
@@ -1852,6 +1906,7 @@ six have teeth, not that they are complete. The unbounded-parameter version, in 
 with Apalache, is planned and not done.
 \end{pdboundary}
 
+\pdexercisepointer*{\ref{ex:swk-crimes}}{\ref{ex:swk-seventh-invariant}}{\pageref{ex:swk-crimes}}
 \begin{pdrecitation}
 \item Without looking: name the three journals the work-unit state carries, and say which
   invariant each one exists to make checkable.
@@ -1859,7 +1914,6 @@ with Apalache, is planned and not done.
 \item What does the mutation suite certify, and what does it not certify?
 \end{pdrecitation}
 
-\pdexercisepointer{\ref{ex:swk-crimes}}{\ref{ex:swk-seventh-invariant}}{\pageref{ex:swk-crimes}}
 
 \subsection{The consistency-model theorem}
 
@@ -2272,7 +2326,7 @@ What this chapter leaves coupled, in the order the rest of the book will lean on
 \item Durability is split by fault class. A process crash loses nothing; a power loss
   can lose the last commits under the default synchronous setting. The setting is the
   durability claim.
-\item A claim is a lease with a fencing epoch. At most one compatible holder per
+\item A claim is a lease with a fencing token (this chapter's epoch). At most one compatible holder per
   conflict domain; expiry is lazy; a stale holder's effects are refused downstream by
   the epoch, not by the lock.
 \item The bus is at-least-once and says so. Benign redelivery is deduplicated by an
@@ -2561,14 +2615,20 @@ supplies the boundary that the central correction of this paper rests on
 (Theorem~\ref{thm:schneider}): an execution monitor can enforce only the safety
 properties it can prevent by truncating execution, which a post-commit observer
 cannot do. This is a narrower, cheaper problem than general operating-system
-confinement, and the same-machine adversary this chapter's own OP-9 leaves
-\Open{} (\S\ref{sec:merkle}) is exactly the problem the field's two current
-answers exist to close: seL4's machine-checked proof of functional correctness
-from specification to binary~\pdcite{klein2009sel4}, and Firecracker's
-production microVM isolation for untrusted multi-tenant
-workloads~\pdcite{agache2020firecracker}. Either would give this kernel a
-stronger trusted computing base than an ephemeral-UID process boundary; neither
-is adopted here, and the gap is named rather than closed.
+confinement, and honesty requires saying where the narrower problem ends. The
+same-machine adversary this chapter's own OP-9 leaves \Open{}
+(\S\ref{sec:merkle}) is exactly the problem three current systems exist to
+close, each at a different price: seL4, which takes ``small enough to verify''
+to its conclusion with a machine-checked proof of functional correctness from
+specification down to the binary~\pdcite{klein2009sel4}; gVisor, a user-space
+kernel that interposes on every system call a guest makes rather than trusting
+the host's boundary to hold~\pdcite{young2019gvisor}; and Firecracker, the
+microVM monitor that has isolated untrusted multi-tenant workloads in
+production since 2018~\pdcite{agache2020firecracker}. Any of the three would
+give this kernel a stronger trusted computing base than an ephemeral-UID
+process boundary. None is adopted here, and the gap is named rather than closed
+--- the single writer buys complete mediation for coordination state, not for
+the machine.
 
 \subsection{Durable storage and transaction processing}
 
@@ -2766,7 +2826,7 @@ two genuinely soft spots --- partial local identity enforcement (I12) and a
 checkpoint with teeth (OP-4) --- are exactly the two things a cross-machine
 economy and a durable notion of agent personhood lean on hardest.
 
-\pullquote{The kernel is solid where it is local and provisional exactly where a
+\pdthesis{The kernel is solid where it is local and provisional exactly where a
 cross-machine economy would need it to be cryptographic and continuous. That is not
 a flaw to hide; it is the layer boundary, stated truthfully.}
 
@@ -2984,7 +3044,7 @@ Philip R. Cohen and Hector J. Levesque.
 \bibitem{garciamolina1987}
 Hector Garcia-Molina and Kenneth Salem.
 \newblock Sagas.
-\newblock In \textit{ACM SIGMOD International Conference on Management of Data}, 1987.
+\newblock In \textit{ACM SIGMOD International Conference on Management of Data}, pages 249--259, 1987.
 
 \bibitem{grasse1959}
 Pierre-Paul Grass\'e.
@@ -3035,10 +3095,10 @@ Michael T. Nygard.
 \newblock (The bounded busy-wait as a bulkhead / timeout-budget under contention.)
 
 \bibitem{birgisson2014macaroons}
-Arnar Birgisson, Joe Gibbs Politz, \'Ulfar Erlingsson, Ankur Taly, Michael Vrable, and Mark Lentczner.
+Arnar Birgisson, Joe Gibbs Politz, Úlfar Erlingsson, Ankur Taly, Michael Vrable, and Mark Lentczner.
 \newblock Macaroons: Cookies with Contextual Caveats for Decentralized Authorization in the Cloud.
 \newblock In \textit{Network and Distributed System Security Symposium (NDSS)}, 2014.
-\newblock (Attenuation-only bearer credentials with third-party caveats --- the enforcement-gate construction.)
+\newblock \url{https://doi.org/10.14722/ndss.2014.23212}
 
 \bibitem{kleppmann2016locking}
 Martin Kleppmann.
@@ -3060,6 +3120,11 @@ Gerwin Klein, Kevin Elphinstone, Gernot Heiser, June Andronick, David Cock, Phil
 \newblock seL4: Formal Verification of an OS Kernel.
 \newblock In \textit{ACM Symposium on Operating Systems Principles (SOSP)}, pages 207--220, 2009.
 
+\bibitem{young2019gvisor}
+Ethan G. Young, Pengfei Zhu, Tyler Caraza-Harter, Andrea C. Arpaci-Dusseau, and Remzi H. Arpaci-Dusseau.
+\newblock The True Cost of Containing: A gVisor Case Study.
+\newblock In \textit{USENIX Workshop on Hot Topics in Cloud Computing (HotCloud)}, 2019.
+
 \bibitem{agache2020firecracker}
 Alexandru Agache, Marc Brooker, Alexandra Iordache, Anthony Liguori, Rolf Neugebauer, Phil Piwonka, and Diana-Maria Popa.
 \newblock Firecracker: Lightweight Virtualization for Serverless Applications.
@@ -3070,15 +3135,22 @@ Thanumalayan Sankaranarayana Pillai, Vijay Chidambaram, Ramnatthan Alagappan, Sa
 \newblock All File Systems Are Not Created Equal: On the Complexity of Crafting Crash-Consistent Applications.
 \newblock In \textit{Symposium on Operating Systems Design and Implementation (OSDI)}, pages 433--448, 2014.
 
+\bibitem{sheridanverplank1978}
+Thomas B. Sheridan and William L. Verplank.
+\newblock \textit{Human and Computer Control of Undersea Teleoperators}.
+\newblock Man--Machine Systems Laboratory, Department of Mechanical Engineering, MIT;
+ONR Technical Report, 1978. NTIS ADA057655.
+
 \bibitem{parasuraman2000}
 Raja Parasuraman, Thomas B. Sheridan, and Christopher D. Wickens.
 \newblock A Model for Types and Levels of Human Interaction with Automation.
 \newblock \textit{IEEE Transactions on Systems, Man, and Cybernetics -- Part A}, 30(3):286--297, 2000.
 
 \bibitem{cciso15408}
-ISO/IEC 15408.
-\newblock \textit{Common Criteria for Information Technology Security Evaluation}.
-\newblock International Organization for Standardization, current edition.
+ISO/IEC 15408-1:2022.
+\newblock \textit{Information security, cybersecurity and privacy protection --- Evaluation
+criteria for IT security --- Part 1: Introduction and general model} (Common Criteria, CC:2022).
+\newblock International Organization for Standardization, 2022.
 
 \end{thebibliography}
 

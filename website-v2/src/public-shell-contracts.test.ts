@@ -159,25 +159,54 @@ describe('public shell contracts', () => {
     expect(docsSidebar).toContain('to="/whitepaper"')
   })
 
-  test('whitepaper page uses the current editorial layout instead of the old ceremonial hero', () => {
+  test('the library routes are one deck on one screen, not two long pages', () => {
+    // This contract used to pin an editorial layout that no longer existed —
+    // it still expected "The Port Daddy papers." and "Research dossier" after
+    // the Textbook Edition rewrite replaced both, and it had been red without
+    // anyone noticing because CI runs only `test:porthole` for this package,
+    // never the vitest suite. Pinning the shape rather than the copy is what
+    // stops that recurring: strings move, structure is the promise.
     const whitepaper = read('./pages/whitepaper/index.tsx')
-    const paperData = read('./data/whitePapers.ts')
+    const research = read('./pages/research/index.tsx')
+    const deck = read('./components/library/DeckShell.tsx')
+    const main = read('./main.tsx')
 
-    expect(whitepaper).toContain('Research dossier')
-    expect(whitepaper).toContain('The Port Daddy papers.')
-    expect(whitepaper).toContain('Available papers')
-    expect(whitepaper).toContain('Argument map')
-    expect(whitepaper).toContain('Table of contents')
-    expect(whitepaper).toContain('signed local identity first')
-    expect(whitepaper).toContain('useSearchParams')
-    expect(whitepaper).toContain('Read guide')
-    expect(paperData.indexOf("id: 'anchor-protocol'")).toBeLessThan(paperData.indexOf("id: 'bonded-commons'"))
-    expect(whitepaper).not.toContain('White Papers')
-    expect(whitepaper).not.toContain('Formal Foundations')
-    expect(whitepaper).not.toContain('How the Papers Relate')
+    // One book, one page. /library forwards; /whitepaper renders.
+    expect(main).toContain('<Route path="/whitepaper" element={<WhitepaperPage />} />')
+    expect(main).toContain('<Route path="/library" element={<Navigate to="/whitepaper" replace />} />')
+
+    // Both library routes stand on the same shell, so the deck's guarantees
+    // are guarantees for both of them.
+    for (const page of [whitepaper, research]) {
+      expect(page).toContain('DeckShell')
+      expect(page).toContain('useSearchParams') // a panel is linkable
+      expect(page).toContain('routeLabel=')
+      expect(page).toContain('hoist={[') // the route, spelled in signal flags
+    }
+
+    // One viewport: the deck sizes itself from where it actually starts rather
+    // than assuming it owns the whole screen, which is what made it overflow
+    // by exactly the header's height the first time it was measured.
+    expect(deck).toContain('--deck-h')
+    expect(deck).toContain('overflow-hidden')
+    expect(deck).toContain("role=\"tablist\"")
+    expect(deck).toContain('useReducedMotion')
+
+    // A flag on this site means what Pub. 102 says it means, so every signal
+    // carries its meaning rather than being picked for its letter.
+    expect(whitepaper).toContain('Papa — about to proceed to sea')
+    expect(whitepaper).toContain('Uniform — you are running into danger')
+    expect(research).toContain('Kilo — I wish to communicate with you')
+
+    // The chapters are an outline with a teaser each, never a grid of cards
+    // linking off to eight separate documents — there are not eight documents.
+    expect(whitepaper).toContain('record.question')
+    expect(whitepaper).toContain('record.teaser')
+
+    // The ceremonial hero and the old two-page split stay gone.
+    expect(whitepaper).not.toContain('Research dossier')
     expect(whitepaper).not.toContain('rounded-[28px]')
-    expect(whitepaper).not.toContain('shadow-inset')
-    expect(whitepaper).not.toContain('Anchor size')
+    expect(whitepaper).not.toContain('Formal Foundations')
   })
 
   test('homepage keeps both public papers visible from the landing CTA', () => {
@@ -194,7 +223,7 @@ describe('public shell contracts', () => {
     expect(paperData).toContain('/whitepaper/bonded-commons')
     expect(paperData).toContain('/whitepaper/anchor-protocol-whitepaper.pdf')
     expect(paperData).toContain('/whitepaper/agent-transactions-whitepaper.pdf')
-    expect(cta).toContain('Read both papers')
+    expect(cta).toContain('Read the papers')
     // The "Coordination feedback" / "Dogfood restore" sub-panel was
     // stripped intentionally per the 2026-05-20 IA audit — it was
     // internal build-process commentary at the closing CTA, which is
@@ -211,10 +240,15 @@ describe('public shell contracts', () => {
     const seo = read('../scripts/generate-seo-artifacts.mjs')
 
     expect(mainSource).toContain('path="/whitepaper/:paperSlug"')
-    expect(detailPage).toContain('What this paper is saying')
-    expect(detailPage).toContain('Why this paper matters')
-    expect(detailPage).toContain('Future value')
-    expect(detailPage).toContain('Inline PDF reader')
+    // The story-linework rebuild renamed every section on this page: "What
+    // this paper is saying" / "Why this paper matters" / "Future value" /
+    // "Inline PDF reader" became the argument map, the takeaways, and the
+    // reader. What the page still owes the visitor is the same -- the paper's
+    // argument, what to take from it, and the PDF itself on the page rather
+    // than behind a download -- so those are what is asserted.
+    expect(detailPage).toContain('Argument map')
+    expect(detailPage).toContain('Takeaways')
+    expect(detailPage).toContain('Read the paper')
     expect(detailPage).toContain('<iframe')
     expect(detailPage).toContain('paperPdfUrl(paper)')
     expect(metadata).toContain('WHITE_PAPERS.map')
@@ -243,11 +277,15 @@ describe('public shell contracts', () => {
 
     expect(header).toContain('/mac-preview')
     expect(header).toContain('/examples')
-    expect(header).toContain('/agents')
+    // The nav restructure moved /agents out of the header. The claim this test
+    // makes is reachability from the shell, and the footer carries it, so the
+    // check is over both rather than over the header alone -- a page nothing
+    // links to is the defect, not which of the two bars links to it.
+    expect(`${header}${footer}`).toContain('/agents')
     // Skills+MCP page retired and merged into the Mac app page; no /mcp in nav.
     expect(header).not.toContain("/mcp")
     expect(header).toContain('/pd-tube')
-    expect(header).toContain('Tube Playground')
+    expect(header).toContain('Agent Tubes')
     expect(header).toContain('/blog')
     expect(header).not.toContain('/agents/agent-skill')
     expect(header).toContain('/tutorials')
@@ -271,7 +309,7 @@ describe('public shell contracts', () => {
     expect(footer).toContain('/docs/sdk')
     expect(footer).toContain('/docs/mcp')
     expect(footer).toContain('/docs/api')
-    expect(footer).toContain('/library')
+    expect(footer).toContain('/whitepaper')
     expect(footer).toContain('/agents/templates')
     expect(footer).toContain('/tutorials')
 
@@ -296,7 +334,10 @@ describe('public shell contracts', () => {
     const macPreview = read('./pages/MacPreviewPage.tsx')
     const showcase = read('./components/landing/MacAppShowcase.tsx')
 
-    expect(macPreview).toContain('Flow, Roadmap')
+    // The page used to name the surfaces inline ("Flow, Roadmap, ..."); the
+    // gallery now lives entirely in MacAppShowcase, so what the page owes is
+    // that it renders it.
+    expect(macPreview).toContain('<MacAppShowcase />')
     expect(showcase).toContain('Fleet Control Center gallery')
     expect(appSurfaceTitles).toEqual(expect.arrayContaining([
       'Flow',
@@ -427,7 +468,18 @@ describe('public shell contracts', () => {
     expect(appSource).not.toContain('agentsd.ai')
   })
 
-  test('public copy uses the AI infrastructure evaluator lens without slipping into inside-baseball framing', () => {
+  // This test used to pin seventeen exact marketing lines -- "For AI
+  // engineering teams", "shared-state substrate", "Dogfood receipts" and the
+  // rest -- as its positive half. The plain-language copy pass replaced
+  // thirteen of them, and the four that still matched had only survived
+  // because their files had not been rewritten yet. Pinning a draft's exact
+  // sentences does not guard a lens; it guards a draft, and it fails on every
+  // rewrite whether the rewrite was good or bad. The half of this test that
+  // does guard something is the forbidden list below: each phrase there is
+  // framing the site deliberately retired (the maritime-theme explainer, the
+  // acquisition pitch, a hardcoded localhost URL in user-facing copy), and any
+  // of them reappearing is a defect no matter how the surrounding copy reads.
+  test('public copy keeps retired framing off the landing surfaces', () => {
     const sources = {
       hero: read('./components/landing/Hero.tsx'),
       conversation: read('./components/landing/AgentConversationSection.tsx'),
@@ -441,24 +493,6 @@ describe('public shell contracts', () => {
       docsRoutes: read('./data/docs-routes.ts'),
       sectionIntros: read('./data/section-intros.ts'),
     }
-
-    expect(sources.hero).toContain('For AI engineering teams')
-    expect(sources.hero).toContain('shared-state substrate')
-    expect(sources.hero).toContain('Evaluate Mac preview')
-    expect(sources.conversation).toContain('Coordination is state agents can read.')
-    expect(sources.conversation).toContain('Why AI tooling teams care')
-    expect(sources.socialProof).toContain('Dogfood receipts')
-    expect(sources.socialProof).toContain('These are not customer testimonials.')
-    expect(sources.enforcement).toContain('Operators need the control plane.')
-    expect(sources.about).toContain('Why AI Infrastructure Teams Should Care')
-    expect(sources.about).toContain('The control plane under')
-    expect(sources.blog).toContain('AI infrastructure notes')
-    expect(sources.blog).toContain('Engineering notes for agent control planes')
-    expect(sources.examples).toContain('Executable local loops for agent products.')
-    expect(sources.tutorials).toContain('Learn the control plane like an operator.')
-    expect(sources.metadata).toContain('local control plane and shared-state substrate')
-    expect(sources.docsRoutes).toContain('AI tooling team')
-    expect(sources.sectionIntros).toContain('minimum substrate for running multiple AI agents')
 
     const combined = Object.values(sources).join('\n')
     const forbiddenPhrases = [
@@ -538,10 +572,10 @@ describe('public shell contracts', () => {
       'stale-daemon-cli-runtime',
     ])
     expect(findDocsContentSection('concepts')?.pages.map((page) => page.slug)).toEqual([
+      'primitives',
       'daemon-and-authority',
       'sessions-locks-and-tuples',
       'harbors-and-identity',
-      'eleven-product-primitives',
     ])
     expect(findDocsContentSection('best-practices')?.pages.map((page) => page.slug)).toEqual([
       'operator-loop',
@@ -561,6 +595,7 @@ describe('public shell contracts', () => {
     ])
     expect(findDocsContentSection('reference-architectures')?.pages.map((page) => page.slug)).toEqual([
       'single-machine-control-plane',
+      'pd-relay-harbor-mesh',
       'fleet-automation-loop',
       'delegation-surfaces',
     ])

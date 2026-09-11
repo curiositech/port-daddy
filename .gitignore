@@ -91,6 +91,16 @@ agentsd_mocks/
 !/.scratch/
 !/.scratch/**
 
+# ... but not the sandbox DIRECTORIES tests create inside it. Many suites
+# mkdtemp under .scratch/ (coordination-guard, halt-watch, history-reader and
+# others), and every run leaves a tree behind that shows up as untracked noise
+# and invites somebody to commit test litter. The nine files this directory
+# really carries are research notes written directly in it, so the rule is
+# shape rather than a list of prefixes: files at the top level stay tracked,
+# any subdirectory is ignored. A prefix list would have to be edited every time
+# a suite adds a fixture, which is the kind of rule that rots quietly.
+/.scratch/*/
+
 # Xcode/SwiftPM user-specific and generated workspace files
 xcuserdata/
 *.xcuserstate

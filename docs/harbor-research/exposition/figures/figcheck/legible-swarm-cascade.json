@@ -1,76 +1,76 @@
 {
-  "pdf": "/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/figaudit/pdf/legible-swarm-cascade/legible-swarm-cascade.pdf",
-  "page_count": 1,
-  "params": {
-    "min_font_pt": 7.0,
-    "textwidth_cm": 16.3
+ "figure": "legible-swarm-cascade",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
   },
-  "checks": {
-    "T1": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T2": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T3": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T4": {
-      "status": "fail",
-      "count": 1,
-      "findings": [
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            306.66387939453125,
-            88.63719177246094,
-            357.0509338378906,
-            96.60730743408203
-          ],
-          "text": "from artifacts",
-          "line_segment": [
-            [
-              331.8646240234375,
-              96.55975341796875
-            ],
-            [
-              331.8646240234375,
-              51.727378845214844
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'from artifacts'"
-        }
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T4": {
+   "status": "fail",
+   "count": 1,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      306.66387939453125,
+      88.63719177246094,
+      357.0509338378906,
+      96.60730743408203
+     ],
+     "text": "from artifacts",
+     "line_segment": [
+      [
+       331.8646240234375,
+       96.55975341796875
+      ],
+      [
+       331.8646240234375,
+       51.727378845214844
       ]
-    },
-    "T5": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T6": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T7": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+     ],
+     "message": "a drawn line crosses through the interior of text 'from artifacts'"
     }
+   ]
   },
-  "summary": {
-    "result": "fail",
-    "failed_checks": [
-      "T4"
-    ],
-    "warned_checks": []
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
   }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T4"
+  ],
+  "warned_checks": []
+ }
 }
