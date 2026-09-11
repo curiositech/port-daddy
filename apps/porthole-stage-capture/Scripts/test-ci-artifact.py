@@ -73,6 +73,12 @@ class ArtifactIntegrationTests(unittest.TestCase):
         fixture = self.inputs[0] / "PortholeFixture.app/Contents/MacOS/PortholeFixture"
         binding = json.loads((self.inputs[0] / "Porthole.app/Contents/Resources/safe-fixture-identity.json").read_text())
         self.assertEqual(binding["executableSHA256"], hashlib.sha256(fixture.read_bytes()).hexdigest())
+        driver = self.inputs[0] / "Porthole.app/Contents/Resources/porthole-control"
+        self.assertTrue(os.access(driver, os.X_OK))
+        help_result = subprocess.run([str(driver), "--help"], check=False, capture_output=True, text=True)
+        self.assertEqual(help_result.returncode, 0)
+        self.assertIn("without enumerating any source", help_result.stdout)
+        self.assertIn("catalog", help_result.stdout)
 
     def test_explicit_ad_hoc_identity_without_opt_in_is_refused(self):
         result = subprocess.run([str(PACKAGE / "Scripts/package-apps.sh"), "--skip-build",

@@ -28,6 +28,71 @@ The ad-hoc option is test-only. Never use that bundle for distribution, for a
 TCC/Screen Recording acceptance claim, or as evidence that the stable Porthole
 identity retains permission across rebuilds.
 
+## Picker-gated agent control
+
+Porthole now serves a local JSONL control plane at
+`~/Library/Application Support/Porthole/control.sock`. The app creates its
+parent directory as `0700` and the socket as `0600`; a second Porthole process,
+symlinked path, non-owner path, or ambiguously live stale socket fails closed.
+Up to eight clients run concurrently; an idle connection or finite recording
+does not monopolize status and control. Additional connections are closed.
+Persistence requires exact-window scope in both the manual review and automation
+paths. Changing to an app scope clears and disables that capability. Source cards
+report the active persistence gate, and saving rechecks the signed launch and
+the exact picker binding before admitting pixels to a file.
+The bundled stdlib-only driver is
+`Porthole.app/Contents/Resources/porthole-control` (the source copy is
+`Scripts/porthole-control.py`). It prints one structured receipt and returns
+nonzero when Porthole rejects a step.
+
+The control plane does not enumerate the desktop or a window catalog. Opening
+the picker only asks Apple's private picker to appear. The operator must choose
+the exact source there. `pending-review` then exposes only that one chosen
+source, and `approve` must repeat its current review ID with an explicit scope
+and capability set. This picker gesture is the single attributable human
+source-selection step; automation cannot manufacture a review, reuse an
+expired review ID, or widen the selected source. Approval still does not start
+capture.
+
+```sh
+driver="Porthole.app/Contents/Resources/porthole-control"
+"$driver" open-picker window
+# Operator chooses the intended window in Apple's picker.
+"$driver" pending-review
+"$driver" approve REVIEW_ID --scope exact-window --preview --persist-recording
+"$driver" list-approved
+"$driver" start
+"$driver" wait --lifecycle live --minimum-frame-count 2 --wait-timeout-ms 5000
+"$driver" still "$HOME/coding/tmp/porthole-proof-still-NEW"
+"$driver" stop
+"$driver" record "$HOME/coding/tmp/porthole-proof-motion-NEW" --duration 6
+```
+
+`start`, `pause`, `resume`, and `stop` act on the existing capture lifecycle and
+approval ledger. A still or finite recording additionally requires a current
+exact-window approval carrying `persist-recording`, a clear protected-field
+assessment, and a caller-chosen output directory that does not exist. Porthole
+never overwrites an artifact. Each successful write includes `receipt.json`
+with its approval/lease binding, frame range, file hash, and an explicit
+exact-window statement. Revocation retires the same active lease, frames, and
+future writes used by the interactive app.
+
+For a bounded scenario, pass a JSON list of at most 64 non-batch requests to
+`porthole-control batch scenario.json`. Steps execute serially and the first
+failure aborts the remainder while preserving ordered per-step receipts.
+Requests, responses, connections, timeouts, recording duration, and output
+sizes are bounded. There is no network listener, bearer token, desktop/window
+discovery endpoint, Accessibility or `CGEvent` input injection, shell command,
+or permission bypass in this surface. Filesystem ownership is the local client
+boundary; do not expose the socket outside the operator account.
+
+Automated tests prove protocol and path bounds, stale-socket handling,
+authority/state gates, batch abort, timeouts, output collision, revocation, and
+receipt production. A test receipt is not operator-hardware proof. Fresh
+picker, background-capture, screenshot, and motion evidence from the signed
+Porthole instance remain required before a feature app or PR may claim that
+end-to-end proof succeeded.
+
 The required `porthole-stage` CI job performs the same tests, packages two
 copies from one release build, strictly verifies both app bundles, creates two
 normalized tar archives, and requires them to be byte-identical. The manifest

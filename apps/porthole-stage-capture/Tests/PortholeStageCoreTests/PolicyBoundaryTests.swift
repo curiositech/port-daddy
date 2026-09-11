@@ -54,6 +54,24 @@ enum BoundaryFixtures {
 }
 
 final class PolicyBoundaryTests: XCTestCase {
+    func testPersistencePresentationSeparatesGrantFromActualGate() {
+        let denied = PersistenceGate(allowed: false, label: "blocked", reason: "Protected field unknown")
+        let allowed = PersistenceGate(allowed: true, label: "ready", reason: "Current exact window")
+        XCTAssertEqual(PersistenceCapabilityPresentation.evaluate(approval: BoundaryFixtures.approval(bits: 1),
+            activeGate: allowed).label, "Persist off")
+        for gate in [nil, denied] {
+            let state = PersistenceCapabilityPresentation.evaluate(approval: BoundaryFixtures.approval(), activeGate: gate)
+            XCTAssertEqual(state.label, "Persist blocked")
+            XCTAssertFalse(state.allowed)
+        }
+        XCTAssertEqual(PersistenceCapabilityPresentation.evaluate(approval: BoundaryFixtures.approval(),
+            activeGate: denied).reason, denied.reason)
+        XCTAssertEqual(PersistenceCapabilityPresentation.evaluate(approval: BoundaryFixtures.approval(),
+            activeGate: allowed).label, "Persist ready")
+        XCTAssertFalse(PersistenceCapabilityPresentation.evaluate(approval: BoundaryFixtures.approval(scope: .runningInstance),
+            activeGate: allowed).allowed)
+    }
+
     func testStartStopRevocationAndStaleCompletionInterleavings() throws {
         var gate = CaptureOperationGate()
         let first = try XCTUnwrap(gate.beginStart())
@@ -112,7 +130,7 @@ final class PolicyBoundaryTests: XCTestCase {
         }
     }
 
-    func testAllScopeAndCapabilityCombinationsRemainOrthogonal() throws {
+    func testAllScopeAndCapabilityCombinationsRejectImpossiblePersistence() throws {
         for scope: SourceApprovalScopeKind in [.signedProgram, .runningInstance, .exactWindow] {
             for bits in 0..<8 {
                 let approval = BoundaryFixtures.approval(scope: scope, bits: bits)
@@ -120,11 +138,57 @@ final class PolicyBoundaryTests: XCTestCase {
                     XCTAssertThrowsError(try SourceApprovalPolicy.validate(approval)) {
                         XCTAssertEqual($0 as? SourceApprovalError, .noCapabilities)
                     }
+                } else if scope != .exactWindow && bits & 4 != 0 {
+                    XCTAssertThrowsError(try SourceApprovalPolicy.validate(approval))
                 } else { XCTAssertNoThrow(try SourceApprovalPolicy.validate(approval)) }
                 for (action, bit): (SourceCapabilityAction, Int) in [(.preview, 1), (.liveShare, 2), (.persistRecording, 4)] {
-                    XCTAssertEqual(SourceApprovalPolicy.permits(action, approval: approval), bits & bit != 0)
+                    XCTAssertEqual(SourceApprovalPolicy.permits(action, approval: approval),
+                        bits & bit != 0 && (scope == .exactWindow || bits & 4 == 0))
                 }
             }
+        }
+    }
+
+    func testReviewedScopeAndCapabilitiesEqualStoredGrantAcrossEveryCombination() throws {
+        let exact = BoundaryFixtures.approval()
+        let review = ApprovalReview(reviewID: "review", sourceKind: .window, displayTitle: "Window",
+            programDisplayTitle: "Fixture", program: exact.program,
+            runningInstance: exact.runningInstance!, exactWindow: exact.exactWindow)
+        for scope in review.supportedScopes { for bits in 0..<8 {
+            let capabilities = BoundaryFixtures.approval(bits: bits).capabilities
+            if bits == 0 || (scope != .exactWindow && bits & 4 != 0) {
+                XCTAssertThrowsError(try SourceApprovalPolicy.reviewedApproval(review: review,
+                    scope: scope, capabilities: capabilities, approvalID: "grant", createdAtMonotonicNanos: 1))
+                continue
+            }
+            let grant = try SourceApprovalPolicy.reviewedApproval(review: review, scope: scope,
+                capabilities: capabilities, approvalID: "grant", createdAtMonotonicNanos: 1)
+            var ledger = SourceApprovalLedger()
+            try ledger.approve(grant)
+            let durable = try JSONDecoder().decode(SourceApproval.self, from: JSONEncoder().encode(ledger.approvedSources[0]))
+            XCTAssertEqual(durable.scope, scope)
+            XCTAssertEqual(durable.capabilities, capabilities)
+            XCTAssertEqual(durable, grant)
+        }}
+    }
+
+    func testPickerBindingRejectsReboundWindowMissingSourceAndStaleLaunch() {
+        let exact = BoundaryFixtures.approval()
+        let bound = exact.runningInstance!
+        for (window, owner, observation, expected): (UInt32, Int32, SourceRuntimeObservation?, Bool) in [
+            (77, 41, BoundaryFixtures.observation(), true),
+            (78, 41, BoundaryFixtures.observation(), false),
+            (0, 41, BoundaryFixtures.observation(), false),
+            (77, 42, BoundaryFixtures.observation(), false),
+            (77, 41, nil, false),
+            (77, 41, BoundaryFixtures.observation(launch: "relaunch"), false),
+            (77, 41, BoundaryFixtures.observation(windows: []), false),
+        ] {
+            let current = SourceApprovalValidity.pickerBindingIsCurrent(exact, sourceWindowID: window,
+                sourceOwnerPID: owner, boundIdentity: bound, observation: observation)
+            XCTAssertEqual(current, expected)
+            XCTAssertEqual(PortholeAutomationPersistencePolicy.evaluate(approval: exact, sourceIsCurrent: current,
+                assessment: PrivacyAssessment(status: .clear, reason: "test", assessedAtMonotonicNanos: 1)).allowed, expected)
         }
     }
 

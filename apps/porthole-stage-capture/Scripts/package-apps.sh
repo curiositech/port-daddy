@@ -79,7 +79,9 @@ cp "$package_root/Packaging/Porthole-Info.plist" "$capture_app/Contents/Info.pli
 cp "$package_root/Packaging/PortholeFixture-Info.plist" "$fixture_app/Contents/Info.plist"
 cp "$capture_binary" "$capture_app/Contents/MacOS/Porthole"
 cp "$fixture_binary" "$fixture_app/Contents/MacOS/PortholeFixture"
+cp "$package_root/Scripts/porthole-control.py" "$capture_app/Contents/Resources/porthole-control"
 chmod 755 "$capture_app/Contents/MacOS/Porthole" "$fixture_app/Contents/MacOS/PortholeFixture"
+chmod 755 "$capture_app/Contents/Resources/porthole-control"
 "$package_root/Scripts/generate-icon.sh" "$capture_app/Contents/Resources/PortholeIcon.icns"
 
 signing_options=(--force --sign "$signing_identity")
