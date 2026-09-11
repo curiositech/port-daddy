@@ -166,13 +166,13 @@ final class BudgetPauseStore: ObservableObject {
             guard let baseURL, let url = URL(string: "\(baseURL)/msg/\(channel)/subscribe") else { return }
             while !Task.isCancelled {
                 do {
-                    let (stream, response) = try await URLSession.shared.pdBytes(from: url)
+                    let (stream, response) = try await URLSession.shared.pdLines(from: url)
                     guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                         try await Task.sleep(for: .seconds(5))
                         continue
                     }
                     await MainActor.run { self?.isConnected = true }
-                    for try await line in stream.lines {
+                    for try await line in stream {
                         guard !Task.isCancelled else { break }
                         guard line.hasPrefix("data: ") else { continue }
                         let jsonStr = String(line.dropFirst(6))
