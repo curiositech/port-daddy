@@ -146,6 +146,7 @@ final class SecretsStore: ObservableObject {
 
     private let baseURL: String?
     private let session: URLSession
+    private let control: LocalRuntimeControl
     private let pasteboard: SecretPasteboard
     private let now: () -> Date
 
@@ -165,6 +166,7 @@ final class SecretsStore: ObservableObject {
         autoStart: Bool = true,
         baseURL: String? = nil,
         session: URLSession = .shared,
+        control: LocalRuntimeControl = .shared,
         pasteboard: SecretPasteboard = SystemPasteboard(),
         clipboardTTL: TimeInterval = 45,
         revealTTL: TimeInterval = 30,
@@ -172,6 +174,7 @@ final class SecretsStore: ObservableObject {
     ) {
         self.baseURL = baseURL ?? DaemonLocation.availableBaseURL()
         self.session = session
+        self.control = control
         self.pasteboard = pasteboard
         self.clipboardTTL = clipboardTTL
         self.revealTTL = revealTTL
@@ -209,7 +212,7 @@ final class SecretsStore: ObservableObject {
             return
         }
         do {
-            let (data, response) = try await session.pdData(from: url)
+            let (data, response) = try await session.pdData(from: url, control: control)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 lastError = "Could not load secrets"
                 return
@@ -245,7 +248,7 @@ final class SecretsStore: ObservableObject {
         request.httpBody = "{}".data(using: .utf8)
 
         do {
-            let (data, response) = try await session.pdData(for: request)
+            let (data, response) = try await session.pdData(for: request, control: control)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 lastError = "Reveal failed for \(key)"
                 return
@@ -388,7 +391,7 @@ final class SecretsStore: ObservableObject {
         }
 
         do {
-            let (_, response) = try await session.pdData(for: request)
+            let (_, response) = try await session.pdData(for: request, control: control)
             guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
                 lastError = "Could not save \(key)"
                 return false
@@ -414,7 +417,7 @@ final class SecretsStore: ObservableObject {
         request.httpMethod = "DELETE"
 
         do {
-            let (_, response) = try await session.pdData(for: request)
+            let (_, response) = try await session.pdData(for: request, control: control)
             guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
                 lastError = "Could not delete \(key)"
                 return false

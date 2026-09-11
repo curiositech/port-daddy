@@ -15,7 +15,8 @@ final class LocalRuntimeControl: @unchecked Sendable {
     private let customHalt: String?
     private let lock = NSLock()
     private var latchedReason: String?
-    private var sessions: [ObjectIdentifier: URLSession] = [:]
+    private var effects: [UUID: @Sendable () -> Void] = [:]
+    private var monitor: DispatchSourceTimer?
 
     init(canonicalRoot: URL, environment: [String: String] = [:]) {
         self.canonicalRoot = canonicalRoot
@@ -28,7 +29,16 @@ final class LocalRuntimeControl: @unchecked Sendable {
 
     var blockedReason: String? {
         lock.lock()
-        defer { lock.unlock() }
+        let reason = inspectLocked()
+        let cancellations = reason == nil ? [] : drainLocked()
+        lock.unlock()
+        cancellations.forEach { $0() }
+        return reason
+    }
+
+    /// Caller holds the admission lock. Observation and explicit Off share the
+    /// same latch; observing another app's marker must also cancel active work.
+    private func inspectLocked() -> String? {
         if let latchedReason { return latchedReason }
         let reason = Self.inspect(root: canonicalRoot) ?? Self.inspect(root: selectedRoot)
             ?? customHalt.flatMap { path in
@@ -47,11 +57,47 @@ final class LocalRuntimeControl: @unchecked Sendable {
         if let reason = blockedReason { throw ControlError(reason) }
     }
 
-    func track(_ session: URLSession) {
+    /// Register cancellation and synchronously create/start the effect in one
+    /// critical section. Explicit Off can precede this admission or cancel the
+    /// registered effect after it, never miss an in-between task snapshot.
+    /// This is in-process ordering, not atomicity with another process's file write.
+    func admit(id: UUID, cancel: @escaping @Sendable () -> Void, start: () throws -> Void) throws {
         lock.lock()
-        sessions[ObjectIdentifier(session)] = session
+        if let reason = inspectLocked() {
+            let cancellations = drainLocked()
+            lock.unlock()
+            cancellations.forEach { $0() }
+            throw ControlError(reason)
+        }
+        defer { lock.unlock() }
+        effects[id] = cancel
+        do { try start() }
+        catch { effects.removeValue(forKey: id); throw error }
+        if monitor == nil {
+            let timer = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .utility))
+            timer.schedule(deadline: .now() + .milliseconds(100), repeating: .milliseconds(100))
+            timer.setEventHandler { [weak self] in _ = self?.blockedReason }
+            monitor = timer
+            timer.resume()
+        }
+    }
+
+    func finish(_ id: UUID) {
+        lock.lock()
+        effects.removeValue(forKey: id)
+        if effects.isEmpty { monitor?.cancel(); monitor = nil }
         lock.unlock()
     }
+
+    private func drainLocked() -> [@Sendable () -> Void] {
+        let cancellations = Array(effects.values)
+        effects.removeAll()
+        monitor?.cancel()
+        monitor = nil
+        return cancellations
+    }
+
+    deinit { monitor?.cancel() }
 
     /// Latch first; persist HALT before hooks.disabled; never erase existing
     /// operator text. Each inode and its directory are synced before success.
@@ -59,8 +105,10 @@ final class LocalRuntimeControl: @unchecked Sendable {
     func persistOff() -> [String] {
         lock.lock()
         latchedReason = "Local Off was requested. This app will not restart Port Daddy."
-        let activeSessions = Array(sessions.values)
+        let cancellations = drainLocked()
         lock.unlock()
+        // Do not wait for disk persistence before cancelling this app's work.
+        cancellations.forEach { $0() }
         var failures: [String] = []
         do {
             try Self.prepareDirectory(canonicalRoot)
@@ -71,8 +119,6 @@ final class LocalRuntimeControl: @unchecked Sendable {
         } catch {
             failures.append("Could not save local Off: \(error.localizedDescription)")
         }
-        // This cancels this app's known transport tasks, not external processes.
-        for session in activeSessions { session.getAllTasks { $0.forEach { $0.cancel() } } }
         return failures
     }
 
@@ -143,9 +189,24 @@ final class LocalRuntimeControl: @unchecked Sendable {
 /// UI truth after Off. Already-issued remote effects cannot be recalled.
 extension URLSession {
     func pdData(for request: URLRequest, control: LocalRuntimeControl = .shared) async throws -> (Data, URLResponse) {
-        control.track(self)
-        try control.requireEnabled()
-        let result = try await data(for: request)
+        let cancellation = LocalRequestCancellation()
+        let id = UUID()
+        let result: (Data, URLResponse) = try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                do {
+                    try control.admit(id: id, cancel: { cancellation.cancel() }) {
+                        try cancellation.start {
+                            dataTask(with: request) { data, response, error in
+                                control.finish(id)
+                                if let error { continuation.resume(throwing: error) }
+                                else if let data, let response { continuation.resume(returning: (data, response)) }
+                                else { continuation.resume(throwing: URLError(.badServerResponse)) }
+                            }
+                        }
+                    }
+                } catch { continuation.resume(throwing: error) }
+            }
+        } onCancel: { cancellation.cancel() }
         try control.requireEnabled()
         return result
     }
@@ -154,20 +215,48 @@ extension URLSession {
         try await pdData(for: URLRequest(url: url), control: control)
     }
 
-    func pdBytes(from url: URL, control: LocalRuntimeControl = .shared) async throws -> (URLSession.AsyncBytes, URLResponse) {
-        control.track(self)
-        try control.requireEnabled()
-        let result = try await bytes(from: url)
-        try control.requireEnabled()
-        return result
-    }
 }
 
 extension Process {
     /// Every normal child process uses the same admission decision. The dedicated
     /// stop-only shutdown runner is deliberately the sole exception.
     func pdRun(control: LocalRuntimeControl = .shared) throws {
-        try control.requireEnabled()
-        try run()
+        let id = UUID()
+        let previousHandler = terminationHandler
+        terminationHandler = { process in
+            control.finish(id)
+            previousHandler?(process)
+        }
+        do {
+            try control.admit(id: id, cancel: { [self] in
+                if isRunning { terminate() }
+            }) { try run() }
+        } catch {
+            terminationHandler = previousHandler
+            throw error
+        }
+    }
+}
+
+/// Swift cancellation can happen before a URLSession task exists. Remember it,
+/// so that installing a task cannot resurrect an already-cancelled request.
+final class LocalRequestCancellation: @unchecked Sendable {
+    private let lock = NSLock()
+    private var task: URLSessionTask?
+    private var cancelled = false
+    func start(_ makeTask: () -> URLSessionTask) throws {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !cancelled else { throw CancellationError() }
+        let task = makeTask()
+        self.task = task
+        task.resume()
+    }
+    func cancel() {
+        lock.lock()
+        cancelled = true
+        let active = task
+        lock.unlock()
+        active?.cancel()
     }
 }
