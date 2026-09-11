@@ -6,8 +6,50 @@
 
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { dirname, join } from 'node:path';
+import { dirname, isAbsolute, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { accessSync, constants, lstatSync } from 'node:fs';
+import { homedir } from 'node:os';
+
+// This plain-JS package entry cannot import TypeScript before starting tsx.
+// Keep its filesystem-only gate fixture-equivalent to local-runtime-control.ts.
+function localRuntimeEnabled() {
+  const canonical = join(homedir(), '.port-daddy');
+  const selected = process.env.PD_HOME ?? canonical;
+  const roots = new Set([canonical, selected]);
+  const inspected = new Set();
+  const absent = (path) => {
+    if (!isAbsolute(path)) return false;
+    try {
+      const parent = lstatSync(dirname(path));
+      if (!parent.isDirectory() || parent.isSymbolicLink()) return false;
+      accessSync(dirname(path), constants.R_OK | constants.X_OK);
+      try { lstatSync(path); return false; }
+      catch (error) { return error.code === 'ENOENT'; }
+    } catch { return false; }
+  };
+  for (const root of roots) {
+    if (!isAbsolute(root)) return false;
+    inspected.add(join(root, 'HALT'));
+    try {
+      const stat = lstatSync(root);
+      if (!stat.isDirectory() || stat.isSymbolicLink()) return false;
+      accessSync(root, constants.R_OK | constants.X_OK);
+    } catch (error) {
+      if (error.code !== 'ENOENT' || !absent(root)) return false;
+      continue;
+    }
+    if (!absent(join(root, 'HALT')) || !absent(join(root, 'hooks.disabled'))) return false;
+  }
+  const extra = process.env.PD_HALT_FILE;
+  return extra === undefined || inspected.has(extra) || absent(extra);
+}
+
+const args = process.argv.slice(2);
+if (!(args.length === 1 && ['--help', '--version'].includes(args[0])) && !localRuntimeEnabled()) {
+  console.error('Port Daddy is Off or local control is unavailable. No CLI runtime was started.');
+  process.exit(1);
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const requireFromShim = createRequire(import.meta.url);

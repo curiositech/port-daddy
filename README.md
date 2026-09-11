@@ -343,8 +343,12 @@ Roster agents are daemon-minted `AgentNode` identities that outlive any body or 
 Automatic Git hooks and the Git shim now honor the machine-wide Off/HALT markers
 before invoking Port Daddy, even when a different runtime directory is selected.
 Missing or invalid local readiness also stops automatic calls. Pilot SessionStart
-steering is gated, and Git LFS remains independent of the publisher. This is hook
-admission, not a completed whole-app off switch or a zero-spend guarantee. See
+steering is gated, and Git LFS remains independent of the publisher. Native Off
+controls are now source-built in FleetBar (popover and Settings) and pd-console
+(persistent control band). They save the canonical stop markers without a daemon
+and deny new local work; shutdown receipts remain separate from the saved setting.
+Runtime admission, native visual proof, and outstanding adversarial findings are
+tracked explicitly; this is not a packaged or zero-spend guarantee. See
 [local Off controls and remaining work](docs/operations/local-off-control.md).
 
 `pd advise` / `coordination_preflight` project file claims inside one verified repository and worktree: relative, `./`, and absolute paths share an address only within that scope. A stale session root or stored world produces a critical context diagnostic with the original claims, not a false “unclaimed” recommendation. This is read-only advice, not permission or automatic ownership repair. See [claim projection diagnostics](docs/operations/advisor-claim-projection.md).

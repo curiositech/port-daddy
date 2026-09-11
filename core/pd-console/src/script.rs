@@ -302,7 +302,9 @@ pub fn alert_to_json(alert: &Alert) -> Value {
 /// listener for the life of the process. A stale socket file from a previous
 /// run is removed first (unix sockets don't self-clean).
 pub fn start_server(sock_path: String, tx: mpsc::Sender<ScriptEnvelope>) {
+    if crate::local_control::ensure_allowed().is_err() { return; }
     std::thread::spawn(move || {
+        if crate::local_control::ensure_allowed().is_err() { return; }
         let _ = std::fs::remove_file(&sock_path);
         let listener = match UnixListener::bind(&sock_path) {
             Ok(l) => l,
@@ -317,16 +319,28 @@ pub fn start_server(sock_path: String, tx: mpsc::Sender<ScriptEnvelope>) {
             return;
         }
         eprintln!("pd-console: control socket listening at {sock_path}");
-        for stream in listener.incoming() {
-            let Ok(stream) = stream else { continue };
+        if listener.set_nonblocking(true).is_err() { return; }
+        loop {
+            if crate::local_control::ensure_allowed().is_err() { return; }
+            let stream = match listener.accept() {
+                Ok((stream, _)) => stream,
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                    std::thread::sleep(Duration::from_millis(100));
+                    continue;
+                }
+                Err(_) => return,
+            };
             let tx = tx.clone();
             std::thread::spawn(move || {
+                if stream.set_read_timeout(Some(Duration::from_millis(250))).is_err() { return; }
+                if stream.set_write_timeout(Some(Duration::from_millis(250))).is_err() { return; }
                 let mut writer = match stream.try_clone() {
                     Ok(w) => w,
                     Err(_) => return,
                 };
                 let reader = BufReader::new(stream);
                 for line in reader.lines() {
+                    if crate::local_control::ensure_allowed().is_err() { return; }
                     let Ok(line) = line else { break };
                     if line.trim().is_empty() {
                         continue;

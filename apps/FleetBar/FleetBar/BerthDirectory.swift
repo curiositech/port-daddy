@@ -126,7 +126,7 @@ enum BerthDirectory {
         var request = URLRequest(url: url)
         request.timeoutInterval = 1.5
         guard
-            let (data, response) = try? await URLSession.shared.data(for: request),
+            let (data, response) = try? await URLSession.shared.pdData(for: request),
             let http = response as? HTTPURLResponse, http.statusCode == 200,
             let who = try? JSONDecoder().decode(WhoamiResponse.self, from: data)
         else { return nil }
@@ -238,7 +238,7 @@ enum PDCLI {
                 process.standardOutput = nil
                 process.standardError = nil
                 do {
-                    try process.run()
+                    try process.pdRun()
                     process.waitUntilExit()
                     continuation.resume(returning: process.terminationStatus == 0)
                 } catch {

@@ -209,7 +209,7 @@ final class SecretsStore: ObservableObject {
             return
         }
         do {
-            let (data, response) = try await session.data(from: url)
+            let (data, response) = try await session.pdData(from: url)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 lastError = "Could not load secrets"
                 return
@@ -245,7 +245,7 @@ final class SecretsStore: ObservableObject {
         request.httpBody = "{}".data(using: .utf8)
 
         do {
-            let (data, response) = try await session.data(for: request)
+            let (data, response) = try await session.pdData(for: request)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 lastError = "Reveal failed for \(key)"
                 return
@@ -388,7 +388,7 @@ final class SecretsStore: ObservableObject {
         }
 
         do {
-            let (_, response) = try await session.data(for: request)
+            let (_, response) = try await session.pdData(for: request)
             guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
                 lastError = "Could not save \(key)"
                 return false
@@ -414,7 +414,7 @@ final class SecretsStore: ObservableObject {
         request.httpMethod = "DELETE"
 
         do {
-            let (_, response) = try await session.data(for: request)
+            let (_, response) = try await session.pdData(for: request)
             guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
                 lastError = "Could not delete \(key)"
                 return false

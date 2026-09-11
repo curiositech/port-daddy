@@ -460,6 +460,12 @@ work; never reset or clobber the main checkout.
   never start the daemon to prove it stays off. See
   `docs/operations/local-off-control.md` for the unfinished whole-app boundary.
 
+- **Disabling PD hooks must not discard Git LFS publication.** If an authorized
+  publisher disables all Git hooks, explicitly upload LFS objects reachable from
+  its exact head before pushing pointers, using the same scoped repository
+  credential. Never enable PD merely to run LFS, allow incomplete pushes, or
+  rewrite a custom hook to reinstall the LFS block.
+
 
 - **Research reuse is not another authority.** The Project Epistemology D1a lab
   (`docs/research/egosystem-reconciliation/harness/`) imports the existing Harbor

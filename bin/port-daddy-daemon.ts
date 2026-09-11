@@ -1,5 +1,7 @@
 #!/usr/bin/env bun
 
+import '../lib/runtime-entry-guard.js';
+
 import {
   resolveDbIntegrityHelperInvocation,
   runDbIntegrityHelper,

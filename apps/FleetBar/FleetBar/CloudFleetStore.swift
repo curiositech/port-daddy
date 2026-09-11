@@ -411,7 +411,7 @@ final class CloudFleetStore: ObservableObject {
         var request = URLRequest(url: url)
         request.timeoutInterval = Self.requestTimeoutSeconds
         request.setValue("Bearer \(account.token)", forHTTPHeaderField: "Authorization")
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await session.pdData(for: request)
         guard let http = response as? HTTPURLResponse else {
             throw CloudFleetTransportError.notHTTP
         }

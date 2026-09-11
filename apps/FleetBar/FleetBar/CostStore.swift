@@ -199,7 +199,7 @@ class CostStore: ObservableObject {
     private func fetchCost() async -> CostResponse? {
         guard let baseURL, let url = URL(string: "\(baseURL)/metrics/cost") else { return nil }
         do {
-            let (data, response) = try await URLSession.shared.data(from: url)
+            let (data, response) = try await URLSession.shared.pdData(from: url)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 return nil
             }
@@ -212,7 +212,7 @@ class CostStore: ObservableObject {
     private func fetchGolden() async -> GoldenSignals? {
         guard let baseURL, let url = URL(string: "\(baseURL)/metrics/golden") else { return nil }
         do {
-            let (data, response) = try await URLSession.shared.data(from: url)
+            let (data, response) = try await URLSession.shared.pdData(from: url)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 return nil
             }
@@ -225,7 +225,7 @@ class CostStore: ObservableObject {
     private func fetchLiveFleetBudgets() async -> [LiveFleetBudget] {
         guard let baseURL, let url = URL(string: "\(baseURL)/fleet") else { return [] }
         do {
-            let (data, response) = try await URLSession.shared.data(from: url)
+            let (data, response) = try await URLSession.shared.pdData(from: url)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 return []
             }
@@ -254,7 +254,7 @@ class CostStore: ObservableObject {
         }
 
         do {
-            let (data, response) = try await URLSession.shared.data(from: url)
+            let (data, response) = try await URLSession.shared.pdData(from: url)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 return nil
             }

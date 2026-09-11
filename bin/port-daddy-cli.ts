@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+import '../lib/cli-entry-guard.js';
+import { assertLocalRuntimeEnabled, readLocalRuntimeControl } from '../lib/local-runtime-control.js';
+
 /**
  * Port Daddy CLI
  *
@@ -2004,9 +2007,10 @@ export function applyDaemonTarget(targetArg: string, command: string): void {
 }
 
 export async function main(): Promise<void> {
-  maybeRelaunchShortBinary();
-
   const rawArgs: string[] = process.argv.slice(2);
+  const informationOnly = rawArgs.length === 1 && ['--help', '--version'].includes(rawArgs[0]);
+  if (!informationOnly) assertLocalRuntimeEnabled();
+  if (readLocalRuntimeControl().enabled) maybeRelaunchShortBinary();
 
   // GLOBAL `--daemon <tier|label|url>` flag (ADR-0084): it may appear BEFORE the
   // subcommand (`pd --daemon dev status`). Extract it up front so `command` is
@@ -2035,8 +2039,8 @@ export async function main(): Promise<void> {
       ui.intro('Port Daddy — Run a tight harbor.');
     }
 
-    // Launch hints — best-effort, skip if daemon not running (500ms timeout)
-    if (IS_TTY) {
+    // Off help is local text only: no optional daemon hint request.
+    if (IS_TTY && readLocalRuntimeControl().enabled) {
       try {
         const cwd = encodeURIComponent(process.cwd());
         const resp = await Promise.race([

@@ -86,13 +86,14 @@ struct FleetBarApp: App {
     }
 }
 
-/// Settings (Preferences) window. Currently a single Secrets pane; structured
-/// as a TabView so future panes drop in alongside it.
+/// Local emergency controls remain available even when every daemon is down.
 struct FleetSettingsWindow: View {
     @ObservedObject var secretsStore: SecretsStore
 
     var body: some View {
         TabView {
+            ScrollView { LocalOffSection() }
+                .tabItem { Label("Runtime", systemImage: "power") }
             SecretsView(store: secretsStore)
                 .tabItem {
                     Label("Secrets", systemImage: "key.fill")

@@ -15,6 +15,7 @@ import { spawnSync } from 'node:child_process';
 import { DEFAULT_DAEMON_PORT, LOOPBACK_TCP_HOST } from '../shared/daemon-discovery.js';
 import { DEFAULT_PID_FILE, DEFAULT_PORT_FILE, PD_HOME } from '../shared/paths.js';
 import { BOSUN_HEARTBEAT_SCHEMA, DEFAULT_BOSUN_STALE_AFTER_MS } from './bosun-heartbeat.js';
+import { readLocalRuntimeControl } from './local-runtime-control.js';
 
 export const CANONICAL_LAUNCHD_LABEL = 'homebrew.mxcl.port-daddy';
 
@@ -185,6 +186,7 @@ export function runCanonicalLaunchdAction(
   action: CanonicalLaunchdAction,
   supervisor: LaunchdSupervisorSnapshot,
   runLaunchctl: LaunchctlRunner = defaultLaunchctlRunner,
+  runtimeAllowed: () => boolean = () => readLocalRuntimeControl().enabled,
 ): LaunchctlResult {
   if (!supervisor.installed) {
     return { status: 1, stdout: '', stderr: `launchd plist is missing: ${supervisor.plistPath}` };
@@ -193,6 +195,9 @@ export function runCanonicalLaunchdAction(
     if (!supervisor.loaded) return { status: 0, stdout: '', stderr: '' };
     return runLaunchctl(['bootout', supervisor.target]);
   }
+  let allowed = false;
+  try { allowed = runtimeAllowed() === true; } catch { /* Unknown denies start. */ }
+  if (!allowed) return { status: 1, stdout: '', stderr: 'Local Port Daddy is Off or control state is unavailable; supervisor start refused' };
   if (action === 'restart') {
     if (!supervisor.loaded) {
       return runLaunchctl(['bootstrap', supervisor.target.slice(0, supervisor.target.lastIndexOf('/')), supervisor.plistPath]);

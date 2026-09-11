@@ -1842,7 +1842,9 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
                 .cursor_pointer()
                 .hover(|surface| surface.bg(rgb(current_theme().raised)))
                 .on_click(move |_event, _window, _cx| {
-                    let _ = std::process::Command::new("open").arg(&target).spawn();
+                    if crate::local_control::ensure_allowed().is_ok() {
+                        let _ = std::process::Command::new("open").arg(&target).spawn();
+                    }
                 })
                 .child(
                     div()
@@ -2206,6 +2208,8 @@ pub struct ConsoleView {
     /// static file re-read that never saw the collaboration lanes.
     editor_blocks: Option<(String, Vec<Block>)>,
     daemon_url: String,
+    local_control: crate::local_control::State,
+    local_off_receipt: Option<String>,
     /// Provider→tier→model map, loaded from config (not compiled-in), so the
     /// Spawn picker resolves models that can change without a rebuild.
     /// Stable focus handle — created once and focused on open. Recreating it per
@@ -2603,6 +2607,11 @@ impl ConsoleView {
         shell: ShellTerminal,
         cx: &mut Context<Self>,
     ) -> Self {
+        let local_control = crate::local_control::current_state();
+        let disconnected = !local_control.allows_effects() || daemon_url.is_empty();
+        let local_off_receipt = (!local_control.allows_effects()).then(|| format!(
+            "{} This console admits no new requests or shell input. Already running services, detached children and remote effects are not verified stopped; hosted settings are unchanged.", local_control.detail()
+        ));
         // Initialize one slot per NAV entry with a "connecting…" placeholder
         let pane_blocks = NAV
             .iter()
@@ -2626,6 +2635,8 @@ impl ConsoleView {
             pane_blocks,
             editor_blocks: None,
             daemon_url,
+            local_control,
+            local_off_receipt,
             focus_handle: cx.focus_handle(),
             control_tx,
             control_flash: None,
@@ -2656,7 +2667,7 @@ impl ConsoleView {
             // Flipped true once the first pane refresh lands (see update_panes).
             // Splash suppression (screenshot hook + PD_CONSOLE_NO_SPLASH opt-out)
             // lives in render()'s gate, not here.
-            booted: false,
+            booted: disconnected,
             daemon_connected: false,
             flag_motion: FlagMotion::default(),
             prev_viewport_w: 0.0,
@@ -2738,6 +2749,36 @@ impl ConsoleView {
     // ── Active-tab accessors ─────────────────────────────────────────────────
     fn ws(&self) -> &Workspace {
         &self.tabs[self.active_tab].workspace
+    }
+
+    pub fn refresh_local_control(&mut self) -> bool {
+        let state = crate::local_control::current_state();
+        if state == self.local_control { return false; }
+        if !state.allows_effects() {
+            self.daemon_connected = false;
+            self.booted = true;
+            if let Err(error) = self.shell.stop_for_local_off() {
+                self.local_off_receipt = Some(format!("Local Off blocks new work. Owned shell stop failed: {error}. Other process shutdown is unverified."));
+            }
+        }
+        self.local_control = state;
+        true
+    }
+
+    fn turn_local_off(&mut self, cx: &mut Context<Self>) {
+        let persisted = crate::local_control::turn_off();
+        let shell_result = self.shell.stop_for_local_off();
+        self.local_control = crate::local_control::current_state();
+        self.daemon_connected = false;
+        self.booted = true;
+        self.local_off_receipt = Some(match persisted {
+            Ok(()) => "Local Off saved. No new console requests or shell input. Already running services, detached children and remote effects are not verified stopped. Hosted account/global settings are unchanged.".into(),
+            Err(error) => format!("This console is blocked, but saving persistent Off failed: {error}. Do not assume restart protection or process shutdown."),
+        });
+        if let Err(error) = shell_result {
+            self.local_off_receipt.as_mut().unwrap().push_str(&format!(" Owned shell termination failed: {error}."));
+        }
+        cx.notify();
     }
     fn ws_mut(&mut self) -> &mut Workspace {
         &mut self.tabs[self.active_tab].workspace
@@ -4250,6 +4291,9 @@ impl ConsoleView {
     pub fn handle_script(&mut self, req: crate::script::ScriptRequest) -> serde_json::Value {
         use crate::script::{alert_to_json, block_to_json, ScriptRequest};
         use serde_json::json;
+        if let Err(error) = crate::local_control::ensure_allowed() {
+            return json!({"ok": false, "error": error.to_string()});
+        }
         match req {
             ScriptRequest::Ping => json!({
                 "ok": true,
@@ -9450,6 +9494,11 @@ impl Render for ConsoleView {
                 let key_char = ev.keystroke.key_char.clone();
                 let ctrl = ev.keystroke.modifiers.control;
                 let platform = ev.keystroke.modifiers.platform;
+                if ctrl && ev.keystroke.modifiers.shift && key == "escape" {
+                    this.turn_local_off(cx);
+                    cx.stop_propagation();
+                    return;
+                }
                 let zoom_action = presentation::action_for_shortcut(&key, platform);
                 if let Some(action) = zoom_action {
                     this.apply_presentation_zoom(action, window, cx);
@@ -9722,6 +9771,23 @@ impl Render for ConsoleView {
                             )),
                     )),
             )
+            .child(
+                div().id("local-off-control").px(px(16.0)).py(px(10.0))
+                    .flex().items_center().gap(px(14.0))
+                    .bg(rgb(current_theme().panel)).border_b_1().border_color(rgb(current_theme().line))
+                    .child(div().flex_1().flex().flex_col().gap(px(4.0))
+                        .text_size(px(14.0)).text_color(rgb(current_theme().ink2))
+                        .child(div().font_weight(FontWeight::SEMIBOLD).child(
+                            if self.local_control.allows_effects() { "Port Daddy · Local control" } else { "Port Daddy · Off / blocked on this Mac" }
+                        ))
+                        .child(self.local_off_receipt.clone().unwrap_or_else(|| self.local_control.detail().to_string())))
+                    .child(div().id("turn-port-daddy-off").px(px(12.0)).py(px(9.0))
+                        .text_size(px(14.0)).font_weight(FontWeight::SEMIBOLD)
+                        .border_1().border_color(rgb(current_theme().gated))
+                        .text_color(rgb(current_theme().ink2)).cursor_pointer()
+                        .hover(|button| button.bg(rgb(current_theme().raised)))
+                        .child("Turn Off · Ctrl⇧Esc")
+                        .on_click(cx.listener(|this, _, _, cx| this.turn_local_off(cx)))))
             .child(render_story_nav_bar(active_nav.as_deref(), cx))
             // ── HITL interruptions banner (docs/hitl-interruptions.md §4): any
             // open operator ask is surfaced window-wide within one poll (≤30 s
@@ -9767,7 +9833,9 @@ impl Render for ConsoleView {
                             // Deep-link only: the web surface is where a HUMAN
                             // session answers or acks (bearer tokens can't).
                             if link.starts_with("http") {
-                                let _ = std::process::Command::new("open").arg(&link).spawn();
+                                if crate::local_control::ensure_allowed().is_ok() {
+                                    let _ = std::process::Command::new("open").arg(&link).spawn();
+                                }
                             }
                         }),
                 )

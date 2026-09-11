@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import './lib/runtime-entry-guard.js';
+
 /**
  * Port Daddy - Semantic Port Management Service
  *
@@ -953,6 +955,7 @@ const galaxy = createGalaxy({ db, transcripts, sessions, embedder: galaxyEmbedde
 // ownership remains in the existing session store, not this physical recheck map.
 const managedSpawnWorktrees = new Map<string, ManagedSpawnWorktree>();
 const spawner = createSpawner({
+  runtimeAllowed: () => !haltWatch.check(),
   costTracker, counters, bonds, harbors, transcripts,
   harborBridge: spawnerHarborBridge,
   enforceTelemetryPolicy: true,
@@ -1247,6 +1250,7 @@ const DISPATCH_FAILOVER_CHAIN = (process.env.PD_DISPATCH_FAILOVER_CHAIN ?? '')
 
 const dispatchWorker = DISPATCH_WORKER_ENABLED
   ? createDispatchWorker({
+      runtimeAllowed: () => !haltWatch.check(),
       queue: dispatchQueue,
       logger,
       maxConcurrency: DISPATCH_CONCURRENCY,
@@ -1276,7 +1280,6 @@ const dispatchWorker = DISPATCH_WORKER_ENABLED
       spawnAdapter: createConductorSpawnAdapter(conductor),
     })
   : null;
-if (dispatchWorker) dispatchWorker.start();
 
 // ── Auto-merge sweep (merge_policy='auto') ──────────────────────────────────
 // A DIFFERENT loop from the dispatch worker above: this one doesn't run
@@ -1294,6 +1297,7 @@ const DISPATCH_AUTOMERGE_POLL_MS = Number.isFinite(_autoMergePollMs) && _autoMer
 let autoMergeTimer: ReturnType<typeof setInterval> | null = null;
 if (DISPATCH_AUTOMERGE_ENABLED) {
   const tick = () => {
+    if (haltWatch.check()) return;
     runAutoMergeSweep(dispatchQueue, { repoRoot: REPO_ROOT }).then((result) => {
       if (result.merged.length > 0 || result.errors.length > 0) {
         logger.info('dispatch_auto_merge_sweep', {
@@ -1365,6 +1369,7 @@ const correlationEngine = createCorrelationEngine(activityLog, sessions);
 
 // Fleet daemon — always-on fleet subsystem (multi-project)
 const fleetDaemon = createFleetDaemon({
+  runtimeAllowed: () => !haltWatch.check(),
   projects,
   messaging,
   tuples,
@@ -1410,6 +1415,11 @@ const haltWatch = createHaltWatch({
     try { dispatchWorker?.stop(); } catch (err) { logger.warn('halt_dispatch_worker_stop_failed', { error: (err as Error).message }); }
     if (autoMergeTimer) { clearInterval(autoMergeTimer); autoMergeTimer = null; }
     try { fleetDaemon.stop(); } catch (err) { logger.warn('halt_fleet_stop_failed', { error: (err as Error).message }); }
+    // Stop active backends as well as scheduling loops. Existing cancellation
+    // is not proof of OS-wide containment or reversal of accepted remote spend.
+    for (const agent of spawner.list()) {
+      if (agent.status === 'running') spawner.kill(agent.agentId);
+    }
   },
 });
 
@@ -1967,6 +1977,9 @@ cleanupTimer = setInterval(() => cleanupStale(), config.cleanup.interval_ms);
 // hoisted flag is `halted` — sweeps off, SEEN/COMPLIED written — before it
 // serves a single request.
 haltWatch.start();
+// Dispatch start performs immediate recovery and polling. Never admit it before
+// the halt watch has synchronously checked every canonical/selected Off marker.
+if (!haltWatch.check()) dispatchWorker?.start();
 
 setInterval(() => {
   const now = Date.now();
@@ -2032,6 +2045,10 @@ function shutdown(signal: string): void {
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGHUP', () => {
+  if (haltWatch.check()) {
+    logger.warn('fleet_reload_refused_local_off');
+    return;
+  }
   logger.info('sighup_received', { action: 'fleet_reload' });
   try {
     fleetDaemon.reload();

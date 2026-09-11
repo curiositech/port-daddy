@@ -22,6 +22,9 @@ const mockWriteFileSync = jest.fn();
 const mockMkdirSync = jest.fn();
 
 jest.unstable_mockModule('node:fs', () => ({
+  accessSync: jest.fn(),
+  constants: { R_OK: 4, X_OK: 1 },
+  lstatSync: jest.fn(),
   existsSync: mockExistsSync,
   readFileSync: mockReadFileSync,
   writeFileSync: mockWriteFileSync,
@@ -82,7 +85,10 @@ jest.unstable_mockModule('yaml', () => ({
 
 // ─── Imports (after mocks) ───────────────────────────────────────────────────
 
-const { loadFleetConfig, createFleetRunner, resolveFleetAgentRuntime, validateTopology, parseCronInterval, isIntervalCronSchedule, isAbsoluteCronSchedule, computeNextAbsoluteFireDelayMs } = await import('../../lib/fleet-engine.js');
+const { loadFleetConfig, createFleetRunner: createFleetRunnerBase, resolveFleetAgentRuntime, validateTopology, parseCronInterval, isIntervalCronSchedule, isAbsoluteCronSchedule, computeNextAbsoluteFireDelayMs } = await import('../../lib/fleet-engine.js');
+function createFleetRunner(config, projectDir, options = {}) {
+  return createFleetRunnerBase(config, projectDir, { runtimeAllowed: () => true, ...options });
+}
 const { parseFleetSource, astToConfig } = await import('../../lib/fleet-ast.js');
 const { resolveFleetChannel } = await import('../../lib/fleet-channels.js');
 const { resolveModel } = await import('../../lib/model-registry.js');
@@ -192,6 +198,36 @@ afterEach(() => {
   delete process.env.PD_FLEET_DEFAULT_BACKEND;
   delete process.env.PD_FLEET_DEFAULT_MODEL;
   delete process.env.PD_MODEL_TIER_CLAUDE_CLI_LOW;
+});
+
+describe('local Off at Fleet execution boundaries', () => {
+  test('Off prevents both automatic start and manual hail', async () => {
+    const runner = createFleetRunner(makeConfig(), '/fixture/project', { runtimeAllowed: () => false });
+    runner.startAll();
+    const result = await runner.hailAgent('test-agent');
+    expect(result.success).toBe(false);
+    expect(mockSpawn).not.toHaveBeenCalled();
+    expect(global.fetch).not.toHaveBeenCalled();
+    runner.stopAll();
+  });
+
+  test('Off pressed while queued for a permit releases it without spawn', async () => {
+    let allowed = true;
+    let grant;
+    const release = jest.fn();
+    const acquire = jest.fn(() => new Promise((resolve) => { grant = resolve; }));
+    const config = makeConfig({ backend: 'cli:codex' });
+    const runner = createFleetRunner(config, '/fixture/project', { runtimeAllowed: () => allowed, acquirePermit: acquire });
+    const outcome = runner.hailAgent(config.agents[0].name);
+    expect(acquire).toHaveBeenCalledTimes(1);
+    allowed = false;
+    grant(release);
+    expect((await outcome).success).toBe(false);
+    expect(release).toHaveBeenCalledTimes(1);
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(mockSpawn).not.toHaveBeenCalled();
+    runner.stopAll();
+  });
 });
 
 // ─── Bug 1: */0 cron produces 0ms interval ───────────────────────────────────

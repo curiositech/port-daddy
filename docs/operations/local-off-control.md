@@ -1,6 +1,7 @@
 # Local Off: implementation and evidence
 
-Status: hook admission implemented; complete application/runtime Off is unfinished.
+Status: hook admission published in #10137; native controls and runtime enforcement
+are source-built and under review. Complete application/runtime Off proof is unfinished.
 The September operator halt remains in effect. This document does not authorize
 starting a daemon, app, service, backend or paid run.
 
@@ -47,8 +48,9 @@ made here.
 - [x] Complete adversarial regression validation and publish hook PR #10137:
   149 tests pass; nine old socket-based cases remain excluded after a safety
   denial. Independent source re-review found no remaining bounded-diff findings.
-- [ ] Implement a daemon-independent, persistent local Off button. Write the
-  stop state before requesting shutdown; display partial failure honestly.
+- [x] Implement daemon-independent persistent native Off controls in source:
+  FleetBar popover/Settings and pd-console control band. Save the stop state before
+  requesting shutdown; show persistence errors and unverified shutdown separately.
 - [ ] Enforce that state across native startup, login-shell/boot-command paths,
   client polling, CLI bootstrap, service supervision and execution admission.
 - [ ] Require explicit operator re-enablement; reconnect, update, reinstall,
@@ -77,3 +79,50 @@ The local repair adds guarded blocks; it does not replace whole custom hooks or
 remove their content. The machine-specific offline Git shim delegates to the
 verified `/opt/homebrew/bin/git` path. Reversing a repair means removing only the
 added gate/wrapping statements, not restoring another task's entire file snapshot.
+
+## Native/runtime publication checkpoint (2026-09-11)
+
+FleetBar uses a filesystem-only local latch, preserves existing HALT content, syncs
+the stop files and directory, and issues bounded stop/disable-only launchctl calls.
+It does not invoke `pd` to stop it or touch the separate `com.bosun.daemon` project.
+Its request/process adapters deny Off, and embedded dashboard navigation is cleared
+when Off is observed. Account/global hosted settings remain distinct and reachable
+through an explicit account link, not automatic cloud polling while locally Off.
+
+The console stays open without a daemon endpoint, blocks automatic login-shell and
+boot-command startup, drops queued automation, stops polling, and requests termination
+of its owned terminal. Private local file input is retained. Its shared daemon/relay
+HTTP wrapper refuses Off; this does not recall effects already accepted remotely.
+
+TypeScript guards canonical plus selected controls before runtime imports, Dispatch,
+Fleet/reload, final backend launch and supervisor start/restart. SIGHUP no longer
+unconditionally resurrects Fleet after the halt watcher has latched. These checks
+add denials; no new unsigned resume or marker-removal path was introduced.
+
+Checkpoint evidence: FleetBar compiled; ten selected filesystem/fake-transport tests
+passed. Console GPUI compiled before the final small packaging edits; thirteen
+selected filesystem/fake-effect tests passed. TypeScript's five focused unit suites
+passed 98 tests, plus two selected Fleet execution-boundary tests. Later small TS
+guards need rerunning. No app, daemon, provider backend or real test socket was run.
+Source/static tests are not installed-version, native visual, or independent
+containment evidence. PRs are regular review requests at the operator's direction;
+readiness for review is not permission to merge or activate unverified code.
+
+Open adversarial gates at this checkpoint:
+
+- Serialize FleetBar effect creation/registration with Off; a precheck alone races
+  a concurrent stop. Cancel existing streams when another app writes Off too.
+- Inject fixture controls into older FleetBar store tests; do not use real HOME or
+  clear the operator's markers to make positive controls pass.
+- Gate all known automatic app watchers/installer relaunches, including appwatch;
+  freshness has been added to FleetBar's stop plan. Audit dynamic app lanes.
+- Complete plain-JS shim parity and spawner race tests; check final
+  `dispatchAgentOutputs` admission and truthful watcher compliance on stop errors.
+- Obtain full final-head builds, independent review of console/runtime changes,
+  packaged no-start/no-egress proof, and actual native light/dark/keyboard evidence.
+
+Git LFS was already installed machine-wide. Repository-local filters are now
+explicit, incomplete pushes are disabled, and pointer validation passes. The App
+publisher uploads the LFS objects reachable from the exact publication head before
+Git push even though local hooks remain disabled. It never enables PD hooks, uses
+an all-local-refs upload, or falls back to personal GitHub credentials.

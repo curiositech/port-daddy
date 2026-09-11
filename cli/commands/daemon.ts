@@ -47,6 +47,7 @@ import {
   type RuntimeIdentityAssessment,
 } from '../../lib/daemon-runtime.js';
 import { displayPathRelativeToHome } from '../utils/display-path.js';
+import { assertLocalRuntimeEnabled } from '../../lib/local-runtime-control.js';
 
 // __dirname equivalent for ESM
 const __dirname = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
@@ -77,6 +78,7 @@ function isBunCompiledBinary(): boolean {
  * analyzer to bundle server.ts (and its transitive imports) into the binary.
  */
 export async function runDaemonInProcess(): Promise<never> {
+  assertLocalRuntimeEnabled();
   await import('../../server.js');
   return new Promise<never>(() => {});
 }
@@ -456,6 +458,7 @@ function daemonLaunchCommand(libDir: string): DaemonLaunchCommand {
 }
 
 function spawnDaemon(command: DaemonLaunchCommand, options: Parameters<typeof spawn>[2] = {}): ChildProcess {
+  assertLocalRuntimeEnabled();
   return spawn(command.program, command.args, {
     ...options,
     env: mergeJscSafeModeEnv(
@@ -467,6 +470,7 @@ function spawnDaemon(command: DaemonLaunchCommand, options: Parameters<typeof sp
 }
 
 export async function handleDaemonCommand(positional: string[], options: DaemonCommandOptions = {}): Promise<void> {
+  if (['start', 'restart', 'create'].includes(positional[0])) assertLocalRuntimeEnabled();
   const action = positional[0] || 'list';
   const libDir: string = join(__dirname, '..', '..');
 
@@ -780,6 +784,7 @@ async function attemptDaemonStart(command: DaemonLaunchCommand): Promise<boolean
  * Handle `pd start|stop|restart|install|uninstall` command
  */
 export async function handleDaemon(action: string, options: Record<string, unknown> = {}): Promise<void> {
+  if (action !== 'stop' && action !== 'uninstall') assertLocalRuntimeEnabled();
   const libDir: string = join(__dirname, '..', '..');
   const tsxBin: string = join(libDir, 'node_modules', '.bin', 'tsx');
   const installScript: string = join(libDir, 'install-daemon.ts');
@@ -984,6 +989,7 @@ export async function handleDaemon(action: string, options: Record<string, unkno
  * Handle `pd dev` command — development mode with file watching
  */
 export async function handleDev(): Promise<void> {
+  assertLocalRuntimeEnabled();
   const libDir: string = join(__dirname, '..', '..');
 
   const filesToWatch: string[] = listRuntimeSourceFiles(libDir);
