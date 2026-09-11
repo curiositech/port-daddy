@@ -8,7 +8,7 @@ name: Whitepaper PDF Build & Deploy
 # Modes:
 #   * configured feature-branch push -> rebuild and COMMIT changed PDFs.
 #   * same-repository PR -> rebuild and COMMIT changed PDFs to the PR head;
-#       fork PRs remain advisory because their token is read-only.
+#       fork PRs cannot self-heal but still fail when PDFs are stale.
 #   * main push -> rebuild and FAIL if a committed PDF is stale, since main is
 #       protected and should only ever receive fresh PDFs via merged PRs.
 #
@@ -207,8 +207,8 @@ jobs:
 
       - name: Commit rebuilt PDFs (same-repo branch)
         # Heal configured feature-branch pushes and same-repository PR heads.
-        # Fork PRs retain a read-only token and stay advisory; main is protected
-        # and receives the already-healed artifact through the merge queue.
+        # Fork PRs retain a read-only token and cannot self-heal; the freshness
+        # step below still fails if their committed artifacts are stale.
         if: >-
           (github.event_name == 'push' && github.ref_name != 'main') ||
           (github.event_name == 'pull_request' &&
@@ -255,9 +255,10 @@ jobs:
           echo "::error::could not push the regenerated PDFs after three attempts; the branch is moving faster than the Book builds"
           exit 1
 
-      - name: Freshness check (advisory on PRs, enforced on main)
+      - name: Freshness check
         # Feature-branch pushes are skipped; PRs verify the clean worktree after
-        # the healing commit above, while forks remain advisory.
+        # the healing commit above. Forks cannot self-heal, but stale published
+        # PDFs are still a real failure rather than an advisory success.
         if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref_name == 'main')
         run: |
           set -uo pipefail
@@ -265,14 +266,10 @@ jobs:
             echo "All in-scope published PDFs match a fresh render. ✔"; exit 0
           fi
           echo "Published PDFs differ from a fresh render of current source:"
-          git diff --stat -- 'website-v2/public/whitepaper/*.pdf' || true
-          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_name }}" = "main" ]; then
-            echo "::error::main is serving stale whitepaper PDFs — a PR must carry"
-            echo "rebuilt PDFs (the feature-branch build commits them automatically)."
-            exit 1
-          fi
-          echo "::notice::Advisory only — PDFs are regenerated and committed on the"
-          echo "feature branch, so the merge carries fresh artifacts to main."
+          git diff --stat -- 'website-v2/public/whitepaper/*.pdf'
+          echo "::error::committed whitepaper PDFs are stale — the change must carry"
+          echo "the rebuilt PDFs before this workflow can pass."
+          exit 1
 
   cover-band:
     # The page half of the type-over-art check: for every page of every

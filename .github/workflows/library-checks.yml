@@ -303,20 +303,14 @@ jobs:
       - name: textbook-craft chapter_lint unit tests
         run: python3 -m unittest discover -s skills/textbook-craft/tests -p 'test_*.py' -v
 
-      # Advisory (continue-on-error) for the same reason 7c2c5e16f made the
-      # figure-blocker check advisory: two of chapter_lint's BLOCKING floors
-      # (worked_example_per_section, claims_carry_epistemic_kind) already
-      # fail on 6 of the 8 Book chapters today, pre-dating this check --
-      # making the step required now would freeze every PR that merely
-      # touches a whitepaper path (this job also runs unconditionally on
-      # merge_group, so a required failure here would freeze the whole
-      # queue). Drop continue-on-error once those two floors are clean
-      # chapter-by-chapter; the floors made advisory in the linter itself
-      # (exercises_at_chapter_end, chapter_opener_and_claim_labeling) stay
-      # advisory here too -- --strict only fails on a BLOCKING floor.
-      - name: Chapter template floors hold across every Book chapter (advisory)
-        continue-on-error: true
-        run: python3 skills/textbook-craft/scripts/chapter_lint.py --strict
+      # Known corpus-wide template debt is classified WARN by chapter_lint;
+      # --strict fails only on floors the current corpus actually enforces.
+      # Do not mask that exit code here: a parser failure or a real enforced
+      # regression must make this job red.
+      - name: Chapter template floors hold across every Book chapter
+        run: >-
+          python3 skills/textbook-craft/scripts/chapter_lint.py --strict
+          --advisory-baseline skills/textbook-craft/chapter-lint-advisory-baseline.json
 
       - name: Figure register and triage are well-formed (enums, ids, chapters, fragment paths)
         run: python3 scripts/harbor-research/check_figure_register.py
@@ -324,10 +318,7 @@ jobs:
       - name: FIGURE-AUDIT-DIGEST.md and FIGURE-AUDIT-FAILURES.md are a fresh render of figcheck/*.json
         run: python3 scripts/harbor-research/render_figure_audit.py --check
 
-      # Advisory until the redraw wave clears the 38 fragments that fail T1-T5
-      # today; the report is the release blocker's ledger, and the step turns
-      # required (drop continue-on-error) once blockers.json has no unwaived
-      # rows. Making it required now would freeze the book branch.
-      - name: No unwaived (or expired-waiver) mechanical figure blocker (advisory)
-        continue-on-error: true
+      # blockers.json carries explicit, dated waivers for acknowledged redraw
+      # debt. Anything unwaived or expired is therefore a real failure.
+      - name: No unwaived (or expired-waiver) mechanical figure blocker
         run: python3 scripts/harbor-research/check_figure_blockers.py --verbose

@@ -1302,6 +1302,14 @@ pd feedback "SKIPPED: pd salvage. Reason: I judged the task too small. In hindsi
 **Detection:** A session ends with `pd done`, no `pd feedback`.
 **Fix:** End every session with feedback, even if it's "no friction this time."
 
+### Green From An Ignored Failure
+**Detection:** A CI test or verification command exits nonzero while its step or
+job uses `continue-on-error`, `|| true`, or a “failed, continuing” branch.
+**Fix:** A real test failure stays red. If known debt is intentionally
+non-blocking, make it a warning with an exact checked-in baseline or dated
+waiver; fail on new debt and stale exceptions. Expected-failure controls must
+assert the exact expected failure so an unrelated error cannot pass as proof.
+
 ## Quality Gates (you, the agent following this skill)
 
 - [ ] You started the session with `pd begin` and left at least one `pd note` before editing.

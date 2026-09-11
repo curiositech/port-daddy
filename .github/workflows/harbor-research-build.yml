@@ -119,7 +119,7 @@ jobs:
           echo "::error::could not push the regenerated PDFs after three attempts; the branch is moving faster than the papers build"
           exit 1
 
-      - name: Freshness check (advisory on PRs, enforced on main)
+      - name: Freshness check
         if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref_name == 'main')
         run: |
           set -uo pipefail
@@ -127,11 +127,7 @@ jobs:
             echo "All in-scope harbor-research PDFs match a fresh render. ✔"; exit 0
           fi
           echo "Rendered PDFs differ from what's committed:"
-          git diff --stat -- 'docs/harbor-research/pdf/*.pdf' 'website-v2/public/research/*.pdf' || true
-          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_name }}" = "main" ]; then
-            echo "::error::main is serving stale harbor-research PDFs — a PR must carry"
-            echo "rebuilt PDFs (the feature-branch build commits them automatically)."
-            exit 1
-          fi
-          echo "::notice::Advisory only — PDFs are regenerated and committed on the"
-          echo "feature branch, so the merge carries fresh artifacts to main."
+          git diff --stat -- 'docs/harbor-research/pdf/*.pdf' 'website-v2/public/research/*.pdf'
+          echo "::error::committed harbor-research PDFs are stale — the change must carry"
+          echo "the rebuilt PDFs before this workflow can pass."
+          exit 1

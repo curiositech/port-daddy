@@ -16,10 +16,11 @@
 //      sorted needs list, so a skipped path-gated job does not skip the gate
 //      and additions land in a predictable slot.
 import { describe, expect, test } from '@jest/globals';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { parse as parseYaml } from 'yaml';
 
 const workflowPath = new URL('../../.github/workflows/ci.yml', import.meta.url);
+const workflowsDir = new URL('../../.github/workflows/', import.meta.url);
 const workflow = parseYaml(readFileSync(workflowPath, 'utf8'));
 const jobs = workflow.jobs;
 const GATE = 'ci-gate';
@@ -32,21 +33,22 @@ const GATE = 'ci-gate';
 const NOT_GATED = {
   'detect-changes':
     'path-filter producer; its outputs drive the `if:` of gated jobs, it has no verdict of its own',
-  'unit-tests-macos':
-    'was a required context under the 18-context ruleset and lost enforcement when the ruleset ' +
-    'trimmed to ci-gate; wiring it in is a separate decision about macOS runner flakiness',
   'unit-tests-compat':
     'push-only (`if: github.event_name == push`), so it never runs on a PR or merge-queue event',
   'pd-ios-screenshots':
-    'documented informational: visual-evidence capture with continue-on-error, never a merge gate',
+    'documented informational visual-evidence capture; failures stay red but do not gate merges',
   'pd-ios-screenshots-publish':
-    'documented informational: publishes the capture above; write-scoped, never a merge gate',
+    'documented informational publisher for the capture above; write-scoped and never a merge gate',
 };
 
 const needsOf = (job) => {
   const n = job.needs ?? [];
   return Array.isArray(n) ? n : [n];
 };
+
+const allWorkflows = () => readdirSync(workflowsDir)
+  .filter((name) => name.endsWith('.yml') || name.endsWith('.yaml'))
+  .map((name) => [name, parseYaml(readFileSync(new URL(name, workflowsDir), 'utf8'))]);
 
 describe('ci-gate needs contract', () => {
   test('every needs entry in every job resolves to a defined job id', () => {
@@ -93,5 +95,41 @@ describe('ci-gate needs contract', () => {
       expect(jobs[name].if).toBeUndefined();
       expect(needsOf(jobs[GATE])).toContain(name);
     }
+  });
+
+  test('every GitHub Actions failure remains a failure', () => {
+    const masked = [];
+    for (const [file, parsed] of allWorkflows()) {
+      for (const [jobName, job] of Object.entries(parsed.jobs ?? {})) {
+        if (job['continue-on-error'] === true) masked.push(`${file}:${jobName}`);
+        for (const step of job.steps ?? []) {
+          if (step['continue-on-error'] === true) {
+            masked.push(`${file}:${jobName}:${step.name ?? '<unnamed step>'}`);
+          }
+        }
+      }
+    }
+    expect(masked).toEqual([]);
+  });
+
+  test('verification steps do not discard command failures', () => {
+    const masked = [];
+    const verificationName = /\b(test|check|verify|audit|lint|proof|tape)s?\b/i;
+    const discardedFailure = /\|\|\s*(?:true|:|echo\b)/;
+    for (const [file, parsed] of allWorkflows()) {
+      for (const [jobName, job] of Object.entries(parsed.jobs ?? {})) {
+        for (const step of job.steps ?? []) {
+          if (!verificationName.test(step.name ?? '') || typeof step.run !== 'string') continue;
+          const executable = step.run
+            .split('\n')
+            .filter((line) => !line.trimStart().startsWith('#'))
+            .join('\n');
+          if (discardedFailure.test(executable)) {
+            masked.push(`${file}:${jobName}:${step.name ?? '<unnamed step>'}`);
+          }
+        }
+      }
+    }
+    expect(masked).toEqual([]);
   });
 });

@@ -40,15 +40,17 @@ jobs:
 
       - name: Start daemon for recording
         run: |
+          set -euo pipefail
           node bin/port-daddy-cli.js start &
           sleep 3
-          node bin/port-daddy-cli.js status || true
+          node bin/port-daddy-cli.js status
 
       - name: Run VHS tapes
         run: |
+          set -euo pipefail
           for tape in demos/*.tape; do
             echo "Recording: $tape"
-            vhs "$tape" || echo "Warning: $tape failed, continuing"
+            vhs "$tape"
           done
 
       - name: Stop daemon
