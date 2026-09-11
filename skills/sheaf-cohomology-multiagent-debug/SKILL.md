@@ -11,7 +11,7 @@ description: >
   structure) rather than the swarm (the agents). This skill provides the conceptual
   framework, a concrete implementation pattern, and decision criteria for when cohomology
   is the right diagnostic vs. when simpler tools suffice.
-author: soma-windags-graft
+author: soma-jury_rig-graft
 tags: [sheaf-cohomology, multi-agent, coordination, consensus, topology, diagnostics, active-inference, soma]
 pairs-with: []
 license: Apache-2.0
@@ -19,7 +19,7 @@ allowed-tools: Read,Write,Edit,Glob,Grep
 metadata:
   provenance:
     kind: imported
-    source: workgroup-ai / windags skill library (rehomed 2026-07-04)
+    source: workgroup-ai / jury_rig skill library (rehomed 2026-07-04)
 ---
 
 # Sheaf Cohomology as Multi-Agent Coordination Telemetry

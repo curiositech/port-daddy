@@ -98,6 +98,27 @@ function recoverableSessionAction(action: string): boolean {
     action === IpcAction.NOTE;
 }
 
+// Binary IPC does not yet transport or verify daemon-minted actor
+// credentials. Destructive lifecycle mutations therefore stay on the HTTP
+// stack, where the shared identity-write boundary binds the credential actor
+// to the stored session owner. Refuse before handler dispatch so raw IPC
+// callers cannot bypass the HTTP authorization gate.
+const HTTP_ONLY_CREDENTIAL_MUTATIONS = new Set<string>([
+  IpcAction.BEGIN,
+  IpcAction.DONE,
+  IpcAction.NOTE,
+  IpcAction.SESSION_END,
+  IpcAction.SESSION_START,
+  IpcAction.SESSION_REMOVE,
+  IpcAction.SESSION_TAKEOVER,
+  IpcAction.FILES_CLAIM,
+  IpcAction.FILES_RELEASE,
+  IpcAction.LOCK_ACQUIRE,
+  IpcAction.LOCK_EXTEND,
+  IpcAction.LOCK_RELEASE,
+  IpcAction.SALVAGE_CLAIM,
+]);
+
 // ─── Route Handler Type ─────────────────────────────────────────────────────
 
 type RouteHandler = (
@@ -472,6 +493,18 @@ export function createIpcRouter(deps: IpcRouterDeps) {
     reply: (response: IpcFrame) => void,
   ): void {
     const action = String(frame.payload.action ?? '');
+    if (HTTP_ONLY_CREDENTIAL_MUTATIONS.has(action)) {
+      reply({
+        type: Performative.REFUSE,
+        convId: frame.convId,
+        payload: {
+          error: 'actor_credential_transport_required',
+          action,
+          message: `Action '${action}' requires the credentialed HTTP transport`,
+        },
+      });
+      return;
+    }
     const payloadAgentId = typeof frame.payload.agentId === 'string' && frame.payload.agentId.trim()
       ? frame.payload.agentId.trim()
       : null;

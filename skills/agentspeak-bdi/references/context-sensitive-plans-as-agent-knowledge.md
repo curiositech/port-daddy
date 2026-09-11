@@ -126,7 +126,7 @@ P2 handles the base case (already at destination). P3 handles the recursive case
 (move to adjacent clear lane, then retry). The plan library encodes *pattern of
 behavior* (navigate to location) as a composable, reusable piece of agent knowledge.
 
-**For WinDAGs**: The skill library is the plan library. Each skill should be
+**For Jury-rig**: The skill library is the plan library. Each skill should be
 understood as a context-sensitive, event-triggered recipe:
 - What *type* of task does this skill handle? (triggering event)
 - Under what *conditions* is this skill applicable? (context condition)

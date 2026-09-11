@@ -39,7 +39,6 @@
       "type": "object",
       "properties": {
         "portDaddyMcp": { "type": "array", "items": { "type": "string" } },
-        "windagsMcp": { "type": "array", "items": { "type": "string" } },
         "editorLocal": { "type": "array", "items": { "type": "string" } },
         "cloudToolset": { "type": "string" },
         "custom": { "type": "array", "items": { "type": "object" } }

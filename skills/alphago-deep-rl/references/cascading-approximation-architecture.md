@@ -72,7 +72,7 @@ Why do two imperfect evaluators outperform either alone?
 
 ### For Task Decomposition Systems
 
-When a WinDAGs orchestrator faces a complex task, it should employ cascading approximation:
+When a Jury-rig orchestrator faces a complex task, it should employ cascading approximation:
 
 1. **Fast heuristic evaluation**: Quickly score all possible decompositions using simple pattern matching or learned heuristics
 2. **Medium-depth evaluation**: For promising decompositions, evaluate feasibility using more sophisticated analysis

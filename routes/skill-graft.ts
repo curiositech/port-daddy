@@ -38,10 +38,10 @@ export const skillGraftPlugin: FastifyPluginAsync<{ deps: SkillGraftRouteDeps }>
 ) => {
   const { tool2VecReconciler, logger } = options.deps;
 
-  fastify.get('/skill-graft/status', async () => tool2VecReconciler.status());
+  fastify.get('/jury-rig/status', async () => tool2VecReconciler.status());
 
   fastify.post(
-    '/skill-graft/reconcile',
+    '/jury-rig/reconcile',
     {
       preHandler: async (request: FastifyRequest, reply: FastifyReply) => {
         if (isLoopbackRequest(request)) return;

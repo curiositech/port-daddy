@@ -23,7 +23,7 @@ import { homedir } from 'node:os';
 
 export const SHIM_BIN_DIR = join(homedir(), '.port-daddy', 'bin');
 export const SHIM_GIT_PATH = join(SHIM_BIN_DIR, 'git');
-export const SHIM_VERSION = '4';
+export const SHIM_VERSION = '5';
 
 export const GIT_SHIM_CONTENT = `#!/usr/bin/env bash
 # Port Daddy git shim v${SHIM_VERSION}
@@ -41,6 +41,8 @@ export const GIT_SHIM_CONTENT = `#!/usr/bin/env bash
 #   filter-branch, filter-repo               (history rewrite)
 #   update-ref refs/heads/main|master|release/*  (direct ref rewrite)
 #   branch -D main|master|release/*          (protected branch deletion)
+# v5: PATH is split without a here-string — bash 5.3 + macOS pipe budget
+#   deadlock, see the PATH walk below.
 #
 # Audit: when PD_SHIM_OFF=1 is set, any refused-but-bypassed op is appended
 # to ~/.port-daddy/destructive-ops.log with timestamp + command.
@@ -52,15 +54,42 @@ set -euo pipefail
 # Find the real git binary, skipping ourselves. We can't trust 'which git'
 # alone because PATH may include this directory. Walk PATH manually and
 # pick the first git that is *not* this script.
+#
+# PATH is split with parameter expansion, deliberately NOT with a
+# here-string feeding \`read -ra parts\`. bash 5.3 implements a here-string
+# as a pipe the shell writes and then reads itself. On macOS a fresh pipe holds
+# 512 bytes and only grows while the kernel's fixed 16 MB pipe budget has
+# room (xnu sys_pipe.c: maxpipekva, read-only); bash cannot detect this
+# because macOS has no F_GETPIPE_SZ. Once that budget is spent — which a
+# few thousand live pipes, i.e. an agent process storm, does — every
+# here-string longer than 512 bytes (any real PATH) parks the shim in
+# write(2) forever, waiting on a reader that is itself. Observed
+# 2026-09-05: four installed shims hung 20h–4.5d under Claude, Codex and
+# ChatGPT, each stuck in heredoc_write with PATHs of 998–1270 bytes, holding
+# the calling app's git operation open. Parameter expansion needs no file
+# descriptor at all, so it cannot deadlock.
+# Only builtins below (cd, pwd, parameter expansion): with an empty or
+# broken PATH there is no dirname/basename to find, and the shim must still
+# reach its own "cannot find a real git" exit instead of dying on set -e.
+# CDPATH is cleared so \`cd "$p"\` resolves $p itself, not a CDPATH match.
+unset CDPATH
 SELF="\${BASH_SOURCE[0]:-$0}"
-SELF_REAL=$(cd "$(dirname "$SELF")" && pwd)/$(basename "$SELF")
+case "$SELF" in
+  */*) self_dir="\${SELF%/*}" ;;
+  *)   self_dir="." ;;
+esac
+SELF_REAL=$(cd "$self_dir" && pwd)/"\${SELF##*/}"
 real_git=""
-IFS=':' read -ra parts <<< "\${PATH:-}"
-for p in "\${parts[@]}"; do
+rest="\${PATH:-}"
+while [ -n "$rest" ]; do
+  case "$rest" in
+    *:*) p="\${rest%%:*}"; rest="\${rest#*:}" ;;
+    *)   p="$rest"; rest="" ;;
+  esac
   if [ -z "$p" ]; then continue; fi
   candidate="$p/git"
   if [ -x "$candidate" ]; then
-    candidate_real=$(cd "$(dirname "$candidate")" && pwd)/$(basename "$candidate")
+    candidate_real=$(cd "$p" && pwd)/git
     if [ "$candidate_real" != "$SELF_REAL" ]; then
       real_git="$candidate"
       break

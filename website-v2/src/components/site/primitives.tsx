@@ -1,4 +1,13 @@
-import { createContext, useContext, useState, type ElementType, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ElementType,
+  type ReactNode,
+} from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { ArrowDown, ArrowRight, Box, Check, Copy, Cpu, Lock } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
@@ -1044,6 +1053,42 @@ export function DocsCodeBlock({
   )
 }
 
+/**
+ * Copy one string, and report for a moment that it was copied.
+ *
+ * The behaviour was written out twice — here and again inside
+ * MacInstallSection's own inline command chip — with two different
+ * acknowledgement windows (1.8s and 1.4s) and only one of the two handling a
+ * rejected clipboard. That is the whole failure mode of a copy-pasted
+ * interaction: it drifts in the details nobody re-reads. A denied clipboard
+ * (an insecure origin, a permission the user refused) now leaves the control
+ * in its resting state on both, instead of throwing an unhandled rejection on
+ * one of them.
+ *
+ * The timer is cleared on unmount so a control copied and then navigated away
+ * from does not set state on a component that is gone.
+ */
+export function useCopyToClipboard(text: string, holdMs = 1800) {
+  const [copied, setCopied] = useState(false)
+  const timer = useRef<number | undefined>(undefined)
+
+  useEffect(() => () => window.clearTimeout(timer.current), [])
+
+  const copy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(text)
+    } catch {
+      setCopied(false)
+      return
+    }
+    setCopied(true)
+    window.clearTimeout(timer.current)
+    timer.current = window.setTimeout(() => setCopied(false), holdMs)
+  }, [text, holdMs])
+
+  return { copied, copy }
+}
+
 export function CopyableCommandBlock({
   command,
   label = 'Command',
@@ -1059,15 +1104,9 @@ export function CopyableCommandBlock({
   ariaLabel?: string
   className?: string
 }) {
-  const [copied, setCopied] = useState(false)
+  const { copied, copy: handleCopy } = useCopyToClipboard(command)
   const surface = useSurfaceTone()
   const labelTone = panelToneForAccent(surface)
-
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(command)
-    setCopied(true)
-    window.setTimeout(() => setCopied(false), 1800)
-  }
 
   return (
     <div className={cn('grid min-w-0 gap-[var(--space-2)]', className)}>

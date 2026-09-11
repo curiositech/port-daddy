@@ -37,6 +37,8 @@
     {destination verifies locally};
   \node[pd axis label,anchor=north] at (0,-2.05)
     {revocation remains an asynchronous epoch-root dependency, not a hot-path call};
+  \node[pd note,anchor=north] at (0,-2.45)
+    {deferred to the settlement and witness rails --- Conditionally bounded escrow custody; dispute evidence};
 \end{tikzpicture}}
 \caption{\textbf{The transfer ceremony attenuates authority and then removes
 source reachback from the hot path.} The green envelope narrows from $C_A$ to

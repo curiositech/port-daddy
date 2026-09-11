@@ -1,0 +1,346 @@
+{
+  "generated": "2026-09-08",
+  "pipeline_version": "4.0.0",
+  "model": "gemini-3-pro-image-preview (Nano Banana Pro) via nano-banana-image-gen/scripts/generate.py --no-fallback",
+  "post": "inset 2% to remove the render edge, center-crop-fit to the exact target aspect ratio (ImageOps.fit, centered), Lanczos resize to the stated long edge, JPEG encode at quality 88 progressive; no paper-tone balancing and no border feathering (the Swiss register is hard-edged)",
+  "style_reference": "the chosen cover render, passed to every other plate as the style template so thirteen separate generations read as one book",
+  "palette": {
+    "paper": "#FBF7EF",
+    "ink": "#121212",
+    "red": "#DA291C",
+    "I": "#001489",
+    "II": "#006B5F",
+    "III": "#582C83",
+    "IV": "#666A00"
+  },
+  "plates": {
+    "cover": {
+      "file": "cover.jpg",
+      "mechanism": "THE MOST IMPORTANT CONSTRAINT: the upper 40 percent of this image, full width, is one clean empty plane of bare paper",
+      "generation_aspect": "2:3",
+      "final_aspect": "2:3",
+      "image_size": "4K",
+      "raw_size": [
+        3392,
+        5056
+      ],
+      "size": [
+        2100,
+        3150
+      ],
+      "bytes": 940707,
+      "chosen": "5",
+      "chosen_rationale": "the only candidate of six that actually reserves the title band -- measured, not eyeballed: substantial ink starts 33.2% down the page, where the three-line title and subtitle end at about 33%. cover-4 read as clean in a thumbnail and starts at 2.0%, which is exactly the mistake that put type over the photograph in round 4a",
+      "prompt": "A Swiss International Typographic Style plate in the manner of Josef Muller-Brockmann and Herbert Matter: built on a hard modular grid whose thin rules are visible as structure, with flat planes of opaque colour, high-contrast black-and-white halftone photography montaged against those planes and cropped square to the grid, axonometric construction where the subject allows, asymmetric balance and active negative space. Printed flat on warm off-white paper #FBF7EF. The photographic elements are genuinely photographic -- real tonal halftone with visible screen, not illustration -- and they are the life of the composition. Dominant colour: flat #001489 reflex blue, with the signal red #DA291C used once and small as the single accent, and charcoal #121212 for reversed-out planes. THE MOST IMPORTANT CONSTRAINT: the upper 40 percent of this image, full width, is one clean empty plane of bare paper. Nothing at all appears in it -- no photograph, no colour plane, no grid rule, no mark of any kind. The title is typeset into that space afterwards and must not fight anything. Everything described below happens strictly BELOW that band. Subject: a great container port seen from above and slightly oblique -- gantry cranes in a row, stacked containers in strict rows, a ship alongside -- as one large high-contrast halftone photograph filling the lower 60 percent, cropped hard on the grid. Over it, three flat colour planes of the dominant ink, offset from one another on the grid, one of them running off the right edge.  Absolutely no lettering, numerals, words, letterforms, captions, labels, logos or symbols resembling writing anywhere in the image. Where the composition calls for a type area, leave a clean empty plane of flat colour; the lettering is typeset afterwards.",
+      "generated_at": "2026-09-07T23:31:18+00:00",
+      "pipeline_version": "4.0.0",
+      "source_render": "cover-5.png",
+      "candidates": 6
+    },
+    "part-I": {
+      "file": "part-I.jpg",
+      "mechanism": "raw board-marked concrete substructure -- a massive foundation wall and footing photographed square-on in hard raking light -- as a halftone photograph filling the right two thirds",
+      "generation_aspect": "3:2",
+      "final_aspect": "3:2",
+      "image_size": "4K",
+      "raw_size": [
+        5056,
+        3392
+      ],
+      "size": [
+        2100,
+        1400
+      ],
+      "bytes": 548234,
+      "chosen": "3",
+      "chosen_rationale": "the concrete reads as a datum and the planes step onto it; clean title band, one red, one reversed bar",
+      "prompt": "A Swiss International Typographic Style plate in the manner of Josef Muller-Brockmann and Herbert Matter: built on a hard modular grid whose thin rules are visible as structure, with flat planes of opaque colour, high-contrast black-and-white halftone photography montaged against those planes and cropped square to the grid, axonometric construction where the subject allows, asymmetric balance and active negative space. Printed flat on warm off-white paper #FBF7EF. The photographic elements are genuinely photographic -- real tonal halftone with visible screen, not illustration -- and they are the life of the composition. Dominant colour: flat #001489 reflex blue, with the signal red #DA291C used once and small as the single accent, and charcoal #121212 for reversed-out planes. Subject: raw board-marked concrete substructure -- a massive foundation wall and footing photographed square-on in hard raking light -- as a halftone photograph filling the right two thirds. Flat colour planes step across it from the left on the grid; one narrow plane is reversed out to charcoal. A clean empty band across the top.  Absolutely no lettering, numerals, words, letterforms, captions, labels, logos or symbols resembling writing anywhere in the image. Where the composition calls for a type area, leave a clean empty plane of flat colour; the lettering is typeset afterwards.",
+      "generated_at": "2026-09-07T23:31:18+00:00",
+      "pipeline_version": "4.0.0",
+      "source_render": "part-I-3.png",
+      "candidates": 6
+    },
+    "part-II": {
+      "file": "part-II.jpg",
+      "mechanism": "a dense array of instrument dials and radar scopes photographed head-on, as a halftone photograph cropped into a strict grid of equal rectangles, some cells replaced by flat colour planes so the photograph reads as a partly-resolved field",
+      "generation_aspect": "3:2",
+      "final_aspect": "3:2",
+      "image_size": "4K",
+      "raw_size": [
+        5056,
+        3392
+      ],
+      "size": [
+        2100,
+        1400
+      ],
+      "bytes": 559329,
+      "chosen": "2",
+      "chosen_rationale": "the strict cell grid with some cells replaced by colour is the plate that reads as a partly-resolved field rather than a photograph with squares on it",
+      "prompt": "A Swiss International Typographic Style plate in the manner of Josef Muller-Brockmann and Herbert Matter: built on a hard modular grid whose thin rules are visible as structure, with flat planes of opaque colour, high-contrast black-and-white halftone photography montaged against those planes and cropped square to the grid, axonometric construction where the subject allows, asymmetric balance and active negative space. Printed flat on warm off-white paper #FBF7EF. The photographic elements are genuinely photographic -- real tonal halftone with visible screen, not illustration -- and they are the life of the composition. Dominant colour: flat #006B5F tonhalle green, with the signal red #DA291C used once and small as the single accent, and charcoal #121212 for reversed-out planes. Subject: a dense array of instrument dials and radar scopes photographed head-on, as a halftone photograph cropped into a strict grid of equal rectangles, some cells replaced by flat colour planes so the photograph reads as a partly-resolved field. A clean empty band across the top.  Absolutely no lettering, numerals, words, letterforms, captions, labels, logos or symbols resembling writing anywhere in the image. Where the composition calls for a type area, leave a clean empty plane of flat colour; the lettering is typeset afterwards.",
+      "generated_at": "2026-09-07T23:31:18+00:00",
+      "pipeline_version": "4.0.0",
+      "source_render": "part-II-2.png",
+      "candidates": 6
+    },
+    "part-III": {
+      "file": "part-III.jpg",
+      "mechanism": "a ship's riveted hull in dry dock, shored on timber blocks, photographed from below in hard light, as a halftone photograph occupying the left half and bleeding off the left edge",
+      "generation_aspect": "3:2",
+      "final_aspect": "3:2",
+      "image_size": "4K",
+      "raw_size": [
+        5056,
+        3392
+      ],
+      "size": [
+        2100,
+        1400
+      ],
+      "bytes": 643992,
+      "chosen": "5",
+      "chosen_rationale": "hull bleeding off the left, violet stacking right on the grid, and the title band left empty",
+      "prompt": "A Swiss International Typographic Style plate in the manner of Josef Muller-Brockmann and Herbert Matter: built on a hard modular grid whose thin rules are visible as structure, with flat planes of opaque colour, high-contrast black-and-white halftone photography montaged against those planes and cropped square to the grid, axonometric construction where the subject allows, asymmetric balance and active negative space. Printed flat on warm off-white paper #FBF7EF. The photographic elements are genuinely photographic -- real tonal halftone with visible screen, not illustration -- and they are the life of the composition. Dominant colour: flat #582C83 konkret violet, with the signal red #DA291C used once and small as the single accent, and charcoal #121212 for reversed-out planes. Subject: a ship's riveted hull in dry dock, shored on timber blocks, photographed from below in hard light, as a halftone photograph occupying the left half and bleeding off the left edge. Flat colour planes of the dominant ink stack to the right on the grid. A clean empty band across the top.  Absolutely no lettering, numerals, words, letterforms, captions, labels, logos or symbols resembling writing anywhere in the image. Where the composition calls for a type area, leave a clean empty plane of flat colour; the lettering is typeset afterwards.",
+      "generated_at": "2026-09-07T23:31:18+00:00",
+      "pipeline_version": "4.0.0",
+      "source_render": "part-III-5.png",
+      "candidates": 6
+    },
+    "part-IV": {
+      "file": "part-IV.jpg",
+      "mechanism": "a bonded warehouse interior -- ranked shelving, crates, a weighing floor -- photographed in one-point perspective as a halftone photograph, cropped to a wide band across the middle",
+      "generation_aspect": "3:2",
+      "final_aspect": "3:2",
+      "image_size": "4K",
+      "raw_size": [
+        5056,
+        3392
+      ],
+      "size": [
+        2100,
+        1400
+      ],
+      "bytes": 574291,
+      "chosen": "3",
+      "chosen_rationale": "the warehouse as a band across the middle with colour above and charcoal below, which is the composition the brief asked for",
+      "prompt": "A Swiss International Typographic Style plate in the manner of Josef Muller-Brockmann and Herbert Matter: built on a hard modular grid whose thin rules are visible as structure, with flat planes of opaque colour, high-contrast black-and-white halftone photography montaged against those planes and cropped square to the grid, axonometric construction where the subject allows, asymmetric balance and active negative space. Printed flat on warm off-white paper #FBF7EF. The photographic elements are genuinely photographic -- real tonal halftone with visible screen, not illustration -- and they are the life of the composition. Dominant colour: flat #666A00 ledger olive, with the signal red #DA291C used once and small as the single accent, and charcoal #121212 for reversed-out planes. Subject: a bonded warehouse interior -- ranked shelving, crates, a weighing floor -- photographed in one-point perspective as a halftone photograph, cropped to a wide band across the middle. Flat colour planes above and below it on the grid, one reversed out to charcoal. A clean empty band across the top.  Absolutely no lettering, numerals, words, letterforms, captions, labels, logos or symbols resembling writing anywhere in the image. Where the composition calls for a type area, leave a clean empty plane of flat colour; the lettering is typeset afterwards.",
+      "generated_at": "2026-09-07T23:31:18+00:00",
+      "pipeline_version": "4.0.0",
+      "source_render": "part-IV-3.png",
+      "candidates": 6
+    },
+    "chapter-swk": {
+      "file": "chapter-swk.jpg",
+      "mechanism": "the mechanism of a teleprinter or typebar machine photographed in extreme close-up, levers and linkages in hard light, as a halftone photograph cropped into a tall block on the left third",
+      "generation_aspect": "16:9",
+      "final_aspect": "2:1",
+      "image_size": "4K",
+      "raw_size": [
+        5504,
+        3072
+      ],
+      "size": [
+        2100,
+        1050
+      ],
+      "bytes": 296133,
+      "chosen": "6",
+      "chosen_rationale": "the planes march and shrink cleanly and exactly one red rule crosses them",
+      "prompt": "A Swiss International Typographic Style plate in the manner of Josef Muller-Brockmann and Herbert Matter: built on a hard modular grid whose thin rules are visible as structure, with flat planes of opaque colour, high-contrast black-and-white halftone photography montaged against those planes and cropped square to the grid, axonometric construction where the subject allows, asymmetric balance and active negative space. Printed flat on warm off-white paper #FBF7EF. The photographic elements are genuinely photographic -- real tonal halftone with visible screen, not illustration -- and they are the life of the composition. Dominant colour: flat #001489 reflex blue, with the signal red #DA291C used once and small as the single accent, and charcoal #121212 for reversed-out planes. Subject: the mechanism of a teleprinter or typebar machine photographed in extreme close-up, levers and linkages in hard light, as a halftone photograph cropped into a tall block on the left third. To its right, flat colour planes marching across the grid, each smaller than the last, and one thin red rule crossing all of them.  Absolutely no lettering, numerals, words, letterforms, captions, labels, logos or symbols resembling writing anywhere in the image. Where the composition calls for a type area, leave a clean empty plane of flat colour; the lettering is typeset afterwards.",
+      "generated_at": "2026-09-07T23:31:18+00:00",
+      "pipeline_version": "4.0.0",
+      "source_render": "chapter-swk-6.png",
+      "candidates": 6
+    },
+    "chapter-anchor": {
+      "file": "chapter-anchor.jpg",
+      "mechanism": "an anchor windlass and heavy chain on a foredeck, photographed close and square, as a halftone photograph in a block on the right",
+      "generation_aspect": "16:9",
+      "final_aspect": "2:1",
+      "image_size": "4K",
+      "raw_size": [
+        5504,
+        3072
+      ],
+      "size": [
+        2100,
+        1050
+      ],
+      "bytes": 425950,
+      "chosen": "5",
+      "chosen_rationale": "the nesting is unmistakable -- each rectangle strictly smaller and darker than the last, stepping into the windlass",
+      "prompt": "A Swiss International Typographic Style plate in the manner of Josef Muller-Brockmann and Herbert Matter: built on a hard modular grid whose thin rules are visible as structure, with flat planes of opaque colour, high-contrast black-and-white halftone photography montaged against those planes and cropped square to the grid, axonometric construction where the subject allows, asymmetric balance and active negative space. Printed flat on warm off-white paper #FBF7EF. The photographic elements are genuinely photographic -- real tonal halftone with visible screen, not illustration -- and they are the life of the composition. Dominant colour: flat #001489 reflex blue, with the signal red #DA291C used once and small as the single accent, and charcoal #121212 for reversed-out planes. Subject: an anchor windlass and heavy chain on a foredeck, photographed close and square, as a halftone photograph in a block on the right. Nested flat colour rectangles, each strictly smaller and darker than the one before, step into it from the left on the grid.  Absolutely no lettering, numerals, words, letterforms, captions, labels, logos or symbols resembling writing anywhere in the image. Where the composition calls for a type area, leave a clean empty plane of flat colour; the lettering is typeset afterwards.",
+      "generated_at": "2026-09-07T23:31:18+00:00",
+      "pipeline_version": "4.0.0",
+      "source_render": "chapter-anchor-5.png",
+      "candidates": 6
+    },
+    "chapter-sealed": {
+      "file": "chapter-sealed.jpg",
+      "mechanism": "a bank vault door, its locking bolts and hinge visible, photographed square-on as a halftone photograph in a centred block",
+      "generation_aspect": "16:9",
+      "final_aspect": "2:1",
+      "image_size": "4K",
+      "raw_size": [
+        5504,
+        3072
+      ],
+      "size": [
+        2100,
+        1050
+      ],
+      "bytes": 324024,
+      "chosen": "3",
+      "chosen_rationale": "a closed frame with exactly one slot, and the red rule stops dead at its inner face",
+      "prompt": "A Swiss International Typographic Style plate in the manner of Josef Muller-Brockmann and Herbert Matter: built on a hard modular grid whose thin rules are visible as structure, with flat planes of opaque colour, high-contrast black-and-white halftone photography montaged against those planes and cropped square to the grid, axonometric construction where the subject allows, asymmetric balance and active negative space. Printed flat on warm off-white paper #FBF7EF. The photographic elements are genuinely photographic -- real tonal halftone with visible screen, not illustration -- and they are the life of the composition. Dominant colour: flat #006B5F tonhalle green, with the signal red #DA291C used once and small as the single accent, and charcoal #121212 for reversed-out planes. Subject: a bank vault door, its locking bolts and hinge visible, photographed square-on as a halftone photograph in a centred block. A closed flat colour frame surrounds it with exactly one slot cut through the right side, and a single red rule runs from the right edge and stops dead at the inner face of that frame.  Absolutely no lettering, numerals, words, letterforms, captions, labels, logos or symbols resembling writing anywhere in the image. Where the composition calls for a type area, leave a clean empty plane of flat colour; the lettering is typeset afterwards.",
+      "generated_at": "2026-09-07T23:31:18+00:00",
+      "pipeline_version": "4.0.0",
+      "source_render": "chapter-sealed-3.png",
+      "candidates": 6
+    },
+    "chapter-ls": {
+      "file": "chapter-ls.jpg",
+      "mechanism": "a harbour crowded with small boats seen from directly overhead, as a high-contrast halftone photograph filling the plate, over which a scattered field of small flat colour squares sits on the grid -- dense at the edges, and resolving into one large solid colour disc at the centre where the squares stop",
+      "generation_aspect": "16:9",
+      "final_aspect": "2:1",
+      "image_size": "4K",
+      "raw_size": [
+        5504,
+        3072
+      ],
+      "size": [
+        2100,
+        1050
+      ],
+      "bytes": 609844,
+      "chosen": "2",
+      "chosen_rationale": "the scattered squares are dense at the edges and genuinely resolve into one solid disc at the centre",
+      "prompt": "A Swiss International Typographic Style plate in the manner of Josef Muller-Brockmann and Herbert Matter: built on a hard modular grid whose thin rules are visible as structure, with flat planes of opaque colour, high-contrast black-and-white halftone photography montaged against those planes and cropped square to the grid, axonometric construction where the subject allows, asymmetric balance and active negative space. Printed flat on warm off-white paper #FBF7EF. The photographic elements are genuinely photographic -- real tonal halftone with visible screen, not illustration -- and they are the life of the composition. Dominant colour: flat #006B5F tonhalle green, with the signal red #DA291C used once and small as the single accent, and charcoal #121212 for reversed-out planes. Subject: a harbour crowded with small boats seen from directly overhead, as a high-contrast halftone photograph filling the plate, over which a scattered field of small flat colour squares sits on the grid -- dense at the edges, and resolving into one large solid colour disc at the centre where the squares stop.  Absolutely no lettering, numerals, words, letterforms, captions, labels, logos or symbols resembling writing anywhere in the image. Where the composition calls for a type area, leave a clean empty plane of flat colour; the lettering is typeset afterwards.",
+      "generated_at": "2026-09-07T23:31:18+00:00",
+      "pipeline_version": "4.0.0",
+      "source_render": "chapter-ls-2.png",
+      "candidates": 6
+    },
+    "chapter-stp": {
+      "file": "chapter-stp.jpg",
+      "mechanism": "a riveted steel hull plate with one clean welded seam running across it, photographed raking, as a halftone photograph band across the lower half",
+      "generation_aspect": "16:9",
+      "final_aspect": "2:1",
+      "image_size": "4K",
+      "raw_size": [
+        5504,
+        3072
+      ],
+      "size": [
+        2100,
+        1050
+      ],
+      "bytes": 594986,
+      "chosen": "1",
+      "chosen_rationale": "Best of twelve by measurement, not by eye. A reviewer said the two arcs on the shipped plate do not share a centre, and measurement agreed with the reviewer and not with the rationale that used to sit here. scripts/whitepaper-plates/score_broken_arc.py fits a circle to each arc's outer boundary: this candidate's halves are 6.3% of a radius from concentric with radii 11.5% apart, where the other eleven are 92% to 637% from concentric -- they are two unrelated shapes, not one interrupted ring. So this is the plate that comes closest to the brief, and it is close rather than exact: at page size the eye reads one broken band, and a caliper would not.",
+      "prompt": "A Swiss International Typographic Style plate in the manner of Josef Muller-Brockmann and Herbert Matter: built on a hard modular grid whose thin rules are visible as structure, with flat planes of opaque colour, high-contrast black-and-white halftone photography montaged against those planes and cropped square to the grid, axonometric construction where the subject allows, asymmetric balance and active negative space. Printed flat on warm off-white paper #FBF7EF. The photographic elements are genuinely photographic -- real tonal halftone with visible screen, not illustration -- and they are the life of the composition. Dominant colour: flat #582C83 konkret violet, with the signal red #DA291C used once and small as the single accent, and charcoal #121212 for reversed-out planes. Subject: a riveted steel hull plate with one clean welded seam running across it, photographed raking, as a halftone photograph band across the lower half. Above it one broad flat colour arc is interrupted and then resumes, both parts plainly the same band on the same circle, the gap sitting directly over the weld.  Absolutely no lettering, numerals, words, letterforms, captions, labels, logos or symbols resembling writing anywhere in the image. Where the composition calls for a type area, leave a clean empty plane of flat colour; the lettering is typeset afterwards.",
+      "generated_at": "2026-09-07T23:31:18+00:00",
+      "pipeline_version": "4.0.0",
+      "source_render": "chapter-stp-1.png",
+      "candidates": 12,
+      "measurement": {
+        "script": "scripts/whitepaper-plates/score_broken_arc.py",
+        "centre_offset_share_of_radius": 0.063,
+        "radius_difference_share_of_radius": 0.115,
+        "candidates_measured": 12,
+        "measured_on": "the raw render chapter-stp-1.png (5504x3072), before the 2% inset and the centre crop to 2:1 -- this is the fit that judges the drawing and is what picked candidate 1 of twelve"
+      },
+      "measurement_shipped": {
+        "script": "scripts/whitepaper-plates/score_broken_arc.py --record-shipped",
+        "measured_on": "the committed chapter-stp.jpg, after the 2% inset and the centre crop to 2:1 -- the crop truncates both arcs, so these numbers are larger than the raw render's and are not a verdict on the drawing",
+        "centre_offset_share_of_radius": 0.222,
+        "radius_difference_share_of_radius": 0.033
+      }
+    },
+    "chapter-he": {
+      "file": "chapter-he.jpg",
+      "mechanism": "a coin press and stacked minted blanks photographed close in hard light, as a halftone photograph block on the right",
+      "generation_aspect": "16:9",
+      "final_aspect": "2:1",
+      "image_size": "4K",
+      "raw_size": [
+        5504,
+        3072
+      ],
+      "size": [
+        2100,
+        1050
+      ],
+      "bytes": 424324,
+      "chosen": "6",
+      "chosen_rationale": "three bars on one shared charcoal baseline, as briefed, with the press to the right and the red alone",
+      "prompt": "A Swiss International Typographic Style plate in the manner of Josef Muller-Brockmann and Herbert Matter: built on a hard modular grid whose thin rules are visible as structure, with flat planes of opaque colour, high-contrast black-and-white halftone photography montaged against those planes and cropped square to the grid, axonometric construction where the subject allows, asymmetric balance and active negative space. Printed flat on warm off-white paper #FBF7EF. The photographic elements are genuinely photographic -- real tonal halftone with visible screen, not illustration -- and they are the life of the composition. Dominant colour: flat #666A00 ledger olive, with the signal red #DA291C used once and small as the single accent, and charcoal #121212 for reversed-out planes. Subject: a coin press and stacked minted blanks photographed close in hard light, as a halftone photograph block on the right. Three flat colour bars of increasing height stand on one shared charcoal baseline to the left of it on the grid.  Absolutely no lettering, numerals, words, letterforms, captions, labels, logos or symbols resembling writing anywhere in the image. Where the composition calls for a type area, leave a clean empty plane of flat colour; the lettering is typeset afterwards.",
+      "generated_at": "2026-09-07T23:31:18+00:00",
+      "pipeline_version": "4.0.0",
+      "source_render": "chapter-he-6.png",
+      "candidates": 6
+    },
+    "chapter-bonded": {
+      "file": "chapter-bonded.jpg",
+      "mechanism": "a strapped and sealed cargo crate on a warehouse floor, photographed three-quarter, as a halftone photograph in a square block",
+      "generation_aspect": "16:9",
+      "final_aspect": "2:1",
+      "image_size": "4K",
+      "raw_size": [
+        5504,
+        3072
+      ],
+      "size": [
+        2100,
+        1050
+      ],
+      "bytes": 492352,
+      "chosen": "3",
+      "chosen_rationale": "the plane is gripped at exactly three points and the red square sits alone in the negative space",
+      "prompt": "A Swiss International Typographic Style plate in the manner of Josef Muller-Brockmann and Herbert Matter: built on a hard modular grid whose thin rules are visible as structure, with flat planes of opaque colour, high-contrast black-and-white halftone photography montaged against those planes and cropped square to the grid, axonometric construction where the subject allows, asymmetric balance and active negative space. Printed flat on warm off-white paper #FBF7EF. The photographic elements are genuinely photographic -- real tonal halftone with visible screen, not illustration -- and they are the life of the composition. Dominant colour: flat #666A00 ledger olive, with the signal red #DA291C used once and small as the single accent, and charcoal #121212 for reversed-out planes. Subject: a strapped and sealed cargo crate on a warehouse floor, photographed three-quarter, as a halftone photograph in a square block. A flat colour plane sits behind it, gripped at exactly three points by short heavy charcoal brackets, and one small red square sits alone in the negative space to the right.  Absolutely no lettering, numerals, words, letterforms, captions, labels, logos or symbols resembling writing anywhere in the image. Where the composition calls for a type area, leave a clean empty plane of flat colour; the lettering is typeset afterwards.",
+      "generated_at": "2026-09-07T23:31:18+00:00",
+      "pipeline_version": "4.0.0",
+      "source_render": "chapter-bonded-3.png",
+      "candidates": 6
+    },
+    "chapter-fh": {
+      "file": "chapter-fh.jpg",
+      "mechanism": "a railway switching yard seen from above, tracks fanning and rejoining, as a halftone photograph band across the plate",
+      "generation_aspect": "16:9",
+      "final_aspect": "2:1",
+      "image_size": "4K",
+      "raw_size": [
+        5504,
+        3072
+      ],
+      "size": [
+        2100,
+        1050
+      ],
+      "bytes": 395390,
+      "chosen": "6",
+      "chosen_rationale": "three separated blocks joined by thin rules that follow the tracks underneath",
+      "prompt": "A Swiss International Typographic Style plate in the manner of Josef Muller-Brockmann and Herbert Matter: built on a hard modular grid whose thin rules are visible as structure, with flat planes of opaque colour, high-contrast black-and-white halftone photography montaged against those planes and cropped square to the grid, axonometric construction where the subject allows, asymmetric balance and active negative space. Printed flat on warm off-white paper #FBF7EF. The photographic elements are genuinely photographic -- real tonal halftone with visible screen, not illustration -- and they are the life of the composition. Dominant colour: flat #666A00 ledger olive, with the signal red #DA291C used once and small as the single accent, and charcoal #121212 for reversed-out planes. Subject: a railway switching yard seen from above, tracks fanning and rejoining, as a halftone photograph band across the plate. Over it, three separated flat colour blocks joined by thin charcoal rules that run exactly along the tracks below.  Absolutely no lettering, numerals, words, letterforms, captions, labels, logos or symbols resembling writing anywhere in the image. Where the composition calls for a type area, leave a clean empty plane of flat colour; the lettering is typeset afterwards.",
+      "generated_at": "2026-09-07T23:31:18+00:00",
+      "pipeline_version": "4.0.0",
+      "source_render": "chapter-fh-6.png",
+      "candidates": 6
+    },
+    "frontispiece": {
+      "file": "frontispiece.jpg",
+      "source_render": "frontispiece-swiss-c.png",
+      "size": [
+        1342,
+        2000
+      ],
+      "bytes": 206559,
+      "note": "Swiss frontispiece: the Leviathan rebuilt as International Typographic Style. Variants a and b read as a friendly toy robot -- small in its field, rounded, primary-coloured -- and were rejected; c is monumental and cropped by the frame, near monochrome, with the searchlight as one hard ochre diagonal and a single red square.",
+      "chosen": "c",
+      "candidates": 4,
+      "model": "gemini-3-pro-image-preview",
+      "generation_aspect": "2:3",
+      "prompt": "scripts/whitepaper-plates/frontispiece_prompts.py"
+    }
+  },
+  "candidates_per_plate": 6
+}

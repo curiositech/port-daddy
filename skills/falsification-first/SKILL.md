@@ -59,7 +59,7 @@ flowchart TD
 
 ### The Unvalidated Green Checker
 **Novice**: "All invariants pass — we're safe."
-**Expert**: Passing proves nothing until seeded violations fail. Every guard must be shown load-bearing (harbor-results L3 lesson 5: five guards, five shortest crimes).
+**Expert**: Passing proves nothing until seeded violations fail. Every guard must be shown core (harbor-results L3 lesson 5: five guards, five shortest crimes).
 **Detection**: A checker repo with no mutation/negative-case suite.
 
 ### The Confirming Gate

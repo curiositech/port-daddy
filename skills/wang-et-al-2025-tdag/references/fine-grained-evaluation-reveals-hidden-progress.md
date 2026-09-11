@@ -102,7 +102,7 @@ With binary evaluation, you see: 0%, 0%, 100%—an "emergent" jump. With fine-gr
 
 Figure 3 demonstrates this empirically: binary scoring shows all methods between 27-32% (no significant difference), while fine-grained scoring reveals ReAct=43%, P&S=44%, ADAPT=45%, TDAG=49%—clear stratification invisible to binary metrics.
 
-## Implementation for WinDAGs: Hierarchical Scoring
+## Implementation for Jury-rig: Hierarchical Scoring
 
 The three-level structure generalizes to any complex task:
 
@@ -171,7 +171,7 @@ This ensures [a, b] reflects "realistic achievable performance" not "theoretical
 
 Scoring against mean ± std_dev measures **how much better than typical** a solution is, which is often more practical than **how close to perfect** it is.
 
-**For WinDAGs**: When adding new task types:
+**For Jury-rig**: When adding new task types:
 1. Generate initial solutions using baseline methods
 2. Execute and measure cost/time/quality metrics
 3. Compute statistics from successful runs
@@ -208,7 +208,7 @@ Fine-grained evaluation can be misapplied:
 
 Fine-grained evaluation requires **observable intermediate states**. The paper uses a simulator (Section 3.3) that validates each action as it executes.
 
-**For WinDAGs**, this means:
+**For Jury-rig**, this means:
 
 ### 1. Structured Task Decomposition
 Tasks must decompose into checkpointable subtasks. Instead of:
@@ -345,7 +345,7 @@ Working on complex agents is demoralizing when every run scores "0% - failed." F
 
 This visible progress sustains development effort. Binary metrics would show "0%, 0%, 30%" across these same weeks—looks like nothing happened for two weeks, then sudden breakthrough.
 
-**For WinDAGs development**: Use fine-grained metrics internally even if external reporting uses binary metrics. It helps teams understand where they are in capability development.
+**For Jury-rig development**: Use fine-grained metrics internally even if external reporting uses binary metrics. It helps teams understand where they are in capability development.
 
 ## Summary: Evaluation as Debugging Tool
 

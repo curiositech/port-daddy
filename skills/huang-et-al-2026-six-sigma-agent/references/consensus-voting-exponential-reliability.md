@@ -184,7 +184,7 @@ The paper demonstrates that consensus voting with cheap models is more cost-effe
 
 The economic logic: GPT-4o-mini is ~20× cheaper than GPT-4o. Even with 13× redundancy, total cost is less than a single GPT-4o call, while reliability is 3,000× better.
 
-## Application to WinDAGs Orchestration
+## Application to Jury-rig Orchestration
 
 For a DAG-based orchestration system with 180+ skills, consensus voting should be applied at **atomic action boundaries**:
 

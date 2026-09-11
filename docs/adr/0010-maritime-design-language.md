@@ -121,5 +121,5 @@ The requirement that no emojis be used as UI icons (from the global CLAUDE.md) a
 
 ### Neutral
 
-- The `pd learn` tutorial (`cli/commands/tutorial.ts`) uses maritime-themed interactive prompts to teach new users the Port Daddy workflow. The tutorial is the primary place where the maritime vocabulary is explained to users encountering it for the first time.
+- Historical note (superseded 2026-08-31): `pd learn` originally used stateful, maritime-themed interactive prompts. It is now an operationally read-only agent orientation: its handler changes no work resources, headless mode makes no daemon request, and interactive mode may make one bounded `GET /health`. This ADR remains the authority for the design language, not for the command's current mutation contract.
 - The dashboard uses SVG icons rendered inline (no icon library dependency), maintaining visual consistency without importing an icon set that might drift from the maritime aesthetic.

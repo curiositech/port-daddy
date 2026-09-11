@@ -1,33 +1,43 @@
-% Figure 10 — evidence support narrows at the weakest continuity links.
+% Figure 10 — what the next link can inherit steps down twice.
 \begin{figure}[H]
 \centering
-\resizebox{0.92\textwidth}{!}{%
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \fill[hhteal!13]
-    (1.1,1.90)--(3.15,1.90)--(4.15,2.35)--(7.45,2.35)--
-    (8.45,2.65)--(13.25,2.65)--(13.25,3.35)--(8.45,3.35)--
-    (7.45,3.65)--(4.15,3.65)--(3.15,4.10)--(1.1,4.10)--cycle;
-  \draw[pd focus rule,line width=1.15pt]
-    (1.1,3.0)--(3.15,3.0)--(4.15,3.0)--(5.25,3.0)--(7.4,3.0)--
-    (8.45,3.0)--(9.4,3.0)--(11.15,3.0)--(13.25,3.0);
-  \foreach \x/\lab in {1.25/{memory},4.15/{checkpoint},6.25/{continuity},8.45/{outcome ledger},10.55/{identity},12.75/{market}} {
-    \draw[pd guide] (\x,1.2)--(\x,4.72);
-    \node[pd axis label,anchor=north,align=center] at (\x,1.02) {\lab};
-  }
-  \node[pd focus datum] at (1.25,3.0) {};
-  \node[pd caution datum] at (4.15,3.0) {};
-  \node[pd caution datum] at (8.45,3.0) {};
-  \node[pd datum] at (10.55,3.0) {};
-  \node[pd direct label,anchor=south,text=hhamber] at (4.15,3.82) {notes, not execution state};
-  \node[pd direct label,anchor=south,text=hhamber] at (8.45,3.52) {partial outcome substrate};
-  \node[pd note,anchor=west] at (8.75,4.55) {support can only narrow downstream};
-\end{tikzpicture}%
-}
-\caption{The continuity chain as an evidence-support profile. Implemented memory is
-wide enough to preserve notes and events, but support narrows sharply at checkpoint
-because recovery does not preserve execution state. It narrows again at the
-partial witnessed-outcome ledger, before durable identity, reputation, and a market
-can inherit the claim. The profile makes the dependency explicit: downstream
-confidence cannot be wider than its weakest upstream evidence link.}
+\begin{tikzpicture}[pd figure]
+\begin{axis}[
+  width=\linewidth,
+  height=5.4cm,
+  axis lines=left,
+  axis line style={draw=hhink},
+  tick style={draw=hhgray},
+  symbolic x coords={memory,checkpoint,continuity,outcome,identity,market},
+  xtick=data,
+  xticklabels={memory,check-\\point,continuity,outcome\\ledger,identity,market},
+  xticklabel style={align=center,text width=1.6cm,font=\footnotesize},
+  ytick={0,1,2,3},
+  yticklabels={none,partial,{notes only},full},
+  yticklabel style={font=\footnotesize},
+  ymin=-.3,ymax=3.6,
+  enlarge x limits=0.09,
+  ylabel={evidence the next link can inherit},
+  ylabel style={font=\footnotesize,align=center},
+  clip=false,
+]
+\addplot[const plot,color=hhteal,line width=1.3pt,mark=*,
+  mark options={fill=hhteal,draw=hhpaper,line width=.5pt}] coordinates
+  {(memory,3) (checkpoint,2) (continuity,2) (outcome,1) (identity,1) (market,1)};
+\coordinate (cp) at (axis cs:checkpoint,2);
+\coordinate (oc) at (axis cs:outcome,1);
+\end{axis}
+\draw[pd guide] (cp) -- ++(0,.85cm);
+\node[anchor=south,font=\footnotesize\itshape,text=hhamber,text width=2.9cm,align=center]
+  at ($(cp)+(0,.95cm)$) {recovery restores notes, not execution state};
+\draw[pd guide] (oc) -- ++(0,.85cm);
+\node[anchor=south,font=\footnotesize\itshape,text=hhamber,text width=2.9cm,align=center]
+  at ($(oc)+(0,.95cm)$) {outcomes witnessed only in part};
+\end{tikzpicture}
+\caption{The continuity chain as an evidence-support profile. What checkpoint
+inherits from memory already drops from full to notes only; what the outcome
+ledger inherits from continuity drops again, to partial; identity and market
+inherit only that partial residue. Downstream confidence cannot exceed the
+weakest upstream link. [internal]}
 \label{fig:swk-continuity-organs}
 \end{figure}

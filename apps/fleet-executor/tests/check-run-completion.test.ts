@@ -201,7 +201,11 @@ describe('completeCheckRun (Bug B: no more silently-swallowed PATCH failures)', 
           throw new Error('socket reset after request body upload');
         }
         getCalls += 1;
-        return new Response(JSON.stringify({ status: 'completed', conclusion: 'success' }), {
+        return new Response(JSON.stringify({
+          status: 'completed',
+          conclusion: 'success',
+          output: { summary: 'all good' },
+        }), {
           status: 200,
           headers: { 'content-type': 'application/json' },
         });

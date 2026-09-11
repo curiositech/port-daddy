@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+<title>Fleet Breathing — Port Daddy Soundscape (motif study)</title>
+<style>
+  /* ============================================================
+     CANON TOKENS — lifted from operator-tui-v9.html
+     (warm paper light / sunken dark). This motif study runs the
+     DARK theme by default because a soundscape wants a quiet room.
+     ============================================================ */
+  :root {
+    /* dark surfaces */
+    --surface-base:#101216;
+    --surface-raised:#181c22;
+    --surface-strong:#222833;
+    --surface-sunken:#0b0d11;
+    --surface-overlay:rgba(16,18,22,.95);
+    --scrim-backdrop:rgba(0,0,0,.68);
+    --text-primary:#f5f3ed;
+    --text-secondary:#d3cec2;
+    --text-muted:#b3ad9f;
+    --brand-primary:#7db4ff;
+    --brand-accent:#8fd0a7;
+    --border-subtle:rgba(245,243,237,.18);
+    --border-default:rgba(245,243,237,.34);
+    --status-success:#66d28a;
+    --status-warning:#e0a64b;
+    --status-error:#ff7d7d;
+    --status-info:#7db4ff;
+    /* pheromone phase hues (dark-tuned) */
+    --ph-hot:#e0a64b;
+    --ph-recent:#7db4ff;
+    --ph-cold:#8c8576;
+    --ph-blocked:#a99bff;
+    --ph-fail:#ff7d7d;
+    --mayday:#ff5252;
+    /* motion canon */
+    --dur-micro:140ms;
+    --dur-quick:220ms;
+    --dur-settle:340ms;
+    --dur-flourish:480ms;
+    --swoosh:cubic-bezier(.16,1,.3,1);
+    --snap:cubic-bezier(.34,1.56,.64,1);
+    --float:cubic-bezier(.45,.05,.55,.95);
+    --mono:"SFMono-Regular",ui-monospace,"JetBrains Mono","Menlo",monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",sans-serif;
+  }
+
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html,body { height:100%; }
+  body {
+    background:
+      radial-gradient(120% 80% at 50% -10%, #15191f 0%, var(--surface-base) 55%, var(--surface-sunken) 100%);
+    color:var(--text-primary);
+    font-family:var(--sans);
+    font-size:15px;
+    line-height:1.5;
+    overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .stage {
+    position:relative;
+    height:100%;
+    display:grid;
+    grid-template-rows:auto 1fr auto;
+  }
+
+  /* ---------- masthead ---------- */
+  header {
+    display:flex; align-items:center; gap:16px;
+    padding:16px 22px;
+    border-bottom:1px solid var(--border-subtle);
+    background:linear-gradient(180deg, rgba(24,28,34,.7), transparent);
+    backdrop-filter:blur(8px);
+  }
+  .brand {
+    font-family:var(--mono);
+    font-size:14px; letter-spacing:.14em; text-transform:uppercase;
+    font-weight:700; color:var(--text-primary);
+  }
+  .brand b { color:var(--brand-primary); }
+  .tagline {
+    font-size:14px; color:var(--text-muted); font-style:italic;
+  }
+  .spacer { flex:1; }
+
+  /* breath meter — the visual heartbeat of the bed */
+  .breath {
+    display:flex; align-items:center; gap:10px;
+    font-family:var(--mono); font-size:13px; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--text-muted);
+  }
+  .breath .ring {
+    width:22px; height:22px; border-radius:50%;
+    border:2px solid var(--brand-accent);
+    box-shadow:0 0 0 0 rgba(143,208,167,.5);
+    transition:box-shadow var(--dur-quick) var(--float);
+  }
+  .breath.in .ring { box-shadow:0 0 0 7px rgba(143,208,167,.12); }
+
+  /* ---------- sound toggle (the opt-in gate) ---------- */
+  .sound-toggle {
+    display:flex; align-items:center; gap:12px;
+    padding:8px 14px;
+    border:1px solid var(--border-default);
+    border-radius:999px;
+    background:var(--surface-raised);
+    cursor:pointer; user-select:none;
+    transition:border-color var(--dur-quick) var(--swoosh), background var(--dur-quick) var(--swoosh);
+  }
+  .sound-toggle:hover { border-color:var(--brand-accent); }
+  .sound-toggle:focus-visible { outline:2px solid var(--status-info); outline-offset:2px; }
+  .sound-toggle .label {
+    font-family:var(--mono); font-size:13px; font-weight:600;
+    letter-spacing:.08em; text-transform:uppercase; color:var(--text-secondary);
+  }
+  .sound-toggle.on { border-color:var(--brand-accent); background:rgba(143,208,167,.08); }
+  .sound-toggle.on .label { color:var(--brand-accent); }
+  /* equalizer bars — animate only when sound is on */
+  .eq { display:flex; align-items:flex-end; gap:2px; height:18px; }
+  .eq i {
+    width:3px; background:var(--text-muted); border-radius:1px; height:30%;
+    transition:background var(--dur-quick) var(--swoosh);
+  }
+  .sound-toggle.on .eq i { background:var(--brand-accent); animation:eq 900ms ease-in-out infinite; }
+  .sound-toggle.on .eq i:nth-child(2){ animation-delay:120ms; }
+  .sound-toggle.on .eq i:nth-child(3){ animation-delay:240ms; }
+  .sound-toggle.on .eq i:nth-child(4){ animation-delay:360ms; }
+  @keyframes eq { 0%,100%{height:25%;} 50%{height:100%;} }
+
+  .vol {
+    display:flex; align-items:center; gap:8px;
+    font-family:var(--mono); font-size:12px; color:var(--text-muted);
+  }
+  .vol input[type=range]{ width:90px; accent-color:var(--brand-accent); }
+
+  /* ---------- main: the fleet field ---------- */
+  .field { position:relative; overflow:hidden; }
+  #biofield { position:absolute; inset:0; pointer-events:none; }
+  .fleet {
+    position:relative; height:100%;
+    display:grid;
+    grid-template-columns:1fr 320px;
+    gap:0;
+  }
+
+  .lanes {
+    position:relative;
+    padding:24px 28px;
+    overflow:auto;
+  }
+  .lanes-title {
+    font-family:var(--mono); font-size:13px; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--text-muted); margin-bottom:16px;
+  }
+  .lane {
+    position:relative;
+    display:flex; align-items:center; gap:14px;
+    padding:12px 14px; margin-bottom:8px;
+    border:1px solid var(--border-subtle);
+    border-radius:12px;
+    background:linear-gradient(180deg, rgba(34,40,51,.45), rgba(24,28,34,.25));
+    transition:border-color var(--dur-quick) var(--swoosh), transform var(--dur-quick) var(--snap), background var(--dur-quick) var(--swoosh);
+  }
+  .lane.idle { opacity:.55; }
+  .lane.flash { border-color:var(--brand-accent); background:rgba(143,208,167,.1); transform:translateX(3px); }
+  .lane.distress { border-color:var(--mayday); background:rgba(255,82,82,.12); animation:shake 520ms var(--snap); }
+  @keyframes shake { 0%,100%{transform:translateX(0);} 20%{transform:translateX(-4px);} 60%{transform:translateX(4px);} }
+
+  .dot {
+    width:11px; height:11px; border-radius:50%; flex:0 0 auto;
+    background:var(--ph-cold);
+    box-shadow:0 0 0 0 rgba(125,180,255,0);
+  }
+  .lane .meta { flex:1; min-width:0; }
+  .lane .who {
+    font-family:var(--mono); font-size:14px; font-weight:600; color:var(--text-primary);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .lane .what { font-size:14px; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .lane .badge {
+    font-family:var(--mono); font-size:12px; font-weight:700;
+    letter-spacing:.06em; text-transform:uppercase;
+    padding:3px 8px; border-radius:6px;
+    border:1px solid var(--border-subtle); color:var(--text-secondary);
+    white-space:nowrap;
+  }
+
+  /* ---------- right rail: event log + legend ---------- */
+  .rail {
+    border-left:1px solid var(--border-subtle);
+    background:rgba(11,13,17,.55);
+    display:flex; flex-direction:column;
+    backdrop-filter:blur(6px);
+    min-height:0;
+  }
+  .rail h3 {
+    font-family:var(--mono); font-size:13px; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--text-muted);
+    padding:18px 18px 10px;
+  }
+  .log { flex:1; overflow:auto; padding:0 14px 14px; min-height:0; }
+  .ev {
+    display:flex; align-items:baseline; gap:10px;
+    padding:7px 10px; margin-bottom:5px;
+    border-radius:8px;
+    font-size:14px;
+    border-left:3px solid var(--border-subtle);
+    background:rgba(34,40,51,.3);
+    animation:evIn var(--dur-settle) var(--swoosh);
+  }
+  @keyframes evIn { from{opacity:0; transform:translateX(10px);} to{opacity:1; transform:translateX(0);} }
+  .ev .t { font-family:var(--mono); font-size:12px; color:var(--text-muted); flex:0 0 auto; }
+  .ev .msg { color:var(--text-secondary); }
+  .ev .msg b { color:var(--text-primary); font-weight:600; }
+
+  .legend { padding:14px 18px; border-top:1px solid var(--border-subtle); }
+  .legend-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px 12px; margin-top:8px; }
+  .leg {
+    display:flex; align-items:center; gap:8px;
+    font-size:13px; color:var(--text-muted);
+    cursor:pointer; user-select:none;
+    padding:4px 6px; border-radius:6px;
+    transition:background var(--dur-micro) var(--swoosh);
+  }
+  .leg:hover { background:var(--surface-strong); color:var(--text-secondary); }
+  .leg .sw { width:9px; height:9px; border-radius:50%; flex:0 0 auto; }
+  .leg .key {
+    font-family:var(--mono); font-size:11px; color:var(--text-muted);
+    border:1px solid var(--border-subtle); border-radius:4px;
+    padding:1px 5px; margin-left:auto;
+  }
+
+  /* ---------- footer: transport ---------- */
+  footer {
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    padding:14px 22px;
+    border-top:1px solid var(--border-subtle);
+    background:linear-gradient(0deg, rgba(24,28,34,.7), transparent);
+    backdrop-filter:blur(8px);
+  }
+  .btn {
+    font-family:var(--mono); font-size:13px; font-weight:600;
+    letter-spacing:.04em;
+    padding:8px 13px; border-radius:8px;
+    border:1px solid var(--border-default);
+    background:var(--surface-raised); color:var(--text-secondary);
+    cursor:pointer;
+    transition:border-color var(--dur-micro) var(--swoosh), color var(--dur-micro) var(--swoosh), transform var(--dur-micro) var(--snap);
+  }
+  .btn:hover { border-color:var(--brand-primary); color:var(--text-primary); }
+  .btn:active { transform:scale(.96); }
+  .btn:focus-visible { outline:2px solid var(--status-info); outline-offset:2px; }
+  .btn.danger { border-color:rgba(255,82,82,.5); color:var(--status-error); }
+  .btn.danger:hover { border-color:var(--mayday); }
+  .btn.primary { border-color:var(--brand-accent); color:var(--brand-accent); }
+  .foot-note {
+    font-size:13px; color:var(--text-muted); margin-left:auto;
+    font-style:italic;
+  }
+
+  /* ---------- reduced-motion banner ---------- */
+  .rm-note {
+    display:none;
+    font-family:var(--mono); font-size:12px; color:var(--status-warning);
+    border:1px solid rgba(224,166,75,.4); border-radius:6px;
+    padding:3px 9px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .rm-note { display:inline-flex; }
+    .lane.distress { animation:none; }
+    .sound-toggle.on .eq i { animation:none; height:60%; }
+    .ev { animation:none; }
+  }
+
+  /* first-gesture overlay */
+  .gate {
+    position:absolute; inset:0; z-index:50;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--scrim-backdrop);
+    backdrop-filter:blur(4px);
+  }
+  .gate-card {
+    max-width:440px; text-align:center;
+    background:var(--surface-overlay);
+    border:1px solid var(--border-default);
+    border-radius:16px; padding:34px 30px;
+  }
+  .gate-card h1 { font-size:24px; margin-bottom:10px; letter-spacing:-.01em; }
+  .gate-card h1 b { color:var(--brand-primary); }
+  .gate-card p { font-size:15px; color:var(--text-secondary); margin-bottom:8px; }
+  .gate-card .muted { color:var(--text-muted); font-size:14px; margin-bottom:22px; }
+  .gate-card code { font-family:var(--mono); font-size:13px; color:var(--brand-accent); }
+  .gate-card .start {
+    font-family:var(--mono); font-size:15px; font-weight:700; letter-spacing:.06em;
+    text-transform:uppercase;
+    padding:13px 26px; border-radius:10px;
+    border:1px solid var(--brand-accent); background:rgba(143,208,167,.1);
+    color:var(--brand-accent); cursor:pointer;
+    transition:transform var(--dur-micro) var(--snap), background var(--dur-micro) var(--swoosh);
+  }
+  .gate-card .start:hover { background:rgba(143,208,167,.18); transform:scale(1.02); }
+  .gate-card .start.silent { border-color:var(--border-default); color:var(--text-muted); background:transparent; margin-top:10px; }
+</style>
+</head>
+<body>
+<div class="stage">
+
+  <header>
+    <span class="brand">PORT&nbsp;<b>DADDY</b> · fleet breathing</span>
+    <span class="tagline">a soundscape you can hear the work in</span>
+    <span class="spacer"></span>
+
+    <div class="breath" id="breathMeter" title="Ambient bed breathes faster as the fleet works">
+      <span class="ring"></span><span id="breathRate">resting</span>
+    </div>
+
+    <div class="vol" id="volWrap" hidden>
+      <span>vol</span>
+      <input type="range" id="vol" min="0" max="100" value="55" aria-label="Master volume" />
+    </div>
+
+    <div class="sound-toggle" id="soundToggle" role="switch" aria-checked="false" tabindex="0"
+         title="Opt in to sound (WebAudio). Honors prefers-reduced-motion.">
+      <span class="eq"><i></i><i></i><i></i><i></i></span>
+      <span class="label" id="soundLabel">Sound off</span>
+    </div>
+  </header>
+
+  <div class="field">
+    <canvas id="biofield"></canvas>
+    <div class="fleet">
+      <section class="lanes" id="lanes">
+        <div class="lanes-title">Active worktrees &amp; agents · <span id="liveCount">0</span> live</div>
+        <!-- lanes injected -->
+      </section>
+
+      <aside class="rail">
+        <h3>Activity bus</h3>
+        <div class="log" id="log"></div>
+        <div class="legend">
+          <h3 style="padding:0 0 4px;">Cue legend · click to audition</h3>
+          <div class="legend-grid" id="legend"></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <footer>
+    <button class="btn" data-fire="comm">Comm blip</button>
+    <button class="btn" data-fire="laser">Inbox laser</button>
+    <button class="btn" data-fire="note">Note drop</button>
+    <button class="btn" data-fire="pheromone">Pheromone</button>
+    <button class="btn primary" data-fire="merge">Merge chime</button>
+    <button class="btn primary" data-fire="pr">PR swell</button>
+    <button class="btn" data-fire="spawn">Spawn agent</button>
+    <button class="btn" data-fire="wilco">Roger / done</button>
+    <button class="btn danger" data-fire="distress">Mayday</button>
+    <span class="rm-note">reduced-motion: sound forced muted, signal kept visual</span>
+    <span class="foot-note" id="footNote">press <b style="font-family:var(--mono)">space</b> to fire a random fleet event</span>
+  </footer>
+
+</div>
+
+<!-- ============ first-gesture gate ============ -->
+<div class="gate" id="gate">
+  <div class="gate-card">
+    <h1>Hear the <b>fleet</b> working</h1>
+    <p>A WebAudio soundscape wired to a live fleet: comm blips, a merge bell,
+       a distress klaxon, and an ambient bed that <em>breathes faster as agents work</em>.</p>
+    <p class="muted">Sound is opt-in and mutable. <code>prefers-reduced-motion</code> keeps it silent and frozen.</p>
+    <button class="start" id="startSound">Start with sound</button><br/>
+    <button class="start silent" id="startSilent">Watch silently</button>
+  </div>
+</div>
+
+<script>
+/* ==================================================================
+   FLEET BREATHING — sound-first Port Daddy soundscape (motif study)
+
+   Architecture:
+     - SoundEngine: a single AudioContext, master gain ≤0.18, an
+       always-running "breath bed" (2 sines + brown noise → lowpass
+       → LFO-modulated gain), and one-shot synthesised cues. Every
+       envelope ramps (no setValueAtTime to/from 0) so there are no
+       clicks. Cues debounced @80ms, ≤6 concurrent voices.
+     - Fleet model: real PD concepts — worktrees, agents/sessions,
+       pheromones, merges/PRs, notes/inbox, mayday.
+     - Biofield canvas: minimal pooled-particle overlay (fireflies +
+       ripples + lasers + merge bursts). One rAF loop, dpr-capped,
+       paused off-screen. Reduced-motion => loop never starts.
+     - Every event flips a DOM class/color too, so the signal is
+       legible even frozen & silent.
+   ================================================================== */
+
+"use strict";
+
+const RM = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* ---------------- token reader (so JS hues match CSS canon) -------- */
+const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const HUE = {
+  accent: css("--brand-accent") || "#8fd0a7",
+  primary: css("--brand-primary") || "#7db4ff",
+  info: css("--status-info") || "#7db4ff",
+  hot: css("--ph-hot") || "#e0a64b",
+  recent: css("--ph-recent") || "#7db4ff",
+  blocked: css("--ph-blocked") || "#a99bff",
+  fail: css("--ph-fail") || "#ff7d7d",
+  mayday: css("--mayday") || "#ff5252",
+  success: css("--status-success") || "#66d28a",
+  cold: css("--ph-cold") || "#8c8576",
+};
+
+/* ===================================================================
+   SOUND ENGINE
+   =================================================================== */
+const Sound = (() => {
+  let ctx = null, master = null;
+  let on = false, volume = 0.55;        // 0..1 user dial, scaled into ≤0.18 cap
+  const CAP = 0.18;
+  let bed = null;                        // breath bed nodes
+  let activity = 0;                       // 0..1 fleet intensity (drives breath)
+  let voices = 0;                         // concurrent one-shot voices
+  const MAX_VOICES = 6;
+  const lastFired = new Map();            // cue debounce
+
+  function ensure() {
+    if (ctx) return;
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    master = ctx.createGain();
+    master.gain.value = 0;                // ramp up on enable
+    master.connect(ctx.destination);
+  }
+
+  function gainTarget() { return on ? CAP * volume : 0; }
+
+  function setVolume(v) {
+    volume = Math.max(0, Math.min(1, v));
+    if (master && ctx) {
+      master.gain.cancelScheduledValues(ctx.currentTime);
+      master.gain.linearRampToValueAtTime(gainTarget(), ctx.currentTime + 0.15);
+    }
+  }
+
+  /* ---- the breath bed: the heart of the room ---- */
+  function startBed() {
+    if (bed || !ctx) return;
+    const bedGain = ctx.createGain(); bedGain.gain.value = 0.0;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass"; filter.frequency.value = 240; filter.Q.value = 0.7;
+
+    // two low sines (C2 ~65.4, G2 ~98) + brown noise for body
+    const oscA = ctx.createOscillator(); oscA.type = "sine"; oscA.frequency.value = 65.41;
+    const oscB = ctx.createOscillator(); oscB.type = "sine"; oscB.frequency.value = 98.0;
+    const oscGain = ctx.createGain(); oscGain.gain.value = 0.5;
+    oscA.connect(oscGain); oscB.connect(oscGain); oscGain.connect(filter);
+
+    // brown noise
+    const bufSize = 2 * ctx.sampleRate;
+    const noiseBuf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+    const data = noiseBuf.getChannelData(0);
+    let last = 0;
+    for (let i = 0; i < bufSize; i++) {
+      const white = Math.random() * 2 - 1;
+      data[i] = (last + 0.02 * white) / 1.02; last = data[i]; data[i] *= 3.0;
+    }
+    const noise = ctx.createBufferSource(); noise.buffer = noiseBuf; noise.loop = true;
+    const noiseGain = ctx.createGain(); noiseGain.gain.value = 0.12;
+    noise.connect(noiseGain); noiseGain.connect(filter);
+
+    filter.connect(bedGain); bedGain.connect(master);
+
+    // breath LFO — modulates bed gain so the room inhales/exhales
+    const lfo = ctx.createOscillator(); lfo.type = "sine"; lfo.frequency.value = 0.10;
+    const lfoDepth = ctx.createGain(); lfoDepth.gain.value = 0.22;
+    const lfoBase = ctx.createConstantSource(); lfoBase.offset.value = 0.30;
+    lfo.connect(lfoDepth); lfoDepth.connect(bedGain.gain); lfoBase.connect(bedGain.gain);
+
+    oscA.start(); oscB.start(); noise.start(); lfo.start(); lfoBase.start();
+    bed = { bedGain, filter, lfo, lfoBase, lfoDepth };
+  }
+
+  // fleet activity -> breath rate + filter openness, ramped over 4s (no clicks)
+  function setActivity(a) {
+    activity = Math.max(0, Math.min(1, a));
+    if (!bed || !ctx) return;
+    const t = ctx.currentTime;
+    const rate = 0.08 + activity * 0.07;      // 0.08–0.15 Hz
+    const cutoff = 200 + activity * 700;      // 200–900 Hz
+    bed.lfo.frequency.cancelScheduledValues(t);
+    bed.lfo.frequency.linearRampToValueAtTime(rate, t + 4);
+    bed.filter.frequency.cancelScheduledValues(t);
+    bed.filter.frequency.linearRampToValueAtTime(cutoff, t + 4);
+  }
+  const getRate = () => 0.08 + activity * 0.07;
+
+  function enable() {
+    ensure();
+    if (ctx.state === "suspended") ctx.resume();
+    on = true;
+    startBed();
+    master.gain.cancelScheduledValues(ctx.currentTime);
+    master.gain.linearRampToValueAtTime(gainTarget(), ctx.currentTime + 0.4);
+  }
+  function disable() {
+    on = false;
+    if (master && ctx) {
+      master.gain.cancelScheduledValues(ctx.currentTime);
+      master.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.25);
+    }
+  }
+
+  /* ---- one-shot voice primitives (all ramped) ---- */
+  function blip(freq, dur, type, peak, when = 0, dest = master) {
+    if (!on || !ctx) return;
+    if (voices >= MAX_VOICES) return;
+    voices++;
+    const o = ctx.createOscillator(), gn = ctx.createGain();
+    o.type = type; o.frequency.value = freq;
+    const t = ctx.currentTime + when;
+    gn.gain.setValueAtTime(0.0001, t);
+    gn.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), t + 0.008);
+    gn.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(gn).connect(dest);
+    o.start(t); o.stop(t + dur + 0.02);
+    o.onended = () => { voices = Math.max(0, voices - 1); };
+  }
+
+  function sweep(f0, f1, dur, type, peak, cutoff) {
+    if (!on || !ctx || voices >= MAX_VOICES) return;
+    voices++;
+    const o = ctx.createOscillator(), gn = ctx.createGain(), lp = ctx.createBiquadFilter();
+    lp.type = "lowpass"; lp.frequency.value = cutoff || 2000;
+    o.type = type;
+    const t = ctx.currentTime;
+    o.frequency.setValueAtTime(f0, t);
+    o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    gn.gain.setValueAtTime(0.0001, t);
+    gn.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), t + 0.01);
+    gn.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(gn).connect(lp).connect(master);
+    o.start(t); o.stop(t + dur + 0.02);
+    o.onended = () => { voices = Math.max(0, voices - 1); };
+  }
+
+  function noiseBurst(dur, lpFrom, lpTo, peak, Q) {
+    if (!on || !ctx || voices >= MAX_VOICES) return;
+    voices++;
+    const len = Math.ceil(ctx.sampleRate * dur);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const bp = ctx.createBiquadFilter(); bp.type = "lowpass"; bp.Q.value = Q || 1;
+    const gn = ctx.createGain();
+    const t = ctx.currentTime;
+    bp.frequency.setValueAtTime(lpFrom, t);
+    bp.frequency.linearRampToValueAtTime(lpTo, t + dur);
+    gn.gain.setValueAtTime(0.0001, t);
+    gn.gain.linearRampToValueAtTime(peak, t + 0.01);
+    gn.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(bp).connect(gn).connect(master);
+    src.start(t); src.stop(t + dur);
+    src.onended = () => { voices = Math.max(0, voices - 1); };
+  }
+
+  /* ---- the cue vocabulary (maritime grammar, red=failure only) ---- */
+  function debounced(key) {
+    const now = performance.now();
+    if ((lastFired.get(key) || 0) + 80 > now) return true;
+    lastFired.set(key, now); return false;
+  }
+
+  const cues = {
+    comm(hash = 0) {                 // soft sine bloop, pitch from agent hash
+      if (debounced("comm")) return;
+      blip(320 + (hash % 200), 0.09, "sine", 0.12);
+    },
+    laser() {                        // quick upward zip
+      if (debounced("laser")) return;
+      sweep(400, 900, 0.14, "sine", 0.10, 2000);
+    },
+    note() {                         // dry wooden tok + noise click
+      if (debounced("note")) return;
+      blip(180, 0.07, "triangle", 0.11);
+      noiseBurst(0.05, 1400, 800, 0.05, 8);
+    },
+    pheromone() {                    // breath of filtered noise
+      if (debounced("pheromone")) return;
+      noiseBurst(0.2, 600, 200, 0.045, 1);
+    },
+    merge() {                        // warm major-third bell E5→G#5 + octave
+      [659.25, 830.61, 1318.5].forEach((f, i) =>
+        blip(f, 0.6, "sine", 0.10 - i * 0.025, i * 0.03));
+    },
+    pr() {                           // shimmer pad swell (3 detuned saws)
+      if (!on || !ctx || voices >= MAX_VOICES) return;
+      voices++;
+      const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 1400;
+      const gn = ctx.createGain();
+      const t = ctx.currentTime;
+      gn.gain.setValueAtTime(0.0001, t);
+      gn.gain.linearRampToValueAtTime(0.07, t + 0.4);
+      gn.gain.exponentialRampToValueAtTime(0.0001, t + 0.8);
+      [392, 392 * 1.005, 392 * 0.995].forEach((f) => {
+        const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.value = f;
+        o.connect(gn);
+        o.start(t); o.stop(t + 0.82);
+      });
+      gn.connect(lp).connect(master);
+      setTimeout(() => { voices = Math.max(0, voices - 1); }, 850);
+    },
+    spawn() {                        // rising 3-note arpeggio (perfect 4ths)
+      [523.25, 698.46, 932.33].forEach((f, i) =>
+        setTimeout(() => blip(f, 0.18, "sine", 0.10), i * 120));
+    },
+    wilco() {                        // content single ding, G5
+      blip(783.99, 0.3, "sine", 0.11);
+    },
+    pan() {                          // pan-pan: descending wronk
+      sweep(500, 380, 0.26, "sawtooth", 0.10, 1500);
+    },
+    distress() {                     // MAYDAY: two-tone minor-second alt × 3
+      // mute the bed for ~1s so the alarm lands in silence
+      if (bed && ctx) {
+        const t = ctx.currentTime;
+        bed.bedGain.gain.cancelScheduledValues(t);
+        bed.bedGain.gain.setValueAtTime(Math.max(0.0001, bed.bedGain.gain.value), t);
+        bed.bedGain.gain.linearRampToValueAtTime(0.0001, t + 0.1);
+        bed.bedGain.gain.linearRampToValueAtTime(0.30, t + 1.4);
+      }
+      for (let i = 0; i < 3; i++) {
+        setTimeout(() => {
+          blip(660, 0.13, "square", 0.16);
+          setTimeout(() => blip(700, 0.13, "square", 0.16), 140);
+        }, i * 300);
+      }
+    },
+  };
+
+  return {
+    enable, disable, setVolume, setActivity, getRate,
+    isOn: () => on, cues,
+    get ctx() { return ctx; },
+  };
+})();
+
+/* ===================================================================
+   FLEET MODEL — real Port Daddy concepts
+   =================================================================== */
+const AGENTS = [
+  { id: "gardener",      wt: "wt/garden-triage",  hash: 17 },
+  { id: "qa-adversary",  wt: "wt/qa-redteam",     hash: 88 },
+  { id: "cartographer",  wt: "wt/roadmap-matrix", hash: 41 },
+  { id: "documentarian", wt: "wt/adr-0046",       hash: 63 },
+  { id: "spark",         wt: "wt/tube-router",    hash: 29 },
+  { id: "navigator",     wt: "main",              hash: 5  },
+];
+
+// minimal verbs grounded in PD primitives (structured, not NLP)
+const VERBS = {
+  comm:      (a) => `${a.id} broadcast on coordination channel`,
+  laser:     (a, b) => `${a.id} → ${b.id} inbox DM`,
+  note:      (a) => `${a.id} dropped a scope note`,
+  pheromone: (a) => `${a.id} deposited pheromone on ${a.wt}`,
+  merge:     (a) => `${a.wt} merged into main`,
+  pr:        (a) => `${a.id} opened PR on ${a.wt}`,
+  spawn:     (a) => `spawned ${a.id} on ${a.wt}`,
+  wilco:     (a) => `${a.id} acked: session done`,
+  distress:  (a) => `MAYDAY — ${a.id} stranded on ${a.wt}`,
+};
+
+const PH = {
+  comm: HUE.recent, laser: HUE.info, note: HUE.success, pheromone: HUE.hot,
+  merge: HUE.primary, pr: HUE.info, spawn: HUE.accent, wilco: HUE.success,
+  distress: HUE.mayday,
+};
+
+/* ===================================================================
+   DOM: lanes, log, legend
+   =================================================================== */
+const lanesEl = document.getElementById("lanes");
+const liveCountEl = document.getElementById("liveCount");
+const logEl = document.getElementById("log");
+const legendEl = document.getElementById("legend");
+
+const laneEls = new Map(); // agentId -> {el, dot, what}
+
+function buildLanes() {
+  AGENTS.forEach((a) => {
+    const el = document.createElement("div");
+    el.className = "lane";
+    el.innerHTML =
+      `<span class="dot"></span>
+       <div class="meta">
+         <div class="who">${a.id}</div>
+         <div class="what">${a.wt} · idle</div>
+       </div>
+       <span class="badge">${a.wt === "main" ? "MAIN" : "WORKTREE"}</span>`;
+    lanesEl.appendChild(el);
+    laneEls.set(a.id, { el, dot: el.querySelector(".dot"), what: el.querySelector(".what") });
+  });
+  liveCountEl.textContent = AGENTS.length;
+}
+
+const CUE_LIST = [
+  ["comm", "Comm blip", HUE.recent, "1"],
+  ["laser", "Inbox laser", HUE.info, "2"],
+  ["note", "Note drop", HUE.success, "3"],
+  ["pheromone", "Pheromone", HUE.hot, "4"],
+  ["merge", "Merge chime", HUE.primary, "5"],
+  ["pr", "PR swell", HUE.info, "6"],
+  ["spawn", "Spawn agent", HUE.accent, "7"],
+  ["wilco", "Roger / done", HUE.success, "8"],
+  ["distress", "Mayday klaxon", HUE.mayday, "9"],
+];
+
+function buildLegend() {
+  CUE_LIST.forEach(([kind, label, hue, key]) => {
+    const el = document.createElement("div");
+    el.className = "leg";
+    el.innerHTML = `<span class="sw" style="background:${hue}"></span><span>${label}</span><span class="key">${key}</span>`;
+    el.addEventListener("click", () => fire(kind));
+    legendEl.appendChild(el);
+  });
+}
+
+function logEvent(kind, text) {
+  const el = document.createElement("div");
+  el.className = "ev";
+  el.style.borderLeftColor = PH[kind] || HUE.cold;
+  const t = new Date().toLocaleTimeString([], { hour12: false });
+  el.innerHTML = `<span class="t">${t}</span><span class="msg">${text}</span>`;
+  logEl.prepend(el);
+  while (logEl.children.length > 40) logEl.lastChild.remove();
+}
+
+/* ===================================================================
+   BIOFIELD CANVAS — minimal pooled-particle overlay
+   =================================================================== */
+const canvas = document.getElementById("biofield");
+const g = canvas.getContext("2d");
+let DPR = Math.min(window.devicePixelRatio || 1, 2);
+let W = 0, H = 0;
+let glowSprite = null;
+
+function resize() {
+  const r = canvas.parentElement.getBoundingClientRect();
+  W = r.width; H = r.height;
+  canvas.width = Math.max(1, W * DPR); canvas.height = Math.max(1, H * DPR);
+  canvas.style.width = W + "px"; canvas.style.height = H + "px";
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+
+// pre-bake firefly glow sprite once
+function bakeGlow() {
+  const s = 48;
+  const c = document.createElement("canvas"); c.width = s; c.height = s;
+  const cg = c.getContext("2d");
+  const grad = cg.createRadialGradient(s/2, s/2, 0, s/2, s/2, s/2);
+  grad.addColorStop(0, "rgba(143,208,167,0.9)");
+  grad.addColorStop(0.4, "rgba(143,208,167,0.35)");
+  grad.addColorStop(1, "rgba(143,208,167,0)");
+  cg.fillStyle = grad; cg.fillRect(0, 0, s, s);
+  glowSprite = c;
+}
+
+// fireflies — one per agent, hover near their lane anchor
+const fireflies = AGENTS.map((a) => ({
+  id: a.id, seed: a.hash, idle: true,
+  x: 0, y: 0, ax: 0, ay: 0,
+}));
+
+function anchorFor(id) {
+  const le = laneEls.get(id);
+  if (!le) return { x: W * 0.3, y: H * 0.5 };
+  const lr = le.el.getBoundingClientRect();
+  const fr = canvas.getBoundingClientRect();
+  return { x: lr.left - fr.left + 24, y: lr.top - fr.top + lr.height / 2 };
+}
+
+// pooled short-lived particles: ripples, lasers, bursts, leaves
+const parts = [];
+const MAX_PARTS = 200;
+function spawnPart(p) { if (parts.length < MAX_PARTS) parts.push(p); }
+
+function ripple(x, y, hue) {
+  for (let i = 0; i < 3; i++)
+    spawnPart({ type: "ripple", x, y, hue, t: -i * 0.12, life: 0.8, r0: 0, r1: 48 });
+}
+function laser(x0, y0, x1, y1, hue) {
+  spawnPart({ type: "laser", x0, y0, x1, y1, hue, t: 0, life: 0.36 });
+}
+function burst(x, y) {
+  spawnPart({ type: "flash", x, y, t: 0, life: 0.24 });
+  const n = 8 + Math.floor(Math.random() * 5);
+  for (let i = 0; i < n; i++) {
+    const ang = Math.random() * Math.PI * 2, sp = 1 + Math.random() * 2.5;
+    spawnPart({ type: "spark", x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, t: 0, life: 0.4 });
+  }
+}
+function leaf(x, y, hue) {
+  spawnPart({ type: "leaf", x, y, vx: (Math.random() - 0.5) * 0.6, vy: 0, sway: Math.random() * 6, hue, t: 0, life: 2.2 });
+}
+
+let running = false, last = 0;
+function loop(now) {
+  if (!running) return;
+  const dt = Math.min(0.05, (now - last) / 1000 || 0.016); last = now;
+  const time = now / 1000;
+  g.clearRect(0, 0, W, H);
+
+  // fireflies
+  g.globalCompositeOperation = "lighter";
+  fireflies.forEach((f) => {
+    const a = anchorFor(f.id);
+    // layered value-noise drift + gentle seek to anchor
+    const dx = Math.sin(time * 0.7 + f.seed) * 6 + Math.sin(time * 0.23 + f.seed * 3) * 12;
+    const dy = Math.cos(time * 0.6 + f.seed * 2) * 6 + Math.sin(time * 0.31 + f.seed) * 9;
+    const tx = a.x + dx, ty = a.y + dy;
+    if (!f.x) { f.x = tx; f.y = ty; }
+    f.ax += (tx - f.x) * 0.04; f.ax *= 0.85; f.x += f.ax * 0.4;
+    f.ay += (ty - f.y) * 0.04; f.ay *= 0.85; f.y += f.ay * 0.4;
+    const breathe = 0.55 + 0.45 * Math.sin(time * 1.6 + f.seed);
+    const alpha = (f.idle ? 0.3 : 1) * breathe;
+    const size = (f.idle ? 16 : 26);
+    g.globalAlpha = Math.max(0, alpha);
+    if (glowSprite) g.drawImage(glowSprite, f.x - size/2, f.y - size/2, size, size);
+  });
+  g.globalAlpha = 1;
+
+  // particles
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i];
+    p.t += dt;
+    if (p.t < 0) continue;
+    const k = p.t / p.life; // 0..1
+    if (k >= 1) { parts.splice(i, 1); continue; }
+
+    if (p.type === "ripple") {
+      const ease = 1 - Math.pow(1 - k, 3); // swoosh-ish
+      const r = p.r0 + (p.r1 - p.r0) * ease;
+      g.globalCompositeOperation = "lighter";
+      g.strokeStyle = p.hue; g.globalAlpha = 0.5 * (1 - k);
+      g.lineWidth = 2 * (1 - k) + 0.3;
+      g.beginPath(); g.arc(p.x, p.y, r, 0, Math.PI * 2); g.stroke();
+    } else if (p.type === "laser") {
+      g.globalCompositeOperation = "lighter";
+      // afterglow
+      g.strokeStyle = p.hue; g.globalAlpha = 0.15 * (1 - k); g.lineWidth = 1.5;
+      g.beginPath(); g.moveTo(p.x0, p.y0); g.lineTo(p.x1, p.y1); g.stroke();
+      // traveling bright segment
+      const ease = 1 - Math.pow(1 - k, 3);
+      const hx = p.x0 + (p.x1 - p.x0) * ease, hy = p.y0 + (p.y1 - p.y0) * ease;
+      const sx = p.x0 + (p.x1 - p.x0) * Math.max(0, ease - 0.18), sy = p.y0 + (p.y1 - p.y0) * Math.max(0, ease - 0.18);
+      g.globalAlpha = 0.9; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(sx, sy); g.lineTo(hx, hy); g.stroke();
+    } else if (p.type === "flash") {
+      const sc = 0.2 + 2.2 * k;
+      g.globalCompositeOperation = "lighter";
+      g.globalAlpha = 1 - k;
+      const grd = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, 30 * sc);
+      grd.addColorStop(0, "rgba(255,255,255,0.95)");
+      grd.addColorStop(0.5, HUE.primary);
+      grd.addColorStop(1, "rgba(125,180,255,0)");
+      g.fillStyle = grd;
+      g.beginPath(); g.arc(p.x, p.y, 30 * sc, 0, Math.PI * 2); g.fill();
+    } else if (p.type === "spark") {
+      p.vy += 0.05 * 60 * dt; p.vx *= 0.96; p.vy *= 0.96;
+      p.x += p.vx; p.y += p.vy;
+      g.globalCompositeOperation = "lighter";
+      g.globalAlpha = 1 - k; g.fillStyle = HUE.primary;
+      g.beginPath(); g.arc(p.x, p.y, 2, 0, Math.PI * 2); g.fill();
+    } else if (p.type === "leaf") {
+      p.vy = Math.min(2.2, p.vy + 0.12); // gravity, terminal
+      p.x += Math.sin(time * 2.2) * (1.4 * (1 - k)) + p.vx;
+      p.y += p.vy;
+      const rot = Math.sin(time * 1.8 + p.sway) * 0.32;
+      g.globalCompositeOperation = "source-over";
+      g.globalAlpha = 0.7 * (1 - k * 0.6);
+      g.save(); g.translate(p.x, p.y); g.rotate(rot);
+      g.fillStyle = p.hue;
+      g.beginPath(); g.ellipse(0, 0, 5, 2.4, 0, 0, Math.PI * 2); g.fill();
+      g.restore();
+    }
+  }
+  g.globalAlpha = 1; g.globalCompositeOperation = "source-over";
+  requestAnimationFrame(loop);
+}
+
+function startLoop() {
+  if (RM || running) return;
+  running = true; last = performance.now();
+  requestAnimationFrame(loop);
+}
+
+/* pause when off-screen */
+const io = new IntersectionObserver((ents) => {
+  ents.forEach((e) => {
+    if (e.isIntersecting && !RM) { if (!running) startLoop(); }
+    else { running = false; }
+  });
+});
+
+/* ===================================================================
+   EVENT ORCHESTRATION — the bridge: every fire() does
+   sound + DOM-class + canvas, and updates fleet activity.
+   =================================================================== */
+let activityScore = 0;
+
+function pickAgent(exclude) {
+  let a;
+  do { a = AGENTS[Math.floor(Math.random() * AGENTS.length)]; }
+  while (exclude && a.id === exclude.id);
+  return a;
+}
+
+function describeState(kind) {
+  return {
+    comm: "broadcasting", laser: "messaging", note: "noting",
+    pheromone: "depositing", merge: "merged ✓", pr: "PR open",
+    spawn: "spawned", wilco: "done", distress: "MAYDAY",
+  }[kind] || "working";
+}
+
+function fire(kind, agentArg) {
+  const a = agentArg || pickAgent();
+  const hue = PH[kind] || HUE.cold;
+  const anchor = anchorFor(a.id);
+
+  // --- sound ---
+  if (kind === "comm") Sound.cues.comm(a.hash);
+  else if (Sound.cues[kind]) Sound.cues[kind]();
+
+  // --- DOM signal (always legible, even silent/frozen) ---
+  const le = laneEls.get(a.id);
+  if (le) {
+    le.dot.style.background = hue;
+    le.dot.style.boxShadow = `0 0 0 4px ${hue}33`;
+    le.el.classList.remove("idle");
+    le.el.classList.add(kind === "distress" ? "distress" : "flash");
+    le.what.textContent = `${a.wt} · ${describeState(kind)}`;
+    clearTimeout(le._to);
+    le._to = setTimeout(() => {
+      le.el.classList.remove("flash", "distress");
+      le.dot.style.boxShadow = "none";
+    }, kind === "distress" ? 1200 : 700);
+  }
+
+  // --- canvas choreography (skipped frozen under reduced-motion) ---
+  let laserTarget = null;
+  if (kind === "laser") laserTarget = pickAgent(a);
+  if (!RM && running) {
+    if (kind === "comm" || kind === "pheromone" || kind === "wilco") ripple(anchor.x, anchor.y, hue);
+    else if (kind === "laser") {
+      const bAnchor = anchorFor(laserTarget.id);
+      laser(anchor.x, anchor.y, bAnchor.x, bAnchor.y, hue);
+    }
+    else if (kind === "note") leaf(anchor.x, anchor.y, hue);
+    else if (kind === "merge" || kind === "pr") burst(anchor.x, anchor.y);
+    else if (kind === "spawn") { ripple(anchor.x, anchor.y, hue); burst(anchor.x, anchor.y); }
+    else if (kind === "distress") { for (let i = 0; i < 3; i++) setTimeout(() => ripple(anchor.x, anchor.y, hue), i * 200); }
+  }
+
+  // --- log + activity ---
+  let text;
+  if (kind === "laser") text = VERBS.laser(a, laserTarget || pickAgent(a));
+  else text = VERBS[kind] ? VERBS[kind](a) : `${a.id} ${kind}`;
+  logEvent(kind, kind === "distress" ? `<b style="color:${HUE.mayday}">${text}</b>` : text);
+
+  // bump fleet activity (decays in tick())
+  const bump = kind === "merge" || kind === "pr" ? 0.3 : kind === "distress" ? 0.5 : 0.15;
+  activityScore = Math.min(1, activityScore + bump);
+  Sound.setActivity(activityScore);
+}
+
+/* activity decay + breath meter UI */
+const breathMeter = document.getElementById("breathMeter");
+const breathRate = document.getElementById("breathRate");
+let breathPhase = 0;
+function tick() {
+  activityScore = Math.max(0, activityScore - 0.012);
+  Sound.setActivity(activityScore);
+  // breath meter pulse synced to logical rate
+  const rate = Sound.getRate(); // 0.08–0.15 Hz
+  breathPhase += rate * 0.1 * 2;
+  if (Math.sin(breathPhase) > 0.6) breathMeter.classList.add("in");
+  else breathMeter.classList.remove("in");
+  breathRate.textContent =
+    activityScore > 0.6 ? "fast · busy" :
+    activityScore > 0.25 ? "steady" : "resting";
+  setTimeout(tick, 100);
+}
+
+/* ===================================================================
+   AUTONOMOUS FLEET — emit realistic events so the room is alive
+   =================================================================== */
+let autoTimer = null;
+const WEIGHTED = [
+  ...Array(8).fill("comm"), ...Array(5).fill("laser"), ...Array(5).fill("note"),
+  ...Array(6).fill("pheromone"), ...Array(2).fill("merge"), ...Array(2).fill("pr"),
+  ...Array(2).fill("spawn"), ...Array(3).fill("wilco"), "distress",
+];
+function autoLoop() {
+  const kind = WEIGHTED[Math.floor(Math.random() * WEIGHTED.length)];
+  fire(kind);
+  // toggle some fireflies active for variety
+  fireflies.forEach((f) => { if (Math.random() < 0.25) f.idle = !f.idle; });
+  autoTimer = setTimeout(autoLoop, 700 + Math.random() * 1800);
+}
+
+/* ===================================================================
+   WIRING
+   =================================================================== */
+const soundToggle = document.getElementById("soundToggle");
+const soundLabel = document.getElementById("soundLabel");
+const volWrap = document.getElementById("volWrap");
+const volEl = document.getElementById("vol");
+
+function reflectSound() {
+  const isOn = Sound.isOn();
+  soundToggle.classList.toggle("on", isOn);
+  soundToggle.setAttribute("aria-checked", String(isOn));
+  soundLabel.textContent = isOn ? "Sound on" : "Sound off";
+  volWrap.hidden = !isOn;
+}
+
+function toggleSound() {
+  if (RM) {                       // reduced-motion forces muted
+    soundLabel.textContent = "muted (reduced-motion)";
+    return;
+  }
+  if (Sound.isOn()) { Sound.disable(); try { localStorage.setItem("pd_sound", "0"); } catch (e) {} }
+  else { Sound.enable(); try { localStorage.setItem("pd_sound", "1"); } catch (e) {} }
+  reflectSound();
+}
+
+soundToggle.addEventListener("click", toggleSound);
+soundToggle.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleSound(); }
+});
+volEl.addEventListener("input", () => Sound.setVolume(volEl.value / 100));
+
+document.querySelectorAll("[data-fire]").forEach((b) =>
+  b.addEventListener("click", () => fire(b.dataset.fire)));
+
+document.addEventListener("keydown", (e) => {
+  if (e.target.tagName === "INPUT") return;
+  const map = { "1": "comm", "2": "laser", "3": "note", "4": "pheromone",
+    "5": "merge", "6": "pr", "7": "spawn", "8": "wilco", "9": "distress" };
+  if (map[e.key]) { e.preventDefault(); fire(map[e.key]); }
+  else if (e.key === " ") {
+    e.preventDefault();
+    fire(WEIGHTED[Math.floor(Math.random() * WEIGHTED.length)]);
+  }
+});
+
+/* gate (first gesture unlocks audio per autoplay policy) */
+const gate = document.getElementById("gate");
+function dismissGate(withSound) {
+  gate.style.display = "none";
+  if (withSound && !RM) { Sound.enable(); reflectSound(); }
+  Sound.setVolume(volEl.value / 100);
+  autoLoop();
+}
+document.getElementById("startSound").addEventListener("click", () => dismissGate(true));
+document.getElementById("startSilent").addEventListener("click", () => dismissGate(false));
+
+/* boot */
+function boot() {
+  buildLanes(); buildLegend(); bakeGlow(); resize();
+  io.observe(canvas);
+  if (!RM) startLoop();
+  tick();
+  window.addEventListener("resize", () => { DPR = Math.min(window.devicePixelRatio || 1, 2); resize(); });
+  reflectSound();
+  if (RM) {
+    soundLabel.textContent = "muted (reduced-motion)";
+    document.getElementById("footNote").innerHTML =
+      "reduced-motion: events still log + recolor lanes, no audio";
+  }
+}
+boot();
+</script>
+</body>
+</html>

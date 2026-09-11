@@ -36,7 +36,7 @@ From this foundation, epistemic reasoning becomes tractable. If camera A can see
 
 When designing agent systems, we typically think of agents as having abstract "knowledge" that they share via messages. The geometric grounding suggests a different architecture: agents should be designed with explicit models of their perceptual limitations.
 
-For a WinDAGs agent system, this means:
+For a Jury-rig agent system, this means:
 - Each agent should maintain a model of what it can and cannot observe
 - The orchestration layer should reason about which agents are *positioned* (metaphorically or literally) to acquire needed information
 - Task decomposition should consider perceptual accessibility, not just computational capability

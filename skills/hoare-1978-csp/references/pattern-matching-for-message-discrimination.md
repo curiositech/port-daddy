@@ -253,7 +253,7 @@ If the sender sends `insert("abc")` (string instead of integer), the types don't
 
 If the sender sends `has(5)` (wrong constructor), the pattern match fails at runtime—but this is also detectable statically if the protocol is specified.
 
-**For WinDAGs**: Skill interfaces should be typed:
+**For Jury-rig**: Skill interfaces should be typed:
 
 ```
 skill_interface(analyzer) = {
@@ -292,7 +292,7 @@ Pattern matching transforms how we think about agent coordination:
 
 This makes coordination **declarative**. The receiver declares what it can handle. The sender declares what it sends. The system checks compatibility.
 
-For WinDAGs:
+For Jury-rig:
 1. **Each skill declares input patterns**: "I accept analyze_code(string, map) and configure(map)"
 2. **Orchestrator ensures sends match**: Before invoking a skill, check that the message matches one of its input patterns
 3. **Runtime detects violations**: If a mismatch occurs (sender changed, receiver changed, orchestrator bug), the system fails explicitly rather than silently

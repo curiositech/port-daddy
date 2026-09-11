@@ -1,0 +1,47 @@
+% TEMPLATE: state machine with guards (states and guarded transitions).
+% One spine of states, every transition named once in a single gutter, guarded
+% transitions carrying a numbered badge keyed to the legend below the rule.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\dy{1.32}   % state pitch; transitions are named at the half-pitch
+  \def\sx{4.10}   % the spine
+  \def\gx{2.45}   % right edge of the naming gutter
+  \def\R{10.90}   % right margin
+  \node[pd focus state,minimum width=2.9cm] (S0) at (\sx,{3*\dy}) {requested};
+  \node[pd focus state,minimum width=2.9cm] (S1) at (\sx,{2*\dy}) {admitted};
+  \node[pd focus state,minimum width=2.9cm] (S2) at (\sx,{1*\dy}) {witnessed};
+  \node[pd terminal,minimum width=2.9cm]    (S3) at (\sx,0)       {settled};
+  \foreach \a/\b in {S0/S1,S1/S2,S2/S3}{\draw[pd focus arrow] (\a)--(\b);}
+  \foreach \i/\t in {2.5/admit, 1.5/witness, 0.5/settle}{
+    \node[pd label,anchor=east] at ({\gx-.55},{\i*\dy}) {\t};}
+  \foreach \i/\n in {2.5/1, 0.5/2}{\node[pd badge] at ({\gx-.22},{\i*\dy}) {\n};}
+  % the one branch that leaves the honest path
+  \node[pd breach state,minimum width=2.3cm] (X) at (1.30,-1.05) {refused};
+  \draw[pd breach arrow,rounded corners=3pt]
+    (S1.west) -- (0.15,{2*\dy}) -- (0.15,-1.05) -- (X.west);
+  % what the machine writes, one rank down, in a second concept hue
+  \node[pd legible state,minimum width=3.6cm] (J) at (8.70,{2*\dy}) {effect journal};
+  \node[pd legible state,minimum width=3.6cm] (R) at (8.70,{1*\dy}) {receipt journal};
+  \draw[pd thin arrow] (S1.east) -- (J.west);
+  \draw[pd thin arrow] (S2.east) -- (R.west);
+  % ---- the legend: each guard, its predicate, what breaks without it ------
+  \def\ly{-2.10}
+  \draw[pd rule] (0,\ly) -- (\R,\ly);
+  \node[pd title,anchor=north west] at (.05,{\ly-.16}) {guard};
+  \node[pd title,anchor=north west] at (5.30,{\ly-.16}) {what breaks without it};
+  \draw[pd hairline] (0,{\ly-.62}) -- (\R,{\ly-.62});
+  \foreach \i/\n/\g/\c in {0/1/{admit: current epoch}/{the stale write},
+                           1/2/{settle: funded and receipted}/{the double payout}}{
+    \node[pd badge] at (.28,{\ly-.98-\i*.60}) {\n};
+    \node[pd label,anchor=west,align=left] at (.62,{\ly-.98-\i*.60}) {\g};
+    \node[pd label,anchor=west,align=left,text=pderror] at (5.30,{\ly-.98-\i*.60}) {\c};}
+\end{tikzpicture}
+\caption{A guarded state machine: four states down the spine, the two guarded
+transitions numbered, and the journals each transition writes on the right in
+teal. Refused (red) is the one state off the honest path. The legend gives each
+guard's predicate and the failure a checker constructs when the guard is
+removed. [internal]}
+\label{fig:tpl-state-machine}
+\end{figure}

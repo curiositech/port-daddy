@@ -78,7 +78,7 @@ The paper's Algorithm 1 shows this explicitly: after each subtask execution (lin
 
 In static systems, errors have **task-wide scope**—any failure potentially invalidates the entire plan. Dynamic decomposition creates **subtask-scoped errors** with contained blast radius. The system asks: "Given what actually happened in steps 1-3, what should step 4 become?" not "Does step 4 match the original plan?"
 
-For WinDAGs or similar orchestration systems, this suggests:
+For Jury-rig or similar orchestration systems, this suggests:
 - **Don't**: Generate complete task graphs upfront with fixed edges
 - **Do**: Generate next-subtask proposals after each subtask completes, consuming actual execution traces
 
@@ -126,7 +126,7 @@ Travel planning violates all three:
 - Ticket availability is stochastic
 - If train X is unavailable, no amount of retrying helps; you need a *different plan*
 
-**For WinDAGs skill design**: Classify problems along these dimensions. Use static decomposition for deterministic, loosely-coupled tasks (e.g., "analyze these 10 files" where file order doesn't matter). Reserve dynamic decomposition for tightly-coupled, stochastic workflows (e.g., "debug this system" where each finding changes what to investigate next).
+**For Jury-rig skill design**: Classify problems along these dimensions. Use static decomposition for deterministic, loosely-coupled tasks (e.g., "analyze these 10 files" where file order doesn't matter). Reserve dynamic decomposition for tightly-coupled, stochastic workflows (e.g., "debug this system" where each finding changes what to investigate next).
 
 ## Implementation Pattern: The Update Mechanism
 
@@ -195,7 +195,7 @@ Systems score 60 points for Level 1, 20 for Level 2, 20 for Level 3, with higher
 
 ## Connection to DAG Orchestration
 
-WinDAGs likely represents tasks as directed acyclic graphs where nodes are skills and edges are data dependencies. The TDAG paper suggests:
+Jury-rig likely represents tasks as directed acyclic graphs where nodes are skills and edges are data dependencies. The TDAG paper suggests:
 
 **Don't**: Build the entire DAG upfront
 **Do**: Build a meta-DAG where:
@@ -288,7 +288,7 @@ Common errors to avoid:
 
 The paper notes: "In standard tool documents, there are often issues of redundancy, unclear descriptions, which may mislead the agent into making inappropriate attempts."
 
-**For WinDAGs**: This suggests skills should receive **execution-context-aware tool documentation** generated per invocation, not generic API docs. A code review skill invoked for security checks sees different tool descriptions (emphasis on security scanners) than the same skill invoked for performance optimization (emphasis on profilers).
+**For Jury-rig**: This suggests skills should receive **execution-context-aware tool documentation** generated per invocation, not generic API docs. A code review skill invoked for security checks sees different tool descriptions (emphasis on security scanners) than the same skill invoked for performance optimization (emphasis on profilers).
 
 ### 2. Incremental Skill Library (Section 4.2.2)
 
@@ -359,7 +359,7 @@ Appendix B.1 details the implementation:
 
 This is **evolutionary agent development**: the agent population's capabilities grow over time without human intervention.
 
-## Implementation Pattern for WinDAGs
+## Implementation Pattern for Jury-rig
 
 The paper suggests a three-stage agent generation process:
 
@@ -471,7 +471,7 @@ This reveals boundary conditions:
 
 In WebShop, tasks are "click elements on a webpage"—highly uniform. In TextCraft, tasks are "craft item X"—more varied but still within a single domain (Minecraft crafting). Yet TDAG still outperforms (WebShop: 64.5 vs. 60.0; TextCraft: 73.5 vs. 52.0), suggesting **agent generation helps even in relatively simple domains** by providing focused context.
 
-**For WinDAGs**: Use fixed agents for:
+**For Jury-rig**: Use fixed agents for:
 - High-frequency, invariant operations (e.g., "parse JSON")
 - Ultra-low-latency requirements where generation overhead matters
 - Security-critical operations where generated prompts might introduce vulnerabilities
@@ -501,7 +501,7 @@ This is **organizational learning**. The paper notes: "A agent dedicated to skil
 - Skills are deduplicated: if ≥k=2 similar skills exist (similarity >θ=0.7), new skill is rejected
 - This prevents library pollution while allowing refinement: if a skill proves flawed, next execution generates a corrected version that *replaces* it (by being more similar to the problem than the flawed skill)
 
-**For WinDAGs**: The skill library becomes a critical component:
+**For Jury-rig**: The skill library becomes a critical component:
 - **Persistence**: Store across sessions, like a database
 - **Versioning**: Track skill evolution over time
 - **Analytics**: Monitor which skills are retrieved most often, which lead to success/failure
@@ -521,7 +521,7 @@ The paper doesn't detail the generator prompts, but implies they're relatively s
 
 The system is autonomous at Level 0-1 but not Level 2. This is the right trade-off: Level 2 changes rarely (how to customize documentation is stable) while Level 0-1 changes constantly (which specific subtasks need solving).
 
-**For WinDAGs**: Invest engineering effort in *generator quality* (Level 2), not agent variety (Level 1). Build excellent tool doc generators and skill extractors, let them produce the agent zoo.
+**For Jury-rig**: Invest engineering effort in *generator quality* (Level 2), not agent variety (Level 1). Build excellent tool doc generators and skill extractors, let them produce the agent zoo.
 
 ## Measuring Agent Generation Impact
 
@@ -661,7 +661,7 @@ With binary evaluation, you see: 0%, 0%, 100%—an "emergent" jump. With fine-gr
 
 Figure 3 demonstrates this empirically: binary scoring shows all methods between 27-32% (no significant difference), while fine-grained scoring reveals ReAct=43%, P&S=44%, ADAPT=45%, TDAG=49%—clear stratification invisible to binary metrics.
 
-## Implementation for WinDAGs: Hierarchical Scoring
+## Implementation for Jury-rig: Hierarchical Scoring
 
 The three-level structure generalizes to any complex task:
 
@@ -730,7 +730,7 @@ This ensures [a, b] reflects "realistic achievable performance" not "theoretical
 
 Scoring against mean ± std_dev measures **how much better than typical** a solution is, which is often more practical than **how close to perfect** it is.
 
-**For WinDAGs**: When adding new task types:
+**For Jury-rig**: When adding new task types:
 1. Generate initial solutions using baseline methods
 2. Execute and measure cost/time/quality metrics
 3. Compute statistics from successful runs
@@ -767,7 +767,7 @@ Fine-grained evaluation can be misapplied:
 
 Fine-grained evaluation requires **observable intermediate states**. The paper uses a simulator (Section 3.3) that validates each action as it executes.
 
-**For WinDAGs**, this means:
+**For Jury-rig**, this means:
 
 ### 1. Structured Task Decomposition
 Tasks must decompose into checkpointable subtasks. Instead of:
@@ -904,7 +904,7 @@ Working on complex agents is demoralizing when every run scores "0% - failed." F
 
 This visible progress sustains development effort. Binary metrics would show "0%, 0%, 30%" across these same weeks—looks like nothing happened for two weeks, then sudden breakthrough.
 
-**For WinDAGs development**: Use fine-grained metrics internally even if external reporting uses binary metrics. It helps teams understand where they are in capability development.
+**For Jury-rig development**: Use fine-grained metrics internally even if external reporting uses binary metrics. It helps teams understand where they are in capability development.
 
 ## Summary: Evaluation as Debugging Tool
 
@@ -1127,7 +1127,7 @@ TDAG reduces CTF dramatically (4.35% vs 34.78%) but doesn't eliminate other erro
 - Dynamic decomposition solves *structural* failures (dependencies broken)
 - But doesn't inherently solve *semantic* failures (wrong tool use, hallucination, constraint reasoning)
 
-**For WinDAGs**: Different error types need different recovery strategies. Don't use one-size-fits-all retry logic.
+**For Jury-rig**: Different error types need different recovery strategies. Don't use one-size-fits-all retry logic.
 
 ## Implementing Failure Containment in DAG Systems
 
@@ -1219,7 +1219,7 @@ Example: Real-time strategy games where state changes every second.
 
 **Why containment is bad**: By the time replanning completes, the state has changed again. Better to use reactive policies (fast heuristics) than deliberative planning (slow optimization).
 
-**For WinDAGs**: Add task metadata indicating whether containment is appropriate:
+**For Jury-rig**: Add task metadata indicating whether containment is appropriate:
 
 ```python
 class Task:
@@ -1292,7 +1292,7 @@ Dynamic decomposition prevents error propagation by:
 - Validating actual state after each step
 - Treating failure as expected event that triggers replanning
 
-**For WinDAGs design**: The question isn't "should we support failure containment?" but "what's our default stance?"
+**For Jury-rig design**: The question isn't "should we support failure containment?" but "what's our default stance?"
 
 - **Default to static**: Good for well-understood, stable domains. Fast but brittle.
 - **Default to dynamic**: Good for novel, uncertain domains. Slow but robust.
@@ -1525,7 +1525,7 @@ The paper doesn't directly measure context size, but we can infer from error ana
 - TDAG (multi-agent, generated agents) reduces EIM vs. P&E/ADAPT through context precision
 - But TDAG still slightly higher than ReAct—trade-off for parallelization benefits
 
-**For WinDAGs**: Track EIM-equivalent errors (hallucination, tool misuse, fact misalignment) as proxy for context quality. If errors increase with task complexity faster than linearly, suspect context bloat.
+**For Jury-rig**: Track EIM-equivalent errors (hallucination, tool misuse, fact misalignment) as proxy for context quality. If errors increase with task complexity faster than linearly, suspect context bloat.
 
 ## Implementing Context Precision in DAG Systems
 
@@ -1667,7 +1667,7 @@ Transformer models allocate attention across all tokens in context. If context h
 
 **Hypothesis**: EIM increases as % of irrelevant context increases, because model attention is distracted by irrelevant information, leading to hallucination.
 
-**Implication for WinDAGs**: Measure effective context size:
+**Implication for Jury-rig**: Measure effective context size:
 ```
 Effective size = (relevant tokens) / (total tokens)
 ```
@@ -1754,7 +1754,7 @@ Just as programs should allocate memory judiciously (load what you need, free wh
 
 3. **Retrieve, don't broadcast**: Use semantic search to pull relevant skills/knowledge instead of providing everything to everyone.
 
-**For WinDAGs**: Build infrastructure for context management:
+**For Jury-rig**: Build infrastructure for context management:
 - Context generation templates
 - Tool documentation generators
 - Skill retrieval systems
@@ -1973,7 +1973,7 @@ Task 10: 52-55 score (warm library, common subtasks have good skills)
 Task 50: 54-58 score (mature library, even rare subtasks have relevant skills)
 ```
 
-**For WinDAGs**: Track skill library growth over time:
+**For Jury-rig**: Track skill library growth over time:
 - Total skills stored
 - Retrieval frequency per skill (which skills are most useful?)
 - Contribution to success rate (does providing skills improve subagent performance?)
@@ -1983,7 +1983,7 @@ If skill library isn't improving performance over time, either:
 2. Skill retrieval is poor (similarity search isn't finding relevant skills)
 3. Skill application is poor (subagents ignore skills)
 
-## Implementation Strategy for WinDAGs
+## Implementation Strategy for Jury-rig
 
 ### 1. Skill Storage
 

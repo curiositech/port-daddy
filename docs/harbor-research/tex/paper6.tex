@@ -1,3 +1,20 @@
+% -----------------------------------------------------------------------
+% TWIN-LOCATION NOTICE. This file is one of the shared homes for the same
+% results; edit every listed home or the drift checker fails.
+%   Standalone paper : docs/harbor-research/tex/paper6.tex (S(queue))
+%   Chapter          : whitepaper/legible-swarm.tex (Chapter 4, The
+%                       Legible Swarm; S4.3 sole-responsibility roles
+%                       (sec:sole-roles), the specialization boundary)
+%   Chapter          : website-v2/public/whitepaper/harbor-economy.tex
+%                       (Chapter 6, The Harbor Economy; the detection theorem
+%                       and its frontier in sec:three-on-one, the succession
+%                       price in sec:three-sides)
+%   Index ids        : R15, R17
+%   Check            : python3 scripts/harbor-research/check_library_index.py
+%                      python3 scripts/harbor-research/check_propagated_corrections.py
+%                      python3 scripts/harbor-research/check_citations.py
+%   System document  : docs/harbor-research/LIBRARY-SYSTEM.md
+% -----------------------------------------------------------------------
 \documentclass[11pt,a4paper]{article}
 \input{preamble}
 % Every figure here is a native TikZ/pgfplots fragment \input'ed at point of use
@@ -192,7 +209,7 @@ verified in both directions on 8 satisfiable and 8 unsatisfiable random instance
 satisfying assignment extracted from each conflict-free selection. Mutation: 149 of the 885 sets contain a conflict reachable
 \emph{only} through Horn propagation, and in 100 of those that is the set's \emph{only} conflict, so deleting propagation
 (checking only directly stated statuses) flips the verdict to conflict-free outright; the other 49 are still caught, because
-the mutant computes claim overlaps and deadline cycles identically. Propagation is load-bearing at scale, not a formality ---
+the mutant computes claim overlaps and deadline cycles identically. Propagation is critical at scale, not a formality ---
 and the two numbers differ by exactly the sets a second, unrelated conflict rescues [internal].
 
 \begin{worked}
@@ -424,13 +441,20 @@ hidden, and it is what the tractability is paid for with. \textbf{Positioned aga
 adjacent literature that owns \emph{detecting} conflicts between obligations and prohibitions is not the philosophical one: it is
 the normative-multi-agent-systems line collected in Meyer and Wieringa~\cite{mw93} and pursued in the normative-conflict work of
 Vasconcelos, Kollingbaum and Norman~\cite{vkn09}, whose conflict predicate is, like ours, operational rather than logical --- and
-that is the point at which their line and ours converge rather than diverge. \textbf{Where the prior-art search is not yet
-discharged, said plainly.} We have not run a systematic pass against three literatures this result sits inside: (i) the
-computational normative-MAS conflict-detection line above, where a tractable/intractable line may already have been drawn in some
-ground fragment, which is the claim of Theorem~1 most at risk; (ii) operations management's own vocabulary for the
+that is the point at which their line and ours converge rather than diverge. \textbf{The tractable/intractable dichotomy is not
+new in shape, and a search since the last draft found the nearest neighbor.} Colombo Tosatto, Governatori and van Beest prove a
+closely-shaped dichotomy for regulatory-compliance checking: full compliance against a set of conditional obligations is
+polynomial-time, while full compliance against one natural, more expressive extension (an unconditional obligation fragment) is
+coNP-complete~\cite{ctgvb2020,ctgvb2021}. That result does not subsume Theorems~1a/1b --- it checks structured business processes
+against conditional obligations and lands in coNP, where $\mathcal{L}_c$ checks ground Horn-triggered deontic tokens with
+interval exclusivity and the hard extension is NP-complete via a different reduction (discharge-choice disjunction, not an
+unconditional-obligation fragment) --- but the \emph{shape} of the result, a tractable fragment one natural expressiveness step
+from an intractable one, is theirs first, and Theorems~1a/1b should be read as a second, independently-arrived-at instance of
+that dichotomy pattern in a different formal object, not as its discovery. \textbf{Where the prior-art search is not yet
+discharged, said plainly.} We have not run a systematic pass against two further literatures this result sits inside: (i) operations management's own vocabulary for the
 specialist-versus-pool question, which is not called pooling-vs-dedication there but \emph{server flexibility} and, in the
 call-centre branch, \emph{skill-based routing} (Gans, Koole and Mandelbaum~\cite{gkm03} is the standard survey and the right
-entry point); and (iii) the agent-communication literature's own use of \emph{commitment}. Naming these is not a substitute for
+entry point); and (ii) the agent-communication literature's own use of \emph{commitment}. Naming these is not a substitute for
 searching them, and no claim below should be read as surviving a search that has not been run. \textbf{New, honestly.} No component algorithm or queueing formula above is ours. The
 contributions are: the fragment/frontier pair as an exact price list for commitment-language design; the composition making
 in-fragment conflict-freedom regimentable rather than merely checkable; the falsification and replacement of the whitepaper's
@@ -451,7 +475,7 @@ content is chartered authority's irreducible job, row four of the inventory. (iv
 red-team, not this proof, discharges. (v) Theorem 2 compares \emph{mean} costs only --- no tail percentiles, no SLA quantiles ---
 under FCFS and exponential everything; $A$ and $w$ are policy prices the theorem constrains but does not pick. (vi) Theorem 3's
 breakdown model is death-at-all-times with preemptive resume (the death/heartbeat model); active-only breakdowns would let
-sufficient skill escape the $W_\infty$ floor, so the model choice is load-bearing and declared. (vii) The wrong turns are on
+sufficient skill escape the $W_\infty$ floor, so the model choice is critical and declared. (vii) The wrong turns are on
 record and priced: the naive $W_{\mathrm{bd}}$ decomposition is refuted ($4.17$ vs $8.17$), and the whitepaper's $\tilde g$ was
 falsified by this program's own sweep --- the correction, not the original, is what ships. (viii) The inventory covers detection,
 resolution, and ownership; other authority functions (charter amendment, dispute appeal, norm authorship) are chartered by
@@ -461,8 +485,10 @@ certify the algorithm's agreement with the semantics on five-atom programs, not 
 the complexity bound, not the sweep, is what covers scale. (x) Theorem 3's threshold $D^\star$ presupposes $\eta K < 1$. Where
 the succession plan is fast enough that $K \ge 1/\eta$, the downtime floor never reaches the pool's cost line and there is no
 viability cap to state: the criterion does not apply, rather than being satisfied. (xi) The prior-art position is partial by
-declaration: three adjacent literatures named in \S\ref{sec:related} have not been systematically searched, and the novelty
-claim is scoped accordingly.
+declaration: two adjacent literatures named in \S\ref{sec:related} have not been systematically searched, and a third
+(computational normative-MAS conflict detection) has now surfaced a closely-shaped dichotomy in regulatory-compliance checking
+(Colombo Tosatto, Governatori and van Beest~\cite{ctgvb2020,ctgvb2021}) that Theorems~1a/1b should be read alongside, not
+independently of; the novelty claim is scoped accordingly.
 \end{boundary}
 
 \vspace{0.4em} \noindent\emph{Reproducibility.} Every [internal] number regenerates from two self-contained scripts at seed
@@ -511,5 +537,9 @@ Symposium on Theory of Computing (STOC)}, pages 216--226, 1978.
 49(1--3):61--95, 1991.
 \bibitem{sk00} K.~Stergiou and M.~Koubarakis. Backtracking algorithms for disjunctions of temporal constraints.
 \emph{Artificial Intelligence}, 120(1):81--117, 2000.
+\bibitem{ctgvb2020} S.~Colombo Tosatto, G.~Governatori, and P.~van Beest. Business process full compliance with respect to a set
+of conditional obligations in polynomial time. arXiv:2001.10148, 2020.
+\bibitem{ctgvb2021} S.~Colombo Tosatto, G.~Governatori, and P.~van Beest. Proving regulatory compliance: full compliance against
+an expressive unconditional obligation is coNP-complete. arXiv:2105.05431, 2021.
 \end{thebibliography}
 \end{document}

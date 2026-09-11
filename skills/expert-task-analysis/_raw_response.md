@@ -14,7 +14,7 @@
 
 1. **The Science/Art Divide**: Every complex skilled task has two layers — the *science* (explicit procedures, physics, rules) and the *art* (perceptual judgment, timing, situational feel). Training systems that only teach the science produce novices who "parrot" orders but cannot handle novel situations. GOMS captures the science layer. Critical Cue Inventories are required to capture the art layer. Agent systems that decompose tasks into only explicit sub-goals are making the same mistake as SWOS without its YP boats.
 
-2. **Perceptual Cues Are Load-Bearing Structure**: Expert performance is not primarily mediated by conscious reasoning. When an expert ship-handler is asked *how* he knows the stern is safe to swing, he says "I just know when it is." The real decision-triggering mechanism is a curated inventory of perceptual signals — wake patterns around pier pilings, tension in mooring lines, the sound of EOT bells, smoke from the stack, relative motion of a fixed point on the pier. These cues are not decorative; they are the actual inputs to the decision function. Any simulation (or agent) that lacks fidelity on these signals is training the wrong skill.
+2. **Perceptual Cues Are Central Structure**: Expert performance is not primarily mediated by conscious reasoning. When an expert ship-handler is asked *how* he knows the stern is safe to swing, he says "I just know when it is." The real decision-triggering mechanism is a curated inventory of perceptual signals — wake patterns around pier pilings, tension in mooring lines, the sound of EOT bells, smoke from the stack, relative motion of a fixed point on the pier. These cues are not decorative; they are the actual inputs to the decision function. Any simulation (or agent) that lacks fidelity on these signals is training the wrong skill.
 
 3. **Hierarchical Goal Decomposition with Selection Rules**: The GOMS framework reveals that expert task execution is not a flat checklist — it is a hierarchy of goals, where each level has its own selection rules based on situational context. The conning officer doesn't just "stop the ship" — he selects between backing bell on outboard screw vs. both screws based on the amount of headway, which itself is assessed via multiple redundant perceptual channels. This nested conditional structure is directly isomorphic to agent orchestration trees.
 
@@ -110,7 +110,7 @@ When agents fail at complex tasks, the failure usually occurs at the art layer, 
 
 ### Design Principle: Separate the Procedural from the Perceptual
 
-For any complex capability, a WinDAGs agent system should maintain:
+For any complex capability, a Jury-rig agent system should maintain:
 
 1. **A GOMS-equivalent task graph** — the explicit hierarchical decomposition of goals into subgoals into methods into selection rules. This is the science.
 
@@ -261,19 +261,19 @@ Notice the nested conditional structure: the selection rule at the Increase/Decr
 ## Mapping GOMS to Agent Orchestration Architecture
 
 ### Goals → Task Specifications
-In a WinDAGs system, a goal corresponds to a task specification passed to an agent or skill. The hierarchy of goals corresponds to a decomposition tree where:
+In a Jury-rig system, a goal corresponds to a task specification passed to an agent or skill. The hierarchy of goals corresponds to a decomposition tree where:
 - Top-level goals are task requests from users or parent agents
 - Mid-level goals are sub-task specifications dispatched to specialized agents
 - Leaf-level goals are direct skill invocations
 
 ### Operators → Skill Invocations
-Operators are the atomic actions available in the system. In WinDAGs terms, these are the 180+ skills. The GOMS model defines which operators are available for each subgoal, analogous to which skills are available to an agent for each sub-task.
+Operators are the atomic actions available in the system. In Jury-rig terms, these are the 180+ skills. The GOMS model defines which operators are available for each subgoal, analogous to which skills are available to an agent for each sub-task.
 
 ### Methods → Skill Sequences / Workflows
 Methods are ordered sequences of operators. In agent terms, these are workflows or skill pipelines — "to accomplish Goal X, invoke Skill A, then Skill B, then verify with Skill C."
 
 ### Selection Rules → Routing Logic
-Selection rules are the conditional dispatch logic that determines which method to invoke based on current context. In WinDAGs terms, this is the routing layer — the logic that looks at the current state of the task and decides which skill pipeline to activate.
+Selection rules are the conditional dispatch logic that determines which method to invoke based on current context. In Jury-rig terms, this is the routing layer — the logic that looks at the current state of the task and decides which skill pipeline to activate.
 
 **Critical design implication**: Selection rules require *state assessment* as their input. Before you can apply a selection rule, you must have assessed the relevant condition. This means that task decomposition agents need two types of nodes in their execution:
 
@@ -419,11 +419,11 @@ The expert used the buoy wake cue *every time*. But when asked "how do you get u
 
 This is a general property of expertise: the most reliable cues are the most invisible. Initial knowledge elicitation will systematically miss them. Probe questioning ("how did you know X?", "what did you notice just before you did Y?") and validation against multiple experts are required to surface them.
 
-For agent system development: capability documentation built from a single expert's first-pass account will be systematically deficient in exactly the ways that matter most. The missing cues are the ones the expert uses *most reliably* — which means they are the load-bearing elements of the skill.
+For agent system development: capability documentation built from a single expert's first-pass account will be systematically deficient in exactly the ways that matter most. The missing cues are the ones the expert uses *most reliably* — which means they are the decisive elements of the skill.
 
 ## CCI Structure for Agent Systems
 
-In a WinDAGs context, a CCI-equivalent for any complex skill would document, for each decision node in the task graph:
+In a Jury-rig context, a CCI-equivalent for any complex skill would document, for each decision node in the task graph:
 
 ```markdown
 ## Decision Point: [Name of condition that needs to be assessed]
@@ -623,7 +623,7 @@ The expert who built the initial model knew about tugboats. The model was not bu
 
 This reveals a systematic cognitive bias in single-expert knowledge elicitation: **experts naturally model the core of their domain and underspecify the supporting infrastructure**. The conning officer's expertise is ship-handling; tugs are external coordination. The expert thinks "I can explain how I drive the ship" and builds a model of ship-driving. The tug is something that *happens* in the environment; it's not something the expert cognitively owns.
 
-But in practice, the tug is not optional infrastructure. It is a load-bearing element of virtually every pier-side evolution.
+But in practice, the tug is not optional infrastructure. It is a core element of virtually every pier-side evolution.
 
 ## The General Pattern
 
@@ -1030,7 +1030,7 @@ For agent systems operating in genuinely novel domains (new problem types, unusu
 
 ## Practical Template: Capability Development Interview Guide
 
-For any WinDAGs skill development, the knowledge elicitation interview should follow this structure:
+For any Jury-rig skill development, the knowledge elicitation interview should follow this structure:
 
 **Pre-interview**:
 - Send the expert the scenario specification in advance

@@ -13,18 +13,18 @@ import { ArrowRight } from 'lucide-react'
 interface Link {
   word: string
   gloss: string
-  /** The chapter where this link is built. */
+  /** The chapter (Book number) where this link is built. */
   chapter?: string
 }
 
 const LINKS: Link[] = [
-  { word: 'Memory', gloss: 'a durable record that survives the process', chapter: 'II' },
-  { word: 'Continuity', gloss: 'the same someone across runs', chapter: 'III' },
-  { word: 'A person', gloss: 'not a spawn — a role plus a history', chapter: 'III' },
-  { word: 'A record', gloss: 'witnessed outcomes you can point at', chapter: 'I' },
-  { word: 'Reputation', gloss: 'the record, scored on several axes', chapter: 'III' },
-  { word: 'An asset', gloss: 'a reputation worth renting', chapter: 'IV' },
-  { word: 'A market', gloss: 'trade between operators who never met', chapter: 'IV' },
+  { word: 'Memory', gloss: 'a durable record that survives the process', chapter: '1' },
+  { word: 'Continuity', gloss: 'the same someone across runs', chapter: '5' },
+  { word: 'A person', gloss: 'not a spawn — a role plus a history', chapter: '5' },
+  { word: 'A record', gloss: 'witnessed outcomes you can point at', chapter: '5' },
+  { word: 'Reputation', gloss: 'the record, scored on several axes', chapter: '5' },
+  { word: 'An asset', gloss: 'a reputation worth renting', chapter: '6' },
+  { word: 'A market', gloss: 'trade between operators who never met', chapter: '6' },
 ]
 
 export function SpineChain() {

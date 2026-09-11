@@ -232,6 +232,8 @@ export interface SpawnAdapterResult {
   costUsd?: number;
   resultArtifact?: string | null;
   errorMessage?: string | null;
+  /** Closed in-process transport witness; display errorMessage is never authority. */
+  error?: unknown;
   /** Transcript identity when the adapter can observe it at launch time. */
   transcriptId?: string | null;
   /**
@@ -526,6 +528,7 @@ async function attemptFailover(args: {
     const decision = decideFailover(current, {
       backend: plan.backend,
       errorMessage: result.errorMessage,
+      error: result.error,
       costUsd: result.costUsd,
       ...(failover.preferredChain ? { preferredChain: failover.preferredChain } : {}),
       ...(failover.isUnavailable ? { isUnavailable: failover.isUnavailable } : {}),

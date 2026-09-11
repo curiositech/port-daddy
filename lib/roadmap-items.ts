@@ -497,7 +497,7 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
      WHERE id = ?
   `);
   const updateTouchStmt = db.prepare(`
-    UPDATE roadmap_items SET last_touched_at = ? WHERE id = ?
+    UPDATE roadmap_items SET last_touched_at = ?, notes_json = COALESCE(?, notes_json) WHERE id = ?
   `);
   const insertStatusEventStmt = db.prepare(`
     INSERT INTO roadmap_item_status_events
@@ -826,15 +826,43 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
     return rows.map((row) => hydrateDependencies(rowToItem(row)));
   }
 
-  function touch(slug: string, harbor?: string): RoadmapItem | null {
-    const h = harbor ?? DEFAULT_HARBOR;
-    const row = selectBySlugStmt.get(slug, h);
-    if (!row || row.deleted_at != null) return null;
-    const at = now();
-    // updateTouchStmt order: last_touched_at (= at), then id (WHERE).
-    updateTouchStmt.run(at, row.id);
-    tuples.out(['roadmap:touched', slug, { at }], { harbor: h });
-    return { ...hydrateDependencies(rowToItem(row)), lastTouchedAt: at };
+  /**
+   * Append one already-authorized receipt without resending a stale item.
+   * The immediate transaction serializes note merges; only notes and the
+   * touch timestamp change, never summary, ownership, status, or graph edges.
+   * @param slug - Exact existing item; a missing/deleted item is never created.
+   * @param harbor - Exact item namespace, not an identity credential realm.
+   * @param note - Optional trusted note; HTTP callers must pass owner checks.
+   * @returns Current item, or null; replaying an exact note is a complete no-op.
+   */
+  function touch(slug: string, harbor?: string, note?: RoadmapItem['notes'][number]): RoadmapItem | null {
+    return db.transaction(() => {
+      const h = harbor ?? DEFAULT_HARBOR;
+      const row = selectBySlugStmt.get(slug, h);
+      if (!row || row.deleted_at != null) return null;
+      // Other read projections tolerate malformed JSON. A writer cannot do
+      // that: replacing damaged history with [] would silently destroy it.
+      let storedNotes: unknown;
+      try { storedNotes = JSON.parse(row.notes_json); } catch { throw new Error('ROADMAP_HISTORY_INVALID'); }
+      if (!Array.isArray(storedNotes) || storedNotes.some((entry) => !entry || typeof entry !== 'object'
+        || !Number.isSafeInteger(entry.at) || entry.at < 0 || typeof entry.by !== 'string' || typeof entry.text !== 'string')) {
+        throw new Error('ROADMAP_HISTORY_INVALID');
+      }
+      const item = hydrateDependencies(rowToItem(row));
+      // A retry must not manufacture newer freshness from an old receipt.
+      // Compare the tuple fields directly: delimiters can occur in valid
+      // stored strings, and historical notes must never be deduplicated here.
+      if (note && item.notes.some((entry) => entry.at === note.at && entry.by === note.by && entry.text === note.text)) return item;
+      const notes = note ? [...item.notes, note] : item.notes;
+      const serverNow = now();
+      if (note && (!Number.isSafeInteger(note.at) || note.at <= 0 || note.at > serverNow)) {
+        throw new Error('ROADMAP_NOTE_CLOCK_INVALID');
+      }
+      const at = Math.max(row.last_touched_at, serverNow);
+      updateTouchStmt.run(at, note ? JSON.stringify(notes) : null, row.id);
+      tuples.out(['roadmap:touched', slug, { at }], { harbor: h });
+      return { ...item, notes, lastTouchedAt: at };
+    }).immediate();
   }
 
   const tombstoneItemStmt = db.prepare(`

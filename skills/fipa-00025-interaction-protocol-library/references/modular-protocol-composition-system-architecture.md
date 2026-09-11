@@ -85,7 +85,7 @@ And the inclusion criteria (Section 2.4) require:
 
 This is a *use-driven* library maintenance philosophy: protocols earn their place in the library by being genuinely useful across multiple contexts. A protocol that is used in only one application is not a library element — it is an application-specific detail. Library elements are patterns that recur across many applications.
 
-For WinDAGs, this suggests that the protocol library should be grown organically from observed patterns, not designed from scratch. When the same coordination pattern appears in multiple workflows, extract it, name it, specify it formally, and add it to the library. The library grows through distillation of experience, not through up-front design.
+For Jury-rig, this suggests that the protocol library should be grown organically from observed patterns, not designed from scratch. When the same coordination pattern appears in multiple workflows, extract it, name it, specify it formally, and add it to the library. The library grows through distillation of experience, not through up-front design.
 
 ## Boundaries and Context
 

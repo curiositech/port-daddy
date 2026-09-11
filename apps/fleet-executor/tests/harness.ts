@@ -23,7 +23,12 @@ export interface GitHubState {
   tokenMints: number;
   commentPosts: number;
   commentPatches: number;
-  existingComments: Array<{ id: number; body: string }>;
+  existingComments: Array<{
+    id: number;
+    body: string;
+    user?: { type?: string };
+    performed_via_github_app?: { id?: number };
+  }>;
   checkRunsCreated: number;
   /**
    * Existing check runs returned by the commit check-runs lookup.
@@ -44,6 +49,8 @@ export interface GitHubState {
      * verdict, must stay re-runnable) apart from one ships decided.
      */
     summary?: string;
+    external_id?: string | null;
+    app?: { id: number } | null;
     /** The commit this check belongs to. GitHub's lookup is PER-SHA. */
     headSha?: string;
   }>;
@@ -80,6 +87,8 @@ export interface GitHubState {
    * need a fork or a ref-less PR override these fields rather than the payload.
    */
   prHeadRef: string | undefined;
+  /** Authoritative current PR base commit returned by GET /pulls/{n}. */
+  prBaseSha: string;
   prBaseRef: string;
   /** head.repo.full_name — differs from prBaseRepo to simulate a fork PR. */
   prHeadRepo: string;
@@ -185,6 +194,7 @@ export function freshState(): GitHubState {
     prFilesBody: undefined,
     prHeadSha: 'HEADSHA',
     prHeadRef: 'feat/widget',
+    prBaseSha: 'BASESHA',
     prBaseRef: 'main',
     prHeadRepo: 'erichowens/port-daddy',
     prBaseRepo: 'erichowens/port-daddy',
@@ -410,7 +420,7 @@ export function installGitHubFetch(state: GitHubState): void {
           ...(state.prHeadRef === undefined ? {} : { ref: state.prHeadRef }),
           repo: { full_name: state.prHeadRepo },
         },
-        base: { sha: 'BASESHA', ref: state.prBaseRef, repo: { full_name: state.prBaseRepo } },
+        base: { sha: state.prBaseSha, ref: state.prBaseRef, repo: { full_name: state.prBaseRepo } },
       });
     }
 
@@ -424,7 +434,17 @@ export function installGitHubFetch(state: GitHubState): void {
         check_runs: state.existingCheckRuns
           .filter(c => !c.headSha || c.headSha === wanted)
           // Mirror GitHub's shape: the summary arrives nested under `output`.
-          .map(c => ({ ...c, output: { summary: c.summary ?? '' } })),
+          .map(c => ({
+            ...c,
+            // Bare legacy fixtures mean “owned check for the default job”.
+            // Spoof/missing-authority cases opt out explicitly with null or a
+            // different app id so authority tests remain intentional.
+            external_id: c.external_id === undefined
+              ? 'pd-fleet-run:v1:run:delivery-abc'
+              : c.external_id,
+            app: c.app === undefined ? { id: 3810450 } : c.app,
+            output: { summary: c.summary ?? '' },
+          })),
       });
     }
 
@@ -435,11 +455,21 @@ export function installGitHubFetch(state: GitHubState): void {
     // --- post comment ---
     if (/\/issues\/\d+\/comments$/.test(url) && method === 'POST') {
       state.commentPosts += 1;
-      return json({ id: 1000 + state.commentPosts });
+      const id = 1000 + state.commentPosts;
+      state.existingComments.push({
+        id,
+        body: (body as { body?: string })?.body ?? '',
+        user: { type: 'Bot' },
+        performed_via_github_app: { id: 3810450 },
+      });
+      return json({ id });
     }
     // --- patch comment ---
     if (/\/issues\/comments\/\d+/.test(url) && method === 'PATCH') {
       state.commentPatches += 1;
+      const id = Number(url.slice(url.lastIndexOf('/') + 1));
+      const existing = state.existingComments.find(comment => comment.id === id);
+      if (existing) existing.body = (body as { body?: string })?.body ?? '';
       return json({ id: 1 });
     }
 
@@ -467,7 +497,16 @@ export function installGitHubFetch(state: GitHubState): void {
       // Future lookups for this head SHA now find it.
       const headSha = (body as { head_sha?: string })?.head_sha ?? '';
       const name = (body as { name?: string })?.name ?? '';
-      state.existingCheckRuns.push({ id, name, status: 'in_progress', headSha });
+      const create = body as { external_id?: string; output?: { summary?: string } };
+      state.existingCheckRuns.push({
+        id,
+        name,
+        status: 'in_progress',
+        headSha,
+        external_id: create.external_id,
+        app: { id: 3810450 },
+        summary: create.output?.summary ?? '',
+      });
       return json({ id });
     }
     // --- complete check run ---
@@ -660,10 +699,17 @@ export function memoryD1(): D1Capture {
           // ON CONFLICT update differently. The logical-run upsert refreshes
           // pending metadata but preserves the first timestamp and any terminal
           // result, while ensureRunRow remains a true no-op on an existing row.
+          const isTerminalRepair = /conclusion = excluded.conclusion/i.test(sql);
           const isIgnore = /INSERT OR IGNORE/i.test(sql);
           const isLogicalRunUpsert = /ON CONFLICT\s*\(id\)/i.test(sql);
           const existing = runsById.get(String(args[0]));
-          if (isIgnore && runsById.has(String(args[0]))) {
+          if (isTerminalRepair) {
+            runsById.set(String(args[0]), {
+              id: args[0], deliveryId: args[1], repo: args[2], prNumber: args[3],
+              prUrl: args[4], headSha: args[5], conclusion: String(args[6]), shipsCsv: args[7],
+              createdAt: existing?.createdAt ?? args[8], ms: existing ? Math.max(0, Number(args[9]) - Number(existing.createdAt) * 1000) : 0,
+            });
+          } else if (isIgnore && runsById.has(String(args[0]))) {
             // no-op, matching real D1
           } else if (isLogicalRunUpsert && existing) {
             if (existing.conclusion === 'pending') {
@@ -721,6 +767,11 @@ export function memoryD1(): D1Capture {
         return { success: true, meta: {} };
       },
       async first() {
+        if (/SELECT conclusion FROM fleet_runs WHERE id = \?/i.test(sql)) {
+          if (cap.failAll) throw new Error('D1 unavailable');
+          const row = runsById.get(String(args[0]));
+          return row ? { conclusion: row.conclusion } : null;
+        }
         // Run-deadline read-back (getRunStartedAtSec): the logical run's TRUE
         // first-attempt created_at, surviving every continuation/retry —
         // served from the same runsById map the INSERT path above maintains.
@@ -924,6 +975,7 @@ export function makeEnv(over: Partial<ExecutorEnv> = {}): ExecutorEnv {
     DEFAULT_BRANCH: 'main',
     FLEET_TOKENS: memoryKV(),
     CONTROL_KV: memoryKV(),
+    DB: memoryD1().db,
     AI: aiStub({ perShip: {} }).ai,
     ...over,
   };

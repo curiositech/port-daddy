@@ -77,7 +77,7 @@ When knowledge is common:
 - Coordination is robust to communication limits
 - But achieving common knowledge requires public communication
 
-For WinDAGs: the orchestration system should distinguish between tasks that require gathering distributed knowledge (requires communication infrastructure) versus tasks that require common knowledge (requires broadcast/public communication mechanisms).
+For Jury-rig: the orchestration system should distinguish between tasks that require gathering distributed knowledge (requires communication infrastructure) versus tasks that require common knowledge (requires broadcast/public communication mechanisms).
 
 **2. The Cost of Achieving Common Knowledge**
 

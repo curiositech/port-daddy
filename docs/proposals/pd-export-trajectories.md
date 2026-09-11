@@ -56,7 +56,7 @@ pd export trajectories --since 24h --cursor "$(cat .cursor)" --out - >> corpus.j
 
 ## 2. Daemon route and MCP tool
 
-- **Route**: `GET /export/trajectories` (Fastify plugin `routes/export.ts`,
+- **Route**: `GET /export/trajectories` (Fastify plugin `routes/export.ts`, <!-- cite-exempt -->
   registered in `routes/index.ts` per the existing plugin pattern). Query
   params mirror the CLI flags. Response is `application/x-ndjson`, streamed.
   Pagination: `limit` + opaque `cursor` (see §6). The CLI is a thin client
@@ -126,8 +126,8 @@ Top-level envelope, one per session:
 Schema versioning: semver string; **additive changes bump minor**, breaking
 changes bump major and keep the old writer available behind
 `--schema-version`. The JSON Schema file lives at
-`docs/proposals/schemas/trajectory-v1.schema.json` and is the artifact tests
-validate against (same discipline as the windags schemas).
+`docs/proposals/schemas/trajectory-v1.schema.json` and is the artifact tests <!-- cite-exempt -->
+validate against (same discipline as the jury_rig schemas).
 
 ## 4. Steps: the merged timeline
 
@@ -250,7 +250,7 @@ tooling can refuse unredacted corpora.
 
 ## 8. Reward annotation (phase 2)
 
-`lib/coordination-reward.ts` exports `scoreEpisode(episode) →
+`lib/coordination-reward.ts` exports `scoreEpisode(episode) → <!-- cite-exempt -->
 {rubric, terminal, components, notes}` — a pure function over the Episode
 object (not the DB), so the bench, the exporter, and offline re-scoring all
 share one implementation. Rubric terms and weights per ADR-0052 §"reward
@@ -276,7 +276,7 @@ mcp/server.ts                export_trajectories tool (paged)
 
 ## 10. Testing
 
-- **Unit** (`tests/unit/trajectory-export.test.js`, `createTestDb()`):
+- **Unit** (`tests/unit/trajectory-export.test.js`, `createTestDb()`): <!-- cite-exempt -->
   fixture session with notes/claims/activity/inbox/commitments → golden-file
   episode (with `--stable`); cursor resume equivalence (full export ==
   concatenated paged exports); redaction unit table (each rule, plus a

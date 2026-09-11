@@ -41,6 +41,13 @@ fi
 SLUG="$1"
 shift
 
+for cmd in "$@"; do
+  if [[ "$cmd" == \#* ]]; then
+    echo "record-porthole-cast: narration comments are not evidence; record a real command or a real wait" >&2
+    exit 2
+  fi
+done
+
 SCRATCH_ROOT="${PORT_DADDY_SCRATCH_ROOT:-$HOME/coding/tmp}"
 mkdir -p "$SCRATCH_ROOT"
 DRIVER="$(mktemp "$SCRATCH_ROOT/porthole-drive-XXXXXX.sh")"
@@ -62,14 +69,8 @@ trap 'rm -f "$DRIVER"' EXIT
   echo 'sleep 0.3'
   for cmd in "$@"; do
     echo "type_cmd $(printf '%q' "$cmd")"
-    if [[ "$cmd" == \#* ]]; then
-      # Typed for narration but never executed — honestly inert, not a
-      # fake command with fabricated output.
-      echo 'printf "\n"'
-    else
-      echo "$cmd"' 2>&1'
-      echo 'printf "\n"'
-    fi
+    echo "$cmd"' 2>&1'
+    echo 'printf "\n"'
     echo 'sleep 0.8'
   done
   echo 'sleep 1.0'

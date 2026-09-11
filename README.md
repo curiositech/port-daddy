@@ -1,4 +1,4 @@
-# ⚓ Port Daddy (v3.30.5)
+# ⚓ Port Daddy (v3.30.6)
 
 <p align="center">
   <img src="website-v2/public/img/hero-portdaddy.png" alt="Port Daddy — the harbormaster for your AI agents" width="600">
@@ -19,6 +19,18 @@
 ---
 
 ## Overview
+
+**Repository ship controls:** the Relay account surface provides **Ship controls**
+for repository admins, with per-ship On/Off permissions and a repository-wide Off
+control. Decisions are saved immediately and checked before cloud ship work and
+queued retries. Turning On does not launch an agent; Off is not an in-flight kill.
+Each ship also exposes its configured role/model, recent run evidence, transcript
+links, recorded cost trend, token use, call errors/timeouts, and latency. Missing
+telemetry is labelled unavailable, not free or healthy. History reads are bounded
+and repository-authorized; opening the page does not launch work.
+The [control contract and deployment order](docs/operations/repo-ship-controls.md)
+describe the cloud-only scope and required schema-first release. A source merge
+does not by itself update `relay.portdaddy.dev`.
 
 **Port Daddy** is a daemon that gives every AI agent its own port, coordinates file access, sandboxes what agents spawn, meters what they spend, and recovers their work when they crash. One install, zero config.
 
@@ -99,6 +111,8 @@ pd setup
 
 `pd setup` detects your installed editors (Claude Code, Claude Desktop, Cursor, Windsurf, Gemini, Cline and friends), writes MCP configuration for each, installs the agent skill and Port Daddy Pilot definitions, starts the daemon under launchd supervision, and installs the exact matching signed FleetBar release on macOS. FleetBar updates itself from its out-of-date card: it verifies the version-pinned archive checksum, Curiositech Developer ID, and Apple notarization before replacing the app, preserves the previous bundle for rollback, and relaunches through launchd. The operator never has to hunt for a download or run an update command.
 
+The [release train](docs/RELEASING.md#release-train-authority-and-recovery) publishes through the Port Daddy GitHub App with repository-scoped authority, exact source/tag/Release receipts and explicit cleanup status. Release discovery accepts large changelogs while rejecting missing dated headers or failed Git reads. Approved Actions configuration and a controlled live rollout are separate from source validation; signing, soak, protected review/queue and fresh-install gates remain in place.
+
 ### 3. Verify
 
 ```bash
@@ -172,6 +186,10 @@ pd begin "Fix flaky auth tests" --identity myapp:api --lifecycle durable --sideq
 - `durable` — ordinary agent work. The session outlives the process; if the agent dies mid-task, the session stays visible for salvage or takeover.
 - `ephemeral` — heartbeat-bound process sessions. When the process stops heartbeating, the session ends with it.
 
+Heartbeat expiry abandons only ephemeral sessions. Verified active durable work keeps its directory row **inactive and not ready**, with its session, claims, and notes preserved. Existing replacement entries become `dormant` with `holdReason: durable_session_active`; their capsules survive, while an already-admitted attempt stays `resurrecting` and is not canceled by the hold. `pd salvage --all` shows held entries. Ordinary salvage mutations and new heartbeats cannot clear them. **Hold clearance is not implemented yet**; explicit session end, abandon, and takeover retain their existing contracts but do not clear saved queue holds.
+
+The separate seven-day archival sweep also preserves durable sessions. It abandons only an unchanged active ephemeral session whose timestamp and exact-session notes remain older than the sweep cutoff after harvesting; malformed timestamps or durability preserve the session. Original claims and notes remain intact, and completion counts reflect actual transitions. This is a source contract, not proof that an installed daemon has been upgraded.
+
 The same requirement applies to `pd session start` and the MCP `begin_session` tool.
 
 After registration, `pd begin` may print up to three semantically matched live
@@ -213,26 +231,45 @@ That verifier runs even when the branch itself is fully pushed. Dirty or
 unpublished repository work still fails closed; the flag cannot hide an
 unpushed change behind a “no artifact” receipt.
 
+Ordinary code delivery uses a different, origin-bound Git gate: the worktree
+must be clean and `HEAD` must be contained in the freshly advertised origin
+upstream or origin default branch. Missing or deleted branch tracking no longer
+means “never pushed.” The default-branch result proves ancestry, not a pushed
+feature branch, passing CI, independent review, or protected merge; those
+delivery requirements still apply. The bounded check makes no fetch/ref/config
+writes and keeps ignored evidence. Missing objects, changed evidence and
+unproven squash/rebase ancestry remain explicit refusals. Source behavior is
+not proof that the installed daemon has been upgraded.
+
 Every session progresses through **phases** for swarm visibility: `planning`, `in_progress`, `testing`, `reviewing`, `completed` / `abandoned`.
+Completion is only entered through `pd done` (or `POST /sugar/done`), which checks the exact session's plan and delivery evidence. Setting `phase: completed` directly cannot skip those checks. If the exact local session is dormant or missing, commands report that condition without silently selecting a different worktree's active session.
+
+The public and contributor skills and canonical Pilot persona carry the same delivery contract into Claude, Codex, Gemini, Antigravity and generic-agent definitions: commit validated checkpoints in linked worktrees, publish ready attributed App/Fleetbot PRs, respond graciously to reviews, make required checks green, and own the protected merge/queue through an actual merged-head receipt before closing. Read-only roles keep their assigned scope, and repository/operator GitHub access policy still applies, including broker-only reads. These source instructions and rendered definitions do not prove a machine-global install or runtime enforcement.
+
+The standalone `scripts/install-pilot-agents.ts --source-dir <directory>` selects that exact Pilot source before Homebrew discovery; `--dry-run` reports prompt/config SHA-256 digests that a later apply can bind with the paired `--expect-agent-sha256` and `--expect-config-sha256` options. Invalid selections, malformed arguments or mismatched pins refuse before target changes; this source receipt is not trusted-source attestation or installed-runtime proof, and it adds no setup/MCP flags. Target previews also expose an `--expect-target-sha256` digest: an explicit pin binds a previously reviewed preview, while ordinary apply validates an immediate snapshot. Replacement, stale cleanup and uninstall require verified prior output records; historical unmanaged files remain untouched. Partial writes retain private backups and an explicit recovery handle. `--uninstall` and `--recover` require explicit source and base directories; neither is an automatic adoption or machine-wide activation command. See the [managed-target contract](docs/design/pilot-managed-target-installation.md).
 
 ### Plan and Checklist Enforcement
+
+In the dashboard, open **Agents → Open exact session** to read a session's latest complete plan and expand its retained note history. A link such as `/fleet-ui/?surface=agents&session=<session-id>` targets that exact Port Daddy session, even without a registered agent. Existing `surface=sessions` links reach the same read-only view. Missing or inaccessible sessions report an error rather than choosing another session by working directory. This is the selected daemon's session ledger, not a separate roadmap authority.
+
+The agent directory marks dormant salvage entries **On hold** and distinguishes an earlier admitted replacement from a running process. Held entries cannot be dismissed or started/resumed there; hold clearance is not implemented. Distinct agent instances keep separate rows even when their fleet roles match, and ambiguous role-only controls stay unavailable. Exact-session evidence and explicitly scoped Stop remain separate from the hold.
 
 Every active session requires planning. You can set, show, and check off todo list items:
 
 ```bash
-pd plan set "- [ ] Implement tests\n- [ ] Update docs"
+pd plan set $'- [ ] Implement tests\n- [ ] Update docs'
 pd plan show
-pd plan check 1        # Check off item 1
-pd plan check "docs"   # Check off item by substring matching
+pd plan check 1                # First checklist task, not first Markdown line
+pd plan check "Update docs"    # Exact complete task label
 ```
 
-When completing a session with `pd done`, the daemon checks if there are any unchecked checklist items (`[ ]` or `[-]`) in your plan. If unchecked items exist, `pd done` fails closed with code `PLAN_UNCHECKED_ITEMS`.
+Plan writes keep the selected caller's credential; `--session` selects only the target and never borrows its owner's identity. Context conflicts, wrong owners, and inactive sessions produce explicit errors rather than a fallback or automatic resume. Checking a task appends the complete updated plan while retaining earlier versions. Headings, blank lines, fenced examples, and HTML comments do not count as tasks; duplicate labels require a task number. An uncertain write is not replayed through another transport: read the exact plan before retrying.
 
-To bypass the check and complete a session with remaining incomplete tasks:
-```bash
-pd done "Complete session" --force-incomplete --reason "Deferred features to next ticket"
-```
-The reason must be at least 12 characters and will be stamped with `[OPERATOR-OVERRIDE force-incomplete]` in the handoff notes.
+When completing a session with `pd done`, the daemon uses the same visible checklist tasks as `pd plan check`. Unfinished `[ ]` or `[-]` tasks fail closed with code `PLAN_UNCHECKED_ITEMS`; `[x]` and `[X]` are complete. Fenced examples, HTML comments, and prose checkbox markers do not block completion. Only the latest complete plan is checked, while earlier versions remain in the note history.
+
+Durable sessions have no lifetime note-count ceiling. Ordinary writes admit 60 notes per rolling 60 seconds per session and bound content to 10 KiB of UTF-8; a temporary refusal supplies its retry time without deleting originals. One actual terminal transition may retain a bounded handoff even when that burst is exhausted; retries do not append another, and choosing `type: handoff` does not bypass admission. Ephemeral sessions still have their 500-note admission cap. Requested note pages accept limits 1–1000; exact-session detail keeps its full-history default, and completion reports the persisted total rather than a preview length. Global note counts and Memory's Recall/Archival partition use one read snapshot, not truncated pages; unavailable timeline sources return an explicit error instead of silently omitting notes. A refused takeover preserves sessions, history and claims together; protected-project note writes use the existing guarded envelope form and verified owner, not plaintext alongside it. This source contract is not proof of an installed daemon upgrade or a hostwide storage quota. Peer catch-up preserves historical content and timestamps without spending new-authoring admission; each incoming page is atomic and bounded to 1000 operations, 140,312,576 bytes and a 30-second response deadline. Smaller negotiated pull pages remain follow-up work.
+
+There is no caller-supplied override for this gate. Legacy `--force-incomplete` and `--skip-origin-check` requests are retained only long enough to return the structured `OPERATOR_CAPABILITY_REQUIRED` refusal: an actor credential and a reason string prove identity and intent, not operator authority. Complete the checklist and delivery gates before closing the session. Daemon-managed ephemeral spawns use a private, credential-bound exact-session lifecycle after their transcript is finalized; that internal path is not available as a CLI flag.
 
 ### Salvage, takeover & resurrection
 
@@ -245,7 +282,9 @@ pd salvage claim dead-agent-99     # inherit a dead agent's session, claims, and
 pd takeover <old-session-id>       # successor session with recorded lineage
 ```
 
-`pd session takeover` creates a successor session, records the lineage in append-only notes, releases stale predecessor claims, and reclaims those files when there is no live conflict. `pd session rm` is archival: it releases active claims and writes a tombstone, but never deletes the session, notes, or claim history.
+`pd session takeover` creates a successor for one exact dormant session and its daemon-stamped owner, records lineage in append-only notes, releases stale predecessor claims, and reclaims those files when there is no live conflict. Another actor's valid credential cannot adopt the session; operator-witnessed transfer remains a separate authority workflow. `pd session rm` is archival: it releases active claims and writes a tombstone, but never deletes the session, notes, or claim history.
+
+Session context is deterministic. `PD_SESSION_ID` and `PD_AGENT_ID` are an atomic pair; a partial pair cannot hide a complete context slot, and a disagreeing complete pair returns `CONTEXT_CONFLICT` with both provenances. Agent-only mutations fail with `AMBIGUOUS_ACTIVE_SESSION` when more than one active session matches. Session, note, claim, lock, and salvage mutations use credentialed daemon HTTP; raw IPC and direct SQLite expose only their safe read surfaces.
 
 ### Say / Look — the consolidated verbs
 
@@ -297,11 +336,19 @@ pd roster promote <session-id> --episode <handoff-episode-id> --slug portdaddy-t
 pd roster continue <agent-node-id> --backend cli:codex --mode auto
 ```
 
-Roster agents are daemon-minted `AgentNode` identities that outlive any body or session. Their meaningful slug is a scoped human alias, profile edits append revisions, and promotion requires a fail-closed sanitized handoff episode bound to the native harness session being promoted. Port Daddy coordination can enrich that handoff but is not required for historical sessions. Expertise lookup fuses BM25 with the shared local MiniLM embedder; any lexical fallback is labeled degraded. Runtime choice does not change the person: `pd roster continue` uses the existing native-or-sanitized-handoff receipt ledger. Stored permissions and triggers are explicitly declarations until a witnessed runtime enforces them. See ADR-0119.
+Roster agents are daemon-minted `AgentNode` identities that outlive any body or session. Their meaningful slug is a scoped human alias, profile edits append revisions, and promotion requires a fail-closed sanitized handoff episode bound to the native harness session being promoted. Port Daddy coordination can enrich that handoff but is not required for historical sessions. Expertise lookup currently fuses BM25 with the local MiniLM fallback; any lexical fallback is labeled degraded. Runtime choice does not change the person: `pd roster continue` uses the existing native-or-sanitized-handoff receipt ledger. Stored permissions and triggers are explicitly declarations until a witnessed runtime enforces them. See ADR-0119.
 
 ### Coordination Guard (`pd guard`)
 
+`pd advise` / `coordination_preflight` project file claims inside one verified repository and worktree: relative, `./`, and absolute paths share an address only within that scope. A stale session root or stored world produces a critical context diagnostic with the original claims, not a false “unclaimed” recommendation. This is read-only advice, not permission or automatic ownership repair. See [claim projection diagnostics](docs/operations/advisor-claim-projection.md).
+
 `pd guard install` writes merged pre-commit and post-commit hooks that enforce the protocol: an active session plus matching file claims for staged files, checked by `pd guard check --staged`. `pd add` is the claim-aware `git add`. Modes: `advisory`, `warn`, `enforce`.
+
+For coordination changes, Guard checks the linked session's exact local roadmap item in the intended harbor with fresh same-agent evidence; unrelated items cannot satisfy that link, and incomplete or unavailable reads are distinguished from missing receipts, not presented as canonical remote authority.
+
+`pd roadmap touch <slug> --harbor <harbor> --note <receipt>` appends one bounded note from the verified active-session owner without resending plan fields; new receipt timestamps must not be ahead of the daemon clock, accepted replays have no effect, and Guard credits only that agent's own valid note timestamp, not a promoter's shared touch time (other roadmap write authorization and installed-runtime promotion remain separate).
+
+During a pending merge, Guard checks paths whose staged contents or file modes differ from **every parent**, including `HEAD`. Unchanged contributions from either branch do not need new claims; genuine resolutions, new files, and deletions still do. Staged filenames remain exact, including whitespace, and unresolved indexes or unavailable Git evidence stop the check explicitly. Ordinary commits keep their normal staged-diff behavior.
 
 ---
 
@@ -381,11 +428,11 @@ Session-scoped MCP tools (`add_note`, `list_notes`, `claim_files`, `claim_symbol
 
 **Messaging** — `pub`/`publish`, `sub`/`subscribe`/`listen`, `broadcast`, `channels`, `tube`, `inbox`, `message`, `quorum`, `parley`
 
-**Locks & shared memory** — `lock`, `unlock`, `locks`, `with-lock`, `tuple`, `pheromone`/`ph`, `graph`, `memory`, `semantic`, `embed`, `skill-graft`, `harbors`, `harbor`
+**Locks & shared memory** — `lock`, `unlock`, `locks`, `with-lock`, `tuple`, `pheromone`/`ph`, `graph`, `memory`, `semantic`, `embed`, `jury-rig`, `harbors`, `harbor`
 
 **Spawning & delegation** — `spawn`, `spawned`, `agent`, `sortie`, `dispatch` (né `nightshift`), `review`, `fleet`, `harbormaster`/`hm`, `cockpit`, `backend`, `squid`, `transcripts`/`transcript`, `benchmark`, `coast-guard`/`cg`, `wallet`, `bond`, `popper`, `shipwright`
 
-**Roadmap & ideas** — `roadmap`, `ideas`, `commit` (durable commitments/obligations), `feedback`. `pd roadmap chomp <doc.md…>` ingests any markdown planning doc into roadmap items (headings → project/epic/story/task hierarchy, checklists → tasks, explicit "depends on" → dependencies); the default run is a preview, and `--emit-pr-plan <dir>` performs the write while emitting the doc-removal PR artifacts (regenerated snapshot, work receipt, git-rm list, ready PR body). `pd roadmap import-markdown` remains as the legacy alias that chomps the three canonical curated piles. `pd roadmap search <text>` ranks roadmap items against free text (BM25 → cosine over shared MiniLM embeddings, same cascade as `pd whois`); `pd roadmap reindex` backfills the search index. `pd begin "<purpose>"` calls this automatically and prints ranked candidates when its rent gate would otherwise just reject you for omitting `--roadmap`/`--roadmap-new`/`--sidequest`. `pd roadmap export <slug> --to github|linear|jira` pushes one item to an external tracker (one-way, repeatable; the created issue's URL is recorded back as a typed link on the card).
+**Roadmap & ideas** — `roadmap`, `ideas`, `commit` (durable commitments/obligations), `feedback`. `pd roadmap chomp <doc.md…>` ingests any markdown planning doc into roadmap items (headings → project/epic/story/task hierarchy, checklists → tasks, explicit "depends on" → dependencies); the default run is a preview, and `--emit-pr-plan <dir>` performs the write while emitting the doc-removal PR artifacts (regenerated snapshot, work receipt, git-rm list, ready PR body). `pd roadmap import-markdown` remains as the legacy alias that chomps the three canonical curated piles. `pd roadmap search <text>` currently ranks roadmap items with BM25 → cosine over the local MiniLM fallback (the same cascade as `pd whois`); `pd roadmap reindex` backfills that current index. `pd begin "<purpose>"` calls this automatically and prints ranked candidates when its rent gate would otherwise just reject you for omitting `--roadmap`/`--roadmap-new`/`--sidequest`. `pd roadmap export <slug> --to github|linear|jira` pushes one item to an external tracker (one-way, repeatable; the created issue's URL is recorded back as a typed link on the card). `pd roadmap push` is the different verb for a different destination — it replaces the relay's mirror of this repository's *whole* roadmap, so the board is readable from a phone or from an agent that has no checkout, and it reads the daemon first and falls back to the committed `docs/roadmap/roadmap.snapshot.json` when the daemon is down (either way the snapshot's own `generatedAt` travels with it, so a fallback push shows up in the mirror as old rather than as fresh; `--dry-run` prints what would go without sending it).
 
 **Daemon & host** — `start`, `stop`, `restart`, `install`, `uninstall`, `daemon`, `dev`, `use`, `doctor`, `diagnose`, `attest`, `health`, `metrics`, `bench`, `ci-gate`, `backup`, `restore`, `cut`, `upgrade`, `self-update`, `safe`, `secret`, `guard`, `config`, `init`, `setup`, `mcp`, `relay`, `tunnel`, `webhook`/`webhooks`, `version`
 
@@ -551,19 +598,31 @@ pd graph edges --scope symbols:file:/path/to/server.ts   # durable relationship 
 pd graph stats --dir .                                    # graph density per project
 pd memory episodes --project myapp --type handoff         # promoted handoffs/findings
 pd memory tiers                                           # Core / Recall / Archival mapping (ADR-0035)
-pd embed status                                           # shared local embedder (MiniLM) state
-pd embed text "salvage a dead agent's session"            # embed ad-hoc text
+pd embed status                                           # local text-profile cache state
+pd embed text --corpus pd.cli.notes "salvage a session"  # corpus-bound embedding + spaceId receipt
 pd embed prefetch                                         # one-time ~27 MB model download
-pd skill-graft "write tests for a flaky fleet trigger"    # preview the local skill guidance a fleet ship would receive
-pd skill-graft warm --local-only                          # checkpoint a bounded Tool2Vec batch with loopback Ollama only
-pd skill-graft warm --all                                 # explicit full warm; may use the actor-pinned generator backend
-# MCP: skill_graft_status() reads coverage without generating or calling an LLM
+pd jury-rig "write tests for a flaky fleet trigger"       # preview the local skill guidance a fleet ship would receive
+pd jury-rig warm --local-only                             # checkpoint a bounded Tool2Vec batch with loopback Ollama only
+pd jury-rig warm --all                                    # explicit full warm; may use the actor-pinned generator backend
+# MCP: jury_rig_status() reads coverage without generating or calling an LLM
 pd backend adapters --matrix                              # N:N native/handoff mechanics
 pd backend adapters --probe                               # local discovery, not runtime proof
 pd roster search "SQLite migration recovery" --repo .    # durable expert lookup (hybrid)
 ```
 
-Search across Port Daddy is **hybrid** — BM25 plus one shared local embedding model (`Xenova/all-MiniLM-L6-v2`, prefetched at install per ADR-0061). Skill Graft's Tool2Vec centroids are reconciled content-hash-by-content-hash across the full user catalog: setup and daemon ticks use only loopback Ollama, never an inherited fleet or cloud backend, while a manual `pd skill-graft warm` may use an explicitly pinned `PD_SKILL_GRAFT_BACKEND`. The SQLite lease and row checkpoints make daemon, setup, and manual callers safe to resume after interruption. `pd doctor` reports current, cold, reconciling, embedder-down, or generator-down coverage. `pd memory tiers` prints the three-tier vocabulary overlay (Core/Recall/Archival) over the same SQLite substrate.
+Search across Port Daddy is **hybrid** — BM25 plus a dense profile selected by corpus policy. The current registered local-fast profile remains MiniLM, but callers name a stable corpus id and resolve role, tier, provider, and immutable `spaceId` through the registry instead of choosing that model directly. The local loader hashes the cached model/config/tokenizer artifacts, checks the exact Transformers.js + ONNX runtime, and rejects wrong dimensions, non-finite coordinates, or invalid L2 normalization before returning vectors. `pd embed text|stdin` therefore requires `--corpus ID` and emits the policy and space identity with its vectors. This runtime evidence does not promote MiniLM or authorize a remote profile; both registry rows remain visibly `degraded-fallback` and `declarative-only` until benchmark and signed promotion receipts exist. Jury-rig's Tool2Vec centroids are reconciled content-hash-by-content-hash across the local and explicitly configured user catalog; no external skill runtime is required. Setup and daemon ticks use only loopback Ollama, never an inherited fleet or cloud backend, while a manual `pd jury-rig warm` may use an explicitly pinned `PD_SKILL_GRAFT_BACKEND`. The SQLite lease and row checkpoints make daemon, setup, and manual callers safe to resume after interruption. `pd doctor` reports current, cold, reconciling, embedder-down, or generator-down coverage. `pd memory tiers` prints the three-tier vocabulary overlay over the same SQLite substrate.
+
+The [provider-neutral retrieval design](docs/proposals/provider-neutral-retrieval-fabric.md) replaces the universal-model rule with corpus-approved profiles, compatible index generations, RRF of rankings, and privacy filters before both retrievers. The [research record](docs/research/embedding-retrieval-model-landscape-2026.md) identifies candidates, not production winners. Registry-backed role/tier/provider selection and fail-closed local artifact/output verification are source-present. Persistent-index migrations, signed producer and benchmark promotion, remote budget integration, pre-retrieval evidence admission across every corpus, and operator controls remain separate implementation work. This documentation does not activate a remote model or prove an installed runtime upgrade.
+
+To include additional catalogs, pass existing directories in `PORT_DADDY_SKILL_SOURCE_ROOTS`, separated by colons. They are searched **first**, followed by the normal project/user roots; duplicate real paths are removed. This augments the defaults, not replaces them. Discovery order is not an override guarantee: query catalog collisions currently keep the later root's skill, while runtime-link synchronization uses its separate first-party preference. For example, replace these placeholder paths with your selected catalog directories:
+
+```bash
+PORT_DADDY_SKILL_SOURCE_ROOTS="/path/to/team/skills:/path/to/personal/skills" pd jury-rig query "review a bootstrap rollback"
+# Result: ranked guidance from explicit and default catalogs, with the semantic tier reported.
+# Missing/non-directory entries are skipped; --root/--dir instead select project-local roots.
+```
+
+For machine-level changes, use the [Jury-rig bootstrap lifecycle skill](skills/jury-rig-bootstrap-lifecycle/SKILL.md), which preserves handwritten settings and provenance while distinguishing supported receipt rollback from library-only interrupted recovery. The [dated review census](docs/research/2026-09-02-jury-rig-review-follow-through.md) records the remaining owners and proof boundaries.
 
 Backend-neutral continuation uses `POST /memory/handoffs` with `{ capsule, tokenBudget?, coordinationSessionId? }`, where `capsule` follows `pd.agent-harbor.handoff-capsule.v0`. The daemon enforces a 2 MiB ingress boundary, allowlists and bounds the capsule fields, preserves every operator turn and durable decision, sheds transcript tail before artifact summaries when a token budget is tight, recursively redacts structured credentials, and then requires a clean external `gitleaks stdin` verdict. Homebrew installs Gitleaks with Port Daddy; other installation paths must place `gitleaks` on `PATH` or set `PD_GITLEAKS_BIN`. Missing scanners, residual findings, or a budget too small for operator context fail closed; only the sanitized capsule is stored as an idempotent handoff episode keyed by source agent and session. Optional coordination-note harvest runs after that durable write and reports a warning rather than discarding a clean capsule when harvest is unavailable. The canonical schema is [`schemas/agent-harbor/v0/handoff-capsule.schema.json`](schemas/agent-harbor/v0/handoff-capsule.schema.json), extending the salvage contract in ADR-0028 without replaying raw provider transcripts.
 
@@ -575,7 +634,7 @@ Spawner-launched bodies now feed their already-redacted transcript rows into Age
 
 Harness portability is reported as predicates, not a marketing score. `pd backend adapters --matrix` prints the generated 17×17 native-or-handoff mechanics grid; `--probe` adds side-effect-free binary/help discovery. `GET /harness-adapters/continuation-matrix` and the read-only MCP tool `harness_continuation_matrix` keep those catalog ceilings separate from completed spawn transcripts and continuation receipts, label evidence older than seven days as stale, and leave exact live interaction unverified until a dedicated control receipt exists. Neither discovery nor an agent's self-report earns runtime conformance. The canonical response schema is [`schemas/agent-harbor/v0/harness-continuation-matrix.schema.json`](schemas/agent-harbor/v0/harness-continuation-matrix.schema.json).
 
-The durable roster composes those primitives into long-lived named people. `POST /durable-agents` mints an opaque AgentNode principal with a scoped human alias; `POST /durable-agents/promote` requires a sanitized handoff episode whose source session matches the native harness session being promoted; `GET /durable-agents/search` uses BM25 + the shared MiniLM model with reciprocal-rank fusion; and `pd roster continue` passes that same AgentNode id through the existing continuation receipt ledger while choosing any catalog backend. Profile revisions remain append-only facts. Permission and trigger fields remain visibly declaration-only until a runtime can prove enforcement. The canonical profile contract is [`pd.agent-harbor.durable-agent-profile.v0`](schemas/agent-harbor/v0/durable-agent-profile.schema.json); architecture is ADR-0119.
+The durable roster composes those primitives into long-lived named people. `POST /durable-agents` mints an opaque AgentNode principal with a scoped human alias; `POST /durable-agents/promote` requires a sanitized handoff episode whose source session matches the native harness session being promoted; `GET /durable-agents/search` currently uses BM25 + the local MiniLM fallback with reciprocal-rank fusion; and `pd roster continue` passes that same AgentNode id through the existing continuation receipt ledger while choosing any catalog backend. Profile revisions remain append-only facts. Permission and trigger fields remain visibly declaration-only until a runtime can prove enforcement. The canonical profile contract is [`pd.agent-harbor.durable-agent-profile.v0`](schemas/agent-harbor/v0/durable-agent-profile.schema.json); architecture is ADR-0119.
 
 ### Artifact Harvest (Booty)
 
@@ -665,6 +724,8 @@ Agent Node.
 Quiet mode (`-q`) prints raw output to stdout and exits non-zero on failure — perfect for shell scripts.
 
 **Key flags:** `--backend`, `--model`, `--tier`, `--identity`, `--purpose`, `--budget`, `--allowedTools` (claude-cli), `--maxTokens`, `--workdir`, `--timeout`
+
+Managed local spawns require an explicit absolute working directory: the CLI supplies its own current directory, while API/MCP/SDK callers supply `workdir`. The daemon derives the session's Git world from that physical target, checks the stored binding, and rechecks directory identity and cancellation after sandbox setup before starting a child. API-only projectless runs may omit a filesystem target; an explicit non-Git directory receives no invented Git world. See [managed spawn worktree binding](docs/operations/managed-spawn-worktree-binding.md) for caller contracts, recovery, and verification limits.
 
 **Backends in source:** `claude` (SDK), `claude-cli`, `codex`, `gemini`, `cloudflare` (Workers AI), `openai`, `groq`, `deepseek`, `xai`, `ollama`, `lmstudio`, `aider`, `custom`, and CLI-tube backends `cli:claude-code`, `cli:codex`, `cli:agy`, `cli:gemini`, `cli:groq`, `cli:grok`. Operator-facing launches are **fail-closed on telemetry**: metered API backends need exact token counts, an exact nonzero rate, and a persisted exact cost record. Spawn results and transcripts expose requested/effective backend+model provenance plus the override source when preflight or a forced CLI selection changes what actually ran. CLI-tube backends ride the operator's authenticated local CLI and record a flat session estimate; `cli:agy` captures the user prompt plus final stdout/stderr only until agy exposes a documented stream. `pd backend` switches the active provider/model configuration; `pd backend adapters` prints the generated N:N portability contract and `--probe` discovers installed binaries, advertised flags, and declared transcript roots without claiming spawn/resume conformance; `pd benchmark run` compares backends with real (paid) calls.
 
@@ -776,7 +837,10 @@ the prompt hook injects the end-of-turn SITREP table contract each turn — the
 harness's visible value surface, riding outside the coordination byte cap.
 `suggest` injects the contract as a suggestion; `enforce` marks a turn that
 ends without the table incomplete. Scaffold the table with `pd sitrep
---template`. Reinstalling hooks is idempotent and migrates older duplicate
+--template`. The template labels missing session evidence unavailable; recorded
+metadata is not live capture, compliance or authorization proof. Its roadmap rows
+are an exact-session returned preview, never another session's substitute or a
+complete ownership census. Reinstalling hooks is idempotent and migrates older duplicate
 registrations while preserving user-owned hooks. The installed graph is
 intentionally only one turn hook plus one direct-edit gate. Opaque shell/exec
 tools do not schedule Port Daddy hooks, and no `PostToolUse` process is
@@ -784,6 +848,14 @@ installed; session claims and notes are the cumulative outcome record.
 
 Provider configuration always calls the stable user-owned
 `~/.port-daddy/bin/pd-hook-*` shims, never a versioned Homebrew Cellar path.
+Creating `~/.port-daddy/hooks.disabled` is the operator emergency kill switch:
+every Port Daddy-provided interactive or Git hook exits before reading input,
+writing diagnostics, handling the `HALT` listening watch, inspecting a project,
+probing a daemon, or publishing a commit event.
+Removing that marker re-enables the normal project and daemon gates; it does not
+start Port Daddy or arm a project. Port Daddy's commit hooks also no-op when a
+repository has no Coordination Guard configuration or when the local daemon's
+ready generation and fresh heartbeat cannot be verified.
 Hooks do not retry. After three consecutive unexpected exits or executions over
 250 ms, that hook opens a five-minute fail-open circuit: subsequent calls are
 immediate no-ops, the next turn gets one concise remediation notice, and
@@ -894,7 +966,7 @@ curl 'http://localhost:9876/fleet/prompt?project=myapp'   # One-liner for your P
 curl http://localhost:9876/fleet/models             # Available backends & models
 ```
 
-Every fleet agent gets full coordination for free: registration, sessions, heartbeats, salvage on crash. Repeated trigger bursts collapse into **queued** work (mailbox semantics — `status: queued`, non-zero `queueDepth`) instead of spawning a fresh agent per wake. Template variables (`{project}`) resolve from YAML context; lifecycle events publish on `fleet:events`. The same fail-closed telemetry policy as manual launches applies. A declaration with `enabled: false` remains inspectable in the source-aware Fleet AST but is omitted from executable runtime config; a present malformed `enabled` value also fails closed to disabled. Scheduled ships default `run_on_start: false` so a daemon restart cannot fan out a whole fleet before `/health` is stable. Fleet accepts `*/N * * * *`, `0 */N * * *`, `M * * * *`, and `M H * * *`; fixed-clock schedules re-arm against host-local wall-clock time. At DST boundaries, local `Date` semantics advance spring-forward gaps and select the earlier fall-back occurrence; this is not a timezone-aware calendar walker. Malformed, unsupported, or calendar-constrained expressions fail closed: Fleet arms neither a timer nor `run_on_start`, emits `agent_failed`, and forecasts zero launches. Ships can opt into native skill guidance with `skill_graft: true`; `pd skill-graft` previews, checkpoint-warms, and reads guarded references from the same local index. Fleet queries never generate missing Tool2Vec rows on their hot path. Red Team declares the registry's high model tier so adversarial security review never inherits a weaker CLI default.
+Every fleet agent gets full coordination for free: registration, sessions, heartbeats, salvage on crash. Repeated trigger bursts collapse into **queued** work (mailbox semantics — `status: queued`, non-zero `queueDepth`) instead of spawning a fresh agent per wake. Template variables (`{project}`) resolve from YAML context; lifecycle events publish on `fleet:events`. The same fail-closed telemetry policy as manual launches applies. A declaration with `enabled: false` remains inspectable in the source-aware Fleet AST but is omitted from executable runtime config; a present malformed `enabled` value also fails closed to disabled. Scheduled ships default `run_on_start: false` so a daemon restart cannot fan out a whole fleet before `/health` is stable. Fleet accepts `*/N * * * *`, `0 */N * * *`, `M * * * *`, and `M H * * *`; fixed-clock schedules re-arm against host-local wall-clock time. At DST boundaries, local `Date` semantics advance spring-forward gaps and select the earlier fall-back occurrence; this is not a timezone-aware calendar walker. Malformed, unsupported, or calendar-constrained expressions fail closed: Fleet arms neither a timer nor `run_on_start`, emits `agent_failed`, and forecasts zero launches. Ships can opt into native skill guidance with `jury_rig: true`; `pd jury-rig` previews, checkpoint-warms, and reads guarded references from the same local index. Fleet queries never generate missing Tool2Vec rows on their hot path. Red Team declares the registry's high model tier so adversarial security review never inherits a weaker CLI default.
 
 Fleet schema: ADR-0019 (`docs/adr/0019-declarative-fleet-yaml.md`); typed AST + diagnostics: ADR-0026. This repo dogfoods its own fleet — see `pd-fleet.yml` and `docs/fleet/` for the current ship roster and known issues.
 
@@ -965,11 +1037,11 @@ pd safe fix                     # opt-in chmod of crown-jewel permissions
 
 ### Note Encryption
 
-Session notes are encrypted at rest with AES-256-GCM. Master key at `~/.port-daddy/master.key` (auto-generated); per-session keys wrapped with it. ProVerif-verified: an attacker with database access cannot learn note content.
+Session notes use AES-256-GCM with per-session keys wrapped by a master key. The default installation prefers the OS Keychain, with `~/.port-daddy/master.key` as its file fallback. An explicit noncanonical `PD_HOME` instead uses `PD_HOME/master.key` and requires `PORT_DADDY_DISABLE_KEYCHAIN=1`, refusing the canonical note-key Keychain account. Scoped file storage must be an owned real 0700 directory with a regular, single-link 0600 key. Invalid existing keys are not replaced; missing keys are created exclusively. This scopes the **session-note key only**, not every secret or Porthole's separate OS-keystore-only root provider.
 
 ### Formal verification
 
-ProVerif models cover the Anchor Protocol (agent identity), anchor attenuation, event-relay secrecy, and note escrow; Kani proofs cover Rust kernel invariants. Two white papers ship at `/whitepaper` on the website: **The Anchor Protocol** (formally verified cryptographic identity for agent swarms) and **The Bonded Commons** (pre-transactional trust infrastructure).
+ProVerif models cover the Anchor Protocol (agent identity), anchor attenuation, event-relay secrecy, and note escrow; bounded Kani harnesses cover the Rust card verifier's parsing and comparison paths. Two white papers ship at `/whitepaper` on the website: **The Anchor Protocol** (mechanically analyzed cryptographic identity for agent swarms) and **The Bonded Commons** (pre-transactional trust infrastructure).
 
 ---
 
@@ -1090,13 +1162,13 @@ pd mcp install          # auto-detect Claude Code, Claude Desktop, Cursor, Winds
 pd mcp install --list   # show what would be configured
 ```
 
-The **agent field manual** ships as a portable skill at [`skills/port-daddy-agent-skill/`](skills/port-daddy-agent-skill/) — mirrored into `.claude/skills/`, `.codex/skills/`, `.agents/skills/`, and `.gemini/extensions/` so every harness sees the same doctrine. `npm run skills:sync` keeps mirrors aligned; CI checks them.
+The **agent field manual** ships as a portable skill at [`skills/port-daddy-agent-skill/`](skills/port-daddy-agent-skill/) — mirrored into `.claude/skills/`, `.codex/skills/`, `.agents/skills/`, and `.gemini/extensions/` so every harness sees the same doctrine. `node scripts/sync-skill-mirrors.mjs` maintains the checked-in copies; CI runs its `--check` mode. Separately, `npm run skills:sync` runs runtime link projection (`scripts/sync-skills.ts --scope project`), preserving Git-tracked mirrors and excluded sparse paths while leaving unverifiable Git state, non-cone directory projections, and conflicting existing links untouched.
 
 ---
 
 ## 🌐 HTTP API
 
-The full API contract lives at [`docs/openapi.yaml`](docs/openapi.yaml) — OpenAPI 3.1, **133 paths, 166 operations**, covering everything the CLI and MCP server can do plus SSE streams (`/fleet/events`, inbox watch, channel subscribe). The daemon binds loopback with a DNS-rebinding guard; secret routes are additionally loopback-gated per-route.
+The full API contract lives at [`docs/openapi.yaml`](docs/openapi.yaml) — OpenAPI 3.1, **136 paths, 169 operations**, covering everything the CLI and MCP server can do plus SSE streams (`/fleet/events`, inbox watch, channel subscribe). The daemon binds loopback with a DNS-rebinding guard; secret routes are additionally loopback-gated per-route.
 
 The `editor_recovery` Harbor Editor salvage routes are authenticated, fail-closed scaffolding at `POST /editor/recovery/request`, `/prepare`, `/replay`, and `/finalize`; registration does **not** make a usable recovery pipeline. Four external build gates remain unimplemented: the P1 Rust operation-receipt producer, P1B, the canonical Rust Loro recovery adapter, and the P3 same-database released-claim transfer adapter. Daemon scope minting also cannot yet supply the required verified worktree root device/inode witness, and production has no content-hash/parser-generation symbol lease or daemon file-mutation generation authority. The routes therefore remain 503-gated with no CLI/MCP bypass.
 
@@ -1170,7 +1242,7 @@ We maintain an extreme standard of reliability for the control plane:
 - **README freshness gate:** the pre-commit hook runs `scripts/check-readme-freshness.mjs` — staged changes to the CLI verb registry, MCP tool surface, OpenAPI contract, feature manifest, or fleet topology are blocked unless README.md is updated in the same commit (bypass with `PD_README_OK=1` when the change is genuinely internal). `tests/unit/feature-parity.test.js` additionally enforces that every `docs.readme=true` manifest feature stays mentioned here.
 - **Compiled-CLI smoke:** CI hard-fails when the compiled CLI or daemon doesn't actually run.
 - **Surface parity:** new CLI verbs must reach API/MCP parity (`npm run parity`).
-- **Formal verification:** ProVerif protocol models + Kani proofs for Rust kernel invariants.
+- **Formal verification:** ProVerif protocol models + bounded Kani harnesses over the Rust card verifier.
 - **Benchmarking:** `pd bench` measures atomic commit latency.
 
 ### Contributing
@@ -1188,6 +1260,10 @@ Start with [CONTRIBUTING.md](CONTRIBUTING.md). Every PR is filled out against [`
 - [`docs/operations/daemon-and-supervision.md`](docs/operations/daemon-and-supervision.md) — launchd, Bosun, supervision integrity
 - [`docs/RELEASING.md`](docs/RELEASING.md) / [`docs/VERSIONING.md`](docs/VERSIONING.md) — the release contract
 - [`docs/SECURITY_SOUNDNESS.md`](docs/SECURITY_SOUNDNESS.md) — what is and is not defended
+- [Dated delivery evidence](docs/research/2026-09-02-delivery-census.md) — published work, preserved checkpoints, and runtime follow-ups; a sanitized audit, not roadmap authority
+- [Machine-instruction parity audit](docs/research/2026-09-02-machine-instruction-parity.md) — installed-guide and Pilot/skill provenance, preservation boundaries, and the remaining repair contract; source delivery is not installation
+- [macOS isolated-build findings](docs/research/2026-09-02-macos-isolated-bun-build.md) — three failed attempts, resolver controls, and remaining proof requirements; no runtime promotion
+- [Project Epistemology design package](docs/research/egosystem-reconciliation/README.md) — constitution, packet-audit skill, synthetic temporal/R17 consequence harness and existing Harbor integration contract; no runtime integration, measured research benefit or authority to resume halted work
 - White papers at `/whitepaper` on [portdaddy.dev](https://portdaddy.dev): **The Anchor Protocol**, **The Bonded Commons**
 
 ---
@@ -1215,5 +1291,5 @@ Created by **[Erich Owens](https://github.com/erichowens)** at **[curiositech](h
 ## ⚓ Support & Contact
 
 - **Issues:** [GitHub Issue Tracker](https://github.com/curiositech/port-daddy/issues)
-- **Help:** Run `pd help`, `pd learn`, or `pd tutorial` for the interactive tutorial.
+- **Help:** Run `pd help` for reference, or `pd learn` (`pd tutorial` is its alias) for the operationally read-only agent orientation. Its handler changes no work resources: headless mode makes no daemon request, interactive mode may make one bounded `GET /health`, and the CLI envelope makes one append-only usage-telemetry attempt.
 - **Vibe:** Ambitious, CUTE and CHARMING. 🚩

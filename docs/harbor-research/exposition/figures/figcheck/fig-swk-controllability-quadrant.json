@@ -1,0 +1,92 @@
+{
+ "figure": "fig-swk-controllability-quadrant",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "fail",
+   "count": 1,
+   "findings": [
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      232.3875732421875,
+      277.3028259277344,
+      235.7290496826172,
+      283.2803955078125
+     ],
+     "text": "c",
+     "size_pt": 5.98,
+     "message": "text 'c' renders at 5.98pt, below the 7.00pt floor"
+    }
+   ]
+  },
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T4": {
+   "status": "fail",
+   "count": 1,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      488.12957763671875,
+      54.516117095947266,
+      496.0997009277344,
+      224.12808227539062
+     ],
+     "text": "witnessing the trigger carries a policy upward",
+     "line_segment": [
+      [
+       495.49365234375,
+       78.46066284179688
+      ],
+      [
+       494.66937255859375,
+       81.05937194824219
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'witnessing the trigger carries a policy upward'"
+    }
+   ]
+  },
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T1",
+   "T4"
+  ],
+  "warned_checks": []
+ }
+}

@@ -1,6 +1,6 @@
 # FormalJudge: Auto-Formalization of Natural-Language Policies into Lean 4 Proof Obligations
 
-Zhou et al. 2026 (arxiv:2026.XXXXX, pending — referenced in windags knowledge base as `zhou-et-al-2026-formaljudge`) introduces FormalJudge, a framework that closes the gap between a policy document written in natural language and a machine-checkable verdict about whether an agent output satisfies that policy. The core insight is that "does this output comply?" is not a semantic search problem — it is a theorem-proving problem, and LLMs can now reliably autoformalze constrained policy domains into Lean 4 axioms at useful fidelity.
+Zhou et al. 2026 (arxiv:2026.XXXXX, pending — referenced in jury_rig knowledge base as `zhou-et-al-2026-formaljudge`) introduces FormalJudge, a framework that closes the gap between a policy document written in natural language and a machine-checkable verdict about whether an agent output satisfies that policy. The core insight is that "does this output comply?" is not a semantic search problem — it is a theorem-proving problem, and LLMs can now reliably autoformalze constrained policy domains into Lean 4 axioms at useful fidelity.
 
 ## Auto-Formalization Pipeline
 

@@ -324,6 +324,6 @@ The bypass heuristic teaches that **useful models are strategically incomplete**
 
 This is the opposite of "we'll model everything eventually"—it's acknowledging that complete models are neither achievable nor necessary. The skill is knowing where to draw the boundary.
 
-For WinDAGs: skills should be incomplete in the right ways. They should fully model their core capability while explicitly bypassing adjacent complexity that isn't their responsibility. The orchestration layer manages these boundaries, passing yellow-pad information between skills.
+For Jury-rig: skills should be incomplete in the right ways. They should fully model their core capability while explicitly bypassing adjacent complexity that isn't their responsibility. The orchestration layer manages these boundaries, passing yellow-pad information between skills.
 
 The test of good bypass: Can you clearly articulate what the skill needs to know (yellow pad contents) versus what it needs to figure out (its actual logic)? If the boundary is fuzzy, the bypass is probably wrong.

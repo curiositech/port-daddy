@@ -62,7 +62,7 @@ The denial receipt is the durable, machine-readable record a `denial-without-rec
 }
 ```
 
-Three fields are load-bearing and map directly to the audit's critical findings:
+Three fields are critical and map directly to the audit's critical findings:
 
 - `sideEffectFree: true` must be *proven* by a negative fixture, not asserted — this is what `sideEffectFreeOnBlockFixture` in the policy matrix records.
 - `safeAlternative` must be a concrete, runnable next step, not "try something else."

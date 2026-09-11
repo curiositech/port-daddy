@@ -1,0 +1,95 @@
+% Paper 6 Part I regime diagram: the expressiveness -> complexity strip.
+% Purely structural (boxes + arrows, no numeric axes), per figures/CONVENTION.md
+% "relation maps / structural diagrams" -- plain tikzpicture on the shared
+% regimebox / relarrow styles from ../tex/preamble.tex.
+%
+% Numeric provenance: this figure plots no data. Every complexity term shown is
+% restated verbatim from Theorem 1a's box in paper6.tex (Dowling-Gallier O(H)
+% unit propagation; keyed sweep-line O(T log T) on deontic tokens and
+% O(X log X) on exclusive claims; Bellman-Ford O(V.E) on the deadline graph),
+% and the right-hand cell restates Theorem 1b (3-SAT reduction, NP-complete
+% under discharge-choice disjunction). Both boxes are machine-checked at
+% [internal, b4_deontic_fragment.py, seed 20260816] -- 3000-instance oracle
+% sweep with 0 disagreements, and the reduction verified 16/16 both directions.
+% No coordinate here is derived from a script; there is nothing to regenerate.
+% [verified: terms transcribed from paper6.tex Theorem 1a/1b boxes]
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+
+% ---- Title ----
+\node[align=center,font=\bfseries,text width=15cm] at (7.6,4.55)
+  {The price list, feature by feature: what each expressive step costs to check};
+\node[align=center,font=\small,color=black!45,text width=15cm] at (7.6,4.08)
+  {Everything left of the bar is bought by an algorithm; the first step across it is bought by a judge.};
+
+% ---- Tractable band ----
+\draw[seagreen,thick,rounded corners=2pt,fill=seagreen!8] (0.15,0.95) rectangle (11.55,3.65);
+\node[anchor=north west,font=\scriptsize\bfseries,text=seagreen] at (0.35,3.55)
+  {inside $\mathcal{L}_c$ --- polynomial, witness-producing, regimentable};
+
+% ---- Intractable band ----
+\draw[shipred,thick,rounded corners=2pt,fill=shipred!8] (11.95,0.95) rectangle (15.05,3.65);
+\node[anchor=north west,font=\scriptsize\bfseries,text=shipred] at (12.1,3.55)
+  {one step outside};
+
+% ---- The four in-fragment features ----
+\node[regimebox,draw=seagreen,fill=white,minimum width=2.6cm,minimum height=1.55cm,text width=2.35cm] (f1) at (1.55,2.35) {%
+  {\footnotesize\bfseries ground facts\\$+$ definite Horn\\$+$ $\bot$-headed\\integrity constraints}\\[3pt]
+  {\scriptsize\color{black!55} unit propagation\\(Dowling--Gallier)}\\[1pt]
+  {\scriptsize\bfseries\color{seagreen} $O(H)$}%
+};
+\node[regimebox,draw=seagreen,fill=white,minimum width=2.6cm,minimum height=1.55cm,text width=2.35cm] (f2) at (4.45,2.35) {%
+  {\footnotesize\bfseries $+$ ground deontic\\tokens $\Ob/\Fb$ on\\scope $\times$ interval}\\[3pt]
+  {\scriptsize\color{black!55} keyed sweep-line\\over endpoints}\\[1pt]
+  {\scriptsize\bfseries\color{seagreen} $O(T\log T)$}%
+};
+\node[regimebox,draw=seagreen,fill=white,minimum width=2.6cm,minimum height=1.55cm,text width=2.35cm] (f3) at (7.35,2.35) {%
+  {\footnotesize\bfseries $+$ exclusive\\interval claims}\\[3pt]
+  {\scriptsize\color{black!55} the same\\sweep-line, keyed\\by resource}\\[1pt]
+  {\scriptsize\bfseries\color{seagreen} $O(X\log X)$}%
+};
+\node[regimebox,draw=seagreen,fill=white,minimum width=2.6cm,minimum height=1.55cm,text width=2.35cm] (f4) at (10.25,2.35) {%
+  {\footnotesize\bfseries $+$ difference\\constraints\\$x_j-x_i\le\delta$}\\[3pt]
+  {\scriptsize\color{black!55} Bellman--Ford\\negative cycle}\\[1pt]
+  {\scriptsize\bfseries\color{seagreen} $O(V\!\cdot\!E)$}%
+};
+
+% ---- The step across ----
+\node[regimebox,draw=shipred,fill=white,minimum width=2.6cm,minimum height=1.55cm,text width=2.35cm] (f5) at (13.5,2.35) {%
+  {\footnotesize\bfseries $+$ disjunctive\\obligations under\\discharge choice}\\[3pt]
+  {\scriptsize\color{black!55} 3-SAT reduction;\\no short witness\\on refusal}\\[1pt]
+  {\scriptsize\bfseries\color{shipred} NP-complete}%
+};
+
+\draw[relarrow,black!45] (f1) -- (f2);
+\draw[relarrow,black!45] (f2) -- (f3);
+\draw[relarrow,black!45] (f3) -- (f4);
+
+% ---- The bar: the designed boundary ----
+\draw[black,very thick,dashed] (11.75,0.75) -- (11.75,3.85);
+\node[rotate=90,anchor=south,font=\scriptsize\bfseries] at (11.62,1.05) {the designed boundary};
+\draw[relarrow,shipred,line width=1.2pt] (f4) -- (f5);
+
+% ---- Parallel strip: authority consumed ----
+% The row label sits BELOW the strip rather than to its left: a left-hand label
+% would push the picture's bounding box past the 15.05cm the boxes already use,
+% and the text block is only ~16cm wide at this class/geometry.
+\node[anchor=north,font=\scriptsize\bfseries] at (7.6,-0.12) {authority consumed};
+\draw[seagreen,thick,fill=seagreen!14,rounded corners=1pt] (0.15,0.05) rectangle (11.55,0.8);
+\node[font=\footnotesize,text=seagreen] at (1.55,0.42) {none};
+\node[font=\footnotesize,text=seagreen] at (4.45,0.42) {none};
+\node[font=\footnotesize,text=seagreen] at (7.35,0.42) {none};
+\node[font=\footnotesize,text=seagreen] at (10.25,0.42) {none};
+\draw[shipred,thick,fill=shipred!14,rounded corners=1pt] (11.95,0.05) rectangle (15.05,0.8);
+\node[font=\footnotesize\bfseries,text=shipred,align=center,text width=2.9cm] at (13.5,0.42) {a chartered resolver};
+
+\end{tikzpicture}
+\caption{Part I as a price list. Each in-fragment feature names the algorithm that discharges it and the term it contributes to
+the $O(H + T\log T + X\log X + V\!\cdot\!E)$ bound of Theorem~1a --- and the strip beneath records that none of them consumes an
+authority. The dashed bar is the designed boundary: admitting disjunctive obligations under discharge-choice semantics makes
+conflict-freedom NP-complete (Theorem~1b, by reduction from 3-SAT), and it is the first feature whose cost is paid in judgment
+rather than in cycles. The figure carries no plotted data; every term is restated from the two boxes above [internal,
+\texttt{b4\_deontic\_fragment.py}, seed 20260816].}
+\label{fig:dichotomy}
+\end{figure}

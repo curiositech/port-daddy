@@ -54,7 +54,7 @@ The non-obvious property: convergence in distribution doesn't require convergenc
 
 For distributed systems: agents don't need to compute equilibrium analytically. Through repeated interaction with bounded rationality (learning from experience), they converge to equilibrium distributions. This enables coordination without central computation—the system finds equilibrium through decentralized experimentation.
 
-The implementation: in WinDAGs, skills executing repeatedly can learn which subtasks to invoke through empirical success rates. No skill needs global knowledge of payoff structure. Each skill observes outcomes, updates beliefs about which dependencies work, adjusts invocation frequencies. System converges to equilibrium task allocation without central orchestrator computing optimal allocation.
+The implementation: in Jury-rig, skills executing repeatedly can learn which subtasks to invoke through empirical success rates. No skill needs global knowledge of payoff structure. Each skill observes outcomes, updates beliefs about which dependencies work, adjusts invocation frequencies. System converges to equilibrium task allocation without central orchestrator computing optimal allocation.
 
 ## Minimax-Q: Learning in Stochastic Games
 
@@ -126,4 +126,4 @@ The resolution: don't try to compute optimal bounded-rational strategy analytica
 
 The synthesis: **bounded rationality isn't a defect—it's a design parameter.** By intentionally limiting agent computational power, memory, or communication, you change the equilibrium set. Sometimes this enables cooperation impossible under perfect rationality. Sometimes this makes equilibrium computation harder. The key is recognizing these trade-offs and choosing constraints that yield desired system behavior.
 
-For WinDAGs with 180+ skills: don't require each skill to compute optimal global strategy. Give skills limited memory and lookahead. Have them learn through repeated task execution. Use potential functions to guarantee convergence in congestion settings. Accept bounded suboptimality (PoA ≤ 1.5) rather than pursuing uncomputable perfection. The result: distributed coordination that works in practice, even if theoretically suboptimal.
+For Jury-rig with 180+ skills: don't require each skill to compute optimal global strategy. Give skills limited memory and lookahead. Have them learn through repeated task execution. Use potential functions to guarantee convergence in congestion settings. Accept bounded suboptimality (PoA ≤ 1.5) rather than pursuing uncomputable perfection. The result: distributed coordination that works in practice, even if theoretically suboptimal.

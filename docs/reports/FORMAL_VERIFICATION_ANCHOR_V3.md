@@ -1,4 +1,17 @@
 # Formal Verification Report: The Anchor Protocol (v3.7.0)
+
+> **SUPERSEDED (2026-09-06, wave-p1/proof-estate audit).** This report's
+> Phase 3 claim -- that `analyses/harbor_card_v3_delegation.pv` proves
+> multi-hop delegation is safe ("Transitive trust is preserved") -- is
+> **refuted** by `analyses/harbor_card_v6_multihop_attack.pv`: a verifier
+> that checks only the final delegated capability against the root
+> capability accepts a non-monotonic middle hop (e.g. write → read → write),
+> which `harbor_card_v3_delegation.pv`'s single-hop model cannot see. The fix
+> is mechanized in `analyses/harbor_card_v7_multihop_fixed.pv` (a per-hop
+> each⊆parent check, proven to reject the same escalation). Phases 1 and 2
+> below are unaffected. See `website-v2/docs/analysis/whitepaper-badge-audit.md`
+> and `whitepaper/corpus.json` for the surrounding audit trail.
+
 **Date:** March 12, 2026  
 **Subject:** Symbolic Analysis of Harbor Card Exchange & Delegation  
 **Status:** VERIFIED (ProVerif 2.05)

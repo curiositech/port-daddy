@@ -1,0 +1,120 @@
+{
+ "figure": "fig-he-cold-start",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "fail",
+   "count": 3,
+   "findings": [
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      324.36077880859375,
+      30.108461380004883,
+      328.2198486328125,
+      36.147674560546875
+     ],
+     "text": "\u22c6",
+     "size_pt": 6.04,
+     "message": "text '\u22c6' renders at 6.04pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      382.83660888671875,
+      69.29620361328125,
+      386.6956787109375,
+      75.33541870117188
+     ],
+     "text": "\u22c6",
+     "size_pt": 6.04,
+     "message": "text '\u22c6' renders at 6.04pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      72.42570495605469,
+      260.4239196777344,
+      76.50540924072266,
+      267.39776611328125
+     ],
+     "text": "\u22c6",
+     "size_pt": 6.97,
+     "message": "text '\u22c6' renders at 6.97pt, below the 7.00pt floor"
+    }
+   ]
+  },
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T4": {
+   "status": "fail",
+   "count": 1,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      377.8458251953125,
+      69.29620361328125,
+      386.6956787109375,
+      78.61848449707031
+     ],
+     "text": "\u03bb\u22c6",
+     "line_segment": [
+      [
+       115.51902770996094,
+       77.75665283203125
+      ],
+      [
+       427.68463134765625,
+       77.75665283203125
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text '\u03bb\u22c6'"
+    }
+   ]
+  },
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T1",
+   "T4"
+  ],
+  "warned_checks": []
+ }
+}

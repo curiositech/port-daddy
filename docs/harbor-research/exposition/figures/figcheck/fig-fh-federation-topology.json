@@ -1,0 +1,429 @@
+{
+ "figure": "fig-fh-federation-topology",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "fail",
+   "count": 14,
+   "findings": [
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      243.15391540527344,
+      43.44927215576172,
+      248.86802673339844,
+      49.63338088989258
+     ],
+     "text": "A",
+     "size_pt": 6.18,
+     "message": "text 'A' renders at 6.18pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      451.0340270996094,
+      43.44927215576172,
+      456.7666931152344,
+      49.63338088989258
+     ],
+     "text": "B",
+     "size_pt": 6.18,
+     "message": "text 'B' renders at 6.18pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      290.13671875,
+      63.16704559326172,
+      293.1174621582031,
+      69.35115814208984
+     ],
+     "text": "(",
+     "size_pt": 6.18,
+     "message": "text '(' renders at 6.18pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      293.1143798828125,
+      63.16552734375,
+      296.7568054199219,
+      69.3496322631836
+     ],
+     "text": "e",
+     "size_pt": 6.18,
+     "message": "text 'e' renders at 6.18pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      296.7568359375,
+      63.16704559326172,
+      299.7375793457031,
+      69.35115814208984
+     ],
+     "text": ")",
+     "size_pt": 6.18,
+     "message": "text ')' renders at 6.18pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      290.0855407714844,
+      70.58637237548828,
+      295.7996520996094,
+      76.77047729492188
+     ],
+     "text": "A",
+     "size_pt": 6.18,
+     "message": "text 'A' renders at 6.18pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      310.79302978515625,
+      63.16703796386719,
+      313.7737731933594,
+      69.35115051269531
+     ],
+     "text": "(",
+     "size_pt": 6.18,
+     "message": "text '(' renders at 6.18pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      313.77069091796875,
+      63.16551971435547,
+      317.4131164550781,
+      69.34962463378906
+     ],
+     "text": "e",
+     "size_pt": 6.18,
+     "message": "text 'e' renders at 6.18pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      317.41314697265625,
+      63.16703796386719,
+      320.3938903808594,
+      69.35115051269531
+     ],
+     "text": ")",
+     "size_pt": 6.18,
+     "message": "text ')' renders at 6.18pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      310.7418518066406,
+      70.58636474609375,
+      316.4745178222656,
+      76.77046966552734
+     ],
+     "text": "B",
+     "size_pt": 6.18,
+     "message": "text 'B' renders at 6.18pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      298.28375244140625,
+      99.89151763916016,
+      303.99786376953125,
+      106.07562255859375
+     ],
+     "text": "A",
+     "size_pt": 6.18,
+     "message": "text 'A' renders at 6.18pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      324.9683837890625,
+      95.48314666748047,
+      327.2317810058594,
+      101.6672592163086
+     ],
+     "text": "\u2032",
+     "size_pt": 6.18,
+     "message": "text '\u2032' renders at 6.18pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      324.3857421875,
+      101.47065734863281,
+      330.118408203125,
+      107.6547622680664
+     ],
+     "text": "B",
+     "size_pt": 6.18,
+     "message": "text 'B' renders at 6.18pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      348.85223388671875,
+      99.89151000976562,
+      354.56634521484375,
+      106.07561492919922
+     ],
+     "text": "A",
+     "size_pt": 6.18,
+     "message": "text 'A' renders at 6.18pt, below the 7.00pt floor"
+    }
+   ]
+  },
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "fail",
+   "count": 4,
+   "findings": [
+    {
+     "check": "T3",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      125.17855834960938,
+      31.345882415771484,
+      475.743408203125,
+      40.622047424316406
+     ],
+     "other_bbox": [
+      295.6647033691406,
+      37.86468505859375,
+      351.4288330078125,
+      46.11016082763672
+     ],
+     "text": "shared rails correlate sovereign domains without merging their authority",
+     "other_text": "no shared root",
+     "overlap_fraction": 0.334,
+     "message": "text 'shared rails correlate sovereign domains without merging their authority' overlaps 'no shared root' by 33.4% of the smaller bbox"
+    },
+    {
+     "check": "T3",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      234.467041015625,
+      63.16552734375,
+      299.7375793457031,
+      74.18762969970703
+     ],
+     "other_bbox": [
+      290.0855407714844,
+      63.16551971435547,
+      320.3938903808594,
+      77.22234344482422
+     ],
+     "text": "signed roots R(e)",
+     "other_text": "A , R(e)",
+     "overlap_fraction": 0.25,
+     "message": "text 'signed roots R(e)' overlaps 'A , R(e)' by 25.0% of the smaller bbox"
+    },
+    {
+     "check": "T3",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      290.0855407714844,
+      63.16551971435547,
+      320.3938903808594,
+      77.22234344482422
+     ],
+     "other_bbox": [
+      310.7418518066406,
+      70.58636474609375,
+      316.4745178222656,
+      76.77046966552734
+     ],
+     "text": "A , R(e)",
+     "other_text": "B",
+     "overlap_fraction": 1.0,
+     "message": "text 'A , R(e)' overlaps 'B' by 100.0% of the smaller bbox"
+    },
+    {
+     "check": "T3",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      292.0396728515625,
+      95.48314666748047,
+      327.2317810058594,
+      106.37520599365234
+     ],
+     "other_bbox": [
+      324.3857421875,
+      96.7440185546875,
+      354.56634521484375,
+      107.954345703125
+     ],
+     "text": "CA 7\u2192C\u2032",
+     "other_text": "B \u2286CA",
+     "overlap_fraction": 0.081,
+     "message": "text 'CA 7\u2192C\u2032' overlaps 'B \u2286CA' by 8.1% of the smaller bbox"
+    }
+   ]
+  },
+  "T4": {
+   "status": "fail",
+   "count": 4,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      292.0396728515625,
+      95.48314666748047,
+      327.2317810058594,
+      106.37520599365234
+     ],
+     "text": "CA 7\u2192C\u2032",
+     "line_segment": [
+      [
+       323.5613098144531,
+       212.2098388671875
+      ],
+      [
+       323.5613098144531,
+       48.862754821777344
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'CA 7\u2192C\u2032'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      289.24346923828125,
+      147.09873962402344,
+      357.8458557128906,
+      155.34422302246094
+     ],
+     "text": "anti-entropy delta",
+     "line_segment": [
+      [
+       323.5613098144531,
+       212.2098388671875
+      ],
+      [
+       323.5613098144531,
+       48.862754821777344
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'anti-entropy delta'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      255.70184326171875,
+      168.64797973632812,
+      391.3795166015625,
+      177.04574584960938
+     ],
+     "text": "bond at A \u00b7 measured damage at B",
+     "line_segment": [
+      [
+       323.5613098144531,
+       212.2098388671875
+      ],
+      [
+       323.5613098144531,
+       48.862754821777344
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'bond at A \u00b7 measured damage at B'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      148.32302856445312,
+      189.3264923095703,
+      498.9148864746094,
+      197.57398986816406
+     ],
+     "text": "Custody bounded only if the settlement gate holds; a conditional property, not an invariant",
+     "line_segment": [
+      [
+       323.5613098144531,
+       212.2098388671875
+      ],
+      [
+       323.5613098144531,
+       48.862754821777344
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'Custody bounded only if the settlement gate holds; a conditional property, not an invariant'"
+    }
+   ]
+  },
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T1",
+   "T3",
+   "T4"
+  ],
+  "warned_checks": []
+ }
+}

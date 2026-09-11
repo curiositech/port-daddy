@@ -1,0 +1,3 @@
+type: fixed
+
+- **Heartbeat expiry preserves durable work without granting live authority.** Automatic death abandons only ephemeral sessions and reports their exact IDs. Verified active durable sessions retain inactive, not-ready directory rows without refreshing heartbeats or changing lock expiry. Existing replacement capsules are held as `dormant` with `durable_session_active`; already-admitted attempts remain `resurrecting`, and ordinary salvage mutations cannot reopen or delete held evidence. CLI/API readouts expose the hold. Hold clearance remains unimplemented and requires separate verified operator recovery work; this source change does not install or restart the daemon.

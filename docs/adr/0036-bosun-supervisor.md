@@ -57,7 +57,7 @@ constraints — explicitly enumerated so future PRs do not slide:
 These constraints define what bosun IS by enumerating what it isn't.
 "Two turtles, no more" — the daemon is one supervisor (it manages fleet
 bodies); bosun is the other (it manages the daemon). Adding a third
-layer is a load-bearing decision that needs its own ADR.
+layer is an essential decision that needs its own ADR.
 
 ### Shipped surface (verified at `core/pd-bosun/src/main.rs`)
 

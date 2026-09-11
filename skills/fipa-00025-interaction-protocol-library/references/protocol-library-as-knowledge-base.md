@@ -107,7 +107,7 @@ The naming system also enables composition. Protocols can reference other protoc
 
 ## Implications for DAG-Based Orchestration
 
-For WinDAGs or similar systems, FIPA's library model suggests several design principles:
+For Jury-rig or similar systems, FIPA's library model suggests several design principles:
 
 **Built-In Protocol Library**: The orchestration system should include a core library of fundamental coordination patterns (request-response, fan-out-gather, contract-net, etc.). These are the "standard library" of coordination.
 

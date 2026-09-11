@@ -3,6 +3,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, test } from 'vitest'
 import { ALL_CATEGORIES, MCP_DEFAULT_TOOL_TOTAL, MCP_TOOL_TOTAL } from './mcp'
+import { MCP_AGENT_TOOL_DEFINITIONS } from './mcpAgentToolCatalog'
 import { CLI_REFERENCE_GROUPS, SDK_REFERENCE_GROUPS, cliCommandHref } from './referenceCatalog'
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
@@ -69,12 +70,24 @@ describe('reference catalog source coverage', () => {
   })
 
   test('MCP catalog totals match the server-backed tool set', () => {
-    const uniqueTools = new Set(ALL_CATEGORIES.flatMap((category) => category.tools))
+    // This used to compare the docs page's curated category listing against two
+    // hand-typed constants, which is a check of one hand-maintained copy
+    // against another: when the server grew, both were wrong and neither
+    // noticed. The totals now come off the generated catalogue, so what is
+    // worth asserting here is that the generated catalogue really is the
+    // server's registry, and that the curated listing never names a tool the
+    // server does not serve.
     const serverSource = readRepoFile('mcp/server.ts')
     const essentialBlock = serverSource.match(/const ESSENTIAL_TOOL_NAMES = new Set\(\[([\s\S]*?)\]\);/)?.[1] ?? ''
     const essentialTools = Array.from(essentialBlock.matchAll(/'([^']+)'/g), (match) => match[1])
 
-    expect(uniqueTools.size).toBe(MCP_TOOL_TOTAL)
     expect(new Set([...essentialTools, 'pd_discover']).size).toBe(MCP_DEFAULT_TOOL_TOTAL)
+
+    const registered = new Set(MCP_AGENT_TOOL_DEFINITIONS.map((tool) => tool.name))
+    expect(registered.size).toBe(MCP_TOOL_TOTAL)
+
+    const curated = [...new Set(ALL_CATEGORIES.flatMap((category) => category.tools))]
+    expect(curated.filter((tool) => !registered.has(tool))).toEqual([])
+    expect(curated.length).toBeLessThanOrEqual(MCP_TOOL_TOTAL)
   })
 })

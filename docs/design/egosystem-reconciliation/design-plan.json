@@ -1,0 +1,15 @@
+{
+  "primaryActionObviousWithin3s": false,
+  "textContrastMinRatio": 5.53,
+  "worksAt320pxNoHscroll": true,
+  "touchTargetsMinPx": 44,
+  "brandColorsConsistent": true,
+  "fontWeightsCount": 3,
+  "fontSizesCount": 4,
+  "loadInteractiveSeconds": 0.051,
+  "navMatchesMentalModel": false,
+  "lightAndDark": true,
+  "interactiveStatesDefined": true,
+  "buttonStylesCount": 2,
+  "unjustifiedAnimationsCount": 0
+}

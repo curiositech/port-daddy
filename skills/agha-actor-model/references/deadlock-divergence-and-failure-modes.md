@@ -2,7 +2,7 @@
 
 ## Overview
 
-Chapter 6 of Agha's thesis is a catalogue of the pathological behaviors that plague concurrent systems — and, critically, a demonstration of how the actor model either eliminates or contains each one. For WinDAGs, this is a handbook of failure modes and architectural countermeasures.
+Chapter 6 of Agha's thesis is a catalogue of the pathological behaviors that plague concurrent systems — and, critically, a demonstration of how the actor model either eliminates or contains each one. For Jury-rig, this is a handbook of failure modes and architectural countermeasures.
 
 ## Divergence: Infinite Loops That Don't Block
 

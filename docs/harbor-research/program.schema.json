@@ -1,0 +1,125 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.internal/schemas/program.schema.json",
+  "title": "Harbor research program",
+  "description": "What the website's /research page renders: the papers, the executed results, the mechanized estate, the studies under way, the planned lifts, the open problems, the deep dives, and the wrong turns. The results, estate, and critiqueLedger sections are derived by scripts/harbor-research/check_research_program.py --sync from library-index.json, whitepaper/corpus.json, and critique-ledger.json; the rest is written by hand and checked against the repository.",
+  "type": "object",
+  "required": ["$schema", "version", "updated", "statement", "checker", "mirror", "papers", "deepDives", "wrongTurns", "studies", "plannedLifts", "openProblems", "results", "estate", "critiqueLedger"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "const": "./program.schema.json" },
+    "version": { "const": 1 },
+    "updated": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+    "statement": { "type": "string", "minLength": 80 },
+    "checker": { "type": "string" },
+    "mirror": { "type": "string" },
+    "papers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["number", "siteId", "tex"],
+        "additionalProperties": false,
+        "properties": {
+          "number": { "type": "integer", "minimum": 1 },
+          "siteId": { "type": "string", "description": "The id of the matching entry in website-v2/src/data/researchPapers.ts." },
+          "tex": { "type": "string" }
+        }
+      }
+    },
+    "deepDives": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["dir", "paper", "verdict", "oneLine", "findings"],
+        "additionalProperties": false,
+        "properties": {
+          "dir": { "type": "string" },
+          "paper": { "type": "integer" },
+          "verdict": { "enum": ["CLEAR", "NARROW", "SUBSUMED", "CONTRADICTED"] },
+          "oneLine": { "type": "string" },
+          "findings": { "type": "string" }
+        }
+      }
+    },
+    "wrongTurns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["file", "result", "lesson"],
+        "additionalProperties": false,
+        "properties": {
+          "file": { "type": "string" },
+          "result": { "type": "string" },
+          "lesson": { "type": "string" }
+        }
+      }
+    },
+    "studies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "dir", "title", "status", "protocol", "preRegistered", "chapters", "question", "design", "hypotheses", "reportRule"],
+        "properties": {
+          "id": { "type": "string" },
+          "dir": { "type": "string", "description": "Directory under studies/." },
+          "title": { "type": "string" },
+          "status": { "enum": ["specified", "pilot running", "running", "reported", "retired"] },
+          "protocol": { "type": "string" },
+          "preRegistered": { "type": "string" },
+          "chapters": { "type": "array", "items": { "type": "integer" } },
+          "question": { "type": "string" },
+          "design": { "type": "string" },
+          "hypotheses": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["id", "title", "statement"],
+              "properties": {
+                "id": { "type": "string" },
+                "title": { "type": "string" },
+                "statement": { "type": "string" }
+              }
+            }
+          },
+          "notRunnableHere": { "type": "string" },
+          "reportRule": { "type": "string" },
+          "report": { "type": "string", "description": "Path to REPORT.md once it exists." }
+        }
+      }
+    },
+    "plannedLifts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "status", "chapters", "statement", "source"],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "status": { "enum": ["planned", "in progress", "partial", "done"] },
+          "chapters": { "type": "array", "items": { "type": "integer" } },
+          "result": { "type": "string" },
+          "statement": { "type": "string" },
+          "source": { "type": "string" }
+        }
+      }
+    },
+    "openProblems": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "chapters", "statement", "source"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "chapters": { "type": "array", "items": { "type": "integer" } },
+          "statement": { "type": "string" },
+          "source": { "type": "string", "description": "Repository path, optionally with a #heading anchor, where the problem is named." }
+        }
+      }
+    },
+    "results": { "type": "array", "description": "Derived from library-index.json; do not edit by hand." },
+    "estate": { "type": "object", "description": "Derived from whitepaper/corpus.json; do not edit by hand." },
+    "critiqueLedger": { "type": "object", "description": "Derived from critique-ledger.json; do not edit by hand." }
+  }
+}

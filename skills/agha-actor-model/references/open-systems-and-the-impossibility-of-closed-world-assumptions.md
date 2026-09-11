@@ -93,17 +93,17 @@ The only consistent global ordering of events is a *partial order* — the causa
 
 "The important point to be made is that any such global synchronization creates a bottleneck which can be extremely inefficient in the context of a distributed environment." (p. 17)
 
-## Application to WinDAGs Open System Design
+## Application to Jury-rig Open System Design
 
-### WinDAGs is an open system by nature
+### Jury-rig is an open system by nature
 
-WinDAGs operates in a world where:
+Jury-rig operates in a world where:
 - New tasks arrive from external sources at any time
 - New skills are added to the system as needed
 - User requirements change during execution
 - External services the system depends on come and go
 
-The closed-world assumption fails immediately. WinDAGs design must embrace openness.
+The closed-world assumption fails immediately. Jury-rig design must embrace openness.
 
 ### Design for dynamic skill registration
 
@@ -127,7 +127,7 @@ The system continues operating with reduced capability rather than failing.
 
 ### Avoid assuming knowledge of system state
 
-Orchestration algorithms in WinDAGs should not assume they know the current state of other agents. When an orchestrator needs to know if a skill is available, it should *ask* (send a status query) rather than assuming based on stale information.
+Orchestration algorithms in Jury-rig should not assume they know the current state of other agents. When an orchestrator needs to know if a skill is available, it should *ask* (send a status query) rather than assuming based on stale information.
 
 The actor model guarantees this query will eventually be answered. If the skill is busy, the response will say so. If the skill is down, the buffer will eventually drain or timeout.
 
@@ -139,7 +139,7 @@ An orchestrating agent that remembers "skill X was faster than skill Y for tasks
 
 ### Multi-level interface surfaces
 
-WinDAGs should define explicit interface surfaces at multiple levels:
+Jury-rig should define explicit interface surfaces at multiple levels:
 - **Task interface**: What tasks the system accepts from external clients
 - **Skill interface**: What the orchestrator exposes to skills
 - **Monitoring interface**: What the monitoring system can observe

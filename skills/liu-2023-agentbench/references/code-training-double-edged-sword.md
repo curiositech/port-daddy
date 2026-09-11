@@ -268,4 +268,4 @@ For agent systems:
 - **Monitor for procedural bias** (repetition, lack of adaptation) as a failure signal
 - **Consider task-specific fine-tuning** instead of general code training
 
-The lesson for WinDAGs: Don't assume "better at code = better at agents." Task structure matters more than raw capability. A weaker model with the right reasoning style can outperform a stronger model with the wrong style.
+The lesson for Jury-rig: Don't assume "better at code = better at agents." Task structure matters more than raw capability. A weaker model with the right reasoning style can outperform a stronger model with the wrong style.

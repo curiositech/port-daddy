@@ -39,7 +39,7 @@
   forward) controls what is true and visible (what survives into the summary the
   operator and the next agent read). Port Daddy already compacts in five built
   primitives without having named the economics. This makes context economics the
-  load-bearing seam between L2 (legibility) and L3 (a market you can only meter in
+  foundational seam between L2 (legibility) and L3 (a market you can only meter in
   COGS you actually accounted).
 
 - **No reputation without continuity; no market without reputation; and all of it
@@ -170,7 +170,7 @@ which is what makes the volume cohere:
 The wedge sequencing is the product discipline that ties the motifs to a roadmap:
 single-player L2 ships first (papers 1–3 are its theory), L3 federation and
 market come *after* the wedge is loved (papers 4–5 are its expansion), and the
-read-surface/memory work is revealed not as a side quest but as L3's load-bearing
+read-surface/memory work is revealed not as a side quest but as L3's critical
 wall.
 
 ---
@@ -243,7 +243,7 @@ with the North Star unless marked.
    cheap; the *substrate that makes the score real* is the gate. Both papers
    already say this; it is just not cross-linked.
 
-3. **ADR-0040 is load-bearing in three papers but specified in none of this
+3. **ADR-0040 is pivotal in three papers but specified in none of this
    volume.** identity-reputation, discovery-guilds, and agent-economy-anchor all
    make ADR-0040 (non-forgeable identity) the forced first commit, but ADR-0040 is
    [DESIGNED]/[PROPOSED], not [BUILT]. This is *consistent* with the North Star
@@ -276,7 +276,7 @@ with the North Star unless marked.
      realistic reputation noise is open.
    - **Cross-harbor reputation portability without a global PKI**
      (identity-reputation §8; discovery-guilds §8): the seam where the
-     *cryptographic* market becomes load-bearing; FLP impossibility bites on
+     *cryptographic* market becomes central; FLP impossibility bites on
      federated directory membership.
    - **The unit of reputation** (discovery-guilds §8): per-actor vs.
      per-(actor, surface) — accuracy vs. cold-start sparsity, unresolved.

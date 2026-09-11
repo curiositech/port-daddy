@@ -103,6 +103,18 @@ const GH_AUTHORIZE = 'https://github.com/login/oauth/authorize';
 const GH_TOKEN = 'https://github.com/login/oauth/access_token';
 const GH_API = 'https://api.github.com';
 
+function safeAccountReturn(value: string | null): string {
+  if (!value || value.length > 2048 || !value.startsWith('/account')) return '/account';
+  try {
+    const parsed = new URL(value, 'https://relay.invalid');
+    const accountPath = parsed.pathname === '/account' || parsed.pathname.startsWith('/account/');
+    if (parsed.origin !== 'https://relay.invalid' || !accountPath) return '/account';
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return '/account';
+  }
+}
+
 function json(status: number, body: Record<string, unknown>): Response {
   return Response.json(body, { status });
 }
@@ -220,7 +232,8 @@ export async function handleGithubLogin(request: Request, env: Env): Promise<Res
 
   const state = randomHex(32);
   // Single-use: stored in KV with a short TTL, consumed exactly once at callback.
-  await env.KV.put(`oauth_state:${state}`, '1', { expirationTtl: STATE_TTL_SECONDS });
+  const returnTo = safeAccountReturn(new URL(request.url).searchParams.get('return_to'));
+  await env.KV.put(`oauth_state:${state}`, JSON.stringify({ returnTo }), { expirationTtl: STATE_TTL_SECONDS });
 
   const url = new URL(GH_AUTHORIZE);
   url.searchParams.set('client_id', env.GITHUB_OAUTH_CLIENT_ID);
@@ -245,6 +258,11 @@ export async function handleGithubCallback(request: Request, env: Env): Promise<
   const seen = await env.KV.get(stateKey);
   if (!seen) return json(400, { code: 'BAD_STATE', error: 'state did not match or expired (possible CSRF)' });
   await env.KV.delete(stateKey);
+  let returnTo = '/account';
+  try {
+    const stored = JSON.parse(seen) as { returnTo?: unknown };
+    returnTo = safeAccountReturn(typeof stored.returnTo === 'string' ? stored.returnTo : null);
+  } catch { /* Backward-compatible with states minted by the previous release. */ }
 
   // Exchange the authorization code for a user-to-server token.
   const tokRes = await fetch(GH_TOKEN, {
@@ -305,8 +323,8 @@ export async function handleGithubCallback(request: Request, env: Env): Promise<
     userAgent: request.headers.get('User-Agent'),
   });
 
-  // Land the freshly-signed-in user on their account page (not the bare root).
-  const dest = (env.PUBLIC_BASE_URL ?? '').replace(/\/+$/, '') + '/account';
+  // Return to the account surface that requested renewed GitHub authority.
+  const dest = (env.PUBLIC_BASE_URL ?? '').replace(/\/+$/, '') + returnTo;
   return new Response(null, {
     status: 302,
     headers: { Location: dest, 'Set-Cookie': sessionSetCookie(sessionValue, SESSION_TTL_SECONDS) },
@@ -383,9 +401,9 @@ export async function handleLogout(request: Request, env: Env): Promise<Response
   if (!isSameOrigin(request, env)) return json(403, { code: 'CROSS_ORIGIN', error: 'cross-origin request refused' });
   const value = readSessionCookie(request);
   if (value) await deleteWebSession(env.DB, hashHex(value));
-  return new Response(JSON.stringify({ code: 'OK', error: null }), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json', 'Set-Cookie': sessionSetCookie('', 0) },
+  return new Response(null, {
+    status: 303,
+    headers: { Location: '/login', 'Cache-Control': 'no-store', 'Set-Cookie': sessionSetCookie('', 0) },
   });
 }
 

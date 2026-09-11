@@ -154,6 +154,10 @@ pd wallet <command>
 pd bond <command>
 pd graph edges
 pd memory episodes
+pd embed status [--json]
+pd embed prefetch
+pd embed text --corpus <stable-id> <text...>
+pd embed stdin --corpus <stable-id>
 pd ideas list
 pd roadmap [--tag <t>]
 pd roadmap pop [--kind <k>] [--slug <s>] [--as <id>] [--begin]
@@ -168,6 +172,11 @@ pd pheromone <command>
 pd demo <name>
 pd who-owns <path>
 ```
+
+`pd embed text` and `pd embed stdin` fail closed without `--corpus`. Successful
+JSON output binds the selected `model`, `spaceId`, corpus policy identity, role,
+dimensions, and vectors. `prefetch` is explicit model-download consent; normal
+retrieval remains cache-only unless the separate runtime download opt-in is set.
 
 Backups (ADR-0037):
 

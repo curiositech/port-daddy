@@ -1,0 +1,92 @@
+% Worked lineage DAG for Theorem 1 (paper5 review C1). Two columns, the same
+% fork-plus-re-derivation shape under the two semantics, with every node's
+% LIVE spendable balance printed on it and a running Phi under each column.
+%
+% Every number below is the output of the Ledger class in
+% skills/harbor-results/scripts/a6_no_mint.py, replayed op by op --
+% derive(parents,weights,gamma) gives the child gamma*w*spend[p] and, unless
+% MUT['copy_full'], debits the source w*spend[p], so repeated derivations
+% compound on WHAT REMAINS (the script's own comment).
+%
+% LEFT, transfer semantics, gamma=0.9, three splits at w=1/3 then one
+% re-derivation at w=1:
+%   witness e            spend(e)=1.000                       Phi=1.000
+%   derive a1 (w=1/3)    a1=0.9*(1/3)*1.000    =0.300  e->0.667  Phi=0.967
+%   derive a2 (w=1/3)    a2=0.9*(1/3)*0.667    =0.200  e->0.444  Phi=0.944
+%   derive a3 (w=1/3)    a3=0.9*(1/3)*0.444    =0.133  e->0.296  Phi=0.930
+%   derive a4 from a1 (w=1)  a4=0.9*1*0.300    =0.270  a1->0.000 Phi=0.900
+%   Phi <= W = 1.000 at every step, and nonincreasing under derivation.
+%
+% RIGHT, copy-full mutant (children inherit undebited), gamma=0.9, w=1 --
+% these are the script's two exhibits verbatim:
+%   2-op shortest crime:  1 + 0.9 + 0.9 = 2.800 > W = 1.000
+%   8-way copy-fork:      1 + 8*0.9     = 8.200 = 8.2x W   (the 8.2x figure
+%   quoted in the abstract, the Theorem 1 box, the relation-map and Sec. 7,
+%   and until now never drawn).
+% [internal, script a6_no_mint.py, seed 20260816]
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+  every node/.style={font=\scriptsize},
+  dagnode/.style={draw,rounded corners,thick,align=center,font=\scriptsize,
+                  minimum width=2.1cm,text width=1.8cm,inner sep=3pt},
+  dagedge/.style={-{Stealth[length=2mm]},thick},
+  coltitle/.style={font=\bfseries\small,align=center,text width=6.6cm},
+  ledger/.style={font=\scriptsize,align=left,text width=6.6cm},
+]
+
+% ---------------- LEFT: transfer semantics ----------------
+\node[coltitle,text=seagreen] (Lt) at (-4.1,0.9) {Transfer semantics (Theorem 1)\\[1pt]
+  {\normalfont\scriptsize each derivation debits its source}};
+\node[dagnode,draw=seagreen,fill=seagreen!8] (Le) at (-4.1,0)
+  {episode $e$\\ witnessed $1.000$\\ live $\mathbf{0.296}$};
+\node[dagnode,draw=seagreen,fill=seagreen!8] (La1) at (-6.35,-1.9)
+  {$a_1$ ($w{=}\tfrac13$)\\ got $0.300$\\ live $\mathbf{0.000}$};
+\node[dagnode,draw=seagreen,fill=seagreen!8] (La2) at (-4.1,-1.9)
+  {$a_2$ ($w{=}\tfrac13$)\\ got $0.200$\\ live $\mathbf{0.200}$};
+\node[dagnode,draw=seagreen,fill=seagreen!8] (La3) at (-1.85,-1.9)
+  {$a_3$ ($w{=}\tfrac13$)\\ got $0.133$\\ live $\mathbf{0.133}$};
+\node[dagnode,draw=seagreen,fill=seagreen!8] (La4) at (-6.35,-3.9)
+  {$a_4$ ($w{=}1$)\\ re-derived\\ live $\mathbf{0.270}$};
+\draw[dagedge,seagreen] (Le) -- (La1);
+\draw[dagedge,seagreen] (Le) -- (La2);
+\draw[dagedge,seagreen] (Le) -- (La3);
+\draw[dagedge,seagreen] (La1) -- (La4);
+\node[seagreen,anchor=west,align=left,text width=3.4cm] at (-5.15,-3.9)
+  {re-derivation draws on $a_1$'s \emph{already-debited} balance, never $e$'s};
+
+% ---------------- RIGHT: copy-full mutant ----------------
+\node[coltitle,text=shipred] (Rt) at (4.1,0.9) {Copy-full mutant (no debit)\\[1pt]
+  {\normalfont\scriptsize the same shape, photocopied}};
+\node[dagnode,draw=shipred,fill=shipred!8] (Re) at (4.1,0)
+  {episode $e$\\ witnessed $1.000$\\ live $\mathbf{1.000}$};
+\node[dagnode,draw=shipred,fill=shipred!8] (Ra1) at (1.85,-1.9)
+  {$a_1$ ($w{=}1$)\\ got $0.900$\\ live $\mathbf{0.900}$};
+\node[dagnode,draw=shipred,fill=shipred!8] (Ra2) at (4.1,-1.9)
+  {$a_2$ ($w{=}1$)\\ got $0.900$\\ live $\mathbf{0.900}$};
+\node[dagnode,draw=shipred,fill=shipred!8,dashed] (Ra8) at (6.35,-1.9)
+  {$a_3\ \cdots\ a_8$\\ got $0.900$\\ each, live $\mathbf{0.900}$};
+\draw[dagedge,shipred] (Re) -- (Ra1);
+\draw[dagedge,shipred] (Re) -- (Ra2);
+\draw[dagedge,shipred,dashed] (Re) -- (Ra8);
+\node[shipred,font=\bfseries,align=center,text width=5.0cm] at (4.1,-3.9)
+  {one episode now backs $8.2$ votes' worth of reputation};
+
+% ---------------- running ledger under each column ----------------
+\node[ledger,text=seagreen,anchor=north] at (-4.1,-4.9)
+  {$\Phi$ after each op: $1.000\to0.967\to0.944\to0.930\to\mathbf{0.900}$\\
+   $\Phi\le W=1.000$ throughout, and nonincreasing under derivation.};
+\node[ledger,text=shipred,anchor=north] at (4.1,-4.9)
+  {$\Phi$ after $2$ forks: $1+0.9+0.9=\mathbf{2.800}>W=1.000$\\
+   $\Phi$ after $8$ forks: $1+8(0.9)=\mathbf{8.200}=8.2\times W$.};
+\end{tikzpicture}
+\caption{The same lineage DAG under both semantics, with each node's live spendable balance on it and the running total $\Phi$
+beneath. Left, transfer semantics: a three-way fork at $w=\tfrac13$ and one re-derivation cycle $a_1\to a_4$ at $w=1$, all at
+$\gamma=0.9$. Each derivation debits its source, so $\Phi$ falls monotonically from $1.000$ to $0.900$ and never reaches the
+witnessed total $W=1.000$ --- the supermartingale of Theorem 1, readable by adding up one column. The re-derivation edge is the
+theorem's least intuitive clause and the figure settles it: $a_4$ is paid out of $a_1$'s remaining $0.300$, which is why a cycle
+mints nothing. Right, the copy-full mutant on the same shape: nothing is debited, so two forks already put $\Phi=2.800$ behind one
+witnessed unit and eight put $8.200$ --- the $8.2\times$ quorum multiplier, drawn. All balances replayed op by op from the ledger
+in \texttt{a6\_no\_mint.py} [internal, \texttt{a6\_no\_mint.py}, seed 20260816].}
+\label{fig:p5lineage}
+\end{figure}

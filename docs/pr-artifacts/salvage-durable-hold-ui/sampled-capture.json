@@ -1,0 +1,244 @@
+{
+  "label": "Sampled browser capture: one real sequential synthetic UI run; not continuous recording or native Porthole",
+  "source": {
+    "baseHead": "fde658313c45572b56896cff0a1b81e4e8f3afbd",
+    "agentsPanelSha256": "67c7a4ef1edc6a5ad493f0b02e7388f007fdeffdd7bac31e4d7cbdd154b24260",
+    "captureHelperSha256": "6da7912cbe12bef6d0dab1989282b1732e5a34914e26925d66f687d71f69937a"
+  },
+  "syntheticOnly": true,
+  "requestedMinimumFrameIntervalMs": 180,
+  "frames": [
+    {
+      "file": "frames/frame-0000.jpg",
+      "phase": "dark-dormant",
+      "startedAt": 1788388983331,
+      "acquiredAt": 1788388983385,
+      "bytes": 85637
+    },
+    {
+      "file": "frames/frame-0001.jpg",
+      "phase": "dark-dormant",
+      "startedAt": 1788388983567,
+      "acquiredAt": 1788388983590,
+      "bytes": 85637
+    },
+    {
+      "file": "frames/frame-0002.jpg",
+      "phase": "dark-dormant",
+      "startedAt": 1788388983770,
+      "acquiredAt": 1788388983791,
+      "bytes": 85637
+    },
+    {
+      "file": "frames/frame-0003.jpg",
+      "phase": "dark-dormant",
+      "startedAt": 1788388983973,
+      "acquiredAt": 1788388983995,
+      "bytes": 85637
+    },
+    {
+      "file": "frames/frame-0004.jpg",
+      "phase": "dark-dormant",
+      "startedAt": 1788388984176,
+      "acquiredAt": 1788388984206,
+      "bytes": 85637
+    },
+    {
+      "file": "frames/frame-0005.jpg",
+      "phase": "dark-dormant",
+      "startedAt": 1788388984388,
+      "acquiredAt": 1788388984408,
+      "bytes": 85637
+    },
+    {
+      "file": "frames/frame-0006.jpg",
+      "phase": "dark-earlier-admission",
+      "startedAt": 1788388984855,
+      "acquiredAt": 1788388984904,
+      "bytes": 87515
+    },
+    {
+      "file": "frames/frame-0007.jpg",
+      "phase": "dark-earlier-admission",
+      "startedAt": 1788388985087,
+      "acquiredAt": 1788388985100,
+      "bytes": 87515
+    },
+    {
+      "file": "frames/frame-0008.jpg",
+      "phase": "dark-earlier-admission",
+      "startedAt": 1788388985282,
+      "acquiredAt": 1788388985309,
+      "bytes": 87515
+    },
+    {
+      "file": "frames/frame-0009.jpg",
+      "phase": "dark-earlier-admission",
+      "startedAt": 1788388985492,
+      "acquiredAt": 1788388985513,
+      "bytes": 87515
+    },
+    {
+      "file": "frames/frame-0010.jpg",
+      "phase": "dark-earlier-admission",
+      "startedAt": 1788388985696,
+      "acquiredAt": 1788388985717,
+      "bytes": 87515
+    },
+    {
+      "file": "frames/frame-0011.jpg",
+      "phase": "dark-earlier-admission",
+      "startedAt": 1788388985899,
+      "acquiredAt": 1788388985920,
+      "bytes": 87515
+    },
+    {
+      "file": "frames/frame-0012.jpg",
+      "phase": "dark-ordinary-sibling",
+      "startedAt": 1788388986378,
+      "acquiredAt": 1788388986429,
+      "bytes": 94643
+    },
+    {
+      "file": "frames/frame-0013.jpg",
+      "phase": "dark-ordinary-sibling",
+      "startedAt": 1788388986611,
+      "acquiredAt": 1788388986633,
+      "bytes": 94643
+    },
+    {
+      "file": "frames/frame-0014.jpg",
+      "phase": "dark-ordinary-sibling",
+      "startedAt": 1788388986815,
+      "acquiredAt": 1788388986837,
+      "bytes": 94643
+    },
+    {
+      "file": "frames/frame-0015.jpg",
+      "phase": "dark-ordinary-sibling",
+      "startedAt": 1788388987020,
+      "acquiredAt": 1788388987040,
+      "bytes": 94643
+    },
+    {
+      "file": "frames/frame-0016.jpg",
+      "phase": "dark-ordinary-sibling",
+      "startedAt": 1788388987222,
+      "acquiredAt": 1788388987244,
+      "bytes": 94643
+    },
+    {
+      "file": "frames/frame-0017.jpg",
+      "phase": "dark-ordinary-sibling",
+      "startedAt": 1788388987426,
+      "acquiredAt": 1788388987445,
+      "bytes": 94643
+    },
+    {
+      "file": "frames/frame-0018.jpg",
+      "phase": "dark-refreshed-ordinary",
+      "startedAt": 1788388987897,
+      "acquiredAt": 1788388987910,
+      "bytes": 94402
+    },
+    {
+      "file": "frames/frame-0019.jpg",
+      "phase": "dark-refreshed-ordinary",
+      "startedAt": 1788388988092,
+      "acquiredAt": 1788388988162,
+      "bytes": 94402
+    },
+    {
+      "file": "frames/frame-0020.jpg",
+      "phase": "dark-refreshed-ordinary",
+      "startedAt": 1788388988344,
+      "acquiredAt": 1788388988470,
+      "bytes": 94402
+    },
+    {
+      "file": "frames/frame-0021.jpg",
+      "phase": "dark-refreshed-ordinary",
+      "startedAt": 1788388988652,
+      "acquiredAt": 1788388988665,
+      "bytes": 94402
+    },
+    {
+      "file": "frames/frame-0022.jpg",
+      "phase": "dark-refreshed-ordinary",
+      "startedAt": 1788388988848,
+      "acquiredAt": 1788388988875,
+      "bytes": 94402
+    },
+    {
+      "file": "frames/frame-0023.jpg",
+      "phase": "dark-refreshed-ordinary",
+      "startedAt": 1788388989058,
+      "acquiredAt": 1788388989076,
+      "bytes": 94402
+    },
+    {
+      "file": "frames/frame-0024.jpg",
+      "phase": "light-dormant",
+      "startedAt": 1788388989301,
+      "acquiredAt": 1788388989379,
+      "bytes": 86533
+    },
+    {
+      "file": "frames/frame-0025.jpg",
+      "phase": "light-dormant",
+      "startedAt": 1788388989561,
+      "acquiredAt": 1788388989581,
+      "bytes": 86533
+    },
+    {
+      "file": "frames/frame-0026.jpg",
+      "phase": "light-dormant",
+      "startedAt": 1788388989769,
+      "acquiredAt": 1788388989784,
+      "bytes": 86533
+    },
+    {
+      "file": "frames/frame-0027.jpg",
+      "phase": "light-dormant",
+      "startedAt": 1788388989966,
+      "acquiredAt": 1788388989987,
+      "bytes": 86533
+    },
+    {
+      "file": "frames/frame-0028.jpg",
+      "phase": "light-dormant",
+      "startedAt": 1788388990169,
+      "acquiredAt": 1788388990195,
+      "bytes": 86533
+    },
+    {
+      "file": "frames/frame-0029.jpg",
+      "phase": "light-dormant",
+      "startedAt": 1788388990377,
+      "acquiredAt": 1788388990394,
+      "bytes": 86533
+    }
+  ],
+  "actions": [
+    {
+      "at": 1788388983257,
+      "action": "Open dark synthetic directory with distinct same-role bodies"
+    },
+    {
+      "at": 1788388984589,
+      "action": "Select earlier admitted synthetic replacement"
+    },
+    {
+      "at": 1788388986105,
+      "action": "Select ordinary same-role sibling; exact dismissal remains separate from ambiguous role actions"
+    },
+    {
+      "at": 1788388987628,
+      "action": "Refresh; selected ordinary body remains exact"
+    },
+    {
+      "at": 1788388989259,
+      "action": "Open the same synthetic directory in light theme"
+    }
+  ]
+}

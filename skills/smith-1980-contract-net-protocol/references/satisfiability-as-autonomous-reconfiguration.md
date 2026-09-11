@@ -37,7 +37,7 @@ For satisfiability (reconfiguration), the formula cannot contain propositions ab
 
 This restriction reveals a general principle for satisfiability-based planning: **the satisfiability language must distinguish between controllable and uncontrollable propositions.** Controllable propositions can be targeted by the satisfiability solver. Uncontrollable ones are inputs — they constrain the search space but are not variables the solver can change.
 
-For WinDAGs agent systems, this maps to:
+For Jury-rig agent systems, this maps to:
 - **Controllable**: which agents to invoke, what parameters to pass, which skills to activate, what order to sequence tasks
 - **Uncontrollable**: external API responses, user inputs, environment state, time constraints
 
@@ -83,7 +83,7 @@ Epistemic formula → satisfiability solver → optimal angle assignments → mo
 
 Note that the satisfiability architecture *doesn't* use webcams as input. It computes from the formula alone — the cameras' visual feedback is not needed because the solver works from the formal model, not from direct observation. The cameras are *actuated* based on the solution, not *sensed* to drive the solution.
 
-This bidirectional capability — verify what is, then reconfigure to what should be — is extremely powerful. For WinDAGs:
+This bidirectional capability — verify what is, then reconfigure to what should be — is extremely powerful. For Jury-rig:
 - **Verification mode**: Given the current agent configuration and task state, does the epistemic condition for proceeding hold? (Model check)
 - **Reconfiguration mode**: Given that the epistemic condition doesn't hold, what changes to the agent configuration will make it hold? (Satisfiability solve)
 
@@ -99,7 +99,7 @@ For practical agent systems, this means:
 
 ## Design Prescription: Goal-Driven Agent Configuration
 
-For WinDAGs and similar systems, the satisfiability approach suggests the following design pattern:
+For Jury-rig and similar systems, the satisfiability approach suggests the following design pattern:
 
 **Step 1: Specify the task outcome as an epistemic/state formula.**
 Don't just say "run agents A, B, C." Say "achieve a state where the synthesis agent has all necessary validated inputs, the validation agent knows the synthesis is waiting for it, and the orchestrator knows both know their role."

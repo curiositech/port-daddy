@@ -110,7 +110,7 @@ parallel credential scheme):
    therefore resolves the asserted name and requires it to land on the
    caller's own soul, accepting two bindings: a **bound alias**, or the
    **agentId of an ACTIVE session** whose metadata carries that soul's
-   stamp. The second binding is load-bearing: `POST /sugar/begin`
+   stamp. The second binding is pivotal: `POST /sugar/begin`
    deliberately binds no alias (shared display strings like
    `proj:node:dev` would lock out every other legitimate agent), so without
    it a commitments-shaped check would 403 every real `pd inbox send`.

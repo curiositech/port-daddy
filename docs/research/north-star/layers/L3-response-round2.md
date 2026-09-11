@@ -1,6 +1,6 @@
 # L3 — Round-2 response to reviewers
 
-I have what I need from the grafts. The game-theory skill is the load-bearing one (PoA, VCG, Sybil, budget-balance failure modes); the zero-trust skill sharpens the crypto answers (attenuation invariant, replay/jti, capability TTL, threat-level→verification). Now I'll write the response.
+I have what I need from the grafts. The game-theory skill is the pivotal one (PoA, VCG, Sybil, budget-balance failure modes); the zero-trust skill sharpens the crypto answers (attenuation invariant, replay/jti, capability TTL, threat-level→verification). Now I'll write the response.
 
 ## Grafted skills (what I pulled + the one idea from each that changed my answer)
 
@@ -81,7 +81,7 @@ I have what I need from the grafts. The game-theory skill is the load-bearing on
 - **Concede** collusion-as-automorphism (an automorphism fixing the conserved total while permuting reputation) — this is a *sharper* statement of my A6 concavity fix (concavity-on-self-edges breaks the automorphism). Adopt it; cite Resnick–Zeckhauser 2006 and Tadelis 2016 on signal direction.
 - **REBUT (mildly):** the implication that the paper must *mechanize* the functor in CQL/Catlab.jl before shipping. **Reason:** the layer's hard guarantees are *security and economic* (settlement safety, bounded escrow, IC) — those are correctly verified in ProVerif/Kani/TLA+, which are the right tools for cryptographic and temporal properties. The categorical framing is a *clarifying lens and a problem-sharpener* (it correctly tells us #3/#4/#9 are one obstruction), and I will use it as such, but mechanizing the conservation functor in CQL would verify a property *already* property-tested (10k traces) and TLA+-checked, at the cost of a second formalism to maintain. I commit to *stating* the functor and its lax coherence conditions in categorical language (C1) — I decline to make CQL mechanization a ship-gate. The graft canon (algorithmic GT) backs this triage: verify where the adversary lives (economics, crypto), use category theory to *organize* the claims.
 
-## Revised layer position (load-bearing claims, now corrected)
+## Revised layer position (central claims, now corrected)
 
 1. **Scope (corrected per B1).** L3 is federation among **mutually-distrusting but individually-self-sovereign operators**, each the trusted root of *its own* harbor's identity namespace. The boundary is not one "neither controls" — it is one where *each controls their own root and vouches across it via published keys.* Cross-operator identity binding is **VISION** (new ADR-0051), and ADR-0040's single-operator threat model explicitly does **not** reach here.
 

@@ -13,6 +13,13 @@
  * is the gate.
  */
 
+import {
+  githubAppPrivateKeyDer,
+  importGitHubAppSigningKey,
+} from '../../shared/github-app-crypto.js';
+
+export { githubAppPrivateKeyDer };
+
 const GH_API = 'https://api.github.com';
 
 function appHeaders(jwt: string): Record<string, string> {
@@ -38,21 +45,7 @@ function ghHeaders(token: string): Record<string, string> {
 // GitHub App JWT (Workers-native Web Crypto, no @octokit/auth-app)
 
 async function signJwt(payload: Record<string, unknown>, pemKey: string): Promise<string> {
-  const pem = pemKey
-    .replace(/-----BEGIN RSA PRIVATE KEY-----/, '')
-    .replace(/-----END RSA PRIVATE KEY-----/, '')
-    .replace(/-----BEGIN PRIVATE KEY-----/, '')
-    .replace(/-----END PRIVATE KEY-----/, '')
-    .replace(/\s/g, '');
-  const der = Uint8Array.from(atob(pem), (c) => c.charCodeAt(0));
-
-  const key = await crypto.subtle.importKey(
-    'pkcs8',
-    der,
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  );
+  const key = await importGitHubAppSigningKey(pemKey);
 
   const header = { alg: 'RS256', typ: 'JWT' };
   const enc = (obj: unknown) =>

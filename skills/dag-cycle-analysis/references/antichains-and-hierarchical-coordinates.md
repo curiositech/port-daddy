@@ -386,4 +386,4 @@ For complex hierarchical systems, this dual perspective is essential:
 
 The paper's use of antichains to classify cycles is profound: It shows that the **functional role of a cycle** (resilience, integration, etc.) is determined by how it organizes independent processing streams (antichains), not just by its topology.
 
-For WinDAGs: An agent orchestrator that identifies antichains can automatically generate optimal parallel execution strategies, predict synchronization bottlenecks, and suggest refactorings to reduce coordination complexity - all from the DAG structure alone.
+For Jury-rig: An agent orchestrator that identifies antichains can automatically generate optimal parallel execution strategies, predict synchronization bottlenecks, and suggest refactorings to reduce coordination complexity - all from the DAG structure alone.

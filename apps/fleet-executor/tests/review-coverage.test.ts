@@ -3,7 +3,7 @@ import { parseShipCheckpoint, SHIP_CHECKPOINT_SCHEMA_VERSION } from '../src/ship
 
 describe('review coverage checkpoint contract', () => {
   const checkpointBinding = {
-    bindingVersion: 3 as const,
+    bindingVersion: 4 as const,
     shipConfigSha256: `sha256:${'1'.repeat(64)}`,
     contractSha256: 'absent',
     graftSha256: `sha256:${'2'.repeat(64)}`,

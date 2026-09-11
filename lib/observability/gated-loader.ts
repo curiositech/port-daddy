@@ -22,7 +22,9 @@
 import {
   BackendCircuitBreaker,
   CircuitOpenError,
-  fullJitterDelay,
+  classifyAgentError,
+  runResilientSpawn,
+  safeDiagnosticIdentifier,
   type BackoffConfig,
 } from '../agent-resilience.js';
 import type { LogGovernor } from './log-governor.js';
@@ -38,11 +40,10 @@ export interface GatedLoaderConfig {
   backoff?: BackoffConfig;
   /** Max load attempts within a single get() before giving up. Default 1 (rely on the breaker). */
   maxAttempts?: number;
+  totalTimeoutMs?: number;
   now?: () => number;
-  sleep?: (ms: number) => Promise<void>;
+  sleep?: (ms: number, signal: AbortSignal) => Promise<void>;
 }
-
-const defaultSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 export interface GatedLoader<T> {
   /** Resolve the value, throwing CircuitOpenError while the breaker is open. */
@@ -54,14 +55,14 @@ export interface GatedLoader<T> {
 }
 
 export function createGatedLoader<T>(
-  load: () => Promise<T>,
+  load: (signal: AbortSignal) => Promise<T>,
   cfg: GatedLoaderConfig,
   log?: LogGovernor,
 ): GatedLoader<T> {
   const now = cfg.now ?? Date.now;
-  const sleep = cfg.sleep ?? defaultSleep;
   const backoff = cfg.backoff ?? { baseMs: 500, capMs: 30_000 };
-  const maxAttempts = Math.max(1, cfg.maxAttempts ?? 1);
+  const maxAttempts = cfg.maxAttempts ?? 1;
+  const label = safeDiagnosticIdentifier(cfg.name, 'dependency');
   const breaker = new BackendCircuitBreaker({
     failureThreshold: cfg.failureThreshold ?? 3,
     successThreshold: 1,
@@ -75,29 +76,31 @@ export function createGatedLoader<T>(
   let inFlight: Promise<T> | null = null;
 
   async function attemptLoad(): Promise<T> {
-    breaker.before(cfg.name); // throws CircuitOpenError if OPEN and still cooling
-    let lastErr: unknown;
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      try {
-        const v = await load();
-        breaker.onSuccess(cfg.name);
-        value = v;
-        loaded = true;
-        return v;
-      } catch (err) {
-        lastErr = err;
-        breaker.onRetryableFailure(cfg.name);
-        if (attempt < maxAttempts - 1) await sleep(fullJitterDelay(attempt, backoff));
-      }
-    }
-    // Governed so a persistent load failure reports once/window instead of every tick.
-    log?.governed({
-      key: `dependency_load_failed:${cfg.name}`,
-      level: 'error',
-      message: 'dependency_load_failed',
-      meta: { dependency: cfg.name, error: lastErr instanceof Error ? lastErr.message : String(lastErr) },
+    const v = await runResilientSpawn(cfg.name, load, {
+      breaker, maxAttempts, backoff, now, sleep: cfg.sleep,
+      totalTimeoutMs: cfg.totalTimeoutMs,
+      // A dependency that cannot load needs cooldown even when this particular
+      // error must not be retried. This does not authorize retrying auth errors.
+      circuitFailurePolicy: 'any-failure',
+      onEvent: event => {
+        if (event.kind !== 'permanent' && event.kind !== 'retry' && event.kind !== 'exhausted') return;
+        log?.governed({
+          key: `dependency_load_failed:${label}`,
+          level: 'error',
+          message: 'dependency_load_failed',
+          meta: { dependency: label, code: event.error.code, retryable: event.error.retryable },
+        });
+      },
+    }).catch((failure: unknown) => {
+      if (failure instanceof CircuitOpenError) throw failure;
+      // Required dependency callers use the Error-instance contract. Preserve
+      // only closed classified fields, never the original exception or cause.
+      const error = classifyAgentError(failure);
+      throw Object.assign(new Error(error.message), error);
     });
-    throw lastErr;
+    value = v;
+    loaded = true;
+    return v;
   }
 
   async function get(): Promise<T> {
@@ -114,10 +117,10 @@ export function createGatedLoader<T>(
       if (err instanceof CircuitOpenError) {
         // Breaker open: skip silently (already reported when it opened). This is the anti-spam path.
         log?.governed({
-          key: `dependency_unavailable:${cfg.name}`,
+          key: `dependency_unavailable:${label}`,
           level: 'warn',
           message: 'dependency_unavailable',
-          meta: { dependency: cfg.name, state: 'OPEN' },
+          meta: { dependency: label, state: breaker.state(cfg.name) },
           windowMs: 300_000,
         });
         return null;

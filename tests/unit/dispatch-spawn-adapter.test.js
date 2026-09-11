@@ -1,9 +1,9 @@
 /**
  * Tests for lib/dispatch/spawn-adapter.ts
  *
- * All tests use injectable fns (spawnFn, worktreeAddFn, openPrFn) so no real
- * subprocess is spawned, no real worktree is created, and no real GitHub API
- * is called. The tests verify:
+ * Tests use injectable fns (spawnFn, worktreeAddFn, openPrFn), except one
+ * synthetic Node child/grandchild timeout fixture. No provider, real worktree,
+ * or GitHub API is used. The tests verify:
  *
  *   - correct worktree path construction from the queue row
  *   - correct branch + baseRef derivation
@@ -17,12 +17,17 @@
  */
 
 import { jest } from '@jest/globals';
+import { EventEmitter } from 'node:events';
+import { execFile } from 'node:child_process';
+import { isWitnessedBackendFailure, witnessedBackendFailure } from '../../lib/agent-resilience.js';
+import { classifyForFailover } from '../../lib/dispatch/failover.js';
 import { createTestDb } from '../setup-unit.js';
 import { createDispatchQueue } from '../../lib/dispatch/queue.js';
 import {
   createSpawnAdapter,
   gitWorktreeAdd,
   requireCli,
+  runAgentInWorktree,
 } from '../../lib/dispatch/spawn-adapter.js';
 import {
   planRunFor,
@@ -37,6 +42,83 @@ function makeQueue(db) {
 }
 
 const SOURCE_PROJECT = '/repo';
+
+describe('host child lifecycle failure witnesses', () => {
+  function childFixture() {
+    const child = new EventEmitter();
+    child.stdin = { end: jest.fn() };
+    child.stdout = new EventEmitter();
+    child.stderr = new EventEmitter();
+    child.kill = jest.fn(() => { queueMicrotask(() => child.emit('close', 1)); return true; });
+    return child;
+  }
+  function run(child, timeoutMs = 1000) {
+    return runAgentInWorktree({ command: 'codex', args: [], env: {}, worktreePath: SOURCE_PROJECT, timeoutMs, execFileFn: () => child });
+  }
+  test('actual child error code, not its message, creates the host witness', async () => {
+    const child = childFixture();
+    const pending = run(child);
+    child.emit('error', Object.assign(new Error('401 misleading detail'), { code: 'ENOENT' }));
+    const result = await pending;
+    expect(result.failure.code).toBe('BACKEND_ABSENT');
+    expect(isWitnessedBackendFailure(result.failure)).toBe(true);
+    expect(isWitnessedBackendFailure(JSON.parse(JSON.stringify(result.failure)))).toBe(false);
+  });
+  test('stderr or nonzero exit cannot self-assert a recoverable transport failure', async () => {
+    const child = childFixture();
+    const pending = run(child);
+    child.stderr.emit('data', Buffer.from('{"code":"UNAVAILABLE","status":503} ENOENT 429'));
+    child.emit('close', 1);
+    const result = await pending;
+    expect(result.failure).toBeUndefined();
+    expect(result.error).toContain('ENOENT');
+  });
+  test('local timeout and direct-child close cannot prove owned-tree termination', async () => {
+    const child = childFixture();
+    const result = await run(child, 10);
+    expect(child.kill).toHaveBeenCalledWith('SIGTERM');
+    expect(result.error).toContain('timed out');
+    expect(result.failure).toBeUndefined();
+    expect(isWitnessedBackendFailure(result.failure)).toBe(false);
+  });
+
+  test('a surviving synthetic grandchild cannot earn timeout failover after child close', async () => {
+    let directChild;
+    let grandchildPid;
+    // The grandchild closes inherited pipes, so the direct child's close is
+    // observable while the descendant is still alive. Its own 10s exit is a
+    // final cleanup bound even if this test fails before receiving its PID.
+    const source = `
+      const { spawn } = require('node:child_process');
+      const descendant = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 10000)'], { stdio: 'ignore' });
+      process.stdout.write(String(descendant.pid) + '\\n');
+      setInterval(() => {}, 1000);
+    `;
+    try {
+      const result = await runAgentInWorktree({
+        command: 'codex', args: [], env: {}, worktreePath: process.cwd(), timeoutMs: 1000,
+        execFileFn: (_file, _args, options) => {
+          directChild = execFile(process.execPath, ['-e', source], options);
+          directChild.stdout.on('data', data => {
+            const parsed = Number(data.toString().trim());
+            if (Number.isSafeInteger(parsed) && parsed > 0) grandchildPid = parsed;
+          });
+          return directChild;
+        },
+      });
+      expect(grandchildPid).toBeGreaterThan(0);
+      expect(() => process.kill(grandchildPid, 0)).not.toThrow();
+      expect(directChild.signalCode).toBe('SIGTERM');
+      expect(result.error).toContain('timed out');
+      expect(result.failure).toBeUndefined();
+      expect(classifyForFailover(result.failure)).toMatchObject({ transient: false, backendAbsent: false });
+    } finally {
+      // These exact PIDs came from this fixture, never from a global scan.
+      if (grandchildPid) { try { process.kill(grandchildPid, 'SIGKILL'); } catch {} }
+      if (directChild && directChild.exitCode === null && directChild.signalCode === null) directChild.kill('SIGKILL');
+    }
+  });
+});
 
 /** Build a no-op adapter that records its calls. */
 function makeAdapter(overrides = {}) {
@@ -266,6 +348,18 @@ describe('createSpawnAdapter — spawn argv', () => {
     queue = makeQueue(db);
   });
   afterEach(() => { db.close(); });
+
+  test.each([false, true])('adapter preserves only exact process-local witness (clone=%s)', async clone => {
+    queue.propose({ goal: 'preserve failure facts', projectDir: SOURCE_PROJECT });
+    const witness = witnessedBackendFailure({ kind: 'os', code: 'ENOENT' });
+    const supplied = clone ? JSON.parse(JSON.stringify(witness)) : witness;
+    const { adapter } = makeAdapter({
+      spawnFn: async () => ({ output: '', error: 'ENOENT display', failure: supplied }),
+      openPrFn: async () => { throw new Error('no artifact'); },
+    });
+    const response = await runNext(queue, { dryRun: false, spawnAdapter: adapter });
+    expect(response.result.error).toBe(clone ? undefined : witness);
+  });
 
   test('spawnFn receives the correct command + args for cli:codex (default)', async () => {
     const dispatch = queue.propose({ goal: 'write unit tests for the spawner', projectDir: SOURCE_PROJECT });

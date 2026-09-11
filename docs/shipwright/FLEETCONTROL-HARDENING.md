@@ -70,7 +70,7 @@ Invariant_NoSpawnWithoutBond ==
   \A a: state[a] = "running" => escrow[a] > 0 \/ pastBond[a]
 ```
 
-Two invariants are load-bearing:
+Two invariants are central:
 
 1. **Conservation.** Money never vanishes. Every debit has a matching credit
    somewhere (wallet, escrow, commons pool).

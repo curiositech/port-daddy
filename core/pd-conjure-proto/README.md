@@ -1,7 +1,7 @@
 # pd-conjure-proto — Conjure VELLO GRAPH slice
 
 The **VELLO GRAPH** slice of the Conjure feature: render a `PredictedDag` (the
-windags `next_move` planner output, mirrored from `pd-console::conjure`) as a
+jury_rig `next_move` planner output, mirrored from `pd-console::conjure`) as a
 beautiful **wave-column node-graph** with **Vello + Parley**, captured
 **OFFSCREEN** to a PNG. No window, no Screen-Recording / TCC permission. This is
 the **Rung-1** path (NOT bare Metal), per

@@ -104,7 +104,7 @@ This ensures the agent doesn't terminate because its message queue appears empty
 
 ## Application to Modern Agent Systems
 
-For orchestration systems like WinDAGs, the termination model suggests several design patterns:
+For orchestration systems like Jury-rig, the termination model suggests several design patterns:
 
 **Explicit Termination State**: Don't rely on external monitoring to detect when agents are done. Implement explicit termination detection within the coordination layer.
 

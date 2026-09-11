@@ -73,7 +73,7 @@ This allows the system to break commitments when doing so produces higher overal
 
 ## Application to Modern Agent Systems
 
-For WinDAGs and similar orchestration systems, this separation principle suggests several design imperatives:
+For Jury-rig and similar orchestration systems, this separation principle suggests several design imperatives:
 
 **Don't Build Monolithic Orchestrators**: Instead of a central orchestrator that directly schedules all agent activities, build coordination mechanisms that post constraints to agents' local decision-making processes. Each agent should retain autonomy in *how* it satisfies constraints.
 
@@ -81,7 +81,7 @@ For WinDAGs and similar orchestration systems, this separation principle suggest
 
 **Allow Graceful Commitment Breaking**: Sometimes breaking a commitment is the right choice. The system should support renegotiation with clear communication about what changed and why. The negotiability index concept could be implemented as metadata on commitments.
 
-**Separate Domain Logic from Coordination Logic**: Skills (in WinDAGs terminology) should embed domain-specific scheduling heuristics. Coordination mechanisms should be domain-independent patterns that detect structural features (dependencies, redundancies) and post appropriate constraints.
+**Separate Domain Logic from Coordination Logic**: Skills (in Jury-rig terminology) should embed domain-specific scheduling heuristics. Coordination mechanisms should be domain-independent patterns that detect structural features (dependencies, redundancies) and post appropriate constraints.
 
 ## Boundary Conditions and Limitations
 
@@ -155,7 +155,7 @@ The key insight from these experiments is that there's no universal "best" confi
 
 ## Implications for Agent System Design
 
-For systems like WinDAGs, this suggests several design principles:
+For systems like Jury-rig, this suggests several design principles:
 
 **Build Mechanism Libraries, Not Monolithic Coordinators**: Instead of one coordination algorithm, implement a library of coordination mechanisms. Each should be independently toggleable and parameterizable.
 
@@ -285,7 +285,7 @@ This is an inherent risk of coordination under uncertainty. The paper's approach
 
 ## Implications for Agent System Design
 
-For orchestration systems like WinDAGs, this analysis suggests several design imperatives:
+For orchestration systems like Jury-rig, this analysis suggests several design imperatives:
 
 **Represent Uncertainty Explicitly**: Don't pretend agents have complete information. The system should explicitly track what each agent knows, what it believes, and the uncertainty in those beliefs.
 
@@ -414,7 +414,7 @@ The paper shows how different coordination mechanisms create different types of 
 
 ## Application to Modern Agent Systems
 
-For orchestration systems like WinDAGs, this commitment model suggests several design patterns:
+For orchestration systems like Jury-rig, this commitment model suggests several design patterns:
 
 **Explicit Commitment Types**: Define clear commitment types with formal semantics. At minimum: "best effort" (Do), "by deadline" (DL), and "continuous" (for ongoing services). Each type should have clear satisfaction criteria.
 
@@ -561,7 +561,7 @@ This representation captures the fundamental tradeoff in real-time systems: qual
 
 ## Application to Modern Agent Systems
 
-For systems like WinDAGs, this representation suggests several design principles:
+For systems like Jury-rig, this representation suggests several design principles:
 
 **Explicit Relationship Typing**: Don't treat all dependencies as the same. Distinguish between hard dependencies (must be satisfied), soft dependencies (valuable to satisfy), and anti-dependencies (should avoid). Each type requires different coordination.
 
@@ -711,7 +711,7 @@ Similarly, mechanisms that invoke the scheduler have overhead that depends on sc
 
 ## Application to Modern Agent Systems
 
-For orchestration systems like WinDAGs, this analysis suggests several design imperatives:
+For orchestration systems like Jury-rig, this analysis suggests several design imperatives:
 
 **Profile Before Deploying**: Before activating coordination mechanisms in production, profile their overhead in representative problems. Measure actual communication, computation, and latency costs.
 
@@ -859,7 +859,7 @@ This ensures the agent doesn't terminate because its message queue appears empty
 
 ## Application to Modern Agent Systems
 
-For orchestration systems like WinDAGs, the termination model suggests several design patterns:
+For orchestration systems like Jury-rig, the termination model suggests several design patterns:
 
 **Explicit Termination State**: Don't rely on external monitoring to detect when agents are done. Implement explicit termination detection within the coordination layer.
 

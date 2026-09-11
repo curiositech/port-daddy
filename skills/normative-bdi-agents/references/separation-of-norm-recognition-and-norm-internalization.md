@@ -162,7 +162,7 @@ The key is that norm recognition (step 3) happens *before* internalization (step
 
 **Distributed Norm Environments**:
 
-In a WinDAGs system with multiple coordinating agents:
+In a Jury-rig system with multiple coordinating agents:
 
 **Scenario**: Different agents operate under different regulatory frameworks
 - Agent A (medical domain): HIPAA norms about patient data
@@ -201,7 +201,7 @@ The separation enables different communication patterns:
 
 **Skill-Specific Norms**:
 
-Skills in WinDAGs can ship with "norm recommendations" (ANB-level):
+Skills in Jury-rig can ship with "norm recommendations" (ANB-level):
 ```python
 class DataProcessingSkill:
     recommended_norms = [

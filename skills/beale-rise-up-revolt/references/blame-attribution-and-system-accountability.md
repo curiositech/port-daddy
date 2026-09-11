@@ -10,7 +10,7 @@ As Beale notes, "users thinking they are at fault when really they are suffering
 
 ## Why This Matters for Agent Systems
 
-In a WinDAGs-style multi-agent orchestration system, the question of blame attribution becomes even more critical and more complex. When an agent system fails to solve a problem, produces an incorrect solution, or becomes stuck in an unproductive loop, who or what bears responsibility?
+In a Jury-rig-style multi-agent orchestration system, the question of blame attribution becomes even more critical and more complex. When an agent system fails to solve a problem, produces an incorrect solution, or becomes stuck in an unproductive loop, who or what bears responsibility?
 
 The naive answer—"the user specified the task incorrectly" or "the user didn't provide enough information"—replicates exactly the human-computer interaction pathology Beale describes. It allows the system to escape accountability for its own design limitations. More insidiously, it trains users to work around system limitations rather than demanding that systems become more robust.
 
@@ -97,7 +97,7 @@ This last point is particularly important: systems should not allow users to tak
 
 ## Implications for DAG-Based Orchestration
 
-In a DAG-based orchestration system like WinDAGs, blame attribution has specific architectural implications:
+In a DAG-based orchestration system like Jury-rig, blame attribution has specific architectural implications:
 
 **Node-Level Responsibility**: Each node in the execution DAG should maintain metadata about its success, failure, and the reasons for each. Was the node itself successful but provided inadequate inputs? Did it fail due to internal limitations? Did it succeed but discover that the task it was assigned was impossible?
 

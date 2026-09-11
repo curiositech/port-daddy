@@ -125,7 +125,7 @@ When a task tⱼ depends on tasks {tᵢ : tᵢ ∈ dⱼ}, it receives their **ve
 
 This "ensures downstream tasks receive only verified facts from predecessors, preventing error propagation. This is a key principle from High-Reliability Organization theory."
 
-## Application to WinDAGs: Skill-Level Decomposition
+## Application to Jury-rig: Skill-Level Decomposition
 
 For a system with 180+ skills, atomic decomposition operates at two levels:
 

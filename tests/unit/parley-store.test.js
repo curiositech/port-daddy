@@ -81,6 +81,35 @@ function makeStore(database = db, tenantId = TENANT, overrides = {}) {
   });
 }
 
+function withTriggerInclusiveOutboxChanges(database) {
+  return new Proxy(database, {
+    get(target, property) {
+      if (property === 'prepare') {
+        return (sql) => {
+          const statement = target.prepare(sql);
+          if (!sql.includes('INSERT INTO parley_notification_outbox')) return statement;
+          return new Proxy(statement, {
+            get(statementTarget, statementProperty) {
+              if (statementProperty === 'run') {
+                return (...args) => {
+                  const result = statementTarget.run(...args);
+                  return result.changes > 0
+                    ? { ...result, changes: result.changes + 2 }
+                    : result;
+                };
+              }
+              const value = Reflect.get(statementTarget, statementProperty, statementTarget);
+              return typeof value === 'function' ? value.bind(statementTarget) : value;
+            },
+          });
+        };
+      }
+      const value = Reflect.get(target, property, target);
+      return typeof value === 'function' ? value.bind(target) : value;
+    },
+  });
+}
+
 function makeParley(storeInstance = store, inboxInstance = inbox) {
   return createParley({
     store: storeInstance,
@@ -428,6 +457,62 @@ describe('transaction boundaries', () => {
       ...turnBoundaries,
       ...terminalBoundaries,
     ].sort()).toEqual([...PARLEY_STORE_FAULT_BOUNDARIES].sort());
+  });
+
+  test('trigger-inclusive SQLite change counts record a multi-party turn without a false collision', () => {
+    const triggerCountingStore = makeStore(withTriggerInclusiveOutboxChanges(db));
+    const triggerCountingParley = makeParley(triggerCountingStore, inbox);
+    const opened = triggerCountingParley.call({
+      surface: 'src/checkout.ts',
+      reason: 'three owners need one durable public decision',
+      parties: ['nora', 'milo', 'aya'],
+      calledBy: 'nora',
+      harbor: HARBOR,
+    });
+    inbox.deliveries.length = 0;
+
+    const result = triggerCountingParley.respond({
+      parleyId: opened.parleyId,
+      party: 'nora',
+      performative: 'propose',
+      content: 'reserve inventory before capture',
+      idempotencyKey: 'three-party-trigger-inclusive-turn',
+    });
+
+    expect(result).toMatchObject({
+      turnSequence: 1,
+      replayed: false,
+      notified: ['aya', 'milo'],
+      notifyFailures: [],
+    });
+    expect(triggerCountingParley.get(opened.parleyId).turns).toEqual([
+      expect.objectContaining({ party: 'nora', content: 'reserve inventory before capture' }),
+    ]);
+    expect(db.prepare(`
+      SELECT delivery_key FROM parley_notification_outbox
+      WHERE tenant_id = ? AND harbor = ? AND parley_id = ? AND event_type = 'parley_turn'
+      ORDER BY delivery_key
+    `).all(TENANT, HARBOR, opened.parleyId)).toEqual([
+      { delivery_key: `parley_turn:${opened.parleyId}:1:aya` },
+      { delivery_key: `parley_turn:${opened.parleyId}:1:milo` },
+    ]);
+
+    const replay = triggerCountingParley.respond({
+      parleyId: opened.parleyId,
+      party: 'nora',
+      performative: 'propose',
+      content: 'reserve inventory before capture',
+      idempotencyKey: 'three-party-trigger-inclusive-turn',
+    });
+    expect(replay).toMatchObject({ turnSequence: 1, replayed: true });
+    expect(db.prepare(`
+      SELECT COUNT(*) AS count FROM parley_turns
+      WHERE tenant_id = ? AND harbor = ? AND parley_id = ?
+    `).get(TENANT, HARBOR, opened.parleyId).count).toBe(1);
+    expect(db.prepare(`
+      SELECT COUNT(*) AS count FROM parley_notification_outbox
+      WHERE tenant_id = ? AND harbor = ? AND parley_id = ? AND event_type = 'parley_turn'
+    `).get(TENANT, HARBOR, opened.parleyId).count).toBe(2);
   });
 
   test.each(manualBoundaries)('%s rolls back record, participants, and outbox', (boundary) => {

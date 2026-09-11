@@ -71,7 +71,7 @@ function startTool2VecWarmup(): void {
     const invocation = resolvePortDaddyInvocation();
     const child = spawn(
       invocation.command,
-      [...invocation.args, 'skill-graft', 'warm', '--max-skills', '32', '--local-only', '--quiet'],
+      [...invocation.args, 'jury-rig', 'warm', '--max-skills', '32', '--local-only', '--quiet'],
       { detached: true, stdio: 'ignore', env: process.env },
     );
     child.once('error', (error) => {
@@ -363,7 +363,7 @@ function installPilotAgentDefinitions(options: Record<string, unknown>): boolean
   const result = installPilotAgents({ sourceDir: source, dryRun });
   const changed = result.written.filter((w) => w.changed).length;
   ui.info(
-    `Port Daddy Pilot: ${dryRun ? 'would install' : 'installed'} ${result.written.length} runtime definition(s)` +
+    `Port Daddy Pilot: ${result.outcome}; ${dryRun ? 'would install' : 'installed'} ${result.written.length} runtime definition(s)` +
     (changed ? ` (${changed} updated)` : ' (all current)'),
   );
   for (const err of result.errors.slice(0, 3)) {
@@ -596,8 +596,9 @@ export async function handleSetup(options: Record<string, unknown>): Promise<voi
     ui.info('Skipping agent skill symlink (--no-skill)');
   }
 
+  let pilotOk = true;
   if (!options['no-agents']) {
-    installPilotAgentDefinitions(options);
+    pilotOk = installPilotAgentDefinitions(options);
   } else {
     ui.info('Skipping Pilot agent definitions (--no-agents)');
   }
@@ -613,10 +614,14 @@ export async function handleSetup(options: Record<string, unknown>): Promise<voi
   const harnessOk = await installProjectHarness(projectDir, options);
 
   console.log('');
-  if (harnessOk) {
+  if (harnessOk && pilotOk) {
     ui.success('Setup complete');
   } else {
     ui.warn('Setup completed with remediation steps above');
+  }
+  if (!pilotOk) {
+    process.exitCode = 1;
+    return; // Do not record full setup completion after a refused/partial Pilot install.
   }
 
   // ── Agent Harbor onboarding receipt (binder ch18 Work Order C8) ──────────

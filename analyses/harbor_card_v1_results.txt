@@ -2,54 +2,62 @@ Process 0 (that is, the initial process):
 {1}new agent_id: id;
 {2}new harbor_id: id;
 {3}new token_jti: jti;
-{4}new secret_cap: capability;
 (
-    {5}!
-    {6}let k: key = master_key in
-    {7}let a_id: id = agent_id in
-    {8}let h_id: id = harbor_id in
-    {9}let j: jti = token_jti in
-    {10}let cap: capability = secret_cap in
-    {11}let msg: bitstring = encode_token(a_id,h_id,j,cap) in
-    {12}let signature: bitstring = hs256(msg,k) in
-    {13}event Issued(a_id,h_id,j,cap);
-    {14}out(c, (hs256_alg,msg,signature))
+    {4}!
+    {5}let k: key = master_key in
+    {6}let a_id: id = agent_id in
+    {7}let h_id: id = harbor_id in
+    {8}let j: jti = token_jti in
+    {9}let cap: capability = secret_cap in
+    {10}let msg: bitstring = encode_token(a_id,h_id,j,cap) in
+    {11}let signature: bitstring = hmac(msg,k) in
+    {12}event Issued(a_id,h_id,j,cap);
+    {13}out(c, (msg,signature))
 ) | (
-    {15}!
-    {16}let k_1: key = master_key in
-    {17}let expected_h: id = harbor_id in
-    {18}in(c, (alg_header: alg_type,msg_1: bitstring,signature_1: bitstring));
-    {19}if (check_hs256(msg_1,k_1,signature_1) = true) then
-    {20}let encode_token(a: id,h: id,j_1: jti,cap_1: capability) = msg_1 in
-    {21}if (h = expected_h) then
-    {22}event Accepted(a,h,j_1,cap_1)
+    {14}!
+    {15}let k_1: key = master_key in
+    {16}let expected_h: id = harbor_id in
+    {17}in(c, (msg_1: bitstring,signature_1: bitstring));
+    {18}if (check_hmac(msg_1,k_1,signature_1) = true) then
+    {19}let encode_token(a: id,h: id,j_1: jti,cap_1: capability) = msg_1 in
+    {20}if (h = expected_h) then
+    {21}event Accepted(a,h,j_1,cap_1)
+) | (
+    {22}!
+    {23}let j_2: jti = token_jti in
+    {24}event Revoked(j_2);
+    {25}out(c, j_2)
 )
 
 --  Process 1 (that is, process 0, with let moved downwards):
 {1}new agent_id: id;
 {2}new harbor_id: id;
 {3}new token_jti: jti;
-{4}new secret_cap: capability;
 (
-    {5}!
-    {10}let cap: capability = secret_cap in
-    {9}let j: jti = token_jti in
-    {8}let h_id: id = harbor_id in
-    {7}let a_id: id = agent_id in
-    {13}event Issued(a_id,h_id,j,cap);
-    {11}let msg: bitstring = encode_token(a_id,h_id,j,cap) in
-    {6}let k: key = master_key in
-    {12}let signature: bitstring = hs256(msg,k) in
-    {14}out(c, (hs256_alg,msg,signature))
+    {4}!
+    {9}let cap: capability = secret_cap in
+    {8}let j: jti = token_jti in
+    {7}let h_id: id = harbor_id in
+    {6}let a_id: id = agent_id in
+    {12}event Issued(a_id,h_id,j,cap);
+    {10}let msg: bitstring = encode_token(a_id,h_id,j,cap) in
+    {5}let k: key = master_key in
+    {11}let signature: bitstring = hmac(msg,k) in
+    {13}out(c, (msg,signature))
 ) | (
-    {15}!
-    {18}in(c, (alg_header: alg_type,msg_1: bitstring,signature_1: bitstring));
-    {16}let k_1: key = master_key in
-    {19}if (check_hs256(msg_1,k_1,signature_1) = true) then
-    {20}let encode_token(a: id,h: id,j_1: jti,cap_1: capability) = msg_1 in
-    {17}let expected_h: id = harbor_id in
-    {21}if (h = expected_h) then
-    {22}event Accepted(a,h,j_1,cap_1)
+    {14}!
+    {17}in(c, (msg_1: bitstring,signature_1: bitstring));
+    {15}let k_1: key = master_key in
+    {18}if (check_hmac(msg_1,k_1,signature_1) = true) then
+    {19}let encode_token(a: id,h: id,j_1: jti,cap_1: capability) = msg_1 in
+    {16}let expected_h: id = harbor_id in
+    {20}if (h = expected_h) then
+    {21}event Accepted(a,h,j_1,cap_1)
+) | (
+    {22}!
+    {23}let j_2: jti = token_jti in
+    {24}event Revoked(j_2);
+    {25}out(c, j_2)
 )
 
 -- Query not attacker(master_key[]) in process 1.
@@ -57,19 +65,19 @@ Translating the process into Horn clauses...
 Completing...
 Starting query not attacker(master_key[])
 RESULT not attacker(master_key[]) is true.
--- Query event(Accepted(a_1,h_1,j_2,cap_2)) ==> event(Issued(a_1,h_1,j_2,cap_2)) in process 1.
+-- Query event(Accepted(a_1,h_1,j_3,cap_2)) ==> event(Issued(a_1,h_1,j_3,cap_2)) in process 1.
 Translating the process into Horn clauses...
 Completing...
-Starting query event(Accepted(a_1,h_1,j_2,cap_2)) ==> event(Issued(a_1,h_1,j_2,cap_2))
+Starting query event(Accepted(a_1,h_1,j_3,cap_2)) ==> event(Issued(a_1,h_1,j_3,cap_2))
 goal reachable: b-event(Issued(agent_id[],harbor_id[],token_jti[],secret_cap[])) -> event(Accepted(agent_id[],harbor_id[],token_jti[],secret_cap[]))
-RESULT event(Accepted(a_1,h_1,j_2,cap_2)) ==> event(Issued(a_1,h_1,j_2,cap_2)) is true.
+RESULT event(Accepted(a_1,h_1,j_3,cap_2)) ==> event(Issued(a_1,h_1,j_3,cap_2)) is true.
 
 --------------------------------------------------------------
 Verification summary:
 
 Query not attacker(master_key[]) is true.
 
-Query event(Accepted(a_1,h_1,j_2,cap_2)) ==> event(Issued(a_1,h_1,j_2,cap_2)) is true.
+Query event(Accepted(a_1,h_1,j_3,cap_2)) ==> event(Issued(a_1,h_1,j_3,cap_2)) is true.
 
 --------------------------------------------------------------
 

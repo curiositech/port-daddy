@@ -318,6 +318,6 @@ These represent significant open problems for production use of natural language
 4. **Test empirically** (natural language control is probabilistic, requires validation)
 5. **Document extensively** (what control instructions mean, why they're included, what behavior they're intended to produce)
 
-For WinDAGs specifically: Consider designing a **library of control prompt templates** for common patterns (error recovery, iterative refinement, validation, escalation) that can be composed into skill-specific prompts. Provide tooling to test that skills follow control instructions. Make it easy for domain experts to customize high-level control behavior through natural language while developers maintain programmatic constraints.
+For Jury-rig specifically: Consider designing a **library of control prompt templates** for common patterns (error recovery, iterative refinement, validation, escalation) that can be composed into skill-specific prompts. Provide tooling to test that skills follow control instructions. Make it easy for domain experts to customize high-level control behavior through natural language while developers maintain programmatic constraints.
 
 The key insight is that **natural language extends the expressiveness of control specification beyond what's practical to formalize in code**, enabling domain experts to participate in system design while maintaining programmatic guardrails.

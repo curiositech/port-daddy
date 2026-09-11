@@ -1256,14 +1256,14 @@ Summarize graph edges for a project.
 
 ---
 
-## Skill Graft
+## Jury-rig
 
-### GET /skill-graft/status
+### GET /jury-rig/status
 Read current-hash Tool2Vec catalog coverage, active lease state, and the latest
 reconciliation outcome. This endpoint is strictly observational: it does not
 generate centroids or call an LLM.
 
-### POST /skill-graft/reconcile
+### POST /jury-rig/reconcile
 Start one bounded reconciliation batch. This mutation accepts only loopback
 transport peers and returns `200` when it acquires the builder lease or `202`
 when another reconciler already owns it.

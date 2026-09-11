@@ -1,43 +1,58 @@
 % Semantic contract: each signed hop binds adjacent identities to one task hash;
-% a skipped or transplanted hop breaks the visible braid.
+% a spliced-in signature that does not cover the local nonce breaks the braid.
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
   \foreach \x/\id in {-5.1/1,-1.7/2,1.7/3,5.1/4} {
     \node[circle,draw=hhink,line width=.7pt,fill=hhpaper,minimum size=10mm,
-      inner sep=0pt,font=\bfseries] (id\id) at (\x,2.1) {$\mathrm{id}_{\id}$};
-    \draw[pd hairline] (\x,1.58) -- (\x,-.7);
+      inner sep=0pt,font=\bfseries] (id\id) at (\x,2.1) {id\id};
+    \draw[pd hairline] (\x,1.58) -- (\x,-.4);
   }
 
-  \foreach \a/\b/\mid/\n in {1/2/-3.4/1,2/3/0/2,3/4/3.4/3} {
-    \draw[pd focus arrow] (id\a.east) to[out=5,in=175] (id\b.west);
-    \node[pd direct label,text=hhteal,anchor=south] at (\mid,2.42)
-      {$\operatorname{sig}_{\a}$};
-    \node[pd focus datum,minimum size=5pt,inner sep=0pt] (nonce\n) at (\mid,.75) {};
-    \node[pd axis label,anchor=west] at (\mid+.14,.75) {$n_{\n}$ fresh};
-    \draw[pd focus rule] (\mid,1.82) -- (nonce\n);
-    \draw[pd focus rule] (nonce\n) -- (\mid,-.32);
-  }
+  % ---- crossing 1: id1 -> id2, ordinary hop ----
+  \draw[pd focus arrow] (id1.east) to[out=5,in=175] (id2.west);
+  \node[pd direct label,text=hhteal,anchor=south] at (-3.4,2.42) {sig1};
+  \node[pd focus datum,minimum size=5pt,inner sep=0pt] (nonce1) at (-3.4,.75) {};
+  \node[pd axis label,anchor=west,align=left,text width=1.6cm] at (-3.26,.75) {n1 fresh};
+  \draw[pd focus rule] (-3.4,1.82) -- (nonce1);
+  \draw[pd focus rule] (nonce1) -- (-3.4,-.32);
+
+  % ---- crossing 2: id2 -> id3, the attempted splice ----
+  \draw[pd caution rule,dashed] (id2.east) to[out=5,in=175] (id3.west);
+  \node[pd caution datum] (splice) at (0,2.1) {};
+  \node[pd direct label,text=hhamber,align=center,text width=3.6cm,anchor=south]
+    at (0,2.42) {sig3 does not cover n2: refused};
+  \node[pd caution datum] (nonce2) at (0,.75) {};
+  \node[pd axis label,anchor=west,align=left,text width=1.3cm] at (.1,.75)
+    {n2\\ expected};
+  \draw[pd caution rule,dashed] (0,1.82) -- (nonce2);
+  \draw[pd caution rule,dashed] (nonce2) -- (0,-.32);
+
+  % ---- crossing 3: id3 -> id4, ordinary hop ----
+  \draw[pd focus arrow] (id3.east) to[out=5,in=175] (id4.west);
+  \node[pd direct label,text=hhteal,anchor=south] at (3.4,2.42) {sig3};
+  \node[pd focus datum,minimum size=5pt,inner sep=0pt] (nonce3) at (3.4,.75) {};
+  \node[pd axis label,anchor=west,align=left,text width=1.6cm] at (3.54,.75) {n3 fresh};
+  \draw[pd focus rule] (3.4,1.82) -- (nonce3);
+  \draw[pd focus rule] (nonce3) -- (3.4,-.32);
 
   \draw[pd rule] (-5.55,-.32) -- (5.55,-.32);
   \foreach \x in {-5.1,-1.7,1.7,5.1} \fill[hhteal] (\x,-.32) circle (1.45pt);
   \node[pd direct label,anchor=north west] at (-5.55,-.52)
-    {chain-wide task hash $h$};
+    {same h at every hop};
 
-  \draw[pd caution arrow] (id2.north) to[out=55,in=125] (id4.north);
-  \node[pd direct label,text=hhamber,anchor=south] at (1.7,3.22)
-    {splice skips $\mathrm{id}_3$};
-  \node[circle,draw=hhamber,line width=.9pt,fill=hhpaper,minimum size=6.5mm,
-    inner sep=0pt] at (1.7,2.72) {};
-  \draw[draw=hhamber,line width=.9pt] (1.48,2.5) -- (1.92,2.94);
-  \draw[draw=hhamber,line width=.9pt] (1.48,2.94) -- (1.92,2.5);
-
-  \node[pd note,anchor=west] at (-5.55,-1.15)
-    {each crossing binds parent, child, fresh nonce, and the same $h$};
+  \node[pd note,anchor=west,align=left,text width=10.8cm] at (-5.55,-1.75)
+    {each ordinary crossing binds parent, child, a fresh nonce, and the same
+     task hash h; the amber crossing reuses sig3 (bound to n3) where n2 was
+     expected, so verification fails there};
 \end{tikzpicture}
-\caption{The delegation chain is a signed provenance braid. Identity continuity
-runs across the top, fresh nonces pin each crossing, and one task hash anchors
-the chain below. Replaying a link fails freshness; substituting or splicing a
-link creates a visible discontinuity at an adjacent-identity boundary.}
+\caption{The delegation chain as a signed provenance braid across four
+identities id1--id4. Ordinary hops 1 and 3 bind parent, child, a fresh nonce
+(n1, n3), and the shared task hash h below. Hop 2 shows a splice attack: an
+attacker moves the legitimate signature sig3 (computed over id3, id4, and
+n3) into the id2--id3 position, where the verifier expects a signature over
+n2; the check fails at exactly that crossing, so the discontinuity is
+visible at one adjacent-identity boundary rather than anywhere else in the
+chain. [internal]}
 \label{fig:anchor-delegation-inline}
 \end{figure}

@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { jest } from '@jest/globals';
 
 const ROOT = join(import.meta.dirname, '../..');
 const cliSource = readFileSync(join(ROOT, 'bin/port-daddy-cli.ts'), 'utf8');
@@ -39,6 +40,44 @@ describe('operator repeatable flags', () => {
     // (Jira-grade roadmap items, 2026-08-22).
     expect(cliSource).toMatch(/REPEATABLE_FLAGS[\s\S]*new Set\(\['files', 'client-arg', 'codex-config', 'tag'\]\)/);
     expect(cliSource).toContain('options[key] = [existing, value as string];');
-    expect(cliSource).toContain('else if (Array.isArray(options.files)) files.push(...(options.files as string[]));');
+  });
+
+  test('the retained begin handler forwards every file to the daemon without writing real context', async () => {
+    const fetchModule = await import('../../cli/utils/fetch.js');
+    const contextModule = await import('../../cli/utils/current-context.js');
+    const beginFetch = jest.fn(async () => ({
+      ok: true,
+      json: async () => ({ success: true, agentId: 'fixture-agent', sessionId: 'fixture-session' }),
+    }));
+    const writeContext = jest.fn();
+    const output = jest.spyOn(console, 'log').mockImplementation(() => {});
+    jest.unstable_mockModule('../../cli/utils/fetch.js', () => ({ ...fetchModule, pdFetch: beginFetch }));
+    jest.unstable_mockModule('../../cli/utils/current-context.js', () => ({ ...contextModule, writeCurrentContext: writeContext }));
+
+    try {
+      await jest.isolateModulesAsync(async () => {
+        const { handleBegin } = await import('../../cli/commands/sugar.js');
+        await handleBegin('Verify repeatable files', ['src/positional.ts'], {
+          files: ['src/first.ts', 'src/second.ts'],
+          identity: 'fixture:tests:repeatable-files',
+          lifecycle: 'durable',
+          sidequest: 'Test-only begin request fixture',
+          'allow-main-worktree': true,
+          json: true,
+        });
+      });
+      expect(beginFetch).toHaveBeenCalledTimes(1);
+      expect(beginFetch).toHaveBeenCalledWith('/sugar/begin', expect.objectContaining({ method: 'POST' }));
+      expect(JSON.parse(beginFetch.mock.calls[0][1].body)).toMatchObject({
+        files: ['src/first.ts', 'src/second.ts', 'src/positional.ts'],
+        lifecycle: 'durable',
+        identity: 'fixture:tests:repeatable-files',
+      });
+      expect(writeContext).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.unstable_unmockModule('../../cli/utils/fetch.js');
+      jest.unstable_unmockModule('../../cli/utils/current-context.js');
+      output.mockRestore();
+    }
   });
 });

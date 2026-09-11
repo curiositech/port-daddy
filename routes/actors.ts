@@ -43,13 +43,23 @@ interface RegisterActorBody {
   credential?: string;
   /** Operator escape hatch (advisory-above-floor; see ADR-0040 §2.4). */
   operatorToken?: string;
-  /** Project the newcomer will spend against — bounds the admit rate-limit. */
-  project?: string;
 }
 
 interface ActorsQuery {
   project?: string;
   limit?: string;
+}
+
+interface SoulParams {
+  actorId: string;
+}
+
+interface SoulLifecycleBody {
+  /** Operator escape hatch (ADR-0040 §2.4) — required for retire/resurrect. */
+  operatorToken?: unknown;
+  reason?: unknown;
+  by?: unknown;
+  harbor?: unknown;
 }
 
 interface ActorParams {
@@ -160,7 +170,7 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
   // ("<actor_id>.<secret>"); re-presenting a valid credential returns the SAME
   // id (idempotent), a forged/mismatched one is rejected 401 (never mints), and
   // an uncredentialed registration mints a fresh NEWCOMER that draws from the
-  // shared per-project pool — so minting fresh ids buys no new budget.
+  // shared spend pool — so minting fresh ids buys no new budget.
   //
   // This is NOT self-asserted registration. POST /agents still exists for
   // liveness bookkeeping but its self-asserted `id` is a DISPLAY handle only;
@@ -184,7 +194,6 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
       alias: typeof body.alias === 'string' ? body.alias : undefined,
       credential: typeof body.credential === 'string' ? body.credential : undefined,
       operatorToken: typeof body.operatorToken === 'string' ? body.operatorToken : undefined,
-      project: typeof body.project === 'string' ? body.project : undefined,
     });
 
     if (!outcome.ok) {
@@ -192,11 +201,9 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
         success: false,
         error: outcome.code === 'CREDENTIAL_INVALID'
           ? 'credential did not verify'
-          : outcome.code === 'NEWCOMER_ADMIT_LIMIT'
-            ? 'newcomer admission limit reached for this project today'
-            : outcome.code === 'RESERVED_ALIAS'
-              ? 'that alias is a reserved authority name; a self-service soul may not bind it (only an operator-token registration can)'
-              : 'identity store unavailable',
+          : outcome.code === 'RESERVED_ALIAS'
+            ? 'that alias is a reserved authority name; a self-service soul may not bind it (only an operator-token registration can)'
+            : 'identity store unavailable',
         code: outcome.code,
       });
     }
@@ -220,6 +227,72 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
       actorId: outcome.actorId,
       soulClass: outcome.soulClass,
     });
+  });
+
+  // ─── Retire / resurrect a minted soul (identity keystone) ─────────────────
+  // Retirement is FINAL unless resurrected through this door. Both are
+  // operator actions (the operator token, ADR-0040 §2.4), both are journaled
+  // to the forensics sink (ADR-0089), and the DB refuses every other way
+  // back (lib/actor-souls.ts triggers). `souls/` is a distinct segment from
+  // the canonical actor roster ids served by /actors/:id.
+  const requireOperator = (
+    body: SoulLifecycleBody,
+    reply: FastifyReply,
+  ): boolean => {
+    if (!deps.actorSouls) {
+      void reply.code(501).send({ success: false, error: 'actor identity store is unavailable', code: 'ACTOR_SOULS_UNAVAILABLE' });
+      return false;
+    }
+    if (typeof body.operatorToken !== 'string' || !deps.actorSouls.verifyOperatorToken(body.operatorToken)) {
+      deps.logger?.error?.('actor_soul_lifecycle_refused', { reason: 'operator token missing or invalid' });
+      void reply.code(403).send({ success: false, error: 'a valid operatorToken is required to change a soul\'s lifecycle', code: 'OPERATOR_TOKEN_REQUIRED' });
+      return false;
+    }
+    if (typeof body.reason !== 'string' || !body.reason.trim()) {
+      void reply.code(400).send({ success: false, error: 'reason required', code: 'VALIDATION_ERROR' });
+      return false;
+    }
+    return true;
+  };
+
+  fastify.post('/actors/souls/:actorId/retire', async (
+    request: FastifyRequest<{ Params: SoulParams; Body: SoulLifecycleBody }>,
+    reply: FastifyReply,
+  ) => {
+    const body = request.body ?? {};
+    if (!requireOperator(body, reply)) return reply;
+    const souls = deps.actorSouls as ActorSouls;
+    const outcome = souls.retire(request.params.actorId, {
+      reason: (body.reason as string).trim(),
+      by: typeof body.by === 'string' && body.by.trim() ? body.by.trim() : 'operator',
+      harbor: typeof body.harbor === 'string' ? body.harbor : undefined,
+    });
+    if (!outcome.ok) {
+      const status = outcome.code === 'SOUL_NOT_FOUND' ? 404 : 409;
+      return reply.code(status).send({ success: false, error: outcome.code === 'SOUL_NOT_FOUND' ? 'unknown soul' : 'soul is already retired', code: outcome.code });
+    }
+    deps.logger?.info?.('actor_soul_retired', { actorId: outcome.actorId, retiredAt: outcome.retiredAt });
+    return reply.send({ success: true, actorId: outcome.actorId, retired: true, retiredAt: outcome.retiredAt });
+  });
+
+  fastify.post('/actors/souls/:actorId/resurrect', async (
+    request: FastifyRequest<{ Params: SoulParams; Body: SoulLifecycleBody }>,
+    reply: FastifyReply,
+  ) => {
+    const body = request.body ?? {};
+    if (!requireOperator(body, reply)) return reply;
+    const souls = deps.actorSouls as ActorSouls;
+    const outcome = souls.resurrect(request.params.actorId, {
+      reason: (body.reason as string).trim(),
+      by: typeof body.by === 'string' && body.by.trim() ? body.by.trim() : 'operator',
+      harbor: typeof body.harbor === 'string' ? body.harbor : undefined,
+    });
+    if (!outcome.ok) {
+      const status = outcome.code === 'SOUL_NOT_FOUND' ? 404 : 409;
+      return reply.code(status).send({ success: false, error: outcome.code === 'SOUL_NOT_FOUND' ? 'unknown soul' : 'soul is not retired', code: outcome.code });
+    }
+    deps.logger?.info?.('actor_soul_resurrected', { actorId: outcome.actorId, receipt: outcome.receipt });
+    return reply.send({ success: true, actorId: outcome.actorId, resurrected: true, receipt: outcome.receipt, resurrectedAt: outcome.resurrectedAt });
   });
 
   fastify.get('/actors/:id', async (

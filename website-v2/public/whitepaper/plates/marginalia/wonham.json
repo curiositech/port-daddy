@@ -1,0 +1,19 @@
+{
+  "subject": "W. Murray Wonham",
+  "commons_file_page": "https://commons.wikimedia.org/wiki/File:Wonham.jpg",
+  "original_url": "https://upload.wikimedia.org/wikipedia/commons/2/2c/Nonoficial.jpg",
+  "sha1": "67894d11742a2b8135adafcfd95ee1f86e2feeea",
+  "width": 604,
+  "height": 340,
+  "artist": "Dal centro della mia vita venne una grande fontana (Commons username; own work)",
+  "credit": "Own work",
+  "licence_short": "CC BY-SA 4.0",
+  "licence_url": "https://creativecommons.org/licenses/by-sa/4.0",
+  "attribution_required": true,
+  "usage_terms": "Creative Commons Attribution-Share Alike 4.0",
+  "retrieved": "2026-09-07",
+  "solo_portrait": false,
+  "framing": "GROUP PHOTO, confirmed — the file's own description reads 'Professor Wonham with students'; a restaurant dinner with five people. File:Wonham.jpg on Commons is only an 82x79 px extract of Wonham's face already cropped by a prior editor from this same source; original_url above points instead at the un-cropped parent (File:Nonoficial.jpg, 604x340) to allow a fresh, slightly wider crop",
+  "background_clutter": "high in the source (restaurant, other diners, table) — cropped out below, but the crop is small and the resulting print is a 4.3x upsample of a 90x180 px source region: soft, low detail",
+  "crop": "cropped Nonoficial.jpg (604x340) to box (240,40)-(330,220), isolating Wonham (third of five people) from the other four diners; flagged as low resolution for print — the lead may want a better-sourced Wonham photo if one turns up"
+}

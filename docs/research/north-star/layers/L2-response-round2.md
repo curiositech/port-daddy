@@ -1,12 +1,12 @@
 # L2 — Round-2 response to reviewers
 
-The graft returned tangential skills (problem-space search and skill-discovery validation), not the HCI/political-theory/info-design canon I'd hoped. I'll extract the load-bearing transferable ideas from each and proceed primarily on my own expertise plus the reviewers' canon, noting the graft was off-target. I have everything I need to write the response.
+The graft returned tangential skills (problem-space search and skill-discovery validation), not the HCI/political-theory/info-design canon I'd hoped. I'll extract the decisive transferable ideas from each and proceed primarily on my own expertise plus the reviewers' canon, noting the graft was off-target. I have everything I need to write the response.
 
 ---
 
 ## Grafted skills (what I pulled + the one idea from each that changed my answer)
 
-The graft (`windags_skill_graft`, BM25 cascade) returned two primaries that are adjacent rather than dead-center on legibility/HCI/political-theory — so I'm using them for their transferable mechanism and saying so plainly. The named HCI/consent canon I actually lean on (Lee & See, Warm/Mackworth, Green & Swets, Hume/Locke/Hayek) comes from the reviewers and my own expertise, not the graft.
+The graft (`pd jury-rig query`, BM25 cascade) returned two primaries that are adjacent rather than dead-center on legibility/HCI/political-theory — so I'm using them for their transferable mechanism and saying so plainly. The named HCI/consent canon I actually lean on (Lee & See, Warm/Mackworth, Green & Swets, Hume/Locke/Hayek) comes from the reviewers and my own expertise, not the graft.
 
 - **`simon-and-newell-human-problem-solving-theory-1971`** — "Intelligence = examining the right 50 nodes out of 10^100, not searching faster." **The idea that changed my answer:** the Attention Queue is not a *display* problem, it's a *selective-search* problem over the operator's problem space, and its failure mode is **Representation Blindness** (optimizing the ranker's weights before testing whether the queue's *representation* exposes task structure). This reframes the info-design reviewer's "unified ranker is false as stated" — the two readers don't share a scoring function, they share a *problem-space construction*. I concede the point and adopt their fix with this sharper justification.
 
@@ -84,7 +84,7 @@ The graft (`windags_skill_graft`, BM25 cascade) returned two primaries that are 
 
 ---
 
-## Revised layer position (load-bearing claims, corrected)
+## Revised layer position (core claims, corrected)
 
 1. **L2 is Legibility AND Authority AND *Consent*.** The seeds under-treated authority; round 1 under-treated *consent itself*. The corrected triad: legibility (read), authority (the daemon-sovereign acts), and **a consent grant primitive + inalienable operator override** that makes the authority *legitimate* rather than mere force. Roles: **agents = multitude, daemon = sovereign-actor, operator = author** (Hobbes ch. 16); the author scopes and revokes via grants (express, scoped, revocable consent — escaping Hume) and retains an un-suppressable right of override (Hobbes ch. 14/21 self-preservation; Hirschman exit).
 
@@ -126,7 +126,7 @@ The graft (`windags_skill_graft`, BM25 cascade) returned two primaries that are 
 
 13. **Prior-art additions to cite:** Green & Swets 1966 (SDT); Mackworth 1948, Warm/Parasuraman/Matthews 2008 (vigilance); Treisman & Gelade 1980 (FIT); ANSI/ISA-18.2, EEMUA 191, Cvach 2012 (alarm management); Campbell 1979; Lee & See 2004 (used correctly now — resolution/specificity); Endsley 1995 SAGAT; Wickens MRT (corrected as vectored); Hayek 1945; Hume 1748; Locke 1689 §§95–122; Pateman 1979; Hirschman 1970; Scott 2012; Leroy 2009; Greif–Milgrom–Weingast 1994 (correctly as credible-commitment); Kamvar 2003 (EigenTrust — pre-trusted set + rater cap); DNS-SD/Consul (expiring registrations).
 
-*Note on graft: the windags graft cascade returned adjacent skills (problem-space search; skill-discovery validation) rather than the dead-center HCI/political/info-design canon; I used the two transferable mechanisms (selective-search-as-representation; Fast/Slow rubber-stamp-avoidance) and otherwise stood on the reviewers' canon and my own expertise, as flagged above.*"
+*Note on graft: the jury_rig graft cascade returned adjacent skills (problem-space search; skill-discovery validation) rather than the dead-center HCI/political/info-design canon; I used the two transferable mechanisms (selective-search-as-representation; Fast/Slow rubber-stamp-avoidance) and otherwise stood on the reviewers' canon and my own expertise, as flagged above.*"
       },
       {
         "key": "L3",

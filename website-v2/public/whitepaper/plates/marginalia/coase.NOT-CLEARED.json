@@ -1,0 +1,13 @@
+{
+  "subject": "Ronald Coase",
+  "status": "NOT CLEARED",
+  "reason": "Both candidate photographs (File:Ronald_Coase_close-up_(cropped).jpg and File:Coase_profile_2003.jpg) carry the University of Chicago Law School's bespoke Commons {{Attribution}} permission template ('The copyright holder of this file allows anyone to use it for any purpose, provided that the copyright holder is properly attributed'), confirmed live via the Commons API's extmetadata (LicenseShortName: 'Attribution', no LicenseUrl). This is not one of the allow-listed CC badges (CC0/PD/CC BY/CC BY-SA) or plain public domain; it is a bespoke free-use grant. Per the task's own allow-list rule, a bespoke permission is recorded as NOT CLEARED rather than downloaded, even though the terms are in practice permissive.",
+  "commons_file_pages": [
+    "https://commons.wikimedia.org/wiki/File:Ronald_Coase_close-up_(cropped).jpg",
+    "https://commons.wikimedia.org/wiki/File:Coase_profile_2003.jpg"
+  ],
+  "licence_short_reported": "Attribution",
+  "attribution": "University of Chicago Law School",
+  "checked": "2026-09-07",
+  "note_for_the_lead": "If the book wants a Coase portrait, someone should read the exact terms on the file page and decide whether the book is comfortable quoting a bespoke non-CC grant on the credits page (the MARGINALIA-CANDIDATES.md notes call this out too); this worker did not make that call."
+}

@@ -184,6 +184,15 @@ export interface ShipResult {
    * issue; absent, a broken result fails the run per the doctrine.
    */
   brokenAdjudicated?: BrokenAdjudication;
+  /** Current-invocation Purser sandbox proof, consumed directly by checkpoint save. */
+  checkpointExecutionReceipt?: {
+    kind: 'purser-sandbox-v1';
+    executed: true;
+    passed: boolean;
+    outcomeKind: 'passed' | 'assertion-failure';
+    attemptId: string;
+    testDigest: string;
+  };
 }
 
 /** The adjudicator's verdict that a breakage is the fleet's, not the PR's. */
