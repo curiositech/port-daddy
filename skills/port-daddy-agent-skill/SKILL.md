@@ -1178,19 +1178,28 @@ plus explicit `PORT_DADDY_SKILL_SOURCE_ROOTS`. Most coding tasks have useful
 guidance already. **Search the catalog before you start, not after you're stuck.**
 
 ```bash
+jury-rig search "<one-line description of what you're about to do>" # standalone, daemon-free
+jury-rig graft "<same task>"                 # explicit bounded body load
 pd jury-rig search "<one-line description of what you're about to do>"
 pd jury-rig graft "<same task>"                 # only when full guidance is warranted
 pd jury-rig reference <skill-id> <path>   # guarded read inside that skill
 ```
 
+Prefer the standalone `jury-rig` executable when Port Daddy is unavailable or
+halted. It does not boot the Port Daddy CLI or daemon. Search returns only the
+bounded matching metadata; it reuses compatible cached semantic centroids in
+the background and never generates new ones. Use `graft` only after choosing
+that full guidance is worth the context cost.
+
 Default reflexes:
 
-- **Before every meaningful task** — one `pd jury-rig search` call. It returns metadata only, plus a compact receipt identifying the exact deduplicated skill corpus used for BM25 TF/DF. Graft a selected skill only when its full guidance is needed, then load only the references the task needs.
+- **Before every meaningful task** — run `jury-rig search` (or `pd jury-rig search` when Port Daddy is intentionally available). It returns at most 10 metadata matches, caps every description at 240 characters, and includes a compact receipt identifying the exact deduplicated skill corpus used for BM25 TF/DF. Graft a selected skill only when its full guidance is needed, then load only the references the task needs.
+- **From a suggestibility hook or background script** — call `jury-rig search --json --quiet`; inspect the bounded shortlist out of band and emit nothing when no match warrants attention. Never auto-graft every match. A graft must be an explicit agent call or a documented suggestibility decision with its own top/body limits.
 - **When you find yourself reasoning about a domain you don't own** — the catalog has a skill for that. Search.
 - **When a skill would help on this project long-term** — install it into the project's `.claude/skills/` and leave a `pd note` recording the install.
 - **When you used a skill and it was wrong / stale** — that's a Maintain-These-Skills moment (next section).
 
-If you go a whole session without a single `pd jury-rig search`, that's
+If you go a whole session without a single Jury-rig search, that's
 probably a missed leverage opportunity.
 
 ## Maintain These Skills (standing invitation)
@@ -1311,5 +1320,5 @@ pd feedback "SKIPPED: pd salvage. Reason: I judged the task too small. In hindsi
 - [ ] You ran `pd guard check --staged` before commit / push / deploy.
 - [ ] You ended with `pd done` AND `pd feedback "..."` (or MCP `drop_feedback`).
 - [ ] If you skipped any of the above, you owned up to it explicitly in the feedback.
-- [ ] You ran at least one `pd jury-rig search` for the task domain before starting and grafted only guidance you needed.
+- [ ] You ran at least one `jury-rig search` (standalone or intentional `pd jury-rig search`) for the task domain before starting and grafted only guidance you needed.
 - [ ] **You asked yourself: "did this skill mislead, mis-instruct, or under-equip me?"** If yes, you committed the fix to `skills/port-daddy-agent-skill/SKILL.md` (or `port-daddy-internal-dev` for contributor-only wisdom) in the same slice — no separate ticket, no permission needed. The bar is "would past-me have wanted to know this?", not "is this big enough to be its own PR." See "Maintain These Skills".

@@ -17,6 +17,8 @@ import {
 } from '../../lib/skill-graft.js';
 import { defaultSkillCatalogRoots } from '../../lib/skill-sync.js';
 import { resolveSkillGraftRuntime } from '../../lib/skill-graft-runtime.js';
+import { createLocalEmbedder, defaultTransformersCacheDir } from '../../lib/semantic-resolver.js';
+import { createTool2VecStore, resolveTool2VecReadProfile } from '../../lib/skill-graft-tool2vec.js';
 import { createTool2VecReconciler } from '../../lib/skill-graft-reconciler.js';
 import {
   applyJuryRigBootstrap,
@@ -45,6 +47,7 @@ interface JuryRigCliOptions extends CLIOptions {
   'pd-home'?: string;
   'expected-head'?: string;
   receipt?: string;
+  invocation?: string;
 }
 
 const JURY_RIG_REPOSITORY = 'curiositech/port-daddy';
@@ -202,16 +205,36 @@ function catalogRoots(options: JuryRigCliOptions, projectRoot: string) {
 function createIndex(options: JuryRigCliOptions): SkillGraftIndex {
   const projectRoot = rootFromOptions(options);
   const runtime = resolveSkillGraftRuntime();
+  const dbDir = typeof options['db-dir'] === 'string' ? options['db-dir'] : undefined;
+  const embedder = createLocalEmbedder({ cacheDir: defaultTransformersCacheDir() });
+  const onWarning = (message: string) => {
+    if (!isJson(options) && !isQuiet(options)) ui.warn(message);
+  };
+  const persistedProfile = runtime ? null : resolveTool2VecReadProfile({
+    dbDir,
+    embedderModelId: embedder.modelId,
+    onWarning,
+  });
+  const generatorId = runtime?.model ?? persistedProfile?.generatorId;
+  const centroidStore = generatorId
+    ? createTool2VecStore({ dbDir, embedderModelId: embedder.modelId, generatorId })
+    : undefined;
   return createSkillGraftIndex({
     projectRoot,
     roots: catalogRoots(options, projectRoot),
+    embedder,
+    centroidStore,
     llmClient: runtime?.client,
     llmModel: runtime?.model,
     maxBodyChars: optionalPositiveInt(options['body-chars']),
-    onWarning: (message) => {
-      if (!isJson(options) && !isQuiet(options)) ui.warn(message);
-    },
+    onWarning,
   });
+}
+
+function invocation(options: JuryRigCliOptions): string {
+  return typeof options.invocation === 'string' && options.invocation.trim()
+    ? options.invocation.trim()
+    : 'pd jury-rig';
 }
 
 /**
@@ -221,10 +244,10 @@ function createIndex(options: JuryRigCliOptions): SkillGraftIndex {
  * @param args Positional words forming the task query.
  * @returns The normalized query, or an empty string after recording failure.
  */
-function queryFromArgs(args: string[], operation: 'search' | 'graft'): string {
+function queryFromArgs(args: string[], operation: 'search' | 'graft', options: JuryRigCliOptions): string {
   const text = args.join(' ').trim();
   if (!text) {
-    console.error(`Usage: pd jury-rig ${operation} "<task>" [--root <path>] [--json]`);
+    console.error(`Usage: ${invocation(options)} ${operation} "<task>" [--root <path>] [--json]`);
     process.exitCode = 1;
   }
   return text;
@@ -239,7 +262,7 @@ function queryFromArgs(args: string[], operation: 'search' | 'graft'): string {
  * @returns A promise resolving after discovery output is emitted.
  */
 async function handleGraft(args: string[], options: JuryRigCliOptions): Promise<void> {
-  const query = queryFromArgs(args, 'graft');
+  const query = queryFromArgs(args, 'graft', options);
   if (!query) return;
 
   const index = createIndex(options);
@@ -260,13 +283,13 @@ async function handleGraft(args: string[], options: JuryRigCliOptions): Promise<
   }
   console.log(rendered);
   if (result.semanticTier === 'lexical-only') {
-    ui.info('Semantic Tool2Vec tier is cold or unconfigured; run `pd jury-rig warm` after setting PD_SKILL_GRAFT_BACKEND, or `pd doctor` to repair the shared embedder cache.');
+    ui.info(`Semantic Tool2Vec tier is cold or unconfigured; run \`${invocation(options)} warm\` after setting PD_SKILL_GRAFT_BACKEND.`);
   }
 }
 
 /** Rank skill metadata without injecting any SKILL.md body into output. */
 async function handleSearch(args: string[], options: JuryRigCliOptions): Promise<void> {
-  const query = queryFromArgs(args, 'search');
+  const query = queryFromArgs(args, 'search', options);
   if (!query) return;
 
   const index = createIndex(options);
@@ -285,9 +308,9 @@ async function handleSearch(args: string[], options: JuryRigCliOptions): Promise
     return;
   }
   console.log(rendered);
-  ui.info('Metadata only; no SKILL.md body was loaded. Use `pd jury-rig graft "<task>"` only when full guidance is needed.');
+  ui.info(`Metadata only; no SKILL.md body was loaded. Use \`${invocation(options)} graft "<task>"\` only when full guidance is needed.`);
   if (result.semanticTier === 'lexical-only') {
-    ui.info('Semantic Tool2Vec tier is cold or unconfigured; run `pd jury-rig warm` after setting PD_SKILL_GRAFT_BACKEND, or `pd doctor` to repair the shared embedder cache.');
+    ui.info(`Semantic Tool2Vec tier is cold or unconfigured; run \`${invocation(options)} warm\` after setting PD_SKILL_GRAFT_BACKEND.`);
   }
 }
 
@@ -329,7 +352,7 @@ async function handleWarm(options: JuryRigCliOptions): Promise<void> {
   }
   console.log(`  Coverage: ${stats.current}/${stats.total} current (${stats.coveragePct}%) · state ${stats.state}`);
   if (stats.stoppedEarly && stats.state === 'cold') {
-    ui.info('Warm-up checkpointed this batch; daemon ticks or another `pd jury-rig warm` resume at the next missing skill.');
+    ui.info(`Warm-up checkpointed this batch; another \`${invocation(options)} warm\` resumes at the next missing skill.`);
   }
   if (stats.state === 'embedder-down' || stats.state === 'generator-down') process.exitCode = 1;
 }
@@ -345,7 +368,7 @@ async function handleWarm(options: JuryRigCliOptions): Promise<void> {
 async function handleReference(args: string[], options: JuryRigCliOptions): Promise<void> {
   const [skillId, filePath] = args;
   if (!skillId || !filePath) {
-    console.error('Usage: pd jury-rig reference <skill-id> <path-within-skill> [--root <path>] [--json]');
+    console.error(`Usage: ${invocation(options)} reference <skill-id> <path-within-skill> [--root <path>] [--json]`);
     process.exitCode = 1;
     return;
   }
@@ -368,27 +391,35 @@ async function handleReference(args: string[], options: JuryRigCliOptions): Prom
 }
 
 /**
- * Prints the complete native Jury-rig command contract. The design keeps
- * discovery, warming, guarded reads, and bootstrap lifecycle visibly aligned.
+ * Prints the Jury-rig command contract for the active entry point. The
+ * standalone tool deliberately omits Port Daddy machine-bootstrap operations.
  *
  * @returns Nothing; help is written to standard output.
  */
-function printHelp(): void {
-  console.log(`Jury-rig — discover and safely load native skill guidance
-
-Usage:
-  pd jury-rig search "<task>" [--root <path>] [--shortlist-limit <n>] [--json]
-  pd jury-rig graft "<task>" [--root <path>] [--shortlist-limit <n>] [--top-limit <n>] [--body-chars <n>] [--json]
-  pd jury-rig warm [--root <path>] [--max-skills <n> | --all] [--local-only] [--json]
-  pd jury-rig reference <skill-id> <path-within-skill> [--root <path>] [--json]
+function printHelp(options: JuryRigCliOptions): void {
+  const command = invocation(options);
+  const standalone = command === 'jury-rig';
+  const bootstrapHelp = standalone ? '' : `
   pd jury-rig bootstrap plan [--expected-head <sha>] [--json]
   pd jury-rig bootstrap status [--json]
   pd jury-rig bootstrap apply [--json]
-  pd jury-rig bootstrap rollback --receipt <apply-receipt.json> [--json]
-
-The same lib/skill-graft.ts index is used by lib/fleet-engine.ts when a
+  pd jury-rig bootstrap rollback --receipt <apply-receipt.json> [--json]`;
+  const runtimeNote = standalone
+    ? `This executable scans local skill catalogs directly. It does not discover,
+start, or call the Port Daddy daemon. search is metadata-only and is the
+default shorthand. graft is the explicit bounded SKILL.md body load.`
+    : `The same lib/skill-graft.ts index is used by lib/fleet-engine.ts when a
 pd-fleet.yml ship opts into jury_rig: true. search is metadata-only and is
-the default shorthand. graft is the explicit bounded SKILL.md body load.
+the default shorthand. graft is the explicit bounded SKILL.md body load.`;
+  console.log(`Jury-rig — discover and safely load native skill guidance
+
+Usage:
+  ${command} search "<task>" [--root <path>] [--shortlist-limit <n>] [--json]
+  ${command} graft "<task>" [--root <path>] [--shortlist-limit <n>] [--top-limit <n>] [--body-chars <n>] [--json]
+  ${command} warm [--root <path>] [--max-skills <n> | --all] [--local-only] [--json]
+  ${command} reference <skill-id> <path-within-skill> [--root <path>] [--json]${bootstrapHelp}
+
+${runtimeNote}
 Both rank via BM25 until Tool2Vec centroids are warmed. Warm-up is
 content-hash checkpointed and safe to resume.`);
 }
@@ -413,7 +444,7 @@ export async function handleJuryRig(positional: string[], options: JuryRigCliOpt
       await handleGraft(args, options);
       return;
     case 'query':
-      throw new Error('Unknown Jury-rig operation "query". Use `pd jury-rig search` for metadata or `pd jury-rig graft` for full guidance.');
+      throw new Error(`Unknown Jury-rig operation "query". Use \`${invocation(options)} search\` for metadata or \`${invocation(options)} graft\` for full guidance.`);
     case 'warm':
     case 'refresh':
       await handleWarm(options);
@@ -428,7 +459,7 @@ export async function handleJuryRig(positional: string[], options: JuryRigCliOpt
     case 'help':
     case '--help':
     case '-h':
-      printHelp();
+      printHelp(options);
       return;
     default:
       await handleSearch(positional, options);
