@@ -8,6 +8,7 @@
  */
 
 export const FLEETBOT_ACTION_SCHEMA = 'port-daddy.fleetbot-action.v1' as const;
+export const FLEETBOT_PUBLISHER_CAPABILITY_SCHEMA = 'port-daddy.fleetbot-publisher-capability.v1' as const;
 export const FLEETBOT_RECEIPT_SCHEMA = 'port-daddy.fleetbot-receipt.v1' as const;
 
 export type FleetbotOperation =
@@ -42,6 +43,29 @@ export interface FleetbotAuthorship {
   sourceBranch: string | null;
 }
 
+/**
+ * One logical GitHub publisher authority grant minted by the daemon identity.
+ * Relay resolves the daemon key from its live identity registry; the public key
+ * carried by a caller is never authority. Exact retries may reuse the same
+ * nonce only when the canonical request and account binding are byte-identical.
+ */
+export interface FleetbotPublisherCapability {
+  schema: typeof FLEETBOT_PUBLISHER_CAPABILITY_SCHEMA;
+  accountTokenHash: string;
+  daemonFingerprint: string;
+  signingKeyGeneration: number;
+  sessionId: string;
+  repository: string;
+  operation: FleetbotOperation;
+  baseBranch: string;
+  baseSha: string;
+  headSha: string;
+  requestHash: string;
+  issuedAt: number;
+  expiresAt: number;
+  nonce: string;
+}
+
 export interface FleetbotActionRequest {
   schema: typeof FLEETBOT_ACTION_SCHEMA;
   operation: FleetbotOperation;
@@ -53,6 +77,10 @@ export interface FleetbotActionRequest {
   authorship?: FleetbotAuthorship;
   /** Added by the daemon from the canonical request after authorship is bound. */
   idempotencyKey?: string;
+  /** Daemon-signed, exact-scope, one-logical-use authority. */
+  capability: FleetbotPublisherCapability;
+  /** Raw Ed25519 signature, hex, over the capability preimage digest. */
+  capabilitySignature: string;
 }
 
 export interface FleetbotReceipt {
@@ -121,6 +149,13 @@ export function fleetbotIdempotencyPreimage(
     sessionId: request.sessionId,
     authorship: request.authorship,
   });
+}
+
+/** Stable capability bytes. Callers sign SHA-256 of this string. */
+export function fleetbotPublisherCapabilityPreimage(
+  capability: FleetbotPublisherCapability,
+): string {
+  return stableJson(capability);
 }
 
 export function isGitSha(value: unknown): value is string {
@@ -205,12 +240,21 @@ function provenanceBlock(input: {
     : 'Roadmap: explicit sidequest';
   return [
     PROVENANCE_START,
+    fleetbotMutationMarker(input.receiptId),
     '> **Published by Port Daddy Fleetbot**',
     `> Responsible agent: \`${a.agentId}\``,
     `> Session: \`${a.sessionId}\` · ${roadmap}${source}`,
     `> Relay receipt: \`${input.receiptId}\``,
     PROVENANCE_END,
   ].join('\n');
+}
+
+/** Stable, machine-readable GitHub mutation marker used for exact readback. */
+export function fleetbotMutationMarker(receiptId: string): string {
+  if (!/^[A-Za-z0-9_-]{1,80}$/.test(receiptId)) {
+    throw new Error('Fleetbot receipt id is invalid');
+  }
+  return `<!-- port-daddy:fleetbot-mutation:${receiptId.toLowerCase()} -->`;
 }
 
 /** Insert an idempotent visible signature immediately before the roadmap trailer. */

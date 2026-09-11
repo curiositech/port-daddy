@@ -32,6 +32,23 @@ describe('Fleetbot publisher contract', () => {
       sessionId: authorship.sessionId,
       authorship,
       payload: { z: 2, nested: { b: 2, a: 1 }, files: ['b', 'a'] },
+      capability: {
+        schema: 'port-daddy.fleetbot-publisher-capability.v1',
+        accountTokenHash: '1'.repeat(64),
+        daemonFingerprint: '2'.repeat(64),
+        signingKeyGeneration: 1,
+        sessionId: authorship.sessionId,
+        repository: 'curiositech/port-daddy',
+        operation: 'pull-request.publish',
+        baseBranch: 'main',
+        baseSha: '3'.repeat(40),
+        headSha: '4'.repeat(40),
+        requestHash: '5'.repeat(64),
+        issuedAt: 1,
+        expiresAt: 2,
+        nonce: '6'.repeat(64),
+      },
+      capabilitySignature: '7'.repeat(128),
     };
     const right = {
       ...left,
