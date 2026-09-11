@@ -1,0 +1,250 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/capacity-evidence.schema.json",
+  "title": "Capacity evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "digestAlgorithm",
+    "canonicalEncoding",
+    "evidenceId",
+    "operatorScope",
+    "executionClass",
+    "evaluatedAt",
+    "observation",
+    "buckets",
+    "reservation",
+    "preemptionState",
+    "admissible",
+    "launchAuthority",
+    "discrepancies"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "kind": { "const": "capacity-evidence" },
+    "digestAlgorithm": { "const": "sha256" },
+    "canonicalEncoding": { "const": "RFC8785-JCS" },
+    "evidenceId": { "type": "string", "minLength": 1 },
+    "operatorScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operatorId", "provider", "accountId", "authMode", "productScope"],
+      "properties": {
+        "operatorId": { "type": "string", "minLength": 1 },
+        "provider": { "type": "string", "minLength": 1 },
+        "accountId": { "type": "string", "minLength": 1 },
+        "authMode": { "enum": ["subscription", "product-credit", "api-billing", "unknown"] },
+        "productScope": { "type": "string", "minLength": 1 }
+      }
+    },
+    "executionClass": { "enum": ["real-provider", "fake-or-replay"] },
+    "evaluatedAt": { "type": "string", "format": "date-time" },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceKind", "sourceRef", "parserProfileId", "parserSchemaDigest", "rawEvidenceDigest", "observedAt", "expiresAt"],
+      "properties": {
+        "sourceKind": { "enum": ["documented-provider-response", "documented-first-party-client", "bounded-before-after-delta", "provider-refusal", "operator-entered", "missing-or-unsupported", "fake-fixture"] },
+        "sourceRef": { "type": "string", "minLength": 1 },
+        "parserProfileId": { "type": "string", "minLength": 1 },
+        "parserSchemaDigest": { "$ref": "#/$defs/digest" },
+        "rawEvidenceDigest": { "$ref": "#/$defs/digest" },
+        "observedAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "buckets": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/bucket" }
+    },
+    "reservation": { "$ref": "#/$defs/reservation" },
+    "preemptionState": { "enum": ["ROOMY", "TIGHTENING", "CHECKPOINT_NOW", "SWITCH_ELIGIBLE", "WAIT_FOR_RESET", "EXHAUSTED", "UNKNOWN"] },
+    "admissible": { "type": "boolean" },
+    "launchAuthority": { "const": false },
+    "discrepancies": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "executionClass": { "const": "fake-or-replay" }
+        },
+        "required": ["executionClass"]
+      },
+      "then": {
+        "properties": {
+          "observation": {
+            "type": "object",
+            "properties": {
+              "sourceKind": { "const": "fake-fixture" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "executionClass": { "const": "real-provider" },
+          "admissible": { "const": true }
+        },
+        "required": ["executionClass", "admissible"]
+      },
+      "then": {
+        "properties": {
+          "observation": {
+            "type": "object",
+            "properties": {
+              "sourceKind": {
+                "enum": ["documented-provider-response", "documented-first-party-client"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "admissible": { "const": true } }, "required": ["admissible"] },
+      "then": {
+        "properties": {
+          "preemptionState": { "enum": ["ROOMY", "TIGHTENING", "SWITCH_ELIGIBLE"] },
+          "discrepancies": { "type": "array", "maxItems": 0 },
+          "reservation": {
+            "type": "object",
+            "properties": {
+              "state": { "const": "committed" },
+              "reservationId": { "type": "string", "minLength": 1 },
+              "atomicAcrossBucketsAndAliases": { "const": true }
+            }
+          },
+          "buckets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "quality": { "enum": ["authoritative", "observed"] },
+                "observedRemaining": { "type": "number" },
+                "allocatable": { "type": "number" },
+                "risk": { "type": "number", "minimum": 0 },
+                "eligible": { "const": true }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "nullableNonnegative": {
+      "anyOf": [
+        { "type": "number", "minimum": 0 },
+        { "type": "null" }
+      ]
+    },
+    "forecast": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["route", "taskClass", "effort", "contextTokens", "toolPackDigest", "executionMode", "p50", "p90", "p95", "sampleSize", "calibrationErrorP95"],
+      "properties": {
+        "route": { "type": "string", "minLength": 1 },
+        "taskClass": { "type": "string", "minLength": 1 },
+        "effort": { "type": "string", "minLength": 1 },
+        "contextTokens": { "type": "integer", "minimum": 0 },
+        "toolPackDigest": { "$ref": "#/$defs/digest" },
+        "executionMode": { "type": "string", "minLength": 1 },
+        "p50": { "$ref": "#/$defs/nullableNonnegative" },
+        "p90": { "$ref": "#/$defs/nullableNonnegative" },
+        "p95": { "$ref": "#/$defs/nullableNonnegative" },
+        "sampleSize": { "type": "integer", "minimum": 0 },
+        "calibrationErrorP95": { "$ref": "#/$defs/nullableNonnegative" }
+      }
+    },
+    "bucket": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capacityBucketId",
+        "windowId",
+        "unit",
+        "routeAliases",
+        "quality",
+        "observedLimit",
+        "observedRemaining",
+        "resetsAt",
+        "operatorReserve",
+        "outstandingReservations",
+        "unresolvedAttemptHolds",
+        "driftMargin",
+        "checkpointTailReserve",
+        "allocatable",
+        "forecast",
+        "risk",
+        "eligible"
+      ],
+      "properties": {
+        "capacityBucketId": { "type": "string", "minLength": 1 },
+        "windowId": { "type": "string", "minLength": 1 },
+        "unit": { "enum": ["percentage-points", "requests", "tokens", "weighted-units", "opaque-provider-units"] },
+        "routeAliases": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "quality": { "enum": ["authoritative", "observed", "estimated", "stale", "unknown"] },
+        "observedLimit": { "$ref": "#/$defs/nullableNonnegative" },
+        "observedRemaining": { "$ref": "#/$defs/nullableNonnegative" },
+        "resetsAt": { "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }] },
+        "operatorReserve": { "type": "number", "minimum": 0 },
+        "outstandingReservations": { "type": "number", "minimum": 0 },
+        "unresolvedAttemptHolds": { "type": "number", "minimum": 0 },
+        "driftMargin": { "type": "number", "minimum": 0 },
+        "checkpointTailReserve": { "type": "number", "minimum": 0 },
+        "allocatable": { "anyOf": [{ "type": "number" }, { "type": "null" }] },
+        "forecast": { "$ref": "#/$defs/forecast" },
+        "risk": { "anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }] },
+        "eligible": { "type": "boolean" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "quality": { "enum": ["estimated", "stale", "unknown"] } }, "required": ["quality"] },
+          "then": { "properties": { "eligible": { "const": false } } }
+        }
+      ]
+    },
+    "reservationItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capacityBucketId", "expectedRevision", "reservedUnits"],
+      "properties": {
+        "capacityBucketId": { "type": "string", "minLength": 1 },
+        "expectedRevision": { "type": "integer", "minimum": 0 },
+        "reservedUnits": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "reservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "reservationId", "atomicAcrossBucketsAndAliases", "issuedAt", "expiresAt", "items"],
+      "properties": {
+        "state": { "enum": ["none", "proposed", "committed", "settled", "released", "held-ambiguous"] },
+        "reservationId": { "anyOf": [{ "type": "string", "minLength": 1 }, { "type": "null" }] },
+        "atomicAcrossBucketsAndAliases": { "type": "boolean" },
+        "issuedAt": { "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }] },
+        "expiresAt": { "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }] },
+        "items": { "type": "array", "items": { "$ref": "#/$defs/reservationItem" } }
+      }
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "1.0.0",
+  "operation": "rebody",
+  "halt": { "state": "active", "sourceAuthority": "operator halt", "observedAt": "2026-09-11T17:00:00Z" },
+  "person": { "principalId": "principal-demo", "agentNodeId": "agent-demo-014", "identityRevision": 3 },
+  "work": { "workIntentId": "wi-demo-014", "workPlanId": "plan-demo-014-r4", "workEpisodeId": "episode-demo-014", "objective": "Unsafe fixture", "nonGoals": [], "planFrontier": ["do not launch"] },
+  "predecessor": {
+    "agentRunId": "run-demo-g1", "bodyLeaseId": "body-demo-g1", "generation": 1, "state": "quarantined", "fenceOrAbsenceReceipt": null,
+    "processWitness": { "state": "unknown", "receipt": null, "observedAt": "2026-09-11T17:00:01Z" },
+    "ledgerRoots": {
+      "lifecycle": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "effects": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "claims": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "transcript": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+    }
+  },
+  "source": { "remote": "https://github.com/curiositech/port-daddy.git", "baseCommit": "1111111111111111111111111111111111111111", "headCommit": "2222222222222222222222222222222222222222", "treeDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555", "worktree": "/sealed/review-worktree", "statusDigest": "sha256:6666666666666666666666666666666666666666666666666666666666666666", "claimsRoot": "sha256:7777777777777777777777777777777777777777777777777777777777777777", "outputRoot": "sha256:8888888888888888888888888888888888888888888888888888888888888888" },
+  "effects": { "ledgerRoot": "sha256:9999999999999999999999999999999999999999999999999999999999999999", "completeForGeneration": false, "items": [{ "effectSlotId": "effect-slot-1", "canonicalFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "logicalIdentity": "wi-demo-014/node-3/github-pr-create", "operation": "github.pr.create", "normalizedDestination": "github.com/curiositech/port-daddy", "state": "ambiguous", "idempotencyKeys": ["fresh-key-does-not-help"], "reconciliationEvidence": [], "replayAllowed": false }] },
+  "capsule": { "capsuleId": "capsule-demo-4", "sequence": 4, "predecessorDigest": null, "digestAlgorithm": "sha256", "canonicalEncoding": "RFC8785-JCS", "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "signer": { "keyId": "controller-key-1", "algorithm": "ed25519", "signature": "demo-signature" }, "audience": "wrong-body-audience", "issuedAt": "2026-09-11T17:00:02Z", "expiresAt": "2026-09-11T17:10:02Z", "retentionRoot": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "artifactAvailabilityRoot": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "signatureVerificationReceipt": "receipt:unsafe-signature", "lineageVerificationReceipt": "receipt:unsafe-lineage", "availabilityVerificationReceipt": "receipt:unsafe-availability", "requiredFactTypes": ["objective", "effects"], "satisfiedFactTypes": ["objective"], "verifiedFacts": [], "unsupportedClaims": ["effects are safe"], "decisions": [], "toolPairs": [], "tests": [], "transcript": { "cursor": "turn-42", "tailDigest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "omittedRanges": [] }, "memoryDisposition": [], "omissions": [], "oneTime": true, "redemption": { "state": "pending", "receipt": null } },
+  "destination": { "adapter": "claude-code", "mode": "successor-handoff", "generation": 3, "proposedBodyLeaseId": "body-demo-g3", "bootstrapLease": { "leaseId": "bootstrap-g3", "allowedOperations": ["nonce-challenge"], "expiresAt": "2026-09-11T17:02:00Z" }, "workingCapabilitySetId": null, "workingCapabilitiesIssued": false, "capabilityReport": [{ "surfaceId": "repo.patch", "authenticatedServerIdentity": null, "required": true, "disposition": "UNKNOWN", "requestedScope": "two symbols", "grantedScope": null, "evidenceRefs": [] }], "requiredCapabilitiesSatisfied": false, "nativeSessionLease": { "required": false, "exclusive": false, "receipt": null }, "inheritedToolsReset": false },
+  "capacity": { "capacityEvidenceSchemaVersion": "1.0.0", "capacityEvidenceDigestAlgorithm": "sha256", "capacityEvidenceCanonicalEncoding": "RFC8785-JCS", "capacityEvidenceId": "capacity-demo-unknown", "capacityEvidenceDigest": "sha256:449a0c38b2156a007a62cc154894b8ac1f996270c3f33d110f084eb765d0df2e", "permittedExecutionClass": "fake-or-replay", "reservationId": null, "quality": "unknown", "admissible": false, "buckets": ["bucket:provider-demo:seat-demo:unknown"] },
+  "execution": { "planIsLaunchAuthority": false, "executionClass": "real-provider", "authorizationState": "blocked-by-halt", "authorizedExecutor": null, "authorizationReceipt": null },
+  "verdict": "REBODIMENT_READY",
+  "nextSafeAction": "Remain quarantined"
+}

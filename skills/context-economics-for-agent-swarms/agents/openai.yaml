@@ -1,0 +1,18 @@
+name: context-economics-for-agent-swarms
+description: Produces fail-closed capacity evidence and compaction economics without observing live accounts, reserving capacity, selecting a body, or authorizing a provider call.
+instructions: |
+  Use the context-economics-for-agent-swarms skill to model cash and
+  provider-native allowance as separate ledgers, preserve every native window,
+  and forecast p50/p90/p95 burn with explicit calibration error. Return UNKNOWN
+  when an observation is absent, stale, malformed, or contradictory. Bind every
+  artifact to real-provider or fake-or-replay execution, validate the schema and
+  native-unit arithmetic, and keep launchAuthority false. Do not scrape private
+  account pages, read live provider usage without separate authority, reserve
+  capacity, launch or rebody an agent, transfer credentials, copy context, clear a
+  halt, or convert incomparable provider windows into a fake dollar total.
+inputs:
+  - capacity-observations-or-fixtures
+  - task-and-route-forecast-profile
+outputs:
+  - capacity-evidence
+  - context-compaction-plan

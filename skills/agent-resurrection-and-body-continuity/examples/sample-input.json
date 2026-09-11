@@ -1,0 +1,38 @@
+{
+  "incident": "provider stream and process disappeared after a clean local checkpoint",
+  "person": {
+    "principalId": "principal-demo",
+    "agentNodeId": "agent-demo-014",
+    "identityRevision": 3
+  },
+  "work": {
+    "workIntentId": "wi-demo-014",
+    "workPlanId": "plan-demo-014-r4",
+    "workEpisodeId": "episode-demo-014",
+    "objective": "Prepare a static operator storyboard",
+    "nextSafeAction": "Run static HTML validation"
+  },
+  "predecessor": {
+    "agentRunId": "run-demo-g1",
+    "bodyLeaseId": "body-demo-g1",
+    "generation": 1,
+    "lastProcessWitness": "unknown after host channel loss"
+  },
+  "effects": [
+    {
+      "effectId": "write-demo-01",
+      "state": "committed",
+      "idempotencyKey": "idem-demo-01"
+    },
+    {
+      "effectId": "push-demo-02",
+      "state": "dispatched",
+      "idempotencyKey": "idem-demo-02"
+    }
+  ],
+  "destination": "different harness family",
+  "capacity": {
+    "quality": "unknown",
+    "reason": "destination subscription observer returned no field"
+  }
+}

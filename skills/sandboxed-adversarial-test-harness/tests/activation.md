@@ -15,6 +15,7 @@ stays out of unrelated implementation or ordinary test work.
 | “Should the dry-dock controller be Rust, Swift, or TypeScript, and how do we keep its offline build incapable of spending?” | Activate | Language, process, packaging, and spend authority are part of the external TCB. |
 | “Guarantee agents can never dirty or commit from my main checkout; all source and authored work must use worktrees.” | Activate | Canonical-checkout exclusion, source-vault provenance, and worktree-only promotion are security invariants. |
 | “Where is the plan for how agents spawn? How do we avoid losing their PIDs or sessions, and what stops a crash-plus-spawn-times-1000 loop?” | Activate | Durable admission, process witnessing, identity/body separation, restart reconciliation, and persistent breakers are Drydock safety boundaries. |
+| “Falsify this resurrection plan and subscription-capacity receipt using inert bodies and a fake provider.” | Activate | The normative artifacts come from their owning skills; Drydock tests one concrete tier without launching production. |
 
 ## Negative activation queries
 
@@ -25,6 +26,7 @@ stays out of unrelated implementation or ordinary test work.
 | “Implement the OpenAI client and parse its streaming response.” | Do not activate | Provider/client implementation; use this skill only to audit authority, spend, or isolation. |
 | “Review the color and spacing of the Drydock control-room screen.” | Do not activate | UX/design review skill; containment is not the requested question. |
 | “Start Port Daddy and run the full suite to check whether it is safe now.” | Activate only to refuse execution | The halt gate applies; produce a static review or require an approved external laboratory. |
+| “Choose which production identity should receive a new body.” | Do not activate | `agent-resurrection-and-body-continuity` owns the normative continuity decision; Drydock can later falsify its implementation. |
 
 ## Boundary cases
 
