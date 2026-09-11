@@ -154,6 +154,15 @@ pub struct Workspace {
     next_id: PaneId,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct DividerDescriptor {
+    pub selector: String,
+    pub path: Vec<usize>,
+    pub left: usize,
+    pub dir: Dir,
+    pub fraction: f32,
+}
+
 impl Workspace {
     /// A fresh workspace: one full-window leaf showing `surface`.
     pub fn new(surface: SurfaceKind) -> Workspace {
@@ -325,6 +334,77 @@ impl Workspace {
     /// split's total extent along its axis. Shifts weight only within the pair.
     pub fn resize_pair(&mut self, path: &[usize], left: usize, target: f32) -> bool {
         resize_pair_in(&mut self.root, path, left, target)
+    }
+
+    /// Internal divider geometry. The scripting layer only publishes predefined
+    /// semantic workspace regions; nested multiplexer paths remain private.
+    pub(crate) fn dividers(&self) -> Vec<DividerDescriptor> {
+        let mut out = Vec::new();
+        collect_dividers(&self.root, &mut Vec::new(), &mut out);
+        out
+    }
+
+    /// Move one predefined workspace boundary by a fraction of its split axis.
+    pub(crate) fn drag_divider(
+        &mut self,
+        selector: &str,
+        delta_fraction: f32,
+    ) -> Option<(f32, f32)> {
+        let divider = self
+            .dividers()
+            .into_iter()
+            .find(|divider| divider.selector == selector)?;
+        let before = divider.fraction;
+        self.resize_pair(
+            &divider.path,
+            divider.left,
+            (before + delta_fraction).clamp(0.0, 1.0),
+        );
+        let after = self
+            .dividers()
+            .into_iter()
+            .find(|candidate| candidate.selector == selector)?
+            .fraction;
+        Some((before, after))
+    }
+}
+
+fn collect_dividers(node: &Node, path: &mut Vec<usize>, out: &mut Vec<DividerDescriptor>) {
+    let Node::Split { dir, children } = node else {
+        return;
+    };
+    let total = children
+        .iter()
+        .map(|child| child.weight)
+        .sum::<f32>()
+        .max(0.0001);
+    let path_label = if path.is_empty() {
+        "root".to_string()
+    } else {
+        path.iter()
+            .map(usize::to_string)
+            .collect::<Vec<_>>()
+            .join(".")
+    };
+    let mut prefix = 0.0;
+    for left in 0..children.len().saturating_sub(1) {
+        prefix += children[left].weight;
+        out.push(DividerDescriptor {
+            selector: if path.is_empty() && left == 0 {
+                "workspace.primary-companion.divider".to_string()
+            } else {
+                format!("internal.layout-divider.{path_label}.{left}")
+            },
+            path: path.clone(),
+            left,
+            dir: *dir,
+            fraction: prefix / total,
+        });
+    }
+    for (index, child) in children.iter().enumerate() {
+        path.push(index);
+        collect_dividers(&child.node, path, out);
+        path.pop();
     }
 }
 
@@ -547,6 +627,23 @@ mod tests {
         assert_eq!(ws.pane_count(), 2);
         assert_eq!(ws.focused(), new);
         assert_eq!(ws.focused_surface(), &agent("a1"));
+    }
+
+    #[test]
+    fn semantic_divider_selectors_are_stable_and_drag_clamps() {
+        let mut ws = Workspace::new(SurfaceKind::Mission);
+        ws.split(Dir::Row, SurfaceKind::Roadmap);
+        let dividers = ws.dividers();
+        assert_eq!(dividers.len(), 1);
+        assert_eq!(dividers[0].selector, "workspace.primary-companion.divider");
+        assert_eq!(dividers[0].fraction, 0.5);
+
+        let (before, after) = ws
+            .drag_divider("workspace.primary-companion.divider", 10.0)
+            .expect("discovered selector remains actionable");
+        assert_eq!(before, 0.5);
+        assert!(after < 1.0, "minimum sibling weight clamps the divider");
+        assert!(ws.drag_divider("workspace.missing.divider", 0.1).is_none());
     }
 
     #[test]

@@ -12,7 +12,8 @@ use std::fs::{self, OpenOptions};
 use std::io::{Read, Write};
 use std::ops::Range;
 use std::path::{Path, PathBuf};
-use std::sync::mpsc;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{mpsc, Arc};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::sync::mpsc as tokio_mpsc;
@@ -32,6 +33,21 @@ pub const MIN_DRAWER_HEIGHT_PX: f32 = 180.0;
 /// Largest share of the window the terminal may occupy. Keeping part of the
 /// work surface visible preserves context while the drawer is being resized.
 pub const MAX_DRAWER_VIEWPORT_RATIO: f32 = 0.72;
+
+/// Whether the PTY launch directory was rooted at the admitted Mission project.
+///
+/// Both sides are canonicalized so an admitted symlink and a canonical PTY cwd
+/// compare honestly. Resolution failure is `None`: it must never be treated as
+/// evidence that the shell is bound. This says nothing about the live cwd after
+/// the operator runs `cd`; pd-console does not currently consume OSC 7 updates.
+pub(crate) fn launch_path_bound_to_project(
+    project_dir: Option<&str>,
+    terminal_launch_cwd: &str,
+) -> Option<bool> {
+    let project = fs::canonicalize(project_dir?).ok()?;
+    let launch_cwd = fs::canonicalize(terminal_launch_cwd).ok()?;
+    Some(launch_cwd == project || launch_cwd.starts_with(project))
+}
 
 /// Renderer-independent geometry for the terminal drawer.
 ///
@@ -362,12 +378,46 @@ pub struct ShellTerminal {
     recovery_failure: Option<ShellFailure>,
     last_checkpoint_at: Option<Instant>,
     wheel_remainder: f32,
+    event_tx: Option<tokio_mpsc::UnboundedSender<ShellEvent>>,
+    event_generation: Arc<AtomicU64>,
+    generation: u64,
+}
+
+fn emit_if_current(
+    tx: &tokio_mpsc::UnboundedSender<ShellEvent>,
+    current: &AtomicU64,
+    generation: u64,
+    event: ShellEvent,
+) -> bool {
+    current.load(Ordering::Acquire) == generation && tx.send(event).is_ok()
 }
 
 impl ShellTerminal {
     /// Start the operator's login shell in a native PTY and return its event bus.
     pub fn spawn(cwd: PathBuf) -> Result<(Self, tokio_mpsc::UnboundedReceiver<ShellEvent>)> {
-        let recovery_path = default_recovery_path();
+        let (event_tx, event_rx) = tokio_mpsc::unbounded_channel();
+        let event_generation = Arc::new(AtomicU64::new(1));
+        let terminal =
+            Self::spawn_on_bus(cwd, event_tx, event_generation, 1, default_recovery_path())?;
+        Ok((terminal, event_rx))
+    }
+
+    fn spawn_on_bus(
+        cwd: PathBuf,
+        event_tx: tokio_mpsc::UnboundedSender<ShellEvent>,
+        event_generation: Arc<AtomicU64>,
+        generation: u64,
+        recovery_path: PathBuf,
+    ) -> Result<Self> {
+        let cwd = cwd
+            .canonicalize()
+            .with_context(|| format!("resolve terminal working directory {}", cwd.display()))?;
+        if !cwd.is_dir() {
+            anyhow::bail!(
+                "terminal working directory is not a directory: {}",
+                cwd.display()
+            );
+        }
         let (recovery, recovery_failure) = load_recovery_state(&recovery_path);
         let shell = resolve_shell();
         let pty_system = native_pty_system();
@@ -403,7 +453,6 @@ impl ShellTerminal {
             .context("take the pd-console PTY writer")?;
         let master = pair.master;
 
-        let (event_tx, event_rx) = tokio_mpsc::unbounded_channel();
         let (input_tx, input_rx) = mpsc::channel::<ShellInput>();
         let boot_command = std::env::var("PD_CONSOLE_CLI_BOOT_COMMAND")
             .ok()
@@ -411,22 +460,28 @@ impl ShellTerminal {
             .map(|command| format!("{command}\r").into_bytes());
 
         let ready_tx = event_tx.clone();
+        let ready_generation = event_generation.clone();
         thread::Builder::new()
             .name("pd-console-pty-input".into())
             .spawn(move || {
-                let _ = ready_tx.send(ShellEvent::Ready);
+                emit_if_current(&ready_tx, &ready_generation, generation, ShellEvent::Ready);
                 if let Some(command) = boot_command {
                     // The PTY is writable before a login shell has completed its
                     // startup files. Wait only in explicit visual-proof runs so
                     // the captured command enters at the same boundary as typing.
                     thread::sleep(Duration::from_millis(650));
                     if let Err(error) = writer.write_all(&command).and_then(|_| writer.flush()) {
-                        let _ = ready_tx.send(ShellEvent::Failed(ShellFailure::new(
-                            "PTY_BOOT_INPUT_FAILED",
-                            "The proof command did not reach the shell.",
-                            error.to_string(),
-                            "Type the command in the drawer or relaunch pd-console.",
-                        )));
+                        emit_if_current(
+                            &ready_tx,
+                            &ready_generation,
+                            generation,
+                            ShellEvent::Failed(ShellFailure::new(
+                                "PTY_BOOT_INPUT_FAILED",
+                                "The proof command did not reach the shell.",
+                                error.to_string(),
+                                "Type the command in the drawer or relaunch pd-console.",
+                            )),
+                        );
                     }
                 }
                 while let Ok(input) = input_rx.recv() {
@@ -444,12 +499,17 @@ impl ShellTerminal {
                             .map_err(std::io::Error::other),
                     };
                     if let Err(error) = result {
-                        let _ = ready_tx.send(ShellEvent::Failed(ShellFailure::new(
-                            "PTY_INPUT_FAILED",
-                            "Input could not reach the CLI shell.",
-                            error.to_string(),
-                            "Relaunch pd-console to start a fresh shell.",
-                        )));
+                        emit_if_current(
+                            &ready_tx,
+                            &ready_generation,
+                            generation,
+                            ShellEvent::Failed(ShellFailure::new(
+                                "PTY_INPUT_FAILED",
+                                "Input could not reach the CLI shell.",
+                                error.to_string(),
+                                "Relaunch pd-console to start a fresh shell.",
+                            )),
+                        );
                         break;
                     }
                 }
@@ -457,6 +517,7 @@ impl ShellTerminal {
             .context("start the pd-console PTY input thread")?;
 
         let output_tx = event_tx.clone();
+        let output_generation = event_generation.clone();
         thread::Builder::new()
             .name("pd-console-pty-output".into())
             .spawn(move || {
@@ -465,20 +526,27 @@ impl ShellTerminal {
                     match reader.read(&mut buffer) {
                         Ok(0) => break,
                         Ok(read) => {
-                            if output_tx
-                                .send(ShellEvent::Bytes(buffer[..read].to_vec()))
-                                .is_err()
-                            {
+                            if !emit_if_current(
+                                &output_tx,
+                                &output_generation,
+                                generation,
+                                ShellEvent::Bytes(buffer[..read].to_vec()),
+                            ) {
                                 break;
                             }
                         }
                         Err(error) => {
-                            let _ = output_tx.send(ShellEvent::Failed(ShellFailure::new(
-                                "PTY_OUTPUT_FAILED",
-                                "The CLI shell output stream stopped.",
-                                error.to_string(),
-                                "Inspect the previous shell receipt, then relaunch pd-console.",
-                            )));
+                            emit_if_current(
+                                &output_tx,
+                                &output_generation,
+                                generation,
+                                ShellEvent::Failed(ShellFailure::new(
+                                    "PTY_OUTPUT_FAILED",
+                                    "The CLI shell output stream stopped.",
+                                    error.to_string(),
+                                    "Inspect the previous shell receipt, then relaunch pd-console.",
+                                )),
+                            );
                             break;
                         }
                     }
@@ -486,19 +554,31 @@ impl ShellTerminal {
             })
             .context("start the pd-console PTY output thread")?;
 
+        let child_tx = event_tx.clone();
+        let child_generation = event_generation.clone();
         thread::Builder::new()
             .name("pd-console-pty-child".into())
             .spawn(move || match child.wait() {
                 Ok(status) => {
-                    let _ = event_tx.send(ShellEvent::Exited(status.exit_code()));
+                    emit_if_current(
+                        &child_tx,
+                        &child_generation,
+                        generation,
+                        ShellEvent::Exited(status.exit_code()),
+                    );
                 }
                 Err(error) => {
-                    let _ = event_tx.send(ShellEvent::Failed(ShellFailure::new(
-                        "PTY_WAIT_FAILED",
-                        "The CLI shell exit status is unknown.",
-                        error.to_string(),
-                        "Inspect the previous shell receipt, then relaunch pd-console.",
-                    )));
+                    emit_if_current(
+                        &child_tx,
+                        &child_generation,
+                        generation,
+                        ShellEvent::Failed(ShellFailure::new(
+                            "PTY_WAIT_FAILED",
+                            "The CLI shell exit status is unknown.",
+                            error.to_string(),
+                            "Inspect the previous shell receipt, then relaunch pd-console.",
+                        )),
+                    );
                 }
             })
             .context("start the pd-console PTY child monitor")?;
@@ -517,9 +597,59 @@ impl ShellTerminal {
             recovery_failure,
             last_checkpoint_at: None,
             wheel_remainder: 0.0,
+            event_tx: Some(event_tx.clone()),
+            event_generation,
+            generation,
         };
         terminal.checkpoint(true);
-        Ok((terminal, event_rx))
+        Ok(terminal)
+    }
+
+    /// Replace the live PTY with a fresh login shell rooted at an admitted
+    /// Mission project. The existing foreground event receiver is retained;
+    /// generation gating prevents late output from the retired PTY from
+    /// changing the new terminal's state.
+    pub fn rebind(&mut self, cwd: PathBuf) -> Result<()> {
+        let requested = cwd
+            .canonicalize()
+            .with_context(|| format!("resolve terminal working directory {}", cwd.display()))?;
+        if requested == self.cwd {
+            return Ok(());
+        }
+        // Preserve the last state of the shell we are about to retire before
+        // the fresh project-bound shell publishes its own clean receipt.
+        self.checkpoint(true);
+        let event_tx = self
+            .event_tx
+            .clone()
+            .context("terminal event stream is unavailable")?;
+        let recovery_path = self
+            .recovery_path
+            .clone()
+            .context("terminal recovery path is unavailable")?;
+        let event_generation = self.event_generation.clone();
+        let prior_generation = self.generation;
+        let next_generation = prior_generation.saturating_add(1);
+        event_generation.store(next_generation, Ordering::Release);
+        let replacement = match Self::spawn_on_bus(
+            requested,
+            event_tx,
+            event_generation.clone(),
+            next_generation,
+            recovery_path,
+        ) {
+            Ok(terminal) => terminal,
+            Err(error) => {
+                event_generation.store(prior_generation, Ordering::Release);
+                return Err(error);
+            }
+        };
+        let mut retired = std::mem::replace(self, replacement);
+        // The replacement has already written the current receipt. Do not let
+        // the retired shell overwrite it while being dropped.
+        retired.recovery_path = None;
+        drop(retired);
+        Ok(())
     }
 
     pub fn disconnected(cwd: PathBuf, error: impl Into<String>) -> Self {
@@ -538,6 +668,9 @@ impl ShellTerminal {
             recovery_failure: None,
             last_checkpoint_at: None,
             wheel_remainder: 0.0,
+            event_tx: None,
+            event_generation: Arc::new(AtomicU64::new(0)),
+            generation: 0,
         }
     }
 
@@ -559,6 +692,9 @@ impl ShellTerminal {
             recovery_failure,
             last_checkpoint_at: None,
             wheel_remainder: 0.0,
+            event_tx: None,
+            event_generation: Arc::new(AtomicU64::new(0)),
+            generation: 0,
         };
         terminal.checkpoint(true);
         terminal
@@ -1105,6 +1241,17 @@ fn terminal_color(color: vt100::Color) -> TerminalColor {
 mod tests {
     use super::*;
 
+    fn spawn_for_test(
+        cwd: PathBuf,
+        recovery_path: PathBuf,
+    ) -> (ShellTerminal, tokio_mpsc::UnboundedReceiver<ShellEvent>) {
+        let (event_tx, event_rx) = tokio_mpsc::unbounded_channel();
+        let generation = Arc::new(AtomicU64::new(1));
+        let terminal = ShellTerminal::spawn_on_bus(cwd, event_tx, generation, 1, recovery_path)
+            .expect("spawn isolated test shell");
+        (terminal, event_rx)
+    }
+
     #[test]
     fn terminal_model_parses_screen_and_exit_state() {
         let mut terminal = ShellTerminal::disconnected(PathBuf::from("/tmp"), "offline");
@@ -1125,6 +1272,113 @@ mod tests {
             "Relaunch pd-console to start a fresh shell."
         );
         assert!(!terminal.is_live());
+    }
+
+    #[test]
+    fn stale_generation_events_never_reach_the_foreground() {
+        let (tx, mut rx) = tokio_mpsc::unbounded_channel();
+        let current = AtomicU64::new(2);
+        assert!(!emit_if_current(
+            &tx,
+            &current,
+            1,
+            ShellEvent::Bytes(b"retired project bytes".to_vec())
+        ));
+        assert!(rx.try_recv().is_err());
+        assert!(emit_if_current(&tx, &current, 2, ShellEvent::Ready));
+        assert!(matches!(rx.try_recv(), Ok(ShellEvent::Ready)));
+    }
+
+    #[test]
+    fn rebind_spawns_at_exact_canonical_project_without_carrying_screen_bytes() {
+        use std::os::unix::fs::symlink;
+        let root = std::path::PathBuf::from(std::env::var("HOME").unwrap())
+            .join("coding/tmp")
+            .join(format!("pd-console-shell-rebind-{}", unix_ms()));
+        let first = root.join("first");
+        let second = root.join("second");
+        let second_link = root.join("second-link");
+        fs::create_dir_all(&first).unwrap();
+        fs::create_dir_all(&second).unwrap();
+        symlink(&second, &second_link).unwrap();
+
+        let recovery_path = root.join("shell-state.json");
+        let (mut terminal, _events) =
+            spawn_for_test(first.canonicalize().unwrap(), recovery_path.clone());
+        terminal.retention = ShellRetention::Screen;
+        terminal.apply(ShellEvent::Bytes(b"first-project-only".to_vec()));
+        assert!(terminal
+            .lines(10)
+            .iter()
+            .any(|line| line.contains("first-project-only")));
+        terminal.rebind(second_link.clone()).unwrap();
+        assert_eq!(
+            terminal.launch_cwd_label(),
+            second.canonicalize().unwrap().to_string_lossy()
+        );
+        assert_eq!(
+            launch_path_bound_to_project(
+                Some(second_link.to_string_lossy().as_ref()),
+                &terminal.launch_cwd_label(),
+            ),
+            Some(true),
+            "a symlink WorkIntent projectDir remains bound to the canonical replacement PTY launch directory",
+        );
+        assert_eq!(
+            launch_path_bound_to_project(
+                Some(root.join("missing").to_string_lossy().as_ref()),
+                &terminal.launch_cwd_label(),
+            ),
+            None,
+            "an unresolvable project path is unknown, never proven bound",
+        );
+        assert!(!terminal
+            .lines(20)
+            .iter()
+            .any(|line| line.contains("first-project-only")));
+        let previous = terminal
+            .previous_receipt()
+            .expect("retired shell receipt remains inspectable");
+        assert_eq!(
+            previous.launch_cwd_label(),
+            first.canonicalize().unwrap().to_string_lossy()
+        );
+        assert!(previous
+            .screen_preview_label()
+            .is_some_and(|line| line.contains("first-project-only")));
+        let (persisted, failure) = load_recovery_state(&recovery_path);
+        assert!(failure.is_none());
+        let current = persisted.receipt.expect("replacement receipt persisted");
+        assert_eq!(
+            current.launch_cwd_label(),
+            second.canonicalize().unwrap().to_string_lossy()
+        );
+        assert!(current
+            .screen_preview_label()
+            .is_none_or(|line| !line.contains("first-project-only")));
+        terminal.recovery_path = None;
+        drop(terminal);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn failed_rebind_preserves_the_existing_shell_and_explains_the_path() {
+        let root = std::path::PathBuf::from(std::env::var("HOME").unwrap())
+            .join("coding/tmp")
+            .join(format!("pd-console-shell-rebind-failure-{}", unix_ms()));
+        fs::create_dir_all(&root).unwrap();
+        let recovery_path = root.join("shell-state.json");
+        let (mut terminal, _events) = spawn_for_test(root.clone(), recovery_path);
+        let before = terminal.launch_cwd_label();
+        let missing = root.join("missing");
+        let error = terminal.rebind(missing.clone()).unwrap_err().to_string();
+        assert!(error.contains("resolve terminal working directory"));
+        assert!(error.contains(&missing.to_string_lossy().to_string()));
+        assert_eq!(terminal.launch_cwd_label(), before);
+        assert!(terminal.is_live());
+        terminal.recovery_path = None;
+        drop(terminal);
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

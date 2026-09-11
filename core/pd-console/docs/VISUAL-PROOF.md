@@ -1,6 +1,23 @@
 # Visual proof for pd-console PRs
 
-Every GPUI/console diff ships visual artifacts. This is the harness that produces
+## Current workflow: semantic replay plus Porthole
+
+Drive the named pd-console app through the owner-only semantic control socket
+documented in [SCRIPTING.md](SCRIPTING.md). After `describe` confirms the exact
+enabled selectors, replay the bounded scenario and give its deterministic receipt
+to the authorized Porthole app/service for exact-window stills and a short
+recording. Porthole's allowlist must name the exact app build and window; if its
+external control endpoint is unavailable, record that integration blocker and do
+not broaden capture or request another process's Screen Recording permission.
+
+The standalone recorder, gesture helper, and `screencapture` harness below are
+historical/diagnostic artifacts. Keep their receipts for provenance, but do not
+use them as the current automated proof path. Semantic replay supersedes gesture
+guessing; authorized Porthole exact-window capture supersedes Terminal/Codex TCC.
+
+## Historical standalone harness
+
+Historically every GPUI/console diff used this harness to produce
 them — **per-pane stills + a short video** — and renders the app on an **off-screen
 virtual display** so capture never intrudes on the operator's physical monitor.
 
