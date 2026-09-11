@@ -66,12 +66,28 @@ describe('isEmbeddingModelCached', () => {
       const errs = [];
       const spy = jest.spyOn(console, 'error').mockImplementation((m) => errs.push(String(m)));
       try {
-        await handleEmbed(['text', 'hello'], { 'cache-dir': tempCache(), offline: true });
+        await handleEmbed(['text', 'hello'], {
+          'cache-dir': tempCache(),
+          corpus: 'pd.test.embed-cli',
+          offline: true,
+        });
       } finally {
         spy.mockRestore();
       }
       expect(process.exitCode).toBe(3);
       expect(errs.join('\n')).toMatch(/pd embed prefetch|pd doctor/);
+    });
+
+    test('text fails before model selection when no corpus authority is named', async () => {
+      const errs = [];
+      const spy = jest.spyOn(console, 'error').mockImplementation((m) => errs.push(String(m)));
+      try {
+        await handleEmbed(['text', 'hello'], { 'cache-dir': tempCache() });
+      } finally {
+        spy.mockRestore();
+      }
+      expect(process.exitCode).toBe(1);
+      expect(errs.join('\n')).toMatch(/--corpus/);
     });
 
     test('status exits 3 (not cached) on an empty cache and reports JSON', async () => {
