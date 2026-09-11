@@ -1017,6 +1017,9 @@ cloudPlaneRoles:
 embeddingProfiles:
   '@cf/baai/bge-base-en-v1.5':
     servingProvider: cloudflare-workers-ai
+    executionClass: remote
+    retrievalRoles: [text_dense]
+    qualityTier: remote_quality
     runtimeFamily: workers-ai-binding
     runtimeVersion: workers-ai-binding-unversioned
     upstreamModelId: BAAI/bge-base-en-v1.5
@@ -1050,6 +1053,9 @@ embeddingProfiles:
 
   Xenova/all-MiniLM-L6-v2:
     servingProvider: local-transformers-js
+    executionClass: local
+    retrievalRoles: [text_dense]
+    qualityTier: local_fast
     runtimeFamily: transformers.js+onnxruntime-node
     runtimeVersion: transformers.js@4.1.0+onnxruntime-node@1.24.3
     upstreamModelId: Xenova/all-MiniLM-L6-v2

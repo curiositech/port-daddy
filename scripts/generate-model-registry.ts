@@ -61,10 +61,16 @@ export type EmbeddingStorageEncoding = 'json-number-array' | 'float32-le';
 export type EmbeddingProfileQuality = 'degraded-fallback';
 export type EmbeddingRevisionBinding = 'declared-upstream';
 export type EmbeddingRuntimeBinding = 'declarative-only';
+export type EmbeddingExecutionClass = 'local' | 'self-hosted' | 'remote';
+export type EmbeddingRetrievalRole = 'text_dense' | 'code_dense' | 'ui_multimodal_dense' | 'rerank';
+export type EmbeddingQualityTier = 'local_fast' | 'local_quality' | 'remote_quality';
 
 /** The editable declared-space coordinates for one embedding model. */
 export interface EmbeddingProfileSource {
   servingProvider: string;
+  executionClass: EmbeddingExecutionClass;
+  retrievalRoles: EmbeddingRetrievalRole[];
+  qualityTier: EmbeddingQualityTier;
   runtimeFamily: string;
   runtimeVersion: string;
   upstreamModelId: string;
@@ -147,11 +153,17 @@ export type EmbeddingStorageEncoding = 'json-number-array' | 'float32-le';
 export type EmbeddingProfileQuality = 'degraded-fallback';
 export type EmbeddingRevisionBinding = 'declared-upstream';
 export type EmbeddingRuntimeBinding = 'declarative-only';
+export type EmbeddingExecutionClass = 'local' | 'self-hosted' | 'remote';
+export type EmbeddingRetrievalRole = 'text_dense' | 'code_dense' | 'ui_multimodal_dense' | 'rerank';
+export type EmbeddingQualityTier = 'local_fast' | 'local_quality' | 'remote_quality';
 
 /** A declared vector-space target plus binding policy; inspect runtimeBinding before use as proof. */
 export interface EmbeddingProfile {
   readonly version: ${EMBEDDING_SPACE_VERSION};
   readonly servingProvider: string;
+  readonly executionClass: EmbeddingExecutionClass;
+  readonly retrievalRoles: readonly EmbeddingRetrievalRole[];
+  readonly qualityTier: EmbeddingQualityTier;
   readonly modelId: string;
   readonly runtimeFamily: string;
   readonly runtimeVersion: string;
@@ -260,8 +272,23 @@ const TRANSPORT_ENCODINGS = new Set<EmbeddingTransportEncoding>([
 const QUANTIZATIONS = new Set<EmbeddingQuantization>(['none']);
 const STORAGE_ENCODINGS = new Set<EmbeddingStorageEncoding>(['json-number-array', 'float32-le']);
 const REVISION_BINDINGS = new Set<EmbeddingRevisionBinding>(['declared-upstream']);
+const EXECUTION_CLASSES = new Set<EmbeddingExecutionClass>(['local', 'self-hosted', 'remote']);
+const RETRIEVAL_ROLES = new Set<EmbeddingRetrievalRole>([
+  'text_dense',
+  'code_dense',
+  'ui_multimodal_dense',
+  'rerank',
+]);
+const QUALITY_TIERS = new Set<EmbeddingQualityTier>([
+  'local_fast',
+  'local_quality',
+  'remote_quality',
+]);
 const PROFILE_FIELD_ORDER = [
   'servingProvider',
+  'executionClass',
+  'retrievalRoles',
+  'qualityTier',
   'runtimeFamily',
   'runtimeVersion',
   'upstreamModelId',
@@ -607,6 +634,20 @@ function validateEmbeddingProfileSource(profile: EmbeddingProfileSource): void {
     if (typeof value !== 'string' || value.trim().length === 0) {
       throw new Error(`embedding profile ${name} must be a non-empty string`);
     }
+  }
+  if (!EXECUTION_CLASSES.has(profile.executionClass)) {
+    throw new Error(`embedding profile executionClass is invalid: ${String(profile.executionClass)}`);
+  }
+  if (
+    !Array.isArray(profile.retrievalRoles) ||
+    profile.retrievalRoles.length === 0 ||
+    profile.retrievalRoles.some((role) => !RETRIEVAL_ROLES.has(role)) ||
+    new Set(profile.retrievalRoles).size !== profile.retrievalRoles.length
+  ) {
+    throw new Error('embedding profile retrievalRoles must be a non-empty unique list of registered roles');
+  }
+  if (!QUALITY_TIERS.has(profile.qualityTier)) {
+    throw new Error(`embedding profile qualityTier is invalid: ${String(profile.qualityTier)}`);
   }
   if (!isExactOrHonestlyUnversionedRuntime(profile.runtimeVersion)) {
     throw new Error(

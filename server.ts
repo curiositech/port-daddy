@@ -138,7 +138,7 @@ import { createRoadmapActivity } from './lib/roadmap-activity.js';
 import { launchFleetBarIfEnabled } from './lib/fleetbar-launcher.js';
 import { createGraphEdges } from './lib/graph-edges.js';
 import { createEpisodicMemory } from './lib/episodic-memory.js';
-import { createLocalEmbedder, createSemanticResolver, defaultTransformersCacheDir } from './lib/semantic-resolver.js';
+import { createLocalTextEmbedder, createSemanticResolver, defaultTransformersCacheDir } from './lib/semantic-resolver.js';
 import { installGovernor } from './lib/observability/index.js';
 import { createObservabilityMaintenance } from './lib/observability/maintenance.js';
 import { createDurableAgentRoster } from './lib/durable-agent-roster.js';
@@ -948,7 +948,9 @@ function authorizeManagedSpawnerSession(input: {
 // second model download. The pipeline is lazy: the first /galaxy/map call may
 // take seconds while MiniLM loads; the 30s per-param-tuple response cache in
 // lib/galaxy.ts makes the steady state cheap.
-const galaxyEmbedder = createLocalEmbedder({ cacheDir: defaultTransformersCacheDir() });
+const galaxyEmbedder = createLocalTextEmbedder('pd.galaxy.sessions', {
+  cacheDir: defaultTransformersCacheDir(),
+});
 const galaxy = createGalaxy({ db, transcripts, sessions, embedder: galaxyEmbedder });
 
 // Private, short-lived admission witnesses for exact managed sessions. Durable
