@@ -1,8 +1,10 @@
 # CH2: input-aware undo boundaries
 
-Continuation of regular PR #10141 under `harbor-editor-local-text-input`, not a
-new program or completed local IDE. Publication and head receipts belong in the
-regular PR. The operator halt remains in force.
+Regular PR [#10144](https://github.com/curiositech/port-daddy/pull/10144) continues
+#10141 under `harbor-editor-local-text-input`, not a new program or completed IDE.
+Source commit `b51d585aa76e64945c4578e676e52c628994b131` contains the reviewed
+implementation. The App published it with exact-head LFS upload, non-draft/base/head
+readback and token revocation HTTP 204. The operator halt remains in force.
 
 ## Behavior and authority
 

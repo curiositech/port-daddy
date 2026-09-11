@@ -74,8 +74,10 @@ features already form a working product. Keep the existing CH identities.
 
 CH2's remaining implementation queue, in order:
 
-**Now:** regular review/publication of input-aware typing/IME undo groups while
-the delegated Off worker closes final TS launch/trigger admission gaps. **Next:**
+**Now:** input-aware typing/IME undo groups are published in regular
+[#10144](https://github.com/curiositech/port-daddy/pull/10144), with 895 selected
+headless tests and bounded adversarial review; the delegated Off worker closes
+final TS launch/trigger admission gaps. **Next:**
 private-draft custody/restart design and implementation, edit-associated selection,
 then syntax/navigation and file lifecycle. Current native proof remains withheld
 by the operator halt, not replaced with a source-test count.
