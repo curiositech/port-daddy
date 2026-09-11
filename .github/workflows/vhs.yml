@@ -22,7 +22,9 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        # onnxruntime-node downloads a native binary during installation. Retry
+        # one transient transport failure, but keep a second failure red.
+        run: npm ci || (echo "npm ci transport failed; retrying once in 30s" && sleep 30 && npm ci)
 
       - name: Install recorder tools
         env:
@@ -33,9 +35,9 @@ jobs:
           # Retried, same reason as ci.yml's agg download: a blip on a
           # third-party release host is not a defect in this repository.
           curl -fsSL --retry 5 --retry-all-errors --retry-delay 3 --max-time 600 \
-            -o /tmp/vhs.deb \
+            -o "$RUNNER_TEMP/vhs.deb" \
             "https://github.com/charmbracelet/vhs/releases/download/v${VHS_VERSION}/vhs_${VHS_VERSION}_amd64.deb"
-          sudo apt-get install -y /tmp/vhs.deb
+          sudo apt-get install -y "$RUNNER_TEMP/vhs.deb"
           vhs --version
 
       - name: Start daemon for recording
