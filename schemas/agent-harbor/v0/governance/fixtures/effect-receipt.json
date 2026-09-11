@@ -1,0 +1,16 @@
+{
+  "schema": "pd.agent-harbor.effect-receipt.v0",
+  "effectId": "eff_01KCXADJUDICATION",
+  "actionDigest": "sha256:bd938c688f49b77c7fc537c6b9222e2c97ebddd63076b87f2feaec66fb9c05d0",
+  "adjudicationDigest": "sha256:c27958b8f214633d970a28c746e67c0a9c2c78088c7a6a16f75a5f7c202f55c4",
+  "effect": {
+    "kind": "github.pull-request.merged",
+    "targetDigest": "sha256:34a04005bcaf206eec990bd9637d9fdb6725e0a0c0d4aebf003f17f4c956eb5c",
+    "resultDigest": "sha256:f6a214f7a5fcda0c2cee9660b7fc29f5649e3c68aad48e20e950137c98913a68"
+  },
+  "witness": {
+    "observedBy": "github-api",
+    "evidenceDigest": "sha256:ba1c566a4bad288c22a0b7511458c92ca5822cd41632e51806e9ea75ed12d13d"
+  },
+  "occurredAt": "2026-09-08T07:37:00.000Z"
+}
