@@ -12,6 +12,9 @@
 
 - [The Grand Harbor Atlas](./grand-harbor-product-atlas.md)
 - [Drydock Agent Lifecycle and Operator Control](./drydock-agent-lifecycle-and-operator-control.md)
+- [Drydock Resurrection, Capacity, and Context Control](./drydock-resurrection-capacity-and-context-control.md)
+- [Drydock execution hypertree](./drydock-resurrection-hypertree.json)
+- [Drydock operator journey storyboard](../design/drydock-operator-journeys/index.html)
 
 **Prepared:** 2026-09-08
 
@@ -389,7 +392,7 @@ The long-term topology may use:
 |---|---|---|
 | Developer Mac VM | fast offline simulations and source integration | T0-T2 |
 | Dedicated Linux microVM host | adversarial and concurrent system trials | T0-T5 |
-| Isolated canary host/account | tiny real-provider and external-service checks | T3-T4 |
+| Isolated canary host/account | tiny billable-provider or subscription-capacity checks | T3A/T3B-T4 |
 
 No profile shares the canonical daemon's state directory.
 
@@ -774,8 +777,8 @@ normal resilient service:
    midnight. Funds enter a canary cell only through an explicit, expiring,
    one-shot operator grant bound to run, provider, model, request count, attempt
    count, output ceiling, price digest, and custody evidence.
-3. **The first T3 profile permits one request, one attempt, concurrency one, no
-   tools, and no recursive work.** A failed request ends the run. Automatic
+3. **The first T3A or T3B profile permits one request, one attempt, concurrency
+   one, no tools, and no recursive work.** A failed request ends the run. Automatic
    provider retries remain disabled until a later adversarial gate proves
    idempotency, aggregate pre-reservation, deadline propagation, and provider
    behavior.
@@ -1017,7 +1020,14 @@ Uses a digest-pinned local model reachable only through the host broker. It has 
 
 ### 14.5 Real-provider canary actor
 
-Uses a real provider only in T3 or above, with a one-run capability, one dedicated provider/payment cell, exact max output, and no tools or external side effects. The cell's configured limit plus bounded enforcement tolerance must fit the approved exposure and be inaccessible to every other run. This actor exists to detect protocol drift, not to do useful product work.
+Uses a real provider only in T3A or T3B (or a later reviewed tier), with a
+one-run capability, exact max output, and no tools or external side effects.
+T3A additionally requires a dedicated provider/payment cell whose configured
+limit plus measured enforcement tolerance fits the approved cash exposure.
+T3B instead requires fresh provider-native usage evidence, one atomic reservation
+across every canonical capacity bucket and alias, a checkpoint tail, and
+before/after settlement; it is never represented as a hard cash cap. This actor
+exists to detect protocol drift, not to do useful product work.
 
 ### 14.6 Mixed crew
 
@@ -1332,8 +1342,9 @@ recovery checks pass.
 | T0 Static | no guest process | none | none | none | automatic after schema validation |
 | T1 Deterministic | pure components and scripted actors | fake | none | disposable guest only | controller policy |
 | T2 Replay | Port Daddy components or daemon in guest | fake/replay | no external network | disposable guest only | reviewed scenario lease |
-| T3 Canary | one bounded code path | one real provider under a dedicated, bounded-loss external cell | broker only | no GitHub or production writes | explicit per-run operator approval |
-| T4 Single worker | one agent on throwaway fixture repo | fake first, tiny real optional | typed broker only | quarantine output | explicit operator approval |
+| T3A Billable canary | one bounded code path | one billable request under a dedicated, bounded-loss external cell | broker only | no GitHub or production writes | explicit per-run operator approval |
+| T3B Subscription canary | one bounded code path | one subscription-backed request under a fresh native-capacity reservation | broker only | no GitHub or production writes | explicit per-run operator approval |
+| T4 Single worker | one agent on throwaway fixture repo | fake first, tiny T3A or T3B real call optional | typed broker only | quarantine output | explicit operator approval |
 | T5 Crew | bounded multi-agent institution | predominantly fake/replay | laboratory services only | fixture systems | separate reviewed program |
 | T6 Federation | multiple remote Drydock cells | mixed | bounded Relay laboratory | no production custody | deferred, adversarial proof required |
 
@@ -1346,8 +1357,14 @@ Rules:
   proposal or its companion skill.
 - T0-T2 have a real-provider budget of exactly zero.
 - A higher-tier PASS does not retroactively make a lower-tier failure irrelevant.
-- T3 is never automatic on pull request open, synchronize, schedule, or release.
-- T3 is unavailable when the provider/payment cell's total worst-case liability, including enforcement lag and overshoot, cannot be finitely bounded; a host ledger and one-run capability do not substitute for that proof.
+- T3A and T3B are never automatic on pull request open, synchronize, schedule,
+  or release.
+- T3A is unavailable when the provider/payment cell's total worst-case liability,
+  including enforcement lag and overshoot, cannot be finitely bounded; a host
+  ledger and one-run capability do not substitute for that proof.
+- T3B is unavailable without fresh account-scoped native usage, reset, and
+  concurrency evidence plus an atomic worst-case reservation across canonical
+  buckets and aliases. A dollar estimate cannot substitute for native capacity.
 - T4 begins with one actor, one external call at a time, and no production remote.
 - T5 has one aggregate budget; workers do not each receive independent hidden ceilings.
 - T6 is unshipped until cross-harbor custody and revocation survive adversarial proof.
@@ -1369,7 +1386,7 @@ npm run test:offline       # pure/unit tests; no daemon, subprocess, socket, or 
 npm run test:sim           # deterministic fake actors/providers; still no external network
 npm run test:guest         # source daemon only inside a supplied T2 Drydock run
 npm run test:adversarial   # microVM fault and escape suite
-npm run test:canary        # manual T3 lease + provider-enforced custody required
+npm run test:canary        # manual T3A custody or T3B capacity lease required
 npm run test:all-safe      # offline + sim; the default local/PR command
 ```
 
@@ -1381,7 +1398,7 @@ Every test file or manifest declares:
 
 ```json
 {
-  "tier": "T0|T1|T2|T3",
+  "tier": "T0|T1|T2|T3A|T3B",
   "runtime": "none|component|daemon",
   "process": "none|fixture|subject",
   "network": "none|loopback-fixture|broker",
@@ -1564,7 +1581,7 @@ Untrusted pull-request code receives:
 - no provider credential;
 - no canonical daemon;
 - no hosted agent-review fan-out; and
-- no automatic T3 promotion.
+- no automatic T3A or T3B promotion.
 
 Docs-only pull requests must not trigger paid ideation merely because the source diff is cheap to inspect. Workflow and webhook policy must share one explicit no-spend classification.
 
@@ -1580,14 +1597,14 @@ T2 runs on a dedicated Drydock host:
 - the external collector signs the result and posts it with a narrowly scoped identity; and
 - artifacts remain quarantined until collection succeeds.
 
-### 21.3 Real canary lane
+### 21.3 Real canary lanes
 
-T3 requires:
+Both T3A and T3B require:
 
 - manual environment approval;
 - an OIDC-derived, one-run host capability where supported, which limits protocol authority but is not itself a financial cap;
-- a dedicated provider account, project, key, or payment rail used by no other workload;
-- a dedicated external cell whose configured limit plus measured enforcement tolerance is expressed in cents and fits the approved run exposure, and whose broker credential cannot raise that limit;
+- a dedicated provider account, project, key, seat, or payment rail with exact
+  account and product-scope evidence;
 - one provider/model mapping;
 - one request at a time;
 - no tools, GitHub writes, or production state;
@@ -1595,7 +1612,16 @@ T3 requires:
 - external settlement reconciliation; and
 - automatic revocation at terminal state.
 
-A scheduled job, release tag, pull-request event, or guest request cannot grant this approval. If the provider offers no independently enforceable custody primitive, the lane remains fake/replay/local and T3 cannot start.
+A scheduled job, release tag, pull-request event, or guest request cannot grant
+this approval. T3A additionally requires a dedicated external cell whose
+configured limit plus measured enforcement tolerance is expressed in cents,
+fits the approved run exposure, and cannot be raised by the broker credential.
+If the provider offers no independently enforceable custody primitive, T3A
+remains unavailable. T3B instead requires a content-addressed capacity evidence
+receipt with fresh provider-native remaining/reset/concurrency observations,
+conservative drift margin, p95 burn plus checkpoint tail, and one atomic
+reservation across every affected canonical capacity bucket and alias. Unknown
+or stale capacity denies T3B. Neither lane silently falls back to the other.
 
 ### 21.4 Release evidence
 
@@ -1708,7 +1734,7 @@ The operator task budget is explicit:
 |---|---:|---|
 | understand whether a run can spend money | 0 actions | permanent amount, calls, attempts, expiry, provider custody, and overshoot line |
 | launch a sealed T1/T2 run | 2 actions | review exact contract; deliberate launch |
-| launch a T3 canary | 2 actions after OS presence check | exact one-shot custody receipt and typed risk acknowledgement |
+| launch a T3A or T3B canary | 2 actions after OS presence check | exact one-shot custody or native-capacity receipt and typed risk acknowledgement |
 | cut all egress | 1 action | broker revocation acknowledgement or explicit expiry/failure |
 | kill the guest | 1 action | host-observed process stop plus teardown state |
 | inspect any warning or glow | at most 2 actions | exact event, command, packet decision, test, diff, budget row, or receipt |
@@ -1985,7 +2011,7 @@ These require review before implementation:
 6. What source and output data may be retained for transcript replay?
 7. Which malicious specimen set should be maintained by a separately owned security repository?
 8. How will CI prove that a result came from an approved Drydock controller build rather than a forged status poster?
-9. What minimum hardware isolation is required before T3?
+9. What minimum hardware isolation is required before T3A or T3B?
 10. When should local GPU inference use a dedicated machine rather than sharing the developer Mac?
 11. How should aggregate compute and account quota be represented beside dollar spend?
 12. What independent emergency UI remains available if both Port Daddy and the main developer environment are compromised?
@@ -2037,7 +2063,8 @@ The review changed the design in six concrete ways:
 3. Paid canaries became one request and one attempt, with no automatic retry,
    refill, or breaker half-open path.
 4. Provider dashboard limits became measured outer controls rather than assumed
-   exact custody; an unbounded overshoot denies T3.
+   exact custody; an unbounded overshoot denies T3A, while missing or stale
+   provider-native capacity evidence denies T3B.
 5. The simulator became a pure transition with explicit effects, virtual time,
    injected entropy, and fencing generations.
 6. Mutation moved into a small native Switchboard while the rich React Observatory

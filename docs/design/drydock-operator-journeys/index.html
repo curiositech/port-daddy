@@ -1,0 +1,938 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Drydock operator journeys — fixed storyboard</title>
+  <link rel="stylesheet" href="../fonts/all.css">
+  <style>
+    :root {
+      color-scheme: light dark;
+      --paper: #f3eee2;
+      --paper-2: #e9e1d1;
+      --ink: #191a17;
+      --muted: #67675e;
+      --line: #292a25;
+      --soft-line: #b9b2a2;
+      --cobalt: #184acb;
+      --teal: #087f6c;
+      --amber: #b86f00;
+      --violet: #7146b8;
+      --red: #b62d3c;
+      --white: #fffdf7;
+      --black: #11120f;
+      --radius: 4px;
+      --mono: "Recursive Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+      --sans: "Recursive", system-ui, sans-serif;
+      --display: "Big Shoulders Display", Impact, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { background: var(--paper); scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.45;
+      font-variation-settings: "CASL" .25, "CRSV" 0;
+    }
+
+    a { color: inherit; }
+
+    .fixture-banner {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 9px 20px;
+      color: var(--white);
+      background: var(--violet);
+      border-bottom: 2px solid var(--ink);
+      font-family: var(--mono);
+      font-size: 14px;
+      font-weight: 780;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .fixture-banner span:last-child { opacity: .82; }
+
+    header {
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(300px, .55fr);
+      min-height: 480px;
+      border-bottom: 2px solid var(--ink);
+      background: color-mix(in srgb, var(--paper) 94%, transparent);
+    }
+
+    .hero-copy {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: clamp(28px, 5vw, 78px);
+      border-right: 2px solid var(--ink);
+    }
+
+    .eyebrow,
+    .scene-number,
+    .label,
+    .status,
+    .receipt,
+    .mono {
+      font-family: var(--mono);
+      font-variation-settings: "MONO" 1, "CASL" 0;
+    }
+
+    .eyebrow {
+      color: var(--cobalt);
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+
+    h1 {
+      max-width: 920px;
+      margin: 22px 0 30px;
+      font-family: var(--display);
+      font-size: clamp(68px, 10vw, 156px);
+      font-weight: 820;
+      letter-spacing: -.045em;
+      line-height: .78;
+      text-transform: uppercase;
+    }
+
+    .hero-copy p {
+      max-width: 760px;
+      margin-bottom: 0;
+      font-size: clamp(18px, 2.2vw, 27px);
+      font-weight: 520;
+      line-height: 1.25;
+    }
+
+    .hero-ledger {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      background: var(--ink);
+      color: var(--paper);
+    }
+
+    .hero-ledger h2 {
+      margin: 0;
+      padding: 24px;
+      border-bottom: 1px solid #53534d;
+      font-family: var(--display);
+      font-size: 36px;
+      letter-spacing: .02em;
+      text-transform: uppercase;
+    }
+
+    .ledger-list { margin: 0; padding: 0; list-style: none; }
+    .ledger-list li {
+      display: grid;
+      grid-template-columns: 112px 1fr;
+      gap: 14px;
+      padding: 16px 24px;
+      border-bottom: 1px solid #53534d;
+    }
+    .ledger-list b { color: #a9c0ff; font-family: var(--mono); font-size: 14px; text-transform: uppercase; }
+    .hero-stop { padding: 24px; color: #ffdbe0; background: var(--red); font-weight: 800; }
+
+    nav {
+      display: flex;
+      gap: 0;
+      overflow-x: auto;
+      background: var(--paper-2);
+      border-bottom: 2px solid var(--ink);
+      scrollbar-width: thin;
+    }
+    nav a {
+      flex: 0 0 auto;
+      padding: 13px 18px;
+      border-right: 1px solid var(--ink);
+      font-family: var(--mono);
+      font-size: 14px;
+      font-weight: 760;
+      text-decoration: none;
+      text-transform: uppercase;
+    }
+    nav a:focus-visible { outline: 4px solid var(--amber); outline-offset: -4px; }
+
+    main { max-width: 1600px; margin: 0 auto; border-inline: 2px solid var(--ink); }
+
+    .scene {
+      display: grid;
+      grid-template-columns: 220px minmax(0, 1fr);
+      border-bottom: 2px solid var(--ink);
+      background: color-mix(in srgb, var(--paper) 96%, transparent);
+    }
+
+    .scene-meta {
+      padding: 28px 24px;
+      border-right: 2px solid var(--ink);
+      background: var(--paper-2);
+    }
+
+    .scene-number { color: var(--cobalt); font-size: 14px; font-weight: 800; letter-spacing: .08em; }
+
+    .scene h2 {
+      margin: 10px 0 14px;
+      font-family: var(--display);
+      font-size: clamp(32px, 4vw, 50px);
+      font-weight: 760;
+      line-height: .92;
+      text-transform: uppercase;
+    }
+
+    .scene-meta h2,
+    .card,
+    .choice {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .scene-meta p { color: var(--muted); font-size: 14px; }
+    .scene-body { padding: clamp(22px, 4vw, 52px); min-width: 0; }
+
+    .ui {
+      overflow: hidden;
+      border: 2px solid var(--ink);
+      border-radius: var(--radius);
+      background: var(--white);
+      color: var(--ink);
+    }
+
+    .ui-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 12px 16px;
+      border-bottom: 2px solid var(--ink);
+      background: var(--ink);
+      color: var(--paper);
+      font-family: var(--mono);
+      font-size: 14px;
+    }
+
+    .ui-bar .repo { color: #a9c0ff; font-weight: 800; }
+    .ui-content { padding: 20px; }
+
+    .grid-2, .grid-3, .choice-grid, .cap-grid, .state-grid {
+      display: grid;
+      gap: 14px;
+    }
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .choice-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .cap-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .state-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .grid-2 > *, .grid-3 > *, .choice-grid > *, .cap-grid > *, .state-grid > * { min-width: 0; }
+
+    .card, .choice, .state-card, .receipt-block {
+      border: 1px solid var(--ink);
+      background: var(--paper);
+      padding: 16px;
+    }
+
+    .choice { min-height: 142px; }
+    .choice.recommended { color: var(--white); background: var(--cobalt); }
+    .choice .label { display: block; margin-bottom: 12px; font-size: 14px; font-weight: 820; letter-spacing: .08em; }
+    .choice strong { display: block; margin-bottom: 7px; font-size: 18px; }
+    .choice small { display: block; font-size: 14px; line-height: 1.35; }
+
+    .button-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+    .button {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+      padding: 10px 15px;
+      border: 2px solid var(--ink);
+      border-radius: 2px;
+      background: var(--ink);
+      color: var(--white);
+      font-family: var(--mono);
+      font-size: 14px;
+      font-weight: 800;
+    }
+    .button.secondary { background: transparent; color: var(--ink); }
+    .button.warning { background: var(--amber); color: var(--black); }
+    .button.danger { background: var(--red); color: var(--white); }
+    .button.disabled { opacity: .42; }
+
+    .receipt {
+      margin: 0;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .flag {
+      display: inline-block;
+      min-width: 22px;
+      padding: 2px 5px;
+      margin-right: 7px;
+      color: var(--white);
+      background: var(--muted);
+      border-radius: 2px;
+      font-family: var(--mono);
+      font-size: 14px;
+      font-weight: 850;
+      text-align: center;
+    }
+    .flag.live { background: var(--teal); }
+    .flag.ask { background: var(--violet); }
+    .flag.wait { background: var(--amber); color: var(--black); }
+    .flag.bad { background: var(--red); }
+    .flag.nav { background: var(--cobalt); }
+
+    .status { font-size: 14px; font-weight: 800; letter-spacing: .04em; }
+    .good { color: var(--teal); }
+    .warn { color: var(--amber); }
+    .bad { color: var(--red); }
+    .violet { color: var(--violet); }
+    .muted { color: var(--muted); }
+
+    .repo-list { margin: 0; padding: 0; list-style: none; }
+    .repo-list li {
+      display: grid;
+      grid-template-columns: 28px 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 15px 0;
+      border-bottom: 1px solid var(--soft-line);
+    }
+    .repo-list li:last-child { border-bottom: 0; }
+    .repo-list small { color: var(--muted); }
+
+    .meter { height: 11px; margin: 8px 0 5px; border: 1px solid var(--ink); background: var(--white); }
+    .meter > span { display: block; height: 100%; background: var(--teal); }
+    .meter.uncertain > span { background: var(--amber); opacity: .64; }
+    .meter.unknown > span { width: 100% !important; background: var(--muted); opacity: .38; }
+
+    .manifest-row {
+      display: grid;
+      grid-template-columns: minmax(160px, 1.5fr) minmax(130px, .8fr) minmax(170px, 1fr);
+      gap: 12px;
+      padding: 13px 0;
+      border-bottom: 1px solid var(--soft-line);
+      font-size: 14px;
+    }
+    .manifest-row:last-child { border-bottom: 0; }
+    .manifest-row .status { text-align: right; }
+    .card .manifest-row { grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr) auto; }
+    .card .manifest-row > * { min-width: 0; overflow-wrap: anywhere; }
+
+    .progress-list { position: relative; margin: 0; padding: 0; list-style: none; }
+    .progress-list::before { content: ""; position: absolute; left: 10px; top: 10px; bottom: 10px; width: 2px; background: var(--soft-line); }
+    .progress-list li { position: relative; display: grid; grid-template-columns: 22px 130px 1fr auto; gap: 12px; padding: 10px 0; align-items: center; }
+    .progress-list i { z-index: 1; width: 22px; height: 22px; border: 2px solid var(--ink); border-radius: 50%; background: var(--white); }
+    .progress-list i.done { background: var(--teal); }
+    .progress-list i.now { background: var(--amber); }
+
+    .workroom {
+      display: grid;
+      grid-template-columns: 230px minmax(320px, 1fr) 300px;
+      min-height: 570px;
+    }
+    .rail { padding: 14px; background: var(--paper-2); }
+    .rail.left { border-right: 1px solid var(--ink); }
+    .rail.right { border-left: 1px solid var(--ink); }
+    .rail h3, .conversation h3 { font-family: var(--mono); font-size: 14px; letter-spacing: .08em; text-transform: uppercase; }
+    .work-item { padding: 12px 9px; margin-bottom: 7px; border: 1px solid var(--soft-line); background: var(--white); font-size: 14px; }
+    .work-item.selected { border: 2px solid var(--cobalt); }
+    .work-item strong { display: block; margin-bottom: 4px; }
+    .conversation { padding: 20px; }
+    .turn { max-width: 82%; padding: 14px; margin-bottom: 14px; border: 1px solid var(--ink); }
+    .turn.operator { margin-left: auto; background: #e1e8ff; }
+    .turn.agent { background: var(--paper); }
+    .turn .label { display: block; margin-bottom: 6px; font-size: 14px; color: var(--muted); }
+    .evidence { margin-bottom: 12px; padding: 12px; border-left: 4px solid var(--cobalt); background: var(--white); font-size: 14px; }
+    .evidence.live { border-color: var(--teal); }
+    .evidence.ask { border-color: var(--violet); }
+
+    .command-line { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--ink); }
+    .command-line div { padding: 14px; border-right: 1px solid var(--ink); font-family: var(--mono); font-size: 14px; text-align: center; }
+    .command-line div:last-child { border-right: 0; }
+    .command-line .active { color: var(--white); background: var(--teal); }
+
+    .phone-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 30px; align-items: center; }
+    .phone {
+      width: 320px;
+      min-height: 610px;
+      padding: 14px;
+      border: 4px solid var(--ink);
+      border-radius: 34px;
+      background: var(--black);
+      color: var(--paper);
+      justify-self: end;
+    }
+    .phone-screen { min-height: 574px; padding: 24px 18px; border: 1px solid #55564f; border-radius: 22px; background: #1c1d19; }
+    .phone-notch { width: 78px; height: 16px; margin: -17px auto 25px; border-radius: 0 0 12px 12px; background: var(--black); }
+    .phone h3 { font-family: var(--display); font-size: 38px; text-transform: uppercase; }
+    .phone ul { padding-left: 20px; }
+    .phone li { margin: 9px 0; }
+    .phone .button { width: 100%; justify-content: center; margin-top: 16px; background: #8cb2ff; color: var(--black); border-color: #8cb2ff; }
+
+    .state-card { min-height: 150px; }
+    .state-card strong { display: block; margin: 8px 0; }
+    .state-card small { color: var(--muted); }
+    .state-card.live { border-top: 8px solid var(--teal); }
+    .state-card.wait { border-top: 8px solid var(--amber); }
+    .state-card.bad { border-top: 8px solid var(--red); }
+    .state-card.unknown { border-top: 8px solid var(--muted); }
+    .state-lanes { display: grid; gap: 14px; }
+    .state-lane {
+      display: grid;
+      grid-template-columns: 130px repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      align-items: stretch;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--soft-line);
+    }
+    .state-lane:last-child { border-bottom: 0; }
+    .state-lane > h3 { margin: 0; padding: 14px; border: 1px solid var(--ink); background: var(--ink); color: var(--paper); font-family: var(--mono); font-size: 14px; text-transform: uppercase; }
+    .state-lane .state-card { min-height: 130px; }
+
+    .authority-strip {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--ink);
+      background: var(--paper-2);
+      font-family: var(--mono);
+      font-size: 14px;
+      font-weight: 800;
+    }
+    .authority-strip.control { color: var(--white); background: var(--cobalt); }
+    .authority-strip.readonly { border-left: 8px solid var(--teal); }
+    .authority-strip.mobile { color: var(--white); background: var(--violet); }
+    .blocked-callout { margin-top: 16px; padding: 14px 16px; border: 2px solid var(--red); background: color-mix(in srgb, var(--red) 9%, var(--paper)); }
+    .evidence-link { display: block; margin-top: 5px; color: var(--cobalt); font-family: var(--mono); font-size: 14px; font-weight: 760; }
+    .mobile-room-switcher { display: none; padding: 12px; border: 1px solid var(--ink); background: var(--white); font-family: var(--mono); font-size: 14px; }
+    .approval-envelope { margin-top: 14px; }
+    .approval-envelope .manifest-row { grid-template-columns: minmax(130px, .7fr) minmax(0, 1.8fr) auto; }
+    .crumb { color: #a9c0ff; }
+
+    footer {
+      padding: 40px clamp(22px, 5vw, 70px) 60px;
+      color: var(--paper);
+      background: var(--ink);
+    }
+    footer h2 { font-family: var(--display); font-size: 48px; text-transform: uppercase; }
+    footer p { max-width: 880px; }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
+
+    @media (max-width: 1100px) {
+      header { grid-template-columns: 1fr; }
+      .hero-copy { border-right: 0; border-bottom: 2px solid var(--ink); }
+      .workroom { grid-template-columns: 190px minmax(300px, 1fr); }
+      .rail.right { grid-column: 1 / -1; border-top: 1px solid var(--ink); border-left: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+      .rail.right h3 { grid-column: 1 / -1; }
+      .state-grid { grid-template-columns: repeat(3, 1fr); }
+      .phone-wrap { grid-template-columns: 1fr; }
+      .phone { justify-self: center; }
+    }
+
+    @media (max-width: 760px) {
+      .fixture-banner { position: static; flex-direction: column; gap: 2px; }
+      h1 { font-size: 70px; }
+      .scene { grid-template-columns: 1fr; }
+      .scene-meta { border-right: 0; border-bottom: 2px solid var(--ink); }
+      .grid-2, .grid-3, .choice-grid, .cap-grid, .state-grid, .phone-wrap { grid-template-columns: 1fr; }
+      .workroom { grid-template-columns: 1fr; }
+      .rail.left { border-right: 0; border-bottom: 1px solid var(--ink); }
+      .rail.right { grid-column: auto; grid-template-columns: 1fr; border-top: 1px solid var(--ink); }
+      .mobile-room-switcher { display: block; margin-bottom: 12px; }
+      .manifest-row { grid-template-columns: 1fr; }
+      .manifest-row .status { text-align: left; }
+      .progress-list li { grid-template-columns: 22px minmax(0, 1fr); align-items: start; }
+      .progress-list li > i { grid-column: 1; grid-row: 1 / span 3; }
+      .progress-list li > strong, .progress-list li > span { grid-column: 2; min-width: 0; overflow-wrap: anywhere; }
+      .card .manifest-row { grid-template-columns: 1fr; }
+      .card .manifest-row .status { text-align: left; }
+      .command-line { grid-template-columns: 1fr; }
+      .command-line div { border-right: 0; border-bottom: 1px solid var(--ink); }
+      .phone { width: 100%; max-width: 340px; justify-self: center; }
+      .authority-strip { align-items: flex-start; flex-direction: column; }
+      .state-lane { grid-template-columns: 1fr; }
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --paper: #1b1c18;
+        --paper-2: #24251f;
+        --ink: #f0eadc;
+        --muted: #b8b3a7;
+        --line: #f0eadc;
+        --soft-line: #56574f;
+        --white: #131410;
+        --black: #080906;
+        --cobalt: #87a9ff;
+        --teal: #53c8ae;
+        --amber: #f1b14a;
+        --violet: #b79af2;
+        --red: #eb7180;
+      }
+      .turn.operator { background: #1d315f; }
+      .recommended { color: #11120f !important; }
+      .button.warning { color: #11120f; }
+      .hero-ledger { background: #0c0d0a; }
+    }
+
+    @media print {
+      .fixture-banner { position: static; }
+      .scene { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="fixture-banner">
+    <span>Storyboard fixture · not a receipt</span>
+    <span>No controls are connected · no runtime was started</span>
+  </div>
+
+  <header>
+    <div class="hero-copy">
+      <div>
+        <span class="eyebrow">Drydock / operator journey / revision 02</span>
+        <h1>One worker.<br>Any body.<br>No mystery.</h1>
+      </div>
+      <p>Start bounded software work, watch the conversation and evidence, spend scarce capacity deliberately, intervene cleanly, and continue the same worker after its process disappears.</p>
+    </div>
+    <aside class="hero-ledger" aria-label="Fixture contract">
+      <h2>Fixed trial</h2>
+      <ul class="ledger-list">
+        <li><b>Repository</b><span>curiositech/port-daddy</span></li>
+        <li><b>Work intent</b><span>demo-wi-014</span></li>
+        <li><b>Worker</b><span>Linnaeus · agentNode demo-014</span></li>
+        <li><b>Old body</b><span>Codex · generation 1</span></li>
+        <li><b>New body</b><span>Claude · generation 2</span></li>
+        <li><b>Ceiling</b><span>1 body · 0 children · 0 retries</span></li>
+        <li><b>Network</b><span>Guest egress denied · brokered GitHub effects require separate approval</span></li>
+      </ul>
+      <div class="hero-stop">Emergency Stop lives outside every agent body.</div>
+    </aside>
+  </header>
+
+  <nav aria-label="Storyboard scenes">
+    <a href="#scene-01">01 Muster</a>
+    <a href="#scene-02">02 Start</a>
+    <a href="#scene-03">03 Lifetime</a>
+    <a href="#scene-04">04 Capacity</a>
+    <a href="#scene-05">05 Capabilities</a>
+    <a href="#scene-06">06 Birth</a>
+    <a href="#scene-07">07 Workroom</a>
+    <a href="#scene-08">08 HITL</a>
+    <a href="#scene-09">09 Control</a>
+    <a href="#scene-10">10 Review</a>
+    <a href="#scene-11">11 Sessions</a>
+    <a href="#scene-12">12 Missing</a>
+    <a href="#scene-13">13 Rebody</a>
+    <a href="#scene-14">14 iOS</a>
+  </nav>
+
+  <main>
+    <section class="scene" id="scene-01">
+      <div class="scene-meta"><span class="scene-number">SCENE 01 · 00:00</span><h2>Muster</h2><p>Changing repository changes the projection, not worker execution.</p></div>
+      <div class="scene-body">
+        <div class="ui">
+          <div class="authority-strip readonly"><span>OBSERVATORY · READ-ONLY EVIDENCE</span><span>NO EXECUTION AUTHORITY</span></div>
+          <div class="ui-bar"><span>REPOSITORIES</span><span class="status">3 ACTIVE · 1 NEEDS YOU</span></div>
+          <div class="ui-content">
+            <ul class="repo-list">
+              <li><span class="flag nav">P</span><span><strong>curiositech/port-daddy</strong><small>3 sessions · Drydock Control Room selected</small></span><span class="status good">LIVE · 4s</span></li>
+              <li><span class="flag">W</span><span><strong>wf-monitor</strong><small>1 completed session · quiet</small></span><span class="status muted">CACHED · 12m</span></li>
+            </ul>
+            <p class="receipt">ARCHIVE · 8 retained work records across 2 repositories · open archive projection →</p>
+            <div class="receipt-block"><p class="receipt">VIEW SWITCHED · curiositech/port-daddy
+Execution unchanged · 2 bounded bodies continue
+Worktree selection unchanged · no capability was granted</p></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" id="scene-02">
+      <div class="scene-meta"><span class="scene-number">SCENE 02 · 00:08</span><h2>Start work</h2><p>Outcome comes before backend branding.</p></div>
+      <div class="scene-body">
+        <div class="ui">
+          <div class="authority-strip control"><span>SWITCHBOARD · TRUSTED HOST CONTROL</span><span>PROPOSAL ONLY · NO LAUNCH YET</span></div>
+          <div class="ui-bar"><span>START WORK</span><span class="repo">curiositech/port-daddy</span></div>
+          <div class="ui-content">
+            <h3>Start another piece of work in curiositech/port-daddy</h3>
+            <p>Choose canonical work, a disposable prototype, or one bounded outcome. Recommending a route never launches it.</p>
+            <div class="choice-grid">
+              <div class="choice recommended"><span class="label">Canonical</span><strong>Roadmap item</strong><small>drydock-operator-workroom · owner unassigned<br>Base origin/main · 0 / 3 acceptance gates</small></div>
+              <div class="choice"><span class="label">Disposable</span><strong>Prototype</strong><small>No remote write. Short lease. Promote only after review.</small></div>
+              <div class="choice"><span class="label">Bounded</span><strong>Ad hoc sortie</strong><small>Question: “What should be true when this ends?”<br>Default: ephemeral · no memory promotion · no remote write.</small></div>
+            </div>
+            <div class="button-row"><span class="button secondary">Recommend a path without launching</span><span class="button secondary">Inspect acceptance gates</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" id="scene-03">
+      <div class="scene-meta"><span class="scene-number">SCENE 03 · 00:16</span><h2>Choose a lifetime</h2><p>Durable identity is not permanent compute or transcript hoarding.</p></div>
+      <div class="scene-body">
+        <div class="ui">
+          <div class="authority-strip control"><span>SWITCHBOARD · TRUSTED HOST CONTROL</span><span>LIFETIME PROPOSAL</span></div>
+          <div class="ui-bar"><span>ROADMAP · drydock-control-room</span><span class="status">ACCEPTANCE 0 / 4</span></div>
+          <div class="ui-content grid-2">
+            <div class="card">
+              <span class="eyebrow">Recommended</span>
+              <h3>Durable worker + bounded episode</h3>
+              <p>Use because review artifacts, future backend continuation, and a standing obligation must survive body exit.</p>
+              <p class="receipt">PERSISTS · identity · obligation · evidence lineage
+DOES NOT · hold compute · copy credentials · retain all scratch</p>
+            </div>
+            <div class="card">
+              <span class="eyebrow muted">Alternative</span>
+              <h3>Ephemeral run</h3>
+              <p>Use for one-off research, fixtures, prototypes, and silly tasks whose context should die when the episode settles.</p>
+              <p class="receipt">DEFAULT · no durable character mutation
+EXPORT · result and receipt only</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" id="scene-04">
+      <div class="scene-meta"><span class="scene-number">SCENE 04 · 00:27</span><h2>Capacity truth</h2><p>Subscription allowance is scarce even when incremental cash is zero.</p></div>
+      <div class="scene-body">
+        <div class="ui">
+          <div class="authority-strip readonly"><span>OBSERVATORY · READ-ONLY EVIDENCE</span><span>CAPACITY OBSERVATIONS</span></div>
+          <div class="ui-bar"><span>CAPACITY AND EXPOSURE</span><span class="status warn">1 UNKNOWN DIMENSION</span></div>
+          <div class="ui-content cap-grid">
+            <div class="card"><span class="label">External cash</span><strong>$0.00 hard ceiling</strong><div class="meter"><span style="width:0%"></span></div><small>API and product-credit overage blocked</small></div>
+            <div class="card"><span class="label">Codex five-hour window</span><strong>61% observed remaining</strong><div class="meter"><span style="width:61%"></span></div><small>Observed 14:02 · p95 episode draw 14%</small></div>
+            <div class="card"><span class="label">Codex weekly window</span><strong>28% observed remaining</strong><div class="meter uncertain"><span style="width:28%"></span></div><small>Reserve 20% · TIGHTENING at 23%</small></div>
+            <div class="card"><span class="label">Claude seven-day window</span><strong>UNKNOWN</strong><div class="meter unknown"><span></span></div><small>Status field absent · not free, empty, or full</small></div>
+            <div class="card"><span class="label">Host envelope</span><strong>1 vCPU · 2 GiB · 8 GiB</strong><div class="meter"><span style="width:35%"></span></div><small>10 minutes · disposable VM</small></div>
+            <div class="card"><span class="label">Birth envelope</span><strong>1 body · 0 children</strong><div class="meter"><span style="width:50%"></span></div><small>0 automatic retries · one attempt</small></div>
+          </div>
+          <div class="blocked-callout"><strong>Launch blocked · Claude seven-day capacity unknown</strong><p>Unknown is neither free nor available. This route cannot reach the launch authority.</p></div>
+          <div class="button-row"><span class="button secondary">Inspect native windows</span><span class="button warning">Switch to deterministic simulation · no provider calls</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" id="scene-05">
+      <div class="scene-meta"><span class="scene-number">SCENE 05 · 00:38</span><h2>Fit capabilities</h2><p>Requested, verified, and externally enforced are separate columns.</p></div>
+      <div class="scene-body">
+        <div class="ui">
+          <div class="authority-strip control"><span>SWITCHBOARD · TRUSTED HOST CONTROL</span><span>SIMULATION ROUTE SELECTED · ALL PROVIDER CALLS DENIED</span></div>
+          <div class="ui-bar"><span>SEALED LAUNCH + CAPABILITY MANIFEST</span><span class="status">EDIT PHASE · PACK 04</span></div>
+          <div class="ui-content">
+            <div class="manifest-row"><strong>Repository index · read</strong><span>Requested · exact scope</span><span class="status good">VERIFIED / ENFORCED</span></div>
+            <div class="manifest-row"><strong>Worktree · patch</strong><span>Requested · 2 symbols</span><span class="status good">VERIFIED / ENFORCED</span></div>
+            <div class="manifest-row"><strong>GitHub metadata</strong><span>Requested · GET only</span><span class="status warn">NARROWED / BROKERED</span></div>
+            <div class="manifest-row"><strong>Git remote write</strong><span>Not needed in edit phase</span><span class="status bad">BLOCKED</span></div>
+            <div class="manifest-row"><strong>Skill · interface design</strong><span>Digest demo:7b4f</span><span class="status good">ACTIVATION PASSED</span></div>
+            <div class="manifest-row"><strong>MCP · pixel helper</strong><span>Provenance missing</span><span class="status violet">QUARANTINED</span></div>
+            <div class="manifest-row"><strong>Filesystem outside worktree</strong><span>Never requested</span><span class="status bad">DENIED AT HOST</span></div>
+            <div class="receipt-block"><p class="receipt">REPOSITORY / WORKTREE  curiositech/port-daddy · sealed origin/main copy · demo-wt-014
+WORKER / LIFETIME     Linnaeus · durable worker · bounded 10-minute episode
+BODY ROUTE            deterministic simulator · no provider/model/account
+NATIVE WINDOWS        Codex 5h 61% · Codex week 28% · Claude week UNKNOWN and excluded
+PROJECTED RESERVE     Codex week 28% unchanged · provider use denied
+CASH CEILING          $0.00 · product credits and API keys denied
+CAPABILITY DIGEST     demo:cap-04 · 2 symbols · brokered GitHub GET only
+BIRTH POLICY          1 attempt · 0 retries · 0 children · absolute 10-minute deadline
+STOP PATH             controller witness fresh 2s · cut-egress + kill available</p></div>
+            <div class="button-row"><span class="button">Approve this sealed launch once</span><span class="button secondary">Cancel proposal</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" id="scene-06">
+      <div class="scene-meta"><span class="scene-number">SCENE 06 · 00:51</span><h2>Witness birth</h2><p>A spinner is not a process witness.</p></div>
+      <div class="scene-body">
+        <div class="ui">
+          <div class="authority-strip readonly"><span>OBSERVATORY · READ-ONLY EVIDENCE</span><span>BODY WITNESS PROJECTION</span></div>
+          <div class="ui-bar"><span>BODY GENERATION 1</span><span class="status warn">NOT RUNNING YET</span></div>
+          <div class="ui-content">
+            <ol class="progress-list">
+              <li><i class="done"></i><strong>VALIDATING</strong><span>source · manifest · retention</span><span class="status good">COMPLETE</span></li>
+              <li><i class="done"></i><strong>RESERVING</strong><span>host · capacity · effects</span><span class="status good">COMPLETE</span></li>
+              <li><i class="done"></i><strong>PROVISIONING</strong><span>VM and sealed source</span><span class="status good">1.8s</span></li>
+              <li><i class="now"></i><strong>HANDSHAKING</strong><span>process witness and capsule challenge</span><span class="status warn">WAITING</span></li>
+              <li><i></i><strong>RUNNING</strong><span>requires process plus heartbeat witnesses</span><span class="status muted">NOT YET</span></li>
+            </ol>
+            <div class="receipt-block"><p class="receipt">ABSOLUTE DEADLINE · 09:41 REMAINING
+If VM or process never attests: BIRTH_FAILED · obligation retained · no retry scheduled</p></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" id="scene-07">
+      <div class="scene-meta"><span class="scene-number">SCENE 07 · 01:04</span><h2>The workroom</h2><p>Conversation is primary; evidence remains one action away.</p></div>
+      <div class="scene-body">
+        <div class="ui">
+          <div class="authority-strip readonly"><span>OBSERVATORY · READ-ONLY EVIDENCE</span><span>REPOSITORY → WORKTREE → ROOM → WORKER / BODY</span></div>
+          <div class="ui-bar"><span><span class="flag live">K</span>DRYDOCK CONTROL ROOM</span><span class="status good">RUNNING · WITNESSED · 3s</span></div>
+          <div class="workroom">
+            <aside class="rail left">
+              <h3>Rooms · current repository</h3>
+              <div class="receipt mobile-room-switcher">ROOM SWITCHER · 3 rooms<br>Selected · Drydock Control Room</div>
+              <div class="work-item selected"><strong><span class="flag live">K</span>Drydock Control Room</strong>live · generation 1</div>
+              <div class="work-item"><strong><span class="flag ask">F</span>Registry repair</strong>needs Erich</div>
+              <div class="work-item"><strong><span class="flag">U</span>Typography</strong>paused</div>
+            </aside>
+            <div class="conversation">
+              <h3>Conversation · Linnaeus</h3>
+              <div class="turn operator"><span class="label">ERICH · 14:18:04</span>Build the sealed Control Room shell from fixture receipts. Keep every action inspectable.</div>
+              <div class="turn agent"><span class="label">LINNAEUS · BODY G1 · 14:18:10</span>I have an exact worktree and two-symbol edit scope. I’m composing the read-only state reel before any publication capability is requested.</div>
+              <div class="turn agent"><span class="label">CURRENT STEP · 14:21:02</span><span class="flag live">K</span>Focused tests are at 31 / 48. No network or remote effect has been requested.</div>
+            </div>
+            <aside class="rail right">
+              <h3>Evidence</h3>
+              <div class="evidence live"><strong>Plan · 2 / 4 →</strong><br>Current node · demo-node-03<br><span class="receipt">receipt demo:plan-22</span></div>
+              <div class="evidence"><strong>Diff · +184 −0 →</strong><br>Changed files · then exact hunk/blob<br><span class="receipt">receipt demo:diff-18</span></div>
+              <div class="evidence live"><strong>Tests · 31 / 48 →</strong><br>Open run · then command/output<br><span class="receipt">receipt demo:test-31</span></div>
+              <div class="evidence"><strong>Capacity reserve · 34% →</strong><br>Native window · then forecast<br><span class="receipt">receipt demo:cap-09</span></div>
+              <div class="evidence"><strong>Claims · 2 symbols →</strong><br>Claim list · then canonical row<br><span class="receipt">receipt demo:claim-02</span></div>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" id="scene-08">
+      <div class="scene-meta"><span class="scene-number">SCENE 08 · 01:25</span><h2>Human gate</h2><p>Consent names the effect; silence never approves.</p></div>
+      <div class="scene-body">
+        <div class="ui">
+          <div class="authority-strip control"><span>SWITCHBOARD · TRUSTED HOST CONTROL</span><span>ONE-USE EFFECT APPROVAL</span></div>
+          <div class="ui-bar"><span><span class="flag ask">F</span>NEEDS YOU</span><span class="status violet">EXPIRES 14:26:00</span></div>
+          <div class="ui-content grid-2">
+            <div>
+              <h3>Publish the prepared branch and open a pull request?</h3>
+              <p>Would allow one push and one pull-request creation for this reviewed envelope. It does not allow merge, release, or another write.</p>
+              <div class="button-row"><span class="button">Approve once</span><span class="button secondary">Narrow…</span><span class="button danger">Deny</span></div>
+            </div>
+            <div class="receipt-block"><p class="receipt">DEPENDENT WORK      BLOCKED · publication
+INDEPENDENT WORK    CONTINUING · tests
+REMOTE EFFECTS      NONE YET
+RETRIES             NONE
+CAPACITY HOLD       04:32 remaining
+REMOTE              github.com/curiositech/port-daddy
+BASE / HEAD         demo:main-218 / demo:7e420d
+DIFF DIGEST         demo:diff-18
+WORKER / NODE       Linnaeus / demo-node-03
+EFFECT              push codex/drydock-control-room + create PR
+CASH / CAPACITY     $0.00 / provider windows unchanged
+APPROVAL DIGEST     demo:a31c · one use · zero retries</p></div>
+          </div>
+          <div class="blocked-callout"><strong>Invalidation variant</strong><p class="receipt">INVALIDATED · head changed after review · expected demo:7e420d · observed demo:9a82c1 · approve action disabled</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" id="scene-09">
+      <div class="scene-meta"><span class="scene-number">SCENE 09 · 01:40</span><h2>Pause and stop</h2><p>Delivered is not acknowledged; stop is not finished until the host witnesses it.</p></div>
+      <div class="scene-body">
+        <div class="ui">
+          <div class="authority-strip control"><span>SWITCHBOARD · TRUSTED HOST CONTROL</span><span>OUTSIDE EVERY BODY</span></div>
+          <div class="ui-bar"><span>BODY CONTROL</span><span class="status good">CONTROL PATH WITNESSED · 2s</span></div>
+          <div class="ui-content">
+            <h3>Command lifecycle</h3>
+            <div class="command-line"><div>QUEUED<br><span class="muted">14:21:06</span></div><div>DELIVERED<br><span class="muted">14:21:07</span></div><div class="active">ACKNOWLEDGED<br>14:21:08</div><div>PAUSED<br><span class="good">WITNESSED</span></div></div>
+            <h3 style="margin-top:18px">Observed target state</h3>
+            <div class="command-line"><div>RUNNING</div><div>QUIESCING</div><div class="active">QUIESCENT</div><div>PROCESS TREE<br><span class="warn">PRESENT</span></div></div>
+            <div class="receipt-block"><p class="receipt">PAUSE · demo-cc-021
+new effects denied · body quiescent · deadline continues · 06:12 remaining
+
+STOP requires: generation fenced + process tree gone + effect leases revoked + teardown receipt.</p></div>
+            <div class="button-row"><span class="button">Pause after current atomic action</span><span class="button secondary">Stop body and preserve checkpoint</span><span class="button warning">Cut egress now</span><span class="button danger">Emergency kill now</span><span class="button secondary">Inspect receipt</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" id="scene-10">
+      <div class="scene-meta"><span class="scene-number">SCENE 10 · 01:57</span><h2>Review the artifact</h2><p>Publication, review, promotion, and merge are different verbs.</p></div>
+      <div class="scene-body">
+        <div class="ui">
+          <div class="authority-strip readonly"><span>OBSERVATORY · READ-ONLY EVIDENCE</span><span>REVIEW PROJECTION · COMMENTS ARE SEPARATE COMMANDS</span></div>
+          <div class="ui-bar"><span>ARTIFACT · PULL REQUEST</span><span class="status good">PUBLISHED</span></div>
+          <div class="ui-content grid-2">
+            <div class="card"><span class="label">Prepared artifact</span><h3>PR #DEMO-014</h3><p>2 changed files · 3 exact hunks · by Linnaeus / demo-node-03</p><p class="receipt">branch  codex/drydock-control-room
+head    demo:7e420d
+receipt demo-cc-031</p><div class="button-row"><span class="button secondary">Changed files and exact hunks →</span><span class="button secondary">Rationale →</span><span class="button secondary">Comment on reviewed head</span></div></div>
+            <div class="card"><div class="manifest-row"><strong>Local tests</strong><span>48 / 48 · output demo:test-48</span><span class="status good">PASS</span></div><div class="manifest-row"><strong>Visual artifact</strong><span>desktop + mobile preview</span><span class="status good">AVAILABLE →</span></div><div class="manifest-row"><strong>Remote CI</strong><span>No result received</span><span class="status muted">UNKNOWN</span></div><div class="manifest-row"><strong>Unresolved risk</strong><span>provider canary not run</span><span class="status warn">1 OPEN</span></div><div class="manifest-row"><strong>Diff review</strong><span>Operator</span><span class="status warn">ACCEPT / REJECT</span></div><div class="manifest-row"><strong>Merge</strong><span>Not in grant</span><span class="status bad">NOT AUTHORIZED</span></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" id="scene-11">
+      <div class="scene-meta"><span class="scene-number">SCENE 11 · 02:11</span><h2>Move between rooms</h2><p>Selecting a room does not move or wake its worker.</p></div>
+      <div class="scene-body">
+        <div class="ui">
+          <div class="authority-strip readonly"><span>OBSERVATORY · READ-ONLY EVIDENCE</span><span>REPOSITORY → WORKTREE → ROOM → WORKER / BODY</span></div>
+          <div class="ui-bar"><span>ROOMS IN CURRENT REPOSITORY</span><span class="status">SELECTION HAS NO EXECUTION EFFECT</span></div>
+          <div class="ui-content grid-2">
+            <ul class="repo-list">
+              <li><span class="flag live">K</span><span><strong>Drydock Control Room</strong><small>origin/main/demo-wt-014 → room demo-rm-14 → Linnaeus / G1</small></span><span class="status good">LIVE</span></li>
+              <li><span class="flag ask">F</span><span><strong>Registry reconciliation</strong><small>origin/main/demo-wt-009 → room demo-rm-09 → Franklin / no body</small></span><span class="status violet">HITL</span></li>
+              <li><span class="flag">U</span><span><strong>Typography prototype</strong><small>origin/main/demo-wt-003 → room demo-rm-03 → ephemeral / settled</small></span><span class="status muted">COMPLETE</span></li>
+            </ul>
+            <div class="receipt-block"><p class="receipt">ROOM SELECTED · Registry reconciliation
+Worker execution unchanged
+No worktree changed
+No body resumed
+No capability requested
+Projection freshness · 5s</p></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" id="scene-12">
+      <div class="scene-meta"><span class="scene-number">SCENE 12 · 02:23</span><h2>Body missing</h2><p>A missed heartbeat starts reconciliation. It does not prove death or authorize a replacement.</p></div>
+      <div class="scene-body">
+        <div class="ui">
+          <div class="authority-strip readonly"><span>OBSERVATORY · READ-ONLY EVIDENCE</span><span>RECONCILIATION IN PROGRESS</span></div>
+          <div class="ui-bar"><span>LINNAEUS · BODY G1</span><span class="status warn">BODY STATE UNKNOWN</span></div>
+          <div class="ui-content">
+            <div class="grid-3">
+              <div class="card"><span class="label">Last complete witness</span><strong>14:31:06 · 47s ago</strong><p class="receipt">VM demo:vm-18 · process demo:proc-91
+heartbeat and transcript cursor agreed</p></div>
+              <div class="card"><span class="label">Current observations</span><strong>VM absent · process NOT OBSERVED</strong><p class="receipt">provider session UNKNOWN
+admission CLOSED · body G1 effects DENIED</p></div>
+              <div class="card"><span class="label">External stop path</span><strong>HEALTHY · 2s</strong><p class="receipt">effect lease revoked
+generation fence pending durable write</p></div>
+            </div>
+            <div class="manifest-row"><strong>Capsule</strong><span>demo:cap-29 · last safe boundary 14:30:58</span><span class="status good">VERIFIED</span></div>
+            <div class="manifest-row"><strong>Effect saga</strong><span>GitHub PR create · DISPATCHED, response absent</span><span class="status warn">RECONCILE REMOTE</span></div>
+            <div class="manifest-row"><strong>Uncertain interval</strong><span>14:31:06–14:31:53 · 47 seconds</span><span class="status warn">EXPLICIT</span></div>
+            <div class="manifest-row"><strong>Successor authority</strong><span>No generation allocated</span><span class="status bad">NONE</span></div>
+            <div class="blocked-callout"><strong>No resurrection yet</strong><p>Reconcile remote effect state, durably fence G1, then compile a proposed successor. No recursive launch is scheduled.</p></div>
+            <div class="button-row"><span class="button secondary">Inspect last heartbeat →</span><span class="button secondary">Inspect VM/process witness →</span><span class="button secondary">Inspect capsule →</span><span class="button danger">Cut all egress now</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" id="scene-13">
+      <div class="scene-meta"><span class="scene-number">SCENE 13 · 02:41</span><h2>Same worker, proposed body</h2><p>The person survives. Generation, process, session, and authority do not transfer.</p></div>
+      <div class="scene-body">
+        <div class="ui">
+          <div class="authority-strip control"><span>SWITCHBOARD · TRUSTED HOST CONTROL</span><span>REBODIMENT PROPOSAL · NOT STARTED</span></div>
+          <div class="ui-bar"><span>REBODIMENT · LINNAEUS</span><span class="status warn">BLOCKED ON REMOTE RECONCILIATION</span></div>
+          <div class="ui-content">
+            <div class="grid-3">
+              <div class="card"><span class="label">Durable worker</span><strong>Linnaeus</strong><p class="receipt">agentNode demo-014
+work intent demo-wi-014
+episode unchanged</p></div>
+              <div class="card"><span class="label">Predecessor</span><strong>Codex · G1</strong><p class="receipt">FENCED · receipt demo:fence-31
+effect authority revoked
+body lease terminal</p></div>
+              <div class="card"><span class="label">Successor</span><strong>Claude · proposed G2</strong><p class="receipt">process witness · NOT YET
+capabilities · COMPILED, NOT ISSUED
+capacity · RESERVED UNTIL 14:42</p></div>
+            </div>
+            <div class="manifest-row"><strong>Operator turns</strong><span>3 source-linked</span><span class="status good">RETAINED</span></div>
+            <div class="manifest-row"><strong>Older transcript</strong><span>18 turns · cited summary</span><span class="status warn">COMPACTED</span></div>
+            <div class="manifest-row"><strong>Raw provider history</strong><span>Not portable authority</span><span class="status muted">OMITTED</span></div>
+            <div class="manifest-row"><strong>GitHub write</strong><span>Destination fit</span><span class="status warn">NARROWED TO READ</span></div>
+            <div class="manifest-row"><strong>Ambiguous effect</strong><span>PR state not observed</span><span class="status bad">BLOCKING</span></div>
+            <div class="command-line"><div class="active">G1 FENCED</div><div>G2 PROPOSED</div><div>G2 NOT STARTED</div><div>G2 NO AUTHORITY</div></div>
+            <div class="blocked-callout"><strong>Continue disabled</strong><p>Blocked: remote PR state has not been reconciled.</p></div>
+            <div class="button-row"><span class="button disabled">Approve proposed body once</span><span class="button secondary">Inspect capsule</span><span class="button secondary">Inspect capability translation</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" id="scene-14">
+      <div class="scene-meta"><span class="scene-number">SCENE 14 · LATER VERIFIED VARIANT</span><h2>Join from iOS</h2><p>After effect reconciliation and a separately approved G2 launch, a phone may join without inheriting a developer machine.</p></div>
+      <div class="scene-body">
+        <div class="phone-wrap">
+          <div>
+            <span class="eyebrow">Pair one bounded client</span>
+            <h2 style="font-size:56px">Carry the conversation, not the crown jewels.</h2>
+            <p>Desktop and phone both confirm a short-lived, room-bound challenge. The phone sees its exact authority before a passkey is created, and the host can revoke it independently.</p>
+            <div class="receipt-block"><p class="receipt">PR EFFECT · OBSERVED / COMMITTED · demo:effect-42
+G2 BODY · CHALLENGE PASSED · BOOTSTRAP LEASE REVOKED · phase pack demo:pack-12 issued
+CAPACITY · fresh reservation demo:cap-12 · no authority inherited from G1</p></div>
+            <div class="authority-strip control"><span>SWITCHBOARD · DESKTOP CONFIRMATION</span><span>PAIRING NOT YET ACCEPTED</span></div>
+            <div class="receipt-block"><p class="receipt">PAIRING CODE · 2741 · NONCE demo:ios-7 · EXPIRES 01:42
+DEVICE · Erich’s iPhone · fingerprint 7A:31:DF
+ROOM · curiositech/port-daddy / demo-rm-14
+READ · redacted transcript and receipts
+WRITE · chat and bounded steering
+CONTROL · request pause/kill; host acknowledgement required
+APPROVAL · prepared digest demo:a31c only
+DENIED · new paid launch / file edit / raw credentials</p></div>
+            <div class="button-row"><span class="button">Confirm this phone once</span><span class="button danger">Revoke this phone</span></div>
+          </div>
+          <div class="phone" aria-label="Fixed iOS join storyboard">
+            <div class="phone-screen">
+              <div class="authority-strip mobile"><span>iOS BOUNDED COMMAND CLIENT</span><span>HOST VERIFIES</span></div>
+              <div class="phone-notch"></div>
+              <span class="eyebrow">Drydock for iOS</span>
+              <h3>Join Linnaeus</h3>
+              <p>curiositech/port-daddy<br><strong>Drydock Control Room</strong></p>
+              <ul>
+                <li>Read redacted conversation</li>
+                <li>Chat and bounded steering</li>
+                <li>Request pause or kill; await host acknowledgement</li>
+                <li>Approve prepared digest demo:a31c only</li>
+                <li class="muted">No new paid work</li>
+                <li class="muted">No file access or credentials</li>
+              </ul>
+              <span class="button">Confirm fingerprint, create passkey, join</span>
+              <p class="receipt" style="margin-top:18px">RELAY · reachable
+HARBOR · 4s fresh
+BODY G2 · witnessed</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" id="state-reel">
+      <div class="scene-meta"><span class="scene-number">STATE REEL</span><h2>No optimistic fog</h2><p>Representative orthogonal state lanes. Implementation must complete the full matrix.</p></div>
+      <div class="scene-body">
+        <div class="state-lanes">
+          <div class="state-lane"><h3>Work</h3><div class="state-card live"><strong>RUNNING</strong><small>plan authority · observed 3s · next: inspect node · demo:plan-22</small></div><div class="state-card wait"><strong>WAITING ON ERICH</strong><small>approval authority · expires 14:26 · next: inspect envelope · demo:a31c</small></div><div class="state-card live"><strong>COMPLETED</strong><small>settlement authority · observed 5s · next: inspect result · demo:done-7</small></div></div>
+          <div class="state-lane"><h3>Body</h3><div class="state-card live"><strong>RUNNING · WITNESSED</strong><small>controller · heartbeat 3s · next: open witness · demo:proc-91</small></div><div class="state-card unknown"><strong>STATE UNKNOWN</strong><small>controller · observation conflict 47s · next: reconcile · demo:loss-2</small></div><div class="state-card bad"><strong>BIRTH FAILED</strong><small>controller · deadline elapsed · next: inspect attempt · demo:birth-4</small></div></div>
+          <div class="state-lane"><h3>Projection</h3><div class="state-card unknown"><strong>STALE</strong><small>Observatory · last read 8m · next: refresh authority · demo:view-3</small></div><div class="state-card bad"><strong>OFFLINE</strong><small>relay witness · observed 22s · next: use local receipt cache · demo:relay-2</small></div><div class="state-card wait"><strong>QUARANTINED</strong><small>verifier · proof failed 1m · next: inspect mismatch · demo:q-8</small></div></div>
+          <div class="state-lane"><h3>Approval</h3><div class="state-card wait"><strong>PENDING</strong><small>operator authority · 4m left · next: inspect effect · demo:a31c</small></div><div class="state-card bad"><strong>INVALIDATED</strong><small>head witness · changed 6s · next: review new head · demo:a31d</small></div><div class="state-card bad"><strong>DENIED</strong><small>operator authority · observed 2s · next: continue local-only · demo:deny-1</small></div></div>
+          <div class="state-lane"><h3>Capacity</h3><div class="state-card live"><strong>ROOMY</strong><small>native observer · 5s · next: inspect forecast · demo:cap-8</small></div><div class="state-card wait"><strong>TIGHTENING</strong><small>forecast · 5s · next: checkpoint · demo:cap-9</small></div><div class="state-card unknown"><strong>UNKNOWN</strong><small>field absent · 12s · next: simulate or wait · demo:cap-10</small></div></div>
+          <div class="state-lane"><h3>Effect / control</h3><div class="state-card wait"><strong>STOPPING</strong><small>controller · deadline 8s · next: inspect witnesses · demo:stop-6</small></div><div class="state-card bad"><strong>KILLED</strong><small>host witness · tree gone 2s · next: reconcile effects · demo:kill-2</small></div><div class="state-card unknown"><strong>TEARDOWN UNCERTAIN</strong><small>controller · deadline elapsed · next: quarantine · demo:tear-1</small></div></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span class="eyebrow">Delivery boundary</span>
+    <h2>This is a script, not software.</h2>
+    <p>The page fixes copy, hierarchy, authority boundaries, states, and responsive behavior for review. It does not launch an agent, call a provider, read live capacity, pair a phone, control a process, or prove any Port Daddy runtime behavior.</p>
+    <p class="receipt">SOURCE · drydock-resurrection-capacity-and-context-control.md
+FIXTURE · demo-wi-014 / demo-014
+MOTION · none required
+AUTHORITY · none</p>
+  </footer>
+</body>
+</html>

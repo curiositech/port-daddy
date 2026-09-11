@@ -1,0 +1,406 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/resurrection-plan.schema.json",
+  "title": "Agent rebodiment plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "operation", "halt", "person", "work", "predecessor", "source", "effects", "capsule", "destination", "capacity", "execution", "verdict", "nextSafeAction"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "operation": { "const": "rebody" },
+    "halt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "sourceAuthority", "observedAt"],
+      "properties": {
+        "state": { "enum": ["active", "inactive", "unknown"] },
+        "sourceAuthority": { "type": "string", "minLength": 1 },
+        "observedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "person": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["principalId", "agentNodeId", "identityRevision"],
+      "properties": {
+        "principalId": { "type": "string", "minLength": 1 },
+        "agentNodeId": { "type": "string", "minLength": 1 },
+        "identityRevision": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "work": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workIntentId", "workPlanId", "workEpisodeId", "objective", "nonGoals", "planFrontier"],
+      "properties": {
+        "workIntentId": { "type": "string", "minLength": 1 },
+        "workPlanId": { "type": "string", "minLength": 1 },
+        "workEpisodeId": { "type": "string", "minLength": 1 },
+        "objective": { "type": "string", "minLength": 1 },
+        "nonGoals": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "planFrontier": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "predecessor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["agentRunId", "bodyLeaseId", "generation", "state", "fenceOrAbsenceReceipt", "processWitness", "ledgerRoots"],
+      "properties": {
+        "agentRunId": { "type": "string", "minLength": 1 },
+        "bodyLeaseId": { "type": "string", "minLength": 1 },
+        "generation": { "type": "integer", "minimum": 1 },
+        "state": { "enum": ["birth-failed", "start-unknown", "fenced", "quarantined", "hibernated"] },
+        "fenceOrAbsenceReceipt": { "type": ["string", "null"], "minLength": 1 },
+        "processWitness": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "receipt", "observedAt"],
+          "properties": {
+            "state": { "enum": ["never-started-proven", "gone", "present", "unknown", "conflicting"] },
+            "receipt": { "type": ["string", "null"], "minLength": 1 },
+            "observedAt": { "type": "string", "format": "date-time" }
+          }
+        },
+        "ledgerRoots": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["lifecycle", "effects", "claims", "transcript"],
+          "properties": {
+            "lifecycle": { "$ref": "#/$defs/digest" },
+            "effects": { "$ref": "#/$defs/digest" },
+            "claims": { "$ref": "#/$defs/digest" },
+            "transcript": { "$ref": "#/$defs/digest" }
+          }
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["remote", "baseCommit", "headCommit", "treeDigest", "worktree", "statusDigest", "claimsRoot", "outputRoot"],
+      "properties": {
+        "remote": { "type": "string", "pattern": "^https://" },
+        "baseCommit": { "$ref": "#/$defs/sha1" },
+        "headCommit": { "$ref": "#/$defs/sha1" },
+        "treeDigest": { "$ref": "#/$defs/digest" },
+        "worktree": { "type": "string", "pattern": "^/" },
+        "statusDigest": { "$ref": "#/$defs/digest" },
+        "claimsRoot": { "$ref": "#/$defs/digest" },
+        "outputRoot": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "effects": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ledgerRoot", "completeForGeneration", "items"],
+      "properties": {
+        "ledgerRoot": { "$ref": "#/$defs/digest" },
+        "completeForGeneration": { "type": "boolean" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["effectSlotId", "canonicalFingerprint", "logicalIdentity", "operation", "normalizedDestination", "state", "idempotencyKeys", "reconciliationEvidence", "replayAllowed"],
+            "properties": {
+              "effectSlotId": { "type": "string", "minLength": 1 },
+              "canonicalFingerprint": { "$ref": "#/$defs/digest" },
+              "logicalIdentity": { "type": "string", "minLength": 1 },
+              "operation": { "type": "string", "minLength": 1 },
+              "normalizedDestination": { "type": "string", "minLength": 1 },
+              "state": { "enum": ["intended", "dispatched", "observed", "committed", "ambiguous", "denied"] },
+              "idempotencyKeys": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+              "reconciliationEvidence": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+              "replayAllowed": { "const": false }
+            }
+          }
+        }
+      }
+    },
+    "capsule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capsuleId", "sequence", "predecessorDigest", "digestAlgorithm", "canonicalEncoding", "digest", "signer", "audience", "issuedAt", "expiresAt", "retentionRoot", "artifactAvailabilityRoot", "signatureVerificationReceipt", "lineageVerificationReceipt", "availabilityVerificationReceipt", "requiredFactTypes", "satisfiedFactTypes", "verifiedFacts", "unsupportedClaims", "decisions", "toolPairs", "tests", "transcript", "memoryDisposition", "omissions", "oneTime", "redemption"],
+      "properties": {
+        "capsuleId": { "type": "string", "minLength": 1 },
+        "sequence": { "type": "integer", "minimum": 1 },
+        "predecessorDigest": { "anyOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
+        "digestAlgorithm": { "const": "sha256" },
+        "canonicalEncoding": { "const": "RFC8785-JCS" },
+        "digest": { "$ref": "#/$defs/digest" },
+        "signer": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["keyId", "algorithm", "signature"],
+          "properties": {
+            "keyId": { "type": "string", "minLength": 1 },
+            "algorithm": { "type": "string", "minLength": 1 },
+            "signature": { "type": "string", "minLength": 8 }
+          }
+        },
+        "audience": { "type": "string", "minLength": 1 },
+        "issuedAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "retentionRoot": { "$ref": "#/$defs/digest" },
+        "artifactAvailabilityRoot": { "$ref": "#/$defs/digest" },
+        "signatureVerificationReceipt": { "type": "string", "minLength": 1 },
+        "lineageVerificationReceipt": { "type": "string", "minLength": 1 },
+        "availabilityVerificationReceipt": { "type": "string", "minLength": 1 },
+        "requiredFactTypes": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "satisfiedFactTypes": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "verifiedFacts": { "type": "array", "items": { "$ref": "#/$defs/evidencedStatement" } },
+        "unsupportedClaims": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "decisions": { "type": "array", "items": { "$ref": "#/$defs/evidencedStatement" } },
+        "toolPairs": { "type": "array", "items": { "$ref": "#/$defs/toolPair" } },
+        "tests": { "type": "array", "items": { "$ref": "#/$defs/testEvidence" } },
+        "transcript": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["cursor", "tailDigest", "omittedRanges"],
+          "properties": {
+            "cursor": { "type": "string", "minLength": 1 },
+            "tailDigest": { "$ref": "#/$defs/digest" },
+            "omittedRanges": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+          }
+        },
+        "memoryDisposition": { "type": "array", "items": { "$ref": "#/$defs/memoryDisposition" } },
+        "omissions": { "type": "array", "items": { "$ref": "#/$defs/omission" } },
+        "oneTime": { "const": true },
+        "redemption": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "receipt"],
+          "properties": {
+            "state": { "enum": ["pending", "redeemed", "expired"] },
+            "receipt": { "type": ["string", "null"], "minLength": 1 }
+          }
+        }
+      }
+    },
+    "destination": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adapter", "mode", "generation", "proposedBodyLeaseId", "bootstrapLease", "workingCapabilitySetId", "workingCapabilitiesIssued", "capabilityReport", "requiredCapabilitiesSatisfied", "nativeSessionLease", "inheritedToolsReset"],
+      "properties": {
+        "adapter": { "type": "string", "minLength": 1 },
+        "mode": { "enum": ["native-resume", "successor-handoff"] },
+        "generation": { "type": "integer", "minimum": 2 },
+        "proposedBodyLeaseId": { "type": "string", "minLength": 1 },
+        "bootstrapLease": { "$ref": "#/$defs/bootstrapLease" },
+        "workingCapabilitySetId": { "type": ["string", "null"], "minLength": 1 },
+        "workingCapabilitiesIssued": { "const": false },
+        "capabilityReport": { "type": "array", "items": { "$ref": "#/$defs/capability" } },
+        "requiredCapabilitiesSatisfied": { "type": "boolean" },
+        "nativeSessionLease": { "$ref": "#/$defs/nativeSessionLease" },
+        "inheritedToolsReset": { "type": "boolean" }
+      }
+    },
+    "capacity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capacityEvidenceSchemaVersion", "capacityEvidenceDigestAlgorithm", "capacityEvidenceCanonicalEncoding", "capacityEvidenceId", "capacityEvidenceDigest", "permittedExecutionClass", "reservationId", "quality", "admissible", "buckets"],
+      "properties": {
+        "capacityEvidenceSchemaVersion": { "const": "1.0.0" },
+        "capacityEvidenceDigestAlgorithm": { "const": "sha256" },
+        "capacityEvidenceCanonicalEncoding": { "const": "RFC8785-JCS" },
+        "capacityEvidenceId": { "type": "string", "minLength": 1 },
+        "capacityEvidenceDigest": { "$ref": "#/$defs/digest" },
+        "permittedExecutionClass": { "enum": ["real-provider", "fake-or-replay"] },
+        "reservationId": { "type": ["string", "null"], "minLength": 1 },
+        "quality": { "enum": ["authoritative", "observed", "estimated", "stale", "unknown"] },
+        "admissible": { "type": "boolean" },
+        "buckets": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["planIsLaunchAuthority", "executionClass", "authorizationState", "authorizedExecutor", "authorizationReceipt"],
+      "properties": {
+        "planIsLaunchAuthority": { "const": false },
+        "executionClass": { "enum": ["real-provider", "fake-or-replay"] },
+        "authorizationState": { "enum": ["not-issued", "issued", "denied", "blocked-by-halt"] },
+        "authorizedExecutor": { "type": ["string", "null"], "minLength": 1 },
+        "authorizationReceipt": { "type": ["string", "null"], "minLength": 1 }
+      }
+    },
+    "verdict": { "enum": ["REBODIMENT_READY", "NATIVE_RESUME_ELIGIBLE", "HIBERNATE", "QUARANTINED", "BLOCKED", "INVALID"] },
+    "nextSafeAction": { "type": "string", "minLength": 1 }
+  },
+  "$defs": {
+    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "evidencedStatement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["statement", "evidenceRefs"],
+      "properties": {
+        "statement": { "type": "string", "minLength": 1 },
+        "evidenceRefs": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "toolPair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["callReceipt", "resultReceipt"],
+      "properties": {
+        "callReceipt": { "type": "string", "minLength": 1 },
+        "resultReceipt": { "type": "string", "minLength": 1 }
+      }
+    },
+    "testEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commandReceipt", "outputReceipt", "state"],
+      "properties": {
+        "commandReceipt": { "type": "string", "minLength": 1 },
+        "outputReceipt": { "type": "string", "minLength": 1 },
+        "state": { "enum": ["passed", "failed", "not-run", "unknown"] }
+      }
+    },
+    "memoryDisposition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact", "disposition", "reason"],
+      "properties": {
+        "artifact": { "type": "string", "minLength": 1 },
+        "disposition": { "enum": ["discard", "episode", "propose-role", "identity-kernel"] },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "omission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field", "reason", "impact"],
+      "properties": {
+        "field": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string", "minLength": 1 },
+        "impact": { "type": "string", "minLength": 1 }
+      }
+    },
+    "bootstrapLease": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["leaseId", "allowedOperations", "expiresAt"],
+      "properties": {
+        "leaseId": { "type": "string", "minLength": 1 },
+        "allowedOperations": { "type": "array", "uniqueItems": true, "items": { "enum": ["nonce-challenge", "heartbeat", "bounded-evidence-append"] } },
+        "expiresAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surfaceId", "authenticatedServerIdentity", "required", "disposition", "requestedScope", "grantedScope", "evidenceRefs"],
+      "properties": {
+        "surfaceId": { "type": "string", "minLength": 1 },
+        "authenticatedServerIdentity": { "type": ["string", "null"], "minLength": 1 },
+        "required": { "type": "boolean" },
+        "disposition": { "enum": ["EXACT", "EQUIVALENT", "NARROWED", "EMULATED", "OMITTED", "BLOCKED", "UNKNOWN"] },
+        "requestedScope": { "type": "string", "minLength": 1 },
+        "grantedScope": { "type": ["string", "null"], "minLength": 1 },
+        "evidenceRefs": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "nativeSessionLease": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required", "exclusive", "receipt"],
+      "properties": {
+        "required": { "type": "boolean" },
+        "exclusive": { "type": "boolean" },
+        "receipt": { "type": ["string", "null"], "minLength": 1 }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "execution": {
+            "type": "object",
+            "properties": { "executionClass": { "const": "real-provider" } },
+            "required": ["executionClass"]
+          }
+        },
+        "required": ["execution"]
+      },
+      "then": {
+        "properties": {
+          "capacity": {
+            "type": "object",
+            "properties": { "permittedExecutionClass": { "const": "real-provider" } }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "execution": {
+            "type": "object",
+            "properties": { "executionClass": { "const": "fake-or-replay" } },
+            "required": ["executionClass"]
+          }
+        },
+        "required": ["execution"]
+      },
+      "then": {
+        "properties": {
+          "capacity": {
+            "type": "object",
+            "properties": { "permittedExecutionClass": { "const": "fake-or-replay" } }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "verdict": { "enum": ["REBODIMENT_READY", "NATIVE_RESUME_ELIGIBLE"] } }, "required": ["verdict"] },
+      "then": {
+        "properties": {
+          "halt": { "type": "object", "properties": { "state": { "const": "inactive" } } },
+          "predecessor": {
+            "type": "object",
+            "properties": {
+              "state": { "enum": ["birth-failed", "fenced", "hibernated"] },
+              "fenceOrAbsenceReceipt": { "type": "string", "minLength": 1 },
+              "processWitness": { "type": "object", "properties": { "state": { "enum": ["never-started-proven", "gone"] }, "receipt": { "type": "string", "minLength": 1 } } }
+            }
+          },
+          "effects": {
+            "type": "object",
+            "properties": {
+              "completeForGeneration": { "const": true },
+              "items": { "type": "array", "not": { "contains": { "type": "object", "properties": { "state": { "const": "ambiguous" } }, "required": ["state"] } } }
+            }
+          },
+          "capsule": { "type": "object", "properties": { "unsupportedClaims": { "type": "array", "maxItems": 0 }, "redemption": { "type": "object", "properties": { "state": { "const": "pending" }, "receipt": { "type": "null" } } } } },
+          "destination": {
+            "type": "object",
+            "properties": {
+              "workingCapabilitySetId": { "type": "string", "minLength": 1 },
+              "requiredCapabilitiesSatisfied": { "const": true },
+              "inheritedToolsReset": { "const": true },
+              "capabilityReport": { "type": "array", "not": { "contains": { "type": "object", "properties": { "required": { "const": true }, "disposition": { "enum": ["OMITTED", "BLOCKED", "UNKNOWN"] } }, "required": ["required", "disposition"] } } }
+            }
+          },
+          "capacity": { "type": "object", "properties": { "reservationId": { "type": "string", "minLength": 1 }, "quality": { "enum": ["authoritative", "observed"] }, "admissible": { "const": true } } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "verdict": { "const": "NATIVE_RESUME_ELIGIBLE" } }, "required": ["verdict"] },
+      "then": {
+        "properties": {
+          "destination": {
+            "type": "object",
+            "properties": {
+              "mode": { "const": "native-resume" },
+              "nativeSessionLease": { "type": "object", "properties": { "required": { "const": true }, "exclusive": { "const": true }, "receipt": { "type": "string", "minLength": 1 } } }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
