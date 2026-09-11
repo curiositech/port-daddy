@@ -136,6 +136,7 @@
 % text block. \pagegoal is \maxdimen on an empty page, which is room for
 % anything; a block already taller than its page is left alone rather than
 % shoved, because moving it cannot make it fit.
+\newlength{\pd@blockfloor}
 \newcommand{\pd@placemargintop}[1]{%
   \setlength{\pd@blockoff}{0pt}%
   \ifnum\pd@lastheadpage=\thepage\relax
@@ -147,10 +148,22 @@
       \setlength{\pd@blockoff}{\dimexpr\pd@blockbottom-\pagetotal+2pt\relax}\fi
   \fi
   \ifdim\pd@blockoff<0pt \setlength{\pd@blockoff}{0pt}\fi
+  % The floor the two caps above just established: whatever is already in the
+  % column on this page ends here, and nothing may be placed above it.
+  \setlength{\pd@blockfloor}{\pd@blockoff}%
+  % Pull the block up if its foot would pass the bottom of the text block --
+  % but never above that floor. Reducing the offset past it is how the
+  % foot-anchored placement used to undo its own downward pushes: a clamp
+  % applied last re-collides the block with the head or the note it was just
+  % moved clear of, which is the defect this file's other comment records as
+  % 132 collisions on one merge. A block too tall to satisfy both is left at
+  % the floor and overruns the foot, where page_overflow.py's foot-intrusion
+  % and off-the-paper checks will report it -- a visible, measured overrun is
+  % worth more than a silent overlap.
   \ifdim\pagegoal<\maxdimen
     \ifdim\dimexpr\pagetotal+\pd@blockoff+\ht#1+\dp#1\relax>\pagegoal
       \setlength{\pd@blockoff}{\dimexpr\pagegoal-\pagetotal-\ht#1-\dp#1\relax}%
-      \ifdim\pd@blockoff<0pt \setlength{\pd@blockoff}{0pt}\fi
+      \ifdim\pd@blockoff<\pd@blockfloor \setlength{\pd@blockoff}{\pd@blockfloor}\fi
     \fi
   \fi
   \marginnote{\usebox#1}[\pd@blockoff]%
