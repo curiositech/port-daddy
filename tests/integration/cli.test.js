@@ -869,6 +869,7 @@ describe('CLI Integration Tests', () => {
       const completeDoneRes = await requestWithRetry(`/sessions/${completedId}`, {
         method: 'PUT',
         body: { status: 'completed', note: 'Done' },
+        headers: actor.headers,
       });
       expect(completeDoneRes.ok).toBe(true);
 
@@ -883,6 +884,7 @@ describe('CLI Integration Tests', () => {
       const abandonDoneRes = await requestWithRetry(`/sessions/${abandonedId}`, {
         method: 'PUT',
         body: { status: 'abandoned' },
+        headers: actor.headers,
       });
       expect(abandonDoneRes.ok).toBe(true);
 
@@ -899,9 +901,9 @@ describe('CLI Integration Tests', () => {
       expect(statuses.has('abandoned')).toBe(true);
 
       // Cleanup
-      runCli(['session', 'rm', activeId]);
-      runCli(['session', 'rm', completedId]);
-      runCli(['session', 'rm', abandonedId]);
+      await requestWithRetry(`/sessions/${activeId}`, { method: 'DELETE', headers: actor.headers });
+      await requestWithRetry(`/sessions/${completedId}`, { method: 'DELETE', headers: actor.headers });
+      await requestWithRetry(`/sessions/${abandonedId}`, { method: 'DELETE', headers: actor.headers });
     });
   });
 
@@ -1287,16 +1289,20 @@ describe('CLI Integration Tests', () => {
       runCli(['done', '--session', beginData.sessionId]);
     });
 
-    test('pd session takeover makes the successor the current noteable context', () => {
+    test('pd session takeover makes the successor the current noteable context', async () => {
+      const agentId = `takeover-context-agent-${Date.now()}`;
+      const actor = await registerTestActorVia(requestWithRetry, { alias: agentId });
       const beginResult = runCli([
         'begin',
         'Takeover context continuity',
+        '--agent',
+        agentId,
         '--identity',
         'port-daddy:test:takeover-context',
         '--lifecycle',
         'durable',
         '--json',
-      ]);
+      ], { env: { PD_ACTOR_CREDENTIAL: actor.credential } });
       expect(beginResult.success).toBe(true);
       const beginData = JSON.parse(beginResult.stdout);
 
@@ -1305,9 +1311,11 @@ describe('CLI Integration Tests', () => {
         'takeover',
         beginData.sessionId,
         'same shell continues',
+        '--same-owner',
         '--json',
       ]);
-      expect(takeoverResult.success).toBe(true);
+      expect(takeoverResult.stderr).toBe('');
+      expect(takeoverResult).toMatchObject({ success: true });
       const takeoverData = JSON.parse(takeoverResult.stdout);
       expect(takeoverData.success).toBe(true);
       expect(takeoverData.predecessorId).toBe(beginData.sessionId);
