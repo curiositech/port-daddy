@@ -105,7 +105,8 @@ export interface Tool2VecReadProfile {
 export interface ResolveTool2VecReadProfileOptions {
   db?: DatabaseInstance;
   dbDir?: string;
-  embedderModelId: string;
+  /** Restrict selection to one exact embedding space when the caller has one. */
+  embedderModelId?: string;
   onWarning?: (message: string) => void;
 }
 
@@ -145,7 +146,7 @@ export function resolveTool2VecReadProfile(
       FROM sqlite_master
       WHERE type = 'table' AND name = 'skill_graft_tool2vec_reconcile_state'
     `).get() as { present?: number } | undefined;
-    if (stateTable?.present) {
+    if (stateTable?.present && options.embedderModelId) {
       const state = db.prepare(`
         SELECT embedder_model_id, generator_id
         FROM skill_graft_tool2vec_reconcile_state
@@ -163,14 +164,36 @@ export function resolveTool2VecReadProfile(
       }
     }
 
-    const row = db.prepare(`
-      SELECT embedder_model_id, generator_id, COUNT(*) AS profile_rows, MAX(created_at) AS newest
-      FROM skill_graft_tool2vec_centroids
-      WHERE embedder_model_id = ?
-      GROUP BY embedder_model_id, generator_id
-      ORDER BY profile_rows DESC, newest DESC, generator_id ASC
-      LIMIT 1
-    `).get(options.embedderModelId) as {
+    const row = (options.embedderModelId
+      ? db.prepare(`
+          SELECT embedder_model_id, generator_id, COUNT(*) AS profile_rows, MAX(created_at) AS newest
+          FROM skill_graft_tool2vec_centroids
+          WHERE embedder_model_id = ?
+          GROUP BY embedder_model_id, generator_id
+          ORDER BY profile_rows DESC, newest DESC, generator_id ASC
+          LIMIT 1
+        `).get(options.embedderModelId)
+      : stateTable?.present
+        ? db.prepare(`
+          SELECT c.embedder_model_id, c.generator_id, COUNT(*) AS profile_rows, MAX(c.created_at) AS newest
+          FROM skill_graft_tool2vec_centroids c
+          LEFT JOIN skill_graft_tool2vec_reconcile_state s ON s.id = 1
+          GROUP BY c.embedder_model_id, c.generator_id
+          ORDER BY
+            CASE WHEN c.embedder_model_id = s.embedder_model_id AND c.generator_id = s.generator_id THEN 0 ELSE 1 END,
+            profile_rows DESC,
+            newest DESC,
+            c.embedder_model_id ASC,
+            c.generator_id ASC
+          LIMIT 1
+        `).get()
+        : db.prepare(`
+          SELECT embedder_model_id, generator_id, COUNT(*) AS profile_rows, MAX(created_at) AS newest
+          FROM skill_graft_tool2vec_centroids
+          GROUP BY embedder_model_id, generator_id
+          ORDER BY profile_rows DESC, newest DESC, embedder_model_id ASC, generator_id ASC
+          LIMIT 1
+        `).get()) as {
       embedder_model_id?: unknown;
       generator_id?: unknown;
     } | undefined;
@@ -474,7 +497,13 @@ export function createLLMClientSyntheticQueryGenerator(client: LLMClient, model:
     // semantic/exact cache has no idea "15 queries" and "5 queries" are
     // different-shaped results for the same underlying prompt family.
     const cacheKey = `skill-graft-tool2vec:${skill.id}:${skill.contentHash}:${model}:${count}`;
-    const result = await client.complete({ prompt, model, maxTokens: 1200, cacheKey });
+    const result = await client.complete({
+      prompt,
+      model,
+      maxTokens: 1200,
+      cacheKey,
+      reasoningEffort: 'none',
+    });
     if (!result.ok || !result.text) return [];
     return parseQueriesResponse(result.text, count);
   };

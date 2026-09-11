@@ -1187,9 +1187,11 @@ pd jury-rig reference <skill-id> <path>   # guarded read inside that skill
 
 Prefer the standalone `jury-rig` executable when Port Daddy is unavailable or
 halted. It does not boot the Port Daddy CLI or daemon. Search returns only the
-bounded matching metadata; it reuses compatible cached semantic centroids in
-the background and never generates new ones. Use `graft` only after choosing
-that full guidance is worth the context cost.
+bounded matching metadata and returns before generation. It then starts a
+detached local-only worker that fills missing Tool2Vec centroids under a SQLite
+lease, preferring the installed `qwen3-embedding:8b` model and binding model
+tags to their exact Ollama digests. Use `graft` only after choosing that full
+guidance is worth the context cost.
 
 Default reflexes:
 

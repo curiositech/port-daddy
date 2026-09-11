@@ -21,6 +21,10 @@ import { createLocalEmbedder, defaultTransformersCacheDir } from '../../lib/sema
 import { createTool2VecStore, resolveTool2VecReadProfile } from '../../lib/skill-graft-tool2vec.js';
 import { createTool2VecReconciler } from '../../lib/skill-graft-reconciler.js';
 import {
+  resolveLocalTool2VecRuntime,
+  resolveOllamaEmbedderForProfile,
+} from '../../lib/jury-rig-local-tool2vec.js';
+import {
   applyJuryRigBootstrap,
   juryRigBootstrapLayout,
   planJuryRigBootstrap,
@@ -202,22 +206,37 @@ function catalogRoots(options: JuryRigCliOptions, projectRoot: string) {
  * @param options Parsed catalog, ranking, and output options.
  * @returns A configured skill graft index.
  */
-function createIndex(options: JuryRigCliOptions): SkillGraftIndex {
+async function createIndex(options: JuryRigCliOptions): Promise<SkillGraftIndex> {
   const projectRoot = rootFromOptions(options);
   const runtime = resolveSkillGraftRuntime();
   const dbDir = typeof options['db-dir'] === 'string' ? options['db-dir'] : undefined;
-  const embedder = createLocalEmbedder({ cacheDir: defaultTransformersCacheDir() });
+  const fallbackEmbedder = createLocalEmbedder({ cacheDir: defaultTransformersCacheDir() });
   const onWarning = (message: string) => {
     if (!isJson(options) && !isQuiet(options)) ui.warn(message);
   };
   const persistedProfile = runtime ? null : resolveTool2VecReadProfile({
     dbDir,
-    embedderModelId: embedder.modelId,
     onWarning,
   });
-  const generatorId = runtime?.model ?? persistedProfile?.generatorId;
+  const persistedOllamaEmbedder = persistedProfile
+    ? await resolveOllamaEmbedderForProfile(persistedProfile.embedderModelId, { onWarning })
+    : null;
+  const profileUsesFallback = persistedProfile?.embedderModelId === fallbackEmbedder.modelId;
+  const embedder = persistedOllamaEmbedder ?? fallbackEmbedder;
+  const compatibleProfile = persistedProfile
+    && (persistedOllamaEmbedder || profileUsesFallback)
+    ? persistedProfile
+    : null;
+  if (persistedProfile && !compatibleProfile) {
+    onWarning(`jury-rig: cached Tool2Vec profile ${persistedProfile.embedderModelId} has no matching local query embedder; using BM25 until it is rebuilt`);
+  }
+  const generatorId = runtime?.generatorId ?? runtime?.model ?? compatibleProfile?.generatorId;
   const centroidStore = generatorId
-    ? createTool2VecStore({ dbDir, embedderModelId: embedder.modelId, generatorId })
+    ? createTool2VecStore({
+        dbDir,
+        embedderModelId: compatibleProfile?.embedderModelId ?? embedder.modelId,
+        generatorId,
+      })
     : undefined;
   return createSkillGraftIndex({
     projectRoot,
@@ -265,7 +284,7 @@ async function handleGraft(args: string[], options: JuryRigCliOptions): Promise<
   const query = queryFromArgs(args, 'graft', options);
   if (!query) return;
 
-  const index = createIndex(options);
+  const index = await createIndex(options);
   const result = await index.craft(query, {
     shortlistLimit: optionalPositiveInt(options['shortlist-limit'] ?? options.limit),
     topLimit: optionalPositiveInt(options['top-limit']),
@@ -292,7 +311,7 @@ async function handleSearch(args: string[], options: JuryRigCliOptions): Promise
   const query = queryFromArgs(args, 'search', options);
   if (!query) return;
 
-  const index = createIndex(options);
+  const index = await createIndex(options);
   const result = await index.search(query, {
     shortlistLimit: optionalPositiveInt(options['shortlist-limit'] ?? options.limit),
   });
@@ -323,14 +342,23 @@ async function handleSearch(args: string[], options: JuryRigCliOptions): Promise
  */
 async function handleWarm(options: JuryRigCliOptions): Promise<void> {
   const projectRoot = rootFromOptions(options);
+  const onWarning = (message: string) => {
+    if (!isJson(options) && !isQuiet(options)) ui.warn(message);
+  };
+  let runtime = resolveSkillGraftRuntime(process.env, { allowRemote: !options['local-only'] });
+  let localProfile = null;
+  if (!runtime && invocation(options) === 'jury-rig') {
+    localProfile = await resolveLocalTool2VecRuntime({ onWarning });
+    runtime = localProfile?.runtime ?? null;
+  }
   const reconciler = createTool2VecReconciler({
     projectRoot,
     roots: catalogRoots(options, projectRoot),
     dbDir: typeof options['db-dir'] === 'string' ? options['db-dir'] : undefined,
-    runtime: resolveSkillGraftRuntime(process.env, { allowRemote: !options['local-only'] }),
-    onWarning: (message) => {
-      if (!isJson(options) && !isQuiet(options)) ui.warn(message);
-    },
+    runtime,
+    embedder: localProfile?.embedder,
+    isEmbedderAvailable: localProfile ? () => true : undefined,
+    onWarning,
   });
   const stats = await reconciler.reconcile({
     trigger: 'cli-warm',
@@ -339,12 +367,15 @@ async function handleWarm(options: JuryRigCliOptions): Promise<void> {
 
   if (isJson(options)) {
     console.log(JSON.stringify(stats, null, 2));
+    if (stats.state === 'embedder-down' || stats.state === 'generator-down') process.exitCode = 1;
     return;
   }
 
   ui.success(`Skill graft catalog scanned: ${stats.total} skill(s)`);
   if (!stats.configured) {
-    ui.info('Tool2Vec generator is not configured. Set PD_SKILL_GRAFT_BACKEND=cloudflare or ollama; Doctor will continue to report the cache as cold.');
+    ui.info(invocation(options) === 'jury-rig'
+      ? 'No compatible loopback Ollama embedding/generator pair is installed. Jury-rig will keep ranking with the identified BM25 corpus.'
+      : 'Tool2Vec generator is not configured. Set PD_SKILL_GRAFT_BACKEND=cloudflare or ollama; Doctor will continue to report the cache as cold.');
   } else if (!stats.acquired) {
     ui.info('Another setup, daemon, or CLI process already owns the Tool2Vec reconcile lease; this caller left it alone.');
   } else if (stats.embedded || stats.reused || stats.removed) {
@@ -373,7 +404,7 @@ async function handleReference(args: string[], options: JuryRigCliOptions): Prom
     return;
   }
 
-  const index = createIndex(options);
+  const index = await createIndex(options);
   const result = index.getReference(skillId, filePath);
 
   if (isJson(options)) {
@@ -420,8 +451,9 @@ Usage:
   ${command} reference <skill-id> <path-within-skill> [--root <path>] [--json]${bootstrapHelp}
 
 ${runtimeNote}
-Both rank via BM25 until Tool2Vec centroids are warmed. Warm-up is
-content-hash checkpointed and safe to resume.`);
+Both rank via the identified BM25 corpus until compatible Tool2Vec centroids
+exist. Standalone discovery returns first, then starts a detached loopback-only
+warm worker. Warm-up is content-hash checkpointed and safe to resume.`);
 }
 
 /**

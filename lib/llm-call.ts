@@ -447,7 +447,7 @@ export const cloudflareAdapter: LLMAdapter = async ({ prompt, model, maxTokens, 
  * No creds, no managed-secret read — Ollama is a local-only server in
  * the supported deployments.
  */
-export const ollamaAdapter: LLMAdapter = async ({ prompt, model, maxTokens, signal, env }) => {
+export const ollamaAdapter: LLMAdapter = async ({ prompt, model, maxTokens, signal, env, reasoningEffort }) => {
   const e = env ?? process.env;
   const host = e.OLLAMA_HOST || 'http://localhost:11434';
   try {
@@ -458,6 +458,9 @@ export const ollamaAdapter: LLMAdapter = async ({ prompt, model, maxTokens, sign
         model,
         messages: [{ role: 'user', content: prompt }],
         stream: false,
+        // Structured utility calls should not spend their entire bounded
+        // output budget on a hidden reasoning trace and return empty content.
+        think: reasoningEffort === 'none' ? false : undefined,
         options: maxTokens ? { num_predict: maxTokens } : undefined,
       }),
       signal,
@@ -716,6 +719,8 @@ export interface LLMClientCallRequest {
    * neighbour's answer (e.g. exact-identity lookups).
    */
   semantic?: boolean;
+  /** Optional provider-neutral reasoning request passed through to adapters. */
+  reasoningEffort?: string;
 }
 
 export interface LLMClientResult extends LLMCompletionResult {
@@ -923,6 +928,7 @@ export function createLLMClient(options: LLMClientOptions): LLMClient {
             maxTokens: req.maxTokens ?? defaultMaxTokens,
             signal: controller?.signal,
             env,
+            reasoningEffort: req.reasoningEffort,
           });
         } catch (err) {
           // Adapter is contract-bound to surface errors via ok:false, but

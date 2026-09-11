@@ -187,6 +187,19 @@ describe('ollamaAdapter', () => {
     }
   });
 
+  test('disables hidden thinking for bounded structured utility calls', async () => {
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ message: { content: '{"queries":["x"]}' } }), { status: 200 })
+    );
+    try {
+      await ollamaAdapter({ prompt: 'p', model: 'qwen3.5:latest', reasoningEffort: 'none', env: {} });
+      const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
+      expect(body.think).toBe(false);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
   test('falls back to data.response when message.content is absent', async () => {
     const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ response: 'legacy-shape' }), { status: 200 })

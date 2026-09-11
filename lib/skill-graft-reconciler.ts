@@ -202,7 +202,7 @@ export function createTool2VecReconciler(
   const cacheDir = defaultTransformersCacheDir();
   const embedder = options.embedder ?? createLocalEmbedder({ cacheDir });
   const embedderModelId = embedder.modelId ?? 'Xenova/all-MiniLM-L6-v2';
-  const configuredGeneratorId = runtime?.model ?? 'unconfigured';
+  const configuredGeneratorId = runtime?.generatorId ?? runtime?.model ?? 'unconfigured';
   const store = options.store ?? createTool2VecStore({
     db: options.db,
     dbDir: options.dbDir,
@@ -288,7 +288,7 @@ export function createTool2VecReconciler(
   function buildStatus(skills: SkillEntry[] = scan()): Tool2VecReconcileStatus {
     const row = readState.get() as ReconcileRow;
     const catalogHash = catalogFingerprint(skills);
-    const expectedGeneratorId = runtime?.model ?? row.generator_id ?? configuredGeneratorId;
+    const expectedGeneratorId = runtime?.generatorId ?? runtime?.model ?? row.generator_id ?? configuredGeneratorId;
     const expectedEmbedderModelId = embedderModelId;
     const coverage = store.coverage(skills, {
       generatorId: expectedGeneratorId,
@@ -308,7 +308,7 @@ export function createTool2VecReconciler(
       state,
       configured: runtime !== null,
       backend: runtime?.backend ?? null,
-      generatorModel: runtime?.model ?? row.generator_id ?? null,
+      generatorModel: runtime?.generatorId ?? runtime?.model ?? row.generator_id ?? null,
       embedderModel: expectedEmbedderModelId,
       catalogHash,
       total: coverage.total,
@@ -414,7 +414,7 @@ export function createTool2VecReconciler(
         removed = store.prune(skills.map((skill) => skill.id));
       } finally {
         finishLease.run(
-          runtime.model,
+          runtime.generatorId ?? runtime.model,
           embedderModelId,
           catalogFingerprint(skills),
           now(),

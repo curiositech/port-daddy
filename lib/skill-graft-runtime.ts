@@ -15,6 +15,8 @@ import { createLLMClient, type LLMClient } from './llm-call.js';
 export interface SkillGraftRuntime {
   backend: 'cloudflare' | 'ollama';
   model: string;
+  /** Stable cache identity; may bind a mutable provider tag to an exact digest. */
+  generatorId?: string;
   client: LLMClient;
 }
 
