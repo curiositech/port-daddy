@@ -119,9 +119,12 @@ final class LocalRuntimeControlTests: XCTestCase {
             calls.append(step)
             return step.action == .disable ? 0 : nil
         })
-        XCTAssertEqual(calls.count, 11)
-        XCTAssertTrue(calls.prefix(6).allSatisfy { $0.action == .disable })
-        XCTAssertTrue(calls.suffix(5).allSatisfy { $0.action == .bootout })
+        XCTAssertEqual(calls.count, 14)
+        XCTAssertTrue(calls.prefix(8).allSatisfy { $0.action == .disable })
+        XCTAssertTrue(calls.suffix(6).allSatisfy { $0.action == .bootout })
+        XCTAssertTrue(calls.contains { $0.action == .disable && $0.target == "gui/123/com.portdaddy.appwatch" })
+        XCTAssertTrue(calls.contains { $0.action == .bootout && $0.target == "gui/123/com.portdaddy.appwatch" })
+        XCTAssertTrue(calls.contains { $0.action == .disable && $0.target == "gui/123/com.portdaddy.fleetbar.devlatest" })
         XCTAssertTrue(calls.contains { $0.action == .disable && $0.target == "gui/123/com.portdaddy.freshness" })
         XCTAssertTrue(calls.contains { $0.action == .bootout && $0.target == "gui/123/com.portdaddy.freshness" })
         XCTAssertTrue(calls.allSatisfy { $0.target.hasPrefix("gui/123/") })
@@ -145,7 +148,7 @@ final class LocalRuntimeControlTests: XCTestCase {
             XCTFail("Off admitted data transport")
         } catch { XCTAssertTrue(error is LocalRuntimeControl.ControlError) }
         do {
-            _ = try await session.pdBytes(from: url, control: control)
+            _ = try await session.pdLines(from: url, control: control)
             XCTFail("Off admitted streaming transport")
         } catch { XCTAssertTrue(error is LocalRuntimeControl.ControlError) }
         XCTAssertEqual(OffFixtureProtocol.count, 0)
@@ -162,6 +165,144 @@ final class LocalRuntimeControlTests: XCTestCase {
         XCTAssertEqual(String(decoding: data, as: UTF8.self), "fixture")
         XCTAssertEqual(OffFixtureProtocol.count, 1, "The zero-request control must not be a dead counter.")
     }
+
+    func testExplicitOffWaitsForAdmissionAndCancelsTheRegisteredEffect() throws {
+        let control = LocalRuntimeControl(canonicalRoot: try root("canonical"))
+        let entered = DispatchSemaphore(value: 0)
+        let release = DispatchSemaphore(value: 0)
+        let requested = DispatchSemaphore(value: 0)
+        let stopped = DispatchSemaphore(value: 0)
+        let completed = expectation(description: "admission completed")
+        let cancelled = expectation(description: "registered effect cancelled")
+        DispatchQueue.global().async {
+            defer { completed.fulfill() }
+            do {
+                try control.admit(id: UUID(), cancel: { cancelled.fulfill() }) {
+                    entered.signal()
+                    XCTAssertEqual(release.wait(timeout: .now() + 2), .success)
+                }
+            } catch { XCTFail("Unexpected admission failure: \(error)") }
+        }
+        XCTAssertEqual(entered.wait(timeout: .now() + 2), .success)
+        DispatchQueue.global().async {
+            requested.signal()
+            XCTAssertEqual(control.persistOff(), [])
+            stopped.signal()
+        }
+        XCTAssertEqual(requested.wait(timeout: .now() + 2), .success)
+        XCTAssertEqual(stopped.wait(timeout: .now() + .milliseconds(30)), .timedOut,
+                       "Off must not miss an effect still inside admission.")
+        release.signal()
+        wait(for: [completed, cancelled], timeout: 2)
+        XCTAssertEqual(stopped.wait(timeout: .now() + 2), .success)
+        XCTAssertThrowsError(try control.admit(id: UUID(), cancel: {}) { XCTFail("Effect started after Off") })
+    }
+
+    func testExternalOffCancelsAnIdleDataRequestWithoutAnotherCaller() async throws {
+        let canonical = try root("canonical")
+        let control = LocalRuntimeControl(canonicalRoot: canonical)
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [OffFixtureProtocol.self]
+        let session = URLSession(configuration: configuration)
+        defer { session.invalidateAndCancel() }
+        let started = expectation(description: "in-memory transport started")
+        let stopped = expectation(description: "transport cancelled by external marker")
+        let returned = expectation(description: "request returned cancellation")
+        OffFixtureProtocol.reset(started: { started.fulfill() }, stopped: { stopped.fulfill() })
+        let request = Task {
+            defer { returned.fulfill() }
+            do {
+                _ = try await session.pdData(from: URL(string: "off-fixture://no-network/hold")!, control: control)
+                XCTFail("An idle cancelled request succeeded")
+            } catch { /* Cancellation or the latched Off error are both denials. */ }
+        }
+        await fulfillment(of: [started], timeout: 2)
+        try marker("HALT", canonical)
+        await fulfillment(of: [stopped, returned], timeout: 2)
+        request.cancel()
+    }
+
+    func testExternalOffCancelsOpenStreamAndRejectsBufferedLines() async throws {
+        let canonical = try root("canonical")
+        let control = LocalRuntimeControl(canonicalRoot: canonical)
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [OffFixtureProtocol.self]
+        let session = URLSession(configuration: configuration)
+        defer { session.invalidateAndCancel() }
+        let stopped = expectation(description: "held-open stream cancelled")
+        OffFixtureProtocol.reset(stopped: { stopped.fulfill() })
+        let (lines, _) = try await session.pdLines(from: URL(string: "off-fixture://no-network/hold")!, control: control)
+        var iterator = lines.makeAsyncIterator()
+        let first = try await iterator.next()
+        XCTAssertEqual(first, "first")
+        try marker("HALT", canonical)
+        await fulfillment(of: [stopped], timeout: 2)
+        do { _ = try await iterator.next(); XCTFail("A buffered event escaped Off") }
+        catch { XCTAssertTrue(error is LocalRuntimeControl.ControlError) }
+    }
+
+    func testStreamingHandlesSplitUTF8AndCRLFWithoutNetwork() async throws {
+        let control = LocalRuntimeControl(canonicalRoot: try root("canonical"))
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [OffFixtureProtocol.self]
+        let session = URLSession(configuration: configuration)
+        defer { session.invalidateAndCancel() }
+        OffFixtureProtocol.reset()
+        let (lines, _) = try await session.pdLines(from: URL(string: "off-fixture://no-network/unicode")!, control: control)
+        var actual: [String] = []
+        for try await line in lines { actual.append(line) }
+        XCTAssertEqual(actual, ["héllo", "second", "third", "tail"])
+    }
+
+    func testDroppingAnUnusedStreamCancelsTransport() async throws {
+        let control = LocalRuntimeControl(canonicalRoot: try root("canonical"))
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [OffFixtureProtocol.self]
+        let session = URLSession(configuration: configuration)
+        defer { session.invalidateAndCancel() }
+        let stopped = expectation(description: "unconsumed stream released its task")
+        OffFixtureProtocol.reset(stopped: { stopped.fulfill() })
+        _ = try await session.pdLines(from: URL(string: "off-fixture://no-network/hold")!, control: control)
+        await fulfillment(of: [stopped], timeout: 2)
+    }
+
+    func testCallerCancellationBeforeStreamHeadersCannotResurrectTransport() async throws {
+        let control = LocalRuntimeControl(canonicalRoot: try root("canonical"))
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [OffFixtureProtocol.self]
+        let session = URLSession(configuration: configuration)
+        defer { session.invalidateAndCancel() }
+        let started = expectation(description: "waiting for headers")
+        let stopped = expectation(description: "cancelled before headers")
+        let returned = expectation(description: "response continuation resumed once")
+        OffFixtureProtocol.reset(started: { started.fulfill() }, stopped: { stopped.fulfill() })
+        let request = Task {
+            defer { returned.fulfill() }
+            do {
+                _ = try await session.pdLines(from: URL(string: "off-fixture://no-network/noheaders")!, control: control)
+                XCTFail("Cancelled header request succeeded")
+            } catch { /* Both the Swift and URLSession cancellation errors deny. */ }
+        }
+        await fulfillment(of: [started], timeout: 2)
+        request.cancel()
+        await fulfillment(of: [stopped, returned], timeout: 2)
+    }
+
+    func testStreamOverflowClosesInsteadOfDroppingEvents() async throws {
+        for mode in ["overflow", "longline"] {
+            let control = LocalRuntimeControl(canonicalRoot: try root(mode))
+            let configuration = URLSessionConfiguration.ephemeral
+            configuration.protocolClasses = [OffFixtureProtocol.self]
+            let session = URLSession(configuration: configuration)
+            defer { session.invalidateAndCancel() }
+            let stopped = expectation(description: "\(mode) closed transport")
+            OffFixtureProtocol.reset(stopped: { stopped.fulfill() })
+            let (lines, _) = try await session.pdLines(from: URL(string: "off-fixture://no-network/\(mode)")!, control: control)
+            await fulfillment(of: [stopped], timeout: 2)
+            do { for try await _ in lines {}; XCTFail("Overflow was silently accepted") }
+            catch { XCTAssertEqual((error as? URLError)?.code, .dataLengthExceedsMaximum) }
+        }
+    }
 }
 
 /// Unsupported real-network scheme plus an intercepting protocol: neither test
@@ -169,15 +310,45 @@ final class LocalRuntimeControlTests: XCTestCase {
 private final class OffFixtureProtocol: URLProtocol {
     private static let lock = NSLock()
     nonisolated(unsafe) private static var requests = 0
+    nonisolated(unsafe) private static var started: (@Sendable () -> Void)?
+    nonisolated(unsafe) private static var stopped: (@Sendable () -> Void)?
     static var count: Int { lock.lock(); defer { lock.unlock() }; return requests }
-    static func reset() { lock.lock(); requests = 0; lock.unlock() }
+    static func reset(started: (@Sendable () -> Void)? = nil, stopped: (@Sendable () -> Void)? = nil) {
+        lock.lock(); requests = 0; Self.started = started; Self.stopped = stopped; lock.unlock()
+    }
     override class func canInit(with request: URLRequest) -> Bool { request.url?.scheme == "off-fixture" }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
-        Self.lock.lock(); Self.requests += 1; Self.lock.unlock()
+        Self.lock.lock(); Self.requests += 1; let started = Self.started; Self.lock.unlock()
+        started?()
+        if request.url?.path == "/noheaders" { return }
         client?.urlProtocol(self, didReceive: URLResponse(url: request.url!, mimeType: "text/plain", expectedContentLength: 7, textEncodingName: "utf-8"), cacheStoragePolicy: .notAllowed)
+        if request.url?.path == "/overflow" {
+            client?.urlProtocol(self, didLoad: Data(String(repeating: "line\n", count: 160).utf8))
+            return
+        }
+        if request.url?.path == "/longline" {
+            client?.urlProtocol(self, didLoad: Data(repeating: 65, count: 1_048_577))
+            return
+        }
+        if request.url?.path == "/hold" {
+            client?.urlProtocol(self, didLoad: Data("first\nsecond\n".utf8))
+            return
+        }
+        if request.url?.path == "/unicode" {
+            // One byte per callback deliberately splits the accented character
+            // and CRLF across chunks. No socket is created for this scheme.
+            for byte in Data("héllo\r\nsecond\rthird\ntail".utf8) {
+                client?.urlProtocol(self, didLoad: Data([byte]))
+            }
+            client?.urlProtocolDidFinishLoading(self)
+            return
+        }
         client?.urlProtocol(self, didLoad: Data("fixture".utf8))
         client?.urlProtocolDidFinishLoading(self)
     }
-    override func stopLoading() {}
+    override func stopLoading() {
+        Self.lock.lock(); let stopped = Self.stopped; Self.lock.unlock()
+        stopped?()
+    }
 }

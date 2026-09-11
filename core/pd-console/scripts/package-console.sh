@@ -247,6 +247,7 @@ if [ "$LANE" = dev ] && [ "${PD_CONSOLE_KEEP_OLD_DEV:-0}" != "1" ] &&
 fi
 
 # ── 11. Relaunch this lane's app (operator always sees the fresh build) ────────
+# PD_LOCAL_OFF_GUARDED_LAUNCH_V1
 if [ "${PD_CONSOLE_NO_LAUNCH:-0}" != "1" ]; then
   if pd_hook_runtime_enabled "${HOME:+$HOME/.port-daddy}" "${PD_HOME:-${HOME:+$HOME/.port-daddy}}"; then
     echo "▸ relaunching $(basename "$APP")"
