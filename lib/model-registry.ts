@@ -182,7 +182,10 @@ export function embeddingProfiles(): Readonly<Record<string, Readonly<EmbeddingP
   const profiles = Object.fromEntries(
     Object.entries(load().embeddingProfiles).map(([modelId, profile]) => [
       modelId,
-      Object.freeze({ ...profile }),
+      Object.freeze({
+        ...profile,
+        retrievalRoles: Object.freeze([...profile.retrievalRoles]),
+      }),
     ]),
   );
   return Object.freeze(profiles);
@@ -199,7 +202,9 @@ export function embeddingProfiles(): Readonly<Record<string, Readonly<EmbeddingP
  */
 export function embeddingProfileForModel(modelId: string): EmbeddingProfile | undefined {
   const profile = load().embeddingProfiles[modelId];
-  return profile ? { ...profile } : undefined;
+  return profile
+    ? { ...profile, retrievalRoles: Object.freeze([...profile.retrievalRoles]) }
+    : undefined;
 }
 
 export function resolveModel(opts: ResolveModelOptions): string {

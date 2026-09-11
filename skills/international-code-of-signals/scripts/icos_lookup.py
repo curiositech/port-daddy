@@ -118,7 +118,7 @@ def _bm25_ranks(rows, terms):
 
 
 def _pd_embed(texts):
-    """Embed texts via `pd embed stdin --offline` (the shared local model).
+    """Embed texts via corpus-bound `pd embed stdin --offline`.
 
     Returns list-of-vectors aligned with texts, or None when the surface is
     unavailable (no pd on PATH, model not downloaded, any failure). Texts must
@@ -127,7 +127,10 @@ def _pd_embed(texts):
     payload = "\n".join(t.replace("\n", " ").strip() or "-" for t in texts)
     try:
         proc = subprocess.run(
-            ["pd", "embed", "stdin", "--offline"],
+            [
+                "pd", "embed", "stdin", "--offline",
+                "--corpus", "pd.skill.international-code-signals.v1",
+            ],
             input=payload.encode("utf-8"),
             capture_output=True,
             timeout=600,

@@ -352,13 +352,15 @@ from canonical ordered metadata.
 Reject or re-embed incompatible spaces; never compare them silently.
 
 MiniLM is an explicit local/degraded fallback, not the universal design
-authority. Verify the live `pd embed --help` surface and current source before
-depending on model selection. At the 2026-08-31 audit point, the installed
-stable runtime and `main` exposed only the MiniLM `pd embed` path; treat that as
-a transitional capability and run `pd doctor` when it is unavailable.
-Higher-quality model selection depends on the in-flight control-plane
-embedding-model-registry work; do not claim that registry shipped until source,
-deployed runtime, and a read-back receipt agree.
+authority. Name the stable corpus on every direct embedding call (`pd embed
+text|stdin --corpus <id>`); the source selector maps corpus policy, role, tier,
+and provider to a registry profile and returns its `spaceId`. The local loader
+must verify pinned artifact and runtime digests plus the vector output contract
+before use. That runtime check is not a signed producer or benchmark promotion
+receipt, and it does not activate BGE or any code/multimodal candidate. Verify
+the installed `pd embed --help` surface before depending on this source contract,
+run `pd doctor` when the local profile is unavailable, and do not claim a daemon
+upgrade until deployed runtime and read-back evidence agree.
 
 
 ## Telos vs Purpose
