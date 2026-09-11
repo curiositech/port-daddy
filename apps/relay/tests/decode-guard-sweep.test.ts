@@ -168,4 +168,20 @@ describe('decode-guard sweep: malformed percent-escapes never reach the 500 boun
     // would still pass if the row were written and the 400 returned after it.
     expect(fx.statements.some((sql) => /INSERT INTO audit_log/i.test(sql))).toBe(false);
   });
+
+  it('DELETE /v1/cache/jwks/<valid id> — still 200, and still audits: the guard refuses only the empty id', async () => {
+    const fx = makeParleyDb();
+    const res = await worker.fetch(
+      new Request('https://relay.example/v1/cache/jwks/' + encodeURIComponent('https://issuer.example/realm'),
+        { method: 'DELETE', headers: OPERATOR_AUTH }),
+      makeParleyEnv(fx.db, { RELAY_OPERATOR_TOKEN: OPERATOR_TOKEN }),
+      {} as ExecutionContext,
+    );
+    // The complement of the test above. Without this, the guard could reject
+    // every id and the refusal test would still pass — a guard is only correct
+    // if it also lets the legitimate case through.
+    const body = await assertNo500(res, 200);
+    expect(body).toContain('"ok":true');
+    expect(fx.statements.some((sql) => /INSERT INTO audit_log/i.test(sql))).toBe(true);
+  });
 });
