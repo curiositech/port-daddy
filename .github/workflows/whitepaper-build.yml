@@ -51,7 +51,7 @@ permissions:
 
 concurrency:
   group: whitepaper-build-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -77,10 +77,9 @@ jobs:
 
       - uses: actions/checkout@v4
         with:
-          # Check out the branch tip (not the PR merge ref) so we can commit
-          # rebuilt PDFs back on push events. Full history so the build script
-          # can read per-paper commit times for reproducible dates.
-          ref: ${{ github.head_ref || github.ref_name }}
+          # Bind the verdict to the SHA named by the check run. Full history is
+          # still required for per-paper reproducible dates.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       # The TeX container has no JavaScript runtime; generate the Book's body,
@@ -228,6 +227,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - uses: actions/setup-python@v5
         with:
@@ -287,6 +288,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - uses: actions/setup-python@v5

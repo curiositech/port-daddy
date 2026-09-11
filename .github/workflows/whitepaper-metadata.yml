@@ -45,6 +45,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: whitepaper-metadata-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   whitepaper-metadata-drift:
     runs-on: ubuntu-latest
@@ -55,10 +59,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # The branch tip is the right subject for this check: whether the
+          # The event's exact head is the right subject for this check: whether the
           # committed digests describe the committed PDFs is a fact about the
-          # branch, and merging main into it changes neither side.
-          ref: ${{ github.head_ref || github.ref_name }}
+          # commit, and a later push must not change an older run's verdict.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Use Node.js 22

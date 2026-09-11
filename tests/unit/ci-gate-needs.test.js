@@ -132,4 +132,24 @@ describe('ci-gate needs contract', () => {
     }
     expect(masked).toEqual([]);
   });
+
+  test('artifact verifiers are read-only and check the event exact head', () => {
+    const verifierFiles = [
+      'harbor-research-build.yml',
+      'whitepaper-build.yml',
+      'whitepaper-metadata.yml',
+    ];
+    for (const file of verifierFiles) {
+      const parsed = parseYaml(readFileSync(new URL(file, workflowsDir), 'utf8'));
+      expect(parsed.permissions?.contents).toBe('read');
+      expect(parsed.concurrency?.['cancel-in-progress']).toBe(true);
+      for (const job of Object.values(parsed.jobs ?? {})) {
+        const checkout = (job.steps ?? []).find((step) =>
+          typeof step.uses === 'string' && step.uses.startsWith('actions/checkout@'));
+        if (checkout) {
+          expect(checkout.with?.ref).toBe('${{ github.event.pull_request.head.sha || github.sha }}');
+        }
+      }
+    }
+  });
 });
