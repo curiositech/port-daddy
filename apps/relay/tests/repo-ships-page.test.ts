@@ -105,6 +105,34 @@ describe('repository ship storage and authority', () => {
 });
 
 describe('signed-in ship UI', () => {
+  it('offers credential renewal without exposing repository data when the GitHub token is unavailable', async () => {
+    const prepare = vi.spyOn(store.db, 'prepare');
+    vi.mocked(resolveSession).mockResolvedValue({ user: { id: 'admin-1' }, ghToken: null, cacheNamespace: 'test' } as never);
+    const result = await handleRepoShips(new Request(`${BASE}/account/ships?repo=owner/repo`), env);
+    const body = await result.text();
+    expect(result.status).toBe(403);
+    expect(body).toContain('Reconnect GitHub to continue.');
+    expect(body).toContain('href="/auth/github/login"');
+    expect(body).toContain('Back to account');
+    expect(prepare).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it.each([
+    [401, 'Reconnect GitHub to continue.', '/auth/github/login', 403],
+    [403, 'GitHub did not grant repository access.', '/auth/github/login', 403],
+    [404, 'GitHub did not grant repository access.', '/auth/github/login', 403],
+    [429, 'GitHub could not be reached.', '/account/ships?repo=owner%2Frepo', 503],
+    [503, 'GitHub could not be reached.', '/account/ships?repo=owner%2Frepo', 503],
+  ])('distinguishes GitHub status %s without querying private telemetry', async (upstream, message, action, status) => {
+    const prepare = vi.spyOn(store.db, 'prepare');
+    vi.mocked(fetch).mockResolvedValue(new Response('', { status: upstream }));
+    const result = await handleRepoShips(new Request(`${BASE}/account/ships?repo=owner/repo`), env);
+    const body = await result.text();
+    expect(result.status).toBe(status);
+    expect(body).toContain(message);
+    expect(body).toContain(`href="${action}"`);
+    expect(prepare).not.toHaveBeenCalled();
+  });
   it('does not query private telemetry before fresh repository authorization', async () => {
     const prepare = vi.spyOn(store.db, 'prepare');
     vi.mocked(fetch).mockResolvedValue(new Response('', { status: 404 }));
