@@ -206,6 +206,11 @@ class PageGeometryMatchesTheBookTests(unittest.TestCase):
         out = {}
         for key, value in re.findall(r"([a-z]+)\s*=\s*([0-9.]+)in", body):
             out[key] = float(value) * 72.0
+        # Name what is missing rather than failing later with a bare KeyError.
+        # A key commented out or renamed in the preamble still fails this test --
+        # it cannot pass having read nothing -- but it should say which key.
+        for required in ("paperwidth", "paperheight", "left", "right"):
+            self.assertIn(required, out, f"{required} is not set in \\geometry{{}} in {self.GEOMETRY}")
         return out
 
     def test_the_trim_matches(self):

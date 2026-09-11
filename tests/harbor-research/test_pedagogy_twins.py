@@ -29,10 +29,19 @@ class PedagogyTwinsTests(unittest.TestCase):
     def test_every_twin_pair_is_byte_identical(self):
         for left, right in TWINS:
             a, b = ROOT / left, ROOT / right
-            if not a.exists() or not b.exists():
-                # A pair that does not exist in this tree is not this test's
-                # business; the pairs that do exist must agree.
+            if not a.exists() and not b.exists():
+                # Neither side is here: a pair this tree does not carry at all is
+                # not this test's business. One side missing is, and is checked
+                # below -- skipping that case is how a twin added on one side and
+                # forgotten on the other passes unnoticed, which is the same
+                # silent asymmetry the byte comparison exists to prevent.
                 continue
+            self.assertTrue(
+                a.exists(), f"{right} exists but its twin {left} does not; a twin was added on one side only",
+            )
+            self.assertTrue(
+                b.exists(), f"{left} exists but its twin {right} does not; a twin was added on one side only",
+            )
             self.assertEqual(
                 a.read_bytes(), b.read_bytes(),
                 f"{left} and {right} have diverged; they are one file kept in two places",
