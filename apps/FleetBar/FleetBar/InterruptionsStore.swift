@@ -295,7 +295,7 @@ final class InterruptionsStore: ObservableObject {
         request.setValue("Bearer \(account.token)", forHTTPHeaderField: "Authorization")
 
         do {
-            let (data, response) = try await session.data(for: request)
+            let (data, response) = try await session.pdData(for: request)
             guard let http = response as? HTTPURLResponse else {
                 consecutiveFailures += 1
                 phase = .unknown("Relay unreachable.")

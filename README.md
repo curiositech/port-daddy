@@ -346,8 +346,11 @@ Missing or invalid local readiness also stops automatic calls. Pilot SessionStar
 steering, repository attention and skill sync stay installed behind the gate.
 Ordinary pre-commit validation and Git LFS remain active in either state. Turning
 On with valid readiness resumes the existing PD hooks without reinstalling them.
-This is hook
-admission, not a completed whole-app off switch or a zero-spend guarantee. See
+controls are now source-built in FleetBar (popover and Settings) and pd-console
+(persistent control band). They save the canonical stop markers without a daemon
+and deny new local work; shutdown receipts remain separate from the saved setting.
+Runtime admission, native visual proof, and outstanding adversarial findings are
+tracked explicitly; this is not a packaged or zero-spend guarantee. See
 [local Off controls and remaining work](docs/operations/local-off-control.md).
 
 `pd advise` / `coordination_preflight` project file claims inside one verified repository and worktree: relative, `./`, and absolute paths share an address only within that scope. A stale session root or stored world produces a critical context diagnostic with the original claims, not a false “unclaimed” recommendation. This is read-only advice, not permission or automatic ownership repair. See [claim projection diagnostics](docs/operations/advisor-claim-projection.md).
