@@ -177,6 +177,14 @@ export interface TextbookPart {
   numeral: string
   title: string
   color: string
+  /**
+   * The part's web role-token name (a bare lowercase word, unique across
+   * parts). The Swiss primitives derive a part's ink mechanically from this
+   * field — `var(--part-${slug})` / `var(--part-${slug}-on)` in
+   * tokens.roles.css — rather than from a hard-coded colour-to-token lookup
+   * table, so a part that changes colour changes it in one place.
+   */
+  slug: string
   blurb: string
   chapters: string[]
 }

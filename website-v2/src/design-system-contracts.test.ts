@@ -109,6 +109,7 @@ describe('design system contracts', () => {
       ...collectSourceFiles('./components/site'),
       ...collectSourceFiles('./components/layout'),
       ...collectSourceFiles('./components/docs'),
+      ...collectSourceFiles('./components/swiss'),
       ...collectSourceFiles('./lib'),
       // vt.ts decodes literal 24-bit/256-color SGR codes from recorded PTY
       // output (real terminal color data, not a themeable UI choice) — same

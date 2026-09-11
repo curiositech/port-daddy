@@ -63,4 +63,23 @@
   --border: var(--border-default);
   --input: var(--border-default);
   --ring: var(--interactive-focus);
+
+  /* Swiss part ink — lifted from the /whitepaper page. The Book's four parts
+     each get a role-layer token pair, named by what the part MEANS rather
+     than by the Book's LaTeX colour name (pdcobalt, pdteal, pdviolet,
+     pdgold): a source-layer name has no business appearing in the role
+     layer. A surface derives the pair mechanically from a part's slug —
+     var(--part-${slug}) / var(--part-${slug}-on) — see
+     src/components/swiss/Slab.tsx. Each `-on` is the paper-coloured
+     foreground for content sitting on that block. Every alias already
+     redefines itself in tokens.semantic.css's dark block, so the pair
+     stays legible in both themes without a dark block of its own here. */
+  --part-machine: var(--brand-primary);
+  --part-machine-on: var(--brand-primary-foreground);
+  --part-operator: var(--brand-accent);
+  --part-operator-on: var(--brand-accent-foreground);
+  --part-person: var(--story-violet);
+  --part-person-on: var(--story-violet-foreground);
+  --part-market: var(--story-gold);
+  --part-market-on: var(--story-gold-foreground);
 }

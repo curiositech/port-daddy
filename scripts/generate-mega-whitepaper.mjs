@@ -122,13 +122,21 @@ function validateTextbook(raw, source = 'whitepaper/textbook.json') {
   }
 
   const partIds = new Set();
+  const partSlugs = new Set();
   const placed = new Map();
   let previous = 0;
   for (const part of parts) {
     const where = `part ${part?.id ?? '?'}`;
-    for (const key of ['id', 'numeral', 'title', 'color', 'blurb']) requireString(part, key, where, fail);
+    for (const key of ['id', 'numeral', 'title', 'color', 'slug', 'blurb']) requireString(part, key, where, fail);
     if (!(part.numeral in ROMAN)) fail(`${where}: numeral must be a Roman numeral`);
     if (!/^pd[a-z]+$/.test(part.color)) fail(`${where}: color must name a pd* palette color`);
+    // The web role layer derives a CSS custom property straight from this
+    // field -- var(--part-${slug}) / var(--part-${slug}-on), see
+    // website-v2/src/styles/tokens.roles.css and src/components/swiss/Slab.tsx
+    // -- so it is constrained to a bare lowercase word, unique across parts.
+    if (!/^[a-z]+$/.test(part.slug)) fail(`${where}: slug must be lowercase letters only (it becomes var(--part-${part.slug}))`);
+    if (partSlugs.has(part.slug)) fail(`duplicate part slug ${part.slug}`);
+    partSlugs.add(part.slug);
     if (!Array.isArray(part.chapters) || part.chapters.length === 0) fail(`${where}: chapters must be a non-empty array`);
     if (partIds.has(part.id)) fail(`duplicate part id ${part.id}`);
     partIds.add(part.id);
