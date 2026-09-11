@@ -56,6 +56,9 @@ mod editor_claims;
 #[path = "../editor_commit_gate.rs"]
 mod editor_commit_gate;
 #[allow(dead_code)]
+#[path = "../editor_history.rs"]
+mod editor_history;
+#[allow(dead_code)]
 #[path = "../editor_input.rs"]
 mod editor_input;
 #[allow(dead_code)]

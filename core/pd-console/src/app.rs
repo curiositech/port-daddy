@@ -24,6 +24,7 @@ use crate::chat::{
 };
 use crate::dispatch_pane::DispatchHead;
 use crate::editor_input::{EditorInput, TextEdit};
+use crate::editor_history::InputKind;
 use crate::editor_sync::PresenceState;
 use crate::editor_view::{
     editor_hit_position, editor_text_layout, editor_visual_position_for_byte, editor_wrap_columns,
@@ -2327,6 +2328,7 @@ pub struct ConsoleView {
     /// `EditorPane` inside every render — a `pd whoami` subprocess + a full
     /// disk read + a Loro doc build PER FRAME; this map is that fix.
     editors: HashMap<String, EditorSurfaceState>,
+    input_focus_subscriptions: Vec<gpui::Subscription>,
     /// Persistent native PTY terminal. The shell process outlives drawer
     /// visibility so closing and reopening never destroys operator context.
     shell: ShellTerminal,
@@ -2678,6 +2680,7 @@ impl ConsoleView {
             galaxy_detail: None,
             galaxy_detail_error: None,
             editors: HashMap::new(),
+            input_focus_subscriptions: Vec::new(),
             shell,
             shell_open: std::env::var("PD_CONSOLE_OPEN_CLI").is_ok(),
             shell_geometry: ShellDrawerGeometry::default(),
@@ -2745,7 +2748,17 @@ impl ConsoleView {
         &self.tabs[self.active_tab].workspace
     }
     fn ws_mut(&mut self) -> &mut Workspace {
+        // Workspace mutations include pane focus, close and surface replacement.
+        self.end_editor_input_sessions();
         &mut self.tabs[self.active_tab].workspace
+    }
+
+    fn end_editor_input_sessions(&mut self) {
+        for state in self.editors.values_mut() {
+            state.pane.end_input_history();
+            // Keep the platform's marked replacement coordinates until its
+            // completion/cancellation callback; blur may precede that callback.
+        }
     }
     fn open_editor(
         &mut self,
@@ -2754,6 +2767,7 @@ impl ConsoleView {
         placement: EditorPlacement,
     ) -> std::result::Result<(), String> {
         let identity = crate::editor_pane::resolve_operator_identity();
+        self.end_editor_input_sessions();
         let active_tab = self.active_tab;
         open_editor_transaction(
             &mut self.tabs[active_tab].workspace,
@@ -2893,6 +2907,7 @@ impl ConsoleView {
     }
     /// Open a fresh tab and focus it.
     fn new_tab(&mut self) {
+        self.end_editor_input_sessions();
         let n = self.tabs.len() + 1;
         self.tabs.push(Tab {
             name: format!("tab {n}"),
@@ -2906,12 +2921,14 @@ impl ConsoleView {
         if self.tabs.len() <= 1 || idx >= self.tabs.len() {
             return;
         }
+        self.end_editor_input_sessions();
         self.tabs.remove(idx);
         if self.active_tab >= self.tabs.len() {
             self.active_tab = self.tabs.len() - 1;
         }
     }
     fn switch_tab(&mut self, delta: isize) {
+        self.end_editor_input_sessions();
         let n = self.tabs.len() as isize;
         self.active_tab = (((self.active_tab as isize + delta) % n + n) % n) as usize;
     }
@@ -3296,7 +3313,7 @@ impl ConsoleView {
         }
     }
 
-    fn apply_focused_editor_edit<F>(&mut self, prepare: F, cx: &mut Context<Self>) -> bool
+    fn apply_focused_editor_edit<F>(&mut self, kind: InputKind, prepare: F, cx: &mut Context<Self>) -> bool
     where
         F: FnOnce(&mut EditorInput, &str) -> Option<TextEdit>,
     {
@@ -3316,7 +3333,7 @@ impl ConsoleView {
             };
             match state
                 .pane
-                .apply_local_text_edit(edit.range.clone(), &edit.text)
+                .apply_input_edit(&edit, kind, &prior_input, &state.input, std::time::Instant::now())
             {
                 Ok(frame) => {
                     let after = state.pane.text().unwrap_or_default();
@@ -3328,6 +3345,7 @@ impl ConsoleView {
                 }
                 Err(reason) => {
                     state.input = prior_input;
+                    state.pane.end_input_history();
                     Err(reason)
                 }
             }
@@ -3420,6 +3438,7 @@ impl ConsoleView {
             let Some(text) = state.pane.text() else {
                 return false;
             };
+            state.pane.end_input_history();
             update(&mut state.input, &text);
             let presence = Self::presence_for_editor(state, &text);
             state.pane.set_local_presence(presence);
@@ -3498,6 +3517,7 @@ impl ConsoleView {
             "home" => self.move_focused_editor(|input, text| input.home(text, select), cx),
             "end" => self.move_focused_editor(|input, text| input.end(text, select), cx),
             "backspace" => self.apply_focused_editor_edit(
+                InputKind::Backspace,
                 |input, text| {
                     let range = input.backspace_range(text)?;
                     Some(input.replace_bytes(text, range, ""))
@@ -3505,6 +3525,7 @@ impl ConsoleView {
                 cx,
             ),
             "delete" => self.apply_focused_editor_edit(
+                InputKind::DeleteForward,
                 |input, text| {
                     let range = input.delete_range(text)?;
                     Some(input.replace_bytes(text, range, ""))
@@ -3512,10 +3533,12 @@ impl ConsoleView {
                 cx,
             ),
             "enter" => self.apply_focused_editor_edit(
+                InputKind::Isolated,
                 |input, text| Some(input.replace_bytes(text, input.selection(), "\n")),
                 cx,
             ),
             "tab" => self.apply_focused_editor_edit(
+                InputKind::Isolated,
                 |input, text| Some(input.replace_bytes(text, input.selection(), "    ")),
                 cx,
             ),
@@ -3524,7 +3547,8 @@ impl ConsoleView {
             }
             "c" if modifiers.platform => {
                 if let Some(key) = self.focused_editor_key() {
-                    if let Some(state) = self.editors.get(&key) {
+                    if let Some(state) = self.editors.get_mut(&key) {
+                        state.pane.end_input_history();
                         if let Some(text) = state.pane.text() {
                             let range = state.input.selection();
                             if !range.is_empty() {
@@ -3547,6 +3571,7 @@ impl ConsoleView {
                 if let Some(text) = copied {
                     cx.write_to_clipboard(ClipboardItem::new_string(text));
                     self.apply_focused_editor_edit(
+                        InputKind::Isolated,
                         |input, text| Some(input.replace_bytes(text, input.selection(), "")),
                         cx,
                     )
@@ -3560,6 +3585,7 @@ impl ConsoleView {
                     .and_then(|item| item.text())
                     .unwrap_or_default();
                 self.apply_focused_editor_edit(
+                    InputKind::Isolated,
                     move |input, text| Some(input.replace_bytes(text, input.selection(), &paste)),
                     cx,
                 )
@@ -8204,6 +8230,7 @@ impl EntityInputHandler for ConsoleView {
     ) {
         let replacement = text.to_string();
         let _ = self.apply_focused_editor_edit(
+            InputKind::Typing,
             move |input, before| Some(input.replace(before, range, &replacement, false, None)),
             cx,
         );
@@ -8219,6 +8246,7 @@ impl EntityInputHandler for ConsoleView {
     ) {
         let replacement = new_text.to_string();
         let _ = self.apply_focused_editor_edit(
+            InputKind::Composition,
             move |input, before| {
                 Some(input.replace(before, range, &replacement, true, new_selected_range))
             },
@@ -9300,6 +9328,17 @@ fn render_shell_drawer(
 
 impl Render for ConsoleView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        if self.input_focus_subscriptions.is_empty() {
+            self.input_focus_subscriptions.push(cx.observe_window_activation(window,
+                |this, window, _cx| {
+                    if !window.is_window_active() { this.end_editor_input_sessions(); }
+                }));
+            self.input_focus_subscriptions.push(cx.on_blur(&self.focus_handle.clone(), window,
+                |this, _window, _cx| this.end_editor_input_sessions()));
+        }
+        if self.command.is_some() || self.launcher_open || self.shell_open || self.leader_armed {
+            self.end_editor_input_sessions();
+        }
         // Persistent editor state for every open Editor surface — created once
         // per file here (the only `&mut self` point before the tree renders),
         // NEVER inside render_leaf (the old per-frame construct + disk read).
@@ -9400,6 +9439,12 @@ impl Render for ConsoleView {
         div()
             .key_context("console")
             .track_focus(&self.focus_handle)
+            // Capture before child controls can consume a tab/pane/modal click.
+            // Pointer interactions end typing and composition undo groups, not
+            // the platform's still-pending composition replacement coordinates.
+            .capture_any_mouse_down(cx.listener(|this, _ev, _window, _cx| {
+                this.end_editor_input_sessions();
+            }))
             .relative()
             .size_full()
             .when(shell_resizing, |root| {
@@ -9581,6 +9626,7 @@ impl Render for ConsoleView {
                     this.leader_armed = false;
                     this.leader_command(key.as_str(), ctrl, cx);
                 } else if ctrl && key == "a" {
+                    this.end_editor_input_sessions();
                     this.leader_armed = true;
                     cx.notify();
                 } else if this.shell_open {
@@ -9711,6 +9757,7 @@ impl Render for ConsoleView {
                                 })
                                 .child(name)
                                 .on_click(cx.listener(move |this, _ev, _window, cx| {
+                                    this.end_editor_input_sessions();
                                     this.active_tab = i;
                                     cx.notify();
                                 }))

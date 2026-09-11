@@ -74,6 +74,12 @@ features already form a working product. Keep the existing CH identities.
 
 CH2's remaining implementation queue, in order:
 
+**Now:** regular review/publication of input-aware typing/IME undo groups while
+the delegated Off worker closes final TS launch/trigger admission gaps. **Next:**
+private-draft custody/restart design and implementation, edit-associated selection,
+then syntax/navigation and file lifecycle. Current native proof remains withheld
+by the operator halt, not replaced with a source-test count.
+
 - [x] Source-built and headless-tested: preserve live operations, imported history,
   pending dependencies, claims and editor visibility during refused/failed reloads.
   See [reload evidence](../research/egosystem-reconciliation/final/cooperative-editor-reload-evidence.md).
@@ -82,6 +88,9 @@ CH2's remaining implementation queue, in order:
 - [ ] Correct current PR CI and preserve a complete headless target-graph check,
   including examples that rehost editor modules; do not infer crate health from
   a selected test filter.
+  Save head `c8690f095aaebd40561203c09a727434eb2b3711` has a successful hosted
+  [CI run](https://github.com/curiositech/port-daddy/actions/runs/34599670847),
+  including headless console check/test. This does not close all stack checks.
 - [ ] Local save lifecycle: explicit dirty state, validated filesystem target,
   asynchronous writes tied to an exact document/revision, external-change refusal
   and no false clean state when edits race completion. Device-local saving is
@@ -98,6 +107,11 @@ CH2's remaining implementation queue, in order:
 - [ ] Typing/IME undo grouping, edit-associated selection restoration and native
   clipboard/IME/Unicode/keyboard behavior. Per-replica history alone is not this
   complete interaction contract.
+  The input-grouping continuation is source-built and headless-tested; see
+  [grouping evidence](../research/egosystem-reconciliation/final/cooperative-editor-input-groups-evidence.md).
+  Adjacent typing/deletion and one composition use Loro-owned groups, while
+  individual edits still publish exact deltas. Focus loss/imports/save/paste
+  split groups. Edit-associated selection and real native behavior remain open.
 - [ ] Native incremental syntax, navigation/diagnostics, wrapping and large-file
   virtualization; remove silent truncation only with bounded rendering proof.
 - [ ] File create/rename/delete and unsaved-close handling, diff/review, test

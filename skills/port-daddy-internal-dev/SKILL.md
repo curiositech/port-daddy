@@ -451,6 +451,14 @@ work; never reset or clobber the main checkout.
 
 ### Test + session gotchas (dev-loop shibboleths)
 
+- **Input grouping is policy, not a second undo stack.** Use Loro's manual
+  groups after range/claim checks, keep each authored delta independently mirrored,
+  and fence continuation by exact frontier plus successful-import generation:
+  duplicate or dependency-pending imports may not move visible state. Explicitly
+  close groups on navigation, focus loss, saves and isolated edits. IME updates
+  may span time gaps but must refer to the same marked range. Headless group tests
+  and a GPUI compile do not prove native callback or composition behavior.
+
 - **Local text Save is not CRDT recovery.** Capture the exact document/revision,
   serialize in-process filesystem writes off the UI thread, and revalidate the
   opened target before replacement. A completion cannot mark later edits clean.
