@@ -263,10 +263,21 @@ const SEGMENT = '(?:-(?:\\[[^\\]]*\\]|[a-zA-Z0-9%.]+))'
 function classTokenRegex(base, requireSuffix) {
   const escaped = base.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')
   const suffix = requireSuffix ? `${SEGMENT}+` : `${SEGMENT}*`
-  // Preceded by a quote, backtick, space, `{`, or start of line; followed by
-  // a class terminator (quote, backtick, `}`, space) or end of line — never
-  // mid-identifier (`surroundedBox`, `roundedValue`) and never bare prose.
-  return new RegExp(`(?<=["'\`{\\s]|^)${escaped}${suffix}(?=["'\`}\\s]|$)`, 'g')
+  // Preceded by a quote, backtick, space, `{`, `:`, or start of line; followed
+  // by a class terminator (quote, backtick, `}`, space) or end of line —
+  // never mid-identifier (`surroundedBox`, `roundedValue`) and never bare
+  // prose. `:` is in the preceding set for Tailwind variant prefixes
+  // (`hover:shadow-xl`, `dark:bg-[#1a1a1a]`, `md:rounded-lg`,
+  // `group-hover:` / `peer-checked:` / stacked `dark:hover:shadow-xl`) — the
+  // character right before a variant-prefixed utility is always the colon
+  // that closes the variant name. This does not open a hole for `{ rounded:
+  // true }` or a ternary's `cond ? 'x' : rounded` value position: in both,
+  // the class terminator lookahead below still requires a quote, backtick,
+  // `}`, space, or end-of-line immediately AFTER the token, which `rounded:`
+  // or a bare trailing identifier never satisfies — see
+  // swiss-normalization-guard.test.ts's variant-prefix and object-literal/
+  // ternary cases.
+  return new RegExp(`(?<=["'\`{\\s:]|^)${escaped}${suffix}(?=["'\`}\\s]|$)`, 'g')
 }
 
 function findClassTokens(codeLines, base, requireSuffix) {

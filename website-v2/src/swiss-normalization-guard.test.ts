@@ -201,6 +201,99 @@ describe('check-swiss-normalization.mjs — false-positive suppression', () => {
   })
 })
 
+describe('check-swiss-normalization.mjs — Tailwind variant prefixes', () => {
+  // Regression coverage for a real false negative: the character immediately
+  // before a variant-prefixed utility (`hover:shadow-xl`, `dark:bg-[...]`,
+  // `md:rounded-lg`, stacked `dark:hover:shadow-xl`) is `:`, which the class-
+  // token lookbehind did not originally treat as a boundary — so every one of
+  // these was invisible to the guard. website-v2/src/pages/docs/Decisions.tsx
+  // was the real file this hid: its only elevation is
+  // `hover:shadow-[var(--shadow-sm)]`, which the un-fixed guard could not see.
+
+  test('hover:shadow-xl fires under flat', () => {
+    const root = makeFixtureRoot()
+    writeFixture(root, 'src/components/Foo.tsx', `export const Foo = () => <div className="hover:shadow-xl" />\n`)
+    const ratchet = writeRatchet(root, EMPTY_RATCHET)
+    const { code, out } = run(root, ratchet)
+    expect(code).toBe(1)
+    expect(out).toMatch(/\[flat\]\s+shadow-xl/)
+  })
+
+  test('an arbitrary-value shadow variant matches through the closing bracket: hover:shadow-[var(--shadow-md)]', () => {
+    const root = makeFixtureRoot()
+    writeFixture(
+      root,
+      'src/pages/Foo.tsx',
+      `export const Foo = () => <div className="transition-shadow hover:shadow-[var(--shadow-md)]" />\n`
+    )
+    const ratchet = writeRatchet(root, EMPTY_RATCHET)
+    const { code, out } = run(root, ratchet)
+    expect(code).toBe(1)
+    expect(out).toMatch(/\[flat\]\s+shadow-\[var\(--shadow-md\)\]/)
+    // exactly one hit: `transition-shadow` (preceded by `-`, not a boundary
+    // character) must not also fire.
+    const flatHits = out.split('\n').filter((l) => l.includes('[flat]'))
+    expect(flatHits.length).toBe(1)
+  })
+
+  test('dark:bg-[#123456] fires under literal', () => {
+    const root = makeFixtureRoot()
+    writeFixture(root, 'src/components/Foo.tsx', `export const Foo = () => <div className="dark:bg-[#123456]" />\n`)
+    const ratchet = writeRatchet(root, EMPTY_RATCHET)
+    const { code, out } = run(root, ratchet)
+    expect(code).toBe(1)
+    expect(out).toMatch(/\[literal\]\s+#123456/)
+  })
+
+  test('md:rounded-lg fires under radius', () => {
+    const root = makeFixtureRoot()
+    writeFixture(root, 'src/components/Foo.tsx', `export const Foo = () => <div className="md:rounded-lg" />\n`)
+    const ratchet = writeRatchet(root, EMPTY_RATCHET)
+    const { code, out } = run(root, ratchet)
+    expect(code).toBe(1)
+    expect(out).toMatch(/\[radius\]\s+rounded-lg/)
+  })
+
+  test('a stacked variant (dark:hover:shadow-xl) still fires exactly once', () => {
+    const root = makeFixtureRoot()
+    writeFixture(root, 'src/components/Foo.tsx', `export const Foo = () => <div className="dark:hover:shadow-xl" />\n`)
+    const ratchet = writeRatchet(root, EMPTY_RATCHET)
+    const { code, out } = run(root, ratchet)
+    expect(code).toBe(1)
+    const flatHits = out.split('\n').filter((l) => l.includes('[flat]'))
+    expect(flatHits.length).toBe(1)
+    expect(flatHits[0]).toMatch(/shadow-xl/)
+  })
+
+  test('a TypeScript object literal key (`{ rounded: true }`) does not fire — the colon is not a class boundary here', () => {
+    const root = makeFixtureRoot()
+    writeFixture(root, 'src/components/Foo.tsx', `export const opts = { rounded: true }\n`)
+    const ratchet = writeRatchet(root, EMPTY_RATCHET)
+    const { code, out } = run(root, ratchet)
+    expect(code).toBe(0)
+    expect(out).not.toMatch(/\[radius\]/)
+  })
+
+  test('a ternary value position after `:` (cond ? `rounded-lg` : \'\') does not fire on the empty branch', () => {
+    const root = makeFixtureRoot()
+    writeFixture(
+      root,
+      'src/components/Foo.tsx',
+      "export const cls = (cond: boolean) => cond ? `rounded-lg` : ''\n"
+    )
+    const ratchet = writeRatchet(root, EMPTY_RATCHET)
+    const { code, out } = run(root, ratchet)
+    // The true branch's `rounded-lg` (inside backticks) is a real violation;
+    // the point of this test is that it fires exactly once — the colon
+    // before the empty-string false branch does not manufacture a second,
+    // spurious hit off the trailing `''`.
+    expect(code).toBe(1)
+    const radiusHits = out.split('\n').filter((l) => l.includes('[radius]'))
+    expect(radiusHits.length).toBe(1)
+    expect(radiusHits[0]).toMatch(/rounded-lg/)
+  })
+})
+
 describe('check-swiss-normalization.mjs — the escape hatch', () => {
   test('a well-formed swiss-allow with a real reason suppresses the violation', () => {
     const root = makeFixtureRoot()
