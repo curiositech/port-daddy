@@ -465,6 +465,14 @@ work; never reset or clobber the main checkout.
   validation or LFS. Test On → Off → On with unchanged hook bytes and inert
   commands; absence of PD activity while Off alone misses deleted functionality.
 
+  Native adapters must register cancellation and create/resume effects under
+  the same in-process Off lock; a precheck plus an asynchronous task snapshot
+  misses races. Exercise idle streams, buffered delivery, unused stream release,
+  cancellation before headers, and overflow with intercepted transport. Give
+  older store fixtures explicit synthetic controls instead of clearing HOME
+  markers. Watcher/packager checks are cooperative source gates, not process-tree
+  containment or atomicity with external writes; preserve those limits in reports.
+
 - **Disabling PD hooks must not discard Git LFS publication.** If an authorized
   publisher disables all Git hooks, explicitly upload LFS objects reachable from
   its exact head before pushing pointers, using the same scoped repository

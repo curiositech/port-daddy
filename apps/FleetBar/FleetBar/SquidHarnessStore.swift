@@ -310,14 +310,17 @@ final class SquidHarnessStore: ObservableObject {
     private let runner: SquidCommandRunner
     private let baseURL: String?
     private let session: URLSession
+    private let control: LocalRuntimeControl
 
     init(
         baseURL: String? = nil,
         session: URLSession = .shared,
+        control: LocalRuntimeControl = .shared,
         runner: @escaping SquidCommandRunner = SquidHarnessCLI.run
     ) {
         self.baseURL = baseURL
         self.session = session
+        self.control = control
         self.runner = runner
     }
 
@@ -371,7 +374,7 @@ final class SquidHarnessStore: ObservableObject {
             return
         }
         do {
-            let (data, response) = try await session.pdData(from: url)
+            let (data, response) = try await session.pdData(from: url, control: control)
             guard let http = response as? HTTPURLResponse else {
                 continuitySnapshot = nil
                 continuityMessage = "Context continuity evidence has no daemon response."

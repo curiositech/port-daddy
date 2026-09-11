@@ -170,6 +170,7 @@ final class InterruptionsStore: ObservableObject {
     static let parkedFailures = 5
 
     private let session: URLSession
+    private let control: LocalRuntimeControl
     private let loadAccount: () -> OperatorAccount?
     private let now: () -> Date
     private var isRefreshing = false
@@ -178,10 +179,12 @@ final class InterruptionsStore: ObservableObject {
     init(
         autoStart: Bool = true,
         session: URLSession = .shared,
+        control: LocalRuntimeControl = .shared,
         loadAccount: @escaping () -> OperatorAccount? = { OperatorAccountFile.load() },
         now: @escaping () -> Date = Date.init
     ) {
         self.session = session
+        self.control = control
         self.loadAccount = loadAccount
         self.now = now
         guard autoStart else { return }
@@ -295,7 +298,7 @@ final class InterruptionsStore: ObservableObject {
         request.setValue("Bearer \(account.token)", forHTTPHeaderField: "Authorization")
 
         do {
-            let (data, response) = try await session.pdData(for: request)
+            let (data, response) = try await session.pdData(for: request, control: control)
             guard let http = response as? HTTPURLResponse else {
                 consecutiveFailures += 1
                 phase = .unknown("Relay unreachable.")

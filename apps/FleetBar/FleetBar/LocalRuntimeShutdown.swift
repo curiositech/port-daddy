@@ -21,10 +21,10 @@ enum LocalRuntimeShutdown {
 
     static func plan(uid: uid_t) -> [Step] {
         let prefix = "gui/\(uid)/"
-        let labels = ["com.portdaddy.freshness", "com.portdaddy.bosun", "homebrew.mxcl.port-daddy", "sh.brew.port-daddy", "com.portdaddy.daemon"]
+        let labels = ["com.portdaddy.appwatch", "com.portdaddy.freshness", "com.portdaddy.bosun", "homebrew.mxcl.port-daddy", "sh.brew.port-daddy", "com.portdaddy.daemon"]
         // Disable every known resurrector before stopping any process. Preserve
         // the current FleetBar window so the operator can read failure receipts.
-        return (labels + ["com.portdaddy.fleetbar"]).map { Step(action: .disable, target: prefix + $0) }
+        return (labels + ["com.portdaddy.fleetbar", "com.portdaddy.fleetbar.devlatest"]).map { Step(action: .disable, target: prefix + $0) }
             + labels.map { Step(action: .bootout, target: prefix + $0) }
     }
 

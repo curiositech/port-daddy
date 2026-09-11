@@ -40,7 +40,7 @@ without the exact gate are reported as needing review, not silently overwritten
 or falsely reported upgraded. Installing source is separate from repairing copies
 already staged on a machine. No installer in this slice clears the stop marker.
 
-These are cooperative product gates, not hostile-code containment. They do not
+These hook gates are cooperative product gates, not hostile-code containment. They do not
 revoke already-running processes, atomically mediate effects after admission, or
 prove that an arbitrary same-user process cannot read credentials. Drydock's
 external execution boundary is still proposed; no whole-app zero-spend claim is
@@ -123,14 +123,56 @@ Source/static tests are not installed-version, native visual, or independent
 containment evidence. PRs are regular review requests at the operator's direction;
 readiness for review is not permission to merge or activate unverified code.
 
-Open adversarial gates at this checkpoint:
+### Native admission and watcher follow-up (2026-09-11)
 
-- Serialize FleetBar effect creation/registration with Off; a precheck alone races
-  a concurrent stop. Cancel existing streams when another app writes Off too.
-- Inject fixture controls into older FleetBar store tests; do not use real HOME or
-  clear the operator's markers to make positive controls pass.
-- Gate all known automatic app watchers/installer relaunches, including appwatch;
-  freshness has been added to FleetBar's stop plan. Audit dynamic app lanes.
+FleetBar now registers cancellation and synchronously creates/resumes URLSession
+tasks (or starts a child process) while holding the same lock used by explicit
+Off. An Off request cannot miss an in-between task snapshot. Its active-effect
+monitor checks external markers every 100 ms while work exists and drains those
+same registrations. This is not an atomic transaction with another process's
+filesystem write, nor a hard scheduling deadline.
+
+SSE uses explicit per-task delegates and a bounded line sequence, rather than
+returning an unguarded AsyncBytes stream. Reads recheck Off before and after each
+await; dropping an unused stream or cancelling before headers cancels the task.
+The queue holds at most 128 lines and a partial line at most 1 MiB. Overflow fails
+the stream rather than silently dropping events. Cancellation of direct children
+is best-effort termination, not verified process-tree shutdown or external egress
+enforcement. Already-accepted remote effects cannot be recalled.
+
+Existing CloudFleet, Interruptions, Secrets and SquidHarness transport fixtures now
+inject a distinct control root alongside their intercepted session. They neither
+clear canonical stop markers nor change HOME to obtain a positive control.
+
+Appwatch and its installer embed the shared filesystem-only Off gate before
+automatic work and recheck deferred phases. FleetBar's packager rechecks before
+bootstrap retries, kickstart and open, including after its settle delay. Appwatch
+refuses historical packagers without the guarded-launch source contract. That
+contract marker is a compatibility check on trusted source, not code attestation.
+No installer or hook is removed to toggle the state. The stop plan also disables
+and stops appwatch, and disables both known supervised FleetBar lanes while keeping
+the current control window available.
+
+Follow-up evidence: all 84 named Swift tests pass (17 local-control cases plus
+CloudFleetStore, InterruptionsStore, SecretsStore and SquidHarnessStore cases);
+the full Swift package compiled. Ten watcher fixtures pass with fake service,
+process and network executables, including On → Off → On and Off during a deferred
+start. An already-issued bootstrap may launch via RunAtLoad; suppressing its later
+kickstart does not recall that admitted effect. Native review found no concrete
+P1/P2 in the bounded control/stream diff; its additional lifecycle tests were added
+and passed. Watcher review found a missing post-settle check before killing the
+receipt window; the fix and loaded-label regression are included. Independent
+re-review found no remaining concrete P1/P2 on these bounded native/watcher surfaces.
+The ten watcher cases plus 46 existing hook-gate cases pass together. Shell syntax and diff checks
+pass. No app, daemon, provider, service or real network socket was started. These
+are source/fixture results, not installed or independently contained runtime proof.
+
+Remaining adversarial gates:
+
+- Retain the limits of file-check versus effect races in shell scripts and
+  already-running package-manager children; none is an external effect mediator.
+- Audit other installer/resurrection paths and dynamic app lanes; do not infer
+  exhaustive supervisor coverage from the named appwatch fix.
 - Complete plain-JS shim parity and spawner race tests; check final
   `dispatchAgentOutputs` admission and truthful watcher compliance on stop errors.
 - Obtain full final-head builds, independent review of console/runtime changes,

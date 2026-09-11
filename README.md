@@ -350,6 +350,9 @@ Native Off
 controls are now source-built in FleetBar (popover and Settings) and pd-console
 (persistent control band). They save the canonical stop markers without a daemon
 and deny new local work; shutdown receipts remain separate from the saved setting.
+FleetBar orders task creation with its local Off latch and cancels tracked
+requests/streams when another app writes Off. Automatic appwatch and deferred
+packager starts honor the same markers; ordinary hooks and LFS stay installed.
 Runtime admission, native visual proof, and outstanding adversarial findings are
 tracked explicitly; this is not a packaged or zero-spend guarantee. See
 [local Off controls and remaining work](docs/operations/local-off-control.md).
