@@ -26,7 +26,7 @@
  * cached indefinitely").
  */
 
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import type { DatabaseInstance } from './sqlite-runtime.js';
@@ -94,8 +94,99 @@ export interface Tool2VecStore {
   db: DatabaseInstance;
 }
 
-const DEFAULT_DB_DIR = join(homedir(), '.port-daddy');
-const DEFAULT_DB_FILE = 'skill-graft-tool2vec.sqlite';
+export const DEFAULT_TOOL2VEC_DB_DIR = join(homedir(), '.port-daddy');
+export const DEFAULT_TOOL2VEC_DB_FILE = 'skill-graft-tool2vec.sqlite';
+
+export interface Tool2VecReadProfile {
+  embedderModelId: string;
+  generatorId: string;
+}
+
+export interface ResolveTool2VecReadProfileOptions {
+  db?: DatabaseInstance;
+  dbDir?: string;
+  embedderModelId: string;
+  onWarning?: (message: string) => void;
+}
+
+/**
+ * Resolve the canonical compatible persisted centroid profile without requiring
+ * the generator that originally produced it. Search needs only the local
+ * query embedder plus cached centroids; coupling reads to a live LLM backend
+ * made a warm semantic index look cold whenever that backend was absent.
+ *
+ * The selected generator id remains exact. `Tool2VecStore.get()` rejects rows
+ * from every other generator and content hash, so this never mixes vector
+ * generations. A missing/corrupt cache is an honest null and lets callers use
+ * BM25 without creating a database merely to search.
+ */
+export function resolveTool2VecReadProfile(
+  options: ResolveTool2VecReadProfileOptions,
+): Tool2VecReadProfile | null {
+  const path = join(options.dbDir ?? DEFAULT_TOOL2VEC_DB_DIR, DEFAULT_TOOL2VEC_DB_FILE);
+  if (!options.db && !existsSync(path)) return null;
+
+  let db: DatabaseInstance | null = options.db ?? null;
+  let ownsDb = false;
+  try {
+    if (!db) {
+      db = new DefaultDatabase(path, { readonly: true, fileMustExist: true });
+      ownsDb = true;
+    }
+    const table = db.prepare(`
+      SELECT 1 AS present
+      FROM sqlite_master
+      WHERE type = 'table' AND name = 'skill_graft_tool2vec_centroids'
+    `).get() as { present?: number } | undefined;
+    if (!table?.present) return null;
+
+    const stateTable = db.prepare(`
+      SELECT 1 AS present
+      FROM sqlite_master
+      WHERE type = 'table' AND name = 'skill_graft_tool2vec_reconcile_state'
+    `).get() as { present?: number } | undefined;
+    if (stateTable?.present) {
+      const state = db.prepare(`
+        SELECT embedder_model_id, generator_id
+        FROM skill_graft_tool2vec_reconcile_state
+        WHERE id = 1 AND embedder_model_id = ?
+      `).get(options.embedderModelId) as {
+        embedder_model_id?: unknown;
+        generator_id?: unknown;
+      } | undefined;
+      if (
+        typeof state?.embedder_model_id === 'string'
+        && typeof state.generator_id === 'string'
+        && state.generator_id.length > 0
+      ) {
+        return { embedderModelId: state.embedder_model_id, generatorId: state.generator_id };
+      }
+    }
+
+    const row = db.prepare(`
+      SELECT embedder_model_id, generator_id, COUNT(*) AS profile_rows, MAX(created_at) AS newest
+      FROM skill_graft_tool2vec_centroids
+      WHERE embedder_model_id = ?
+      GROUP BY embedder_model_id, generator_id
+      ORDER BY profile_rows DESC, newest DESC, generator_id ASC
+      LIMIT 1
+    `).get(options.embedderModelId) as {
+      embedder_model_id?: unknown;
+      generator_id?: unknown;
+    } | undefined;
+    if (
+      typeof row?.embedder_model_id !== 'string'
+      || typeof row.generator_id !== 'string'
+      || row.generator_id.length === 0
+    ) return null;
+    return { embedderModelId: row.embedder_model_id, generatorId: row.generator_id };
+  } catch (error) {
+    options.onWarning?.(`jury-rig: persisted Tool2Vec profile is unreadable: ${(error as Error).message}`);
+    return null;
+  } finally {
+    if (ownsDb) db?.close();
+  }
+}
 
 function ensureSchema(db: DatabaseInstance): void {
   db.exec(`
@@ -113,9 +204,9 @@ function ensureSchema(db: DatabaseInstance): void {
 }
 
 function openDefaultDb(dbDir?: string): DatabaseInstance {
-  const dir = dbDir ?? DEFAULT_DB_DIR;
+  const dir = dbDir ?? DEFAULT_TOOL2VEC_DB_DIR;
   mkdirSync(dir, { recursive: true });
-  return new DefaultDatabase(join(dir, DEFAULT_DB_FILE));
+  return new DefaultDatabase(join(dir, DEFAULT_TOOL2VEC_DB_FILE));
 }
 
 /**

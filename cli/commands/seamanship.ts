@@ -2,7 +2,7 @@
  * pd seamanship — Skill registry, search, graft, and outcome reporting.
  *
  * pd seamanship list                     — List installed skills from all roots
- * pd seamanship search <query>           — Substring search over skill IDs and descriptions
+ * pd seamanship search <query>           — Hybrid metadata search through Jury-rig
  * pd seamanship show <skill-id>          — Print SKILL.md for a skill
  * pd seamanship sync                     — Sync from $PORT_DADDY_SKILL_SOURCE_ROOTS to ~/.port-daddy/skills/
  * pd seamanship outcomes [--ship name]   — Show skill application outcomes table
@@ -27,6 +27,7 @@ import {
 import { loadSkillCatalog, type SkillVisibility } from '../../lib/shipwright/skill-index.js';
 import { withVisibility, parseVisibility } from '../../lib/shipwright/skill-visibility.js';
 import * as ui from '../utils/ui.js';
+import { handleJuryRig } from './skill-graft.js';
 
 // ── provenance ──────────────────────────────────────────────────────────────
 //
@@ -150,37 +151,7 @@ export function formatVisibilityMarker(visibility: SkillVisibility): string {
 // ── search ────────────────────────────────────────────────────────────────────
 
 async function cmdSearch(args: string[], options: CLIOptions): Promise<void> {
-  const query = args.join(' ');
-  if (!query) { ui.error('Usage: pd seamanship search <query>'); process.exit(1); }
-
-  // Phase 3: local BM25+Tool2Vec engine. For now: substring match over
-  // skill IDs and first 10 lines of SKILL.md.
-  const roots = defaultSkillCatalogRoots(process.cwd(), homedir());
-  const union = collectSkillUnion(roots);
-  const lower = query.toLowerCase();
-
-  const matches = union.skills.filter((e: SkillEntry) => {
-    if (e.id.toLowerCase().includes(lower)) return true;
-    const skillPath = e.skillFile;
-    if (!existsSync(skillPath)) return false;
-    try {
-      const head = readFileSync(skillPath, 'utf8').split('\n').slice(0, 10).join(' ').toLowerCase();
-      return head.includes(lower);
-    } catch { return false; }
-  });
-
-  if (isJson(options)) {
-    console.log(JSON.stringify({ query, results: matches, count: matches.length }, null, 2));
-    return;
-  }
-
-  if (!matches.length) { console.log(`No skills matched "${query}".`); return; }
-  console.log(`\n  Skills matching "${query}" (${matches.length})\n`);
-  for (const e of matches) {
-    console.log(`  ${e.id}`);
-  }
-  console.log('\n  Run: pd seamanship show <skill-id>  to read a skill');
-  console.log();
+  await handleJuryRig(['search', ...args], { ...options, invocation: 'pd seamanship' });
 }
 
 // ── show ──────────────────────────────────────────────────────────────────────

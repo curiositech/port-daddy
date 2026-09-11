@@ -341,12 +341,13 @@ export function createSkillGraftIndex(options: SkillGraftOptions = {}): SkillGra
     ?? (options.llmClient && options.llmModel
       ? createLLMClientSyntheticQueryGenerator(options.llmClient, options.llmModel)
       : null);
-  const centroidStore: Tool2VecStore | null = generateQueries
-    ? (options.centroidStore ?? createTool2VecStore({
+  const centroidStore: Tool2VecStore | null = options.centroidStore
+    ?? (generateQueries
+      ? createTool2VecStore({
       embedderModelId: embedder.modelId,
       generatorId: options.llmModel ?? 'injected-generator',
-    }))
-    : null;
+      })
+      : null);
 
   let catalog: SkillEntry[] = [];
   let catalogById = new Map<string, SkillEntry>();
@@ -420,8 +421,12 @@ export function createSkillGraftIndex(options: SkillGraftOptions = {}): SkillGra
     const lexicalRank = bm25Rank(trimmed, catalog);
     let semanticRank: Tool2VecRankedEntry[] = [];
     if (centroidStore) {
-      const [queryVector] = await embedder.embed([trimmed]);
-      semanticRank = queryVector ? tool2VecRank(queryVector, catalog, centroidStore) : [];
+      try {
+        const [queryVector] = await embedder.embed([trimmed]);
+        semanticRank = queryVector ? tool2VecRank(queryVector, catalog, centroidStore) : [];
+      } catch (error) {
+        options.onWarning?.(`jury-rig: semantic query embedder unavailable; using BM25 only: ${(error as Error).message}`);
+      }
     }
 
     const fusedFull = reciprocalRankFusion(lexicalRank, semanticRank);
