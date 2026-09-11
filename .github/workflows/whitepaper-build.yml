@@ -5,12 +5,8 @@ name: Whitepaper PDF Build & Deploy
 # .tex/figures. Closes the gap that let the trilogy PDFs ship a stale June-3
 # render (retired cinnabar) eight days after the source moved to cobalt.
 #
-# Modes:
-#   * configured feature-branch push -> rebuild and COMMIT changed PDFs.
-#   * same-repository PR -> rebuild and COMMIT changed PDFs to the PR head;
-#       fork PRs cannot self-heal but still fail when PDFs are stale.
-#   * main push -> rebuild and FAIL if a committed PDF is stale, since main is
-#       protected and should only ever receive fresh PDFs via merged PRs.
+# Every event rebuilds and verifies the committed PDFs. CI never advances a PR
+# branch: an artifact-only GITHUB_TOKEN commit would become an untested head.
 #
 # Builds are reproducible WITHIN one renderer version: build-whitepapers.sh pins
 # SOURCE_DATE_EPOCH per paper, so rebuilding unchanged source in the same
@@ -45,13 +41,13 @@ on:
       - '.github/workflows/whitepaper-build.yml'
   # Merge queue: trigger so this workflow reports a check context on the queued
   # group. The `build` job is SKIPPED on merge_group (see its `if:`), and a
-  # skipped job reports success — so this healing/advisory workflow can never
-  # hang the merge queue, and no 30-min TeXLive build runs inside the queue.
+  # skipped job reports success, so the path-specific verifier cannot hang the
+  # merge queue and no 30-minute TeX Live build runs inside the queue.
   merge_group:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: whitepaper-build-${{ github.ref }}
@@ -60,10 +56,7 @@ concurrency:
 jobs:
   build:
     # Skip on merge_group — a skipped job reports success, keeping the merge
-    # queue from ever hanging on this workflow. This is a healing/advisory
-    # workflow (it commits regenerated PDFs on feature-branch push and is
-    # advisory on PRs), so it should not gate merges; skipping in the queue
-    # keeps it queue-safe even if it is ever added to required checks.
+    # queue from ever hanging on this path-specific verifier.
     if: github.event_name != 'merge_group'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -155,8 +148,8 @@ jobs:
           sha256sum --check "$hash_file"
 
           # A builder change forces the full rebuild above so the determinism
-          # check covers every artifact. It must not also COMMIT artifacts the
-          # change had no source-level reason to touch: the renderer is only
+          # check covers every artifact. It must not leave artifacts changed
+          # when the change had no source-level reason to touch them: the renderer is only
           # byte-stable within one TeX Live version, so a full rebuild restates
           # every untouched paper in the current container's dialect. On
           # 2026-08-18 that silently rewrote five unrelated PDFs and broke the
@@ -205,60 +198,9 @@ jobs:
           path: |
             website-v2/public/whitepaper/coordination-papers-mega-volume.pdf
 
-      - name: Commit rebuilt PDFs (same-repo branch)
-        # Heal configured feature-branch pushes and same-repository PR heads.
-        # Fork PRs retain a read-only token and cannot self-heal; the freshness
-        # step below still fails if their committed artifacts are stale.
-        if: >-
-          (github.event_name == 'push' && github.ref_name != 'main') ||
-          (github.event_name == 'pull_request' &&
-           github.event.pull_request.head.repo.full_name == github.repository)
-        env:
-          TARGET_BRANCH: ${{ github.head_ref || github.ref_name }}
-        run: |
-          set -euo pipefail
-          # Loop-breaker: never stack a second build commit on our own. This
-          # bounds the build->commit->build chain to a single extra commit even
-          # if a render is not perfectly reproducible, so no [skip ci] is needed
-          # (and the resulting commit's PR/main checks see the fresh tree).
-          case "$(git log -1 --format=%s)" in
-            "build(whitepaper): regenerate PDFs from source"*)
-              echo "HEAD is already a build commit — nothing to do."; exit 0;;
-          esac
-          if [ -z "$(git status --porcelain --untracked-files=all -- website-v2/public/whitepaper/*.pdf)" ]; then
-            echo "PDFs already match source — nothing to commit."; exit 0
-          fi
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add website-v2/public/whitepaper/*.pdf
-          echo "Changed PDFs:"; git diff --cached --stat
-          git commit -m "build(whitepaper): regenerate PDFs from source"
-          # The branch moves while the Book compiles -- five to eight minutes in
-          # which a session can push four commits -- so a bare push loses the
-          # race and the job reports red for a build that succeeded. Rebase the
-          # one PDF commit onto whatever arrived and try again, a few times,
-          # because the same race can be lost twice. No force: if the rebase
-          # cannot replay the commit, that is a real conflict over the PDFs and
-          # a person should see it.
-          for attempt in 1 2 3; do
-            if git push origin "HEAD:$TARGET_BRANCH"; then
-              echo "pushed the regenerated PDFs on attempt $attempt"; exit 0
-            fi
-            echo "push rejected (attempt $attempt) — the branch moved; rebasing onto it"
-            git fetch origin "$TARGET_BRANCH"
-            git rebase "origin/$TARGET_BRANCH" || {
-              git rebase --abort || true
-              echo "::error::the regenerated PDFs conflict with $TARGET_BRANCH and cannot be replayed automatically"
-              exit 1
-            }
-          done
-          echo "::error::could not push the regenerated PDFs after three attempts; the branch is moving faster than the Book builds"
-          exit 1
-
       - name: Freshness check
-        # Feature-branch pushes are skipped; PRs verify the clean worktree after
-        # the healing commit above. Forks cannot self-heal, but stale published
-        # PDFs are still a real failure rather than an advisory success.
+        # Stale published PDFs are a real failure on same-repository and fork
+        # PRs alike; the contributor carries the generated artifacts.
         if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref_name == 'main')
         run: |
           set -uo pipefail

@@ -43,9 +43,7 @@ on:
   merge_group:
 
 permissions:
-  # The heal step below commits the two derived files back to a same-repo PR
-  # head. Everything else here only reads.
-  contents: write
+  contents: read
 
 jobs:
   whitepaper-metadata-drift:
@@ -57,9 +55,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # The branch tip, not the PR merge ref, so the heal step can commit
-          # back — the same reason whitepaper-build.yml's regen job does it.
-          # It also happens to be the right subject for this check: whether the
+          # The branch tip is the right subject for this check: whether the
           # committed digests describe the committed PDFs is a fact about the
           # branch, and merging main into it changes neither side.
           ref: ${{ github.head_ref || github.ref_name }}
@@ -85,70 +81,11 @@ jobs:
       - name: Run figure-palette brand guard (no cinnabar/brass/patina; AAA accents only)
         run: npm run test:figure-palette
 
-      - name: Carry the metadata its PDFs already moved past
-        # WHY THIS EXISTS. publication-digests.json and whitePapers.ts are
-        # DERIVED: page count, byte size and SHA-256 of each committed PDF and
-        # nothing else. whitepaper-build.yml's regen step stages exactly
-        # `website-v2/public/whitepaper/*.pdf` and commits, so every successful
-        # regen leaves these two files describing artifacts that no longer
-        # exist — and the only thing that has ever cleared it is a person
-        # noticing and running --fix. That happened three times on 2026-09-08
-        # alone. A check whose red light means "somebody must now run one
-        # deterministic command" is a chore wearing a gate's clothes.
-        #
-        # So the gate runs the command. It recomputes from the PDFs on disk, so
-        # it can only ever restore the truth about what is committed; it cannot
-        # invent agreement (a PDF that fails to parse still fails the check
-        # below). Same-repo heads only, never a fork and never main, with the
-        # loop-breaker and rebase-retry the regen job already proves out — the
-        # branch moves while CI runs, and a bare push loses that race.
-        if: >-
-          (github.event_name == 'pull_request' &&
-           github.event.pull_request.head.repo.full_name == github.repository) ||
-          (github.event_name == 'push' && github.ref_name != 'main')
-        working-directory: .
-        env:
-          CI: 'true'
-          TARGET_BRANCH: ${{ github.head_ref || github.ref_name }}
-        run: |
-          set -euo pipefail
-          case "$(git log -1 --format=%s)" in
-            "build(whitepaper): carry the derived metadata"*)
-              echo "HEAD is already a heal commit — nothing to do."; exit 0;;
-          esac
-          # --fix returns zero both when the metadata is already current and
-          # after a successful rewrite. Any nonzero result is an actual error
-          # and must stop the carrying job before it can claim success.
-          ( cd website-v2 && npx tsx scripts/check-whitepaper-metadata.ts --fix )
-          DERIVED="website-v2/public/whitepaper/publication-digests.json website-v2/src/data/whitePapers.ts"
-          if [ -z "$(git status --porcelain -- $DERIVED)" ]; then
-            echo "metadata already describes the committed PDFs — nothing to carry."; exit 0
-          fi
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- $DERIVED
-          echo "Carried:"; git diff --cached --stat
-          git commit -m "build(whitepaper): carry the derived metadata"
-          for attempt in 1 2 3; do
-            if git push origin "HEAD:$TARGET_BRANCH"; then
-              echo "pushed on attempt $attempt"; exit 0
-            fi
-            echo "push rejected (attempt $attempt) — the branch moved; rebasing onto it"
-            git fetch origin "$TARGET_BRANCH"
-            git rebase "origin/$TARGET_BRANCH" || {
-              git rebase --abort || true
-              echo "::error::the derived metadata conflicts with $TARGET_BRANCH and cannot be replayed automatically"
-              exit 1
-            }
-          done
-          echo "::error::could not push the carried metadata after three attempts"
-          exit 1
-
       - name: Run whitepaper metadata drift check
         # The script honors CI=true and hard-fails if pdfinfo is missing.
         # GitHub Actions sets CI=true by default; this is belt-and-braces.
-        # Still the gate: the heal step above can restore the truth about
-        # committed PDFs, and cannot make an unreadable one pass.
+        # Any drift or unreadable PDF is a required failure; CI never rewrites
+        # the branch it is supposed to judge.
         env:
           CI: 'true'
         run: npm run test:whitepaper-metadata
