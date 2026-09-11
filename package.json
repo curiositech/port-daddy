@@ -16,6 +16,7 @@
     }
   },
   "bin": {
+    "jury-rig": "./bin/jury-rig.js",
     "port-daddy": "./bin/port-daddy-cli.js",
     "pd": "./bin/port-daddy-cli.js"
   },
