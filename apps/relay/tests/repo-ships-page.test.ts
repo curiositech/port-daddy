@@ -121,7 +121,7 @@ describe('signed-in ship UI', () => {
     [401, 'Reconnect GitHub to continue.', '/auth/github/login?return_to=%2Faccount%2Fships%3Frepo%3Downer%2Frepo', 403],
     [403, 'GitHub did not grant repository access.', '/auth/github/login?return_to=%2Faccount%2Fships%3Frepo%3Downer%2Frepo', 403],
     [404, 'GitHub did not grant repository access.', '/auth/github/login?return_to=%2Faccount%2Fships%3Frepo%3Downer%2Frepo', 403],
-    [429, 'GitHub could not be reached.', '/account/ships?repo=owner%2Frepo', 503],
+    [429, 'GitHub API limit reached.', '/account/ships?repo=owner%2Frepo', 503],
     [503, 'GitHub could not be reached.', '/account/ships?repo=owner%2Frepo', 503],
   ])('distinguishes GitHub status %s without querying private telemetry', async (upstream, message, action, status) => {
     const prepare = vi.spyOn(store.db, 'prepare');
@@ -144,6 +144,17 @@ describe('signed-in ship UI', () => {
     expect(body).toContain('GitHub API limit reached.');
     expect(body).toContain('2026-09-11T07:55:13.000Z');
     expect(body).toContain('No ship setting changed.');
+    expect(prepare).not.toHaveBeenCalled();
+  });
+  it('classifies a bare GitHub 429 as rate limiting when advisory headers are absent', async () => {
+    const prepare = vi.spyOn(store.db, 'prepare');
+    vi.mocked(fetch).mockResolvedValue(new Response('', { status: 429 }));
+    const result = await handleRepoShips(new Request(`${BASE}/account/ships?repo=owner/repo`), env);
+    const body = await result.text();
+    expect(result.status).toBe(503);
+    expect(body).toContain('GitHub API limit reached.');
+    expect(body).toContain('No ship setting changed.');
+    expect(body).not.toContain('GitHub could not be reached.');
     expect(prepare).not.toHaveBeenCalled();
   });
   it('does not query private telemetry before fresh repository authorization', async () => {
@@ -232,6 +243,13 @@ it.skipIf(!process.env.SHIP_CONTROLS_PROOF_DIR)('records browser control round-t
     await page.goto(`${base}/account/ships?repo=owner/repo`);
     await expect.poll(() => page.getByRole('link', { name: 'Continue with GitHub', exact: true }).count()).toBe(1);
     await page.screenshot({ path: `${directory}/ships-auth-renew.png`, fullPage: true });
+    vi.mocked(resolveSession).mockResolvedValue({ user: { id: 'admin-1' }, ghToken: 'mock-user-token', cacheNamespace: 'test' } as never);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 429, headers: {
+      'X-RateLimit-Remaining': '0', 'X-RateLimit-Reset': '1789113313',
+    } })));
+    await page.goto(`${base}/account/ships?repo=owner/repo`);
+    await expect.poll(() => page.getByRole('heading', { name: 'GitHub API limit reached.', exact: true }).count()).toBe(1);
+    await page.screenshot({ path: `${directory}/ships-rate-limited.png`, fullPage: true });
   } finally {
     await context.close(); await browser.close();
     await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
