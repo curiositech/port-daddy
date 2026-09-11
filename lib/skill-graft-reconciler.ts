@@ -11,7 +11,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type { DatabaseInstance } from './sqlite-runtime.js';
 import {
-  createLocalEmbedder,
+  createLocalTextEmbedder,
   defaultTransformersCacheDir,
   isEmbeddingModelCached,
   type LocalEmbedder,
@@ -200,7 +200,7 @@ export function createTool2VecReconciler(
     ? resolveSkillGraftRuntime()
     : options.runtime;
   const cacheDir = defaultTransformersCacheDir();
-  const embedder = options.embedder ?? createLocalEmbedder({ cacheDir });
+  const embedder = options.embedder ?? createLocalTextEmbedder('pd.skill-catalog.graft', { cacheDir });
   const embedderModelId = embedder.modelId ?? 'Xenova/all-MiniLM-L6-v2';
   const configuredGeneratorId = runtime?.model ?? 'unconfigured';
   const store = options.store ?? createTool2VecStore({

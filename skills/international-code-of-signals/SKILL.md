@@ -142,7 +142,7 @@ python3 scripts/icos_lookup.py hoist 1100       # flag hoist incl. substitute lo
 python3 scripts/icos_lookup.py table 2          # complements tables 1/2/3
 ```
 
-Search follows the repo's hybrid policy (AGENTS.md "Search & Matching Policy"): semantic similarity comes from Port Daddy's one shared local embedding model via `pd embed`, with corpus vectors cached one-time under `~/.port-daddy/cache/`. If the model is unavailable it degrades to lexical-only **loudly** and points at `pd doctor`.
+Search follows the repo's hybrid policy (AGENTS.md "Search & Matching Policy"): semantic similarity comes from the corpus-policy-selected local text profile via `pd embed --corpus pd.skill.international-code-signals.v1`, with corpus vectors cached one-time under `~/.port-daddy/cache/`. If the model is unavailable it degrades to lexical-only **loudly** and points at `pd doctor`.
 
 `scripts/rebuild_corpus.py <pdftotext-output> <out.json>` regenerates the corpus from a `pdftotext -layout` extraction of the Pub. 102 PDF (only needed if the source book changes).
 
