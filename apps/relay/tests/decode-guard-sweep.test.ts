@@ -184,4 +184,17 @@ describe('decode-guard sweep: malformed percent-escapes never reach the 500 boun
     expect(body).toContain('"ok":true');
     expect(fx.statements.some((sql) => /INSERT INTO audit_log/i.test(sql))).toBe(true);
   });
+
+  it('DELETE /v1/cache/jwks/0 — a falsy-LOOKING id is still a valid string id, not a 400', async () => {
+    const fx = makeParleyDb();
+    const res = await worker.fetch(
+      new Request('https://relay.example/v1/cache/jwks/0', { method: 'DELETE', headers: OPERATOR_AUTH }),
+      makeParleyEnv(fx.db, { RELAY_OPERATOR_TOKEN: OPERATOR_TOKEN }),
+      {} as ExecutionContext,
+    );
+    // safeDecodeSegment always returns a string, so the only falsy value the
+    // guard can ever see is ''. The string '0' is truthy in JS and must pass.
+    // Pinned because `!x` on a string is easy to misread as a numeric check.
+    await assertNo500(res, 200);
+  });
 });
