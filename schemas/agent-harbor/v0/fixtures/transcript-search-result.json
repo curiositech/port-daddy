@@ -4,8 +4,13 @@
   "completedAt": "2026-07-06T15:00:01.200Z",
   "engine": {
     "mode": "hybrid",
+    "corpusId": "pd.agent-harbor.memory",
+    "corpusPolicyDigest": "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+    "queryAdmissionReceiptId": "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
     "embeddingModel": "Xenova/all-MiniLM-L6-v2",
+    "embeddingSpaceId": "embed-v2:76b6025e2a87cf9fd594508baadbc38289ab36c667f6492ed905314875d44173",
     "fusion": "rrf",
+    "rrfK": 60,
     "reranked": true
   },
   "budget": {

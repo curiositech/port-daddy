@@ -58,6 +58,17 @@
 
 import type { DatabaseInstance } from '../sqlite-runtime.js';
 import type { LocalEmbedder } from '../semantic-resolver.js';
+import {
+  localTextCorpusPolicy,
+  selectEmbeddingProfile,
+  type CorpusPolicy,
+} from '../retrieval-policy.js';
+import {
+  admitRetrievalDerivative,
+  admitRetrievalQuery,
+  type RetrievalAdmissionOptions,
+} from '../retrieval-admission.js';
+import { assertEmbeddingBatchConforms } from '../embedding-runtime-conformance.js';
 import { ensureEventLedgerSchema, ledgerHeadSeq } from './event-ledger.js';
 import { assertAgainstSchema } from './schema-validate.js';
 
@@ -99,12 +110,29 @@ export class UnsupportedScopeError extends Error {
   }
 }
 
+/** The transcript pilot never searches an implicit cross-harbor corpus. */
+export class MissingSearchScopeError extends Error {
+  code = 'MISSING_SEARCH_SCOPE' as const;
+  constructor(field: string) {
+    super(`scope.${field} is required; transcript retrieval is default-deny across scope boundaries`);
+  }
+}
+
+/** A caller supplied an embedder authorized for a different corpus. */
+export class SearchPolicyMismatchError extends Error {
+  code = 'SEARCH_POLICY_MISMATCH' as const;
+  constructor() {
+    super('transcript retrieval embedder policy does not match the transcript corpus');
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Contract-facing types (tolerant-reader mirrors of the frozen v0 schemas)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const SUPPORTED_SOURCES = ['transcript-events', 'receipts'] as const;
 export type SearchSource = (typeof SUPPORTED_SOURCES)[number];
+export const TRANSCRIPT_SEARCH_CORPUS_ID = 'pd.agent-harbor.memory' as const;
 
 export type SearchMode = 'hybrid' | 'semantic' | 'lexical';
 
@@ -154,7 +182,17 @@ export interface TranscriptSearchResult {
   schema: 'pd.agent-harbor.transcript-search-result.v0';
   queryId: string;
   completedAt: string;
-  engine: { mode: SearchMode; embeddingModel: string | null; fusion: 'rrf' | null; reranked: boolean };
+  engine: {
+    mode: SearchMode;
+    corpusId: string;
+    corpusPolicyDigest: string;
+    queryAdmissionReceiptId: string;
+    embeddingModel: string | null;
+    embeddingSpaceId: string | null;
+    fusion: 'rrf' | null;
+    rrfK: number | null;
+    reranked: boolean;
+  };
   budget: {
     configured: { maxResults: number; maxContextTokens: number | null };
     used: { results: number; contextTokensEstimate: number };
@@ -168,48 +206,116 @@ export interface TranscriptSearchResult {
 // Index schema (disposable read model; the ledger is the truth)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const SEARCH_INDEX_SCHEMA_SQL = `
+const SEARCH_INDEX_TABLES_SQL = `
   CREATE TABLE IF NOT EXISTS harbor_search_index (
     event_id        TEXT PRIMARY KEY,
     ledger_seq      INTEGER NOT NULL,
     source          TEXT NOT NULL,
+    corpus_id       TEXT NOT NULL,
+    corpus_policy_digest TEXT NOT NULL,
     session_id      TEXT,
     agent_node_id   TEXT,
     run_id          TEXT,
     kind            TEXT,
     occurred_at     TEXT,
     visibility      TEXT NOT NULL DEFAULT 'operator',
-    harbor_id       TEXT,
+    harbor_id       TEXT NOT NULL,
+    repo_ref        TEXT NOT NULL,
     text            TEXT NOT NULL,
     token_count     INTEGER NOT NULL,
+    source_digest   TEXT NOT NULL,
+    derivative_digest TEXT NOT NULL,
+    redaction_receipt_id TEXT NOT NULL,
+    redaction_policy_id TEXT NOT NULL,
+    retention_policy_id TEXT NOT NULL,
+    admission_receipt_json TEXT NOT NULL,
     embedding_json  TEXT,
-    embedding_model TEXT
+    embedding_model TEXT,
+    embedding_space_id TEXT,
+    embedding_policy_digest TEXT,
+    embedding_production_receipt_id TEXT
   );
-  CREATE INDEX IF NOT EXISTS idx_hsi_session ON harbor_search_index(session_id);
-  CREATE INDEX IF NOT EXISTS idx_hsi_node ON harbor_search_index(agent_node_id);
-  CREATE INDEX IF NOT EXISTS idx_hsi_seq ON harbor_search_index(ledger_seq);
-  CREATE INDEX IF NOT EXISTS idx_hsi_source_visibility ON harbor_search_index(source, visibility);
-  CREATE INDEX IF NOT EXISTS idx_hsi_kind ON harbor_search_index(kind);
-  CREATE INDEX IF NOT EXISTS idx_hsi_harbor ON harbor_search_index(harbor_id);
-  CREATE INDEX IF NOT EXISTS idx_hsi_occurred ON harbor_search_index(occurred_at);
 
   CREATE TABLE IF NOT EXISTS harbor_search_meta (
     id              INTEGER PRIMARY KEY CHECK (id = 1),
+    corpus_id       TEXT NOT NULL,
+    corpus_policy_digest TEXT NOT NULL,
     last_ledger_seq INTEGER NOT NULL DEFAULT 0,
     updated_at      TEXT
   );
 `;
 
+const SEARCH_INDEX_INDEXES_SQL = `
+  CREATE INDEX IF NOT EXISTS idx_hsi_session ON harbor_search_index(session_id);
+  CREATE INDEX IF NOT EXISTS idx_hsi_node ON harbor_search_index(agent_node_id);
+  CREATE INDEX IF NOT EXISTS idx_hsi_seq ON harbor_search_index(ledger_seq);
+  CREATE INDEX IF NOT EXISTS idx_hsi_scope
+    ON harbor_search_index(corpus_id, harbor_id, repo_ref, source, visibility);
+  CREATE INDEX IF NOT EXISTS idx_hsi_kind ON harbor_search_index(kind);
+  CREATE INDEX IF NOT EXISTS idx_hsi_occurred ON harbor_search_index(occurred_at);
+`;
+
+const REQUIRED_SEARCH_INDEX_COLUMNS = [
+  'event_id',
+  'ledger_seq',
+  'source',
+  'corpus_id',
+  'corpus_policy_digest',
+  'text',
+  'token_count',
+  'visibility',
+  'harbor_id',
+  'repo_ref',
+  'source_digest',
+  'derivative_digest',
+  'redaction_receipt_id',
+  'redaction_policy_id',
+  'retention_policy_id',
+  'admission_receipt_json',
+  'embedding_json',
+  'embedding_model',
+  'embedding_space_id',
+  'embedding_policy_digest',
+  'embedding_production_receipt_id',
+] as const;
+
+const REQUIRED_SEARCH_META_COLUMNS = [
+  'id',
+  'corpus_id',
+  'corpus_policy_digest',
+  'last_ledger_seq',
+  'updated_at',
+] as const;
+
 export function ensureSearchIndexSchema(db: DatabaseInstance): void {
   ensureEventLedgerSchema(db);
-  db.exec(SEARCH_INDEX_SCHEMA_SQL);
-  // Post-apply verification probe (sqlite-durable-agent-state via C1 pattern):
-  // trust the live table, not the DDL bookkeeping.
-  const cols = db.prepare('PRAGMA table_info(harbor_search_index)').all() as Array<{ name: string }>;
-  const present = new Set(cols.map((c) => c.name));
-  for (const required of ['event_id', 'ledger_seq', 'source', 'text', 'token_count', 'embedding_json', 'embedding_model', 'visibility']) {
+  db.exec(SEARCH_INDEX_TABLES_SQL);
+  let columns = db.prepare('PRAGMA table_info(harbor_search_index)').all() as Array<{ name: string }>;
+  let present = new Set(columns.map((column) => column.name));
+  let metaColumns = db.prepare('PRAGMA table_info(harbor_search_meta)').all() as Array<{ name: string }>;
+  let metaPresent = new Set(metaColumns.map((column) => column.name));
+  const isLegacy = REQUIRED_SEARCH_INDEX_COLUMNS.some((column) => !present.has(column))
+    || REQUIRED_SEARCH_META_COLUMNS.some((column) => !metaPresent.has(column));
+  if (isLegacy) {
+    // This table is a disposable projection. Rows without exact scope,
+    // sanitization lineage, policy, and space identity are rebuilt from the
+    // ledger instead of being relabeled as trustworthy.
+    db.exec('DROP TABLE harbor_search_index; DROP TABLE harbor_search_meta;');
+    db.exec(SEARCH_INDEX_TABLES_SQL);
+    columns = db.prepare('PRAGMA table_info(harbor_search_index)').all() as Array<{ name: string }>;
+    present = new Set(columns.map((column) => column.name));
+    metaColumns = db.prepare('PRAGMA table_info(harbor_search_meta)').all() as Array<{ name: string }>;
+    metaPresent = new Set(metaColumns.map((column) => column.name));
+  }
+  db.exec(SEARCH_INDEX_INDEXES_SQL);
+  for (const required of REQUIRED_SEARCH_INDEX_COLUMNS) {
     if (!present.has(required)) {
       throw new Error(`harbor_search_index migration verification failed: missing column ${required}`);
+    }
+  }
+  for (const required of REQUIRED_SEARCH_META_COLUMNS) {
+    if (!metaPresent.has(required)) {
+      throw new Error(`harbor_search_meta migration verification failed: missing column ${required}`);
     }
   }
 }
@@ -273,9 +379,30 @@ export function extractSearchText(payload: Record<string, unknown>): string | nu
 export interface IndexResult {
   indexed: number;
   skippedRedacted: number;
+  skippedUnscoped: number;
+  sanitized: number;
   embedded: number;
   fromSeq: number;
   toSeq: number;
+}
+
+export interface SearchIndexOptions {
+  readonly policy?: CorpusPolicy;
+  readonly admission?: RetrievalAdmissionOptions;
+}
+
+function assertTranscriptEmbedder(embedder: LocalEmbedder): void {
+  if (embedder.policy.corpusId !== TRANSCRIPT_SEARCH_CORPUS_ID || embedder.role !== 'text_dense') {
+    throw new SearchPolicyMismatchError();
+  }
+  const selected = selectEmbeddingProfile(embedder.policy, embedder.role).profile;
+  if (
+    embedder.profile.spaceId !== embedder.spaceId
+    || embedder.profile.modelId !== embedder.modelId
+    || selected.spaceId !== embedder.spaceId
+  ) {
+    throw new SearchPolicyMismatchError();
+  }
 }
 
 interface LedgerSourceRow {
@@ -295,18 +422,45 @@ const STREAM_TO_SOURCE: Record<string, SearchSource> = {
   'work-receipt': 'receipts',
 };
 
-function getCheckpoint(db: DatabaseInstance): number {
-  const row = db.prepare('SELECT last_ledger_seq FROM harbor_search_meta WHERE id = 1').get() as
-    | { last_ledger_seq: number }
+function getCheckpoint(db: DatabaseInstance, policy: CorpusPolicy): number {
+  const row = db.prepare(
+    'SELECT corpus_id, corpus_policy_digest, last_ledger_seq FROM harbor_search_meta WHERE id = 1',
+  ).get() as
+    | { corpus_id: string; corpus_policy_digest: string; last_ledger_seq: number }
     | undefined;
-  return row?.last_ledger_seq ?? 0;
+  if (
+    !row
+    || row.corpus_id !== policy.corpusId
+    || row.corpus_policy_digest !== policy.policyDigest
+  ) return 0;
+  return row.last_ledger_seq;
 }
 
-function setCheckpoint(db: DatabaseInstance, seq: number): void {
+function preparePolicyGeneration(db: DatabaseInstance, policy: CorpusPolicy): number {
+  const row = db.prepare(
+    'SELECT corpus_id, corpus_policy_digest, last_ledger_seq FROM harbor_search_meta WHERE id = 1',
+  ).get() as
+    | { corpus_id: string; corpus_policy_digest: string; last_ledger_seq: number }
+    | undefined;
+  if (!row) return 0;
+  if (row.corpus_id !== policy.corpusId || row.corpus_policy_digest !== policy.policyDigest) {
+    db.exec('DELETE FROM harbor_search_index; DELETE FROM harbor_search_meta;');
+    return 0;
+  }
+  return row.last_ledger_seq;
+}
+
+function setCheckpoint(db: DatabaseInstance, seq: number, policy: CorpusPolicy): void {
   db.prepare(
-    `INSERT INTO harbor_search_meta (id, last_ledger_seq, updated_at) VALUES (1, ?, ?)
-     ON CONFLICT(id) DO UPDATE SET last_ledger_seq = excluded.last_ledger_seq, updated_at = excluded.updated_at`,
-  ).run(seq, new Date().toISOString());
+    `INSERT INTO harbor_search_meta (
+       id, corpus_id, corpus_policy_digest, last_ledger_seq, updated_at
+     ) VALUES (1, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       corpus_id = excluded.corpus_id,
+       corpus_policy_digest = excluded.corpus_policy_digest,
+       last_ledger_seq = excluded.last_ledger_seq,
+       updated_at = excluded.updated_at`,
+  ).run(policy.corpusId, policy.policyDigest, seq, new Date().toISOString());
 }
 
 /**
@@ -314,19 +468,29 @@ function setCheckpoint(db: DatabaseInstance, seq: number): void {
  * embeddings are filled separately by embedPending so lexical search never
  * waits on a model download.
  */
-export function indexPending(db: DatabaseInstance): Omit<IndexResult, 'embedded'> {
+export function indexPending(
+  db: DatabaseInstance,
+  options: SearchIndexOptions = {},
+): Omit<IndexResult, 'embedded'> {
   ensureSearchIndexSchema(db);
-  const fromSeq = getCheckpoint(db);
+  const policy = options.policy ?? localTextCorpusPolicy(TRANSCRIPT_SEARCH_CORPUS_ID);
+  if (policy.corpusId !== TRANSCRIPT_SEARCH_CORPUS_ID) throw new SearchPolicyMismatchError();
+  const fromSeq = preparePolicyGeneration(db, policy);
   const head = ledgerHeadSeq(db);
   let indexed = 0;
   let skippedRedacted = 0;
+  let skippedUnscoped = 0;
+  let sanitized = 0;
   const PAGE = 5_000;
   let after = fromSeq;
   const insert = db.prepare(
     `INSERT OR IGNORE INTO harbor_search_index (
-       event_id, ledger_seq, source, session_id, agent_node_id, run_id, kind,
-       occurred_at, visibility, harbor_id, text, token_count
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       event_id, ledger_seq, source, corpus_id, corpus_policy_digest,
+       session_id, agent_node_id, run_id, kind,
+       occurred_at, visibility, harbor_id, repo_ref, text, token_count,
+       source_digest, derivative_digest, redaction_receipt_id, redaction_policy_id,
+       retention_policy_id, admission_receipt_json
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   while (after < head) {
     const rows = db
@@ -351,11 +515,31 @@ export function indexPending(db: DatabaseInstance): Omit<IndexResult, 'embedded'
         continue;
       }
       const visibility = typeof payload.visibility === 'string' ? payload.visibility : 'operator';
-      const harborId = typeof payload.harborId === 'string' ? payload.harborId : null;
+      const harborId = typeof payload.harborId === 'string' ? payload.harborId.trim() : '';
+      if (!harborId) {
+        skippedUnscoped += 1;
+        continue;
+      }
+      const repoRef = typeof payload.repoRef === 'string' ? payload.repoRef.trim() : '';
+      if (!repoRef) {
+        skippedUnscoped += 1;
+        continue;
+      }
+      const admitted = admitRetrievalDerivative({
+        sourceId: row.event_id,
+        sourceContent: row.payload_json,
+        text,
+        harborId,
+        repoRef,
+        policy,
+      }, options.admission);
+      if (admitted.receipt.state === 'redacted') sanitized += 1;
       const info = insert.run(
         row.event_id,
         row.ledger_seq,
         STREAM_TO_SOURCE[row.stream_type],
+        policy.corpusId,
+        policy.policyDigest,
         row.session_id,
         row.agent_node_id,
         row.run_id,
@@ -363,16 +547,23 @@ export function indexPending(db: DatabaseInstance): Omit<IndexResult, 'embedded'
         row.occurred_at,
         visibility,
         harborId,
-        text,
-        tokenize(text).length,
+        repoRef,
+        admitted.text,
+        tokenize(admitted.text).length,
+        admitted.receipt.sourceDigest,
+        admitted.receipt.derivativeDigest,
+        admitted.receipt.receiptId,
+        admitted.receipt.redactionPolicyId,
+        admitted.receipt.retentionPolicyId,
+        JSON.stringify(admitted.receipt),
       );
       if (info.changes > 0) indexed += 1;
     }
     if (rows.length < PAGE) break;
     after = rows[rows.length - 1].ledger_seq;
   }
-  setCheckpoint(db, head);
-  return { indexed, skippedRedacted, fromSeq, toSeq: head };
+  setCheckpoint(db, head, policy);
+  return { indexed, skippedRedacted, skippedUnscoped, sanitized, fromSeq, toSeq: head };
 }
 
 /**
@@ -382,23 +573,51 @@ export function indexPending(db: DatabaseInstance): Omit<IndexResult, 'embedded'
  */
 export async function embedPending(db: DatabaseInstance, embedder: LocalEmbedder): Promise<number> {
   ensureSearchIndexSchema(db);
+  assertTranscriptEmbedder(embedder);
+  const productionReceipt = await embedder.conformance();
+  if (productionReceipt.spaceId !== embedder.spaceId || productionReceipt.modelId !== embedder.modelId) {
+    throw new SearchPolicyMismatchError();
+  }
   const BATCH = 32;
   let embedded = 0;
   const update = db.prepare(
-    'UPDATE harbor_search_index SET embedding_json = ?, embedding_model = ? WHERE event_id = ?',
+    `UPDATE harbor_search_index
+        SET embedding_json = ?, embedding_model = ?, embedding_space_id = ?,
+            embedding_policy_digest = ?, embedding_production_receipt_id = ?
+      WHERE event_id = ?`,
   );
   for (;;) {
     const rows = db
       .prepare(
         `SELECT event_id, text FROM harbor_search_index
-         WHERE embedding_json IS NULL OR embedding_model IS NOT ?
+         WHERE corpus_id = ? AND corpus_policy_digest = ? AND (
+           embedding_json IS NULL
+           OR embedding_space_id IS NOT ?
+           OR embedding_policy_digest IS NOT ?
+           OR embedding_production_receipt_id IS NOT ?
+         )
          ORDER BY ledger_seq ASC LIMIT ?`,
       )
-      .all(embedder.modelId, BATCH) as Array<{ event_id: string; text: string }>;
+      .all(
+        embedder.policy.corpusId,
+        embedder.policy.policyDigest,
+        embedder.spaceId,
+        embedder.policy.policyDigest,
+        productionReceipt.receiptDigest,
+        BATCH,
+      ) as Array<{ event_id: string; text: string }>;
     if (rows.length === 0) break;
     const vectors = await embedder.embed(rows.map((r) => r.text));
+    assertEmbeddingBatchConforms(embedder.profile, vectors, rows.length);
     for (let i = 0; i < rows.length; i += 1) {
-      update.run(JSON.stringify(vectors[i]), embedder.modelId, rows[i].event_id);
+      update.run(
+        JSON.stringify(vectors[i]),
+        embedder.modelId,
+        embedder.spaceId,
+        embedder.policy.policyDigest,
+        productionReceipt.receiptDigest,
+        rows[i].event_id,
+      );
       embedded += 1;
     }
   }
@@ -408,11 +627,11 @@ export async function embedPending(db: DatabaseInstance, embedder: LocalEmbedder
 /** Drop and rebuild the whole index from the ledger. The log is sacred; this is disposable. */
 export async function rebuildSearchIndex(
   db: DatabaseInstance,
-  options: { embedder?: LocalEmbedder | null } = {},
+  options: { embedder?: LocalEmbedder | null; policy?: CorpusPolicy; admission?: RetrievalAdmissionOptions } = {},
 ): Promise<IndexResult> {
   ensureSearchIndexSchema(db);
   db.exec('DELETE FROM harbor_search_index; DELETE FROM harbor_search_meta;');
-  const base = indexPending(db);
+  const base = indexPending(db, { policy: options.policy ?? options.embedder?.policy, admission: options.admission });
   const embedded = options.embedder ? await embedPending(db, options.embedder) : 0;
   return { ...base, embedded };
 }
@@ -432,6 +651,8 @@ interface IndexRow {
   event_id: string;
   ledger_seq: number;
   source: SearchSource;
+  corpus_id: string;
+  corpus_policy_digest: string;
   session_id: string | null;
   agent_node_id: string | null;
   run_id: string | null;
@@ -439,10 +660,14 @@ interface IndexRow {
   occurred_at: string | null;
   visibility: string;
   harbor_id: string | null;
+  repo_ref: string | null;
   text: string;
   token_count: number;
   embedding_json: string | null;
   embedding_model: string | null;
+  embedding_space_id: string | null;
+  embedding_policy_digest: string | null;
+  embedding_production_receipt_id: string | null;
 }
 
 /** BM25 over the scoped candidate set; corpus statistics are computed per query scope. */
@@ -483,20 +708,29 @@ function bm25Rank(rows: IndexRow[], queryTokens: string[]): Array<{ row: IndexRo
 function denseRank(
   rows: IndexRow[],
   queryVector: number[],
-  modelId: string,
+  embedder: LocalEmbedder,
+  productionReceiptId: string,
 ): Array<{ row: IndexRow; score: number }> {
   const scored: Array<{ row: IndexRow; score: number }> = [];
   for (const row of rows) {
-    if (!row.embedding_json || row.embedding_model !== modelId) continue;
+    if (
+      !row.embedding_json
+      || row.embedding_model !== embedder.modelId
+      || row.embedding_space_id !== embedder.spaceId
+      || row.embedding_policy_digest !== embedder.policy.policyDigest
+      || row.embedding_production_receipt_id !== productionReceiptId
+    ) continue;
     let vec: number[];
     try {
       vec = JSON.parse(row.embedding_json) as number[];
     } catch {
       continue;
     }
+    if (!Array.isArray(vec) || vec.length !== queryVector.length || vec.some((value) => !Number.isFinite(value))) {
+      continue;
+    }
     let dot = 0;
-    const len = Math.min(vec.length, queryVector.length);
-    for (let i = 0; i < len; i += 1) dot += vec[i] * queryVector[i];
+    for (let i = 0; i < vec.length; i += 1) dot += vec[i] * queryVector[i];
     if (dot > 0) scored.push({ row, score: dot });
   }
   scored.sort((a, b) => b.score - a.score || b.row.ledger_seq - a.row.ledger_seq);
@@ -571,6 +805,8 @@ export interface SearchOptions {
   embedder?: LocalEmbedder | null;
   /** Index pending ledger events (and vectors, when the mode needs them) before searching. Default true. */
   autoIndex?: boolean;
+  /** Dual-scanner and clock injection for pre-retrieval admission. */
+  admission?: RetrievalAdmissionOptions;
 }
 
 /**
@@ -592,24 +828,52 @@ export async function searchTranscripts(
   }
   const scope = query.scope ?? {};
   if (scope.projectId) throw new UnsupportedScopeError('projectId');
-  if (scope.repoRef) throw new UnsupportedScopeError('repoRef');
+  const harborId = scope.harborId?.trim();
+  if (!harborId) throw new MissingSearchScopeError('harborId');
+  const repoRef = scope.repoRef?.trim();
+  if (!repoRef) throw new MissingSearchScopeError('repoRef');
 
   const mode = query.mode;
   const embedder = options.embedder ?? null;
   if ((mode === 'hybrid' || mode === 'semantic') && !embedder) {
     throw new EmbedderUnavailableError(mode);
   }
+  const policy = embedder?.policy ?? localTextCorpusPolicy(TRANSCRIPT_SEARCH_CORPUS_ID);
+  if (policy.corpusId !== TRANSCRIPT_SEARCH_CORPUS_ID) throw new SearchPolicyMismatchError();
+  if (embedder) assertTranscriptEmbedder(embedder);
+  if (mode === 'lexical' && !policy.allowLexicalFallback) {
+    throw new SearchPolicyMismatchError();
+  }
+  const admittedQuery = admitRetrievalQuery({
+    queryId: query.queryId,
+    queryText: query.queryText,
+    harborId,
+    repoRef,
+    policy,
+  }, options.admission);
 
   ensureSearchIndexSchema(db);
   const autoIndex = options.autoIndex !== false;
   if (autoIndex) {
-    indexPending(db);
+    indexPending(db, { policy, admission: options.admission });
     if (embedder && mode !== 'lexical') await embedPending(db, embedder);
   }
 
   // Scoped candidate set (SQL narrows; ranking happens in memory).
   const where: string[] = [];
   const params: unknown[] = [];
+  where.push('corpus_id = ?');
+  params.push(policy.corpusId);
+  where.push('corpus_policy_digest = ?');
+  params.push(policy.policyDigest);
+  where.push('harbor_id = ?');
+  params.push(harborId);
+  where.push('redaction_policy_id = ?');
+  params.push(policy.redactionPolicyId);
+  where.push('retention_policy_id = ?');
+  params.push(policy.retentionPolicyId);
+  where.push('repo_ref = ?');
+  params.push(repoRef);
   where.push(`source IN (${query.sources.map(() => '?').join(', ')})`);
   params.push(...query.sources);
   const ceiling = resolveCeiling(query);
@@ -628,10 +892,6 @@ export async function searchTranscripts(
     where.push(`kind IN (${scope.eventKinds.map(() => '?').join(', ')})`);
     params.push(...scope.eventKinds);
   }
-  if (scope.harborId) {
-    where.push('harbor_id = ?');
-    params.push(scope.harborId);
-  }
   if (scope.occurredAfter) {
     where.push('occurred_at >= ?');
     params.push(scope.occurredAfter);
@@ -645,16 +905,24 @@ export async function searchTranscripts(
     .all(...params) as IndexRow[];
 
   // Rank.
-  const queryTokens = tokenize(query.queryText);
+  const queryTokens = tokenize(admittedQuery.text);
   let ranked: Array<{ row: IndexRow; score: number }>;
   let embeddingModel: string | null = null;
+  let embeddingSpaceId: string | null = null;
   let fusion: 'rrf' | null = null;
   if (mode === 'lexical') {
     ranked = bm25Rank(rows, queryTokens);
   } else {
-    const [queryVector] = await embedder!.embed([query.queryText]);
+    const productionReceipt = await embedder!.conformance();
+    if (productionReceipt.spaceId !== embedder!.spaceId || productionReceipt.modelId !== embedder!.modelId) {
+      throw new SearchPolicyMismatchError();
+    }
+    const queryVectors = await embedder!.embed([admittedQuery.text]);
+    assertEmbeddingBatchConforms(embedder!.profile, queryVectors, 1);
+    const queryVector = queryVectors[0];
     embeddingModel = embedder!.modelId;
-    const dense = denseRank(rows, queryVector, embedder!.modelId);
+    embeddingSpaceId = embedder!.spaceId;
+    const dense = denseRank(rows, queryVector, embedder!, productionReceipt.receiptDigest);
     if (mode === 'semantic') {
       ranked = dense;
     } else {
@@ -699,12 +967,22 @@ export async function searchTranscripts(
   });
 
   const head = ledgerHeadSeq(db);
-  const checkpoint = getCheckpoint(db);
+  const checkpoint = getCheckpoint(db, policy);
   const result: TranscriptSearchResult = {
     schema: 'pd.agent-harbor.transcript-search-result.v0',
     queryId: query.queryId,
     completedAt: new Date().toISOString(),
-    engine: { mode, embeddingModel, fusion, reranked: false },
+    engine: {
+      mode,
+      corpusId: policy.corpusId,
+      corpusPolicyDigest: policy.policyDigest,
+      queryAdmissionReceiptId: admittedQuery.receipt.receiptId,
+      embeddingModel,
+      embeddingSpaceId,
+      fusion,
+      rrfK: fusion === 'rrf' ? RRF_K : null,
+      reranked: false,
+    },
     budget: {
       configured: { maxResults, maxContextTokens },
       used: { results: hits.length, contextTokensEstimate: contextTokens },

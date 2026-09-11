@@ -18,6 +18,7 @@ const {
   handleMemoryTiers,
   handleMemoryTier,
   handleMemorySummary,
+  handleMemorySearch,
   TIER_TABLE,
 } = await import('../../cli/commands/memory.js');
 
@@ -240,6 +241,23 @@ describe('pd memory summary --json', () => {
 
     const salvage = out.tiers.find((t) => t.tier === 'Recall→Archival');
     expect(salvage.count).toBe(4);
+  });
+});
+
+describe('pd memory search scope gate', () => {
+  test('requires an explicit harbor before opening the retrieval index', async () => {
+    await expect(handleMemorySearch(['search', 'deploy'], {})).rejects.toThrow('process.exit(1)');
+    expect(errorSpy).toHaveBeenCalledWith(
+      'ERROR: pd memory search requires --harbor <id>; cross-harbor retrieval is default-deny.',
+    );
+  });
+
+  test('requires an exact repository after the harbor is present', async () => {
+    await expect(handleMemorySearch(['search', 'deploy'], { harbor: 'port-daddy' }))
+      .rejects.toThrow('process.exit(1)');
+    expect(errorSpy).toHaveBeenCalledWith(
+      'ERROR: pd memory search requires --repo <ref>; cross-repository retrieval is default-deny.',
+    );
   });
 });
 
