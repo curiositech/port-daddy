@@ -419,7 +419,18 @@ function optList(options: CLIOptions, key: string): string[] {
 export async function handleMemorySearch(args: string[], options: CLIOptions): Promise<void> {
   const queryText = args.slice(1).join(' ').trim();
   if (!queryText) {
-    ui.error('Usage: pd memory search "<query>" [--session <id,...>] [--agent <id,...>] [--kind <kind,...>] [--mode hybrid|semantic|lexical] [--sources <src,...>] [--limit N] [--max-tokens N] [--json]');
+    ui.error('Usage: pd memory search "<query>" --harbor <id> --repo <ref> [--session <id,...>] [--agent <id,...>] [--kind <kind,...>] [--mode hybrid|semantic|lexical] [--sources <src,...>] [--limit N] [--max-tokens N] [--json]');
+    process.exit(1);
+  }
+
+  const harborId = optString(options, 'harbor');
+  if (!harborId) {
+    ui.error('pd memory search requires --harbor <id>; cross-harbor retrieval is default-deny.');
+    process.exit(1);
+  }
+  const repoRef = optString(options, 'repo');
+  if (!repoRef) {
+    ui.error('pd memory search requires --repo <ref>; cross-repository retrieval is default-deny.');
     process.exit(1);
   }
 
@@ -456,6 +467,8 @@ export async function handleMemorySearch(args: string[], options: CLIOptions): P
     queryText,
     mode,
     scope: {
+      harborId,
+      repoRef,
       agentNodeIds: optList(options, 'agent'),
       sessionIds: optList(options, 'session'),
       eventKinds: optList(options, 'kind'),

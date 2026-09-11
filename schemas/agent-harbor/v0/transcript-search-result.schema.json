@@ -13,11 +13,16 @@
       "description": "What actually ran, for reproducibility and semantic-drift audits.",
       "properties": {
         "mode": { "enum": ["hybrid", "semantic", "lexical"] },
+        "corpusId": { "type": "string", "minLength": 1 },
+        "corpusPolicyDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "queryAdmissionReceiptId": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
         "embeddingModel": { "type": ["string", "null"], "description": "Versioned embedder id used for the dense leg, when semantic/hybrid." },
+        "embeddingSpaceId": { "type": ["string", "null"], "description": "Exact compatible logical space used for the dense leg." },
         "fusion": { "enum": ["rrf", null] },
+        "rrfK": { "type": ["integer", "null"], "minimum": 1 },
         "reranked": { "type": "boolean" }
       },
-      "required": ["mode"]
+      "required": ["mode", "embeddingModel", "fusion", "reranked"]
     },
     "budget": {
       "type": "object",

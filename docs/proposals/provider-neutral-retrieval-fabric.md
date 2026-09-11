@@ -587,8 +587,12 @@ truth. None should be folded into this design-only PR.
    conformance receipts, and generated parity across daemon and Workers.
 3. **Build the golden corpus harness.** Version judgments, privacy negatives, repeatable
    index fixtures, metrics, comparison reports, and promotion receipts.
-4. **Pilot text retrieval.** Migrate one bounded corpus from MiniLM using separate indexes,
-   BM25+dense RRF, citations, receipts, and rollback.
+4. **Pilot text retrieval.** Transcript search is the bounded source-present pilot: its
+   disposable index carries exact corpus, harbor, repository, redaction, retention, embedding
+   space, and producer-receipt identity; source derivatives and queries pass fail-closed
+   sanitization before tokenization or embedding; BM25 and the compatible dense leg fuse with
+   RRF at `k=60`. This is not benchmark promotion, remote-tier activation, or completion for
+   other corpora.
 5. **Pilot code retrieval.** Add language/repo slices, symbol/lineage features, and code-
    specific candidates only after CoIR plus Port Daddy corpus evaluation.
 6. **Add reranking.** Benchmark local and approved remote candidates over already-authorized

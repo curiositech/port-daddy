@@ -21,16 +21,23 @@ import type { DatabaseInstance } from '../../lib/sqlite-runtime.js';
 import { appendEvent, type HarborPayload } from '../../lib/agent-harbor/event-ledger.js';
 import { validateAgainstSchema } from '../../lib/agent-harbor/schema-validate.js';
 import type { LocalEmbedder } from '../../lib/semantic-resolver.js';
+import { HandoffScannerUnavailableError } from '../../lib/handoff-capsule.js';
+import { localTextCorpusPolicy, selectEmbeddingProfile } from '../../lib/retrieval-policy.js';
+import { RetrievalAdmissionError } from '../../lib/retrieval-admission.js';
 import {
   EmbedderUnavailableError,
+  MissingSearchScopeError,
+  SearchPolicyMismatchError,
   UnsupportedSearchSourceError,
   UnsupportedScopeError,
-  indexPending,
+  TRANSCRIPT_SEARCH_CORPUS_ID,
+  indexPending as indexPendingRaw,
   embedPending,
-  rebuildSearchIndex,
-  searchTranscripts,
+  rebuildSearchIndex as rebuildSearchIndexRaw,
+  searchTranscripts as searchTranscriptsRaw,
   tokenize,
   extractSearchText,
+  type SearchOptions,
   type TranscriptSearchQuery,
 } from '../../lib/agent-harbor/transcript-search.js';
 
@@ -42,7 +49,7 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function bucketVector(text: string): number[] {
-  const dims = 64;
+  const dims = TEST_PROFILE.dimensions;
   const v = new Array<number>(dims).fill(0);
   for (const tok of tokenize(text)) {
     let h = 2166136261;
@@ -56,12 +63,64 @@ function bucketVector(text: string): number[] {
   return v.map((x) => x / norm);
 }
 
+const TEST_POLICY = localTextCorpusPolicy(TRANSCRIPT_SEARCH_CORPUS_ID);
+const TEST_PROFILE = selectEmbeddingProfile(TEST_POLICY, 'text_dense').profile;
+const TEST_ADMISSION = {
+  home: '/Users/test',
+  gitleaksRunner: () => ({ findings: [] }),
+  now: () => new Date('2026-07-06T00:00:00.000Z'),
+} as const;
+const TEST_PRODUCTION_RECEIPT = {
+  version: 1,
+  verification: 'local-artifact-and-output-contract',
+  modelId: TEST_PROFILE.modelId,
+  spaceId: TEST_PROFILE.spaceId,
+  runtimeFamily: TEST_PROFILE.runtimeFamily,
+  runtimeVersion: TEST_PROFILE.runtimeVersion,
+  modelDigest: TEST_PROFILE.modelDigest,
+  modelConfigDigest: TEST_PROFILE.modelConfigDigest,
+  tokenizerDigest: TEST_PROFILE.tokenizerDigest,
+  tokenizerConfigDigest: TEST_PROFILE.tokenizerConfigDigest,
+  preprocessingDigest: TEST_PROFILE.preprocessingDigest,
+  dimensions: TEST_PROFILE.dimensions,
+  normalization: TEST_PROFILE.normalization,
+  metric: TEST_PROFILE.metric,
+  verifiedAt: '2026-07-06T00:00:00.000Z',
+  receiptDigest: 'sha256:2222222222222222222222222222222222222222222222222222222222222222',
+} as const;
+
 const fakeEmbedder: LocalEmbedder = {
-  modelId: 'test/bucket-64',
+  modelId: TEST_PROFILE.modelId,
+  spaceId: TEST_PROFILE.spaceId,
+  profile: TEST_PROFILE,
+  policy: TEST_POLICY,
+  role: 'text_dense',
   async embed(texts: string[]): Promise<number[][]> {
     return texts.map(bucketVector);
   },
+  async conformance() {
+    return TEST_PRODUCTION_RECEIPT;
+  },
 };
+
+function indexPending(db: DatabaseInstance) {
+  return indexPendingRaw(db, { policy: TEST_POLICY, admission: TEST_ADMISSION });
+}
+
+function rebuildSearchIndex(
+  db: DatabaseInstance,
+  options: { embedder?: LocalEmbedder | null } = {},
+) {
+  return rebuildSearchIndexRaw(db, { ...options, policy: TEST_POLICY, admission: TEST_ADMISSION });
+}
+
+function searchTranscripts(
+  db: DatabaseInstance,
+  query: TranscriptSearchQuery,
+  options: SearchOptions = {},
+) {
+  return searchTranscriptsRaw(db, query, { admission: TEST_ADMISSION, ...options });
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Ledger seeding — two sessions, two agents, distinct vocabularies
@@ -71,6 +130,8 @@ const NODE_A = 'agent_node_01SEARCHA';
 const NODE_B = 'agent_node_01SEARCHB';
 const SESSION_A = 'session_01SEARCHA';
 const SESSION_B = 'session_01SEARCHB';
+const HARBOR_ID = 'harbor_search_test';
+const REPO_REF = 'github:curiositech/port-daddy';
 
 let seqA = 0;
 let seqB = 0;
@@ -84,6 +145,8 @@ function transcriptA(kind: string, payloadJson: Record<string, unknown>, extra: 
     sequence: seqA,
     occurredAt: `2026-07-05T10:0${Math.min(9, seqA)}:00.000Z`,
     schemaVersion: 1,
+    harborId: HARBOR_ID,
+    repoRef: REPO_REF,
     kind,
     visibility: 'operator',
     payloadJson,
@@ -100,6 +163,8 @@ function transcriptB(kind: string, payloadJson: Record<string, unknown>, extra: 
     sequence: seqB,
     occurredAt: `2026-07-05T11:0${Math.min(9, seqB)}:00.000Z`,
     schemaVersion: 1,
+    harborId: HARBOR_ID,
+    repoRef: REPO_REF,
     kind,
     visibility: 'operator',
     payloadJson,
@@ -155,6 +220,7 @@ function seed(db: DatabaseInstance): void {
 }
 
 function baseQuery(overrides: Partial<TranscriptSearchQuery> = {}): TranscriptSearchQuery {
+  const scope = { harborId: HARBOR_ID, repoRef: REPO_REF, ...overrides.scope };
   return {
     schema: 'pd.agent-harbor.transcript-search-query.v0',
     queryId: 'tsq_test_1',
@@ -165,6 +231,7 @@ function baseQuery(overrides: Partial<TranscriptSearchQuery> = {}): TranscriptSe
     sources: ['transcript-events'],
     budget: { maxResults: 10 },
     ...overrides,
+    scope,
   };
 }
 
@@ -291,11 +358,18 @@ describe('agent-harbor transcript search (M6, ADR-0097 phase 2)', () => {
       embedder: fakeEmbedder,
     });
     expect(result.engine.mode).toBe('hybrid');
-    expect(result.engine.embeddingModel).toBe('test/bucket-64');
+    expect(result.engine.corpusId).toBe(TRANSCRIPT_SEARCH_CORPUS_ID);
+    expect(result.engine.corpusPolicyDigest).toBe(TEST_POLICY.policyDigest);
+    expect(result.engine.queryAdmissionReceiptId).toMatch(/^sha256:[0-9a-f]{64}$/);
+    expect(result.engine.embeddingModel).toBe(TEST_PROFILE.modelId);
+    expect(result.engine.embeddingSpaceId).toBe(TEST_PROFILE.spaceId);
     expect(result.engine.fusion).toBe('rrf');
+    expect(result.engine.rrfK).toBe(60);
     expect(result.engine.reranked).toBe(false);
     expect(result.hits.length).toBeGreaterThan(0);
     expect(result.hits[0].sessionId).toBe(SESSION_A);
+    expect(result.hits.every((hit) => hit.score <= 2 / 61)).toBe(true);
+    expect(result.hits.some((hit) => hit.score > 1 / 61)).toBe(true);
     const check = validateAgainstSchema('transcript-search-result', result);
     expect(check.valid).toBe(true);
   });
@@ -317,12 +391,65 @@ describe('agent-harbor transcript search (M6, ADR-0097 phase 2)', () => {
     expect(stats.skippedRedacted).toBeGreaterThanOrEqual(1);
     const result = await searchTranscripts(
       db,
-      baseQuery({ queryText: 'CLOUDFLARE SECRET TOKEN XYZZY credentials', budget: { maxResults: 50 } }),
+      baseQuery({ queryText: 'deploy credentials', budget: { maxResults: 50 } }),
     );
     for (const hit of result.hits) {
       expect(hit.snippet ?? '').not.toContain('XYZZY');
       expect(hit.citations[0].transcriptEventId).not.toBe('evt_a_5');
     }
+  });
+
+  it('sanitizes a derivative before tokenization, persistence, or ranking and stores its receipt', async () => {
+    const secret = 'ghp_abcdefghijklmnopqrstuvwxyz1234567890';
+    appendEvent(db, {
+      streamType: 'transcript-event',
+      payload: transcriptA('tool_result', { text: `deployment credential ${secret}` }),
+    });
+    const stats = indexPending(db);
+    expect(stats.sanitized).toBe(1);
+    const row = db.prepare(
+      `SELECT text, token_count, source_digest, derivative_digest,
+              redaction_receipt_id, admission_receipt_json
+         FROM harbor_search_index WHERE event_id = ?`,
+    ).get(`evt_a_${seqA}`) as {
+      text: string;
+      token_count: number;
+      source_digest: string;
+      derivative_digest: string;
+      redaction_receipt_id: string;
+      admission_receipt_json: string;
+    };
+    expect(row.text).toContain('[REDACTED:7890]');
+    expect(row.text).not.toContain(secret);
+    expect(row.token_count).toBe(tokenize(row.text).length);
+    expect(row.source_digest).not.toBe(row.derivative_digest);
+    expect(row.redaction_receipt_id).toMatch(/^sha256:[0-9a-f]{64}$/);
+    const receipt = JSON.parse(row.admission_receipt_json) as Record<string, unknown>;
+    expect(receipt).toMatchObject({
+      receiptId: row.redaction_receipt_id,
+      state: 'redacted',
+      harborId: HARBOR_ID,
+      repoRef: REPO_REF,
+      corpusId: TRANSCRIPT_SEARCH_CORPUS_ID,
+      policyDigest: TEST_POLICY.policyDigest,
+    });
+  });
+
+  it('rejects secret-bearing queries and unavailable scanners before retrieval', async () => {
+    const secret = 'ghp_abcdefghijklmnopqrstuvwxyz1234567890';
+    await expect(searchTranscripts(
+      db,
+      baseQuery({ queryText: `find ${secret}` }),
+    )).rejects.toMatchObject({ code: 'QUERY_REDACTED' });
+    await expect(searchTranscriptsRaw(db, baseQuery(), {
+      admission: {
+        ...TEST_ADMISSION,
+        gitleaksRunner: () => { throw new HandoffScannerUnavailableError(); },
+      },
+    })).rejects.toBeInstanceOf(RetrievalAdmissionError);
+    expect(db.prepare(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'harbor_search_index'",
+    ).get()).toBeUndefined();
   });
 
   it('an empty result is an honest miss, still contract-valid', async () => {
@@ -379,6 +506,8 @@ describe('agent-harbor transcript search (M6, ADR-0097 phase 2)', () => {
         spend: {},
         provenance: {},
         createdAt: '2026-07-05T12:00:00.000Z',
+        harborId: HARBOR_ID,
+        repoRef: REPO_REF,
       },
     });
     const result = await searchTranscripts(
@@ -397,6 +526,91 @@ describe('agent-harbor transcript search (M6, ADR-0097 phase 2)', () => {
     await expect(
       searchTranscripts(db, baseQuery({ scope: { projectId: 'proj_1' } })),
     ).rejects.toThrow(UnsupportedScopeError);
+    await expect(
+      searchTranscripts(db, baseQuery({ scope: { harborId: null } })),
+    ).rejects.toThrow(MissingSearchScopeError);
+    await expect(
+      searchTranscripts(db, baseQuery({ scope: { repoRef: null } })),
+    ).rejects.toThrow(MissingSearchScopeError);
+  });
+
+  it('filters harbor and repository scope before either ranker sees candidates', async () => {
+    appendEvent(db, {
+      streamType: 'transcript-event',
+      payload: transcriptA(
+        'assistant_message',
+        { text: 'deploy ingress from the other harbor' },
+        { harborId: 'harbor_other' },
+      ),
+    });
+    appendEvent(db, {
+      streamType: 'transcript-event',
+      payload: transcriptA(
+        'assistant_message',
+        { text: 'deploy ingress from the bounded repository' },
+        { repoRef: 'github:curiositech/other' },
+      ),
+    });
+    const harborResult = await searchTranscripts(db, baseQuery({ queryText: 'deploy ingress' }));
+    expect(harborResult.hits.map((hit) => hit.citations[0].transcriptEventId))
+      .not.toContain(`evt_a_${seqA - 1}`);
+    expect(harborResult.hits.map((hit) => hit.citations[0].transcriptEventId))
+      .not.toContain(`evt_a_${seqA}`);
+    const repoResult = await searchTranscripts(db, baseQuery({
+      queryText: 'bounded repository',
+      scope: { repoRef: 'github:curiositech/other' },
+    }));
+    expect(repoResult.hits.map((hit) => hit.citations[0].transcriptEventId))
+      .toContain(`evt_a_${seqA}`);
+  });
+
+  it('rebuilds legacy projection rows instead of relabeling them as admitted', () => {
+    db.exec(`
+      CREATE TABLE harbor_search_index (event_id TEXT PRIMARY KEY, text TEXT NOT NULL);
+      CREATE TABLE harbor_search_meta (id INTEGER PRIMARY KEY, last_ledger_seq INTEGER NOT NULL);
+      INSERT INTO harbor_search_index (event_id, text) VALUES ('legacy_raw', 'unscoped raw data');
+      INSERT INTO harbor_search_meta (id, last_ledger_seq) VALUES (1, 999);
+    `);
+    const stats = indexPending(db);
+    expect(stats.fromSeq).toBe(0);
+    expect(db.prepare('SELECT event_id FROM harbor_search_index WHERE event_id = ?').get('legacy_raw'))
+      .toBeUndefined();
+    const columns = db.prepare('PRAGMA table_info(harbor_search_index)').all() as Array<{ name: string }>;
+    expect(columns.map((column) => column.name)).toEqual(expect.arrayContaining([
+      'harbor_id',
+      'redaction_receipt_id',
+      'embedding_space_id',
+      'embedding_production_receipt_id',
+    ]));
+  });
+
+  it('fails closed on a dense embedder bound to another corpus or malformed vectors', async () => {
+    const wrongPolicy = localTextCorpusPolicy('pd.other.corpus');
+    const wrongEmbedder = { ...fakeEmbedder, policy: wrongPolicy } satisfies LocalEmbedder;
+    await expect(searchTranscripts(db, baseQuery({ mode: 'hybrid' }), {
+      embedder: wrongEmbedder,
+    })).rejects.toThrow(SearchPolicyMismatchError);
+    const malformedEmbedder = {
+      ...fakeEmbedder,
+      embed: async () => [[1, Number.NaN]],
+    } satisfies LocalEmbedder;
+    await expect(searchTranscripts(db, baseQuery({ mode: 'hybrid' }), {
+      embedder: malformedEmbedder,
+    })).rejects.toThrow(/embedding (batch|vector)/);
+  });
+
+  it('semantic ranking ignores a row whose producer receipt is not the current exact receipt', async () => {
+    indexPending(db);
+    await embedPending(db, fakeEmbedder);
+    db.prepare(
+      `UPDATE harbor_search_index
+          SET embedding_production_receipt_id = 'sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'`,
+    ).run();
+    const result = await searchTranscripts(db, baseQuery({ mode: 'semantic' }), {
+      embedder: fakeEmbedder,
+      autoIndex: false,
+    });
+    expect(result.hits).toEqual([]);
   });
 
   it('rejects a query that violates the frozen contract (fail-closed both directions)', async () => {

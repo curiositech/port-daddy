@@ -22,11 +22,11 @@
     "mode": { "enum": ["hybrid", "semantic", "lexical"], "description": "hybrid = lexical + dense with rank fusion (the default posture); semantic/lexical are explicit narrowings." },
     "scope": {
       "type": "object",
-      "description": "Corpus narrowing. Empty scope = the whole harbor the caller can see.",
+      "description": "Corpus narrowing. The bounded transcript-search runtime requires exact harborId and repoRef values before candidate generation; other consumers of this shared envelope may define stricter compatible rules.",
       "properties": {
-        "harborId": { "type": ["string", "null"] },
+        "harborId": { "type": ["string", "null"], "description": "Exact harbor partition. Required and non-empty by transcript search." },
         "projectId": { "type": ["string", "null"] },
-        "repoRef": { "type": ["string", "null"] },
+        "repoRef": { "type": ["string", "null"], "description": "Exact repository partition. Required and non-empty by transcript search." },
         "agentNodeIds": { "type": "array", "items": { "type": "string", "minLength": 1 } },
         "sessionIds": { "type": "array", "items": { "type": "string", "minLength": 1 } },
         "eventKinds": { "type": "array", "items": { "type": "string", "minLength": 1 }, "description": "Restrict to transcript event kinds (open strings per transcript-event.schema.json)." },
