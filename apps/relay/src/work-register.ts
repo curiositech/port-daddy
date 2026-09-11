@@ -44,7 +44,7 @@ import type { Env } from './types.js';
 import type { UserRow } from './db.js';
 import { resolveSession, userCanReadRepo } from './auth-github.js';
 import { resolveUserFromRequest } from './device-flow.js';
-import { HEAD, TOKENS } from './account-page.js';
+import { HEAD, TOKENS } from './account-theme.js';
 
 /**
  * How long a claim may go without a heartbeat before the next agent to ask is
