@@ -291,7 +291,7 @@ The motion skill's frame-budget law is *coordination-critical here*, not cosmeti
 
 ## 7. Quality Gates — collaboration, coordination & salvage
 
-- [ ] **Co-equality:** an agent's edit and a human's edit flow through the *same* `LoroText`, authored to distinct PeerIDs minted from PD identities; no separate "agent suggestion" write path.
+- [ ] **Co-equality:** an agent's edit and a human's edit flow through the *same* `LoroText`, authored to distinct replica incarnations with separately verified principal/device/session admission; no separate "agent suggestion" write path.
 - [ ] **Presence-as-claims:** every claim appears as a labeled awareness range visible to all replicas *and* is mirrored to the durable claims table; ephemeral and durable lanes agree.
 - [ ] **Predict-before-write:** `POST /conflicts/predict` runs on claim-acquire / region-enter (debounced), never per-keystroke; `blocking > 0` renders `Tone::Conflicted`.
 - [ ] **Guard never advertises bypass:** every refusal string names only the correct action (handoff/parley/nudge); no `--force`/`--no-verify`/`--allow-*` in any agent-facing message.

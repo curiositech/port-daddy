@@ -199,7 +199,15 @@ held. CH2 has tested document routing, fresh replica incarnations, exact-history
 mirrors and stable local selections, not a complete editor or shared session.
 CH3–CH7 remain open. No stage is closed merely because its design was recorded.
 
-- Base reconciled with `origin/main` at `ea797e6244ca5153bcf0faed926a53ac306d5b26`.
+The [local history slice](../research/egosystem-reconciliation/final/cooperative-editor-history-evidence.md)
+adds per-replica undo/redo, exact mirror deltas and fail-closed claim handling.
+Its headless tests and native Rust type-check pass. Affected-operation claim
+validation, undo grouping, durable history and native interaction evidence remain
+open; CH2 is still incomplete. The operator authorized scoped App publication on
+2026-09-10, without authorizing Fleet activation or deployment.
+
+- Foundation base reconciled with `origin/main` at `ea797e6244ca5153bcf0faed926a53ac306d5b26`;
+  continuation reconciled at `289b025a0e73e1eb3734115e64f4793798646c6c`.
 - Existing research commits preserved on a separate implementation branch.
 - No services, paid inference, agents or deployments started. Full product
   completion, runtime observation and predictive benefit remain unproven.

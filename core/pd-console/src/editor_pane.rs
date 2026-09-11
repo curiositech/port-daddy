@@ -29,7 +29,7 @@
 //! resolved from `Tone`.
 
 use crate::agent::DaemonClient;
-use crate::buffer::{HarborBuffer, PeerId};
+use crate::buffer::{HarborBuffer, HistoryDirection, PeerId};
 use crate::editor_claims::{
     claim_tone, decode_claim_frame, encode_claim_frame, ClaimId, ClaimLedger, ClaimMirror,
     ClaimStore, RegionClaim,
@@ -371,6 +371,51 @@ impl EditorPane {
             buffer.local_peer(),
             &delta,
         ))
+    }
+
+    /// Local-only history through the same exact-delta lane as typing. Loro may
+    /// skip an obsolete undo item and undo an earlier item, so checking only the
+    /// caret or the last replacement's old line span is unsafe. Until a canonical
+    /// affected-operation preview exists, ANY other replica's claim holds history
+    /// replay. Normal replacements remain region-scoped. Rejection touches neither
+    /// the CRDT, the history stacks nor the input/IME state.
+    pub fn apply_history(
+        &mut self,
+        direction: HistoryDirection,
+        input: &mut crate::editor_input::EditorInput,
+    ) -> std::result::Result<Option<String>, String> {
+        if self.viewer_peer.is_some() {
+            return Err("the editor mirror cannot author local operations".into());
+        }
+        let buffer = self.buffer.as_ref().ok_or("editor buffer is not loaded")?;
+        if !buffer.can_step_history(direction) {
+            return Ok(None);
+        }
+        if self.claim_ledger.iter().any(|(_, claim)| claim.peer != buffer.local_peer()) {
+            return Err("Undo/redo is unavailable while another replica holds a claim in this document. Request a handoff; affected-operation claim validation is not available yet.".into());
+        }
+        let selected = input.selection();
+        let reversed = input.selection_reversed();
+        let anchors = buffer.anchor_at_byte(selected.start)
+            .zip(buffer.anchor_at_byte(selected.end));
+        let buffer = self.buffer.as_mut().expect("loaded buffer checked above");
+        let Some(delta) = buffer.step_history(direction)? else {
+            return Ok(None);
+        };
+        let after = buffer.to_string();
+        if let Some((mut start, mut end)) = anchors {
+            if let (Some(start), Some(end)) = (
+                buffer.resolve_anchor_byte(&mut start),
+                buffer.resolve_anchor_byte(&mut end),
+            ) {
+                input.restore_selection(&after, start..end, reversed);
+            }
+        }
+        // An accepted history operation ends any stale platform composition,
+        // including when the selection's old anchors can no longer resolve.
+        input.unmark();
+        input.reconcile(&after);
+        Ok(Some(crate::editor_sync::encode_frame(buffer.local_peer(), &delta)))
     }
 
     /// Fold the foreground authority's exact local delta into the producer's
@@ -1415,6 +1460,94 @@ mod tests {
         assert_eq!(human.text().as_deref(), Some(before.as_str()));
         for token in BYPASS {
             assert!(!refusal.to_ascii_lowercase().contains(token));
+        }
+    }
+
+    #[test]
+    fn history_refusal_preserves_ops_stack_selection_and_composition() {
+        let path = write_temp("history-claims.rs", "open\nclaimed\n");
+        let mut pane = make_pane_as(&path, "Abe");
+        let mut other = make_pane_as(&path, "Becky");
+        pane.apply_local_text_edit(0..0, "😀 ").unwrap();
+        let claim = other.acquire_region_claim(2, 2, "claimed", 1_000);
+        pane.ingest_claim(&claim);
+        // A claim on a different line does not block ordinary region-safe typing.
+        pane.apply_local_text_edit(0..0, "é ").unwrap();
+        let before = pane.text().unwrap();
+        let mut input = crate::editor_input::EditorInput::default();
+        input.replace(&before, None, "研究", true, Some(0..2));
+        let prior_input = input.clone();
+        let stamp = pane.buffer().unwrap().change_stamp();
+        let refusal = pane.apply_history(HistoryDirection::Undo, &mut input).unwrap_err();
+        assert!(refusal.contains("Request a handoff"));
+        assert_eq!(pane.buffer().unwrap().change_stamp(), stamp);
+        assert_eq!(pane.text().as_deref(), Some(before.as_str()));
+        assert_eq!(input, prior_input);
+        assert!(!pane.buffer().unwrap().can_step_history(HistoryDirection::Redo));
+        for token in BYPASS {
+            assert!(!refusal.to_ascii_lowercase().contains(token));
+        }
+
+        pane.ingest_claim(&other.release_region_claim(0));
+        assert!(pane.apply_history(HistoryDirection::Undo, &mut input).unwrap().is_some());
+        assert_eq!(pane.text().as_deref(), Some("😀 open\nclaimed\n"));
+        assert_eq!(input.marked_range(), None);
+        // Re-check current claims for REDO too, not only the initial undo.
+        pane.ingest_claim(&other.acquire_region_claim(1, 1, "new claim", 2_000));
+        let stamp = pane.buffer().unwrap().change_stamp();
+        assert!(pane.apply_history(HistoryDirection::Redo, &mut input).is_err());
+        assert_eq!(pane.buffer().unwrap().change_stamp(), stamp);
+        pane.ingest_claim(&other.release_region_claim(1));
+        assert!(pane.apply_history(HistoryDirection::Redo, &mut input).unwrap().is_some());
+        assert_eq!(pane.text().as_deref(), Some(before.as_str()));
+    }
+
+    #[test]
+    fn history_delta_updates_mirror_and_render_cache_without_duplicate_effects() {
+        let path = write_temp("history-mirror.rs", "a😀z\n");
+        let mut pane = make_pane_as(&path, "Abe");
+        let mut mirror = EditorPane::mirror(path, None, pane.document().clone(),
+            &pane.snapshot_blob().unwrap(), pane.buffer().unwrap().local_peer()).unwrap();
+        let mut input = crate::editor_input::EditorInput::default();
+        assert!(pane.apply_history(HistoryDirection::Undo, &mut input).unwrap().is_none());
+        assert!(mirror.apply_history(HistoryDirection::Undo, &mut input).is_err());
+        mirror.ingest_local_frame(&pane.apply_local_text_edit(1..5, "研究").unwrap());
+        let (edited_lines, _, _) = code_buffer(&pane.view()).unwrap();
+        for (direction, expected) in [
+            (HistoryDirection::Undo, "a😀z\n"),
+            (HistoryDirection::Redo, "a研究z\n"),
+        ] {
+            let frame = pane.apply_history(direction, &mut input).unwrap().unwrap();
+            assert!(mirror.ingest_local_frame(&frame));
+            assert!(!mirror.ingest_local_frame(&frame));
+            assert!(!pane.ingest_frame(&frame), "local echo is not another edit");
+            assert_eq!(pane.text().as_deref(), Some(expected));
+            assert_eq!(pane.buffer().unwrap().lines(), mirror.buffer().unwrap().lines());
+            let (lines, _, _) = code_buffer(&pane.view()).unwrap();
+            assert!(!Arc::ptr_eq(&lines, &edited_lines));
+            let (idle, _, _) = code_buffer(&pane.view()).unwrap();
+            assert!(Arc::ptr_eq(&lines, &idle));
+            assert!(!mirror.buffer().unwrap().can_step_history(HistoryDirection::Undo));
+            assert!(mirror.apply_history(direction, &mut input).is_err());
+        }
+    }
+
+    #[test]
+    fn history_preserves_reversed_selection_on_unaffected_unicode_text() {
+        let path = write_temp("history-selection.rs", "😀 target\n");
+        let mut pane = make_pane_as(&path, "Abe");
+        pane.acquire_region_claim(1, 1, "my own claim", 1_000);
+        pane.apply_local_text_edit(0..0, "研究 ").unwrap();
+        let text = pane.text().unwrap();
+        let start = text.find("target").unwrap();
+        let mut input = crate::editor_input::EditorInput::default();
+        input.restore_selection(&text, start..start + 6, true);
+        for direction in [HistoryDirection::Undo, HistoryDirection::Redo] {
+            pane.apply_history(direction, &mut input).unwrap().unwrap();
+            let text = pane.text().unwrap();
+            assert_eq!(&text[input.selection()], "target");
+            assert!(input.selection_reversed());
+            assert_eq!(input.marked_range(), None);
         }
     }
 

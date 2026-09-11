@@ -3333,6 +3333,50 @@ impl ConsoleView {
             }
         };
 
+        self.finish_editor_change(outcome, cx);
+        true
+    }
+
+    fn apply_focused_editor_history(
+        &mut self,
+        direction: crate::buffer::HistoryDirection,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        let Some(key) = self.focused_editor_key() else {
+            return false;
+        };
+        let Some(state) = self.editors.get_mut(&key) else {
+            return false;
+        };
+        let outcome = match state.pane.apply_history(direction, &mut state.input) {
+            Ok(Some(frame)) => {
+                let after = state.pane.text().unwrap_or_default();
+                invalidate_editor_blame(state);
+                let presence = Self::presence_for_editor(state, &after);
+                state.pane.set_local_presence(presence);
+                Ok((state.pane.path_str().to_string(), state.pane.document().clone(), frame, presence))
+            }
+            Ok(None) => {
+                self.control_flash = Some(match direction {
+                    crate::buffer::HistoryDirection::Undo => "Nothing local to undo",
+                    crate::buffer::HistoryDirection::Redo => "Nothing local to redo",
+                }.into());
+                cx.notify();
+                return true;
+            }
+            Err(reason) => Err(reason),
+        };
+        self.finish_editor_change(outcome, cx);
+        true
+    }
+
+    /// Typing and history share one repaint/mirror path. An undo is a newly
+    /// authored CRDT operation, not a foreground-only visual rollback.
+    fn finish_editor_change(
+        &mut self,
+        outcome: Result<(String, crate::editor_sync::DocumentRef, String, PresenceState), String>,
+        cx: &mut Context<Self>,
+    ) {
         match outcome {
             Ok((path, document, frame, presence)) => {
                 // The foreground buffer paints the keystroke immediately. The
@@ -3360,7 +3404,6 @@ impl ConsoleView {
             }
         }
         cx.notify();
-        true
     }
 
     fn move_focused_editor<F>(&mut self, update: F, cx: &mut Context<Self>) -> bool
@@ -3401,6 +3444,12 @@ impl ConsoleView {
         cx: &mut Context<Self>,
     ) -> bool {
         let select = modifiers.shift;
+        if let Some(direction) = crate::editor_input::history_shortcut(
+            key, modifiers.platform, modifiers.control, modifiers.alt, modifiers.shift,
+            cfg!(target_os = "macos"),
+        ) {
+            return self.apply_focused_editor_history(direction, cx);
+        }
         match key {
             "left" => self.move_focused_editor(|input, text| input.left(text, select), cx),
             "right" => self.move_focused_editor(|input, text| input.right(text, select), cx),
