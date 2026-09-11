@@ -76,7 +76,7 @@ function parseStoredAccount(raw: string): StoredAccount {
     throw new Error('account credential has an invalid shape');
   }
   const row = parsed as Record<string, unknown>;
-  if (!PDU_TOKEN_RE.test(typeof row.token === 'string' ? row.token : '')
+  if (typeof row.token !== 'string' || !PDU_TOKEN_RE.test(row.token)
       || typeof row.login !== 'string' || row.login.length > 255
       || !Number.isSafeInteger(row.createdAt) || (row.createdAt as number) <= 0
       || typeof row.relayUrl !== 'string') {
