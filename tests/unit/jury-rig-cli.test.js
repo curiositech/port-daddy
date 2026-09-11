@@ -65,6 +65,18 @@ test('pd jury-rig search emits metadata-only JSON for a local skill catalog', as
   expect(JSON.stringify(body)).not.toContain('# fleet-test-author');
 });
 
+test('pd jury-rig search bounds descriptions in JSON output', async () => {
+  writeSkill('bounded-description', `needle ${'context-expansion '.repeat(100)}`);
+
+  await handleJuryRig(['search', 'needle'], { root, json: true });
+
+  const body = JSON.parse(logs.join('\n'));
+  expect(body.shortlist[0].description).toHaveLength(240);
+  expect(body.shortlist[0].description.endsWith('…')).toBe(true);
+  expect(body.shortlist[0]).not.toHaveProperty('body');
+  expect(body.shortlist[0]).not.toHaveProperty('sourcePath');
+});
+
 test('pd jury-rig graft is the explicit full-body operation', async () => {
   await handleJuryRig(['graft', 'write', 'fleet', 'trigger', 'tests'], { root, json: true, 'top-limit': 1 });
 

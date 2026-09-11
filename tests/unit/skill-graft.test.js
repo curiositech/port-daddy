@@ -17,6 +17,7 @@ import { join, dirname } from 'node:path';
 import Database from 'better-sqlite3';
 
 const {
+  MAX_SKILL_SEARCH_DESCRIPTION_CHARS,
   createSkillGraftIndex,
   defaultSkillGraftRoots,
   renderSkillGraftContext,
@@ -157,6 +158,22 @@ describe('createSkillGraftIndex().search', () => {
     const result = await graft.search('metadata searchable');
     expect(result.shortlist[0].id).toBe('disappearing-skill');
     expect(result).not.toHaveProperty('top');
+  });
+
+  test('caps descriptions in the metadata-only shortlist', async () => {
+    writeSkill(
+      tmpRoot,
+      'bounded-description',
+      `needle ${'context-expansion '.repeat(100)}`,
+    );
+    const graft = makeGraftIndex(tmpRoot, { generateSyntheticQueries: undefined });
+
+    const result = await graft.search('needle');
+
+    expect(result.shortlist[0].description).toHaveLength(MAX_SKILL_SEARCH_DESCRIPTION_CHARS);
+    expect(result.shortlist[0].description.endsWith('…')).toBe(true);
+    expect(result.shortlist[0]).not.toHaveProperty('body');
+    expect(result.shortlist[0]).not.toHaveProperty('sourcePath');
   });
 });
 
