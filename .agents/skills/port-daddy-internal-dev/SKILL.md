@@ -451,6 +451,14 @@ work; never reset or clobber the main checkout.
 
 ### Test + session gotchas (dev-loop shibboleths)
 
+- **Editor undo is a local operation, not rollback.** Use the existing buffer's
+  per-incarnation Loro UndoManager; exclude disk seeds and imported history, and
+  send its exact authored delta through the foreground/mirror pipeline. Check
+  claims before mutation. Loro can skip obsolete history items, so the caret or
+  last replacement's old range is not a safe preview. Pending canonical affected-op
+  validation, another replica's claim holds undo/redo. Do not broaden that hold
+  to ordinary adjacent typing or treat headless tests as native interaction proof.
+
 - **Research reuse is not another authority.** The Project Epistemology D1a lab
   (`docs/research/egosystem-reconciliation/harness/`) imports the existing Harbor
   R17 checker without running its sweep at import. Keep fixture envelopes out of

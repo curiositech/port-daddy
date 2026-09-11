@@ -53,6 +53,8 @@ IME/keyboard accessibility testing and normal release-packaging proof remain
 open. No visual exemption is claimed for the native interaction change. The
 existing missing Metal toolchain is not repaired by the runtime-shader check.
 No daemon, paid agent, deployment or shared-session admission was activated.
+The local PR-requirements guard fails on the absent screenshot/recording, as
+expected. The PR stays draft; no exemption or green delivery status is invented.
 
 The operator explicitly authorized the scoped GitHub App publication path on
 2026-09-10. App authorship is publication identity, not global Fleet-pause proof
