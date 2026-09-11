@@ -13,6 +13,7 @@ import { join, resolve } from 'node:path';
 import { PD_HOME } from '../../shared/paths.js';
 import { resolveCliBinary } from '../cli-bin-dirs.js';
 import { readDaemonReadyPid } from '../daemon-ready.js';
+import { hookRuntimePreamble } from '../hook-runtime-gate.js';
 import { PD_HOOK_MARKER, registeredTentaclesForProvider, TENTACLES } from './hook-shape.js';
 import {
   SLASH_COMMAND_FILENAME,
@@ -319,6 +320,17 @@ export function readSquidConformance(
     projectSettings = {};
   }
   const hooksText = JSON.stringify(projectSettings.hooks ?? {});
+  // The repository attention command stays registered behind a shell gate.
+  // Detect its exact SessionStart wiring and staged wrapper, not an unrelated
+  // reference to the wrapper (for example the skill-sync prompt hook).
+  const projectHooks = projectSettings.hooks as { SessionStart?: Array<{ hooks?: Array<{ type?: string; command?: string }> }> } | undefined;
+  const sessionStart = Array.isArray(projectHooks?.SessionStart) ? projectHooks.SessionStart : [];
+  const repositoryAttentionCommand = '/bin/sh "${CLAUDE_PROJECT_DIR:-.}/hooks/repo-lifecycle" attention';
+  const repositoryAttentionConfigured = sessionStart.some(entry =>
+    Array.isArray(entry?.hooks) && entry.hooks.some(hook => hook?.type === 'command' && hook.command === repositoryAttentionCommand));
+  const repositoryLifecycle = repositoryAttentionConfigured ? readText(join(projectRoot, 'hooks/repo-lifecycle')) : '';
+  const repositoryAttention = repositoryLifecycle.includes(hookRuntimePreamble())
+    && repositoryLifecycle.includes('pd attention --json');
   const statusline = projectSettings.statusLine as { command?: unknown } | undefined;
   const userClaudeSettingsText = readText(join(home, '.claude', 'settings.json'));
   let userStatusline = false;
@@ -355,7 +367,7 @@ export function readSquidConformance(
     statuslineUser: userStatusline,
     slashCommand: existsSync(join(projectRoot, '.claude', 'commands', SLASH_COMMAND_FILENAME)),
     pilotSessionStart: hooksText.includes('sessionstart-pilot.mjs'),
-    inboxSessionStart: hooksText.includes('pd attention'),
+    inboxSessionStart: hooksText.includes('pd attention') || repositoryAttention,
     providers,
   });
 }

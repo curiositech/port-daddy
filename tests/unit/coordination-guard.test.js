@@ -482,20 +482,22 @@ describe('Coordination Guard', () => {
     rmSync(repo, { recursive: true, force: true });
   });
 
-  test('versioned Git hooks are inert before any subprocess when globally disabled', () => {
+  test('versioned hooks skip PD while Off without suppressing ordinary Git inspection', () => {
     const scratchRoot = join(process.cwd(), '.scratch');
     mkdirSync(scratchRoot, { recursive: true });
     const sandbox = mkdtempSync(join(scratchRoot, 'pd-static-hooks-'));
     const pdHome = join(sandbox, 'pd-home');
     const fakeBin = join(sandbox, 'bin');
     const called = join(sandbox, 'called');
+    const gitCalled = join(sandbox, 'git-called');
     mkdirSync(pdHome, { recursive: true });
     mkdirSync(fakeBin, { recursive: true });
     writeFileSync(join(pdHome, 'hooks.disabled'), 'operator halt\n');
 
-    for (const command of ['git', 'pd', 'port-daddy', 'curl', 'npx']) {
+    for (const command of ['pd', 'port-daddy', 'curl', 'npx']) {
       writeFileSync(join(fakeBin, command), `#!/bin/sh\nprintf '%s' '${command}' > "$PD_HOOK_CALLED"\nexit 99\n`, { mode: 0o755 });
     }
+    writeFileSync(join(fakeBin, 'git'), '#!/bin/sh\nprintf git > "$PD_HOOK_GIT_CALLED"\nexit 99\n', { mode: 0o755 });
 
     for (const name of ['pre-commit', 'post-commit']) {
       const hookPath = join(process.cwd(), 'hooks', name);
@@ -509,7 +511,7 @@ describe('Coordination Guard', () => {
       expect(source.startsWith('#!/bin/sh\n')).toBe(true);
       expect(source).not.toMatch(/^#!.*\b(zsh|bash)\b/);
       expect(source.indexOf('hooks.disabled')).toBeGreaterThan(0);
-      expect(source.indexOf('hooks.disabled')).toBeLessThan(source.indexOf('git rev-parse'));
+      rmSync(gitCalled, { force: true });
       const result = spawnSync(hookPath, [], {
         cwd: sandbox,
         env: {
@@ -517,6 +519,7 @@ describe('Coordination Guard', () => {
           PATH: `${fakeBin}:/usr/bin:/bin`,
           PD_HOME: pdHome,
           PD_HOOK_CALLED: called,
+          PD_HOOK_GIT_CALLED: gitCalled,
         },
         encoding: 'utf8',
       });
@@ -524,6 +527,7 @@ describe('Coordination Guard', () => {
       expect(result.stdout).toBe('');
       expect(result.stderr).toBe('');
       expect(existsSync(called)).toBe(false);
+      expect(existsSync(gitCalled)).toBe(name === 'pre-commit');
     }
 
     rmSync(sandbox, { recursive: true, force: true });

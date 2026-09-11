@@ -5,6 +5,9 @@
 # and every CI runner we use. A guard that silently does not run is a guard
 # that fails open, so the floors are a here-doc now and the shell is the one
 # every POSIX system has.
+# Only the secret scanner invokes Port Daddy. Keep its admission/early exit
+# inside this subshell so Off cannot bypass ordinary repository validation.
+pd_check_staged_secrets() (
 # >>> Port Daddy automatic-hook runtime gate
 pd_hook_runtime_enabled() (
   [ "$#" -eq 2 ] && [ -n "$1" ] && [ -n "$2" ] || exit 1
@@ -65,10 +68,19 @@ pd_hook_runtime_ready() (
 )
 pd_hook_runtime_ready "${HOME:+$HOME/.port-daddy}" "${PD_HOME:-${HOME:+$HOME/.port-daddy}}" || exit 0
 # <<< Port Daddy automatic-hook runtime gate
+if command -v pd >/dev/null 2>&1; then
+  if ! pd safe guard --staged --quiet >/dev/null 2>&1; then
+    # A second diagnostic call must also respect a newly observed stop.
+    if pd_hook_runtime_ready "${HOME:+$HOME/.port-daddy}" "${PD_HOME:-${HOME:+$HOME/.port-daddy}}"; then
+      pd safe guard --staged >&2 || true
+    fi
+    exit 1
+  fi
+fi
+exit 0
+)
+
 PD_HOOK_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
-PD_HOOK_COMMON=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || exit 0
-[ -f "$PD_HOOK_ROOT/.portdaddy/coordination-guard.json" ] ||
-  [ -f "$PD_HOOK_COMMON/port-daddy/coordination-guard.json" ] || exit 0
 
 # =============================================================================
 # Port Daddy Pre-Commit Guard
@@ -225,15 +237,11 @@ fi
 # ---------------------------------------------------------------------------
 # `pd safe guard --staged` reuses the A1 structured-format + entropy scanner
 # against `git diff --staged` and exits 1 when a NEW secret is staged. It prints
-# only path/line/rule-id/last-4 — never the raw value. Fail-OPEN if the `pd`
-# binary is absent (do not block a commit just because pd isn't installed);
-# fail-CLOSED when pd is present and finds a staged secret.
-if command -v pd >/dev/null 2>&1; then
-  if ! pd safe guard --staged --quiet >/dev/null 2>&1; then
-    # Re-run without --quiet so the operator sees which finding blocked them.
-    pd safe guard --staged >&2 || true
-    fail "staged changes add a secret (pd safe guard). Un-stage it or corral it: pd safe corral <KEY> --apply."
-  fi
+# only path/line/rule-id/last-4 — never the raw value. Off or unready means no
+# invocation, not a passed secret scan. This does not require Coordination
+# Guard configuration; the secret scanner is an independent Port Daddy feature.
+if ! pd_check_staged_secrets; then
+  fail "staged changes add a secret (pd safe guard). Un-stage it or corral it: pd safe corral <KEY> --apply."
 fi
 
 # ---------------------------------------------------------------------------

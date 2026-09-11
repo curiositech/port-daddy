@@ -137,7 +137,7 @@ describe('automatic hook runtime admission', () => {
     finally { chmodSync(hidden, 0o700); }
   });
 
-  test.each(['hooks/pre-commit', 'hooks/post-commit', 'templates/post-commit-hook', 'public/samples/files/templates/post-commit-hook'])(
+  test.each(['hooks/post-commit', 'templates/post-commit-hook', 'public/samples/files/templates/post-commit-hook', 'hooks/repo-lifecycle'])(
     '%s embeds the exact canonical gate and does no work while off', path => {
       const source = readFileSync(join(process.cwd(), path), 'utf8');
       expect(source).toContain(hookRuntimePreamble());
@@ -156,6 +156,110 @@ describe('automatic hook runtime admission', () => {
     expect(result.status).toBe(23);
     expect(readFileSync(calls, 'utf8')).toBe('git\nreset\n--hard\nfile with spaces\n');
     expect(existsSync(join(selected, 'destructive-ops.log'))).toBe(false);
+  });
+
+  test.each(['hooks.disabled', 'HALT', 'unready'])(
+    'pre-commit keeps ordinary validation through On → %s → On without reinstalling', state => {
+      const source = readFileSync(join(process.cwd(), 'hooks/pre-commit'), 'utf8');
+      expect(source).toContain(hookRuntimePreamble());
+      writeFileSync(join(fakeBin, 'git'), `#!/bin/sh
+case "$*" in
+  'rev-parse --show-toplevel') printf '%s\\n' "$PWD" ;;
+  *--diff-filter=D*) printf '%s' "\${HOOK_TEST_DELETED:-}" ;;
+  *--diff-filter=M*) ;;
+  'diff --cached --name-only --diff-filter=d') printf '%s\\n' "\${HOOK_TEST_STAGED:-}" ;;
+esac
+exit 0
+`, { mode: 0o755 });
+      writeFileSync(join(fakeBin, 'pd'), '#!/bin/sh\nprintf "pd\\n" >> "$HOOK_TEST_CALLS"\nexit 0\n', { mode: 0o755 });
+      const controlPath = state === 'unready' ? join(selected, 'daemon.ready') : join(canonical, state);
+      for (const off of [false, true, false]) {
+        if (state === 'unready') {
+          if (off) rmSync(controlPath);
+          else writeFileSync(controlPath, '4242\n');
+        } else if (off) writeFileSync(controlPath, 'fixture off');
+        else rmSync(controlPath, { force: true });
+        utimesSync(join(selected, 'heartbeat'), new Date(), new Date());
+        // No Coordination Guard config is installed. Ordinary checks and the
+        // independently gated secret scanner must not depend on one.
+        for (const example of [
+          { env: {}, error: null },
+          { env: { HOOK_TEST_STAGED: 'accidental.sqlite' }, error: 'Database file' },
+          { env: { HOOK_TEST_DELETED: 'server.ts' }, error: 'was DELETED' },
+        ]) {
+          writeFileSync(calls, '');
+          const result = run(bindFixtureRoots(source), [], '/bin/sh', example.env);
+          expect(result.status).toBe(example.error ? 1 : 0);
+          if (example.error) expect(result.stderr).toContain(example.error);
+          expect(readFileSync(calls, 'utf8')).toBe(off ? '' : 'pd\n');
+        }
+      }
+    },
+  );
+
+  test('an enabled pre-commit still refuses a failed PD secret scan', () => {
+    writeFileSync(join(fakeBin, 'git'), '#!/bin/sh\n[ "$1" != rev-parse ] || printf "%s\\n" "$PWD"\nexit 0\n', { mode: 0o755 });
+    const result = run(bindFixtureRoots(readFileSync(join(process.cwd(), 'hooks/pre-commit'), 'utf8')));
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('staged changes add a secret');
+    expect(readFileSync(calls, 'utf8')).toContain('pd\nsafe\nguard\n--staged\n--quiet\n');
+  });
+
+  test.each(['hooks.disabled', 'HALT', 'unready'])(
+    'both configured lifecycle hooks survive On → %s → On unchanged', state => {
+      const settings = JSON.parse(readFileSync(join(process.cwd(), '.claude/settings.json'), 'utf8'));
+      const source = readFileSync(join(process.cwd(), 'hooks/repo-lifecycle'), 'utf8');
+      expect(source).toContain(hookRuntimePreamble());
+      const project = join(fixture, 'project with spaces');
+      mkdirSync(join(project, 'hooks'), { recursive: true });
+      const wrapper = join(project, 'hooks/repo-lifecycle');
+      writeFileSync(wrapper, bindFixtureRoots(source));
+      const controlPath = state === 'unready' ? join(selected, 'daemon.ready') : join(canonical, state);
+      for (const off of [false, true, false]) {
+        if (state === 'unready') {
+          if (off) rmSync(controlPath);
+          else writeFileSync(controlPath, '4242\n');
+        } else if (off) writeFileSync(controlPath, 'fixture off');
+        else rmSync(controlPath, { force: true });
+        utimesSync(join(selected, 'heartbeat'), new Date(), new Date());
+        for (const [event, action, expected] of [
+          ['SessionStart', 'attention', 'pd\nattention\n--json\n'],
+          ['UserPromptSubmit', 'sync-skills', 'npx\ntsx\nscripts/sync-skills.ts\n--scope\nuser\n--quiet\n'],
+        ]) {
+          const command = settings.hooks[event][0].hooks[0].command;
+          expect(command).toBe(`/bin/sh "\${CLAUDE_PROJECT_DIR:-.}/hooks/repo-lifecycle" ${action}`);
+          writeFileSync(calls, '');
+          const result = run(command, [], '/bin/sh', { CLAUDE_PROJECT_DIR: project });
+          expect(result.status).toBe(0);
+          expect(readFileSync(calls, 'utf8')).toBe(off ? '' : expected);
+        }
+        expect(readFileSync(wrapper, 'utf8')).toBe(bindFixtureRoots(source));
+      }
+    },
+  );
+
+  test('LFS and a foreign hook tail run through On → Off → On', async () => {
+    writeFileSync(join(fakeBin, 'git-lfs'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+    writeFileSync(join(fakeBin, 'git'), '#!/bin/sh\nprintf "%s\\n" git "$@" >> "$HOOK_TEST_CALLS"\n[ "$1" != rev-parse ] || printf "%s\\n" "$PWD"\nexit 0\n', { mode: 0o755 });
+    const source = readFileSync(join(process.cwd(), 'hooks/post-commit'), 'utf8');
+    const tail = source.lastIndexOf('\nexit 0');
+    const merged = source.slice(0, tail) + '\nprintf "foreign-hook\\n" >> "$HOOK_TEST_CALLS"\n' + source.slice(tail);
+    for (const off of [false, true, false]) {
+      if (off) writeFileSync(join(canonical, 'HALT'), 'fixture off');
+      else rmSync(join(canonical, 'HALT'), { force: true });
+      utimesSync(join(selected, 'heartbeat'), new Date(), new Date());
+      writeFileSync(calls, '');
+      const result = run(bindFixtureRoots(merged), ['fixture-argument'], '/bin/sh', { PD_URL: 'http://fixture.invalid' });
+      expect(result.status).toBe(0);
+      if (!off) {
+        for (let i = 0; i < 100 && !readFileSync(calls, 'utf8').includes('curl\n'); i++)
+          await new Promise(resolve => setTimeout(resolve, 10));
+      }
+      const observed = readFileSync(calls, 'utf8');
+      expect(observed).toContain('git\nlfs\npost-commit\nfixture-argument\n');
+      expect(observed).toContain('foreign-hook\n');
+      expect(observed.includes('curl\n')).toBe(!off);
+    }
   });
 
   test('Git shim does not invoke pd when daemon readiness is absent', () => {
