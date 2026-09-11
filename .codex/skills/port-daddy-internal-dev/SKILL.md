@@ -451,6 +451,15 @@ work; never reset or clobber the main checkout.
 
 ### Test + session gotchas (dev-loop shibboleths)
 
+- **Editor reload is not permission to discard a CRDT.** Share the sync/async
+  preflight; keep the existing buffer/cache/claims on refusal or read failure.
+  Protect imports waiting for dependencies even when the visible state frontier
+  has not advanced. Equal text after undo is not equal operation history. Mirrors
+  never reseed from disk. Keep reload notices distinct from failed-open navigation
+  so a preserved editor remains usable. Test the complete headless target graph,
+  including examples that rehost modules; selected test filters miss compile gaps.
+  In-memory preservation is not a durable draft or shared acknowledgement.
+
 - **Editor undo is a local operation, not rollback.** Use the existing buffer's
   per-incarnation Loro UndoManager; exclude disk seeds and imported history, and
   send its exact authored delta through the foreground/mirror pipeline. Check

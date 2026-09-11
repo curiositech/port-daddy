@@ -74,6 +74,11 @@ features already form a working product. Keep the existing CH identities.
 
 CH2's remaining implementation queue, in order:
 
+- [x] Source-built and headless-tested: preserve live operations, imported history,
+  pending dependencies, claims and editor visibility during refused/failed reloads.
+  See [reload evidence](../research/egosystem-reconciliation/final/cooperative-editor-reload-evidence.md).
+  This is not disk-save completion or process-restart durability.
+
 - [ ] Correct current PR CI and preserve a complete headless target-graph check,
   including examples that rehost editor modules; do not infer crate health from
   a selected test filter.
