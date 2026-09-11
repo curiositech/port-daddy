@@ -155,8 +155,17 @@ describe('decode-guard sweep: malformed percent-escapes never reach the 500 boun
   });
 
   it('DELETE /v1/cache/jwks/%ZZ — 400, and no audit row is written for the empty id', async () => {
-    const res = await fetchWith('/v1/cache/jwks/%ZZ', { method: 'DELETE', headers: OPERATOR_AUTH });
+    const fx = makeParleyDb();
+    const res = await worker.fetch(
+      new Request('https://relay.example/v1/cache/jwks/%ZZ', { method: 'DELETE', headers: OPERATOR_AUTH }),
+      makeParleyEnv(fx.db, { RELAY_OPERATOR_TOKEN: OPERATOR_TOKEN }),
+      {} as ExecutionContext,
+    );
     const body = await assertNo500(res, 400);
     expect(body).toContain('BAD_REQUEST');
+    // The point of the guard: the refusal happens BEFORE appendAudit, so a
+    // malformed URL cannot write to the audit trail. A status assertion alone
+    // would still pass if the row were written and the 400 returned after it.
+    expect(fx.statements.some((sql) => /INSERT INTO audit_log/i.test(sql))).toBe(false);
   });
 });
