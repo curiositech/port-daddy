@@ -1,7 +1,9 @@
 # Local Off: implementation and evidence
 
 Status: hook admission published in #10137; native controls and runtime enforcement
-are source-built and under review. Complete application/runtime Off proof is unfinished.
+are source-built and under review in regular PR #10138. Complete application/runtime
+Off proof is unfinished. Both PRs are published through the configured GitHub App;
+exact-head LFS uploads succeeded before their Git pushes.
 The September operator halt remains in effect. This document does not authorize
 starting a daemon, app, service, backend or paid run.
 
