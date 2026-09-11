@@ -379,6 +379,7 @@ class ReleaseCandidateSuite {
     const pdHome = join(caseRoot, 'p');
     const contextDir = join(caseRoot, 'x');
     const tmp = join(caseRoot, 't');
+    const db = join(runtimeRoot, 'registry.db');
     for (const path of [runtimeRoot, home, pdHome, contextDir, tmp]) mkdirSync(path, { recursive: true });
     const sock = join(runtimeRoot, 'pd.sock');
     const env = {
@@ -391,7 +392,7 @@ class ReleaseCandidateSuite {
       PD_SCRATCH_ROOT: join(caseRoot, 'scratch'),
       PORT_DADDY_BIN_OVERRIDE: join(this.stagedDir, 'pd'),
       PORT_DADDY_CONTEXT_DIR: contextDir,
-      PORT_DADDY_DB: join(runtimeRoot, 'registry.db'),
+      PORT_DADDY_DB: db,
       PORT_DADDY_DISABLE_KEYCHAIN: '1',
       PORT_DADDY_HEARTBEAT_FILE: join(runtimeRoot, 'heartbeat'),
       PORT_DADDY_IPC: join(runtimeRoot, 'pd.ipc'),
@@ -408,6 +409,7 @@ class ReleaseCandidateSuite {
       PORT_DADDY_SKIP_FRESHNESS_CHECK: '1',
       PORT_DADDY_SNAPSHOT_ROOT: join(caseRoot, 'snapshots'),
       PORT_DADDY_SOCK: sock,
+      PORT_DADDY_TEST_DB: db,
       TERM: 'dumb',
       TMPDIR: tmp,
       USERPROFILE: home,
