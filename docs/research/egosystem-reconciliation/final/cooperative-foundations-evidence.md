@@ -88,3 +88,14 @@ App identity, not the operator's personal account, and does not claim global
 Fleet pause or independent review. The foundation is stacked above #10108's
 current research head; original research and newer clearance work are preserved.
 PR/check readback and remaining native/merge gates are recorded in the PR body.
+
+CI caught a module-closure regression missed by the focused targets: the
+`wedge_render_proof` example rehosts EditorPane without its new EditorInput
+dependency. Adding the missing `#[path]` module fixes the reproduced E0433 error;
+`cargo test --offline -q -p pd-console --no-run` now builds every headless target,
+including examples. The changelog fragment is also renamed for #10132 and uses
+the required `type:` header and one-line bullets; the full fragment check passes.
+The subsequent full `cargo test --offline -q -p pd-console` run passes all 16
+headless targets (863 executions, with rehosted-module overlap), using inspected
+local mocks, disabled Git hooks and a fresh scratch directory under `coding/tmp`.
+This extends the earlier focused evidence; it does not supply native proof.
