@@ -1,6 +1,6 @@
 {
   "note": "Slugs a document schedules that the committed registry projection does not carry. This is a queue of rows to write when the roadmap authority is available, not a second registry: nothing here is scheduled work until it is a row. Regenerate with scripts/roadmap/check_unregistered.py --write.",
-  "registry_items": 318,
+  "registry_items": 319,
   "unregistered": [
     {
       "slug": "fleet-cost-canary",
