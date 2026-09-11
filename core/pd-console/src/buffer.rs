@@ -22,7 +22,7 @@
 //! not authenticated admission: the Harbor authority must separately bind the
 //! principal, device, session and current grant before shared writes are admitted.
 
-use loro::{ContainerTrait, ExpandType, ExportMode, LoroDoc, LoroText, StyleConfig, StyleConfigMap};
+use loro::{ContainerTrait, ExpandType, ExportMode, LoroDoc, LoroText, StyleConfig, StyleConfigMap, UndoManager};
 use std::ops::Range;
 
 /// Loro container name for the file's text. One file = one `LoroDoc` holding one
@@ -38,6 +38,13 @@ const AUTHOR_MARK: &str = "author";
 /// A Loro replica id. `u64` per `loro_common::PeerID`; re-aliased here so the
 /// public surface does not force callers to depend on the loro crate directly.
 pub type PeerId = u64;
+
+/// Local editing history, never global rollback or a recovery authority.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HistoryDirection {
+    Undo,
+    Redo,
+}
 
 /// Deterministic IDs for isolated codec/claim fixtures ONLY. Production replicas
 /// use Loro's fresh IDs, never a hash of an asserted principal or label.
@@ -76,6 +83,9 @@ pub struct HarborBuffer {
     local_peer: PeerId,
     /// The PD identity string this replica was opened under (for audit/debug).
     identity: String,
+    /// Bound to this incarnation for its lifetime. Imported history is not a
+    /// local undo item; reopening starts a new editing history, not a recovery.
+    history: UndoManager,
 }
 
 impl HarborBuffer {
@@ -104,11 +114,13 @@ impl HarborBuffer {
         let local_peer = doc.peer_id();
         doc.config_text_style(Self::author_styles());
         let text = doc.get_text(TEXT_CONTAINER);
+        let history = UndoManager::new(&doc);
         Self {
             doc,
             text,
             local_peer,
             identity,
+            history,
         }
     }
 
@@ -134,6 +146,9 @@ impl HarborBuffer {
                 .expect("mark seed content with opener's peer");
             buf.doc.commit();
         }
+        // Loading a file is a baseline, not a user edit. In particular, Cmd-Z
+        // immediately after opening must not erase the file's seed content.
+        buf.history.clear();
         Ok(buf)
     }
 
@@ -191,6 +206,32 @@ impl HarborBuffer {
         self.doc
             .export(ExportMode::updates(&before))
             .expect("export authored replacement delta")
+    }
+
+    pub fn can_step_history(&self, direction: HistoryDirection) -> bool {
+        match direction {
+            HistoryDirection::Undo => self.history.can_undo(),
+            HistoryDirection::Redo => self.history.can_redo(),
+        }
+    }
+
+    /// Undo/redo only this replica's local operations, emitting the exact new
+    /// CRDT delta for the existing mirror/transport pipeline. This is deliberately
+    /// not a string snapshot replacement: remote edits and authorship survive.
+    /// Each accepted replacement is one history item (no timed grouping yet).
+    /// The pane must check claims BEFORE calling this mutating substrate method.
+    pub fn step_history(&mut self, direction: HistoryDirection) -> Result<Option<Vec<u8>>, String> {
+        let before = self.doc.oplog_vv();
+        let changed = match direction {
+            HistoryDirection::Undo => self.history.undo(),
+            HistoryDirection::Redo => self.history.redo(),
+        }.map_err(|error| format!("editor history failed: {error}"))?;
+        if !changed {
+            return Ok(None);
+        }
+        self.doc.export(ExportMode::updates(&before))
+            .map(Some)
+            .map_err(|error| format!("editor history export failed: {error}"))
     }
 
     /// Append `line` (a single logical line WITHOUT a trailing newline) at the end
@@ -370,6 +411,113 @@ impl HarborBuffer {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn history_never_undoes_disk_seed_or_imported_baseline() {
+        let path = scratch_dir().join("history-seed.txt");
+        std::fs::write(&path, "baseline 😀\n").unwrap();
+        let mut opener = HarborBuffer::open(path.to_str().unwrap(), "Abe").unwrap();
+        let mut successor = HarborBuffer::empty("Abe");
+        successor.apply_remote_ops(&opener.export_snapshot()).unwrap();
+        for buffer in [&mut opener, &mut successor] {
+            let stamp = buffer.change_stamp();
+            assert!(!buffer.can_step_history(HistoryDirection::Undo));
+            assert_eq!(buffer.step_history(HistoryDirection::Undo).unwrap(), None);
+            assert_eq!(buffer.step_history(HistoryDirection::Redo).unwrap(), None);
+            assert_eq!(buffer.change_stamp(), stamp);
+            assert_eq!(buffer.to_string(), "baseline 😀\n");
+        }
+    }
+
+    #[test]
+    fn history_only_reverts_local_edits_and_emits_convergent_authored_deltas() {
+        let seed = HarborBuffer::empty("Becky");
+        seed.insert_authored(0, "field notes\n");
+        let mut local = HarborBuffer::empty("Abe");
+        local.apply_remote_ops(&seed.export_snapshot()).unwrap();
+        let remote = HarborBuffer::empty("Charli");
+        remote.apply_remote_ops(&local.export_snapshot()).unwrap();
+        // Concurrent edits in one line, not just disjoint appended lines.
+        let local_delta = local.replace_authored(0..0, "😀 ");
+        let remote_delta = remote.replace_authored(0..0, "研究 ");
+        local.apply_remote_ops(&remote_delta).unwrap();
+        remote.apply_remote_ops(&local_delta).unwrap();
+        let edited = local.to_string();
+        let authored = local.richtext_spans();
+        assert_eq!(remote.to_string(), edited);
+
+        let undo = local.step_history(HistoryDirection::Undo).unwrap().unwrap();
+        assert_eq!(local.to_string(), "研究 field notes\n");
+        remote.apply_remote_ops(&undo).unwrap();
+        remote.apply_remote_ops(&undo).unwrap();
+        assert_eq!(remote.richtext_spans(), local.richtext_spans());
+        assert_eq!(local.richtext_spans(), vec![
+            ("研究 ".into(), Some(remote.local_peer())),
+            ("field notes\n".into(), Some(seed.local_peer())),
+        ]);
+        assert!(!local.can_step_history(HistoryDirection::Undo));
+
+        let redo = local.step_history(HistoryDirection::Redo).unwrap().unwrap();
+        remote.apply_remote_ops(&redo).unwrap();
+        assert_eq!(local.to_string(), edited);
+        assert_eq!(local.richtext_spans(), authored);
+        assert_eq!(remote.richtext_spans(), authored);
+    }
+
+    #[test]
+    fn undo_replacement_restores_original_authorship_not_the_undoing_replica() {
+        let seed = HarborBuffer::empty("Becky");
+        seed.insert_authored(0, "é😀\n");
+        let mut local = HarborBuffer::empty("Charli");
+        local.apply_remote_ops(&seed.export_snapshot()).unwrap();
+        local.replace_authored(0..2, "replacement");
+        local.step_history(HistoryDirection::Undo).unwrap().unwrap();
+        assert_eq!(local.richtext_spans(), seed.richtext_spans());
+        local.step_history(HistoryDirection::Redo).unwrap().unwrap();
+        assert_eq!(local.richtext_spans(), vec![
+            ("replacement".into(), Some(local.local_peer())),
+            ("\n".into(), Some(seed.local_peer())),
+        ]);
+    }
+
+    #[test]
+    fn remote_edit_after_undo_survives_redo_but_new_local_edit_clears_redo() {
+        let mut local = HarborBuffer::empty("Abe");
+        local.insert_authored(0, "local");
+        local.step_history(HistoryDirection::Undo).unwrap().unwrap();
+        let remote = HarborBuffer::empty("Becky");
+        remote.apply_remote_ops(&local.export_snapshot()).unwrap();
+        remote.insert_authored(0, "remote");
+        local.apply_remote_ops(&remote.export_ops()).unwrap();
+        assert!(local.can_step_history(HistoryDirection::Redo));
+        local.step_history(HistoryDirection::Redo).unwrap().unwrap();
+        assert!(local.to_string().contains("remote"));
+        assert!(local.to_string().contains("local"));
+        local.step_history(HistoryDirection::Undo).unwrap().unwrap();
+        local.insert_authored(0, "different");
+        let stamp = local.change_stamp();
+        assert!(!local.can_step_history(HistoryDirection::Redo));
+        assert_eq!(local.step_history(HistoryDirection::Redo).unwrap(), None);
+        assert_eq!(local.change_stamp(), stamp);
+    }
+
+    #[test]
+    fn history_is_bounded_and_each_replacement_is_one_step() {
+        let mut local = HarborBuffer::empty("Abe");
+        for _ in 0..105 {
+            local.insert_authored(0, "😀");
+        }
+        for expected in (5..105).rev() {
+            assert!(local.step_history(HistoryDirection::Undo).unwrap().is_some());
+            assert_eq!(local.to_string().chars().count(), expected);
+        }
+        assert_eq!(local.step_history(HistoryDirection::Undo).unwrap(), None);
+        for _ in 0..100 {
+            assert!(local.step_history(HistoryDirection::Redo).unwrap().is_some());
+        }
+        assert_eq!(local.to_string().chars().count(), 105);
+        assert_eq!(local.step_history(HistoryDirection::Redo).unwrap(), None);
+    }
 
     #[test]
     fn stable_cursor_tracks_unicode_insertions_and_deletions() {

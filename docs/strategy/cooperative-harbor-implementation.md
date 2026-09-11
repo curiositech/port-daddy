@@ -57,6 +57,50 @@ Designed, source-built, tested, deployed and observed are separate states.
 - [ ] CH7: Native/web/iOS/companion delivery, Porthole continuity, accessibility,
   human task testing, reviewed PRs and exact-version release evidence.
 
+### Delivery checkpoint: 2026-09-11
+
+This is the overall task list, not a claim that seven separately designed
+features already form a working product. Keep the existing CH identities.
+
+| Stage | Current evidence | Next work / completion gate |
+| --- | --- | --- |
+| CH1: contracts and program | Research PR [#10108](https://github.com/curiositech/port-daddy/pull/10108) merged; custody/ownership amendments in draft [#10132](https://github.com/curiositech/port-daddy/pull/10132) | Reconcile canonical program revisions when runtime access is permitted; retain exact source/test/release references |
+| CH2: local IDE | Routing/replica/selection foundations in #10132; guarded per-replica undo/redo in draft [#10133](https://github.com/curiositech/port-daddy/pull/10133) | Complete the editing checklist below, then real native task proof |
+| CH3: governed collaboration | Authority/replay contracts identified; no shared admission or recovery claim | Verified principal/device admission, typed Rust receipts, complete replay, stable claims, filesystem witnesses and atomic transfer |
+| CH4: project state | Record ownership and disclosure contracts specified | Invitations/participation, explicit contribution publishing, dependency plans, accepted commitments, decisions/dissent, keys and revocation |
+| CH5: Remote Harbor | Custody and persistence protocol specified | Durable encrypted journal/checked heads, cold reconstruction, fencing/transfer, transport parity and failure UI |
+| CH6: intersections | Offline research artifacts exist; no measured predictive benefit | Scoped hybrid retrieval, bounded consequence paths, conflict/opportunity resolution, invalidation and held-out baseline comparison |
+| CH7: delivery | Source evidence and draft PRs, not a native release | Native/web/iOS/companion workflows, replay/handoffs, accessibility/human testing, independent review and exact-version release receipts |
+
+CH2's remaining implementation queue, in order:
+
+- [ ] Correct current PR CI and preserve a complete headless target-graph check,
+  including examples that rehost editor modules; do not infer crate health from
+  a selected test filter.
+- [ ] Local save lifecycle: explicit dirty state, validated filesystem target,
+  asynchronous writes tied to an exact document/revision, external-change refusal
+  and no false clean state when edits race completion. Device-local saving is
+  not shared acceptance or a canonical filesystem compare-and-swap guarantee.
+- [ ] Private draft persistence and restart recovery using reviewed key custody;
+  preserve authorship, distinguish acknowledged/durable work from device-only
+  drafts, and never dump private CRDT history into an unprotected cache.
+- [ ] Typing/IME undo grouping, edit-associated selection restoration and native
+  clipboard/IME/Unicode/keyboard behavior. Per-replica history alone is not this
+  complete interaction contract.
+- [ ] Native incremental syntax, navigation/diagnostics, wrapping and large-file
+  virtualization; remove silent truncation only with bounded rendering proof.
+- [ ] File create/rename/delete and unsaved-close handling, diff/review, test
+  execution and Git/PR handoff through the existing background pipeline.
+- [ ] Verify independent worktrees and deliberately shared documents against
+  CH3 authority, then record actual light/dark, zoom, accessibility and human
+  task-flow evidence. No app launch is authorized by this checklist.
+
+After CH2, follow CH3 → CH4 → CH5 → CH6 → CH7 without treating source-present
+scaffolds as completed prerequisites. Shared decisions, transfers and external
+effects must remain unavailable wherever their authority or durable receipt is
+missing. The field-notebook acceptance gates below close the overall project,
+not an aggregate unit-test count.
+
 ### CH1: accepted contract amendments
 
 Managed Cloudflare hosting is recommended for **new shared projects**, with
@@ -199,7 +243,15 @@ held. CH2 has tested document routing, fresh replica incarnations, exact-history
 mirrors and stable local selections, not a complete editor or shared session.
 CH3–CH7 remain open. No stage is closed merely because its design was recorded.
 
-- Base reconciled with `origin/main` at `ea797e6244ca5153bcf0faed926a53ac306d5b26`.
+The [local history slice](../research/egosystem-reconciliation/final/cooperative-editor-history-evidence.md)
+adds per-replica undo/redo, exact mirror deltas and fail-closed claim handling.
+Its headless tests and native Rust type-check pass. Affected-operation claim
+validation, undo grouping, durable history and native interaction evidence remain
+open; CH2 is still incomplete. The operator authorized scoped App publication on
+2026-09-10, without authorizing Fleet activation or deployment.
+
+- Foundation base reconciled with `origin/main` at `ea797e6244ca5153bcf0faed926a53ac306d5b26`;
+  continuation reconciled at `289b025a0e73e1eb3734115e64f4793798646c6c`.
 - Existing research commits preserved on a separate implementation branch.
 - No services, paid inference, agents or deployments started. Full product
   completion, runtime observation and predictive benefit remain unproven.
