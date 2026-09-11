@@ -104,8 +104,12 @@ export interface SkillGraftRoot {
   path: string;
 }
 
+/** Hard context budget for each description returned by metadata-only search. */
+export const MAX_SKILL_SEARCH_DESCRIPTION_CHARS = 240;
+
 /** The cheap side of the shortlist: everything callers need to DECIDE
- *  whether a skill is worth pulling in full, but not the full body. */
+ *  whether a skill is worth pulling in full, but not the full body. Each
+ *  description is capped at `MAX_SKILL_SEARCH_DESCRIPTION_CHARS`. */
 export interface SkillShortlistEntry {
   id: string;
   description: string;
@@ -431,7 +435,7 @@ export function createSkillGraftIndex(options: SkillGraftOptions = {}): SkillGra
       if (!skill) continue;
       const entry: SkillShortlistEntry = {
         id: skill.id,
-        description: skill.description,
+        description: truncate(skill.description, MAX_SKILL_SEARCH_DESCRIPTION_CHARS),
         category: skill.category,
         tags: skill.tags,
         similarity: semanticById.get(id) ?? 0,
