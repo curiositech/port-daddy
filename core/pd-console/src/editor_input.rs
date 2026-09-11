@@ -9,6 +9,14 @@
 use std::ops::Range;
 use unicode_segmentation::UnicodeSegmentation;
 
+/// Save is explicit and modifier-exact; Save As is not silently downgraded.
+pub fn save_shortcut(
+    key: &str, platform: bool, control: bool, alt: bool, shift: bool, macos: bool,
+) -> bool {
+    key == "s" && !alt && !shift
+        && if macos { platform && !control } else { control && !platform }
+}
+
 /// Platform history commands are not text input. Keep the mapping headless so
 /// Ctrl on Linux/Windows and Command on macOS are tested without a native app.
 /// Extra modifiers must not silently become a destructive history command.
@@ -421,6 +429,18 @@ mod tests {
         }
         assert_eq!(history_shortcut("y", false, true, false, false, false), Some(Redo));
         assert_eq!(history_shortcut("y", true, false, false, false, true), None);
+    }
+
+    #[test]
+    fn save_shortcuts_do_not_steal_save_as_or_extra_modifiers() {
+        for macos in [false, true] {
+            assert!(save_shortcut("s", macos, !macos, false, false, macos));
+            assert!(!save_shortcut("s", macos, !macos, false, true, macos));
+            assert!(!save_shortcut("s", macos, !macos, true, false, macos));
+            assert!(!save_shortcut("s", true, true, false, false, macos));
+            assert!(!save_shortcut("s", false, false, false, false, macos));
+            assert!(!save_shortcut("x", macos, !macos, false, false, macos));
+        }
     }
 
     #[test]

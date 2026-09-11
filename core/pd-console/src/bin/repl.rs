@@ -56,11 +56,17 @@ mod editor_claims;
 #[path = "../editor_commit_gate.rs"]
 mod editor_commit_gate;
 #[allow(dead_code)]
+#[path = "../editor_history.rs"]
+mod editor_history;
+#[allow(dead_code)]
 #[path = "../editor_input.rs"]
 mod editor_input;
 #[allow(dead_code)]
 #[path = "../editor_pane.rs"]
 mod editor_pane;
+#[allow(dead_code)]
+#[path = "../editor_save.rs"]
+mod editor_save;
 #[allow(dead_code)]
 #[path = "../editor_sync.rs"]
 mod editor_sync;

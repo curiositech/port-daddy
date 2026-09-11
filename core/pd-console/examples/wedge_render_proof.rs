@@ -43,8 +43,12 @@ mod editor_claims;
 mod editor_wedge;
 #[path = "../src/editor_commit_gate.rs"]
 mod editor_commit_gate;
+#[path = "../src/editor_history.rs"]
+mod editor_history;
 #[path = "../src/editor_pane.rs"]
 mod editor_pane;
+#[path = "../src/editor_save.rs"]
+mod editor_save;
 #[path = "../src/editor_input.rs"]
 mod editor_input;
 #[path = "../src/syntax.rs"]
