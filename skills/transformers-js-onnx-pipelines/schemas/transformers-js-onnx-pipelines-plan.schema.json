@@ -65,6 +65,9 @@
       "required": [
         "version",
         "servingProvider",
+        "executionClass",
+        "retrievalRoles",
+        "qualityTier",
         "modelId",
         "runtimeFamily",
         "runtimeVersion",
@@ -104,6 +107,14 @@
       "properties": {
         "version": { "const": 2 },
         "servingProvider": { "type": "string", "minLength": 1 },
+        "executionClass": { "type": "string", "enum": ["local", "self-hosted", "remote"] },
+        "retrievalRoles": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["text_dense", "code_dense", "ui_multimodal_dense", "rerank"] }
+        },
+        "qualityTier": { "type": "string", "enum": ["local_fast", "local_quality", "remote_quality"] },
         "modelId": { "type": "string", "minLength": 1 },
         "runtimeFamily": { "type": "string", "minLength": 1 },
         "runtimeVersion": { "type": "string", "minLength": 1 },
