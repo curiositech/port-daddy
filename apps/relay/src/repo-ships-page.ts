@@ -86,12 +86,12 @@ function repoWitnessFailure(repo: string, kind: Exclude<RepoWitnessResult['kind'
     renew: {
       title: 'Reconnect GitHub to continue.',
       detail: 'Your Port Daddy login is still active, but its GitHub repository credential is missing or expired.',
-      action: '<a class="button" href="/auth/github/login">Continue with GitHub</a>',
+      action: `<a class="button" href="/auth/github/login?return_to=${encodeURIComponent(`/account/ships?repo=${repo}`)}">Continue with GitHub</a>`,
     },
     denied: {
       title: 'GitHub did not grant repository access.',
       detail: `The current GitHub identity cannot read ${esc(repo)}. If access changed, reconnect GitHub and approve repository access.`,
-      action: '<a class="button" href="/auth/github/login">Reconnect GitHub</a>',
+      action: `<a class="button" href="/auth/github/login?return_to=${encodeURIComponent(`/account/ships?repo=${repo}`)}">Reconnect GitHub</a>`,
     },
     unavailable: {
       title: 'GitHub could not be reached.',
