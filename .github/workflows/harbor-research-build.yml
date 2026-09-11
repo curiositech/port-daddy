@@ -73,6 +73,10 @@ jobs:
           test -n "$SOURCE_DATE_EPOCH"
           export SOURCE_DATE_EPOCH FORCE_SOURCE_DATE=1
           make -C docs/harbor-research docs
+          hash_file="$RUNNER_TEMP/harbor-research-pdfs.sha256"
+          sha256sum docs/harbor-research/pdf/*.pdf > "$hash_file"
+          make -C docs/harbor-research docs
+          sha256sum --check "$hash_file"
 
       - name: Publish the seven papers + execution reports for the site
         run: |

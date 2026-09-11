@@ -26,7 +26,7 @@ Enter
 Sleep 2s
 
 # 2. Publish a message
-Type "pd pub myapp:build '{\"status\":\"endpoints ready\",\"count\":12}'"
+Type `pd pub myapp:build '{"status":"endpoints ready","count":12}'`
 Enter
 Sleep 1.5s
 
