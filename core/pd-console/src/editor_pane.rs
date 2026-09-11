@@ -138,6 +138,10 @@ pub struct EditorPane {
     /// Presentation baseline for a read-only producer mirror, not a writing ID.
     viewer_peer: Option<PeerId>,
     buffer: Option<HarborBuffer>,
+    /// The operation frontier immediately after the last successful disk open.
+    /// This is a reload guard, not a durable receipt or shared acknowledgement.
+    /// Imported operations and undo-to-identical-text still carry new history.
+    loaded_stamp: Option<Vec<u8>>,
     truncated: bool,
     error: Option<String>,
     /// DocumentRef-derived edit lane. Merely opening a local path does not
@@ -224,6 +228,7 @@ impl EditorPane {
             identity,
             viewer_peer: None,
             buffer: None,
+            loaded_stamp: None,
             truncated: false,
             error: None,
             channel,
@@ -244,24 +249,59 @@ impl EditorPane {
         }
     }
 
-    /// Synchronously open the bound file into a Loro buffer, recording any error.
-    /// Used by the GPUI render path (`&self`-sync construction) and by `refresh()`.
-    /// Idempotent: clears prior state before loading.
+    /// Synchronously open the bound file. Never discard in-memory operations or
+    /// a mirror to reload from disk. Failed reads retain any existing buffer.
     pub fn load(&mut self) {
-        self.buffer = None;
-        self.truncated = false;
-        // Drop the render cache: a re-load may read DIFFERENT disk content that
-        // happens to produce an equal-length op stream (an equal CRDT stamp), so
-        // the stamp alone cannot be trusted across a reopen.
-        self.code.replace(None);
-        match HarborBuffer::open(&self.path, self.identity.clone()) {
+        if self.prepare_load() {
+            self.finish_load(HarborBuffer::open(&self.path, self.identity.clone()));
+        }
+    }
+
+    /// Changes since the disk-open frontier must be preserved, regardless of
+    /// whether they came from typing, undo/redo or an imported replica. Equal
+    /// text is not equal history. Any successful import conservatively holds
+    /// reload, including duplicate and dependency-pending imports. A snapshot-only
+    /// buffer has no disk baseline. This is not a filesystem dirty-bit receipt.
+    pub fn has_unpersisted_operations(&self) -> bool {
+        self.buffer.as_ref().is_some_and(|buffer| {
+            buffer.has_received_import()
+                || self.loaded_stamp.as_ref() != Some(&buffer.change_stamp())
+        })
+    }
+
+    fn prepare_load(&mut self) -> bool {
+        let reason = if self.viewer_peer.is_some() {
+            Some("Reload refused: this mirror follows the editor's operations, not the disk file.")
+        } else if self.has_unpersisted_operations() {
+            Some("Reload refused: this buffer has in-memory operations not preserved on disk. Your work was kept; crash-safe draft saving is not available yet.")
+        } else {
+            None
+        };
+        if let Some(reason) = reason {
+            self.error = Some(reason.into());
+            return false;
+        }
+        true
+    }
+
+    /// Install only a completely opened candidate. Shared by sync and async
+    /// reload so neither path clears history, claims or cache before success.
+    fn finish_load(&mut self, opened: std::io::Result<HarborBuffer>) {
+        match opened {
             Ok(buf) => {
+                self.loaded_stamp = Some(buf.change_stamp());
                 self.reset_replica_awareness(buf.local_peer());
                 self.buffer = Some(buf);
+                self.code.replace(None);
+                self.truncated = false;
                 self.error = None;
             }
             Err(e) => {
-                self.error = Some(format!("{e}"));
+                self.error = Some(if self.buffer.is_some() {
+                    format!("Reload failed: {e}. Your existing buffer was kept.")
+                } else {
+                    format!("{e}")
+                });
             }
         }
     }
@@ -312,7 +352,9 @@ impl EditorPane {
     /// buffer. Navigation code reads this before committing an Editor surface so
     /// a permission error cannot replace the operator's current workspace.
     pub fn load_error(&self) -> Option<&str> {
-        self.error.as_deref()
+        // A reload refusal is not an unsuccessful initial open. Otherwise the
+        // workspace's open transaction could replace a preserved cached editor.
+        self.error.as_deref().filter(|_| self.buffer.is_none())
     }
 
     /// Current buffer text for the foreground input bridge. This is a snapshot
@@ -953,8 +995,14 @@ impl Pane for EditorPane {
         let mut blocks = vec![Block::Header(self.title())];
 
         if let Some(err) = &self.error {
-            blocks.push(Block::KeyVal("error".into(), err.clone()));
-            return blocks;
+            // Native navigation treats the "error" key as a failed-open card.
+            // A refused reload has a usable editor, so keep its code/input on
+            // screen and show the notice through the existing KeyVal renderer.
+            let key = if self.buffer.is_some() { "reload" } else { "error" };
+            blocks.push(Block::KeyVal(key.into(), err.clone()));
+            if self.buffer.is_none() {
+                return blocks;
+            }
         }
 
         let Some(buffer) = &self.buffer else {
@@ -1125,27 +1173,15 @@ impl Pane for EditorPane {
         // open does a blocking std::fs read; do it off the reactor so a slow/huge
         // file can't stall it, then fold the buffer (or error) back into `self`.
         Box::pin(async move {
+            if !self.prepare_load() {
+                return Ok(());
+            }
             let path = self.path.clone();
             let identity = self.identity.clone();
-            // Same reopen hazard as `load()`: never trust the old cache across
-            // a fresh disk read.
-            self.code.replace(None);
             let opened = tokio::task::spawn_blocking(move || HarborBuffer::open(&path, identity))
                 .await
-                .map_err(|e| anyhow::anyhow!("editor load task panicked: {e}"))?;
-            match opened {
-                Ok(buf) => {
-                    self.reset_replica_awareness(buf.local_peer());
-                    self.buffer = Some(buf);
-                    self.error = None;
-                    self.truncated = false;
-                }
-                Err(e) => {
-                    self.error = Some(format!("{e}"));
-                    self.buffer = None;
-                    self.truncated = false;
-                }
-            }
+                .unwrap_or_else(|e| Err(std::io::Error::other(format!("editor load task failed: {e}"))));
+            self.finish_load(opened);
             Ok(())
         })
     }
@@ -1164,6 +1200,149 @@ impl Pane for EditorPane {
 mod tests {
     use super::*;
     use crate::buffer::fixture_peer_id;
+
+    #[test]
+    fn reload_preserves_local_history_claims_identity_and_cached_code() {
+        let path = write_temp("reload-local.txt", "original\n");
+        let mut pane = make_pane(&path, None);
+        assert!(!pane.has_unpersisted_operations());
+        pane.apply_local_text_edit(0..0, "研究 ").unwrap();
+        pane.acquire_region_claim(1, 1, "my work", 1_000);
+        let before = pane.snapshot_blob().unwrap();
+        let peer = pane.buffer().unwrap().local_peer();
+        let document = pane.document().clone();
+        let claims = pane.claim_ledger().len();
+        let (code, _, _) = code_buffer(&pane.view()).unwrap();
+        std::fs::write(&path, "external replacement\n").unwrap();
+
+        pane.load();
+        assert!(pane.has_unpersisted_operations());
+        assert_eq!(pane.snapshot_blob().unwrap(), before);
+        assert_eq!(pane.buffer().unwrap().local_peer(), peer);
+        assert_eq!(pane.document(), &document);
+        assert_eq!(pane.claim_ledger().len(), claims);
+        assert!(pane.load_error().is_none(), "a preserved editor stays navigable");
+        assert!(pane.error.as_deref().unwrap().starts_with("Reload refused"));
+        assert!(pane.view().iter().any(|block| matches!(block,
+            Block::KeyVal(key, _) if key == "reload")));
+        assert!(!pane.view().iter().any(|block| matches!(block,
+            Block::KeyVal(key, _) if key == "error")), "native failed-open UI must not hide preserved code");
+        assert!(Arc::ptr_eq(&code, &code_buffer(&pane.view()).unwrap().0));
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "external replacement\n");
+
+        // Undo returns to identical disk-open text, not identical operation
+        // history: redo and the edit's provenance must still survive a reload.
+        let mut input = crate::editor_input::EditorInput::default();
+        pane.apply_history(HistoryDirection::Undo, &mut input).unwrap();
+        assert_eq!(pane.text().as_deref(), Some("original\n"));
+        assert!(pane.has_unpersisted_operations());
+        pane.load();
+        pane.apply_history(HistoryDirection::Redo, &mut input).unwrap();
+        assert_eq!(pane.text().as_deref(), Some("研究 original\n"));
+    }
+
+    #[test]
+    fn reload_preserves_remote_authorship_and_snapshot_only_buffers() {
+        let path = write_temp("reload-remote.txt", "baseline\n");
+        let mut pane = make_pane(&path, None);
+        let peer = HarborBuffer::empty("Becky");
+        peer.apply_remote_ops(&pane.snapshot_blob().unwrap()).unwrap();
+        peer.append_line("remote observation");
+        pane.buffer().unwrap().apply_remote_ops(&peer.export_ops()).unwrap();
+        let lines = pane.buffer().unwrap().lines();
+        pane.load();
+        assert!(pane.has_unpersisted_operations());
+        assert_eq!(pane.buffer().unwrap().lines(), lines);
+
+        let mut cold = EditorPane::new(path, None);
+        assert!(cold.hydrate_from_snapshot(&pane.snapshot_blob().unwrap()));
+        cold.load();
+        assert!(cold.has_unpersisted_operations());
+        assert_eq!(cold.buffer().unwrap().lines(), lines);
+        assert!(cold.load_error().is_none());
+    }
+
+    #[test]
+    fn failed_clean_reload_keeps_visible_buffer_then_retry_installs_new_baseline() {
+        let path = write_temp("reload-retry.txt", "first\n");
+        let mut pane = make_pane(&path, None);
+        let peer = pane.buffer().unwrap().local_peer();
+        let stamp = pane.buffer().unwrap().change_stamp();
+        let (code, _, _) = code_buffer(&pane.view()).unwrap();
+        // Invalid UTF-8 is a portable read failure (unlike permissions as root).
+        std::fs::write(&path, [0xff, 0xfe]).unwrap();
+        pane.load();
+        assert_eq!(pane.text().as_deref(), Some("first\n"));
+        assert_eq!(pane.buffer().unwrap().change_stamp(), stamp);
+        assert_eq!(pane.buffer().unwrap().local_peer(), peer);
+        assert!(pane.load_error().is_none());
+        assert!(pane.error.as_deref().unwrap().contains("existing buffer was kept"));
+        assert!(Arc::ptr_eq(&code, &code_buffer(&pane.view()).unwrap().0));
+        assert!(!pane.has_unpersisted_operations());
+
+        std::fs::write(&path, "other\n").unwrap();
+        pane.load();
+        assert_eq!(pane.text().as_deref(), Some("other\n"));
+        assert_ne!(pane.buffer().unwrap().local_peer(), peer);
+        assert!(pane.error.is_none());
+        assert!(!pane.has_unpersisted_operations());
+        assert!(!Arc::ptr_eq(&code, &code_buffer(&pane.view()).unwrap().0));
+    }
+
+    #[test]
+    fn reload_preserves_imports_waiting_for_missing_dependencies() {
+        let path = write_temp("reload-pending.txt", "disk\n");
+        let mut pane = make_pane(&path, None);
+        let peer = HarborBuffer::empty("Charli");
+        peer.insert_authored(0, "unseen ");
+        let dependencies = peer.export_ops();
+        let pending = peer.replace_authored(7..7, "later");
+        let stamp = pane.buffer().unwrap().change_stamp();
+        let incarnation = pane.buffer().unwrap().local_peer();
+        pane.buffer().unwrap().apply_remote_ops(&pending).unwrap();
+        assert_eq!(pane.buffer().unwrap().change_stamp(), stamp,
+            "the visible frontier alone cannot detect dependency-pending work");
+        assert!(pane.has_unpersisted_operations());
+        pane.load();
+        assert_eq!(pane.buffer().unwrap().local_peer(), incarnation);
+        // Supply ONLY the missing earlier changes. The later operation must
+        // still be pending in the same document after the refused reload.
+        pane.buffer().unwrap().apply_remote_ops(&dependencies).unwrap();
+        assert!(pane.text().unwrap().contains("later"));
+    }
+
+    #[tokio::test]
+    async fn background_refresh_shares_preservation_and_mirror_guards() {
+        // Constructing this inert client performs no discovery or network call.
+        let daemon = DaemonClient::new("http://127.0.0.1:1".into());
+        let path = write_temp("refresh.txt", "first\n");
+        let mut pane = EditorPane::new(&path, None);
+        pane.refresh(&daemon).await.unwrap();
+        assert_eq!(pane.text().as_deref(), Some("first\n"));
+        std::fs::write(&path, [0xff]).unwrap();
+        pane.refresh(&daemon).await.unwrap();
+        assert_eq!(pane.text().as_deref(), Some("first\n"));
+        assert!(pane.error.is_some());
+        std::fs::write(&path, "again\n").unwrap();
+        pane.refresh(&daemon).await.unwrap();
+        assert_eq!(pane.text().as_deref(), Some("again\n"));
+        pane.apply_local_text_edit(0..0, "local ").unwrap();
+        let stamp = pane.buffer().unwrap().change_stamp();
+        pane.refresh(&daemon).await.unwrap();
+        assert_eq!(pane.buffer().unwrap().change_stamp(), stamp);
+        assert_eq!(pane.text().as_deref(), Some("local again\n"));
+
+        let mut mirror = EditorPane::mirror(path, None, pane.document().clone(),
+            &pane.snapshot_blob().unwrap(), pane.buffer().unwrap().local_peer()).unwrap();
+        let peer = mirror.buffer().unwrap().local_peer();
+        mirror.load();
+        mirror.refresh(&daemon).await.unwrap();
+        assert_eq!(mirror.buffer().unwrap().local_peer(), peer);
+        assert_eq!(mirror.buffer().unwrap().lines(), pane.buffer().unwrap().lines());
+        assert!(mirror.error.as_deref().unwrap().contains("this mirror follows"));
+        assert!(mirror.apply_local_text_edit(0..0, "forged").is_err());
+        assert!(mirror.subscription().is_none());
+    }
 
     #[test]
     fn mirror_imports_exact_history_without_reseeding_or_reusing_authorship() {

@@ -86,6 +86,9 @@ pub struct HarborBuffer {
     /// Bound to this incarnation for its lifetime. Imported history is not a
     /// local undo item; reopening starts a new editing history, not a recovery.
     history: UndoManager,
+    /// Imported bytes may be waiting for dependencies and therefore absent from
+    /// the visible state frontier. A reload must not discard them as "clean".
+    received_import: std::cell::Cell<bool>,
 }
 
 impl HarborBuffer {
@@ -121,6 +124,7 @@ impl HarborBuffer {
             local_peer,
             identity,
             history,
+            received_import: std::cell::Cell::new(false),
         }
     }
 
@@ -276,8 +280,15 @@ impl HarborBuffer {
     /// are not a valid Loro update blob.
     pub fn apply_remote_ops(&self, export_bytes: &[u8]) -> std::result::Result<(), String> {
         self.doc.import(export_bytes).map_err(|e| format!("{e}"))?;
+        self.received_import.set(true);
         self.doc.commit();
         Ok(())
+    }
+
+    /// Conservative preservation barrier, including duplicate/dependency-pending
+    /// imports. This is not evidence that imported operations were authorized.
+    pub fn has_received_import(&self) -> bool {
+        self.received_import.get()
     }
 
     /// The full text content (all lines, newlines intact).
