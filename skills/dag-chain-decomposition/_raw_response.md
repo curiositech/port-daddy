@@ -69,7 +69,7 @@ For agent systems, this means: **don't measure problem complexity by counting ta
 
 ## Practical Application: Estimating Coordination Cost
 
-For WinDAG orchestration specifically:
+For Port Daddy orchestration specifically:
 
 **Before decomposition**: If you can estimate the width of the implied dependency structure (perhaps through static analysis of skill invocations or learned from similar problems), you know the minimum number of "coordination contexts" required.
 
@@ -96,7 +96,7 @@ The practical implication: **if your agent system needs more coordination contex
 
 ## Measuring Width in Practice
 
-For a WinDAG system that's tracking task dependencies:
+For a Port Daddy system that's tracking task dependencies:
 
 ```python
 def compute_width(dependency_dag):
@@ -165,7 +165,7 @@ This is maintained efficiently by updating outdegree as you go: `d(v) := d(v) - 
 
 ## Translation to Agent Task Decomposition
 
-For a WinDAG system orchestrating skills:
+For a Port Daddy system orchestrating skills:
 
 **Traditional approach**: 
 ```
@@ -418,7 +418,7 @@ Virtual nodes teach a general principle: **defer a decision when:**
 
 ## Practical Pattern: Decision Tokens
 
-For WinDAG systems, implement decision tokens analogous to virtual nodes:
+For Port Daddy systems, implement decision tokens analogous to virtual nodes:
 
 ```python
 class DecisionToken:
@@ -610,7 +610,7 @@ The details are complex (see [5] in references), but for agent systems, the take
 
 ## Application to Agent Task Assignment
 
-Translate to WinDAG orchestration:
+Translate to Port Daddy orchestration:
 
 **Scenario**: After completing a round of subtasks (level i), you have multiple pending higher-level tasks (level i+1) waiting to proceed. Each higher-level task depends on some subset of the completed lower-level tasks.
 
@@ -694,11 +694,11 @@ For agent systems that can't stratify fully upfront:
 
 Best known online algorithm: **Ranking algorithm** (Karp, Vazirani, Vazirani 1990) achieves (1 - 1/e) ≈ 0.63 competitive ratio—finds at least 63% of optimal matching size on expectation.
 
-For WinDAG: if tasks arrive dynamically and you must assign immediately, use online matching algorithms instead of batch maximum matching.
+For Port Daddy: if tasks arrive dynamically and you must assign immediately, use online matching algorithms instead of batch maximum matching.
 
 ## Implementing Maximum Matching
 
-For a WinDAG system (pseudocode):
+For a Port Daddy system (pseudocode):
 
 ```python
 def assign_tasks_to_chains(higher_level_tasks, lower_level_chains, dependencies):
@@ -922,7 +922,7 @@ The lesson for agents: **there's no universal best encoding; the optimal choice 
 
 ## Implementing Compressed Reachability for Agent Systems
 
-For WinDAG tracking task dependencies:
+For Port Daddy tracking task dependencies:
 
 ```python
 class CompressedDependencyGraph:
@@ -1134,7 +1134,7 @@ For agent systems: **identify and explicitly state invariants** in your decompos
 
 ## Practical Verification: Checking Optimality
 
-For a WinDAG system, implement verification:
+For a Port Daddy system, implement verification:
 
 ```python
 def verify_decomposition_optimality(chains, dag):
@@ -1364,7 +1364,7 @@ These require **qualitatively different coordination strategies**:
 
 ## Shape Analysis: Profiling Problem Structure
 
-For WinDAG, implement shape analysis:
+For Port Daddy, implement shape analysis:
 
 ```python
 def analyze_problem_shape(task_dag):
@@ -1609,7 +1609,7 @@ In complex systems, one-size-fits-all coordination strategies are guaranteed to 
 for most of your problem instances. Adapt to structure.
 ```
 
-For WinDAG: don't use the same orchestration strategy for all problems. Profile each problem class, identify structural patterns, deploy specialized coordinators for each pattern. This complexity-driven architecture will outperform uniform approaches, especially at scale.
+For Port Daddy: don't use the same orchestration strategy for all problems. Profile each problem class, identify structural patterns, deploy specialized coordinators for each pattern. This complexity-driven architecture will outperform uniform approaches, especially at scale.
 ```
 
 ### FILE: atomic-operations-and-base-cases.md
@@ -1701,7 +1701,7 @@ def is_decomposable(skill):
     return step_count > 1
 ```
 
-For WinDAG, implement atomicity validation:
+For Port Daddy, implement atomicity validation:
 
 ```python
 class SkillRegistry:
@@ -1819,7 +1819,7 @@ Create a special "iterate until convergence" skill that manages the cycle. The c
 **Option 3: Redesign to eliminate cycle**
 Question whether the cycle is necessary. Often cycles indicate underspecified problems—clarifying requirements eliminates the cycle.
 
-For WinDAG, detect cycles explicitly:
+For Port Daddy, detect cycles explicitly:
 
 ```python
 def detect_and_handle_cycles(task_dag):
@@ -1900,7 +1900,7 @@ Invest in identifying, verifying, and maintaining clean atomic operations.
 They are the foundation on which all higher-level coordination rests.
 ```
 
-For WinDAG: **audit your leaf skills regularly**. As the system evolves and you learn more about the problem domain, what initially seemed atomic might reveal hidden structure. Refine your base cases, and the entire hierarchy becomes more robust.
+For Port Daddy: **audit your leaf skills regularly**. As the system evolves and you learn more about the problem domain, what initially seemed atomic might reveal hidden structure. Refine your base cases, and the entire hierarchy becomes more robust.
 
 This connects to Chen's algorithm: V₁ (leaf nodes) are identified first, and everything builds from there. Get V₁ wrong, and the entire stratification is incorrect. Get your atomic skills wrong, and your entire orchestration is unreliable.
 ```

@@ -32,7 +32,7 @@ The plan is partial not because it has temporal gaps, but because it's **hierarc
 
 ## Why Structural Partiality Matters for Agent Systems
 
-Consider a WinDAG agent receiving: "Implement user authentication for the web application."
+Consider a Port Daddy agent receiving: "Implement user authentication for the web application."
 
 A **complete plan** would specify:
 - Which authentication scheme (OAuth, JWT, session-based)

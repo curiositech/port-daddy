@@ -37,7 +37,7 @@ This workflow provides a safety net: you start from a correct baseline and enhan
 
 ### The Lesson for Agent Systems
 
-For WinDAG orchestration:
+For Port Daddy orchestration:
 
 **Validation Gap**: When skills are described declaratively (preconditions, effects) but implemented procedurally (code), there's risk of mismatch. The description says "this skill generates authentication code given a schema" but the implementation might fail to handle edge cases in the schema.
 

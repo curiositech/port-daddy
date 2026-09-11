@@ -68,7 +68,7 @@ The preference relation determines which candidate sets to prefer. There may be 
 
 Once selected, they gain commitment properties (see previous document). But they start as desires.
 
-## Implementation Architecture for WinDAG Systems
+## Implementation Architecture for Port Daddy Systems
 
 This suggests a specific agent architecture:
 
@@ -115,7 +115,7 @@ The BDI architecture provides a middle layer: goals (desires) that persist over 
 - **Graceful overload**: When under-resourced, select objective subset rather than fail/thrash
 - **Justification**: Explain why goals were adopted or rejected (deliberation trace)
 
-For WinDAG orchestration: When designing task decomposition or skill selection, distinguish "possible tasks to consider" from "committed execution plan." The skills capability database is like the desire set—the full space of options. Route selection and orchestration logic performs deliberation—choosing a feasible, preferred subset to commit to.
+For Port Daddy orchestration: When designing task decomposition or skill selection, distinguish "possible tasks to consider" from "committed execution plan." The skills capability database is like the desire set—the full space of options. Route selection and orchestration logic performs deliberation—choosing a feasible, preferred subset to commit to.
 
 The gap many systems have: They jump from "here's a request" to "execute this plan" without an explicit deliberation layer that considers alternatives, checks feasibility, and applies preferences. Building that layer means implementing something like the desire → eligible → candidate → intention pipeline.
 

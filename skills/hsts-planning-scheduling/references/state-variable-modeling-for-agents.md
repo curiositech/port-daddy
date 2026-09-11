@@ -28,7 +28,7 @@ Compatibilities are AND/OR graphs — some conditions are mandatory, others repr
 
 ## Designing State Variables for an Agent System
 
-The state variable framework translates directly to modeling agent system behavior. Consider designing a WinDAG system's state variable decomposition:
+The state variable framework translates directly to modeling agent system behavior. Consider designing a Port Daddy system's state variable decomposition:
 
 **Identify system components**: Each agent type (CodeReviewAgent, SecurityAuditAgent, DatabaseQueryAgent), each shared resource (GPU compute, database connections, external API rate limits), each workflow artifact (task_specification, intermediate_result, final_output) is a candidate system component.
 

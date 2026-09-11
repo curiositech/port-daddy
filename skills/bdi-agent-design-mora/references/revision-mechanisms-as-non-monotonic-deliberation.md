@@ -163,11 +163,11 @@ This unification is powerful: You can mix multiple reasoning forms (defeasible r
 
 ## Implementation Considerations for Agent Systems
 
-For WinDAG orchestration, revision-based deliberation suggests specific architectural patterns:
+For Port Daddy orchestration, revision-based deliberation suggests specific architectural patterns:
 
 **1. Maintain a Contradiction-Tolerant Knowledge Base**: Don't reject inconsistent information at input—accept it and use contradiction detection as a signal. When skill outputs conflict (skill A says "vulnerability found," skill B says "no vulnerability"), don't crash or arbitrarily pick one. Record both, detect contradiction, trigger reconciliation.
 
-**2. Define Revisable vs. Non-Revisable**: Clearly distinguish beliefs/intentions that are negotiable from those that are fixed. In a WinDAG system:
+**2. Define Revisable vs. Non-Revisable**: Clearly distinguish beliefs/intentions that are negotiable from those that are fixed. In a Port Daddy system:
 - **Revisable**: Skill selection (which skills to invoke), goal prioritization (which objectives to pursue), hypothesized facts (abduced intermediate results)
 - **Non-Revisable**: User constraints (security policy), physical laws (system architecture facts), verified results (test outcomes)
 
@@ -202,7 +202,7 @@ The profound insight: Contradiction is not a failure mode—it's a *computationa
 
 Paraconsistent semantics + revision mechanisms turn contradiction into a driver for search: Detect conflicts, systematically explore resolutions, prefer minimal mutilations. This is more principled than ad-hoc conflict resolution (e.g., "last update wins," "majority vote," "user resolves").
 
-For WinDAG systems: Embrace contradiction at the design level. When skills produce conflicting outputs, when goals are over-constrained, when beliefs are inconsistent—don't treat these as crashes. Treat them as signals that deliberation is needed. Implement revision mechanisms to systematically explore and resolve conflicts based on declared preferences.
+For Port Daddy systems: Embrace contradiction at the design level. When skills produce conflicting outputs, when goals are over-constrained, when beliefs are inconsistent—don't treat these as crashes. Treat them as signals that deliberation is needed. Implement revision mechanisms to systematically explore and resolve conflicts based on declared preferences.
 
 This requires a mindset shift: Instead of "my system must never be inconsistent" → "my system uses inconsistency as information." The architecture must *expect* contradiction and have well-defined responses (revision procedures) rather than *fear* contradiction and add defensive checks that prevent reasoning when conflicts arise.
 

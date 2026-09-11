@@ -84,7 +84,7 @@ def is_decomposable(skill):
     return step_count > 1
 ```
 
-For WinDAG, implement atomicity validation:
+For Port Daddy, implement atomicity validation:
 
 ```python
 class SkillRegistry:
@@ -202,7 +202,7 @@ Create a special "iterate until convergence" skill that manages the cycle. The c
 **Option 3: Redesign to eliminate cycle**
 Question whether the cycle is necessary. Often cycles indicate underspecified problems—clarifying requirements eliminates the cycle.
 
-For WinDAG, detect cycles explicitly:
+For Port Daddy, detect cycles explicitly:
 
 ```python
 def detect_and_handle_cycles(task_dag):
@@ -283,6 +283,6 @@ Invest in identifying, verifying, and maintaining clean atomic operations.
 They are the foundation on which all higher-level coordination rests.
 ```
 
-For WinDAG: **audit your leaf skills regularly**. As the system evolves and you learn more about the problem domain, what initially seemed atomic might reveal hidden structure. Refine your base cases, and the entire hierarchy becomes more robust.
+For Port Daddy: **audit your leaf skills regularly**. As the system evolves and you learn more about the problem domain, what initially seemed atomic might reveal hidden structure. Refine your base cases, and the entire hierarchy becomes more robust.
 
 This connects to Chen's algorithm: V₁ (leaf nodes) are identified first, and everything builds from there. Get V₁ wrong, and the entire stratification is incorrect. Get your atomic skills wrong, and your entire orchestration is unreliable.

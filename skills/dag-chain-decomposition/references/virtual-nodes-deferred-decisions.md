@@ -128,7 +128,7 @@ Virtual nodes teach a general principle: **defer a decision when:**
 
 ## Practical Pattern: Decision Tokens
 
-For WinDAG systems, implement decision tokens analogous to virtual nodes:
+For Port Daddy systems, implement decision tokens analogous to virtual nodes:
 
 ```python
 class DecisionToken:

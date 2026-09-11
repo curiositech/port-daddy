@@ -92,7 +92,7 @@ When the preference relation is indifferent, the agent can:
 
 The paper leaves this open: "When multiple candidate sets exist (different ways to satisfy desires), apply preference relation. This could be a scoring function, constraint optimization, or the revision preference graph approach" (implied throughout section 4.1).
 
-For WinDAG systems: Implement secondary preference as a scoring function applied to tied minimal revisions. The preference graph does the heavy lifting (pruning most of the space), then scoring resolves final ties.
+For Port Daddy systems: Implement secondary preference as a scoring function applied to tied minimal revisions. The preference graph does the heavy lifting (pruning most of the space), then scoring resolves final ties.
 
 ## Example: Incremental Preference Levels
 
@@ -155,7 +155,7 @@ Similarly for plan repair: When a plan becomes infeasible, the preference graph 
 
 The lesson: Preference graphs are a general mechanism for encoding search strategies in revision problems. Not specific to BDI desires.
 
-## Implementation for WinDAG Orchestration
+## Implementation for Port Daddy Orchestration
 
 For skill composition/orchestration:
 
@@ -250,6 +250,6 @@ This separation of policy (graph) and mechanism (search) is powerful:
 - **Reusable**: Same algorithm works for different problems (desires, beliefs, plans) with different graphs
 - **Debuggable**: Trace which graph levels were explored, why certain revisions were chosen
 
-For WinDAG systems: When designing decision-making components (task decomposition, skill selection, resource allocation), favor declarative specification of preferences (graphs, constraints, scoring functions) over procedural logic. This makes the system's priorities explicit, auditable, and reconfigurable without code changes.
+For Port Daddy systems: When designing decision-making components (task decomposition, skill selection, resource allocation), favor declarative specification of preferences (graphs, constraints, scoring functions) over procedural logic. This makes the system's priorities explicit, auditable, and reconfigurable without code changes.
 
 Móra et al. demonstrate that this approach bridges theory and practice: The preference graph is both a formal specification (precisely defines preference semantics) and an operational implementation (directly drives the search algorithm). No gap between "what we want" and "how to compute it."

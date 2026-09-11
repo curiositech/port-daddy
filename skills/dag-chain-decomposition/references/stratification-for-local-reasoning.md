@@ -30,7 +30,7 @@ This is maintained efficiently by updating outdegree as you go: `d(v) := d(v) - 
 
 ## Translation to Agent Task Decomposition
 
-For a WinDAG system orchestrating skills:
+For a Port Daddy system orchestrating skills:
 
 **Traditional approach**: 
 ```

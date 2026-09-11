@@ -44,7 +44,7 @@ For agent systems, this means: **don't measure problem complexity by counting ta
 
 ## Practical Application: Estimating Coordination Cost
 
-For WinDAG orchestration specifically:
+For Port Daddy orchestration specifically:
 
 **Before decomposition**: If you can estimate the width of the implied dependency structure (perhaps through static analysis of skill invocations or learned from similar problems), you know the minimum number of "coordination contexts" required.
 
@@ -71,7 +71,7 @@ The practical implication: **if your agent system needs more coordination contex
 
 ## Measuring Width in Practice
 
-For a WinDAG system that's tracking task dependencies:
+For a Port Daddy system that's tracking task dependencies:
 
 ```python
 def compute_width(dependency_dag):

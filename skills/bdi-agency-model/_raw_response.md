@@ -232,7 +232,7 @@ The profound contribution of Georgeff's argument is shifting BDI from philosophi
 
 This isn't about whether to use BDI. It's about recognizing that any system operating under these constraints is implementing BDI components whether it calls them that or not. The question is whether to make this structure explicit and well-engineered, or leave it implicit and tangled.
 
-For WinDAG agent orchestration: every skill invocation, every task decomposition, every coordination decision happens under these four constraints. The system must maintain beliefs about task state, desires about outcomes, intentions about which DAG paths to execute, and plans about how skills compose. Making this structure explicit—rather than implicit in code or prompts—is the path to reliable, debuggable, adaptive agent systems.
+For Port Daddy agent orchestration: every skill invocation, every task decomposition, every coordination decision happens under these four constraints. The system must maintain beliefs about task state, desires about outcomes, intentions about which DAG paths to execute, and plans about how skills compose. Making this structure explicit—rather than implicit in code or prompts—is the path to reliable, debuggable, adaptive agent systems.
 ```
 
 ### FILE: rational-commitment-and-reconsideration.md
@@ -363,7 +363,7 @@ This filtering is the key to avoiding combinatorial explosion: the option space 
 
 ### Example: The Multi-Task Agent
 
-Consider a WinDAG agent system with three active tasks:
+Consider a Port Daddy agent system with three active tasks:
 
 - Task A: Committed intention to generate API documentation
 - Task B: Committed intention to review security audit
@@ -550,7 +550,7 @@ In these domains, commitment must be stronger to avoid thrashing and coordinatio
 
 Despite the empirical proof that strategic commitment works, the BDI literature doesn't provide a complete theory of when reconsideration should occur. This is acknowledged in Pollack's response and implicit in Georgeff's use of scare quotes around "crucial moments."
 
-**For WinDAG systems**, this means:
+**For Port Daddy systems**, this means:
 
 1. **Domain-specific policies**: Different skills and task types need different commitment policies
 2. **Explicit policy specification**: Commitment policies should be part of agent/skill configuration, not hidden in code
@@ -767,7 +767,7 @@ System recognizes:
 
 ### 1. Every Skill Invocation Should Have Goal Context
 
-In WinDAG orchestration, when a skill is invoked, the system should record:
+In Port Daddy orchestration, when a skill is invoked, the system should record:
 
 ```
 SkillExecution {
@@ -1015,7 +1015,7 @@ The combination gives you:
 - Automatic recovery through means-end reasoning
 - Opportunistic replanning through goal monitoring
 
-For WinDAG orchestration: every skill invocation, every DAG node execution, every task decomposition should maintain explicit goal context. This transforms the system from a task executor that breaks on unexpected inputs into an adaptive agent that can recover from failures, exploit opportunities, and clean up obsolete work automatically.
+For Port Daddy orchestration: every skill invocation, every DAG node execution, every task decomposition should maintain explicit goal context. This transforms the system from a task executor that breaks on unexpected inputs into an adaptive agent that can recover from failures, exploit opportunities, and clean up obsolete work automatically.
 
 The goal layer is the difference between a system that can only do what you programmed it to do, and a system that can figure out how to achieve what you want even when what you programmed doesn't work.
 ```
@@ -1276,7 +1276,7 @@ The question isn't whether to implement these—you will, whether you realize it
 
 Tambe: "This panel discussion was an excellent step to attempt to bridge this gap in general."
 
-For WinDAG and similar systems:
+For Port Daddy and similar systems:
 
 **Read both literatures**: BDI papers and Soar papers address the same problems with different vocabularies. Both have insights the other lacks.
 
@@ -1352,7 +1352,7 @@ The Soar-BDI convergence transforms how we should think about agent architecture
 **Not**: "Should we use BDI or Soar?" (false dichotomy)
 **But**: "How can we synthesize insights from both traditions?" (constructive question)
 
-For WinDAG orchestration: the convergence provides validation. If independent research traditions converge on beliefs-desires-intentions-plans, then building explicit infrastructure for these components (not leaving them implicit in code/prompts) is the principled choice.
+For Port Daddy orchestration: the convergence provides validation. If independent research traditions converge on beliefs-desires-intentions-plans, then building explicit infrastructure for these components (not leaving them implicit in code/prompts) is the principled choice.
 
 The convergence also provides humility. BDI and Soar researchers thought they were building different things, only to discover they'd built the same thing. This suggests there are fundamental patterns in agent architecture that transcend individual frameworks—patterns we ignore at our peril.
 
@@ -1888,7 +1888,7 @@ for agent in team:
 - Reputation systems (track commitment reliability)
 - Enforcement mechanisms (penalties for broken commitments)
 
-## Implications for WinDAG Multi-Agent Orchestration
+## Implications for Port Daddy Multi-Agent Orchestration
 
 ### 1. Explicit Social Commitment Infrastructure
 

@@ -78,7 +78,7 @@ The construction (p. 379-380) maintains a process queue and message ordering to 
 
 When an agent system decomposes a complex task into subtasks for parallel execution, achieving consensus on results becomes problematic:
 
-**Scenario**: A WinDAG system analyzing a codebase decomposing work across multiple agents:
+**Scenario**: A Port Daddy system analyzing a codebase decomposing work across multiple agents:
 - Agent A analyzes security vulnerabilities
 - Agent B reviews architectural patterns  
 - Agent C checks code quality
@@ -124,7 +124,7 @@ The impossibility result has strict boundary conditions. Consensus IS possible w
 
 ## Connecting to Agent Architecture
 
-For WinDAG-style systems, this suggests a **tiered architecture**:
+For Port Daddy-style systems, this suggests a **tiered architecture**:
 
 **Tier 1 - Fast Path (Synchronous assumptions)**:
 - Use timeouts and failure detection
@@ -244,7 +244,7 @@ The proof constructs a non-terminating execution by carefully choosing which age
 
 For agent systems, this reveals that **the order in which agents receive information and take actions can prevent decision-making even when the system is "making progress."**
 
-Imagine a WinDAG orchestrator scheduling agent actions:
+Imagine a Port Daddy orchestrator scheduling agent actions:
 1. Agent A completes analysis, sends "approve" recommendation
 2. Before Agent B receives this, Agent C sends "reject" recommendation  
 3. Orchestrator delivers C's message to B first
@@ -271,7 +271,7 @@ This case is subtle: if the same process p is involved in both the critical even
 
 Case 2 reveals a profound issue: **If a single agent is critical to making a decision, its delayed participation can keep the system indefinitely bivalent**.
 
-Consider a WinDAG system where:
+Consider a Port Daddy system where:
 - Agent P is the architecture expert
 - Agents A, B, C perform analyses
 - Decision requires P's integration of their findings
@@ -811,7 +811,7 @@ Use agent-specific and task-specific timeouts
 - Slow path: Fall back to asynchronous when assumptions violated
 - Escalation path: Human intervention when both fail
 
-**Example in WinDAG**:
+**Example in Port Daddy**:
 ```
 1. Assign task to Agent A with 60s timeout (synchronous assumption)
 2. If timeout, log warning and continue waiting (asynchronous fallback)  
@@ -921,7 +921,7 @@ Real systems aren't inherently synchronous or asynchronous. They have:
 
 Your job as a system designer: **Choose synchrony assumptions that match reality most of the time, and design graceful degradation for when they don't**.
 
-For WinDAG-style agent systems:
+For Port Daddy-style agent systems:
 
 1. **Measure your reality**: What are actual agent response times? Failure rates? Network characteristics?
 
@@ -1433,7 +1433,7 @@ This pattern works when:
 - Integration is deterministic (given complete information)
 - Can tolerate partial information (majority is enough)
 
-For WinDAG:
+For Port Daddy:
 ```
 Phase 1: Parallel Analysis
 - Agent A: Security scan
@@ -1583,7 +1583,7 @@ The initially-dead protocol teaches: **Separate failure modes and handle them di
 - OR escalate to human intervention
 - Cannot guarantee consensus in pure asynchrony
 
-For WinDAG architecture:
+For Port Daddy architecture:
 
 ```
 System Design:
@@ -2081,7 +2081,7 @@ For coordination protocols:
   - How close to timeout boundary typical executions are
   - What delays are normal vs. exceptional
 
-## Example: Complete Testing Strategy for WinDAG
+## Example: Complete Testing Strategy for Port Daddy
 
 A comprehensive testing strategy for a multi-agent orchestration system:
 

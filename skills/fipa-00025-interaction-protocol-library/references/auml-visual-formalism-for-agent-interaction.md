@@ -30,7 +30,7 @@ One of AUML's contributions beyond standard UML sequence diagrams is the explici
 
 An agent role that exists before the protocol starts is shown at the top of the diagram. An agent that is created during the protocol has an arrow pointing to its role box, and its lifeline begins there. An agent that terminates during the protocol has its lifeline end with a large "X."
 
-This explicit lifecycle modeling is significant for orchestration system design. In a WinDAG system, the equivalent of agent creation is skill instantiation or agent spawning — dynamically creating a new agent to handle a specific subtask. The AUML convention makes this creation event a named, visible point in the coordination diagram, not an implementation detail. You can see, from the protocol diagram alone, that "at this point, a new specialist agent is created and handed the sub-problem."
+This explicit lifecycle modeling is significant for orchestration system design. In a Port Daddy system, the equivalent of agent creation is skill instantiation or agent spawning — dynamically creating a new agent to handle a specific subtask. The AUML convention makes this creation event a named, visible point in the coordination diagram, not an implementation detail. You can see, from the protocol diagram alone, that "at this point, a new specialist agent is created and handed the sub-problem."
 
 ## Lifeline Splitting: Parallelism and Decisions Made Visible
 
@@ -58,7 +58,7 @@ AUML introduces the "thread of interaction" — shown as a tall thin rectangle o
 
 This is more than visual decoration. The thread of interaction distinguishes between an agent's *existence* (its lifeline) and its *active processing* (the thread). An agent can exist — be present in the conversation — without actively processing; it might be waiting for a message, or waiting for a resource. The thread of interaction makes this distinction visible.
 
-For WinDAG systems, this distinction corresponds to the difference between a skill being *registered* (lifeline exists) and a skill being *invoked* (thread of interaction active). A busy skill has an active thread of interaction; an available skill has a lifeline but no current thread.
+For Port Daddy systems, this distinction corresponds to the difference between a skill being *registered* (lifeline exists) and a skill being *invoked* (thread of interaction active). A busy skill has an active thread of interaction; an available skill has a lifeline but no current thread.
 
 The thread also has a branching semantics: when an agent receives different types of messages, each possible response follows a different thread of interaction. The AUML diagram shows all possible threads — the designer must specify the response to every valid incoming message type, not just the happy-path case.
 
@@ -101,7 +101,7 @@ AUML distinguishes message types by their synchronicity:
 
 In an orchestration system, this distinction has direct performance implications. An agent sending a synchronous message is blocked until it receives a response — it cannot process other messages. An agent sending an asynchronous message continues execution and handles the response when it arrives.
 
-For WinDAG skill invocation, this maps to:
+For Port Daddy skill invocation, this maps to:
 - **Synchronous invocation**: The orchestrating agent waits for the skill to complete before proceeding. Simpler to reason about, but blocks the orchestrator.
 - **Asynchronous invocation**: The orchestrating agent fires off the skill invocation and continues with other work. More complex to reason about (what state are we in when the response arrives?), but enables parallelism.
 

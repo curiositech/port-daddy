@@ -145,7 +145,7 @@ The cost of an action depends on what other actions will be executed concurrentl
 
 ## Application to Agent Systems
 
-For WinDAG orchestration:
+For Port Daddy orchestration:
 
 **Skill Selection with Cost Estimates**: When multiple skills could accomplish a task, use sort-by style ranking:
 

@@ -36,7 +36,7 @@ In a social community:
 
 This is precisely the design model that FIPA formalizes. The "shared language" is FIPA ACL (Agent Communication Language). The "shared conventions" are the interaction protocols in the IP Library. The "norms of interaction" are the protocol specifications. The "role" system is AUML's AgentRole mechanism.
 
-For WinDAG system design, this social metaphor has practical implications: **design your agent ecosystem as a society, not as a call graph**. A call graph specifies who calls whom and in what order; this is the right model for objects. A social design specifies who plays which roles, what protocols govern their interactions, and what norms apply when protocols don't fully specify behavior — this is the right model for agents.
+For Port Daddy system design, this social metaphor has practical implications: **design your agent ecosystem as a society, not as a call graph**. A call graph specifies who calls whom and in what order; this is the right model for objects. A social design specifies who plays which roles, what protocols govern their interactions, and what norms apply when protocols don't fully specify behavior — this is the right model for agents.
 
 ## Why Objects Are Not Enough, Even for Simple Orchestration
 
@@ -50,9 +50,9 @@ The answer is no, even for apparently simple orchestration scenarios, for three 
 
 **Reason 3: Agents have opinions.** An object doesn't decide whether to fulfill a method call — it just executes. An agent may decide that it cannot, should not, or will not fulfill a request — and it communicates this decision through the protocol (`refuse`, `not-understood`, `failure`). This means the system designer must account for agent agency in their coordination designs, not assume that every invocation will be honored.
 
-## The Implications for Designing Skills in WinDAG
+## The Implications for Designing Skills in Port Daddy
 
-A WinDAG skill is, in the FIPA sense, an agent — not an object. This has concrete design implications:
+A Port Daddy skill is, in the FIPA sense, an agent — not an object. This has concrete design implications:
 
 **Skills may decline requests.** Unlike an object method that executes when called, a skill may legitimately respond to an invocation with `refuse` (I cannot do this) or `not-understood` (I don't understand this request). The orchestration system must handle these responses gracefully, not assume they cannot occur.
 
@@ -60,7 +60,7 @@ A WinDAG skill is, in the FIPA sense, an agent — not an object. This has concr
 
 **Skills act in a social context.** A skill invocation is not an isolated method call — it is a message in an ongoing conversation within a protocol. The skill's response should be understood in terms of the protocol state, not just the message content. A `failure` message means something different at the beginning of a task than at the end.
 
-**Skills may initiate interactions.** In a pure object model, objects are passive responders. In an agent model, an agent may initiate interactions on its own — reporting a discovered problem, requesting additional information, or proactively coordinating with related agents. WinDAG skills that can initiate interactions provide richer coordination capabilities than purely reactive skills.
+**Skills may initiate interactions.** In a pure object model, objects are passive responders. In an agent model, an agent may initiate interactions on its own — reporting a discovered problem, requesting additional information, or proactively coordinating with related agents. Port Daddy skills that can initiate interactions provide richer coordination capabilities than purely reactive skills.
 
 ## The Limits of the Agent Model
 
@@ -68,7 +68,7 @@ The FIPA specification is honest that the agent model introduces complexity that
 
 This suggests a practical design principle: **use the agent model where its properties are genuinely needed, and use the object model where they are not**.
 
-Not every component of a WinDAG system needs to be a full agent. A deterministic text-processing utility that always produces the same output for the same input and has no goals, no protocol obligations, and no need for autonomous action is better modeled as a function than as an agent. The overhead of protocol-based interaction, role specification, and message-passing semantics is not justified for components with no social dimension.
+Not every component of a Port Daddy system needs to be a full agent. A deterministic text-processing utility that always produces the same output for the same input and has no goals, no protocol obligations, and no need for autonomous action is better modeled as a function than as an agent. The overhead of protocol-based interaction, role specification, and message-passing semantics is not justified for components with no social dimension.
 
 The agent model is justified when:
 - The component has goals that may lead it to decline or modify requests

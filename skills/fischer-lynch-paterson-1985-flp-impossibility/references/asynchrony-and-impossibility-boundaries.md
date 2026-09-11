@@ -54,7 +54,7 @@ The construction (p. 379-380) maintains a process queue and message ordering to 
 
 When an agent system decomposes a complex task into subtasks for parallel execution, achieving consensus on results becomes problematic:
 
-**Scenario**: A WinDAG system analyzing a codebase decomposing work across multiple agents:
+**Scenario**: A Port Daddy system analyzing a codebase decomposing work across multiple agents:
 - Agent A analyzes security vulnerabilities
 - Agent B reviews architectural patterns  
 - Agent C checks code quality
@@ -100,7 +100,7 @@ The impossibility result has strict boundary conditions. Consensus IS possible w
 
 ## Connecting to Agent Architecture
 
-For WinDAG-style systems, this suggests a **tiered architecture**:
+For Port Daddy-style systems, this suggests a **tiered architecture**:
 
 **Tier 1 - Fast Path (Synchronous assumptions)**:
 - Use timeouts and failure detection

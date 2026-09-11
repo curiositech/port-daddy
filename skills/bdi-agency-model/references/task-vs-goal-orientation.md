@@ -188,7 +188,7 @@ System recognizes:
 
 ### 1. Every Skill Invocation Should Have Goal Context
 
-In WinDAG orchestration, when a skill is invoked, the system should record:
+In Port Daddy orchestration, when a skill is invoked, the system should record:
 
 ```
 SkillExecution {
@@ -436,6 +436,6 @@ The combination gives you:
 - Automatic recovery through means-end reasoning
 - Opportunistic replanning through goal monitoring
 
-For WinDAG orchestration: every skill invocation, every DAG node execution, every task decomposition should maintain explicit goal context. This transforms the system from a task executor that breaks on unexpected inputs into an adaptive agent that can recover from failures, exploit opportunities, and clean up obsolete work automatically.
+For Port Daddy orchestration: every skill invocation, every DAG node execution, every task decomposition should maintain explicit goal context. This transforms the system from a task executor that breaks on unexpected inputs into an adaptive agent that can recover from failures, exploit opportunities, and clean up obsolete work automatically.
 
 The goal layer is the difference between a system that can only do what you programmed it to do, and a system that can figure out how to achieve what you want even when what you programmed doesn't work.

@@ -22,7 +22,7 @@ The authors identify three specific ways plans constrain reasoning:
 
 For multi-agent orchestration systems like Jury-rig, this architectural insight has profound implications:
 
-**Decomposition**: When a WinDAG agent receives a complex task, the act of forming even a partial plan (deciding on high-level approach) immediately constrains what skills need to be considered next. The partial plan doesn't solve the problem, but it transforms an intractable "consider everything" problem into a focused "how do I accomplish X?" problem.
+**Decomposition**: When a Port Daddy agent receives a complex task, the act of forming even a partial plan (deciding on high-level approach) immediately constrains what skills need to be considered next. The partial plan doesn't solve the problem, but it transforms an intractable "consider everything" problem into a focused "how do I accomplish X?" problem.
 
 **Coordination**: When multiple agents operate, each agent's plans serve as commitment signals that other agents can rely on for their own planning. If Agent A has committed to producing data in format X by time T, Agent B can plan around this assumption without constantly checking whether A has changed its mind. The stability of plans enables distributed reasoning without constant synchronization.
 

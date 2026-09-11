@@ -8,7 +8,7 @@ One of the most important passages in the FIPA Interaction Protocol Library Spec
 
 This is a remarkable admission for a standards document. It says: *compliance with our standard is not sufficient for your agents to actually work together*. The protocols define the happy-path structure of interactions. But real conversations between agents happen in environments where things go wrong, where timing is unpredictable, where one party may disappear mid-conversation, where the same message might arrive twice. The protocols are silent on all of this.
 
-For any agent system designer — and especially for designers of WinDAG-style orchestration systems — this gap between *protocol compliance* and *genuine interoperability* is one of the most dangerous failure modes to underestimate.
+For any agent system designer — and especially for designers of Port Daddy-style orchestration systems — this gap between *protocol compliance* and *genuine interoperability* is one of the most dangerous failure modes to underestimate.
 
 ## What the Protocols Cover: The Happy Path
 
@@ -55,7 +55,7 @@ The gap between protocol compliance and genuine interoperability is precisely th
 
 This is not a failure of the FIPA specification — it is an honest acknowledgment of the scope of the problem. The specification correctly identifies that these issues require "further agreement between agents about the issues above." This additional agreement is typically handled at the infrastructure layer (reliable message delivery, exactly-once semantics), the application layer (explicit timeout agreements), or through additional protocol extensions (cancel sub-protocols, acknowledgment messages).
 
-## Implications for WinDAG Orchestration
+## Implications for Port Daddy Orchestration
 
 ### Protocols Are Necessary But Not Sufficient
 
@@ -71,7 +71,7 @@ These decisions should be documented alongside the protocol name, not left as im
 
 ### The Danger of Assuming Compliance Equals Correctness
 
-A WinDAG skill that correctly implements the ContractNet protocol — sending and receiving the right message types in the right order — can still be a source of system failures if it leaves the above questions unanswered. A skill that hangs waiting for a response to an `accept-proposal` that was never delivered, with no timeout, will block indefinitely. A skill that processes duplicate `cfp` messages will produce duplicate results, potentially causing conflicts downstream.
+A Port Daddy skill that correctly implements the ContractNet protocol — sending and receiving the right message types in the right order — can still be a source of system failures if it leaves the above questions unanswered. A skill that hangs waiting for a response to an `accept-proposal` that was never delivered, with no timeout, will block indefinitely. A skill that processes duplicate `cfp` messages will produce duplicate results, potentially causing conflicts downstream.
 
 ### Infrastructure Obligations
 

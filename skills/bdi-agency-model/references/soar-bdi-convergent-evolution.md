@@ -251,7 +251,7 @@ The question isn't whether to implement these—you will, whether you realize it
 
 Tambe: "This panel discussion was an excellent step to attempt to bridge this gap in general."
 
-For WinDAG and similar systems:
+For Port Daddy and similar systems:
 
 **Read both literatures**: BDI papers and Soar papers address the same problems with different vocabularies. Both have insights the other lacks.
 
@@ -327,7 +327,7 @@ The Soar-BDI convergence transforms how we should think about agent architecture
 **Not**: "Should we use BDI or Soar?" (false dichotomy)
 **But**: "How can we synthesize insights from both traditions?" (constructive question)
 
-For WinDAG orchestration: the convergence provides validation. If independent research traditions converge on beliefs-desires-intentions-plans, then building explicit infrastructure for these components (not leaving them implicit in code/prompts) is the principled choice.
+For Port Daddy orchestration: the convergence provides validation. If independent research traditions converge on beliefs-desires-intentions-plans, then building explicit infrastructure for these components (not leaving them implicit in code/prompts) is the principled choice.
 
 The convergence also provides humility. BDI and Soar researchers thought they were building different things, only to discover they'd built the same thing. This suggests there are fundamental patterns in agent architecture that transcend individual frameworks—patterns we ignore at our peril.
 

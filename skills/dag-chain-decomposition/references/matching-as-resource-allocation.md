@@ -111,7 +111,7 @@ The details are complex (see [5] in references), but for agent systems, the take
 
 ## Application to Agent Task Assignment
 
-Translate to WinDAG orchestration:
+Translate to Port Daddy orchestration:
 
 **Scenario**: After completing a round of subtasks (level i), you have multiple pending higher-level tasks (level i+1) waiting to proceed. Each higher-level task depends on some subset of the completed lower-level tasks.
 
@@ -195,11 +195,11 @@ For agent systems that can't stratify fully upfront:
 
 Best known online algorithm: **Ranking algorithm** (Karp, Vazirani, Vazirani 1990) achieves (1 - 1/e) ≈ 0.63 competitive ratio—finds at least 63% of optimal matching size on expectation.
 
-For WinDAG: if tasks arrive dynamically and you must assign immediately, use online matching algorithms instead of batch maximum matching.
+For Port Daddy: if tasks arrive dynamically and you must assign immediately, use online matching algorithms instead of batch maximum matching.
 
 ## Implementing Maximum Matching
 
-For a WinDAG system (pseudocode):
+For a Port Daddy system (pseudocode):
 
 ```python
 def assign_tasks_to_chains(higher_level_tasks, lower_level_chains, dependencies):

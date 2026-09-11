@@ -51,7 +51,7 @@ The protocol provides no mechanism for detecting dishonest proposals. The `failu
 
 This is a fundamental limitation of protocol-based coordination: protocols can specify the *form* of messages but not their *truthfulness*. A protocol compliance checker verifies that an agent sends the right types of messages; it cannot verify that those messages accurately reflect the agent's capabilities or intentions.
 
-For WinDAG systems, this has practical implications for skill capability registration. If skills self-report their capabilities (the protocol analog of a `propose` message), those self-reports may not accurately reflect actual performance under load, on edge cases, or on tasks that are superficially similar but substantially different from the skill's training distribution. The system should maintain empirical performance records alongside self-reported capabilities, and use historical performance data to calibrate expectations.
+For Port Daddy systems, this has practical implications for skill capability registration. If skills self-report their capabilities (the protocol analog of a `propose` message), those self-reports may not accurately reflect actual performance under load, on edge cases, or on tasks that are superficially similar but substantially different from the skill's training distribution. The system should maintain empirical performance records alongside self-reported capabilities, and use historical performance data to calibrate expectations.
 
 ## Protocol Rigidity and the Need for Discretion
 
@@ -75,9 +75,9 @@ Given that protocol wisdom cannot be specified in the protocol itself, how can p
 
 **Strategy 4: Allow richer failure reporting.** The ContractNet `failure` message carries a `reason-3` parameter — the reason for the failure. This enables the Initiator to learn from failures, adapt its future proposals, and potentially re-allocate the task more successfully. Rich failure information converts failures from dead ends into learning opportunities.
 
-## Implications for WinDAG Agent Design
+## Implications for Port Daddy Agent Design
 
-The distinction between protocol compliance and protocol wisdom suggests several design priorities for WinDAG agents:
+The distinction between protocol compliance and protocol wisdom suggests several design priorities for Port Daddy agents:
 
 **Priority 1: Build in calibrated self-assessment.** A skill that can accurately assess its ability to perform a task before accepting it — and communicate that assessment honestly in the proposal — creates better system outcomes than a skill that either always accepts (and sometimes fails) or always refuses (and misses opportunities). Calibrated self-assessment is a form of protocol wisdom.
 
@@ -85,7 +85,7 @@ The distinction between protocol compliance and protocol wisdom suggests several
 
 **Priority 3: Maintain conversational memory.** Protocol wisdom often depends on context from previous interactions in the same conversation. A skill that remembers why a previous `propose` was rejected is better positioned to make a more relevant proposal on the second attempt. Within a conversation, contextual memory enables better decisions.
 
-**Priority 4: Design meta-protocols for protocol failures.** When the standard protocol is not working — when a conversation is stuck, when messages are ambiguous, when conditions have changed beyond the protocol's scope — there must be a way for agents to step outside the primary protocol and negotiate about the conversation itself. This is the WinDAG equivalent of FIPA's meta-level cancellation and modification protocols.
+**Priority 4: Design meta-protocols for protocol failures.** When the standard protocol is not working — when a conversation is stuck, when messages are ambiguous, when conditions have changed beyond the protocol's scope — there must be a way for agents to step outside the primary protocol and negotiate about the conversation itself. This is the Port Daddy equivalent of FIPA's meta-level cancellation and modification protocols.
 
 ## The Wisdom That Protocols Cannot Contain
 

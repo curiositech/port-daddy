@@ -47,7 +47,7 @@ These require **qualitatively different coordination strategies**:
 
 ## Shape Analysis: Profiling Problem Structure
 
-For WinDAG, implement shape analysis:
+For Port Daddy, implement shape analysis:
 
 ```python
 def analyze_problem_shape(task_dag):
@@ -292,4 +292,4 @@ In complex systems, one-size-fits-all coordination strategies are guaranteed to 
 for most of your problem instances. Adapt to structure.
 ```
 
-For WinDAG: don't use the same orchestration strategy for all problems. Profile each problem class, identify structural patterns, deploy specialized coordinators for each pattern. This complexity-driven architecture will outperform uniform approaches, especially at scale.
+For Port Daddy: don't use the same orchestration strategy for all problems. Profile each problem class, identify structural patterns, deploy specialized coordinators for each pattern. This complexity-driven architecture will outperform uniform approaches, especially at scale.

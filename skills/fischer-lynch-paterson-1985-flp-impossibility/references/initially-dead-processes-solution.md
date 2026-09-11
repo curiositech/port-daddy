@@ -160,7 +160,7 @@ This pattern works when:
 - Integration is deterministic (given complete information)
 - Can tolerate partial information (majority is enough)
 
-For WinDAG:
+For Port Daddy:
 ```
 Phase 1: Parallel Analysis
 - Agent A: Security scan
@@ -310,7 +310,7 @@ The initially-dead protocol teaches: **Separate failure modes and handle them di
 - OR escalate to human intervention
 - Cannot guarantee consensus in pure asynchrony
 
-For WinDAG architecture:
+For Port Daddy architecture:
 
 ```
 System Design:

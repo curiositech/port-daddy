@@ -106,7 +106,7 @@ For agent systems: **identify and explicitly state invariants** in your decompos
 
 ## Practical Verification: Checking Optimality
 
-For a WinDAG system, implement verification:
+For a Port Daddy system, implement verification:
 
 ```python
 def verify_decomposition_optimality(chains, dag):

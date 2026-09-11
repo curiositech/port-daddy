@@ -10,7 +10,7 @@ This is not a trivial observation. Most agent systems — and most modern AI orc
 
 ## Why This Matters for Agent Orchestration Systems
 
-In a WinDAG-style system with 180+ skills, agents are constantly in conversation: one agent requests a subtask, another proposes an approach, a third accepts or rejects, a fourth confirms completion or reports failure. If these conversations are not governed by explicit protocols, several failure modes emerge:
+In a Port Daddy-style system with 180+ skills, agents are constantly in conversation: one agent requests a subtask, another proposes an approach, a third accepts or rejects, a fourth confirms completion or reports failure. If these conversations are not governed by explicit protocols, several failure modes emerge:
 
 - **Ambiguity about conversation state**: An agent doesn't know whether a silence means "thinking," "failed," or "done."
 - **Incompatible assumptions**: Agent A expects a `propose` message before proceeding; Agent B assumes permission is implied by the initial `request`.
@@ -31,7 +31,7 @@ This is a fundamental tradeoff:
 
 **Philosophy B — Pre-specified Protocols**: Define conversation patterns ahead of time. Agents don't need to reason about *why* the pattern works — they just follow it. A simple agent can participate in a sophisticated negotiation by pattern-matching on message types and following the prescribed responses.
 
-For a WinDAG system, the lesson is clear: **use pre-specified protocols wherever the coordination pattern is predictable and reusable, and reserve emergent coordination for genuinely novel situations**. The overhead of specifying protocols is paid once; the overhead of emergent coordination is paid every time.
+For a Port Daddy system, the lesson is clear: **use pre-specified protocols wherever the coordination pattern is predictable and reusable, and reserve emergent coordination for genuinely novel situations**. The overhead of specifying protocols is paid once; the overhead of emergent coordination is paid every time.
 
 ## The ContractNet Protocol as an Archetype
 
@@ -51,7 +51,7 @@ The FIPA ContractNet Protocol is the canonical example of an interaction protoco
 
 What makes this powerful is that every state in the conversation is named, every transition is specified, and every message type has a defined semantic. An agent implementing this protocol knows exactly what state it's in at every moment, exactly what messages are valid next, and exactly what it must do with each incoming message.
 
-For WinDAG skill orchestration, this pattern maps directly to: skill invocation (`cfp`), capability assessment (`propose`/`refuse`), skill selection (`accept-proposal`/`reject-proposal`), and result reporting (`inform`/`failure`). Any orchestration system that has these message types and follows this pattern is implementing ContractNet, whether or not it names it.
+For Port Daddy skill orchestration, this pattern maps directly to: skill invocation (`cfp`), capability assessment (`propose`/`refuse`), skill selection (`accept-proposal`/`reject-proposal`), and result reporting (`inform`/`failure`). Any orchestration system that has these message types and follows this pattern is implementing ContractNet, whether or not it names it.
 
 ## Naming Protocols Enables Reasoning About Systems
 
@@ -59,7 +59,7 @@ There is a meta-benefit to naming protocols that goes beyond the protocol itself
 
 This observability is only possible because the protocol is named and specified. In an ad hoc communication system, the same information might be embedded in unstructured message content, invisible to any automated reasoning system.
 
-## Practical Implications for WinDAG Design
+## Practical Implications for Port Daddy Design
 
 1. **Build a protocol library alongside your skill library.** For every recurring coordination pattern in your system — task delegation, result verification, escalation, parallel subtask coordination — name the protocol and specify its message sequence.
 

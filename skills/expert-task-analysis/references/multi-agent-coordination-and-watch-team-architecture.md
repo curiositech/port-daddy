@@ -22,7 +22,7 @@ Each role has a specific information bandwidth it monitors, specific actions it 
 
 ## The Orchestrator-Executor Architecture
 
-The relationship between the OOD and the Conning Officer is a clean implementation of the orchestrator-executor architecture that WinDAG-style systems use:
+The relationship between the OOD and the Conning Officer is a clean implementation of the orchestrator-executor architecture that Port Daddy-style systems use:
 
 > "The Officer of the Deck (OOD), usually the most experienced ship-handler in that watch section, is in charge of the entire watch section. He is also responsible for the safety of the entire ship and its crew during his four hour watch. The Conning Officer is responsible for driving the ship. He is the one who gives all of the verbal orders to the Helmsman and Leehelmsman." (p. 6)
 
@@ -30,7 +30,7 @@ The OOD is the orchestrator: responsible for overall safety, maintaining situati
 
 This separation enables an important architectural property: the orchestrator can maintain **strategic awareness** without being embedded in **tactical execution**. The OOD does not need to know the exact rudder angle being used — they need to know whether the ship is developing safely or not. This cognitive specialization allows the OOD to maintain a higher-level view that the Conning Officer, absorbed in moment-to-moment control, cannot maintain.
 
-For WinDAG orchestration: **the orchestrator should be architecturally separated from the executors** — not merely a more powerful executor, but a qualitatively different kind of agent operating at a different level of abstraction. The orchestrator's value comes precisely from its ability to maintain strategic awareness that is not available to agents absorbed in tactical execution.
+For Port Daddy orchestration: **the orchestrator should be architecturally separated from the executors** — not merely a more powerful executor, but a qualitatively different kind of agent operating at a different level of abstraction. The orchestrator's value comes precisely from its ability to maintain strategic awareness that is not available to agents absorbed in tactical execution.
 
 ## The Role Specialization Principle
 

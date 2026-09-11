@@ -123,7 +123,7 @@ This filtering is the key to avoiding combinatorial explosion: the option space 
 
 ### Example: The Multi-Task Agent
 
-Consider a WinDAG agent system with three active tasks:
+Consider a Port Daddy agent system with three active tasks:
 
 - Task A: Committed intention to generate API documentation
 - Task B: Committed intention to review security audit
@@ -310,7 +310,7 @@ In these domains, commitment must be stronger to avoid thrashing and coordinatio
 
 Despite the empirical proof that strategic commitment works, the BDI literature doesn't provide a complete theory of when reconsideration should occur. This is acknowledged in Pollack's response and implicit in Georgeff's use of scare quotes around "crucial moments."
 
-**For WinDAG systems**, this means:
+**For Port Daddy systems**, this means:
 
 1. **Domain-specific policies**: Different skills and task types need different commitment policies
 2. **Explicit policy specification**: Commitment policies should be part of agent/skill configuration, not hidden in code

@@ -143,7 +143,7 @@ The lesson for agents: **there's no universal best encoding; the optimal choice 
 
 ## Implementing Compressed Reachability for Agent Systems
 
-For WinDAG tracking task dependencies:
+For Port Daddy tracking task dependencies:
 
 ```python
 class CompressedDependencyGraph:

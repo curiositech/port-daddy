@@ -112,7 +112,7 @@ Mitigations:
 
 The paper's architecture assumes a deliberative layer (where abduction happens) and an execution layer (where plans run). Purely reactive agents don't fit this model.
 
-## Application to WinDAG Agent Systems
+## Application to Port Daddy Agent Systems
 
 For orchestration systems with 180+ skills, abduction provides a feasibility check for skill chains:
 

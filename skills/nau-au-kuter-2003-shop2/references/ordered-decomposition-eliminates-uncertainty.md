@@ -69,7 +69,7 @@ The paper addresses this through two mechanisms:
 
 ## Application to Multi-Agent Orchestration
 
-For WinDAG systems, the ordered decomposition principle suggests:
+For Port Daddy systems, the ordered decomposition principle suggests:
 
 **Agent Coordination Pattern**: When multiple agents must coordinate, designate one agent as the "planner" who sequences subtasks in execution order. That agent maintains the definite current state and assigns subtasks to other agents only when the preconditions are definitively satisfied. This is superior to having all agents reason about possible world states.
 
