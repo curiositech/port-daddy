@@ -127,6 +127,36 @@
 % own note without asking what is already in the column is how the Book got
 % seven collisions and a portrait below the paper, and there are now several
 % hundred short notes in the column where there were dozens.
+% Place a margin block with its TOP on the issuing line rather than its foot.
+% Same occupancy bookkeeping as \pd@placemargin -- it must, or a later block
+% would be told the column is free where this one sits -- but it never raises,
+% so it cannot leave the page above. Clamped both ways: the offset is never
+% negative (nothing above the text block) and, where \pagegoal is a real
+% dimension, never so large that the block's foot passes the bottom of the
+% text block. \pagegoal is \maxdimen on an empty page, which is room for
+% anything; a block already taller than its page is left alone rather than
+% shoved, because moving it cannot make it fit.
+\newcommand{\pd@placemargintop}[1]{%
+  \setlength{\pd@blockoff}{0pt}%
+  \ifnum\pd@lastheadpage=\thepage\relax
+    \ifdim\pd@blockoff<\dimexpr\pd@lastheadbottom-\pagetotal\relax
+      \setlength{\pd@blockoff}{\dimexpr\pd@lastheadbottom-\pagetotal\relax}\fi
+  \fi
+  \ifnum\pd@blockpage=\thepage\relax
+    \ifdim\pd@blockoff<\dimexpr\pd@blockbottom-\pagetotal+2pt\relax
+      \setlength{\pd@blockoff}{\dimexpr\pd@blockbottom-\pagetotal+2pt\relax}\fi
+  \fi
+  \ifdim\pd@blockoff<0pt \setlength{\pd@blockoff}{0pt}\fi
+  \ifdim\pagegoal<\maxdimen
+    \ifdim\dimexpr\pagetotal+\pd@blockoff+\ht#1+\dp#1\relax>\pagegoal
+      \setlength{\pd@blockoff}{\dimexpr\pagegoal-\pagetotal-\ht#1-\dp#1\relax}%
+      \ifdim\pd@blockoff<0pt \setlength{\pd@blockoff}{0pt}\fi
+    \fi
+  \fi
+  \marginnote{\usebox#1}[\pd@blockoff]%
+  \xdef\pd@blockpage{\thepage}%
+  \global\pd@blockbottom=\dimexpr\pagetotal+\pd@blockoff+\ht#1+\dp#1\relax}
+
 \newcommand{\pd@placemargin}[1]{%
   \setlength{\pd@blockoff}{\dimexpr\baselineskip-\ht#1-\dp#1\relax}%
   % A note never starts below the line that issues it -- clamped here, BEFORE
@@ -267,7 +297,20 @@
       % technical edition, where no warning and no reader could reach them.
       % Placed like every other margin block instead: measured, raised to sit
       % on its own line, capped by what is already in the column.
-      \pd@placemargin{\pd@mfbox}%
+      % Top-anchored, unlike every other margin block, and that is the whole
+      % fix for a portrait that printed off the top of the paper. The others
+      % raise themselves so their LAST line sits on the line that issued them,
+      % which is right for a note you read beside its sentence. A figure is
+      % tall, and the raise is computed from \pagetotal -- true only for the
+      % page TeX is filling now. Ostrom's portrait was issued right after
+      % \paragraph{Commons governance.}, whose paragraph then broke to the
+      % next page: the offset was measured against the foot of p. 327 and
+      % applied at the top of p. 328, putting 88 pt of a 117 pt image above
+      % the paper, over the running head, on a page two-thirds empty. Anchored
+      % at the top it can only extend downward, where \pd@placemargin's foot
+      % and occupancy caps already apply, so no stale \pagetotal can lift it
+      % off the page.
+      \pd@placemargintop{\pd@mfbox}%
     }{}%
   \fi}
 
