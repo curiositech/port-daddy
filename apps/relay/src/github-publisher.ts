@@ -47,6 +47,7 @@ import {
 } from './github-app.js';
 import {
   replaceUserTokenGitHubCredential,
+  resolveUserTokenReadOnly,
   resolveUserTokenWithGitHubCredential,
   type UserRow,
 } from './db.js';
@@ -1482,7 +1483,8 @@ export async function handleFleetbotPublisher(request: Request, env: PublisherEn
     const config = configured(env);
     const now = Math.floor(Date.now() / 1000);
     const tokenHash = hashHex(rawToken);
-    const account = await credentialForAccount(env, tokenHash, now);
+    const accountAuthority = await resolveUserTokenReadOnly(env.DB, tokenHash, now);
+    if (!accountAuthority) failure('PUBLISHER_REAUTH_REQUIRED', 401, 'sign in again to authorize App publication');
     await verifyAndConsumeCapability(
       env,
       capability,
@@ -1491,9 +1493,13 @@ export async function handleFleetbotPublisher(request: Request, env: PublisherEn
       payload,
       requestHash,
       tokenHash,
-      account.user.id,
+      accountAuthority.id,
       now,
     );
+    const account = await credentialForAccount(env, tokenHash, now);
+    if (account.user.id !== accountAuthority.id) {
+      failure('CREDENTIAL_RACE', 409, 'account authority changed during publisher admission');
+    }
     const [owner, repo] = action.repository.split('/') as [string, string];
     const installationId = await getRepoInstallationId(config.appId, config.privateKey, owner, repo, env.KV, true);
     await authorizeExactRepository(installationId, action.repository, account.credential.accessToken);
