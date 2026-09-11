@@ -993,7 +993,7 @@ impl DaemonClient {
     }
 
     /// Broadcast a snapshot **reference** frame up a file's EDIT-lane channel
-    /// ([`crate::editor_sync::channel_for_path`]). Same wire as [`tube_send`](Self::tube_send),
+    /// ([`crate::editor_sync::channel_for_document`]). Same wire as [`tube_send`](Self::tube_send),
     /// stamped `sender = "snapshot"` so a log reader can tell the durability lane
     /// apart. `frame_text` is [`crate::editor_sync::encode_snapshot_frame`].
     pub async fn broadcast_snapshot_ref(&self, channel: &str, frame_text: &str) -> Result<()> {
@@ -1011,7 +1011,7 @@ impl DaemonClient {
 
     /// Send a coordination-control-plane signal (claim acquire/release, conflict
     /// predicted) up a file's **coordination** channel
-    /// ([`crate::editor_sync::coordination_channel_for_path`]) — a SEPARATE tube
+    /// ([`crate::editor_sync::coordination_channel_for_document`]) — a SEPARATE tube
     /// channel from the edit lane, so a keystroke burst on the edit channel cannot
     /// starve this latency-sensitive lane (the ref-03 §3 isolation contract; proven
     /// structurally by `editor_sync::LaneQueues`). `frame_text` is
@@ -1466,7 +1466,7 @@ impl DaemonClient {
     /// Open the live SSE feed for a pub/sub tube channel
     /// (`GET /msg/:channel/subscribe`) and yield each published [`TubeMsg`] on an
     /// mpsc channel. This is the Harbor Editor's LAN-multiplayer receive path (P2
-    /// slice 1): the per-file channel is [`crate::editor_sync::channel_for_path`],
+    /// slice 1): the per-file channel is [`crate::editor_sync::channel_for_document`],
     /// and each `TubeMsg::text` is a Loro op frame the caller folds into a buffer
     /// via [`crate::editor_sync::decode_frame`] + `apply_frame`.
     ///

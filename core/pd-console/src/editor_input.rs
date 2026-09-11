@@ -46,6 +46,16 @@ impl EditorInput {
         self.selection_reversed
     }
 
+    /// Restore a selection resolved from CRDT anchors after remote changes.
+    /// Composition is cancelled because its old range was based on other text.
+    pub fn restore_selection(&mut self, text: &str, range: Range<usize>, reversed: bool) {
+        self.selected_range = range.start.min(range.end)..range.start.max(range.end);
+        self.selection_reversed = reversed;
+        self.marked_range = None;
+        self.preferred_column = None;
+        self.reconcile(text);
+    }
+
     pub fn marked_range(&self) -> Option<Range<usize>> {
         self.marked_range.clone()
     }

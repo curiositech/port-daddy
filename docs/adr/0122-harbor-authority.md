@@ -12,6 +12,22 @@
   Account KMS), ADR-0124 (Transcript Redaction), ADR-0125 (iOS Operator
   Surface), ADR-0126 (Shared-Harbors Re-sequencing)
 
+## 2026-09-08 clarification: planning and durable acceptance
+
+The [Cooperative Harbor implementation](../strategy/cooperative-harbor-implementation.md)
+preserves this ADR's one-writer, signed-epoch and explicit-transfer rules.
+Chartroom owns canonical planning records; the Harbor writer owns editing and
+execution records. Cross-domain references bind exact revisions. Neither domain
+maintains another independently mutable canonical copy of the other's objects.
+
+For managed hosting, the kernel retains signing authority. A SQLite-backed
+Durable Object checks signed heads/idempotency/delivery but cannot mint leases.
+Shared acceptance follows durable encrypted journal upload and a checked head,
+not preparation on ephemeral disk. Cold reconstruction verifies a checkpoint,
+the complete following journal and current authority before writes resume.
+Missing data or keys fails closed; restoration alone never grants control.
+These are implementation gates, not claims that this protocol is deployed.
+
 ## Context
 
 Port Daddy can already prove who said something. It cannot yet say who may

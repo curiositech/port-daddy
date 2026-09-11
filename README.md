@@ -1252,6 +1252,7 @@ Start with [CONTRIBUTING.md](CONTRIBUTING.md). Every PR is filled out against [`
 - [Machine-instruction parity audit](docs/research/2026-09-02-machine-instruction-parity.md) — installed-guide and Pilot/skill provenance, preservation boundaries, and the remaining repair contract; source delivery is not installation
 - [macOS isolated-build findings](docs/research/2026-09-02-macos-isolated-bun-build.md) — three failed attempts, resolver controls, and remaining proof requirements; no runtime promotion
 - [Project Epistemology design package](docs/research/egosystem-reconciliation/README.md) — constitution, packet-audit skill, synthetic temporal/R17 consequence harness and existing Harbor integration contract; no runtime integration, measured research benefit or authority to resume halted work
+- [Cooperative Harbor implementation](docs/strategy/cooperative-harbor-implementation.md) — approved shared-work, editor and managed-hosting contracts; tested local foundations use distinct replica incarnations and scoped document routing. Local file opening no longer auto-joins a shared channel; verified shared admission and the complete product remain unshipped. See the [evidence and remaining gates](docs/research/egosystem-reconciliation/final/cooperative-foundations-evidence.md).
 - White papers at `/whitepaper` on [portdaddy.dev](https://portdaddy.dev): **The Anchor Protocol**, **The Bonded Commons**
 
 ---
