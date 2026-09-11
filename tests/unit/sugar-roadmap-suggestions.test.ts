@@ -29,7 +29,7 @@ describe('printRoadmapSuggestions', () => {
     expect(url.searchParams.get('limit')).toBe('5');
   });
 
-  test('omits the harbor param when none is given', async () => {
+  test('does not issue an unscoped retrieval when no harbor is given', async () => {
     const fetcher = jest.fn(async () => ({
       ok: true,
       status: 200,
@@ -38,8 +38,7 @@ describe('printRoadmapSuggestions', () => {
 
     await printRoadmapSuggestions('fix the login bug', undefined, fetcher);
 
-    const url = new URL(fetcher.mock.calls[0][0], 'http://x');
-    expect(url.searchParams.has('harbor')).toBe(false);
+    expect(fetcher).not.toHaveBeenCalled();
   });
 
   test('never throws when the daemon responds non-ok', async () => {

@@ -571,7 +571,7 @@ describe('GET /roadmap/projection', () => {
     await app.register(roadmapPlugin, { deps: { ...stubDeps(), db: exploding } });
     await app.ready();
 
-    const res = await app.inject({ method: 'GET', url: '/roadmap/projection' });
+    const res = await app.inject({ method: 'GET', url: '/roadmap/projection?harbor=port-daddy' });
     expect(res.statusCode).toBe(500);
     const body = JSON.parse(res.body);
     expect(body.success).toBe(false);

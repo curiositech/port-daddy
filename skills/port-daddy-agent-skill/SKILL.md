@@ -335,7 +335,9 @@ badge.
 Durable roster identity is another layer again. Use `pd roster list` and
 `pd roster search "<expertise>" [--repo <path>]` when the question is which
 long-lived named expert should receive work, even when no body is currently
-running. A roster alias such as `portdaddy-typography-expert` is a human label;
+running. `--repo` selects that exact repository scope; omitting it explicitly
+selects the `system` scope rather than searching every roster. A roster alias
+such as `portdaddy-typography-expert` is a human label;
 the daemon-minted `agent_node_...` is the principal. Create one with `pd roster
 create`, or promote a proven session only after storing its sanitized handoff
 capsule, then use `pd roster promote <session-id> --episode <id> ...`. Profile
@@ -350,6 +352,9 @@ stored vector and query carries its provider, model id, immutable model
 revision, dimensions, normalization, distance metric, and a `space_id` hashed
 from canonical ordered metadata.
 Reject or re-embed incompatible spaces; never compare them silently.
+Roadmap retrieval follows the same boundary: pass `--harbor <name>` to both
+`pd roadmap search` and `pd roadmap reindex`. Unscoped cross-harbor retrieval is
+rejected, and `pd begin` skips best-effort suggestions when it has no harbor.
 
 MiniLM is an explicit local/degraded fallback, not the universal design
 authority. Name the stable corpus on every direct embedding call (`pd embed

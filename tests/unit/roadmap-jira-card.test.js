@@ -17,7 +17,8 @@ import { closeDatabase, initDatabase } from '../../lib/db.js';
 import { createTupleSpace } from '../../lib/tuples.js';
 import { createRoadmapItems } from '../../lib/roadmap-items.js';
 import { createGraphEdges } from '../../lib/graph-edges.js';
-import { createDurableAgentRoster } from '../../lib/durable-agent-roster.js';
+import { createDurableAgentRoster, DURABLE_AGENT_SEARCH_CORPUS_ID } from '../../lib/durable-agent-roster.js';
+import { localTextCorpusPolicy } from '../../lib/retrieval-policy.js';
 import { roadmapPlugin } from '../../routes/roadmap.js';
 
 let app;
@@ -32,7 +33,9 @@ beforeEach(async () => {
   graphEdges = createGraphEdges(db);
   durableAgentRoster = createDurableAgentRoster(db, {
     resolver: {
-      modelId: 'Xenova/all-MiniLM-L6-v2',
+      modelId: 'test-roster-model',
+      spaceId: 'test:roster-2d',
+      corpusPolicy: localTextCorpusPolicy(DURABLE_AGENT_SEARCH_CORPUS_ID),
       embed: async () => [0.5, 0.5],
     },
     gitleaksRunner: () => ({ findings: [] }),

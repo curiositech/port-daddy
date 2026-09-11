@@ -7,6 +7,7 @@ import {
   HandoffValidationError,
 } from '../lib/handoff-capsule.js';
 import type { EpisodicMemory, Episode } from '../lib/episodic-memory.js';
+import { RetrievalAdmissionError } from '../lib/retrieval-admission.js';
 
 interface DurableAgentRosterRouteDeps {
   durableAgentRoster: DurableAgentRoster;
@@ -99,6 +100,10 @@ function routeError(
   if (error instanceof HandoffScannerUnavailableError) {
     reply.code(503);
     return { success: false, error: error.message, code: 'SCANNER_UNAVAILABLE', failClosed: true };
+  }
+  if (error instanceof RetrievalAdmissionError) {
+    reply.code(error.code === 'SANITIZER_UNAVAILABLE' ? 503 : 422);
+    return { success: false, error: error.message, code: error.code, failClosed: true };
   }
   deps.metrics.errors += 1;
   deps.logger.error('durable_agent_roster_error', { errorType: error instanceof Error ? error.name : 'unknown' });

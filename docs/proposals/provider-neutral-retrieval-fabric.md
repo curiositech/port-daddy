@@ -587,15 +587,17 @@ truth. None should be folded into this design-only PR.
    conformance receipts, and generated parity across daemon and Workers.
 3. **Build the golden corpus harness.** Version judgments, privacy negatives, repeatable
    index fixtures, metrics, comparison reports, and promotion receipts.
-4. **Pilot text retrieval.** Migrate one bounded corpus from MiniLM using separate indexes,
-   BM25+dense RRF, citations, receipts, and rollback. Transcript search now has the initial
-   source-present admission slice: its
-   disposable index carries exact corpus, harbor, repository, redaction, retention, embedding
-   space, and producer-receipt identity; source derivatives and queries pass fail-closed
-   sanitization before tokenization or embedding; BM25 and the compatible dense leg fuse with
-   RRF at `k=60`. Separate-generation cutover and rollback are not yet source-present, so this
-   step remains incomplete. This is not benchmark promotion, remote-tier activation, or
-   completion for other corpora.
+4. **Pilot text retrieval.** Migrate bounded corpora from MiniLM using separate indexes,
+   BM25+dense RRF, citations, receipts, and rollback. Transcript, roadmap, and durable-roster
+   search now have source-present admission slices: their disposable projections carry exact
+   corpus policy and embedding-space generations, require explicit repository/harbor/system
+   scope, discard unverifiable legacy model-only vectors, and sanitize source derivatives and
+   queries before tokenization or embedding. Transcript and roadmap fuse BM25 and the compatible
+   dense leg with RRF at `k=60`; the roster already used RRF and now constrains both legs to the
+   admitted scope and generation. Separate-generation cutover and rollback are not yet
+   source-present, so this step remains incomplete. This is not benchmark promotion,
+   remote-tier activation, or completion for Tool2Vec, whois, episodic memory, or semantic
+   response caching.
 5. **Pilot code retrieval.** Add language/repo slices, symbol/lineage features, and code-
    specific candidates only after CoIR plus Port Daddy corpus evaluation.
 6. **Add reranking.** Benchmark local and approved remote candidates over already-authorized

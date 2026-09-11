@@ -122,9 +122,10 @@ export async function printRoadmapSuggestions(
   harbor: string | undefined,
   fetcher: typeof pdFetch = pdFetch,
 ): Promise<void> {
+  if (!harbor) return;
   try {
     const params = new URLSearchParams({ q: purpose, limit: '5' });
-    if (harbor) params.set('harbor', harbor);
+    params.set('harbor', harbor);
     const res = await fetcher(`${PORT_DADDY_URL}/roadmap/search?${params.toString()}`);
     if (!res.ok) return;
     const data = (await res.json().catch(() => ({}))) as { hits?: RoadmapSearchHit[] };

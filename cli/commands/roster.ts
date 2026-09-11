@@ -107,7 +107,7 @@ export const ROSTER_HELP: string = [
   'Durable named agents (AgentNode identities, not live process registrations):',
   '  list [--repo <path>] [--all]              List durable agents',
   '  show <agent-node-id>                      Show profile, revisions, and continuation history',
-  '  search <query> [--repo <path>]            Hybrid BM25 + shared MiniLM expertise search',
+  '  search <query> [--repo <path>]            Scoped BM25 + corpus-selected dense RRF search',
   '  create <slug> --remit <text> --instructions <text> [--scope system|repo]',
   '  promote <session-id> --episode <id> --slug <name> --remit <text> --instructions <text>',
   '  update <agent-node-id> [profile flags]    Append a new profile revision',
@@ -159,6 +159,7 @@ export async function handleRoster(subcommand: string | undefined, args: string[
     if (!queryText) return void (ui.error('Usage: pd roster search <query>'), process.exit(1));
     const query = new URLSearchParams({ q: queryText });
     if (options.repo) query.set('repoRoot', String(options.repo));
+    else query.set('scopeKey', 'system');
     if (options.limit) query.set('limit', String(options.limit));
     const data = await jsonResponse(await pdFetch(`${PORT_DADDY_URL}/durable-agents/search?${query}`));
     if (isJson(options)) return void console.log(JSON.stringify(data, null, 2));

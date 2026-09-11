@@ -5420,10 +5420,11 @@ paths:
       summary: Find durable agents by expertise
       operationId: searchDurableAgents
       description: >
-        Fuses BM25 and shared Xenova/all-MiniLM-L6-v2 semantic rankings with
+        Requires repoRoot or scopeKey before admitting the query, then fuses BM25
+        and the corpus-policy-selected compatible dense generation with
         reciprocal-rank fusion. A semantic outage returns an explicitly degraded
         lexical fallback with pd doctor remediation; it never silently presents
-        lexical-only ranking as normal.
+        lexical-only ranking as normal or crosses roster scopes.
       parameters:
         - name: q
           in: query
@@ -5431,6 +5432,10 @@ paths:
           schema: { type: string, minLength: 1, maxLength: 4096 }
         - name: repoRoot
           in: query
+          schema: { type: string }
+        - name: scopeKey
+          in: query
+          description: Explicit roster scope, normally system when repoRoot is absent
           schema: { type: string }
         - name: limit
           in: query

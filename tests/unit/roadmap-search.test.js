@@ -16,7 +16,11 @@
 
 import { describe, it, expect } from '@jest/globals';
 import Database from 'better-sqlite3';
-import { createRoadmapSearch } from '../../lib/roadmap-search.js';
+import {
+  createRoadmapSearch as createRoadmapSearchRaw,
+  ROADMAP_SEARCH_CORPUS_ID,
+} from '../../lib/roadmap-search.js';
+import { localTextCorpusPolicy } from '../../lib/retrieval-policy.js';
 
 // ─── Deterministic stub embedder (identical shape to whois.test.ts) ───────────
 
@@ -39,16 +43,35 @@ function fixedVecFor(text) {
 
 function makeStubResolver(overrides = {}) {
   let calls = 0;
+  const texts = [];
   return {
     modelId: 'stub',
+    spaceId: 'test:roadmap-4d',
+    corpusPolicy: localTextCorpusPolicy(ROADMAP_SEARCH_CORPUS_ID),
     async embed(text) {
       calls++;
+      texts.push(text);
       const key = text.trim().toLowerCase();
       return overrides[key] ?? fixedVecFor(text);
     },
     get callCount() {
       return calls;
     },
+    get texts() {
+      return [...texts];
+    },
+  };
+}
+
+function createRoadmapSearch(db, deps) {
+  const search = createRoadmapSearchRaw(db, {
+    ...deps,
+    gitleaksRunner: () => ({ findings: [] }),
+    now: () => new Date('2026-09-11T00:00:00.000Z'),
+  });
+  return {
+    ...search,
+    search: (query, options = {}) => search.search(query, { harbor: 'port-daddy', ...options }),
   };
 }
 
@@ -273,5 +296,75 @@ describe('roadmap-search / search', () => {
     const search = await seeded();
     const hits = await search.search('bug fix', { limit: 10_000 });
     expect(hits.length).toBeLessThanOrEqual(50);
+  });
+
+  it('fuses independent lexical and dense ranks with RRF k=60', async () => {
+    const queryText = 'needle';
+    const db = makeDb();
+    const search = createRoadmapSearch(db, {
+      resolver: makeStubResolver({
+        [queryText]: unit([1, 0, 0, 0]),
+        'needle lexical candidate': unit([0, 1, 0, 0]),
+        'dense-only candidate': unit([1, 0, 0, 0]),
+      }),
+    });
+    await search.reindexAll([
+      item({ slug: 'lexical-and-dense', summaryMd: 'needle lexical candidate', status: 'backlog' }),
+      item({ slug: 'dense-only', summaryMd: 'dense-only candidate', status: 'backlog' }),
+    ]);
+
+    const hits = await search.search(queryText);
+    const fused = hits.find((hit) => hit.slug === 'lexical-and-dense');
+    expect(fused).toMatchObject({ lexicalRank: 1, denseRank: 2, stage: 'hybrid' });
+    expect(fused.score).toBeCloseTo((1 / 61 + 1 / 62) * 1.05, 12);
+  });
+
+  it('rejects unscoped and secret-bearing queries before query embedding', async () => {
+    const db = makeDb();
+    const resolver = makeStubResolver();
+    const raw = createRoadmapSearchRaw(db, {
+      resolver,
+      gitleaksRunner: () => ({ findings: [] }),
+    });
+    await raw.reindexItem(item({ summaryMd: 'Clean roadmap item' }));
+    const callsAfterIndex = resolver.callCount;
+
+    await expect(raw.search('clean')).rejects.toThrow(/explicit harbor scope/);
+    await expect(raw.search('token ghp_abcdefghijklmnopqrstuvwxyz1234567890', { harbor: 'port-daddy' }))
+      .rejects.toMatchObject({ code: 'QUERY_REDACTED' });
+    expect(resolver.callCount).toBe(callsAfterIndex);
+  });
+
+  it('persists only admitted derivatives with exact corpus generation identity', async () => {
+    const db = makeDb();
+    const resolver = makeStubResolver();
+    const search = createRoadmapSearch(db, { resolver });
+    const secret = 'ghp_abcdefghijklmnopqrstuvwxyz1234567890';
+    await search.reindexItem(item({ slug: 'sanitized-item', summaryMd: `Rotate ${secret}` }));
+
+    expect(resolver.texts.at(-1)).not.toContain(secret);
+    const row = db.prepare('SELECT * FROM roadmap_item_embeddings WHERE slug = ?').get('sanitized-item');
+    expect(row.summary_md).not.toContain(secret);
+    expect(row.derivative_text).not.toContain(secret);
+    expect(row.corpus_id).toBe(ROADMAP_SEARCH_CORPUS_ID);
+    expect(row.policy_digest).toBe(resolver.corpusPolicy.policyDigest);
+    expect(row.space_id).toBe(resolver.spaceId);
+    expect(JSON.parse(row.admission_receipt).state).toBe('redacted');
+  });
+
+  it('rebuilds a legacy model-only projection instead of relabelling its vectors', () => {
+    const db = makeDb();
+    db.exec(`
+      CREATE TABLE roadmap_item_embeddings (
+        harbor TEXT NOT NULL, slug TEXT NOT NULL, summary_md TEXT NOT NULL,
+        status TEXT NOT NULL, embedding BLOB NOT NULL, content_hash TEXT NOT NULL,
+        updated_at INTEGER NOT NULL, PRIMARY KEY (harbor, slug)
+      );
+      INSERT INTO roadmap_item_embeddings VALUES ('port-daddy', 'legacy', 'legacy', 'now', X'0000', 'old', 1);
+    `);
+    createRoadmapSearch(db, { resolver: makeStubResolver() });
+    expect(db.prepare('SELECT COUNT(*) AS count FROM roadmap_item_embeddings').get().count).toBe(0);
+    const columns = db.prepare('PRAGMA table_info(roadmap_item_embeddings)').all().map((row) => row.name);
+    expect(columns).toEqual(expect.arrayContaining(['corpus_id', 'policy_digest', 'space_id', 'admission_receipt']));
   });
 });

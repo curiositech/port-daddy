@@ -61,7 +61,8 @@ import { initDatabase, closeDatabase } from '../lib/db.js';
 import { createTupleSpace } from '../lib/tuples.js';
 import { createRoadmapItems } from '../lib/roadmap-items.js';
 import { createGraphEdges } from '../lib/graph-edges.js';
-import { createDurableAgentRoster } from '../lib/durable-agent-roster.js';
+import { createDurableAgentRoster, DURABLE_AGENT_SEARCH_CORPUS_ID } from '../lib/durable-agent-roster.js';
+import { localTextCorpusPolicy } from '../lib/retrieval-policy.js';
 import { roadmapPlugin } from '../routes/roadmap.js';
 import { durableAgentRosterPlugin } from '../routes/durable-agent-roster.js';
 
@@ -434,7 +435,12 @@ async function main(): Promise<void> {
     // Stub embedder + gitleaks: the roster's identity/ledger/validation paths are
     // real; only the model download and the secret scanner are stood down so the
     // harness runs offline. Declared in MANIFEST.md — never claimed as live.
-    resolver: { modelId: 'capture-harness-stub', embed: async () => [0.5, 0.5] },
+    resolver: {
+      modelId: 'capture-harness-stub',
+      spaceId: 'test:capture-roster-2d',
+      corpusPolicy: localTextCorpusPolicy(DURABLE_AGENT_SEARCH_CORPUS_ID),
+      embed: async () => [0.5, 0.5],
+    },
     gitleaksRunner: () => ({ findings: [] }),
     logger,
   });

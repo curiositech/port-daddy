@@ -3,8 +3,10 @@ import { closeDatabase, initDatabase } from '../../lib/db.js';
 import type { DatabaseInstance } from '../../lib/sqlite-runtime.js';
 import {
   createDurableAgentRoster,
+  DURABLE_AGENT_SEARCH_CORPUS_ID,
   DurableAgentRosterError,
 } from '../../lib/durable-agent-roster.js';
+import { localTextCorpusPolicy } from '../../lib/retrieval-policy.js';
 
 function vector(text: string): number[] {
   const normalized = text.toLowerCase();
@@ -44,7 +46,12 @@ describe('durable agent roster', () => {
 
   function roster() {
     return createDurableAgentRoster(db, {
-      resolver: { modelId: 'Xenova/all-MiniLM-L6-v2', embed },
+      resolver: {
+        modelId: 'test-roster-model',
+        spaceId: 'test:roster-3d',
+        corpusPolicy: localTextCorpusPolicy(DURABLE_AGENT_SEARCH_CORPUS_ID),
+        embed,
+      },
       gitleaksRunner: () => ({ findings: [] }),
       now: () => new Date('2026-07-15T20:00:00.000Z'),
     });
@@ -132,12 +139,57 @@ describe('durable agent roster', () => {
       skills: ['sqlite-durable-agent-state'],
     });
 
-    const result = await service.search('dense typography hierarchy');
+    const result = await service.search('dense typography hierarchy', { scopeKey: 'system' });
     expect(result.degraded).toBe(false);
-    expect(result.embedder).toBe('Xenova/all-MiniLM-L6-v2');
+    expect(result.embedder).toBe('test-roster-model');
+    expect(result.spaceId).toBe('test:roster-3d');
+    expect(result.corpusId).toBe(DURABLE_AGENT_SEARCH_CORPUS_ID);
     expect(result.hits[0].agent.profile.slug).toBe('portdaddy-typography-expert');
     expect(result.hits[0].evidence.sources).toEqual(expect.arrayContaining(['bm25', 'semantic']));
     expect(result.hits[0]).not.toHaveProperty('score');
+  });
+
+  test('persists admitted derivatives under the exact corpus policy and vector space', async () => {
+    const service = roster();
+    const created = await service.create(input());
+    const row = db.prepare(`
+      SELECT * FROM durable_agent_profile_embeddings WHERE agent_node_id = ?
+    `).get(created.agent.agentNodeId) as Record<string, unknown>;
+
+    expect(row.corpus_id).toBe(DURABLE_AGENT_SEARCH_CORPUS_ID);
+    expect(row.space_id).toBe('test:roster-3d');
+    expect(row.model_id).toBe('test-roster-model');
+    expect(row.policy_digest).toBe(localTextCorpusPolicy(DURABLE_AGENT_SEARCH_CORPUS_ID).policyDigest);
+    expect(JSON.parse(String(row.admission_receipt)).state).toBe('clean');
+  });
+
+  test('rejects unscoped and secret-bearing queries before either ranking leg', async () => {
+    const service = roster();
+    await service.create(input());
+    const callsAfterIndex = embed.mock.calls.length;
+
+    await expect(service.search('typography')).rejects.toMatchObject({
+      code: 'DURABLE_AGENT_SCOPE_REQUIRED',
+    });
+    await expect(service.search('token ghp_abcdefghijklmnopqrstuvwxyz1234567890', { scopeKey: 'system' }))
+      .rejects.toMatchObject({ code: 'QUERY_REDACTED' });
+    expect(embed).toHaveBeenCalledTimes(callsAfterIndex);
+  });
+
+  test('rebuilds a legacy model-only embedding projection', () => {
+    db.exec(`
+      CREATE TABLE durable_agent_profile_embeddings (
+        agent_node_id TEXT PRIMARY KEY, profile_revision INTEGER NOT NULL,
+        model_id TEXT NOT NULL, document_hash TEXT NOT NULL,
+        embedding BLOB NOT NULL, updated_at INTEGER NOT NULL
+      );
+      INSERT INTO durable_agent_profile_embeddings VALUES ('legacy', 1, 'legacy', 'old', X'0000', 1);
+    `);
+
+    roster();
+    expect((db.prepare('SELECT COUNT(*) AS count FROM durable_agent_profile_embeddings').get() as { count: number }).count).toBe(0);
+    const columns = (db.prepare('PRAGMA table_info(durable_agent_profile_embeddings)').all() as Array<{ name: string }>).map((row) => row.name);
+    expect(columns).toEqual(expect.arrayContaining(['corpus_id', 'policy_digest', 'space_id', 'admission_receipt']));
   });
 
   test('labels lexical fallback when the shared semantic model is unavailable', async () => {
@@ -146,7 +198,7 @@ describe('durable agent roster', () => {
     expect(created.agent.profile.slug).toBe('portdaddy-typography-expert');
     embed.mockRejectedValue(new Error('model cache missing'));
 
-    const result = await service.search('typography');
+    const result = await service.search('typography', { scopeKey: 'system' });
     expect(result.degraded).toBe(true);
     expect(result.warnings.join(' ')).toMatch(/pd doctor/);
     expect(result.hits[0].agent.profile.slug).toBe('portdaddy-typography-expert');

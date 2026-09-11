@@ -213,6 +213,51 @@ describe('semantic resolver', () => {
     expect(stats.rejectedOverrides).toBeGreaterThanOrEqual(2);
     expect(tupleWrites.some((entry) => entry.fields[0] === 'semantic:review')).toBe(true);
   });
+
+  test('separates persisted term generations by corpus policy and space', async () => {
+    const first = createSemanticResolver(db, {
+      corpusId: 'pd.test.corpus-a',
+      modelId: 'mock-mini-lm',
+      embedder: createMockEmbedder(),
+    });
+    const second = createSemanticResolver(db, {
+      corpusId: 'pd.test.corpus-b',
+      modelId: 'mock-mini-lm',
+      embedder: createMockEmbedder(),
+    });
+    first.observeAliases({ sourceType: 'test', sourceId: 'a', aliases: [alias('site', 'css design-system port-daddy site', 'a')] });
+    await first.flush();
+
+    expect(first.stats().totalTerms).toBe(1);
+    expect(second.stats().totalTerms).toBe(0);
+    const row = db.prepare('SELECT corpus_id, policy_digest, space_id FROM semantic_terms').get();
+    expect(row.corpus_id).toBe('pd.test.corpus-a');
+    expect(row.policy_digest).toBe(first.corpusPolicy.policyDigest);
+    expect(row.space_id).toBe(first.spaceId);
+  });
+
+  test('drops legacy model-only rows instead of assigning invented policy authority', () => {
+    const legacyDb = createTestDb();
+    legacyDb.exec(`
+      CREATE TABLE semantic_terms (
+        term TEXT NOT NULL, model TEXT NOT NULL, dimensions INTEGER NOT NULL,
+        vector_json TEXT NOT NULL, fingerprint TEXT, tokens_json TEXT,
+        first_project_dir TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+        PRIMARY KEY (term, model)
+      );
+      INSERT INTO semantic_terms VALUES ('legacy', 'mock', 2, '[1,0]', NULL, NULL, NULL, 1, 1);
+    `);
+    createSemanticResolver(legacyDb, {
+      corpusId: 'pd.test.legacy-rebuild',
+      modelId: 'mock-mini-lm',
+      embedder: createMockEmbedder(),
+    });
+
+    expect(legacyDb.prepare('SELECT COUNT(*) AS count FROM semantic_terms').get().count).toBe(0);
+    const columns = legacyDb.prepare('PRAGMA table_info(semantic_terms)').all().map((row) => row.name);
+    expect(columns).toEqual(expect.arrayContaining(['corpus_id', 'policy_digest', 'space_id']));
+    legacyDb.close();
+  });
 });
 
 describe('ensureOnnxRuntimeNativeLibFindable', () => {

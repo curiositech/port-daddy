@@ -494,7 +494,7 @@ describe('pd roadmap search', () => {
       json: async () => ({ success: true, hits }),
     });
 
-    await handleRoadmap(['search', 'login', 'bug'], { json: true });
+    await handleRoadmap(['search', 'login', 'bug'], { harbor: 'port-daddy', json: true });
 
     const printed = JSON.parse(logSpy.mock.calls[0][0]);
     expect(printed).toEqual({ success: true, hits, count: 1 });

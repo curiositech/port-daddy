@@ -9,11 +9,13 @@ import {
   type GitleaksRunner,
 } from './handoff-capsule.js';
 import type { SemanticResolver } from './semantic-resolver.js';
+import { admitRetrievalDerivative, admitRetrievalQuery } from './retrieval-admission.js';
 import { getWorktreeInfo } from './worktree.js';
 import type { ForensicsSink } from './forensics-archive.js';
 import { IDENTITY_RESURRECTED_RULE, IDENTITY_RETIRED_RULE } from './actor-souls.js';
 
 export const DURABLE_AGENT_PROFILE_SCHEMA = 'pd.agent-harbor.durable-agent-profile.v0' as const;
+export const DURABLE_AGENT_SEARCH_CORPUS_ID = 'pd.durable-agent.profiles';
 
 const MAX_PROFILE_BYTES = 512 * 1024;
 const MAX_LIST_ITEMS = 100;
@@ -120,6 +122,9 @@ export interface DurableAgentSearchResult {
   degraded: boolean;
   warnings: string[];
   embedder: string;
+  spaceId: string;
+  corpusId: string;
+  policyDigest: string;
 }
 
 export interface CreateDurableAgentInput {
@@ -181,12 +186,16 @@ interface LatestNodeFact {
 interface EmbeddingRow {
   profile_revision: number;
   model_id: string;
+  space_id: string;
+  corpus_id: string;
+  policy_digest: string;
   document_hash: string;
   embedding: Buffer;
+  admission_receipt: string;
 }
 
 interface DurableAgentRosterDeps {
-  resolver: Pick<SemanticResolver, 'embed' | 'modelId'>;
+  resolver: Pick<SemanticResolver, 'embed' | 'modelId' | 'spaceId' | 'corpusPolicy'>;
   gitleaksRunner?: GitleaksRunner;
   now?: () => Date;
   logger?: {
@@ -426,9 +435,17 @@ function blobToVector(blob: Buffer): Float32Array {
 }
 
 function dot(a: ArrayLike<number>, b: ArrayLike<number>): number {
-  const length = Math.min(a.length, b.length);
+  if (a.length === 0 || a.length !== b.length) {
+    throw new Error(`durable-agent embedding dimension mismatch: query=${a.length}, stored=${b.length}`);
+  }
+  const length = a.length;
   let total = 0;
-  for (let index = 0; index < length; index += 1) total += Number(a[index]) * Number(b[index]);
+  for (let index = 0; index < length; index += 1) {
+    const left = Number(a[index]);
+    const right = Number(b[index]);
+    if (!Number.isFinite(left) || !Number.isFinite(right)) throw new Error('durable-agent embedding contains non-finite values');
+    total += left * right;
+  }
   return total;
 }
 
@@ -562,21 +579,47 @@ function validateLifecycle(value: unknown): DurableAgentLifecycle {
 export function createDurableAgentRoster(db: DatabaseInstance, deps: DurableAgentRosterDeps) {
   const now = deps.now ?? (() => new Date());
   const continuationStore = createContinuationStore(db, { recoverExpired: false });
+  if (deps.resolver.corpusPolicy.corpusId !== DURABLE_AGENT_SEARCH_CORPUS_ID) {
+    throw new Error(
+      `durable-agent search requires corpus ${DURABLE_AGENT_SEARCH_CORPUS_ID}, received ${deps.resolver.corpusPolicy.corpusId}`,
+    );
+  }
+
+  const existingEmbeddingTable = db.prepare(
+    "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'durable_agent_profile_embeddings'",
+  ).get() as { name: string } | undefined;
+  if (existingEmbeddingTable) {
+    const columns = new Set(
+      (db.prepare('PRAGMA table_info(durable_agent_profile_embeddings)').all() as Array<{ name: string }>).map((column) => column.name),
+    );
+    const required = ['space_id', 'corpus_id', 'policy_digest', 'admission_receipt'];
+    if (required.some((column) => !columns.has(column))) {
+      db.exec('DROP TABLE durable_agent_profile_embeddings');
+    }
+  }
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS durable_agent_profile_embeddings (
-      agent_node_id    TEXT PRIMARY KEY,
+      agent_node_id    TEXT NOT NULL,
       profile_revision INTEGER NOT NULL,
       model_id         TEXT NOT NULL,
+      space_id         TEXT NOT NULL,
+      corpus_id        TEXT NOT NULL,
+      policy_digest    TEXT NOT NULL,
       document_hash    TEXT NOT NULL,
       embedding        BLOB NOT NULL,
-      updated_at       INTEGER NOT NULL
+      admission_receipt TEXT NOT NULL,
+      updated_at       INTEGER NOT NULL,
+      PRIMARY KEY (agent_node_id, policy_digest, space_id)
     );
   `);
   const embeddingColumns = new Set(
     (db.prepare('PRAGMA table_info(durable_agent_profile_embeddings)').all() as Array<{ name: string }>).map((column) => column.name),
   );
-  for (const required of ['agent_node_id', 'profile_revision', 'model_id', 'document_hash', 'embedding', 'updated_at']) {
+  for (const required of [
+    'agent_node_id', 'profile_revision', 'model_id', 'space_id', 'corpus_id',
+    'policy_digest', 'document_hash', 'embedding', 'admission_receipt', 'updated_at',
+  ]) {
     if (!embeddingColumns.has(required)) {
       throw new Error(`durable_agent_profile_embeddings migration verification failed: missing ${required}`);
     }
@@ -632,18 +675,23 @@ export function createDurableAgentRoster(db: DatabaseInstance, deps: DurableAgen
   }
 
   const getEmbedding = db.prepare(`
-    SELECT profile_revision, model_id, document_hash, embedding
-    FROM durable_agent_profile_embeddings WHERE agent_node_id = ?
+    SELECT profile_revision, model_id, space_id, corpus_id, policy_digest,
+           document_hash, embedding, admission_receipt
+    FROM durable_agent_profile_embeddings
+    WHERE agent_node_id = ? AND corpus_id = ? AND policy_digest = ? AND space_id = ? AND model_id = ?
   `);
   const putEmbedding = db.prepare(`
     INSERT INTO durable_agent_profile_embeddings
-      (agent_node_id, profile_revision, model_id, document_hash, embedding, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?)
-    ON CONFLICT(agent_node_id) DO UPDATE SET
+      (agent_node_id, profile_revision, model_id, space_id, corpus_id, policy_digest,
+       document_hash, embedding, admission_receipt, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(agent_node_id, policy_digest, space_id) DO UPDATE SET
       profile_revision = excluded.profile_revision,
       model_id = excluded.model_id,
+      corpus_id = excluded.corpus_id,
       document_hash = excluded.document_hash,
       embedding = excluded.embedding,
+      admission_receipt = excluded.admission_receipt,
       updated_at = excluded.updated_at
   `);
 
@@ -774,9 +822,24 @@ export function createDurableAgentRoster(db: DatabaseInstance, deps: DurableAgen
   }
 
   async function refreshEmbedding(record: DurableAgentRecord): Promise<void> {
-    const document = searchDocument(record.profile);
+    const rawDocument = searchDocument(record.profile);
+    const admitted = admitRetrievalDerivative({
+      sourceId: `durable-agent:${record.agentNodeId}:revision:${record.profile.revision}`,
+      sourceContent: rawDocument,
+      text: rawDocument,
+      harborId: record.profile.scope.key,
+      repoRef: record.profile.scope.repoRoot,
+      policy: deps.resolver.corpusPolicy,
+    }, { gitleaksRunner: deps.gitleaksRunner, now });
+    const document = admitted.text;
     const documentHash = sha256(document);
-    const existing = getEmbedding.get(record.agentNodeId) as EmbeddingRow | undefined;
+    const existing = getEmbedding.get(
+      record.agentNodeId,
+      deps.resolver.corpusPolicy.corpusId,
+      deps.resolver.corpusPolicy.policyDigest,
+      deps.resolver.spaceId,
+      deps.resolver.modelId,
+    ) as EmbeddingRow | undefined;
     if (
       existing
       && existing.profile_revision === record.profile.revision
@@ -789,8 +852,12 @@ export function createDurableAgentRoster(db: DatabaseInstance, deps: DurableAgen
       record.agentNodeId,
       record.profile.revision,
       deps.resolver.modelId,
+      deps.resolver.spaceId,
+      deps.resolver.corpusPolicy.corpusId,
+      deps.resolver.corpusPolicy.policyDigest,
       documentHash,
       vectorToBlob(vector),
+      JSON.stringify(admitted.receipt),
       now().getTime(),
     );
   }
@@ -947,8 +1014,25 @@ export function createDurableAgentRoster(db: DatabaseInstance, deps: DurableAgen
     includeRetired?: boolean;
     limit?: number;
   } = {}): Promise<DurableAgentSearchResult> {
-    const query = identifier(queryValue, 'query', 4_096);
-    const agents = list({ ...options, limit: 500 });
+    const rawQuery = identifier(queryValue, 'query', 4_096);
+    const scopeKey = options.scopeKey
+      ?? (options.repoRoot ? normalizeDurableAgentScope({ kind: 'repo', repoRoot: options.repoRoot }).key : undefined);
+    if (!scopeKey) {
+      throw new DurableAgentRosterError(
+        'durable-agent search requires an explicit scopeKey or repoRoot',
+        'DURABLE_AGENT_SCOPE_REQUIRED',
+        400,
+      );
+    }
+    const admittedQuery = admitRetrievalQuery({
+      queryId: `durable-agent-query:${sha256(rawQuery)}`,
+      queryText: rawQuery,
+      harborId: scopeKey,
+      repoRef: options.repoRoot ?? null,
+      policy: deps.resolver.corpusPolicy,
+    }, { gitleaksRunner: deps.gitleaksRunner, now });
+    const query = admittedQuery.text;
+    const agents = list({ ...options, scopeKey, limit: 500 });
     const lexicalScores = bm25(query, agents.map((agent) => ({ id: agent.agentNodeId, text: searchDocument(agent.profile) })));
     const lexical = rankedIds(lexicalScores);
     const semanticScores = new Map<string, number>();
@@ -960,7 +1044,13 @@ export function createDurableAgentRoster(db: DatabaseInstance, deps: DurableAgen
       for (const agent of agents) {
         try {
           await refreshEmbedding(agent);
-          const row = getEmbedding.get(agent.agentNodeId) as EmbeddingRow | undefined;
+          const row = getEmbedding.get(
+            agent.agentNodeId,
+            deps.resolver.corpusPolicy.corpusId,
+            deps.resolver.corpusPolicy.policyDigest,
+            deps.resolver.spaceId,
+            deps.resolver.modelId,
+          ) as EmbeddingRow | undefined;
           if (row) semanticScores.set(agent.agentNodeId, dot(queryVector, blobToVector(row.embedding)));
         } catch {
           semanticAvailable = false;
@@ -970,7 +1060,10 @@ export function createDurableAgentRoster(db: DatabaseInstance, deps: DurableAgen
       semanticAvailable = false;
     }
     if (!semanticAvailable || semanticScores.size === 0) {
-      warnings.push('semantic retrieval is unavailable or incomplete; lexical fallback is labeled degraded. Run pd doctor to repair the shared MiniLM embedder.');
+      warnings.push(
+        `semantic retrieval is unavailable or incomplete for ${deps.resolver.spaceId}; ` +
+        'lexical fallback is labeled degraded. Run pd doctor to repair the corpus-selected embedder.',
+      );
     }
     const semantic = rankedIds(semanticScores);
     const fused = new Map<string, number>();
@@ -1003,6 +1096,9 @@ export function createDurableAgentRoster(db: DatabaseInstance, deps: DurableAgen
       degraded: !semanticAvailable || semanticScores.size === 0,
       warnings,
       embedder: deps.resolver.modelId,
+      spaceId: deps.resolver.spaceId,
+      corpusId: deps.resolver.corpusPolicy.corpusId,
+      policyDigest: deps.resolver.corpusPolicy.policyDigest,
     };
   }
 

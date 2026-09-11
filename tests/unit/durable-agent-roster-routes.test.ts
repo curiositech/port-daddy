@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, jest, test } from '@jest/globals';
 import Fastify from 'fastify';
 import { closeDatabase, initDatabase } from '../../lib/db.js';
-import { createDurableAgentRoster } from '../../lib/durable-agent-roster.js';
+import { createDurableAgentRoster, DURABLE_AGENT_SEARCH_CORPUS_ID } from '../../lib/durable-agent-roster.js';
+import { localTextCorpusPolicy } from '../../lib/retrieval-policy.js';
 import { createEpisodicMemory } from '../../lib/episodic-memory.js';
 import { durableAgentRosterPlugin } from '../../routes/durable-agent-roster.js';
 
@@ -23,7 +24,9 @@ async function buildApp() {
   const episodicMemory = createEpisodicMemory(db);
   const durableAgentRoster = createDurableAgentRoster(db, {
     resolver: {
-      modelId: 'Xenova/all-MiniLM-L6-v2',
+      modelId: 'test-roster-model',
+      spaceId: 'test:roster-2d',
+      corpusPolicy: localTextCorpusPolicy(DURABLE_AGENT_SEARCH_CORPUS_ID),
       embed: async (text: string) => [text.toLowerCase().includes('typography') ? 1 : 0.1, 0.1],
     },
     gitleaksRunner: () => ({ findings: [] }),
@@ -60,7 +63,7 @@ describe('durable agent roster routes', () => {
 
     expect((await state.app.inject({ method: 'GET', url: '/durable-agents' })).json().count).toBe(1);
     expect((await state.app.inject({ method: 'GET', url: `/durable-agents/${id}` })).json().revisions).toHaveLength(1);
-    expect((await state.app.inject({ method: 'GET', url: '/durable-agents/search?q=typography' })).json().hits[0].agent.agentNodeId).toBe(id);
+    expect((await state.app.inject({ method: 'GET', url: '/durable-agents/search?q=typography&scopeKey=system' })).json().hits[0].agent.agentNodeId).toBe(id);
 
     const updated = await state.app.inject({
       method: 'PATCH',
@@ -73,6 +76,21 @@ describe('durable agent roster routes', () => {
     const retired = await state.app.inject({ method: 'POST', url: `/durable-agents/${id}/retire` });
     expect(retired.statusCode).toBe(200);
     expect(retired.json().agent.profile.lifecycle).toBe('retired');
+  });
+
+  test('fails closed on missing scope and secret-bearing search queries', async () => {
+    const state = await buildApp();
+    openApps.push(state);
+    await state.app.inject({ method: 'POST', url: '/durable-agents', payload: profile() });
+
+    const unscoped = await state.app.inject({ method: 'GET', url: '/durable-agents/search?q=typography' });
+    expect(unscoped.statusCode).toBe(400);
+    expect(unscoped.json()).toMatchObject({ code: 'DURABLE_AGENT_SCOPE_REQUIRED' });
+
+    const secret = encodeURIComponent('token ghp_abcdefghijklmnopqrstuvwxyz1234567890');
+    const rejected = await state.app.inject({ method: 'GET', url: `/durable-agents/search?q=${secret}&scopeKey=system` });
+    expect(rejected.statusCode).toBe(422);
+    expect(rejected.json()).toMatchObject({ code: 'QUERY_REDACTED', failClosed: true });
   });
 
   test('promotes a native harness session when sanitized capsule lineage agrees', async () => {

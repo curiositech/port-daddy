@@ -863,6 +863,10 @@ do not describe the selector as deployed until source, runtime, and read-back
 evidence agree. Do not add reputation scores from declared skills, or mark stored
 permission/trigger declarations enforced without a daemon-witnessed runtime
 receipt.
+Roadmap search/reindex must carry an explicit harbor, and durable-roster search
+must carry an explicit repository or `system` scope. Persisted projection keys
+include the full corpus-policy digest and `spaceId`; drop a legacy model-only
+projection and rebuild it rather than inventing authority for old vectors.
 
 ## Anti-Patterns (port-daddy contributor edition)
 

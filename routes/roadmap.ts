@@ -41,6 +41,8 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { createRoadmapSearch, type RoadmapSearch } from '../lib/roadmap-search.js';
 import type { SemanticResolver } from '../lib/semantic-resolver.js';
+import type { GitleaksRunner } from '../lib/handoff-capsule.js';
+import { RetrievalAdmissionError } from '../lib/retrieval-admission.js';
 import { exportRoadmapItem, RoadmapExportError, type ExportConfig, type ExportTarget, type ExportFetch } from '../lib/roadmap-export.js';
 import { getSecret } from '../lib/secret-env.js';
 import {
@@ -329,13 +331,18 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
   // crashing. Requires both a DB (to persist the embedding sidecar table) and
   // the shared semantic resolver (to compute embeddings) — the same resolver
   // lib/whois.ts's phonebook cascade uses, not a second embedding pipeline.
-  const semanticResolverDep = (opts.deps as { semanticResolver?: SemanticResolver }).semanticResolver;
+  const semanticResolverDep = (opts.deps as { roadmapSemanticResolver?: SemanticResolver }).roadmapSemanticResolver;
+  const retrievalGitleaksRunner = (opts.deps as { retrievalGitleaksRunner?: GitleaksRunner }).retrievalGitleaksRunner;
   const jiraSecretReader: JiraSecretReader = opts.deps.jiraSecretReader
     ?? ((key) => getSecret(key));
   const jiraReader = opts.deps.jiraReader ?? jiraRoadmapReader;
   const roadmapSearch: RoadmapSearch | undefined =
     db && semanticResolverDep
-      ? createRoadmapSearch(db, { resolver: semanticResolverDep, logger: fastify.log })
+      ? createRoadmapSearch(db, {
+          resolver: semanticResolverDep,
+          logger: fastify.log,
+          gitleaksRunner: retrievalGitleaksRunner,
+        })
       : undefined;
 
   // GET /roadmap/projection — the roadmap-is-home read model (operator decision 4:
@@ -353,6 +360,10 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
     }
     const q = (request.query ?? {}) as Record<string, unknown>;
     const harbor = asString(q.harbor);
+    if (!harbor) {
+      reply.code(400);
+      return { success: false, error: 'harbor is required', code: 'RETRIEVAL_SCOPE_REQUIRED' };
+    }
     try {
       const projection = buildRoadmapProjection(db, repoRoot ?? process.cwd(), { harbor });
       reply.type('application/json; charset=utf-8');
@@ -553,16 +564,28 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
   // --roadmap slug, this turns their purpose text into ranked candidates
   // instead of a bare rejection. Degrades to an empty list (never an error)
   // when the index isn't wired (unit fixtures) or hasn't been populated yet.
-  fastify.get('/roadmap/search', async (request: FastifyRequest) => {
+  fastify.get('/roadmap/search', async (request: FastifyRequest, reply: FastifyReply) => {
     const q = (request.query ?? {}) as Record<string, unknown>;
     const query = asString(q.q) ?? asString(q.query);
     if (!query) return { success: true, hits: [], count: 0 };
     if (!roadmapSearch) return { success: true, hits: [], count: 0, degraded: 'search index unavailable' };
 
     const harbor = asString(q.harbor);
+    if (!harbor) {
+      reply.code(400);
+      return { success: false, error: 'harbor is required', code: 'RETRIEVAL_SCOPE_REQUIRED' };
+    }
     const limit = asPosInt(q.limit);
-    const hits = await roadmapSearch.search(query, { harbor, limit });
-    return { success: true, hits, count: hits.length };
+    try {
+      const hits = await roadmapSearch.search(query, { harbor, limit });
+      return { success: true, hits, count: hits.length };
+    } catch (error) {
+      if (error instanceof RetrievalAdmissionError) {
+        reply.code(error.code === 'SANITIZER_UNAVAILABLE' ? 503 : 422);
+        return { success: false, error: error.message, code: error.code };
+      }
+      throw error;
+    }
   });
 
   // POST /roadmap/reindex-search — backfill/refresh every item's embedding.
@@ -575,9 +598,21 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
     }
     const body = (request.body ?? {}) as { harbor?: unknown };
     const harbor = asString(body.harbor);
+    if (!harbor) {
+      reply.code(400);
+      return { success: false, error: 'harbor is required', code: 'RETRIEVAL_SCOPE_REQUIRED' };
+    }
     const items = roadmapItems.list({ harbor, status: 'all' });
-    const result = await roadmapSearch.reindexAll(items);
-    return { success: true, ...result, total: items.length };
+    try {
+      const result = await roadmapSearch.reindexAll(items);
+      return { success: true, ...result, total: items.length };
+    } catch (error) {
+      if (error instanceof RetrievalAdmissionError) {
+        reply.code(error.code === 'SANITIZER_UNAVAILABLE' ? 503 : 422);
+        return { success: false, error: error.message, code: error.code };
+      }
+      throw error;
+    }
   });
 
   // GET /roadmap/jira — live, read-only Jira Cloud projection. This is kept

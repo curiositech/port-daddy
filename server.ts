@@ -572,6 +572,18 @@ const semanticResolver = createSemanticResolver(db, {
   logger,
   governor,
 });
+const roadmapSemanticResolver = createSemanticResolver(db, {
+  corpusId: 'pd.roadmap.items',
+  cacheDir: defaultTransformersCacheDir(),
+  logger,
+  governor,
+});
+const durableAgentSemanticResolver = createSemanticResolver(db, {
+  corpusId: 'pd.durable-agent.profiles',
+  cacheDir: defaultTransformersCacheDir(),
+  logger,
+  governor,
+});
 // Automatic reconciliation is local-only: a daemon tick must never send a
 // private SKILL.md catalog to a cloud backend or create surprise spend. An
 // explicit manual `pd skill-graft warm` may use the operator-pinned cloud
@@ -624,7 +636,11 @@ const episodicMemory = createEpisodicMemory(db, { tuples, graphEdges, semanticRe
 // stores, because they journal through it.
 const forensicsSink =
   process.env.PD_FORENSICS_ARCHIVE === 'off' ? undefined : createJsonlForensicsArchive();
-const durableAgentRoster = createDurableAgentRoster(db, { resolver: semanticResolver, logger, forensicsSink });
+const durableAgentRoster = createDurableAgentRoster(db, {
+  resolver: durableAgentSemanticResolver,
+  logger,
+  forensicsSink,
+});
 const quorum = createQuorum({ tuples });
 const feedback = createFeedback({ tuples });
 const roadmapItems = createRoadmapItems({ db, tuples, graphEdges });
@@ -1852,7 +1868,7 @@ await registerAllRoutes(
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention, symbolClaims,
     harbors, sorties, conductor, dispatchQueue, dispatchWorker, workIntentService, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, booty, fleetDaemon, repoRegistry,
-    orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, durableAgentRoster, costTracker, cloudAppTelemetry, counters, metricsRegistry, usageTelemetry,
+    orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, roadmapSemanticResolver, durableAgentRoster, costTracker, cloudAppTelemetry, counters, metricsRegistry, usageTelemetry,
     contextTracker, tool2VecReconciler,
     custodian, operatorPermissions,
     quorum, parley, galaxy, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,

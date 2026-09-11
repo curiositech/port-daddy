@@ -13,6 +13,8 @@ import { createTupleSpace } from '../../lib/tuples.js';
 import { createRoadmapItems } from '../../lib/roadmap-items.js';
 import { createGraphEdges } from '../../lib/graph-edges.js';
 import { roadmapPlugin } from '../../routes/roadmap.js';
+import { ROADMAP_SEARCH_CORPUS_ID } from '../../lib/roadmap-search.js';
+import { localTextCorpusPolicy } from '../../lib/retrieval-policy.js';
 
 const DIM = 32;
 function fixedVecFor(text) {
@@ -25,7 +27,12 @@ function fixedVecFor(text) {
   return v.map((x) => x / mag);
 }
 function makeStubResolver() {
-  return { modelId: 'stub', async embed(text) { return fixedVecFor(text); } };
+  return {
+    modelId: 'stub',
+    spaceId: 'test:roadmap-32d',
+    corpusPolicy: localTextCorpusPolicy(ROADMAP_SEARCH_CORPUS_ID),
+    async embed(text) { return fixedVecFor(text); },
+  };
 }
 
 const roadmapPromote = {
@@ -39,7 +46,15 @@ async function buildApp(depsFactory = () => ({})) {
   const tuples = createTupleSpace(db);
   const roadmapItems = createRoadmapItems({ db, tuples, now: () => 1_700_000_000_000 });
   const app = Fastify();
-  await app.register(roadmapPlugin, { deps: { roadmapItems, roadmapPromote, db, ...depsFactory(db) } });
+  await app.register(roadmapPlugin, {
+    deps: {
+      roadmapItems,
+      roadmapPromote,
+      db,
+      retrievalGitleaksRunner: () => ({ findings: [] }),
+      ...depsFactory(db),
+    },
+  });
   await app.ready();
   return { app, db, roadmapItems };
 }
@@ -55,23 +70,40 @@ describe('GET /roadmap/search', () => {
   });
 
   test('returns an empty result without touching the index when q is missing', async () => {
-    const { app } = await buildApp(() => ({ semanticResolver: makeStubResolver() }));
+    const { app } = await buildApp(() => ({ roadmapSemanticResolver: makeStubResolver() }));
     const res = await app.inject({ method: 'GET', url: '/roadmap/search' });
     expect(res.statusCode).toBe(200);
     expect(JSON.parse(res.body)).toEqual({ success: true, hits: [], count: 0 });
     await app.close();
   });
 
+  test('rejects a search that omits its hard harbor scope', async () => {
+    const { app } = await buildApp(() => ({ roadmapSemanticResolver: makeStubResolver() }));
+    const res = await app.inject({ method: 'GET', url: '/roadmap/search?q=login%20bug' });
+    expect(res.statusCode).toBe(400);
+    expect(JSON.parse(res.body)).toMatchObject({ success: false, code: 'RETRIEVAL_SCOPE_REQUIRED' });
+    await app.close();
+  });
+
+  test('returns a fail-closed envelope for a secret-bearing query', async () => {
+    const { app } = await buildApp(() => ({ roadmapSemanticResolver: makeStubResolver() }));
+    const secret = encodeURIComponent('token ghp_abcdefghijklmnopqrstuvwxyz1234567890');
+    const res = await app.inject({ method: 'GET', url: `/roadmap/search?q=${secret}&harbor=fleet` });
+    expect(res.statusCode).toBe(422);
+    expect(JSON.parse(res.body)).toMatchObject({ success: false, code: 'QUERY_REDACTED' });
+    await app.close();
+  });
+
   test('ranks a seeded item and returns it through the real route', async () => {
-    const { app, roadmapItems } = await buildApp(() => ({ semanticResolver: makeStubResolver() }));
+    const { app, roadmapItems } = await buildApp(() => ({ roadmapSemanticResolver: makeStubResolver() }));
     roadmapItems.upsert({ slug: 'fix-login-bug', summaryMd: 'Fix the login bug', status: 'now' });
 
     // The route fires reindexItem fire-and-forget on write; reindex explicitly
     // to avoid a race with the assertion below.
-    const reindex = await app.inject({ method: 'POST', url: '/roadmap/reindex-search', payload: {} });
+    const reindex = await app.inject({ method: 'POST', url: '/roadmap/reindex-search', payload: { harbor: 'fleet' } });
     expect(reindex.statusCode).toBe(200);
 
-    const res = await app.inject({ method: 'GET', url: '/roadmap/search?q=login%20bug&limit=5' });
+    const res = await app.inject({ method: 'GET', url: '/roadmap/search?q=login%20bug&harbor=fleet&limit=5' });
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
     expect(body.success).toBe(true);
@@ -91,11 +123,11 @@ describe('POST /roadmap/reindex-search', () => {
   });
 
   test('backfills every item and reports indexed/total counts', async () => {
-    const { app, roadmapItems } = await buildApp(() => ({ semanticResolver: makeStubResolver() }));
+    const { app, roadmapItems } = await buildApp(() => ({ roadmapSemanticResolver: makeStubResolver() }));
     roadmapItems.upsert({ slug: 'a', summaryMd: 'First item', status: 'now' });
     roadmapItems.upsert({ slug: 'b', summaryMd: 'Second item', status: 'backlog' });
 
-    const res = await app.inject({ method: 'POST', url: '/roadmap/reindex-search', payload: {} });
+    const res = await app.inject({ method: 'POST', url: '/roadmap/reindex-search', payload: { harbor: 'fleet' } });
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
     expect(body.success).toBe(true);

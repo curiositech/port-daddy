@@ -26,7 +26,7 @@ import { join } from 'node:path';
 import { createTestDb } from '../setup-unit.js';
 import { closeDatabase, initDatabase } from '../../lib/db.js';
 import type { DatabaseInstance } from '../../lib/sqlite-runtime.js';
-import { createDurableAgentRoster } from '../../lib/durable-agent-roster.js';
+import { createDurableAgentRoster, DURABLE_AGENT_SEARCH_CORPUS_ID } from '../../lib/durable-agent-roster.js';
 import {
   ALLOW_MODEL_DOWNLOAD_ENV,
   DEFAULT_SEMANTIC_MODEL_ID,
@@ -232,7 +232,10 @@ describe('expertise retrieval degrades (and says so) when the model is gated off
   test('search returns degraded: true with lexical hits and no network attempt', async () => {
     const fetchSpy = jest.spyOn(globalThis, 'fetch');
     const resolverDb = createTestDb();
-    const resolver = createSemanticResolver(resolverDb, { cacheDir: emptyCacheDir() });
+    const resolver = createSemanticResolver(resolverDb, {
+      cacheDir: emptyCacheDir(),
+      corpusId: DURABLE_AGENT_SEARCH_CORPUS_ID,
+    });
     const service = createDurableAgentRoster(rosterDb, {
       resolver,
       gitleaksRunner: () => ({ findings: [] }),
@@ -253,7 +256,7 @@ describe('expertise retrieval degrades (and says so) when the model is gated off
     // Profile indexing could not embed — surfaced as a warning, not a failure.
     expect(created.warnings.join(' ')).toMatch(/indexing is pending/);
 
-    const result = await service.search('typography');
+    const result = await service.search('typography', { scopeKey: 'system' });
     expect(result.degraded).toBe(true);
     expect(result.warnings.join(' ')).toMatch(/labeled degraded/);
     // The lexical/BM25 path still works: the expert is found without embeddings.

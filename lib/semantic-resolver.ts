@@ -279,6 +279,9 @@ export interface SemanticResolutionOverride {
  */
 export interface SemanticResolutionStats {
   model: string;
+  spaceId: string;
+  corpusId: string;
+  policyDigest: string;
   autoThreshold: number;
   reviewThreshold: number;
   boundaryMargin: number;
@@ -379,6 +382,7 @@ interface SemanticResolverOptions {
   governor?: Pick<LogGovernor, 'governed'>;
   embedder?: {
     modelId: string;
+    spaceId?: string;
     embed(texts: string[]): Promise<number[][]>;
   };
   /**
@@ -391,6 +395,9 @@ interface SemanticResolverOptions {
 
 interface SemanticTermRow {
   term: string;
+  corpus_id: string;
+  policy_digest: string;
+  space_id: string;
   model: string;
   dimensions: number;
   vector_json: string;
@@ -415,6 +422,9 @@ interface SemanticResolutionRow {
   threshold_auto: number;
   threshold_review: number;
   model: string;
+  corpus_id: string | null;
+  policy_digest: string | null;
+  space_id: string | null;
   metadata: string | null;
   review_action: SemanticReviewAction | null;
   reviewed_by: string | null;
@@ -453,6 +463,8 @@ type EmbeddingPipelineResult = {
  */
 export interface SemanticResolver {
   modelId: string;
+  spaceId: string;
+  corpusPolicy: CorpusPolicy;
   autoThreshold: number;
   reviewThreshold: number;
   boundaryMargin: number;
@@ -1001,14 +1013,16 @@ async function createDefaultEmbedder(
  * @returns A queued semantic resolver bound to the selected corpus profile.
  */
 export function createSemanticResolver(db: Database.Database, options: SemanticResolverOptions = {}): SemanticResolver {
+  const corpusPolicy = options.corpusPolicy ?? localTextCorpusPolicy(options.corpusId ?? 'pd.semantic.terms');
   const selectedProfile = selectEmbeddingProfile(
-    options.corpusPolicy ?? localTextCorpusPolicy(options.corpusId ?? 'pd.semantic.terms'),
+    corpusPolicy,
     'text_dense',
   ).profile;
   if (options.modelId && !options.embedderFactory && !options.embedder) {
     throw new Error('semantic modelId overrides require an injected embedder test seam');
   }
   const modelId = options.modelId ?? selectedProfile.modelId;
+  const spaceId = options.embedder?.spaceId ?? (options.embedder ? `test:${modelId}` : selectedProfile.spaceId);
   const autoThreshold = options.autoThreshold ?? DEFAULT_SEMANTIC_AUTO_THRESHOLD;
   const reviewThreshold = options.reviewThreshold ?? DEFAULT_SEMANTIC_REVIEW_THRESHOLD;
   const boundaryMargin = options.boundaryMargin ?? DEFAULT_SEMANTIC_BOUNDARY_MARGIN;
@@ -1023,9 +1037,26 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
     throw new Error(`semantic reviewThreshold (${reviewThreshold}) cannot exceed autoThreshold (${autoThreshold})`);
   }
 
+  const existingSemanticTerms = db.prepare(
+    "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'semantic_terms'",
+  ).get() as { name: string } | undefined;
+  if (existingSemanticTerms) {
+    const columns = new Set(
+      (db.prepare('PRAGMA table_info(semantic_terms)').all() as Array<{ name: string }>).map((column) => column.name),
+    );
+    if (['corpus_id', 'policy_digest', 'space_id'].some((column) => !columns.has(column))) {
+      // This is a disposable projection. A legacy model-only row cannot be
+      // relabelled as belonging to a policy/space generation.
+      db.exec('DROP TABLE semantic_terms');
+    }
+  }
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS semantic_terms (
       term TEXT NOT NULL,
+      corpus_id TEXT NOT NULL,
+      policy_digest TEXT NOT NULL,
+      space_id TEXT NOT NULL,
       model TEXT NOT NULL,
       dimensions INTEGER NOT NULL,
       vector_json TEXT NOT NULL,
@@ -1034,7 +1065,7 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
       first_project_dir TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
-      PRIMARY KEY (term, model)
+      PRIMARY KEY (term, corpus_id, policy_digest, space_id)
     );
     CREATE INDEX IF NOT EXISTS idx_semantic_terms_updated ON semantic_terms(updated_at DESC);
 
@@ -1052,6 +1083,9 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
       threshold_auto REAL NOT NULL,
       threshold_review REAL NOT NULL,
       model TEXT NOT NULL,
+      corpus_id TEXT,
+      policy_digest TEXT,
+      space_id TEXT,
       metadata TEXT,
       review_action TEXT,
       reviewed_by TEXT,
@@ -1085,6 +1119,9 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
     'ALTER TABLE semantic_resolution_events ADD COLUMN reviewed_by TEXT',
     'ALTER TABLE semantic_resolution_events ADD COLUMN review_note TEXT',
     'ALTER TABLE semantic_resolution_events ADD COLUMN reviewed_at INTEGER',
+    'ALTER TABLE semantic_resolution_events ADD COLUMN corpus_id TEXT',
+    'ALTER TABLE semantic_resolution_events ADD COLUMN policy_digest TEXT',
+    'ALTER TABLE semantic_resolution_events ADD COLUMN space_id TEXT',
   ]) {
     try {
       db.exec(sql);
@@ -1096,15 +1133,17 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
   const stmts = {
     getTerm: db.prepare(`
       SELECT * FROM semantic_terms
-      WHERE term = ? AND model = ?
+      WHERE term = ? AND corpus_id = ? AND policy_digest = ? AND space_id = ?
       LIMIT 1
     `),
     upsertTerm: db.prepare(`
       INSERT INTO semantic_terms (
-        term, model, dimensions, vector_json, fingerprint, tokens_json, first_project_dir, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(term, model)
+        term, corpus_id, policy_digest, space_id, model, dimensions, vector_json,
+        fingerprint, tokens_json, first_project_dir, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(term, corpus_id, policy_digest, space_id)
       DO UPDATE SET
+        model = excluded.model,
         dimensions = excluded.dimensions,
         vector_json = excluded.vector_json,
         fingerprint = COALESCE(excluded.fingerprint, semantic_terms.fingerprint),
@@ -1113,29 +1152,31 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
     `),
     listTerms: db.prepare(`
       SELECT * FROM semantic_terms
-      WHERE model = ?
+      WHERE corpus_id = ? AND policy_digest = ? AND space_id = ? AND model = ?
       ORDER BY updated_at DESC
       LIMIT ?
     `),
     insertEvent: db.prepare(`
       INSERT INTO semantic_resolution_events (
         project_dir, harbor, source_type, source_id, raw_term, canonical_term, candidate_term,
-        similarity, decision, threshold_auto, threshold_review, model, metadata, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        similarity, decision, threshold_auto, threshold_review, model,
+        corpus_id, policy_digest, space_id, metadata, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `),
     getEvent: db.prepare(`
       SELECT * FROM semantic_resolution_events
-      WHERE id = ?
+      WHERE id = ? AND corpus_id = ? AND policy_digest = ? AND space_id = ?
       LIMIT 1
     `),
     updateEventReview: db.prepare(`
       UPDATE semantic_resolution_events
       SET decision = ?, review_action = ?, reviewed_by = ?, review_note = ?, reviewed_at = ?
-      WHERE id = ?
+      WHERE id = ? AND corpus_id = ? AND policy_digest = ? AND space_id = ?
     `),
     listEvents: db.prepare(`
       SELECT * FROM semantic_resolution_events
-      WHERE (? IS NULL OR project_dir = ?)
+      WHERE corpus_id = ? AND policy_digest = ? AND space_id = ?
+        AND (? IS NULL OR project_dir = ?)
         AND (? IS NULL OR decision = ?)
         AND (? IS NULL OR canonical_term LIKE ? OR raw_term LIKE ? OR COALESCE(candidate_term, '') LIKE ?)
         AND (? IS NULL OR similarity >= ?)
@@ -1147,25 +1188,28 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
         COUNT(*) AS total_events,
         MAX(created_at) AS last_resolved_at
       FROM semantic_resolution_events
-      WHERE (? IS NULL OR project_dir = ?)
+      WHERE corpus_id = ? AND policy_digest = ? AND space_id = ?
+        AND (? IS NULL OR project_dir = ?)
     `),
     statsDecisions: db.prepare(`
       SELECT decision, COUNT(*) AS count
       FROM semantic_resolution_events
-      WHERE (? IS NULL OR project_dir = ?)
+      WHERE corpus_id = ? AND policy_digest = ? AND space_id = ?
+        AND (? IS NULL OR project_dir = ?)
       GROUP BY decision
     `),
     nearThreshold: db.prepare(`
       SELECT COUNT(*) AS count
       FROM semantic_resolution_events
-      WHERE (? IS NULL OR project_dir = ?)
+      WHERE corpus_id = ? AND policy_digest = ? AND space_id = ?
+        AND (? IS NULL OR project_dir = ?)
         AND similarity IS NOT NULL
         AND ABS(similarity - ?) <= ?
     `),
     countTerms: db.prepare(`
       SELECT COUNT(*) AS count
       FROM semantic_terms
-      WHERE model = ?
+      WHERE corpus_id = ? AND policy_digest = ? AND space_id = ? AND model = ?
     `),
     getOverride: db.prepare(`
       SELECT * FROM semantic_resolution_overrides
@@ -1209,7 +1253,7 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
   let queue = Promise.resolve();
 
   function cacheKey(term: string): string {
-    return `${modelId}\x00${term}`;
+    return `${corpusPolicy.policyDigest}\x00${spaceId}\x00${term}`;
   }
 
   function overrideProjectKey(projectDir: string | null | undefined): string {
@@ -1256,7 +1300,12 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
       return cached;
     }
 
-    const existing = stmts.getTerm.get(term, modelId) as SemanticTermRow | undefined;
+    const existing = stmts.getTerm.get(
+      term,
+      corpusPolicy.corpusId,
+      corpusPolicy.policyDigest,
+      spaceId,
+    ) as SemanticTermRow | undefined;
     if (existing) {
       const vector = parseVector(existing.vector_json);
       vectorCache.set(key, vector);
@@ -1270,6 +1319,9 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
     const now = Date.now();
     stmts.upsertTerm.run(
       term,
+      corpusPolicy.corpusId,
+      corpusPolicy.policyDigest,
+      spaceId,
       modelId,
       vector.length,
       JSON.stringify(vector),
@@ -1287,7 +1339,13 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
    * Load the currently known term inventory with decoded vectors.
    */
   function listKnownTerms(limit = 5000): Array<SemanticTermRow & { vector: number[]; tokens: string[] }> {
-    const rows = stmts.listTerms.all(modelId, Math.min(Math.max(limit, 1), 10000)) as SemanticTermRow[];
+    const rows = stmts.listTerms.all(
+      corpusPolicy.corpusId,
+      corpusPolicy.policyDigest,
+      spaceId,
+      modelId,
+      Math.min(Math.max(limit, 1), 10000),
+    ) as SemanticTermRow[];
     return rows.map((row) => {
       const key = cacheKey(row.term);
       const vector = vectorCache.get(key) ?? parseVector(row.vector_json);
@@ -1329,6 +1387,9 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
       autoThreshold,
       reviewThreshold,
       modelId,
+      corpusPolicy.corpusId,
+      corpusPolicy.policyDigest,
+      spaceId,
       event.metadata ? JSON.stringify(event.metadata) : null,
       createdAt,
     );
@@ -1485,6 +1546,9 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
         similarity: best?.similarity ?? null,
         decision,
         metadata: {
+          corpusId: corpusPolicy.corpusId,
+          policyDigest: corpusPolicy.policyDigest,
+          spaceId,
           fingerprint: alias.fingerprint,
           tokens: alias.tokens,
           candidates,
@@ -1531,6 +1595,9 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
         canonicalTerm: alias.canonical,
         decision: 'error',
         metadata: {
+          corpusId: corpusPolicy.corpusId,
+          policyDigest: corpusPolicy.policyDigest,
+          spaceId,
           fingerprint: alias.fingerprint,
           tokens: alias.tokens,
           error: (error as Error).message,
@@ -1604,6 +1671,9 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
   } = {}): SemanticResolutionEvent[] {
     const like = options.query?.trim() ? `%${options.query.trim()}%` : null;
     const rows = stmts.listEvents.all(
+      corpusPolicy.corpusId,
+      corpusPolicy.policyDigest,
+      spaceId,
       options.projectDir ?? null,
       options.projectDir ?? null,
       options.decision ?? null,
@@ -1628,7 +1698,12 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
       throw new Error(`Invalid semantic review action: ${options.action}`);
     }
 
-    const row = stmts.getEvent.get(eventId) as SemanticResolutionRow | undefined;
+    const row = stmts.getEvent.get(
+      eventId,
+      corpusPolicy.corpusId,
+      corpusPolicy.policyDigest,
+      spaceId,
+    ) as SemanticResolutionRow | undefined;
     if (!row) {
       throw new Error(`Semantic resolution event not found: ${eventId}`);
     }
@@ -1661,6 +1736,9 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
       options.note ?? null,
       now,
       event.id,
+      corpusPolicy.corpusId,
+      corpusPolicy.policyDigest,
+      spaceId,
     );
 
     counters?.bump('semantic.resolution.reviewed', {
@@ -1689,7 +1767,12 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
       ttlMs: SEMANTIC_TUPLE_TTL_MS,
     });
 
-    const reviewedRow = stmts.getEvent.get(event.id) as SemanticResolutionRow | undefined;
+    const reviewedRow = stmts.getEvent.get(
+      event.id,
+      corpusPolicy.corpusId,
+      corpusPolicy.policyDigest,
+      spaceId,
+    ) as SemanticResolutionRow | undefined;
     return toResolutionEvent(reviewedRow ?? row);
   }
 
@@ -1697,11 +1780,23 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
    * Summarize threshold health for the full resolver or one project slice.
    */
   function stats(projectDir?: string): SemanticResolutionStats {
-    const totals = stmts.statsTotals.get(projectDir ?? null, projectDir ?? null) as {
+    const totals = stmts.statsTotals.get(
+      corpusPolicy.corpusId,
+      corpusPolicy.policyDigest,
+      spaceId,
+      projectDir ?? null,
+      projectDir ?? null,
+    ) as {
       total_events: number;
       last_resolved_at: number | null;
     };
-    const decisionRows = stmts.statsDecisions.all(projectDir ?? null, projectDir ?? null) as Array<{
+    const decisionRows = stmts.statsDecisions.all(
+      corpusPolicy.corpusId,
+      corpusPolicy.policyDigest,
+      spaceId,
+      projectDir ?? null,
+      projectDir ?? null,
+    ) as Array<{
       decision: SemanticResolutionDecision;
       count: number;
     }>;
@@ -1717,12 +1812,21 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
     for (const row of decisionRows) {
       decisions[row.decision] = row.count;
     }
-    const nearAutoBoundary = (stmts.nearThreshold.get(projectDir ?? null, projectDir ?? null, autoThreshold, boundaryMargin) as { count: number }).count;
-    const nearReviewBoundary = (stmts.nearThreshold.get(projectDir ?? null, projectDir ?? null, reviewThreshold, boundaryMargin) as { count: number }).count;
-    const totalTerms = (stmts.countTerms.get(modelId) as { count: number }).count;
+    const eventScope = [corpusPolicy.corpusId, corpusPolicy.policyDigest, spaceId, projectDir ?? null, projectDir ?? null];
+    const nearAutoBoundary = (stmts.nearThreshold.get(...eventScope, autoThreshold, boundaryMargin) as { count: number }).count;
+    const nearReviewBoundary = (stmts.nearThreshold.get(...eventScope, reviewThreshold, boundaryMargin) as { count: number }).count;
+    const totalTerms = (stmts.countTerms.get(
+      corpusPolicy.corpusId,
+      corpusPolicy.policyDigest,
+      spaceId,
+      modelId,
+    ) as { count: number }).count;
 
     return {
       model: modelId,
+      spaceId,
+      corpusId: corpusPolicy.corpusId,
+      policyDigest: corpusPolicy.policyDigest,
       autoThreshold,
       reviewThreshold,
       boundaryMargin,
@@ -1748,6 +1852,8 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
 
   return {
     modelId,
+    spaceId,
+    corpusPolicy,
     autoThreshold,
     reviewThreshold,
     boundaryMargin,

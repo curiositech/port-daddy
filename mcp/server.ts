@@ -684,17 +684,17 @@ const TOOLS = [
   {
     name: 'roadmap_search',
     description:
-      '[Roadmap] Rank roadmap items against free text (BM25 -> cosine over shared MiniLM embeddings, ' +
-      'same cascade as pd whois). Use before pd_begin when you know what you are about to work on but ' +
-      'not the exact --roadmap slug. Usage: roadmap_search({query: "fix the login timeout"})',
+      '[Roadmap] Rank roadmap items within one harbor using policy-selected dense embeddings and BM25 + RRF. ' +
+      'Use before pd_begin when you know what you are about to work on but not the exact --roadmap slug. ' +
+      'Usage: roadmap_search({query: "fix the login timeout", harbor: "port-daddy"})',
     inputSchema: {
       type: 'object' as const,
       properties: {
         query: { type: 'string', description: 'Free text describing the work' },
-        harbor: { type: 'string', description: 'Restrict to one harbor (optional)' },
+        harbor: { type: 'string', description: 'Required hard harbor scope' },
         limit: { type: 'number', description: 'Max candidates to return (default 5)' },
       },
-      required: ['query'],
+      required: ['query', 'harbor'],
     },
   },
   {
@@ -2840,7 +2840,7 @@ const TOOLS = [
     name: 'durable_agent_roster',
     description:
       '[Essential] Find durable named agents by expertise, list a system/repo roster, or inspect one AgentNode. ' +
-      'Search always combines BM25 with the shared local MiniLM embedder when available and labels any lexical fallback.',
+      'Search requires an explicit repo or system scope, then combines BM25 with the corpus-selected compatible dense space and labels any lexical fallback.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -3737,8 +3737,9 @@ async function handleTool(
     }
 
     case 'roadmap_search': {
+      if (!args.harbor) throw new Error('roadmap_search requires harbor');
       const params = new URLSearchParams({ q: args.query as string });
-      if (args.harbor) params.set('harbor', args.harbor as string);
+      params.set('harbor', args.harbor as string);
       if (args.limit !== undefined) params.set('limit', String(args.limit));
       res = await GET(`/roadmap/search?${params.toString()}`);
       break;
@@ -4833,6 +4834,7 @@ async function handleTool(
       }
       const params = new URLSearchParams();
       if (args.repo_root) params.set('repoRoot', String(args.repo_root));
+      else params.set('scopeKey', 'system');
       if (args.include_retired === true) params.set('includeRetired', 'true');
       if (args.limit != null) params.set('limit', String(args.limit));
       if (args.query) {

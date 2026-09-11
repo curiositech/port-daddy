@@ -25,7 +25,12 @@ import { closeDatabase, initDatabase } from '../../lib/db.js';
 import type { DatabaseInstance } from '../../lib/sqlite-runtime.js';
 import { createActorSouls } from '../../lib/actor-souls.js';
 import type { ForensicsEvent, ForensicsSink } from '../../lib/forensics-archive.js';
-import { createDurableAgentRoster, DurableAgentRosterError } from '../../lib/durable-agent-roster.js';
+import {
+  createDurableAgentRoster,
+  DURABLE_AGENT_SEARCH_CORPUS_ID,
+  DurableAgentRosterError,
+} from '../../lib/durable-agent-roster.js';
+import { localTextCorpusPolicy } from '../../lib/retrieval-policy.js';
 import { appendEvent } from '../../lib/agent-harbor/event-ledger.js';
 import { createEpisodicMemory } from '../../lib/episodic-memory.js';
 import { actorsPlugin } from '../../routes/actors.js';
@@ -302,7 +307,12 @@ describe('durable agent roster: a retired agent cannot be reactivated by an inci
 
   function roster() {
     return createDurableAgentRoster(db, {
-      resolver: { modelId: 'test', embed: jest.fn(async () => [1, 0.1]) },
+      resolver: {
+        modelId: 'test',
+        spaceId: 'test:roster-2d',
+        corpusPolicy: localTextCorpusPolicy(DURABLE_AGENT_SEARCH_CORPUS_ID),
+        embed: jest.fn(async () => [1, 0.1]),
+      },
       gitleaksRunner: () => ({ findings: [] }),
       now: () => new Date('2026-09-05T12:00:00.000Z'),
       forensicsSink: sink,

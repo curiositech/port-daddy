@@ -1044,13 +1044,17 @@ async function handleRoadmapTouch(args: string[], options: CLIOptions): Promise<
 async function handleRoadmapSearch(args: string[], options: CLIOptions): Promise<void> {
   const query = args.join(' ').trim() || readOption(options, 'q', 'query');
   if (!query) {
-    ui.error('Usage: pd roadmap search <free text> [--harbor <h>] [--limit <n>]');
+    ui.error('Usage: pd roadmap search <free text> --harbor <h> [--limit <n>]');
     process.exit(1);
   }
 
   const params = new URLSearchParams({ q: query });
   const harbor = readOption(options, 'harbor');
-  if (harbor) params.set('harbor', harbor);
+  if (!harbor) {
+    ui.error('roadmap search requires --harbor so retrieval cannot cross scope boundaries');
+    process.exit(1);
+  }
+  params.set('harbor', harbor);
   const limit = parseLimit(options.limit, 5);
   params.set('limit', String(limit));
 
@@ -1072,7 +1076,7 @@ async function handleRoadmapSearch(args: string[], options: CLIOptions): Promise
     return;
   }
   if (data.degraded) {
-    ui.warn(`search index unavailable — run \`pd roadmap reindex\` on a daemon with the semantic resolver wired`);
+    ui.warn(`search index unavailable — run \`pd roadmap reindex --harbor ${harbor}\` on a daemon with the semantic resolver wired`);
     return;
   }
   if (hits.length === 0) {
@@ -1087,15 +1091,19 @@ async function handleRoadmapSearch(args: string[], options: CLIOptions): Promise
 }
 
 /**
- * `pd roadmap reindex` — backfill/refresh the search embedding index
+ * `pd roadmap reindex --harbor <h>` — backfill/refresh one scoped search index
  * (POST /roadmap/reindex-search). Run once after this feature ships
  * (existing rows predate the index) and safe to re-run any time.
  */
 async function handleRoadmapReindex(_args: string[], options: CLIOptions): Promise<void> {
   const harbor = readOption(options, 'harbor');
+  if (!harbor) {
+    ui.error('roadmap reindex requires --harbor so one index generation cannot cross scope boundaries');
+    process.exit(1);
+  }
   const res = await pdFetch(`${PORT_DADDY_URL}/roadmap/reindex-search`, {
     method: 'POST',
-    body: JSON.stringify(harbor ? { harbor } : {}),
+    body: JSON.stringify({ harbor }),
   });
   const data = (await res.json().catch(() => ({}))) as {
     success?: boolean;
