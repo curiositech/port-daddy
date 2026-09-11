@@ -156,6 +156,11 @@ describe('GET /auth/github/login', () => {
     const refused = await handleGithubLogin(new Request(`${BASE}/auth/github/login?return_to=${encodeURIComponent('https://evil.example/account')}`), makeEnv({}, kv));
     const refusedState = new URL(refused.headers.get('Location')!).searchParams.get('state')!;
     expect(JSON.parse(kv.store.get(`oauth_state:${refusedState}`)!)).toEqual({ returnTo: '/account' });
+    for (const unsafe of ['/accounting', '/account/../../outside', '//evil.example/account']) {
+      const response = await handleGithubLogin(new Request(`${BASE}/auth/github/login?return_to=${encodeURIComponent(unsafe)}`), makeEnv({}, kv));
+      const unsafeState = new URL(response.headers.get('Location')!).searchParams.get('state')!;
+      expect(JSON.parse(kv.store.get(`oauth_state:${unsafeState}`)!)).toEqual({ returnTo: '/account' });
+    }
   });
 });
 

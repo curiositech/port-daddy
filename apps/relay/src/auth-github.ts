@@ -107,7 +107,8 @@ function safeAccountReturn(value: string | null): string {
   if (!value || value.length > 2048 || !value.startsWith('/account')) return '/account';
   try {
     const parsed = new URL(value, 'https://relay.invalid');
-    if (parsed.origin !== 'https://relay.invalid' || !parsed.pathname.startsWith('/account')) return '/account';
+    const accountPath = parsed.pathname === '/account' || parsed.pathname.startsWith('/account/');
+    if (parsed.origin !== 'https://relay.invalid' || !accountPath) return '/account';
     return `${parsed.pathname}${parsed.search}${parsed.hash}`;
   } catch {
     return '/account';
