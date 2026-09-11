@@ -106,6 +106,8 @@ export interface SkillGraftRoot {
 
 /** Hard context budget for each description returned by metadata-only search. */
 export const MAX_SKILL_SEARCH_DESCRIPTION_CHARS = 240;
+/** Hard result-count budget for metadata-only search and graft candidate pools. */
+export const MAX_SKILL_SEARCH_RESULTS = 10;
 
 /** The cheap side of the shortlist: everything callers need to DECIDE
  *  whether a skill is worth pulling in full, but not the full body. Each
@@ -297,7 +299,7 @@ export interface SkillGraftIndex {
 
 // ─── Defaults ───────────────────────────────────────────────────────────────
 
-const DEFAULT_SHORTLIST_LIMIT = 10;
+const DEFAULT_SHORTLIST_LIMIT = MAX_SKILL_SEARCH_RESULTS;
 const DEFAULT_TOP_LIMIT = 3;
 const MAX_LIMIT = 50;
 const DEFAULT_MAX_BODY_CHARS = 8000;
@@ -327,7 +329,7 @@ export function createSkillGraftIndex(options: SkillGraftOptions = {}): SkillGra
   // shipwright skill index) already paid for.
   const embedder: SkillEmbedder = options.embedder
     ?? createLocalEmbedder({ cacheDir: defaultTransformersCacheDir() });
-  const defaultShortlistLimit = clampLimit(options.shortlistLimit, DEFAULT_SHORTLIST_LIMIT);
+  const defaultShortlistLimit = clampSearchLimit(options.shortlistLimit, DEFAULT_SHORTLIST_LIMIT);
   const defaultTopLimit = clampLimit(options.topLimit, DEFAULT_TOP_LIMIT);
   const maxBodyChars = clampBodyChars(options.maxBodyChars, DEFAULT_MAX_BODY_CHARS);
 
@@ -409,7 +411,7 @@ export function createSkillGraftIndex(options: SkillGraftOptions = {}): SkillGra
     ensureScanned();
 
     const trimmed = query.trim();
-    const shortlistLimit = clampLimit(callOptions.shortlistLimit, defaultShortlistLimit);
+    const shortlistLimit = clampSearchLimit(callOptions.shortlistLimit, defaultShortlistLimit);
 
     if (!trimmed) {
       return { query, scannedCount: catalog.length, roots, shortlist: [], semanticTier: 'lexical-only' };
@@ -845,6 +847,10 @@ export function expandFirstHopCandidates(
 function clampLimit(value: number | undefined, fallback: number): number {
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return fallback;
   return Math.min(Math.floor(value), MAX_LIMIT);
+}
+
+function clampSearchLimit(value: number | undefined, fallback: number): number {
+  return Math.min(clampLimit(value, fallback), MAX_SKILL_SEARCH_RESULTS);
 }
 
 function clampBodyChars(value: number | undefined, fallback: number): number {

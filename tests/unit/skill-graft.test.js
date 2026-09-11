@@ -18,6 +18,7 @@ import Database from 'better-sqlite3';
 
 const {
   MAX_SKILL_SEARCH_DESCRIPTION_CHARS,
+  MAX_SKILL_SEARCH_RESULTS,
   createSkillGraftIndex,
   defaultSkillGraftRoots,
   renderSkillGraftContext,
@@ -238,7 +239,7 @@ describe('createSkillGraftIndex().craft', () => {
   });
 
   test('clamps invalid or out-of-range limits to sane defaults', async () => {
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 15; i++) {
       writeSkill(tmpRoot, `skill-${i}`, `topic number ${i} words filler content`);
     }
     const graft = makeGraftIndex(tmpRoot);
@@ -248,7 +249,7 @@ describe('createSkillGraftIndex().craft', () => {
     expect(zero.top.length).toBeGreaterThan(0); // fell back to default (3), not -1/0
 
     const huge = await graft.craft('topic words', { shortlistLimit: 999999 });
-    expect(huge.shortlist.length).toBeLessThanOrEqual(50); // capped, not unbounded
+    expect(huge.shortlist).toHaveLength(MAX_SKILL_SEARCH_RESULTS);
 
     const nonNumber = await graft.craft('topic words', { shortlistLimit: 'lots' });
     expect(nonNumber.shortlist.length).toBeGreaterThan(0);
