@@ -451,6 +451,14 @@ work; never reset or clobber the main checkout.
 
 ### Test + session gotchas (dev-loop shibboleths)
 
+- **Research reuse is not another authority.** The Project Epistemology D1a lab
+  (`docs/research/egosystem-reconciliation/harness/`) imports the existing Harbor
+  R17 checker without running its sweep at import. Keep fixture envelopes out of
+  production registration, preserve scoped provenance and explicit bounds, and
+  distinguish synthetic replay from canonical conformance and empirical H1–H4
+  evidence. During an operator halt, use only bounded offline tests; never boot
+  the daemon or fan out reviewers to satisfy a research gate.
+
 The friction below costs every fresh session real time. Internalize it.
 
 - **Tests are Jest, not vitest.** `tests/unit/*.test.js` import from
@@ -845,13 +853,14 @@ latency, and cost. Persist provider, model id, immutable revision, dimensions,
 normalization, distance metric, and a `space_id` hashed from canonical ordered
 metadata with vectors and queries;
 reject or re-embed incompatible spaces rather than comparing them silently.
-MiniLM is only an explicit local/degraded fallback. Verify current source and
-the installed `pd embed --help` surface before depending on model selection. At
-the 2026-08-31 audit point, `main` and the installed stable runtime exposed only
-the MiniLM path; treat that as transitional. Higher-quality selection depends
-on the in-flight control-plane embedding-model-registry work; do not describe
-that registry as shipped until source, deployed runtime, and read-back evidence
-agree. Do not add reputation scores from declared skills, or mark stored
+MiniLM is only an explicit local/degraded fallback. Direct embedding calls name
+their stable corpus (`pd embed text|stdin --corpus <id>`); the source selector
+maps policy, role, tier, and provider to a registry `spaceId`, while the local
+loader verifies artifact/runtime digests and vector shape before returning
+coordinates. Those checks neither sign producer conformance nor promote a
+profile. Verify current source and the installed `pd embed --help` surface;
+do not describe the selector as deployed until source, runtime, and read-back
+evidence agree. Do not add reputation scores from declared skills, or mark stored
 permission/trigger declarations enforced without a daemon-witnessed runtime
 receipt.
 

@@ -105,6 +105,47 @@ describe('repository ship storage and authority', () => {
 });
 
 describe('signed-in ship UI', () => {
+  it('offers credential renewal without exposing repository data when the GitHub token is unavailable', async () => {
+    const prepare = vi.spyOn(store.db, 'prepare');
+    vi.mocked(resolveSession).mockResolvedValue({ user: { id: 'admin-1' }, ghToken: null, cacheNamespace: 'test' } as never);
+    const result = await handleRepoShips(new Request(`${BASE}/account/ships?repo=owner/repo`), env);
+    const body = await result.text();
+    expect(result.status).toBe(403);
+    expect(body).toContain('Reconnect GitHub to continue.');
+    expect(body).toContain('href="/auth/github/login?return_to=%2Faccount%2Fships%3Frepo%3Downer%2Frepo"');
+    expect(body).toContain('Back to account');
+    expect(prepare).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it.each([
+    [401, 'Reconnect GitHub to continue.', '/auth/github/login?return_to=%2Faccount%2Fships%3Frepo%3Downer%2Frepo', 403],
+    [403, 'GitHub did not grant repository access.', '/auth/github/login?return_to=%2Faccount%2Fships%3Frepo%3Downer%2Frepo', 403],
+    [404, 'GitHub did not grant repository access.', '/auth/github/login?return_to=%2Faccount%2Fships%3Frepo%3Downer%2Frepo', 403],
+    [429, 'GitHub could not be reached.', '/account/ships?repo=owner%2Frepo', 503],
+    [503, 'GitHub could not be reached.', '/account/ships?repo=owner%2Frepo', 503],
+  ])('distinguishes GitHub status %s without querying private telemetry', async (upstream, message, action, status) => {
+    const prepare = vi.spyOn(store.db, 'prepare');
+    vi.mocked(fetch).mockResolvedValue(new Response('', { status: upstream }));
+    const result = await handleRepoShips(new Request(`${BASE}/account/ships?repo=owner/repo`), env);
+    const body = await result.text();
+    expect(result.status).toBe(status);
+    expect(body).toContain(message);
+    expect(body).toContain(`href="${action}"`);
+    expect(prepare).not.toHaveBeenCalled();
+  });
+  it('reports GitHub rate limiting as temporary and includes a trustworthy reset time', async () => {
+    const prepare = vi.spyOn(store.db, 'prepare');
+    vi.mocked(fetch).mockResolvedValue(new Response('', { status: 403, headers: {
+      'X-RateLimit-Remaining': '0', 'X-RateLimit-Reset': '1789113313',
+    } }));
+    const result = await handleRepoShips(new Request(`${BASE}/account/ships?repo=owner/repo`), env);
+    const body = await result.text();
+    expect(result.status).toBe(503);
+    expect(body).toContain('GitHub API limit reached.');
+    expect(body).toContain('2026-09-11T07:55:13.000Z');
+    expect(body).toContain('No ship setting changed.');
+    expect(prepare).not.toHaveBeenCalled();
+  });
   it('does not query private telemetry before fresh repository authorization', async () => {
     const prepare = vi.spyOn(store.db, 'prepare');
     vi.mocked(fetch).mockResolvedValue(new Response('', { status: 404 }));
@@ -187,6 +228,10 @@ it.skipIf(!process.env.SHIP_CONTROLS_PROOF_DIR)('records browser control round-t
     await page.evaluate(() => document.documentElement.style.zoom = '2');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: `${directory}/ships-200pct.png`, fullPage: true });
+    vi.mocked(resolveSession).mockResolvedValue({ user: { id: 'admin-1' }, ghToken: null, cacheNamespace: 'test' } as never);
+    await page.goto(`${base}/account/ships?repo=owner/repo`);
+    await expect.poll(() => page.getByRole('link', { name: 'Continue with GitHub', exact: true }).count()).toBe(1);
+    await page.screenshot({ path: `${directory}/ships-auth-renew.png`, fullPage: true });
   } finally {
     await context.close(); await browser.close();
     await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));

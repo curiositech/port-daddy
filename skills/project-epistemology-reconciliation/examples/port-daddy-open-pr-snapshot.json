@@ -1,0 +1,477 @@
+{
+  "schemaVersion": 1,
+  "snapshot": {
+    "id": "port-daddy-offline-capture-2026-09-10",
+    "capturedAt": "2026-09-10T22:18:00-07:00",
+    "repository": "curiositech/port-daddy",
+    "sourceHead": "e3dc2f209d617ba728480912dba9cbcff134c7a8",
+    "completeness": "partial",
+    "operatorHalt": true,
+    "source": "local git refs plus bounded Synthesis Steward conversation preview",
+    "limitations": [
+      "Network access was forbidden, so open state and titles were not refreshed from GitHub.",
+      "The bounded preview named fifteen open PRs but supplied exact titles for only five; PR #10123 was added from a local cached branch.",
+      "Recovered-worktree PRs retain number and queue-class metadata only; their claims remain uninventoried."
+    ]
+  },
+  "topics": [
+    { "id": "action-adjudication", "label": "Action adjudication and effects" },
+    { "id": "contradiction-detection", "label": "Contradiction detection" },
+    { "id": "evidence-provenance", "label": "Evidence and provenance" },
+    { "id": "harbor-authority", "label": "Harbor and roadmap authority" },
+    { "id": "parley", "label": "Parley and bounded deliberation" },
+    { "id": "platform-rfc", "label": "Convoy and platform direction" },
+    { "id": "project-epistemology", "label": "Project Epistemology" },
+    { "id": "recovered-work", "label": "Recovered stale-worktree changes" }
+  ],
+  "corpus": [
+    { "path": "docs/research", "kind": "research" },
+    { "path": "docs/harbor-research", "kind": "harbor-research" },
+    { "path": "docs/adr", "kind": "adr", "extensions": [".md"] },
+    { "path": "docs/roadmap", "kind": "roadmap" },
+    { "path": "docs/ROADMAP.md", "kind": "roadmap" },
+    { "path": "docs/recovery/CURRENT-WORK.md", "kind": "roadmap" },
+    { "path": "docs/architecture/agent-harbor-technical-binder", "kind": "binder", "extensions": [".md", ".json"] }
+  ],
+  "claims": [
+    {
+      "id": "pe-non-actuating",
+      "scope": "port-daddy/project-epistemology",
+      "decisionKey": "project-epistemology-actuation",
+      "subject": "Project Epistemology reconciliation",
+      "predicate": "operates as",
+      "value": "local non-actuating analysis",
+      "polarity": "affirm",
+      "modality": "current",
+      "status": "verified",
+      "warrant": "source",
+      "exclusive": true,
+      "requiresDecision": false,
+      "topicIds": ["project-epistemology", "contradiction-detection"],
+      "source": {
+        "kind": "artifact",
+        "ref": "skills/project-epistemology-reconciliation/SKILL.md:19",
+        "lineStart": 19,
+        "lineEnd": 22,
+        "excerpt": "This skill is local and non-actuating: it never starts a service, launches agents, spends money or publishes."
+      },
+      "links": { "duplicates": [], "supersedes": [], "implements": [] },
+      "salvage": { "unique": false, "destination": null }
+    },
+    {
+      "id": "unspider-daemon-model-plan",
+      "scope": "port-daddy/contradiction-detection",
+      "decisionKey": "contradiction-detector-execution",
+      "subject": "unSpider contradiction detector",
+      "predicate": "execution mode",
+      "value": "daemon triggers with model escalation",
+      "polarity": "affirm",
+      "modality": "target",
+      "status": "candidate",
+      "warrant": "source",
+      "exclusive": true,
+      "requiresDecision": false,
+      "topicIds": ["contradiction-detection"],
+      "source": {
+        "kind": "artifact",
+        "ref": "docs/adr/0032-unspider-contradiction-finder.md:34",
+        "lineStart": 34,
+        "lineEnd": 36,
+        "excerpt": "Sweep runs on event triggers plus a daily catch-all; ambiguous cases escalate to a classifier model."
+      },
+      "links": { "duplicates": [], "supersedes": [], "implements": [] },
+      "salvage": { "unique": false, "destination": null }
+    },
+    {
+      "id": "epistemology-structural-detector",
+      "scope": "port-daddy/contradiction-detection",
+      "decisionKey": "contradiction-detector-execution",
+      "subject": "Project Epistemology contradiction detector",
+      "predicate": "execution mode",
+      "value": "offline exact structural analysis",
+      "polarity": "affirm",
+      "modality": "target",
+      "status": "verified",
+      "warrant": "source",
+      "exclusive": true,
+      "requiresDecision": false,
+      "topicIds": ["project-epistemology", "contradiction-detection"],
+      "source": {
+        "kind": "artifact",
+        "ref": "docs/research/egosystem-reconciliation/final/architecture.md:195",
+        "lineStart": 195,
+        "lineEnd": 220,
+        "excerpt": "Apply exact structural candidates before any separately authorized hybrid retrieval and retain provenance."
+      },
+      "links": { "duplicates": [], "supersedes": ["unspider-daemon-model-plan"], "implements": [] },
+      "salvage": { "unique": false, "destination": null }
+    },
+    {
+      "id": "roadmap-live-table-current",
+      "scope": "port-daddy/roadmap",
+      "decisionKey": "roadmap-registry-authority",
+      "subject": "Roadmap registry authority",
+      "predicate": "source of truth",
+      "value": "live daemon roadmap_items table",
+      "polarity": "affirm",
+      "modality": "current",
+      "status": "verified",
+      "warrant": "source",
+      "exclusive": true,
+      "requiresDecision": false,
+      "topicIds": ["harbor-authority"],
+      "source": {
+        "kind": "artifact",
+        "ref": "docs/roadmap/AUTHORITY.md:21",
+        "lineStart": 21,
+        "lineEnd": 21,
+        "excerpt": "Registry-authority source of truth: the daemon roadmap_items table; repository snapshot is a projection."
+      },
+      "links": { "duplicates": [], "supersedes": [], "implements": [] },
+      "salvage": { "unique": false, "destination": null }
+    },
+    {
+      "id": "roadmap-remote-ledger-target",
+      "scope": "port-daddy/roadmap",
+      "decisionKey": "roadmap-registry-authority",
+      "subject": "Roadmap registry authority",
+      "predicate": "source of truth",
+      "value": "one remote append-only planning authority",
+      "polarity": "affirm",
+      "modality": "target",
+      "status": "candidate",
+      "warrant": "source",
+      "exclusive": true,
+      "requiresDecision": false,
+      "topicIds": ["harbor-authority"],
+      "source": {
+        "kind": "artifact",
+        "ref": "docs/research/egosystem-reconciliation/research/current-system-inventory.md:46",
+        "lineStart": 46,
+        "lineEnd": 46,
+        "excerpt": "The cutover epic is intended to replace local/snapshot authority with one remote append-only planning authority."
+      },
+      "links": { "duplicates": [], "supersedes": [], "implements": [] },
+      "salvage": { "unique": false, "destination": null }
+    },
+    {
+      "id": "d1a-plan",
+      "scope": "port-daddy/project-epistemology",
+      "decisionKey": "d1a-offline-harness",
+      "subject": "D1a",
+      "predicate": "provides",
+      "value": "pure event folding and R17 adapter",
+      "polarity": "affirm",
+      "modality": "plan",
+      "status": "candidate",
+      "warrant": "source",
+      "exclusive": false,
+      "requiresDecision": false,
+      "topicIds": ["project-epistemology", "contradiction-detection"],
+      "source": {
+        "kind": "artifact",
+        "ref": "docs/research/egosystem-reconciliation/final/delivery-plan.md:31",
+        "lineStart": 31,
+        "lineEnd": 31,
+        "excerpt": "D1a: Pure event-folding and existing R17 adapter against synthetic fixtures."
+      },
+      "links": { "duplicates": [], "supersedes": [], "implements": [] },
+      "salvage": { "unique": false, "destination": null }
+    },
+    {
+      "id": "d1a-implementation",
+      "scope": "port-daddy/project-epistemology",
+      "decisionKey": "d1a-offline-harness",
+      "subject": "D1a",
+      "predicate": "provides",
+      "value": "pure event folding and R17 adapter",
+      "polarity": "affirm",
+      "modality": "implementation",
+      "status": "verified",
+      "warrant": "source",
+      "exclusive": false,
+      "requiresDecision": false,
+      "topicIds": ["project-epistemology", "contradiction-detection"],
+      "source": {
+        "kind": "artifact",
+        "ref": "docs/research/egosystem-reconciliation/final/architecture.md:31",
+        "lineStart": 31,
+        "lineEnd": 33,
+        "excerpt": "Local packet validation, the static preview and the synthetic D1a replay/R17 harness are implemented."
+      },
+      "links": { "duplicates": [], "supersedes": [], "implements": ["d1a-plan"] },
+      "salvage": { "unique": false, "destination": null }
+    },
+    {
+      "id": "no-second-store-architecture",
+      "scope": "port-daddy/project-epistemology",
+      "decisionKey": "epistemology-canonical-store",
+      "subject": "Project Epistemology",
+      "predicate": "requires",
+      "value": "no second canonical store",
+      "polarity": "affirm",
+      "modality": "target",
+      "status": "verified",
+      "warrant": "source",
+      "exclusive": false,
+      "requiresDecision": false,
+      "topicIds": ["project-epistemology", "harbor-authority"],
+      "source": {
+        "kind": "artifact",
+        "ref": "docs/research/egosystem-reconciliation/final/architecture.md:14",
+        "lineStart": 14,
+        "lineEnd": 14,
+        "excerpt": "No part of this design requires a second canonical store."
+      },
+      "links": { "duplicates": [], "supersedes": [], "implements": [] },
+      "salvage": { "unique": false, "destination": null }
+    },
+    {
+      "id": "no-second-store-inventory",
+      "scope": "port-daddy/project-epistemology",
+      "decisionKey": "epistemology-canonical-store",
+      "subject": "Project Epistemology",
+      "predicate": "requires",
+      "value": "no second canonical store",
+      "polarity": "affirm",
+      "modality": "target",
+      "status": "verified",
+      "warrant": "source",
+      "exclusive": false,
+      "requiresDecision": false,
+      "topicIds": ["project-epistemology", "harbor-authority"],
+      "source": {
+        "kind": "artifact",
+        "ref": "docs/research/egosystem-reconciliation/research/current-system-inventory.md:46",
+        "lineStart": 46,
+        "lineEnd": 46,
+        "excerpt": "This research must not settle the cutover by building a competing local truth store."
+      },
+      "links": { "duplicates": [], "supersedes": [], "implements": [] },
+      "salvage": { "unique": false, "destination": null }
+    },
+    {
+      "id": "pr-10108-epistemology-package",
+      "scope": "port-daddy/open-prs",
+      "decisionKey": "project-epistemology-package",
+      "subject": "PR #10108",
+      "predicate": "proposes",
+      "value": "Project Epistemology package",
+      "polarity": "affirm",
+      "modality": "target",
+      "status": "candidate",
+      "warrant": "source",
+      "exclusive": false,
+      "requiresDecision": false,
+      "topicIds": ["project-epistemology", "contradiction-detection", "harbor-authority"],
+      "source": { "kind": "pr", "ref": "PR #10108 cached preview", "excerpt": "Project Epistemology package", "prNumber": 10108 },
+      "links": { "duplicates": [], "supersedes": [], "implements": [] },
+      "salvage": { "unique": false, "destination": null }
+    },
+    {
+      "id": "action-adjudication-plan",
+      "scope": "port-daddy/agent-harbor",
+      "decisionKey": "action-adjudication-record-separation",
+      "subject": "Action authorization and observed effect records",
+      "predicate": "remain",
+      "value": "separate exact proposal decision and effect records",
+      "polarity": "affirm",
+      "modality": "target",
+      "status": "verified",
+      "warrant": "source",
+      "exclusive": false,
+      "requiresDecision": false,
+      "topicIds": ["action-adjudication", "project-epistemology", "harbor-authority"],
+      "source": {
+        "kind": "artifact",
+        "ref": "docs/research/egosystem-reconciliation/final/architecture.md:131",
+        "lineStart": 131,
+        "lineEnd": 133,
+        "excerpt": "A disposition proposal has no state effect; decision acceptance and effect request produce separate receipts."
+      },
+      "links": { "duplicates": [], "supersedes": [], "implements": [] },
+      "salvage": { "unique": false, "destination": null }
+    },
+    {
+      "id": "pr-10123-action-adjudication",
+      "scope": "port-daddy/agent-harbor",
+      "decisionKey": "action-adjudication-record-separation",
+      "subject": "Action authorization and observed effect records",
+      "predicate": "remain",
+      "value": "separate exact proposal decision and effect records",
+      "polarity": "affirm",
+      "modality": "implementation",
+      "status": "verified",
+      "warrant": "source",
+      "exclusive": false,
+      "requiresDecision": false,
+      "topicIds": ["action-adjudication", "project-epistemology", "harbor-authority"],
+      "source": {
+        "kind": "pr",
+        "ref": "codex/provable-action-adjudication-contract:docs/adr/0140-provable-action-adjudication-contract.md",
+        "excerpt": "Phase 0 defines separate ActionProposal, AdjudicationReceipt, and EffectReceipt records without starting a runtime.",
+        "prNumber": 10123
+      },
+      "links": { "duplicates": [], "supersedes": [], "implements": ["action-adjudication-plan"] },
+      "salvage": { "unique": false, "destination": null }
+    },
+    {
+      "id": "pr-9989-chartroom-authority",
+      "scope": "port-daddy/open-prs",
+      "decisionKey": "chartroom-authority-kernel",
+      "subject": "PR #9989",
+      "predicate": "proposes",
+      "value": "Chartroom authority kernel",
+      "polarity": "affirm",
+      "modality": "target",
+      "status": "candidate",
+      "warrant": "source",
+      "exclusive": false,
+      "requiresDecision": false,
+      "topicIds": ["harbor-authority", "project-epistemology"],
+      "source": { "kind": "pr", "ref": "PR #9989 cached preview", "excerpt": "Chartroom authority kernel", "prNumber": 9989 },
+      "links": { "duplicates": [], "supersedes": [], "implements": [] },
+      "salvage": { "unique": false, "destination": null }
+    },
+    {
+      "id": "pr-9970-porthole",
+      "scope": "port-daddy/open-prs",
+      "decisionKey": "porthole-foundation",
+      "subject": "PR #9970",
+      "predicate": "proposes",
+      "value": "Porthole foundation",
+      "polarity": "affirm",
+      "modality": "target",
+      "status": "candidate",
+      "warrant": "source",
+      "exclusive": false,
+      "requiresDecision": false,
+      "topicIds": ["evidence-provenance", "project-epistemology"],
+      "source": { "kind": "pr", "ref": "PR #9970 cached preview", "excerpt": "Porthole foundation", "prNumber": 9970 },
+      "links": { "duplicates": [], "supersedes": [], "implements": [] },
+      "salvage": { "unique": false, "destination": null }
+    },
+    {
+      "id": "pr-9914-parley",
+      "scope": "port-daddy/open-prs",
+      "decisionKey": "sugar-first-parley",
+      "subject": "PR #9914",
+      "predicate": "proposes",
+      "value": "Sugar-first Parley path",
+      "polarity": "affirm",
+      "modality": "target",
+      "status": "candidate",
+      "warrant": "source",
+      "exclusive": false,
+      "requiresDecision": false,
+      "topicIds": ["parley", "project-epistemology"],
+      "source": { "kind": "pr", "ref": "PR #9914 cached preview", "excerpt": "Sugar-first Parley path", "prNumber": 9914 },
+      "links": { "duplicates": [], "supersedes": [], "implements": [] },
+      "salvage": { "unique": false, "destination": null }
+    },
+    {
+      "id": "pr-9987-convoy-rfc",
+      "scope": "port-daddy/open-prs",
+      "decisionKey": "convoy-platform-rfc",
+      "subject": "PR #9987",
+      "predicate": "proposes",
+      "value": "Convoy platform RFC",
+      "polarity": "affirm",
+      "modality": "target",
+      "status": "candidate",
+      "warrant": "source",
+      "exclusive": false,
+      "requiresDecision": false,
+      "topicIds": ["platform-rfc"],
+      "source": { "kind": "pr", "ref": "PR #9987 cached preview", "excerpt": "Convoy/platform RFC", "prNumber": 9987 },
+      "links": { "duplicates": [], "supersedes": [], "implements": [] },
+      "salvage": { "unique": false, "destination": null }
+    }
+  ],
+  "pullRequests": [
+    {
+      "number": 9914, "title": "Sugar-first Parley path", "state": "open", "draft": false, "metadataCompleteness": "partial",
+      "topicIds": ["parley", "project-epistemology"], "claimIds": ["pr-9914-parley"], "foldInto": null,
+      "signals": { "checks": "unknown", "review": "unknown", "mergeability": "unknown", "recovered": false, "stale": false, "historicalOnly": false, "noUniqueClaimsVerified": false, "suggestedDisposition": null }
+    },
+    {
+      "number": 9970, "title": "Porthole foundation", "state": "open", "draft": false, "metadataCompleteness": "partial",
+      "topicIds": ["evidence-provenance", "project-epistemology"], "claimIds": ["pr-9970-porthole"], "foldInto": null,
+      "signals": { "checks": "unknown", "review": "unknown", "mergeability": "unknown", "recovered": false, "stale": false, "historicalOnly": false, "noUniqueClaimsVerified": false, "suggestedDisposition": null }
+    },
+    {
+      "number": 9987, "title": "Convoy/platform RFC", "state": "open", "draft": false, "metadataCompleteness": "partial",
+      "topicIds": ["platform-rfc"], "claimIds": ["pr-9987-convoy-rfc"], "foldInto": null,
+      "signals": { "checks": "unknown", "review": "unknown", "mergeability": "unknown", "recovered": false, "stale": false, "historicalOnly": false, "noUniqueClaimsVerified": false, "suggestedDisposition": null }
+    },
+    {
+      "number": 9989, "title": "Chartroom authority kernel", "state": "open", "draft": false, "metadataCompleteness": "partial",
+      "topicIds": ["harbor-authority", "project-epistemology"], "claimIds": ["pr-9989-chartroom-authority", "roadmap-remote-ledger-target"], "foldInto": null,
+      "signals": { "checks": "unknown", "review": "unknown", "mergeability": "unknown", "recovered": false, "stale": false, "historicalOnly": false, "noUniqueClaimsVerified": false, "suggestedDisposition": null }
+    },
+    {
+      "number": 10083, "title": "[exact title unavailable] recovered stale-worktree change", "state": "open", "draft": true, "metadataCompleteness": "number-only",
+      "topicIds": ["recovered-work"], "claimIds": [], "foldInto": null,
+      "signals": { "checks": "unknown", "review": "incomplete", "mergeability": "unknown", "recovered": true, "stale": true, "historicalOnly": false, "noUniqueClaimsVerified": false, "suggestedDisposition": null }
+    },
+    {
+      "number": 10084, "title": "[exact title unavailable] recovered stale-worktree change", "state": "open", "draft": true, "metadataCompleteness": "number-only",
+      "topicIds": ["recovered-work"], "claimIds": [], "foldInto": null,
+      "signals": { "checks": "unknown", "review": "incomplete", "mergeability": "unknown", "recovered": true, "stale": true, "historicalOnly": false, "noUniqueClaimsVerified": false, "suggestedDisposition": null }
+    },
+    {
+      "number": 10085, "title": "[exact title unavailable] recovered stale-worktree change", "state": "open", "draft": true, "metadataCompleteness": "number-only",
+      "topicIds": ["recovered-work"], "claimIds": [], "foldInto": null,
+      "signals": { "checks": "unknown", "review": "incomplete", "mergeability": "unknown", "recovered": true, "stale": true, "historicalOnly": false, "noUniqueClaimsVerified": false, "suggestedDisposition": null }
+    },
+    {
+      "number": 10087, "title": "[exact title unavailable] recovered stale-worktree change", "state": "open", "draft": true, "metadataCompleteness": "number-only",
+      "topicIds": ["recovered-work"], "claimIds": [], "foldInto": null,
+      "signals": { "checks": "unknown", "review": "incomplete", "mergeability": "unknown", "recovered": true, "stale": true, "historicalOnly": false, "noUniqueClaimsVerified": false, "suggestedDisposition": null }
+    },
+    {
+      "number": 10088, "title": "[exact title unavailable] recovered stale-worktree change", "state": "open", "draft": true, "metadataCompleteness": "number-only",
+      "topicIds": ["recovered-work"], "claimIds": [], "foldInto": null,
+      "signals": { "checks": "unknown", "review": "incomplete", "mergeability": "unknown", "recovered": true, "stale": true, "historicalOnly": false, "noUniqueClaimsVerified": false, "suggestedDisposition": null }
+    },
+    {
+      "number": 10091, "title": "[exact title unavailable] recovered stale-worktree change", "state": "open", "draft": true, "metadataCompleteness": "number-only",
+      "topicIds": ["recovered-work"], "claimIds": [], "foldInto": null,
+      "signals": { "checks": "unknown", "review": "incomplete", "mergeability": "unknown", "recovered": true, "stale": true, "historicalOnly": false, "noUniqueClaimsVerified": false, "suggestedDisposition": null }
+    },
+    {
+      "number": 10093, "title": "[exact title unavailable] recovered stale-worktree change", "state": "open", "draft": true, "metadataCompleteness": "number-only",
+      "topicIds": ["recovered-work"], "claimIds": [], "foldInto": null,
+      "signals": { "checks": "unknown", "review": "incomplete", "mergeability": "unknown", "recovered": true, "stale": true, "historicalOnly": false, "noUniqueClaimsVerified": false, "suggestedDisposition": null }
+    },
+    {
+      "number": 10094, "title": "[exact title unavailable] recovered stale-worktree change", "state": "open", "draft": true, "metadataCompleteness": "number-only",
+      "topicIds": ["recovered-work"], "claimIds": [], "foldInto": null,
+      "signals": { "checks": "unknown", "review": "incomplete", "mergeability": "unknown", "recovered": true, "stale": true, "historicalOnly": false, "noUniqueClaimsVerified": false, "suggestedDisposition": null }
+    },
+    {
+      "number": 10095, "title": "[exact title unavailable] recovered stale-worktree change", "state": "open", "draft": true, "metadataCompleteness": "number-only",
+      "topicIds": ["recovered-work"], "claimIds": [], "foldInto": null,
+      "signals": { "checks": "unknown", "review": "incomplete", "mergeability": "unknown", "recovered": true, "stale": true, "historicalOnly": false, "noUniqueClaimsVerified": false, "suggestedDisposition": null }
+    },
+    {
+      "number": 10096, "title": "[exact title unavailable] recovered stale-worktree change", "state": "open", "draft": true, "metadataCompleteness": "number-only",
+      "topicIds": ["recovered-work"], "claimIds": [], "foldInto": null,
+      "signals": { "checks": "unknown", "review": "incomplete", "mergeability": "unknown", "recovered": true, "stale": true, "historicalOnly": false, "noUniqueClaimsVerified": false, "suggestedDisposition": null }
+    },
+    {
+      "number": 10108, "title": "Project Epistemology package", "state": "open", "draft": true, "metadataCompleteness": "partial",
+      "topicIds": ["project-epistemology", "contradiction-detection", "harbor-authority"],
+      "claimIds": ["pr-10108-epistemology-package", "pe-non-actuating", "epistemology-structural-detector", "d1a-plan", "d1a-implementation", "no-second-store-architecture", "no-second-store-inventory"],
+      "foldInto": null,
+      "signals": { "checks": "unknown", "review": "unknown", "mergeability": "unknown", "recovered": false, "stale": false, "historicalOnly": false, "noUniqueClaimsVerified": false, "suggestedDisposition": null }
+    },
+    {
+      "number": 10123, "title": "Provable action adjudication contract", "state": "open", "draft": false, "metadataCompleteness": "partial",
+      "topicIds": ["action-adjudication", "project-epistemology", "harbor-authority"],
+      "claimIds": ["pr-10123-action-adjudication"],
+      "foldInto": null,
+      "signals": { "checks": "unknown", "review": "unknown", "mergeability": "unknown", "recovered": false, "stale": false, "historicalOnly": false, "noUniqueClaimsVerified": false, "suggestedDisposition": null }
+    }
+  ]
+}
