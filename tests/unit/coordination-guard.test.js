@@ -364,13 +364,13 @@ describe('Coordination Guard', () => {
     const merged = mergePreCommitHook(existing);
 
     expect(merged).toContain('Port Daddy Coordination Guard');
-    expect(merged).toContain('[ ! -e "$pd_guard_home/hooks.disabled" ] || return 1');
+    expect(merged).toContain('[ ! -e "$pd_gate_marker" ] && [ ! -L "$pd_gate_marker" ] || exit 1');
     expect(merged.indexOf('hooks.disabled')).toBeLessThan(merged.indexOf('command -v pd'));
     expect(merged).toContain('.portdaddy/coordination-guard.json');
     expect(merged).toContain('daemon.ready');
     expect(merged).toContain('daemon.pid');
     expect(merged).toContain('heartbeat');
-    expect(merged).toContain('[ "$pd_guard_ready_pid" = "$pd_guard_daemon_pid" ]');
+    expect(merged).toContain('[ "$pd_gate_ready_pid" = "$pd_gate_daemon_pid" ]');
     expect(merged.indexOf('pd guard check --staged --hook')).toBeLessThan(merged.lastIndexOf('exit 0'));
   });
 
@@ -412,18 +412,18 @@ describe('Coordination Guard', () => {
     const block = mergePreCommitHook('');
     const mtimeLines = block
       .split('\n')
-      .filter((line) => line.includes('pd_guard_heartbeat_mtime='))
+      .filter((line) => line.includes('pd_gate_mtime='))
       // (?!_) or the substitution eats the prefix of $pd_guard_heartbeat_mtime
       // and leaves "<path>_mtime", which is never digits, so the BSD branch
       // fires unconditionally -- which is how this test first "passed" a
       // filesystem report off as a timestamp.
-      .map((line) => line.trim().replace(/\$pd_guard_heartbeat(?!_)/g, `"${heartbeat}"`));
+      .map((line) => line.trim().replace(/\$pd_gate_heartbeat(?!_)/g, `"${heartbeat}"`));
     expect(mtimeLines.length).toBeGreaterThanOrEqual(2); // one per dialect, not a chain
 
     const script = [
       'set -u',
       ...mtimeLines,
-      'printf %s "$pd_guard_heartbeat_mtime"',
+      'printf %s "$pd_gate_mtime"',
     ].join('\n');
     const result = spawnSync('/bin/sh', ['-c', script], { encoding: 'utf8' });
 
@@ -445,7 +445,9 @@ describe('Coordination Guard', () => {
     mkdirSync(pdHome, { recursive: true });
     mkdirSync(fakeBin, { recursive: true });
     writeFileSync(join(fakeBin, 'pd'), '#!/bin/sh\nprintf called > "$PD_GUARD_CALLED"\n', { mode: 0o755 });
-    writeFileSync(hook, mergePreCommitHook(''), { mode: 0o755 });
+    // Bind the canonical root only in this inert fixture, not the operator HOME.
+    const fixtureHook = mergePreCommitHook('').replaceAll('"${HOME:+$HOME/.port-daddy}"', '"$PD_HOME"');
+    writeFileSync(hook, fixtureHook, { mode: 0o755 });
     expect(spawnSync('git', ['init'], { cwd: repo }).status).toBe(0);
 
     const env = {
@@ -572,10 +574,10 @@ describe('Coordination Guard', () => {
     const merged = mergePostCommitHook(existing);
 
     expect(merged).toContain('Port Daddy Coordination Guard');
-    expect(merged).toContain('[ ! -e "$pd_guard_home/hooks.disabled" ] || return 1');
+    expect(merged).toContain('[ ! -e "$pd_gate_marker" ] && [ ! -L "$pd_gate_marker" ] || exit 1');
     expect(merged.indexOf('hooks.disabled')).toBeLessThan(merged.indexOf('command -v pd'));
     expect(merged).toContain('.portdaddy/coordination-guard.json');
-    expect(merged).toContain('[ "$pd_guard_age" -le 30 ]');
+    expect(merged).toContain('[ "$pd_gate_age" -le 30 ]');
     expect(merged).toContain('pd guard check --post-commit --hook || true');
     expect(merged).toContain('port-daddy guard check --post-commit --hook || true');
     expect(merged).not.toContain('pd guard check --post-commit --hook || exit $?');
