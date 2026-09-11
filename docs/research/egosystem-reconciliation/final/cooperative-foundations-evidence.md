@@ -79,3 +79,12 @@ App-authored, **not** because of a global pause. Do not use that as pause eviden
 or change authorship merely to bypass the safety gate. A global Fleet pause has
 not been independently verified; publication is held. No PR, review request,
 workflow dispatch, service activation, paid agent or deployment was performed.
+
+### Publication continuation, 2026-09-10
+
+The paragraph above records the 2026-09-09 hold. On 2026-09-10 the operator
+explicitly authorized scoped GitHub App publication. The continuation uses that
+App identity, not the operator's personal account, and does not claim global
+Fleet pause or independent review. The foundation is stacked above #10108's
+current research head; original research and newer clearance work are preserved.
+PR/check readback and remaining native/merge gates are recorded in the PR body.
