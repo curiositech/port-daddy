@@ -33,8 +33,10 @@ Any agent that takes more than ~10 seconds between "start work" and
 "commit" MUST do its work in a separate git worktree:
 
 ```bash
-wt="../$(basename "$PWD")-$AGENT_NAME-$(date +%s)"
-git worktree add "$wt"
+stamp="$(date +%s)"
+wt="$HOME/coding/tmp/$(basename "$PWD")-$AGENT_NAME-$stamp"
+branch="codex/$AGENT_NAME-$stamp"
+git worktree add -b "$branch" "$wt" origin/main
 cd "$wt"
 # ... work, validate, commit here ...
 ```

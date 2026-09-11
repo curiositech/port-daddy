@@ -51,11 +51,13 @@ I saw all four. I didn't read them.
 Once you discover you've committed into someone else's rebase:
 
 ```bash
-# 1. SAVE your work as a patch — don't trust it'll survive what comes next.
-git format-patch -1 HEAD --stdout > /tmp/my-work.patch
+# 1. SAVE your work under the durable scratch root.
+RECOVERY_STAMP="$(date +%s)"
+RECOVERY_PATCH="$HOME/coding/tmp/my-work-$RECOVERY_STAMP.patch"
+git format-patch -1 HEAD --stdout > "$RECOVERY_PATCH"
 
 # 2. Verify the patch captured what you intended.
-head -5 /tmp/my-work.patch
+head -5 "$RECOVERY_PATCH"
 # Subject line should match YOUR commit message. If not, see "patch caught wrong commit" below.
 
 # 3. Abort the rebase. This restores the branch to pre-rebase state.
@@ -69,17 +71,19 @@ git status
 
 # 6. Move to a clean worktree from origin/main.
 git fetch origin main
-git worktree add -b feature/<my-task-name> /tmp/my-work-tree origin/main
-cd /tmp/my-work-tree
+RECOVERY_WORKTREE="$HOME/coding/tmp/my-work-tree-$RECOVERY_STAMP"
+RECOVERY_BRANCH="codex/my-task-name"  # replace my-task-name with the real slug
+git worktree add -b "$RECOVERY_BRANCH" "$RECOVERY_WORKTREE" origin/main
+cd "$RECOVERY_WORKTREE"
 
 # 7. Apply your patch in the new worktree.
-git am /tmp/my-work.patch
+git am "$RECOVERY_PATCH"
 # OR if the patch had wrong content:
 #   apply your changes manually, the patch is just a backup
 
 # 8. Re-run tests + coordination.
-pd begin "<your task>" --identity ... --lifecycle durable
-pd note "Scope: ..."
+pd begin "<your task>" --identity ... --lifecycle durable --roadmap <same-roadmap-slug>
+pd note "Predecessor: <old-session-id>. Scope: recovering my commit in a clean worktree."
 # claim files, work, commit, push
 ```
 
@@ -89,7 +93,7 @@ pd note "Scope: ..."
 
 Recovery:
 - `git log --all --oneline` to find your actual commit hash by message.
-- `git format-patch -1 <your-hash> --stdout > /tmp/my-work.patch`.
+- `git format-patch -1 <your-hash> --stdout > "$RECOVERY_PATCH"`.
 - If the commit is gone from any branch / unreachable: `git reflog` to find the SHA, then format-patch from it before reflog expires.
 
 ## Prevention (the actual lesson)
