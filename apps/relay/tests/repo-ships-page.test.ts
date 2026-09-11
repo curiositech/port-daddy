@@ -112,15 +112,15 @@ describe('signed-in ship UI', () => {
     const body = await result.text();
     expect(result.status).toBe(403);
     expect(body).toContain('Reconnect GitHub to continue.');
-    expect(body).toContain('href="/auth/github/login"');
+    expect(body).toContain('href="/auth/github/login?return_to=%2Faccount%2Fships%3Frepo%3Downer%2Frepo"');
     expect(body).toContain('Back to account');
     expect(prepare).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled();
   });
   it.each([
-    [401, 'Reconnect GitHub to continue.', '/auth/github/login', 403],
-    [403, 'GitHub did not grant repository access.', '/auth/github/login', 403],
-    [404, 'GitHub did not grant repository access.', '/auth/github/login', 403],
+    [401, 'Reconnect GitHub to continue.', '/auth/github/login?return_to=%2Faccount%2Fships%3Frepo%3Downer%2Frepo', 403],
+    [403, 'GitHub did not grant repository access.', '/auth/github/login?return_to=%2Faccount%2Fships%3Frepo%3Downer%2Frepo', 403],
+    [404, 'GitHub did not grant repository access.', '/auth/github/login?return_to=%2Faccount%2Fships%3Frepo%3Downer%2Frepo', 403],
     [429, 'GitHub could not be reached.', '/account/ships?repo=owner%2Frepo', 503],
     [503, 'GitHub could not be reached.', '/account/ships?repo=owner%2Frepo', 503],
   ])('distinguishes GitHub status %s without querying private telemetry', async (upstream, message, action, status) => {
