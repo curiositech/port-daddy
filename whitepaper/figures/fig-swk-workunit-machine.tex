@@ -25,8 +25,12 @@
   \draw[pd arrow] (W)--(V) node[glabel,midway,left=3pt] {g3 verify};
   \draw[pd arrow] (V)--(S) node[glabel,midway,left=3pt] {g5 settle};
 
-  % contested, branching left off witnessed -- well clear of the witnessed box
-  \node[lane,fill=hhsand!30] (C) at (-1.9,3.7) {contested};
+  % contested, branching left off witnessed -- well clear of the witnessed box.
+  % The pale sand refill must carry its own dark text: `lane` is `pd state`,
+  % whose swiss-edition override sets text=hhpaper for the ordinary case of a
+  % solid, saturated fill, and that inherited text otherwise survives this
+  % later fill override untouched.
+  \node[lane,fill=hhsand!30,text=hhink] (C) at (-1.9,3.7) {contested};
   \draw[pd arrow] (W)--(C) node[glabel,midway,above] {contest};
 
   % write-targets, branching right

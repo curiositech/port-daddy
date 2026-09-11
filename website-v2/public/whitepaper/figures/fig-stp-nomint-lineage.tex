@@ -6,7 +6,11 @@
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm,
-  live/.style={pd state,circle,minimum size=7.5mm,inner sep=0pt,font=\footnotesize,fill=hhteal!24,draw=hhteal},
+  % The pale teal wash must carry its own dark text: `pd state`'s swiss-edition
+  % override sets text=hhpaper for the ordinary case of a solid, saturated
+  % fill, and that inherited text otherwise survives this later fill override
+  % untouched (contrast `spent` below, which already restates its own text=).
+  live/.style={pd state,circle,minimum size=7.5mm,inner sep=0pt,font=\footnotesize,fill=hhteal!24,draw=hhteal,text=hhink},
   spent/.style={pd state,circle,minimum size=7.5mm,inner sep=0pt,font=\footnotesize,fill=white,draw=hhgray,text=hhgray}]
   % panel A: budget-only, refuted
   \node[pd row label,anchor=south,align=center,text width=3.4cm] at (0,2.55) {budget-only\\\normalfont refuted};
