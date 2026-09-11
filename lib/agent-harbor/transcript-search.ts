@@ -212,6 +212,7 @@ const SEARCH_INDEX_TABLES_SQL = `
     ledger_seq      INTEGER NOT NULL,
     source          TEXT NOT NULL,
     corpus_id       TEXT NOT NULL,
+    corpus_policy_digest TEXT NOT NULL,
     session_id      TEXT,
     agent_node_id   TEXT,
     run_id          TEXT,
@@ -237,6 +238,8 @@ const SEARCH_INDEX_TABLES_SQL = `
 
   CREATE TABLE IF NOT EXISTS harbor_search_meta (
     id              INTEGER PRIMARY KEY CHECK (id = 1),
+    corpus_id       TEXT NOT NULL,
+    corpus_policy_digest TEXT NOT NULL,
     last_ledger_seq INTEGER NOT NULL DEFAULT 0,
     updated_at      TEXT
   );
@@ -257,6 +260,7 @@ const REQUIRED_SEARCH_INDEX_COLUMNS = [
   'ledger_seq',
   'source',
   'corpus_id',
+  'corpus_policy_digest',
   'text',
   'token_count',
   'visibility',
@@ -275,12 +279,23 @@ const REQUIRED_SEARCH_INDEX_COLUMNS = [
   'embedding_production_receipt_id',
 ] as const;
 
+const REQUIRED_SEARCH_META_COLUMNS = [
+  'id',
+  'corpus_id',
+  'corpus_policy_digest',
+  'last_ledger_seq',
+  'updated_at',
+] as const;
+
 export function ensureSearchIndexSchema(db: DatabaseInstance): void {
   ensureEventLedgerSchema(db);
   db.exec(SEARCH_INDEX_TABLES_SQL);
   let columns = db.prepare('PRAGMA table_info(harbor_search_index)').all() as Array<{ name: string }>;
   let present = new Set(columns.map((column) => column.name));
-  const isLegacy = REQUIRED_SEARCH_INDEX_COLUMNS.some((column) => !present.has(column));
+  let metaColumns = db.prepare('PRAGMA table_info(harbor_search_meta)').all() as Array<{ name: string }>;
+  let metaPresent = new Set(metaColumns.map((column) => column.name));
+  const isLegacy = REQUIRED_SEARCH_INDEX_COLUMNS.some((column) => !present.has(column))
+    || REQUIRED_SEARCH_META_COLUMNS.some((column) => !metaPresent.has(column));
   if (isLegacy) {
     // This table is a disposable projection. Rows without exact scope,
     // sanitization lineage, policy, and space identity are rebuilt from the
@@ -289,11 +304,18 @@ export function ensureSearchIndexSchema(db: DatabaseInstance): void {
     db.exec(SEARCH_INDEX_TABLES_SQL);
     columns = db.prepare('PRAGMA table_info(harbor_search_index)').all() as Array<{ name: string }>;
     present = new Set(columns.map((column) => column.name));
+    metaColumns = db.prepare('PRAGMA table_info(harbor_search_meta)').all() as Array<{ name: string }>;
+    metaPresent = new Set(metaColumns.map((column) => column.name));
   }
   db.exec(SEARCH_INDEX_INDEXES_SQL);
   for (const required of REQUIRED_SEARCH_INDEX_COLUMNS) {
     if (!present.has(required)) {
       throw new Error(`harbor_search_index migration verification failed: missing column ${required}`);
+    }
+  }
+  for (const required of REQUIRED_SEARCH_META_COLUMNS) {
+    if (!metaPresent.has(required)) {
+      throw new Error(`harbor_search_meta migration verification failed: missing column ${required}`);
     }
   }
 }
@@ -400,18 +422,40 @@ const STREAM_TO_SOURCE: Record<string, SearchSource> = {
   'work-receipt': 'receipts',
 };
 
-function getCheckpoint(db: DatabaseInstance): number {
-  const row = db.prepare('SELECT last_ledger_seq FROM harbor_search_meta WHERE id = 1').get() as
-    | { last_ledger_seq: number }
+function getCheckpoint(db: DatabaseInstance, policy: CorpusPolicy): number {
+  const row = db.prepare(
+    'SELECT corpus_id, corpus_policy_digest, last_ledger_seq FROM harbor_search_meta WHERE id = 1',
+  ).get() as
+    | { corpus_id: string; corpus_policy_digest: string; last_ledger_seq: number }
     | undefined;
-  return row?.last_ledger_seq ?? 0;
+  if (
+    !row
+    || row.corpus_id !== policy.corpusId
+    || row.corpus_policy_digest !== policy.policyDigest
+  ) return 0;
+  return row.last_ledger_seq;
 }
 
-function setCheckpoint(db: DatabaseInstance, seq: number): void {
+function preparePolicyGeneration(db: DatabaseInstance, policy: CorpusPolicy): number {
+  const checkpoint = getCheckpoint(db, policy);
+  const anyMeta = db.prepare('SELECT id FROM harbor_search_meta WHERE id = 1').get();
+  if (anyMeta && checkpoint === 0) {
+    db.exec('DELETE FROM harbor_search_index; DELETE FROM harbor_search_meta;');
+  }
+  return checkpoint;
+}
+
+function setCheckpoint(db: DatabaseInstance, seq: number, policy: CorpusPolicy): void {
   db.prepare(
-    `INSERT INTO harbor_search_meta (id, last_ledger_seq, updated_at) VALUES (1, ?, ?)
-     ON CONFLICT(id) DO UPDATE SET last_ledger_seq = excluded.last_ledger_seq, updated_at = excluded.updated_at`,
-  ).run(seq, new Date().toISOString());
+    `INSERT INTO harbor_search_meta (
+       id, corpus_id, corpus_policy_digest, last_ledger_seq, updated_at
+     ) VALUES (1, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       corpus_id = excluded.corpus_id,
+       corpus_policy_digest = excluded.corpus_policy_digest,
+       last_ledger_seq = excluded.last_ledger_seq,
+       updated_at = excluded.updated_at`,
+  ).run(policy.corpusId, policy.policyDigest, seq, new Date().toISOString());
 }
 
 /**
@@ -426,7 +470,7 @@ export function indexPending(
   ensureSearchIndexSchema(db);
   const policy = options.policy ?? localTextCorpusPolicy(TRANSCRIPT_SEARCH_CORPUS_ID);
   if (policy.corpusId !== TRANSCRIPT_SEARCH_CORPUS_ID) throw new SearchPolicyMismatchError();
-  const fromSeq = getCheckpoint(db);
+  const fromSeq = preparePolicyGeneration(db, policy);
   const head = ledgerHeadSeq(db);
   let indexed = 0;
   let skippedRedacted = 0;
@@ -436,11 +480,12 @@ export function indexPending(
   let after = fromSeq;
   const insert = db.prepare(
     `INSERT OR IGNORE INTO harbor_search_index (
-       event_id, ledger_seq, source, corpus_id, session_id, agent_node_id, run_id, kind,
+       event_id, ledger_seq, source, corpus_id, corpus_policy_digest,
+       session_id, agent_node_id, run_id, kind,
        occurred_at, visibility, harbor_id, repo_ref, text, token_count,
        source_digest, derivative_digest, redaction_receipt_id, redaction_policy_id,
        retention_policy_id, admission_receipt_json
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   while (after < head) {
     const rows = db
@@ -489,6 +534,7 @@ export function indexPending(
         row.ledger_seq,
         STREAM_TO_SOURCE[row.stream_type],
         policy.corpusId,
+        policy.policyDigest,
         row.session_id,
         row.agent_node_id,
         row.run_id,
@@ -511,7 +557,7 @@ export function indexPending(
     if (rows.length < PAGE) break;
     after = rows[rows.length - 1].ledger_seq;
   }
-  setCheckpoint(db, head);
+  setCheckpoint(db, head, policy);
   return { indexed, skippedRedacted, skippedUnscoped, sanitized, fromSeq, toSeq: head };
 }
 
@@ -539,7 +585,7 @@ export async function embedPending(db: DatabaseInstance, embedder: LocalEmbedder
     const rows = db
       .prepare(
         `SELECT event_id, text FROM harbor_search_index
-         WHERE corpus_id = ? AND (
+         WHERE corpus_id = ? AND corpus_policy_digest = ? AND (
            embedding_json IS NULL
            OR embedding_space_id IS NOT ?
            OR embedding_policy_digest IS NOT ?
@@ -549,6 +595,7 @@ export async function embedPending(db: DatabaseInstance, embedder: LocalEmbedder
       )
       .all(
         embedder.policy.corpusId,
+        embedder.policy.policyDigest,
         embedder.spaceId,
         embedder.policy.policyDigest,
         productionReceipt.receiptDigest,
@@ -600,6 +647,7 @@ interface IndexRow {
   ledger_seq: number;
   source: SearchSource;
   corpus_id: string;
+  corpus_policy_digest: string;
   session_id: string | null;
   agent_node_id: string | null;
   run_id: string | null;
@@ -811,6 +859,8 @@ export async function searchTranscripts(
   const params: unknown[] = [];
   where.push('corpus_id = ?');
   params.push(policy.corpusId);
+  where.push('corpus_policy_digest = ?');
+  params.push(policy.policyDigest);
   where.push('harbor_id = ?');
   params.push(harborId);
   where.push('redaction_policy_id = ?');
@@ -912,7 +962,7 @@ export async function searchTranscripts(
   });
 
   const head = ledgerHeadSeq(db);
-  const checkpoint = getCheckpoint(db);
+  const checkpoint = getCheckpoint(db, policy);
   const result: TranscriptSearchResult = {
     schema: 'pd.agent-harbor.transcript-search-result.v0',
     queryId: query.queryId,

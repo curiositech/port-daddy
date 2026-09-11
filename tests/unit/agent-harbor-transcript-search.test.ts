@@ -578,10 +578,22 @@ describe('agent-harbor transcript search (M6, ADR-0097 phase 2)', () => {
     const columns = db.prepare('PRAGMA table_info(harbor_search_index)').all() as Array<{ name: string }>;
     expect(columns.map((column) => column.name)).toEqual(expect.arrayContaining([
       'harbor_id',
+      'corpus_policy_digest',
       'redaction_receipt_id',
       'embedding_space_id',
       'embedding_production_receipt_id',
     ]));
+  });
+
+  it('keeps old-policy rows out of both lexical candidates and dense production', async () => {
+    indexPending(db);
+    db.prepare(
+      `UPDATE harbor_search_index
+          SET corpus_policy_digest = 'sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'`,
+    ).run();
+    expect(await embedPending(db, fakeEmbedder)).toBe(0);
+    const result = await searchTranscripts(db, baseQuery(), { autoIndex: false });
+    expect(result.hits).toEqual([]);
   });
 
   it('fails closed on a dense embedder bound to another corpus or malformed vectors', async () => {
