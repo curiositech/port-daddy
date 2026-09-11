@@ -11,6 +11,7 @@ fails on is a claim.
 from __future__ import annotations
 
 import importlib.util
+import re
 import sys
 import tempfile
 import unittest
@@ -182,6 +183,44 @@ class OffTheFootTests(unittest.TestCase):
         below, visible = self.findings(40)           # 40 pt above the bottom edge
         self.assertEqual(below, [])
         self.assertEqual(len(visible), 1)
+
+
+class PageGeometryMatchesTheBookTests(unittest.TestCase):
+    """The page constants are a copy of the Book's \\geometry, and a silent copy.
+
+    page_overflow.py hardcodes the trim and the text block. Every measurement it
+    makes -- off the paper, past the column, over the running foot -- is relative
+    to those numbers, so if the Book's geometry moves and these do not, the
+    script does not fail: it keeps reporting confidently against a page that no
+    longer exists. There was no check that they agree. This is that check, read
+    from the preamble that actually sets them.
+    """
+
+    GEOMETRY = Path(__file__).resolve().parents[2] / "website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex"
+
+    def geometry(self):
+        text = self.GEOMETRY.read_text(encoding="utf-8")
+        match = re.search(r"\\geometry\{(.+?)\}", text, re.S)
+        self.assertIsNotNone(match, f"no \\geometry{{...}} in {self.GEOMETRY}")
+        body = re.sub(r"%.*?$", "", match.group(1), flags=re.M)
+        out = {}
+        for key, value in re.findall(r"([a-z]+)\s*=\s*([0-9.]+)in", body):
+            out[key] = float(value) * 72.0
+        return out
+
+    def test_the_trim_matches(self):
+        geometry = self.geometry()
+        self.assertAlmostEqual(po.PAPER_W, geometry["paperwidth"], places=3)
+        self.assertAlmostEqual(po.PAPER_H, geometry["paperheight"], places=3)
+
+    def test_the_text_block_matches(self):
+        geometry = self.geometry()
+        self.assertAlmostEqual(po.INNER, geometry["left"], places=3)
+        # The measure is what the trim leaves after both margins; the preamble
+        # sets the margins and never names the width, so derive it the same way.
+        self.assertAlmostEqual(
+            po.TEXTW, geometry["paperwidth"] - geometry["left"] - geometry["right"], places=3,
+        )
 
 
 class ImageOffThePaperTests(unittest.TestCase):
