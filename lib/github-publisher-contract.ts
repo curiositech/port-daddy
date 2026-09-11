@@ -211,7 +211,8 @@ export function validateRoadmapTrailer(
     return null;
   }
   const reason = value.match(/^none(?:\s*[—–:-]\s*|\s+)(.+)$/i)?.[1]?.trim();
-  if (!authorship.sidequestReason || !reason || reason.length < 12) {
+  if (!authorship.sidequestReason || !reason || reason.length < 12
+      || reason.toLocaleLowerCase('en-US') !== authorship.sidequestReason.trim().toLocaleLowerCase('en-US')) {
     return {
       code: 'ROADMAP_OPT_OUT_INVALID',
       error: 'Sidequest PRs require exactly one Roadmap-Item: none — <specific reason> trailer.',

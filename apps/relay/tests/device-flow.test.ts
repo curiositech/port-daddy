@@ -59,6 +59,12 @@ describe('handleDeviceStart', () => {
     const res = await handleDeviceStart(new Request(`${BASE}/auth/device/start`, { method: 'POST' }), env());
     expect(res.status).toBe(502);
   });
+  it('returns a bounded 502 when GitHub transport rejects', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new DOMException('timed out', 'TimeoutError'); }));
+    const res = await handleDeviceStart(new Request(`${BASE}/auth/device/start`, { method: 'POST' }), env());
+    expect(res.status).toBe(502);
+    expect(await res.json()).toMatchObject({ code: 'DEVICE_START_FAILED' });
+  });
   // Non-tautology: the handler TRANSFORMS GitHub's payload — it supplies its own
   // defaults for interval/expires_in when GitHub omits them. A pass-through of
   // the mock would return undefined for these, so this pins real logic.
@@ -129,6 +135,12 @@ describe('handleDeviceToken', () => {
 
   it('400 without a device_code', async () => {
     expect((await handleDeviceToken(post({}), env())).status).toBe(400);
+  });
+  it('returns a bounded 502 when the token poll transport rejects', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new DOMException('timed out', 'TimeoutError'); }));
+    const res = await handleDeviceToken(post({ device_code: 'dc' }), env());
+    expect(res.status).toBe(502);
+    expect(await res.json()).toMatchObject({ code: 'TOKEN_POLL_FAILED' });
   });
   it('returns pending while the user has not authorized yet', async () => {
     stubFetch(() => ({ body: { error: 'authorization_pending' } }));

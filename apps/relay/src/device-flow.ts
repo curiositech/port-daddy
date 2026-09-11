@@ -48,10 +48,18 @@ function configured(env: Env): boolean {
   return Boolean(env.GITHUB_OAUTH_CLIENT_ID && env.USER_TOKEN_WRAPPING_KEY);
 }
 
+async function fetchGitHub(input: string, init: RequestInit): Promise<Response | null> {
+  try {
+    return await fetch(input, init);
+  } catch {
+    return null;
+  }
+}
+
 /** POST /auth/device/start — get a device + user code from GitHub. */
 export async function handleDeviceStart(_request: Request, env: Env): Promise<Response> {
   if (!configured(env)) return json(503, { code: 'LOGIN_UNCONFIGURED', error: 'device login is not configured' });
-  const res = await fetch(GH_DEVICE_CODE, {
+  const res = await fetchGitHub(GH_DEVICE_CODE, {
     method: 'POST',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
     // GitHub App user access tokens do not use OAuth scopes. Their authority
@@ -60,7 +68,7 @@ export async function handleDeviceStart(_request: Request, env: Env): Promise<Re
     redirect: 'error',
     signal: AbortSignal.timeout(GITHUB_TIMEOUT_MS),
   });
-  if (!res.ok) return json(502, { code: 'DEVICE_START_FAILED', error: 'GitHub device-code request failed' });
+  if (!res?.ok) return json(502, { code: 'DEVICE_START_FAILED', error: 'GitHub device-code request failed' });
   const d = (await res.json()) as {
     device_code?: string;
     user_code?: string;
@@ -118,14 +126,14 @@ export async function handleDeviceToken(request: Request, env: Env): Promise<Res
   }
   if (!body.device_code) return json(400, { code: 'BAD_REQUEST', error: 'device_code required' });
 
-  const res = await fetch(GH_TOKEN, {
+  const res = await fetchGitHub(GH_TOKEN, {
     method: 'POST',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
     body: JSON.stringify({ client_id: env.GITHUB_OAUTH_CLIENT_ID, device_code: body.device_code, grant_type: DEVICE_GRANT }),
     redirect: 'error',
     signal: AbortSignal.timeout(GITHUB_TIMEOUT_MS),
   });
-  if (!res.ok) return json(502, { code: 'TOKEN_POLL_FAILED', error: 'GitHub token poll failed' });
+  if (!res?.ok) return json(502, { code: 'TOKEN_POLL_FAILED', error: 'GitHub token poll failed' });
   const t = (await res.json()) as { access_token?: string; error?: string };
 
   // GitHub signals not-yet-authorized via an `error` field, not an HTTP status.
@@ -144,23 +152,23 @@ export async function handleDeviceToken(request: Request, env: Env): Promise<Res
   }
 
   // Authorized. Resolve identity, upsert the user, mint a pdu_ token.
-  const userRes = await fetch(`${GH_API}/user`, {
+  const userRes = await fetchGitHub(`${GH_API}/user`, {
     headers: ghHeaders(credential.accessToken),
     redirect: 'error',
     signal: AbortSignal.timeout(GITHUB_TIMEOUT_MS),
   });
-  if (!userRes.ok) return json(502, { code: 'USERINFO_FAILED', error: 'GET /user failed' });
+  if (!userRes?.ok) return json(502, { code: 'USERINFO_FAILED', error: 'GET /user failed' });
   const gh = parseUser(await userRes.json());
   if (!gh) return json(502, { code: 'USERINFO_FAILED', error: 'GET /user returned an unexpected shape' });
 
   let primaryEmail = gh.email;
   let emailVerified = false;
-  const emailRes = await fetch(`${GH_API}/user/emails`, {
+  const emailRes = await fetchGitHub(`${GH_API}/user/emails`, {
     headers: ghHeaders(credential.accessToken),
     redirect: 'error',
     signal: AbortSignal.timeout(GITHUB_TIMEOUT_MS),
   });
-  if (emailRes.ok) {
+  if (emailRes?.ok) {
     const emails = (await emailRes.json()) as Array<{ email: string; primary: boolean; verified: boolean }>;
     const chosen = emails.find((e) => e.primary && e.verified) ?? emails.find((e) => e.verified);
     if (chosen) {

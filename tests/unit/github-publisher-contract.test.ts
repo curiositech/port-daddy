@@ -78,6 +78,10 @@ describe('Fleetbot publisher contract', () => {
     )).toBeNull();
     expect(validateRoadmapTrailer('Roadmap-Item: none — tiny', sidequest)?.code)
       .toBe('ROADMAP_OPT_OUT_INVALID');
+    expect(validateRoadmapTrailer(
+      'Roadmap-Item: none — a different specific hotfix reason',
+      sidequest,
+    )?.code).toBe('ROADMAP_OPT_OUT_INVALID');
   });
 
   test('stamps PR bodies visibly before the sole roadmap trailer and is idempotent', () => {
