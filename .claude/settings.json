@@ -51,7 +51,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ -e \"${PD_HOME:-$HOME/.port-daddy}/hooks.disabled\" ] || pd attention --json 2>/dev/null || true"
+            "command": "/bin/sh \"${CLAUDE_PROJECT_DIR:-.}/hooks/repo-lifecycle\" attention"
           }
         ]
       }
@@ -61,7 +61,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ -e \"${PD_HOME:-$HOME/.port-daddy}/hooks.disabled\" ] || npx tsx scripts/sync-skills.ts --scope user --quiet >/dev/null 2>&1 || true"
+            "command": "/bin/sh \"${CLAUDE_PROJECT_DIR:-.}/hooks/repo-lifecycle\" sync-skills"
           }
         ]
       }

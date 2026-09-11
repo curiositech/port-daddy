@@ -1,4 +1,6 @@
 #!/bin/sh
+# Repository lifecycle hooks remain registered across Off/On transitions.
+# Gate before invoking the CLI or skill-sync helper; this script never enables PD.
 # >>> Port Daddy automatic-hook runtime gate
 pd_hook_runtime_enabled() (
   [ "$#" -eq 2 ] && [ -n "$1" ] && [ -n "$2" ] || exit 1
@@ -59,55 +61,15 @@ pd_hook_runtime_ready() (
 )
 pd_hook_runtime_ready "${HOME:+$HOME/.port-daddy}" "${PD_HOME:-${HOME:+$HOME/.port-daddy}}" || exit 0
 # <<< Port Daddy automatic-hook runtime gate
-# =============================================================================
-# Port Daddy Post-Commit Hook
-# =============================================================================
-# Copy to .git/hooks/post-commit and chmod +x
-# Publishes commit info to a project-scoped Port Daddy git:committed channel.
-# Fleet agents trigger automatically without cross-project bleed.
-# =============================================================================
 
-PORT_FILE="${PORT_DADDY_PORT_FILE:-$HOME/.port-daddy/daemon.port}"
-if [ -n "${PD_URL:-}" ]; then
-  PORT_DADDY_BASE="$PD_URL"
-elif [ -n "${PORT_DADDY_URL:-}" ]; then
-  PORT_DADDY_BASE="$PORT_DADDY_URL"
-elif [ -f "$PORT_FILE" ]; then
-  PORT_DADDY_BASE="http://localhost:$(tr -d '[:space:]' < "$PORT_FILE")"
-else
-  PORT_DADDY_BASE="http://localhost:9876"
-fi
-
-PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-PROJECT_SLUG=$(basename "$PROJECT_ROOT" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g' | cut -c1-24)
-# shasum is Perl's, sha256sum is coreutils'. Plenty of machines have only one,
-# and an empty hash silently collapses every checkout onto a single channel.
-PROJECT_HASH=$(printf '%s' "$PROJECT_ROOT" | { shasum -a 256 2>/dev/null || sha256sum 2>/dev/null; } | cut -c1-12)
-CHANNEL="project:${PROJECT_SLUG:-project}:${PROJECT_HASH}:git:committed"
-
-SHA=$(git rev-parse --short HEAD 2>/dev/null)
-MSG=$(git log -1 --pretty=%s 2>/dev/null)
-AUTHOR=$(git log -1 --pretty=%an 2>/dev/null)
-BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
-FILES=$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | head -20 | tr '\n' ', ')
-
-curl -s -X POST "${PORT_DADDY_BASE}/msg/${CHANNEL}" \
-  -H 'Content-Type: application/json' \
-  -d "{\"payload\": {\"sha\": \"${SHA}\", \"message\": \"${MSG}\", \"author\": \"${AUTHOR}\", \"branch\": \"${BRANCH}\", \"files\": \"${FILES}\"}}" \
-  --connect-timeout 2 --max-time 3 \
-  >/dev/null 2>&1 &
-
-# >>> Port Daddy Skill Sync
-# When this commit touched the first-party skills/ catalog, refresh the local
-# per-runtime symlink fan-out (.claude/skills, .codex/skills, .agy/skills, …) so
-# every agent runtime sees the same library. Fire-and-forget: never blocks or
-# fails a commit (the fan-out is gitignored machine-local state).
-# Manual: npm run skills:sync  ·  Drift check: npm run skills:sync:check
-if git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | grep -q '^skills/'; then
-  if command -v npx >/dev/null 2>&1 && [ -f "$PROJECT_ROOT/scripts/sync-skills.ts" ]; then
-    ( cd "$PROJECT_ROOT" && npx tsx scripts/sync-skills.ts --scope project --quiet >/dev/null 2>&1 & )
-  fi
-fi
-# <<< Port Daddy Skill Sync
-
-exit 0
+case "${1:-}" in
+  attention)
+    command -v pd >/dev/null 2>&1 || exit 0
+    pd attention --json 2>/dev/null || true
+    ;;
+  sync-skills)
+    command -v npx >/dev/null 2>&1 || exit 0
+    cd "$(dirname "$0")/.." || exit 0
+    npx tsx scripts/sync-skills.ts --scope user --quiet >/dev/null 2>&1 || true
+    ;;
+esac
