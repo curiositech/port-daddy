@@ -451,6 +451,14 @@ work; never reset or clobber the main checkout.
 
 ### Test + session gotchas (dev-loop shibboleths)
 
+- **Research reuse is not another authority.** The Project Epistemology D1a lab
+  (`docs/research/egosystem-reconciliation/harness/`) imports the existing Harbor
+  R17 checker without running its sweep at import. Keep fixture envelopes out of
+  production registration, preserve scoped provenance and explicit bounds, and
+  distinguish synthetic replay from canonical conformance and empirical H1–H4
+  evidence. During an operator halt, use only bounded offline tests; never boot
+  the daemon or fan out reviewers to satisfy a research gate.
+
 The friction below costs every fresh session real time. Internalize it.
 
 - **Tests are Jest, not vitest.** `tests/unit/*.test.js` import from
