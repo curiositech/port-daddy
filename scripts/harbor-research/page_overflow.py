@@ -213,7 +213,14 @@ def main():
         has_rule = any(d["rect"].height < 1 and abs(d["rect"].width - TEXTW) < 2 and d["rect"].y0 < 60
                        for d in page.get_drawings())
         for kind, r in items:
-            off_page = max(0, -r.x0) + max(0, r.x1 - PAPER_W)
+            # All four edges. This measured only the two vertical ones -- off the
+            # left of the paper and off the right -- while the text check below
+            # measured all four. A drawing or an image above the head or below
+            # the foot was therefore invisible to this script by construction,
+            # which is how Ostrom's portrait printed with 88 pt of its 117 pt
+            # above the top of p. 343 of the maritime edition and the run still
+            # reported zero ink off the paper.
+            off_page = max(0, -r.x0, r.x1 - PAPER_W, -r.y0, r.y1 - PAPER_H)
             if not has_rule:
                 into_margin = 0  # opener or plate page: no column to respect
             elif outer == "R":

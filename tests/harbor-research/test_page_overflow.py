@@ -184,6 +184,50 @@ class OffTheFootTests(unittest.TestCase):
         self.assertEqual(len(visible), 1)
 
 
+class ImageOffThePaperTests(unittest.TestCase):
+    """A margin portrait that runs off the top or the foot of the paper.
+
+    The off-page test for drawings and images measured only the two vertical
+    edges -- past the left of the paper and past the right -- while the text
+    check measured all four. So a picture above the head or below the foot was
+    invisible to this script by construction. Ostrom's portrait printed with
+    87.9 pt of its 117 pt above the top of p. 343 of the maritime edition,
+    sliced by the paper edge and sitting over the running head, and the run
+    still reported zero ink off the paper. Each case below fails on the
+    two-edge version.
+    """
+
+    def rows(self, rect):
+        with tempfile.TemporaryDirectory() as directory:
+            doc = pymupdf.open()
+            page = book_page(doc)
+            # A one-pixel image is enough: the check reads the placement rect,
+            # never the pixels, and a real portrait would only make it slower.
+            pix = pymupdf.Pixmap(pymupdf.csGRAY, pymupdf.IRect(0, 0, 1, 1), False)
+            pix.clear_with(128)
+            page.insert_image(rect, pixmap=pix)
+            path = Path(directory) / "p.pdf"
+            doc.save(path)
+            page = pymupdf.open(path)[0]
+            out = []
+            for info in page.get_image_info():
+                r = pymupdf.Rect(info["bbox"])
+                off = max(0, -r.x0, r.x1 - po.PAPER_W, -r.y0, r.y1 - po.PAPER_H)
+                if off > 0.5:
+                    out.append(round(off, 1))
+            return out
+
+    def test_a_portrait_above_the_head_is_found(self):
+        # the Ostrom geometry: a 117 pt block whose top is 88 pt off the page
+        self.assertEqual(self.rows(pymupdf.Rect(X1 + 8, -88, X1 + 100, 29)), [88.0])
+
+    def test_a_portrait_below_the_foot_is_found(self):
+        self.assertEqual(self.rows(pymupdf.Rect(X1 + 8, PAPER_H - 29, X1 + 100, PAPER_H + 88)), [88.0])
+
+    def test_a_portrait_on_the_paper_is_not_flagged(self):
+        self.assertEqual(self.rows(pymupdf.Rect(X1 + 8, 120, X1 + 100, 237)), [])
+
+
 class FootIntrusionTests(unittest.TestCase):
     """A table that overruns the text block by less than the foot margin stays
     on the paper and prints over the running foot; the running foot itself,

@@ -1,0 +1,3 @@
+type: fixed
+
+- **A margin portrait no longer prints off the top of the page, and the check that missed it now looks.** Ostrom's portrait in the Bonded Commons chapter was set with 88 pt of its 117 pt above the paper's top edge — her face cut by the trim, the remnant over the running head, on a page two-thirds empty. Margin figures are now anchored by their top to the line that issues them rather than by their foot, so a raise computed while TeX is still filling the previous page can no longer lift them off the next one. `page_overflow.py` measured only the left and right edges for drawings and images while measuring all four for text, which is why it reported zero ink off the paper on the build that shipped this; it now measures all four for every kind.
