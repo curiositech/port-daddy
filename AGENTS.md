@@ -32,21 +32,65 @@ Agents read this file. Operators do not. If an agent's instructions push a CLI c
 
 ## Skill maintenance is part of every slice
 
-The two Port Daddy skills are the operating instructions for *all* future agents working in port-daddy-protected projects. Treat them as load-bearing code:
+The two Port Daddy skills are the operating instructions for *all* future agents working in port-daddy-protected projects. Treat them as pivotal code:
 
 - **`skills/port-daddy-agent-skill/SKILL.md`** — the public skill. Edit when the lesson would help any agent on any project (new verb, deprecated flag, anti-pattern, decision-table gap, inefficient worked example, stale or wrong content).
 - **`skills/port-daddy-internal-dev/SKILL.md`** — the contributor-only skill. Edit when the lesson is specific to editing *this* repo (release ceremony, internal actor embodiments, drift protocol, worked contributor examples).
 
 You are explicitly invited to fix errors, sharpen inefficient passages, and add anti-patterns the moment you notice them — no issue, ticket, or permission required. Same-slice edits (landing the doc fix alongside the code change that revealed the problem) are the default; retrospective edits days later are still owed and welcome. Both skills carry their own "Maintain These Skills" sections with the small ceremony (worktree, explicit-path staging, tests, Cartographer ping). Internal agents working on port-daddy itself own *both* surfaces continuously — split-decision rule lives in `port-daddy-internal-dev`.
 
-## Search & Matching Policy — hybrid, one shared embedder
+## Search & Matching Policy — hybrid, provider-neutral profiles
 
-Operator directive (2026-07-04). Any search, matching, or classification over unstructured text — in a skill, a lib, a script, or the daemon — follows two rules:
+Operator directives (2026-07-04, superseded and expanded 2026-09-01). Any search, matching, reranking, or classification over unstructured content, in a skill, library, script, Worker, app, or daemon, follows these rules:
 
-1. **Never ship lexical-only search.** BM25/TF-IDF alone is the floor, not the ship gate. Pair it with semantic similarity and fuse (RRF or equivalent). Keyword/substring lists remain banned outright.
-2. **One embedding model for everything.** The canonical local model is `Xenova/all-MiniLM-L6-v2` in the shared cache `~/.port-daddy/transformers-cache` (ADR-0061). TypeScript reuses `createLocalEmbedder()` from `lib/semantic-resolver.ts`; everything else (Python skills, shell scripts) shells out to **`pd embed`** (`text`/`stdin` → normalized 384-dim vectors as JSON; `status`/`prefetch` manage the cache). Do not introduce a second model, a per-skill model choice, or a remote embedding API for local matching.
+1. **Never ship lexical-only search.** BM25/TF-IDF is one retriever, not the ship gate. Fuse lexical and compatible dense rankings with RRF or an empirically justified successor. Keyword and substring lists remain banned for unstructured matching.
+2. **Never mix vector spaces.** Every stored vector and query must carry an immutable logical `spaceId` derived from the exact model and model-config digests, preprocessing, pooling, dimensions, normalization, metric, coordinate precision, and quantization recipe. Provider aliases, runtime bindings, and transport encodings are execution provenance, not permission to compare incompatible vectors. A mismatch fails closed or triggers a separately receipted re-embedding migration.
+3. **Use explicit retrieval roles.** Text, code, UI/multimodal, and reranking are separate roles. They may use different versioned profiles. A reranker refines a bounded candidate set and does not silently become an embedding space. A single universal model is allowed only if the golden corpus proves it for every claimed role.
+4. **Select by corpus policy, not machine-wide habit.** A versioned policy chooses an approved local or remote quality tier from the profile registry using corpus privacy, egress authority, quality target, latency budget, and cost cap. Remote inference is allowed only when that corpus policy explicitly permits the provider and data class. Record the selected profile, provider/runtime revision, latency, cost, and benchmark-promotion receipt.
+5. **Filter authority before ranking.** Repo, harbor, account/team, disclosure, retention, and redaction boundaries are hard filters applied before lexical or dense retrieval. Cross-repo and cross-harbor retrieval is default-deny. Index only provenance-bound sanitized derivatives of protected evidence; never let retrieval decrypt raw evidence or widen its disclosure scope.
 
-Lifecycle: `pd setup` offers the one-time ~27 MB download (cancellable); `pd doctor` detects a missing model and offers the same fetch as a repair; `pd embed prefetch` is the manual path. Degrading to lexical-only is allowed **only** as an explicit fallback that warns and points at `pd doctor`.
+The current local embedding source uses `Xenova/all-MiniLM-L6-v2`; treat it as an explicit local/degraded fallback while the provider-neutral fabric in [`docs/proposals/provider-neutral-retrieval-fabric.md`](docs/proposals/provider-neutral-retrieval-fabric.md) is implemented. Registry-backed role/tier/provider selection and local artifact/runtime/output verification are source-present, but the generated profiles remain declarative-only and degraded: runtime verification does not mint signed producer or benchmark promotion. Persistent indexes without the exact selected `spaceId` remain legacy state and must be rebuilt, not relabeled. Verify installed CLI support before relying on the source `pd embed` command or its cache-management subcommands; source `pd embed text|stdin` requires `--corpus <stable-id>`. Do not infer a daemon upgrade from a merged PR. Lexical-only degradation is allowed only when corpus policy permits it, it is labeled degraded, and it warns with the agent repair path `pd doctor`; a requested semantic contract must never silently downgrade.
+
+## The Harbor Work Register — read it before you start, write to it as you go
+
+The register is the shared board telling every agent in this repository who is
+on what, right now. It lives on the relay, not in the tree, so it is current
+rather than as-of-your-last-pull, and it survives an operator halt because it
+does not depend on the daemon.
+
+**Read it first.** `GET https://relay.portdaddy.dev/v1/register/available?repo=curiositech/port-daddy`
+answers "what may I take" — every slug nothing holds, plus every slug whose
+holder has gone quiet past the salvage clock. `.../board` is the whole picture
+including who is on what. The human view is `/account/register?repo=...`, which
+is gated to the operator's own GitHub identity and is not linked from anywhere.
+
+**Claim before you work.** `POST .../claim` with `{"slug": "...", "agent":
+"<your session id>", "headline": "what you are about to do"}`. A `409` means
+somebody else has it and names them — that refusal is the whole point, and it
+is cheaper than two agents discovering the collision in a merge. Go and ask for
+something else.
+
+**Say you are alive.** `POST .../heartbeat` while you work. A claim that stops
+reporting for forty-five minutes is offered to the next agent as salvage, which
+is what stops a dead session holding work until a human notices.
+
+**Leave the note.** `POST .../note` as you learn things, and always on
+`.../release`: what you tried, what you ruled out, what you would do next. A
+claim released without a note makes the next agent start from the beginning.
+`POST .../finish` with the PR number when it lands.
+
+**What the register is not.** It says who *holds* work. It does not say what
+work *exists* — that is the roadmap registry (`roadmap_items` in the daemon,
+projected append-only to `docs/roadmap/roadmap.snapshot.json`), and the register
+reads it rather than rivalling it. A slug you claim that has no row there is
+stored as `proposed`: queued, not scheduled, and counted alongside
+`docs/roadmap/unregistered.json`. Do not treat a green claim as evidence that
+work is registered. See `docs/roadmap/AUTHORITY.md`.
+
+**It is cooperative, and that is stated rather than papered over.** The register
+refuses a second claim and tells you who holds the first; it cannot stop an
+agent that never asks. The enforcement point is your own harness reading this
+file. Behave as though it could stop you.
 
 ## Port Daddy First
 
@@ -182,7 +226,7 @@ Documents`.
   files add` before editing → `pd done` at the end. Rent is real: every commit
   carries a `pd note` (the Coordination Guard's `requireNotePerCommit` /
   Coast Guard). A silent agent is a non-durable agent.
-- **Establish a Plan and check off milestones.** Every agent must plan. After calling `pd begin`, you must run `pd plan set "- [ ] Step 1\n- [ ] Step 2"` to register a todo list before touching files. Update the plan with `pd plan check <index>` as you work. The `pd done` command will refuse to close the session if there are unchecked checklist items, unless bypassed with `--force-incomplete` and a 12+ character `--reason`.
+- **Establish a Plan and check off milestones.** Every agent must plan. After calling `pd begin`, you must run `pd plan set "- [ ] Step 1\n- [ ] Step 2"` to register a todo list before touching files. Update the plan with `pd plan check <index>` as you work. The `pd done` command refuses to close a completed session while checklist items remain; finish or explicitly abandon the session instead of manufacturing an override.
 - **Run `pd sitrep` when starting or resuming work.** Call `pd sitrep` at the beginning of each turn or session to catch up on what happened while you were away.
 - **Dogfood, and dogfood *novelly*.** Reach deep into the CLI, MCP, and SDK each
   slice; deliberately exercise a surface you have not used before instead of
@@ -228,11 +272,16 @@ Documents`.
   should correct the other. Note drift in the PR.
 - **Work at maximal tool + skill access, and pause to find the right skill.** Start
   with the broadest toolset you can reach. If you catch yourself working without a
-  matching skill, stop and do skill research before improvising what a skill
-  already encodes. Skill matching is meant to live in a **seamanship** module
-  (proposed, not yet built): a match-cascade-and-graft selector modelled on the
-  windags repo's `windags_skill_induct` / `windags_skill_graft` cascade. Until it
-  lands, match by hand against `skills/`.
+  matching skill, stop and run `pd jury-rig query "<task>"` before improvising
+  what a skill already encodes. Jury-rig is Port Daddy's native hybrid discovery
+  surface: it ranks the local, explicitly configured catalog and reads requested
+  references through the guarded `pd jury-rig reference` path. A third-party skill
+  remains provenance-labelled catalog input; its scripts, hooks, MCP servers,
+  subagents, and planning pipelines never become executable authority merely
+  because Jury-rig selected it. Planning authority remains this guide plus the
+  session's `pd plan`. **Seamanship** is the planned native planning/orchestration
+  module and is not yet a shipped verb; until it lands, do not register or invoke
+  an external planning runtime as a substitute.
 - **Launch other agents *through* Port Daddy.** When you need more hands, spawn
   them through PD's own fabric — `pd agent` / `pd sortie` / `pd dispatch` and the
   tube → spawner router (conductor) — never a raw side-channel, so the work is
@@ -266,6 +315,51 @@ into CI, get CI green the right way, and merge. The only legitimate pause
 is a real red you cannot fix unilaterally (missing secrets, infra outage).
 Operator, 2026-06-11: "Why are you waiting on me? Why do I have to tell
 every Claude this?" — don't be the Claude that has to be told.
+
+### Base `main`. Do not stack PRs onto feature branches.
+
+**Open every PR against `main`.** A PR whose base is another feature branch is
+not shipped when it merges — it is moved one branch sideways, and GitHub tells
+its author "Merged" either way. That badge is the whole problem: it retires the
+work from everyone's attention while leaving it outside the product.
+
+The measurement that produced this rule (2026-09-10, over the whole repository):
+1,255 PRs have merged in this repo's life. **99 of them merged into a base other
+than `main`, and 72 of those 99 are from the last five weeks** — the practice is
+accelerating. Testing every one of the 72 against `main` twice, by patch-id
+(`git cherry`, which survives squash and rebase) and by whether the files it
+added exist on `main` at all, **six** are confirmed absent from the product
+today, one of them for over a month. Four more sit in a single branch that is
+233 commits ahead of `main` and has never merged. Meanwhile **917 branches are
+alive** in the remote, 138 of them `purser/`.
+
+So:
+
+- **Base every PR on `main`.** If your change genuinely depends on unmerged
+  work, say so in the body and wait for that work to land, or carry the
+  dependency as a commit in your own branch. Waiting is cheaper than a merged
+  PR nobody can find.
+- **Never retarget a PR onto a branch that is not `main`** — not to satisfy a
+  bot, not to stack a test contract underneath it, not for review convenience.
+  A tool that wants to retarget your PR is asking you to hide it.
+- **"Merged" is not "shipped."** Before you record a PR as done, in a note, a
+  ledger row, a changelog fragment or a reply: check that its base was `main`,
+  or that its base has itself reached `main`. `git cherry origin/main <head>`
+  answers it — every line starting `+` is a commit that is NOT in `main`.
+- **If you find yourself merging into a long-lived integration branch,** that
+  branch is now a second `main` with none of `main`'s protections and no one
+  watching whether it lands. Merge it or delete it; do not let it accumulate.
+
+The same discipline applies to the two failure modes that hide a PR from its
+own author. Before claiming a PR is ready, ready to re-queue, or done:
+
+1. **Every review thread is RESOLVED, not merely replied to.** A reply
+   satisfies `pr-comments-guard` (it only asks who spoke last) and still leaves
+   the merge blocked. Enumerate the threads and check `is_resolved` on each.
+2. **Re-check for conflicts against the base after every push to it.** A
+   conflict against a moving base emits no webhook and no notification; it is
+   silent until someone tries to merge. `git merge-tree --write-tree
+   origin/main <head>` answers it in one command.
 
 **Two PR-body checks are REQUIRED and fail closed — fill them in or the PR is
 bounced (it cannot enter the merge queue):**
@@ -421,7 +515,7 @@ means one of:
 
 What does **not** count: resolving a thread with no reply, a one-word "done" with
 no evidence, closing the PR to dodge the comment, or letting a bot finding scroll
-off the page. "Seriously" is load-bearing — engage the substance.
+off the page. "Seriously" is central — engage the substance.
 
 **Auto-pilot (operator directive, 2026-07-07).** When you are subscribed to a
 PR, work the review comments *autonomously* — do not ask permission each round.
@@ -843,7 +937,7 @@ This rule has bitten us repeatedly when the daemon ran on a non-default port (CI
 - A green exit code is still not clean truth if Jest prints `A worker process has failed to exit gracefully`. Treat that as remaining teardown debt and go hunting with `--detectOpenHandles` on the likely long-running suites.
 - Oversized JSON requests over the Unix socket can surface client-side `EPIPE` / `ECONNRESET` before the daemon’s 413 body is readable. In integration tests, normalize that transport failure back into the daemon’s intended oversized-payload rejection instead of pretending the daemon accepted the body.
 - `pd fleet run <agent>` now inherits `limits.budget_usd_per_day` as its launch ceiling. If it still fails, inspect the live active-agent cap and queue pressure before assuming the agent prompt or backend is broken.
-- **Environment variables override context slot**: When running Port Daddy commands (like `pd begin`, `pd done`, `pd session files add`) inside subagent execution lanes spawned by harnesses (such as Antigravity/Claude Code), the harness may inject `PD_SESSION_ID` and `PD_AGENT_ID` of the parent/old session into the environment. Because the CLI prioritizes these environment variables over context slot files, any command will resolve to that old session (which may be completed, leading to "No active session found"). Fix this by prefixing your commands with `PD_SESSION_ID="" PD_AGENT_ID=""` to force the CLI to read the active context from the filesystem context slots.
+- **Session context is deterministic, not first-match state**: `PD_SESSION_ID` and `PD_AGENT_ID` form one atomic identity. A partial environment pair does not suppress a complete context slot; a complete environment pair that disagrees with the slot fails with `CONTEXT_CONFLICT` and both provenances. Do not clear variables to route around that conflict. Select the intended slot or pass an exact `--session` + `--agent` tuple. Agent-only mutation with more than one active session fails with `AMBIGUOUS_ACTIVE_SESSION` and candidates. Raw IPC and direct SQLite are read-only for session, note, claim, lock, and salvage authority; use the credentialed daemon HTTP path.
 - **Binary drift in integration tests on dev machine**: Ephemeral test daemons started by the integration test framework (`tests/helpers/integration-setup.js` / `tests/helpers/ephemeral-daemon.js`) will verify binary hashes. If there's a global Homebrew or PATH-installed `pd` binary, it may cause false positive "binary drift" checks (since the running test daemon runs under `tsx` Node while PATH resolves to the global executable). Fix this by overriding the comparable on-disk path by setting `PORT_DADDY_BIN_OVERRIDE: process.execPath` inside the test environment for both the CLI runs and the ephemeral daemon spawns.
 - **Roadmap receipts for core coordination changes**: Changes to core coordination paths (like `cli/commands/sessions.ts`) are monitored by the Coordination Guard. The guard will block commits affecting these files unless the committing agent has touched/upserted a corresponding roadmap item (e.g. via `pd roadmap touch <slug> --harbor port-daddy --note <why>`). Note that `--harbor port-daddy` must be specified if you are working in a temporary sandboxed worktree where the folder name diverges from the default repo name.
 - **Rich Docstring Mandate (TypeScript and Rust)**: Every library function and method in the codebase must carry rich, informative documentation. This is enforced by the `npm run check:rich-docs` (under `scripts/check-rich-docs.mjs`) validation loop. TypeScript functions/methods must use `/** ... */` JSDoc blocks including `@param` and `@returns` tags (when parameters/return values are present) and discuss design, motivation, or philosophical rationale (e.g., matching keywords: `motivation`, `purpose`, `philosophy`, `why`, `design`, `intent`). Rust functions must use `///` doc comments discussing the same motivation/philosophy keywords and parameter/return usage. You can run `npm run check:rich-docs -- --staged` to fast-audit only your changed/staged files.

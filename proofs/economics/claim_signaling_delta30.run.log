@@ -1,0 +1,78 @@
+TLC2 Version 2026.09.04.170753 (rev: b123b22)
+Running breadth-first search Model-Checking with fp 4 and seed 1285174042840486911 with 1 worker on 4 cores with 3036MB heap and 64MB offheap memory [pid: 31526] (Linux 6.18.44-fc-v24 amd64, Ubuntu 21.0.10 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /home/user/port-daddy/.claude/worktrees/agent-a8ae6e3a83c04bc5b/proofs/economics/claim_signaling.tla
+Parsing file /tmp/tlc-13000440033806642492/Integers.tla (jar:file:/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/tla/tla2tools.jar!/tla2sany/StandardModules/Integers.tla)
+Parsing file /tmp/tlc-13000440033806642492/FiniteSets.tla (jar:file:/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/tla/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-13000440033806642492/Sequences.tla (jar:file:/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/tla/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Parsing file /tmp/tlc-13000440033806642492/TLC.tla (jar:file:/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/tla/tla2tools.jar!/tla2sany/StandardModules/TLC.tla)
+Parsing file /tmp/tlc-13000440033806642492/_TLCTrace.tla (jar:file:/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/tla/tla2tools.jar!/tla2sany/StandardModules/_TLCTrace.tla)
+Parsing file /tmp/tlc-13000440033806642492/Naturals.tla (jar:file:/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/tla/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-13000440033806642492/TLCExt.tla (jar:file:/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/tla/tla2tools.jar!/tla2sany/StandardModules/TLCExt.tla)
+Semantic processing of module Naturals
+Semantic processing of module Integers
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module TLCExt
+Semantic processing of module _TLCTrace
+Semantic processing of module claim_signaling
+Linting of module TLCExt
+Linting of module _TLCTrace
+Linting of module claim_signaling
+Starting... (2026-09-06 12:01:29)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-06 12:01:29.
+Error: Invariant NoUnilateralDeviationPositive is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ deviatorId = "none"
+/\ actualScore = [A |-> 0, B |-> 0]
+/\ round = 0
+/\ punishCountdown = 0
+/\ deviated = FALSE
+/\ followScore = [A |-> 0, B |-> 0]
+
+State 2: <ChooseDeviator line 238, col 3 to line 242, col 79 of module claim_signaling>
+/\ deviatorId = "A"
+/\ actualScore = [A |-> 0, B |-> 0]
+/\ round = 0
+/\ punishCountdown = 0
+/\ deviated = FALSE
+/\ followScore = [A |-> 0, B |-> 0]
+
+State 3: <Step line 245, col 3 to line 263, col 32 of module claim_signaling>
+/\ deviatorId = "A"
+/\ actualScore = [A |-> 400000000, B |-> 0]
+/\ round = 1
+/\ punishCountdown = 3
+/\ deviated = TRUE
+/\ followScore = [A |-> 300000000, B |-> 300000000]
+
+State 4: <Step line 245, col 3 to line 263, col 32 of module claim_signaling>
+/\ deviatorId = "A"
+/\ actualScore = [A |-> 430000000, B |-> 30000000]
+/\ round = 2
+/\ punishCountdown = 2
+/\ deviated = TRUE
+/\ followScore = [A |-> 390000000, B |-> 390000000]
+
+State 5: <Step line 245, col 3 to line 263, col 32 of module claim_signaling>
+/\ deviatorId = "A"
+/\ actualScore = [A |-> 439000000, B |-> 39000000]
+/\ round = 3
+/\ punishCountdown = 1
+/\ deviated = TRUE
+/\ followScore = [A |-> 417000000, B |-> 417000000]
+
+State 6: <Step line 245, col 3 to line 263, col 32 of module claim_signaling>
+/\ deviatorId = "A"
+/\ actualScore = [A |-> 441700000, B |-> 41700000]
+/\ round = 4
+/\ punishCountdown = 0
+/\ deviated = TRUE
+/\ followScore = [A |-> 425100000, B |-> 425100000]
+
+10 states generated, 10 distinct states found, 1 states left on queue.
+The depth of the complete state graph search is 6.
+Finished in 00s at (2026-09-06 12:01:29)
+Trace exploration spec path: ./claim_signaling_TTrace_1788696088.tla

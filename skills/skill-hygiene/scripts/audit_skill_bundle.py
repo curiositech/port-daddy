@@ -68,7 +68,7 @@ IGNORED_DIRS = {".git", "__pycache__", "output", "node_modules", ".venv"}
 IGNORED_FILE_PREFIXES = (".",)
 IGNORED_FILE_NAMES = {"CHANGELOG.md", "README.md", "SKILL.md", "affordance-scorecard.json", "architecture.html", "provenance.json", "_book_identity.json", "_raw_response.md"}
 
-DOC_EXTS = {".md", ".json", ".yaml", ".yml", ".sh", ".py", ".ts", ".js", ".txt"}
+DOC_EXTS = {".md", ".json", ".yaml", ".yml", ".sh", ".py", ".ts", ".js", ".mjs", ".txt"}
 ASSET_EXTS = {
     ".svg", ".png", ".jpg", ".jpeg", ".gif", ".ico", ".webp",
     ".ttf", ".otf", ".woff", ".woff2",

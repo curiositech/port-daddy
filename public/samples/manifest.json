@@ -106,8 +106,8 @@
     {
       "path": "examples/inbox/agent-dm.sh",
       "url": "/samples/files/examples/inbox/agent-dm.sh",
-      "bytes": 1805,
-      "sha256": "56416b84a5ef2d9bd3fde8234ff0df7e03831ecc8fa55f083ae90bd5168412b4"
+      "bytes": 2591,
+      "sha256": "0d588fd4086992a20a955d1a9767790ddebdd55edbd625598e9d5a5b1bb4d0ad"
     },
     {
       "path": "examples/inbox/inbox-monitor.ts",

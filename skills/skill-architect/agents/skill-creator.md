@@ -56,7 +56,7 @@ Plus, if the expert provided supporting material >300 words for any concept, fac
 
 ## Coordination discipline (MANDATORY — see ADR 0001)
 
-You write to a working tree that other agents may also be writing to. Follow these rules without exception. They are documented in the windags-skills ADR 0001 (background-agent-git-discipline); the short form is below.
+You write to a working tree that other agents may also be writing to. Follow these rules without exception. They are documented in the external-skill-catalog ADR 0001 (background-agent-git-discipline); the short form is below.
 
 1. **Work in a git worktree.** Before drafting, create one:
    ```bash

@@ -16,7 +16,7 @@ I engage a single operator-avatar agent. It launches as many agents as it needs
 to make the roadmap hum in parallel. **It can just roll**: create worktrees, open
 PRs through agents, adversarially test them, review, respond to CI, make tests +
 CI/CD green, merge, prune worktrees, and mark the roadmap item done — autonomously.
-(This is ADR-0043's roadmap as load-bearing truth + the tube→spawner bridge +
+(This is ADR-0043's roadmap as structural truth + the tube→spawner bridge +
 `pd attest`'s loud-fail gating, all driven from one seat.)
 
 ### Multiplex into the work (tmux-y, but more intuitive + colorful)

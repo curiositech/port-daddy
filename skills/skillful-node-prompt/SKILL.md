@@ -1,9 +1,9 @@
 ---
 name: skillful-node-prompt
-description: How WinDAGs constructs prompts for agent nodes. Encodes the hypertree structure, DSPy signature model, 4-section subagent pattern, discourse metadata, and memory-scored context selection. The meta-skill that teaches agents how to be skillful.
+description: How Jury-rig constructs prompts for agent nodes. Encodes the hypertree structure, DSPy signature model, 4-section subagent pattern, discourse metadata, and memory-scored context selection. The meta-skill that teaches agents how to be skillful.
 category: Agent & Orchestration
 tags:
-  - windags
+  - jury_rig
   - prompt-architecture
   - node-execution
   - skills
@@ -241,6 +241,6 @@ The configurator reads the skill's frontmatter (`allowed-tools`, `pairs-with`, r
 
 Do NOT use this skill for:
 - **Swarm bridge prompts**: The swarm comment-section prompt has additional requirements (channel awareness, discourse metadata, memory-scored prior messages). Use `swarm-executor-bridge` logic.
-- **Meta-DAG prompts**: The `/next-move` prediction pipeline has its own prompt structure. Use `windags-sensemaker` / `windags-decomposer`.
+- **Meta-DAG prompts**: The `/next-move` prediction pipeline has its own prompt structure. Use `jury_rig-sensemaker` / `jury_rig-decomposer`.
 - **Skill creation**: Writing SKILL.md files is a different concern. Use `skill-architect`.
 - **Team manager prompts**: The Team executor's manager prompt has dynamic role listing and round-by-round state. Use `team.ts` buildManagerPrompt.

@@ -46,7 +46,7 @@ could dissolve the conflict:
 1. **Sealing.** Paper 3's threshold carries the factor $C$ *only* because the
    briber cannot observe the draw. The paper is explicit that a leaked draw
    collapses the threshold to $G_k > B$ and the clique multiplier vanishes
-   (`paper3.tex:78`, "Why sealing is load-bearing, not hygienic"). If Kofman &
+   (`paper3.tex:78`, "Why sealing is critical, not hygienic"). If Kofman &
    Lawarrée's supervisor is a single identified party — no randomisation over
    independent pools — then their model is Paper 3's $C=1$ case, where Paper 3
    *agrees* that corruption persists on linear life support. That would make the

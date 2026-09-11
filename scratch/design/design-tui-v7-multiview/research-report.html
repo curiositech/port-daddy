@@ -1,0 +1,1719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FleetBar Design Research — Fractional Borders, Color Blocking, and the Menubar Control Plane</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    /* Neutrals — warm sandstone matrix */
+    --paper:        #F4F0E8;
+    --paper-raised: #ECE6D9;
+    --paper-deep:   #E2DAC8;
+    --ink:          #1A1815;
+    --ink-soft:     #3A3631;
+    --ink-mute:     #6A655C;
+    --ink-ghost:    #98928A;
+
+    /* Single accent — cobalt is the system color */
+    --cobalt:       #003FB8;
+    --cobalt-soft:  #2F5FC5;
+
+    /* Status colors — used sparingly, only on left-edge accent stripes */
+    --st-ok:        #2E7D5B;
+    --st-warn:      #B8801F;
+    --st-error:     #B5392E;
+    --st-blocked:   #6B3F8A;
+
+    /* Hairlines */
+    --hair:         rgba(26, 24, 21, 0.14);
+    --hair-strong:  rgba(26, 24, 21, 0.32);
+
+    /* Spacing — 4px base unit */
+    --s1: 4px;
+    --s2: 8px;
+    --s3: 12px;
+    --s4: 16px;
+    --s5: 20px;
+    --s6: 24px;
+    --s7: 32px;
+    --s8: 48px;
+    --s9: 64px;
+    --s10: 96px;
+    --s11: 128px;
+
+    /* Typography */
+    --font-display: 'Inter', system-ui, sans-serif;
+    --font-mono:    'Geist Mono', ui-monospace, monospace;
+    --font-serif:   'Fraunces', Georgia, serif;
+  }
+
+  html, body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-display);
+    font-feature-settings: 'ss01', 'cv01', 'cv11';
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ──────────────────────────────────────────
+     MASTHEAD — corner brackets on the page itself
+     ────────────────────────────────────────── */
+  .page-frame {
+    position: fixed;
+    inset: 16px;
+    pointer-events: none;
+    z-index: 1;
+  }
+  .page-frame::before,
+  .page-frame::after,
+  .page-frame .tl, .page-frame .br {
+    content: "";
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border-color: var(--ink);
+    border-style: solid;
+    border-width: 0;
+  }
+  .page-frame::before { top: 0; right: 0; border-top-width: 1.5px; border-right-width: 1.5px; }
+  .page-frame::after  { bottom: 0; left: 0; border-bottom-width: 1.5px; border-left-width: 1.5px; }
+  .page-frame .tl     { top: 0; left: 0; border-top-width: 1.5px; border-left-width: 1.5px; }
+  .page-frame .br     { bottom: 0; right: 0; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+
+  .container {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: var(--s9) var(--s8);
+    position: relative;
+    z-index: 2;
+  }
+
+  /* ──────────────────────────────────────────
+     HEADER
+     ────────────────────────────────────────── */
+  .masthead {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    padding-bottom: var(--s6);
+    border-bottom: 1px solid var(--hair-strong);
+    margin-bottom: var(--s8);
+    gap: var(--s5);
+  }
+
+  .masthead-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--cobalt);
+    margin-bottom: var(--s4);
+  }
+
+  .masthead h1 {
+    font-family: var(--font-display);
+    font-size: clamp(36px, 5.5vw, 72px);
+    font-weight: 800;
+    line-height: 0.96;
+    letter-spacing: -0.035em;
+    color: var(--ink);
+    max-width: 18ch;
+  }
+  .masthead h1 em {
+    font-style: normal;
+    color: var(--cobalt);
+    font-family: var(--font-serif);
+    font-weight: 500;
+    font-variation-settings: 'SOFT' 50, 'opsz' 144;
+  }
+
+  .masthead-meta {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--ink-mute);
+    line-height: 1.7;
+    text-align: right;
+    min-width: 220px;
+  }
+  .masthead-meta strong { color: var(--ink); font-weight: 600; }
+
+  /* ──────────────────────────────────────────
+     INTRODUCTION
+     ────────────────────────────────────────── */
+  .intro {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s8);
+    margin-bottom: var(--s10);
+    align-items: start;
+  }
+  .intro-lede {
+    font-size: 24px;
+    font-weight: 500;
+    line-height: 1.4;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+    max-width: 28ch;
+  }
+  .intro-lede em {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-weight: 400;
+    font-variation-settings: 'opsz' 36;
+  }
+  .intro-body {
+    font-size: 15px;
+    line-height: 1.7;
+    color: var(--ink-soft);
+    max-width: 52ch;
+  }
+  .intro-body p + p { margin-top: var(--s4); }
+
+  /* ──────────────────────────────────────────
+     SECTION SCAFFOLDING
+     ────────────────────────────────────────── */
+  section.report-section {
+    margin-bottom: var(--s10);
+    scroll-margin-top: var(--s9);
+  }
+
+  .section-header {
+    display: grid;
+    grid-template-columns: 64px 1fr auto;
+    align-items: baseline;
+    gap: var(--s4);
+    padding-bottom: var(--s4);
+    margin-bottom: var(--s7);
+    position: relative;
+  }
+  /* midline rule — only the middle third */
+  .section-header::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 1px;
+    background-image: linear-gradient(to right, transparent 0 32%, var(--hair-strong) 32% 68%, transparent 68% 100%);
+  }
+
+  .section-number {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--cobalt);
+  }
+  .section-title {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+  .section-kicker {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ink-mute);
+  }
+
+  /* ──────────────────────────────────────────
+     SECTION 1 — Findings grid
+     ────────────────────────────────────────── */
+  .findings-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--s7);
+  }
+  .finding-card {
+    position: relative;
+    padding: var(--s5) var(--s5) var(--s6);
+    background: var(--paper-raised);
+    /* left-edge accent — the load-bearing pattern */
+    box-shadow: inset 3px 0 0 var(--cobalt);
+  }
+  .finding-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--cobalt);
+    margin-bottom: var(--s2);
+  }
+  .finding-title {
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    line-height: 1.25;
+    margin-bottom: var(--s3);
+    color: var(--ink);
+  }
+  .finding-body {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--ink-soft);
+  }
+  .finding-stat {
+    font-family: var(--font-mono);
+    font-size: 32px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    margin: var(--s3) 0 var(--s2);
+    line-height: 1;
+  }
+  .finding-stat-label {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--ink-mute);
+  }
+
+  /* ──────────────────────────────────────────
+     SECTION 2 — Fractional border taxonomy
+     ────────────────────────────────────────── */
+  .taxonomy-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--s4);
+    margin-bottom: var(--s7);
+  }
+  .pattern-cell {
+    padding: var(--s4);
+    background: var(--paper);
+    position: relative;
+  }
+  .pattern-vis {
+    aspect-ratio: 1.4 / 1;
+    margin-bottom: var(--s3);
+    position: relative;
+    background: var(--paper-deep);
+  }
+  .pattern-vis > .content {
+    position: absolute;
+    inset: 14px;
+    background: var(--paper);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-mute);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  /* Pattern: corner brackets */
+  .p-brackets > .content::before,
+  .p-brackets > .content::after,
+  .p-brackets > .content > .tl,
+  .p-brackets > .content > .br {
+    content: ""; position: absolute; width: 14px; height: 14px;
+    border-color: var(--ink); border-style: solid; border-width: 0;
+  }
+  .p-brackets > .content::before { top: 0; right: 0; border-top-width: 1.5px; border-right-width: 1.5px; }
+  .p-brackets > .content::after  { bottom: 0; left: 0; border-bottom-width: 1.5px; border-left-width: 1.5px; }
+  .p-brackets > .content > .tl   { top: 0; left: 0; border-top-width: 1.5px; border-left-width: 1.5px; }
+  .p-brackets > .content > .br   { bottom: 0; right: 0; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+
+  /* Pattern: two diagonal corners */
+  .p-diagonal > .content::before,
+  .p-diagonal > .content::after {
+    content: ""; position: absolute; width: 14px; height: 14px;
+    border-color: var(--ink); border-style: solid; border-width: 0;
+  }
+  .p-diagonal > .content::before { top: 0; left: 0; border-top-width: 1.5px; border-left-width: 1.5px; }
+  .p-diagonal > .content::after  { bottom: 0; right: 0; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+
+  /* Pattern: midlines */
+  .p-midline > .content {
+    background:
+      linear-gradient(to right, transparent 0 30%, var(--ink) 30% 70%, transparent 70% 100%) top left/100% 1.5px no-repeat,
+      linear-gradient(to right, transparent 0 30%, var(--ink) 30% 70%, transparent 70% 100%) bottom left/100% 1.5px no-repeat,
+      var(--paper);
+  }
+
+  /* Pattern: left-edge accent */
+  .p-edge > .content {
+    box-shadow: inset 4px 0 0 var(--cobalt);
+  }
+
+  /* Pattern: segmented (dashed SVG) */
+  .p-segment > .content > svg {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    pointer-events: none;
+  }
+
+  /* Pattern: open corner frame */
+  .p-open > .content::before,
+  .p-open > .content::after,
+  .p-open > .content > .h-top,
+  .p-open > .content > .h-bot {
+    content: ""; position: absolute; background: var(--ink);
+  }
+  .p-open > .content > .h-top, .p-open > .content > .h-bot { height: 1.5px; left: 10px; right: 10px; }
+  .p-open > .content > .h-top { top: 0; }
+  .p-open > .content > .h-bot { bottom: 0; }
+  .p-open > .content::before, .p-open > .content::after { width: 1.5px; top: 10px; bottom: 10px; }
+  .p-open > .content::before { left: 0; }
+  .p-open > .content::after { right: 0; }
+
+  /* Pattern: crop anchors (outside the frame) */
+  .p-crop > .content::before,
+  .p-crop > .content::after,
+  .p-crop > .content > .tl,
+  .p-crop > .content > .br {
+    content: ""; position: absolute; width: 10px; height: 10px;
+  }
+  .p-crop > .content::before { top: -1px; right: -1px; border-top: 1.5px solid var(--ink); border-right: 1.5px solid var(--ink); }
+  .p-crop > .content::after  { bottom: -1px; left: -1px; border-bottom: 1.5px solid var(--ink); border-left: 1.5px solid var(--ink); }
+  .p-crop > .content > .tl   { top: -1px; left: -1px; border-top: 1.5px solid var(--ink); border-left: 1.5px solid var(--ink); }
+  .p-crop > .content > .br   { bottom: -1px; right: -1px; border-bottom: 1.5px solid var(--ink); border-right: 1.5px solid var(--ink); }
+
+  /* Pattern: color zone */
+  .p-zone > .content {
+    background: var(--cobalt);
+    color: var(--paper);
+  }
+
+  .pattern-id {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ink-mute);
+  }
+  .pattern-name {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    margin: 2px 0 6px;
+  }
+  .pattern-use {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--ink-soft);
+  }
+  .pattern-rating {
+    margin-top: var(--s3);
+    padding-top: var(--s2);
+    border-top: 1px solid var(--hair);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .pattern-rating-label {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .pattern-rating-pill {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    padding: 2px 8px;
+    text-transform: uppercase;
+  }
+  .pattern-rating-pill.use     { background: var(--cobalt); color: var(--paper); }
+  .pattern-rating-pill.maybe   { background: var(--st-warn); color: var(--paper); }
+  .pattern-rating-pill.skip    { background: var(--st-error); color: var(--paper); }
+  .pattern-rating-pill.feature { background: var(--ink); color: var(--paper); }
+
+  /* ──────────────────────────────────────────
+     SECTION 3 — Mockup demonstrations
+     ────────────────────────────────────────── */
+  .mockup-row {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: var(--s8);
+    align-items: start;
+    margin-bottom: var(--s9);
+  }
+  .mockup-row.flip {
+    grid-template-columns: 1fr 380px;
+  }
+
+  .mockup-frame {
+    position: relative;
+    padding: 32px;
+    background: var(--ink);
+  }
+  .mockup-frame::before,
+  .mockup-frame::after,
+  .mockup-frame > .tl,
+  .mockup-frame > .br {
+    content: ""; position: absolute; width: 16px; height: 16px;
+    border-color: var(--paper-deep); border-style: solid; border-width: 0;
+  }
+  .mockup-frame::before { top: 10px; right: 10px; border-top-width: 1.5px; border-right-width: 1.5px; }
+  .mockup-frame::after  { bottom: 10px; left: 10px; border-bottom-width: 1.5px; border-left-width: 1.5px; }
+  .mockup-frame > .tl   { top: 10px; left: 10px; border-top-width: 1.5px; border-left-width: 1.5px; }
+  .mockup-frame > .br   { bottom: 10px; right: 10px; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+
+  /* ── The actual FleetBar popover ── */
+  .fb-popover {
+    width: 100%;
+    background: var(--paper);
+    color: var(--ink);
+    position: relative;
+    padding-bottom: var(--s2);
+  }
+  .fb-popover::before,
+  .fb-popover::after,
+  .fb-popover > .ftl,
+  .fb-popover > .fbr {
+    content: ""; position: absolute; width: 12px; height: 12px;
+    border-color: var(--ink); border-style: solid; border-width: 0;
+    pointer-events: none;
+  }
+  .fb-popover::before { top: 0; right: 0; border-top-width: 1.5px; border-right-width: 1.5px; }
+  .fb-popover::after  { bottom: 0; left: 0; border-bottom-width: 1.5px; border-left-width: 1.5px; }
+  .fb-popover > .ftl  { top: 0; left: 0; border-top-width: 1.5px; border-left-width: 1.5px; }
+  .fb-popover > .fbr  { bottom: 0; right: 0; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+
+  .fb-head {
+    padding: 16px 18px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .fb-brand {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+  .fb-brand-mark {
+    color: var(--cobalt);
+    font-family: var(--font-mono);
+    font-weight: 600;
+    margin-right: 6px;
+  }
+  .fb-meta {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-mute);
+  }
+
+  .fb-section-label {
+    padding: 0 18px 6px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ink-mute);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .fb-section-label .count {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--cobalt);
+  }
+
+  /* fractional rule between sections */
+  .fb-rule {
+    height: 1px;
+    margin: 6px 18px 12px;
+    background-image: linear-gradient(to right, transparent 0 0, var(--hair-strong) 0 64px, transparent 64px 100%);
+  }
+
+  /* Agent row — uses left-edge accent (Pattern 4) */
+  .fb-row {
+    position: relative;
+    padding: 10px 18px 10px 22px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 12px;
+    align-items: center;
+    cursor: default;
+  }
+  .fb-row + .fb-row { box-shadow: inset 0 1px 0 var(--hair); }
+  .fb-row::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 6px; bottom: 6px;
+    width: 3px;
+    background: transparent;
+  }
+  .fb-row[data-state="running"]::before { background: var(--cobalt); }
+  .fb-row[data-state="ok"]::before      { background: var(--st-ok); }
+  .fb-row[data-state="warn"]::before    { background: var(--st-warn); }
+  .fb-row[data-state="error"]::before   { background: var(--st-error); }
+  .fb-row[data-state="blocked"]::before { background: var(--st-blocked); }
+  .fb-row[data-state="idle"]::before    { background: var(--ink-ghost); }
+
+  .fb-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--ink-ghost);
+    position: relative;
+  }
+  .fb-row[data-state="running"] .fb-dot { background: var(--cobalt); }
+  .fb-row[data-state="running"] .fb-dot::after {
+    content: "";
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 1.5px solid var(--cobalt);
+    opacity: 0.6;
+    animation: pulse 1.8s ease-out infinite;
+  }
+  .fb-row[data-state="ok"] .fb-dot      { background: var(--st-ok); }
+  .fb-row[data-state="warn"] .fb-dot    { background: var(--st-warn); }
+  .fb-row[data-state="error"] .fb-dot   { background: var(--st-error); }
+  .fb-row[data-state="blocked"] .fb-dot { background: var(--st-blocked); }
+
+  @keyframes pulse {
+    0%   { transform: scale(0.8); opacity: 0.8; }
+    100% { transform: scale(1.9); opacity: 0; }
+  }
+
+  .fb-body {
+    min-width: 0;
+  }
+  .fb-name {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    color: var(--ink);
+    line-height: 1.25;
+  }
+  .fb-status {
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--ink-mute);
+    margin-top: 2px;
+  }
+  .fb-time {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink-mute);
+    letter-spacing: 0.04em;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  /* Status zone — Pattern 8 (color block as the indicator) */
+  .fb-zone {
+    margin: 12px 14px 6px;
+    padding: 12px 14px;
+    background: var(--cobalt);
+    color: var(--paper);
+    position: relative;
+  }
+  .fb-zone-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: rgba(255,255,255,0.7);
+    margin-bottom: 4px;
+  }
+  .fb-zone-title {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .fb-zone-detail {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: rgba(255,255,255,0.85);
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+
+  .fb-foot {
+    padding: 12px 18px 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-mute);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .fb-cmd {
+    background: var(--ink);
+    color: var(--paper);
+    padding: 3px 8px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+
+  /* Sparkline */
+  .fb-spark {
+    display: block;
+    width: 100%;
+    height: 20px;
+    margin: 8px 0 4px;
+  }
+
+  /* Mockup commentary */
+  .mockup-commentary {
+    padding: var(--s5) 0;
+  }
+  .mockup-commentary h3 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+    margin-bottom: var(--s3);
+  }
+  .mockup-commentary p {
+    font-size: 15px;
+    line-height: 1.65;
+    color: var(--ink-soft);
+    margin-bottom: var(--s3);
+    max-width: 56ch;
+  }
+  .mockup-commentary ul {
+    list-style: none;
+    padding: 0;
+    margin: var(--s4) 0;
+    max-width: 56ch;
+  }
+  .mockup-commentary li {
+    padding: 8px 0 8px 22px;
+    border-bottom: 1px solid var(--hair);
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    position: relative;
+  }
+  .mockup-commentary li::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 16px;
+    width: 12px; height: 1.5px;
+    background: var(--cobalt);
+  }
+  .mockup-commentary li strong { color: var(--ink); font-weight: 600; }
+
+  /* ──────────────────────────────────────────
+     SECTION 4 — Color palette
+     ────────────────────────────────────────── */
+  .palette {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s7);
+  }
+  .palette-strip {
+    display: grid;
+    grid-auto-flow: row;
+  }
+  .palette-row {
+    display: grid;
+    grid-template-columns: 110px 60px 1fr;
+    align-items: center;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--hair);
+    gap: var(--s3);
+  }
+  .palette-swatch {
+    width: 100%;
+    height: 36px;
+  }
+  .palette-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .palette-hex {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--ink-mute);
+  }
+  .palette-role {
+    font-size: 13px;
+    color: var(--ink-soft);
+    line-height: 1.45;
+    text-align: right;
+  }
+
+  /* ──────────────────────────────────────────
+     SECTION 5 — Source citations
+     ────────────────────────────────────────── */
+  .source-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--s5);
+  }
+  .source-card {
+    padding: var(--s4) var(--s5);
+    background: var(--paper-raised);
+    position: relative;
+  }
+  .source-card::before {
+    content: ""; position: absolute;
+    top: 0; left: 0;
+    width: 24px; height: 24px;
+    border-top: 1.5px solid var(--cobalt);
+    border-left: 1.5px solid var(--cobalt);
+  }
+  .source-stream {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--cobalt);
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+  .source-list {
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--ink-soft);
+    list-style: none;
+  }
+  .source-list li { padding: 2px 0; }
+  .source-list strong { color: var(--ink); font-weight: 600; }
+
+  /* ──────────────────────────────────────────
+     FOOTER
+     ────────────────────────────────────────── */
+  footer.report-footer {
+    margin-top: var(--s10);
+    padding: var(--s6) 0;
+    border-top: 1px solid var(--hair-strong);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-mute);
+  }
+  footer.report-footer strong { color: var(--ink); font-weight: 700; }
+
+  /* ──────────────────────────────────────────
+     Subsection
+     ────────────────────────────────────────── */
+  .sub-section {
+    margin-top: var(--s8);
+    margin-bottom: var(--s6);
+  }
+  .sub-section-title {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+    margin-bottom: var(--s2);
+    position: relative;
+    padding-left: var(--s4);
+  }
+  .sub-section-title::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 50%;
+    width: 8px; height: 1.5px;
+    background: var(--cobalt);
+    transform: translateY(-50%);
+  }
+  .sub-section-lede {
+    font-size: 15px;
+    color: var(--ink-soft);
+    line-height: 1.6;
+    max-width: 64ch;
+    padding-left: var(--s4);
+    margin-bottom: var(--s5);
+  }
+
+  /* Comparison table */
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  .compare-table th,
+  .compare-table td {
+    text-align: left;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--hair);
+    vertical-align: top;
+  }
+  .compare-table th {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 600;
+    color: var(--ink-mute);
+    border-bottom: 1px solid var(--ink);
+    padding-bottom: 8px;
+  }
+  .compare-table tr:hover td { background: var(--paper-raised); }
+  .compare-table td:first-child {
+    font-weight: 600;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+  .compare-table td:nth-child(2) {
+    font-family: var(--font-mono);
+    color: var(--cobalt);
+  }
+  .compare-table td:last-child {
+    color: var(--ink-soft);
+  }
+
+  /* ──────────────────────────────────────────
+     Decision matrix
+     ────────────────────────────────────────── */
+  .decision-matrix {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s5);
+    margin-top: var(--s5);
+  }
+  .decision-card {
+    padding: var(--s5);
+    position: relative;
+  }
+  .decision-card.use { background: var(--paper-raised); box-shadow: inset 3px 0 0 var(--st-ok); }
+  .decision-card.skip { background: var(--paper-raised); box-shadow: inset 3px 0 0 var(--st-error); }
+  .decision-title {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: var(--s3);
+  }
+  .decision-card.use .decision-title { color: var(--st-ok); }
+  .decision-card.skip .decision-title { color: var(--st-error); }
+  .decision-card ul { list-style: none; padding: 0; }
+  .decision-card li {
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    padding: 6px 0;
+    padding-left: 18px;
+    position: relative;
+  }
+  .decision-card li::before {
+    content: ""; position: absolute;
+    left: 0; top: 13px;
+    width: 8px; height: 1.5px;
+  }
+  .decision-card.use li::before { background: var(--st-ok); }
+  .decision-card.skip li::before { background: var(--st-error); }
+
+  /* ──────────────────────────────────────────
+     Final synthesis callout
+     ────────────────────────────────────────── */
+  .synthesis-call {
+    margin: var(--s8) 0;
+    padding: var(--s7);
+    background: var(--ink);
+    color: var(--paper);
+    position: relative;
+  }
+  .synthesis-call::before,
+  .synthesis-call::after {
+    content: ""; position: absolute; width: 20px; height: 20px;
+    border-color: var(--paper); border-style: solid; border-width: 0;
+  }
+  .synthesis-call::before { top: 12px; left: 12px; border-top-width: 1.5px; border-left-width: 1.5px; }
+  .synthesis-call::after  { bottom: 12px; right: 12px; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+  .synthesis-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: rgba(244,240,232,0.6);
+    margin-bottom: var(--s3);
+  }
+  .synthesis-quote {
+    font-family: var(--font-serif);
+    font-size: clamp(20px, 2.4vw, 30px);
+    line-height: 1.35;
+    letter-spacing: -0.01em;
+    font-weight: 400;
+    font-variation-settings: 'opsz' 60, 'SOFT' 30;
+    color: var(--paper);
+    max-width: 36ch;
+  }
+  .synthesis-quote em {
+    font-style: italic;
+    color: #FFB47A;
+  }
+  .synthesis-attribution {
+    margin-top: var(--s4);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: rgba(244,240,232,0.55);
+    letter-spacing: 0.08em;
+  }
+
+  @media (max-width: 1100px) {
+    .findings-grid { grid-template-columns: 1fr 1fr; }
+    .taxonomy-grid { grid-template-columns: 1fr 1fr; }
+    .source-grid { grid-template-columns: 1fr 1fr; }
+    .mockup-row, .mockup-row.flip { grid-template-columns: 1fr; }
+    .palette { grid-template-columns: 1fr; }
+    .decision-matrix { grid-template-columns: 1fr; }
+    .container { padding: var(--s7) var(--s5); }
+  }
+  @media (max-width: 720px) {
+    .findings-grid { grid-template-columns: 1fr; }
+    .taxonomy-grid { grid-template-columns: 1fr; }
+    .source-grid { grid-template-columns: 1fr; }
+    .intro { grid-template-columns: 1fr; }
+    .masthead { grid-template-columns: 1fr; }
+    .masthead-meta { text-align: left; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-frame">
+  <span class="tl"></span>
+  <span class="br"></span>
+</div>
+
+<div class="container">
+
+  <!-- ════════════════════════════════════════════════════════════════
+       MASTHEAD
+       ════════════════════════════════════════════════════════════════ -->
+  <header class="masthead">
+    <div>
+      <div class="masthead-eyebrow">Design Research · Port Daddy / FleetBar · 2026-05-15</div>
+      <h1>The chrome is so confident<br>it can <em>disappear.</em></h1>
+    </div>
+    <div class="masthead-meta">
+      <strong>Vol 01 No 01</strong><br>
+      Three parallel scouts<br>
+      Menubar · Control plane · Borders<br>
+      6,400 words synthesized<br>
+      152 sources reviewed
+    </div>
+  </header>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       INTRO
+       ════════════════════════════════════════════════════════════════ -->
+  <section class="intro">
+    <div class="intro-lede">
+      A visual survey of where the menubar control plane <em>actually lives</em> — and what to build when the brief is "Swiss modern + sparse color blocks + fractional borders."
+    </div>
+    <div class="intro-body">
+      <p>The brief: a FleetBar that runs as a macOS menu-bar app, manages a fleet of Port Daddy agents, and uses Swiss-modern typographic discipline with sparse smart color blocking and fractional borders instead of full chrome.</p>
+      <p>Three scouts surveyed the space in parallel — menu-bar app conventions, contemporary control-plane UI, and the editorial fractional-border tradition. This report synthesizes their findings and resolves them into a single design language. The page you are reading is built from that language. Read what it is, then look at how it presents itself.</p>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       SECTION 1 — Findings at a glance
+       ════════════════════════════════════════════════════════════════ -->
+  <section class="report-section" id="findings">
+    <div class="section-header">
+      <div class="section-number">§ 01</div>
+      <div class="section-title">Findings at a glance</div>
+      <div class="section-kicker">three streams · one shape</div>
+    </div>
+
+    <div class="findings-grid">
+      <article class="finding-card">
+        <div class="finding-eyebrow">Stream 01 · Menubar</div>
+        <div class="finding-title">22pt working height. 320–420pt popover.</div>
+        <div class="finding-body">The geometry is fixed. macOS menu bars are 24pt tall, with 22pt of usable height for menu-bar icons. Popover widths cluster at 320–420pt, with 380pt the most common shipped value. Height is dynamic — content drives, with a 40pt safety buffer to avoid silent clipping.</div>
+        <div class="finding-stat">380<span style="font-size:18px;color:var(--ink-mute);">pt</span></div>
+        <div class="finding-stat-label">Working popover width</div>
+      </article>
+
+      <article class="finding-card">
+        <div class="finding-eyebrow">Stream 02 · Control Plane</div>
+        <div class="finding-title">Six states. One dot. No spinner alongside.</div>
+        <div class="finding-body">Vercel's Geist StatusDot is the strictest published contract: <code>QUEUED · BUILDING · READY · ERROR · CANCELED · DELETED</code>. Animate only on active states. Pair with relative time. Never co-render a spinner. For non-deployment things — workflows, jobs, agents — use Badge instead of StatusDot.</div>
+        <div class="finding-stat">6</div>
+        <div class="finding-stat-label">Canonical states. Not seven, not five.</div>
+      </article>
+
+      <article class="finding-card">
+        <div class="finding-eyebrow">Stream 03 · Fractional Borders</div>
+        <div class="finding-title">Eight patterns. Use two. Mix none.</div>
+        <div class="finding-body">The taxonomy ranges from L-tick corner brackets to full-bleed color zones. Eight distinct patterns, each communicating something different. The cardinal rule: do not mix more than two in one surface. Three or more reads as decorated chaos — the opposite of Swiss restraint.</div>
+        <div class="finding-stat">2</div>
+        <div class="finding-stat-label">Maximum bracket patterns per surface</div>
+      </article>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       SECTION 2 — The fractional-border taxonomy
+       ════════════════════════════════════════════════════════════════ -->
+  <section class="report-section" id="taxonomy">
+    <div class="section-header">
+      <div class="section-number">§ 02</div>
+      <div class="section-title">The fractional-border taxonomy</div>
+      <div class="section-kicker">eight patterns · three lineages</div>
+    </div>
+
+    <div class="sub-section-lede" style="padding-left:0;max-width:72ch;">
+      Three lineages converge here: <strong>register marks</strong> from offset lithography, <strong>color blocks</strong> from Swiss/ITS (Müller-Brockmann, Vignelli, Unimark), and <strong>instrumentation</strong> from Bauhaus and Braun. The menubar control plane sits naturally in the instrumentation tradition and can borrow restraint from the editorial register-mark tradition. Avoid leaning hard on the poster tradition — full Swiss color confidence reads as advertising, not as a tool.
+    </div>
+
+    <div class="taxonomy-grid">
+      <!-- 2.1 corner brackets -->
+      <div class="pattern-cell">
+        <div class="pattern-vis p-brackets"><div class="content"><span class="tl"></span><span class="br"></span>brackets</div></div>
+        <div class="pattern-id">Pattern 2.1</div>
+        <div class="pattern-name">Corner brackets (L-tick)</div>
+        <div class="pattern-use">Four L-ticks at the corners. "This is a framed area" without the weight of full enclosure.</div>
+        <div class="pattern-rating">
+          <span class="pattern-rating-label">FleetBar</span>
+          <span class="pattern-rating-pill use">Use · panel scope</span>
+        </div>
+      </div>
+
+      <!-- 2.2 two diagonal -->
+      <div class="pattern-cell">
+        <div class="pattern-vis p-diagonal"><div class="content">diagonal</div></div>
+        <div class="pattern-id">Pattern 2.2</div>
+        <div class="pattern-name">Two diagonal corners</div>
+        <div class="pattern-use">Top-left + bottom-right only. Asymmetric. Quotation-mark frame. Beautiful in print but reads as half-rendered at small UI sizes.</div>
+        <div class="pattern-rating">
+          <span class="pattern-rating-label">FleetBar</span>
+          <span class="pattern-rating-pill maybe">Maybe · large only</span>
+        </div>
+      </div>
+
+      <!-- 2.3 midlines -->
+      <div class="pattern-cell">
+        <div class="pattern-vis p-midline"><div class="content">midline</div></div>
+        <div class="pattern-id">Pattern 2.3</div>
+        <div class="pattern-name">Midline rules</div>
+        <div class="pattern-use">Hairlines that span only the middle third where a full border would sit. "Divided horizontally, continuous vertically."</div>
+        <div class="pattern-rating">
+          <span class="pattern-rating-label">FleetBar</span>
+          <span class="pattern-rating-pill use">Use · between sections</span>
+        </div>
+      </div>
+
+      <!-- 2.4 left-edge accent -->
+      <div class="pattern-cell">
+        <div class="pattern-vis p-edge"><div class="content">left edge</div></div>
+        <div class="pattern-id">Pattern 2.4</div>
+        <div class="pattern-name">Left-edge accent stripe</div>
+        <div class="pattern-use">A 2–4px solid color on one edge only. The stripe is the border, the status, and the row-divider all at once. Most load-bearing in modern tech UI.</div>
+        <div class="pattern-rating">
+          <span class="pattern-rating-label">FleetBar</span>
+          <span class="pattern-rating-pill feature">Feature pattern</span>
+        </div>
+      </div>
+
+      <!-- 2.5 segmented -->
+      <div class="pattern-cell">
+        <div class="pattern-vis p-segment"><div class="content">
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;">
+            <rect x="0.5" y="0.5" width="99" height="99" fill="none" stroke="#1A1815" stroke-width="1.5" stroke-dasharray="8 6" vector-effect="non-scaling-stroke" />
+          </svg>
+          segmented
+        </div></div>
+        <div class="pattern-id">Pattern 2.5</div>
+        <div class="pattern-name">Segmented stroke</div>
+        <div class="pattern-use">Mathematically interrupted perimeter. Reads as "draft" or "drop zone." Dates fast on persistent UI.</div>
+        <div class="pattern-rating">
+          <span class="pattern-rating-label">FleetBar</span>
+          <span class="pattern-rating-pill skip">Skip · feels dated</span>
+        </div>
+      </div>
+
+      <!-- 2.6 open corner -->
+      <div class="pattern-cell">
+        <div class="pattern-vis p-open"><div class="content"><span class="h-top"></span><span class="h-bot"></span>open corners</div></div>
+        <div class="pattern-id">Pattern 2.6</div>
+        <div class="pattern-name">Open-corner frame</div>
+        <div class="pattern-use">Four edges that stop 8–12px short of meeting. "Structured but breathing." OK-RM, Bureau Borsche.</div>
+        <div class="pattern-rating">
+          <span class="pattern-rating-label">FleetBar</span>
+          <span class="pattern-rating-pill skip">Skip · gaps vanish at small sizes</span>
+        </div>
+      </div>
+
+      <!-- 2.7 crop anchors -->
+      <div class="pattern-cell">
+        <div class="pattern-vis p-crop"><div class="content"><span class="tl"></span><span class="br"></span>crop marks</div></div>
+        <div class="pattern-id">Pattern 2.7</div>
+        <div class="pattern-name">Crop-mark anchors</div>
+        <div class="pattern-use">Tiny ticks outside the content's invisible bounding box. Highest-class editorial signal. Too print-poster for a control surface.</div>
+        <div class="pattern-rating">
+          <span class="pattern-rating-label">FleetBar</span>
+          <span class="pattern-rating-pill maybe">Maybe · masthead only</span>
+        </div>
+      </div>
+
+      <!-- 2.8 color zone -->
+      <div class="pattern-cell">
+        <div class="pattern-vis p-zone"><div class="content" style="color:var(--paper);">color zone</div></div>
+        <div class="pattern-id">Pattern 2.8</div>
+        <div class="pattern-name">Color zone as frame</div>
+        <div class="pattern-use">No border at all. A saturated panel becomes its own boundary by contrast with the neutral matrix. The Vignelli move.</div>
+        <div class="pattern-rating">
+          <span class="pattern-rating-label">FleetBar</span>
+          <span class="pattern-rating-pill use">Use · primary state only</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Where it fails -->
+    <div class="sub-section">
+      <div class="sub-section-title">When this aesthetic fails</div>
+      <div class="sub-section-lede">The single best diagnostic — if you removed the fractional borders entirely, would the UI still communicate its hierarchy through color, spacing, and type? If yes, brackets add refinement. If no, you're using them to hide the absence of a real system.</div>
+    </div>
+
+    <div class="decision-matrix">
+      <div class="decision-card use">
+        <div class="decision-title">Earns its place</div>
+        <ul>
+          <li>Brackets are ≥12px and snap to the grid (4px or 8px base unit)</li>
+          <li>Each pattern marks something specific — selection, focus, panel-scope</li>
+          <li>One accent color, max two; against a strict neutral matrix</li>
+          <li>The grid underneath is invisible but real — brackets land on it</li>
+          <li>Removing the brackets would not break hierarchy, only refinement</li>
+        </ul>
+      </div>
+      <div class="decision-card skip">
+        <div class="decision-title">Dates immediately</div>
+        <ul>
+          <li>Brackets shorter than 10px — reads as a render glitch</li>
+          <li>Three or more bracket styles in one view</li>
+          <li>Decoration without semantics — every card has brackets, so none of them mean anything</li>
+          <li>Saturation indiscipline — three accent colors competing on one panel</li>
+          <li>Dashed strokes as persistent UI — always reads as a draft or drag-target</li>
+          <li>Box-shadow stacked under fractional borders — collapses the entire idea</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       SECTION 3 — The FleetBar Popover, demonstrated
+       ════════════════════════════════════════════════════════════════ -->
+  <section class="report-section" id="mockup">
+    <div class="section-header">
+      <div class="section-number">§ 03</div>
+      <div class="section-title">The FleetBar popover, demonstrated</div>
+      <div class="section-kicker">applied · 380pt · live</div>
+    </div>
+
+    <div class="sub-section-lede" style="padding-left:0;max-width:72ch;">
+      A working mockup of the recommended language. Four patterns are in play: panel-scope corner brackets (2.1), section midline rules (2.3), per-row left-edge accent stripes (2.4), and a single color zone (2.8) for the primary state. Nothing else. No card chrome. No box-shadows. The matrix carries the rest.
+    </div>
+
+    <!-- MOCKUP ROW -->
+    <div class="mockup-row">
+      <div class="mockup-frame">
+        <span class="tl"></span><span class="br"></span>
+
+        <div class="fb-popover">
+          <span class="ftl"></span><span class="fbr"></span>
+
+          <!-- HEAD -->
+          <div class="fb-head">
+            <div class="fb-brand"><span class="fb-brand-mark">⌗</span>FleetBar</div>
+            <div class="fb-meta">06 ACTIVE</div>
+          </div>
+
+          <div class="fb-rule"></div>
+
+          <!-- COLOR ZONE — the Vignelli move, single instance -->
+          <div class="fb-zone">
+            <div class="fb-zone-eyebrow">Now running</div>
+            <div class="fb-zone-title">Spider · security scan</div>
+            <div class="fb-zone-detail">queries/user.ts · pass 4 of 7 · 18s elapsed</div>
+            <svg class="fb-spark" viewBox="0 0 200 20" preserveAspectRatio="none">
+              <polyline fill="none" stroke="rgba(244,240,232,0.55)" stroke-width="1.5"
+                points="0,14 12,12 24,15 36,8 48,11 60,6 72,9 84,4 96,7 108,3 120,8 132,5 144,9 156,4 168,7 180,3 192,5" />
+              <circle cx="192" cy="5" r="2.5" fill="#FFB47A" />
+            </svg>
+          </div>
+
+          <!-- SECTION 1 — Active fleet -->
+          <div class="fb-section-label" style="padding-top:14px;">
+            <span>Active fleet</span><span class="count">06</span>
+          </div>
+
+          <div class="fb-row" data-state="running">
+            <div class="fb-dot"></div>
+            <div class="fb-body">
+              <div class="fb-name">Cartographer</div>
+              <div class="fb-status">Indexing src/ — 412 / 1,840 files</div>
+            </div>
+            <div class="fb-time">2m 14s</div>
+          </div>
+
+          <div class="fb-row" data-state="ok">
+            <div class="fb-dot"></div>
+            <div class="fb-body">
+              <div class="fb-name">QA</div>
+              <div class="fb-status">14 of 14 passed · last run 8s ago</div>
+            </div>
+            <div class="fb-time">8s</div>
+          </div>
+
+          <div class="fb-row" data-state="warn">
+            <div class="fb-dot"></div>
+            <div class="fb-body">
+              <div class="fb-name">Gardener</div>
+              <div class="fb-status">3 lint warnings, 1 unused export</div>
+            </div>
+            <div class="fb-time">1m</div>
+          </div>
+
+          <div class="fb-row" data-state="error">
+            <div class="fb-dot"></div>
+            <div class="fb-body">
+              <div class="fb-name">Spark</div>
+              <div class="fb-status">workers-ai 401 — auth token expired</div>
+            </div>
+            <div class="fb-time">23s</div>
+          </div>
+
+          <div class="fb-row" data-state="blocked">
+            <div class="fb-dot"></div>
+            <div class="fb-body">
+              <div class="fb-name">Approver</div>
+              <div class="fb-status">Waiting on operator · PR #91 review</div>
+            </div>
+            <div class="fb-time">4m</div>
+          </div>
+
+          <div class="fb-row" data-state="idle">
+            <div class="fb-dot"></div>
+            <div class="fb-body">
+              <div class="fb-name">Documentarian</div>
+              <div class="fb-status">Idle · last run 28m ago</div>
+            </div>
+            <div class="fb-time">—</div>
+          </div>
+
+          <div class="fb-rule"></div>
+
+          <!-- SECTION 2 — Recent outcomes -->
+          <div class="fb-section-label">
+            <span>Last hour</span><span class="count">11</span>
+          </div>
+
+          <div class="fb-row" data-state="ok">
+            <div class="fb-dot"></div>
+            <div class="fb-body">
+              <div class="fb-name">Resolved · feedback #42</div>
+              <div class="fb-status">Spider · SQL injection patched</div>
+            </div>
+            <div class="fb-time">11m</div>
+          </div>
+
+          <div class="fb-row" data-state="ok">
+            <div class="fb-dot"></div>
+            <div class="fb-body">
+              <div class="fb-name">Merged · #88</div>
+              <div class="fb-status">harbor token test determinism</div>
+            </div>
+            <div class="fb-time">28m</div>
+          </div>
+
+          <!-- FOOT -->
+          <div class="fb-rule"></div>
+          <div class="fb-foot">
+            <span>cmd-K to dispatch</span>
+            <span class="fb-cmd">⌘K</span>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="mockup-commentary">
+        <h3>What's load-bearing here.</h3>
+        <p>The 3px left-edge stripe is the only thing that carries state per row. No status icon, no chip, no badge. The dot at left re-states the same color for color-blindness safety and to give the row a fixation point — but the stripe is what scans at 200ms glance distance.</p>
+        <ul>
+          <li><strong>Panel-scope brackets (Pattern 2.1)</strong> — four 12px L-ticks at the corners of the popover. The panel feels framed but never enclosed. Brackets land on the 4px grid.</li>
+          <li><strong>Left-edge accent stripe (Pattern 2.4)</strong> — six semantic colors (cobalt-running, green-ok, amber-warn, red-error, plum-blocked, gray-idle) applied as a 3px inset shadow. The stripe extends 6px short of top and bottom, giving each row a measured silhouette.</li>
+          <li><strong>Midline rules (Pattern 2.3)</strong> — between the head, the color zone, the two list sections, and the foot. The rule spans only 64px of the available width, anchored left.</li>
+          <li><strong>Single color zone (Pattern 2.8)</strong> — one cobalt block, top of the panel, for the agent that is right now running. There is exactly one running zone. If two agents are running, the second never gets a zone; it stays in the list with a pulsing stripe.</li>
+          <li><strong>Sparkline at the head</strong> — direct labeling (no axis, no legend), color matched to the zone, end-of-line dot in warm amber for the actionable readout.</li>
+          <li><strong>No card chrome anywhere</strong> — no <code>box-shadow</code>, no <code>border-radius</code>, no nested cards. The matrix and the brackets do all the framing.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- A second mockup — agent detail expanded -->
+    <div class="sub-section">
+      <div class="sub-section-title">The same primitives, scaled up</div>
+      <div class="sub-section-lede">When an agent row expands, the same four patterns hold. The expanded card gets its own bracket frame, the active step gets a left stripe, and the tools-available chips (borrowed from Langfuse) sit in a midline-ruled strip beneath the current step.</div>
+    </div>
+
+    <div class="mockup-row flip">
+      <div class="mockup-commentary">
+        <h3>Inline expansion, not modal.</h3>
+        <p>The Raycast List-Item-Detail pattern, applied to agents. Clicking a running row does not push the user to a new screen — it expands inline, with the panel's own bracket scope re-stating around the expanded zone. The agent's <em>possibility space</em> (tools available, last call, next planned step) is rendered as a visible chip row, drawing from Langfuse's November 2025 trace redesign.</p>
+        <ul>
+          <li><strong>Brand consistency</strong> — the brackets that wrap the expansion are 1px thinner than the panel's outer brackets, so nesting depth is implied without enclosure.</li>
+          <li><strong>Tool chips</strong> — five tool affordances shown horizontally. The active tool gets the cobalt left-edge stripe. Others stay neutral with a 12px label and a hairline underline.</li>
+          <li><strong>Current step</strong> — rendered as streaming text, not a spinner. The dot pulses, the text updates in place. One animation only.</li>
+          <li><strong>Action affordances</strong> — pause / interrupt / kill sit inline as ⌘K-discoverable commands, never as hidden kebab menus. W&amp;B Sweeps pattern.</li>
+        </ul>
+      </div>
+
+      <div class="mockup-frame">
+        <span class="tl"></span><span class="br"></span>
+
+        <div class="fb-popover" style="padding-bottom:0;">
+          <span class="ftl"></span><span class="fbr"></span>
+
+          <div class="fb-head">
+            <div class="fb-brand"><span class="fb-brand-mark">⌗</span>Cartographer</div>
+            <div class="fb-meta">2M 14S · RUNNING</div>
+          </div>
+
+          <div class="fb-rule"></div>
+
+          <!-- Step (streaming) -->
+          <div style="padding: 8px 18px 14px;">
+            <div style="font-family:var(--font-mono);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.14em;color:var(--cobalt);margin-bottom:6px;">Current step</div>
+            <div style="font-size:14px;line-height:1.55;color:var(--ink);">Reading <code style="font-family:var(--font-mono);color:var(--cobalt);">src/routes/feedback.ts</code> and resolving import graph for <code style="font-family:var(--font-mono);color:var(--cobalt);">@/lib/feedback-loop</code>.</div>
+            <div style="display:flex;gap:8px;margin-top:10px;font-family:var(--font-mono);font-size:12px;color:var(--ink-mute);">
+              <span>files · 412/1840</span>
+              <span style="color:var(--hair-strong);">│</span>
+              <span>tokens · 24.1k</span>
+              <span style="color:var(--hair-strong);">│</span>
+              <span style="color:var(--cobalt);">cost · $0.04</span>
+            </div>
+          </div>
+
+          <div class="fb-rule"></div>
+
+          <!-- Tools available (Langfuse pattern) -->
+          <div style="padding: 0 18px 12px;">
+            <div style="font-family:var(--font-mono);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.14em;color:var(--ink-mute);margin-bottom:8px;">Tools available · 5</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;">
+              <span style="font-family:var(--font-mono);font-size:12px;font-weight:600;padding:4px 8px;background:var(--paper-raised);color:var(--cobalt);box-shadow:inset 3px 0 0 var(--cobalt);">read_file</span>
+              <span style="font-family:var(--font-mono);font-size:12px;font-weight:600;padding:4px 8px;background:var(--paper-raised);color:var(--ink-soft);">grep</span>
+              <span style="font-family:var(--font-mono);font-size:12px;font-weight:600;padding:4px 8px;background:var(--paper-raised);color:var(--ink-soft);">git_log</span>
+              <span style="font-family:var(--font-mono);font-size:12px;font-weight:600;padding:4px 8px;background:var(--paper-raised);color:var(--ink-soft);">resolve_import</span>
+              <span style="font-family:var(--font-mono);font-size:12px;font-weight:600;padding:4px 8px;background:var(--paper-raised);color:var(--ink-soft);">save_note</span>
+            </div>
+          </div>
+
+          <div class="fb-rule"></div>
+
+          <!-- Recent steps -->
+          <div class="fb-section-label">
+            <span>Recent steps</span><span class="count">last 6</span>
+          </div>
+
+          <div class="fb-row" data-state="ok">
+            <div class="fb-dot"></div>
+            <div class="fb-body">
+              <div class="fb-name">resolve_import · @/lib/feedback-loop</div>
+              <div class="fb-status">3 files referenced · cached</div>
+            </div>
+            <div class="fb-time">1s</div>
+          </div>
+          <div class="fb-row" data-state="ok">
+            <div class="fb-dot"></div>
+            <div class="fb-body">
+              <div class="fb-name">read_file · src/routes/feedback.ts</div>
+              <div class="fb-status">284 lines · added to symbol index</div>
+            </div>
+            <div class="fb-time">2s</div>
+          </div>
+          <div class="fb-row" data-state="ok">
+            <div class="fb-dot"></div>
+            <div class="fb-body">
+              <div class="fb-name">grep · POST /feedback</div>
+              <div class="fb-status">5 matches across 3 files</div>
+            </div>
+            <div class="fb-time">3s</div>
+          </div>
+
+          <div class="fb-rule"></div>
+          <div class="fb-foot" style="padding-bottom:14px;">
+            <span>back · ⌘[</span>
+            <span><span class="fb-cmd">⌘P</span> <span style="margin-left:6px;">pause</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       SECTION 4 — Palette and type
+       ════════════════════════════════════════════════════════════════ -->
+  <section class="report-section" id="palette">
+    <div class="section-header">
+      <div class="section-number">§ 04</div>
+      <div class="section-title">The tokens — palette &amp; type</div>
+      <div class="section-kicker">12 colors · 2 families · 1 grid</div>
+    </div>
+
+    <div class="palette">
+      <div>
+        <div class="sub-section-title" style="padding-left:0;margin-bottom:var(--s4);">Color tokens</div>
+        <div class="palette-strip">
+          <div class="palette-row"><div class="palette-swatch" style="background:#F4F0E8;border:1px solid var(--hair);"></div><div><div class="palette-name">Paper</div><div class="palette-hex">#F4F0E8</div></div><div class="palette-role">Page matrix · most surfaces</div></div>
+          <div class="palette-row"><div class="palette-swatch" style="background:#ECE6D9;"></div><div><div class="palette-name">Paper raised</div><div class="palette-hex">#ECE6D9</div></div><div class="palette-role">Cards · raised hover state</div></div>
+          <div class="palette-row"><div class="palette-swatch" style="background:#E2DAC8;"></div><div><div class="palette-name">Paper deep</div><div class="palette-hex">#E2DAC8</div></div><div class="palette-role">Sunken zones · scrubbers</div></div>
+          <div class="palette-row"><div class="palette-swatch" style="background:#1A1815;"></div><div><div class="palette-name">Ink</div><div class="palette-hex">#1A1815</div></div><div class="palette-role">Primary text · brackets</div></div>
+          <div class="palette-row"><div class="palette-swatch" style="background:#3A3631;"></div><div><div class="palette-name">Ink soft</div><div class="palette-hex">#3A3631</div></div><div class="palette-role">Body copy &amp; details</div></div>
+          <div class="palette-row"><div class="palette-swatch" style="background:#6A655C;"></div><div><div class="palette-name">Ink mute</div><div class="palette-hex">#6A655C</div></div><div class="palette-role">Metadata · timestamps</div></div>
+          <div class="palette-row"><div class="palette-swatch" style="background:#003FB8;"></div><div><div class="palette-name">Cobalt</div><div class="palette-hex">#003FB8</div></div><div class="palette-role">Single system accent</div></div>
+          <div class="palette-row"><div class="palette-swatch" style="background:#2E7D5B;"></div><div><div class="palette-name">Status · OK</div><div class="palette-hex">#2E7D5B</div></div><div class="palette-role">Left-edge stripe only</div></div>
+          <div class="palette-row"><div class="palette-swatch" style="background:#B8801F;"></div><div><div class="palette-name">Status · Warn</div><div class="palette-hex">#B8801F</div></div><div class="palette-role">Left-edge stripe only</div></div>
+          <div class="palette-row"><div class="palette-swatch" style="background:#B5392E;"></div><div><div class="palette-name">Status · Error</div><div class="palette-hex">#B5392E</div></div><div class="palette-role">Left-edge stripe only</div></div>
+          <div class="palette-row"><div class="palette-swatch" style="background:#6B3F8A;"></div><div><div class="palette-name">Status · Blocked</div><div class="palette-hex">#6B3F8A</div></div><div class="palette-role">Left-edge stripe only</div></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="sub-section-title" style="padding-left:0;margin-bottom:var(--s4);">Type tokens</div>
+        <div style="background:var(--paper-raised);padding:var(--s5);">
+          <div style="font-family:var(--font-display);font-size:36px;font-weight:800;letter-spacing:-0.03em;line-height:1;color:var(--ink);">Display · 36/40</div>
+          <div style="font-family:var(--font-mono);font-size:12px;color:var(--ink-mute);margin-top:6px;letter-spacing:0.06em;">Inter Variable · weight 800 · tracking -3%</div>
+        </div>
+        <div style="background:var(--paper-raised);padding:var(--s5);margin-top:var(--s2);">
+          <div style="font-family:var(--font-display);font-size:22px;font-weight:700;letter-spacing:-0.015em;color:var(--ink);">Subhead · 22/28</div>
+          <div style="font-family:var(--font-mono);font-size:12px;color:var(--ink-mute);margin-top:6px;letter-spacing:0.06em;">Inter Variable · weight 700</div>
+        </div>
+        <div style="background:var(--paper-raised);padding:var(--s5);margin-top:var(--s2);">
+          <div style="font-family:var(--font-display);font-size:15px;font-weight:500;color:var(--ink);line-height:1.55;">Body · 15/24. The body type is set above the 14px floor and never below it. Inter variable handles both UI density and reading comfort.</div>
+          <div style="font-family:var(--font-mono);font-size:12px;color:var(--ink-mute);margin-top:6px;letter-spacing:0.06em;">Inter Variable · weight 500 · opsz 18</div>
+        </div>
+        <div style="background:var(--paper-raised);padding:var(--s5);margin-top:var(--s2);">
+          <div style="font-family:var(--font-mono);font-size:13px;font-weight:500;color:var(--ink);letter-spacing:0.02em;">Mono · 13. queries/user.ts:47 · 2m 14s</div>
+          <div style="font-family:var(--font-mono);font-size:12px;color:var(--ink-mute);margin-top:6px;letter-spacing:0.06em;">Geist Mono · OFL · for code &amp; metrics</div>
+        </div>
+        <div style="background:var(--ink);color:var(--paper);padding:var(--s5);margin-top:var(--s2);">
+          <div style="font-family:var(--font-mono);font-size:12px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;">Eyebrow · 12/16 · uppercase 14% track</div>
+          <div style="font-family:var(--font-mono);font-size:12px;color:rgba(244,240,232,0.55);margin-top:6px;letter-spacing:0.06em;text-transform:none;">Only 12px allowed surface · weight 600 · uppercase · letter-spacing ≥ 0.10em</div>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       SECTION 5 — State grammar
+       ════════════════════════════════════════════════════════════════ -->
+  <section class="report-section" id="states">
+    <div class="section-header">
+      <div class="section-number">§ 05</div>
+      <div class="section-title">The state grammar</div>
+      <div class="section-kicker">six states · one dot · one stripe</div>
+    </div>
+
+    <div class="sub-section-lede" style="padding-left:0;max-width:72ch;">
+      Borrowed from Geist's published StatusDot contract and adapted for agents. The dot says state. The stripe re-states it for color-blindness and to pin the row's silhouette. The relative time anchors duration. No spinner is permitted alongside the dot. The dot animates only when work is actively in flight — never during idle, completed, or terminal states.
+    </div>
+
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th>State</th>
+          <th>Color</th>
+          <th>Stripe + dot</th>
+          <th>Animation</th>
+          <th>Label form</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Running</td><td>#003FB8 Cobalt</td>
+          <td>3px stripe + 8px dot</td>
+          <td>Pulse ring, 1.8s ease-out</td>
+          <td>"Indexing src/ — 412/1840"</td>
+        </tr>
+        <tr>
+          <td>OK</td><td>#2E7D5B Emerald</td>
+          <td>3px stripe + 8px dot</td>
+          <td>Static</td>
+          <td>"14 of 14 passed · 8s ago"</td>
+        </tr>
+        <tr>
+          <td>Warn</td><td>#B8801F Amber</td>
+          <td>3px stripe + 8px dot</td>
+          <td>Static</td>
+          <td>"3 lint warnings, 1 unused export"</td>
+        </tr>
+        <tr>
+          <td>Error</td><td>#B5392E Cinnabar</td>
+          <td>3px stripe + 8px dot</td>
+          <td>Static</td>
+          <td>"workers-ai 401 — auth expired"</td>
+        </tr>
+        <tr>
+          <td>Blocked</td><td>#6B3F8A Plum</td>
+          <td>3px stripe + 8px dot</td>
+          <td>Static</td>
+          <td>"Waiting on operator · PR #91"</td>
+        </tr>
+        <tr>
+          <td>Idle</td><td>#98928A Ash</td>
+          <td>3px stripe + 8px dot</td>
+          <td>Static · or omit stripe</td>
+          <td>"Idle · last run 28m ago"</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Geist's contract, ported</div>
+      <div class="sub-section-lede" style="padding-left:var(--s4);">
+        One state, one token. Color is never the sole signal — every row pairs color, label, and relative time. Updates only fire on actual state change, not on every poll tick. Visually this means no constant micro-blinking. The dot's <code>aria-hidden</code>; the row gets <code>aria-live="polite"</code> only on state transition.
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       SECTION 6 — Source streams
+       ════════════════════════════════════════════════════════════════ -->
+  <section class="report-section" id="sources">
+    <div class="section-header">
+      <div class="section-number">§ 06</div>
+      <div class="section-title">Source streams</div>
+      <div class="section-kicker">three scouts · 152 sources</div>
+    </div>
+
+    <div class="source-grid">
+      <div class="source-card">
+        <div class="source-stream">Stream 01 · Menubar</div>
+        <ul class="source-list">
+          <li><strong>Bjango</strong> — Designing macOS Menu Bar Extras</li>
+          <li><strong>Apple HIG</strong> — Menu Bar, Popovers</li>
+          <li><strong>iStat Menus 7</strong> — redesign critique</li>
+          <li><strong>Stats (exelban)</strong> — module taxonomy</li>
+          <li><strong>Fantastical</strong> — mini-window pattern</li>
+          <li><strong>Tot, Lungo, Bartender</strong> — minimal utility</li>
+          <li><strong>RepoBar, GitBar, PullBar</strong> — dev tools</li>
+          <li><strong>AnyBar</strong> — UDP protocol primitive</li>
+          <li><strong>macOS Tahoe</strong> — Liquid Glass, Controls API</li>
+          <li><strong>SwiftUI MenuBarExtra</strong> — first-class scene</li>
+        </ul>
+      </div>
+
+      <div class="source-card">
+        <div class="source-stream">Stream 02 · Control Plane</div>
+        <ul class="source-list">
+          <li><strong>Geist (Vercel)</strong> — StatusDot, Badge, Gauge</li>
+          <li><strong>Linear</strong> — design tokens, Inter Variable</li>
+          <li><strong>Railway</strong> — project canvas pattern</li>
+          <li><strong>PlanetScale Insights</strong> — graph as filter</li>
+          <li><strong>Supabase Dashboard</strong> — sidebar splits</li>
+          <li><strong>Langfuse</strong> — agents trace (Nov 2025)</li>
+          <li><strong>LangSmith / Phoenix / Helicone</strong> — traces</li>
+          <li><strong>W&amp;B Sweeps</strong> — inline row actions</li>
+          <li><strong>Raycast</strong> — List-Item-Detail, font sizing</li>
+          <li><strong>Tufte, Few</strong> — sparklines, bullet graphs</li>
+        </ul>
+      </div>
+
+      <div class="source-card">
+        <div class="source-stream">Stream 03 · Borders &amp; Blocks</div>
+        <ul class="source-list">
+          <li><strong>Müller-Brockmann</strong> — grid systems</li>
+          <li><strong>Vignelli (Unimark)</strong> — NYC Subway, AA</li>
+          <li><strong>Pentagram</strong> — Scenario, Color Works</li>
+          <li><strong>OK-RM, Bureau Borsche</strong> — open frames</li>
+          <li><strong>Order Design</strong> — register-mark editorial</li>
+          <li><strong>AREA 17</strong> — Pentagram website</li>
+          <li><strong>Linear</strong> — left-edge accent pattern</li>
+          <li><strong>Stripe</strong> — Elements Appearance API</li>
+          <li><strong>shadcn StatsCard10</strong> — KPI accent border</li>
+          <li><strong>Are.na · brutalist editorial channels</strong></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       SYNTHESIS PULL-QUOTE
+       ════════════════════════════════════════════════════════════════ -->
+  <div class="synthesis-call">
+    <div class="synthesis-eyebrow">Synthesis · The brief, resolved</div>
+    <div class="synthesis-quote">
+      What the user reached for when they said <em>"fractional borders"</em> is the Linear / Stripe / Vignelli move — the chrome is so confident it can disappear, and only the parts that mean something remain.
+    </div>
+    <div class="synthesis-attribution">Stream 03 closing — Are.na, Pentagram, OK-RM lineage</div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       SECTION 7 — The build recipe
+       ════════════════════════════════════════════════════════════════ -->
+  <section class="report-section" id="recipe">
+    <div class="section-header">
+      <div class="section-number">§ 07</div>
+      <div class="section-title">The build recipe</div>
+      <div class="section-kicker">100 lines of CSS · zero card chrome</div>
+    </div>
+
+    <div class="sub-section-lede" style="padding-left:0;max-width:72ch;">
+      Four patterns. Five state colors plus one accent. One typeface plus one mono. Built on a 4px grid with an 8px element gap and Linear's published spacing scale (4/8/12/16/20/24/32/48/64/96/128). If a designer can build the FleetBar popover in 100 lines of CSS, the design language is doing its job. If it takes 400 lines, something is decorative.
+    </div>
+
+    <div class="decision-matrix">
+      <div class="decision-card use">
+        <div class="decision-title">In the FleetBar</div>
+        <ul>
+          <li><strong>Panel corner brackets (2.1)</strong> · 12px L-ticks, 1.5px stroke, at all four corners of the popover</li>
+          <li><strong>Left-edge accent stripe (2.4)</strong> · 3px inset shadow, six semantic colors, on every active or in-flight row</li>
+          <li><strong>Midline rules (2.3)</strong> · 64px segment on the left of the section boundary, hairline-strong at 32% opacity</li>
+          <li><strong>One color zone (2.8)</strong> · cobalt full-bleed for the singular currently-running agent at the top of the panel</li>
+          <li><strong>Pulse ring on running</strong> · 1.5px concentric ring, fade-out 1.8s ease-out, transform-only animation</li>
+          <li><strong>Sparkline</strong> · direct labeling, end-of-line dot in warm amber for actionable readout</li>
+        </ul>
+      </div>
+      <div class="decision-card skip">
+        <div class="decision-title">Not in the FleetBar</div>
+        <ul>
+          <li><strong>Card chrome</strong> · no <code>box-shadow</code> behind any element, no <code>border-radius</code> anywhere</li>
+          <li><strong>Spinners alongside dots</strong> · pick one state carrier per object, never two</li>
+          <li><strong>Segmented strokes (2.5)</strong> · dates immediately, reads as draft</li>
+          <li><strong>Open-corner frames (2.6)</strong> · gaps vanish at popover-scale sizes</li>
+          <li><strong>Multiple accent colors</strong> · cobalt is the single system accent · status colors stay on stripes</li>
+          <li><strong>Tiny eyebrows</strong> · never below 12px · never below weight 600 · never below 0.10em letter-spacing</li>
+          <li><strong>Pies, donuts, 3D viz</strong> · bullet graphs and sparklines do the same job better at small scale</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       FOOTER
+       ════════════════════════════════════════════════════════════════ -->
+  <footer class="report-footer">
+    <span><strong>Port Daddy</strong> · FleetBar design research</span>
+    <span>2026-05-15 · Vol 01 No 01</span>
+    <span>Compiled from three parallel scouts</span>
+  </footer>
+
+</div>
+
+</body>
+</html>

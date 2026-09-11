@@ -101,7 +101,7 @@ out loud.
 | Group supervision | fleet runner | `lib/fleet-engine.ts`, `lib/fleet-daemon.ts` |
 
 The actor runtime is not a new subsystem we bolt on. It is the **name**
-for what the union of those modules already does. `lib/actors.ts` is the
+for what the union of those modules already does. `lib/actors.ts` is the <!-- cite-exempt -->
 thin glue that exposes a uniform interface; it does not replace anything.
 
 ---
@@ -174,8 +174,8 @@ messages and mutates state. Examples in Port Daddy today:
 - `lib/arbiter.ts` → archetype `arbiter`
 - `lib/merge-queue.ts` → archetype `merge-queue`
 - `lib/symbol-index.ts` → archetype `symbol-index`
-- `lib/skill-index.ts` (new) → archetype `skill-index`
-- `lib/episodes.ts` (new) → archetype `episodic-memory`
+- `lib/skill-index.ts` (new) → archetype `skill-index` <!-- cite-exempt -->
+- `lib/episodes.ts` (new) → archetype `episodic-memory` <!-- cite-exempt -->
 
 These are all written as plain modules today. Lifting them to actors
 means: each one has an identity (`daemon:arbiter`, `daemon:merge-queue`,
@@ -271,7 +271,7 @@ interaction happened without decoding the semantics from context.
 We're not rewriting anyone's shell scripts. The HTTP API stays identical.
 
 **Phase 1 (lands with bond enforcement, Track 1).**
-- `lib/actors.ts` runtime ships, plus the `process-bound` archetype.
+- `lib/actors.ts` runtime ships, plus the `process-bound` archetype. <!-- cite-exempt -->
 - `agents` table gains an `archetype TEXT DEFAULT 'process-bound'`
   column.
 - Every existing code path (`pd begin`, `pd spawn`, heartbeats, file
@@ -297,7 +297,7 @@ We're not rewriting anyone's shell scripts. The HTTP API stays identical.
   delegate to the actor.
 
 **Phase 4 (aspirational).**
-- Cross-daemon actor addressing: `windags@machine-2:fleet:hawk`.
+- Cross-daemon actor addressing: `jury_rig@machine-2:fleet:hawk`.
 - Requires signed messages over the IPC socket (we explicitly punt this
   in v1).
 

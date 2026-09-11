@@ -313,7 +313,7 @@ differently scaled; they disagree in sign of conclusion.
 **REFUTED detail #2: "admits this in a subordinate clause" understates the
 caption.** The actual caption (L101), verbatim:
 
-> `Regime diagram for the zoom advantage: the idealized open-count advantage $F/(k\log_2(F/k))$ against flagged-set density $k/F$, over the sparse-to-moderate range this digest architecture targets. The advantage is steep where flags are sparse ($k\ll F$) and falls toward parity as density grows; the plotted idealization never crosses parity, but the deployed algorithm's constant overhead does invert the ordering at higher density still, exactly as measured at $(F,k)=(100,90)$ in \S\ref{sec:zoom} ($199$ adaptive opens against $100$ flat) --- both halves of the claim are load-bearing.`
+> `Regime diagram for the zoom advantage: the idealized open-count advantage $F/(k\log_2(F/k))$ against flagged-set density $k/F$, over the sparse-to-moderate range this digest architecture targets. The advantage is steep where flags are sparse ($k\ll F$) and falls toward parity as density grows; the plotted idealization never crosses parity, but the deployed algorithm's constant overhead does invert the ordering at higher density still, exactly as measured at $(F,k)=(100,90)$ in \S\ref{sec:zoom} ($199$ adaptive opens against $100$ flat) --- both halves of the claim are critical.`
 
 This is a full coordinate clause, not a subordinate one: it names the quantity
 as *idealized*, states outright that it *never crosses parity*, names the

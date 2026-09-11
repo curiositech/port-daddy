@@ -1,0 +1,116 @@
+% Shared hyperlink and cross-reference discipline for the Book and its chapters.
+% Load this LAST in every preamble: cleveref must follow hyperref and amsthm.
+% hyperref itself is loaded earlier with [backref=page] (a load-time option).
+% Twin copy under whitepaper/figures/ (byte-identical; checked by
+% scripts/generate-mega-whitepaper.test.mjs).
+%
+% What a reader gets: live links on chapter titles, section numbers, theorems,
+% figures, tables, equations, page numbers, and citations; PDF bookmarks three
+% levels deep; and, at the end of every bibliography entry, the pages that cite it.
+% Links are quiet: a warm dark ink one step lighter than body text, so the
+% four part hues keep their meaning and an inline chapter title never competes
+% with the part it sits in. Chrome pages (the front-matter map, part openers)
+% recolor their own links locally.
+\hypersetup{
+  colorlinks=true,
+  linkcolor=pdinkmuted,
+  citecolor=pdinkmuted,
+  urlcolor=pdinkmuted,
+  filecolor=pdinkmuted,
+  anchorcolor=pdink,
+  bookmarksnumbered=true,
+  bookmarksdepth=3,
+  bookmarksopen=true,
+  bookmarksopenlevel=1,
+  breaklinks=true,
+  linktoc=all,
+  pdfauthor={Erich Owens},
+  pdftitle={\pdchaptertitle},
+  pdfsubject={\pdeditiontitle: \pdeditionsubtitle},
+}
+
+% Title-based chapter references. \pdchaplink{prefix}{text} is a live link to
+% the chapter inside the Book (the Book's preamble defines it before loading this
+% file); in a standalone chapter it is plain text. Prose uses \pdchapref, which
+% sets the title in italics; the locator map uses \pdchaplink directly.
+\providecommand{\pdchaplink}[2]{#2}
+\DeclareRobustCommand{\pdchapref}[2]{\pdchaplink{#1}{\emph{#2}}}
+
+% \ifpdbook -- true in the assembled Book, false in a standalone paper.
+%
+% WHY THIS EXISTS. A drawing that two chapters both \input prints twice in the
+% Book, under two figure numbers. The fix is for the chapter that develops the
+% idea to keep the figure and the other to point at it -- but a standalone
+% paper has nowhere to point, and rewriting the prose outright removed five
+% figures from harbor-economy-whitepaper.pdf and left it telling a conference
+% reader that a ceremony is "drawn in The Federated Harbor", a document that
+% reader does not have.
+%
+% So the divergence is per-build. A CONDITIONAL and not a two-argument macro:
+% the generator inlines each \input, so a figure branch is a whole table or
+% tikzpicture, and as a macro argument that is scanned as one token list --
+% which is how \pdinbook produced "runaway argument" on the first attempt.
+% \ifpdbook skips the untaken branch at the TeX level instead.
+%
+% Declared unconditionally and defaulting FALSE, which is the standalone
+% answer. The Book's preamble sets \pdbooktrue immediately after loading
+% this file. A guard here would have to mention \ifpdbook or \newif inside a
+% branch TeX may skip, and a conditional token in skipped text is counted as
+% a nested \if -- which is how two attempts at a guard both produced
+% "Incomplete \ifdefined". Ordering is cheaper than cleverness.
+\newif\ifpdbook
+
+% cleveref: "Theorem 3.1", "Figure 2.4", "Section 1.3", capitalised, never
+% abbreviated, with the whole phrase clickable. Names are declared explicitly
+% because the theorem environments are created before this file is loaded.
+\usepackage[nameinlink,capitalise,noabbrev]{cleveref}
+\crefname{pdchapter}{Chapter}{Chapters}
+\crefname{part}{Part}{Parts}
+\crefname{appendix}{Appendix}{Appendices}
+\crefname{definition}{Definition}{Definitions}
+\crefname{theorem}{Theorem}{Theorems}
+\crefname{lemma}{Lemma}{Lemmas}
+\crefname{proposition}{Proposition}{Propositions}
+\crefname{corollary}{Corollary}{Corollaries}
+\crefname{conjecture}{Conjecture}{Conjectures}
+\crefname{property}{Property}{Properties}
+\crefname{protocol}{Protocol}{Protocols}
+\crefname{lsprotocol}{Protocol}{Protocols}
+\crefname{stpprotocol}{Protocol}{Protocols}
+\crefname{heprotocol}{Protocol}{Protocols}
+\crefname{remark}{Remark}{Remarks}
+\crefname{lstlisting}{Listing}{Listings}
+\crefname{exercise}{Exercise}{Exercises}
+\crefname{solution}{Solution}{Solutions}
+\Crefname{pdchapter}{Chapter}{Chapters}
+\Crefname{lstlisting}{Listing}{Listings}
+\Crefname{exercise}{Exercise}{Exercises}
+\Crefname{solution}{Solution}{Solutions}
+
+% Back-references: "^ Cited on pages 12, 40, and 87." after every bibliography
+% entry, each page number a live link back to the page that cited the work.
+% Distinct pages only (#3/#4).
+%
+% The page numbers used to be wrapped in \color{hhgray} along with the words,
+% which painted over the link colour hyperref had just given them: the links
+% were there -- 29 annotations on a typical bibliography page -- and looked
+% exactly like the grey prose around them, so nobody knew they could click.
+% Restoring the quiet link colour would not have fixed it either; pdinkmuted
+% against hhgray is 1.53:1, which is no signal at footnote size.
+%
+% So the numbers take pdcobalt (7.55:1 on the cream, and a hue a reader cannot
+% mistake for grey), and the line opens with the return arrow this book already
+% uses to send a solution back to its exercise. This is a deliberate exception
+% to the quiet-link discipline above, and the reason is that back-matter
+% navigation is the one place where the link IS the content: in prose the
+% surrounding sentence tells you a phrase is a destination, and in a
+% bibliography nothing does.
+\renewcommand*{\backref}[1]{}
+\renewcommand*{\backrefalt}[4]{%
+  \ifcase #3\relax
+  \or {\footnotesize{\color{hhgray}$\uparrow$~Cited on page}~{\hypersetup{linkcolor=pdcobalt}#4}{\color{hhgray}.}}%
+  \else {\footnotesize{\color{hhgray}$\uparrow$~Cited on pages}~{\hypersetup{linkcolor=pdcobalt}#4}{\color{hhgray}.}}%
+  \fi}
+\renewcommand*{\backrefsep}{, }
+\renewcommand*{\backreftwosep}{ and }
+\renewcommand*{\backreflastsep}{, and }

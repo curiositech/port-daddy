@@ -33,7 +33,7 @@ and the ship-identity wrapper only.
 - **`docs/per-project-ships.md`** — schema reference for the per-repo
   ship roster, plus three worked examples: port-daddy's seven code
   reviewers, expungement-guide's UPL/citation/plain-language/
-  accessibility checkers, windags' skill-media/mermaid-author/
+  accessibility checkers, jury_rig' skill-media/mermaid-author/
   skill-grammar ships.
 - **`isValidShipHandle(handle)`** — exported helper for caller-side
   validation against the lower-kebab-case grammar.

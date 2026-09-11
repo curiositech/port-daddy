@@ -11,7 +11,7 @@ The Agent Harbor binder sets two commitments that this reference exists to keep 
   state, not a fallback mode bolted on after the cloud path shipped.
 - **07-milestones M3**: "local-only no-account path; optional passkey sign-in; device pairing... explicit
   data-boundary screen." Three separate commitments in one sentence — a path that needs no account, a sign-in
-  method that is optional rather than load-bearing, and a screen that makes the local/cloud boundary visible
+  method that is optional rather than critical, and a screen that makes the local/cloud boundary visible
   and explicit rather than implicit.
 - **07-milestones M10**: "...verify local-only mode uploads nothing." Not "document that it uploads nothing" —
   *verify*.

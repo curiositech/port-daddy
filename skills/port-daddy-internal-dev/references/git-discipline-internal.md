@@ -99,5 +99,5 @@ zero if you never push from a stale base in the first place.
 ## See also
 
 - `port-daddy-agent-skill/references/git-discipline.md` — universal rules.
-- `~/coding/windags-skills/docs/adr/0001-background-agent-git-discipline.md` — the ADR with alternatives considered.
+- `~/coding/external-skill-catalog/docs/adr/0001-background-agent-git-discipline.md` — the ADR with alternatives considered.
 - `references/release-surface-drift-protocol.md` (this skill) — the full mirror-update walk that pairs with Rule 5 (push only what you tagged).

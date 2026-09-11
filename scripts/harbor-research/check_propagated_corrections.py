@@ -538,10 +538,13 @@ ITEMS: list[Item] = [
                 present=r"candidate design, not a closed result",
             ),
             Check(
-                "website-v2/public/whitepaper/figures/fig-fh-federation-topology.tex",
-                "topology figure's escrow node must be conditional, not an unconditional invariant",
+                # The topology figure became a table shared by chapters 6 and 8
+                # (Textbook Edition, wave 11); the settlement row must still
+                # state the custody bound as conditional on the gate.
+                "website-v2/public/whitepaper/figures/tab-fh-topology.tex",
+                "topology table's settlement row must be conditional, not an unconditional invariant",
                 absent=r"Non-Custodial: Can Refuse, Cannot Redirect",
-                present=r"Custody bounded \\emph\{only if\}",
+                present=r"holds only if the settlement gate holds",
             ),
             Check(
                 "website-v2/public/whitepaper/figures/fig-fh-settlement.tex",

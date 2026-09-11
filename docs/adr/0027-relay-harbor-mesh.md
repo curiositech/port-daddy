@@ -114,7 +114,7 @@ flowchart LR
   R -- filtered mobile events --> P
 ```
 
-The design was checked against these WinDAGs skill lenses:
+The design was checked against these Jury-rig skill lenses:
 
 - `agentic-zero-trust-security`: connection is not authority; use scoped cards,
   signed envelopes, revocation, audit, and least privilege.
@@ -476,15 +476,15 @@ required for a developer to keep using Port Daddy locally.
 - `lib/blob.ts`
 - `lib/tube.ts`
 - `cli/commands/tube.ts`
-- WinDAGs skill: `agentic-zero-trust-security`
-- WinDAGs skill: `tunnels-for-agents`
-- WinDAGs skill: `reverse-proxy-for-agents`
-- WinDAGs skill: `cooperative-vibe-coding`
-- WinDAGs skill: `vibe-coding-background-agent`
-- WinDAGs skill: `high-quality-vibe-coding`
-- WinDAGs skill: `always-on-agent-architecture`
-- WinDAGs skill: `always-on-agent-inputs`
-- WinDAGs skill: `always-on-agent-safety`
+- Jury-rig skill: `agentic-zero-trust-security`
+- Jury-rig skill: `tunnels-for-agents`
+- Jury-rig skill: `reverse-proxy-for-agents`
+- Jury-rig skill: `cooperative-vibe-coding`
+- Jury-rig skill: `vibe-coding-background-agent`
+- Jury-rig skill: `high-quality-vibe-coding`
+- Jury-rig skill: `always-on-agent-architecture`
+- Jury-rig skill: `always-on-agent-inputs`
+- Jury-rig skill: `always-on-agent-safety`
 - `skills/pd-relay-zero-trust/references/relay-architecture.md`
 - `skills/pd-relay-zero-trust/references/threat-model.md`
 - `skills/pd-relay-zero-trust/templates/ADR-Relay-Architecture.md`

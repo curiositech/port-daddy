@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/governance/effect-receipt.schema.json",
+  "title": "EffectReceipt",
+  "description": "Independent evidence that an effect occurred, bound to the exact action and optional pre-effect adjudication. A missing adjudication digest is an explicit bypass witness, never permission.",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.effect-receipt.v0" },
+    "effectId": { "type": "string", "minLength": 1 },
+    "actionDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "adjudicationDigest": { "type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$" },
+    "effect": {
+      "type": "object",
+      "properties": {
+        "kind": { "type": "string", "minLength": 1 },
+        "targetDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "resultDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+      },
+      "required": ["kind", "targetDigest", "resultDigest"],
+      "additionalProperties": true
+    },
+    "witness": {
+      "type": "object",
+      "properties": {
+        "observedBy": { "type": "string", "minLength": 1 },
+        "evidenceDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+      },
+      "required": ["observedBy", "evidenceDigest"],
+      "additionalProperties": true
+    },
+    "occurredAt": { "type": "string", "minLength": 1 }
+  },
+  "required": ["schema", "effectId", "actionDigest", "adjudicationDigest", "effect", "witness", "occurredAt"],
+  "additionalProperties": true
+}

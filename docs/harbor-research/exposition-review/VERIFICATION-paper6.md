@@ -20,7 +20,7 @@ Every `[internal]` number quoted in paper6 reproduced exactly. No number in the 
 | A14 — "definite Horn rules … head may be ⊥" | **PARTIALLY-CONFIRMED** (terminology defect real; incoherence claim refuted) |
 | A15 — Bellman–Ford / super-source | **REFUTED** (implementation correct and documented; prose textbook-standard) |
 | A16 — NP-completeness definition | **PARTIALLY-CONFIRMED** (loose gloss; hardness *is* supplied two sentences later) |
-| A22 — specialization sweep circularity | **REFUTED** (the load-bearing sweep is simulation-grounded and demonstrably can fail) |
+| A22 — specialization sweep circularity | **REFUTED** (the critical sweep is simulation-grounded and demonstrably can fail) |
 | A23 — verification census arithmetic | **PARTIALLY-CONFIRMED** (numbers correct; prose framing wrong) |
 | A24 — Halfin–Whitt citation | **PARTIALLY-CONFIRMED** (defensible but mis-aimed; Smith & Whitt is the right ancestor) |
 | A26 — NP vs coNP direction | **REFUTED** (paper proves and uses the same direction) |
@@ -340,7 +340,7 @@ $z = +32.0$ — reproduced exactly.
 algebra that produced it — by discrete-event simulation directly across the boundary, by an Erlang-C meter audit
 against DES, and by two simulation-confirmed counterexamples to its predecessor. No caveat about circularity attaches.
 
-The import must, however, carry the model hypotheses, which are load-bearing and are the honest boundary at
+The import must, however, carry the model hypotheses, which are critical and are the honest boundary at
 paper6 **L375–376**: mean costs only (no tail/SLA quantiles), FCFS, exponential inter-arrival and service, an $M/M/1$
 solo server against an $M/M/c$ pool, and $A$/$w$ as exogenous policy prices. If legible-swarm's setting violates any of
 these, $g_A$ is the wrong import regardless of how well it is verified here.

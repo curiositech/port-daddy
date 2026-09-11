@@ -158,10 +158,10 @@ empirical artifact, mirroring v2.4's Merkle binding pattern.
 ## Paper changes in v2.5
 
 - **§3 Anchor token verify:** cite `algconfusion.pv`. Document that
-  algorithm pinning at the verifier is load-bearing; the naive
+  algorithm pinning at the verifier is pivotal; the naive
   verifier counter-trace in the run log shows the failure mode.
 - **§3 Anchor delegation:** cite `chain-replay.pv`. The nonce +
-  (prev_id, next_id, message_hash) binding is load-bearing.
+  (prev_id, next_id, message_hash) binding is central.
 - **§7.x Bonded recovery:** cite `magic-link.pv`. The per-token
   private-channel cap pattern (modeling SQL `UPDATE WHERE
   consumed = 0` atomicity) is the correct primitive for single-use.

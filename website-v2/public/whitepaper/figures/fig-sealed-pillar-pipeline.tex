@@ -1,0 +1,45 @@
+% Relation map for Sec. sealed-design ("One work order, two fences, two gates"): the work order, the two fences (in-guest monitor, outer gateway) and two gates (Derek's, Erin's), and the four properties each part is responsible for. Structure and the Claim/Verification/Script text are copied from the "Two fences" / "Whole-worker taint and two gates" paragraphs and the four-links table in website-v2/public/whitepaper/sealed-harbor.tex, Sec. sealed-design.
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
+  part/.style={pd state,minimum width=2.6cm,text width=2.3cm,minimum height=0.85cm,font=\footnotesize,align=center},
+  claimnode/.style={pd terminal,minimum width=3.6cm,text width=3.3cm,minimum height=1.0cm,align=center},
+  checked/.style={-{Stealth[length=1.8mm,width=1.1mm]},draw=hhgray,line width=.5pt,dashed}]
+  % --- the work order ---
+  \node[pd artifact,font=\footnotesize,text width=2.4cm,align=center] (WO) at (0,8.2) {work order $C$};
+  % --- two fences (mediation layer) ---
+  \node[pd boundary,minimum width=3.4cm,minimum height=3.2cm] (FENCES) at (4.0,8.2) {};
+  \node[pd note,anchor=south west,font=\footnotesize\itshape] at (2.3,9.85) {two fences};
+  \node[part] (F1) at (4.0,9.0) {in-guest monitor};
+  \node[part] (F2) at (4.0,7.4) {outer gateway};
+  % --- two gates (declassification) ---
+  \node[pd boundary,minimum width=3.3cm,minimum height=4.4cm] (GATES) at (8.0,3.2) {};
+  \node[pd note,anchor=south west,font=\footnotesize\itshape] at (6.35,5.45) {two gates};
+  \node[part] (G1) at (8.0,4.6) {Derek's gate};
+  \node[part] (G2) at (8.0,1.8) {Erin's gate};
+  % --- the four properties, each a claim the pipeline produces ---
+  \node[claimnode] (PE) at (12.2,9.6) {{\bfseries Enforceability}\\[2pt]\footnotesize\itshape the channel, never the token};
+  \node[claimnode] (PN) at (12.2,6.4) {{\bfseries Noninterference}\\[2pt]\footnotesize\itshape silence except through the slot};
+  \node[claimnode] (PC) at (12.2,3.2) {{\bfseries Conservation}\\[2pt]\footnotesize\itshape the ledger conserves};
+  \node[claimnode] (PD) at (12.2,0.0) {{\bfseries Detection}\\[2pt]\footnotesize\itshape power curve and alarm clock};
+  % --- what checks each claim ---
+  \node[pd direct label,font=\footnotesize,align=center] (SE) at (12.2,8.0) {\texttt{b3\_controllability.py}};
+  \node[pd direct label,font=\footnotesize,align=center] (SN) at (12.2,4.8) {\texttt{c1\_noninterference.py}};
+  \node[pd direct label,font=\footnotesize,align=center] (SC) at (12.2,1.6) {\texttt{a3\_epsilon\_ledger.py}};
+  \node[pd direct label,font=\footnotesize,align=center] (SD) at (12.2,-1.6) {\texttt{a4\_canary\_sprt.py}};
+  % --- produces: solid ---
+  \draw[pd arrow] (WO) -- (FENCES);
+  \draw[pd arrow] (FENCES) -- (GATES);
+  \draw[pd arrow] (FENCES) -- (PE);
+  \draw[pd arrow] (GATES) -- (PN);
+  \draw[pd arrow] (GATES) -- (PC);
+  \draw[pd arrow] (GATES) -- (PD);
+  % --- is checked by: dashed ---
+  \draw[checked] (PE) -- (SE);
+  \draw[checked] (PN) -- (SN);
+  \draw[checked] (PC) -- (SC);
+  \draw[checked] (PD) -- (SD);
+\end{tikzpicture}
+\caption{One work order entering the room, mediated by two fences (the in-guest monitor, the outer gateway) and released only through two gates (Derek's, Erin's); solid arrows read ``produces'', dashed arrows read ``is checked by''. The fences are what make the channel enforceable at all; the gates, once installed on that channel, are what make it silent except through the slot, what meter everything that legitimately crosses, and what are watched for anything that evades the meter -- four links in one pipeline, each closing a gap the others leave open.}
+\label{fig:sealed-pillar-pipeline}
+\end{figure}

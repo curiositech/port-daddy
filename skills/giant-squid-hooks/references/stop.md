@@ -8,6 +8,11 @@ emits the table before yielding.
 
 ## Decision ladder (in execution order)
 
+0. `$PD_HOME/HALT` exists (ADR-0132) → answer SEEN if this session has not,
+   close the event cycle (COMPLIED once after a prompt→stop cycle with no
+   blocked call; a cycle with a blocked call is consumed silently), emit the
+   `SECURITE HALT` notice as Stop `additionalContext` under Claude+jq, exit 0.
+   No SITREP verification during a halt: a block would burn a turn.
 1. `stop_hook_active:true` → exit 0. Before any dial or parsing work.
 2. camelCase agy payload (`terminationReason`/`workspacePaths`/`fullyIdle`)
    → exit 0. Observe-only vendor (below).

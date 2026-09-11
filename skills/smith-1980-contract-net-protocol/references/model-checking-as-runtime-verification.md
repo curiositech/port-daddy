@@ -48,7 +48,7 @@ In the Big Brother Logic system, the epistemic formula being checked is an *inva
 
 This is the pattern of **assertion-based programming**, extended to epistemic properties. Just as a software function asserts pre- and post-conditions to catch logical errors, an agent system can assert epistemic pre- and post-conditions to catch coordination failures.
 
-For WinDAGs:
+For Jury-rig:
 - **Pre-condition checks**: Before agent A hands a result to agent B, verify that agent B knows the result is coming, knows the format, and knows the context needed to process it.
 - **Post-condition checks**: After a coordinated action completes, verify that all involved agents are in the correct epistemic state (they know the action completed, they know its outcome, they know the next step).
 - **Invariant checks**: Throughout a long-running workflow, periodically verify that all agents have consistent world models — that no agent has a stale or incorrect belief about shared state.
@@ -75,7 +75,7 @@ The Big Brother Logic system addresses this by:
 2. Computing on-the-fly (lazy model construction)
 3. Restricting to discrete, finite angle assignments
 
-For WinDAGs with 180+ skills and potentially many simultaneous agents, full epistemic model checking at runtime would be computationally expensive. Practical approximations:
+For Jury-rig with 180+ skills and potentially many simultaneous agents, full epistemic model checking at runtime would be computationally expensive. Practical approximations:
 - **Lightweight epistemic checks**: Replace full model checking with structured assertions that check specific, pre-identified properties rather than arbitrary formulas
 - **Bounded depth checks**: Only verify K(φ) and K(K(φ)), not deeper nesting
 - **Probabilistic verification**: Use sampling-based methods to check with high confidence rather than certainty

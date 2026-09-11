@@ -226,7 +226,7 @@ index 1523d3e8..eb7fd433 100644
 +
  ## See also
  
- - `~/coding/windags-skills/docs/adr/0001-background-agent-git-discipline.md` — the full ADR with alternatives considered and migration notes.
+ - `~/coding/external-skill-catalog/docs/adr/0001-background-agent-git-discipline.md` — the full ADR with alternatives considered and migration notes.
  - `pd guard install --mode enforce` — install the staging-time enforcement hook.
 +- `pd guard check --git-verb <verb>` — manually invoke the shim's guard
 +  check; useful to see exactly what claims are blocking a destructive op

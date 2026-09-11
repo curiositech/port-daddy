@@ -76,11 +76,11 @@ The reasoning parallels special relativity: information is localized within each
 
 This has immediate consequences for agent system design: any algorithm that requires global timestamps, global sequence numbers, or global ordering of events is not faithfully modeling the distributed reality. It is imposing a sequential fiction on a parallel fact.
 
-## Application to WinDAGs Orchestration
+## Application to Jury-rig Orchestration
 
 ### Routing and dispatch must be asynchronous
 
-WinDAGs skills should be dispatched asynchronously. An orchestrating agent that sends a skill request should not block waiting for the result — it should specify a continuation (customer agent) to handle the result and immediately move on to other available work.
+Jury-rig skills should be dispatched asynchronously. An orchestrating agent that sends a skill request should not block waiting for the result — it should specify a continuation (customer agent) to handle the result and immediately move on to other available work.
 
 This is the difference between:
 ```
@@ -96,7 +96,7 @@ send(skill_A, input, continuation=my_handler)  // ASYNCHRONOUS — continues
 
 ### The mail queue as the coordination abstraction
 
-WinDAGs' task queue is an implementation of the actor mail system. The design principles follow directly:
+Jury-rig' task queue is an implementation of the actor mail system. The design principles follow directly:
 - Tasks should be uniquely tagged (Agha uses tag strings like `w.n` to ensure global uniqueness)
 - Task delivery should be guaranteed (failed tasks should be retried, not dropped)
 - No task should be permanently delayed by the presence of other tasks (fairness)
@@ -107,7 +107,7 @@ Orchestration patterns that require all agents to "check in" before proceeding c
 
 ### Nondeterminism is a design constraint, not an implementation bug
 
-When two WinDAGs agents independently produce outputs that will be consumed by a third, the order of arrival is nondeterministic. Systems must be designed to be correct regardless of arrival order. If ordering matters semantically, it must be enforced explicitly using sequence numbers and buffering (the *message channel* pattern Agha describes in §6.2.2) — not assumed from the infrastructure.
+When two Jury-rig agents independently produce outputs that will be consumed by a third, the order of arrival is nondeterministic. Systems must be designed to be correct regardless of arrival order. If ordering matters semantically, it must be enforced explicitly using sequence numbers and buffering (the *message channel* pattern Agha describes in §6.2.2) — not assumed from the infrastructure.
 
 ## Boundary Conditions
 

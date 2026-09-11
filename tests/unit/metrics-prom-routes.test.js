@@ -53,6 +53,8 @@ describe('metrics-prom routes', () => {
                 missingLinks: 1,
                 staleSymlinks: 0,
                 blockedNonSymlinks: 0,
+                orphanedLinks: 0,
+                unmanagedLinks: 0,
                 errors: [],
                 freshnessPct: 75,
                 examples: {
@@ -64,6 +66,8 @@ describe('metrics-prom routes', () => {
                   }],
                   staleSymlinks: [],
                   blockedNonSymlinks: [],
+                  orphaned: [],
+                  unmanaged: [],
                   errors: [],
                 },
               },

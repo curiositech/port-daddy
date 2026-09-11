@@ -7,8 +7,8 @@
  */
 
 import type Database from 'better-sqlite3';
-import { existsSync, statSync } from 'node:fs';
-import { extname, isAbsolute, resolve } from 'node:path';
+import { existsSync, realpathSync, statSync } from 'node:fs';
+import { basename, dirname, extname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { getWorktreeInfo } from './worktree.js';
 
 export type AdviceSeverity = 'info' | 'warning' | 'critical';
@@ -96,9 +96,11 @@ interface SessionRow {
   identity_project: string | null;
   created_at: number;
   updated_at: number;
+  metadata: string | null;
 }
 
-interface ClaimRow {
+interface ClaimRow extends SessionRow {
+  legacy_claim_id: number;
   file_path: string;
   start_line: number | null;
   end_line: number | null;
@@ -108,6 +110,22 @@ interface ClaimRow {
   session_id: string;
   purpose: string;
   agent_id: string | null;
+  forest_claim_id: number | null;
+  forest_repo_id: string | null;
+  forest_world_kind: string | null;
+  forest_world_id: string | null;
+  forest_released_at: number | null;
+}
+
+interface ClaimScope {
+  repoId: string;
+  worldId: string;
+  root: string;
+}
+
+interface ProjectedClaim extends ClaimRow {
+  relativePath: string;
+  absolutePath: string;
 }
 
 interface SymbolSummary {
@@ -142,17 +160,93 @@ function uniqueStrings(values: Array<string | null | undefined>): string[] {
   return [...new Set(values.map(compact).filter((value): value is string => Boolean(value)))];
 }
 
-function normalizeFiles(projectRoot: string, input: AdvisorInput): string[] {
-  const raw = [...(input.files ?? []), ...(input.changedFiles ?? [])];
-  return uniqueStrings(raw).map(file => isAbsolute(file) ? resolve(file) : resolve(projectRoot, file));
+/**
+ * Resolve existing ancestors so new files still respect symlink boundaries.
+ * The design deliberately returns no witness on permission or filesystem errors.
+ * @param path - Absolute or relative local path to canonicalize.
+ * @returns Physical path, including any not-yet-created suffix, or null.
+ */
+function canonicalPath(path: string): string | null {
+  const suffix: string[] = [];
+  let ancestor = resolve(path);
+  for (;;) {
+    try {
+      return resolve(realpathSync(ancestor), ...suffix);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') return null;
+      const parent = dirname(ancestor);
+      if (parent === ancestor) return null;
+      suffix.unshift(basename(ancestor));
+      ancestor = parent;
+    }
+  }
+}
+
+/**
+ * Build one root-relative address without basename or suffix matching. Rejecting
+ * traversal before normalization prevents it from masquerading as a safe claim.
+ * @param root - Canonical worktree root, not a repository display name.
+ * @param file - Stored or requested path, relative to that root when not absolute.
+ * @returns Separate claim and symbol-index addresses, or null outside the root.
+ */
+function projectFile(root: string, file: string): { relativePath: string; absolutePath: string } | null {
+  if (file.includes('\0') || file.split(/[\\/]/).includes('..')) return null;
+  const absolutePath = canonicalPath(isAbsolute(file) ? file : resolve(root, file));
+  if (!absolutePath) return null;
+  const relativePath = relative(root, absolutePath);
+  if (!relativePath || relativePath === '..' || relativePath.startsWith(`..${sep}`) || isAbsolute(relativePath)) return null;
+  return { relativePath, absolutePath };
+}
+
+/**
+ * Decode only the recorded anchor; this read never repairs historical metadata.
+ * @param session - Durable session row whose root/id must agree with the request.
+ * @returns Canonical recorded anchor or null when it cannot be established.
+ */
+function sessionAnchor(session: SessionRow): { root: string; id: string } | null {
+  try {
+    const anchor = JSON.parse(session.metadata ?? 'null')?.worktree;
+    const id = compact(anchor?.id);
+    const root = compact(anchor?.root);
+    const canonicalRoot = root && isAbsolute(root) ? canonicalPath(root) : null;
+    return id && canonicalRoot ? { id, root: canonicalRoot } : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Require the repository partition, exact world, and physical root together.
+ * Root equality prevents even a colliding short world id from crossing repos.
+ * @param session - Candidate recorded session.
+ * @param scope - Caller scope derived from current Git evidence.
+ * @returns Whether all recorded context witnesses agree.
+ */
+function sessionMatchesScope(session: SessionRow, scope: ClaimScope): boolean {
+  const anchor = sessionAnchor(session);
+  return (compact(session.identity_project) ?? 'local') === scope.repoId
+    && session.worktree_id === scope.worldId
+    && anchor?.id === scope.worldId
+    && anchor.root === scope.root;
+}
+
+/**
+ * Keep the forest's stored world authoritative when a projection row exists.
+ * Legacy rows without a forest record remain readable under verified session scope.
+ * @param claim - Read-only joined legacy/forest claim.
+ * @param scope - Exact repository and worktree being evaluated.
+ * @returns Whether the stored forest address agrees, without relabeling it.
+ */
+function forestMatchesScope(claim: ClaimRow, scope: ClaimScope): boolean {
+  return claim.forest_claim_id === null || (
+    claim.forest_repo_id === scope.repoId
+    && claim.forest_world_kind === 'worktree'
+    && claim.forest_world_id === scope.worldId
+  );
 }
 
 function isCodeFile(filePath: string): boolean {
   return CODE_EXTENSIONS.has(extname(filePath));
-}
-
-function placeholders(length: number): string {
-  return Array.from({ length }, () => '?').join(', ');
 }
 
 function hasTable(db: Database.Database, table: string): boolean {
@@ -190,7 +284,7 @@ function taskSuggestsTuple(task: string | null, includeTupleHints?: boolean): bo
 }
 
 function projectFromInput(input: AdvisorInput, session?: SessionRow | null): string | null {
-  return compact(input.project) ?? session?.identity_project ?? null;
+  return compact(input.project) ?? compact(session?.identity_project);
 }
 
 function summarizeAdvice(advice: CoordinationAdvice[]): string {
@@ -216,77 +310,69 @@ export function createAdvisor(db: Database.Database, deps: AdvisorDeps = {}) {
     sessionFiles: hasTable(db, 'session_files'),
     symbols: hasTable(db, 'symbols'),
     parsedFiles: hasTable(db, 'parsed_files'),
+    claimForest: hasTable(db, 'claim_forest_claims') && hasTable(db, 'claim_forest_nodes'),
   };
 
   function getSession(sessionId: string | null): SessionRow | null {
     if (!sessionId || !tables.sessions) return null;
     const row = db.prepare(
-      `SELECT id, purpose, status, agent_id, worktree_id, identity_project, created_at, updated_at
+      `SELECT id, purpose, status, agent_id, worktree_id, identity_project, created_at, updated_at, metadata
        FROM sessions WHERE id = ?`
     ).get(sessionId) as SessionRow | undefined;
     return row ?? null;
   }
 
-  function activeSessions(worktreeId: string | null): SessionRow[] {
-    if (!tables.sessions) return [];
-    if (worktreeId) {
-      return db.prepare(
-        `SELECT id, purpose, status, agent_id, worktree_id, identity_project, created_at, updated_at
-         FROM sessions
-         WHERE status = 'active' AND worktree_id = ?
-         ORDER BY updated_at DESC
-         LIMIT 20`
-      ).all(worktreeId) as SessionRow[];
-    }
-    return db.prepare(
-      `SELECT id, purpose, status, agent_id, worktree_id, identity_project, created_at, updated_at
+  /**
+   * Purpose: never substitute globally active sessions when local scope is absent.
+   * @param scope - Current verified worktree and repository partition.
+   * @returns At most twenty exact-root sessions in recency order.
+   */
+  function activeSessions(scope: ClaimScope | null): SessionRow[] {
+    if (!tables.sessions || !scope) return [];
+    const rows = db.prepare(
+      `SELECT id, purpose, status, agent_id, worktree_id, identity_project, created_at, updated_at, metadata
        FROM sessions
-       WHERE status = 'active'
-       ORDER BY updated_at DESC
-       LIMIT 20`
-    ).all() as SessionRow[];
+       WHERE status = 'active' AND worktree_id = ?
+         AND COALESCE(NULLIF(TRIM(identity_project), ''), 'local') = ?
+       ORDER BY updated_at DESC`
+    ).all(scope.worldId, scope.repoId) as SessionRow[];
+    return rows.filter(row => sessionMatchesScope(row, scope)).slice(0, 20);
   }
 
-  function claimsForFiles(files: string[]): ClaimRow[] {
-    if (!tables.sessionFiles || files.length === 0) return [];
-    return db.prepare(
-      `SELECT sf.file_path, sf.start_line, sf.end_line, sf.symbol, sf.symbol_path, sf.claimed_at,
-              s.id AS session_id, s.purpose, s.agent_id
-       FROM session_files sf
-       JOIN sessions s ON s.id = sf.session_id
-       WHERE sf.released_at IS NULL
-         AND s.status = 'active'
-         AND sf.file_path IN (${placeholders(files.length)})
-       ORDER BY sf.claimed_at DESC`
-    ).all(...files) as ClaimRow[];
-  }
-
-  function wholeFileClaims(sessionId: string | null, files: string[]): ClaimRow[] {
-    if (!tables.sessionFiles) return [];
-    const clauses = [
-      "sf.released_at IS NULL",
-      "s.status = 'active'",
-      "sf.start_line IS NULL",
-      "sf.end_line IS NULL",
-      "sf.symbol_path IS NULL",
-    ];
-    const args: unknown[] = [];
+  /**
+   * Read claims only by an exact session or repository/world tuple. Path
+   * projection happens after this boundary, never over a global filename scan.
+   * @param scope - Current repository/world, required for peer queries.
+   * @param sessionId - Exact recorded session for diagnostic-only inspection.
+   * @returns Original claim and context witnesses, preserving every selector.
+   */
+  function recordedClaims(scope: ClaimScope | null, sessionId?: string | null): ClaimRow[] {
+    if (!tables.sessionFiles || !tables.sessions || (!scope && !sessionId)) return [];
+    const clauses = ['sf.released_at IS NULL'];
+    const args: string[] = [];
     if (sessionId) {
       clauses.push('s.id = ?');
       args.push(sessionId);
+    } else if (scope) {
+      clauses.push("s.status = 'active'", 's.worktree_id = ?', "COALESCE(NULLIF(TRIM(s.identity_project), ''), 'local') = ?");
+      args.push(scope.worldId, scope.repoId);
     }
-    if (files.length > 0) {
-      clauses.push(`sf.file_path IN (${placeholders(files.length)})`);
-      args.push(...files);
-    }
+    const forestFields = tables.claimForest
+      ? 'fc.id AS forest_claim_id, fn.repo_id AS forest_repo_id, fn.world_kind AS forest_world_kind, fn.world_id AS forest_world_id, fc.released_at AS forest_released_at'
+      : 'NULL AS forest_claim_id, NULL AS forest_repo_id, NULL AS forest_world_kind, NULL AS forest_world_id, NULL AS forest_released_at';
+    const forestJoin = tables.claimForest
+      ? `LEFT JOIN claim_forest_claims fc ON fc.legacy_session_file_id = sf.id
+         LEFT JOIN claim_forest_nodes fn ON fn.id = fc.node_id`
+      : '';
     return db.prepare(
-      `SELECT sf.file_path, sf.start_line, sf.end_line, sf.symbol, sf.symbol_path, sf.claimed_at,
-              s.id AS session_id, s.purpose, s.agent_id
+      `SELECT sf.id AS legacy_claim_id, sf.file_path, sf.start_line, sf.end_line, sf.symbol, sf.symbol_path, sf.claimed_at,
+              s.id AS session_id, s.id, s.purpose, s.status, s.agent_id, s.worktree_id,
+              s.identity_project, s.created_at, s.updated_at, s.metadata, ${forestFields}
        FROM session_files sf
        JOIN sessions s ON s.id = sf.session_id
+       ${forestJoin}
        WHERE ${clauses.join(' AND ')}
-       ORDER BY sf.claimed_at DESC
-       LIMIT 20`
+       ORDER BY sf.claimed_at DESC`
     ).all(...args) as ClaimRow[];
   }
 
@@ -319,16 +405,76 @@ export function createAdvisor(db: Database.Database, deps: AdvisorDeps = {}) {
   }
 
   function evaluate(input: AdvisorInput = {}): AdvisorResult {
-    const projectRoot = resolve(compact(input.projectRoot) ?? process.cwd());
-    const worktree = getWorktreeInfo(projectRoot);
+    const requestedRoot = resolve(compact(input.projectRoot) ?? process.cwd());
+    const worktree = getWorktreeInfo(requestedRoot);
+    const projectRoot = canonicalPath(worktree?.root ?? requestedRoot) ?? requestedRoot;
     const worktreeId = worktree?.id ?? null;
     const sessionId = compact(input.sessionId);
     const agentId = compact(input.agentId);
     const task = compact(input.task);
-    const files = normalizeFiles(projectRoot, input);
     const selectedSession = getSession(sessionId);
-    const active = activeSessions(worktreeId);
+    const project = projectFromInput(input, selectedSession);
+    const scope: ClaimScope | null = worktreeId ? { repoId: project ?? 'local', worldId: worktreeId, root: projectRoot } : null;
+    const requestedFiles = uniqueStrings([...(input.files ?? []), ...(input.changedFiles ?? [])]);
+    const projectedFiles = requestedFiles.map(file => ({ file, projected: projectFile(projectRoot, file) }));
+    const files = [...new Set(projectedFiles.flatMap(item => item.projected ? [item.projected.absolutePath] : []))];
+    const rejectedFiles = projectedFiles.filter(item => !item.projected).map(item => item.file);
+    const active = activeSessions(scope);
+    const ownRecordedClaims = selectedSession ? recordedClaims(null, selectedSession.id) : [];
+    const scopedCandidates = scope ? recordedClaims(scope).filter(row => sessionMatchesScope(row, scope)) : [];
+    const inconsistentClaims = scope ? scopedCandidates.filter(claim => !forestMatchesScope(claim, scope)) : [];
+    const contextInconsistent = Boolean(selectedSession && scope && !sessionMatchesScope(selectedSession, scope))
+      || inconsistentClaims.length > 0;
+    const canProjectClaims = Boolean(scope) && !contextInconsistent
+      && (!sessionId || Boolean(selectedSession && selectedSession.status === 'active'))
+      && !(selectedSession && agentId && selectedSession.agent_id !== agentId);
     const output: CoordinationAdvice[] = [];
+
+    if (!scope || contextInconsistent) {
+      const anchor = selectedSession ? sessionAnchor(selectedSession) : null;
+      const diagnosticClaims = contextInconsistent && inconsistentClaims.length > 0 ? inconsistentClaims : ownRecordedClaims;
+      output.push(advice({
+        id: contextInconsistent ? 'context.claim-scope-inconsistent' : 'context.claim-scope-unavailable',
+        category: 'context',
+        severity: 'critical',
+        title: contextInconsistent ? 'Recorded claim scope disagrees with current context' : 'Current repository/worktree scope is not verified',
+        why: 'Claim projection requires the current Git root, session root, repository partition, and stored worktree/forest world to agree. Recorded claims are preserved, not relabeled or reported as unclaimed.',
+        risk: 'Treating inconsistent context as readiness could hide ownership or borrow claims from another repository or worktree.',
+        confidence: 1,
+        evidence: [
+          { label: 'projectRoot', value: projectRoot, path: projectRoot },
+          { label: 'worktreeId', value: worktreeId },
+          { label: 'repositoryId', value: scope?.repoId ?? project },
+          { label: 'sessionId', value: sessionId },
+          { label: 'recordedWorktreeId', value: selectedSession?.worktree_id ?? null },
+          { label: 'recordedRoot', value: anchor?.root ?? null },
+          { label: 'recordedAnchorId', value: anchor?.id ?? null },
+          { label: 'recordedClaimCount', value: ownRecordedClaims.length },
+          { label: 'inconsistentForestClaimCount', value: inconsistentClaims.length },
+          ...diagnosticClaims.slice(0, 8).flatMap(claim => [
+            { label: 'recordedClaim', value: claim.file_path, path: claim.file_path },
+            { label: 'recordedSelector', value: claim.symbol_path ?? claim.symbol ?? (claim.start_line !== null || claim.end_line !== null ? `${claim.start_line ?? ''}:${claim.end_line ?? ''}` : 'file') },
+            { label: 'recordedWorld', value: claim.forest_world_id ?? claim.worktree_id },
+          ]),
+        ],
+        actions: [
+          { label: 'Inspect exact session and recorded claims', method: 'GET', path: sessionId ? `/sessions/${encodeURIComponent(sessionId)}` : '/sessions' },
+          { label: 'Inspect current context without changing it', command: 'pd whoami --json' },
+        ],
+      }));
+    }
+
+    if (rejectedFiles.length > 0) {
+      output.push(advice({
+        id: 'context.files-outside-root', category: 'context', severity: 'critical',
+        title: 'Requested paths cannot be projected inside this worktree',
+        why: 'Outside-root paths, traversal, symlink escapes, and unresolved filesystem boundaries are not local claim addresses.',
+        risk: 'A normalized basename or suffix could falsely borrow another repository\'s claim.',
+        confidence: 1,
+        evidence: rejectedFiles.slice(0, 8).map(file => ({ label: 'rejectedFile', value: file })),
+        actions: [{ label: 'Inspect current context', command: 'pd whoami --json' }],
+      }));
+    }
 
     if (sessionId && !selectedSession) {
       output.push(advice({
@@ -368,7 +514,7 @@ export function createAdvisor(db: Database.Database, deps: AdvisorDeps = {}) {
       }));
     }
 
-    if (selectedSession && agentId && selectedSession.agent_id && selectedSession.agent_id !== agentId) {
+    if (selectedSession && agentId && selectedSession.agent_id !== agentId) {
       output.push(advice({
         id: 'context.agent-mismatch',
         category: 'context',
@@ -409,7 +555,6 @@ export function createAdvisor(db: Database.Database, deps: AdvisorDeps = {}) {
       }));
     }
 
-    const project = projectFromInput(input, selectedSession);
     if (deps.resurrection) {
       try {
         const pending = normalizePending(deps.resurrection.pending(project ? { project } : undefined));
@@ -435,7 +580,41 @@ export function createAdvisor(db: Database.Database, deps: AdvisorDeps = {}) {
       }
     }
 
-    const activeClaims = claimsForFiles(files);
+    const requestedPaths = new Set(files.map(file => relative(projectRoot, file)));
+    const projectedClaims: ProjectedClaim[] = canProjectClaims
+      ? scopedCandidates.flatMap(claim => {
+        // A released forest record is history, not a missing forest projection.
+        // Do not re-admit it through the legacy-row read path.
+        if (claim.forest_claim_id !== null && claim.forest_released_at !== null) return [];
+        const projected = projectFile(projectRoot, claim.file_path);
+        return projected ? [{ ...claim, ...projected }] : [];
+      }) : [];
+    const staleProjectionClaims = canProjectClaims ? scopedCandidates.filter(claim => {
+      if (claim.forest_claim_id === null || claim.forest_released_at === null) return false;
+      const projected = projectFile(projectRoot, claim.file_path);
+      return projected && (requestedFiles.length === 0
+        ? claim.session_id === sessionId : requestedPaths.has(projected.relativePath));
+    }) : [];
+    if (staleProjectionClaims.length > 0) {
+      output.push(advice({
+        id: 'claims.stale-legacy-projection', category: 'claim', severity: 'warning',
+        title: 'Legacy claim rows retain released forest history',
+        why: 'Repeated region claims or normalized-path releases can leave an older legacy row unreleased. Its released forest record is excluded from current coverage, conflict, and refinement advice; a live replacement still counts.',
+        risk: 'Treating an old projection row as live would resurrect released ownership.',
+        confidence: 1,
+        evidence: [
+          { label: 'staleClaimCount', value: staleProjectionClaims.length },
+          ...staleProjectionClaims.slice(0, 8).flatMap(claim => [
+            { label: 'legacyClaimId', value: claim.legacy_claim_id },
+            { label: 'claimSessionId', value: claim.session_id },
+            { label: 'recordedClaim', value: claim.file_path, path: claim.file_path },
+            { label: 'forestReleasedAt', value: claim.forest_released_at },
+          ]),
+        ],
+        actions: [{ label: 'Inspect recorded claim history', method: 'GET', path: `/sessions/${encodeURIComponent(staleProjectionClaims[0].session_id)}` }],
+      }));
+    }
+    const activeClaims = projectedClaims.filter(claim => requestedPaths.has(claim.relativePath));
     const conflicts = activeClaims.filter(claim => !sessionId || claim.session_id !== sessionId);
     if (conflicts.length > 0) {
       output.push(advice({
@@ -446,11 +625,18 @@ export function createAdvisor(db: Database.Database, deps: AdvisorDeps = {}) {
         why: 'File claims are advisory, but overlapping claims should be inspected before editing.',
         risk: 'Concurrent edits can produce avoidable git conflicts or stale coordination decisions.',
         confidence: 0.9,
-        evidence: conflicts.slice(0, 8).map(claim => ({
-          label: claim.symbol_path ? 'claimedSymbol' : 'claimedFile',
-          value: claim.symbol_path ?? claim.file_path,
-          path: claim.file_path,
-        })),
+        evidence: conflicts.slice(0, 8).flatMap(claim => [
+          {
+            label: claim.symbol_path || claim.symbol ? 'claimedSymbol' : 'claimedFile',
+            value: claim.symbol_path ?? claim.symbol ?? claim.absolutePath,
+            path: claim.absolutePath,
+          },
+          { label: 'claimSessionId', value: claim.session_id },
+          ...(claim.start_line !== null || claim.end_line !== null ? [
+            { label: 'startLine', value: claim.start_line, path: claim.absolutePath },
+            { label: 'endLine', value: claim.end_line, path: claim.absolutePath },
+          ] : []),
+        ]),
         actions: [
           { label: 'Inspect file ownership', command: files.length === 1 ? `pd who-owns ${files[0]}` : 'pd files' },
           { label: 'Prefer a symbol/region claim if overlap is narrow', command: 'pd session files add <file> --symbol-path <symbol>' },
@@ -458,11 +644,11 @@ export function createAdvisor(db: Database.Database, deps: AdvisorDeps = {}) {
       }));
     }
 
-    if (sessionId && files.length > 0) {
+    if (canProjectClaims && sessionId && files.length > 0) {
       const sessionClaimedFiles = new Set(
         activeClaims
           .filter(claim => claim.session_id === sessionId)
-          .map(claim => claim.file_path)
+          .map(claim => claim.absolutePath)
       );
       const unclaimed = files.filter(file => !sessionClaimedFiles.has(file));
       if (unclaimed.length > 0) {
@@ -486,9 +672,11 @@ export function createAdvisor(db: Database.Database, deps: AdvisorDeps = {}) {
       }
     }
 
-    const wholeFile = wholeFileClaims(sessionId, files);
+    const wholeFile = projectedClaims.filter(claim => sessionId && claim.session_id === sessionId
+      && claim.start_line === null && claim.end_line === null && claim.symbol_path === null && claim.symbol === null
+      && (requestedFiles.length === 0 || requestedPaths.has(claim.relativePath)));
     const refinable = wholeFile
-      .map(claim => ({ claim, symbols: symbolSummary(claim.file_path) }))
+      .map(claim => ({ claim, symbols: symbolSummary(claim.absolutePath) }))
       .filter(item => item.symbols.count > 0);
     if (refinable.length > 0) {
       const item = refinable[0];
@@ -500,14 +688,14 @@ export function createAdvisor(db: Database.Database, deps: AdvisorDeps = {}) {
         why: 'The AST symbol index knows symbols in a file currently claimed as a whole file.',
         risk: 'Whole-file claims overstate contention and make unrelated agents back off unnecessarily.',
         evidence: [
-          { label: 'file', value: item.claim.file_path, path: item.claim.file_path },
+          { label: 'file', value: item.claim.absolutePath, path: item.claim.absolutePath },
           { label: 'knownSymbols', value: item.symbols.count },
           { label: 'exampleSymbol', value: item.symbols.examples[0] ?? null },
         ],
         actions: [
           {
             label: 'Claim a symbol instead of the whole file',
-            command: `pd session files add ${item.claim.file_path} --symbol-path ${item.symbols.examples[0]}`,
+            command: `pd session files add ${item.claim.absolutePath} --symbol-path ${item.symbols.examples[0]}`,
           },
         ],
       }));

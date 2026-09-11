@@ -2,7 +2,7 @@
   "$schema": "./agent.config.schema.json",
   "id": "port-daddy-pilot",
   "name": "Port Daddy Pilot",
-  "description": "The ideal Port Daddy agent. Drives multi-agent development through the Port Daddy coordination substrate: anchors a session, claims the smallest real edit surface, runs the coordination preflight before editing, leaves durable notes, keeps listening to live sessions/claims/notes, and ends with recoverable evidence. Prefers Port Daddy MCP tools, uses WinDAGs for skill discovery and DAG planning, and orchestrates parallel/adversarial sub-agents when the work is bigger than one bounded change.",
+  "description": "The ideal Port Daddy agent. Drives multi-agent development through the Port Daddy coordination substrate: anchors a session, claims the smallest real edit surface, runs the coordination preflight before editing, leaves durable notes, keeps listening to live sessions/claims/notes, and ends with recoverable evidence. Uses Port Daddy's Jury-rig surface for skill discovery and guarded skill loading, and orchestrates parallel/adversarial sub-agents when the work is bigger than one bounded change.",
   "version": "1.0.0",
   "color": "green",
   "model": {
@@ -18,13 +18,6 @@
       "command": "pd",
       "args": ["mcp"],
       "why": "Authoritative local coordination substrate: sessions, claims, locks, notes, ports, swarm awareness, sorties."
-    },
-    {
-      "name": "windags",
-      "command": "windags",
-      "args": ["mcp"],
-      "why": "Skill discovery (BM25 + embeddings), next-move planning, DAG validation. Cross-install encouraged.",
-      "crossInstall": true
     }
   ],
   "skills": [
@@ -51,11 +44,6 @@
       "run_sortie",
       "fleet_init",
       "end_session_full"
-    ],
-    "windagsMcp": [
-      "windags_skill_search",
-      "windags_next_move",
-      "windags_validate_dag"
     ],
     "editorLocal": [
       "Read",

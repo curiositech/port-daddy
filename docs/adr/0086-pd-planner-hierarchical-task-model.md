@@ -80,7 +80,7 @@ queryable, bidirectional store:
 | `links` | item → `commit`/`pr`/`adr`/`doc` | related artifacts (commit SHA, PR #, ADR-NNNN, URL) in `metadata` |
 
 `dependencies_json` is **migrated into `depends_on` edges and retired** (one source of truth).
-This is the load-bearing change: the nightshift **popper** (`lib/roadmap-popper.ts`) reads
+This is the critical change: the nightshift **popper** (`lib/roadmap-popper.ts`) reads
 `dependencies_json` today and must be refactored to query `graph_edges` — see the matrix.
 
 ### 4. Scheduler — canonical in the Rust kernel, TS via koffi (ADR-0054 pattern)
@@ -115,7 +115,7 @@ fallback is therefore a first-class peer, not a degraded mode.
   durable and queryable; the Cartographer's tuple vocabulary finally backed by `graph_edges`.
 - The GPUI tool renders a real Gantt/critical-path from kernel-native compute.
 - **Cost / risk:** (a) refactoring the autonomous nightshift **popper** off `dependencies_json`
-  is load-bearing — gate it behind tests + a data migration that backfills edges before the
+  is critical — gate it behind tests + a data migration that backfills edges before the
   popper switches reads; (b) a new kernel cdylib export + koffi binding + TS fallback + parity
   gate is real surface (mitigated by copying the macaroon/harbor-card pattern exactly);
   (c) the fixed ladder adds validation that must reject malformed hierarchies cleanly.

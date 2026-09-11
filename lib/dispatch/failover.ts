@@ -34,7 +34,7 @@
  * successor's name, which is precisely what ADR-0118 exists to prevent.
  */
 
-import { classifyAgentError } from '../agent-resilience.js';
+import { isWitnessedBackendFailure } from '../agent-resilience.js';
 import type { Dispatch, DispatchBackend } from './queue.js';
 import { DEFAULT_BACKEND } from './runner.js';
 
@@ -66,22 +66,6 @@ export const DEFAULT_FAILOVER_CHAIN: readonly DispatchBackend[] = [
  */
 export const MAX_FAILOVER_ATTEMPTS = 2;
 
-/**
- * Signatures that mean "this backend is not usable HERE", as distinct from
- * "this backend is having a bad minute".
- *
- * Kept separate from `classifyAgentError`'s transient signals on purpose. A
- * missing binary would classify as INTERNAL (non-retryable, so no failover at
- * all) or, if it were folded into UNAVAILABLE, would earn a same-backend retry
- * that cannot possibly succeed — the binary will still be missing a second
- * later. Neither is right: the correct response is to skip the same-backend
- * retry entirely and move to the next body immediately.
- */
-const BACKEND_ABSENT = /\bENOENT\b|command not found|no such file or directory|is not installed|not found on PATH/i;
-
-/** Error classes where another body would fail the same way. */
-const NOT_WORTH_ANOTHER_BODY = new Set(['VALIDATION_ERROR', 'NOT_FOUND']);
-
 /** What the runner should do with a failure. */
 export interface FailoverDecision {
   /** `none` = settle as it is; the caller does nothing extra. */
@@ -111,27 +95,19 @@ export interface FailureShape {
 /**
  * Classify a dispatch failure for failover purposes.
  *
- * The `backendAbsent` check runs FIRST and wins, because the message for a
- * missing binary often also matches a transient signal (`ENOENT` reads as a
- * connection-ish error to a regex written for sockets), and treating it as
- * transient buys a guaranteed-useless retry.
+ * Only exact in-process host witnesses can authorize spending on another body.
+ * Display prose, Error instances and JSON clones have no such provenance.
  *
- * @param errorMessage The failure text from the adapter.
- * @param backend The backend that produced it, for the classifier's context.
+ * @param error The adapter's closed, locally witnessed terminal failure.
  * @returns The shape of the failure.
  */
 export function classifyForFailover(
-  errorMessage: string | null | undefined,
-  backend?: string,
+  error: unknown,
 ): FailureShape {
-  const message = errorMessage ?? '';
-  if (BACKEND_ABSENT.test(message)) {
-    return { code: 'BACKEND_ABSENT', backendAbsent: true, transient: false };
-  }
-  const classified = classifyAgentError(message, backend ? { backend } : {});
-  const code = classified.code;
-  const transient = code === 'RATE_LIMITED' || code === 'TIMEOUT' || code === 'UNAVAILABLE';
-  return { code, backendAbsent: false, transient };
+  if (!isWitnessedBackendFailure(error)) return { code: 'INTERNAL', backendAbsent: false, transient: false };
+  const code = error.code;
+  const transient = error.retryable && (code === 'RATE_LIMITED' || code === 'TIMEOUT' || code === 'UNAVAILABLE');
+  return { code, backendAbsent: code === 'BACKEND_ABSENT', transient };
 }
 
 /** Everything `decideFailover` needs that is not on the dispatch itself. */
@@ -140,6 +116,8 @@ export interface FailoverContext {
   backend: DispatchBackend;
   /** The adapter's failure text. */
   errorMessage: string | null | undefined;
+  /** In-process host witness, never a deserialized error or display message. */
+  error?: unknown;
   /** Spend on THIS attempt, so the successor's budget can be reduced by it. */
   costUsd?: number | null;
   /**
@@ -170,12 +148,12 @@ export interface FailoverContext {
  * @returns The action to take, with the successor's backend, chain and budget when failing over.
  */
 export function decideFailover(dispatch: Dispatch, ctx: FailoverContext): FailoverDecision {
-  const shape = classifyForFailover(ctx.errorMessage, ctx.backend);
+  const shape = classifyForFailover(ctx.error);
 
-  if (NOT_WORTH_ANOTHER_BODY.has(shape.code)) {
+  if (!shape.backendAbsent && !shape.transient) {
     return {
       action: 'none',
-      reason: `${shape.code}: the goal itself is rejected; another body would fail identically`,
+      reason: `${shape.code}: no witnessed recoverable failure; another body is not authorized`,
     };
   }
 

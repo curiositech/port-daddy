@@ -20,10 +20,33 @@ import {
   BackendCircuitBreaker,
   CircuitOpenError,
   runResilientSpawn,
+  witnessedBackendFailure,
+  localModelDownloadDisabledError,
+  isWitnessedBackendFailure,
+  safeDiagnosticIdentifier,
 } from '../../lib/agent-resilience.js';
 import { isRetryable } from '../../lib/event-envelope.js';
 
 describe('classifyAgentError', () => {
+  test('only authentic local policy errors retain fixed actionable diagnostic status', () => {
+    const original = localModelDownloadDisabledError();
+    expect(original).toBeInstanceOf(Error);
+    expect(Object.isFrozen(original)).toBe(true);
+    const classified = classifyAgentError(original);
+    expect(classified).toMatchObject({ code: 'UNAVAILABLE', retryable: false, details: { reason: 'model_download_disabled' } });
+    expect(classified.message).toContain('PORT_DADDY_ALLOW_MODEL_DOWNLOAD=1');
+    expect(isWitnessedBackendFailure(original)).toBe(false);
+    expect(isWitnessedBackendFailure(classified)).toBe(false);
+    for (const copied of [JSON.parse(JSON.stringify(classified)), new Error(original.message), original.message,
+      Object.assign(new Error('policy unavailable'), { code: 'UNAVAILABLE', retryable: true, reason: 'model_download_disabled' })]) {
+      const rejected = classifyAgentError(copied);
+      expect(rejected.retryable).toBe(false);
+      expect(rejected.details?.reason).not.toBe('model_download_disabled');
+      expect(rejected.message).not.toContain('PORT_DADDY_ALLOW_MODEL_DOWNLOAD=1');
+      expect(isWitnessedBackendFailure(copied)).toBe(false);
+    }
+  });
+
   test.each([
     ['429 Too Many Requests', 'RATE_LIMITED', true],
     ['Error: rate limit exceeded', 'RATE_LIMITED', true],
@@ -56,9 +79,104 @@ describe('classifyAgentError', () => {
   test('unknown failure is fail-closed (non-retryable)', () => {
     expect(isRetryable(classifyAgentError('kaboom'))).toBe(false);
   });
+
+  test('structured permanent status outranks untrusted transient prose and nested wrappers', () => {
+    const denied = Object.assign(new Error('untrusted detail mentions 429 timeout'), { status: 401 });
+    expect(classifyAgentError(denied)).toMatchObject({ code: 'UNAUTHORIZED', retryable: false });
+    const wrapper = Object.assign(new Error('503 unavailable'), { status: 503, cause: denied });
+    expect(classifyAgentError(wrapper).code).toBe('UNAUTHORIZED');
+    denied.cause = wrapper;
+    expect(classifyAgentError(wrapper)).toMatchObject({ code: 'INTERNAL', retryable: false, details: { reason: 'incomplete_error_chain' } });
+    expect(classifyAgentError('401 Unauthorized; untrusted detail mentions 429 timeout').retryable).toBe(false);
+  });
+
+  test('complete shallow transient chains remain retryable and eight visible errors preserve permanent status', () => {
+    const transient = Object.assign(new Error('SYNTHETIC_PRIVATE_MARKER'), { status: 503 });
+    expect(classifyAgentError(new Error('wrapper', { cause: transient }))).toMatchObject({ code: 'UNAVAILABLE', retryable: true });
+    let failure = Object.assign(new Error('denied'), { status: 401 });
+    for (let i = 0; i < 7; i++) failure = new Error('503 wrapper', { cause: failure });
+    expect(classifyAgentError(failure)).toMatchObject({ code: 'UNAUTHORIZED', retryable: false });
+  });
+
+  test('a ninth inner authentication failure cannot be hidden by eight transient wrappers', () => {
+    let innerInspections = 0;
+    let failure = new Proxy(Object.assign(new Error('SYNTHETIC_PRIVATE_MARKER'), { status: 401 }), {
+      getOwnPropertyDescriptor(target, key) { innerInspections++; return Reflect.getOwnPropertyDescriptor(target, key); },
+      getPrototypeOf(target) { innerInspections++; return Reflect.getPrototypeOf(target); },
+    });
+    for (let i = 0; i < 8; i++) failure = new Error('503 SYNTHETIC_PRIVATE_MARKER', { cause: failure });
+    const classified = classifyAgentError(failure);
+    expect(classified).toMatchObject({ code: 'INTERNAL', retryable: false, details: { reason: 'incomplete_error_chain' } });
+    expect(innerInspections).toBe(0);
+    expect(JSON.stringify(classified)).not.toContain('SYNTHETIC_PRIVATE_MARKER');
+  });
+
+  test('transient cycles are incomplete rather than retry authority', () => {
+    const failure = Object.assign(new Error('503 SYNTHETIC_PRIVATE_MARKER'), { status: 503 });
+    failure.cause = failure;
+    const classified = classifyAgentError(failure);
+    expect(classified).toMatchObject({ code: 'INTERNAL', retryable: false, details: { reason: 'incomplete_error_chain' } });
+    expect(JSON.stringify(classified)).not.toContain('SYNTHETIC_PRIVATE_MARKER');
+  });
+
+  test('throwing cause accessors are never invoked and cannot conceal authority', () => {
+    const getter = jest.fn(() => { throw new Error('SYNTHETIC_PRIVATE_MARKER'); });
+    const failure = Object.assign(new Error('503 SYNTHETIC_PRIVATE_MARKER'), { status: 503 });
+    Object.defineProperty(failure, 'cause', { get: getter });
+    const classified = classifyAgentError(failure);
+    expect(getter).not.toHaveBeenCalled();
+    expect(classified).toMatchObject({ code: 'INTERNAL', retryable: false, details: { reason: 'incomplete_error_chain' } });
+    expect(JSON.stringify(classified)).not.toContain('SYNTHETIC_PRIVATE_MARKER');
+  });
+
+  test.each(['401 SYNTHETIC_PRIVATE_MARKER', { status: 401 }])('opaque non-Error causes are not silently ignored: %p', cause => {
+    expect(classifyAgentError(new Error('503 wrapper', { cause }))).toMatchObject({
+      code: 'INTERNAL', retryable: false, details: { reason: 'incomplete_error_chain' },
+    });
+  });
+
+  test('JSON cannot impersonate a host witness and diagnostics omit private error content', () => {
+    const actual = witnessedBackendFailure({ kind: 'os', code: 'ENOENT' });
+    expect(isWitnessedBackendFailure(actual)).toBe(true);
+    expect(classifyAgentError(actual).code).toBe('BACKEND_ABSENT');
+    const forged = JSON.parse(JSON.stringify(actual));
+    expect(isWitnessedBackendFailure(forged)).toBe(false);
+    expect(classifyAgentError(forged)).toMatchObject({ code: 'INTERNAL', retryable: false });
+    expect(classifyAgentError({ status: 503, message: 'retry me' }).retryable).toBe(false);
+    expect(JSON.stringify(classifyAgentError(new Error('401 SYNTHETIC_PRIVATE_MARKER')))).not.toContain('SYNTHETIC_PRIVATE_MARKER');
+  });
+
+  test('exception getters are not executed', () => {
+    const error = new Error('429 timeout');
+    Object.defineProperty(error, 'status', { get() { throw new Error('getter executed'); } });
+    expect(() => classifyAgentError(error)).not.toThrow();
+    expect(classifyAgentError(error).retryable).toBe(false);
+  });
+
+  test.each([401, 403])('conflicting own status fields retain permanent authority fact %s', statusCode => {
+    const error = Object.assign(new Error('429 timeout'), { status: 429, statusCode });
+    expect(classifyAgentError(error)).toMatchObject({ code: 'UNAUTHORIZED', retryable: false });
+    expect(classifyAgentError(Object.assign(new Error('503 unavailable'), { status: 503, cause: error })).retryable).toBe(false);
+  });
+
+  test('private or oversized identifiers cannot enter diagnostics verbatim', () => {
+    const marker = 'SYNTHETIC_PRIVATE_MARKER';
+    const result = classifyAgentError(new Error('401 denied'), { backend: marker });
+    expect(JSON.stringify(result)).not.toContain(marker);
+    expect(result.details.backend).toMatch(/^backend:[a-f0-9]{16}$/);
+    expect(safeDiagnosticIdentifier(marker, 'dependency')).toMatch(/^dependency:[a-f0-9]{16}$/);
+    expect(safeDiagnosticIdentifier('x'.repeat(1025))).toBe('backend:unspecified');
+    expect(safeDiagnosticIdentifier('cli:codex')).toBe('cli:codex');
+  });
 });
 
 describe('parseRetryAfterMs', () => {
+  test('all nested hints preserve the longest minimum and any invalid hint refuses retry', () => {
+    expect(parseRetryAfterMs('retry after 1s; Retry-After: 3s')).toBe(3000);
+    expect(parseRetryAfterMs('retry after 1s; Retry-After: -3s')).toBeUndefined();
+    const cause = Object.assign(new Error('retry after 3s'), { status: 429 });
+    expect(classifyAgentError(new Error('retry after 1s', { cause })).retryAfterMs).toBe(3000);
+  });
   test.each([
     ['retry after 30', 30000],
     ['Retry-After: 1500ms', 1500],
@@ -72,6 +190,11 @@ describe('parseRetryAfterMs', () => {
   test('classifyAgentError carries retryAfterMs through', () => {
     const e = classifyAgentError('429 rate limit; retry after 10');
     expect(e.retryAfterMs).toBe(10000);
+  });
+
+  test.each(['retry-after -5', 'retry-after 1.5s', 'retry-after 1e9', `retry-after ${'9'.repeat(308)} min`])('rejects malformed or overflowing delay %s', message => {
+    expect(parseRetryAfterMs(message)).toBeUndefined();
+    expect(classifyAgentError(`429; ${message}`)).toMatchObject({ retryable: false, details: { reason: 'invalid_retry_after' } });
   });
 });
 
@@ -97,6 +220,12 @@ describe('fullJitterDelay', () => {
     const d = fullJitterDelay(20, { ...cfg, random: () => 1 });
     expect(d).toBeLessThanOrEqual(cfg.capMs);
   });
+
+  test.each([1024, Number.MAX_SAFE_INTEGER])('zero base and huge attempt %s stay finite', attempt => {
+    expect(fullJitterDelay(attempt, { baseMs: 0, capMs: 10, random: () => 1 })).toBe(0);
+    expect(fullJitterDelay(attempt, { baseMs: 1, capMs: 10, random: () => 1 })).toBe(10);
+    expect(fullJitterDelay(attempt, { baseMs: 10, capMs: 0, random: () => 1 })).toBe(0);
+  });
 });
 
 describe('BackendCircuitBreaker', () => {
@@ -109,17 +238,17 @@ describe('BackendCircuitBreaker', () => {
     const clock = mkClock();
     const cb = new BackendCircuitBreaker({ failureThreshold: 3, successThreshold: 2, openTimeoutMs: 1000, now: clock.now });
     expect(cb.state('codex')).toBe('CLOSED');
-    cb.onRetryableFailure('codex');
-    cb.onRetryableFailure('codex');
+    cb.before('codex').settle('failure');
+    cb.before('codex').settle('failure');
     expect(cb.state('codex')).toBe('CLOSED'); // 2 < 3
-    cb.onRetryableFailure('codex');
+    cb.before('codex').settle('failure');
     expect(cb.state('codex')).toBe('OPEN');
   });
 
   test('OPEN gate throws CircuitOpenError until cooldown, then HALF_OPEN', () => {
     const clock = mkClock();
     const cb = new BackendCircuitBreaker({ failureThreshold: 1, successThreshold: 1, openTimeoutMs: 1000, now: clock.now });
-    cb.onRetryableFailure('gemini'); // opens
+    cb.before('gemini').settle('failure'); // opens
     expect(cb.state('gemini')).toBe('OPEN');
     expect(() => cb.before('gemini')).toThrow(CircuitOpenError);
     clock.advance(1000);
@@ -130,28 +259,26 @@ describe('BackendCircuitBreaker', () => {
   test('HALF_OPEN: probe success closes after successThreshold', () => {
     const clock = mkClock();
     const cb = new BackendCircuitBreaker({ failureThreshold: 1, successThreshold: 2, openTimeoutMs: 100, now: clock.now });
-    cb.onRetryableFailure('groq');
+    cb.before('groq').settle('failure');
     clock.advance(100);
-    cb.before('groq'); // → HALF_OPEN
-    cb.onSuccess('groq'); // 1
+    cb.before('groq').settle('success'); // 1
     expect(cb.state('groq')).toBe('HALF_OPEN');
-    cb.onSuccess('groq'); // 2 → CLOSED
+    cb.before('groq').settle('success'); // 2 → CLOSED
     expect(cb.state('groq')).toBe('CLOSED');
   });
 
   test('HALF_OPEN: probe failure re-opens immediately', () => {
     const clock = mkClock();
     const cb = new BackendCircuitBreaker({ failureThreshold: 1, successThreshold: 1, openTimeoutMs: 100, now: clock.now });
-    cb.onRetryableFailure('claude-cli');
+    cb.before('claude-cli').settle('failure');
     clock.advance(100);
-    cb.before('claude-cli'); // → HALF_OPEN
-    cb.onRetryableFailure('claude-cli'); // re-open
+    cb.before('claude-cli').settle('failure'); // re-open
     expect(cb.state('claude-cli')).toBe('OPEN');
   });
 
   test('per-backend isolation: one tripping does not gate another', () => {
     const cb = new BackendCircuitBreaker({ failureThreshold: 1, successThreshold: 1, openTimeoutMs: 1000 });
-    cb.onRetryableFailure('codex');
+    cb.before('codex').settle('failure');
     expect(cb.state('codex')).toBe('OPEN');
     expect(cb.state('gemini')).toBe('CLOSED');
     expect(() => cb.before('gemini')).not.toThrow();
@@ -159,12 +286,45 @@ describe('BackendCircuitBreaker', () => {
 
   test('a success resets the consecutive-failure count', () => {
     const cb = new BackendCircuitBreaker({ failureThreshold: 3, successThreshold: 1, openTimeoutMs: 1000 });
-    cb.onRetryableFailure('codex');
-    cb.onRetryableFailure('codex');
-    cb.onSuccess('codex'); // reset
-    cb.onRetryableFailure('codex');
-    cb.onRetryableFailure('codex');
+    cb.before('codex').settle('failure');
+    cb.before('codex').settle('failure');
+    cb.before('codex').settle('success'); // reset
+    cb.before('codex').settle('failure');
+    cb.before('codex').settle('failure');
     expect(cb.state('codex')).toBe('CLOSED'); // would have opened without the reset
+  });
+
+  test('one probe, exact-once settlement, and stale-generation completions', () => {
+    const c = mkClock();
+    const cb = new BackendCircuitBreaker({ failureThreshold: 1, successThreshold: 2, openTimeoutMs: 100, now: c.now });
+    const stale = cb.before('codex');
+    cb.before('codex').settle('failure');
+    c.advance(100);
+    const probe = cb.before('codex');
+    expect(() => cb.before('codex')).toThrow(CircuitOpenError);
+    stale.settle('success');
+    expect(cb.state('codex')).toBe('HALF_OPEN');
+    expect(() => cb.before('codex')).toThrow(CircuitOpenError);
+    probe.settle('success');
+    probe.settle('success');
+    expect(cb.state('codex')).toBe('HALF_OPEN');
+    cb.before('codex').settle('success');
+    expect(cb.state('codex')).toBe('CLOSED');
+  });
+
+  test('an abandoned physical probe retains its reservation until it really settles', () => {
+    const c = mkClock();
+    const cb = new BackendCircuitBreaker({ failureThreshold: 1, successThreshold: 1, openTimeoutMs: 100, now: c.now });
+    cb.before('codex').settle('failure');
+    c.advance(100);
+    const probe = cb.before('codex');
+    probe.abandon();
+    c.advance(1000);
+    expect(() => cb.before('codex')).toThrow(CircuitOpenError);
+    probe.settle('success'); // late success cannot close the newer outage
+    expect(cb.state('codex')).toBe('OPEN');
+    cb.before('codex').settle('success');
+    expect(cb.state('codex')).toBe('CLOSED');
   });
 });
 
@@ -269,5 +429,77 @@ describe('runResilientSpawn', () => {
       sleep: async (ms) => { delays.push(ms); },
     });
     expect(delays).toEqual([7000]); // Retry-After wins over jitter(=0)
+  });
+
+  test('server minimum that cannot fit total deadline never sleeps or retries early', async () => {
+    const fn = jest.fn().mockRejectedValue(new Error('429 retry after 100000000000 min'));
+    const sleep = jest.fn();
+    await expect(runResilientSpawn('codex', fn, {
+      maxAttempts: 3, totalTimeoutMs: 100, breaker: mkBreaker(), sleep,
+      backoff: { baseMs: 1, capMs: 2 },
+    })).rejects.toMatchObject({ retryable: false, details: { reason: 'retry_after_exceeds_deadline' } });
+    expect(fn).toHaveBeenCalledTimes(1);
+    expect(sleep).not.toHaveBeenCalled();
+  });
+
+  test('one deadline includes operations plus backoff and private observer labels are safe', async () => {
+    let now = 0;
+    const events = [];
+    const fn = jest.fn().mockImplementation(async () => { now += 6; throw new Error('503 SYNTHETIC_SECRET'); });
+    await expect(runResilientSpawn('SYNTHETIC_PRIVATE_BACKEND', fn, {
+      maxAttempts: 5, totalTimeoutMs: 10, now: () => now, breaker: mkBreaker(),
+      backoff: { baseMs: 3, capMs: 3, random: () => 1 }, sleep: async ms => { now += ms; },
+      onEvent: event => events.push(event),
+    })).rejects.toMatchObject({ code: 'TIMEOUT', retryable: false });
+    expect(fn).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(events)).not.toContain('SYNTHETIC');
+  });
+
+  test('cancellation during backoff does not launch again and discards private abort reason', async () => {
+    const controller = new AbortController();
+    const fn = jest.fn().mockRejectedValue(new Error('503 unavailable'));
+    await expect(runResilientSpawn('codex', fn, {
+      maxAttempts: 3, breaker: mkBreaker(), signal: controller.signal,
+      backoff: { baseMs: 1, capMs: 2 },
+      sleep: async () => { controller.abort('SYNTHETIC_SECRET'); await new Promise(() => {}); },
+    })).rejects.toMatchObject({ code: 'CANCELLED', retryable: false });
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  test('real deadline aborts an uncooperative probe but retains its physical reservation', async () => {
+    const breaker = mkBreaker({ failureThreshold: 1, openTimeoutMs: 0 });
+    breaker.before('codex').settle('failure');
+    let release;
+    let signal;
+    const work = new Promise(resolve => { release = resolve; });
+    await expect(runResilientSpawn('codex', async s => { signal = s; return work; }, {
+      maxAttempts: 2, totalTimeoutMs: 10, breaker, backoff: { baseMs: 1, capMs: 2 },
+    })).rejects.toMatchObject({ code: 'TIMEOUT' });
+    expect(signal.aborted).toBe(true);
+    expect(() => breaker.before('codex')).toThrow(CircuitOpenError);
+    release('late');
+    await new Promise(resolve => setImmediate(resolve));
+    expect(breaker.state('codex')).toBe('OPEN');
+    breaker.before('codex').settle('success');
+    expect(breaker.state('codex')).toBe('CLOSED');
+  });
+
+  test('observer exceptions cannot strand a probe or retry successful work', async () => {
+    const breaker = mkBreaker({ failureThreshold: 1, openTimeoutMs: 0 });
+    breaker.before('codex').settle('failure');
+    const fn = jest.fn().mockResolvedValue('ok');
+    expect(await runResilientSpawn('codex', fn, {
+      maxAttempts: 2, breaker, backoff: { baseMs: 1, capMs: 2 }, onEvent: () => { throw new Error('observer'); },
+    })).toBe('ok');
+    expect(fn).toHaveBeenCalledTimes(1);
+    expect(breaker.state('codex')).toBe('CLOSED');
+  });
+
+  test.each([Infinity, 0, -1, 2_147_483_648])('rejects invalid total budget %s before work', async totalTimeoutMs => {
+    const fn = jest.fn();
+    await expect(runResilientSpawn('codex', fn, {
+      maxAttempts: 2, totalTimeoutMs, breaker: mkBreaker(), backoff: { baseMs: 1, capMs: 2 },
+    })).rejects.toThrow(RangeError);
+    expect(fn).not.toHaveBeenCalled();
   });
 });

@@ -15,7 +15,7 @@ metadata:
     maintainers: [port-daddy]
   distribution:
     public: false
-    note: "Internal to the port-daddy repo only. This skill speaks in Erich's voice and encodes his private acceptance bar; it must not be published to windags-skills, .claude marketplaces, or any public catalog. The port-daddy-agent-skill is the public-facing companion."
+    note: "Internal to the port-daddy repo only. This skill speaks in Erich's voice and encodes his private acceptance bar; it must not be published to external-skill-catalog, .claude marketplaces, or any public catalog. The port-daddy-agent-skill is the public-facing companion."
   mirrors:
     repo: skills/port-daddy-user-surrogate-pm-review
     codex: .codex/skills/port-daddy-user-surrogate-pm-review
@@ -179,7 +179,7 @@ This repo coordinates through PD, continuously — not just at session start.
 
 1. **Read the report/claim first.** What does the agent *say* it did? Note every
    success verb ("deployed", "passing", "done", "works").
-2. **Verify the load-bearing claims cheaply.** Don't re-run everything; spot-
+2. **Verify the critical claims cheaply.** Don't re-run everything; spot-
    check the ones that would embarrass Erich if false:
    - `git -c core.pager=cat diff --stat origin/main...HEAD` — is the diff the
      size the task implies, or suspiciously small?

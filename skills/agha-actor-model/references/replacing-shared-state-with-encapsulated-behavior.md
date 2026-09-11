@@ -98,11 +98,11 @@ Integers, booleans, strings — these are actors, not data. Operations on them a
 
 The `unserialized` property of primitive actors means their behavior never changes: "The unserialized nature of primitive actors implies that there is no theoretical reason to differentiate between the expression `new 3` and simply `3`." (p. 87) You can create as many copies of the actor `3` as you want; they all behave identically.
 
-## Application to WinDAGs Skill and State Design
+## Application to Jury-rig Skill and State Design
 
 ### Every shared resource should be an actor
 
-Any resource in WinDAGs that is accessed by multiple agents — a knowledge base, a configuration store, a result cache, a rate limiter — should be implemented as an actor with a message interface. Do not use shared memory, shared databases with optimistic locking, or any other shared-variable pattern.
+Any resource in Jury-rig that is accessed by multiple agents — a knowledge base, a configuration store, a result cache, a rate limiter — should be implemented as an actor with a message interface. Do not use shared memory, shared databases with optimistic locking, or any other shared-variable pattern.
 
 The actor encapsulates:
 - The resource state
@@ -112,7 +112,7 @@ The actor encapsulates:
 
 ### Agent state should be encoded in behavior, not in variables
 
-When a WinDAGs agent needs to track history (how many tasks it has processed, what the last result was, whether it is in an error state), this state should be encoded in the agent's replacement behavior, not in shared variables:
+When a Jury-rig agent needs to track history (how many tasks it has processed, what the last result was, whether it is in an error state), this state should be encoded in the agent's replacement behavior, not in shared variables:
 
 ```
 # Agent encoding state in replacement:
@@ -127,7 +127,7 @@ This makes state transitions explicit and auditable. Every state change is a "be
 
 ### Use message-passing for coordination, not shared state
 
-When two WinDAGs agents need to coordinate — one waits for the other's result — the coordination should be through message-passing (customer pattern), not through a shared status variable that one polls.
+When two Jury-rig agents need to coordinate — one waits for the other's result — the coordination should be through message-passing (customer pattern), not through a shared status variable that one polls.
 
 Instead of:
 ```
@@ -147,7 +147,7 @@ send(task, agent_A, reply_to=customer)
 
 ### Capability-based access control
 
-In WinDAGs, access to resources should be controlled by mail address knowledge, not by access control lists or central authority. If an agent knows a skill's address, it can invoke the skill. If it doesn't know the address, it cannot.
+In Jury-rig, access to resources should be controlled by mail address knowledge, not by access control lists or central authority. If an agent knows a skill's address, it can invoke the skill. If it doesn't know the address, it cannot.
 
 This means:
 - Sensitive skills should have their addresses distributed only to authorized agents
@@ -156,7 +156,7 @@ This means:
 
 ### The acquaintance structure as capability transfer
 
-When a WinDAGs agent creates a sub-agent, it should carefully consider which addresses (capabilities) to give the sub-agent. The sub-agent can only interact with the agents whose addresses it knows.
+When a Jury-rig agent creates a sub-agent, it should carefully consider which addresses (capabilities) to give the sub-agent. The sub-agent can only interact with the agents whose addresses it knows.
 
 This provides a natural security boundary: a sub-agent given only the address of a specific data store can only access that store, not the broader system. Capabilities are *minimal by default* and must be explicitly granted.
 

@@ -1,0 +1,19 @@
+{
+  "subject": "Butler Lampson",
+  "commons_file_page": "https://commons.wikimedia.org/wiki/File:Butler_Lampson_Royal_Society.jpg",
+  "original_url": "https://upload.wikimedia.org/wikipedia/commons/c/c0/Butler_Lampson_Royal_Society.jpg",
+  "sha1": "83175ca9c3c051eff8fad31f953c09628d4a2aec",
+  "width": 576,
+  "height": 864,
+  "artist": "The Royal Society (uploaded by Duncan.Hull)",
+  "credit": "Own work (Royal Society Fellow-portrait release)",
+  "licence_short": "CC BY-SA 4.0",
+  "licence_url": "https://creativecommons.org/licenses/by-sa/4.0",
+  "attribution_required": true,
+  "usage_terms": "Creative Commons Attribution-Share Alike 4.0",
+  "retrieved": "2026-09-07",
+  "solo_portrait": true,
+  "framing": "frontal studio head-and-shoulders shot",
+  "background_clutter": "none — plain grey studio backdrop",
+  "crop": "cropped the uncropped 576x864 Royal Society release to box (60,20)-(520,595), a tight 4:5 head-and-shoulders frame (used instead of the pre-cropped 270x359 derivative for more print resolution)"
+}

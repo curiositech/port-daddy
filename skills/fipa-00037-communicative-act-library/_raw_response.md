@@ -805,7 +805,7 @@ The FIPA Contract Net protocol can be built entirely from composed acts:
 
 Each step is a composition of primitives. You don't need to hardcode the Contract Net protocol—it emerges from agents using composed communicative acts rationally.
 
-## Design Implications for WinDAGs
+## Design Implications for Jury-rig
 
 ### 1. Don't Build a Flat Act Library
 
@@ -1681,7 +1681,7 @@ def evaluate_referent(self, ref_expr):
         return set(matches)  # Return as a set
 ```
 
-## Design Implications for WinDAGs
+## Design Implications for Jury-rig
 
 ### 1. Don't Enumerate Possibilities in Advance
 

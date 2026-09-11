@@ -11,7 +11,7 @@
 //      never lets a broken recorder break the spawn (fail-open).
 
 import { jest } from '@jest/globals';
-import { readFileSync as realReadFileSync } from 'node:fs';
+import { readFileSync as realReadFileSync, realpathSync as realRealpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { parse as realYamlParse, parseDocument as realParseDocument, LineCounter as RealLineCounter, isScalar as realIsScalar, isMap as realIsMap, isSeq as realIsSeq } from 'yaml';
@@ -38,6 +38,7 @@ jest.unstable_mockModule('node:fs', () => ({
   unlinkSync: jest.fn(),
   mkdirSync: mockMkdirSync,
   chmodSync: jest.fn(),
+  realpathSync: realRealpathSync,
   watch: jest.fn(() => ({ close: jest.fn() })),
   statSync: jest.fn(() => ({ mtimeMs: 0 })),
   readdirSync: jest.fn(() => []),
@@ -235,7 +236,7 @@ describe('fleet-engine skill-graft event recording', () => {
   test('a successful craft-and-splice records one skill_graft_recorded event through the existing emit() sink', async () => {
     const craft = jest.fn().mockResolvedValue(makeGraftResult());
     const onEvent = jest.fn();
-    const config = makeConfig({ skillGraft: true });
+    const config = makeConfig({ juryRig: true });
     const runner = createFleetRunner(config, '/tmp/proj', { skillGraft: { craft }, onEvent });
 
     await runner.hailAgent('test-agent', { source: 'manual' });
@@ -275,7 +276,7 @@ describe('fleet-engine skill-graft event recording', () => {
   test('no event is recorded when craft() shortlists but splices nothing (top empty)', async () => {
     const craft = jest.fn().mockResolvedValue(makeGraftResult({ top: [] }));
     const onEvent = jest.fn();
-    const config = makeConfig({ skillGraft: true });
+    const config = makeConfig({ juryRig: true });
     const runner = createFleetRunner(config, '/tmp/proj', { skillGraft: { craft }, onEvent });
 
     await runner.hailAgent('test-agent', { source: 'manual' });
@@ -292,7 +293,7 @@ describe('fleet-engine skill-graft event recording', () => {
     const onEvent = jest.fn((event) => {
       if (event.type === 'skill_graft_recorded') throw new Error('recorder exploded');
     });
-    const config = makeConfig({ skillGraft: true });
+    const config = makeConfig({ juryRig: true });
     const runner = createFleetRunner(config, '/tmp/proj', { skillGraft: { craft }, onEvent });
     const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 

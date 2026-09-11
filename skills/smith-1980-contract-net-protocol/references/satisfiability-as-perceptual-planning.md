@@ -206,7 +206,7 @@ The planning problem becomes temporal: find a sequence of actions over time that
 
 The authors note this as future work: "As a long-term project, we plan to build a logical framework for planning involving temporal and epistemic properties (that is, epistemic properties may be invariants, objectives etc.)."
 
-## Design Implications for WinDAGs
+## Design Implications for Jury-rig
 
 **1. Epistemic Goal Specification**
 

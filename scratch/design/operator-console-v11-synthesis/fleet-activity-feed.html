@@ -1,0 +1,1799 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FleetBar — Fleet Activity Feed</title>
+
+<!--
+  FleetBar: Fleet Activity Feed Panel — v2
+  ─────────────────────────────────────────
+  Design language: Port Daddy neobrutalist v1
+  Dimensions: 380 × ~640px visible (scrollable feed inside)
+  Self-contained: zero external dependencies
+
+  What's new vs v1:
+  - macOS menu-bar popover chrome with caret notch
+  - Live "heartbeat" bar — agent pulse dots with subtle ring animation
+  - Cards with 5 distinct content types:
+      • error/flag  — Spider SQL injection with inline code + severity
+      • running     — Cartographer with animated indeterminate bar
+      • diff        — Feedback handler patch with unified diff + test bar
+      • warning     — QA coverage dip with coverage bar
+      • idea        — Spark with quote block + confidence meter
+      • routine     — Gardener with minimal treatment
+  - Expand/collapse toggle on the Spider card (shows full evidence)
+  - "Older" disclosure group with collapsed summary line
+  - Dismiss animation (slide + fade right)
+  - Tab switching filters the feed by category
+  - Footer stats update as cards are dismissed
+  - Cobalt "new items" notification dot on menu bar icon
+-->
+
+<style>
+/* ═══════════════════════════════════════════════════════════════════════
+   DESIGN TOKENS — Port Daddy canonical
+   ═══════════════════════════════════════════════════════════════════════ */
+:root {
+  /* Surfaces */
+  --bg-body:     #ccc9c1;   /* mockup surround — simulates macOS desktop */
+  --bg-panel:    #f2eee6;
+  --bg-card:     #faf8f4;
+  --bg-lifted:   #fffcf8;
+  --bg-sunken:   #ebe7de;
+  --bg-code:     #12161f;
+  --bg-code-hl:  #1e2535;
+  --bg-code-err: #1e1518;
+
+  /* Brand */
+  --cobalt:          #003fb8;
+  --cobalt-deep:     #002b80;
+  --cobalt-soft:     #dde6ff;
+  --cobalt-mid:      #6b8fd9;
+  --forest:          #006b5f;
+  --forest-deep:     #00504a;
+  --forest-soft:     #d4ede9;
+  --purple:          #6d28d9;
+  --purple-soft:     #ede9ff;
+  --purple-deep:     #3b0e8c;
+
+  /* Text */
+  --ink:             #121212;
+  --ink-mid:         #3a3836;
+  --ink-muted:       #6b6560;
+  --ink-faint:       #9a9490;
+  --ink-on-dark:     #e8e4dc;
+  --ink-dark-muted:  #7a8394;
+  --ink-on-cobalt:   #ffffff;
+
+  /* Status */
+  --s-done:     #62c47a;
+  --s-done-bg:  #e8f8ed;
+  --s-done-ink: #1a5e2a;
+  --s-warn:     #e0c04a;
+  --s-warn-bg:  #fdf6d8;
+  --s-warn-ink: #7a5c00;
+  --s-err:      #e55c5c;
+  --s-err-bg:   #fde8e8;
+  --s-err-ink:  #8b1a1a;
+  --s-run:      #003fb8;
+  --s-run-bg:   #dde6ff;
+  --s-run-ink:  #001f7a;
+
+  /* Borders */
+  --b-hard:   2px solid #121212;
+  --b-mid:    1px solid #b8b0a4;
+  --b-code:   1.5px solid #2a3040;
+
+  /* Shadows — neobrutalist hard offsets, 0 blur */
+  --sh-card:   3px 3px 0 0 #121212;
+  --sh-hover:  4px 4px 0 0 #121212;
+  --sh-btn:    2px 2px 0 0 #121212;
+  --sh-panel:  6px 6px 0 0 #121212;
+
+  /* Typography */
+  --font: -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
+
+  /* Spacing (4px base) */
+  --s1: 4px;  --s2: 8px;  --s3: 12px;  --s4: 16px;
+  --s5: 20px; --s6: 24px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   RESET
+   ═══════════════════════════════════════════════════════════════════════ */
+*, *::before, *::after {
+  box-sizing: border-box; margin: 0; padding: 0;
+}
+button { font-family: inherit; cursor: pointer; }
+code, pre { font-family: var(--mono); }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PAGE SCAFFOLD — macOS menu bar context
+   ═══════════════════════════════════════════════════════════════════════ */
+body {
+  background: var(--bg-body);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 20px 60px;
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Mock macOS menu bar strip */
+.macos-bar {
+  width: 100%;
+  max-width: 800px;
+  height: 26px;
+  background: rgba(30,30,30,0.88);
+  backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 16px;
+  gap: 14px;
+  margin-bottom: 0;
+}
+
+.bar-item {
+  font-size: 12px;
+  color: rgba(255,255,255,0.75);
+  font-family: var(--font);
+  white-space: nowrap;
+}
+
+.bar-fleetbar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255,255,255,0.12);
+  padding: 2px 7px;
+  border: 1px solid rgba(255,255,255,0.18);
+  position: relative;
+}
+
+.bar-fleetbar__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.bar-notif-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 6px;
+  height: 6px;
+  background: var(--s-err);
+  border-radius: 50%;
+  border: 1.5px solid rgba(30,30,30,0.88);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PANEL WRAP — popover with caret notch
+   ═══════════════════════════════════════════════════════════════════════ */
+.panel-wrap {
+  position: relative;
+  width: 380px;
+}
+
+/* Caret — matches menu bar item position (right-aligned) */
+.panel-wrap::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  right: 52px;
+  width: 0;
+  height: 0;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-bottom: 9px solid #121212;
+  z-index: 1;
+}
+.panel-wrap::after {
+  content: '';
+  position: absolute;
+  top: -6px;
+  right: 54px;
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-bottom: 7px solid var(--bg-panel);
+  z-index: 2;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PANEL CHROME
+   ═══════════════════════════════════════════════════════════════════════ */
+.panel {
+  background: var(--bg-panel);
+  border: var(--b-hard);
+  box-shadow: var(--sh-panel);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  z-index: 3;
+}
+
+/* ─── HEADER ──────────────────────────────────────────────────────── */
+.panel-header {
+  background: var(--cobalt);
+  border-bottom: var(--b-hard);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.hdr-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Anchor glyph — Port Daddy logo mark */
+.hdr-icon {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.hdr-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+
+.hdr-sub {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.5);
+  line-height: 1;
+  margin-top: 1px;
+}
+
+.hdr-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hdr-pill {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: rgba(255,255,255,0.92);
+  color: var(--cobalt);
+  padding: 3px 8px;
+  border: 1.5px solid rgba(255,255,255,0.5);
+  line-height: 1;
+}
+
+.hdr-icon-btn {
+  width: 26px;
+  height: 26px;
+  appearance: none;
+  background: none;
+  border: 1.5px solid rgba(255,255,255,0.3);
+  color: rgba(255,255,255,0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.1s, border-color 0.1s;
+}
+.hdr-icon-btn:hover {
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.6);
+  color: #fff;
+}
+
+/* ─── HEARTBEAT STRIP ──────────────────────────────────────────────── */
+.hb-strip {
+  background: var(--bg-sunken);
+  border-bottom: var(--b-hard);
+  padding: 6px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex-shrink: 0;
+}
+.hb-strip::-webkit-scrollbar { display: none; }
+
+.hb-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.hb-sep {
+  width: 1px;
+  height: 14px;
+  background: #c0b8ac;
+  flex-shrink: 0;
+}
+
+.agent-pip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.pip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.pip-dot.run {
+  background: var(--s-done);
+}
+.pip-dot.run::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 1.5px solid var(--s-done);
+  animation: ring 2s ease-out infinite;
+  opacity: 0;
+}
+.pip-dot.idle {
+  background: #c0b8ac;
+}
+.pip-dot.warn {
+  background: var(--s-warn);
+}
+
+.pip-name {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-mid);
+}
+
+@keyframes ring {
+  0%   { transform: scale(0.6); opacity: 0.8; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+/* ─── FILTER BAR ───────────────────────────────────────────────────── */
+.filter-bar {
+  border-bottom: var(--b-hard);
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  background: var(--bg-panel);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.filter-bar::-webkit-scrollbar { display: none; }
+
+.ftab {
+  appearance: none;
+  background: none;
+  border: none;
+  border-bottom: 2.5px solid transparent;
+  padding: 7px 12px 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.12s, border-color 0.12s;
+  margin-bottom: -1px;
+  flex-shrink: 0;
+}
+.ftab:hover { color: var(--ink); }
+.ftab.active {
+  color: var(--ink);
+  border-bottom-color: var(--cobalt);
+}
+
+.ftab .ftab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--s-err);
+  color: #fff;
+  border-radius: 99px;
+  font-size: 9px;
+  font-weight: 800;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  margin-left: 4px;
+  line-height: 1;
+  vertical-align: middle;
+}
+.ftab.active .ftab-count {
+  background: var(--cobalt);
+}
+
+.filter-spacer { flex: 1; }
+
+.filter-count {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ink-faint);
+  padding: 7px 14px 7px 0;
+  align-self: center;
+  white-space: nowrap;
+}
+
+/* ─── FEED ────────────────────────────────────────────────────────── */
+.feed {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-height: 500px;
+
+  scrollbar-width: thin;
+  scrollbar-color: #b8b0a4 transparent;
+}
+.feed::-webkit-scrollbar { width: 4px; }
+.feed::-webkit-scrollbar-thumb { background: #b8b0a4; }
+
+.feed-inner {
+  padding: 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ─── TIME DIVIDER ─────────────────────────────────────────────────── */
+.t-div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 0;
+  flex-shrink: 0;
+}
+.t-div-line {
+  flex: 1;
+  height: 1px;
+  background: #ccc5bc;
+}
+.t-div-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ACTIVITY CARD — base
+   ═══════════════════════════════════════════════════════════════════════ */
+.card {
+  background: var(--bg-card);
+  border: var(--b-hard);
+  box-shadow: var(--sh-card);
+  position: relative;
+  transition: box-shadow 0.1s, transform 0.1s;
+}
+.card:hover {
+  box-shadow: var(--sh-hover);
+  transform: translate(-1px, -1px);
+}
+
+/* Agent color stripe — left edge */
+.card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  pointer-events: none;
+}
+.card[data-a="spider"]::before      { background: var(--s-err); }
+.card[data-a="feedback"]::before    { background: var(--s-done); }
+.card[data-a="cartographer"]::before{ background: var(--cobalt); }
+.card[data-a="qa"]::before          { background: var(--s-warn); }
+.card[data-a="gardener"]::before    { background: var(--forest); }
+.card[data-a="spark"]::before       { background: var(--purple); }
+
+/* Running state — scan bar at bottom */
+.card.is-running::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    var(--cobalt-mid) 35%,
+    var(--cobalt) 50%,
+    var(--cobalt-mid) 65%,
+    transparent 100%
+  );
+  background-size: 55% 100%;
+  background-repeat: no-repeat;
+  animation: scanline 1.6s ease-in-out infinite;
+}
+@keyframes scanline {
+  0%   { background-position: -60% 0; }
+  100% { background-position: 170% 0; }
+}
+
+/* ─── CARD HEAD ────────────────────────────────────────────────────── */
+.card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 10px 6px calc(10px + 5px);  /* left indent past stripe */
+}
+
+.card-head-l {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.agent-badge {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border: 1.5px solid currentColor;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-top: 1px;
+  line-height: 1.4;
+}
+.card[data-a="spider"]       .agent-badge { color: var(--s-err-ink); background: var(--s-err-bg); }
+.card[data-a="feedback"]     .agent-badge { color: var(--s-done-ink); background: var(--s-done-bg); }
+.card[data-a="cartographer"] .agent-badge { color: var(--s-run-ink); background: var(--s-run-bg); }
+.card[data-a="qa"]           .agent-badge { color: var(--s-warn-ink); background: var(--s-warn-bg); }
+.card[data-a="gardener"]     .agent-badge { color: #1a4a40; background: var(--forest-soft); }
+.card[data-a="spark"]        .agent-badge { color: var(--purple-deep); background: var(--purple-soft); }
+
+.card-title-wrap {
+  min-width: 0;
+  flex: 1;
+}
+
+.card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+.card.is-running .card-title { color: var(--cobalt); }
+
+.card-head-r {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.card-ts {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+.card-dismiss {
+  appearance: none;
+  background: none;
+  border: none;
+  color: var(--ink-faint);
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  opacity: 0;
+  transition: opacity 0.1s, color 0.1s;
+}
+.card:hover .card-dismiss { opacity: 1; }
+.card-dismiss:hover { color: var(--s-err); }
+.card-dismiss svg { display: block; }
+
+/* ─── CARD BODY ────────────────────────────────────────────────────── */
+.card-body {
+  padding: 0 10px 8px calc(10px + 5px);
+}
+
+.card-status-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.sbadge {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 1px 7px;
+  border: 1.5px solid currentColor;
+  line-height: 1.5;
+}
+.sbadge.done   { color: var(--s-done-ink);  background: var(--s-done-bg); }
+.sbadge.warn   { color: var(--s-warn-ink);  background: var(--s-warn-bg); }
+.sbadge.error  { color: var(--s-err-ink);   background: var(--s-err-bg); }
+.sbadge.info   { color: var(--s-run-ink);   background: var(--s-run-bg); }
+.sbadge.idea   { color: var(--purple-deep); background: var(--purple-soft); }
+
+.severity {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border: 1.5px solid currentColor;
+  line-height: 1.5;
+}
+.severity.high { color: var(--s-err-ink);  background: var(--s-err-bg); }
+.severity.med  { color: var(--s-warn-ink); background: var(--s-warn-bg); }
+.severity.low  { color: var(--s-done-ink); background: var(--s-done-bg); }
+
+.status-detail {
+  font-size: 14px;
+  color: var(--ink-mid);
+}
+
+.card-desc {
+  font-size: 14px;
+  color: var(--ink-mid);
+  line-height: 1.5;
+  margin-bottom: 7px;
+}
+
+.card-desc code {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--bg-sunken);
+  padding: 1px 4px;
+  border: 1px solid #c8c0b4;
+}
+
+/* ─── INLINE CODE BLOCK ────────────────────────────────────────────── */
+.code-block {
+  background: var(--bg-code);
+  border: var(--b-code);
+  margin-bottom: 7px;
+  overflow: hidden;
+}
+
+.code-header {
+  background: #1c2130;
+  border-bottom: 1px solid #2a3040;
+  padding: 3px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.code-fname {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: #7a8394;
+  letter-spacing: 0.04em;
+}
+.code-lang {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #4a5568;
+}
+
+.code-block pre {
+  padding: 6px 10px;
+  margin: 0;
+  overflow-x: auto;
+  color: #c9d1d9;
+  font-family: var(--mono);
+  font-size: 12px;  /* exception: terminal/code — mono, visually larger than prose at same px */
+  line-height: 1.55;
+}
+
+.cl { display: block; }
+.cl.hl {
+  background: var(--bg-code-err);
+  border-left: 2.5px solid var(--s-err);
+  padding-left: 6px;
+  margin-left: -10px;
+  padding-right: 10px;
+}
+.cn {
+  display: inline-block;
+  width: 20px;
+  color: #3a4050;
+  user-select: none;
+  font-size: 10px;
+}
+
+/* Syntax colors — minimal */
+.kk { color: #ff7b72; }
+.ks { color: #a5d6a7; }
+.kf { color: #79c0ff; }
+.kv { color: #ffa657; }
+.kp { color: #8b949e; }
+.ki { color: #ff7b72; text-decoration: underline wavy var(--s-err); }
+
+/* ─── DIFF PREVIEW ────────────────────────────────────────────────── */
+.diff {
+  background: var(--bg-code);
+  border: var(--b-code);
+  font-family: var(--mono);
+  font-size: 12px;  /* exception: code/diff mono */
+  line-height: 1.55;
+  margin-bottom: 7px;
+  overflow: hidden;
+}
+
+.diff-line {
+  display: block;
+  padding: 1px 10px;
+  color: #484f58;
+}
+.diff-line.rm  { background: #1e1215; color: #f85149; }
+.diff-line.add { background: #0d1b12; color: #56d364; }
+.diff-line.ctx { color: #484f58; }
+
+/* ─── TEST BAR ─────────────────────────────────────────────────────── */
+.test-bar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 7px;
+}
+.test-track {
+  flex: 1;
+  height: 5px;
+  background: #d8d0c4;
+  border: 1px solid #b8b0a4;
+  overflow: hidden;
+}
+.test-fill {
+  height: 100%;
+  transition: width 0.4s;
+}
+.test-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ─── PROGRESS BAR (indeterminate) ────────────────────────────────── */
+.progress-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 7px;
+}
+.progress-track {
+  flex: 1;
+  height: 4px;
+  background: #d8d0c4;
+  border: 1px solid #b8b0a4;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  width: 40%;
+  background: var(--cobalt);
+  animation: indet 1.5s ease-in-out infinite;
+}
+@keyframes indet {
+  0%   { transform: translateX(-120%); width: 40%; }
+  50%  { width: 65%; }
+  100% { transform: translateX(260%); width: 40%; }
+}
+.progress-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--cobalt);
+  white-space: nowrap;
+}
+
+/* ─── MAP PREVIEW (cartographer "done" cards) ─────────────────────── */
+.map-preview {
+  border: var(--b-code);
+  background: var(--bg-code);
+  padding: 7px 10px;
+  margin-bottom: 7px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.map-stats { display: flex; flex-direction: column; gap: 2px; }
+.map-stat  { display: flex; align-items: center; gap: 4px; }
+.map-num {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--cobalt-soft);
+  background: var(--cobalt);
+  padding: 0 4px;
+  line-height: 1.35;
+  min-width: 24px;
+  text-align: right;
+}
+.map-lbl {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-dark-muted);
+}
+.map-files {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-end;
+}
+.map-file {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-dark-muted);
+}
+
+/* ─── SPARK QUOTE ──────────────────────────────────────────────────── */
+.spark-quote {
+  border-left: 3px solid var(--purple);
+  background: var(--purple-soft);
+  padding: 7px 10px;
+  margin-bottom: 7px;
+  font-size: 14px;
+  font-style: italic;
+  color: var(--ink-mid);
+  line-height: 1.5;
+}
+.spark-quote strong {
+  font-style: normal;
+  font-weight: 700;
+  color: var(--purple-deep);
+}
+
+/* Confidence meter (Spark) */
+.confidence {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 7px;
+}
+.conf-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+.conf-pips {
+  display: flex;
+  gap: 3px;
+}
+.conf-pip {
+  width: 12px;
+  height: 6px;
+  background: var(--purple);
+  border: 1px solid var(--purple-deep);
+}
+.conf-pip.empty {
+  background: #e0dbd0;
+  border-color: #c0b8ac;
+}
+.conf-text {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--purple-deep);
+  font-weight: 600;
+}
+
+/* ─── FILE CHIPS ───────────────────────────────────────────────────── */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 7px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-mid);
+  background: var(--bg-sunken);
+  border: 1px solid #c0b8ac;
+  padding: 1px 6px;
+}
+.chip svg { display: block; }
+
+/* ─── EXPAND/COLLAPSE TOGGLE ───────────────────────────────────────── */
+.expand-toggle {
+  appearance: none;
+  background: none;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cobalt);
+  cursor: pointer;
+  padding: 2px 0;
+  margin-bottom: 7px;
+  transition: color 0.1s;
+}
+.expand-toggle:hover { color: var(--cobalt-deep); }
+.expand-toggle .chev {
+  transition: transform 0.15s;
+  display: inline-block;
+}
+.expand-toggle.open .chev { transform: rotate(90deg); }
+
+.expandable { display: none; }
+.expandable.open { display: block; }
+
+/* ─── CARD ACTIONS ─────────────────────────────────────────────────── */
+.card-actions {
+  padding: 7px 10px 10px calc(10px + 5px);
+  border-top: 1px solid #e0d8cc;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  appearance: none;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 5px 12px;
+  border: var(--b-hard);
+  cursor: pointer;
+  box-shadow: var(--sh-btn);
+  transition: box-shadow 0.07s, transform 0.07s, background 0.08s;
+  line-height: 1;
+  white-space: nowrap;
+}
+.btn:active {
+  box-shadow: 1px 1px 0 0 #121212;
+  transform: translate(1px, 1px);
+}
+
+.btn-primary  { background: var(--cobalt);  color: #fff; }
+.btn-primary:hover  { background: var(--cobalt-deep); }
+.btn-success  { background: var(--forest);  color: #fff; }
+.btn-success:hover  { background: var(--forest-deep); }
+.btn-default  { background: var(--bg-card); color: var(--ink); }
+.btn-default:hover  { background: var(--bg-sunken); }
+.btn-ghost    { background: transparent; color: var(--ink-muted); border-color: #b8b0a4; box-shadow: none; }
+.btn-ghost:hover    { background: var(--bg-sunken); color: var(--ink); }
+.btn-purple   { background: var(--purple);  color: #fff; border-color: var(--purple-deep); }
+.btn-purple:hover   { background: var(--purple-deep); }
+
+.actions-spacer { flex: 1; min-width: 0; }
+.card-meta {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+/* ─── NOTIFICATION DOT ─────────────────────────────────────────────── */
+.notif-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: var(--s-err);
+  border-radius: 50%;
+  vertical-align: middle;
+  margin-left: 3px;
+}
+
+/* ─── OLDER GROUP (disclosure) ─────────────────────────────────────── */
+.older-group {}
+
+.older-toggle {
+  appearance: none;
+  background: var(--bg-sunken);
+  border: var(--b-mid);
+  border-left: none;
+  border-right: none;
+  width: calc(100%);
+  padding: 6px 10px 6px calc(10px + 5px);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s;
+}
+.older-toggle:hover { background: #e0dbd0; }
+.older-toggle .chev {
+  display: inline-block;
+  transition: transform 0.15s;
+  margin-left: auto;
+  color: var(--ink-faint);
+}
+.older-toggle.open .chev { transform: rotate(180deg); }
+
+.older-items {
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 0 0;
+}
+.older-items.open {
+  display: flex;
+}
+
+/* ─── DISMISSED STATE ───────────────────────────────────────────────── */
+.card.dismissing {
+  transition: opacity 0.2s, transform 0.2s;
+  opacity: 0;
+  transform: translateX(12px);
+}
+
+/* ─── FOOTER ───────────────────────────────────────────────────────── */
+.panel-footer {
+  border-top: var(--b-hard);
+  background: var(--bg-sunken);
+  padding: 7px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.footer-stats {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.footer-stat {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+}
+.footer-stat-num {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.footer-stat-lbl {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-muted);
+}
+.footer-sep {
+  width: 1px;
+  height: 12px;
+  background: #c0b8ac;
+}
+
+.footer-actions {
+  display: flex;
+  gap: 6px;
+}
+.footer-btn {
+  appearance: none;
+  background: none;
+  border: 1.5px solid #b8b0a4;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-mid);
+  padding: 3px 9px;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
+}
+.footer-btn:hover {
+  background: #e0dbd0;
+  border-color: #8a8278;
+  color: var(--ink);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LABEL BELOW PANEL
+   ═══════════════════════════════════════════════════════════════════════ */
+.panel-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: rgba(0,0,0,0.35);
+  text-align: center;
+  margin-top: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+</style>
+</head>
+<body>
+
+<!-- ── MOCK macOS MENU BAR ─────────────────────────────────────────── -->
+<div class="macos-bar">
+  <span class="bar-item">Wed 9:41</span>
+  <span class="bar-item" style="opacity:0.4">▲ ↑</span>
+  <span class="bar-item">⌘</span>
+  <div class="bar-fleetbar">
+    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+      <rect x="1" y="7" width="11" height="1.5" fill="rgba(255,255,255,0.8)"/>
+      <rect x="6" y="2" width="1.5" height="6.5" fill="rgba(255,255,255,0.8)"/>
+      <rect x="3.5" y="9.5" width="6" height="3" fill="rgba(255,255,255,0.4)" stroke="rgba(255,255,255,0.55)" stroke-width="1"/>
+      <circle cx="7.5" cy="2" r="1.5" fill="white"/>
+    </svg>
+    <span class="bar-fleetbar__label">Fleet</span>
+    <div class="bar-notif-dot"></div>
+  </div>
+  <span class="bar-item" style="opacity:0.5">●●●</span>
+</div>
+
+<!-- ── PANEL WRAP ────────────────────────────────────────────────────── -->
+<div class="panel-wrap">
+<div class="panel">
+
+  <!-- HEADER -->
+  <header class="panel-header">
+    <div class="hdr-left">
+      <svg class="hdr-icon" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+        <rect x="1.5" y="1.5" width="19" height="19" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/>
+        <rect x="3" y="11" width="16" height="1.5" fill="rgba(255,255,255,0.7)"/>
+        <rect x="10.25" y="3.5" width="1.5" height="9" fill="rgba(255,255,255,0.7)"/>
+        <rect x="6" y="13.5" width="10" height="5" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.55)" stroke-width="1"/>
+        <circle cx="11" cy="3.5" r="2" fill="white"/>
+      </svg>
+      <div>
+        <div class="hdr-title">Fleet Activity</div>
+        <div class="hdr-sub">port-daddy · 6 agents</div>
+      </div>
+    </div>
+    <div class="hdr-right">
+      <span class="hdr-pill" id="newPill">3 new</span>
+      <button class="hdr-icon-btn" title="Settings" aria-label="Settings">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+          <circle cx="6.5" cy="6.5" r="2" stroke="currentColor" stroke-width="1.3"/>
+          <path d="M6.5 1V2.5M6.5 10.5V12M1 6.5H2.5M10.5 6.5H12M2.4 2.4L3.5 3.5M9.5 9.5L10.6 10.6M2.4 10.6L3.5 9.5M9.5 3.5L10.6 2.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="square"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- HEARTBEAT STRIP -->
+  <div class="hb-strip" role="status" aria-label="Agent status">
+    <span class="hb-label">Live</span>
+    <div class="agent-pip">
+      <span class="pip-dot run"></span>
+      <span class="pip-name">spider</span>
+    </div>
+    <div class="hb-sep"></div>
+    <div class="agent-pip">
+      <span class="pip-dot run"></span>
+      <span class="pip-name">cartographer</span>
+    </div>
+    <div class="hb-sep"></div>
+    <div class="agent-pip">
+      <span class="pip-dot run"></span>
+      <span class="pip-name">gardener</span>
+    </div>
+    <div class="hb-sep"></div>
+    <div class="agent-pip">
+      <span class="pip-dot warn"></span>
+      <span class="pip-name">qa</span>
+    </div>
+    <div class="hb-sep"></div>
+    <div class="agent-pip">
+      <span class="pip-dot idle"></span>
+      <span class="pip-name">feedback</span>
+    </div>
+    <div class="hb-sep"></div>
+    <div class="agent-pip">
+      <span class="pip-dot run"></span>
+      <span class="pip-name">spark</span>
+    </div>
+  </div>
+
+  <!-- FILTER BAR -->
+  <nav class="filter-bar" role="tablist">
+    <button class="ftab active" role="tab" data-filter="all">
+      All
+    </button>
+    <button class="ftab" role="tab" data-filter="flags">
+      Flags <span class="ftab-count">1</span>
+    </button>
+    <button class="ftab" role="tab" data-filter="done">Done</button>
+    <button class="ftab" role="tab" data-filter="running">Running</button>
+    <button class="ftab" role="tab" data-filter="ideas">Ideas</button>
+    <div class="filter-spacer"></div>
+    <span class="filter-count" id="feedCount">7 items</span>
+  </nav>
+
+  <!-- FEED -->
+  <div class="feed" role="feed" aria-label="Agent activity feed">
+  <div class="feed-inner">
+
+    <!-- ─── TIME: Just now ─── -->
+    <div class="t-div">
+      <div class="t-div-line"></div>
+      <span class="t-div-label">Just now</span>
+      <div class="t-div-line"></div>
+    </div>
+
+    <!-- ════ CARD 1: Spider — SQL injection flag ════ -->
+    <article class="card" data-a="spider" data-category="flags" aria-label="Spider security flag">
+      <div class="card-head">
+        <div class="card-head-l">
+          <span class="agent-badge">Spider</span>
+          <div class="card-title-wrap">
+            <div class="card-title">Potential SQL injection<span class="notif-dot" aria-hidden="true"></span></div>
+          </div>
+        </div>
+        <div class="card-head-r">
+          <span class="card-ts">0m ago</span>
+          <button class="card-dismiss" aria-label="Dismiss">
+            <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1 1l9 9M10 1L1 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="card-body">
+        <div class="card-status-row">
+          <span class="sbadge error">Flag</span>
+          <span class="severity high">HIGH</span>
+          <span class="status-detail">routes/auth.ts · line 142</span>
+        </div>
+
+        <div class="card-desc">
+          Unsanitized <code>req.body.username</code> passed directly into a raw query string. Pattern matches known SQLi vector (OWASP A03).
+        </div>
+
+        <!-- Expandable evidence -->
+        <button class="expand-toggle" id="spiderToggle" aria-expanded="false" aria-controls="spiderEvidence">
+          <span class="chev">▶</span>
+          <span id="spiderToggleLabel">Show evidence</span>
+        </button>
+
+        <div class="expandable" id="spiderEvidence">
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-fname">routes/auth.ts</span>
+              <span class="code-lang">TS</span>
+            </div>
+            <pre><code
+><span class="cl"><span class="cn">140</span> <span class="kk">const</span> <span class="kv">userId</span> <span class="kp">=</span> <span class="kf">sanitize</span><span class="kp">(</span>req<span class="kp">.</span>body<span class="kp">.</span>userId<span class="kp">);</span></span>
+<span class="cl"><span class="cn">141</span> </span>
+<span class="cl hl"><span class="cn">142</span> <span class="kk">const</span> <span class="kv">q</span> <span class="kp">=</span> <span class="ks">`SELECT * FROM users</span></span>
+<span class="cl hl"><span class="cn">   </span>          <span class="ks"> WHERE name='<span class="ki">${req.body.username}</span>'`</span><span class="kp">;</span></span>
+<span class="cl"><span class="cn">144</span> <span class="kk">return</span> <span class="kf">db</span><span class="kp">.</span><span class="kf">query</span><span class="kp">(</span><span class="kv">q</span><span class="kp">);</span></span></code></pre>
+          </div>
+
+          <div class="chips">
+            <span class="chip">
+              <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><rect x="0.75" y="0.75" width="7.5" height="7.5" stroke="currentColor" stroke-width="1"/></svg>
+              routes/auth.ts
+            </span>
+            <span class="chip">commit e3a1f2</span>
+            <span class="chip">OWASP A03</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-actions">
+        <button class="btn btn-primary">Investigate</button>
+        <button class="btn btn-default">View Commit</button>
+        <div class="actions-spacer"></div>
+        <button class="btn btn-ghost">Mute</button>
+      </div>
+    </article>
+
+    <!-- ════ CARD 2: Cartographer — running ════ -->
+    <article class="card is-running" data-a="cartographer" data-category="running" aria-label="Cartographer — in progress">
+      <div class="card-head">
+        <div class="card-head-l">
+          <span class="agent-badge">Cartographer</span>
+          <div class="card-title">Mapping 3 new files…</div>
+        </div>
+        <div class="card-head-r">
+          <span class="card-ts">1m ago</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="progress-row">
+          <div class="progress-track"><div class="progress-fill"></div></div>
+          <span class="progress-label" id="cartLabel">Indexing symbols</span>
+        </div>
+        <div class="card-desc">
+          Processing <code>lib/merge-queue.ts</code>, <code>routes/symbols.ts</code>, <code>lib/orchestrator-plugins.ts</code> — building dependency graph and edge weights.
+        </div>
+      </div>
+    </article>
+
+    <!-- ─── TIME: 12 min ago ─── -->
+    <div class="t-div">
+      <div class="t-div-line"></div>
+      <span class="t-div-label">12 min ago</span>
+      <div class="t-div-line"></div>
+    </div>
+
+    <!-- ════ CARD 3: Feedback — fix + diff + tests ════ -->
+    <article class="card" data-a="feedback" data-category="done" aria-label="Feedback handler result">
+      <div class="card-head">
+        <div class="card-head-l">
+          <span class="agent-badge">Feedback</span>
+          <div class="card-title">NavButton truncation fixed</div>
+        </div>
+        <div class="card-head-r">
+          <span class="card-ts">12m ago</span>
+          <button class="card-dismiss" aria-label="Dismiss">
+            <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1 1l9 9M10 1L1 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="card-status-row">
+          <span class="sbadge done">Done</span>
+          <span class="status-detail">1 file patched · Playwright test added</span>
+        </div>
+        <div class="card-desc">
+          Long nav labels were clipping at 280px. Added <code>overflow: hidden; text-overflow: ellipsis</code> with a <code>min-width</code> guard. Test confirms at 320px and 375px viewports.
+        </div>
+
+        <div class="diff">
+          <span class="diff-line ctx"> // NavButton.tsx · line 34</span>
+          <span class="diff-line rm">-   width: 'auto',</span>
+          <span class="diff-line rm">-   whiteSpace: 'nowrap',</span>
+          <span class="diff-line add">+   maxWidth: '100%',</span>
+          <span class="diff-line add">+   overflow: 'hidden',</span>
+          <span class="diff-line add">+   textOverflow: 'ellipsis',</span>
+          <span class="diff-line ctx"> ... +12 lines in NavButton.test.ts</span>
+        </div>
+
+        <div class="test-bar">
+          <div class="test-track"><div class="test-fill" style="width:100%;background:var(--s-done)"></div></div>
+          <span class="test-label" style="color:var(--s-done-ink)">14/14 pass</span>
+        </div>
+      </div>
+      <div class="card-actions">
+        <button class="btn btn-success">View Diff</button>
+        <button class="btn btn-default">Open PR</button>
+        <div class="actions-spacer"></div>
+        <span class="card-meta">Playwright · 2 viewports</span>
+      </div>
+    </article>
+
+    <!-- ════ CARD 4: QA — coverage warning ════ -->
+    <article class="card" data-a="qa" data-category="flags" aria-label="QA coverage warning">
+      <div class="card-head">
+        <div class="card-head-l">
+          <span class="agent-badge">QA</span>
+          <div class="card-title">Coverage dip: lib/sugar.ts</div>
+        </div>
+        <div class="card-head-r">
+          <span class="card-ts">18m ago</span>
+          <button class="card-dismiss" aria-label="Dismiss">
+            <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1 1l9 9M10 1L1 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="card-status-row">
+          <span class="sbadge warn">Warning</span>
+          <span class="severity med">MED</span>
+          <span class="status-detail">68% → 54% branch</span>
+        </div>
+        <div class="card-desc">
+          Recent changes to <code>createSugar()</code> added 3 new branches — none covered. The <code>done()</code> fallback path is entirely untested.
+        </div>
+        <div class="test-bar">
+          <div class="test-track"><div class="test-fill" style="width:54%;background:var(--s-warn)"></div></div>
+          <span class="test-label" style="color:var(--s-warn-ink)">54% branch</span>
+        </div>
+      </div>
+      <div class="card-actions">
+        <button class="btn btn-primary">View Gaps</button>
+        <button class="btn btn-default">Assign to Gardener</button>
+      </div>
+    </article>
+
+    <!-- ─── TIME: 1 hour ago ─── -->
+    <div class="t-div">
+      <div class="t-div-line"></div>
+      <span class="t-div-label">1 hour ago</span>
+      <div class="t-div-line"></div>
+    </div>
+
+    <!-- ════ CARD 5: Spark — idea ════ -->
+    <article class="card" data-a="spark" data-category="ideas" aria-label="Spark idea">
+      <div class="card-head">
+        <div class="card-head-l">
+          <span class="agent-badge">Spark</span>
+          <div class="card-title">Idea: Agent skill quality gates</div>
+        </div>
+        <div class="card-head-r">
+          <span class="card-ts">1h ago</span>
+          <button class="card-dismiss" aria-label="Dismiss">
+            <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1 1l9 9M10 1L1 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="card-status-row">
+          <span class="sbadge idea">Idea</span>
+          <span class="status-detail">Unblocked · ~1 session</span>
+        </div>
+
+        <div class="spark-quote">
+          <strong>Pre-spawn skill validation.</strong>
+          Skills registry + benchmarking API + a pre-spawn hook in <code style="background:rgba(255,255,255,0.6);border-color:#c8b8e8;font-family:var(--mono);font-size:12px;padding:1px 4px;">lib/spawner.ts</code> — bridges Phase 2 spawning to fleet confidence scoring.
+        </div>
+
+        <div class="confidence">
+          <span class="conf-label">Confidence</span>
+          <div class="conf-pips">
+            <span class="conf-pip"></span>
+            <span class="conf-pip"></span>
+            <span class="conf-pip"></span>
+            <span class="conf-pip empty"></span>
+            <span class="conf-pip empty"></span>
+          </div>
+          <span class="conf-text">3/5 · Plausible</span>
+        </div>
+      </div>
+      <div class="card-actions">
+        <button class="btn btn-purple">Open in Ideas</button>
+        <button class="btn btn-default">Spawn Agent</button>
+        <div class="actions-spacer"></div>
+        <button class="btn btn-ghost">Archive</button>
+      </div>
+    </article>
+
+    <!-- ════ OLDER GROUP ════ -->
+    <div class="older-group">
+      <button class="older-toggle" id="olderToggle" aria-expanded="false" aria-controls="olderItems">
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+          <circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1.2"/>
+          <path d="M5 3v2.5L7 7" stroke="currentColor" stroke-width="1.2" stroke-linecap="square"/>
+        </svg>
+        3 older items — today
+        <svg class="chev" width="10" height="7" viewBox="0 0 10 7" fill="none" aria-hidden="true">
+          <path d="M1 1l4 5 4-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>
+        </svg>
+      </button>
+
+      <div class="older-items" id="olderItems">
+
+        <!-- Cartographer done — previous run -->
+        <article class="card" data-a="cartographer" data-category="done" aria-label="Cartographer previous run" style="opacity:0.85">
+          <div class="card-head">
+            <div class="card-head-l">
+              <span class="agent-badge">Cartographer</span>
+              <div class="card-title">Knowledge map updated</div>
+            </div>
+            <div class="card-head-r">
+              <span class="card-ts">3h ago</span>
+              <button class="card-dismiss" aria-label="Dismiss">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1 1l9 9M10 1L1 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="card-status-row">
+              <span class="sbadge done">Done</span>
+              <span class="status-detail">3 files · 11 new symbols</span>
+            </div>
+            <div class="map-preview">
+              <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+                <circle cx="14" cy="7" r="3" fill="#003fb8" opacity="0.9"/>
+                <circle cx="6"  cy="21" r="2.5" fill="#003fb8" opacity="0.6"/>
+                <circle cx="22" cy="21" r="2.5" fill="#003fb8" opacity="0.6"/>
+                <circle cx="14" cy="19" r="2" fill="#62c47a" opacity="0.9"/>
+                <line x1="14" y1="10" x2="14" y2="17" stroke="#4a5568" stroke-width="1"/>
+                <line x1="14" y1="10" x2="7"  y2="19" stroke="#4a5568" stroke-width="1"/>
+                <line x1="14" y1="10" x2="21" y2="19" stroke="#4a5568" stroke-width="1"/>
+              </svg>
+              <div class="map-stats">
+                <div class="map-stat"><span class="map-num">11</span><span class="map-lbl">symbols indexed</span></div>
+                <div class="map-stat"><span class="map-num">3</span><span class="map-lbl">files mapped</span></div>
+              </div>
+              <div class="map-files">
+                <span class="map-file">lib/merge-queue.ts</span>
+                <span class="map-file">routes/symbols.ts</span>
+                <span class="map-file" style="color:#4a5568">+ 1 more</span>
+              </div>
+            </div>
+          </div>
+          <div class="card-actions">
+            <button class="btn btn-default">Browse Map</button>
+            <div class="actions-spacer"></div>
+            <span class="card-meta">1,284 total nodes</span>
+          </div>
+        </article>
+
+        <!-- Gardener — routine prune -->
+        <article class="card" data-a="gardener" data-category="done" aria-label="Gardener routine result" style="opacity:0.85">
+          <div class="card-head">
+            <div class="card-head-l">
+              <span class="agent-badge">Gardener</span>
+              <div class="card-title">Pruned unused dep: node-fetch</div>
+            </div>
+            <div class="card-head-r">
+              <span class="card-ts">5h ago</span>
+              <button class="card-dismiss" aria-label="Dismiss">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1 1l9 9M10 1L1 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="card-status-row">
+              <span class="sbadge done">Done</span>
+              <span class="status-detail">package.json · −47 kB bundle</span>
+            </div>
+            <div class="card-desc">
+              <code>node-fetch</code> had 0 import sites after the native <code>fetch</code> migration. Removed. Bundle delta confirmed via size-limit.
+            </div>
+          </div>
+          <div class="card-actions">
+            <button class="btn btn-default">View Change</button>
+            <div class="actions-spacer"></div>
+            <span class="card-meta">Auto-committed</span>
+          </div>
+        </article>
+
+        <!-- Spark — second idea, lower confidence -->
+        <article class="card" data-a="spark" data-category="ideas" aria-label="Spark lower-confidence idea" style="opacity:0.85">
+          <div class="card-head">
+            <div class="card-head-l">
+              <span class="agent-badge">Spark</span>
+              <div class="card-title">Idea: Priced cooperation tiers</div>
+            </div>
+            <div class="card-head-r">
+              <span class="card-ts">6h ago</span>
+              <button class="card-dismiss" aria-label="Dismiss">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1 1l9 9M10 1L1 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="card-status-row">
+              <span class="sbadge idea">Idea</span>
+              <span class="status-detail">Speculative · multi-session</span>
+            </div>
+            <div class="spark-quote">
+              Free tier = advisory-only. Paid tier = Arbiter with real pre-empt power. <strong>Trust is the product.</strong> Leans into Thomas Youle's bonded-commons framing.
+            </div>
+            <div class="confidence">
+              <span class="conf-label">Confidence</span>
+              <div class="conf-pips">
+                <span class="conf-pip"></span>
+                <span class="conf-pip"></span>
+                <span class="conf-pip empty"></span>
+                <span class="conf-pip empty"></span>
+                <span class="conf-pip empty"></span>
+              </div>
+              <span class="conf-text">2/5 · Early</span>
+            </div>
+          </div>
+          <div class="card-actions">
+            <button class="btn btn-purple">Open in Ideas</button>
+            <div class="actions-spacer"></div>
+            <button class="btn btn-ghost">Archive</button>
+          </div>
+        </article>
+
+      </div><!-- /older-items -->
+    </div><!-- /older-group -->
+
+    <!-- breathing room -->
+    <div style="height:6px;flex-shrink:0"></div>
+
+  </div><!-- /feed-inner -->
+  </div><!-- /feed -->
+
+  <!-- FOOTER -->
+  <footer class="panel-footer">
+    <div class="footer-stats">
+      <div class="footer-stat">
+        <span class="footer-stat-num" id="agentCount">6</span>
+        <span class="footer-stat-lbl">agents</span>
+      </div>
+      <div class="footer-sep"></div>
+      <div class="footer-stat">
+        <span class="footer-stat-num" id="resultCount">8</span>
+        <span class="footer-stat-lbl">results today</span>
+      </div>
+    </div>
+    <div class="footer-actions">
+      <button class="footer-btn" id="clearReadBtn">Clear Read</button>
+      <button class="footer-btn">Dashboard →</button>
+    </div>
+  </footer>
+
+</div><!-- /panel -->
+</div><!-- /panel-wrap -->
+
+<div class="panel-label">FleetBar · macOS menu bar popover · 380×auto</div>
+
+<!-- ════════════════════════════════════════════════════════════════════
+     INTERACTIVITY
+     ════════════════════════════════════════════════════════════════════ -->
+<script>
+(function () {
+  'use strict';
+
+  // ── Tab filter ──────────────────────────────────────────────────────────────
+  var tabs = document.querySelectorAll('.ftab');
+  var feedCount = document.getElementById('feedCount');
+  var newPill = document.getElementById('newPill');
+
+  tabs.forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      tabs.forEach(function (t) { t.classList.remove('active'); });
+      tab.classList.add('active');
+
+      var filter = tab.getAttribute('data-filter');
+      var cards = document.querySelectorAll('.card');
+      var visible = 0;
+
+      cards.forEach(function (card) {
+        if (filter === 'all') {
+          card.style.display = '';
+          visible++;
+        } else {
+          var cat = card.getAttribute('data-category');
+          var agent = card.getAttribute('data-a');
+          var match = (cat === filter) ||
+                      (filter === 'running' && card.classList.contains('is-running'));
+          card.style.display = match ? '' : 'none';
+          if (match) visible++;
+        }
+      });
+
+      // Also hide/show time dividers based on context
+      var dividers = document.querySelectorAll('.t-div');
+      dividers.forEach(function (d) {
+        d.style.display = filter === 'all' ? '' : 'none';
+      });
+
+      feedCount.textContent = visible + ' item' + (visible !== 1 ? 's' : '');
+    });
+  });
+
+  // ── Dismiss cards ───────────────────────────────────────────────────────────
+  var totalResults = 8;
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.card-dismiss');
+    if (!btn) return;
+    e.stopPropagation();
+    var card = btn.closest('.card');
+    card.classList.add('dismissing');
+    setTimeout(function () {
+      card.style.display = 'none';
+      card.classList.remove('dismissing');
+      totalResults = Math.max(0, totalResults - 1);
+      document.getElementById('resultCount').textContent = totalResults;
+
+      // Update "N new" pill
+      var visibleCards = document.querySelectorAll('.card[style=""],.card:not([style])');
+      var cnt = 0;
+      visibleCards.forEach(function(c) { if (c.style.display !== 'none') cnt++; });
+      if (cnt === 0) {
+        newPill.style.display = 'none';
+      } else {
+        var newCount = Math.max(0, parseInt(newPill.textContent) - 1);
+        if (newCount === 0) {
+          newPill.style.display = 'none';
+        } else {
+          newPill.textContent = newCount + ' new';
+        }
+      }
+    }, 220);
+  });
+
+  // ── Spider evidence expand/collapse ────────────────────────────────────────
+  var spiderToggle = document.getElementById('spiderToggle');
+  var spiderEvidence = document.getElementById('spiderEvidence');
+  var spiderToggleLabel = document.getElementById('spiderToggleLabel');
+
+  spiderToggle.addEventListener('click', function () {
+    var isOpen = spiderEvidence.classList.toggle('open');
+    spiderToggle.classList.toggle('open', isOpen);
+    spiderToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    spiderToggleLabel.textContent = isOpen ? 'Hide evidence' : 'Show evidence';
+  });
+
+  // ── Older items group ───────────────────────────────────────────────────────
+  var olderToggle = document.getElementById('olderToggle');
+  var olderItems = document.getElementById('olderItems');
+
+  olderToggle.addEventListener('click', function () {
+    var isOpen = olderItems.classList.toggle('open');
+    olderToggle.classList.toggle('open', isOpen);
+    olderToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  });
+
+  // ── Cartographer progress label cycling ────────────────────────────────────
+  var cartLabel = document.getElementById('cartLabel');
+  var cartSteps = ['Indexing symbols', 'Building edges…', 'Resolving imports…', 'Finalizing graph'];
+  var cartStep = 0;
+  setInterval(function () {
+    cartStep = (cartStep + 1) % cartSteps.length;
+    if (cartLabel) cartLabel.textContent = cartSteps[cartStep];
+  }, 2200);
+
+  // ── Clear Read button ───────────────────────────────────────────────────────
+  document.getElementById('clearReadBtn').addEventListener('click', function () {
+    var done = document.querySelectorAll('.card[data-category="done"]');
+    done.forEach(function (card) {
+      card.classList.add('dismissing');
+      setTimeout(function () {
+        card.style.display = 'none';
+        card.classList.remove('dismissing');
+      }, 220);
+    });
+    totalResults = Math.max(0, totalResults - done.length);
+    document.getElementById('resultCount').textContent = totalResults;
+  });
+
+  // ── Pip animation stagger — offset so they don't all pulse at once ──────────
+  var pips = document.querySelectorAll('.pip-dot.run::after');
+  // (CSS handles this via animation-delay on the pseudo, but we can add
+  //  agent-specific offsets via inline style on the real elements)
+  var runPips = document.querySelectorAll('.pip-dot.run');
+  runPips.forEach(function (pip, i) {
+    pip.style.animationDelay = (i * 0.4) + 's';
+  });
+
+})();
+</script>
+
+</body>
+</html>

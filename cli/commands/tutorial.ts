@@ -221,6 +221,8 @@ export async function runLearnOrientation(options: LearnOrientationOptions = {})
   await pause();
 
   lessonHeader(3, 'Establish attributable work', write);
+  line('  Edit in a clean linked worktree, never the operator\'s primary checkout.');
+  line('  Link the existing assigned roadmap item; do not duplicate it or replace its owner.');
   line('  A durable edit session needs an explicit work-authority link:');
   line();
   line(`    ${ANSI.fgCyan}pd begin "bounded task" --identity project:area:task \\${ANSI.reset}`);
@@ -229,8 +231,9 @@ export async function runLearnOrientation(options: LearnOrientationOptions = {})
   line(`  Use ${ANSI.fgCyan}--roadmap-new "title"${ANSI.reset} to create a draft item, or`);
   line(`  ${ANSI.fgCyan}--sidequest "why this is intentionally outside the roadmap"${ANSI.reset}.`);
   line('  Pass exactly one; the daemon rejects unattributed work.');
+  line('  Read back the link from the selected authority. Local storage is not a remote receipt.');
   line();
-  line(`    ${ANSI.fgCyan}pd plan set "- [ ] Inspect\\n- [ ] Implement\\n- [ ] Verify"${ANSI.reset}`);
+  line(`    ${ANSI.fgCyan}pd plan set "- [ ] Inspect\\n- [ ] Implement\\n- [ ] Verify\\n- [ ] Publish and land"${ANSI.reset}`);
   line(`    ${ANSI.fgCyan}pd note "Scope: files. Assumptions: truth. Validation: commands."${ANSI.reset}`);
   line(`    ${ANSI.fgCyan}pd session files add <exact-path>${ANSI.reset}`);
   await pause();
@@ -248,6 +251,13 @@ export async function runLearnOrientation(options: LearnOrientationOptions = {})
   line();
   line('  Stage only explicit paths you authored. Locks are for truly exclusive resources,');
   line('  not a substitute for narrow file or symbol claims.');
+  line('  Keep unresolved tasks in durable notes and carry a compact, linked SITREP forward.');
+  line();
+  line('  Only at launch of a genuinely new child: isolate inherited parent PD_SESSION_ID');
+  line('  and PD_AGENT_ID selectors and give the child its own context slot. Never clear an');
+  line('  existing CONTEXT_CONFLICT to bypass a proven contradiction or borrow credentials.');
+  line('  Re-read exact session, owner, worktree and branch; use supported recovery or name');
+  line('  the missing capability, responsible owner, and next action in a durable handoff.');
   await pause();
 
   lessonHeader(5, 'Search the history you vaguely remember', write);
@@ -263,19 +273,45 @@ export async function runLearnOrientation(options: LearnOrientationOptions = {})
   line('  never compare vectors from incompatible model spaces.');
   await pause();
 
-  lessonHeader(6, 'Finish with receipts', write);
+  lessonHeader(6, 'Own delivery through merge', write);
+  line('  Code is not done merely because it is saved or committed. Implementation and');
+  line('  requested research artifacts must be published for review, not left on disk.');
+  line('  Use linked worktrees; commit small validated checkpoints often and read back a');
+  line('  scoped pd note after each commit. A post-commit audit cannot undo an existing commit;');
+  line('  inspect audit and persistence separately, and never repeat a successful commit.');
+  line();
   line('  Before commit or push: fetch the canonical branch, reconcile, re-read peers,');
   line('  run focused tests plus the relevant broader gates, and check staged ownership.');
   line();
   line(`    ${ANSI.fgCyan}git fetch origin${ANSI.reset}`);
   line('    reconcile with the canonical branch using this repository\'s required strategy');
   line(`    ${ANSI.fgCyan}pd guard check --staged${ANSI.reset}`);
-  line(`    ${ANSI.fgCyan}pd note "Result: change. Validation: evidence. Remaining: risk."${ANSI.reset}`);
+  line();
+  line('  Publish a ready, non-draft PR through the configured GitHub App/Fleetbot publisher.');
+  line('  Sign it with the responsible agent, session, roadmap link, and evidence links.');
+  line('  Never silently fall back to the operator\'s personal GitHub credentials. If the');
+  line('  publisher is unavailable, preserve the commit and name the exact missing route,');
+  line('  responsible owner, and recovery action. An ad-hoc helper is not a shipped surface.');
+  line();
+  line('  Own the PR until merged or explicitly handed off to a named, accepting owner:');
+  line('    Respond graciously to every actionable review; incorporate feedback unless');
+  line('    demonstrably wrong or harmful, and explain any disagreement with evidence.');
+  line('    Add regression tests, fix CI, and re-check the exact current PR head.');
+  line('    Required checks must be green. Neutral/skipped Fleet is not substantive review.');
+  line('    Use normal protected merge/queue; never bypass mandatory checks.');
+  line('    Queue admission is not merge: verify the final merged-head receipt on main.');
+  line();
+  line(`    ${ANSI.fgCyan}pd note "Result: merged PR and commit. Validation: receipts. Remaining: risk."${ANSI.reset}`);
   line(`    ${ANSI.fgCyan}pd done "short outcome"${ANSI.reset}`);
   line(`    ${ANSI.fgCyan}pd feedback "what worked or caused friction"${ANSI.reset}`);
   line();
+  line('  Read-only answers/reviews need no PR. Findings-only reviewers without authoring');
+  line('  authority return findings to the author; they must not push or merge.');
+  line();
   line('  A green local command is one witness. PR checks, the compiled artifact, the live');
   line('  runtime, and visual proof remain separate witnesses when the change needs them.');
+  line('  Claude SessionStart steering and the shared Claude/Codex/Gemini/agy turn tentacle');
+  line('  are distinct. agy Stop is observe-only; generated files do not prove activation.');
   await pause();
 
   line();
@@ -285,7 +321,8 @@ export async function runLearnOrientation(options: LearnOrientationOptions = {})
     'People: FleetBar + selected daemon dashboard.',
     'Agents: attention → sitrep → begin → plan → note → claim → verify.',
     'History: ideas, memory, roster, and skill-graft search surfaces.',
-    'Finish: reconcile → Guard → note → done → feedback.',
+    'Delivery: checkpoints → App PR → reviews/green checks → protected merge.',
+    'Finish: merged-head receipt → note → done → feedback.',
     '',
     'The orientation handler changed no work resources, files, or indexes.',
     'The CLI envelope now makes one append-only usage-telemetry attempt.',

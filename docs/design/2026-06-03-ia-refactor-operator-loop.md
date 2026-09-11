@@ -249,7 +249,7 @@ entry point. Nothing is removed, including apps that look dormant.
 | `public/index.html` (deprecated dashboard) | **Demote** to a deep-link / `?legacy=1` route. Its 15 panels are reachable via the 6 zones; the file stays as a fallback. |
 | `public/cockpit.html` | **Surface inside** the **Intervene** zone (embed/iframe or shared component). The standalone page keeps working. |
 | `public/metrics.html` | **Deep-link from** **Watch**. Untouched on disk. |
-| `public/fleet-live.html`, `fleet-config.html`, `app-surgery.html` | **Leave as-is**, unrouted-but-present. Optionally add a "Legacy surfaces" drawer so they're discoverable, not orphaned. |
+| `public/fleet-live.html` (removed <!-- cite-exempt: removed -->), `fleet-config.html`, `app-surgery.html` | **Leave as-is**, unrouted-but-present. Optionally add a "Legacy surfaces" drawer so they're discoverable, not orphaned. |
 | FleetBar dead surface enums (Backend/Nightshift/Dispatch) | **Re-point**, don't remove: Backend returns as an Intervene action; Nightshift/Dispatch enum cases stay until their replacement is proven, then become aliases. |
 | `apps/github-app-fleet/` and any other app | **Do not touch.** Out of IA scope. Dormant ≠ deletable. |
 
@@ -298,7 +298,7 @@ These are independently shippable *now* and de-risk the refactor:
 1. Land the **three bug fixes** as standalone PRs (scroll, guard drift,
    `POST /agents/:id/backend` + minimal Intervene rail). Proves the frame.
 2. Write the **ADR** that promotes this from design to decision (archetype
-   profile schema is the load-bearing part).
+   profile schema is the critical part).
 3. Prototype the **Found** wizard + `pd found` against one archetype
    (enterprise) end-to-end — that *is* the first tutorial.
 4. Re-layout `/fleet-ui/` into the 6 zones behind a flag; demote (do not

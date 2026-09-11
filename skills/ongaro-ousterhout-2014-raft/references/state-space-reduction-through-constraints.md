@@ -96,7 +96,7 @@ The paper explains: "The first property follows from the fact that a leader crea
 
 ### 1. Task DAG Constraints
 
-For WinDAGs orchestrating tasks:
+For Jury-rig orchestrating tasks:
 
 **Prevent state explosion with constraints**:
 - **No orphan tasks**: Every task (except root) has a verified parent completion
@@ -110,7 +110,7 @@ For WinDAGs orchestrating tasks:
 
 ### 2. Skill Invocation Constraints
 
-For 180+ skills in WinDAGs:
+For 180+ skills in Jury-rig:
 
 **Constrain skill interactions**:
 - **No skill-to-skill calls**: Skills only report results to orchestrator, never invoke each other

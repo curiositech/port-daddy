@@ -194,4 +194,4 @@ This is counterintuitive for developers trained to minimize components - more ag
 
 The cost is coordination overhead and potential for emergent behavior. The benefit is modularity, correctness, and capability that monolithic agents cannot achieve.
 
-For WinDAGs: Consider whether each skill should be a single agent or whether some skills need companion validation/grounding agents. For example, skills that generate code might need security validation agents, skills that interact with databases might need schema grounding agents, skills that make critical decisions might need human validation agents. Design the conversation patterns that connect these specialists.
+For Jury-rig: Consider whether each skill should be a single agent or whether some skills need companion validation/grounding agents. For example, skills that generate code might need security validation agents, skills that interact with databases might need schema grounding agents, skills that make critical decisions might need human validation agents. Design the conversation patterns that connect these specialists.

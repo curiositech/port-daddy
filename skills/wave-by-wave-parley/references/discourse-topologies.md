@@ -1,6 +1,6 @@
 # Discourse Topologies: When Parley, When Independent Work
 
-Six typed topologies describe how agents exchange information or divide labor. Each has a distinct coordination overhead profile, a distinct failure mode, and a natural home in the WinDAGs commitment lifecycle. Choosing the wrong topology for a parley checkpoint is not just inefficient — it corrupts the commitment decision.
+Six typed topologies describe how agents exchange information or divide labor. Each has a distinct coordination overhead profile, a distinct failure mode, and a natural home in the Jury-rig commitment lifecycle. Choosing the wrong topology for a parley checkpoint is not just inefficient — it corrupts the commitment decision.
 
 ## The Six Topologies
 
@@ -8,7 +8,7 @@ Six typed topologies describe how agents exchange information or divide labor. E
 One caller, one callee, synchronous round-trip. Latency is O(1) LLM calls. Correct for: evaluating a single TENTATIVE node against a single upstream output when there is no ambiguity about which output is relevant and the re-evaluation is purely factual (e.g., "did wave 1 produce the schema node X needs?"). Wrong for: any situation where the evaluator has priors that differ from the requestor — the single-callee design bakes in one perspective.
 
 **2. Supervisor-Worker**
-One coordinator decomposes a job and dispatches subtasks to workers; coordinator aggregates. Overhead: 1 + N calls, serialized at aggregation. This is the default WinDAGs wave topology — the orchestrator is the supervisor, parallel agents are workers. For parley, use supervisor-worker only when the re-evaluation of TENTATIVE nodes requires different information from different completed nodes and those retrievals can be parallelized. Do not use it when the parley itself is the coordination unit — that collapses to request-response.
+One coordinator decomposes a job and dispatches subtasks to workers; coordinator aggregates. Overhead: 1 + N calls, serialized at aggregation. This is the default Jury-rig wave topology — the orchestrator is the supervisor, parallel agents are workers. For parley, use supervisor-worker only when the re-evaluation of TENTATIVE nodes requires different information from different completed nodes and those retrievals can be parallelized. Do not use it when the parley itself is the coordination unit — that collapses to request-response.
 
 **3. Fan-Out / Fan-In**
 Broadcast a query to N independent agents, collect all N responses, reduce (vote, union, intersection). Overhead: N parallel calls + 1 reducer call. Use for: generating N independent risk re-assessments of the same node and reducing to a consensus severity. Avoid for: parley decisions where the node's input contract is sequential (the outputs must be interpreted in order, not voted on).
@@ -20,7 +20,7 @@ Producer generates a candidate; critic evaluates and returns structured critique
 Two or more agents argue opposing positions; a judge (or quorum vote) resolves. Overhead: 2N + 1 calls minimum. Use for: irreversible mutations — pruning a node entirely or demoting COMMITTED to EXPLORATORY (which SKILL.md marks as monotonic downward forbidden, making this the exception path when a wave's outputs have materially changed the problem). Debate provides a defensible audit trail for a decision the operator may later question. Do not use debate for routine TENTATIVE → COMMITTED promotions; the overhead exceeds the epistemic gain.
 
 **6. Blackboard**
-Agents post partial results to a shared workspace; other agents read and build on them asynchronously. No fixed turn order. Overhead: unpredictable — agents read/write until convergence or timeout. Closest WinDAGs analogue: the stigmergic medium in SOMA (pheromone traces as blackboard entries). Correct for: multi-wave synthesis problems where wave N+1 nodes depend on partial outputs from multiple wave N agents that complete at different times. Wrong for: synchronous parley checkpoints with a hard wave boundary — the lack of turn order produces non-deterministic parley outcomes. If you find yourself reaching for blackboard at a parley checkpoint, the problem is that the wave boundary is not actually synchronous; reconsider your wave decomposition.
+Agents post partial results to a shared workspace; other agents read and build on them asynchronously. No fixed turn order. Overhead: unpredictable — agents read/write until convergence or timeout. Closest Jury-rig analogue: the stigmergic medium in SOMA (pheromone traces as blackboard entries). Correct for: multi-wave synthesis problems where wave N+1 nodes depend on partial outputs from multiple wave N agents that complete at different times. Wrong for: synchronous parley checkpoints with a hard wave boundary — the lack of turn order produces non-deterministic parley outcomes. If you find yourself reaching for blackboard at a parley checkpoint, the problem is that the wave boundary is not actually synchronous; reconsider your wave decomposition.
 
 ## Parley vs. Independent Work — Decision Rule
 

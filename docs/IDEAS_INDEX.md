@@ -99,7 +99,7 @@ Shifting Port Daddy from a local orchestrator to a cryptographic contract enforc
 *   **Primary Location:** `PLAN.md` (Appendix A6), `ARBITER_DESIGN.md`.
 *   **Recommendation: Deferred (Phase 5).** Unnecessary for local orchestration. Only required when cross-machine trust federation (Lighthouses) is implemented.
 
-### 5.3. The WinDAGs Bridge
-*   **What it is:** A connector that maps WinDAGs abstract node executions to Port Daddy physical Harbors. If a WinDAGs evaluation fails, Port Daddy's Arbiter revokes the Harbor Card, shutting down the agent's filesystem and port access instantly.
+### 5.3. The Jury-rig Bridge
+*   **What it is:** A connector that maps Jury-rig abstract node executions to Port Daddy physical Harbors. If a Jury-rig evaluation fails, Port Daddy's Arbiter revokes the Harbor Card, shutting down the agent's filesystem and port access instantly.
 *   **Primary Location:** `PLAN.md` (Appendix A4), `STIGMERGIC_BACKLOG.md`.
 *   **Recommendation: Phase 3.** Highly valuable for enterprise/power users who want deterministic DAG workflows with zero-trust execution.

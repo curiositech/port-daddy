@@ -225,7 +225,7 @@ Hoare does not propose automatic deadlock detection or prevention—he considers
 1. **Timeout**: If a communication blocks for more than a threshold, abort (but this may break correctness).
 2. **Deadlock detection**: Periodically check if all processes are blocked. If so, abort and retry.
 
-**For WinDAGs**: Static analysis of the DAG is essential:
+**For Jury-rig**: Static analysis of the DAG is essential:
 - **DAG structure**: If the skill dependency graph is acyclic, no deadlock is possible.
 - **Cycle detection**: If cycles exist, they must be broken by timeouts, retries, or external intervention.
 

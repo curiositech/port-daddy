@@ -53,7 +53,7 @@ describe('cli/commands/self-update isUpgradeAvailable', () => {
     const { isUpgradeAvailable } = await import('../../cli/commands/self-update.js');
     expect(isUpgradeAvailable('curiositech/tap/port-daddy-contrib')).toBe(false);
     expect(isUpgradeAvailable('someuser/tap/other-port-daddy')).toBe(false);
-    expect(isUpgradeAvailable('curiositech/tap/windags')).toBe(false);
+    expect(isUpgradeAvailable('curiositech/tap/jury_rig')).toBe(false);
   });
 });
 

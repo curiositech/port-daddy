@@ -199,7 +199,7 @@ The paper identifies this as an unsolved area. Key open questions:
 
 5. **Logical correlation**: If I'm uncertain about two logical facts, how should I model correlation between them?
 
-## Practical Takeaway for WinDAGs
+## Practical Takeaway for Jury-rig
 
 **Core insight**: When agents reason about what skills will accomplish, they're reasoning about logical consequences of skill code + inputs. They're **logically uncertain** about these consequences.
 

@@ -536,7 +536,7 @@ every width and both themes before you ship. Full detail: the
 *Every file in this skill, and when to open it. Auto-generated; run `scripts/index_references.py --fix`.*
 
 **root**
-- [`CHANGELOG.md`](CHANGELOG.md) — Color Contrast Auditor — Changelog — - Imported from the global windags skill catalog into the repo.
+- [`CHANGELOG.md`](CHANGELOG.md) — Color Contrast Auditor — Changelog — - Imported from the global jury_rig skill catalog into the repo.
 - [`README.md`](README.md) — Color Contrast Auditor — Detects color contrast violations that make text and UI unreadable, and provides WCAG-compliant fixes backed by a real relative-luminance ca
 
 **`agents/`**

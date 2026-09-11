@@ -205,7 +205,7 @@ Task 10: 52-55 score (warm library, common subtasks have good skills)
 Task 50: 54-58 score (mature library, even rare subtasks have relevant skills)
 ```
 
-**For WinDAGs**: Track skill library growth over time:
+**For Jury-rig**: Track skill library growth over time:
 - Total skills stored
 - Retrieval frequency per skill (which skills are most useful?)
 - Contribution to success rate (does providing skills improve subagent performance?)
@@ -215,7 +215,7 @@ If skill library isn't improving performance over time, either:
 2. Skill retrieval is poor (similarity search isn't finding relevant skills)
 3. Skill application is poor (subagents ignore skills)
 
-## Implementation Strategy for WinDAGs
+## Implementation Strategy for Jury-rig
 
 ### 1. Skill Storage
 

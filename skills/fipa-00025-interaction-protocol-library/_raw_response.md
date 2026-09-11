@@ -263,7 +263,7 @@ This is not a failure of the FIPA specification — it is an honest acknowledgme
 
 ### Protocols Are Necessary But Not Sufficient
 
-When designing inter-agent coordination in WinDAGs, implementing a named protocol (ContractNet, Request, Subscribe) should be treated as the *floor* of coordination, not the ceiling. Every protocol invocation should be accompanied by explicit decisions about:
+When designing inter-agent coordination in Jury-rig, implementing a named protocol (ContractNet, Request, Subscribe) should be treated as the *floor* of coordination, not the ceiling. Every protocol invocation should be accompanied by explicit decisions about:
 
 - **Timeout policy**: How long will the requesting agent wait? What action does it take on timeout?
 - **Retry policy**: Under what conditions will a failed or dropped message be retried? How many times?
@@ -410,7 +410,7 @@ When an orchestrator invokes skill X on task Y, it is instantiating the skill's 
 
 ### Building a WinDAG Protocol Library
 
-The FIPA approach suggests that WinDAGs should maintain a **protocol library** analogous to the skill library: a registry of named, parameterized protocol templates that can be instantiated for specific coordination needs. This library would contain:
+The FIPA approach suggests that Jury-rig should maintain a **protocol library** analogous to the skill library: a registry of named, parameterized protocol templates that can be instantiated for specific coordination needs. This library would contain:
 
 - Generic patterns (ContractNet-style negotiation, Request-Response, Publish-Subscribe)
 - Domain-specific patterns (code-review-then-merge, verify-then-deploy, decompose-then-aggregate)
@@ -941,7 +941,7 @@ And the inclusion criteria (Section 2.4) require:
 
 This is a *use-driven* library maintenance philosophy: protocols earn their place in the library by being genuinely useful across multiple contexts. A protocol that is used in only one application is not a library element — it is an application-specific detail. Library elements are patterns that recur across many applications.
 
-For WinDAGs, this suggests that the protocol library should be grown organically from observed patterns, not designed from scratch. When the same coordination pattern appears in multiple workflows, extract it, name it, specify it formally, and add it to the library. The library grows through distillation of experience, not through up-front design.
+For Jury-rig, this suggests that the protocol library should be grown organically from observed patterns, not designed from scratch. When the same coordination pattern appears in multiple workflows, extract it, name it, specify it formally, and add it to the library. The library grows through distillation of experience, not through up-front design.
 
 ## Boundaries and Context
 

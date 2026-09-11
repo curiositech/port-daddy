@@ -13,19 +13,7 @@ import * as ui from '../utils/ui.js';
 import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
 import { readCurrentContext } from '../utils/current-context.js';
 
-interface StaleAgent {
-  id: string;
-  name: string;
-  purpose: string | null;
-  sessionId: string | null;
-  lastHeartbeat: number;
-  staleSince: number;
-  status: 'pending' | 'stale' | 'dead' | 'resurrecting';
-  notes?: string[];
-  identityProject: string | null;
-  identityStack: string | null;
-  identityContext: string | null;
-}
+import type { StaleAgent } from '../../lib/resurrection.js';
 
 export interface SalvageTriageSummary {
   total: number;
@@ -44,7 +32,8 @@ export type SalvageTriageBucketId =
   | 'verify-dismiss'
   | 'test-noise'
   | 'no-evidence'
-  | 'archive-later';
+  | 'archive-later'
+  | 'durable-held';
 
 export interface SalvageTriageEntry {
   id: string;
@@ -134,6 +123,10 @@ export function summarizeSalvageAgents(agents: StaleAgent[], now: number = Date.
 }
 
 const TRIAGE_BUCKET_META: Record<SalvageTriageBucketId, { title: string; action: string }> = {
+  'durable-held': {
+    title: 'Durable work held',
+    action: 'Preserve existing work. Hold clearance is not implemented; ordinary salvage claim or dismiss cannot clear it.',
+  },
   'resume-now': {
     title: 'Resume now',
     action: 'Claim these first; they look recent, blocked, or continuation-rich.',
@@ -185,6 +178,11 @@ function firstEvidenceLine(agent: StaleAgent): string | null {
 }
 
 function classifySalvageAgent(agent: StaleAgent, now: number): { bucket: SalvageTriageBucketId; reason: string } {
+  if (agent.holdReason || agent.status === 'dormant') {
+    return { bucket: 'durable-held', reason: agent.replacementAlreadyAdmitted
+      ? 'durable work survives; an earlier replacement was already admitted and needs reconciliation'
+      : 'durable_session_active: saved work is not available for automatic replacement' };
+  }
   const evidence = triageEvidence(agent);
   const ageMs = Math.max(0, now - agent.staleSince);
   const isRecent = ageMs < 2 * 60 * 60 * 1000;
@@ -210,6 +208,7 @@ function classifySalvageAgent(agent: StaleAgent, now: number): { bucket: Salvage
 }
 
 function commandForBucket(bucket: SalvageTriageBucketId, agentId: string): string {
+  if (bucket === 'durable-held') return 'Hold clearance is not implemented. Preserve evidence; do not claim, complete, abandon, or dismiss this held entry.';
   if (bucket === 'verify-dismiss' || bucket === 'test-noise') {
     return `pd salvage dismiss ${agentId}`;
   }
@@ -737,7 +736,7 @@ export async function handleSalvage(subcommand: string | undefined, args: string
       }
 
       for (const agent of agents) {
-        const statusIcon = agent.status === 'dead' ? JOLLY_ROGER_COMPACT : agent.status === 'resurrecting' ? '↻' : '⚠';
+        const statusIcon = agent.status === 'dormant' ? '⏸' : agent.status === 'dead' ? JOLLY_ROGER_COMPACT : agent.status === 'resurrecting' ? '↻' : '⚠';
         const ago = formatAge(Date.now() - agent.staleSince);
 
         // Show identity if available
@@ -759,7 +758,10 @@ export async function handleSalvage(subcommand: string | undefined, args: string
             console.log(`    ... and ${agent.notes.length - 3} more`);
           }
         }
-        console.log(`  Salvage: pd salvage claim ${agent.id}`);
+        if (agent.holdReason) {
+          console.log(`  Held: ${agent.holdReason}; hold clearance is not implemented. Preserve evidence, not claim or dismiss.`);
+          if (agent.replacementAlreadyAdmitted) console.log('  An earlier replacement was already admitted; this hold does not cancel it.');
+        } else console.log(`  Salvage: pd salvage claim ${agent.id}`);
         console.log('');
       }
 

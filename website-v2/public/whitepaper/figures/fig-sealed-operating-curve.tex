@@ -1,0 +1,56 @@
+% Regime diagram for Sec. sealed-detection ("Canaries with a power curve and a clock"): detection power 1-beta^k at beta=0.2 (Theorem sealed-power), and the two Wald expected run lengths of the sequential test (Theorem sealed-latency). All values copied from website-v2/public/whitepaper/sealed-harbor.tex, Sec. sealed-detection, "Verification" and "Numbers by hand" paragraphs [internal, a4_canary_sprt.py].
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure]
+  \begin{axis}[
+    width=13.8cm,height=6.0cm,
+    axis lines=left,
+    title={detection power climbs fast in the number of canaries carried},
+    title style={font=\footnotesize\bfseries,text=hhink,yshift=-2pt},
+    xmin=0.5,xmax=8.5,ymin=0,ymax=1.05,
+    xlabel={smuggled canaries $k$ (per-canary miss rate $\beta=0.2$)},
+    ylabel={detection probability},
+    xlabel style={font=\footnotesize,text=hhgray},
+    ylabel style={font=\footnotesize,text=hhgray},
+    tick label style={font=\footnotesize,text=hhgray},
+    axis line style={draw=hhgray,line width=.45pt},
+    tick style={draw=hhgray,line width=.45pt},
+    xtick={1,2,3,4,5,6,7,8},
+    ytick={0,0.25,0.5,0.75,1.0},
+    clip=false,
+  ]
+    \addplot[domain=1:8,samples=8,draw=hhink,line width=.9pt,mark=*,mark size=1.1pt,mark options={fill=hhink}] {1-0.2^x};
+    \addplot[only marks,mark=*,mark size=1.7pt,draw=hhteal,fill=hhteal] coordinates {(3,0.992)};
+    \draw[pd guide] (axis cs:3,0) -- (axis cs:3,0.992);
+    \node[pd direct label,font=\footnotesize,text=hhteal,anchor=south west,align=left] at (axis cs:3.25,0.86) {$k=3$: caught with probability $0.992$};
+  \end{axis}
+\end{tikzpicture}
+
+\vspace{4pt}
+\begin{tikzpicture}[pd figure]
+  \begin{axis}[
+    xbar,
+    width=13.8cm,height=3.1cm,
+    bar width=9pt,
+    axis lines=left,
+    xmin=0,xmax=520,ymin=0.4,ymax=2.6,
+    ytick={1,2},
+    yticklabels={{under the null},{under a leak}},
+    y tick label style={font=\footnotesize,text=hhink},
+    xlabel={expected outputs to a stopping decision, $\mathbb{E}[N]$ (Wald)},
+    xlabel style={font=\footnotesize,text=hhgray},
+    tick label style={font=\footnotesize,text=hhgray},
+    axis line style={draw=hhgray,line width=.45pt},
+    tick style={draw=hhgray,line width=.45pt},
+    xtick={0,100,200,300,400,500},
+    clip=false,
+  ]
+    \addplot[fill=hhgray!30,draw=hhgray] coordinates {(431.9,1)};
+    \addplot[fill=hhteal!30,draw=hhteal] coordinates {(296.9,2)};
+    \node[pd direct label,font=\footnotesize,anchor=west,text=hhink] at (axis cs:436,1) {$431.9$};
+    \node[pd direct label,font=\footnotesize,anchor=west,text=hhink] at (axis cs:301,2) {$296.9$};
+  \end{axis}
+\end{tikzpicture}
+\caption{Top: the power curve, detection probability against canaries carried, at the measured per-canary miss rate $\beta=0.2$; the chapter's anchor, three canaries caught with probability $0.992$, is marked. Bottom: the sequential test's expected run length at a null hit-rate of $0.001$, a leak hit-rate of $0.01$, a false-alarm target of $0.01$, and a miss target of $0.05$ -- Wald's formula gives $431.9$ expected outputs under the no-leak null and $296.9$ under exfiltration; simulation agrees up to boundary overshoot ($438.1$ and $359.0$ respectively), which only helps the realized error rates.}
+\label{fig:sealed-operating-curve}
+\end{figure}

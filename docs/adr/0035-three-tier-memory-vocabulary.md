@@ -104,8 +104,8 @@ no new substrate. This is vocabulary plus introspection.
 
 - **Does not destroy anything Archival.** The Merkle ledger keeps every
   note line ever written. Archival is "display-compactable, never
-  destroyed" — that is the load-bearing invariant the user has called out
-  more than once and it stays load-bearing.
+  destroyed" — that is the decisive invariant the user has called out
+  more than once and it stays decisive.
 - **Does not rewrite the CLI surface.** Existing verbs (`pd notes`,
   `pd sessions`, `pd blob`, `pd memory episodes`) keep working unchanged.
   The new `pd memory tiers` / `tier <construct>` / `summary` subcommands
@@ -124,7 +124,7 @@ Three designs were considered.
 
 1. **Rename the tables to match the tiers.** Rejected: it forces a schema
    touch, breaks every existing tool, and forces the Wave 4 agents working
-   on `lib/sessions.ts`, `lib/blob.ts`, `lib/notes.ts`, and `lib/spawner.ts`
+   on `lib/sessions.ts`, `lib/blob.ts`, `lib/notes.ts` (not built yet), and `lib/spawner.ts`
    to merge against a moving target. The whole point is *vocabulary* — the
    storage is already correct.
 
@@ -174,7 +174,7 @@ Three designs were considered.
 ## `--json` schema (stable contract)
 
 The three tier subcommands emit machine-readable JSON when invoked with
-`--json` / `-j`. The schema below is the load-bearing surface; a snapshot
+`--json` / `-j`. The schema below is the essential surface; a snapshot
 test in `tests/unit/memory-tiers-cli.test.js` locks it. Drift fails CI.
 
 ```ts

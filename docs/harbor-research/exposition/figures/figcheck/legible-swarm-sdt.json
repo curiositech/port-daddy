@@ -1,0 +1,409 @@
+{
+ "figure": "legible-swarm-sdt",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "fail",
+   "count": 22,
+   "findings": [
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      266.220703125,
+      65.6669692993164,
+      275.3141784667969,
+      72.22318267822266
+     ],
+     "text": "lax",
+     "size_pt": 6.56,
+     "message": "text 'lax' renders at 6.56pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      277.6351013183594,
+      65.6669692993164,
+      296.21539306640625,
+      72.22318267822266
+     ],
+     "text": "(fewer",
+     "size_pt": 6.56,
+     "message": "text '(fewer' renders at 6.56pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      298.5297546386719,
+      65.6669692993164,
+      320.0406799316406,
+      72.22318267822266
+     ],
+     "text": "zooms)",
+     "size_pt": 6.56,
+     "message": "text 'zooms)' renders at 6.56pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      142.03466796875,
+      65.6669692993164,
+      168.9676055908203,
+      72.22318267822266
+     ],
+     "text": "stringent",
+     "size_pt": 6.56,
+     "message": "text 'stringent' renders at 6.56pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      171.28195190429688,
+      65.6669692993164,
+      189.0820770263672,
+      72.22318267822266
+     ],
+     "text": "(more",
+     "size_pt": 6.56,
+     "message": "text '(more' renders at 6.56pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      191.40298461914062,
+      65.6669692993164,
+      212.91392517089844,
+      72.22318267822266
+     ],
+     "text": "zooms)",
+     "size_pt": 6.56,
+     "message": "text 'zooms)' renders at 6.56pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      208.63514709472656,
+      145.2731170654297,
+      223.89146423339844,
+      151.82933044433594
+     ],
+     "text": "miss",
+     "size_pt": 6.56,
+     "message": "text 'miss' renders at 6.56pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      171.54095458984375,
+      153.05862426757812,
+      202.14537048339844,
+      159.61483764648438
+     ],
+     "text": "dangerous",
+     "size_pt": 6.56,
+     "message": "text 'dangerous' renders at 6.56pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      204.46627807617188,
+      153.05862426757812,
+      213.7498779296875,
+      159.61483764648438
+     ],
+     "text": "act",
+     "size_pt": 6.56,
+     "message": "text 'act' renders at 6.56pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      216.07077026367188,
+      153.05862426757812,
+      234.64453125,
+      159.61483764648438
+     ],
+     "text": "waved",
+     "size_pt": 6.56,
+     "message": "text 'waved' renders at 6.56pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      236.95887756347656,
+      153.05862426757812,
+      260.94805908203125,
+      159.61483764648438
+     ],
+     "text": "through",
+     "size_pt": 6.56,
+     "message": "text 'through' renders at 6.56pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      284.337890625,
+      140.78050231933594,
+      299.771240234375,
+      147.3367156982422
+     ],
+     "text": "false",
+     "size_pt": 6.56,
+     "message": "text 'false' renders at 6.56pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      302.4461669921875,
+      140.78050231933594,
+      322.50164794921875,
+      147.3367156982422
+     ],
+     "text": "alarm",
+     "size_pt": 6.56,
+     "message": "text 'alarm' renders at 6.56pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      279.212890625,
+      148.56602478027344,
+      290.6665954589844,
+      155.1222381591797
+     ],
+     "text": "safe",
+     "size_pt": 6.56,
+     "message": "text 'safe' renders at 6.56pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      292.98748779296875,
+      148.56602478027344,
+      302.27105712890625,
+      155.1222381591797
+     ],
+     "text": "act",
+     "size_pt": 6.56,
+     "message": "text 'act' renders at 6.56pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      304.59197998046875,
+      148.56602478027344,
+      327.60430908203125,
+      155.1222381591797
+     ],
+     "text": "zoomed",
+     "size_pt": 6.56,
+     "message": "text 'zoomed' renders at 6.56pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      192.5038604736328,
+      194.8545684814453,
+      194.3035430908203,
+      199.771728515625
+     ],
+     "text": "\u2032",
+     "size_pt": 4.92,
+     "message": "text '\u2032' renders at 4.92pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      310.3162536621094,
+      105.84758758544922,
+      321.7633972167969,
+      110.7647476196289
+     ],
+     "text": "miss",
+     "size_pt": 4.92,
+     "message": "text 'miss' renders at 4.92pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      336.8480529785156,
+      105.87494659423828,
+      341.7406311035156,
+      110.79210662841797
+     ],
+     "text": "fa",
+     "size_pt": 4.92,
+     "message": "text 'fa' renders at 4.92pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      425.3138732910156,
+      256.9969787597656,
+      440.43316650390625,
+      263.9708251953125
+     ],
+     "text": "miss",
+     "size_pt": 6.97,
+     "message": "text 'miss' renders at 6.97pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      464.5726623535156,
+      256.9969787597656,
+      471.009521484375,
+      263.9708251953125
+     ],
+     "text": "fa",
+     "size_pt": 6.97,
+     "message": "text 'fa' renders at 6.97pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      120.83861541748047,
+      275.6687927246094,
+      123.13301086425781,
+      282.64263916015625
+     ],
+     "text": "\u2032",
+     "size_pt": 6.97,
+     "message": "text '\u2032' renders at 6.97pt, below the 7.00pt floor"
+    }
+   ]
+  },
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "fail",
+   "count": 1,
+   "findings": [
+    {
+     "check": "T3",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      66.6142578125,
+      265.1219177246094,
+      530.596923828125,
+      275.08453369140625
+     ],
+     "other_bbox": [
+      66.6142578125,
+      273.4617614746094,
+      479.3131103515625,
+      287.03973388671875
+     ],
+     "text": "criterion sits well to the left of the throughput optimum: the miss-cost term is what forces the zoom.",
+     "other_text": "Sensitivity d\u2032 (curve separation) is improved by better legibility; \u03b2 is the policy knob p(r, s, v).",
+     "overlap_fraction": 0.145,
+     "message": "text 'criterion sits well to the left of the throughput optimum: the miss-cost term is what forces the zoom.' overlaps 'Sensitivity d\u2032 (curve separation) is improved by better legibility; \u03b2 is the policy knob p(r, s, v).' by 14.5% of the smaller bbox"
+    }
+   ]
+  },
+  "T4": {
+   "status": "fail",
+   "count": 1,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      171.54095458984375,
+      153.05862426757812,
+      260.94805908203125,
+      159.61483764648438
+     ],
+     "text": "dangerous act waved through",
+     "line_segment": [
+      [
+       239.58383178710938,
+       176.41510009765625
+      ],
+      [
+       239.58383178710938,
+       46.999664306640625
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'dangerous act waved through'"
+    }
+   ]
+  },
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T1",
+   "T3",
+   "T4"
+  ],
+  "warned_checks": []
+ }
+}

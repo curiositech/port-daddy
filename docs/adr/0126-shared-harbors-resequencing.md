@@ -262,7 +262,7 @@ scope.
   stated in the trigger UI (ADR-0122's consequence, inherited here); the
   pressure that creates is the intended forcing function for pricing the
   Phase-2 lane honestly rather than shipping it ambiently.
-- Roadmap-is-home makes the registry load-bearing on every surface, which
+- Roadmap-is-home makes the registry core on every surface, which
   makes `docs/roadmap/AUTHORITY.md`'s reconciliation gate (list = snapshot
   = export, cadence ≤ 14 days) a shipping prerequisite rather than
   hygiene.

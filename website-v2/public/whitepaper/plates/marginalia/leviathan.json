@@ -1,0 +1,19 @@
+{
+  "subject": "Thomas Hobbes, Leviathan (1651) title page",
+  "commons_file_page": "https://commons.wikimedia.org/wiki/File:Leviathan_-_Hobbes%27_Leviathan_(1651),_title_page_-_BL.jpg",
+  "original_url": "https://upload.wikimedia.org/wikipedia/commons/5/5c/Leviathan_-_Hobbes%27_Leviathan_%281651%29%2C_title_page_-_BL.jpg",
+  "sha1": "4ea5bd274ec4baef7edc7351f1fc621002ae8e88",
+  "width": 1016,
+  "height": 1574,
+  "artist": "Abraham Bosse",
+  "credit": "British Library (digitised from its collections)",
+  "licence_short": "CC0",
+  "licence_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+  "attribution_required": false,
+  "usage_terms": "Creative Commons Zero, Public Domain Dedication",
+  "retrieved": "2026-09-07",
+  "solo_portrait": false,
+  "framing": "engraved allegorical title-page illustration (not a face portrait) — the crowned Leviathan figure rising over a landscape, with the book's title panel below",
+  "background_clutter": "N/A — full engraving scene by design",
+  "crop": "cropped the full 1016x1574 title page to its upper illustration, box (0,0)-(1016,900), dropping the 'LEVIATHAN ... By Thomas Hobbes' title cartouche and side vignettes, which are illegible at margin size"
+}

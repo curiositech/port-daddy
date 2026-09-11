@@ -1,0 +1,32 @@
+{
+  "schema": "pd.agent-harbor.adjudication-receipt.v0",
+  "receiptId": "adj_01KCXADJUDICATION",
+  "actionDigest": "sha256:bd938c688f49b77c7fc537c6b9222e2c97ebddd63076b87f2feaec66fb9c05d0",
+  "decision": "permit-with-obligations",
+  "reasonCodes": ["operator-authorized", "checks-bound-to-head"],
+  "policy": {
+    "policyId": "repository-landing.v1",
+    "policyDigest": "sha256:823412d1eacb67956220e532959f0104603057c88704863ca38e7cd188fda812",
+    "evaluatorDigest": "sha256:27f6343f980c4c0ab821d9c72d211d0eb76b0853825cefd80476a05e43cab27e"
+  },
+  "authority": {
+    "issuer": "external-drydock-fixture",
+    "domain": "test-fixture",
+    "grantDigest": "sha256:3492ad65d05a973fef8c825521eeb41ae64625a672a8aeeeabc696e16d62a020",
+    "proof": "fixture-proof-not-production-authority"
+  },
+  "mediation": {
+    "interceptionPoint": "credential-broker-before-github-api",
+    "evaluatorSeparatedFromSubject": true,
+    "decisionBeforeEffect": true
+  },
+  "obligations": [
+    {
+      "obligationId": "obl_publish_effect_receipt",
+      "predicateDigest": "sha256:df9a29a9b49e45d59d5336b3cf8b01e1412c09bfa935e6d8217165c280135776",
+      "dueAt": "2026-09-08T07:45:00.000Z"
+    }
+  ],
+  "issuedAt": "2026-09-08T07:36:00.000Z",
+  "expiresAt": "2026-09-08T07:40:00.000Z"
+}

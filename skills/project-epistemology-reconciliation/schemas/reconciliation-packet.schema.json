@@ -1,0 +1,103 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Single-scope reconciliation declaration packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "method", "scope", "decision", "cost", "evidence", "findings", "dissent", "preview"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "method": {
+      "type": "object", "additionalProperties": false,
+      "required": ["mode", "claimsIndependent", "sealedBeforeSharing", "sameFrozenInput"],
+      "properties": {
+        "mode": { "enum": ["solo", "independent"] },
+        "claimsIndependent": { "type": "boolean" },
+        "sealedBeforeSharing": { "type": "boolean" },
+        "sameFrozenInput": { "type": "boolean" }
+      }
+    },
+    "scope": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "sourceHead", "revision"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "pattern": "\\S" },
+        "sourceHead": { "type": "string", "minLength": 1, "pattern": "\\S" },
+        "revision": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+      }
+    },
+    "decision": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "steward", "owner", "proposalDigest", "requestedExecution", "halted", "authorityVerified"],
+      "properties": {
+        "status": { "enum": ["draft", "ready"] },
+        "steward": { "type": "string", "minLength": 1, "pattern": "\\S" },
+        "owner": { "type": "string", "minLength": 1, "pattern": "\\S" },
+        "proposalDigest": { "type": "string", "minLength": 1, "pattern": "\\S" },
+        "requestedExecution": { "type": "boolean" },
+        "halted": { "type": "boolean" },
+        "authorityVerified": { "type": "boolean" }
+      }
+    },
+    "cost": {
+      "type": "object", "additionalProperties": false,
+      "required": ["paidWorkRequested", "telemetryKnown", "aggregateReserved", "capUsd"],
+      "properties": {
+        "paidWorkRequested": { "type": "boolean" },
+        "telemetryKnown": { "type": "boolean" },
+        "aggregateReserved": { "type": "boolean" },
+        "capUsd": { "type": "number", "minimum": 0 }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "scopeId", "authorized", "warrant"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "scopeId": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "authorized": { "type": "boolean" },
+          "warrant": { "enum": ["source", "observation", "inference", "missing"] }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "warrant", "status", "evidenceIds", "disposition", "blocking"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "warrant": { "enum": ["hypothesis", "verified_observation", "policy_norm", "value_preference", "blocking_gate"] },
+          "status": { "enum": ["allegation", "verified"] },
+          "evidenceIds": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1, "pattern": "\\S" } },
+          "disposition": { "enum": ["open", "accept", "reject", "defer", "escalate"] },
+          "blocking": { "type": "boolean" }
+        }
+      }
+    },
+    "dissent": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["findingId", "rationale", "reopenWhen"],
+        "properties": {
+          "findingId": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "rationale": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "reopenWhen": { "type": "string", "minLength": 1, "pattern": "\\S" }
+        }
+      }
+    },
+    "preview": {
+      "type": "object", "additionalProperties": false,
+      "required": ["available", "proposalDigest", "sourceHead", "stateRevision", "affectedOutcomes"],
+      "properties": {
+        "available": { "type": "boolean" },
+        "proposalDigest": { "type": "string", "minLength": 1, "pattern": "\\S" },
+        "sourceHead": { "type": "string", "minLength": 1, "pattern": "\\S" },
+        "stateRevision": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "affectedOutcomes": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "pattern": "\\S" } }
+      }
+    }
+  }
+}

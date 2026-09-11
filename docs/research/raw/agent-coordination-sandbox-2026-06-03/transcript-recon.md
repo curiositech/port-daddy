@@ -81,7 +81,7 @@ cwd, sessionId, version, gitBranch
 - `away_summary` — "user was away for X minutes" banner
 - `turn_duration` — `{durationMs, messageCount}`
 - `informational` — generic
-- `api_error` — `{cause, error, retryAttempt, retryInMs, maxRetries}` (load-bearing for telemetry)
+- `api_error` — `{cause, error, retryAttempt, retryInMs, maxRetries}` (pivotal for telemetry)
 
 **`attachment.type` subtypes observed:**
 - `hook_success` — captures hook stdout/stderr/exitCode/command/durationMs

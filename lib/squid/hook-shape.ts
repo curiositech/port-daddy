@@ -152,7 +152,20 @@ export const CLAUDE_EVENTS = {
   // the adapter. Do not infer equivalent names for other vendors.
   preCompact: 'PreCompact',
 } as const;
-export const CLAUDE_TOOL_MATCHER = 'Edit|Write|MultiEdit|NotebookEdit';
+/**
+ * Claude Code PreToolUse matcher. The four edit tools feed the ADR-0092 lock
+ * gate. `Bash` and `mcp__port-daddy__.*` were added for the ADR-0132 listening
+ * watch: during a halt the pre-tool tentacle must be able to refuse a `pd` /
+ * `port-daddy` shell invocation, a launchctl/brew relaunch of a Port Daddy
+ * label, or a Port Daddy MCP call — none of which it can see through an
+ * edit-only matcher (the gap ADR-0108 names as the highest-leverage change).
+ * Outside a halt the tentacle exits 0 immediately for a shell/MCP call with
+ * no file target, so the added cost is one filesystem-only gate spawn.
+ * Gemini and Codex keep their edit-only matchers: their zero-shell-hook
+ * budget is a pinned product decision (see tests/unit/hooks-install.test.ts)
+ * and needs an operator call before widening.
+ */
+export const CLAUDE_TOOL_MATCHER = 'Edit|Write|MultiEdit|NotebookEdit|Bash|mcp__port-daddy__.*';
 
 // ─── Gemini CLI (native event names) ──────────────────────────────────────────
 

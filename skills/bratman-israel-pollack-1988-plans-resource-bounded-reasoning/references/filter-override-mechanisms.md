@@ -118,7 +118,7 @@ The paper suggests concrete approaches for implementing filter override mechanis
 - **Risk thresholds**: Reconsider if current plan has > Y failure probability
 - **Priority thresholds**: Reconsider if new option addresses higher-priority goal
 
-For WinDAGs: Override rules might include:
+For Jury-rig: Override rules might include:
 ```
 IF new_option.security_impact = CRITICAL THEN override
 IF new_option.cost_saving > 50% THEN override  

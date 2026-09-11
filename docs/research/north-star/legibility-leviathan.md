@@ -432,7 +432,7 @@ when irreconcilable. This paper supplies that wedge's *theory of legibility*:
   through-line — *memory + checkpoint → continuity → a person not a spawn →
   reputation → a tradeable asset → the economy.* No legible continuity, no
   reputation, no market. The read-surface work is not a side quest; it is L3's
-  load-bearing wall.
+  core wall.
 
 The Leviathan that makes your swarm legible to you, without lying to you with a
 pretty map, is the product. Everything above it — federation, the market — is a

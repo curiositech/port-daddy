@@ -1,16 +1,18 @@
 /**
- * Integration test: verify the demo GIF scripts produce real pd output.
+ * Integration test: verify product demonstration commands produce real output.
  *
- * These tests run the actual pd commands used in /tmp/gen_casts.py —
- * the same commands that generate demo-fleet.gif and demo-agents.gif.
- * This proves the demos are not mocked: every command produces real,
- * structured output from a live daemon.
+ * These tests run actual pd commands against a live daemon. They verify
+ * service and lifecycle behavior, not the visual quality of a recording.
  *
  * Demo 1 (fleet):   pd claim / pd find / pd ps
  * Demo 2 (agents):  pd begin / pd note / pd pub / pd salvage / pd lock / pd unlock / pd done
  */
 
-import { runCli, request } from '../helpers/integration-setup.js';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { clearTestCurrentContext, runCli, request } from '../helpers/integration-setup.js';
 
 // Unique prefix so these tests don't collide with other suites
 const PREFIX = 'demo-scripts-test';
@@ -104,6 +106,7 @@ describe('Demo 1 — fleet (pd claim / pd find / pd ps)', () => {
 describe('Demo 2 — agents (pd begin / pd note / pd pub / pd salvage / pd lock / pd unlock / pd done)', () => {
   let agentId = null;
   let sessionId = null;
+  let fixtureRoot;
   const LOCK_NAME = `${PREFIX}-db-migration`;
   const cliOptions = {
     env: {
@@ -111,36 +114,56 @@ describe('Demo 2 — agents (pd begin / pd note / pd pub / pd salvage / pd lock 
     },
   };
 
+  beforeAll(() => {
+    // A dedicated linked Git fixture behaves identically under a local linked
+    // checkout and CI's main checkout, without bypassing crowded-main policy.
+    fixtureRoot = mkdtempSync(join(tmpdir(), 'pd-demo-stage-'));
+    const fixtureGit = (args) => execFileSync('git', [
+      '-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgsign=false', ...args,
+    ], { cwd: fixtureRoot, stdio: 'ignore' });
+    fixtureGit(['init']);
+    fixtureGit(['-c', 'user.name=PD Test',
+      '-c', 'user.email=pd-test@example.invalid', 'commit', '--allow-empty', '-m', 'fixture']);
+    cliOptions.cwd = join(fixtureRoot, 'stage');
+    fixtureGit(['worktree', 'add', '--detach', cliOptions.cwd, 'HEAD']);
+  });
+
   afterAll(async () => {
-    // Best-effort cleanup — use the operator escape hatch so the
-    // pd-done origin rule does not block teardown of a leaked agent.
+    // Best-effort cleanup. Abandonment does not claim repository work landed,
+    // so it needs no completion override.
     if (agentId) {
-      await request('/sugar/done', {
-        method: 'POST',
-        body: {
-          agentId,
-          skipOriginCheck: true,
-          skipOriginCheckReason: 'demo-script integration cleanup',
-        },
-      }).catch(() => {});
+      runCli(['done', '--status', 'abandoned'], cliOptions);
       await request(`/agents/${encodeURIComponent(agentId)}`, { method: 'DELETE' }).catch(() => {});
     }
     await request(`/locks/${encodeURIComponent(LOCK_NAME)}`, { method: 'DELETE' }).catch(() => {});
+    clearTestCurrentContext(cliOptions.env.PORT_DADDY_CONTEXT_SLOT);
+    if (fixtureRoot) rmSync(fixtureRoot, { recursive: true, force: true });
   });
 
   test('pd begin creates an agent + session (JSON output)', () => {
-    const { stdout, status } = runCli([
+    const { stdout, stderr, status } = runCli([
       'begin', 'Building OAuth integration',
       '--identity', `${PREFIX}:api`,
       '--lifecycle', 'durable',
       '--json',
     ], cliOptions);
-    expect(status).toBe(0);
+    expect({ status, stderr }).toMatchObject({ status: 0 });
     const data = JSON.parse(stdout);
     expect(data.agentId).toBeDefined();
     expect(data.sessionId).toBeDefined();
     agentId  = data.agentId;
     sessionId = data.sessionId;
+  });
+
+  test('demo session is bound to its own linked stage worktree', async () => {
+    let res = await request(`/sessions/${sessionId}`);
+    // The shared HTTP pool can reuse a socket closed by the prior suite.
+    // Retry only an explicitly aborted, idempotent read; never a 401/403/404.
+    for (let attempt = 0; res.aborted === true && attempt < 2; attempt++) {
+      res = await request(`/sessions/${sessionId}`);
+    }
+    expect({ ok: res.ok, status: res.status, code: res.data?.code }).toMatchObject({ ok: true, status: 200 });
+    expect(res.data.session.metadata.worktree).toMatchObject({ root: cliOptions.cwd, isMain: false });
   });
 
   test('pd note adds an immutable note to the active session', () => {
@@ -193,14 +216,11 @@ describe('Demo 2 — agents (pd begin / pd note / pd pub / pd salvage / pd lock 
 
   test('pd done ends the session and unregisters the agent', () => {
     expect(agentId).not.toBeNull();
-    // The pd-done origin rule (substrate fix 2026-05-20) requires a
-    // pushed branch + result-note sentinel. The demo-scripts test runs
-    // against an ephemeral daemon without that real-repo context, so
-    // we use the documented operator escape hatch.
+    // The demo proves lifecycle teardown, not publication. Abandoning is the
+    // truthful terminal state when no merge-ready repository artifact exists.
     const { stdout, stderr, status } = runCli([
       'done',
-      '--skip-origin-check',
-      '--reason', 'demo-script integration test',
+      '--status', 'abandoned',
     ], cliOptions);
     expect(status).toBe(0);
     const combined = stdout + stderr;

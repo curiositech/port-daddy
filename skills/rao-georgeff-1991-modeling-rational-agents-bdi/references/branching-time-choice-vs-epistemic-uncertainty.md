@@ -15,7 +15,7 @@ The key architectural decision: **Each possible world is itself a time tree with
 
 ## Why This Matters for Multi-Agent Systems
 
-Consider an AI agent in a WinDAGs orchestration system deciding whether to invoke an expensive API call or use cached data. The architectural question is: which uncertainty are we modeling?
+Consider an AI agent in a Jury-rig orchestration system deciding whether to invoke an expensive API call or use cached data. The architectural question is: which uncertainty are we modeling?
 
 **Epistemic uncertainty**: "I don't know whether the cache is still valid"
 - This creates multiple belief-accessible worlds: one where cache is valid, one where it's stale
@@ -42,13 +42,13 @@ This maps directly to practical agent systems:
 
 **Decision nodes → Branching within a world**: When your agent must choose between parallel execution or sequential execution, that's optionality. You model it with branches in the time tree.
 
-The WinDAGs orchestration engine faces both constantly:
+The Jury-rig orchestration engine faces both constantly:
 - **I don't know** which skills will be available (some agents might be offline)
 - **I haven't decided** which decomposition strategy to use even given full knowledge
 
 ## Implications for Task Decomposition
 
-When a complex problem enters WinDAGs, the system faces a decomposition decision. Traditional approaches conflate two questions:
+When a complex problem enters Jury-rig, the system faces a decomposition decision. Traditional approaches conflate two questions:
 
 1. "What are the possible ways to decompose this?"
 2. "Which decomposition will I attempt?"
@@ -71,7 +71,7 @@ The formalism makes a crucial three-way distinction:
 - `failed(e)`: Event e was attempted and failed (an arc labeled with F_w(t₀,t₁) = e)  
 - `¬done(e)`: Event e was never attempted (no arc for e)
 
-For a WinDAGs agent routing a request:
+For a Jury-rig agent routing a request:
 
 **Case 1: succeeded(route_to_specialist)**: The routing happened and the specialist accepted. The world moves to a new time point along the success branch.
 
@@ -89,7 +89,7 @@ The formalism captures this by having distinct arcs for success and failure, bot
 
 ## Practical Encoding for Agent Systems
 
-A WinDAGs skill invocation system might maintain:
+A Jury-rig skill invocation system might maintain:
 
 ```python
 class AgentWorldState:

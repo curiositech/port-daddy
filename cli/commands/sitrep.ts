@@ -30,8 +30,6 @@
  *     ...
  */
 
-import { homedir } from 'node:os';
-
 import { pdFetch } from '../utils/fetch.js';
 import { CLIOptions, isJson, isQuiet } from '../types.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
@@ -128,7 +126,8 @@ function fmtClock(ts: string | number | undefined): string {
  * Purpose: one synthesis call replacing the four-read catch-up dance, plus
  * `--template`, which prints the end-of-turn SITREP scaffold the harness
  * compels via the `sitrep.endOfTurn` dial — pre-filled from active
- * roadmap-pop claims so rows arrive roadmap-linked rather than blank.
+ * exact-session roadmap-pop claims in the returned preview. Missing session
+ * evidence stays unavailable; this projection grants no new authority.
  *
  * Exits non-zero only if the HTTP call fails. Empty sitreps (nothing
  * happened in the window) are valid states, not errors.
@@ -165,77 +164,122 @@ export async function handleSitrep(options: CLIOptions): Promise<void> {
 
   if (options.template) {
     const current = readCurrentContext();
-    let agentId = 'unknown';
-    let sessionId = 'unknown';
+    /**
+     * Design: treat JSON envelopes as data, without coercing primitive payloads.
+     * @param value - Untrusted decoded value.
+     * @returns The object record, or null for a malformed envelope.
+     */
+    const record = (value: unknown): Record<string, unknown> | null =>
+      value !== null && typeof value === 'object' && !Array.isArray(value)
+        ? value as Record<string, unknown> : null;
+    /**
+     * Purpose: preserve exact identifiers while refusing ambiguous table text.
+     * @param value - Session, agent or roadmap identifier from a returned record.
+     * @returns Whether it is a bounded, nonempty, single-token identifier.
+     */
+    const identifier = (value: unknown): value is string =>
+      typeof value === 'string' && value.length > 0 && value.length <= 512
+      && value.trim() === value && !/[\s|\u0000-\u001f\u007f]/u.test(value);
+    /**
+     * Design: bound display metadata without converting objects into text.
+     * @param value - Optional recorded text.
+     * @param limit - Maximum displayed characters.
+     * @returns Single-line text, or null when no text was recorded.
+     */
+    const field = (value: unknown, limit = 200): string | null =>
+      typeof value === 'string' && value.trim()
+        ? value.replace(/[\u0000-\u001f\u007f\s]+/gu, ' ').trim().slice(0, limit) : null;
+    /**
+     * Purpose: keep one record in one Markdown cell, never an injected row.
+     * @param value - Recorded label or claimant.
+     * @param limit - Maximum displayed characters.
+     * @returns Bounded text with table separators escaped by substitution.
+     */
+    const cell = (value: unknown, limit: number): string | null =>
+      field(value, limit)?.replace(/\|/g, '/') ?? null;
+    const sessionId = identifier(current?.sessionId) ? current.sessionId : 'unknown';
+    const agentId = identifier(current?.agentId) ? current.agentId : 'unknown';
     let telos = 'unknown';
     let purpose = 'unknown';
-    let compliance = 'C6';
-    let latestPlan = '';
-    let transcriptPath = '';
+    let compliance = 'unavailable (not recorded)';
+    let sessionMatched = false;
+    let sessionEvidence = 'unavailable (no exact session and agent context)';
+    let latestPlan = 'Plan unavailable (session evidence has not been matched).';
 
-    if (current?.sessionId) {
-      sessionId = current.sessionId;
-      agentId = current.agentId || 'unknown';
-      // Best-effort transcript pointer for Antigravity-brained sessions —
-      // built from the real homedir, never a hardcoded operator path.
-      transcriptPath = `file://${homedir()}/.gemini/antigravity-cli/brain/${sessionId}/.system_generated/logs/transcript.jsonl`;
-
+    if (sessionId !== 'unknown' && agentId !== 'unknown') {
+      sessionEvidence = 'unavailable (session lookup failed)';
       try {
-        const sRes = await pdFetch(`/sessions/${sessionId}`);
+        const sRes = await pdFetch(`/sessions/${encodeURIComponent(sessionId)}`);
         if (sRes.ok) {
-          const sData = (await sRes.json()) as any;
-          if (sData.success && sData.session) {
-            telos = sData.session.telos || sData.session.purpose || 'unknown';
-            purpose = sData.session.purpose || 'unknown';
-            compliance = sData.session.metadata?.compliance || 'C6';
+          const sData = record(await sRes.json());
+          const session = record(sData?.session);
+          if (sData?.success === true && session?.id === sessionId && session.agentId === agentId) {
+            sessionMatched = true;
+            sessionEvidence = 'matched returned session ID and agent ID (not an authority proof)';
+            purpose = field(session.purpose) ?? 'unknown';
+            telos = field(session.telos) ?? purpose;
+            const recordedCompliance = field(record(session.metadata)?.compliance, 64);
+            if (recordedCompliance) compliance = `${recordedCompliance} (recorded; not an authority proof)`;
+          } else {
+            sessionEvidence = 'unavailable (returned session or agent does not match context)';
           }
         }
       } catch {
-        // fail-silent
-      }
-
-      try {
-        const pRes = await pdFetch(`/sessions/${sessionId}/notes?type=todo_list`);
-        if (pRes.ok) {
-          const pData = (await pRes.json()) as any;
-          if (pData.success && pData.notes && pData.notes.length > 0) {
-            latestPlan = pData.notes[pData.notes.length - 1].content || pData.notes[pData.notes.length - 1].note;
-          }
-        }
-      } catch {
-        // fail-silent
+        // Keep fixed unavailable diagnostics; never print transport/response data.
       }
     }
 
-    // Live rows for the ideas table: this session's (or agent's) ACTIVE
-    // roadmap-pop claims, so the scaffold arrives pre-linked to the roadmap
-    // instead of as an empty placeholder the agent may never fill. Fail-silent:
-    // a daemon without the cartographer routes still yields the empty scaffold.
-    const claimRows: string[] = [];
-    try {
-      const cRes = await pdFetch('/cartographer/roadmap-claims');
-      if (cRes.ok) {
-        const cData = (await cRes.json()) as any;
-        const claims: any[] = Array.isArray(cData?.claims) ? cData.claims : [];
-        // A row is only pre-fillable when it can actually link the roadmap: an
-        // entry without a string slug (malformed or partial daemon payload)
-        // must be skipped, never rendered as a literal "undefined" link.
-        const active = claims.filter(
-          (c) => c && typeof c.slug === 'string' && c.slug && c.releasedAt == null,
-        );
-        const mine = active.filter(
-          (c) =>
-            (sessionId !== 'unknown' && c.sessionId === sessionId) ||
-            (agentId !== 'unknown' && (c.agentId === agentId || c.claimedBy === agentId)),
-        );
-        for (const c of (mine.length > 0 ? mine : active).slice(0, 8)) {
-          const label = String(c.summary || c.slug || '').replace(/\|/g, '/').slice(0, 60);
-          const by = String(c.claimedBy || 'unknown').slice(0, 30);
-          claimRows.push(`| ${label} | ${by} | claimed | | ${c.slug} |`);
+    if (sessionMatched) {
+      latestPlan = 'Plan unavailable (session notes lookup failed).';
+      try {
+        const pRes = await pdFetch(`/sessions/${encodeURIComponent(sessionId)}/notes?type=todo_list`);
+        if (pRes.ok) {
+          const pData = record(await pRes.json());
+          if (pData?.success === true && Array.isArray(pData.notes)) {
+            const plans = pData.notes.map(record).filter(
+              (note) => note?.sessionId === sessionId && note.type === 'todo_list',
+            );
+            const latest = plans.at(-1);
+            const content = latest?.content ?? latest?.note;
+            latestPlan = plans.length === 0
+              ? 'No matching plan in returned session notes; inspect existing history with "pd plan" before setting a checklist.'
+              : typeof content === 'string' && content.trim()
+                ? content : 'Plan unavailable (latest returned plan has no readable content).';
+          }
         }
+      } catch {
+        // Unavailable is not an assertion that the session has no plan.
       }
-    } catch {
-      // fail-silent
+    }
+
+    // This API returns a bounded preview, not a complete session-scoped store.
+    // Never substitute another session's rows, even for the same agent.
+    const claimRows: string[] = [];
+    let claimsEvidence = 'Roadmap preview unavailable (session evidence has not been matched).';
+    if (sessionMatched) {
+      claimsEvidence = 'Roadmap preview unavailable (claims lookup failed or malformed).';
+      try {
+        const cRes = await pdFetch('/cartographer/roadmap-claims');
+        if (cRes.ok) {
+          const cData = record(await cRes.json());
+          if (cData?.success === true && Array.isArray(cData.claims)) {
+            const mine = cData.claims.map(record).filter(
+              (claim) => claim && identifier(claim.slug) && claim.releasedAt === null
+                && claim.sessionId === sessionId
+                && (claim.agentId == null || claim.agentId === agentId),
+            );
+            for (const claim of mine.slice(0, 8)) {
+              if (!claim) continue;
+              const label = cell(claim.summary, 60) ?? cell(claim.slug, 60);
+              const by = cell(claim.claimedBy, 30) ?? 'unknown';
+              claimRows.push(`| ${label} | ${by} | claimed (recorded) | | ${claim.slug} |`);
+            }
+            claimsEvidence = `${claimRows.length} of ${mine.length} matching active rows shown from the returned preview; not a complete roadmap or ownership proof.`;
+          }
+        }
+      } catch {
+        // Preserve the blank scaffold with an explicit unavailable explanation.
+      }
     }
 
     console.log(`
@@ -244,15 +288,19 @@ export async function handleSitrep(options: CLIOptions): Promise<void> {
 ## Metadata
 - **Agent ID:** ${agentId}
 - **Session ID:** ${sessionId}
+- **Session evidence:** ${sessionEvidence}
 - **Telos:** ${telos}
 - **Purpose:** ${purpose}
 - **Compliance Level:** ${compliance}
-- **Transcript:** ${transcriptPath || '(No active session)'}
+- **Backend:** unavailable (not recorded by this session API)
+- **Transcript:** unavailable (no recorded locator from this session API)
 
 ## Plan & Todo List
-${latestPlan ? latestPlan : '- [ ] (No plan set yet; run "pd plan set" to define your checklist)'}
+${latestPlan}
 
 ## Ideas, Suggestions & Remediations
+${claimsEvidence}
+
 | Idea / Suggestion / Remediation | Source (Agent/Operator) | Status | Related PR/Issue | Docs / Roadmap Link |
 | --- | --- | --- | --- | --- |
 ${claimRows.length > 0 ? claimRows.join('\n') : '| | | | | |'}
@@ -260,7 +308,8 @@ ${claimRows.length > 0 ? claimRows.join('\n') : '| | | | | |'}
 Rules: track every idea raised this session, every roadmap claim, and work assigned
 by other agents. Update Status with this turn's progress; carry unresolved rows
 forward. Any row you write code for MUST carry a roadmap link from the moment the
-row is created — mint one first: pd roadmap upsert <slug> --summary "..." --estimate <units>.
+row is created. Reuse the existing linked roadmap item and its ownership; reconcile
+new work through the planning authority rather than creating a duplicate to fill this table.
 
 ## Recent Activity Summary
 ${data.summary}

@@ -296,7 +296,7 @@ coding as a category*, not a PD-specific feature.
 ## §7 UPDATE: §11 (was §9) Conclusion
 
 Update the conclusion to thread together:
-1. Why the bonded commons is load-bearing (unchanged).
+1. Why the bonded commons is essential (unchanged).
 2. Why the Merkle forest makes attribution cheap enough to scale
    (updated from P3).
 3. Why mutable-signal ledgers preserve attribution through

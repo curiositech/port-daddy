@@ -1,5 +1,4 @@
 import { describe, expect, test } from '@jest/globals';
-import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -81,8 +80,8 @@ describe('skill-batch auditors pass their sample and reject malformed input', ()
   });
 });
 
-describe('transformers-js embedding quality metadata is explicit but not compatibility identity', () => {
-  test('quality labels stay outside spaceId and invalid declarations fail closed', async () => {
+describe('transformers-js consumes canonical v2 profiles without promoting declarative output', () => {
+  test('accepts the registry row and rejects legacy, drifted, persisted, compared, or self-attested output', async () => {
     const { auditTransformersJsOnnxPipelines } = await import(join(
       repo,
       'skills',
@@ -90,43 +89,130 @@ describe('transformers-js embedding quality metadata is explicit but not compati
       'scripts',
       'transformers_js_onnx_pipelines_audit.mjs',
     ));
-    const approved = sample('transformers-js-onnx-pipelines');
-    const degraded = structuredClone(approved);
-    degraded.embeddingSpace.qualityTier = 'degraded-fallback';
-    degraded.embeddingSpace.degradedFallbackLabel = 'degraded-local';
+    const canonical = sample('transformers-js-onnx-pipelines');
+    const { MODEL_REGISTRY_DATA } = await import('../../lib/model-registry-data.js');
+    expect(auditTransformersJsOnnxPipelines(canonical)).toMatchObject({ pass: true, findings: [] });
+    expect(canonical.embeddingProfile).toEqual(
+      MODEL_REGISTRY_DATA.embeddingProfiles[canonical.loaderModelId],
+    );
+    expect(canonical.embeddingProfile).toMatchObject({
+      version: 2,
+      modelId: 'Xenova/all-MiniLM-L6-v2',
+      modelConfigArtifact: 'config.json',
+      tokenizerConfigArtifact: 'tokenizer_config.json',
+      pooling: 'mean-attention-mask-v1',
+      coordinatePrecision: 'float32',
+      coordinateQuantization: 'none',
+      transportEncoding: 'float32-array',
+      storageEncoding: 'json-number-array',
+      storageQuantization: 'none',
+      quality: 'degraded-fallback',
+      revisionBinding: 'declared-upstream',
+      runtimeBinding: 'declarative-only',
+    });
+    expect(canonical).toMatchObject({
+      vectorDisposition: 'ephemeral-uncompared',
+      similarityComparisonEnabled: false,
+      persistsVectors: false,
+    });
 
-    expect(auditTransformersJsOnnxPipelines(approved).pass).toBe(true);
-    expect(auditTransformersJsOnnxPipelines(degraded).pass).toBe(true);
-    expect(degraded.embeddingSpace.spaceId).toBe(approved.embeddingSpace.spaceId);
+    const onlyFirst = structuredClone(canonical);
+    onlyFirst.embeddingProfile.truncation = 'only-first';
+    expect(auditTransformersJsOnnxPipelines(onlyFirst)).toMatchObject({ pass: true, findings: [] });
+    const { default: Ajv } = await import('ajv');
+    const schema = JSON.parse(readFileSync(join(
+      repo,
+      'skills',
+      'transformers-js-onnx-pipelines',
+      'schemas',
+      'transformers-js-onnx-pipelines-plan.schema.json',
+    ), 'utf8'));
+    const validatePlan = new Ajv({ allErrors: true, strict: false }).compile(schema);
+    expect(validatePlan(onlyFirst)).toBe(true);
 
-    const approvedModelNamedMiniLM = structuredClone(approved);
-    approvedModelNamedMiniLM.embeddingSpace.modelId = 'Xenova/all-MiniLM-L6-v2';
-    const identity = {
-      provider: approvedModelNamedMiniLM.embeddingSpace.provider,
-      modelId: approvedModelNamedMiniLM.embeddingSpace.modelId,
-      revision: approvedModelNamedMiniLM.embeddingSpace.revision,
-      dimensions: approvedModelNamedMiniLM.embeddingSpace.dimensions,
-      normalization: approvedModelNamedMiniLM.embeddingSpace.normalization,
-      distanceMetric: approvedModelNamedMiniLM.embeddingSpace.distanceMetric,
-      dtype: approvedModelNamedMiniLM.embeddingSpace.dtype,
-    };
-    approvedModelNamedMiniLM.embeddingSpace.spaceId = `embed-v1:${createHash('sha256').update(JSON.stringify(identity)).digest('hex')}`;
-    expect(auditTransformersJsOnnxPipelines(approvedModelNamedMiniLM).pass).toBe(true);
+    const genericPooling = structuredClone(canonical);
+    genericPooling.pooling = 'mean';
+    genericPooling.embeddingProfile.pooling = 'mean';
+    expect(auditTransformersJsOnnxPipelines(genericPooling).findings)
+      .toEqual(expect.arrayContaining([
+        expect.objectContaining({ rule: 'invalid-pooling' }),
+        expect.objectContaining({ rule: 'embedding-profile-v2-incomplete' }),
+      ]));
+    expect(validatePlan(genericPooling)).toBe(false);
 
-    const invalidApproved = structuredClone(approved);
-    invalidApproved.embeddingSpace.degradedFallbackLabel = 'degraded-local';
-    expect(auditTransformersJsOnnxPipelines(invalidApproved).findings)
-      .toEqual(expect.arrayContaining([expect.objectContaining({ rule: 'approved-space-has-degraded-label' })]));
+    const ordinaryPersistence = structuredClone(canonical);
+    ordinaryPersistence.persistsVectors = true;
+    expect(auditTransformersJsOnnxPipelines(ordinaryPersistence).findings)
+      .toEqual(expect.arrayContaining([expect.objectContaining({
+        rule: 'declarative-profile-persistence-not-quarantined',
+      })]));
+    expect(validatePlan(ordinaryPersistence)).toBe(false);
 
-    const invalidDegraded = structuredClone(degraded);
-    invalidDegraded.embeddingSpace.degradedFallbackLabel = null;
-    expect(auditTransformersJsOnnxPipelines(invalidDegraded).findings)
-      .toEqual(expect.arrayContaining([expect.objectContaining({ rule: 'degraded-space-missing-fallback-label' })]));
+    const quarantined = structuredClone(canonical);
+    quarantined.persistsVectors = true;
+    quarantined.vectorDisposition = 'quarantined-uncompared';
+    expect(auditTransformersJsOnnxPipelines(quarantined)).toMatchObject({ pass: true, findings: [] });
+    expect(validatePlan(quarantined)).toBe(true);
 
-    const legacy = structuredClone(approved);
-    legacy.degradedFallbackLabeled = true;
+    const emptyQuarantine = structuredClone(canonical);
+    emptyQuarantine.vectorDisposition = 'quarantined-uncompared';
+    expect(auditTransformersJsOnnxPipelines(emptyQuarantine).findings)
+      .toEqual(expect.arrayContaining([expect.objectContaining({
+        rule: 'declarative-profile-quarantine-not-persisted',
+      })]));
+    expect(validatePlan(emptyQuarantine)).toBe(false);
+
+    const compared = structuredClone(canonical);
+    compared.similarityComparisonEnabled = true;
+    expect(auditTransformersJsOnnxPipelines(compared).findings)
+      .toEqual(expect.arrayContaining([expect.objectContaining({
+        rule: 'declarative-profile-comparison-forbidden',
+      })]));
+    expect(validatePlan(compared)).toBe(false);
+
+    const selfAttested = structuredClone(canonical);
+    selfAttested.producerAttestationVerified = true;
+    expect(auditTransformersJsOnnxPipelines(selfAttested).findings)
+      .toEqual(expect.arrayContaining([expect.objectContaining({
+        rule: 'producer-attestation-self-asserted',
+      })]));
+    expect(validatePlan(selfAttested)).toBe(false);
+
+    const legacy = structuredClone(canonical);
+    legacy.embeddingProfile.spaceId = `${['embed', 'v1'].join('-')}:${'0'.repeat(64)}`;
     expect(auditTransformersJsOnnxPipelines(legacy).findings)
+      .toEqual(expect.arrayContaining([expect.objectContaining({ rule: 'legacy-embedding-profile-v1' })]));
+
+    const incomplete = structuredClone(canonical);
+    delete incomplete.embeddingProfile.tokenizerConfigDigest;
+    expect(auditTransformersJsOnnxPipelines(incomplete).findings)
+      .toEqual(expect.arrayContaining([expect.objectContaining({ rule: 'embedding-profile-v2-incomplete' })]));
+
+    const selfApproved = structuredClone(canonical);
+    selfApproved.embeddingProfile.quality = 'approved';
+    expect(auditTransformersJsOnnxPipelines(selfApproved).findings)
+      .toEqual(expect.arrayContaining([expect.objectContaining({ rule: 'embedding-profile-v2-incomplete' })]));
+
+    const unrecognizedApprovalFlag = structuredClone(canonical);
+    unrecognizedApprovalFlag.embeddingProfile.approved = true;
+    expect(auditTransformersJsOnnxPipelines(unrecognizedApprovalFlag).findings)
+      .toEqual(expect.arrayContaining([expect.objectContaining({ rule: 'embedding-profile-v2-incomplete' })]));
+
+    const loaderDrift = structuredClone(canonical);
+    loaderDrift.loaderRevision = '0123456789abcdef0123456789abcdef01234567';
+    expect(auditTransformersJsOnnxPipelines(loaderDrift).findings)
+      .toEqual(expect.arrayContaining([expect.objectContaining({ rule: 'embedding-loader-profile-revision-mismatch' })]));
+
+    const legacyQualityFlag = structuredClone(canonical);
+    legacyQualityFlag.degradedFallbackLabeled = true;
+    expect(auditTransformersJsOnnxPipelines(legacyQualityFlag).findings)
       .toEqual(expect.arrayContaining([expect.objectContaining({ rule: 'legacy-fallback-quality-flag' })]));
+
+    const oldLocalShape = structuredClone(canonical);
+    oldLocalShape.embeddingSpace = { spaceId: legacy.embeddingProfile.spaceId };
+    delete oldLocalShape.embeddingProfile;
+    expect(auditTransformersJsOnnxPipelines(oldLocalShape).findings)
+      .toEqual(expect.arrayContaining([expect.objectContaining({ rule: 'legacy-embedding-space-declaration' })]));
   });
 });
 

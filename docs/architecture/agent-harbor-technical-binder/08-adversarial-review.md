@@ -24,7 +24,7 @@ Background agents:
   Are Longshoremen useful and quiet, or always-on noise?
 
 GPUI Harbor design:
-  Does the native app have the right load-bearing order?
+  Does the native app have the right pivotal order?
 
 Context partitioning:
   Does the plan explain how to split work and survive context windows?

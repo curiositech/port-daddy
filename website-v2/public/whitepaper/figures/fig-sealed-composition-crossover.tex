@@ -1,0 +1,37 @@
+% Regime diagram for Sec. sealed-conservation ("Which composition bound to quote"): the basic bound k*epsilon and the advanced bound sqrt(2 k ln(1/delta')) epsilon + k epsilon (e^epsilon - 1) at epsilon=0.1, delta'=1e-6, plotted from the closed forms the chapter states. The k=32 mark and both bound values are copied from website-v2/public/whitepaper/sealed-harbor.tex, Sec. sealed-conservation, "Numbers by hand" [verified].
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure]
+  \begin{axis}[
+    width=13.8cm,height=7.0cm,
+    axis lines=left,
+    title={which bound to quote, as the engagement grows longer},
+    title style={font=\footnotesize\bfseries,text=hhink,yshift=-2pt},
+    xmin=0,xmax=64,ymin=0,ymax=7,
+    xlabel={releases $k$ (per-release $\varepsilon=0.1$)},
+    ylabel={spent-budget bound},
+    xlabel style={font=\footnotesize,text=hhgray},
+    ylabel style={font=\footnotesize,text=hhgray},
+    tick label style={font=\footnotesize,text=hhgray},
+    axis line style={draw=hhgray,line width=.45pt},
+    tick style={draw=hhgray,line width=.45pt},
+    xtick={0,16,32,48,64},
+    ytick={0,2,4,6},
+    clip=false,
+    legend style={at={(0.03,0.97)},anchor=north west,draw=none,fill=none,
+      font=\footnotesize,text=hhink,row sep=1pt,inner sep=2pt},
+    legend cell align=left,
+  ]
+    \addplot[domain=0:64,samples=120,draw=hhink,line width=.9pt] {0.1*x};
+    \addlegendentry{basic: $k\varepsilon$}
+    \addplot[domain=0:64,samples=120,draw=hhteal,line width=.9pt] {sqrt(2*x*ln(1/0.000001))*0.1 + x*0.1*(exp(0.1)-1)};
+    \addlegendentry{advanced: $\sqrt{k}$-scaled}
+    \addplot[only marks,mark=*,mark size=1.4pt,draw=hhink,fill=hhink,forget plot] coordinates {(32,3.20)};
+    \addplot[only marks,mark=*,mark size=1.4pt,draw=hhteal,fill=hhteal,forget plot] coordinates {(32,3.3101)};
+    \draw[pd guide] (axis cs:32,0) -- (axis cs:32,3.3101);
+    \node[pd direct label,font=\footnotesize,align=left,text width=3.0cm,anchor=north west] at (axis cs:34.5,1.7) {$k=32$:\\basic $3.20$\\advanced $3.31$};
+  \end{axis}
+\end{tikzpicture}
+\caption{The basic and advanced $\varepsilon$-composition bounds on cumulative spend as functions of the number of releases $k$, at the per-release $\varepsilon=0.1$ the chapter uses for this comparison. At $k=32$, the chapter's reported comparison, basic composition ($3.20$) is still smaller than the advanced bound ($3.31$): below the crossover a contract should quote the exact, $\delta$-free basic bound, and only past it the square-root-scaled advanced bound -- the same rule at $\varepsilon=0.05$ gives $k=128$: basic $6.40$ versus advanced $3.30$, where the advanced bound has come to pay.}
+\label{fig:sealed-composition-crossover}
+\end{figure}

@@ -40,7 +40,7 @@ If the paper does exist, read it in full before comparing.
    3(1):30–50, 2000.
    Already cited in `paper2.tex`. Re-read only to confirm Paper 2's
    characterization of it as the $\Sigma_u = \emptyset$ case is exactly right —
-   this is load-bearing for the contribution claim and should not rest on a
+   this is critical for the contribution claim and should not rest on a
    remembered reading.
 
 ## Tier 2 — the control-theory side

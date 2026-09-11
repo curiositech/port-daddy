@@ -1,18 +1,18 @@
-#!/usr/bin/env zsh
+#!/bin/sh
 
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-echo "${YELLOW}Running website-v2 pre-push verification...${NC}" >&2
+printf '%bRunning website-v2 pre-push verification...%b\n' "$YELLOW" "$NC" >&2
 
 if ! npm --prefix website-v2 test -- src/public-shell-contracts.test.ts; then
-  echo "${RED}PRE-PUSH BLOCKED:${NC} website-v2 public-shell contracts failed." >&2
+  printf '%bPRE-PUSH BLOCKED:%b website-v2 public-shell contracts failed.\n' "$RED" "$NC" >&2
   exit 1
 fi
 
 if ! npm --prefix website-v2 run build; then
-  echo "${RED}PRE-PUSH BLOCKED:${NC} website-v2 build failed." >&2
+  printf '%bPRE-PUSH BLOCKED:%b website-v2 build failed.\n' "$RED" "$NC" >&2
   exit 1
 fi
 

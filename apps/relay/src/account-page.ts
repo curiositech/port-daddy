@@ -47,7 +47,9 @@ function htmlPage(body: string, status = 200): Response {
         "default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; " +
         "font-src https://fonts.gstatic.com; img-src 'self' https://avatars.githubusercontent.com data:; " +
         "form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
-      'Referrer-Policy': 'no-referrer',
+      // Preserve same-origin form provenance so CSRF-protected account POSTs
+      // (notably Sign out) are not rejected by the Relay itself.
+      'Referrer-Policy': 'same-origin',
       'X-Content-Type-Options': 'nosniff',
     },
   });
@@ -374,6 +376,7 @@ export function renderAccountPage(
       <a href="/account" aria-current="page">Overview</a>
       <a href="/account/interruptions">Interruptions</a>
       <a href="/account/repos">Repo settings</a>
+      <a href="/account/ships">Ship controls</a>
       <a href="/account/runs">Fleet runs</a>
       <a href="/account/seamanship">Seamanship</a>
       <a href="/account/billing">Billing &amp; credits</a>

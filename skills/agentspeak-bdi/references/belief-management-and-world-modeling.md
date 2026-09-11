@@ -148,7 +148,7 @@ determined by the current world state, not by the triggering event alone. The sa
 plan handles any waste-robot-bin configuration, with the specific values extracted
 from beliefs.
 
-**For WinDAGs**: Skills should be parameterized through context queries, not through
+**For Jury-rig**: Skills should be parameterized through context queries, not through
 hardcoded values or all-explicit parameters. A skill that handles "files" should
 query the current context for relevant file paths, permissions, and metadata rather
 than requiring all these as explicit inputs. This makes skills more general and
@@ -203,7 +203,7 @@ new agents can join by registering interest in certain belief patterns.
 concurrency control for belief updates; potential for agents to act on stale
 observations.
 
-**For WinDAGs**: The orchestrator's shared state (task completion status, resource
+**For Jury-rig**: The orchestrator's shared state (task completion status, resource
 availability, context information) should be structured as a queryable belief base,
 not as opaque variables passed between agents. This enables any agent to react to
 any state change that falls within its plan library's triggering events.
