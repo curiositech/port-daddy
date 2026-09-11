@@ -76,8 +76,8 @@ CH2's remaining implementation queue, in order:
 
 **Now:** input-aware typing/IME undo groups are published in regular
 [#10144](https://github.com/curiositech/port-daddy/pull/10144), with 895 selected
-headless tests and bounded adversarial review; the delegated Off worker closes
-final TS launch/trigger admission gaps. **Next:**
+headless tests and bounded adversarial review; the delegated Off worker's final
+TS launch/trigger admission fixes are reviewed and committed. **Next:**
 private-draft custody/restart design and implementation, edit-associated selection,
 then syntax/navigation and file lifecycle. Current native proof remains withheld
 by the operator halt, not replaced with a source-test count.
@@ -130,9 +130,13 @@ not an aggregate unit-test count.
 
 The separate safety prerequisite remains delegated: regular
 [#10138](https://github.com/curiositech/port-daddy/pull/10138) contains the reviewed
-native admission/cancellation and deferred-launch fixup `a1653ac63880`. The source
-Off work, its remaining TS/console/installer gaps and packaged containment proof
-are tracked in that PR. This does not pause editor development or authorize apps.
+native admission/cancellation fixup `a1653ac63880` and TS shim/final-launch/output/
+trigger admission fixup `afeddb996739`. The latter has 61 halt-safe tests and
+bounded adversarial review; 115 unrelated cases were excluded. Next safety work:
+Calendar's OAuth-to-POST gap, general sink-effect admission, surfaced stop errors,
+remaining installer/console coverage and packaged containment proof. Off is not
+complete. These remain tracked in that PR without pausing editor development or
+authorizing app launch.
 
 ### CH1: accepted contract amendments
 
