@@ -259,45 +259,61 @@ fn render_work_graph_png(dag_json: &str) -> anyhow::Result<std::path::PathBuf> {
 async fn rehydrate_mission_chat(
     client: &DaemonClient,
     snapshot: &agent::WorkSnapshot,
-) -> (Vec<chat::ChatMsg>, Option<String>) {
+) -> (Vec<chat::ChatMsg>, Option<String>, Option<String>) {
     let assistant_sender = snapshot
         .execution_agent_id()
         .unwrap_or("attributed agent")
         .to_string();
     let mut warning = None;
-    let mut messages = match snapshot.transcript_id() {
-        Some(transcript_id) => match client.transcript_turns(transcript_id).await {
-            Ok(turns) => turns
-                .into_iter()
-                .map(|turn| match turn.role {
-                    agent::TranscriptTurnRole::Operator => chat::ChatMsg::mine(turn.content),
-                    agent::TranscriptTurnRole::Assistant => {
-                        chat::ChatMsg::agent(assistant_sender.clone(), turn.content)
-                    }
-                })
-                .collect(),
+    let (mut messages, transcript_started_at, terminal) = match snapshot.transcript_id() {
+        Some(transcript_id) => match client.mission_transcript(transcript_id).await {
+            Ok(transcript) => {
+                let started_at = transcript.started_at_ms;
+                let terminal = transcript.terminal();
+                let messages = transcript
+                    .turns
+                    .into_iter()
+                    .map(|turn| match turn.role {
+                        agent::TranscriptTurnRole::Operator => {
+                            chat::ChatMsg::mine_at(turn.content, turn.timestamp_ms)
+                        }
+                        agent::TranscriptTurnRole::Assistant => chat::ChatMsg::agent_at(
+                            assistant_sender.clone(),
+                            turn.content,
+                            turn.timestamp_ms,
+                        ),
+                    })
+                    .collect();
+                (messages, started_at, terminal)
+            }
             Err(error) => {
                 warning = Some(format!(
                     "transcript {transcript_id} could not be restored: {error}"
                 ));
-                Vec::new()
+                (Vec::new(), None, None)
             }
         },
-        None => Vec::new(),
+        None => (Vec::new(), None, None),
     };
+    let durable_mission_timestamp =
+        transcript_started_at.or_else(|| snapshot.execution_created_at_ms());
 
     if !messages
         .iter()
         .any(|message| message.kind == chat::ChatMsgKind::Operator)
     {
-        messages.insert(0, chat::ChatMsg::mine(snapshot.goal()));
+        messages.insert(
+            0,
+            chat::ChatMsg::mine_at(snapshot.goal(), durable_mission_timestamp),
+        );
     }
 
-    let receipt = match snapshot.dispatch_id() {
+    let mut receipt = match snapshot.dispatch_id() {
         Some(execution_id) => chat::mission_admission_receipt(
             snapshot.intent_id(),
             execution_id,
             snapshot.execution_state(),
+            snapshot.execution_agent_id(),
         ),
         None => chat::ChatMsg::receipt(
             "Port Daddy receipt",
@@ -308,6 +324,7 @@ async fn rehydrate_mission_chat(
             ),
         ),
     };
+    receipt.timestamp_ms = durable_mission_timestamp;
     let receipt_index = messages
         .iter()
         .position(|message| message.kind == chat::ChatMsgKind::Operator)
@@ -315,7 +332,16 @@ async fn rehydrate_mission_chat(
         .unwrap_or(0);
     messages.insert(receipt_index, receipt);
 
-    (messages, warning)
+    let terminal_status = terminal.as_ref().map(|terminal| terminal.status.clone());
+    if let Some(terminal) = terminal {
+        messages.push(chat::mission_terminal_receipt(
+            &terminal.status,
+            terminal.error.as_deref(),
+            terminal.ended_at_ms,
+        ));
+    }
+
+    (messages, warning, terminal_status)
 }
 
 /// Filesystem asset source — resolves paths relative to the `assets/` dir
@@ -735,6 +761,10 @@ fn main() {
                 // Route chat from durable execution truth, not a stale agent
                 // heartbeat or the mere existence of an old subscription.
                 let mut tracked_work_state: Option<String> = None;
+                // The exact responder named by that durable execution. The Lane
+                // may still show a different newest agent in its own inspector,
+                // but its frames cannot enter Mission without this binding.
+                let mut tracked_work_agent_id: Option<String> = None;
                 // A row selected in Agents binds the shared composer to that
                 // stable Port Daddy actor without pretending it is a WorkIntent
                 // created by this console process.
@@ -808,6 +838,7 @@ fn main() {
                                         let snapshot = receipt.snapshot.clone();
                                         tracked_work_intent_id = Some(intent_id.clone());
                                         tracked_work_state = Some("starting".into());
+                                        tracked_work_agent_id = None;
                                         latest_work_projection = Some((
                                             intent_id.clone(),
                                             state,
@@ -818,6 +849,7 @@ fn main() {
                                             Ok(execution) => {
                                                 let runtime_state = execution.state.clone();
                                                 tracked_work_state = Some(runtime_state.clone());
+                                                tracked_work_agent_id = execution.agent_id.clone();
                                                 let execution_id = execution.dispatch_id.clone();
                                                 lane.follow_agent(execution.agent_id.as_deref());
                                                 operator_selected_agent = false;
@@ -827,6 +859,7 @@ fn main() {
                                                         &intent_id,
                                                         &execution_id,
                                                         &runtime_state,
+                                                        tracked_work_agent_id.as_deref(),
                                                     ),
                                                 ));
                                             }
@@ -921,6 +954,7 @@ fn main() {
                                 latest_work_query_error = None;
                                 tracked_work_intent_id = None;
                                 tracked_work_state = None;
+                                tracked_work_agent_id = None;
                                 operator_selected_agent = false;
                                 // An explicit daemon switch is authoritative for
                                 // this process. Do not immediately bounce back to
@@ -1297,6 +1331,8 @@ fn main() {
                             };
                             if let Some(snapshot) = snapshot {
                                 tracked_work_state = Some(snapshot.execution_state().to_string());
+                                tracked_work_agent_id =
+                                    snapshot.execution_agent_id().map(str::to_string);
                                 let fingerprint = (
                                     snapshot.intent_id().to_string(),
                                     snapshot.plan_state().to_string(),
@@ -1309,15 +1345,17 @@ fn main() {
                                     latest_work_projection = Some(fingerprint);
                                     let chat_snapshot = snapshot.clone();
                                     let _ = work_tx.send(app::WorkUpdate::Snapshot(snapshot));
-                                    let (messages, transcript_warning) =
+                                    let (messages, transcript_warning, terminal_status) =
                                         rehydrate_mission_chat(&client, &chat_snapshot).await;
-                                    let awaiting_reply = chat::routes_to_existing_mission_body(
-                                        Some(chat_snapshot.execution_state()),
-                                        chat_snapshot.execution_agent_id().is_some(),
-                                    );
+                                    let awaiting_reply = terminal_status.is_none()
+                                        && chat::routes_to_existing_mission_body(
+                                            Some(chat_snapshot.execution_state()),
+                                            chat_snapshot.execution_agent_id().is_some(),
+                                        );
                                     let _ = chat_tx.send(chat::ChatUpdate::Hydrate {
                                         messages,
                                         awaiting_reply,
+                                        terminal_status,
                                     });
                                     if let Some(detail) = transcript_warning {
                                         let _ = alert_tx.send(pane::Alert::error(
@@ -1332,6 +1370,7 @@ fn main() {
                                 let had_projection = latest_work_projection.take().is_some();
                                 let had_tracked_intent = tracked_work_intent_id.take().is_some();
                                 tracked_work_state = None;
+                                tracked_work_agent_id = None;
                                 if !operator_selected_agent && (had_projection || had_tracked_intent) {
                                     lane.follow_agent(None);
                                     let _ = work_tx.send(app::WorkUpdate::Reset);
@@ -1419,14 +1458,46 @@ fn main() {
                     }
 
                     // Drain whatever the live stream delivered since last loop.
-                    if let Some((_, rx)) = lane_stream.as_mut() {
+                    if let Some((lane_agent_id, rx)) = lane_stream.as_mut() {
                         while let Ok(env) = rx.try_recv() {
                             let speaker = env.agent_id.clone();
+                            let routes_to_mission = chat::lane_frame_routes_to_mission(
+                                operator_selected_agent,
+                                tracked_work_agent_id.as_deref(),
+                                lane_agent_id,
+                            );
+                            let terminal = if env.kind == agent::StreamKind::Transcript {
+                                agent::transcript_terminal_from_stream(&env.body)
+                            } else {
+                                None
+                            };
                             lane.on_stream(&env);
                             for reply in lane.take_chat_replies() {
-                                let _ = chat_tx.send(chat::ChatUpdate::Reply(
-                                    chat::ChatMsg::agent(speaker.clone(), reply),
-                                ));
+                                if routes_to_mission {
+                                    let _ = chat_tx.send(chat::ChatUpdate::Reply(
+                                        chat::ChatMsg::agent_at(
+                                            speaker.clone(),
+                                            reply,
+                                            (env.ts > 0).then_some(env.ts),
+                                        ),
+                                    ));
+                                }
+                            }
+                            if routes_to_mission {
+                                if let Some(terminal) = terminal {
+                                    tracked_work_state = Some(terminal.status.clone());
+                                    let ended_at = terminal
+                                        .ended_at_ms
+                                        .or_else(|| (env.ts > 0).then_some(env.ts));
+                                    let _ = chat_tx.send(chat::ChatUpdate::Terminal {
+                                        receipt: chat::mission_terminal_receipt(
+                                            &terminal.status,
+                                            terminal.error.as_deref(),
+                                            ended_at,
+                                        ),
+                                        status: terminal.status,
+                                    });
+                                }
                             }
                         }
                     }

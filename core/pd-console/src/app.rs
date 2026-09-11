@@ -238,6 +238,20 @@ pub enum WorkUpdate {
     Png(std::path::PathBuf),
 }
 
+/// Keep transcript terminal truth from regressing to a stale WorkIntent state
+/// on the next background refresh. A different intent always starts clean.
+fn terminal_state_to_preserve(
+    current_intent: Option<&str>,
+    current_state: &str,
+    incoming_intent: &str,
+    incoming_state: &str,
+) -> Option<String> {
+    (current_intent == Some(incoming_intent)
+        && crate::agent::runtime_status_is_terminal(current_state)
+        && !crate::agent::runtime_status_is_terminal(incoming_state))
+    .then(|| current_state.to_string())
+}
+
 /// A push from the background worker back to the view about the Sextant surface:
 /// the parsed session detail for a clicked point, or the daemon's real failure
 /// (surfaced in the drawer, never swallowed). Rides its own small bus alongside
@@ -2284,6 +2298,12 @@ pub struct ConsoleView {
     /// Operator chat transcript (bubbles) + a transient transport error. Folded by
     /// the background thread over the [`ChatUpdate`] bus; the pane renders it.
     chat: ChatLog,
+    /// Long Mission turns are collapsed for scanability but remain one-click
+    /// inspectable. Indices are cleared on transcript replacement/rebind.
+    expanded_chat_turns: HashSet<usize>,
+    /// The WorkIntent goal can itself be a large delegated prompt. Keep the
+    /// Mission header compact by default without discarding that provenance.
+    mission_goal_expanded: bool,
     /// The chat composer's rolled-own text buffer — gpui 0.2.2 has no native input,
     /// so keydown pushes `key_char` here (case-preserving) the same way the command
     /// line does, and Enter submits a turn up the tube.
@@ -2662,6 +2682,8 @@ impl ConsoleView {
             prev_viewport_w: 0.0,
             flag_ticking: false,
             chat: ChatLog::default(),
+            expanded_chat_turns: HashSet::new(),
+            mission_goal_expanded: false,
             chat_input: String::new(),
             galaxy: crate::galaxy_pane::GalaxySnapshot::default(),
             galaxy_selected: HashSet::new(),
@@ -3563,6 +3585,21 @@ impl ConsoleView {
     /// Fold one transport push into the chat transcript: a real reply down the tube
     /// (with the receive earcon) or a transport error (surfaced in the error state).
     pub fn apply_chat_update(&mut self, update: ChatUpdate) {
+        if matches!(&update, ChatUpdate::Hydrate { .. } | ChatUpdate::Reset) {
+            self.expanded_chat_turns.clear();
+        }
+        match &update {
+            ChatUpdate::Hydrate {
+                terminal_status: Some(status),
+                ..
+            }
+            | ChatUpdate::Terminal { status, .. } => {
+                self.work_execution_state = status.clone();
+                self.work_mission.state = status.clone();
+            }
+            ChatUpdate::Reset => self.mission_goal_expanded = false,
+            _ => {}
+        }
         match crate::mission_callbacks::apply_chat_update(&mut self.chat, update) {
             crate::mission_callbacks::ChatUpdateSignal::ReplyArrived => {
                 crate::audio::play(crate::audio::Cue::Receive);
@@ -4097,6 +4134,7 @@ impl ConsoleView {
         match update {
             WorkUpdate::Receipt(receipt) => {
                 self.clear_work_projection_failure();
+                self.mission_goal_expanded = false;
                 self.work_mission =
                     crate::mission_view::MissionViewModel::starting(&receipt.snapshot);
                 let intent_id = receipt.snapshot.intent_id().to_string();
@@ -4143,21 +4181,38 @@ impl ConsoleView {
             }
             WorkUpdate::Snapshot(snapshot) => {
                 self.clear_work_projection_failure();
+                // Transcript terminal truth is more specific than a lagging
+                // WorkIntent projection. Preserve it for the same intent until
+                // the daemon catches up, while still allowing a new intent to
+                // replace the old execution state.
+                let terminal_state = terminal_state_to_preserve(
+                    self.work_intent_id.as_deref(),
+                    &self.work_execution_state,
+                    snapshot.intent_id(),
+                    snapshot.execution_state(),
+                );
+                if self.work_mission.goal != snapshot.goal() {
+                    self.mission_goal_expanded = false;
+                }
                 self.work_mission = crate::mission_view::MissionViewModel::from_snapshot(&snapshot);
+                let effective_state =
+                    terminal_state.unwrap_or_else(|| snapshot.execution_state().to_string());
+                self.work_mission.state = effective_state.clone();
+                self.work_execution_state = effective_state;
                 self.work_intent_id = Some(snapshot.intent_id().to_string());
                 self.work_plan_state = snapshot.plan_state().to_string();
                 self.work_plan_graph = crate::work_plan::from_work_snapshot(&snapshot);
                 self.work_selected_node = None;
                 self.work_graph_png_path = None;
-                if matches!(
-                    self.work_mission.state.as_str(),
-                    "settled" | "failed" | "rejected"
-                ) {
+                if crate::agent::runtime_status_is_terminal(&self.work_mission.state)
+                    || matches!(self.work_mission.state.as_str(), "salvage" | "rejected")
+                {
                     self.chat.finish_waiting();
                 }
             }
             WorkUpdate::Reset => {
                 self.clear_work_projection_failure();
+                self.mission_goal_expanded = false;
                 crate::mission_callbacks::WorkProjectionBindings {
                     mission: &mut self.work_mission,
                     plan_graph: &mut self.work_plan_graph,
@@ -4835,6 +4890,11 @@ impl ConsoleView {
             String::new()
         };
         let chat_awaiting = is_mission && self.chat.awaiting_reply;
+        let expanded_chat_turns = if is_mission {
+            self.expanded_chat_turns.clone()
+        } else {
+            HashSet::new()
+        };
         let chat_reduced = reduced_motion();
         let work_flash = self.control_flash.clone();
         // The rendered Vello PNG (if any) for the inline node-graph at the top of
@@ -5152,6 +5212,8 @@ impl ConsoleView {
                                 mission_intent.as_deref(),
                                 mission_worktree.as_deref(),
                                 mission_branch.as_deref(),
+                                self.mission_goal_expanded,
+                                cx,
                             ))
                             .when_some(work_graph_png, |column, path| {
                                 column.child(work_graphic(id, Some(path), &work_title))
@@ -5163,7 +5225,13 @@ impl ConsoleView {
                             conversation = conversation.child(chat_error_banner(reason));
                         }
                         for (i, m) in chat_msgs.iter().enumerate() {
-                            conversation = conversation.child(chat_bubble(i, m, chat_reduced));
+                            conversation = conversation.child(chat_bubble(
+                                i,
+                                m,
+                                expanded_chat_turns.contains(&i),
+                                chat_reduced,
+                                cx,
+                            ));
                         }
                         if chat_awaiting {
                             conversation = conversation.child(mission_waiting_state(chat_reduced));
@@ -6617,6 +6685,8 @@ fn mission_header(
     intent_id: Option<&str>,
     worktree: Option<&str>,
     branch: Option<&str>,
+    expanded: bool,
+    cx: &mut Context<ConsoleView>,
 ) -> AnyElement {
     let t = current_theme();
     let signal = tone_rgb(&stage_tone);
@@ -6633,6 +6703,12 @@ fn mission_header(
         (Some(worktree), None) => Some(worktree.to_string()),
         (None, Some(branch)) => Some(branch.to_string()),
         (None, None) => None,
+    };
+    let goal_needs_expansion = crate::chat::chat_needs_expansion(goal);
+    let visible_goal = if expanded {
+        goal.to_string()
+    } else {
+        crate::chat::chat_excerpt(goal)
     };
 
     div()
@@ -6670,13 +6746,44 @@ fn mission_header(
         )
         .child(
             div()
+                .w_full()
+                .whitespace_normal()
                 .text_color(rgb(t.ink))
                 .text_size(px(20.0))
                 .font_weight(FontWeight::BOLD)
-                .child(chat_display_text(goal)),
+                .child(chat_display_text(&visible_goal)),
         )
+        .when(goal_needs_expansion, |header| {
+            header.child(
+                div().w_full().flex().child(
+                    div()
+                        .id("mission-goal-expand")
+                        .px(px(tokens::SPACE_2))
+                        .py(px(tokens::SPACE_1))
+                        .border_1()
+                        .border_color(rgb(t.line))
+                        .bg(rgb(t.sunken))
+                        .text_color(rgb(t.accent_ink))
+                        .text_size(px(tokens::TEXT_CAPTION))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .cursor_pointer()
+                        .hover(|style| style.bg(rgb(t.raised)).border_color(rgb(t.accent)))
+                        .child(if expanded {
+                            "SHOW LESS MISSION"
+                        } else {
+                            "SHOW FULL MISSION"
+                        })
+                        .on_click(cx.listener(|this, _event, _window, cx| {
+                            this.mission_goal_expanded = !this.mission_goal_expanded;
+                            cx.notify();
+                        })),
+                ),
+            )
+        })
         .child(
             div()
+                .w_full()
+                .whitespace_normal()
                 .text_color(rgb(if actor.is_some() {
                     t.accent_ink
                 } else {
@@ -6688,6 +6795,8 @@ fn mission_header(
         .when_some(execution_scope, |header, scope| {
             header.child(
                 div()
+                    .w_full()
+                    .whitespace_normal()
                     .text_color(rgb(t.muted))
                     .text_size(px(tokens::TEXT_CAPTION))
                     .font_family("IBM Plex Mono")
@@ -6791,7 +6900,13 @@ fn mission_prompt(
 
 /// One chat turn in the shared linework grammar. Operator and agent alignment is
 /// retained; square boundaries and a cobalt rail carry identity without cards.
-fn chat_bubble(idx: usize, msg: &ChatMsg, reduced: bool) -> AnyElement {
+fn chat_bubble(
+    idx: usize,
+    msg: &ChatMsg,
+    expanded: bool,
+    reduced: bool,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
     let t = current_theme();
     let mine = msg.kind == ChatMsgKind::Operator;
     let receipt = msg.kind == ChatMsgKind::Receipt;
@@ -6803,17 +6918,76 @@ fn chat_bubble(idx: usize, msg: &ChatMsg, reduced: bool) -> AnyElement {
     // Eyebrow: who spoke (caption weight) — color = meaning, plus the label so a
     // role is never conveyed by color alone.
     let eyebrow = div()
-        .text_color(rgb(t.muted))
-        .text_size(px(tokens::TEXT_CAPTION))
-        .font_weight(FontWeight::SEMIBOLD)
-        .child(sender_label);
+        .w_full()
+        .flex()
+        .flex_wrap()
+        .items_center()
+        .gap(px(tokens::SPACE_2))
+        .child(
+            div()
+                .text_color(rgb(t.muted))
+                .text_size(px(tokens::TEXT_CAPTION))
+                .font_weight(FontWeight::SEMIBOLD)
+                .child(sender_label),
+        )
+        .child(div().flex_1())
+        .child(
+            div()
+                .flex_shrink_0()
+                .text_color(rgb(t.muted))
+                .text_size(px(tokens::TEXT_CAPTION))
+                .font_family("IBM Plex Mono")
+                .child(msg.timestamp_label()),
+        );
+    let needs_expansion = crate::chat::chat_needs_expansion(&msg.text);
+    let visible_text = if expanded {
+        msg.text.clone()
+    } else {
+        crate::chat::chat_excerpt(&msg.text)
+    };
     let body = div()
+        .w_full()
+        .whitespace_normal()
         .text_color(rgb(if mine { t.accent_ink } else { t.ink }))
         .text_size(px(tokens::TEXT_BODY))
-        .child(chat_display_text(&msg.text));
+        .child(chat_display_text(&visible_text));
+    let content = div()
+        .min_w(px(0.0))
+        .flex_1()
+        .flex()
+        .flex_col()
+        .gap(px(tokens::SPACE_1))
+        .child(eyebrow)
+        .child(body)
+        .when(needs_expansion, |content| {
+            content.child(
+                div().w_full().mt(px(tokens::SPACE_1)).flex().child(
+                    div()
+                        .id(SharedString::from(format!("chat-expand-{idx}")))
+                        .px(px(tokens::SPACE_2))
+                        .py(px(tokens::SPACE_1))
+                        .border_1()
+                        .border_color(rgb(t.line))
+                        .bg(rgb(t.sunken))
+                        .text_color(rgb(t.accent_ink))
+                        .text_size(px(tokens::TEXT_CAPTION))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .cursor_pointer()
+                        .hover(|style| style.bg(rgb(t.raised)).border_color(rgb(t.accent)))
+                        .child(if expanded { "SHOW LESS" } else { "SHOW FULL" })
+                        .on_click(cx.listener(move |this, _event, _window, cx| {
+                            if !this.expanded_chat_turns.insert(idx) {
+                                this.expanded_chat_turns.remove(&idx);
+                            }
+                            cx.notify();
+                        })),
+                ),
+            )
+        });
 
     let bubble: Div = if mine {
         div()
+            .w_full()
             .max_w(px(560.0)) // ~62ch at 14px
             .flex()
             .flex_col()
@@ -6823,10 +6997,10 @@ fn chat_bubble(idx: usize, msg: &ChatMsg, reduced: bool) -> AnyElement {
             .border_1()
             .border_color(rgb(t.accent))
             .bg(rgb(t.raised))
-            .child(eyebrow)
-            .child(body)
+            .child(content)
     } else if receipt {
         div()
+            .w_full()
             .max_w(px(620.0))
             .flex()
             .overflow_hidden()
@@ -6836,18 +7010,19 @@ fn chat_bubble(idx: usize, msg: &ChatMsg, reduced: bool) -> AnyElement {
             .child(div().w(px(4.0)).bg(rgb(t.engaged)))
             .child(
                 div()
+                    .min_w(px(0.0))
+                    .flex_1()
                     .flex()
                     .flex_col()
-                    .gap(px(tokens::SPACE_1))
                     .px(px(tokens::SPACE_3))
                     .py(px(tokens::SPACE_2))
-                    .child(eyebrow)
-                    .child(body),
+                    .child(content),
             )
     } else {
         // The cobalt rail is a child div (a fixed-width colored strip), exactly the
         // render_block Header rail idiom — guaranteed across gpui border helpers.
         div()
+            .w_full()
             .max_w(px(560.0))
             .flex()
             .overflow_hidden()
@@ -6857,13 +7032,13 @@ fn chat_bubble(idx: usize, msg: &ChatMsg, reduced: bool) -> AnyElement {
             .child(div().w(px(4.0)).bg(rgb(t.cobalt)))
             .child(
                 div()
+                    .min_w(px(0.0))
+                    .flex_1()
                     .flex()
                     .flex_col()
-                    .gap(px(tokens::SPACE_1))
                     .px(px(tokens::SPACE_3))
                     .py(px(tokens::SPACE_2))
-                    .child(eyebrow)
-                    .child(body),
+                    .child(content),
             )
     };
 
@@ -9923,6 +10098,18 @@ impl Render for ConsoleView {
 #[cfg(test)]
 mod add_pane_tests {
     use super::*;
+
+    #[test]
+    fn stale_snapshot_cannot_revive_a_terminal_execution_for_the_same_intent() {
+        assert_eq!(
+            terminal_state_to_preserve(Some("intent-1"), "killed", "intent-1", "in_progress"),
+            Some("killed".into())
+        );
+        assert_eq!(
+            terminal_state_to_preserve(Some("intent-1"), "killed", "intent-2", "in_progress"),
+            None
+        );
+    }
 
     #[test]
     fn ledger_cell_width_is_semantic_not_inferred_from_its_label() {

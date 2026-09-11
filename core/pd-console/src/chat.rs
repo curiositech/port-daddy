@@ -34,37 +34,118 @@ pub struct ChatMsg {
     pub sender: String,
     pub text: String,
     pub kind: ChatMsgKind,
+    /// Daemon-authored epoch milliseconds when available; locally-authored
+    /// turns are stamped at capture time. `None` is rendered as unknown rather
+    /// than inventing a time during legacy transcript recovery.
+    pub timestamp_ms: Option<i64>,
 }
 
 impl ChatMsg {
     /// The operator's own turn (optimistically shown the instant Send fires).
     pub fn mine(text: impl Into<String>) -> Self {
+        Self::mine_at(text, Some(now_epoch_ms()))
+    }
+
+    pub fn mine_at(text: impl Into<String>, timestamp_ms: Option<i64>) -> Self {
         Self {
             sender: "operator".into(),
             text: text.into(),
             kind: ChatMsgKind::Operator,
+            timestamp_ms,
         }
     }
     /// A reply from the bound agent, carrying the tube sender id.
     pub fn agent(sender: impl Into<String>, text: impl Into<String>) -> Self {
+        Self::agent_at(sender, text, Some(now_epoch_ms()))
+    }
+
+    pub fn agent_at(
+        sender: impl Into<String>,
+        text: impl Into<String>,
+        timestamp_ms: Option<i64>,
+    ) -> Self {
         Self {
             sender: sender.into(),
             text: text.into(),
             kind: ChatMsgKind::Assistant,
+            timestamp_ms,
         }
     }
     /// A deterministic admission/control receipt, never assistant prose.
     pub fn receipt(source: impl Into<String>, text: impl Into<String>) -> Self {
+        Self::receipt_at(source, text, Some(now_epoch_ms()))
+    }
+
+    pub fn receipt_at(
+        source: impl Into<String>,
+        text: impl Into<String>,
+        timestamp_ms: Option<i64>,
+    ) -> Self {
         Self {
             sender: source.into(),
             text: text.into(),
             kind: ChatMsgKind::Receipt,
+            timestamp_ms,
         }
     }
 
     pub fn is_operator(&self) -> bool {
         self.kind == ChatMsgKind::Operator
     }
+
+    /// Compare the durable payload while ignoring a receive-time stamp. This
+    /// keeps an SSE replay from duplicating the final turn after hydration.
+    pub fn same_payload(&self, other: &Self) -> bool {
+        self.sender == other.sender && self.text == other.text && self.kind == other.kind
+    }
+
+    pub fn timestamp_label(&self) -> String {
+        chat_timestamp_label(self.timestamp_ms)
+    }
+}
+
+fn now_epoch_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as i64)
+        .unwrap_or_default()
+}
+
+/// Compact, explicit UTC label shared by the GPUI and terminal faces. Keeping
+/// the zone visible is more honest than presenting daemon epoch time as local.
+pub fn chat_timestamp_label(timestamp_ms: Option<i64>) -> String {
+    let Some(timestamp_ms) = timestamp_ms else {
+        return "time unavailable".into();
+    };
+    let Ok(stamp) = time::OffsetDateTime::from_unix_timestamp(timestamp_ms.div_euclid(1_000))
+    else {
+        return "time unavailable".into();
+    };
+    format!(
+        "{:04}-{:02}-{:02} {:02}:{:02}:{:02} UTC",
+        stamp.year(),
+        stamp.month() as u8,
+        stamp.day(),
+        stamp.hour(),
+        stamp.minute(),
+        stamp.second()
+    )
+}
+
+pub const CHAT_COLLAPSE_CHARS: usize = 420;
+
+pub fn chat_needs_expansion(text: &str) -> bool {
+    text.chars().count() > CHAT_COLLAPSE_CHARS || text.lines().count() > 8
+}
+
+/// Unicode-safe preview for long Mission turns. The complete daemon transcript
+/// stays in memory and one click restores it; this is presentation, not loss.
+pub fn chat_excerpt(text: &str) -> String {
+    if !chat_needs_expansion(text) {
+        return text.to_string();
+    }
+    let preview = text.chars().take(CHAT_COLLAPSE_CHARS).collect::<String>();
+    format!("{}…", preview.trim_end())
 }
 
 /// Text that is safe to hand to the native GPUI text element and the shared
@@ -101,13 +182,35 @@ pub fn mission_admission_receipt(
     intent_id: &str,
     execution_id: &str,
     runtime_state: &str,
+    agent_id: Option<&str>,
 ) -> ChatMsg {
+    let continuation = if agent_id.map(str::trim).is_some_and(|id| !id.is_empty()) {
+        "The attributed agent reply follows on its transcript stream."
+    } else {
+        "No governed agent or transcript is attached to this execution."
+    };
     ChatMsg::receipt(
         "Port Daddy receipt",
         format!(
-            "WorkIntent {intent_id} admitted · execution {execution_id} · runtime {runtime_state}. The attributed agent reply follows on its transcript stream."
+            "WorkIntent {intent_id} admitted · execution {execution_id} · runtime {runtime_state}. {continuation}"
         ),
     )
+}
+
+/// Terminal runtime truth is a receipt, not assistant language. It is appended
+/// even when the WorkIntent projection is stale so Mission never implies a
+/// killed or failed responder is still thinking.
+pub fn mission_terminal_receipt(
+    status: &str,
+    error: Option<&str>,
+    timestamp_ms: Option<i64>,
+) -> ChatMsg {
+    let mut text = format!("Run ended · {}", status.trim().to_ascii_uppercase());
+    if let Some(error) = error.map(str::trim).filter(|error| !error.is_empty()) {
+        text.push_str(&format!(" · {error}"));
+    }
+    text.push_str(". This execution is no longer running.");
+    ChatMsg::receipt_at("Port Daddy runtime", text, timestamp_ms)
 }
 
 /// Decide whether a new operator turn belongs to the currently-bound mission.
@@ -128,10 +231,31 @@ pub fn routes_to_existing_mission_body(
         Some("starting" | "proposed" | "claimed" | "in_progress") => true,
         Some(
             "not-started" | "produced" | "review_pending" | "accepted" | "settled" | "failed"
-            | "salvage" | "rejected" | "refused" | "halted" | "cancelled" | "canceled",
+            | "error" | "complete" | "completed" | "done" | "killed" | "aborted" | "over_budget"
+            | "timed_out" | "timeout" | "salvage" | "rejected" | "refused" | "halted" | "cancelled"
+            | "canceled",
         ) => false,
         Some(_) | None => has_live_agent,
     }
+}
+
+/// Admit a Lane frame into Mission only when it belongs to the body named by
+/// the current WorkIntent. The general Lane may independently follow the newest
+/// roster agent, but that is not authority to splice its prose or terminal
+/// state into an unrelated mission. An explicit operator-selected agent is the
+/// only non-WorkIntent conversation allowed through this gate.
+pub fn lane_frame_routes_to_mission(
+    operator_selected_agent: bool,
+    mission_agent_id: Option<&str>,
+    lane_agent_id: &str,
+) -> bool {
+    if operator_selected_agent {
+        return true;
+    }
+    mission_agent_id
+        .map(str::trim)
+        .filter(|agent_id| !agent_id.is_empty())
+        .is_some_and(|agent_id| agent_id == lane_agent_id.trim())
 }
 
 /// The three render states a chat pane must handle. Drives the test gate and the
@@ -208,11 +332,19 @@ impl ChatLog {
     /// Fold in a real reply that came down the tube.
     pub fn push_agent(&mut self, sender: impl Into<String>, text: impl Into<String>) {
         let message = ChatMsg::agent(sender, text);
+        self.push_agent_message(message);
+    }
+
+    pub fn push_agent_message(&mut self, message: ChatMsg) {
         // A reconnect can hydrate the finalized transcript immediately before
         // the agent stream replays its last assistant frame. Drop only that
         // exact adjacent duplicate; identical answers separated by a new
         // operator turn remain distinct conversation history.
-        if self.messages.last() != Some(&message) {
+        if !self
+            .messages
+            .last()
+            .is_some_and(|existing| existing.same_payload(&message))
+        {
             self.push(message);
         }
         self.awaiting_reply = false;
@@ -221,6 +353,19 @@ impl ChatLog {
     /// Append deterministic runtime provenance without impersonating the agent.
     pub fn push_receipt(&mut self, source: impl Into<String>, text: impl Into<String>) {
         self.push(ChatMsg::receipt(source, text));
+    }
+
+    pub fn push_receipt_message(&mut self, message: ChatMsg, terminal: bool) {
+        if !self
+            .messages
+            .last()
+            .is_some_and(|existing| existing.same_payload(&message))
+        {
+            self.push(message);
+        }
+        if terminal {
+            self.awaiting_reply = false;
+        }
     }
 
     /// Record a transport failure (a daemon refusal, no control plane, etc.).
@@ -264,7 +409,11 @@ impl ChatLog {
                 ChatMsgKind::Receipt => Tone::Engaged,
             };
             out.push(Block::WrappedText {
-                text: format!("{label}: {}", chat_display_text(&m.text)),
+                text: format!(
+                    "{label} · {}: {}",
+                    m.timestamp_label(),
+                    chat_display_text(&m.text)
+                ),
                 tone,
             });
         }
@@ -289,11 +438,15 @@ pub enum ChatUpdate {
     /// Deterministic WorkIntent/admission provenance. This confirms a state
     /// transition but is never presented as language from the model.
     Receipt(ChatMsg),
+    /// Daemon-authored terminal runtime truth. Unlike an admission receipt this
+    /// ends the waiting state even if the WorkIntent projection still says run.
+    Terminal { receipt: ChatMsg, status: String },
     /// A daemon-read transcript projection after launch/rebind. Replaces local
     /// bubbles atomically so a cold Mission is still a real conversation.
     Hydrate {
         messages: Vec<ChatMsg>,
         awaiting_reply: bool,
+        terminal_status: Option<String>,
     },
     /// The console rebound to another daemon/state plane. Conversation state
     /// is berth-scoped and must not leak across that boundary.
@@ -320,6 +473,30 @@ mod tests {
 
     fn joined(blocks: &[Block]) -> String {
         blocks.iter().map(block_text).collect::<Vec<_>>().join("\n")
+    }
+
+    #[test]
+    fn lane_frames_require_the_exact_mission_body() {
+        assert!(lane_frame_routes_to_mission(
+            false,
+            Some("mission-agent"),
+            "mission-agent"
+        ));
+        assert!(!lane_frame_routes_to_mission(
+            false,
+            Some("mission-agent"),
+            "newest-unrelated-agent"
+        ));
+        assert!(!lane_frame_routes_to_mission(
+            false,
+            None,
+            "newest-unrelated-agent"
+        ));
+        assert!(lane_frame_routes_to_mission(
+            true,
+            None,
+            "operator-selected-agent"
+        ));
     }
 
     // ── The three states (rust-with-claude-code "three states") ────────────────
@@ -350,11 +527,11 @@ mod tests {
         assert!(!log.messages[1].is_operator());
         let text = joined(&log.blocks());
         assert!(
-            text.contains("you: what's the roadmap status?"),
+            text.contains("you · ") && text.contains("what's the roadmap status?"),
             "missing operator turn: {text}"
         );
         assert!(
-            text.contains("claude-cli: Phase 3 is the hottest lane."),
+            text.contains("claude-cli · ") && text.contains("Phase 3 is the hottest lane."),
             "missing reply: {text}"
         );
     }
@@ -412,7 +589,9 @@ mod tests {
 
         assert!(log.awaiting_reply, "admission is not the requested answer");
         assert_eq!(log.messages[1].kind, ChatMsgKind::Receipt);
-        assert!(joined(&log.blocks()).contains("port-daddy receipt: intent wi-1 admitted"));
+        let rendered = joined(&log.blocks());
+        assert!(rendered.contains("port-daddy receipt · "));
+        assert!(rendered.contains("intent wi-1 admitted"));
 
         log.push_agent("agent-7", "Three claim groups need attention.");
         assert!(!log.awaiting_reply);
@@ -427,7 +606,7 @@ mod tests {
         log.hydrate(
             vec![
                 ChatMsg::mine("durable mission prompt"),
-                mission_admission_receipt("wi-7", "dispatch-7", "settled"),
+                mission_admission_receipt("wi-7", "dispatch-7", "settled", Some("agent-7")),
                 ChatMsg::agent("agent-7", "durable mission answer"),
             ],
             false,
@@ -447,7 +626,7 @@ mod tests {
         log.hydrate(
             vec![
                 ChatMsg::mine("prompt"),
-                mission_admission_receipt("wi-1", "d-1", "settled"),
+                mission_admission_receipt("wi-1", "d-1", "settled", Some("agent-1")),
                 ChatMsg::agent("agent-1", "same answer"),
             ],
             false,
@@ -459,6 +638,15 @@ mod tests {
         log.push_mine("say it again");
         log.push_agent("agent-1", "same answer");
         assert_eq!(log.messages.len(), 5);
+    }
+
+    #[test]
+    fn admission_without_an_agent_does_not_promise_a_reply() {
+        let receipt = mission_admission_receipt("wi-hold", "dispatch-hold", "salvage", None);
+        assert!(receipt
+            .text
+            .contains("No governed agent or transcript is attached"));
+        assert!(!receipt.text.contains("reply follows"));
     }
 
     #[test]
@@ -536,6 +724,10 @@ mod tests {
             "failed",
             "salvage",
             "rejected",
+            "killed",
+            "aborted",
+            "over_budget",
+            "timed_out",
         ] {
             assert!(
                 !routes_to_existing_mission_body(Some(state), true),
@@ -571,5 +763,42 @@ mod tests {
         assert!(log.messages.is_empty());
         assert!(log.error.is_none());
         assert!(!log.awaiting_reply);
+    }
+
+    #[test]
+    fn durable_timestamps_are_explicit_and_missing_time_is_not_invented() {
+        assert_eq!(
+            chat_timestamp_label(Some(1_788_590_537_856)),
+            "2026-09-05 06:42:17 UTC"
+        );
+        assert_eq!(chat_timestamp_label(None), "time unavailable");
+    }
+
+    #[test]
+    fn long_turn_preview_is_unicode_safe_and_the_full_text_remains_available() {
+        let text = format!("{}é-tail", "context ".repeat(80));
+        assert!(chat_needs_expansion(&text));
+        let preview = chat_excerpt(&text);
+        assert!(preview.ends_with('…'));
+        assert!(preview.chars().count() <= CHAT_COLLAPSE_CHARS + 1);
+        assert_eq!(text.chars().last(), Some('l'));
+    }
+
+    #[test]
+    fn terminal_receipt_ends_waiting_and_replay_does_not_duplicate_it() {
+        let mut log = ChatLog::default();
+        log.push_mine("inspect the checkout");
+        let terminal =
+            mission_terminal_receipt("killed", Some("Killed by spawner"), Some(1_788_590_537_856));
+        log.push_receipt_message(terminal.clone(), true);
+        log.push_receipt_message(terminal, true);
+
+        assert!(!log.awaiting_reply);
+        assert_eq!(log.messages.len(), 2);
+        assert_eq!(log.messages[1].kind, ChatMsgKind::Receipt);
+        assert!(log.messages[1].text.contains("KILLED"));
+        assert!(log.messages[1]
+            .text
+            .contains("This execution is no longer running"));
     }
 }
