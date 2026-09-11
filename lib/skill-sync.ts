@@ -12,7 +12,8 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { homedir } from 'node:os';
-import { basename, dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve, sep } from 'node:path';
+import { skillSyncGitPolicy } from './skill-sync-git.js';
 
 export type SkillSyncScope = 'user' | 'project';
 
@@ -64,12 +65,22 @@ export interface SkillLinkAudit {
   missingLinks: number;
   staleSymlinks: number;
   blockedNonSymlinks: number;
+  /** Links the catalog no longer claims: a symlink sitting in a runtime target
+   *  whose name is not a skill id any more, pointing INTO a managed catalog
+   *  source root at something that is gone. These are the reapable ones. */
+  orphanedLinks: number;
+  /** Links in a runtime target that the catalog does not claim and this tool
+   *  must not touch: an operator's own alias, or a link out to a directory we
+   *  do not manage. Reported so the count is honest, never removed. */
+  unmanagedLinks: number;
   errors: Array<{ target: string; error: string }>;
   freshnessPct: number;
   examples: {
     missing: SkillLinkAuditExample[];
     staleSymlinks: SkillLinkAuditExample[];
     blockedNonSymlinks: SkillLinkAuditExample[];
+    orphaned: SkillLinkAuditExample[];
+    unmanaged: SkillLinkAuditExample[];
     errors: SkillLinkAuditExample[];
   };
 }
@@ -96,6 +107,8 @@ export interface SyncAgentSkillsResult {
   created: number;
   replaced: number;
   alreadyLinked: number;
+  /** Orphaned links actually unlinked on this run (0 on a dry run). */
+  removed: number;
   skippedExisting: Array<{ target: string; reason: string }>;
   errors: Array<{ target: string; error: string }>;
   audit: SkillLinkAudit;
@@ -243,7 +256,9 @@ export function syncAgentSkills(options: SyncAgentSkillsOptions): SyncAgentSkill
   const union = collectSkillUnion(roots);
   const targets = options.targets ?? runtimeSkillTargets(options.baseDir, options.scope);
   const dryRun = !!options.dryRun || !!options.statusOnly;
-  const initialAudit = auditSkillLinks(union.skills, targets);
+  const policy = skillSyncGitPolicy(options.baseDir, targets.flatMap((target) => union.skills.map((skill) => join(target.path, skill.id))));
+  const excluded = new Set([...policy.preserved.keys(), ...policy.errors.keys()]);
+  const initialAudit = auditSkillLinks(union.skills, targets, excluded, roots);
   const result: SyncAgentSkillsResult = {
     scope: options.scope,
     baseDir: options.baseDir,
@@ -256,8 +271,9 @@ export function syncAgentSkills(options: SyncAgentSkillsOptions): SyncAgentSkill
     created: 0,
     replaced: 0,
     alreadyLinked: 0,
-    skippedExisting: [],
-    errors: [],
+    removed: 0,
+    skippedExisting: [...policy.preserved].map(([target, reason]) => ({ target, reason })),
+    errors: [...policy.errors].map(([target, error]) => ({ target, error })),
     audit: initialAudit,
   };
 
@@ -268,7 +284,8 @@ export function syncAgentSkills(options: SyncAgentSkillsOptions): SyncAgentSkill
   for (const targetRoot of targets) {
     for (const skill of union.skills) {
       const target = join(targetRoot.path, skill.id);
-      const outcome = ensureSymlink(target, skill.path, dryRun);
+      if (excluded.has(target)) continue;
+      const outcome = ensureSymlink(target, skill.path, dryRun, policy.gitManaged, () => policy.checkParents(target));
       switch (outcome.kind) {
         case 'created':
           result.created++;
@@ -289,26 +306,124 @@ export function syncAgentSkills(options: SyncAgentSkillsOptions): SyncAgentSkill
     }
   }
 
+  // Reap the fan-out of skills the catalog no longer has. Only links this tool
+  // could have made are eligible -- they point into a managed source root and
+  // resolve to nothing -- so an operator's own alias in a runtime directory
+  // survives a sync untouched, and is reported as unmanaged instead.
   if (!dryRun) {
-    result.audit = auditSkillLinks(union.skills, targets);
+    for (const orphan of findUnclaimedSkillLinks(union.skills, targets, roots, excluded).orphaned) {
+      try {
+        unlinkSync(orphan.target);
+        result.removed++;
+      } catch (err) {
+        result.errors.push({ target: orphan.target, error: (err as Error).message });
+      }
+    }
+    result.audit = auditSkillLinks(union.skills, targets, excluded, roots);
   }
 
   return result;
 }
 
-export function auditSkillLinks(skills: SkillEntry[], targets: RuntimeSkillTarget[]): SkillLinkAudit {
+/**
+ * Links a runtime target holds that the catalog does not claim.
+ *
+ * The audit below walks skills × targets, which by construction can only ever
+ * see links the catalog still expects. A skill deleted from `skills/` leaves
+ * its fan-out behind in every runtime directory, and nothing in this file was
+ * looking there -- ten links from one retired skill family outlived the
+ * skills themselves that way, dangling in ~/.claude/skills, invisible to a
+ * sync that reported zero drift.
+ *
+ * `orphaned` is the reapable half: the link points INTO a catalog source root
+ * (so this tool made it) and resolves to nothing (so its skill is gone).
+ * `unmanaged` is everything else the catalog does not claim -- an operator's
+ * own alias, a link out to a directory we do not own. It is counted, named,
+ * and left exactly where it is.
+ */
+export interface SkillLinkOrphans {
+  orphaned: SkillLinkAuditExample[];
+  unmanaged: SkillLinkAuditExample[];
+}
+
+export function findUnclaimedSkillLinks(
+  skills: SkillEntry[],
+  targets: RuntimeSkillTarget[],
+  sourceRoots: SkillCatalogRoot[],
+  preserved: ReadonlySet<string> = new Set(),
+): SkillLinkOrphans {
+  const claimed = new Set(skills.map((skill) => skill.id));
+  const managedRoots = sourceRoots
+    .map((root) => safeRealpath(root.path) ?? resolve(root.path))
+    .map((path) => (path.endsWith(sep) ? path : path + sep));
+  const found: SkillLinkOrphans = { orphaned: [], unmanaged: [] };
+
+  for (const targetRoot of targets) {
+    let entries: string[];
+    try {
+      entries = readdirSync(targetRoot.path);
+    } catch {
+      continue; // a runtime that is simply not installed here
+    }
+
+    for (const name of entries) {
+      if (claimed.has(name)) continue;
+      const target = join(targetRoot.path, name);
+      if (preserved.has(target)) continue;
+
+      let current: string;
+      try {
+        const stat = lstatSafe(target);
+        if (!stat?.isSymbolicLink()) continue; // a real directory is not ours to judge
+        current = readlinkSync(target);
+      } catch {
+        continue;
+      }
+
+      const entry: SkillLinkAuditExample = {
+        skill: name,
+        runtime: targetRoot.label,
+        target,
+        source: '',
+        current,
+      };
+      // Both sides through the same resolver, or the comparison is not one:
+      // managedRoots are realpath'd above, so a raw lexical destination never
+      // matches a root reached through a symlink.
+      const resolved = realpathExistingPrefix(resolve(dirname(target), current));
+      const insideManagedRoot = managedRoots.some((root) => (resolved + sep).startsWith(root));
+      // Every match is kept: this list is the removal set, not a sample. The
+      // audit trims its own copy for display.
+      (insideManagedRoot && !existsSync(resolved) ? found.orphaned : found.unmanaged).push(entry);
+    }
+  }
+
+  return found;
+}
+
+export function auditSkillLinks(
+  skills: SkillEntry[],
+  targets: RuntimeSkillTarget[],
+  preserved: ReadonlySet<string> = new Set(),
+  sourceRoots: SkillCatalogRoot[] = [],
+): SkillLinkAudit {
+  const unclaimed = findUnclaimedSkillLinks(skills, targets, sourceRoots, preserved);
   const audit: SkillLinkAudit = {
     expectedLinks: skills.length * targets.length,
     currentLinks: 0,
     missingLinks: 0,
     staleSymlinks: 0,
     blockedNonSymlinks: 0,
+    orphanedLinks: unclaimed.orphaned.length,
+    unmanagedLinks: unclaimed.unmanaged.length,
     errors: [],
     freshnessPct: 100,
     examples: {
       missing: [],
       staleSymlinks: [],
       blockedNonSymlinks: [],
+      orphaned: unclaimed.orphaned.slice(0, MAX_AUDIT_EXAMPLES),
+      unmanaged: unclaimed.unmanaged.slice(0, MAX_AUDIT_EXAMPLES),
       errors: [],
     },
   };
@@ -316,6 +431,7 @@ export function auditSkillLinks(skills: SkillEntry[], targets: RuntimeSkillTarge
   for (const targetRoot of targets) {
     for (const skill of skills) {
       const target = join(targetRoot.path, skill.id);
+      if (preserved.has(target)) { audit.expectedLinks--; continue; }
       const exampleBase = {
         skill: skill.id,
         runtime: targetRoot.label,
@@ -379,13 +495,17 @@ export function formatSkillSyncSummary(result: SyncAgentSkillsResult): string[] 
     `${action}: ${result.skillCount} skill(s), ${result.targets.length} runtime target(s), ${totalLinks} possible link(s)`,
     `  sources: ${result.sources.map((source) => source.label).join(', ') || 'none'}`,
     `  targets: ${result.targets.map((target) => target.label).join(', ') || 'none'}`,
-    `  freshness: ${result.audit.currentLinks}/${result.audit.expectedLinks} current (${result.audit.freshnessPct}%), missing ${result.audit.missingLinks}, stale ${result.audit.staleSymlinks}, blocked ${result.audit.blockedNonSymlinks}, audit errors ${result.audit.errors.length}`,
+    `  freshness: ${result.audit.currentLinks}/${result.audit.expectedLinks} current (${result.audit.freshnessPct}%), missing ${result.audit.missingLinks}, stale ${result.audit.staleSymlinks}, blocked ${result.audit.blockedNonSymlinks}, orphaned ${result.audit.orphanedLinks}, unmanaged ${result.audit.unmanagedLinks}, audit errors ${result.audit.errors.length}`,
   ];
+
+  for (const orphan of result.audit.examples.orphaned ?? []) {
+    lines.push(`    orphaned ${orphan.target} -> ${orphan.current ?? '?'} (skill is gone from the catalog)`);
+  }
 
   if (!result.statusOnly) {
     lines.push(
-      `  linked: created ${result.created}, replaced ${result.replaced}, already ${result.alreadyLinked}`,
-      `  skipped existing non-symlinks: ${result.skippedExisting.length}`,
+      `  linked: created ${result.created}, replaced ${result.replaced}, already ${result.alreadyLinked}, removed ${result.removed}`,
+      `  preserved targets: ${result.skippedExisting.length}`,
       `  errors: ${result.errors.length}`,
     );
   }
@@ -405,7 +525,7 @@ export function formatSkillSyncSummary(result: SyncAgentSkillsResult): string[] 
       lines.push(`    skipped ${skipped.target}: ${skipped.reason}`);
     }
     if (result.skippedExisting.length > 5) {
-      lines.push(`    ... ${result.skippedExisting.length - 5} more skipped existing files`);
+      lines.push(`    ... ${result.skippedExisting.length - 5} more preserved targets`);
     }
   }
 
@@ -531,6 +651,33 @@ function safeRealpath(path: string): string | null {
   }
 }
 
+/**
+ * realpath for a path whose leaf may not exist -- resolve the deepest ancestor
+ * that does, then put the missing tail back.
+ *
+ * An orphaned link points at a skill that has been DELETED, so its destination
+ * cannot be realpath'd: the whole reason we are looking at it is that nothing
+ * is there. Comparing that raw destination against realpath'd roots is an
+ * apples-to-oranges test, and it fails wherever a root is reached through a
+ * symlink -- which on macOS is the ordinary case, since the temp and work
+ * trees sit under /var, itself a link to /private/var. The reaper then read
+ * every real orphan as "unmanaged", counted it, named it, and declined to
+ * remove it: the exact fail-open this reaper exists to close, on one platform
+ * only, which is why Linux was green and macOS was not.
+ */
+function realpathExistingPrefix(path: string): string {
+  let head = resolve(path);
+  const tail: string[] = [];
+  for (;;) {
+    const real = safeRealpath(head);
+    if (real) return tail.length ? join(real, ...tail.reverse()) : real;
+    const parent = dirname(head);
+    if (parent === head) return resolve(path); // hit the root without finding one
+    tail.push(head.slice(parent.length + 1));
+    head = parent;
+  }
+}
+
 type SymlinkOutcome =
   | { kind: 'created' }
   | { kind: 'replaced' }
@@ -538,14 +685,26 @@ type SymlinkOutcome =
   | { kind: 'skipped'; reason: string }
   | { kind: 'error'; error: string };
 
-function ensureSymlink(target: string, source: string, dryRun: boolean): SymlinkOutcome {
+function ensureSymlink(target: string, source: string, dryRun: boolean, gitManaged = false, checkParents?: () => string | null): SymlinkOutcome {
   try {
+    const refusal = checkParents?.();
+    if (refusal) return { kind: 'error', error: refusal };
     const parent = dirname(target);
     if (!dryRun) mkdirSync(parent, { recursive: true });
+    const changedParent = checkParents?.();
+    if (changedParent) return { kind: 'error', error: changedParent };
 
     const stat = lstatSafe(target);
     if (!stat) {
-      if (!dryRun) symlinkSync(source, target, 'dir');
+      if (!dryRun) {
+        try { symlinkSync(source, target, 'dir'); }
+        catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+          const appeared = lstatSafe(target);
+          if (appeared?.isSymbolicLink() && sameLinkTarget(target, readlinkSync(target), source)) return { kind: 'already' };
+          return { kind: 'skipped', reason: 'target appeared during projection; preserved without replacement' };
+        }
+      }
       return { kind: 'created' };
     }
 
@@ -554,6 +713,9 @@ function ensureSymlink(target: string, source: string, dryRun: boolean): Symlink
       if (sameLinkTarget(target, current, source)) {
         return { kind: 'already' };
       }
+      // Git worktrees use create-only projection. Never unlink a pre-existing
+      // link after a policy snapshot: another hook or editor may now own it.
+      if (gitManaged) return { kind: 'skipped', reason: 'existing Git-worktree link differs; preserved for explicit reconciliation' };
       if (!dryRun) {
         unlinkSync(target);
         symlinkSync(source, target, 'dir');

@@ -1,52 +1,44 @@
-% Figure 14 — institutional routes, not a hierarchy. The operator authors a
-% bounded grant; the daemon acts; agents covenant with peers; override remains.
+% Figure 14 — sequence diagram, redrawn to spec [ch4.md 4.14]. Three
+% lifelines, four messages top to bottom, no crossing: operator grants once,
+% agents act under the grant, the daemon gates or escalates every act, and
+% the override is the one edge running straight from operator to daemon.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  % Three role stations on one institutional section.
-  \node[pd panel title,anchor=east] at (2.25,4.45) {operator};
-  \node[pd axis label,anchor=east] at (2.25,4.12) {AUTHOR};
-  \node[pd panel title,anchor=east] at (2.25,2.55) {daemon};
-  \node[pd axis label,anchor=east] at (2.25,2.22) {ACTOR};
-  \node[pd panel title,anchor=east] at (2.25,.72) {agents};
-  \node[pd axis label,anchor=east] at (2.25,.39) {MULTITUDE};
+\begin{tikzpicture}[pd figure,x=0.82cm,y=1cm]
+  \node[pd actor] (op) at (0,8.0) {\textbf{operator}\\[1pt]\footnotesize author};
+  \node[pd actor] (dm) at (5.0,8.0) {\textbf{daemon}\\[1pt]\footnotesize actor};
+  \node[pd actor] (ag) at (10.0,8.0) {\textbf{agents}\\[1pt]\footnotesize multitude};
 
-  \draw[pd rule,line width=1.05pt] (2.65,4.30)--(13.65,4.30);
-  \draw[pd focus rule,line width=1.05pt] (2.65,2.40)--(13.65,2.40);
-  \draw[pd rule,line width=1.05pt] (2.65,.60)--(13.65,.60);
+  \draw[pd guide] (0,7.35) -- (0,0.3);
+  \draw[pd guide] (5.0,7.35) -- (5.0,0.3);
+  \draw[pd guide] (10.0,7.35) -- (10.0,0.3);
 
-  \node[pd datum] at (4.0,4.30) {};
-  \node[pd focus datum] at (7.0,2.40) {};
-  \draw[pd focus arrow] (4.0,4.18)--(6.82,2.58);
-  \node[pd direct label,text=hhteal,anchor=south,rotate=-28] at (5.35,3.52)
-    {scoped grant $g$};
+  % 1. operator grants the daemon a scoped grant g
+  \draw[pd focus arrow] (0,6.1) -- (5.0,6.1);
+  \node[pd direct label,text=hhteal,anchor=south] at (2.5,6.2) {scoped grant g};
 
-  \draw[pd caution arrow] (9.65,4.18) to[out=-75,in=28] (7.20,2.57);
-  \node[pd direct label,text=hhamber,anchor=west] at (9.28,3.35)
-    {override revokes $g$};
-  \node[pd caution datum] at (9.65,4.30) {};
+  % 2. an agent's act arrives at the daemon under g
+  \draw[pd arrow] (10.0,4.6) -- (5.0,4.6);
+  \node[pd direct label,anchor=south] at (7.5,4.7) {act a1 under g};
 
-  \draw[pd focus arrow] (7.0,2.22)--(7.0,.82);
-  \node[pd direct label,text=hhteal,anchor=west,align=left] at (7.28,2.03)
-    {blocks $\cdot$ lands\\escalates $\cdot$ gates};
+  % 3. the daemon gates or escalates that act
+  \draw[pd arrow] (5.0,3.1) -- (10.0,3.1);
+  \node[pd direct label,anchor=south] at (7.5,3.2) {gate / escalate};
 
-  \foreach \x/\a in {4.10/$a_1$,5.75/$a_2$,7.40/$a_3$,9.05/$a_4$,10.70/$a_5$,12.35/$a_6$}{
-    \node[pd datum] at (\x,.60) {};
-    \node[pd axis label,anchor=north] at (\x,.38) {\a};
-  }
-  \draw[pd arrow,<->] (4.10,.92) to[out=35,in=145] (12.35,.92);
-  \node[pd direct label,anchor=south] at (8.22,1.10)
-    {each-with-all covenant};
+  % 4. the override: the one edge from operator to daemon
+  \draw[pd caution arrow] (0,1.6) -- (5.0,1.6);
+  \node[pd direct label,text=hhamber,anchor=south] at (2.5,1.7) {override: revoke g};
 
-  \draw[decorate,decoration={brace,amplitude=4pt},pd hairline]
-    (3.25,-.18)--(13.10,-.18);
-  \node[pd note,anchor=north] at (8.18,-.35)
-    {the daemon enforces this peer covenant; it is not a party to it};
+  \node[pd note,anchor=north,align=center,text width=7.6cm] at (5.0,-0.1)
+    {\hyphenpenalty=10000\exhyphenpenalty=10000
+     one grant; the daemon gates every act;\\only the operator overrides};
 \end{tikzpicture}
-\caption{The institutional routes are typed, not hierarchical. The operator is
-the author who owns authority, issues the scoped grant $g$, and retains the
-inalienable override. The daemon is the actor that may block, land, escalate, or
-gate only within $g$. Agents are the multitude whose covenant is each-with-all;
-the daemon enforces that peer relation without becoming one of its parties.}
+\caption{The grant-and-gate sequence, three lifelines and four messages, no
+crossing. The operator grants once (message 1: scoped grant g). Agents act
+under that grant (message 2), and the daemon gates or escalates every such
+act (message 3) rather than granting again. The override (message 4) is the
+one edge running straight from operator to daemon, bypassing the agents
+entirely. Idealized to one representative act; a live fleet repeats messages
+2--3 per act, not per grant [internal].}
 \label{fig:roles}
 \end{figure}

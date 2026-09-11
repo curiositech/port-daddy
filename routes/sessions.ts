@@ -110,7 +110,7 @@ interface SessionsRouteDeps {
       includeNotes?: boolean;
       limit?: number;
     }): Record<string, unknown>;
-    get(sessionId: string): Record<string, unknown>;
+    get(sessionId: string, options?: { metadataOnly?: boolean }): Record<string, unknown>;
     cleanup(options?: {
       olderThan?: number;
       status?: string;
@@ -367,6 +367,12 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
    */
   const errorStatus = (result: Record<string, unknown>) => {
     switch (result.code) {
+      case 'NOTE_TOO_LARGE':
+        return 413;
+      case 'NOTE_RATE_LIMITED':
+        return 429;
+      case 'NOTE_STORAGE_FAILED':
+        return 503;
       case 'VALIDATION_ERROR':
         return 400;
       case 'SESSION_AGENT_MISMATCH':
@@ -395,6 +401,12 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
    */
   const noteWriteStatus = (result: Record<string, unknown>) => {
     switch (result.code) {
+      case 'NOTE_TOO_LARGE':
+        return 413;
+      case 'NOTE_RATE_LIMITED':
+        return 429;
+      case 'NOTE_STORAGE_FAILED':
+        return 503;
       case 'SESSION_NOT_FOUND':
         return 404;
       case 'SESSION_NOT_ACTIVE':
@@ -547,7 +559,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       };
     }
 
-    const lookup = sessions.get(sessionId);
+    const lookup = sessions.get(sessionId, { metadataOnly: true });
     const session = lookup.success && lookup.session && typeof lookup.session === 'object'
       ? lookup.session as Record<string, unknown>
       : null;
@@ -688,15 +700,6 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
   ) => {
     const { content, sessionId: bodySessionId, agentId, type } = request.body as any;
 
-    if (!content || typeof content !== 'string') {
-      reply.code(400);
-      return {
-        success: false,
-        error: 'content must be a non-empty string',
-        code: 'VALIDATION_ERROR'
-      };
-    }
-
     const sessionId = routeSessionId ?? bodySessionId;
     if (typeof sessionId !== 'string' || !sessionId.trim()) {
       reply.code(400);
@@ -727,9 +730,8 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     // daemon persists the envelope JSON, never the plaintext content.
     let writtenContent: string = content;
     if (sessionId) {
-      const lookup = sessions.get(sessionId);
-      const sess = (lookup as any)?.session as { identity_project?: string | null } | undefined;
-      const project = sess?.identity_project ?? null;
+      const project = typeof noteIdentity.session.identityProject === 'string'
+        ? noteIdentity.session.identityProject : null;
       const guard = checkAdversarialProjectWrite(project, request.body);
       if (guard.ok === false) {
         reply.code(guard.code);
@@ -744,6 +746,13 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       }
     }
 
+    // Validate the guarded representation, not an unconditional plaintext
+    // field: protected projects supply only the existing envelope form.
+    if (!writtenContent || typeof writtenContent !== 'string') {
+      reply.code(400);
+      return { success: false, error: 'content must be a non-empty string', code: 'VALIDATION_ERROR' };
+    }
+
     const result = sessions.quickNote(writtenContent, {
       sessionId: sessionId.trim(),
       agentId: noteIdentity.ownerAgentId,
@@ -752,6 +761,9 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
 
     if (!result.success) {
       reply.code(noteWriteStatus(result));
+      if (result.code === 'NOTE_RATE_LIMITED' && typeof result.retryAfterMs === 'number') {
+        reply.header('Retry-After', Math.max(1, Math.ceil(result.retryAfterMs / 1000)));
+      }
       return result;
     }
 
@@ -759,18 +771,18 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     // sees which minted actor the note was attributed to.
     result.identity = noteIdentity.verdict.identity;
 
-    logger.info('session_note_added', {
+    try { logger.info('session_note_added', {
       noteId: result.noteId,
       sessionId: result.sessionId,
       type: type || 'note',
       identityVerified: true,
-    });
+    }); } catch { /* Logging cannot negate an accepted append receipt. */ }
 
     if (activityLog?.log) {
-      activityLog.log('session_note', {
+      try { activityLog.log('session_note', {
         details: `Note added to session ${result.sessionId}`,
         metadata: { noteId: result.noteId as number, sessionId: result.sessionId as string, type: type || 'note' }
-      });
+      }); } catch { /* The durable note identity remains the write receipt. */ }
     }
 
     return result;
@@ -1084,8 +1096,10 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       });
 
       if (!result.success) {
-        const statusCode = result.code === 'VALIDATION_ERROR' ? 400 : 404;
-        reply.code(statusCode);
+        reply.code(noteWriteStatus(result));
+        if (result.code === 'NOTE_RATE_LIMITED' && typeof result.retryAfterMs === 'number') {
+          reply.header('Retry-After', Math.max(1, Math.ceil(result.retryAfterMs / 1000)));
+        }
         return result;
       }
 
@@ -1250,15 +1264,15 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       const projectParam = q.project;
 
       const type = typeof typeParam === 'string' ? typeParam : undefined;
-      const limit = typeof limitParam === 'string' ? parseInt(limitParam, 10) : 100;
-      const since = typeof sinceParam === 'string' ? parseInt(sinceParam, 10) : undefined;
+      const limit = limitParam === undefined ? 100 : typeof limitParam === 'string' && /^\d+$/.test(limitParam) ? Number(limitParam) : NaN;
+      const since = sinceParam === undefined ? undefined : typeof sinceParam === 'string' && /^\d+$/.test(sinceParam) ? Number(sinceParam) : NaN;
       const project = typeof projectParam === 'string' && projectParam.trim() ? projectParam.trim() : undefined;
 
       const result = sessions.getNotes(sessionId, { type, limit, since, project });
 
       if (!result.success) {
-        reply.code(404);
-        return { ...result, code: 'SESSION_NOT_FOUND' };
+        reply.code(result.code === 'VALIDATION_ERROR' ? 400 : 404);
+        return { ...result, code: result.code ?? 'SESSION_NOT_FOUND' };
       }
 
       return result;
@@ -1675,13 +1689,13 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       const sinceParam = q.since;
       const projectParam = q.project;
 
-      const limit = typeof limitParam === 'string' ? parseInt(limitParam, 10) : 50;
+      const limit = limitParam === undefined ? 50 : typeof limitParam === 'string' && /^\d+$/.test(limitParam) ? Number(limitParam) : NaN;
       const type = typeof typeParam === 'string' ? typeParam : undefined;
-      const since = typeof sinceParam === 'string' ? parseInt(sinceParam, 10) : undefined;
+      const since = sinceParam === undefined ? undefined : typeof sinceParam === 'string' && /^\d+$/.test(sinceParam) ? Number(sinceParam) : NaN;
       const project = typeof projectParam === 'string' && projectParam.trim() ? projectParam.trim() : undefined;
 
       const result = sessions.getNotes(null, { limit, type, since, project });
-
+      if (!result.success) reply.code(result.code === 'VALIDATION_ERROR' ? 400 : 404);
       return result;
 
     } catch (error) {

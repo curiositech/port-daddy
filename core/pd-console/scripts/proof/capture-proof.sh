@@ -421,7 +421,7 @@ validate_explicit_display() {
       matched="$line"
       break
     fi
-  done <<< "$listing"
+  done < <(printf '%s\n' "$listing")
 
   [[ -n "$matched" ]] || fail_intervention "PD_PROOF_DISPLAY '$selector' was not found in pd-console --list-displays. Refusing to let pd-console fall back to the primary display."
   if display_line_is_primary "$matched"; then
@@ -463,7 +463,7 @@ resolve_display() {
         fi
       fi
     fi
-  done <<< "$listing"
+  done < <(printf '%s\n' "$listing")
   idx="${idx:-$last}"
   [[ -n "$idx" ]] || fail_intervention "Could not parse display indexes from pd-console --list-displays."
   echo "$idx"

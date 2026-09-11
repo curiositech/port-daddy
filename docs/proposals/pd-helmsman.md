@@ -454,7 +454,7 @@ the fourth — Helmsman must be selector-driven before it dispatches anything.
 |---|---|---|
 | `legible-roadmap-with-sidequests` | one canonical roadmap; link-or-opt-out costs one line; spawned work captured in the same sitting | Helmsman reads only `roadmap_items`; this PR carries its own `Roadmap-Spawns:` trailer |
 | `work-intake-node-shaping` | legacy verbs are compat metadata into one WorkIntent funnel, never a second launch path | ship on dispatch-compat *because* it already projects into WorkIntentService; migration trigger recorded |
-| `product-roadmap-focus` | smallest visible slice; the not-now list is load-bearing | the 103→≤10 triage; the explicit not-harvested list; MVP line at P0+P1 |
+| `product-roadmap-focus` | smallest visible slice; the not-now list is essential | the 103→≤10 triage; the explicit not-harvested list; MVP line at P0+P1 |
 | `architecture-binder-of-record` | capability = owner + gate + evidenceLink; append-only AoR ledger every run | committed-file aor-log; the first entry ships in this PR |
 | `human-gate-designer` | gate before irreversible; four-state with Modify; cost/confidence on the card | the trust ladder; ADR-0134's card contract; force-zoom set |
 | `agent-issue-tracker-workflow` | search before creating; close with evidence | existing slugs rescoped in place; every issue close carries `mined:`/`dup-of:`/PR evidence |

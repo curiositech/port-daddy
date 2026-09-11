@@ -141,7 +141,7 @@ The two items, verbatim (L402–410):
 > (iii) The classification is relative to the alphabet split: a runtime that gates model steps
 > (e.g.\ token-level filtering with the model inside the boundary) changes $\Sigma_u$ and
 > re-grades the table --- the theorem is a functor from architectures to boundaries, not one
-> fixed verdict. (iv) The full-observation assumption is load-bearing: policies whose triggers
+> fixed verdict. (iv) The full-observation assumption is critical: policies whose triggers
 > are unwitnessed internal state fall to the Lin--Wonham refinement (\S\ref{sec:partial}) even
 > when their prohibitions are controllable. (v) The checker verifies the stated policy
 > automata over the stated alphabet [internal, \texttt{b3\_controllability.py}]; it is a
@@ -356,7 +356,7 @@ the section — and its first six words are structurally in the same family as t
 bans outright (L41–42: "declare that the data ``mathematically cannot phone home.'' This
 paper's first job is to explain why that sentence must never be shipped"). The *paper* is
 correct; the *pull-quote* is a liability, and this paper's stated discipline is that its own
-banned-phrase list is load-bearing.
+banned-phrase list is critical.
 
 ### What this means for the fix
 
@@ -377,7 +377,7 @@ because they agree with it.
 > impersonate another.
 
 **Verdict: CONFIRMED on substance, with a corrected diagnosis.** The labeling-promise
-violation is real, load-bearing, and worse than the review states — it recurs three times, not
+violation is real, critical, and worse than the review states — it recurs three times, not
 twice, and carries neither a label nor a citation nor a provenance tag anywhere. But the
 specific §1-vs-§10 "discrepancy" the review names is thin, and a fix note built on it would be
 easy to rebut.
@@ -404,7 +404,7 @@ And the companion provenance discipline, L58–60:
 > writes with everything it read, so a taint tracker faces a binary choice between marking
 > every output token (useless) and missing semantic flows (unsound).
 
-§4 / Pillar II, L248–250 — reasserted as a premise, still unlabeled, and now doing load-bearing
+§4 / Pillar II, L248–250 — reasserted as a premise, still unlabeled, and now doing critical
 work for the design:
 
 > Whole-worker taint is exactly what the theorem licenses: since token-level taint through an
@@ -426,7 +426,7 @@ token-level taint") and in the whole-worker-taint design paragraph (L95–97).
 is an *important* statement: §10 makes it one of exactly two things that are new
 ("What is ours is the adaptation of that design to \emph{tool-using LLM agents}, and the
 assurance schedule the adaptation forces," L487–488), and the four-pillar table (L114–129)
-assigns a verification method and an artifact to every other load-bearing claim in the paper.
+assigns a verification method and an artifact to every other critical claim in the paper.
 This one has none. It is not a theorem (no statement, no proof), not a design invariant (not
 in the L106–110 list), not a model-checked property (no script; the reproducibility section at
 L500–506 enumerates the three scripts and this is not among them), and not tagged as an
@@ -437,7 +437,7 @@ The contrast with the paper's own behaviour elsewhere is stark and is the strong
 this paper is unusually scrupulous about attribution — it retro-cites `sm03` for delimited
 release, `rruv16` for the privacy filter, `wrrw23` for adaptive composition, `ryoan16` for the
 design itself ("Any reader who knows that paper should be told so in this one," L484). The
-taint claim is the single load-bearing assertion in the paper with no citation, no label, and
+taint claim is the single critical assertion in the paper with no citation, no label, and
 no artifact.
 
 **Where the review overreaches.** "Called a 'stated unsoundness result' in §10, with nothing

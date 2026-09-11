@@ -56,7 +56,7 @@ the claim. `analyses/harbor_card_v5_attenuation.pv`:
 |---|---|---|
 | Q1 soundness | `not event(Accepted(.., cap_write, cap_read)) is true` | escalation never accepted |
 | Q2 non-vacuity | `not event(EscalationAttempted(..)) is false` | escalation IS reachable (not vacuous) |
-| Negative control (guard deleted) | Q1 flips to `false` with trace | the `is_subset` guard is load-bearing |
+| Negative control (guard deleted) | Q1 flips to `false` with trace | the `is_subset` guard is foundational |
 
 The negative control is the key rigor step: deleting the verifier's
 `is_subset(sub_cap, root_cap)` line makes ProVerif exhibit the read→write

@@ -989,7 +989,7 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
         title: 'Coordination is a substrate, not a polite request.',
         paragraphs: [
           'Without the lock, two agents both read, both write, and the second silently erases the first — and the merge still looks clean. With it, the write is exclusive and the contention is visible.',
-          'That is the whole product in one example: the boring, load-bearing layer that keeps a swarm from becoming a knife fight.',
+          'That is the whole product in one example: the boring foundation layer that keeps a swarm from becoming a knife fight.',
         ],
       },
     ],

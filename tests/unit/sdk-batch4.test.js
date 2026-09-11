@@ -873,11 +873,15 @@ describe('Route error codes: sessions', () => {
   });
 
   test('POST /sessions/:id/notes returns VALIDATION_ERROR for missing content', async () => {
-    // First create a session
-    const session = await app.inject({ method: 'POST', url: '/sessions', payload: { purpose: 'test' } });
+    const session = await app.inject({ method: 'POST', url: '/sessions',
+      headers: creds['agent-owner'].headers, payload: { purpose: 'test', agentId: 'agent-owner' } });
     const sessionId = session.json().id;
 
-    const res = await app.inject({ method: 'POST', url: `/sessions/${sessionId}/notes`, payload: {} });
+    const unauthenticated = await app.inject({ method: 'POST', url: `/sessions/${sessionId}/notes`, payload: {} });
+    expect(unauthenticated.statusCode).toBe(401);
+    expect(unauthenticated.json().code).toBe('IDENTITY_CREDENTIAL_REQUIRED');
+    const res = await app.inject({ method: 'POST', url: `/sessions/${sessionId}/notes`,
+      headers: creds['agent-owner'].headers, payload: {} });
 
     expect(res.statusCode).toBe(400);
     expect(res.json().code).toBe('VALIDATION_ERROR');
@@ -1007,7 +1011,14 @@ describe('Route error codes: sessions', () => {
   });
 
   test('POST /notes returns VALIDATION_ERROR for empty content', async () => {
-    const res = await app.inject({ method: 'POST', url: '/notes', payload: {} });
+    const session = await app.inject({ method: 'POST', url: '/sessions',
+      headers: creds['agent-owner'].headers, payload: { purpose: 'test', agentId: 'agent-owner' } });
+    const unscoped = await app.inject({ method: 'POST', url: '/notes',
+      headers: creds['agent-owner'].headers, payload: {} });
+    expect(unscoped.statusCode).toBe(400);
+    expect(unscoped.json().code).toBe('SESSION_SCOPE_REQUIRED');
+    const res = await app.inject({ method: 'POST', url: '/notes',
+      headers: creds['agent-owner'].headers, payload: { sessionId: session.json().id, content: '' } });
 
     expect(res.statusCode).toBe(400);
     expect(res.json().code).toBe('VALIDATION_ERROR');

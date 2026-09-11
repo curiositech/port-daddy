@@ -41,7 +41,7 @@ import { createServices } from './lib/services.js';
 import { createMessaging } from './lib/messaging.js';
 import { createLocks } from './lib/locks.js';
 import { createHealth } from './lib/health.js';
-import { createAgents } from './lib/agents.js';
+import { createAgents, getDeadThresholdForStatus } from './lib/agents.js';
 import { createActivityLog, ActivityType } from './lib/activity.js';
 import { createWebhooks, WebhookEvent } from './lib/webhooks.js';
 import { createProjects } from './lib/projects.js';
@@ -50,6 +50,8 @@ import { createAgentInbox, inboxMessageForMessaging } from './lib/agent-inbox.js
 import { createAttention } from './lib/attention.js';
 import { createClaimWatcher } from './lib/claim-watcher.js';
 import { createResurrection } from './lib/resurrection.js';
+import { createHaltWatch, haltSentinelPath, distressFilePath } from './lib/halt-watch.js';
+import { createHeartbeatDeathHandler } from './lib/agent-heartbeat-death.js';
 import { createChangelog } from './lib/changelog.js';
 import { createTunnel } from './lib/tunnel.js';
 import { createDns } from './lib/dns.js';
@@ -107,7 +109,6 @@ import { createContextWindowTracker } from './lib/context-window-tracker.js';
 import { createTool2VecReconciler } from './lib/skill-graft-reconciler.js';
 import { resolveSkillGraftRuntime } from './lib/skill-graft-runtime.js';
 import { createKnowledgeCustodian } from './lib/knowledge-custodian.js';
-import { normalizeSelfSalvage } from './lib/telos-salvage.js';
 import { createOperatorPermissions } from './lib/operator-permissions.js';
 import { createCounters } from './lib/counters.js';
 import { createUsageTelemetry } from './lib/usage-telemetry.js';
@@ -115,6 +116,7 @@ import { createMetricsRegistry } from './lib/metrics-registry.js';
 import { createBonds } from './lib/bonds.js';
 import { createBudgetGuard } from './lib/budget-guard.js';
 import { createActorSouls } from './lib/actor-souls.js';
+import { createBeginIdempotency } from './lib/begin-idempotency.js';
 import { authorizeSessionOwner, resolveWriteIdentity, stampIdentityMetadata } from './lib/identity-write-boundary.js';
 import { migrateActorSouls } from './scripts/migrate-actor-souls.js';
 import { homedir } from 'node:os';
@@ -134,7 +136,7 @@ import { createRoadmapActivity } from './lib/roadmap-activity.js';
 import { launchFleetBarIfEnabled } from './lib/fleetbar-launcher.js';
 import { createGraphEdges } from './lib/graph-edges.js';
 import { createEpisodicMemory } from './lib/episodic-memory.js';
-import { createLocalEmbedder, createSemanticResolver, defaultTransformersCacheDir } from './lib/semantic-resolver.js';
+import { createLocalTextEmbedder, createSemanticResolver, defaultTransformersCacheDir } from './lib/semantic-resolver.js';
 import { installGovernor } from './lib/observability/index.js';
 import { createObservabilityMaintenance } from './lib/observability/maintenance.js';
 import { createDurableAgentRoster } from './lib/durable-agent-roster.js';
@@ -614,7 +616,15 @@ function triggerTool2VecReconcile(trigger: string): void {
   });
 }
 const episodicMemory = createEpisodicMemory(db, { tuples, graphEdges, semanticResolver });
-const durableAgentRoster = createDurableAgentRoster(db, { resolver: semanticResolver, logger });
+// Durable forensics journal — every Arbiter security event AND every identity
+// retirement / resurrection (actor souls, durable roster) is written, in full,
+// to an append-only JSONL journal OUTSIDE the live DB (~/.port-daddy/forensics/),
+// so it survives the 7-day activity_log prune. Default on; opt out with
+// PD_FORENSICS_ARCHIVE=off. (ADR-0089.) Created here, ahead of the identity
+// stores, because they journal through it.
+const forensicsSink =
+  process.env.PD_FORENSICS_ARCHIVE === 'off' ? undefined : createJsonlForensicsArchive();
+const durableAgentRoster = createDurableAgentRoster(db, { resolver: semanticResolver, logger, forensicsSink });
 const quorum = createQuorum({ tuples });
 const feedback = createFeedback({ tuples });
 const roadmapItems = createRoadmapItems({ db, tuples, graphEdges });
@@ -804,7 +814,13 @@ const bonds = createBonds(db, {
 // no new budget. HONEST LIMIT: the anti-launder only fully bites once the `door`
 // lane makes the SQLite write-boundary real (a same-UID agent can otherwise
 // write a ledger/pool row directly). This is ADR-0040's explicit non-goal.
-const actorSouls = createActorSouls(db);
+// Retirement is final unless resurrected through the audited path; both
+// transitions are journaled to the forensics sink (identity keystone).
+const actorSouls = createActorSouls(db, { forensicsSink });
+// Begin idempotency (lib/begin-idempotency.ts): a `pd begin` retried after a
+// lost response replays the ORIGINAL session and its once-returned credential
+// instead of minting a second soul + session. Owns its own additive DDL.
+const beginIdempotency = createBeginIdempotency(db);
 // Grandfather EXISTING agents (from budget_ledger/bond_escrow/agents) into
 // trusted souls before budgetGuard starts routing spend through the souls
 // choke below -- otherwise every already-running agent looks like a brand
@@ -930,7 +946,9 @@ function authorizeManagedSpawnerSession(input: {
 // second model download. The pipeline is lazy: the first /galaxy/map call may
 // take seconds while MiniLM loads; the 30s per-param-tuple response cache in
 // lib/galaxy.ts makes the steady state cheap.
-const galaxyEmbedder = createLocalEmbedder({ cacheDir: defaultTransformersCacheDir() });
+const galaxyEmbedder = createLocalTextEmbedder('pd.galaxy.sessions', {
+  cacheDir: defaultTransformersCacheDir(),
+});
 const galaxy = createGalaxy({ db, transcripts, sessions, embedder: galaxyEmbedder });
 
 // Private, short-lived admission witnesses for exact managed sessions. Durable
@@ -1304,12 +1322,8 @@ function resolveArbiterStrictMode(value: string | undefined): boolean {
 
 semanticIndex.initialize();
 const arbiterStrictMode = resolveArbiterStrictMode(process.env.PORT_DADDY_ARBITER_STRICT);
-// Durable forensics journal — every Arbiter security event is written, in full,
-// to an append-only JSONL journal OUTSIDE the live DB (~/.port-daddy/forensics/),
-// so it survives the 7-day activity_log prune. Default on; opt out with
-// PD_FORENSICS_ARCHIVE=off. (ADR-0089.)
-const forensicsSink =
-  process.env.PD_FORENSICS_ARCHIVE === 'off' ? undefined : createJsonlForensicsArchive();
+// The forensics journal (`forensicsSink`, ADR-0089) is created above, next to
+// the identity stores that also write to it.
 const arbiter = createArbiter(
   { activityLog, agents, sessions, locks, resurrection, bonds, forensicsSink },
   { strictMode: arbiterStrictMode }
@@ -1374,6 +1388,33 @@ const repoRegistry = createRepoRegistry({
   logger,
 });
 
+// ── ADR-0132 listening watch (phase 3) ──────────────────────────────────────
+// A 30 s unref'd timer that does one `existsSync` on ~/.port-daddy/HALT. On
+// the nominal → halted transition every background sweep that could spend or
+// coordinate is stopped here — the reaper/resurrection cleanup interval, the
+// dispatch worker, the auto-merge sweep, and the fleet daemon — and the
+// watch writes SEEN then COMPLIED to the distress file. `/health` answers
+// `state: 'halted'`. The sentinel's later absence does NOT resume anything:
+// only a signed operator ALL-CLEAR (phase 4) lifts a halt, and until then a
+// halted daemon stays halted until it is restarted. Created here (so the
+// route deps can read its state) and armed in the LIFECYCLE section once the
+// cleanup interval it must be able to stop exists.
+let cleanupTimer: ReturnType<typeof setInterval> | null = null;
+const haltWatch = createHaltWatch({
+  entity: `daemon:${DAEMON_PLANE}`,
+  sentinelPath: haltSentinelPath(),
+  distressPath: distressFilePath(),
+  repoDistressPath: join(REPO_ROOT, '.portdaddy', 'DISTRESS'),
+  logger,
+  onHalt: (halt) => {
+    logger.warn('halt_entered', { ref: halt.ref, line: halt.line });
+    if (cleanupTimer) { clearInterval(cleanupTimer); cleanupTimer = null; }
+    try { dispatchWorker?.stop(); } catch (err) { logger.warn('halt_dispatch_worker_stop_failed', { error: (err as Error).message }); }
+    if (autoMergeTimer) { clearInterval(autoMergeTimer); autoMergeTimer = null; }
+    try { fleetDaemon.stop(); } catch (err) { logger.warn('halt_fleet_stop_failed', { error: (err as Error).message }); }
+  },
+});
+
 // Wire resurrection events (identical to server.ts)
 resurrection.on('agent:stale', (agent) => {
   messaging.publish('resurrection', JSON.stringify({
@@ -1383,62 +1424,10 @@ resurrection.on('agent:stale', (agent) => {
   logger.info('agent_stale', { agentId: agent.id, name: agent.name });
 });
 
-resurrection.on('agent:dead', (agent) => {
-  harbors.leaveAll(agent.id);
-
-  // Capture the agent's active session ids BEFORE abandoning them, so the custodian
-  // can harvest each session's notes into episodic memory while they remain queryable
-  // (Item 6 — on-death fast path; without it, notes wait up to a poll interval or are
-  // lost when the zombie protocol abandons the session first).
-  const abandonedSessionIds = sessions.activeSessionIdsByAgent(agent.id);
-  const zombied = sessions.abandonByAgent(agent.id);
-  if (zombied > 0) {
-    logger.warn('zombie_sessions_abandoned', { agentId: agent.id, count: zombied });
-    activityLog.log(ActivityType.SESSION_END, {
-      details: `Zombie protocol: ${zombied} active session(s) abandoned — agent ${agent.name || agent.id} is dead`,
-      metadata: { agentId: agent.id, zombied }
-    });
-  }
-  messaging.publish('resurrection', JSON.stringify({
-    event: 'dead', agentId: agent.id, name: agent.name, purpose: agent.purpose,
-    lastHeartbeat: agent.lastHeartbeat, staleSince: agent.staleSince, zombiedSessions: zombied
-  }));
-  messaging.publish('agents', JSON.stringify({
-    event: 'dead', agentId: agent.id,
-    message: `Agent ${agent.name || agent.id} is dead and queued for resurrection`
-  }));
-  logger.warn('agent_dead', { agentId: agent.id, name: agent.name });
-  activityLog.log(ActivityType.AGENT_CLEANUP, {
-    details: `Agent ${agent.name || agent.id} detected as dead, queued for resurrection`,
-    metadata: { agentId: agent.id, staleSince: agent.staleSince }
-  });
-
-  if (custodian) {
-    // Item 6 (on-death harvest): promote each abandoned session's notes immediately.
-    for (const sid of abandonedSessionIds) void custodian.onSessionEnd(sid);
-
-    // Items 1b + 2 (auto-resurrect): read the dying agent's self-salvage capsule as
-    // untrusted respawn CONTEXT, and hand the custodian the AUTHENTICATED scope from the
-    // verified StaleAgent record — never from the forgeable capsule. Passing scope as a
-    // distinct argument makes a forged `capsule.identityProject` structurally unable to
-    // influence the operator-permission check (ADR-0040 trust boundary).
-    //
-    // The raw capsule read back from resurrection.getSalvageCapsule() is only guaranteed
-    // to be *some* plain object (see resurrection.ts's getSalvageCapsule — it just checks
-    // `typeof === 'object'`), never that it matches SelfSalvageCapsule's shape. Run it
-    // through the same normalizeSelfSalvage() producer contract that governs the capsule
-    // elsewhere (telos-salvage.ts) before handing it to the custodian, so a malformed or
-    // corrupted capsule degrades to `undefined` respawn context instead of propagating an
-    // arbitrary shape into the resurrection_context inbox message / operator approval
-    // payload.
-    const rawCapsule = resurrection.getSalvageCapsule(agent.id);
-    const salvage = normalizeSelfSalvage(rawCapsule);
-    if (rawCapsule && !salvage.success) {
-      logger.warn('salvage_capsule_invalid', { agentId: agent.id, error: salvage.error });
-    }
-    void custodian.onAgentDead(agent.id, agent.identityProject ?? '', salvage.capsule as Record<string, unknown> | undefined);
-  }
+const handleAgentHeartbeatDeath = createHeartbeatDeathHandler({
+  sessions, harbors, resurrection, messaging, logger, activityLog, custodian,
 });
+resurrection.on('agent:dead', handleAgentHeartbeatDeath);
 
 resurrection.on('agent:resurrected', (oldAgentId, newAgentId) => {
   messaging.publish('resurrection', JSON.stringify({ event: 'resurrected', oldAgentId, newAgentId }));
@@ -1504,6 +1493,7 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
       const agentSessionRows = db.prepare(`
         SELECT agent_id, id AS session_id FROM sessions
         WHERE agent_id IN (${placeholders}) AND status = 'active'
+          AND (is_durable IS NULL OR is_durable = 0)
         GROUP BY agent_id HAVING MAX(updated_at)
       `).all(...inactiveIds) as AgentSessionRow[];
 
@@ -1530,6 +1520,17 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
       }
 
       for (const agent of inactiveAgents) {
+        const hold = resurrection.holdForDurableSessions(agent.id);
+        if (hold.held) {
+          if (Date.now() - agent.lastHeartbeat > getDeadThresholdForStatus(agent.status)) {
+            handleAgentHeartbeatDeath({
+              id: agent.id, name: agent.name || agent.id, purpose: agent.metadata?.purpose ?? null,
+              lastHeartbeat: agent.lastHeartbeat, staleSince: agent.lastHeartbeat + getDeadThresholdForStatus(agent.status),
+              identityProject: agent.identityProject ?? null,
+            });
+          }
+          continue;
+        }
         const sessionId = agentSessionMap.get(agent.id);
         const notes = sessionId ? (notesBySession.get(sessionId) ?? []) : [];
         resurrection.check({
@@ -1858,12 +1859,13 @@ await registerAllRoutes(
     roadmapActivity,
     commitments, obligationMonitor, suggestions, whois,
     contextBootstrapLookup,
-    bonds, budgetGuard, budgetPause, actorSouls,
+    bonds, budgetGuard, budgetPause, actorSouls, beginIdempotency,
     arbiter, bosunHeartbeat,
     VERSION, CODE_HASH, STARTED_AT, __dirname, repoRoot: REPO_ROOT,
     runningBinarySnapshot: RUNNING_BINARY_SNAPSHOT,
     daemonBerth: DAEMON_BERTH,
     plane: DAEMON_PLANE,
+    haltWatch,
     cleanupStale, getSystemPorts,
     // Relay (ADR-0049) connection status — the LIVE lifecycle's snapshot.
     // `connected` is true only while the relay has an accepted SSE stream
@@ -1960,7 +1962,13 @@ app.setErrorHandler((err: Error & { type?: string; statusCode?: number }, reques
 // LIFECYCLE (identical to server.ts)
 // =============================================================================
 
-setInterval(() => cleanupStale(), config.cleanup.interval_ms);
+cleanupTimer = setInterval(() => cleanupStale(), config.cleanup.interval_ms);
+
+// ADR-0132: arm the listening watch now that every sweep it may have to stop
+// exists. The first check runs synchronously, so a daemon started under a
+// hoisted flag is `halted` — sweeps off, SEEN/COMPLIED written — before it
+// serves a single request.
+haltWatch.start();
 
 setInterval(() => {
   const now = Date.now();
@@ -2012,6 +2020,7 @@ function shutdown(signal: string): void {
   try { dispatchWorker?.stop(); } catch {}
   try { if (autoMergeTimer) clearInterval(autoMergeTimer); } catch {}
   try { if (tool2VecTimer) clearInterval(tool2VecTimer); } catch {}
+  try { haltWatch.stop(); } catch {}
   systemPortsRefresh.stop();
   if (ipcServer) ipcServer.stop().catch(() => {});
   closeDatabase(db);
@@ -2102,6 +2111,9 @@ function onReady(): void {
   // same project fleet as the canonical daemon.
   if (DISABLE_FLEET) {
     logger.info('fleet_daemon_disabled', { reason: 'PORT_DADDY_NO_FLEET' });
+  } else if (haltWatch.state() === 'halted') {
+    // ADR-0132: a halt seen at boot must not be undone by the ready path.
+    logger.info('fleet_daemon_disabled', { reason: 'halt_sentinel', ref: haltWatch.halt()?.ref });
   } else {
     try {
       fleetDaemon.start();

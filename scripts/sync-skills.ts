@@ -27,8 +27,8 @@
  * mirror, and the user's declared Claude/AGENTS libraries. External catalogs are
  * inputs only when explicitly configured; discovery never installs their runtime.
  */
-import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
+import { skillSyncRepositoryRoot } from '../lib/skill-sync-git.js';
 import {
   formatSkillSyncSummary,
   syncAgentSkills,
@@ -50,11 +50,10 @@ interface Cli {
  */
 function repoRoot(): string {
   try {
-    return execFileSync('git', ['rev-parse', '--show-toplevel'], {
-      encoding: 'utf8',
-    }).trim();
+    return skillSyncRepositoryRoot(process.cwd());
   } catch {
-    return process.cwd();
+    process.stderr.write('sync-skills: unable to verify the selected project root; no links written\n');
+    process.exit(1);
   }
 }
 
@@ -151,8 +150,11 @@ function main(): void {
     const changed =
       result.created > 0 ||
       result.replaced > 0 ||
+      result.errors.length > 0 ||
+      result.removed > 0 ||
       result.audit.missingLinks > 0 ||
-      result.audit.staleSymlinks > 0;
+      result.audit.staleSymlinks > 0 ||
+      result.audit.orphanedLinks > 0;
     if (!cli.quiet || changed) {
       for (const line of formatSkillSyncSummary(result)) {
         process.stdout.write(line + '\n');
@@ -162,7 +164,10 @@ function main(): void {
 
   // In --check mode, drift is a non-zero exit so CI / hooks can gate on it.
   if (cli.check) {
-    const drift = result.audit.missingLinks + result.audit.staleSymlinks;
+    // An orphan is drift too, and the kind that used to be invisible: the
+    // audit only ever walked skills the catalog still has, so a link left
+    // behind by a deleted skill was never counted and never reported.
+    const drift = result.audit.missingLinks + result.audit.staleSymlinks + result.audit.orphanedLinks;
     if (drift > 0) {
       process.stderr.write(
         `sync-skills: ${drift} runtime skill link(s) out of date. Run: npm run skills:sync\n`,

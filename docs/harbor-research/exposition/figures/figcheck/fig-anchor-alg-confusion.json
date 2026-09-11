@@ -1,0 +1,145 @@
+{
+ "figure": "fig-anchor-alg-confusion",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T4": {
+   "status": "fail",
+   "count": 4,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      219.98573303222656,
+      96.78955078125,
+      286.5440979003906,
+      104.7596664428711
+     ],
+     "text": "tampered payload",
+     "line_segment": [
+      [
+       249.2999725341797,
+       140.62228393554688
+      ],
+      [
+       249.2999725341797,
+       31.486923217773438
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'tampered payload'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      210.84852600097656,
+      68.06906127929688,
+      250.8823699951172,
+      76.03917694091797
+     ],
+     "text": "rule source",
+     "line_segment": [
+      [
+       242.1304931640625,
+       85.34568786621094
+      ],
+      [
+       230.87428283691406,
+       74.08950805664062
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'rule source'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      283.06243896484375,
+      39.15517807006836,
+      345.8988037109375,
+      47.12528991699219
+     ],
+     "text": "untrusted header",
+     "line_segment": [
+      [
+       338.59222412109375,
+       44.809967041015625
+      ],
+      [
+       354.1830749511719,
+       60.68409729003906
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'untrusted header'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      340.6181335449219,
+      114.5076904296875,
+      352.4457702636719,
+      122.4778060913086
+     ],
+     "text": "Ed",
+     "line_segment": [
+      [
+       310.24542236328125,
+       117.94477844238281
+      ],
+      [
+       380.53369140625,
+       117.94477844238281
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'Ed'"
+    }
+   ]
+  },
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T4"
+  ],
+  "warned_checks": []
+ }
+}

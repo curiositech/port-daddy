@@ -1,0 +1,407 @@
+{
+ "figure": "fig-stp-parfit-chain",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "fail",
+   "count": 19,
+   "findings": [
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      162.40744018554688,
+      55.03689193725586,
+      165.88275146484375,
+      60.72480392456055
+     ],
+     "text": "1",
+     "size_pt": 5.69,
+     "message": "text '1' renders at 5.69pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      254.1158905029297,
+      55.03689193725586,
+      257.5912170410156,
+      60.72480392456055
+     ],
+     "text": "2",
+     "size_pt": 5.69,
+     "message": "text '2' renders at 5.69pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      254.1158905029297,
+      87.40455627441406,
+      257.5912170410156,
+      93.09246826171875
+     ],
+     "text": "2",
+     "size_pt": 5.69,
+     "message": "text '2' renders at 5.69pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      359.3113098144531,
+      87.40455627441406,
+      362.78662109375,
+      93.09246826171875
+     ],
+     "text": "3",
+     "size_pt": 5.69,
+     "message": "text '3' renders at 5.69pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      359.3113098144531,
+      119.77259826660156,
+      362.78662109375,
+      125.46051025390625
+     ],
+     "text": "3",
+     "size_pt": 5.69,
+     "message": "text '3' renders at 5.69pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      432.1386413574219,
+      119.77259826660156,
+      435.61395263671875,
+      125.46051025390625
+     ],
+     "text": "4",
+     "size_pt": 5.69,
+     "message": "text '4' renders at 5.69pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      327.80731201171875,
+      80.9758529663086,
+      331.2826232910156,
+      86.66376495361328
+     ],
+     "text": "2",
+     "size_pt": 5.69,
+     "message": "text '2' renders at 5.69pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      423.2923583984375,
+      114.42263793945312,
+      426.7676696777344,
+      120.11054992675781
+     ],
+     "text": "3",
+     "size_pt": 5.69,
+     "message": "text '3' renders at 5.69pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      304.597412109375,
+      175.27723693847656,
+      308.0727233886719,
+      180.96514892578125
+     ],
+     "text": "1",
+     "size_pt": 5.69,
+     "message": "text '1' renders at 5.69pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      324.50262451171875,
+      175.27723693847656,
+      327.9779357910156,
+      180.96514892578125
+     ],
+     "text": "2",
+     "size_pt": 5.69,
+     "message": "text '2' renders at 5.69pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      344.4078369140625,
+      175.27723693847656,
+      347.8831481933594,
+      180.96514892578125
+     ],
+     "text": "3",
+     "size_pt": 5.69,
+     "message": "text '3' renders at 5.69pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      364.31304931640625,
+      175.27723693847656,
+      367.7883605957031,
+      180.96514892578125
+     ],
+     "text": "4",
+     "size_pt": 5.69,
+     "message": "text '4' renders at 5.69pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      185.59523010253906,
+      230.48828125,
+      189.5633544921875,
+      237.46212768554688
+     ],
+     "text": "2",
+     "size_pt": 6.97,
+     "message": "text '2' renders at 6.97pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      374.0385437011719,
+      230.48828125,
+      378.00665283203125,
+      237.46212768554688
+     ],
+     "text": "3",
+     "size_pt": 6.97,
+     "message": "text '3' renders at 6.97pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      178.34326171875,
+      242.44345092773438,
+      182.31138610839844,
+      249.41729736328125
+     ],
+     "text": "1",
+     "size_pt": 6.97,
+     "message": "text '1' renders at 6.97pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      461.8710632324219,
+      242.44345092773438,
+      465.83917236328125,
+      249.41729736328125
+     ],
+     "text": "1",
+     "size_pt": 6.97,
+     "message": "text '1' renders at 6.97pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      486.6667785644531,
+      242.44345092773438,
+      490.6348876953125,
+      249.41729736328125
+     ],
+     "text": "2",
+     "size_pt": 6.97,
+     "message": "text '2' renders at 6.97pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      511.4624938964844,
+      242.44345092773438,
+      515.4306030273438,
+      249.41729736328125
+     ],
+     "text": "3",
+     "size_pt": 6.97,
+     "message": "text '3' renders at 6.97pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      71.44334411621094,
+      254.39862060546875,
+      75.41146087646484,
+      261.3724670410156
+     ],
+     "text": "4",
+     "size_pt": 6.97,
+     "message": "text '4' renders at 6.97pt, below the 7.00pt floor"
+    }
+   ]
+  },
+  "T2": {
+   "status": "fail",
+   "count": 2,
+   "findings": [
+    {
+     "check": "T2",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      250.22119140625,
+      52.501827239990234,
+      257.5912170410156,
+      60.72480392456055
+     ],
+     "container_bbox": [
+      244.1636505126953,
+      56.38832092285156,
+      264.1239013671875,
+      111.95285034179688
+     ],
+     "text": "o2",
+     "message": "text 'o2' escapes its containing rect (244.2, 56.4, 264.1, 112.0)"
+    },
+    {
+     "check": "T2",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      355.4166259765625,
+      84.86949157714844,
+      362.78662109375,
+      93.09246826171875
+     ],
+     "container_bbox": [
+      349.358642578125,
+      88.7559814453125,
+      369.31890869140625,
+      144.3205108642578
+     ],
+     "text": "o3",
+     "message": "text 'o3' escapes its containing rect (349.4, 88.8, 369.3, 144.3)"
+    }
+   ]
+  },
+  "T3": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T4": {
+   "status": "fail",
+   "count": 2,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      250.22119140625,
+      84.86949157714844,
+      257.5912170410156,
+      93.09246826171875
+     ],
+     "text": "o2",
+     "line_segment": [
+      [
+       254.1435546875,
+       100.35421752929688
+      ],
+      [
+       254.1435546875,
+       67.98654174804688
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'o2'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      355.4166259765625,
+      117.23753356933594,
+      362.78662109375,
+      125.46051025390625
+     ],
+     "text": "o3",
+     "line_segment": [
+      [
+       359.3389587402344,
+       132.72225952148438
+      ],
+      [
+       359.3389587402344,
+       100.35421752929688
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'o3'"
+    }
+   ]
+  },
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T1",
+   "T2",
+   "T4"
+  ],
+  "warned_checks": []
+ }
+}

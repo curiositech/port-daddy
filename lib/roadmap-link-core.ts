@@ -114,6 +114,42 @@ export function parseRoadmapTrailer(body: string | null | undefined): {
   return { slug, optOutReason };
 }
 
+/**
+ * Merge-admission classification. The PR declaration is the contract; a
+ * versioned roadmap snapshot is neither current authority nor a reason to stop
+ * unrelated delivery. Existence and contradiction reconciliation happen
+ * asynchronously in Chartroom and the durable roadmap service.
+ */
+export function classifyDeclaration(body: string | null | undefined): LinkResult {
+  const { slug, optOutReason } = parseRoadmapTrailer(body);
+  if (optOutReason && optOutReason !== 'unspecified') {
+    return {
+      verdict: 'pass', reason: 'opt-out', slug: null, optOutReason,
+      requiresHumanApproval: false, loud: false, labelShouldBePresent: false,
+      headline: `Opt-out accepted: ${optOutReason}`,
+    };
+  }
+  if (optOutReason === 'unspecified') {
+    return {
+      verdict: 'needs-approval', reason: 'missing-trailer', slug: null, optOutReason,
+      requiresHumanApproval: true, loud: false, labelShouldBePresent: true,
+      headline: '`Roadmap-Item: none` needs a specific opt-out reason.',
+    };
+  }
+  if (slug) {
+    return {
+      verdict: 'pass', reason: 'linked', slug, optOutReason: null,
+      requiresHumanApproval: false, loud: false, labelShouldBePresent: false,
+      headline: `Roadmap declaration present: "${slug}".`,
+    };
+  }
+  return {
+    verdict: 'needs-approval', reason: 'missing-trailer', slug: null, optOutReason: null,
+    requiresHumanApproval: true, loud: false, labelShouldBePresent: true,
+    headline: 'No `Roadmap-Item:` trailer — declare an item or opt out explicitly.',
+  };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Planning-doc spawn rule
 //

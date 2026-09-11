@@ -46,9 +46,19 @@ colliding*.
 ## Session lifecycle — run this every time
 
 **Open:**
-- `whoami` / `pd whoami` — resolve your identity. If none, `begin_session`
-  (`pd begin --identity <project>:<task>`).
-  *(Note: If running as a subagent, the harness might inject a parent/stale `PD_SESSION_ID`/`PD_AGENT_ID`. Override them by prefixing commands with `PD_SESSION_ID="" PD_AGENT_ID=""` to force the CLI to read the active filesystem context).*
+- Read the selected context and exact session, recorded owner and physical
+  worktree/root before choosing admission or recovery. Continue the verified
+  unresolved slice; do not create a replacement identity to silence a refusal.
+  A genuinely new task uses a linked worktree and `pd begin "<purpose>"
+  --identity <project>:<task> --lifecycle durable`.
+- Only at launch of a genuinely new child with its own context slot may the
+  launcher remove inherited parent selectors. Never clear an existing
+  `CONTEXT_CONFLICT`, broaden selectors or copy credentials to bypass a proven
+  contradiction. Supported recovery needs authority and exact successor/claim
+  readback; a missing row or old process is not transfer permission.
+- Establish a complete `pd plan set` checklist, including publication, reviews
+  and merge. Check off milestones as their evidence arrives, retaining all
+  unfinished tasks and prior plan history through compaction or handoff.
 - `catch_me_up` / `sitrep` — what is the daemon's state, who else is active,
   what was claimed, what notes are recent.
 - `pd salvage` (or check_salvage) — another agent may have died mid-task; pick up
@@ -70,6 +80,9 @@ colliding*.
   hard-code or guess a port. Deterministic identities mean the same
   `project:stack:context` always maps to the same port.
 - Drop `add_note` progress lines at meaningful checkpoints.
+- Commit coherent, validated checkpoints often with the verified agent's Git
+  author and committer attribution plus actor/session provenance. A checkpoint
+  is not delivery; requested research artifacts also belong in a PR.
 - Found a product gap (a thing the human operator can't do from FleetBar)?
   `drop_feedback` against the right surface instead of telling the operator to
   run a shell command.
@@ -82,10 +95,35 @@ colliding*.
 - `pd guard check --staged`. If the guard isn't enforcing, `pd guard install
   --mode enforce` or leave a clear blocker note explaining why not.
 
-**Close:**
+**Publish, review and land:**
+- Code is not done until it is ready to merge to main. Publish a ready,
+  non-draft App/Fleetbot PR through the repository's authorized path; retain
+  ownership through the actual merge. Sign comments with the responsible
+  agent/session and exact head, not the operator's identity.
+- Read-only inspection is distinct from publication and may use tools
+  permitted by repository/operator policy; where all GitHub access is
+  broker-routed, honor that policy for reads too. Never use ambient personal
+  credentials for GitHub writes. A planned ActionReceipt API or ad-hoc helper
+  is not a shipped surface: preserve prepared work and report an exact missing
+  capability rather than inventing a verb or replaying an uncertain write.
+- Respond graciously to every actionable review, incorporating feedback unless
+  clearly wrong or harmful and explaining disagreements with evidence. Add
+  regression tests and improve relevant CI/CD. Obtain independent review for
+  non-trivial changes and make the exact head's required checks green.
+- Use the normal protected merge/queue without admin bypass. Neutral/skipped
+  Fleet is not a clean required verdict; queue admission is not merge. Read
+  back the actual merged-head receipt, merge commit and timestamp.
+- Read-only reviewers and non-authoring roles must not push or merge. Their
+  assigned review/handoff is their finish line, not someone else's delivery.
+
+**Close only after the assigned finish line:**
+- Update the complete plan and existing roadmap item's typed PR receipt without
+  overwriting other owners, edges or plans. Do not run `pd done` at PR creation.
 - `add_note` (kind=`result`): "Result: <change>. Validation: <evidence>.
-  Remaining: <risk>."
-- `end_session_full` / `pd done "<outcome>"`.
+  Remaining: <risk>." Include exact PR and merged SHA for a delivery slice.
+- `end_session_full` / `pd done "<outcome>"` retains caller, plan, origin and
+  delivery gates. Missing authority means a supported accepting handoff, not
+  a completion override; ledger-only `--no-pr` does not hide unpublished work.
 
 ## Operator vs agent surface
 
@@ -129,7 +167,8 @@ But when the work fans out, you are a **coordinator**:
   delegate implementation edits, PR body drafting, and PR authoring to workers.
   Your job is to read returned artifacts, check evidence, steel-man the
   strongest case against shipping, retune roles by round, and decide whether
-  work advances.
+  work advances. Each author owns its PR through reviews and actual merge,
+  unless an accepting successor records the exact handoff in durable notes.
 - **Durable roles keep ledgers as projections.** Notes remain immutable
   evidence; ledgers are curated briefing surfaces for codebase context, operator
   preferences, current coordination truth, and cross-repo tactics. Keep privacy,
@@ -148,7 +187,9 @@ But when the work fans out, you are a **coordinator**:
   notes, not the implementer's reasoning. Default to reject-if-uncertain.
 - **Keep one coordination-keeper alive.** A long-lived agent that does no edits:
   it watches `swarm_awareness`, notes, and claims; resolves overlaps; re-anchors
-  stale sessions; runs salvage on interrupted work; keeps the guard enforcing.
+  stale sessions through supported authorized recovery; inspects salvage on
+  interrupted work; keeps the guard enforcing. A keeper cannot silently revive
+  another identity, release its claims or rewrite its unfinished plan.
   It is the substrate's immune system.
 - **Use worktrees for isolation** when agents mutate files in parallel, so
   branches don't fight. Merge through the guard, never around it.

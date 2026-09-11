@@ -1,0 +1,35 @@
+% Cycle versus cut: the same pairwise disagreement is detectable on C6, where
+% it closes a visible cycle, and invisible on P6, where no edge closes one.
+% Radii from skills/harbor-results/scripts/sheaf_consistency_radius.py
+% (seed 20260816): C6 r = 3 sqrt(1 - 5/6) = 1.2247, P6 r = 0. [verified]
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  % left panel: the cycle
+  \node[pd row label,anchor=south,align=center,text width=4.4cm] at (0,2.45) {the 6-cycle\\\normalfont the disagreement closes a cycle};
+  \foreach \i in {1,...,6} {
+    \node[pd state,circle,minimum size=6.5mm,inner sep=0pt,font=\footnotesize] (c\i) at ({90-60*(\i-1)}:1.45) {\i};
+  }
+  \foreach \i/\j in {1/2,2/3,3/4,4/5,5/6} { \draw[pd rule] (c\i) -- (c\j); }
+  \draw[pd caution rule,line width=1.4pt] (c6) -- (c1) node[pd direct label,text=hhamber,midway,above left=2pt,align=right,text width=3.1cm] {overlap disagrees: the edge that closes the cycle};
+  \node[pd note,anchor=north,align=center] at (0,-1.95) {$r = 1.2247$\\the disagreement is visible};
+  % right panel: the path
+  \begin{scope}[xshift=6.4cm]
+  \node[pd row label,anchor=south,align=center,text width=4.4cm] at (0,2.45) {the 6-path\\\normalfont the same disagreement, no cycle};
+  \foreach \i in {1,...,6} {
+    \node[pd state,circle,minimum size=6.5mm,inner sep=0pt,font=\footnotesize] (p\i) at ({-2.5+(\i-1)*1.0},0.55) {\i};
+  }
+  \foreach \i/\j in {1/2,2/3,4/5,5/6} { \draw[pd rule] (p\i) -- (p\j); }
+  \draw[pd caution rule,line width=1.4pt] (p3) -- (p4) node[pd direct label,text=hhamber,midway,above=3pt] {overlap disagrees};
+  \draw[pd hairline,dashed] (p6) to[out=-60,in=-120] node[pd direct label,midway,below=3pt] {no edge closes a cycle} (p1);
+  \node[pd note,anchor=north,align=center] at (0,-1.95) {$r = 0$\\the same disagreement is invisible};
+  \end{scope}
+\end{tikzpicture}
+\caption{Cycle versus cut on six harbors, numbered 1 to 6. The same pairwise disagreement on one
+overlap is placed on the cycle $C_6$ and on the path $P_6$. On the cycle the
+disagreeing edge closes a visible cycle and the consistency radius is
+$r = 3\,(1-5/6)^{1/2} = 1.2247$; on the path no edge closes a cycle and $r = 0$, so
+detection is exactly the visible-cycle condition of the theorem. [verified;
+\texttt{sheaf\_consistency\_radius.py}, seed 20260816]}
+\label{fig:fh-cycle-vs-cut}
+\end{figure}

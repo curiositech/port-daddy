@@ -29,7 +29,7 @@ economy.
 ## The shape of the library
 
 The library climbs a four-layer stack, from the machine up to the market, and then
-proves the load-bearing parts with machine-checked mathematics. **Four papers
+proves the structural parts with machine-checked mathematics. **Four papers
 explain the system; three prove it.** They are chapters in one book, not seven
 separate essays — each names what it assumes from below and what it underwrites
 above.

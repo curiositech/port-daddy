@@ -63,7 +63,14 @@ const schemaDir = join(here, '..', '..', 'schemas', 'agent-harbor', 'v0');
 const govDir = join(schemaDir, 'governance');
 const govFixtureDir = join(govDir, 'fixtures');
 
-const GOV_SCHEMAS = ['tool-gate-envelope', 'human-gate-payload', 'denial-receipt'];
+const GOV_SCHEMAS = [
+  'action-proposal',
+  'adjudication-receipt',
+  'denial-receipt',
+  'effect-receipt',
+  'human-gate-payload',
+  'tool-gate-envelope',
+];
 const TOP_LEVEL_AGENT_HARBOR_SCHEMAS = [
   'agent-node',
   'agent-run',
@@ -293,7 +300,7 @@ function governedCtx(overrides = {}) {
 // ---------------------------------------------------------------------------
 
 describe('C5 governance schema package', () => {
-  it('ships exactly the three governance contracts (plus fixtures + invariants)', () => {
+  it('ships the frozen governance contracts (plus fixtures + invariants)', () => {
     const files = readdirSync(govDir).filter((f) => f.endsWith('.schema.json')).sort();
     expect(files).toEqual(GOV_SCHEMAS.map((n) => `${n}.schema.json`).sort());
   });

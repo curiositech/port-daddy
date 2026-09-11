@@ -1,5 +1,6 @@
 import {
   parseRoadmapTrailer,
+  classifyDeclaration,
   snapshotBrokenReason,
   classify,
   isPlanningDoc,
@@ -24,6 +25,32 @@ const FRESH = snap([
   { slug: 'adr-0044-phase-0-dark-launch-resolver' },
   { slug: 'roadmap-link-gate' },
 ]);
+
+describe('classifyDeclaration', () => {
+  test('a declared slug passes without consulting a snapshot', () => {
+    expect(classifyDeclaration('Roadmap-Item: chartroom-cutover')).toMatchObject({
+      verdict: 'pass', reason: 'linked', slug: 'chartroom-cutover', loud: false,
+    });
+  });
+
+  test('a reasoned opt-out passes without consulting a snapshot', () => {
+    expect(classifyDeclaration('Roadmap-Item: none — CI policy correction')).toMatchObject({
+      verdict: 'pass', reason: 'opt-out', optOutReason: 'CI policy correction',
+    });
+  });
+
+  test('only an absent declaration blocks merge admission', () => {
+    expect(classifyDeclaration('No trailer here')).toMatchObject({
+      verdict: 'needs-approval', reason: 'missing-trailer', labelShouldBePresent: true,
+    });
+  });
+
+  test('a bare none is not a reasoned opt-out', () => {
+    expect(classifyDeclaration('Roadmap-Item: none')).toMatchObject({
+      verdict: 'needs-approval', reason: 'missing-trailer', optOutReason: 'unspecified',
+    });
+  });
+});
 
 describe('parseRoadmapTrailer', () => {
   test('extracts a slug from the Roadmap-Item trailer', () => {

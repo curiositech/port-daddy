@@ -1,0 +1,5 @@
+whitepaper-foundlings/worktree-convoy-platform-requirements/docs/harbor-research/figures/fig-b1-frontier.tex
+whitepaper-foundlings/worktree-convoy-platform-requirements/docs/harbor-research/figures/fig-paper6-dichotomy.tex
+whitepaper-foundlings/worktree-convoy-platform-requirements/docs/harbor-research/figures/fig-paper6-regime.tex
+whitepaper-foundlings/worktree-convoy-platform-requirements/docs/harbor-research/figures/fig-paper6-witness.tex
+whitepaper-foundlings/worktree-convoy-platform-requirements/docs/harbor-research/figures/fig-r7-regime.tex

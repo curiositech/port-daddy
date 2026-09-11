@@ -282,6 +282,7 @@ describe('resolveTier', () => {
     expect(resolveTier('session', ['takeover'])).toBe('notify');
     expect(resolveTier('takeover', ['session-123'])).toBe('notify');
     expect(resolveTier('session', ['rm'])).toBe('notify');
+    expect(resolveTier('session', ['find'])).toBe('silent');
     expect(resolveTier('session', ['start'])).toBe('notify');
     expect(resolveTier('session', ['end'])).toBe('notify');
     expect(resolveTier('session', ['files', 'add'])).toBe('notify');

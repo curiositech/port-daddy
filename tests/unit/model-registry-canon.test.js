@@ -247,6 +247,9 @@ describe('embedding profile registry', () => {
   });
 
   it.each([
+    ['executionClass', 'self-hosted'],
+    ['retrievalRoles', ['text_dense', 'code_dense']],
+    ['qualityTier', 'local_quality'],
     ['servingProvider', 'another-serving-plane'],
     ['runtimeFamily', 'another-runtime'],
     ['runtimeVersion', 'another-runtime@1.0.0'],
@@ -313,6 +316,11 @@ describe('embedding profile registry', () => {
   });
 
   it.each([
+    ['executionClass', 'somewhere', 'executionClass is invalid'],
+    ['retrievalRoles', [], 'retrievalRoles must be a non-empty unique list'],
+    ['retrievalRoles', ['text_dense', 'text_dense'], 'retrievalRoles must be a non-empty unique list'],
+    ['retrievalRoles', ['mystery_dense'], 'retrievalRoles must be a non-empty unique list'],
+    ['qualityTier', 'maybe-good', 'qualityTier is invalid'],
     ['dimensions', 0, 'positive safe integer'],
     ['maxTokens', 0, 'maxTokens must be a positive safe integer'],
     ['normalization', 'unit-ish', 'normalization is invalid'],

@@ -79,7 +79,7 @@ reducing at $A=0$ to $g(\rho,c) = c\rho + \frac{c(1-\rho)}{c(1-\rho)+C(c,\rho)}$
 \end{boundary}
 
 \section{B9 --- Context paging with an untrusted pin oracle}\label{sec:b9}
-\textbf{The story.} The resident context is a cache of spans; a feature oracle marks some spans load-bearing (pinned). The oracle is sometimes wrong --- at rate $\varphi$, the same forgeable-feature budget R1 already carries. How badly does paging degrade?
+\textbf{The story.} The resident context is a cache of spans; a feature oracle marks some spans critical (pinned). The oracle is sometimes wrong --- at rate $\varphi$, the same forgeable-feature budget R1 already carries. How badly does paging degrade?
 
 \onebreath{Linearly, and only linearly: with Young's Landlord on the honestly-unpinned region and pins re-derived on every fetch, a corrupted consultation costs at most one refetch --- but trust a pin blindly and a single corrupted bit costs $\Theta(N)$.}
 
@@ -96,7 +96,7 @@ an \emph{additive}, linear $\varphi$ term: each corruption perturbs one eviction
 \textbf{The wrong turn, reported.} A corruption can \emph{help} (extra cost $<0$) when the falsely-unpinned span was crowding a thrashing working set --- the bound is one-sided by design; the final mutation scenario isolates the pin effect.
 
 \begin{boundary}
-\textbf{Honest boundary.} Unit cost density is load-bearing for the mis-pin charge. Repair-on-touch is \emph{the} load-bearing guard --- without it damage is unbounded (staleness is priced charitably at refetch cost; acting on absent load-bearing context is a correctness failure). The oblivious hypothesis was not the boundary for the additive term (greedy-adaptive stayed inside; the oblivious/adaptive gap lives in the multiplicative $O(\log k)$ of randomized marking); a stronger adaptive adversary is untested. The sweep is evidence at small scale; the second-order credit step rests on the Landlord term's slack, verified per instance.
+\textbf{Honest boundary.} Unit cost density is critical for the mis-pin charge. Repair-on-touch is \emph{the} critical guard --- without it damage is unbounded (staleness is priced charitably at refetch cost; acting on absent critical context is a correctness failure). The oblivious hypothesis was not the boundary for the additive term (greedy-adaptive stayed inside; the oblivious/adaptive gap lives in the multiplicative $O(\log k)$ of randomized marking); a stronger adaptive adversary is untested. The sweep is evidence at small scale; the second-order credit step rests on the Landlord term's slack, verified per instance.
 \end{boundary}
 
 \section{B4 --- The tractable conflict fragment and its frontier}\label{sec:b4}
@@ -110,7 +110,7 @@ an \emph{additive}, linear $\varphi$ term: each corruption perturbs one eviction
 \textbf{Theorem (frontier).} Extend $\mathcal{L}_c$ with disjunctive obligations $\Ob(l_1 \vee \dots \vee l_k)$ under discharge-choice semantics: conflict-freedom is NP-complete (membership via the selection certificate; hardness from 3-SAT --- clause $\mapsto$ disjunctive obligation over selector literals, variable $\mapsto$ an $\Ob/\Fb$ pair on identical scope and interval).
 \end{thebox}
 
-\textbf{Numbers.} 3000 random in-fragment policy sets vs a brute-force oracle (all $2^5$ Horn models intersected; exhaustive integer search over the complete potential box): 885 conflicts (121 $\bot$, 195 $\Ob/\Fb$, 484 claims, 213 temporal), 149 reachable only through Horn propagation, \textbf{0 disagreements}; least model $=$ intersection-of-all-models on all 3000 [internal, \texttt{b4\_deontic\_fragment.py}]. The reduction verified both directions on 8 SAT $+$ 8 UNSAT instances, 16/16. Mutation: removing Horn propagation misses the four-line indirect witness (deploy $\to$ prod access $\to$ obliged write vs standing prohibition) and 100/885 sweep conflicts --- propagation is load-bearing at scale.
+\textbf{Numbers.} 3000 random in-fragment policy sets vs a brute-force oracle (all $2^5$ Horn models intersected; exhaustive integer search over the complete potential box): 885 conflicts (121 $\bot$, 195 $\Ob/\Fb$, 484 claims, 213 temporal), 149 reachable only through Horn propagation, \textbf{0 disagreements}; least model $=$ intersection-of-all-models on all 3000 [internal, \texttt{b4\_deontic\_fragment.py}]. The reduction verified both directions on 8 SAT $+$ 8 UNSAT instances, 16/16. Mutation: removing Horn propagation misses the four-line indirect witness (deploy $\to$ prod access $\to$ obliged write vs standing prohibition) and 100/885 sweep conflicts --- propagation is critical at scale.
 
 \begin{boundary}
 \textbf{Honest boundary.} Completeness is relative to least-model semantics (monotone bodies; negation-as-failure leaves the fragment). Ground atoms and intervals only --- unification and symbolic endpoints coupled to difference variables are outside what is proven. The batch bound is proven; the incremental form is a constants improvement. The checker certifies the norm \emph{system}, not the norms: a bad policy consistently held is consistent.

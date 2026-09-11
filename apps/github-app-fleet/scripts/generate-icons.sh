@@ -109,7 +109,7 @@ PY
 }
 
 for entry in "${DIRECTIONS[@]}"; do
-  IFS=: read -r slug prompt_file out_subdir <<< "$entry"
+  IFS=: read -r slug prompt_file out_subdir < <(printf '%s\n' "$entry")
   out_dir="$ICONS_DIR/$out_subdir"
   mkdir -p "$out_dir"
 

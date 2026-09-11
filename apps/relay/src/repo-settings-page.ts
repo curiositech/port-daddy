@@ -278,6 +278,7 @@ function repoCard(row: RepoSettingRow): string {
   return `<article class="repo-card" aria-label="Settings for ${repo}">
   <header class="rc-head"><h2>${repo}</h2><span class="when">updated ${when} UTC</span></header>
   <div class="rc-body">
+    <p><a href="/account/ships?repo=${encodeURIComponent(row.repo_full_name)}">Manage ships for ${repo} →</a></p>
     <form method="post" action="/account/repos/set">
       <input type="hidden" name="repo" value="${repo}">
       <div class="setting-name">Sitrep — end-of-turn report</div>

@@ -1,0 +1,3 @@
+type: changed
+
+- **The Book's front matter and two chapter passages now read in the author's voice.** The "What is built, what is modelled, what is proposed" page, the kernel chapter's hook-harness and writer-transfer passages, and the legible-swarm chapter's operator's-instrument section were rewritten out of the clipped one-idea-per-sentence register (longer connected sentences, dashes and parentheses, contractions, an aside where one is earned), and the maritime cover title is set ragged right with its own line breaks so the three lines no longer justify into gaps. No claim, label, or reference changed; the three edition PDFs were regenerated and the publication digests resynced.

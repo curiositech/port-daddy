@@ -4,7 +4,7 @@ A7 v2 — The Information-Floor Falsification Experiment (corrected model)
 =======================================================================
 The v1 bug (instructive, and exactly what falsification-first catches): I gave the
 oracle a PERFECT score vector and only charged bits for tie-resolution. But the
-floor charges bits for *identifying which items are load-bearing at all*. So v1's
+floor charges bits for *identifying which items are critical at all*. So v1's
 "violations" were a model/theory mismatch, not a refutation. Fix: the digest is a
 literal B-bit message; the operator's opened m-set is a deterministic decode of
 that message. Now bits gate identification, exactly as the theorem intends.
@@ -13,7 +13,7 @@ Correct model
 -------------
 A digest scheme is an ENCODER e: (observed features of the swarm) -> {0,1}^B and a
 fixed DECODER d: {0,1}^B -> (an m-subset to open). The scheme catches the true
-load-bearing set T iff T subseteq d(e(features)). Zero-miss over all placements is
+critical set T iff T subseteq d(e(features)). Zero-miss over all placements is
 possible iff the 2^B decoded m-subsets cover every k-subset, i.e. iff
     2^B * C(m,k) >= C(N,k)   <=>   B >= B* = log2 C(N,k) - log2 C(m,k).
 

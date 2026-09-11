@@ -22,7 +22,7 @@ interface Layer {
   code: string
   /** The scope this layer governs, in the reader's words. */
   scope: string
-  /** Who it is for — the load-bearing column from ADR-0048. */
+  /** Who it is for — the decisive column from ADR-0048. */
   whom: string
   /** The one thing Port Daddy does at this layer. */
   does: string

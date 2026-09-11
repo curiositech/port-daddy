@@ -1,5 +1,5 @@
 /**
- * The four phases of the Anchor Protocol (Chapter V, `fig-anchor-four-phases.tex`),
+ * The four phases of the Anchor Protocol (Chapter 2, `fig-anchor-four-phases.tex`),
  * drawn as a left-to-right refinement sequence. Each phase swaps the cryptographic
  * primitive, strengthens the property, and forecloses one specific threat (named in
  * the pill at the box base); the arrow records that the next phase is forced.
@@ -160,7 +160,7 @@ export function AnchorFourPhases() {
         </svg>
       </div>
       <figcaption className="border-t-2 border-[var(--border-strong)] p-[var(--space-4)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-        From Chapter V, <span className="font-black text-[var(--text-primary)]">The Anchor Protocol</span>.
+        From Chapter 2, <span className="font-black text-[var(--text-primary)]">The Anchor Protocol</span>.
         Each phase is a refinement of the one before it: the primitive changes, the
         property strengthens, and one threat is foreclosed. The pill on each arrow
         records why the next phase is <span className="font-black text-[var(--text-primary)]">forced</span> —

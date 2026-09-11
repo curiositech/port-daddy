@@ -20,20 +20,7 @@ import {
   type ContextBootstrapLookup,
 } from '../lib/sugar.js';
 
-interface StaleAgent {
-  id: string;
-  name: string;
-  purpose: string | null;
-  sessionId: string | null;
-  lastHeartbeat: number;
-  staleSince: number;
-  status: 'pending' | 'stale' | 'dead' | 'resurrecting';
-  notes?: string[];
-  // Semantic identity components for prefix filtering
-  identityProject: string | null;
-  identityStack: string | null;
-  identityContext: string | null;
-}
+import type { StaleAgent } from '../lib/resurrection.js';
 
 interface ResurrectionRouteDeps {
   logger: {
@@ -44,7 +31,7 @@ interface ResurrectionRouteDeps {
   resurrection: {
     pending(options?: { project?: string; stack?: string; limit?: number }): { success: boolean; agents: StaleAgent[]; count: number; filtered?: boolean };
     list(options?: { limit?: number; project?: string; stack?: string }): { success: boolean; agents: StaleAgent[]; count: number; filtered?: boolean };
-    claim(agentId: string): { success: boolean; agent?: StaleAgent; context?: Record<string, unknown>; error?: string };
+    claim(agentId: string): { success: boolean; agent?: StaleAgent; context?: Record<string, unknown>; error?: string; code?: string; replacementAlreadyAdmitted?: boolean };
     complete(oldAgentId: string, newAgentId: string): { success: boolean };
     abandon(agentId: string): { success: boolean };
     dismiss(agentId: string): { success: boolean };
@@ -178,6 +165,10 @@ export const resurrectionPlugin: FastifyPluginAsync<{ deps: ResurrectionRouteDep
       const result = resurrection.claim(agentId);
 
       if (!result.success) {
+        if (result.code === 'DURABLE_SESSION_ACTIVE') {
+          reply.code(409);
+          return result;
+        }
         reply.code(400);
         return { error: result.error };
       }
@@ -237,6 +228,7 @@ export const resurrectionPlugin: FastifyPluginAsync<{ deps: ResurrectionRouteDep
       }
 
       const result = resurrection.complete(oldAgentId, newAgentId);
+      if (!result.success) { reply.code(409); return result; }
 
       logger.info('salvage_complete', { oldAgentId, newAgentId, completedByActorId: identity.verdict.actorId });
       return result;
@@ -257,6 +249,7 @@ export const resurrectionPlugin: FastifyPluginAsync<{ deps: ResurrectionRouteDep
         return identity.result;
       }
       const result = resurrection.abandon(agentId);
+      if (!result.success) { reply.code(409); return result; }
 
       messaging.publish('salvage', JSON.stringify({
         event: 'abandoned',
@@ -281,6 +274,7 @@ export const resurrectionPlugin: FastifyPluginAsync<{ deps: ResurrectionRouteDep
         return identity.result;
       }
       const result = resurrection.dismiss(agentId);
+      if (!result.success) { reply.code(409); return result; }
 
       logger.info('salvage_dismissed', { agentId });
       return result;

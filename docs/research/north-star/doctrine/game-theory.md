@@ -2,7 +2,7 @@
 
 **Layer.** L2/L3 seam — *the formal capstone* — of the Port Daddy North Star
 (**ADR-0048**, `docs/adr/0048-what-port-daddy-is.md` — *the parent ADR resolving the
-stack into L0→L3*). This doc is the load-bearing argument for the whole volume's
+stack into L0→L3*). This doc is the critical argument for the whole volume's
 thesis: the line between built-L2 and designed-L3 is **the folk-theorem boundary**.
 
 **Audience.** A software engineer with a working math/CS background. Every
@@ -199,7 +199,7 @@ no defense against a hostile process on your own box"*). Federation puts other
 operators' boxes inside the boundary; identity is no longer free to mint-and-trust;
 the Sybil-reset launders any punishment history for the price of a re-registration.
 This is why the L3 design (ADR-0040 non-forgeable identity, the bond ledger) is
-*load-bearing for the market and irrelevant to the wedge* — and why building it
+*pivotal for the market and irrelevant to the wedge* — and why building it
 early would be solving a problem the single-operator user does not have.
 
 ---

@@ -156,24 +156,39 @@ def issue_rows_for_report(report: dict) -> list[tuple[str, str | None, str]]:
     return rows
 
 
+def build_summary(audits: list[dict]) -> dict:
+    """The one summary shape, whichever path asked for it.
+
+    This used to live inside persist_run, so --no-persist produced a THIRD of
+    it -- total, passing, failing, and neither warning_only nor failing_skills.
+    That mattered because --no-persist is exactly how the snapshot is written:
+    CI runs it that way, and website-v2/public/skill-audit.json is that
+    snapshot, and SkillAuditPage reads summary.warning_only. A flag that says
+    "do not touch SQLite" was quietly degrading the artifact the website
+    renders, and the page showed undefined for it.
+    """
+    total = len(audits)
+    passing = sum(1 for a in audits if a["report"]["ok"])
+    return {
+        "total": total,
+        "passing": passing,
+        "failing": total - passing,
+        "warning_only": sum(
+            1 for a in audits
+            if a["report"]["ok"] and (a["report"].get("missing_indexes_warning") or [])
+        ),
+        "failing_skills": sorted(a["skill_name"] for a in audits if not a["report"]["ok"]),
+    }
+
+
 def persist_run(conn: sqlite3.Connection, audits: list[dict],
                 duration_seconds: float) -> tuple[int, dict]:
     """Insert one run snapshot atomically. Returns (run_id, summary_stats)."""
-    total = len(audits)
-    passing = sum(1 for a in audits if a["report"]["ok"])
-    failing = total - passing
-    warning_only = sum(
-        1 for a in audits
-        if a["report"]["ok"] and (a["report"].get("missing_indexes_warning") or [])
-    )
-
-    summary = {
-        "total": total,
-        "passing": passing,
-        "failing": failing,
-        "warning_only": warning_only,
-        "failing_skills": sorted(a["skill_name"] for a in audits if not a["report"]["ok"]),
-    }
+    summary = build_summary(audits)
+    total = summary["total"]
+    passing = summary["passing"]
+    failing = summary["failing"]
+    warning_only = summary["warning_only"]
 
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
@@ -303,9 +318,7 @@ def main() -> int:
 
     run_id: int | None = None
     if args.no_persist:
-        passing = sum(1 for a in audits if a["report"]["ok"])
-        summary = {"total": len(audits), "passing": passing,
-                   "failing": len(audits) - passing}
+        summary = build_summary(audits)
     else:
         db_path = Path(args.db).expanduser().resolve()
         conn = open_db(db_path)

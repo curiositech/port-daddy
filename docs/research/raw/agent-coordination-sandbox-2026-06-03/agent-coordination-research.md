@@ -134,7 +134,7 @@ Each agent has `role`, `goal`, `backstory`, and `allow_delegation`. When delegat
 - **Buck-passing loops.** Agents delegate back and forth until budget exhausts. Fix: limit `max_iter` and turn off `allow_delegation` for executors.
 - **Vague role boundaries.** "Researcher" vs "Senior Data Researcher" matters — the model uses the role string as a routing prior.
 
-For PD, the takeaway is: **the directory entry's identity_context / purpose / agent_card text is load-bearing.** Whatever the agent self-declares becomes the routing prior. Generic identities will round-robin; specific ones will get hits.
+For PD, the takeaway is: **the directory entry's identity_context / purpose / agent_card text is essential.** Whatever the agent self-declares becomes the routing prior. Generic identities will round-robin; specific ones will get hits.
 
 Source: [CrewAI Collaboration docs](https://docs.crewai.com/en/concepts/collaboration), [Hierarchical AI Agents — ActiveWizards](https://activewizards.com/blog/hierarchical-ai-agents-a-guide-to-crewai-delegation).
 
@@ -326,7 +326,7 @@ pd.capability.earn(agentId: string, term: string, evidence: { sortieId?: string;
 
 **C. Conscripted / drafted.** The daemon (or orchestrator, or an operator-blessed agent) decides "you three are now a group" based on detected concern (an incident, a stuck claim, a roadmap escalation). Members are *notified*, not auto-consented.
 
-**D. Hybrid.** Auto-detected groups have a "promote to explicit" option — if the implicit group becomes load-bearing, an agent can call `pd group promote` to give it a name and TTL.
+**D. Hybrid.** Auto-detected groups have a "promote to explicit" option — if the implicit group becomes structural, an agent can call `pd group promote` to give it a name and TTL.
 
 ### 3.2 Default: hybrid, biased toward implicit
 

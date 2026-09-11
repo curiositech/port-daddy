@@ -1,0 +1,244 @@
+{
+ "figure": "fig-stp-estimator-family",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "fail",
+   "count": 12,
+   "findings": [
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      93.0357666015625,
+      172.580322265625,
+      132.52108764648438,
+      179.25465393066406
+     ],
+     "text": "full-history",
+     "size_pt": 6.67,
+     "message": "text 'full-history' renders at 6.67pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      135.29762268066406,
+      172.580322265625,
+      153.0780487060547,
+      179.25465393066406
+     ],
+     "text": "MLE",
+     "size_pt": 6.67,
+     "message": "text 'MLE' renders at 6.67pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      155.8612518310547,
+      172.580322265625,
+      183.77328491210938,
+      179.25465393066406
+     ],
+     "text": "selected",
+     "size_pt": 6.67,
+     "message": "text 'selected' renders at 6.67pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      186.5564422607422,
+      172.580322265625,
+      201.57366943359375,
+      179.25465393066406
+     ],
+     "text": "here",
+     "size_pt": 6.67,
+     "message": "text 'here' renders at 6.67pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      251.9612274169922,
+      172.580322265625,
+      286.0603942871094,
+      179.25465393066406
+     ],
+     "text": "centrality",
+     "size_pt": 6.67,
+     "message": "text 'centrality' renders at 6.67pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      288.8302307128906,
+      172.580322265625,
+      303.6472473144531,
+      179.25465393066406
+     ],
+     "text": "over",
+     "size_pt": 6.67,
+     "message": "text 'over' renders at 6.67pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      306.4170837402344,
+      172.580322265625,
+      323.1363220214844,
+      179.25465393066406
+     ],
+     "text": "local",
+     "size_pt": 6.67,
+     "message": "text 'local' renders at 6.67pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      325.9128112792969,
+      172.580322265625,
+      343.3327941894531,
+      179.25465393066406
+     ],
+     "text": "trust",
+     "size_pt": 6.67,
+     "message": "text 'trust' renders at 6.67pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      390.23388671875,
+      172.580322265625,
+      417.2915954589844,
+      179.25465393066406
+     ],
+     "text": "ratings,",
+     "size_pt": 6.67,
+     "message": "text 'ratings,' renders at 6.67pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      420.068115234375,
+      172.580322265625,
+      443.04119873046875,
+      179.25465393066406
+     ],
+     "text": "prices,",
+     "size_pt": 6.67,
+     "message": "text 'prices,' renders at 6.67pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      445.8243713378906,
+      172.580322265625,
+      472.26141357421875,
+      179.25465393066406
+     ],
+     "text": "adverse",
+     "size_pt": 6.67,
+     "message": "text 'adverse' renders at 6.67pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      475.03790283203125,
+      172.580322265625,
+      505.7331237792969,
+      179.25465393066406
+     ],
+     "text": "selection",
+     "size_pt": 6.67,
+     "message": "text 'selection' renders at 6.67pt, below the 7.00pt floor"
+    }
+   ]
+  },
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "fail",
+   "count": 1,
+   "findings": [
+    {
+     "check": "T3",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      393.5425720214844,
+      153.33251953125,
+      407.46075439453125,
+      162.23162841796875
+     ],
+     "other_bbox": [
+      390.23388671875,
+      161.3862762451172,
+      453.7734680175781,
+      170.28538513183594
+     ],
+     "text": "low",
+     "other_text": "feedback model",
+     "overlap_fraction": 0.095,
+     "message": "text 'low' overlaps 'feedback model' by 9.5% of the smaller bbox"
+    }
+   ]
+  },
+  "T4": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T1",
+   "T3"
+  ],
+  "warned_checks": []
+ }
+}
