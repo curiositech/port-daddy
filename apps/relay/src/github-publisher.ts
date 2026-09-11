@@ -1223,10 +1223,7 @@ async function signedReceipt(
   return { ...unsigned, signature };
 }
 
-/**
- * Relay handler. This intentionally is not wired into src/index.ts until the
- * contested router claim is lawfully transferred; tests import it directly.
- */
+/** Relay route handler for governed GitHub App publication operations. */
 export async function handleFleetbotPublisher(request: Request, env: PublisherEnv): Promise<Response> {
   let key: IntentKey | null = null;
   let appToken: string | null = null;
