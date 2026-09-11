@@ -284,10 +284,11 @@ export async function getRepoInstallationId(
   const jwt = await mintAppJwt(appId, privateKeyPem);
   const res = await fetch(`${GH_API}/repos/${owner}/${repo}/installation`, {
     headers: appHeaders(jwt),
+    redirect: 'error',
+    signal: AbortSignal.timeout(GH_PUBLISH_TIMEOUT_MS),
   });
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`GitHub App installation lookup failed ${res.status}: ${text}`);
+    throw new Error(`GitHub App installation lookup failed ${res.status}`);
   }
   const body = (await res.json()) as { id?: number };
   if (!body.id) throw new Error('GitHub App installation lookup returned no id');
