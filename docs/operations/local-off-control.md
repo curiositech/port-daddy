@@ -21,9 +21,16 @@ the Git shim, post-commit templates, the Pilot installer and the console's
 automatic post-merge rebuild. The standalone Pilot rechecks the same policy in
 JavaScript before stdin, its optional salvage request and output. Shared fixtures
 compare the shell and standalone predicates, including malformed witnesses.
-The redundant repository SessionStart `pd attention` command is removed.
+The repository SessionStart attention and UserPromptSubmit skill-sync hooks stay
+registered through `hooks/repo-lifecycle`, which embeds the same gate before
+invoking either helper. On/Off transitions never require removing or reinstalling
+the hooks.
 
 Off skips the Port Daddy block in a merged hook, not unrelated user commands.
+The checked-in pre-commit keeps ordinary staged-file validation independent of
+Port Daddy; only its PD secret scanner is gated. Off skips that scanner and is
+not a passing secret-scan result. Neither those checks nor the independent secret
+scanner requires a Coordination Guard installation.
 The checked-in publisher preserves Git LFS. A disabled Git shim delegates to real
 Git without calling the CLI or writing Port Daddy audit records. Turning off
 coordination is not permission to bypass GitHub branch protection or other tools.
@@ -43,13 +50,19 @@ made here.
 
 - [x] Inventory source and installed Git/harness entry points without running them.
 - [x] Gate managed Git guards, shim and publishing templates before invocation.
-- [x] Gate Pilot steering/networking and remove the direct attention hook.
+- [x] Gate Pilot steering/networking and retain attention behind a pre-invocation
+  gate. Keep skill sync registered and gated too.
+- [x] Preserve ordinary pre-commit checks, Git LFS and foreign hook bodies across
+  On → Off → On without reinstalling hooks; exercise transitions with stand-ins.
 - [x] Gate automatic post-merge console rebuilding.
 - [x] Repair this operator's identified installed Git hooks, Git shim, stale
   pre-compaction pair and Pilot script; preserve unrelated hook bodies.
 - [x] Complete adversarial regression validation and publish hook PR #10137:
-  149 tests pass; nine old socket-based cases remain excluded after a safety
-  denial. Independent source re-review found no remaining bounded-diff findings.
+  155 current selected tests pass for the hook-preservation correction. The
+  earlier 12 intercepted Pilot cases remain prior evidence, not a fresh run.
+  Nine old socket-based cases remain excluded after a safety denial. Skill-sync
+  catalog integration was not rerun. Independent source re-review found no
+  remaining bounded-diff findings after correcting wrapper-aware inbox status.
 - [x] Implement daemon-independent persistent native Off controls in source:
   FleetBar popover/Settings and pd-console control band. Save the stop state before
   requesting shutdown; show persistence errors and unverified shutdown separately.
@@ -126,5 +139,7 @@ Open adversarial gates at this checkpoint:
 Git LFS was already installed machine-wide. Repository-local filters are now
 explicit, incomplete pushes are disabled, and pointer validation passes. The App
 publisher uploads the LFS objects reachable from the exact publication head before
-Git push even though local hooks remain disabled. It never enables PD hooks, uses
+Git push even when that publication command suppresses all hooks. This is a
+command-scoped halt precaution, not persistent Git configuration or the product's
+On/Off mechanism. It never enables PD hooks, uses
 an all-local-refs upload, or falls back to personal GitHub credentials.
