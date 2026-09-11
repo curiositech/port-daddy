@@ -437,12 +437,17 @@ function getCheckpoint(db: DatabaseInstance, policy: CorpusPolicy): number {
 }
 
 function preparePolicyGeneration(db: DatabaseInstance, policy: CorpusPolicy): number {
-  const checkpoint = getCheckpoint(db, policy);
-  const anyMeta = db.prepare('SELECT id FROM harbor_search_meta WHERE id = 1').get();
-  if (anyMeta && checkpoint === 0) {
+  const row = db.prepare(
+    'SELECT corpus_id, corpus_policy_digest, last_ledger_seq FROM harbor_search_meta WHERE id = 1',
+  ).get() as
+    | { corpus_id: string; corpus_policy_digest: string; last_ledger_seq: number }
+    | undefined;
+  if (!row) return 0;
+  if (row.corpus_id !== policy.corpusId || row.corpus_policy_digest !== policy.policyDigest) {
     db.exec('DELETE FROM harbor_search_index; DELETE FROM harbor_search_meta;');
+    return 0;
   }
-  return checkpoint;
+  return row.last_ledger_seq;
 }
 
 function setCheckpoint(db: DatabaseInstance, seq: number, policy: CorpusPolicy): void {

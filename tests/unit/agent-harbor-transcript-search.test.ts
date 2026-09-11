@@ -22,7 +22,11 @@ import { appendEvent, type HarborPayload } from '../../lib/agent-harbor/event-le
 import { validateAgainstSchema } from '../../lib/agent-harbor/schema-validate.js';
 import type { LocalEmbedder } from '../../lib/semantic-resolver.js';
 import { HandoffScannerUnavailableError } from '../../lib/handoff-capsule.js';
-import { localTextCorpusPolicy, selectEmbeddingProfile } from '../../lib/retrieval-policy.js';
+import {
+  compileCorpusPolicy,
+  localTextCorpusPolicy,
+  selectEmbeddingProfile,
+} from '../../lib/retrieval-policy.js';
 import { RetrievalAdmissionError } from '../../lib/retrieval-admission.js';
 import {
   EmbedderUnavailableError,
@@ -594,6 +598,19 @@ describe('agent-harbor transcript search (M6, ADR-0097 phase 2)', () => {
     expect(await embedPending(db, fakeEmbedder)).toBe(0);
     const result = await searchTranscripts(db, baseQuery(), { autoIndex: false });
     expect(result.hits).toEqual([]);
+  });
+
+  it('rebuilds the disposable projection when the corpus policy revision changes', () => {
+    const first = indexPending(db);
+    const { policyDigest: _oldDigest, ...policyInput } = TEST_POLICY;
+    const revisedPolicy = compileCorpusPolicy({ ...policyInput, revision: '2' });
+    const rebuilt = indexPendingRaw(db, { policy: revisedPolicy, admission: TEST_ADMISSION });
+    expect(rebuilt.fromSeq).toBe(0);
+    expect(rebuilt.indexed).toBe(first.indexed);
+    const digests = db.prepare(
+      'SELECT DISTINCT corpus_policy_digest FROM harbor_search_index',
+    ).all() as Array<{ corpus_policy_digest: string }>;
+    expect(digests).toEqual([{ corpus_policy_digest: revisedPolicy.policyDigest }]);
   });
 
   it('fails closed on a dense embedder bound to another corpus or malformed vectors', async () => {
