@@ -343,14 +343,28 @@ function corsCredentialed(response: Response): Response {
 }
 
 /**
- * Decode one URL path segment FAIL-CLOSED, for the transcript-family routes.
+ * Decode one URL path segment FAIL-CLOSED. General-purpose: every route in
+ * this router that pulls a segment out of `pathname` uses this instead of a
+ * raw `decodeURIComponent` call.
  *
  * WHY: malformed percent-encoding (`%zz`) makes decodeURIComponent throw, and
- * the global boundary would surface that as a 500 — but everything under
- * /fleet/runs/:id answers one indistinguishable 404 to every failure, and a
- * malformed id must not be the single input that earns a distinguishable
- * answer. Returning '' fails the handlers' RUN_ID_RE / ship-name validation,
- * which IS that 404.
+ * the global boundary would surface that as a 500 — but almost every route
+ * here answers one indistinguishable 404 (or its route-specific equivalent:
+ * a 400 for a badly-shaped id, or a no-op 200 for an idempotent delete) to
+ * every failure it doesn't recognize, and a malformed id must not be the
+ * single input that earns a distinguishable answer. Returning '' relies on
+ * exactly that: whatever check the route already runs against a well-formed
+ * but unknown/invalid value (a RUN_ID_RE test, a DB lookup that misses, a
+ * length/shape guard) rejects '' the same way it rejects any other bad
+ * input, so malformed encoding collapses into the SAME answer.
+ *
+ * PRECONDITION: every call site MUST already reject '' downstream — this
+ * function does not decide what "invalid" means for a given route, it only
+ * makes sure a malformed escape produces a value the caller's own validator
+ * was always going to reject anyway. A caller that would happily use '' (no
+ * length check, no format check, no lookup that can miss) must NOT use this
+ * helper — it would silently turn a 500 into a wrong-but-successful lookup,
+ * which is worse. Guard explicitly at that call site instead.
  *
  * @param segment The raw (still-encoded) path segment from the route match.
  * @returns The decoded segment, or '' when the encoding is malformed.
@@ -528,12 +542,12 @@ export default {
       response = await handleFleetHealth(request, env);
     }
     else if (pathname.startsWith('/v1/fleet/runs/') && method === 'GET') {
-      const runId = decodeURIComponent(pathname.slice('/v1/fleet/runs/'.length));
+      const runId = safeDecodeSegment(pathname.slice('/v1/fleet/runs/'.length));
       response = await handleFleetRun(request, env, runId);
     }
     // DELETE one run + transcript (ADR-0101 export/delete per-tier, repo tier).
     else if (pathname.startsWith('/v1/fleet/runs/') && method === 'DELETE') {
-      const runId = decodeURIComponent(pathname.slice('/v1/fleet/runs/'.length));
+      const runId = safeDecodeSegment(pathname.slice('/v1/fleet/runs/'.length));
       response = await handleDeleteFleetRun(request, env, runId);
     }
 
@@ -545,11 +559,11 @@ export default {
       response = await handleListInterruptions(request, env);
     }
     else if (pathname.startsWith('/v1/interruptions/') && pathname.endsWith('/answer') && method === 'POST') {
-      const id = decodeURIComponent(pathname.slice('/v1/interruptions/'.length, -'/answer'.length));
+      const id = safeDecodeSegment(pathname.slice('/v1/interruptions/'.length, -'/answer'.length));
       response = await handleAnswerInterruption(request, env, id);
     }
     else if (pathname.startsWith('/v1/interruptions/') && pathname.endsWith('/ack') && method === 'POST') {
-      const id = decodeURIComponent(pathname.slice('/v1/interruptions/'.length, -'/ack'.length));
+      const id = safeDecodeSegment(pathname.slice('/v1/interruptions/'.length, -'/ack'.length));
       response = await handleAckInterruption(request, env, id);
     }
 
@@ -619,7 +633,7 @@ export default {
       response = await handleListApnsDevices(request, env);
     }
     else if (pathname.startsWith('/v1/push/apns/devices/') && method === 'DELETE') {
-      const deviceId = decodeURIComponent(pathname.slice('/v1/push/apns/devices/'.length));
+      const deviceId = safeDecodeSegment(pathname.slice('/v1/push/apns/devices/'.length));
       response = await handleUnregisterApnsDevice(request, env, deviceId);
     }
 
@@ -633,7 +647,7 @@ export default {
 
     // ── Fleet run page (HTML; check-run details_url target, ADR-0101) ────────
     else if (pathname.startsWith('/fleet/runs/') && method === 'GET') {
-      const runId = decodeURIComponent(pathname.slice('/fleet/runs/'.length));
+      const runId = safeDecodeSegment(pathname.slice('/fleet/runs/'.length));
       response = await handleFleetRunPage(request, env, runId);
     }
 
@@ -763,11 +777,11 @@ export default {
       response = await handlePublicSkillsListing(request, env);
     }
     else if (pathname.startsWith('/skills/') && method === 'GET') {
-      const qualified = decodeURIComponent(pathname.slice('/skills/'.length));
+      const qualified = safeDecodeSegment(pathname.slice('/skills/'.length));
       response = await handlePublicSkillPage(request, env, qualified);
     }
     else if (pathname.startsWith('/v1/skills/') && method === 'GET') {
-      const qualified = decodeURIComponent(pathname.slice('/v1/skills/'.length));
+      const qualified = safeDecodeSegment(pathname.slice('/v1/skills/'.length));
       response = await handlePublicSkillBody(request, env, qualified);
     }
     // ── Parley HTML surface (session + harbor-member gated; parleys-page.ts) ─
@@ -900,13 +914,13 @@ export default {
       response = await handleStripeWebhook(request, env);
     }
     else if (pathname.startsWith('/billing/balance/') && method === 'GET') {
-      const installationId = decodeURIComponent(pathname.slice('/billing/balance/'.length));
+      const installationId = safeDecodeSegment(pathname.slice('/billing/balance/'.length));
       response = await handleBillingBalance(request, env, installationId);
     }
 
     // X8 quota counters + shadow-vs-enforce delta (operator; src/billing.ts)
     else if (pathname.startsWith('/v1/quotas/') && method === 'GET') {
-      const harborFp = decodeURIComponent(pathname.slice('/v1/quotas/'.length));
+      const harborFp = safeDecodeSegment(pathname.slice('/v1/quotas/'.length));
       response = await handleQuotaStatus(request, env, harborFp, ctx);
     }
     else if (pathname === '/billing/portal' && method === 'POST') {
@@ -947,7 +961,7 @@ export default {
       // :name is the qualified `namespace/name` — namespace/name detail, or a
       // sub-resource: /members (X2), /presence + /helm (X3, src/presence.ts),
       // /parleys[/:id[/respond]] (X4, src/parleys.ts).
-      const parts = pathname.slice('/v1/harbors/'.length).split('/').map((p) => decodeURIComponent(p));
+      const parts = pathname.slice('/v1/harbors/'.length).split('/').map(safeDecodeSegment);
       const ns = parts[0];
       const name = parts[1];
       const sub = parts.length >= 3 ? parts[2] : undefined;
@@ -1026,13 +1040,13 @@ export default {
 
     // ── Issuer config (acceptance criterion #1) ───────────────────────────────
     else if (pathname.startsWith('/v1/config/issuers/') && method === 'PUT') {
-      const issuerId = decodeURIComponent(pathname.slice('/v1/config/issuers/'.length));
+      const issuerId = safeDecodeSegment(pathname.slice('/v1/config/issuers/'.length));
       response = await handleSetIssuer(request, env, issuerId);
     }
 
     // ── JWKS cache invalidation (acceptance criterion #3) ─────────────────────
     else if (pathname.startsWith('/v1/cache/jwks/') && method === 'DELETE') {
-      const issuerId = decodeURIComponent(pathname.slice('/v1/cache/jwks/'.length));
+      const issuerId = safeDecodeSegment(pathname.slice('/v1/cache/jwks/'.length));
       response = await handleInvalidateJwks(request, env, issuerId);
     }
 
