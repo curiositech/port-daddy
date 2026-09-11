@@ -97,14 +97,98 @@ function findHelperRange(sourceFile) {
   return range;
 }
 
-/** Every Identifier node named `decodeURIComponent` that is a real reference to the global builtin (not a `.decodeURIComponent` property-access name). */
+/**
+ * True when an Identifier node named `decodeURIComponent` is purely a NAME —
+ * syntax that spells the string "decodeURIComponent" without ever reading the
+ * global builtin's value — and so can never be the raw reference this guard
+ * exists to catch. Verified empirically against the TypeScript AST (see
+ * PR #10156 review discussion) before writing this list; each bucket below
+ * is a shape probing showed the parser gives its own dedicated node kind
+ * whose `.name`/`.propertyName` field never denotes a value read:
+ *
+ *   - `obj.decodeURIComponent` / `obj?.decodeURIComponent` — a
+ *     PropertyAccessExpression's `name`. Optional chaining (`?.`) still
+ *     produces a PropertyAccessExpression/-Chain node, so this one check
+ *     already covers both — confirmed empirically, no separate case needed.
+ *     (`obj['decodeURIComponent']` needs no check at all: the property is a
+ *     StringLiteral, not an Identifier, so it never reaches this function.)
+ *   - `{ decodeURIComponent: fn }` — a PropertyAssignment's `name` (object
+ *     literal key). Deliberately NOT ShorthandPropertyAssignment: `{
+ *     decodeURIComponent }` as an object-literal shorthand is a genuine
+ *     value read of whatever `decodeURIComponent` resolves to in scope, and
+ *     must stay flagged like any other bare reference.
+ *   - `import { decodeURIComponent } from './x'` / `import { decodeURIComponent
+ *     as y } from './x'` / `export { decodeURIComponent }` / `export { y as
+ *     decodeURIComponent }` — an ImportSpecifier's or ExportSpecifier's
+ *     `name`/`propertyName`. These name what a module imports or exports;
+ *     they never read the global.
+ *   - `interface I { decodeURIComponent: string }` / `type T = {
+ *     decodeURIComponent: string }` — a PropertySignature's `name`
+ *     (type-member name, no runtime value at all).
+ *   - `class C { decodeURIComponent() {} }` / `decodeURIComponent = x;` /
+ *     `get decodeURIComponent() {}` — a MethodDeclaration's, a
+ *     PropertyDeclaration's, or a Get/SetAccessorDeclaration's `name`
+ *     (class- or object-literal-method member name).
+ *   - A plain (non-destructuring) declaration name: a Parameter's or a
+ *     VariableDeclaration's `name`, when that name is the Identifier
+ *     directly — `function f(decodeURIComponent) {}`,
+ *     `const decodeURIComponent = x;`. Declaring a new binding under this
+ *     name is not itself a reference to the builtin.
+ *
+ * Deliberately EXCLUDED from this allowlist — kept flagged on purpose:
+ *   - BindingElement, i.e. destructuring: `const { decodeURIComponent } = x`
+ *     (shorthand) and `const { decodeURIComponent: y } = x` (renamed) both
+ *     stay flagged, even though `x.name === node` looks exactly as
+ *     "namey" as the PropertyAssignment case above. The difference that
+ *     matters: destructuring BINDS the value out of `x` under this name —
+ *     `const { decodeURIComponent } = globalThis` is a genuine, real way to
+ *     get the actual banned global function into scope under any alias you
+ *     like, which is exactly the defect class this guard exists to stop
+ *     from being smuggled back in. A guard that waves through the aliasing
+ *     shape is worse than no guard. (If a legitimate non-builtin destructure
+ *     of a same-named property ever shows up in this one file, that's the
+ *     moment to add a narrow, commented exemption — not preemptively here.)
+ *   - A plain reference to an identifier that HAPPENS to resolve to a local
+ *     shadow rather than the global — e.g. `function f(decodeURIComponent) {
+ *     return decodeURIComponent; }`, where the `return` line's reference
+ *     resolves to the shadowing parameter, not the builtin. Telling those
+ *     apart needs real scope/symbol resolution (a TypeChecker), which this
+ *     syntax-only walk deliberately doesn't do — see the file-level comment
+ *     on why AST-over-regex was already the chosen tradeoff. This never
+ *     occurs in the real target file today; if it ever did, the reference
+ *     would still be conservatively flagged and need a one-line local
+ *     rename to clear, which is a fine cost for not having to trust
+ *     scope analysis to get the shadow test right.
+ */
+function isPureNameNode(node) {
+  const parent = node.parent;
+  if (!parent) return false;
+
+  if (ts.isPropertyAccessExpression(parent) && parent.name === node) return true;
+  if (ts.isPropertyAssignment(parent) && parent.name === node) return true;
+  if (ts.isImportSpecifier(parent) || ts.isExportSpecifier(parent)) return true;
+  if (ts.isPropertySignature(parent) && parent.name === node) return true;
+  if (
+    (ts.isMethodDeclaration(parent) ||
+      ts.isPropertyDeclaration(parent) ||
+      ts.isGetAccessorDeclaration(parent) ||
+      ts.isSetAccessorDeclaration(parent)) &&
+    parent.name === node
+  ) {
+    return true;
+  }
+  if (ts.isParameter(parent) && parent.name === node) return true;
+  if (ts.isVariableDeclaration(parent) && parent.name === node) return true;
+
+  return false;
+}
+
+/** Every Identifier node named `decodeURIComponent` that is a real reference to the global builtin (i.e. not a pure name — see `isPureNameNode`). */
 function findRawDecodeReferences(sourceFile) {
   const hits = [];
   const visit = (node) => {
-    if (ts.isIdentifier(node) && node.text === BANNED) {
-      const parent = node.parent;
-      const isPropertyAccessName = parent && ts.isPropertyAccessExpression(parent) && parent.name === node;
-      if (!isPropertyAccessName) hits.push(node);
+    if (ts.isIdentifier(node) && node.text === BANNED && !isPureNameNode(node)) {
+      hits.push(node);
     }
     ts.forEachChild(node, visit);
   };

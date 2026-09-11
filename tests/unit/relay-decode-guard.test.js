@@ -79,6 +79,36 @@ describe('relay decode guard (scripts/check-relay-decode-guard.mjs)', () => {
   });
 
   test(
+    'pure-NAME shapes (object-literal key, import/export specifier name, ' +
+      'type-member and class-member names, plain parameter/variable ' +
+      'declaration names, optional-chaining and element-access property ' +
+      'reads) are never a value-read of the global builtin, and all pass ' +
+      'clean -- PR #10156 review-finding fix',
+    () => {
+      const { code, stdout } = run(fixture('clean-name-shapes.ts'));
+      expect(code).toBe(0);
+      expect(stdout).toMatch(/no raw decodeURIComponent outside safeDecodeSegment/);
+    },
+  );
+
+  test(
+    'destructuring BINDS `decodeURIComponent` stays flagged on purpose, both ' +
+      'shorthand and renamed -- `const { decodeURIComponent } = globalThis` ' +
+      '(or any object) is a genuine way to smuggle the actual banned global ' +
+      'function into scope under any alias, which is exactly the defect ' +
+      'class this guard exists to stop; a review bot on PR #10156 argued to ' +
+      'exclude this shape as a false positive, and this guard deliberately ' +
+      'disagrees',
+    () => {
+      const { code, stderr } = run(fixture('dirty-destructuring-bind.ts'));
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/2 raw `decodeURIComponent` reference\(s\)/);
+      expect(stderr).toMatch(/:25\s+const \{ decodeURIComponent \} = anything;/);
+      expect(stderr).toMatch(/:29\s+const \{ decodeURIComponent: aliased \} = anything;/);
+    },
+  );
+
+  test(
     'the LIVE apps/relay/src/index.ts currently has exactly two pre-existing, ' +
       'known-deferred violations (NOT zero) -- /account/parleys/ and /account/harbors/, ' +
       'both explicitly left out of PR #10150 per its own commit message (parleys is owned ' +
