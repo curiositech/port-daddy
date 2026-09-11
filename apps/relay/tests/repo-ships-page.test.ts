@@ -30,7 +30,7 @@ beforeEach(() => {
     ? new Response(config, { status: configStatus })
     : Response.json({ full_name: 'owner/repo', permissions: { admin } })));
 });
-afterEach(() => { store.sqlite.close(); vi.unstubAllGlobals(); });
+afterEach(() => { store.sqlite.close(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe('repository ship storage and authority', () => {
   it('supports dot-prefixed repositories and D1 trigger-inclusive change counts', async () => {
@@ -204,6 +204,55 @@ describe('signed-in ship UI', () => {
     expect(warning).toHaveBeenCalledWith('repo-witness-unavailable', {
       reason: 'transport', error: 'TypeError',
     });
+    warning.mockRestore();
+  });
+  it('uses Workers-compatible AbortController deadlines without AbortSignal.timeout', async () => {
+    const unsupported = vi.spyOn(AbortSignal, 'timeout').mockImplementation(() => {
+      throw new TypeError('production runtime has no static timeout signal');
+    });
+    const result = await handleRepoShips(new Request(`${BASE}/account/ships?repo=owner/repo`), env);
+    expect(result.status).toBe(200);
+    expect(await result.text()).toContain('All cloud ships');
+    expect(unsupported).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledTimes(2);
+    for (const [, init] of vi.mocked(fetch).mock.calls) {
+      expect(init).toMatchObject({ redirect: 'manual' });
+      expect(init?.signal).toBeInstanceOf(AbortSignal);
+    }
+    unsupported.mockRestore();
+  });
+  it('keeps the deadline active while consuming a stalled GitHub response body', async () => {
+    vi.useFakeTimers();
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // Deliberately ignore AbortSignal inside this fake stream. The wall-clock
+    // race must still release the request instead of trusting the transport.
+    vi.mocked(fetch).mockImplementation(async () => new Response(new ReadableStream({ start() {} }), {
+      status: 200, headers: { 'Content-Type': 'application/json' },
+    }));
+    const pending = handleRepoShips(new Request(`${BASE}/account/ships?repo=owner/repo`), env);
+    await vi.advanceTimersByTimeAsync(6_000);
+    await vi.advanceTimersByTimeAsync(4_000);
+    const result = await pending;
+    expect(result.status).toBe(503);
+    expect(await result.text()).toContain('The Relay could not complete the GitHub repository check.');
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(warning).toHaveBeenCalledWith('repo-witness-unavailable', {
+      reason: 'transport', error: 'AbortError',
+    });
+    warning.mockRestore();
+  });
+  it('does not forward the user token across a GitHub redirect', async () => {
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.mocked(fetch).mockResolvedValue(new Response('', {
+      status: 302,
+      headers: { Location: 'https://attacker.example/' },
+    }));
+    const result = await handleRepoShips(new Request(`${BASE}/account/ships?repo=owner/repo`), env);
+    const body = await result.text();
+    expect(result.status).toBe(503);
+    expect(body).toContain('GitHub returned status 302');
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(fetch).mock.calls[0]?.[1]).toMatchObject({ redirect: 'manual' });
     warning.mockRestore();
   });
   it.each([

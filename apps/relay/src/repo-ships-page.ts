@@ -25,6 +25,41 @@ type RepoWitnessResult =
   | { kind: 'rate-limited'; resetAt: number | null }
   | { kind: 'unavailable'; reason: 'github-status' | 'transport' | 'malformed-response' | 'repository-mismatch'; status?: number; requestId?: string };
 
+/** Production traced an immediate TypeError while constructing or starting the
+ * previous request. Use the Workers-documented AbortController surface and keep
+ * its deadline active through response-body consumption.
+ * @param input Exact HTTPS upstream URL.
+ * @param init Request options without a caller-controlled signal.
+ * @param timeoutMs Bounded wall-clock deadline.
+ * @param consume Handles headers and consumes any response body under the same deadline.
+ * @returns The consumer result, or the fetch/body rejection after abort.
+ */
+async function fetchWithDeadline<T>(
+  input: string,
+  init: RequestInit,
+  timeoutMs: number,
+  consume: (response: Response, signal: AbortSignal) => T | Promise<T>,
+): Promise<T> {
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      (async () => {
+        const response = await fetch(input, { ...init, signal: controller.signal });
+        return consume(response, controller.signal);
+      })(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => {
+          controller.abort();
+          reject(new DOMException('The operation was aborted', 'AbortError'));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 /** Why escape: source-controlled names and descriptions are untrusted HTML input.
  * @param value Untrusted text.
  * @returns Text safe in HTML content and quoted attributes.
@@ -75,11 +110,60 @@ async function repoWitness(session: ResolvedSession, repo: string): Promise<Repo
   const headers = { Authorization: `Bearer ${session.ghToken}`, Accept: 'application/vnd.github+json',
     'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'port-daddy-relay' };
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    let response: Response;
     try {
-      response = await fetch(`https://api.github.com/repos/${repo}`, {
-        headers, signal: AbortSignal.timeout(attempt === 0 ? 6_000 : 4_000), redirect: 'error',
+      const result = await fetchWithDeadline(`https://api.github.com/repos/${repo}`, {
+        headers,
+        // Never forward the user token across an upstream redirect. A manual
+        // 3xx becomes an explicit non-success status below.
+        redirect: 'manual',
+      }, attempt === 0 ? 6_000 : 4_000, async (response, signal) => {
+        if (response.status === 401) return { kind: 'renew' as const };
+        // GitHub documents both 403 and 429 for primary and secondary limits.
+        // A 429 is unambiguously throttling even when an intermediary omits the
+        // advisory headers; 403 remains a permission denial unless GitHub supplies
+        // an explicit rate-limit signal.
+        const rateLimited = response.status === 429 || (response.status === 403
+          && (response.headers.get('X-RateLimit-Remaining') === '0' || response.headers.has('Retry-After')));
+        if (rateLimited) {
+          const reset = Number(response.headers.get('X-RateLimit-Reset'));
+          return { kind: 'rate-limited' as const, resetAt: Number.isSafeInteger(reset) && reset > 0 ? reset : null };
+        }
+        if (response.status === 403 || response.status === 404) return { kind: 'denied' as const };
+        if (!response.ok) {
+          if (attempt === 0 && [502, 503, 504].includes(response.status) && !response.headers.has('Retry-After')) {
+            return { kind: 'retry' as const };
+          }
+          const unavailable = { kind: 'unavailable' as const, reason: 'github-status' as const,
+            status: response.status, requestId: githubRequestId(response) };
+          console.warn('repo-witness-unavailable', { reason: unavailable.reason,
+            status: unavailable.status, requestId: unavailable.requestId });
+          return unavailable;
+        }
+        let body: { permissions?: { admin?: boolean }; full_name?: string } | null;
+        try {
+          body = await response.json() as { permissions?: { admin?: boolean }; full_name?: string };
+        } catch (error) {
+          if (signal.aborted) throw error;
+          body = null;
+        }
+        if (!body || typeof body.full_name !== 'string') {
+          const unavailable = { kind: 'unavailable' as const, reason: 'malformed-response' as const,
+            status: response.status, requestId: githubRequestId(response) };
+          console.warn('repo-witness-unavailable', { reason: unavailable.reason,
+            status: unavailable.status, requestId: unavailable.requestId });
+          return unavailable;
+        }
+        if (body.full_name.toLowerCase() !== repo) {
+          const unavailable = { kind: 'unavailable' as const, reason: 'repository-mismatch' as const,
+            status: response.status, requestId: githubRequestId(response) };
+          console.warn('repo-witness-unavailable', { reason: unavailable.reason,
+            status: unavailable.status, requestId: unavailable.requestId });
+          return unavailable;
+        }
+        return { kind: 'verified' as const, witness: { admin: body.permissions?.admin === true, headers } };
       });
+      if (result.kind === 'retry') continue;
+      return result;
     } catch (error) {
       if (attempt === 0) continue;
       const result = { kind: 'unavailable' as const, reason: 'transport' as const };
@@ -87,42 +171,6 @@ async function repoWitness(session: ResolvedSession, repo: string): Promise<Repo
         error: error instanceof Error ? error.name : 'unknown' });
       return result;
     }
-    if (response.status === 401) return { kind: 'renew' };
-    // GitHub documents both 403 and 429 for primary and secondary limits.
-    // A 429 is unambiguously throttling even when an intermediary omits the
-    // advisory headers; 403 remains a permission denial unless GitHub supplies
-    // an explicit rate-limit signal.
-    const rateLimited = response.status === 429 || (response.status === 403
-      && (response.headers.get('X-RateLimit-Remaining') === '0' || response.headers.has('Retry-After')));
-    if (rateLimited) {
-      const reset = Number(response.headers.get('X-RateLimit-Reset'));
-      return { kind: 'rate-limited', resetAt: Number.isSafeInteger(reset) && reset > 0 ? reset : null };
-    }
-    if (response.status === 403 || response.status === 404) return { kind: 'denied' };
-    if (!response.ok) {
-      if (attempt === 0 && [502, 503, 504].includes(response.status) && !response.headers.has('Retry-After')) continue;
-      const result = { kind: 'unavailable' as const, reason: 'github-status' as const,
-        status: response.status, requestId: githubRequestId(response) };
-      console.warn('repo-witness-unavailable', { reason: result.reason,
-        status: result.status, requestId: result.requestId });
-      return result;
-    }
-    const body = await response.json().catch(() => null) as { permissions?: { admin?: boolean }; full_name?: string } | null;
-    if (!body || typeof body.full_name !== 'string') {
-      const result = { kind: 'unavailable' as const, reason: 'malformed-response' as const,
-        status: response.status, requestId: githubRequestId(response) };
-      console.warn('repo-witness-unavailable', { reason: result.reason,
-        status: result.status, requestId: result.requestId });
-      return result;
-    }
-    if (body.full_name.toLowerCase() !== repo) {
-      const result = { kind: 'unavailable' as const, reason: 'repository-mismatch' as const,
-        status: response.status, requestId: githubRequestId(response) };
-      console.warn('repo-witness-unavailable', { reason: result.reason,
-        status: result.status, requestId: result.requestId });
-      return result;
-    }
-    return { kind: 'verified', witness: { admin: body.permissions?.admin === true, headers } };
   }
   return { kind: 'unavailable', reason: 'transport' };
 }
@@ -176,15 +224,14 @@ function repoWitnessFailure(repo: string, result: Exclude<RepoWitnessResult, { k
  */
 async function shipInventory(env: Env, repo: string, witness: RepoWitness): Promise<ShipView[]> {
   const ref = encodeURIComponent(env.DEFAULT_BRANCH || 'main');
-  const response = await fetch(`https://api.github.com/repos/${repo}/contents/pd-fleet.yml?ref=${ref}`, {
+  const yaml = await fetchWithDeadline(`https://api.github.com/repos/${repo}/contents/pd-fleet.yml?ref=${ref}`, {
     headers: { ...witness.headers, Accept: 'application/vnd.github.raw+json' },
-    signal: AbortSignal.timeout(10_000), redirect: 'error',
-  });
-  let yaml: string | null = null;
-  if (response.status !== 404) {
+    redirect: 'manual',
+  }, 10_000, async response => {
+    if (response.status === 404) return null;
     if (!response.ok || !response.body) throw new Error('Trusted fleet definition unavailable');
-    yaml = await boundedText(response, 262_144);
-  }
+    return boundedText(response, 262_144);
+  });
   let document: unknown = null;
   try { document = yaml ? parseYaml(yaml) : null; } catch { /* Executor inherits defaults on malformed YAML. */ }
   const configured = fleetShipsFromDocument(document, '*') ?? [];
