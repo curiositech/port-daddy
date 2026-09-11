@@ -6,13 +6,14 @@
  *
  * The 2026-07-04 wiring ran sync-skills.ts directly from a repository
  * UserPromptSubmit hook in .claude/settings.json. PR #10104 ("make disabled
- * hooks truly inert") superseded that: the operator's emergency halt now
- * requires every Port Daddy-provided hook to route through the
- * `~/.port-daddy/hooks.disabled` kill switch, which a raw `npx tsx
- * scripts/sync-skills.ts` command in settings.json cannot check on its own.
- * Repository hook registrations were removed while halted, so
- * .claude/settings.json intentionally carries no UserPromptSubmit hook right
- * now — this guard asserts that absence instead of the old wiring.
+ * hooks truly inert") briefly removed that repository hook registration
+ * entirely while the halt directive was being worked out, because a raw
+ * `npx tsx scripts/sync-skills.ts` command in settings.json could not check
+ * the `~/.port-daddy/hooks.disabled` kill switch on its own. The hook has
+ * since been restored, wrapped with an inline halt-marker check
+ * (`[ -e "${PD_HOME:-$HOME/.port-daddy}/hooks.disabled" ] || npx tsx
+ * scripts/sync-skills.ts ...`), so the wiring is present again and this guard
+ * checks for that inline check rather than a bare invocation.
  */
 import { execFileSync } from 'node:child_process';
 import { readFileSync, mkdtempSync, rmSync, readdirSync, lstatSync } from 'node:fs';
@@ -23,15 +24,19 @@ import os from 'node:os';
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 describe('skills sync hook', () => {
-  test('settings.json carries no UserPromptSubmit hook while Port Daddy hooks remain halted (PR #10104)', () => {
+  test('settings.json wires UserPromptSubmit to sync-skills.ts, guarded by the hooks.disabled halt marker', () => {
     const settings = JSON.parse(
       readFileSync(join(REPO, '.claude', 'settings.json'), 'utf8'),
     );
     const entries = settings.hooks?.UserPromptSubmit ?? [];
     const commands = entries.flatMap((e) => e.hooks ?? []).map((h) => h.command ?? '');
     expect(
-      commands.some((c) => c.includes('scripts/sync-skills.ts') && c.includes('--scope user')),
-    ).toBe(false);
+      commands.some(
+        (c) => c.includes('scripts/sync-skills.ts')
+          && c.includes('--scope user')
+          && c.includes('hooks.disabled'),
+      ),
+    ).toBe(true);
   });
 
   test('sync-skills resolves the repo catalog into a fresh base (integration)', () => {

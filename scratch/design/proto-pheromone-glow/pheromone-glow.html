@@ -1,0 +1,798 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Living Filetree — Pheromone Glow · Port Daddy motif study</title>
+<!-- ── Fonts: canon Geist superfamily + Departure pixel accent (matches operator-tui-v9) ── -->
+<style>
+@font-face{font-family:'Geist';font-style:normal;font-weight:400;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist@5.2.6/files/geist-latin-400-normal.woff2) format('woff2');}
+@font-face{font-family:'Geist';font-style:normal;font-weight:500;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist@5.2.6/files/geist-latin-500-normal.woff2) format('woff2');}
+@font-face{font-family:'Geist';font-style:normal;font-weight:600;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist@5.2.6/files/geist-latin-600-normal.woff2) format('woff2');}
+@font-face{font-family:'Geist';font-style:normal;font-weight:700;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist@5.2.6/files/geist-latin-700-normal.woff2) format('woff2');}
+@font-face{font-family:'Geist Mono';font-style:normal;font-weight:400;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist-mono@5.2.6/files/geist-mono-latin-400-normal.woff2) format('woff2');}
+@font-face{font-family:'Geist Mono';font-style:normal;font-weight:500;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist-mono@5.2.6/files/geist-mono-latin-500-normal.woff2) format('woff2');}
+@font-face{font-family:'Departure Mono';font-style:normal;font-weight:400;font-display:swap;src:url(https://cdn.jsdelivr.net/gh/projectnoonnu/2409-1@1.0/DepartureMono-Regular.woff2) format('woff2');}
+
+/* ───────────────────────────── CANON TOKENS (from operator-tui-v9) ───────────────────────────── */
+:root{
+  --swoosh:cubic-bezier(.16,1,.3,1);
+  --snap:cubic-bezier(.34,1.56,.64,1);
+  --ease:cubic-bezier(.4,0,.2,1);
+  --float:cubic-bezier(.45,.05,.55,.95);
+  --dur-micro:140ms; --dur-quick:220ms; --dur-settle:340ms; --dur-flourish:480ms;
+  --sp1:4px; --sp2:8px; --sp3:12px; --sp4:16px; --sp5:24px; --sp6:32px; --sp7:48px;
+  --bw:1px; --radius:6px; --radius-lg:12px;
+  --sans:'Geist',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'Geist Mono',ui-monospace,'SF Mono',Menlo,monospace;
+  --pixel:'Departure Mono','Geist Mono',ui-monospace,monospace;
+}
+html[data-theme="light"]{
+  --surface-base:#f2eee6; --surface-raised:#f7f3eb; --surface-strong:#e9e2d5;
+  --surface-overlay:rgba(242,238,230,.97); --surface-sunken:#e0d9cb;
+  --text-primary:#121212; --text-secondary:#403b34; --text-muted:#47423a; --text-inverse:#fbf7ef;
+  --brand-primary:#003fb8; --brand-accent:#004a42;
+  --border-subtle:rgba(18,18,18,.16); --border-default:rgba(18,18,18,.42); --border-strong:#121212;
+  --status-success:#2d7a43; --status-warning:#a66f00; --status-error:#bf2f2f; --status-info:#0055ff;
+  --mayday-slab:#a51f1f; --mayday-slab-fg:#ffffff;
+  /* pheromone phase hues — single-hue heat is ochre (--ph-hot). RED stays failure-only. */
+  --ph-hot:#a66f00; --ph-recent:#0055ff; --ph-cold:#6b6457; --ph-blocked:#003fb8;
+  --ph-fail:#a51f1f;
+  --heat-rgb:166,111,0;        /* the glow hue: ochre. NEVER mayday red. */
+  --accent-rgb:0,74,66;        /* firefly teal */
+  --canvas-blend:multiply;
+}
+html[data-theme="dark"]{
+  --surface-base:#101216; --surface-raised:#181c22; --surface-strong:#222833;
+  --surface-overlay:rgba(16,18,22,.95); --surface-sunken:#0b0d11;
+  --text-primary:#f5f3ed; --text-secondary:#d3cec2; --text-muted:#b3ad9f; --text-inverse:#121212;
+  --brand-primary:#7db4ff; --brand-accent:#8fd0a7;
+  --border-subtle:rgba(245,243,237,.18); --border-default:rgba(245,243,237,.44); --border-strong:#f5f3ed;
+  --status-success:#66d28a; --status-warning:#f2be51; --status-error:#ff7d7d; --status-info:#7db4ff;
+  --mayday-slab:#ff7d7d; --mayday-slab-fg:#121212;
+  --ph-hot:#f2be51; --ph-recent:#7db4ff; --ph-cold:#8a8378; --ph-blocked:#7db4ff;
+  --ph-fail:#ff7d7d;
+  --heat-rgb:242,190,81;       /* dark-mode ochre/amber heat */
+  --accent-rgb:143,208,167;    /* firefly teal-green */
+  --canvas-blend:screen;
+}
+
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0; background:var(--surface-base); color:var(--text-primary);
+  font-family:var(--sans); font-size:0.9375rem; line-height:1.5;
+  -webkit-font-smoothing:antialiased; overflow:hidden;
+}
+
+/* ───────────────────────────── CHROME ───────────────────────────── */
+.topbar{
+  position:fixed; top:0; left:0; right:0; height:54px; z-index:40;
+  display:flex; align-items:center; gap:var(--sp4); padding:0 var(--sp5);
+  background:var(--surface-raised); border-bottom:var(--bw) solid var(--border-subtle);
+}
+.brand{display:flex; align-items:baseline; gap:var(--sp2); user-select:none;}
+.brand .mark{font-family:var(--pixel); font-size:0.9375rem; letter-spacing:.04em; color:var(--brand-primary);}
+.brand .sub{font-size:0.8125rem; font-weight:600; text-transform:uppercase; letter-spacing:.12em; color:var(--text-muted);}
+.topbar .spacer{flex:1;}
+.stat{display:flex; flex-direction:column; line-height:1.15; min-width:62px;}
+.stat .v{font-family:var(--mono); font-size:1rem; font-weight:600; color:var(--text-primary); font-variant-numeric:tabular-nums;}
+.stat .k{font-size:0.75rem; font-weight:600; text-transform:uppercase; letter-spacing:.1em; color:var(--text-muted);}
+.btn{
+  font-family:var(--sans); font-size:0.875rem; font-weight:600; color:var(--text-primary);
+  background:var(--surface-strong); border:var(--bw) solid var(--border-default); border-radius:var(--radius);
+  padding:7px 13px; cursor:pointer; transition:transform var(--dur-micro) var(--snap), background var(--dur-quick) var(--ease);
+  display:inline-flex; align-items:center; gap:7px;
+}
+.btn:hover{transform:translateY(-2px);}
+.btn:active{transform:translateY(0);}
+.btn[aria-pressed="true"]{background:var(--brand-primary); color:var(--text-inverse); border-color:var(--brand-primary);}
+.btn .dot{width:8px; height:8px; border-radius:50%; background:currentColor; opacity:.5;}
+.btn[aria-pressed="true"] .dot{opacity:1; animation:breathe 1.8s var(--float) infinite;}
+@keyframes breathe{0%,100%{transform:scale(.8);opacity:.6;}50%{transform:scale(1.2);opacity:1;}}
+
+/* ───────────────────────────── STAGE ───────────────────────────── */
+.stage{
+  position:fixed; top:54px; left:0; right:340px; bottom:0;
+  overflow:hidden; background:
+    radial-gradient(120% 90% at 30% 0%, color-mix(in srgb,var(--surface-raised) 60%, transparent), transparent 70%),
+    var(--surface-base);
+}
+.tree-scroll{position:absolute; inset:0; overflow:auto; padding:var(--sp5) var(--sp6) 120px var(--sp5);}
+#biofield{
+  position:absolute; inset:0; pointer-events:none; z-index:10;
+  mix-blend-mode:var(--canvas-blend);
+}
+
+/* filetree rows */
+.tree{font-family:var(--mono); font-size:0.875rem; max-width:680px; margin:0 auto;}
+.node{
+  position:relative; display:flex; align-items:center; gap:8px;
+  padding:3px 8px; border-radius:var(--radius); cursor:pointer;
+  color:var(--text-secondary); white-space:nowrap;
+  transition:background var(--dur-quick) var(--ease), color var(--dur-quick) var(--ease);
+}
+.node:hover{background:var(--surface-strong); color:var(--text-primary);}
+.node .twig{width:14px; text-align:center; color:var(--text-muted); flex:0 0 auto;}
+.node[data-kind="dir"] .name{font-weight:600; color:var(--text-primary);}
+.node .name{flex:0 0 auto;}
+.node .meta{font-size:0.75rem; color:var(--text-muted); margin-left:6px; opacity:.7;}
+.node .heatdot{
+  width:7px; height:7px; border-radius:50%; flex:0 0 auto; margin-left:auto;
+  background:var(--ph-cold); box-shadow:0 0 0 0 transparent;
+  transition:background var(--dur-quick) var(--ease);
+}
+/* DOM-class state carriers — legible even when canvas is frozen (reduced-motion) */
+.node[data-phase="hot"] .heatdot{background:var(--ph-hot);}
+.node[data-phase="recent"] .heatdot{background:var(--ph-recent);}
+.node[data-phase="blocked"] .heatdot{background:var(--ph-blocked);}
+.node[data-phase="fail"] .heatdot{background:var(--ph-fail);}
+.node.touched{animation:rowpulse var(--dur-flourish) var(--swoosh);}
+@keyframes rowpulse{
+  0%{background:color-mix(in srgb,var(--ph-hot) 22%, transparent);}
+  100%{background:transparent;}
+}
+.node.is-active{outline:2px solid var(--brand-primary); outline-offset:-2px;}
+/* merge sweep — runs on the row simultaneously with the canvas light-burst */
+.node .sweep{position:absolute; inset:0; border-radius:var(--radius); pointer-events:none; opacity:0;}
+.node.swept .sweep{
+  background:linear-gradient(90deg,transparent, color-mix(in srgb,var(--brand-primary) 40%,transparent),transparent);
+  animation:sweep var(--dur-flourish) var(--swoosh);
+}
+@keyframes sweep{0%{opacity:0;transform:translateX(-60%);}40%{opacity:1;}100%{opacity:0;transform:translateX(60%);}}
+
+.dir-children{padding-left:18px; border-left:1px solid var(--border-subtle); margin-left:7px;}
+.collapsed > .dir-children{display:none;}
+
+.ground{
+  position:absolute; left:0; right:0; bottom:0; height:96px; z-index:12;
+  pointer-events:none; display:flex; align-items:flex-end; gap:6px;
+  padding:0 var(--sp5) 10px; flex-wrap:wrap-reverse; overflow:hidden;
+  background:linear-gradient(0deg, color-mix(in srgb,var(--surface-sunken) 80%,transparent), transparent);
+}
+.ground .label{
+  position:absolute; left:var(--sp5); bottom:74px; font-family:var(--pixel); font-size:0.75rem;
+  letter-spacing:.06em; text-transform:uppercase; color:var(--text-muted); pointer-events:none;
+}
+
+/* ───────────────────────────── INSPECT PANEL ───────────────────────────── */
+.dock{
+  position:fixed; top:54px; right:0; bottom:0; width:340px; z-index:30;
+  background:var(--surface-raised); border-left:var(--bw) solid var(--border-subtle);
+  display:flex; flex-direction:column;
+}
+.dock .head{padding:var(--sp4) var(--sp5) var(--sp3); border-bottom:var(--bw) solid var(--border-subtle);}
+.dock .head .eyebrow{font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.14em; color:var(--text-muted);}
+.dock .head h2{margin:4px 0 0; font-size:1rem; font-family:var(--mono); font-weight:600; word-break:break-all;}
+.dock .body{flex:1; overflow:auto; padding:var(--sp4) var(--sp5);}
+.empty{color:var(--text-muted); font-size:0.875rem; padding-top:30px; text-align:center;}
+.empty .glyph{font-family:var(--pixel); font-size:1.4rem; color:var(--brand-accent); display:block; margin-bottom:10px;}
+
+.kv{display:grid; grid-template-columns:auto 1fr; gap:4px 12px; margin:0 0 var(--sp4);}
+.kv dt{font-size:0.8125rem; font-weight:600; text-transform:uppercase; letter-spacing:.08em; color:var(--text-muted);}
+.kv dd{margin:0; font-family:var(--mono); font-size:0.875rem; color:var(--text-primary); text-align:right;}
+
+.phase-pill{display:inline-flex; align-items:center; gap:6px; font-size:0.8125rem; font-weight:600;
+  padding:3px 9px; border-radius:999px; border:1px solid var(--border-subtle);}
+.phase-pill .swatch{width:9px; height:9px; border-radius:50%;}
+
+.timeline{list-style:none; margin:var(--sp4) 0 0; padding:0; position:relative;}
+.timeline::before{content:""; position:absolute; left:6px; top:6px; bottom:6px; width:1px; background:var(--border-subtle);}
+.timeline li{position:relative; padding:0 0 var(--sp4) 22px; font-size:0.875rem;}
+.timeline li .pip{position:absolute; left:2px; top:5px; width:9px; height:9px; border-radius:50%; background:var(--ph-cold); border:2px solid var(--surface-raised);}
+.timeline li .when{font-family:var(--mono); font-size:0.75rem; color:var(--text-muted);}
+.timeline li .who{font-weight:600; color:var(--brand-accent);}
+.timeline li .act{color:var(--text-secondary);}
+
+.legend{padding:var(--sp3) var(--sp5); border-top:var(--bw) solid var(--border-subtle); font-size:0.8125rem;}
+.legend .row{display:flex; align-items:center; gap:8px; margin:5px 0; color:var(--text-secondary);}
+.legend .sw{width:11px; height:11px; border-radius:50%; flex:0 0 auto;}
+
+.agentbar{padding:var(--sp3) var(--sp5); border-top:var(--bw) solid var(--border-subtle);}
+.agentbar .eyebrow{font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:var(--text-muted); margin-bottom:8px;}
+.agentchip{display:flex; align-items:center; gap:9px; padding:5px 0; font-size:0.875rem;}
+.agentchip .led{width:9px; height:9px; border-radius:50%; flex:0 0 auto;}
+.agentchip .nm{font-family:var(--mono); font-weight:600;}
+.agentchip .st{margin-left:auto; font-size:0.8125rem; color:var(--text-muted);}
+
+/* reduced-motion banner */
+.rm-note{display:none; font-size:0.8125rem; color:var(--text-muted); padding:6px var(--sp5); background:var(--surface-strong); border-bottom:1px solid var(--border-subtle);}
+@media (prefers-reduced-motion:reduce){ .rm-note{display:block;} }
+
+@media (max-width:880px){
+  .stage{right:0; bottom:46vh;}
+  .dock{top:auto; bottom:0; left:0; width:100%; height:46vh; border-left:none; border-top:var(--bw) solid var(--border-subtle);}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand"><span class="mark">▟ port·daddy</span><span class="sub">living filetree · pheromone glow</span></div>
+  <div class="spacer"></div>
+  <div class="stat"><span class="v" id="stAgents">0</span><span class="k">agents</span></div>
+  <div class="stat"><span class="v" id="stHot">0</span><span class="k">hot files</span></div>
+  <div class="stat"><span class="v" id="stEvents">0</span><span class="k">events</span></div>
+  <button class="btn" id="themeBtn" title="toggle theme">◐ theme</button>
+  <button class="btn" id="soundBtn" aria-pressed="false" title="opt-in fleet sound (off by default)"><span class="dot"></span> sound</button>
+</header>
+<div class="rm-note">Reduced motion is on — the swarm is frozen to static anchors and heat reads from the dots &amp; row colors. The signal stays; the dance stops.</div>
+
+<main class="stage" id="stage">
+  <div class="tree-scroll" id="treeScroll">
+    <div class="tree" id="tree" aria-label="repository filetree"></div>
+  </div>
+  <canvas id="biofield"></canvas>
+  <div class="ground"><span class="label">notes · falling to the gutter</span></div>
+</main>
+
+<aside class="dock">
+  <div class="head">
+    <span class="eyebrow" id="dockEyebrow">inspect</span>
+    <h2 id="dockTitle">Nothing selected</h2>
+  </div>
+  <div class="body" id="dockBody">
+    <div class="empty"><span class="glyph">✦</span>Click a glowing node to see what happened there — who touched it, when, and why it burns.</div>
+  </div>
+
+  <div class="agentbar">
+    <div class="eyebrow">fireflies · live agents</div>
+    <div id="agentList"></div>
+  </div>
+
+  <div class="legend">
+    <div class="row"><span class="sw" style="background:var(--ph-hot)"></span> hot — editing now</div>
+    <div class="row"><span class="sw" style="background:var(--ph-recent)"></span> recent — touched lately</div>
+    <div class="row"><span class="sw" style="background:var(--ph-blocked)"></span> blocked — awaiting a human</div>
+    <div class="row"><span class="sw" style="background:var(--ph-fail)"></span> failed — red is failure-only</div>
+    <div class="row"><span class="sw" style="background:var(--ph-cold)"></span> cold — trail decayed</div>
+  </div>
+</aside>
+
+<script>
+"use strict";
+/* ════════════════════════════════════════════════════════════════════════════
+   LIVING FILETREE — pheromone glow motif study
+   DOM owns layout + hit-testing. One <canvas> "biofield" owns the alive:
+   fireflies (agents), pheromone heat (actions), merge bursts, falling-leaf
+   notes, lasers (inbox), soundwave ripples (broadcast). Single shared rAF,
+   DPR-capped, paused off-screen, fully gated by prefers-reduced-motion.
+   Data is grounded in real Port Daddy concepts: worktrees, sessions/agents,
+   pheromones, merges/PRs, notes/inbox, roadmap_items.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+const REDUCED = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+/* ── token resolver (reads live CSS vars so theme swaps just work) ── */
+function tok(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function rgb(name){ const v=tok(name); return v.split(',').map(Number); }
+
+/* ───────────────────────── REPO MODEL (a plausible PD repo) ───────────────────────── */
+const REPO = {
+  name:'port-daddy', kind:'dir', children:[
+    {name:'lib', kind:'dir', children:[
+      {name:'spawner.ts', kind:'file', loc:434},
+      {name:'sugar.ts', kind:'file', loc:512},
+      {name:'merge-queue.ts', kind:'file', loc:288},
+      {name:'symbol-index.ts', kind:'file', loc:610},
+      {name:'tube-spawner-router.ts', kind:'file', loc:196},
+      {name:'llm-backend-resolver.ts', kind:'file', loc:88},
+    ]},
+    {name:'routes', kind:'dir', children:[
+      {name:'sugar.ts', kind:'file', loc:140},
+      {name:'spawn.ts', kind:'file', loc:120},
+      {name:'merge-queue.ts', kind:'file', loc:210},
+      {name:'symbols.ts', kind:'file', loc:96},
+    ]},
+    {name:'cli/commands', kind:'dir', children:[
+      {name:'sugar.ts', kind:'file', loc:230},
+      {name:'attest.ts', kind:'file', loc:175},
+      {name:'guard.ts', kind:'file', loc:312},
+    ]},
+    {name:'mcp', kind:'dir', children:[
+      {name:'server.ts', kind:'file', loc:680},
+    ]},
+    {name:'docs/adr', kind:'dir', children:[
+      {name:'0043-impl-matrix.md', kind:'file', loc:142},
+      {name:'0045-honest-attest.md', kind:'file', loc:98},
+      {name:'0046-operator-tui.md', kind:'file', loc:120},
+    ]},
+    {name:'tests/unit', kind:'dir', children:[
+      {name:'sugar.test.js', kind:'file', loc:420},
+      {name:'merge-queue.test.js', kind:'file', loc:360},
+    ]},
+  ]
+};
+
+/* live agents = sessions across worktrees (firefly per agent) */
+const AGENTS = [
+  {id:'cartographer', label:'cartographer', worktree:'wt/roadmap', status:'mapping'},
+  {id:'merge-pilot',  label:'merge-pilot',  worktree:'wt/merge',   status:'staging'},
+  {id:'qa-adversary', label:'qa-adversary', worktree:'wt/qa',      status:'probing'},
+  {id:'doc-syncer',   label:'doc-syncer',   worktree:'wt/docs',    status:'syncing'},
+  {id:'gardener',     label:'gardener',     worktree:'wt/garden',  status:'idle'},
+];
+
+/* ───────────────────────── BUILD DOM TREE ───────────────────────── */
+const tree = document.getElementById('tree');
+const nodeIndex = new Map();      // path -> rec
+
+function buildNode(model, parentEl, depth, pathPrefix){
+  const path = pathPrefix ? pathPrefix+'/'+model.name : model.name;
+  const wrap = document.createElement('div');
+  const row = document.createElement('div');
+  row.className='node'; row.dataset.kind=model.kind; row.dataset.path=path;
+  row.dataset.phase = model.kind==='dir' ? 'cold' : pick(['cold','cold','recent','cold']);
+  row.tabIndex = 0;
+
+  const twig=document.createElement('span'); twig.className='twig';
+  twig.textContent = model.kind==='dir' ? '▾' : '·';
+  const name=document.createElement('span'); name.className='name'; name.textContent=model.name;
+  const heatdot=document.createElement('span'); heatdot.className='heatdot';
+  const sweep=document.createElement('span'); sweep.className='sweep';
+  row.append(twig,name);
+  if(model.kind==='file'){
+    const meta=document.createElement('span'); meta.className='meta'; meta.textContent=model.loc+' loc';
+    row.append(meta);
+  }
+  row.append(heatdot,sweep);
+  wrap.append(row);
+
+  const rec={el:row, heatdot, model, path, depth,
+    phase:row.dataset.phase, lastTouch:0, history:[], heat:0, anchor:{x:0,y:0}, onScreen:true};
+  nodeIndex.set(path, rec);
+
+  row.addEventListener('click', (e)=>{ e.stopPropagation();
+    if(model.kind==='dir'){ wrap.classList.toggle('collapsed'); twig.textContent = wrap.classList.contains('collapsed')?'▸':'▾'; recomputeAnchors(); }
+    selectNode(path);
+  });
+  row.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); row.click(); }});
+
+  if(model.children){
+    const kids=document.createElement('div'); kids.className='dir-children';
+    model.children.forEach(c=>buildNode(c, kids, depth+1, path));
+    wrap.append(kids);
+  }
+  parentEl.append(wrap);
+  return rec;
+}
+buildNode(REPO, tree, 0, '');
+
+const fileRecs = [...nodeIndex.values()].filter(r=>r.model.kind==='file');
+
+/* ───────────────────────── CANVAS BIOFIELD ───────────────────────── */
+const canvas=document.getElementById('biofield');
+const ctx=canvas.getContext('2d');
+const stage=document.getElementById('stage');
+const treeScroll=document.getElementById('treeScroll');
+let DPR=1, W=0, H=0;
+
+function resize(){
+  DPR = Math.min(window.devicePixelRatio||1, 2);
+  const r=stage.getBoundingClientRect();
+  W=r.width; H=r.height;
+  canvas.width=Math.max(1,W*DPR); canvas.height=Math.max(1,H*DPR);
+  canvas.style.width=W+'px'; canvas.style.height=H+'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  recomputeAnchors();
+}
+/* anchor = each node's heatdot centre in stage-local coords (accounts for scroll) */
+function recomputeAnchors(){
+  const sr=stage.getBoundingClientRect();
+  nodeIndex.forEach(rec=>{
+    const dr=rec.heatdot.getBoundingClientRect();
+    rec.anchor.x = dr.left - sr.left + dr.width/2;
+    rec.anchor.y = dr.top  - sr.top  + dr.height/2;
+    rec.onScreen = (dr.width>0) && rec.anchor.y > -20 && rec.anchor.y < H+20;
+  });
+}
+treeScroll.addEventListener('scroll', ()=>{ recomputeAnchors(); }, {passive:true});
+window.addEventListener('resize', resize);
+
+/* ── pre-baked glow sprite (drawImage only, no per-frame gradients) ── */
+function bakeGlow(rgbArr){
+  const s=48, c=document.createElement('canvas'); c.width=c.height=s;
+  const g=c.getContext('2d');
+  const grd=g.createRadialGradient(s/2,s/2,0,s/2,s/2,s/2);
+  grd.addColorStop(0,`rgba(${rgbArr[0]},${rgbArr[1]},${rgbArr[2]},.95)`);
+  grd.addColorStop(.35,`rgba(${rgbArr[0]},${rgbArr[1]},${rgbArr[2]},.35)`);
+  grd.addColorStop(1,`rgba(${rgbArr[0]},${rgbArr[1]},${rgbArr[2]},0)`);
+  g.fillStyle=grd; g.fillRect(0,0,s,s);
+  return c;
+}
+let glowSprite, heatSprite, failSprite;
+function bakeSprites(){
+  glowSprite = bakeGlow(rgb('--accent-rgb'));
+  heatSprite = bakeGlow(rgb('--heat-rgb'));
+  failSprite = bakeGlow(rgb('--ph-fail').length===3?rgb('--ph-fail'):[165,31,31]);
+}
+
+/* ───────────────────────── FIREFLIES (boid seek + value-noise drift) ───────────────────────── */
+const fireflies = AGENTS.map((a,i)=>({
+  agent:a, x:200+Math.random()*120, y:80+i*60, vx:0, vy:0,
+  seed:Math.random()*1000, target:null, idle:a.status==='idle',
+  trail:[], size:3+Math.random()*2,
+}));
+
+function assignTargets(){
+  fireflies.forEach(f=>{
+    if(f.idle){ if(Math.random()<0.15){ f.idle=false; f.agent.status='active'; } return; }
+    if(!f.target || Math.random()<0.012){
+      f.target = pick(fileRecs);
+      if(Math.random()<0.06){ f.idle=true; f.agent.status='idle'; }
+    }
+  });
+}
+
+/* ───────────────────────── PARTICLE POOLS (pooled, short-lived) ───────────────────────── */
+const rings=[], sparks=[], leaves=[], beams=[], waves=[];
+function spawnRing(x,y,colorRgb,r0,r1,life){ rings.push({x,y,c:colorRgb,r0,r1,life,t:0}); }
+function spawnSparks(x,y,n,colorRgb){
+  for(let i=0;i<n;i++){ const a=Math.random()*Math.PI*2, sp=1+Math.random()*2.4;
+    sparks.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-1,life:400,t:0,c:colorRgb}); }
+}
+function spawnLeaf(x,y,note){
+  if(leaves.length>40) leaves.shift();
+  leaves.push({x,y,vx:0,vy:0,rot:0,seed:Math.random()*99,t:0,landed:false,landY:H-30-Math.random()*40,note,flip:1});
+}
+function spawnBeam(a,b,colorRgb){ beams.push({ax:a.x,ay:a.y,bx:b.x,by:b.y,t:0,life:360,c:colorRgb}); }
+function spawnWaves(x,y,colorRgb){ for(let k=0;k<3;k++) waves.push({x,y,c:colorRgb,t:-k*120,life:800}); }
+
+/* ───────────────────────── PHEROMONE DEPOSIT ───────────────────────── */
+function deposit(rec, phase){
+  rec.heat = Math.min(1.6, rec.heat + 0.7);
+  rec.lastTouch = performance.now();
+  rec.phase = phase; rec.el.dataset.phase = phase;
+}
+
+/* ───────────────────────── EVENT CHOREOGRAPHY ───────────────────────── */
+const EYE = ['cartographer','merge-pilot','qa-adversary','doc-syncer','gardener'];
+
+let eventCount=0;
+function logHistory(rec, agent, act){
+  rec.history.unshift({when:Date.now(), who:agent, act});
+  if(rec.history.length>14) rec.history.pop();
+  eventCount++; document.getElementById('stEvents').textContent=eventCount;
+  if(selectedPath===rec.path) renderDock(rec);
+}
+
+function evEdit(rec, agent){
+  deposit(rec, Math.random()<0.12 ? 'fail' : 'hot');
+  rec.el.classList.remove('touched'); void rec.el.offsetWidth; rec.el.classList.add('touched');
+  if(!REDUCED) spawnRing(rec.anchor.x, rec.anchor.y, rec.phase==='fail'?failColor():rgb('--heat-rgb'), 0, 32, 700);
+  logHistory(rec, agent, rec.phase==='fail'?'edit failed a test':'edited '+rec.model.name);
+  sfx(rec.phase==='fail'?'fail':'pheromone');
+}
+function failColor(){ const v=rgb('--ph-fail'); return v.length===3?v:[165,31,31]; }
+
+function evMerge(rec, agent){
+  deposit(rec, 'recent');
+  rec.el.classList.remove('swept'); void rec.el.offsetWidth; rec.el.classList.add('swept');
+  if(!REDUCED){
+    spawnRing(rec.anchor.x, rec.anchor.y, rgb('--brand-primary').length===3?rgb('--brand-primary'):[125,180,255], 0, 60, 480);
+    setTimeout(()=>{ spawnSparks(rec.anchor.x, rec.anchor.y, 10, [255,255,255]); }, 240);
+  }
+  logHistory(rec, agent, 'merged worktree → main');
+  sfx('merge');
+}
+function evNote(rec, agent, text){
+  if(!REDUCED) spawnLeaf(rec.anchor.x, rec.anchor.y, text);
+  logHistory(rec, agent, 'note · '+text);
+  sfx('note');
+}
+function evInbox(){
+  if(fireflies.length<2) return;
+  const a=pick(fireflies), b=pick(fireflies.filter(f=>f!==a));
+  if(!REDUCED) spawnBeam(a,b,rgb('--status-info').length===3?rgb('--status-info'):[0,85,255]);
+  sfx('inbox');
+}
+function evBroadcast(){
+  const f=pick(fireflies);
+  if(!REDUCED) spawnWaves(f.x,f.y,rgb('--status-info').length===3?rgb('--status-info'):[0,85,255]);
+  sfx('comm');
+}
+function evBlock(rec, agent){
+  deposit(rec,'blocked');
+  logHistory(rec, agent, 'blocked — awaiting human approval');
+  sfx('panpan');
+}
+
+/* ───────────────────────── SIMULATION DRIVER ───────────────────────── */
+const NOTE_TEXT=['scope: lib/spawner.ts','rebased onto origin/main','test gap found','claim released','sitrep posted','telos updated'];
+function tick(){
+  assignTargets();
+  const roll=Math.random();
+  const agent=pick(EYE);
+  if(roll<0.42){ evEdit(pick(fileRecs), agent); }
+  else if(roll<0.55){ evMerge(pick(fileRecs.filter(r=>r.phase==='recent'||r.phase==='hot'))||pick(fileRecs), agent); }
+  else if(roll<0.70){ evNote(pick(fileRecs), agent, pick(NOTE_TEXT)); }
+  else if(roll<0.82){ evInbox(); }
+  else if(roll<0.92){ evBroadcast(); }
+  else { evBlock(pick(fileRecs), agent); }
+  updateStats();
+}
+let simTimer=null;
+
+function updateStats(){
+  const live=fireflies.filter(f=>!f.idle).length;
+  document.getElementById('stAgents').textContent=live;
+  const hot=fileRecs.filter(r=>r.heat>0.25).length;
+  document.getElementById('stHot').textContent=hot;
+}
+
+/* ───────────────────────── RENDER LOOP ───────────────────────── */
+let last=performance.now(), running=false;
+function frame(now){
+  if(!running) return;
+  const dt=Math.min(40, now-last); last=now; const t=now/1000;
+  ctx.clearRect(0,0,W,H);
+
+  // 1) persistent heat blit (additive, under everything)
+  ctx.globalCompositeOperation='lighter';
+  nodeIndex.forEach(rec=>{
+    if(rec.heat>0.02 && rec.onScreen){
+      const a=rec.anchor; const sz=18+rec.heat*26;
+      ctx.globalAlpha=Math.min(.5, rec.heat*0.4);
+      ctx.drawImage(rec.phase==='fail'?failSprite:heatSprite, a.x-sz/2, a.y-sz/2, sz, sz);
+      rec.heat*=0.985;
+      if(rec.heat<0.06 && rec.phase!=='cold' && rec.phase!=='blocked'){ rec.phase='cold'; rec.el.dataset.phase='cold'; }
+    }
+  });
+  ctx.globalAlpha=1;
+
+  // 2) soundwave ripples
+  for(let i=waves.length-1;i>=0;i--){ const w=waves[i]; w.t+=dt; if(w.t<0) continue;
+    const p=w.t/w.life; if(p>=1){ waves.splice(i,1); continue; }
+    const e=easeSwoosh(p); ctx.beginPath();
+    ctx.arc(w.x,w.y, 48*e, 0, Math.PI*2);
+    ctx.strokeStyle=`rgba(${w.c[0]},${w.c[1]},${w.c[2]},${0.5*(1-p)})`;
+    ctx.lineWidth=2*(1-p)+0.3; ctx.stroke();
+  }
+
+  // 3) pheromone glow rings
+  for(let i=rings.length-1;i>=0;i--){ const r=rings[i]; r.t+=dt; const p=r.t/r.life;
+    if(p>=1){ rings.splice(i,1); continue; }
+    const e=easeSwoosh(p); const rad=r.r0+(r.r1-r.r0)*e;
+    ctx.beginPath(); ctx.arc(r.x,r.y,rad,0,Math.PI*2);
+    ctx.strokeStyle=`rgba(${r.c[0]},${r.c[1]},${r.c[2]},${0.6*(1-p)})`;
+    ctx.lineWidth=2; ctx.stroke();
+  }
+
+  // 4) merge sparks
+  for(let i=sparks.length-1;i>=0;i--){ const s=sparks[i]; s.t+=dt; const p=s.t/s.life;
+    if(p>=1){ sparks.splice(i,1); continue; }
+    s.vy+=0.05*dt/16; s.vx*=0.96; s.vy*=0.96; s.x+=s.vx*dt/16; s.y+=s.vy*dt/16;
+    ctx.globalAlpha=1-p; ctx.fillStyle=`rgb(${s.c[0]},${s.c[1]},${s.c[2]})`;
+    ctx.beginPath(); ctx.arc(s.x,s.y,1.6,0,Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+
+  // 5) inbox lasers (bright traveling dash + faint afterglow)
+  for(let i=beams.length-1;i>=0;i--){ const b=beams[i]; b.t+=dt; const p=b.t/b.life;
+    if(p>=1){ beams.splice(i,1); continue; }
+    const e=easeSwoosh(p);
+    ctx.strokeStyle=`rgba(${b.c[0]},${b.c[1]},${b.c[2]},0.15)`; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(b.ax,b.ay); ctx.lineTo(b.bx,b.by); ctx.stroke();
+    const hx=b.ax+(b.bx-b.ax)*e, hy=b.ay+(b.by-b.ay)*e;
+    const tx=b.ax+(b.bx-b.ax)*Math.max(0,e-0.12), ty=b.ay+(b.by-b.ay)*Math.max(0,e-0.12);
+    ctx.strokeStyle=`rgba(${b.c[0]},${b.c[1]},${b.c[2]},${0.9*(1-p*0.4)})`; ctx.lineWidth=1.6;
+    ctx.beginPath(); ctx.moveTo(tx,ty); ctx.lineTo(hx,hy); ctx.stroke();
+    if(e>0.95){ ctx.globalAlpha=1-p; ctx.fillStyle=`rgb(${b.c[0]},${b.c[1]},${b.c[2]})`;
+      ctx.beginPath(); ctx.arc(b.bx,b.by,2.5,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1; }
+  }
+
+  // 6) falling leaves (gravity + sway + tumble)
+  ctx.globalCompositeOperation='source-over';
+  const hc=rgb('--ph-recent').length===3?rgb('--ph-recent'):[0,85,255];
+  for(let i=leaves.length-1;i>=0;i--){ const l=leaves[i]; l.t+=dt;
+    if(!l.landed){
+      l.vy=Math.min(2.2, l.vy+0.12*dt/16);
+      const swayDecay=Math.max(0,1-l.t/4000);
+      l.vx=Math.sin(t*2.2+l.seed)*(1.4*swayDecay);
+      l.rot=Math.sin(t*1.8+l.seed)*0.31;
+      if(Math.floor(l.t/1300)%2===0) l.flip=1; else l.flip=Math.cos(t*6)*0.6+0.4;
+      l.x+=l.vx*dt/16; l.y+=l.vy*dt/16;
+      if(l.y>=l.landY){ l.y=l.landY; l.landed=true; l.bt=0; }
+    } else { l.bt=(l.bt||0)+dt; }
+    const a=l.landed?Math.max(0,1-(l.bt-3000)/2000):1;
+    if(a<=0){ leaves.splice(i,1); continue; }
+    ctx.save(); ctx.translate(l.x,l.y); ctx.rotate(l.rot); ctx.scale(l.flip,1); ctx.globalAlpha=a;
+    ctx.fillStyle=`rgba(${hc[0]},${hc[1]},${hc[2]},.85)`;
+    ctx.beginPath(); ctx.moveTo(0,-4); ctx.quadraticCurveTo(4,0,0,4); ctx.quadraticCurveTo(-4,0,0,-4); ctx.fill();
+    ctx.restore();
+  }
+  ctx.globalAlpha=1;
+
+  // 7) fireflies (seek + value-noise drift + breathe), drawn last
+  ctx.globalCompositeOperation='lighter';
+  const ac=rgb('--accent-rgb');
+  fireflies.forEach(f=>{
+    let ax=Math.sin(t*0.7+f.seed)*0.4 + Math.sin(t*0.23+f.seed*3)*0.9;
+    let ay=Math.cos(t*0.6+f.seed*1.7)*0.4 + Math.sin(t*0.19+f.seed*2)*0.9;
+    if(f.target && f.target.onScreen){
+      const dx=f.target.anchor.x-f.x, dy=f.target.anchor.y-f.y, d=Math.hypot(dx,dy)||1;
+      if(d<200){ ax+=(dx/d)*0.9; ay+=(dy/d)*0.9; }
+    }
+    const maxA=0.06, am=Math.hypot(ax,ay)||1; if(am>maxA){ ax=ax/am*maxA; ay=ay/am*maxA; }
+    f.vx=(f.vx+ax)*0.94; f.vy=(f.vy+ay)*0.94;
+    const sp=Math.hypot(f.vx,f.vy), maxS=f.idle?0.4:1.1; if(sp>maxS){ f.vx=f.vx/sp*maxS; f.vy=f.vy/sp*maxS; }
+    f.x+=f.vx*dt/16; f.y+=f.vy*dt/16;
+    if(f.x<10)f.x=10; if(f.x>W-10)f.x=W-10; if(f.y<10)f.y=10; if(f.y>H-100)f.y=H-100;
+    f.trail.push({x:f.x,y:f.y}); if(f.trail.length>12) f.trail.shift();
+    const base=f.idle?0.3:1; const breathe=(0.55+0.45*Math.sin(t*1.6+f.seed))*base;
+    for(let i=0;i<f.trail.length;i++){ const tp=f.trail[i], ta=(i/f.trail.length)*0.25*base;
+      ctx.globalAlpha=ta; const sz=8; ctx.drawImage(glowSprite, tp.x-sz/2, tp.y-sz/2, sz, sz); }
+    const gs=f.size*5*(0.8+breathe*0.4);
+    ctx.globalAlpha=breathe*0.9; ctx.drawImage(glowSprite, f.x-gs/2, f.y-gs/2, gs, gs);
+    ctx.globalAlpha=breathe; ctx.fillStyle=`rgb(${ac[0]},${ac[1]},${ac[2]})`;
+    ctx.beginPath(); ctx.arc(f.x,f.y,f.size*0.6,0,Math.PI*2); ctx.fill();
+  });
+  ctx.globalAlpha=1; ctx.globalCompositeOperation='source-over';
+
+  if(soundOn) breathBed(fireflies.filter(f=>!f.idle).length);
+
+  requestAnimationFrame(frame);
+}
+
+/* ───────────────────────── REDUCED-MOTION STATIC RENDER ───────────────────────── */
+function renderStatic(){
+  ctx.clearRect(0,0,W,H);
+  ctx.globalCompositeOperation='lighter';
+  nodeIndex.forEach(rec=>{ if(rec.heat>0.06 && rec.onScreen){
+    const sz=20+rec.heat*20; ctx.globalAlpha=Math.min(.45,rec.heat*0.4);
+    ctx.drawImage(rec.phase==='fail'?failSprite:heatSprite, rec.anchor.x-sz/2, rec.anchor.y-sz/2, sz, sz);
+  }});
+  fireflies.forEach((f,i)=>{
+    const a = f.target&&f.target.onScreen ? f.target.anchor : {x:W*0.5, y:60+i*40};
+    ctx.globalAlpha=f.idle?0.3:0.85; const sz=18;
+    ctx.drawImage(glowSprite, a.x-sz/2, a.y-sz/2, sz, sz);
+  });
+  ctx.globalAlpha=1; ctx.globalCompositeOperation='source-over';
+}
+
+/* ───────────────────────── EASING + UTIL ───────────────────────── */
+function easeSwoosh(p){ return 1-Math.pow(1-p,3); }
+function pick(arr){ return arr[(Math.random()*arr.length)|0]; }
+
+/* ───────────────────────── INSPECT PANEL ───────────────────────── */
+let selectedPath=null;
+function selectNode(path){
+  const rec=nodeIndex.get(path); if(!rec) return;
+  if(selectedPath){ const p=nodeIndex.get(selectedPath); if(p) p.el.classList.remove('is-active'); }
+  selectedPath=path; rec.el.classList.add('is-active');
+  renderDock(rec);
+}
+function timeAgo(ts){ const s=Math.round((Date.now()-ts)/1000);
+  if(s<60) return s+'s ago'; if(s<3600) return Math.round(s/60)+'m ago'; return Math.round(s/3600)+'h ago'; }
+function phaseLabel(ph){ return ({hot:'editing now',recent:'touched recently',blocked:'awaiting human',fail:'test failing',cold:'cold / decayed'})[ph]||ph; }
+
+function renderDock(rec){
+  document.getElementById('dockEyebrow').textContent = rec.model.kind==='dir' ? 'directory' : 'file · pheromone trail';
+  document.getElementById('dockTitle').textContent = rec.path;
+  const phColorVar = {hot:'--ph-hot',recent:'--ph-recent',blocked:'--ph-blocked',fail:'--ph-fail',cold:'--ph-cold'}[rec.phase];
+  let html='';
+  html+=`<dl class="kv">`;
+  if(rec.model.kind==='file') html+=`<dt>size</dt><dd>${rec.model.loc} loc</dd>`;
+  html+=`<dt>heat</dt><dd>${(rec.heat).toFixed(2)}</dd>`;
+  html+=`<dt>last touch</dt><dd>${rec.lastTouch?timeAgo(rec.lastTouch):'—'}</dd>`;
+  html+=`</dl>`;
+  html+=`<div style="margin-bottom:var(--sp4)"><span class="phase-pill"><span class="swatch" style="background:var(${phColorVar})"></span>${phaseLabel(rec.phase)}</span></div>`;
+  if(rec.history.length){
+    html+=`<div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--text-muted)">what happened here</div>`;
+    html+=`<ul class="timeline">`;
+    rec.history.forEach(h=>{ const c={hot:'--ph-hot',recent:'--ph-recent',blocked:'--ph-blocked',fail:'--ph-fail'}[rec.phase]||'--ph-cold';
+      html+=`<li><span class="pip" style="background:var(${c})"></span><div class="when">${timeAgo(h.when)}</div><div><span class="who">${h.who}</span> <span class="act">${escapeHtml(h.act)}</span></div></li>`; });
+    html+=`</ul>`;
+  } else {
+    html+=`<div class="empty" style="padding-top:10px"><span class="glyph">·</span>No pheromone deposited yet. Watch — an agent will land here soon.</div>`;
+  }
+  document.getElementById('dockBody').innerHTML=html;
+}
+function escapeHtml(s){ return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+/* ───────────────────────── AGENT CHIPS ───────────────────────── */
+function renderAgents(){
+  const list=document.getElementById('agentList'); list.innerHTML='';
+  const c=rgb('--accent-rgb');
+  fireflies.forEach(f=>{
+    const row=document.createElement('div'); row.className='agentchip';
+    row.innerHTML=`<span class="led" style="background:rgb(${c[0]},${c[1]},${c[2]});opacity:${f.idle?0.4:1}"></span>
+      <span class="nm">${f.agent.label}</span><span class="st">${f.idle?'idle':f.agent.worktree}</span>`;
+    list.append(row);
+  });
+}
+
+/* ───────────────────────── SOUND LAYER (opt-in, WebAudio only) ───────────────────────── */
+let actx=null, master=null, soundOn=false;
+let bedOscA,bedOscB,bedFilter,bedGain,bedLfo, lastSfx={};
+function initAudio(){
+  if(actx) return;
+  actx=new (window.AudioContext||window.webkitAudioContext)();
+  master=actx.createGain(); master.gain.value=0.18; master.connect(actx.destination);
+  bedGain=actx.createGain(); bedGain.gain.value=0.0;
+  bedFilter=actx.createBiquadFilter(); bedFilter.type='lowpass'; bedFilter.frequency.value=300;
+  bedOscA=actx.createOscillator(); bedOscA.type='sine'; bedOscA.frequency.value=65.4;
+  bedOscB=actx.createOscillator(); bedOscB.type='sine'; bedOscB.frequency.value=98.0;
+  bedLfo=actx.createOscillator(); bedLfo.type='sine'; bedLfo.frequency.value=0.1;
+  const lfoGain=actx.createGain(); lfoGain.gain.value=0.04;
+  bedLfo.connect(lfoGain).connect(bedGain.gain);
+  bedOscA.connect(bedFilter); bedOscB.connect(bedFilter); bedFilter.connect(bedGain).connect(master);
+  bedOscA.start(); bedOscB.start(); bedLfo.start();
+}
+function blip(freq,dur,type,peak){
+  if(!soundOn||!actx) return;
+  const o=actx.createOscillator(),g=actx.createGain();
+  o.type=type; o.frequency.value=freq; const t=actx.currentTime;
+  g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(peak,t+0.008);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.connect(g).connect(master); o.start(t); o.stop(t+dur+0.02);
+}
+function sfx(kind){
+  if(!soundOn||!actx) return;
+  const now=performance.now(); if(lastSfx[kind] && now-lastSfx[kind]<80) return; lastSfx[kind]=now;
+  switch(kind){
+    case 'pheromone': blip(280,0.2,'sine',0.05); break;
+    case 'inbox':     blip(440,0.14,'sine',0.06); setTimeout(()=>blip(880,0.1,'sine',0.05),60); break;
+    case 'note':      blip(180,0.07,'triangle',0.07); break;
+    case 'merge':     [659.25,830.6,1318.5].forEach((f,i)=>setTimeout(()=>blip(f,0.6,'sine',0.09-i*0.02),i*40)); break;
+    case 'comm':      blip(523,0.09,'sine',0.05); break;
+    case 'panpan':    blip(500,0.26,'sawtooth',0.06); break;
+    case 'fail':      for(let i=0;i<3;i++){ setTimeout(()=>{blip(660,0.13,'square',0.10); setTimeout(()=>blip(700,0.13,'square',0.10),140);}, i*300); } break;
+  }
+}
+let bedFleet=-1;
+function breathBed(active){
+  if(!actx||!soundOn) return;
+  if(active===bedFleet) return; bedFleet=active;
+  const t=actx.currentTime;
+  const rate=0.08+Math.min(active,6)/6*0.07;
+  const cut=200+Math.min(active,6)/6*700;
+  bedLfo.frequency.linearRampToValueAtTime(rate, t+4);
+  bedFilter.frequency.linearRampToValueAtTime(cut, t+4);
+  bedGain.gain.linearRampToValueAtTime(0.5, t+2);
+}
+
+/* ───────────────────────── CONTROLS ───────────────────────── */
+const soundBtn=document.getElementById('soundBtn');
+soundBtn.addEventListener('click', ()=>{
+  if(REDUCED){ return; }   // reduced-motion forces muted: motion+sound are one nervous system
+  soundOn=!soundOn; soundBtn.setAttribute('aria-pressed', String(soundOn));
+  if(soundOn){ initAudio(); if(actx.state==='suspended') actx.resume(); bedFleet=-1; breathBed(fireflies.filter(f=>!f.idle).length); }
+  else if(bedGain){ bedGain.gain.linearRampToValueAtTime(0, actx.currentTime+0.4); }
+  try{ localStorage.setItem('pd_sound', soundOn?'1':'0'); }catch(e){}
+});
+if(REDUCED){ soundBtn.disabled=true; soundBtn.title='reduced-motion forces muted'; soundBtn.style.opacity='.5'; }
+
+const themeBtn=document.getElementById('themeBtn');
+themeBtn.addEventListener('click', ()=>{
+  const cur=document.documentElement.getAttribute('data-theme');
+  document.documentElement.setAttribute('data-theme', cur==='dark'?'light':'dark');
+  bakeSprites(); renderAgents();
+  if(REDUCED) renderStatic();
+});
+
+/* ───────────────────────── LIFECYCLE ───────────────────────── */
+let io=null;
+if('IntersectionObserver' in window){
+  io=new IntersectionObserver((ents)=>{
+    const vis=ents[0].isIntersecting;
+    if(vis && !REDUCED && !running){ running=true; last=performance.now(); requestAnimationFrame(frame); }
+    if(!vis){ running=false; }
+  }, {threshold:0.01});
+}
+
+function boot(){
+  resize(); bakeSprites(); renderAgents();
+  fileRecs.slice(0,5).forEach((r,i)=>{ r.heat=0.4+i*0.12; r.phase=i%2?'recent':'hot'; r.el.dataset.phase=r.phase;
+    r.history.push({when:Date.now()-i*40000, who:pick(EYE), act:'edited '+r.model.name}); });
+  updateStats();
+  if(REDUCED){ renderStatic(); }
+  else { running=true; requestAnimationFrame(frame); if(io) io.observe(stage); }
+  simTimer=setInterval(tick, 900);
+}
+if(document.fonts && document.fonts.ready){ document.fonts.ready.then(()=>{ recomputeAnchors(); if(REDUCED) renderStatic(); }); }
+boot();
+window.__pd = { nodeIndex, fireflies, tick, fileRecs };
+</script>
+</body>
+</html>

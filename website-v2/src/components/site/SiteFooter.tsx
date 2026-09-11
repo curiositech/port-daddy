@@ -24,7 +24,7 @@ const REFERENCE_LINKS = [
   { label: 'SDK reference', href: '/docs/sdk' },
   { label: 'MCP tools', href: '/docs/mcp' },
   { label: 'REST API', href: '/docs/api' },
-  { label: 'Whitepaper', href: '/library' },
+  { label: 'Whitepaper', href: '/whitepaper' },
   { label: 'Research', href: '/research' },
 ] as const
 

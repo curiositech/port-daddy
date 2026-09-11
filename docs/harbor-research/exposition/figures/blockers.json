@@ -7,7 +7,10 @@
       "T4"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "fig-anchor-capability-attenuation",
@@ -18,7 +21,10 @@
       "T4"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "fig-anchor-card-lifecycle",
@@ -29,7 +35,10 @@
       "T4"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "fig-anchor-cuckoo-inline",
@@ -40,7 +49,10 @@
       "T4"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "fig-anchor-delegation-inline",
@@ -51,7 +63,10 @@
       "T4"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "fig-anchor-four-phases",
@@ -104,7 +119,10 @@
       "T4"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "fig-bonded-sen-regime",
@@ -143,7 +161,10 @@
       "T1"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "fig-fh-federation-topology",
@@ -169,7 +190,10 @@
       "T4"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "fig-fh-xfer-ceremony",
@@ -181,7 +205,10 @@
       "T4"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "fig-governance-flow",
@@ -191,7 +218,10 @@
       "T4"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "fig-he-assurance",
@@ -201,7 +231,10 @@
       "T1"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "fig-he-cold-start",
@@ -212,7 +245,10 @@
       "T4"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "fig-he-conservation-functor",
@@ -223,7 +259,10 @@
       "T4"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "fig-he-float-plan",
@@ -234,7 +273,10 @@
       "T4"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "fig-he-keystone-split",
@@ -273,7 +315,10 @@
       "T4"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "fig-stp-estimator-family",
@@ -313,7 +358,10 @@
       "T4"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "fig-stp-keystone-split",
@@ -339,7 +387,10 @@
       "T4"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "fig-stp-not-bandit",
@@ -364,7 +415,10 @@
       "T4"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "fig-stp-rate-the-raters",
@@ -375,7 +429,10 @@
       "T4"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "fig-stp-role-vs-person",
@@ -387,7 +444,10 @@
       "T4"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "fig-stp-stack-map",
@@ -413,7 +473,10 @@
       "T4"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "fig-stp-three-organs",
@@ -423,7 +486,10 @@
       "T1"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "fig-stp-tombstone",
@@ -436,7 +502,10 @@
       "T4"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "fig-swk-claim-lifecycle",
@@ -446,7 +515,10 @@
       "T4"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "fig-swk-comm-organ",
@@ -470,7 +542,10 @@
       "T4"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "fig-swk-continuity-organs",
@@ -480,7 +555,10 @@
       "T4"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "fig-swk-controllability-quadrant",
@@ -491,7 +569,10 @@
       "T4"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "fig-swk-controllability-relation",
@@ -516,7 +597,10 @@
       "T5"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "fig-swk-dual-runtime",
@@ -543,7 +627,10 @@
       "T5"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "fig-swk-seven-organs",
@@ -568,7 +655,10 @@
       "T4"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "fig-sybil-inline",
@@ -581,7 +671,10 @@
       "T5"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "fig-worked-example",
@@ -593,7 +686,10 @@
       "T4"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "legible-swarm-abdication",
@@ -670,7 +766,10 @@
       "T4"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "legible-swarm-sdt",
@@ -682,7 +781,10 @@
       "T4"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "legible-swarm-specialization",
@@ -693,7 +795,10 @@
       "T5"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "legible-swarm-split-ranker",
@@ -703,7 +808,10 @@
       "T4"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "legible-swarm-stack-map",
@@ -726,7 +834,10 @@
       "T4"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "legible-swarm-zoom-vs-potemkin",
@@ -736,6 +847,9 @@
       "T4"
     ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
   }
 ]

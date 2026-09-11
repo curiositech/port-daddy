@@ -21,6 +21,8 @@
  */
 
 import type { ExecutorEnv, FleetRunJob } from './env.js';
+import { shipAiOptions, type ShipCallContext } from './ship-ai-options.js';
+import { readRepoShipControls, repoShipEnabled, validShipControlName } from '../../shared/repo-ship-controls.js';
 import { TRANSCRIPT_EMERGENCY_EVENT } from '../../../lib/transcript-emergency-constants.js';
 import {
   getInstallationTokenCached,
@@ -471,12 +473,9 @@ function partitionMapDiff(
 function aiOptions(
   env: ExecutorEnv,
   shipName: string,
-): { extraHeaders: Record<string, string>; gateway?: { id: string } } {
-  const opts: { extraHeaders: Record<string, string>; gateway?: { id: string } } = {
-    extraHeaders: { 'x-session-affinity': `pd-fleet-${shipName}` },
-  };
-  if (env.AI_GATEWAY_ID) opts.gateway = { id: env.AI_GATEWAY_ID };
-  return opts;
+  context?: ShipCallContext | null,
+) {
+  return shipAiOptions(env.AI_GATEWAY_ID, shipName, context);
 }
 
 /**
@@ -1590,7 +1589,9 @@ export async function executeFleet(
   // pair is a small, worthwhile cost to keep the gate legible while paused.
   // Any infra failure here is swallowed (never thrown) so a broken pause path
   // can never spiral into queue retries/DLQ churn — pausing must stay cheap.
-  if (await isFleetPaused(env)) {
+  const initialShipControls = await readRepoShipControls(env.DB, job.repoFullName);
+  const repositoryStopped = !repoShipEnabled(initialShipControls, '*');
+  if (await isFleetPaused(env) || repositoryStopped) {
     console.log(`[fleet-executor] delivery=${deliveryId} paused; posting neutral check (no AI spend, no posts)`);
     const head = prPayload.head as { sha?: unknown } | undefined;
     const headSha = typeof head?.sha === 'string' ? head.sha : null;
@@ -1641,9 +1642,11 @@ export async function executeFleet(
           runId,
         );
       }
-      const summary =
-        'Fleet paused by operator; no automated review was performed for this delivery. ' +
-        'Resume the fleet (POST /v1/fleet/pause {"paused":false}) or review this PR manually.';
+      const summary = repositoryStopped
+        ? `${initialShipControls.available ? 'Cloud ships are off for this repository.' : initialShipControls.reason} ` +
+          'No automated review was performed. Manage permissions in the signed-in account Ship controls page.'
+        : 'Fleet paused by operator; no automated review was performed for this delivery. ' +
+          'Resume the fleet (POST /v1/fleet/pause {"paused":false}) or review this PR manually.';
       if (checkRunId) {
         await completeCheckRun(
           owner,
@@ -2498,8 +2501,10 @@ export async function executeFleet(
     // TOCTOU gap where the operator pauses after the GitHub check is created
     // but before additional AI spend or review posts. Complete neutral rather
     // than leaving the already-created check run in progress forever.
-    if (await isFleetPaused(env)) {
-      const summary = `Fleet paused before pd-${ship.name}; stopped before additional AI spend or review posts.`;
+    const shipControls = await readRepoShipControls(env.DB, job.repoFullName);
+    if (await isFleetPaused(env) || !repoShipEnabled(shipControls, '*')) {
+      const summary = !shipControls.available ? shipControls.reason
+        : `Fleet paused before pd-${ship.name}; stopped before additional AI spend or review posts.`;
       await transcript.step('check-completed', null, 'Check concluded: neutral (paused)', {
         checkRunId,
         conclusion: 'neutral',
@@ -2508,6 +2513,18 @@ export async function executeFleet(
       await completeOwnedCheck('neutral', summary, `before pd-${ship.name} paused neutral completion`);
       await recordRunEnd(env, runId, 'neutral', startMs);
       return;
+    }
+
+    // Admin OFF is not a PASS and not a broken ship. Check BEFORE checkpoint
+    // resume: changing permission must not reuse a prior verdict as approval.
+    if (!repoShipEnabled(shipControls, ship.name) || !validShipControlName(ship.name) || ship.name === '*') {
+      const reason = !validShipControlName(ship.name) || ship.name === '*'
+        ? 'Unsupported ship control name; cannot safely admit this ship'
+        : 'Disabled by a repository admin in Ship controls';
+      await transcript.step('ship-skipped', ship.name, `pd-${ship.name}: off — not reviewed`, { reason });
+      results.push({ ship: ship.name, blocking: ship.blocking, verdict: 'PASS', errored: false,
+        findings: [], reviewCoverage: 'none', reviewCoverageReason: reason });
+      continue;
     }
 
     // RESUME: an earlier attempt of this delivery already completed this ship.
@@ -2609,7 +2626,7 @@ export async function executeFleet(
     // buffered per (run, ship, attempt), flushed once to R2 + the D1 index on
     // BOTH exits below — a thrown ship still leaves its partial conversation
     // behind, which is exactly when the forensics matter most.
-    const capture = new ShipTranscript(runId, ship.name, providerAttempt);
+    const capture = new ShipTranscript(runId, ship.name, providerAttempt, job.repoFullName);
     let result: ShipResult;
     try {
       result = ship.purser
@@ -2639,7 +2656,7 @@ export async function executeFleet(
             graftText,
             runId,
             squidConsent,
-            xoEnabled,
+            xoEnabled && repoShipEnabled(shipControls, 'xo'),
             mediatorOrders,
             ship.name === 'lookout' ? frozenLookoutProjection : null,
             aiCircuit,
@@ -2778,7 +2795,7 @@ export async function executeFleet(
   // budget is exhausted, then this optional section disables itself and the
   // already-computed check conclusion remains untouched.
   let reviewBody = summary;
-  if (xoEnabled) {
+  if (xoEnabled && !(await isFleetPaused(env)) && repoShipEnabled(await readRepoShipControls(env.DB, job.repoFullName), 'xo')) {
     const advisories = collectAdvisoryFindings(results);
     if (advisories.length > 0) {
       let section: string;
@@ -2790,6 +2807,7 @@ export async function executeFleet(
           advisories,
           changedPaths,
           gatewayId: env.AI_GATEWAY_ID,
+          telemetryContext: { runId, attempt: providerAttempt, repoFullName: job.repoFullName },
           aiCircuit,
         });
         await assertCurrentHead('after XO triage model work');
@@ -2911,10 +2929,11 @@ export async function executeFleet(
   // closed to inert; the whole call is additionally fenced here so no scan
   // failure can ever surface as a run failure.
   try {
+    const mediatorAllowed = !(await isFleetPaused(env)) && repoShipEnabled(await readRepoShipControls(env.DB, job.repoFullName), 'mediator');
     const scan = await runMediatorScan(env, {
       repo: job.repoFullName,
       deliveredPr: prNumber,
-      config: mediatorConfig,
+      config: mediatorAllowed ? mediatorConfig : { ...mediatorConfig, enabled: false },
       io: buildMediatorScanIo({
         env,
         owner,
@@ -3214,7 +3233,7 @@ async function runShip(
             env.AI.run(
               mapModel as Parameters<typeof env.AI.run>[0],
               request,
-              aiOptions(env, ship.name),
+              aiOptions(env, ship.name, capture),
             ),
           ),
       );
@@ -3350,7 +3369,8 @@ async function runShip(
       // failures keep `proposals` untouched. A provider-circuit fault instead
       // propagates to the ship boundary so the queue owns the bounded retry.
       let curated = proposals;
-      if (xoEnabled && proposals && proposals.length > 0) {
+      if (xoEnabled && proposals && proposals.length > 0 && !(await isFleetPaused(env))
+        && repoShipEnabled(await readRepoShipControls(env.DB, `${prCtx.owner}/${prCtx.repo}`), 'xo')) {
         await assertCurrentHead(`before pd-${ship.name} XO editor`);
         const recentIdeas = env.DB
           ? await listRecentIdeas(env.DB, XO_RECENT_IDEAS_LIMIT)
@@ -3361,6 +3381,7 @@ async function runShip(
           proposals,
           recentIdeas,
           gatewayId: env.AI_GATEWAY_ID,
+          telemetryContext: capture ?? undefined,
           aiCircuit,
         });
         await assertCurrentHead(`after pd-${ship.name} XO editor`);
@@ -4114,7 +4135,7 @@ async function runReduceGroup(
         env.AI.run(
           model as Parameters<typeof env.AI.run>[0],
           request,
-          aiOptions(env, ship.name),
+          aiOptions(env, ship.name, capture),
         ),
       ),
   );
@@ -4225,7 +4246,7 @@ async function shipRepairCall(
       env.AI.run(
         model as Parameters<typeof env.AI.run>[0],
         request,
-        aiOptions(env, ship.name),
+        aiOptions(env, ship.name, capture),
       ),
     ),
   );

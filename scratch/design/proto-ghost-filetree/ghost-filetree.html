@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
+<title>Ghost Filetree — Port Daddy multiverse motif study</title>
+<style>
+/* ============================================================
+   GHOST FILETREE — a multi-dimensional, living filetree.
+   Worktrees = parallel planes in depth (the multiverse).
+   Committed work = solid. Uncommitted/hypothetical = ghostly stems.
+   Canon tokens lifted from operator-tui-v9.html + tokens.semantic.css
+   ============================================================ */
+:root{
+  --swoosh:cubic-bezier(.16,1,.3,1);
+  --snap:cubic-bezier(.34,1.56,.64,1);
+  --float:cubic-bezier(.45,.05,.55,.95);
+  --ease:cubic-bezier(.4,0,.2,1);
+  --dur-micro:140ms; --dur-quick:220ms; --dur-settle:340ms; --dur-flourish:480ms;
+}
+html[data-theme="dark"]{
+  --surface-base:#101216; --surface-raised:#181c22; --surface-strong:#222833;
+  --surface-overlay:rgba(16,18,22,.94); --surface-sunken:#0b0d11; --surface-glass:rgba(24,28,34,.9);
+  --text-primary:#f5f3ed; --text-secondary:#d3cec2; --text-muted:#a59f93;
+  --brand-primary:#7db4ff; --brand-accent:#8fd0a7;
+  --status-success:#66d28a; --status-warning:#f2be51; --status-error:#ff7d7d; --status-info:#7db4ff;
+  --hairline:rgba(245,243,237,.10); --blend:screen;
+}
+html[data-theme="light"]{
+  --surface-base:#f2eee6; --surface-raised:#f7f3eb; --surface-strong:#e9e2d5;
+  --surface-overlay:rgba(242,238,230,.96); --surface-sunken:#e0d9cb; --surface-glass:rgba(247,243,235,.92);
+  --text-primary:#121212; --text-secondary:#403b34; --text-muted:#47423a;
+  --brand-primary:#003fb8; --brand-accent:#006b5f;
+  --status-success:#2d7a43; --status-warning:#a66f00; --status-error:#bf2f2f; --status-info:#0055ff;
+  --hairline:rgba(18,18,18,.12); --blend:multiply;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--surface-base); color:var(--text-primary);
+  font-family:'Geist Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+  font-size:14px; line-height:1.45; overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+/* ---------- top mast ---------- */
+.mast{
+  position:fixed; top:0; left:0; right:0; height:52px; z-index:40;
+  display:flex; align-items:center; gap:16px; padding:0 18px;
+  background:var(--surface-overlay); backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--hairline);
+}
+.mast .brand{font-weight:700; letter-spacing:.02em; font-size:15px}
+.mast .brand small{display:block; font-weight:400; font-size:12px; color:var(--text-muted); letter-spacing:.06em; text-transform:uppercase}
+.mast .spacer{flex:1}
+.chip{
+  display:inline-flex; align-items:center; gap:7px; height:30px; padding:0 12px;
+  border-radius:8px; border:1px solid var(--hairline); background:var(--surface-raised);
+  color:var(--text-secondary); font-size:13px; cursor:pointer; user-select:none;
+  transition:transform var(--dur-micro) var(--snap), background var(--dur-quick) var(--ease), color var(--dur-quick) var(--ease);
+}
+.chip:hover{transform:translateY(-1px); color:var(--text-primary)}
+.chip[aria-pressed="true"]{background:var(--brand-primary); color:var(--surface-base); border-color:transparent}
+.chip .dot{width:8px;height:8px;border-radius:50%;background:var(--brand-accent)}
+.chip svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.7}
+/* eyebrow legend pill (12px exception: uppercase+bold+tracked) */
+.eyebrow{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--text-muted)}
+
+/* ---------- stage ---------- */
+#stage{position:fixed; inset:52px 0 0 0; touch-action:none; cursor:grab}
+#stage:active{cursor:grabbing}
+#gl,#bio{position:absolute; inset:0; width:100%; height:100%}
+#bio{pointer-events:none; mix-blend-mode:var(--blend)}
+
+/* ---------- plane legend (left rail) ---------- */
+.rail{
+  position:fixed; left:14px; top:66px; z-index:20; width:230px;
+  background:var(--surface-glass); backdrop-filter:blur(16px);
+  border:1px solid var(--hairline); border-radius:14px; padding:12px 13px;
+  box-shadow:0 12px 40px rgba(0,0,0,.28);
+}
+.rail h3{font-size:12px; text-transform:uppercase; letter-spacing:.12em; color:var(--text-muted); font-weight:600; margin-bottom:9px}
+.plane-row{
+  display:flex; align-items:center; gap:9px; padding:6px 7px; border-radius:9px; cursor:pointer;
+  transition:background var(--dur-quick) var(--ease);
+}
+.plane-row:hover{background:var(--surface-strong)}
+.plane-row.solo{background:var(--surface-strong); outline:1px solid var(--brand-primary)}
+.plane-swatch{width:11px;height:11px;border-radius:3px;flex:none;box-shadow:0 0 0 1px rgba(255,255,255,.12) inset}
+.plane-meta{flex:1; min-width:0}
+.plane-name{font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.plane-sub{font-size:12px; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.plane-stat{font-size:12px; color:var(--brand-accent); font-weight:600; font-variant-numeric:tabular-nums}
+.plane-row.ghost .plane-name{font-style:italic; opacity:.92}
+
+/* ---------- dock (right rail of actions) ---------- */
+.dock{
+  position:fixed; right:14px; top:66px; z-index:20; width:176px;
+  display:flex; flex-direction:column; gap:8px;
+}
+.dock button{
+  text-align:left; padding:10px 12px; border-radius:11px; cursor:pointer;
+  background:var(--surface-glass); backdrop-filter:blur(16px);
+  border:1px solid var(--hairline); color:var(--text-primary); font-size:13px;
+  font-family:inherit; transition:transform var(--dur-micro) var(--snap), background var(--dur-quick) var(--ease);
+}
+.dock button:hover{transform:translateX(-2px); background:var(--surface-strong)}
+.dock button b{display:block; font-size:13px}
+.dock button span{display:block; font-size:12px; color:var(--text-muted); margin-top:1px}
+.dock button.armed{outline:2px solid var(--brand-accent); background:var(--surface-strong)}
+
+/* ---------- inspect HUD panel ---------- */
+.hud{
+  position:fixed; right:-470px; top:66px; bottom:64px; z-index:30; width:442px;
+  background:var(--surface-overlay); backdrop-filter:blur(20px);
+  border:1px solid var(--hairline); border-radius:16px 0 0 16px; border-right:none;
+  box-shadow:-18px 0 60px rgba(0,0,0,.4); padding:18px 18px 14px;
+  transition:right var(--dur-settle) var(--swoosh); overflow:hidden auto;
+  display:flex; flex-direction:column;
+}
+.hud.open{right:14px}
+.hud .x{position:absolute; top:14px; right:14px; cursor:pointer; color:var(--text-muted); font-size:18px; line-height:1; background:none; border:none}
+.hud .x:hover{color:var(--text-primary)}
+.hud .kicker{font-size:12px; text-transform:uppercase; letter-spacing:.12em; color:var(--text-muted); font-weight:600}
+.hud h2{font-size:18px; margin:4px 0 2px; word-break:break-all; padding-right:24px}
+.hud .path{font-size:13px; color:var(--text-secondary); word-break:break-all; margin-bottom:12px}
+.hud .ghost-badge{display:inline-block; margin-left:8px; font-size:12px; font-weight:600; padding:2px 8px; border-radius:999px; vertical-align:middle;
+  background:color-mix(in srgb,var(--status-info) 22%, transparent); color:var(--status-info); font-style:italic; letter-spacing:.02em}
+.tabs{display:flex; gap:4px; margin-bottom:12px; border-bottom:1px solid var(--hairline); padding-bottom:2px}
+.tabs button{flex:1; background:none; border:none; color:var(--text-muted); font-family:inherit; font-size:13px; padding:7px 4px; cursor:pointer; border-radius:8px 8px 0 0; border-bottom:2px solid transparent}
+.tabs button[aria-selected="true"]{color:var(--text-primary); border-bottom-color:var(--brand-primary)}
+.tabpane{display:none; flex:1; overflow:auto}
+.tabpane.on{display:block}
+.kv{display:grid; grid-template-columns:auto 1fr; gap:6px 14px; font-size:13px; margin-bottom:14px}
+.kv dt{color:var(--text-muted)} .kv dd{color:var(--text-primary); text-align:right; font-variant-numeric:tabular-nums; word-break:break-all}
+.stream{font-size:13px; line-height:1.6}
+.stream .ln{padding:5px 0; border-bottom:1px solid var(--hairline); display:flex; gap:8px}
+.stream .who{color:var(--brand-accent); font-weight:600; white-space:nowrap}
+.stream .t{color:var(--text-muted); font-size:12px; white-space:nowrap; margin-left:auto}
+.sig{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+
+/* ---------- floor gutter (notes pile) ---------- */
+.gutter{
+  position:fixed; left:0; right:0; bottom:0; height:54px; z-index:15;
+  background:linear-gradient(0deg,var(--surface-sunken),transparent);
+  border-top:1px solid var(--hairline); display:flex; align-items:center; gap:10px; padding:0 16px;
+  pointer-events:none;
+}
+.gutter .lbl{font-size:12px; text-transform:uppercase; letter-spacing:.12em; color:var(--text-muted); font-weight:600}
+.pile{display:flex; gap:6px; flex-wrap:wrap-reverse; max-height:44px; overflow:hidden}
+.leaf-chip{
+  font-size:12px; padding:3px 9px; border-radius:7px;
+  background:color-mix(in srgb,var(--status-warning) 16%, var(--surface-raised));
+  color:var(--text-secondary); border:1px solid var(--hairline); white-space:nowrap;
+  animation:leafLand var(--dur-settle) var(--snap);
+}
+@keyframes leafLand{from{transform:translateY(-8px) scale(.7);opacity:0}to{transform:none;opacity:1}}
+
+/* ---------- toast / status line ---------- */
+.toast{
+  position:fixed; left:50%; bottom:64px; transform:translateX(-50%) translateY(20px);
+  z-index:35; background:var(--surface-overlay); backdrop-filter:blur(14px);
+  border:1px solid var(--hairline); border-radius:11px; padding:8px 16px; font-size:13px;
+  opacity:0; pointer-events:none; transition:opacity var(--dur-quick) var(--ease), transform var(--dur-quick) var(--swoosh);
+  max-width:80vw;
+}
+.toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+.toast .accent{color:var(--brand-accent); font-weight:600}
+
+/* ---------- zoom hint ---------- */
+.zoomhint{position:fixed; left:14px; bottom:64px; z-index:18; font-size:12px; color:var(--text-muted); letter-spacing:.04em}
+.zoomhint kbd{background:var(--surface-strong); border:1px solid var(--hairline); border-radius:5px; padding:1px 6px; font-size:12px}
+
+@media (prefers-reduced-motion:reduce){
+  *{transition-duration:.001ms !important; animation-duration:.001ms !important}
+}
+</style>
+</head>
+<body>
+<div class="mast">
+  <div class="brand">PORT DADDY<small>ghost filetree · motif study</small></div>
+  <span class="eyebrow" id="liveStat">— planes · — agents</span>
+  <div class="spacer"></div>
+  <button class="chip" id="soundToggle" aria-pressed="false" title="Fleet-breathing soundscape (opt-in)">
+    <svg viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4z"/><path class="snd-wave" d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
+    <span>Sound</span>
+  </button>
+  <button class="chip" id="explodeBtn" title="Spread the worktree planes apart in depth">
+    <svg viewBox="0 0 24 24"><path d="M12 3v18M5 8l7-5 7 5M5 16l7 5 7-5"/></svg>
+    <span>Explode planes</span>
+  </button>
+  <button class="chip" id="themeBtn" title="Toggle light / dark">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M6.5 17.5 5 19"/></svg>
+    <span>Theme</span>
+  </button>
+</div>
+
+<div id="stage">
+  <canvas id="gl"></canvas>
+  <canvas id="bio"></canvas>
+</div>
+
+<aside class="rail" id="rail">
+  <h3>Worktree planes</h3>
+  <div id="planeList"></div>
+</aside>
+
+<div class="dock">
+  <button id="actSpawn"><b>+ Spawn agent</b><span>drop a firefly</span></button>
+  <button id="actMerge"><b>Merge ghost ↓</b><span>collapse a plane</span></button>
+  <button id="actNote"><b>Drop note</b><span>falling leaf</span></button>
+  <button id="actDM"><b>Send DM</b><span>agent → agent laser</span></button>
+  <button id="actSitrep"><b>Situation report</b><span>aggregate overlay</span></button>
+</div>
+
+<aside class="hud" id="hud" aria-hidden="true">
+  <button class="x" id="hudClose" aria-label="close">✕</button>
+  <div class="kicker" id="hudKick">node</div>
+  <h2 id="hudTitle">—</h2>
+  <div class="path" id="hudPath"></div>
+  <div class="tabs" role="tablist">
+    <button role="tab" data-tab="trans" aria-selected="true">transcript</button>
+    <button role="tab" data-tab="sitrep" aria-selected="false">sitrep</button>
+    <button role="tab" data-tab="telos" aria-selected="false">telos</button>
+  </div>
+  <div class="tabpane on" data-pane="trans"><div class="stream" id="hudStream"></div></div>
+  <div class="tabpane" data-pane="sitrep"><dl class="kv" id="hudKv"></dl><div class="stream" id="hudSitrep"></div></div>
+  <div class="tabpane" data-pane="telos"><div class="stream" id="hudTelos"></div></div>
+</aside>
+
+<div class="gutter"><span class="lbl">notes ↓</span><div class="pile" id="pile"></div></div>
+<div class="zoomhint">scroll <kbd>zoom</kbd> · drag <kbd>pan</kbd> · click <kbd>inspect</kbd> · move mouse → planes parallax</div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/pixi.js@8.6.6/dist/pixi.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-hierarchy@3.1.2/dist/d3-hierarchy.min.js"></script>
+<script>
+/* ===================================================================
+   DATA SPINE — grounded in real Port Daddy concepts.
+   In production this reduces `pd sessions --all-worktrees`, `pd notes`,
+   claims + activity SSE into {planes, nodes, agents, events} at 4Hz.
+   Here it's a fixture that mirrors that exact shape.
+   =================================================================== */
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// A directory tree mirroring the real port-daddy repo surface.
+const TREE = {n:'port-daddy', t:'dir', c:[
+  {n:'lib', t:'dir', c:[
+    {n:'sugar.ts', loc:412}, {n:'spawner.ts', loc:434}, {n:'merge-queue.ts', loc:288},
+    {n:'symbol-index.ts', loc:356}, {n:'tube-spawner-router.ts', loc:190},
+    {n:'llm-backend-resolver.ts', loc:96}, {n:'db.ts', loc:520},
+  ]},
+  {n:'routes', t:'dir', c:[
+    {n:'sugar.ts', loc:140}, {n:'spawn.ts', loc:118}, {n:'merge-queue.ts', loc:230}, {n:'symbols.ts', loc:96},
+  ]},
+  {n:'cli', t:'dir', c:[
+    {n:'commands', t:'dir', c:[{n:'sugar.ts',loc:160},{n:'spawn.ts',loc:120},{n:'attest.ts',loc:88}]},
+  ]},
+  {n:'docs', t:'dir', c:[
+    {n:'adr', t:'dir', c:[{n:'0043-impl-matrix.md',loc:210},{n:'0045-loud-fail.md',loc:180},{n:'0046-operator-tui.md',loc:160}]},
+    {n:'design', t:'dir', c:[{n:'operator-tui-v9.html',loc:1400}]},
+  ]},
+  {n:'mcp', t:'dir', c:[{n:'server.ts',loc:610}]},
+  {n:'tests', t:'dir', c:[{n:'setup-unit.js',loc:140},{n:'spawn.test.js',loc:220}]},
+]};
+
+// Worktree planes. plane 0 = main (solid). +k = agent worktrees (ghostly).
+// Each ghost plane lists DIFF stems: paths it adds/changes (hypothetical).
+const PLANES = [
+  {id:'main', label:'main', kind:'solid', branch:'origin/main', ahead:0, agents:0, hue:210, ghost:false, diffs:[]},
+  {id:'wt-helmsman', label:'helmsman', kind:'clean', branch:'feat/tube-router', ahead:7, agents:1, hue:172, ghost:true,
+    diffs:[['lib','tube-spawner-router.ts'],['routes','tube.ts*'],['tests','tube.test.js*']]},
+  {id:'wt-cartographer', label:'cartographer', kind:'clean', branch:'feat/impl-matrix', ahead:4, agents:1, hue:148, ghost:true,
+    diffs:[['docs','roadmap','matrix.md*'],['lib','roadmap-items.ts*']]},
+  {id:'wt-lookout', label:'lookout', kind:'diverged', branch:'fix/sqlite-wal', ahead:11, agents:2, hue:38, ghost:true,
+    diffs:[['lib','db.ts'],['lib','shadow-db.ts*'],['tests','wal.test.js*']]},
+];
+
+// Agents (fireflies). Each seeks its current file node.
+const AGENTS = [
+  {id:'helmsman', plane:'wt-helmsman', hue:172, file:'lib/tube-spawner-router.ts', idle:false},
+  {id:'cartographer', plane:'wt-cartographer', hue:148, file:'docs/roadmap/matrix.md*', idle:false},
+  {id:'lookout-a', plane:'wt-lookout', hue:38, file:'lib/db.ts', idle:false},
+  {id:'lookout-b', plane:'wt-lookout', hue:30, file:'lib/shadow-db.ts*', idle:true},
+];
+
+const NOTE_SEED = [
+  'Scope: lib/tube-*. fail-closed router.',
+  'Assumption: WAL holds under shadow DB.',
+  'matrix.md → roadmap_items @ now',
+  'rebased onto origin/main, guard green',
+];
+const TRANSCRIPT_SEED = [
+  ['helmsman','claimed lib/tube-spawner-router.ts','info'],
+  ['cartographer','note: phases→roadmap_items','success'],
+  ['lookout-a','pheromone deposit on db.ts','warning'],
+  ['operator','pd guard check --staged → ok','success'],
+];
+
+/* ===================================================================
+   LAYER 0 — d3 layout. Radial tidy-tree, computed once, frozen.
+   =================================================================== */
+function buildLayout(){
+  const root = d3.hierarchy(TREE, d=>d.c);
+  const R = 470;
+  d3.tree().size([2*Math.PI, R]).separation((a,b)=> (a.parent===b.parent?1:1.7)/a.depth )(root);
+  const nodes = [];
+  root.each(n=>{
+    const ang = n.x - Math.PI/2, rad = n.y;
+    n.px = Math.cos(ang)*rad; n.py = Math.sin(ang)*rad;
+    const isDir = !!(n.data.t==='dir');
+    const loc = n.data.loc||0;
+    nodes.push({
+      key: n.ancestors().reverse().map(a=>a.data.n).join('/'),
+      name:n.data.n, isDir, loc,
+      x:n.px, y:n.py, depth:n.depth,
+      r: isDir ? (n.depth===0?16:9) : Math.max(3, Math.min(14, 4+Math.log2((loc||50)/50))),
+      parent: n.parent ? n.parent.ancestors().reverse().map(a=>a.data.n).join('/') : null,
+      pxParent: n.parent? n.parent.px:0, pyParent:n.parent? n.parent.py:0,
+      hot: Math.random()<0.18, // touched in last 5min
+    });
+  });
+  return nodes;
+}
+const BASE_NODES = buildLayout();
+const NODE_BY_KEY = Object.fromEntries(BASE_NODES.map(n=>[n.key,n]));
+
+/* Resolve an agent/diff file string to a base-tree node (for firefly seek + pheromone). */
+function findNode(file){
+  const clean = file.replace(/\*$/,'');
+  let best=null;
+  for(const n of BASE_NODES){
+    if(n.key.endsWith(clean) || n.key.endsWith('/'+clean.split('/').pop())){ best=n; break; }
+  }
+  if(!best){ // hypothetical path -> hang it off the nearest existing dir
+    const dir = clean.split('/').slice(0,-1).join('/');
+    for(const n of BASE_NODES) if(n.key.endsWith(dir) && n.isDir){ best=n; break; }
+  }
+  return best || NODE_BY_KEY['port-daddy'];
+}
+
+/* ===================================================================
+   LAYER 1+2 — PixiJS stage. Main tree (solid) + ghost planes (parallax,
+   hue-shifted, diff-stems only). One WebGL canvas, batched.
+   =================================================================== */
+const glCanvas = document.getElementById('gl');
+const app = new PIXI.Application();
+let world, planeContainers={}, camera={x:0,y:0,k:0.62}, targetK=0.62, mouseNX=0;
+let explode=1; // plane separation multiplier
+const PLANE_DX=22, PLANE_DY=-15;
+
+async function initPixi(){
+  await app.init({canvas:glCanvas, resizeTo:document.getElementById('stage'), antialias:true,
+    backgroundAlpha:0, resolution:Math.min(devicePixelRatio,2), autoDensity:true});
+  world = new PIXI.Container();
+  app.stage.addChild(world);
+
+  // Render ghost planes BACK-to-front so depth reads (highest k furthest back).
+  [...PLANES].reverse().forEach(pl=>{
+    const c = new PIXI.Container();
+    c.label = pl.id;
+    planeContainers[pl.id]=c;
+    world.addChild(c);
+    drawPlane(c, pl);
+  });
+  layoutPlanes();
+  centerCamera();
+  app.ticker.add(tick);
+}
+
+function planeTint(pl){
+  const l = dark()?62:42, sat=pl.kind==='diverged'?64:50;
+  return hslToHex(pl.hue, sat, l);
+}
+
+function drawPlane(c, pl){
+  c.removeChildren();
+  const tint = planeTint(pl);
+  const alpha = pl.ghost ? Math.pow(0.9, planeIndex(pl)+0.3) : 1;
+  c.userAlpha = alpha;
+
+  if(!pl.ghost){
+    // MAIN plane: full solid tree (edges + dir rings + file dots)
+    const edges = new PIXI.Graphics();
+    for(const n of BASE_NODES){
+      if(n.parent==null) continue;
+      edges.moveTo(n.pxParent,n.pyParent).lineTo(n.x,n.y);
+    }
+    edges.stroke({width:1, color:tint, alpha:0.30});
+    c.addChild(edges);
+    for(const n of BASE_NODES){
+      const g = new PIXI.Graphics();
+      g.x=n.x; g.y=n.y; g.__node=n; g.__plane=pl;
+      g.eventMode='static'; g.cursor='pointer';
+      g.hitArea = new PIXI.Circle(0,0, Math.max(n.r+5,9));
+      if(n.isDir){
+        g.circle(0,0,n.r).stroke({width:2, color:tint, alpha:0.9});
+        if(n.depth>0) g.circle(0,0,n.r*0.4).fill({color:tint, alpha:0.25});
+      }else{
+        const fh = fileHue(n.name);
+        g.circle(0,0,n.r).fill({color:hslToHex(fh,28,dark()?58:46), alpha:0.95});
+        if(n.hot) g.circle(0,0,n.r+2.5).stroke({width:1.5,color:hslToHex(fh,55,62),alpha:0.7});
+      }
+      g.on('pointertap',()=>openInspect(n, pl));
+      g.on('pointerover',()=>{g.scale.set(1.25); hoverNode={node:n,plane:pl};});
+      g.on('pointerout',()=>{g.scale.set(1); hoverNode=null;});
+      c.addChild(g);
+    }
+  }else{
+    // GHOST plane: faint silhouette of the SHARED tree + bright DIFF stems.
+    const ghostEdges = new PIXI.Graphics();
+    for(const n of BASE_NODES){ if(n.parent==null) continue; ghostEdges.moveTo(n.pxParent,n.pyParent).lineTo(n.x,n.y); }
+    ghostEdges.stroke({width:0.8, color:tint, alpha:0.10});
+    c.addChild(ghostEdges);
+
+    // diff stems: dashed branches growing from nearest existing node
+    pl.__stems = [];
+    pl.diffs.forEach((path,i)=>{
+      const file = path[path.length-1];
+      const hypothetical = file.endsWith('*');
+      const anchor = findNode(path.slice(0,-1).join('/') || file);
+      const baseAng = Math.atan2(anchor.y, anchor.x);
+      const ang = baseAng + (i-1)*0.22;
+      const dist = 44 + i*10;
+      const tx = anchor.x + Math.cos(ang)*dist, ty = anchor.y + Math.sin(ang)*dist;
+      const stem = new PIXI.Graphics();
+      stem.__grow=0; stem.__from=[anchor.x,anchor.y]; stem.__to=[tx,ty];
+      stem.__hyp=hypothetical; stem.__tint=tint; stem.__file=file; stem.__plane=pl;
+      stem.x=0; stem.y=0;
+      stem.eventMode='static'; stem.cursor='pointer';
+      stem.hitArea = new PIXI.Circle(tx,ty,12);
+      stem.on('pointertap',()=>openInspect({key:pl.branch+':'+path.join('/'),name:file.replace(/\*$/,''),
+        isDir:false,loc:0,ghost:hypothetical,hot:false,x:tx,y:ty}, pl));
+      stem.on('pointerover',()=>{hoverNode={node:{x:tx,y:ty,name:file,ghost:true},plane:pl};});
+      stem.on('pointerout',()=>{hoverNode=null;});
+      c.addChild(stem);
+      pl.__stems.push(stem);
+    });
+  }
+  c.alpha = alpha;
+}
+
+function planeIndex(pl){ return PLANES.indexOf(pl); }
+
+function layoutPlanes(){
+  PLANES.forEach((pl)=>{
+    const c = planeContainers[pl.id]; if(!c) return;
+    const k = planeIndex(pl);
+    c.x = k*PLANE_DX*explode + mouseNX*k*6;
+    c.y = k*PLANE_DY*explode;
+    c.scale.set(1 - k*0.012*explode);
+    c.alpha = (c.userAlpha||1) * planeVis(pl);
+  });
+}
+const planeMuted = {}; // soloing
+function planeVis(pl){
+  const anySolo = Object.values(planeMuted).some(v=>v==='solo');
+  if(anySolo) return planeMuted[pl.id]==='solo'?1:0.06;
+  return planeMuted[pl.id]==='off'?0.0:1;
+}
+
+function centerCamera(){
+  const s=document.getElementById('stage');
+  // bias slightly above-center so the downward-fanning radial tree sits centered
+  camera.x=s.clientWidth/2 + 30; camera.y=s.clientHeight/2 - 60;
+  applyCamera();
+}
+function applyCamera(){
+  world.x=camera.x; world.y=camera.y; world.scale.set(camera.k);
+}
+
+/* growth animation for ghost stems (runs in pixi ticker) */
+function tick(){
+  // ghost stem grow-in (340ms-ish ease) + breathing for hypothetical
+  PLANES.forEach(pl=>{
+    if(!pl.ghost||!pl.__stems) return;
+    pl.__stems.forEach(stem=>{
+      if(stem.__grow<1) stem.__grow = Math.min(1, stem.__grow + (REDUCED?1:0.045));
+      const g=stem.__grow, ease=1-Math.pow(1-g,3);
+      const [fx,fy]=stem.__from,[tx,ty]=stem.__to;
+      const cx=fx+(tx-fx)*ease, cy=fy+(ty-fy)*ease;
+      stem.clear();
+      const segs=7;
+      for(let i=0;i<segs;i+=2){
+        const a=i/segs, b=Math.min(1,(i+1)/segs);
+        stem.moveTo(fx+(cx-fx)*a, fy+(cy-fy)*a).lineTo(fx+(cx-fx)*b, fy+(cy-fy)*b);
+      }
+      const breathe = stem.__hyp ? (REDUCED?0.4:0.25+0.20*Math.sin(performance.now()*0.0019+fx)) : 0.6;
+      stem.stroke({width:1.4, color:stem.__tint, alpha:0.18+breathe*0.5});
+      if(stem.__hyp){
+        stem.circle(cx,cy,4.5).stroke({width:1.4,color:stem.__tint,alpha:0.35+breathe*0.45});
+      }else{
+        stem.circle(cx,cy,4.5).fill({color:stem.__tint,alpha:0.85});
+      }
+    });
+  });
+  camera.k += (targetK-camera.k)*0.12;
+  applyCamera();
+  layoutPlanes();
+}
+
+/* ===================================================================
+   LAYER 3+4 — BIOFIELD canvas. Fireflies, pheromones, merges,
+   leaves, lasers, soundwaves. One rAF loop, pooled particles.
+   =================================================================== */
+const bio = document.getElementById('bio');
+const bx = bio.getContext('2d');
+let dpr = Math.min(devicePixelRatio,2);
+function sizeBio(){
+  const s=document.getElementById('stage');
+  bio.width=s.clientWidth*dpr; bio.height=s.clientHeight*dpr;
+  bio.style.width=s.clientWidth+'px'; bio.style.height=s.clientHeight+'px';
+}
+
+// project a world point (on a given plane) to screen px
+function project(wx,wy,plane){
+  const k=planeIndex(plane||PLANES[0]);
+  const offx = plane? (k*PLANE_DX*explode + mouseNX*k*6):0;
+  const offy = plane? (k*PLANE_DY*explode):0;
+  const sc = plane? (1-k*0.012*explode):1;
+  return [ (camera.x + (wx*sc+offx)*camera.k), (camera.y + (wy*sc+offy)*camera.k) ];
+}
+
+// ---- firefly sprites (pre-baked glow) ----
+function bakeGlow(hue, radius){
+  const c=document.createElement('canvas'); const R=radius*5; c.width=c.height=R*2;
+  const g=c.getContext('2d'); const grd=g.createRadialGradient(R,R,0,R,R,R);
+  const [r,gg,b]=hsl2rgb(hue,0.7,0.6);
+  grd.addColorStop(0,`rgba(${r},${gg},${b},0.95)`);
+  grd.addColorStop(0.4,`rgba(${r},${gg},${b},0.35)`);
+  grd.addColorStop(1,`rgba(${r},${gg},${b},0)`);
+  g.fillStyle=grd; g.fillRect(0,0,R*2,R*2);
+  return c;
+}
+const fireflies = AGENTS.map(a=>{
+  const node = findNode(a.file);
+  return {...a, seed:Math.random()*99, sx:node.x, sy:node.y, vx:0, vy:0,
+    target:node, glow:bakeGlow(a.hue,4.5), trail:[]};
+});
+
+// ---- heatmap (pheromone persistence) keyed by node ----
+const heat = {};
+function deposit(key, amt){ heat[key]=Math.min(1,(heat[key]||0)+amt); }
+
+// ---- particle pools ----
+const parts=[];
+function ring(sx,sy,color,maxR=32,life=700){ parts.push({type:'ring',sx,sy,color,r0:0,r1:maxR,t:0,life}); }
+function soundwave(sx,sy,color){ for(let i=0;i<3;i++) parts.push({type:'wave',sx,sy,color,delay:i*120,t:0,life:800}); }
+function spark(sx,sy,color){ for(let i=0;i<10;i++){const a=Math.random()*6.28,sp=1+Math.random()*2.5;
+  parts.push({type:'spark',x:sx,y:sy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,color,t:0,life:400});} }
+function burst(sx,sy){ parts.push({type:'burst',sx,sy,t:0,life:240}); spark(sx,sy,'#ffffff'); }
+function laser(x1,y1,x2,y2,color){ parts.push({type:'laser',x1,y1,x2,y2,color,t:0,life:360}); }
+const leaves=[];
+function leaf(sx,sy,text){
+  leaves.push({x:sx,y:sy,vx:(Math.random()-.5)*0.6,vy:0,rot:0,seed:Math.random()*6,
+    flip:0,scaleX:1,landed:false,t:0,text});
+}
+const merges=[];
+
+// ---- main biofield loop ----
+let lastT=performance.now(), bioRunning=!REDUCED, offscreen=false;
+function bioLoop(now){
+  if(!bioRunning){return;}
+  requestAnimationFrame(bioLoop);
+  if(offscreen) return;
+  const dt=Math.min(40, now-lastT); lastT=now;
+  const tt=now*0.001;
+  bx.setTransform(dpr,0,0,dpr,0,0);
+  bx.clearRect(0,0,bio.width,bio.height);
+
+  // --- pheromone heat ---
+  for(const k in heat){
+    heat[k]*=0.985; if(heat[k]<0.01){delete heat[k];continue;}
+    const n=NODE_BY_KEY[k]; if(!n) continue;
+    const [px,py]=project(n.x,n.y,PLANES[0]);
+    const rad=Math.max(0.1,22*camera.k*(0.6+heat[k]));
+    const grd=bx.createRadialGradient(px,py,0,px,py,rad);
+    const succ = cssVar('--status-success');
+    grd.addColorStop(0,hexA(succ,0.35*heat[k])); grd.addColorStop(1,hexA(succ,0));
+    bx.fillStyle=grd; bx.beginPath(); bx.arc(px,py,rad,0,6.283); bx.fill();
+  }
+
+  // --- merge animations ---
+  for(let i=merges.length-1;i>=0;i--){
+    const m=merges[i]; m.t+=dt;
+    const p=Math.min(1,m.t/520);
+    const e = p<0.54 ? p/0.54 : 1;
+    const ix=m.from[0]+(m.to[0]-m.from[0])*easeFloat(e);
+    const iy=m.from[1]+(m.to[1]-m.from[1])*easeFloat(e);
+    const [sx,sy]=project(ix,iy,m.fromPlane);
+    bx.beginPath(); bx.arc(sx,sy,4,0,6.283); bx.fillStyle=m.color; bx.globalAlpha=0.85; bx.fill(); bx.globalAlpha=1;
+    if(p>=0.54 && !m.flashed){ m.flashed=true; const [fx,fy]=project(m.to[0],m.to[1],PLANES[0]); burst(fx,fy); }
+    if(p>=1) merges.splice(i,1);
+  }
+
+  // --- fireflies (agents) ---
+  fireflies.forEach(f=>{
+    const plane = PLANES.find(p=>p.id===f.plane)||PLANES[0];
+    const dx=Math.sin(tt*0.7+f.seed)*0.4 + Math.sin(tt*0.23+f.seed*3)*0.9;
+    const dy=Math.cos(tt*0.6+f.seed*1.7)*0.5 + Math.sin(tt*0.19+f.seed*2)*0.8;
+    const tgt=f.target;
+    let ax=(tgt.x - f.sx), ay=(tgt.y - f.sy);
+    const d=Math.hypot(ax,ay)||1;
+    if(d>2){ ax=ax/d*0.02; ay=ay/d*0.02; } else {ax=ay=0;}
+    f.vx=(f.vx+ax)*0.96 + dx*0.012;
+    f.vy=(f.vy+ay)*0.96 + dy*0.012;
+    const sp=Math.hypot(f.vx,f.vy), maxs=f.idle?0.5:1.1;
+    if(sp>maxs){ f.vx=f.vx/sp*maxs; f.vy=f.vy/sp*maxs; }
+    f.sx+=f.vx; f.sy+=f.vy;
+    if(!f.idle && Math.random()<0.02) deposit(f.target.key, 0.25);
+    const [px,py]=project(f.sx,f.sy,plane);
+    f.trail.push([px,py]); if(f.trail.length>12) f.trail.shift();
+    bx.beginPath();
+    f.trail.forEach((p,i)=>{ if(i===0)bx.moveTo(p[0],p[1]); else bx.lineTo(p[0],p[1]); });
+    bx.strokeStyle=hexA(hslHex(f.hue,70,60),0.12); bx.lineWidth=2; bx.stroke();
+    const a=(0.55+0.45*Math.sin(tt*1.6+f.seed))*(f.idle?0.3:1);
+    const sz=(4.5)*5*camera.k*(0.7+0.3*a);
+    bx.globalAlpha=a; bx.globalCompositeOperation='lighter';
+    bx.drawImage(f.glow, px-sz, py-sz, sz*2, sz*2);
+    bx.globalCompositeOperation='source-over'; bx.globalAlpha=1;
+    bx.beginPath(); bx.arc(px,py,2.2,0,6.283); bx.fillStyle=hslHex(f.hue,80,82); bx.fill();
+  });
+
+  // --- short-lived particles ---
+  for(let i=parts.length-1;i>=0;i--){
+    const p=parts[i]; p.t+=dt;
+    if(p.type==='ring'){
+      const k=Math.min(1,p.t/p.life), e=easeSwoosh(k), r=Math.max(0.1,(p.r0+(p.r1-p.r0)*e)*camera.k);
+      bx.beginPath(); bx.arc(p.sx,p.sy,r,0,6.283);
+      bx.strokeStyle=hexA(p.color,0.6*(1-k)); bx.lineWidth=Math.max(0.3,2*(1-k)+0.3); bx.stroke();
+      if(k>=1) parts.splice(i,1);
+    } else if(p.type==='wave'){
+      if(p.t<p.delay) continue;
+      const k=Math.min(1,(p.t-p.delay)/p.life), e=easeSwoosh(k), r=Math.max(0.1,(48*e)*camera.k);
+      bx.beginPath(); bx.arc(p.sx,p.sy,r,0,6.283);
+      bx.strokeStyle=hexA(p.color,0.5*(1-k)); bx.lineWidth=Math.max(0.3,2*(1-k)+0.3); bx.stroke();
+      if(k>=1) parts.splice(i,1);
+    } else if(p.type==='spark'){
+      const k=Math.min(1,p.t/p.life); p.vy+=0.05; p.vx*=0.96; p.vy*=0.96; p.x+=p.vx; p.y+=p.vy;
+      bx.beginPath(); bx.arc(p.x,p.y,Math.max(0.1,1.6*(1-k)),0,6.283); bx.fillStyle=hexA(p.color,1-k); bx.fill();
+      if(k>=1) parts.splice(i,1);
+    } else if(p.type==='burst'){
+      const k=Math.min(1,p.t/p.life), e=easeSnap(k), sc=0.2+(2.4-0.2)*e, al=1-k;
+      const s=Math.max(0.1,18*sc*camera.k);
+      const grd=bx.createRadialGradient(p.sx,p.sy,0,p.sx,p.sy,s);
+      grd.addColorStop(0,hexA('#ffffff',al)); grd.addColorStop(0.5,hexA(cssVar('--brand-primary'),al*0.7)); grd.addColorStop(1,hexA(cssVar('--brand-primary'),0));
+      bx.fillStyle=grd; bx.beginPath(); bx.arc(p.sx,p.sy,s,0,6.283); bx.fill();
+      if(k>=1) parts.splice(i,1);
+    } else if(p.type==='laser'){
+      const k=Math.min(1,p.t/p.life), e=easeSwoosh(k);
+      bx.beginPath(); bx.moveTo(p.x1,p.y1); bx.lineTo(p.x2,p.y2);
+      bx.strokeStyle=hexA(p.color,0.15*(1-k)); bx.lineWidth=1.5; bx.stroke();
+      const hx=p.x1+(p.x2-p.x1)*e, hy=p.y1+(p.y2-p.y1)*e;
+      const tx=p.x1+(p.x2-p.x1)*Math.max(0,e-0.18), ty=p.y1+(p.y2-p.y1)*Math.max(0,e-0.18);
+      bx.beginPath(); bx.moveTo(tx,ty); bx.lineTo(hx,hy);
+      bx.strokeStyle=hexA(p.color,0.95); bx.lineWidth=2; bx.stroke();
+      if(k>=1){ ring(p.x2,p.y2,p.color,10,160); parts.splice(i,1); }
+    }
+  }
+
+  // --- falling leaves (notes) ---
+  for(let i=leaves.length-1;i>=0;i--){
+    const lf=leaves[i]; lf.t+=dt;
+    if(!lf.landed){
+      lf.vy=Math.min(2.2, lf.vy+0.12);
+      lf.vx=Math.sin(tt*2.2+lf.seed)*1.2;
+      lf.x+=lf.vx; lf.y+=lf.vy;
+      lf.rot=Math.sin(tt*1.8+lf.seed)*0.32;
+      lf.flip+=dt;
+      lf.scaleX = Math.cos(lf.flip*0.0024)*0.9+0.1;
+      const s=document.getElementById('stage');
+      if(lf.y > s.clientHeight-26){ lf.landed=true; commitLeaf(lf.text); leaves.splice(i,1); continue; }
+    }
+    bx.save(); bx.translate(lf.x,lf.y); bx.rotate(lf.rot); bx.scale(lf.scaleX,1);
+    bx.fillStyle=hexA(cssVar('--status-warning'),0.85);
+    roundRect(bx,-7,-5,14,10,3); bx.fill();
+    bx.restore();
+  }
+
+  // --- hover halo ---
+  if(hoverNode){
+    const n=hoverNode.node, pl=hoverNode.plane;
+    const [px,py]=project(n.x,n.y,pl);
+    bx.beginPath(); bx.arc(px,py,(n.r||5)*camera.k+8,0,6.283);
+    bx.strokeStyle=hexA(cssVar('--brand-accent'),0.6); bx.lineWidth=1.5; bx.stroke();
+  }
+
+  if(sitrepOn) drawSitrep();
+}
+
+function drawSitrep(){
+  PLANES.forEach((pl)=>{
+    if(!pl.ghost) return;
+    const [px,py]=project(0,0,pl);
+    bx.font='600 13px Geist Mono, monospace';
+    const txt=`${pl.label} +${pl.ahead} · ${pl.diffs.length} stems · ${pl.agents} agents`;
+    const w=bx.measureText(txt).width+16;
+    bx.fillStyle=hexA(cssVar('--surface-overlay'),0.92); roundRect(bx,px-w/2,py-150*camera.k,w,22,6); bx.fill();
+    bx.fillStyle=cssVar('--text-primary'); bx.textAlign='center';
+    bx.fillText(txt,px,py-150*camera.k+15); bx.textAlign='left';
+  });
+}
+
+/* ===================================================================
+   INTERACTION — pan / zoom / parallax / inspect / dock actions
+   =================================================================== */
+let hoverNode=null;
+const stage=document.getElementById('stage');
+stage.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const f=Math.exp(-e.deltaY*0.0012);
+  targetK=Math.max(0.18, Math.min(3.2, targetK*f));
+},{passive:false});
+let dragging=false, lastM=null;
+stage.addEventListener('pointerdown',e=>{ if(e.target.tagName==='CANVAS'){dragging=true; lastM=[e.clientX,e.clientY];} });
+window.addEventListener('pointerup',()=>dragging=false);
+window.addEventListener('pointermove',e=>{
+  const s=stage.getBoundingClientRect();
+  mouseNX = ((e.clientX-s.left)/s.width - 0.5)*2;
+  if(dragging&&lastM){ camera.x+=e.clientX-lastM[0]; camera.y+=e.clientY-lastM[1]; lastM=[e.clientX,e.clientY]; applyCamera(); }
+});
+
+function openInspect(n, plane){
+  const hud=document.getElementById('hud');
+  hud.classList.add('open'); hud.setAttribute('aria-hidden','false');
+  const ghost = n.ghost || (typeof n.name==='string' && n.name.includes('*')) || plane.ghost;
+  document.getElementById('hudKick').textContent = n.isDir?'directory · '+plane.label : 'file · '+plane.label;
+  document.getElementById('hudTitle').innerHTML = (n.name||'').replace(/\*$/,'') +
+    (ghost?'<span class="ghost-badge">uncommitted</span>':'');
+  document.getElementById('hudPath').textContent = (plane.branch||'main')+'  ·  '+(n.key||n.name);
+  const kv=document.getElementById('hudKv');
+  kv.innerHTML = `
+    <dt>plane</dt><dd>${plane.label} (${plane.kind})</dd>
+    <dt>branch</dt><dd>${plane.branch}</dd>
+    <dt>ahead</dt><dd>+${plane.ahead}</dd>
+    <dt>kind</dt><dd>${n.isDir?'dir':'file'}</dd>
+    <dt>loc</dt><dd>${n.loc||'—'}</dd>
+    <dt>state</dt><dd>${ghost?'ghost / hypothetical':'committed'}</dd>
+    <dt>heat</dt><dd>${((heat[n.key]||0)*100|0)}%</dd>`;
+  const owner = AGENTS.find(a=>a.plane===plane.id);
+  setStream('hudStream', TRANSCRIPT_SEED.map(([w,m,s])=>({who:w,msg:m,sig:s})));
+  setStream('hudSitrep', [
+    {who:'plane',msg:`${plane.ahead} commits ahead of origin/main`,sig:'info'},
+    {who:'diffs',msg:`${plane.diffs.length} changed paths · ${plane.diffs.filter(d=>d[d.length-1].endsWith('*')).length} new`,sig:'warning'},
+    {who:'merge',msg: plane.kind==='diverged'?'conflicts likely — rebase first':'fast-forward ready',sig:plane.kind==='diverged'?'error':'success'},
+  ]);
+  setStream('hudTelos', [
+    {who:'telos',msg: owner?`${owner.id} working ${owner.file.replace(/\*$/,'')}`:'no agent claimed',sig:'success'},
+    {who:'roadmap',msg:'FK → roadmap_items @ now',sig:'info'},
+    {who:'triggers',msg:'on merge → run guard check --staged',sig:'info'},
+  ]);
+  if(bioRunning && n.x!==undefined){ const [px,py]=project(n.x,n.y,plane); ring(px,py,cssVar('--brand-accent'),28); }
+  snd.play('comm', n.name? hashStr(n.name):440);
+}
+function setStream(id, lines){
+  const el=document.getElementById(id);
+  el.innerHTML = lines.map(l=>`<div class="ln"><span class="who"><span class="sig" style="background:${sigColor(l.sig)}"></span>${l.who}</span>${l.msg}</div>`).join('');
+}
+function sigColor(s){ return cssVar('--status-'+(s==='info'?'info':s)); }
+document.getElementById('hudClose').onclick=()=>{const h=document.getElementById('hud');h.classList.remove('open');h.setAttribute('aria-hidden','true');};
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.tabs button').forEach(x=>x.setAttribute('aria-selected','false'));
+  b.setAttribute('aria-selected','true');
+  document.querySelectorAll('.tabpane').forEach(p=>p.classList.toggle('on', p.dataset.pane===b.dataset.tab));
+});
+
+/* ---- dock actions ---- */
+let sitrepOn=false;
+document.getElementById('actSpawn').onclick=()=>{
+  const pl=PLANES[1+Math.floor(Math.random()*(PLANES.length-1))];
+  const node=findNode(pl.diffs[0][pl.diffs[0].length-1]);
+  const hue=pl.hue+Math.random()*20;
+  fireflies.push({id:'spawned-'+Date.now()%1000, plane:pl.id, hue, file:pl.diffs[0].join('/'), idle:false,
+    seed:Math.random()*99, sx:node.x, sy:node.y, vx:0,vy:0, target:node, glow:bakeGlow(hue,4.5), trail:[]});
+  const [px,py]=project(node.x,node.y,pl);
+  if(bioRunning){ soundwave(px,py,sigColor('success')); }
+  snd.play('spawn'); toast(`spawned firefly on <span class="accent">${pl.label}</span>`);
+  refreshRail();
+};
+document.getElementById('actMerge').onclick=()=>{
+  const pl=PLANES.find(p=>p.ghost && planeVis(p)>0.1) || PLANES[1];
+  if(!pl.ghost){ toast('no ghost plane left to merge'); return; }
+  if(pl.__stems){
+    pl.__stems.forEach((stem,i)=>{
+      setTimeout(()=>{
+        if(bioRunning){ merges.push({from:[stem.__to[0],stem.__to[1]],to:[stem.__to[0],stem.__to[1]],
+          fromPlane:pl,color:planeColorCss(pl),t:0,flashed:false}); }
+        else { const [bx2,by2]=project(stem.__to[0],stem.__to[1],PLANES[0]); ring(bx2,by2,cssVar('--brand-primary'),20,200); }
+      }, i*90);
+    });
+  }
+  pl.ghost=false;
+  const c=planeContainers[pl.id];
+  let a=c.alpha; const fade=()=>{ a-=0.06; c.alpha=Math.max(0,a); if(a>0) requestAnimationFrame(fade); else { planeMuted[pl.id]='off'; refreshRail(); } };
+  if(!REDUCED) requestAnimationFrame(fade); else { c.alpha=0; planeMuted[pl.id]='off'; refreshRail(); }
+  snd.play('merge'); toast(`merging <span class="accent">${pl.label}</span> → main`);
+};
+document.getElementById('actNote').onclick=()=>{
+  const txt=NOTE_SEED[Math.floor(Math.random()*NOTE_SEED.length)];
+  const ag=fireflies[Math.floor(Math.random()*fireflies.length)];
+  const pl=PLANES.find(p=>p.id===ag.plane)||PLANES[0];
+  const [px,py]=project(ag.sx,ag.sy,pl);
+  if(bioRunning){ leaf(px,py,txt); } else { commitLeaf(txt); }
+  snd.play('note');
+};
+document.getElementById('actDM').onclick=()=>{
+  if(fireflies.length<2) return;
+  const a=fireflies[0], b=fireflies[Math.min(2,fireflies.length-1)];
+  const pa=PLANES.find(p=>p.id===a.plane), pb=PLANES.find(p=>p.id===b.plane);
+  const [x1,y1]=project(a.sx,a.sy,pa),[x2,y2]=project(b.sx,b.sy,pb);
+  if(bioRunning){ laser(x1,y1,x2,y2,cssVar('--status-info')); }
+  else { ring(x2,y2,cssVar('--status-info'),10,180); }
+  snd.play('laser'); toast(`DM <span class="accent">${a.id} → ${b.id}</span>`);
+};
+document.getElementById('actSitrep').onclick=(e)=>{
+  sitrepOn=!sitrepOn; e.currentTarget.classList.toggle('armed',sitrepOn);
+  toast(sitrepOn?'situation report <span class="accent">on</span>':'situation report off');
+};
+
+/* ---- top-bar chips ---- */
+document.getElementById('explodeBtn').onclick=(e)=>{
+  explode = explode>2 ? 1 : 4;
+  e.currentTarget.querySelector('span').textContent = explode>2?'Conjoin planes':'Explode planes';
+  e.currentTarget.setAttribute('aria-pressed', explode>2);
+  toast(explode>2?'planes spread in depth':'planes conjoined');
+};
+document.getElementById('themeBtn').onclick=()=>{
+  const t=document.documentElement.dataset.theme==='dark'?'light':'dark';
+  document.documentElement.dataset.theme=t;
+  PLANES.forEach(pl=>{ if(planeContainers[pl.id]) drawPlane(planeContainers[pl.id],pl); });
+  layoutPlanes();
+};
+
+/* ===================================================================
+   SOUND — "Fleet breathing". Opt-in. Reduced-motion forces mute.
+   =================================================================== */
+const snd = (()=>{
+  let ctx=null, master=null, bed=null, bedFilter=null, lfo=null, on=false;
+  let lastCue={};
+  function ensure(){
+    if(ctx) return;
+    ctx=new (window.AudioContext||window.webkitAudioContext)();
+    master=ctx.createGain(); master.gain.value=0.18; master.connect(ctx.destination);
+    bedFilter=ctx.createBiquadFilter(); bedFilter.type='lowpass'; bedFilter.frequency.value=400;
+    const bedGain=ctx.createGain(); bedGain.gain.value=0.0;
+    bedFilter.connect(bedGain).connect(master);
+    [65.41,98].forEach(f=>{const o=ctx.createOscillator();o.type='sine';o.frequency.value=f;o.connect(bedFilter);o.start();});
+    const buf=ctx.createBuffer(1,ctx.sampleRate*2,ctx.sampleRate); const d=buf.getChannelData(0); let last=0;
+    for(let i=0;i<d.length;i++){const w=Math.random()*2-1; last=(last+0.02*w)/1.02; d[i]=last*3;}
+    const noise=ctx.createBufferSource(); noise.buffer=buf; noise.loop=true;
+    const ng=ctx.createGain(); ng.gain.value=0.12; noise.connect(ng).connect(bedFilter); noise.start();
+    lfo=ctx.createOscillator(); lfo.frequency.value=0.1; const lg=ctx.createGain(); lg.gain.value=0.06;
+    lfo.connect(lg).connect(bedGain.gain); lfo.start();
+    bed=bedGain;
+  }
+  function tone(freq,dur,type,peak){
+    const o=ctx.createOscillator(),g=ctx.createGain(); o.type=type||'sine'; o.frequency.value=freq;
+    const t=ctx.currentTime; g.gain.setValueAtTime(0.0001,t);
+    g.gain.linearRampToValueAtTime(peak||0.12,t+0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(g).connect(master); o.start(t); o.stop(t+dur+0.02);
+  }
+  function play(cue,arg){
+    if(!on||!ctx) return;
+    const now=performance.now(); if(now-(lastCue[cue]||0)<80) return; lastCue[cue]=now;
+    if(cue==='comm') tone(320+(arg%200),0.09,'sine',0.10);
+    else if(cue==='laser'){ const o=ctx.createOscillator(),g=ctx.createGain(); o.type='sine';
+      const t=ctx.currentTime; o.frequency.setValueAtTime(400,t); o.frequency.linearRampToValueAtTime(900,t+0.14);
+      g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(0.1,t+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t+0.14);
+      o.connect(g).connect(master); o.start(t); o.stop(t+0.16); }
+    else if(cue==='note'){ tone(180,0.07,'triangle',0.1); }
+    else if(cue==='merge'){ [659.25,830.6,1318.5].forEach((f,i)=>tone(f,0.6,'sine',0.09-i*0.02)); }
+    else if(cue==='spawn'){ [523,587,698].forEach((f,i)=>setTimeout(()=>tone(f,0.25,'sine',0.08),i*120)); }
+  }
+  function toggle(){
+    ensure(); if(ctx.state==='suspended') ctx.resume();
+    on=!on;
+    bed.gain.setTargetAtTime(on?1:0, ctx.currentTime, 0.4);
+    return on;
+  }
+  function setBusy(level){
+    if(!ctx||!on) return;
+    lfo.frequency.linearRampToValueAtTime(0.08+level*0.07, ctx.currentTime+4);
+    bedFilter.frequency.linearRampToValueAtTime(200+level*700, ctx.currentTime+4);
+  }
+  return {play,toggle,setBusy,get on(){return on;}};
+})();
+document.getElementById('soundToggle').onclick=(e)=>{
+  if(REDUCED){ toast('sound muted — reduced motion is on'); return; }
+  const on=snd.toggle(); e.currentTarget.setAttribute('aria-pressed',on);
+  snd.setBusy(activeRatio());
+  toast(on?'fleet breathing <span class="accent">on</span>':'sound off');
+};
+function activeRatio(){ const act=fireflies.filter(f=>!f.idle).length; return Math.min(1,act/5); }
+
+/* ===================================================================
+   RAIL — plane legend with solo/mute
+   =================================================================== */
+function refreshRail(){
+  const el=document.getElementById('planeList'); el.innerHTML='';
+  PLANES.forEach(pl=>{
+    const row=document.createElement('div');
+    row.className='plane-row'+(pl.ghost?' ghost':'')+(planeMuted[pl.id]==='solo'?' solo':'');
+    if(planeMuted[pl.id]==='off') row.style.opacity=0.4;
+    row.innerHTML=`<span class="plane-swatch" style="background:${planeColorCss(pl)}"></span>
+      <div class="plane-meta"><div class="plane-name">${pl.label}</div>
+      <div class="plane-sub">${pl.branch}</div></div>
+      <div class="plane-stat">+${pl.ahead}</div>`;
+    row.onclick=()=>{
+      const cur=planeMuted[pl.id];
+      planeMuted[pl.id]= cur===undefined?'solo': cur==='solo'?'off':undefined;
+      if(planeMuted[pl.id]===undefined) delete planeMuted[pl.id];
+      refreshRail(); layoutPlanes();
+    };
+    el.appendChild(row);
+  });
+  document.getElementById('liveStat').textContent = `${PLANES.filter(p=>planeMuted[p.id]!=='off').length} planes · ${fireflies.filter(f=>!f.idle).length} agents`;
+}
+function planeColorCss(pl){ return `hsl(${pl.hue} ${pl.kind==='diverged'?64:50}% ${dark()?62:42}%)`; }
+
+/* ---- notes pile ---- */
+function commitLeaf(text){
+  const pile=document.getElementById('pile');
+  const chip=document.createElement('span'); chip.className='leaf-chip'; chip.textContent=text;
+  pile.prepend(chip);
+  while(pile.children.length>8) pile.lastChild.remove();
+}
+
+/* ---- toast ---- */
+let toastTimer=null;
+function toast(html){
+  const t=document.getElementById('toast'); t.innerHTML=html; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+/* ===================================================================
+   helpers
+   =================================================================== */
+function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function dark(){ return document.documentElement.dataset.theme==='dark'; }
+function fileHue(name){ const ext=name.split('.').pop(); return {ts:210,js:48,md:280,html:14,json:160}[ext]||0; }
+function hashStr(s){ let h=0; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))&255; return h; }
+function easeSwoosh(t){ return 1-Math.pow(1-t,3); }
+function easeSnap(t){ const c=1.70158+1; return 1+c*Math.pow(t-1,3)+ (c-0.6)*Math.pow(t-1,2); }
+function easeFloat(t){ return t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2; }
+function hsl2rgb(h,s,l){ h/=360; let r,g,b; if(s===0){r=g=b=l;} else {const q=l<0.5?l*(1+s):l+s-l*s; const p=2*l-q;
+  const f=(t)=>{if(t<0)t+=1;if(t>1)t-=1;if(t<1/6)return p+(q-p)*6*t;if(t<1/2)return q;if(t<2/3)return p+(q-p)*(2/3-t)*6;return p;};
+  r=f(h+1/3);g=f(h);b=f(h-1/3);} return [r*255|0,g*255|0,b*255|0]; }
+function hslToHex(h,s,l){ const [r,g,b]=hsl2rgb(h,s/100,l/100); return (r<<16)|(g<<8)|b; }
+function hslHex(h,s,l){ const [r,g,b]=hsl2rgb(h,s/100,l/100); return `rgb(${r},${g},${b})`; }
+function hexA(c,a){
+  if(c.startsWith('#')){ let h=c.slice(1); if(h.length===3) h=h.split('').map(x=>x+x).join('');
+    const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16); return `rgba(${r},${g},${b},${a})`; }
+  if(c.startsWith('rgb')){ return c.replace(/rgb\(([^)]+)\)/,`rgba($1,${a})`); }
+  return c;
+}
+function roundRect(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r);
+  c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
+
+/* ===================================================================
+   REDUCED-MOTION FALLBACK — static signal, never motion-only.
+   =================================================================== */
+function staticBiofield(){
+  bx.setTransform(dpr,0,0,dpr,0,0); bx.clearRect(0,0,bio.width,bio.height);
+  fireflies.forEach(f=>{
+    const pl=PLANES.find(p=>p.id===f.plane)||PLANES[0];
+    const [px,py]=project(f.target.x,f.target.y,pl);
+    bx.beginPath(); bx.arc(px,py,5,0,6.283); bx.fillStyle=hslHex(f.hue,70,60); bx.globalAlpha=f.idle?0.4:0.9; bx.fill(); bx.globalAlpha=1;
+  });
+}
+
+/* ===================================================================
+   boot + IntersectionObserver pause
+   =================================================================== */
+function boot(){
+  sizeBio(); refreshRail();
+  initPixi().then(()=>{
+    if(bioRunning){ requestAnimationFrame(bioLoop); }
+    else { const repaint=()=>{ staticBiofield(); }; app.ticker.add(repaint); }
+    setInterval(()=>{ snd.setBusy(activeRatio()); }, 5000);
+  });
+  if(!REDUCED){ setInterval(()=>{ autoLife(); }, 4200); }
+  window.addEventListener('resize',()=>{ sizeBio(); centerCamera(); });
+  new IntersectionObserver(es=>{ offscreen=!es[0].isIntersecting; }).observe(stage);
+}
+function autoLife(){
+  if(document.hidden) return;
+  const r=Math.random();
+  if(r<0.4){ const ag=fireflies[Math.floor(Math.random()*fireflies.length)]; deposit(ag.target.key,0.3); }
+  else if(r<0.7){ const a=fireflies[0], b=fireflies[Math.min(2,fireflies.length-1)];
+    const pa=PLANES.find(p=>p.id===a.plane),pb=PLANES.find(p=>p.id===b.plane);
+    const [x1,y1]=project(a.sx,a.sy,pa),[x2,y2]=project(b.sx,b.sy,pb);
+    if(bioRunning) laser(x1,y1,x2,y2,cssVar('--status-info')); }
+  else { const f=fireflies[Math.floor(Math.random()*fireflies.length)];
+    const pl=PLANES.find(p=>p.id===f.plane)||PLANES[0];
+    const [px,py]=project(f.sx,f.sy,pl); if(bioRunning) soundwave(px,py,cssVar('--brand-accent')); }
+}
+boot();
+</script>
+</body>
+</html>

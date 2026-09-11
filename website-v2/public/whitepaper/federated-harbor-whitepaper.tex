@@ -254,7 +254,7 @@ Each failure is a different facet of the same underlying gap. Both daemons are i
 
 We call this the \textbf{two-machine problem}. The point of stating it this baldly is that the failure modes are not exotic; they are what every developer who has tried to dovetail two local agent fleets on a shared task has seen. The bug is structural. The bug is not in either daemon. The bug is in the assumption that one daemon's authority extends past the machine boundary by default. It does not, and it should not.
 
-\pullquote{The trick is not to extend a single sovereign across machines. The trick is to admit there are two and to specify what they owe each other.}
+\pdthesis{The trick is not to extend a single sovereign across machines. The trick is to admit there are two and to specify what they owe each other.}
 
 This paper extends the Anchor Protocol, the Bonded Commons, and the daemon-as-correlation-device argument to the multi-administrative-domain case. We are not introducing a new substrate; we are showing that the existing substrate admits a clean federation, and that the federation rules are sharper than they look. Where the prior papers spoke of \emph{the} commons authority, this paper speaks of a \emph{mesh of} mutually witnessing commons authorities, each sovereign inside its own machine, none sovereign over the others, and all of them bound to the same audit substrate.
 
@@ -1048,23 +1048,25 @@ The Federated Harbor sits at the intersection of four bodies of work. We are con
 
 \paragraph{Capability-based federation.} Macaroons~\pdcite{birgisson2014macaroons} are the foundational capability-with-attenuation construction; our transfer ceremony extends Macaroon-style third-party-caveat chains across an administrative boundary. UCAN~\pdcite{ucan2024} is the current production-deployed answer to ``Macaroons with public-key principals,'' and we treat it as the operationally most relevant existing system; the Federated Harbor differs in keeping the daemon as a structural commons authority rather than going fully peer-to-peer, and in pricing delegation through insurance-priced bonds rather than pure capability constraints. The object-capability lineage~\pdcite{miller2006robust, dennis1966programming} continues to be relevant: cross-realm operations are exactly a mutual-suspicion scenario in Miller's vocabulary, and his defensive-consistency framework is the right lens.
 
-\paragraph{Production federation protocols.} Three deployed federations solve a
-version of the same trust-boundary problem and are not otherwise engaged here.
-ActivityPub~\pdcite{activitypub2018}, the W3C-standardized protocol behind
-Mastodon and the fediverse, lets independent servers relay signed activity
-without a shared database or a global ruler --- exactly the property this
-chapter states as its own goal. Matrix~\pdcite{matrixspec}, an open,
-currently-deployed specification, has homeservers replicate room state with
-eventual consistency across administrative boundaries and no single point of
-control, arguably the closest production analogue running today to the
-``no consensus, gossip-bounded, detectable equivocation'' model of
-\S\ref{sec:fh-not}. And SPKI/SDSI~\pdcite{spkisdsi1999}, the mid-1990s
-local-names, decentralized-authorization design, is the conceptual ancestor
-both Macaroons and UCAN descend from, and so sits one layer beneath the
-capability-based federation discussed next. None of the three overturns a
-theorem in this chapter; each is a closer production point of comparison for
-the federation's design than the identity- and capability-federation
-literature cited above.
+\paragraph{Production federation protocols.} Three federations that actually
+run solve a version of the same trust-boundary problem, and a reader who knows
+them will ask about them before asking about OpenID Federation, so here they
+are. ActivityPub~\pdcite{activitypub2018}, the W3C protocol under Mastodon and
+the rest of the fediverse, lets independent servers relay signed activity with
+no shared database and no global ruler --- which is this chapter's own stated
+goal, met at a scale of millions of accounts. Matrix~\pdcite{matrixspec} has
+homeservers replicate room state across administrative boundaries with eventual
+consistency and no single point of control, and is, of anything deployed today,
+the closest working instance of the ``no consensus, gossip-bounded, detectable
+equivocation'' posture of \S\ref{sec:fh-not}. And SPKI/SDSI~\pdcite{spkisdsi1999},
+the mid-1990s design for local names and decentralized authorization, is the
+ancestor both Macaroons and UCAN descend from, one layer beneath the
+capability-based federation of the previous paragraph. None of the three
+overturns a theorem in this chapter. What they do is set the bar for what
+``federation without a ruler'' has already been shown to survive in production,
+and the differences --- neither ActivityPub nor Matrix carries a bonded,
+attenuating capability across the boundary, and neither prices delegation ---
+are the chapter's actual contribution, stated against the right baseline.
 
 \paragraph{Transparency logs.} Certificate Transparency~\pdcite{laurie2013ct} is the model; the federated witness log of \S\ref{sec:fh-witness} is CT applied to capability tokens. Sigstore~\pdcite{newman2022sigstore} and Rekor are the production instantiation we rhyme with most heavily; in-toto~\pdcite{torres2019intoto} and SLSA~\pdcite{slsa2023} are the supply-chain analogues that compose with the Federated Harbor for the ``poisoned plugin under a bonded principal'' case but do not close it. The Crosby--Wallach history-tree~\pdcite{crosby2009tamper} is the formal substrate of every modern transparency log including ours.
 
@@ -1129,7 +1131,7 @@ The cryptographic assertions and per-write durability checkpoints this layer inh
 
 A federation paper with six named open questions is doing its job. The point of the paper is to draw the new boundary cleanly so the open problems are visible; if every claim in this paper were closed, there would be no third paper to write. The honest read is that the Federated Harbor is closer to a research agenda than to a deployed product, and the prior two papers (Anchor, Bonded) have a tighter ratio of theorem to conjecture for the same reason. The substrate is real; the federation layer is in progress.
 
-\pullquote{A boundary drawn cleanly is itself a result: it says where the next proof has to start.}
+\pdthesis{A boundary drawn cleanly is itself a result: it says where the next proof has to start.}
 
 \pdexercisepointer{\ref{ex:fh-correlated-equilibrium}}{\ref{ex:fh-synthesis}}{\pageref{ex:fh-correlated-equilibrium}}
 
@@ -1313,6 +1315,7 @@ Erich Owens.
 Arnar Birgisson, Joe Gibbs Politz, Úlfar Erlingsson, Ankur Taly, Michael Vrable, and Mark Lentczner.
 \newblock Macaroons: Cookies with Contextual Caveats for Decentralized Authorization in the Cloud.
 \newblock In \textit{Network and Distributed System Security Symposium (NDSS)}, 2014.
+\newblock \url{https://doi.org/10.14722/ndss.2014.23212}
 
 \bibitem{dennis1966programming}
 Jack B. Dennis and Earl C. Van Horn.
@@ -1449,7 +1452,7 @@ Universal Commerce Protocol.
 
 \bibitem{ap2mandates2026}
 Agent Payments Protocol (AP2): Mandates.
-\newblock Verifiable-credential authorization chain: SD-JWT+kb, JWS detached content, JCS canonicalization, 2026.
+\newblock Verifiable-credential authorization chain: SD-JWT+kb checkout mandate, JWS detached-content merchant authorization, JCS canonicalization, 2026.
 \newblock \texttt{https://ap2-protocol.org}.
 
 \bibitem{abramsky2011operational}

@@ -15,14 +15,14 @@ describe('proof-estate corpus manifest', () => {
     expect(stdout).toContain('Proof-estate manifest check passed');
   });
 
-  test('forbiddenLegacyRoots is opt-in and off, because this branch performed no relocation', () => {
+  test('forbiddenLegacyRoots is opt-in and off, because the wholesale relocation never happened', () => {
     expect(corpus.forbiddenLegacyRoots.enabled).toBe(false);
     expect(corpus.forbiddenLegacyRoots.reason.length).toBeGreaterThan(0);
     // analyses/ and proofs/ are exactly the roots the origin branch this was
     // recovered from would have forbidden -- confirm they're real and
     // populated on this branch, not accidentally already forbidden.
     expect(corpus.forbiddenLegacyRoots.roots).not.toEqual(
-      expect.arrayContaining(['analyses', 'proofs', 'docs/adr/models']),
+      expect.arrayContaining(['analyses', 'proofs']),
     );
   });
 
@@ -80,7 +80,7 @@ describe('proof-estate corpus manifest', () => {
     expect(webhookDelivery.ci).toEqual({ status: 'wired', job: ['tla-relay-webhook-delivery'] });
   });
 
-  test('every ProVerif model under analyses/, proofs/**, docs/adr/models/ is wired to proverif-estate', () => {
+  test('every ProVerif model under analyses/ and proofs/** is wired to proverif-estate', () => {
     const wiredProverifEntries = corpus.formalArtifacts.filter(
       (a) => a.method === 'ProVerif' && a.ci.status === 'wired',
     );
@@ -94,6 +94,22 @@ describe('proof-estate corpus manifest', () => {
       (a) => a.method === 'ProVerif' && a.ci.status === 'retired',
     );
     expect(retiredProverifEntries).toHaveLength(1);
+  });
+
+  test('the guidance-envelope pair lives under proofs/coordination and its twin stays a negative control', () => {
+    const signed = corpus.formalArtifacts.find((a) => a.id === 'guidance-envelope-v0-proverif');
+    const unsigned = corpus.formalArtifacts.find((a) => a.id === 'guidance-envelope-v0-unsigned-vuln-proverif');
+    expect(signed.paths).toEqual(['proofs/coordination/guidance_envelope_v0.pv']);
+    expect(unsigned.paths).toEqual(['proofs/coordination/guidance_envelope_v0_unsigned_vuln.pv']);
+    // The unsigned twin is SUPPOSED to fail. It stays kind "negative-control"
+    // and keeps a filename matching run-proverif.py's *_vuln*.pv glob, so the
+    // runner asserts its queries still come back false. Flipping either would
+    // turn a working negative control into a silently vacuous one.
+    expect(unsigned.kind).toBe('negative-control');
+    expect(unsigned.paths[0]).toMatch(/_vuln.*\.pv$/u);
+    for (const entry of [signed, unsigned]) {
+      expect(entry.ci).toEqual({ status: 'wired', job: ['proverif-estate'] });
+    }
   });
 
   test('the skill teaching template is explicitly RETIRED, not silently unregistered', () => {

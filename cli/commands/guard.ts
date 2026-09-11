@@ -434,8 +434,15 @@ function guardHookAvailabilityFunction(): string[] {
     '  pd_guard_ready_pid=$(tr -d "[:space:]" < "$pd_guard_ready" 2>/dev/null || true)',
     '  pd_guard_daemon_pid=$(tr -d "[:space:]" < "$pd_guard_pid" 2>/dev/null || true)',
     '  [ -n "$pd_guard_ready_pid" ] && [ "$pd_guard_ready_pid" = "$pd_guard_daemon_pid" ] || return 1',
-    '  pd_guard_heartbeat_mtime=$(stat -f %m "$pd_guard_heartbeat" 2>/dev/null || stat -c %Y "$pd_guard_heartbeat" 2>/dev/null) || return 1',
-    '  pd_guard_now=$(date +%s 2>/dev/null) || return 1',
+    // GNU and BSD stat spell mtime differently and neither fails the way the
+    // other's flag suggests: `stat -f %m FILE` on GNU coreutils reads %m as a
+    // second FILE, prints a whole filesystem block to stdout, and exits 1 --
+    // so a `-f || -c` chain captures the dump AND the timestamp concatenated,
+    // fails the digit check below, and takes the guard out on every Linux
+    // machine. Ask each dialect on its own and keep whichever answers in digits.
+    '  pd_guard_heartbeat_mtime=$(stat -c %Y "$pd_guard_heartbeat" 2>/dev/null || true)',
+    '  case "$pd_guard_heartbeat_mtime" in ""|*[!0-9]*) pd_guard_heartbeat_mtime=$(stat -f %m "$pd_guard_heartbeat" 2>/dev/null || true) ;; esac',
+    '  pd_guard_now=$(date +%s 2>/dev/null || true)',
     '  case "$pd_guard_heartbeat_mtime" in ""|*[!0-9]*) return 1 ;; esac',
     '  case "$pd_guard_now" in ""|*[!0-9]*) return 1 ;; esac',
     '  pd_guard_age=$((pd_guard_now - pd_guard_heartbeat_mtime))',

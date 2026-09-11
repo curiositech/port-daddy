@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Four Personas · FleetBar Synthesis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --paper: #F4F0E8;
+    --paper-raised: #ECE6D9;
+    --paper-deep: #E2DAC8;
+    --ink: #1A1815;
+    --ink-soft: #3A3631;
+    --ink-mute: #6A655C;
+    --ink-ghost: #98928A;
+    --hair: rgba(26, 24, 21, 0.12);
+    --hair-strong: rgba(26, 24, 21, 0.32);
+    --cobalt: #003FB8;
+    --st-ok: #2E7D5B;
+    --st-warn: #B8801F;
+    --st-error: #B5392E;
+    --st-blocked: #6B3F8A;
+    /* Persona colors */
+    --maya: #2E7D5B;
+    --jordan: #B8801F;
+    --sam: #003FB8;
+    --casey: #B5392E;
+    --font-sans: 'Inter', system-ui, sans-serif;
+    --font-mono: 'Geist Mono', ui-monospace, monospace;
+    --font-serif: 'Fraunces', Georgia, serif;
+  }
+  html, body { background: var(--paper); color: var(--ink); font-family: var(--font-sans); font-size: 16px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+  .page-frame { position: fixed; inset: 16px; pointer-events: none; z-index: 1; }
+  .page-frame::before, .page-frame::after, .page-frame .tl, .page-frame .br {
+    content: ""; position: absolute; width: 18px; height: 18px;
+    border-color: var(--ink); border-style: solid; border-width: 0;
+  }
+  .page-frame::before { top: 0; right: 0; border-top-width: 1.5px; border-right-width: 1.5px; }
+  .page-frame::after { bottom: 0; left: 0; border-bottom-width: 1.5px; border-left-width: 1.5px; }
+  .page-frame .tl { top: 0; left: 0; border-top-width: 1.5px; border-left-width: 1.5px; }
+  .page-frame .br { bottom: 0; right: 0; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+  .container { max-width: 1240px; margin: 0 auto; padding: 64px 48px; position: relative; z-index: 2; }
+
+  /* MASTHEAD */
+  .masthead { display: grid; grid-template-columns: 1fr auto; align-items: end; padding-bottom: 24px; border-bottom: 1px solid var(--hair-strong); margin-bottom: 48px; gap: 24px; }
+  .kicker { font-family: var(--font-mono); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.14em; color: var(--cobalt); margin-bottom: 14px; }
+  .masthead h1 { font-size: clamp(36px, 5.5vw, 64px); font-weight: 800; line-height: 0.96; letter-spacing: -0.035em; max-width: 18ch; }
+  .masthead h1 em { font-family: var(--font-serif); font-style: italic; font-variation-settings: 'SOFT' 50, 'opsz' 144; font-weight: 500; color: var(--cobalt); }
+  .meta { font-family: var(--font-mono); font-size: 13px; color: var(--ink-mute); line-height: 1.7; text-align: right; min-width: 220px; }
+  .meta strong { color: var(--ink); font-weight: 600; }
+
+  .lede { font-size: 19px; line-height: 1.55; color: var(--ink-soft); max-width: 64ch; margin-bottom: 64px; }
+  .lede em { font-family: var(--font-serif); font-style: italic; }
+
+  /* SECTION HEAD */
+  section.report { margin-bottom: 80px; }
+  .section-head { display: grid; grid-template-columns: 64px 1fr auto; align-items: baseline; gap: 16px; padding-bottom: 16px; margin-bottom: 32px; position: relative; }
+  .section-head::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background-image: linear-gradient(to right, transparent 0 32%, var(--hair-strong) 32% 68%, transparent 68% 100%); }
+  .sn { font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--cobalt); }
+  .st { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
+  .sk { font-family: var(--font-mono); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink-mute); }
+
+  /* PERSONA CARDS */
+  .personas { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+  .persona { background: var(--paper-raised); padding: 18px 20px 22px; position: relative; }
+  .persona::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
+  .persona.maya::before { background: var(--maya); }
+  .persona.jordan::before { background: var(--jordan); }
+  .persona.sam::before { background: var(--sam); }
+  .persona.casey::before { background: var(--casey); }
+  .persona-name { font-size: 20px; font-weight: 700; letter-spacing: -0.015em; margin-bottom: 2px; }
+  .persona-role { font-family: var(--font-mono); font-size: 12px; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px; }
+  .persona-archetype { font-family: var(--font-mono); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; padding: 3px 7px; display: inline-block; color: var(--paper); margin-bottom: 12px; }
+  .maya .persona-archetype { background: var(--maya); }
+  .jordan .persona-archetype { background: var(--jordan); }
+  .sam .persona-archetype { background: var(--sam); }
+  .casey .persona-archetype { background: var(--casey); }
+  .persona-bio { font-size: 13px; line-height: 1.55; color: var(--ink-soft); margin-bottom: 12px; }
+  .persona-pain { font-family: var(--font-mono); font-size: 12px; line-height: 1.5; color: var(--ink); padding-top: 10px; border-top: 1px solid var(--hair); }
+  .persona-pain strong { color: var(--cobalt); font-weight: 600; }
+
+  /* QUOTE STRIP */
+  .quote-strip { background: var(--paper-raised); padding: 28px 32px; position: relative; margin-bottom: 24px; }
+  .quote-strip::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
+  .quote-strip.maya::before { background: var(--maya); }
+  .quote-strip.jordan::before { background: var(--jordan); }
+  .quote-strip.sam::before { background: var(--sam); }
+  .quote-strip.casey::before { background: var(--casey); }
+  .quote-attr { font-family: var(--font-mono); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.14em; margin-bottom: 10px; }
+  .maya .quote-attr { color: var(--maya); }
+  .jordan .quote-attr { color: var(--jordan); }
+  .sam .quote-attr { color: var(--sam); }
+  .casey .quote-attr { color: var(--casey); }
+  .quote-body { font-family: var(--font-serif); font-size: 22px; line-height: 1.4; font-variation-settings: 'SOFT' 30, 'opsz' 48; font-weight: 400; max-width: 60ch; color: var(--ink); letter-spacing: -0.005em; }
+  .quote-body em { font-style: italic; color: var(--cobalt); }
+
+  /* FRICTION MATRIX */
+  .friction-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .friction-table th, .friction-table td { text-align: left; padding: 12px 14px; vertical-align: top; }
+  .friction-table thead th { font-family: var(--font-mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; color: var(--ink-mute); border-bottom: 1px solid var(--ink); padding-bottom: 8px; }
+  .friction-table tbody tr { border-bottom: 1px solid var(--hair); }
+  .friction-table tbody tr:hover { background: var(--paper-raised); }
+  .friction-table td:first-child { font-weight: 600; color: var(--ink); }
+  .friction-table .desc { color: var(--ink-soft); font-size: 13px; line-height: 1.5; }
+  .persona-dot {
+    display: inline-block; width: 10px; height: 10px;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  .pd-maya   { background: var(--maya); }
+  .pd-jordan { background: var(--jordan); }
+  .pd-sam    { background: var(--sam); }
+  .pd-casey  { background: var(--casey); }
+  .pd-off    { background: var(--hair); }
+  .severity { font-family: var(--font-mono); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; padding: 2px 7px; color: var(--paper); }
+  .sev-blocker  { background: var(--st-error); }
+  .sev-major    { background: var(--st-warn); }
+  .sev-minor    { background: var(--ink-mute); }
+
+  /* DREAM GRID */
+  .dreams { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
+  .dream { background: var(--paper-raised); padding: 24px 26px 22px; position: relative; }
+  .dream::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
+  .dream.maya::before { background: var(--maya); }
+  .dream.jordan::before { background: var(--jordan); }
+  .dream.sam::before { background: var(--sam); }
+  .dream.casey::before { background: var(--casey); }
+  .dream-who { font-family: var(--font-mono); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.14em; margin-bottom: 8px; }
+  .maya .dream-who { color: var(--maya); }
+  .jordan .dream-who { color: var(--jordan); }
+  .sam .dream-who { color: var(--sam); }
+  .casey .dream-who { color: var(--casey); }
+  .dream-title { font-size: 22px; font-weight: 700; letter-spacing: -0.015em; line-height: 1.2; margin-bottom: 10px; }
+  .dream-body { font-size: 14px; line-height: 1.6; color: var(--ink-soft); }
+  .dream-body code { font-family: var(--font-mono); font-size: 13px; color: var(--cobalt); background: rgba(0, 63, 184, 0.08); padding: 1px 5px; }
+  .dream-payoff { font-family: var(--font-mono); font-size: 12px; line-height: 1.5; padding-top: 12px; margin-top: 12px; border-top: 1px solid var(--hair); color: var(--ink); }
+  .dream-payoff strong { color: var(--cobalt); }
+
+  /* MISSING GRID */
+  .gaps-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .gap-card { padding: 16px 18px; background: var(--paper-raised); position: relative; }
+  .gap-card .who-row { display: flex; gap: 4px; margin-bottom: 8px; }
+  .gap-card .who-row span { width: 8px; height: 8px; }
+  .gap-title { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.25; margin-bottom: 6px; }
+  .gap-body { font-size: 13px; line-height: 1.5; color: var(--ink-soft); margin-bottom: 10px; }
+  .gap-rank { font-family: var(--font-mono); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-mute); }
+
+  /* SYNTHESIS CALL */
+  .synth-call { background: var(--ink); color: var(--paper); padding: 48px 56px; margin: 32px 0; position: relative; }
+  .synth-call::before, .synth-call::after { content: ""; position: absolute; width: 20px; height: 20px; border-color: var(--paper); border-style: solid; border-width: 0; }
+  .synth-call::before { top: 14px; left: 14px; border-top-width: 1.5px; border-left-width: 1.5px; }
+  .synth-call::after { bottom: 14px; right: 14px; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+  .synth-call .label { font-family: var(--font-mono); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.18em; color: rgba(244,240,232,0.6); margin-bottom: 16px; }
+  .synth-call h3 { font-family: var(--font-sans); font-size: clamp(28px, 3.4vw, 40px); line-height: 1.1; letter-spacing: -0.025em; font-weight: 700; color: var(--paper); max-width: 22ch; margin-bottom: 22px; }
+  .synth-call h3 em { font-family: var(--font-serif); font-style: italic; font-weight: 500; font-variation-settings: 'SOFT' 50, 'opsz' 80; color: #FFB47A; }
+  .synth-call p { font-size: 16px; line-height: 1.65; color: rgba(244,240,232,0.86); max-width: 64ch; margin-bottom: 14px; }
+  .synth-call p em { font-family: var(--font-serif); font-style: italic; font-variation-settings: 'SOFT' 30; color: #FFB47A; }
+
+  .convergence { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin-top: 28px; }
+  .conv-cell { padding: 18px 16px; border-right: 1px solid rgba(244,240,232,0.18); }
+  .conv-cell:last-child { border-right: none; }
+  .conv-who { font-family: var(--font-mono); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; margin-bottom: 8px; }
+  .conv-cell.maya .conv-who { color: #80E0A0; }
+  .conv-cell.jordan .conv-who { color: #FFB47A; }
+  .conv-cell.sam .conv-who { color: #8AB2FF; }
+  .conv-cell.casey .conv-who { color: #FF8A7A; }
+  .conv-want { font-size: 14px; line-height: 1.5; color: rgba(244,240,232,0.92); font-weight: 500; }
+  .conv-arrow { font-family: var(--font-mono); font-size: 12px; color: rgba(244,240,232,0.5); margin: 8px 0 4px; }
+  .conv-shared { font-family: var(--font-mono); font-size: 12px; color: #FFB47A; font-weight: 600; }
+
+  /* ADOPTION VERDICTS */
+  .verdicts { width: 100%; border-collapse: collapse; }
+  .verdicts th, .verdicts td { padding: 14px 16px; text-align: left; vertical-align: top; }
+  .verdicts thead th { font-family: var(--font-mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-mute); border-bottom: 1px solid var(--ink); }
+  .verdicts tbody tr { border-bottom: 1px solid var(--hair); }
+  .verdicts td:first-child { font-weight: 700; }
+  .verdicts .v-now, .verdicts .v-after {
+    font-family: var(--font-mono); font-size: 12px; text-transform: uppercase;
+    letter-spacing: 0.08em; font-weight: 600; padding: 3px 8px;
+    display: inline-block; color: var(--paper);
+  }
+  .v-no       { background: var(--st-error); }
+  .v-conditional { background: var(--st-warn); }
+  .v-yes-individual { background: var(--cobalt); }
+  .v-yes-team    { background: var(--st-ok); }
+  .v-block       { background: var(--st-blocked); }
+
+  /* ROADMAP */
+  .phase-grid { display: grid; grid-template-columns: 64px 1fr; gap: 24px; }
+  .phase { display: contents; }
+  .phase-num { font-family: var(--font-serif); font-size: 64px; font-variation-settings: 'opsz' 120, 'SOFT' 50; font-weight: 400; color: var(--cobalt); line-height: 1; padding-top: 8px; }
+  .phase-body { padding: 12px 0 32px; border-bottom: 1px solid var(--hair); }
+  .phase-name { font-size: 22px; font-weight: 700; letter-spacing: -0.015em; margin-bottom: 6px; }
+  .phase-name em { font-family: var(--font-serif); font-style: italic; font-weight: 500; color: var(--cobalt); }
+  .phase-thesis { font-size: 15px; line-height: 1.55; color: var(--ink-soft); max-width: 64ch; margin-bottom: 14px; }
+  .phase-ships { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 24px; }
+  .ship { font-size: 13px; line-height: 1.5; color: var(--ink); padding-left: 16px; position: relative; }
+  .ship::before { content: ""; position: absolute; left: 0; top: 9px; width: 10px; height: 1.5px; background: var(--cobalt); }
+  .ship strong { font-family: var(--font-mono); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--cobalt); margin-right: 6px; }
+
+  footer { margin-top: 80px; padding-top: 24px; border-top: 1px solid var(--hair-strong); font-family: var(--font-mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-mute); display: flex; justify-content: space-between; }
+  footer strong { color: var(--ink); font-weight: 700; }
+
+  @media (max-width: 1100px) {
+    .personas, .dreams, .gaps-grid, .convergence, .phase-ships { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 720px) {
+    .personas, .dreams, .gaps-grid, .convergence, .phase-ships { grid-template-columns: 1fr; }
+    .container { padding: 32px 20px; }
+    .masthead { grid-template-columns: 1fr; }
+    .meta { text-align: left; }
+    .phase-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="page-frame"><span class="tl"></span><span class="br"></span></div>
+
+<div class="container">
+
+  <header class="masthead">
+    <div>
+      <div class="kicker">Persona Synthesis · 2026-05-17 · After interactive mockup v2</div>
+      <h1>Four personas. One tool.<br>The gaps <em>converge.</em></h1>
+    </div>
+    <div class="meta">
+      <strong>Synthesis report</strong><br>
+      4 parallel walkthroughs<br>
+      ~3,200 words analyzed<br>
+      The switcher · the buyer<br>
+      the power user · the skeptic
+    </div>
+  </header>
+
+  <p class="lede">
+    The interactive mockup is gorgeous and the intent-first reframe lands. But four different humans walked through it with four different jobs to be done, and what was beautiful for one was <em>invisible</em> or <em>presumptuous</em> for another. The gaps they surface don't compete — they <em>stack</em>. This is the punch list.
+  </p>
+
+  <!-- ════════════════════════════════════════════
+       § 01 — THE CAST
+       ════════════════════════════════════════════ -->
+  <section class="report">
+    <div class="section-head">
+      <div class="sn">§ 01</div>
+      <div class="st">The cast</div>
+      <div class="sk">four lenses</div>
+    </div>
+
+    <div class="personas">
+      <div class="persona maya">
+        <div class="persona-archetype">The Switcher</div>
+        <div class="persona-name">Maya</div>
+        <div class="persona-role">Sr. Backend Eng · Series B · 32</div>
+        <div class="persona-bio">Runs 2–3 Claude sessions in parallel daily — terminal, IDE, worktree. They keep stepping on each other. Lost work, redone work, merge pain.</div>
+        <div class="persona-pain"><strong>Came in with:</strong> parallel Claude sessions colliding. <strong>Has 8 minutes</strong> to evaluate.</div>
+      </div>
+      <div class="persona jordan">
+        <div class="persona-archetype">The Buyer</div>
+        <div class="persona-name">Jordan</div>
+        <div class="persona-role">EM · 200 eng · 41</div>
+        <div class="persona-bio">Three squads. $8K/mo on coding agents. Nobody can tell him whether it's working. Doesn't code anymore — reads PRs, owns the roadmap.</div>
+        <div class="persona-pain"><strong>Came in with:</strong> "is this a budgetable line item or a shadow IT risk?"</div>
+      </div>
+      <div class="persona sam">
+        <div class="persona-archetype">The Power User</div>
+        <div class="persona-name">Sam</div>
+        <div class="persona-role">Indie AI/ML · solo · 28</div>
+        <div class="persona-bio">Six projects in parallel. Tried Letta, LangGraph, CrewAI, AutoGen. Hates clicks, loves YAML. Lives in nvim + tmux + Claude + Ollama.</div>
+        <div class="persona-pain"><strong>Came in with:</strong> "is this the substrate I've been wanting, or another thing to learn?"</div>
+      </div>
+      <div class="persona casey">
+        <div class="persona-archetype">The Skeptic</div>
+        <div class="persona-name">Casey</div>
+        <div class="persona-role">Staff DevTools · 1000 eng · 36</div>
+        <div class="persona-bio">14 years of seeing dev tools rise and die. Owns DX for the platform org. Saying "no" is her superpower.</div>
+        <div class="persona-pain"><strong>Came in with:</strong> "serious infrastructure or hobbyist's toy?"</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════
+       § 02 — THE GESTALT (what each felt)
+       ════════════════════════════════════════════ -->
+  <section class="report">
+    <div class="section-head">
+      <div class="sn">§ 02</div>
+      <div class="st">First minute</div>
+      <div class="sk">verbatim quotes · what they actually thought</div>
+    </div>
+
+    <div class="quote-strip maya">
+      <div class="quote-attr">Maya · the switcher</div>
+      <div class="quote-body">The word <em>Claude</em> appears zero times. <em>Worktree</em>, zero. <em>Conflict</em>, zero. The proper-noun cast suggests Port Daddy is something I <em>adopt as a workflow</em>, not something that <em>quietly fixes the workflow I already have.</em></div>
+    </div>
+
+    <div class="quote-strip jordan">
+      <div class="quote-attr">Jordan · the buyer</div>
+      <div class="quote-body">I opened this expecting a control plane. What I got is a <em>beautiful single-seat cockpit.</em> There is no acknowledgment that I have 24 of these humans. The panel treats authority as keyboard-local. My world treats authority as policy.</div>
+    </div>
+
+    <div class="quote-strip sam">
+      <div class="quote-attr">Sam · the power user</div>
+      <div class="quote-body">The command bar is a launcher pretending to be a shell. <em>Search, not a REPL.</em> Where's <code style="font-family: var(--font-mono); font-size: 18px;">> spawn spider --backend ollama:llama3.1</code> ? Where's tab-completion against actual fleet/projects/skills? Four hardcoded answers is not intent.</div>
+    </div>
+
+    <div class="quote-strip casey">
+      <div class="quote-attr">Casey · the skeptic</div>
+      <div class="quote-body">Strip the typography away and this is <em>a menubar launcher with a HITL queue stapled to the top.</em> It claims to replace nothing concrete. Augments a local dev workflow. The value-add is vibes and ergonomics, not infrastructure. That's a real product — but it's a productivity app, not a platform piece.</div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════
+       § 03 — FRICTION MATRIX
+       ════════════════════════════════════════════ -->
+  <section class="report">
+    <div class="section-head">
+      <div class="sn">§ 03</div>
+      <div class="st">The friction matrix</div>
+      <div class="sk">where the mockup leaks · scored by all four</div>
+    </div>
+
+    <table class="friction-table">
+      <thead>
+        <tr>
+          <th style="width:24%;">Friction</th>
+          <th style="width:42%;">What it leaks</th>
+          <th style="width:14%;">Affects</th>
+          <th style="width:10%;">Severity</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>HITL fires on first open</td>
+          <td class="desc">"Authorize swarm · $0.42" before the user has installed anything. Architecturally privileges returning users. New user reads it as presumptuous.</td>
+          <td><span class="persona-dot pd-maya"></span><span class="persona-dot pd-jordan"></span><span class="persona-dot pd-off"></span><span class="persona-dot pd-casey"></span></td>
+          <td><span class="severity sev-blocker">Blocker</span></td>
+        </tr>
+        <tr>
+          <td>No empty / first-run state</td>
+          <td class="desc">Demo presupposes 6 fleet agents, 3 recent projects, an in-progress edit. What does Maya see when she just installed?</td>
+          <td><span class="persona-dot pd-maya"></span><span class="persona-dot pd-off"></span><span class="persona-dot pd-off"></span><span class="persona-dot pd-casey"></span></td>
+          <td><span class="severity sev-blocker">Blocker</span></td>
+        </tr>
+        <tr>
+          <td>Single-seat assumption</td>
+          <td class="desc">No org/team scope. No identity surface. Cost is one number. Authority is "whoever holds the keyboard." Fatal for any team-scale adoption.</td>
+          <td><span class="persona-dot pd-off"></span><span class="persona-dot pd-jordan"></span><span class="persona-dot pd-off"></span><span class="persona-dot pd-casey"></span></td>
+          <td><span class="severity sev-blocker">Blocker</span></td>
+        </tr>
+        <tr>
+          <td>Command bar is a filter</td>
+          <td class="desc">Type "parallel claude" → four quick-action rows shrink to zero. Reads as broken. The promise of "intent" requires either NL routing or a real CLI surface.</td>
+          <td><span class="persona-dot pd-maya"></span><span class="persona-dot pd-off"></span><span class="persona-dot pd-sam"></span><span class="persona-dot pd-off"></span></td>
+          <td><span class="severity sev-major">Major</span></td>
+        </tr>
+        <tr>
+          <td>Proper-noun overload</td>
+          <td class="desc">Spider, Cartographer, Coxswain, Spark, Approver, Gardener. Eight new vocabulary words in 60 seconds. Cute internally, hostile externally.</td>
+          <td><span class="persona-dot pd-maya"></span><span class="persona-dot pd-off"></span><span class="persona-dot pd-off"></span><span class="persona-dot pd-off"></span></td>
+          <td><span class="severity sev-major">Major</span></td>
+        </tr>
+        <tr>
+          <td>Click depth ends at the row</td>
+          <td class="desc">No transcript. No log tail. No diff. No replay. Click "Spider" → flat. Power user closes the panel after 90 seconds.</td>
+          <td><span class="persona-dot pd-off"></span><span class="persona-dot pd-jordan"></span><span class="persona-dot pd-sam"></span><span class="persona-dot pd-off"></span></td>
+          <td><span class="severity sev-major">Major</span></td>
+        </tr>
+        <tr>
+          <td>No CLI parity / escape hatch</td>
+          <td class="desc">Every row should have a copyable <code style="font-family:var(--font-mono);font-size:12px;background:rgba(0,63,184,0.08);padding:1px 4px;">pd ...</code> equivalent. Right now the GUI is the ceiling.</td>
+          <td><span class="persona-dot pd-off"></span><span class="persona-dot pd-off"></span><span class="persona-dot pd-sam"></span><span class="persona-dot pd-casey"></span></td>
+          <td><span class="severity sev-major">Major</span></td>
+        </tr>
+        <tr>
+          <td>Cost displayed, not budgeted</td>
+          <td class="desc">$0.42 read-out fetishizes spending. Power user wants a budget set once, deviations surface. Buyer wants cost attribution, not cost theater.</td>
+          <td><span class="persona-dot pd-off"></span><span class="persona-dot pd-jordan"></span><span class="persona-dot pd-sam"></span><span class="persona-dot pd-off"></span></td>
+          <td><span class="severity sev-major">Major</span></td>
+        </tr>
+        <tr>
+          <td>Enforcement language missing</td>
+          <td class="desc">"Network access · read-only" is a label, not a guarantee. No sandbox, no allowlist, no OS-level constraint visible. Smells like agent self-attestation.</td>
+          <td><span class="persona-dot pd-off"></span><span class="persona-dot pd-off"></span><span class="persona-dot pd-off"></span><span class="persona-dot pd-casey"></span></td>
+          <td><span class="severity sev-blocker">Blocker</span></td>
+        </tr>
+        <tr>
+          <td>The pain point is unstated</td>
+          <td class="desc">The actual differentiator (sessions, claims, salvage, guard) is invisible. Mockup sells <em>aesthetics</em>, not <em>coordination</em>.</td>
+          <td><span class="persona-dot pd-maya"></span><span class="persona-dot pd-off"></span><span class="persona-dot pd-sam"></span><span class="persona-dot pd-casey"></span></td>
+          <td><span class="severity sev-blocker">Blocker</span></td>
+        </tr>
+        <tr>
+          <td>Two of three Resume cards are dead</td>
+          <td class="desc">Clicking website-v2 or bond-pricing shakes. To a skeptic, that reads as broken — not as "this is a mockup."</td>
+          <td><span class="persona-dot pd-maya"></span><span class="persona-dot pd-off"></span><span class="persona-dot pd-off"></span><span class="persona-dot pd-off"></span></td>
+          <td><span class="severity sev-minor">Minor</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ════════════════════════════════════════════
+       § 04 — THE FOUR DREAMS
+       ════════════════════════════════════════════ -->
+  <section class="report">
+    <div class="section-head">
+      <div class="sn">§ 04</div>
+      <div class="st">The four dream features</div>
+      <div class="sk">one per persona · the thing that flips them</div>
+    </div>
+
+    <div class="dreams">
+      <div class="dream maya">
+        <div class="dream-who">Maya · The Switcher</div>
+        <div class="dream-title">Collision Shield</div>
+        <div class="dream-body">A menu-bar badge that lives in the icon. "<code>3 sessions safe · 0 collisions · 1 file claim</code>." Clicking it shows: <em>"Claude-iTerm has lib/db.ts lines 40–120. Claude-VSCode is waiting on that file. Claude-worktree-2 is on a different branch and clear."</em> One-click release & hand-off. The invisible problem becomes visible in the menubar at all times, without her opening anything.</div>
+        <div class="dream-payoff"><strong>Why it flips her:</strong> Every other dev tool waits for her to ask. This one whispers "I've got you" while she keeps coding. Directly addresses the pain she walked in with. She installs it that minute.</div>
+      </div>
+      <div class="dream jordan">
+        <div class="dream-who">Jordan · The Buyer</div>
+        <div class="dream-title">PR Replay</div>
+        <div class="dream-body">A reviewer-side popover that selects a PR and shows <em>every</em> HITL prompt the agent saw, every approval the engineer clicked, every file the swarm touched, with cost and elapsed time inline — collapsed into a <strong>30-second scrub bar</strong>. Loom for agent sessions, attached to the PR.</div>
+        <div class="dream-payoff"><strong>Why it flips him:</strong> Turns "agents did stuff" into "here's exactly what the agent did, what the human authorized, and what it cost." That's a defensible budget line. He buys seats for all 24 engineers.</div>
+      </div>
+      <div class="dream sam">
+        <div class="dream-who">Sam · The Power User</div>
+        <div class="dream-title">Scriptable Trust Policies</div>
+        <div class="dream-body">YAML config, hot-reloaded. <code>auto_approve: { class: [linter, indexer], network: none, cost_lt: 0.10 }</code>. A panel showing "today PD auto-approved 47 actions on your behalf, saving 47 context switches; here's the audit log; here's the one that flagged." Plain config, visible audit, every auto-approval inspectable.</div>
+        <div class="dream-payoff"><strong>Why it flips them:</strong> Makes the popover a <em>flow-defender</em> instead of a flow-interrupter. Sam writes 2,000 words about it. Compares it to AWS IAM but for agents. Evangelizes.</div>
+      </div>
+      <div class="dream casey">
+        <div class="dream-who">Casey · The Skeptic</div>
+        <div class="dream-title">Enforced Sandbox + Signed Audit</div>
+        <div class="dream-body">Every agent action runs in a per-task sandbox with a <strong>declared allowlist</strong> (files, network egress, secrets), enforced by an <strong>OS-level mechanism</strong> (seatbelt/landlock). Violations hard-fail. Every action is signed and exported as OpenTelemetry to the existing collector, with a 90-day signed audit log.</div>
+        <div class="dream-payoff"><strong>Why it flips her:</strong> She'll grant a fair internal pilot if she can demo <code>pd guard</code> actually preventing a misbehaving agent from touching <code>~/.ssh/</code>, with the attempt landing in Datadog in 5 seconds. <em>Make the enforcement layer the headline.</em></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════
+       § 05 — THE CONVERGENCE
+       ════════════════════════════════════════════ -->
+  <section class="report">
+    <div class="section-head">
+      <div class="sn">§ 05</div>
+      <div class="st">The convergence</div>
+      <div class="sk">where four dreams become one</div>
+    </div>
+
+    <div class="synth-call">
+      <div class="label">Synthesis · what the four dreams actually want</div>
+      <h3>One feature, four lenses: <em>delegated trust with audit visibility, enforced not promised.</em></h3>
+      <p>Maya wants the tool to <em>silently shield</em> her from collisions she doesn't see. Sam wants to <em>delegate trust via policy</em>. Jordan wants to <em>review the delegated zone after the fact</em>. Casey wants the delegation to be <em>OS-enforced, not just labeled</em>. Different verbs. Same architecture.</p>
+      <p>The HITL gate at the front of the current mockup is the <em>opposite</em> of this — it interrupts <em>before</em> there's evidence, every time, with no policy memory. Replacing the "approve every swarm" model with "define your zone of autonomy, get pinged only on exceptions, replay the audit log on demand" is the meta-feature that simultaneously serves all four personas.</p>
+
+      <div class="convergence">
+        <div class="conv-cell maya">
+          <div class="conv-who">Maya wants</div>
+          <div class="conv-want">A silent shield that surfaces only exceptions</div>
+          <div class="conv-arrow">↓</div>
+          <div class="conv-shared">Policy-defined zone</div>
+        </div>
+        <div class="conv-cell sam">
+          <div class="conv-who">Sam wants</div>
+          <div class="conv-want">YAML policies that delegate trust by class &amp; cost</div>
+          <div class="conv-arrow">↓</div>
+          <div class="conv-shared">of agent autonomy</div>
+        </div>
+        <div class="conv-cell jordan">
+          <div class="conv-who">Jordan wants</div>
+          <div class="conv-want">A reviewable audit log per PR with full replay</div>
+          <div class="conv-arrow">↓</div>
+          <div class="conv-shared">with full signed audit</div>
+        </div>
+        <div class="conv-cell casey">
+          <div class="conv-who">Casey wants</div>
+          <div class="conv-want">OS-level sandbox enforcement, not labels</div>
+          <div class="conv-arrow">↓</div>
+          <div class="conv-shared">OS-enforced at the gate</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════
+       § 06 — WHAT'S MISSING, RANKED
+       ════════════════════════════════════════════ -->
+  <section class="report">
+    <div class="section-head">
+      <div class="sn">§ 06</div>
+      <div class="st">Top 12 gaps, ranked</div>
+      <div class="sk">color-coded · maya · jordan · sam · casey</div>
+    </div>
+
+    <div class="gaps-grid">
+      <div class="gap-card">
+        <div class="who-row"><span class="pd-maya"></span><span class="pd-sam"></span><span class="pd-casey"></span></div>
+        <div class="gap-title">Speak the user's actual pain</div>
+        <div class="gap-body">Surface "3 Claude sessions detected · 0 collisions" at the top of the popover. Use the words the user already says — Claude, worktree, branch, conflict.</div>
+        <div class="gap-rank">Rank 01 · the pitch</div>
+      </div>
+      <div class="gap-card">
+        <div class="who-row"><span class="pd-maya"></span><span class="pd-casey"></span></div>
+        <div class="gap-title">Empty &amp; first-run state</div>
+        <div class="gap-body">Day-zero view. No fleet, no recent projects, no pending HITL. What does the user see, and what's the very first thing the tool helps with?</div>
+        <div class="gap-rank">Rank 02 · the onboarding</div>
+      </div>
+      <div class="gap-card">
+        <div class="who-row"><span class="pd-jordan"></span><span class="pd-casey"></span></div>
+        <div class="gap-title">Identity &amp; scope toggle</div>
+        <div class="gap-body">Who am I, which team, which project, which API key? Erich's view · Backend Squad · All Curiositech. The scope chip is the affordance.</div>
+        <div class="gap-rank">Rank 03 · the org</div>
+      </div>
+      <div class="gap-card">
+        <div class="who-row"><span class="pd-jordan"></span><span class="pd-sam"></span></div>
+        <div class="gap-title">Cost attribution &amp; budget</div>
+        <div class="gap-body">Per-engineer / per-squad / per-project rollups. Budget caps. Burndown. Sub-threshold reads never see the user's eyes.</div>
+        <div class="gap-rank">Rank 04 · the spend</div>
+      </div>
+      <div class="gap-card">
+        <div class="who-row"><span class="pd-sam"></span><span class="pd-casey"></span></div>
+        <div class="gap-title">CLI parity &amp; copy-as-command</div>
+        <div class="gap-body">Every row should ⌘⇧C-copy a <code style="font-family:var(--font-mono);font-size:12px;background:rgba(0,63,184,0.08);padding:1px 4px;">pd ...</code> command. The GUI as view, not ceiling.</div>
+        <div class="gap-rank">Rank 05 · the escape hatch</div>
+      </div>
+      <div class="gap-card">
+        <div class="who-row"><span class="pd-maya"></span><span class="pd-sam"></span></div>
+        <div class="gap-title">Click-depth to transcript / replay</div>
+        <div class="gap-body">Clicking an agent row opens a real surface: log tail, transcript, files touched, diff preview, replay-with-different-prompt.</div>
+        <div class="gap-rank">Rank 06 · the depth</div>
+      </div>
+      <div class="gap-card">
+        <div class="who-row"><span class="pd-sam"></span><span class="pd-jordan"></span><span class="pd-casey"></span></div>
+        <div class="gap-title">Auto-approval policies</div>
+        <div class="gap-body">YAML config. Hot-reloaded. Audit log of every auto-approval. <em>Trust delegation, not trust theater.</em></div>
+        <div class="gap-rank">Rank 07 · the policy</div>
+      </div>
+      <div class="gap-card">
+        <div class="who-row"><span class="pd-casey"></span></div>
+        <div class="gap-title">OS-enforced sandbox &amp; allowlist</div>
+        <div class="gap-body">Seatbelt / landlock on agent actions. Network egress allowlist. Hard fails on violation. Signed audit trail.</div>
+        <div class="gap-rank">Rank 08 · the enforcement</div>
+      </div>
+      <div class="gap-card">
+        <div class="who-row"><span class="pd-jordan"></span><span class="pd-casey"></span></div>
+        <div class="gap-title">Signed audit log + OTel export</div>
+        <div class="gap-body">Tamper-evident, exportable, retentioned. Plugs into Datadog/SIEM. 90-day signed log minimum.</div>
+        <div class="gap-rank">Rank 09 · the trail</div>
+      </div>
+      <div class="gap-card">
+        <div class="who-row"><span class="pd-maya"></span></div>
+        <div class="gap-title">Per-Claude attribution</div>
+        <div class="gap-body">claude-iTerm-tab3 · claude-VSCode · claude-worktree-2. Tie agent rows to the actual processes the user is running.</div>
+        <div class="gap-rank">Rank 10 · the attribution</div>
+      </div>
+      <div class="gap-card">
+        <div class="who-row"><span class="pd-sam"></span></div>
+        <div class="gap-title">Bring-your-own-LLM surface</div>
+        <div class="gap-body">Per-agent backend visible &amp; swappable: Spider → Claude, QA → Ollama. Cascade rules. Cost-aware routing.</div>
+        <div class="gap-rank">Rank 11 · the routing</div>
+      </div>
+      <div class="gap-card">
+        <div class="who-row"><span class="pd-jordan"></span></div>
+        <div class="gap-title">PR-replay artifact</div>
+        <div class="gap-body">Loom-for-agent-sessions on every PR. 30-second scrub of HITL prompts, approvals, files touched, cost. Sharable.</div>
+        <div class="gap-rank">Rank 12 · the receipt</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════
+       § 07 — ADOPTION VERDICTS
+       ════════════════════════════════════════════ -->
+  <section class="report">
+    <div class="section-head">
+      <div class="sn">§ 07</div>
+      <div class="st">Adoption verdicts</div>
+      <div class="sk">today · and after the punch list</div>
+    </div>
+
+    <table class="verdicts">
+      <thead>
+        <tr>
+          <th style="width:18%;">Persona</th>
+          <th style="width:16%;">Today</th>
+          <th style="width:34%;">Today's blocker</th>
+          <th style="width:16%;">After the synthesis</th>
+          <th style="width:16%;">What changes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Maya · Switcher</td>
+          <td><span class="v-now v-no">Close tab</span></td>
+          <td class="desc">Mockup never speaks her pain. No "Claude," no "worktree," no "collision." She doesn't see what PD does for the three Claudes she already has.</td>
+          <td><span class="v-after v-yes-individual">Installs</span></td>
+          <td class="desc">Menubar collision-shield closes her in one glance. Pain is named &amp; visibly addressed.</td>
+        </tr>
+        <tr>
+          <td>Jordan · Buyer</td>
+          <td><span class="v-now v-conditional">Expense, not buy</span></td>
+          <td class="desc">No team scope, no cost rollup, no audit. He has no defensible budget line. Soft-block risk if it proliferates as shadow IT.</td>
+          <td><span class="v-after v-yes-team">Team license</span></td>
+          <td class="desc">PR-replay artifact + team scope = budgetable observability for the agent layer.</td>
+        </tr>
+        <tr>
+          <td>Sam · Power user</td>
+          <td><span class="v-now v-conditional">CLI-only, ignores popover</span></td>
+          <td class="desc">Popover is a launcher, not a REPL. No YAML policies, no hooks, no CLI parity, no transcript. They'd live in <code style="font-family:var(--font-mono);font-size:12px;background:rgba(0,63,184,0.08);padding:1px 4px;">pd</code> &amp; ignore the UI.</td>
+          <td><span class="v-after v-yes-individual">Evangelizes</span></td>
+          <td class="desc">Scriptable trust policies + audit panel makes Sam blog. Comparing PD to AWS IAM-for-agents.</td>
+        </tr>
+        <tr>
+          <td>Casey · Skeptic</td>
+          <td><span class="v-now v-block">Block org-wide</span></td>
+          <td class="desc">No threat model. No enforcement primitive. No audit export. "Network read-only" is a label, not a guarantee. Looks like productivity, not platform.</td>
+          <td><span class="v-after v-conditional">Fair pilot</span></td>
+          <td class="desc">Demoable <code style="font-family:var(--font-mono);font-size:12px;background:rgba(0,63,184,0.08);padding:1px 4px;">pd guard</code> blocking <code style="font-family:var(--font-mono);font-size:12px;background:rgba(0,63,184,0.08);padding:1px 4px;">~/.ssh/</code> + published threat model + OTel export.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ════════════════════════════════════════════
+       § 08 — THE ROADMAP
+       ════════════════════════════════════════════ -->
+  <section class="report">
+    <div class="section-head">
+      <div class="sn">§ 08</div>
+      <div class="st">A phased roadmap</div>
+      <div class="sk">order of operations · derived from the matrix</div>
+    </div>
+
+    <div class="phase-grid">
+      <div class="phase">
+        <div class="phase-num">01</div>
+        <div class="phase-body">
+          <div class="phase-name">Tell the truth — <em>name the pain</em></div>
+          <div class="phase-thesis">Before any new feature, surface what PD already does. Add a top-of-popover strip that names the user's real situation in their words. This is one weekend's work and converts Maya.</div>
+          <div class="phase-ships">
+            <div class="ship"><strong>Ship</strong>Top strip · "3 Claude sessions · 0 collisions · 1 file claim"</div>
+            <div class="ship"><strong>Ship</strong>Click strip → live session/claim view</div>
+            <div class="ship"><strong>Ship</strong>Use "Claude" / "worktree" / "branch" in copy throughout</div>
+            <div class="ship"><strong>Ship</strong>Empty / first-run / second-run states</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-num">02</div>
+        <div class="phase-body">
+          <div class="phase-name">Give the power user the <em>elevator schematics</em></div>
+          <div class="phase-thesis">CLI parity, click-to-depth, scriptable policies. Sam goes from "ignores popover" to evangelist. Foundational work — every later feature is downstream of this.</div>
+          <div class="phase-ships">
+            <div class="ship"><strong>Ship</strong>⌘⇧C on any row copies the <code style="font-family:var(--font-mono);font-size:11px;background:rgba(0,63,184,0.08);padding:1px 3px;">pd ...</code> equivalent</div>
+            <div class="ship"><strong>Ship</strong>Click an agent row → real transcript / logs / files-touched</div>
+            <div class="ship"><strong>Ship</strong>YAML auto-approval policies + audit panel</div>
+            <div class="ship"><strong>Ship</strong>Programmable hooks: on_hitl_request, on_cost_threshold</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-num">03</div>
+        <div class="phase-body">
+          <div class="phase-name">Make it <em>enforceable</em></div>
+          <div class="phase-thesis">The Casey work. This is the boundary between "productivity tool" and "platform piece." Without this PD will always be expensed, never approved.</div>
+          <div class="phase-ships">
+            <div class="ship"><strong>Ship</strong>Per-task sandbox · seatbelt/landlock</div>
+            <div class="ship"><strong>Ship</strong>Allowlist enforcement · files, network, secrets</div>
+            <div class="ship"><strong>Ship</strong>Signed audit log · 90-day retention</div>
+            <div class="ship"><strong>Ship</strong>OpenTelemetry export · Datadog/SIEM connector</div>
+            <div class="ship"><strong>Ship</strong>Threat model, pentest, SBOM</div>
+            <div class="ship"><strong>Ship</strong>Demo: <code style="font-family:var(--font-mono);font-size:11px;background:rgba(0,63,184,0.08);padding:1px 3px;">pd guard</code> blocking ~/.ssh/ in real time</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-num">04</div>
+        <div class="phase-body">
+          <div class="phase-name">Make it <em>budgetable</em></div>
+          <div class="phase-thesis">The Jordan work. Team scope, cost attribution, identity, PR-replay artifact. PD goes from individual expense to defensible line item. Net-new TAM.</div>
+          <div class="phase-ships">
+            <div class="ship"><strong>Ship</strong>Scope toggle · Erich's view · Squad · Org</div>
+            <div class="ship"><strong>Ship</strong>Cost rollup · per-engineer / squad / project / PR</div>
+            <div class="ship"><strong>Ship</strong>PR-replay artifact · Loom-for-agent-sessions</div>
+            <div class="ship"><strong>Ship</strong>Identity surface · SSO · API key management</div>
+            <div class="ship"><strong>Ship</strong>Policy routing · juniors can't approve &gt;$0.50</div>
+            <div class="ship"><strong>Ship</strong>Team velocity rollup · weekly digest</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════
+       § 09 — THE ONE-SENTENCE ANSWER
+       ════════════════════════════════════════════ -->
+  <section class="report">
+    <div class="section-head">
+      <div class="sn">§ 09</div>
+      <div class="st">What's obviously missing</div>
+      <div class="sk">in a single sentence</div>
+    </div>
+
+    <div class="synth-call">
+      <div class="label">The one-sentence answer</div>
+      <h3>The mockup sells <em>aesthetics</em>; the product is <em>coordination</em> — name the actual pain, expose the underlying primitives, and the four personas <em>resolve into one motion.</em></h3>
+      <p>Every persona's "missing piece" reduces to the same root cause: <em>PD's actual differentiating substrate — sessions, claims, salvage, guard, the daemon, the coordination primitives — is hidden underneath a beautiful agent-launcher.</em> Surface those primitives in the user's own words ("Claude," "worktree," "collision," "budget," "audit") and the panel stops being a productivity toy and starts being a platform.</p>
+      <p>The dream feature isn't one feature. It's <em>making the existing platform legible</em> — at four altitudes (Maya's machine, Sam's editor, Jordan's PR review, Casey's threat model) — without changing what's underneath. The work that's already shipped is bigger than the panel shows.</p>
+    </div>
+  </section>
+
+  <footer>
+    <span><strong>Port Daddy</strong> · FleetBar persona synthesis</span>
+    <span>2026-05-17 · four parallel walkthroughs</span>
+    <span>punch list resolved into one motion</span>
+  </footer>
+
+</div>
+</body>
+</html>

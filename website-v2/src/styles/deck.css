@@ -1,0 +1,57 @@
+/* ══════════════════════════════════════════════════════════════════
+   Deck — the one-viewport library shell.
+
+   The type pairing is the point, so it is written down here rather than
+   left to a className somewhere: structure is set in the house sans, and
+   the moment the page crosses from chrome into the author's own voice —
+   the line under a panel head, sitting on the colour block — the face
+   changes with it. Recursive's casual axis at a slight backslant reads as
+   a person talking rather than an interface labelling itself, which is
+   exactly the distinction the block is already making with colour.
+
+   One face change, on one kind of line. Any more and it is a ransom note.
+   ══════════════════════════════════════════════════════════════════ */
+
+.deck-voice {
+  font-family: 'Recursive', ui-sans-serif, system-ui, sans-serif;
+  font-variation-settings: 'MONO' 0, 'CASL' 1, 'slnt' -6;
+  font-weight: 480;
+}
+
+/* A chapter's rule takes the part's colour, so the outline is legible as
+   four groups before a single word of it is read. */
+.deck-chapter {
+  position: relative;
+  padding-left: 18px;
+}
+
+.deck-chapter::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  background: var(--deck-ch, var(--text-ghost));
+}
+
+/* Panels can be taller than the deck; when they are, the fact that there
+   is more should be visible at the edge rather than discovered by
+   dragging. A short fade at the foot does that without a scrollbar. */
+.deck-scrim {
+  -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 28px), transparent 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-scrim {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+}
+
+/* The deck's plates were the first theme-paired pair on the site and carried
+   their own copy of the rule. /library needs the same thing for its own
+   plates, so the mechanism moved to index.css as .plate-light/.plate-dark and
+   this file no longer defines one — two identical rules under two names is
+   how they drift. */
