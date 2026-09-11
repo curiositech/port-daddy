@@ -72,9 +72,11 @@ jobs:
             docs/harbor-research/Makefile)"
           test -n "$SOURCE_DATE_EPOCH"
           export SOURCE_DATE_EPOCH FORCE_SOURCE_DATE=1
+          make -C docs/harbor-research clean
           make -C docs/harbor-research docs
           hash_file="$RUNNER_TEMP/harbor-research-pdfs.sha256"
           sha256sum docs/harbor-research/pdf/*.pdf > "$hash_file"
+          make -C docs/harbor-research clean
           make -C docs/harbor-research docs
           sha256sum --check "$hash_file"
 
@@ -87,6 +89,7 @@ jobs:
           done
 
       - name: Preserve the exact render when freshness fails
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: harbor-research-render-${{ github.sha }}
