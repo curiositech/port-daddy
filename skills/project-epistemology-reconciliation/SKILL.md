@@ -9,7 +9,7 @@ description: >-
   authorization verification or automatically publishing a decision.
 license: MIT
 metadata:
-  version: 0.1.1
+  version: 0.2.0
   author: Port Daddy contributors
   tags: [governance, evidence, reconciliation, offline-audit]
 ---
@@ -75,6 +75,23 @@ flowchart TD
 9. Return the disposition, affected outcomes, unresolved questions, audit result
    and evidence limitations. A pass permits no external action. If authorization
    or a required human choice is missing, explain the exact gap and stop there.
+
+For a frozen repository and PR-metadata snapshot, use the bounded Harbor
+Clearance projection instead of inventing another narrative document:
+
+```sh
+node scripts/harbor_clearance.mjs \
+  --snapshot examples/port-daddy-open-pr-snapshot.json \
+  --stdout
+node scripts/test_harbor_clearance_offline.mjs
+```
+
+It inventories only declared corpus roots, normalizes supplied typed claims with
+provenance, groups exact topic identifiers, classifies exact or explicitly linked
+relations, and proposes `LAND | REFIT | SALVAGE | FOLD | HELD | SCUTTLE |
+ARCHIVE`. Destructive proposals require a complete claim-level loss audit or are
+downgraded to `HELD`. Without `--stdout`, reports can be written only below
+`.cache/harbor-clearance/`; they are generated, non-canonical artifacts.
 
 ## Input and output contract
 
@@ -152,9 +169,12 @@ not measured activation accuracy.
 | [Packet contract](references/packet-contract.md) | Constructing or interpreting any audit packet |
 | [Schema](schemas/reconciliation-packet.schema.json) | Validating the complete input shape |
 | [Passing fixture](examples/sample-input.json) | Starting a synthetic or properly attributed local case |
+| [Frozen Port Daddy/PR fixture](examples/port-daddy-open-pr-snapshot.json) | Reproducing the bounded offline clearance census |
 | [Activation examples](examples/activation.md) | Testing whether this skill should be selected |
 | [Changelog](CHANGELOG.md) | Reviewing changes to this contract |
 | [Schema parity tests](tests/schema-parity.test.mjs) | Repository conformance against an independent JSON Schema validator |
+| [Harbor Clearance tests](tests/harbor_clearance.test.mjs) | Exercising relation, disposition, loss-audit and effect-denial controls |
+| [External-effect guards](tests/deny_external_effects.mjs) | Auditing the test harness's blocked subprocess and network surfaces |
 
 ## Maintenance
 
