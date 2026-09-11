@@ -64,6 +64,16 @@ describe('relay decode guard (scripts/check-relay-decode-guard.mjs)', () => {
     expect(stderr).toMatch(/\.map\(decodeURIComponent\)/);
   });
 
+  test('property-qualified and computed references cannot bypass the guard', () => {
+    const { code, stderr } = run(fixture('dirty-qualified-ref.ts'));
+    expect(code).toBe(1);
+    expect(stderr).toMatch(/4 raw `decodeURIComponent` reference\(s\)/);
+    expect(stderr).toMatch(/namespaceLike\.decodeURIComponent/);
+    expect(stderr).toMatch(/globalThis\.decodeURIComponent/);
+    expect(stderr).toMatch(/maybeNamespace\?\.decodeURIComponent/);
+    expect(stderr).toMatch(/globalThis\['decodeURIComponent'\]/);
+  });
+
   test('safeDecodeSegment\'s own body is exempt: only the injected site is flagged, never the helper\'s own call', () => {
     const { stderr } = run(fixture('dirty-raw-call.ts'));
     // Exactly one violation reported even though the helper (present in the
@@ -88,8 +98,7 @@ describe('relay decode guard (scripts/check-relay-decode-guard.mjs)', () => {
   test(
     'pure-NAME shapes (object-literal key, import/export specifier name, ' +
       'type-member and class-member names, plain parameter/variable ' +
-      'declaration names, optional-chaining and element-access property ' +
-      'reads) are never a value-read of the global builtin, and all pass ' +
+      'declaration names) are never a value-read of the global builtin, and all pass ' +
       'clean -- PR #10156 review-finding fix',
     () => {
       const { code, stdout } = run(fixture('clean-name-shapes.ts'));

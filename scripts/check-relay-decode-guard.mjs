@@ -110,12 +110,6 @@ function findHelperRange(sourceFile) {
  * is a shape probing showed the parser gives its own dedicated node kind
  * whose `.name`/`.propertyName` field never denotes a value read:
  *
- *   - `obj.decodeURIComponent` / `obj?.decodeURIComponent` — a
- *     PropertyAccessExpression's `name`. Optional chaining (`?.`) still
- *     produces a PropertyAccessExpression/-Chain node, so this one check
- *     already covers both — confirmed empirically, no separate case needed.
- *     (`obj['decodeURIComponent']` needs no check at all: the property is a
- *     StringLiteral, not an Identifier, so it never reaches this function.)
  *   - `{ decodeURIComponent: fn }` — a PropertyAssignment's `name` (object
  *     literal key). Deliberately NOT ShorthandPropertyAssignment: `{
  *     decodeURIComponent }` as an object-literal shorthand is a genuine
@@ -140,6 +134,13 @@ function findHelperRange(sourceFile) {
  *     name is not itself a reference to the builtin.
  *
  * Deliberately EXCLUDED from this allowlist — kept flagged on purpose:
+ *   - Property-qualified access: `globalThis.decodeURIComponent`,
+ *     `namespace.decodeURIComponent`, and optional-chain variants. Syntax
+ *     alone cannot prove what the receiver aliases; the real global can be
+ *     reached through a receiver, so every such access is conservatively
+ *     rejected. Computed `receiver['decodeURIComponent']` is detected by the
+ *     walker separately because its property is a StringLiteral, not an
+ *     Identifier.
  *   - BindingElement, i.e. destructuring: `const { decodeURIComponent } = x`
  *     (shorthand) and `const { decodeURIComponent: y } = x` (renamed) both
  *     stay flagged, even though `x.name === node` looks exactly as
@@ -168,7 +169,6 @@ function isPureNameNode(node) {
   const parent = node.parent;
   if (!parent) return false;
 
-  if (ts.isPropertyAccessExpression(parent) && parent.name === node) return true;
   if (ts.isPropertyAssignment(parent) && parent.name === node) return true;
   if (ts.isImportSpecifier(parent) || ts.isExportSpecifier(parent)) return true;
   if (ts.isPropertySignature(parent) && parent.name === node) return true;
@@ -187,12 +187,22 @@ function isPureNameNode(node) {
   return false;
 }
 
-/** Every Identifier node named `decodeURIComponent` that is a real reference to the global builtin (i.e. not a pure name — see `isPureNameNode`). */
+/** Every executable reference shaped like `decodeURIComponent`, including
+ * receiver-qualified and computed access. Syntax alone cannot prove what a
+ * receiver aliases, so the one-file router rule rejects those conservatively. */
 function findRawDecodeReferences(sourceFile) {
   const hits = [];
   const visit = (node) => {
     if (ts.isIdentifier(node) && node.text === BANNED && !isPureNameNode(node)) {
       hits.push(node);
+    }
+    if (
+      ts.isElementAccessExpression(node) &&
+      node.argumentExpression &&
+      ts.isStringLiteralLike(node.argumentExpression) &&
+      node.argumentExpression.text === BANNED
+    ) {
+      hits.push(node.argumentExpression);
     }
     ts.forEachChild(node, visit);
   };

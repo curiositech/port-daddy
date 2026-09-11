@@ -59,13 +59,6 @@ function withParam(decodeURIComponent: string): void {}
   const decodeURIComponent = 'not-the-builtin';
 }
 
-// Optional chaining and element access read the property exactly like
-// `obj.decodeURIComponent` -- must stay unflagged too.
-declare const maybeObj: { decodeURIComponent?: (s: string) => string } | undefined;
-const viaOptionalChain = maybeObj?.decodeURIComponent;
-declare const obj: Record<string, unknown>;
-const viaElementAccess = obj['decodeURIComponent'];
-
 function notFound(): Response {
   return Response.json({ error: 'Not found', code: 'NOT_FOUND' }, { status: 404 });
 }
