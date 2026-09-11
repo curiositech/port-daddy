@@ -343,7 +343,10 @@ Roster agents are daemon-minted `AgentNode` identities that outlive any body or 
 Automatic Git hooks and the Git shim now honor the machine-wide Off/HALT markers
 before invoking Port Daddy, even when a different runtime directory is selected.
 Missing or invalid local readiness also stops automatic calls. Pilot SessionStart
-steering is gated, and Git LFS remains independent of the publisher. This is hook
+steering, repository attention and skill sync stay installed behind the gate.
+Ordinary pre-commit validation and Git LFS remain active in either state. Turning
+On with valid readiness resumes the existing PD hooks without reinstalling them.
+This is hook
 admission, not a completed whole-app off switch or a zero-spend guarantee. See
 [local Off controls and remaining work](docs/operations/local-off-control.md).
 
@@ -844,13 +847,16 @@ installed; session claims and notes are the cumulative outcome record.
 Provider configuration always calls the stable user-owned
 `~/.port-daddy/bin/pd-hook-*` shims, never a versioned Homebrew Cellar path.
 Creating `~/.port-daddy/hooks.disabled` is the operator emergency kill switch:
-every Port Daddy-provided interactive or Git hook exits before reading input,
+the Port Daddy portion of each interactive or Git hook exits before reading input,
 writing diagnostics, handling the `HALT` listening watch, inspecting a project,
 probing a daemon, or publishing a commit event.
 Removing that marker re-enables the normal project and daemon gates; it does not
-start Port Daddy or arm a project. Port Daddy's commit hooks also no-op when a
-repository has no Coordination Guard configuration or when the local daemon's
-ready generation and fresh heartbeat cannot be verified.
+start Port Daddy or arm a project, and an existing HALT still wins. Port Daddy
+hook work also no-ops when the local daemon's ready generation and fresh heartbeat
+cannot be verified. Only managed Coordination Guard checks additionally require
+their repository configuration; commit publishing and secret scanning do not.
+Unrelated hook actions, ordinary repository validations and Git LFS are not
+disabled by the Port Daddy switch.
 Hooks do not retry. After three consecutive unexpected exits or executions over
 250 ms, that hook opens a five-minute fail-open circuit: subsequent calls are
 immediate no-ops, the next turn gets one concise remediation notice, and
@@ -1028,7 +1034,7 @@ pd safe guard --staged          # exit non-zero when a NEW secret is staged
 pd safe fix                     # opt-in chmod of crown-jewel permissions
 ```
 
-`pd safe guard --staged` is wired into this repo's pre-commit hook: fail-open when `pd` is absent, fail-closed when it finds a staged secret. Corralling reduces blast radius (no plaintext at rest) but is honestly **not** confidentiality against a malicious same-UID agent — that needs the separate-UID broker (ADR-0087).
+`pd safe guard --staged` is wired into this repo's pre-commit hook: skipped when Port Daddy is Off, unready or absent, fail-closed when it runs and finds a staged secret. Skipping is not proof of a clean secret scan. Corralling reduces blast radius (no plaintext at rest) but is honestly **not** confidentiality against a malicious same-UID agent — that needs the separate-UID broker (ADR-0087).
 
 ### Note Encryption
 

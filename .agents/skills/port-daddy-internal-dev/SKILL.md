@@ -460,6 +460,11 @@ work; never reset or clobber the main checkout.
   never start the daemon to prove it stays off. See
   `docs/operations/local-off-control.md` for the unfinished whole-app boundary.
 
+  Keep hooks registered across Off/On. The shared preamble exits its caller:
+  embed it inside the PD-only subshell in mixed hooks, never ahead of unrelated
+  validation or LFS. Test On → Off → On with unchanged hook bytes and inert
+  commands; absence of PD activity while Off alone misses deleted functionality.
+
 
 - **Research reuse is not another authority.** The Project Epistemology D1a lab
   (`docs/research/egosystem-reconciliation/harness/`) imports the existing Harbor
