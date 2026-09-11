@@ -228,9 +228,9 @@ describe('registryWarning — the sentence the page and the JSON share', () => {
   it('a repository nobody has pushed warns that slugs will queue as proposed', () => {
     const w = registryWarning(null);
     expect(w).toMatch(/proposed queue/i);
-    // and names the command, because an agent reading this cannot run it and
-    // needs to be able to put the operator's next step in its own note.
-    expect(w).toContain('pd roadmap push');
+    expect(w).toContain('Port Daddy is intentionally Off');
+    expect(w).toContain('FleetBar');
+    expect(w).not.toContain('pd roadmap push');
   });
 
   it('a stale one names the age, the count, the daemon and what to do', () => {
@@ -238,8 +238,9 @@ describe('registryWarning — the sentence the page and the JSON share', () => {
     expect(w).toContain('1 day ago');
     expect(w).toContain('318');
     expect(w).toContain('port-daddy-daemon');
-    expect(w).toContain('pd roadmap push');
-    expect(w).toMatch(/unknown rather than as absent/);
+    expect(w).toContain('FleetBar');
+    expect(w).not.toContain('pd roadmap push');
+    expect(w).toMatch(/unknown rather than absent/);
   });
 });
 

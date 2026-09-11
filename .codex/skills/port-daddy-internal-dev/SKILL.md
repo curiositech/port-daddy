@@ -58,6 +58,15 @@ roadmap before the CLI-only path ships to operators. Examples in flight:
 `fleetbar-secret-management-with-provider-deeplinks`,
 `fleetbar-console-must-support-zoom-and-text-scaling`.
 
+The Harbor Work Register is the sanctioned coordination surface while the
+local runtime is intentionally Off. Browser approval may mint only a one-use,
+short-lived, repository/task/owner-bound Register credential. Keep that
+credential in a dedicated table and resolver; never admit it through the
+general `pdu_` account-auth path. The Register remains occupancy authority,
+not roadmap authority: a missing or stale daemon-pushed mirror means unknown
+work and `proposed` claims, never permission for the Relay to become a second
+roadmap writer.
+
 ## How to work a slice (operating expectations)
 
 The full posture lives in `AGENTS.md` § Agent Operating Expectations. The

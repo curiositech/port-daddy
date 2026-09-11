@@ -95,6 +95,16 @@
  *                                               2026-08-22, PR 1)
  *   GET  /v1/roadmap/mirror?repo=              (session/pdu; own mirror read —
  *                                               board / item detail / activity)
+ *   GET  /account/register?repo=                (session + live GitHub repo ACL;
+ *                                               shared Harbor Work Register)
+ *   POST /account/register/authorize            (session + same-origin; mint a
+ *                                               one-use repo/task pairing code)
+ *   POST /account/register/revoke               (session + same-origin; revoke
+ *                                               one task grant)
+ *   POST /v1/register/exchange                  (one-use pairing code → short-lived,
+ *                                               Register-only pdr_ bearer)
+ *   GET|POST /v1/register/*                     (session/pdu/pdr; shared occupancy,
+ *                                               pdr exact-repo and actor bound)
  *   POST /v1/harbors                           (session/pdu; create a remote harbor — client-supplied pubkey)
  *   GET  /v1/harbors                           (session/pdu; harbors I belong to)
  *   GET  /v1/harbors/:namespace/:name          (member-gated; detail + members)
@@ -249,7 +259,7 @@ import {
   handleRepoSettingsRemove,
   handleRepoSettingsApi,
 } from './repo-settings-page.js';
-import { handleRegisterPage, handleRegisterApi } from './work-register.js';
+import { handleRegisterPage, handleRegisterPageAction, handleRegisterApi } from './work-register.js';
 import { handleShipwrightPage } from './shipwright-page.js';
 import {
   handleShipwrightChat,
@@ -678,13 +688,17 @@ export default {
       response = await handleRepoSettingsApi(request, env);
     }
     // The Harbor Work Register: who is on what, for the agents sharing a repo.
-    // The page is session + GitHub repo ACL and refreshes the registry cache on
-    // every visit; the JSON paths also take a pdu_ device bearer, which is how
-    // an agent coordinates without carrying a GitHub credential of its own.
+    // The page is session + live GitHub repo ACL. It can mint a one-use exchange
+    // for a short-lived, repo-bound `pdr_` bearer; the JSON paths also retain
+    // the account-wide pdu_ device path. The narrower bearer is resolved only
+    // by work-register.ts and cannot authorize another Relay API.
     // The register owns occupancy only — what work EXISTS stays the roadmap
     // registry's to say, and this Worker never writes it (src/work-register.ts).
     else if (pathname === '/account/register' && method === 'GET') {
       response = await handleRegisterPage(request, env);
+    }
+    else if (pathname.startsWith('/account/register/') && method === 'POST') {
+      response = await handleRegisterPageAction(request, env);
     }
     else if (pathname.startsWith('/v1/register/')) {
       response = await handleRegisterApi(request, env);
