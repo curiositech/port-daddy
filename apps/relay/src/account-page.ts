@@ -213,7 +213,7 @@ export function renderLoginPage(): string {
         <div class="door-head"><h2 id="door-title">Sign in</h2><span class="num">AUTH / 01</span></div>
         <div class="door-body">
           <a class="btn btn-primary" href="/auth/github/login">Continue with GitHub</a>
-          <span class="sub-caption">OIDC — 1-hour session, httponly</span>
+          <span class="sub-caption">GitHub App authorization · secure 7-day browser session</span>
           <div class="pair">
             <div class="pair-mast" title="Quebec — I request free pratique; permission to enter">
               <span class="flag-name">Quebec — I request free pratique</span>
@@ -417,10 +417,10 @@ export function renderAccountPage(
             <span class="chip mono">member since ${created}</span>
           </div>
           <div class="oidc-row">
-            <span class="provider">GitHub OIDC</span>
+            <span class="provider">GitHub App</span>
             ${emailChip}
           </div>
-          <p class="caption" style="margin-top:14px">The website never holds a private key. GitHub is the identity provider; the server only stores your profile and a sealed session token.</p>
+          <p class="caption" style="margin-top:14px">The website never holds your private keys. GitHub is the identity provider; the server stores your profile and a sealed GitHub user token server-side for the lifetime of your browser session.</p>
         </div>
       </div>
     </section>
