@@ -148,6 +148,7 @@ pub struct EditorPane {
     saved_stamp: Option<Vec<u8>>,
     saving: Option<(uuid::Uuid, Vec<u8>)>,
     save_error: Option<String>,
+    input_history: crate::editor_history::InputHistory,
     truncated: bool,
     error: Option<String>,
     /// DocumentRef-derived edit lane. Merely opening a local path does not
@@ -239,6 +240,7 @@ impl EditorPane {
             saved_stamp: None,
             saving: None,
             save_error: None,
+            input_history: crate::editor_history::InputHistory::default(),
             truncated: false,
             error: None,
             channel,
@@ -329,6 +331,7 @@ impl EditorPane {
     /// Reopening creates a new operation-counter incarnation. Ephemeral claims
     /// and presence from the discarded replica cannot become the new one's.
     fn reset_replica_awareness(&mut self, peer: PeerId) {
+        self.input_history.clear();
         self.presence = PresenceStore::new(peer);
         self.remote.clear();
         self.presence_out = PresenceDebouncer::new(PRESENCE_SEND_INTERVAL_MS);
@@ -380,6 +383,7 @@ impl EditorPane {
         let task = LocalSaveTask { id, document: self.document.clone(), baseline, text: buffer.to_string() };
         self.saving = Some((id, stamp));
         self.save_error = None;
+        self.end_input_history();
         Ok(task)
     }
 
@@ -454,6 +458,32 @@ impl EditorPane {
         range: std::ops::Range<usize>,
         replacement: &str,
     ) -> std::result::Result<String, String> {
+        self.apply_text_edit_with_context(range, replacement, None)
+    }
+
+    pub fn end_input_history(&mut self) {
+        self.input_history.clear();
+        if let Some(buffer) = self.buffer.as_mut() { buffer.end_input_group(); }
+    }
+
+    /// The platform bridge supplies input intent and before/after selection.
+    /// Range and claim validation still happen before opening an undo group.
+    pub fn apply_input_edit(
+        &mut self, edit: &crate::editor_input::TextEdit,
+        kind: crate::editor_history::InputKind,
+        before_input: &crate::editor_input::EditorInput,
+        after_input: &crate::editor_input::EditorInput,
+        at: std::time::Instant,
+    ) -> std::result::Result<String, String> {
+        self.apply_text_edit_with_context(edit.range.clone(), &edit.text,
+            Some((kind, before_input, after_input, at)))
+    }
+
+    fn apply_text_edit_with_context(
+        &mut self, range: std::ops::Range<usize>, replacement: &str,
+        input: Option<(crate::editor_history::InputKind, &crate::editor_input::EditorInput,
+            &crate::editor_input::EditorInput, std::time::Instant)>,
+    ) -> std::result::Result<String, String> {
         if self.viewer_peer.is_some() {
             return Err("the editor mirror cannot author local operations".into());
         }
@@ -489,7 +519,21 @@ impl EditorPane {
         }
 
         let unicode = before[..range.start].chars().count()..before[..range.end].chars().count();
+        let group = input.map(|(kind, previous, next, at)| self.input_history.plan(
+            kind, &range, replacement, &before, previous, next, at,
+            &buffer.change_stamp(), buffer.import_generation()));
+        let buffer = self.buffer.as_mut().expect("validated buffer above");
+        if !group.as_ref().is_some_and(|plan| plan.continue_group) {
+            buffer.end_input_group();
+            if group.as_ref().is_some_and(|plan| plan.open_group) {
+                buffer.begin_input_group()?;
+            }
+        }
         let delta = buffer.replace_authored(unicode, replacement);
+        let remain_open = if let Some(group) = group {
+            self.input_history.commit(group, buffer.change_stamp())
+        } else { self.input_history.clear(); false };
+        if !remain_open { buffer.end_input_group(); }
         Ok(crate::editor_sync::encode_frame(
             buffer.local_peer(),
             &delta,
@@ -517,6 +561,7 @@ impl EditorPane {
         if self.claim_ledger.iter().any(|(_, claim)| claim.peer != buffer.local_peer()) {
             return Err("Undo/redo is unavailable while another replica holds a claim in this document. Request a handoff; affected-operation claim validation is not available yet.".into());
         }
+        self.input_history.clear();
         let selected = input.selection();
         let reversed = input.selection_reversed();
         let anchors = buffer.anchor_at_byte(selected.start)
@@ -1862,6 +1907,255 @@ mod tests {
         for token in BYPASS {
             assert!(!refusal.to_ascii_lowercase().contains(token));
         }
+    }
+
+    fn platform_input(pane: &mut EditorPane, input: &mut crate::editor_input::EditorInput,
+        kind: crate::editor_history::InputKind, replacement: &str, at: std::time::Instant,
+    ) -> String {
+        let before = input.clone();
+        let text = pane.text().unwrap();
+        let edit = input.replace(&text, None, replacement,
+            kind == crate::editor_history::InputKind::Composition, None);
+        pane.apply_input_edit(&edit, kind, &before, input, at).unwrap()
+    }
+
+    fn undo_text(pane: &mut EditorPane, input: &mut crate::editor_input::EditorInput) -> String {
+        pane.apply_history(HistoryDirection::Undo, input).unwrap().unwrap();
+        pane.text().unwrap()
+    }
+
+    #[test]
+    fn editor_typing_group_keeps_individual_deltas_and_mirror_convergence() {
+        use crate::editor_history::InputKind::Typing;
+        let path = write_temp("typing-group.rs", "\n");
+        let mut pane = make_pane_as(&path, "Abe");
+        let mut mirror = EditorPane::mirror(path, None, pane.document().clone(),
+            &pane.snapshot_blob().unwrap(), pane.buffer().unwrap().local_peer()).unwrap();
+        let mut input = crate::editor_input::EditorInput::default();
+        let at = std::time::Instant::now();
+        for replacement in ["a", "é", "👩‍💻", "界"] {
+            let frame = platform_input(&mut pane, &mut input, Typing, replacement, at);
+            assert!(mirror.ingest_local_frame(&frame));
+            assert_eq!(pane.text(), mirror.text());
+        }
+        let expected = pane.text().unwrap();
+        for (direction, text) in [(HistoryDirection::Undo, "\n"),
+            (HistoryDirection::Redo, expected.as_str())] {
+            let frame = pane.apply_history(direction, &mut input).unwrap().unwrap();
+            assert!(mirror.ingest_local_frame(&frame));
+            assert!(!mirror.ingest_local_frame(&frame));
+            assert_eq!(pane.text().as_deref(), Some(text));
+            assert_eq!(pane.text(), mirror.text());
+        }
+    }
+
+    #[test]
+    fn editor_typing_groups_split_at_time_whitespace_and_isolated_edits() {
+        use crate::editor_history::InputKind::{Typing, Isolated};
+        let path = write_temp("typing-boundaries.rs", "\n");
+        let mut pane = make_pane(&path, None);
+        let mut input = crate::editor_input::EditorInput::default();
+        let at = std::time::Instant::now();
+        platform_input(&mut pane, &mut input, Typing, "a", at);
+        let later = at + std::time::Duration::from_millis(751);
+        platform_input(&mut pane, &mut input, Typing, "b", later);
+        platform_input(&mut pane, &mut input, Typing, "c", later);
+        platform_input(&mut pane, &mut input, Typing, " ", later);
+        platform_input(&mut pane, &mut input, Typing, "d", later);
+        platform_input(&mut pane, &mut input, Isolated, "PASTE", later);
+        platform_input(&mut pane, &mut input, Isolated, "\n", later);
+        for expected in ["abc dPASTE\n", "abc d\n", "abc \n", "abc\n", "a\n", "\n"] {
+            assert_eq!(undo_text(&mut pane, &mut input), expected);
+        }
+        assert!(pane.apply_history(HistoryDirection::Undo, &mut input).unwrap().is_none());
+    }
+
+    #[test]
+    fn editor_selected_replacement_and_multigrapheme_platform_insert_are_isolated() {
+        use crate::editor_history::InputKind::Typing;
+        let path = write_temp("selected-group.rs", "\n");
+        let mut pane = make_pane(&path, None);
+        let mut input = crate::editor_input::EditorInput::default();
+        let at = std::time::Instant::now();
+        platform_input(&mut pane, &mut input, Typing, "a", at);
+        platform_input(&mut pane, &mut input, Typing, "b", at);
+        input.restore_selection(&pane.text().unwrap(), 0..2, true);
+        platform_input(&mut pane, &mut input, Typing, "c", at);
+        platform_input(&mut pane, &mut input, Typing, "d", at);
+        platform_input(&mut pane, &mut input, Typing, "ef", at);
+        for expected in ["cd\n", "c\n", "ab\n", "\n"] {
+            assert_eq!(undo_text(&mut pane, &mut input), expected);
+        }
+    }
+
+    #[test]
+    fn editor_deletion_runs_group_without_absorbing_whitespace_or_selected_text() {
+        use crate::editor_history::InputKind::{Backspace, DeleteForward};
+        for kind in [Backspace, DeleteForward] {
+            let path = write_temp("deletion-group.rs", "ab cd");
+            let mut pane = make_pane(&path, None);
+            let mut input = crate::editor_input::EditorInput::default();
+            if kind == Backspace { input.end("ab cd", false); }
+            let at = std::time::Instant::now();
+            for _ in 0..4 {
+                let text = pane.text().unwrap();
+                let before = input.clone();
+                let range = if kind == Backspace { input.backspace_range(&text) }
+                    else { input.delete_range(&text) }.unwrap();
+                let edit = input.replace_bytes(&text, range, "");
+                pane.apply_input_edit(&edit, kind, &before, &input, at).unwrap();
+            }
+            let expected = if kind == Backspace { ["ab", "ab ", "ab cd"] }
+                else { ["cd", " cd", "ab cd"] };
+            for text in expected { assert_eq!(undo_text(&mut pane, &mut input), text); }
+        }
+    }
+
+    #[test]
+    fn editor_slow_ime_updates_and_commit_are_one_undo_step() {
+        use crate::editor_history::InputKind::{Composition, Typing};
+        let path = write_temp("composition-group.rs", "original\n");
+        let mut pane = make_pane(&path, None);
+        let mut input = crate::editor_input::EditorInput::default();
+        input.restore_selection("original\n", 0..8, false);
+        let at = std::time::Instant::now();
+        for (seconds, kind, text) in [(0, Composition, "k"), (2, Composition, "か"),
+            (9, Composition, "研究"), (20, Typing, "研究")] {
+            platform_input(&mut pane, &mut input, kind, text,
+                at + std::time::Duration::from_secs(seconds));
+        }
+        assert_eq!(input.marked_range(), None);
+        platform_input(&mut pane, &mut input, Typing, "!", at + std::time::Duration::from_secs(20));
+        assert_eq!(undo_text(&mut pane, &mut input), "研究\n");
+        assert_eq!(undo_text(&mut pane, &mut input), "original\n");
+        pane.apply_history(HistoryDirection::Redo, &mut input).unwrap().unwrap();
+        assert_eq!(pane.text().as_deref(), Some("研究\n"));
+    }
+
+    #[test]
+    fn editor_explicit_navigation_unmark_and_save_end_input_groups() {
+        use crate::editor_history::InputKind::{Composition, Typing};
+        for boundary in ["navigation", "unmark", "save"] {
+            let path = write_temp("explicit-boundary.rs", "\n");
+            let mut pane = make_pane(&path, None);
+            let mut input = crate::editor_input::EditorInput::default();
+            let at = std::time::Instant::now();
+            let kind = if boundary == "unmark" { Composition } else { Typing };
+            platform_input(&mut pane, &mut input, kind, "a", at);
+            match boundary {
+                "save" => { let _task = pane.prepare_local_save().unwrap(); }
+                "unmark" => { pane.end_input_history(); input.unmark(); }
+                _ => { pane.end_input_history(); input.left("a\n", false); input.right("a\n", false); }
+            }
+            platform_input(&mut pane, &mut input, Typing, "b", at);
+            assert_eq!(undo_text(&mut pane, &mut input), "a\n", "{boundary}");
+            assert_eq!(undo_text(&mut pane, &mut input), "\n", "{boundary}");
+        }
+    }
+
+    #[test]
+    fn editor_remote_and_duplicate_imports_split_local_groups() {
+        use crate::editor_history::InputKind::Typing;
+        for duplicate in [false, true] {
+            let path = write_temp("remote-boundary.rs", "\n");
+            let mut pane = make_pane(&path, None);
+            let mut input = crate::editor_input::EditorInput::default();
+            let at = std::time::Instant::now();
+            let remote = HarborBuffer::empty("Becky");
+            remote.apply_remote_ops(&pane.buffer().unwrap().export_ops()).unwrap();
+            remote.append_line("remote");
+            let frame = crate::editor_sync::encode_frame(remote.local_peer(), &remote.export_ops());
+            if duplicate { assert!(pane.ingest_preserving_selection(&frame, &mut input)); }
+            platform_input(&mut pane, &mut input, Typing, "a", at);
+            let before_remote = pane.buffer().unwrap().change_stamp();
+            assert_eq!(pane.ingest_preserving_selection(&frame, &mut input), !duplicate);
+            if duplicate { assert_eq!(before_remote, pane.buffer().unwrap().change_stamp()); }
+            let before_b = pane.text().unwrap();
+            platform_input(&mut pane, &mut input, Typing, "b", at);
+            assert_eq!(undo_text(&mut pane, &mut input), before_b);
+            assert!(undo_text(&mut pane, &mut input).contains("remote"));
+        }
+    }
+
+    #[test]
+    fn editor_focus_boundary_retains_ime_range_for_late_platform_commit() {
+        use crate::editor_history::InputKind::{Composition, Typing};
+        let path = write_temp("blur-composition.rs", "\n");
+        let mut pane = make_pane(&path, None);
+        let mut input = crate::editor_input::EditorInput::default();
+        let at = std::time::Instant::now();
+        platform_input(&mut pane, &mut input, Composition, "か", at);
+        pane.end_input_history(); // The window/pane loses focus before IME commits.
+        assert_eq!(input.marked_range(), Some(0..3));
+        platform_input(&mut pane, &mut input, Typing, "か", at);
+        assert_eq!(pane.text().as_deref(), Some("か\n"), "not a second insertion");
+        assert_eq!(input.marked_range(), None);
+        platform_input(&mut pane, &mut input, Typing, "b", at);
+        assert_eq!(undo_text(&mut pane, &mut input), "か\n");
+    }
+
+    #[test]
+    fn editor_dependency_pending_import_ends_group_without_losing_queued_ops() {
+        use crate::editor_history::InputKind::Typing;
+        let path = write_temp("pending-group.rs", "\n");
+        let mut pane = make_pane(&path, None);
+        let mut input = crate::editor_input::EditorInput::default();
+        let at = std::time::Instant::now();
+        platform_input(&mut pane, &mut input, Typing, "a", at);
+        let remote = HarborBuffer::empty("Charli");
+        remote.insert_authored(0, "unseen ");
+        let dependencies = remote.export_ops();
+        let pending = remote.replace_authored(7..7, "later");
+        let stamp = pane.buffer().unwrap().change_stamp();
+        pane.buffer().unwrap().apply_remote_ops(&pending).unwrap();
+        assert_eq!(pane.buffer().unwrap().change_stamp(), stamp);
+        platform_input(&mut pane, &mut input, Typing, "b", at);
+        assert_eq!(undo_text(&mut pane, &mut input), "a\n");
+        assert_eq!(undo_text(&mut pane, &mut input), "\n");
+        pane.buffer().unwrap().apply_remote_ops(&dependencies).unwrap();
+        assert!(pane.text().unwrap().contains("later"));
+    }
+
+    #[test]
+    fn editor_edit_after_grouped_undo_clears_redo_and_begins_new_group() {
+        use crate::editor_history::InputKind::Typing;
+        let path = write_temp("group-redo.rs", "\n");
+        let mut pane = make_pane(&path, None);
+        let mut input = crate::editor_input::EditorInput::default();
+        let at = std::time::Instant::now();
+        for text in ["a", "b"] { platform_input(&mut pane, &mut input, Typing, text, at); }
+        assert_eq!(undo_text(&mut pane, &mut input), "\n");
+        assert!(pane.buffer().unwrap().can_step_history(HistoryDirection::Redo));
+        for text in ["c", "d"] { platform_input(&mut pane, &mut input, Typing, text, at); }
+        assert!(!pane.buffer().unwrap().can_step_history(HistoryDirection::Redo));
+        assert_eq!(undo_text(&mut pane, &mut input), "\n");
+        pane.apply_history(HistoryDirection::Redo, &mut input).unwrap().unwrap();
+        assert_eq!(pane.text().as_deref(), Some("cd\n"));
+    }
+
+    #[test]
+    fn editor_claim_refusal_does_not_admit_or_consume_a_grouped_edit() {
+        use crate::editor_history::InputKind::Typing;
+        let path = write_temp("group-claim.rs", "\n");
+        let mut pane = make_pane_as(&path, "Abe");
+        let mut other = make_pane_as(&path, "Becky");
+        let mut input = crate::editor_input::EditorInput::default();
+        let at = std::time::Instant::now();
+        platform_input(&mut pane, &mut input, Typing, "a", at);
+        pane.ingest_claim(&other.acquire_region_claim(1, 1, "held", 1_000));
+        let prior = input.clone();
+        let edit = input.replace(&pane.text().unwrap(), None, "b", false, None);
+        let stamp = pane.buffer().unwrap().change_stamp();
+        assert!(pane.apply_input_edit(&edit, Typing, &prior, &input, at).is_err());
+        assert_eq!(pane.buffer().unwrap().change_stamp(), stamp);
+        assert_eq!(pane.text().as_deref(), Some("a\n"));
+        // The app restores its provisional input and closes the boundary on refusal.
+        input = prior;
+        pane.end_input_history();
+        pane.ingest_claim(&other.release_region_claim(0));
+        platform_input(&mut pane, &mut input, Typing, "c", at);
+        assert_eq!(undo_text(&mut pane, &mut input), "a\n");
+        assert_eq!(undo_text(&mut pane, &mut input), "\n");
     }
 
     #[test]

@@ -23,7 +23,7 @@ type RepoWitnessResult =
   | { kind: 'renew' }
   | { kind: 'denied' }
   | { kind: 'rate-limited'; resetAt: number | null }
-  | { kind: 'unavailable' };
+  | { kind: 'unavailable'; reason: 'github-status' | 'transport' | 'malformed-response' | 'repository-mismatch'; status?: number; requestId?: string };
 
 /** Why escape: source-controlled names and descriptions are untrusted HTML input.
  * @param value Untrusted text.
@@ -31,6 +31,12 @@ type RepoWitnessResult =
  */
 function esc(value: string): string {
   return value.replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]!));
+}
+
+/** Keep an upstream correlation handle useful without reflecting arbitrary headers. */
+function githubRequestId(response: Response): string | undefined {
+  const value = response.headers.get('X-GitHub-Request-Id');
+  return value && /^[A-Za-z0-9:-]{1,128}$/.test(value) ? value : undefined;
 }
 
 /** Bound bytes actually consumed, not a caller-supplied Content-Length. Why:
@@ -68,10 +74,19 @@ async function repoWitness(session: ResolvedSession, repo: string): Promise<Repo
   if (!session.ghToken) return { kind: 'renew' };
   const headers = { Authorization: `Bearer ${session.ghToken}`, Accept: 'application/vnd.github+json',
     'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'port-daddy-relay' };
-  try {
-    const response = await fetch(`https://api.github.com/repos/${repo}`, {
-      headers, signal: AbortSignal.timeout(10_000), redirect: 'error',
-    });
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    let response: Response;
+    try {
+      response = await fetch(`https://api.github.com/repos/${repo}`, {
+        headers, signal: AbortSignal.timeout(attempt === 0 ? 6_000 : 4_000), redirect: 'error',
+      });
+    } catch (error) {
+      if (attempt === 0) continue;
+      const result = { kind: 'unavailable' as const, reason: 'transport' as const };
+      console.warn('repo-witness-unavailable', { reason: result.reason,
+        error: error instanceof Error ? error.name : 'unknown' });
+      return result;
+    }
     if (response.status === 401) return { kind: 'renew' };
     // GitHub documents both 403 and 429 for primary and secondary limits.
     // A 429 is unambiguously throttling even when an intermediary omits the
@@ -84,11 +99,32 @@ async function repoWitness(session: ResolvedSession, repo: string): Promise<Repo
       return { kind: 'rate-limited', resetAt: Number.isSafeInteger(reset) && reset > 0 ? reset : null };
     }
     if (response.status === 403 || response.status === 404) return { kind: 'denied' };
-    if (!response.ok) return { kind: 'unavailable' };
-    const body = await response.json() as { permissions?: { admin?: boolean }; full_name?: string };
-    if (body.full_name?.toLowerCase() !== repo) return { kind: 'unavailable' };
+    if (!response.ok) {
+      if (attempt === 0 && [502, 503, 504].includes(response.status) && !response.headers.has('Retry-After')) continue;
+      const result = { kind: 'unavailable' as const, reason: 'github-status' as const,
+        status: response.status, requestId: githubRequestId(response) };
+      console.warn('repo-witness-unavailable', { reason: result.reason,
+        status: result.status, requestId: result.requestId });
+      return result;
+    }
+    const body = await response.json().catch(() => null) as { permissions?: { admin?: boolean }; full_name?: string } | null;
+    if (!body || typeof body.full_name !== 'string') {
+      const result = { kind: 'unavailable' as const, reason: 'malformed-response' as const,
+        status: response.status, requestId: githubRequestId(response) };
+      console.warn('repo-witness-unavailable', { reason: result.reason,
+        status: result.status, requestId: result.requestId });
+      return result;
+    }
+    if (body.full_name.toLowerCase() !== repo) {
+      const result = { kind: 'unavailable' as const, reason: 'repository-mismatch' as const,
+        status: response.status, requestId: githubRequestId(response) };
+      console.warn('repo-witness-unavailable', { reason: result.reason,
+        status: result.status, requestId: result.requestId });
+      return result;
+    }
     return { kind: 'verified', witness: { admin: body.permissions?.admin === true, headers } };
-  } catch { return { kind: 'unavailable' }; }
+  }
+  return { kind: 'unavailable', reason: 'transport' };
 }
 
 /** Keep repository authorization failures inside the account experience. */
@@ -110,9 +146,15 @@ function repoWitnessFailure(repo: string, result: Exclude<RepoWitnessResult, { k
       action: `<a class="button" href="/account/ships?repo=${encodeURIComponent(repo)}">Retry repository check</a>`,
     },
     unavailable: {
-      title: 'GitHub could not be reached.',
-      detail: 'No permission decision was made and no ship setting changed. Retry this page when GitHub is available.',
-      action: `<a class="button" href="/account/ships?repo=${encodeURIComponent(repo)}">Retry repository check</a>`,
+      title: 'GitHub repository check failed.',
+      detail: result.kind === 'unavailable' && result.reason === 'github-status'
+        ? `GitHub returned status ${result.status ?? 'unknown'}${result.requestId ? ` (request ${esc(result.requestId)})` : ''}. No permission decision was made and no ship setting changed.`
+        : result.kind === 'unavailable' && result.reason === 'malformed-response'
+          ? 'GitHub returned a repository response the Relay could not verify. No permission decision was made and no ship setting changed.'
+          : result.kind === 'unavailable' && result.reason === 'repository-mismatch'
+            ? 'GitHub returned a different repository identity. No permission decision was made and no ship setting changed.'
+            : 'The Relay could not complete the GitHub repository check. No permission decision was made and no ship setting changed.',
+      action: `<a class="button" href="/account/ships?repo=${encodeURIComponent(repo)}">Retry repository check</a><a class="button secondary" href="/auth/github/login?return_to=${encodeURIComponent(`/account/ships?repo=${repo}`)}">Reconnect GitHub</a>`,
     },
   }[result.kind];
   return html(`<!doctype html><html lang="en"><head>${HEAD}<title>Repository access · Port Daddy</title><style>${TOKENS}
