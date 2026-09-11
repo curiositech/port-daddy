@@ -46,6 +46,23 @@ new local edits, history capacity, mirror read-only enforcement, claim refusal
 with unchanged history/IME, claim-release retry, reversed selections and cache
 reuse. Review is solo under the halt, not independent adversarial review.
 
+### CI follow-through, 2026-09-11
+
+Inherited the foundation's missing `editor_input` import fix for the standalone
+`wedge_render_proof` example. The entire headless crate test graph now passes:
+`cargo test --offline -q -p pd-console`, 16 targets and 877 executions, including
+repeated rehosted modules. This supersedes the narrower selected-target evidence
+as the headless compile/test gate, not as native interaction proof. Tests used
+fresh scratch space under `coding/tmp`, command-local disabled Git hooks and
+inspected loopback mocks; no Port Daddy daemon or paid agent was launched.
+
+The changelog fragment is renamed to `10133-cooperative-editor-history.md` and
+uses the required `type: added` header and single-line entries. The overall
+implementation ledger now includes a stage-by-stage checkpoint and ordered local
+IDE queue. Research PR #10108 has merged; foundation #10132 targets main and
+this history PR remains stacked on #10132. Remote CI confirmation is still
+separate from these local checks.
+
 ## Delivery boundary
 
 The native app was not launched. Screenshots, a real task-flow recording, native
