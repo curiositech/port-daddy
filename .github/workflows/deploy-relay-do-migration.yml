@@ -38,6 +38,8 @@ concurrency:
 
 jobs:
   deploy:
+    # Approval is required before this job receives publication credentials.
+    environment: production
     if: >-
       github.repository == 'curiositech/port-daddy' &&
       github.ref == 'refs/heads/main' &&

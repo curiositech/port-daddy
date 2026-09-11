@@ -25,9 +25,6 @@ concurrency:
 
 permissions:
   contents: read
-  checks: read
-  pull-requests: write
-  issues: write
 
 jobs:
   pr-requirements-guard:
@@ -44,14 +41,5 @@ jobs:
         run: git fetch --no-tags origin main:refs/remotes/origin/main
       - name: PR-requirements guard (summary, test plan, visual artifacts, changelog fragment)
         run: node scripts/check-pr-requirements.mjs --event-path "$GITHUB_EVENT_PATH"
-      - name: Unit-test Fleetbot signal classifier
-        if: github.event_name == 'pull_request'
-        run: node --test scripts/fleetbot-review-request.test.mjs
-      - name: Fleetbot review request guard
-        if: github.event_name == 'pull_request'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          FLEETBOT_APP_SLUG: port-daddy-fleet
-          FLEETBOT_REVIEWERS: ${{ vars.FLEETBOT_REVIEWERS }}
-          FLEETBOT_TEAM_REVIEWERS: ${{ vars.FLEETBOT_TEAM_REVIEWERS }}
-        run: node scripts/fleetbot-review-request.mjs ensure
+      # Metadata validation must not request reviewers, label PRs, or trigger
+      # paid agents. Reviewer orchestration is a separate operator decision.

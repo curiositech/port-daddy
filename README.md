@@ -1225,6 +1225,7 @@ npm run build:bin
 
 We maintain an extreme standard of reliability for the control plane:
 
+- **Halt-safe CI:** `ci-gate` includes macOS unit tests. PR Requirements validates metadata without requesting reviewers. Roadmap declarations can be checked offline, with snapshot freshness reported separately from link validity. Release and live-deployment jobs reference the operator-protected `production` environment; this does not re-enable disabled workflows or lift an operator shutdown. See [CI safety and approvals](docs/operations/ci-safety-and-approvals.md).
 - **Test suite:** 7,300+ test cases (Jest + `bun test` for compiled-binary regressions). Zero failures is the norm.
 - **Version drift gate:** `package.json` is the sole version authority; `scripts/sync-version.ts` stamps it across every surface (including this README's title) and `scripts/check-version-drift.mjs` fails CI on drift — deep mode also reads versions embedded in built artifacts.
 - **README freshness gate:** the pre-commit hook runs `scripts/check-readme-freshness.mjs` — staged changes to the CLI verb registry, MCP tool surface, OpenAPI contract, feature manifest, or fleet topology are blocked unless README.md is updated in the same commit (bypass with `PD_README_OK=1` when the change is genuinely internal). `tests/unit/feature-parity.test.js` additionally enforces that every `docs.readme=true` manifest feature stays mentioned here.
@@ -1235,7 +1236,7 @@ We maintain an extreme standard of reliability for the control plane:
 
 ### Contributing
 
-Start with [CONTRIBUTING.md](CONTRIBUTING.md). Every PR is filled out against [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md) and held to the contract in [AGENTS.md](AGENTS.md): an exhaustive summary and a non-trivial test plan (enforced by the `pr-requirements-guard` CI job), screenshots + a GIF/recording for any visual change, surface parity for new CLI verbs, new tests for new code, and a `CHANGELOG.md` entry. A neutral adversarial reviewer runs on every PR and posts a `SHIP / SHIP-AFTER-FIX / DO-NOT-SHIP` verdict.
+Start with [CONTRIBUTING.md](CONTRIBUTING.md). Every PR is filled out against [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md) and held to the contract in [AGENTS.md](AGENTS.md): an exhaustive summary and a non-trivial test plan (validated by `pr-requirements-guard` when enabled), screenshots + a GIF/recording for any visual change, surface parity for new CLI verbs, new tests for new code, and a fragment in `changelog.d/`. Adversarial review is separate from metadata validation; paid review automation stays disabled during an operator halt. Required checks are set by the repository's GitHub ruleset, not by a documentation claim.
 
 ---
 

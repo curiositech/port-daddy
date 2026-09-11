@@ -69,6 +69,8 @@ env:
 
 jobs:
   cut:
+    # Approval is required before this job receives publication credentials.
+    environment: production
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -399,6 +401,8 @@ jobs:
           NODE
 
   tag-and-publish:
+    # Approval is required before this job receives publication credentials.
+    environment: production
     # A merged carrier may contain the version transition; its PR name is not authority.
     if: >-
       github.event_name == 'pull_request' &&
