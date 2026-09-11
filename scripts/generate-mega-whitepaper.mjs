@@ -498,20 +498,124 @@ function normalizedReference(body) {
     .replace(/\\[a-zA-Z]+\*?(?:\[[^\]]*\])?\{([^{}]*)\}/g, '$1')
     .replace(/[{}~]/g, ' ')
     .replace(/\\[&%_$#]/g, ' ')
+    // Bare control words (\newblock above all) carry no content. Stripping the
+    // backslash alone left "newblock" behind as a word, so an entry broken over
+    // two \newblocks sorted and fingerprinted differently from the same entry
+    // broken over one -- which is where several of the duplicate rows came from.
+    .replace(/\\[a-zA-Z]+\*?/g, ' ')
     .replace(/[^a-zA-Z0-9./:-]+/g, ' ')
     .trim()
     .toLowerCase();
 }
 
+// A \bibitem body is "authors. \newblock \textit{Title}. Publisher, year." --
+// except where a work has no author, and then it opens with the title. Split
+// it there: everything before the first \newblock (or, failing that, before
+// the first italicised or quoted run) is the author field, and the rest is
+// the work.
+function referenceParts(body) {
+  const flat = body
+    .replace(/(^|\n)\s*%.*(?=\n|$)/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const cut = flat.search(/\\newblock|\\(?:textit|emph|textbf)\{|``|“/);
+  const authorField = cut > 0 ? flat.slice(0, cut) : '';
+  const work = cut > 0 ? flat.slice(cut) : flat;
+  return { authorField, work };
+}
+
+// Surname of the first author, which is what a reader looks a reference up by
+// and therefore what the list has to sort on. "E. Owens", "Erich Owens" and
+// "Owens, Erich" all reduce to "owens"; "F. Lin and W. M. Wonham" and "Feng
+// Lin and W. Murray Wonham" both reduce to "lin", which is also what collapses
+// them into one entry.
+function firstAuthorSurname(authorField) {
+  const plain = authorField
+    .replace(/\\[a-zA-Z]+\*?(?:\[[^\]]*\])?\{([^{}]*)\}/g, '$1')
+    .replace(/\\([&%_$#])/g, '$1')          // \& is an ampersand, not a macro
+    .replace(/\\[a-zA-Z]+\\?\s?/g, ' ')     // \ and other spacing macros
+    .replace(/[{}~]/g, ' ')
+    // "et al.", "(ed.)", "(eds.)", "editors": not names, and lowercase, so
+    // they would otherwise read as the mark of a corporate body.
+    .replace(/\bet\s+al\.?/gi, ' ')
+    .replace(/\(?\b(?:eds?|editors?)\.?\)?/gi, ' ')
+    .trim();
+  if (!plain) return '';
+  // An author list separates names with commas as well as "and", so the first
+  // author ends at whichever comes first. The exception is the surname-first
+  // form: in "Owens, Erich" the comma is inside one name, and the giveaway is
+  // that only one word precedes it -- "Rico Sennrich, Barry Haddow" has two.
+  const upToAnd = plain.split(/\s+(?:and|&)\s+/i)[0];
+  const beforeComma = upToAnd.split(',')[0];
+  const wordsBeforeComma = beforeComma.match(/[A-Za-z][A-Za-z'’-]+/g) ?? [];
+  const surnameFirst = upToAnd.includes(',') && wordsBeforeComma.length === 1;
+  const firstAuthor = surnameFirst ? beforeComma : (upToAnd.includes(',') ? beforeComma : upToAnd);
+  const words = firstAuthor.match(/[A-Za-z][A-Za-z'’-]+/g) ?? [];
+  if (!words.length) return '';
+  // A corporate author files under its first word, the way a reader looks up
+  // FIPA or AWS: nobody finds "Foundation for Intelligent Physical Agents"
+  // under A. There is no marker in a \bibitem for a corporate body (biblatex
+  // uses braces; that is one more reason the .bib migration is the real fix),
+  // so it is inferred: a lowercase word that is not a name particle ("for",
+  // "of", "and" inside one name), an all-capitals first token ("AWS", "UCAN"),
+  // or a word that names an organisation.
+  const PARTICLES = new Set(['van', 'von', 'de', 'der', 'den', 'da', 'di', 'du', 'del', 'della', 'le', 'la', 'ter', 'ten', 'af', 'av', 'y', 'e']);
+  const ORG = /^(Group|Foundation|Working|Consortium|Institute|Committee|Team|Laboratory|Lab|Inc|LLC|Ltd|Corporation|Association|Organization|Organisation|Project|Society|Council|Office|Agency|Bureau|University|Press|Authors|Contributors|Community)$/;
+  const corporate =
+    words.some((w) => /^[a-z]/.test(w) && !PARTICLES.has(w.toLowerCase())) ||
+    /^[A-Z]{2,}$/.test(words[0]) ||
+    words.some((w) => ORG.test(w));
+  if (corporate) {
+    // "The Matrix.org Foundation" files under M, not T.
+    const ARTICLE = /^(The|A|An|Le|La|Les|Der|Die|Das|El|Los|Las|Il|Lo|Gli)$/;
+    const first = words.find((w) => !ARTICLE.test(w)) ?? words[0];
+    return first.toLowerCase();
+  }
+  // Otherwise the surname is the last word. That is also the rule for particle
+  // names ("van der Meyden" files under M, as Chicago 8.10 has it for Dutch
+  // names with a lowercase particle), and it is deliberately the same rule for
+  // sorting and for the duplicate fingerprint, so "R. van der Meyden" and "Ron
+  // van der Meyden" reduce to one key rather than two.
+  return words[words.length - 1].toLowerCase();
+}
+
+function referenceYear(body) {
+  const years = normalizedReference(body).match(/\b(1[5-9]\d{2}|20\d{2})\b/g);
+  return years ? years[years.length - 1] : '';
+}
+
+// Two chapters citing the same work in different house styles used to produce
+// two entries, because the fingerprint was the whole rendered string: hence
+// the Lin/Wonham pair, the two Ostroms and the two Anchor Protocol rows. The
+// identity of a reference is its author, its year and its title -- not how a
+// given chapter chose to abbreviate the first name or order the publisher.
 function referenceFingerprint(body) {
   const normalized = normalizedReference(body);
   const doi = normalized.match(/10\.\d{4,9}\/[-._;()/:a-z0-9]+/i)?.[0];
-  return doi ? `doi:${doi.replace(/[.,;]+$/, '')}` : `text:${normalized}`;
+  if (doi) return `doi:${doi.replace(/[.,;]+$/, '')}`;
+  const { authorField, work } = referenceParts(body);
+  const surname = firstAuthorSurname(authorField);
+  const title = normalizedReference(work)
+    .replace(/\bhttps?:[^\s]*/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 90);
+  if (!surname && !title) return `text:${normalized}`;
+  return `awt:${surname}|${referenceYear(body)}|${title}`;
+}
+
+// Author-year-title order, the way a reader expects to find a name.
+function referenceSortKey(entry) {
+  const { authorField, work } = referenceParts(entry.body);
+  const surname = firstAuthorSurname(authorField);
+  const title = normalizedReference(work);
+  // An anonymous work files under its title, interleaved with the names.
+  return [surname || title, referenceYear(entry.body), title].join(' ');
 }
 
 function compareNormalizedReferences(a, b) {
-  const left = normalizedReference(a.body);
-  const right = normalizedReference(b.body);
+  const left = referenceSortKey(a);
+  const right = referenceSortKey(b);
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
@@ -653,24 +757,33 @@ const RANGE_COMMANDS = ['crefrange', 'Crefrange', 'cpagerefrange', 'Cpagerefrang
 
 // Labels the Book itself owns (chapter and part anchors emitted by the
 // generator) are never namespaced: a chapter may point at another chapter.
-function namespaceOne(label, prefix) {
+// Nor is a label that already names a chapter by its prefix -- `fh:thm:x`
+// written inside chapter `he` -- because that is one chapter pointing at
+// another chapter's theorem, the only way a Book-only \ifpdbook branch can
+// cross-reference a statement it declines to print a second time, and
+// prefixing it again would produce `he:fh:thm:x`, which nothing defines. The
+// chapter prefixes come from textbook.json via the caller; with none given,
+// every label is local, which is what the standalone-shaped tests assume.
+function namespaceOne(label, prefix, chapterPrefixes = []) {
   const trimmed = label.trim();
-  return /^(chap|part):/.test(trimmed) ? trimmed : `${prefix}:${trimmed}`;
+  const head = trimmed.split(':', 1)[0];
+  if (head === 'chap' || head === 'part' || chapterPrefixes.includes(head)) return trimmed;
+  return `${prefix}:${trimmed}`;
 }
 
-function namespaceList(labels, prefix) {
-  return labels.split(',').map((label) => namespaceOne(label, prefix)).join(',');
+function namespaceList(labels, prefix, chapterPrefixes = []) {
+  return labels.split(',').map((label) => namespaceOne(label, prefix, chapterPrefixes)).join(',');
 }
 
-function namespaceLabels(body, prefix) {
+function namespaceLabels(body, prefix, chapterPrefixes = []) {
   const single = new RegExp(`\\\\(${LABEL_COMMANDS.join('|')})(\\*?)\\{([^}]+)\\}`, 'g');
   const range = new RegExp(`\\\\(${RANGE_COMMANDS.join('|')})(\\*?)\\{([^}]+)\\}\\{([^}]+)\\}`, 'g');
   return body
     .replace(range, (_whole, command, star, from, to) =>
-      `\\${command}${star}{${namespaceOne(from, prefix)}}{${namespaceOne(to, prefix)}}`)
+      `\\${command}${star}{${namespaceOne(from, prefix, chapterPrefixes)}}{${namespaceOne(to, prefix, chapterPrefixes)}}`)
     .replace(single, (_whole, command, star, labels) =>
-      `\\${command}${star}{${namespaceList(labels, prefix)}}`)
-    .replace(/\\hyperref\[([^\]]+)\]/g, (_whole, label) => `\\hyperref[${namespaceOne(label, prefix)}]`)
+      `\\${command}${star}{${namespaceList(labels, prefix, chapterPrefixes)}}`)
+    .replace(/\\hyperref\[([^\]]+)\]/g, (_whole, label) => `\\hyperref[${namespaceOne(label, prefix, chapterPrefixes)}]`)
     // The chapter listings use alg:* key-value labels rather than \label{...}.
     // Keep this deliberately narrow: TikZ also has a visual `label={...}` key.
     .replace(/label=\{(alg:[^}]+)\}/g, (_whole, label) => `label={${prefix}:${label.trim()}}`)
@@ -684,16 +797,71 @@ function namespaceLabels(body, prefix) {
       `\\begin{pdsolution}{${namespaceOne(label, prefix)}}`);
 }
 
+// \pdcite{key[,key...]} (figures/pd-pedagogy.tex) emits the normal \cite{...}
+// plus, in the Book, a margin short-form note per key; scripts/harbor-
+// research/promote_cites.py promoted the eight chapters' \cite{...} calls to
+// \pdcite{...} at their point of use, so both spellings carry a chapter's own
+// local bibliography key and both need the same collated-key rewrite.
 function rewriteCitations(body, citationMap, source) {
-  return body.replace(/\\cite(\[[^\]]*\])?\{([^}]+)\}/g, (_whole, optional = '', keys) => {
+  return body.replace(/\\(pd)?cite(\[[^\]]*\])?\{([^}]+)\}/g, (_whole, pd = '', optional = '', keys) => {
     const rewritten = keys.split(',').map((raw) => {
       const key = raw.trim();
       const mapped = citationMap.get(key);
       if (!mapped) throw new Error(`${source}: citation ${key} has no local bibliography entry`);
       return mapped;
     });
-    return `\\cite${optional}{${rewritten.join(',')}}`;
+    return `\\${pd}cite${optional}{${rewritten.join(',')}}`;
   });
+}
+
+// ---------------------------------------------------------------------------
+// \pdcite short-form aliasing for the Book
+//
+// scripts/harbor-research/build_cite_shortforms.py keys figures/pd-cite-
+// shortforms.tex by each chapter's own LOCAL \bibitem key (e.g. "lampson1974")
+// -- the key every \pdcite call in a standalone chapter build still uses.
+// collateReferences() below then rewrites every \cite/\pdcite key in the
+// Book's assembled body to a collated "mega###" key (one merged
+// bibliography, deduplicated by reference fingerprint). \pdcite's own margin
+// note looks its argument up directly in the short-form table, so once that
+// rewrite has happened the table needs a "mega###" row too, or the Book's
+// margin notes silently fall back to printing "mega045" instead of a short
+// form. This generates that alias block from each paper's own citationMap
+// (local key -> mega key), reusing whichever short form the (twinned,
+// identical) pd-cite-shortforms.tex already has for the local key -- one
+// pass over one copy of that file is enough since both are byte-identical.
+// ---------------------------------------------------------------------------
+const PDCITESHORT_RE = /\\pdciteshort\{([^}]+)\}\{((?:[^{}]|\{[^{}]*\})*)\}/g;
+
+function loadCiteShortforms(sourcePath = resolve(repoRoot, 'whitepaper/figures/pd-cite-shortforms.tex')) {
+  const map = new Map();
+  if (!existsSync(sourcePath)) return map;
+  const text = readUtf8(sourcePath);
+  for (const match of text.matchAll(PDCITESHORT_RE)) {
+    map.set(match[1], match[2]);
+  }
+  return map;
+}
+
+function renderCiteShortformAliases(prepared, shortforms = loadCiteShortforms()) {
+  const seenMegaKeys = new Set();
+  const lines = [
+    '% GENERATED by scripts/generate-mega-whitepaper.mjs. Do not edit by hand.',
+    '% \\pdciteshort rows for the Book\'s own collated "mega###" citation keys,',
+    "% aliased from each chapter's local \\bibitem key (see figures/pd-cite-",
+    '% shortforms.tex) once collateReferences() has rewritten \\cite/\\pdcite',
+    '% arguments to point at the merged bibliography instead.',
+  ];
+  for (const paper of prepared) {
+    for (const [localKey, megaKey] of paper.citationMap.entries()) {
+      if (seenMegaKeys.has(megaKey)) continue;
+      const shortform = shortforms.get(localKey);
+      if (!shortform) continue;
+      seenMegaKeys.add(megaKey);
+      lines.push(`\\pdciteshort{${megaKey}}{${shortform}}`);
+    }
+  }
+  return `${lines.join('\n')}\n`;
 }
 
 function collateReferences(prepared) {
@@ -951,15 +1119,35 @@ function commonDirectoryPrefix(paths) {
 // line was the actual remaining cause of that overfull box (one basename,
 // after its shared prefix was still counted 18 times over, no longer fit
 // even the wider column this row's estimate assumed).
+// Above this many stacked lines, the row itself becomes the tallest thing on
+// its page -- the one entry that hits this (19 R-script files) made a row
+// tall enough that xltabular's own row-height estimate for it landed 2.96pt
+// short of an actual page break, an Overfull \vbox from the output routine
+// with no paragraph and no line of type to point at (row 1.10). A row this
+// tall was always going to be a bad page-break neighbour eventually; the
+// fix is not the break, it is the row -- one size smaller for its stacked
+// filenames shortens it enough that no page-break estimate this close to
+// the edge is left to get wrong.
+const MANY_PATHS_THRESHOLD = 8;
+
 function texPaths(paths) {
   if (paths.length < 2) return texPathBreakable(paths[0]);
   const prefix = commonDirectoryPrefix(paths);
-  if (!prefix) return paths.map((path) => texPathBreakable(path)).join('\\newline{}');
+  const small = paths.length > MANY_PATHS_THRESHOLD;
+  const open = small ? '{\\footnotesize ' : '';
+  const close = small ? '}' : '';
+  if (!prefix) {
+    return open + paths.map((path) => texPathBreakable(path)).join('\\newline{}') + close;
+  }
   const suffixes = paths.map((path) => path.slice(prefix.length));
-  return [
-    `${texPathBreakable(prefix)}\\ \\textit{(${paths.length} files)}`,
-    ...suffixes.map((suffix) => texPathBreakable(suffix)),
-  ].join('\\newline{}');
+  return (
+    open
+    + [
+      `${texPathBreakable(prefix)}\\ \\textit{(${paths.length} files)}`,
+      ...suffixes.map((suffix) => texPathBreakable(suffix)),
+    ].join('\\newline{}')
+    + close
+  );
 }
 
 // Escaped text (NOT \path{}'s verbatim scan) with a defensive \allowbreak
@@ -971,21 +1159,56 @@ function texPaths(paths) {
 // texPathBreakable never sees it — its escaped underscores, with no break
 // point of their own, were the actual (if modest) overfull \hbox this
 // emitter hit and fixed.
+// A break after every hyphen, underscore, or slash is not fine-grained
+// enough on its own: the mechanized-claims table's Claim column is
+// 0.15\textwidth (about 49pt), and a single unhyphenated segment between
+// two of those breaks -- "capability", "attenuation", "verification" --
+// can be wider than that on its own, so the segment itself overflows even
+// though the identifier as a whole has plenty of break points. This was a
+// real Overfull \hbox (up to 15.7pt) at several rows, not a hypothetical
+// one. chunkLongRuns re-splits any run of 6+ letters that survived the
+// hyphen/underscore/slash pass, so no unbroken run is ever wider than the
+// narrowest column this text is ever set in; \allowbreak is inert where the
+// line already fits, so this changes nothing for text that was never the
+// problem.
+//
+// It has to run on texText's OUTPUT, not its input: texText itself injects
+// multi-letter control words (\textbackslash{}, \textasciitilde{}), and
+// chunking the raw source first would leave those words intact only for
+// texText to inject NEW ones afterward, unprotected. And it has to leave
+// those control words themselves alone -- splitting \split(/(\\[A-Za-z]+)/)
+// keeps each one as one atomic token at an odd index, so only the plain-text
+// pieces between them ever reach the chunker. (The first cut of this ran
+// the chunker AFTER the hyphen/underscore pass instead, on text that by then
+// already contained the literal word "allowbreak" from that pass's own
+// \allowbreak commands -- which the chunker then matched into, corrupting
+// its own output. Order this way, that word never exists yet when the
+// chunker runs.)
+const WORD_CHUNK = /([A-Za-z]{6})(?=[A-Za-z])/g;
+function chunkLongRuns(text) {
+  return text
+    .split(/(\\[A-Za-z]+)/)
+    .map((piece, i) => (i % 2 === 1 ? piece : piece.replace(WORD_CHUNK, '$1\\allowbreak ')))
+    .join('');
+}
+
 function texEscapeBreakable(text) {
-  return texText(text).replace(/(-|\\_|\/)/g, '$1\\allowbreak ');
+  return chunkLongRuns(texText(text)).replace(/(-|\\_|\/)/g, '$1\\allowbreak ');
 }
 
 function texCode(text) {
   return `\\texttt{${texEscapeBreakable(text)}}`;
 }
 
-// Status is one word ("current"/"partial"/"historical") in \textsc, which
-// rendered slightly wider than a plain 0.08\textwidth column at this point
-// size — 0.10 clears it. Claim and CI give up the difference; the X
-// (evidence-policy) column is unaffected since these four still sum to 0.58.
+// Status is one word ("current"/"partial"/"historical") in \textsc. 0.10
+// cleared "current" and "partial" but not "historical" -- ten small-caps
+// letters with no space to break at, hyphenated by LaTeX's own last resort
+// and still overfull by 12.8pt even on the hyphenated remainder: the column
+// was too narrow for it outright, not just tight. 0.13 clears all three; the
+// X (evidence-policy) column gives up the difference, which it can afford.
 const TABLE_COLUMN_SPEC = '@{}>{\\raggedright\\arraybackslash}p{0.15\\textwidth} '
   + '>{\\raggedright\\arraybackslash}p{0.21\\textwidth} >{\\raggedright\\arraybackslash}p{0.12\\textwidth} '
-  + '>{\\raggedright\\arraybackslash}p{0.10\\textwidth} >{\\raggedright\\arraybackslash}X@{}';
+  + '>{\\raggedright\\arraybackslash}p{0.13\\textwidth} >{\\raggedright\\arraybackslash}X@{}';
 const TABLE_HEADER_ROW = '\\textbf{Claim} & \\textbf{Artifact} & \\textbf{CI} & \\textbf{Status} & \\textbf{Evidence policy} \\\\';
 
 function renderRow(row) {
@@ -1113,13 +1336,49 @@ function generate({ textbook = loadTextbook(), out = resolve(repoRoot, defaultOu
       body = apparatus.body;
       paper.stripped = apparatus.stripped;
       body = namespaceChapterSyntax(body, paper);
-      body = namespaceLabels(body, paper.prefix);
+      body = namespaceLabels(body, paper.prefix, textbook.chapters.map((c) => c.prefix));
       body = rewriteCitations(body, paper.citationMap, paper.source);
       generatedBodies.push(renderChapter(paper, body));
     }
   }
 
   canonicalReferences.sort(compareNormalizedReferences);
+
+  // Exact-text dedup cannot collapse the same work cited in two house styles
+  // ("Sagas." with and without a page range; Insectes Sociaux 6(1) and 6), and
+  // guessing harder would eventually merge two genuinely different papers. So
+  // the near-duplicates are reported rather than silently printed twice: same
+  // first-author surname, same year, and a title that is a prefix of the other.
+  // The real cure is one record per work in a .bib -- see LIBRARY-SYSTEM.md.
+  const nearDuplicates = [];
+  for (let i = 1; i < canonicalReferences.length; i += 1) {
+    const previous = canonicalReferences[i - 1];
+    const current = canonicalReferences[i];
+    const surname = firstAuthorSurname(referenceParts(current.body).authorField);
+    if (!surname) continue;
+    if (surname !== firstAuthorSurname(referenceParts(previous.body).authorField)) continue;
+    if (referenceYear(current.body) !== referenceYear(previous.body)) continue;
+    const titles = [previous, current]
+      .map((ref) => normalizedReference(referenceParts(ref.body).work).replace(/[^a-z0-9 ]/g, ''));
+    const [shorter, longer] = titles.sort((x, y) => x.length - y.length);
+    if (shorter.length >= 12 && longer.startsWith(shorter.slice(0, 24))) {
+      nearDuplicates.push(`${previous.key} (${previous.source}) / ${current.key} (${current.source}): ${shorter.slice(0, 60)}`);
+    }
+  }
+  // Was a warning; the sweep that gave each of the 15 pairs this report
+  // found one wording, applied in every chapter that cites it, is what
+  // made zero the number this class of defect is allowed to report from
+  // here on -- a warning nobody is looking at is how it grew to 15 in the
+  // first place. Fails the generator, the same way every other
+  // corpus-integrity problem in this file does.
+  if (nearDuplicates.length) {
+    throw new Error(
+      `${nearDuplicates.length} reference(s) look like the same work cited two ways:\n`
+        + nearDuplicates.map((line) => `  ${line}`).join('\n')
+        + '\nGive each work one wording in every chapter that cites it.',
+    );
+  }
+
   const bibliography = [
     '\\begin{thebibliography}{999}',
     ...canonicalReferences.flatMap((ref) => [
@@ -1136,6 +1395,7 @@ function generate({ textbook = loadTextbook(), out = resolve(repoRoot, defaultOu
     .map(({ number, prefix, title }) => ({ number, prefix, title }));
 
   mkdirSync(out, { recursive: true });
+  writeFileSync(resolve(out, 'mega-volume-cite-aliases.tex'), renderCiteShortformAliases(prepared), 'utf8');
   writeFileSync(resolve(out, 'mega-volume-body.tex'), `${generatedBodies.join('\n\n\\clearpage\n\n')}\n`, 'utf8');
   writeFileSync(resolve(out, 'mega-volume-bibliography.tex'), bibliography, 'utf8');
   writeFileSync(resolve(out, 'mega-volume-contents.tex'), renderContents(textbook), 'utf8');
@@ -1184,15 +1444,21 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
 
 export {
   cleanStandaloneChrome,
+  firstAuthorSurname,
+  referenceFingerprint,
+  referenceParts,
+  referenceSortKey,
   stripPaperApparatus,
   collateReferences,
   compareNormalizedReferences,
   generate,
   inlineInputs,
+  loadCiteShortforms,
   loadCorpus,
   loadTextbook,
   namespaceLabels,
   renderChapter,
+  renderCiteShortformAliases,
   renderContents,
   renderMechanizedClaims,
   renderSolutions,

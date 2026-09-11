@@ -193,6 +193,12 @@ export interface TextbookChapterRecord {
   formerNumeral: string
   oneLine: string
   question: string
+  /**
+   * Why a reader would want this chapter, in the author's voice. Distinct from
+   * `question` (what the chapter answers) and from `oneLine` (what it claims):
+   * the outline shows all three, and the teaser is the one doing the selling.
+   */
+  teaser: string
   epigraph: { text: string; source: string }
 }
 
@@ -205,13 +211,23 @@ export interface Textbook {
 export const TEXTBOOK = textbookJson as Textbook
 
 /**
- * A secondary typographic edition of the Book: same chapters, same
- * generated body/bibliography, a different driver root
- * (coordination-papers-mega-volume-<id-suffix>.tex sets \pdedition then
- * \input's the main root). `pages`/`sizeKb` are 0 until the edition's PDF
- * has actually been built at least once — check-whitepaper-metadata.ts
- * WARNs (not fails) while the file is missing, and `--fix` fills the real
- * numbers in from disk the first time it exists. Never hand-fill a guess.
+ * A secondary typographic edition of the Book, published alongside the
+ * canonical PDF: same chapters, same generated body/bibliography, a different
+ * driver root (coordination-papers-mega-volume-<id-suffix>.tex sets
+ * \pdedition then \input's the main root). `pages`/`sizeKb` are 0 until the
+ * edition's PDF has actually been built at least once —
+ * check-whitepaper-metadata.ts WARNs (not fails) while the file is missing,
+ * and `--fix` fills the real numbers in from disk the first time it exists.
+ * Never hand-fill a guess.
+ *
+ * Nothing is registered here today, and that is the point: the Book has one
+ * central edition (Swiss, set by \pdedition's default in
+ * coordination-papers-mega-volume-preamble.tex and rendered into the canonical
+ * coordination-papers-mega-volume.pdf), and the maritime and technical
+ * characters remain switchable but unbuilt. This registry describes what is
+ * published, so it describes one PDF. The shape stays because publishing a
+ * second edition beside the central one is one array entry plus one row in
+ * scripts/build-whitepapers.sh away.
  */
 export interface CollectedVolumeEdition {
   id: string
@@ -232,7 +248,11 @@ export interface CollectedVolume {
   pages: number
   sizeKb: number
   references: number
-  /** Alternate-typography editions built from the same sources; see coordination-papers-mega-volume-{swiss,technical}.tex. */
+  /**
+   * Alternate-typography editions published beside the canonical PDF, built
+   * from the same sources; see coordination-papers-mega-volume-{maritime,swiss,technical}.tex.
+   * Absent while the Book publishes only its central edition.
+   */
   editions?: CollectedVolumeEdition[]
 }
 
@@ -244,25 +264,11 @@ export const COLLECTED_VOLUME: CollectedVolume = {
   downloadUrl:
     'https://raw.githubusercontent.com/curiositech/port-daddy/main/website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
   date: TEXTBOOK.edition.date,
-  pages: 538,
-  sizeKb: 8065,
+  pages: 551,
+  sizeKb: 9512,
   references: 221,
-  editions: [
-    {
-      id: 'coordination-papers-mega-volume-swiss',
-      title: 'Swiss edition',
-      pdfPath: '/whitepaper/coordination-papers-mega-volume-swiss.pdf',
-      pages: 542,
-      sizeKb: 3363,
-    },
-    {
-      id: 'coordination-papers-mega-volume-technical',
-      title: 'Technical edition',
-      pdfPath: '/whitepaper/coordination-papers-mega-volume-technical.pdf',
-      pages: 538,
-      sizeKb: 7780,
-    },
-  ],
+  // No `editions` while the Book publishes only its central edition. See the
+  // CollectedVolumeEdition doc comment above.
 }
 
 /**
@@ -344,8 +350,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/legible-swarm',
     overviewHref: '/whitepaper?paper=legible-swarm',
     date: 'August 2026',
-    pages: 62,
-    sizeKb: 932,
+    pages: 64,
+    sizeKb: 924,
     status: 'Version 1.2 (textbook edition)',
     order: '04',
     chapter: 4,
@@ -459,8 +465,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/single-writer-kernel',
     overviewHref: '/whitepaper?paper=single-writer-kernel',
     date: 'August 2026',
-    pages: 56,
-    sizeKb: 827,
+    pages: 58,
+    sizeKb: 793,
     status: 'Version 1.2 (textbook edition)',
     order: '01',
     chapter: 1,
@@ -575,8 +581,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/spawn-to-person',
     overviewHref: '/whitepaper?paper=spawn-to-person',
     date: 'August 2026',
-    pages: 50,
-    sizeKb: 802,
+    pages: 53,
+    sizeKb: 794,
     status: 'Version 1.5 (textbook edition)',
     order: '05',
     chapter: 5,
@@ -690,8 +696,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/harbor-economy',
     overviewHref: '/whitepaper?paper=harbor-economy',
     date: 'August 2026',
-    pages: 47,
-    sizeKb: 781,
+    pages: 48,
+    sizeKb: 764,
     status: 'Version 1.3 (textbook edition)',
     order: '06',
     chapter: 6,
@@ -806,8 +812,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/anchor-protocol',
     overviewHref: '/whitepaper?paper=anchor-protocol',
     date: 'August 2026',
-    pages: 37,
-    sizeKb: 695,
+    pages: 38,
+    sizeKb: 704,
     status: 'Version 1.5 (textbook edition)',
     order: '02',
     chapter: 2,
@@ -1173,8 +1179,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/sealed-harbor',
     overviewHref: '/whitepaper?paper=sealed-harbor',
     date: 'September 2026',
-    pages: 20,
-    sizeKb: 549,
+    pages: 21,
+    sizeKb: 554,
     status: 'Version 1.0 (textbook edition)',
     order: '03',
     chapter: 3,
@@ -1417,6 +1423,16 @@ export const TABLE_OF_CONTENTS: TableOfContentsPart[] = TEXTBOOK.parts.map((part
     .map((id) => WHITE_PAPERS.find((paper) => paper.id === id))
     .filter((paper): paper is WhitePaper => paper !== undefined),
 }))
+
+/**
+ * The chapter's editorial record — question, teaser, epigraph, one-line
+ * claim. These live in textbook.json rather than on WhitePaper because the
+ * Book's own front matter and the site read the same strings; duplicating
+ * them into the paper record would give two places for them to drift.
+ */
+export function chapterRecordFor(paperId: string) {
+  return TEXTBOOK.chapters.find((chapter) => chapter.id === paperId)
+}
 
 export function findWhitePaperByChapter(chapter: number) {
   return WHITE_PAPERS.find((paper) => paper.chapter === chapter)

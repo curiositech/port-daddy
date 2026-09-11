@@ -24,6 +24,22 @@ import pymupdf
 LABEL = "The question this chapter answers"
 
 
+def is_heading_text(text: str) -> bool:
+    """Could this line be a heading, judged on its opening character alone?
+
+    Deliberately weak: it does not try to decide what IS a heading, only to
+    drop what cannot be one. A line opening lowercase is prose -- a bold
+    defined term or a claim's run-in head that the extractor split out, up to
+    and including mid-word fragments like "ilance decrement is real". Every
+    heading in the Book opens with its section number or a capital.
+    """
+    stripped = text.strip()
+    if not stripped:
+        return False
+    first = stripped[0]
+    return first.isdigit() or first.isupper()
+
+
 def page_lines(page):
     out = []
     for b in page.get_text("dict")["blocks"]:
@@ -67,13 +83,41 @@ def main() -> int:
         texts = [l["text"] for l in lines]
         # O: opener spill
         if any(LABEL.lower() == t.lower() for t in texts):
-            big = [l for l in lines if l["size"] >= 20 and l["y0"] > 0]
-            label_y = next(l["y0"] for l in lines if l["text"].lower() == LABEL.lower())
+            # "Much larger than the label", not an absolute point size. The
+            # question is declared \fontsize{20}{25} in every edition, but what
+            # a PDF reports is the rendered size, which is font-dependent: the
+            # maritime edition's Palatino-family face comes out at 20.92 and
+            # the technical edition's TeX Gyre Heros at 19.93. An absolute
+            # `>= 20` therefore passed one edition and failed the other by
+            # seven hundredths of a point, reporting a stranded question on all
+            # eight technical openers where the question sits 23 pt under its
+            # own label. Measuring against the label the check has already
+            # found makes the test say what it means and stop depending on
+            # which typeface the edition chose.
+            label_line = next(l for l in lines if l["text"].lower() == LABEL.lower())
+            label_y = label_line["y0"]
+            floor = 1.5 * label_line["size"]
+            big = [l for l in lines if l["size"] >= floor and l["y0"] > 0]
             if not any(l["y0"] > label_y for l in big):
                 findings.append({"kind": "O", "page": page_no, "detail": "opener label present, question not on the same page"})
         # H: stranded heading
         body = [l for l in lines if l["size"] < 11.5 and l["y0"] > 60 and l["y1"] < foot + 2]
-        heads = [l for l in lines if l["bold"] and l["size"] >= 12 and l["y0"] > 60]
+        # A heading is bold and large, but bold and large is not enough: the
+        # Book sets defined terms and claim run-in heads in bold inside running
+        # prose, and the extractor hands those back as their own line objects.
+        # CI reported "heading 'ilance decrement is real'" -- the tail of
+        # "vigilance", split mid-word -- and "heading 'is not here'". Neither is
+        # a heading; both are bold runs inside a sentence.
+        #
+        # Every real heading in this book opens with a section number or a
+        # capital ("7.7.5", "Pricing the Bond", "The three organs of
+        # continuity"). A candidate that opens lowercase is a continuation of
+        # prose, so requiring the first character to be a digit or a capital
+        # drops exactly that class and touches none of the real findings.
+        heads = [
+            l for l in lines
+            if l["bold"] and l["size"] >= 12 and l["y0"] > 60 and is_heading_text(l["text"])
+        ]
         for h in heads:
             after = [l for l in body if l["y0"] > h["y1"]]
             if len(after) <= 2 and (foot - h["y1"]) < 40 and page_no < len(per_page):

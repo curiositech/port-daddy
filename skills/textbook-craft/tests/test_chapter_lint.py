@@ -201,7 +201,15 @@ class TestPdPedagogyDrivenDeadMacros(RepoFixtureTestCase):
     def test_neutralized_macro_names_parses_the_real_committed_file(self):
         real_path = Path(__file__).resolve().parents[3] / "whitepaper" / "figures" / "pd-pedagogy.tex"
         names = chapter_lint.neutralized_macro_names(real_path)
-        self.assertEqual(names, {"keyidea", "pitfall", "scene", "xrefbox", "pullquote"})
+        # \pdthesis joined the block when the 21 section theses stopped
+        # pretending to be pull quotes; \pullquote stays as its alias so no
+        # chapter breaks on the rename.
+        self.assertEqual(names, {"keyidea", "pitfall", "scene", "xrefbox", "pullquote", "pdthesis"})
+        # The file has more than one \AtBeginDocument block -- the margin
+        # apparatus opens one of its own, earlier in the file, to hook
+        # \section -- so a parser that reads only the first one returns
+        # nothing and every fill-drawing macro reads as live.
+        self.assertGreater(len(names), 1)
         # ...and \exercises, the old fill= tinted box, is deliberately absent.
         self.assertNotIn("exercises", names)
 

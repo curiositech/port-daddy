@@ -196,8 +196,26 @@ else
     for shared in "$BOOK_DIR"/figures/pd-*.tex; do
       [ -f "$shared" ] && cp "$shared" "$BUILD/figures/$(basename "$shared")"
     done
-    for piece in coordination-papers-mega-volume-preamble.tex coordination-papers-mega-volume-seams.tex; do
-      cp "$BOOK_DIR/$piece" "$BUILD/$piece"
+    # Every sibling of the Book root, rather than a list of the names today's
+    # preamble happens to \input. The preamble pulls in the plate set for
+    # whichever character \pdedition selects, and that used to be maritime,
+    # which inputs none -- so the plate copy was missing and invisible until
+    # Swiss became the default and all 36 fragments failed at once with
+    # "File `coordination-papers-mega-volume-swiss-plates.tex' not found".
+    # Naming the files, or globbing a guess at how the next one will be named,
+    # both leave that hole open for the edition after this one. Copying the
+    # family closes it: a few unread files in a scratch build dir cost nothing,
+    # and a missing one costs the whole run.
+    for piece in "$BOOK_DIR"/coordination-papers-mega-volume-*.tex; do
+      [ -f "$piece" ] && cp "$piece" "$BUILD/$(basename "$piece")"
+    done
+    # ...but the two the wrapper cannot compile without are still asserted, so a
+    # renamed preamble fails here rather than 200 lines into a TeX log.
+    for required in coordination-papers-mega-volume-preamble.tex coordination-papers-mega-volume-seams.tex; do
+      [ -f "$BUILD/$required" ] || {
+        echo "compile_fragment.sh: $required not found in $BOOK_DIR" >&2
+        exit 2
+      }
     done
     cp "$FRAGMENT_ABS" "$BUILD/figures/$STEM.tex"
     extract_preamble "$BOOK_ROOT" > "$WRAPPER"

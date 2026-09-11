@@ -102,12 +102,30 @@ def strip_tex_comments(text: str) -> str:
     return "".join(cleaned)
 
 
-def resolve_include(parent: Path, raw_target: str) -> Path:
+def resolve_include(parent: Path, raw_target: str, document_root: Path | None = None) -> Path:
+    """Resolve an \\input target the way TeX does.
+
+    TeX has no per-file relative resolution: a relative \\input is looked up
+    from the directory the *document* is compiled in, not from the directory of
+    the file that issued it. So figures/pd-pedagogy.tex saying
+    \\input{figures/pd-cite-shortforms} is correct -- it is read from the
+    document root like every other path -- and resolving it against the
+    including file's own directory instead looks for figures/figures/... and
+    finds nothing.
+
+    Document root first, then the including file's directory, because a file
+    included from a sibling directory can still name its neighbour relatively
+    and both spellings appear in this corpus.
+    """
     target = Path(raw_target.strip())
     if not target.suffix:
         target = target.with_suffix(".tex")
     if target.is_absolute():
         return target.resolve()
+    if document_root is not None:
+        from_root = (document_root / target).resolve()
+        if from_root.is_file():
+            return from_root
     return (parent / target).resolve()
 
 
@@ -133,6 +151,7 @@ def walk_tex(root: Path) -> list[tuple[Path, str]]:
 
     visited: set[Path] = set()
     ordered: list[tuple[Path, str]] = []
+    document_root = root.resolve().parent
 
     def visit(path: Path) -> None:
         resolved = path.resolve()
@@ -155,7 +174,7 @@ def walk_tex(root: Path) -> list[tuple[Path, str]]:
             )
         ordered.append((resolved, text))
         for match in INPUT_RE.finditer(text):
-            visit(resolve_include(resolved.parent, match.group(1)))
+            visit(resolve_include(resolved.parent, match.group(1), document_root))
 
     visit(root)
     return ordered
@@ -276,9 +295,46 @@ def extract_reuse_contracts(atlas: Path) -> list[ReuseContract]:
                 requirement=requirement,
             )
         )
-    if not contracts:
-        raise ValueError("atlas declares no cross-volume reuse contracts")
+    # No "at least one contract" assertion. That was true of the corpus when
+    # this was written -- five contracts existed -- but it is not an invariant:
+    # zero contracts is the correct state when no figure appears under two
+    # volume roots, which is where the atlas landed on 2026-09-08 once the
+    # Book stopped printing five drawings twice.
+    #
+    # The guarantee worth keeping is the converse, and it was never checked:
+    # a figure SHARED across volumes must have a contract saying what stays
+    # identical. That is uncovered_reuse() below, so an empty table now passes
+    # only while nothing is shared, and fails the moment something is.
     return contracts
+
+
+def uncovered_reuse(
+    atlas_ids: Iterable[str],
+    contracts: Iterable[ReuseContract],
+) -> list[str]:
+    """Figure ids under two or more volume roots with no contract covering them.
+
+    The direction that matters. A declared contract over figures nobody shares
+    is harmless; a shared figure with no contract is two drawings free to drift
+    apart while the atlas says nothing.
+    """
+    by_figure: dict[str, set[str]] = {}
+    for full in atlas_ids:
+        volume, _, figure = full.partition("/")
+        if not figure:
+            continue
+        by_figure.setdefault(figure, set()).add(volume)
+    covered = {
+        member.split("/", 1)[1]
+        for contract in contracts
+        for member in contract.members
+        if "/" in member
+    }
+    return sorted(
+        f"{figure}:shared-by-{','.join(sorted(volumes))}-without-a-contract"
+        for figure, volumes in by_figure.items()
+        if len(volumes) > 1 and figure not in covered
+    )
 
 
 def reuse_contract_issues(
@@ -497,7 +553,8 @@ def main(argv: list[str] | None = None) -> int:
             atlas_ids,
             atlas_row_issues=incomplete_atlas_rows(atlas_rows),
             root_drift=canonical_root_drift(repo_root, canonical_roots),
-            reuse_issues=reuse_contract_issues(contracts, atlas_ids, source_ids),
+            reuse_issues=reuse_contract_issues(contracts, atlas_ids, source_ids)
+            + uncovered_reuse(atlas_ids, contracts),
         )
     except (FileNotFoundError, OSError, ValueError) as error:
         if args.as_json:

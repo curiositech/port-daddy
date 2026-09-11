@@ -49,7 +49,48 @@ Operator directives (2026-07-04, superseded and expanded 2026-09-01). Any search
 4. **Select by corpus policy, not machine-wide habit.** A versioned policy chooses an approved local or remote quality tier from the profile registry using corpus privacy, egress authority, quality target, latency budget, and cost cap. Remote inference is allowed only when that corpus policy explicitly permits the provider and data class. Record the selected profile, provider/runtime revision, latency, cost, and benchmark-promotion receipt.
 5. **Filter authority before ranking.** Repo, harbor, account/team, disclosure, retention, and redaction boundaries are hard filters applied before lexical or dense retrieval. Cross-repo and cross-harbor retrieval is default-deny. Index only provenance-bound sanitized derivatives of protected evidence; never let retrieval decrypt raw evidence or widen its disclosure scope.
 
-The current local embedding source uses `Xenova/all-MiniLM-L6-v2`; treat it as an explicit local/degraded fallback while the provider-neutral fabric in [`docs/proposals/provider-neutral-retrieval-fabric.md`](docs/proposals/provider-neutral-retrieval-fabric.md) is implemented. The registry foundation is source-present, but its profiles remain declarative-only: it does not activate role selection or prove producer conformance. Verify installed CLI support before relying on the source `pd embed` command or its cache-management subcommands; do not infer a daemon upgrade from a merged PR. Lexical-only degradation is allowed only when corpus policy permits it, it is labeled degraded, and it warns with the agent repair path `pd doctor`; a requested semantic contract must never silently downgrade.
+The current local embedding source uses `Xenova/all-MiniLM-L6-v2`; treat it as an explicit local/degraded fallback while the provider-neutral fabric in [`docs/proposals/provider-neutral-retrieval-fabric.md`](docs/proposals/provider-neutral-retrieval-fabric.md) is implemented. Registry-backed role/tier/provider selection and local artifact/runtime/output verification are source-present, but the generated profiles remain declarative-only and degraded: runtime verification does not mint signed producer or benchmark promotion. Persistent indexes without the exact selected `spaceId` remain legacy state and must be rebuilt, not relabeled. Verify installed CLI support before relying on the source `pd embed` command or its cache-management subcommands; source `pd embed text|stdin` requires `--corpus <stable-id>`. Do not infer a daemon upgrade from a merged PR. Lexical-only degradation is allowed only when corpus policy permits it, it is labeled degraded, and it warns with the agent repair path `pd doctor`; a requested semantic contract must never silently downgrade.
+
+## The Harbor Work Register — read it before you start, write to it as you go
+
+The register is the shared board telling every agent in this repository who is
+on what, right now. It lives on the relay, not in the tree, so it is current
+rather than as-of-your-last-pull, and it survives an operator halt because it
+does not depend on the daemon.
+
+**Read it first.** `GET https://relay.portdaddy.dev/v1/register/available?repo=curiositech/port-daddy`
+answers "what may I take" — every slug nothing holds, plus every slug whose
+holder has gone quiet past the salvage clock. `.../board` is the whole picture
+including who is on what. The human view is `/account/register?repo=...`, which
+is gated to the operator's own GitHub identity and is not linked from anywhere.
+
+**Claim before you work.** `POST .../claim` with `{"slug": "...", "agent":
+"<your session id>", "headline": "what you are about to do"}`. A `409` means
+somebody else has it and names them — that refusal is the whole point, and it
+is cheaper than two agents discovering the collision in a merge. Go and ask for
+something else.
+
+**Say you are alive.** `POST .../heartbeat` while you work. A claim that stops
+reporting for forty-five minutes is offered to the next agent as salvage, which
+is what stops a dead session holding work until a human notices.
+
+**Leave the note.** `POST .../note` as you learn things, and always on
+`.../release`: what you tried, what you ruled out, what you would do next. A
+claim released without a note makes the next agent start from the beginning.
+`POST .../finish` with the PR number when it lands.
+
+**What the register is not.** It says who *holds* work. It does not say what
+work *exists* — that is the roadmap registry (`roadmap_items` in the daemon,
+projected append-only to `docs/roadmap/roadmap.snapshot.json`), and the register
+reads it rather than rivalling it. A slug you claim that has no row there is
+stored as `proposed`: queued, not scheduled, and counted alongside
+`docs/roadmap/unregistered.json`. Do not treat a green claim as evidence that
+work is registered. See `docs/roadmap/AUTHORITY.md`.
+
+**It is cooperative, and that is stated rather than papered over.** The register
+refuses a second claim and tells you who holds the first; it cannot stop an
+agent that never asks. The enforcement point is your own harness reading this
+file. Behave as though it could stop you.
 
 ## Port Daddy First
 
@@ -274,6 +315,51 @@ into CI, get CI green the right way, and merge. The only legitimate pause
 is a real red you cannot fix unilaterally (missing secrets, infra outage).
 Operator, 2026-06-11: "Why are you waiting on me? Why do I have to tell
 every Claude this?" — don't be the Claude that has to be told.
+
+### Base `main`. Do not stack PRs onto feature branches.
+
+**Open every PR against `main`.** A PR whose base is another feature branch is
+not shipped when it merges — it is moved one branch sideways, and GitHub tells
+its author "Merged" either way. That badge is the whole problem: it retires the
+work from everyone's attention while leaving it outside the product.
+
+The measurement that produced this rule (2026-09-10, over the whole repository):
+1,255 PRs have merged in this repo's life. **99 of them merged into a base other
+than `main`, and 72 of those 99 are from the last five weeks** — the practice is
+accelerating. Testing every one of the 72 against `main` twice, by patch-id
+(`git cherry`, which survives squash and rebase) and by whether the files it
+added exist on `main` at all, **six** are confirmed absent from the product
+today, one of them for over a month. Four more sit in a single branch that is
+233 commits ahead of `main` and has never merged. Meanwhile **917 branches are
+alive** in the remote, 138 of them `purser/`.
+
+So:
+
+- **Base every PR on `main`.** If your change genuinely depends on unmerged
+  work, say so in the body and wait for that work to land, or carry the
+  dependency as a commit in your own branch. Waiting is cheaper than a merged
+  PR nobody can find.
+- **Never retarget a PR onto a branch that is not `main`** — not to satisfy a
+  bot, not to stack a test contract underneath it, not for review convenience.
+  A tool that wants to retarget your PR is asking you to hide it.
+- **"Merged" is not "shipped."** Before you record a PR as done, in a note, a
+  ledger row, a changelog fragment or a reply: check that its base was `main`,
+  or that its base has itself reached `main`. `git cherry origin/main <head>`
+  answers it — every line starting `+` is a commit that is NOT in `main`.
+- **If you find yourself merging into a long-lived integration branch,** that
+  branch is now a second `main` with none of `main`'s protections and no one
+  watching whether it lands. Merge it or delete it; do not let it accumulate.
+
+The same discipline applies to the two failure modes that hide a PR from its
+own author. Before claiming a PR is ready, ready to re-queue, or done:
+
+1. **Every review thread is RESOLVED, not merely replied to.** A reply
+   satisfies `pr-comments-guard` (it only asks who spoke last) and still leaves
+   the merge blocked. Enumerate the threads and check `is_resolved` on each.
+2. **Re-check for conflicts against the base after every push to it.** A
+   conflict against a moving base emits no webhook and no notification; it is
+   silent until someone tries to merge. `git merge-tree --write-tree
+   origin/main <head>` answers it in one command.
 
 **Two PR-body checks are REQUIRED and fail closed — fill them in or the PR is
 bounced (it cannot enter the merge queue):**

@@ -1,99 +1,99 @@
 {
-  "pdf": "/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/figaudit/pdf/legible-swarm-pushpull/legible-swarm-pushpull.pdf",
-  "page_count": 1,
-  "params": {
-    "min_font_pt": 7.0,
-    "textwidth_cm": 16.3
+ "figure": "legible-swarm-pushpull",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
   },
-  "checks": {
-    "T1": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T2": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T3": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T4": {
-      "status": "fail",
-      "count": 2,
-      "findings": [
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            149.4321746826172,
-            32.80989456176758,
-            177.31121826171875,
-            55.65885543823242
-          ],
-          "text": "identity",
-          "line_segment": [
-            [
-              167.751708984375,
-              155.08041381835938
-            ],
-            [
-              167.751708984375,
-              53.03216552734375
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'identity'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            316.50006103515625,
-            33.2050666809082,
-            343.256103515625,
-            55.26772689819336
-          ],
-          "text": "episode",
-          "line_segment": [
-            [
-              334.2608642578125,
-              155.08041381835938
-            ],
-            [
-              334.2608642578125,
-              53.03216552734375
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'episode'"
-        }
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T4": {
+   "status": "fail",
+   "count": 2,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      149.4321746826172,
+      32.80989456176758,
+      177.31121826171875,
+      55.65885543823242
+     ],
+     "text": "identity",
+     "line_segment": [
+      [
+       167.751708984375,
+       155.08041381835938
+      ],
+      [
+       167.751708984375,
+       53.03216552734375
       ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'identity'"
     },
-    "T5": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T6": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T7": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      316.50006103515625,
+      33.2050666809082,
+      343.256103515625,
+      55.26772689819336
+     ],
+     "text": "episode",
+     "line_segment": [
+      [
+       334.2608642578125,
+       155.08041381835938
+      ],
+      [
+       334.2608642578125,
+       53.03216552734375
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'episode'"
     }
+   ]
   },
-  "summary": {
-    "result": "fail",
-    "failed_checks": [
-      "T4"
-    ],
-    "warned_checks": []
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
   }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T4"
+  ],
+  "warned_checks": []
+ }
 }

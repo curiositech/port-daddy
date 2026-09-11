@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from '@jest/globals';
-import { existsSync, mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
@@ -364,6 +364,13 @@ describe('Coordination Guard', () => {
     const merged = mergePreCommitHook(existing);
 
     expect(merged).toContain('Port Daddy Coordination Guard');
+    expect(merged).toContain('[ ! -e "$pd_guard_home/hooks.disabled" ] || return 1');
+    expect(merged.indexOf('hooks.disabled')).toBeLessThan(merged.indexOf('command -v pd'));
+    expect(merged).toContain('.portdaddy/coordination-guard.json');
+    expect(merged).toContain('daemon.ready');
+    expect(merged).toContain('daemon.pid');
+    expect(merged).toContain('heartbeat');
+    expect(merged).toContain('[ "$pd_guard_ready_pid" = "$pd_guard_daemon_pid" ]');
     expect(merged.indexOf('pd guard check --staged --hook')).toBeLessThan(merged.lastIndexOf('exit 0'));
   });
 
@@ -382,6 +389,142 @@ describe('Coordination Guard', () => {
     expect(merged.indexOf('pd guard check --staged --hook || exit $?')).toBeLessThan(
       merged.lastIndexOf('exit 0'),
     );
+  });
+
+  test('the heartbeat mtime is read in this machine\'s stat dialect, whichever it is', () => {
+    // The guard stood down on every Linux commit for as long as this block has
+    // existed, and silently: `stat -f %m FILE` on GNU coreutils reads %m as a
+    // second FILE, prints a filesystem report to stdout and exits 1, so the old
+    // `-f || -c` chain captured the report AND the timestamp, failed the digit
+    // check, and decided the daemon was not fresh. The test below exercises the
+    // whole hook, which is the real proof, but it can only ever say "the guard
+    // did not fire" -- it cannot say why. This one names the reason, so a
+    // regression reads as "the mtime came back as <garbage>" instead of as a
+    // guard that mysteriously went quiet again.
+    const scratchRoot = join(process.cwd(), '.scratch');
+    mkdirSync(scratchRoot, { recursive: true });
+    const sandbox = mkdtempSync(join(scratchRoot, 'pd-stat-dialect-'));
+    const heartbeat = join(sandbox, 'heartbeat');
+    writeFileSync(heartbeat, '{}');
+
+    // The availability function's mtime lines, lifted verbatim out of the block
+    // the CLI merges into user hooks, so this cannot drift away from shipped.
+    const block = mergePreCommitHook('');
+    const mtimeLines = block
+      .split('\n')
+      .filter((line) => line.includes('pd_guard_heartbeat_mtime='))
+      // (?!_) or the substitution eats the prefix of $pd_guard_heartbeat_mtime
+      // and leaves "<path>_mtime", which is never digits, so the BSD branch
+      // fires unconditionally -- which is how this test first "passed" a
+      // filesystem report off as a timestamp.
+      .map((line) => line.trim().replace(/\$pd_guard_heartbeat(?!_)/g, `"${heartbeat}"`));
+    expect(mtimeLines.length).toBeGreaterThanOrEqual(2); // one per dialect, not a chain
+
+    const script = [
+      'set -u',
+      ...mtimeLines,
+      'printf %s "$pd_guard_heartbeat_mtime"',
+    ].join('\n');
+    const result = spawnSync('/bin/sh', ['-c', script], { encoding: 'utf8' });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toMatch(/^[0-9]+$/);
+    expect(Number(result.stdout)).toBeGreaterThan(0);
+
+    rmSync(sandbox, { recursive: true, force: true });
+  });
+
+  test('managed commit guard invokes pd only for a configured repo with a ready daemon', () => {
+    const scratchRoot = join(process.cwd(), '.scratch');
+    mkdirSync(scratchRoot, { recursive: true });
+    const repo = mkdtempSync(join(scratchRoot, 'pd-guard-hook-'));
+    const pdHome = join(repo, 'pd-home');
+    const fakeBin = join(repo, 'bin');
+    const called = join(repo, 'called');
+    const hook = join(repo, 'pre-commit');
+    mkdirSync(pdHome, { recursive: true });
+    mkdirSync(fakeBin, { recursive: true });
+    writeFileSync(join(fakeBin, 'pd'), '#!/bin/sh\nprintf called > "$PD_GUARD_CALLED"\n', { mode: 0o755 });
+    writeFileSync(hook, mergePreCommitHook(''), { mode: 0o755 });
+    expect(spawnSync('git', ['init'], { cwd: repo }).status).toBe(0);
+
+    const env = {
+      ...process.env,
+      PATH: `${fakeBin}:/usr/bin:/bin`,
+      PD_HOME: pdHome,
+      PD_GUARD_CALLED: called,
+    };
+    const run = () => spawnSync(hook, [], { cwd: repo, env, encoding: 'utf8' });
+
+    writeFileSync(join(pdHome, 'daemon.ready'), '4242\n');
+    writeFileSync(join(pdHome, 'daemon.pid'), '4242\n');
+    writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    expect(run().status).toBe(0);
+    expect(existsSync(called)).toBe(false); // no Coordination Guard configuration
+
+    mkdirSync(join(repo, '.portdaddy'), { recursive: true });
+    writeFileSync(join(repo, '.portdaddy', 'coordination-guard.json'), '{"enabled":true,"mode":"enforce"}\n');
+    rmSync(join(pdHome, 'daemon.ready'));
+    expect(run().status).toBe(0);
+    expect(existsSync(called)).toBe(false); // daemon is not exactly ready
+
+    writeFileSync(join(pdHome, 'daemon.ready'), '4242\n');
+    expect(run().status).toBe(0);
+    expect(existsSync(called)).toBe(true);
+
+    rmSync(called);
+    writeFileSync(join(pdHome, 'hooks.disabled'), 'operator halt\n');
+    expect(run().status).toBe(0);
+    expect(existsSync(called)).toBe(false);
+
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  test('versioned Git hooks are inert before any subprocess when globally disabled', () => {
+    const scratchRoot = join(process.cwd(), '.scratch');
+    mkdirSync(scratchRoot, { recursive: true });
+    const sandbox = mkdtempSync(join(scratchRoot, 'pd-static-hooks-'));
+    const pdHome = join(sandbox, 'pd-home');
+    const fakeBin = join(sandbox, 'bin');
+    const called = join(sandbox, 'called');
+    mkdirSync(pdHome, { recursive: true });
+    mkdirSync(fakeBin, { recursive: true });
+    writeFileSync(join(pdHome, 'hooks.disabled'), 'operator halt\n');
+
+    for (const command of ['git', 'pd', 'port-daddy', 'curl', 'npx']) {
+      writeFileSync(join(fakeBin, command), `#!/bin/sh\nprintf '%s' '${command}' > "$PD_HOOK_CALLED"\nexit 99\n`, { mode: 0o755 });
+    }
+
+    for (const name of ['pre-commit', 'post-commit']) {
+      const hookPath = join(process.cwd(), 'hooks', name);
+      const source = readFileSync(hookPath, 'utf8');
+      // The shebang used to be asserted as the literal `#!/usr/bin/env zsh`,
+      // which stopped meaning anything the moment it was not: indexOf returns
+      // -1 and every ordering claim against it passes for free. Assert the
+      // shape instead -- a shebang on line 1, naming an interpreter POSIX
+      // guarantees, because a hook whose interpreter is missing exits 127 and
+      // a guard that exits 127 is a guard that is not running.
+      expect(source.startsWith('#!/bin/sh\n')).toBe(true);
+      expect(source).not.toMatch(/^#!.*\b(zsh|bash)\b/);
+      expect(source.indexOf('hooks.disabled')).toBeGreaterThan(0);
+      expect(source.indexOf('hooks.disabled')).toBeLessThan(source.indexOf('git rev-parse'));
+      const result = spawnSync(hookPath, [], {
+        cwd: sandbox,
+        env: {
+          ...process.env,
+          PATH: `${fakeBin}:/usr/bin:/bin`,
+          PD_HOME: pdHome,
+          PD_HOOK_CALLED: called,
+        },
+        encoding: 'utf8',
+      });
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
+      expect(result.stderr).toBe('');
+      expect(existsSync(called)).toBe(false);
+    }
+
+    rmSync(sandbox, { recursive: true, force: true });
   });
 
   test('upgrades legacy guard block missing || exit $? in place', () => {
@@ -429,6 +572,10 @@ describe('Coordination Guard', () => {
     const merged = mergePostCommitHook(existing);
 
     expect(merged).toContain('Port Daddy Coordination Guard');
+    expect(merged).toContain('[ ! -e "$pd_guard_home/hooks.disabled" ] || return 1');
+    expect(merged.indexOf('hooks.disabled')).toBeLessThan(merged.indexOf('command -v pd'));
+    expect(merged).toContain('.portdaddy/coordination-guard.json');
+    expect(merged).toContain('[ "$pd_guard_age" -le 30 ]');
     expect(merged).toContain('pd guard check --post-commit --hook || true');
     expect(merged).toContain('port-daddy guard check --post-commit --hook || true');
     expect(merged).not.toContain('pd guard check --post-commit --hook || exit $?');

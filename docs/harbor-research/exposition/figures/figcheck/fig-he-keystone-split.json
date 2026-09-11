@@ -1,135 +1,135 @@
 {
-  "pdf": "/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/figaudit/pdf/fig-he-keystone-split/fig-he-keystone-split.pdf",
-  "page_count": 1,
-  "params": {
-    "min_font_pt": 7.0,
-    "textwidth_cm": 16.3
+ "figure": "fig-he-keystone-split",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
   },
-  "checks": {
-    "T1": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+  "T2": {
+   "status": "fail",
+   "count": 3,
+   "findings": [
+    {
+     "check": "T2",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      429.306396484375,
+      65.9579849243164,
+      485.4399108886719,
+      73.40869140625
+     ],
+     "container_bbox": [
+      300.6436462402344,
+      50.06624221801758,
+      472.8900451660156,
+      170.63877868652344
+     ],
+     "text": "signature checks",
+     "message": "text 'signature checks' escapes its containing rect (300.6, 50.1, 472.9, 170.6)"
     },
-    "T2": {
-      "status": "fail",
-      "count": 3,
-      "findings": [
-        {
-          "check": "T2",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            429.306396484375,
-            65.9579849243164,
-            485.4399108886719,
-            73.40869140625
-          ],
-          "container_bbox": [
-            300.6436462402344,
-            50.06624221801758,
-            472.8900451660156,
-            170.63877868652344
-          ],
-          "text": "signature checks",
-          "message": "text 'signature checks' escapes its containing rect (300.6, 50.1, 472.9, 170.6)"
-        },
-        {
-          "check": "T2",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            429.306396484375,
-            93.78248596191406,
-            488.0848693847656,
-            101.23319244384766
-          ],
-          "container_bbox": [
-            300.6436462402344,
-            50.06624221801758,
-            472.8900451660156,
-            170.63877868652344
-          ],
-          "text": "inclusion veri\ufb01es",
-          "message": "text 'inclusion veri\ufb01es' escapes its containing rect (300.6, 50.1, 472.9, 170.6)"
-        },
-        {
-          "check": "T2",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            429.306396484375,
-            121.60694122314453,
-            494.7383728027344,
-            129.05764770507812
-          ],
-          "container_bbox": [
-            300.6436462402344,
-            50.06624221801758,
-            472.8900451660156,
-            170.63877868652344
-          ],
-          "text": "registry inspectable",
-          "message": "text 'registry inspectable' escapes its containing rect (300.6, 50.1, 472.9, 170.6)"
-        }
-      ]
+    {
+     "check": "T2",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      429.306396484375,
+      93.78248596191406,
+      488.0848693847656,
+      101.23319244384766
+     ],
+     "container_bbox": [
+      300.6436462402344,
+      50.06624221801758,
+      472.8900451660156,
+      170.63877868652344
+     ],
+     "text": "inclusion veri\ufb01es",
+     "message": "text 'inclusion veri\ufb01es' escapes its containing rect (300.6, 50.1, 472.9, 170.6)"
     },
-    "T3": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T4": {
-      "status": "fail",
-      "count": 1,
-      "findings": [
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            296.6626281738281,
-            51.30056381225586,
-            304.11334228515625,
-            116.166259765625
-          ],
-          "text": "operator boundary",
-          "line_segment": [
-            [
-              300.6436462402344,
-              177.26364135742188
-            ],
-            [
-              300.6436462402344,
-              42.11631774902344
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'operator boundary'"
-        }
-      ]
-    },
-    "T5": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T6": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T7": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T2",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      429.306396484375,
+      121.60694122314453,
+      494.7383728027344,
+      129.05764770507812
+     ],
+     "container_bbox": [
+      300.6436462402344,
+      50.06624221801758,
+      472.8900451660156,
+      170.63877868652344
+     ],
+     "text": "registry inspectable",
+     "message": "text 'registry inspectable' escapes its containing rect (300.6, 50.1, 472.9, 170.6)"
     }
+   ]
   },
-  "summary": {
-    "result": "fail",
-    "failed_checks": [
-      "T2",
-      "T4"
-    ],
-    "warned_checks": []
+  "T3": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T4": {
+   "status": "fail",
+   "count": 1,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      296.6626281738281,
+      51.30056381225586,
+      304.11334228515625,
+      116.166259765625
+     ],
+     "text": "operator boundary",
+     "line_segment": [
+      [
+       300.6436462402344,
+       177.26364135742188
+      ],
+      [
+       300.6436462402344,
+       42.11631774902344
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'operator boundary'"
+    }
+   ]
+  },
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
   }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T2",
+   "T4"
+  ],
+  "warned_checks": []
+ }
 }

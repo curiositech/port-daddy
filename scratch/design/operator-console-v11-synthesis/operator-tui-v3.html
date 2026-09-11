@@ -1,0 +1,1337 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+<title>Port Daddy — Operator TUI v3 · Swiss-Modern Multiplex</title>
+
+<!--
+  PORT DADDY · OPERATOR TUI MOCKUP — v3 (SWISS-MODERN)
+  ════════════════════════════════════════════════════════════════════════════
+  v1 (file-browser) and v2 (too sparse / brutalist) were both rejected.
+  v3 brings back the gorgeous blind-tested FleetBar QUALITY + maritime soul,
+  rendered SWISS-MODERN per .claude/skills/swiss-modern-website-design:
+    typography-first hierarchy · strict 12-col grid · ONE controlled accent ·
+    restraint · strong contrast · NO neobrutalist 5px slabs / hard offset shadows.
+
+  The FleetBar skeleton is honored (HiTL-gate-as-contract, attestation pops,
+  session shield, role-not-PID labelling, maritime voice) but its language is
+  SHIFTED, not copied — the skill lists neobrutalism as "Not For".
+
+  Surfaces, in priority order:
+    1. AVATAR CONVERSATION — hero seat, full readability, teal (--brand-accent) ring.
+    2. AGENT-CHAT MULTIPLEX — main chat bright; OTHER agent chats DIMMED but
+       LEGIBLE (≥AA), side by side. Fork / hop / split / collapse / zoom.
+    3. PER-AGENT SATELLITES — from any pane: pheromone view · pd attention ·
+       control plane · tools · files-it-touches. Ad-hoc chat groups.
+    4. LIVE FILE TREE — agents read (▸) + edit (◆) in live time; operator drops
+       notes overall / in-spot / per-file.
+    5. FLEET-HARBOR — the SINGLE playful motion zone: pixel tugboats + battle
+       cruisers on dithered waves, each vessel = an agent. Hover → reveal +
+       EDIT its telos/sitrep/triggers/side-effects/transcript.
+    6. HiTL TOP BAR — reserved mayday-red, never missed.
+
+  PALETTE — CANON ONLY. Every color is a variable that literally exists in
+  website-v2/src/styles/tokens.semantic.css (dark theme values inlined under the
+  SAME names). NO invented names (no cinnabar/kelp/canary). ONE accent: brand
+  blue. Mayday-red (--status-error / --voice-mayday) fills ONLY the human gate.
+
+  Honest data: roadmap `now` items are the real ADR-0046 phase slugs pulled from
+  GET /roadmap/items?status=now on the live daemon (v3.17.0); pheromone heat is
+  the real /pheromone/files shape; agents are /spawn rows labelled by ROLE.
+
+  REDUCED MOTION: every swoosh/pulse is wrapped in
+  @media (prefers-reduced-motion: no-preference); focus/state always conveyed by
+  color + border + position, never motion alone. Sound is opt-in (m to toggle).
+  Floor: 15px body (≥14px rule); eyebrows 13px only uppercase+700+tracked.
+-->
+
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+<style>
+/* ── Fonts — per typography-expert skill DP-1/DP-3: for a SWISS-MODERN, technical,
+   sharp voice the 2026 pick is the GEIST superfamily (Vercel, OFL): Geist Sans
+   (chrome/display) + Geist Mono (code/chat — slashed-zero + tabular-nums by
+   default, NO ligatures) — one family, designed to pair, geometric with sharp
+   terminals. Beats a Space-Grotesk+Commit-Mono mashup on cohesion + the skill's
+   pairing rules. Departure Mono (OFL) is kept as the PIXEL accent for the one
+   playful zone (fleet-harbor sprites + keycaps) only. */
+@font-face{font-family:'Geist';font-style:normal;font-weight:400;font-display:swap;
+  src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist@5.2.6/files/geist-latin-400-normal.woff2) format('woff2');}
+@font-face{font-family:'Geist';font-style:normal;font-weight:500;font-display:swap;
+  src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist@5.2.6/files/geist-latin-500-normal.woff2) format('woff2');}
+@font-face{font-family:'Geist';font-style:normal;font-weight:600;font-display:swap;
+  src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist@5.2.6/files/geist-latin-600-normal.woff2) format('woff2');}
+@font-face{font-family:'Geist';font-style:normal;font-weight:700;font-display:swap;
+  src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist@5.2.6/files/geist-latin-700-normal.woff2) format('woff2');}
+@font-face{font-family:'Geist Mono';font-style:normal;font-weight:400;font-display:swap;
+  src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist-mono@5.2.6/files/geist-mono-latin-400-normal.woff2) format('woff2');}
+@font-face{font-family:'Geist Mono';font-style:normal;font-weight:500;font-display:swap;
+  src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist-mono@5.2.6/files/geist-mono-latin-500-normal.woff2) format('woff2');}
+@font-face{font-family:'Geist Mono';font-style:normal;font-weight:700;font-display:swap;
+  src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist-mono@5.2.6/files/geist-mono-latin-700-normal.woff2) format('woff2');}
+@font-face{font-family:'Departure Mono';font-style:normal;font-weight:400;font-display:swap;
+  src:url(https://cdn.jsdelivr.net/gh/projectnoonnu/2409-1@1.0/DepartureMono-Regular.woff2) format('woff2');}
+
+/* ── Tokens — CANON. Every var below is from tokens.semantic.css.
+   LIGHT-FIRST: default :root is the portdaddy.dev warm-paper LIGHT theme — the
+   gorgeous high-contrast International Typographic Style look (cobalt on paper).
+   [data-theme='dark'] swaps to the dark maritime values. BOTH ship; operator
+   toggles with `t`. This is the portdaddy.dev system, NOT dark-teal-on-black. ── */
+:root, [data-theme='light']{
+  /* surfaces — warm paper */
+  --surface-base:#f2eee6;     --surface-raised:#f7f3eb;   --surface-strong:#e9e2d5;
+  --surface-overlay:rgba(242,238,230,.96); --surface-sunken:#e0d9cb;
+  --surface-glass:rgba(247,243,235,.94);   --scrim-backdrop:rgba(18,18,18,.62);
+  /* text — ink on paper */
+  --text-primary:#121212; --text-secondary:#403b34; --text-muted:#47423a;
+  --text-inverse:#fbf7ef;
+  /* brand — ONE accent: cobalt blue (7.55:1 AAA). Deep teal for the avatar seat,
+     ground to the AAA-grade on-tint member so the avatar text/glyph is AAA. */
+  --brand-primary:#003fb8; --brand-primary-on-tint:#002d83;
+  --brand-accent:#004a42;  --brand-accent-on-tint:#003d36; /* 8.82:1 AAA on paper */
+  --brand-primary-foreground:#fbf7ef; --brand-accent-foreground:#fbf7ef;
+  /* AAA text-grade members of the status family (for colored TEXT/glyphs;
+     the brighter --status-* below stay for dots/borders/fills, which are
+     graphical objects where AA-large suffices). */
+  --success-ink:#15522a;  /* 7.99:1 AAA */  --error-ink:#8c1d1d; /* 7.86:1 AAA */
+  /* interactive / borders — hairlines, swiss */
+  --interactive-hover:rgba(18,18,18,.05);
+  --interactive-active:rgba(0,85,255,.12);
+  --interactive-focus:#0055ff;
+  --border-subtle:rgba(18,18,18,.16);
+  --border-default:rgba(18,18,18,.42);
+  --border-strong:#121212;
+  /* status */
+  --status-success:#2d7a43; --status-warning:#a66f00; --status-error:#bf2f2f;
+  --status-info:#0055ff;
+  --status-success-on-tint:#1f5e31; --status-warning-on-tint:#5b3900;
+  --status-error-on-tint:#5a0000;
+  /* code surface — ink in both themes (canon: --code-bg is dark) */
+  --code-bg:#12161f; --code-header-bg:#0d1118; --code-text:#edf1f9;
+  --code-prompt:#8fd0a7; --code-flag:#8dc4ff; --code-string:#c4d6f2;
+  --code-comment:#c7d0e5; --code-line-number:#a0a8ba;
+  /* harbor — paper-toned shallows in light */
+  --harbor-1:#cfe0e6; --harbor-2:#b9d2dc; --harbor-3:#a7c4d0;
+  --harbor-wave:rgba(0,63,184,.16); --harbor-head-scrim:rgba(247,243,235,.92);
+  /* the funnel/superstructure neutral on vessels (legible on harbor) */
+  --vessel-trim:var(--text-secondary);
+  /* dimmed chat: paper needs a higher floor — 0.92 keeps dimmed body text AAA
+     (7.70:1) while the focus ring + tint still carry the recession. */
+  --dim:0.92; --dim-tint:rgba(18,18,18,.035);
+  /* mayday slab fill darkened to AAA (white text 7.46:1) — still vivid red */
+  --mayday-slab:#a51f1f; --mayday-slab-fg:#ffffff;
+  --chart-yellow:#cad900; --chart-yellow-foreground:#121212;
+}
+[data-theme='dark']{
+  --surface-base:#101216;     --surface-raised:#181c22;   --surface-strong:#222833;
+  --surface-overlay:rgba(16,18,22,.94); --surface-sunken:#0b0d11;
+  --surface-glass:rgba(24,28,34,.9);    --scrim-backdrop:rgba(0,0,0,.68);
+  --text-primary:#f5f3ed; --text-secondary:#d3cec2; --text-muted:#b3ad9f; /* AAA on raised too */
+  --text-inverse:#121212;
+  --brand-primary:#7db4ff; --brand-primary-on-tint:#dbeaff;
+  --brand-accent:#8fd0a7;  --brand-accent-on-tint:#bce8ca;
+  --brand-primary-foreground:#121212; --brand-accent-foreground:#121212;
+  --interactive-hover:rgba(245,243,237,.07);
+  --interactive-active:rgba(125,180,255,.16);
+  --interactive-focus:#7db4ff;
+  --border-subtle:rgba(245,243,237,.18);
+  --border-default:rgba(245,243,237,.44);
+  --border-strong:#f5f3ed;
+  --status-success:#66d28a; --status-warning:#f2be51; --status-error:#ff7d7d;
+  --status-info:#7db4ff;
+  --success-ink:var(--status-success); --error-ink:var(--status-error); /* dark --status-* already AAA */
+  --mayday-slab:var(--status-error); --mayday-slab-fg:var(--text-inverse); /* dark red is light → ink text, 7.57:1 AAA */
+  --status-success-on-tint:#adf3c2; --status-warning-on-tint:#ffe0a0;
+  --status-error-on-tint:#ffc4c4;
+  --code-bg:#0b0d11; --code-header-bg:#080a0e; --code-text:#f5f3ed;
+  --code-line-number:#a0a8ba;
+  --harbor-1:#0c1a2e; --harbor-2:#0a2238; --harbor-3:#061826;
+  --harbor-wave:rgba(141,196,255,.10); --harbor-head-scrim:rgba(6,18,26,.92);
+  --vessel-trim:var(--text-secondary);
+  --dim:0.8; --dim-tint:rgba(0,0,0,.16); /* 0.8 keeps dimmed dark chat AAA (7.91:1) */
+}
+:root{
+  /* maritime signal flags → status (FleetBar soul, theme-agnostic refs) */
+  --signal-charlie:var(--status-success); --signal-november:var(--status-error);
+  --signal-kilo:var(--status-info); --signal-uniform:var(--status-warning);
+  --signal-victor:var(--brand-primary); --signal-lima:var(--text-muted);
+  /* maritime voice procedure */
+  --voice-mayday:var(--status-error);    /* RESERVED — HiTL human gate ONLY */
+  --voice-pan-pan:var(--status-warning);
+  --voice-securite:var(--brand-primary);
+  --voice-hail:var(--status-success);
+
+  /* swiss spacing cadence (4/8 base) */
+  --sp1:4px; --sp2:8px; --sp3:12px; --sp4:16px; --sp5:24px; --sp6:32px; --sp7:48px;
+  --bw:1px; --radius:6px; --radius-lg:10px;
+
+  /* type families — Geist superfamily (chrome=Sans, code/chat=Mono) + pixel accent */
+  --grotesk:'Geist',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'Geist Mono',ui-monospace,'SF Mono',Menlo,monospace;
+  --pixel:'Departure Mono','Geist Mono',ui-monospace,monospace;
+
+  /* swiss type scale — typography leads */
+  --t-display:clamp(1.7rem,2.6vw,2.25rem); /* hero argument */
+  --t-h2:1.25rem;       /* 20px section title */
+  --t-body:0.9375rem;   /* 15px — body floor, ≥14px honored */
+  --t-cap:0.875rem;     /* 14px captions / sub-labels */
+  --t-eyebrow:0.8125rem;/* 13px ONLY uppercase+700+tracked */
+
+  /* dimmed-but-legible secondary chat — theme-scoped so the DIMMED pane's
+     body text still clears AA (see [data-theme] overrides below). Recession is
+     also carried by a surface tint + the focus ring, not opacity alone. */
+  --dim:0.72;
+
+  /* motion — buttery, ≤400ms */
+  --swoosh:cubic-bezier(.16,1,.3,1);
+  --snap:cubic-bezier(.34,1.56,.64,1);
+  --ease:cubic-bezier(.4,0,.2,1);
+}
+
+*{box-sizing:border-box;}
+html{font-size:16px;}
+body{
+  margin:0; background:var(--surface-base); color:var(--text-primary);
+  font-family:var(--mono); font-size:var(--t-body); line-height:1.5;
+  font-variant-ligatures:none; font-feature-settings:"tnum" 1,"zero" 1; /* slashed-zero + tabular (typography-expert mono hard rule) */
+  -webkit-font-smoothing:antialiased; overflow:hidden;
+}
+.grotesk{font-family:var(--grotesk);}
+.eyebrow{
+  font-family:var(--grotesk); font-size:var(--t-eyebrow); font-weight:700;
+  text-transform:uppercase; letter-spacing:.12em; color:var(--text-muted);
+}
+button{font:inherit; color:inherit; cursor:pointer; background:none; border:none;}
+:focus-visible{outline:2px solid var(--interactive-focus); outline-offset:2px;}
+
+/* ── App grid — strict 12-col-equivalent shell ───────────────────────────────
+   rows: HiTL bar / workbench / status bar. cols: roadmap rail · mux · context rail. */
+.app{
+  display:grid; height:100vh;
+  grid-template-rows:auto 1fr auto;
+}
+.workbench{
+  display:grid;
+  grid-template-columns:248px 1fr 320px;
+  min-height:0;
+}
+@media (max-width:1180px){ .workbench{grid-template-columns:0 1fr 0;} }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   HiTL TOP BAR — the one place mayday-red fills. Swiss: a single decisive band,
+   hairline-ruled, typography-led; not a chunky brutalist slab.
+   ════════════════════════════════════════════════════════════════════════════ */
+.hitl{
+  display:flex; align-items:stretch; gap:0;
+  border-bottom:var(--bw) solid var(--border-subtle);
+  background:var(--surface-raised);
+}
+.hitl-brand{
+  display:flex; align-items:center; gap:var(--sp3);
+  padding:0 var(--sp5); border-right:var(--bw) solid var(--border-subtle);
+  min-width:248px;
+}
+.mast{font-family:var(--pixel); font-size:1rem; color:var(--brand-primary); letter-spacing:.02em;}
+.brandwords{display:flex; flex-direction:column; line-height:1.1;}
+.brandwords b{font-family:var(--grotesk); font-weight:700; font-size:var(--t-cap); letter-spacing:-.01em;}
+.brandwords span{font-size:.75rem; color:var(--text-muted); letter-spacing:.04em;}
+
+.hitl-feed{flex:1; display:flex; align-items:center; gap:var(--sp4); padding:var(--sp3) var(--sp5); min-width:0;}
+.hitl-eyebrow-wrap{display:flex; flex-direction:column; gap:2px; flex-shrink:0;}
+/* the reserved mayday card — solid --status-error fill, the ONLY one in the app */
+.block-card{
+  display:flex; align-items:center; gap:var(--sp4);
+  background:var(--mayday-slab); color:var(--mayday-slab-fg);
+  border-radius:var(--radius); padding:var(--sp2) var(--sp4); min-width:0;
+}
+.block-card .tag{
+  font-family:var(--grotesk); font-weight:700; font-size:var(--t-eyebrow);
+  text-transform:uppercase; letter-spacing:.1em;
+  border:1.5px solid var(--mayday-slab-fg); border-radius:4px; padding:1px 6px; flex-shrink:0;
+}
+.block-card .msg{font-size:var(--t-cap); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.block-card .msg b{font-weight:700;}
+.block-actions{display:flex; gap:var(--sp2); flex-shrink:0;}
+.block-actions button{
+  font-family:var(--grotesk); font-weight:700; font-size:var(--t-eyebrow);
+  text-transform:uppercase; letter-spacing:.08em;
+  padding:4px 12px; border-radius:4px; transition:transform .16s var(--snap), background .2s var(--ease);
+}
+.block-actions .approve{background:var(--mayday-slab-fg); color:var(--mayday-slab);}
+.block-actions .deny{border:1.5px solid var(--mayday-slab-fg); color:var(--mayday-slab-fg);}
+.block-actions button:hover{transform:translateY(-1px);}
+@media (prefers-reduced-motion:no-preference){
+  .block-card{animation:beat 1.4s ease-in-out infinite;}
+  @keyframes beat{0%,100%{box-shadow:0 0 0 0 rgba(255,125,125,.0);}50%{box-shadow:0 0 0 6px rgba(255,125,125,.16);}}
+}
+/* calm "all clear" state when the counter hits 0 */
+.hitl.clear .block-card{background:transparent; color:var(--text-muted); animation:none; border:var(--bw) solid var(--border-subtle);}
+.hitl.clear .block-card .tag{border-color:var(--border-default); color:var(--text-muted);}
+.hitl.clear .block-actions{display:none;}
+
+.hitl-right{display:flex; align-items:center; gap:var(--sp4); padding:0 var(--sp5); border-left:var(--bw) solid var(--border-subtle); flex-shrink:0;}
+.await-count{display:flex; align-items:center; gap:var(--sp2);}
+.await-count .n{
+  font-family:var(--pixel); font-size:1.05rem;
+  background:var(--mayday-slab); color:var(--mayday-slab-fg);
+  border-radius:5px; padding:2px 9px; min-width:34px; text-align:center;
+}
+.await-count.zero .n{background:transparent; color:var(--text-muted); border:var(--bw) solid var(--border-default);}
+.await-count small{font-size:var(--t-eyebrow); color:var(--text-muted); text-transform:uppercase; letter-spacing:.1em; font-family:var(--grotesk); font-weight:700;}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   LEFT RAIL — roadmap `now` (real ADR-0046 slugs). Swiss editorial list:
+   typographic rail, hairline rules, no card chrome.
+   ════════════════════════════════════════════════════════════════════════════ */
+.rail{
+  background:var(--surface-base); border-right:var(--bw) solid var(--border-subtle);
+  display:flex; flex-direction:column; min-height:0; overflow:hidden;
+}
+.rail-head{
+  display:flex; align-items:baseline; justify-content:space-between;
+  padding:var(--sp4) var(--sp5) var(--sp3);
+  border-bottom:var(--bw) solid var(--border-subtle);
+}
+.rail-head h2{margin:0; font-family:var(--grotesk); font-weight:700; font-size:var(--t-cap); letter-spacing:-.01em;}
+.rail-head .ct{font-family:var(--pixel); font-size:var(--t-eyebrow); color:var(--text-muted);}
+.rail-scroll{overflow-y:auto; flex:1; padding:var(--sp2) 0;}
+.road-item{
+  display:block; width:100%; text-align:left;
+  padding:var(--sp3) var(--sp5);
+  border-bottom:var(--bw) solid var(--border-subtle);
+  border-left:2px solid transparent;
+  transition:background .2s var(--ease), border-color .2s var(--ease);
+}
+.road-item:hover{background:var(--interactive-hover); border-left-color:var(--brand-primary);}
+.road-item .slug{font-size:var(--t-cap); color:var(--brand-primary); display:flex; gap:var(--sp2); align-items:center;}
+.road-item .slug .ph{font-family:var(--pixel); color:var(--text-muted);}
+.road-item .sum{font-size:var(--t-cap); color:var(--text-secondary); margin-top:3px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.4;}
+.road-item .meta{margin-top:5px; font-size:var(--t-eyebrow); color:var(--text-muted); display:flex; gap:var(--sp3);}
+.road-item .meta .live{color:var(--signal-charlie);}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   CENTER — CONVERSATION MULTIPLEX. Hero argument + tab strip + pane mosaic.
+   ════════════════════════════════════════════════════════════════════════════ */
+.mux{display:flex; flex-direction:column; min-width:0; min-height:0; background:var(--surface-base);}
+
+/* swiss hero argument — typography is the visual engine, not chrome */
+.hero{
+  padding:var(--sp4) var(--sp6) var(--sp3);
+  border-bottom:var(--bw) solid var(--border-subtle);
+  display:flex; align-items:flex-end; justify-content:space-between; gap:var(--sp5);
+}
+.hero h1{
+  margin:0; font-family:var(--grotesk); font-weight:700;
+  font-size:var(--t-display); line-height:1.04; letter-spacing:-.025em; max-width:22ch;
+}
+.hero h1 em{font-style:normal; color:var(--brand-accent);}
+.hero .sub{font-size:var(--t-cap); color:var(--text-muted); max-width:34ch; text-align:right;}
+.hero .sub b{color:var(--text-secondary); font-weight:400;}
+
+/* tab strip — labelled by ROLE not PID, maritime flag glyphs */
+.tabstrip{display:flex; align-items:stretch; gap:0; border-bottom:var(--bw) solid var(--border-subtle); padding:0 var(--sp4); overflow-x:auto;}
+.tab{
+  display:flex; align-items:center; gap:var(--sp2);
+  padding:var(--sp3) var(--sp4); border-bottom:2px solid transparent;
+  color:var(--text-muted); white-space:nowrap;
+  transition:color .2s var(--ease), border-color .2s var(--ease);
+}
+.tab .flag{font-family:var(--pixel); font-size:.85rem;}
+.tab .role{font-family:var(--grotesk); font-weight:500; font-size:var(--t-cap); letter-spacing:.01em;}
+.tab .pk{font-family:var(--pixel); font-size:var(--t-eyebrow); color:var(--text-muted); padding-left:2px;}
+.tab .live-dot{width:7px; height:7px; border-radius:50%; background:var(--signal-charlie);}
+.tab:hover{color:var(--text-secondary);}
+.tab.active{color:var(--text-primary); border-bottom-color:var(--brand-primary);}
+.tab.avatar.active{border-bottom-color:var(--brand-accent);}
+.tab.avatar .flag{color:var(--brand-accent);}
+@media (prefers-reduced-motion:no-preference){
+  .tab .live-dot{animation:blip 1.8s ease-in-out infinite;}
+  @keyframes blip{0%,100%{opacity:1;}50%{opacity:.35;}}
+}
+.tab.group{color:var(--brand-primary);}
+.tab.group .flag{color:var(--brand-primary);}
+.tabstrip .grow{flex:1;}
+.tab.newgroup{color:var(--text-muted); border-left:var(--bw) solid var(--border-subtle);}
+/* a freshly dispatched agent's tab materialises */
+.tab.enter{animation:tabIn .42s var(--swoosh);}
+@keyframes tabIn{from{opacity:0; transform:translateY(-6px) scale(.9); max-width:0;}to{opacity:1; transform:none; max-width:260px;}}
+.tab .close{margin-left:var(--sp2); color:var(--text-muted); font-family:var(--pixel); opacity:0; transition:opacity .2s var(--ease);}
+.tab:hover .close{opacity:1;}
+.tab .close:hover{color:var(--status-error);}
+
+/* ── AVATAR HISTORY drawer — the dispatch log, scrubbable. Slides from the left
+   edge of the avatar pane; swiss editorial list of what the avatar did + why. */
+.hist{position:absolute; top:0; bottom:0; left:0; width:min(360px,72%); z-index:8;
+  background:var(--surface-raised); border-right:var(--bw) solid var(--border-default);
+  transform:translateX(-102%); transition:transform .38s var(--swoosh);
+  display:flex; flex-direction:column;}
+.hist.open{transform:none;}
+.hist-head{display:flex; align-items:baseline; justify-content:space-between; padding:var(--sp4) var(--sp4) var(--sp3); border-bottom:var(--bw) solid var(--border-subtle);}
+.hist-head h3{margin:0; font-family:var(--grotesk); font-weight:700; font-size:var(--t-cap);}
+.hist-head .x{font-family:var(--pixel); color:var(--text-muted);}
+.hist-scroll{overflow-y:auto; flex:1; padding:var(--sp2) 0;}
+.hist-row{display:block; width:100%; text-align:left; padding:var(--sp3) var(--sp4); border-bottom:var(--bw) solid var(--border-subtle); border-left:2px solid transparent; transition:background .2s var(--ease), border-color .2s var(--ease);}
+.hist-row:hover{background:var(--interactive-hover); border-left-color:var(--brand-accent);}
+.hist-row .t{font-family:var(--pixel); font-size:var(--t-eyebrow); color:var(--text-muted);}
+.hist-row .act{font-size:var(--t-cap); color:var(--text-primary); margin-top:2px;}
+.hist-row .why{font-size:var(--t-eyebrow); color:var(--text-secondary); margin-top:2px;}
+.hist-row .who{color:var(--brand-accent);}
+
+/* pane mosaic — FLEX-based dynamic layout: avatar column + a resizable column of
+   stacked agent panes. Splitting = appending a pane; collapsing = removing one;
+   the flex-basis is operator-draggable (the gutter). Panes materialise/stow with
+   a swoosh. Main bright, secondaries dimmed-but-legible. */
+.panes{
+  flex:1; min-height:0; display:flex; gap:0;
+  background:var(--border-subtle); /* hairline gutters show through */
+}
+.col{display:flex; min-width:0; min-height:0; overflow:hidden;
+  transition:flex-basis .38s var(--swoosh), flex-grow .38s var(--swoosh);}
+.col.avatar-col{flex-direction:column;}
+.col.agent-col{flex-direction:column; gap:var(--bw); background:var(--border-subtle);}
+.gutter{flex:0 0 6px; background:var(--border-subtle); cursor:col-resize; position:relative; z-index:6;
+  transition:background .2s var(--ease);}
+.gutter:hover, .gutter.drag{background:var(--brand-primary);}
+.gutter::after{content:""; position:absolute; inset:0 -4px; } /* fat hit area */
+.pane{background:var(--surface-base); display:flex; flex-direction:column; min-height:0; min-width:0; position:relative; overflow:hidden;
+  flex:1 1 0; transition:flex-grow .38s var(--swoosh), opacity .3s var(--ease);}
+/* materialise (a dispatched agent's pane swooshes in) */
+.pane.enter{animation:paneIn .42s var(--swoosh);}
+@keyframes paneIn{from{flex-grow:.001; opacity:0; transform:translateX(12px);}to{flex-grow:1; opacity:1; transform:none;}}
+/* stow (collapse) */
+.pane.leave{animation:paneOut .34s var(--swoosh) forwards;}
+@keyframes paneOut{from{flex-grow:1; opacity:1;}to{flex-grow:.001; opacity:0;}}
+.pane.collapsed{display:none;}
+
+/* DIMMED but LEGIBLE: recession is carried by a surface TINT + reduced opacity
+   together, so body text never drops below AA (opacity alone would). Focus
+   brings full readability + the ring. */
+.pane:not(.focus){opacity:var(--dim); background:linear-gradient(var(--dim-tint),var(--dim-tint)),var(--surface-base);}
+.pane:not(.focus):hover{opacity:.94;}
+.pane.focus{opacity:1; background:var(--surface-base);}
+.pane.focus::before{content:""; position:absolute; inset:0; border:2px solid var(--brand-primary); pointer-events:none; z-index:3;}
+.pane.avatar.focus::before{border-color:var(--brand-accent);}
+.pane{transition:opacity .3s var(--ease);}
+
+/* zoomed (operator pressed z) — focused pane fills, the agent column collapses */
+.panes.zoom .agent-col{flex-grow:0; flex-basis:0; opacity:0; pointer-events:none;}
+.panes.zoom .gutter{flex-basis:0; pointer-events:none;}
+.panes.zoom .avatar-col{flex-grow:1;}
+
+.pane-head{
+  display:flex; align-items:center; gap:var(--sp2);
+  padding:var(--sp2) var(--sp4); border-bottom:var(--bw) solid var(--border-subtle);
+  flex-shrink:0;
+}
+.pane-head .flag{font-family:var(--pixel); font-size:.85rem;}
+.pane-head .role{font-family:var(--grotesk); font-weight:700; font-size:var(--t-cap); letter-spacing:-.01em;}
+.pane-head .doing{font-size:var(--t-eyebrow); color:var(--text-muted);}
+.pane-head .grow{flex:1;}
+.pane-head .pk{font-family:var(--pixel); font-size:var(--t-eyebrow); color:var(--text-muted);}
+.avatar .pane-head .flag, .avatar .pane-head .role{color:var(--brand-accent);}
+
+/* per-agent SATELLITE tab row — pheromone / attention / control / tools / files */
+.sat{display:flex; gap:0; padding:0 var(--sp4); border-bottom:var(--bw) solid var(--border-subtle); flex-shrink:0;}
+.sat button{
+  font-family:var(--grotesk); font-size:var(--t-eyebrow); font-weight:700;
+  text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);
+  padding:var(--sp2) var(--sp3); border-bottom:2px solid transparent;
+  transition:color .2s var(--ease), border-color .2s var(--ease);
+}
+.sat button:hover{color:var(--text-secondary);}
+.sat button.on{color:var(--text-primary); border-bottom-color:var(--brand-primary);}
+
+.chat{flex:1; overflow-y:auto; padding:var(--sp4); display:flex; flex-direction:column; gap:var(--sp3); min-height:0;}
+.msg-row{display:flex; flex-direction:column; gap:3px;}
+.msg-row .who{font-size:var(--t-eyebrow); color:var(--text-muted); font-family:var(--grotesk); font-weight:700; text-transform:uppercase; letter-spacing:.08em;}
+.msg-row.you .who{color:var(--brand-primary);}
+.msg-row.avatar .who{color:var(--brand-accent);}
+.bubble{font-size:var(--t-body); color:var(--text-secondary); line-height:1.55; max-width:64ch;}
+.bubble b{color:var(--text-primary); font-weight:700;}
+.bubble code{font-family:var(--mono); background:var(--surface-strong); padding:1px 5px; border-radius:3px; color:var(--code-flag); font-size:.9em;}
+.bubble .ok{color:var(--success-ink);}
+
+/* inline code+heat card — single-hue BLUE ramp, demoted to inline context */
+.codecard{margin-top:var(--sp2); border:var(--bw) solid var(--border-subtle); border-radius:var(--radius); overflow:hidden; max-width:64ch;}
+.codecard .cc-head{display:flex; align-items:center; gap:var(--sp2); padding:var(--sp2) var(--sp3); background:var(--code-header-bg); border-bottom:var(--bw) solid var(--border-subtle);}
+.codecard .cc-head .path{font-family:var(--mono); font-size:var(--t-cap); color:var(--code-flag);}
+.codecard .cc-head .hint{font-size:var(--t-eyebrow); color:var(--text-muted); margin-left:auto;}
+.codecard pre{margin:0; padding:var(--sp2) 0; background:var(--code-bg); font-family:var(--mono); font-size:var(--t-cap); overflow-x:auto;}
+.codecard .ln{display:flex; padding:1px var(--sp3); gap:var(--sp3);}
+.codecard .ln .num{color:var(--code-line-number); user-select:none; min-width:2ch; text-align:right;}
+.codecard .ln .src{color:var(--code-text); white-space:pre;}
+.codecard .ln.h1{background:rgba(125,180,255,.10);}
+.codecard .ln.h2{background:rgba(125,180,255,.20);}
+.codecard .ln.h3{background:rgba(125,180,255,.34);}
+.codecard .ln .pin{color:var(--brand-primary); font-family:var(--mono);}
+
+/* satellite content panels (pheromone / attention / control / tools / files) */
+.satpanel{flex:1; overflow-y:auto; padding:var(--sp4); min-height:0; display:none;}
+.satpanel.on{display:block;}
+.satpanel h3{margin:0 0 var(--sp3); font-family:var(--grotesk); font-weight:700; font-size:var(--t-cap);}
+.kv{display:grid; grid-template-columns:auto 1fr; gap:var(--sp2) var(--sp4); font-size:var(--t-cap);}
+.kv .k{color:var(--text-muted); font-family:var(--grotesk); font-weight:700; text-transform:uppercase; letter-spacing:.06em; font-size:var(--t-eyebrow);}
+.kv .v{color:var(--text-secondary);}
+.attn-item{border-left:2px solid var(--brand-primary); padding:var(--sp2) var(--sp3); margin-bottom:var(--sp3); background:var(--surface-raised); border-radius:0 var(--radius) var(--radius) 0;}
+.attn-item .from{font-size:var(--t-eyebrow); color:var(--text-muted); font-family:var(--grotesk); font-weight:700; text-transform:uppercase; letter-spacing:.06em;}
+.attn-item .body{font-size:var(--t-cap); color:var(--text-secondary); margin-top:2px;}
+/* pheromone heat bars — single-hue blue, the urgency-primacy axis drives length */
+.ph-row{display:flex; align-items:center; gap:var(--sp3); padding:var(--sp1) 0; font-size:var(--t-cap);}
+.ph-row .kind{min-width:14ch; color:var(--text-secondary);}
+.ph-row .bar{flex:1; height:8px; background:var(--surface-strong); border-radius:4px; overflow:hidden;}
+.ph-row .bar i{display:block; height:100%; background:var(--brand-primary);}
+.ph-row.urgent .bar i{background:var(--status-error);} /* only failure-class kinds go red */
+.ph-row .pct{font-family:var(--pixel); font-size:var(--t-eyebrow); color:var(--text-muted); min-width:4ch; text-align:right;}
+.tool-chip{display:inline-flex; align-items:center; gap:var(--sp2); border:var(--bw) solid var(--border-subtle); border-radius:var(--radius); padding:var(--sp2) var(--sp3); margin:0 var(--sp2) var(--sp2) 0; font-size:var(--t-cap);}
+.tool-chip .flag{font-family:var(--pixel); color:var(--brand-primary);}
+.ctl-btn{display:block; width:100%; text-align:left; border:var(--bw) solid var(--border-subtle); border-radius:var(--radius); padding:var(--sp2) var(--sp3); margin-bottom:var(--sp2); font-size:var(--t-cap); color:var(--text-secondary); transition:background .2s var(--ease), border-color .2s var(--ease);}
+.ctl-btn:hover{background:var(--interactive-hover); border-color:var(--brand-primary);}
+.ctl-btn .pk{font-family:var(--pixel); font-size:var(--t-eyebrow); color:var(--text-muted); float:right;}
+
+/* composer — swiss, hairline, with first-class spray hint */
+.composer{display:flex; align-items:center; gap:var(--sp3); padding:var(--sp3) var(--sp4); border-top:var(--bw) solid var(--border-subtle); flex-shrink:0;}
+.composer .prompt{font-family:var(--pixel); color:var(--brand-accent);}
+.composer input{flex:1; background:none; border:none; color:var(--text-primary); font:inherit; outline:none;}
+.composer input::placeholder{color:var(--text-muted);}
+.composer .spray-hint{font-size:var(--t-eyebrow); color:var(--text-muted); display:flex; align-items:center; gap:var(--sp2); font-family:var(--grotesk); font-weight:700; text-transform:uppercase; letter-spacing:.06em;}
+.composer .spray-hint b{font-family:var(--pixel); color:var(--brand-primary); border:var(--bw) solid var(--border-default); border-radius:4px; padding:0 5px; font-weight:400;}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   RIGHT RAIL — toggles: FILE TREE (live agent read/edit + operator notes)
+   and FLEET-HARBOR (the one pixel playground). Swiss everywhere except harbor.
+   ════════════════════════════════════════════════════════════════════════════ */
+.crail{background:var(--surface-base); border-left:var(--bw) solid var(--border-subtle); display:flex; flex-direction:column; min-height:0; overflow:hidden;}
+.crail-tabs{display:flex; border-bottom:var(--bw) solid var(--border-subtle);}
+.crail-tabs button{flex:1; padding:var(--sp3); font-family:var(--grotesk); font-weight:700; font-size:var(--t-eyebrow); text-transform:uppercase; letter-spacing:.08em; color:var(--text-muted); border-bottom:2px solid transparent; transition:color .2s var(--ease), border-color .2s var(--ease);}
+.crail-tabs button.on{color:var(--text-primary); border-bottom-color:var(--brand-primary);}
+.crail-view{flex:1; min-height:0; overflow-y:auto; display:none;}
+.crail-view.on{display:block;}
+
+/* FILE TREE — alive: ▸ agent reading, ◆ agent editing, ✎ operator note */
+.tree{padding:var(--sp3) 0; font-family:var(--mono); font-size:var(--t-cap);}
+.tnode{display:flex; align-items:center; gap:var(--sp2); padding:3px var(--sp4); cursor:default; position:relative; transition:background .2s var(--ease);}
+.tnode:hover{background:var(--interactive-hover);}
+.tnode .ind{color:var(--text-muted);}
+.tnode .name{color:var(--text-secondary);}
+.tnode.dir .name{color:var(--text-primary);}
+/* heat aggregate dot on the gutter, blue single-hue (per-layer normalized in real build) */
+.tnode .heat{width:6px; height:6px; border-radius:50%; margin-left:auto; flex-shrink:0;}
+.tnode .glyph{font-family:var(--pixel); flex-shrink:0;}
+.tnode .glyph.read{color:var(--brand-primary);}      /* ▸ agent reading live */
+.tnode .glyph.edit{color:var(--signal-charlie);}     /* ◆ agent editing live */
+.tnode .glyph.note{color:var(--status-warning);}     /* ✎ operator note */
+.tnode .who{font-size:var(--t-eyebrow); color:var(--text-muted);}
+@media (prefers-reduced-motion:no-preference){
+  .tnode .glyph.edit{animation:pulse 1.2s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.45;}}
+}
+.tnote{margin:0 var(--sp4) var(--sp2) var(--sp7); padding:var(--sp2) var(--sp3); border-left:2px solid var(--status-warning); background:var(--surface-raised); border-radius:0 var(--radius) var(--radius) 0; font-size:var(--t-eyebrow);}
+.tnote .lbl{color:var(--status-warning-on-tint); font-family:var(--grotesk); font-weight:700; text-transform:uppercase; letter-spacing:.06em; font-size:.72rem;}
+.tnote .txt{color:var(--text-secondary); margin-top:2px; font-family:var(--mono); font-size:var(--t-cap);}
+.tnote .sha{color:var(--text-muted); font-size:.72rem; margin-top:2px;}
+.tree-foot{padding:var(--sp3) var(--sp4); border-top:var(--bw) solid var(--border-subtle);}
+.add-note{display:flex; gap:var(--sp2); align-items:center; font-size:var(--t-cap); color:var(--text-muted);}
+.add-note input{flex:1; background:var(--surface-raised); border:var(--bw) solid var(--border-subtle); border-radius:var(--radius); padding:var(--sp2); color:var(--text-primary); font:inherit; font-size:var(--t-cap); outline:none;}
+.add-note input:focus{border-color:var(--status-warning);}
+
+/* ── FLEET-HARBOR — the SINGLE expressive zone. Pixel vessels on dithered waves. */
+.harbor{position:relative; height:100%; min-height:300px; background:linear-gradient(180deg,var(--harbor-1) 0%, var(--harbor-2) 55%, var(--harbor-3) 100%); overflow:hidden;}
+.harbor-head{position:absolute; top:0; left:0; right:0; z-index:4; display:flex; align-items:baseline; justify-content:space-between; padding:var(--sp3) var(--sp4); background:linear-gradient(180deg,var(--harbor-head-scrim),transparent);}
+.harbor-head h3{margin:0; font-family:var(--pixel); font-size:var(--t-cap); color:var(--brand-primary); letter-spacing:.04em;}
+.harbor-head .leg{font-size:.72rem; color:var(--text-muted); font-family:var(--mono);}
+/* dithered/pixelated waves — repeating CSS gradient bands (no images) */
+.waves{position:absolute; left:0; right:0; bottom:0; height:46%; image-rendering:pixelated;
+  background:
+    repeating-linear-gradient(90deg, var(--harbor-wave) 0 4px, transparent 4px 8px),
+    repeating-linear-gradient(0deg, var(--harbor-wave) 0 4px, transparent 4px 12px),
+    linear-gradient(180deg, transparent, var(--harbor-3));
+}
+@media (prefers-reduced-motion:no-preference){
+  .waves{animation:swell 6s linear infinite;}
+  @keyframes swell{from{background-position:0 0,0 0,0 0;}to{background-position:8px 0,0 8px,0 0;}}
+}
+.vessel{position:absolute; cursor:pointer; z-index:3; transition:transform .3s var(--snap);}
+/* CSS pixel-sprite vessels (NO emoji) — built from box-shadow pixel grids.
+   --vc drives the hull/funnel color per agent state. one px = 3px. */
+.vessel .sprite{display:block; width:3px; height:3px; margin:0 auto 11px; image-rendering:pixelated;}
+.vessel .vname{display:block; text-align:center; font-family:var(--pixel); font-size:.7rem; margin-top:2px; color:var(--text-secondary); white-space:nowrap;}
+.vessel.tug{--vc:var(--signal-charlie);}     /* tugboat = small worker agent, active */
+.vessel.cruiser{--vc:var(--brand-primary);}  /* battle cruiser = heavy agent */
+.vessel.idle{--vc:var(--signal-lima);}
+.vessel.burning{--vc:var(--status-warning);} /* cost burning */
+/* TUG sprite: stubby hull + tall funnel (pixel boxes via box-shadow) */
+.vessel.tug .sprite{box-shadow:
+  /* funnel */            6px -9px 0 0 var(--vessel-trim), 9px -9px 0 0 var(--vessel-trim),
+  6px -6px 0 0 var(--vessel-trim), 9px -6px 0 0 var(--vessel-trim),
+  /* wheelhouse */        12px -6px 0 0 var(--vc), 15px -6px 0 0 var(--vc),
+  /* deck line */         0 -3px 0 0 var(--vc), 3px -3px 0 0 var(--vc), 6px -3px 0 0 var(--vc), 9px -3px 0 0 var(--vc), 12px -3px 0 0 var(--vc), 15px -3px 0 0 var(--vc), 18px -3px 0 0 var(--vc),
+  /* hull */              0 0 0 0 var(--vc), 3px 0 0 0 var(--vc), 6px 0 0 0 var(--vc), 9px 0 0 0 var(--vc), 12px 0 0 0 var(--vc), 15px 0 0 0 var(--vc),
+  /* hull taper */        3px 3px 0 0 var(--vc), 6px 3px 0 0 var(--vc), 9px 3px 0 0 var(--vc), 12px 3px 0 0 var(--vc);
+  background:var(--vc);}
+/* CRUISER sprite: long hull + two masts + gun turret (bigger pixel grid) */
+.vessel.cruiser .sprite{box-shadow:
+  /* fore mast */         3px -12px 0 0 var(--vessel-trim),
+  /* aft mast */          15px -12px 0 0 var(--vessel-trim),
+  3px -9px 0 0 var(--vessel-trim), 15px -9px 0 0 var(--vessel-trim),
+  /* superstructure */    9px -6px 0 0 var(--vc), 12px -6px 0 0 var(--vc), 6px -6px 0 0 var(--vc),
+  /* deck */              0 -3px 0 0 var(--vc), 3px -3px 0 0 var(--vc), 6px -3px 0 0 var(--vc), 9px -3px 0 0 var(--vc), 12px -3px 0 0 var(--vc), 15px -3px 0 0 var(--vc), 18px -3px 0 0 var(--vc), 21px -3px 0 0 var(--vc),
+  /* hull */              0 0 0 0 var(--vc), 3px 0 0 0 var(--vc), 6px 0 0 0 var(--vc), 9px 0 0 0 var(--vc), 12px 0 0 0 var(--vc), 15px 0 0 0 var(--vc), 18px 0 0 0 var(--vc), 21px 0 0 0 var(--vc), 24px 0 0 0 var(--vc),
+  /* hull taper */        3px 3px 0 0 var(--vc), 6px 3px 0 0 var(--vc), 9px 3px 0 0 var(--vc), 12px 3px 0 0 var(--vc), 15px 3px 0 0 var(--vc), 18px 3px 0 0 var(--vc), 21px 3px 0 0 var(--vc);
+  background:var(--vc);}
+/* card-header mini sprite reuses the same anchor mark via pixel grid */
+.vc-head .sprite{display:inline-block; width:3px; height:3px; margin:0 9px 6px 3px; background:var(--brand-primary);
+  box-shadow:0 -6px 0 0 var(--brand-primary), -3px -3px 0 0 var(--brand-primary), 3px -3px 0 0 var(--brand-primary), 0 3px 0 0 var(--brand-primary), -3px 3px 0 0 var(--brand-primary), 3px 3px 0 0 var(--brand-primary);}
+.vessel:hover{transform:translateY(-4px) scale(1.08); z-index:5;}
+/* a freshly dispatched vessel sails in */
+.vessel.enter-v{animation:vesselIn .5s var(--swoosh);}
+@keyframes vesselIn{from{opacity:0; transform:translateX(-18px) scale(.6);}to{opacity:1; transform:none;}}
+/* ACK: metadata saved → raise a signal pennant + a brief halo */
+.vessel.acked::after{content:""; position:absolute; left:50%; top:-10px; width:8px; height:6px; background:var(--brand-accent); transform:translateX(-50%); animation:pennant .9s var(--swoosh);}
+@keyframes pennant{0%{transform:translateX(-50%) scaleY(0);}40%{transform:translateX(-50%) scaleY(1);}100%{transform:translateX(-50%) scaleY(1); opacity:.7;}}
+@media (prefers-reduced-motion:no-preference){
+  .vessel.acked .sprite{animation:ackpulse .7s var(--snap);}
+  @keyframes ackpulse{0%,100%{filter:none;}50%{filter:brightness(1.4);}}
+}
+@media (prefers-reduced-motion:no-preference){
+  .vessel{animation:bob 3.5s ease-in-out infinite;}
+  @keyframes bob{0%,100%{margin-top:0;}50%{margin-top:5px;}}
+}
+/* hover-reveal card — DISPLAYED AND EDITABLE: telos / sitrep / triggers / fx / transcript */
+.vessel-card{position:absolute; z-index:10; bottom:var(--sp4); left:var(--sp4); right:var(--sp4); max-height:78%; overflow-y:auto;
+  background:var(--surface-overlay); backdrop-filter:blur(3px);
+  border:var(--bw) solid var(--brand-primary); border-radius:var(--radius-lg);
+  padding:var(--sp4); display:none;}
+.vessel-card.on{display:block;}
+.vessel-card .vc-head{display:flex; align-items:center; gap:var(--sp2); margin-bottom:var(--sp3);}
+.vessel-card .vc-head .sprite{font-family:var(--pixel); font-size:1.1rem; color:var(--brand-primary);}
+.vessel-card .vc-head .vc-role{font-family:var(--grotesk); font-weight:700; font-size:var(--t-cap);}
+.vessel-card .vc-head .vc-kind{font-size:var(--t-eyebrow); color:var(--text-muted); font-family:var(--grotesk); font-weight:700; text-transform:uppercase; letter-spacing:.08em; margin-left:auto;}
+.vc-field{margin-bottom:var(--sp3);}
+.vc-field .lbl{display:block; font-size:var(--t-eyebrow); color:var(--text-muted); font-family:var(--grotesk); font-weight:700; text-transform:uppercase; letter-spacing:.08em; margin-bottom:3px;}
+.vc-field .ed{width:100%; background:var(--surface-sunken); border:var(--bw) solid var(--border-subtle); border-radius:var(--radius); padding:var(--sp2) var(--sp3); color:var(--text-secondary); font-family:var(--mono); font-size:var(--t-cap); resize:vertical; line-height:1.5; outline:none;}
+.vc-field .ed:focus{border-color:var(--brand-primary); color:var(--text-primary);}
+.vc-transcript{background:var(--code-bg); border:var(--bw) solid var(--border-subtle); border-radius:var(--radius); padding:var(--sp2) var(--sp3); font-family:var(--mono); font-size:var(--t-eyebrow); color:var(--code-text); max-height:120px; overflow-y:auto;}
+.vc-transcript .line{padding:1px 0;}
+.vc-transcript .line .t{color:var(--code-line-number);}
+.vc-foot{display:flex; gap:var(--sp2); margin-top:var(--sp3);}
+.vc-foot button{font-family:var(--grotesk); font-weight:700; font-size:var(--t-eyebrow); text-transform:uppercase; letter-spacing:.06em; padding:var(--sp2) var(--sp4); border-radius:var(--radius); transition:transform .16s var(--snap);}
+.vc-foot .save{background:var(--brand-primary); color:var(--brand-primary-foreground);}
+.vc-foot .open{border:var(--bw) solid var(--border-default); color:var(--text-secondary);}
+.vc-foot button:hover{transform:translateY(-1px);}
+
+/* my-agents / fleet mini-roster above harbor when in fleet view */
+.roster{padding:var(--sp3) var(--sp4); border-bottom:var(--bw) solid var(--border-subtle);}
+.roster .rrow{display:flex; align-items:center; gap:var(--sp2); padding:var(--sp1) 0; font-size:var(--t-cap);}
+.roster .rrow .dot{width:8px; height:8px; border-radius:50%; flex-shrink:0;}
+.roster .rrow .role{color:var(--text-secondary); font-family:var(--grotesk); font-weight:500;}
+.roster .rrow .stat{margin-left:auto; font-size:var(--t-eyebrow); color:var(--text-muted);}
+.dot.live{background:var(--signal-charlie);} .dot.idle{background:var(--signal-lima);} .dot.warn{background:var(--status-warning);}
+
+/* ── STATUS BAR — swiss footer, keybind legend ───────────────────────────────*/
+.statusbar{display:flex; align-items:center; gap:0; border-top:var(--bw) solid var(--border-subtle); background:var(--surface-raised); padding:0;}
+.seg{display:flex; align-items:center; gap:var(--sp2); padding:var(--sp2) var(--sp4); border-right:var(--bw) solid var(--border-subtle); font-size:var(--t-eyebrow); color:var(--text-muted); font-family:var(--grotesk); font-weight:700; text-transform:uppercase; letter-spacing:.06em;}
+.seg .key{font-family:var(--pixel); color:var(--brand-primary); border:var(--bw) solid var(--border-default); border-radius:4px; padding:0 5px; font-weight:400; text-transform:none; letter-spacing:0;}
+.seg.grow{flex:1; justify-content:flex-end; color:var(--signal-charlie); border-right:none;}
+
+/* ── SPRAY HUD — first-class steering verb ───────────────────────────────────*/
+.scrim{position:fixed; inset:0; background:var(--scrim-backdrop); z-index:40; display:none;}
+.scrim.on{display:block;}
+.spray{position:fixed; left:50%; top:50%; transform:translate(-50%,-46%); z-index:41; width:min(520px,90vw);
+  background:var(--surface-overlay); border:var(--bw) solid var(--border-default); border-radius:var(--radius-lg);
+  padding:var(--sp5); display:none;}
+.spray.on{display:block; animation:hudin .26s var(--swoosh);}
+@keyframes hudin{from{transform:translate(-50%,-40%); opacity:0;}to{transform:translate(-50%,-46%); opacity:1;}}
+.spray h3{margin:0 0 var(--sp1); font-family:var(--grotesk); font-weight:700; font-size:var(--t-h2); letter-spacing:-.01em;}
+.spray .tgt{font-family:var(--mono); font-size:var(--t-cap); color:var(--code-flag); margin-bottom:var(--sp4);}
+.spray-opt{display:flex; align-items:center; gap:var(--sp3); padding:var(--sp3); border:var(--bw) solid var(--border-subtle); border-radius:var(--radius); margin-bottom:var(--sp2); transition:background .2s var(--ease), border-color .2s var(--ease); cursor:pointer;}
+.spray-opt:hover{background:var(--interactive-hover); border-color:var(--brand-primary);}
+.spray-opt .n{font-family:var(--pixel); color:var(--brand-primary); min-width:2ch;}
+.spray-opt .lbl{font-size:var(--t-body); color:var(--text-primary);}
+.spray-opt .wri{margin-left:auto; font-size:var(--t-eyebrow); color:var(--text-muted); font-family:var(--mono);}
+.spray-foot{margin-top:var(--sp3); font-size:var(--t-eyebrow); color:var(--text-muted); display:flex; justify-content:space-between;}
+
+/* toast */
+.toast{position:fixed; bottom:var(--sp7); left:50%; transform:translateX(-50%) translateY(20px); z-index:50;
+  background:var(--surface-strong); border:var(--bw) solid var(--brand-primary); border-radius:var(--radius);
+  padding:var(--sp3) var(--sp5); font-size:var(--t-cap); color:var(--text-primary); opacity:0; pointer-events:none;
+  transition:transform .38s var(--swoosh), opacity .38s var(--swoosh);}
+.toast.on{transform:translateX(-50%) translateY(0); opacity:1;}
+.toast b{color:var(--brand-primary);}
+
+/* HELM keyboard reference */
+.helm{position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:41; width:min(560px,92vw);
+  background:var(--surface-overlay); border:var(--bw) solid var(--border-default); border-radius:var(--radius-lg);
+  padding:var(--sp5); display:none;}
+.helm.on{display:block;}
+.helm h3{margin:0 0 var(--sp4); font-family:var(--pixel); color:var(--brand-primary); font-size:var(--t-h2);}
+.helm table{width:100%; border-collapse:collapse; font-size:var(--t-cap);}
+.helm td{padding:var(--sp2) 0; border-bottom:var(--bw) solid var(--border-subtle); color:var(--text-secondary);}
+.helm td:first-child{width:18ch;}
+.helm .key{font-family:var(--pixel); color:var(--brand-primary); border:var(--bw) solid var(--border-default); border-radius:4px; padding:0 6px;}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation:none !important;}
+  .spray.on{animation:none;}
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- ═══ HiTL TOP BAR — reserved mayday-red ═══ -->
+  <header class="hitl" id="hitl" role="region" aria-label="Human-in-the-loop">
+    <div class="hitl-brand">
+      <span class="mast">&#9875;&#65038;</span>
+      <span class="brandwords"><b class="grotesk">PORT DADDY</b><span>operator · port-daddy</span></span>
+    </div>
+    <div class="hitl-feed">
+      <div class="hitl-eyebrow-wrap"><span class="eyebrow">Needs you</span><span style="font-size:.72rem;color:var(--text-muted)">human-gate</span></div>
+      <div class="block-card" id="blockCard" role="button" tabindex="0" aria-label="Approval needed">
+        <span class="tag">BLOCK</span>
+        <span class="msg"><b>helmsman</b> wants to <b>merge PR #231</b> — phase&#8209;3 strips. Cost $0.31 / cap $0.50 · 4 files · landlock enforced.</span>
+        <span class="block-actions">
+          <button class="approve" onclick="resolveBlock(true)">Approve <span style="font-family:var(--pixel)">a</span></button>
+          <button class="deny" onclick="resolveBlock(false)">Deny &#9099;&#65038;</button>
+        </span>
+      </div>
+    </div>
+    <div class="hitl-right">
+      <div class="await-count" id="awaitCount"><span class="n" id="awaitN">1</span><small>await you</small></div>
+    </div>
+  </header>
+
+  <!-- ═══ WORKBENCH — roadmap rail · mux · context rail ═══ -->
+  <div class="workbench">
+
+    <!-- LEFT RAIL — roadmap now (real ADR-0046 slugs from GET /roadmap/items?status=now) -->
+    <aside class="rail" aria-label="Roadmap now">
+      <div class="rail-head"><h2>Roadmap · now</h2><span class="ct">8</span></div>
+      <div class="rail-scroll" id="roadmap"></div>
+    </aside>
+
+    <!-- CENTER — conversation multiplex -->
+    <main class="mux" aria-label="Conversation multiplexer">
+      <div class="hero">
+        <h1 class="grotesk">One avatar. <em>A whole fleet</em> in parallel.</h1>
+        <p class="sub">You talk to your <b>operator-avatar</b>; it dispatches everyone, runs the roadmap, and surfaces only what needs a human.</p>
+      </div>
+
+      <!-- tabs labelled by ROLE not PID; maritime flag glyphs; live dots -->
+      <div class="tabstrip" id="tabstrip">
+        <button class="tab avatar active" data-pane="avatar" onclick="focusPane('avatar')">
+          <span class="flag">&#9670;</span><span class="role">Avatar</span><span class="pk">&#8997;1</span><span class="live-dot" style="background:var(--brand-accent)"></span>
+        </button>
+        <button class="tab" data-pane="helmsman" onclick="focusPane('helmsman')">
+          <span class="flag" style="color:var(--signal-kilo)">&#9612;&#9616;</span><span class="role">Helmsman</span><span class="pk">&#8997;2</span><span class="live-dot"></span><span class="close" onclick="event.stopPropagation();collapsePane('helmsman')" title="Stow pane">&#9099;&#65038;</span>
+        </button>
+        <button class="tab" data-pane="caulker" onclick="focusPane('caulker')">
+          <span class="flag" style="color:var(--signal-charlie)">&#9600;&#9604;</span><span class="role">Caulker</span><span class="pk">&#8997;3</span><span class="live-dot"></span><span class="close" onclick="event.stopPropagation();collapsePane('caulker')" title="Stow pane">&#9099;&#65038;</span>
+        </button>
+        <span class="grow"></span>
+        <button class="tab group" title="Ad-hoc chat group: frontend agents">
+          <span class="flag">&#9707;</span><span class="role">group · frontend (2)</span>
+        </button>
+        <button class="tab newgroup" onclick="toast('Started ad-hoc group &mdash; publishes on <b>harbor:port-daddy:role:frontend</b>')" title="Start an ad-hoc chat group">
+          <span class="flag">+</span><span class="role">group</span>
+        </button>
+      </div>
+
+      <!-- pane mosaic: avatar column + draggable gutter + agent column -->
+      <div class="panes" id="panes">
+       <div class="col avatar-col" id="avatarCol" style="flex:1 1 58%">
+
+        <!-- AVATAR — hero seat, focused on load, teal ring -->
+        <section class="pane avatar focus" data-pane="avatar">
+          <!-- avatar HISTORY drawer (the dispatch log) -->
+          <div class="hist" id="hist">
+            <div class="hist-head"><h3>Avatar &middot; dispatch history</h3><button class="x" onclick="toggleHist()" aria-label="Close history">&#9099;&#65038;</button></div>
+            <div class="hist-scroll" id="histScroll"></div>
+          </div>
+          <div class="pane-head">
+            <span class="flag">&#9670;</span><span class="role">Avatar</span><span class="doing">· conducting 3 · roadmap autonomy on</span>
+            <span class="grow"></span>
+            <button class="pk" onclick="toggleHist()" title="Dispatch history" style="border:var(--bw) solid var(--border-default);border-radius:4px;padding:0 6px">log</button>
+            <span class="pk">&#8997;1</span>
+          </div>
+          <div class="sat" data-for="avatar">
+            <button class="on" onclick="sat(this,'avatar','chat')">Chat</button>
+            <button onclick="sat(this,'avatar','attn')">Attention</button>
+            <button onclick="sat(this,'avatar','ctl')">Control</button>
+          </div>
+          <div class="chat satpanel on" data-sat="avatar-chat">
+            <div class="msg-row you"><span class="who">You</span><div class="bubble">Take <code>adr-0046-phase-3</code> to merge. Keep me in the loop only at the gate.</div></div>
+            <div class="msg-row avatar"><span class="who">Avatar</span><div class="bubble">On it. I dispatched <b>helmsman</b> on the worktree + PR and <b>caulker</b> on the <code>pd attest</code> gating. <b>spider</b> is crawling prior ratatui precedent.<br><span class="ok">&#9656; 3 agents live</span> — their chats are dimmed beside me (&#8997;2&ndash;3); click to bring one bright.</div></div>
+            <div class="msg-row avatar"><span class="who">Avatar</span><div class="bubble">Helmsman hit the merge gate — it's on your HiTL bar now. Everything else is green; I'll prune the worktree and mark the item done the moment you approve.
+              <div class="codecard">
+                <div class="cc-head"><span class="path">routes/attention.ts</span><span class="hint">helmsman editing &middot; &#8997;2 to open</span></div>
+                <pre><div class="ln"><span class="num">44</span><span class="src">  fastify.get('/attention', async (req) =&gt; {</span></div><div class="ln h1"><span class="num">45</span><span class="src">    const items = await aggregate(req.query.agentId)</span></div><div class="ln h3"><span class="num">46</span><span class="src">    return { ok: true, items, peeked: req.query.peek }</span><span class="pin">  &#9998;&#65038; you: keep peek read-only</span></div><div class="ln h2"><span class="num">47</span><span class="src">  })</span></div></pre>
+              </div>
+            </div></div>
+          </div>
+          <div class="satpanel" data-sat="avatar-attn">
+            <h3>Attention &middot; <code style="font-family:var(--mono);color:var(--code-flag)">pd attention --peek --json</code></h3>
+            <div class="attn-item"><div class="from">from helmsman &middot; query-ref</div><div class="body">Merge gate reached on PR #231. Awaiting human approve (surfaced on HiTL bar).</div></div>
+            <div class="attn-item"><div class="from">from caulker &middot; inform</div><div class="body"><code>pd attest</code> PASS — 6/6 critical rules enforced, canary ok 3s ago.</div></div>
+            <div class="attn-item"><div class="from">from spider &middot; inform</div><div class="body">Found 3 prior ratatui split-pane impls; none used role-not-PID labelling. Logged to episodic memory.</div></div>
+          </div>
+          <div class="satpanel" data-sat="avatar-ctl">
+            <h3>Control plane</h3>
+            <button class="ctl-btn">Pause autonomy loop <span class="pk">&#8997;.</span></button>
+            <button class="ctl-btn">Fork this session <span class="pk">&#8997;f</span></button>
+            <button class="ctl-btn">Re-dispatch a failed agent</button>
+            <button class="ctl-btn">Halt all running agents <span class="pk">&#8984;&#8679;.</span></button>
+          </div>
+          <div class="composer">
+            <span class="prompt">&#9875;&#65038;</span>
+            <input id="avatarInput" placeholder="Talk to your avatar &mdash; try: audit the spawn route" onkeydown="if(event.key==='Enter')avatarSend(this)" />
+            <span class="spray-hint">spray <b>s</b></span>
+          </div>
+        </section>
+       </div><!-- /avatar-col -->
+
+       <!-- draggable gutter — resize the split (operator drags, ⌥[ / ⌥] nudge) -->
+       <div class="gutter" id="gutter" role="separator" aria-label="Resize panes" title="Drag to resize"></div>
+
+       <div class="col agent-col" id="agentCol" style="flex:1 1 42%">
+
+        <!-- HELMSMAN — dimmed-but-legible agent chat -->
+        <section class="pane" data-pane="helmsman">
+          <div class="pane-head">
+            <span class="flag" style="color:var(--signal-kilo)">&#9612;&#9616;</span><span class="role">Helmsman</span><span class="doing">· PR #231 &middot; at merge gate</span>
+            <span class="grow"></span><span class="pk">&#8997;2</span>
+          </div>
+          <div class="sat" data-for="helmsman">
+            <button class="on" onclick="sat(this,'helmsman','chat')">Chat</button>
+            <button onclick="sat(this,'helmsman','ph')">Pheromone</button>
+            <button onclick="sat(this,'helmsman','tools')">Tools</button>
+            <button onclick="sat(this,'helmsman','files')">Files</button>
+          </div>
+          <div class="chat satpanel on" data-sat="helmsman-chat">
+            <div class="msg-row avatar"><span class="who">Helmsman</span><div class="bubble">Worktree clean, tests green (142/142), CI passing. I'm parked at the merge gate — needs your approve. I sprayed <code>hot:editing</code> on <code>routes/attention.ts</code>.</div></div>
+          </div>
+          <div class="satpanel" data-sat="helmsman-ph">
+            <h3>Pheromone &middot; what this agent sees</h3>
+            <div class="ph-row"><span class="kind">hot:editing</span><span class="bar"><i style="width:74%"></i></span><span class="pct">74</span></div>
+            <div class="ph-row"><span class="kind">recent:touched</span><span class="bar"><i style="width:48%"></i></span><span class="pct">48</span></div>
+            <div class="ph-row urgent"><span class="kind">claim:contested</span><span class="bar"><i style="width:22%"></i></span><span class="pct">22</span></div>
+            <p style="font-size:var(--t-eyebrow);color:var(--text-muted);margin-top:var(--sp3)">Urgency-primacy axis drives hue. Blue = busy; red reserved for failure-class kinds only.</p>
+          </div>
+          <div class="satpanel" data-sat="helmsman-tools">
+            <h3>Tools access</h3>
+            <span class="tool-chip"><span class="flag">&#9656;</span> git worktree</span>
+            <span class="tool-chip"><span class="flag">&#9656;</span> gh pr</span>
+            <span class="tool-chip"><span class="flag">&#9656;</span> pd attest</span>
+            <span class="tool-chip"><span class="flag">&#9656;</span> jest</span>
+          </div>
+          <div class="satpanel" data-sat="helmsman-files">
+            <h3>Files it's touching</h3>
+            <div class="kv"><span class="k">edit</span><span class="v"><span style="color:var(--signal-charlie)">&#9670;</span> routes/attention.ts</span><span class="k">edit</span><span class="v"><span style="color:var(--signal-charlie)">&#9670;</span> tests/attention.test.js</span><span class="k">read</span><span class="v"><span style="color:var(--brand-primary)">&#9656;</span> lib/sugar.ts</span></div>
+          </div>
+          <div class="composer"><span class="prompt" style="color:var(--signal-kilo)">&#10551;</span><input placeholder="Message helmsman directly" /><span class="spray-hint">spray <b>s</b></span></div>
+        </section>
+
+        <!-- CAULKER — dimmed-but-legible agent chat -->
+        <section class="pane" data-pane="caulker">
+          <div class="pane-head">
+            <span class="flag" style="color:var(--signal-charlie)">&#9600;&#9604;</span><span class="role">Caulker</span><span class="doing">· gating &middot; attest PASS</span>
+            <span class="grow"></span><span class="pk">&#8997;3</span>
+          </div>
+          <div class="sat" data-for="caulker">
+            <button class="on" onclick="sat(this,'caulker','chat')">Chat</button>
+            <button onclick="sat(this,'caulker','ph')">Pheromone</button>
+            <button onclick="sat(this,'caulker','tools')">Tools</button>
+          </div>
+          <div class="chat satpanel on" data-sat="caulker-chat">
+            <div class="msg-row avatar"><span class="who">Caulker</span><div class="bubble"><code>pd attest</code> PASS &mdash; 6/6 critical rules enforced. Arbiter strict, Guard enforcing, no stale claims. Cleared helmsman to request the gate.</div></div>
+          </div>
+          <div class="satpanel" data-sat="caulker-ph">
+            <h3>Pheromone &middot; what this agent sees</h3>
+            <div class="ph-row"><span class="kind">quality:passing</span><span class="bar"><i style="width:88%"></i></span><span class="pct">88</span></div>
+            <div class="ph-row"><span class="kind">freshness:fresh</span><span class="bar"><i style="width:61%"></i></span><span class="pct">61</span></div>
+          </div>
+          <div class="satpanel" data-sat="caulker-tools">
+            <h3>Tools access</h3>
+            <span class="tool-chip"><span class="flag">&#9656;</span> pd attest</span>
+            <span class="tool-chip"><span class="flag">&#9656;</span> pd guard</span>
+            <span class="tool-chip"><span class="flag">&#9656;</span> arbiter probe</span>
+          </div>
+          <div class="composer"><span class="prompt" style="color:var(--signal-charlie)">&#10551;</span><input placeholder="Message caulker directly" /><span class="spray-hint">spray <b>s</b></span></div>
+        </section>
+       </div><!-- /agent-col -->
+      </div>
+    </main>
+
+    <!-- RIGHT RAIL — file tree (alive) + fleet-harbor (the one pixel zone) -->
+    <aside class="crail" aria-label="File tree and fleet harbor">
+      <div class="crail-tabs">
+        <button class="on" id="ctTree" onclick="crail('tree')">File tree</button>
+        <button id="ctHarbor" onclick="crail('harbor')">Fleet harbor</button>
+      </div>
+
+      <!-- FILE TREE — agents read (▸) and edit (◆) live; operator notes (✎) -->
+      <div class="crail-view on" id="viewTree">
+        <div class="tree" id="tree">
+          <div class="tnode dir"><span class="ind">&#9660;</span><span class="name">routes/</span><span class="heat" style="background:var(--brand-primary);opacity:.7"></span></div>
+          <div class="tnode" style="padding-left:var(--sp6)"><span class="glyph edit">&#9670;</span><span class="name">attention.ts</span><span class="who">helmsman</span><span class="heat" style="background:var(--brand-primary)"></span></div>
+          <div class="tnote"><span class="lbl">&#9998;&#65038; your note &middot; line 46</span><div class="txt">keep peek read-only &mdash; don't let it mark-on-render</div><div class="sha">@ a4f1b9 &middot; expires when PR #231 merges</div></div>
+          <div class="tnode" style="padding-left:var(--sp6)"><span class="glyph edit">&#9670;</span><span class="name">attention.test.js</span><span class="who">helmsman</span><span class="heat" style="background:var(--brand-primary);opacity:.5"></span></div>
+          <div class="tnode dir"><span class="ind">&#9660;</span><span class="name">lib/</span><span class="heat" style="background:var(--brand-primary);opacity:.4"></span></div>
+          <div class="tnode" style="padding-left:var(--sp6)"><span class="glyph read">&#9656;</span><span class="name">sugar.ts</span><span class="who">helmsman</span><span class="heat" style="background:var(--brand-primary);opacity:.3"></span></div>
+          <div class="tnode" style="padding-left:var(--sp6)"><span class="glyph read">&#9656;</span><span class="name">pheromone.ts</span><span class="who">spider</span><span class="heat" style="background:var(--brand-primary);opacity:.45"></span></div>
+          <div class="tnode" style="padding-left:var(--sp6)"><span class="name" style="color:var(--text-muted)">attest.ts</span><span class="heat" style="background:var(--text-muted);opacity:.2"></span></div>
+          <div class="tnode dir"><span class="ind">&#9654;</span><span class="name">docs/adr/</span><span class="heat" style="background:var(--text-muted);opacity:.15"></span></div>
+        </div>
+        <div class="tree-foot">
+          <div class="add-note">
+            <span class="glyph note" style="font-family:var(--pixel);color:var(--status-warning)">&#9998;&#65038;</span>
+            <input id="noteInput" placeholder="Drop a note &mdash; overall, in a spot, or per file" onkeydown="if(event.key==='Enter')dropNote()" />
+          </div>
+        </div>
+      </div>
+
+      <!-- FLEET HARBOR — the SINGLE playful zone -->
+      <div class="crail-view" id="viewHarbor">
+        <div class="roster" id="roster">
+          <div class="rrow"><span class="dot live"></span><span class="role">helmsman</span><span class="stat">PR #231 &middot; gate</span></div>
+          <div class="rrow"><span class="dot live"></span><span class="role">caulker</span><span class="stat">attest PASS</span></div>
+          <div class="rrow"><span class="dot live"></span><span class="role">spider</span><span class="stat">crawling</span></div>
+          <div class="rrow"><span class="dot warn"></span><span class="role">gardener</span><span class="stat">$0.42 / cap</span></div>
+          <div class="rrow"><span class="dot idle"></span><span class="role">documentarian</span><span class="stat">idle</span></div>
+        </div>
+        <div class="harbor" id="harbor">
+          <div class="harbor-head">
+            <h3>FLEET HARBOR</h3>
+            <span class="leg">hover a vessel &middot; tug = worker &middot; cruiser = heavy</span>
+          </div>
+          <div class="waves"></div>
+          <!-- vessels = agents. hover → reveal + edit -->
+          <div class="vessel tug" style="left:14%; top:42%; animation-delay:.0s" data-v="helmsman" onmouseenter="showVessel('helmsman')" onmouseleave="hideVessel()">
+            <span class="sprite" aria-hidden="true"></span><span class="vname">helmsman</span>
+          </div>
+          <div class="vessel cruiser" style="left:40%; top:32%; animation-delay:.8s" data-v="spider" onmouseenter="showVessel('spider')" onmouseleave="hideVessel()">
+            <span class="sprite" aria-hidden="true"></span><span class="vname">spider</span>
+          </div>
+          <div class="vessel tug" style="left:64%; top:48%; animation-delay:.4s" data-v="caulker" onmouseenter="showVessel('caulker')" onmouseleave="hideVessel()">
+            <span class="sprite" aria-hidden="true"></span><span class="vname">caulker</span>
+          </div>
+          <div class="vessel tug burning" style="left:80%; top:38%; animation-delay:1.1s" data-v="gardener" onmouseenter="showVessel('gardener')" onmouseleave="hideVessel()">
+            <span class="sprite" aria-hidden="true"></span><span class="vname">gardener</span>
+          </div>
+          <div class="vessel tug idle" style="left:32%; top:60%; animation-delay:.6s" data-v="documentarian" onmouseenter="showVessel('documentarian')" onmouseleave="hideVessel()">
+            <span class="sprite" aria-hidden="true"></span><span class="vname">docs</span>
+          </div>
+
+          <!-- hover-reveal: DISPLAYED AND EDITABLE -->
+          <div class="vessel-card" id="vesselCard">
+            <div class="vc-head"><span class="sprite" aria-hidden="true"></span><span class="vc-role" id="vcRole">helmsman</span><span class="vc-kind" id="vcKind">tug &middot; worker</span></div>
+            <div class="vc-field"><span class="lbl">Telos &middot; editable</span><textarea class="ed" id="vcTelos" rows="2">Drive adr-0046-phase-3 to a clean merge: worktree, PR, adversarial test, CI green, merge, prune.</textarea></div>
+            <div class="vc-field"><span class="lbl">Sitrep</span><textarea class="ed" id="vcSitrep" rows="2">At merge gate. 142/142 tests, CI green, attest PASS. Awaiting human approve.</textarea></div>
+            <div class="vc-field"><span class="lbl">Triggers &middot; editable</span><textarea class="ed" id="vcTrig" rows="1">on: roadmap item promoted to now + tube dispatch</textarea></div>
+            <div class="vc-field"><span class="lbl">Side effects</span><textarea class="ed" id="vcFx" rows="1">writes: routes/attention.ts, tests; sprays hot:editing; opens PR #231</textarea></div>
+            <div class="vc-field"><span class="lbl">Transcript</span>
+              <div class="vc-transcript" id="vcScript">
+                <div class="line"><span class="t">11:42</span> created worktree wt-phase3</div>
+                <div class="line"><span class="t">11:48</span> edited routes/attention.ts (+12 -3)</div>
+                <div class="line"><span class="t">11:55</span> jest 142/142 &middot; opened PR #231</div>
+                <div class="line"><span class="t">12:03</span> attest PASS &middot; parked at merge gate</div>
+              </div>
+            </div>
+            <div class="vc-foot">
+              <button class="save" onclick="saveVessel()">Save edits</button>
+              <button class="open" onclick="openVesselChat()">Open full chat</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ═══ STATUS BAR ═══ -->
+  <footer class="statusbar">
+    <div class="seg"><span class="key">&#8997;1-3</span> panes</div>
+    <div class="seg"><span class="key">Tab</span> cycle</div>
+    <div class="seg"><span class="key">&#8997;&#9166;</span> split</div>
+    <div class="seg"><span class="key">&#8997;w</span> stow</div>
+    <div class="seg"><span class="key">z</span> zoom</div>
+    <div class="seg"><span class="key">h</span> log</div>
+    <div class="seg"><span class="key">s</span> spray</div>
+    <div class="seg"><span class="key">a</span> approve</div>
+    <div class="seg"><span class="key">m</span> <span id="soundSeg">sound off</span></div>
+    <div class="seg"><span class="key">t</span> <span id="themeSeg">light</span></div>
+    <div class="seg"><span class="key">?</span> helm</div>
+    <div class="seg grow">&#9656; fleet nominal &middot; 5 agents &middot; $0.73 / $2.50 cap</div>
+  </footer>
+</div>
+
+<!-- ═══ SPRAY HUD ═══ -->
+<div class="scrim" id="scrim" onclick="closeAll()"></div>
+<div class="spray" id="spray" role="dialog" aria-label="Spray a steering signal">
+  <h3 class="grotesk">Spray a signal</h3>
+  <div class="tgt" id="sprayTgt">routes/attention.ts:46</div>
+  <div class="spray-opt" onclick="doSpray('Look here')"><span class="n">1</span><span class="lbl">Look here</span><span class="wri">pheromones.spray('files', path, 'attention:human')</span></div>
+  <div class="spray-opt" onclick="doSpray('This is wrong')"><span class="n">2</span><span class="lbl">This is wrong</span><span class="wri">feedback.drop(source:'human')</span></div>
+  <div class="spray-opt" onclick="doSpray('Prioritize')"><span class="n">3</span><span class="lbl">Prioritize this</span><span class="wri">tuple file:annotation</span></div>
+  <div class="spray-opt" onclick="doSpray('Leave a note')"><span class="n">4</span><span class="lbl">Leave a note</span><span class="wri">feedback.drop + git_sha_at_annotation</span></div>
+  <div class="spray-foot"><span>1&ndash;4 pick &middot; &#9099;&#65038; cancel</span><span>stamped at sha &middot; revocable</span></div>
+</div>
+
+<!-- ═══ HELM keyboard reference ═══ -->
+<div class="helm" id="helm" role="dialog" aria-label="Keyboard reference">
+  <h3>HELM &mdash; keyboard</h3>
+  <table>
+    <tr><td><span class="key">&#8997;1-3</span></td><td>Focus a pane &mdash; avatar or any agent chat (swoosh)</td></tr>
+    <tr><td><span class="key">Tab</span></td><td>Cycle pane focus forward</td></tr>
+    <tr><td><span class="key">&#8997;&#9166;</span></td><td>Split — bring the focused agent into the mosaic</td></tr>
+    <tr><td><span class="key">&#8997;w</span></td><td>Stow — collapse the focused pane (agent keeps running)</td></tr>
+    <tr><td><span class="key">&#8997;[ &#8997;]</span></td><td>Resize the split (or drag the gutter)</td></tr>
+    <tr><td><span class="key">z</span></td><td>Zoom focused pane / restore mosaic</td></tr>
+    <tr><td><span class="key">h</span></td><td>Avatar dispatch history</td></tr>
+    <tr><td><span class="key">&#8997;f</span></td><td>Fork the current session</td></tr>
+    <tr><td><span class="key">s</span></td><td>Spray a steering signal on the focused target</td></tr>
+    <tr><td><span class="key">a</span></td><td>Approve the top HiTL card</td></tr>
+    <tr><td><span class="key">m</span></td><td>Mute / unmute sound</td></tr>
+    <tr><td><span class="key">t</span></td><td>Toggle light / dark theme</td></tr>
+    <tr><td><span class="key">?</span></td><td>This reference &middot; &#9099;&#65038; closes</td></tr>
+  </table>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── honest data: roadmap NOW = real ADR-0046 phase slugs (GET /roadmap/items?status=now)
+const ROADMAP = [
+  {slug:'phase-7', ph:'07', sum:'Feel pass (swoosh ≤400ms, opt-in sound, reduced-motion), Geist Sans / Geist Mono / Departure Mono, 15-persona blind-test', live:false},
+  {slug:'phase-6', ph:'06', sum:'Avatar runs a roadmap item end-to-end (worktree→PR→adversarial test→review→CI→merge→prune→done), pd attest-gated + HiTL-surfaced', live:true},
+  {slug:'phase-5', ph:'05', sum:'On-demand inline code + per-line pheromone heat in an agent pane (single-hue ramp). NOT a repo browser', live:false},
+  {slug:'phase-4', ph:'04', sum:'Reconcile/delete design/tokens/primitives.json; generate Rust token mirror from canon tokens.semantic.css', live:false},
+  {slug:'phase-3', ph:'03', sum:'HiTL bar (mayday-red reserved) + roadmap now + my-agents (GET /attention) + background-fleet strips', live:true},
+  {slug:'phase-2', ph:'02', sum:'Key-bound spray from any pane → pheromones.spray / feedback.drop / tuple; ✓ pin + toast', live:false},
+  {slug:'phase-1', ph:'01', sum:'Talk to avatar; it dispatches via tube→spawner router (#225); replies stream back to the pane', live:false},
+  {slug:'phase-0', ph:'00', sum:'ratatui shell: avatar pane + split/tab/move into role-labelled agent-chats', live:false},
+];
+const rm = document.getElementById('roadmap');
+rm.innerHTML = ROADMAP.map(r=>`<button class="road-item">
+  <span class="slug"><span class="ph">${r.ph}</span>adr-0046-${r.slug}</span>
+  <span class="sum">${r.sum}</span>
+  <span class="meta"><span>roadmap_items</span>${r.live?'<span class="live">&#9656; agent live</span>':'<span>queued</span>'}</span>
+</button>`).join('');
+
+// ── multiplex: focus a pane (swoosh) ────────────────────────────────────────
+const PANES=['avatar','helmsman','caulker'];
+let focused='avatar';
+function focusPane(p){
+  focused=p;
+  document.querySelectorAll('.pane').forEach(el=>el.classList.toggle('focus', el.dataset.pane===p));
+  document.querySelectorAll('.tab[data-pane]').forEach(el=>el.classList.toggle('active', el.dataset.pane===p));
+  blip();
+}
+function cyclePane(){ const live=PANES.filter(p=>p==='avatar'||!isCollapsed(p)); focusPane(live[(live.indexOf(focused)+1)%live.length]); }
+function zoom(){ const pz=document.getElementById('panes'); pz.classList.toggle('zoom'); sfx(pz.classList.contains('zoom')?'open':'close'); }
+function isCollapsed(p){ const el=document.querySelector(`.pane[data-pane="${p}"]`); return !el||el.classList.contains('collapsed'); }
+
+// ── DYNAMICS: split / collapse / resize / dispatch ───────────────────────────
+// COLLAPSE (stow) a pane: swoosh out, hide, hide its tab. ⌥w or the tab ✕.
+function collapsePane(p){
+  if(p==='avatar') return; // the seat never stows
+  const el=document.querySelector(`.pane[data-pane="${p}"]`);
+  const tab=document.querySelector(`.tab[data-pane="${p}"]`);
+  if(!el||el.classList.contains('collapsed')) return;
+  el.classList.add('leave');
+  sfx('close');
+  setTimeout(()=>{ el.classList.add('collapsed'); el.classList.remove('leave'); if(tab) tab.style.display='none'; }, 320);
+  if(focused===p) focusPane('avatar');
+  toast(`Stowed <b>${p}</b> &mdash; still running in the harbor; reopen from a vessel or &#8997;${PANES.indexOf(p)+1}`);
+}
+// SPLIT: bring a stowed/idle agent back into the mosaic (materialise).
+function splitIn(p){
+  const el=document.querySelector(`.pane[data-pane="${p}"]`);
+  const tab=document.querySelector(`.tab[data-pane="${p}"]`);
+  if(el){ el.classList.remove('collapsed'); if(tab) tab.style.display=''; el.classList.add('enter'); setTimeout(()=>el.classList.remove('enter'),440); }
+  focusPane(p); sfx('open');
+}
+// gutter DRAG resize
+(function(){
+  const g=document.getElementById('gutter'), av=document.getElementById('avatarCol'), ag=document.getElementById('agentCol');
+  let dragging=false;
+  function start(e){ dragging=true; g.classList.add('drag'); e.preventDefault(); }
+  function move(e){ if(!dragging) return; const r=document.getElementById('panes').getBoundingClientRect();
+    const x=(e.touches?e.touches[0].clientX:e.clientX)-r.left; let pct=Math.max(28,Math.min(78,(x/r.width)*100));
+    av.style.flexBasis=pct+'%'; ag.style.flexBasis=(100-pct)+'%'; av.style.transition='none'; ag.style.transition='none'; }
+  function end(){ if(!dragging) return; dragging=false; g.classList.remove('drag'); av.style.transition=''; ag.style.transition=''; sfx('tick'); }
+  g.addEventListener('mousedown',start); window.addEventListener('mousemove',move); window.addEventListener('mouseup',end);
+  g.addEventListener('touchstart',start,{passive:false}); window.addEventListener('touchmove',move,{passive:false}); window.addEventListener('touchend',end);
+})();
+function nudgeGutter(dir){ const av=document.getElementById('avatarCol'), ag=document.getElementById('agentCol');
+  let pct=parseFloat(av.style.flexBasis)||58; pct=Math.max(28,Math.min(78,pct+dir*6));
+  av.style.flexBasis=pct+'%'; ag.style.flexBasis=(100-pct)+'%'; sfx('tick'); }
+
+// ── DISPATCH FLOW: talk to the avatar → it spawns an agent → tab+pane materialise
+let dispatchN=0;
+function avatarSend(inp){
+  const text=inp.value.trim(); if(!text) return; inp.value='';
+  // 1. echo the operator's message into the avatar chat
+  const chat=document.querySelector('[data-sat="avatar-chat"]');
+  addBubble(chat,'you','You',escapeHtml(text));
+  sfx('tick');
+  // 2. avatar acknowledges + dispatches (realistic: tube→spawner router #225)
+  const role='lookout'; // the role the avatar picks for an audit task
+  setTimeout(()=>{
+    addBubble(chat,'avatar','Avatar',`Dispatching <b>${role}</b> via <code>tube&rarr;spawner</code> on a fresh worktree. Stop conditions: cost &lt; $0.50, read-only egress. Its chat is materialising beside me &mdash; <b>&#8997;${PANES.length+1}</b>.`);
+    dispatchAgent(role, text);
+  }, 520);
+}
+function dispatchAgent(role, task){
+  sfx('dispatch');
+  const key=role+(dispatchN++||''); // unique if repeated
+  PANES.push(key);
+  // 3. tab materialises
+  const ts=document.getElementById('tabstrip'), grow=ts.querySelector('.grow');
+  const tab=document.createElement('button');
+  tab.className='tab enter'; tab.dataset.pane=key; tab.onclick=()=>focusPane(key);
+  tab.innerHTML=`<span class="flag" style="color:var(--signal-uniform)">&#9698;&#9700;</span><span class="role">${cap(role)}</span><span class="pk">&#8997;${PANES.length}</span><span class="live-dot"></span><span class="close" title="Stow">&#9099;&#65038;</span>`;
+  tab.querySelector('.close').onclick=(e)=>{e.stopPropagation();collapsePane(key);};
+  ts.insertBefore(tab,grow); setTimeout(()=>tab.classList.remove('enter'),440);
+  // 4. pane materialises in the agent column
+  const ag=document.getElementById('agentCol');
+  const pane=document.createElement('section');
+  pane.className='pane enter'; pane.dataset.pane=key;
+  pane.innerHTML=`
+    <div class="pane-head"><span class="flag" style="color:var(--signal-uniform)">&#9698;&#9700;</span><span class="role">${cap(role)}</span><span class="doing">· spawned just now · working</span><span class="grow"></span><span class="pk">&#8997;${PANES.length}</span></div>
+    <div class="sat" data-for="${key}"><button class="on">Chat</button><button>Pheromone</button><button>Tools</button></div>
+    <div class="chat satpanel on" data-sat="${key}-chat">
+      <div class="msg-row avatar"><span class="who">${cap(role)}</span><div class="bubble">Spawned on task: <b>${escapeHtml(task)}</b>. Created worktree, reading the route now. I'll spray <code>hot:editing</code> and report to the avatar when I have a finding.</div></div>
+    </div>
+    <div class="composer"><span class="prompt" style="color:var(--signal-uniform)">&#10551;</span><input placeholder="Message ${role} directly" /><span class="spray-hint">spray <b>s</b></span></div>`;
+  ag.appendChild(pane); setTimeout(()=>pane.classList.remove('enter'),440);
+  // 5. a new vessel sets sail in the harbor
+  VESSELS[key]={kind:'tug · worker',telos:`Audit task: ${task}`,sitrep:'Spawned. Reading the route, no finding yet.',trig:'on: avatar dispatch (tube→spawner #225)',fx:'reads route + tests; sprays hot:editing; reports to avatar',script:[[now(),'spawned via tube→spawner'],[now(),'created worktree']]};
+  addVessel(key, role);
+  // 6. log it to avatar history
+  HIST.unshift({t:now(), who:role, act:`Dispatched ${role}`, why:`operator asked: “${task}”`});
+  // 7. focus the new pane after it lands
+  setTimeout(()=>{ focusPane(key); toast(`<b>${cap(role)}</b> dispatched &mdash; live in the harbor and tabbed (&#8997;${PANES.length})`); }, 460);
+}
+function addBubble(chat, cls, who, html){
+  const r=document.createElement('div'); r.className='msg-row '+cls;
+  r.innerHTML=`<span class="who">${who}</span><div class="bubble">${html}</div>`;
+  chat.appendChild(r); chat.scrollTop=chat.scrollHeight;
+}
+function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+function now(){ const d=new Date(); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+function escapeHtml(s){ return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+// ── AVATAR HISTORY (dispatch log) ────────────────────────────────────────────
+const HIST=[
+  {t:'12:03', who:'helmsman', act:'Parked helmsman at merge gate', why:'tests green, attest PASS — needs human approve'},
+  {t:'11:55', who:'helmsman', act:'Opened PR #231', why:'phase-3 strips: HiTL bar + roadmap now + attention feed'},
+  {t:'11:48', who:'caulker', act:'Dispatched caulker', why:'gate every merge through pd attest (6 critical rules)'},
+  {t:'11:44', who:'spider', act:'Dispatched spider', why:'crawl prior ratatui precedent before new pane code'},
+  {t:'11:42', who:'helmsman', act:'Dispatched helmsman', why:'operator asked: take adr-0046-phase-3 to merge'},
+];
+function renderHist(){
+  document.getElementById('histScroll').innerHTML = HIST.map(h=>
+    `<button class="hist-row"><span class="t">${h.t}</span><div class="act">${h.act}</div><div class="why">&mdash; ${h.why}</div></button>`).join('');
+}
+function toggleHist(){ const h=document.getElementById('hist'); const open=h.classList.toggle('open'); sfx(open?'open':'close'); }
+
+// ── per-agent satellites ─────────────────────────────────────────────────────
+function sat(btn,agent,view){
+  btn.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  const pane=document.querySelector(`.pane[data-pane="${agent}"]`);
+  pane.querySelectorAll('.satpanel').forEach(p=>p.classList.remove('on'));
+  pane.querySelector(`[data-sat="${agent}-${view}"]`).classList.add('on');
+  sfx('tick');
+}
+
+// ── right rail toggle ────────────────────────────────────────────────────────
+function crail(which){
+  document.getElementById('ctTree').classList.toggle('on', which==='tree');
+  document.getElementById('ctHarbor').classList.toggle('on', which==='harbor');
+  document.getElementById('viewTree').classList.toggle('on', which==='tree');
+  document.getElementById('viewHarbor').classList.toggle('on', which==='harbor');
+  sfx(which==='harbor'?'open':'close');
+}
+
+// ── HiTL resolve ─────────────────────────────────────────────────────────────
+let awaiting=1;
+function resolveBlock(approved){
+  awaiting=Math.max(0,awaiting-1);
+  document.getElementById('awaitN').textContent=awaiting;
+  if(awaiting===0){
+    document.getElementById('hitl').classList.add('clear');
+    document.getElementById('awaitCount').classList.add('zero');
+    document.querySelector('.block-card .msg').innerHTML='All clear &mdash; the fleet is humming. Nothing needs you.';
+    document.querySelector('.block-card .tag').textContent='CLEAR';
+  }
+  toast(approved?'Approved &mdash; avatar merging PR #231, will <b>prune + mark done</b>':'Denied &mdash; helmsman notified, gate held');
+  sfx(approved?'approve':'block');
+}
+
+// ── fleet-harbor hover-reveal ────────────────────────────────────────────────
+const VESSELS={
+  helmsman:{kind:'tug · worker',telos:'Drive adr-0046-phase-3 to a clean merge: worktree, PR, adversarial test, CI green, merge, prune.',sitrep:'At merge gate. 142/142 tests, CI green, attest PASS. Awaiting human approve.',trig:'on: roadmap item promoted to now + tube dispatch',fx:'writes: routes/attention.ts, tests; sprays hot:editing; opens PR #231',script:[['11:42','created worktree wt-phase3'],['11:48','edited routes/attention.ts (+12 -3)'],['11:55','jest 142/142 · opened PR #231'],['12:03','attest PASS · parked at merge gate']]},
+  spider:{kind:'cruiser · heavy',telos:'Crawl prior ratatui / TUI precedent before any new pane code; log findings to episodic memory.',sitrep:'Surveyed 3 split-pane impls. None used role-not-PID labelling. Reporting up.',trig:'on: avatar requests precedent scan',fx:'reads repo + git history; writes episodic memory; no source edits',script:[['11:44','scanning ratatui crates'],['11:51','3 prior impls found'],['11:58','logged to episodic memory']]},
+  caulker:{kind:'tug · worker',telos:'Gate every merge through pd attest: 6 critical rules, Arbiter strict, Guard enforcing, no stale claims.',sitrep:'attest PASS — 6/6 enforced, canary ok 3s ago. Cleared helmsman to request the gate.',trig:'on: agent requests a merge gate',fx:'reads attest state; writes attestation record; no source edits',script:[['12:01','ran pd attest'],['12:02','6/6 critical rules enforced'],['12:03','cleared helmsman']]},
+  gardener:{kind:'tug · worker · burning',telos:'Background hygiene: prune dead worktrees, surface stale claims, keep the tree clean.',sitrep:'Spend $0.42 of $0.50 lane cap — nearing budget, will idle on cap.',trig:'on: fleet idle window',fx:'prunes worktrees; sprays salvage:pending; cost-metered',script:[['11:30','pruned 2 worktrees'],['11:58','$0.42 spend — nearing cap']]},
+  documentarian:{kind:'tug · idle',telos:'Keep docs in sync with shipped behavior; flag freshness:stale-doc.',sitrep:'Idle — no doc-affecting merges since last sync.',trig:'on: merge touching documented surface',fx:'edits docs; sprays freshness:*; no code edits',script:[['10:10','synced README'],['—','idle since']]},
+};
+const card=document.getElementById('vesselCard');
+let currentVessel=null;
+function showVessel(v){
+  const d=VESSELS[v]; if(!d) return; currentVessel=v;
+  document.getElementById('vcRole').textContent=v;
+  document.getElementById('vcKind').textContent=d.kind;
+  document.getElementById('vcTelos').value=d.telos;
+  document.getElementById('vcSitrep').value=d.sitrep;
+  document.getElementById('vcTrig').value=d.trig;
+  document.getElementById('vcFx').value=d.fx;
+  document.getElementById('vcScript').innerHTML=d.script.map(([t,s])=>`<div class="line"><span class="t">${t}</span> ${s}</div>`).join('');
+  card.classList.add('on');
+}
+function hideVessel(){ setTimeout(()=>{ if(!card.matches(':hover')) card.classList.remove('on'); },120); }
+card.addEventListener('mouseleave',()=>card.classList.remove('on'));
+// SAVE ship metadata: persist the edits, raise a pennant on the vessel (ack), tone.
+function saveVessel(){
+  if(!currentVessel) return;
+  const d=VESSELS[currentVessel];
+  d.telos=document.getElementById('vcTelos').value;
+  d.sitrep=document.getElementById('vcSitrep').value;
+  d.trig=document.getElementById('vcTrig').value;
+  d.fx=document.getElementById('vcFx').value;
+  // visible acknowledgment: the vessel raises a pennant + briefly pulses
+  const vEl=document.querySelector(`.vessel[data-v="${currentVessel}"]`);
+  if(vEl){ vEl.classList.add('acked'); setTimeout(()=>vEl.classList.remove('acked'),1400); }
+  HIST.unshift({t:now(), who:currentVessel, act:`Edited ${currentVessel}'s telos/triggers`, why:'operator steered the agent from the harbor'}); renderHist();
+  toast(`Saved <b>${currentVessel}</b>'s telos/triggers &mdash; written to <b>agent_inbox</b> + tuple; pennant raised`);
+  sfx('ack');
+}
+function openVesselChat(){
+  if(!currentVessel) return; card.classList.remove('on');
+  crail('tree'); // get out of the harbor view back to work
+  if(!PANES.includes(currentVessel)){ /* it's a known role that has a pane */ }
+  splitIn(currentVessel);
+}
+// drop a NEW pixel vessel into the harbor when an agent is dispatched
+function addVessel(key, role){
+  const harbor=document.getElementById('harbor');
+  const v=document.createElement('div');
+  v.className='vessel tug enter-v'; v.dataset.v=key;
+  v.style.left=(20+Math.random()*55)+'%'; v.style.top=(40+Math.random()*22)+'%'; v.style.animationDelay=(Math.random()).toFixed(2)+'s';
+  v.onmouseenter=()=>showVessel(key); v.onmouseleave=hideVessel;
+  v.innerHTML=`<span class="sprite" aria-hidden="true"></span><span class="vname">${role}</span>`;
+  harbor.appendChild(v);
+  // also add to the roster
+  const roster=document.getElementById('roster');
+  const rr=document.createElement('div'); rr.className='rrow';
+  rr.innerHTML=`<span class="dot live"></span><span class="role">${role}</span><span class="stat">spawned</span>`;
+  roster.appendChild(rr);
+}
+
+// ── spray HUD ────────────────────────────────────────────────────────────────
+function openSpray(){ document.getElementById('scrim').classList.add('on'); document.getElementById('spray').classList.add('on'); sfx('open'); }
+function doSpray(label){
+  closeAll();
+  toast(`Sprayed <b>${label}</b> on routes/attention.ts:46 &mdash; ✓ pin dropped, stamped @ a4f1b9`);
+  sfx('spray');
+}
+function closeAll(){ ['scrim','spray','helm'].forEach(id=>document.getElementById(id).classList.remove('on')); }
+
+// ── operator note drop ───────────────────────────────────────────────────────
+function dropNote(){
+  const inp=document.getElementById('noteInput'); const v=inp.value.trim(); if(!v) return;
+  const tree=document.getElementById('tree');
+  const n=document.createElement('div'); n.className='tnote';
+  n.innerHTML=`<span class="lbl">&#9998;&#65038; your note &middot; just now</span><div class="txt">${v.replace(/</g,'&lt;')}</div><div class="sha">@ a4f1b9 &middot; feedback.drop(source:'human')</div>`;
+  tree.appendChild(n); inp.value='';
+  toast('Note dropped &mdash; <b>feedback.drop</b> + tuple, agents see it now'); sfx('spray');
+}
+
+// ── toast + sound ────────────────────────────────────────────────────────────
+let toastT;
+function toast(html){ const t=document.getElementById('toast'); t.innerHTML=html; t.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('on'),2600); }
+let soundOn=false;
+function toggleSound(){ soundOn=!soundOn; document.getElementById('soundSeg').textContent=soundOn?'sound on':'sound off'; if(soundOn) sfx('open'); }
+function toggleTheme(){ const h=document.documentElement; const next=h.getAttribute('data-theme')==='light'?'dark':'light'; h.setAttribute('data-theme',next); document.getElementById('themeSeg').textContent=next; sfx('tick'); }
+
+/* ── SOUND ENGINE — a designed ship's-bridge palette ─────────────────────────
+   Each cue is engineered, not a generic beep: an intentional pitch register,
+   envelope (attack/decay), and timbre per SEMANTIC event. All <220ms, opt-in
+   (m), honors prefers-reduced-motion as a hard mute (motion-coupled audio).
+   Cues confirm STATE CHANGES only — a humming fleet is silent.
+     dispatch  rising perfect-5th (G4→D5), triangle — "a vessel sets out"
+     open      short noise-swept whoosh up — pane materialises
+     close     noise-swept whoosh down — pane stows
+     spray     felt-tip 'tk' — high square blip, very short — you marked the code
+     approve   ship's bell — two struck sine partials, warm
+     block     low gong (110Hz) — DARKEST but quiet, lands as gravity not panic
+     tick      tiny UI click — tab/theme/focus nudge
+     ack       confirming minor-3rd up — metadata saved / pennant raised  */
+let ac;
+function actx(){ ac = ac || new (window.AudioContext||window.webkitAudioContext)(); if(ac.state==='suspended') ac.resume(); return ac; }
+function tone(f0, f1, t, type, peak, t0off){
+  const c=actx(), now=c.currentTime+(t0off||0), o=c.createOscillator(), g=c.createGain();
+  o.type=type||'sine'; o.frequency.setValueAtTime(f0, now);
+  if(f1) o.frequency.exponentialRampToValueAtTime(f1, now+t);
+  o.connect(g); g.connect(c.destination);
+  g.gain.setValueAtTime(.0001, now);
+  g.gain.exponentialRampToValueAtTime(peak||.06, now+.012);
+  g.gain.exponentialRampToValueAtTime(.0001, now+t);
+  o.start(now); o.stop(now+t+.02);
+}
+function noiseSweep(up, t, peak){
+  const c=actx(), now=c.currentTime, n=c.sampleRate*t, buf=c.createBuffer(1,n,c.sampleRate), d=buf.getChannelData(0);
+  for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*(1-i/n);
+  const src=c.createBufferSource(); src.buffer=buf;
+  const bp=c.createBiquadFilter(); bp.type='bandpass'; bp.Q.value=.8;
+  bp.frequency.setValueAtTime(up?500:2400, now);
+  bp.frequency.exponentialRampToValueAtTime(up?2600:480, now+t);
+  const g=c.createGain(); g.gain.setValueAtTime(peak||.05, now); g.gain.exponentialRampToValueAtTime(.0001, now+t);
+  src.connect(bp); bp.connect(g); g.connect(c.destination); src.start(now); src.stop(now+t);
+}
+function sfx(kind){
+  if(!soundOn) return;
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches) return; // motion-coupled audio off
+  try{ switch(kind){
+    case 'dispatch': tone(392,0,.10,'triangle',.05); tone(587,0,.13,'triangle',.05,.09); break; // G4 then D5
+    case 'open':     noiseSweep(true,.16,.045); break;
+    case 'close':    noiseSweep(false,.15,.04); break;
+    case 'spray':    tone(880,1320,.05,'square',.045); break;       // felt-tip tk
+    case 'approve':  tone(784,0,.20,'sine',.06); tone(1568,0,.20,'sine',.022,.005); break; // bell
+    case 'block':    tone(110,0,.20,'sine',.07); tone(165,0,.18,'sine',.02,.01); break;    // low gong
+    case 'tick':     tone(1200,0,.03,'square',.03); break;
+    case 'ack':      tone(523,0,.08,'triangle',.05); tone(622,0,.10,'triangle',.05,.07); break; // C5→Eb5
+    default:         tone(520,0,.10,'sine',.04);
+  }}catch(e){}
+}
+function swoosh(){ sfx('open'); }
+function blip(){ sfx('tick'); }
+
+// ── keyboard ─────────────────────────────────────────────────────────────────
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') {
+    if(e.key==='Escape') e.target.blur(); return;
+  }
+  // ⌥N → focus the Nth pane (dynamic: avatar=1, then live agents)
+  if(e.altKey && /^[1-9]$/.test(e.key)){ const p=PANES[parseInt(e.key,10)-1]; if(p){ if(isCollapsed(p)&&p!=='avatar') splitIn(p); else focusPane(p); } e.preventDefault(); }
+  else if(e.altKey && (e.key==='Enter')){ /* ⌥⏎ split: bring focused agent's chat into a fresh column slot */ if(focused!=='avatar') splitIn(focused); e.preventDefault(); }
+  else if(e.altKey && (e.key==='w')){ collapsePane(focused); e.preventDefault(); }
+  else if(e.altKey && (e.key==='[')){ nudgeGutter(-1); e.preventDefault(); }
+  else if(e.altKey && (e.key===']')){ nudgeGutter(1); e.preventDefault(); }
+  else if(e.altKey && (e.key==='f')){ toast('Forked session &mdash; new <b>.portdaddy/current.json</b>; the avatar carries the roadmap into the fork'); sfx('dispatch'); e.preventDefault(); }
+  else if(e.key==='Tab'){cyclePane(); e.preventDefault();}
+  else if(e.key==='z'){zoom();}
+  else if(e.key==='s'){openSpray(); e.preventDefault();}
+  else if(e.key==='a'){resolveBlock(true);}
+  else if(e.key==='h'){toggleHist();}
+  else if(e.key==='m'){toggleSound();}
+  else if(e.key==='t'){toggleTheme();}
+  else if(e.key==='?'){document.getElementById('scrim').classList.add('on'); document.getElementById('helm').classList.add('on'); sfx('open');}
+  else if(e.key==='Escape'){ document.getElementById('hist').classList.remove('open'); closeAll(); }
+});
+
+// ── init ──────────────────────────────────────────────────────────────────────
+renderHist();
+</script>
+</body>
+</html>

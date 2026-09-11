@@ -1,309 +1,309 @@
 {
-  "pdf": "/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/figaudit/pdf/fig-swk-controllability-relation/fig-swk-controllability-relation.pdf",
-  "page_count": 1,
-  "params": {
-    "min_font_pt": 7.0,
-    "textwidth_cm": 16.3
-  },
-  "checks": {
-    "T1": {
-      "status": "fail",
-      "count": 5,
-      "findings": [
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            335.509033203125,
-            107.44202423095703,
-            339.0726623535156,
-            114.4158706665039
-          ],
-          "text": "c",
-          "size_pt": 6.97,
-          "message": "text 'c' renders at 6.97pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            343.2083435058594,
-            158.43307495117188,
-            347.9156799316406,
-            165.40692138671875
-          ],
-          "text": "u",
-          "size_pt": 6.97,
-          "message": "text 'u' renders at 6.97pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            133.2245635986328,
-            235.3558807373047,
-            137.63003540039062,
-            241.33346557617188
-          ],
-          "text": "u",
-          "size_pt": 5.98,
-          "message": "text 'u' renders at 5.98pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            223.6279754638672,
-            235.3558807373047,
-            226.96945190429688,
-            241.33346557617188
-          ],
-          "text": "c",
-          "size_pt": 5.98,
-          "message": "text 'c' renders at 5.98pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            306.3128662109375,
-            235.3558807373047,
-            310.7183532714844,
-            241.33346557617188
-          ],
-          "text": "u",
-          "size_pt": 5.98,
-          "message": "text 'u' renders at 5.98pt, below the 7.00pt floor"
-        }
-      ]
+ "figure": "fig-swk-controllability-relation",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "fail",
+   "count": 5,
+   "findings": [
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      335.509033203125,
+      107.44202423095703,
+      339.0726623535156,
+      114.4158706665039
+     ],
+     "text": "c",
+     "size_pt": 6.97,
+     "message": "text 'c' renders at 6.97pt, below the 7.00pt floor"
     },
-    "T2": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      343.2083435058594,
+      158.43307495117188,
+      347.9156799316406,
+      165.40692138671875
+     ],
+     "text": "u",
+     "size_pt": 6.97,
+     "message": "text 'u' renders at 6.97pt, below the 7.00pt floor"
     },
-    "T3": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      133.2245635986328,
+      235.3558807373047,
+      137.63003540039062,
+      241.33346557617188
+     ],
+     "text": "u",
+     "size_pt": 5.98,
+     "message": "text 'u' renders at 5.98pt, below the 7.00pt floor"
     },
-    "T4": {
-      "status": "fail",
-      "count": 8,
-      "findings": [
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            140.08164978027344,
-            110.27947998046875,
-            166.61216735839844,
-            120.24211883544922
-          ],
-          "text": "entry",
-          "line_segment": [
-            [
-              153.345947265625,
-              84.98048400878906
-            ],
-            [
-              153.345947265625,
-              162.73031616210938
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'entry'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            92.6801986694336,
-            122.79560852050781,
-            213.96141052246094,
-            130.76571655273438
-          ],
-          "text": "mediated by the door: refusable",
-          "line_segment": [
-            [
-              153.345947265625,
-              84.98048400878906
-            ],
-            [
-              153.345947265625,
-              162.73031616210938
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'mediated by the door: refusable'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            74.97520446777344,
-            143.6975860595703,
-            178.9851531982422,
-            151.66769409179688
-          ],
-          "text": "no arrow: cannot be refused",
-          "line_segment": [
-            [
-              153.345947265625,
-              84.98048400878906
-            ],
-            [
-              153.345947265625,
-              162.73031616210938
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'no arrow: cannot be refused'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            328.31402587890625,
-            103.61180114746094,
-            450.32073974609375,
-            114.4158706665039
-          ],
-          "text": "\u03a3c: fs_write, net_egress,",
-          "line_segment": [
-            [
-              388.62457275390625,
-              84.98051452636719
-            ],
-            [
-              388.62457275390625,
-              150.27053833007812
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text '\u03a3c: fs_write, net_egress,'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            340.4303283691406,
-            115.56697082519531,
-            438.20440673828125,
-            126.00819396972656
-          ],
-          "text": "exec_tool, git_push,",
-          "line_segment": [
-            [
-              388.62457275390625,
-              84.98051452636719
-            ],
-            [
-              388.62457275390625,
-              150.27053833007812
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'exec_tool, git_push,'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            335.8912353515625,
-            127.52214050292969,
-            441.3564453125,
-            137.96336364746094
-          ],
-          "text": "spawn_child, api_call",
-          "line_segment": [
-            [
-              388.62457275390625,
-              84.98051452636719
-            ],
-            [
-              388.62457275390625,
-              150.27053833007812
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'spawn_child, api_call'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            310.2538146972656,
-            143.6975860595703,
-            456.79229736328125,
-            151.66769409179688
-          ],
-          "text": "complete before the boundary sees them",
-          "line_segment": [
-            [
-              315.4565734863281,
-              150.54449462890625
-            ],
-            [
-              461.79254150390625,
-              150.54449462890625
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'complete before the boundary sees them'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            237.41668701171875,
-            49.675052642822266,
-            304.5250244140625,
-            57.645164489746094
-          ],
-          "text": "stands at the only",
-          "line_segment": [
-            [
-              239.80380249023438,
-              47.90235900878906
-            ],
-            [
-              239.80380249023438,
-              213.99810791015625
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'stands at the only'"
-        }
-      ]
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      223.6279754638672,
+      235.3558807373047,
+      226.96945190429688,
+      241.33346557617188
+     ],
+     "text": "c",
+     "size_pt": 5.98,
+     "message": "text 'c' renders at 5.98pt, below the 7.00pt floor"
     },
-    "T5": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T6": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T7": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      306.3128662109375,
+      235.3558807373047,
+      310.7183532714844,
+      241.33346557617188
+     ],
+     "text": "u",
+     "size_pt": 5.98,
+     "message": "text 'u' renders at 5.98pt, below the 7.00pt floor"
     }
+   ]
   },
-  "summary": {
-    "result": "fail",
-    "failed_checks": [
-      "T1",
-      "T4"
-    ],
-    "warned_checks": []
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T4": {
+   "status": "fail",
+   "count": 8,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      140.08164978027344,
+      110.27947998046875,
+      166.61216735839844,
+      120.24211883544922
+     ],
+     "text": "entry",
+     "line_segment": [
+      [
+       153.345947265625,
+       84.98048400878906
+      ],
+      [
+       153.345947265625,
+       162.73031616210938
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'entry'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      92.6801986694336,
+      122.79560852050781,
+      213.96141052246094,
+      130.76571655273438
+     ],
+     "text": "mediated by the door: refusable",
+     "line_segment": [
+      [
+       153.345947265625,
+       84.98048400878906
+      ],
+      [
+       153.345947265625,
+       162.73031616210938
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'mediated by the door: refusable'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      74.97520446777344,
+      143.6975860595703,
+      178.9851531982422,
+      151.66769409179688
+     ],
+     "text": "no arrow: cannot be refused",
+     "line_segment": [
+      [
+       153.345947265625,
+       84.98048400878906
+      ],
+      [
+       153.345947265625,
+       162.73031616210938
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'no arrow: cannot be refused'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      328.31402587890625,
+      103.61180114746094,
+      450.32073974609375,
+      114.4158706665039
+     ],
+     "text": "\u03a3c: fs_write, net_egress,",
+     "line_segment": [
+      [
+       388.62457275390625,
+       84.98051452636719
+      ],
+      [
+       388.62457275390625,
+       150.27053833007812
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text '\u03a3c: fs_write, net_egress,'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      340.4303283691406,
+      115.56697082519531,
+      438.20440673828125,
+      126.00819396972656
+     ],
+     "text": "exec_tool, git_push,",
+     "line_segment": [
+      [
+       388.62457275390625,
+       84.98051452636719
+      ],
+      [
+       388.62457275390625,
+       150.27053833007812
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'exec_tool, git_push,'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      335.8912353515625,
+      127.52214050292969,
+      441.3564453125,
+      137.96336364746094
+     ],
+     "text": "spawn_child, api_call",
+     "line_segment": [
+      [
+       388.62457275390625,
+       84.98051452636719
+      ],
+      [
+       388.62457275390625,
+       150.27053833007812
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'spawn_child, api_call'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      310.2538146972656,
+      143.6975860595703,
+      456.79229736328125,
+      151.66769409179688
+     ],
+     "text": "complete before the boundary sees them",
+     "line_segment": [
+      [
+       315.4565734863281,
+       150.54449462890625
+      ],
+      [
+       461.79254150390625,
+       150.54449462890625
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'complete before the boundary sees them'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      237.41668701171875,
+      49.675052642822266,
+      304.5250244140625,
+      57.645164489746094
+     ],
+     "text": "stands at the only",
+     "line_segment": [
+      [
+       239.80380249023438,
+       47.90235900878906
+      ],
+      [
+       239.80380249023438,
+       213.99810791015625
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'stands at the only'"
+    }
+   ]
+  },
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
   }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T1",
+   "T4"
+  ],
+  "warned_checks": []
+ }
 }

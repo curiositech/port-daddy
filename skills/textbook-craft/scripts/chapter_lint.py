@@ -433,13 +433,18 @@ def neutralized_macro_names(pd_pedagogy_path) -> set:
     if pd_pedagogy_path is None or not pd_pedagogy_path.is_file():
         return set()
     text = strip_comments(pd_pedagogy_path.read_text(encoding="utf-8", errors="replace"))
-    m = _ATBEGINDOCUMENT_RE.search(text)
-    if not m:
-        return set()
-    body, _ = balanced_brace_arg(text, m.end() - 1)
-    if not body:
-        return set()
-    return set(_LONG_DEF_RE.findall(body))
+    # Every \\AtBeginDocument block, not the first one. pd-pedagogy.tex has
+    # more than one: the margin apparatus opens a block of its own to hook
+    # \\section for the pending-pointer check, and it happens to come first,
+    # so searching for a single block returned that one, found no \\long\\def
+    # in it and reported that nothing is neutralized -- which reads as "every
+    # fill-drawing macro is live" and is wrong in the direction that matters.
+    names = set()
+    for m in _ATBEGINDOCUMENT_RE.finditer(text):
+        body, _ = balanced_brace_arg(text, m.end() - 1)
+        if body:
+            names |= set(_LONG_DEF_RE.findall(body))
+    return names
 
 
 _TABLE_START_RE = re.compile(r"\\begin\{(table\*?|tabular\*?|longtable)\}")

@@ -10,6 +10,9 @@ const VALID_DTYPES = ['auto', 'fp32', 'fp16', 'q8', 'int8', 'uint8', 'q4', 'bnb4
 const REQUIRED_EMBEDDING_PROFILE_FIELDS = [
   'version',
   'servingProvider',
+  'executionClass',
+  'retrievalRoles',
+  'qualityTier',
   'modelId',
   'runtimeFamily',
   'runtimeVersion',
@@ -51,7 +54,6 @@ const LEGACY_EMBEDDING_PROFILE_FIELDS = [
   'revision',
   'distanceMetric',
   'dtype',
-  'qualityTier',
   'degradedFallbackLabel',
 ];
 const VALID_UNICODE_NORMALIZATIONS = ['none', 'nfc', 'nfkc', 'tokenizer-defined'];
@@ -63,6 +65,9 @@ const VALID_COORDINATE_PRECISIONS = ['float16', 'float32', 'float64'];
 const VALID_TRANSPORT_ENCODINGS = ['json-number-array', 'float32-array'];
 const VALID_QUANTIZATIONS = ['none'];
 const VALID_STORAGE_ENCODINGS = ['json-number-array', 'float32-le'];
+const VALID_EXECUTION_CLASSES = ['local', 'self-hosted', 'remote'];
+const VALID_RETRIEVAL_ROLES = ['text_dense', 'code_dense', 'ui_multimodal_dense', 'rerank'];
+const VALID_QUALITY_TIERS = ['local_fast', 'local_quality', 'remote_quality'];
 const VALID_VECTOR_DISPOSITIONS = ['ephemeral-uncompared', 'quarantined-uncompared'];
 const FORBIDDEN_ATTESTATION_FIELDS = [
   'producerAttestation',
@@ -91,6 +96,7 @@ function profileFieldErrors(profile) {
     const value = profile[field];
     if (field === 'queryPrefix' || field === 'documentPrefix') return typeof value !== 'string';
     if (field === 'version' || field === 'maxTokens' || field === 'dimensions') return false;
+    if (field === 'retrievalRoles') return !Array.isArray(value) || value.length === 0;
     return !isNonEmptyString(value);
   });
   for (const field of Object.keys(profile)) {
@@ -129,6 +135,14 @@ function profileFieldErrors(profile) {
   if (!VALID_QUANTIZATIONS.includes(profile.coordinateQuantization)) errors.push('coordinateQuantization');
   if (!VALID_TRANSPORT_ENCODINGS.includes(profile.transportEncoding)) errors.push('transportEncoding');
   if (!VALID_STORAGE_ENCODINGS.includes(profile.storageEncoding)) errors.push('storageEncoding');
+  if (!VALID_EXECUTION_CLASSES.includes(profile.executionClass)) errors.push('executionClass');
+  if (
+    !Array.isArray(profile.retrievalRoles)
+    || profile.retrievalRoles.length === 0
+    || profile.retrievalRoles.some((role) => !VALID_RETRIEVAL_ROLES.includes(role))
+    || new Set(profile.retrievalRoles).size !== profile.retrievalRoles.length
+  ) errors.push('retrievalRoles');
+  if (!VALID_QUALITY_TIERS.includes(profile.qualityTier)) errors.push('qualityTier');
   if (!VALID_QUANTIZATIONS.includes(profile.storageQuantization)) errors.push('storageQuantization');
   if (profile.quality !== 'degraded-fallback') errors.push('quality=degraded-fallback');
   if (profile.revisionBinding !== 'declared-upstream') errors.push('revisionBinding=declared-upstream');

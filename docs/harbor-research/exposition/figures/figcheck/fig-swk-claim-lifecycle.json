@@ -1,76 +1,76 @@
 {
-  "pdf": "/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/figaudit/pdf/fig-swk-claim-lifecycle/fig-swk-claim-lifecycle.pdf",
-  "page_count": 1,
-  "params": {
-    "min_font_pt": 7.0,
-    "textwidth_cm": 16.3
+ "figure": "fig-swk-claim-lifecycle",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
   },
-  "checks": {
-    "T1": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T2": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T3": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T4": {
-      "status": "fail",
-      "count": 1,
-      "findings": [
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            166.92591857910156,
-            70.82801055908203,
-            230.61842346191406,
-            80.17256164550781
-          ],
-          "text": "atomic acquire",
-          "line_segment": [
-            [
-              185.5859375,
-              82.214111328125
-            ],
-            [
-              180.57940673828125,
-              77.20758056640625
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'atomic acquire'"
-        }
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T4": {
+   "status": "fail",
+   "count": 1,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      166.92591857910156,
+      70.82801055908203,
+      230.61842346191406,
+      80.17256164550781
+     ],
+     "text": "atomic acquire",
+     "line_segment": [
+      [
+       185.5859375,
+       82.214111328125
+      ],
+      [
+       180.57940673828125,
+       77.20758056640625
       ]
-    },
-    "T5": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T6": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T7": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+     ],
+     "message": "a drawn line crosses through the interior of text 'atomic acquire'"
     }
+   ]
   },
-  "summary": {
-    "result": "fail",
-    "failed_checks": [
-      "T4"
-    ],
-    "warned_checks": []
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
   }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T4"
+  ],
+  "warned_checks": []
+ }
 }

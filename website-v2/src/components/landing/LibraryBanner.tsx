@@ -37,7 +37,7 @@ export function LibraryBanner() {
           />
           <div className="grid min-w-0 flex-1 gap-x-[var(--space-5)] gap-y-[var(--space-2)] py-[var(--space-3)] sm:grid-cols-2 sm:items-center sm:py-[var(--space-2)]">
             <Link
-              to="/library"
+              to="/whitepaper"
               className="group flex items-center gap-[var(--space-3)] border-r-0 sm:border-r-2 sm:border-[var(--border-default)] sm:pr-[var(--space-5)]"
             >
               <FileText

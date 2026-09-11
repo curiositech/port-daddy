@@ -1,168 +1,168 @@
 {
-  "pdf": "/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/figaudit/pdf/legible-swarm-zoom-vs-potemkin/legible-swarm-zoom-vs-potemkin.pdf",
-  "page_count": 1,
-  "params": {
-    "min_font_pt": 7.0,
-    "textwidth_cm": 16.3
+ "figure": "legible-swarm-zoom-vs-potemkin",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
   },
-  "checks": {
-    "T1": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T2": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T3": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T4": {
-      "status": "fail",
-      "count": 5,
-      "findings": [
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            86.40437316894531,
-            154.7408447265625,
-            127.84098815917969,
-            162.71095275878906
-          ],
-          "text": "di\ufb00on disk",
-          "line_segment": [
-            [
-              92.6881103515625,
-              158.72265625
-            ],
-            [
-              175.4278106689453,
-              158.72265625
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'di\ufb00on disk'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            154.68576049804688,
-            154.7408447265625,
-            204.11639404296875,
-            162.71095275878906
-          ],
-          "text": "verbatim test",
-          "line_segment": [
-            [
-              92.6881103515625,
-              158.72265625
-            ],
-            [
-              175.4278106689453,
-              158.72265625
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'verbatim test'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            238.99464416503906,
-            132.60047912597656,
-            264.3874206542969,
-            140.57058715820312
-          ],
-          "text": "8f31c2",
-          "line_segment": [
-            [
-              179.4127197265625,
-              81.34404754638672
-            ],
-            [
-              248.99595642089844,
-              135.10049438476562
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text '8f31c2'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            221.8221435546875,
-            154.7408447265625,
-            281.5422058105469,
-            162.71095275878906
-          ],
-          "text": "commit + claim",
-          "line_segment": [
-            [
-              183.3980255126953,
-              158.72265625
-            ],
-            [
-              266.13775634765625,
-              158.72265625
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'commit + claim'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            373.8121032714844,
-            74.98988342285156,
-            449.8708801269531,
-            82.95999908447266
-          ],
-          "text": "summary terminates",
-          "line_segment": [
-            [
-              411.8569030761719,
-              64.33577728271484
-            ],
-            [
-              411.8569030761719,
-              78.78085327148438
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'summary terminates'"
-        }
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T4": {
+   "status": "fail",
+   "count": 5,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      86.40437316894531,
+      154.7408447265625,
+      127.84098815917969,
+      162.71095275878906
+     ],
+     "text": "di\ufb00on disk",
+     "line_segment": [
+      [
+       92.6881103515625,
+       158.72265625
+      ],
+      [
+       175.4278106689453,
+       158.72265625
       ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'di\ufb00on disk'"
     },
-    "T5": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      154.68576049804688,
+      154.7408447265625,
+      204.11639404296875,
+      162.71095275878906
+     ],
+     "text": "verbatim test",
+     "line_segment": [
+      [
+       92.6881103515625,
+       158.72265625
+      ],
+      [
+       175.4278106689453,
+       158.72265625
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'verbatim test'"
     },
-    "T6": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      238.99464416503906,
+      132.60047912597656,
+      264.3874206542969,
+      140.57058715820312
+     ],
+     "text": "8f31c2",
+     "line_segment": [
+      [
+       179.4127197265625,
+       81.34404754638672
+      ],
+      [
+       248.99595642089844,
+       135.10049438476562
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text '8f31c2'"
     },
-    "T7": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      221.8221435546875,
+      154.7408447265625,
+      281.5422058105469,
+      162.71095275878906
+     ],
+     "text": "commit + claim",
+     "line_segment": [
+      [
+       183.3980255126953,
+       158.72265625
+      ],
+      [
+       266.13775634765625,
+       158.72265625
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'commit + claim'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      373.8121032714844,
+      74.98988342285156,
+      449.8708801269531,
+      82.95999908447266
+     ],
+     "text": "summary terminates",
+     "line_segment": [
+      [
+       411.8569030761719,
+       64.33577728271484
+      ],
+      [
+       411.8569030761719,
+       78.78085327148438
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'summary terminates'"
     }
+   ]
   },
-  "summary": {
-    "result": "fail",
-    "failed_checks": [
-      "T4"
-    ],
-    "warned_checks": []
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
   }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T4"
+  ],
+  "warned_checks": []
+ }
 }

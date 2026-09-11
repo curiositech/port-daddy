@@ -1,0 +1,81 @@
+% Pillar I relation-map: the voting booth (the physical analogy paper4
+% commits to in prose) <-> sealed-room noninterference modulo
+% declassification (formal target). The left column was previously drawn as
+% a sealed airlock while both the caption and the paper's prose used the
+% voting booth; the booth wins, so figure, caption and body now agree.
+% Three rows
+% (mechanism / invariant / proof), boxes and connector labels traced
+% directly from the ax.text / side_box / connector calls in
+% figures/src/r9_figures.py::figure_r9_relation. [internal, script
+% r9_figures.py]
+\begin{figure}[htbp]
+\centering
+\resizebox{0.92\textwidth}{!}{%
+\begin{tikzpicture}[x=1cm,y=1cm]
+
+% Title
+% Every relnode box below carries a heading + a multi-sentence body + a
+% footnote-style annotation, which needs ~7 wrapped lines at this text
+% width -- well past the old minimum height=2.15cm, so consecutive rows
+% overflowed into each other in the CI render. Box height raised to fit
+% the real content (3.8cm, uniform across all six boxes) and row spacing
+% widened to match (2.55cm -> 4.2cm center-to-center); title, subtitle,
+% and the bottom caption pushed out to the new clearances this requires.
+% Canvas has open space on all sides, so this only makes the figure taller.
+\node[align=center,text width=11.5cm,font=\bfseries] at (6,11.7) {Pillar I --- Noninterference: silence except through the slot};
+\node[align=center,text width=11.5cm,font=\small\itshape,color=black!45] at (6,11.0) {the voting booth $\longleftrightarrow$ sealed-room noninterference modulo declassification};
+
+% ===== ROW 1: the mechanism =====
+\node[relnode,draw=harborblue,fill=harborblue!12,minimum width=4.5cm,minimum height=3.8cm,text width=4.2cm] (l1) at (2.5,8.675) {%
+  {\bfseries The booth and the board}\\[3pt]
+  Voters enter one at a time and are unobserved inside; the tally board updates only at the declared count\\[3pt]
+  {\footnotesize\color{black!45} never per-ballot}%
+};
+\node[relnode,draw=seagreen,fill=seagreen!12,minimum width=4.5cm,minimum height=3.8cm,text width=4.2cm] (r1) at (9.5,8.675) {%
+  {\bfseries Gate $g(s) = s \bmod 2$}\\[3pt]
+  Derek's process holds secret $s$; only $g(s)$ ever crosses the boundary\\[3pt]
+  {\footnotesize\color{black!45} never $s$ itself}%
+};
+% Label text width capped to the ~2.5cm gap between columns -- unconstrained
+% it was wider than the gap and spilled onto both boxes' text (CI render).
+\draw[{Stealth[length=2.5mm]}-{Stealth[length=2.5mm]},shipred,line width=1.6pt] (l1.east) to[bend left=8] node[midway,above=2pt,font=\small\bfseries,color=shipred,align=center,text width=2.2cm] {the board is the only opening} (r1.west);
+
+% ===== ROW 2: the invariant =====
+\node[relnode,draw=harborblue,fill=harborblue!12,minimum width=4.5cm,minimum height=3.8cm,text width=4.2cm] (l2) at (2.5,4.475) {%
+  {\bfseries The poll-watcher outside}\\[3pt]
+  Sees only the board --- two electorates with the same totals look identical all day\\[3pt]
+  {\footnotesize\color{black!45} whenever the declared totals match}%
+};
+\node[relnode,draw=seagreen,fill=seagreen!12,minimum width=4.5cm,minimum height=3.8cm,text width=4.2cm] (r2) at (9.5,4.475) {%
+  {\bfseries Erin's observation trace}\\[3pt]
+  Identical for any $s,s'$ with $g(s)=g(s')$, under every interleaving of steps\\[3pt]
+  {\footnotesize\color{black!45} unwinding: Derek-side actions never touch Erin-observable state (`local respect')}%
+};
+\draw[{Stealth[length=2.5mm]}-{Stealth[length=2.5mm]},shipred,line width=1.6pt] (l2.east) to[bend left=8] node[midway,above=2pt,font=\small\bfseries,color=shipred,align=center,text width=2.2cm] {equal release $\Rightarrow$ equal view} (r2.west);
+
+% ===== ROW 3: the proof =====
+\node[relnode,draw=harborblue,fill=harborblue!12,minimum width=4.5cm,minimum height=3.8cm,text width=4.2cm] (l3) at (2.5,0.275) {%
+  {\bfseries Re-running the election}\\[3pt]
+  Every voter order and every swap of two same-party ballots re-run --- the board never tells them apart\\[3pt]
+  {\footnotesize\color{black!45} except at a count itself}%
+};
+\node[relnode,draw=shipred,fill=shipred!10,minimum width=4.5cm,minimum height=3.8cm,text width=4.2cm] (r3) at (9.5,0.275) {%
+  {\bfseries Exhaustive + mutated}\\[3pt]
+  All secret pairs $\times$ all interleavings to depth 7 [\texttt{c1\_noninterference.py}]\\[3pt]
+  {\footnotesize\color{black!45} leaky-gate: caught distinguishing $(0,2)$; bypass: caught in 3 steps}%
+};
+\draw[{Stealth[length=2.5mm]}-{Stealth[length=2.5mm]},shipred,line width=1.6pt] (l3.east) to[bend left=8] node[midway,above=2pt,font=\small\bfseries,color=shipred,align=center,text width=2.2cm] {checked, not assumed} (r3.west);
+
+% Bottom interpretive caption
+\node[align=center,text width=11.5cm,font=\small\itshape,color=black!35] at (6,-2.2) {Two directions, one theorem: Pillar II says gate the channel, Pillar I says the gate suffices};
+\node[align=center,text width=11.5cm,font=\footnotesize\itshape,color=black!45] at (6,-3.15) {(Goguen--Meseguer noninterference modulo declassification; Rushby unwinding, local-respect condition).};
+
+\end{tikzpicture}%
+}
+\caption{Relation-map for Pillar I. The voting booth maps to the sealed workroom by
+\emph{relations}, not surface features: booth walls $\to$ attested isolation (no observation of the work); the tally board $\to$
+the declassification gate (the sole declared release); ``watching all day reveals no ballot'' $\to$ two-run observational
+equivalence under every interleaving. The analogy predicts, correctly, that the residual risk is a too-revealing tally --- a
+per-precinct board with one voter is a leaky $g$, which is exactly what Pillars III and IV price.}
+\label{fig:r9rel}
+\end{figure}

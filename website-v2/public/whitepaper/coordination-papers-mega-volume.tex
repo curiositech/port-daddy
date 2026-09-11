@@ -28,9 +28,19 @@
   % three type sizes on one left datum at 14 mm, the imprint in the foot.
   \pdswisscoverart
   \begin{tikzpicture}[remember picture,overlay,shift={(current page.north west)},x=1mm,y=-1mm]
-    \node[anchor=north west,inner sep=0pt,text width=140mm,align=left,font=\pdgrotesk\fontsize{34}{38}\selectfont\bfseries,text=hhink] at (14,18) {The Harbor,\\the Person,\\and the Economy};
-    \node[anchor=north west,inner sep=0pt,text width=125mm,align=left,font=\pdgrotesk\fontsize{13}{17}\selectfont,text=hhink] at (14,70) {\pdeditionsubtitle};
-    \node[anchor=south west,inner sep=0pt,font=\pdgrotesk\fontsize{9}{11}\selectfont,text=hhink] at (14,246) {Erich Owens\quad\textperiodcentered\quad Curiositech\quad\textperiodcentered\quad Textbook Edition};
+    % The type block ends at about 28% of the 254mm page, which is the number
+    % the cover plate's reserved band has to clear: see
+    % scripts/whitepaper-plates/check_cover_title_band.py, which measures the
+    % plate and fails the build rather than leaving it to the eye. Round 4a's
+    % cover looked clean in a contact sheet, started its photograph 2% down,
+    % and printed the subtitle over a container port.
+    % All three lines live in the plate's reserved band, top-left, and the
+    % image has the rest of the sheet. The imprint used to sit at the foot,
+    % which put 9pt type over a halftone photograph that is 37% lighter than
+    % luminance 140 -- neither black nor reversed white reads on that.
+    \node[anchor=north west,inner sep=0pt,text width=140mm,align=left,font=\pdgrotesk\fontsize{34}{38}\selectfont\bfseries,text=hhink] at (14,14) {The Harbor,\\the Person,\\and the Economy};
+    \node[anchor=north west,inner sep=0pt,text width=125mm,align=left,font=\pdgrotesk\fontsize{13}{17}\selectfont,text=hhink] at (14,66) {\pdeditionsubtitle};
+    \node[anchor=north west,inner sep=0pt,font=\pdgrotesk\fontsize{9}{11}\selectfont,text=hhgray] at (14,75) {Erich Owens\quad\textperiodcentered\quad Curiositech\quad\textperiodcentered\quad Textbook Edition};
   \end{tikzpicture}
 \else\ifpdtechnical
   % Technical cover: the engraving in the lower two thirds of the sheet, the
@@ -78,13 +88,31 @@ Curiositech \textperiodcentered\ Version \pdeditionversion\ \textperiodcentered\
 \end{minipage}
 \vspace*{1.0cm}
 \clearpage
-% Frontispiece: the etching faces the title matter (plates/frontispiece.jpg is optional).
-\IfFileExists{plates/frontispiece.jpg}{%
-  \thispagestyle{empty}\pagecolor{hhpaper}\color{hhink}%
-  \vspace*{\fill}
-  \begin{center}\includegraphics[height=0.92\textheight,width=\textwidth,keepaspectratio]{plates/frontispiece.jpg}\end{center}
-  \vspace*{\fill}
-  \clearpage}{}%
+% Frontispiece: the plate faces the title matter, in the edition's own register.
+%
+% It used to be one maritime etching printed in all three editions and wrapped
+% in \IfFileExists, which is two defects in four lines. The etching's vellum and
+% cross-hatching in front of the Swiss edition's flat colour blocks announced
+% that the character stops at the cover; and a missing plate printed NOTHING, so
+% the book would have shipped without a frontispiece and told nobody -- the
+% silent fallback the plate rule exists to forbid (see the \PackageError in
+% coordination-papers-mega-volume-swiss-plates.tex, which this now matches).
+\newcommand{\pdfrontispiece}[1]{%
+  \IfFileExists{#1}{%
+    \thispagestyle{empty}\pagecolor{hhpaper}\color{hhink}%
+    \vspace*{\fill}
+    \begin{center}\includegraphics[height=0.92\textheight,width=\textwidth,keepaspectratio]{#1}\end{center}
+    \vspace*{\fill}
+    \clearpage}{%
+    \PackageError{coordination-papers-mega-volume}{Missing plate render #1}%
+      {Generate this edition's frontispiece and place it at #1 before building.}}}
+\ifpdswiss
+  \pdfrontispiece{plates/swiss/frontispiece.jpg}
+\else\ifpdtechnical
+  \pdfrontispiece{plates/technical/frontispiece.jpg}
+\else
+  \pdfrontispiece{plates/frontispiece.jpg}
+\fi\fi
 \nopagecolor\color{hhink}
 
 \pagenumbering{roman}
@@ -330,6 +358,7 @@ artifact. The chapters stand alone; the book's claim is the chain they make.
 \clearpage
 \pagenumbering{arabic}
 \hypersetup{pageanchor=true}
+\pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-cite-aliases.tex}{citation short-form aliases}
 \pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex}{chapter body}
 \pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-solutions.tex}{solutions}
 \input{coordination-papers-mega-volume-appendices.tex}

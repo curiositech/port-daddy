@@ -7,10 +7,13 @@ import crypto from 'node:crypto';
 // away from green, while a PDF that changed without a regen still fails here.
 const DIGESTS = 'website-v2/public/whitepaper/publication-digests.json';
 
+// The Book is one published PDF. Its typographic character is chosen by
+// \pdedition's default in coordination-papers-mega-volume-preamble.tex (Swiss
+// today), so the canonical artifact below carries the central edition. The
+// maritime and technical drivers stay in the tree, build on demand, and
+// publish nothing — so they are not pinned here and have no digest entry.
 const EXPECTED_PUBLICATIONS = [
   'website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
-  'website-v2/public/whitepaper/coordination-papers-mega-volume-swiss.pdf',
-  'website-v2/public/whitepaper/coordination-papers-mega-volume-technical.pdf',
   'website-v2/public/whitepaper/single-writer-kernel-whitepaper.pdf',
   'website-v2/public/whitepaper/anchor-protocol-whitepaper.pdf',
   'website-v2/public/whitepaper/sealed-harbor-whitepaper.pdf',

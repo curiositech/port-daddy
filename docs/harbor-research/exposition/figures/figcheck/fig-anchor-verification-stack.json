@@ -1,166 +1,166 @@
 {
-  "pdf": "/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/figaudit/pdf/fig-anchor-verification-stack/fig-anchor-verification-stack.pdf",
-  "page_count": 1,
-  "params": {
-    "min_font_pt": 7.0,
-    "textwidth_cm": 16.3
+ "figure": "fig-anchor-verification-stack",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
   },
-  "checks": {
-    "T1": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T2": {
-      "status": "fail",
-      "count": 1,
-      "findings": [
-        {
-          "check": "T2",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            130.33253479003906,
-            104.39993286132812,
-            185.0722198486328,
-            113.3663101196289
-          ],
-          "container_bbox": [
-            152.3209991455078,
-            86.75816345214844,
-            162.35008239746094,
-            129.78414916992188
-          ],
-          "text": "Rust source",
-          "message": "text 'Rust source' escapes its containing rect (152.3, 86.8, 162.4, 129.8)"
-        }
-      ]
-    },
-    "T3": {
-      "status": "fail",
-      "count": 1,
-      "findings": [
-        {
-          "check": "T3",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            130.33253479003906,
-            104.39993286132812,
-            185.0722198486328,
-            113.3663101196289
-          ],
-          "other_bbox": [
-            153.07701110839844,
-            88.27178955078125,
-            161.047119140625,
-            128.28973388671875
-          ],
-          "text": "Rust source",
-          "other_text": "obligations",
-          "overlap_fraction": 0.224,
-          "message": "text 'Rust source' overlaps 'obligations' by 22.4% of the smaller bbox"
-        }
-      ]
-    },
-    "T4": {
-      "status": "fail",
-      "count": 3,
-      "findings": [
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            113.76667785644531,
-            34.95033645629883,
-            185.08529663085938,
-            43.91671371459961
-          ],
-          "text": "Protocol model",
-          "line_segment": [
-            [
-              168.21861267089844,
-              28.900009155273438
-            ],
-            [
-              168.21861267089844,
-              184.26641845703125
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'Protocol model'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            130.33253479003906,
-            104.39993286132812,
-            185.0722198486328,
-            113.3663101196289
-          ],
-          "text": "Rust source",
-          "line_segment": [
-            [
-              168.21861267089844,
-              28.900009155273438
-            ],
-            [
-              168.21861267089844,
-              184.26641845703125
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'Rust source'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            112.18305969238281,
-            172.97775268554688,
-            185.06173706054688,
-            181.9441375732422
-          ],
-          "text": "Running binary",
-          "line_segment": [
-            [
-              168.21861267089844,
-              28.900009155273438
-            ],
-            [
-              168.21861267089844,
-              184.26641845703125
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'Running binary'"
-        }
-      ]
-    },
-    "T5": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T6": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T7": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+  "T2": {
+   "status": "fail",
+   "count": 1,
+   "findings": [
+    {
+     "check": "T2",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      130.33253479003906,
+      104.39993286132812,
+      185.0722198486328,
+      113.3663101196289
+     ],
+     "container_bbox": [
+      152.3209991455078,
+      86.75816345214844,
+      162.35008239746094,
+      129.78414916992188
+     ],
+     "text": "Rust source",
+     "message": "text 'Rust source' escapes its containing rect (152.3, 86.8, 162.4, 129.8)"
     }
+   ]
   },
-  "summary": {
-    "result": "fail",
-    "failed_checks": [
-      "T2",
-      "T3",
-      "T4"
-    ],
-    "warned_checks": []
+  "T3": {
+   "status": "fail",
+   "count": 1,
+   "findings": [
+    {
+     "check": "T3",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      130.33253479003906,
+      104.39993286132812,
+      185.0722198486328,
+      113.3663101196289
+     ],
+     "other_bbox": [
+      153.07701110839844,
+      88.27178955078125,
+      161.047119140625,
+      128.28973388671875
+     ],
+     "text": "Rust source",
+     "other_text": "obligations",
+     "overlap_fraction": 0.224,
+     "message": "text 'Rust source' overlaps 'obligations' by 22.4% of the smaller bbox"
+    }
+   ]
+  },
+  "T4": {
+   "status": "fail",
+   "count": 3,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      113.76667785644531,
+      34.95033645629883,
+      185.08529663085938,
+      43.91671371459961
+     ],
+     "text": "Protocol model",
+     "line_segment": [
+      [
+       168.21861267089844,
+       28.900009155273438
+      ],
+      [
+       168.21861267089844,
+       184.26641845703125
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'Protocol model'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      130.33253479003906,
+      104.39993286132812,
+      185.0722198486328,
+      113.3663101196289
+     ],
+     "text": "Rust source",
+     "line_segment": [
+      [
+       168.21861267089844,
+       28.900009155273438
+      ],
+      [
+       168.21861267089844,
+       184.26641845703125
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'Rust source'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      112.18305969238281,
+      172.97775268554688,
+      185.06173706054688,
+      181.9441375732422
+     ],
+     "text": "Running binary",
+     "line_segment": [
+      [
+       168.21861267089844,
+       28.900009155273438
+      ],
+      [
+       168.21861267089844,
+       184.26641845703125
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'Running binary'"
+    }
+   ]
+  },
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
   }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T2",
+   "T3",
+   "T4"
+  ],
+  "warned_checks": []
+ }
 }

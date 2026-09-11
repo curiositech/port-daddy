@@ -1,214 +1,214 @@
 {
-  "pdf": "/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/figaudit/pdf/fig-stp-not-bandit/fig-stp-not-bandit.pdf",
-  "page_count": 1,
-  "params": {
-    "min_font_pt": 7.0,
-    "textwidth_cm": 16.3
+ "figure": "fig-stp-not-bandit",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
   },
-  "checks": {
-    "T1": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T2": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T3": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T4": {
-      "status": "fail",
-      "count": 7,
-      "findings": [
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            97.59263610839844,
-            62.7481803894043,
-            137.0920867919922,
-            71.73145294189453
-          ],
-          "text": "\ufb01xed arm",
-          "line_segment": [
-            [
-              90.89082336425781,
-              65.7161865234375
-            ],
-            [
-              138.8162384033203,
-              78.49659729003906
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text '\ufb01xed arm'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            203.02859497070312,
-            113.02040100097656,
-            313.7294616699219,
-            122.00367736816406
-          ],
-          "text": "model / skill versions drift",
-          "line_segment": [
-            [
-              209.107177734375,
-              120.03203582763672
-            ],
-            [
-              209.107177734375,
-              59.32624816894531
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'model / skill versions drift'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            349.99945068359375,
-            70.50149536132812,
-            412.44512939453125,
-            79.48477172851562
-          ],
-          "text": "single reward r",
-          "line_segment": [
-            [
-              410.39337158203125,
-              107.25163269042969
-            ],
-            [
-              410.39337158203125,
-              62.521484375
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'single reward r'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            396.1836853027344,
-            103.22908782958984,
-            431.0873107910156,
-            131.4197998046875
-          ],
-          "text": "accuracy",
-          "line_segment": [
-            [
-              317.7378234863281,
-              110.44685363769531
-            ],
-            [
-              509.43939208984375,
-              110.44685363769531
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'accuracy'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            437.380615234375,
-            103.96480560302734,
-            475.6177062988281,
-            134.48965454101562
-          ],
-          "text": "aesthetics",
-          "line_segment": [
-            [
-              317.7378234863281,
-              110.44685363769531
-            ],
-            [
-              509.43939208984375,
-              110.44685363769531
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'aesthetics'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            479.9369812011719,
-            104.6772232055664,
-            516.1357421875,
-            133.7747802734375
-          ],
-          "text": "e\ufb03ciency",
-          "line_segment": [
-            [
-              317.7378234863281,
-              110.44685363769531
-            ],
-            [
-              509.43939208984375,
-              110.44685363769531
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'e\ufb03ciency'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            202.2471923828125,
-            181.39169311523438,
-            343.42822265625,
-            190.37496948242188
-          ],
-          "text": "Goodhart / collusion / whitewash",
-          "line_segment": [
-            [
-              186.74159240722656,
-              160.60845947265625
-            ],
-            [
-              221.8870849609375,
-              195.75393676757812
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'Goodhart / collusion / whitewash'"
-        }
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T4": {
+   "status": "fail",
+   "count": 7,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      97.59263610839844,
+      62.7481803894043,
+      137.0920867919922,
+      71.73145294189453
+     ],
+     "text": "\ufb01xed arm",
+     "line_segment": [
+      [
+       90.89082336425781,
+       65.7161865234375
+      ],
+      [
+       138.8162384033203,
+       78.49659729003906
       ]
+     ],
+     "message": "a drawn line crosses through the interior of text '\ufb01xed arm'"
     },
-    "T5": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      203.02859497070312,
+      113.02040100097656,
+      313.7294616699219,
+      122.00367736816406
+     ],
+     "text": "model / skill versions drift",
+     "line_segment": [
+      [
+       209.107177734375,
+       120.03203582763672
+      ],
+      [
+       209.107177734375,
+       59.32624816894531
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'model / skill versions drift'"
     },
-    "T6": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      349.99945068359375,
+      70.50149536132812,
+      412.44512939453125,
+      79.48477172851562
+     ],
+     "text": "single reward r",
+     "line_segment": [
+      [
+       410.39337158203125,
+       107.25163269042969
+      ],
+      [
+       410.39337158203125,
+       62.521484375
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'single reward r'"
     },
-    "T7": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      396.1836853027344,
+      103.22908782958984,
+      431.0873107910156,
+      131.4197998046875
+     ],
+     "text": "accuracy",
+     "line_segment": [
+      [
+       317.7378234863281,
+       110.44685363769531
+      ],
+      [
+       509.43939208984375,
+       110.44685363769531
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'accuracy'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      437.380615234375,
+      103.96480560302734,
+      475.6177062988281,
+      134.48965454101562
+     ],
+     "text": "aesthetics",
+     "line_segment": [
+      [
+       317.7378234863281,
+       110.44685363769531
+      ],
+      [
+       509.43939208984375,
+       110.44685363769531
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'aesthetics'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      479.9369812011719,
+      104.6772232055664,
+      516.1357421875,
+      133.7747802734375
+     ],
+     "text": "e\ufb03ciency",
+     "line_segment": [
+      [
+       317.7378234863281,
+       110.44685363769531
+      ],
+      [
+       509.43939208984375,
+       110.44685363769531
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'e\ufb03ciency'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      202.2471923828125,
+      181.39169311523438,
+      343.42822265625,
+      190.37496948242188
+     ],
+     "text": "Goodhart / collusion / whitewash",
+     "line_segment": [
+      [
+       186.74159240722656,
+       160.60845947265625
+      ],
+      [
+       221.8870849609375,
+       195.75393676757812
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'Goodhart / collusion / whitewash'"
     }
+   ]
   },
-  "summary": {
-    "result": "fail",
-    "failed_checks": [
-      "T4"
-    ],
-    "warned_checks": []
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
   }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T4"
+  ],
+  "warned_checks": []
+ }
 }

@@ -1,0 +1,43 @@
+% Frontier relation-map: rows 1-2 of the old fig-r4-relation.tex, split out.
+%
+% SPLIT (noted, not silently): the single R4 relation-map carried three rows
+% -- the rate-distortion constraint upgrade, the delta=0 entropy corner, and
+% the twenty-questions/zoom correspondence -- while its caption described
+% only the third, and it was cited from Sec. sec:zoom mid-analogy. A reader
+% arriving there was handed a diagram whose top two-thirds were about the
+% previous subsection. Rows 1-2 now live here, cited from sec:rdf where they
+% belong; row 3 stays in fig-r4-relation.tex, cited from sec:zoom. Same
+% grammar, same unit length, same content -- only the placement changed.
+% [internal, script r4_figures.py]
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[x=0.78cm,y=0.78cm]
+\node[align=center,font=\small\bfseries,text=harborblue,text width=11.5cm] at (6,8.55)
+  {R4a --- the operator's dial: a second constraint buys back bits, and $\delta{=}0$ gives them all back};
+
+% Base domain (left): classical single-constraint rate-distortion
+\draw[draw=harborblue,thick,fill=harborblue,fill opacity=0.12] (0.2,0.7) rectangle (3.8,7.7);
+\node[align=center,font=\small\bfseries] at (2.0,7.35) {Base: single-constraint RD};
+
+% Target domain (right): the two-constraint dial
+\draw[draw=seagreen,thick,fill=seagreen,fill opacity=0.12] (8.2,0.7) rectangle (11.8,7.7);
+\node[align=center,font=\small\bfseries] at (10.0,7.35) {Target: $R(\delta,f)$, the operator dial};
+
+% Row 1
+\node[align=center,font=\scriptsize] at (2.0,5.20) {minimize $I(X;\hat X)$\\s.t.\ distortion $\le D$\\(Shannon 1959,\\textbook RDC)};
+\node[align=center,font=\scriptsize] at (10.0,5.20) {minimize $I(X;\hat X)$\\s.t.\ miss rate $\le \delta$\\AND flag rate $\le f$\\(custom formulation)};
+\draw[<->,>=Stealth,thick,shipred] (3.9,4.93) -- (8.1,4.93);
+\node[align=center,font=\small\bfseries,text=shipred] at (6.0,6.35) {a SECOND knob:\\flags buy back bits};
+
+% Row 2
+\node[align=center,font=\scriptsize] at (2.0,2.10) {zero tolerance:\\$\delta = 0$,\\no missed\\positives allowed};
+\node[align=center,font=\scriptsize] at (10.0,2.10) {$R(0, f{\to}p) = H(p)$\\$p{=}0.05 \Rightarrow 0.286$ bits/sym\\{[verified, Cover--Thomas]}\\the strict corner, and\\Theorem 1's own corner};
+\draw[<->,>=Stealth,thick,shipred] (3.9,1.83) -- (8.1,1.83);
+\node[align=center,font=\small\bfseries,text=shipred] at (6.0,3.30) {$\delta{=}0$ boundary $\Leftrightarrow$\\entropy floor};
+
+\node[align=center,font=\scriptsize,text width=11cm] at (6.0,0.25)
+  {\itshape Two faces of one dial: the constraint that got added, and the boundary where it collapses back to Shannon. $R(0,0.10)=0.186$, $R(0.01,0.10)=0.110$, $R(0.04,0.06)=0.009$ bits/sym [internal, \texttt{b1\_frontier.py}].};
+\end{tikzpicture}
+\caption{The relation-map for the two-constraint program. The relation that transfers from classical rate--distortion is not the objective --- that is unchanged, $I(X;\hat X)$ --- but the shape of the feasible set: pricing false negatives separately from flag rate adds a second binding constraint, and every bit the digest saves is bought by loosening one of the two. Row 2 is the seam with Theorem 1: at $\delta{=}0$ and $f\to p$ the program returns the source's entire entropy, which is the frontier's own version of the covering floor.}
+\label{fig:rdfrel}
+\end{figure}

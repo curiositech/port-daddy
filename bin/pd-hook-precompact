@@ -19,6 +19,11 @@
 # per-worktree resolver and sends it only as an HTTP header.
 set -u
 
+PD_HOME="${PD_HOME:-$HOME/.port-daddy}"
+# Operator emergency kill switch. Keep this before stdin, logging, HALT
+# handling, daemon probes, and every child process.
+[ -e "$PD_HOME/hooks.disabled" ] && exit 0
+
 EVENT_BUDGET_BYTES="${PD_SQUID_PRECOMPACT_EVENT_BUDGET_BYTES:-65536}"
 case "$EVENT_BUDGET_BYTES" in ''|*[!0-9]*) EVENT_BUDGET_BYTES=65536 ;; esac
 [ "$EVENT_BUDGET_BYTES" -le 65536 ] 2>/dev/null || EVENT_BUDGET_BYTES=65536
@@ -32,7 +37,6 @@ EVENT="$(head -c "$EVENT_BUDGET_BYTES" 2>/dev/null || true)"
 # an automatic compaction must proceed, and a manual one is never blocked on
 # a plan the halted daemon cannot supply.
 # TODO(ADR-0132 phase 0): switch to lib/distress.ts / bin/pd-distress.
-PD_HOME="${PD_HOME:-$HOME/.port-daddy}"
 PD_HALT_SENTINEL="${PD_HALT_FILE:-$PD_HOME/HALT}"
 PD_DISTRESS="${PD_DISTRESS_FILE:-$PD_HOME/DISTRESS}"
 if [ -f "$PD_HALT_SENTINEL" ]; then

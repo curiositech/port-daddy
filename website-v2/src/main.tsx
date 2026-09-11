@@ -23,7 +23,7 @@ const DocsLayout = lazyNamed(() => import('@/components/docs/DocsLayout'), 'Docs
 const TutorialsPage = lazyNamed(() => import('@/pages/TutorialsPage'), 'TutorialsPage')
 const ExamplesPage = lazyNamed(() => import('@/pages/ExamplesPage'), 'ExamplesPage')
 const ExampleDetailPage = lazyNamed(() => import('@/pages/ExampleDetailPage'), 'ExampleDetailPage')
-const LibraryPage = lazy(() => import('@/pages/library'))
+const WhitepaperPage = lazy(() => import('@/pages/whitepaper'))
 const ResearchPage = lazy(() => import('@/pages/research'))
 const SecurityPage = lazy(() => import('@/pages/SecurityPage'))
 const HarnessPage = lazy(() => import('@/pages/HarnessPage'))
@@ -255,16 +255,18 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/harness" element={<HarnessPage />} />
               <Route path="/squid-codex" element={<SquidCodexPage />} />
               <Route path="/cryptography" element={<Navigate to="/security" replace />} />
-              <Route path="/library" element={<LibraryPage />} />
+              {/* One book, one page. /library and /whitepaper had drifted into
+                  two long pages describing the same eight chapters, which is
+                  the site making the same mistake the Book stopped making when
+                  seven papers became one volume. /whitepaper is canonical (it
+                  is what the docs shell and the sidebar link, and what was
+                  shared externally); /library forwards to it. */}
+              <Route path="/whitepaper" element={<WhitepaperPage />} />
+              <Route path="/library" element={<Navigate to="/whitepaper" replace />} />
               <Route path="/research" element={<ResearchPage />} />
               {/* The research program moved from under the library to its own
                   top-level page; the old URL was linked externally. */}
               <Route path="/library/research" element={<Navigate to="/research" replace />} />
-              {/* /whitepaper now forwards to the Library (the canonical home for
-                  the papers). The URL is preserved as a forwarding link because
-                  it was shared externally. Deep links to individual papers below
-                  still resolve. */}
-              <Route path="/whitepaper" element={<Navigate to="/library" replace />} />
               <Route path="/whitepaper/rounds" element={<WhitepaperRoundsPage />} />
               <Route path="/whitepaper/how-we-prove-game-theory" element={<WhitepaperHowWeProvePage />} />
               <Route path="/whitepaper/:paperSlug" element={<WhitepaperDetailPage />} />

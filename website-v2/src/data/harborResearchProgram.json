@@ -1,7 +1,7 @@
 {
   "$schema": "./program.schema.json",
   "version": 1,
-  "updated": "2026-09-07",
+  "updated": "2026-09-08",
   "statement": "The Harbor research program is the part of the whitepaper that has to be proved, measured, or openly admitted unsolved rather than argued for. Seven conference-form papers carry the theorems; a results index says where each executed result lives in the book; a manifest names every mechanized artifact and whether it still runs in CI; pre-registered studies take on the questions the book can't settle from its own results; and a ledger keeps every review objection alongside what was done about it. This file is what the website renders, and it is checked against the index, the manifest, the ledger, and the repository on every pull request — so the page can't drift from the program without the build going red.",
   "checker": "scripts/harbor-research/check_research_program.py",
   "mirror": "website-v2/src/data/harborResearchProgram.json",
@@ -156,7 +156,7 @@
         1
       ],
       "result": "R8",
-      "statement": "The 536-state work-unit machine is checked exhaustively today by a Python model whose guards are proven load-bearing by mutation, which is real evidence but not the same kind as the rest of the estate. The lift restates it in TLA+ and checks it with Apalache, so the kernel's invariants sit in the same checker as the relay's and the ledger's.",
+      "statement": "The 536-state work-unit machine is checked exhaustively today by a Python model each of whose guards is proven necessary by mutation, which is real evidence but not the same kind as the rest of the estate. The lift restates it in TLA+ and checks it with Apalache, so the kernel's invariants sit in the same checker as the relay's and the ledger's.",
       "source": "docs/harbor-research/HANDOFF.md"
     },
     {
@@ -265,6 +265,17 @@
       ],
       "statement": "Conflict-freedom inside the tractable fragment is decided in polynomial time, with a witness, from scratch every time. An amortized checker that updates the witness as a single policy changes is stated in the paper and hasn't been built.",
       "source": "docs/harbor-research/library-index.json"
+    },
+    {
+      "id": "unowned-work",
+      "title": "Origination of unowned work",
+      "chapters": [
+        7,
+        1,
+        5
+      ],
+      "statement": "Every mechanism the book has -- receipts, bonds, escrow, reputation as a ledger position, the deterrence and discount thresholds -- binds an agent to something it agreed to do. A dead daemon or a red test has no counterparty and no price, and nothing in the institution assigns a defect nobody chartered; Ostrom's monitoring and graduated sanctions presuppose a promise to monitor against. Four parts: what mechanism makes an unowned defect somebody's and prices it (a bounty on the commons' own invariants, a rotation, an obligation attached to proximity, a market in noticing); how variable agent lifetimes change the answer, since a worker alive only for one pull request values nothing after it and the reviewers who check it face the same question one level up; who remembers old plans and old ideas, and whether memory induction into standing orders is measurable; and whether this is solved by a market in which agents that do the thing better win the work, or requires evaluators who give feedback immediately and in aggregate, or both, with the boundary between them unwritten.",
+      "source": "docs/roadmap/whitepaper-research-program.md#7-open-problem-9-origination-of-unowned-work"
     }
   ],
   "results": [
@@ -272,7 +283,7 @@
       "id": "R1",
       "kind": "theorem",
       "title": "Read-poverty and the information floor",
-      "oneBreath": "A human overseeing a fleet of software agents reads digests, not transcripts, and any digest that guarantees catching all k load-bearing artifacts among N while opening only m must carry at least log2 C(N,k) - log2 C(m,k) bits.",
+      "oneBreath": "A human overseeing a fleet of software agents reads digests, not transcripts, and any digest that guarantees catching all k critical artifacts among N while opening only m must carry at least log2 C(N,k) - log2 C(m,k) bits.",
       "status": "folded",
       "chapters": [
         4
@@ -405,7 +416,7 @@
       "id": "R8",
       "kind": "result-family",
       "title": "The work-unit machine",
-      "oneBreath": "The state machine (phase, policy, receipt, epoch/holder/stale-token, grants-with-parentage, effect journal, idempotency journal, settlement) satisfies six safety invariants in all 536 reachable states, each guard shown load-bearing by mutation.",
+      "oneBreath": "The state machine (phase, policy, receipt, epoch/holder/stale-token, grants-with-parentage, effect journal, idempotency journal, settlement) satisfies six safety invariants in all 536 reachable states, each guard shown critical by mutation.",
       "status": "folded",
       "chapters": [
         1
@@ -500,7 +511,7 @@
       "id": "R13",
       "kind": "result-family",
       "title": "Engine substitution and resurrection soundness",
-      "oneBreath": "Unattested, the period-2 price never depends on the actual engine so swapping to a cheap one always pays; daemon-attested engine ids flip the incentive to the planner's efficiency rule at zero audit stake, and sanction-respecting reputation survives provider migration under three named clauses, each individually load-bearing.",
+      "oneBreath": "Unattested, the period-2 price never depends on the actual engine so swapping to a cheap one always pays; daemon-attested engine ids flip the incentive to the planner's efficiency rule at zero audit stake, and sanction-respecting reputation survives provider migration under three named clauses, each individually critical.",
       "status": "folded",
       "chapters": [
         5
@@ -690,9 +701,9 @@
   },
   "critiqueLedger": {
     "source": "docs/harbor-research/critique-ledger.json",
-    "total": 759,
-    "done": 561,
-    "declined": 198,
+    "total": 813,
+    "done": 593,
+    "declined": 220,
     "inWave": 0,
     "other": 0
   }

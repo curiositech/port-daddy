@@ -1,185 +1,185 @@
 {
-  "pdf": "/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/figaudit/pdf/legible-swarm-roles/legible-swarm-roles.pdf",
-  "page_count": 1,
-  "params": {
-    "min_font_pt": 7.0,
-    "textwidth_cm": 16.3
-  },
-  "checks": {
-    "T1": {
-      "status": "fail",
-      "count": 6,
-      "findings": [
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            218.41775512695312,
-            154.88609313964844,
-            222.07005310058594,
-            160.86367797851562
-          ],
-          "text": "1",
-          "size_pt": 5.98,
-          "message": "text '1' renders at 5.98pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            265.1898193359375,
-            154.88609313964844,
-            268.8421325683594,
-            160.86367797851562
-          ],
-          "text": "2",
-          "size_pt": 5.98,
-          "message": "text '2' renders at 5.98pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            311.96185302734375,
-            154.88609313964844,
-            315.6141662597656,
-            160.86367797851562
-          ],
-          "text": "3",
-          "size_pt": 5.98,
-          "message": "text '3' renders at 5.98pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            358.734375,
-            154.88609313964844,
-            362.3866882324219,
-            160.86367797851562
-          ],
-          "text": "4",
-          "size_pt": 5.98,
-          "message": "text '4' renders at 5.98pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            405.50640869140625,
-            154.88609313964844,
-            409.1587219238281,
-            160.86367797851562
-          ],
-          "text": "5",
-          "size_pt": 5.98,
-          "message": "text '5' renders at 5.98pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            452.2789306640625,
-            154.88609313964844,
-            455.9312438964844,
-            160.86367797851562
-          ],
-          "text": "6",
-          "size_pt": 5.98,
-          "message": "text '6' renders at 5.98pt, below the 7.00pt floor"
-        }
-      ]
+ "figure": "legible-swarm-roles",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "fail",
+   "count": 6,
+   "findings": [
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      218.41775512695312,
+      154.88609313964844,
+      222.07005310058594,
+      160.86367797851562
+     ],
+     "text": "1",
+     "size_pt": 5.98,
+     "message": "text '1' renders at 5.98pt, below the 7.00pt floor"
     },
-    "T2": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      265.1898193359375,
+      154.88609313964844,
+      268.8421325683594,
+      160.86367797851562
+     ],
+     "text": "2",
+     "size_pt": 5.98,
+     "message": "text '2' renders at 5.98pt, below the 7.00pt floor"
     },
-    "T3": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      311.96185302734375,
+      154.88609313964844,
+      315.6141662597656,
+      160.86367797851562
+     ],
+     "text": "3",
+     "size_pt": 5.98,
+     "message": "text '3' renders at 5.98pt, below the 7.00pt floor"
     },
-    "T4": {
-      "status": "fail",
-      "count": 2,
-      "findings": [
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            230.43740844726562,
-            41.079429626464844,
-            281.8200988769531,
-            73.4476318359375
-          ],
-          "text": "scoped grant g",
-          "line_segment": [
-            [
-              215.4095001220703,
-              43.4664306640625
-            ],
-            [
-              292.37890625,
-              87.13668823242188
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'scoped grant g'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            293.74896240234375,
-            122.85165405273438,
-            376.2874755859375,
-            130.82176208496094
-          ],
-          "text": "each-with-all covenant",
-          "line_segment": [
-            [
-              300.4499206542969,
-              99.02593994140625
-            ],
-            [
-              300.4499206542969,
-              135.29771423339844
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'each-with-all covenant'"
-        }
-      ]
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      358.734375,
+      154.88609313964844,
+      362.3866882324219,
+      160.86367797851562
+     ],
+     "text": "4",
+     "size_pt": 5.98,
+     "message": "text '4' renders at 5.98pt, below the 7.00pt floor"
     },
-    "T5": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      405.50640869140625,
+      154.88609313964844,
+      409.1587219238281,
+      160.86367797851562
+     ],
+     "text": "5",
+     "size_pt": 5.98,
+     "message": "text '5' renders at 5.98pt, below the 7.00pt floor"
     },
-    "T6": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T7": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      452.2789306640625,
+      154.88609313964844,
+      455.9312438964844,
+      160.86367797851562
+     ],
+     "text": "6",
+     "size_pt": 5.98,
+     "message": "text '6' renders at 5.98pt, below the 7.00pt floor"
     }
+   ]
   },
-  "summary": {
-    "result": "fail",
-    "failed_checks": [
-      "T1",
-      "T4"
-    ],
-    "warned_checks": []
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T4": {
+   "status": "fail",
+   "count": 2,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      230.43740844726562,
+      41.079429626464844,
+      281.8200988769531,
+      73.4476318359375
+     ],
+     "text": "scoped grant g",
+     "line_segment": [
+      [
+       215.4095001220703,
+       43.4664306640625
+      ],
+      [
+       292.37890625,
+       87.13668823242188
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'scoped grant g'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      293.74896240234375,
+      122.85165405273438,
+      376.2874755859375,
+      130.82176208496094
+     ],
+     "text": "each-with-all covenant",
+     "line_segment": [
+      [
+       300.4499206542969,
+       99.02593994140625
+      ],
+      [
+       300.4499206542969,
+       135.29771423339844
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'each-with-all covenant'"
+    }
+   ]
+  },
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
   }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T1",
+   "T4"
+  ],
+  "warned_checks": []
+ }
 }

@@ -11,7 +11,7 @@ name: Proofs (TLA+ / Z3 / ProVerif / Kani / Monte Carlo)
 #   - proofs/relay/CardRevocation.tla              (TLA+ via TLC, 3 configs)
 #   - proofs/relay/WebhookDelivery.tla             (TLA+ via TLC, 2 configs)
 #   - proofs/bonded/pareto/threat-bands.mjs        (Monte Carlo)
-#   - every analyses/**, proofs/**, docs/adr/models/** .pv model (ProVerif)
+#   - every analyses/** and proofs/** .pv model (ProVerif)
 #   - the three #[kani::proof] harnesses in core/harbor-card-rs (Kani)
 #   - the 19 skills/harbor-results/scripts/*.py result-checkers (R1-R17)
 #   - scripts/check-whitepaper-corpus.mjs (the estate's own WIRED/RETIRED
@@ -25,7 +25,6 @@ on:
     paths:
       - 'proofs/**'
       - 'analyses/**'
-      - 'docs/adr/models/**'
       - 'core/harbor-card-rs/**'
       - 'scripts/proofs/**'
       - 'whitepaper/corpus.json'
@@ -41,7 +40,6 @@ on:
     paths:
       - 'proofs/**'
       - 'analyses/**'
-      - 'docs/adr/models/**'
       - 'core/harbor-card-rs/**'
       - 'scripts/proofs/**'
       - 'whitepaper/corpus.json'
@@ -136,7 +134,15 @@ jobs:
           mkdir -p "${HOME}/tla"
           # Pinned to v1.8.0 — same line the Conservation.tla artifact
           # was validated against.
-          curl -sSL -o "${HOME}/tla/tla2tools.jar" \
+          #
+          # Retrying, and every other pinned-tool fetch in this file with it:
+          # on 2026-09-08 this exact line died with "curl: (35) Recv failure:
+          # Connection reset by peer" and red-lighted the claim-signaling gate
+          # without TLC ever starting. A formal-verification result that turns
+          # on one TCP connection is not reporting on the proof, it is
+          # reporting on GitHub's CDN. --retry-all-errors is the flag that
+          # matters: plain --retry ignores a reset mid-transfer.
+          curl -sSL --retry 5 --retry-all-errors --retry-delay 3 --max-time 600 -o "${HOME}/tla/tla2tools.jar" \
             https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar
           echo "TLA_TOOLS_JAR=${HOME}/tla/tla2tools.jar" >> "$GITHUB_ENV"
 
@@ -241,7 +247,7 @@ jobs:
           # Pinned to v0.57.0 — the version this artifact was validated
           # against locally on macOS Darwin 26.1 / OpenJDK 26 on 2026-05-20.
           # SMT/Z3 is bundled. ~130 MB.
-          curl -sSL -o /tmp/apalache.tgz \
+          curl -sSL --retry 5 --retry-all-errors --retry-delay 3 --max-time 600 -o /tmp/apalache.tgz \
             https://github.com/apalache-mc/apalache/releases/download/v0.57.0/apalache.tgz
           tar -xzf /tmp/apalache.tgz -C "${HOME}/apalache"
           echo "${HOME}/apalache/apalache/bin" >> "$GITHUB_PATH"
@@ -305,7 +311,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "${HOME}/tla"
-          curl -sSL -o "${HOME}/tla/tla2tools.jar" \
+          curl -sSL --retry 5 --retry-all-errors --retry-delay 3 --max-time 600 -o "${HOME}/tla/tla2tools.jar" \
             https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar
           echo "TLA_TOOLS_JAR=${HOME}/tla/tla2tools.jar" >> "$GITHUB_ENV"
 
@@ -406,15 +412,15 @@ jobs:
           done
 
   # ── ProVerif (2.05): the model estate that never ran ────────────────────────
-  # 25 .pv models under analyses/, proofs/**, and docs/adr/models/ previously
-  # had zero CI coverage -- evidenced only by committed *_results.txt/.run.log
+  # 25 .pv models under analyses/ and proofs/** previously had
+  # zero CI coverage -- evidenced only by committed *_results.txt/.run.log
   # transcripts a human ran locally at some point. scripts/proofs/run-proverif.py
   # re-runs every one of them and fails on any RESULT-line drift from its
   # committed evidence, and separately asserts every negative control
   # (*_vuln*.pv, *naive_unsound*.pv) genuinely fails its query (so the checker
   # itself can't go vacuous). skills/pd-relay-zero-trust/templates/proverif-relay.pv
   # is a skill teaching template, not a claim about this repo's protocol, and is
-  # deliberately out of the runner's three scan roots (see whitepaper/corpus.json).
+  # deliberately out of the runner's two scan roots (see whitepaper/corpus.json).
   proverif-estate:
     if: github.event_name != 'merge_group'
     name: ProVerif / model estate (2.05)
@@ -617,7 +623,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "${HOME}/tla"
-          curl -sSL -o "${HOME}/tla/tla2tools.jar" \
+          curl -sSL --retry 5 --retry-all-errors --retry-delay 3 --max-time 600 -o "${HOME}/tla/tla2tools.jar" \
             https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar
           echo "TLA_TOOLS_JAR=${HOME}/tla/tla2tools.jar" >> "$GITHUB_ENV"
 
@@ -701,7 +707,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "${HOME}/tla"
-          curl -sSL -o "${HOME}/tla/tla2tools.jar" \
+          curl -sSL --retry 5 --retry-all-errors --retry-delay 3 --max-time 600 -o "${HOME}/tla/tla2tools.jar" \
             https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar
           echo "TLA_TOOLS_JAR=${HOME}/tla/tla2tools.jar" >> "$GITHUB_ENV"
 

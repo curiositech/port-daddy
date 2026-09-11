@@ -34,7 +34,10 @@ its weakest necessary part; a verified library does not make every caller safe,
 and an available route does not prove that every effect passes through it.
 
 \subsection{Five assurance modes}
-\begin{description}[leftmargin=2.6cm,style=nextline,itemsep=3pt]
+% Recut from leftmargin=2.6cm,style=nextline (set for the book's earlier A4
+% trim -- more than half the 4.5in measure) to a run-in head: bold term, same
+% line as its text, small hanging indent in em.
+\begin{description}[leftmargin=1.4em,itemsep=3pt]
   \item[Observed] The act may occur elsewhere; the system retains best-effort
   evidence after the fact.
   \item[Coordinated] Cooperative clients register claims, roles, commitments,
@@ -47,14 +50,25 @@ and an available route does not prove that every effect passes through it.
   on a verifiable runtime identity.
 \end{description}
 
-These modes are not a maturity staircase. They answer different questions about
-which channels the institution can see and control. Two public gradings sit
-beside this one on different axes: Sheridan's levels of automation grade how
-much of a task a system performs unassisted, and the Common Criteria's
-evaluation assurance levels grade a security claim by how much independent
-verification backs it. This ladder grades neither task share nor verification
-effort; it grades a runtime claim by the evidence the mechanism itself
-produces.
+These modes are not a maturity staircase, and the rungs are not evenly spaced or
+even totally ordered --- Brokered and Confined defeat different adversaries
+rather than the same adversary harder. What each rung names is what an adversary
+would have to defeat for a claim about that mechanism to be false: nothing at
+Observed, a client's willingness to declare at Coordinated, a daemon-owned
+broker at Brokered, the operating system at Confined, a measured environment and
+a conditional key release at Attested.
+
+Two public gradings sit beside this one, and the chapter that buys these modes
+(\pdchapref{swk}{The Single-Writer Kernel}, \S``What it buys'') argues at length
+why all three axes are independent rather than versions of one another.
+Sheridan and Verplank's levels of automation --- refined by Parasuraman,
+Sheridan and Wickens into four processing stages, each with its own level ---
+grade how much of the decide-and-act loop the machine holds rather than the
+human. The Common Criteria's evaluation assurance levels, EAL1 through EAL7,
+grade how much independent evaluation effort a security claim received before
+deployment, and grade it once, for a whole product. This ladder grades neither
+work allocation nor evaluation effort. It grades one runtime claim about one
+mechanism, by what carries it.
 
 \subsection{What exists now}
 
@@ -105,7 +119,25 @@ does not replicate daemon databases, impose global order, authorize local
 effects, supply end-to-end secrecy by itself, or establish the witness-log and
 settlement institutions described in \pdchapref{fh}{The Federated Harbor}.
 
+% The book's one Overfull \vbox (2.96pt) sits inside this generated table
+% set, one page break into its chain of eight xltabular blocks -- not from
+% too little stretch (\raggedbottom alone, tried first, changed nothing:
+% ragged/flush bottom only decides how a SHORT page is padded, and this
+% page's problem is a row combination that is too TALL, which neither
+% setting shrinks) but from real, reclaimable, redundant space: each table
+% already opens on its own \medskip from the generator, and longtable/
+% xltabular's machinery then adds its OWN \LTpre skip on top of that before
+% the caption -- 6pt plus 12(+-4)pt for eight tables neither of us needed
+% doubled. Dropping longtable's own pre/post skip to zero here removes that
+% redundancy across the whole appendix, which is what actually gives the one
+% tight break room to land without overflowing. \raggedbottom stays too:
+% a dense reference appendix does not need flush-bottom's page-filling
+% stretch, and it costs nothing to leave a short page short instead of
+% stretched.
+{\raggedbottom
+\setlength{\LTpre}{0pt}\setlength{\LTpost}{0pt}
 \pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-mechanized.tex}{mechanized claims}
+\par}
 
 \section{Result atlas}\label{app:result-atlas}\label{app:one-spine}
 
@@ -187,7 +219,9 @@ after they can name the result they instantiate and the obligation they leave
 unresolved.
 
 \section{Notation and cross-chapter concordance}\label{app:concordance}
-\begin{description}[leftmargin=2.4cm,style=nextline,itemsep=4pt]
+% Recut from leftmargin=2.4cm,style=nextline for the same reason as the
+% assurance-modes list above.
+\begin{description}[leftmargin=1.4em,itemsep=4pt]
   \item[Work unit] The durable case file joining authorization, capability
   history, evidence, obligations, outcomes, and settlement.
   \item[Harbor] One local administrative and transactional authority, normally

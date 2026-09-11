@@ -1,81 +1,81 @@
 {
-  "pdf": "/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/figaudit/pdf/fig-auction-inline/fig-auction-inline.pdf",
-  "page_count": 1,
-  "params": {
-    "min_font_pt": 7.0,
-    "textwidth_cm": 16.3
-  },
-  "checks": {
-    "T1": {
-      "status": "fail",
-      "count": 2,
-      "findings": [
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            192.6238250732422,
-            66.71061706542969,
-            196.58872985839844,
-            72.13455200195312
-          ],
-          "text": "T",
-          "size_pt": 5.42,
-          "message": "text 'T' renders at 5.42pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            356.5663757324219,
-            109.54497528076172,
-            360.5312805175781,
-            114.96891021728516
-          ],
-          "text": "T",
-          "size_pt": 5.42,
-          "message": "text 'T' renders at 5.42pt, below the 7.00pt floor"
-        }
-      ]
+ "figure": "fig-auction-inline",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "fail",
+   "count": 2,
+   "findings": [
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      192.6238250732422,
+      66.71061706542969,
+      196.58872985839844,
+      72.13455200195312
+     ],
+     "text": "T",
+     "size_pt": 5.42,
+     "message": "text 'T' renders at 5.42pt, below the 7.00pt floor"
     },
-    "T2": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T3": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T4": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T5": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T6": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T7": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      356.5663757324219,
+      109.54497528076172,
+      360.5312805175781,
+      114.96891021728516
+     ],
+     "text": "T",
+     "size_pt": 5.42,
+     "message": "text 'T' renders at 5.42pt, below the 7.00pt floor"
     }
+   ]
   },
-  "summary": {
-    "result": "fail",
-    "failed_checks": [
-      "T1"
-    ],
-    "warned_checks": []
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T4": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
   }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T1"
+  ],
+  "warned_checks": []
+ }
 }

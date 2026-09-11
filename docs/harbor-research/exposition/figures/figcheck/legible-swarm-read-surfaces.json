@@ -1,221 +1,221 @@
 {
-  "pdf": "/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/figaudit/pdf/legible-swarm-read-surfaces/legible-swarm-read-surfaces.pdf",
-  "page_count": 1,
-  "params": {
-    "min_font_pt": 7.0,
-    "textwidth_cm": 16.3
-  },
-  "checks": {
-    "T1": {
-      "status": "fail",
-      "count": 12,
-      "findings": [
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            173.43185424804688,
-            202.76402282714844,
-            177.0841522216797,
-            208.74160766601562
-          ],
-          "text": "1",
-          "size_pt": 5.98,
-          "message": "text '1' renders at 5.98pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            197.92391967773438,
-            202.76402282714844,
-            201.5762176513672,
-            208.74160766601562
-          ],
-          "text": "2",
-          "size_pt": 5.98,
-          "message": "text '2' renders at 5.98pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            222.41558837890625,
-            202.76402282714844,
-            226.06788635253906,
-            208.74160766601562
-          ],
-          "text": "3",
-          "size_pt": 5.98,
-          "message": "text '3' renders at 5.98pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            246.9076690673828,
-            202.76402282714844,
-            250.55996704101562,
-            208.74160766601562
-          ],
-          "text": "4",
-          "size_pt": 5.98,
-          "message": "text '4' renders at 5.98pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            271.3992919921875,
-            202.76402282714844,
-            275.0516052246094,
-            208.74160766601562
-          ],
-          "text": "5",
-          "size_pt": 5.98,
-          "message": "text '5' renders at 5.98pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            295.8909606933594,
-            202.76402282714844,
-            299.54327392578125,
-            208.74160766601562
-          ],
-          "text": "6",
-          "size_pt": 5.98,
-          "message": "text '6' renders at 5.98pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            320.383056640625,
-            202.76402282714844,
-            324.0353698730469,
-            208.74160766601562
-          ],
-          "text": "7",
-          "size_pt": 5.98,
-          "message": "text '7' renders at 5.98pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            344.87469482421875,
-            202.76402282714844,
-            348.5270080566406,
-            208.74160766601562
-          ],
-          "text": "8",
-          "size_pt": 5.98,
-          "message": "text '8' renders at 5.98pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            369.36676025390625,
-            202.76402282714844,
-            373.0190734863281,
-            208.74160766601562
-          ],
-          "text": "9",
-          "size_pt": 5.98,
-          "message": "text '9' renders at 5.98pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            392.03192138671875,
-            202.76402282714844,
-            399.3365478515625,
-            208.74160766601562
-          ],
-          "text": "10",
-          "size_pt": 5.98,
-          "message": "text '10' renders at 5.98pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            416.5235900878906,
-            202.76402282714844,
-            423.8282165527344,
-            208.74160766601562
-          ],
-          "text": "11",
-          "size_pt": 5.98,
-          "message": "text '11' renders at 5.98pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            441.015625,
-            202.76402282714844,
-            448.32025146484375,
-            208.74160766601562
-          ],
-          "text": "12",
-          "size_pt": 5.98,
-          "message": "text '12' renders at 5.98pt, below the 7.00pt floor"
-        }
-      ]
+ "figure": "legible-swarm-read-surfaces",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "fail",
+   "count": 12,
+   "findings": [
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      173.43185424804688,
+      202.76402282714844,
+      177.0841522216797,
+      208.74160766601562
+     ],
+     "text": "1",
+     "size_pt": 5.98,
+     "message": "text '1' renders at 5.98pt, below the 7.00pt floor"
     },
-    "T2": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      197.92391967773438,
+      202.76402282714844,
+      201.5762176513672,
+      208.74160766601562
+     ],
+     "text": "2",
+     "size_pt": 5.98,
+     "message": "text '2' renders at 5.98pt, below the 7.00pt floor"
     },
-    "T3": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      222.41558837890625,
+      202.76402282714844,
+      226.06788635253906,
+      208.74160766601562
+     ],
+     "text": "3",
+     "size_pt": 5.98,
+     "message": "text '3' renders at 5.98pt, below the 7.00pt floor"
     },
-    "T4": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      246.9076690673828,
+      202.76402282714844,
+      250.55996704101562,
+      208.74160766601562
+     ],
+     "text": "4",
+     "size_pt": 5.98,
+     "message": "text '4' renders at 5.98pt, below the 7.00pt floor"
     },
-    "T5": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      271.3992919921875,
+      202.76402282714844,
+      275.0516052246094,
+      208.74160766601562
+     ],
+     "text": "5",
+     "size_pt": 5.98,
+     "message": "text '5' renders at 5.98pt, below the 7.00pt floor"
     },
-    "T6": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      295.8909606933594,
+      202.76402282714844,
+      299.54327392578125,
+      208.74160766601562
+     ],
+     "text": "6",
+     "size_pt": 5.98,
+     "message": "text '6' renders at 5.98pt, below the 7.00pt floor"
     },
-    "T7": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      320.383056640625,
+      202.76402282714844,
+      324.0353698730469,
+      208.74160766601562
+     ],
+     "text": "7",
+     "size_pt": 5.98,
+     "message": "text '7' renders at 5.98pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      344.87469482421875,
+      202.76402282714844,
+      348.5270080566406,
+      208.74160766601562
+     ],
+     "text": "8",
+     "size_pt": 5.98,
+     "message": "text '8' renders at 5.98pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      369.36676025390625,
+      202.76402282714844,
+      373.0190734863281,
+      208.74160766601562
+     ],
+     "text": "9",
+     "size_pt": 5.98,
+     "message": "text '9' renders at 5.98pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      392.03192138671875,
+      202.76402282714844,
+      399.3365478515625,
+      208.74160766601562
+     ],
+     "text": "10",
+     "size_pt": 5.98,
+     "message": "text '10' renders at 5.98pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      416.5235900878906,
+      202.76402282714844,
+      423.8282165527344,
+      208.74160766601562
+     ],
+     "text": "11",
+     "size_pt": 5.98,
+     "message": "text '11' renders at 5.98pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      441.015625,
+      202.76402282714844,
+      448.32025146484375,
+      208.74160766601562
+     ],
+     "text": "12",
+     "size_pt": 5.98,
+     "message": "text '12' renders at 5.98pt, below the 7.00pt floor"
     }
+   ]
   },
-  "summary": {
-    "result": "fail",
-    "failed_checks": [
-      "T1"
-    ],
-    "warned_checks": []
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T4": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
   }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T1"
+  ],
+  "warned_checks": []
+ }
 }

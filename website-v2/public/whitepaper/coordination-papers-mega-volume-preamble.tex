@@ -100,9 +100,17 @@
 \makeatother
 \usepackage{needspace}
 \usepackage{etoolbox}
-\pretocmd{\section}{\Needspace*{6\baselineskip}}{}{}
-\pretocmd{\subsection}{\Needspace*{5\baselineskip}}{}{}
-\pretocmd{\subsubsection}{\Needspace*{5\baselineskip}}{}{}
+% The reservation has to cover the heading's own apparatus before it covers any
+% prose: a \section spends roughly 3.5 baselines on beforeskip, the heading line
+% at \Large and afterskip, so 6 left about 2.5 lines of text under it -- right on
+% the two-line rule page_spills enforces, and under it once the glue stretched.
+% 5.5 (§5.5, The three organs of continuity) and 7.7.5 (Pricing the Bond) landed
+% stranded that way in all three editions. 8 and 7 leave four clear lines, which
+% is a margin rather than a coin flip, and holds for the Swiss and technical
+% editions too, where Heros sets the heads larger than Pagella does.
+\pretocmd{\section}{\Needspace*{8\baselineskip}}{}{}
+\pretocmd{\subsection}{\Needspace*{7\baselineskip}}{}{}
+\pretocmd{\subsubsection}{\Needspace*{7\baselineskip}}{}{}
 \usepackage{caption}
 \usepackage{enumitem}
 \usepackage{refcount}
@@ -123,9 +131,26 @@
 % watercolour plates), swiss (colour blocking, grotesk display, flat marks) and
 % technical (the Seventies manual: monoline ink, halftone, one warm accent,
 % drawing-sheet openers). A driver root sets \pdedition before \input-ing the
-% Book; without one, the Book is the maritime edition.
+% Book; without one, the Book takes the default set on the next line.
+%
+% Swiss is the central edition. The canonical artifact --
+% coordination-papers-mega-volume.pdf, the file every published link on the
+% site already points at -- renders Swiss because this default says so, which
+% is the whole of the switch: no path, no link and no registry entry moves
+% when the central edition changes, only this macro.
+%
+% Maritime and technical remain switchable and are NOT built for now. Their
+% driver roots (coordination-papers-mega-volume-{maritime,technical}.tex),
+% their plates and their branches in this preamble and in the root all stay in
+% the tree, so either one still builds by hand:
+%
+%   scripts/build-whitepapers.sh coordination-papers-mega-volume-maritime
+%
+% They are simply out of the default build list in scripts/build-whitepapers.sh
+% (see UNBUILT_EDITIONS there) and out of the published registry, because
+% nothing publishes them today.
 % ---------------------------------------------------------------------------
-\providecommand{\pdedition}{maritime}
+\providecommand{\pdedition}{swiss}
 \newif\ifpdmaritime\newif\ifpdswiss\newif\ifpdtechnical
 \makeatletter
 \edef\pd@ed{\pdedition}
@@ -434,7 +459,10 @@
   \noindent{\scshape\footnotesize\color{hhgray}Chapter #1 of \pdchaptercount\hfill\pdchapterpartlabel}\par
   \vspace{0.25cm}
   \noindent\pdweightrule{\pdchapterpartindex}{\textwidth}{2pt}\par
-  \vspace{1.3cm}
+  % The gilt fillet: the trim line of the engraved plates, carried onto the
+  % page. Hairline, under the weight rule, and nowhere else on the spread.
+  \vspace{2.6pt}\noindent{\color{pdmaritimegold}\rule{\textwidth}{0.4pt}}\par
+  \vspace{\dimexpr1.3cm-3pt\relax}
   {\noindent\fontsize{34}{40}\selectfont\color{hhink}\hyphenpenalty=10000\exhyphenpenalty=10000\raggedright #2\par}
   \vspace{1.0cm}
   \begin{flushright}
@@ -545,7 +573,7 @@
   \vspace*{1.6cm}
   \end{adjustwidth}}
 \makeatother
-\newsavebox{\pdqbox}\newlength{\pdplateh}
+\newsavebox{\pdqbox}\newsavebox{\pdpartbox}\newlength{\pdplateh}
 \makeatletter
 \newcommand{\pdchapter}[4]{%
   \clearpage
@@ -648,8 +676,28 @@
     \AddToShipoutPictureBG*{\AtPageLowerLeft{\includegraphics[width=\paperwidth,height=\paperheight]{plates/part-#1.jpg}}}%
     \begin{adjustwidth}{0pt}{-\dimexpr\marginparsep+\marginparwidth\relax}
     \vspace*{1.1cm}
+    % The whole type block is set into a box first, then printed over a soft
+    % paper scrim. The plates are page-shaped watercolours painted to bleed, so
+    % cutting one to the room the type leaves (the maritime chapter idiom)
+    % would crop the composition; and the type cannot simply move, because how
+    % far down it reaches depends on how many chapters the part lists. Part IV
+    % lists three, which pushes its last block into the dark headland of its
+    % wash: measured against ink-coloured type at 9.5pt, those lines read
+    % 2.57:1, 3.20:1 and 3.74:1, all under the 4.5:1 WCAG AA floor, and they
+    % are visibly hard to read in the rendered page.
+    %
+    % A scrim fixes it without touching the art or the layout. Over the pale
+    % upper wash, paper over paper is imperceptible; over the headland it lifts
+    % the ground and the panel that appears reads as a deliberate label on the
+    % painting. 0.35 is chosen with margin, not to the floor: the worst line's
+    % ground goes from luminance 0.103 to 0.391, which is 7.4:1, so a future
+    % plate can be a good deal darker before this page is in trouble again.
+    % scripts/whitepaper-plates/check_cover_title_band.py measures every such
+    % page of every edition and is what found this one.
+    \sbox{\pdpartbox}{\begin{minipage}{\linewidth}
     \noindent\pdweightrule{\csname pdpartindexof#1\endcsname}{0.42\linewidth}{2pt}\par
-    \vspace{0.55cm}
+    \vspace{2.6pt}\noindent{\color{pdmaritimegold}\rule{0.42\linewidth}{0.4pt}}\par
+    \vspace{\dimexpr0.55cm-3pt\relax}
     \noindent{\pdpartface\scshape\large Part #1}\par
     \vspace{0.22cm}
     \noindent{\pdpartface\fontsize{34}{40}\selectfont\hyphenpenalty=10000\exhyphenpenalty=10000\raggedright #2\par}
@@ -657,6 +705,15 @@
     \noindent\begin{minipage}{0.66\linewidth}{\pdpartface\itshape\fontsize{12.5}{16.5}\selectfont\hyphenpenalty=10000\exhyphenpenalty=10000\raggedright #4\par}\end{minipage}\par
     \vspace{0.85cm}
     {\hypersetup{linkcolor=hhink}\noindent\begin{minipage}{0.74\linewidth}#5\end{minipage}\par}
+    \end{minipage}}%
+    \noindent\begin{tikzpicture}
+      \node[inner sep=0pt,outer sep=0pt,anchor=north west] (pdparttype) at (0,0) {\usebox{\pdpartbox}};
+      \begin{scope}[on background layer]
+        \fill[hhpaper,fill opacity=0.35]
+          ($(pdparttype.north west)+(-0.5cm,0.5cm)$)
+          rectangle ($(pdparttype.south east)+(0.5cm,-0.5cm)$);
+      \end{scope}
+    \end{tikzpicture}\par
     \end{adjustwidth}
     \vfill}
 % swiss: the part's colour fills the page; grotesk type on a hard grid
@@ -777,6 +834,12 @@
 
 % Hyperlink and cross-reference discipline (must stay last).
 \input{figures/pd-hyperlinks}
+% \ifpdbook is declared (false) in pd-hyperlinks; the Book turns it on here,
+% AFTER the load, so nothing has to guard the \newif. It selects the Book
+% branch wherever a chapter and its standalone paper must diverge -- a
+% figure the Book prints once and cross-references, which the paper carries
+% its own copy of.
+\pdbooktrue
 
 % ---------------------------------------------------------------------------
 % Overflow safety net. A tikzpicture wider than the text column is set over the

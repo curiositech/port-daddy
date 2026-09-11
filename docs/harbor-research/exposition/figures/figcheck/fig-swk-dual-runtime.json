@@ -1,425 +1,425 @@
 {
-  "pdf": "/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/figaudit/pdf/fig-swk-dual-runtime/fig-swk-dual-runtime.pdf",
-  "page_count": 1,
-  "params": {
-    "min_font_pt": 7.0,
-    "textwidth_cm": 16.3
-  },
-  "checks": {
-    "T1": {
-      "status": "fail",
-      "count": 23,
-      "findings": [
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            150.48684692382812,
-            163.2880859375,
-            165.05970764160156,
-            169.8761749267578
-          ],
-          "text": "open",
-          "size_pt": 6.59,
-          "message": "text 'open' renders at 6.59pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            199.02432250976562,
-            163.2880859375,
-            221.9640655517578,
-            169.8761749267578
-          ],
-          "text": "pragma",
-          "size_pt": 6.59,
-          "message": "text 'pragma' renders at 6.59pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            255.43946838378906,
-            164.69711303710938,
-            270.99395751953125,
-            171.2852020263672
-          ],
-          "text": "write",
-          "size_pt": 6.59,
-          "message": "text 'write' renders at 6.59pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            307.9463806152344,
-            164.98988342285156,
-            323.9290771484375,
-            171.57797241210938
-          ],
-          "text": "crash",
-          "size_pt": 6.59,
-          "message": "text 'crash' renders at 6.59pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            358.45050048828125,
-            163.2880859375,
-            378.86041259765625,
-            169.8761749267578
-          ],
-          "text": "reopen",
-          "size_pt": 6.59,
-          "message": "text 'reopen' renders at 6.59pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            408.9107666015625,
-            164.98988342285156,
-            422.133056640625,
-            171.57797241210938
-          ],
-          "text": "read",
-          "size_pt": 6.59,
-          "message": "text 'read' renders at 6.59pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            284.5371398925781,
-            94.70755004882812,
-            307.4703063964844,
-            101.29564666748047
-          ],
-          "text": "binding",
-          "size_pt": 6.59,
-          "message": "text 'binding' renders at 6.59pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            309.802490234375,
-            94.70755004882812,
-            339.23150634765625,
-            101.29564666748047
-          ],
-          "text": "semantics",
-          "size_pt": 6.59,
-          "message": "text 'semantics' renders at 6.59pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            341.55712890625,
-            94.70755004882812,
-            354.3973083496094,
-            101.29564666748047
-          ],
-          "text": "may",
-          "size_pt": 6.59,
-          "message": "text 'may' renders at 6.59pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            356.722900390625,
-            94.70755004882812,
-            378.5031433105469,
-            101.29564666748047
-          ],
-          "text": "diverge",
-          "size_pt": 6.59,
-          "message": "text 'diverge' renders at 6.59pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            425.1259765625,
-            94.70758056640625,
-            450.78662109375,
-            101.2956771850586
-          ],
-          "text": "compare",
-          "size_pt": 6.59,
-          "message": "text 'compare' renders at 6.59pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            453.1188049316406,
-            94.70758056640625,
-            484.8536682128906,
-            101.2956771850586
-          ],
-          "text": "observable",
-          "size_pt": 6.59,
-          "message": "text 'observable' renders at 6.59pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            487.17926025390625,
-            94.70758056640625,
-            501.98931884765625,
-            101.2956771850586
-          ],
-          "text": "state",
-          "size_pt": 6.59,
-          "message": "text 'state' renders at 6.59pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            155.09097290039062,
-            30.738126754760742,
-            170.6388702392578,
-            37.32622146606445
-          ],
-          "text": "same",
-          "size_pt": 6.59,
-          "message": "text 'same' renders at 6.59pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            173.168701171875,
-            30.738126754760742,
-            201.65562438964844,
-            37.32622146606445
-          ],
-          "text": "operation",
-          "size_pt": 6.59,
-          "message": "text 'operation' renders at 6.59pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            204.17886352539062,
-            30.738126754760742,
-            232.56695556640625,
-            37.32622146606445
-          ],
-          "text": "sequence;",
-          "size_pt": 6.59,
-          "message": "text 'sequence;' renders at 6.59pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            235.0902099609375,
-            30.738126754760742,
-            252.9044189453125,
-            37.32622146606445
-          ],
-          "text": "parity",
-          "size_pt": 6.59,
-          "message": "text 'parity' renders at 6.59pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            255.4276580810547,
-            30.738126754760742,
-            260.4873352050781,
-            37.32622146606445
-          ],
-          "text": "is",
-          "size_pt": 6.59,
-          "message": "text 'is' renders at 6.59pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            263.01715087890625,
-            30.738126754760742,
-            283.0119934082031,
-            37.32622146606445
-          ],
-          "text": "earned",
-          "size_pt": 6.59,
-          "message": "text 'earned' renders at 6.59pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            285.5352478027344,
-            30.738126754760742,
-            298.3688659667969,
-            37.32622146606445
-          ],
-          "text": "only",
-          "size_pt": 6.59,
-          "message": "text 'only' renders at 6.59pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            300.898681640625,
-            30.738126754760742,
-            307.5856018066406,
-            37.32622146606445
-          ],
-          "text": "by",
-          "size_pt": 6.59,
-          "message": "text 'by' renders at 6.59pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            310.1154479980469,
-            30.738126754760742,
-            338.14117431640625,
-            37.32622146606445
-          ],
-          "text": "matching",
-          "size_pt": 6.59,
-          "message": "text 'matching' renders at 6.59pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            340.6710205078125,
-            30.738126754760742,
-            368.8812255859375,
-            37.32622146606445
-          ],
-          "text": "outcomes",
-          "size_pt": 6.59,
-          "message": "text 'outcomes' renders at 6.59pt, below the 7.00pt floor"
-        }
-      ]
+ "figure": "fig-swk-dual-runtime",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "fail",
+   "count": 23,
+   "findings": [
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      150.48684692382812,
+      163.2880859375,
+      165.05970764160156,
+      169.8761749267578
+     ],
+     "text": "open",
+     "size_pt": 6.59,
+     "message": "text 'open' renders at 6.59pt, below the 7.00pt floor"
     },
-    "T2": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      199.02432250976562,
+      163.2880859375,
+      221.9640655517578,
+      169.8761749267578
+     ],
+     "text": "pragma",
+     "size_pt": 6.59,
+     "message": "text 'pragma' renders at 6.59pt, below the 7.00pt floor"
     },
-    "T3": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      255.43946838378906,
+      164.69711303710938,
+      270.99395751953125,
+      171.2852020263672
+     ],
+     "text": "write",
+     "size_pt": 6.59,
+     "message": "text 'write' renders at 6.59pt, below the 7.00pt floor"
     },
-    "T4": {
-      "status": "fail",
-      "count": 1,
-      "findings": [
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            284.5371398925781,
-            94.70755004882812,
-            378.5031433105469,
-            101.29564666748047
-          ],
-          "text": "binding semantics may diverge",
-          "line_segment": [
-            [
-              315.9410705566406,
-              157.27508544921875
-            ],
-            [
-              315.9410705566406,
-              41.28935241699219
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'binding semantics may diverge'"
-        }
-      ]
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      307.9463806152344,
+      164.98988342285156,
+      323.9290771484375,
+      171.57797241210938
+     ],
+     "text": "crash",
+     "size_pt": 6.59,
+     "message": "text 'crash' renders at 6.59pt, below the 7.00pt floor"
     },
-    "T5": {
-      "status": "fail",
-      "count": 1,
-      "findings": [
-        {
-          "check": "T5",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            -1.408932089805603,
-            840.4810791015625,
-            1.408932089805603,
-            843.2989501953125
-          ],
-          "message": "a drawing at (-1.4, 840.5, 1.4, 843.3) falls outside the MediaBox (0.0, 0.0, 595.3, 841.9)"
-        }
-      ]
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      358.45050048828125,
+      163.2880859375,
+      378.86041259765625,
+      169.8761749267578
+     ],
+     "text": "reopen",
+     "size_pt": 6.59,
+     "message": "text 'reopen' renders at 6.59pt, below the 7.00pt floor"
     },
-    "T6": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      408.9107666015625,
+      164.98988342285156,
+      422.133056640625,
+      171.57797241210938
+     ],
+     "text": "read",
+     "size_pt": 6.59,
+     "message": "text 'read' renders at 6.59pt, below the 7.00pt floor"
     },
-    "T7": {
-      "status": "warn",
-      "count": 1,
-      "findings": [
-        {
-          "check": "T7",
-          "severity": "warn",
-          "page": 0,
-          "content_width_pt": 531.5,
-          "textwidth_pt": 462.0,
-          "message": "drawn content is 18.75cm wide, wider than the 16.30cm chapter textwidth"
-        }
-      ]
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      284.5371398925781,
+      94.70755004882812,
+      307.4703063964844,
+      101.29564666748047
+     ],
+     "text": "binding",
+     "size_pt": 6.59,
+     "message": "text 'binding' renders at 6.59pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      309.802490234375,
+      94.70755004882812,
+      339.23150634765625,
+      101.29564666748047
+     ],
+     "text": "semantics",
+     "size_pt": 6.59,
+     "message": "text 'semantics' renders at 6.59pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      341.55712890625,
+      94.70755004882812,
+      354.3973083496094,
+      101.29564666748047
+     ],
+     "text": "may",
+     "size_pt": 6.59,
+     "message": "text 'may' renders at 6.59pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      356.722900390625,
+      94.70755004882812,
+      378.5031433105469,
+      101.29564666748047
+     ],
+     "text": "diverge",
+     "size_pt": 6.59,
+     "message": "text 'diverge' renders at 6.59pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      425.1259765625,
+      94.70758056640625,
+      450.78662109375,
+      101.2956771850586
+     ],
+     "text": "compare",
+     "size_pt": 6.59,
+     "message": "text 'compare' renders at 6.59pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      453.1188049316406,
+      94.70758056640625,
+      484.8536682128906,
+      101.2956771850586
+     ],
+     "text": "observable",
+     "size_pt": 6.59,
+     "message": "text 'observable' renders at 6.59pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      487.17926025390625,
+      94.70758056640625,
+      501.98931884765625,
+      101.2956771850586
+     ],
+     "text": "state",
+     "size_pt": 6.59,
+     "message": "text 'state' renders at 6.59pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      155.09097290039062,
+      30.738126754760742,
+      170.6388702392578,
+      37.32622146606445
+     ],
+     "text": "same",
+     "size_pt": 6.59,
+     "message": "text 'same' renders at 6.59pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      173.168701171875,
+      30.738126754760742,
+      201.65562438964844,
+      37.32622146606445
+     ],
+     "text": "operation",
+     "size_pt": 6.59,
+     "message": "text 'operation' renders at 6.59pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      204.17886352539062,
+      30.738126754760742,
+      232.56695556640625,
+      37.32622146606445
+     ],
+     "text": "sequence;",
+     "size_pt": 6.59,
+     "message": "text 'sequence;' renders at 6.59pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      235.0902099609375,
+      30.738126754760742,
+      252.9044189453125,
+      37.32622146606445
+     ],
+     "text": "parity",
+     "size_pt": 6.59,
+     "message": "text 'parity' renders at 6.59pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      255.4276580810547,
+      30.738126754760742,
+      260.4873352050781,
+      37.32622146606445
+     ],
+     "text": "is",
+     "size_pt": 6.59,
+     "message": "text 'is' renders at 6.59pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      263.01715087890625,
+      30.738126754760742,
+      283.0119934082031,
+      37.32622146606445
+     ],
+     "text": "earned",
+     "size_pt": 6.59,
+     "message": "text 'earned' renders at 6.59pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      285.5352478027344,
+      30.738126754760742,
+      298.3688659667969,
+      37.32622146606445
+     ],
+     "text": "only",
+     "size_pt": 6.59,
+     "message": "text 'only' renders at 6.59pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      300.898681640625,
+      30.738126754760742,
+      307.5856018066406,
+      37.32622146606445
+     ],
+     "text": "by",
+     "size_pt": 6.59,
+     "message": "text 'by' renders at 6.59pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      310.1154479980469,
+      30.738126754760742,
+      338.14117431640625,
+      37.32622146606445
+     ],
+     "text": "matching",
+     "size_pt": 6.59,
+     "message": "text 'matching' renders at 6.59pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      340.6710205078125,
+      30.738126754760742,
+      368.8812255859375,
+      37.32622146606445
+     ],
+     "text": "outcomes",
+     "size_pt": 6.59,
+     "message": "text 'outcomes' renders at 6.59pt, below the 7.00pt floor"
     }
+   ]
   },
-  "summary": {
-    "result": "fail",
-    "failed_checks": [
-      "T1",
-      "T4",
-      "T5"
-    ],
-    "warned_checks": [
-      "T7"
-    ]
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T4": {
+   "status": "fail",
+   "count": 1,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      284.5371398925781,
+      94.70755004882812,
+      378.5031433105469,
+      101.29564666748047
+     ],
+     "text": "binding semantics may diverge",
+     "line_segment": [
+      [
+       315.9410705566406,
+       157.27508544921875
+      ],
+      [
+       315.9410705566406,
+       41.28935241699219
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'binding semantics may diverge'"
+    }
+   ]
+  },
+  "T5": {
+   "status": "fail",
+   "count": 1,
+   "findings": [
+    {
+     "check": "T5",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      -1.408932089805603,
+      840.4810791015625,
+      1.408932089805603,
+      843.2989501953125
+     ],
+     "message": "a drawing at (-1.4, 840.5, 1.4, 843.3) falls outside the MediaBox (0.0, 0.0, 595.3, 841.9)"
+    }
+   ]
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "warn",
+   "count": 1,
+   "findings": [
+    {
+     "check": "T7",
+     "severity": "warn",
+     "page": 0,
+     "content_width_pt": 531.5,
+     "textwidth_pt": 462.0,
+     "message": "drawn content is 18.75cm wide, wider than the 16.30cm chapter textwidth"
+    }
+   ]
   }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T1",
+   "T4",
+   "T5"
+  ],
+  "warned_checks": [
+   "T7"
+  ]
+ }
 }

@@ -141,6 +141,7 @@ boundary, device capacity, latency, and cost allow it.
 
 The profile contract is as important as the vector. A quarantine artifact must
 carry the entire registry-produced record: serving and runtime identity; exact
+execution class, retrieval roles, and policy quality tier; exact
 model, model-config, tokenizer, and tokenizer-config artifacts plus revisions
 and digests; task, prefixes, Unicode/truncation/token-limit recipe; pooling,
 normalization, metric, dimensions; coordinate precision/quantization;
@@ -414,8 +415,8 @@ authorize comparison of declarative-only output.
       promotes registry quality. Promotion requires separate runtime attestation.
 - [ ] Every quarantine persists the complete registry-produced v2 profile,
       including model/config/tokenizer/config artifacts and digests,
-      preprocessing, coordinate/transport/storage representation, bindings,
-      and opaque `spaceId`.
+      preprocessing, coordinate/transport/storage representation, execution
+      class, retrieval roles, quality tier, bindings, and opaque `spaceId`.
 - [ ] Pooling uses the exact versioned registry recipe; generic `mean` or `cls`
       never appears as a profile or plan coordinate.
 - [ ] The declared `spaceId` stays opaque and never mints ResourceScope

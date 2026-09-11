@@ -1,190 +1,190 @@
 {
-  "pdf": "/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/figaudit/pdf/fig-anchor-card-lifecycle/fig-anchor-card-lifecycle.pdf",
-  "page_count": 1,
-  "params": {
-    "min_font_pt": 7.0,
-    "textwidth_cm": 16.3
-  },
-  "checks": {
-    "T1": {
-      "status": "fail",
-      "count": 8,
-      "findings": [
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            143.02000427246094,
-            43.10541534423828,
-            150.32461547851562,
-            49.0829963684082
-          ],
-          "text": "17",
-          "size_pt": 5.98,
-          "message": "text '17' renders at 5.98pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            157.61402893066406,
-            79.2544937133789,
-            164.91864013671875,
-            85.2320785522461
-          ],
-          "text": "17",
-          "size_pt": 5.98,
-          "message": "text '17' renders at 5.98pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            177.84120178222656,
-            138.0673828125,
-            185.14581298828125,
-            144.0449676513672
-          ],
-          "text": "18",
-          "size_pt": 5.98,
-          "message": "text '18' renders at 5.98pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            324.4398498535156,
-            31.85304069519043,
-            327.9068603515625,
-            37.830623626708984
-          ],
-          "text": "r",
-          "size_pt": 5.98,
-          "message": "text 'r' renders at 5.98pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            453.0393371582031,
-            83.89192962646484,
-            456.691650390625,
-            89.86951446533203
-          ],
-          "text": "0",
-          "size_pt": 5.98,
-          "message": "text '0' renders at 5.98pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            377.30963134765625,
-            71.3646011352539,
-            384.6142578125,
-            77.3421859741211
-          ],
-          "text": "17",
-          "size_pt": 5.98,
-          "message": "text '17' renders at 5.98pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            394.2334899902344,
-            180.68983459472656,
-            402.1697082519531,
-            187.66368103027344
-          ],
-          "text": "17",
-          "size_pt": 6.97,
-          "message": "text '17' renders at 6.97pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            139.82373046875,
-            204.60018920898438,
-            147.7599639892578,
-            211.57403564453125
-          ],
-          "text": "18",
-          "size_pt": 6.97,
-          "message": "text '18' renders at 6.97pt, below the 7.00pt floor"
-        }
-      ]
+ "figure": "fig-anchor-card-lifecycle",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "fail",
+   "count": 8,
+   "findings": [
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      143.02000427246094,
+      43.10541534423828,
+      150.32461547851562,
+      49.0829963684082
+     ],
+     "text": "17",
+     "size_pt": 5.98,
+     "message": "text '17' renders at 5.98pt, below the 7.00pt floor"
     },
-    "T2": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      157.61402893066406,
+      79.2544937133789,
+      164.91864013671875,
+      85.2320785522461
+     ],
+     "text": "17",
+     "size_pt": 5.98,
+     "message": "text '17' renders at 5.98pt, below the 7.00pt floor"
     },
-    "T3": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      177.84120178222656,
+      138.0673828125,
+      185.14581298828125,
+      144.0449676513672
+     ],
+     "text": "18",
+     "size_pt": 5.98,
+     "message": "text '18' renders at 5.98pt, below the 7.00pt floor"
     },
-    "T4": {
-      "status": "fail",
-      "count": 1,
-      "findings": [
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            449.9813232421875,
-            81.22774505615234,
-            471.3023376464844,
-            90.30481719970703
-          ],
-          "text": "t0 + \u03c4",
-          "line_segment": [
-            [
-              196.5683135986328,
-              85.55897521972656
-            ],
-            [
-              477.2015380859375,
-              85.55897521972656
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 't0 + \u03c4'"
-        }
-      ]
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      324.4398498535156,
+      31.85304069519043,
+      327.9068603515625,
+      37.830623626708984
+     ],
+     "text": "r",
+     "size_pt": 5.98,
+     "message": "text 'r' renders at 5.98pt, below the 7.00pt floor"
     },
-    "T5": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      453.0393371582031,
+      83.89192962646484,
+      456.691650390625,
+      89.86951446533203
+     ],
+     "text": "0",
+     "size_pt": 5.98,
+     "message": "text '0' renders at 5.98pt, below the 7.00pt floor"
     },
-    "T6": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      377.30963134765625,
+      71.3646011352539,
+      384.6142578125,
+      77.3421859741211
+     ],
+     "text": "17",
+     "size_pt": 5.98,
+     "message": "text '17' renders at 5.98pt, below the 7.00pt floor"
     },
-    "T7": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      394.2334899902344,
+      180.68983459472656,
+      402.1697082519531,
+      187.66368103027344
+     ],
+     "text": "17",
+     "size_pt": 6.97,
+     "message": "text '17' renders at 6.97pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      139.82373046875,
+      204.60018920898438,
+      147.7599639892578,
+      211.57403564453125
+     ],
+     "text": "18",
+     "size_pt": 6.97,
+     "message": "text '18' renders at 6.97pt, below the 7.00pt floor"
     }
+   ]
   },
-  "summary": {
-    "result": "fail",
-    "failed_checks": [
-      "T1",
-      "T4"
-    ],
-    "warned_checks": []
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T4": {
+   "status": "fail",
+   "count": 1,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      449.9813232421875,
+      81.22774505615234,
+      471.3023376464844,
+      90.30481719970703
+     ],
+     "text": "t0 + \u03c4",
+     "line_segment": [
+      [
+       196.5683135986328,
+       85.55897521972656
+      ],
+      [
+       477.2015380859375,
+       85.55897521972656
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 't0 + \u03c4'"
+    }
+   ]
+  },
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
   }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T1",
+   "T4"
+  ],
+  "warned_checks": []
+ }
 }

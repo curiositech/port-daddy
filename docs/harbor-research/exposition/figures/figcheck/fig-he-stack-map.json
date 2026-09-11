@@ -1,145 +1,145 @@
 {
-  "pdf": "/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/figaudit/pdf/fig-he-stack-map/fig-he-stack-map.pdf",
-  "page_count": 1,
-  "params": {
-    "min_font_pt": 7.0,
-    "textwidth_cm": 16.3
+ "figure": "fig-he-stack-map",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
   },
-  "checks": {
-    "T1": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T2": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T3": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T4": {
-      "status": "fail",
-      "count": 4,
-      "findings": [
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            451.22930908203125,
-            86.47718811035156,
-            502.5279846191406,
-            94.3282241821289
-          ],
-          "text": "cross-operator",
-          "line_segment": [
-            [
-              492.0044860839844,
-              66.5909652709961
-            ],
-            [
-              492.0044860839844,
-              193.64205932617188
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'cross-operator'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            451.22930908203125,
-            95.80030059814453,
-            513.3074340820312,
-            103.65133666992188
-          ],
-          "text": "principal binding",
-          "line_segment": [
-            [
-              492.0044860839844,
-              66.5909652709961
-            ],
-            [
-              492.0044860839844,
-              193.64205932617188
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'principal binding'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            123.006591796875,
-            200.6167755126953,
-            205.7879180908203,
-            208.4678192138672
-          ],
-          "text": "implemented substrate",
-          "line_segment": [
-            [
-              141.56692504882812,
-              202.8568115234375
-            ],
-            [
-              465.16925048828125,
-              202.8568115234375
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'implemented substrate'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            439.0887451171875,
-            201.3800506591797,
-            486.807373046875,
-            209.23109436035156
-          ],
-          "text": "market claim",
-          "line_segment": [
-            [
-              141.56692504882812,
-              202.8568115234375
-            ],
-            [
-              465.16925048828125,
-              202.8568115234375
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'market claim'"
-        }
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T4": {
+   "status": "fail",
+   "count": 4,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      451.22930908203125,
+      86.47718811035156,
+      502.5279846191406,
+      94.3282241821289
+     ],
+     "text": "cross-operator",
+     "line_segment": [
+      [
+       492.0044860839844,
+       66.5909652709961
+      ],
+      [
+       492.0044860839844,
+       193.64205932617188
       ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'cross-operator'"
     },
-    "T5": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      451.22930908203125,
+      95.80030059814453,
+      513.3074340820312,
+      103.65133666992188
+     ],
+     "text": "principal binding",
+     "line_segment": [
+      [
+       492.0044860839844,
+       66.5909652709961
+      ],
+      [
+       492.0044860839844,
+       193.64205932617188
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'principal binding'"
     },
-    "T6": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      123.006591796875,
+      200.6167755126953,
+      205.7879180908203,
+      208.4678192138672
+     ],
+     "text": "implemented substrate",
+     "line_segment": [
+      [
+       141.56692504882812,
+       202.8568115234375
+      ],
+      [
+       465.16925048828125,
+       202.8568115234375
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'implemented substrate'"
     },
-    "T7": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      439.0887451171875,
+      201.3800506591797,
+      486.807373046875,
+      209.23109436035156
+     ],
+     "text": "market claim",
+     "line_segment": [
+      [
+       141.56692504882812,
+       202.8568115234375
+      ],
+      [
+       465.16925048828125,
+       202.8568115234375
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'market claim'"
     }
+   ]
   },
-  "summary": {
-    "result": "fail",
-    "failed_checks": [
-      "T4"
-    ],
-    "warned_checks": []
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
   }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T4"
+  ],
+  "warned_checks": []
+ }
 }

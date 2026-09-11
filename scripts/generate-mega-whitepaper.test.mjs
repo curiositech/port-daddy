@@ -8,9 +8,11 @@ import {
   collateReferences,
   compareNormalizedReferences,
   inlineInputs,
+  loadCiteShortforms,
   loadTextbook,
   namespaceLabels,
   renderChapter,
+  renderCiteShortformAliases,
   renderContents,
   renderSolutions,
   renderTextbookMap,
@@ -202,6 +204,30 @@ test('the front-matter map lists every chapter in order with a first-edition con
   assert.match(contents, /I & 4 & \\pdchapref\{ls\}\{The Legible Swarm\}/);
   assert.match(contents, /VII & 8 & \\pdchapref\{fh\}\{The Federated Harbor\}/);
   assert.match(contents, /Proves what \\pdchapref\{swk\}/);
+});
+
+test('a reference whose label already names another chapter by its prefix is left alone', () => {
+  // Chapter 6's Book-only branch points at chapter 8's escrow bound as
+  // \ref{fh:thm:fh-escrow-bound} instead of printing the theorem a second
+  // time. Namespacing that again would yield he:fh:thm:..., which nothing
+  // defines; a label whose head merely resembles a prefix is still local.
+  const source = [
+    '\\ref{fh:thm:fh-escrow-bound}',
+    '\\Cref{thm:local}',
+    '\\cref{fh:thm:a,thm:b}',
+    '\\ref{fhx:thm:not-a-chapter}',
+  ].join('\n');
+  assert.equal(
+    namespaceLabels(source, 'he', ['he', 'fh']),
+    [
+      '\\ref{fh:thm:fh-escrow-bound}',
+      '\\Cref{he:thm:local}',
+      '\\cref{fh:thm:a,he:thm:b}',
+      '\\ref{he:fhx:thm:not-a-chapter}',
+    ].join('\n'),
+  );
+  // With no chapter list, nothing is foreign and the old behaviour stands.
+  assert.equal(namespaceLabels('\\ref{fh:thm:x}', 'he'), '\\ref{he:fh:thm:x}');
 });
 
 test('every cross-reference macro is namespaced, comma lists split, book anchors kept', () => {
@@ -565,4 +591,149 @@ test('one paper cannot map a bibliography key to two references', () => {
     () => collateReferences(prepared),
     /collision\.tex: bibliography key shared maps to two references/,
   );
+});
+
+// ---------------------------------------------------------------------------
+// The collated bibliography: sorted by the name a reader looks up, and one
+// entry per work however a chapter chose to write it.
+// ---------------------------------------------------------------------------
+import { firstAuthorSurname, referenceFingerprint, referenceParts, referenceSortKey } from './generate-mega-whitepaper.mjs';
+
+const entry = (body) => ({ key: 'k', source: 's.tex', body });
+
+test('the bibliography sorts on the surname, not on the first name as written', () => {
+  const keys = [
+    'E. Owens.\n\\newblock \\textit{What Needs an Authority}. Paper 6, 2026.',
+    'Elinor Ostrom.\n\\newblock \\textit{Governing the Commons}. Cambridge University Press, 1990.',
+    'Eric Bach.\n\\newblock Sheaf Cohomology is \\#P-hard. \\textit{JSC}, 27(4), 1999.',
+    'Erich Owens.\n\\newblock The Anchor Protocol. Technical White Paper, 2026.',
+  ].map((b) => referenceSortKey(entry(b)));
+  // Bach < Ostrom < Owens < Owens: "E." and "Erich" land together under O, and
+  // within Owens the two 2026 works fall to title order ("the anchor" before
+  // "what needs").
+  const surnames = [...keys].sort().map((k) => k.split(' ')[0]);
+  assert.deepEqual(surnames, ['bach', 'ostrom', 'owens', 'owens']);
+  assert.ok(keys[3] < keys[0], 'within one author and year, title order');
+});
+
+test('first-author surname: comma lists, ampersands, surname-first, particles, corporate bodies', () => {
+  assert.equal(firstAuthorSurname('Rico Sennrich, Barry Haddow, and Alexandra Birch.'), 'sennrich');
+  assert.equal(firstAuthorSurname('W. F. Dowling \\& J. H. Gallier.'), 'dowling');
+  assert.equal(firstAuthorSurname('Owens, Erich.'), 'owens');
+  assert.equal(firstAuthorSurname('James C.\\ Scott.'), 'scott');
+  assert.equal(firstAuthorSurname('R.~van der Meyden.'), 'meyden');      // Chicago 8.10: the main element
+  // corporate authors file under their first word, however they are shaped
+  assert.equal(firstAuthorSurname('Foundation for Intelligent Physical Agents.'), 'foundation');
+  assert.equal(firstAuthorSurname('AWS Automated Reasoning Group.'), 'aws');
+  assert.equal(firstAuthorSurname('UCAN Working Group.'), 'ucan');
+  assert.equal(firstAuthorSurname('Ethereum Foundation.'), 'ethereum');
+  assert.equal(firstAuthorSurname('HashiCorp.'), 'hashicorp');
+  assert.equal(firstAuthorSurname('The Matrix.org Foundation.'), 'matrix');
+  // "et al." and "(ed.)" are not names and must not read as corporate marks
+  assert.equal(firstAuthorSurname('Alan Demers et al.'), 'demers');
+  assert.equal(firstAuthorSurname('D. Richard Hipp et al.'), 'hipp');
+  assert.equal(firstAuthorSurname('Roland Hedberg (ed.), Michael B. Jones, and Andreas Solberg.'), 'hedberg');
+  assert.equal(firstAuthorSurname(''), '');
+});
+
+test('the same work in two house styles is one fingerprint; \\newblock count is not identity', () => {
+  const a = 'F.~Lin and W.~M. Wonham. On observability of discrete-event systems. \\emph{Information Sciences}, 44(3):173--198, 1988.';
+  const b = 'Feng Lin and W. Murray Wonham.\n\\newblock On observability of discrete-event systems.\n\\newblock \\textit{Information Sciences}, 44(3):173--198, 1988.';
+  // Both reduce to surname "lin", year 1988 -- the surname half of the key agrees
+  // whichever way the chapter wrote the first name.
+  assert.equal(firstAuthorSurname(referenceParts(a).authorField), firstAuthorSurname(referenceParts(b).authorField));
+
+  const one = 'Elinor Ostrom.\n\\newblock \\textit{Governing the Commons: The Evolution of Institutions for Collective Action}. Cambridge University Press, 1990.';
+  const two = 'Elinor Ostrom.\n\\newblock \\textit{Governing the Commons: The Evolution of Institutions for Collective Action}.\n\\newblock Cambridge University Press, 1990.';
+  assert.equal(referenceFingerprint(one), referenceFingerprint(two));
+  assert.equal(referenceSortKey(entry(one)), referenceSortKey(entry(two)));
+  assert.ok(!referenceSortKey(entry(two)).includes('newblock'), 'a control word leaked into the sort key');
+});
+
+test('two genuinely different papers by the same authors in the same year stay distinct', () => {
+  const x = 'Peter J. Ramadge and W. Murray Wonham.\n\\newblock Supervisory Control of a Class of Discrete Event Processes.\n\\newblock \\textit{SIAM J. Control}, 25(1), 1987.';
+  const y = 'Peter J. Ramadge and W. Murray Wonham.\n\\newblock On the supremal controllable sublanguage of a given language.\n\\newblock \\textit{SIAM J. Control}, 25(3), 1987.';
+  assert.notEqual(referenceFingerprint(x), referenceFingerprint(y));
+});
+
+// --- Wave 16 marginalia: \pdcite, \pdprov, \pdprovedon in Book vs standalone
+
+test('rewriteCitations rewrites \\pdcite the same way it rewrites \\cite, preserving the command name', () => {
+  const citationMap = new Map([['lampson1974', 'mega002'], ['saltzer1975protection', 'mega003']]);
+  assert.equal(
+    rewriteCitations('\\pdcite{lampson1974}', citationMap, 'chapter.tex'),
+    '\\pdcite{mega002}',
+  );
+  assert.equal(
+    rewriteCitations('\\pdcite{lampson1974,saltzer1975protection}', citationMap, 'chapter.tex'),
+    '\\pdcite{mega002,mega003}',
+  );
+  // \cite (never promoted, e.g. inside a footnote) still rewrites too.
+  assert.equal(rewriteCitations('\\cite{lampson1974}', citationMap, 'chapter.tex'), '\\cite{mega002}');
+});
+
+test('cleanStandaloneChrome and stripPaperApparatus leave \\pdcite, \\pdprov, and \\pdprovedon untouched', () => {
+  // Unlike \\pdopensolutions (Book-owned, stripped by cleanStandaloneChrome)
+  // or the abstract/keywords (stripped by stripPaperApparatus), these three
+  // macros are the SAME call in the Book and a standalone chapter -- the
+  // fold-back to an inline form happens inside the macro itself
+  // (\\ifpdmargincolumn, figures/pd-pedagogy.tex), not by the generator
+  // rewriting the chapter body, so nothing here should touch them.
+  const body = [
+    '\\section{A section}',
+    'A sentence with a citation~\\pdcite{lampson1974} and a number',
+    '$5.98$ \\pdprov{a7\\_experiment.py}{20260816}{verified}.',
+    '\\begin{pdclaim}{Theorem}{Example}\\label{thm:example}\\pdprovedon{thm:example}',
+    'Statement.',
+    '\\end{pdclaim}',
+  ].join('\n');
+
+  const cleaned = cleanStandaloneChrome(body);
+  assert.equal(cleaned, body, 'cleanStandaloneChrome must not alter the three macro calls');
+
+  const stripped = stripPaperApparatus(cleaned).body;
+  assert.match(stripped, /\\pdcite\{lampson1974\}/);
+  assert.match(stripped, /\\pdprov\{a7\\_experiment\.py\}\{20260816\}\{verified\}/);
+  assert.match(stripped, /\\pdprovedon\{thm:example\}/);
+});
+
+test('namespaceLabels leaves \\pdprovedon\'s own argument alone (it is the LOCAL promise label, not namespaced)', () => {
+  // \\pdprovedon is not in LABEL_COMMANDS: its argument must reach the Book
+  // exactly as written, matching the key build_discharge_pointers.py used
+  // when it generated figures/pd-discharges.tex's \\pdprovedonentry rows.
+  const body = '\\begin{pdclaim}{Theorem}{X}\\label{thm:example}\\pdprovedon{thm:example}\nBody.\\end{pdclaim}';
+  const namespaced = namespaceLabels(body, 'swk');
+  assert.match(namespaced, /\\label\{swk:thm:example\}/);
+  assert.match(namespaced, /\\pdprovedon\{thm:example\}/, '\\pdprovedon argument must stay un-namespaced');
+});
+
+test("renderCiteShortformAliases aliases each paper's local \\bibitem keys to their collated mega-keys", () => {
+  const prepared = [
+    { citationMap: new Map([['lampson1974', 'mega001'], ['unindexed2020', 'mega002']]) },
+    { citationMap: new Map([['lampson1974', 'mega001']]) }, // same reference, second chapter
+  ];
+  const shortforms = new Map([['lampson1974', 'Lampson 1974, \\textit{Protection}']]);
+
+  const rendered = renderCiteShortformAliases(prepared, shortforms);
+  assert.match(rendered, /\\pdciteshort\{mega001\}\{Lampson 1974, \\textit\{Protection\}\}/);
+  // unindexed2020 has no short form (an UNPARSED bibitem) -- no alias row, and
+  // no crash.
+  assert.doesNotMatch(rendered, /mega002/);
+  // The shared reference (mega001) is aliased once, not twice.
+  assert.equal(rendered.match(/mega001/g).length, 1);
+});
+
+test('loadCiteShortforms parses the generated \\pdciteshort table', () => {
+  const path = resolve('.cache/tmp-cite-shortforms-test.tex');
+  writeFileSync(
+    path,
+    '% generated\n\\pdciteshort{lampson1974}{Lampson 1974, \\textit{Protection}}\n',
+    'utf8',
+  );
+  try {
+    const map = loadCiteShortforms(path);
+    assert.equal(map.get('lampson1974'), 'Lampson 1974, \\textit{Protection}');
+  } finally {
+    rmSync(path, { force: true });
+  }
 });

@@ -111,10 +111,14 @@ describe('tutorials index brand voice', () => {
   )
 
   it('uses the current control-plane positioning instead of retired academy metaphors', () => {
-    expect(pageSource).toContain('Operator training')
-    expect(pageSource).toContain('Learn the control plane like an operator.')
-    expect(pageSource).toContain('Product-truth curriculum')
-    expect(pageSource).toContain('engineers evaluating real coding-agent infrastructure')
+    // This used to pin four exact marketing lines ("Operator training",
+    // "Product-truth curriculum" and friends). The plain-language copy pass
+    // replaced all four, and pinning replacements would only fail on the next
+    // rewrite. What has to survive a rewrite is who the page is addressed to
+    // and that it is written against the shipped product -- everything below
+    // is a positioning claim, not a phrasing.
+    expect(pageSource).toContain('engineers')
+    expect(pageSource).toContain('Written against the real product')
     expect(pageSource).not.toContain('Academy of Coordination')
     expect(pageSource).not.toContain('Master the')
     expect(pageSource).not.toContain('Swarm Logic')

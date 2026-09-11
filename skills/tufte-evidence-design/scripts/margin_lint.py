@@ -177,6 +177,7 @@ RULES = {
     "gloss-term-in-prior-prose": "enforced",
     "gloss-in-running-prose": "enforced",
     "no-footnote-in-body": "advisory",
+    "provedon-resolves": "enforced",
 }
 
 
@@ -512,6 +513,46 @@ def check_no_footnote_in_body(path: str, text: str, findings: list):
         })
 
 
+DISCHARGES_REL = "website-v2/public/whitepaper/figures/pd-discharges.tex"
+PROVEDON_ENTRY_RE = re.compile(r'\\pdprovedonentry\s*\{([^}]*)\}')
+
+
+def discharge_entry_labels(repo_root: str) -> set:
+    """The promise labels pd-discharges.tex actually defines a pointer for."""
+    path = Path(repo_root) / DISCHARGES_REL
+    if not path.is_file():
+        return set()
+    text = strip_comments(path.read_text(encoding="utf-8"))
+    return {m.group(1) for m in PROVEDON_ENTRY_RE.finditer(text)}
+
+
+def check_provedon_resolves(path: str, text: str, findings: list, entry_labels: set):
+    """Every \\pdprovedon{label} must have an entry to resolve against.
+
+    \\pdprovedon looks its label up in the generated table and, finding
+    nothing, sets a blank margin note -- no error, no warning, just a "Proved
+    on p. N" pointer that silently is not there. Rename a promise label in a
+    chapter without updating PAIRS and that is what ships. The generator
+    itself already fails closed on the other direction (an entry whose label
+    has moved), so this closes the pair.
+    """
+    for call in find_macro_calls(text, "pdprovedon", 1):
+        label = call["args"][0].strip()
+        if label and label not in entry_labels:
+            findings.append({
+                "file": path,
+                "line": call["line"],
+                "rule": "provedon-resolves",
+                "severity": "enforced",
+                "message": (
+                    f"\\pdprovedon{{{label}}} has no \\pdprovedonentry in "
+                    f"{DISCHARGES_REL} -- the margin pointer will render blank. "
+                    "Add the pair to build_discharge_pointers.py's PAIRS and "
+                    "regenerate, or drop the call."
+                ),
+            })
+
+
 def lint_file(path: str, repo_root: str, sidecar_mod) -> list:
     raw = Path(path).read_text(encoding="utf-8")
     text = strip_comments(raw)
@@ -524,6 +565,7 @@ def lint_file(path: str, repo_root: str, sidecar_mod) -> list:
     check_gloss_term_in_prior_prose(path, text, findings)
     check_gloss_in_running_prose(path, text, findings)
     check_no_footnote_in_body(path, text, findings)
+    check_provedon_resolves(path, text, findings, discharge_entry_labels(repo_root))
     findings.sort(key=lambda f: (f["line"], f["rule"]))
     return findings
 

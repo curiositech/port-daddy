@@ -162,7 +162,7 @@ receive neither. Every week some enterprise negotiates this standoff with
 lawyers and air-gapped laptops. The question this chapter answers is whether a
 \emph{computational} contract can replace the lawyers' one, and what, precisely,
 it can promise. The systems literature answered a narrower version first: Ryoan
-\cite{ryoan16} confines a proprietary module inside an attested enclave so that
+\pdcite{ryoan16} confines a proprietary module inside an attested enclave so that
 a data owner and a code owner who distrust each other both keep their secrets.
 Ryoan buys its confinement with a module that sees its input once and keeps no
 state. A looping, tool-calling agent cannot pay that price, which is why this
@@ -205,9 +205,9 @@ with everything it read. This is a design rationale, not a theorem, and it is
 the one decisive statement in this chapter that carries no proof and no
 script. It rests on the well-known static-analysis result beneath it, that
 certifying implicit flows soundly forces exactly this dichotomy: the label
-creep of the Denning certification lattice \cite{denning77} and the extra
+creep of the Denning certification lattice \pdcite{denning77} and the extra
 restrictiveness a sound purely dynamic monitor must accept relative to a static
-one \cite{rs10}. No sound token-granularity flow analysis for a generative model
+one \pdcite{rs10}. No sound token-granularity flow analysis for a generative model
 is known; the burden of exhibiting one falls on any design that assumes it.
 \end{pdclaim}
 
@@ -257,7 +257,7 @@ key, nonce, and epoch. Derek and Erin \emph{independently} verify the
 attestation; Derek's key broker releases the data key only to the approved
 measurement, and Erin's key broker releases the model and skill key under the
 same condition, the attester, verifier, and relying-party pattern of IETF RATS
-\cite{rats}. The job then runs with no ambient network or credentials. Neither
+\pdcite{rats}. The job then runs with no ambient network or credentials. Neither
 principal, and not the cloud operator, can read the other's plaintext: the room
 is sealed from three sides at once.
 
@@ -282,7 +282,7 @@ inference endpoint would be a third principal the contract never admitted.
 \paragraph{Whole-worker taint and two gates.}
 After the first secret read the entire worker state, and every later emission,
 is tainted until job destruction: decentralized labels in the Myers--Liskov
-style \cite{myers-liskov}, owned by mutually distrustful principals, under
+style \pdcite{myers-liskov}, owned by mutually distrustful principals, under
 which ordinary computation can only \emph{add} restrictions. This is the same
 shape as capability attenuation in \pdchapref{anchor}{The Anchor Protocol},
 where a delegated token never carries more authority than its parent:
@@ -368,7 +368,8 @@ two fences, two gates, and which of the four claims each part produces. The figu
 \section{Silence except through the slot}\label{sec:sealed-noninterference}
 
 \noindent\emph{Express lane: run the whole world twice, identical except for
-Derek's secret, under every possible sequence of moves, and prove that Erin's
+Derek's secret, under every possible sequence of moves --- self-composition,
+in the name the verification literature gave the move~\pdcite{bdr04} --- and prove that Erin's
 view is bit-for-bit identical whenever the gate's declared function maps the
 two secrets to the same release; the formal statement is
 Theorem~\ref{thm:sealed-noninterference}.}
@@ -384,7 +385,7 @@ voting booth: the turnstile clicks once per voter and the tally board shows only
 party totals; a poll-watcher outside learns exactly the declared aggregate and
 nothing about any ballot, no matter how long she watches or in what order
 voters arrive. That is noninterference \emph{modulo declassification} in the
-Goguen--Meseguer lineage \cite{goguen-meseguer-82,goguen-meseguer-84}: silence
+Goguen--Meseguer lineage \pdcite{goguen-meseguer-82,goguen-meseguer-84}: silence
 except through the slot, and through the slot, only what the contract says. The
 misread to preempt: the theorem does not say the slot is safe. It says the slot
 is the \emph{only} opening; whether the declared function $g$ releases too much
@@ -407,7 +408,7 @@ pairs: zero distinguishing observations in the honest model. The schedule
 itself is secret-independent, checked separately, since an enabledness
 difference would itself be a channel. Rushby's unwinding condition of local
 respect, that Derek-side actions never touch Erin-observable state, holds
-mechanically \cite{rushby}. \textbf{Mutations.} A gate that leaks the raw
+mechanically \pdcite{rushby}. \textbf{Mutations.} A gate that leaks the raw
 secret is caught distinguishing the equal-parity pair $(0,2)$ with the witness
 trace $\mathtt{load}\to\mathtt{read}\to\mathtt{submit}\to\mathtt{release}$,
 after which Erin sees \texttt{(gate,0)} in one world and \texttt{(gate,2)} in
@@ -417,13 +418,13 @@ Reverting either mutation restores the property [internal,
 \end{pdclaim}
 
 The clause about committed input is a hypothesis, not a modelling convenience.
-It makes the property an instance of \emph{delimited release} \cite{sm03} in
+It makes the property an instance of \emph{delimited release} \pdcite{sm03} in
 the degenerate case where delimited release collapses to noninterference;
 their own condition is that no variable used in a declassification is updated
 before it. What the hypothesis costs is stated in the boundary below and paid
 in Section~\ref{sec:sealed-budget}. The release ledger of
 \S\ref{sec:sealed-budget} answers, in Sabelfeld and Sands' later organizing
-taxonomy \cite{ss09}, \emph{what} is released (the $\varepsilon$-priced
+taxonomy \pdcite{ss09}, \emph{what} is released (the $\varepsilon$-priced
 artifact), \emph{who} performs the release (the declassifier), and
 \emph{where} it happens (the gate); \emph{when} it happens is the
 release-ledger's own open question, since a room can only price the release
@@ -432,13 +433,16 @@ it observes, not the frequency an adversary chooses to request it.
 \paragraph{Proof idea.}
 There is no proof to read; there is a search to rerun. The checker builds the
 two worlds side by side, one per secret, and drives them through every
-interleaving of the same action sequence to depth 7 --- \textbf{self-composition}
-\cite{bdr04}, the standard technique for reducing a 2-safety hyperproperty
-like noninterference (a claim that quantifies over pairs of runs) to an
-ordinary safety check by composing two copies of the system and asserting an
-invariant relating their states, applied here concretely rather than through a
-general program logic. At each step it projects
-both states onto what Erin can observe and compares. A difference at a
+interleaving of the same action sequence to depth 7. This is
+\textbf{self-composition}, exactly as Barthe, D'Argenio and Rezk set it
+out~\pdcite{bdr04}: noninterference is a claim about \emph{pairs} of runs,
+which no ordinary invariant can state, so you compose two copies of the system
+into one and state an ordinary invariant about the pair. We do it to a finite
+model with a Python checker, where they do it to a program with a logic; that
+is the small version of the technique, but it is the technique --- and this book said
+``run the world twice'' for two editions before noticing the move had a name.
+At each step the checker projects both states onto what Erin can observe and
+compares. A difference at a
 non-release step is a counterexample; a difference at a release step is a
 counterexample exactly when $g$ agreed on the two secrets. The mutation suite
 then shows the search has teeth: with the honest gate replaced by one that
@@ -452,7 +456,7 @@ boxed as the one place a difference could ever show.
 \begin{pdexample}{six pairs, two of them equal-parity}
 Four secrets give $\binom{4}{2}=6$ unordered pairs; two of them, $(0,2)$ and
 $(1,3)$, are equal-parity, and it is exactly those two on which the honest gate
-must keep Erin's worlds identical forever, and did [verified]. The first
+must keep Erin's worlds identical forever, and did\pdprov{c1\_noninterference.py}{20260816}{verified}. The first
 mutation's witness is a four-step, human-readable proof that a particular gate
 breaks its contract; a security officer can read it aloud. \emph{Now you try:}
 with $g(s)=s\bmod 2$ over secrets $\{0,\dots,7\}$, how many unordered secret
@@ -482,7 +486,7 @@ quantifies over action sequences of a model whose gate applies $g$ to committed
 input. It does not cover a worker that launders: computing $t=f(s)$ and
 submitting $t$ so that the gate honestly releases $g(t)$. That is the classical
 escape-hatch laundering attack, which the delimited-release literature names
-and rules out by enforcement \cite{sm03}. Enforcement is unavailable here,
+and rules out by enforcement \pdcite{sm03}. Enforcement is unavailable here,
 because a language model's release candidate is arbitrary output rather than a
 syntactically identifiable expression a checker can quantify over. The
 residual is therefore priced in Section~\ref{sec:sealed-budget}, which is the
@@ -523,7 +527,10 @@ controllability theorem. A policy is regimentable exactly when the events it
 forbids are events the mediation layer can veto; the compound clean-room rule
 is regimentable because it forbids only the egress.}
 \label{tab:sealed-policy-classification}
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{2.3cm} >{\raggedright\arraybackslash}p{1.7cm} >{\raggedright\arraybackslash}p{2.3cm}@{}}
+% Alphabet column widened 1.7cm -> 2.3cm: "uncontrollable" (14 letters, no
+% hyphen of its own) hyphenated at its one legal point and was still 7.9pt
+% over even split -- the column was too narrow for the word outright.
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{2.1cm} >{\raggedright\arraybackslash}p{2.3cm} >{\raggedright\arraybackslash}p{2.1cm}@{}}
 \toprule
 Policy & Constrains & Alphabet & Verdict \\
 \midrule
@@ -531,7 +538,7 @@ no \texttt{fs\_write} outside the workroom & \texttt{fs\_write} & controllable &
 no \texttt{net\_egress} except through the slot & \texttt{net\_egress} & controllable & regimentable \\
 never plan an exfiltration & \texttt{internal\_plan} & uncontrollable & detect-only \\
 never emit a token that names a secret & \texttt{model\_emit\_token} & uncontrollable & detect-only \\
-\textbf{no \texttt{net\_egress} after \texttt{in\_context\_read} of a secret} & \textbf{read (trigger), egress (gate)} & \textbf{mixed} & \textbf{regimentable: taint, then gate} \\
+\textbf{no \texttt{net\_\allowbreak egress} after \texttt{in\_\allowbreak context\_\allowbreak read} of a secret} & \textbf{read (trigger), egress (gate)} & \textbf{mixed} & \textbf{regimentable: taint, then gate} \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -560,17 +567,23 @@ tool-level instruments of \pdchapref{swk}{The Single-Writer Kernel}, the
 guard, the shim, and the hook harness that rides inside a vendor's agent
 loop, sit below even that rung: they are the Observed and Coordinated modes,
 and the room replaces them rather than extending them, because a hook a
-process can decline to invoke gates nothing. This ladder grades a runtime
-claim by the evidence a mechanism itself produces, a different variable from
-Sheridan and Parasuraman--Sheridan--Wickens's levels of automation, which
-grade how much of a task a system performs unassisted \cite{parasuraman2000}, and
-from the Common Criteria's evaluation assurance levels, which grade a
-security claim by how much independent verification backs it
-\cite{cciso15408}.
+process can decline to invoke gates nothing. What this ladder grades ---
+argued at length where the modes are bought, in
+\pdchapref{swk}{The Single-Writer Kernel} --- is what an adversary would have
+to defeat for one runtime claim about one mechanism to be false. That is a
+third axis, and it is independent of the two public gradings it resembles:
+Sheridan and Verplank's levels of automation, refined into four processing
+stages by Parasuraman, Sheridan and Wickens, grade how much of the
+decide-and-act loop the machine holds rather than the human
+\pdcite{sheridanverplank1978,parasuraman2000}, and the Common Criteria's
+evaluation assurance levels grade how much independent evaluation effort a
+security claim received before deployment \pdcite{cciso15408}. Neither says
+which component's failure would falsify a particular record, which is the only
+question this ladder asks.
 
 \begin{pdboundary}
 Controllability is relative to the mediated alphabet: partial observation
-shrinks the regimentable set (Lin--Wonham \cite{lin-wonham}), and policies that
+shrinks the regimentable set (Lin--Wonham \pdcite{lin-wonham}), and policies that
 reference unmediated \emph{state} need that extension, which the kernel chapter
 states. Detect-only is not hopeless; it is a different business, post-hoc
 audit and slashing, which \pdchapref{bonded}{The Bonded Commons} treats. And
@@ -591,7 +604,7 @@ property of the workroom, not a theorem.
 
 \noindent Rogers, Roth, Ullman and Vadhan coined two names for a ledger like
 this one, tracking cumulative differential-privacy expenditure across
-adaptively chosen queries \cite{rruv16}: a \textbf{privacy odometer} reads the
+adaptively chosen queries \pdcite{rruv16}: a \textbf{privacy odometer} reads the
 running total with no pre-specified ceiling, and a \textbf{privacy filter}
 halts before a pre-specified budget is exceeded. Because $\varepsilon_{\max}$
 below is fixed in advance and every over-budget release is refused, this
@@ -642,7 +655,7 @@ $\sigma\le\varepsilon_{\max}$, including under concurrent invocation, because
 the kernel's single-writer serialization makes any concurrent execution
 observationally equal to some sequential interleaving.
 \textbf{Corollary.} The ledger is a \emph{privacy filter} in the sense of
-Rogers, Roth, Ullman and Vadhan \cite{rruv16}: a stopping rule that halts
+Rogers, Roth, Ullman and Vadhan \pdcite{rruv16}: a stopping rule that halts
 before a pre-specified budget is exceeded. What licenses
 $\sigma\le\varepsilon_{\max}\Rightarrow(\varepsilon_{\max},0)$-differential
 privacy under adaptive, heterogeneous spend is their filter theorem, that
@@ -666,10 +679,10 @@ such a filter is \emph{not} valid: the heuristic ``run the advanced bound on
 whatever the ledger actually spent'' breaks when the parameters or the stopping
 point are adaptively chosen. This chapter therefore quotes the advanced bound
 $\bigl(\sqrt{2k\ln(1/\delta')}\,\varepsilon+k\varepsilon(e^\varepsilon-1),\,\delta'\bigr)$
-\cite{drv} only for engagements in which $k$ and the per-release
+\pdcite{drv} only for engagements in which $k$ and the per-release
 $\varepsilon$ are fixed in the work order, where the schedule is non-adaptive
 and the bound applies directly, and uses the adaptively valid filter of
-Whitehouse et al.\ \cite{wrrw23}, which recovers the advanced-composition rate
+Whitehouse et al.\ \pdcite{wrrw23}, which recovers the advanced-composition rate
 at worse constants, otherwise. Getting this wrong is not conservative: it
 certifies a smaller $\varepsilon$ than the run is entitled to.
 
@@ -685,10 +698,10 @@ Section~\ref{sec:sealed-budget}, not the ledger, is the operative bound. The
 two accounts are for two different adversaries and the chapter owns both.
 Systems that schedule privacy budgets across concurrent jobs make the
 corresponding assumption explicit, that the analyst is trusted to implement
-the mechanism correctly \cite{pkube21}; this chapter declines that assumption
+the mechanism correctly \pdcite{pkube21}; this chapter declines that assumption
 about Erin's worker, which is precisely why it cannot lean on the ledger alone.
 Stating the two accounts in one currency needs the correspondence between
-$\varepsilon$ and min-entropy of Alvim et al.\ \cite{aacp11}, which is not
+$\varepsilon$ and min-entropy of Alvim et al.\ \pdcite{aacp11}, which is not
 discharged here.
 
 \begin{pdclaim}{Model-checked property}{The ledger's invariants on the two-client instance}
@@ -716,7 +729,7 @@ invariants, with the step count each is caught in.
 At $\delta'=10^{-6}$: for $k=32$ releases at $\varepsilon=0.1$, basic
 composition gives $32\times 0.1=3.20$ while the advanced bound gives $3.31$, so
 the advanced bound is not yet paying; at $k=128$, $\varepsilon=0.05$, basic
-gives $6.40$ but advanced gives $3.30$, and it pays [verified]. The crossover
+gives $6.40$ but advanced gives $3.30$, and it pays\pdprov{a3\_epsilon\_ledger.py}{20260816}{verified}. The crossover
 tells the contract writer exactly which accounting to quote at which
 engagement length: below it, the exact, $\delta$-free sequential bound; above
 it, the $\sqrt{k}$-scaled advanced bound. \emph{Now you try:} at $k=8$,
@@ -785,16 +798,18 @@ ratio test with false-alarm target $\alpha$ and miss target $\gamma$ stops,
 under leak, after expected
 $\mathbb{E}_1[N]=\bigl[(1-\gamma)\ln\tfrac{1-\gamma}{\alpha}+\gamma\ln\tfrac{\gamma}{1-\alpha}\bigr]/\mathrm{KL}(p_1\Vert p_0)$
 outputs, analogously $\mathbb{E}_0[N]$ under the null, and is optimal in the
-Wald--Wolfowitz sense \cite{wald,wald-wolfowitz}. The miss target is written
+Wald--Wolfowitz sense \pdcite{wald,wald-wolfowitz}. The miss target is written
 $\gamma$ because $\beta$ is already the per-canary miss rate and $b$ is the
 release-channel width of Section~\ref{sec:sealed-budget}.
 \end{pdclaim}
 
-This is textbook sequential analysis applied to a live security detector, and
-the closest prior instance of exactly that move is Jung, Paxson, Berger and
-Balakrishnan's Threshold Random Walk, which models portscan detection as the
-same benign-versus-malicious random walk and derives a guaranteed
-false-positive/latency trade-off from Wald's SPRT \cite{jpbb04}.
+This is textbook sequential analysis pointed at a live security detector, and
+the move has a precedent worth naming: Jung, Paxson, Berger and Balakrishnan's
+threshold random walk did the same thing to portscan detection in 2004,
+modelling the benign-or-malicious question as a random walk between two
+hypotheses and reading a guaranteed false-positive-against-latency trade-off
+straight off Wald's test \pdcite{jpbb04}. The canary is that detector with the
+network swapped for a gate.
 
 \paragraph{Proof idea.}\pdmarginfigure{wald}{Wald's sequential probability ratio test, made for wartime quality control, is still the fastest way to decide that a canary has tripped at a guaranteed error rate.}%
 Power is independence and counting: a leak is missed only if every carried
@@ -825,7 +840,7 @@ time to detection about thirtyfold [internal, \texttt{a4\_canary\_sprt.py}].
 At $\beta=0.2$, two smuggled canaries are caught with probability
 $1-0.04=0.96$ and three with $1-0.008=0.992$ [verified]. The operating curve at
 $m=100$: $1-(1-0.01\times0.8)^{100}=1-0.992^{100}=0.553$ by the binomial
-approximation, against $0.554$ exact [internal]. \emph{Now you try:} at the
+approximation, against $0.554$ exact\pdprov{a4\_canary\_sprt.py}{20260816}{internal}. \emph{Now you try:} at the
 same $\beta$, what does a five-canary leak survive with, and can you recover
 Wald's $296.9$ from the formula with a pocket calculator?
 (Exercises~\ref{ex:sealed-power} and \ref{ex:sealed-sprt}.)
@@ -870,7 +885,7 @@ exfiltrate up to $b$ bits through it: the noninterference property guarantees
 only that those bits pass through the declared gate, not that they are
 innocent. Across $q$ jobs the raw capacity is $q\cdot b$ bits; choosing among
 $s$ timing slots adds up to $\log_2 s$ bits per event, which is why timing sits
-outside the possibilistic model. In Smith's vocabulary \cite{smith-qif}, the
+outside the possibilistic model. In Smith's vocabulary \pdcite{smith-qif}, the
 design does not drive min-entropy leakage to zero; it makes leakage a
 \emph{declared, metered} quantity. Fixed schemas, padding, coarse statuses,
 query limits, and scheduled release turn an unlimited covert channel into a
@@ -922,7 +937,7 @@ overclaims.
 \paragraph{The lift.}
 Theorem~\ref{thm:sealed-noninterference} is exhaustive on a finite model; the
 general claim over unbounded state is a proof obligation with a known shape.
-Rushby's channel-control formulation \cite{rushby} reduces noninterference for
+Rushby's channel-control formulation \pdcite{rushby} reduces noninterference for
 a transition system to three local \emph{unwinding conditions}, output
 consistency, step consistency, and local respect, each a per-transition lemma
 amenable to mechanization, and the Isabelle Archive of Formal Proofs already
@@ -935,7 +950,7 @@ depths and all secrets. One precision the lift must get right from the start:
 Rushby's soundness result for these conditions is with respect to intransitive
 purge, but van der Meyden shows the conditions are sound \emph{and complete}
 for the strictly stronger TA-security property, which additionally preserves
-the \emph{order} of permitted transmissions \cite{vdm07}. Discharging the
+the \emph{order} of permitted transmissions \pdcite{vdm07}. Discharging the
 three lemmas therefore certifies TA-security, and the lift should state that
 target explicitly. Two extensions of the finite model are open alongside the
 lift: a \texttt{submit} that carries a payload, so the mutation suite can
@@ -946,6 +961,7 @@ agreement are \pdassurance{Attested} on their scripts; the room itself is a
 \pdassurance{Confined} design whose complete-mediation invariant is attested
 per deployment, not proved.
 
+\pdexercisepointer*{\ref{ex:sealed-pairs}}{\ref{ex:sealed-budget}}{\pageref{ex:sealed-pairs}}
 \begin{pdrecitation}
 \item Without looking: state the sentence that replaces ``mathematically cannot
   phone home,'' and name the theorem that makes each of its three adjectives
@@ -956,7 +972,6 @@ per deployment, not proved.
   adversarial capacity before timing, and which link polices it?
 \end{pdrecitation}
 
-\pdexercisepointer{\ref{ex:sealed-pairs}}{\ref{ex:sealed-budget}}{\pageref{ex:sealed-pairs}}
 
 \section*{Review of the key ideas}
 \addcontentsline{toc}{section}{Review of the key ideas}
@@ -966,7 +981,7 @@ What this chapter leaves coupled, in the order the rest of the book will lean on
 \item A \textbf{sealed room} lets an agent compute on data it may not export: the data owner and the model owner each get their guarantee from a fence they can inspect, not from trust in the other.
 \item \textbf{Taint does not survive a language model.} Token-level information flow through the model is not soundly definable, so the room does not try; it fences the room and gates the slot.
 \item \textbf{Two fences, two gates}: the work order fixes what may enter, the slot fixes what may leave, and the model in between is treated as an opaque function of both.
-\item \textbf{Noninterference is checked by running the world twice}: identical except for the secret, the two runs must agree on everything that leaves through the slot, modulo the declassification the gate performs. The finite clean-room model passes this check to depth seven.
+\item \textbf{Noninterference is checked by running the world twice} (self-composition, in the verification literature's word): identical except for the secret, the two runs must agree on everything that leaves through the slot, modulo the declassification the gate performs. The finite clean-room model passes this check to depth seven.
 \item The gate sits on the \textbf{only enforceable boundary}: a policy over the agent's behavior is enforceable exactly when its trigger is witnessed at the slot; anything decided inside the room is detect-only.
 \item \textbf{The privacy budget is a ledger that conserves}: every release debits $\varepsilon$, the ledger's total never exceeds $\varepsilon_{\max}$, and a torn write is caught by the invariant within three steps on the two-client instance.
 \item \textbf{Canaries have a power curve and a clock}: with per-canary miss probability $\beta$ and $k$ independent canaries, the chance a smuggled item passes is $\beta^{k}$ ($0.008$ at $\beta=0.2$, $k=3$), and Wald's sequential test bounds how long detection takes.
@@ -1119,7 +1134,7 @@ $n=10^4$, $c=100$, $m=100$ and compare with the exact value $0.554$.
 $\beta^5=0.00032$, so detection is $0.99968$ [verified]; the script's analytic
 line reads \texttt{k=5: analytic 0.99968 simulated 0.99967}. The approximation
 gives $1-(1-0.01\times0.8)^{100}=1-0.992^{100}=0.553$, within a thousandth of
-the exact hypergeometric $0.554$ [internal].
+the exact hypergeometric $0.554$\pdprov{a4\_canary\_sprt.py}{20260816}{internal}.
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Trace,rating=2]{ex:sealed-sprt}
@@ -1245,12 +1260,17 @@ p.~100, 2004.
 using sequential hypothesis testing. In \emph{Proc.\ IEEE Symposium on Security and Privacy},
 2004.
 
+\bibitem{sheridanverplank1978} T.~B. Sheridan and W.~L. Verplank. \emph{Human and Computer
+Control of Undersea Teleoperators}. Man--Machine Systems Laboratory, Department of Mechanical
+Engineering, MIT; ONR Technical Report, 1978. NTIS ADA057655.
+
 \bibitem{parasuraman2000} R.~Parasuraman, T.~B. Sheridan, and C.~D. Wickens. A model for types
 and levels of human interaction with automation. \emph{IEEE Transactions on Systems, Man, and
 Cybernetics -- Part A}, 30(3):286--297, 2000.
 
-\bibitem{cciso15408} ISO/IEC 15408. \emph{Common Criteria for Information Technology Security
-Evaluation}. International Organization for Standardization, current edition.
+\bibitem{cciso15408} ISO/IEC 15408-1:2022. \emph{Information security, cybersecurity and privacy
+protection --- Evaluation criteria for IT security --- Part 1: Introduction and general model}
+(Common Criteria, CC:2022). International Organization for Standardization, 2022.
 
 \end{thebibliography}
 

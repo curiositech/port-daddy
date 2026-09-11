@@ -81,6 +81,23 @@ jobs:
         # need not touch the manifest. Cheap — it walks markdown and YAML only.
         run: node scripts/doc-retirement-guard.mjs
 
+  mcp-catalog-guard:
+    # website-v2/src/data/mcpAgentToolCatalog.ts is generated straight out of
+    # mcp/server.ts, and the site's published tool counts are read off it. Nothing
+    # regenerated it when a tool was added, so it fell 53 tools behind the server
+    # while the docs page kept telling readers a number typed by hand. This is a
+    # source-to-source check with no daemon and no browser: it re-derives the
+    # catalogue and fails if the committed one differs.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: MCP tool catalogue matches mcp/server.ts
+        run: npm --prefix website-v2 run test:mcp-catalog
+
   porthole-cast-gate:
     # Cheap, blocking companion to website-terminal-recordings' raw-text regex
     # scan: replays every committed website-v2/public/casts/porthole/*.cast
@@ -597,6 +614,70 @@ jobs:
         #   npm run sync:skill-mirrors
         run: node scripts/sync-skill-mirrors.mjs --check
 
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: The whole catalog can still fan out to every runtime
+        # WHY A FRESH BASE AND NOT --check. The per-runtime link trees
+        # (.claude/skills, .codex/skills, and fourteen more) are gitignored, so a
+        # CI checkout never has them and `--check` would report all 5203 missing
+        # on a perfectly healthy repo -- a gate that fails always teaches people
+        # to ignore it.
+        #
+        # What is worth guarding is that the CATALOG still resolves: every skill
+        # id reachable, every collision decided by source priority, every one of
+        # the sixteen runtime targets writable. Fanning out into a throwaway
+        # directory proves exactly that and nothing about anyone's checkout.
+        #
+        # This gate exists because nothing guarded the sync at all, and the drift
+        # that follows is silent: the repo's own project-scope tree was at 0 of
+        # 5203 links on 2026-09-08 with every check green, because no workflow
+        # and no git hook ever ran the sync or asked after it.
+        run: |
+          set -euo pipefail
+          BASE="$(mktemp -d)"
+          npx tsx scripts/sync-skills.ts --scope project --base "$BASE" --json > /tmp/skill-fanout.json
+          python3 - <<'PY'
+          import json, sys
+          d = json.load(open('/tmp/skill-fanout.json'))
+          # The result mixes shapes and it matters: skillCount/created/replaced
+          # are INTS, while errors/skippedExisting/targets are LISTS. len() on
+          # the ints is what broke this step the first time it ran, and the
+          # probe that was supposed to catch it printed `len(v) if isinstance(v,
+          # list) else v`, which renders 5232 identically either way -- a
+          # measurement that could not have told me which I had.
+          errors = d.get('errors') or []
+          blocked = d.get('skippedExisting') or []
+          targets = d.get('targets') or []
+          created = d.get('created') or 0
+          skills = d.get('skillCount') or 0
+          audit = d.get('audit') or {}
+          orphaned = audit.get('orphanedLinks') or 0
+          print(f'fanned out {skills} skill(s) to {len(targets)} runtime(s): '
+                f'{created} link(s), {len(errors)} error(s), {len(blocked)} blocked, '
+                f'{orphaned} orphaned')
+          if errors:
+              print('-- the catalog could not fan out:', file=sys.stderr)
+              for e in errors[:20]:
+                  print(f'     {e}', file=sys.stderr)
+              sys.exit(1)
+          if skills == 0 or created == 0:
+              print('-- fan-out produced no links, which means no catalog was found at all',
+                    file=sys.stderr)
+              sys.exit(1)
+          # A fan-out into an empty directory cannot inherit anyone's stale
+          # links, so the only way this is nonzero is a catalog that resolves a
+          # skill id it then fails to own -- worth knowing about immediately.
+          if orphaned:
+              print(f'-- {orphaned} orphaned link(s) in a directory that was empty '
+                    'a second ago:', file=sys.stderr)
+              for o in (audit.get('examples') or {}).get('orphaned', [])[:20]:
+                  print(f"     {o.get('target')} -> {o.get('current')}", file=sys.stderr)
+              sys.exit(1)
+          PY
+
       - name: Audit every skill bundle
         run: |
           python3 skills/skill-hygiene/scripts/audit_skill_library.py \
@@ -648,7 +729,11 @@ jobs:
           python3 -m pip install --user asciinema
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           mkdir -p "$HOME/.local/bin"
-          curl -fsSL -o "$HOME/.local/bin/agg" \
+          # Retried: a third-party release host blipping should not red a
+          # build. Already lands in a file, so a retry replaces the download
+          # rather than appending to a half-consumed one.
+          curl -fsSL --retry 5 --retry-all-errors --retry-delay 3 --max-time 600 \
+            -o "$HOME/.local/bin/agg" \
             "https://github.com/asciinema/agg/releases/download/${AGG_VERSION}/agg-x86_64-unknown-linux-gnu"
           chmod +x "$HOME/.local/bin/agg"
           "$HOME/.local/bin/agg" --version
@@ -1382,6 +1467,7 @@ jobs:
       - fleetbar
       - integration-tests
       - lint
+      - mcp-catalog-guard
       - pd-ios
       - porthole-cast-gate
       - porthole-stage

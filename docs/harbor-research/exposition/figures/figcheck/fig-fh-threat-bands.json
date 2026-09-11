@@ -1,237 +1,237 @@
 {
-  "pdf": "/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/figaudit/pdf/fig-fh-threat-bands/fig-fh-threat-bands.pdf",
-  "page_count": 1,
-  "params": {
-    "min_font_pt": 7.0,
-    "textwidth_cm": 16.3
+ "figure": "fig-fh-threat-bands",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
   },
-  "checks": {
-    "T1": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T2": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T3": {
-      "status": "fail",
-      "count": 1,
-      "findings": [
-        {
-          "check": "T3",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            241.2943115234375,
-            188.024658203125,
-            327.4706726074219,
-            195.73963928222656
-          ],
-          "other_bbox": [
-            260.5359802246094,
-            194.35211181640625,
-            325.9976806640625,
-            202.06710815429688
-          ],
-          "text": "pushback is not a bound",
-          "other_text": "assurance position",
-          "overlap_fraction": 0.18,
-          "message": "text 'pushback is not a bound' overlaps 'assurance position' by 18.0% of the smaller bbox"
-        }
-      ]
-    },
-    "T4": {
-      "status": "fail",
-      "count": 7,
-      "findings": [
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            425.13836669921875,
-            56.31531524658203,
-            513.65234375,
-            64.03030395507812
-          ],
-          "text": "signed card + epoch root",
-          "line_segment": [
-            [
-              161.57447814941406,
-              60.43943786621094
-            ],
-            [
-              446.94476318359375,
-              60.43943786621094
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'signed card + epoch root'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            337.332275390625,
-            78.28843688964844,
-            466.333740234375,
-            86.00531768798828
-          ],
-          "text": "\u0398(log m) only under reliable rounds",
-          "line_segment": [
-            [
-              161.57447814941406,
-              82.39106750488281
-            ],
-            [
-              446.94476318359375,
-              82.39106750488281
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text '\u0398(log m) only under reliable rounds'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            326.3566589355469,
-            100.21857452392578,
-            417.94122314453125,
-            107.93356323242188
-          ],
-          "text": "proof after roots co-locate",
-          "line_segment": [
-            [
-              161.57447814941406,
-              104.34268951416016
-            ],
-            [
-              446.94476318359375,
-              104.34268951416016
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'proof after roots co-locate'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            338.97857666015625,
-            122.17019653320312,
-            476.39013671875,
-            129.8851776123047
-          ],
-          "text": "bound ranges from bypassable to gated",
-          "line_segment": [
-            [
-              161.57447814941406,
-              126.29431915283203
-            ],
-            [
-              446.94476318359375,
-              126.29431915283203
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'bound ranges from bypassable to gated'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            264.61798095703125,
-            144.12136840820312,
-            398.8663635253906,
-            151.8363494873047
-          ],
-          "text": "thin reputation cannot yet price bond",
-          "line_segment": [
-            [
-              161.57447814941406,
-              148.2454833984375
-            ],
-            [
-              446.94476318359375,
-              148.2454833984375
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'thin reputation cannot yet price bond'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            255.01400756835938,
-            166.072998046875,
-            357.6001892089844,
-            173.78797912597656
-          ],
-          "text": "monitoring game incomplete",
-          "line_segment": [
-            [
-              161.57447814941406,
-              170.19711303710938
-            ],
-            [
-              446.94476318359375,
-              170.19711303710938
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'monitoring game incomplete'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            241.2943115234375,
-            188.024658203125,
-            327.4706726074219,
-            195.73963928222656
-          ],
-          "text": "pushback is not a bound",
-          "line_segment": [
-            [
-              161.57447814941406,
-              192.14874267578125
-            ],
-            [
-              446.94476318359375,
-              192.14874267578125
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'pushback is not a bound'"
-        }
-      ]
-    },
-    "T5": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T6": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T7": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "fail",
+   "count": 1,
+   "findings": [
+    {
+     "check": "T3",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      241.2943115234375,
+      188.024658203125,
+      327.4706726074219,
+      195.73963928222656
+     ],
+     "other_bbox": [
+      260.5359802246094,
+      194.35211181640625,
+      325.9976806640625,
+      202.06710815429688
+     ],
+     "text": "pushback is not a bound",
+     "other_text": "assurance position",
+     "overlap_fraction": 0.18,
+     "message": "text 'pushback is not a bound' overlaps 'assurance position' by 18.0% of the smaller bbox"
     }
+   ]
   },
-  "summary": {
-    "result": "fail",
-    "failed_checks": [
-      "T3",
-      "T4"
-    ],
-    "warned_checks": []
+  "T4": {
+   "status": "fail",
+   "count": 7,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      425.13836669921875,
+      56.31531524658203,
+      513.65234375,
+      64.03030395507812
+     ],
+     "text": "signed card + epoch root",
+     "line_segment": [
+      [
+       161.57447814941406,
+       60.43943786621094
+      ],
+      [
+       446.94476318359375,
+       60.43943786621094
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'signed card + epoch root'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      337.332275390625,
+      78.28843688964844,
+      466.333740234375,
+      86.00531768798828
+     ],
+     "text": "\u0398(log m) only under reliable rounds",
+     "line_segment": [
+      [
+       161.57447814941406,
+       82.39106750488281
+      ],
+      [
+       446.94476318359375,
+       82.39106750488281
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text '\u0398(log m) only under reliable rounds'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      326.3566589355469,
+      100.21857452392578,
+      417.94122314453125,
+      107.93356323242188
+     ],
+     "text": "proof after roots co-locate",
+     "line_segment": [
+      [
+       161.57447814941406,
+       104.34268951416016
+      ],
+      [
+       446.94476318359375,
+       104.34268951416016
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'proof after roots co-locate'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      338.97857666015625,
+      122.17019653320312,
+      476.39013671875,
+      129.8851776123047
+     ],
+     "text": "bound ranges from bypassable to gated",
+     "line_segment": [
+      [
+       161.57447814941406,
+       126.29431915283203
+      ],
+      [
+       446.94476318359375,
+       126.29431915283203
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'bound ranges from bypassable to gated'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      264.61798095703125,
+      144.12136840820312,
+      398.8663635253906,
+      151.8363494873047
+     ],
+     "text": "thin reputation cannot yet price bond",
+     "line_segment": [
+      [
+       161.57447814941406,
+       148.2454833984375
+      ],
+      [
+       446.94476318359375,
+       148.2454833984375
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'thin reputation cannot yet price bond'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      255.01400756835938,
+      166.072998046875,
+      357.6001892089844,
+      173.78797912597656
+     ],
+     "text": "monitoring game incomplete",
+     "line_segment": [
+      [
+       161.57447814941406,
+       170.19711303710938
+      ],
+      [
+       446.94476318359375,
+       170.19711303710938
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'monitoring game incomplete'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      241.2943115234375,
+      188.024658203125,
+      327.4706726074219,
+      195.73963928222656
+     ],
+     "text": "pushback is not a bound",
+     "line_segment": [
+      [
+       161.57447814941406,
+       192.14874267578125
+      ],
+      [
+       446.94476318359375,
+       192.14874267578125
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'pushback is not a bound'"
+    }
+   ]
+  },
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
   }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T3",
+   "T4"
+  ],
+  "warned_checks": []
+ }
 }

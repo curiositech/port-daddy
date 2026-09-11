@@ -130,6 +130,8 @@ CREATE TABLE IF NOT EXISTS fleet_runs (
   created_at         INTEGER NOT NULL DEFAULT (unixepoch())
 );
 CREATE INDEX IF NOT EXISTS fleet_runs_created_idx ON fleet_runs (created_at DESC);
+CREATE INDEX IF NOT EXISTS fleet_runs_repo_created_idx
+  ON fleet_runs (repo_full_name COLLATE NOCASE, created_at DESC, id DESC);
 
 -- Durable queue-admission truth, written before the queue consumer starts.
 -- One PR can have many immutable generations as new heads arrive; only the
@@ -389,6 +391,8 @@ CREATE TABLE IF NOT EXISTS fleet_run_spend (
   created_at      INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS fleet_run_spend_installation_idx ON fleet_run_spend (installation_id, created_at);
+CREATE INDEX IF NOT EXISTS fleet_run_spend_run_created_idx
+  ON fleet_run_spend (run_id, created_at DESC);
 
 -- Aggregate, per-ship Workers AI call stats (ADR none; see
 -- apps/relay/migrations/2026-08-23-fleet-ai-call-stats.sql for full design
@@ -1056,3 +1060,33 @@ CREATE UNIQUE INDEX IF NOT EXISTS apns_tokens_token_idx
   ON apns_device_tokens (token);
 CREATE INDEX IF NOT EXISTS apns_tokens_user_live_idx
   ON apns_device_tokens (user_id, dead_at, last_seen_at);
+
+-- Admin-authored repository ship gates; never cascade from personal settings.
+CREATE TABLE IF NOT EXISTS repo_ship_controls (
+  repo_full_name TEXT NOT NULL CHECK (repo_full_name = lower(repo_full_name)),
+  ship TEXT NOT NULL,
+  enabled INTEGER NOT NULL CHECK (enabled IN (0, 1)),
+  revision INTEGER NOT NULL CHECK (revision >= 1),
+  updated_by TEXT NOT NULL,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (repo_full_name, ship)
+);
+CREATE TABLE IF NOT EXISTS repo_ship_control_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  repo_full_name TEXT NOT NULL,
+  ship TEXT NOT NULL,
+  enabled INTEGER NOT NULL,
+  revision INTEGER NOT NULL,
+  updated_by TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE TRIGGER IF NOT EXISTS repo_ship_controls_insert_audit AFTER INSERT ON repo_ship_controls
+BEGIN
+  INSERT INTO repo_ship_control_events (repo_full_name, ship, enabled, revision, updated_by, updated_at)
+  VALUES (NEW.repo_full_name, NEW.ship, NEW.enabled, NEW.revision, NEW.updated_by, NEW.updated_at);
+END;
+CREATE TRIGGER IF NOT EXISTS repo_ship_controls_update_audit AFTER UPDATE ON repo_ship_controls
+BEGIN
+  INSERT INTO repo_ship_control_events (repo_full_name, ship, enabled, revision, updated_by, updated_at)
+  VALUES (NEW.repo_full_name, NEW.ship, NEW.enabled, NEW.revision, NEW.updated_by, NEW.updated_at);
+END;

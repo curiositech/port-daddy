@@ -2,7 +2,7 @@
 % and expiry are absorbing for that ID; correction starts a new lane.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[pd figure,x=.66cm,y=1cm]
+\begin{tikzpicture}[pd figure,x=.60cm,y=1cm]
   \def\xmin{-4.7}
   \def\xmax{5.2}
   \foreach \y/\lanename in {2.0/{card k17: revoked},.55/{card k17: expiry},-1.35/{correction card k18}} {
@@ -34,12 +34,17 @@
     at (.72,-1.05)
     {new id k18: new authority, old history untouched};
 
-  \draw[pd caution arrow] (2.65,2.0) to[out=-70,in=70] (2.65,1.15);
+  % The crossed circle hangs directly below the revoked lane at the same x, so
+  % the reader needs no connector to know which lane it belongs to. It used to
+  % have one: an arrow drawn to[out=-70,in=70] between two points on the same
+  % vertical, which loops under its own endpoint and runs straight through the
+  % label. The label now sits beside the mark rather than under it, which
+  % leaves the space below the circle empty and the sentence unbroken.
   \node[circle,draw=hhamber,line width=.9pt,fill=hhpaper,minimum size=6.2mm,inner sep=0pt] at (2.65,1.55) {};
   \draw[draw=hhamber,line width=.9pt] (2.43,1.33) -- (2.87,1.77);
   \draw[draw=hhamber,line width=.9pt] (2.43,1.77) -- (2.87,1.33);
-  \node[pd direct label,text=hhamber,anchor=north,align=center,text width=3.6cm,
-    inner sep=3pt] at (2.65,1.16) {\texttt{k17} never returns};
+  \node[pd direct label,text=hhamber,anchor=east,align=right,text width=2.4cm,
+    inner sep=3pt] at (2.15,1.55) {\texttt{k17} never returns};
 
   \draw[pd rule,-{Stealth[length=1.7mm,width=1.05mm]}] (\xmin,-2.08) -- (\xmax,-2.08);
   \node[pd axis label,anchor=west] at (\xmax,-2.08) {time};

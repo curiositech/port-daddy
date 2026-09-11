@@ -80,7 +80,7 @@ What runs in continuous integration today (`.github/workflows/proofs.yml`):
 | Threat bands | Monte Carlo | `threat-bands.mjs` | Monte Carlo / threat-bands |
 | R1 to R17, CR, B6 headline numbers | Python result scripts, seeded | `skills/harbor-results/scripts/` | Harbor results / R-scripts (seed 20260816) |
 
-The ProVerif models under `analyses/`, `proofs/**`, and `docs/adr/models/`, the three Kani
+The ProVerif models under `analyses/` and `proofs/**`, the three Kani
 harnesses in `core/harbor-card-rs/src/lib.rs`, and the relay TLA+ configurations run in
 continuous integration: `proofs.yml` runs every ProVerif model against its committed
 results (`scripts/proofs/run-proverif.py`, with the negative controls asserted to fail),

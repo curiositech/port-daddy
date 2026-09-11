@@ -197,6 +197,9 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
 
   test('the gate wrapper checks an exact ready generation, fresh heartbeat, and project marker', () => {
     const wrapper = readFileSync(join(DEST, 'pd-hook-pre-tool'), 'utf-8');
+    expect(wrapper).toContain('[ -e "$PD_HOME/hooks.disabled" ] && exit 0');
+    expect(wrapper.indexOf('hooks.disabled')).toBeLessThan(wrapper.indexOf('debug.enabled'));
+    expect(wrapper.indexOf('hooks.disabled')).toBeLessThan(wrapper.indexOf('PD_HALT_FILE'));
     expect(wrapper).toContain('daemon.ready');
     expect(wrapper).toContain('[ "$ready_pid" = "$daemon_pid" ]');
     expect(wrapper).toContain('PORT_DADDY_READY_FILE');
@@ -224,6 +227,39 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     expect(wrapper).toContain('hook-events.log');
     expect(wrapper).not.toContain('tool_input');
     expect(wrapper).not.toContain('tool_result');
+  });
+
+  test('the global disable marker makes every staged wrapper a zero-work no-op', () => {
+    const pdHome = join(SANDBOX, 'disabled-gate-home');
+    const binDir = join(pdHome, 'bin');
+    const delegated = join(pdHome, 'delegated');
+    mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
+    stageTentacles(SRC, binDir);
+    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    mkdirSync(join(pdHome, 'squid'), { recursive: true });
+    writeFileSync(join(pdHome, 'squid', 'debug.enabled'), new Date().toISOString());
+    writeFileSync(join(pdHome, 'HALT'), 'SECURITE HALT\n');
+    writeFileSync(join(pdHome, 'hooks.disabled'), 'operator halt\n');
+    writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    markDaemonReady(pdHome);
+
+    for (const name of TENTACLES) {
+      writeFileSync(join(binDir, 'squid', name), `#!/bin/sh\ntouch '${delegated}'\n`, { mode: 0o755 });
+      const result = spawnSync(join(binDir, name), ['unread-argument'], {
+        cwd: REPO,
+        env: { ...process.env, PD_HOME: pdHome, PD_HOOK_PROVIDER: 'codex' },
+        input: '{"session_id":"must-not-be-read"}',
+        encoding: 'utf8',
+      });
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
+      expect(result.stderr).toBe('');
+    }
+
+    expect(existsSync(delegated)).toBe(false);
+    expect(existsSync(join(pdHome, 'squid', 'hook-events.log'))).toBe(false);
+    expect(existsSync(join(pdHome, 'DISTRESS'))).toBe(false);
+    expect(readSquidHookHealth(pdHome).circuits).toEqual([]);
   });
 
   test('debug capture records sanitized no-op timing without retaining stdin or argv', () => {
@@ -424,7 +460,8 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
   });
 
   test('ADR-0132: the halt sentinel delegates every tentacle even when the daemon is absent, not ready, or stale', () => {
-    // A halt means the daemon is down on purpose. The gate must still fire
+    // When hooks remain enabled, a halt means the daemon is down on purpose.
+    // The gate must still fire
     // the tentacles — the halt check precedes and is independent of every
     // daemon probe — while the per-project arming check (c) still applies.
     const pdHome = join(SANDBOX, 'halt-gate-home');
@@ -825,7 +862,11 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     expect(out).toBe(''); // fails open
     // Returns near its own 150ms deadline (plus a bounded kill grace period),
     // never anywhere close to the ~15s the fake hook would otherwise run.
-    expect(elapsedMs).toBeLessThan(2_000);
+    // Same reasoning as the forced-kill case below: the nominal budget here is
+    // 150ms plus one fifteen-iteration escalation window, and the iterations
+    // cost a spawn apiece, so the bound is set to discriminate against the
+    // 15s hang rather than to measure how busy the runner is.
+    expect(elapsedMs).toBeLessThan(6_000);
     const health = readSquidHookHealth(pdHome);
     expect(health.circuits[0]).toMatchObject({ hook: 'pd-hook-prompt', lastReason: 'timeout', lastExitCode: 124 });
     expect(health.circuits[0].consecutiveFailures).toBeGreaterThanOrEqual(1);
@@ -865,9 +906,19 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     const elapsedMs = Date.now() - startedAt;
 
     expect(out).toBe('');
-    // Bounded by the deadline plus the escalation grace windows, not the ~15s
-    // hang — proves the forced-kill path actually ran, not just the TERM.
-    expect(elapsedMs).toBeLessThan(3_000);
+    // Bounded well under the ~15s hang, which is the whole discrimination
+    // this makes: the forced-kill path ran rather than the fake hook running
+    // to completion. The bound is deliberately not tight against the nominal
+    // budget. That budget is 150ms of deadline plus two escalation windows of
+    // fifteen `sleep 0.02` iterations each (pd_kill_child in
+    // cli/commands/hooks-install.ts), so about 750ms on paper -- but each of
+    // those thirty iterations pays a fork+exec for `sleep`, and on a loaded
+    // shared runner the spawns, not the sleeps, dominate the wall clock. A
+    // 3000ms line was close enough to that jitter to fail at 3002ms on
+    // macos-latest while the path under test worked correctly. 8000ms is an
+    // order of magnitude above the nominal budget and still half the hang, so
+    // it separates the two outcomes without measuring the runner's load.
+    expect(elapsedMs).toBeLessThan(8_000);
     const health = readSquidHookHealth(pdHome);
     expect(health.circuits[0]).toMatchObject({ hook: 'pd-hook-prompt', lastReason: 'timeout', lastExitCode: 124 });
     expect(health.circuits[0].consecutiveFailures).toBeGreaterThanOrEqual(1);

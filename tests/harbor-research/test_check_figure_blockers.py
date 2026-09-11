@@ -50,19 +50,27 @@ def run(root: Path, *extra: str) -> subprocess.CompletedProcess:
 
 
 class TestCheckFigureBlockers(unittest.TestCase):
-    def test_committed_blockers_json_has_38_unwaived_entries(self) -> None:
+    def test_committed_blockers_json_is_fully_waived_by_its_triage(self) -> None:
         """This repo's real blockers.json is EXPECTED to fail today -- that
         is the whole point of turning figcheck into a release blocker (see
         this directory's README.md, "Waivers" section). This test pins the current,
         known count so a change in it is a deliberate, reviewed act (a new
-        waiver seeded, or a figure actually fixed), not silent drift."""
+        waiver seeded, or a figure actually fixed), not silent drift.
+
+        Every one of the 61 is waived today, and by which rule matters: 23 are
+        figures the triage is deleting or turning into tables, so their defects
+        will never be fixed and must not block; 38 are figures the triage
+        condemned and scheduled, so their defects are a dated backlog. The
+        negative controls for both live in the tests below, on fixtures --
+        this one only records what the real register says. All 61 expire on
+        one date, so the whole backlog comes up for review together."""
         result = subprocess.run(
             [sys.executable, str(SCRIPT), "--verbose"],
             capture_output=True, text=True, cwd=REPO_ROOT,
         )
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("38 failure(s)", result.stdout)
-        self.assertIn("23 waived", result.stdout)
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        self.assertIn("61 waived", result.stdout)
+        self.assertIn("0 failure(s)", result.stdout)
 
     def test_all_waived_and_unexpired_passes(self) -> None:
         with TemporaryDirectory() as tmp:

@@ -50,6 +50,10 @@
 set -u
 
 PD_HOME="${PD_HOME:-$HOME/.port-daddy}"
+# Operator emergency kill switch. Keep this before stdin, logging, HALT
+# handling, daemon probes, and every child process.
+[ -e "$PD_HOME/hooks.disabled" ] && exit 0
+
 # One block per session per this many seconds (the one-shot marker TTL).
 BLOCK_TTL_SECONDS="${PD_SQUID_STOP_BLOCK_TTL_SECONDS:-300}"
 case "$BLOCK_TTL_SECONDS" in ''|*[!0-9]*) BLOCK_TTL_SECONDS=300 ;; esac

@@ -7,6 +7,13 @@ from a summary of a summary. Every line below points at something you can open:
 a commit, a file, a page number, a check. When this ledger and a chat summary
 disagree, the ledger and `git log` win.
 
+This is the record of what landed. It is not the plan. The forward plan —
+what is next, in what order, with what status — lives in one place,
+[`docs/roadmap/whitepaper-research-program.md`](../../roadmap/whitepaper-research-program.md),
+and a row there moves in the same commit that lands the work. The hypertree
+outline in §7 below is the history of how the waves were cut, kept for the
+record; where it and the plan disagree, the plan wins.
+
 ## 1. State of the build
 
 | Wave | Landed as | What to open |
@@ -313,3 +320,62 @@ index, run the checkers, update section 1 of this ledger in the same commit.
 - **Figure register.** `figures/FIGURE-REGISTER.md`: 378 rows over eight chapters, 64 must, 103 should, 70 could, 140 no; 141 with an existing figure, 237 without; the plan's 17 candidates reconciled; chapter 3 flagged thin (23 rows). The Wave 11 triage and audit digests committed beside it. No drawing was done and none will be done in TikZ by the lead; the author renders.
 - **Substrate study.** Harness landed on `wave-14/substrate-harness`, PR #10068 against main; `make check` passes (H1 self-check and determinism); pilot running.
 - **Preserved.** `HARNESS-LIFECYCLE-PROOF.md` (the Genesis document) and `PORTHOLE-DECISIONS-FROM-THE-BOOK.md` (six decisions answered from the book, five silences).
+
+## Round 9 (2026-09-08): what the log could not tell us about a page
+
+The author read about ten pages at random and found a defect on every one. Two
+of those defects were invisible to every check the Book had, because both are
+properties of the rendered page and the log is silent about them: margin notes
+printed on top of each other (`\marginnote` never warns), and text set where
+the paper is not.
+
+- **Measured, not looked at.** `scripts/harbor-research/page_overflow.py` gained
+  three passes. Margin collisions compare *baselines*, not boxes: a line that
+  starts with a math glyph carries a taller box that overlaps the line above by
+  most of a line and is still just the next line, and that false positive is
+  what moved the check off boxes. Off-the-paper text is extracted with the
+  mediabox grown by 200 pt and the coordinates rebased, because MuPDF drops
+  text outside the page and its no-clip flag returns a degenerate inverted
+  rect. Foot intrusions catch column text below the text block that is not the
+  running foot — a float too tall for its page overruns by its excess and up to
+  68 pt of that stays on the paper, printed over the footer. Twelve unit tests
+  in `tests/harbor-research/test_page_overflow.py`, each with a case it fails
+  on, including a hand-rolled PDF whose content stream sets text below the
+  paper (PyMuPDF will not author text outside a page: `set_mediabox` rebases
+  and `set_cropbox` hides).
+- **One margin-occupancy system.** The `pd-pedagogy.tex` twins now place every
+  margin block the same way: measured into a box, raised so its last line sits
+  on the line that issues it, capped by the page top, by the last margin head's
+  own measured foot and by the last block's foot, and recording where its foot
+  came to rest so a head issued later steps down below it. Heads measure a twin
+  of themselves at the margin's width, because a head of four words wraps to
+  two lines there and assuming one line put "Where this stops" 0.1 pt under
+  "Recall". Every device that opens in vertical mode runs the page builder
+  first (`\penalty\@M\vskip\z@`): without it `\pagetotal` is the page above the
+  *last* paragraph the builder saw, and every one of these decisions is made
+  from that number. A Boundary frame that will not fit breaks the page before
+  it starts, so the head inside it records the page it prints on. The file's
+  last `\marginpar` is gone: the page builder moves marginpars down to clear
+  each other and never up, which is how a portrait and its caption came to be
+  81 pt below the foot of p. 68 where no warning and no reader could reach it.
+- **Exercise pointers.** `star_exercise_pointers.py` decides from the sources
+  which pointers ride inside the Recall block that follows them (24 of 61) and
+  which stand alone (37), and `--check` fails on drift; the pointers that stand
+  alone now join the occupancy system, so a margin figure cannot rise into one.
+- **Three tables that were falling off the page.** `tab:honest-state` overran
+  its page by 303 pt, `tab:handoff` by 51, `tab:app-status` by 60, and the only
+  witness was a `Float too large for page` line in the log. All three are
+  `xltabular` now: they break across pages, repeat their head with a
+  `(continued)` line, and carry the caption in `\endfirsthead`.
+- **Measured after.** All three editions: 0 margin collisions, 0 ink off the
+  paper, 0 column text over the running foot, 0 `Marginpar on page`, 0 `Float
+  too large`, 0 `Float(s) lost`, 0 undefined references. Both standalone twins
+  compile with 0 `Float too large`.
+- **In CI.** `page_overflow.py` over every edition in `whitepaper-build` after
+  the cover-band check; `star_exercise_pointers.py --check` in
+  `library-checks`. Neither fails open: a missing PDF is a failure, not a skip.
+- **Open.** 129 overfull lines and one overfull vbox (defect 1.5 and 1.10);
+  the description lists at 2.2–2.6 cm hanging indents (1.6) and the tables with
+  a column too narrow for their cells (1.8), which are the same mistake; blank
+  rectos (1.7); the biblatex migration (1.3); FIPA, BDI and agent psychosis
+  introduced and dropped (1.9).

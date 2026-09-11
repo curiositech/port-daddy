@@ -686,7 +686,15 @@ def run_figcheck(pdf_path, min_font_pt=7.0, textwidth_cm=16.3):
     warned = [c for c in WARN_CHECKS if checks_report[c]["status"] == "warn"]
 
     report = {
-        "pdf": str(pdf_path),
+        # The FRAGMENT's name, not the path of the throwaway PDF it was measured
+        # from. Those PDFs are compiled into whatever scratch directory the run
+        # happened to use, so writing the absolute path stamped one session's
+        # temp directory into 79 committed reports -- a string that names nothing
+        # on any other machine, changes on every run, and makes a re-run of the
+        # same figure look like a diff. The stem is the identity a reader wants
+        # anyway: it is the fragment under figures/, and it is what the register
+        # and the triage table key on.
+        "figure": pdf_path.stem,
         "page_count": len(doc),
         "params": {"min_font_pt": min_font_pt, "textwidth_cm": textwidth_cm},
         "checks": checks_report,
