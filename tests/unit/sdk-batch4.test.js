@@ -850,14 +850,23 @@ describe('Route error codes: sessions', () => {
   });
 
   test('PUT /sessions/:id returns SESSION_NOT_FOUND', async () => {
-    const res = await app.inject({ method: 'PUT', url: '/sessions/session-nonexistent', payload: { status: 'completed' } });
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/sessions/session-nonexistent',
+      headers: creds['agent-owner'].headers,
+      payload: { status: 'completed' },
+    });
 
     expect(res.statusCode).toBe(404);
     expect(res.json().code).toBe('SESSION_NOT_FOUND');
   });
 
   test('DELETE /sessions/:id returns SESSION_NOT_FOUND', async () => {
-    const res = await app.inject({ method: 'DELETE', url: '/sessions/session-nonexistent' });
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/sessions/session-nonexistent',
+      headers: creds['agent-owner'].headers,
+    });
 
     expect(res.statusCode).toBe(404);
     expect(res.json().code).toBe('SESSION_NOT_FOUND');

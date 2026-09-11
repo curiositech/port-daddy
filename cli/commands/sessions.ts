@@ -12,7 +12,7 @@ import { canPrompt, promptText, promptSelect } from '../utils/prompt.js';
 import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
-import { readCurrentContext, writeCurrentContext } from '../utils/current-context.js';
+import { readCurrentContext, readCurrentContextSlot, writeCurrentContext } from '../utils/current-context.js';
 import { resolveCliActorCredential } from '../utils/actor-credential.js';
 import { loadFleetConfig } from '../../lib/fleet-engine.js';
 import { deriveChangelogFromNote } from '../../lib/changelog-from-note.js';
@@ -532,42 +532,71 @@ async function sessionRemove(rest: string[], options: CLIOptions): Promise<void>
 async function sessionTakeover(rest: string[], options: CLIOptions): Promise<void> {
   const sessionId = rest[0];
   if (!sessionId) {
-    console.error('Usage: port-daddy session takeover <id> [note] [--purpose PURPOSE] [--no-files] [--lifecycle durable|ephemeral]');
+    console.error('Usage: port-daddy session takeover <id> --grant-id ID --nonce NONCE');
+    console.error('       port-daddy session takeover <id> --same-owner [note] [--purpose PURPOSE] [--lifecycle durable|ephemeral]');
     process.exit(1);
   }
 
+  const sameOwner = options['same-owner'] === true || options.sameOwner === true;
   const note = rest.slice(1).join(' ') || (options.note as string) || undefined;
   const lifecycleValue = options.lifecycle === undefined ? undefined : parseSessionLifecycle(options.lifecycle);
   if (options.lifecycle !== undefined && !lifecycleValue) {
     ui.error('session takeover requires --lifecycle durable|ephemeral when lifecycle is provided');
     process.exit(1);
   }
-
-  const pd = createSessionClient(options);
-  // #8877: takeover rewrites session lineage — always attributed, credential
-  // required. Mint one when this shell holds none.
-  if (!pd.credential && pd.agentId) {
-    try {
-      await pd.ensureActorCredential(pd.agentId);
-    } catch (error) {
-      ui.error(`Failed to mint actor credential: ${(error as Error).message}`);
+  let pd: PortDaddy;
+  let body: Parameters<PortDaddy['takeoverSession']>[1];
+  if (sameOwner) {
+    if (typeof options.agent === 'string' || typeof options.agentId === 'string' || typeof options['agent-id'] === 'string') {
+      ui.error('--same-owner accepts no --agent assertion; identity comes only from the predecessor context credential');
       process.exit(1);
     }
+    if (options['no-files'] || options['no-claims']) {
+      ui.error('--same-owner always transfers the complete unreleased claim set; --no-files/--no-claims is not supported');
+      process.exit(1);
+    }
+    const context = readCurrentContextSlot();
+    if (!context || context.sessionId !== sessionId) {
+      ui.error('--same-owner requires the exact predecessor context slot; select it with PORT_DADDY_CONTEXT_SLOT and retry');
+      process.exit(1);
+    }
+    if (typeof context.credential !== 'string' || !context.credential.trim()) {
+      ui.error('--same-owner requires the credential already stored in the predecessor context slot; it will not mint a replacement');
+      process.exit(1);
+    }
+    pd = new PortDaddy({ credential: context.credential.trim(), pid: process.pid });
+    body = {
+      sameOwner: true,
+      note,
+      purpose: typeof options.purpose === 'string' ? options.purpose : undefined,
+      lifecycle: lifecycleValue || undefined,
+    };
+    const worktreePolicy = resolveCliSessionWorktreePolicy(options);
+    if (!worktreePolicy.success) {
+      ui.error(worktreePolicy.error || 'Session worktree policy failed');
+      if (worktreePolicy.hint) console.error(`  ${worktreePolicy.hint}`);
+      process.exit(1);
+    }
+    attachCliSessionWorktreePolicy(body as Record<string, unknown>, worktreePolicy);
+  } else {
+    if (note || options.purpose !== undefined || options.lifecycle !== undefined
+      || options['no-files'] || options['no-claims']) {
+      ui.error('signed AgentNode takeover accepts only --grant-id and --nonce; the successor was fixed when the grant was prepared');
+      process.exit(1);
+    }
+    const grantId = stringOption(options, 'grant-id', 'grantId');
+    const nonce = stringOption(options, 'nonce');
+    if (!grantId || !nonce) {
+      ui.error('session takeover requires --grant-id and --nonce, or the explicit --same-owner legacy path');
+      process.exit(1);
+    }
+    pd = createSessionClient(options);
+    if (!pd.credential) {
+      ui.error('signed takeover requires the existing successor actor credential; it will not mint a replacement');
+      process.exit(1);
+    }
+    body = { grantId, nonce };
   }
-  const body: Parameters<PortDaddy['takeoverSession']>[1] = {
-    note,
-    purpose: typeof options.purpose === 'string' ? options.purpose : undefined,
-    lifecycle: lifecycleValue || undefined,
-    claimFiles: !(options['no-files'] || options['no-claims']),
-  };
-
-  const worktreePolicy = resolveCliSessionWorktreePolicy(options);
-  if (!worktreePolicy.success) {
-    ui.error(worktreePolicy.error || 'Session worktree policy failed');
-    if (worktreePolicy.hint) console.error(`  ${worktreePolicy.hint}`);
-    process.exit(1);
-  }
-  attachCliSessionWorktreePolicy(body as Record<string, unknown>, worktreePolicy);
 
   let data: SessionTakeoverResult;
   try {
@@ -587,7 +616,9 @@ async function sessionTakeover(rest: string[], options: CLIOptions): Promise<voi
     const successor = data.session as Record<string, unknown> | undefined;
     const successorAgentId = typeof successor?.agentId === 'string'
       ? successor.agentId
-      : (typeof options.agent === 'string' ? options.agent : readCurrentContext()?.agentId);
+      : (typeof data.actorId === 'string'
+          ? data.actorId
+          : (typeof options.agent === 'string' ? options.agent : readCurrentContext()?.agentId));
     if (successorAgentId) {
       writeCurrentContext({
         agentId: successorAgentId,
@@ -609,6 +640,11 @@ async function sessionTakeover(rest: string[], options: CLIOptions): Promise<voi
     ui.success(`Took over session: ${sessionId}`);
     console.log(`  Successor: ${data.successorId}`);
     console.log('  Notes preserved: yes');
+    if (data.actorOnlyContinuation) {
+      console.log('  Authority: actor-only continuity (no AgentNode or roadmap ownership transferred)');
+      console.log(`  Claims transferred/read back: ${data.claimReadback?.compatibilityRows ?? 0}`);
+      console.log('  Next authority step: bind a real AgentNode, then use signed anchor repair for any ownership upgrade');
+    }
     if (Array.isArray(data.claimedFiles) && data.claimedFiles.length > 0) {
       console.log(`  Files claimed: ${data.claimedFiles.length}`);
     }

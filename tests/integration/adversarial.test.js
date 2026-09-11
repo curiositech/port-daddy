@@ -309,9 +309,12 @@ describe('Adversarial Testing - Session/Notes Edge Cases', () => {
 
   describe('Session Deletion', () => {
     test('delete session while notes are being added (race)', async () => {
+      const agentId = `race-delete-owner-${Date.now()}`;
+      const actor = await registerTestActorVia(request, { alias: agentId });
       const sessionRes = await request('/sessions', {
         method: 'POST',
-        body: { purpose: 'race-delete' }
+        headers: actor.headers,
+        body: { purpose: 'race-delete', agentId }
       });
       const sessionId = sessionRes.data.id || sessionRes.data.session_id;
 
@@ -321,12 +324,13 @@ describe('Adversarial Testing - Session/Notes Edge Cases', () => {
         promises.push(
           request(`/sessions/${sessionId}/notes`, {
             method: 'POST',
-            body: { content: `note-${i}` }
+            headers: actor.headers,
+            body: { content: `note-${i}`, agentId }
           })
         );
       }
       promises.push(
-        request(`/sessions/${sessionId}`, { method: 'DELETE' })
+        request(`/sessions/${sessionId}`, { method: 'DELETE', headers: actor.headers })
       );
 
       const results = await Promise.all(promises);
@@ -335,8 +339,10 @@ describe('Adversarial Testing - Session/Notes Edge Cases', () => {
     });
 
     test('delete non-existent session', async () => {
+      const actor = await registerTestActorVia(request);
       const res = await request('/sessions/nonexistent-session-xyz', {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: actor.headers,
       });
       expect(res.status).toBe(404);
     });

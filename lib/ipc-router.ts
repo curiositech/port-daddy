@@ -299,19 +299,31 @@ export function createIpcRouter(deps: IpcRouterDeps) {
     return deps.sessions.start(String(stamped.purpose ?? ''), stamped);
   });
 
-  handlers.set(IpcAction.SESSION_END, (p) => {
-    return deps.sessions.end(String(p.sessionId ?? ''), p);
+  handlers.set(IpcAction.SESSION_END, () => {
+    throw new IpcRefusal(
+      'AUTHENTICATED_HTTP_REQUIRED',
+      'session end/abandon requires the credential-authenticated HTTP boundary',
+    );
   });
 
   handlers.set(IpcAction.SESSION_LIST, (p) => {
     return deps.sessions.list(p);
   });
 
-  handlers.set(IpcAction.SESSION_REMOVE, (p) => {
-    return deps.sessions.remove(String(p.sessionId ?? ''));
+  handlers.set(IpcAction.SESSION_REMOVE, () => {
+    throw new IpcRefusal(
+      'AUTHENTICATED_HTTP_REQUIRED',
+      'session archive requires the credential-authenticated HTTP boundary',
+    );
   });
 
   handlers.set(IpcAction.SESSION_TAKEOVER, (p, conn) => {
+    if (p.sameOwner === true) {
+      throw new IpcRefusal(
+        'AUTHENTICATED_HTTP_REQUIRED',
+        'actor-only same-owner continuation requires credentialed HTTP and is never accepted over IPC',
+      );
+    }
     if (!deps.durableOwnership) {
       throw new IpcRefusal('DURABLE_OWNERSHIP_UNAVAILABLE', 'canonical durable ownership service is unavailable');
     }

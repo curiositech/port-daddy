@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/durable-anchor-repair.schema.json",
+  "title": "SameOwnerAnchorRepairV0",
+  "description": "Restricted extension inside an existing signed durable takeover grant, never standalone authority. The daemon requires the same canonical AgentNode and verified actor on both sessions, an exact signed current epoch, preexisting successor admission, and a freshly probed destination at the recorded root. Historical source worlds/nodes remain unchanged. Runtime validation enforces exact 1:1 mapping, actor equality, complete claim coverage and physical workspace identity; this schema alone cannot authorize a transfer.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.durable-anchor-repair.v0" },
+    "idempotencyKey": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$" },
+    "requestHash": { "$ref": "durable-ownership-epoch.schema.json#/$defs/sha256" },
+    "sourceWorktreeId": { "type": "string", "minLength": 1 },
+    "sourceWorktreeRoot": { "type": "string", "minLength": 1, "maxLength": 16384 },
+    "sourceLineageHash": { "$ref": "durable-ownership-epoch.schema.json#/$defs/sha256" },
+    "targetWorktreeId": { "type": "string", "minLength": 1 },
+    "claimNodeMappings": {
+      "type": "array",
+      "maxItems": 5000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "sourceClaimNodeId": { "type": "string", "minLength": 1 },
+          "successorClaimNodeId": { "type": ["string", "null"], "minLength": 1, "description": "New-world node id for transfer; null means explicit release. Never reuse the source node id." }
+        },
+        "required": ["sourceClaimNodeId", "successorClaimNodeId"]
+      }
+    }
+  },
+  "required": ["schema", "idempotencyKey", "requestHash", "sourceWorktreeId", "sourceWorktreeRoot", "sourceLineageHash", "targetWorktreeId", "claimNodeMappings"]
+}

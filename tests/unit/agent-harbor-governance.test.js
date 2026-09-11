@@ -77,6 +77,7 @@ const TOP_LEVEL_AGENT_HARBOR_SCHEMAS = [
   'control-command',
   'cost-accrual-event',
   'durable-agent-profile',
+  'durable-anchor-repair',
   'durable-ownership-epoch',
   'durable-takeover-grant',
   'durable-takeover-receipt',

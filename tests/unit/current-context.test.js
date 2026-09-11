@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { existsSync, mkdtempSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -8,6 +8,7 @@ import {
   getContextPathForSlot,
   getLegacyContextPath,
   readCurrentContext,
+  readCurrentContextSlot,
   resolveContextSlot,
   writeCurrentContext,
 } from '../../cli/utils/current-context.js';
@@ -190,6 +191,41 @@ describe('current-context helper', () => {
     const ctx = readCurrentContext(projectDir);
     expect(ctx?.agentId).toBe('agent-from-env');
     expect(ctx?.sessionId).toBe('session-from-env');
+  });
+
+  it('reads the exact credential-bearing slot for recovery even when PD identity assertions disagree', () => {
+    process.env.PORT_DADDY_CONTEXT_SLOT = 'recovery-slot';
+    writeCurrentContext({
+      agentId: 'original-worker',
+      sessionId: 'session-original',
+      credential: 'credential-kept-in-slot',
+    }, projectDir);
+    process.env.PD_AGENT_ID = 'migrated-alias';
+    process.env.PD_SESSION_ID = 'session-other';
+
+    expect(readCurrentContext(projectDir)).toMatchObject({
+      agentId: 'migrated-alias',
+      sessionId: 'session-other',
+    });
+    expect(readCurrentContextSlot(projectDir)).toMatchObject({
+      agentId: 'original-worker',
+      sessionId: 'session-original',
+      credential: 'credential-kept-in-slot',
+      contextSlot: 'recovery-slot',
+    });
+  });
+
+  it('does not treat the legacy current pointer as exact recovery-slot evidence', () => {
+    process.env.PORT_DADDY_CONTEXT_SLOT = 'missing-recovery-slot';
+    mkdirSync(join(projectDir, '.portdaddy'), { recursive: true });
+    writeFileSync(join(projectDir, '.portdaddy', 'current.json'), JSON.stringify({
+      agentId: 'legacy-worker',
+      sessionId: 'session-legacy',
+      credential: 'credential-from-ambiguous-pointer',
+    }));
+
+    expect(readCurrentContext(projectDir)).toMatchObject({ sessionId: 'session-legacy' });
+    expect(readCurrentContextSlot(projectDir)).toBeNull();
   });
 
   it('returns env-var context when only PD_AGENT_ID is set', () => {

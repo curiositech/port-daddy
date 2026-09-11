@@ -50,9 +50,16 @@ import {
   type ContextBootstrapLookup,
 } from '../lib/sugar.js';
 import {
+  captureCanonicalGitWorkspace,
   DurableOwnershipError,
+  type CanonicalGitWorkspaceIdentity,
   type DurableOwnershipService,
 } from '../lib/durable-ownership.js';
+import type { LegacySessionContinuationService } from '../lib/legacy-session-continuation.js';
+import {
+  normalizeLegacyContinuationWorktreeWitness,
+  type LegacyContinuationWorktreeWitness,
+} from '../lib/legacy-actor-continuity.js';
 
 interface SessionsRouteDeps {
   sessions: {
@@ -164,8 +171,12 @@ interface SessionsRouteDeps {
   contextBootstrapLookup?: ContextBootstrapLookup;
   /** Canonical signed ownership/claim-transfer authority. */
   durableOwnership?: DurableOwnershipService;
+  /** Separate credential-actor continuity for sessions created before AgentNode. */
+  legacySessionContinuation?: LegacySessionContinuationService;
   /** Hermetic-test seam; production re-probes caller-named roots with Git. */
   sessionWorktreeProbe?: (root: string) => WorktreeInfo | null;
+  /** Hermetic-test seam for the exact physical Git identity and HEAD witness. */
+  sessionWorkspaceIdentityProbe?: (root: string) => CanonicalGitWorkspaceIdentity;
 }
 
 type SessionLifecycle = 'durable' | 'ephemeral';
@@ -507,6 +518,116 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       };
     }
     return { success: true, agentId: verdict.agentId, verdict };
+  };
+
+  /**
+   * Authenticate an exact-session mutation without accepting any display-name
+   * assertion. The credential actor must equal the actor in the session's
+   * daemon-written identity stamp; agent labels and current aliases are never
+   * authority for cleanup or actor-only continuation. The design makes the
+   * stored actor stamp, rather than a display label, the sole ownership link.
+   *
+   * @param request - Fastify request containing the credential header.
+   * @param sessionId - Exact predecessor or cleanup target session.
+   * @param route - Audit label passed to the identity-write boundary.
+   * @param bodyAgentId - Raw optional assertion, which this route rejects.
+   * @returns A verified stamped-actor result or a complete HTTP refusal.
+   */
+  const authorizeStampedSessionActor = (
+    request: FastifyRequest,
+    sessionId: string,
+    route: string,
+    bodyAgentId?: unknown,
+  ):
+    | {
+        success: true;
+        session: Record<string, unknown>;
+        verdict: Extract<IdentityWriteVerdict, { ok: true; kind: 'verified' }>;
+      }
+    | { success: false; httpStatus: number; result: Record<string, unknown> } => {
+    if (bodyAgentId !== undefined || headerAgentId(request)) {
+      return {
+        success: false,
+        httpStatus: 400,
+        result: {
+          success: false,
+          code: 'SESSION_AGENT_ASSERTION_FORBIDDEN',
+          error: 'exact-session mutations derive identity only from the actor credential; omit agentId and X-Agent-Id',
+        },
+      };
+    }
+    const verdict = resolveWriteIdentity({
+      souls: actorSouls,
+      credential: extractActorCredential(request.headers as Record<string, unknown>, request.body),
+      assertedAgentId: null,
+      route,
+      logger,
+      requireIdentity: true,
+    });
+    if (!verdict.ok) {
+      return {
+        success: false,
+        httpStatus: verdict.httpStatus,
+        result: { success: false, code: verdict.code, error: verdict.error },
+      };
+    }
+    if (verdict.kind !== 'verified') {
+      return {
+        success: false,
+        httpStatus: 401,
+        result: {
+          success: false,
+          code: 'IDENTITY_CREDENTIAL_REQUIRED',
+          error: 'exact-session mutation requires a verified actor credential',
+        },
+      };
+    }
+
+    const lookup = sessions.get(sessionId) as {
+      success?: boolean;
+      code?: string;
+      error?: string;
+      session?: Record<string, unknown>;
+    };
+    if (!lookup.success || !lookup.session) {
+      return {
+        success: false,
+        httpStatus: 404,
+        result: { ...lookup, success: false, code: lookup.code || 'SESSION_NOT_FOUND' },
+      };
+    }
+    const metadata = lookup.session.metadata;
+    const identity = metadata && typeof metadata === 'object' && !Array.isArray(metadata)
+      ? (metadata as Record<string, unknown>).identity
+      : null;
+    const stampedActorId = identity && typeof identity === 'object' && !Array.isArray(identity)
+      && (identity as Record<string, unknown>).verified === true
+      && typeof (identity as Record<string, unknown>).actorId === 'string'
+      ? ((identity as Record<string, unknown>).actorId as string).trim()
+      : '';
+    if (!stampedActorId) {
+      return {
+        success: false,
+        httpStatus: 409,
+        result: {
+          success: false,
+          code: 'SESSION_OWNER_STAMP_REQUIRED',
+          error: 'session lacks a daemon-verified predecessor actor stamp and cannot be mutated by credential inference',
+        },
+      };
+    }
+    if (stampedActorId !== verdict.actorId) {
+      return {
+        success: false,
+        httpStatus: 403,
+        result: {
+          success: false,
+          code: 'SAME_OWNER_ACTOR_MISMATCH',
+          error: 'credential actor does not equal the session\'s daemon-stamped actor',
+        },
+      };
+    }
+    return { success: true, session: lookup.session, verdict };
   };
 
   /**
@@ -909,7 +1030,13 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     try {
       const sessionIdParam = (request.params as any).id;
       const sessionId = typeof sessionIdParam === 'string' ? sessionIdParam : sessionIdParam[0];
-      const { status, note } = request.body as any;
+      const { status, note, agentId } = (request.body || {}) as any;
+
+      const routeAuth = authorizeStampedSessionActor(request, sessionId, 'PUT /sessions/:id', agentId);
+      if (!routeAuth.success) {
+        reply.code(routeAuth.httpStatus);
+        return routeAuth.result;
+      }
 
       let result: Record<string, unknown>;
 
@@ -931,6 +1058,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
 
       logger.info('session_ended', {
         sessionId,
+        actorId: routeAuth.verdict.actorId,
         status: result.status,
         releasedFiles: Array.isArray(result.releasedFiles) ? result.releasedFiles.length : 0
       });
@@ -958,6 +1086,187 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       const sessionIdParam = (request.params as any).id;
       const sessionId = typeof sessionIdParam === 'string' ? sessionIdParam : sessionIdParam[0];
       const body = (request.body || {}) as any;
+
+      // Pre-AgentNode continuity is a deliberately separate contract. It uses
+      // only the credential actor and the predecessor's daemon stamp, transfers
+      // no durable owner/roadmap authority, and never enters signed-grant code.
+      if (body.sameOwner === true) {
+        if (Object.prototype.hasOwnProperty.call(body, 'credential')) {
+          reply.code(400);
+          return {
+            success: false,
+            code: 'ACTOR_CREDENTIAL_HEADER_REQUIRED',
+            error: 'actor-only continuation accepts the credential only in the x-actor-credential header',
+          };
+        }
+        const routeAuth = authorizeStampedSessionActor(
+          request,
+          sessionId,
+          'POST /sessions/:id/takeover --same-owner',
+          body.agentId,
+        );
+        if (!routeAuth.success) {
+          reply.code(routeAuth.httpStatus);
+          return routeAuth.result;
+        }
+        const unknownActorOnlyField = Object.keys(body).find(field => ![
+          'sameOwner',
+          'purpose',
+          'note',
+          'metadata',
+          'worktree',
+          'requireLinkedWorktree',
+          'allowMainWorktree',
+          'lifecycle',
+        ].includes(field));
+        if (unknownActorOnlyField) {
+          reply.code(400);
+          return {
+            success: false,
+            code: 'UNKNOWN_FIELD',
+            error: `${unknownActorOnlyField} is not accepted by actor-only continuation`,
+          };
+        }
+        const worktreeAdmission = resolveSessionWorktreeAdmission(
+          {
+            worktree: body.worktree,
+            requireLinkedWorktree: body.requireLinkedWorktree,
+            allowMainWorktree: body.allowMainWorktree,
+            metadata: body.metadata,
+          },
+          { probeWorktree: deps.sessionWorktreeProbe },
+        );
+        if (!worktreeAdmission.success) {
+          reply.code(400);
+          return worktreeAdmission;
+        }
+        if (!worktreeAdmission.worktree) {
+          reply.code(400);
+          return {
+            success: false,
+            code: 'WORKTREE_REQUIRED',
+            error: 'actor-only continuation requires caller worktree evidence verified by the daemon',
+          };
+        }
+        const predecessorWorktreeId = typeof routeAuth.session.worktreeId === 'string'
+          ? routeAuth.session.worktreeId
+          : null;
+        if (!predecessorWorktreeId || worktreeAdmission.worktree.id !== predecessorWorktreeId) {
+          reply.code(409);
+          return {
+            success: false,
+            code: 'ACTOR_ONLY_WORKTREE_MISMATCH',
+            error: 'daemon-verified caller worktree does not equal the predecessor claim world',
+          };
+        }
+        let canonicalWorkspace: CanonicalGitWorkspaceIdentity;
+        try {
+          canonicalWorkspace = (deps.sessionWorkspaceIdentityProbe ?? captureCanonicalGitWorkspace)(
+            worktreeAdmission.worktree.root,
+          );
+        } catch {
+          reply.code(409);
+          return {
+            success: false,
+            code: 'ACTOR_ONLY_WORKTREE_MISMATCH',
+            error: 'daemon could not capture the exact physical Git workspace for actor-only continuation',
+          };
+        }
+        if (
+          canonicalWorkspace.worktreeId !== worktreeAdmission.worktree.id
+          || canonicalWorkspace.worktreeRoot !== worktreeAdmission.worktree.root
+          || canonicalWorkspace.branch !== worktreeAdmission.worktree.branch
+        ) {
+          reply.code(409);
+          return {
+            success: false,
+            code: 'ACTOR_ONLY_WORKTREE_MISMATCH',
+            error: 'daemon Git workspace identity changed between admission probes',
+          };
+        }
+        const exactWorktreeCandidate: LegacyContinuationWorktreeWitness = {
+          id: canonicalWorkspace.worktreeId,
+          root: canonicalWorkspace.worktreeRoot,
+          name: worktreeAdmission.worktree.name,
+          branch: canonicalWorkspace.branch,
+          isMain: worktreeAdmission.worktree.isMain,
+          repoId: canonicalWorkspace.repoId,
+          head: canonicalWorkspace.head,
+          base: canonicalWorkspace.base,
+          worktreeRealpath: canonicalWorkspace.worktreeRealpath,
+          worktreePhysicalId: canonicalWorkspace.worktreePhysicalId,
+          gitDirRealpath: canonicalWorkspace.gitDirRealpath,
+          gitDirPhysicalId: canonicalWorkspace.gitDirPhysicalId,
+          repoCommonDir: canonicalWorkspace.repoCommonDir,
+          remote: canonicalWorkspace.remote,
+        };
+        const exactWorktree = normalizeLegacyContinuationWorktreeWitness(exactWorktreeCandidate);
+        if (!exactWorktree) {
+          reply.code(409);
+          return {
+            success: false,
+            code: 'ACTOR_ONLY_WORKTREE_MISMATCH',
+            error: 'daemon Git workspace witness is incomplete or malformed',
+          };
+        }
+        const lifecycle = body.lifecycle === undefined ? null : parseSessionLifecycle(body.lifecycle);
+        if (body.lifecycle !== undefined && !lifecycle) {
+          reply.code(400);
+          return {
+            success: false,
+            code: 'VALIDATION_ERROR',
+            error: 'lifecycle must be "durable" or "ephemeral" when provided',
+          };
+        }
+        const harbor = actorSouls?.constants?.defaultHarbor?.trim() || 'local';
+        const stampedMetadata = stampIdentityMetadata(worktreeAdmission.metadata, routeAuth.verdict);
+        if (!deps.legacySessionContinuation) {
+          reply.code(503);
+          return {
+            success: false,
+            code: 'ACTOR_ONLY_CONTINUATION_UNAVAILABLE',
+            error: 'actor-only continuation service is unavailable',
+          };
+        }
+        const result = deps.legacySessionContinuation.continueSameOwner(sessionId, {
+          verifiedActorId: routeAuth.verdict.actorId,
+          verifiedSoulClass: routeAuth.verdict.soulClass,
+          harbor,
+          purpose: typeof body.purpose === 'string' ? body.purpose : null,
+          note: typeof body.note === 'string' ? body.note : null,
+          worktree: exactWorktree,
+          metadata: stampedMetadata,
+          durable: lifecycle ? lifecycle === 'durable' : undefined,
+        });
+        if (!result.success) {
+          const status = result.code === 'SAME_OWNER_ACTOR_MISMATCH' ? 403
+            : result.code === 'SESSION_NOT_FOUND' ? 404
+              : result.code === 'ACTOR_ONLY_CONTINUATION_FAILED' ? 500
+                : result.code === 'VALIDATION_ERROR' ? 400
+                  : 409;
+          reply.code(status);
+          return result;
+        }
+        result.identity = routeAuth.verdict.identity;
+        result.contextContinuation = projectContextContinuation(sessionId, contextBootstrapLookup);
+        logger.info('actor_only_session_continued', {
+          predecessorId: sessionId,
+          successorId: result.successorId,
+          successorAgentId: result.successorAgentId,
+          actorId: routeAuth.verdict.actorId,
+          claimsTransferred: result.claimsTransferred,
+          durableOwnershipTransferred: false,
+        });
+        return result;
+      }
+      if (Object.prototype.hasOwnProperty.call(body, 'sameOwner')) {
+        reply.code(400);
+        return {
+          success: false,
+          code: 'VALIDATION_ERROR',
+          error: 'sameOwner must be the boolean true when actor-only continuation is requested',
+        };
+      }
       const unknown = Object.keys(body).find(field => ![
         'grantId', 'nonce', 'agentId', 'credential',
       ].includes(field));
@@ -1115,6 +1424,13 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     try {
       const sessionIdParam = (request.params as any).id;
       const sessionId = typeof sessionIdParam === 'string' ? sessionIdParam : sessionIdParam[0];
+      const { agentId } = (request.body || {}) as any;
+
+      const routeAuth = authorizeStampedSessionActor(request, sessionId, 'DELETE /sessions/:id', agentId);
+      if (!routeAuth.success) {
+        reply.code(routeAuth.httpStatus);
+        return routeAuth.result;
+      }
 
       const result = sessions.remove(sessionId);
 
@@ -1123,7 +1439,11 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         return { ...result, code: 'SESSION_NOT_FOUND' };
       }
 
-      logger.info('session_archived', { sessionId, notesPreserved: result.notesPreserved });
+      logger.info('session_archived', {
+        sessionId,
+        actorId: routeAuth.verdict.actorId,
+        notesPreserved: result.notesPreserved,
+      });
 
       return {
         ...result,

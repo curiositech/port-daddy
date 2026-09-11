@@ -42,6 +42,7 @@ export const OWNERSHIP_EPOCH_SCHEMA = 'pd.agent-harbor.durable-ownership-epoch.v
 export const TAKEOVER_GRANT_SCHEMA = 'pd.agent-harbor.durable-takeover-grant.v0' as const;
 export const TAKEOVER_RECEIPT_SCHEMA = 'pd.agent-harbor.durable-takeover-receipt.v0' as const;
 export const SUCCESSOR_BRIEF_SCHEMA = 'pd.agent-harbor.ownership-successor-brief.v0' as const;
+export const ANCHOR_REPAIR_SCHEMA = 'pd.agent-harbor.durable-anchor-repair.v0' as const;
 
 const DEFAULT_TTL_MS = 5 * 60_000;
 const MIN_TTL_MS = 10_000;
@@ -125,6 +126,29 @@ export interface ExactClaimBinding {
   contentHash: string | null;
   /** retain is used only by an ownership snapshot; grants require transfer or release. */
   disposition: 'retain' | 'transfer' | 'release';
+}
+
+/** An explicit new node, never an in-place rewrite of a historical world. */
+export interface AnchorRepairClaimMapping {
+  sourceClaimNodeId: string;
+  successorClaimNodeId: string | null;
+}
+
+/**
+ * A restricted lease transfer carried by the EXISTING signed takeover grant.
+ * The source anchor is recorded history; only the enclosing grant's freshly
+ * probed workBinding describes the physical destination. Neither stale
+ * metadata nor this unsigned shape confers authority on its own.
+ */
+export interface SameOwnerAnchorRepair {
+  schema: typeof ANCHOR_REPAIR_SCHEMA;
+  idempotencyKey: string;
+  requestHash: string;
+  sourceWorktreeId: string;
+  sourceWorktreeRoot: string;
+  sourceLineageHash: string;
+  targetWorktreeId: string;
+  claimNodeMappings: AnchorRepairClaimMapping[];
 }
 
 export interface EvidenceCitation {
@@ -259,6 +283,8 @@ export interface DurableTakeoverGrant extends SignedFact {
   nonceHash: string;
   issuedAt: number;
   expiresAt: number;
+  /** Absent on historical/generic grants so their signed bytes stay unchanged. */
+  anchorRepair?: SameOwnerAnchorRepair;
 }
 
 /**
@@ -288,6 +314,8 @@ export interface TakeoverDisposition {
   transferredClaimNodeIds: string[];
   releasedClaimNodeIds: string[];
   preservedClaimNodeIds: string[];
+  /** Source ids above remain historical; these mappings identify new nodes. */
+  claimNodeMappings?: AnchorRepairClaimMapping[];
 }
 
 export interface OwnershipProjection {
@@ -410,6 +438,7 @@ interface GrantRow {
   signature_algorithm: 'ed25519';
   signature_key_id: string;
   signature_value: string;
+  anchor_repair_json?: string | null;
 }
 
 interface ReceiptRow {
@@ -499,6 +528,23 @@ export interface AcceptDurableTakeoverRequest {
   sourceSessionId: string;
   grantId: string;
   nonce: string;
+}
+
+/**
+ * Same-owner consent is deliberately a different method, not a permissive
+ * flag on generic takeover. Callers retain a fresh 32-byte base64url nonce so
+ * ambiguous preparation can be read back with the same idempotency key.
+ * Identity and physical work bindings are always daemon-derived.
+ */
+export interface PrepareSameOwnerAnchorRepairRequest {
+  roadmapSlug: string;
+  harbor: string;
+  successorSessionId: string;
+  reason: string;
+  claimDispositions: RequestedClaimDisposition[];
+  idempotencyKey: string;
+  nonce: string;
+  ttlMs?: number;
 }
 
 export interface BootstrapCanonicalOwnershipRequest {
@@ -602,6 +648,9 @@ interface IssueTakeoverInput {
   claimBindings: ExactClaimBinding[];
   briefing: OwnershipSuccessorBrief;
   ttlMs?: number;
+  anchorRepair?: SameOwnerAnchorRepair;
+  /** Only the restricted repair path accepts a caller-retained nonce. */
+  nonce?: string;
 }
 
 interface ConsumeTakeoverInput {
@@ -619,7 +668,7 @@ interface ConsumeTakeoverInput {
    * only synchronous writes against this same DB handle and throw on any
    * mismatch. No network, filesystem, Porthole, or notification side effects.
    */
-  enact: () => TakeoverDisposition;
+  enact: (at: number) => TakeoverDisposition;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -921,6 +970,141 @@ function validateTakeoverDispositions(bindings: ExactClaimBinding[]): ExactClaim
   return bindings;
 }
 
+/**
+ * Keep the repair exception out of generic claim/world validation. Its intent
+ * is to sign the OLD claim addresses alongside a separately probed NEW world.
+ * @param bindings Stored source claims, never caller-authored claim facts.
+ * @param workBinding Verified destination workspace.
+ * @param repair Restricted repair extension, absent for every ordinary handoff.
+ * @returns Canonical claim snapshot or a fail-closed domain error.
+ */
+function validateGrantClaims(
+  bindings: ExactClaimBinding[],
+  workBinding: ExactWorkBinding,
+  repair?: SameOwnerAnchorRepair,
+): ExactClaimBinding[] {
+  const claims = normalizeClaimBindings(bindings);
+  if (!repair) return validateClaimWorktreeBinding(claims, workBinding);
+  if (claims.some(claim => claim.worldKind !== 'worktree' || claim.worldId !== repair.sourceWorktreeId)) {
+    throw new DurableOwnershipError('repair claims must name only the exact recorded source world', 'CLAIM_SET_MISMATCH', 409);
+  }
+  return claims;
+}
+
+/**
+ * Validate signed repair semantics without trusting an actor alias or a path
+ * hash as physical evidence. Its purpose is an additional restriction, not another
+ * authority mode: both bodies must already belong to the SAME node and actor.
+ * @param repair Proposed signed extension, including a complete node mapping.
+ * @param grant Existing takeover facts to which the extension must be bound.
+ * @returns Canonical extension suitable for signing and storage read-back.
+ */
+function normalizeAnchorRepair(
+  repair: SameOwnerAnchorRepair,
+  grant: Pick<DurableTakeoverGrant, 'predecessorAgentNodeId' | 'successorAgentNodeId'
+    | 'issuerAgentNodeId' | 'authorizedActorId' | 'successorActorId' | 'authorityKind'
+    | 'sourceWitness' | 'successorWitness' | 'workBinding' | 'claimBindings'>,
+): SameOwnerAnchorRepair {
+  if (!isPlainObject(repair) || repair.schema !== ANCHOR_REPAIR_SCHEMA) {
+    throw new DurableOwnershipError('invalid anchor repair schema', 'VALIDATION_ERROR', 400);
+  }
+  const fields = new Set(['schema', 'idempotencyKey', 'requestHash', 'sourceWorktreeId',
+    'sourceWorktreeRoot', 'sourceLineageHash', 'targetWorktreeId', 'claimNodeMappings']);
+  if (Object.keys(repair).some(key => !fields.has(key))) {
+    throw new DurableOwnershipError('unknown anchor repair field', 'VALIDATION_ERROR', 400);
+  }
+  const sourceWorktreeId = text(repair.sourceWorktreeId, 'anchorRepair.sourceWorktreeId');
+  const targetWorktreeId = text(repair.targetWorktreeId, 'anchorRepair.targetWorktreeId');
+  const sourceWorktreeRoot = text(repair.sourceWorktreeRoot, 'anchorRepair.sourceWorktreeRoot', 16 * 1024);
+  if (
+    grant.authorityKind !== 'current-owner'
+    || grant.issuerAgentNodeId !== grant.predecessorAgentNodeId
+    || grant.predecessorAgentNodeId !== grant.successorAgentNodeId
+    || grant.authorizedActorId !== grant.successorActorId
+    || grant.sourceWitness.actorId !== grant.authorizedActorId
+    || grant.successorWitness.actorId !== grant.authorizedActorId
+  ) {
+    throw new DurableOwnershipError('repair requires exact same-AgentNode and same-actor consent', 'AUTHORITY_REQUIRED', 403);
+  }
+  if (
+    sourceWorktreeId === targetWorktreeId
+    || sourceWorktreeId !== grant.sourceWitness.worktreeId
+    || sourceWorktreeId !== grant.sourceWitness.metadataWorktreeId
+    || targetWorktreeId !== grant.workBinding.worktreeId
+    || sourceWorktreeRoot !== grant.workBinding.worktreeRoot
+    || !HASH_RE.test(repair.sourceLineageHash)
+    || repair.sourceLineageHash !== grant.sourceWitness.lineageHash
+  ) {
+    throw new DurableOwnershipError('repair is not bound to the exact recorded anchor and physical destination', 'GRANT_BINDING_MISMATCH', 409);
+  }
+  const idempotencyKey = text(repair.idempotencyKey, 'anchorRepair.idempotencyKey', 128);
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(idempotencyKey) || !HASH_RE.test(repair.requestHash)) {
+    throw new DurableOwnershipError('repair idempotency binding is invalid', 'VALIDATION_ERROR', 400);
+  }
+  if (!Array.isArray(repair.claimNodeMappings) || repair.claimNodeMappings.length > 5000) {
+    throw new DurableOwnershipError('repair claim mapping exceeds its bound', 'VALIDATION_ERROR', 400);
+  }
+  const claims = validateTakeoverDispositions(validateGrantClaims(grant.claimBindings, grant.workBinding, repair));
+  const mappings = repair.claimNodeMappings.map(mapping => {
+    if (!isPlainObject(mapping) || Object.keys(mapping).some(key => key !== 'sourceClaimNodeId' && key !== 'successorClaimNodeId')) {
+      throw new DurableOwnershipError('invalid repair claim-node mapping', 'VALIDATION_ERROR', 400);
+    }
+    return {
+      sourceClaimNodeId: text(mapping.sourceClaimNodeId, 'sourceClaimNodeId'),
+      successorClaimNodeId: mapping.successorClaimNodeId === null
+        ? null : text(mapping.successorClaimNodeId, 'successorClaimNodeId'),
+    };
+  }).sort((a, b) => a.sourceClaimNodeId.localeCompare(b.sourceClaimNodeId));
+  const destinations = mappings.flatMap(mapping => mapping.successorClaimNodeId ? [mapping.successorClaimNodeId] : []);
+  if (
+    mappings.length !== claims.length
+    || new Set(mappings.map(mapping => mapping.sourceClaimNodeId)).size !== mappings.length
+    || new Set(destinations).size !== destinations.length
+    || claims.some((claim, index) => mappings[index]?.sourceClaimNodeId !== claim.claimNodeId
+      || (claim.disposition === 'release') !== (mappings[index]?.successorClaimNodeId === null)
+      || mappings[index]?.successorClaimNodeId === claim.claimNodeId)
+  ) {
+    throw new DurableOwnershipError('repair must map every source claim exactly once to a new node or explicit release', 'CLAIM_SET_MISMATCH', 409);
+  }
+  return {
+    schema: ANCHOR_REPAIR_SCHEMA, idempotencyKey, requestHash: repair.requestHash,
+    sourceWorktreeId, sourceWorktreeRoot, sourceLineageHash: repair.sourceLineageHash,
+    targetWorktreeId, claimNodeMappings: mappings,
+  };
+}
+
+/**
+ * Require a canonical 256-bit caller-retained nonce for recoverable preparation.
+ * The purpose is safe idempotent read-back, not authentication; verified actor
+ * identity and the daemon signature are still mandatory.
+ * @param value Nonce generated once by the caller for this logical operation.
+ * @returns Canonical nonce, without storing or logging its cleartext.
+ */
+function anchorRepairNonce(value: unknown): string {
+  const nonce = text(value, 'nonce', 43);
+  if (!/^[A-Za-z0-9_-]{43}$/.test(nonce) || Buffer.from(nonce, 'base64url').toString('base64url') !== nonce) {
+    throw new DurableOwnershipError('repair nonce must encode exactly 32 bytes as base64url', 'VALIDATION_ERROR', 400);
+  }
+  return nonce;
+}
+
+/**
+ * Derive the destination snapshot shared by signing and transaction read-back.
+ * Its purpose is to prevent a receipt from asserting source addresses as live
+ * successor claims, or reporting an insert that the database silently ignored.
+ * @param grant Verified repair grant containing the immutable source mapping.
+ * @param at Exact lease-transfer timestamp signed into the successor epoch.
+ * @returns Canonical retained destination claims, excluding explicit releases.
+ */
+function anchorRepairSuccessorClaims(grant: DurableTakeoverGrant, at: number): ExactClaimBinding[] {
+  if (!grant.anchorRepair) throw new DurableOwnershipError('repair mapping required', 'VALIDATION_ERROR', 400);
+  const destinations = new Map(grant.anchorRepair.claimNodeMappings.map(mapping => [mapping.sourceClaimNodeId, mapping.successorClaimNodeId]));
+  return normalizeClaimBindings(grant.claimBindings.filter(claim => claim.disposition === 'transfer').map(claim => ({
+    ...claim, claimNodeId: destinations.get(claim.claimNodeId)!, worldId: grant.anchorRepair!.targetWorktreeId,
+    claimedAt: at, disposition: 'retain' as const,
+  })));
+}
+
 function normalizeDigestEntries(values: DigestEntry[] | undefined, field: string): DigestEntry[] {
   if (values === undefined) return [];
   if (!Array.isArray(values) || values.length > 200) {
@@ -1088,6 +1272,11 @@ function ensureColumn(db: DatabaseInstance, table: string, column: string, type:
   }
 }
 
+/**
+ * Extend the existing ownership ledger without rewriting historical facts.
+ * The design keeps repair grants in the same signature and transaction domain.
+ * @param db Ownership database whose schema is initialized or upgraded.
+ */
 export function ensureDurableOwnershipSchema(db: DatabaseInstance): void {
   ensureColumn(db, 'sessions', 'is_durable', 'INTEGER NOT NULL DEFAULT 0');
   ensureColumn(db, 'sessions', 'agent_node_id', 'TEXT');
@@ -1236,6 +1425,12 @@ export function ensureDurableOwnershipSchema(db: DatabaseInstance): void {
     END;
   `);
   ensureColumn(db, 'durable_takeover_grants', 'operator_presence_receipt_json', 'TEXT');
+  ensureColumn(db, 'durable_takeover_grants', 'anchor_repair_json', 'TEXT');
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_durable_anchor_repair_idempotency
+    ON durable_takeover_grants(authorized_actor_id, json_extract(anchor_repair_json, '$.idempotencyKey'))
+    WHERE anchor_repair_json IS NOT NULL;
+  `);
 }
 
 function rowToEpoch(row: EpochRow): OwnershipEpoch {
@@ -1270,6 +1465,12 @@ function rowToEpoch(row: EpochRow): OwnershipEpoch {
   };
 }
 
+/**
+ * Rehydrate stored signed facts without inventing new fields on old grants.
+ * The purpose of omitting an absent repair extension is signature compatibility.
+ * @param row Persisted grant; JSON remains subject to signed-domain validation.
+ * @returns Grant with precisely the optional facts that were originally signed.
+ */
 function rowToGrant(row: GrantRow): DurableTakeoverGrant {
   return {
     schema: TAKEOVER_GRANT_SCHEMA,
@@ -1304,6 +1505,9 @@ function rowToGrant(row: GrantRow): DurableTakeoverGrant {
     nonceHash: row.nonce_hash,
     issuedAt: row.issued_at,
     expiresAt: row.expires_at,
+    ...(row.anchor_repair_json ? {
+      anchorRepair: parseSignedJson<SameOwnerAnchorRepair>(row.anchor_repair_json, 'anchor repair'),
+    } : {}),
     contentHash: row.content_hash,
     signature: {
       algorithm: row.signature_algorithm,
@@ -1454,6 +1658,13 @@ function sameWorkBinding(a: ExactWorkBinding, b: ExactWorkBinding): boolean {
   return canonicalOwnershipJson(normalizeExactWorkBinding(a)) === canonicalOwnershipJson(normalizeExactWorkBinding(b));
 }
 
+/**
+ * Verify that enactment accounted for every granted claim exactly once.
+ * This design forbids partial transfers and unsigned repair destination maps.
+ * @param disposition Claim writer's result inside the ownership transaction.
+ * @param grant Verified consent specifying the complete source claim set.
+ * @returns Canonical disposition, or an error that rolls back enactment.
+ */
 function assertExactDisposition(disposition: TakeoverDisposition, grant: DurableTakeoverGrant): TakeoverDisposition {
   if (disposition.successorSessionId !== grant.successorSessionId) {
     throw new DurableOwnershipError('enactment returned the wrong successor session', 'ENACTMENT_REJECTED', 409);
@@ -1483,11 +1694,18 @@ function assertExactDisposition(disposition: TakeoverDisposition, grant: Durable
   if (preserved.some((id) => granted.includes(id))) {
     throw new DurableOwnershipError('preserved claims must be outside the granted set', 'CLAIM_SET_MISMATCH', 409);
   }
+  if (grant.anchorRepair && (
+    preserved.length !== 0
+    || canonicalOwnershipJson(disposition.claimNodeMappings) !== canonicalOwnershipJson(grant.anchorRepair.claimNodeMappings)
+  )) {
+    throw new DurableOwnershipError('repair enactment differs from the signed complete node mapping', 'CLAIM_SET_MISMATCH', 409);
+  }
   return {
     successorSessionId: disposition.successorSessionId,
     transferredClaimNodeIds: transferred,
     releasedClaimNodeIds: released,
     preservedClaimNodeIds: preserved,
+    ...(grant.anchorRepair ? { claimNodeMappings: grant.anchorRepair.claimNodeMappings } : {}),
   };
 }
 
@@ -1577,13 +1795,19 @@ function createDurableOwnershipKernel(db: DatabaseInstance, deps: DurableOwnersh
     }
   }
 
+  /**
+   * Check cryptographic integrity and domain constraints before using a grant.
+   * The intent is to treat stored repair fields as untrusted until both checks pass.
+   * @param row Stored signed grant, including optional historical repair facts.
+   * @returns Verified canonical grant, or a fail-closed signed-fact error.
+   */
   function verifiedGrant(row: GrantRow): DurableTakeoverGrant {
     const grant = assertSignedFact(rowToGrant(row), 'takeover grant');
     try {
       if (grant.schema !== TAKEOVER_GRANT_SCHEMA) throw new Error('schema mismatch');
       const workBinding = normalizeExactWorkBinding(grant.workBinding);
       const claims = validateTakeoverDispositions(
-        validateClaimWorktreeBinding(normalizeClaimBindings(grant.claimBindings), workBinding),
+        validateGrantClaims(grant.claimBindings, workBinding, grant.anchorRepair),
       );
       if (canonicalOwnershipJson(workBinding) !== canonicalOwnershipJson(grant.workBinding)) throw new Error('non-canonical work binding');
       if (canonicalOwnershipJson(claims) !== canonicalOwnershipJson(grant.claimBindings)) throw new Error('non-canonical claim bindings');
@@ -1613,6 +1837,17 @@ function createDurableOwnershipKernel(db: DatabaseInstance, deps: DurableOwnersh
         grant.sourceSessionId,
         workBinding,
       );
+      if (grant.anchorRepair) {
+        const repair = normalizeAnchorRepair(grant.anchorRepair, grant);
+        if (canonicalOwnershipJson(repair) !== canonicalOwnershipJson(grant.anchorRepair)) {
+          throw new Error('non-canonical anchor repair binding');
+        }
+        if (grant.predecessorEvidenceGap !== null || !grant.sourceWitnessCanonical || grant.operatorPresenceReceipt !== null) {
+          throw new Error('anchor repair cannot use predecessor gaps or operator override authority');
+        }
+      } else if (grant.predecessorAgentNodeId === grant.successorAgentNodeId) {
+        throw new Error('generic takeover requires a different successor AgentNode');
+      }
       const presenceIntent: OperatorPresenceIntent = {
         actorId: grant.authorizedActorId,
         harbor: grant.harbor,
@@ -1722,8 +1957,13 @@ function createDurableOwnershipKernel(db: DatabaseInstance, deps: DurableOwnersh
     return signed;
   }
 
+  /**
+   * Append the signed ownership epoch and require exactly one persisted row.
+   * The purpose is to reject even silent SQLite insert suppression atomically.
+   * @param epoch Already signed epoch in the caller's ownership transaction.
+   */
   function insertEpoch(epoch: OwnershipEpoch): void {
-    db.prepare(`
+    const inserted = db.prepare(`
       INSERT INTO roadmap_ownership_epochs (
         epoch_id, roadmap_item_id, roadmap_slug, harbor, epoch_number,
         owner_agent_node_id, prior_epoch_id, prior_owner_agent_node_id, cause,
@@ -1741,8 +1981,14 @@ function createDurableOwnershipKernel(db: DatabaseInstance, deps: DurableOwnersh
       epoch.authoredByAgentNodeId, epoch.authorizedActorId, epoch.createdAt, epoch.contentHash,
       epoch.signature.algorithm, epoch.signature.keyId, epoch.signature.value,
     );
+    if (inserted.changes !== 1) throw new DurableOwnershipError('ownership epoch was not appended', 'STORE_UNAVAILABLE', 503);
   }
 
+  /**
+   * Append the signed lifecycle event with an explicit write-count witness.
+   * This design prevents a receipt from claiming an event that was never stored.
+   * @param event Already signed lifecycle transition and its causal details.
+   */
   function insertEvent(event: SignedFact & {
     eventId: string;
     epochId: string;
@@ -1755,7 +2001,7 @@ function createDurableOwnershipKernel(db: DatabaseInstance, deps: DurableOwnersh
     details: Record<string, unknown>;
     causedByEventId: string | null;
   }): void {
-    db.prepare(`
+    const inserted = db.prepare(`
       INSERT INTO roadmap_ownership_events (
         event_id, epoch_id, roadmap_item_id, kind, state,
         authored_by_agent_node_id, authorized_actor_id, occurred_at,
@@ -1768,10 +2014,16 @@ function createDurableOwnershipKernel(db: DatabaseInstance, deps: DurableOwnersh
       canonicalOwnershipJson(event.details), event.causedByEventId, event.contentHash,
       event.signature.algorithm, event.signature.keyId, event.signature.value,
     );
+    if (inserted.changes !== 1) throw new DurableOwnershipError('ownership event was not appended', 'STORE_UNAVAILABLE', 503);
   }
 
+  /**
+   * Persist a signed receipt or fail the surrounding ownership transaction.
+   * The rationale is that an unrecorded outcome is not a completed transfer.
+   * @param receipt Signed issuance, rejection, expiry, or consumption fact.
+   */
   function insertReceipt(receipt: DurableTakeoverReceipt): void {
-    db.prepare(`
+    const inserted = db.prepare(`
       INSERT INTO durable_takeover_receipts (
         receipt_id, grant_id, kind, at, details_json, content_hash,
         signature_algorithm, signature_key_id, signature_value
@@ -1781,6 +2033,7 @@ function createDurableOwnershipKernel(db: DatabaseInstance, deps: DurableOwnersh
       canonicalOwnershipJson(receipt.details), receipt.contentHash,
       receipt.signature.algorithm, receipt.signature.keyId, receipt.signature.value,
     );
+    if (inserted.changes !== 1) throw new DurableOwnershipError('ownership receipt was not appended', 'STORE_UNAVAILABLE', 503);
   }
 
   async function makeReceipt(
@@ -1902,18 +2155,33 @@ function createDurableOwnershipKernel(db: DatabaseInstance, deps: DurableOwnersh
     }
   }
 
+  /**
+   * Sign and append a grant using facts captured by the trusted coordinator.
+   * The design signs before locking, then rechecks authority and expiry on write.
+   * @param input Exact canonical witnesses and explicit claim dispositions.
+   * @returns Signed grant, caller-held nonce, and its persisted issuance receipt.
+   */
   async function issue(input: IssueTakeoverInput): Promise<{
     grant: DurableTakeoverGrant;
     nonce: string;
     receipt: DurableTakeoverReceipt;
+    idempotent?: boolean;
+    state?: TakeoverGrantState;
   }> {
+    if (input.anchorRepair) {
+      const replay = replayAnchorRepairPreparation(
+        input.anchorRepair.idempotencyKey, input.anchorRepair.requestHash,
+        anchorRepairNonce(input.nonce), input.trustedAuthorizedActorId,
+      );
+      if (replay) return replay;
+    }
     await expireDue();
     const predecessor = requireAgentNode(input.predecessorAgentNodeId, 'predecessorAgentNodeId');
     const successor = requireAgentNode(input.successorAgentNodeId, 'successorAgentNodeId');
     const issuer = input.trustedIssuerAgentNodeId === null
       ? null
       : requireAgentNode(input.trustedIssuerAgentNodeId, 'trustedIssuerAgentNodeId');
-    if (predecessor === successor) {
+    if (predecessor === successor && !input.anchorRepair) {
       throw new DurableOwnershipError('successor must be a different AgentNode', 'VALIDATION_ERROR', 400);
     }
     if (input.authorityKind === 'current-owner' && issuer !== predecessor) {
@@ -1959,8 +2227,17 @@ function createDurableOwnershipKernel(db: DatabaseInstance, deps: DurableOwnersh
       throw new DurableOwnershipError('successor session witness does not match the grant', 'GRANT_BINDING_MISMATCH', 409);
     }
     const claims = validateTakeoverDispositions(
-      validateClaimWorktreeBinding(normalizeClaimBindings(input.claimBindings), workBinding),
+      validateGrantClaims(input.claimBindings, workBinding, input.anchorRepair),
     );
+    const anchorRepair = input.anchorRepair ? normalizeAnchorRepair(input.anchorRepair, {
+      predecessorAgentNodeId: predecessor, successorAgentNodeId: successor,
+      issuerAgentNodeId: issuer, authorizedActorId: input.trustedAuthorizedActorId,
+      successorActorId, authorityKind: input.authorityKind,
+      sourceWitness: input.sourceWitness, successorWitness, workBinding, claimBindings: claims,
+    }) : undefined;
+    if (anchorRepair && (predecessorEvidenceGap !== null || !sourceWitnessCanonical || input.operatorPresenceReceipt !== null)) {
+      throw new DurableOwnershipError('anchor repair cannot borrow operator or compatibility authority', 'AUTHORITY_REQUIRED', 403);
+    }
     const claimSetHash = exactClaimSetHash(claims);
     const briefing = validateBriefing(
       input.briefing,
@@ -1976,10 +2253,18 @@ function createDurableOwnershipKernel(db: DatabaseInstance, deps: DurableOwnersh
       throw new DurableOwnershipError(`ttlMs must be between ${MIN_TTL_MS} and ${MAX_TTL_MS}`, 'VALIDATION_ERROR', 400);
     }
     const active = activeGrantForEpoch(current.epoch_id, now());
-    if (active) throw new DurableOwnershipError('current epoch already has an active takeover grant', 'GRANT_CONFLICT', 409);
+    if (active) {
+      if (anchorRepair) {
+        const replay = replayAnchorRepairPreparation(
+          anchorRepair.idempotencyKey, anchorRepair.requestHash, anchorRepairNonce(input.nonce), input.trustedAuthorizedActorId,
+        );
+        if (replay) return replay;
+      }
+      throw new DurableOwnershipError('current epoch already has an active takeover grant', 'GRANT_CONFLICT', 409);
+    }
 
     const grantId = `otgrant_${randomUUID()}`;
-    const nonce = randomBytes(32).toString('base64url');
+    const nonce = anchorRepair ? anchorRepairNonce(input.nonce) : randomBytes(32).toString('base64url');
     const nonceHash = sha256(nonce);
     const issuedAt = now();
     const expiresAt = issuedAt + Math.floor(ttlMs);
@@ -2032,6 +2317,7 @@ function createDurableOwnershipKernel(db: DatabaseInstance, deps: DurableOwnersh
       nonceHash,
       issuedAt,
       expiresAt,
+      ...(anchorRepair ? { anchorRepair } : {}),
     };
     const grant = await signFact(unsigned) as DurableTakeoverGrant;
     const receipt = await makeReceipt(grantId, 'issued', issuedAt, {
@@ -2048,6 +2334,7 @@ function createDurableOwnershipKernel(db: DatabaseInstance, deps: DurableOwnersh
       claimSetHash,
       briefingHash: briefing.contentHash,
       expiresAt,
+      ...(anchorRepair ? { anchorRepair } : {}),
     });
     const handoffEvent = await signFact({
       eventId: `oevt_${randomUUID()}`,
@@ -2073,6 +2360,9 @@ function createDurableOwnershipKernel(db: DatabaseInstance, deps: DurableOwnersh
           throw new DurableOwnershipError('ownership changed before grant issuance', 'EPOCH_CONFLICT', 409);
         }
         verifiedEpoch(liveEpoch);
+        if (now() >= expiresAt) {
+          throw new DurableOwnershipError('grant expired while its signatures were being prepared', 'GRANT_EXPIRED', 409);
+        }
         if (activeGrantForEpoch(current.epoch_id, issuedAt)) {
           throw new DurableOwnershipError('current epoch already has an active takeover grant', 'GRANT_CONFLICT', 409);
         }
@@ -2086,8 +2376,8 @@ function createDurableOwnershipKernel(db: DatabaseInstance, deps: DurableOwnersh
             successor_witness_json, predecessor_evidence_gap_json, work_binding_json, claim_bindings_json,
             claim_set_hash, briefing_json, briefing_hash, nonce_hash, issued_at,
             expires_at, content_hash,
-            signature_algorithm, signature_key_id, signature_value
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            signature_algorithm, signature_key_id, signature_value, anchor_repair_json
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
           grant.grantId, grant.roadmapItemId, grant.roadmapSlug, grant.harbor, grant.predecessorEpochId,
           grant.predecessorAgentNodeId, grant.successorAgentNodeId, grant.issuerAgentNodeId,
@@ -2101,15 +2391,50 @@ function createDurableOwnershipKernel(db: DatabaseInstance, deps: DurableOwnersh
           grant.claimSetHash, canonicalOwnershipJson(grant.briefing), grant.briefingHash,
           grant.nonceHash, grant.issuedAt, grant.expiresAt, grant.contentHash,
           grant.signature.algorithm, grant.signature.keyId, grant.signature.value,
+          grant.anchorRepair ? canonicalOwnershipJson(grant.anchorRepair) : null,
         );
         insertReceipt(receipt);
         insertEvent(handoffEvent);
       }).immediate();
-      return { grant, nonce, receipt };
+      return { grant, nonce, receipt, ...(anchorRepair ? { idempotent: false, state: 'active' as const } : {}) };
     } catch (error) {
+      if (anchorRepair) {
+        // The unique actor/key index arbitrates concurrent duplicate delivery.
+        // Read back this exact operation only; never retry a changed intent.
+        const replay = replayAnchorRepairPreparation(
+          anchorRepair.idempotencyKey, anchorRepair.requestHash, nonce, grant.authorizedActorId,
+        );
+        if (replay) return replay;
+      }
       if (error instanceof DurableOwnershipError) throw error;
       throw new DurableOwnershipError((error as Error).message, 'STORE_UNAVAILABLE', 503);
     }
+  }
+
+  /**
+   * Read back an already accepted preparation without signing or issuing again.
+   * Motivation: ambiguous transport acceptance must not consume a second grant
+   * or reinterpret new work as the original consent.
+   * @param key Caller-retained logical operation id, scoped to verified actor.
+   * @param requestHash Canonical hash of the original request fields.
+   * @param nonce Caller-retained nonce; never recovered from daemon storage.
+   * @param actorId Verified caller, not a body-supplied alias.
+   * @returns Original signed preparation/state, or null when never admitted.
+   */
+  function replayAnchorRepairPreparation(key: string, requestHash: string, nonce: string, actorId: string) {
+    const row = db.prepare(`
+      SELECT * FROM durable_takeover_grants
+      WHERE authorized_actor_id = ? AND json_extract(anchor_repair_json, '$.idempotencyKey') = ?
+      LIMIT 1
+    `).get(actorId, key) as GrantRow | undefined;
+    if (!row) return null;
+    const view = grantView(row);
+    if (view.grant.anchorRepair?.requestHash !== requestHash || view.grant.nonceHash !== sha256(nonce)) {
+      throw new DurableOwnershipError('idempotency key was already bound to different repair consent', 'GRANT_CONFLICT', 409);
+    }
+    const receipt = view.receipts.find(candidate => candidate.kind === 'issued');
+    if (!receipt) throw new DurableOwnershipError('repair preparation lacks its signed issued receipt', 'STORE_UNAVAILABLE', 503);
+    return { grant: view.grant, nonce, receipt, idempotent: true, state: view.state };
   }
 
   async function reject(grant: DurableTakeoverGrant, code: DurableOwnershipFailureCode, message: string): Promise<never> {
@@ -2126,17 +2451,29 @@ function createDurableOwnershipKernel(db: DatabaseInstance, deps: DurableOwnersh
     throw new DurableOwnershipError(message, code, 409);
   }
 
+  /**
+   * Consume consent and enact one atomic ownership transition with signed proof.
+   * The intent is all-or-nothing claims, epoch, lifecycle events, and receipt;
+   * repair retries read the original outcome instead of repeating the writes.
+   * @param input Verified caller and freshly captured grant-bound witnesses.
+   * @returns Committed epoch and disposition, or the identical repair replay.
+   */
   async function consume(input: ConsumeTakeoverInput): Promise<{
     grant: DurableTakeoverGrant;
     epoch: OwnershipEpoch;
     receipt: DurableTakeoverReceipt;
     disposition: TakeoverDisposition;
+    idempotent?: boolean;
   }> {
     await expireDue();
     const row = selectGrant.get(text(input.grantId, 'grantId')) as GrantRow | undefined;
     if (!row) throw new DurableOwnershipError('takeover grant not found', 'GRANT_NOT_FOUND', 404);
     const lifecycle = grantView(row);
     const grant = lifecycle.grant;
+    if (grant.anchorRepair) {
+      const replay = replayAnchorRepairConsumption(input.grantId, input.nonce, input.trustedAuthorizedActorId);
+      if (replay) return replay;
+    }
     if (lifecycle.state === 'consumed') return reject(grant, 'GRANT_ALREADY_CONSUMED', 'takeover grant was already consumed');
     if (lifecycle.state === 'expired') return reject(grant, 'GRANT_EXPIRED', 'takeover grant expired');
     if (sha256(text(input.nonce, 'nonce', 4096)) !== grant.nonceHash) {
@@ -2146,7 +2483,7 @@ function createDurableOwnershipKernel(db: DatabaseInstance, deps: DurableOwnersh
       return reject(grant, 'AUTHORITY_REQUIRED', 'verified caller does not match the takeover grant actor');
     }
     const workBinding = normalizeExactWorkBinding(input.workBinding);
-    const claims = validateClaimWorktreeBinding(normalizeClaimBindings(input.claimBindings), workBinding);
+    const claims = validateGrantClaims(input.claimBindings, workBinding, grant.anchorRepair);
     if (!sameWorkBinding(workBinding, grant.workBinding)) {
       return reject(grant, 'GRANT_BINDING_MISMATCH', 'exact work binding drifted');
     }
@@ -2189,6 +2526,10 @@ function createDurableOwnershipKernel(db: DatabaseInstance, deps: DurableOwnersh
     const predecessorEpochRow = selectEpoch.get(grant.predecessorEpochId) as EpochRow | undefined;
     if (!predecessorEpochRow) throw new DurableOwnershipError('predecessor epoch not found', 'EPOCH_NOT_FOUND', 404);
     const nextEpochNumber = verifiedEpoch(predecessorEpochRow).epochNumber;
+    const epochClaims: ExactClaimBinding[] = grant.anchorRepair
+      ? anchorRepairSuccessorClaims(grant, at)
+      : grant.claimBindings;
+    const canonicalEpochClaims = normalizeClaimBindings(epochClaims);
     const epoch = await signFact({
       schema: OWNERSHIP_EPOCH_SCHEMA,
       epochId: nextEpochId,
@@ -2204,8 +2545,8 @@ function createDurableOwnershipKernel(db: DatabaseInstance, deps: DurableOwnersh
       successorSessionId: grant.successorSessionId,
       takeoverGrantId: grant.grantId,
       workBinding: grant.workBinding,
-      claimBindings: grant.claimBindings,
-      claimSetHash: grant.claimSetHash,
+      claimBindings: canonicalEpochClaims,
+      claimSetHash: exactClaimSetHash(canonicalEpochClaims),
       briefingHash: grant.briefingHash,
       reason: grant.reason,
       authoredByAgentNodeId: grant.successorAgentNodeId,
@@ -2224,6 +2565,18 @@ function createDurableOwnershipKernel(db: DatabaseInstance, deps: DurableOwnersh
       briefingHash: grant.briefingHash,
       sourceWitnessCanonical: grant.sourceWitnessCanonical,
       knownGaps: grant.predecessorEvidenceGap?.knownGaps ?? grant.briefing.knownGaps,
+      ...(grant.anchorRepair ? {
+        operation: 'same-owner-anchor-repair',
+        anchorRepair: grant.anchorRepair,
+        successorClaimSetHash: epoch.claimSetHash,
+        disposition: {
+          successorSessionId: grant.successorSessionId,
+          transferredClaimNodeIds: grant.claimBindings.filter(claim => claim.disposition === 'transfer').map(claim => claim.claimNodeId).sort(),
+          releasedClaimNodeIds: grant.claimBindings.filter(claim => claim.disposition === 'release').map(claim => claim.claimNodeId).sort(),
+          preservedClaimNodeIds: [],
+          claimNodeMappings: grant.anchorRepair.claimNodeMappings,
+        },
+      } : {}),
     });
     const takenOverEvent = await signFact({
       eventId: `oevt_${randomUUID()}`,
@@ -2260,7 +2613,7 @@ function createDurableOwnershipKernel(db: DatabaseInstance, deps: DurableOwnersh
           throw new DurableOwnershipError('grant lost its active one-shot state', 'GRANT_ALREADY_CONSUMED', 409);
         }
         verifiedGrant(liveGrant);
-        if (liveGrant.expires_at <= at) {
+        if (liveGrant.expires_at <= now()) {
           throw new DurableOwnershipError('takeover grant expired before enactment', 'GRANT_EXPIRED', 409);
         }
         if (
@@ -2272,7 +2625,10 @@ function createDurableOwnershipKernel(db: DatabaseInstance, deps: DurableOwnersh
         }
         verifiedEpoch(liveEpoch);
 
-        disposition = assertExactDisposition(input.enact(), grant);
+        disposition = assertExactDisposition(input.enact(at), grant);
+        if (liveGrant.expires_at <= now()) {
+          throw new DurableOwnershipError('takeover grant expired during enactment', 'GRANT_EXPIRED', 409);
+        }
 
         const ownerChanged = db.prepare(`
           UPDATE roadmap_items SET assignee_id = ?, last_touched_at = ?
@@ -2287,6 +2643,10 @@ function createDurableOwnershipKernel(db: DatabaseInstance, deps: DurableOwnersh
         insertReceipt(receipt);
       }).immediate();
     } catch (error) {
+      if (grant.anchorRepair) {
+        const replay = replayAnchorRepairConsumption(grant.grantId, input.nonce, input.trustedAuthorizedActorId);
+        if (replay) return replay;
+      }
       const verdict = error instanceof DurableOwnershipError
         ? error
         : new DurableOwnershipError((error as Error).message, 'ENACTMENT_REJECTED', 409);
@@ -2305,7 +2665,43 @@ function createDurableOwnershipKernel(db: DatabaseInstance, deps: DurableOwnersh
       }
       throw verdict;
     }
-    return { grant, epoch, receipt, disposition };
+    return { grant, epoch, receipt, disposition, ...(grant.anchorRepair ? { idempotent: false } : {}) };
+  }
+
+  /**
+   * Recover an ambiguously accepted repair from the same signed receipt store.
+   * Purpose: duplicate delivery is a read, never a second ownership transition.
+   * @param grantId Exact grant whose outcome is requested.
+   * @param nonce Original retained nonce, still required after consumption.
+   * @param actorId Verified same-owner actor requesting the read-back.
+   * @returns Verified terminal outcome, or null while the grant is not consumed.
+   */
+  function replayAnchorRepairConsumption(grantId: string, nonce: string, actorId: string) {
+    const row = selectGrant.get(grantId) as GrantRow | undefined;
+    if (!row) return null;
+    const view = grantView(row);
+    const grant = view.grant;
+    if (!grant.anchorRepair || view.state !== 'consumed') return null;
+    if (actorId !== grant.authorizedActorId || actorId !== grant.successorActorId || sha256(nonce) !== grant.nonceHash) {
+      throw new DurableOwnershipError('repair read-back requires the original actor and nonce', 'AUTHORITY_REQUIRED', 403);
+    }
+    const receipt = view.receipts.find(candidate => candidate.kind === 'consumed');
+    const epochRow = receipt ? selectEpoch.get(receipt.details.successorEpochId) as EpochRow | undefined : undefined;
+    if (!receipt || !epochRow) {
+      throw new DurableOwnershipError('consumed repair is missing its signed terminal outcome', 'STORE_UNAVAILABLE', 503);
+    }
+    const epoch = verifiedEpoch(epochRow);
+    if (
+      epoch.takeoverGrantId !== grant.grantId || epoch.priorEpochId !== grant.predecessorEpochId
+      || epoch.ownerAgentNodeId !== grant.successorAgentNodeId
+      || epoch.successorSessionId !== grant.successorSessionId
+      || receipt.details.successorClaimSetHash !== epoch.claimSetHash
+      || canonicalOwnershipJson(receipt.details.anchorRepair) !== canonicalOwnershipJson(grant.anchorRepair)
+    ) {
+      throw new DurableOwnershipError('repair receipt and ownership epoch disagree', 'SIGNED_FACT_INVALID', 503);
+    }
+    const disposition = assertExactDisposition(receipt.details.disposition as TakeoverDisposition, grant);
+    return { grant, epoch, receipt, disposition, idempotent: true };
   }
 
   async function markState(input: {
@@ -2371,6 +2767,8 @@ function createDurableOwnershipKernel(db: DatabaseInstance, deps: DurableOwnersh
     bootstrap,
     issue,
     consume,
+    replayAnchorRepairPreparation,
+    replayAnchorRepairConsumption,
     markState,
     getProjection,
     getGrant,
@@ -2982,6 +3380,9 @@ function sessionIsCanonicallyBound(
  * exact claim dispositions. Every authority-bearing fact (actor, AgentNode,
  * session lineage, git state, claims, and briefing) is captured from daemon
  * stores here. The lower-level kernel is intentionally not exported.
+ * @param db Existing coordination and append-only ownership database.
+ * @param deps Daemon-owned actor, roster, signing, clock, and workspace services.
+ * @returns Coordinator that derives authority from canonical evidence.
  */
 export function createDurableOwnershipService(db: DatabaseInstance, deps: DurableOwnershipServiceDeps) {
   const kernel: DurableOwnershipKernel = createDurableOwnershipKernel(db, deps);
@@ -3289,11 +3690,19 @@ export function createDurableOwnershipService(db: DatabaseInstance, deps: Durabl
    * must never turn a caller-selected roster id into a canonical AgentRun.
    * The append-only AgentRun is the durable body-to-node admission witness;
    * the session and its verified actor are merely the live body projection.
+   * The intent of read-only repair validation is never to create admission.
+   * @param initial Successor session read from the canonical session store.
+   * @param workBinding Independently captured physical worktree and exact Git state.
+   * @param harbor Roadmap scope in which the existing admission must be valid.
+   * @param materialize Whether ordinary takeover may project an existing admission;
+   * repair passes false and requires the session column to be bound already.
+   * @returns Successor whose actor, AgentRun, AgentNode, and workspace agree.
    */
   function bindAdmittedSuccessor(
     initial: CanonicalSessionRow,
     workBinding: ExactWorkBinding,
     harbor: string,
+    materialize = true,
   ): CanonicalSessionRow {
     const rows = db.prepare(`
       SELECT agent_node_id, session_id, payload_json
@@ -3391,7 +3800,146 @@ export function createDurableOwnershipService(db: DatabaseInstance, deps: Durabl
     if (!deps.agentNodeExists(agentNodeId)) {
       throw new DurableOwnershipError('successor AgentNode is not on the durable roster', 'AGENT_NODE_NOT_FOUND', 404);
     }
+    if (!materialize) {
+      if (initial.agent_node_id !== agentNodeId) {
+        throw new DurableOwnershipError('repair successor has not been canonically materialized', 'SUCCESSOR_ADMISSION_REQUIRED', 409);
+      }
+      return initial;
+    }
     return bindSessionFromCanonicalRun(initial, { required: true, expectedAgentNodeId: agentNodeId });
+  }
+
+  /**
+   * Inspect a repair without fixing identity columns or touching old claims.
+   * The design admits only an already canonical same-owner successor at the
+   * recorded source ROOT, whose physical identity is independently re-probed.
+   * A new alias, a roster lookup, or a mismatched metadata id is not authority.
+   * @param source Exact historical owner session; its old world is preserved.
+   * @param successor Already admitted, empty destination session.
+   * @param item Canonical roadmap projection used for citations and scope.
+   * @param actorId Verified transport actor consenting to its own lease repair.
+   * @param ownerAgentNodeId Signed current epoch's canonical owner.
+   * @returns Verified witnesses and freshly captured destination Git state.
+   */
+  function inspectSameOwnerAnchorRepair(
+    source: CanonicalSessionRow,
+    successor: CanonicalSessionRow,
+    item: RoadmapRow,
+    actorId: string,
+    ownerAgentNodeId: string,
+  ) {
+    const sourceWitness = sessionWitness(source);
+    const successorIdentity = sessionWitness(successor);
+    if (
+      sourceWitness.actorId !== actorId || successorIdentity.actorId !== actorId
+      || source.agent_node_id !== ownerAgentNodeId || successor.agent_node_id !== ownerAgentNodeId
+      || !sessionIsCanonicallyBound(sourceWitness, ownerAgentNodeId)
+      || !sessionIsCanonicallyBound(successorIdentity, ownerAgentNodeId)
+    ) {
+      throw new DurableOwnershipError('repair requires two real canonical sessions of the same AgentNode and verified actor', 'AUTHORITY_REQUIRED', 403);
+    }
+    const sourceNodes = canonicalAgentRunNodes(source.id);
+    if (sourceNodes.length !== 1 || sourceNodes[0] !== ownerAgentNodeId) {
+      throw new DurableOwnershipError('repair source lacks one canonical AgentRun witness', 'SESSION_AGENT_NODE_MISMATCH', 409);
+    }
+    const workBinding = exactWork(successor, [item.notes_json, source.metadata, successor.metadata]);
+    const recordedRoot = metadataWorktree(metadataObject(source.metadata)).root;
+    if (
+      !recordedRoot || recordedRoot !== workBinding.worktreeRoot
+      || source.worktree_id === workBinding.worktreeId
+    ) {
+      throw new DurableOwnershipError('repair must resolve the recorded root into a different independently probed worktree id', 'SESSION_WORKTREE_SPLIT', 409);
+    }
+    // Validation only: never let preparation materialize identity or claims.
+    bindAdmittedSuccessor(successor, workBinding, item.harbor, false);
+    const successorWitness = assertSuccessorSession(successor, source.id, workBinding);
+    if (exactClaims(successor.id).length !== 0) {
+      throw new DurableOwnershipError('repair successor already holds claims', 'CLAIM_SET_MISMATCH', 409);
+    }
+    return { sourceWitness, successorWitness, workBinding, recordedRoot };
+  }
+
+  /**
+   * Prepare explicit same-owner repair in the existing signed takeover ledger.
+   * Motivation: a stale anchor must not require abandoning work first, but
+   * neither may it become generic cross-world or cross-owner takeover power.
+   * All side effects here are append-only grant/receipt facts; sessions and
+   * claims change only when the exact consent is consumed atomically.
+   * @param request Bounded intent plus retained idempotency key and nonce.
+   * @param caller Already verified transport identity; aliases are insufficient.
+   * @returns Signed grant, compact briefing and safe idempotent read-back state.
+   */
+  async function prepareSameOwnerAnchorRepair(
+    request: PrepareSameOwnerAnchorRepairRequest,
+    caller: VerifiedOwnershipActor,
+  ) {
+    const actor = verifiedActor(caller);
+    if (!isPlainObject(request) || Object.keys(request).some(key => ![
+      'roadmapSlug', 'harbor', 'successorSessionId', 'reason', 'claimDispositions',
+      'idempotencyKey', 'nonce', 'ttlMs',
+    ].includes(key))) {
+      throw new DurableOwnershipError('unknown or invalid repair request field', 'VALIDATION_ERROR', 400);
+    }
+    const idempotencyKey = text(request.idempotencyKey, 'idempotencyKey', 128);
+    if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(idempotencyKey)) {
+      throw new DurableOwnershipError('invalid repair idempotency key', 'VALIDATION_ERROR', 400);
+    }
+    const nonce = anchorRepairNonce(request.nonce);
+    if (!Array.isArray(request.claimDispositions) || request.claimDispositions.length > 5000) {
+      throw new DurableOwnershipError('claimDispositions exceeds the bounded repair contract', 'VALIDATION_ERROR', 400);
+    }
+    const requestHash = sha256(canonicalOwnershipJson({
+      roadmapSlug: text(request.roadmapSlug, 'roadmapSlug'), harbor: text(request.harbor, 'harbor'),
+      successorSessionId: text(request.successorSessionId, 'successorSessionId'),
+      reason: narrative(request.reason, 'reason'),
+      claimDispositions: [...request.claimDispositions].sort((a, b) => String(a?.claimNodeId).localeCompare(String(b?.claimNodeId))),
+      ttlMs: request.ttlMs ?? DEFAULT_TTL_MS, nonceHash: sha256(nonce),
+    }));
+    const replay = kernel.replayAnchorRepairPreparation(idempotencyKey, requestHash, nonce, actor.actorId);
+    if (replay) return replay;
+
+    const item = roadmapRow(request.roadmapSlug, request.harbor);
+    const projection = kernel.getProjection(item.slug, item.harbor);
+    const current = projection.currentEpoch;
+    if (!current) throw new DurableOwnershipError('repair requires a real canonical ownership epoch', 'EPOCH_NOT_FOUND', 409);
+    if (projection.currentOwner !== current.ownerAgentNodeId) {
+      throw new DurableOwnershipError('roadmap and signed epoch owners disagree', 'OWNER_MISMATCH', 409);
+    }
+    const source = getSession(current.successorSessionId ?? current.sourceSessionId ?? '');
+    const successor = getSession(request.successorSessionId);
+    const inspected = inspectSameOwnerAnchorRepair(source, successor, item, actor.actorId, current.ownerAgentNodeId);
+    const { sourceWitness, successorWitness, workBinding } = inspected;
+    if (workBinding.repoId !== current.workBinding.repoId || workBinding.repoCommonDir !== current.workBinding.repoCommonDir) {
+      throw new DurableOwnershipError('anchor repair cannot move work to a different repository', 'GRANT_BINDING_MISMATCH', 409);
+    }
+    const claims = exactClaims(source.id, request.claimDispositions);
+    const anchorRepair: SameOwnerAnchorRepair = {
+      schema: ANCHOR_REPAIR_SCHEMA, idempotencyKey, requestHash,
+      sourceWorktreeId: source.worktree_id!, sourceWorktreeRoot: inspected.recordedRoot,
+      sourceLineageHash: sourceWitness.lineageHash!, targetWorktreeId: workBinding.worktreeId,
+      claimNodeMappings: claimForest.planAnchorRepairClaimMappings(source.id, claims, workBinding.worktreeId),
+    };
+    const notes = canonicalNotes(source.id);
+    const originalBriefing = buildCanonicalBriefing({
+      now: now(), item, currentEpoch: current, sourceRow: source, sourceWitness, successorWitness,
+      predecessorAgentNodeId: current.ownerAgentNodeId, successorAgentNodeId: current.ownerAgentNodeId,
+      workBinding, claims, notes: notes.notes, notesAvailable: notes.available,
+      getAgentNode: deps.getAgentNode, gitleaksRunner: deps.gitleaksRunner,
+    });
+    const briefing = buildOwnershipSuccessorBrief({
+      ...originalBriefing,
+      knownGaps: [...originalBriefing.knownGaps,
+        `Recorded source world ${source.worktree_id} is historical, not physical-workspace proof; explicit repair targets ${workBinding.worktreeId}.`],
+    });
+    return kernel.issue({
+      roadmapSlug: item.slug, harbor: item.harbor, predecessorEpochId: current.epochId,
+      predecessorAgentNodeId: current.ownerAgentNodeId, successorAgentNodeId: current.ownerAgentNodeId,
+      trustedIssuerAgentNodeId: current.ownerAgentNodeId, trustedAuthorizedActorId: actor.actorId,
+      successorActorId: actor.actorId, authorityKind: 'current-owner', operatorPresenceReceipt: null,
+      reason: request.reason, sourceSessionId: source.id, successorSessionId: successor.id,
+      sourceWitness, successorWitness, predecessorEvidenceGap: null,
+      workBinding, claimBindings: claims, briefing, ttlMs: request.ttlMs, anchorRepair, nonce,
+    });
   }
 
   async function bootstrapCanonical(
@@ -3568,10 +4116,21 @@ export function createDurableOwnershipService(db: DatabaseInstance, deps: Durabl
     });
   }
 
+  /**
+   * Revalidate and move exact claims within the kernel's ownership transaction.
+   * The purpose is to preserve old-world provenance while new nodes, session
+   * transitions, and signed outcomes either all persist or all roll back.
+   * @param grant Verified explicit takeover or same-owner repair consent.
+   * @param capturedSource Pre-signing source used for lineage compare-and-swap.
+   * @param capturedSuccessor Pre-signing successor used for lineage comparison.
+   * @param acceptedAt Repair timestamp already signed into the destination epoch.
+   * @returns Exact transferred/released source ids and any new-world node mapping.
+   */
   function enactTakeover(
     grant: DurableTakeoverGrant,
     capturedSource: CanonicalSessionRow,
     capturedSuccessor: CanonicalSessionRow,
+    acceptedAt?: number,
   ): TakeoverDisposition {
     const source = getSession(grant.sourceSessionId);
     const successor = getSession(grant.successorSessionId);
@@ -3582,11 +4141,14 @@ export function createDurableOwnershipService(db: DatabaseInstance, deps: Durabl
       throw new DurableOwnershipError('session lineage changed before enactment', 'GRANT_BINDING_MISMATCH', 409);
     }
     const item = roadmapRow(grant.roadmapSlug, grant.harbor);
-    if (!sameWorkBinding(exactWorkForRoadmap(source, item), grant.workBinding)) {
+    const liveWork = grant.anchorRepair
+      ? inspectSameOwnerAnchorRepair(source, successor, item, grant.authorizedActorId, grant.predecessorAgentNodeId).workBinding
+      : exactWorkForRoadmap(source, item);
+    if (!sameWorkBinding(liveWork, grant.workBinding)) {
       throw new DurableOwnershipError('exact git state changed before enactment', 'GRANT_BINDING_MISMATCH', 409);
     }
     assertNoSuccessorClaimOverlap(successor.id, grant.claimBindings);
-    const transferredAt = now();
+    const transferredAt = acceptedAt ?? now();
     const disposition = claimForest.transferExactClaims({
       grantId: grant.grantId,
       sourceSessionId: source.id,
@@ -3597,7 +4159,18 @@ export function createDurableOwnershipService(db: DatabaseInstance, deps: Durabl
       allowUnboundPredecessor: !grant.sourceWitnessCanonical,
       bindings: grant.claimBindings,
       transferredAt,
+      ...(grant.anchorRepair ? { anchorRepair: grant.anchorRepair } : {}),
     });
+    if (grant.anchorRepair) {
+      if (exactClaims(source.id).length !== 0
+        || exactClaimSetHash(exactClaims(successor.id)) !== exactClaimSetHash(anchorRepairSuccessorClaims(grant, transferredAt))) {
+        throw new DurableOwnershipError('actual successor claims differ from the signed repaired epoch', 'CLAIM_SET_MISMATCH', 409);
+      }
+      const afterClaims = exactWork(successor, [item.notes_json, source.metadata, successor.metadata]);
+      if (!sameWorkBinding(afterClaims, grant.workBinding)) {
+        throw new DurableOwnershipError('physical workspace changed during claim repair', 'GRANT_BINDING_MISMATCH', 409);
+      }
+    }
     const sourceMetadata = {
       ...metadataObject(source.metadata),
       ownership: {
@@ -3651,6 +4224,13 @@ export function createDurableOwnershipService(db: DatabaseInstance, deps: Durabl
     return disposition;
   }
 
+  /**
+   * Accept ordinary successor takeover through the canonical evidence path.
+   * Its design rejects repair grants here so anchor changes remain explicit.
+   * @param request Source-bound grant id and caller-retained nonce.
+   * @param caller Actor resolved by the daemon's credential verifier.
+   * @returns Atomic ownership transition and persisted signed receipt.
+   */
   async function acceptTakeover(
     request: AcceptDurableTakeoverRequest,
     caller: VerifiedOwnershipActor,
@@ -3659,6 +4239,9 @@ export function createDurableOwnershipService(db: DatabaseInstance, deps: Durabl
     const view = kernel.getGrant(text(request.grantId, 'grantId'));
     if (!view) throw new DurableOwnershipError('takeover grant not found', 'GRANT_NOT_FOUND', 404);
     const grant = view.grant;
+    if (grant.anchorRepair) {
+      throw new DurableOwnershipError('anchor repair requires its explicit acceptance method', 'VALIDATION_ERROR', 400);
+    }
     if (request.sourceSessionId !== grant.sourceSessionId) {
       throw new DurableOwnershipError('route source session does not match the grant', 'GRANT_BINDING_MISMATCH', 409);
     }
@@ -3696,10 +4279,50 @@ export function createDurableOwnershipService(db: DatabaseInstance, deps: Durabl
     });
   }
 
+  /**
+   * Consume an exact repair using the existing single SQLite ownership writer.
+   * The intent is all-or-nothing transfer of both legacy and forest claims,
+   * session provenance, roadmap epoch and signed receipt. No retries, identity
+   * minting, live daemon restarts or predecessor-abandonment pre-step occur.
+   * @param request Exact source/grant/nonce received from preparation.
+   * @param caller Verified actor consenting to its own already canonical lease.
+   * @returns Signed new epoch and explicit node mapping, or the same prior outcome.
+   */
+  async function acceptSameOwnerAnchorRepair(request: AcceptDurableTakeoverRequest, caller: VerifiedOwnershipActor) {
+    const actor = verifiedActor(caller);
+    const view = kernel.getGrant(text(request.grantId, 'grantId'));
+    if (!view) throw new DurableOwnershipError('repair grant not found', 'GRANT_NOT_FOUND', 404);
+    const grant = view.grant;
+    if (!grant.anchorRepair || request.sourceSessionId !== grant.sourceSessionId) {
+      throw new DurableOwnershipError('request does not name its exact anchor repair grant', 'GRANT_BINDING_MISMATCH', 409);
+    }
+    const nonce = anchorRepairNonce(request.nonce);
+    if (actor.actorId !== grant.authorizedActorId || actor.actorId !== grant.successorActorId) {
+      throw new DurableOwnershipError('repair requires the exact consenting owner actor', 'AUTHORITY_REQUIRED', 403);
+    }
+    const replay = kernel.replayAnchorRepairConsumption(grant.grantId, nonce, actor.actorId);
+    if (replay) return replay;
+    const source = getSession(grant.sourceSessionId);
+    const successor = getSession(grant.successorSessionId);
+    const item = roadmapRow(grant.roadmapSlug, grant.harbor);
+    const inspected = inspectSameOwnerAnchorRepair(source, successor, item, actor.actorId, grant.predecessorAgentNodeId);
+    const claims = exactClaims(source.id, grant.claimBindings.map(claim => ({
+      claimNodeId: claim.claimNodeId, disposition: claim.disposition as 'transfer' | 'release',
+    })));
+    return kernel.consume({
+      grantId: grant.grantId, nonce, trustedAuthorizedActorId: actor.actorId,
+      workBinding: inspected.workBinding, claimBindings: claims,
+      sourceWitness: inspected.sourceWitness, successorWitness: inspected.successorWitness,
+      enact: at => enactTakeover(grant, source, successor, at),
+    });
+  }
+
   return {
     bootstrapCanonical,
     prepareTakeover,
     acceptTakeover,
+    prepareSameOwnerAnchorRepair,
+    acceptSameOwnerAnchorRepair,
     getGrant: kernel.getGrant,
     actorCanReadDetails,
     getProjection: kernel.getProjection,
@@ -3707,6 +4330,7 @@ export function createDurableOwnershipService(db: DatabaseInstance, deps: Durabl
     capabilities: Object.freeze({
       operatorPresenceVerifier: Boolean(deps.verifyAndConsumeOperatorPresence),
       successorAdmission: 'preexisting-daemon-agent-run' as const,
+      sameOwnerAnchorRepair: 'explicit-same-agent-node-and-actor' as const,
     }),
   };
 }

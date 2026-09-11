@@ -905,6 +905,17 @@ Read the current briefing.
 
 ## Sessions (Extended)
 
+### PUT /sessions/:id
+End or abandon one exact session. Requires `x-actor-credential`; its actor must
+equal the session's daemon-written `metadata.identity.actorId`. Omit body
+`agentId` and `X-Agent-Id`. Unstamped, mismatched, forged, and unauthenticated
+requests fail closed; `session.end` IPC is not an authority fallback.
+
+### DELETE /sessions/:id
+Credential-authenticated archival with the same stamped-actor rule. Releases
+active claims and records a tombstone while preserving the session, notes, and
+historical claim rows. `session.remove` IPC is refused.
+
 ### PUT /sessions/:id/phase
 Set session phase.
 
@@ -1905,17 +1916,33 @@ match the grant. SDK: `getDurableTakeoverGrant(grantId, { harbor })`. This view
 redacts the nonce and raw briefing.
 
 ### POST /sessions/:id/takeover
-The named successor accepts with `{ grantId, nonce }` and its own actor
-credential; `id` is the predecessor session. SDK:
-`takeoverSession(sourceSessionId, { grantId, nonce })`. Acceptance rechecks
-expiry, one-shot state, actors, admissions, exact worktrees/heads, claims, and
-current epoch before appending the new epoch and receipt. Prior ownership and
-notes remain historical evidence; claims are explicitly transferred/released.
-Expired, consumed, or mismatched grants are denied, not silently retried.
+There are two disjoint request forms; `id` is the predecessor session in both.
 
-All writes accept optional `agentId` and legacy body `credential`; prefer the
-`x-actor-credential` header. Unknown fields are rejected. Grantless acceptance
-returns `409 RECOVERY_GRANT_REQUIRED`, including the legacy `pd takeover` /
-`pd session takeover` CLI, which cannot yet supply a signed grant. No MCP
-grant adapter exists in this revision. The SDK methods have IPC peers; transport
-selection does not weaken these checks or expose hidden reasoning.
+The signed AgentNode form is `{ grantId, nonce }` with the named successor's
+actor credential. SDK: `takeoverSession(sourceSessionId, { grantId, nonce })`.
+Acceptance rechecks expiry, one-shot state, actors, admissions, exact
+worktrees/heads, claims, and current epoch before appending the new epoch and
+receipt. Prior ownership and notes remain historical evidence; claims are
+explicitly transferred/released. Expired, consumed, or mismatched grants are
+denied, not silently retried. It supports authenticated HTTP and matching IPC.
+
+The pre-AgentNode actor-only form is `{ sameOwner: true, worktree, purpose?,
+note?, lifecycle? }`, sent with the credential in `x-actor-credential` only.
+CLI: `PORT_DADDY_CONTEXT_SLOT=<exact-slot> pd session takeover <id>
+--same-owner "reason"`. SDK: `takeoverSession(sourceSessionId, { sameOwner:
+true, worktree, note })`. The credential actor must equal the predecessor's
+daemon stamp, the physical Git worktree/HEAD and complete dual-store claim set
+must remain exact, and the predecessor must be active or abandoned with no
+AgentNode. One `IMMEDIATE` transaction creates the successor, preserves both
+notes and the historical label/claim metadata, transfers every unreleased
+claim, and records guarded split-alias retirement when needed. Any mismatch
+rolls back all state. This form forces HTTP, forbids `agentId`, `X-Agent-Id`,
+body credentials, partial/no-file transfer, unknown fields, and IPC. Its receipt
+states `durableOwnershipTransferred: false`, `agentNodeId: null`, and
+`agentNodeUpgradeRequired: true`.
+
+Grantless requests without `sameOwner: true` return
+`409 RECOVERY_GRANT_REQUIRED`. No MCP grant adapter exists in this revision.
+Actor-only continuation must later use the normal sanitized-handoff roster
+promotion ceremony to obtain a real AgentNode; it never fabricates one or
+changes roadmap ownership.

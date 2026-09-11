@@ -1,0 +1,13 @@
+{
+  "schema": "pd.agent-harbor.durable-anchor-repair.v0",
+  "idempotencyKey": "repair-fixture-1",
+  "requestHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "sourceWorktreeId": "recorded-old-world",
+  "sourceWorktreeRoot": "/Users/operator/coding/tmp/unfinished-work",
+  "sourceLineageHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "targetWorktreeId": "probed-current-world",
+  "claimNodeMappings": [
+    { "sourceClaimNodeId": "claim-node:old-file", "successorClaimNodeId": "claim-node:new-file" },
+    { "sourceClaimNodeId": "claim-node:old-release", "successorClaimNodeId": null }
+  ]
+}

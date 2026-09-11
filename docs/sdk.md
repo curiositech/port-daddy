@@ -87,21 +87,28 @@ const result = await pd.claimFiles(session.id, ['src/auth/oauth.ts']);
 // Release files
 await pd.releaseFiles(session.id, ['src/auth/oauth.ts']);
 
-// End session
+// End session (the client presents its actor credential and suppresses agent assertions)
 await pd.endSession('OAuth flow complete');
 
 // Or abandon it
 await pd.abandonSession('Approach was wrong, starting over');
 
-// Delete a session entirely
+// Archive a session; notes and historical claim rows remain
 await pd.removeSession(session.id);
 ```
+
+`endSession`, `abandonSession`, and `removeSession` require the credential actor
+to equal the exact session's daemon-written `metadata.identity.actorId`. Their
+HTTP requests deliberately omit `X-Agent-Id` and body `agentId`; the daemon
+rejects either assertion, an unstamped legacy session, a mismatched credential,
+or direct unauthenticated IPC. A client without the owning credential receives a
+typed refusal rather than falling back to display-label inference.
 
 ---
 
 ## Durable Ownership and Signed Takeover
 
-These are authenticated SDK/API operations, not new CLI commands. Both parties
+These are authenticated SDK/API operations. Both parties
 use their own daemon-minted actor credential. A roster alias, process id, stale
 heartbeat, or handoff prose is not authority. The source session must already
 belong to the roadmap's canonical `AgentNode`; the successor must already have
@@ -133,9 +140,33 @@ The current owner can propose a voluntary handoff. Operator recovery additionall
 requires stale/terminal predecessor evidence and a configured, recent-human,
 action-bound presence verifier; `soulClass: operator` alone cannot authorize it.
 Without that verifier the coordinator denies operator recovery with
-`OPERATOR_PRESENCE_REQUIRED`. The legacy `pd takeover` / `pd session takeover`
-adapter does not supply `grantId`/`nonce` and still returns
-`RECOVERY_GRANT_REQUIRED`; its presence is not working CLI coverage.
+`OPERATOR_PRESENCE_REQUIRED`.
+
+### Pre-AgentNode actor-only continuation
+
+`pd.takeoverSession(sourceSessionId, { sameOwner: true, worktree, note? })` is a
+separate compatibility boundary for a source session that has a verified actor
+stamp but no `agent_node_id`. It is not a durable-owner takeover. The client must
+already hold the predecessor context-slot credential, forces HTTP, omits
+`X-Agent-Id` and body `agentId`, and cannot request a partial claim set. The
+daemon accepts active or abandoned sources only when the credential actor,
+stored actor stamp, complete physical Git/worktree witness, HEAD, world, and
+every unreleased compatibility/claim-forest row still agree. One SQLite
+`IMMEDIATE` transaction creates the successor, appends notes, preserves the
+historical agent label and claim metadata, transfers the exact complete claim
+set, and records guarded alias retirement if the grandfather migration split
+that label from its original actor. Any write/readback mismatch rolls back the
+entire transaction.
+
+The returned successor has `agentNodeId: null`,
+`durableOwnershipTransferred: false`, and `agentNodeUpgradeRequired: true`.
+Upgrade is an explicit later ceremony: create a sanitized handoff episode bound
+to the real successor session, run `pd roster promote` for that session with its
+episode, slug, remit, and instructions, bind the resulting real AgentNode
+through ordinary admission/roadmap authority, and only then bootstrap its
+durable ownership epoch. The continuation route never
+invents a node or treats its preserved display label as authorization. See
+[Actor-only session continuation](operations/actor-only-session-continuation.md).
 
 Old owners, source notes, and claim history remain evidence. A briefing contains
 sanitized recorded context and gaps, never purported hidden reasoning. This
