@@ -74,7 +74,7 @@ public struct ControlVerbsView: View {
                                 HStack(spacing: PD.Space.s) {
                                     SignalChip(state: state.coordinationState, text: state.rawValue)
                                     Text(lifecycleExplanation(state))
-                                        .font(.subheadline)
+                                        .font(PDFont.subheadline)
                                         .foregroundStyle(PD.Chrome.secondaryText)
                                         .fixedSize(horizontal: false, vertical: true)
                                     Spacer(minLength: 0)
@@ -86,6 +86,8 @@ public struct ControlVerbsView: View {
                 }
                 .padding(PD.Space.l)
             }
+            .scrollContentBackground(.hidden)
+            .background(PD.Chrome.base)
             .navigationTitle("Controls")
         }
     }
@@ -124,23 +126,23 @@ public struct ControlVerbRow: View {
         VStack(alignment: .leading, spacing: PD.Space.xs) {
             HStack(spacing: PD.Space.m) {
                 Image(systemName: verb.systemImage)
-                    .font(.body)
+                    .font(PDFont.body)
                     .frame(width: 24)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(verb.title)
-                        .font(.body.weight(.semibold))
+                        .font(PDFont.body.weight(.semibold))
                     if !support.isSupported {
                         // The word, not just the greyed-out styling. State is
                         // never colour alone, and "disabled" is a state.
                         Text("UNSUPPORTED ON THIS BACKEND")
-                            .font(.caption.weight(.bold))
+                            .font(PDFont.caption.weight(.bold))
                             .foregroundStyle(PD.Palette.warning)
                     }
                 }
                 Spacer(minLength: 0)
                 if support.isSupported {
                     Text("available")
-                        .font(.subheadline)
+                        .font(PDFont.subheadline)
                         .foregroundStyle(PD.Chrome.tertiaryText)
                 }
             }
@@ -148,21 +150,21 @@ public struct ControlVerbRow: View {
 
             if let reason = support.reason {
                 Text(reason)
-                    .font(.subheadline)
+                    .font(PDFont.subheadline)
                     .foregroundStyle(PD.Chrome.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
             if support.isSupported {
                 Text("Issuing controls needs device pairing, which is not built yet.")
-                    .font(.subheadline)
+                    .font(PDFont.subheadline)
                     .foregroundStyle(PD.Chrome.tertiaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
         .frame(maxWidth: .infinity, minHeight: PD.minimumTapTarget, alignment: .leading)
         .padding(PD.Space.m)
-        .background(RoundedRectangle(cornerRadius: PD.Radius.standard).fill(PD.Chrome.cardRaised))
+        .background(RoundedRectangle(cornerRadius: PD.Radius.standard, style: .continuous).fill(PD.Chrome.cardRaised))
         .opacity(support.isSupported ? 1.0 : 0.75)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityText)

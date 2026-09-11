@@ -12,27 +12,35 @@ import SwiftUI
 // Tab order follows how often an operator needs each: what should happen next,
 // where can it happen, what is blocked on me, what can I do about it.
 
+// The intent-first IA (operator ruling): Roadmap is home; the fleet dissolves
+// into the durable Agents cast; Artifacts and Ideas are the browse-outputs and
+// hear-new-ideas surfaces; Asks is the HITL inbox. Harbors moves to a secondary
+// nav (the Roadmap toolbar) and Controls fold into each agent's detail — a
+// verb's availability is a property of the agent, not a global tab.
 public enum RootTab: String, CaseIterable, Hashable, Sendable {
     case roadmap
-    case harbors
+    case agents
+    case artifacts
+    case ideas
     case asks
-    case controls
 
     var title: String {
         switch self {
-        case .roadmap:  return "Roadmap"
-        case .harbors:  return "Harbors"
-        case .asks:     return "Asks"
-        case .controls: return "Controls"
+        case .roadmap:   return "Roadmap"
+        case .agents:    return "Agents"
+        case .artifacts: return "Artifacts"
+        case .ideas:     return "Ideas"
+        case .asks:      return "Asks"
         }
     }
 
     var systemImage: String {
         switch self {
-        case .roadmap:  return "list.bullet.rectangle"
-        case .harbors:  return "sailboat"
-        case .asks:     return "bell.badge"
-        case .controls: return "slider.horizontal.3"
+        case .roadmap:   return "list.bullet.rectangle"
+        case .agents:    return "person.2"
+        case .artifacts: return "shippingbox"
+        case .ideas:     return "lightbulb"
+        case .asks:      return "bell.badge"
         }
     }
 }
@@ -42,6 +50,9 @@ public struct RootView: View {
     @State private var inbox: Loadable<InterruptionListResponse>
 
     public init(inbox: Loadable<InterruptionListResponse>? = nil) {
+        // Register the bundled IBM Plex faces + nav-bar chrome before the first
+        // view renders. Idempotent.
+        PDFonts.registerIfNeeded()
         // Fixture-backed by default so previews and a fresh simulator launch
         // both render the real layout. The provenance bar inside each screen
         // states that it is a fixture — there is no unlabelled path.
@@ -75,18 +86,22 @@ public struct RootView: View {
                 .tabItem { Label(RootTab.roadmap.title, systemImage: RootTab.roadmap.systemImage) }
                 .tag(RootTab.roadmap)
 
-            HarborsView()
-                .tabItem { Label(RootTab.harbors.title, systemImage: RootTab.harbors.systemImage) }
-                .tag(RootTab.harbors)
+            AgentsView()
+                .tabItem { Label(RootTab.agents.title, systemImage: RootTab.agents.systemImage) }
+                .tag(RootTab.agents)
+
+            ArtifactsView()
+                .tabItem { Label(RootTab.artifacts.title, systemImage: RootTab.artifacts.systemImage) }
+                .tag(RootTab.artifacts)
+
+            IdeasView()
+                .tabItem { Label(RootTab.ideas.title, systemImage: RootTab.ideas.systemImage) }
+                .tag(RootTab.ideas)
 
             InterruptionsView(inbox: inbox)
                 .tabItem { Label(RootTab.asks.title, systemImage: RootTab.asks.systemImage) }
                 .badge(openAskBadge ?? 0)
                 .tag(RootTab.asks)
-
-            ControlVerbsView()
-                .tabItem { Label(RootTab.controls.title, systemImage: RootTab.controls.systemImage) }
-                .tag(RootTab.controls)
         }
     }
 }

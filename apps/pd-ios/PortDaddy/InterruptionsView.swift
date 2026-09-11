@@ -66,6 +66,8 @@ public struct InterruptionsView: View {
                 }
                 .padding(PD.Space.l)
             }
+            .scrollContentBackground(.hidden)
+            .background(PD.Chrome.base)
             .navigationTitle("Asks")
         }
     }
@@ -112,20 +114,20 @@ public struct InterruptionsView: View {
         VStack(alignment: .leading, spacing: PD.Space.s) {
             SignalChip(state: .mayday, text: "dependent work blocked")
             Text(ask.title)
-                .font(.body.weight(.semibold))
+                .font(PDFont.body.weight(.semibold))
                 .fixedSize(horizontal: false, vertical: true)
             // Contract point 3: the ask's title IS the stated reason. A
             // control disabled without naming the ask that disabled it is a
             // dead end for the operator.
             Text("While this critical ask is open, dependent work stays blocked.")
-                .font(.subheadline)
+                .font(PDFont.subheadline)
                 .foregroundStyle(PD.Chrome.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(PD.Space.l)
-        .background(RoundedRectangle(cornerRadius: PD.Radius.medium).fill(PD.color(for: .mayday).opacity(0.12)))
-        .overlay(RoundedRectangle(cornerRadius: PD.Radius.medium).stroke(PD.color(for: .mayday), lineWidth: 1))
+        .background(RoundedRectangle(cornerRadius: PD.Radius.medium, style: .continuous).fill(PD.color(for: .mayday).opacity(0.12)))
+        .overlay(RoundedRectangle(cornerRadius: PD.Radius.medium, style: .continuous).stroke(PD.color(for: .mayday), lineWidth: 1))
     }
 }
 
@@ -148,33 +150,33 @@ public struct InterruptionRow: View {
                 SignalChip(state: item.urgency.coordinationState, text: item.urgency.rawValue)
                 if item.state.isClosed {
                     Text(item.state.label)
-                        .font(.caption.weight(.semibold))
+                        .font(PDFont.caption.weight(.semibold))
                         .foregroundStyle(PD.Chrome.tertiaryText)
                 }
                 Spacer(minLength: 0)
                 Text(RelativeAge.short(item.age()))
-                    .font(.subheadline)
+                    .font(PDFont.subheadline)
                     .foregroundStyle(PD.Chrome.tertiaryText)
             }
 
             Text(item.title)
-                .font(.body.weight(.semibold))
+                .font(PDFont.body.weight(.semibold))
                 .fixedSize(horizontal: false, vertical: true)
 
             if !item.body.isEmpty {
                 Text(item.body)
-                    .font(.subheadline)
+                    .font(PDFont.subheadline)
                     .foregroundStyle(PD.Chrome.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
             Text("from \(item.sourceAgent)")
-                .font(.subheadline)
+                .font(PDFont.subheadline)
                 .foregroundStyle(PD.Chrome.tertiaryText)
 
             if let answer = item.answer, !answer.isEmpty {
                 Text("Answered: \(answer)")
-                    .font(.subheadline)
+                    .font(PDFont.subheadline)
                     .foregroundStyle(PD.color(for: .affirmative))
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -182,7 +184,7 @@ public struct InterruptionRow: View {
             if item.nagCount > 0 {
                 // Rendered, never recomputed. The relay owns the decay.
                 Text("Paged \(item.nagCount) \(item.nagCount == 1 ? "time" : "times")")
-                    .font(.subheadline)
+                    .font(PDFont.subheadline)
                     .foregroundStyle(PD.Chrome.tertiaryText)
             }
 
@@ -192,7 +194,7 @@ public struct InterruptionRow: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(PD.Space.m)
-        .background(RoundedRectangle(cornerRadius: PD.Radius.standard).fill(PD.Chrome.cardRaised))
+        .background(RoundedRectangle(cornerRadius: PD.Radius.standard, style: .continuous).fill(PD.Chrome.cardRaised))
     }
 
     @ViewBuilder
@@ -200,11 +202,11 @@ public struct InterruptionRow: View {
         VStack(alignment: .leading, spacing: PD.Space.xs) {
             Link(destination: handoff.url) {
                 Label("Answer on the web", systemImage: "safari")
-                    .font(.body)
+                    .font(PDFont.body)
                     .frame(minHeight: PD.minimumTapTarget)
             }
             Text(handoff.explanation)
-                .font(.subheadline)
+                .font(PDFont.subheadline)
                 .foregroundStyle(PD.Chrome.tertiaryText)
                 .fixedSize(horizontal: false, vertical: true)
         }
