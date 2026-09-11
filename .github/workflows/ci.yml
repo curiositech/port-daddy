@@ -1507,6 +1507,7 @@ jobs:
       - mcp-catalog-guard
       - pd-ios
       - porthole-cast-gate
+      - porthole-recordings
       - porthole-stage
       - relay-decode-guard
       - relay-tests
@@ -1519,7 +1520,6 @@ jobs:
       - steward-tests
       - unit-tests
       - version-drift-guard
-      - porthole-recordings
     steps:
       - uses: actions/checkout@v4
       - name: Use Node.js 22
