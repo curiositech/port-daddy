@@ -22,6 +22,7 @@ type RepoWitnessResult =
   | { kind: 'verified'; witness: RepoWitness }
   | { kind: 'renew' }
   | { kind: 'denied' }
+  | { kind: 'rate-limited'; resetAt: number | null }
   | { kind: 'unavailable' };
 
 /** Why escape: source-controlled names and descriptions are untrusted HTML input.
@@ -72,6 +73,10 @@ async function repoWitness(session: ResolvedSession, repo: string): Promise<Repo
       headers, signal: AbortSignal.timeout(10_000), redirect: 'error',
     });
     if (response.status === 401) return { kind: 'renew' };
+    if (response.status === 403 && (response.headers.get('X-RateLimit-Remaining') === '0' || response.headers.has('Retry-After'))) {
+      const reset = Number(response.headers.get('X-RateLimit-Reset'));
+      return { kind: 'rate-limited', resetAt: Number.isSafeInteger(reset) && reset > 0 ? reset : null };
+    }
     if (response.status === 403 || response.status === 404) return { kind: 'denied' };
     if (!response.ok) return { kind: 'unavailable' };
     const body = await response.json() as { permissions?: { admin?: boolean }; full_name?: string };
@@ -81,7 +86,7 @@ async function repoWitness(session: ResolvedSession, repo: string): Promise<Repo
 }
 
 /** Keep repository authorization failures inside the account experience. */
-function repoWitnessFailure(repo: string, kind: Exclude<RepoWitnessResult['kind'], 'verified'>): Response {
+function repoWitnessFailure(repo: string, result: Exclude<RepoWitnessResult, { kind: 'verified' }>): Response {
   const messages = {
     renew: {
       title: 'Reconnect GitHub to continue.',
@@ -93,12 +98,17 @@ function repoWitnessFailure(repo: string, kind: Exclude<RepoWitnessResult['kind'
       detail: `The current GitHub identity cannot read ${esc(repo)}. If access changed, reconnect GitHub and approve repository access.`,
       action: `<a class="button" href="/auth/github/login?return_to=${encodeURIComponent(`/account/ships?repo=${repo}`)}">Reconnect GitHub</a>`,
     },
+    'rate-limited': {
+      title: 'GitHub API limit reached.',
+      detail: `GitHub temporarily refused another repository check for this account.${result.kind === 'rate-limited' && result.resetAt ? ` Its reported reset time is ${esc(new Date(result.resetAt * 1000).toISOString())}.` : ''} No ship setting changed.`,
+      action: `<a class="button" href="/account/ships?repo=${encodeURIComponent(repo)}">Retry repository check</a>`,
+    },
     unavailable: {
       title: 'GitHub could not be reached.',
       detail: 'No permission decision was made and no ship setting changed. Retry this page when GitHub is available.',
       action: `<a class="button" href="/account/ships?repo=${encodeURIComponent(repo)}">Retry repository check</a>`,
     },
-  }[kind];
+  }[result.kind];
   return html(`<!doctype html><html lang="en"><head>${HEAD}<title>Repository access · Port Daddy</title><style>${TOKENS}
     .shell{max-width:760px;margin:auto;padding:32px}.crumbs{display:flex;gap:18px;border-bottom:2px solid var(--border-strong);padding-bottom:18px}
     h1{font-size:clamp(30px,5vw,48px);margin:48px 0 16px}p{font-size:17px;line-height:1.6;max-width:62ch}.actions{display:flex;gap:14px;flex-wrap:wrap;margin-top:28px}
@@ -106,7 +116,7 @@ function repoWitnessFailure(repo: string, kind: Exclude<RepoWitnessResult['kind'
     .secondary{background:var(--surface-raised);color:var(--text-primary)}a:focus-visible{outline:3px solid var(--health);outline-offset:4px}
   </style></head><body><main class="shell"><nav class="crumbs"><a href="/account">Port Daddy / Account</a><a href="/account/ships">Ship controls</a></nav>
     <h1>${messages.title}</h1><p>${messages.detail}</p><div class="actions">${messages.action}<a class="button secondary" href="/account">Back to account</a></div>
-  </main></body></html>`, kind === 'unavailable' ? 503 : 403);
+  </main></body></html>`, result.kind === 'unavailable' || result.kind === 'rate-limited' ? 503 : 403);
 }
 
 /** List cloud ships using the executor's actual pure parser and defaults. Why:
@@ -245,7 +255,7 @@ export async function handleRepoShips(request: Request, env: Env): Promise<Respo
   const repo = normalized ? shipControlRepo(normalized) : null;
   if (!repo) return html(renderRepoShipsPage('', [], { available: true, rows: [] }, false, rawRepo ? 'Enter an owner/repository name.' : ''), writing ? 400 : 200);
   const witnessResult = await repoWitness(session, repo);
-  if (witnessResult.kind !== 'verified') return repoWitnessFailure(repo, witnessResult.kind);
+  if (witnessResult.kind !== 'verified') return repoWitnessFailure(repo, witnessResult);
   const witness = witnessResult.witness;
   if (writing && !witness.admin) return html('Only a repository admin can change its ship controls.', 403);
   const controls = await readRepoShipControls(env.DB, repo);

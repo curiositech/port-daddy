@@ -133,6 +133,19 @@ describe('signed-in ship UI', () => {
     expect(body).toContain(`href="${action}"`);
     expect(prepare).not.toHaveBeenCalled();
   });
+  it('reports GitHub rate limiting as temporary and includes a trustworthy reset time', async () => {
+    const prepare = vi.spyOn(store.db, 'prepare');
+    vi.mocked(fetch).mockResolvedValue(new Response('', { status: 403, headers: {
+      'X-RateLimit-Remaining': '0', 'X-RateLimit-Reset': '1789113313',
+    } }));
+    const result = await handleRepoShips(new Request(`${BASE}/account/ships?repo=owner/repo`), env);
+    const body = await result.text();
+    expect(result.status).toBe(503);
+    expect(body).toContain('GitHub API limit reached.');
+    expect(body).toContain('2026-09-11T07:55:13.000Z');
+    expect(body).toContain('No ship setting changed.');
+    expect(prepare).not.toHaveBeenCalled();
+  });
   it('does not query private telemetry before fresh repository authorization', async () => {
     const prepare = vi.spyOn(store.db, 'prepare');
     vi.mocked(fetch).mockResolvedValue(new Response('', { status: 404 }));
