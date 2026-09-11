@@ -64,13 +64,13 @@ features already form a working product. Keep the existing CH identities.
 
 | Stage | Current evidence | Next work / completion gate |
 | --- | --- | --- |
-| CH1: contracts and program | Research PR [#10108](https://github.com/curiositech/port-daddy/pull/10108) merged; custody/ownership amendments in draft [#10132](https://github.com/curiositech/port-daddy/pull/10132) | Reconcile canonical program revisions when runtime access is permitted; retain exact source/test/release references |
-| CH2: local IDE | Routing/replica/selection foundations in #10132; guarded per-replica undo/redo in draft [#10133](https://github.com/curiositech/port-daddy/pull/10133) | Complete the editing checklist below, then real native task proof |
+| CH1: contracts and program | Research PR [#10108](https://github.com/curiositech/port-daddy/pull/10108) merged; custody/ownership amendments in regular [#10132](https://github.com/curiositech/port-daddy/pull/10132) | Reconcile canonical program revisions when runtime access is permitted; retain exact source/test/release references |
+| CH2: local IDE | Routing/replica/selection foundations in #10132; guarded history in regular [#10133](https://github.com/curiositech/port-daddy/pull/10133); reload protection in regular [#10134](https://github.com/curiositech/port-daddy/pull/10134); local-save continuation below | Complete the editing checklist below, then real native task proof |
 | CH3: governed collaboration | Authority/replay contracts identified; no shared admission or recovery claim | Verified principal/device admission, typed Rust receipts, complete replay, stable claims, filesystem witnesses and atomic transfer |
 | CH4: project state | Record ownership and disclosure contracts specified | Invitations/participation, explicit contribution publishing, dependency plans, accepted commitments, decisions/dissent, keys and revocation |
 | CH5: Remote Harbor | Custody and persistence protocol specified | Durable encrypted journal/checked heads, cold reconstruction, fencing/transfer, transport parity and failure UI |
 | CH6: intersections | Offline research artifacts exist; no measured predictive benefit | Scoped hybrid retrieval, bounded consequence paths, conflict/opportunity resolution, invalidation and held-out baseline comparison |
-| CH7: delivery | Source evidence and draft PRs, not a native release | Native/web/iOS/companion workflows, replay/handoffs, accessibility/human testing, independent review and exact-version release receipts |
+| CH7: delivery | Source evidence and regular review PRs, not a native release | Native/web/iOS/companion workflows, replay/handoffs, accessibility/human testing, independent review and exact-version release receipts |
 
 CH2's remaining implementation queue, in order:
 
@@ -86,6 +86,11 @@ CH2's remaining implementation queue, in order:
   asynchronous writes tied to an exact document/revision, external-change refusal
   and no false clean state when edits race completion. Device-local saving is
   not shared acceptance or a canonical filesystem compare-and-swap guarantee.
+  Source now includes Cmd-S/Ctrl-S, exact-revision completion, process-local write
+  serialization, optimistic disk-conflict checks and metadata preservation/refusal.
+  See [local-save evidence](../research/egosystem-reconciliation/final/cooperative-editor-save-evidence.md).
+  Native interaction, Save As, richer file metadata/platform coverage and packaged
+  proof remain open; saving text deliberately does not clear the history reload guard.
 - [ ] Private draft persistence and restart recovery using reviewed key custody;
   preserve authorship, distinguish acknowledged/durable work from device-only
   drafts, and never dump private CRDT history into an unprotected cache.
@@ -105,6 +110,12 @@ scaffolds as completed prerequisites. Shared decisions, transfers and external
 effects must remain unavailable wherever their authority or durable receipt is
 missing. The field-notebook acceptance gates below close the overall project,
 not an aggregate unit-test count.
+
+The separate safety prerequisite remains delegated: regular
+[#10138](https://github.com/curiositech/port-daddy/pull/10138) contains the reviewed
+native admission/cancellation and deferred-launch fixup `a1653ac63880`. The source
+Off work, its remaining TS/console/installer gaps and packaged containment proof
+are tracked in that PR. This does not pause editor development or authorize apps.
 
 ### CH1: accepted contract amendments
 

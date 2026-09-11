@@ -28,6 +28,7 @@ mod editor_claims;
 mod editor_commit_gate;
 mod editor_input;
 mod editor_pane;
+mod editor_save;
 mod editor_sync;
 mod editor_view;
 mod editor_wedge;

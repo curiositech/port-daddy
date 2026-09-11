@@ -2687,7 +2687,7 @@ impl ConsoleView {
 
     /// Ensure a persistent [`EditorSurfaceState`] exists for every Editor
     /// surface in every tab. Runs at the top of `render` (`&mut self`): opening
-    /// a file costs one `pd whoami` + one disk read ONCE, and every later frame
+    /// a file uses a local display label + one disk read ONCE, and every later frame
     /// is a map lookup. States for closed files are retained (cheap, and they
     /// keep claims/wedge state alive across a reopen within the session).
     fn ensure_editor_states(&mut self) {
@@ -2968,9 +2968,9 @@ impl ConsoleView {
             // to the persistent `self.editors` state (opened once by
             // `ensure_editor_states`) so the surface still renders honestly.
             if let Some((document, blocks)) = &self.editor_blocks {
-                if self.editors.get(&editor_key(path, *region))
-                    .is_some_and(|state| state.pane.document() == document) {
-                    return blocks.clone();
+                if let Some(state) = self.editors.get(&editor_key(path, *region))
+                    .filter(|state| state.pane.document() == document) {
+                    return state.pane.with_local_save_status(blocks.clone());
                 }
             }
             return match self.editors.get(&editor_key(path, *region)) {
@@ -3437,6 +3437,40 @@ impl ConsoleView {
         true
     }
 
+    fn save_focused_editor(&mut self, cx: &mut Context<Self>) -> bool {
+        let Some(key) = self.focused_editor_key() else { return false; };
+        let Some(state) = self.editors.get_mut(&key) else { return false; };
+        let task = match state.pane.prepare_local_save() {
+            Ok(task) => task,
+            Err(reason) => {
+                self.control_flash = Some(reason);
+                cx.notify();
+                return true;
+            }
+        };
+        let document = state.pane.document().clone();
+        // Local filesystem I/O belongs off the foreground executor. This path
+        // needs neither the daemon producer nor a connected/On runtime.
+        let worker = cx.background_executor().spawn(async move {
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| task.run()))
+        });
+        cx.spawn(async move |this, cx| {
+            let completed = worker.await;
+            let _ = this.update(cx, |this, cx| {
+                let Some(state) = this.editors.get_mut(&key) else { return; };
+                if state.pane.document() != &document { return; }
+                match completed {
+                    Ok(completed) => { state.pane.finish_local_save(completed); }
+                    Err(_) => state.pane.local_save_worker_failed(),
+                }
+                this.control_flash = Some(state.pane.local_save_status());
+                cx.notify();
+            });
+        }).detach();
+        cx.notify();
+        true
+    }
+
     fn handle_editor_key(
         &mut self,
         key: &str,
@@ -3444,6 +3478,12 @@ impl ConsoleView {
         cx: &mut Context<Self>,
     ) -> bool {
         let select = modifiers.shift;
+        if !modifiers.function && crate::editor_input::save_shortcut(
+            key, modifiers.platform, modifiers.control, modifiers.alt, modifiers.shift,
+            cfg!(target_os = "macos"),
+        ) {
+            return self.save_focused_editor(cx);
+        }
         if let Some(direction) = crate::editor_input::history_shortcut(
             key, modifiers.platform, modifiers.control, modifiers.alt, modifiers.shift,
             cfg!(target_os = "macos"),

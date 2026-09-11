@@ -451,6 +451,14 @@ work; never reset or clobber the main checkout.
 
 ### Test + session gotchas (dev-loop shibboleths)
 
+- **Local text Save is not CRDT recovery.** Capture the exact document/revision,
+  serialize in-process filesystem writes off the UI thread, and revalidate the
+  opened target before replacement. A completion cannot mark later edits clean.
+  Preserve metadata or refuse the write; readable linked sources need not grant
+  overwrite authority. Foreground save status overrides producer-mirror status.
+  Keep history reload protection after text saves. Optimistic disk checks are
+  not an OS compare-and-swap or a shared Harbor admission receipt.
+
 - **Editor reload is not permission to discard a CRDT.** Share the sync/async
   preflight; keep the existing buffer/cache/claims on refusal or read failure.
   Protect imports waiting for dependencies even when the visible state frontier

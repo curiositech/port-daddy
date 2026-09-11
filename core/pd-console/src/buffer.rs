@@ -139,10 +139,16 @@ impl HarborBuffer {
         identity: impl Into<String>,
     ) -> std::result::Result<Self, std::io::Error> {
         let contents = std::fs::read_to_string(path)?;
+        Ok(Self::from_text(&contents, identity))
+    }
+
+    /// Seed from the same bytes used to establish a local filesystem baseline.
+    /// This avoids reopening the path between validation and buffer creation.
+    pub fn from_text(contents: &str, identity: impl Into<String>) -> Self {
         let buf = Self::empty(identity);
         if !contents.is_empty() {
             buf.text
-                .insert(0, &contents)
+                .insert(0, contents)
                 .expect("seed insert into fresh LoroText");
             let len = buf.text.len_unicode();
             buf.text
@@ -153,7 +159,7 @@ impl HarborBuffer {
         // Loading a file is a baseline, not a user edit. In particular, Cmd-Z
         // immediately after opening must not erase the file's seed content.
         buf.history.clear();
-        Ok(buf)
+        buf
     }
 
     /// The local replica's PeerId.

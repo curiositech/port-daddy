@@ -142,6 +142,12 @@ pub struct EditorPane {
     /// This is a reload guard, not a durable receipt or shared acknowledgement.
     /// Imported operations and undo-to-identical-text still carry new history.
     loaded_stamp: Option<Vec<u8>>,
+    /// Explicit disk-open/save witness. Mirrors and snapshot-only buffers have
+    /// no permission to overwrite a path merely because they display it.
+    local_file: Option<crate::editor_save::LocalFileBaseline>,
+    saved_stamp: Option<Vec<u8>>,
+    saving: Option<(uuid::Uuid, Vec<u8>)>,
+    save_error: Option<String>,
     truncated: bool,
     error: Option<String>,
     /// DocumentRef-derived edit lane. Merely opening a local path does not
@@ -229,6 +235,10 @@ impl EditorPane {
             viewer_peer: None,
             buffer: None,
             loaded_stamp: None,
+            local_file: None,
+            saved_stamp: None,
+            saving: None,
+            save_error: None,
             truncated: false,
             error: None,
             channel,
@@ -253,7 +263,7 @@ impl EditorPane {
     /// a mirror to reload from disk. Failed reads retain any existing buffer.
     pub fn load(&mut self) {
         if self.prepare_load() {
-            self.finish_load(HarborBuffer::open(&self.path, self.identity.clone()));
+            self.finish_load(Self::open_local(&self.path, &self.identity));
         }
     }
 
@@ -270,7 +280,9 @@ impl EditorPane {
     }
 
     fn prepare_load(&mut self) -> bool {
-        let reason = if self.viewer_peer.is_some() {
+        let reason = if self.saving.is_some() {
+            Some("Reload refused: a local save is still in progress.")
+        } else if self.viewer_peer.is_some() {
             Some("Reload refused: this mirror follows the editor's operations, not the disk file.")
         } else if self.has_unpersisted_operations() {
             Some("Reload refused: this buffer has in-memory operations not preserved on disk. Your work was kept; crash-safe draft saving is not available yet.")
@@ -286,10 +298,18 @@ impl EditorPane {
 
     /// Install only a completely opened candidate. Shared by sync and async
     /// reload so neither path clears history, claims or cache before success.
-    fn finish_load(&mut self, opened: std::io::Result<HarborBuffer>) {
+    fn open_local(path: &str, identity: &str) -> std::io::Result<(HarborBuffer, Option<crate::editor_save::LocalFileBaseline>)> {
+        let (text, baseline) = crate::editor_save::read_for_editor(std::path::Path::new(path))?;
+        Ok((HarborBuffer::from_text(&text, identity), baseline))
+    }
+
+    fn finish_load(&mut self, opened: std::io::Result<(HarborBuffer, Option<crate::editor_save::LocalFileBaseline>)>) {
         match opened {
-            Ok(buf) => {
+            Ok((buf, baseline)) => {
                 self.loaded_stamp = Some(buf.change_stamp());
+                self.saved_stamp = self.loaded_stamp.clone();
+                self.local_file = baseline;
+                self.save_error = None;
                 self.reset_replica_awareness(buf.local_peer());
                 self.buffer = Some(buf);
                 self.code.replace(None);
@@ -331,6 +351,67 @@ impl EditorPane {
 
     pub fn document(&self) -> &crate::editor_sync::DocumentRef {
         &self.document
+    }
+
+    /// Dirty means this exact revision has no completed local save. It does
+    /// not imply unsaved CRDT history is safe to discard after saving text.
+    pub fn is_locally_dirty(&self) -> bool {
+        self.buffer.as_ref().is_some_and(|buffer| self.saved_stamp.as_ref() != Some(&buffer.change_stamp()))
+    }
+
+    pub fn local_save_status(&self) -> String {
+        if let Some(error) = &self.save_error { return format!("Save failed: {error}. Buffer kept."); }
+        if self.saving.is_some() { return "Saving captured revision to this device…".into(); }
+        if self.viewer_peer.is_some() { return "Read-only operation mirror; no local save authority".into(); }
+        if self.local_file.is_none() { return "Save unavailable: no eligible disk baseline (linked or snapshot-only document)".into(); }
+        if self.is_locally_dirty() { return "Unsaved changes · Save with Cmd-S / Ctrl-S".into(); }
+        "Text matches last local open/save · not shared acceptance".into()
+    }
+
+    /// Capture on the pane's owning thread, execute on a worker. There is at
+    /// most one in-flight save per pane and no daemon or automatic publication.
+    pub fn prepare_local_save(&mut self) -> std::result::Result<LocalSaveTask, String> {
+        if self.viewer_peer.is_some() { return Err("Read-only mirrors cannot save".into()); }
+        if self.saving.is_some() { return Err("A local save is already in progress".into()); }
+        let baseline = self.local_file.clone().ok_or("No opened file baseline; save refused")?;
+        let buffer = self.buffer.as_ref().ok_or("No buffer to save")?;
+        let id = uuid::Uuid::new_v4();
+        let stamp = buffer.change_stamp();
+        let task = LocalSaveTask { id, document: self.document.clone(), baseline, text: buffer.to_string() };
+        self.saving = Some((id, stamp));
+        self.save_error = None;
+        Ok(task)
+    }
+
+    pub fn finish_local_save(&mut self, completed: LocalSaveCompletion) -> bool {
+        if completed.document != self.document
+            || self.saving.as_ref().map(|(id, _)| id) != Some(&completed.id)
+        { return false; }
+        let (_, stamp) = self.saving.take().expect("matching save checked above");
+        match completed.result {
+            Ok(baseline) => {
+                self.local_file = Some(baseline);
+                // Never use the current frontier here: typing may have continued
+                // while this older captured revision was being written.
+                self.saved_stamp = Some(stamp);
+                self.save_error = None;
+            }
+            Err(error) => self.save_error = Some(error),
+        }
+        true
+    }
+
+    pub fn local_save_worker_failed(&mut self) {
+        self.saving = None;
+        self.save_error = Some("Save worker stopped; disk outcome is unknown. Inspect the file before retrying".into());
+    }
+
+    /// Collaboration blocks carry remote claims/presence, not local save state.
+    /// A producer mirror must never overwrite the foreground writer's status.
+    pub fn with_local_save_status(&self, mut blocks: Vec<Block>) -> Vec<Block> {
+        blocks.retain(|block| !matches!(block, Block::KeyVal(key, _) if key == "local save"));
+        blocks.insert(blocks.len().min(1), Block::KeyVal("local save".into(), self.local_save_status()));
+        blocks
     }
 
     /// The background lane imports the foreground's exact history, never seeds
@@ -1012,6 +1093,7 @@ impl Pane for EditorPane {
         };
 
         let opener = self.viewer_peer.unwrap_or_else(|| buffer.local_peer());
+        blocks.push(Block::KeyVal("local save".into(), self.local_save_status()));
         // The tokenized snapshot: an Arc clone on the unchanged path — the old
         // path re-cloned every line's String into a Block::Row per view().
         let (lines, gutter_cols, show_authors, total) = self.code_snapshot(buffer);
@@ -1178,7 +1260,7 @@ impl Pane for EditorPane {
             }
             let path = self.path.clone();
             let identity = self.identity.clone();
-            let opened = tokio::task::spawn_blocking(move || HarborBuffer::open(&path, identity))
+            let opened = tokio::task::spawn_blocking(move || Self::open_local(&path, &identity))
                 .await
                 .unwrap_or_else(|e| Err(std::io::Error::other(format!("editor load task failed: {e}"))));
             self.finish_load(opened);
@@ -1196,10 +1278,150 @@ impl Pane for EditorPane {
     }
 }
 
+/// Immutable, one-use worker packet; fields stay private to prevent an arbitrary
+/// path, document or revision being substituted by a completion consumer.
+pub struct LocalSaveTask {
+    id: uuid::Uuid,
+    document: crate::editor_sync::DocumentRef,
+    baseline: crate::editor_save::LocalFileBaseline,
+    text: String,
+}
+
+pub struct LocalSaveCompletion {
+    id: uuid::Uuid,
+    document: crate::editor_sync::DocumentRef,
+    result: std::result::Result<crate::editor_save::LocalFileBaseline, String>,
+}
+
+impl LocalSaveTask {
+    pub fn run(self) -> LocalSaveCompletion {
+        LocalSaveCompletion { id: self.id, document: self.document,
+            result: self.baseline.save(&self.text).map_err(|error| error.to_string()) }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::buffer::fixture_peer_id;
+
+    #[test]
+    fn local_save_captures_revision_and_does_not_clear_newer_edits_or_history() {
+        let path = write_temp("save-race.txt", "original");
+        let mut pane = make_pane(&path, None);
+        assert!(!pane.is_locally_dirty());
+        pane.apply_local_text_edit(0..0, "first ").unwrap();
+        let task = pane.prepare_local_save().unwrap();
+        assert!(pane.prepare_local_save().is_err());
+        assert!(!pane.prepare_load());
+        pane.apply_local_text_edit(0..0, "second ").unwrap();
+        assert!(pane.finish_local_save(task.run()));
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "first original");
+        assert_eq!(pane.text().unwrap(), "second first original");
+        assert!(pane.is_locally_dirty());
+        assert!(pane.has_unpersisted_operations());
+        let next = pane.prepare_local_save().unwrap();
+        pane.finish_local_save(next.run());
+        assert!(!pane.is_locally_dirty());
+        assert!(pane.has_unpersisted_operations(), "plain text save must not discard CRDT history");
+        assert!(!pane.prepare_load());
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), pane.text().unwrap());
+    }
+
+    #[test]
+    fn local_save_error_retains_buffer_replica_and_unsaved_state() {
+        let path = write_temp("save-conflict.txt", "original");
+        let mut pane = make_pane(&path, None);
+        pane.apply_local_text_edit(0..0, "editor ").unwrap();
+        let peer = pane.buffer().unwrap().local_peer();
+        let task = pane.prepare_local_save().unwrap();
+        std::fs::write(&path, "external").unwrap();
+        assert!(pane.finish_local_save(task.run()));
+        assert!(pane.local_save_status().contains("Save failed"));
+        assert!(pane.is_locally_dirty());
+        assert_eq!(pane.text().unwrap(), "editor original");
+        assert_eq!(pane.buffer().unwrap().local_peer(), peer);
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "external");
+    }
+
+    #[test]
+    fn save_completion_cannot_clean_a_different_document() {
+        let path = write_temp("save-binding.txt", "original");
+        let mut pane = make_pane(&path, None);
+        let mut other = make_pane(&path, None);
+        pane.apply_local_text_edit(0..0, "editor ").unwrap();
+        other.apply_local_text_edit(0..0, "other ").unwrap();
+        let other_task = other.prepare_local_save().unwrap();
+        let completion = pane.prepare_local_save().unwrap().run();
+        assert!(!other.finish_local_save(completion));
+        assert!(other.saving.is_some());
+        assert!(other.is_locally_dirty());
+        other.finish_local_save(other_task.run());
+        assert!(other.save_error.is_some());
+    }
+
+    #[test]
+    fn mirrors_and_snapshot_only_documents_cannot_save_to_their_display_path() {
+        let path = write_temp("save-mirror.txt", "original");
+        let pane = make_pane(&path, None);
+        let snapshot = pane.snapshot_blob().unwrap();
+        let mut mirror = EditorPane::mirror(path.clone(), None, pane.document().clone(),
+            &snapshot, pane.buffer().unwrap().local_peer()).unwrap();
+        assert!(mirror.prepare_local_save().is_err());
+        let mut cold = EditorPane::new(&path, None);
+        assert!(cold.hydrate_from_snapshot(&snapshot));
+        assert!(cold.prepare_local_save().is_err());
+        assert_eq!(std::fs::read_to_string(path).unwrap(), "original");
+    }
+
+    #[test]
+    fn foreground_save_status_overlays_mirror_status_through_every_transition() {
+        let path = write_temp("save-status.txt", "original");
+        let mut pane = make_pane(&path, None);
+        let mirror = EditorPane::mirror(path.clone(), None, pane.document().clone(),
+            &pane.snapshot_blob().unwrap(), pane.buffer().unwrap().local_peer()).unwrap();
+        let status = |pane: &EditorPane| {
+            let blocks = pane.with_local_save_status(mirror.view());
+            let rows: Vec<_> = blocks.into_iter().filter_map(|block| match block {
+                Block::KeyVal(key, value) if key == "local save" => Some(value), _ => None,
+            }).collect();
+            assert_eq!(rows.len(), 1);
+            rows[0].clone()
+        };
+        pane.apply_local_text_edit(0..0, "editor ").unwrap();
+        assert!(status(&pane).contains("Unsaved changes"));
+        let task = pane.prepare_local_save().unwrap();
+        assert!(status(&pane).contains("Saving captured revision"));
+        pane.finish_local_save(task.run());
+        assert!(status(&pane).contains("not shared acceptance"));
+        pane.apply_local_text_edit(0..0, "new ").unwrap();
+        let task = pane.prepare_local_save().unwrap();
+        std::fs::write(path, "external").unwrap();
+        pane.finish_local_save(task.run());
+        assert!(status(&pane).contains("Save failed"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn linked_sources_remain_readable_without_save_authority() {
+        use std::os::unix::fs::symlink;
+        let path = write_temp("linked.txt", "original");
+        let directory = std::path::Path::new(&path).parent().unwrap();
+        let alias = directory.join("alias");
+        symlink(&path, &alias).unwrap();
+        let linked_directory = directory.join("linked-directory");
+        symlink(directory, &linked_directory).unwrap();
+        for link in [alias, linked_directory.join("linked.txt")] {
+            let mut pane = make_pane(link.to_str().unwrap(), None);
+            assert_eq!(pane.text().unwrap(), "original");
+            assert!(pane.prepare_local_save().is_err());
+            assert!(pane.local_save_status().contains("linked"));
+        }
+        std::fs::hard_link(&path, directory.join("hardlink")).unwrap();
+        let mut pane = make_pane(&path, None);
+        assert_eq!(pane.text().unwrap(), "original");
+        assert!(pane.prepare_local_save().is_err());
+    }
 
     #[test]
     fn reload_preserves_local_history_claims_identity_and_cached_code() {

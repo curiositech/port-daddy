@@ -62,6 +62,9 @@ mod editor_input;
 #[path = "../editor_pane.rs"]
 mod editor_pane;
 #[allow(dead_code)]
+#[path = "../editor_save.rs"]
+mod editor_save;
+#[allow(dead_code)]
 #[path = "../editor_sync.rs"]
 mod editor_sync;
 #[allow(dead_code)]
