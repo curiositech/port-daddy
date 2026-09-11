@@ -10,7 +10,11 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { create, addFirstPartyCaveat, prepareForRequest, verify } from '../../lib/macaroon/macaroon.js';
-import { mintPushGrant, dischargeRentPaid } from '../../lib/macaroon/discharge.js';
+import {
+  mintActorBoundPushGrant,
+  dischargeRentPaid,
+} from '../../lib/macaroon/discharge.js';
+import { verifyPushGrant } from '../../lib/macaroon/gate.js';
 import { makeChecker, checkCaveat } from '../../lib/macaroon/caveats.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -70,16 +74,18 @@ describe('macaroon byte-parity with the canonical Rust impl', () => {
 
   test('third-party push grant reproduces the canonical signature + vid', () => {
     const tp = V.third_party_grant;
-    const { macaroon, rentCaveatId } = mintPushGrant({
+    const { macaroon, rentCaveatId } = mintActorBoundPushGrant({
       rootKey,
-      grantId: tp.identifier,
+      grantId: tp.grant_id,
       repoId: tp.repo,
+      actor: tp.actor,
       session: tp.session,
       expiresMs: tp.expires_ms,
       caveatKey,
       rentNonce: tp.rent_nonce,
       protectedBranch: tp.protected_branch,
     });
+    expect(macaroon.identifier).toBe(tp.expected_identifier);
     expect(rentCaveatId).toBe(tp.rent_caveat_id);
     const thirdParty = macaroon.caveats.find((c) => c.vid);
     expect(thirdParty.vid).toBe(tp.expected_vid_hex);
@@ -89,10 +95,11 @@ describe('macaroon byte-parity with the canonical Rust impl', () => {
   test('bound discharge reproduces the canonical signature', () => {
     const tp = V.third_party_grant;
     const db = V.discharge_bound;
-    const { macaroon, rentCaveatId, record } = mintPushGrant({
+    const { macaroon, rentCaveatId, record } = mintActorBoundPushGrant({
       rootKey,
-      grantId: tp.identifier,
+      grantId: tp.grant_id,
       repoId: tp.repo,
+      actor: tp.actor,
       session: tp.session,
       expiresMs: tp.expires_ms,
       caveatKey,
@@ -114,10 +121,11 @@ describe('macaroon byte-parity with the canonical Rust impl', () => {
 
   test('the realigned verify authorizes a parity-vector grant end-to-end', () => {
     const tp = V.third_party_grant;
-    const { macaroon, rentCaveatId, record } = mintPushGrant({
+    const { macaroon, rentCaveatId, record } = mintActorBoundPushGrant({
       rootKey,
-      grantId: tp.identifier,
+      grantId: tp.grant_id,
       repoId: tp.repo,
+      actor: tp.actor,
       session: tp.session,
       expiresMs: tp.expires_ms,
       caveatKey,
@@ -141,7 +149,7 @@ describe('macaroon byte-parity with the canonical Rust impl', () => {
       nowMs: 1_500_000,
     };
     const resolve = (cid) => (cid === rentCaveatId ? caveatKey : null);
-    const res = verify(macaroon, rootKey, [bound], makeChecker(ctx), resolve);
-    expect(res.ok).toBe(true);
+    const res = verifyPushGrant(macaroon, rootKey, [bound], tp.actor, ctx, resolve);
+    expect(res.authorized).toBe(true);
   });
 });

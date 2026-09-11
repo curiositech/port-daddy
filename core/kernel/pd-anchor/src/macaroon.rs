@@ -51,7 +51,7 @@
 //!    identifier)`. The root key never leaves the daemon.
 //! 2. [`Macaroon::add_first_party_caveat`] / [`Macaroon::add_third_party_caveat`]
 //!    — each caveat folds the previous signature forward, narrowing authority.
-//!    [`mint_push_grant`] is the daemon's canonical recipe of these.
+//!    [`mint_actor_bound_push_grant`] is the daemon's canonical recipe of these.
 //! 3. [`discharge_rent_paid`] — the daemon mints a short-lived *discharge*
 //!    macaroon for the one third-party caveat, but only when rent is `Paid`.
 //! 4. [`Macaroon::prepare_for_request`] — the holder binds the discharge to *this*
@@ -65,7 +65,7 @@
 
 use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
-use sha2::Sha256;
+use sha2::{Digest, Sha256};
 use thiserror::Error;
 
 /// HMAC-SHA256, the one keyed primitive the entire macaroon chain is built on.
@@ -865,93 +865,153 @@ pub struct PushGrant {
     pub(crate) caveat_key: Vec<u8>,
 }
 
-/// Options for minting a push grant.
-pub struct MintPushGrant<'a> {
-    /// The daemon's grant root key. Never copied into the macaroon.
+/// Root-signed identifier domain for the actor-bound push authority accepted by
+/// `pd-broker`. The identifier commits actor, repo, and session before any
+/// holder-controlled attenuation can append caveats.
+pub const ACTOR_BOUND_PUSH_GRANT_DOMAIN: &str = "port-daddy/actor-bound-push-grant/v1";
+const ACTOR_BOUND_PUSH_GRANT_PREFIX: &str = "pd-actor-push-v1:";
+const MAX_ACTOR_BOUND_GRANT_ID_BYTES: usize = 64;
+const MAX_ACTOR_BOUND_SCOPE_BYTES: usize = 512;
+const MAX_ACTOR_BOUND_KEY_BYTES: usize = 128;
+
+/// Canonical daemon-minted actor principals are Crockford-base32 ULIDs. Session
+/// ids, aliases, transport names, and caller labels are never actor authority.
+pub const CANONICAL_ACTOR_ID_BYTES: usize = 26;
+
+/// Return whether `actor` is the exact canonical daemon principal shape accepted
+/// by the actor-bound grant recipe. This is structural validation only; the
+/// identifier HMAC and macaroon verification provide authenticity.
+pub fn is_canonical_actor_principal(actor: &str) -> bool {
+    let bytes = actor.as_bytes();
+    bytes.len() == CANONICAL_ACTOR_ID_BYTES
+        && matches!(bytes.first(), Some(b'0'..=b'7'))
+        && bytes.iter().copied().all(|byte| {
+            matches!(
+                byte,
+                b'0'..=b'9'
+                    | b'A'..=b'H'
+                    | b'J'..=b'K'
+                    | b'M'..=b'N'
+                    | b'P'..=b'T'
+                    | b'V'..=b'Z'
+            )
+        })
+}
+
+/// Options for the daemon's sole push mint authority. A coordination session is
+/// lineage, while `actor` is the independently daemon-minted principal that an
+/// action capability will carry.
+pub struct MintActorBoundPushGrant<'a> {
     pub root_key: &'a [u8],
-    /// Opaque grant identifier that seeds the chain (`HMAC(root_key, grant_id)`).
     pub grant_id: &'a str,
-    /// Repository the grant is pinned to (emits a `repo = ...` caveat).
     pub repo: &'a str,
-    /// Coordination session the grant belongs to (emits a `session = ...` caveat
-    /// and is embedded in the rent caveat id).
+    pub actor: &'a str,
     pub session: &'a str,
-    /// Hard wall-clock expiry in unix ms (emits an `expires = ...` caveat).
     pub expires_ms: i64,
-    /// Discharge root key — caller supplies it (the daemon stores it).
     pub caveat_key: Vec<u8>,
-    /// Nonce making the rent caveat id unique per grant.
     pub rent_nonce: &'a str,
-    /// Protected branch the grant must never push to.
     pub protected_branch: &'a str,
 }
 
-/// Mint a push grant: the non-negotiable first-party caveats the root daemon
-/// always appends (op=push, repo, deny protected branch, hard expiry, session)
-/// plus the single third-party rent-paid caveat.
-///
-/// This is the canonical recipe: it fixes the shape of every push grant so the
-/// gate's guarantees don't depend on a caller remembering to add the right
-/// caveats. The returned [`PushGrant`] also hands back the `rent_caveat_id` and
-/// (crate-internally) the discharge key the daemon must custody.
-///
-/// # Examples
-/// ```
-/// use pd_anchor::macaroon::{
-///     mint_push_grant, MintPushGrant, discharge_rent_paid, verify,
-///     check_caveat, RentVerdict, RequestContext, DISCHARGE_TTL_MS,
-/// };
-/// let root = b"daemon-root-key";
-/// let rent_key = b"rent-discharge-key";
-/// let grant = mint_push_grant(MintPushGrant {
-///     root_key: root,
-///     grant_id: "grant-1",
-///     repo: "acme/widgets",
-///     session: "sess-1",
-///     expires_ms: 2_000_000,
-///     caveat_key: rent_key.to_vec(),
-///     rent_nonce: "n1",
-///     protected_branch: "main",
-/// })
-/// .unwrap();
-///
-/// // Rent is paid → the daemon issues a short-lived discharge, then the holder
-/// // binds it to this exact grant.
-/// let discharge = discharge_rent_paid(
-///     rent_key, &grant.rent_caveat_id, RentVerdict::Paid, 1_000_000, DISCHARGE_TTL_MS,
-/// )
-/// .unwrap()
-/// .expect("paid rent yields a discharge");
-/// let bound = grant.macaroon.prepare_for_request(&discharge).unwrap();
-///
-/// let ctx = RequestContext {
-///     op: Some("push".into()),
-///     repo: Some("acme/widgets".into()),
-///     branch: Some("feat/x".into()),
-///     session: Some("sess-1".into()),
-///     now_ms: 1_000_000,
-///     ..Default::default()
-/// };
-/// let check = |p: &str| check_caveat(p, &ctx);
-/// let resolve = |id: &str| (id == grant.rent_caveat_id).then(|| rent_key.to_vec());
-/// let outcome = verify(&grant.macaroon, root, &[bound], &check, &resolve);
-/// assert!(outcome.ok, "{}", outcome.reason);
-/// ```
-pub fn mint_push_grant(opts: MintPushGrant) -> Result<PushGrant, MacaroonError> {
+/// Mint the only macaroon recipe accepted as CAP0 push authority. The initial
+/// root-key HMAC covers an identifier derived from actor/repo/session, so a
+/// bearer cannot self-assert a victim actor by appending a caveat later.
+pub fn mint_actor_bound_push_grant(
+    opts: MintActorBoundPushGrant<'_>,
+) -> Result<PushGrant, MacaroonError> {
+    if opts.root_key.is_empty()
+        || opts.root_key.len() > MAX_ACTOR_BOUND_KEY_BYTES
+        || opts.caveat_key.is_empty()
+        || opts.caveat_key.len() > MAX_ACTOR_BOUND_KEY_BYTES
+        || opts.expires_ms <= 0
+        || !bounded_actor_scope(opts.rent_nonce)
+        || !bounded_actor_scope(opts.protected_branch)
+    {
+        return Err(MacaroonError::Malformed);
+    }
+    let identifier =
+        actor_bound_push_grant_identifier(opts.grant_id, opts.actor, opts.repo, opts.session)?;
     let rent_caveat_id = format!("rent-paid:{}:{}", opts.session, opts.rent_nonce);
     let location = format!("pd://daemon/{}", opts.repo);
-    let m = Macaroon::mint(opts.root_key, opts.grant_id, location)
+    let macaroon = Macaroon::mint(opts.root_key, identifier, location)
         .add_first_party_caveat(op_caveat("push"))?
         .add_first_party_caveat(repo_caveat(opts.repo))?
         .add_first_party_caveat(deny_branch_caveat(opts.protected_branch))?
         .add_first_party_caveat(expires_caveat(opts.expires_ms))?
+        .add_first_party_caveat(format!("actor = {}", opts.actor))?
         .add_first_party_caveat(session_caveat(opts.session))?
         .add_third_party_caveat(&opts.caveat_key, &rent_caveat_id, RENT_LOCATION)?;
     Ok(PushGrant {
-        macaroon: m,
+        macaroon,
         rent_caveat_id,
         caveat_key: opts.caveat_key,
     })
+}
+
+/// Structurally match the actor/repository/session commitment carried by an
+/// actor-bound identifier. This does **not** authenticate the macaroon by
+/// itself: callers must still run [`verify`] under the daemon root key. Once
+/// verified, the initial HMAC makes this commitment issuer provenance rather
+/// than holder-controlled attenuation.
+pub fn matches_actor_bound_push_grant_identifier(
+    macaroon: &Macaroon,
+    actor: &str,
+    repo: &str,
+    session: &str,
+) -> bool {
+    let Some(rest) = macaroon
+        .identifier
+        .strip_prefix(ACTOR_BOUND_PUSH_GRANT_PREFIX)
+    else {
+        return false;
+    };
+    let Some((grant_id, _digest)) = rest.rsplit_once(':') else {
+        return false;
+    };
+    actor_bound_push_grant_identifier(grant_id, actor, repo, session)
+        .is_ok_and(|expected| expected == macaroon.identifier)
+}
+
+fn actor_bound_push_grant_identifier(
+    grant_id: &str,
+    actor: &str,
+    repo: &str,
+    session: &str,
+) -> Result<String, MacaroonError> {
+    if grant_id.is_empty()
+        || grant_id.len() > MAX_ACTOR_BOUND_GRANT_ID_BYTES
+        || grant_id.trim() != grant_id
+        || grant_id.contains(':')
+        || grant_id.chars().any(char::is_control)
+        || !is_canonical_actor_principal(actor)
+        || !bounded_actor_scope(repo)
+        || !bounded_actor_scope(session)
+    {
+        return Err(MacaroonError::Malformed);
+    }
+    let mut hasher = Sha256::new();
+    for field in [
+        ACTOR_BOUND_PUSH_GRANT_DOMAIN,
+        grant_id,
+        actor,
+        repo,
+        session,
+    ] {
+        let len = u32::try_from(field.len()).map_err(|_| MacaroonError::Malformed)?;
+        hasher.update(len.to_be_bytes());
+        hasher.update(field.as_bytes());
+    }
+    Ok(format!(
+        "{ACTOR_BOUND_PUSH_GRANT_PREFIX}{grant_id}:{}",
+        hex::encode(hasher.finalize())
+    ))
+}
+
+fn bounded_actor_scope(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= MAX_ACTOR_BOUND_SCOPE_BYTES
+        && value.trim() == value
+        && !value.chars().any(char::is_control)
 }
 
 /// Discharge a rent caveat: mint a short-lived discharge macaroon ONLY when the
@@ -996,6 +1056,7 @@ mod tests {
 
     const ROOT: &[u8] = b"root-key-32-bytes-padding-padxxx";
     const CKEY: &[u8] = b"caveat-key-32-bytes-padding-padx";
+    const ACTOR: &str = "01K3YR6M1WPZB8Q6V1J8K7D4MC";
 
     fn always(_: &str) -> bool {
         true
@@ -1048,10 +1109,11 @@ mod tests {
     }
 
     fn grant() -> PushGrant {
-        mint_push_grant(MintPushGrant {
+        mint_actor_bound_push_grant(MintActorBoundPushGrant {
             root_key: ROOT,
             grant_id: "grant-1",
             repo: "curiositech/port-daddy",
+            actor: ACTOR,
             session: "session-abc",
             expires_ms: 2_000_000,
             caveat_key: CKEY.to_vec(),
@@ -1059,6 +1121,84 @@ mod tests {
             protected_branch: "main",
         })
         .unwrap()
+    }
+
+    #[test]
+    fn actor_bound_push_identifier_is_root_minted_and_exact() {
+        let grant = mint_actor_bound_push_grant(MintActorBoundPushGrant {
+            root_key: ROOT,
+            grant_id: "actor-grant-1",
+            repo: "curiositech/port-daddy",
+            actor: ACTOR,
+            session: "session-abc",
+            expires_ms: 2_000_000,
+            caveat_key: CKEY.to_vec(),
+            rent_nonce: "nonce-actor-1",
+            protected_branch: "main",
+        })
+        .unwrap();
+        assert!(matches_actor_bound_push_grant_identifier(
+            &grant.macaroon,
+            ACTOR,
+            "curiositech/port-daddy",
+            "session-abc"
+        ));
+        assert!(!matches_actor_bound_push_grant_identifier(
+            &grant.macaroon,
+            "01K3YR6M1WPZB8Q6V1J8K7D4MD",
+            "curiositech/port-daddy",
+            "session-abc"
+        ));
+
+        let forged = Macaroon::mint(
+            b"attacker-root-key",
+            grant.macaroon.identifier.clone(),
+            grant.macaroon.location.clone(),
+        );
+        assert!(matches_actor_bound_push_grant_identifier(
+            &forged,
+            ACTOR,
+            "curiositech/port-daddy",
+            "session-abc"
+        ));
+        assert!(!verify(&forged, ROOT, &[], &always, &no_key).ok);
+
+        // A bearer may append an actor caveat, but cannot rewrite the initial
+        // root-key HMAC identifier that commits the daemon-minted principal.
+        let attenuated = grant
+            .macaroon
+            .add_first_party_caveat("actor = 01K3YR6M1WPZB8Q6V1J8K7D4MD")
+            .unwrap();
+        assert!(!matches_actor_bound_push_grant_identifier(
+            &attenuated,
+            "01K3YR6M1WPZB8Q6V1J8K7D4MD",
+            "curiositech/port-daddy",
+            "session-abc"
+        ));
+    }
+
+    #[test]
+    fn actor_bound_recipe_rejects_sessions_aliases_and_noncanonical_ids_as_actors() {
+        for actor in [
+            "session-abc",
+            "spark",
+            "operator:local",
+            "01k3yr6m1wpzb8q6v1j8k7d4mc",
+            "81K3YR6M1WPZB8Q6V1J8K7D4MC",
+        ] {
+            assert!(mint_actor_bound_push_grant(MintActorBoundPushGrant {
+                root_key: ROOT,
+                grant_id: "bad-actor",
+                repo: "curiositech/port-daddy",
+                actor,
+                session: "session-abc",
+                expires_ms: 2_000_000,
+                caveat_key: CKEY.to_vec(),
+                rent_nonce: "nonce-bad-actor",
+                protected_branch: "main",
+            })
+            .is_err());
+        }
     }
 
     fn push_ctx() -> RequestContext {
@@ -1070,6 +1210,10 @@ mod tests {
             now_ms: 1_000_000,
             ..Default::default()
         }
+    }
+
+    fn check_push_caveat(predicate: &str, ctx: &RequestContext) -> bool {
+        predicate == format!("actor = {ACTOR}") || check_caveat(predicate, ctx)
     }
 
     #[test]
@@ -1086,7 +1230,7 @@ mod tests {
         .expect("paid rent yields a discharge");
         let bound = g.macaroon.prepare_for_request(&discharge).unwrap();
         let ctx = push_ctx();
-        let check = |p: &str| check_caveat(p, &ctx);
+        let check = |p: &str| check_push_caveat(p, &ctx);
         let resolve = |id: &str| (id == g.rent_caveat_id).then(|| CKEY.to_vec());
         assert!(verify(&g.macaroon, ROOT, &[bound], &check, &resolve).ok);
     }
@@ -1109,7 +1253,7 @@ mod tests {
     fn missing_discharge_is_rejected() {
         let g = grant();
         let ctx = push_ctx();
-        let check = |p: &str| check_caveat(p, &ctx);
+        let check = |p: &str| check_push_caveat(p, &ctx);
         let resolve = |id: &str| (id == g.rent_caveat_id).then(|| CKEY.to_vec());
         let res = verify(&g.macaroon, ROOT, &[], &check, &resolve);
         assert!(!res.ok);
@@ -1130,7 +1274,7 @@ mod tests {
         .unwrap();
         // present the discharge WITHOUT prepare_for_request
         let ctx = push_ctx();
-        let check = |p: &str| check_caveat(p, &ctx);
+        let check = |p: &str| check_push_caveat(p, &ctx);
         let resolve = |id: &str| (id == g.rent_caveat_id).then(|| CKEY.to_vec());
         assert!(!verify(&g.macaroon, ROOT, &[discharge], &check, &resolve).ok);
     }
@@ -1152,7 +1296,7 @@ mod tests {
             branch: Some("main".into()),
             ..push_ctx()
         };
-        let check = |p: &str| check_caveat(p, &ctx);
+        let check = |p: &str| check_push_caveat(p, &ctx);
         let resolve = |id: &str| (id == g.rent_caveat_id).then(|| CKEY.to_vec());
         let res = verify(&g.macaroon, ROOT, &[bound], &check, &resolve);
         assert!(!res.ok);
@@ -1177,7 +1321,7 @@ mod tests {
             now_ms: 3_000_000,
             ..push_ctx()
         };
-        let check = |p: &str| check_caveat(p, &ctx);
+        let check = |p: &str| check_push_caveat(p, &ctx);
         let resolve = |id: &str| (id == g.rent_caveat_id).then(|| CKEY.to_vec());
         assert!(!verify(&g.macaroon, ROOT, &[bound], &check, &resolve).ok);
     }
@@ -1201,7 +1345,7 @@ mod tests {
             now_ms: 1_000_000 + 25 * 60 * 1000,
             ..push_ctx()
         };
-        let check = |p: &str| check_caveat(p, &ctx);
+        let check = |p: &str| check_push_caveat(p, &ctx);
         let resolve = |id: &str| (id == g.rent_caveat_id).then(|| CKEY.to_vec());
         assert!(!verify(&g.macaroon, ROOT, &[bound], &check, &resolve).ok);
     }
