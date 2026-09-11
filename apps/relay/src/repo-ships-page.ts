@@ -73,7 +73,13 @@ async function repoWitness(session: ResolvedSession, repo: string): Promise<Repo
       headers, signal: AbortSignal.timeout(10_000), redirect: 'error',
     });
     if (response.status === 401) return { kind: 'renew' };
-    if (response.status === 403 && (response.headers.get('X-RateLimit-Remaining') === '0' || response.headers.has('Retry-After'))) {
+    // GitHub documents both 403 and 429 for primary and secondary limits.
+    // A 429 is unambiguously throttling even when an intermediary omits the
+    // advisory headers; 403 remains a permission denial unless GitHub supplies
+    // an explicit rate-limit signal.
+    const rateLimited = response.status === 429 || (response.status === 403
+      && (response.headers.get('X-RateLimit-Remaining') === '0' || response.headers.has('Retry-After')));
+    if (rateLimited) {
       const reset = Number(response.headers.get('X-RateLimit-Reset'));
       return { kind: 'rate-limited', resetAt: Number.isSafeInteger(reset) && reset > 0 ? reset : null };
     }
