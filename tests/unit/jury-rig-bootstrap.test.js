@@ -763,4 +763,42 @@ describe('native Jury-rig machine cutover', () => {
       now: NOW,
     })).toThrow(/installed Homebrew keg/);
   });
+
+  test('native verifier rejects missing shortlist metadata and leaked skill bodies before GitHub proof', () => {
+    const f = make();
+    put(f.nativeHookPath, readFileSync(join(process.cwd(), 'hooks', 'sessionstart-pilot.mjs')));
+
+    const writePdFixture = (searchPayload) => {
+      put(f.pdBinary, `#!/bin/sh
+if [ "$1" = "--version" ]; then
+  echo 9.9.9
+  exit 0
+fi
+if [ "$1" = "jury-rig" ] && [ "$2" = "search" ]; then
+  printf '%s\\n' '${JSON.stringify(searchPayload)}'
+  exit 0
+fi
+exit 1
+`, 0o755);
+    };
+
+    writePdFixture({ scannedCount: 1 });
+    expect(() => verifyNativeJuryRigRuntime({
+      repository: 'curiositech/port-daddy',
+      replacementPr: 9965,
+      pdCommand: f.pdBinary,
+      now: NOW,
+    })).toThrow(/did not prove metadata-only native discovery/);
+
+    writePdFixture({
+      scannedCount: 1,
+      shortlist: [{ id: 'leaky-skill', label: 'Leaky skill', summary: 'metadata', body: '# full body' }],
+    });
+    expect(() => verifyNativeJuryRigRuntime({
+      repository: 'curiositech/port-daddy',
+      replacementPr: 9965,
+      pdCommand: f.pdBinary,
+      now: NOW,
+    })).toThrow(/did not prove metadata-only native discovery/);
+  });
 });

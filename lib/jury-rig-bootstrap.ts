@@ -1648,8 +1648,24 @@ export function verifyNativeJuryRigRuntime(
   }
   const search = runJson(pdPath, [
     'jury-rig', 'search', 'native skill discovery cutover preflight', '--json',
-  ], 'installed pd jury-rig search') as { scannedCount?: unknown; top?: unknown };
-  if (typeof search.scannedCount !== 'number' || search.scannedCount < 1 || 'top' in search) {
+  ], 'installed pd jury-rig search') as {
+    scannedCount?: unknown;
+    shortlist?: unknown;
+    top?: unknown;
+  };
+  const shortlistIsMetadataOnly = Array.isArray(search.shortlist)
+    && search.shortlist.every((entry) => (
+      typeof entry === 'object'
+      && entry !== null
+      && !('body' in entry)
+      && !('sourcePath' in entry)
+    ));
+  if (
+    typeof search.scannedCount !== 'number'
+    || search.scannedCount < 1
+    || !shortlistIsMetadataOnly
+    || 'top' in search
+  ) {
     throw new Error('installed pd jury-rig search did not prove metadata-only native discovery');
   }
   const graft = runJson(pdPath, [
