@@ -21,10 +21,24 @@ jobs:
           node-version: 22
           cache: 'npm'
 
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.21
+
       - name: Install dependencies
         # onnxruntime-node downloads a native binary during installation. Retry
         # one transient transport failure, but keep a second failure red.
         run: npm ci || (echo "npm ci transport failed; retrying once in 30s" && sleep 30 && npm ci)
+
+      - name: Build daemon and expose this checkout's CLI
+        run: |
+          set -euo pipefail
+          npm run build:daemon:dist
+          mkdir -p "$RUNNER_TEMP/bin"
+          ln -s "$GITHUB_WORKSPACE/bin/port-daddy-cli.js" "$RUNNER_TEMP/bin/pd"
+          ln -s "$GITHUB_WORKSPACE/bin/port-daddy-cli.js" "$RUNNER_TEMP/bin/port-daddy"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
       - name: Install recorder tools
         env:
@@ -43,9 +57,8 @@ jobs:
       - name: Start daemon for recording
         run: |
           set -euo pipefail
-          node bin/port-daddy-cli.js start &
-          sleep 3
-          node bin/port-daddy-cli.js status
+          pd start
+          pd status
 
       - name: Run VHS tapes
         run: |
@@ -57,7 +70,7 @@ jobs:
 
       - name: Stop daemon
         if: always()
-        run: node bin/port-daddy-cli.js stop || true
+        run: pd stop --yes || true
 
       - name: Commit changes
         if: github.ref == 'refs/heads/main'
