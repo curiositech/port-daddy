@@ -1,6 +1,7 @@
 /**
- * The whitepaper-build workflow decides whether to commit rebuilt PDFs, and
- * whether main is serving stale ones, by asking git what changed. It used
+ * The whitepaper-build workflow decides whether committed PDFs are stale by
+ * asking git what changed. Its former self-healing commit gate and its
+ * freshness gate both used
  * `git diff --quiet -- 'website-v2/public/whitepaper/*.pdf'`, which cannot see a
  * file git is not yet tracking.
  *
@@ -98,7 +99,7 @@ describe('whitepaper PDF staleness detection sees untracked artifacts', () => {
     }
   });
 
-  test('both workflow gates actually use the untracked-aware form', () => {
+  test('the read-only workflow gate uses the untracked-aware form', () => {
     // Without this the tests above would pass against a workflow that still
     // shipped the blind `git diff --quiet`.
     const workflow = readFileSync(
@@ -108,7 +109,10 @@ describe('whitepaper PDF staleness detection sees untracked artifacts', () => {
     // working tree and the untracked PDF arrives as an explicit path.
     const untrackedAware = workflow.match(
       /git status --porcelain --untracked-files=all -- website-v2\/public\/whitepaper\/\*\.pdf/g);
-    expect(untrackedAware).toHaveLength(2); // the commit gate and the verify gate
+    expect(untrackedAware).toHaveLength(1); // the sole read-only freshness gate
+
+    // CI must report stale artifacts, never repair the PR into an untested head.
+    expect(workflow).not.toMatch(/git commit|git push/);
 
     // The blind form must not come back for the published-PDF set. (The restore
     // step's `git diff --quiet -- "$pdf"` is a different check, on one tracked
