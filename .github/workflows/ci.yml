@@ -35,6 +35,27 @@ jobs:
       - name: Brand-color guard (retired Harbor Heritage hexes must not return)
         run: node scripts/check-brand-colors.mjs
 
+  swiss-normalization-guard:
+    # Wave 0 of taking the Book's Swiss visual system (flat colour blocks,
+    # square corners, no elevation/blur/gradient, every value from a token) to
+    # the website. This is a RATCHET, not a gate: about a fifth of the 315
+    # in-scope files (website-v2/src/{components,pages}/**) still carry
+    # pre-Swiss drift, and a hard gate would fail every PR on day one. It
+    # fails only on NEW drift, WORSENING drift in a file the ratchet already
+    # lists, or a STALE entry (a listed file cleaned up without its ratchet
+    # count being updated) — see website-v2/scripts/check-swiss-normalization.mjs
+    # and the adjacent swiss-normalization-ratchet.json.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Swiss normalization guard (colour/radius/elevation drift ratchet)
+        working-directory: website-v2
+        run: node scripts/check-swiss-normalization.mjs
+
   version-drift-guard:
     # ADR-0057 phase dist-version-authority: package.json is the sole version
     # authority and scripts/sync-version.ts stamps it across every distribution
@@ -1479,6 +1500,7 @@ jobs:
       - rust-kernel
       - skill-hygiene
       - steward-tests
+      - swiss-normalization-guard
       - unit-tests
       - version-drift-guard
       - website-terminal-recordings
