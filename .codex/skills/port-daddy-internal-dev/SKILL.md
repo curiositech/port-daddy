@@ -476,6 +476,12 @@ work; never reset or clobber the main checkout.
   validation or LFS. Test On → Off → On with unchanged hook bytes and inert
   commands; absence of PD activity while Off alone misses deleted functionality.
 
+- **Disabling PD hooks must not discard Git LFS publication.** If an authorized
+  publisher disables all Git hooks, explicitly upload LFS objects reachable from
+  its exact head before pushing pointers, using the same scoped repository
+  credential. Never enable PD merely to run LFS, allow incomplete pushes, or
+  rewrite a custom hook to reinstall the LFS block.
+
 
 - **Research reuse is not another authority.** The Project Epistemology D1a lab
   (`docs/research/egosystem-reconciliation/harness/`) imports the existing Harbor

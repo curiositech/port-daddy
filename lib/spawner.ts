@@ -16,6 +16,7 @@ import { readFileSync, existsSync, statSync, mkdtempSync, mkdirSync, rmSync } fr
 import { homedir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createLocalRuntimeGate } from './local-runtime-control.js';
 import type { CostTracker } from './cost-tracker.js';
 import { getEffectiveContextWindow } from './context-window-tracker.js';
 import type { Counters } from './counters.js';
@@ -393,6 +394,8 @@ export interface ResolvedSpawnRuntime {
 }
 
 interface SpawnerDeps {
+  /** Injectable control observation for inert tests; defaults to canonical Off. */
+  runtimeAllowed?: () => boolean;
   costTracker?: CostTracker;
   counters?: Counters;
   bonds?: Bonds;
@@ -1936,6 +1939,7 @@ function hardBudgetCapError(spec: SpawnSpec, telemetry: SpawnTelemetry | null): 
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export function createSpawner(deps: SpawnerDeps = {}) {
+  const runtimeAllowed = createLocalRuntimeGate(deps.runtimeAllowed);
   // In-memory registry of active spawned agents
   const agents = new Map<string, AgentRecord>();
   const {
@@ -2305,6 +2309,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
    * Automatically wires PD session + heartbeat + done.
    */
   async function spawn(spec: SpawnSpec): Promise<SpawnResult> {
+    if (!runtimeAllowed()) throw new Error('Local Port Daddy is Off or control state is unavailable; spawn refused');
     // Snapshot before the first await. Callers may reuse/mutate their spec while
     // harbor or session admission waits; that must not redirect an admitted run.
     spec = {
@@ -2840,6 +2845,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         throw new Error('Killed by spawner before backend execution');
       }
       await revalidateManagedWorktree?.();
+      if (!runtimeAllowed()) throw new Error('Local Port Daddy is Off; backend execution refused');
       record.lifecycleAbort.signal.throwIfAborted();
       const executionSpec: SpawnSpec = {
         ...spec,
@@ -2863,7 +2869,10 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         const childContext: BackendRunContext = {
           agentId,
           signal: record.lifecycleAbort.signal,
-          beforeChildLaunch: revalidateManagedWorktree,
+          beforeChildLaunch: async () => {
+            await revalidateManagedWorktree?.();
+            if (!runtimeAllowed()) throw new Error('Local Port Daddy is Off; child launch refused');
+          },
           onChildProcess: (child) => {
             if (record.status === 'running') {
               record.childProcess = child;
