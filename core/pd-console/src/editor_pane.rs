@@ -29,7 +29,7 @@
 //! resolved from `Tone`.
 
 use crate::agent::DaemonClient;
-use crate::buffer::{peer_id_for_identity, HarborBuffer, PeerId};
+use crate::buffer::{peer_id_for_identity, HarborBuffer, HistoryAction, PeerId, ReceiptBatch};
 use crate::editor_claims::{
     claim_tone, decode_claim_frame, encode_claim_frame, ClaimId, ClaimLedger, ClaimMirror,
     ClaimStore, RegionClaim,
@@ -310,6 +310,44 @@ impl EditorPane {
         self.buffer.as_ref().map(HarborBuffer::to_string)
     }
 
+    /// Drain authoritative UTF-8 receipts in mutation order. P1B syntax work
+    /// consumes this seam directly and must never derive edits from snapshots.
+    pub fn take_edit_receipts(&mut self) -> ReceiptBatch {
+        self.buffer
+            .as_ref()
+            .map(HarborBuffer::take_edit_receipts)
+            .unwrap_or_default()
+    }
+
+    /// Fail closed on every live claim touched by a UTF-8 replacement. History
+    /// callers invoke this with Loro's stable cursor range before undo/redo, so
+    /// governance always precedes mutation.
+    fn ensure_editable_range(
+        &self,
+        before: &str,
+        range: std::ops::Range<usize>,
+        replacement_newlines: usize,
+    ) -> std::result::Result<(), String> {
+        let first_line = 1 + before[..range.start]
+            .bytes()
+            .filter(|b| *b == b'\n')
+            .count() as u32;
+        // Count newlines *inside* a non-empty replacement too: deleting a
+        // newline joins two lines and therefore touches both claim regions.
+        let deleted_last_line = 1 + before.as_bytes()[..range.end]
+            .iter()
+            .filter(|b| **b == b'\n')
+            .count() as u32;
+        let inserted_last_line = first_line.saturating_add(replacement_newlines as u32);
+        let last_line = deleted_last_line.max(inserted_last_line);
+        for line in first_line..=last_line.max(first_line) {
+            if let GuardVerdict::Gated(gated) = self.guard_verdict_for_line(line) {
+                return Err(gated.message());
+            }
+        }
+        Ok(())
+    }
+
     /// Apply one human edit expressed as a UTF-8 byte replacement. Existing
     /// live-claim policy is checked before any byte is written; accepted edits
     /// become locally-authored Loro ops and return the incremental tube frame the
@@ -334,28 +372,47 @@ impl EditorPane {
             ));
         }
 
-        let first_line = 1 + before[..range.start]
-            .bytes()
-            .filter(|b| *b == b'\n')
-            .count() as u32;
-        // Count newlines *inside* a non-empty replacement too: deleting a
-        // newline joins two lines and therefore touches both claim regions.
-        let last_line = 1 + before.as_bytes()[..range.end]
-            .iter()
-            .filter(|b| **b == b'\n')
-            .count() as u32;
-        for line in first_line..=last_line.max(first_line) {
-            if let GuardVerdict::Gated(gated) = self.guard_verdict_for_line(line) {
-                return Err(gated.message());
-            }
-        }
+        self.ensure_editable_range(
+            &before,
+            range.clone(),
+            replacement.bytes().filter(|byte| *byte == b'\n').count(),
+        )?;
 
         let unicode = before[..range.start].chars().count()..before[..range.end].chars().count();
-        let delta = buffer.replace_authored(unicode, replacement);
-        Ok(crate::editor_sync::encode_frame(
-            buffer.local_peer(),
-            &delta,
-        ))
+        let edit = buffer.replace_authored(unicode, replacement);
+        let frame = crate::editor_sync::encode_frame(buffer.local_peer(), &edit.delta);
+        Ok(frame)
+    }
+
+    /// Undo one foreground-authored item after resolving and claim-checking its
+    /// current merged range. The returned frame is the ordinary editor-sync
+    /// delta mirrored by the producer and broadcast to peers.
+    pub fn undo_local_text_edit(&mut self) -> std::result::Result<Option<String>, String> {
+        self.apply_local_history(false)
+    }
+
+    /// Redo one foreground-authored item through the same governed path.
+    pub fn redo_local_text_edit(&mut self) -> std::result::Result<Option<String>, String> {
+        self.apply_local_history(true)
+    }
+
+    fn apply_local_history(&mut self, redo: bool) -> std::result::Result<Option<String>, String> {
+        let Some(buffer) = self.buffer.as_ref() else {
+            return Err("editor buffer is not loaded".into());
+        };
+        let action = if redo {
+            HistoryAction::Redo
+        } else {
+            HistoryAction::Undo
+        };
+        let edit = buffer.apply_history_governed(action, |before, guard| {
+            self.ensure_editable_range(before, guard.range.clone(), guard.replacement_newlines)
+        })?;
+        let Some(edit) = edit else {
+            return Ok(None);
+        };
+        let frame = crate::editor_sync::encode_frame(buffer.local_peer(), &edit.delta);
+        Ok(Some(frame))
     }
 
     /// Fold the foreground authority's exact local delta into the producer's
@@ -370,10 +427,11 @@ impl EditorPane {
             return false;
         };
         let before = buffer.change_stamp();
-        if crate::editor_sync::apply_frame(buffer, &frame).is_err() {
+        if buffer.apply_remote_ops(&frame.ops).is_err() {
             return false;
         }
-        buffer.change_stamp() != before
+        let changed = buffer.change_stamp() != before;
+        changed
     }
 
     /// The per-file tube channel this editor's op stream rides on. Callers open the
@@ -410,7 +468,12 @@ impl EditorPane {
         if frame.peer == buffer.local_peer() {
             return false; // our own ops, echoed back — nothing to fold
         }
-        crate::editor_sync::apply_frame(buffer, &frame).is_ok()
+        let before = buffer.change_stamp();
+        if buffer.apply_remote_ops(&frame.ops).is_err() {
+            return false;
+        }
+        let changed = buffer.change_stamp() != before;
+        changed
     }
 
     // ── P2 slice 3: durability (snapshot ⇄ /blob) ─────────────────────────────
@@ -1304,6 +1367,125 @@ mod tests {
     }
 
     #[test]
+    fn undo_redo_frames_keep_foreground_and_producer_mirror_converged() {
+        let path = write_temp("history-mirror.rs", "let value = 1;\n");
+        let identity = "port-daddy:console:history-mirror";
+        let mut foreground = make_pane_as(&path, identity);
+        let mut producer_mirror = make_pane_as(&path, identity);
+
+        let foreground_initial = foreground.take_edit_receipts();
+        let producer_initial = producer_mirror.take_edit_receipts();
+        assert!(foreground_initial.complete && foreground_initial.receipts.is_empty());
+        assert!(producer_initial.complete && producer_initial.receipts.is_empty());
+
+        let edit_frame = foreground
+            .apply_local_text_edit(4..9, "answer")
+            .expect("local replacement");
+        assert!(producer_mirror.ingest_local_frame(&edit_frame));
+        assert_eq!(producer_mirror.text(), foreground.text());
+
+        let undo_frame = foreground
+            .undo_local_text_edit()
+            .expect("undo is governed")
+            .expect("one local undo item");
+        assert_eq!(foreground.text().as_deref(), Some("let value = 1;\n"));
+        assert!(producer_mirror.ingest_local_frame(&undo_frame));
+        assert_eq!(producer_mirror.text(), foreground.text());
+        assert!(
+            !producer_mirror.ingest_local_frame(&undo_frame),
+            "the producer reimports the exact frame idempotently"
+        );
+
+        let redo_frame = foreground
+            .redo_local_text_edit()
+            .expect("redo is governed")
+            .expect("one local redo item");
+        assert_eq!(foreground.text().as_deref(), Some("let answer = 1;\n"));
+        assert!(producer_mirror.ingest_local_frame(&redo_frame));
+        assert_eq!(producer_mirror.text(), foreground.text());
+        assert!(
+            !producer_mirror.ingest_local_frame(&redo_frame),
+            "redo frame replay is also idempotent"
+        );
+
+        let foreground_batch = foreground.take_edit_receipts();
+        let producer_batch = producer_mirror.take_edit_receipts();
+        assert!(foreground_batch.complete);
+        assert!(producer_batch.complete);
+        let foreground_receipts = foreground_batch.receipts;
+        let producer_receipts = producer_batch.receipts;
+        assert_eq!(foreground_receipts.len(), 3);
+        assert_eq!(producer_receipts, foreground_receipts);
+        assert_eq!(foreground_receipts[0].deleted_text, "value");
+        assert_eq!(foreground_receipts[0].inserted_text, "answer");
+        assert_eq!(foreground_receipts[1].deleted_text, "answer");
+        assert_eq!(foreground_receipts[1].inserted_text, "value");
+        assert_eq!(foreground_receipts[2].deleted_text, "value");
+        assert_eq!(foreground_receipts[2].inserted_text, "answer");
+        let empty = foreground.take_edit_receipts();
+        assert!(empty.complete);
+        assert!(empty.receipts.is_empty(), "drain is exact");
+    }
+
+    #[test]
+    fn foreground_and_producer_receipt_overflow_is_bounded_and_explicit() {
+        let path = write_temp("receipt-overflow-mirror.txt", "x");
+        let identity = "port-daddy:console:receipt-overflow-mirror";
+        let mut foreground = make_pane_as(&path, identity);
+        let mut producer_mirror = make_pane_as(&path, identity);
+
+        for _ in 0..=crate::buffer::EDIT_RECEIPT_CAPACITY {
+            let end = foreground.text().expect("foreground text").len();
+            let frame = foreground
+                .apply_local_text_edit(end..end, "x")
+                .expect("local append");
+            assert!(producer_mirror.ingest_local_frame(&frame));
+        }
+
+        for batch in [
+            foreground.take_edit_receipts(),
+            producer_mirror.take_edit_receipts(),
+        ] {
+            assert!(!batch.complete, "every mirror reports the discontinuity");
+            assert!(
+                batch.receipts.is_empty(),
+                "no mirror retains or exposes a truncated receipt prefix"
+            );
+        }
+    }
+
+    #[test]
+    fn text_noop_creates_one_history_item_but_no_fake_receipt() {
+        let path = write_temp("noop-history.txt", "same\n");
+        let mut pane = make_pane_as(&path, "port-daddy:console:noop-history");
+        pane.apply_local_text_edit(0..4, "same")
+            .expect("valid replacement is accepted");
+        assert_eq!(pane.buffer().unwrap().undo_count(), 1);
+        let batch = pane.take_edit_receipts();
+        assert!(batch.complete);
+        assert!(batch.receipts.is_empty());
+    }
+
+    #[test]
+    fn ime_combining_grapheme_replacement_is_one_history_item() {
+        let path = write_temp("ime-history.txt", "e\u{301}lan\n");
+        let mut pane = make_pane_as(&path, "port-daddy:console:ime-history");
+        let before = pane.text().expect("loaded text");
+        let mut input = crate::editor_input::EditorInput::default();
+        let edit = input.replace(&before, Some(0..2), "👩‍🚀", true, Some(5..5));
+        pane.apply_local_text_edit(edit.range, &edit.text)
+            .expect("IME replacement is accepted as one edit");
+
+        assert_eq!(pane.text().as_deref(), Some("👩‍🚀lan\n"));
+        assert_eq!(pane.buffer().unwrap().undo_count(), 1);
+        pane.undo_local_text_edit()
+            .expect("IME undo succeeds")
+            .expect("one IME undo frame");
+        assert_eq!(pane.text().as_deref(), Some("e\u{301}lan\n"));
+        assert!(!pane.buffer().unwrap().can_undo());
+    }
+
+    #[test]
     fn local_keystroke_is_refused_inside_another_live_claim() {
         let path = write_temp("guarded-input.rs", "fn guarded() {}\nfn free() {}\n");
         let mut human = make_pane_as(&path, "port-daddy:console:human");
@@ -1320,6 +1502,394 @@ mod tests {
         assert_eq!(human.text().as_deref(), Some(before.as_str()));
         for token in BYPASS {
             assert!(!refusal.to_ascii_lowercase().contains(token));
+        }
+    }
+
+    fn assert_history_denied_without_mutation(pane: &mut EditorPane, redo: bool) {
+        let before_text = pane.text().expect("loaded history text");
+        let before_stamp = pane.buffer().unwrap().change_stamp();
+        let before_undo_count = pane.buffer().unwrap().undo_count();
+        let before_redo_count = pane.buffer().unwrap().redo_count();
+        let before_receipts = pane.buffer().unwrap().edit_receipt_batch_snapshot();
+        let refusal = if redo {
+            pane.redo_local_text_edit()
+        } else {
+            pane.undo_local_text_edit()
+        }
+        .expect_err("an overlapping live claim must deny before history mutation");
+
+        assert!(refusal.contains("is held by"));
+        assert_eq!(pane.text().as_deref(), Some(before_text.as_str()));
+        assert_eq!(pane.buffer().unwrap().change_stamp(), before_stamp);
+        assert_eq!(pane.buffer().unwrap().undo_count(), before_undo_count);
+        assert_eq!(pane.buffer().unwrap().redo_count(), before_redo_count);
+        assert_eq!(
+            pane.buffer().unwrap().edit_receipt_batch_snapshot(),
+            before_receipts,
+            "denial must preserve the authoritative receipt batch byte-for-byte"
+        );
+    }
+
+    #[test]
+    fn multiline_insertion_history_denies_every_touched_line_and_allows_adjacent_lines() {
+        const BEFORE: &str = "adjacent-before\nanchor\nadjacent-after\n";
+        const AFTER: &str = "adjacent-before\nanchor\nnew-one\nnew-two\nadjacent-after\n";
+        let insertion = "adjacent-before\nanchor".len();
+
+        for claimed_line in 2..=4 {
+            let path = write_temp(&format!("guarded-history-line-{claimed_line}.rs"), BEFORE);
+            let mut human = make_pane_as(
+                &path,
+                &format!("port-daddy:console:history-human-{claimed_line}"),
+            );
+            let mut agent = make_pane_as(
+                &path,
+                &format!("port-daddy:editor:history-claimant-{claimed_line}"),
+            );
+            human
+                .apply_local_text_edit(insertion..insertion, "\nnew-one\nnew-two")
+                .expect("initial multiline insertion is claim-clear");
+            let authored = human.take_edit_receipts();
+            assert!(authored.complete && authored.receipts.len() == 1);
+
+            let undo_claim =
+                agent.acquire_region_claim(claimed_line, claimed_line, "undo-touched-line", 1_000);
+            assert!(human.ingest_claim(&undo_claim));
+            assert_history_denied_without_mutation(&mut human, false);
+
+            let release = agent.release_region_claim(0);
+            assert!(human.ingest_claim(&release));
+            human
+                .undo_local_text_edit()
+                .expect("released undo succeeds")
+                .expect("released undo frame");
+            let undone = human.take_edit_receipts();
+            assert!(undone.complete && undone.receipts.len() == 1);
+
+            let redo_claim =
+                agent.acquire_region_claim(claimed_line, claimed_line, "redo-touched-line", 2_000);
+            assert!(human.ingest_claim(&redo_claim));
+            assert_history_denied_without_mutation(&mut human, true);
+        }
+
+        for adjacent_line in [1, 5] {
+            let path = write_temp(&format!("adjacent-history-line-{adjacent_line}.rs"), BEFORE);
+            let mut human = make_pane_as(
+                &path,
+                &format!("port-daddy:console:adjacent-human-{adjacent_line}"),
+            );
+            let mut agent = make_pane_as(
+                &path,
+                &format!("port-daddy:editor:adjacent-claimant-{adjacent_line}"),
+            );
+            human
+                .apply_local_text_edit(insertion..insertion, "\nnew-one\nnew-two")
+                .expect("initial multiline insertion is claim-clear");
+            let authored = human.take_edit_receipts();
+            assert!(authored.complete && authored.receipts.len() == 1);
+            let adjacent_claim = agent.acquire_region_claim(
+                adjacent_line,
+                adjacent_line,
+                "adjacent-unrelated",
+                3_000,
+            );
+            assert!(human.ingest_claim(&adjacent_claim));
+
+            human
+                .undo_local_text_edit()
+                .expect("adjacent claim does not deny undo")
+                .expect("adjacent undo frame");
+            assert_eq!(human.text().as_deref(), Some(BEFORE));
+            let undone = human.take_edit_receipts();
+            assert!(undone.complete && undone.receipts.len() == 1);
+            human
+                .redo_local_text_edit()
+                .expect("adjacent claim does not deny redo")
+                .expect("adjacent redo frame");
+            assert_eq!(human.text().as_deref(), Some(AFTER));
+            let redone = human.take_edit_receipts();
+            assert!(redone.complete && redone.receipts.len() == 1);
+        }
+    }
+
+    #[test]
+    fn pure_deletion_history_checks_restored_line_without_touching_adjacent_line() {
+        const BEFORE: &str = "open\nclaimed\nadjacent\n";
+        const AFTER: &str = "openclaimed\nadjacent\n";
+
+        let path = write_temp("guarded-deletion-history.rs", BEFORE);
+        let mut human = make_pane_as(&path, "port-daddy:console:deletion-history-human");
+        let mut agent = make_pane_as(&path, "port-daddy:editor:deletion-history-claimant");
+        human
+            .apply_local_text_edit(4..5, "")
+            .expect("initial newline deletion is claim-clear");
+        assert_eq!(human.text().as_deref(), Some(AFTER));
+        let authored = human.take_edit_receipts();
+        assert!(authored.complete && authored.receipts.len() == 1);
+
+        let undo_claim = agent.acquire_region_claim(2, 2, "restored-line", 1_000);
+        assert!(human.ingest_claim(&undo_claim));
+        assert_history_denied_without_mutation(&mut human, false);
+        let release = agent.release_region_claim(0);
+        assert!(human.ingest_claim(&release));
+        human
+            .undo_local_text_edit()
+            .expect("released deletion undo succeeds")
+            .expect("deletion undo frame");
+        let undone = human.take_edit_receipts();
+        assert!(undone.complete && undone.receipts.len() == 1);
+
+        let redo_claim = agent.acquire_region_claim(2, 2, "rejoined-line", 2_000);
+        assert!(human.ingest_claim(&redo_claim));
+        assert_history_denied_without_mutation(&mut human, true);
+
+        let adjacent_path = write_temp("adjacent-deletion-history.rs", BEFORE);
+        let mut adjacent_human =
+            make_pane_as(&adjacent_path, "port-daddy:console:deletion-adjacent-human");
+        let mut adjacent_agent = make_pane_as(
+            &adjacent_path,
+            "port-daddy:editor:deletion-adjacent-claimant",
+        );
+        adjacent_human
+            .apply_local_text_edit(4..5, "")
+            .expect("adjacent deletion fixture edit");
+        let authored = adjacent_human.take_edit_receipts();
+        assert!(authored.complete && authored.receipts.len() == 1);
+        let adjacent_claim = adjacent_agent.acquire_region_claim(3, 3, "unrelated-line", 3_000);
+        assert!(adjacent_human.ingest_claim(&adjacent_claim));
+        adjacent_human
+            .undo_local_text_edit()
+            .expect("line three does not deny deletion undo")
+            .expect("adjacent deletion undo frame");
+        assert_eq!(adjacent_human.text().as_deref(), Some(BEFORE));
+        let undone = adjacent_human.take_edit_receipts();
+        assert!(undone.complete && undone.receipts.len() == 1);
+        adjacent_human
+            .redo_local_text_edit()
+            .expect("line three does not deny deletion redo")
+            .expect("adjacent deletion redo frame");
+        assert_eq!(adjacent_human.text().as_deref(), Some(AFTER));
+        let redone = adjacent_human.take_edit_receipts();
+        assert!(redone.complete && redone.receipts.len() == 1);
+    }
+
+    #[test]
+    fn neutralized_undo_top_cannot_skip_an_older_claimed_item() {
+        const BEFORE: &str = "older\nneutral\nadjacent\n";
+        let path = write_temp("neutralized-undo-claim.rs", BEFORE);
+        let mut human = make_pane_as(&path, "port-daddy:console:neutralized-undo-human");
+        human
+            .apply_local_text_edit(0..0, "OLD-")
+            .expect("older line edit");
+        let top = human.text().unwrap().find("neutral").unwrap();
+        human
+            .apply_local_text_edit(top..top, "TOP-")
+            .expect("top line edit");
+
+        let peer = HarborBuffer::empty("port-daddy:editor:neutralized-undo-peer");
+        peer.apply_remote_ops(&human.buffer().unwrap().export_ops())
+            .unwrap();
+        let peer_text = peer.to_string();
+        let top = peer_text.find("TOP-").unwrap();
+        let top_unicode = peer_text[..top].chars().count();
+        let deletion = peer.replace_authored(top_unicode..top_unicode + 4, "");
+        let frame = crate::editor_sync::encode_frame(peer.local_peer(), &deletion.delta);
+        assert!(human.ingest_frame(&frame));
+        assert_eq!(
+            human.text().as_deref(),
+            Some("OLD-older\nneutral\nadjacent\n")
+        );
+        assert_eq!(
+            (
+                human.buffer().unwrap().undo_count(),
+                human.buffer().unwrap().redo_count()
+            ),
+            (2, 0)
+        );
+
+        let mut claimant = make_pane_as(&path, "port-daddy:editor:neutralized-undo-claimant");
+        let overlap = claimant.acquire_region_claim(1, 1, "older-item", 1_000);
+        assert!(human.ingest_claim(&overlap));
+        assert_history_denied_without_mutation(&mut human, false);
+
+        let release = claimant.release_region_claim(0);
+        assert!(human.ingest_claim(&release));
+        let adjacent = claimant.acquire_region_claim(3, 3, "adjacent-line", 2_000);
+        assert!(human.ingest_claim(&adjacent));
+        human
+            .undo_local_text_edit()
+            .expect("adjacent claim permits multi-pop undo")
+            .expect("older effective undo frame");
+        assert_eq!(human.text().as_deref(), Some(BEFORE));
+        assert_eq!(
+            (
+                human.buffer().unwrap().undo_count(),
+                human.buffer().unwrap().redo_count()
+            ),
+            (0, 1)
+        );
+
+        let release = claimant.release_region_claim(1);
+        assert!(human.ingest_claim(&release));
+        let overlap = claimant.acquire_region_claim(1, 1, "older-redo", 3_000);
+        assert!(human.ingest_claim(&overlap));
+        assert_history_denied_without_mutation(&mut human, true);
+
+        let release = claimant.release_region_claim(2);
+        assert!(human.ingest_claim(&release));
+        let adjacent = claimant.acquire_region_claim(3, 3, "adjacent-redo", 4_000);
+        assert!(human.ingest_claim(&adjacent));
+        human
+            .redo_local_text_edit()
+            .expect("adjacent claim permits reconciled redo")
+            .expect("older redo frame");
+        assert_eq!(
+            human.text().as_deref(),
+            Some("OLD-older\nneutral\nadjacent\n")
+        );
+    }
+
+    #[test]
+    fn neutralized_newline_redo_cannot_skip_an_older_claimed_item() {
+        const BEFORE: &str = "claim\nvictim\n";
+        let path = write_temp("neutralized-redo-claim.rs", BEFORE);
+        let mut human = make_pane_as(&path, "port-daddy:console:neutralized-redo-human");
+        human
+            .apply_local_text_edit(5..6, "")
+            .expect("delete newline as older authored item");
+        let end = human.text().unwrap().len();
+        human
+            .apply_local_text_edit(end..end, "OLDER")
+            .expect("newer authored item");
+        human.undo_local_text_edit().unwrap().unwrap();
+        human.undo_local_text_edit().unwrap().unwrap();
+        assert_eq!(human.text().as_deref(), Some(BEFORE));
+        assert_eq!(
+            (
+                human.buffer().unwrap().undo_count(),
+                human.buffer().unwrap().redo_count()
+            ),
+            (0, 2)
+        );
+
+        let peer = HarborBuffer::empty("port-daddy:editor:neutralized-redo-peer");
+        peer.apply_remote_ops(&human.buffer().unwrap().export_ops())
+            .unwrap();
+        let deletion = peer.replace_authored(5..6, "");
+        let frame = crate::editor_sync::encode_frame(peer.local_peer(), &deletion.delta);
+        assert!(human.ingest_frame(&frame));
+        assert_eq!(human.text().as_deref(), Some("claimvictim\n"));
+
+        let mut claimant = make_pane_as(&path, "port-daddy:editor:neutralized-redo-claimant");
+        let claim = claimant.acquire_region_claim(2, 2, "older-redo-target", 1_000);
+        assert!(human.ingest_claim(&claim));
+        assert_history_denied_without_mutation(&mut human, true);
+
+        let release = claimant.release_region_claim(0);
+        assert!(human.ingest_claim(&release));
+        human
+            .redo_local_text_edit()
+            .expect("released multi-pop redo succeeds")
+            .expect("older redo frame");
+        assert_eq!(human.text().as_deref(), Some("claimvictim\nOLDER"));
+        assert_eq!(
+            (
+                human.buffer().unwrap().undo_count(),
+                human.buffer().unwrap().redo_count()
+            ),
+            (1, 0)
+        );
+    }
+
+    #[test]
+    fn repeated_remote_shift_history_denies_shifted_line_and_allows_adjacent_lines() {
+        const BEFORE: &str = "abcd\ntail\n";
+        const PREFIX: &str = "REMOTE\n";
+        let cases = [
+            ("insertion", 2..2, "LOCAL", "abLOCALcd\ntail\n"),
+            ("replacement", 1..3, "XY", "aXYd\ntail\n"),
+            ("deletion", 1..3, "", "ad\ntail\n"),
+        ];
+
+        for (name, range, replacement, expected_after) in cases {
+            let path = write_temp(&format!("repeated-history-{name}.rs"), BEFORE);
+            let mut human = make_pane_as(
+                &path,
+                &format!("port-daddy:console:repeated-history-{name}"),
+            );
+            human
+                .apply_local_text_edit(range, replacement)
+                .expect("initial local edit is accepted");
+            human
+                .undo_local_text_edit()
+                .expect("first undo succeeds")
+                .expect("first undo frame");
+
+            let peer = HarborBuffer::empty(format!("port-daddy:editor:remote-shift-{name}"));
+            peer.apply_remote_ops(&human.buffer().unwrap().export_ops())
+                .expect("peer joins after first undo");
+            let remote = peer.replace_authored(0..0, PREFIX);
+            let remote_frame = crate::editor_sync::encode_frame(peer.local_peer(), &remote.delta);
+            assert!(human.ingest_frame(&remote_frame));
+
+            human
+                .redo_local_text_edit()
+                .expect("first redo succeeds after remote shift")
+                .expect("first redo frame");
+            assert_eq!(
+                human.text().as_deref(),
+                Some(format!("{PREFIX}{expected_after}").as_str())
+            );
+            human
+                .undo_local_text_edit()
+                .expect("second undo succeeds")
+                .expect("second undo frame");
+            assert_eq!(
+                human.text().as_deref(),
+                Some(format!("{PREFIX}{BEFORE}").as_str())
+            );
+
+            let queued = human.buffer().unwrap().edit_receipt_batch_snapshot();
+            assert!(queued.complete);
+            assert_eq!(
+                queued.receipts.len(),
+                5,
+                "accepted edit, undo, import, redo, and second undo remain queued"
+            );
+
+            let mut claimant = make_pane_as(
+                &path,
+                &format!("port-daddy:editor:repeated-claimant-{name}"),
+            );
+            let overlap = claimant.acquire_region_claim(2, 2, "shifted-actual-line", 1_000);
+            assert!(human.ingest_claim(&overlap));
+            assert_history_denied_without_mutation(&mut human, true);
+
+            let release_overlap = claimant.release_region_claim(0);
+            assert!(human.ingest_claim(&release_overlap));
+            let before_adjacent = claimant.acquire_region_claim(1, 1, "adjacent-before", 2_000);
+            assert!(human.ingest_claim(&before_adjacent));
+            human
+                .redo_local_text_edit()
+                .expect("preceding adjacent line allows redo")
+                .expect("adjacent redo frame");
+            human
+                .undo_local_text_edit()
+                .expect("preceding adjacent line allows undo")
+                .expect("adjacent undo frame");
+
+            let release_before = claimant.release_region_claim(1);
+            assert!(human.ingest_claim(&release_before));
+            let after_adjacent = claimant.acquire_region_claim(3, 3, "adjacent-after", 3_000);
+            assert!(human.ingest_claim(&after_adjacent));
+            human
+                .redo_local_text_edit()
+                .expect("following adjacent line allows redo")
+                .expect("following adjacent redo frame");
+            human
+                .undo_local_text_edit()
+                .expect("following adjacent line allows undo")
+                .expect("following adjacent undo frame");
         }
     }
 
