@@ -63,6 +63,13 @@ answers "what may I take" — every slug nothing holds, plus every slug whose
 holder has gone quiet past the salvage clock. `.../board` is the whole picture
 including who is on what. The human view is `/account/register?repo=...`, which
 is gated to the operator's own GitHub identity and is not linked from anywhere.
+When the local runtime is intentionally Off, the operator can use **Authorize
+this task** on that page to mint a one-use ten-minute pairing code. The task
+exchanges it at `POST /v1/register/exchange` for an eight-hour `pdr_` bearer.
+That bearer is bound to the approved repository, task name, and owner; it is
+accepted only by `/v1/register/*`, cannot become general Relay account
+authority, and can be revoked from the same page. Never ask the operator to
+start Port Daddy merely to admit a task to this board.
 
 **Claim before you work.** `POST .../claim` with `{"slug": "...", "agent":
 "<your session id>", "headline": "what you are about to do"}`. A `409` means

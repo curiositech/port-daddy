@@ -95,6 +95,16 @@
  *                                               2026-08-22, PR 1)
  *   GET  /v1/roadmap/mirror?repo=              (session/pdu; own mirror read —
  *                                               board / item detail / activity)
+ *   GET  /account/register?repo=                (session + live GitHub repo ACL;
+ *                                               shared Harbor Work Register)
+ *   POST /account/register/authorize            (session + same-origin; mint a
+ *                                               one-use repo/task pairing code)
+ *   POST /account/register/revoke               (session + same-origin; revoke
+ *                                               one task grant)
+ *   POST /v1/register/exchange                  (one-use pairing code → short-lived,
+ *                                               Register-only pdr_ bearer)
+ *   GET|POST /v1/register/*                     (session/pdu/pdr; shared occupancy,
+ *                                               pdr exact-repo and actor bound)
  *   POST /v1/harbors                           (session/pdu; create a remote harbor — client-supplied pubkey)
  *   GET  /v1/harbors                           (session/pdu; harbors I belong to)
  *   GET  /v1/harbors/:namespace/:name          (member-gated; detail + members)
@@ -234,6 +244,7 @@ import {
   handleParleyDetailPage,
   handleParleySignForm,
   handleParleyVerdictForm,
+  parleyNotFoundPage,
 } from './parleys-page.js';
 import { handleHarborsPage, handleHarborDetailPage, harborNotFoundPage } from './harbors-page.js';
 import {
@@ -249,7 +260,7 @@ import {
   handleRepoSettingsRemove,
   handleRepoSettingsApi,
 } from './repo-settings-page.js';
-import { handleRegisterPage, handleRegisterApi } from './work-register.js';
+import { handleRegisterPage, handleRegisterPageAction, handleRegisterApi } from './work-register.js';
 import { handleShipwrightPage } from './shipwright-page.js';
 import {
   handleShipwrightChat,
@@ -678,13 +689,17 @@ export default {
       response = await handleRepoSettingsApi(request, env);
     }
     // The Harbor Work Register: who is on what, for the agents sharing a repo.
-    // The page is session + GitHub repo ACL and refreshes the registry cache on
-    // every visit; the JSON paths also take a pdu_ device bearer, which is how
-    // an agent coordinates without carrying a GitHub credential of its own.
+    // The page is session + live GitHub repo ACL. It can mint a one-use exchange
+    // for a short-lived, repo-bound `pdr_` bearer; the JSON paths also retain
+    // the account-wide pdu_ device path. The narrower bearer is resolved only
+    // by work-register.ts and cannot authorize another Relay API.
     // The register owns occupancy only — what work EXISTS stays the roadmap
     // registry's to say, and this Worker never writes it (src/work-register.ts).
     else if (pathname === '/account/register' && method === 'GET') {
       response = await handleRegisterPage(request, env);
+    }
+    else if (pathname.startsWith('/account/register/') && method === 'POST') {
+      response = await handleRegisterPageAction(request, env);
     }
     else if (pathname.startsWith('/v1/register/')) {
       response = await handleRegisterApi(request, env);
@@ -778,18 +793,35 @@ export default {
     else if (pathname === '/account/parleys' && method === 'GET') {
       response = await handleParleysIndex(request, env);
     } else if (pathname.startsWith('/account/parleys/')) {
-      const seg = pathname.slice('/account/parleys/'.length).split('/').filter(Boolean).map(decodeURIComponent);
-      const [pns, pname, pid, pverb] = seg;
-      if (pns && pname && seg.length === 2 && method === 'GET') {
+      // decodeURIComponent throws URIError on a malformed escape ("%ZZ"). Left
+      // unguarded, that threw past the routing into the global boundary, which
+      // answers 500 INTERNAL_ERROR — a visibly different reply from the 404
+      // every other unservable parley URL gets. This surface answers 404 for
+      // everything it will not serve precisely so a non-member and a
+      // nonexistent parley are one response; an undecodable segment joins them
+      // rather than announcing itself with a different status. Same guard the
+      // /account/harbors/ branch below already carries.
+      let seg: string[] | null = null;
+      try {
+        seg = pathname.slice('/account/parleys/'.length).split('/').filter(Boolean).map(decodeURIComponent);
+      } catch {
+        seg = null;
+      }
+      const [pns, pname, pid, pverb] = seg ?? [];
+      if (seg && pns && pname && seg.length === 2 && method === 'GET') {
         response = await handleParleyListPage(request, env, pns, pname);
-      } else if (pns && pname && pid && seg.length === 3 && method === 'GET') {
+      } else if (seg && pns && pname && pid && seg.length === 3 && method === 'GET') {
         response = await handleParleyDetailPage(request, env, pns, pname, pid);
-      } else if (pns && pname && pid && seg.length === 4 && pverb === 'sign' && method === 'POST') {
+      } else if (seg && pns && pname && pid && seg.length === 4 && pverb === 'sign' && method === 'POST') {
         response = await handleParleySignForm(request, env, pns, pname, pid);
-      } else if (pns && pname && pid && seg.length === 4 && pverb === 'verdict' && method === 'POST') {
+      } else if (seg && pns && pname && pid && seg.length === 4 && pverb === 'verdict' && method === 'POST') {
         response = await handleParleyVerdictForm(request, env, pns, pname, pid);
       } else {
-        response = new Response('Not Found', { status: 404 });
+        // The SAME page a nonexistent parley gets, byte for byte — not a bare
+        // `new Response('Not Found')`. That plaintext 9-byte answer was
+        // distinguishable on sight from the real 404, and carried none of this
+        // surface's headers: no no-store, no noindex, no CSP.
+        response = parleyNotFoundPage();
       }
     }
 
@@ -834,10 +866,8 @@ export default {
         // existence oracle the page's own text refuses to be. It also carried
         // none of this surface's headers — no no-store, no noindex, no CSP.
         //
-        // NOTE: the parleys branch above (the `else` at the end of the
-        // /account/parleys/ dispatch) still has the bare form and the same
-        // doctrine in parleys-page.ts. Same defect, different surface; it needs
-        // its own change and its own tests rather than a drive-by here.
+        // The parleys branch above carried the same defect and now carries the
+        // same fix, with its own tests (apps/relay/tests/parleys-page.test.ts).
         response = harborNotFoundPage();
       }
     }
