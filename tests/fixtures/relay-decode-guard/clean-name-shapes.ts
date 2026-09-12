@@ -66,7 +66,7 @@ function notFound(): Response {
 export default {
   async fetch(request: Request): Promise<Response> {
     const pathname = new URL(request.url).pathname;
-    const seg = safeDecodeSegment(pathname.slice(1));
+    safeDecodeSegment(pathname.slice(1));
     return notFound();
   },
 };
