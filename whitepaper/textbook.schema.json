@@ -63,6 +63,7 @@
           "numeral",
           "title",
           "color",
+          "slug",
           "blurb",
           "chapters"
         ],
@@ -83,6 +84,11 @@
             "type": "string",
             "pattern": "^pd[a-z]+$",
             "description": "The part's hue. Chapters inherit it for all chrome (openers, rails, running feet); chapter-specific hues belong to figures, not chrome."
+          },
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-z]+$",
+            "description": "The part's web role-token name, unique across parts. The site's Swiss primitives (website-v2/src/components/swiss/) derive a part's ink mechanically from this field -- var(--part-<slug>) / var(--part-<slug>-on) in tokens.roles.css -- rather than from a hard-coded color-to-token lookup table."
           },
           "blurb": {
             "type": "string",

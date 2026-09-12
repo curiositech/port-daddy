@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { DeckShell, type DeckSignal } from '@/components/library/DeckShell'
+import { Eyebrow, PartNumeral, Slab } from '@/components/swiss'
 import {
   chapterRecordFor,
   chapterRoleLabel,
@@ -28,116 +29,35 @@ import {
  */
 
 /**
- * The four part inks, as tokens rather than hexes.
+ * Which part's slug a chapter belongs to, keyed by chapter id.
  *
- * These were the Book's light-mode values pasted in literally, which had two
- * costs. The palette guard forbids colour literals in a component for a
- * reason -- a hex here cannot follow the token when the story palette moves --
- * and, more visibly, a literal does not know what theme it is in. Every one of
- * these already exists as a theme-aware pair: cobalt and teal are the brand
- * tokens the story palette reuses for L0 truth and L2 legibility, violet and
- * gold are its own. The dark block redefines all four, so the slabs now darken
- * with the page instead of printing light-mode ink on a dark ground.
- *
- * `on` matters most. It was fixed at cream, which is only correct while the
- * block stays dark; pairing each block with its own foreground token is what
- * lets the Swiss slab treatment carry paper-coloured type in either theme.
+ * The Contents panel already draws the parts, so it has the slug to hand;
+ * every other panel lists chapters out of part order (the spine runs 1–8
+ * straight through, the proofs panel picks three) and used to fall back to a
+ * neutral hairline, which threw away the one piece of information the reader
+ * had already learned on the first panel. Deriving it here rather than
+ * hard-coding a second table means a chapter that moves between parts moves
+ * its colour too — and the slug itself comes from textbook.json, not from a
+ * colour-name lookup table.
  */
-const PART_INK: Record<string, { block: string; on: string; rule: string }> = {
-  pdcobalt: {
-    block: 'var(--brand-primary)',
-    on: 'var(--brand-primary-foreground)',
-    rule: 'var(--brand-primary)',
-  },
-  pdteal: {
-    block: 'var(--brand-accent)',
-    on: 'var(--brand-accent-foreground)',
-    rule: 'var(--brand-accent)',
-  },
-  pdviolet: {
-    block: 'var(--story-violet)',
-    on: 'var(--story-violet-foreground)',
-    rule: 'var(--story-violet)',
-  },
-  pdgold: {
-    block: 'var(--story-gold)',
-    on: 'var(--story-gold-foreground)',
-    rule: 'var(--story-gold)',
-  },
-}
-
-/**
- * Which part's ink a chapter belongs to, keyed by chapter id.
- *
- * The Contents panel already draws the parts, so it has the ink to hand; every
- * other panel lists chapters out of part order (the spine runs 1–8 straight
- * through, the proofs panel picks three) and used to fall back to a neutral
- * hairline, which threw away the one piece of information the reader had
- * already learned on the first panel. Deriving it here rather than hard-coding
- * a second table means a chapter that moves between parts moves its colour too.
- */
-const CHAPTER_INK = new Map(
-  TABLE_OF_CONTENTS.flatMap((part) =>
-    part.chapters.map(
-      (chapterId) => [chapterId, PART_INK[part.color] ?? PART_INK.pdcobalt] as const,
-    ),
-  ),
+const CHAPTER_SLUG = new Map(
+  TABLE_OF_CONTENTS.flatMap((part) => part.chapters.map((chapterId) => [chapterId, part.slug] as const)),
 )
 
-function inkFor(chapterId: string) {
-  return CHAPTER_INK.get(chapterId) ?? PART_INK.pdcobalt
-}
-
-/**
- * A chapter number as a filled square of its part's ink, paper-coloured type.
- *
- * This is the Swiss edition's own device and the reason the rest of this page
- * needs almost no rules: a solid block reads as a mark at any size, so a
- * column of them is navigable at a glance, and the colour carries the part
- * without a legend. Square, flat, no border — the colour edge IS the edge.
- */
-function NumberBlock({
-  n,
-  ink,
-  size = 'md',
-}: {
-  n: number
-  ink: { block: string; on: string }
-  size?: 'md' | 'lg'
-}) {
-  return (
-    <span
-      className={
-        size === 'lg'
-          ? 'grid h-14 w-14 shrink-0 place-items-center font-mono text-[26px] font-bold leading-none tabular-nums tracking-[-0.04em]'
-          : 'grid h-8 w-8 shrink-0 place-items-center font-mono text-[15px] font-bold leading-none tabular-nums tracking-[-0.03em]'
-      }
-      style={{ background: ink.block, color: ink.on }}
-      aria-hidden="true"
-    >
-      {String(n).padStart(2, '0')}
-    </span>
-  )
-}
-
-function Eyebrow({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">
-      {children}
-    </div>
-  )
+function slugFor(chapterId: string) {
+  return CHAPTER_SLUG.get(chapterId) ?? TABLE_OF_CONTENTS[0].slug
 }
 
 /** One chapter, as an outline entry. Number, title, role, question, teaser. */
-function ChapterEntry({ paperId, rule }: { paperId: string; rule: string }) {
+function ChapterEntry({ paperId, slug }: { paperId: string; slug: string }) {
   const paper = WHITE_PAPERS.find((candidate) => candidate.id === paperId)
   const record = chapterRecordFor(paperId)
   if (!paper || !record) return null
 
   return (
-    <div className="deck-chapter py-3" style={{ ['--deck-ch' as string]: rule }}>
+    <div className="deck-chapter py-3" style={{ ['--deck-ch' as string]: `var(--part-${slug})` }}>
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span className="font-mono text-[13px] font-bold" style={{ color: rule }}>
+        <span className="font-mono text-[13px] font-bold" style={{ color: `var(--part-${slug})` }}>
           {String(paper.chapter).padStart(2, '0')}
         </span>
         <h3 className="text-[17px] font-bold leading-tight tracking-[-0.012em] text-[var(--text-primary)]">
@@ -161,7 +81,6 @@ function ContentsPanel() {
   return (
     <div className="space-y-7">
       {TABLE_OF_CONTENTS.map((part) => {
-        const ink = PART_INK[part.color] ?? PART_INK.pdcobalt
         return (
           <section key={part.id}>
             {/*
@@ -175,10 +94,7 @@ function ContentsPanel() {
 
               No radius, no border, no shadow: the colour edge IS the edge.
             */}
-            <div
-              className="on-block grid grid-cols-[auto_1fr] items-end gap-x-5 px-5 py-5"
-              style={{ background: ink.block, color: ink.on }}
-            >
+            <Slab slug={part.slug} className="grid grid-cols-[auto_1fr] items-end gap-x-5 px-5 py-5">
               {/*
                 The numeral is set at display size, not label size. On the
                 book's part page it is the largest thing on the sheet and it
@@ -194,13 +110,13 @@ function ContentsPanel() {
               <h2 className="pb-[0.18em] text-[clamp(20px,2.7vw,30px)] font-bold leading-[1.02] tracking-[-0.025em]">
                 {part.title}
               </h2>
-            </div>
+            </Slab>
             <p className="mt-3 max-w-[76ch] text-[14px] leading-[1.6] text-[var(--text-muted)]">
               {part.blurb}
             </p>
             <div className="mt-2">
               {part.chapters.map((chapterId) => (
-                <ChapterEntry key={chapterId} paperId={chapterId} rule={ink.rule} />
+                <ChapterEntry key={chapterId} paperId={chapterId} slug={part.slug} />
               ))}
             </div>
           </section>
@@ -222,7 +138,7 @@ function SpinePanel() {
       <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
         {TEXTBOOK.chapters.map((chapter) => (
           <div key={chapter.id} className="grid grid-cols-[auto_1fr] items-start gap-x-3">
-            <NumberBlock n={chapter.number} ink={inkFor(chapter.id)} />
+            <PartNumeral n={chapter.number} slug={slugFor(chapter.id)} />
             <div>
               <div className="text-[14.5px] font-bold leading-[1.2] tracking-[-0.012em] text-[var(--text-primary)]">
                 {chapter.title}
@@ -255,13 +171,13 @@ function ProofsPanel() {
       <div>
         {proving.map((paper) => {
           const record = chapterRecordFor(paper.id)
-          const ink = inkFor(paper.id)
+          const slug = slugFor(paper.id)
           return (
             <div
               key={paper.id}
               className="grid grid-cols-[auto_1fr] items-start gap-x-4 border-t-2 border-[var(--border-strong)] py-4 first:border-t-0 first:pt-0"
             >
-              <NumberBlock n={paper.chapter} ink={ink} size="lg" />
+              <PartNumeral n={paper.chapter} slug={slug} size="lg" />
               <div>
                 <div className="flex flex-wrap items-baseline gap-x-3">
                   <h3 className="text-[17px] font-bold leading-tight tracking-[-0.015em] text-[var(--text-primary)]">
@@ -269,7 +185,7 @@ function ProofsPanel() {
                   </h3>
                   <span
                     className="font-mono text-[11px] font-bold uppercase tracking-[0.1em]"
-                    style={{ color: ink.rule }}
+                    style={{ color: `var(--part-${slug})` }}
                   >
                     {chapterRoleLabel(paper)}
                   </span>

@@ -14,6 +14,7 @@
       "numeral": "I",
       "title": "Ground Truth",
       "color": "pdcobalt",
+      "slug": "machine",
       "blurb": "One writer decides what is real, every request that reaches it arrives with authority that can only have narrowed, and what runs on its behalf runs in a sealed room. Three chapters build the machine every later chapter answers to.",
       "chapters": [
         "single-writer-kernel",
@@ -26,6 +27,7 @@
       "numeral": "II",
       "title": "The Cost of Seeing",
       "color": "pdteal",
+      "slug": "operator",
       "blurb": "Many machines, one person watching. Supervision has a price, and it can be measured in bits. This part prices what the operator must be able to see and proves what no summary can hide.",
       "chapters": [
         "legible-swarm"
@@ -36,6 +38,7 @@
       "numeral": "III",
       "title": "What Survives the Restart",
       "color": "pdviolet",
+      "slug": "person",
       "blurb": "A process that can come back under a new name owes nothing. This part builds the continuity that turns a spawn into someone with a record worth pricing.",
       "chapters": [
         "spawn-to-person"
@@ -46,6 +49,7 @@
       "numeral": "IV",
       "title": "Trade Between Strangers",
       "color": "pdgold",
+      "slug": "market",
       "blurb": "Once records cannot be minted, trust can be rented. This part builds the market, then proves what it must assume: settlement conserves value, evidence is admissible, and sovereignty never crosses the wire.",
       "chapters": [
         "harbor-economy",
