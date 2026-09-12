@@ -438,11 +438,11 @@ flow is:
    done while a `port-daddy-fleet` or other actionable bot thread sits
    unanswered. Operator, 2026-06-23: "Why did you ignore fleetbot?" — the
    answer must never be "I didn't read its comments."
-6. **Get the full CI/CD surface clean.** "CI is green" means the GitHub
-   matrix, review checks, deploy previews, release/package jobs, and external
-   statuses attached to the PR are green. If a red status is truly external,
-   inspect the linked logs, name the external owner/root cause in a PR
-   comment, and leave a `pd note`; otherwise fix the repo branch.
+6. **Get every configured required context green.** The ruleset, not the visual
+   checks list, defines merge blockers. Fix every required failure. Advisory
+   repo jobs, deploy previews, experiments, and external statuses remain useful
+   evidence, but they do not hold a merge merely because they are red, pending,
+   neutral, or skipped; record a material finding and continue.
 7. **Re-spawn the reviewer** (or a fresh one) if the change set is
    non-trivial. Don't ship with a stale verdict.
 8. **`pd note` the result + `pd done`** before merge. The PD audit trail
@@ -699,31 +699,22 @@ tracked work instead of vanishing. The mechanism:
   `roadmap_items` row (`POST /roadmap/items`) and edits the trailer into the
   PR body. Then `npx tsx scripts/export-roadmap-snapshot.ts` and commit so CI
   sees it.
-- **The check is REQUIRED and fails closed.** `.github/workflows/roadmap-link.yml`
-  reads the committed mirror `docs/roadmap/roadmap.snapshot.json` (via the pure,
-  unit-tested `lib/roadmap-link-core.ts`) and is a **required status check** in
-  branch protection (operator, 2026-06). A PR with no valid `Roadmap-Item:`
-  trailer **cannot merge** — it is bounced back until you add the link or the
-  explicit opt-out. It reports on `merge_group` heads as a pass-through, so the
-  merge queue never hangs on it.
+- **The check requires a declaration, not snapshot membership.**
+  `.github/workflows/roadmap-link.yml` blocks only when the PR lacks a valid
+  `Roadmap-Item:` trailer or explicit opt-out. The versioned
+  `docs/roadmap/roadmap.snapshot.json` projection is not merge authority;
+  freshness, existence, contradictions, and reconciliation belong to Chartroom.
 - **Belt and suspenders: the label too.** A PR with no valid link also gets
   `needs-roadmap-link`, and the land/auto-merge flow treats that label as *hold
   for a human*. With the check now required, the merge is also blocked
   mechanically — so an unlinked PR is stopped two ways.
-- **Keep the snapshot fresh — it fails closed.** If `roadmap.snapshot.json` is
-  missing, empty, or >21d stale, the gate shouts (🔴 comment + step summary) AND,
-  because it is required + fail-closed, **blocks every PR** — even correctly
-  linked ones — until someone regenerates and commits it:
-  `npx tsx scripts/export-roadmap-snapshot.ts`. A stale mirror must never read as
-  "all clear". (This is the operator's deliberate trade-off: a stale roadmap
-  halts the line rather than letting unverified links through.)
-- **Planning docs must spawn downstream work.** A PR that adds/edits an ADR, a
-  `PLAN`/`ROADMAP` file, or a `docs/` proposal must also enumerate the roadmap
-  items it creates: `Roadmap-Spawns: <slug-a>, <slug-b>` (or
-  `Roadmap-Spawns: none — <reason>` when it only supersedes/clarifies). A plan
-  exists to generate work; without the spawn line the PR gets
-  `needs-roadmap-spawn` and waits for a human. Detection is by file path, so it
-  fires on the actual document, not on prose.
+- **Snapshot drift is reported elsewhere and never freezes delivery.** Exported
+  roadmap files may support archaeology and offline inspection, but an old or
+  broken projection cannot block a correctly declared PR.
+- **Planning-document consequences belong in Chartroom.** `Roadmap-Spawns:` is
+  useful evidence for reconciliation, but its absence is not a merge blocker.
+  Chartroom should infer, challenge, and present downstream work rather than
+  making every document author manually satisfy another GitHub gate.
 
 ### Shell gotchas (real and recurring)
 

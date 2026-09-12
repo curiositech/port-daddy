@@ -2,8 +2,8 @@
  * Tests for the GitHub-login BFF (src/auth-github.ts, ADR-0101 Phase 1).
  *
  * Coverage:
- *   - login: 503 when unconfigured; 302 to GitHub with exact redirect_uri +
- *     scope + a state that gets stored single-use in KV.
+ *   - login: 503 when unconfigured; 302 to GitHub with exact redirect_uri and
+ *     a state stored single-use in KV, without classic OAuth App scopes.
  *   - callback CSRF: unknown/absent state → 400; a state is consumed exactly
  *     once (replay of the same state → 400).
  *   - callback happy path (mocked GitHub): code exchange → /user → /user/emails
@@ -93,7 +93,10 @@ function makeDb() {
     };
     return s as unknown as D1PreparedStatement;
   };
-  const db = { prepare: stmt } as unknown as D1Database;
+  const db = {
+    prepare: stmt,
+    batch: async (statements: D1PreparedStatement[]) => Promise.all(statements.map(statement => statement.run())),
+  } as unknown as D1Database;
   return { db, users, sessions };
 }
 
@@ -130,21 +133,43 @@ describe('GET /auth/github/login', () => {
     expect(res.status).toBe(503);
   });
 
-  it('302s to GitHub with exact redirect_uri, scope, and a stored single-use state', async () => {
+  it('302s despite an existing Relay cookie, omits classic OAuth scopes, and stores single-use state', async () => {
     const kv = makeKV();
-    const res = await handleGithubLogin(new Request(`${BASE}/auth/github/login`), makeEnv({}, kv));
+    const res = await handleGithubLogin(new Request(`${BASE}/auth/github/login`, {
+      headers: { Cookie: '__Host-pd_session=existing-relay-session' },
+    }), makeEnv({}, kv));
     expect(res.status).toBe(302);
     const loc = new URL(res.headers.get('Location')!);
     expect(loc.origin + loc.pathname).toBe('https://github.com/login/oauth/authorize');
     expect(loc.searchParams.get('redirect_uri')).toBe(`${BASE}/auth/github/callback`);
-    // `repo` is required (not just broader-than-needed): GET /repos/:owner/:repo
-    // 404s — indistinguishable from "does not exist" — for a private repo the
-    // token's scope can't see, which is exactly what locked erichowens out of
-    // every one of their own repos on /account/repos before this fix.
-    expect(loc.searchParams.get('scope')).toBe('read:user user:email repo');
+    expect(loc.searchParams.has('scope')).toBe(false);
+    expect(loc.searchParams.has('prompt')).toBe(false);
+    expect(loc.searchParams.get('code_challenge_method')).toBe('S256');
+    expect(loc.searchParams.get('code_challenge')).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(res.headers.get('Set-Cookie')).toContain('__Host-pd_oauth_tx=');
+    expect(res.headers.get('Set-Cookie')).toContain('HttpOnly');
     const state = loc.searchParams.get('state')!;
     expect(state).toMatch(/^[0-9a-f]{64}$/);
-    expect(JSON.parse(kv.store.get(`oauth_state:${state}`)!)).toEqual({ returnTo: '/account' });
+    const stored = JSON.parse(kv.store.get(`oauth_state:${state}`)!);
+    expect(stored).toEqual(expect.objectContaining({
+      returnTo: '/account',
+      priorSessionHash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      transactionHash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      codeVerifier: expect.stringMatching(/^[A-Za-z0-9._~-]{43,128}$/),
+    }));
+    const expectedChallenge = Buffer.from(await crypto.subtle.digest(
+      'SHA-256', new TextEncoder().encode(stored.codeVerifier),
+    )).toString('base64url');
+    expect(loc.searchParams.get('code_challenge')).toBe(expectedChallenge);
+  });
+
+  it('asks GitHub to select the account only for an explicit reconnect', async () => {
+    const kv = makeKV();
+    const reconnect = await handleGithubLogin(new Request(`${BASE}/auth/github/login?reauth=1`), makeEnv({}, kv));
+    expect(new URL(reconnect.headers.get('Location')!).searchParams.get('prompt')).toBe('select_account');
+
+    const arbitrary = await handleGithubLogin(new Request(`${BASE}/auth/github/login?reauth=yes&prompt=consent`), makeEnv({}, kv));
+    expect(new URL(arbitrary.headers.get('Location')!).searchParams.has('prompt')).toBe(false);
   });
 
   it('binds a safe account return path to OAuth state and rejects external destinations', async () => {
@@ -152,21 +177,21 @@ describe('GET /auth/github/login', () => {
     const wanted = '/account/ships?repo=curiositech%2Fport-daddy';
     const res = await handleGithubLogin(new Request(`${BASE}/auth/github/login?return_to=${encodeURIComponent(wanted)}`), makeEnv({}, kv));
     const state = new URL(res.headers.get('Location')!).searchParams.get('state')!;
-    expect(JSON.parse(kv.store.get(`oauth_state:${state}`)!)).toEqual({ returnTo: wanted });
+    expect(JSON.parse(kv.store.get(`oauth_state:${state}`)!)).toEqual(expect.objectContaining({ returnTo: wanted }));
     const refused = await handleGithubLogin(new Request(`${BASE}/auth/github/login?return_to=${encodeURIComponent('https://evil.example/account')}`), makeEnv({}, kv));
     const refusedState = new URL(refused.headers.get('Location')!).searchParams.get('state')!;
-    expect(JSON.parse(kv.store.get(`oauth_state:${refusedState}`)!)).toEqual({ returnTo: '/account' });
+    expect(JSON.parse(kv.store.get(`oauth_state:${refusedState}`)!)).toEqual(expect.objectContaining({ returnTo: '/account' }));
     for (const unsafe of ['/accounting', '/account/../../outside', '//evil.example/account']) {
       const response = await handleGithubLogin(new Request(`${BASE}/auth/github/login?return_to=${encodeURIComponent(unsafe)}`), makeEnv({}, kv));
       const unsafeState = new URL(response.headers.get('Location')!).searchParams.get('state')!;
-      expect(JSON.parse(kv.store.get(`oauth_state:${unsafeState}`)!)).toEqual({ returnTo: '/account' });
+      expect(JSON.parse(kv.store.get(`oauth_state:${unsafeState}`)!)).toEqual(expect.objectContaining({ returnTo: '/account' }));
     }
   });
 });
 
 // ── callback ───────────────────────────────────────────────────────────────────
 
-function mockGithub(token = 'gho_usertoken') {
+function mockGithub(token = 'ghu_usertoken') {
   vi.stubGlobal('fetch', vi.fn(async (input: any) => {
     const url = String(input);
     if (url.includes('login/oauth/access_token')) return new Response(JSON.stringify({ access_token: token }), { status: 200 });
@@ -176,38 +201,77 @@ function mockGithub(token = 'gho_usertoken') {
   }));
 }
 
+async function beginLogin(
+  env: Env,
+  path = '/auth/github/login',
+  sessionCookie?: string,
+): Promise<{ state: string; transactionCookie: string; response: Response }> {
+  const response = await handleGithubLogin(new Request(`${BASE}${path}`, {
+    headers: sessionCookie ? { Cookie: sessionCookie } : undefined,
+  }), env);
+  const location = new URL(response.headers.get('Location')!);
+  return {
+    state: location.searchParams.get('state')!,
+    transactionCookie: response.headers.get('Set-Cookie')!.split(';')[0],
+    response,
+  };
+}
+
+function callbackRequest(state: string, transactionCookie: string, sessionCookie?: string): Request {
+  return new Request(`${BASE}/auth/github/callback?code=c&state=${state}`, {
+    headers: { Cookie: [sessionCookie, transactionCookie].filter(Boolean).join('; ') },
+  });
+}
+
 describe('GET /auth/github/callback', () => {
   it('rejects an unknown/absent state as CSRF (400)', async () => {
-    const env = makeEnv();
+    const kv = makeKV();
+    const get = vi.spyOn(kv, 'get');
+    const env = makeEnv({}, kv);
     const noState = await handleGithubCallback(new Request(`${BASE}/auth/github/callback?code=x`), env);
     expect(noState.status).toBe(400);
     const badState = await handleGithubCallback(new Request(`${BASE}/auth/github/callback?code=x&state=deadbeef`), env);
     expect(badState.status).toBe(400);
+    const oversized = await handleGithubCallback(new Request(`${BASE}/auth/github/callback?code=x&state=${'a'.repeat(513)}`), env);
+    expect(oversized.status).toBe(400);
+    expect(get).not.toHaveBeenCalled();
   });
 
   it('consumes state exactly once (replay of the same state → 400)', async () => {
     const kv = makeKV();
     const env = makeEnv({}, kv);
-    kv.store.set('oauth_state:s1', '1');
+    const login = await beginLogin(env);
     mockGithub();
-    const first = await handleGithubCallback(new Request(`${BASE}/auth/github/callback?code=c&state=s1`), env);
+    const first = await handleGithubCallback(callbackRequest(login.state, login.transactionCookie), env);
     expect(first.status).toBe(302);
-    const replay = await handleGithubCallback(new Request(`${BASE}/auth/github/callback?code=c&state=s1`), env);
+    const replay = await handleGithubCallback(callbackRequest(login.state, login.transactionCookie), env);
     expect(replay.status).toBe(400); // state was deleted after first use
+  });
+
+  it('rejects a valid state presented by a different browser before token exchange', async () => {
+    const kv = makeKV();
+    const env = makeEnv({}, kv);
+    const login = await beginLogin(env);
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    const swapped = await handleGithubCallback(callbackRequest(login.state, '__Host-pd_oauth_tx=attacker-browser'), env);
+    expect(swapped.status).toBe(400);
+    expect(await swapped.text()).toContain('possible login CSRF');
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('fails closed (502) when GET /user returns a malformed shape, storing no user', async () => {
     const kv = makeKV();
     const { db, users } = makeDb();
     const env = makeEnv({}, kv, db);
-    kv.store.set('oauth_state:sm', '1');
+    const login = await beginLogin(env);
     vi.stubGlobal('fetch', vi.fn(async (input: any) => {
       const url = String(input);
-      if (url.includes('login/oauth/access_token')) return new Response(JSON.stringify({ access_token: 'gho_x' }), { status: 200 });
+      if (url.includes('login/oauth/access_token')) return new Response(JSON.stringify({ access_token: 'ghu_x' }), { status: 200 });
       if (url.endsWith('/user')) return new Response(JSON.stringify({ id: 'not-a-number', login: 42 }), { status: 200 }); // garbage
       return new Response('[]', { status: 200 });
     }));
-    const res = await handleGithubCallback(new Request(`${BASE}/auth/github/callback?code=c&state=sm`), env);
+    const res = await handleGithubCallback(callbackRequest(login.state, login.transactionCookie), env);
     expect(res.status).toBe(502);
     expect(users.size).toBe(0); // no corrupt row written from a bad upstream shape
   });
@@ -216,9 +280,10 @@ describe('GET /auth/github/callback', () => {
     const kv = makeKV();
     const { db, users, sessions } = makeDb();
     const env = makeEnv({}, kv, db);
-    kv.store.set('oauth_state:s2', '1');
+    const login = await beginLogin(env);
+    const loginState = JSON.parse(kv.store.get(`oauth_state:${login.state}`)!);
     mockGithub();
-    const res = await handleGithubCallback(new Request(`${BASE}/auth/github/callback?code=c&state=s2`), env);
+    const res = await handleGithubCallback(callbackRequest(login.state, login.transactionCookie), env);
     expect(res.status).toBe(302);
     const cookie = res.headers.get('Set-Cookie')!;
     expect(cookie).toContain('__Host-pd_session=');
@@ -226,20 +291,28 @@ describe('GET /auth/github/callback', () => {
     expect(cookie).toContain('Secure');
     expect(cookie).toContain('SameSite=Lax');
     expect(cookie).toContain('Path=/');
+    expect(cookie).toContain('__Host-pd_oauth_tx=');
+    expect(cookie).toContain('Max-Age=0');
+    const setCookies = (res.headers as Headers & { getSetCookie(): string[] }).getSetCookie();
+    expect(setCookies).toHaveLength(2);
+    expect(setCookies.some(value => value.startsWith('__Host-pd_session='))).toBe(true);
+    expect(setCookies.some(value => value.startsWith('__Host-pd_oauth_tx=') && value.includes('Max-Age=0'))).toBe(true);
     expect(users.size).toBe(1);
     expect([...users.values()][0].login).toBe('octocat');
     expect([...users.values()][0].primary_email).toBe('cat@github.com');
     expect(sessions.size).toBe(1);
+    const tokenExchange = vi.mocked(fetch).mock.calls.find(([input]) => String(input).includes('login/oauth/access_token'))!;
+    expect(JSON.parse(String(tokenExchange[1]?.body)).code_verifier).toBe(loginState.codeVerifier);
     // The stored gh token is sealed, never the plaintext.
-    expect([...sessions.values()][0].gh_token_enc).not.toContain('gho_usertoken');
+    expect([...sessions.values()][0].gh_token_enc).not.toContain('ghu_usertoken');
   });
 
   it('returns a renewed session to its state-bound account surface', async () => {
     const kv = makeKV();
     const env = makeEnv({}, kv);
-    kv.store.set('oauth_state:return', JSON.stringify({ returnTo: '/account/ships?repo=owner%2Frepo' }));
+    const login = await beginLogin(env, `/auth/github/login?return_to=${encodeURIComponent('/account/ships?repo=owner%2Frepo')}`);
     mockGithub();
-    const res = await handleGithubCallback(new Request(`${BASE}/auth/github/callback?code=c&state=return`), env);
+    const res = await handleGithubCallback(callbackRequest(login.state, login.transactionCookie), env);
     expect(res.headers.get('Location')).toBe(`${BASE}/account/ships?repo=owner%2Frepo`);
   });
 });
@@ -247,9 +320,9 @@ describe('GET /auth/github/callback', () => {
 // ── /auth/me + logout + session resolution ─────────────────────────────────────
 
 async function loginAndGetCookie(env: Env, kv: ReturnType<typeof makeKV>): Promise<string> {
-  kv.store.set('oauth_state:s', '1');
+  const login = await beginLogin(env);
   mockGithub();
-  const res = await handleGithubCallback(new Request(`${BASE}/auth/github/callback?code=c&state=s`), env);
+  const res = await handleGithubCallback(callbackRequest(login.state, login.transactionCookie), env);
   const cookie = res.headers.get('Set-Cookie')!;
   return cookie.split(';')[0]; // "__Host-pd_session=<value>"
 }
@@ -264,7 +337,7 @@ describe('/auth/me, logout, and session resolution', () => {
     expect(me.status).toBe(200);
     const body = (await me.json()) as any;
     expect(body.user.login).toBe('octocat');
-    expect(JSON.stringify(body)).not.toContain('gho_'); // token never surfaces
+    expect(JSON.stringify(body)).not.toContain('ghu_'); // token never surfaces
   });
 
   it('logout clears the cookie and drops the session', async () => {
@@ -311,7 +384,7 @@ describe('/auth/me, logout, and session resolution', () => {
         repoCalls++;
         return new Response('', { status: allowed ? 200 : 404 });
       }
-      if (url.includes('login/oauth/access_token')) return new Response(JSON.stringify({ access_token: 'gho_usertoken' }), { status: 200 });
+      if (url.includes('login/oauth/access_token')) return new Response(JSON.stringify({ access_token: 'ghu_usertoken' }), { status: 200 });
       if (url.endsWith('/user')) return new Response(JSON.stringify({ id: 4242, login: 'octocat', name: 'The Cat', avatar_url: 'https://x/a.png', email: null }), { status: 200 });
       if (url.endsWith('/user/emails')) return new Response(JSON.stringify([{ email: 'cat@github.com', primary: true, verified: true }]), { status: 200 });
       return new Response('unexpected ' + url, { status: 500 });
@@ -319,9 +392,9 @@ describe('/auth/me, logout, and session resolution', () => {
 
     expect(await userCanReadRepo(env, firstSession, 'me', 'private')).toBe(false);
     allowed = true;
-    kv.store.set('oauth_state:renewed', '1');
+    const reconnect = await beginLogin(env, '/auth/github/login?reauth=1', firstCookie);
     const renewedLogin = await handleGithubCallback(
-      new Request(`${BASE}/auth/github/callback?code=c&state=renewed`),
+      callbackRequest(reconnect.state, reconnect.transactionCookie, firstCookie),
       env,
     );
     const secondCookie = renewedLogin.headers.get('Set-Cookie')!.split(';')[0];
@@ -329,6 +402,24 @@ describe('/auth/me, logout, and session resolution', () => {
     expect(secondSession.cacheNamespace).not.toBe(firstSession.cacheNamespace);
     expect(await userCanReadRepo(env, secondSession, 'me', 'private')).toBe(true);
     expect(repoCalls).toBe(2);
+    expect(await resolveSession(new Request(`${BASE}/x`, { headers: { Cookie: firstCookie } }), env)).toBeNull();
+  });
+
+  it('does not create a replacement session when atomic revocation fails', async () => {
+    const kv = makeKV();
+    const { db, sessions } = makeDb();
+    const env = makeEnv({}, kv, db);
+    const firstCookie = await loginAndGetCookie(env, kv);
+    const reconnect = await beginLogin(env, '/auth/github/login?reauth=1', firstCookie);
+    mockGithub('ghu_replacement');
+    vi.spyOn(db, 'batch').mockRejectedValueOnce(new Error('D1 batch failed'));
+
+    await expect(handleGithubCallback(
+      callbackRequest(reconnect.state, reconnect.transactionCookie, firstCookie),
+      env,
+    )).rejects.toThrow('D1 batch failed');
+    expect(sessions.size).toBe(1);
+    expect(await resolveSession(new Request(`${BASE}/x`, { headers: { Cookie: firstCookie } }), env)).not.toBeNull();
   });
 
   it('userCanReadRepo fails closed without caching transient GitHub failures', async () => {
@@ -402,7 +493,7 @@ describe('self-service account export + erasure', () => {
     const body = await res.text();
     expect(body).toContain('octocat');
     expect(body).toContain('cat@github.com');
-    expect(body).not.toContain('gho_'); // sealed token never exported
+    expect(body).not.toContain('ghu_'); // sealed token never exported
   });
 
   it('delete: erases the account, purges every session, clears the cookie, and logs out', async () => {
