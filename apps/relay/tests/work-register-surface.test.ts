@@ -23,7 +23,12 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { makeDb, applyAllMigrations, type TestDb } from './helpers/d1-sqlite.js';
-import { handleRegisterApi } from '../src/work-register.js';
+import {
+  createRegisterGrant,
+  handleRegisterApi,
+  handleRegisterExchange,
+} from '../src/work-register.js';
+import { handleWhoami } from '../src/device-flow.js';
 import { hashHex } from '../src/crypto.js';
 import type { Env } from '../src/types.js';
 
@@ -100,7 +105,7 @@ describe('once an operator has opened the board', () => {
   const open = (userId = 'u_erich') =>
     db.raw
       .prepare(
-        `INSERT INTO work_board_members (repo_full_name, user_id, first_seen_at, last_seen_at)
+        `INSERT OR IGNORE INTO work_board_members (repo_full_name, user_id, first_seen_at, last_seen_at)
          VALUES (?, ?, ?, ?)`,
       )
       .run(REPO, userId, 1, 1);
@@ -149,9 +154,9 @@ describe('once an operator has opened the board', () => {
     expect(body.registry).toBeNull();
     expect(body.warning).toMatch(/no roadmap has been mirrored/i);
     expect(body.warning).toMatch(/proposed queue/i);
-    // The agent cannot fix this itself, so the sentence has to carry the
-    // operator's command rather than only the diagnosis.
-    expect(body.warning).toContain('pd roadmap push');
+    expect(body.warning).toContain('Port Daddy is intentionally Off');
+    expect(body.warning).toContain('FleetBar');
+    expect(body.warning).not.toContain('pd roadmap push');
   });
 
   it('reads the roadmap this account mirrored, and nobody else\'s', async () => {
@@ -208,6 +213,161 @@ describe('once an operator has opened the board', () => {
     const slugs = ((await res.json()) as { items: { slug: string }[] }).items.map((i) => i.slug);
     expect(slugs).toContain('still-here-slug');
     expect(slugs).not.toContain('deleted-slug-here');
+  });
+});
+
+describe('browser-approved Register task grants', () => {
+  const open = () =>
+    db.raw
+      .prepare(
+        `INSERT OR IGNORE INTO work_board_members (repo_full_name, user_id, first_seen_at, last_seen_at)
+         VALUES (?, ?, ?, ?)`,
+      )
+      .run(REPO, 'u_erich', 1, 1);
+
+  const exchange = (pairingCode: string) =>
+    handleRegisterExchange(
+      new Request(`${BASE}/v1/register/exchange`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ pairing_code: pairingCode }),
+      }),
+      env,
+    );
+
+  const approve = async () => {
+    open();
+    return createRegisterGrant(env, {
+      userId: 'u_erich',
+      repoFullName: REPO,
+      agent: 'codex:register-recovery',
+      owner: '@erich-owens',
+    });
+  };
+
+  it('stores only hashes and exchanges the browser code exactly once', async () => {
+    const { grant, pairingCode } = await approve();
+    const storedBefore = db.raw
+      .prepare('SELECT pairing_code_hash, token_hash FROM work_register_grants WHERE id = ?')
+      .get(grant.id) as { pairing_code_hash: string; token_hash: string | null };
+    expect(storedBefore.pairing_code_hash).toBe(hashHex(pairingCode));
+    expect(JSON.stringify(storedBefore)).not.toContain(pairingCode);
+    expect(storedBefore.token_hash).toBeNull();
+
+    const first = await exchange(pairingCode);
+    expect(first.status).toBe(200);
+    const issued = (await first.json()) as { token: string; repo: string; agent: string; expires_at: number };
+    expect(issued.token).toMatch(/^pdr_[0-9a-f]{64}$/);
+    expect(issued.repo).toBe(REPO);
+    expect(issued.agent).toBe('codex:register-recovery');
+    expect(issued.expires_at).toBeGreaterThan(Math.floor(Date.now() / 1000));
+
+    const storedAfter = db.raw
+      .prepare('SELECT token_hash FROM work_register_grants WHERE id = ?')
+      .get(grant.id) as { token_hash: string };
+    expect(storedAfter.token_hash).toBe(hashHex(issued.token));
+    expect(JSON.stringify(storedAfter)).not.toContain(issued.token);
+    expect((await exchange(pairingCode)).status).toBe(401);
+  });
+
+  it('binds the bearer to the approved repository and actor', async () => {
+    const { pairingCode } = await approve();
+    const exchanged = await exchange(pairingCode);
+    const { token } = (await exchanged.json()) as { token: string };
+    const task = (path: string, body?: Record<string, unknown>) =>
+      handleRegisterApi(
+        new Request(`${BASE}${path}`, {
+          method: body ? 'POST' : 'GET',
+          headers: {
+            authorization: `Bearer ${token}`,
+            ...(body ? { 'content-type': 'application/json' } : {}),
+          },
+          body: body ? JSON.stringify(body) : undefined,
+        }),
+        env,
+      );
+
+    expect((await task(`/v1/register/board?repo=${REPO}`)).status).toBe(200);
+    expect((await task('/v1/register/board?repo=curiositech/another-repo')).status).toBe(403);
+    expect((await task(`/v1/register/claim?repo=${REPO}`, {
+      slug: 'register-grant-test',
+      agent: 'somebody-else',
+    })).status).toBe(403);
+
+    const claim = await task(`/v1/register/claim?repo=${REPO}`, {
+      slug: 'register-grant-test',
+      headline: 'prove the task binding',
+    });
+    expect(claim.status).toBe(200);
+    const row = db.raw
+      .prepare('SELECT agent, owner, agent_kind FROM work_claims WHERE slug = ?')
+      .get('register-grant-test') as { agent: string; owner: string; agent_kind: string };
+    expect(row).toEqual({
+      agent: 'codex:register-recovery',
+      owner: '@erich-owens',
+      agent_kind: 'session',
+    });
+  });
+
+  it('does not turn a Register bearer into general Relay account authority', async () => {
+    const { pairingCode } = await approve();
+    const exchanged = await exchange(pairingCode);
+    const { token } = (await exchanged.json()) as { token: string };
+    const response = await handleWhoami(
+      new Request(`${BASE}/auth/whoami`, { headers: { authorization: `Bearer ${token}` } }),
+      env,
+    );
+    expect(response.status).toBe(401);
+  });
+
+  it('stops admitting the bearer after revocation or expiry', async () => {
+    const revoked = await approve();
+    const revokedExchange = await exchange(revoked.pairingCode);
+    const revokedToken = ((await revokedExchange.json()) as { token: string }).token;
+    db.raw.prepare('UPDATE work_register_grants SET revoked_at = ? WHERE token_hash = ?')
+      .run(Math.floor(Date.now() / 1000), hashHex(revokedToken));
+    const revokedRead = await handleRegisterApi(
+      new Request(`${BASE}/v1/register/board?repo=${REPO}`, {
+        headers: { authorization: `Bearer ${revokedToken}` },
+      }),
+      env,
+    );
+    expect(revokedRead.status).toBe(401);
+
+    const expired = await approve();
+    const expiredExchange = await exchange(expired.pairingCode);
+    const expiredToken = ((await expiredExchange.json()) as { token: string }).token;
+    db.raw.prepare('UPDATE work_register_grants SET exchanged_at = ?, token_expires_at = ? WHERE token_hash = ?')
+      .run(1, 2, hashHex(expiredToken));
+    const expiredRead = await handleRegisterApi(
+      new Request(`${BASE}/v1/register/board?repo=${REPO}`, {
+        headers: { authorization: `Bearer ${expiredToken}` },
+      }),
+      env,
+    );
+    expect(expiredRead.status).toBe(401);
+  });
+
+  it('refuses revoked, expired, and oversized exchanges', async () => {
+    const revoked = await approve();
+    db.raw.prepare('UPDATE work_register_grants SET revoked_at = ? WHERE id = ?').run(2, revoked.grant.id);
+    expect((await exchange(revoked.pairingCode)).status).toBe(401);
+
+    const expired = await approve();
+    db.raw
+      .prepare('UPDATE work_register_grants SET created_at = ?, exchange_expires_at = ? WHERE id = ?')
+      .run(1, 2, expired.grant.id);
+    expect((await exchange(expired.pairingCode)).status).toBe(401);
+
+    const huge = await handleRegisterExchange(
+      new Request(`${BASE}/v1/register/exchange`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ pairing_code: 'x'.repeat(5000) }),
+      }),
+      env,
+    );
+    expect(huge.status).toBe(400);
   });
 });
 

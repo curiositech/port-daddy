@@ -53,6 +53,16 @@ that is a product gap: file a `high`-severity feedback entry against the
 to follow: `fleetbar-secret-management-with-provider-deeplinks`,
 `fleetbar-console-must-support-zoom-and-text-scaling`.
 
+When Port Daddy is intentionally Off, do not ask the operator to turn it on
+merely so an agent can coordinate. The Relay's Harbor Work Register has a
+browser-approved task path: the operator opens the repository's Register page,
+names the task, and pastes the one-use pairing code into that task. Exchange it
+at `POST /v1/register/exchange`; the returned `pdr_` bearer is short-lived and
+bound to that repository, task name, and owner. It is Register authority only,
+not a general Relay credential. Treat roadmap rows missing from a halted or
+stale mirror as unknown and any new claim as `proposed`; never pretend the
+Register became the roadmap's writer.
+
 If an agent's output reads like "now run `launchctl ...`" or "edit
 `~/.env.local` and add ...", rewrite it. The right output is "open FleetBar →
 Credentials → Cloudflare → paste token (deep-link: dash.cloudflare.com/

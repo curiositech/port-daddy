@@ -170,6 +170,43 @@ db.exec("DELETE FROM roadmap_mirror_activity WHERE user_id = 'u_rm_chk'");
 db.exec("DELETE FROM roadmap_mirror_items WHERE user_id = 'u_rm_chk'");
 db.exec("DELETE FROM users WHERE id = 'u_rm_chk'");
 
+// Harbor Work Register task grants: browser approval stores no raw credential,
+// and an exchange cannot be represented as half-minted state.
+const registerGrantsSql = requireTable('work_register_grants');
+for (const column of [
+  'pairing_code_hash', 'token_hash', 'repo_full_name', 'agent', 'owner',
+  'exchange_expires_at', 'exchanged_at', 'token_expires_at', 'revoked_at',
+]) requireColumn('work_register_grants', column);
+if (!registerGrantsSql.includes('token_expires_at > exchanged_at')) {
+  throw new Error('work_register_grants lost the complete-exchange CHECK');
+}
+db.exec("INSERT INTO users (id, github_user_id, login, created_at) VALUES ('u_wrg_chk', 4, 'wrgchk', 0)");
+for (const bad of [
+  `INSERT INTO work_register_grants
+     (id, user_id, repo_full_name, agent, owner, pairing_code_hash, created_at, exchange_expires_at)
+   VALUES ('wrg_bad1', 'u_wrg_chk', 'a/b', '', '@wrgchk', 'pair1', 1, 2)`,
+  `INSERT INTO work_register_grants
+     (id, user_id, repo_full_name, agent, owner, pairing_code_hash, token_hash,
+      created_at, exchange_expires_at)
+   VALUES ('wrg_bad2', 'u_wrg_chk', 'a/b', 'task', '@wrgchk', 'pair2', 'token2', 1, 2)`,
+]) {
+  let rejected = false;
+  try { db.exec(bad); } catch { rejected = true; }
+  if (!rejected) throw new Error('work_register_grants CHECK constraints admitted invalid authority state');
+}
+db.exec(`INSERT INTO work_register_grants
+  (id, user_id, repo_full_name, agent, owner, pairing_code_hash, created_at, exchange_expires_at)
+ VALUES ('wrg_chk', 'u_wrg_chk', 'a/b', 'task', '@wrgchk', 'pair', 1, 2)`);
+let duplicatePairRejected = false;
+try {
+  db.exec(`INSERT INTO work_register_grants
+    (id, user_id, repo_full_name, agent, owner, pairing_code_hash, created_at, exchange_expires_at)
+   VALUES ('wrg_chk2', 'u_wrg_chk', 'a/b', 'task2', '@wrgchk', 'pair', 1, 2)`);
+} catch { duplicatePairRejected = true; }
+if (!duplicatePairRejected) throw new Error('work_register_grants pairing hash is not unique');
+db.exec("DELETE FROM work_register_grants WHERE user_id = 'u_wrg_chk'");
+db.exec("DELETE FROM users WHERE id = 'u_wrg_chk'");
+
 // Harbor invites + the ADR-0122 §4 authority-epoch clock (2026-08-23):
 // single-use is CAS on consumed_at IS NULL in the Worker, but the storage
 // layer carries its own guarantees — prove each one bites, not just parses.

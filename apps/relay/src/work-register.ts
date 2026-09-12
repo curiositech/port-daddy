@@ -32,18 +32,17 @@
  * implying the register reaches into anybody's checkout.
  *
  * Auth: the page is session + GitHub repo ACL (you may read a board only for a
- * repository your GitHub identity can read). The JSON paths additionally accept
- * a `pdu_` device bearer, which is how an agent authenticates without carrying a
- * GitHub credential of its own — and the reason this Worker reads a replica
- * rather than the repository: an agent holding only a device token has no
- * GitHub credential to read a file with, so a registry that needed one was a
- * registry agents could not see.
+ * repository your GitHub identity can read). The JSON paths accept either a
+ * general `pdu_` device bearer or a short-lived `pdr_` Register bearer minted
+ * through a one-use browser approval. The latter is bound to one repository,
+ * actor and owner and is resolved only in this module; it is not account auth.
  */
 
 import type { Env } from './types.js';
 import type { UserRow } from './db.js';
-import { resolveSession, userCanReadRepo } from './auth-github.js';
+import { isSameOrigin, resolveSession, userCanReadRepo } from './auth-github.js';
 import { resolveUserFromRequest } from './device-flow.js';
+import { hashHex, randomHex } from './crypto.js';
 import { HEAD, TOKENS } from './account-page.js';
 
 /**
@@ -67,12 +66,32 @@ export const CLAIM_STALE_AFTER_SECONDS = 45 * 60;
  */
 export const REGISTRY_STALE_AFTER_SECONDS = 6 * 60 * 60;
 
+/** A browser pairing code is useful only for the hand-off it was made for. */
+export const REGISTER_PAIRING_TTL_SECONDS = 10 * 60;
+
+/** A task grant is a work-session credential, not a durable device identity. */
+export const REGISTER_TASK_TOKEN_TTL_SECONDS = 8 * 60 * 60;
+
 export type ClaimState = 'open' | 'held' | 'blocked' | 'review' | 'done' | 'abandoned';
 export type Provenance = 'registered' | 'proposed';
 export type AgentKind = 'session' | 'human' | 'fleet';
 
 const CLAIM_STATES: ClaimState[] = ['open', 'held', 'blocked', 'review', 'done', 'abandoned'];
 const AGENT_KINDS: AgentKind[] = ['session', 'human', 'fleet'];
+
+export interface RegisterGrantRow {
+  id: string;
+  user_id: string;
+  repo_full_name: string;
+  agent: string;
+  owner: string;
+  created_at: number;
+  exchange_expires_at: number;
+  exchanged_at: number | null;
+  token_expires_at: number | null;
+  last_used_at: number | null;
+  revoked_at: number | null;
+}
 
 /** A claim as stored. Times are unix seconds on the relay clock. */
 export interface ClaimRow {
@@ -861,6 +880,178 @@ export async function note(
   await appendNote(env, repoFullName, slug, agent, 'note', body);
 }
 
+// ── task-scoped Register admission ─────────────────────────────────────────
+
+type RegisterTaskAuthority = {
+  userId: string;
+  repoFullName: string;
+  agent: string;
+  owner: string;
+};
+
+const registerBearer = (request: Request): string | null => {
+  const header = request.headers.get('Authorization');
+  if (!header) return null;
+  const token = /^Bearer\s+(\S+)$/i.exec(header)?.[1] ?? '';
+  return /^pdr_[0-9a-f]{64}$/.test(token) ? token : null;
+};
+
+const hasRegisterBearerIntent = (request: Request): boolean =>
+  /^Bearer\s+pdr_/i.test(request.headers.get('Authorization') ?? '');
+
+/** Resolve the credential only inside this module; no other Relay API sees it. */
+async function resolveRegisterTaskAuthority(
+  request: Request,
+  env: Env,
+): Promise<RegisterTaskAuthority | null> {
+  const token = registerBearer(request);
+  if (!token) return null;
+  const at = now();
+  const row = await env.DB.prepare(
+    `SELECT user_id, repo_full_name, agent, owner
+       FROM work_register_grants
+      WHERE token_hash = ? AND exchanged_at IS NOT NULL
+        AND token_expires_at > ? AND revoked_at IS NULL`,
+  )
+    .bind(hashHex(token), at)
+    .first<{ user_id: string; repo_full_name: string; agent: string; owner: string }>();
+  if (!row) return null;
+  await env.DB.prepare(
+    `UPDATE work_register_grants SET last_used_at = ?
+      WHERE token_hash = ? AND token_expires_at > ? AND revoked_at IS NULL`,
+  )
+    .bind(at, hashHex(token), at)
+    .run();
+  return {
+    userId: row.user_id,
+    repoFullName: row.repo_full_name,
+    agent: row.agent,
+    owner: row.owner,
+  };
+}
+
+export async function createRegisterGrant(
+  env: Env,
+  input: { userId: string; repoFullName: string; agent: string; owner: string },
+  at: number = now(),
+): Promise<{ grant: RegisterGrantRow; pairingCode: string }> {
+  const id = `wrg_${randomHex(16)}`;
+  const pairingCode = `pdr_pair_${randomHex(32)}`;
+  const expires = at + REGISTER_PAIRING_TTL_SECONDS;
+  await env.DB.prepare(
+    `INSERT INTO work_register_grants
+       (id, user_id, repo_full_name, agent, owner, pairing_code_hash,
+        created_at, exchange_expires_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  )
+    .bind(
+      id,
+      input.userId,
+      input.repoFullName,
+      input.agent,
+      input.owner,
+      hashHex(pairingCode),
+      at,
+      expires,
+    )
+    .run();
+  return {
+    pairingCode,
+    grant: {
+      id,
+      user_id: input.userId,
+      repo_full_name: input.repoFullName,
+      agent: input.agent,
+      owner: input.owner,
+      created_at: at,
+      exchange_expires_at: expires,
+      exchanged_at: null,
+      token_expires_at: null,
+      last_used_at: null,
+      revoked_at: null,
+    },
+  };
+}
+
+async function readRegisterGrants(
+  env: Env,
+  userId: string,
+  repoFullName: string,
+): Promise<RegisterGrantRow[]> {
+  const { results } = await env.DB.prepare(
+    `SELECT id, user_id, repo_full_name, agent, owner, created_at,
+            exchange_expires_at, exchanged_at, token_expires_at, last_used_at, revoked_at
+       FROM work_register_grants
+      WHERE user_id = ? AND repo_full_name = ?
+      ORDER BY created_at DESC LIMIT 20`,
+  )
+    .bind(userId, repoFullName)
+    .all<RegisterGrantRow>();
+  return results ?? [];
+}
+
+/** A bounded parser for the only unauthenticated body on this surface. */
+async function readExchangeBody(request: Request): Promise<{ pairing_code?: unknown } | null> {
+  const declared = Number(request.headers.get('Content-Length') ?? '0');
+  if (Number.isFinite(declared) && declared > 4096) return null;
+  const raw = await request.text();
+  if (new TextEncoder().encode(raw).byteLength > 4096) return null;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return parsed !== null && typeof parsed === 'object'
+      ? (parsed as { pairing_code?: unknown })
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function handleRegisterExchange(request: Request, env: Env): Promise<Response> {
+  if (request.method !== 'POST') return json({ error: 'method not allowed' }, 405);
+  const body = await readExchangeBody(request);
+  if (!body) return json({ error: 'a JSON body under 4 KiB is required' }, 400);
+  const pairingCode = typeof body.pairing_code === 'string' ? body.pairing_code : '';
+  if (!/^pdr_pair_[0-9a-f]{64}$/.test(pairingCode)) {
+    return json({ error: 'invalid or expired pairing code' }, 401);
+  }
+
+  const at = now();
+  const pairingCodeHash = hashHex(pairingCode);
+  // Random, well-shaped guesses should not turn this unauthenticated route
+  // into a D1 write amplifier. The indexed read rejects them without writing;
+  // the UPDATE remains the one-use compare-and-swap for a real code.
+  const pending = await env.DB.prepare(
+    `SELECT id FROM work_register_grants
+      WHERE pairing_code_hash = ? AND exchanged_at IS NULL
+        AND exchange_expires_at > ? AND revoked_at IS NULL`,
+  )
+    .bind(pairingCodeHash, at)
+    .first<{ id: string }>();
+  if (!pending) return json({ error: 'invalid or expired pairing code' }, 401);
+
+  const token = `pdr_${randomHex(32)}`;
+  const expires = at + REGISTER_TASK_TOKEN_TTL_SECONDS;
+  const grant = await env.DB.prepare(
+    `UPDATE work_register_grants
+        SET token_hash = ?, exchanged_at = ?, token_expires_at = ?
+      WHERE pairing_code_hash = ? AND exchanged_at IS NULL
+        AND exchange_expires_at > ? AND revoked_at IS NULL
+      RETURNING repo_full_name, agent, owner`,
+  )
+    .bind(hashHex(token), at, expires, pairingCodeHash, at)
+    .first<{ repo_full_name: string; agent: string; owner: string }>();
+  if (!grant) return json({ error: 'invalid or expired pairing code' }, 401);
+  return json({
+    token,
+    token_type: 'Bearer',
+    expires_at: expires,
+    repo: grant.repo_full_name,
+    agent: grant.agent,
+    owner: grant.owner,
+    scope: ['register:read', 'register:write'],
+  });
+}
+
 // ── HTTP ───────────────────────────────────────────────────────────────────
 
 const json = (body: unknown, status = 200): Response =>
@@ -879,9 +1070,11 @@ const json = (body: unknown, status = 200): Response =>
  * shared repository.
  *
  * A session carries a GitHub token, so it is checked against the live repo ACL
- * on every request; passing that check also records membership. A `pdu_` device
- * bearer — what an agent carries — has no GitHub credential to check, so it is
- * admitted only where its account has already passed that check in a browser.
+ * on every request; passing that check also records membership. A `pdr_` task
+ * bearer is checked first and stays bound to its approved repository and actor.
+ * A `pdu_` device bearer — what an agent carries — has no GitHub credential to
+ * check, so it is admitted only where its account has already passed that check
+ * in a browser.
  * An agent therefore cannot use its device token to discover repositories its
  * operator never brought here, while two operators who both have read access
  * work one board rather than two.
@@ -891,11 +1084,35 @@ async function authorize(
   env: Env,
   repoFullName: string,
 ): Promise<
-  | { ok: true; userId: string; agentDefault: string }
+  | {
+      ok: true;
+      userId: string;
+      agentDefault: string;
+      ownerDefault: string | null;
+      taskBound: boolean;
+    }
   | { ok: false; response: Response }
 > {
   const parts = splitRepo(repoFullName);
   if (!parts) return { ok: false, response: json({ error: 'repo must be owner/name' }, 400) };
+
+  // Bearer authority wins over an ambient browser cookie. Otherwise adding a
+  // cookie to a task request would silently widen a repo-bound grant into the
+  // operator's session authority.
+  if (hasRegisterBearerIntent(request)) {
+    const task = await resolveRegisterTaskAuthority(request, env);
+    if (!task) return { ok: false, response: json({ error: 'invalid or expired Register task bearer' }, 401) };
+    if (task.repoFullName !== repoFullName) {
+      return { ok: false, response: json({ error: 'this Register bearer is bound to another repository' }, 403) };
+    }
+    return {
+      ok: true,
+      userId: task.userId,
+      agentDefault: task.agent,
+      ownerDefault: task.owner,
+      taskBound: true,
+    };
+  }
 
   const session = await resolveSession(request, env);
   if (session) {
@@ -906,11 +1123,13 @@ async function authorize(
       ok: true,
       userId: session.user.id,
       agentDefault: session.user.login ? `@${session.user.login}` : 'operator',
+      ownerDefault: null,
+      taskBound: false,
     };
   }
 
   const user: UserRow | null = await resolveUserFromRequest(request, env);
-  if (!user) return { ok: false, response: json({ error: 'sign in, or send a pdu_ bearer' }, 401) };
+  if (!user) return { ok: false, response: json({ error: 'sign in, send a pdu_ bearer, or exchange a browser-approved Register code' }, 401) };
   if (!(await isMember(env, repoFullName, user.id))) {
     // S3, the cold start: the first agent in a fresh repository used to get a
     // bare 403 and no way forward, which reads as a broken register rather than
@@ -927,14 +1146,14 @@ async function authorize(
             'nothing to be admitted against. An operator with GitHub read access on the ' +
             'repository opens it once, in a browser, and every agent on that repository can ' +
             'reach it from then on.',
-          operator_step: `open https://relay.portdaddy.dev/register?repo=${encodeURIComponent(repoFullName)} while signed in with GitHub`,
+          operator_step: `open https://relay.portdaddy.dev/account/register?repo=${encodeURIComponent(repoFullName)} while signed in with GitHub`,
           repo: repoFullName,
         },
         403,
       ),
     };
   }
-  return { ok: true, userId: user.id, agentDefault: 'agent' };
+  return { ok: true, userId: user.id, agentDefault: 'agent', ownerDefault: null, taskBound: false };
 }
 
 /**
@@ -945,10 +1164,10 @@ async function authorize(
  */
 export function registryWarning(meta: DatedRegistryMeta | null): string | null {
   if (!meta) {
-    return 'No roadmap has been mirrored for this repository yet, so every slug an agent names will land in the proposed queue. An operator runs `pd roadmap push` once.';
+    return 'No roadmap has been mirrored for this repository yet, so every slug a task names will land in the proposed queue. If Port Daddy is intentionally Off, do not start it for this board. The roadmap mirror can catch up after the operator turns the runtime On from FleetBar.';
   }
   if (!meta.stale) return null;
-  return `The mirrored roadmap was made by the daemon ${meta.age} (${meta.item_count} items${meta.daemon_label ? `, from ${meta.daemon_label}` : ''}). Work recorded since then is not on this board. An operator runs \`pd roadmap push\`, or an agent treats a missing slug as unknown rather than as absent.`;
+  return `The mirrored roadmap was made by the daemon ${meta.age} (${meta.item_count} items${meta.daemon_label ? `, from ${meta.daemon_label}` : ''}). Work recorded since then is not on this board. If Port Daddy is intentionally Off, treat a missing slug as unknown rather than absent; the mirror can catch up after the operator turns the runtime On from FleetBar.`;
 }
 
 /** Is this slug one the registry admitted? Decides `registered` vs `proposed`. */
@@ -988,6 +1207,7 @@ async function isRegistered(
 export async function handleRegisterApi(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   const action = url.pathname.replace(/^\/v1\/register\/?/, '') || 'board';
+  if (action === 'exchange') return handleRegisterExchange(request, env);
   const repoFullName = url.searchParams.get('repo') ?? '';
 
   const auth = await authorize(request, env, repoFullName);
@@ -997,7 +1217,7 @@ export async function handleRegisterApi(request: Request, env: Env): Promise<Res
   // half now comes from this account's own roadmap mirror, which is
   // account-scoped by the mirror's own tenancy rule. So the two halves of a
   // board row have different scopes on purpose, and the handler needs both keys.
-  const { userId, agentDefault } = auth;
+  const { userId, agentDefault, ownerDefault, taskBound } = auth;
 
   if (request.method === 'GET') {
     const meta = dateRegistryMeta(await readRegistryMeta(env, userId, repoFullName));
@@ -1067,7 +1287,8 @@ export async function handleRegisterApi(request: Request, env: Env): Promise<Res
           'This board reads the roadmap mirror the daemon pushes to the relay. The relay ' +
           'cannot refresh it on its own, and no longer reads the committed snapshot from ' +
           'GitHub to try.',
-        operator_step: 'run `pd roadmap push` on the machine with the daemon',
+        operator_step:
+          'If Port Daddy is intentionally Off, keep using proposed claims. After the operator turns the runtime On from FleetBar, the daemon can push a fresh mirror.',
         repo: repoFullName,
       },
       410,
@@ -1076,6 +1297,15 @@ export async function handleRegisterApi(request: Request, env: Env): Promise<Res
 
   const slug = String(body.slug ?? '');
   if (!isSlug(slug)) return json({ error: 'slug must be a registry-shaped slug' }, 400);
+  if (taskBound && body.agent !== undefined && String(body.agent) !== agentDefault) {
+    return json({ error: 'agent is fixed by this Register task bearer' }, 403);
+  }
+  if (taskBound && body.owner !== undefined && String(body.owner) !== ownerDefault) {
+    return json({ error: 'owner is fixed by this Register task bearer' }, 403);
+  }
+  if (taskBound && body.agent_kind !== undefined && String(body.agent_kind) !== 'session') {
+    return json({ error: 'agent_kind is fixed by this Register task bearer' }, 403);
+  }
   const agent = String(body.agent ?? agentDefault).slice(0, 120) || agentDefault;
   const text = String(body.body ?? body.note ?? '').slice(0, 4000);
 
@@ -1088,7 +1318,7 @@ export async function handleRegisterApi(request: Request, env: Env): Promise<Res
         headline: String(body.headline ?? '').slice(0, 300),
         branch: body.branch === undefined ? null : String(body.branch).slice(0, 300),
         prNumber: typeof body.pr_number === 'number' ? body.pr_number : null,
-        owner: body.owner === undefined ? null : String(body.owner).slice(0, 200),
+        owner: body.owner === undefined ? ownerDefault : String(body.owner).slice(0, 200),
         registered,
       });
       if (!outcome.ok) {
@@ -1196,6 +1426,14 @@ td.slug{font-family:"IBM Plex Mono",monospace;font-size:12.5px;white-space:nowra
 .prop{border-left:3px solid var(--amber);padding-left:8px}
 .note{border:1px solid var(--border-strong);background:var(--surface-raised);padding:14px 18px;margin:18px 0;max-width:78ch}
 .note b{color:var(--text-primary)}
+.grant{border:1px solid var(--border-strong);background:var(--surface-raised);padding:16px 18px;margin:18px 0;max-width:78ch}
+.grant h2{font-size:17px;margin:0 0 6px}.grant p{margin:6px 0;color:var(--text-secondary)}
+.grant form{display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:12px}
+.grant label{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;flex:1 1 300px}
+.grant input{display:block;box-sizing:border-box;width:100%;margin-top:4px;padding:8px 10px;color:var(--text-primary);background:var(--surface);border:1px solid var(--border-strong);font:14px "IBM Plex Mono",monospace}
+.grant button{padding:8px 12px;border:0;background:var(--cobalt);color:var(--on-accent);font-weight:650;cursor:pointer}
+.grant-list{margin-top:12px}.grant-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid var(--hair)}
+.grant-row form{margin:0}.grant-row button{background:var(--rust);padding:5px 9px}.pairing{font-size:15px;overflow-wrap:anywhere;user-select:all}
 /* An age the reader must not skim past: the amber rail is the same signal the
    board uses for a proposed slug, meaning "this is second-class, read it before
    you act on it". */
@@ -1208,10 +1446,11 @@ td.pri{color:var(--text-muted);text-align:right;width:3ch}
     border:1px solid var(--hair);color:var(--text-secondary)}
 code{font-size:.92em}`;
 
-const shell = (title: string, inner: string): Response =>
+const shell = (title: string, inner: string, status = 200): Response =>
   new Response(
     `<!doctype html><html lang="en"><head>${HEAD}<title>${esc(title)}</title><style>${CSS}</style></head><body><div class="page">${inner}</div></body></html>`,
     {
+      status,
       headers: {
         'content-type': 'text/html; charset=utf-8',
         'cache-control': 'no-store',
@@ -1222,13 +1461,73 @@ const shell = (title: string, inner: string): Response =>
     },
   );
 
+const grantStatus = (grant: RegisterGrantRow, at: number): string => {
+  if (grant.revoked_at) return 'revoked';
+  if (grant.token_expires_at && grant.token_expires_at <= at) return 'expired';
+  if (grant.exchanged_at) return grant.last_used_at ? `active · used ${ago(grant.last_used_at)}` : 'active · not used yet';
+  if (grant.exchange_expires_at <= at) return 'pairing expired';
+  return `awaiting exchange · expires in ${Math.max(1, Math.ceil((grant.exchange_expires_at - at) / 60))} min`;
+};
+
+/** Browser-only approval and revocation for repository-bound task grants. */
+export async function handleRegisterPageAction(request: Request, env: Env): Promise<Response> {
+  if (request.method !== 'POST') return new Response('Method not allowed', { status: 405 });
+  if (!isSameOrigin(request, env)) return shell('Harbor Work Register', '<h1>Cross-origin change refused</h1>', 403);
+  const session = await resolveSession(request, env);
+  if (!session) return new Response(null, { status: 302, headers: { Location: '/login' } });
+
+  const form = await request.formData();
+  const repoFullName = String(form.get('repo') ?? '');
+  const parts = splitRepo(repoFullName);
+  if (!parts || !(await userCanReadRepo(env, session, parts.owner, parts.repo))) {
+    return shell('Harbor Work Register', '<header class="h"><h1>No access</h1></header>', 403);
+  }
+  await recordMembership(env, repoFullName, session.user.id);
+
+  const action = new URL(request.url).pathname.replace(/^\/account\/register\/?/, '');
+  if (action === 'revoke') {
+    const grantId = String(form.get('grant_id') ?? '');
+    await env.DB.prepare(
+      `UPDATE work_register_grants SET revoked_at = ?
+        WHERE id = ? AND user_id = ? AND repo_full_name = ? AND revoked_at IS NULL`,
+    )
+      .bind(now(), grantId, session.user.id, repoFullName)
+      .run();
+    return new Response(null, {
+      status: 303,
+      headers: { Location: `/account/register?repo=${encodeURIComponent(repoFullName)}`, 'cache-control': 'no-store' },
+    });
+  }
+  if (action !== 'authorize') return new Response('Not found', { status: 404 });
+
+  const agent = String(form.get('agent') ?? '').trim().slice(0, 120);
+  if (!agent) {
+    return shell('Harbor Work Register', '<header class="h"><h1>Name the task</h1><p class="lede">The approval must say which task will hold it.</p></header>');
+  }
+  const owner = session.user.login ? `@${session.user.login}` : 'operator';
+  const { grant, pairingCode } = await createRegisterGrant(
+    env,
+    { userId: session.user.id, repoFullName, agent, owner },
+  );
+  return shell(
+    'Register task approved',
+    `<header class="h"><h1>Task approved</h1>
+      <p class="lede"><code>${esc(agent)}</code> may coordinate only in <code>${esc(repoFullName)}</code>.</p></header>
+     <div class="grant"><h2>Paste this once into that task</h2>
+       <p class="pairing"><code>${esc(pairingCode)}</code></p>
+       <p>Tell the task to exchange it at <code>POST /v1/register/exchange</code>. The code expires in ten minutes and cannot be exchanged twice. The resulting bearer expires in eight hours and works only on this repository's Register.</p>
+     </div>
+     <p><a href="/account/register?repo=${encodeURIComponent(repoFullName)}">Return to the board</a></p>
+     <p class="meta">Grant ${esc(grant.id)} · no task bearer exists yet; only the pairing-code hash is stored.</p>`,
+  );
+}
+
 /**
  * GET /account/register?repo=owner/name — the board, server-rendered.
  *
- * Opening the page also refreshes the registry cache, which is what lets an
- * agent on a device token read a current board without a GitHub credential:
- * the operator's own visit is the refresh. The page prints when that last
- * happened rather than implying the list is live.
+ * Opening the page records repository membership after a live GitHub ACL
+ * check. It does not refresh the roadmap: that replica remains daemon-pushed,
+ * and the page prints its age rather than implying the list is live.
  */
 export async function handleRegisterPage(request: Request, env: Env): Promise<Response> {
   const session = await resolveSession(request, env);
@@ -1246,7 +1545,7 @@ export async function handleRegisterPage(request: Request, env: Env): Promise<Re
     );
   }
   if (!(await userCanReadRepo(env, session, parts.owner, parts.repo))) {
-    return shell('Harbor Work Register', '<header class="h"><h1>No access</h1></header>');
+    return shell('Harbor Work Register', '<header class="h"><h1>No access</h1></header>', 403);
   }
 
   // Reaching the page with live read access is what opens the board for this
@@ -1301,6 +1600,15 @@ export async function handleRegisterPage(request: Request, env: Env): Promise<Re
   // and an agent reading /available never disagree about whether this list can
   // be trusted.
   const warning = registryWarning(meta);
+  const grants = await readRegisterGrants(env, session.user.id, repoFullName);
+  const at = now();
+  const grantRows = grants.map((grant) => `<div class="grant-row">
+    <div><code>${esc(grant.agent)}</code><div class="owner">${esc(grantStatus(grant, at))}</div></div>
+    ${grant.revoked_at ? '' : `<form method="post" action="/account/register/revoke">
+      <input type="hidden" name="repo" value="${esc(repoFullName)}">
+      <input type="hidden" name="grant_id" value="${esc(grant.id)}">
+      <button type="submit">Revoke</button></form>`}
+  </div>`).join('');
 
   return shell(
     'Harbor Work Register',
@@ -1312,6 +1620,16 @@ export async function handleRegisterPage(request: Request, env: Env): Promise<Re
       roadmap made by the daemon ${meta ? `${esc(meta.age)} (${meta.item_count} rows in <code>${esc(meta.harbor)}</code>${meta.daemon_label ? `, from ${esc(meta.daemon_label)}` : ''}${meta.transit_seconds > 60 ? `, pushed here ${Math.round(meta.transit_seconds / 60)} min after that` : ''})` : 'never — nothing has been pushed'}</p>
     </header>
     ${warning ? `<div class="warn">${esc(warning)}</div>` : ''}
+    <section class="grant">
+      <h2>Authorize this task</h2>
+      <p>Give one task temporary access to this repository's Register without turning Port Daddy on. This does not grant access to any other Relay API.</p>
+      <form method="post" action="/account/register/authorize">
+        <input type="hidden" name="repo" value="${esc(repoFullName)}">
+        <label>Task name<input name="agent" maxlength="120" required placeholder="codex:register-recovery"></label>
+        <button type="submit">Make one-use code</button>
+      </form>
+      ${grantRows ? `<div class="grant-list">${grantRows}</div>` : ''}
+    </section>
     <div class="note"><b>This board is cooperative.</b> It refuses a second claim on a held slug and tells you who
     holds it; it cannot stop an agent that never asks. The enforcement point is each agent's own harness, and the
     contract it reads is in <code>AGENTS.md</code>. A slug marked <b>proposed</b> has no row in the registry
