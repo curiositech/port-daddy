@@ -1,6 +1,6 @@
 name: Roadmap Link Gate
 
-# Blocking gate: does this PR declare the roadmap item it advances?
+# Blocking declaration gate: does this PR name an item or explicit opt-out?
 # `roadmap-link` is a required status check in branch protection, so it must
 # report on every ref the merge queue evaluates.
 #
@@ -10,8 +10,11 @@ name: Roadmap Link Gate
 # would never report there — the queue would wait until timeout and eject the
 # PR despite green PR checks. The merge_group trigger below makes it report as
 # a pass-through (exit 0): the substantive check runs at pull_request time, and
-# a rebase in the queue does not change a PR's roadmap declaration, so the PR
-# verdict is sufficient. Its other teeth — the `needs-roadmap-link` label the
+# a rebase in the queue does not change a PR's declaration, so the PR verdict
+# is sufficient. Snapshot membership/freshness is not consulted: a versioned
+# projection is not current roadmap authority and cannot freeze delivery. The
+# optional `Roadmap-Spawns:` declaration is Chartroom input, not another hidden
+# merge condition. Its other teeth — the `needs-roadmap-link` label the
 # land/auto-merge flow treats as "hold for a human" — are unchanged.
 
 on:
