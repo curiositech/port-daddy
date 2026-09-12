@@ -35,6 +35,32 @@ jobs:
       - name: Brand-color guard (retired Harbor Heritage hexes must not return)
         run: node scripts/check-brand-colors.mjs
 
+  relay-decode-guard:
+    # No raw `decodeURIComponent` anywhere in apps/relay/src/index.ts outside
+    # `safeDecodeSegment`'s own body. decodeURIComponent throws URIError on a
+    # malformed percent-escape ("%ZZ"); a raw call OR bare reference (e.g.
+    # `.map(decodeURIComponent)`) anywhere else in the router lets that throw
+    # escape to the worker's global boundary, which answers a bare 500
+    # INTERNAL_ERROR for what is only a bad URL. PR #10150 fixed 13 routes
+    # that had exactly this bug by routing them through safeDecodeSegment;
+    # four independent review bots on that PR asked for this generalization
+    # so route #14 cannot reintroduce the same defect class. AST-based (the
+    # TypeScript compiler API), not text/regex — see
+    # scripts/check-relay-decode-guard.mjs for why a text search would miss
+    # the bare-reference shape.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
+      - name: Relay decode guard (no raw decodeURIComponent outside safeDecodeSegment)
+        run: node scripts/check-relay-decode-guard.mjs
+
   version-drift-guard:
     # ADR-0057 phase dist-version-authority: package.json is the sole version
     # authority and scripts/sync-version.ts stamps it across every distribution
@@ -99,8 +125,8 @@ jobs:
         run: npm --prefix website-v2 run test:mcp-catalog
 
   porthole-cast-gate:
-    # Cheap, blocking companion to website-terminal-recordings' raw-text regex
-    # scan: replays every committed website-v2/public/casts/porthole/*.cast
+    # Cheap, blocking companion to porthole-recordings: replays every committed
+    # website-v2/public/casts/porthole/*.cast
     # through the SAME VT interpreter the browser player uses
     # (website-v2/src/lib/porthole/vt.ts) and scans the DECODED transcript.
     # This closes the exact blind spot AUDIT-2026-08-18.md names for the old
@@ -109,8 +135,8 @@ jobs:
     # that the same regex catches instantly once the bytes are reconstructed
     # into the line a viewer would actually see. No daemon, no recorder
     # toolchain — pure static replay of files already in the tree, so this
-    # runs in seconds and does not depend on website-terminal-recordings'
-    # multi-minute pipeline (it can be red or skipped without blocking this).
+    # runs in seconds and does not depend on porthole-recordings' multi-minute
+    # capture pipeline (it can be red or skipped without blocking this).
     runs-on: ubuntu-latest
     needs: detect-changes
     if: needs.detect-changes.outputs.recordings == 'true'
@@ -152,12 +178,13 @@ jobs:
   # `edited` events (a body gutted after the last code push must be re-checked) — the
   # full matrix here deliberately does not listen to `edited`.
 
-  # Decide whether website-terminal-recordings (the heaviest job, ~7 min)
-  # needs to run on this PR. It re-records terminal GIFs of the CLI, so only
-  # changes to the website, the CLI/daemon surface it demos, the build
-  # scripts, or this workflow can affect its output. Push-to-main always
-  # records (publish path). Uses the PR files API instead of a git diff so no
-  # checkout / fetch-depth gymnastics are needed.
+  # Decide whether porthole-recordings (the heaviest job, ~7 min) needs to run
+  # on this PR. It records replayable casts plus GIF fallbacks from the real
+  # CLI. This is the sole live recording pipeline; the old VHS workflow was
+  # removed rather than kept as a second, weaker generator. Changes to the
+  # website, CLI/daemon surface, build scripts, or this workflow can affect its
+  # output. Push-to-main always records. Uses the PR files API instead of a git
+  # diff so no checkout / fetch-depth gymnastics are needed.
   detect-changes:
     runs-on: ubuntu-latest
     # Job-level grant so the files-API read works even if the repo/org
@@ -694,11 +721,10 @@ jobs:
           path: /tmp/skill-audit.json
           if-no-files-found: warn
 
-  website-terminal-recordings:
-    # Path-gated via detect-changes: skipped on PRs that can't affect the
-    # GIFs. "skipped" satisfies the required status check (branch protection
-    # treats job-level `if:` skips as passing), so this stays a required
-    # check without running on every PR.
+  porthole-recordings:
+    # Path-gated via detect-changes: skipped on PRs that cannot affect the
+    # recording corpus. ci-gate accepts that deliberate skip, so unrelated
+    # changes do not pay for a full capture run.
     runs-on: ubuntu-latest
     needs: detect-changes
     if: needs.detect-changes.outputs.recordings == 'true'
@@ -758,6 +784,17 @@ jobs:
       - name: Cheap recording reviewer
         working-directory: website-v2
         run: npm run test:gifs
+
+      - name: Upload verified Porthole recordings
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: porthole-recordings-${{ github.sha }}
+          path: |
+            website-v2/public/casts
+            website-v2/public/gifs
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Stop daemon
         if: always()
@@ -1470,7 +1507,9 @@ jobs:
       - mcp-catalog-guard
       - pd-ios
       - porthole-cast-gate
+      - porthole-recordings
       - porthole-stage
+      - relay-decode-guard
       - relay-tests
       - rust-broker
       - rust-console
@@ -1481,7 +1520,6 @@ jobs:
       - steward-tests
       - unit-tests
       - version-drift-guard
-      - website-terminal-recordings
     steps:
       - uses: actions/checkout@v4
       - name: Use Node.js 22
