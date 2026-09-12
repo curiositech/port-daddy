@@ -413,8 +413,10 @@ invent a command, switch identities or replay an uncertain write.
 permitted inspection path. Respond graciously, incorporating actionable
 feedback unless clearly wrong or harmful; explain disagreements with evidence.
 Add regression tests and land high-confidence findings as named fixup commits.
-Get `npx tsc
---noEmit`, jest, `npm run parity`, and the build green. Rebase onto latest
+Get every status context configured as required by the live ruleset green.
+Advisory repo jobs and external checks are evidence, not merge blockers; inspect
+material failures, record their disposition, and do not wait merely for visual
+all-green. Rebase onto latest
 `origin/main`, resolve conflicts with affected owners, validate and update the
 same App PR. Read-only reviewers must not push or merge; preserve role scope.
 
