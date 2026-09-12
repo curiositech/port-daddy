@@ -1030,6 +1030,13 @@ export async function handleInvalidateJwks(
   const authErr = operatorOnly(request, env);
   if (authErr) return authErr;
 
+  // A malformed percent-escape in the path decodes to '' (safeDecodeSegment, in
+  // index.ts). Every sibling route rejects that before it acts; this one did not,
+  // and an empty id here is not harmless: it busts a cache key that cannot exist
+  // AND appends an audit row whose target is the empty string, recording an
+  // operator action that never meaningfully happened. Refuse it instead.
+  if (!issuerId) return err('BAD_REQUEST', 'issuer id required', 400);
+
   await invalidateJwksCache(env, issuerId);
 
   await appendAudit(env.DB, {
