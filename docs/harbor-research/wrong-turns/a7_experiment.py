@@ -1,7 +1,7 @@
 """
 A7 — The Information-Floor Falsification Experiment
 ====================================================
-Theorem I.6.1 (covering bound): to guarantee ZERO MISS of a hidden load-bearing
+Theorem I.6.1 (covering bound): to guarantee ZERO MISS of a hidden critical
 set of size k among N artifacts while the operator opens at most m items, a digest
 must carry at least
 
@@ -18,11 +18,11 @@ This gives a SHARP, FALSIFIABLE frontier. The experiment:
   Panel 1 — plot the optimal frontier; simulate real digest schemes (greedy
             cover, noisy learned scorer, random) and show every empirical curve
             sits ON or ABOVE the frontier. If any scheme beats it, the
-            load-bearing formalization is wrong. That is the falsification test.
-  Panel 2 — adversary corrupts a fraction phi of features so load-bearing and
+            critical-set formalization is wrong. That is the falsification test.
+  Panel 2 — adversary corrupts a fraction phi of features so critical and
             inert items become indistinguishable; show the effective floor
             inflates (mimicry attack, Solution 6.5*).
-  Panel 3 — split-digest (A1): two readers with different load-bearing sets.
+  Panel 3 — split-digest (A1): two readers with different critical sets.
             A joint B-bit digest must cover BOTH; show the joint miss rate for
             disjoint vs overlapping reader sets — disjoint forces the SUM of floors.
 """
@@ -73,7 +73,7 @@ def simulate_scheme(scheme, N, k, m, B, trials=4000, phi=0.0):
             # knows the true set; features are perfect
             score = is_lb.astype(float) + rng.normal(0, 1e-6, N)
         elif scheme == "noisy":
-            # load-bearing items have higher feature mean, but noisy (signal-to-noise ~1)
+            # critical items have higher feature mean, but noisy (signal-to-noise ~1)
             score = is_lb.astype(float) * 1.0 + rng.normal(0, 1.0, N)
         elif scheme == "random":
             score = rng.normal(0, 1.0, N)
@@ -130,7 +130,7 @@ for phi in phis:
 # ==================================================================
 # PANEL 3 — split-digest: joint miss for disjoint vs overlapping readers
 # ==================================================================
-# Two readers each have a load-bearing set of size k. A joint digest opening m
+# Two readers each have a critical set of size k. A joint digest opening m
 # items must catch BOTH readers' sets. If the sets are disjoint, the joint task
 # is to catch a set of size up to 2k; if identical, size k. We measure the joint
 # miss vs digest budget for overlap in {full, half, none}.
@@ -183,7 +183,7 @@ ax.plot(Bsched, randb,  '^-', color='#8c1e1e', ms=5, lw=1.3, label='random diges
 ax.axvline(Bstar, color='gray', ls='--', lw=1.2)
 ax.text(Bstar+0.15, 0.85, f'$B^\\star$={Bstar:.1f} bits', rotation=90, va='top', color='gray', fontsize=10)
 ax.fill_betweenx([0,1], 0, Bstar, color='#8c1e1e', alpha=0.05)
-ax.set_xlabel('digest budget $B$ (bits)'); ax.set_ylabel('P(miss $\\geq$ 1 load-bearing item)')
+ax.set_xlabel('digest budget $B$ (bits)'); ax.set_ylabel('P(miss $\\geq$ 1 critical item)')
 ax.set_title(f'Panel 1 — the floor bounds every scheme\n$N$={N}, $k$={k}, operator opens $m$={m}', fontsize=11)
 ax.legend(fontsize=8.3, loc='upper right'); ax.set_ylim(-0.03, 1.03); ax.grid(alpha=0.25)
 
