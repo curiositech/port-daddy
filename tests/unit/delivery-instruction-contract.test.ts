@@ -202,6 +202,23 @@ describe('delivery instruction contract', () => {
     expect(text).toContain('This verifier runs even when the branch is fully pushed');
   });
 
+  test('GitHub mutation instructions require the App actuator and reject personal credentials', () => {
+    const agents = source('AGENTS.md');
+    const skill = source('skills/github-app-actuator/SKILL.md');
+    const compactSkill = skill.replace(/\s+/g, ' ');
+    for (const phrase of [
+      'GitHub mutations use the Fleetbot actuator only',
+      "must not use the operator's GitHub identity or credentials",
+      'Never fall back to the operator identity',
+    ]) expect(agents).toContain(phrase);
+    for (const phrase of [
+      "operator's PAT, OAuth token, `pdu_` account bearer",
+      'separate OS identity or remote service',
+      'Local `gh auth logout` alone is not remote revocation',
+      "does **not** satisfy this skill's boundary",
+    ]) expect(compactSkill).toContain(phrase);
+  });
+
   test('contributor lifecycle and decision tree cannot turn PR creation or missing context into done', () => {
     const internal = source('skills/port-daddy-internal-dev/SKILL.md');
     const lifecycle = section(internal, '## PR Lifecycle', '### Shell gotchas').replace(/\s+/g, ' ');

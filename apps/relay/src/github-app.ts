@@ -21,6 +21,7 @@ import {
 export { githubAppPrivateKeyDer };
 
 const GH_API = 'https://api.github.com';
+const GH_PUBLISH_TIMEOUT_MS = 15_000;
 
 function appHeaders(jwt: string): Record<string, string> {
   return {
@@ -76,6 +77,130 @@ export async function mintAppJwt(appId: string, privateKeyPem: string): Promise<
 interface InstallationTokenResponse {
   token: string;
   expires_at?: string;
+  repositories?: Array<{ id?: number; full_name?: string; name?: string }>;
+  permissions?: Record<string, string>;
+}
+
+export type InstallationPermission = 'read' | 'write';
+
+/**
+ * Mint one uncached, attenuated installation token for exactly one repository.
+ * General publishing must use this helper rather than the legacy broad cache.
+ */
+export async function mintRepositoryInstallationToken(
+  appId: string,
+  privateKeyPem: string,
+  installationId: number,
+  owner: string,
+  repository: string,
+  permissions: Readonly<Record<string, InstallationPermission>>,
+): Promise<{ token: string; expiresAt: number }> {
+  const jwt = await mintAppJwt(appId, privateKeyPem);
+  const res = await fetch(`${GH_API}/app/installations/${installationId}/access_tokens`, {
+    method: 'POST',
+    headers: { ...appHeaders(jwt), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ repositories: [repository], permissions }),
+    redirect: 'error',
+    signal: AbortSignal.timeout(GH_PUBLISH_TIMEOUT_MS),
+  });
+  if (!res.ok) throw new Error(`GitHub App token mint failed ${res.status}`);
+  const body = (await res.json()) as InstallationTokenResponse;
+  if (!body.token) throw new Error('GitHub App token mint returned no token');
+  try {
+    const exactFullName = `${owner}/${repository}`.toLowerCase();
+    const selected = body.repositories;
+    if (!Array.isArray(selected) || selected.length !== 1
+        || selected[0]?.name?.toLowerCase() !== repository.toLowerCase()
+        || selected[0]?.full_name?.toLowerCase() !== exactFullName) {
+      throw new Error('GitHub App token mint did not confirm the exact owner/repository scope');
+    }
+    const requested = Object.entries(permissions).sort(([left], [right]) => left.localeCompare(right));
+    const returned = Object.entries(body.permissions ?? {}).sort(([left], [right]) => left.localeCompare(right));
+    if (JSON.stringify(returned) !== JSON.stringify(requested)) {
+      throw new Error('GitHub App token mint did not confirm the exact requested permissions');
+    }
+    const expiresAt = typeof body.expires_at === 'string' ? new Date(body.expires_at).getTime() : Number.NaN;
+    if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+      throw new Error('GitHub App token mint returned an invalid expiration');
+    }
+    return { token: body.token, expiresAt };
+  } catch (error) {
+    const revoked = await revokeInstallationToken(body.token);
+    const message = error instanceof Error ? error.message : 'GitHub App token validation failed';
+    throw new Error(`${message}; issued token revocation ${revoked ? 'confirmed' : 'UNCONFIRMED'}`);
+  }
+}
+
+/** Revoke an attenuated installation token after the one bounded operation. */
+export async function revokeInstallationToken(token: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${GH_API}/installation/token`, {
+      method: 'DELETE',
+      headers: ghHeaders(token),
+      redirect: 'error',
+      signal: AbortSignal.timeout(GH_PUBLISH_TIMEOUT_MS),
+    });
+    return res.status === 204;
+  } catch {
+    return false;
+  }
+}
+
+export interface GitHubAppIdentity {
+  id: number;
+  slug: string;
+  botName: string;
+  botEmail: string;
+}
+
+/** Resolve the App's durable bot commit identity, cached as public metadata. */
+export async function getGitHubAppIdentity(
+  appId: string,
+  privateKeyPem: string,
+  kv: KVNamespace,
+): Promise<GitHubAppIdentity> {
+  const cacheKey = `github_app_identity_${appId}`;
+  const cached = await kv.get(cacheKey);
+  if (cached) {
+    try {
+      const parsed = JSON.parse(cached) as GitHubAppIdentity;
+      const expectedName = `${parsed.slug}[bot]`;
+      const expectedEmail = `${parsed.id}+${expectedName}@users.noreply.github.com`;
+      if (Number.isSafeInteger(parsed.id) && parsed.id > 0 && /^[a-z0-9-]+$/.test(parsed.slug)
+          && parsed.botName === expectedName && parsed.botEmail === expectedEmail) return parsed;
+    } catch { /* refresh malformed cache */ }
+  }
+  const jwt = await mintAppJwt(appId, privateKeyPem);
+  const res = await fetch(`${GH_API}/app`, {
+    headers: appHeaders(jwt),
+    redirect: 'error',
+    signal: AbortSignal.timeout(GH_PUBLISH_TIMEOUT_MS),
+  });
+  if (!res.ok) throw new Error(`GitHub App identity lookup failed ${res.status}`);
+  const body = (await res.json()) as { slug?: string };
+  if (typeof body.slug !== 'string' || !/^[a-z0-9-]+$/.test(body.slug)) {
+    throw new Error('GitHub App identity lookup returned an invalid shape');
+  }
+  const expectedLogin = `${body.slug}[bot]`;
+  const botRes = await fetch(`${GH_API}/users/${encodeURIComponent(expectedLogin)}`, {
+    headers: appHeaders(jwt),
+    redirect: 'error',
+    signal: AbortSignal.timeout(GH_PUBLISH_TIMEOUT_MS),
+  });
+  if (!botRes.ok) throw new Error(`GitHub App bot identity lookup failed ${botRes.status}`);
+  const bot = (await botRes.json()) as { id?: number; login?: string; type?: string };
+  if (!Number.isSafeInteger(bot.id) || !bot.id || bot.type !== 'Bot'
+      || typeof bot.login !== 'string' || bot.login.toLowerCase() !== expectedLogin.toLowerCase()) {
+    throw new Error('GitHub App bot identity lookup returned an invalid shape');
+  }
+  const identity: GitHubAppIdentity = {
+    id: bot.id,
+    slug: body.slug,
+    botName: bot.login,
+    botEmail: `${bot.id}+${bot.login}@users.noreply.github.com`,
+  };
+  await kv.put(cacheKey, JSON.stringify(identity), { expirationTtl: 24 * 60 * 60 });
+  return identity;
 }
 
 async function mintInstallationToken(
@@ -148,9 +273,10 @@ export async function getRepoInstallationId(
   owner: string,
   repo: string,
   kv: KVNamespace,
+  forceRefresh = false,
 ): Promise<number> {
   const key = `github_repo_inst_${owner}_${repo}`;
-  const cached = await kv.get(key);
+  const cached = forceRefresh ? null : await kv.get(key);
   if (cached) {
     const id = Number(cached);
     if (Number.isFinite(id) && id > 0) return id;
@@ -158,10 +284,11 @@ export async function getRepoInstallationId(
   const jwt = await mintAppJwt(appId, privateKeyPem);
   const res = await fetch(`${GH_API}/repos/${owner}/${repo}/installation`, {
     headers: appHeaders(jwt),
+    redirect: 'error',
+    signal: AbortSignal.timeout(GH_PUBLISH_TIMEOUT_MS),
   });
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`GitHub App installation lookup failed ${res.status}: ${text}`);
+    throw new Error(`GitHub App installation lookup failed ${res.status}`);
   }
   const body = (await res.json()) as { id?: number };
   if (!body.id) throw new Error('GitHub App installation lookup returned no id');
