@@ -17,6 +17,7 @@ function safeDecodeSegment(segment: string): string {
 
 // Object-literal property key (non-shorthand `key: value` form).
 const handlers = { decodeURIComponent: (s: string) => s.toUpperCase() };
+void handlers;
 
 // Import specifier names -- renamed and bare. These bind a name from a
 // LOCAL module, never the global builtin.
