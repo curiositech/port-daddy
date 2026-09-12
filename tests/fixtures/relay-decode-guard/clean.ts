@@ -27,7 +27,7 @@ export default {
       return notFound();
     }
     if (pathname.startsWith('/v1/harbors/')) {
-      const parts = pathname.slice('/v1/harbors/'.length).split('/').map(safeDecodeSegment);
+      pathname.slice('/v1/harbors/'.length).split('/').map(safeDecodeSegment);
       return notFound();
     }
     return notFound();
