@@ -1,0 +1,250 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/porthole-stage.schema.json",
+  "title": "PortholeStage",
+  "description": "A live cooperative app experience shared by people and embodied agents. The durable stage binds an opaque target to visual and semantic perspectives, attributable participant presence, governed control, consent, capture readiness, privacy policy, and append-only replay evidence. Raw target descriptors remain sealed. A remote stage is invalid without end-to-end encryption plus enrolled-device and rekey policy references. Recording is the witness of the stage, not the product boundary.",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.porthole.stage.v1" },
+    "stageId": { "type": "string", "minLength": 1 },
+    "harborId": { "type": "string", "minLength": 1 },
+    "sessionId": { "type": "string", "minLength": 1 },
+    "target": {
+      "type": "object",
+      "description": "A public-safe target handle. The envelope reference and commitment identify an encrypted descriptor without revealing its contents.",
+      "properties": {
+        "targetId": { "type": "string", "pattern": "^target_[A-Za-z0-9_-]+$" },
+        "kind": { "enum": ["window", "browser-tab", "simulator", "remote-desktop", "editor-surface", "custom"] },
+        "platform": { "enum": ["macos", "ios", "browser", "linux", "windows", "remote", "custom"] },
+        "descriptor": {
+          "type": "object",
+          "properties": {
+            "state": { "const": "sealed" },
+            "envelopeRef": { "type": "string", "pattern": "^sealed-descriptor:[A-Za-z0-9_-]+$" },
+            "commitment": {
+              "type": "string",
+              "pattern": "^sha256:[a-f0-9]{64}$",
+              "description": "Hash of the randomized authenticated ciphertext descriptor envelope, never of a title, URL, app id, or other low-entropy plaintext."
+            }
+          },
+          "required": ["state", "envelopeRef", "commitment"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["targetId", "kind", "platform", "descriptor"],
+      "additionalProperties": false
+    },
+    "participants": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "participantId": { "type": "string", "minLength": 1 },
+          "kind": { "enum": ["operator", "person", "agent"] },
+          "agentNodeId": { "type": ["string", "null"] },
+          "displayName": { "type": "string", "minLength": 1 },
+          "color": { "type": "string", "minLength": 1 },
+          "presence": { "enum": ["active", "idle", "away", "disconnected"] },
+          "canPoint": { "type": "boolean" },
+          "canComment": { "type": "boolean" },
+          "canRequestControl": { "type": "boolean" }
+        },
+        "required": ["participantId", "kind", "displayName", "color", "presence", "canPoint", "canComment", "canRequestControl"],
+        "additionalProperties": false
+      }
+    },
+    "perspectiveIds": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "semanticAdapters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "adapter": { "type": "string", "minLength": 1 },
+          "kind": { "enum": ["accessibility", "dom", "editor-model", "source-map", "test-runtime", "custom"] },
+          "status": { "enum": ["available", "degraded", "unavailable"] }
+        },
+        "required": ["adapter", "kind", "status"],
+        "additionalProperties": false
+      }
+    },
+    "transport": {
+      "type": "object",
+      "properties": {
+        "scope": { "enum": ["local", "remote"] },
+        "media": { "enum": ["local", "webrtc", "relay", "none"] },
+        "events": { "enum": ["local", "data-channel", "relay"] },
+        "endToEndEncrypted": { "type": "boolean" },
+        "enrolledDevicePolicyRef": { "type": ["string", "null"], "minLength": 1 },
+        "rekeyPolicyRef": { "type": ["string", "null"], "minLength": 1 }
+      },
+      "required": ["scope", "media", "events", "endToEndEncrypted", "enrolledDevicePolicyRef", "rekeyPolicyRef"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "scope": { "const": "local" } }, "required": ["scope"] },
+          "then": {
+            "properties": {
+              "media": { "enum": ["local", "none"] },
+              "events": { "const": "local" },
+              "enrolledDevicePolicyRef": { "const": null },
+              "rekeyPolicyRef": { "const": null }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "scope": { "const": "remote" } }, "required": ["scope"] },
+          "then": {
+            "properties": {
+              "media": { "enum": ["webrtc", "relay", "none"] },
+              "events": { "enum": ["data-channel", "relay"] },
+              "endToEndEncrypted": { "const": true },
+              "enrolledDevicePolicyRef": { "type": "string", "minLength": 1 },
+              "rekeyPolicyRef": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "media": { "enum": ["webrtc", "relay"] } }, "required": ["media"] },
+          "then": { "properties": { "scope": { "const": "remote" }, "endToEndEncrypted": { "const": true } } }
+        },
+        {
+          "if": { "properties": { "events": { "enum": ["data-channel", "relay"] } }, "required": ["events"] },
+          "then": { "properties": { "scope": { "const": "remote" }, "endToEndEncrypted": { "const": true } } }
+        }
+      ]
+    },
+    "lifecycle": {
+      "type": "object",
+      "properties": {
+        "state": { "enum": ["preparing", "ready", "live", "closing", "closed", "blocked"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "openedAt": { "type": ["string", "null"], "format": "date-time" },
+        "closedAt": { "type": ["string", "null"], "format": "date-time" },
+        "terminalEventId": { "type": ["string", "null"], "minLength": 1 }
+      },
+      "required": ["state", "createdAt", "openedAt", "closedAt", "terminalEventId"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "state": { "enum": ["preparing", "ready"] } }, "required": ["state"] },
+          "then": {
+            "properties": {
+              "openedAt": { "const": null },
+              "closedAt": { "const": null },
+              "terminalEventId": { "const": null }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "state": { "enum": ["live", "closing"] } }, "required": ["state"] },
+          "then": {
+            "properties": {
+              "openedAt": { "type": "string", "format": "date-time" },
+              "closedAt": { "const": null },
+              "terminalEventId": { "const": null }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "state": { "const": "closed" } }, "required": ["state"] },
+          "then": {
+            "properties": {
+              "openedAt": { "type": "string", "format": "date-time" },
+              "closedAt": { "type": "string", "format": "date-time" },
+              "terminalEventId": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      ]
+    },
+    "consent": {
+      "type": "object",
+      "properties": {
+        "state": { "enum": ["pending", "granted", "declined", "revoked"] },
+        "policyId": { "type": "string", "minLength": 1 },
+        "receiptRefs": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "scopeCommitment": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["state", "policyId", "receiptRefs", "scopeCommitment", "updatedAt"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "state": { "const": "granted" } }, "required": ["state"] },
+          "then": { "properties": { "receiptRefs": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } } } }
+        }
+      ]
+    },
+    "readiness": {
+      "type": "object",
+      "properties": {
+        "state": { "enum": ["pending", "ready", "degraded", "blocked"] },
+        "checkedAt": { "type": "string", "format": "date-time" },
+        "receiptRefs": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "capturePermission": { "enum": ["pending", "granted", "denied"] },
+        "privacyPreflight": { "enum": ["pending", "passed", "failed"] }
+      },
+      "required": ["state", "checkedAt", "receiptRefs", "capturePermission", "privacyPreflight"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "state": { "const": "ready" } }, "required": ["state"] },
+          "then": {
+            "properties": {
+              "receiptRefs": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+              "capturePermission": { "const": "granted" },
+              "privacyPreflight": { "const": "passed" }
+            }
+          }
+        }
+      ]
+    },
+    "privacyPolicy": {
+      "type": "object",
+      "properties": {
+        "policyId": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "exactTargetOnly": { "const": true },
+        "backgroundMediaBlocked": { "const": true },
+        "secretStrippingRequired": { "const": true },
+        "rawEvidenceScope": { "const": "device-only" },
+        "audioCapture": { "enum": ["disabled", "explicit-consent"] }
+      },
+      "required": ["policyId", "version", "exactTargetOnly", "backgroundMediaBlocked", "secretStrippingRequired", "rawEvidenceScope", "audioCapture"],
+      "additionalProperties": false
+    },
+    "controlPolicy": {
+      "type": "object",
+      "properties": {
+        "pointing": { "const": "concurrent" },
+        "commenting": { "const": "concurrent" },
+        "input": { "const": "explicit-lease" },
+        "operatorCanInterrupt": { "const": true },
+        "effectReceiptsRequired": { "const": true }
+      },
+      "required": ["pointing", "commenting", "input", "operatorCanInterrupt", "effectReceiptsRequired"],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema", "stageId", "harborId", "sessionId", "target", "participants",
+    "perspectiveIds", "semanticAdapters", "transport", "lifecycle", "consent",
+    "readiness", "privacyPolicy", "controlPolicy"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": { "lifecycle": { "properties": { "state": { "enum": ["live", "closing"] } }, "required": ["state"] } },
+        "required": ["lifecycle"]
+      },
+      "then": {
+        "properties": {
+          "consent": { "properties": { "state": { "const": "granted" } } },
+          "readiness": { "properties": { "state": { "const": "ready" } } }
+        }
+      }
+    }
+  ]
+}

@@ -1456,16 +1456,14 @@ jobs:
         run: node scripts/publish-pd-ios-screenshots.mjs
 
   # ---------------------------------------------------------------------------
-  # ci-gate: the single required check for branch protection / the merge queue.
+  # ci-gate: a summary of the CI jobs the merge-queue ruleset actually requires.
   #
   # Every other job above is path-filtered or matrix-conditional, so on any
-  # given PR some of them legitimately *skip*. A skipped job never reports the
-  # "success" that a required-status-check rule waits for, so requiring those
-  # jobs individually deadlocks the merge queue (it waits forever for a check
-  # that will never arrive). This job depends on all of them, always runs, and
-  # passes when each dependency either succeeded or was skipped — failing only
-  # on a real failure or cancellation. Point branch protection at THIS check
-  # alone and the queue converges without dropping any actual enforcement.
+  # given PR some of them legitimately *skip*. This summary depends only on the
+  # CI jobs named by `main merge queue` ruleset 17604542. Advisory jobs remain
+  # visible on the PR but cannot make this verdict red. The ruleset also names
+  # `roadmap-link`, `pr-requirements-guard`, and `Port Daddy Fleet`, which live
+  # in separate workflows and therefore are not `needs` entries here.
   ci-gate:
     name: ci-gate
     if: always()
@@ -1480,23 +1478,14 @@ jobs:
       pull-requests: read
     needs:
       - brand-color-guard
-      - changelog-guard
       - compiled-daemon-smoke
       - doc-citation-guard
-      - fleet-executor-tests
       - fleet-ui
       - fleetbar
       - integration-tests
       - lint
-      - mcp-catalog-guard
-      - pd-ios
-      - porthole-cast-gate
-      - porthole-stage
-      - relay-tests
-      - rust-broker
       - rust-console
       - rust-console-gpui
-      - rust-harbor-card
       - rust-kernel
       - skill-hygiene
       - steward-tests
