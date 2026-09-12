@@ -17,6 +17,9 @@ import * as ed from '@noble/ed25519';
 import { sha256 } from '@noble/hashes/sha256';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { controlDb } from '../../relay/tests/support/fleet-controls.js';
+import { FleetStoppedError, writeFleetControl } from '../../../shared/fleet-controls.js';
+import { fleetInvocationGuard } from '../src/fleet-stop.js';
 import {
   emitSquidEvent,
   publishChainedEvent,
@@ -159,6 +162,27 @@ describe('emitSquidEvent — enablement gates', () => {
 // names the specific check that regressed.
 
 describe('deriveSquidIdentity — rejects every card that is not this key’s', () => {
+  it('rechecks stop after waiting for a channel tail without advancing a refused event', async () => {
+    const controls = controlDb([42]);
+    let release!: (response: Response) => void;
+    let started!: () => void;
+    const firstStarted = new Promise<void>(resolve => { started = resolve; });
+    const pending = new Promise<Response>(resolve => { release = resolve; });
+    const fetch = stubFetch(async () => { started(); return pending; });
+    const first = publishChainedEvent(ENV, 'mediator:stopped-tail', { n: 1 }, ENV.RELAY_PUBLISH_URL, fleetInvocationGuard(controls, 42));
+    await firstStarted;
+    const second = expect(publishChainedEvent(ENV, 'mediator:stopped-tail', { n: 2 }, ENV.RELAY_PUBLISH_URL,
+      fleetInvocationGuard(controls, 42))).rejects.toBeInstanceOf(FleetStoppedError);
+    await writeFleetControl(controls, 'global', false, 1, 'u_admin');
+    release(Response.json({}));
+    expect((await first).seq).toBe(1);
+    await second;
+    expect(fetch).toHaveBeenCalledOnce();
+    await writeFleetControl(controls, 'global', true, 2, 'u_admin');
+    stubFetch();
+    const next = await publishChainedEvent(ENV, 'mediator:stopped-tail', { n: 3 }, ENV.RELAY_PUBLISH_URL, fleetInvocationGuard(controls, 42));
+    expect(next.seq).toBe(2);
+  });
   const PROBE_SUFFIX = 'mediator:identity-probe';
 
   /** Derive through the awaited transport; report both observable effects. */
@@ -169,6 +193,7 @@ describe('deriveSquidIdentity — rejects every card that is not this key’s', 
       PROBE_SUFFIX,
       { probe: true },
       ENV.RELAY_PUBLISH_URL,
+      async () => {},
     );
     await flushSquidEvents();
     return { res, fetches: fetchFn.mock.calls.length };

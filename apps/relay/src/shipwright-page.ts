@@ -34,7 +34,7 @@ import {
   type UserInstallation,
 } from './auth-github.js';
 import { randomHex } from './crypto.js';
-import { HEAD, TOKENS } from './account-page.js';
+import { HEAD, TOKENS } from './account-theme.js';
 import { SHIPWRIGHT_RETENTION_DAYS } from './retention-sweep.js';
 import { MODEL_DOSSIER, type DossierModel } from './model-dossier.js';
 

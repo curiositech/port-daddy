@@ -1,0 +1,4 @@
+type: security
+
+- **Cloud Fleet now requires explicit global and installation permission to run.** Account settings expose installation-scoped stops, while the global administrator page accepts only Cloudflare-allowlisted immutable GitHub IDs. Fresh primary-D1 checks fail closed at queue admission and guarded model/action boundaries; revision-bound writes are atomically audited. Deploy the migration and both Workers before relying on these controls. This change does not start local Port Daddy or enable Fleet.
+- **Global Fleet control no longer accepts broad operator credentials or the old KV allow.** The API requires an allowlisted account and the current control revision. Older native callers are refused until they implement that contract; use the account/admin web controls in the meantime. Already-issued requests may finish, and unrelated automation remains separate.

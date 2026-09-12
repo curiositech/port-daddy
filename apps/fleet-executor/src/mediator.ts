@@ -559,6 +559,8 @@ export function buildMediatorScanIo(deps: {
   owner: string;
   repo: string;
   token: string;
+  /** Required fresh, invocation-latched Fleet authorization at each I/O boundary. */
+  beforeAction: () => Promise<void>;
   listOpenPrs: (owner: string, repo: string, token: string) => Promise<OpenPRDetailed[]>;
   fetchPatches: (
     owner: string,
@@ -580,6 +582,9 @@ export function buildMediatorScanIo(deps: {
     conclusion: 'success' | 'failure' | 'neutral',
     summary: string,
     token: string,
+    detailsUrl?: string | null,
+    title?: string,
+    beforeMutation?: () => Promise<void>,
   ) => Promise<boolean>;
 }): MediatorScanIo {
   const conveneUrl = (deps.env.RELAY_PUBLISH_URL ?? '').replace(
@@ -587,14 +592,25 @@ export function buildMediatorScanIo(deps: {
     '/v1/mediator/convene',
   );
   return {
-    listOpenPrs: () => deps.listOpenPrs(deps.owner, deps.repo, deps.token),
-    fetchPatches: (prNumber) => deps.fetchPatches(deps.owner, deps.repo, prNumber, deps.token),
+    listOpenPrs: async () => {
+      await deps.beforeAction();
+      return deps.listOpenPrs(deps.owner, deps.repo, deps.token);
+    },
+    fetchPatches: async (prNumber) => {
+      await deps.beforeAction();
+      return deps.fetchPatches(deps.owner, deps.repo, prNumber, deps.token);
+    },
     postNeutralCheck: async (headSha, summary) => {
       if (!headSha) return;
+      await deps.beforeAction();
       const id = await deps.createCheckRun(deps.owner, deps.repo, MEDIATOR_CHECK_NAME, headSha, deps.token);
-      if (id) await deps.completeCheckRun(deps.owner, deps.repo, id, 'neutral', summary, deps.token);
+      if (id) {
+        await deps.beforeAction();
+        await deps.completeCheckRun(deps.owner, deps.repo, id, 'neutral', summary, deps.token,
+          undefined, undefined, deps.beforeAction);
+      }
     },
     publishConvene: (channelSuffix, body) =>
-      publishChainedEvent(deps.env, channelSuffix, body, conveneUrl),
+      publishChainedEvent(deps.env, channelSuffix, body, conveneUrl, deps.beforeAction),
   };
 }

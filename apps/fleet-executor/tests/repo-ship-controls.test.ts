@@ -1,3 +1,4 @@
+import { FleetStoppedError } from '../../../shared/fleet-controls.js';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { executeFleet } from '../src/execute.js';
 import { freshState, installGitHubFetch, memoryD1, memoryKV, aiStub, makeEnv, makeJob } from './harness.js';
@@ -106,8 +107,22 @@ describe('cloud ship execution consumes signed-in repository controls', () => {
   it('missing database or migration cannot silently permit a ship', async () => {
     const { env, ai } = environment();
     env.DB = undefined;
-    await executeFleet(makeJob(), env);
+    const completedBefore = state.completed.length;
+    // executeFleet propagates the stop; the queue consumer in index.ts is what
+    // turns it into ack + 'cancelled'. Here it surfaces as the rejection.
+    await expect(executeFleet(makeJob(), env)).rejects.toBeInstanceOf(FleetStoppedError);
+    // The safety claim this test exists for is unchanged: no database means no
+    // ship runs, ever. What changed is who refuses first. Cloud Fleet controls
+    // now fail closed at admission, so an absent DB is a terminal stop before
+    // the repository-ship gate is consulted, and a stop mints no installation
+    // token and publishes nothing -- which is the point of a spend control.
+    // So there is no neutral check carrying 'controls unavailable' any more;
+    // asserting on one would be asserting that a stopped fleet still calls
+    // GitHub. That is safe to lose here because 'Port Daddy Fleet' is NOT a
+    // required status check on main's ruleset (required: ci-gate and
+    // unit-tests (macos-latest, 22)), so an absent check does not gate a merge.
     expect(ai.calls).toHaveLength(0);
-    expect(state.completed.at(-1)?.summary).toContain('controls unavailable');
+    expect(state.reviews).toHaveLength(0);
+    expect(state.completed).toHaveLength(completedBefore);
   });
 });

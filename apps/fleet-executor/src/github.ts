@@ -67,8 +67,10 @@ async function mintInstallationToken(
   appId: string,
   privateKeyPem: string,
   installationId: number,
+  beforeMint: () => Promise<void>,
 ): Promise<{ token: string; expiresAt: number }> {
   const jwt = await mintAppJwt(appId, privateKeyPem);
+  await beforeMint();
   const res = await fetch(
     `https://api.github.com/app/installations/${installationId}/access_tokens`,
     {
@@ -93,19 +95,6 @@ async function mintInstallationToken(
 }
 
 /**
- * Backwards-compatible signature (matches #549). Always mints fresh.
- * Prefer {@link getInstallationTokenCached} in the executor hot path.
- */
-export async function getInstallationToken(
-  appId: string,
-  privateKeyPem: string,
-  installationId: number,
-): Promise<string> {
-  const { token } = await mintInstallationToken(appId, privateKeyPem, installationId);
-  return token;
-}
-
-/**
  * KV-backed installation-token cache.
  *
  * - Key `github_inst_<installationId>`, value `{ token, expiresAt }`.
@@ -114,12 +103,15 @@ export async function getInstallationToken(
  * - On a miss/expiry, mints fresh and writes back with TTL = expiresAt-60s.
  *
  * `forceRefresh` bypasses the cache (used by the 401 remint path below).
+ * `beforeMint` is mandatory and runs after cache/signing awaits, immediately
+ * before a fresh credential request; an earlier allow is not sufficient.
  */
 export async function getInstallationTokenCached(
   appId: string,
   privateKeyPem: string,
   installationId: number,
   kv: KVNamespace,
+  beforeMint: () => Promise<void>,
   forceRefresh = false,
 ): Promise<string> {
   const key = `github_inst_${installationId}`;
@@ -136,7 +128,7 @@ export async function getInstallationTokenCached(
     }
   }
 
-  const { token, expiresAt } = await mintInstallationToken(appId, privateKeyPem, installationId);
+  const { token, expiresAt } = await mintInstallationToken(appId, privateKeyPem, installationId, beforeMint);
 
   const ttlSeconds = Math.floor((expiresAt - Date.now() - 60_000) / 1000);
   // KV requires expirationTtl >= 60. Skip caching if the token is already too

@@ -39,7 +39,7 @@ import type { Env } from './types.js';
 import { lastFleetRunAt } from './db.js';
 import { randomHex } from './crypto.js';
 import { resolveSession } from './auth-github.js';
-import { HEAD, TOKENS } from './account-page.js';
+import { HEAD, TOKENS } from './account-theme.js';
 import { countOpenInterruptions } from './interruptions.js';
 import {
   computeFeatureHooks,

@@ -29,7 +29,7 @@ import type { Env } from './types.js';
 import type { UserRow } from './db.js';
 import { resolveSession, userCanReadRepo, userIsRepoAdmin } from './auth-github.js';
 import { resolveUserFromRequest } from './device-flow.js';
-import { HEAD, TOKENS } from './account-page.js';
+import { HEAD, TOKENS } from './account-theme.js';
 import {
   aiCallDeadlineMsFromSettingsJson,
   DEFAULT_AI_CALL_DEADLINE_MS,

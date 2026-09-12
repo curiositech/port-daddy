@@ -1,3 +1,5 @@
+import { FleetStoppedError } from "../../../shared/fleet-controls.js";
+
 /**
  * The PURSER — an adversarial, obstreperous gatekeeper ship.
  *
@@ -660,6 +662,7 @@ function prBlock(
         options.maxTokens,
       );
     } catch (error) {
+      if (error instanceof FleetStoppedError) throw error;
       if (error instanceof ContextAdmissionError) return error.admission;
       throw error;
     }
@@ -1117,6 +1120,7 @@ async function contextAdmissionAwareAuthorCall(
   try {
     return await call();
   } catch (error) {
+    if (error instanceof FleetStoppedError) throw error;
     if (error instanceof ContextAdmissionError) state.error = error;
     throw error;
   }
@@ -1423,6 +1427,7 @@ async function rerunExistingTests(
   }
   await assertCurrentHead(`before pd-${ship.name} reused-tests sandbox`);
   const sandbox = await runTestsInSandbox({
+    beforeAction: () => assertCurrentHead("before sandbox action"),
     sandboxBinding: env.SANDBOX,
     owner: prCtx.owner,
     repo: prCtx.repo,
@@ -1655,6 +1660,7 @@ export async function runPurser(
           }
         }
       } catch (err) {
+        if (err instanceof FleetStoppedError) throw err;
         // A probe failure must never cost the run — fall through to authoring,
         // which is the pre-existing behaviour.
         rerunNote = `re-run probe failed (${String(err).slice(0, 120)}); authoring fresh`;
@@ -2613,6 +2619,7 @@ export async function runPurser(
     // --- c. SANDBOX (feature-flagged; honest when absent) -------------------
     await assertCurrentHead(`before pd-${ship.name} authored-tests sandbox`);
     const sandbox = await runTestsInSandbox({
+      beforeAction: () => assertCurrentHead("before sandbox action"),
       sandboxBinding: env.SANDBOX,
       owner: prCtx.owner,
       repo: prCtx.repo,
@@ -2710,6 +2717,7 @@ export async function runPurser(
           );
           retargeted = true;
         } catch (err) {
+          if (err instanceof FleetStoppedError) throw err;
           console.error(
             `[fleet-executor] pd-${ship.name} retarget #${prCtx.prNumber} failed: ${String(err)}`,
           );
@@ -2723,6 +2731,7 @@ export async function runPurser(
             : 'the generated tests did not pass, so the reviewed PR base remains unchanged while their findings are resolved.';
       }
     } catch (err) {
+      if (err instanceof FleetStoppedError) throw err;
       if (err instanceof PullRequestHeadValidationError) throw err;
       if (err instanceof GitHubApiError && err.status === 403) {
         // Honest degradation: the App lacks `contents: write`. Tests go inline
@@ -2867,6 +2876,7 @@ export async function runPurser(
       ),
     };
   } catch (err) {
+    if (err instanceof FleetStoppedError) throw err;
     if (
       err instanceof PullRequestHeadValidationError ||
       err instanceof ShipCommentPublicationError

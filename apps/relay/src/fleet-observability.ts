@@ -9,20 +9,17 @@
  *   GET  /v1/fleet/health             paused flag + last-run age + queue depth
  *
  * Control side: the kill switch.
- *   POST /v1/fleet/pause {paused}     toggle the KV flag the executor checks
- *                                     at job START, before any AI spend.
+ *   POST /v1/fleet/pause {paused, revision}  change the primary-D1 global control.
  *
  * Shared envelope: every response is JSON `{ code, error, ... }` to match the
- * fleet control-plane contract. The gate accepts either the break-glass secret
- * or an account-backed operator role. Reads NEVER mutate fleet state; pause
- * writes only KV + audit.
+ * fleet control-plane contract. Observability accepts a break-glass secret or
+ * account operator role. Global writes require the Cloudflare ID allowlist,
+ * an exact revision, and an atomic D1 audit. Reads never mutate Fleet state.
  */
 
 import { fleetOperatorOnly, type FleetOperatorAuthorization } from './fleet-access.js';
 import {
   lastFleetRunAt,
-  getFleetPaused,
-  setFleetPaused,
   appendAudit,
 } from './db.js';
 import {
@@ -33,6 +30,8 @@ import {
   type FleetRunProjection,
 } from './fleet-run-intents.js';
 import type { Env } from './types.js';
+import { fleetAdminOnly } from './fleet-settings-access.js';
+import { readFleetControl, writeFleetControl } from '../../../shared/fleet-controls.js';
 
 // ── Envelope helpers ──────────────────────────────────────────────────────────
 
@@ -182,8 +181,8 @@ export async function handleFleetHealth(request: Request, env: Env): Promise<Res
   if (authorization instanceof Response) return authorization;
 
   try {
-    const [paused, lastAt, intentHealth] = await Promise.all([
-      getFleetPaused(env.KV),
+    const [control, lastAt, intentHealth] = await Promise.all([
+      readFleetControl(env.DB, 'global'),
       lastFleetRunAt(env.DB),
       fleetIntentHealth(env.DB),
     ]);
@@ -191,7 +190,9 @@ export async function handleFleetHealth(request: Request, env: Env): Promise<Res
     return envelope(200, {
       code: 'OK',
       error: null,
-      paused,
+      paused: !control.enabled,
+      controlRevision: control.revision,
+      controlAvailable: control.available,
       lastRunAgeSec,
       // D1-known intents, not a promise of Cloudflare's exact internal queue
       // position.  The explicit estimate label prevents false precision while
@@ -215,32 +216,27 @@ export async function handleFleetHealth(request: Request, env: Env): Promise<Res
 
 interface PauseBody {
   paused?: boolean;
+  revision?: number;
 }
 
 /**
- * Toggle the fleet kill switch. The executor reads this KV flag at job START
- * (before any AI spend or GitHub post), so pausing stops new runs immediately.
- * Audited.
+ * Global control is allowlisted, revision-bound and atomically audited in D1.
+ * Broad operator roles and break-glass secrets cannot mutate it anymore.
  */
 export async function handleFleetPause(request: Request, env: Env): Promise<Response> {
-  const authorization = await fleetOperatorOnly(request, env);
+  const authorization = await fleetAdminOnly(request, env);
   if (authorization instanceof Response) return authorization;
 
   const body = await readJson<PauseBody>(request);
-  if (!body || typeof body.paused !== 'boolean') {
-    return fleetErr('BAD_JSON', 'Request body must be JSON {paused: boolean}', 400);
+  if (!body || typeof body.paused !== 'boolean' || !Number.isSafeInteger(body.revision) || body.revision! < 0) {
+    return fleetErr('BAD_JSON', 'Request body must be JSON {paused: boolean, revision: nonnegative integer}', 400);
   }
 
   try {
-    const state = await setFleetPaused(env.KV, body.paused);
-    await appendAudit(env.DB, {
-      action: body.paused ? 'fleet_pause' : 'fleet_resume',
-      detail: operatorAuditDetail(authorization, body.paused ? 'pause' : 'resume'),
-    }).catch(() => {
-      /* audit is best-effort; never fail the toggle on an audit write error */
-    });
-    return envelope(200, { code: 'OK', error: null, ok: true, paused: state.paused });
+    const state = await writeFleetControl(env.DB, 'global', !body.paused, body.revision!, authorization.id);
+    return envelope(200, { code: 'OK', error: null, ok: true, paused: !state.enabled, revision: state.revision });
   } catch (e) {
+    if (e instanceof Error && e.message === 'STALE_CONTROL') return fleetErr('STALE_CONTROL', 'Reload the current control before changing it', 409);
     return fleetErr('INTERNAL_ERROR', `pause toggle failed: ${msg(e)}`, 500);
   }
 }

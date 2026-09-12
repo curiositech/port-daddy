@@ -12,6 +12,7 @@ import type {
   RelayEvent,
 } from './types.js';
 import { randomHex } from './crypto.js';
+import { readFleetControl } from '../../../shared/fleet-controls.js';
 
 // ── Identity registry ─────────────────────────────────────────────────────────
 
@@ -568,41 +569,12 @@ export async function lastFleetRunAt(db: D1Database): Promise<number | null> {
   return row ? row.created_at : null;
 }
 
-// ── Fleet kill switch (KV-backed) ──────────────────────────────────────────────
+// ── Cloud Fleet global control (primary D1) ──────────────────────────────────
+// Cloud Fleet control authority is D1-primary, shared with the executor.
 
-/** KV key holding the fleet pause flag. Shared with the executor's gate. */
-export const FLEET_PAUSED_KEY = 'fleet:paused';
-
-export interface FleetPausedState {
-  paused: boolean;
-  pausedAt: number;
-}
-
-/**
- * Read the kill-switch flag. Tolerates either the structured
- * `{paused, pausedAt}` JSON form or a bare `"true"`/`"false"` string.
- */
-export async function getFleetPaused(kv: KVNamespace): Promise<boolean> {
-  const raw = await kv.get(FLEET_PAUSED_KEY);
-  if (!raw) return false;
-  if (raw === 'true') return true;
-  if (raw === 'false') return false;
-  try {
-    const parsed = JSON.parse(raw) as Partial<FleetPausedState>;
-    return parsed.paused === true;
-  } catch {
-    return false;
-  }
-}
-
-/** Write the kill-switch flag as structured JSON, stamping pausedAt. */
-export async function setFleetPaused(
-  kv: KVNamespace,
-  paused: boolean
-): Promise<FleetPausedState> {
-  const state: FleetPausedState = { paused, pausedAt: Math.floor(Date.now() / 1000) };
-  await kv.put(FLEET_PAUSED_KEY, JSON.stringify(state));
-  return state;
+/** Missing or unavailable global state is paused. No KV or legacy boolean fallback. */
+export async function getFleetPaused(db: D1Database): Promise<boolean> {
+  return !(await readFleetControl(db, 'global')).enabled;
 }
 
 // ── Errors ────────────────────────────────────────────────────────────────────
@@ -2112,8 +2084,9 @@ export async function listExpiredOpenParleys(
 
 /**
  * KV key holding the `kill-mediator` flag. Shared with the executor's scan
- * gate the same way FLEET_PAUSED_KEY is: one control-plane KV namespace, one
- * honest truth. When set, the mediator is FULLY INERT on both workers —
+ * gate through the same KV namespace. This eventually consistent mediator
+ * preference is NOT the Fleet stop authority (which uses primary D1). When observed,
+ * the mediator is inert on both workers —
  * no prediction, no convening, no summons responses, no gate verdicts.
  */
 export const KILL_MEDIATOR_KEY = 'fleet:kill-mediator';
@@ -2151,7 +2124,7 @@ export async function setMediatorKilled(
  * per-parley acknowledgement key. The pointer is not deleted, so acknowledging
  * an older order cannot erase a newer one that raced onto the same PR.
  * The control-plane KV is already the one namespace both workers share
- * (fleet:paused rides it), so no new auth surface is invented for this.
+ * for mediator preferences, so no new auth surface is invented for this.
  */
 export function mediatorReinjectionKey(repo: string, pr: number): string {
   return `mediator:reinjection:${repo}:${pr}`;

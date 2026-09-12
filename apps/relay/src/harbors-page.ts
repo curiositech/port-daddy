@@ -60,7 +60,7 @@ import {
 import { resolveHarborMembership } from './parleys.js';
 import { PRESENCE_TTL_SECONDS } from './presence.js';
 import { harborChannelKey, type PresenceEntry } from './harbor-channel.js';
-import { HEAD, TOKENS } from './account-page.js';
+import { HEAD, TOKENS } from './account-theme.js';
 
 // ── escaping + transport ─────────────────────────────────────────────────────
 

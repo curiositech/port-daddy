@@ -59,7 +59,7 @@ import { randomHex } from './crypto.js';
 import { resolveSession, isSameOrigin } from './auth-github.js';
 import { resolveUserFromRequest } from './device-flow.js';
 import { apnsConfigured, sendInterruptionPushes, type ApnsPushMessage } from './push-apns.js';
-import { HEAD, TOKENS } from './account-page.js';
+import { HEAD, TOKENS } from './account-theme.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

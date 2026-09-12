@@ -1,3 +1,5 @@
+import { FleetStoppedError } from "../../../shared/fleet-controls.js";
+
 /**
  * XO — the fleet's synthesis officer (Workers AI ONLY).
  *
@@ -462,6 +464,7 @@ export async function runXoEditorPass(opts: {
       reason: 'applied',
     };
   } catch (err) {
+    if (err instanceof FleetStoppedError) throw err;
     if (err instanceof FleetAiDependencyError && err.failure.retryable) throw err;
     return {
       proposals,
@@ -711,6 +714,7 @@ export async function xoOrdersSection(opts: {
     if (orders === null) return '';
     return renderXoOrdersSection(orders, advisories);
   } catch (err) {
+    if (err instanceof FleetStoppedError) throw err;
     if (err instanceof FleetAiDependencyError && err.failure.retryable) throw err;
     return '';
   }

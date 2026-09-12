@@ -17,6 +17,7 @@
  */
 
 import type { ExecutorEnv, FleetRunJob } from './env.js';
+import { assertFleetMayRun } from '../../../shared/fleet-controls.js';
 import {
   getInstallationTokenCached,
   findFleetCheckRun,
@@ -111,11 +112,13 @@ export async function handleDlqJob(job: FleetRunJob, env: ExecutorEnv): Promise<
       await countShipCheckpoints(env, runId),
       await countDeliveryContinuations(env, runId),
     )}`;
+    await assertFleetMayRun(env.DB, installationId);
     const token = await getInstallationTokenCached(
       env.GITHUB_APP_ID,
       env.GITHUB_APP_PRIVATE_KEY,
       installationId,
       env.FLEET_TOKENS,
+      () => assertFleetMayRun(env.DB, installationId),
     );
     const checkRunId = await findFleetCheckRun(
       owner,
@@ -132,6 +135,7 @@ export async function handleDlqJob(job: FleetRunJob, env: ExecutorEnv): Promise<
       // details_url it publishes would always 404 ("Run not found") — the
       // DLQ variant of the same gap execute.ts's ensureRunRow closes.
       await ensureRunRow(env, runId, job.deliveryId, job.repoFullName ?? `${owner}/${repo}`, prNumber, headSha);
+      await assertFleetMayRun(env.DB, installationId);
       await completeCheckRun(
         owner,
         repo,
@@ -141,6 +145,7 @@ export async function handleDlqJob(job: FleetRunJob, env: ExecutorEnv): Promise<
         token,
         detailsUrl,
         DLQ_CHECK_OUTPUT_TITLE,
+        () => assertFleetMayRun(env.DB, installationId),
       );
     } else {
       console.error(

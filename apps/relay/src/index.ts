@@ -207,6 +207,7 @@ import {
   handleAccountDelete,
 } from './auth-github.js';
 import { handleLoginPage, handleAccountPage } from './account-page.js';
+import { handleFleetSettingsPage } from './fleet-settings-page.js';
 import {
   handleSeamanshipPage,
   handleSeamanshipPublishForm,
@@ -648,6 +649,9 @@ export default {
     }
     else if (pathname === '/account' && method === 'GET') {
       response = await handleAccountPage(request, env);
+    }
+    else if (pathname === '/account/fleet' || pathname === '/admin/fleet') {
+      response = await handleFleetSettingsPage(request, env, pathname === '/admin/fleet');
     }
     // Per-account fleet-runs index (session + GitHub repo ACL; ADR-0101).
     else if (pathname === '/account/runs' && method === 'GET') {

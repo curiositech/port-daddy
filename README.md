@@ -751,6 +751,22 @@ pd cockpit           # mission overview
 - `auto` — Port Daddy merges the PR itself once **all** hold: every required CI check is green, `gh` reports the PR `mergeable` (no conflicts), zero unresolved review threads, and the PR is not a draft. It never force-pushes, never uses `gh pr merge --admin`/`--auto`, and never touches a `review`/`never` dispatch. The daemon sweeps this on an interval (`PD_DISPATCH_AUTOMERGE_POLL_MS`, default 60s); `pd dispatch merge-sweep` and `pd done` also trigger an immediate check. See `lib/dispatch/auto-merge.ts` for the full gate. This is a separate, narrower mechanism from `pd harbormaster`'s operator-approval (`pd review --accept`) merge queue.
 - `never` — Port Daddy never merges; the PR sits for a manual close.
 
+### Cloud Fleet — stop controls
+
+Account → **Cloud Fleet settings** (`/account/fleet`) controls the GitHub
+installations you administer. The separate `/admin/fleet` page can stop Cloud
+Fleet globally; its server-side Cloudflare allowlist currently contains only
+Erich's immutable GitHub ID. Repository read access and broad operator roles do
+not grant global control.
+
+Both global and installation settings must explicitly allow work. Missing,
+malformed, timed-out or unreadable settings mean off. The executor checks fresh
+primary-D1 state at admission and guarded action/model boundaries, including
+queued continuations. Stale forms cannot reverse a newer stop. Already-issued
+requests may finish; local daemons and unrelated automation are separate.
+These controls require the migration and both Worker deployments, not just a
+merge. [Control contract, evidence and rollout](docs/operations/fleet-cloud-controls.md).
+
 ### Cloud Fleet — live run receipts
 
 The signed-in website at `/account/runs` is the operator's durable Cloud Fleet

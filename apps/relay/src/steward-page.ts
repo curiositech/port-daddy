@@ -35,7 +35,7 @@
 import type { Env } from './types.js';
 import type { UserRow } from './db.js';
 import { resolveSession, userCanReadRepo, type ResolvedSession } from './auth-github.js';
-import { HEAD, TOKENS } from './account-page.js';
+import { HEAD, TOKENS } from './account-theme.js';
 import {
   briefFromDetail,
   landingSentence,

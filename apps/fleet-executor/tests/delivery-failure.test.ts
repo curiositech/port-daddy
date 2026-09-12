@@ -139,7 +139,8 @@ describe('a lost delivery records why it died', () => {
   });
 
   it('is a no-op without a DB binding rather than a second failure', async () => {
-    const env = makeEnv({ DB: undefined });
+    const env = makeEnv({});
+    env.DB = undefined;
     await expect(recordDeliveryFailure(env, makeJob(), 1, new Error('x'))).resolves.toBeUndefined();
     await expect(readLastDeliveryFailure(env, 'run:delivery-abc')).resolves.toBeNull();
   });

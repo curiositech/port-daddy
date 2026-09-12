@@ -4,7 +4,7 @@
  */
 import type { Env } from './types.js';
 import { resolveSession, isSameOrigin, type ResolvedSession } from './auth-github.js';
-import { HEAD, TOKENS } from './account-page.js';
+import { HEAD, TOKENS } from './account-theme.js';
 import { normalizeRepoFullName } from './repo-settings-page.js';
 import { parse as parseYaml } from 'yaml';
 import { readRepoShipTelemetry, renderShipTelemetry, type RepoShipTelemetry } from './repo-ship-telemetry.js';

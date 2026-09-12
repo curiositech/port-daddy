@@ -19,7 +19,7 @@ import {
   handleFleetPause,
   handleDeleteFleetRun,
 } from '../src/fleet-observability.js';
-import { FLEET_PAUSED_KEY } from '../src/db.js';
+import { controlDb } from './support/fleet-controls.js';
 import type { Env } from '../src/types.js';
 
 // >= 32 chars: operatorOnly() fail-closes (500 MISCONFIGURED) below the minimum.
@@ -60,6 +60,7 @@ function makeMockD1(handlers: {
     return stmt as unknown as D1PreparedStatement;
   };
   return {
+    withSession: controlDb().withSession,
     prepare: stmtFor,
     batch: async () => [],
     exec: async () => ({ count: 0, duration: 0 }),
@@ -79,6 +80,7 @@ function makeEnv(o: {
     KV: o.kv ?? makeKV(),
     RELAY_OPERATOR_TOKEN: o.operatorToken ?? OPERATOR,
     RELAY_OPERATOR_GITHUB_USER_ID: o.operatorGithubUserId,
+    FLEET_ADMIN_GITHUB_IDS: String(ACCOUNT_GITHUB_USER_ID),
     RELAY_ED25519_PRIVATE_KEY_HEX: '00'.repeat(32),
     RELAY_VERSION: '0.0.0-test',
     EVENT_RETENTION_DAYS: '7',
@@ -159,7 +161,6 @@ describe('fleet observability — operator gate', () => {
       handleFleetActivity(req('/v1/fleet/activity', 'GET', null), env),
       handleFleetRun(req('/v1/fleet/runs/run-new', 'GET', null), env, 'run-new'),
       handleFleetHealth(req('/v1/fleet/health', 'GET', null), env),
-      handleFleetPause(req('/v1/fleet/pause', 'POST', null, { paused: true }), env),
     ];
     for (const p of calls) {
       const res = await p;
@@ -370,105 +371,37 @@ describe('handleFleetRun', () => {
 // ── POST /v1/fleet/pause + GET /v1/fleet/health ──────────────────────────────
 
 describe('handleFleetPause + handleFleetHealth', () => {
-  it('rejects a non-boolean body with BAD_JSON', async () => {
-    const res = await handleFleetPause(req('/v1/fleet/pause', 'POST', OPERATOR, { paused: 'yes' }), makeEnv());
+  const adminEnv = () => makeEnv({ db: makeMockD1({ onFirst: accountAuthFirst }) });
+
+  it('rejects malformed operations after allowlisted account authentication', async () => {
+    const res = await handleFleetPause(req('/v1/fleet/pause', 'POST', ACCOUNT_TOKEN, { paused: 'yes', revision: 0 }), adminEnv());
     expect(res.status).toBe(400);
-    const json = (await res.json()) as { code: string };
-    expect(json.code).toBe('BAD_JSON');
+    expect(await res.json()).toMatchObject({ code: 'BAD_JSON' });
   });
 
-  it('pausing writes the KV flag and health reflects paused=true', async () => {
-    const kv = makeKV();
-    const db = makeMockD1({ onFirst: () => null /* no runs yet */ });
-    const env = makeEnv({ kv, db });
-
-    const pauseRes = await handleFleetPause(req('/v1/fleet/pause', 'POST', OPERATOR, { paused: true }), env);
-    expect(pauseRes.status).toBe(200);
-    const pauseJson = (await pauseRes.json()) as { ok: boolean; paused: boolean };
-    expect(pauseJson).toMatchObject({ ok: true, paused: true });
-
-    // KV flag persisted as structured JSON.
-    const raw = await kv.get(FLEET_PAUSED_KEY);
-    expect(raw).not.toBeNull();
-    expect(JSON.parse(raw as string).paused).toBe(true);
-
-    const healthRes = await handleFleetHealth(req('/v1/fleet/health', 'GET', OPERATOR), env);
-    expect(healthRes.status).toBe(200);
-    const health = (await healthRes.json()) as {
-      code: string; paused: boolean; lastRunAgeSec: number | null; queueDepthEstimate: null;
-    };
-    expect(health.code).toBe('OK');
-    expect(health.paused).toBe(true);
-    expect(health.lastRunAgeSec).toBeNull(); // no runs
-    expect(health.queueDepthEstimate).toBeNull();
+  it('uses D1 revisions and health readback, never the old KV allow', async () => {
+    const env = adminEnv();
+    expect((await handleFleetPause(req('/v1/fleet/pause', 'POST', ACCOUNT_TOKEN, { paused: false, revision: 0 }), env)).status).toBe(200);
+    expect(await (await handleFleetHealth(req('/v1/fleet/health', 'GET', OPERATOR), env)).json()).toMatchObject({ paused: false, controlRevision: 1, controlAvailable: true });
+    expect((await handleFleetPause(req('/v1/fleet/pause', 'POST', ACCOUNT_TOKEN, { paused: true, revision: 1 }), env)).status).toBe(200);
+    expect(await (await handleFleetHealth(req('/v1/fleet/health', 'GET', OPERATOR), env)).json()).toMatchObject({ paused: true, controlRevision: 2 });
+    expect((await handleFleetPause(req('/v1/fleet/pause', 'POST', ACCOUNT_TOKEN, { paused: false, revision: 1 }), env)).status).toBe(409);
   });
 
-  it('resuming flips the flag back and health reflects paused=false + last-run age', async () => {
-    const now = Math.floor(Date.now() / 1000);
-    const kv = makeKV({ [FLEET_PAUSED_KEY]: JSON.stringify({ paused: true, pausedAt: now - 10 }) });
-    const db = makeMockD1({
-      onFirst: (q) => {
-        if (q.includes('FROM fleet_run_intents')) {
-          return {
-            known: 0,
-            queued: 0,
-            running: 0,
-            retrying: 0,
-            superseded: 0,
-            failed_admission: 0,
-            oldest_queued_at: null,
-          };
-        }
-        expect(q).toContain('ORDER BY created_at DESC LIMIT 1');
-        return { created_at: now - 30 };
-      },
-    });
-    const env = makeEnv({ kv, db });
-
-    const resumeRes = await handleFleetPause(req('/v1/fleet/pause', 'POST', OPERATOR, { paused: false }), env);
-    expect(resumeRes.status).toBe(200);
-    expect(((await resumeRes.json()) as { paused: boolean }).paused).toBe(false);
-
-    const healthRes = await handleFleetHealth(req('/v1/fleet/health', 'GET', OPERATOR), env);
-    const health = (await healthRes.json()) as { paused: boolean; lastRunAgeSec: number | null };
-    expect(health.paused).toBe(false);
-    expect(health.lastRunAgeSec).not.toBeNull();
-    expect(health.lastRunAgeSec!).toBeGreaterThanOrEqual(30);
+  it('audits only successful changes atomically without token material', async () => {
+    const env = adminEnv();
+    await handleFleetPause(req('/v1/fleet/pause', 'POST', ACCOUNT_TOKEN, { paused: true, revision: 0 }), env);
+    const audit = await env.DB.withSession('first-primary').prepare('SELECT * FROM fleet_control_audit').all();
+    expect(audit.results).toHaveLength(1);
+    expect(audit.results[0]).toMatchObject({ scope: 'global', enabled: 0, revision: 1, updated_by: ACCOUNT_USER_ID });
+    expect(JSON.stringify(audit)).not.toContain(ACCOUNT_TOKEN);
   });
 
-  it('attributes account-backed pause and resume audits without recording token material', async () => {
-    const kv = makeKV();
-    const auditDetails: string[] = [];
-    const db = makeMockD1({
-      onFirst: (q) => accountAuthFirst(q),
-      onRun: (q, bound) => {
-        if (q.includes('INSERT INTO audit_log')) auditDetails.push(String(bound[4]));
-      },
-    });
-    const env = makeEnv({ kv, db });
-
-    expect((await handleFleetPause(
-      req('/v1/fleet/pause', 'POST', ACCOUNT_TOKEN, { paused: true }),
-      env,
-    )).status).toBe(200);
-    expect((await handleFleetPause(
-      req('/v1/fleet/pause', 'POST', ACCOUNT_TOKEN, { paused: false }),
-      env,
-    )).status).toBe(200);
-
-    expect(auditDetails.map((detail) => JSON.parse(detail))).toEqual([
-      {
-        source: 'account',
-        operation: 'pause',
-        actor: { userId: ACCOUNT_USER_ID, githubUserId: ACCOUNT_GITHUB_USER_ID },
-      },
-      {
-        source: 'account',
-        operation: 'resume',
-        actor: { userId: ACCOUNT_USER_ID, githubUserId: ACCOUNT_GITHUB_USER_ID },
-      },
-    ]);
-    expect(auditDetails.join('\n')).not.toContain(ACCOUNT_TOKEN);
+  it('rejects broad operator and non-allowlisted account credentials', async () => {
+    expect((await handleFleetPause(req('/v1/fleet/pause', 'POST', OPERATOR, { paused: false, revision: 0 }), adminEnv())).status).toBe(401);
+    const env = adminEnv();
+    env.FLEET_ADMIN_GITHUB_IDS = '99';
+    expect((await handleFleetPause(req('/v1/fleet/pause', 'POST', ACCOUNT_TOKEN, { paused: false, revision: 0 }), env)).status).toBe(403);
   });
 });
 

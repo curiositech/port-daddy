@@ -24,12 +24,8 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
    */
   FLEET_TOKENS: KVNamespace;
   /**
-   * Relay CONTROL-PLANE KV (the relay's own `KV` namespace). Carries the
-   * kill-switch flag at key `fleet:paused` (JSON `{paused, pausedAt}` or the
-   * literal string `"true"`/`"false"`), written by the relay's
-   * POST /v1/fleet/pause. MUST be the SAME namespace the relay binds as `KV` —
-   * otherwise the executor never sees a pause toggle. Optional at the type level
-   * so unit tests can omit it; absent ⇒ NOT paused (fail-safe: the gate runs).
+   * Relay control-plane KV for mediator state. Cloud Fleet admission does not
+   * use KV: shared/fleet-controls.ts reads the shared D1 primary, fail-closed.
    */
   CONTROL_KV?: KVNamespace;
   /**
@@ -138,8 +134,9 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
   /**
    * Shared relay D1 database (`port-daddy-relay`). The executor writes the
    * fleet_runs audit header + retry-replaceable fleet_run_steps telemetry here.
-   * Optional at the type level so unit tests can omit it; ordinary telemetry
-   * writes are best-effort and are not publication authority.
+   * Fleet admission requires fresh global + installation controls in this DB.
+   * Optional at the type level so absent-binding tests can prove fail-closed
+   * behavior; an absent binding never admits work. Telemetry stays best-effort.
    */
   DB?: D1Database;
 }

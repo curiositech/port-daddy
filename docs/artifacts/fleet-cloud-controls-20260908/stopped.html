@@ -1,0 +1,72 @@
+<!DOCTYPE html><html lang="en"><head><title>Cloud Fleet settings — Port Daddy</title><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=Recursive:CASL,slnt,wght@1,-8,400..800&display=swap" rel="stylesheet"><style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;border-radius:0}
+:root,:root[data-theme="light"]{
+  --surface-base:#f2eee6;--surface-raised:#f7f3eb;--surface-strong:#e9e2d5;
+  --text-primary:#121212;--text-secondary:#403b34;--text-muted:#47423a;--text-ghost:#98928a;
+  --cobalt:#003fb8;--teal:#006b5f;--health:#1f7a4d;--amber:#a66f00;--error:#bf2f2f;
+  --violet:#933fa5;--rust:#7a4514;--gold:#666a00;
+  --hair:rgba(18,18,18,.14);--hair-strong:rgba(18,18,18,.34);--border-strong:#121212;
+  --surface-card:#e9e2d5;--on-accent:#fbf7ef;}
+:root{--cobalt-slab:#003fb8;--gold-slab:#666a00;--lime:#cad900;--cream:#fbf7ef;--ink:#17191d;
+  --rust-slab:#7a4514;--flag-white:#fbf7ef;
+  --lw-weight:1.5px;--lw-stripe:3px;}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --surface-base:#101216;--surface-raised:#181c22;--surface-strong:#222833;
+  --text-primary:#f5f3ed;--text-secondary:#d3cec2;--text-muted:#a59f93;--text-ghost:#5c574e;
+  --cobalt:#7db4ff;--teal:#8fd0a7;--health:#5fce97;--amber:#f2be51;--error:#ff7d7d;
+  --violet:#e0a5ed;--rust:#b98e6b;--gold:#d8dd3c;
+  --hair:rgba(245,243,237,.14);--hair-strong:rgba(245,243,237,.34);--border-strong:#f5f3ed;
+  --surface-card:#181c22;--on-accent:#121212;}}
+:root[data-theme="dark"]{
+  --surface-base:#101216;--surface-raised:#181c22;--surface-strong:#222833;
+  --text-primary:#f5f3ed;--text-secondary:#d3cec2;--text-muted:#a59f93;--text-ghost:#5c574e;
+  --cobalt:#7db4ff;--teal:#8fd0a7;--health:#5fce97;--amber:#f2be51;--error:#ff7d7d;
+  --violet:#e0a5ed;--rust:#b98e6b;--gold:#d8dd3c;
+  --hair:rgba(245,243,237,.14);--hair-strong:rgba(245,243,237,.34);--border-strong:#f5f3ed;
+  --surface-card:#181c22;--on-accent:#121212;}
+html,body{overflow-x:clip}
+body{background:var(--surface-base);color:var(--text-primary);
+  font-family:"IBM Plex Sans","Helvetica Neue",Helvetica,Arial,sans-serif;font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.mono,code{font-family:"IBM Plex Mono","SFMono-Regular",Consolas,monospace;font-variant-numeric:tabular-nums slashed-zero}
+h1,h2,h3{text-wrap:balance;letter-spacing:-0.02em}p{text-wrap:pretty}
+a{color:var(--cobalt);text-underline-offset:3px}a:hover{color:var(--teal)}
+:focus-visible{outline:2px solid var(--cobalt);outline-offset:2px}
+.rec{font-family:"Recursive","IBM Plex Sans",sans-serif;font-variation-settings:"CASL" 1,"slnt" -8;font-weight:660}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--text-muted)}
+.caption{font-size:14px;line-height:1.55;color:var(--text-muted)}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+button,input{font:inherit;color:inherit}
+
+    .fleet-header{border-bottom:2px solid var(--border-strong);padding:18px max(20px,calc((100vw - 900px)/2));display:flex;gap:24px;align-items:center}
+    .fleet-header a{min-height:44px;display:inline-flex;align-items:center;font-weight:600}
+    main{max-width:940px;margin:auto;padding:40px 20px 64px}h1{font-size:clamp(30px,6vw,46px);line-height:1.15;margin:12px 0 20px}
+    .lede{font-size:18px;max-width:65ch;color:var(--text-secondary)}.global{margin:28px 0;border-left:4px solid var(--cobalt);padding:12px 18px;background:var(--surface-raised)}
+    .control{margin-top:24px;border:2px solid var(--border-strong);padding:24px;background:var(--surface-raised)}
+    .control-head{display:flex;justify-content:space-between;gap:16px;align-items:baseline;flex-wrap:wrap}.control h2{font-size:22px;overflow-wrap:anywhere}.control p{margin-top:14px}
+    .status{font-family:"IBM Plex Mono",monospace;font-size:16px;color:var(--text-primary)}form{margin-top:22px}
+    button{min-height:48px;padding:10px 18px;border:2px solid var(--border-strong);background:var(--cobalt);color:var(--on-accent);font-weight:600;cursor:pointer}
+    button:hover{background:var(--border-strong);color:var(--surface-base)}button:active{transform:translateY(1px)}button:disabled{background:var(--surface-strong);color:var(--text-muted);cursor:not-allowed}
+    .notice{padding:16px;border:1px solid var(--border-strong);margin:24px 0}.limits{margin-top:32px;color:var(--text-secondary);font-size:16px}
+    @media(max-width:520px){main{padding-top:24px}.control{padding:18px}button{width:100%}}
+    </style></head><body><header class="fleet-header"><b>Port Daddy</b><a href="/account">Back to account</a></header>
+    <main><p class="eyebrow">Account / Automation</p><h1>Cloud Fleet settings</h1>
+    <p class="lede">Choose where Cloud Fleet may review code and run agents. Only GitHub installations you administer appear here.</p>
+    <p class="notice" role="status">Offline rendering fixture. No deployed service or real account data.</p>
+    <a href="/account/fleet">Reload current settings</a>
+    <p class="global"><strong>Global status: off.</strong> An installation runs only when both saved controls allow it.</p>
+
+    <section class="control" aria-label="Example organization">
+      <div class="control-head"><h2>Example organization</h2><strong class="status">On</strong></div>
+      <p>Globally stopped. This installation cannot run, even if its own setting is on.</p>
+      <form method="post" action="/account/fleet">
+        <input type="hidden" name="revision" value="3">
+        <input type="hidden" name="installationId" value="42">
+        <button name="enabled" value="false" >Turn Fleet off</button>
+      </form>
+    </section>
+    <p class="limits">Turning Fleet off blocks new jobs, queued continuations and subsequent guarded actions. A request already sent may finish. This does not start or stop your local daemon, or control unrelated automation.</p>
+    </main></body></html>

@@ -697,7 +697,7 @@ export async function renderGateVerdict(
   if (!args.viewerIsNamedParty) return 'not-a-party';
   if (args.gate.state !== 'pending') return 'gate-decided';
   if (args.verdict !== 'approve' && args.verdict !== 'modify' && args.verdict !== 'reject') return 'bad-verdict';
-  if (await getFleetPaused(env.KV)) return 'fleet-paused';
+  if (await getFleetPaused(env.DB)) return 'fleet-paused';
 
   let modifyText: string | null = null;
   if (args.verdict === 'modify') {

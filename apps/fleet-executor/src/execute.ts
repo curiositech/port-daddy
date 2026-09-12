@@ -23,6 +23,8 @@
 import type { ExecutorEnv, FleetRunJob } from './env.js';
 import { shipAiOptions, type ShipCallContext } from './ship-ai-options.js';
 import { readRepoShipControls, repoShipEnabled, validShipControlName } from '../../shared/repo-ship-controls.js';
+import { assertFleetMayRun, FleetStoppedError } from '../../../shared/fleet-controls.js';
+import { fleetInvocationGuard, withFleetControls } from './fleet-stop.js';
 import { TRANSCRIPT_EMERGENCY_EVENT } from '../../../lib/transcript-emergency-constants.js';
 import {
   getInstallationTokenCached,
@@ -652,13 +654,6 @@ async function emitShipTelemetry(
   }
 }
 
-/**
- * Kill-switch flag key in the relay's CONTROL_KV namespace (the relay writes it
- * via POST /v1/fleet/pause; the executor reads it via env.CONTROL_KV). Value is
- * either JSON `{ paused: boolean, pausedAt: number }` or the literal
- * `"true"`/`"false"`. When paused, a job is acked WITHOUT any AI spend or posts.
- */
-const PAUSE_KEY = 'fleet:paused';
 const DELIVERY_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 
 /** Epoch seconds — the timestamp unit used by fleet_runs / fleet_run_steps. */
@@ -709,12 +704,14 @@ function withIncompletePrSourceCoverage(result: ShipResult, reason: string | nul
   };
 }
 
-function validDeliveryId(raw: unknown): string | null {
-  if (typeof raw !== 'string') return null;
-  if (raw.trim() !== raw) return null;
-  if (!DELIVERY_ID_RE.test(raw)) return null;
-  return raw;
-}
+/**
+ * Kill-switch flag key in the relay's CONTROL_KV namespace (the relay writes it
+ * via POST /v1/fleet/pause; the executor reads it via env.CONTROL_KV). Value is
+ * either JSON `{ paused: boolean, pausedAt: number }` or the literal
+ * `"true"`/`"false"`. When paused, a job is acked WITHOUT any AI spend or posts.
+ */
+const PAUSE_KEY = 'fleet:paused';
+
 
 /**
  * Read the kill-switch flag. Tolerates both the JSON object form and the bare
@@ -744,6 +741,13 @@ async function isFleetPaused(env: ExecutorEnv): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+function validDeliveryId(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  if (raw.trim() !== raw) return null;
+  if (!DELIVERY_ID_RE.test(raw)) return null;
+  return raw;
 }
 
 /**
@@ -1381,11 +1385,17 @@ async function reportMergeGroupPassThrough(job: FleetRunJob, env: ExecutorEnv): 
     env.GITHUB_APP_PRIVATE_KEY,
     job.installationId,
     env.FLEET_TOKENS,
-  ).catch(() => null);
+    () => assertFleetMayRun(env.DB, job.installationId),
+  ).catch(error => {
+    if (error instanceof FleetStoppedError) throw error;
+    return null;
+  });
   if (!token) return;
 
   try {
+    await assertFleetMayRun(env.DB, job.installationId);
     const checkRunId = await createCheckRun(owner, repo, CHECK_NAME, headSha, token, null);
+    await assertFleetMayRun(env.DB, job.installationId);
     await completeCheckRun(
       owner,
       repo,
@@ -1396,10 +1406,13 @@ async function reportMergeGroupPassThrough(job: FleetRunJob, env: ExecutorEnv): 
         'merge_group. The fleet does not re-review each queue permutation.',
       token,
       null,
+      undefined,
+      () => assertFleetMayRun(env.DB, job.installationId),
     );
   } catch (err) {
     // Absent check == today's behaviour. Never throw: a failure here must not
     // retry the job or dead-letter it.
+    if (err instanceof FleetStoppedError) throw err;
     console.error(`[fleet-executor] merge_group pass-through failed for ${job.repoFullName}@${headSha}: ${String(err)}`);
   }
 }
@@ -1520,7 +1533,10 @@ export async function executeFleet(
   env: ExecutorEnv,
   options: FleetExecutionOptions = {},
 ): Promise<FleetExecutionDisposition | void> {
+  const assertFleetEnabled = fleetInvocationGuard(env.DB, job.installationId);
+  await assertFleetEnabled();
   if (!env.AI) return;
+  env = withFleetControls(env, job.installationId, assertFleetEnabled);
 
   // MERGE QUEUE: handled before every guard below, all of which assume a PR.
   // A merge_group delivery has no pull_request and no prNumber, so it would
@@ -1573,14 +1589,25 @@ export async function executeFleet(
   const aiCallDeadlineMs = await resolveAiCallDeadlineMs(env.DB, job.repoFullName);
   const aiCircuit = new FleetAiCircuit(aiCallDeadlineMs);
 
+  // A stop is not a request to mint credentials or publish a neutral check.
+  // Missing/malformed/unavailable settings all refuse before external effects.
+  await assertFleetEnabled();
   // --- KILL SWITCH ---------------------------------------------------------
   // Checked at the very START, before any AI spend or review/comment post.
-  // STILL posts a neutral 'Port Daddy Fleet' check — it must NEVER just
-  // return silently here. "Port Daddy Fleet" is a REQUIRED status check on
-  // the main-branch merge-queue ruleset (ALLGREEN grouping); an absent check
-  // blocks the WHOLE queue forever, not just this one run, and looks like
-  // nothing at all in GitHub's UI (no failing check to investigate — just
-  // permanent silence). This is exactly what happened 2026-07-16: an
+  // STILL posts a neutral 'Port Daddy Fleet' check rather than returning
+  // silently, because an absent check looks like nothing at all in GitHub's UI
+  // — no failing check to investigate, just permanent silence.
+  //
+  // CORRECTED 2026-09-11: this comment used to assert that "Port Daddy Fleet"
+  // is a REQUIRED status check and that its absence blocks the whole merge
+  // queue forever. That is not true of main's ruleset today, which requires
+  // exactly two contexts — `ci-gate` and `unit-tests (macos-latest, 22)`. An
+  // absent Fleet check is invisible, which is bad, but it does not gate a
+  // merge. The legibility argument below stands on its own; the queue-wide
+  // blocking claim did not survive checking and is why the Cloud Fleet stop
+  // added alongside this is allowed to cancel without publishing anything.
+  //
+  // The incident the argument came from, 2026-07-16: an
   // out-of-band `fleet:paused=true` (written straight into CONTROL_KV,
   // bypassing the audited POST /v1/fleet/pause endpoint — no audit_log row
   // exists for the toggle) left the check silently ABSENT on every PR for 4
@@ -1605,6 +1632,7 @@ export async function executeFleet(
         env.GITHUB_APP_PRIVATE_KEY,
         job.installationId,
         env.FLEET_TOKENS,
+        assertFleetEnabled,
       );
       const assertPausedGateCurrent = async (boundary: string): Promise<void> => {
         if (options.enforceIntentOwnership) await assertFleetIntentCurrent(env, job);
@@ -1718,8 +1746,10 @@ export async function executeFleet(
       env.GITHUB_APP_PRIVATE_KEY,
       job.installationId,
       env.FLEET_TOKENS,
+      assertFleetEnabled,
     );
   } catch (err) {
+    if (err instanceof FleetStoppedError) throw err;
     // Token mint is infrastructure — let the queue retry.
     throw new Error(`token mint failed: ${String(err)}`);
   }
@@ -1739,11 +1769,13 @@ export async function executeFleet(
       // One automatic remint on a likely-401, then retry the fetch.
       if (!is401(err)) throw err;
       await invalidateInstallationToken(job.installationId, env.FLEET_TOKENS);
+      await assertFleetEnabled();
       token = await getInstallationTokenCached(
         env.GITHUB_APP_ID,
         env.GITHUB_APP_PRIVATE_KEY,
         job.installationId,
         env.FLEET_TOKENS,
+        assertFleetEnabled,
         true,
       );
       [prCtx, fleetYaml] = await Promise.all([
@@ -1764,9 +1796,10 @@ export async function executeFleet(
         detailsUrl,
         env.GITHUB_APP_ID,
         runId,
-        options.enforceIntentOwnership
-          ? () => assertFleetIntentCurrent(env, job)
-          : undefined,
+        async () => {
+          if (options.enforceIntentOwnership) await assertFleetIntentCurrent(env, job);
+          await assertFleetEnabled();
+        },
       );
     }
     throw err;
@@ -1858,6 +1891,7 @@ export async function executeFleet(
     merged: prCtx.merged,
   };
   const assertCurrentReviewInput: PullRequestHeadGuard = async boundary => {
+    await assertFleetEnabled();
     if (options.enforceIntentOwnership) await assertFleetIntentCurrent(env, job);
     let live: Awaited<ReturnType<typeof fetchPullRequestMetadataWitness>>;
     try {
@@ -1889,7 +1923,10 @@ export async function executeFleet(
         `pull request head changed at ${boundary}: expected ${prCtx.headSha}, current ${live.headSha}`,
       );
     }
-    if (JSON.stringify(live) === JSON.stringify(frozenReviewMetadata)) return;
+    if (JSON.stringify(live) === JSON.stringify(frozenReviewMetadata)) {
+      await assertFleetEnabled();
+      return;
+    }
     const changedFields = Object.fromEntries(
       Object.keys(frozenReviewMetadata).map(key => [
         key,
@@ -2040,7 +2077,7 @@ export async function executeFleet(
   // newest run of a given name, so the new one is what the branch rule reads.
   let checkRunId = completedNeedsReplacement || generationMismatch ? null : existing?.id ?? null;
   if (!checkRunId) {
-    if (options.enforceIntentOwnership) await assertFleetIntentCurrent(env, job);
+    await assertCurrentReviewInput('before initial check creation');
     // No swallow: a createCheckRun failure must propagate so the job RETRIES.
     checkRunId = await createCheckRun(
       owner,
@@ -2175,6 +2212,7 @@ export async function executeFleet(
       `no later review, issue, branch, retarget, checkpoint, or aggregate verdict was published.`;
     const assertCurrentIntent = async (): Promise<void> => {
       if (options.enforceIntentOwnership) await assertFleetIntentCurrent(env, job);
+      await assertFleetEnabled();
     };
     await assertCurrentIntent();
     const checkNeutralized = await completeCheckRun(
@@ -2496,6 +2534,8 @@ export async function executeFleet(
     } catch (error) {
       return stopSupersededRun(error, results.length > 0);
     }
+    // A stop is terminal and does not authorize a final GitHub publication.
+    await assertFleetEnabled();
     // Re-check the operator kill switch before each ship. The start-of-job
     // check prevents any setup work while paused; this second gate closes the
     // TOCTOU gap where the operator pauses after the GitHub check is created
@@ -2939,6 +2979,7 @@ export async function executeFleet(
         owner,
         repo,
         token,
+        beforeAction: assertFleetEnabled,
         listOpenPrs: fetchOpenPullRequestsDetailed,
         fetchPatches: fetchPRFilePatches,
         createCheckRun,
@@ -3612,6 +3653,7 @@ async function runShip(
     return { ship: ship.name, blocking: ship.blocking, verdict, errored: false, findings, ...reviewCoverage };
   } catch (error) {
     if (
+      error instanceof FleetStoppedError ||
       error instanceof PullRequestHeadValidationError ||
       error instanceof ShipCommentPublicationError
     ) throw error;
@@ -3739,6 +3781,7 @@ async function maybeStackProposal(
 
   await assertCurrentHead(`before pd-${ship.name} stack sandbox`);
   const sandbox = await runTestsInSandbox({
+    beforeAction: () => assertCurrentHead('before sandbox action'),
     sandboxBinding: env.SANDBOX,
     owner: prCtx.owner,
     repo: prCtx.repo,
@@ -3808,7 +3851,7 @@ async function maybeStackProposal(
     }, squidConsent);
     return { proposalIndex, number: pr.number, url: pr.url };
   } catch (err) {
-    if (err instanceof PullRequestHeadValidationError) throw err;
+    if (err instanceof FleetStoppedError || err instanceof PullRequestHeadValidationError) throw err;
     const reason =
       err instanceof GitHubApiError && err.status === 403
         ? 'the GitHub App lacks the `contents: write` permission'
@@ -3926,7 +3969,7 @@ async function captureIdeas(
       { results },
     );
   } catch (err) {
-    if (err instanceof PullRequestHeadValidationError) throw err;
+    if (err instanceof FleetStoppedError || err instanceof PullRequestHeadValidationError) throw err;
     if (err instanceof FleetAiDependencyError && err.failure.retryable) throw err;
     console.error(`[fleet-executor] captureIdeas failed pd-${ctx.shipName}: ${String(err)}`);
   }
