@@ -1,0 +1,3 @@
+type: added
+
+- **Chartroom now has a remote append-only authority kernel.** Relay accepts short-lived browser/GitHub-authorized, account/team/repository/harbor/resource-scoped capabilities and domain-separated harbor-signed typed events, revalidates signed intent freshness at the exported apply boundary, consistently hashes the complete capability bearer, enforces plan-version, authority-epoch, nonce, idempotency, hash-chain, URI/privacy, immutable-event/receipt, and cost bounds in D1, preserves tombstones and supersession, and returns key-rotation-stable signed exact-readback and bounded-export receipts without depending on a legacy roadmap snapshot or exposing an Oracle compatibility route.
