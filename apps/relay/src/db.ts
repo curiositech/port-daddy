@@ -694,7 +694,7 @@ export interface WebSessionRow {
   expires_at: number;
 }
 
-export async function createWebSession(
+export async function replaceWebSession(
   db: D1Database,
   row: {
     tokenHash: string;
@@ -705,14 +705,22 @@ export async function createWebSession(
     expiresAt: number;
     userAgent: string | null;
   },
+  priorTokenHash: string | null,
 ): Promise<void> {
-  await db
+  const insert = db
     .prepare(
       `INSERT INTO web_sessions (token_hash, user_id, gh_token_enc, gh_token_iv, created_at, expires_at, user_agent)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
     )
-    .bind(row.tokenHash, row.userId, row.ghTokenEnc, row.ghTokenIv, row.createdAt, row.expiresAt, row.userAgent)
-    .run();
+    .bind(row.tokenHash, row.userId, row.ghTokenEnc, row.ghTokenIv, row.createdAt, row.expiresAt, row.userAgent);
+  if (!priorTokenHash) {
+    await insert.run();
+    return;
+  }
+  // D1 batch statements are committed transactionally. A reconnect must never
+  // mint a replacement while leaving the superseded browser session valid.
+  const revoke = db.prepare('DELETE FROM web_sessions WHERE token_hash = ?').bind(priorTokenHash);
+  await db.batch([insert, revoke]);
 }
 
 /** Resolve a session token hash to its (unexpired-agnostic) row + joined user. */

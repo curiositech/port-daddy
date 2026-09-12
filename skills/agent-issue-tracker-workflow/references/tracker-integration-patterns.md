@@ -30,9 +30,9 @@ Port Daddy migrated its roadmap toward Jira-style items with slugs (ADR-0086) an
 
 - Every PR body carries exactly one trailer: `Roadmap-Item: <slug>` (or the explicit opt-out `Roadmap-Item: none — <reason>` for a chore/docs/hotfix).
 - No item yet? `npx tsx scripts/roadmap-link.ts <pr-number>` creates a real `roadmap_items` row via `POST /roadmap/items` and stamps the trailer into the PR body in one step — there is no excuse for "I'll link it later."
-- The `roadmap-link` GitHub Action is a **required, fail-closed status check**: it reads the committed `docs/roadmap/roadmap.snapshot.json` mirror and blocks merge on a missing/invalid trailer. A PR with no valid link also gets the `needs-roadmap-link` label as a second, human-facing stop.
+- The `roadmap-link` GitHub Action is a required **declaration check**: it blocks a missing trailer, accepts an explicit slug or reasoned opt-out, and applies `needs-roadmap-link` as a second, human-facing stop. It does not consult a versioned projection to decide whether unrelated code may merge.
 - **Planning documents must declare what they spawn.** A PR touching an ADR, a `PLAN`/`ROADMAP` file, or a `docs/` proposal must also carry `Roadmap-Spawns: <slug-a>, <slug-b>` (or `none — <reason>`) — this is the mechanical version of "capture spawned work as new items" from `tracker-discipline.md`, enforced by file path so it fires on the actual document regardless of what the prose says.
-- The snapshot mirror fails closed if stale (>21 days) or missing — a stale roadmap must never silently read as "all clear," so it blocks every PR, even correctly-linked ones, until regenerated with `npx tsx scripts/export-roadmap-snapshot.ts`.
+- The versioned `docs/roadmap/roadmap.snapshot.json` projection is not merge authority. Missing, stale, or incomplete projection data is reconciled in Chartroom and cannot freeze unrelated PRs.
 
 ## Cross-tracker trailer cheat sheet
 

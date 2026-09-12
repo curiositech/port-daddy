@@ -8,8 +8,8 @@ Every check on a PR falls into exactly one of two buckets. Confusing them is the
 
 | Bucket | Definition | Reaction to red |
 | --- | --- | --- |
-| **Required, repo-owned** | Runs the repo's own CI (lint, typecheck, unit/integration tests, `pr-requirements-guard`, `roadmap-link`, security scan) and is listed as a required context in branch protection. | Stop. Fix the root cause. Never merge, never `--admin` past it. |
-| **External, advisory** | Runs outside repo CI — a deploy-preview pipeline, a third-party bot's informational comment, a docs-site build. | Note it in the PR (or a `pd note`) with evidence it isn't your regression, then proceed. It is not a merge blocker regardless of its status. |
+| **Required** | Its exact context is listed by the live branch ruleset, regardless of which workflow or App produced it. | Stop. Fix the root cause. Never merge, never `--admin` past it. |
+| **Advisory** | Its exact context is absent from the live branch ruleset. It may be repo-owned or external and may still reveal a real bug. | Inspect and record material findings, but do not hold the merge merely for its status. |
 
 The failure mode isn't "the agent doesn't know the difference" in the abstract — it's that the two buckets *look identical in the PR checks UI*. A red X is a red X until you check its provenance.
 
@@ -19,7 +19,7 @@ The failure mode isn't "the agent doesn't know the difference" in the abstract �
 2. **Ask `gh pr checks <n> --json name,state,bucket,workflow`** or `gh pr view <n> --json statusCheckRollup` to see each check's reported state and which workflow/app produced it.
 3. **Cross-reference the app/workflow name against the known-external list** below before assuming a red check is yours to fix.
 
-## Known-external checks (never merge blockers, by design)
+## Common advisory checks (verify against the live ruleset)
 
 | Check | Why it's external | Typical failure mode |
 | --- | --- | --- |
@@ -27,7 +27,18 @@ The failure mode isn't "the agent doesn't know the difference" in the abstract �
 | **CodeQL / third-party security scanners (informational mode)** | Often configured as advisory-only in smaller repos; check whether it's actually in the required-contexts list before assuming it blocks. | Long scan queue, false-positive alert on unchanged code. |
 | **Review bots (Copilot, Claude review) as a "check"** | Their PR *comments* are real review findings you must answer (see `review-and-merge-mechanics.md`), but the check-run status itself is informational, not a branch-protection gate. | "Pending" while the bot is still generating review; not a blocker. |
 
-Do not extend this list by assumption — verify with branch protection every time you inherit an unfamiliar repo. The list above is common practice, not universal law.
+Do not extend this list by assumption — verify with branch protection every time you inherit an unfamiliar repo. A repo-owned workflow is not automatically required, and an external App is not automatically advisory.
+
+## Port Daddy repository custom
+
+The `main merge queue` ruleset is the authority. Its 18 contexts are recorded in
+`docs/operator/branch-protection-ruleset.md`; fourteen corresponding CI job IDs
+feed `.github/workflows/ci.yml`'s `ci-gate`, while `roadmap-link`,
+`pr-requirements-guard`, and `Port Daddy Fleet` report from separate workflows.
+Do not add an advisory job to `ci-gate` merely because it exists in `ci.yml`.
+The roadmap gate validates the PR's declaration only; versioned roadmap snapshot
+freshness and membership are Chartroom reconciliation concerns and cannot freeze
+unrelated merges.
 
 ## Known-required checks (real gates, fix the root cause)
 
