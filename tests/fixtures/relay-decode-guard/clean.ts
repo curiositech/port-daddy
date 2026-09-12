@@ -23,7 +23,7 @@ export default {
   async fetch(request: Request): Promise<Response> {
     const pathname = new URL(request.url).pathname;
     if (pathname.startsWith('/v1/fleet/runs/')) {
-      const runId = safeDecodeSegment(pathname.slice('/v1/fleet/runs/'.length));
+      safeDecodeSegment(pathname.slice('/v1/fleet/runs/'.length));
       return notFound();
     }
     if (pathname.startsWith('/v1/harbors/')) {
