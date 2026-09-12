@@ -409,6 +409,30 @@ Two rules learned the hard way when touching it:
   `merge_group` (always-run, or skip = pass). `proofs`, `whitepaper-build`, and
   `whitepaper-metadata` are now `merge_group`-safe for exactly this reason.
 
+### GitHub mutations use the Fleetbot actuator only
+
+Agents must not use the operator's GitHub identity or credentials for any
+mutation. This includes `gh pr create`, `gh pr comment`, `gh pr merge`, `gh api`
+with a write method, authenticated `git push` through an ambient credential
+helper, and direct REST/GraphQL writes with `GH_TOKEN`, `GITHUB_TOKEN`, a
+personal access token, OAuth token, browser cookie, or copied account bearer.
+
+Use the repository's authorized GitHub App/Fleetbot actuator. The actuator must
+hold the App key outside the agent process, mint a repository-scoped short-lived
+installation token internally, execute only the exact approved operation, revoke
+the token, stamp the responsible agent/session/roadmap scope, and return a
+read-back receipt without returning any credential. Read
+[`skills/github-app-actuator/SKILL.md`](skills/github-app-actuator/SKILL.md)
+before publishing or changing a PR.
+
+An operator sentence authorizing an action is not a credential and must never be
+converted into permission to fetch their token. If the actuator is unavailable,
+preserve the commit and prepared message and report the missing actuator
+operation. Never fall back to the operator identity. The one-time credential
+retirement/bootstrap ceremony is the sole exception: it must be explicitly
+authorized by the operator, perform only the named cutover, remove the ambient
+credential immediately afterward, and record non-secret verification.
+
 Every PR opened in this repo MUST go through skeptical adversarial review
 before merging. The author cannot self-approve by typing "looks good." The
 flow is:
