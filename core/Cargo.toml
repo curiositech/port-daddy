@@ -35,6 +35,7 @@ exclude = [
   "pd-timeline-proto",
   "pd-flag-proto",
   "pd-harbor-proto",
+  "pd-story-linework-proto",
 ]
 
 [workspace.package]
