@@ -6,6 +6,7 @@ import { createServer } from 'node:net';
 import { homedir } from 'node:os';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
+import sessionIntelRedaction from '../lib/session-intel/redact.js';
 import {
   nativeLoaderEnvironment,
   packageOnnxRuntimeNative,
@@ -26,6 +27,10 @@ const EMBEDDED_ASSETS_MODULE = join(DIST_DIR, 'embedded-public-assets.generated.
 const EMBEDDED_AGENT_HARBOR_SCHEMAS_MODULE = join(DIST_DIR, 'embedded-agent-harbor-schemas.generated.js');
 const EMBEDDED_NATIVE_CORE_MODULE = join(DIST_DIR, 'embedded-native-core.generated.js');
 const DURABLE_SCRATCH_DIR = process.env.PD_SCRATCH_ROOT || join(homedir(), 'coding', 'tmp');
+const SELF_HOSTED_DAEMON_READINESS_TIMEOUT_MS = 120_000;
+const SELF_HOSTED_DAEMON_PROBE_TIMEOUT_MS = 2_000;
+const SELF_HOSTED_DAEMON_BOOT_LOG_LIMIT = 4_000;
+const { redactString } = sessionIntelRedaction;
 mkdirSync(DURABLE_SCRATCH_DIR, { recursive: true });
 
 function readArg(name) {
@@ -394,36 +399,167 @@ async function reservePort() {
   });
 }
 
-async function waitForJson(url, child, stderrChunks, timeoutMs = 15000) {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (child.exitCode !== null) break;
-    try {
-      const res = await fetch(url);
-      if (res.ok) return await res.json();
-    } catch {
-      // Retry until the self-hosted daemon is listening or exits.
-    }
-    await new Promise(resolveDelay => setTimeout(resolveDelay, 150));
-  }
-  const stderr = Buffer.concat(stderrChunks).toString('utf8').trim();
-  throw new Error(`single binary daemon smoke failed for ${url}${stderr ? `\n${stderr}` : ''}`);
+function selfHostedDaemonProcessState(child) {
+  return {
+    pid: child.pid ?? null,
+    exitCode: child.exitCode,
+    signalCode: child.signalCode,
+    exited: child.exitCode !== null || child.signalCode !== null,
+  };
 }
 
-async function waitForText(url, child, stderrChunks, timeoutMs = 15000) {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (child.exitCode !== null) break;
-    try {
-      const res = await fetch(url);
-      if (res.ok) return await res.text();
-    } catch {
-      // Retry until the self-hosted daemon is listening or exits.
-    }
-    await new Promise(resolveDelay => setTimeout(resolveDelay, 150));
+function waitForSelfHostedDaemonExit(child, timeoutMs) {
+  if (child.exitCode !== null || child.signalCode !== null) {
+    return Promise.resolve(selfHostedDaemonProcessState(child));
   }
-  const stderr = Buffer.concat(stderrChunks).toString('utf8').trim();
-  throw new Error(`single binary static smoke failed for ${url}${stderr ? `\n${stderr}` : ''}`);
+  return new Promise((resolveExit) => {
+    let timer;
+    const done = () => {
+      clearTimeout(timer);
+      resolveExit(selfHostedDaemonProcessState(child));
+    };
+    child.once('exit', done);
+    timer = setTimeout(() => {
+      child.off('exit', done);
+      resolveExit(null);
+    }, timeoutMs);
+  });
+}
+
+async function stopSelfHostedDaemon(child) {
+  const pid = child.pid ?? null;
+  if (child.exitCode === null && child.signalCode === null) child.kill('SIGTERM');
+  let exit = await waitForSelfHostedDaemonExit(child, 10_000);
+  if (!exit && child.exitCode === null && child.signalCode === null) {
+    child.kill('SIGKILL');
+    exit = await waitForSelfHostedDaemonExit(child, 3_000);
+  }
+  if (!exit) throw new Error(`single binary daemon cleanup timed out: ${JSON.stringify(selfHostedDaemonProcessState(child))}`);
+  if (pid !== null) {
+    try {
+      process.kill(pid, 0);
+      throw new Error(`single binary daemon ${pid} remained alive after its exit receipt`);
+    } catch (error) {
+      if (error?.code !== 'ESRCH') throw error;
+    }
+  }
+  return { ...exit, confirmedGone: true };
+}
+
+function selfHostedDaemonBootLog(stderrChunks) {
+  const raw = Buffer.concat(stderrChunks).toString('utf8').trim();
+  const redacted = redactString(raw);
+  return {
+    stderrBytes: Buffer.byteLength(raw),
+    redacted: true,
+    truncated: redacted.length > SELF_HOSTED_DAEMON_BOOT_LOG_LIMIT,
+    tail: redacted.slice(-SELF_HOSTED_DAEMON_BOOT_LOG_LIMIT),
+  };
+}
+
+function selfHostedDaemonReadinessError({
+  url,
+  phase,
+  reason,
+  child,
+  stderrChunks,
+  startedAt,
+  timeoutMs,
+  attempts,
+  lastHttpStatus,
+  lastError,
+}) {
+  const diagnostic = {
+    category: 'self-hosted-daemon-readiness',
+    classification: reason === 'process-exit'
+      ? 'process-exited-before-readiness'
+      : 'readiness-deadline-exceeded',
+    phase,
+    elapsedMs: Date.now() - startedAt,
+    hardDeadlineMs: timeoutMs,
+    attempts,
+    lastHttpStatus,
+    lastError: lastError ? redactString(lastError) : null,
+    process: selfHostedDaemonProcessState(child),
+    bootLog: selfHostedDaemonBootLog(stderrChunks),
+  };
+  return new Error(`single binary daemon smoke failed for ${url}: ${JSON.stringify(diagnostic)}`);
+}
+
+async function waitForJson(url, child, stderrChunks, timeoutMs = SELF_HOSTED_DAEMON_READINESS_TIMEOUT_MS) {
+  const startedAt = Date.now();
+  const deadline = startedAt + timeoutMs;
+  let attempts = 0;
+  let lastHttpStatus = null;
+  let lastError = null;
+  while (Date.now() < deadline) {
+    if (child.exitCode !== null || child.signalCode !== null) {
+      throw selfHostedDaemonReadinessError({
+        url, phase: 'json', reason: 'process-exit', child, stderrChunks, startedAt,
+        timeoutMs, attempts, lastHttpStatus, lastError,
+      });
+    }
+    attempts += 1;
+    try {
+      const remainingMs = Math.max(1, deadline - Date.now());
+      const res = await fetch(url, {
+        signal: AbortSignal.timeout(Math.min(SELF_HOSTED_DAEMON_PROBE_TIMEOUT_MS, remainingMs)),
+      });
+      lastHttpStatus = res.status;
+      if (res.ok) {
+        return {
+          value: await res.json(),
+          timing: { elapsedMs: Date.now() - startedAt, attempts, lastHttpStatus },
+        };
+      }
+      await res.arrayBuffer();
+    } catch (error) {
+      lastError = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    }
+    await new Promise(resolveDelay => setTimeout(resolveDelay, Math.min(150, Math.max(1, deadline - Date.now()))));
+  }
+  throw selfHostedDaemonReadinessError({
+    url, phase: 'json', reason: 'deadline', child, stderrChunks, startedAt,
+    timeoutMs, attempts, lastHttpStatus, lastError,
+  });
+}
+
+async function waitForText(url, child, stderrChunks, timeoutMs = SELF_HOSTED_DAEMON_READINESS_TIMEOUT_MS) {
+  const startedAt = Date.now();
+  const deadline = startedAt + timeoutMs;
+  let attempts = 0;
+  let lastHttpStatus = null;
+  let lastError = null;
+  while (Date.now() < deadline) {
+    if (child.exitCode !== null || child.signalCode !== null) {
+      throw selfHostedDaemonReadinessError({
+        url, phase: 'text', reason: 'process-exit', child, stderrChunks, startedAt,
+        timeoutMs, attempts, lastHttpStatus, lastError,
+      });
+    }
+    attempts += 1;
+    try {
+      const remainingMs = Math.max(1, deadline - Date.now());
+      const res = await fetch(url, {
+        signal: AbortSignal.timeout(Math.min(SELF_HOSTED_DAEMON_PROBE_TIMEOUT_MS, remainingMs)),
+      });
+      lastHttpStatus = res.status;
+      if (res.ok) {
+        return {
+          value: await res.text(),
+          timing: { elapsedMs: Date.now() - startedAt, attempts, lastHttpStatus },
+        };
+      }
+      await res.arrayBuffer();
+    } catch (error) {
+      lastError = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    }
+    await new Promise(resolveDelay => setTimeout(resolveDelay, Math.min(150, Math.max(1, deadline - Date.now()))));
+  }
+  throw selfHostedDaemonReadinessError({
+    url, phase: 'text', reason: 'deadline', child, stderrChunks, startedAt,
+    timeoutMs, attempts, lastHttpStatus, lastError,
+  });
 }
 
 async function smokeSurfaceGatewaySchemas(baseUrl) {
@@ -583,10 +719,14 @@ async function smokeSelfHostedDaemon(
   child.stderr.on('data', chunk => stderrChunks.push(Buffer.from(chunk)));
 
   try {
-    const health = await waitForJson(`http://127.0.0.1:${port}/health`, child, stderrChunks);
-    const arbiter = await waitForJson(`http://127.0.0.1:${port}/arbiter/status`, child, stderrChunks);
-    const samples = await waitForJson(`http://127.0.0.1:${port}/samples/manifest.json`, child, stderrChunks);
-    const fleetHtml = await waitForText(`http://127.0.0.1:${port}/fleet-ui/index.html`, child, stderrChunks);
+    const healthProbe = await waitForJson(`http://127.0.0.1:${port}/health`, child, stderrChunks);
+    const arbiterProbe = await waitForJson(`http://127.0.0.1:${port}/arbiter/status`, child, stderrChunks);
+    const samplesProbe = await waitForJson(`http://127.0.0.1:${port}/samples/manifest.json`, child, stderrChunks);
+    const fleetHtmlProbe = await waitForText(`http://127.0.0.1:${port}/fleet-ui/index.html`, child, stderrChunks);
+    const health = healthProbe.value;
+    const arbiter = arbiterProbe.value;
+    const samples = samplesProbe.value;
+    const fleetHtml = fleetHtmlProbe.value;
     const surfaceGateway = await smokeSurfaceGatewaySchemas(`http://127.0.0.1:${port}`);
     if (arbiter?.enforcerLoaded !== true || arbiter?.summary?.degradedRules !== 0) {
       throw new Error('single binary daemon smoke failed: embedded native Arbiter enforcer was not loaded cleanly');
@@ -629,6 +769,18 @@ async function smokeSelfHostedDaemon(
     return {
       status: health?.status ?? 'unknown',
       pid: health?.pid ?? null,
+      readiness: {
+        classification: 'expected-initialization-complete',
+        hardDeadlineMs: SELF_HOSTED_DAEMON_READINESS_TIMEOUT_MS,
+        phases: {
+          health: healthProbe.timing,
+          arbiter: arbiterProbe.timing,
+          samples: samplesProbe.timing,
+          fleetUi: fleetHtmlProbe.timing,
+        },
+        process: selfHostedDaemonProcessState(child),
+        bootLog: selfHostedDaemonBootLog(stderrChunks),
+      },
       arbiter: {
         enforcerLoaded: arbiter.enforcerLoaded,
         enforcedRules: arbiter.summary?.enforcedRules ?? null,
@@ -643,10 +795,7 @@ async function smokeSelfHostedDaemon(
       cli: { attention: attention.success === true, bareAttention: bareAttention.success === true },
     };
   } finally {
-    if (child.exitCode === null) {
-      child.kill('SIGTERM');
-      await new Promise(resolveKill => child.once('exit', resolveKill));
-    }
+    await stopSelfHostedDaemon(child);
     rmSync(prefix, { recursive: true, force: true });
   }
 }

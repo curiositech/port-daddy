@@ -13,7 +13,7 @@ import { createRequire } from 'node:module';
 import { basename, dirname, isAbsolute, join, normalize, relative, sep } from 'node:path';
 
 export const TREE_SITTER_RUNTIME_FILE = 'tree-sitter.wasm';
-export const TREE_SITTER_RUNTIME_POINTER = 'current.json';
+export const TREE_SITTER_RUNTIME_POINTER = 'selected-cargo.json';
 
 export const TREE_SITTER_GRAMMAR_FILES = Object.freeze({
   typescript: 'tree-sitter-typescript.wasm',
@@ -153,7 +153,7 @@ function missingFiles(paths: Omit<TreeSitterRuntimeAssets, 'source'>): string[] 
 }
 
 /**
- * Resolve and authenticate the immutable cargo selected by `current.json`.
+ * Resolve and authenticate the immutable cargo selected by `selected-cargo.json`.
  *
  * Purpose: the publisher commits a complete content-addressed directory and
  * then atomically swaps a tiny pointer. Runtime resolution repeats the exact

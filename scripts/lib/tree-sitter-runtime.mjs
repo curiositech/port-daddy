@@ -26,7 +26,7 @@ export const TREE_SITTER_RUNTIME_ASSETS = Object.freeze([
   'tree-sitter-python.wasm',
 ]);
 
-export const TREE_SITTER_RUNTIME_POINTER = 'current.json';
+export const TREE_SITTER_RUNTIME_POINTER = 'selected-cargo.json';
 
 function sha256(path) {
   return createHash('sha256').update(readFileSync(path)).digest('hex');
@@ -175,7 +175,7 @@ function writeAtomicPointer(
   if (existsSync(pointerPath)) {
     const pointerStat = lstatSync(pointerPath);
     if (pointerStat.isSymbolicLink() || !pointerStat.isFile()) {
-      throw new Error('Cannot package tree-sitter runtime: current.json must be a real file');
+      throw new Error(`Cannot package tree-sitter runtime: ${TREE_SITTER_RUNTIME_POINTER} must be a real file`);
     }
   }
   const tempPath = join(publicationRoot, `.current-${process.pid}-${Date.now()}.tmp`);
@@ -188,7 +188,7 @@ function writeAtomicPointer(
     fd = undefined;
     renameSync(tempPath, pointerPath);
     // Rename is the selection boundary. Any later durability failure must not
-    // let the caller delete cargo that current.json already points at.
+    // let the caller delete cargo that the persisted selector already points at.
     selectionState.selected = true;
     syncPointerDirectory(publicationRoot);
   } finally {
@@ -203,7 +203,7 @@ function writeAtomicPointer(
  * still asks its locateFile callback for tree-sitter.wasm at runtime.
  *
  * A complete immutable cargo is renamed into the publication root first; an
- * fsynced `current.json` pointer then selects it with one atomic rename. A
+ * fsynced `selected-cargo.json` pointer then selects it with one atomic rename. A
  * reader therefore observes either the old complete cargo or the new complete
  * cargo, never a half-copied directory. Every destination component is a real
  * directory below the realpath-resolved output root.
