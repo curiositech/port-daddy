@@ -21,19 +21,24 @@ pub enum ChatUpdateSignal {
 pub fn apply_chat_update(log: &mut ChatLog, update: ChatUpdate) -> ChatUpdateSignal {
     match update {
         ChatUpdate::Reply(msg) => {
-            log.push_agent(msg.sender, msg.text);
+            log.push_agent_message(msg);
             ChatUpdateSignal::ReplyArrived
         }
         ChatUpdate::Receipt(msg) => {
-            log.push_receipt(msg.sender, msg.text);
+            log.push_receipt_message(msg, false);
             // Admission recovered after a transient transport error still means
             // the attributed language answer is outstanding.
             log.awaiting_reply = true;
             ChatUpdateSignal::ReceiptArrived
         }
+        ChatUpdate::Terminal { receipt, .. } => {
+            log.push_receipt_message(receipt, true);
+            ChatUpdateSignal::ReceiptArrived
+        }
         ChatUpdate::Hydrate {
             messages,
             awaiting_reply,
+            terminal_status: _,
         } => {
             log.hydrate(messages, awaiting_reply);
             ChatUpdateSignal::None
@@ -126,6 +131,29 @@ mod tests {
         assert!(log.messages.is_empty());
         assert!(log.error.is_none());
         assert!(!log.awaiting_reply);
+    }
+
+    #[test]
+    fn terminal_callback_stops_waiting_even_when_execution_projection_is_stale() {
+        let mut log = ChatLog::default();
+        log.push_mine("prove the worktree state");
+
+        let signal = apply_chat_update(
+            &mut log,
+            ChatUpdate::Terminal {
+                receipt: crate::chat::mission_terminal_receipt(
+                    "killed",
+                    Some("Killed by spawner"),
+                    Some(1_788_590_537_856),
+                ),
+                status: "killed".into(),
+            },
+        );
+
+        assert_eq!(signal, ChatUpdateSignal::ReceiptArrived);
+        assert!(!log.awaiting_reply);
+        assert_eq!(log.messages.last().unwrap().kind, ChatMsgKind::Receipt);
+        assert!(log.messages.last().unwrap().text.contains("KILLED"));
     }
 
     #[test]

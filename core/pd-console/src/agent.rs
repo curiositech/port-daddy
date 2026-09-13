@@ -46,6 +46,25 @@ pub enum TranscriptTurnRole {
 pub struct TranscriptTurn {
     pub role: TranscriptTurnRole,
     pub content: String,
+    pub timestamp_ms: Option<i64>,
+}
+
+/// Durable Mission transcript plus runtime truth that the WorkIntent projection
+/// may not have caught up with yet.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MissionTranscript {
+    pub turns: Vec<TranscriptTurn>,
+    pub status: Option<String>,
+    pub started_at_ms: Option<i64>,
+    pub ended_at_ms: Option<i64>,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TranscriptTerminal {
+    pub status: String,
+    pub ended_at_ms: Option<i64>,
+    pub error: Option<String>,
 }
 
 impl TubeMsg {
@@ -322,6 +341,17 @@ impl WorkSnapshot {
         self.execution_str("errorMessage")
     }
 
+    /// Daemon-authored execution creation time for honest restart hydration.
+    /// Compatibility projections use epoch milliseconds here; tolerate a
+    /// numeric string without ever substituting the console's current time.
+    pub fn execution_created_at_ms(&self) -> Option<i64> {
+        let value = self.execution.as_ref()?.get("createdAt")?;
+        value
+            .as_i64()
+            .or_else(|| value.as_u64().and_then(|number| i64::try_from(number).ok()))
+            .or_else(|| value.as_str().and_then(|number| number.parse().ok()))
+    }
+
     pub fn is_compat_projection(&self) -> bool {
         self.intent
             .pointer("/source/kind")
@@ -424,14 +454,37 @@ fn work_snapshot(value: &serde_json::Value) -> Result<WorkSnapshot> {
     })
 }
 
-fn transcript_turns(value: &serde_json::Value) -> Result<Vec<TranscriptTurn>> {
-    let messages = value
+pub fn runtime_status_is_terminal(status: &str) -> bool {
+    matches!(
+        status.trim().to_ascii_lowercase().as_str(),
+        "complete"
+            | "completed"
+            | "done"
+            | "failed"
+            | "error"
+            | "cancelled"
+            | "canceled"
+            | "halted"
+            | "settled"
+            | "killed"
+            | "aborted"
+            | "over_budget"
+            | "timed_out"
+            | "timeout"
+    )
+}
+
+fn mission_transcript(value: &serde_json::Value) -> Result<MissionTranscript> {
+    let transcript = value
         .get("transcript")
-        .and_then(|transcript| transcript.get("messages"))
+        .filter(|transcript| transcript.is_object())
+        .ok_or_else(|| anyhow!("transcript response omitted transcript"))?;
+    let messages = transcript
+        .get("messages")
         .and_then(serde_json::Value::as_array)
         .ok_or_else(|| anyhow!("transcript response omitted transcript.messages"))?;
 
-    Ok(messages
+    let turns = messages
         .iter()
         .filter_map(|message| {
             let role = match message.get("role").and_then(serde_json::Value::as_str)? {
@@ -446,9 +499,55 @@ fn transcript_turns(value: &serde_json::Value) -> Result<Vec<TranscriptTurn>> {
             Some(TranscriptTurn {
                 role,
                 content: content.to_string(),
+                timestamp_ms: message.get("timestamp").and_then(serde_json::Value::as_i64),
             })
         })
-        .collect())
+        .collect();
+
+    Ok(MissionTranscript {
+        turns,
+        status: transcript
+            .get("status")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_string),
+        started_at_ms: transcript
+            .get("started_at")
+            .and_then(serde_json::Value::as_i64),
+        ended_at_ms: transcript
+            .get("ended_at")
+            .and_then(serde_json::Value::as_i64),
+        error: transcript
+            .get("error")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_string),
+    })
+}
+
+impl MissionTranscript {
+    pub fn terminal(&self) -> Option<TranscriptTerminal> {
+        let status = self.status.as_deref()?;
+        runtime_status_is_terminal(status).then(|| TranscriptTerminal {
+            status: status.to_string(),
+            ended_at_ms: self.ended_at_ms,
+            error: self.error.clone(),
+        })
+    }
+}
+
+/// Extract terminal truth from a transcript SSE snapshot/end envelope. The
+/// route nests the durable row under `body.entry`; older emitters may provide
+/// the row flat, so accept both without upgrading non-terminal states.
+pub fn transcript_terminal_from_stream(body: &serde_json::Value) -> Option<TranscriptTerminal> {
+    let entry = body.get("entry").unwrap_or(body);
+    let status = entry.get("status").and_then(serde_json::Value::as_str)?;
+    runtime_status_is_terminal(status).then(|| TranscriptTerminal {
+        status: status.to_string(),
+        ended_at_ms: entry.get("ended_at").and_then(serde_json::Value::as_i64),
+        error: entry
+            .get("error")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_string),
+    })
 }
 
 fn build_work_intent_envelope(
@@ -904,7 +1003,7 @@ impl DaemonClient {
     /// Restore the operator/assistant dialogue for a durable mission. The
     /// daemon's transcript route is the authority; the console does not infer a
     /// prior model reply from a receipt, output artifact, or terminal state.
-    pub async fn transcript_turns(&self, transcript_id: &str) -> Result<Vec<TranscriptTurn>> {
+    pub async fn mission_transcript(&self, transcript_id: &str) -> Result<MissionTranscript> {
         let url = transcript_url(&self.base, transcript_id)?;
         let response = self
             .http
@@ -912,12 +1011,12 @@ impl DaemonClient {
             .send()
             .await
             .context("GET /transcripts/:id")?;
-        let response = ensure_success(response, "transcript_turns").await?;
+        let response = ensure_success(response, "mission_transcript").await?;
         let value: serde_json::Value = response
             .json()
             .await
             .context("GET /transcripts/:id response")?;
-        transcript_turns(&value)
+        mission_transcript(&value)
     }
 
     /// Expose the underlying reqwest client so panes can issue arbitrary requests
@@ -1792,14 +1891,18 @@ mod tests {
 
     #[test]
     fn transcript_projection_restores_only_exact_human_language_turns() {
-        let turns = transcript_turns(&serde_json::json!({
+        let transcript = mission_transcript(&serde_json::json!({
             "success": true,
             "transcript": {
+                "status": "killed",
+                "started_at": 1_788_589_617_916_i64,
+                "ended_at": 1_788_590_537_856_i64,
+                "error": "Killed by spawner",
                 "messages": [
-                    {"role": "user", "content": "Keep this exact prompt.\nSecond line."},
+                    {"role": "user", "content": "Keep this exact prompt.\nSecond line.", "timestamp": 1_788_589_617_916_i64},
                     {"role": "tool", "content": "[codex:error]"},
                     {"role": "thinking", "content": "private scratch"},
-                    {"role": "assistant", "content": "Exact answer."},
+                    {"role": "assistant", "content": "Exact answer.", "timestamp": 1_788_589_620_000_i64},
                     {"role": "assistant", "content": "   "}
                 ]
             }
@@ -1807,31 +1910,66 @@ mod tests {
         .expect("transcript response parses");
 
         assert_eq!(
-            turns,
+            transcript.turns,
             vec![
                 TranscriptTurn {
                     role: TranscriptTurnRole::Operator,
                     content: "Keep this exact prompt.\nSecond line.".into(),
+                    timestamp_ms: Some(1_788_589_617_916),
                 },
                 TranscriptTurn {
                     role: TranscriptTurnRole::Assistant,
                     content: "Exact answer.".into(),
+                    timestamp_ms: Some(1_788_589_620_000),
                 },
             ]
+        );
+        assert_eq!(transcript.started_at_ms, Some(1_788_589_617_916));
+        assert_eq!(
+            transcript.terminal(),
+            Some(TranscriptTerminal {
+                status: "killed".into(),
+                ended_at_ms: Some(1_788_590_537_856),
+                error: Some("Killed by spawner".into()),
+            })
         );
     }
 
     #[test]
     fn transcript_projection_fails_loudly_when_messages_are_missing() {
-        let error = transcript_turns(&serde_json::json!({"success": true}))
+        let error = mission_transcript(&serde_json::json!({"success": true}))
             .expect_err("missing durable transcript rows must not look empty");
-        assert!(error.to_string().contains("omitted transcript.messages"));
+        assert!(error.to_string().contains("omitted transcript"));
+    }
+
+    #[test]
+    fn stream_terminal_parser_recognizes_killed_rows_and_ignores_running_rows() {
+        let killed = transcript_terminal_from_stream(&serde_json::json!({
+            "type": "end",
+            "entry": {
+                "status": "killed",
+                "ended_at": 1_788_590_537_856_i64,
+                "error": "Killed by spawner"
+            }
+        }));
+        assert_eq!(
+            killed,
+            Some(TranscriptTerminal {
+                status: "killed".into(),
+                ended_at_ms: Some(1_788_590_537_856),
+                error: Some("Killed by spawner".into()),
+            })
+        );
+        assert!(transcript_terminal_from_stream(&serde_json::json!({
+            "entry": {"status": "in_progress"}
+        }))
+        .is_none());
     }
 
     #[test]
     fn transcript_url_has_one_route_separator_and_encodes_the_id() {
-        let url = transcript_url("http://127.0.0.1:43129/", "tx/one two")
-            .expect("daemon transcript URL");
+        let url =
+            transcript_url("http://127.0.0.1:43129/", "tx/one two").expect("daemon transcript URL");
         assert_eq!(
             url.as_str(),
             "http://127.0.0.1:43129/transcripts/tx%2Fone%20two"
@@ -1883,6 +2021,24 @@ mod tests {
                 .intent_id(),
             "work_intent_compat_dispatch_old"
         );
+    }
+
+    #[test]
+    fn work_snapshot_preserves_daemon_execution_time_without_inventing_now() {
+        let snapshot = WorkSnapshot {
+            intent: serde_json::json!({
+                "intentId": "work_intent_compat_dispatch_old",
+                "goal": {"text": "legacy mission"}
+            }),
+            plan: None,
+            execution: Some(serde_json::json!({
+                "dispatchId": "old",
+                "state": "salvage",
+                "createdAt": 1_788_229_847_128_i64
+            })),
+        };
+
+        assert_eq!(snapshot.execution_created_at_ms(), Some(1_788_229_847_128));
     }
 
     // ── Stream envelope parsing ───────────────────────────────────────────────
