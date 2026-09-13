@@ -545,6 +545,8 @@ CREATE INDEX IF NOT EXISTS mercy_incidents_opened_idx ON mercy_incidents (opened
 CREATE TABLE IF NOT EXISTS operator_interruptions (
   id               TEXT    PRIMARY KEY,          -- 'oi_' || randomHex(8)
   user_id          TEXT    NOT NULL,             -- operator scope (users.id)
+  request_key      TEXT,                         -- exact retry identity (per operator)
+  request_fingerprint TEXT,                      -- canonical semantic ask fingerprint
   installation_id  INTEGER,                      -- optional GitHub App installation scope
   source_agent     TEXT    NOT NULL,             -- e.g. 'fleet-executor/purser'
   source_session   TEXT,                         -- run/session id at the source
@@ -568,6 +570,9 @@ CREATE INDEX IF NOT EXISTS interruptions_user_idx
   ON operator_interruptions (user_id, state);
 CREATE INDEX IF NOT EXISTS interruptions_source_idx
   ON operator_interruptions (user_id, source_agent, created_at);
+CREATE UNIQUE INDEX IF NOT EXISTS interruptions_request_key_idx
+  ON operator_interruptions (user_id, request_key)
+  WHERE request_key IS NOT NULL;
 
 -- Per-operator page-budget ledger: one row per DELIVERED page. Pruned at 24h.
 CREATE TABLE IF NOT EXISTS interruption_pages (

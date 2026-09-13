@@ -131,7 +131,7 @@ import {
 import { fleetPrBodyTrailers } from './fleet-pr-body.js';
 import { repairContractOutput, REPAIR_ESCALATION_MODEL } from './repair.js';
 import { emitSquidEvent } from './squid-events.js';
-import { emitInterruption } from './interruptions.js';
+import { emitInterruption, InterruptionDeliveryError } from './interruptions.js';
 import {
   FleetAiCircuit,
   FleetAiDependencyError,
@@ -2730,10 +2730,11 @@ export async function runPurser(
         degradedReason =
           'the GitHub App lacks the `contents: write` permission, so I could ' +
           'not push the test branch or open the stacked PR.';
-        // HITL: only an operator can grant the permission — escalate a real
-        // human ask (fire-and-forget; never blocks or changes this run).
+        // HITL: only an operator can grant the permission. Await Relay's exact
+        // row so the transcript never claims a human was paged on an ambiguous
+        // or failed transport.
         await assertCurrentHead(`before pd-${ship.name} GitHub-permission HITL page`);
-        emitInterruption(env, {
+        const interruption = await emitInterruption(env, {
           title: `pd-${ship.name}: GitHub App lacks contents:write on ${prCtx.owner}/${prCtx.repo}`,
           body:
             `While reviewing PR #${prCtx.prNumber} of ${prCtx.owner}/${prCtx.repo}, ` +
@@ -2746,6 +2747,12 @@ export async function runPurser(
           ...(runId ? { sourceSession: runId } : {}),
           ...(prCtx.installationId ? { installationId: prCtx.installationId } : {}),
         });
+        await transcript.step(
+          'operator-interruption-delivered',
+          ship.name,
+          `pd-${ship.name}: operator interruption delivered as ${interruption.interruptionId}`,
+          interruption,
+        );
       } else {
         degradedReason = `stacking failed (${String(err).slice(0, 200)}).`;
       }
@@ -2831,10 +2838,11 @@ export async function runPurser(
       verdict = 'BLOCK';
       if (ship.blockWithoutSandbox) {
         // HITL: the operator chose fail-closed and the sandbox binding is
-        // absent — this PR is now BLOCKED pending a human. Escalate a real ask
-        // (fire-and-forget; the BLOCK verdict above stands regardless).
+        // absent — this PR is now BLOCKED pending a human. The BLOCK verdict
+        // stands, and Relay must return the exact durable ask before this run
+        // claims that the operator was notified.
         await assertCurrentHead(`before pd-${ship.name} sandbox-absence HITL page`);
-        emitInterruption(env, {
+        const interruption = await emitInterruption(env, {
           title: `pd-${ship.name}: BLOCK on ${prCtx.owner}/${prCtx.repo}#${prCtx.prNumber} — sandbox absent, blockWithoutSandbox set`,
           body:
             `pd-${ship.name} authored adversarial tests for PR #${prCtx.prNumber} of ` +
@@ -2848,6 +2856,12 @@ export async function runPurser(
           ...(runId ? { sourceSession: runId } : {}),
           ...(prCtx.installationId ? { installationId: prCtx.installationId } : {}),
         });
+        await transcript.step(
+          'operator-interruption-delivered',
+          ship.name,
+          `pd-${ship.name}: operator interruption delivered as ${interruption.interruptionId}`,
+          interruption,
+        );
       }
     }
     return {
@@ -2937,6 +2951,26 @@ export async function runPurser(
             }
           : {}),
       };
+    }
+    if (err instanceof InterruptionDeliveryError) {
+      const failureReason = `operator interruption delivery failed: ${err.message}`;
+      await transcript.step(
+        'operator-interruption-failed',
+        ship.name,
+        `pd-${ship.name}: operator interruption delivery FAILED — ${err.code}`,
+        {
+          code: err.code,
+          status: err.status,
+          error: err.message,
+        },
+      );
+      await transcript.step(
+        'ship-verdict',
+        ship.name,
+        `pd-${ship.name}: ${ship.blocking ? 'BLOCK' : 'PASS'} (errored — operator notice unproven)`,
+        { errored: true, operatorNoticeUnproven: true },
+      );
+      return { ...brokenShip, failureReason };
     }
     // An unexpected crash is the definition of a broken ship: it surfaces as
     // an errored result under the ship's real blocking flag, which fails the

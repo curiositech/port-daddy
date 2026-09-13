@@ -98,7 +98,6 @@ function mkCtx(over: Partial<PRContext> = {}): PRContext {
     diffBytes: 0,
     diffTruncated: false,
     filesTruncated: false,
-    diffSource: 'raw',
     ...over,
   };
 }
@@ -1217,7 +1216,11 @@ describe('runPurser — stacking', () => {
 
     const result = await runPurser(
       mkShip({ blocking: true, blockWithoutSandbox: true }),
-      mkCtx(), makeEnv({ AI: ai }), 'tok', rec.transcript, freshMetrics(),
+      mkCtx(), makeEnv({
+        AI: ai,
+        INTERRUPTIONS_URL: 'https://relay.example/v1/interruptions',
+        INTERRUPTIONS_TOKEN: 'pdu_test',
+      }), 'tok', rec.transcript, freshMetrics(),
     );
 
     // No fabricated sandbox verdict — but the fleet's machinery could not do
@@ -2473,6 +2476,8 @@ describe('runPurser — verdict matrix (sandbox pass/fail/absent × blocking fla
     const rec = recorder();
     const env = makeEnv({
       AI: ai,
+      INTERRUPTIONS_URL: 'https://relay.example/v1/interruptions',
+      INTERRUPTIONS_TOKEN: 'pdu_test',
       ...(opts.sandbox === 'absent'
         ? {}
         : {
@@ -2710,7 +2715,7 @@ describe('runPurser — HITL interruption escalation (src/interruptions.ts wirin
   const interruptionPosts = () =>
     state.records.filter(r => r.method === 'POST' && r.url === HITL_URL);
 
-  it('403 on stacking escalates a HIGH interruption naming contents:write (fire-and-forget)', async () => {
+  it('403 on stacking awaits a HIGH interruption receipt naming contents:write', async () => {
     state.failGitWrites403 = true;
     const { ai } = seqAi([STEELMAN_JSON, TESTS_JSON]);
     const rec = recorder();
@@ -2719,11 +2724,8 @@ describe('runPurser — HITL interruption escalation (src/interruptions.ts wirin
       mkShip(), mkCtx(), makeEnv({ AI: ai, ...hitlEnv }), 'tok', rec.transcript, freshMetrics(),
       '', 'run:d-1', false,
     );
-    // The escalation fetch is fire-and-forget (never awaited) — let it settle.
-    await new Promise(r => setTimeout(r, 0));
-
-    // The 403 itself is a broken-ship result (errored ⇒ the run fails); the
-    // escalation POST is still fire-and-forget and never throws into the run.
+    // The 403 itself is a broken-ship result (errored => the run fails), and
+    // the operator page is backed by an exact Relay receipt in the transcript.
     expect(result.errored).toBe(true);
     const posts = interruptionPosts();
     expect(posts).toHaveLength(1);
@@ -2735,6 +2737,11 @@ describe('runPurser — HITL interruption escalation (src/interruptions.ts wirin
     expect(body.body).toContain('contents: write');
     expect(body.source_agent).toBe('fleet-executor/purser');
     expect(body.source_session).toBe('run:d-1');
+    expect(body).toHaveProperty('request_key', expect.stringMatching(/^pd_oi_[a-f0-9]{64}$/));
+    expect(rec.steps).toContainEqual(expect.objectContaining({
+      kind: 'operator-interruption-delivered',
+      detail: expect.objectContaining({ durable: true, interruptionId: 'oi_test_receipt' }),
+    }));
   });
 
   it('sandbox ABSENT + blockWithoutSandbox ⇒ CRITICAL interruption; the BLOCK verdict stands', async () => {
@@ -2745,8 +2752,6 @@ describe('runPurser — HITL interruption escalation (src/interruptions.ts wirin
       mkShip({ blocking: true, blockWithoutSandbox: true }),
       mkCtx(), makeEnv({ AI: ai, ...hitlEnv }), 'tok', rec.transcript, freshMetrics(),
     );
-    await new Promise(r => setTimeout(r, 0));
-
     expect(result).toMatchObject({ blocking: true, verdict: 'BLOCK' });
     const posts = interruptionPosts();
     expect(posts).toHaveLength(1);
@@ -2754,14 +2759,31 @@ describe('runPurser — HITL interruption escalation (src/interruptions.ts wirin
     expect(body.urgency).toBe('critical');
     expect(body.title).toContain('blockWithoutSandbox');
     expect(body.body).toContain('blockWithoutSandbox');
+    expect(rec.steps).toContainEqual(expect.objectContaining({
+      kind: 'operator-interruption-delivered',
+      detail: expect.objectContaining({ durable: true, interruptionId: 'oi_test_receipt' }),
+    }));
   });
 
-  it('feature-gated: without INTERRUPTIONS_URL/TOKEN no escalation fetch ever happens', async () => {
+  it('fails loudly when a required escalation has no configured durable transport', async () => {
     state.failGitWrites403 = true;
     const { ai } = seqAi([STEELMAN_JSON, TESTS_JSON]);
     const rec = recorder();
-    await runPurser(mkShip(), mkCtx(), makeEnv({ AI: ai }), 'tok', rec.transcript, freshMetrics());
-    await new Promise(r => setTimeout(r, 0));
+    const result = await runPurser(
+      mkShip(), mkCtx(), makeEnv({
+        AI: ai,
+        INTERRUPTIONS_URL: undefined,
+        INTERRUPTIONS_TOKEN: undefined,
+      }), 'tok', rec.transcript, freshMetrics(),
+    );
+    expect(result).toMatchObject({
+      errored: true,
+      failureReason: expect.stringContaining('Operator interruption transport is not configured'),
+    });
+    expect(rec.steps).toContainEqual(expect.objectContaining({
+      kind: 'operator-interruption-failed',
+      detail: expect.objectContaining({ code: 'INTERRUPTION_TRANSPORT_UNCONFIGURED' }),
+    }));
     expect(interruptionPosts()).toHaveLength(0);
   });
 

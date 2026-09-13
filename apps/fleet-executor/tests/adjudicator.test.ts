@@ -111,7 +111,11 @@ describe('countOtherBrokenPrs', () => {
 
 describe('adjudicateBrokenShips', () => {
   const optsFor = (d1: ReturnType<typeof memoryD1> | null, rec: ReturnType<typeof recorder>) => ({
-    env: makeEnv(d1 ? { DB: d1.db } : {}),
+    env: makeEnv({
+      ...(d1 ? { DB: d1.db } : {}),
+      INTERRUPTIONS_URL: 'https://relay.example/v1/interruptions',
+      INTERRUPTIONS_TOKEN: 'pdu_test',
+    }),
     owner: 'erichowens',
     repo: 'port-daddy',
     prNumber: 7,
@@ -147,6 +151,10 @@ describe('adjudicateBrokenShips', () => {
     expect(state.issuesCreated[0].title).toContain(brokenShipIssueTitle('lookout'));
     expect(state.issuesCreated[0].labels).toContain('fleet:broken-ship');
     expect(rec.steps.find(s => s.kind === 'ship-adjudicated')!.title).toContain('FLEET-WIDE');
+    expect(rec.steps).toContainEqual(expect.objectContaining({
+      kind: 'operator-interruption-delivered',
+      detail: expect.objectContaining({ durable: true, interruptionId: 'oi_test_receipt' }),
+    }));
     // Neutral — visible, non-blocking, never success.
     expect(aggregateConclusion(results)).toBe('neutral');
   });

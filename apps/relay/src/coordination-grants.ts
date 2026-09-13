@@ -4,10 +4,14 @@ import { isCoordinationScopeId } from '../../../lib/coordination-ledger.js';
 import type {
   FleetCoordinationGrant,
   FleetCoordinationGrantRequest,
+  FleetInterruptionGrant,
+  FleetInterruptionGrantRequest,
 } from '../../../lib/coordination-grant-contract.js';
 import {
   COORDINATION_SYNC_VERB,
+  INTERRUPTION_CREATE_VERB,
   mintCoordinationMacaroon,
+  mintInterruptionMacaroon,
 } from './coordination-auth.js';
 import type { Env } from './types.js';
 
@@ -18,6 +22,8 @@ export const FLEET_COORDINATION_GRANT_MAX_TTL_SECONDS = 60 * 60;
 export type {
   FleetCoordinationGrant,
   FleetCoordinationGrantRequest,
+  FleetInterruptionGrant,
+  FleetInterruptionGrantRequest,
 } from '../../../lib/coordination-grant-contract.js';
 
 /**
@@ -80,6 +86,65 @@ export function mintFleetCoordinationGrant(
     project,
     actorId,
     verb: COORDINATION_SYNC_VERB,
+    expiresAt: grant.expiresAt,
+  };
+}
+
+/**
+ * Resolve the configured operator to one durable Relay tenant and mint a
+ * create-only capability for one exact Fleet ask. The service binding is the
+ * trust boundary: no public HTTP caller can invoke this issuer.
+ */
+export async function mintFleetInterruptionGrant(
+  env: Pick<Env, 'COORDINATION_MACAROON_ROOT_KEY_HEX' | 'DB'>,
+  input: unknown,
+  nowMs = Date.now(),
+): Promise<FleetInterruptionGrant> {
+  if (!env.COORDINATION_MACAROON_ROOT_KEY_HEX) {
+    throw new Error('interruption macaroon gate is not configured');
+  }
+  if (typeof input !== 'object' || input === null || Array.isArray(input)) {
+    throw new Error('interruption grant input must be an object');
+  }
+  const request = input as Record<string, unknown>;
+  if (!Number.isSafeInteger(request.operatorGithubUserId) || Number(request.operatorGithubUserId) <= 0) {
+    throw new Error('invalid interruption operator GitHub user id');
+  }
+  const sourceAgent = typeof request.sourceAgent === 'string' ? request.sourceAgent : '';
+  const sourceSession = typeof request.sourceSession === 'string' ? request.sourceSession : '';
+  const requestKey = typeof request.requestKey === 'string' ? request.requestKey : '';
+  const requestFingerprint = typeof request.requestFingerprint === 'string' ? request.requestFingerprint : '';
+  const ttlSeconds = request.ttlSeconds === undefined ? 60 : Number(request.ttlSeconds);
+  if (!Number.isSafeInteger(ttlSeconds) || ttlSeconds < 10 || ttlSeconds > 300) {
+    throw new Error('interruption grant ttlSeconds must be an integer between 10 and 300');
+  }
+  const users = await env.DB.prepare(
+    'SELECT id FROM users WHERE github_user_id = ? AND deleted_at IS NULL LIMIT 2',
+  ).bind(request.operatorGithubUserId).all<{ id: string }>();
+  if (users.results.length !== 1) {
+    throw new Error('configured Fleet operator does not resolve to exactly one Relay account');
+  }
+  const userId = users.results[0]!.id;
+  const grant = mintInterruptionMacaroon(
+    env.COORDINATION_MACAROON_ROOT_KEY_HEX,
+    {
+      verb: INTERRUPTION_CREATE_VERB,
+      userId,
+      sourceAgent,
+      sourceSession,
+      requestKey,
+      requestFingerprint,
+    },
+    { nowMs, ttlMs: ttlSeconds * 1000 },
+  );
+  return {
+    macaroon: grant.token,
+    userId,
+    sourceAgent,
+    sourceSession,
+    requestKey,
+    requestFingerprint,
+    verb: INTERRUPTION_CREATE_VERB,
     expiresAt: grant.expiresAt,
   };
 }

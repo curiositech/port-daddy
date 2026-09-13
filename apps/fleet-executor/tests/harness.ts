@@ -253,6 +253,17 @@ export function installGitHubFetch(state: GitHubState): void {
     }
     state.records.push({ method, url, body });
 
+    // --- durable operator interruption receipt ---
+    if (/\/v1\/interruptions$/.test(url) && method === 'POST') {
+      return json({
+        code: 'OK',
+        error: null,
+        replayed: false,
+        collapsed: false,
+        interruption: { id: 'oi_test_receipt' },
+      }, 201);
+    }
+
     // --- App self-identity (resolveFleetAppLogin) ---
     if (url === 'https://api.github.com/app' && method === 'GET') {
       if (!state.appSlug) return text('not found', 404);
@@ -973,6 +984,11 @@ export function makeEnv(over: Partial<ExecutorEnv> = {}): ExecutorEnv {
     // token-cache test that does mint uses the fake fetch path too.
     GITHUB_APP_PRIVATE_KEY: 'unused-in-faked-fetch',
     DEFAULT_BRANCH: 'main',
+    // The shared fetch fixture returns an exact durable receipt for this URL.
+    // Runtime tests therefore exercise the same fail-closed notification path
+    // as production instead of silently omitting its required transport.
+    INTERRUPTIONS_URL: 'https://relay.example/v1/interruptions',
+    INTERRUPTIONS_TOKEN: 'pdu_test',
     FLEET_TOKENS: memoryKV(),
     CONTROL_KV: memoryKV(),
     DB: memoryD1().db,

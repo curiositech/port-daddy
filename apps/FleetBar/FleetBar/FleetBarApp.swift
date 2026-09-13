@@ -68,7 +68,7 @@ struct FleetBarApp: App {
                 icon: store.menuBarIcon,
                 color: store.menuBarColor,
                 interruptionCount: interruptionsStore.openCount,
-                interruptionIsCritical: interruptionsStore.openCritical != nil
+                interruptionIsLoud: interruptionsStore.hasLoudOpenAsk
             )
         }
         .menuBarExtraStyle(.window)
@@ -111,14 +111,24 @@ struct FleetMenuBarLabel: View {
 
     /// Open operator-interruption count (nil = unknowable: signed out or a
     /// failed poll — the badge stays hidden rather than claiming zero).
-    /// Non-zero renders a count badge; critical turns it red (HITL §4.2).
+    /// Non-zero renders a count badge; high or critical turns it red.
     var interruptionCount: Int? = nil
-    var interruptionIsCritical: Bool = false
+    var interruptionIsLoud: Bool = false
 
     /// Per-channel accent so a dev FleetBar is a visibly different colour in the
     /// menu bar; `nil` on production, where we keep the daemon-state colour.
     private var channelAccent: Color? {
         AppChannel.current.accentColorHex.flatMap { Fleet.Color.hex($0) }
+    }
+
+    private var accessibilityDescription: String {
+        var parts = ["Fleet"]
+        if let interruptionCount, interruptionCount > 0 {
+            parts.append("\(interruptionCount) open operator interruptions")
+            if interruptionIsLoud { parts.append("includes high priority") }
+        }
+        if let devBadge { parts.append("development build \(devBadge)") }
+        return parts.joined(separator: ", ")
     }
 
     var body: some View {
@@ -130,7 +140,7 @@ struct FleetMenuBarLabel: View {
             if let interruptionCount, interruptionCount > 0 {
                 Text("\(interruptionCount)")
                     .font(.system(size: 11, weight: .heavy))
-                    .foregroundStyle(interruptionIsCritical ? Color.red : tint)
+                    .foregroundStyle(interruptionIsLoud ? Color.red : tint)
                     .accessibilityLabel("\(interruptionCount) open operator interruptions")
             }
             if let devBadge {
@@ -143,7 +153,7 @@ struct FleetMenuBarLabel: View {
                     .accessibilityLabel("development build \(devBadge)")
             }
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(devBadge == nil ? "Fleet" : "Fleet — development build")
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityDescription)
     }
 }
