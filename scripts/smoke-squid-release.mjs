@@ -46,6 +46,12 @@ function expectCount(path, needle, count) {
   }
 }
 
+function git(cwd, ...args) {
+  const result = spawnSync('git', ['-C', cwd, ...args], { encoding: 'utf8' });
+  if (result.status !== 0) fail(`git ${args.join(' ')} failed: ${result.stderr || result.stdout}`);
+  return result.stdout.trim();
+}
+
 try {
   if (!existsSync(pd)) fail(`compiled pd not found: ${pd}`);
   // Single-supervisor (3.28) tarball layout: tentacles live ONLY under bin/
@@ -65,6 +71,13 @@ try {
   }
 
   mkdirSync(join(project, '.portdaddy'), { recursive: true });
+  writeFileSync(join(project, '.portdaddy', 'project.json'), '{}\n');
+  writeFileSync(join(project, 'README.md'), 'release smoke\n');
+  git(project, 'init', '--initial-branch=main');
+  git(project, 'config', 'user.email', 'squid-release@example.invalid');
+  git(project, 'config', 'user.name', 'Squid Release Smoke');
+  git(project, 'add', '.portdaddy/project.json', 'README.md');
+  git(project, 'commit', '-m', 'release smoke fixture');
   mkdirSync(fakeBin, { recursive: true });
   mkdirSync(home, { recursive: true });
   for (const name of ['claude', 'codex', 'gemini', 'agy']) {
@@ -93,19 +106,21 @@ try {
   if (!arm.stdout.includes('Giant Squid harness ARMED')) fail('arm output did not claim the fully armed state');
   if (!arm.stdout.includes('PORT DADDY IS ADDING VALUE OUTSIDE THE CONVERSATION')) fail('arm output omitted the non-diegetic value card');
 
-  const claudeConfig = join(project, '.claude', 'settings.json');
-  const geminiConfig = join(project, '.gemini', 'settings.json');
+  const claudeProjectConfig = join(project, '.claude', 'settings.json');
+  const claudeConfig = join(home, '.claude', 'settings.json');
+  const geminiConfig = join(home, '.gemini', 'settings.json');
   const codexConfig = join(home, '.codex', 'config.toml');
   const agyConfig = join(home, '.gemini', 'hooks.json');
 
   expectFile(claudeConfig, 'pd-hook-pre-tool');
   expectFile(claudeConfig, 'pd-hook-precompact');
-  expectFile(join(project, '.claude', 'settings.json'), 'sessionstart-pilot.mjs');
-  expectFile(join(project, '.claude', 'settings.json'), 'pd-statusline');
+  expectFile(claudeProjectConfig, 'sessionstart-pilot.mjs');
+  expectFile(claudeProjectConfig, 'pd-statusline');
   expectFile(join(project, '.claude', 'commands', 'squid.md'), 'pd squid');
   expectFile(geminiConfig, 'pd-hook-pre-tool');
   expectFile(codexConfig, 'Port Daddy Giant Squid Harness tentacles');
   expectFile(agyConfig, 'pd-hook-pre-tool');
+  expectAbsent(claudeProjectConfig, 'PD_HOOK_PROVIDER=claude');
 
   // Configuration is a durable interface; release-asset paths are packaging
   // details. A Homebrew upgrade may delete the current Cellar version, so every
@@ -220,20 +235,29 @@ try {
     fail('compiled debug status dropped the newest actual/expected timestamps');
   }
 
-  // Prove the staged user-level gate is scoped to the exact armed root. A
-  // sibling Port Daddy project must stay inert even while one exact daemon
+  // Prove the staged user-level gate is scoped to the local repository family.
+  // A linked worktree created after arm inherits without config mutation, while
+  // an unrelated same-remote clone remains inert even while one exact daemon
   // generation is ready and the underlying prompt tentacle has context it
   // could emit. This fixture is the release artifact's complete filesystem
   // lease contract: PID + matching readiness marker + fresh heartbeat.
-  const sibling = join(root, 'sibling-project');
-  const exactRootMarker = 'exact-root-only-release-smoke';
-  mkdirSync(join(sibling, '.portdaddy'), { recursive: true });
+  const future = join(root, 'future-worktree');
+  const sibling = join(root, 'same-remote-unrelated-clone');
+  const familyMarker = 'repository-family-release-smoke';
+  const configBytesBeforeFuture = new Map(
+    [claudeConfig, geminiConfig, codexConfig, agyConfig].map((path) => [path, readFileSync(path, 'utf8')]),
+  );
+  git(project, 'worktree', 'add', '-b', 'future-release-smoke', future);
+  git(root, 'clone', project, sibling);
+  for (const [path, bytes] of configBytesBeforeFuture) {
+    if (readFileSync(path, 'utf8') !== bytes) fail(`future worktree mutated shared provider config: ${path}`);
+  }
   writeFileSync(join(pdHome, 'daemon.pid'), `${process.pid}\n`);
   writeFileSync(join(pdHome, 'daemon.ready'), `${process.pid}\n`);
   writeFileSync(join(pdHome, 'heartbeat'), '{}\n');
   writeFileSync(
     join(pdHome, 'matrix.env'),
-    `PD_ALERT_RELEASE_SMOKE="${exactRootMarker} | ts:${new Date().toISOString()}"\n`,
+    `PD_ALERT_RELEASE_SMOKE="${familyMarker} | ts:${new Date().toISOString()}"\n`,
   );
 
   const runPromptGate = (cwd) => spawnSync(join(pdHome, 'bin', 'pd-hook-prompt'), [], {
@@ -244,13 +268,69 @@ try {
     timeout: 30_000,
   });
   const armedProbe = runPromptGate(project);
-  if (armedProbe.status !== 0 || !armedProbe.stdout.includes(exactRootMarker)) {
+  if (armedProbe.status !== 0 || !armedProbe.stdout.includes(familyMarker)) {
     fail(`armed root did not activate the staged prompt gate: ${armedProbe.stderr || armedProbe.stdout}`);
+  }
+  const findPromptCommand = (value) => {
+    if (typeof value === 'string') return value.includes('pd-hook-prompt') ? value : null;
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const found = findPromptCommand(item);
+        if (found) return found;
+      }
+    } else if (value && typeof value === 'object') {
+      for (const item of Object.values(value)) {
+        const found = findPromptCommand(item);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+  for (const [provider, configPath] of [
+    ['claude', claudeConfig],
+    ['codex', codexConfig],
+    ['gemini', geminiConfig],
+    ['agy', agyConfig],
+  ]) {
+    const raw = readFileSync(configPath, 'utf8');
+    const command = provider === 'codex'
+      ? raw.match(/command = "([^"]*pd-hook-prompt[^"]*)"/)?.[1]
+      : findPromptCommand(JSON.parse(raw));
+    if (!command?.includes(`PD_HOOK_PROVIDER=${provider}`)) fail(`${provider} did not install its exact user prompt command`);
+    const inherited = spawnSync('/bin/sh', ['-c', command], {
+      cwd: future,
+      env,
+      input: JSON.stringify({ cwd: future }),
+      encoding: 'utf8',
+      timeout: 30_000,
+    });
+    if (inherited.status !== 0 || !inherited.stdout.includes(familyMarker)) {
+      fail(`${provider} user hook did not activate in a future linked worktree: ${inherited.stderr || inherited.stdout}`);
+    }
   }
   const siblingProbe = runPromptGate(sibling);
   if (siblingProbe.status !== 0 || siblingProbe.stdout.trim() !== '') {
-    fail(`unarmed sibling project crossed the exact-root gate: ${siblingProbe.stderr || siblingProbe.stdout}`);
+    fail(`unrelated same-remote clone crossed the repository-family gate: ${siblingProbe.stderr || siblingProbe.stdout}`);
   }
+
+  const denyFuture = spawnSync(pd, ['squid', 'off', '--this-worktree', '--cwd', future], {
+    cwd: root,
+    env,
+    encoding: 'utf8',
+    timeout: 30_000,
+  });
+  if (denyFuture.status !== 0) fail(`per-worktree deny failed: ${denyFuture.stderr || denyFuture.stdout}`);
+  if (runPromptGate(future).stdout.trim() !== '') fail('per-worktree deny did not make the future worktree inert');
+  if (!runPromptGate(project).stdout.includes(familyMarker)) fail('per-worktree deny affected its repository sibling');
+
+  const rearmFuture = spawnSync(pd, ['squid', 'on', '--cwd', future], {
+    cwd: root,
+    env,
+    encoding: 'utf8',
+    timeout: 30_000,
+  });
+  if (rearmFuture.status !== 0) fail(`re-arm from denied worktree failed: ${rearmFuture.stderr || rearmFuture.stdout}`);
+  if (!runPromptGate(future).stdout.includes(familyMarker)) fail('re-arm did not clear the verified worktree deny');
 
   // Exercise the compiled wrapper's containment contract, not merely its
   // generated text. A missing-runtime-style exit 127 must never leak to the
@@ -295,6 +375,20 @@ try {
   const secondNotice = runPromptGate(project);
   if (!firstNotice.stdout.includes('PD SAFE MODE') || secondNotice.stdout.includes('PD SAFE MODE')) {
     fail('compiled wrapper did not emit exactly one turn-level remediation notice');
+  }
+
+  const familyOff = spawnSync(pd, ['squid', 'off', '--cwd', project], {
+    cwd: root,
+    env,
+    encoding: 'utf8',
+    timeout: 30_000,
+  });
+  if (familyOff.status !== 0) fail(`repository-family off failed: ${familyOff.stderr || familyOff.stdout}`);
+  if (runPromptGate(project).stdout.trim() !== '' || runPromptGate(future).stdout.trim() !== '') {
+    fail('repository-family off did not revoke all linked worktrees');
+  }
+  for (const configPath of [claudeConfig, geminiConfig, codexConfig, agyConfig]) {
+    if (!existsSync(configPath)) fail(`family off removed dormant shared provider config: ${configPath}`);
   }
 
   process.stdout.write(

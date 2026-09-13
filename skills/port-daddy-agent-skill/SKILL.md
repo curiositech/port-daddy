@@ -73,9 +73,10 @@ have to.
 ## Giant Squid harness
 
 For a Port Daddy project, `pd squid on` is the one full arm switch. It stages
-the local lifecycle tentacles, wires every detected interactive CLI in its real
-scope (Claude/Gemini project config; Codex/agy daemon-gated user config), adds
-the `◆ PD` statusline, installs Pilot SessionStart steering, and adds `/squid`.
+the local lifecycle tentacles, installs dormant user-level hook blocks for all
+four supported interactive CLIs (Claude, Codex, Gemini, and agy), publishes a
+private local repository-family verifier, adds the `◆ PD` statusline, installs
+Pilot SessionStart steering, and adds `/squid` in the current worktree.
 Do not use or recommend the removed `pd squid hooks` fork; `pd hooks install`
 is the narrower hook-only repair surface.
 
@@ -84,9 +85,16 @@ wiring plus a fresh daemon heartbeat and an exact `daemon.ready` → `daemon.pid
 generation match. `READY` means the wiring is complete but the daemon is down
 or still behind its boot checks; `PARTIAL` and `DEGRADED` require repair. Use
 `--json` when another surface needs the same truth and `pd squid tap` to inspect
-the exact bounded next-turn envelope. User-level Codex/agy entries do not make
-hooks global: the wrapper requires the exact project root in the arm registry.
-`pd squid off` removes that root while preserving other projects.
+the exact bounded next-turn envelope. User-level provider entries do not make
+hooks global: the wrapper verifies a local repository-family record bound to
+filesystem authority before it admits a hook. Existing and future linked
+worktrees inherit hook activation automatically; an unrelated clone of the
+same remote does not. Only hook activation inherits, never sessions, claims,
+messages, or repository/harbor data authority. Use `pd squid off
+--this-worktree` for a sensitive worktree, default `pd squid off` to revoke the
+whole local family, and `pd hooks uninstall` only for explicit global cleanup
+after every family is off. Cursor, Cline, and Aider remain unsupported
+interactive-hook adapters; do not claim their MCP support is hook proof.
 
 Do not infer hook readiness from the Bosun heartbeat alone. The daemon starts
 that heartbeat before its database-integrity gate so its supervisor will not

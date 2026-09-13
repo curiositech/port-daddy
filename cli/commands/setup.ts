@@ -17,7 +17,8 @@ import { handleDaemon } from './daemon.js';
 import { handleGuard } from './guard.js';
 import { handleInit } from './init.js';
 import { handleMcpInstall } from './mcp-install.js';
-import { silentHooksInstall, unregisterSquidProject } from './hooks-install.js';
+import { silentHooksInstall } from './hooks-install.js';
+import { disarmSquidRepositoryFamily } from '../../lib/squid/repository-family-authority.js';
 import {
   ensureGeminiPortDaddyExtension,
   formatSkillSyncSummary,
@@ -477,7 +478,7 @@ async function installProjectHarness(projectDir: string | null, options: Record<
       if (!slash.ok) throw new Error(`/squid command was not installed: ${slash.reason}`);
       ui.success('◆ PD identity, Pilot steering, and /squid control are visible in new sessions');
     } catch (err) {
-      unregisterSquidProject(projectDir);
+      disarmSquidRepositoryFamily(projectDir);
       ok = false;
       ui.warn(`Squid hooks could not be installed: ${(err as Error).message}`);
       installRemediation('Squid hooks', 'pd squid on');

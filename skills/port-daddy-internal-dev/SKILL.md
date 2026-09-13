@@ -135,10 +135,23 @@ repo-specific mechanics:
   Declare every required tentacle/identity/steering asset in
   `release-artifacts.json`, stage it in `release.yml`, then run
   `scripts/smoke-squid-release.mjs` against the compiled binary outside the
-  source tree. The proof must cover Claude/Gemini project config, Codex/agy
-  user config, exact-root gating, statusline, Pilot SessionStart, `/squid`, and
-  machine-readable READY/LIVE state. A source-suite pass cannot substitute for
-  this artifact-boundary proof.
+  source tree. The proof must cover all four PD-owned dormant user blocks,
+  preservation and removal of legacy PD-owned project blocks, a worktree
+  created after arming inheriting without registry mutation, an unrelated
+  same-remote clone remaining inert, explicit per-worktree denial, family-wide
+  revocation, statusline, Pilot SessionStart, `/squid`, and machine-readable
+  READY/LIVE state. Execute each Claude/Codex/Gemini/agy installed command path
+  from the future worktree; a provider-neutral wrapper invocation is not four
+  provider receipts. Cursor/Cline/Aider are adapter gaps, not live proof. A
+  source-suite pass cannot substitute for this artifact-boundary proof.
+- **Name the repository-family filesystem guarantee exactly.** The TypeScript
+  authority kernel ships static ancestry traversal rejection plus
+  concurrent-swap detection, not hostile same-uid race containment. A detected
+  swap must error before any verifier/marker/deny/generation record becomes
+  authority; an exact empty directory residue may remain and is manual
+  diagnostic evidence, never automatically deleted. Rust dirfd-relative
+  `openat`/`mkdirat` with no-follow semantics is a hard prerequisite before a
+  future PR claims containment against that interleaving.
 - **Prove native dependencies again after macOS signing.** Hardened runtime can
   change dynamic-loader behavior after an unsigned build smoke has passed. Run
   the native import through the exact signed `dist/pd` release pair, with
