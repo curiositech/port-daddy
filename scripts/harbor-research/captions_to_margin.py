@@ -27,17 +27,17 @@ sit. 38 of the Book's 54 convertible captions are already at their float's top
 and do not move; 16 do.
 
 Moving a caption carries its immediately-following \label with it, so
-\ref/\pageref keep resolving to the float. It changes one thing visibly: a
-standalone chapter now prints these captions above the float rather than below.
-That is the conventional position for a table caption and a defensible one for
-a figure, and it is the whole of the change to the paper twins.
+\ref/\pageref keep resolving to the float.
 
 Both macros are defined in figures/pd-pedagogy.tex (and its byte-identical twin
-under website-v2/public/whitepaper/figures/). Both are exactly \caption and
-\footnote when \ifpdmargincolumn is false, which is every standalone A4 chapter
-build, so the paper twins render unchanged. All three editions (maritime, swiss,
-technical) share one chapter source and one geometry; neither macro branches on
-\pdedition, so one conversion serves all three.
+under website-v2/public/whitepaper/figures/). Both render into the margin
+unconditionally: there is one margin system and one artifact -- the Book --
+that renders it, so neither carries a second in-column form. Each does still
+measure itself against the room left in its own page's column and set itself in
+the text column when it does not fit, which is a per-page fit decision, not a
+per-artifact one. All three editions (maritime, swiss, technical) share one
+chapter source and one geometry; neither macro branches on \pdedition, so one
+conversion serves all three.
 
 THE MEASURED END STATE -- DO NOT "FINISH THE JOB"
 -------------------------------------------------

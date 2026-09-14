@@ -246,7 +246,7 @@ footnote holds. Sidenotes are best when the reader can tell, out of the
 corner of her eye, whether they are worth examining." The asymmetric page
 (wide margin column, narrower text column) this recommends is exactly
 `HANDOFF-TEXTBOOK.md`'s settled trim (7×10 in, 4.5 in column, 1.3 in margin
-column) and exactly what `pd-pedagogy.tex`'s `\ifpdmargincolumn` switches on.
+column) and exactly the page `pd-pedagogy.tex`'s margin apparatus is built for.
 **Steal**: every provenance pointer — a result ID, a citation, a solution page
 number — belongs in the margin, not in a footnote or a parenthetical, so it
 "costs nothing to ignore and nothing to follow."

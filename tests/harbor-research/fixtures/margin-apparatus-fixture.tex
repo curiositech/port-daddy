@@ -22,8 +22,8 @@
 % directory has no figures/, so the preamble's own \input{figures/pd-palette}
 % and the rest fail before this fixture's content is ever read).
 %
-% \pdmargincolumntrue is set by the preamble itself right after it reads
-% pd-pedagogy.tex, so nothing here has to flip it. No \pdchapter call is
+% Every device below places into the margin unconditionally -- there is one
+% margin system and no switch to flip. No \pdchapter call is
 % needed: every device below reads \pdchapterprefix/\pdcurrentchaptercolor
 % through their own fallbacks (pd-textbook-map's "none" prefix, and
 % \pd@chaptercolor's fallback to pdcobalt), the same as any macro that ran

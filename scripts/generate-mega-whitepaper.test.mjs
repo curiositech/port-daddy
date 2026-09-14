@@ -675,10 +675,9 @@ test('rewriteCitations rewrites \\pdcite the same way it rewrites \\cite, preser
 test('cleanStandaloneChrome and stripPaperApparatus leave \\pdcite, \\pdprov, and \\pdprovedon untouched', () => {
   // Unlike \\pdopensolutions (Book-owned, stripped by cleanStandaloneChrome)
   // or the abstract/keywords (stripped by stripPaperApparatus), these three
-  // macros are the SAME call in the Book and a standalone chapter -- the
-  // fold-back to an inline form happens inside the macro itself
-  // (\\ifpdmargincolumn, figures/pd-pedagogy.tex), not by the generator
-  // rewriting the chapter body, so nothing here should touch them.
+  // macros place their own margin notes from inside figures/pd-pedagogy.tex,
+  // not by the generator rewriting the chapter body, so nothing here should
+  // touch them.
   const body = [
     '\\section{A section}',
     'A sentence with a citation~\\pdcite{lampson1974} and a number',
