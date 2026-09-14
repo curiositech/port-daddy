@@ -8128,5 +8128,845 @@
     "Prior adjudication": "Confirms LR-310 and LR-312 (0ac32d8b2) independently rather than re-applying them.",
     "Status": "DONE fa34a3581",
     "Notes": "NO CHANGE NEEDED, verified a second time from primary sources rather than trusted from the prior row. Both bibitems (liuskrzypacz2014 in spawn-to-person.tex, liu2014 in harbor-economy.tex) already read 'Journal of Economic Theory 151:2-29, 2014'; confirmed against the publisher's table of contents for JET vol. 151 (May 2014), the IDEAS/RePEc record, and the authors' posted PDF, which give pages 2-29 and doi 10.1016/j.jet.2013.12.014. Grepped the corpus for 'Review of Economic Studies': the three hits are other works (Mailath-Samuelson, Faure-Grimaud/Laffont/Martimort, and a 1984 entry in a deep-dive reading list), none of them this paper. No mis-citation of Liu-Skrzypacz exists anywhere in the tree."
+  },
+  {
+    "#": "CA-001",
+    "Section / page": "Rigorous mathematical and formal analysis -- Thm 1.8.3",
+    "Kind": "correction",
+    "Item": "Theorem 1.8.3 (Regimentation is controllability) proves its result under complete observability; in real deployments the supervisor cannot observe a foundation model's latent states, so under Lin-Wonham the target language must also be observable with respect to the projection map. The manuscript discusses this informally in Section 1.8.4 but omits observability from the formal statement.",
+    "Targets": "The Single-Writer Kernel",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-001 ACCEPT-IN-PART: add the hypothesis Sigma_o = Sigma to the statement and give Lin-Wonham as a numbered Proposition. Overlaps XS-112 (regime diagram for controllable x witnessed-at-boundary).",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. The statement at `whitepaper/single-writer-kernel.tex:1210-1227` still charges only controllability; the Lin-Wonham condition is prose in the subsubsection *Partial observation: the second boundary* (`:1409-1424`, which cites `lw88`) and there is no numbered Proposition. Reviewer's premise is correct."
+  },
+  {
+    "#": "CA-002",
+    "Section / page": "Rigorous mathematical and formal analysis -- Thm 1.11.2",
+    "Kind": "correction",
+    "Item": "The linearizability claim of Theorem 1.11.2 rests on an unstated assumption: under PRAGMA synchronous = NORMAL a host crash can roll back recent commits while external clients hold stale fencing epochs, and asynchronous event loops can reorder requests before queue entry. Condition the claim on fsync and monotonic host-clock synchronization, or downgrade the externally visible contract to sequential consistency under process failure.",
+    "Targets": "The Single-Writer Kernel",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-002 ACCEPT-IN-PART on the fsync half, REFUTED on the clock and the event loop. Related: HAH-040 `DONE ae0e3c17f`, CPR-025 `DONE b6a363ae0` (which of the four assumptions an out-of-band connection breaks).",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. The theorem's hypotheses at `whitepaper/single-writer-kernel.tex:1929-1935` are still the four it had (single-writer discipline, no `read_uncommitted`, respond only after commit, no out-of-band writer); nothing names the crash-spanning case. `durable linearizability` and `Izraelevitz` appear nowhere in the corpus. The durability half of the reviewer's point is separately and thoroughly handled -- Property `prop:durability` splits I1a from I1b at `:654-668` and OP-10 is \\Open -- but the two sections never meet, which is exactly the gap."
+  },
+  {
+    "#": "CA-003",
+    "Section / page": "Rigorous mathematical and formal analysis -- Thm 3.5.1",
+    "Kind": "correction",
+    "Item": "Theorem 3.5.1 (epsilon-conservation) preserves syntactic accounting integrity while remaining blind to semantic information flow inside approved payloads (the laundering residual t = f(s)). The text must formalize this boundary, clarifying that the theorem guarantees accounting consistency rather than non-interference over covert channels.",
+    "Targets": "The Sealed Harbor",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-003 REFUTED as a gap, ACCEPT as a one-clause edit -- the distinction is made twice, just not inside the theorem's own box.",
+    "Status": "",
+    "Notes": "PARTIAL. The distinction the reviewer asks for is in the chapter: the boundary after the noninterference property says \"It does not cover a worker that launders: computing $t=f(s)$\" (`website-v2/public/whitepaper/sealed-harbor.tex:486-490`) and the leakage-budget section prices the residual (`:872-892`). What is not done is the one clause inside Theorem 3.5.1's own statement, which is what a reader meets first."
+  },
+  {
+    "#": "CA-004",
+    "Section / page": "Rigorous mathematical and formal analysis -- Thm 4.4.1",
+    "Kind": "correction",
+    "Item": "Theorem 4.4.1's Erlang-C specialization boundary assumes stationary Poisson arrivals and strictly exponential service; agent execution durations are heavy-tailed and submissions arrive in correlated bursts, so the specialist queue is exposed to Kingman-type delay explosions. Qualify the theorem with an M/G/1 Pollaczek-Khinchine variance expansion.",
+    "Targets": "The Legible Swarm",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-004 ACCEPT-IN-PART: a boundary paragraph, not a change of statement, plus an Allen-Cunneen heuristic and a Pareto/lognormal sweep of `skills/harbor-results/scripts/b8_specialization.py`.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. `heavy-tailed`, `Pareto`, `Kingman`, `Pollaczek` and `Allen--Cunneen` return no hits anywhere in `whitepaper/legible-swarm.tex`; the queueing setup before the theorem still names Poisson arrivals and exponential service and stops there. Reviewer's premise is correct."
+  },
+  {
+    "#": "CA-005",
+    "Section / page": "Rigorous mathematical and formal analysis -- Thm 4.6.2",
+    "Kind": "development",
+    "Item": "Theorem 4.6.2 pins the joint distribution but omits the explicit four-term logarithmic expansion of the mutual information needed for numerical evaluation; it should be provided directly in the text.",
+    "Targets": "The Legible Swarm",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-005 ACCEPT -- the reviewer's formula was checked and is correct, and `skills/harbor-results/scripts/b1_frontier.py` already evaluates this joint.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. `whitepaper/legible-swarm.tex:1706-1720` gives the four pinned cells and then says only \"$R(\\delta,f)=I(X;\\hat X)$ evaluated at this joint\"; the sum is never written out."
+  },
+  {
+    "#": "CA-006",
+    "Section / page": "Rigorous mathematical and formal analysis -- Thm 4.6.3",
+    "Kind": "correction",
+    "Item": "Theorem 4.6.3 (Zoom Advantage) assumes an error-free group-testing oracle; real linters and static analyzers have non-zero false-negative rates and one early false negative prunes a whole subtree. Condition the theorem on perfect oracle fidelity, or incorporate noisy group-testing bounds.",
+    "Targets": "The Legible Swarm",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-006 ACCEPT-IN-PART: the hypothesis is present by construction, so leave the statement; take the noisy case as an exercise with its bound and cite Atia-Saligrama and Cheraghchi.",
+    "Status": "",
+    "Notes": "PARTIAL. The oracle is defined inside the statement -- \"let a group query on $S$ report whether $S\\cap P=\\emptyset$\" (`whitepaper/legible-swarm.tex:1745-1749`) -- so the conditioning half is already true and the reviewer's premise is wrong there. The noisy-oracle exercise is not written: `Atia`, `Saligrama` and `Cheraghchi` return no hits in the corpus."
+  },
+  {
+    "#": "CA-007",
+    "Section / page": "Rigorous mathematical and formal analysis -- Thm 5.6.3",
+    "Kind": "correction",
+    "Item": "The probation cliff of Theorem 5.6.3 introduces an unmodelled adverse-selection effect: an extreme front-loaded penalty is a liquidity barrier that excludes honest but capital-constrained entrants while well-capitalized malicious agents absorb it. The optimization program must incorporate capital liquidity bounds.",
+    "Targets": "From Spawn to Person",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-007 ACCEPT-IN-PART: the liquidity *reading of the instrument* is refuted (g_t is a holdback on an earning ceiling, nothing is posted), the entry-participation point is taken as an income-floor corollary. Related: HAH-063 `DONE 6152b70e8`.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. `income floor` returns no hits; no corollary sits under the theorem. The refutation half stands on the statement itself, which grades $g_t$ as a reduction in a newcomer's economic ceiling and already carries the cap $0\\le g_t\\le L$."
+  },
+  {
+    "#": "CA-008",
+    "Section / page": "Rigorous mathematical and formal analysis -- Thm 5.11.1",
+    "Kind": "correction",
+    "Item": "Theorem 5.11.1 (tower contraction) assumes independent auditor failures; foundation-model monocultures induce correlated errors. Add a model diversity index parameterizing inter-clique correlation to the contraction factor.",
+    "Targets": "From Spawn to Person",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-008 ACCEPT-IN-PART: the clique count C already *is* the diversity parameter, so what is missing is one shared correlation model with ch. 6's Purchased Assurance Bound (CA-041); the reviewer's design-effect formula k_eff = k/(1+(k-1)rho) is declined as derived from no model.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. `Jensen`, `mixing distribution` and a Beta-mixture form return no hits in `website-v2/public/whitepaper/spawn-to-person.tex`. The refutation half holds: the statement's pool spans $C$ disjoint cliques and the worked numbers contrast $C=8$ against a monoculture $C=1$."
+  },
+  {
+    "#": "CA-009",
+    "Section / page": "Rigorous mathematical and formal analysis -- Thm 6.5.2",
+    "Kind": "development",
+    "Item": "The complexity dichotomy between polynomial Horn conflict checking and NP-complete disjunctive obligations is proved algebraically but lacks a visual derivation in the text; provide a conflict witness trace and a 3-SAT reduction phase diagram.",
+    "Targets": "The Harbor Economy",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-009 ACCEPT (with CA-056, the grammar half of the same section): the reduction and the witness are in the text, and the figure register already carries `ch6-09` for the drawing.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. `ch6-09` in `docs/harbor-research/exposition/figures/FIGURE-REGISTER.md:428` still records `none` under existing figure at priority `must`; the reduction it would draw is in prose at `website-v2/public/whitepaper/harbor-economy.tex:804-820`. Same figure as CA-067, which is the review's separate statement of the same gap in the visual-register section."
+  },
+  {
+    "#": "CA-010",
+    "Section / page": "Rigorous mathematical and formal analysis -- Thm 6.7.1",
+    "Kind": "correction",
+    "Item": "Theorem 6.7.1's functorial conservation breaks down across independent currencies and cross-realm bridges, where valuation fluctuates with liquidity depth, slippage and exchange-rate volatility; restrict it to an exogenous invariant numeraire or account for the surplus and deficit with priced slippage terms rather than asserting categorical identities.",
+    "Targets": "The Harbor Economy",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-010 REFUTED -- the reviewer's remediation is already the Book's text.",
+    "Status": "DECLINED -- refuted against the source: the theorem is titled *Single-unit conservation composes* and its first hypothesis is that all harbors use one unit of account.",
+    "Notes": "Receipt: `website-v2/public/whitepaper/harbor-economy.tex:1133-1143` (statement and hypothesis) and the *Cross-currency valuation boundary* property at `:1144`, which names the valuation map, the fee and slippage accounts, and calls the mark-to-market difference economic exposure rather than a failure of functoriality. The reviewer read a premise the chapter does not hold."
+  },
+  {
+    "#": "CA-011",
+    "Section / page": "Rigorous mathematical and formal analysis -- Thm 7.7.2",
+    "Kind": "correction",
+    "Item": "Theorem 7.7.2's repeated-game analysis assumes perfect public monitoring; under message loss, partitions and gossip latency, monitoring is imperfect and private, and deterministic trigger strategies collapse into unrecoverable punishment cascades. Contextualize within the private-monitoring literature (Kandori-Matsushima belief-free equilibria) and introduce communication and review phases before sanctions.",
+    "Targets": "The Bonded Commons",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-011 ACCEPT-IN-PART: a monitoring boundary naming what supplies perfect public monitoring inside one harbor (the single-writer ledger) and what happens once the history is gossiped; re-deriving the theorem under private monitoring is research, filed for ch. 8. The adjudication also found the reviewer's root 0.3419 to be a slip -- the cubic's real root is 0.34251, so the Book's 0.342 stands.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. `Kandori` and `Green-Porter` return no hits in `website-v2/public/whitepaper/agent-transactions-whitepaper.tex` (the only `Green--Porter` in the corpus is in ch. 6's related work, `harbor-economy.tex:2397`, on a different point), no monitoring boundary sits under the theorem, and `program.json` carries no planned lift for claim signalling under private monitoring."
+  },
+  {
+    "#": "CA-012",
+    "Section / page": "Rigorous mathematical and formal analysis -- Thm 8.5.4",
+    "Kind": "correction",
+    "Item": "Theorem 8.5.4 (Localization) contains an unstated vulnerability: two coordinating Byzantine nodes on a common cycle can choose lie vectors that cancel, yielding a residual of zero. Elevate this limitation from the informal boundary callout into the formal statement of the theorem.",
+    "Targets": "The Federated Harbor",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-012 REFUTED as a demand, ACCEPT-IN-PART one promotion (the measurement should become a stated Proposition about the adversary).",
+    "Status": "DECLINED -- refuted against the source: the single-equivocator hypothesis is already inside both theorem statements, parenthetically explaining itself.",
+    "Notes": "Receipt: `website-v2/public/whitepaper/federated-harbor-whitepaper.tex:544` states \"a **single equivocator** $q$ (the single-equivocator hypothesis is not decoration: two liars on a common cycle can cancel each other's contribution to the residual)\" and `:685` opens Localization with \"Noise-free, single equivocator\". The coalition case is also a named open problem, `cr-coalitions`, in `docs/harbor-research/program.json`. The promotion to a Proposition the adjudication accepted is NOT ADDRESSED -- no `\\begin{proposition}` exists in that chapter."
+  },
+  {
+    "#": "CA-013",
+    "Section / page": "Rigorous mathematical and formal analysis -- Thm 5.6.4",
+    "Kind": "development",
+    "Item": "Theorem 5.6.4 (the attested flip) is correct but unillustrated; a paired payoff diagram contrasting the flat unattested swap gain against the attested downward-sloping efficiency boundary would ground the transition.",
+    "Targets": "From Spawn to Person",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-013 ACCEPT: the reviewer's two-panel renderer column is the written spec for register rows `ch5-21`/`ch5-22`. Same figures as CA-076.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. `FIGURE-REGISTER.md:389-390` records `none` for both rows at priority `must`; no matching fragment exists in `website-v2/public/whitepaper/figures/`."
+  },
+  {
+    "#": "CA-014",
+    "Section / page": "Structural architecture -- duplication across ch. 6-8",
+    "Kind": "structure",
+    "Item": "The Float Plan is defined independently in Chapter 6 as a three-sided escrow contract and in Chapter 7 as a two-party collateralized work manifest, creating ambiguity regarding its canonical schema.",
+    "Targets": "The Harbor Economy; The Bonded Commons",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-014 ACCEPT, and the adjudication found one leak the review missed: ch. 7's definition carries a 2-of-3 federation clearinghouse that belongs to ch. 8.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED, and mechanically tracked as such. `website-v2/public/whitepaper/harbor-economy.tex:635` and `website-v2/public/whitepaper/agent-transactions-whitepaper.tex:786` both open `\\begin{definition}[Float Plan]\\label{def:float-plan}` with different content; `scripts/harbor-research/check_duplicate_theorems.py` reports the pair, and `.github/workflows/library-checks.yml` passes `--allow def:float-plan` with a comment calling it \"a known duplicate still waiting for an owner\"."
+  },
+  {
+    "#": "CA-015",
+    "Section / page": "Structural architecture -- duplication across ch. 6-8",
+    "Kind": "structure",
+    "Item": "The four-message cross-harbor capability transfer ceremony (xfer_req, xfer_offer, xfer_ack, xfer_deliver) is introduced in Section 6.8 and repeated in Section 8.4.",
+    "Targets": "The Harbor Economy; The Federated Harbor",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-015 ACCEPT: ch. 6 keeps the market's requirement in a paragraph and a \\pdchapref; the protocol, its figure and its exercises live in ch. 8 only. The adjudication also noted §6.8 is mis-titled \"The Anchor Protocol proper\".",
+    "Status": "",
+    "Notes": "PARTIAL, and the half that was done hid the half that was not. The *drawing* was deduplicated in `bf5636466`: `harbor-economy.tex:1228-1236` now defers to ch. 8 inside `\\ifpdbook` and inputs `fig-fh-xfer-ceremony` only in the `\\else` branch. The *ceremony itself* is still written out twice -- `harbor-economy.tex:1243-1260` as Protocol `prot:xfer`, `federated-harbor-whitepaper.tex:415-425` as an unlabelled four-item enumerate -- and neither existing guard can see it (`check_duplicate_figures.py` keys on a shared `\\input`, `check_duplicate_theorems.py` on a shared `\\label`; ch. 8's copy has neither). `scripts/harbor-research/check_duplicate_protocols.py`, added with this ledger fold, reports it and the workflow records it under `--allow`. §6.8's title is unchanged."
+  },
+  {
+    "#": "CA-016",
+    "Section / page": "Structural architecture -- duplication across ch. 6-8",
+    "Kind": "structure",
+    "Item": "The four-rail federation topology table (tab:fh-topology) and the threat-band assurance matrix (fig:fh-threat-bands) appear identically in Chapters 6 and 8.",
+    "Targets": "The Harbor Economy; The Federated Harbor",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-016 ACCEPT, confirmed byte-identical (both chapters inputting the same fragment files).",
+    "Status": "DONE bf5636466",
+    "Notes": "Both sites in ch. 6 are now inside `\\ifpdbook`, deferring to ch. 8 in the Book and keeping the standalone paper's own copy in the `\\else` branch: `website-v2/public/whitepaper/harbor-economy.tex:1310-1320` (topology) and `:1465-1471` (threat bands). `76d18bf82` repaired the standalone side of the same change, and `scripts/harbor-research/check_standalone_figures.py` now guards it. The reviewer's count was low: the mechanical sweep this prompted found seven shared drawings, not two."
+  },
+  {
+    "#": "CA-017",
+    "Section / page": "Structural architecture -- duplication across ch. 6-8",
+    "Kind": "structure",
+    "Item": "The Keystone Split -- local cryptographic verification against un-attestable cross-operator principal binding -- is analyzed in duplicate in Sections 5.7 and 6.6.",
+    "Targets": "From Spawn to Person; The Harbor Economy",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-017 ACCEPT: ch. 6 §6.6 cites ch. 5's two definitions and keeps its pitfall and the market consequence.",
+    "Status": "DONE bf5636466",
+    "Notes": "The shared table is deduplicated for the Book: `website-v2/public/whitepaper/harbor-economy.tex:1038-1045` now says \"This is the chapter that inherits the handoff, so the table is not reprinted here\" inside `\\ifpdbook`. The two *definition* pairs still stand, and the second is on the CI allow-list as `def:0040b`; that residue is carried under CA-014's sibling problem rather than re-opened here."
+  },
+  {
+    "#": "CA-018",
+    "Section / page": "Structural architecture -- decoupling",
+    "Kind": "structure",
+    "Item": "Resolve the redundancies by strictly decoupling chapter responsibilities: Chapter 6 contract theory and microeconomic market design; Chapter 7 intra-harbor collateral, commons governance and session lifecycles; Chapter 8 inter-harbor federation, witness logs and discrete Hodge-theoretic equivocation detection.",
+    "Targets": "The Harbor Economy; The Bonded Commons; The Federated Harbor",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-018 ACCEPT with one amendment (ch. 7 hands its cross-harbor custody language to ch. 8), and record ownership of each primitive in the concordance appendix.",
+    "Status": "",
+    "Notes": "PARTIAL. The Book-side deduplication of the shared drawings (CA-016, CA-017) is the part that landed. The ownership table the adjudication asked for does not exist: `app:concordance` at `website-v2/public/whitepaper/coordination-papers-mega-volume-appendices.tex:221` is a *notation* concordance -- work unit, harbor, principal, role, person, oracle, epoch, round -- with no row naming which chapter owns the float plan, the transfer ceremony, the topology, the threat bands, the keystone or the clearinghouse."
+  },
+  {
+    "#": "CA-019",
+    "Section / page": "Structural architecture -- the Part I to Part II seam",
+    "Kind": "structure",
+    "Item": "The Part I to Part II transition is jarring. Part I should conclude with an explicit architectural bridge: once execution is sealed to prevent exfiltration the internal state becomes dark to human operators, and Chapter 4 is then introduced as the direct information-theoretic response to that opacity rather than an unexpected philosophical detour.",
+    "Targets": "The Sealed Harbor; The Legible Swarm",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-019 ACCEPT-IN-PART: rewrite the two existing rails around the reviewer's own sentence; reordering and a new chapter are declined, and retitling §4.1-4.2 is the author's call.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. The two rails are unchanged from the text the adjudication quoted: the ch. 3 handoff at `website-v2/public/whitepaper/coordination-papers-mega-volume-seams.tex:70-76` says \"What it does not yet have is a reader\" and the ch. 4 opening at `:80-88` states read-poverty, but neither makes the causal link from sealing to darkness that the reviewer names."
+  },
+  {
+    "#": "CA-020",
+    "Section / page": "Executive assessment",
+    "Kind": "structure",
+    "Item": "The draft exhibits tensions between three identities -- an academic graduate textbook, an architectural reference manual for the proprietary Port Daddy daemon, and a collection of exploratory research monographs -- and this tri-fold nature creates pedagogical seams, varying mathematical completeness and visual omissions.",
+    "Targets": "whole volume",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-020 ACCEPT as diagnosis, no new row: the worked-example floor, the pseudocode register, the one-vocabulary pass and the ch. 7 density row are the remedies already in the plan.",
+    "Status": "DECLINED -- accepted as a diagnosis rather than an item; it requests no change of its own and its remedies are carried by the rows it names.",
+    "Notes": "The diagnosis is fair and the three identities are real: `whitepaper/textbook.json` builds three editions from one source set, and the chapter sources are simultaneously the eight standalone papers (which is why `check_standalone_figures.py` has to exist at all)."
+  },
+  {
+    "#": "CA-021",
+    "Section / page": "Overarching strategic recommendations -- assurance taxonomy",
+    "Kind": "structure",
+    "Item": "The evidentiary standard behind the four-point maturity scale (Built, BuiltWeak, Designed, Vision) varies across chapters -- production TypeScript in ch. 1, Kani-verified Rust in ch. 2, Python simulation scripts in ch. 6, TLA+ specifications in ch. 7. Establish a unified five-tier Artifact Assurance Register (mechanized proof, conformance-tested implementation, bounded invariant verification, analytical proof, architectural conjecture) applied consistently across all chapter appendices and summarized in the front matter.",
+    "Targets": "whole volume; front matter",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-021 ACCEPT-IN-PART: reconcile into the plan's one table rather than add a fourth scheme; the maturity macros are already one vocabulary and ch. 6's \\Built grades shipped code, not a script. The mapping given there retires \\Closed/\\Partial/\\SpecOnly in favour of claim kind plus artifact state.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. `\\Closed`, `\\Partial` and `\\SpecOnly` are still in use across nine files including the Book preamble (`website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex`), and no five-tier register appears in the front matter. The reviewer's premise about ch. 6 is wrong: `harbor-economy.tex:676` grades the bond-ledger module, which is shipped code."
+  },
+  {
+    "#": "CA-022",
+    "Section / page": "Open-problem concordance -- OP-1",
+    "Kind": "roadmap",
+    "Item": "OP-1 (fair exclusion without a central scheduler): retain as Open; formalize FIFO queue starvation under network delay.",
+    "Targets": "The Single-Writer Kernel",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-022 ACCEPT-IN-PART: the status agrees, but the ticket-lock is local and network delay is not its model -- the starvation question to formalize is the lazy TTL sweep's.",
+    "Status": "DECLINED -- the status the reviewer asks for is already the status; the reframing it proposes is declined because the ticket-lock is local and network delay is not its model.",
+    "Notes": "`whitepaper/single-writer-kernel.tex:2730` records OP-1 as \\Open with the stigmergic ticket-lock \\Designed, and the appendix entry at `:2745-2752` names the lazy TTL-sweep path as the unfair one and says \"Nothing of it ships\"."
+  },
+  {
+    "#": "CA-023",
+    "Section / page": "Open-problem concordance -- OP-2",
+    "Kind": "roadmap",
+    "Item": "OP-2 (the boundary between regimentable and enforceable policies) is resolved by Theorems 1.8.2 and 1.8.3 yet remains listed as an open question in the Chapter 1 overview; mark it Closed and cite the Ramadge-Wonham proof.",
+    "Targets": "The Single-Writer Kernel",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-023 REFUTED.",
+    "Status": "DECLINED -- refuted against the source: OP-2 is already marked \\Closed, by the two theorems the reviewer names.",
+    "Notes": "Receipt: `whitepaper/single-writer-kernel.tex:2731` -- \"OP-2 & Regimentation vs. enforcement & \\Closed & Theorem~\\ref{thm:decidability} + Theorem~\\ref{thm:regimentation-controllability}\" -- and Theorem 1.8.2 is *titled* \"Synchronous State Decidability --- closing OP-2\" at `:1132`. The appendix entry at `:2753-2762` places the result inside Ramadge-Wonham with the citation."
+  },
+  {
+    "#": "CA-024",
+    "Section / page": "Open-problem concordance -- OP-3",
+    "Kind": "roadmap",
+    "Item": "OP-3 (soundness across heterogeneous SQLite bindings): open; build the differential fuzzer or frame it as verification technical debt.",
+    "Targets": "The Single-Writer Kernel",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-024 agrees, no change.",
+    "Status": "DECLINED -- the status and the framing the reviewer asks for are both already in the text.",
+    "Notes": "`whitepaper/single-writer-kernel.tex:2732` records OP-3 \\Open with differential fuzzing \\Designed; `:1965-1978` says the harness \"does not run in the reference implementation's pipeline today\" and that hash-equivalence over random streams \"is a *test*, not a proof\"."
+  },
+  {
+    "#": "CA-025",
+    "Section / page": "Open-problem concordance -- OP-4",
+    "Kind": "roadmap",
+    "Item": "OP-4 (checkpoint with teeth / neural rehydration): partial -- event replay restores task lineage, not inference state. Split into OP-4a (lineage replay, Closed) and OP-4b (KV cache, Open).",
+    "Targets": "The Single-Writer Kernel",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-025 ACCEPT-IN-PART on naming the halves, REFUTED on \"4a Closed\" -- nothing ships, and a specified design is \\Designed.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. `OP-4a` and `OP-4b` return no hits in the corpus; `whitepaper/single-writer-kernel.tex:2733` still carries one OP-4 row. The split the reviewer wants does exist in prose -- `:1660-1670` distinguishes the durable half from \"the half OP-4 is named for\" -- but not in the table the chapter tells the reader to trust."
+  },
+  {
+    "#": "CA-026",
+    "Section / page": "Open-problem concordance -- OP-5",
+    "Kind": "roadmap",
+    "Item": "OP-5 (oracle completeness under strategic adversaries) and the Honest Root challenge are partially addressed by Theorem 5.11.1 (Tower Contraction); update the status to Partial and cross-reference the theorem from Chapter 1.",
+    "Targets": "The Single-Writer Kernel",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-026 REFUTED on the status (OP-5 is oracle *completeness*, Thm 5.11.1 is oracle *incentive-compatibility* -- a different axis), ACCEPT the cross-reference. The adjudication also flagged an internal inconsistency for the plan owner: ch. 5 calls the grading-oracle recursion closed while plan B.2 lists it open.",
+    "Status": "",
+    "Notes": "PARTIAL. The status stays \\Open and correctly so (`whitepaper/single-writer-kernel.tex:2734`; the section at `:1601-1616` adds two oracle kinds and ends \"adding two kinds, and OP-5 stays \\Open\"), which refutes the reviewer's half of it. The accepted cross-reference is NOT ADDRESSED: no sentence in §1.8 points a reader asking \"who keeps the oracle honest?\" at §5.11."
+  },
+  {
+    "#": "CA-027",
+    "Section / page": "Open-problem concordance -- OP-6",
+    "Kind": "roadmap",
+    "Item": "OP-6 (tamper-evidence on the read path): retain as Open; scope it as an information-flow tracking problem.",
+    "Targets": "The Single-Writer Kernel",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-027 agrees on the status. (The adjudication grouped OP-6, OP-7 and OP-8 in one row; they are split here because the reviewer proposes a different action for each -- see CA-062 and CA-063.)",
+    "Status": "DECLINED -- the status agrees and the scoping is a restatement of what the row already says.",
+    "Notes": "`whitepaper/single-writer-kernel.tex:2735` records OP-6 \\Open with no design in the chapter, which is the reviewer's own reading."
+  },
+  {
+    "#": "CA-028",
+    "Section / page": "Open-problem concordance -- OP-9",
+    "Kind": "roadmap",
+    "Item": "OP-9 (co-tenant isolation under a same-machine adversary): the same-user exclusion undermines the chapter's complete-mediation claims, since any local agent process can bypass daemon mediation by reading or writing the SQLite files directly. Elevate the bwrap/unshare ephemeral namespace design from an open problem to an essential architectural requirement for multi-agent co-tenancy.",
+    "Targets": "The Single-Writer Kernel",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-028 ACCEPT-IN-PART on the precondition sentence, REFUTED on \"undermines\" -- the Book makes no complete-mediation claim for the same-user case, and \"reference monitor\" was replaced by the five assurance modes under HAH-016 `DONE ae0e3c17f`.",
+    "Status": "",
+    "Notes": "PARTIAL, and the refutation is the larger half. The chapter says the reviewer's own conclusion at length: `whitepaper/single-writer-kernel.tex:2150-2158` grades the hash chain as defending \"against nobody\" under the same-user exclusion, `:2199-2203` keeps OP-9 \\Open as \"a specified hardening path, not a shipped defense\", and the threat-model row at `:2033` is declared \"the document's operative statement\". What is NOT ADDRESSED is the accepted sentence: the OP-9 row does not say it is the precondition for any \\pdassurance{Confined} claim on a shared machine."
+  },
+  {
+    "#": "CA-029",
+    "Section / page": "Open-problem concordance -- OP-10",
+    "Kind": "roadmap",
+    "Item": "OP-10 (selective per-write-path durability checkpointing): open; implement a sync=FULL override on settlement tables.",
+    "Targets": "The Single-Writer Kernel",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-029 agrees: the implementation the reviewer proposes *is* the Book's design, and the status moves when it ships.",
+    "Status": "DECLINED -- the proposed implementation is already the chapter's own Designed selector; a status moves when code ships, not when a design is restated.",
+    "Notes": "`whitepaper/single-writer-kernel.tex:2739` records OP-10 \\Open with Selective Checkpointing \\Designed; `:701-712` specifies `PRAGMA wal\\_checkpoint(FULL)` on a money-bearing path and says \"no write path in the reference implementation opts in today\"."
+  },
+  {
+    "#": "CA-030",
+    "Section / page": "Open-problem concordance -- OP-11",
+    "Kind": "roadmap",
+    "Item": "OP-11 (cross-organ atomicity across claim, bus and escrow): mark Closed -- addressed in Chapter 6's float-plan transactions; wrap multi-organ mutations in a unified db.transaction().",
+    "Targets": "The Single-Writer Kernel",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-030 REFUTED: ch. 6's escrow ceremony commits in one transaction *within one organ*, the bond ledger; OP-11 is claim plus session plus commitment across organs.",
+    "Status": "DECLINED -- refuted against the source: the kernel still does not provide cross-organ atomicity, and ch. 6's one-transaction escrow is inside a single organ.",
+    "Notes": "Receipt: `whitepaper/single-writer-kernel.tex:2740` records OP-11 \\Open and calls it \"a buildable defect\"; the section it points at, `sec:atomicity` at `:1983`, is titled the same way. Ch. 6's ceremony at `harbor-economy.tex:656-665` debits a wallet and writes an escrow row in one serialized transaction -- the bond ledger only."
+  },
+  {
+    "#": "CA-031",
+    "Section / page": "Open-problem concordance -- OP-12 (new)",
+    "Kind": "roadmap",
+    "Item": "The relationship between discrete epidemic gossip dissemination and continuous sheaf Laplacian diffusion remains unresolved in Section 8.5.4 and is admitted in Section 8.12; formalize it as Open Problem 12 so readers do not conflate continuous topological diffusion with discrete packet-switched gossip.",
+    "Targets": "The Single-Writer Kernel",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-031 ACCEPT-IN-PART: not as ch. 1's OP-12 -- that numbering is the kernel's namespace, which other chapters deliberately do not extend -- but as a ch. 8 §8.12 open question with a falsifier, and sharper than the reviewer's (time-to-detection as a function of gossip rounds).",
+    "Status": "",
+    "Notes": "PARTIAL, and the substance is already there. `website-v2/public/whitepaper/federated-harbor-whitepaper.tex:1124` states the gap in the reviewer's own terms -- \"§sheaf names the sheaf Laplacian's spectral gap $\\lambda_2$ as the natural handle on anti-entropy mixing speed but derives no bound from it, and does not reconcile linear sheaf diffusion with epidemic gossip over append-only logs\" -- and grades it `\\Open`. What is NOT ADDRESSED is the falsifier: no time-to-detection formulation and no entry in `docs/harbor-research/program.json` beside `cr-coalitions`."
+  },
+  {
+    "#": "CA-032",
+    "Section / page": "Literature grounding -- capability security",
+    "Kind": "citation",
+    "Item": "The Anchor Protocol and the Single-Writer Kernel descend from the object-capability tradition of Dennis and Van Horn (1966), Miller (2006) and Macaroons (Birgisson et al., NDSS 2014), whose chained-HMAC offline attenuation the author's nested restriction caveats mirror; ground Chapter 2 in it.",
+    "Targets": "The Anchor Protocol",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-032 REFUTED as missing; whether §2.6 engages the caveat construction beyond naming it belongs to the credit-the-canon pass.",
+    "Status": "DECLINED -- refuted against the source: Macaroons, Miller and Dennis and Van Horn are all cited in the chapter already.",
+    "Notes": "Receipt: `website-v2/public/whitepaper/anchor-protocol-whitepaper.tex:559` derives the delegation-chain verification \"inspired by Macaroons~\\pdcite{birgisson2014macaroons}\" and `:1377` opens the related work on Dennis and Van Horn's 1966 paper; `birgisson2014macaroons` is cited from five of the eight chapters."
+  },
+  {
+    "#": "CA-033",
+    "Section / page": "Literature grounding -- confined sandboxes",
+    "Kind": "citation",
+    "Item": "Chapter 3 lists Ryoan in a comparison table but fails to engage its primary architectural finding -- that enclaves cannot prevent exfiltration unless the communication topology is confined to request-oriented, stateless DAGs, which autonomous agents are not. Framing the Harbor's single-writer mediation as the solution for stateful, non-DAG workloads would sharpen the chapter. SCONE (Arnautov et al., OSDI 2016) is also missing.",
+    "Targets": "The Sealed Harbor",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-033 REFUTED on Ryoan; SCONE genuinely absent, one related-work sentence. Related: XS-153 `DONE 7fbb9c64f`, CPR-055 `DONE 7fbb9c64f`.",
+    "Status": "",
+    "Notes": "SPLIT VERDICT. The Ryoan half is refuted: that contrast is §3.1's opening move -- \"Ryoan buys its confinement with a module that sees its input once and keeps no state. A looping, tool-calling agent cannot pay that price, which is why this chapter needs a budget and a detector where Ryoan needed neither\" (`website-v2/public/whitepaper/sealed-harbor.tex:167-169`), with `tab:sealed-ryoan` built on exactly that axis. The SCONE half is NOT ADDRESSED: `SCONE` returns no hits anywhere in the corpus."
+  },
+  {
+    "#": "CA-034",
+    "Section / page": "Literature grounding -- systems precedent",
+    "Kind": "citation",
+    "Item": "Connect Chapter 1's single-writer serialization over SQLite WAL to modern production engines -- TigerBeetle's strict accounting conservation in single-threaded loops, and Litestream/LiteFS's replication of SQLite WAL pages -- to bridge academic formalism and systems practice.",
+    "Targets": "The Single-Writer Kernel",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-034 ACCEPT-IN-PART: a footnote in §1.16 naming them as engineering precedent, declined as canon -- they are systems, not results.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. `TigerBeetle`, `Litestream` and `LiteFS` return no hits anywhere in the corpus."
+  },
+  {
+    "#": "CA-035",
+    "Section / page": "Literature grounding -- moral hazard in teams",
+    "Kind": "citation",
+    "Item": "Incorporate Holmstrom (1982): in joint production with unobservable individual effort, budget-balanced sharing rules cannot achieve efficient effort without an external budget breaker. The commons pool functions precisely as that budget breaker, since forfeit bonds are absorbed into it rather than refunded to the buyer.",
+    "Targets": "The Bonded Commons; The Harbor Economy",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-035 ACCEPT and called apt: `slash(id,p)` routes p to the commons pool and never back to the counterparty, which is exactly the budget breaker.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. `Holmstr` returns no hits anywhere in the corpus, and this is the row the adjudication judged the most valuable of the literature set."
+  },
+  {
+    "#": "CA-036",
+    "Section / page": "Literature grounding -- incomplete contracts",
+    "Kind": "citation",
+    "Item": "The runtime-renter / agent-owner distinction in Chapter 6 instantiates Grossman-Hart-Moore incomplete contracts and property rights; formalize the Float Plan as a GHM control contract, with operational residual rights assigned to the runtime sandbox and capital and reputation risk staying with the agent principal.",
+    "Targets": "The Harbor Economy",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-036 ACCEPT-IN-PART: one paragraph in §6.3, framing rather than a result. Related: HAH-057 `DONE 6152b70e8` (the renter holds residual runtime control, the owner bears asset and reputation consequences), LR-305 `DECLINED` (ch. 5's related-work engagement already exemplary).",
+    "Status": "",
+    "Notes": "NOT ADDRESSED as framing. `Grossman` appears in `website-v2/public/whitepaper/harbor-economy.tex` and `spawn-to-person.tex` in the bibliography and related work, but §6.3-6.4 does not use the residual-control-rights frame the reviewer describes."
+  },
+  {
+    "#": "CA-037",
+    "Section / page": "Literature grounding -- commons governance",
+    "Kind": "citation",
+    "Item": "Ground Chapter 7 in Ostrom's eight principles for governing common pool resources: the graduated sanction protocol (nominal, throttled, killed) mirrors Principle 5 and the advisory conflict graph satisfies Principle 4.",
+    "Targets": "The Bonded Commons",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-037 REFUTED. Related: CPR-054 `DECLINED -- out of scope`, which proposed the same eight-principle mapping as a table and was already adjudicated away.",
+    "Status": "DECLINED -- refuted against the source, and the same proposal was already adjudicated under CPR-054.",
+    "Notes": "Receipt: `website-v2/public/whitepaper/agent-transactions-whitepaper.tex:314` carries the Ostrom margin portrait and paragraph, `:331` the borrow-table row, and `:1421` the graduated sanctions. Ostrom is cited from four of the eight chapters."
+  },
+  {
+    "#": "CA-038",
+    "Section / page": "Literature grounding -- levels of automation",
+    "Kind": "citation",
+    "Item": "Incorporate Sheridan and Verplank's Levels of Automation (1978) and Parasuraman, Sheridan and Wickens's model (2000): the legibility-with-zoom read surfaces and consent-to-the-Leviathan grants can be formalized as state-contingent shifts across automation levels, downshifting when the regret head exceeds the SDT threshold.",
+    "Targets": "The Legible Swarm",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-038 REFUTED as missing, ACCEPT-IN-PART the formalisation \"if §4.5 does not already say it in those words\". Related: LR-501 `DONE fa34a3581`, LR-111 `DONE e62037ada`, LR-210 `DONE 0ac32d8b2`, all three the same placement against Sheridan and the Common Criteria.",
+    "Status": "DONE b73098213",
+    "Notes": "Refuted as missing *and* the formalisation is already in those words. `whitepaper/legible-swarm.tex:644-653`: a consent grant \"is also an object supervisory-control research named long before this chapter did: a **level of automation**, in Sheridan's ten-point sense and in the four-stage refinement (acquire, analyse, decide, act) that Parasuraman, Sheridan and Wickens later gave it\", and its four-tuple \"is a level-of-automation setting chosen per action class rather than once for the whole system\". `whitepaper/single-writer-kernel.tex:1443-1470` separately places the five assurance modes against both scales and the Common Criteria EALs."
+  },
+  {
+    "#": "CA-039",
+    "Section / page": "Literature grounding -- sheaf Laplacians",
+    "Kind": "citation",
+    "Item": "Chapter 8's equivocation detection descends directly from Hansen and Ghrist's work on cellular sheaves and sheaf Laplacians (2019, 2020) and requires formal grounding in discrete Hodge theory.",
+    "Targets": "The Federated Harbor",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-039 REFUTED on Hansen-Ghrist (the Jiang half is split out here as CA-079). Related: LR-411 `DECLINED`, XS-009 and XS-246, which found the related-work section already more careful than most published papers.",
+    "Status": "DECLINED -- refuted against the source: Hansen and Ghrist are cited and the construction is attributed to them.",
+    "Notes": "Receipt: `hansengrist2019` is cited in `website-v2/public/whitepaper/federated-harbor-whitepaper.tex`, which is the only chapter that uses sheaf machinery; `check_citations.py` confirms every `\\cite` there resolves to a `\\bibitem` in the same document."
+  },
+  {
+    "#": "CA-040",
+    "Section / page": "Literature grounding -- personal identity",
+    "Kind": "citation",
+    "Item": "Ground Chapter 5 in Parfit (1984), Locke (1690) and Reid's Brave Officer objection to memory transitivity.",
+    "Targets": "From Spawn to Person",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-040 REFUTED as missing -- Reid's brave officer is the named counter-example in §5.4.",
+    "Status": "DECLINED -- refuted against the source: all three are present, and Reid's objection is used as the chapter's own counter-example rather than merely cited.",
+    "Notes": "Receipt: `Parfit` and `Reid` both resolve in `website-v2/public/whitepaper/spawn-to-person.tex`, which is also the chapter that carries `fig-stp-parfit-chain.tex`."
+  },
+  {
+    "#": "CA-041",
+    "Section / page": "Literature grounding -- reviewer correlation",
+    "Kind": "citation",
+    "Item": "Chapter 6 §6.17's Purchased Assurance Bound notes reviewer correlation only in an informal pitfall box; formalize the degradation with a pairwise correlation parameter rho, expressing the effective panel size, to show mathematically how foundation-model monocultures undermine purchased assurance.",
+    "Targets": "The Harbor Economy",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-041 ACCEPT-IN-PART: the mixing-model form of CA-008, shared with ch. 5; the reviewer's design-effect exponent declined for the reason given there (it is the design effect for the variance of a mean, exact only at rho in {0,1}).",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. The pitfall at `website-v2/public/whitepaper/harbor-economy.tex:2584` still carries the point in words -- three instances of the same model family \"give something closer to one draw and two echoes\" -- with no parameter. See CA-008 for the shared model."
+  },
+  {
+    "#": "CA-042",
+    "Section / page": "Literature grounding -- imperfect private monitoring",
+    "Kind": "citation",
+    "Item": "Cite Kandori-Matsushima belief-free equilibria for Theorem 7.7.2.",
+    "Targets": "The Bonded Commons",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-042 ACCEPT, with CA-011.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. `Kandori` returns no hits anywhere in the corpus."
+  },
+  {
+    "#": "CA-043",
+    "Section / page": "Visual register -- counts",
+    "Kind": "other",
+    "Item": "FIGURE-REGISTER.md catalogs 378 potential visual structures across the eight chapters, of which only 141 currently exist as figures, leaving 237 unfulfilled, and 64 of the missing items are marked Must-Have.",
+    "Targets": "whole volume",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-043 ACCEPT: these are the register's own summary numbers, and a redraw wave was in flight when the review was written, so the split should be re-counted before quoting.",
+    "Status": "DECLINED -- an accurate reading of the register rather than a request; the eight figures it prioritises are rowed individually as CA-062 through CA-069.",
+    "Notes": "Verified against the register's summary table at `docs/harbor-research/exposition/figures/FIGURE-REGISTER.md:41`: 378 rows, 64 must, 103 should, 70 could, 141 with an existing figure, 237 with none, run 2026-09-07. Every figure below is still `none` in that column today, so the numbers have not moved in the reviewer's favour or against it."
+  },
+  {
+    "#": "CA-044",
+    "Section / page": "Visual register -- conventions",
+    "Kind": "structure",
+    "Item": "The manuscript employs divergent visual conventions -- security boundaries as heavy shaded boxes in Chapter 1, dashed lines in Chapter 6, cobalt threat bands in Chapter 8. Enforce a unified visual grammar: circles with double-circle terminal states and guards in an aligned legend for automata; rectangular buckets and directed volume pipes with a balance equation for ledgers; dashed Dolev-Yao perimeters with escape vectors flagged for trust boundaries.",
+    "Targets": "whole volume",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-044 ACCEPT-IN-PART: audit the three named inconsistencies against the house figure language and fix the outliers; the reviewer's specific glyph rules are declined as a blanket standard, because the house style decides and the audit may end with the language amended instead of the figures.",
+    "Status": "",
+    "Notes": "PARTIAL. A house figure language exists and every chapter inputs it (`whitepaper/figures/pd-figure-language.tex`, mirrored in `website-v2/public/whitepaper/figures/`), and a mechanical figure audit runs (`scripts/harbor-research/check_figure_blockers.py`, `render_figure_audit.py`) with 61 rows open in `docs/harbor-research/exposition/figures/blockers.json`. The audit of the *three named inconsistencies* has not been done, and the blocker check is still `continue-on-error` in `.github/workflows/library-checks.yml`, so nothing fails when a figure diverges."
+  },
+  {
+    "#": "CA-045",
+    "Section / page": "Chapter-by-chapter -- ch. 1 §1.7",
+    "Kind": "correction",
+    "Item": "Section 1.7 conflates cryptographic capability attenuation (who authorized whom) with coordination lineage (the task parent-child DAG) by using \"delegation chain\" for both; enforce a strict terminological distinction, \"authorization chain\" for cryptographic tokens and \"task lineage\" for coordination graphs.",
+    "Targets": "The Single-Writer Kernel",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-045 REFUTED: §1.7 has a subsection making exactly this distinction, in these words; the review read an older draft.",
+    "Status": "DONE 1cad994e3",
+    "Notes": "Refuted in ch. 1 and true elsewhere. `whitepaper/single-writer-kernel.tex:973-992` is a subsection titled *Two delegation chains, one dangerous name* that splits the **authorization chain** (cryptographic, \\Built, mechanically verified) from the **coordination lineage** (the task lineage, \\Designed) and closes \"We never again write bare 'delegation chain.'\" -- and the commit that put it there predates the review by a month. But the promise is kept only in ch. 1: bare \"delegation chain\" still appears in ch. 2 (`anchor-protocol-whitepaper.tex:454, 559, 801, 1504`), ch. 4 (`legible-swarm.tex:3673`), ch. 5 (`spawn-to-person.tex:1340, 1342, 1355`) and ch. 7 (`agent-transactions-whitepaper.tex:459, 596`). The reviewer aimed at the wrong section and hit a real defect anyway; nothing guards the vocabulary across chapters."
+  },
+  {
+    "#": "CA-046",
+    "Section / page": "Chapter-by-chapter -- ch. 1 §1.13",
+    "Kind": "structure",
+    "Item": "The threat model table excludes the same-user adversary by fiat, leaving the SQLite database files unmediated on disk, which undermines the chapter's claims regarding complete mediation.",
+    "Targets": "The Single-Writer Kernel",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-046 defers to CA-028: the exclusion is stated and graded, not hidden.",
+    "Status": "DECLINED -- refuted against the source: the exclusion is the table's own operative statement and the chapter draws exactly the conclusion the reviewer draws.",
+    "Notes": "Receipt: `whitepaper/single-writer-kernel.tex:2033` -- the same-user row says the database is owner-read/write only and that \"Hash-chain tamper-evidence defends against *nobody* under this exclusion\" -- and `:2040` opens a subsection titled *Advisory claims are not sandboxing*. The action the reviewer asks for is OP-9's status, carried under CA-028."
+  },
+  {
+    "#": "CA-047",
+    "Section / page": "Chapter-by-chapter -- ch. 2 §2.4",
+    "Kind": "correction",
+    "Item": "The narrative in Section 2.4 overstates the scope of Kani verification by asserting that \"the verified code is the running code\"; the harness stubs cryptography and caps the input buffer at 32 bytes, which cannot hold a 64-byte Ed25519 signature let alone a Harbor Card. Add an explicit scope callout box clarifying that Kani proves memory safety of the token delimiter parser under small bounded buffers.",
+    "Targets": "The Anchor Protocol",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-047 ACCEPT-IN-PART: the body is already scoped in the table caption, the stubbing paragraph and two exercises, so no new box -- but §2.4's *title* overclaims and its first sentence says the crate is \"the deployed production code\" before the scoping arrives. Related: HAH-019 `DONE 83b357c9e`.",
+    "Status": "",
+    "Notes": "PARTIAL, and the remaining part is exactly the reviewer's sentence. The scoping content is there: the status-table caption at `website-v2/public/whitepaper/anchor-protocol-whitepaper.tex:781` says the Kani rows are \"bounded harnesses over the deployed crate: a no-panic check of the parser on 32-byte inputs with the cryptography stubbed\"; `:726` explains the stubbing; `:601` has the chapter calling one harness \"a unit test in a proof's clothing\"; and the exercises at `:1434-1449` make a reader write the scope out. NOT ADDRESSED: `:606` is still titled *The verified code is the running code* and `:609` still opens \"The verified cryptographic core is not a reference implementation---it is the **deployed production code**\" before any qualification."
+  },
+  {
+    "#": "CA-048",
+    "Section / page": "Chapter-by-chapter -- ch. 2 §2.2.3",
+    "Kind": "development",
+    "Item": "The chapter omits any discussion of garbage collection or log compaction for the authoritative append-only revocation log; over months of fleet operation an uncompacted log will exhaust storage on constrained hosts. Formalize a truncation protocol parameterizing tombstone retention by the maximum token time-to-live.",
+    "Targets": "The Anchor Protocol",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-048 ACCEPT: a Design invariant in §2.2.3 -- an entry may be dropped once every card it could name has expired -- verified by a property test that rebuild-after-truncation equals the untruncated filter's answers on live cards.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED, and the reviewer's premise checks out. `compaction`, `truncation`, `tombstone` and `retention` return no hits in `website-v2/public/whitepaper/anchor-protocol-whitepaper.tex`; the revocation section at `:309-333` sizes the cuckoo filter (about 13 bits per entry at a 10^-3 false-positive rate) and says why filters cannot be merged, but never retires a log entry. Cards do carry a TTL that only shrinks under attenuation (`:253-259`), which is the parameter the invariant would use."
+  },
+  {
+    "#": "CA-049",
+    "Section / page": "Chapter-by-chapter -- ch. 3 §3.2",
+    "Kind": "development",
+    "Item": "Chapter 3's primary expository gap is the lack of a detailed sequence diagram for the Dual-Attested Key Release ceremony, which should be rendered as a full protocol sequence diagram detailing the hardware Root of Trust, the RATS verifier, the tenant key brokers and the guest initialization agent.",
+    "Targets": "The Sealed Harbor",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-049 ACCEPT as a figure row, to be added to the register.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED as a figure, and the register row the adjudication proposed to add already exists. `FIGURE-REGISTER.md:269` is `ch3-06`, priority `must`, existing figure `none`, with the spec already written -- \"protocol ladder: CVM, Derek's broker, Erin's broker as lifelines; boot to attest to two independent verify-and-release messages to a no-ambient-network state\" -- and a renderer note that says to name the RATS attester/verifier/relying-party roles on the lifelines. RATS itself is cited at `sealed-harbor.tex:259` and RFC 9334 is in the bibliography."
+  },
+  {
+    "#": "CA-050",
+    "Section / page": "Chapter-by-chapter -- ch. 3 §3.7",
+    "Kind": "development",
+    "Item": "Timing side channels are treated briefly; in multi-tenant agent environments an untrusted agent can modulate execution duration continuously to transmit high-bandwidth covert signals. Ground the section in the covert timing channel literature and specify a bucketed batch-release mechanism to normalize execution duration.",
+    "Targets": "The Sealed Harbor",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-050 ACCEPT-IN-PART: the mechanism is already in the text; what is missing is one sentence and a citation (Askarov, Zhang and Myers, CCS 2010, whose predictive-mitigation bound is the Book's log2 s). Related: HAH-105 `DECLINED -- out of scope`.",
+    "Status": "",
+    "Notes": "PARTIAL. The mechanism half is refuted: `website-v2/public/whitepaper/sealed-harbor.tex:887-892` prices timing at log2 s bits per event and names \"Fixed schemas, padding, coarse statuses, query limits, and scheduled release\" as what turns an unlimited covert channel into a stated budget, and the worked number at `:1180-1183` adds the timing term to the 12,800-bit account. NOT ADDRESSED: the citation -- `Askarov` returns no hits anywhere in the corpus, so the log2 s bound is asserted without its source."
+  },
+  {
+    "#": "CA-051",
+    "Section / page": "Chapter-by-chapter -- ch. 3 length",
+    "Kind": "structure",
+    "Item": "Chapter 3 is the shortest in the manuscript (23 visual rows) despite addressing data and model confidentiality; expand the q*b leakage analysis and add the escape-hatch/laundering residual geometry.",
+    "Targets": "The Sealed Harbor",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-051 ACCEPT-IN-PART: the two figures are taken (CA-047 here and CA-057); \"expand q*b\" is declined without a question to answer, since the section states its account and its three debts.",
+    "Status": "",
+    "Notes": "PARTIAL, and part declined. The two figures are taken and are open as CA-049 and CA-064; the request to expand the leakage analysis is declined, because it names no question the section leaves unanswered. The brevity is real: 23 register rows against ch. 4's 62, and `website-v2/public/whitepaper/sealed-harbor.tex` is 1,277 lines against `legible-swarm.tex`'s 3,684. The q*b section at `:872-902` states the account, the timing term and the three things it does not promise, which is what an expansion would have to improve on."
+  },
+  {
+    "#": "CA-052",
+    "Section / page": "Chapter-by-chapter -- ch. 4 §4.5.1",
+    "Kind": "development",
+    "Item": "Section 4.5.1 fails to distinguish the three loss functions operating in the chapter -- human oversight regret, successor agent continuation, and directory candidate fit -- which causes confusion when the Split-Digest Theorem arrives. Include a comparative taxonomy table at the beginning of Section 4.7 defining the input space, objective function, loss metric and target consumer for each read surface.",
+    "Targets": "The Legible Swarm",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-052 ACCEPT, \"cheap and true\": the separations are theorems (split ranker, split digest) but no table names input, objective, loss and consumer side by side.",
+    "Status": "",
+    "Notes": "PARTIAL, and the missing column is the one that matters. The separations are proved -- `thm:split-ranker` at `whitepaper/legible-swarm.tex:1994` proves no monotone transform identifies discovery fit with operator regret, and `thm:split-digest` at `:2313` does the digest half. A table exists, `tab:ls-read-surfaces` at `:2375`, but it is five surfaces by reader / what it selects / what it drops: no input space, no objective, no loss metric, and it sits after the theorems rather than at the head of §4.7."
+  },
+  {
+    "#": "CA-053",
+    "Section / page": "Chapter-by-chapter -- ch. 4 Fig. 4.5",
+    "Kind": "experiment",
+    "Item": "The caption of Figure 4.5 notes that the simulation sweep data (r1-floor.csv) was not yet committed, so the plot reflects the analytic curve rather than measured empirical data; execute the experiment script, commit the raw CSV, and overlay the empirical points on the theoretical curve.",
+    "Targets": "The Legible Swarm",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-053 ACCEPT: the R1 script emits the CSV, the plot reads it, and the caption's sentence is deleted in the same commit; verified by a check that no caption in the corpus says \"not yet present\" or \"not committed\".",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. `whitepaper/figures/data/r1-floor.csv` does not exist in the tree; `whitepaper/figures/legible-swarm-readpoverty.tex:2` still says in a source comment that the CSV \"is not committed\" and `:48` still says it in the caption a reader meets. The guard the adjudication ordered is added with this ledger fold as `scripts/harbor-research/check_absent_data_captions.py`, with this one caption recorded under `--allow` so the debt sits in the workflow rather than only in the caption."
+  },
+  {
+    "#": "CA-054",
+    "Section / page": "Chapter-by-chapter -- ch. 5 §5.5",
+    "Kind": "development",
+    "Item": "Section 5.5 should introduce an Agent Resurrection State Machine illustrating how a successor process validates predecessor cryptographic attestation, imports compacted context notes, and re-attaches to active escrow contracts.",
+    "Targets": "From Spawn to Person",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-054 ACCEPT-IN-PART: the state machine is a figure row; resurrection already has a model-checked property. The death-taxonomy half of the same adjudication row is split out here as CA-070.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED as a figure. The property is there -- `thm:resurrection-soundness` in `website-v2/public/whitepaper/spawn-to-person.tex` is model-checked -- but no machine is drawn: the chapter's sixteen figure inputs contain no resurrection state machine, and `FIGURE-REGISTER.md`'s ch. 5 section carries no rendered row for one."
+  },
+  {
+    "#": "CA-055",
+    "Section / page": "Chapter-by-chapter -- ch. 5 Sybil resistance",
+    "Kind": "development",
+    "Item": "Theorem 5.6.1 proves non-forgeable identity is necessary for any sanction-respecting reputation; explicitly contrast the centralized daemon-attested identity chosen for Port Daddy with alternative Sybil-resistance mechanisms from permissionless systems such as proof-of-stake or deposit bonding, to justify the architectural trade-off.",
+    "Targets": "From Spawn to Person",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-055 ACCEPT-IN-PART: one paragraph in §5.7 -- stake binds capital, not a principal; the Book's answer is the no-mint result plus per-principal exposure pooling, and ch. 7's bonds are where capital enters.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. `proof-of-stake` returns no hits in the corpus, and the only `stake` in `website-v2/public/whitepaper/spawn-to-person.tex` is audit stake (`:1381, 1420, 1463`) and judge conflict-of-interest (`:1885-1913`), neither of which is the permissionless Sybil-resistance contrast."
+  },
+  {
+    "#": "CA-056",
+    "Section / page": "Chapter-by-chapter -- ch. 6 §6.5",
+    "Kind": "development",
+    "Item": "The formal grammar for the ground deontic fragment L_c is distributed across four pages of prose; consolidate its syntax into a single formal definition.",
+    "Targets": "The Harbor Economy",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-056 ACCEPT, adjudicated together with CA-009: a Definition block naming facts, definite Horn rules, integrity constraints, Horn-triggered obligation and prohibition tokens with scope and ground interval, exclusive interval claims and difference constraints on deadlines -- the reviewer's one-line grammar omits the deadline system and mis-types the exclusive claim.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. The fragment is still described in running prose at `website-v2/public/whitepaper/harbor-economy.tex:790-800` (\"A policy set in $\\mathcal{L}_c$ contains facts, definite Horn rules and integrity constraints\") and there is no `\\begin{definition}` for it anywhere in the chapter; a reader who wants to replicate the polynomial checker has to assemble the syntax from four pages."
+  },
+  {
+    "#": "CA-057",
+    "Section / page": "Chapter-by-chapter -- ch. 7 §7.5.4",
+    "Kind": "development",
+    "Item": "Expand on why the exfiltration threat class is \"explicitly unbondable\": the proprietary loss of fine-tuned weights or sensitive corporate data is unbounded, exceeding any rational collateral an agent principal could post, which necessitates hardware-enforced isolation rather than economic bonding.",
+    "Targets": "The Bonded Commons",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-057 REFUTED -- the explanation the reviewer asks for is the text.",
+    "Status": "DECLINED -- refuted against the source: the chapter gives the reviewer's own explanation, in a sentence that also names where the answer lives instead.",
+    "Notes": "Receipt: `website-v2/public/whitepaper/agent-transactions-whitepaper.tex:1010` -- \"a bonded commons does not stop information theft, because the value of leaked secrets can vastly exceed any bond a principal will rationally post. Confidentiality is a structural problem, not an economic one, and the answer lives in Layer 1\" -- which is the Sealed Harbor, the hardware-enforced isolation the reviewer names."
+  },
+  {
+    "#": "CA-058",
+    "Section / page": "Chapter-by-chapter -- ch. 7 §7.10",
+    "Kind": "development",
+    "Item": "Section 7.10 presents raw TLA+ code without preceding visual state machines or pseudocode; readers without a formal-verification background will struggle with action disjunctions and primed state variables. Introduce a standard UML state machine diagram of the lifecycle before the TLA+.",
+    "Targets": "The Bonded Commons",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-058 ACCEPT-IN-PART: the two figures through the redraw row and the pseudocode register; \"without scaffolding\" is overstated.",
+    "Status": "",
+    "Notes": "PARTIAL. The scaffolding half is refuted: `website-v2/public/whitepaper/agent-transactions-whitepaper.tex:1249` tells the reader \"Read the state machine as five English sentences before reading any syntax\" and then gives all five. NOT ADDRESSED: there is no diagram, which is register rows `ch7-46` and `ch7-47` -- see CA-068."
+  },
+  {
+    "#": "CA-059",
+    "Section / page": "Chapter-by-chapter -- ch. 8 §8.8",
+    "Kind": "development",
+    "Item": "The lack of an exhibit for the flagship worked example (Acme/Beta/Staging) is a pedagogical deficit that must be addressed.",
+    "Targets": "The Federated Harbor",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-059 ACCEPT, swimlane spec as written by the review. Same figure as CA-069, which is the review's separate statement of it in the visual-register section.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. `FIGURE-REGISTER.md:576` records `ch8-39` as `none` at priority `must`; the Reader's Map that promises the visual trace is `sec:fh-readers-map` at `website-v2/public/whitepaper/federated-harbor-whitepaper.tex:203` and the incident narrative it points at begins at `:905`."
+  },
+  {
+    "#": "CA-060",
+    "Section / page": "Curriculum integration and pedagogical packaging",
+    "Kind": "structure",
+    "Item": "The front matter should organize the eight chapters into modular semester-length syllabi for different disciplines: Distributed Systems and Security (1, 2, 3, 8); Multi-Agent Economics and Mechanism Design (5, 6, 7); Human Supervisory Control and Interface Design (1, 4, 7); Formal Methods and Software Verification (1, 2, 7, 8).",
+    "Targets": "front matter",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-060 ACCEPT-IN-PART: one table in the front matter, four rows, and no return of the per-chapter reader maps that were stripped under HAH-011.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. `syllab`, `semester` and `course path` return no hits in `website-v2/public/whitepaper/coordination-papers-mega-volume.tex`, `coordination-papers-mega-volume-seams.tex` or `coordination-papers-mega-volume-appendices.tex`."
+  },
+  {
+    "#": "CA-061",
+    "Section / page": "Curriculum integration -- promoting the solutions",
+    "Kind": "development",
+    "Item": "Several exercise solutions contain valuable theoretical extensions -- the Succession-Rate Breakdown Threshold in Exercise 4.19 and the five-tier Agent Death Taxonomy in Exercise 5.38; promote these formal results from the solutions manual into the primary chapter narratives.",
+    "Targets": "The Legible Swarm; From Spawn to Person",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-061 ACCEPT-IN-PART: the taxonomy yes (with CA-070); for the succession result, name the exercise by label, because the exercise number is edition-specific and the formula the review quotes does not occur in the source.",
+    "Status": "",
+    "Notes": "PARTIAL. The succession half is half-done and the reviewer's formula is wrong: `ex:ls-succession-corner` at `whitepaper/legible-swarm.tex:2752` derives the breakdown-corrected wait and the limit xi/(eta(xi+eta)); the expression the review quotes does not occur anywhere in the source. The exercise IS named by label from the chapter's open table at `:3224`, which is the accepted change; it is not promoted into the narrative. The death-taxonomy half is carried as CA-070."
+  },
+  {
+    "#": "CA-062",
+    "Section / page": "Visual register -- critical deficits, First (ch1-25)",
+    "Kind": "development",
+    "Item": "In Chapter 1 (row ch1-25), the two-state taint automaton (\"gate the channel, never the token\") is the primary mechanism behind both the kernel's supervisory control and the Sealed Harbor's isolation, and has no visual representation; the book requires a two-state transition diagram showing how an uncontrollable internal secret-read transition disables controllable external network egress.",
+    "Targets": "The Single-Writer Kernel",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-043 ACCEPT, which grouped all eight under one row; split here because the review states eight distinct figures with eight distinct renderer specifications, and the reviewer's own renderer column is usable as the written spec for each.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. `FIGURE-REGISTER.md:170` records `none`, priority `must`, with the renderer note already written; `taint` returns no hits in either figures directory. The chapter's prose is at `whitepaper/single-writer-kernel.tex:1334` (`sec:gate-the-channel`)."
+  },
+  {
+    "#": "CA-063",
+    "Section / page": "Visual register -- critical deficits, Second (ch2-35)",
+    "Kind": "development",
+    "Item": "In Chapter 2 (row ch2-35), the v6 multi-hop privilege escalation attack against its v7 per-hop fix is the sharpest security finding in the Anchor Protocol and is accessible only via raw terminal listings; it requires a side-by-side delegation chain diagram showing the root-vs-final check accepting the re-escalated middle hop and the per-hop check rejecting at Hop 2.",
+    "Targets": "The Anchor Protocol",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-043 ACCEPT, which grouped all eight under one row; split here because the review states eight distinct figures with eight distinct renderer specifications, and the reviewer's own renderer column is usable as the written spec for each.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. `FIGURE-REGISTER.md:245` records `none`, priority `must`. The terminal listing the reviewer names is `website-v2/public/whitepaper/figures/session-anchor-v6-attack.tex`, which exists and is the only exhibit."
+  },
+  {
+    "#": "CA-064",
+    "Section / page": "Visual register -- critical deficits, Third (ch3-12)",
+    "Kind": "development",
+    "Item": "In Chapter 3 (row ch3-12), the laundering escape-hatch residual is referenced three times as the primary threat-model limitation and is never illustrated; a path-divergence diagram contrasting the honest input-committed execution against the laundering execution is necessary to show why privacy ledgers cannot catch semantic covert channels.",
+    "Targets": "The Sealed Harbor",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-043 ACCEPT, which grouped all eight under one row; split here because the review states eight distinct figures with eight distinct renderer specifications, and the reviewer's own renderer column is usable as the written spec for each.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. `FIGURE-REGISTER.md:275` records `none`, priority `must`. The three references are at `website-v2/public/whitepaper/sealed-harbor.tex:486`, `:876` and `:957`."
+  },
+  {
+    "#": "CA-065",
+    "Section / page": "Visual register -- critical deficits, Fourth (ch4-32, ch4-33)",
+    "Kind": "development",
+    "Item": "In Chapter 4 (rows ch4-32 and ch4-33), neither the two-constraint rate-distortion bound nor the adaptive-halving group-testing advantage has a figure; the author should construct a regime plot in (delta, f) space showing the pinned-joint feasible polytope, the source-entropy corner and the zero-rate region, and a phase plot showing the group-testing advantage curve crossing 1 at its density threshold.",
+    "Targets": "The Legible Swarm",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-043 ACCEPT, which grouped all eight under one row; split here because the review states eight distinct figures with eight distinct renderer specifications, and the reviewer's own renderer column is usable as the written spec for each.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. `FIGURE-REGISTER.md:328-329` records `none` for both, priority `must`. The chapter's own note calls this pair \"the chapter's most numerically worked, fully proved result, with a measured 15.3x reduction\" and \"zero figure\"; the scripts that would supply the data (`skills/harbor-results/scripts/b1_frontier.py`) are named in the register's data-source column."
+  },
+  {
+    "#": "CA-066",
+    "Section / page": "Visual register -- critical deficits, Fifth (ch5-21, ch5-22)",
+    "Kind": "development",
+    "Item": "In Chapter 5 (rows ch5-21 and ch5-22), the engine-swap adverse-selection theorem and its attested flip lack visual support; a paired payoff diagram contrasting the flat unattested swap-gain line against the attested downward-sloping efficiency boundary will ground the economic transition.",
+    "Targets": "From Spawn to Person",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-043 ACCEPT, which grouped all eight under one row; split here because the review states eight distinct figures with eight distinct renderer specifications, and the reviewer's own renderer column is usable as the written spec for each.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. `FIGURE-REGISTER.md:389-390` records `none` for both, priority `must`. Same figures as CA-013, which is the review's separate statement of the same gap in the formal-analysis section."
+  },
+  {
+    "#": "CA-067",
+    "Section / page": "Visual register -- critical deficits, Sixth (ch6-09)",
+    "Kind": "development",
+    "Item": "In Chapter 6 (row ch6-09), the complexity boundary between polynomial Horn conflict checking and NP-complete disjunctive obligations has no diagram; the text should include a bipartite reduction diagram from 3-SAT to disjunctive obligations alongside a concrete derivation trace of the Horn conflict witness on write_prod.",
+    "Targets": "The Harbor Economy",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-043 ACCEPT, which grouped all eight under one row; split here because the review states eight distinct figures with eight distinct renderer specifications, and the reviewer's own renderer column is usable as the written spec for each.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. `FIGURE-REGISTER.md:428` records `none`, priority `must`, and calls it \"the chapter's only complexity-theory result\". Paired with CA-056, the grammar definition the same section needs."
+  },
+  {
+    "#": "CA-068",
+    "Section / page": "Visual register -- critical deficits, Seventh (ch7-46, ch7-47)",
+    "Kind": "development",
+    "Item": "In Chapter 7 (rows ch7-46 and ch7-47), the TLA+ coordination lifecycle and the three-bucket stock-flow conservation ledger are the formal backbone of the chapter but are presented only as raw TLA+ code and prose; the author must provide a six-state lifecycle machine from Begin to Dismiss with guard conditions in an aligned legend, and a stock-flow diagram of asset movements across the wallet, escrow and commons-pool buckets.",
+    "Targets": "The Bonded Commons",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-043 ACCEPT, which grouped all eight under one row; split here because the review states eight distinct figures with eight distinct renderer specifications, and the reviewer's own renderer column is usable as the written spec for each.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. `FIGURE-REGISTER.md:515-516` records `none` for both, priority `must`. The TLA+ the reviewer means begins at `website-v2/public/whitepaper/agent-transactions-whitepaper.tex:1250`."
+  },
+  {
+    "#": "CA-069",
+    "Section / page": "Visual register -- critical deficits, Eighth (ch8-39)",
+    "Kind": "development",
+    "Item": "In Chapter 8 (row ch8-39), the Acme/Beta/Staging flagship worked example has no figure despite the chapter's Reader's Map explicitly instructing introductory readers to follow this visual trace; a three-realm swimlane sequence diagram illustrating card derivation, cross-harbor migration, schema corruption discovery, bond clearance and gossip revocation is necessary.",
+    "Targets": "The Federated Harbor",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-043 ACCEPT, which grouped all eight under one row; split here because the review states eight distinct figures with eight distinct renderer specifications, and the reviewer's own renderer column is usable as the written spec for each.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. `FIGURE-REGISTER.md:576` records `none`, priority `must`. The Reader's Map that promises it is `sec:fh-readers-map` at `website-v2/public/whitepaper/federated-harbor-whitepaper.tex:203`; the incident narrative is §8.8 at `:905` onward."
+  },
+  {
+    "#": "CA-070",
+    "Section / page": "Chapter-by-chapter table -- ch. 5 organs",
+    "Kind": "development",
+    "Item": "The checkpoint organ stores notes only and neural inference state is lost, which sets false expectations about neural execution-state recovery; add an \"Agent Death Taxonomy\" ladder distinguishing notes from KV cache.",
+    "Targets": "From Spawn to Person",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-054 ACCEPT-IN-PART: promote the five-rung ladder to a table in §5.5 with the checkpoint organ graded on it, the solution staying as the worked answer. Split from CA-054 because the review asks for it in a different place (the chapter table) from the resurrection machine, and it is a different artifact. Related: HAH-046.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. The taxonomy is still solution-only: `website-v2/public/whitepaper/spawn-to-person.tex:2604-2612` is `ex:stp-death-taxonomy` and its solution, and `:3026` lists it as open problem `op:death`. No table in §5.5 grades the checkpoint organ on it."
+  },
+  {
+    "#": "CA-071",
+    "Section / page": "Chapter/module table -- ch. 1",
+    "Kind": "development",
+    "Item": "Chapter 1 is missing multi-layer capability broker diagrams, and synchronous decidability should be linked directly to capability brokering.",
+    "Targets": "The Single-Writer Kernel",
+    "Prior adjudication": "New row: the adjudication rowed the taint automaton (CA-062 here) and partial observation (CA-001) from this table cell but not the capability-broker half.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. `fig-swk-reference-monitor.tex` is the nearest existing drawing and shows one mediation boundary, not a multi-layer broker; Theorem 1.8.2 (`thm:decidability`, `whitepaper/single-writer-kernel.tex:1132`) is stated against committed local state and the incoming payload with no link drawn to the brokering the reviewer names."
+  },
+  {
+    "#": "CA-072",
+    "Section / page": "Chapter/module table -- ch. 2",
+    "Kind": "structure",
+    "Item": "Chapter 2 is disconnected from Chapter 7's capability application; establish it as the sole cryptographic authority for capability attenuation and delegation.",
+    "Targets": "The Anchor Protocol; The Bonded Commons",
+    "Prior adjudication": "New row: not separately adjudicated. Adjacent to CA-014 and CA-018, which move primitives to their owning chapters.",
+    "Status": "",
+    "Notes": "PARTIAL. Ch. 7 does cite ch. 2 as the substrate -- `website-v2/public/whitepaper/agent-transactions-whitepaper.tex:447` opens \"The Anchor Protocol~\\pdcite{owens2026anchor} provides Harbor Cards\" -- but it then states its own attenuation condition over a delegation chain at `:459` rather than referring to ch. 2's, which is the disconnection the reviewer names and the same defect class as CA-014."
+  },
+  {
+    "#": "CA-073",
+    "Section / page": "Chapter/module table -- ch. 4",
+    "Kind": "structure",
+    "Item": "Frame cognitive attention explicitly as an information-theoretic channel-capacity problem.",
+    "Targets": "The Legible Swarm",
+    "Prior adjudication": "New row: not separately adjudicated; the adjudication took the two figure rows from this table cell (CA-065) but not the framing.",
+    "Status": "",
+    "Notes": "PARTIAL. The chapter already prices reading in bits -- the information floor, the two-constraint digest rate and the split-digest theorem are all rate results -- but the framing sentence the reviewer asks for, naming the operator as a channel with a capacity, is not made; the chapter's own vocabulary is read-poverty and cost, not capacity."
+  },
+  {
+    "#": "CA-074",
+    "Section / page": "Chapter/module table -- ch. 5",
+    "Kind": "development",
+    "Item": "Unify Parfitian psychological continuity with cryptographic key-lineage transfer protocols.",
+    "Targets": "From Spawn to Person",
+    "Prior adjudication": "New row: not separately adjudicated.",
+    "Status": "",
+    "Notes": "PARTIAL. Both halves are present and the unification is asserted rather than built: `fig-stp-parfit-chain.tex` draws Relation R as an overlapping chain and `fig-stp-nomint-lineage.tex` draws the key lineage, but no single statement maps one onto the other. Related to CA-017's keystone material, which is where the cross-operator half of the key lineage stops."
+  },
+  {
+    "#": "CA-075",
+    "Section / page": "Chapter/module table -- ch. 6",
+    "Kind": "development",
+    "Item": "Chapter 6's succession price and Myerson-Satterthwaite trade gap are unplotted.",
+    "Targets": "The Harbor Economy",
+    "Prior adjudication": "New row: not separately adjudicated, and not among the eight figures the review prioritises.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. `FIGURE-REGISTER.md`'s ch. 6 section carries 40 rows of which 22 have an existing figure; neither the succession price nor the trade gap is among them, and no fragment in `website-v2/public/whitepaper/figures/` plots either."
+  },
+  {
+    "#": "CA-076",
+    "Section / page": "Open-problem concordance -- OP-7",
+    "Kind": "roadmap",
+    "Item": "OP-7 (schema evolution without a centralized sequencer): retain as Partial; design a monotonic user_version consensus sequencer.",
+    "Targets": "The Single-Writer Kernel",
+    "Prior adjudication": "Split from the adjudication's CA-027, which grouped OP-6, OP-7 and OP-8 under one verdict although the review proposes a different action for each.",
+    "Status": "DECLINED -- both the status and the design the reviewer proposes are already in the table he is reading.",
+    "Notes": "`whitepaper/single-writer-kernel.tex:2736` records OP-7 \\Partial with \"Ordered boot ledger \\BuiltWeak; `user_version` sequencer \\Designed\" -- the reviewer's recommended action, already the chapter's design."
+  },
+  {
+    "#": "CA-077",
+    "Section / page": "Open-problem concordance -- OP-8",
+    "Kind": "roadmap",
+    "Item": "OP-8 (calibration of stigmergic pheromone decay rates): frame it as an empirical queueing optimization under bursty arrivals.",
+    "Targets": "The Single-Writer Kernel",
+    "Prior adjudication": "Split from the adjudication's CA-027, which DECLINED this reframing: the hazard fit is the measured object and queueing is not the model of a marker's usefulness. Related: HAH-037.",
+    "Status": "DECLINED -- the reframing is declined on the merits: what a marker's decay should be calibrated against is a survival/hazard fit per marker kind, not a queue.",
+    "Notes": "`whitepaper/single-writer-kernel.tex:2737` records OP-8 \\Open with no design; the decay formula it points at is in §1.7 (`fig:swk-marker-decay`). The status half of the reviewer's reading is correct and unchanged."
+  },
+  {
+    "#": "CA-078",
+    "Section / page": "Literature grounding -- vigilance decrement",
+    "Kind": "citation",
+    "Item": "The Inception Canaries address the classic Mackworth Vigilance Decrement (1948) and Bainbridge's Ironies of Automation (1983); framing the Inception Canary as an active defense against vigilance decrement grounds the attention queue in established human-factors engineering.",
+    "Targets": "The Legible Swarm",
+    "Prior adjudication": "Split from the adjudication's CA-038, which grouped this with the levels-of-automation ask although the review states them as two separate recommendations in two paragraphs.",
+    "Status": "DONE 1cad994e3",
+    "Notes": "Refuted as missing *and* as unframed. `whitepaper/legible-swarm.tex:1398-1424` is a subsection titled *The Bainbridge--Scott convergence and the abdication gradient* which names the Inception Canary as \"the design's primary active defense\" against exactly this, specifies it as a consented, blinded historical-defect probe, and closes that it \"transforms supervisory vigilance from a punitive chore into a closed verification loop\". `:1344-1365` is a subsection on the vigilance decrement citing Mackworth 1948 and Warm, Parasuraman and Matthews 2008; Endsley's out-of-the-loop problem is used at `:1383`."
+  },
+  {
+    "#": "CA-079",
+    "Section / page": "Literature grounding -- Hodge decomposition",
+    "Kind": "citation",
+    "Item": "Cite Jiang et al. (Statistical Ranking on Graphs via Hodge Decomposition, 2011), who resolved inconsistent pairwise comparisons into gradient and curl components; the equivocator's split-view lie is the curl component over the visible witness graph, and connecting the detection residual to it gives students visual and algebraic intuition.",
+    "Targets": "The Federated Harbor",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-039 ACCEPT (Jiang), split from the Hansen-Ghrist half here because the review makes two distinct asks in the same paragraph and the verdicts differ.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. `Jiang` and `HodgeRank` return no hits anywhere in the corpus. The adjudication called the connection \"correct and pedagogically useful\", and it is the one literature row in this review that would change how a reader understands the residual rather than only who gets credit."
+  },
+  {
+    "#": "CA-080",
+    "Section / page": "Literature grounding -- bilateral trade",
+    "Kind": "other",
+    "Item": "The manuscript correctly identifies that 21.9% of gains from trade are foregone under the Myerson-Satterthwaite bound.",
+    "Targets": "The Harbor Economy",
+    "Prior adjudication": "New row: a factual assertion about the manuscript rather than a request, checked here because the review's numbers are otherwise its strongest feature.",
+    "Status": "DECLINED -- an accurate reading rather than a request; no change is owed.",
+    "Notes": "Verified: `website-v2/public/whitepaper/harbor-economy.tex:1195` gives the foregone share as $7/32\\approx21.9\\%$, independent of the valuation range, which is exactly the Myerson-Satterthwaite instantiation the reviewer names. The review's arithmetic was independently checked by the adjudication at every point it was checkable and was found right everywhere except the cubic root in CA-011 (0.34251, reported as 0.3419)."
+  },
+  {
+    "#": "CA-081",
+    "Section / page": "Rigorous mathematical and formal analysis -- Thm 7.10.1",
+    "Kind": "other",
+    "Item": "Theorem 7.10.1 (the Conservation Theorem) demonstrates that aggregate supply across wallet, escrow and commons-pool buckets is strictly conserved under all non-topUp operations, verified across 1,716 reachable states in TLA+.",
+    "Targets": "The Bonded Commons",
+    "Prior adjudication": "New row: a factual assertion rather than a request; checked here because it is the number the review leans on when it asks for the three-bucket figure (CA-068).",
+    "Status": "DECLINED -- an accurate reading rather than a request; no change is owed.",
+    "Notes": "Verified: `website-v2/public/whitepaper/agent-transactions-whitepaper.tex:1711` quotes TLC's own output (26818 states generated, 1716 distinct states found) and `:2012` records the theorem \\Closed at 1,716 reachable states. The chapter is careful about the distinction the number invites -- `:1714` says these are two different numbers and makes the difference an exercise -- so the reviewer's reading is the right one."
+  },
+  {
+    "#": "CA-082",
+    "Section / page": "Overarching strategic recommendations -- open-problem concordance",
+    "Kind": "structure",
+    "Item": "Several open problems are partially or fully addressed in later chapters without being updated in earlier tables; consolidate all open problems -- eleven in Chapter 1, ten open research questions in Chapter 5, and several unnumbered conjectures across Chapters 6 to 8 -- into a unified master concordance in Appendix C (Result Atlas).",
+    "Targets": "whole volume; appendices",
+    "Prior adjudication": "ADJUDICATION-2026-09-08.md CA-022 through CA-031 adjudicate the per-problem statuses; the consolidation ask itself was not separately rowed there and is opened here.",
+    "Status": "",
+    "Notes": "NOT ADDRESSED. The three lists live apart and nothing joins them: ch. 1's `tab:op-status` at `whitepaper/single-writer-kernel.tex:2725-2743`, ch. 5's own list at `website-v2/public/whitepaper/spawn-to-person.tex:3026` onward (which explicitly declines to extend ch. 1's numbering, `:2960`), and ch. 8's `sec:fh-limitations` at `federated-harbor-whitepaper.tex:1094`. `app:concordance` is notation only."
+  },
+  {
+    "#": "CA-083",
+    "Section / page": "Overarching strategic recommendations -- conjecture discipline",
+    "Kind": "structure",
+    "Item": "Conjectures without formal proofs must either be stated as numbered research problems with empirical falsification criteria, or scaled back to exploratory design discussions.",
+    "Targets": "whole volume",
+    "Prior adjudication": "New row: the review states this as a separate requirement from the concordance and it was not rowed in the adjudication. Related in spirit: the falsification-first discipline the research program already applies to results.",
+    "Status": "",
+    "Notes": "PARTIAL, and the machinery exists without the sweep having been done. The claim-kind apparatus is real -- `\\begin{pdclaim}{Conjecture}` is available, `conj:eq-bound` in ch. 6 is one, `docs/harbor-research/program.json` carries nine open problems each with a falsifier, and `skills/textbook-craft/scripts/chapter_lint.py` has a `claims_carry_epistemic_kind` floor. But that floor is one of the two the workflow says \"already fail on 6 of the 8 Book chapters today\", and the step that runs it is `continue-on-error`, so no conjecture is presently required to carry a falsification condition."
+  },
+  {
+    "#": "CA-084",
+    "Section / page": "Cross-cutting -- what this review already had an adjudication for",
+    "Kind": "other",
+    "Item": "The review as a whole: 30 pages, an executive assessment, a formal audit of seventeen theorems, a literature table, a visual-register audit, chapter-by-chapter tactical guidance, and a publication roadmap.",
+    "Targets": "whole volume",
+    "Prior adjudication": "The review was received on 2026-09-08 and adjudicated the same day, item by item, against commit `daf24d62e`, in `docs/harbor-research/exposition/critique/ADJUDICATION-2026-09-08.md` (61 rows, CA-001 to CA-061). Item 13 of that adjudication's own work list ordered the ledger fold this section performs.",
+    "Status": "DONE -- folded here",
+    "Notes": "The uploaded PDF and the committed `docs/harbor-research/exposition/critique/CriticalAnalysis-2026-09-08.md` are the same document (the PDF's word count is lower only because its equations are rendered as images that no text extraction recovers). The adjudication existed and was correct; nothing referenced it. `CA-` returned no hits in `CRITIQUE-LEDGER.md` or `critique-ledger.json` before this commit, and no file in the repository linked to the adjudication, so the question \"have we answered this review\" could not be asked of the ledger -- which is the ledger's entire purpose."
   }
 ]
