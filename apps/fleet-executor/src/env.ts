@@ -29,7 +29,8 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
    * literal string `"true"`/`"false"`), written by the relay's
    * POST /v1/fleet/pause. MUST be the SAME namespace the relay binds as `KV` —
    * otherwise the executor never sees a pause toggle. Optional at the type level
-   * so unit tests can omit it; absent ⇒ NOT paused (fail-safe: the gate runs).
+   * for rolling-deploy and failure modeling; absent means the global state is
+   * unknown and new automated work is denied until an explicit state is readable.
    */
   CONTROL_KV?: KVNamespace;
   /**
