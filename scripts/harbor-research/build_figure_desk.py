@@ -129,6 +129,10 @@ import os
 import re
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import figure_doctrine  # noqa: E402
+import palette_check  # noqa: E402
+
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 FIGURES_DIR = "docs/harbor-research/exposition/figures"
@@ -895,6 +899,47 @@ def build() -> tuple[list[tuple[str, str]], dict]:
     gates = parse_blockers()
     register = parse_register()
 
+    # ---- the doctrine rubric ------------------------------------------
+    # Named, citable criteria scored per figure, so a reviewer can argue with
+    # the doctrine and not only with the reviewer. figure_doctrine.py says what
+    # each criterion is, where it comes from, who disputes it, and which of
+    # them nothing committed can answer.
+    palette = palette_check.audit()
+    doctrine, dctx = figure_doctrine.score(REPO_ROOT, textbook, figs, pixel_rows, palette)
+    if dctx.get("readersEyeGap"):
+        note_gap("caption-carries-the-fact is unscored: " + dctx["readersEyeGap"])
+    vs_lenses = figure_doctrine.doctrine_vs_lenses(doctrine, crit)
+
+    def failing(cid):
+        return sorted(f for f, sc in doctrine.items()
+                      if (sc.get(cid) or {}).get("verdict") == "fails")
+
+    both_captions = sorted(
+        f for f, sc in doctrine.items()
+        if (sc.get("caption-states-a-claim") or {}).get("verdict") == "fails"
+        and (sc.get("caption-carries-the-fact") or {}).get("verdict") == "fails")
+
+    doctrine_payload = {
+        "criteria": figure_doctrine.CRITERIA,
+        "scores": doctrine,
+        "context": dctx,
+        "palette": palette,
+        "vsLenses": vs_lenses,
+        "overErased": failing("over-erased"),
+        "captionDoubleFail": both_captions,
+        "failingByCriterion": {c["id"]: failing(c["id"]) for c in figure_doctrine.CRITERIA},
+        "coverage": {
+            c["id"]: {
+                "scored": sum(1 for sc in doctrine.values()
+                              if (sc.get(c["id"]) or {}).get("verdict") in ("passes", "fails")),
+                "na": sum(1 for sc in doctrine.values()
+                          if (sc.get(c["id"]) or {}).get("verdict") == "n/a"),
+                "unscored": sum(1 for sc in doctrine.values()
+                                if (sc.get(c["id"]) or {}).get("verdict") == "unscored"),
+            } for c in figure_doctrine.CRITERIA
+        },
+    }
+
     fig_ids = {f["id"] for f in figs}
     judged_ids = set(pixel_rows)
     recon = {
@@ -941,11 +986,12 @@ def build() -> tuple[list[tuple[str, str]], dict]:
         (f"{DATA_DIR}/UNDRAWN.js", js("UNDRAWN", undrawn, "derived from FIGURE-TRIAGE.md add-rows")),
         (f"{DATA_DIR}/PIXEL.js", js("PIXEL", pixel_rows, "derived from PIXEL-JUDGMENT.md section 2")),
         (f"{DATA_DIR}/FINDINGS.js", js("FINDINGS", findings_payload, "derived from PIXEL-JUDGMENT.md sections 1/3, blockers.json, FIGURE-REGISTER.md")),
+        (f"{DATA_DIR}/DOCTRINE.js", js("DOCTRINE", doctrine_payload, "derived by figure_doctrine.py + palette_check.py + readers_eye.py")),
         (f"{DATA_DIR}/CRIT.js", js("CRIT", crit, "CURATED: copied from desk-curated/CRIT.json")),
         (f"{DATA_DIR}/RESEARCH.js", js("RESEARCH", research, "CURATED: copied from desk-curated/RESEARCH.json")),
     ]
     return outputs, {"figs": figs, "recon": recon, "pixel": pixel_rows, "triage": triage,
-                     "crit": crit, "undrawn": undrawn}
+                     "crit": crit, "undrawn": undrawn, "doctrine": doctrine_payload}
 
 
 # ---------------------------------------------------------------------------
@@ -977,6 +1023,33 @@ def report(ctx: dict) -> None:
             tri = (ag.get("triage") or {}).get("verdict", "-")
             print(f"  {row['num']:<6} {fid:<36} pixel={row['verdict']:<8} lenses[{lens_s}] triage={tri}")
     print()
+    d = ctx["doctrine"]
+    print("== doctrine rubric ==")
+    pc = d["palette"]["counts"]
+    print(f"  palette: {pc['fail']} of {pc['pairs']} pairs FAIL, {pc['floorOnly']} floor-only, {pc['clear']} clear")
+    print(f"  chapter colours in use     : {d['context']['chapterColours']}")
+    print(f"  live failing pairs between : "
+          f"{[p['a'] + '/' + p['b'] for p in d['context']['livePalettePairs']]}")
+    print(f"  Swiss draw=none styles     : {sorted(d['context']['edgelessStyles'])}")
+    print("  coverage, scored / n-a / unscored out of %d:" % len(ctx["figs"]))
+    for cid, cov in d["coverage"].items():
+        kind = figure_doctrine.CRITERIA_BY_ID[cid]["evidence"]
+        flag = "contested" if figure_doctrine.CRITERIA_BY_ID[cid]["contested"] else ""
+        print(f"    {cid:<28} {kind:<8} {cov['scored']:>3} /{cov['na']:>3} /{cov['unscored']:>3}  {flag}")
+    print()
+    print("  over-erased (%d) -- the list the repo's own gates structurally cannot produce:"
+          % len(d["overErased"]))
+    for f in d["overErased"]:
+        print(f"    {f}")
+    print()
+    print("  caption fails BOTH claim and carries-the-fact (%d):" % len(d["captionDoubleFail"]))
+    for f in d["captionDoubleFail"] or ["(none)"]:
+        print(f"    {f}")
+    print()
+    print("  doctrine fails where a lens said keep (%d):" % len(d["vsLenses"]))
+    for fid, v in sorted(d["vsLenses"].items()):
+        print(f"    {fid:<38} {','.join(v['lensesSaidKeep'])} said keep; fails {', '.join(v['fails'])}")
+    print()
     print("== parse gaps ==")
     if PARSE_GAPS:
         for g in PARSE_GAPS:
@@ -1004,7 +1077,7 @@ def main() -> int:
 
     outputs, ctx = build()
 
-    if not (args.check or args.write or args.report):
+    if not (args.check or args.write or args.report or args.bundle):
         for rel, content in outputs:
             print(f"--- {rel} ({len(content)} bytes)")
         return 0
