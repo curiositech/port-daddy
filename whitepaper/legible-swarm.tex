@@ -63,26 +63,27 @@
 \input{figures/pd-figure-language}
 
 % Honest-label markers (ADR-0045 discipline; one key for the whole volume).
-% Muted ink throughout; the four states differ by WEIGHT and SMALL-CAPS, never
-% by hue (house style: status by weight/small-caps, not a rainbow key).
-% These commands are defined locally because this file is a standalone paper;
-% in particular, \BuiltWeak is not inherited from a shared preamble.
-\newcommand{\Built}{{\textcolor{hhink}{\textsc{\textbf{built}}}}}
-% A normal space, not \, -- the thin space has no stretch and no break
-% point, so "built (weak)" in small caps never wrapped in a narrow Status
-% column and sat 2.7-5.5pt over the measure on every row that used it.
-\newcommand{\BuiltWeak}{{\textcolor{hhink}{\textsc{built \textit{(weak)}}}}}
-\newcommand{\Designed}{{\textcolor{hhgray}{\textsc{designed}}}}
-\newcommand{\Vision}{{\textcolor{hhgray}{\textit{vision}}}}
-
-% Claim-status markers, in the same grammar (muted ink, weight and small-caps,
-% never hue). These label a *claim*, not an implementation: the four labels above
-% say whether code exists, these say whether the result has been checked. Both
-% keys are stated once in Appendix~\ref{app:honest}; nothing in this paper carries
-% a free-text status note outside these macros.
-\newcommand{\Verified}{{\textcolor{hhink}{\textsc{\textbf{verified}}}}}
-\newcommand{\Proved}{{\textcolor{hhink}{\textsc{proved here}}}}
-\newcommand{\Proposed}{{\textcolor{hhgray}{\textit{proposed}}}}
+% \Built, \BuiltWeak, \Designed and \Vision -- and the claim-evidence key
+% \Verified / \Proved / \Unproved that labels a *result* rather than an
+% implementation -- are defined once, for this paper and for the Book, in
+% figures/pd-pedagogy.tex (\input above). Both keys are stated in prose in
+% Appendix~\ref{app:honest}; nothing in this paper carries a free-text status
+% note outside these macros.
+%
+% This chapter used to define all seven itself, in its own words: "built",
+% "built (weak)", "designed", "vision". Because a chapter preamble is dropped
+% when the Book is assembled, those words reached a reader only in the
+% standalone paper -- the Book printed "implemented", "partial", "specified",
+% "proposed" at the very same call sites, and the legend below explained a
+% vocabulary the tables there never used. The series settled on the second set
+% (single-writer-kernel.tex names them in prose as "the series' honest
+% labels"), so this paper now prints them too and the legend says so.
+%
+% \Proposed became \Unproved in the same pass. It meant "no proof carried
+% here", on the evidence axis; the shared maturity scale's \Vision means "no
+% design document yet". Both rendered the one word "proposed" in the same gray
+% italic, and in the Book they landed eight lines apart in the legend below,
+% defining that word twice, differently.
 
 % Pull-quote sidebar: large italic, single accent left-stripe (house style).
 \newcommand{\pullquote}[1]{%
@@ -3485,8 +3486,8 @@ The body of this paper argues mechanisms on their merits and does not depend on 
 them being built. This appendix --- and \emph{only} this appendix --- records the
 concrete engineering status of each mechanism in the reference implementation, named
 \emph{Port Daddy}. We use four honest labels, with one rule for the whole table:
-confusing \emph{built} with \emph{designed} is itself the failure the paper argues
-against, so each row carries its evidence.
+confusing what is \emph{implemented} with what is merely \emph{specified} is itself
+the failure the paper argues against, so each row carries its evidence.
 
 \smallskip
 \noindent\Built\ = code exists in the reference implementation today; \BuiltWeak\ =
@@ -3500,24 +3501,25 @@ Every formal result in this paper carries exactly one of these markers directly 
 it, and the paper carries no free-text status notes outside them:
 \Verified\ = independently re-derived and checked numerically, or subjected to a
 pre-registered falsification sweep, outside this document; \Proved\ = argued here with
-a proof or proof sketch and not independently checked; \Proposed\ = stated as a design
+a proof or proof sketch and not independently checked; \Unproved\ = stated as a design
 target whose proof is not carried in this paper. The two keys are orthogonal on
 purpose --- a \Verified\ result about a \Vision\ mechanism is a perfectly ordinary
 state of affairs, and conflating them is the failure this appendix exists to prevent.
 
 {\footnotesize\renewcommand{\arraystretch}{1.05}\setlength{\tabcolsep}{4pt}
-% Status column widened 0.15 -> 0.18\textwidth: apparatus stripping drops
-% this chapter's own local \Built ("built") when it merges into the Book,
-% leaving the shared preamble's \Built ("implemented", 11 letters bold
-% small caps) in effect -- narrower than that word even hyphenated.
+% Status column widened 0.15 -> 0.18\textwidth to hold \Built ("implemented",
+% 11 letters bold small caps), which is narrower than 0.15\textwidth even
+% hyphenated. It was widened when the Book began printing that word here while
+% the standalone paper still printed its own shorter "built"; both print
+% "implemented" now, so the width is simply the width the label needs.
 \begin{xltabular}{\textwidth}{@{}p{0.04\textwidth} >{\raggedright\arraybackslash}X p{0.18\textwidth} >{\raggedright\arraybackslash}p{0.22\textwidth}@{}}
 \caption{Implementation and status of every mechanism named in this paper.
 \textbf{L} = legibility half, \textbf{A} = authority half, \textbf{O} =
-operator-model. The legibility read-surfaces are largely built; the digest layer that
-unifies them is designed; the authority half --- the Leviathan actually \emph{ruling}
---- and the operator-model are largely designed-to-proposed. The wedge is real but
-more than half-designed: the safety and reading exist; the deciding and landing are
-the work that remains.}\label{tab:honest-state}\\
+operator-model. The legibility read-surfaces are largely implemented; the digest layer
+that unifies them is specified; the authority half --- the Leviathan actually
+\emph{ruling} --- and the operator-model are largely specified-to-proposed. The wedge
+is real but more than half-specified: the safety and reading exist; the deciding and
+landing are the work that remains.}\label{tab:honest-state}\\
 \toprule
 & \textbf{Mechanism} & \textbf{Status} & \textbf{Evidence / location} \\
 \midrule
