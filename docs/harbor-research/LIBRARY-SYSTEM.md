@@ -120,9 +120,17 @@ workflow rebuild only the affected papers and commit them as
 `build(whitepaper): regenerate PDFs from source`. The research papers have the same loop
 in `harbor-research-build`. After a bot commit, run `npm run fix:whitepaper-metadata` in
 `website-v2` to resync the catalog's page counts and sizes and the digest manifest, and
-push. A run that lands in `action_required` is re-run from the Actions tab. Locally,
-`tectonic` compiles every chapter and the Book from the same sources; CI's pinned image is
-the authority for bytes.
+push. A run that lands in `action_required` is re-run from the Actions tab.
+
+Locally, a stock Debian/Ubuntu TeX Live compiles every chapter and the Book — all three
+editions — from the same sources, in about ninety seconds per edition; the setup is one
+apt command plus one fontconfig drop-in, written down in the "Local TeX Live" section of
+`skills/harbor-chartwork/SKILL.md`. `tectonic` is still the figure toolchain's reference
+engine and `compile_fragment.sh` prefers it when it is on `PATH`, falling back to
+`latexmk -xelatex` when it is not. Neither local path downloads packages: a missing `.sty`
+is a hard error, not a fetch. CI's pinned image remains the authority for bytes, page
+counts and digests — apt TeX Live 2023 and tectonic's bundle break pages differently, so a
+local render is evidence about geometry, never about a published page number.
 
 ## 7. Editing playbook
 
