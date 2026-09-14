@@ -516,7 +516,10 @@ describe('Coordination Guard', () => {
         cwd: sandbox,
         env: {
           ...process.env,
-          PATH: `${fakeBin}:/usr/bin:/bin`,
+          // Keep this absence case hermetic: some Linux runners install
+          // git-lfs in /usr/bin, which correctly makes post-commit preserve
+          // LFS work and invalidates the no-foreign-helper premise.
+          PATH: fakeBin,
           PD_HOME: pdHome,
           PD_HOOK_CALLED: called,
           PD_HOOK_GIT_CALLED: gitCalled,
