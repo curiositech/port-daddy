@@ -118,6 +118,27 @@ test('textbook.json validation fails closed on structural drift', () => {
   const badPrefix = clone();
   badPrefix.chapters[0].prefix = 'swk-1';
   assert.throws(() => validateTextbook(badPrefix, 't.json'), /lowercase letters/);
+
+  // An ABSENT prefix, which the lowercase-letters rule alone would not catch:
+  // RegExp.prototype.test stringifies, so /^[a-z]+$/.test(undefined) is true
+  // ("undefined" is lowercase letters) and so is .test(null). What actually
+  // rejects these is the requireString sweep above that line, and nothing
+  // pinned that. If prefix ever left that list, an omitted prefix would reach
+  // the generator and emit \pdchapteropeningundefined -- a missing macro eight
+  // minutes into xelatex rather than a validation error here.
+  for (const absent of [undefined, null]) {
+    const noPrefix = clone();
+    noPrefix.chapters[0].prefix = absent;
+    assert.throws(
+      () => validateTextbook(noPrefix, 't.json'),
+      /prefix must be a non-empty string/,
+      `prefix: ${String(absent)} must be rejected, not stringified into a macro name`,
+    );
+  }
+
+  const missingKey = clone();
+  delete missingKey.chapters[0].prefix;
+  assert.throws(() => validateTextbook(missingKey, 't.json'), /prefix must be a non-empty string/);
 });
 
 test('every chapter opens on a question and an attributed epigraph', () => {
