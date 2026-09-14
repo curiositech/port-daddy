@@ -11,9 +11,13 @@
 
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = resolve(here, '../..');
 
 import {
   MEDIA_EXTENSIONS,
@@ -107,10 +111,7 @@ describe('the offload rule is mechanical', () => {
   test('the rule has no size term at all — that is the point', () => {
     // A 1-byte png under an offload root and a 100 MiB one get the same answer.
     // Any threshold is a number somebody has to defend per file.
-    const source = readFileSync(
-      resolve(__dirname, '../../scripts/r2-media-manifest.mjs'),
-      'utf8',
-    );
+    const source = readFileSync(join(REPO_ROOT, 'scripts/r2-media-manifest.mjs'), 'utf8');
     const ruleBody = source.slice(
       source.indexOf('export function isOffloadable'),
       source.indexOf('export function objectKeyFor'),
@@ -540,7 +541,7 @@ describe('request signing', () => {
 });
 
 describe('the committed manifest describes this repository', () => {
-  const repoRoot = resolve(__dirname, '../..');
+  const repoRoot = REPO_ROOT;
 
   test('media/r2-manifest.json matches regeneration byte-for-byte', () => {
     const committed = readFileSync(join(repoRoot, 'media/r2-manifest.json'), 'utf8');
