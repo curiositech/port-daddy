@@ -161,6 +161,7 @@ export class IoDispatch {
     });
     this.outputRegistry = buildOutputRegistry({
       pd: deps.pd ?? defaultPdDeps(),
+      runtimeAllowed: this.runtimeAllowed,
     });
   }
 

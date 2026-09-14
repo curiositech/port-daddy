@@ -66,7 +66,7 @@ made here.
 - [x] Implement daemon-independent persistent native Off controls in source:
   FleetBar popover/Settings and pd-console control band. Save the stop state before
   requesting shutdown; show persistence errors and unverified shutdown separately.
-- [ ] Enforce that state across native startup, login-shell/boot-command paths,
+- [x] Enforce that state across native startup, login-shell/boot-command paths,
   client polling, CLI bootstrap, service supervision and execution admission.
 - [ ] Require explicit operator re-enablement; reconnect, update, reinstall,
   repaired readiness and cleared caches must never silently reactivate work.
@@ -202,11 +202,28 @@ with no added diagnostics and none in the four changed TypeScript source files.
 
 These are cooperative effect-admission checks. A filesystem write by another
 process is not atomic with a JavaScript check/spawn or a remote request. An
-already-admitted child/request is not recalled. Nor does the bridge mediate awaits
-inside every sink: in particular, Google Calendar's create-event path awaits an
-OAuth token inside `sink.dispatch` before its POST. Off during that await can
-still permit the already-admitted calendar effect. That effect-level gate remains
-unresolved, and the synthetic sink fixture is not evidence for the real adapter.
+already-admitted child/request is not recalled. The Google Calendar create-event
+path now carries the same latched admission witness into the provider and checks
+it after OAuth refresh, immediately before the insert request. EventKit checks at
+its own final invocation boundary. Direct regressions prove zero insert calls when
+Off arrives during OAuth and zero EventKit calls when already Off; this remains
+intercepted source evidence, not a live provider or external containment receipt.
+
+The daemon halt callback now attempts every shutdown component, aggregates any
+errors, and throws after the remaining stops have been attempted. The listening
+watch therefore records `CANNOT-STOP`, never `COMPLIED`, when any dispatch, Fleet,
+timer or active-backend stop cannot be confirmed. A direct regression binds both
+the continue-after-error behavior and the aggregate failure witness.
+
+Current repair evidence: 69 focused TypeScript control/calendar tests pass and
+ordinary typechecking is clean. Across fourteen changed-surface TypeScript suites,
+thirteen suites pass 266 tests; the 22-case Dispatch suite is locally blocked by
+the shared `better-sqlite3` binary targeting an older Node ABI, so hosted exact-head
+CI remains its authority. The pd-console package and every test/example target
+compile, including the repaired render-proof example; its focused Off suite passes
+13 tests. FleetBar's package compiles and all 84 changed control/store tests pass.
+The optional full local Swift bundle has 21 snapshot/XPC failures on this host and
+is not represented as green.
 
 Remaining adversarial gates:
 
@@ -214,10 +231,8 @@ Remaining adversarial gates:
   already-running package-manager children; none is an external effect mediator.
 - Audit other installer/resurrection paths and dynamic app lanes; do not infer
   exhaustive supervisor coverage from the named appwatch fix.
-- Close Google Calendar's OAuth-to-POST gap and audit other sink/provider awaits
-  at the actual effect boundary, beyond the now-guarded dispatch bridge.
-- Make runtime watcher compliance truthful on swallowed stop errors; retain
-  independently verifiable shutdown state rather than reporting Off as stopped.
+- Audit other sink/provider awaits at their actual effect boundaries; the bridge
+  and calendar fix do not prove every future sink has equivalent mediation.
 - Obtain full final-head builds, independent review of console/runtime changes,
   packaged no-start/no-egress proof, and actual native light/dark/keyboard evidence.
 

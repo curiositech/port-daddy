@@ -52,7 +52,7 @@ import { createAgentInbox, inboxMessageForMessaging } from './lib/agent-inbox.js
 import { createAttention } from './lib/attention.js';
 import { createClaimWatcher } from './lib/claim-watcher.js';
 import { createResurrection } from './lib/resurrection.js';
-import { createHaltWatch, haltSentinelPath, distressFilePath } from './lib/halt-watch.js';
+import { createHaltWatch, haltSentinelPath, distressFilePath, runHaltStopPlan } from './lib/halt-watch.js';
 import { createHeartbeatDeathHandler } from './lib/agent-heartbeat-death.js';
 import { createChangelog } from './lib/changelog.js';
 import { createTunnel } from './lib/tunnel.js';
@@ -1413,15 +1413,28 @@ const haltWatch = createHaltWatch({
   logger,
   onHalt: (halt) => {
     logger.warn('halt_entered', { ref: halt.ref, line: halt.line });
-    if (cleanupTimer) { clearInterval(cleanupTimer); cleanupTimer = null; }
-    try { dispatchWorker?.stop(); } catch (err) { logger.warn('halt_dispatch_worker_stop_failed', { error: (err as Error).message }); }
-    if (autoMergeTimer) { clearInterval(autoMergeTimer); autoMergeTimer = null; }
-    try { fleetDaemon.stop(); } catch (err) { logger.warn('halt_fleet_stop_failed', { error: (err as Error).message }); }
-    // Stop active backends as well as scheduling loops. Existing cancellation
-    // is not proof of OS-wide containment or reversal of accepted remote spend.
-    for (const agent of spawner.list()) {
-      if (agent.status === 'running') spawner.kill(agent.agentId);
-    }
+    runHaltStopPlan([
+      { name: 'cleanup sweep', stop: () => {
+        if (cleanupTimer) { clearInterval(cleanupTimer); cleanupTimer = null; }
+      } },
+      { name: 'dispatch worker', stop: () => { dispatchWorker?.stop(); } },
+      { name: 'auto-merge sweep', stop: () => {
+        if (autoMergeTimer) { clearInterval(autoMergeTimer); autoMergeTimer = null; }
+      } },
+      { name: 'fleet daemon', stop: () => { fleetDaemon.stop(); } },
+      { name: 'active backends', stop: () => {
+        // Existing cancellation is not proof of OS-wide containment or
+        // reversal of accepted remote spend.
+        for (const agent of spawner.list()) {
+          if (agent.status === 'running') spawner.kill(agent.agentId);
+        }
+      } },
+    ], (name, error) => {
+      logger.warn('halt_stop_failed', {
+        component: name,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
   },
 });
 
