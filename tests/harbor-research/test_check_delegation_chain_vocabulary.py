@@ -20,8 +20,11 @@ Run:
 """
 from __future__ import annotations
 
+import shutil
 import sys
+import tempfile
 import unittest
+from contextlib import contextmanager
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -42,9 +45,44 @@ RECORDED = [
 ALLOW = {f"{p}:{k}" for p, k in RECORDED}
 
 
+@contextmanager
+def corpus_copy():
+    """A throwaway mirror of the chapter corpus, with the checker pointed at it.
+
+    The two mutation tests below have to edit a chapter to prove the check
+    tracks the text rather than a coincidence. They used to edit the real
+    source file and restore it in a ``finally``, which works right up until it
+    does not: a read-only CI checkout cannot write to it at all, and a run
+    interrupted between the write and the restore leaves a corrupted corpus
+    behind for every later check in the same job to read -- including the two
+    tests here that assert the real corpus is clean. A test that can leave the
+    repository dirty is a hazard, not evidence, and ``scan()`` below already
+    had the right pattern for a single file.
+
+    Yields ``(root, paths)`` with each chapter copied to its own
+    repo-relative path under a temp root, so ``find_bare``'s ``rel`` still
+    reads exactly the way the workflow prints it.
+    """
+    with tempfile.TemporaryDirectory() as d:
+        root = Path(d)
+        copied = []
+        for src in (s for _, _, s in dcv.chapters()):
+            if not src.is_file():
+                continue
+            dst = root / src.relative_to(REPO_ROOT)
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(src, dst)
+            copied.append(dst)
+        old = dcv.REPO
+        dcv.REPO = root
+        try:
+            yield root, copied
+        finally:
+            dcv.REPO = old
+
+
 def scan(text: str, allow=()):
     """Run the finder over one synthetic file written into a temp tree."""
-    import tempfile
     with tempfile.TemporaryDirectory() as d:
         p = Path(d) / "ch.tex"
         p.write_text(text, encoding="utf-8")
@@ -122,35 +160,42 @@ class TestAgainstTheRealCorpus(unittest.TestCase):
         self.assertEqual({rel for rel, _, _, _ in found}, {p for p, _ in RECORDED})
 
     def test_an_exception_recorded_for_one_use_does_not_cover_another(self):
-        """The defect this guard exists for, grafted back in."""
-        target = REPO_ROOT / "website-v2/public/whitepaper/agent-transactions-whitepaper.tex"
-        original = target.read_text(encoding="utf-8")
-        injected = original.replace(
-            "Capabilities can only shrink along the authorization chain, never grow.",
-            "Capabilities can only shrink along the delegation chain, never grow.", 1)
-        self.assertNotEqual(injected, original, "fixture sentence moved; update this test")
-        target.write_text(injected, encoding="utf-8")
-        try:
-            found = dcv.find_bare(self.paths, ALLOW)
+        """The defect this guard exists for, grafted back in (on a copy)."""
+        with corpus_copy() as (root, paths):
+            target = root / "website-v2/public/whitepaper/agent-transactions-whitepaper.tex"
+            original = target.read_text(encoding="utf-8")
+            injected = original.replace(
+                "Capabilities can only shrink along the authorization chain, never grow.",
+                "Capabilities can only shrink along the delegation chain, never grow.", 1)
+            self.assertNotEqual(injected, original, "fixture sentence moved; update this test")
+            target.write_text(injected, encoding="utf-8")
+            found = dcv.find_bare(paths, ALLOW)
             self.assertEqual(len(found), 1)
             self.assertIn("never grow", found[0][3])
-        finally:
-            target.write_text(original, encoding="utf-8")
 
     def test_reverting_the_fix_reports_again_so_it_measures_the_defect(self):
         """Both directions: the check tracks the text, not a coincidence."""
-        target = REPO_ROOT / "whitepaper/single-writer-kernel.tex"
-        original = target.read_text(encoding="utf-8")
-        reverted = original.replace(
-            "kernel's authorization chain. If this floor is unsound",
-            "kernel's cryptographic delegation chain. If this floor is unsound", 1)
-        self.assertNotEqual(reverted, original, "fixture sentence moved; update this test")
-        target.write_text(reverted, encoding="utf-8")
-        try:
-            self.assertEqual(len(dcv.find_bare(self.paths, ALLOW)), 1)
-        finally:
+        with corpus_copy() as (root, paths):
+            target = root / "whitepaper/single-writer-kernel.tex"
+            original = target.read_text(encoding="utf-8")
+            reverted = original.replace(
+                "kernel's authorization chain. If this floor is unsound",
+                "kernel's cryptographic delegation chain. If this floor is unsound", 1)
+            self.assertNotEqual(reverted, original, "fixture sentence moved; update this test")
+            target.write_text(reverted, encoding="utf-8")
+            self.assertEqual(len(dcv.find_bare(paths, ALLOW)), 1)
+            # ...and putting the fix back clears it, on the same copy.
             target.write_text(original, encoding="utf-8")
-        self.assertEqual(dcv.find_bare(self.paths, ALLOW), [])
+            self.assertEqual(dcv.find_bare(paths, ALLOW), [])
+
+    def test_the_mutation_tests_leave_the_real_corpus_untouched(self):
+        """The guard on the guard: no test here may write to a tracked file."""
+        before = {p: p.read_bytes() for p in self.paths if p.is_file()}
+        with corpus_copy() as (root, paths):
+            (root / "whitepaper/single-writer-kernel.tex").write_text(
+                "Authority narrows along the delegation chain.\n", encoding="utf-8")
+            self.assertEqual(len(dcv.find_bare(paths, ALLOW)), 1)
+        self.assertEqual({p: p.read_bytes() for p in before}, before)
 
 
 if __name__ == "__main__":
