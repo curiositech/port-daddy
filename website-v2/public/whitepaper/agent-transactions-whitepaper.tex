@@ -196,7 +196,7 @@ Two autonomous agents working on the same project corrupt each other's state, do
 \noindent\textbf{Keywords:} multi-agent coordination, trust infrastructure, capability-based security, social contract, collateralized computation, formal verification, commons governance
 
 \vspace{0.3cm}
-\noindent\textit{Reading time: approximately 50 minutes end-to-end.}
+\noindent\textit{Reading time: approximately 50 minutes end-to-end. The Reader's Map below provides shorter paths for specific reader types.}
 
 \vspace{0.6cm}
 
@@ -216,7 +216,39 @@ Two autonomous agents working on the same project corrupt each other's state, do
 
 \vspace{0.4cm}
 
-\noindent\pdchapref{anchor}{The Anchor Protocol} supplies the ProVerif-verified cryptographic-token foundation this chapter assumes throughout---Harbor Card phases, cuckoo-filter revocation, bounded multi-hop delegation; this chapter builds the economic and governance argument on top of it, in the order the table of contents below lists, with no shortcut path substituting for that order: each layer's guarantee is a precondition the next layer's argument leans on.
+% ═══════════════════════════════════════════════════════════════════════════════
+\section*{Reader's Map}\label{sec:readers-map}
+\addcontentsline{toc}{section}{Reader's Map}
+% ═══════════════════════════════════════════════════════════════════════════════
+
+The paper builds in four layers; each layer carries a critical formal claim or empirical result. If you have less than 50 minutes, the table below tells you where to start.
+
+\vspace{0.4cm}
+\noindent
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.21\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.22\textwidth}@{}}
+\toprule
+\textbf{Layer} & \textbf{Critical artifact} & \textbf{Lives at} \\
+\midrule
+\textbf{(1) Structural prevention} & Capability-attenuated tokens; ProVerif proofs of algorithm-confusion immunity and delegation replay resistance & \S\ref{sec:structural}--\S\ref{sec:isolation}; \pdchapref{anchor}{The Anchor Protocol} \\
+\textbf{(2) Immutable attribution} & Merkle Forest with cross-daemon inclusion proofs; EasyCrypt binding mechanization (\texttt{binding.ec}) & \S\ref{sec:merkle-forest}; Appendix~\ref{app:mech} \\
+\textbf{(3) Economic alignment} & Competitive-insurance auction; conditional Monte Carlo comparison & \S\ref{sec:youle}; \S\ref{sec:youle:welfare} \\
+\textbf{(4) Governance} & Sen-inspired design warning; advisory-conflict completeness & \S\ref{sec:sen}--\S\ref{sec:advisory} \\
+\bottomrule
+\end{tabularx}
+
+\vspace{0.6cm}
+\noindent\textbf{Suggested reading paths by reader type:}
+\begin{itemize}[nosep,leftmargin=*,topsep=2pt]
+\item \textbf{Formal-methods reviewer / program committee} --- abstract, then jump to Appendix~\ref{app:mech} (Formal Verification Status). The artifact registry is the most concentrated signal of what is and is not proved.
+\item \textbf{Engineering manager evaluating multi-agent infrastructure} --- abstract, \S\ref{sec:why-consent} (``Why Agents Consent''), \S\ref{sec:economic} (bond pricing), \S\ref{sec:youle:welfare} (welfare results), then Appendix~\ref{app:worked} (one \$5 task traced end to end). The Appendix~\ref{app:mech} status registry tells you what is production-ready and what is research.
+\item \textbf{Cryptoeconomic protocol designer} --- abstract, then \S\ref{sec:youle} (auction mechanism), \S\ref{sec:youle:welfare} (welfare theorem with inline Pareto Monte Carlo), \S\ref{sec:youle:a5} (A5 Sybil-deterrence is coverage-bounded --- a surprising negative result).
+\item \textbf{AI safety researcher} --- \S\ref{sec:morality} (``What Morality Means When Death Is Cheap''), \S\ref{sec:sen} (Sen's theorem), \S\ref{sec:economic} (collateralized work contracts). Skim Appendix~\ref{app:mech} for the proof posture.
+\item \textbf{Distributed systems engineer} --- \S\ref{sec:structural}--\S\ref{sec:merkle-forest} (primitives), then \pdchapref{anchor}{The Anchor Protocol} for the cryptographic-token protocol detail.
+\item \textbf{Policy / governance analyst} --- abstract, \S\ref{sec:sen}--\S\ref{sec:advisory} (the Sen's-theorem argument for advisory rather than enforced claims), \S\ref{sec:federated-sovereign} (federated sovereign).
+\end{itemize}
+
+\vspace{0.5cm}
+\noindent\textbf{Volume Context.} \pdchapref{anchor}{The Anchor Protocol} supplies the ProVerif-verified cryptographic-token foundation this chapter assumes throughout---Harbor Card phases, cuckoo-filter revocation, bounded multi-hop delegation; this chapter supplies the economic and governance argument built on top of it.
 
 \newpage
 \tableofcontents
