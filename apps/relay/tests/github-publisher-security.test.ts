@@ -144,6 +144,17 @@ function intentDb() {
 }
 
 describe('Fleetbot publisher authority hardening', () => {
+  it('requires write authority for every mutation but only read for inspection', () => {
+    expect(subject.repositoryAccessFor('pull-request.inspect')).toBe('read');
+    for (const operation of [
+      'pull-request.publish', 'pull-request.update', 'pull-request.ready',
+      'pull-request.request-reviewers', 'pull-request.comment',
+      'pull-request.review-reply', 'pull-request.enqueue',
+    ] as const) {
+      expect(subject.repositoryAccessFor(operation)).toBe('write');
+    }
+  });
+
   it('derives exact Git object addresses for ambiguity readback', () => {
     expect(subject.gitObjectSha('blob', new TextEncoder().encode('hello\n')))
       .toBe('ce013625030ba8dba906f756967f9e9ca394464a');
