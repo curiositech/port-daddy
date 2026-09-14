@@ -102,6 +102,39 @@ for (const trigger of [
     throw new Error(`relay migration chain did not create immutable identity trigger ${trigger}`);
   }
 }
+const onboardingSql = requireTable('fleet_repository_onboarding');
+const proposalsSql = requireTable('fleet_configuration_proposals');
+for (const column of [
+  'tenant_account_id', 'installation_id', 'repository_id', 'requested_by_user_id',
+  'desired_outcomes_json', 'customer_budget_microusd', 'provider_cost_cap_microusd',
+  'margin_floor_bps', 'config_status', 'execution_status',
+]) requireColumn('fleet_repository_onboarding', column);
+for (const column of ['tenant_account_id', 'installation_id', 'repository_id', 'proposal_json', 'status']) {
+  requireColumn('fleet_configuration_proposals', column);
+}
+if (!onboardingSql.includes("execution_status = 'blocked_pending_executor'")) {
+  throw new Error('fleet onboarding can activate without executor tenant validation');
+}
+if (!onboardingSql.includes('margin_floor_bps BETWEEN 7500 AND 10000')) {
+  throw new Error('fleet onboarding lost the platform 75 percent margin floor');
+}
+if (!onboardingSql.includes('provider_cost_cap_microusd * 10000')) {
+  throw new Error('fleet onboarding lost the budget-to-provider-cost constraint');
+}
+if (!proposalsSql.includes("'accepted'") || !proposalsSql.includes("'superseded'")) {
+  throw new Error('fleet proposal lifecycle lost its closed status set');
+}
+if (!db.prepare("SELECT 1 FROM sqlite_schema WHERE type = 'index' AND name = 'fleet_configuration_proposals_one_accepted_idx'").get()) {
+  throw new Error('fleet proposals lost their one-accepted-per-repository index');
+}
+for (const trigger of [
+  'fleet_repository_onboarding_immutable_scope',
+  'fleet_configuration_proposals_immutable_scope',
+]) {
+  if (!db.prepare("SELECT 1 FROM sqlite_schema WHERE type = 'trigger' AND name = ?").get(trigger)) {
+    throw new Error(`fleet onboarding lost immutable authority trigger ${trigger}`);
+  }
+}
 requireColumn('parleys', 'convened_by');
 requireColumn('parleys', 'outcome_json');
 requireColumn('harbor_helms', 'parley_expiry_default');

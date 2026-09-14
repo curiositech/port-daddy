@@ -5,8 +5,6 @@
  * It never sees payload plaintext (I1).
  */
 
-import type { FleetRunJobV2 } from '../../shared/fleet-tenant.js';
-
 export interface Env {
   // D1 database (identity, events, chain heads, revocations, audit, issuers)
   DB: D1Database;
@@ -149,12 +147,26 @@ export interface Env {
 }
 
 /**
- * V2 job handed to the fleet-executor Worker after strict tenant admission.
+ * Job handed to the fleet-executor Worker — exactly one per GitHub delivery.
  * `deliveryId` is the idempotency key (a queue retry re-runs the same job).
- * The consumer migration is a downstream slice; this producer contract is the
- * source of truth and carries no legacy/name-derived alternative.
+ * Shape MUST match apps/fleet-executor/src/env.ts FleetRunJob.
  */
-export type FleetRunJob = FleetRunJobV2;
+export interface FleetRunJob {
+  deliveryId: string;
+  eventType: string;
+  action: string | null;
+  repoFullName: string | null;
+  installationId: number | null;
+  prNumber: number | null;
+  payloadMinimal: {
+    sender?: Record<string, unknown>;
+    repository?: Record<string, unknown>;
+    pull_request?: Record<string, unknown>;
+    push?: Record<string, unknown>;
+    /** merge_group deliveries only: carries `head_sha` for the queue branch. */
+    merge_group?: Record<string, unknown>;
+  };
+}
 
 // ── Harbor Card (Phase 2, per ADR-0014 + lib/harbor-tokens.ts) ──────────────
 
