@@ -37,6 +37,7 @@ function fleetYaml(
     blocking?: boolean;
     model?: string;
     allowedTools?: string;
+    execution?: boolean;
     trigger?: string;
     temperature?: number;
     class?: 'ideation';
@@ -53,6 +54,19 @@ function fleetYaml(
       if (s.blocking) lines.push('      blocking: true');
       if (s.temperature !== undefined) lines.push(`      temperature: ${s.temperature}`);
       if (s.allowedTools) lines.push(`      allowedTools: "${s.allowedTools}"`);
+      if (s.execution) {
+        lines.push('      execution:');
+        lines.push('        mode: write_sandbox');
+        lines.push('        repository: current_repository');
+        lines.push('        worktree: isolated');
+        lines.push('        cwd: .');
+        lines.push('        toolAllowlist: [read_file, run_tests]');
+        lines.push('        mcpAllowlist: [github.read]');
+        lines.push('        networkAllowlist: []');
+        lines.push('        writePathAllowlist: [.]');
+        lines.push('        maxWallClockMs: 300000');
+        lines.push('        maxCostMicrousd: 1000000');
+      }
       lines.push('      fallbacks:');
       lines.push('        - backend: cloudflare');
       lines.push(`          model: '${s.model ?? '@cf/qwen/qwen3-30b-a3b-fp8'}'`);
@@ -726,9 +740,9 @@ describe('deterministic ship resolution', () => {
       'main:pd-fleet.yml',
       fleetYaml([
         { name: 'code-reviewer', blocking: true, model: '@cf/qwen/qwen2.5-coder-32b-instruct' },
-        { name: 'qa', blocking: true, allowedTools: 'Read,Grep,Bash(npm test*),Bash(gh*)' },
+        { name: 'qa', blocking: true, allowedTools: 'Read,Grep,Bash(npm test*),Bash(gh*)', execution: true },
         // An execution ship: routes to GHA, must NOT run in the cloud.
-        { name: 'test-author', blocking: false, allowedTools: 'Read,Write,Bash(npm test*)' },
+        { name: 'test-author', blocking: false, allowedTools: 'Read,Write,Bash(npm test*)', execution: true },
       ]),
     );
     const kv = memoryKV();
@@ -754,6 +768,34 @@ describe('deterministic ship resolution', () => {
       participation: 'required',
       eligible: true,
       voteOutcome: 'failed',
+      operationalStatus: 'unavailable',
+      verdict: 'UNAVAILABLE',
+    });
+  });
+
+  it('does not let advisory QA sandbox unavailability poison a required reviewer approval', async () => {
+    state.files.set(
+      'main:pd-fleet.yml',
+      fleetYaml([
+        { name: 'code-reviewer', blocking: true, model: '@cf/qwen/qwen2.5-coder-32b-instruct' },
+        { name: 'qa', blocking: false, allowedTools: 'Read,Grep,Bash(npm test*)', execution: true },
+      ]),
+    );
+    const kv = memoryKV();
+    const d1 = memoryD1();
+    seedToken(kv, 42);
+    const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    expect(ai.calls.map(call => call.ship)).toEqual(['code-reviewer']);
+    expect(state.completed[0].conclusion).toBe('success');
+    expect(state.completed[0].summary).toContain('[ADVISORY]: unavailable');
+    expect(state.completed[0].summary).toContain('visible, non-gating advisory unavailability');
+    const qaParticipation = d1.steps.find(step => step.kind === 'ship-participation' && step.ship === 'qa');
+    expect(JSON.parse(String(qaParticipation?.detail))).toMatchObject({
+      participation: 'advisory',
+      unavailableBlocks: false,
       operationalStatus: 'unavailable',
       verdict: 'UNAVAILABLE',
     });

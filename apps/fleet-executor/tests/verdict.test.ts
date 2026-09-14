@@ -141,11 +141,19 @@ describe('aggregateConclusion', () => {
     );
   });
 
-  it('fails when execution is unavailable even if another required voter approved', () => {
+  it('keeps advisory execution unavailability visible without blocking by default', () => {
     expect(aggregateConclusion([
       r({ ship: 'reviewer', blocking: true, participation: 'required', voteOutcome: 'approve' }),
       r({ ship: 'qa', participation: 'advisory', voteOutcome: 'failed', operationalStatus: 'unavailable',
         verdict: 'UNAVAILABLE', errored: true, brokenAdjudicated: { scope: 'fleet', reason: 'runner absent' } }),
+    ])).toBe('success');
+  });
+
+  it('fails when repository policy explicitly makes advisory unavailability blocking', () => {
+    expect(aggregateConclusion([
+      r({ ship: 'reviewer', blocking: true, participation: 'required', voteOutcome: 'approve' }),
+      r({ ship: 'qa', participation: 'advisory', voteOutcome: 'failed', operationalStatus: 'unavailable',
+        unavailableBlocks: true, verdict: 'UNAVAILABLE', errored: true }),
     ])).toBe('failure');
   });
 

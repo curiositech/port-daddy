@@ -327,7 +327,6 @@ describe('transcript writes (fleet_runs + fleet_run_steps)', () => {
     expect(JSON.parse(String(config?.detail ?? '{}'))).toMatchObject({
       cfModel: '@cf/qwen/qwen2.5-coder-32b-instruct',
       blocking: true,
-      needsExecution: false,
       purser: false,
       ideation: false,
     });

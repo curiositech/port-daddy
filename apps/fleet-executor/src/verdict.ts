@@ -152,6 +152,8 @@ export interface ShipResult {
   /** Explicit vote state; gated/disabled ships never manufacture PASS. */
   voteOutcome?: 'approve' | 'reject' | 'abstain' | 'failed';
   operationalStatus?: 'completed' | 'disabled' | 'gated' | 'unavailable' | 'failed';
+  /** Explicit repository policy: advisory unavailability gates only when true. */
+  unavailableBlocks?: boolean;
   /**
    * Bounded, redacted cause for an errored ship. This survives checkpoints and
    * feeds the transcript/check summary; it must never contain prompts, request
@@ -305,10 +307,9 @@ export function reviewEventFor(results: ShipResult[]): 'COMMENT' | 'REQUEST_CHAN
 export function aggregateConclusion(results: ShipResult[]): Conclusion {
   const authoritative = results.filter(r => r.participation != null);
   if (authoritative.length > 0) {
-    // An unavailable or invalid execution path is an infrastructure failure,
-    // even for a non-voting advisory ship. Adjudication cannot convert absence
-    // of an authorized run into a successful quorum.
-    if (authoritative.some(r => r.operationalStatus === 'unavailable')) return 'failure';
+    // Required unavailability fails through quorum. Advisory unavailability is
+    // visible but gates only under an explicit repository opt-in.
+    if (authoritative.some(r => r.operationalStatus === 'unavailable' && r.unavailableBlocks === true)) return 'failure';
     const quorum = computeFleetQuorum(authoritative.map(r => ({
       ship: r.ship,
       participation: r.participation!,
@@ -316,7 +317,12 @@ export function aggregateConclusion(results: ShipResult[]): Conclusion {
     })));
     if (!quorum.reached) return 'failure';
   }
-  const isBroken = (r: ShipResult) => r.errored || r.noUsableOutput === true;
+  const isBroken = (r: ShipResult) => {
+    if (r.operationalStatus === 'unavailable') {
+      return r.participation === 'required' || r.unavailableBlocks === true;
+    }
+    return r.errored || r.noUsableOutput === true;
+  };
 
   const brokenUnadjudicated = results.some(r => isBroken(r) && r.brokenAdjudicated == null);
   const blockingJudgmentBlock = results.some(

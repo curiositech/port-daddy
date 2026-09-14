@@ -195,7 +195,6 @@ function semanticShipConfigTuple(ship: ShipConfig): readonly unknown[] {
     ship.role,
     ship.telos,
     ship.blocking,
-    ship.needsExecution,
     ship.ideation,
     ship.purser,
     ship.blockWithoutSandbox,

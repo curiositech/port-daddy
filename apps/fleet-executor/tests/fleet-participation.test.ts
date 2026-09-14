@@ -6,8 +6,6 @@ import {
   parseShipExecutionConfiguration,
   parseShipExecutionPolicy,
   parseShipParticipationPolicy,
-  recheckShipWriteTarget,
-  type ShipExecutionGrant,
 } from '../../shared/fleet-participation.js';
 
 describe('ship participation', () => {
@@ -36,6 +34,16 @@ describe('ship participation', () => {
 
   it('does not project legacy blocking into voting authority', () => {
     expect(parseShipParticipationPolicy(undefined).default).toBe('ineligible');
+  });
+
+  it('makes unavailable execution non-blocking by default and validates explicit opt-in', () => {
+    expect(parseShipParticipationPolicy({ default: 'advisory', rules: [] }).unavailableBlocks).toBe(false);
+    expect(parseShipParticipationPolicy({
+      default: 'advisory', unavailable_blocks: true, rules: [],
+    }).unavailableBlocks).toBe(true);
+    expect(parseShipParticipationPolicy({
+      default: 'advisory', unavailable_blocks: 'yes', rules: [],
+    }).default).toBe('ineligible');
   });
 
   it('drops misspelled selectors instead of turning them into match-all rules', () => {
@@ -155,9 +163,9 @@ describe('ship execution authority', () => {
     }
   });
 
-  it('mints an exact read-only tenant/repository/worktree/cwd/head/attempt single-use grant', async () => {
+  it('refuses read grants until a runner can atomically consume nonce and digest', async () => {
     const policy = parseShipExecutionPolicy(readOnlyPolicy);
-    const grant = mintShipExecutionGrant({
+    const grant = await mintShipExecutionGrant({
       policy,
       tenantId: 'tenant-1',
       admittedTenantId: 'tenant-1',
@@ -173,34 +181,7 @@ describe('ship execution authority', () => {
       runId: 'run:delivery-7', attempt: 1, nonce: 'nonce_1234567890123456',
       nowEpochMs: 2_000, issuedAtEpochMs: 1_000, expiresAtEpochMs: 301_000,
     });
-    expect(await grant).toMatchObject({
-      mode: 'read_only_sandbox',
-      tenantId: 'tenant-1',
-      repositoryId: 'repo-42',
-      repositoryFullName: 'acme/widget',
-      worktreePath: '/fleet/worktrees/run-7',
-      cwdPath: '/fleet/worktrees/run-7/apps/widget',
-      canonicalWritePathRoots: [],
-      requiresTargetRealpathRecheck: true,
-      singleUse: true,
-    });
-    const futureWriteGrant = {
-      ...(await grant)!,
-      mode: 'write_sandbox',
-      canonicalWritePathRoots: ['/fleet/worktrees/run-7/apps/widget'],
-    } as ShipExecutionGrant;
-    expect(await recheckShipWriteTarget(
-      futureWriteGrant,
-      '/fleet/worktrees/run-7/apps/widget/new.ts',
-      2_000,
-      async path => path,
-    )).toBe('/fleet/worktrees/run-7/apps/widget/new.ts');
-    expect(await recheckShipWriteTarget(
-      futureWriteGrant,
-      '/fleet/worktrees/run-7/apps/widget/link/private.ts',
-      2_000,
-      async () => '/other-tenant/private.ts',
-    )).toBeNull();
+    expect(grant).toBeNull();
   });
 
   it('canonicalizes every write root but refuses write grants until a consumer can recheck targets', async () => {

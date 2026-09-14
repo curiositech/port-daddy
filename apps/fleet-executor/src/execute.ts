@@ -944,7 +944,6 @@ async function recordShipsConfigInTranscript(
       role: ship.role,
       telos: ship.telos,
       blocking: ship.blocking,
-      needsExecution: ship.needsExecution,
       ideation: ship.ideation,
       purser: ship.purser,
       blockWithoutSandbox: ship.blockWithoutSandbox,
@@ -2501,6 +2500,7 @@ export async function executeFleet(
         verdict: result.verdict,
         eligible: result.participation === 'required',
         blocking: result.blocking,
+        unavailableBlocks: result.unavailableBlocks ?? false,
       },
     );
   };
@@ -2539,7 +2539,8 @@ export async function executeFleet(
       const reason = 'Invalid or unauthorized participation policy; Fleet cannot determine voting authority';
       await transcript.step('ship-failed', ship.name, `pd-${ship.name}: unavailable — ${reason}`, { reason });
       const result: ShipResult = { ship: ship.name, blocking: false, participation: 'ineligible', voteOutcome: 'failed',
-        operationalStatus: 'unavailable', verdict: 'UNAVAILABLE', errored: true, failureReason: reason, findings: [] };
+        operationalStatus: 'unavailable', unavailableBlocks: true,
+        verdict: 'UNAVAILABLE', errored: true, failureReason: reason, findings: [] };
       results.push(result);
       await persistParticipation(result);
       continue;
@@ -2548,10 +2549,12 @@ export async function executeFleet(
     if (ship.executionConfigState === 'invalid') {
       const reason = 'Explicit execution policy is malformed; deny-all cannot be treated as model-only review';
       await transcript.step('ship-unavailable', ship.name, `pd-${ship.name}: unavailable — ${reason}`, {
-        participation: gate.disposition, executionConfigState: ship.executionConfigState, reason,
+        participation: gate.disposition, unavailableBlocks: ship.participation.unavailableBlocks,
+        executionConfigState: ship.executionConfigState, reason,
       });
       const result: ShipResult = { ship: ship.name, blocking: gate.disposition === 'required',
         participation: gate.disposition ?? 'ineligible', voteOutcome: 'failed', operationalStatus: 'unavailable',
+        unavailableBlocks: ship.participation.unavailableBlocks,
         verdict: 'UNAVAILABLE', errored: true, failureReason: reason, findings: [] };
       results.push(result);
       await persistParticipation(result);
@@ -2587,13 +2590,15 @@ export async function executeFleet(
     // Until a runner verifies and consumes a single-use execution grant, an
     // execution-requesting ship is unavailable. It must never fall back to
     // model-only review or fabricate PASS.
-    if (ship.needsExecution || ship.execution.mode !== 'none') {
+    if (ship.execution.mode !== 'none') {
       const reason = 'execution authority declared but no grant-consuming runner is attached';
       await transcript.step('ship-unavailable', ship.name, `pd-${ship.name}: unavailable — ${reason}`, {
-        participation: gate.disposition, executionMode: ship.execution.mode, reason,
+        participation: gate.disposition, unavailableBlocks: ship.participation.unavailableBlocks,
+        executionMode: ship.execution.mode, reason,
       });
       const result: ShipResult = { ship: ship.name, blocking: gate.disposition === 'required',
         participation: gate.disposition, voteOutcome: 'failed', operationalStatus: 'unavailable',
+        unavailableBlocks: ship.participation.unavailableBlocks,
         verdict: 'UNAVAILABLE', errored: true,
         failureReason: reason, findings: [] };
       results.push(result);
@@ -4353,7 +4358,9 @@ function buildSummary(results: ShipResult[], conclusion: string, sourceCoverageR
         : null;
     const state = r.operationalStatus === 'disabled' ? 'disabled — no vote'
       : r.operationalStatus === 'gated' ? `${r.participation} — no vote`
-      : r.operationalStatus === 'unavailable' ? `unavailable${cause} (broken ship ⇒ run FAILED)`
+      : r.operationalStatus === 'unavailable' ? `unavailable${cause}${r.participation === 'required' || r.unavailableBlocks
+        ? ' (policy requires unavailable capability to fail this run)'
+        : ' (visible, non-gating advisory unavailability)'}`
       : r.noUsableOutput
       ? `no usable output — nothing was reviewed${adjudication}`
       : r.errored

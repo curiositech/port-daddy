@@ -569,7 +569,7 @@ describe('queue consumer', () => {
   it('closes an execution-only fleet as failed while no runner consumes sandbox grants', async () => {
     state.files.set(
       'main:pd-fleet.yml',
-      `fleet:\n  name: execution-only\n  agents:\n    test-author:\n      trigger: pull_request:opened\n      participation: { default: required, rules: [] }\n      allowedTools: "Read,Write,Bash(npm test*)"\n      fallbacks:\n        - backend: cloudflare\n          model: '@cf/qwen/qwen3-30b-a3b-fp8'\n      prompt: |\n        test-author ship: execute repository tests.\n`,
+      `fleet:\n  name: execution-only\n  agents:\n    test-author:\n      trigger: pull_request:opened\n      participation: { default: required, rules: [] }\n      allowedTools: "Read,Write,Bash(npm test*)"\n      execution:\n        mode: write_sandbox\n        repository: current_repository\n        worktree: isolated\n        cwd: .\n        toolAllowlist: [read_file, run_tests]\n        mcpAllowlist: [github.read]\n        networkAllowlist: []\n        writePathAllowlist: [.]\n        maxWallClockMs: 300000\n        maxCostMicrousd: 1000000\n      fallbacks:\n        - backend: cloudflare\n          model: '@cf/qwen/qwen3-30b-a3b-fp8'\n      prompt: |\n        test-author ship: execute repository tests.\n`,
     );
     const kv = memoryKV();
     seedToken(kv, 42);
