@@ -12,6 +12,17 @@ name: Whitepaper PDF Build & Deploy
 #   * main push -> rebuild and FAIL if a committed PDF is stale, since main is
 #       protected and should only ever receive fresh PDFs via merged PRs.
 #
+# The regen commit carries its own derived metadata. publication-digests.json
+# and whitePapers.ts record the byte length, SHA-256 and page count of each
+# committed PDF, so a commit that moves a PDF and leaves them behind publishes a
+# tree that fails its own tests. whitepaper-metadata.yml can heal that, but it is
+# a SEPARATE workflow run on the SAME event: on PR #10162 its heal finished at
+# 10:05 and this job pushed new PDFs at 10:10, and nothing re-healed — the regen
+# push is made with GITHUB_TOKEN, which by design starts no further workflow
+# runs. Four PDFs sat adrift until a person ran --fix by hand. So the heal now
+# happens HERE, between the render and the commit, and the artifact and the
+# record of it move in one commit or not at all.
+#
 # Builds are reproducible WITHIN one renderer version: build-whitepapers.sh pins
 # SOURCE_DATE_EPOCH per paper, so rebuilding unchanged source in the same
 # container is byte-identical, and timestamp noise is fully excluded.
@@ -205,33 +216,101 @@ jobs:
           path: |
             website-v2/public/whitepaper/coordination-papers-mega-volume.pdf
 
-      - name: Commit rebuilt PDFs (same-repo branch)
-        # Heal configured feature-branch pushes and same-repository PR heads.
-        # Fork PRs retain a read-only token and stay advisory; main is protected
-        # and receives the already-healed artifact through the merge queue.
-        if: >-
-          (github.event_name == 'push' && github.ref_name != 'main') ||
-          (github.event_name == 'pull_request' &&
-           github.event.pull_request.head.repo.full_name == github.repository)
+      # ONE decision, read by the four steps below. The loop-breaker subject and
+      # the may-this-job-commit condition each appear exactly once in this file,
+      # so healing, staging and committing can never disagree about whether this
+      # run is a regen that owns derived output.
+      - name: Decide whether this run has derived output to own
+        id: regen
         env:
-          TARGET_BRANCH: ${{ github.head_ref || github.ref_name }}
+          # Heal configured feature-branch pushes and same-repository PR heads.
+          # Fork PRs retain a read-only token and stay advisory; main is protected
+          # and receives the already-healed artifact through the merge queue.
+          COMMITTABLE: ${{ (github.event_name == 'push' && github.ref_name != 'main') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) }}
         run: |
           set -euo pipefail
+          emit() { echo "carry=$1" >> "$GITHUB_OUTPUT"; echo "$2"; exit 0; }
+          if [ "$COMMITTABLE" != "true" ]; then
+            emit false "This event cannot commit (fork PR, or main) — the render stays advisory."
+          fi
           # Loop-breaker: never stack a second build commit on our own. This
           # bounds the build->commit->build chain to a single extra commit even
           # if a render is not perfectly reproducible, so no [skip ci] is needed
           # (and the resulting commit's PR/main checks see the fresh tree).
+          # Unchanged from when it guarded the commit step alone: the subject it
+          # matches is still the subject committed below, and it is still the
+          # ONLY subject this job skips on — a heal commit from
+          # whitepaper-metadata.yml does not match it and never has.
           case "$(git log -1 --format=%s)" in
             "build(whitepaper): regenerate PDFs from source"*)
-              echo "HEAD is already a build commit — nothing to do."; exit 0;;
+              emit false "HEAD is already a build commit — nothing to do.";;
           esac
           if [ -z "$(git status --porcelain --untracked-files=all -- website-v2/public/whitepaper/*.pdf)" ]; then
-            echo "PDFs already match source — nothing to commit."; exit 0
+            emit false "PDFs already match source — nothing to commit."
           fi
+          emit true "The render moved a committed PDF; its derived metadata travels with it."
+
+      # pdfinfo reads the page count the digests record, and the metadata script
+      # is TypeScript. Both are installed only on the path that actually commits,
+      # so the ordinary no-op run still costs this job nothing.
+      - name: Install poppler (provides pdfinfo) in the TeX container
+        if: steps.regen.outputs.carry == 'true'
+        run: |
+          set -eu
+          command -v pdfinfo >/dev/null 2>&1 || (apt-get update && apt-get install -y poppler-utils)
+          pdfinfo -v 2>&1 | head -1 || true
+
+      - name: Install website-v2 dependencies (tsx and ts-morph for the metadata script)
+        if: steps.regen.outputs.carry == 'true'
+        working-directory: website-v2
+        env:
+          # The metadata script needs tsx, ts-morph and the two data modules.
+          # Nothing here opens a browser, and the download is ~100 MB of nothing.
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+        run: npm ci --no-audit --no-fund
+
+      - name: Carry the derived metadata onto the PDFs this job just built
+        # THE FIX. publication-digests.json, whitePapers.ts and researchPapers.ts
+        # are derived: page count, byte size and SHA-256 of the committed PDFs and
+        # nothing else. Staging a regenerated PDF without them commits a tree whose
+        # own tests fail on `expect(pdf.length).toBe(manifest.bytes)`. Recomputing
+        # here, before the commit, is the whole point: it can only restore the truth
+        # about what this job is about to stage, and the two can no longer be
+        # separated by a workflow boundary, a scheduling gap, or a push that starts
+        # no new run.
+        if: steps.regen.outputs.carry == 'true'
+        env:
+          CI: 'true'
+        run: |
+          set -euo pipefail
+          # `|| true` for the same reason whitepaper-metadata.yml gives: --fix
+          # returns non-zero on paths that are not failures. It is safe because
+          # the very next line is the gate — a crashed or partial --fix cannot
+          # reach the commit, because the plain check recomputes from the PDFs on
+          # disk and fails this job if anything is still adrift.
+          ( cd website-v2 && npx tsx scripts/check-whitepaper-metadata.ts --fix ) || true
+          ( cd website-v2 && npx tsx scripts/check-whitepaper-metadata.ts )
+
+      - name: Commit rebuilt PDFs and their derived metadata (same-repo branch)
+        if: steps.regen.outputs.carry == 'true'
+        env:
+          TARGET_BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: |
+          set -euo pipefail
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add website-v2/public/whitepaper/*.pdf
-          echo "Changed PDFs:"; git diff --cached --stat
+          # Every file --fix is allowed to write, so nothing it healed above can
+          # be left behind in the worktree while the PDF it describes ships.
+          # researchPapers.ts is in the list because --fix rewrites whole
+          # registries: this job never moves a research PDF, but if that registry
+          # was already adrift the step above healed it on disk, and a healed file
+          # that is not committed is the same lag this change exists to close.
+          git add -- website-v2/public/whitepaper/publication-digests.json \
+                     website-v2/src/data/whitePapers.ts \
+                     website-v2/src/data/researchPapers.ts
+          echo "Changed PDFs and the derived metadata that describes them:"
+          git diff --cached --stat
           git commit -m "build(whitepaper): regenerate PDFs from source"
           # The branch moves while the Book compiles -- five to eight minutes in
           # which a session can push four commits -- so a bare push loses the
