@@ -9,6 +9,7 @@
  *   GET  /v1/subscribe/:session_id          (SSE)
  *   POST /v1/publish
  *   POST /v1/github/webhook                  (GitHub webhook ingress; HMAC-gated)
+ *   POST /v1/fleetbot/publish                (account bearer; governed GitHub App actions)
  *   GET  /v1/fleet/config                     (operator; fleet control-plane read)
  *   POST /v1/fleet/validate                   (operator; deterministic YAML validate)
  *   POST /v1/fleet/smoke-test                 (operator; run one ship on Workers AI)
@@ -160,6 +161,7 @@ import {
   handleAudit,
 } from './handlers.js';
 import { handleGithubWebhook } from './github-webhook.js';
+import { handleFleetbotPublisher } from './github-publisher.js';
 import { handleRepoShips } from './repo-ships-page.js';
 import { handleProvisionFleetExecutor } from './fleet-executor-identity.js';
 import { handleRunReport } from './run-report.js';
@@ -488,6 +490,11 @@ export default {
     // ── GitHub webhook ingress ───────────────────────────────────────────────
     else if (pathname === '/v1/github/webhook' && method === 'POST') {
       response = await handleGithubWebhook(request, env);
+    }
+
+    // ── Governed GitHub App publication ────────────────────────────────────
+    else if (pathname === '/v1/fleetbot/publish' && method === 'POST') {
+      response = await handleFleetbotPublisher(request, env);
     }
 
     // ── Fleet control-plane (operator-gated) ─────────────────────────────────

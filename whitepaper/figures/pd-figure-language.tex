@@ -31,9 +31,16 @@
   pd artifact/.style={draw=hhgray!80,line width=.55pt,fill=hhsand!30,
     inner xsep=8pt,inner ysep=5pt,align=center},
   pd boundary/.style={draw=hhgray!70,line width=.55pt,dashed,rounded corners=2pt},
-  pd focus fill/.style={fill=hhteal!24,draw=hhteal!65,line width=.4pt},
-  pd caution fill/.style={fill=hhamber!26,draw=hhamber!70,line width=.4pt},
-  pd neutral fill/.style={fill=hhsand!40,draw=hhgray!65,line width=.4pt},
+  % These three are pale washes: they are frequently layered on top of `pd
+  % state` (directly, or via a compound style like `cell`), whose swiss-edition
+  % override (figures/pd-figure-language-swiss.tex) appends text=hhpaper for the
+  % common case of a solid, saturated fill. A pale wash is the opposite case --
+  % text must stay dark ink regardless of what came before it in the style
+  % list, so each one restates text=hhink explicitly rather than relying on
+  % whatever was inherited.
+  pd focus fill/.style={fill=hhteal!24,draw=hhteal!65,line width=.4pt,text=hhink},
+  pd caution fill/.style={fill=hhamber!26,draw=hhamber!70,line width=.4pt,text=hhink},
+  pd neutral fill/.style={fill=hhsand!40,draw=hhgray!65,line width=.4pt,text=hhink},
   pd hatch/.style={pattern={Lines[angle=45,distance=4pt,line width=.28pt]},pattern color=hhgray!55},
 }
 
