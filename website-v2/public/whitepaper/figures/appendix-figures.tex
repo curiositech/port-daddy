@@ -25,14 +25,14 @@
              align=center},
   capbox/.style={draw=hhcobalt,fill=hhpaper,thick,minimum width=14mm,
                  minimum height=8mm,inner sep=2pt,
-                 font=\bfseries,text=hhcobalt},
+                 font=\pdfiglabelbold,text=hhcobalt},
   sql/.style={draw=hhebony,fill=hhsanddeep,thick,rounded corners=2pt,
               inner sep=6pt,align=center},
   ev/.style={ellipse,draw=hhteal,fill=hhpaper,thick,inner sep=3pt},
   msg/.style={->,>=Latex,thick,draw=hhink},
   bad/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
   mlbl/.style={inner sep=1pt,fill=hhpaper},
-  badlbl/.style={font=\itshape,text=hhcobalt,
+  badlbl/.style={font=\pdfiglabelitalic,text=hhcobalt,
                  inner sep=1pt,fill=hhpaper},
 ]
 % Top row: public channel (Dolev-Yao adversary).
@@ -134,7 +134,7 @@
                fill=hhpaper,inner sep=0pt},
   empty/.style={draw=hhebony,thick,minimum width=8mm,minimum height=7mm,
                 fill=hhsand,inner sep=0pt},
-  bucketlbl/.style={font=\bfseries,anchor=east},
+  bucketlbl/.style={font=\pdfiglabelbold,anchor=east},
   flow/.style={->,>=Latex,thick,draw=hhcobalt},
   hashflow/.style={->,>=Latex,thick,draw=hhteal},
 ]
@@ -172,7 +172,7 @@
 % Label "evict 2f" pinned right at the arrow midpoint, inside the bucket
 % column gutter so it doesn't collide with the formula boxes on the right.
 \draw[flow,line width=1.6pt] (b0s2.south) -- (b2s2.north);
-\node[font=\itshape,text=hhcobalt,
+\node[font=\pdfiglabelitalic,text=hhcobalt,
       anchor=west] at ([xshift=1.5mm,yshift=0mm]b1s2.east)
   {evict \texttt{2f}};
 \node[draw=hhebony,thick,fill=hhsanddeep,rounded corners=3pt,inner sep=5pt,
@@ -206,7 +206,7 @@
   arr/.style={->,>=Latex,thick,draw=hhink},
 ]
 \begin{scope}[xshift=0cm]
-\node[font=\bfseries,anchor=center] at (1.2,4.2) {(a) Static escrow};
+\node[font=\pdfiglabelbold,anchor=center] at (1.2,4.2) {(a) Static escrow};
 \node[actor] (p1) at (1.2,3.2) {Principal};
 \node[escrow,below=10mm of p1] (esc) {Escrow $B_T = \mu(1+s)$};
 \node[commons,below=10mm of esc] (c1) {Commons};
@@ -220,7 +220,7 @@
   {{\bfseries Principal cost} \\ $= \mathbb{E}[d] + r \cdot B_T$};
 \end{scope}
 \begin{scope}[xshift=8.2cm]
-\node[font=\bfseries,anchor=center] at (1.2,4.2)
+\node[font=\pdfiglabelbold,anchor=center] at (1.2,4.2)
   {(b) Competitive Vickrey};
 \node[actor] (p2) at (1.2,3.2) {Principal};
 \node[ins,fill=hhsand,below=11mm of p2,xshift=-15mm] (i1) {$A$\\$q_A$};
@@ -256,12 +256,12 @@
   decision/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=3pt,
                    inner sep=4pt,align=center,minimum width=20mm},
   payoff/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,
-                 inner sep=3pt,align=center,font=\bfseries},
+                 inner sep=3pt,align=center,font=\pdfiglabelbold},
   bad/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,
-              inner sep=3pt,align=center,font=\bfseries,
+              inner sep=3pt,align=center,font=\pdfiglabelbold,
               text=hhcobalt},
   arr/.style={->,>=Latex,thick,draw=hhink},
-  prob/.style={font=\itshape,fill=hhpaper,inner sep=1pt},
+  prob/.style={font=\pdfiglabelitalic,fill=hhpaper,inner sep=1pt},
 ]
 \node[state] (rt) at (0,2.4) {round $t$};
 \node[decision,right=10mm of rt] (dec) {Action choice};
@@ -303,7 +303,7 @@
 \begin{tikzpicture}[pd figure,
   adv/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=3pt,
               inner sep=4pt,minimum width=22mm,align=center,
-              font=\bfseries,text=hhcobalt},
+              font=\pdfiglabelbold,text=hhcobalt},
   sybil/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,
                 inner sep=3pt,minimum width=16mm,align=center},
   honest/.style={draw=hhebony,thick,fill=hhsand,rounded corners=2pt,
@@ -311,7 +311,7 @@
   auction/.style={draw=hhebony,thick,fill=hhsanddeep,rounded corners=3pt,
                   inner sep=5pt,align=center,minimum width=28mm},
   payout/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,
-                 inner sep=3pt,align=center,font=\bfseries},
+                 inner sep=3pt,align=center,font=\pdfiglabelbold},
   arr/.style={->,>=Latex,thick,draw=hhink},
   badarr/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
 ]
@@ -340,12 +340,12 @@
 \draw[arr] (h1.north) to[bend left=14] (auction.south);
 \draw[arr] (h2.north) to[bend left=8] (auction.south);
 % Floating callout for the undercut, placed ABOVE the auction
-\node[font=\itshape,text=hhcobalt,
+\node[font=\pdfiglabelitalic,text=hhcobalt,
       align=center,above=2mm of auction.north]
   {sybils undercut by $(1-\varepsilon)$};
 % Winner — RIGHT of auction (no overlap risk)
 \node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
-      align=center,right=10mm of auction,font=\bfseries,
+      align=center,right=10mm of auction,font=\pdfiglabelbold,
       text=hhcobalt] (winner) {WINNER:\\$S_i$};
 \draw[pd focus rule,arr,line width=1.4pt] (auction.east) -- (winner.west);
 % On-loss payout — BELOW the winner

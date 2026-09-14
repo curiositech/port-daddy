@@ -1,4 +1,4 @@
-"""Unit tests for tikz_precheck.py's P18-P24 rules -- the five that make the
+"""Unit tests for tikz_precheck.py's P18-P25 rules -- the five that make the
 typographic law in figures/pd-figure-language.tex binding rather than advisory.
 
 Same fixture-file-per-case pattern as test_tikz_precheck.py and
@@ -468,7 +468,7 @@ class TestRuleIdsAreReported(LawTestCase):
     def test_markdown_report_lists_the_new_ids(self):
         report = self.run_on("\\begin{tikzpicture}\\end{tikzpicture}\n")
         md = tikz_precheck.render_markdown([report])
-        for rid in ("P18", "P19", "P20", "P21", "P22", "P23", "P24"):
+        for rid in ("P18", "P19", "P20", "P21", "P22", "P23", "P24", "P25"):
             self.assertIn(rid + "=", md)
 
 
@@ -605,6 +605,82 @@ class TestP24BodyFont(LawTestCase):
             "\\newenvironment{thing}{\\normalfont}{}\n", stem="pd-pedagogy",
         )
         self.assertEqual(report["summary"]["by_id"]["P24"], 0)
+
+
+class TestP25FontHandle(LawTestCase):
+    """P25: a `font=` built from anything but the house handles.
+
+    The general form of P19 and P21, and a whitelist because the mechanism is
+    general: a node's `font=` replaces the PICTURE-level `font=` that carries
+    \\pdfiglabelfamily, so the node falls back to the document's face. Measured
+    in the Book: font=\\bfseries renders TeXGyrePagellaX-Bold and font=\\itshape
+    renders TeXGyrePagellaX-Italic inside drawings set in TeXGyreHeros.
+    """
+
+    def test_a_house_handle_passes(self):
+        report = self.run_on(
+            "\\begin{tikzpicture}[idbox/.style={font=\\pdfiglabelmono,inner sep=0pt}]\n"
+            "\\node[idbox] at (0,0) {sk_A};\n"
+            "\\end{tikzpicture}\n"
+        )
+        self.assertEqual(report["summary"]["by_id"]["P25"], 0)
+
+    def test_a_composed_handle_passes(self):
+        report = self.run_on(
+            "\\begin{tikzpicture}\n"
+            "\\node[font=\\pdfiglabelbold] at (0,0) {a};\n"
+            "\\node[font=\\pdfiglabelitalic] at (0,1) {b};\n"
+            "\\end{tikzpicture}\n"
+        )
+        self.assertEqual(report["summary"]["by_id"]["P25"], 0)
+
+    def test_a_weight_only_font_still_fails(self):
+        """The case a blacklist could never have caught: \\bfseries names no
+        family and no size, and it still loses the family."""
+        report = self.run_on(
+            "\\begin{tikzpicture}\n\\node[font=\\bfseries] at (0,0) {cap};\n\\end{tikzpicture}\n"
+        )
+        self.assertEqual(report["summary"]["by_id"]["P25"], 1)
+        self.assertIn("DOCUMENT", self.findings_for(report, "font-handle")[0]["message"])
+
+    def test_a_slope_only_font_still_fails(self):
+        report = self.run_on(
+            "\\begin{tikzpicture}\n\\node[font=\\itshape] at (0,0) {reject};\n\\end{tikzpicture}\n"
+        )
+        self.assertEqual(report["summary"]["by_id"]["P25"], 1)
+
+    def test_a_shape_font_fails(self):
+        """Small caps belongs in the node's text as \\textsc{}, where it composes
+        with the role's font instead of replacing it."""
+        report = self.run_on(
+            "\\begin{tikzpicture}\n\\node[font=\\scshape] at (0,0) {for the operator};\n\\end{tikzpicture}\n"
+        )
+        self.assertEqual(report["summary"]["by_id"]["P25"], 1)
+
+    def test_the_stack_map_shape_fails(self):
+        """The original defect, verbatim from main's fig-swk-stack-map.tex."""
+        report = self.run_on(
+            "\\begin{tikzpicture}\n"
+            "\\node[font=\\footnotesize\\bfseries,text=white,anchor=west] at (0,0) {MACHINE FLOOR};\n"
+            "\\end{tikzpicture}\n"
+        )
+        self.assertEqual(report["summary"]["by_id"]["P25"], 1)
+
+    def test_textsc_in_node_text_is_fine(self):
+        report = self.run_on(
+            "\\begin{tikzpicture}\n"
+            "\\node[pd axis label] at (0,0) {\\textsc{for the operator}};\n"
+            "\\end{tikzpicture}\n"
+        )
+        self.assertEqual(report["summary"]["by_id"]["P25"], 0)
+
+    def test_the_style_file_is_exempt(self):
+        report = self.run_on(
+            "\\tikzset{pd note/.style={font=\\pdfiglabelitalic,text=hhink}}\n"
+            "\\tikzset{x/.style={font=\\bfseries}}\n",
+            stem="pd-figure-language",
+        )
+        self.assertEqual(report["summary"]["by_id"]["P25"], 0)
 
 
 class TestApparatusDetection(LawTestCase):
