@@ -55,6 +55,11 @@ import {
   reserveFleetRunIntent,
   type FleetIntentReservation,
 } from './fleet-run-intents.js';
+import {
+  FLEET_RUN_JOB_SCHEMA_VERSION,
+  isPositiveGithubId,
+  resolveFleetTenantBinding,
+} from '../../shared/fleet-tenant.js';
 import type { Env, RelayEvent, ChainHead, RelayError, FleetRunJob } from './types.js';
 
 /**
@@ -331,7 +336,9 @@ async function publishGithubEventToChannel(
  * @param action - The payload's `action`, or null for actionless events.
  * @param deliveryId - `X-GitHub-Delivery`, carried into the job for tracing.
  * @param repoFullName - `owner/repo`, or null when the payload names no repo.
- * @param payload - The HMAC-verified webhook body.
+ * @param payload - The HMAC-verified webhook body. Queue admission additionally
+ *   requires its positive numeric installation/repository/owner ids to resolve
+ *   to one active Fleet tenant binding; names never substitute for that lookup.
  * @returns Nothing; every failure is absorbed and audited.
  */
 async function maybeEnqueueFleetRun(
@@ -364,6 +371,40 @@ async function maybeEnqueueFleetRun(
     payload.installation && typeof payload.installation === 'object'
       ? (payload.installation as Record<string, unknown>)
       : null;
+  const repository =
+    payload.repository && typeof payload.repository === 'object'
+      ? (payload.repository as Record<string, unknown>)
+      : null;
+  const repositoryOwner =
+    repository?.owner && typeof repository.owner === 'object'
+      ? (repository.owner as Record<string, unknown>)
+      : null;
+  const installationId = installation?.id;
+  const repositoryId = repository?.id;
+  const githubAccountId = repositoryOwner?.id;
+  if (!isPositiveGithubId(installationId)
+    || !isPositiveGithubId(repositoryId)
+    || !isPositiveGithubId(githubAccountId)) {
+    await appendAudit(env.DB, {
+      action: 'fleet_run_tenant_refused',
+      target: repoFullName ?? '',
+      detail: `event=${eventType} delivery=${deliveryId} reason=invalid-identity`,
+    }).catch(() => {});
+    return;
+  }
+  const tenant = await resolveFleetTenantBinding(env.DB, {
+    installationId,
+    repositoryId,
+    githubAccountId,
+  });
+  if (!tenant.ok) {
+    await appendAudit(env.DB, {
+      action: 'fleet_run_tenant_refused',
+      target: repoFullName ?? '',
+      detail: `event=${eventType} delivery=${deliveryId} reason=${tenant.reason}`,
+    }).catch(() => {});
+    return;
+  }
   const pull =
     payload.pull_request && typeof payload.pull_request === 'object'
       ? (payload.pull_request as Record<string, unknown>)
@@ -413,11 +454,12 @@ async function maybeEnqueueFleetRun(
     }
   }
   const job: FleetRunJob = {
+    schemaVersion: FLEET_RUN_JOB_SCHEMA_VERSION,
     deliveryId,
     eventType,
     action,
     repoFullName,
-    installationId: installation && typeof installation.id === 'number' ? installation.id : null,
+    ...tenant.binding,
     prNumber,
     payloadMinimal: {
       sender: (payload.sender as Record<string, unknown>) ?? undefined,
