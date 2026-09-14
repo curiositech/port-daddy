@@ -17,24 +17,22 @@
 % ──────────────────────────────────────────────────────────────────────
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-  font=\sffamily\small,
+\begin{tikzpicture}[pd figure,
   actor/.style={draw=hhebony,fill=hhsand,rounded corners=2pt,
                 inner sep=5pt,minimum width=20mm,minimum height=9mm,
                 thick,align=center},
   ch/.style={draw=hhebony,fill=hhpaper,inner sep=5pt,minimum width=28mm,thick,
-             align=center,font=\sffamily\footnotesize},
+             align=center},
   capbox/.style={draw=hhcobalt,fill=hhpaper,thick,minimum width=14mm,
                  minimum height=8mm,inner sep=2pt,
-                 font=\sffamily\bfseries\footnotesize,text=hhcobalt},
+                 font=\bfseries,text=hhcobalt},
   sql/.style={draw=hhebony,fill=hhsanddeep,thick,rounded corners=2pt,
-              inner sep=6pt,align=center,font=\sffamily\footnotesize},
-  ev/.style={ellipse,draw=hhteal,fill=hhpaper,thick,inner sep=3pt,
-             font=\sffamily\footnotesize},
+              inner sep=6pt,align=center},
+  ev/.style={ellipse,draw=hhteal,fill=hhpaper,thick,inner sep=3pt},
   msg/.style={->,>=Latex,thick,draw=hhink},
   bad/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
-  mlbl/.style={font=\sffamily\footnotesize,inner sep=1pt,fill=hhpaper},
-  badlbl/.style={font=\sffamily\footnotesize\itshape,text=hhcobalt,
+  mlbl/.style={inner sep=1pt,fill=hhpaper},
+  badlbl/.style={font=\itshape,text=hhcobalt,
                  inner sep=1pt,fill=hhpaper},
 ]
 % Top row: public channel (Dolev-Yao adversary).
@@ -75,8 +73,8 @@
 \draw[bad] (sql.south) |- (consumer2.west);
 \node[badlbl] at ($(sql.south)+(2.0,-4mm)$) {cap drained $\to$ reject};
 % Event dotted lines (provenance).
-\draw[->,>=Latex,thick,draw=hhteal,dotted] (issuer.south) -- (eIssue.north);
-\draw[->,>=Latex,thick,draw=hhteal,dotted] (consumer.south) -- (eConsume.north);
+\draw[pd focus rule,->,>=Latex,thick,dotted] (issuer.south) -- (eIssue.north);
+\draw[pd focus rule,->,>=Latex,thick,dotted] (consumer.south) -- (eConsume.north);
 \end{tikzpicture}
 \caption{Magic-link single-use atomicity. The SQL \texttt{UPDATE \dots WHERE consumed\_at IS NULL RETURNING} is the runtime analogue of the ProVerif private-channel cap: SQLite serializes concurrent writers, so the first caller drains the cap and the second consumer's transaction returns zero rows. Verified properties: injective single-use ($\mathrm{inj\text{-}event}(\texttt{consumed\_for}) \Rightarrow \mathrm{inj\text{-}event}(\texttt{issued\_for})$) and binding.}
 \label{fig:magic-link-diag}
@@ -85,14 +83,13 @@
 % ──────────────────────────────────────────────────────────────────────
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-  font=\sffamily\small,
+\begin{tikzpicture}[pd figure,
   hop/.style={draw=hhebony,thick,fill=hhsand,rounded corners=2pt,
               minimum width=22mm,minimum height=10mm,inner sep=3pt,align=center},
   sig/.style={draw=hhamber,thick,fill=hhpaper,rounded corners=1pt,
-              inner sep=2pt,font=\sffamily\footnotesize,align=center},
+              inner sep=2pt,align=center},
   fresh/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=1pt,
-                inner sep=2pt,font=\sffamily\footnotesize},
+                inner sep=2pt},
   arr/.style={->,>=Latex,thick,draw=hhink},
 ]
 \node[hop] (h1) at (0,2.6) {Hop 1\\$\mathrm{id}_1 \to \mathrm{id}_2$};
@@ -127,13 +124,12 @@
 % ──────────────────────────────────────────────────────────────────────
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-  font=\sffamily\small,
+\begin{tikzpicture}[pd figure,
   slot/.style={draw=hhebony,thick,minimum width=8mm,minimum height=7mm,
-               fill=hhpaper,inner sep=0pt,font=\sffamily\footnotesize},
+               fill=hhpaper,inner sep=0pt},
   empty/.style={draw=hhebony,thick,minimum width=8mm,minimum height=7mm,
                 fill=hhsand,inner sep=0pt},
-  bucketlbl/.style={font=\sffamily\footnotesize\bfseries,anchor=east},
+  bucketlbl/.style={font=\bfseries,anchor=east},
   flow/.style={->,>=Latex,thick,draw=hhcobalt},
   hashflow/.style={->,>=Latex,thick,draw=hhteal},
 ]
@@ -171,7 +167,7 @@
 % Label "evict 2f" pinned right at the arrow midpoint, inside the bucket
 % column gutter so it doesn't collide with the formula boxes on the right.
 \draw[flow,line width=1.6pt] (b0s2.south) -- (b2s2.north);
-\node[font=\sffamily\footnotesize\itshape,text=hhcobalt,
+\node[font=\itshape,text=hhcobalt,
       anchor=west] at ([xshift=1.5mm,yshift=0mm]b1s2.east)
   {evict \texttt{2f}};
 \node[draw=hhebony,thick,fill=hhsanddeep,rounded corners=3pt,inner sep=5pt,
@@ -193,8 +189,7 @@
 % ──────────────────────────────────────────────────────────────────────
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-  font=\sffamily\small,
+\begin{tikzpicture}[pd figure,
   actor/.style={draw=hhebony,thick,fill=hhsand,rounded corners=2pt,
                 inner sep=4pt,minimum width=20mm,align=center},
   commons/.style={draw=hhebony,thick,fill=hhteal!40,rounded corners=2pt,
@@ -206,21 +201,21 @@
   arr/.style={->,>=Latex,thick,draw=hhink},
 ]
 \begin{scope}[xshift=0cm]
-\node[font=\sffamily\bfseries,anchor=center] at (1.2,4.2) {(a) Static escrow};
+\node[font=\bfseries,anchor=center] at (1.2,4.2) {(a) Static escrow};
 \node[actor] (p1) at (1.2,3.2) {Principal};
 \node[escrow,below=10mm of p1] (esc) {Escrow $B_T = \mu(1+s)$};
 \node[commons,below=10mm of esc] (c1) {Commons};
-\draw[arr] (p1.south) -- node[right,font=\sffamily\footnotesize]
+\draw[arr] (p1.south) -- node[right]
   {deposit $B_T$} (esc.north);
-\draw[arr] (esc.south) -- node[right,font=\sffamily\footnotesize]
+\draw[arr] (esc.south) -- node[right]
   {on loss: $\min(d, B_T)$} (c1.north);
-\node[align=center,font=\sffamily\footnotesize,
+\node[align=center,
       draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,inner sep=4pt,
       below=8mm of c1,minimum width=42mm] (cost1)
   {{\bfseries Principal cost} \\ $= \mathbb{E}[d] + r \cdot B_T$};
 \end{scope}
 \begin{scope}[xshift=8.2cm]
-\node[font=\sffamily\bfseries,anchor=center] at (1.2,4.2)
+\node[font=\bfseries,anchor=center] at (1.2,4.2)
   {(b) Competitive Vickrey};
 \node[actor] (p2) at (1.2,3.2) {Principal};
 \node[ins,fill=hhsand,below=11mm of p2,xshift=-15mm] (i1) {$A$\\$q_A$};
@@ -228,16 +223,15 @@
 \node[ins,fill=hhsand,below=11mm of p2,xshift=15mm] (i3) {$C$\\$q_C$};
 \node[commons,below=11mm of i2] (c2) {Commons};
 % Vickrey 2nd-price callout placed to the RIGHT of the cohort, not below it.
-\node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,inner sep=2pt,
-      font=\sffamily\footnotesize,right=4mm of i3,align=center]
+\node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,inner sep=2pt,right=4mm of i3,align=center]
   (vic) {Vickrey 2\textsuperscript{nd}-price\\$q^* = q_{(2)}$};
 \draw[arr] (p2.south) -- (i1.north);
 \draw[arr] (p2.south) -- (i2.north);
 \draw[arr] (p2.south) -- (i3.north);
-\draw[arr,line width=1.4pt,draw=hhcobalt] (i2.south) --
-  node[left,font=\sffamily\footnotesize]
+\draw[pd focus rule,arr,line width=1.4pt] (i2.south) --
+  node[left]
   {underwrites $B_T$} (c2.north);
-\node[align=center,font=\sffamily\footnotesize,
+\node[align=center,
       draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,inner sep=4pt,
       below=8mm of c2,minimum width=42mm] (cost2)
   {{\bfseries Principal cost} \\ $= q^*$ (no idle capital)};
@@ -251,19 +245,18 @@
 % ──────────────────────────────────────────────────────────────────────
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-  font=\sffamily\small,
+\begin{tikzpicture}[pd figure,
   state/.style={draw=hhebony,thick,fill=hhsand,circle,inner sep=2pt,
-                minimum size=8mm,font=\sffamily\footnotesize},
+                minimum size=8mm},
   decision/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=3pt,
                    inner sep=4pt,align=center,minimum width=20mm},
   payoff/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,
-                 inner sep=3pt,align=center,font=\sffamily\footnotesize\bfseries},
+                 inner sep=3pt,align=center,font=\bfseries},
   bad/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,
-              inner sep=3pt,align=center,font=\sffamily\footnotesize\bfseries,
+              inner sep=3pt,align=center,font=\bfseries,
               text=hhcobalt},
   arr/.style={->,>=Latex,thick,draw=hhink},
-  prob/.style={font=\sffamily\footnotesize\itshape,fill=hhpaper,inner sep=1pt},
+  prob/.style={font=\itshape,fill=hhpaper,inner sep=1pt},
 ]
 \node[state] (rt) at (0,2.4) {round $t$};
 \node[decision,right=10mm of rt] (dec) {Action choice};
@@ -302,20 +295,18 @@
 % ──────────────────────────────────────────────────────────────────────
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-  font=\sffamily\small,
+\begin{tikzpicture}[pd figure,
   adv/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=3pt,
               inner sep=4pt,minimum width=22mm,align=center,
-              font=\sffamily\bfseries,text=hhcobalt},
+              font=\bfseries,text=hhcobalt},
   sybil/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,
-                inner sep=3pt,minimum width=16mm,align=center,
-                font=\sffamily\footnotesize},
+                inner sep=3pt,minimum width=16mm,align=center},
   honest/.style={draw=hhebony,thick,fill=hhsand,rounded corners=2pt,
                  inner sep=3pt,minimum width=16mm,align=center},
   auction/.style={draw=hhebony,thick,fill=hhsanddeep,rounded corners=3pt,
                   inner sep=5pt,align=center,minimum width=28mm},
   payout/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,
-                 inner sep=3pt,align=center,font=\sffamily\footnotesize\bfseries},
+                 inner sep=3pt,align=center,font=\bfseries},
   arr/.style={->,>=Latex,thick,draw=hhink},
   badarr/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
 ]
@@ -326,7 +317,7 @@
   {Sybil $S_2$\\dep $B_{\mathrm{dep}}$};
 \node[sybil,right=10mm of attacker.east,yshift=-12mm] (s3)
   {Sybil $S_3$\\dep $B_{\mathrm{dep}}$};
-\draw[arr] (attacker.east) -- node[above,font=\sffamily\footnotesize]
+\draw[arr] (attacker.east) -- node[above]
   {spawn} (s1.west);
 \draw[arr] (attacker.east) -- (s2.west);
 \draw[arr] (attacker.east) -- (s3.west);
@@ -344,20 +335,20 @@
 \draw[arr] (h1.north) to[bend left=14] (auction.south);
 \draw[arr] (h2.north) to[bend left=8] (auction.south);
 % Floating callout for the undercut, placed ABOVE the auction
-\node[font=\sffamily\footnotesize\itshape,text=hhcobalt,
+\node[font=\itshape,text=hhcobalt,
       align=center,above=2mm of auction.north]
   {sybils undercut by $(1-\varepsilon)$};
 % Winner — RIGHT of auction (no overlap risk)
 \node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
-      align=center,right=10mm of auction,font=\sffamily\bfseries,
+      align=center,right=10mm of auction,font=\bfseries,
       text=hhcobalt] (winner) {WINNER:\\$S_i$};
-\draw[arr,line width=1.4pt,draw=hhcobalt] (auction.east) -- (winner.west);
+\draw[pd focus rule,arr,line width=1.4pt] (auction.east) -- (winner.west);
 % On-loss payout — BELOW the winner
 \node[payout,below=10mm of winner,fill=hhamber!20,minimum width=42mm,align=left]
   (lossbox)
   {{\bfseries on loss $d > 0$:}\\Sybil pays $0$;\\
    protocol slashes $\min(B_{\mathrm{dep}}, B_T)$};
-\draw[arr,draw=hhcobalt,dashed] (winner.south) -- (lossbox.north);
+\draw[pd focus rule,arr,dashed] (winner.south) -- (lossbox.north);
 % A5 finding — FULL WIDTH below entire diagram, anchored to the page-relative center
 \node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=3pt,inner sep=5pt,
       align=left,text width=140mm,

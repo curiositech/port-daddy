@@ -23,7 +23,9 @@
   \node[pd direct label,text=hhamber,anchor=west] at (4.65,2.45) {outcome B};
 
   % Buyer-specific projections; same vectors, opposite decisions.
-  \node[pd panel title,anchor=west] at (-6.8,-1.55)
+  % Moved down from -1.55: the axis sub-lines above are set at the label size
+  % now rather than \tiny, so they reach further into this line's space.
+  \node[pd panel title,anchor=west] at (-6.8,-1.78)
     {buyers apply preferences after disclosure};
   \draw[pd hairline] (-5.25,-2.35) -- (5.8,-2.35);
   \draw[pd hairline] (-5.25,-3.20) -- (5.8,-3.20);
