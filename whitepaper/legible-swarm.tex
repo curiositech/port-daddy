@@ -986,6 +986,55 @@ operator actually values in a roadmap owner --- consistency of judgment across
 requests --- which does not appear in a response-time objective at all. The
 boundary is a floor on the argument, not the whole argument.}
 
+\subsubsection{What heavy tails do to the boundary}\label{sec:spec-heavy-tails}
+
+Exponential service is the assumption a queueing reader will challenge first, and
+they are right to: agent execution durations are not exponential. They are
+long-tailed --- most turns are quick, a few grind through a rebuild or a flaky
+integration test --- and submissions arrive in correlated bursts rather than as a
+clean Poisson stream. Kingman's heavy-traffic result \pdcite{kingman1961} says what
+that costs in general: waiting grows with the sum of the squared coefficients of
+variation of the arrival and service processes, so a queue that is fine at
+$c_s^2=1$ can be badly congested at $c_s^2=6$ with the same utilization. The
+worry is real. What is not obvious, and matters here, is that it lands on
+\emph{both} sides of Eq.~\ref{eq:specboundary} at once.
+
+Work it through. Under the Allen--Cunneen approximation \pdcite{allen1990}, the
+pool's mean wait picks up a factor $(c_a^2+c_s^2)/2$ relative to the $M/M/c$ value,
+and with Poisson arrivals ($c_a^2=1$) that is $\kappa=(1+c_s^2)/2$. The specialist
+is a single server, so its wait is exactly Pollaczek--Khinchine, which carries the
+same $\kappa$ against the $M/M/1$ value. The two waiting terms in the boundary are
+therefore scaled by approximately the same factor, and dividing through by it
+leaves the shape of $g_A$ intact while the accountability term
+$A\mu_{\mathrm{pool}}/(w\lambda_F)$ --- which prices a value per unit time of
+demand and knows nothing about service variance --- is left over, entering as
+$A/\kappa$. The first-order reading is the reverse of the intuition:
+variance does not move the specialization boundary much, and what it does do is
+make single-writer attribution weigh \emph{less} against queueing, not more,
+because everyone's queue got worse while accountability stayed worth the same.
+
+\begin{pdclaim}{Empirical hypothesis}{Variance robustness of the specialization boundary}
+\label{hyp:spec-variance}
+Under Poisson arrivals and general service with squared coefficient of variation
+$c_s^2$, the crossing point of Eq.~\ref{eq:specboundary} moves by no more than the
+Allen--Cunneen heuristic predicts --- that is, the boundary is recovered to first
+order by replacing $A$ with $A/\kappa$, $\kappa=(1+c_s^2)/2$ --- for lognormal and
+Pareto service at the $(\rho,c)$ points the chapter reports.
+\end{pdclaim}
+
+This is an \emph{empirical hypothesis} and not a theorem, and the distinction is
+not decoration: $M/G/c$ has no closed form, Allen--Cunneen is an approximation
+whose error is known to grow with $c_s^2$, and a Pareto service distribution with
+infinite variance has no $c_s^2$ for the heuristic to use at all, which is the case
+where the whole argument above stops rather than degrades. What would settle it is
+a sweep: extend \texttt{b8\_specialization.py} with lognormal and Pareto service at
+matched means and report where the crossing actually lands. The falsifier is
+stated in advance --- if the crossing moves further than the $A/\kappa$ correction
+predicts at any swept point, the hypothesis is wrong and the boundary needs a
+variance term of its own rather than a rescaled $A$. No such sweep has been run,
+so no number appears here; the claim above is the shape of the answer, not the
+answer.
+
 \subsection{Completionist obligation: completion as a verifier, not a vibe}\label{sec:completionist}
 
 The operator's standing complaint is the agent that \emph{declares completion while
@@ -1629,8 +1678,23 @@ q_{11}=p-\delta,\qquad q_{10}=\delta,\qquad q_{01}=f-(p-\delta),\qquad
 q_{00}=1-f-\delta,
 \]
 feasible iff all four are nonnegative, and $R(\delta,f)=I(X;\hat X)$ evaluated at
-this joint. At the zero-miss, tightest-flag corner, $R(0,f{\to}p)=H(p)$: the digest
-must spend the source's full entropy. Past the line $f\ge 1-\delta/p$ an independent
+this joint. Because the joint is pinned, so is the rate, and it is worth printing
+in the form someone can actually evaluate rather than leaving as a named
+functional --- with source margin $\Pr(X{=}1)=p$ and digest margin
+$\Pr(\hat X{=}1)=f$, the mutual information is the four-term sum
+\begin{equation}\label{eq:pinned-rate}
+R(\delta,f) \;=\;
+(p-\delta)\log_2\frac{p-\delta}{p\,f}
+\;+\; \delta\log_2\frac{\delta}{p\,(1-f)}
+\;+\; (f-p+\delta)\log_2\frac{f-p+\delta}{(1-p)\,f}
+\;+\; (1-f-\delta)\log_2\frac{1-f-\delta}{(1-p)(1-f)},
+\end{equation}
+one term per cell of the $2\times2$ joint, each comparing that cell against the
+product of its margins, with $0\log_2 0$ read as $0$. At the zero-miss,
+tightest-flag corner, $R(0,f{\to}p)=H(p)$: the digest
+must spend the source's full entropy --- and Eq.~\ref{eq:pinned-rate} shows why in
+two lines, since $\delta=0$ and $f=p$ kill the middle two terms and leave
+$p\log_2(1/p)+(1-p)\log_2(1/(1-p))$. Past the line $f\ge 1-\delta/p$ an independent
 flagger already meets the miss budget on its own and the true rate is exactly $0$.
 \end{pdclaim}
 \begin{proof}
@@ -2785,6 +2849,54 @@ compare it to the row's flat-opens count.
 \begin{pdsolution}{ex:ls-b1-frontier-run}
 By hand: $k\log_2(F/k)=20\log_2(50)=20\times5.64=112.9$ [verified, closed form]. The script's row at $F{=}1000,k{=}20$ reports flat opens $=1000$, adaptive opens $=232.9$, ratio $=4.3\times$ [internal, \texttt{b1\_frontier.py}]. The ratio is far below the $F{=}2500,k{=}10$ point's $15.3\times$ because this row is in the \emph{dense}-flag regime ($k/F=0.02$ here versus $0.004$ there): the zoom-advantage theorem requires a sparse flagged set, and this row is the chapter's own example of where the advantage shrinks rather than disappears.
 \end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:ls-noisy-zoom-oracle}
+Theorem~\ref{thm:zoom-advantage}'s group query is exact: it reports whether
+$S\cap P=\emptyset$ and is never wrong. A real group query is a linter, a batched
+test run or a diff scan, and those have false negatives --- a group that does
+contain a critical item can come back clean. This is the worst direction for the
+algorithm to fail in, because a negative group is \emph{discarded}: one false
+negative high in the tree silently drops a whole subtree and the run reports an
+answer that is confidently incomplete. Suppose each query independently returns a
+false negative with probability at most $\alpha$, and that false positives do not
+occur (a group reported dirty really is dirty). Give a repetition scheme that
+bounds the probability of losing any given positive, state the query cost it
+pays, and then say what the scheme does \emph{not} fix.
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-noisy-zoom-oracle}
+Repeat every \emph{negative} verdict: accept ``clean'' only when $r$ independent
+queries on the same group all report clean. A group is then wrongly discarded with
+probability at most $\alpha^{r}$, so $r=\lceil\log(1/\eta)/\log(1/\alpha)\rceil$
+buys per-node error $\eta$ --- at $\alpha=0.1$, three repetitions give $10^{-3}$.
+Positive verdicts are never repeated, since by hypothesis they are not wrong, and
+the recursion only ever spends queries on groups it has already decided to split.
+The cost is therefore at most $r$ times the noiseless bound,
+$Q\le r\bigl(2k\lceil\log_2(F/k)\rceil+4k\bigr)$, which is the noiseless bound with
+$\alpha$'s cost folded into a constant: sparsity, not oracle quality, is still what
+decides whether zoom beats flat inspection, and the advantage
+$\mathrm{adv}(d)$ simply divides by $r$.
+
+Three things this does not fix, and the exercise is Open because of the third.
+First, the union bound over the tree, not the node, is what an operator cares
+about: with $O(k\log_2(F/k))$ negative decisions, per-node $\eta$ gives an overall
+miss probability of roughly $\eta\cdot 2k\lceil\log_2(F/k)\rceil$, so $r$ has to
+grow like $\log k+\log\log F$ to hold a fixed end-to-end guarantee. Second, the
+independence assumption is doing heavy work and is the least defensible part:
+repeating the same linter on the same group is perfectly correlated, not
+independent, so $r$ repetitions of one tool buy nothing at all and the scheme
+needs $r$ \emph{different} tools --- which is the same diversity argument
+\pdchapref{stp}{From Spawn to Person} makes about correlated auditors, arriving
+here from a different direction. Third, and unresolved: the guarantee above is
+probabilistic where Theorem~\ref{thm:zoom-advantage} is exact, so a chapter that
+prices oversight in bits now owes an account of what a $10^{-3}$ chance of a
+silently dropped subtree is worth against the queries it saves, and that is a
+decision-theoretic question this chapter does not answer. The noisy
+group-testing literature is where to start --- Atia and Saligrama
+\pdcite{atiasaligrama2012} give information-theoretic limits for noisy
+non-adaptive designs, and Cheraghchi \pdcite{cheraghchi2013} gives noise-resilient
+constructions --- but neither is written for the adaptive, correlated-oracle case
+above, so the obligation is to state the model before importing a bound, not to
+import one and hope.
+\end{pdsolution}
 
 \pdexercisesfor{\S\ref{sec:discovery}}{Discovery: the directory substrate and the split ranker}
 
@@ -3385,6 +3497,26 @@ David G.\ Kendall.
 A.\ K.\ Erlang.
 \newblock Solution of some problems in the theory of probabilities of significance in automatic telephone exchanges.
 \newblock \textit{Elektrotkeknikeren}, 13, 1917. (The Erlang-C delay formula.)
+
+\bibitem{atiasaligrama2012}
+George K.\ Atia and Venkatesh Saligrama.
+\newblock Boolean compressed sensing and noisy group testing.
+\newblock \textit{IEEE Transactions on Information Theory}, 58(3):1880--1901, 2012.
+
+\bibitem{cheraghchi2013}
+Mahdi Cheraghchi.
+\newblock Noise-resilient group testing: limitations and constructions.
+\newblock \textit{Discrete Applied Mathematics}, 161(1--2):81--95, 2013.
+
+\bibitem{kingman1961}
+J.\ F.\ C.\ Kingman.
+\newblock The single server queue in heavy traffic.
+\newblock \textit{Mathematical Proceedings of the Cambridge Philosophical Society}, 57(4):902--904, 1961. (Waiting time grows with the sum of the squared coefficients of variation.)
+
+\bibitem{allen1990}
+Arnold O.\ Allen.
+\newblock \textit{Probability, Statistics, and Queueing Theory with Computer Science Applications}.
+\newblock Academic Press, 2nd edition, 1990. (The Allen--Cunneen approximation for $M/G/c$, and the Pollaczek--Khinchine formula.)
 
 \bibitem{paper1}
 Erich Owens.
