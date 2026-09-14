@@ -23,7 +23,11 @@
     \addplot[pd rule,only marks,mark=*,mark size=1.4pt,forget plot] coordinates {(32,3.20)};
     \addplot[pd focus rule,only marks,mark=*,mark size=1.4pt,forget plot] coordinates {(32,3.3101)};
     \draw[pd guide] (axis cs:32,0) -- (axis cs:32,3.3101);
-    \node[pd direct label,align=left,text width=3.0cm,anchor=north west] at (axis cs:34.5,1.7) {$k=32$:\\basic $3.20$\\advanced $3.31$};
+    % Raised clear of the axis: this three-line block grew when pd direct label
+    % gained the inner ysep its descenders needed, and its last line came to
+    % rest on the x axis rule. anchor=west on the block's own middle keeps it
+    % centred on the k=32 read instead of hanging from it.
+    \node[pd direct label,align=left,text width=3.0cm,anchor=west] at (axis cs:34.5,2.1) {$k=32$:\\basic $3.20$\\advanced $3.31$};
   \end{axis}
 \end{tikzpicture}
 \caption{The basic and advanced $\varepsilon$-composition bounds on cumulative spend as functions of the number of releases $k$, at the per-release $\varepsilon=0.1$ the chapter uses for this comparison. At $k=32$, the chapter's reported comparison, basic composition ($3.20$) is still smaller than the advanced bound ($3.31$): below the crossover a contract should quote the exact, $\delta$-free basic bound, and only past it the square-root-scaled advanced bound -- the same rule at $\varepsilon=0.05$ gives $k=128$: basic $6.40$ versus advanced $3.30$, where the advanced bound has come to pay.}
