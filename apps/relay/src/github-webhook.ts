@@ -373,21 +373,35 @@ async function maybeEnqueueFleetRun(
     pull?.head && typeof pull.head === 'object'
       ? (pull.head as Record<string, unknown>)
       : null;
+  const mergeGroup =
+    payload.merge_group && typeof payload.merge_group === 'object'
+      ? (payload.merge_group as Record<string, unknown>)
+      : null;
   const prNumber = pull && typeof pull.number === 'number' ? pull.number : null;
-  const headSha = pullHead && typeof pullHead.sha === 'string' ? pullHead.sha : null;
+  const headSha = eventType === 'merge_group'
+    ? (mergeGroup && typeof mergeGroup.head_sha === 'string' ? mergeGroup.head_sha : null)
+    : (pullHead && typeof pullHead.sha === 'string' ? pullHead.sha : null);
+  // The existing ledger is keyed by a non-null PR number. Merge-queue gates
+  // have no PR and retain sentinel 0 for display compatibility. Generation
+  // fencing additionally binds merge groups to their exact queue SHA, so two
+  // independent groups never suppress one another's required check.
+  const intentPrNumber = eventType === 'merge_group' ? 0 : prNumber;
   const now = Math.floor(Date.now() / 1000);
   let reservation: FleetIntentReservation | null = null;
 
-  // merge_group is a separate, short deterministic gate queue.  The durable
-  // PR-generation ledger is only for pull_request review work where a newer
-  // head can supersede an older queued generation.
-  if (eventType === 'pull_request' && deliveryId && repoFullName && prNumber && headSha) {
+  // Both review work and deterministic merge-queue gates require the durable
+  // producer receipt. The executor never treats a queue message itself as
+  // authority to spend or mutate a required check.
+  if ((eventType === 'pull_request' || eventType === 'merge_group')
+      && deliveryId && repoFullName && intentPrNumber !== null && headSha) {
     try {
       reservation = await reserveFleetRunIntent(env.DB, {
         deliveryId,
         repoFullName,
-        prNumber,
-        prUrl: `https://github.com/${repoFullName}/pull/${prNumber}`,
+        prNumber: intentPrNumber,
+        prUrl: eventType === 'merge_group'
+          ? `https://github.com/${repoFullName}/actions`
+          : `https://github.com/${repoFullName}/pull/${intentPrNumber}`,
         headSha,
         eventType,
         action,
@@ -433,7 +447,7 @@ async function maybeEnqueueFleetRun(
       // post the check on the QUEUE branch, which is the only sha GitHub is
       // waiting on. There is no pull_request on this payload, so without this
       // the executor would have nothing to attach a check run to.
-      merge_group: (payload.merge_group as Record<string, unknown>) ?? undefined,
+      merge_group: mergeGroup ?? undefined,
     },
   };
   try {

@@ -4,6 +4,7 @@ import { DLQ_CHECK_OUTPUT_TITLE, handleDlqJob } from '../src/dlq.js';
 import {
   freshState,
   installGitHubFetch,
+  memoryD1,
   memoryKV,
   makeEnv,
   makeJob,
@@ -41,7 +42,8 @@ describe('DLQ handler', () => {
   it('can fail an owned merge-group check after queue retries exhaust', async () => {
     const kv = memoryKV();
     seedToken(kv, 42);
-    const env = makeEnv({ FLEET_TOKENS: kv });
+    const env = makeEnv({ FLEET_TOKENS: kv,
+      DB: memoryD1({ prNumber: 0, headSha: 'QUEUE_SHA', eventType: 'merge_group', action: 'checks_requested' }).db });
     state.existingCheckRuns.push({ id: 515, name: 'Port Daddy Fleet', headSha: 'QUEUE_SHA',
       external_id: 'pd-fleet-run:v1:run:delivery-abc', status: 'in_progress', app: { id: Number(env.GITHUB_APP_ID) } });
     await handleDlqJob(makeJob({ eventType: 'merge_group', action: 'checks_requested', prNumber: null,

@@ -119,7 +119,8 @@ export async function reserveFleetRunIntent(
   const existing = await getFleetRunIntent(db, input.deliveryId);
   if (existing) {
     if (existing.repo_full_name !== input.repoFullName || existing.pr_number !== input.prNumber
-        || existing.head_sha !== input.headSha || existing.event_type !== input.eventType) {
+        || existing.head_sha !== input.headSha || existing.event_type !== input.eventType
+        || existing.action !== input.action) {
       throw new Error('Fleet delivery identity does not match its original admission');
     }
     // A duplicate delivery is not operator consent. Only a permit bound to this
@@ -234,9 +235,18 @@ export async function markFleetRunIntentEnqueued(
            AND generation < (
                  SELECT generation FROM fleet_run_intents WHERE delivery_id = ?
                )
+           AND (
+             (SELECT event_type FROM fleet_run_intents WHERE delivery_id = ?) <> 'merge_group'
+             OR (
+               event_type = 'merge_group'
+               AND head_sha = (
+                 SELECT head_sha FROM fleet_run_intents WHERE delivery_id = ?
+               )
+             )
+           )
            AND state IN ('admitting', 'queued', 'running', 'retrying', 'waiting_for_control')`,
       )
-      .bind(now, now, deliveryId, deliveryId, deliveryId, deliveryId),
+      .bind(now, now, deliveryId, deliveryId, deliveryId, deliveryId, deliveryId, deliveryId),
   ]);
 }
 

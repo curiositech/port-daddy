@@ -72,7 +72,7 @@ describe('queue consumer', () => {
   it('durably retries a merge-group token or check-creation failure even without AI', async () => {
     const job = makeJob({ eventType: 'merge_group', action: 'checks_requested', prNumber: null,
       payloadMinimal: { merge_group: { head_sha: 'QUEUE_SHA' } } });
-    const db = memoryD1();
+    const db = memoryD1({ prNumber: 0, headSha: 'QUEUE_SHA', eventType: 'merge_group', action: 'checks_requested' });
     const tokens = memoryKV();
     const env = makeEnv({ DB: db.db, FLEET_TOKENS: tokens, AI: undefined });
     const first = fakeMessage(job, 1);
@@ -446,6 +446,8 @@ describe('queue consumer', () => {
     expect(msg.retry).toHaveBeenCalledTimes(1);
     expect(msg.ack).not.toHaveBeenCalled();
     expect(continuationSend).not.toHaveBeenCalled();
+    expect(db.intents.get('delivery-abc')).toMatchObject({ state: 'queued', attemptCount: 0 });
+    expect(db.runs).toHaveLength(0);
   });
 
   it('does not charge intentional slices against the provider retry circuit', async () => {
@@ -527,7 +529,7 @@ describe('queue consumer', () => {
         const stmt = {
           bind(...values: unknown[]) { bound = values; return stmt; },
           async first<T>() {
-            if (sql.includes('SELECT state FROM fleet_run_intents')) {
+            if (sql.includes('FROM fleet_run_intents AS current')) {
               return { state: intent.state } as T;
             }
             return null;
@@ -586,7 +588,7 @@ describe('queue consumer', () => {
         const stmt = {
           bind(...values: unknown[]) { bound = values; return stmt; },
           async first<T>() {
-            if (sql.includes('SELECT state FROM fleet_run_intents')) {
+            if (sql.includes('FROM fleet_run_intents AS current')) {
               return { state: intent.state } as T;
             }
             return null;
@@ -649,7 +651,7 @@ describe('queue consumer', () => {
         const stmt = {
           bind(...values: unknown[]) { bound = values; return stmt; },
           async first<T>() {
-            if (sql.includes('SELECT state FROM fleet_run_intents')) {
+            if (sql.includes('FROM fleet_run_intents AS current')) {
               return { state: intent.state } as T;
             }
             if (sql.includes('SELECT conclusion FROM fleet_runs')) {

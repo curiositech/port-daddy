@@ -78,6 +78,87 @@ function setup() {
 }
 
 describe('operator-authorized control recovery through actual Relay admission', () => {
+  it('admits a merge-group through the real ledger before the consumer creates its blocking gate', async () => {
+    const f = setup();
+    f.executor.AI = undefined;
+    const body = JSON.stringify({
+      action: 'checks_requested',
+      repository: { full_name: f.job.repoFullName },
+      installation: { id: 42 },
+      merge_group: { head_sha: 'QUEUE_SHA' },
+    });
+    const response = await handleGithubWebhook(new Request('https://relay.test/v1/github/webhook', {
+      method: 'POST', body, headers: {
+        'X-Github-Event': 'merge_group', 'X-Github-Delivery': 'merge-group-e2e',
+        'X-Hub-Signature-256': 'sha256=' + createHmac('sha256', f.env.GITHUB_WEBHOOK_SECRET).update(body).digest('hex'),
+      },
+    }), f.env);
+    expect(response.status).toBe(204);
+    expect(f.queued).toHaveLength(1);
+    // A different merge-queue head is an independent required-check scope,
+    // not a replacement generation for this queue commit.
+    await reserveFleetRunIntent(f.db, {
+      deliveryId: 'merge-group-other-head', repoFullName: f.job.repoFullName!, prNumber: 0,
+      prUrl: `https://github.com/${f.job.repoFullName}/actions`, headSha: 'OTHER_QUEUE_SHA',
+      eventType: 'merge_group', action: 'checks_requested', now: 20,
+    });
+    const delivery = await f.consume();
+    expect(delivery.ack).toHaveBeenCalledOnce();
+    expect(delivery.retry).not.toHaveBeenCalled();
+    expect(f.ai.calls).toHaveLength(0);
+    expect(await getFleetRunIntent(f.db, 'merge-group-e2e')).toMatchObject({
+      repo_full_name: f.job.repoFullName, pr_number: 0, head_sha: 'QUEUE_SHA',
+      event_type: 'merge_group', state: 'failure',
+    });
+    expect(f.state.completed[0]).toMatchObject({ conclusion: 'failure' });
+  });
+
+  it('rejects a queue body that reuses an admitted delivery id for different coordinates', async () => {
+    const f = setup();
+    expect((await f.webhook()).status).toBe(204);
+    f.queued[0] = { ...f.queued[0], repoFullName: 'attacker/different-repo' };
+    const delivery = await f.consume();
+    expect(delivery.ack).not.toHaveBeenCalled();
+    expect(delivery.retry).toHaveBeenCalledOnce();
+    expect(f.ai.calls).toHaveLength(0);
+    expect(f.state.checkRunsCreated).toBe(0);
+    expect(await getFleetRunIntent(f.db, f.job.deliveryId)).toMatchObject({ state: 'queued' });
+    expect(f.sqlite.prepare('SELECT COUNT(*) AS n FROM fleet_runs').get()).toEqual({ n: 0 });
+  });
+
+  it('does not let an older queued generation run when a newer active intent exists', async () => {
+    const f = setup();
+    expect((await f.webhook()).status).toBe(204);
+    await reserveFleetRunIntent(f.db, {
+      deliveryId: 'delivery-newer', repoFullName: f.job.repoFullName!, prNumber: f.job.prNumber!,
+      prUrl: `https://github.com/${f.job.repoFullName}/pull/${f.job.prNumber}`,
+      headSha: 'N'.repeat(40), eventType: 'pull_request', action: 'synchronize', now: 20,
+    });
+    const delivery = await f.consume();
+    expect(delivery.ack).toHaveBeenCalledOnce();
+    expect(delivery.retry).not.toHaveBeenCalled();
+    expect(f.ai.calls).toHaveLength(0);
+    expect(f.state.checkRunsCreated).toBe(0);
+  });
+
+  it('keeps an older PR generation fenced after the newer generation finishes', async () => {
+    const f = setup();
+    expect((await f.webhook()).status).toBe(204);
+    await reserveFleetRunIntent(f.db, {
+      deliveryId: 'delivery-newer-terminal', repoFullName: f.job.repoFullName!, prNumber: f.job.prNumber!,
+      prUrl: `https://github.com/${f.job.repoFullName}/pull/${f.job.prNumber}`,
+      headSha: 'T'.repeat(40), eventType: 'pull_request', action: 'synchronize', now: 20,
+    });
+    f.sqlite.prepare("UPDATE fleet_run_intents SET state = 'success', finished_at = 21 WHERE delivery_id = ?")
+      .run('delivery-newer-terminal');
+    const delivery = await f.consume();
+    expect(delivery.ack).toHaveBeenCalledOnce();
+    expect(delivery.retry).not.toHaveBeenCalled();
+    expect(f.ai.calls).toHaveLength(0);
+    expect(f.state.checkRunsCreated).toBe(0);
+    expect(await getFleetRunIntent(f.db, f.job.deliveryId)).toMatchObject({ state: 'queued' });
+  });
+
   it('preserves existing generations and separates old structured suspensions in the migration', () => {
     const { sqlite } = fleetLifecycleDb(database => {
       const insert = database.prepare(`INSERT INTO fleet_run_intents

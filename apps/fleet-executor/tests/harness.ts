@@ -627,6 +627,21 @@ export interface D1Capture {
   /** fleet_run_spend rows, in insertion order. */
   spend: CapturedSpend[];
   /**
+   * Durable Relay admission rows. The default fixture explicitly seeds the
+   * standard `makeJob()` delivery as queued; tests for missing admission use a
+   * purpose-built empty adapter instead of relying on an unrealistic producer.
+   */
+  intents: Map<string, {
+    state: string;
+    repoFullName: string;
+    prNumber: number;
+    headSha: string;
+    eventType: string;
+    action: string;
+    generation: number;
+    attemptCount: number;
+  }>;
+  /**
    * Seeded credit_ledger rows the circuit-breaker SELECT reads. Empty ⇒ the
    * installation has no ledger rows (fail-open, run proceeds). Populate to
    * simulate a configured / negative balance.
@@ -659,8 +674,29 @@ export interface D1Capture {
  * keyword and records the bound parameters. Everything else is a no-op that
  * returns an empty result, so a stray query never blows up a test.
  */
-export function memoryD1(): D1Capture {
+export function memoryD1(intent: Partial<{
+  deliveryId: string;
+  state: string;
+  repoFullName: string;
+  prNumber: number;
+  headSha: string;
+  eventType: string;
+  action: string;
+  generation: number;
+  attemptCount: number;
+}> = {}): D1Capture {
   const runsById = new Map<string, CapturedRun>();
+  const deliveryId = intent.deliveryId ?? 'delivery-abc';
+  const intents: D1Capture['intents'] = new Map([[deliveryId, {
+    state: intent.state ?? 'queued',
+    repoFullName: intent.repoFullName ?? 'erichowens/port-daddy',
+    prNumber: intent.prNumber ?? 7,
+    headSha: intent.headSha ?? 'HEADSHA',
+    eventType: intent.eventType ?? 'pull_request',
+    action: intent.action ?? 'opened',
+    generation: intent.generation ?? 1,
+    attemptCount: intent.attemptCount ?? 0,
+  }]]);
   const cap: D1Capture = {
     db: undefined as unknown as D1Database,
     get runs() {
@@ -668,6 +704,7 @@ export function memoryD1(): D1Capture {
     },
     steps: [],
     spend: [],
+    intents,
     ledger: [],
     creditTableMissing: false,
     failAll: false,
@@ -675,6 +712,13 @@ export function memoryD1(): D1Capture {
     failNextRecordRunStartInsert: false,
     runCalls: 0,
   };
+
+  const hasFencingNewer = (current: D1Capture['intents'] extends Map<string, infer R> ? R : never) =>
+    [...intents.values()].some((row) => row.repoFullName === current.repoFullName
+      && row.prNumber === current.prNumber && row.generation > current.generation
+      && !['enqueue_failed', 'superseded'].includes(row.state)
+      && (current.eventType !== 'merge_group'
+        || (row.eventType === 'merge_group' && row.headSha === current.headSha)));
 
   const prepare = (sql: string) => ({
     bind: (...args: unknown[]) => ({
@@ -753,6 +797,52 @@ export function memoryD1(): D1Capture {
             detail: args[5],
             createdAt: Number(args[6]),
           });
+        } else if (/UPDATE fleet_run_intents/i.test(sql)) {
+          const deliveryIndex = /SET state = \?/i.test(sql)
+            ? 4
+            : /SET state = 'waiting_for_control'/i.test(sql)
+              ? 2
+              : 3;
+          const deliveryId = String(args[deliveryIndex]);
+          const current = intents.get(deliveryId);
+          if (current === undefined) return { success: true, meta: { changes: 0 } };
+          if (/SET state = 'running'/i.test(sql)) {
+            const identityMatches = current.repoFullName === String(args[4])
+              && current.prNumber === Number(args[5]) && current.headSha === String(args[6])
+              && current.eventType === String(args[7]) && current.action === String(args[8]);
+            const safeAttempt = Number(args[9]);
+            const stateAllows = ['admitting', 'queued', 'retrying', 'enqueue_failed'].includes(current.state)
+              || (current.state === 'running' && current.attemptCount < safeAttempt);
+            const newer = /newer\.generation/u.test(sql) && hasFencingNewer(current);
+            if (!identityMatches || !stateAllows || newer) return { success: true, meta: { changes: 0 } };
+            current.state = 'running';
+            current.attemptCount = Math.max(current.attemptCount, safeAttempt);
+          } else if (/SET state = 'retrying'/i.test(sql)) {
+            const identityMatches = current.repoFullName === String(args[4])
+              && current.prNumber === Number(args[5]) && current.headSha === String(args[6])
+              && current.eventType === String(args[7]) && current.action === String(args[8]);
+            const safeAttempt = Number(args[9]);
+            const newer = /newer\.generation/u.test(sql) && hasFencingNewer(current);
+            if (!identityMatches || current.state !== 'running'
+              || current.attemptCount !== safeAttempt || newer) {
+              return { success: true, meta: { changes: 0 } };
+            }
+            current.state = 'retrying';
+          } else if (/SET state = 'waiting_for_control'/i.test(sql)) {
+            if (current.state !== 'running') return { success: true, meta: { changes: 0 } };
+            current.state = 'waiting_for_control';
+          } else if (/SET state = 'failure'/i.test(sql)) {
+            const identityMatches = current.repoFullName === String(args[4])
+              && current.prNumber === Number(args[5]) && current.headSha === String(args[6])
+              && current.eventType === String(args[7]) && current.action === String(args[8]);
+            const newer = /newer\.generation/u.test(sql) && hasFencingNewer(current);
+            if (!identityMatches || newer || !['admitting', 'queued', 'running', 'retrying', 'enqueue_failed'].includes(current.state)) return { success: true, meta: { changes: 0 } };
+            current.state = 'failure';
+          } else if (/SET state = \?/i.test(sql)) {
+            if (!['admitting', 'queued', 'running', 'retrying', 'enqueue_failed'].includes(current.state)) return { success: true, meta: { changes: 0 } };
+            current.state = String(args[0]);
+          }
+          return { success: true, meta: { changes: 1 } };
         } else if (/UPDATE fleet_runs/i.test(sql)) {
           const usesDurableStart = /created_at\s*\*\s*1000/i.test(sql);
           const row = runsById.get(String(args[usesDurableStart ? 4 : 2]));
@@ -776,6 +866,19 @@ export function memoryD1(): D1Capture {
         return { success: true, meta: {} };
       },
       async first() {
+        if (/SELECT (?:current\.)?state FROM fleet_run_intents/i.test(sql)) {
+          if (cap.failAll) throw new Error('D1 unavailable');
+          const current = intents.get(String(args[0]));
+          if (!current) return null;
+          if (/current\.repo_full_name = \?/i.test(sql)) {
+            const identityMatches = current.repoFullName === String(args[1])
+              && current.prNumber === Number(args[2]) && current.headSha === String(args[3])
+              && current.eventType === String(args[4]) && current.action === String(args[5]);
+            const newer = /newer\.generation/u.test(sql) && hasFencingNewer(current);
+            if (!identityMatches || newer) return null;
+          }
+          return { state: current.state };
+        }
         if (/SELECT conclusion FROM fleet_runs WHERE id = \?/i.test(sql)) {
           if (cap.failAll) throw new Error('D1 unavailable');
           const row = runsById.get(String(args[0]));

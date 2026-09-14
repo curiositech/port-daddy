@@ -72,7 +72,7 @@ export async function handleDlqJob(job: FleetRunJob, env: ExecutorEnv): Promise<
   try {
     const claimed = await claimFleetIntentForDlq(
       env,
-      job?.deliveryId ?? '',
+      job,
       'delivery exhausted queue retries and entered the dead-letter queue',
     );
     if (!claimed) {
