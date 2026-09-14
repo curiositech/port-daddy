@@ -6,11 +6,15 @@ import {
   resolveFleetTenantBinding,
 } from '../../shared/fleet-tenant.js';
 import { applyAllMigrations, makeDb } from './helpers/d1-sqlite.js';
+import { saveFleetOnboardingDraft } from '../src/fleet-onboarding.js';
 
 function seededTenant() {
   const db = makeDb(applyAllMigrations());
   db.exec(`INSERT INTO fleet_accounts (id, display_name, created_at, updated_at)
     VALUES ('acct_port_daddy', 'Port Daddy', 1, 1)`);
+  db.exec(`INSERT INTO fleet_tenant_installations
+    (installation_id, tenant_account_id, github_account_id, created_at, updated_at)
+    VALUES (777, 'acct_port_daddy', 9001, 1, 1)`);
   db.exec(`INSERT INTO fleet_tenant_repositories
     (tenant_account_id, installation_id, repository_id, github_account_id,
      repository_full_name, created_at, updated_at)
@@ -19,6 +23,30 @@ function seededTenant() {
 }
 
 describe('Fleet tenant identity spine', () => {
+  it('creates a server-owned tenant binding and inert proposal for the signed-in exact repository', async () => {
+    const db = makeDb(applyAllMigrations());
+    db.exec(`INSERT INTO users (id, github_user_id, login, created_at)
+      VALUES ('u_signed_in', 123, 'captain', 1)`);
+    const result = await saveFleetOnboardingDraft(db.DB as never, {
+      userId: 'u_signed_in', userLogin: 'captain', installationId: 777,
+      repositoryId: 42, githubAccountId: 9001,
+      repositoryFullName: 'curiositech/port-daddy',
+    }, {
+      desiredOutcomes: ['correctness review'], customerBudgetMicrousd: 29_000_000,
+      proposal: { yaml: 'fleet: {}', source: 'test' },
+    }, 10);
+    expect(result.tenantAccountId).toMatch(/^fta_[0-9a-f]{40}$/);
+    const row = db.raw.prepare(`SELECT r.repository_id, r.github_account_id,
+      o.config_status, o.execution_status, p.status
+      FROM fleet_tenant_repositories r
+      JOIN fleet_repository_onboarding o USING (tenant_account_id, installation_id, repository_id)
+      JOIN fleet_configuration_proposals p USING (tenant_account_id, installation_id, repository_id)`).get();
+    expect(row).toEqual({
+      repository_id: 42, github_account_id: 9001, config_status: 'proposed',
+      execution_status: 'blocked_pending_executor', status: 'proposed',
+    });
+  });
+
   it('admits only an active immutable-id binding and returns the Port Daddy account id', async () => {
     const db = seededTenant();
     await expect(resolveFleetTenantBinding(db.DB as never, {
@@ -84,6 +112,37 @@ describe('Fleet tenant identity spine', () => {
       VALUES ('acct_other', 777, 42, 9001, 'renamed/port-daddy', 1, 1)`)).toThrow(/UNIQUE/);
   });
 
+  it('prevents one GitHub installation from straddling Port Daddy tenants', () => {
+    const db = seededTenant();
+    db.exec(`INSERT INTO fleet_accounts (id, created_at, updated_at)
+      VALUES ('acct_other', 1, 1)`);
+    expect(() => db.exec(`INSERT INTO fleet_tenant_installations
+      (installation_id, tenant_account_id, github_account_id, created_at, updated_at)
+      VALUES (777, 'acct_other', 9001, 1, 1)`)).toThrow(/UNIQUE/);
+    expect(() => db.exec(`UPDATE fleet_tenant_installations
+      SET tenant_account_id='acct_other' WHERE installation_id=777`)).toThrow(/immutable/);
+  });
+
+  it('rolls back onboarding when another tenant already owns the installation', async () => {
+    const db = makeDb(applyAllMigrations());
+    db.exec(`INSERT INTO users (id, github_user_id, login, created_at) VALUES
+      ('u_first', 100, 'first', 1), ('u_second', 101, 'second', 1)`);
+    const draft = {
+      desiredOutcomes: ['correctness'], customerBudgetMicrousd: 4_000_000,
+      proposal: { yaml: 'fleet: {}' },
+    };
+    await saveFleetOnboardingDraft(db.DB as never, {
+      userId: 'u_first', userLogin: 'first', installationId: 777,
+      repositoryId: 42, githubAccountId: 9001, repositoryFullName: 'acme/one',
+    }, draft, 10);
+    await expect(saveFleetOnboardingDraft(db.DB as never, {
+      userId: 'u_second', userLogin: 'second', installationId: 777,
+      repositoryId: 43, githubAccountId: 9001, repositoryFullName: 'acme/two',
+    }, draft, 11)).rejects.toThrow(/FOREIGN KEY/);
+    expect(db.raw.prepare('SELECT COUNT(*) AS n FROM fleet_accounts').get()).toEqual({ n: 1 });
+    expect(db.raw.prepare('SELECT COUNT(*) AS n FROM fleet_tenant_repositories').get()).toEqual({ n: 1 });
+  });
+
   it('distinguishes infrastructure failure as retryable for a future 5xx admission response', async () => {
     const brokenDb = {
       prepare() {
@@ -101,8 +160,8 @@ describe('Fleet tenant identity spine', () => {
     });
   });
 
-  it('builds the explicit v2 envelope without attaching it to production admission', () => {
-    expect(FLEET_RUN_JOB_V2_ACTIVATION).toBe('blocked-pending-executor-validation');
+  it('builds the active fail-closed v2 envelope', () => {
+    expect(FLEET_RUN_JOB_V2_ACTIVATION).toBe('active-fail-closed');
     expect(buildFleetRunJobV2({
       tenantAccountId: 'acct_port_daddy',
       installationId: 777,

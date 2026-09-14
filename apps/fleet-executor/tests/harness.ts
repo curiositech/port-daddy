@@ -641,6 +641,8 @@ export interface D1Capture {
   failManagedSpendWrites: boolean;
   /** Set true to make EVERY `.run()` throw (transcript-write failure path). */
   failAll: boolean;
+  /** Makes only best-effort fleet run/transcript writes fail. */
+  failTranscriptWrites: boolean;
   /** Set true to make the next fleet_run_steps insert throw, then reset. */
   failNextStepInsert: boolean;
   /**
@@ -682,6 +684,7 @@ export function memoryD1(): D1Capture {
     managedBillingUnavailable: false,
     failManagedSpendWrites: false,
     failAll: false,
+    failTranscriptWrites: false,
     failNextStepInsert: false,
     failNextRecordRunStartInsert: false,
     runCalls: 0,
@@ -692,6 +695,9 @@ export function memoryD1(): D1Capture {
       async run() {
         cap.runCalls += 1;
         if (cap.failAll) throw new Error('D1 unavailable');
+        if (cap.failTranscriptWrites && /\bfleet_runs\b|\bfleet_run_steps\b/i.test(sql)) {
+          throw new Error('D1 transcript store unavailable');
+        }
         if (cap.failNextStepInsert && /INTO fleet_run_steps/i.test(sql)) {
           cap.failNextStepInsert = false;
           throw new Error('D1 unavailable (simulated transcript step failure)');
@@ -981,6 +987,15 @@ export function memoryD1(): D1Capture {
         return null;
       },
       async all() {
+        if (/FROM fleet_tenant_repositories r/i.test(sql)) {
+          return { success: true, results: [{
+            tenant_account_id: 'fta_test', installation_id: 42,
+            repository_id: 4242, github_account_id: 9001,
+          }] };
+        }
+        if (/FROM fleet_repository_onboarding o/i.test(sql)) {
+          return { success: true, results: [{ canonical_repo_full_name: 'erichowens/port-daddy' }] };
+        }
         if (/FROM fleet_run_reservations r WHERE state='reserved'/i.test(sql)) {
           cap.staleSweepQueries += 1;
           return { results: [] };
@@ -1128,11 +1143,15 @@ export function makeEnv(over: Partial<ExecutorEnv> = {}): ExecutorEnv {
 
 export function makeJob(over: Partial<FleetRunJob> = {}): FleetRunJob {
   return {
+    schemaVersion: 2,
+    tenantAccountId: 'fta_test',
     deliveryId: 'delivery-abc',
     eventType: 'pull_request',
     action: 'opened',
     repoFullName: 'erichowens/port-daddy',
     installationId: 42,
+    repositoryId: 4242,
+    githubAccountId: 9001,
     prNumber: 7,
     payloadMinimal: {
       pull_request: {

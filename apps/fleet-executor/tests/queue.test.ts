@@ -465,12 +465,25 @@ describe('queue consumer', () => {
         const stmt = {
           bind(...values: unknown[]) { bound = values; return stmt; },
           async first<T>() {
+            if (sql.includes('FROM fleet_managed_entitlements')) return {
+              installation_id: 42, retail_balance_microusd: 1_000_000_000,
+              run_retail_microusd: 100_000_000,
+            } as T;
             if (sql.includes('SELECT state FROM fleet_run_intents')) {
               return { state: intent.state } as T;
             }
             return null;
           },
-          async all<T>() { return { results: [] as T[] }; },
+          async all<T>() {
+            if (sql.includes('FROM fleet_tenant_repositories r')) return { results: [{
+              tenant_account_id: 'fta_test', installation_id: 42,
+              repository_id: 4242, github_account_id: 9001,
+            }] as T[] };
+            if (sql.includes('FROM fleet_repository_onboarding o')) return {
+              results: [{ canonical_repo_full_name: 'erichowens/port-daddy' }] as T[],
+            };
+            return { results: [] as T[] };
+          },
           async run() {
             if (sql.includes("SET state = 'running'")) intent.state = 'running';
             if (sql.includes('UPDATE fleet_run_intents') && sql.includes('SET state = ?')) {
@@ -526,12 +539,25 @@ describe('queue consumer', () => {
         const stmt = {
           bind(...values: unknown[]) { bound = values; return stmt; },
           async first<T>() {
+            if (sql.includes('FROM fleet_managed_entitlements')) return {
+              installation_id: 42, retail_balance_microusd: 1_000_000_000,
+              run_retail_microusd: 100_000_000,
+            } as T;
             if (sql.includes('SELECT state FROM fleet_run_intents')) {
               return { state: intent.state } as T;
             }
             return null;
           },
-          async all<T>() { return { results: [] as T[] }; },
+          async all<T>() {
+            if (sql.includes('FROM fleet_tenant_repositories r')) return { results: [{
+              tenant_account_id: 'fta_test', installation_id: 42,
+              repository_id: 4242, github_account_id: 9001,
+            }] as T[] };
+            if (sql.includes('FROM fleet_repository_onboarding o')) return {
+              results: [{ canonical_repo_full_name: 'erichowens/port-daddy' }] as T[],
+            };
+            return { results: [] as T[] };
+          },
           async run() {
             if (sql.includes("SET state = 'running'")) intent.state = 'running';
             if (sql.includes('UPDATE fleet_run_intents') && sql.includes('SET state = ?')) {
@@ -589,6 +615,10 @@ describe('queue consumer', () => {
         const stmt = {
           bind(...values: unknown[]) { bound = values; return stmt; },
           async first<T>() {
+            if (sql.includes('FROM fleet_managed_entitlements')) return {
+              installation_id: 42, retail_balance_microusd: 1_000_000_000,
+              run_retail_microusd: 100_000_000,
+            } as T;
             if (sql.includes('SELECT state FROM fleet_run_intents')) {
               return { state: intent.state } as T;
             }
@@ -597,7 +627,16 @@ describe('queue consumer', () => {
             }
             return null;
           },
-          async all<T>() { return { results: [] as T[] }; },
+          async all<T>() {
+            if (sql.includes('FROM fleet_tenant_repositories r')) return { results: [{
+              tenant_account_id: 'fta_test', installation_id: 42,
+              repository_id: 4242, github_account_id: 9001,
+            }] as T[] };
+            if (sql.includes('FROM fleet_repository_onboarding o')) return {
+              results: [{ canonical_repo_full_name: 'erichowens/port-daddy' }] as T[],
+            };
+            return { results: [] as T[] };
+          },
           async run() {
             if (sql.includes("SET state = 'running'")) intent.state = 'running';
             if (sql.includes('UPDATE fleet_run_intents') && sql.includes('SET state = ?')) {
