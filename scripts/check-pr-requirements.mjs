@@ -173,15 +173,79 @@ function changedFiles() {
 
 const HTML_COMMENT_RE = /<!--[\s\S]*?-->/g
 
-/** Body with HTML comments removed (template guidance must never count as content). */
-function stripComments(body) {
-  return body.replace(HTML_COMMENT_RE, '')
+/**
+ * Split `body` into consecutive runs of lines, each tagged fenced or not, using
+ * the same CommonMark tracker `sectionLines` uses. The runs partition the body
+ * in order, so re-joining them reproduces it exactly.
+ *
+ * ── WHY EVERY BODY SCANNER GOES THROUGH THIS ──
+ * Markdown inside a fenced code block is INERT: GitHub shows it as literal text.
+ * An `![img](...)` in a fence displays no image; an `<!-- ... -->` in a fence is
+ * visible text rather than a directive. Every scanner in this file used to read
+ * fenced content as if it were live, which is wrong in both directions at once:
+ *
+ *   - a marker QUOTED in a fence acted as a real marker, so a PR body that
+ *     explained the rule, or pasted an excerpt of the template, silently
+ *     exempted itself. `pr-requirements-exempt` is the severe case — a fenced
+ *     copy skipped the ENTIRE gate, one-word Summary and all.
+ *   - an image or GIF quoted in a fence counted as an attached artifact, so a
+ *     markdown EXAMPLE of how to embed a screenshot satisfied the requirement to
+ *     attach one.
+ *   - and it cut the other way too: `stripComments` deleted from a `<!--` inside
+ *     a fence to the next `-->` anywhere after it, so a body that merely showed
+ *     the marker syntax in a code block lost every heading in between — a real
+ *     `## Visual Proof` with a real render in it vanished, and the PR failed for
+ *     not having the section it plainly had.
+ *
+ * The realistic arrival path for all of these is innocent: documenting the rule.
+ */
+function fenceRegions(body) {
+  const track = makeFenceTracker()
+  const regions = []
+  for (const line of body.split('\n')) {
+    const f = track(line)
+    const fenced = f.fence || f.inside
+    if (!regions.length || regions[regions.length - 1].fenced !== fenced) {
+      regions.push({ fenced, lines: [] })
+    }
+    regions[regions.length - 1].lines.push(line)
+  }
+  return regions
 }
 
-/** Pull every `<!-- marker: ... -->` so escape hatches survive comment-stripping. */
+/**
+ * `body` with every fenced line replaced by an empty line. Line structure is
+ * preserved rather than the runs being deleted, so a comment that legitimately
+ * OPENS before a fence and CLOSES after it still reads as one comment — that is
+ * what a markdown renderer does with it — while nothing written inside the fence
+ * can contribute a marker or an artifact.
+ */
+function blankFences(body) {
+  return fenceRegions(body)
+    .map((r) => (r.fenced ? r.lines.map(() => '').join('\n') : r.lines.join('\n')))
+    .join('\n')
+}
+
+/**
+ * Body with HTML comments removed (template guidance must never count as
+ * content). Comments are stripped PER non-fenced run, so a fenced block keeps
+ * its text verbatim: a Test Plan that quotes a config file containing an HTML
+ * comment keeps those words, and a stray `<!--` shown inside a fence can no
+ * longer swallow the headings that follow it.
+ */
+function stripComments(body) {
+  return fenceRegions(body)
+    .map((r) => (r.fenced ? r.lines.join('\n') : r.lines.join('\n').replace(HTML_COMMENT_RE, '')))
+    .join('\n')
+}
+
+/**
+ * Pull every `<!-- marker: ... -->` so escape hatches survive comment-stripping.
+ * Fenced content is blanked first: a marker you QUOTE is not a marker you USE.
+ */
 function exemptMarkers(body) {
   const markers = []
-  for (const m of body.matchAll(HTML_COMMENT_RE)) markers.push(m[0])
+  for (const m of blankFences(body).matchAll(HTML_COMMENT_RE)) markers.push(m[0])
   return markers
 }
 
@@ -314,9 +378,13 @@ function sectionWordCount(strippedBody, headingNeedle) {
   return words.length
 }
 
-/** True if the body embeds at least one media reference of the given kind. */
+/**
+ * True if the body embeds at least one media reference of the given kind.
+ * Fenced content is blanked: a markdown EXAMPLE of how to embed a screenshot
+ * displays no screenshot, so it cannot satisfy the requirement to attach one.
+ */
 function bodyHasMedia(body, motion) {
-  const text = body
+  const text = blankFences(body)
   // raw.githubusercontent / user-content asset links and explicit extensions.
   const extRe = motion ? BODY_MOTION_RE : BODY_IMAGE_RE
   if (extRe.test(text)) return true
@@ -497,7 +565,13 @@ function main() {
         `Figure/print territory changed (${shown}) but this PR has no \`## Visual Proof\` ` +
         `section at all. Add it and put the rendered page in it. ${how}`,
       )
-    } else if (!hasRenderEvidence(proof.join('\n'))) {
+      // Fenced lines are blanked before the scan: a render inside a code block is
+      // shown as literal text and displays nothing, so it is not something a
+      // reviewer can look at. Note this is NOT done for the word floors above —
+      // `sectionWordCount` still counts fenced text, deliberately. A Test Plan
+      // that quotes real command output is doing real work with those words; a
+      // render that is fenced is not a render at all.
+    } else if (!hasRenderEvidence(blankFences(proof.join('\n')))) {
       failures.push(
         `Figure/print territory changed (${shown}) but the \`## Visual Proof\` section ` +
         'carries no render a reviewer can open. "N/A", a bare checkbox, an empty bullet, or a ' +

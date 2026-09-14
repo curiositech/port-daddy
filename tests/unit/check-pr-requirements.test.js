@@ -576,6 +576,150 @@ describe('check-pr-requirements guard', () => {
     });
   });
 
+  // --- Fenced content is inert -----------------------------------------------
+  //
+  // Markdown inside a fenced code block is shown as literal text: an `![img]()`
+  // in a fence displays no image, and an `<!-- ... -->` in a fence is visible
+  // text rather than a directive. Every body scanner used to read fenced content
+  // as live, which was wrong in both directions at once. Each rule's semantics
+  // before and after are stated on its own test.
+  describe('a marker or artifact inside a fence is inert', () => {
+    const S = [
+      '## Summary',
+      'A genuine summary with plenty of words to satisfy the floor cleanly here today.',
+      '## Test Plan',
+      'Ran the suite and exercised several edge cases to be sure it behaves well here.',
+      '',
+    ].join('\n');
+
+    // WAS: a fenced copy of the whole-gate marker skipped every rule, so a
+    // one-word Summary shipped green. NOW: it is text, and the gate runs.
+    test('pr-requirements-exempt in a fence no longer skips the whole gate', () => {
+      const body = ['## Summary', 'x', '```', '<!-- pr-requirements-exempt: quoting the marker to explain it -->', '```'].join('\n');
+      const { code, stdout, stderr } = run('--body', body, '--changed', 'website-v2/src/x.tsx');
+      expect(code).toBe(1);
+      expect(stdout).not.toMatch(/skipping/);
+      expect(stderr).toMatch(/Summary is too thin/);
+    });
+
+    // WAS: a fenced visual-exempt exempted rule 3. NOW: it does not, so the
+    // app-surface diff must still ship a screenshot and a recording.
+    test('visual-exempt in a fence no longer exempts rule 3', () => {
+      const body = S + ['```', '<!-- visual-exempt: example of the marker syntax -->', '```'].join('\n');
+      const { code, stderr } = run('--body', body, '--changed', 'fleet-config-ui/src/X.tsx,changelog.d/9920-x.md');
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/Visual surface changed/);
+    });
+
+    // WAS: a fenced changelog-exempt exempted rule 4. NOW: the fragment is owed.
+    test('changelog-exempt in a fence no longer exempts rule 4', () => {
+      const body = S + ['```', '<!-- changelog-exempt: example syntax -->', '```'].join('\n');
+      const { code, stderr } = run('--body', body, '--changed', 'lib/relay-client.ts');
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/adds no changelog fragment/);
+    });
+
+    // The good side of the same change, for rule 3b: quoting the marker to
+    // explain that it is unavailable no longer accuses you of carrying it. The
+    // render is still owed — that part must not soften.
+    test('a figure PR that QUOTES visual-exempt is not accused of using it', () => {
+      const body = S + ['## Visual Proof', '```md', '<!-- visual-exempt: <reason> -->', '```'].join('\n');
+      const { code, stderr } = run('--body', body, '--changed', 'whitepaper/figures/f.tex');
+      expect(code).toBe(1);
+      expect(stderr).not.toMatch(/`visual-exempt` is not available/);
+      expect(stderr).toMatch(/carries no render a reviewer can open/);
+    });
+
+    // WAS: a markdown EXAMPLE of embedding a screenshot satisfied rule 3's
+    // requirement to attach one. NOW: it displays nothing, so it counts as
+    // nothing.
+    test('a fenced image and GIF no longer satisfy rule 3', () => {
+      const body = S + ['```', '![shot](https://x.test/a.png)', '![tour](https://x.test/a.gif)', '```'].join('\n');
+      const { code, stderr } = run('--body', body, '--changed', 'fleet-config-ui/src/X.tsx,changelog.d/9921-x.md');
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/screenshot/);
+      expect(stderr).toMatch(/GIF or screen recording/);
+    });
+
+    // ...and the same for rule 3b's render.
+    test('a fenced render no longer satisfies rule 3b', () => {
+      const body = S + ['## Visual Proof', '```md', '![your render here](https://example.invalid/render.png)', '```'].join('\n');
+      const { code, stderr } = run('--body', body, '--changed', 'whitepaper/figures/f.tex');
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/carries no render a reviewer can open/);
+    });
+
+    // THE OTHER DIRECTION. A lone `<!--` shown inside a fence used to delete
+    // everything up to the next `-->` anywhere after it, taking a real heading
+    // and a real render with it — the PR then failed for not having a section it
+    // plainly had. This is the content-deletion twin of the bypasses above.
+    test('a stray <!-- in a fence does not swallow the section that follows', () => {
+      const body = [
+        '## Summary',
+        'A genuine summary with plenty of words to satisfy the floor cleanly here today.',
+        '## Test Plan',
+        'Ran the suite and exercised several edge cases to be sure it behaves well here.',
+        '',
+        '```text',
+        'a marker looks like <!-- visual-exempt: your reason',
+        '```',
+        '',
+        '## Visual Proof',
+        '',
+        '![render](https://x.test/fig.png)',
+        '',
+        'The arrow --> is what ends a comment.',
+      ].join('\n');
+      const { code, stdout } = run('--body', body, '--changed', 'whitepaper/figures/f.tex');
+      expect(code).toBe(0);
+      expect(stdout).toMatch(/meets the contract/);
+    });
+
+    // A fenced block quoting an HTML comment keeps its words, because the word
+    // floors deliberately still count fenced text — a Test Plan that quotes real
+    // command output is doing real work with those words.
+    test('fenced text containing a comment still counts toward the word floor', () => {
+      const body = [
+        '## Summary',
+        'A genuine summary with plenty of words to satisfy the floor cleanly here today.',
+        '## Test Plan',
+        '```xml',
+        '<!-- the fixture config we exercised, twelve or more words of real quoted output here -->',
+        '```',
+      ].join('\n');
+      const { code, stdout } = run('--body', body, '--changed', 'lib/x.ts,changelog.d/9922-x.md');
+      expect(code).toBe(0);
+      expect(stdout).toMatch(/meets the contract/);
+    });
+
+    // MUST STILL WORK. The hatch is legitimate outside a fence, and this change
+    // must not have quietly removed it.
+    test.each([
+      ['visual-exempt on its own line', '<!-- visual-exempt: type-only rename, nothing renders differently -->'],
+      ['a marker split across lines', '<!-- visual-exempt:\n     type-only rename, nothing renders differently\n-->'],
+      ['a marker after a fenced block', '```\nsome quoted output\n```\n<!-- visual-exempt: type-only rename, nothing renders -->'],
+      ['a marker before a fenced block', '<!-- visual-exempt: type-only rename, nothing renders -->\n```\nsome quoted output\n```'],
+    ])('%s still exempts rule 3', (_label, marker) => {
+      const { code, stdout } = run('--body', S + marker, '--changed', 'fleet-config-ui/src/X.tsx,changelog.d/9923-x.md');
+      expect(code).toBe(0);
+      expect(stdout).toMatch(/meets the contract/);
+    });
+
+    // The nasty fence shapes, on the marker path this time. Each one hides a
+    // marker where a naive tracker would lose the fence and read it as live.
+    test.each([
+      ['a four-backtick fence quoting a three-backtick one', ['````', '```', '<!-- visual-exempt: quoted, not used -->', '```', '````']],
+      ['a tilde fence', ['~~~', '<!-- visual-exempt: quoted, not used -->', '~~~']],
+      ['a fence with a language tag', ['```md', '<!-- visual-exempt: quoted, not used -->', '```']],
+      ['an unterminated fence at end of body', ['```md', '<!-- visual-exempt: quoted, not used -->']],
+      ['an indented fence', ['   ```', '   <!-- visual-exempt: quoted, not used -->', '   ```']],
+    ])('%s hides the marker', (_label, lines) => {
+      const { code, stderr } = run('--body', S + lines.join('\n'), '--changed', 'fleet-config-ui/src/X.tsx,changelog.d/9924-x.md');
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/Visual surface changed/);
+    });
+  });
+
   // Finding refuted rather than fixed, pinned so the refutation is checkable.
   // `HTML_COMMENT_RE` is non-greedy to the FIRST `-->`, which is exactly what an
   // HTML comment is: per the HTML standard a comment's text may not contain
