@@ -8,13 +8,13 @@
     },
     "website-v2/public/whitepaper/anchor-protocol-whitepaper.pdf": {
       "pages": 38,
-      "bytes": 726032,
-      "sha256": "acb938fe829e8ec4abcd0017bdbaf74f6f6b6ec78bd190f587aeca7646440f9c"
+      "bytes": 726301,
+      "sha256": "70d130bf992e83ed2264b496af307989a410a3f9b8fd37fe7efc4ce4455cdc68"
     },
     "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf": {
-      "pages": 554,
-      "bytes": 9760228,
-      "sha256": "b1cf177aa3d5336d2df5d1a9fd4529c43f1cdcc2aaf34135bfc6b1dcad47d4b6"
+      "pages": 555,
+      "bytes": 9761895,
+      "sha256": "2251fdedb6c8e43126b1953285fa0e4a224b60040e74b792152a942fdff3d035"
     },
     "website-v2/public/whitepaper/federated-harbor-whitepaper.pdf": {
       "pages": 45,
