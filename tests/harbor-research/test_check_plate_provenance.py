@@ -85,6 +85,21 @@ PREAMBLE_TEX = r"""
       \includegraphics[width=0.62\paperwidth]{plates/technical/part-#1.jpg}}{}}
 """
 
+# The website's half of the same indirection: it never writes a plate path
+# out in full, it builds one per chapter and one per part by template
+# literal from textbook.json. Section (C) of the checker reads these
+# templates out of the source the same way (B) reads the TeX macro bodies.
+SITE_PAGE_TSX = """\
+export function ChapterEntry({ record }: { record: Chapter }) {
+  return <img src={`/whitepaper/plates/swiss/chapter-${record.prefix}.jpg`} alt="" />
+}
+export function PartOpener({ part }: { part: Part }) {
+  return <img src={`/whitepaper/plates/swiss/part-${part.numeral}.jpg`} alt="" />
+}
+"""
+
+SITE_PAGE_REL = Path("website-v2") / "src" / "pages" / "whitepaper" / "index.tsx"
+
 CHAPTERS = [
     {"number": 1, "prefix": "aa"},
     {"number": 2, "prefix": "bb"},
@@ -167,12 +182,21 @@ def write_technical_images(repo: Path) -> None:
         (repo / PLATES_REL / "technical" / f"chapter-{ch['number']}.jpg").write_bytes(make_jpeg_bytes(W, H))
 
 
+def write_site_source(repo: Path, body: str = SITE_PAGE_TSX) -> Path:
+    """The website page whose template literals section (C) resolves."""
+    path = repo / SITE_PAGE_REL
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(body, encoding="utf-8")
+    return path
+
+
 def build_clean_fixture(tmp: Path) -> Path:
     repo = make_repo(tmp)
     write_swiss_images(repo)
     write_technical_images(repo)
     write_swiss_provenance(repo)
     write_technical_provenance(repo)
+    write_site_source(repo)
     return repo
 
 
@@ -189,6 +213,7 @@ class TestCommittedTree(unittest.TestCase):
         self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
         self.assertIn("0 provenance failure(s)", result.stdout)
         self.assertIn("0 TeX path failure(s)", result.stdout)
+        self.assertIn("0 site path failure(s)", result.stdout)
 
 
 class TestHappyPath(unittest.TestCase):
@@ -417,6 +442,106 @@ class TestMissingModelOrPost(unittest.TestCase):
             self.assertEqual(result.returncode, 1, msg=result.stdout + result.stderr)
             self.assertIn("no model provenance", result.stdout)
             self.assertIn("no post-processing description", result.stdout)
+
+
+class TestSitePlatePaths(unittest.TestCase):
+    """Section (C): the plate paths the website constructs by template literal.
+
+    A missing plate here raises nothing at build time -- the browser asks for
+    it, gets a 404 and paints an empty box -- so the only thing standing
+    between a renamed plate and a broken page is this check. These tests are
+    therefore mutation tests first: each one breaks the tree in a way the old
+    checker was blind to and asserts the failure names the exact file.
+    """
+
+    def test_missing_swiss_chapter_plate_names_the_site_path(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = build_clean_fixture(Path(tmp))
+            (repo / PLATES_REL / "swiss" / "chapter-bb.jpg").unlink()
+            result = run_checker(repo)
+            self.assertEqual(result.returncode, 1, msg=result.stdout + result.stderr)
+            self.assertIn(
+                "references missing plate: /whitepaper/plates/swiss/chapter-bb.jpg",
+                result.stdout,
+            )
+            self.assertIn("1 site path failure(s)", result.stdout)
+
+    def test_missing_swiss_part_plate_names_the_site_path(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = build_clean_fixture(Path(tmp))
+            (repo / PLATES_REL / "swiss" / "part-I.jpg").unlink()
+            result = run_checker(repo)
+            self.assertEqual(result.returncode, 1, msg=result.stdout + result.stderr)
+            self.assertIn(
+                "references missing plate: /whitepaper/plates/swiss/part-I.jpg",
+                result.stdout,
+            )
+
+    def test_retargeted_template_fails_for_every_chapter(self) -> None:
+        """Editing the template itself -- a new directory that was never
+        created -- must fail, and must fail once per chapter rather than
+        once, so the message says how much of the page went dark."""
+        with TemporaryDirectory() as tmp:
+            repo = build_clean_fixture(Path(tmp))
+            write_site_source(
+                repo,
+                SITE_PAGE_TSX.replace("plates/swiss/chapter-", "plates/swiss-v2/chapter-"),
+            )
+            result = run_checker(repo)
+            self.assertEqual(result.returncode, 1, msg=result.stdout + result.stderr)
+            self.assertIn(f"{len(CHAPTERS)} site path failure(s)", result.stdout)
+            self.assertIn("/whitepaper/plates/swiss-v2/chapter-aa.jpg", result.stdout)
+
+    def test_unknown_placeholder_fails_closed(self) -> None:
+        """A placeholder naming a field this script cannot map is reported,
+        not skipped. Skipping it would restore exactly the silence section
+        (C) exists to end."""
+        with TemporaryDirectory() as tmp:
+            repo = build_clean_fixture(Path(tmp))
+            write_site_source(repo, SITE_PAGE_TSX.replace("record.prefix", "record.id"))
+            result = run_checker(repo)
+            self.assertEqual(result.returncode, 1, msg=result.stdout + result.stderr)
+            self.assertIn("names no textbook.json axis this script knows", result.stdout)
+            self.assertIn("${record.id}", result.stdout)
+
+    def test_test_files_and_bare_fragments_are_ignored(self) -> None:
+        """A site test asserting on a path *fragment* is not a plate
+        reference, and neither is anything inside a .test.ts file."""
+        with TemporaryDirectory() as tmp:
+            repo = build_clean_fixture(Path(tmp))
+            (repo / "website-v2" / "src" / "shell.test.ts").write_text(
+                "expect(x).toContain('/whitepaper/plates/swiss/chapter-')\n"
+                "expect(x).toContain('/whitepaper/plates/swiss/ghost.jpg')\n",
+                encoding="utf-8",
+            )
+            result = run_checker(repo)
+            self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+            self.assertNotIn("ghost.jpg", result.stdout)
+
+    def test_committed_site_source_really_resolves_twelve_plates(self) -> None:
+        """Guards against the check passing vacuously. If the site page is
+        ever restructured so the templates stop being found, this fails
+        rather than quietly checking nothing."""
+        expected, problems = _checker_module().collect_expected_site_paths(str(REPO_ROOT))
+        self.assertEqual(problems, [])
+        paths = {p for p, _ in expected}
+        textbook = json.loads(
+            (REPO_ROOT / "whitepaper" / "textbook.json").read_text(encoding="utf-8")
+        )
+        for ch in textbook["chapters"]:
+            self.assertIn(f"/whitepaper/plates/swiss/chapter-{ch['prefix']}.jpg", paths)
+        for part in textbook["parts"]:
+            self.assertIn(f"/whitepaper/plates/swiss/part-{part['numeral']}.jpg", paths)
+
+
+def _checker_module():
+    """Import the checker as a module (it has no .py-importable package)."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("check_plate_provenance", CHECKER)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 if __name__ == "__main__":

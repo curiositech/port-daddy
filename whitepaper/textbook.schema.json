@@ -88,8 +88,8 @@
           },
           "slug": {
             "type": "string",
-            "pattern": "^[a-z]+$",
-            "description": "The part's web role-token name, unique across parts. The site's Swiss primitives (website-v2/src/components/swiss/) derive a part's ink mechanically from this field -- var(--part-<slug>) / var(--part-<slug>-on) in tokens.roles.css -- rather than from a hard-coded color-to-token lookup table."
+            "pattern": "^[a-z]{2,}$",
+            "description": "The part's web role-token name, unique across parts. The site's Swiss primitives (website-v2/src/components/swiss/) derive a part's ink mechanically from this field -- var(--part-<slug>) / var(--part-<slug>-on) in tokens.roles.css -- rather than from a hard-coded color-to-token lookup table. Two letters minimum: a one-letter slug is a legal CSS identifier but names a token nobody can read back to a part (--part-a), and the role layer is meant to be legible at the point of use."
           },
           "webRoleAlias": {
             "type": "object",

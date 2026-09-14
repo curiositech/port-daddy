@@ -140,7 +140,11 @@ function validateTextbook(raw, source = 'whitepaper/textbook.json') {
     // field -- var(--part-${slug}) / var(--part-${slug}-on), see
     // website-v2/src/styles/tokens.roles.css and src/components/swiss/Slab.tsx
     // -- so it is constrained to a bare lowercase word, unique across parts.
-    if (!/^[a-z]+$/.test(part.slug)) fail(`${where}: slug must be lowercase letters only (it becomes var(--part-${part.slug}))`);
+    // Two letters minimum, matching textbook.schema.json: `^[a-z]+$` admits a
+    // one-letter slug, and `--part-a` is a token nobody can read back to a
+    // part. Kept in step with the schema deliberately -- a runtime validator
+    // looser than the schema is the same hole with an extra step.
+    if (!/^[a-z]{2,}$/.test(part.slug)) fail(`${where}: slug must be two or more lowercase letters (it becomes var(--part-${part.slug}))`);
     if (partSlugs.has(part.slug)) fail(`duplicate part slug ${part.slug}`);
     partSlugs.add(part.slug);
     // webRoleAlias says which SEMANTIC-layer token pair var(--part-<slug>) /
