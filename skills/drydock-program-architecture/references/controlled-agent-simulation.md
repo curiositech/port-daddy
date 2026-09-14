@@ -10,11 +10,11 @@
 
 **Companions:**
 
-- [The Grand Harbor Atlas](./grand-harbor-product-atlas.md)
-- [Drydock Agent Lifecycle and Operator Control](./drydock-agent-lifecycle-and-operator-control.md)
-- [Drydock Resurrection, Capacity, and Context Control](./drydock-resurrection-capacity-and-context-control.md)
-- [Drydock execution hypertree](./drydock-resurrection-hypertree.json)
-- [Drydock operator journey storyboard](../design/drydock-operator-journeys/index.html)
+- [The Grand Harbor Atlas](../../../docs/proposals/grand-harbor-product-atlas.md)
+- [Drydock Agent Lifecycle and Operator Control](./agent-lifecycle-and-operator-control.md)
+- [Drydock Resurrection, Capacity, and Context Control](./resurrection-capacity-and-context-control.md)
+- [Drydock execution hypertree](../examples/drydock-resurrection-hypertree.json)
+- [Drydock operator journey storyboard](../../../docs/design/drydock-operator-journeys/index.html)
 
 **Prepared:** 2026-09-08
 
@@ -61,7 +61,7 @@ Several current source truths matter:
 
 1. `tests/helpers/ephemeral-daemon.js` starts `server.ts` directly under the test runner's UID and begins its environment with `...process.env`. It isolates the database and socket, but it does not create an OS trust boundary or prove provider credentials absent.
 2. `jest.config.js` includes an integration project whose global setup launches that daemon automatically. A generic `npm test` is therefore not a pure or runtime-free operation.
-3. `scripts/chaos.ts` calls `resolveDaemonUrl()`, mints actors, and writes services, sessions, locks, messages, and inbox records. It is a live-state mutator masquerading as a convenient scenario generator.
+3. [The legacy chaos driver](../../../scripts/chaos.ts) calls `resolveDaemonUrl()`, mints actors, and writes services, sessions, locks, messages, and inbox records. It is a live-state mutator masquerading as a convenient scenario generator.
 4. `lib/coast-guard/egress-meter.ts` accurately states that a malicious same-UID child can unset proxy variables and bypass its cap. It is useful cooperative-case machinery, not a containment proof.
 5. `SpawnSpec.budgetUsd` in `lib/spawner.ts` is documented as enforced after telemetry. The backend runs first; cost is computed and recorded afterward; only then can the result become `over_budget`.
 6. `tests/unit/spawner-budget-cap.test.js` currently asserts that a missing, zero, negative, malformed, or non-number budget creates no hard cap and may still complete paid work.
@@ -206,7 +206,7 @@ Drydock reduces but cannot eliminate:
 These remain explicit in every promotion receipt. “Ran in Drydock” is not shorthand for “risk-free.”
 
 This threat model adopts the controllable/uncontrollable event split developed in
-the repository's [assurance paper](../harbor-research/tex/paper4.tex). Drydock can
+the repository's [assurance paper](../../../docs/harbor-research/tex/paper4.tex). Drydock can
 prevent only effects whose complete channel it owns: VM devices, host mounts,
 brokered egress, credential use, publication, and process lifetime. Model thought,
 internal planning, and any effect with an unmediated bypass are detect-only or
@@ -1432,7 +1432,7 @@ The CI or developer host never executes JavaScript, TypeScript, shell hooks, pac
 
 If the supplied receipt is absent, expired, mismatched, or not T2, integration tests refuse to run. They do not fall back to a local daemon.
 
-### 19.5 Supplant `scripts/chaos.ts`
+### 19.5 Supplant the legacy imperative chaos driver
 
 The imperative script should be replaced, not preserved as a legacy alternate path.
 
@@ -2027,7 +2027,7 @@ Current repository surfaces that motivated or can inform the design:
 | `jest.config.js` | generic test command includes daemon integration project | safe default excludes runtime; T2 requires receipt |
 | `tests/helpers/global-setup.js` | launches source daemon automatically | replaced by supplied Drydock endpoint |
 | `tests/helpers/ephemeral-daemon.js` | temporary state, same UID, inherited environment | no longer a security boundary; guest-only helper if retained |
-| `scripts/chaos.ts` | discovers default daemon and performs live writes | supplanted by declarative TrialScenario |
+| [legacy chaos driver](../../../scripts/chaos.ts) | discovers default daemon and performs live writes | supplanted by declarative TrialScenario |
 | `lib/coast-guard/egress-meter.ts` | cooperative proxy; documented direct-egress bypass | component defense only, never containment proof |
 | `lib/spawner.ts` | runner injection seam; budget checked after execution | keep fake seam; require external pre-reservation |
 | `tests/unit/spawner-budget-cap.test.js` | missing/invalid budget means no cap | reverse for external effects: no valid lease means deny |

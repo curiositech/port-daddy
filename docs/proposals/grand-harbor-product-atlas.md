@@ -315,11 +315,11 @@ Port Daddy can be the test subject. It cannot own either layer.
 
 The implementable controller, broker, VM, scenario, test-suite, threat-model, and
 promotion design lives in [Drydock: Controlled Port Daddy Execution and Agent
-Simulation](./drydock-controlled-agent-simulation.md). The global spawn ledger,
+Simulation](../../skills/drydock-program-architecture/references/controlled-agent-simulation.md). The global spawn ledger,
 PID-proof recovery, crash-storm breakers, cross-backend identity continuity,
 pd-console conversation flow, secure iOS join, and Scout/Porthole boundary live in
 [Drydock Agent Lifecycle and Operator
-Control](./drydock-agent-lifecycle-and-operator-control.md). Those companions are
+Control](../../skills/drydock-program-architecture/references/agent-lifecycle-and-operator-control.md). Those companions are
 the detailed Passage 0 contracts; this Atlas remains the integrated product and
 research map.
 
@@ -656,7 +656,7 @@ hooks, and permissions are verified and re-authorized; credentials are not copie
 
 The complete contract and its 1,000-request crash-loop tests are in [Drydock Agent
 Lifecycle and Operator
-Control](./drydock-agent-lifecycle-and-operator-control.md).
+Control](../../skills/drydock-program-architecture/references/agent-lifecycle-and-operator-control.md).
 
 ---
 
