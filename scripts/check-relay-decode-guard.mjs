@@ -89,7 +89,7 @@
 import ts from 'typescript';
 import { readFileSync, readdirSync } from 'node:fs';
 import { resolve, dirname, relative, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -129,7 +129,7 @@ const DEFAULT_AREA = AREAS[0].name;
  * matching nothing — a typo'd glob that scans zero files is a guard that
  * passes for the wrong reason.
  */
-function expandEntry(entry) {
+export function expandEntry(entry) {
   const starstar = '/**/*.';
   const idx = entry.indexOf(starstar);
   if (idx === -1) {
@@ -160,7 +160,7 @@ function expandEntry(entry) {
 }
 
 /** Every absolute file path a config's `files` list expands to, de-duplicated. */
-function areaFiles(area) {
+export function areaFiles(area) {
   const seen = new Set();
   for (const entry of area.files) {
     for (const abs of expandEntry(entry)) seen.add(abs);
@@ -439,4 +439,10 @@ function main() {
   if (anyViolations) process.exit(1);
 }
 
-main();
+// Run only when executed directly (`node check-relay-decode-guard.mjs`), not
+// when a test imports this module to unit-test expandEntry/areaFiles in
+// isolation — an unconditional call here would scan the real repo and call
+// process.exit() as a side effect of merely importing the file.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main();
+}

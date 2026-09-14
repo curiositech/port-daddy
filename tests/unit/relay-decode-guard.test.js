@@ -31,11 +31,13 @@
  * must pass; known violations belong in code fixes, not in a test that
  * blesses a permanently red required job.
  */
-import { describe, expect, test } from '@jest/globals';
+import { describe, expect, test, afterEach } from '@jest/globals';
 import { execFileSync } from 'node:child_process';
-import { readdirSync } from 'node:fs';
+import { readdirSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { AREAS, expandEntry, areaFiles } from '../../scripts/check-relay-decode-guard.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = join(here, '..', '..');
@@ -228,4 +230,166 @@ describe('relay decode guard (scripts/check-relay-decode-guard.mjs)', () => {
       expect(scannedFiles).toBeGreaterThan(20);
     },
   );
+});
+
+/**
+ * Unit tests for expandEntry/areaFiles (the glob expansion the widened scan
+ * runs on) — separate from the CLI-level tests above and deliberately
+ * against a synthetic fixture tree this file builds, not the real Relay
+ * source (which changes independently of this test).
+ *
+ * pd-qa's finding on this PR: the walker (findRawReferences / isPureNameNode
+ * / findHelperRange) was well covered by fixtures, but the thing that
+ * decides WHAT the walker ever sees — expandEntry's glob expansion — had no
+ * test of its own. A guard whose expansion silently under-matches (a
+ * directory it fails to recurse into, an extension check that misses, an
+ * off-by-one in the glob-shape validation) reports green while scanning
+ * fewer files than its config claims — worse than the single-file guard
+ * this PR widened, because that one was at least honest about its scope.
+ *
+ * Each expected file count below is declared here, not read off whatever
+ * expandEntry currently returns — the same discipline as
+ * FIXTURE_EXIT_CODES above: a future change that narrows the expansion must
+ * fail a test, not just quietly ship a smaller green.
+ */
+describe('expandEntry / areaFiles (the glob expansion behind the widened scan)', () => {
+  let root;
+
+  afterEach(() => {
+    if (root) rmSync(root, { recursive: true, force: true });
+    root = undefined;
+  });
+
+  /**
+   * Builds:
+   *   root/a.ts                                  <- matches
+   *   root/b.md                                   different extension
+   *   root/notes.ts.bak                            contains ".ts" but does not END in ".ts"
+   *   root/.hidden.ts                              dot-file, skipped
+   *   root/node_modules/ignored.ts                 node_modules, skipped regardless of extension
+   *   root/sub/c.ts                                <- matches
+   *   root/sub/d.txt                               different extension
+   *   root/sub/empty/                              empty dir: no throw, contributes nothing
+   *   root/sub/onlymd/e.md                         dir with only non-matching files: no throw
+   *   root/sub/deep/deeper/deepest/z.ts            <- matches, several levels down ("**" doing its job)
+   * Three matches total: a.ts, sub/c.ts, sub/deep/deeper/deepest/z.ts.
+   */
+  function buildTree() {
+    const r = mkdtempSync(join(tmpdir(), 'relay-decode-guard-glob-'));
+    writeFileSync(join(r, 'a.ts'), '// a\n');
+    writeFileSync(join(r, 'b.md'), '# b\n');
+    writeFileSync(join(r, 'notes.ts.bak'), '// not a .ts file\n');
+    writeFileSync(join(r, '.hidden.ts'), '// dotfile\n');
+    mkdirSync(join(r, 'node_modules'), { recursive: true });
+    writeFileSync(join(r, 'node_modules', 'ignored.ts'), '// vendored\n');
+    mkdirSync(join(r, 'sub'), { recursive: true });
+    writeFileSync(join(r, 'sub', 'c.ts'), '// c\n');
+    writeFileSync(join(r, 'sub', 'd.txt'), 'not typescript\n');
+    mkdirSync(join(r, 'sub', 'empty'), { recursive: true });
+    mkdirSync(join(r, 'sub', 'onlymd'), { recursive: true });
+    writeFileSync(join(r, 'sub', 'onlymd', 'e.md'), '# e\n');
+    mkdirSync(join(r, 'sub', 'deep', 'deeper', 'deepest'), { recursive: true });
+    writeFileSync(join(r, 'sub', 'deep', 'deeper', 'deepest', 'z.ts'), '// z\n');
+    return r;
+  }
+
+  test('finds a file several directories deep -- the "**" recursing, not just scanning the top level', () => {
+    root = buildTree();
+    const found = expandEntry(`${root}/**/*.ts`);
+    expect(found).toContain(join(root, 'sub', 'deep', 'deeper', 'deepest', 'z.ts'));
+  });
+
+  test('excludes a file with a different extension in the same tree', () => {
+    root = buildTree();
+    const found = expandEntry(`${root}/**/*.ts`);
+    expect(found).not.toContain(join(root, 'b.md'));
+    expect(found).not.toContain(join(root, 'sub', 'd.txt'));
+  });
+
+  test('excludes a file whose name merely CONTAINS the extension string rather than ending in it', () => {
+    root = buildTree();
+    const found = expandEntry(`${root}/**/*.ts`);
+    expect(found).not.toContain(join(root, 'notes.ts.bak'));
+  });
+
+  test('an empty directory and a directory with only non-matching files: no throw, no matches, entry not silently dropped', () => {
+    root = buildTree();
+    // sub/empty and sub/onlymd contribute nothing, but must not throw and
+    // must not stop the walk from reaching sub/deep below them.
+    expect(() => expandEntry(`${root}/**/*.ts`)).not.toThrow();
+    const found = expandEntry(`${root}/**/*.ts`);
+    expect(found).toContain(join(root, 'sub', 'deep', 'deeper', 'deepest', 'z.ts'));
+  });
+
+  test('skips dot-files and node_modules regardless of extension', () => {
+    root = buildTree();
+    const found = expandEntry(`${root}/**/*.ts`);
+    expect(found).not.toContain(join(root, '.hidden.ts'));
+    expect(found).not.toContain(join(root, 'node_modules', 'ignored.ts'));
+  });
+
+  test(
+    'EXACT COUNT for a known tree is 3, declared here rather than read off the ' +
+      'current return value -- an expansion that quietly stops early (a directory it ' +
+      'fails to recurse into, an off-by-one) must fail this test, not silently report ' +
+      'a smaller green',
+    () => {
+      root = buildTree();
+      const found = expandEntry(`${root}/**/*.ts`);
+      expect(found.sort()).toEqual(
+        [
+          join(root, 'a.ts'),
+          join(root, 'sub', 'c.ts'),
+          join(root, 'sub', 'deep', 'deeper', 'deepest', 'z.ts'),
+        ].sort(),
+      );
+    },
+  );
+
+  test('a literal (non-glob) entry resolves to exactly that one file, not expanded', () => {
+    root = buildTree();
+    const found = expandEntry(join(root, 'a.ts'));
+    expect(found).toEqual([join(root, 'a.ts')]);
+  });
+
+  test('areaFiles de-duplicates across overlapping entries and sorts the result', () => {
+    root = buildTree();
+    const files = areaFiles({ files: [`${root}/**/*.ts`, join(root, 'a.ts')] });
+    expect(files).toEqual(
+      [
+        join(root, 'a.ts'),
+        join(root, 'sub', 'c.ts'),
+        join(root, 'sub', 'deep', 'deeper', 'deepest', 'z.ts'),
+      ].sort(),
+    );
+  });
+
+  describe('unsupported glob shapes reject exactly the shapes they claim to, and nothing else', () => {
+    test('rejects "<dir>/**/*." -- no extension after the dot', () => {
+      root = buildTree();
+      expect(() => expandEntry(`${root}/**/*.`)).toThrow(/unsupported glob shape/);
+    });
+
+    test('rejects "<dir>/**/*.<ext>/<more>" -- a path segment after the extension', () => {
+      root = buildTree();
+      expect(() => expandEntry(`${root}/**/*.ts/sub`)).toThrow(/unsupported glob shape/);
+    });
+
+    test('accepts the ordinary "<dir>/**/*.<ext>" shape', () => {
+      root = buildTree();
+      expect(() => expandEntry(`${root}/**/*.ts`)).not.toThrow();
+    });
+
+    test(
+      'every entry in the REAL AREAS config parses without throwing -- written from the ' +
+        "config's actual entries so this and AREAS cannot drift apart",
+      () => {
+        for (const area of AREAS) {
+          for (const entry of area.files) {
+            expect(() => expandEntry(entry)).not.toThrow();
+          }
+        }
+      },
+    );
+  });
 });
