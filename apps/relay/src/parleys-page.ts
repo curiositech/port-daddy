@@ -1142,8 +1142,8 @@ export async function handleParleyDetailPage(
   // (the parley itself is the artifact; the panels are annotations on it).
   let mediatorGate: ParleyGateRow | null = null;
   let summonses: ParleySummonsRow[] = [];
-  let fleetPaused = true;
-  let fleetPauseUnknown = true;
+  let fleetPaused: boolean;
+  let fleetPauseUnknown: boolean;
   let mediatorKilled = false;
   try {
     mediatorGate = await getParleyGate(env.DB, parley.id);
