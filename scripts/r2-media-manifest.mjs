@@ -24,7 +24,7 @@
 //
 // No size threshold, no per-file judgement, no exception list. "Is this
 // screenshot big enough to be worth it?" is exactly the question that produces a
-// list somebody has to maintain. See docs/adr/0141-r2-media-offload.md for why
+// list somebody has to maintain. See docs/adr/0142-r2-media-offload.md for why
 // these roots and not others: every one of them holds review evidence that no
 // build step reads. Adding a root is an ADR-sized decision, not a line edit.
 //
@@ -50,7 +50,7 @@ export const MANIFEST_VERSION = 1;
  * Deliberately NOT here, and why:
  *   website-v2/public/   — vite copies it into `dist` at build time; an
  *                          unreachable R2 would break the BUILD, not just a
- *                          stale link. Build inputs stay in git. (ADR-0141 §5.)
+ *                          stale link. Build inputs stay in git. (ADR-0142 §5.)
  *   whitepaper/…/plates/ — `\includegraphics` resolves these during pdflatex.
  *                          Same reason, louder: a missing plate fails the book
  *                          ~20 minutes into a LaTeX run.

@@ -1,4 +1,4 @@
-# ADR-0141: Review-evidence media moves to R2, content-addressed, with the manifest derived from the tree
+# ADR-0142: Review-evidence media moves to R2, content-addressed, with the manifest derived from the tree
 
 - **Status:** Proposed — the code in this PR is complete and tested against an
   in-memory bucket; no Cloudflare resource has been created. Provisioning the

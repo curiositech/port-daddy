@@ -13,10 +13,10 @@ name: R2 media
 #                   on branch pushes alike, because content addressing means a
 #                   branch and main share every object whose bytes they share --
 #                   there is no preview bucket and no promotion step, so a PR
-#                   preview's assets are simply already there. See ADR-0141 §6.
+#                   preview's assets are simply already there. See ADR-0142 §6.
 #
 # The sync job cannot run until the bucket and the scoped token exist; until
-# then it fails closed on the missing secrets, which is correct. See ADR-0141
+# then it fails closed on the missing secrets, which is correct. See ADR-0142
 # §11 for exactly what needs provisioning.
 
 on:
