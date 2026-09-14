@@ -409,6 +409,29 @@ class TestMarginCarriesTheCaption(unittest.TestCase):
             self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
             self.assertNotIn("margin-carries-the-caption", result.stdout)
 
+    def test_a_gloss_also_satisfies_it(self) -> None:
+        """The rule counts three things and only two were exercised.
+
+        check_margin_carries_the_caption sums \\pdmargincaption, \\pdsidenote
+        AND \\pdgloss. Dropping the \\pdgloss term would have left the suite
+        green while the rule started failing every chapter whose margin carries
+        glosses beside its portraits -- which margin-apparatus.md section 3
+        explicitly permits.
+        """
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            write_plate(repo, "lampson", VALID_SIDECAR)
+            chapter = write_chapter(repo, "ch.tex", (
+                "\\section{Intro}\n"
+                "This idea is Lampson's access matrix, load-bearing here.\n"
+                "\\pdmarginfigure{lampson}{Lampson's access matrix.}%\n"
+                "The swarm uses \\pdgloss{Stigmergy}{coordination through traces left in the "
+                "shared environment rather than through direct messages.} to stay legible.\n"
+            ))
+            result = run_checker(repo, [chapter])
+            self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+            self.assertNotIn("margin-carries-the-caption", result.stdout)
+
     def test_a_chapter_with_no_margin_figure_is_not_reported(self) -> None:
         """The rule is about a margin used badly, not a margin left empty."""
         with TemporaryDirectory() as tmp:
