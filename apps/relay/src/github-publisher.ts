@@ -718,7 +718,7 @@ async function graphql<T>(
   return response.body.data;
 }
 
-async function authorizeExactRepository(
+export async function authorizeExactRepository(
   installationId: number,
   repository: string,
   userToken: string,

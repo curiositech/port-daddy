@@ -2342,6 +2342,28 @@ export async function createShipwrightThread(
   ).run();
 }
 
+/** Idempotently reuse the one durable thread for this exact repository. */
+export async function getOrCreateShipwrightThread(
+  db: D1Database,
+  row: ShipwrightThreadRow,
+): Promise<ShipwrightThreadRow> {
+  await db.prepare(
+    `INSERT INTO shipwright_threads
+      (id, user_id, installation_id, repo_full_name, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(user_id, installation_id, repo_full_name) DO NOTHING`,
+  ).bind(
+    row.id, row.user_id, row.installation_id, row.repo_full_name, row.created_at, row.updated_at,
+  ).run();
+  const found = await db.prepare(
+    `SELECT id, user_id, installation_id, repo_full_name, created_at, updated_at
+       FROM shipwright_threads
+      WHERE user_id = ? AND installation_id = ? AND repo_full_name = ?`,
+  ).bind(row.user_id, row.installation_id, row.repo_full_name).first<ShipwrightThreadRow>();
+  if (!found) throw new Error('SHIPWRIGHT_THREAD_CREATE_FAILED');
+  return found;
+}
+
 /** Resolve a thread only inside its session-user boundary. */
 export async function getShipwrightThread(
   db: D1Database,
@@ -2352,6 +2374,18 @@ export async function getShipwrightThread(
     `SELECT id, user_id, installation_id, repo_full_name, created_at, updated_at
        FROM shipwright_threads WHERE id = ? AND user_id = ?`,
   ).bind(threadId, userId).first<ShipwrightThreadRow>()) ?? null;
+}
+
+export async function listShipwrightThreads(
+  db: D1Database,
+  userId: string,
+  limit = 100,
+): Promise<ShipwrightThreadRow[]> {
+  const rows = await db.prepare(
+    `SELECT id, user_id, installation_id, repo_full_name, created_at, updated_at
+       FROM shipwright_threads WHERE user_id = ? ORDER BY updated_at DESC LIMIT ?`,
+  ).bind(userId, limit).all<ShipwrightThreadRow>();
+  return rows.results ?? [];
 }
 
 /** Append only if the thread still belongs to the complete expected scope. */
@@ -2461,6 +2495,83 @@ export async function upsertShipwrightRepoMemory(
     row.now,
     row.now,
   ).run();
+}
+
+export interface ShipwrightRepoMemoryRow {
+  id: string;
+  user_id: string;
+  installation_id: number;
+  repo_full_name: string;
+  kind: string;
+  body_json: string;
+  created_at: number;
+  updated_at: number;
+}
+
+export async function listShipwrightRepoMemory(
+  db: D1Database,
+  scope: { userId: string; installationId: number; repoFullName: string },
+  limit = 20,
+): Promise<ShipwrightRepoMemoryRow[]> {
+  const rows = await db.prepare(
+    `SELECT id, user_id, installation_id, repo_full_name, kind, body_json, created_at, updated_at
+       FROM shipwright_repo_memory
+      WHERE user_id = ? AND installation_id = ? AND repo_full_name = ?
+      ORDER BY updated_at DESC LIMIT ?`,
+  ).bind(scope.userId, scope.installationId, scope.repoFullName, limit).all<ShipwrightRepoMemoryRow>();
+  return rows.results ?? [];
+}
+
+export interface ShipwrightProposalRow {
+  id: string;
+  thread_id: string;
+  user_id: string;
+  installation_id: number;
+  repo_full_name: string;
+  yaml: string;
+  created_at: number;
+}
+
+export async function latestShipwrightProposal(
+  db: D1Database,
+  scope: { threadId: string; userId: string; installationId: number; repoFullName: string },
+): Promise<ShipwrightProposalRow | null> {
+  return (await db.prepare(
+    `SELECT id, thread_id, user_id, installation_id, repo_full_name, yaml, created_at
+       FROM shipwright_proposals
+      WHERE thread_id = ? AND user_id = ? AND installation_id = ? AND repo_full_name = ?
+      ORDER BY created_at DESC LIMIT 1`,
+  ).bind(scope.threadId, scope.userId, scope.installationId, scope.repoFullName)
+    .first<ShipwrightProposalRow>()) ?? null;
+}
+
+export async function exportScopedShipwrightContext(db: D1Database, userId: string): Promise<{
+  threads: ShipwrightThreadRow[];
+  messages: Array<ShipwrightMessageRow & { thread_id: string }>;
+  memory: ShipwrightRepoMemoryRow[];
+  proposals: ShipwrightProposalRow[];
+}> {
+  const [threads, messages, memory, proposals] = await Promise.all([
+    listShipwrightThreads(db, userId, 100),
+    db.prepare(
+      `SELECT id, thread_id, role, content, created_at FROM shipwright_thread_messages
+        WHERE user_id = ? ORDER BY id ASC`,
+    ).bind(userId).all<ShipwrightMessageRow & { thread_id: string }>(),
+    db.prepare(
+      `SELECT id, user_id, installation_id, repo_full_name, kind, body_json, created_at, updated_at
+         FROM shipwright_repo_memory WHERE user_id = ? ORDER BY updated_at DESC`,
+    ).bind(userId).all<ShipwrightRepoMemoryRow>(),
+    db.prepare(
+      `SELECT id, thread_id, user_id, installation_id, repo_full_name, yaml, created_at
+         FROM shipwright_proposals WHERE user_id = ? ORDER BY created_at ASC`,
+    ).bind(userId).all<ShipwrightProposalRow>(),
+  ]);
+  return {
+    threads,
+    messages: messages.results ?? [],
+    memory: memory.results ?? [],
+    proposals: proposals.results ?? [],
+  };
 }
 
 /** Record exact YAML provenance under the thread and repository that emitted it. */

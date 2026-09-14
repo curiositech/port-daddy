@@ -3,10 +3,12 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   createShipwrightThread,
+  getOrCreateShipwrightThread,
   insertScopedShipwrightMessage,
   insertShipwrightProposal,
   listScopedShipwrightMessages,
   shipwrightProposalExists,
+  exportScopedShipwrightContext,
 } from '../src/db.js';
 import { MIGRATIONS_DIR, SCHEMA_SQL, makeTestD1 } from './support/d1-sqlite.js';
 import { runRetentionSweep, SHIPWRIGHT_RETENTION_DAYS } from '../src/retention-sweep.js';
@@ -37,9 +39,11 @@ describe('Shipwright scoped-context migration', () => {
   });
 
   it('leaves the previous schema usable after the new tables arrive', () => {
-    const t = makeTestD1([MIGRATION]);
+    const quotaMigration = '2026-09-14-z-shipwright-thread-quota.sql';
+    const t = makeTestD1([MIGRATION, quotaMigration]);
     seedUser(t.raw);
     t.raw.exec(readFileSync(join(MIGRATIONS_DIR, MIGRATION), 'utf8'));
+    t.raw.exec(readFileSync(join(MIGRATIONS_DIR, quotaMigration), 'utf8'));
     t.raw.prepare(
       'INSERT INTO shipwright_chats (user_id, role, content, created_at) VALUES (?, ?, ?, ?)',
     ).run('u_1', 'user', 'legacy release still writes', 2);
@@ -49,6 +53,34 @@ describe('Shipwright scoped-context migration', () => {
 });
 
 describe('Shipwright proposal provenance', () => {
+  it('idempotently reuses one thread per repo and enforces the 100-repo quota', async () => {
+    const t = makeTestD1();
+    seedUser(t.raw);
+    const first = await getOrCreateShipwrightThread(t.db, {
+      id: `swt_${'1'.repeat(48)}`, user_id: 'u_1', installation_id: 11,
+      repo_full_name: 'octo/repo-0', created_at: 1, updated_at: 1,
+    });
+    const reused = await getOrCreateShipwrightThread(t.db, {
+      id: `swt_${'2'.repeat(48)}`, user_id: 'u_1', installation_id: 11,
+      repo_full_name: 'octo/repo-0', created_at: 2, updated_at: 2,
+    });
+    expect(reused.id).toBe(first.id);
+    for (let i = 1; i < 100; i += 1) {
+      t.raw.prepare(
+        'INSERT INTO shipwright_threads (id,user_id,installation_id,repo_full_name,created_at,updated_at) VALUES (?,?,?,?,?,?)',
+      ).run(`swt_${i.toString(16).padStart(48, '0')}`, 'u_1', 11, `octo/repo-${i}`, 1, 1);
+    }
+    const stillReusedAtQuota = await getOrCreateShipwrightThread(t.db, {
+      id: `swt_${'3'.repeat(48)}`, user_id: 'u_1', installation_id: 11,
+      repo_full_name: 'octo/repo-0', created_at: 3, updated_at: 3,
+    });
+    expect(stillReusedAtQuota.id).toBe(first.id);
+    expect(() => t.raw.prepare(
+      'INSERT INTO shipwright_threads (id,user_id,installation_id,repo_full_name,created_at,updated_at) VALUES (?,?,?,?,?,?)',
+    ).run(`swt_${'f'.repeat(48)}`, 'u_1', 11, 'octo/repo-over-quota', 1, 1)).toThrow(/quota exceeded/);
+    t.close();
+  });
+
   it('binds identical YAML to its exact user + installation + repo + thread', async () => {
     const t = makeTestD1();
     seedUser(t.raw);
@@ -118,6 +150,10 @@ describe('Shipwright proposal provenance', () => {
     await runRetentionSweep({ DB: t.db } as Env, now);
     expect(t.raw.prepare('SELECT COUNT(*) AS n FROM shipwright_thread_messages').get()).toEqual({ n: 0 });
     expect(t.raw.prepare('SELECT COUNT(*) AS n FROM shipwright_proposals').get()).toEqual({ n: 1 });
+    const exported = await exportScopedShipwrightContext(t.db, 'u_1');
+    expect(exported.threads).toHaveLength(1);
+    expect(exported.messages).toHaveLength(0);
+    expect(exported.proposals.map((row) => row.repo_full_name)).toEqual(['octo/repo-a']);
     t.close();
   });
 });

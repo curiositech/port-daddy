@@ -24,6 +24,7 @@
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { generateKeyPairSync } from 'node:crypto';
 import {
   handleShipwrightOpenPr,
   SHIPWRIGHT_BRANCH_PREFIX,
@@ -43,6 +44,8 @@ const BASE = 'https://relay.example';
 const COOKIE_VALUE = 'sess-open-pr';
 const WRAP_KEY = 'cc'.repeat(32);
 const INSTALLATION_ID = 42;
+const TEST_APP_KEY = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey
+  .export({ type: 'pkcs8', format: 'pem' }) as string;
 const THREAD_ID = `swt_${'b'.repeat(48)}`;
 const PR_URL = 'https://github.com/octo/widgets/pull/7';
 
@@ -184,7 +187,7 @@ async function makeSessionEnv(opts: EnvOpts = {}): Promise<Env> {
     PUBLIC_BASE_URL: BASE,
     ...(opts.noGithubApp
       ? {}
-      : { GITHUB_APP_ID: '12345', GITHUB_APP_PRIVATE_KEY: 'PEM-PLACEHOLDER' }),
+      : { GITHUB_APP_ID: '12345', GITHUB_APP_PRIVATE_KEY: TEST_APP_KEY }),
   } as unknown as Env;
 }
 
@@ -216,14 +219,36 @@ function formReq(fields: Record<string, string>): Request {
  * idiom): /user/installations answers the tenancy question; the git/contents/
  * pulls endpoints answer the mutation path; everything else 500s loudly.
  */
-function stubGithub(installations: Array<{ id: number }>) {
+function stubGithub(
+  installations: Array<{ id: number }>,
+  repoInstallation = INSTALLATION_ID,
+  revokeStatus = 204,
+) {
   const seen: Array<{ url: string; method: string; body: string | null }> = [];
   const mock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input instanceof Request ? input.url : input);
     const method = (init?.method ?? 'GET').toUpperCase();
     seen.push({ url, method, body: typeof init?.body === 'string' ? init.body : null });
+    if (url.includes(`/user/installations/${INSTALLATION_ID}/repositories`)) {
+      const granted = installations.some((entry) => entry.id === INSTALLATION_ID);
+      return Response.json({ total_count: granted ? 1 : 0, repositories: granted ? [{ full_name: 'octo/widgets' }] : [] });
+    }
     if (url.includes('/user/installations')) {
       return Response.json({ installations });
+    }
+    if (url.endsWith('/repos/octo/widgets/installation') && method === 'GET') {
+      return Response.json({ id: repoInstallation });
+    }
+    if (url.endsWith(`/app/installations/${INSTALLATION_ID}/access_tokens`) && method === 'POST') {
+      return Response.json({
+        token: 'ghs_scoped_test_token',
+        expires_at: new Date(Date.now() + 3_600_000).toISOString(),
+        repositories: [{ id: 7, name: 'widgets', full_name: 'octo/widgets' }],
+        permissions: { contents: 'write', pull_requests: 'write' },
+      });
+    }
+    if (url.endsWith('/installation/token') && method === 'DELETE') {
+      return new Response(null, { status: revokeStatus });
     }
     if (url.includes('/git/refs/heads/main') && method === 'GET') {
       return Response.json({ object: { sha: 'base-sha-123' } });
@@ -354,12 +379,12 @@ describe('open-pr — tenancy: a session can never target another tenant', () =>
       jsonReq({ yaml: GOOD_YAML, installationId: INSTALLATION_ID, repo: 'octo/repo-b' }),
       env,
     );
-    expect(res.status).toBe(403);
-    expect(((await res.json()) as { code: string }).code).toBe('REPO_SCOPE_MISMATCH');
+    expect(res.status).toBe(404);
+    expect(((await res.json()) as { code: string }).code).toBe('SHIPWRIGHT_SCOPE_UNAVAILABLE');
     expect(seen.every((c) => c.method === 'GET')).toBe(true);
   });
 
-  it('403 FORBIDDEN when GitHub does not attribute the installation to this user', async () => {
+  it('returns the indistinguishable denial when GitHub does not grant the exact repo', async () => {
     // Session A asks for installation 42; GitHub says A owns only 7 — that IS
     // the session-A-vs-session-B test: B's installation is simply one GitHub
     // does not list for A, and the server checks GitHub, not the claim.
@@ -369,22 +394,22 @@ describe('open-pr — tenancy: a session can never target another tenant', () =>
       jsonReq({ yaml: GOOD_YAML, installationId: INSTALLATION_ID, repo: 'octo/widgets' }),
       env,
     );
-    expect(res.status).toBe(403);
-    expect(((await res.json()) as { code: string }).code).toBe('FORBIDDEN');
+    expect(res.status).toBe(404);
+    expect(((await res.json()) as { code: string }).code).toBe('SHIPWRIGHT_SCOPE_UNAVAILABLE');
     // Nothing was created: no branch, no commit, no PR.
     expect(seen.every((c) => c.method === 'GET')).toBe(true);
   });
 
-  it('403 REPO_SCOPE_MISMATCH when the repo belongs to a DIFFERENT installation', async () => {
-    const { seen } = stubGithub([{ id: INSTALLATION_ID }]);
+  it('uses the same denial when the repo belongs to a different installation', async () => {
+    const { seen } = stubGithub([{ id: INSTALLATION_ID }], 99);
     // The user owns 42 — but octo/widgets is served by installation 99.
     const env = await makeSessionEnv({ history: chatWith(GOOD_YAML), repoBoundTo: 99 });
     const res = await handleShipwrightOpenPr(
       jsonReq({ yaml: GOOD_YAML, installationId: INSTALLATION_ID, repo: 'octo/widgets' }),
       env,
     );
-    expect(res.status).toBe(403);
-    expect(((await res.json()) as { code: string }).code).toBe('REPO_SCOPE_MISMATCH');
+    expect(res.status).toBe(404);
+    expect(((await res.json()) as { code: string }).code).toBe('SHIPWRIGHT_SCOPE_UNAVAILABLE');
     expect(seen.every((c) => c.method === 'GET')).toBe(true);
   });
 
@@ -418,6 +443,13 @@ describe('open-pr — happy path (stubbed GitHub, fleet-control idiom)', () => {
     expect(body.prUrl).toBe(PR_URL);
     expect(body.branch.startsWith(SHIPWRIGHT_BRANCH_PREFIX)).toBe(true);
 
+    const mint = seen.find((c) => c.url.endsWith(`/app/installations/${INSTALLATION_ID}/access_tokens`) && c.method === 'POST');
+    expect(JSON.parse(mint!.body!)).toEqual({
+      repositories: ['widgets'],
+      permissions: { contents: 'write', pull_requests: 'write' },
+    });
+    expect(seen.some((c) => c.url.endsWith('/installation/token') && c.method === 'DELETE')).toBe(true);
+
     // The mutation shape: fresh branch → contents PUT → PR. Never a bare push.
     expect(seen.some((c) => c.url.endsWith('/git/refs') && c.method === 'POST')).toBe(true);
     const put = seen.find((c) => c.url.includes('/contents/pd-fleet.yml') && c.method === 'PUT');
@@ -439,6 +471,19 @@ describe('open-pr — happy path (stubbed GitHub, fleet-control idiom)', () => {
     expect(prPayload.body).toContain('re-validated');
     expect(prPayload.body).toContain('review and merge');
     // Zero D1 writes: makeDb throws on ANY run() — reaching 200 proves none.
+  });
+
+  it('reports an unconfirmed repository-token revocation after the PR opens', async () => {
+    const { seen } = stubGithub([{ id: INSTALLATION_ID }], INSTALLATION_ID, 500);
+    const env = await makeSessionEnv({ history: chatWith(GOOD_YAML), repoBoundTo: INSTALLATION_ID });
+    const res = await handleShipwrightOpenPr(
+      jsonReq({ yaml: GOOD_YAML, installationId: INSTALLATION_ID, repo: 'octo/widgets' }),
+      env,
+    );
+    expect(res.status).toBe(502);
+    expect(((await res.json()) as { code: string }).code).toBe('TOKEN_CLEANUP_UNCONFIRMED');
+    expect(seen.some((c) => c.url.endsWith('/pulls') && c.method === 'POST')).toBe(true);
+    expect(seen.some((c) => c.url.endsWith('/installation/token') && c.method === 'DELETE')).toBe(true);
   });
 
   it('form dialect: success 303s the browser straight to the PR', async () => {
@@ -481,8 +526,8 @@ describe('shipwright page — the Open-PR deck', () => {
     ], { installations: [], notice: null, threadId: THREAD_ID, repo: 'octo/widgets', installationId: INSTALLATION_ID });
     expect(html).toContain('action="/v1/shipwright/open-pr"');
     expect(html).toContain(`name="threadId" value="${THREAD_ID}"`);
-    expect(html).toContain(`name="installationId" value="${INSTALLATION_ID}"`);
-    expect(html).toContain('name="repo" value="octo/widgets"');
+    expect(html).toContain('name="installationId" value=""');
+    expect(html).toContain('name="repo" value=""');
     expect(html).not.toContain('<select');
     expect(html).not.toContain('<script>evil');
     // The submission is a plain form POST — no client JS in the path.

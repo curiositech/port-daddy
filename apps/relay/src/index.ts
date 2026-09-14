@@ -77,6 +77,8 @@
  *                                                the ONE page with inline JS —
  *                                                nonce-scoped CSP)
  *   POST /v1/shipwright/thread                  (session; issue repo-bound thread)
+ *   GET  /v1/shipwright/threads                 (session; bounded resume inventory)
+ *   GET  /v1/shipwright/context                 (session; durable context preview)
  *   GET  /v1/shipwright/history                 (session; scoped thread history)
  *   POST /v1/shipwright/chat                    (session; scoped Workers AI, SSE)
  *   POST /v1/shipwright/clear                   (session; delete raw thread history)
@@ -271,6 +273,8 @@ import {
   handleShipwrightHistory,
   handleShipwrightClear,
   handleShipwrightCreateThread,
+  handleShipwrightThreads,
+  handleShipwrightContext,
   handleShipwrightRepoClear,
   handleShipwrightOpenPr,
 } from './shipwright.js';
@@ -886,6 +890,12 @@ export default {
     // ── Shipwright chat API (session-scoped; src/shipwright.ts) ──────────────
     else if (pathname === '/v1/shipwright/thread' && method === 'POST') {
       response = await handleShipwrightCreateThread(request, env);
+    }
+    else if (pathname === '/v1/shipwright/threads' && method === 'GET') {
+      response = await handleShipwrightThreads(request, env);
+    }
+    else if (pathname === '/v1/shipwright/context' && method === 'GET') {
+      response = await handleShipwrightContext(request, env);
     }
     else if (pathname === '/v1/shipwright/history' && method === 'GET') {
       response = await handleShipwrightHistory(request, env);

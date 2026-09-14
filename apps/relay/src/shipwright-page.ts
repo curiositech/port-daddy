@@ -162,8 +162,8 @@ const CLIENT_JS = `
   var repoClearBtn = document.getElementById('repo-clear');
   var emptyState = document.getElementById('empty');
   var threadId = document.body.getAttribute('data-thread') || '';
-  var scopedRepo = document.body.getAttribute('data-repo') || '';
-  var scopedInstallation = Number(document.body.getAttribute('data-installation') || '0');
+  var scopedRepo = '';
+  var scopedInstallation = 0;
   var scopeForm = document.getElementById('repo-scope-form');
   var FENCE = '\\u0060\\u0060\\u0060';
   var busy = false;
@@ -267,6 +267,10 @@ const CLIENT_JS = `
         var deck = tpl.content.firstElementChild.cloneNode(true);
         var yfield = deck.querySelector('textarea[name=yaml]');
         if (yfield) yfield.value = code;
+        var repoField = deck.querySelector('input[name=repo]');
+        if (repoField) repoField.value = scopedRepo;
+        var installField = deck.querySelector('input[name=installationId]');
+        if (installField) installField.value = String(scopedInstallation);
         box.appendChild(deck);
       }
     } else {
@@ -331,6 +335,11 @@ const CLIENT_JS = `
   function loadHistory() {
     if (!threadId) return;
     fetch('/v1/shipwright/history?thread=' + encodeURIComponent(threadId)).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.thread) throw new Error(d.error || 'Repository authorization failed');
+      scopedRepo = d.thread.repo;
+      scopedInstallation = d.thread.installationId;
+      var label = document.getElementById('active-repo-label');
+      if (label) label.textContent = scopedRepo;
       var msgs = (d && d.messages) || [];
       for (var i = 0; i < msgs.length; i++) addMsg(msgs[i].role, msgs[i].content, msgs[i].yaml);
     }).catch(function () { /* empty state stays */ });
@@ -413,7 +422,7 @@ const CLIENT_JS = `
 
   clearBtn.addEventListener('click', function () {
     if (busy) return;
-    if (!window.confirm('Delete this whole conversation from the relay?')) return;
+    if (!window.confirm("Delete this thread's raw transcript? Durable repository memory and proposal provenance will remain.")) return;
     fetch('/v1/shipwright/clear?thread=' + encodeURIComponent(threadId), { method: 'POST' }).then(function () {
       window.location.reload();
     });
@@ -439,10 +448,26 @@ const CLIENT_JS = `
       body: JSON.stringify({ installationId: Number(install.value), repo: repo.value })
     }).then(function (r) { return r.json(); }).then(function (d) {
       if (!d.threadId) throw new Error(d.error || 'Repository authorization failed');
-      var q = new URLSearchParams({ thread: d.threadId, installationId: String(d.installationId), repo: d.repo });
+      var q = new URLSearchParams({ thread: d.threadId });
       window.location.href = '/account/shipwright?' + q.toString();
     }).catch(function (e) { window.alert(e.message || 'Could not select that repository.'); });
   });
+
+  var resume = document.getElementById('resume-thread');
+  if (resume) {
+    fetch('/v1/shipwright/threads').then(function (r) { return r.json(); }).then(function (d) {
+      var rows = d.threads || [];
+      for (var i = 0; i < rows.length; i++) {
+        var option = document.createElement('option');
+        option.value = rows[i].threadId;
+        option.textContent = rows[i].repo;
+        resume.appendChild(option);
+      }
+    });
+    resume.addEventListener('change', function () {
+      if (resume.value) window.location.href = '/account/shipwright?thread=' + encodeURIComponent(resume.value);
+    });
+  }
 
   if (!threadId) {
     input.disabled = true;
@@ -470,9 +495,10 @@ export interface ShipwrightPageView {
 }
 
 export function renderRepoSelector(view: ShipwrightPageView): string {
-  if (view.threadId && view.repo && view.installationId) {
-    return `<div class="repo-scope"><b>Repository context:</b> <code>${esc(view.repo)}</code>
-      <p>This conversation and every proposal are locked to this repository. Choose another repository to start a separate thread.</p></div>`;
+  if (view.threadId) {
+    return `<div class="repo-scope"><b>Repository context:</b> <code id="active-repo-label">Verifying…</code>
+      <p>The server-bound repository name appears only after exact authorization. Choose another saved thread below.</p>
+      <label>Resume thread<select id="resume-thread"><option value="">Choose repository…</option></select></label></div>`;
   }
   if (view.installations === null) {
     return `<div class="repo-scope"><b>Repository context unavailable.</b><p>GitHub installations could not be listed. Reload to try again; chat stays disabled until the server authorizes an exact repository.</p></div>`;
@@ -504,6 +530,8 @@ export const SHIPWRIGHT_NOTICES: Record<string, string> = {
   repo_not_installed: 'The Port Daddy Fleet GitHub App is not installed on that repository (or it belongs to a different installation). Install it there, then try again.',
   repo_scope_mismatch: 'That target does not match the repository thread that produced the roster. No PR was opened.',
   shipwright_thread_required: 'Select the repository thread that produced this roster. No PR was opened.',
+  shipwright_scope_unavailable: 'That repository context is unavailable. GitHub access may have changed; no PR was opened.',
+  token_cleanup_unconfirmed: 'The repository-scoped GitHub token could not be confirmed revoked. Treat the operation as uncertain and retry only after checking GitHub.',
   github_error: 'GitHub had a problem — no PR was opened. Try again shortly.',
 };
 
@@ -526,14 +554,14 @@ export function renderPrTemplate(installations: UserInstallation[] | null, view?
     Fleet GitHub App on your repository, then reload — the Shipwright can then open the PR for you.
     Until then, copy or download the YAML and commit it by hand.</div></template>`;
   }
-  if (!view?.threadId || !view.repo || !view.installationId) {
+  if (!view?.threadId) {
     return `<template id="prform-tpl"><div class="pr-unavail"><b>Select a repository first:</b> proposal provenance is repository-scoped.</div></template>`;
   }
   return `<template id="prform-tpl"><form class="prform" method="post" action="/v1/shipwright/open-pr">
     <span class="pr-label">Open the PR from here — validated rosters only</span>
     <input type="hidden" name="threadId" value="${esc(view.threadId)}">
-    <input type="hidden" name="installationId" value="${view.installationId}">
-    <input type="hidden" name="repo" value="${esc(view.repo)}">
+    <input type="hidden" name="installationId" value="">
+    <input type="hidden" name="repo" value="">
     <textarea name="yaml" hidden></textarea>
     <button type="submit">Open PR</button>
     <span class="pr-note">Commits pd-fleet.yml to a <b>fresh branch</b> of that repo and opens a PR — never a
@@ -598,7 +626,7 @@ export function renderShipwrightPage(user: UserRow, nonce: string, view: Shipwri
   const noticeHtml = noticeText
     ? `<div class="notice-strip" role="status">${noticeText}</div>`
     : '';
-  return `<!DOCTYPE html><html lang="en"><head><title>Port Daddy — Shipwright</title>${HEAD}<style>${CSS}</style></head><body data-thread="${esc(view.threadId ?? '')}" data-repo="${esc(view.repo ?? '')}" data-installation="${view.installationId ?? ''}">
+  return `<!DOCTYPE html><html lang="en"><head><title>Port Daddy — Shipwright</title>${HEAD}<style>${CSS}</style></head><body data-thread="${esc(view.threadId ?? '')}">
 <header class="site-header">
   <a class="sh-brand" href="/account"><span class="sh-mark" aria-hidden="true">pd</span>Port Daddy</a>
   <nav class="sh-links" aria-label="Account">
@@ -640,8 +668,8 @@ export function renderShipwrightPage(user: UserRow, nonce: string, view: Shipwri
     </form>
     <div class="hints">
       <span class="hint">Enter to send · Shift+Enter for a new line</span>
-      <button id="clear" class="clear" type="button">Delete conversation</button>
-      <button id="repo-clear" class="clear" type="button">Clear repository memory</button>
+      <button id="clear" class="clear" type="button">Clear raw transcript (keeps memory + proposals)</button>
+      <button id="repo-clear" class="clear" type="button">Clear all repository context</button>
     </div>
   </div>
 </main>
@@ -673,12 +701,8 @@ export async function handleShipwrightPage(request: Request, env: Env): Promise<
   const nonce = randomHex(16);
   const pageUrl = new URL(request.url);
   const rawThread = pageUrl.searchParams.get('thread');
-  const rawRepo = pageUrl.searchParams.get('repo');
-  const rawInstallation = Number(pageUrl.searchParams.get('installationId'));
   const threadId = rawThread && /^swt_[0-9a-f]{48}$/.test(rawThread) ? rawThread : null;
-  const repo = rawRepo && /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(rawRepo) ? rawRepo.toLowerCase() : null;
-  const installationId = Number.isInteger(rawInstallation) && rawInstallation > 0 ? rawInstallation : null;
-  return new Response(renderShipwrightPage(session.user, nonce, { installations, notice, threadId, repo, installationId }), {
+  return new Response(renderShipwrightPage(session.user, nonce, { installations, notice, threadId, repo: null, installationId: null }), {
     status: 200,
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
