@@ -165,6 +165,25 @@ class TestProtectedSpans(unittest.TestCase):
         self.assertEqual(self.promoted("\\footnote{see \\cite{k}}"),
                          "\\footnote{see \\cite{k}}")
 
+    def test_a_cite_inside_a_sidenote_is_left_alone(self) -> None:
+        """\\pdsidenote is the footnote, set in the margin instead of at the
+        foot. Moving the note into the column does not make a citation inside
+        it eligible -- it is still a note about a note, and now margin
+        material besides. Four citations that had been protected inside
+        \\footnote came loose the moment the apparatus converted them."""
+        self.assertEqual(self.promoted("\\pdsidenote{see \\cite{k}}"),
+                         "\\pdsidenote{see \\cite{k}}")
+
+    def test_a_cite_inside_a_margin_caption_is_left_alone(self) -> None:
+        """\\pdmargincaption is \\caption in the column; same rule."""
+        self.assertEqual(self.promoted("\\pdmargincaption{after \\cite{k}}"),
+                         "\\pdmargincaption{after \\cite{k}}")
+
+    def test_prose_after_a_sidenote_is_still_promoted(self) -> None:
+        """The span must end with the sidenote's brace group, not run on."""
+        self.assertEqual(self.promoted("\\pdsidenote{see \\cite{a}} then \\cite{b}"),
+                         "\\pdsidenote{see \\cite{a}} then \\pdcite{b}")
+
     def test_a_cite_in_a_heading_is_left_alone(self) -> None:
         self.assertEqual(self.promoted("\\section{On \\cite{k}}"),
                          "\\section{On \\cite{k}}")
