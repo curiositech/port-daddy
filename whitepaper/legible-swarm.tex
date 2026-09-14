@@ -223,37 +223,6 @@
 
 \vspace{0.6cm}
 
-\begin{abstract}\noindent
-A swarm of autonomous coding agents, left to coordinate itself, is
-\textbf{Hobbes' state of nature}~\pdcite{hobbes1651}: rational, even well-meaning
-actors fall into a war of all against all --- double-claimed files, pull requests
-no human can read, confident lies, footguns obvious only in hindsight. We argue
-that the operator rationally \emph{consents} to a coordinating authority --- a
-\emph{local} Leviathan running on one machine --- for exactly Hobbes' reason: the
-alternative is worse. That authority governs the only way any sovereign governs a
-population it cannot personally inspect: by making the swarm
-\textbf{legible}~\pdcite{scott1998}. The central hazard is James~C.\ Scott's warning
-that high-modernist \emph{over}-legibility crushes \emph{m\^etis} --- the local,
-hard-to-codify practical knowledge a system actually runs on --- so we make Scott's
-warning a buildable rule: \textbf{digest-with-zoom}, in which every summary is a
-lens onto a verifiable artifact, never a replacement for it. Three claims follow.
-The binding constraint on swarm scale is \emph{read-poverty}, not write-contention.
-\emph{Tokens} are simultaneously the swarm's cost-of-goods-sold and its legibility
-engine, so the cost question and the legibility question are one question. And
-\emph{authority} is legitimate only with a scoped, revocable \emph{consent} primitive
-carrying an inalienable operator-override. We work each claim through an end-to-end
-scenario with a named operator and a real swarm, prove a legibility lower bound and
-the formal distinction between the two rankers a swarm needs, price the
-sole-ownership trade at an exact queueing boundary, give numbered protocols for the
-digest-with-zoom loop and the attention queue, and hand the accompanying chapters a
-legible, checkpointed, outcome-bearing identity --- the precondition for reputation
-and, eventually, the market. We name the system this design realizes
-\emph{Port Daddy}; the engineering status of each mechanism (built, designed, or
-vision) and the check-status of each formal claim (verified, proved here, proposed)
-are recorded in Appendix~\ref{app:honest} so the body argues mechanisms on their
-merits.
-\end{abstract}
-
 \vspace{0.4cm}
 \noindent\textbf{Keywords:} legibility, multi-agent coordination, human-in-the-loop,
 signal detection theory, context compaction, agent discovery, consent, operator
@@ -299,61 +268,6 @@ L0 & daemon kernel & the machine & $\bullet$ & & & & & & \\
 \newpage
 \tableofcontents
 \newpage
-
-% ═════════════════════════════════════════════════════════════════════════════
-\section*{How to read this paper (Reader's Map)}
-\addcontentsline{toc}{section}{How to read this paper (Reader's Map)}
-% ═════════════════════════════════════════════════════════════════════════════
-
-This paper has three audiences and one spine. Use Table~\ref{tab:readers-map} to
-enter where you are most useful, then follow the cross-references. Every external
-term of art is \textbf{bolded, cited, and glossed on first use}; every mechanism
-this paper introduces is \textbf{bolded and defined in place}. One discipline runs
-underneath the whole argument and is worth stating up front: confusing \emph{what is
-built} with \emph{what is designed} is the exact failure this paper argues against,
-so the paper itself never relies on an unverified claim --- a summary that asserts a
-result is honest only if it can be checked, and the engineering status of every
-mechanism named here is recorded separately in Appendix~\ref{app:honest} rather than
-asserted in the body. Two terms this paper is easy to conflate ---
-\emph{capability} vs.\ \emph{permission}, and the \emph{authorization chain} vs.\ the
-\emph{delegation trace} --- are disambiguated in Appendix~\ref{app:notation}, which is
-worth a glance before \S\ref{sec:authority}.
-
-\begin{table}[H]
-\centering
-\small
-\renewcommand{\arraystretch}{1.25}
-\begin{tabular}{@{}p{0.27\textwidth}p{0.30\textwidth}p{0.34\textwidth}@{}}
-\toprule
-\textbf{If you are\ldots} & \textbf{Start at} & \textbf{Critical artifact} \\
-\midrule
-A solo developer drowning in agent chaos (the buyer) &
-\S\ref{sec:intro} (the pain) $\to$ \S\ref{sec:zoom} (digest-with-zoom) $\to$
-\S\ref{sec:authority} (consent) &
-The ``one law'' (Def.~\ref{def:zoom}) and the consent grant (Def.~\ref{def:consent}) \\
-A human-factors / HCI researcher &
-\S\ref{sec:operator} (the operator as a modeled entity) &
-The SDT-spined attention objective (Eq.~\ref{eq:sdt}, Fig.~\ref{fig:sdt}) \\
-A distributed-systems / information-retrieval engineer &
-\S\ref{sec:readpoverty} (read-poverty) $\to$ \S\ref{sec:discovery} (discovery) &
-The split-ranker result (Thm.~\ref{thm:split-ranker}, Fig.~\ref{fig:split-ranker}) \\
-A political theorist &
-\S\ref{sec:consent-canon} (consent, m\^etis, role assignment) &
-The legible-sovereign rule (Prop.~\ref{prop:legible-sovereign}) \\
-An economist / accountant of agent cost &
-\S\ref{sec:tokens} (tokens as COGS \emph{and} legibility engine) &
-The compaction-is-digest identity (\S\ref{sec:tokens-digest}) \\
-A skeptic checking honesty &
-Appendix~\ref{app:honest} (implementation \& status) &
-Every mechanism mapped to built\,/\,designed\,/\,vision, every theorem to verified\,/\,proved\,/\,proposed \\
-\bottomrule
-\end{tabular}
-\caption{Reader's Map. The spine is \S\ref{sec:intro}$\to$\S\ref{sec:zoom}$\to$\S\ref{sec:authority};
-the read-poverty and discovery chapters (\S\ref{sec:readpoverty}--\ref{sec:discovery})
-and the token-economics chapter (\S\ref{sec:tokens}) are the two deep dives; the
-operator chapter (\S\ref{sec:operator}) is where the human-factors weight sits.}
-\label{tab:readers-map}
-\end{table}
 
 \keyidea{Three sentences are the whole paper. \textbf{(1)} A coding-agent swarm is a
 state of nature; the operator consents to a \emph{local} Leviathan to escape it.

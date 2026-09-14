@@ -226,43 +226,6 @@
 
 \vspace{0.6cm}
 
-\begin{abstract}\noindent
-A coding-agent swarm produces work, but until that work can be attributed to
-something that survives the process that did it, none of it can be priced. This
-paper is Chapter~\pdchapternumber{} of \pdbooktitle{}: it carries the through-line
-\emph{memory $\to$ checkpoint $\to$ continuity $\to$ a person, not a spawn $\to$
-witnessed outcomes $\to$ reputation $\to$ a tradeable asset} from the legible
-single-operator tool (\pdchapref{swk}{The Single-Writer Kernel} through
-\pdchapref{ls}{The Legible Swarm}) to the cross-operator market
-(\pdchapref{he}{The Harbor Economy}). We
-make a single distinction carry the argument: a \textbf{role} is a bundle of
-$\{\text{obligation}, \text{capability}, \text{authority}\}$ --- an org-chart
-entry any spawn can fill --- while a \textbf{person} is a role instance
-\emph{plus continuity}: durable memory, a restorable checkpoint, and a witnessed
-history of outcomes keyed on an identity that cannot be freely re-picked. From
-this we draw the series' central economic claim, stated identically across the
-papers: \emph{the reputation estimator is cheap; the substrate it scores over ---
-witnessed outcomes on a non-forgeable identity --- is the gate.} We ground the
-philosophy (Locke's memory criterion, Parfit's psychological continuity), name
-the three continuity subsystems against a reference implementation on a neutral
-maturity scale, and define this paper's central protocol contribution: a
-\textbf{multi-dimensional reputation} (accuracy / aesthetics / efficiency, each a
-different axis with a different judge) scored by \emph{neutral, conflict-free,
-influence-free} evaluators --- the harbor's ``universities and rating agencies''
---- hired through the same bonded ceremony the market uses for any other task.
-We argue at length why reputation is \emph{not} a bandit problem
-(non-stationarity, multi-dimensionality, strategic adversaries, and the grading
-oracle's own incentive-compatibility), and we treat the grading-oracle hole in
-the core economic theorem head-on. We are disciplined about the keystone: this
-paper depends only on a \textbf{local non-forgeable identity} (an identity root
-that holds within a single trusted operator) and hands \pdchapref{he}{The Harbor Economy}
-the unbuilt \textbf{cross-operator attestation} (binding identities across
-operators who do not trust each other) as a named dependency rather than
-assuming it. We prove that a non-forgeable identity is \emph{necessary} for any
-sanction-respecting reputation, and bound the cost a whitewashing attacker must
-pay.
-\end{abstract}
-
 \vspace{0.5cm}
 \noindent\textbf{Keywords:} agent identity, personal identity, psychological
 continuity, reputation systems, mechanism design, Bradley--Terry, TrueSkill,
@@ -270,8 +233,8 @@ EigenTrust, LLM-as-judge, Sybil resistance, multi-armed bandits, incentive
 compatibility, witnessed outcomes
 
 \vspace{0.4cm}
-\noindent\textit{Reading time: approximately 40 minutes end-to-end; the
-Reader's Map below offers shorter routes. \pdchapref{ls}{The Legible Swarm}
+\noindent\textit{Reading time: approximately 40 minutes end-to-end.
+\pdchapref{ls}{The Legible Swarm}
 and \pdchapref{swk}{The Single-Writer Kernel} supply the legibility and
 transactional substrate; \pdchapref{anchor}{The Anchor Protocol} deepens the
 cryptographic identity ceremony; and \pdchapref{he}{The Harbor Economy}
@@ -296,51 +259,6 @@ this one is the hinge.}
 
 \tableofcontents
 \newpage
-
-% ═════════════════════════════════════════════════════════════════════════════
-\section*{Reader's Map}\label{sec:readers-map}
-\addcontentsline{toc}{section}{Reader's Map}
-% ═════════════════════════════════════════════════════════════════════════════
-
-\noindent The paper is one argument, but four kinds of reader want four different
-routes through it. Each route names the critical section and the artifact it
-turns on.
-
-\begin{table}[H]
-\centering
-\small
-\renewcommand{\arraystretch}{1.35}
-\begin{tabular}{@{}p{3.2cm} p{8.0cm} p{3.5cm}@{}}
-\toprule
-\textbf{If you are\ldots} & \textbf{Read} & \textbf{Turns on} \\
-\midrule
-A developer who runs one fleet &
-\S\ref{sec:intro} (the spawn problem), \S\ref{sec:role-person} (role vs.\ person),
-\S\ref{sec:organs} (what is built today). Skip the proofs. &
-The maturity ledger (Table~\ref{tab:app-status}) \\
-A philosopher / cognitive scientist &
-\S\ref{sec:continuity} (Locke, Parfit, and why the \emph{ledger} not the
-\emph{memory} is the identity subsystem), \S\ref{sec:organs}. &
-The continuity-subsystems table (Table~\ref{tab:stp-organs}) \\
-A mechanism-design / reputation-systems reader &
-\S\ref{sec:substrate} (substrate vs.\ score), \S\ref{sec:not-bandit} (why
-\emph{not} a bandit), \S\ref{sec:adr0049} (the reputation protocol),
-\S\ref{sec:oracle} (the grading-oracle hole). &
-The neutral-judge market (Fig.~\ref{fig:judge-market}) \\
-A distributed-systems / crypto reader &
-\S\ref{sec:identity} (the non-forgeable root), \S\ref{sec:keystone}
-(the local-identity / cross-operator split), \S\ref{sec:revoke} (revocation
-\& tombstones). &
-The keystone-split table (Table~\ref{tab:keystone-split}) \\
-\bottomrule
-\end{tabular}
-\caption{Reader's Map. The core product arc is \pdchapref{swk}{The Single-Writer
-Kernel} (the transactional floor) $\to$ \pdchapref{ls}{The Legible Swarm} (the
-wedge) $\to$ \textbf{this chapter (the bridge)} $\to$ \pdchapref{he}{The Harbor
-Economy} (the market). This chapter can be read directly after \pdchapref{ls}{The
-Legible Swarm} for the ``why a person can be priced'' argument.}
-\label{tab:readers-map}
-\end{table}
 
 \keyidea{The whole series is one ladder. L0 is the daemon (the machine's truth),
 L1 the coordination protocol (the agents' rules), L2 legibility-and-authority
