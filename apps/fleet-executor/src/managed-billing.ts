@@ -102,9 +102,9 @@ export async function sweepStaleManagedReservations(dbBinding: D1Database | unde
   const stale = await db.prepare(
     `SELECT run_id, lease_fence, lease_expires_at,
             EXISTS(SELECT 1 FROM fleet_run_call_authorizations a WHERE a.run_id=r.run_id) AS has_calls
-       FROM fleet_run_reservations r WHERE state='reserved' AND (lease_expires_at IS NULL OR lease_expires_at<=?)
+       FROM fleet_run_reservations r WHERE state='reserved' AND (lease_expires_at<=? OR (lease_owner IS NULL AND updated_at<=?))
        ORDER BY COALESCE(lease_expires_at,0) LIMIT ?`,
-  ).bind(now, limit).all<Record<string, unknown>>();
+  ).bind(now, now-14_400, limit).all<Record<string, unknown>>();
   let changed = 0;
   for (const row of stale.results ?? []) {
     const runId=String(row.run_id); const fence=integer(row.lease_fence,'lease fence'); const expiry=row.lease_expires_at==null?0:integer(row.lease_expires_at,'lease expiry');
@@ -117,6 +117,13 @@ export async function sweepStaleManagedReservations(dbBinding: D1Database | unde
     changed += Number(result.meta?.changes ?? 0);
   }
   return changed;
+}
+
+/** Finalize a known terminal run only when no executor currently owns it. */
+export async function finalizeUnleasedManagedRun(dbBinding: D1Database | undefined, runId: string, now: number): Promise<void> {
+  const db=requireDb(dbBinding);
+  await db.prepare(`UPDATE fleet_run_reservations SET state=CASE WHEN EXISTS(SELECT 1 FROM fleet_run_call_authorizations WHERE run_id=?) THEN 'settled' ELSE 'released' END, provider_cost_microusd=CASE WHEN EXISTS(SELECT 1 FROM fleet_run_call_authorizations WHERE run_id=?) THEN COALESCE((SELECT SUM(COALESCE(actual_cost_microusd,authorized_cost_microusd)) FROM fleet_run_call_authorizations WHERE run_id=?),0) ELSE NULL END, settled_at=CASE WHEN EXISTS(SELECT 1 FROM fleet_run_call_authorizations WHERE run_id=?) THEN ? ELSE NULL END, released_at=CASE WHEN NOT EXISTS(SELECT 1 FROM fleet_run_call_authorizations WHERE run_id=?) THEN ? ELSE NULL END, updated_at=? WHERE run_id=? AND state='reserved' AND lease_owner IS NULL`)
+    .bind(runId,runId,runId,runId,now,runId,now,now,runId).run();
 }
 
 /** Reserve worst-case provider cost atomically before the provider thunk starts. */
