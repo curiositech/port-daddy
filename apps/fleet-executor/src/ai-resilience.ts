@@ -261,7 +261,6 @@ export class FleetAiCircuit {
       return result;
     } catch (error) {
       if (this.authorizer && authorization != null && !reconciled) {
-        reconciled = true;
         await this.authorizer.reconcile(authorization, null, error);
       }
       const wrapped = new FleetAiDependencyError(describeAiFailure(error, elapsedSince(startedAt)));

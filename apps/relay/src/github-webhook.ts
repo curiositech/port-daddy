@@ -713,7 +713,7 @@ export async function handleGithubWebhook(request: Request, env: Env): Promise<R
   //    we've already published to channels. The executor's own retry/DLQ owns
   //    durability from here. installation.id / pull_request.number are read
   //    from the verified payload (no GitHub API call from the relay).
-    await maybeEnqueueFleetRun(env, eventType, action, deliveryId, repoFullName, payload, fleetTenantBinding);
+  await maybeEnqueueFleetRun(env, eventType, action, deliveryId, repoFullName, payload, fleetTenantBinding);
 
   // 9. Wake the repo's Steward seat (P1 PR 8). Same guarded contract as the
   //    queue hand-off above and for the same reason: the seat is an
