@@ -13,13 +13,13 @@
     },
     "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf": {
       "pages": 550,
-      "bytes": 9746475,
-      "sha256": "2f51ef8a2317b5d4cf17e7fbc240f27983ef9c244f8cde7a0e511e23a79fee06"
+      "bytes": 9746496,
+      "sha256": "0b2a3d465fb0eb01397d8f2355c6cfa10181231280d582505dcd02ee7c6638a6"
     },
     "website-v2/public/whitepaper/federated-harbor-whitepaper.pdf": {
       "pages": 45,
-      "bytes": 809983,
-      "sha256": "2bf31203ac84d4db9c318f6c04d2fba5be855d0ffe659127439ad084fe344ddb"
+      "bytes": 809998,
+      "sha256": "84cb592f650bb73f08de1b32c62afdb8b95cb2180b58604c57ad97d6db4febb5"
     },
     "website-v2/public/whitepaper/harbor-economy-whitepaper.pdf": {
       "pages": 48,
@@ -43,8 +43,8 @@
     },
     "website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf": {
       "pages": 53,
-      "bytes": 782723,
-      "sha256": "750b7ea23c35b7bbcca0e3aaf7e2d3cc0bfa7de778423cdc739d338100b1c2c1"
+      "bytes": 782971,
+      "sha256": "2ef983655c1d6b12c6085e15e12f14858f38b12ce705debd68c7f785692a8aeb"
     }
   }
 }
