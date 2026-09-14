@@ -158,6 +158,12 @@ describe('gate panel', () => {
     expect(html).toContain('kill-mediator');
   });
 
+  it('UNKNOWN Fleet control is visible and cannot present an enabled verdict', () => {
+    const html = renderParleyDetailPage(alice, view({ gate: mkGate(), fleetPaused: true, fleetPauseUnknown: true }));
+    expect(html).toContain('Fleet control is <b>unknown</b>');
+    expect(html).toContain('value="approve" disabled');
+  });
+
   it('a decided MODIFY gate renders the verdict record with the text ESCAPED', () => {
     const hostile = '<script>alert(1)</script> rebase onto #1 & drop "schema"';
     const html = renderParleyDetailPage(

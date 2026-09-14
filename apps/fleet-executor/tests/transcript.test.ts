@@ -1,10 +1,10 @@
 /**
- * Phase C observability: the executor's KILL SWITCH (KV `fleet:paused`) and the
+ * Phase C observability: the executor's authoritative pause service and the
  * best-effort transcript/audit writes (fleet_runs + fleet_run_steps in the
  * shared relay D1).
  *
  * Invariants exercised here:
- *   1. Paused/unknown ⇒ ZERO AI/review spend; only the visible neutral status
+ *   1. Paused/unknown ⇒ ZERO AI/review spend; only the visible failure status
  *      check is allowed so the required gate cannot disappear silently.
  *   2. A normal run writes exactly one fleet_runs row (final conclusion stamped)
  *      plus the expected ordered transcript step kinds.
@@ -77,13 +77,62 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('kill switch (KV fleet:paused)', () => {
-  it('paused (boolean "true") ⇒ no AI calls, no review posts, but STILL posts a neutral check', async () => {
+describe('Fleet pause service (legacy KV scenarios are fixture inputs only)', () => {
+  it('a stale unpaused KV value cannot replace the authoritative service binding', async () => {
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({ perShip: {} });
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, FLEET_CONTROL: undefined, AI: ai.ai }));
+    expect(ai.calls).toHaveLength(0);
+    expect(state.completed[0].conclusion).toBe('failure');
+    expect(state.completed[0].summary).toContain('binding-missing');
+  });
+
+  it('rejects a malformed unpaused admission receipt from the service', async () => {
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({ perShip: {} });
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai,
+      FLEET_CONTROL: { admit: async () => ({ paused: false, revision: 0, pausedAt: 1 } as never) } }));
+    expect(ai.calls).toHaveLength(0);
+    expect(state.completed[0].conclusion).toBe('failure');
+    expect(state.completed[0].summary).toContain('value-malformed');
+  });
+
+  it('a pause during the first admitted ship drains it and blocks the second ship', async () => {
+    state.files.set('main:pd-fleet.yml', fleetYaml([{ name: 'code-reviewer', blocking: true }, { name: 'qa', blocking: true }]));
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    let paused = false;
+    const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS', qa: 'ok\n\nFLEET-VERDICT: PASS' },
+      onCall: () => { paused = true; } });
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai,
+      FLEET_CONTROL: { admit: async () => ({ status: paused ? 'paused' : 'unpaused', paused, revision: paused ? 2 : 1, pausedAt: 1 }) } }));
+    expect(ai.calls.some(call => call.ship === 'code-reviewer')).toBe(true);
+    expect(ai.calls.some(call => call.ship === 'qa')).toBe(false);
+    expect(state.completed.at(-1)?.conclusion).toBe('failure');
+    expect(state.completed.at(-1)?.summary).toContain('revision-changed');
+  });
+
+  it('rejects a changed unpaused epoch before a new ship, including pause then resume', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({ perShip: {} });
+    let calls = 0;
+    const admit = vi.fn(async () => ({ status: 'unpaused' as const, paused: false, revision: ++calls === 1 ? 1 : 3, pausedAt: 1 }));
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, FLEET_CONTROL: { admit } }));
+    expect(admit).toHaveBeenNthCalledWith(2, 1);
+    expect(ai.calls).toHaveLength(0);
+    expect(state.completed.at(-1)?.conclusion).toBe('failure');
+  });
+
+  it('paused (boolean "true") ⇒ no AI calls, no review posts, but STILL posts a failure check', async () => {
     // Regression test for the 2026-07-16 incident: an out-of-band
     // `fleet:paused=true` left "Port Daddy Fleet" (a REQUIRED merge-queue
     // check) silently ABSENT on every PR for 4 days because the old
     // behavior was to return before ever creating a check run. Paused must
-    // still post something — a neutral check — so the required-check gate
+    // still post something — a failure check — so the required-check gate
     // can never hang on total silence.
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
@@ -104,16 +153,16 @@ describe('kill switch (KV fleet:paused)', () => {
     expect(msg.ack).toHaveBeenCalledTimes(1);
     expect(msg.retry).not.toHaveBeenCalled();
     // Zero AI spend, zero review/comment posts — but the required check WAS
-    // created and completed neutral, never left silently absent.
+    // created and completed failure, never left silently absent.
     expect(ai.calls).toHaveLength(0);
     expect(state.commentPosts).toBe(0);
     expect(state.reviews).toHaveLength(0);
     expect(state.checkRunsCreated).toBe(1);
     expect(state.completed).toHaveLength(1);
-    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(state.completed[0].conclusion).toBe('failure');
     expect(state.completed[0].summary).toContain('Fleet paused by operator');
     expect(d1.runs).toHaveLength(1);
-    expect(d1.runs[0].conclusion).toBe('neutral');
+    expect(d1.runs[0].conclusion).toBe('failure');
     // The consumer stamps a delivery-attempt marker on EVERY delivery — paused
     // ones included (#7743: an attempt's existence must be provable even when
     // the run itself does nothing). The pause still spends nothing beyond it.
@@ -138,7 +187,7 @@ describe('kill switch (KV fleet:paused)', () => {
     );
     expect(state.checkRunsCreated).toBe(2);
     expect(state.completed).toHaveLength(2);
-    expect(state.completed.every(c => c.conclusion === 'neutral')).toBe(true);
+    expect(state.completed.every(c => c.conclusion === 'failure')).toBe(true);
   });
 
   it('paused with no head sha in the payload ⇒ cannot post a check, still acks (no throw)', async () => {
@@ -155,7 +204,7 @@ describe('kill switch (KV fleet:paused)', () => {
     expect(ai.calls).toHaveLength(0);
   });
 
-  it('paused (JSON {paused:true}) ⇒ skips AI + review, posts neutral check; {paused:false} runs normally', async () => {
+  it('paused (JSON {paused:true}) ⇒ skips AI + review, posts failure check; {paused:false} runs normally', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -168,7 +217,7 @@ describe('kill switch (KV fleet:paused)', () => {
     expect(state.reviews).toHaveLength(0);
     expect(state.checkRunsCreated).toBe(1);
     expect(state.completed).toHaveLength(1);
-    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(state.completed[0].conclusion).toBe('failure');
 
     // Flip to resumed: the same job (new delivery id) now runs to completion.
     await kv.put('fleet:paused', JSON.stringify({ paused: false, pausedAt: 2 }));
@@ -197,7 +246,7 @@ describe('kill switch (KV fleet:paused)', () => {
     expect(state.reviews).toHaveLength(0);
     expect(state.checkRunsCreated).toBe(1);
     expect(state.completed).toHaveLength(1);
-    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(state.completed[0].conclusion).toBe('failure');
     expect(state.completed[0].summary).toContain('global cloud pause state is unknown (value-missing)');
     expect(d1.steps.find(s => s.kind === 'check-completed')?.detail).toContain('"pauseStatus":"unknown"');
     expect(d1.steps.find(s => s.kind === 'check-completed')?.detail).toContain('"pauseReason":"value-missing"');
@@ -215,7 +264,7 @@ describe('kill switch (KV fleet:paused)', () => {
 
     expect(ai.calls).toHaveLength(0);
     expect(state.completed).toHaveLength(1);
-    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(state.completed[0].conclusion).toBe('failure');
     expect(state.completed[0].summary).toContain('global cloud pause state is unknown (value-malformed)');
   });
 
@@ -229,7 +278,7 @@ describe('kill switch (KV fleet:paused)', () => {
 
     expect(ai.calls).toHaveLength(0);
     expect(state.completed).toHaveLength(1);
-    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(state.completed[0].conclusion).toBe('failure');
     expect(state.completed[0].summary).toContain('global cloud pause state is unknown (binding-missing)');
   });
 
@@ -247,7 +296,7 @@ describe('kill switch (KV fleet:paused)', () => {
     await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: throwingControlKv, AI: ai.ai, DB: memoryD1().db }));
     expect(ai.calls).toHaveLength(0);
     expect(state.completed).toHaveLength(1);
-    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(state.completed[0].conclusion).toBe('failure');
     expect(state.completed[0].summary).toContain('global cloud pause state is unknown (read-failed)');
 
     // A DIFFERENT head SHA, because this is a second commit being reviewed --
@@ -266,11 +315,11 @@ describe('kill switch (KV fleet:paused)', () => {
     await executeFleet(makeJob({ deliveryId: 'delivery-def' }), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: malformedKv, AI: ai2.ai, DB: memoryD1().db }));
     expect(ai2.calls).toHaveLength(0);
     expect(state.completed).toHaveLength(2);
-    expect(state.completed[1].conclusion).toBe('neutral');
+    expect(state.completed[1].conclusion).toBe('failure');
     expect(state.completed[1].summary).toContain('global cloud pause state is unknown (value-malformed)');
   });
 
-  it('pause flipped after check creation stops before AI spend and completes neutral', async () => {
+  it('pause flipped after check creation stops before AI spend and completes failure', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -295,9 +344,9 @@ describe('kill switch (KV fleet:paused)', () => {
     expect(state.reviews).toHaveLength(0);
     expect(state.checkRunsCreated).toBe(1);
     expect(state.completed).toHaveLength(1);
-    expect(state.completed[0].conclusion).toBe('neutral');
-    expect(state.completed[0].summary).toContain('Fleet paused before pd-code-reviewer');
-    expect(d1.runs[0].conclusion).toBe('neutral');
+    expect(state.completed[0].conclusion).toBe('failure');
+    expect(state.completed[0].summary).toContain('revision-changed');
+    expect(d1.runs[0].conclusion).toBe('failure');
     // Ship configs are recorded once, right after the gating check is
     // established — before the per-ship loop's own (second) pause check, so
     // this run's pause-before-first-ship still carries that one config row.
@@ -328,7 +377,7 @@ describe('kill switch (KV fleet:paused)', () => {
     expect(state.commentPosts).toBe(0);
     expect(state.reviews).toHaveLength(0);
     expect(state.completed).toHaveLength(1);
-    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(state.completed[0].conclusion).toBe('failure');
     expect(state.completed[0].summary).toContain('global cloud pause state is unknown (read-failed)');
     expect(d1.steps.find(s => s.kind === 'check-completed')?.detail).toContain('"pauseReason":"read-failed"');
   });

@@ -8,8 +8,11 @@
 
 import type { CoordinationGrantServiceContract } from '../../../lib/coordination-grant-contract.js';
 import type { PortDaddyTelemetryEnv } from './telemetry.js';
+import type { FleetControlServiceContract } from '../../relay/src/fleet-pause-control.js';
 
 export interface ExecutorEnv extends PortDaddyTelemetryEnv {
+  /** Relay's strongly consistent service-binding admission; never cached in KV. */
+  FLEET_CONTROL?: FleetControlServiceContract;
   /** GitHub App id (var or secret). */
   GITHUB_APP_ID: string;
   /** GitHub App private key, PEM-encoded (secret). */
@@ -24,13 +27,8 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
    */
   FLEET_TOKENS: KVNamespace;
   /**
-   * Relay CONTROL-PLANE KV (the relay's own `KV` namespace). Carries the
-   * kill-switch flag at key `fleet:paused` (JSON `{paused, pausedAt}` or the
-   * literal string `"true"`/`"false"`), written by the relay's
-   * POST /v1/fleet/pause. MUST be the SAME namespace the relay binds as `KV` —
-   * otherwise the executor never sees a pause toggle. Optional at the type level
-   * for rolling-deploy and failure modeling; absent means the global state is
-   * unknown and new automated work is denied until an explicit state is readable.
+   * Relay's KV for Mediator reinjection and secondary flags. Global Fleet
+   * admission exclusively uses FLEET_CONTROL; cached false values grant nothing.
    */
   CONTROL_KV?: KVNamespace;
   /**

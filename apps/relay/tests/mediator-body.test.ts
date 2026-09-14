@@ -22,6 +22,8 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
+import { memoryFleetControl } from './fleet-control-fixture.js';
+import { setFleetPaused } from '../src/db.js';
 import { sha256 } from '@noble/hashes/sha256';
 import {
   handleMediatorConvene,
@@ -35,7 +37,6 @@ import { applyParleyExpiries, lapseOneExpiredParley } from '../src/parleys.js';
 import { handleProvisionFleetExecutor } from '../src/fleet-executor-identity.js';
 import {
   KILL_MEDIATOR_KEY,
-  FLEET_PAUSED_KEY,
   mediatorReinjectionKey,
   type ParleyGateRow,
   type ParleyRow,
@@ -394,6 +395,7 @@ const RELAY_FP = toHex(sha256(fromHex(pubKeyFromPrivKey(RELAY_PRIV))));
 
 function makeEnv(db: MockD1, kvStore: Map<string, string>): Env {
   return {
+    FLEET_CONTROL: memoryFleetControl({ paused: false, revision: 1, pausedAt: 1 }).namespace,
     DB: db as unknown as D1Database,
     HARBOR_CHANNEL: {
       idFromName: () => ({}),
@@ -783,7 +785,7 @@ describe('renderGateVerdict — Approve / Modify / Reject', () => {
   });
 
   it('fleet paused ⇒ the verdict is REFUSED (the grayed buttons have a server-side twin)', async () => {
-    kvStore.set(FLEET_PAUSED_KEY, JSON.stringify({ paused: true, pausedAt: 1 }));
+    await setFleetPaused(env, true);
     expect(await renderGateVerdict(env, base())).toBe('fleet-paused');
     expect(db.gates[0]!.state).toBe('pending');
   });

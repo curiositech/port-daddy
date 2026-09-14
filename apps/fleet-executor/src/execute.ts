@@ -21,6 +21,7 @@
  */
 
 import type { ExecutorEnv, FleetRunJob } from './env.js';
+import { parseFleetControl } from '../../relay/src/fleet-pause-control.js';
 import { shipAiOptions, type ShipCallContext } from './ship-ai-options.js';
 import { readRepoShipControls, repoShipEnabled, validShipControlName } from '../../shared/repo-ship-controls.js';
 import { TRANSCRIPT_EMERGENCY_EVENT } from '../../../lib/transcript-emergency-constants.js';
@@ -652,13 +653,6 @@ async function emitShipTelemetry(
   }
 }
 
-/**
- * Kill-switch flag key in the relay's CONTROL_KV namespace (the relay writes it
- * via POST /v1/fleet/pause; the executor reads it via env.CONTROL_KV). Value is
- * either JSON `{ paused: boolean, pausedAt: number }` or the literal
- * `"true"`/`"false"`. When paused, a job is acked WITHOUT any AI spend or posts.
- */
-const PAUSE_KEY = 'fleet:paused';
 const DELIVERY_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 
 /** Epoch seconds — the timestamp unit used by fleet_runs / fleet_run_steps. */
@@ -716,14 +710,7 @@ function validDeliveryId(raw: unknown): string | null {
   return raw;
 }
 
-type FleetPauseGate =
-  | { status: 'paused'; blocked: true; reason: 'operator-paused' }
-  | { status: 'unpaused'; blocked: false; reason: 'operator-unpaused' }
-  | {
-      status: 'unknown';
-      blocked: true;
-      reason: 'binding-missing' | 'value-missing' | 'value-malformed' | 'read-failed';
-    };
+type FleetPauseGate = { status: 'paused' | 'unpaused' | 'unknown'; blocked: boolean; reason: string; revision?: number };
 
 /**
  * Read the global cloud kill switch. Only an explicit, valid false value admits
@@ -731,35 +718,16 @@ type FleetPauseGate =
  * UNKNOWN and blocks just like an operator pause; it must never become implicit
  * permission to spend money or produce external effects.
  */
-async function readFleetPauseGate(env: ExecutorEnv): Promise<FleetPauseGate> {
-  // Read the kill switch from the relay's CONTROL-PLANE KV — the SAME namespace
-  // the relay's POST /v1/fleet/pause writes to. (Previously read FLEET_TOKENS, a
-  // DIFFERENT namespace, so a pause toggle never reached the executor.)
-  const kv = env.CONTROL_KV;
-  if (!kv) return { status: 'unknown', blocked: true, reason: 'binding-missing' };
+async function readFleetPauseGate(env: ExecutorEnv, expectedRevision?: number): Promise<FleetPauseGate> {
+  if (!env.FLEET_CONTROL) return { status: 'unknown', blocked: true, reason: 'binding-missing' };
   try {
-    const raw = await kv.get(PAUSE_KEY);
-    if (raw == null || raw === '') {
-      return { status: 'unknown', blocked: true, reason: 'value-missing' };
+    const raw = await env.FLEET_CONTROL.admit(expectedRevision);
+    const parsed = raw?.status === 'unknown' ? raw : parseFleetControl(raw);
+    if (parsed.status === 'unknown') return { status: 'unknown', blocked: true, reason: parsed.reason };
+    if (expectedRevision !== undefined && parsed.revision !== expectedRevision) {
+      return { status: 'unknown', blocked: true, reason: 'revision-changed' };
     }
-    if (raw === 'true') return { status: 'paused', blocked: true, reason: 'operator-paused' };
-    if (raw === 'false') return { status: 'unpaused', blocked: false, reason: 'operator-unpaused' };
-    try {
-      const parsed = JSON.parse(raw) as unknown;
-      if (
-        typeof parsed === 'object' &&
-        parsed !== null &&
-        !Array.isArray(parsed) &&
-        typeof (parsed as { paused?: unknown }).paused === 'boolean'
-      ) {
-        return (parsed as { paused: boolean }).paused
-          ? { status: 'paused', blocked: true, reason: 'operator-paused' }
-          : { status: 'unpaused', blocked: false, reason: 'operator-unpaused' };
-      }
-      return { status: 'unknown', blocked: true, reason: 'value-malformed' };
-    } catch {
-      return { status: 'unknown', blocked: true, reason: 'value-malformed' };
-    }
+    return { status: parsed.status, blocked: parsed.paused, reason: `operator-${parsed.status}`, revision: parsed.revision };
   } catch {
     return { status: 'unknown', blocked: true, reason: 'read-failed' };
   }
@@ -1374,26 +1342,14 @@ function triggerFor(job: FleetRunJob): string | null {
 /**
  * Report `Port Daddy Fleet` on a merge-queue branch.
  *
- * WHY A PASS-THROUGH AND NOT A REVIEW. The queue branch is `main` + the queued
- * PRs, and every PR in it was already gated by the full fleet at
- * `pull_request` time. Re-running every ship on each queue permutation would
- * re-spend the entire review budget per entry, per reorder, to re-derive a
- * verdict the fleet already published — while the queue branch's own CI (which
- * DOES run on `merge_group`) is what actually exercises the combined code. This
- * repo already takes that position elsewhere: scripts/check-roadmap-link.ts
- * treats `merge_group` heads as a pass-through for exactly this reason.
- *
- * What matters is that the context REPORTS. It is required on the merge queue,
- * so a context that never appears is not a strict gate — it is a permanent
- * deadlock, which is what it had been since 2026-08-06.
- *
- * Fails soft on purpose: any error here leaves the check absent, which is
- * exactly today's behaviour, so this can never be worse than not running.
+ * The event does not carry verified constituent review receipts. Until that
+ * proof is implemented, explicitly block the queue instead of asserting every
+ * PR was reviewed. No model work is started to manufacture a pass-through.
  *
  * @param job the merge_group delivery
  * @param env executor bindings (token minting + details url)
  */
-async function reportMergeGroupPassThrough(job: FleetRunJob, env: ExecutorEnv): Promise<void> {
+async function reportMergeGroupCoverageHold(job: FleetRunJob, env: ExecutorEnv): Promise<void> {
   const mergeGroup = job.payloadMinimal?.merge_group as Record<string, unknown> | undefined;
   const headSha = typeof mergeGroup?.head_sha === 'string' ? mergeGroup.head_sha : '';
   if (!job.repoFullName || !job.installationId || !headSha) return;
@@ -1414,17 +1370,16 @@ async function reportMergeGroupPassThrough(job: FleetRunJob, env: ExecutorEnv): 
       owner,
       repo,
       checkRunId,
-      'success',
-      'Merge-queue pass-through. Every PR in this group was reviewed by the fleet at ' +
-        'pull_request time; the queue branch is gated by its own CI, which runs on ' +
-        'merge_group. The fleet does not re-review each queue permutation.',
+      'failure',
+      'Fleet cannot verify the constituent PR review receipts for this merge group. ' +
+        'The required review check remains blocked; queue CI alone does not establish Fleet review coverage.',
       token,
       null,
     );
   } catch (err) {
     // Absent check == today's behaviour. Never throw: a failure here must not
     // retry the job or dead-letter it.
-    console.error(`[fleet-executor] merge_group pass-through failed for ${job.repoFullName}@${headSha}: ${String(err)}`);
+    console.error(`[fleet-executor] merge_group coverage hold failed for ${job.repoFullName}@${headSha}: ${String(err)}`);
   }
 }
 
@@ -1551,7 +1506,7 @@ export async function executeFleet(
   // otherwise fall straight out of `!job.prNumber` and report nothing — the
   // deadlock this branch exists to end.
   if (job.eventType === 'merge_group') {
-    await reportMergeGroupPassThrough(job, env);
+    await reportMergeGroupCoverageHold(job, env);
     return;
   }
 
@@ -1599,18 +1554,8 @@ export async function executeFleet(
 
   // --- KILL SWITCH ---------------------------------------------------------
   // Checked at the very START, before any AI spend or review/comment post.
-  // STILL posts a neutral 'Port Daddy Fleet' check — it must NEVER just
-  // return silently here. "Port Daddy Fleet" is a REQUIRED status check on
-  // the main-branch merge-queue ruleset (ALLGREEN grouping); an absent check
-  // blocks the WHOLE queue forever, not just this one run, and looks like
-  // nothing at all in GitHub's UI (no failing check to investigate — just
-  // permanent silence). This is exactly what happened 2026-07-16: an
-  // out-of-band `fleet:paused=true` (written straight into CONTROL_KV,
-  // bypassing the audited POST /v1/fleet/pause endpoint — no audit_log row
-  // exists for the toggle) left the check silently ABSENT on every PR for 4
-  // days, and every PR needed an admin bypass past a check that never even
-  // attempted to run. One token mint + one create/complete(neutral) check-run
-  // pair is a small, worthwhile cost to keep the gate legible while paused.
+  // Publish a blocking check explaining that review did not run. The control
+  // receipt comes from Relay's transactional object, never the old KV flag.
   // Any infra failure here is swallowed (never thrown) so a broken pause path
   // can never spiral into queue retries/DLQ churn — pausing must stay cheap.
   const initialShipControls = await readRepoShipControls(env.DB, job.repoFullName);
@@ -1620,7 +1565,7 @@ export async function executeFleet(
     console.log(
       `[fleet-executor] delivery=${deliveryId} automation-blocked ` +
       `pauseStatus=${initialPauseGate.status} pauseReason=${initialPauseGate.reason} ` +
-      `repositoryStopped=${repositoryStopped}; posting neutral check (no AI spend, no review posts)`,
+      `repositoryStopped=${repositoryStopped}; posting blocking check (no AI spend, no review posts)`,
     );
     const head = prPayload.head as { sha?: unknown } | undefined;
     const headSha = typeof head?.sha === 'string' ? head.sha : null;
@@ -1683,21 +1628,21 @@ export async function executeFleet(
           owner,
           repo,
           checkRunId,
-          'neutral',
+          'failure',
           summary,
           token,
           detailsUrl,
           'Port Daddy Fleet',
-          () => assertPausedGateCurrent('immediately before paused neutral PATCH'),
+          () => assertPausedGateCurrent('immediately before paused failure PATCH'),
         );
       }
       await transcript.step(
         'check-completed',
         null,
-        'Check concluded: neutral (paused at job start)',
+        'Check concluded: failure (paused at job start)',
         {
           checkRunId,
-          conclusion: 'neutral',
+          conclusion: 'failure',
           reason: initialPauseGate.status === 'unknown' ? 'pause-state-unknown' : 'paused-at-start',
           pauseStatus: initialPauseGate.status,
           pauseReason: initialPauseGate.reason,
@@ -1739,7 +1684,7 @@ export async function executeFleet(
         diffSource: 'raw',
       };
       await recordRunStart(env, runId, job, stubPrCtx, prNumber, []);
-      await recordRunEnd(env, runId, 'neutral', startMs);
+      await recordRunEnd(env, runId, 'failure', startMs);
     } catch (err) {
       console.error(
         `[fleet-executor] delivery=${deliveryId} paused-check post failed: ${String(err)}`,
@@ -2537,24 +2482,24 @@ export async function executeFleet(
     // Re-check the operator kill switch before each ship. The start-of-job
     // check prevents any setup work while paused; this second gate closes the
     // TOCTOU gap where the operator pauses after the GitHub check is created
-    // but before additional AI spend or review posts. Complete neutral rather
+    // but before additional AI spend or review posts. Complete failure rather
     // than leaving the already-created check run in progress forever.
     const shipControls = await readRepoShipControls(env.DB, job.repoFullName);
-    const pauseGate = await readFleetPauseGate(env);
+    const pauseGate = await readFleetPauseGate(env, initialPauseGate.revision);
     if (pauseGate.blocked || !repoShipEnabled(shipControls, '*')) {
       const summary = pauseGate.status === 'unknown'
         ? unknownPauseSummary(pauseGate.reason)
         : !shipControls.available ? shipControls.reason
           : `Fleet paused before pd-${ship.name}; stopped before additional AI spend or review posts.`;
-      await transcript.step('check-completed', null, 'Check concluded: neutral (paused)', {
+      await transcript.step('check-completed', null, 'Check concluded: failure (paused)', {
         checkRunId,
-        conclusion: 'neutral',
+        conclusion: 'failure',
         pausedBeforeShip: ship.name,
         pauseStatus: pauseGate.status,
         pauseReason: pauseGate.reason,
       });
-      await completeOwnedCheck('neutral', summary, `before pd-${ship.name} paused neutral completion`);
-      await recordRunEnd(env, runId, 'neutral', startMs);
+      await completeOwnedCheck('failure', summary, `before pd-${ship.name} paused failure completion`);
+      await recordRunEnd(env, runId, 'failure', startMs);
       return;
     }
 
