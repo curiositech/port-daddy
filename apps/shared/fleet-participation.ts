@@ -33,6 +33,9 @@ export type PullRequestRiskSignal =
   | 'schema-migration'
   | 'deployment'
   | 'generated-code'
+  | 'privacy'
+  | 'storage'
+  | 'security-uncertain'
   | 'large-diff';
 
 /**
@@ -74,7 +77,8 @@ const PR_CLASS_VALUES = new Set<PullRequestClass>([
 ]);
 const RISK_VALUES = new Set<PullRequestRiskSignal>([
   'authentication', 'authorization', 'secrets', 'cryptography', 'billing', 'tenant-boundary',
-  'schema-migration', 'deployment', 'generated-code', 'large-diff',
+  'schema-migration', 'deployment', 'generated-code', 'privacy', 'storage', 'security-uncertain',
+  'large-diff',
 ]);
 
 function enumList<T extends string>(value: unknown, values: ReadonlySet<T>): T[] {
@@ -231,11 +235,9 @@ export const SHIP_MCP_CAPABILITIES = {
 } as const;
 export type ShipMcpCapability = keyof typeof SHIP_MCP_CAPABILITIES;
 
-export const SHIP_NETWORK_CAPABILITIES = {
-  github_api: 'api.github.com',
-  package_registry: 'registry selected by the admitted repository',
-} as const;
-export type ShipNetworkCapability = keyof typeof SHIP_NETWORK_CAPABILITIES;
+declare const networkEndpointBrand: unique symbol;
+/** Exact HTTPS origin admitted by trusted configuration; symbolic providers are refused. */
+export type ShipNetworkEndpoint = string & { readonly [networkEndpointBrand]: true };
 
 /** Trusted repository policy. Exact tenant and filesystem bindings are minted later. */
 export interface ShipExecutionPolicy {
@@ -246,7 +248,7 @@ export interface ShipExecutionPolicy {
   cwd: string;
   toolAllowlist: ShipToolCapability[];
   mcpAllowlist: ShipMcpCapability[];
-  networkAllowlist: ShipNetworkCapability[];
+  networkAllowlist: ShipNetworkEndpoint[];
   writePathAllowlist: string[];
   maxWallClockMs: number;
   maxCostMicrousd: number;
@@ -267,6 +269,7 @@ export const DENY_ALL_EXECUTION: Readonly<ShipExecutionPolicy> = Object.freeze({
 
 export const MAX_EXECUTION_WALL_CLOCK_MS = 30 * 60 * 1000;
 export const MAX_EXECUTION_COST_MICROUSD = 25_000_000;
+export type ShipExecutionConfigState = 'absent' | 'valid' | 'invalid';
 
 function stringList(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -281,6 +284,24 @@ function capabilityList<T extends string>(value: unknown, registry: Readonly<Rec
   return list.every(item => /^[a-zA-Z0-9][a-zA-Z0-9._:/-]*$/.test(item) && !item.includes('*') && item in registry)
     ? list as T[]
     : null;
+}
+
+function exactNetworkEndpoints(value: unknown): ShipNetworkEndpoint[] | null {
+  if (!Array.isArray(value)) return null;
+  const endpoints: ShipNetworkEndpoint[] = [];
+  for (const item of value) {
+    if (typeof item !== 'string' || item.trim() !== item || !item) return null;
+    let url: URL;
+    try {
+      url = new URL(item);
+    } catch {
+      return null;
+    }
+    if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash ||
+        url.pathname !== '/' || url.hostname.includes('*') || url.origin !== item.replace(/\/$/, '')) return null;
+    endpoints.push(url.origin as ShipNetworkEndpoint);
+  }
+  return new Set(endpoints).size === endpoints.length ? endpoints : null;
 }
 
 const READ_ONLY_TOOLS = new Set<ShipToolCapability>(
@@ -320,7 +341,7 @@ export function parseShipExecutionPolicy(value: unknown): ShipExecutionPolicy {
   if (mode === 'read_only_sandbox' && writePathAllowlist.length > 0) return { ...DENY_ALL_EXECUTION };
   const toolAllowlist = capabilityList(raw.toolAllowlist, SHIP_TOOL_CAPABILITIES);
   const mcpAllowlist = capabilityList(raw.mcpAllowlist, SHIP_MCP_CAPABILITIES);
-  const networkAllowlist = capabilityList(raw.networkAllowlist, SHIP_NETWORK_CAPABILITIES);
+  const networkAllowlist = exactNetworkEndpoints(raw.networkAllowlist);
   if (!toolAllowlist || !mcpAllowlist || !networkAllowlist) return { ...DENY_ALL_EXECUTION };
   if (mode === 'read_only_sandbox' && (
     toolAllowlist.some(tool => !READ_ONLY_TOOLS.has(tool)) ||
@@ -343,6 +364,24 @@ export function parseShipExecutionPolicy(value: unknown): ShipExecutionPolicy {
   };
 }
 
+/** Preserve whether deny-all was intentional, absent, or caused by malformed authority. */
+export function parseShipExecutionConfiguration(value: unknown): {
+  state: ShipExecutionConfigState;
+  policy: ShipExecutionPolicy;
+} {
+  if (value === undefined) return { state: 'absent', policy: { ...DENY_ALL_EXECUTION } };
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const raw = value as Record<string, unknown>;
+    if (Object.keys(raw).length === 1 && raw.mode === 'none') {
+      return { state: 'valid', policy: { ...DENY_ALL_EXECUTION } };
+    }
+  }
+  const policy = parseShipExecutionPolicy(value);
+  return policy.mode === 'none'
+    ? { state: 'invalid', policy }
+    : { state: 'valid', policy };
+}
+
 export interface ShipExecutionGrant extends ShipExecutionPolicy {
   grantId: string;
   nonce: string;
@@ -352,6 +391,9 @@ export interface ShipExecutionGrant extends ShipExecutionPolicy {
   repositoryFullName: string;
   worktreePath: string;
   cwdPath: string;
+  /** Canonical roots only. A consumer must realpath every target again before opening it. */
+  canonicalWritePathRoots: string[];
+  requiresTargetRealpathRecheck: true;
   headSha: string;
   runId: string;
   attempt: number;
@@ -432,17 +474,21 @@ export async function mintShipExecutionGrant(params: {
   let canonicalRoot: string;
   let canonicalWorktree: string;
   let cwdPath: string;
+  let canonicalWritePathRoots: string[];
   try {
-    [canonicalRoot, canonicalWorktree, cwdPath] = await Promise.all([
+    [canonicalRoot, canonicalWorktree, cwdPath, ...canonicalWritePathRoots] = await Promise.all([
       params.canonicalizePath(params.isolatedWorktreeRoot),
       params.canonicalizePath(params.worktreePath),
       params.canonicalizePath(lexicalCwdPath),
+      ...policy.writePathAllowlist.map(path => params.canonicalizePath(`${params.worktreePath}/${path}`)),
     ]);
   } catch {
     return null;
   }
   if (!safeAbsolutePath(canonicalRoot) || !safeAbsolutePath(canonicalWorktree) || !safeAbsolutePath(cwdPath)) return null;
   if (!isStrictChild(canonicalRoot, canonicalWorktree) || !isStrictChild(canonicalWorktree, cwdPath)) return null;
+  if (canonicalWritePathRoots.some(path => !safeAbsolutePath(path) || !isStrictChild(canonicalWorktree, path))) return null;
+  if (new Set(canonicalWritePathRoots).size !== canonicalWritePathRoots.length) return null;
   if (!params.tenantBindingReceiptId || !/^[a-f0-9]{40,128}$/i.test(params.headSha) || !params.runId) return null;
   if (!Number.isSafeInteger(params.attempt) || params.attempt < 1) return null;
   if (!/^[a-zA-Z0-9_-]{16,128}$/.test(params.nonce)) return null;
@@ -453,10 +499,16 @@ export async function mintShipExecutionGrant(params: {
   const digestInput = JSON.stringify([
     'fleet-execution-grant-v1', params.nonce, params.tenantId, params.tenantBindingReceiptId,
     params.repositoryId, params.repositoryFullName.toLowerCase(), canonicalWorktree, cwdPath,
-    params.headSha, params.runId, params.attempt, params.issuedAtEpochMs, params.expiresAtEpochMs, policy,
+    params.headSha, params.runId, params.attempt, params.issuedAtEpochMs, params.expiresAtEpochMs,
+    canonicalWritePathRoots, policy,
   ]);
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(digestInput));
   const digestSha256 = [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
+  // No production runner atomically consumes this envelope yet. Refuse write
+  // grants rather than returning an object that could be mistaken for usable
+  // mutation authority. The canonical-root contract above remains the required
+  // shape for that future consumer.
+  if (policy.mode === 'write_sandbox') return null;
   return {
     ...policy,
     grantId: `seg_${digestSha256.slice(0, 32)}`,
@@ -467,6 +519,8 @@ export async function mintShipExecutionGrant(params: {
     repositoryFullName: params.repositoryFullName,
     worktreePath: canonicalWorktree,
     cwdPath,
+    canonicalWritePathRoots,
+    requiresTargetRealpathRecheck: true,
     headSha: params.headSha,
     runId: params.runId,
     attempt: params.attempt,
@@ -475,4 +529,30 @@ export async function mintShipExecutionGrant(params: {
     singleUse: true,
     digestSha256,
   };
+}
+
+/**
+ * Mandatory final write-target check for a future grant consumer. This helper
+ * does not consume a nonce and is therefore necessary but not sufficient to
+ * authorize execution; the production executor still refuses write grants.
+ */
+export async function recheckShipWriteTarget(
+  grant: ShipExecutionGrant,
+  targetPath: string,
+  nowEpochMs: number,
+  canonicalizePath: (path: string) => Promise<string>,
+): Promise<string | null> {
+  if (grant.mode !== 'write_sandbox' || grant.requiresTargetRealpathRecheck !== true ||
+      !Number.isSafeInteger(nowEpochMs) || nowEpochMs < grant.issuedAtEpochMs ||
+      nowEpochMs >= grant.expiresAtEpochMs || !safeAbsolutePath(targetPath)) return null;
+  let canonicalTarget: string;
+  try {
+    canonicalTarget = await canonicalizePath(targetPath);
+  } catch {
+    return null;
+  }
+  if (!safeAbsolutePath(canonicalTarget) || !isStrictChild(grant.worktreePath, canonicalTarget)) return null;
+  return grant.canonicalWritePathRoots.some(root => isStrictChild(root, canonicalTarget))
+    ? canonicalTarget
+    : null;
 }

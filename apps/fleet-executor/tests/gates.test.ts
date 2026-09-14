@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isDocsOnly, decideShipGate, isReviewableForBugs } from '../src/gates.js';
+import { classifyPullRequest, isDocsOnly, decideShipGate, isReviewableForBugs } from '../src/gates.js';
 import type { ShipConfig } from '../src/fleet.js';
 
 const ship = (over: Partial<ShipConfig>): ShipConfig => ({
@@ -24,6 +24,7 @@ const ship = (over: Partial<ShipConfig>): ShipConfig => ({
     toolAllowlist: [], mcpAllowlist: [], networkAllowlist: [], writePathAllowlist: [],
     maxWallClockMs: 0, maxCostMicrousd: 0,
   },
+  executionConfigState: 'absent',
   ...over,
 });
 
@@ -84,6 +85,29 @@ describe('decideShipGate', () => {
     expect(decideShipGate(riskScoped, SECURITY, false).run).toBe(true);
     expect(decideShipGate(riskScoped, ['core/kernel/pd-vault/src/hpke.rs'], false).run).toBe(true);
     expect(decideShipGate(riskScoped, CODE, false).run).toBe(false);
+  });
+
+  it('classifies bounded diff evidence even when paths are generic', () => {
+    const diff = `diff --git a/src/handler.ts b/src/handler.ts
+--- a/src/handler.ts
++++ b/src/handler.ts
++const tenant_id = request.account_id;
++authorize(role_binding);
++const access_token = env.API_KEY;
++charge(cost_microusd, credit_balance);
++redactionPolicy.retention = '30d';
++await D1.prepare('ALTER TABLE receipts ADD COLUMN owner_id');`;
+    expect(classifyPullRequest(['src/handler.ts'], diff.length, diff).riskSignals).toEqual(expect.arrayContaining([
+      'authorization', 'secrets', 'billing', 'tenant-boundary', 'privacy', 'storage', 'schema-migration',
+    ]));
+  });
+
+  it('routes otherwise-uncertain generic code to a declared conservative security voter', () => {
+    const conservative = ship({ participation: { default: 'abstain', rules: [
+      { disposition: 'required', riskSignals: ['security-uncertain'] },
+    ] } });
+    expect(decideShipGate(conservative, ['src/transform.ts'], false, 40, false, '+return value + 1;'))
+      .toMatchObject({ run: true, disposition: 'required' });
   });
 
   it('advisory agents run but do not acquire a required vote', () => {

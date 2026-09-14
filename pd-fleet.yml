@@ -869,8 +869,8 @@ fleet:
         default: abstain
         rules:
           - disposition: required
-            riskSignals: [authentication, authorization, secrets, cryptography, billing, tenant-boundary]
-            reason: security or tenant boundary changed
+            riskSignals: [authentication, authorization, secrets, cryptography, billing, tenant-boundary, privacy, storage, schema-migration, security-uncertain]
+            reason: security, privacy, storage, migration, or uncertain code boundary changed
       # Novel attack construction benefits from headroom. The primary target
       # resolves through the registry's `high` rung; it is never left to a
       # CLI default that could silently weaken this security review. On Cloudflare,

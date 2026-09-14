@@ -92,11 +92,12 @@ function mkShip(): ShipConfig {
     graft: [],
     participation: { default: 'advisory', rules: [] },
     participationValid: true,
-    execution: {
+      execution: {
       mode: 'none', repository: 'current_repository', worktree: 'isolated', cwd: '.',
       toolAllowlist: [], mcpAllowlist: [], networkAllowlist: [], writePathAllowlist: [],
       maxWallClockMs: 0, maxCostMicrousd: 0,
-    },
+      },
+      executionConfigState: 'absent',
   } as ShipConfig;
 }
 
