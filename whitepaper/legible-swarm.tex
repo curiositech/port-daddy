@@ -277,6 +277,67 @@ something being built; and two pairs of terms this chapter must never collapse
 glance before \S\ref{sec:authority}.
 
 % ═════════════════════════════════════════════════════════════════════════════
+\section*{How to read this paper (Reader's Map)}
+% Paper apparatus, not chapter content, and unnumbered on purpose: the Book
+% generator strips an unnumbered Reader's Map (front matter does the routing
+% there, and the paragraph above is the Book's route through this chapter),
+% while the standalone paper -- which has no front matter -- keeps it. It sits
+% after that paragraph, not before it, because the generator's cut runs from
+% this heading to the next \section.
+\addcontentsline{toc}{section}{How to read this paper (Reader's Map)}
+% ═════════════════════════════════════════════════════════════════════════════
+
+This paper has three audiences and one spine. Use Table~\ref{tab:readers-map} to
+enter where you are most useful, then follow the cross-references. Every external
+term of art is \textbf{bolded, cited, and glossed on first use}; every mechanism
+this paper introduces is \textbf{bolded and defined in place}. One discipline runs
+underneath the whole argument and is worth stating up front: confusing \emph{what is
+built} with \emph{what is designed} is the exact failure this paper argues against,
+so the paper itself never relies on an unverified claim --- a summary that asserts a
+result is honest only if it can be checked, and the engineering status of every
+mechanism named here is recorded separately in Appendix~\ref{app:honest} rather than
+asserted in the body. Two terms this paper is easy to conflate ---
+\emph{capability} vs.\ \emph{permission}, and the \emph{authorization chain} vs.\ the
+\emph{delegation trace} --- are disambiguated in Appendix~\ref{app:notation}, which is
+worth a glance before \S\ref{sec:authority}.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{@{}p{0.27\textwidth}p{0.30\textwidth}p{0.34\textwidth}@{}}
+\toprule
+\textbf{If you are\ldots} & \textbf{Start at} & \textbf{Critical artifact} \\
+\midrule
+A solo developer drowning in agent chaos (the buyer) &
+\S\ref{sec:intro} (the pain) $\to$ \S\ref{sec:zoom} (digest-with-zoom) $\to$
+\S\ref{sec:authority} (consent) &
+The ``one law'' (Def.~\ref{def:zoom}) and the consent grant (Def.~\ref{def:consent}) \\
+A human-factors / HCI researcher &
+\S\ref{sec:operator} (the operator as a modeled entity) &
+The SDT-spined attention objective (Eq.~\ref{eq:sdt}, Fig.~\ref{fig:sdt}) \\
+A distributed-systems / information-retrieval engineer &
+\S\ref{sec:readpoverty} (read-poverty) $\to$ \S\ref{sec:discovery} (discovery) &
+The split-ranker result (Thm.~\ref{thm:split-ranker}, Fig.~\ref{fig:split-ranker}) \\
+A political theorist &
+\S\ref{sec:consent-canon} (consent, m\^etis, role assignment) &
+The legible-sovereign rule (Prop.~\ref{prop:legible-sovereign}) \\
+An economist / accountant of agent cost &
+\S\ref{sec:tokens} (tokens as COGS \emph{and} legibility engine) &
+The compaction-is-digest identity (\S\ref{sec:tokens-digest}) \\
+A skeptic checking honesty &
+Appendix~\ref{app:honest} (implementation \& status) &
+Every mechanism mapped to built\,/\,designed\,/\,vision, every theorem to verified\,/\,proved\,/\,proposed \\
+\bottomrule
+\end{tabular}
+\caption{Reader's Map. The spine is \S\ref{sec:intro}$\to$\S\ref{sec:zoom}$\to$\S\ref{sec:authority};
+the read-poverty and discovery chapters (\S\ref{sec:readpoverty}--\ref{sec:discovery})
+and the token-economics chapter (\S\ref{sec:tokens}) are the two deep dives; the
+operator chapter (\S\ref{sec:operator}) is where the human-factors weight sits.}
+\label{tab:readers-map}
+\end{table}
+
+% ═════════════════════════════════════════════════════════════════════════════
 \section{Introduction: the swarm is a state of nature}\label{sec:intro}
 % ═════════════════════════════════════════════════════════════════════════════
 
