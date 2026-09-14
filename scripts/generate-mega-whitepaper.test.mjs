@@ -229,13 +229,73 @@ const prefixReferencePatterns = [
 // To add one deliberately, add it here and say in the PR why it stays.
 const figureDirs = ['whitepaper/figures', 'website-v2/public/whitepaper/figures'];
 const knownUnreferencedFragments = [
-  // Superseded by fig-anchor-four-phases; kept for out-of-tree consumers.
   'website-v2/public/whitepaper/figures/appendix-figures.tex',
+  // These two predate the pd-figure-language system, carry their own
+  // \documentclass, and DO NOT COMPILE -- `I do not know the key '/tikz/ellipse'`
+  // and `Undefined control sequence` respectively, on main as well as here. They
+  // are unreferenced AND broken, which is the strongest case in the corpus for
+  // deletion; they are listed rather than deleted because removing a figure is a
+  // decision for whoever owns the chapter, not for a typography PR.
   'website-v2/public/whitepaper/figures/diag-magic-link.tex',
   'website-v2/public/whitepaper/figures/diag-sybil-attack.tex',
+  // Superseded by fig-anchor-four-phases; kept for out-of-tree consumers.
   'website-v2/public/whitepaper/figures/fig-anchor-phases.tex',
   'website-v2/public/whitepaper/figures/fig-he-assurance-sieve.tex',
 ];
+
+// The shared figure apparatus exists TWICE -- once under whitepaper/figures and
+// once under website-v2/public/whitepaper/figures -- because the standalone
+// chapters and the Book each resolve `figures/...` against their own directory.
+// Seven files are currently in that position, pd-figure-language.tex among them,
+// and until this test they were kept in step by hand. That is the same
+// two-lists-with-nothing-checking-them defect as every other one this PR is
+// about, and it is the one with the sharpest consequence: the twins define the
+// house styles, so a fragment that loads the stale copy draws in a style set
+// nobody reviewed.
+//
+// The pairs are DISCOVERED, not listed. A twin added later is covered the day it
+// appears, with nobody remembering to come back and add it here -- which is the
+// whole difference between a check and a comment. Byte-for-byte, including
+// comments: the comments in pd-figure-language.tex carry the measurements the
+// styles rest on, and a measurement that is true in one copy and stale in the
+// other is exactly the drift worth catching.
+//
+// If this ever needs to be one file rather than two, the fix is a build step
+// that writes one from the other, and this test is what tells you the two are
+// currently identical enough for that to be safe.
+const sharedApparatusDirs = ['whitepaper/figures', 'website-v2/public/whitepaper/figures'];
+
+test('the shared figure apparatus is identical in both figure directories', () => {
+  const [a, b] = sharedApparatusDirs;
+  const inA = new Set(
+    readdirSync(resolve(a), { withFileTypes: true })
+      .filter((e) => e.isFile() && e.name.endsWith('.tex'))
+      .map((e) => e.name),
+  );
+  const twins = readdirSync(resolve(b), { withFileTypes: true })
+    .filter((e) => e.isFile() && e.name.endsWith('.tex') && inA.has(e.name))
+    .map((e) => e.name)
+    .sort();
+
+  // A guard on the guard: if the discovery ever finds nothing, this test would
+  // pass while checking zero files. The apparatus is not going to drop to zero
+  // by accident, so an empty result means the directories moved and this test
+  // has quietly stopped being a test.
+  assert.ok(
+    twins.length > 0,
+    `no .tex file exists in both ${a} and ${b} — either the layout changed or this test is checking nothing`,
+  );
+
+  const drifted = twins.filter(
+    (name) => readFileSync(resolve(`${a}/${name}`), 'utf8') !== readFileSync(resolve(`${b}/${name}`), 'utf8'),
+  );
+  assert.deepEqual(
+    drifted,
+    [],
+    `these files exist in both figure directories and their contents have drifted apart: ${drifted.join(', ')}. `
+      + 'They are one thing kept in two places; edit both, or the chapters and the Book draw in different styles.',
+  );
+});
 
 test('no fragment joins the figure corpus without a chapter that inputs it', () => {
   const inputRe = /\\input\{figures\/([A-Za-z0-9._-]+?)(?:\.tex)?\}/g;

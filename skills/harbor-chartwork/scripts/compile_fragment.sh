@@ -49,10 +49,14 @@
 #                         skill's SKILL.md). CI should not need this: install
 #                         tectonic on PATH and let its default cache apply.
 #
-# Exit status: 0 on a clean compile. Non-zero on any TeX error, on a fragment
-# or reference file that cannot be found, or on an unrecognized --preamble
-# value. On failure the first "!"-prefixed error line from the TeX log is
-# printed to stderr before exiting.
+# Exit status:
+#   0  a PDF was produced
+#   1  a real compile failure (the first "!"-prefixed TeX error is printed)
+#   2  usage error: no such fragment, or an unrecognized --preamble value
+#   3  NOTHING TO DRAW -- LaTeX reported no error and no pages, which is what a
+#      style/apparatus file under figures/ does. Distinct from 1 on purpose: a
+#      caller that compiles everything under a figures directory needs to tell
+#      "this file has no picture in it" from "this file is broken".
 set -u
 umask 022
 
@@ -346,6 +350,40 @@ cp "$LOG_SRC" "$OUT_DIR_ABS/$STEM.log" 2>/dev/null
 
 if [ "$STATUS" -ne 0 ] || [ ! -f "$PDF_SRC" ]; then
   FIRST_ERROR="$(grep -m1 -E '^! ' "$LOG_SRC" 2>/dev/null)"
+
+  # NOTHING TO DRAW is not the same thing as WOULD NOT COMPILE, and this script
+  # used to report them identically.
+  #
+  # Not every .tex under a figures/ directory is a figure. The Book keeps its
+  # apparatus there too -- pd-figure-language.tex and its per-edition overrides,
+  # pd-pedagogy.tex, pd-cite-shortforms.tex -- and those carry \tikzset and
+  # \newcommand definitions and no tikzpicture at all. Wrapped and run, LaTeX
+  # succeeds and emits "No pages of output."; there is then no .xdv for
+  # xdvipdfmx to convert, so tectonic exits non-zero with `cannot open
+  # "wrapper.xdv"`. Read as a compile failure, that reddened the figure gate for
+  # two files that had simply drawn nothing.
+  #
+  # The test is by SHAPE, not by name: LaTeX emits a `! `-prefixed line for
+  # every real error, and emits none when it merely had nothing to typeset. A
+  # log with "No pages of output." and no `! ` line is therefore a file with no
+  # drawing in it -- which is a fact about the file, not a verdict on it -- and
+  # a skip list keyed on today's five filenames would be the same defect one
+  # layer down: the next apparatus file added under a new name would redden the
+  # gate again.
+  #
+  # Exit 3, distinct from both 0 (a PDF exists) and 1 (a real error), so a
+  # caller can tell the three apart. Note for whoever reads this next: the
+  # visual-proof guard on the PR side deliberately treats EVERY .tex under
+  # figures/ as a figure surface, and that is correct for the question it asks
+  # ("does this PR owe a render?"). This is a different question ("can this be
+  # compiled as a picture?") and it has a different answer for the same files.
+  # Do not unify them.
+  if grep -q 'No pages of output' "$LOG_SRC" 2>/dev/null && [ -z "$FIRST_ERROR" ]; then
+    echo "compile_fragment.sh: NO PAGES from $FRAGMENT_ABS (${PREAMBLE_MODE:-self-contained} mode)" >&2
+    echo "compile_fragment.sh: LaTeX reported no error -- this file defines style or apparatus and draws nothing, so there is no picture to render" >&2
+    exit 3
+  fi
+
   [ -z "$FIRST_ERROR" ] && FIRST_ERROR="$(tail -n 20 "$LOG_CAPTURE" 2>/dev/null)"
   echo "compile_fragment.sh: FAILED to compile $FRAGMENT_ABS (${PREAMBLE_MODE:-self-contained} mode)" >&2
   echo "$FIRST_ERROR" >&2

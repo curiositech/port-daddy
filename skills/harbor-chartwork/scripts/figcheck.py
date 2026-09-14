@@ -20,6 +20,9 @@ compile_fragment.sh) and reports pass/fail/warn per check:
   T8  caption collision                (a vector drawing or a tikzpicture text
                                          span intersects the caption's own text
                                          block: FAIL)
+  T9  dash resolution                  (a dashed/dotted stroke whose on-length,
+                                         gap or stroke width falls below one
+                                         device pixel at --dash-dpi: FAIL)
 
 All checks operate purely on rendered PDF geometry (PyMuPDF's get_text("dict")
 and get_drawings()), not on the TikZ source -- this is deliberately the
@@ -36,6 +39,22 @@ real caption. (Line, not pymupdf's own coarser "block" grouping, on purpose:
 a block can merge two visually-close-but-unrelated lines into one region,
 which would blur exactly the collision this check looks for.)
 
+T9 exists because a dash pattern is the one part of a figure's style that can
+be present in the source, present in the PDF, and absent on the page. `pd guide`
+shipped `on 0.448pt off 0.996pt` on a 0.498pt stroke: at 150 dpi that is a
+0.93 px dot -- under one device pixel -- repeating every 3.01 px, and its
+rendered weight varied 1.6x with nothing but where each dot happened to land on
+the pixel grid. No source linter can see that: the source says `densely dotted`
+and the caption says "dotted", and both are true. Only the compiled PDF carries
+the numbers, so the check belongs here.
+
+What T9 can and cannot decide. It reads the exact dash array, stroke width and
+scale off the content stream, so "this dash is smaller than a pixel at DPI" is
+arithmetic, not a guess -- that part is sound. It does NOT decide whether the
+result *looks* dotted: a pattern can clear every threshold here and still read
+as solid at a distance, or be lost against a busy background. The thresholds
+below are a floor, and clearing them is necessary, not sufficient.
+
 Units: T1 works in PDF points (a span's reported font size already IS points).
 T2-T6, T8 all work in PDF points internally; T7's --textwidth-cm is converted
 to points (1cm = 28.346456692913385pt) before comparing.
@@ -50,7 +69,8 @@ alongside the geometry checks, the same way ink_audit.py itself is a prompt
 for a human look, not a gate, when run standalone.
 
 Usage:
-  figcheck.py PDF [--json OUT.json] [--md OUT.md] [--min-font-pt 7] [--textwidth-cm 16.3]
+  figcheck.py PDF [--json OUT.json] [--md OUT.md] [--min-font-pt 7]
+                  [--textwidth-cm 16.3] [--dash-dpi 150]
 
 Exit status:
   0  every T1-T5, T8 check passed on every page (T6/T7 warnings do not affect this)
@@ -60,6 +80,7 @@ Exit status:
 import argparse
 import importlib.util
 import json
+import math
 import re
 import sys
 from pathlib import Path
@@ -88,7 +109,7 @@ def _load_ink_audit():
         return None
 
 PT_PER_CM = 72.0 / 2.54
-HARD_CHECKS = ("T1", "T2", "T3", "T4", "T5", "T8")
+HARD_CHECKS = ("T1", "T2", "T3", "T4", "T5", "T8", "T9")
 WARN_CHECKS = ("T6", "T7")
 ALL_CHECKS = HARD_CHECKS + WARN_CHECKS
 
@@ -116,6 +137,24 @@ T1_SHORT_SPAN_PT = 1.1         # T1: sub/superscripts and tick numerals (<= 3 gl
 ADJACENT_LINE_VFRAC = 0.4      # T3: stacked lines whose boxes touch this little are neighbours, not a collision
 DEAD_CANVAS_FRACTION = 0.40    # T6
 OVERWIDTH_TOL_CM = 0.2         # T7: see check_t7 -- absorbs resizebox rounding noise
+
+# T9. The reference device: 150 dpi at 1.0x, which is what "read it on a screen
+# without zooming" means for a PDF whose natural unit is the point. 1pt = 150/72
+# = 2.0833 px.
+DASH_DPI_DEFAULT = 150.0
+# A mark needs more than one device pixel to BE a mark: at exactly one pixel it
+# is at the rasteriser's Nyquist limit, its weight depends on sub-pixel phase,
+# and the two failure modes are a line that antialiases into nothing and a line
+# whose dots merge into solid. Two pixels is the first length at which a dot
+# renders at the same weight wherever it falls -- measured, on the probe in this
+# skill's references/craft-rules.md, not picked as a round number.
+DASH_MIN_ON_PX = 2.0
+DASH_MIN_GAP_PX = 2.0
+# A stroke thinner than a pixel is not fatal on its own -- a solid hairline at
+# 0.5pt renders as a uniform light line, which is a legitimate thing to want.
+# It is fatal in combination with a dash: the dot then has sub-pixel extent in
+# BOTH directions and there is nothing left of it to see.
+DASH_MIN_WIDTH_PX = 1.0
 
 
 # --------------------------------------------------------------------------- #
@@ -279,8 +318,57 @@ def extract_drawings(page):
                     for k in range(4):
                         segments.append((corners[k], corners[(k + 1) % 4]))
         out.append({"rect": tuple(d["rect"]), "type": d["type"], "segments": segments,
-                    "n_items": len(d["items"])})
+                    "n_items": len(d["items"]),
+                    # T9 needs the stroke's own parameters, which live on the
+                    # drawing dict rather than on its items.
+                    "dashes": d.get("dashes"), "width": d.get("width"),
+                    "scale": _stroke_scale(d)})
     return out
+
+
+def _stroke_scale(d):
+    """The uniform scale the CTM applies to this path's stroke, so a dash
+    measured in user-space units is converted to PAGE points before it is
+    converted to pixels. pgf normally emits figure geometry at the identity
+    CTM, in which case this is 1.0 -- but a `\\resizebox` or a `scale=` on the
+    tikzpicture does reach the matrix, and a dash inside a 0.6x resizebox is
+    0.6x smaller on the page than its dash array says. Taking the geometric
+    mean of the two axis scales is exact for the uniform case (the only one
+    TeX produces here) and a reasonable summary otherwise."""
+    m = d.get("matrix") if isinstance(d, dict) else None
+    if m is None:
+        return 1.0
+    try:
+        a, b, c, dd = float(m.a), float(m.b), float(m.c), float(m.d)
+    except (AttributeError, TypeError, ValueError):
+        return 1.0
+    sx = math.hypot(a, b)
+    sy = math.hypot(c, dd)
+    if sx <= 0 or sy <= 0:
+        return 1.0
+    return math.sqrt(sx * sy)
+
+
+DASH_ARRAY_RE = re.compile(r"-?\d+(?:\.\d+)?|\.\d+")
+
+
+def parse_dash(dashes):
+    """PyMuPDF hands back the raw PDF dash setting as a string: '[ 1.2 2 ] 0',
+    '[] 0' for a solid stroke, occasionally '[ 3 ] 0' for an on==off pattern.
+    Returns (on_lengths, gap_lengths) in user-space units, or None for a stroke
+    with no dash. A single-element array means on and off are the same length,
+    which is what the PDF spec says and what pgf's `dashed` compiles to on some
+    engines -- reading it as 'on only' would silently pass a zero gap."""
+    if not dashes or not isinstance(dashes, str):
+        return None
+    inside = dashes.split("]")[0]
+    nums = [float(x) for x in DASH_ARRAY_RE.findall(inside)]
+    nums = [x for x in nums if x >= 0]
+    if not nums or all(x == 0 for x in nums):
+        return None
+    if len(nums) == 1:
+        return [nums[0]], [nums[0]]
+    return nums[0::2], nums[1::2]
 
 
 # --------------------------------------------------------------------------- #
@@ -290,13 +378,31 @@ def extract_drawings(page):
 def check_t1(spans, min_font_pt, page_no):
     findings = []
     for sp in spans:
-        # A 0.1 pt tolerance absorbs font-metric rounding: a 7 pt subscript
-        # in a Palatino caption reports 6.97 pt.  Anything smaller is real.
-        # Sub- and superscripts and tick numerals are one to three glyphs set
-        # at 70 % of the surrounding size; at \footnotesize that is 5.98 pt.
-        # Every printed textbook does this, so short spans get a wider band
-        # (T1_SHORT_SPAN_PT) while running text keeps the strict floor.
-        tol = T1_SHORT_SPAN_PT if len(sp["text"].strip()) <= 3 else T1_TOLERANCE_PT
+        # T1 has TWO bands, and which one applied is now said out loud in the
+        # finding, because a floor nobody can see the value of gets argued about
+        # rather than met.
+        #
+        # Running text: the strict floor, with a 0.1 pt tolerance for
+        # font-metric rounding (a 7 pt subscript in a Palatino caption reports
+        # 6.97 pt; anything smaller is real).
+        #
+        # A span of three glyphs or fewer -- a sub/superscript, a tick numeral:
+        # a wider band. Measured on this repository's own styles, a subscript
+        # inside a \pdfiglabelsize label renders at 5.98 pt in a standalone
+        # chapter (66.7 % of its 8.97 pt base) and 6.36 pt in the Book (72.9 %
+        # of 8.72 pt). Every typesetter that has ever existed sets a subscript
+        # at roughly 70 % of its base, so holding one to the running-text floor
+        # would mean either no subscripts in figures or a figure whose base type
+        # is larger than the body text beside it. The band is a decision about
+        # what T1 is measuring, not a loophole.
+        #
+        # It is also a narrow band, and that narrowness is the reason
+        # \pdfigmath exists: 5.98 pt clears 5.9 pt by 0.08 pt. Promotion is not
+        # a way to pass T1 -- those subscripts already pass -- it is a way to
+        # stop living 0.08 pt from the edge.
+        short = len(sp["text"].strip()) <= 3
+        tol = T1_SHORT_SPAN_PT if short else T1_TOLERANCE_PT
+        band = "short-span" if short else "running-text"
         if sp["size"] < min_font_pt - tol:
             findings.append(
                 {
@@ -306,8 +412,11 @@ def check_t1(spans, min_font_pt, page_no):
                     "bbox": sp["bbox"],
                     "text": sp["text"],
                     "size_pt": round(sp["size"], 2),
+                    "band": band,
+                    "floor_pt": round(min_font_pt - tol, 2),
                     "message": f"text {sp['text']!r} renders at {sp['size']:.2f}pt, "
-                    f"below the {min_font_pt:.2f}pt floor",
+                    f"below the {min_font_pt - tol:.2f}pt {band} floor "
+                    f"({min_font_pt:.2f}pt nominal, {tol:.2f}pt band)",
                 }
             )
     return findings
@@ -639,11 +748,73 @@ def compute_page_ink(page, content_rect, page_rect, page_no, ink_audit):
         return {"page": page_no, "error": str(exc)}
 
 
+def check_t9(drawings, dash_dpi, page_no):
+    """T9: a dash that cannot resolve at the reference device resolution.
+
+    The failure this exists for is specific, and it is invisible everywhere
+    else. `pd guide` was declared `line width=.45pt,densely dotted`. That
+    expands to `dash pattern=on \\pgflinewidth off 1pt`, and \\pgflinewidth is
+    read when the KEY is processed -- so an edition override that appended
+    `line width=.5pt` afterwards widened the stroke and left the dash at the
+    .45pt already baked in. Source says "densely dotted". Caption says
+    "dotted". PDF says `[0.448 0.996]`. Page, at 150 dpi, says a 0.93-pixel
+    dot whose weight swings 1.6x with sub-pixel phase.
+
+    Only the last of those four is checkable, and only from the PDF.
+
+    A dash is measured in three parts because it fails in three ways: too
+    short an ON and the mark disappears, too short a GAP and adjacent marks
+    merge into a solid line, too thin a STROKE and there is no mark in the
+    other direction either. Each is reported separately, with the pixel
+    figure, so the fix is arithmetic rather than taste.
+    """
+    findings = []
+    px_per_pt = dash_dpi / 72.0
+    for d in drawings:
+        if d["type"] not in ("s", "fs"):
+            continue
+        parsed = parse_dash(d.get("dashes"))
+        if parsed is None:
+            continue
+        ons, gaps = parsed
+        scale = d.get("scale") or 1.0
+        width_pt = (d.get("width") or 0.0) * scale
+        width_px = width_pt * px_per_pt
+        on_px = min(ons) * scale * px_per_pt
+        gap_px = min(gaps) * scale * px_per_pt if gaps else 0.0
+        problems = []
+        if on_px < DASH_MIN_ON_PX:
+            problems.append(f"on-length {min(ons) * scale:.3f}pt = {on_px:.2f}px "
+                            f"(floor {DASH_MIN_ON_PX:g}px)")
+        if gap_px < DASH_MIN_GAP_PX:
+            problems.append(f"gap {min(gaps) * scale:.3f}pt = {gap_px:.2f}px "
+                            f"(floor {DASH_MIN_GAP_PX:g}px)")
+        if width_px < DASH_MIN_WIDTH_PX:
+            problems.append(f"stroke {width_pt:.3f}pt = {width_px:.2f}px "
+                            f"(floor {DASH_MIN_WIDTH_PX:g}px)")
+        if not problems:
+            continue
+        findings.append({
+            "check": "T9",
+            "severity": "fail",
+            "page": page_no,
+            "rect": d["rect"],
+            "dashes": d.get("dashes"),
+            "message": (
+                f"dashed stroke will not resolve at {dash_dpi:g} dpi / 1.0x: "
+                + "; ".join(problems)
+                + " -- state the pattern in absolute points and widen it, or drop "
+                  "the dash if the distinction it makes is not one the reader needs"
+            ),
+        })
+    return findings
+
+
 # --------------------------------------------------------------------------- #
 # Driver
 # --------------------------------------------------------------------------- #
 
-def run_figcheck(pdf_path, min_font_pt=7.0, textwidth_cm=16.3):
+def run_figcheck(pdf_path, min_font_pt=7.0, textwidth_cm=16.3, dash_dpi=DASH_DPI_DEFAULT):
     # Accept a str as well as a Path: the report below takes `.stem` off this
     # argument, so a caller passing a plain string (every test in
     # tests/test_figcheck*.py does) used to reach that line and raise
@@ -672,6 +843,7 @@ def run_figcheck(pdf_path, min_font_pt=7.0, textwidth_cm=16.3):
         findings += check_t6(content_rect, page_rect, page_no)
         findings += check_t7(content_rect, textwidth_pt, textwidth_cm, page_no)
         findings += check_t8(lines, drawings, page_no)
+        findings += check_t9(drawings, dash_dpi, page_no)
         ink_report.append(compute_page_ink(page, content_rect, page_rect, page_no, ink_audit))
 
     by_check = {c: [] for c in ALL_CHECKS}
@@ -723,7 +895,15 @@ CHECK_LABELS = {
     "T6": "dead canvas (warn only)",
     "T7": "wider than chapter textwidth (warn only)",
     "T8": "caption collision",
+    "T9": "dash too small to resolve",
 }
+# A label per check, asserted rather than assumed: render_markdown indexes this
+# by check id, so a check added to ALL_CHECKS without a label here raises a
+# KeyError in the report writer -- after the check has already done its work and
+# the JSON has already been written. Fail at import, where it is obvious.
+assert set(CHECK_LABELS) == set(ALL_CHECKS), (
+    f"CHECK_LABELS and ALL_CHECKS disagree: {set(CHECK_LABELS) ^ set(ALL_CHECKS)}"
+)
 
 
 def render_markdown(report):
@@ -771,6 +951,9 @@ def main(argv=None):
     ap.add_argument("--md", help="write the markdown summary to this path")
     ap.add_argument("--min-font-pt", type=float, default=7.0)
     ap.add_argument("--textwidth-cm", type=float, default=16.3)
+    ap.add_argument("--dash-dpi", type=float, default=DASH_DPI_DEFAULT,
+                    help="reference device resolution for T9 (default 150, i.e. "
+                         "a 1.0x screen read)")
     args = ap.parse_args(argv)
 
     pdf_path = Path(args.pdf)
@@ -779,7 +962,8 @@ def main(argv=None):
         return 2
 
     try:
-        report = run_figcheck(pdf_path, min_font_pt=args.min_font_pt, textwidth_cm=args.textwidth_cm)
+        report = run_figcheck(pdf_path, min_font_pt=args.min_font_pt,
+                              textwidth_cm=args.textwidth_cm, dash_dpi=args.dash_dpi)
     except Exception as exc:  # noqa: BLE001 -- surface any PDF-parsing failure as a usage error
         print(f"figcheck.py: could not process {pdf_path}: {exc}", file=sys.stderr)
         return 2
