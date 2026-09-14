@@ -127,6 +127,49 @@
 % own note without asking what is already in the column is how the Book got
 % seven collisions and a portrait below the paper, and there are now several
 % hundred short notes in the column where there were dozens.
+% Place a margin block with its TOP on the issuing line rather than its foot.
+% Same occupancy bookkeeping as \pd@placemargin -- it must, or a later block
+% would be told the column is free where this one sits -- but it never raises,
+% so it cannot leave the page above. Clamped both ways: the offset is never
+% negative (nothing above the text block) and, where \pagegoal is a real
+% dimension, never so large that the block's foot passes the bottom of the
+% text block. \pagegoal is \maxdimen on an empty page, which is room for
+% anything; a block already taller than its page is left alone rather than
+% shoved, because moving it cannot make it fit.
+\newlength{\pd@blockfloor}
+\newcommand{\pd@placemargintop}[1]{%
+  \setlength{\pd@blockoff}{0pt}%
+  \ifnum\pd@lastheadpage=\thepage\relax
+    \ifdim\pd@blockoff<\dimexpr\pd@lastheadbottom-\pagetotal\relax
+      \setlength{\pd@blockoff}{\dimexpr\pd@lastheadbottom-\pagetotal\relax}\fi
+  \fi
+  \ifnum\pd@blockpage=\thepage\relax
+    \ifdim\pd@blockoff<\dimexpr\pd@blockbottom-\pagetotal+2pt\relax
+      \setlength{\pd@blockoff}{\dimexpr\pd@blockbottom-\pagetotal+2pt\relax}\fi
+  \fi
+  \ifdim\pd@blockoff<0pt \setlength{\pd@blockoff}{0pt}\fi
+  % The floor the two caps above just established: whatever is already in the
+  % column on this page ends here, and nothing may be placed above it.
+  \setlength{\pd@blockfloor}{\pd@blockoff}%
+  % Pull the block up if its foot would pass the bottom of the text block --
+  % but never above that floor. Reducing the offset past it is how the
+  % foot-anchored placement used to undo its own downward pushes: a clamp
+  % applied last re-collides the block with the head or the note it was just
+  % moved clear of, which is the defect this file's other comment records as
+  % 132 collisions on one merge. A block too tall to satisfy both is left at
+  % the floor and overruns the foot, where page_overflow.py's foot-intrusion
+  % and off-the-paper checks will report it -- a visible, measured overrun is
+  % worth more than a silent overlap.
+  \ifdim\pagegoal<\maxdimen
+    \ifdim\dimexpr\pagetotal+\pd@blockoff+\ht#1+\dp#1\relax>\pagegoal
+      \setlength{\pd@blockoff}{\dimexpr\pagegoal-\pagetotal-\ht#1-\dp#1\relax}%
+      \ifdim\pd@blockoff<\pd@blockfloor \setlength{\pd@blockoff}{\pd@blockfloor}\fi
+    \fi
+  \fi
+  \marginnote{\usebox#1}[\pd@blockoff]%
+  \xdef\pd@blockpage{\thepage}%
+  \global\pd@blockbottom=\dimexpr\pagetotal+\pd@blockoff+\ht#1+\dp#1\relax}
+
 \newcommand{\pd@placemargin}[1]{%
   \setlength{\pd@blockoff}{\dimexpr\baselineskip-\ht#1-\dp#1\relax}%
   % A note never starts below the line that issues it -- clamped here, BEFORE
@@ -267,7 +310,20 @@
       % technical edition, where no warning and no reader could reach them.
       % Placed like every other margin block instead: measured, raised to sit
       % on its own line, capped by what is already in the column.
-      \pd@placemargin{\pd@mfbox}%
+      % Top-anchored, unlike every other margin block, and that is the whole
+      % fix for a portrait that printed off the top of the paper. The others
+      % raise themselves so their LAST line sits on the line that issued them,
+      % which is right for a note you read beside its sentence. A figure is
+      % tall, and the raise is computed from \pagetotal -- true only for the
+      % page TeX is filling now. Ostrom's portrait was issued right after
+      % \paragraph{Commons governance.}, whose paragraph then broke to the
+      % next page: the offset was measured against the foot of p. 327 and
+      % applied at the top of p. 328, putting 88 pt of a 117 pt image above
+      % the paper, over the running head, on a page two-thirds empty. Anchored
+      % at the top it can only extend downward, where \pd@placemargin's foot
+      % and occupancy caps already apply, so no stale \pagetotal can lift it
+      % off the page.
+      \pd@placemargintop{\pd@mfbox}%
     }{}%
   \fi}
 

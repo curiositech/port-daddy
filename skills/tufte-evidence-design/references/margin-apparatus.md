@@ -214,3 +214,50 @@ placement. As of this pass:
 6. If the finding is "too much text, no visual" rather than "an uncredited
    idea," reach for `\pdsession`, `\pdexample`, or a redrawn figure — see
    `references/web-application.md` and `skills/harbor-chartwork`, not this file.
+
+## Where a margin block is anchored, and why it differs by kind
+
+Every margin device computes its vertical offset from `\pagetotal`, which is
+the truth about the page TeX is *currently filling* — not necessarily the page
+the block prints on. When a block is issued in a paragraph that then breaks to
+the next page, the offset is measured against one page's geometry and applied
+on another. That is not a bug in any one device; it is a property of the
+information available at macro time, and it is why the anchoring choice is a
+per-kind decision rather than a house default.
+
+**Foot-anchored** (`\pd@placemargin`: `\pdgloss`, `\pdprov`, `\pdprovedon`,
+the Recall blocks). The block is raised so its *last line* sits on the line
+that issued it. This is right for a note read beside its sentence: a gloss
+belongs level with the term it defines, and a citation short-form level with
+the clause that cites it. The raise is the block's height less one line, so
+for the two- or three-line notes these devices produce it is small, and being
+wrong about the page costs a few points of drift.
+
+**Top-anchored** (`\pd@placemargintop`: `\pdmarginfigure`). The block's *top*
+sits on the issuing line and it extends downward. A portrait has no reading
+relationship with the citation line that needs its last line level with it —
+"beside the paragraph" is the whole requirement — and its height is 100 pt or
+more, so the raise a foot anchor would compute is large enough that being
+wrong about the page puts the block off the paper entirely. Ostrom's portrait
+printed with 88 pt of its 117 pt above the top of p. 343 for exactly this
+reason: issued after `\paragraph{Commons governance.}`, whose paragraph began
+the following page.
+
+**The rule.** Do not compute an upward offset from `\pagetotal` for a block
+tall enough that being wrong about the page matters. Top-anchoring satisfies
+this by computing no raise at all. A clamp does not: a clamp is arithmetic on
+the same untrustworthy number, so bounding the result into `[0, printable
+height]` re-derives the fault it is meant to prevent. This was tried — a
+shared clamp applied to both placements put the same portrait back off the
+page, at y = −65.4 — and reverted. Height, not kind, is the criterion: a new
+device that sets a tall block belongs on the top anchor whatever it contains.
+
+Both placements share the occupancy bookkeeping (`\pd@lastheadbottom`,
+`\pd@blockbottom`) and both record where their block came to rest, so a later
+block steps below it. In the top-anchored path the foot clamp may never reduce
+the offset below `\pd@blockfloor`, the position the occupancy caps established:
+reducing past it re-collides the block with whatever it was just moved clear
+of, which is the failure that produced 132 collisions on one merge. A block
+too tall to satisfy both is left at the floor and overruns the foot, where
+`page_overflow.py` reports it — a measured overrun is worth more than a silent
+overlap.

@@ -40,7 +40,6 @@ const KNOWN_UNCOVERED = [
   'cut', 'batten', 'log', 'activity', 'wallet', 'bond', 'say', 'account', 'nudge',
   'dashboard', 'webhook', 'webhooks', 'metrics', 'config',
   'start', 'stop', 'restart', 'status', 'install', 'uninstall',
-  'install-bosun',
   'dev', 'use', 'ci-gate', 'self-update', 'upgrade',
   'doctor', 'diagnose', 'hints', 'mcp', 'bench', 'benchmark', 'look',
   'changelog', 'booty', 'tunnel', 'briefing', 'integration', 'pheromone', 'ph',

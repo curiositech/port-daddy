@@ -749,20 +749,111 @@ export interface UserTokenRow {
   last_used_at: number | null;
   expires_at: number | null;
   revoked_at: number | null;
+  gh_credential_enc: string | null;
+  gh_credential_iv: string | null;
+  gh_credential_key_version: number | null;
 }
 
 /** Store a minted pdu_ token (only its SHA-256). */
 export async function createUserToken(
   db: D1Database,
-  row: { tokenHash: string; userId: string; label: string; createdAt: number; expiresAt: number | null },
+  row: {
+    tokenHash: string;
+    userId: string;
+    label: string;
+    createdAt: number;
+    expiresAt: number | null;
+    ghCredentialEnc: string;
+    ghCredentialIv: string;
+    ghCredentialKeyVersion: number;
+  },
 ): Promise<void> {
   await db
     .prepare(
-      `INSERT INTO user_tokens (token_hash, user_id, label, created_at, expires_at)
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO user_tokens
+         (token_hash, user_id, label, created_at, expires_at,
+          gh_credential_enc, gh_credential_iv, gh_credential_key_version)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .bind(row.tokenHash, row.userId, row.label, row.createdAt, row.expiresAt)
+    .bind(
+      row.tokenHash,
+      row.userId,
+      row.label,
+      row.createdAt,
+      row.expiresAt,
+      row.ghCredentialEnc,
+      row.ghCredentialIv,
+      row.ghCredentialKeyVersion,
+    )
     .run();
+}
+
+export interface UserTokenWithGitHubCredential {
+  user: UserRow;
+  ghCredentialEnc: string;
+  ghCredentialIv: string;
+  ghCredentialKeyVersion: number;
+}
+
+/** Resolve one live pdu_ token plus its Relay-encrypted GitHub grant proof. */
+export async function resolveUserTokenWithGitHubCredential(
+  db: D1Database,
+  tokenHash: string,
+  now: number,
+): Promise<UserTokenWithGitHubCredential | null> {
+  const token = await db.prepare(
+    `SELECT user_id, expires_at, revoked_at,
+            gh_credential_enc, gh_credential_iv, gh_credential_key_version
+       FROM user_tokens WHERE token_hash = ?`,
+  ).bind(tokenHash).first<{
+    user_id: string;
+    expires_at: number | null;
+    revoked_at: number | null;
+    gh_credential_enc: string | null;
+    gh_credential_iv: string | null;
+    gh_credential_key_version: number | null;
+  }>();
+  if (!token || token.revoked_at != null || (token.expires_at != null && token.expires_at <= now)) return null;
+  if (!token.gh_credential_enc || !token.gh_credential_iv
+      || !Number.isSafeInteger(token.gh_credential_key_version)
+      || (token.gh_credential_key_version as number) <= 0) return null;
+  const user = await db.prepare('SELECT * FROM users WHERE id = ? AND deleted_at IS NULL')
+    .bind(token.user_id).first<UserRow>();
+  if (!user) return null;
+  return {
+    user,
+    ghCredentialEnc: token.gh_credential_enc,
+    ghCredentialIv: token.gh_credential_iv,
+    ghCredentialKeyVersion: token.gh_credential_key_version as number,
+  };
+}
+
+/** CAS one refreshed/resealed device credential; a raced refresh fails closed. */
+export async function replaceUserTokenGitHubCredential(
+  db: D1Database,
+  row: {
+    tokenHash: string;
+    userId: string;
+    expectedEnc: string;
+    ghCredentialEnc: string;
+    ghCredentialIv: string;
+    ghCredentialKeyVersion: number;
+  },
+): Promise<boolean> {
+  const result = await db.prepare(
+    `UPDATE user_tokens
+        SET gh_credential_enc = ?, gh_credential_iv = ?, gh_credential_key_version = ?
+      WHERE token_hash = ? AND user_id = ? AND revoked_at IS NULL
+        AND gh_credential_enc = ?`,
+  ).bind(
+    row.ghCredentialEnc,
+    row.ghCredentialIv,
+    row.ghCredentialKeyVersion,
+    row.tokenHash,
+    row.userId,
+    row.expectedEnc,
+  ).run();
+  return Number(result.meta?.changes ?? 0) === 1;
 }
 
 /**
