@@ -244,9 +244,13 @@ class SourceFile:
         self.prose = [""] + [detex(ln) for ln in self.code[1:]]
         self.prose_lower = [p.lower() for p in self.prose]
         self.nlines = len(self.code) - 1
+        # Hyphens are NOT word characters here. They were, once, and the
+        # effect was that "read-poverty" tokenised as a single word, so
+        # find_mentions' head-word prefilter ("read") never matched and every
+        # hyphenated concept in the Book scored zero mentions.
         self.words = set()
         for p in self.prose_lower[1:]:
-            self.words.update(re.findall(r"[a-z0-9'\-]+", p))
+            self.words.update(re.findall(r"[a-z0-9']+", p))
         self._map_sections()
         self._map_paragraphs()
         self._map_floats()
@@ -348,7 +352,7 @@ class SourceFile:
         self.paragraphs.append({
             "start": start, "end": end, "text": text, "lower": text.lower(),
             "offsets": offsets,
-            "words": set(re.findall(r"[a-z0-9'\-]+", text.lower())),
+            "words": set(re.findall(r"[a-z0-9']+", text.lower())),
         })
 
     @staticmethod
@@ -565,17 +569,23 @@ def harvest_marks(files: list[SourceFile]) -> dict[str, list[dict]]:
                 add(body, "pdgloss", sf, n)
             for m in DEF_ENV_RE.finditer(line):
                 if m.group(2):
-                    add(m.group(2), "definition-env", sf, n, {"env": m.group(1)})
+                    denv = sf.def_env_of[n]
+                    add(m.group(2), "definition-env", sf, n,
+                        {"env": m.group(1), "label": (denv or {}).get("label")})
             for m in THM_ENV_RE.finditer(line):
                 if m.group(2):
-                    add(m.group(2), "claim-env", sf, n, {"env": m.group(1)})
+                    lm = LABEL_RE.search(line)
+                    add(m.group(2), "claim-env", sf, n,
+                        {"env": m.group(1), "label": lm.group(1) if lm else None})
             for m in PDCLAIM_RE.finditer(line):
                 try:
                     body, _ = read_braced(line, line.index("{", m.end() - 1))
                 except ValueError:
                     continue
                 kind = "definition-env" if m.group(1).strip().lower().startswith("def") else "claim-env"
-                add(body, kind, sf, n, {"env": "pdclaim", "claim_kind": m.group(1).strip()})
+                denv = sf.def_env_of[n] if kind == "definition-env" else None
+                add(body, kind, sf, n, {"env": "pdclaim", "claim_kind": m.group(1).strip(),
+                                        "label": (denv or {}).get("label")})
         for sec in sf.sections:
             add(sec["title"], "section-title", sf, sec["line"],
                 {"label": sec["label"], "depth": sec["depth"]})
@@ -1067,8 +1077,8 @@ def build_entry(lex: Lexicon, files: list[SourceFile], chapters: list[dict],
     # A parsed (environment-backed) definition outranks a judged prose one
     # however late in the Book it sits: "where is this actually defined?" is
     # answered by the definition environment when there is one.
-    definitions.sort(key=lambda d: (bool(d.get("judged")), d.get("chapter", 99),
-                                    d["file"], d["line"]))
+    definitions.sort(key=lambda d: (bool(d.get("judged")), not d.get("label"),
+                                    d.get("chapter", 99), d["file"], d["line"]))
 
     # -- first use (the \pdgloss anchor) ---------------------------------
     # Two of them, deliberately. `first` is the earliest mention anywhere, in
