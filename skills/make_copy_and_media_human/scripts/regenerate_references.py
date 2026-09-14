@@ -3,8 +3,20 @@
 
 The catalog is the source of truth; the markdown files are grouped, readable
 views of it. Re-run after editing catalog.json.
+
+Two guarantees this script now enforces, because their absence cost real items:
+
+  1. NO ORPHANS. Every catalog item must land in at least one generated file.
+     A dialect value of "groq" where the catalog said "grok" silently dropped an
+     item out of every reference for months, and nothing noticed because nothing
+     checked. This exits non-zero rather than writing a quietly lossy view.
+
+  2. EVERY FIELD IS RENDERED. If you add a field to the catalog, add it here.
+     A field that exists only in JSON is a field the model reading the reference
+     will never see.
 """
 import json
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -15,63 +27,123 @@ items, sources = cat["items"], cat["sources"]
 PROSE_GENERIC = {"prose"}
 VISUAL_MEDIA = {"web-ui", "typography", "color", "iconography", "layout"}
 STRUCT_MEDIA = {"structure", "slide-deck", "marketing-copy"}
+ENG_MEDIA = {"commit-message", "pr-description", "code-review", "code", "docs",
+             "code-comments", "issue", "test"}
+PLATFORM_MEDIA = {"social-post", "email", "listing", "resume", "video", "audio", "image"}
 
 GROUPS = {
     "claudeisms.md": {
         "title": "Claudeisms — and the generic prose tells Claude amplifies",
-        "intro": "Tells most associated with Claude-family output, plus the cross-model prose tells that show up strongest in Claude registers. Severity is how loudly the tell announces machine authorship.",
-        "pick": lambda i: i["dialect"] == "claude" or (i["dialect"] == "generic-llm" and i["medium"] in PROSE_GENERIC),
+        "intro": "Tells most associated with Claude-family output, plus the cross-model prose tells that show up strongest in Claude registers. Severity is how loudly the tell announces machine authorship — not how confident you should be about who wrote it.",
+        "pick": lambda i: i["dialect"] == "claude"
+                          or (i["dialect"] == "generic-llm" and i["medium"] in PROSE_GENERIC),
     },
     "gptisms-codexisms.md": {
         "title": "GPT-isms and Codexisms",
         "intro": "ChatGPT's service voice and README register, and the code-comment tells of Codex/Copilot-shaped generation.",
-        "pick": lambda i: i["dialect"] in {"chatgpt", "codex"},
+        "pick": lambda i: i["dialect"] in {"chatgpt", "codex", "copilot", "cursor"},
     },
     "other-model-dialects.md": {
         "title": "Other model dialects — Gemini, Kimi, DeepSeek, Qwen, Llama, Grok — and cross-model translationese",
-        "intro": "Distinctive tics per model family, plus the affect-flatness tells that mark any machine register.",
-        "pick": lambda i: i["dialect"] in {"gemini", "kimi", "deepseek", "qwen", "llama", "groq"}
-                          or i["name"] in {"zero-typo-zero-contraction-affect-flatness", "tense-and-perspective-drift",
-                                            "low-burstiness-uniform-rhythm", "as-an-ai-leakage"},
+        "intro": "Distinctive tics per model family, plus the affect and register tells that mark any machine output regardless of vendor.",
+        "pick": lambda i: i["dialect"] in {"gemini", "kimi", "deepseek", "qwen", "llama", "grok"}
+                          or i["name"] in {"zero-typo-zero-contraction-affect-flatness",
+                                           "tense-and-perspective-drift",
+                                           "low-burstiness-uniform-rhythm", "as-an-ai-leakage",
+                                           "register-leveling"},
     },
     "visual-design-tells.md": {
-        "title": "Visual design tells — the v0/Lovable look and AI imagery",
-        "intro": "What makes a UI, slide, or image read as generated: the defaults nobody chose, clustering together.",
-        "pick": lambda i: i["medium"] in VISUAL_MEDIA or i["name"].startswith("ai-image") or i["name"] in {"identical-face-different-people", "stock-mesh-gradient-background"},
+        "title": "Visual design tells — the v0/Lovable look and generated imagery",
+        "intro": "What makes a UI, slide, or image read as generated: the defaults nobody chose, clustering together. Read the currency line on every item here — the image-forensics advice in particular has a short shelf life, and some of it has already expired.",
+        "pick": lambda i: i["medium"] in VISUAL_MEDIA or i["medium"] in {"image", "video", "audio"}
+                          or i["name"].startswith("ai-image")
+                          or i["name"] in {"identical-face-different-people",
+                                           "stock-mesh-gradient-background"},
     },
     "structure-and-deck-tells.md": {
         "title": "Structure, deck, and marketing-copy tells",
-        "intro": "Document-shape tells: how generated long-form docs, slides, posts, and emails are assembled, independent of any sentence.",
-        "pick": lambda i: i["medium"] in STRUCT_MEDIA,
+        "intro": "Document-shape tells: how generated long-form docs, slides, posts, and emails are assembled, independent of any sentence in them.",
+        "pick": lambda i: i["medium"] in STRUCT_MEDIA or i["medium"] in PLATFORM_MEDIA,
+    },
+    "engineering-artifact-tells.md": {
+        "title": "Engineering-artifact tells — commits, PRs, reviews, code, tests, docs",
+        "intro": "What generated engineering work looks like in the artifacts maintainers actually read. The highest-precision checks in this file are all RELATIVE — drift from the repo's own log, idiom, or PR norm — because those need no word list, do not age as models change, and a contributor who read the surrounding code passes them automatically.",
+        "pick": lambda i: i["medium"] in ENG_MEDIA,
     },
 }
 
 SEV_RANK = {"high": 0, "medium": 1, "low": 2}
+CURRENCY_NOTE = {
+    "obsolete": "⚠ OBSOLETE — retained as a caution, not as a test.",
+    "fading": "Fading — still seen, but vendors have patched toward it and it is weakening.",
+    "current": "",
+}
+
 
 def block(i):
-    lines = [f"### `{i['name']}`  ·  {i['severity']} · {i['dialect']} · {i['medium']} · {i.get('detection_type','')}", ""]
-    lines += [i["description"], ""]
+    L = [f"### `{i['name']}`  ·  {i['severity']} · {i['dialect']} · {i['medium']} · "
+         f"{i.get('detection_type','')} · family: {i.get('family','')}", ""]
+    note = CURRENCY_NOTE.get(i.get("currency", "current"), "")
+    if note:
+        L += [f"**Currency:** {note}", ""]
+    L += [i["description"], ""]
     if i.get("why_it_reads_ai"):
-        lines += [f"**Why it reads AI:** {i['why_it_reads_ai']}", ""]
-    lines += [f"**Detect:** {i['detection']}", ""]
-    lines += [f"**Fix:** {i['fix']}", ""]
+        L += [f"**Why it reads AI:** {i['why_it_reads_ai']}", ""]
+    L += [f"**Detect:** {i['detection']}", ""]
+    if i.get("thresholds"):
+        pairs = ", ".join(f"`{k}` = {v}" for k, v in i["thresholds"].items())
+        L += [f"**Thresholds** (read by `scripts/humanize_review.py`): {pairs}", ""]
+    L += [f"**Fix:** {i['fix']}", ""]
+    if i.get("false_positive_when"):
+        L += [f"**False positive when:** {i['false_positive_when']}", ""]
+    if i.get("confidence"):
+        L += [f"**Confidence:** {i['confidence']}", ""]
+    if i.get("evidence"):
+        L += [f"**Evidence:** {i['evidence']}", ""]
     if i.get("before"):
-        lines += ["**Before**", "", "> " + i["before"].replace("\n", "\n> "), ""]
+        L += ["**Before**", "", "> " + i["before"].replace("\n", "\n> "), ""]
     if i.get("after"):
-        lines += ["**After**", "", "> " + i["after"].replace("\n", "\n> "), ""]
-    return "\n".join(lines)
+        L += ["**After**", "", "> " + i["after"].replace("\n", "\n> "), ""]
+    return "\n".join(L)
 
+
+placed = set()
 for fname, g in GROUPS.items():
-    picked = sorted((i for i in items if g["pick"](i)), key=lambda i: (SEV_RANK.get(i["severity"], 3), i["name"]))
+    picked = sorted((i for i in items if g["pick"](i)),
+                    key=lambda i: (SEV_RANK.get(i["severity"], 3), i["name"]))
+    placed |= {i["name"] for i in picked}
     doc = [f"# {g['title']}", "", g["intro"], "",
-           f"_{len(picked)} items. Generated from catalog.json — edit there, then re-run scripts/regenerate_references.py._", ""]
+           f"_{len(picked)} items. Generated from catalog.json — edit there, then re-run "
+           f"`scripts/regenerate_references.py`. Do not hand-edit this file._", "",
+           "_Every item carries a **False positive when** line. Read it before you act on "
+           "the item: these are cues for an editor, not evidence about an author._", "",
+           "<!-- humanize:ignore-start",
+           "     Everything below is a specimen catalog. It quotes the tells it documents,",
+           "     including literal machine residue, so reviewing it with humanize_review.py",
+           "     would flag the exhibits rather than the writing. -->", ""]
     doc += [block(i) for i in picked]
+    doc += ["<!-- humanize:ignore-end -->", ""]
     (REF / fname).write_text("\n".join(doc), encoding="utf-8")
     print(f"{fname}: {len(picked)} items")
 
-src_doc = ["# Sources", "", "Published catalogs, stylometry research, and essays the catalog draws on.", ""]
+orphans = [i["name"] for i in items if i["name"] not in placed]
+if orphans:
+    print("\nERROR: these catalog items land in no generated reference:", file=sys.stderr)
+    for o in orphans:
+        it = next(x for x in items if x["name"] == o)
+        print(f"  {o}  (dialect={it['dialect']} medium={it['medium']})", file=sys.stderr)
+    print("Add a GROUPS rule that covers them, or fix the item's dialect/medium.",
+          file=sys.stderr)
+    sys.exit(1)
+
+src_doc = ["# Sources", "",
+           "Published catalogs, stylometry research, and essays the catalog draws on.",
+           "", "_Generated from catalog.json. Do not hand-edit._", "",
+           "<!-- humanize:ignore-start -- source titles and notes quote machine artifacts. -->", ""]
 for s in sorted(sources, key=lambda s: s["title"].lower()):
     note = f" — {s['note']}" if s.get("note") else ""
     src_doc.append(f"- [{s['title']}]({s['url']}){note}")
+src_doc.append("\n<!-- humanize:ignore-end -->")
 (REF / "sources.md").write_text("\n".join(src_doc) + "\n", encoding="utf-8")
 print(f"sources.md: {len(sources)} sources")
+print(f"\nall {len(items)} items placed, no orphans")
