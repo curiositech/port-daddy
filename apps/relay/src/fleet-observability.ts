@@ -9,7 +9,7 @@
  *   GET  /v1/fleet/health             paused flag + last-run age + queue depth
  *
  * Control side: the kill switch.
- *   POST /v1/fleet/pause {paused}     toggle the KV flag the executor checks
+ *   POST /v1/fleet/pause             commit pause, or resume with revision + request ID
  *                                     at job START, before any AI spend.
  *
  * Shared envelope: every response is JSON `{ code, error, ... }` to match the
@@ -218,6 +218,8 @@ export async function handleFleetHealth(request: Request, env: Env): Promise<Res
 
 interface PauseBody {
   paused?: boolean;
+  expectedRevision?: number;
+  requestId?: string;
 }
 
 /**
@@ -232,9 +234,15 @@ export async function handleFleetPause(request: Request, env: Env): Promise<Resp
   if (!body || typeof body.paused !== 'boolean') {
     return fleetErr('BAD_JSON', 'Request body must be JSON {paused: boolean}', 400);
   }
+  if (!body.paused && (!Number.isSafeInteger(body.expectedRevision) || Number(body.expectedRevision) < 1
+      || typeof body.requestId !== 'string' || !/^[A-Za-z0-9._:-]{1,128}$/.test(body.requestId))) {
+    return fleetErr('RESUME_PRECONDITION_REQUIRED', 'Resume requires the observed pauseRevision and a unique requestId.', 400);
+  }
 
   try {
-    const state = await setFleetPaused(env, body.paused);
+    const state = await setFleetPaused(env, body.paused, body.paused ? undefined : {
+      expectedRevision: body.expectedRevision!, requestId: body.requestId!,
+    });
     await appendAudit(env.DB, {
       action: body.paused ? 'fleet_pause' : 'fleet_resume',
       detail: operatorAuditDetail(authorization, body.paused ? 'pause' : 'resume'),
@@ -244,6 +252,7 @@ export async function handleFleetPause(request: Request, env: Env): Promise<Resp
     return envelope(200, { code: 'OK', error: null, ok: true, paused: state.paused,
       pauseStatus: state.status, pauseRevision: state.revision });
   } catch (e) {
+    if (!body.paused) return fleetErr('RESUME_CONFLICT', `Resume refused: ${msg(e)}`, 409);
     return fleetErr('INTERNAL_ERROR', `pause toggle failed: ${msg(e)}`, 500);
   }
 }

@@ -91,7 +91,9 @@ struct CloudFleetRun: Decodable, Identifiable, Equatable {
 }
 
 struct CloudFleetHealth: Decodable, Equatable {
-    let paused: Bool
+    let paused: Bool?
+    var pauseStatus: String { paused.map { $0 ? "paused" : "unpaused" } ?? "unknown" }
+    var automationBlocked: Bool { paused != false }
     let lastRunAgeSec: Double?
     let queueDepthEstimate: Int?
     let running: Int
@@ -102,13 +104,23 @@ struct CloudFleetHealth: Decodable, Equatable {
     let knownIntents: Int
 
     private enum CodingKeys: String, CodingKey {
-        case paused, lastRunAgeSec, queueDepthEstimate, running, retrying
+        case paused, pauseStatus, pauseRevision, automationBlocked, lastRunAgeSec, queueDepthEstimate, running, retrying
         case superseded, failedAdmission, oldestQueuedAgeSec, knownIntents
     }
 
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
-        paused = (try values.decodeIfPresent(Bool.self, forKey: .paused)) ?? false
+        let declaredPaused = try? values.decodeIfPresent(Bool.self, forKey: .paused)
+        let declaredStatus = try? values.decodeIfPresent(String.self, forKey: .pauseStatus)
+        let revision = try? values.decodeIfPresent(Int.self, forKey: .pauseRevision)
+        let blocked = try? values.decodeIfPresent(Bool.self, forKey: .automationBlocked)
+        if let declaredPaused, let revision, revision > 0,
+           declaredStatus == (declaredPaused ? "paused" : "unpaused"),
+           blocked == declaredPaused {
+            paused = declaredPaused
+        } else {
+            paused = nil
+        }
         lastRunAgeSec = try values.decodeIfPresent(Double.self, forKey: .lastRunAgeSec)
         queueDepthEstimate = try values.decodeIfPresent(Int.self, forKey: .queueDepthEstimate)
         running = (try values.decodeIfPresent(Int.self, forKey: .running)) ?? 0

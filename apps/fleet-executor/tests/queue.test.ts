@@ -69,6 +69,47 @@ afterEach(() => {
 });
 
 describe('queue consumer', () => {
+  it('acks suspension without a terminal review verdict and permits explicit same-delivery redelivery', async () => {
+    state.files.set('main:pd-fleet.yml', ONE_SHIP_YAML);
+    const tokens = memoryKV();
+    seedToken(tokens, 42);
+    const capture = memoryD1();
+    let intentState = 'queued';
+    let intentReason = '';
+    const db = { prepare(sql: string) {
+      if (!sql.includes('fleet_run_intents')) return capture.db.prepare(sql);
+      let bound: unknown[] = [];
+      const statement = {
+        bind(...args: unknown[]) { bound = args; return statement; },
+        async first() { return { state: intentState }; },
+        async run() {
+          if (sql.includes("SET state = 'running'")) intentState = 'running';
+          else if (sql.includes("SET state = 'retrying'")) { intentState = 'retrying'; intentReason = String(bound[2]); }
+          else if (sql.includes('SET state = ?')) intentState = String(bound[0]);
+          return { success: true, meta: { changes: 1 } };
+        },
+      };
+      return statement;
+    } } as D1Database;
+    const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
+    const env = makeEnv({ FLEET_TOKENS: tokens, AI: ai.ai, DB: db });
+    const available = env.FLEET_CONTROL;
+    env.FLEET_CONTROL = undefined;
+    const first = fakeMessage(makeJob());
+    await handler.queue(fakeBatch([first]), env, capturingCtx());
+    expect(first.ack).toHaveBeenCalledOnce();
+    expect(first.retry).not.toHaveBeenCalled();
+    expect(intentState).toBe('retrying');
+    expect(intentReason).toContain('Fleet suspended: binding-missing');
+    expect(ai.calls).toHaveLength(0);
+    env.FLEET_CONTROL = available;
+    const redelivery = fakeMessage(makeJob(), 2);
+    await handler.queue(fakeBatch([redelivery]), env, capturingCtx());
+    expect(redelivery.ack).toHaveBeenCalledOnce();
+    expect(ai.calls.length).toBeGreaterThan(0);
+    expect(state.completed.at(-1)?.conclusion).toBe('success');
+  });
+
   it('retries an unavailable raw diff, then the DLQ fails its visible gate without model work', async () => {
     // A GitHub 5xx from the raw-diff endpoint used to become an empty diff and
     // let a clean, zero-source review complete. It is infrastructure failure:

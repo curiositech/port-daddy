@@ -583,9 +583,10 @@ export async function getFleetControl(env: Pick<Env, 'FLEET_CONTROL'>): Promise<
 /** Acknowledge only after the new monotonic revision has been committed. */
 export async function setFleetPaused(
   env: Pick<Env, 'FLEET_CONTROL'>,
-  paused: boolean
+  paused: boolean,
+  resume?: { expectedRevision: number; requestId: string },
 ): Promise<FleetControlState & { paused: boolean }> {
-  const state = await fleetControlRequest(env.FLEET_CONTROL, '/set', { paused });
+  const state = await fleetControlRequest(env.FLEET_CONTROL, '/set', { paused, ...resume });
   if (state.status === 'unknown') throw new Error(`Fleet control unavailable: ${state.reason}`);
   return state;
 }

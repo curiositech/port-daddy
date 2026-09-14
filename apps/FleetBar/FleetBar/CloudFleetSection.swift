@@ -99,6 +99,11 @@ struct CloudFleetSection: View {
 
     @ViewBuilder
     private var liveRuns: some View {
+        if store.health?.pauseStatus == "unknown" {
+            Label("UNKNOWN — automated work blocked", systemImage: "exclamationmark.shield.fill")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Fleet.Color.failure)
+        }
         if store.isSignedOut {
             emptyCloudCard(
                 icon: "person.crop.circle.badge.exclamationmark",

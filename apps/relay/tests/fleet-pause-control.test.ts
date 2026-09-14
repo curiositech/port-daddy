@@ -11,13 +11,15 @@ describe('transactional Fleet pause authority', () => {
   it('starts unknown, commits revisions, and fences an old unpaused admission after pause/resume', async () => {
     const { namespace } = memoryFleetControl();
     expect(await fleetControlRequest(namespace, '/read')).toMatchObject({ status: 'unknown' });
-    expect(await fleetControlRequest(namespace, '/set', { paused: false })).toMatchObject({ status: 'unpaused', revision: 1 });
-    expect(await fleetControlRequest(namespace, '/admit', { expectedRevision: 1 })).toMatchObject({ status: 'unpaused' });
-    expect(await fleetControlRequest(namespace, '/set', { paused: true })).toMatchObject({ status: 'paused', revision: 2 });
-    expect(await fleetControlRequest(namespace, '/admit', { expectedRevision: 1 })).toMatchObject({ status: 'unknown' });
-    expect(await fleetControlRequest(namespace, '/set', { paused: false })).toMatchObject({ revision: 3 });
-    expect(await fleetControlRequest(namespace, '/admit', { expectedRevision: 1 })).toMatchObject({ status: 'unknown' });
-    expect(await fleetControlRequest(namespace, '/admit', { expectedRevision: 3 })).toMatchObject({ status: 'unpaused' });
+    expect(await fleetControlRequest(namespace, '/set', { paused: false, expectedRevision: 0, requestId: 'initial-resume' })).toMatchObject({ status: 'unknown' });
+    expect(await fleetControlRequest(namespace, '/set', { paused: true })).toMatchObject({ status: 'paused', revision: 1 });
+    expect(await fleetControlRequest(namespace, '/set', { paused: false, expectedRevision: 1, requestId: 'initial-resume' })).toMatchObject({ status: 'unpaused', revision: 2 });
+    expect(await fleetControlRequest(namespace, '/admit', { expectedRevision: 2 })).toMatchObject({ status: 'unpaused' });
+    expect(await fleetControlRequest(namespace, '/set', { paused: true })).toMatchObject({ status: 'paused', revision: 3 });
+    expect(await fleetControlRequest(namespace, '/admit', { expectedRevision: 2 })).toMatchObject({ status: 'unknown' });
+    expect(await fleetControlRequest(namespace, '/set', { paused: false, expectedRevision: 3, requestId: 'resume-two' })).toMatchObject({ revision: 4 });
+    expect(await fleetControlRequest(namespace, '/admit', { expectedRevision: 2 })).toMatchObject({ status: 'unknown' });
+    expect(await fleetControlRequest(namespace, '/admit', { expectedRevision: 4 })).toMatchObject({ status: 'unpaused' });
   });
   it('serializes a concurrent pause before a subsequent admission', async () => {
     const { namespace } = memoryFleetControl({ paused: false, revision: 1, pausedAt: 1 });
@@ -35,6 +37,29 @@ describe('transactional Fleet pause authority', () => {
     const { namespace, values } = memoryFleetControl({ paused: false, revision: 4, pausedAt: 1 });
     values.delete('revision');
     expect(await fleetControlRequest(namespace, '/admit')).toMatchObject({ status: 'unknown' });
+    expect(await fleetControlRequest(namespace, '/set', { paused: false })).toMatchObject({ status: 'unknown' });
+  });
+
+  it('persists a run epoch across fresh admission callers and all continuation messages', async () => {
+    const { namespace } = memoryFleetControl({ paused: false, revision: 1, pausedAt: 1 });
+    expect(await fleetControlRequest(namespace, '/admit', { runId: 'owner/repo/run:one' })).toMatchObject({ revision: 1 });
+    await fleetControlRequest(namespace, '/set', { paused: true });
+    await fleetControlRequest(namespace, '/set', { paused: false, expectedRevision: 2, requestId: 'resume' });
+    expect(await fleetControlRequest(namespace, '/admit', { runId: 'owner/repo/run:one' })).toMatchObject({
+      status: 'unknown', reason: 'run-revision-changed',
+    });
+    expect(await fleetControlRequest(namespace, '/admit', { runId: 'owner/repo/run:two' })).toMatchObject({ revision: 3 });
+  });
+
+  it('replayed and delayed resumes cannot override a newer emergency pause', async () => {
+    const { namespace } = memoryFleetControl({ paused: true, revision: 1, pausedAt: 1 });
+    const resume = { paused: false, expectedRevision: 1, requestId: 'resume-once' };
+    expect(await fleetControlRequest(namespace, '/set', resume)).toMatchObject({ revision: 2, status: 'unpaused' });
+    expect(await fleetControlRequest(namespace, '/set', resume)).toMatchObject({ revision: 2, status: 'unpaused' });
+    await fleetControlRequest(namespace, '/set', { paused: true });
+    expect(await fleetControlRequest(namespace, '/set', resume)).toMatchObject({ status: 'unknown', reason: 'resume-superseded' });
+    expect(await fleetControlRequest(namespace, '/set', { ...resume, requestId: 'delayed-resume' })).toMatchObject({ status: 'unknown', reason: 'revision-changed' });
+    expect(await fleetControlRequest(namespace, '/read')).toMatchObject({ status: 'paused', revision: 3 });
     expect(await fleetControlRequest(namespace, '/set', { paused: false })).toMatchObject({ status: 'unknown' });
   });
 });

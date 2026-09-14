@@ -28,6 +28,8 @@ import {
   type GitHubState,
 } from './harness.js';
 import type { FleetRunJob } from '../src/env.js';
+import { memoryFleetControl } from '../../relay/tests/fleet-control-fixture.js';
+import { fleetControlRequest } from '../../relay/src/fleet-pause-control.js';
 
 /** Build a well-formed pd-fleet.yml the deterministic parser reads directly. */
 function fleetYaml(
@@ -78,6 +80,45 @@ afterEach(() => {
 });
 
 describe('Fleet pause service (legacy KV scenarios are fixture inputs only)', () => {
+  it('a transient control suspension after check creation can resume the same delivery', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
+    let reads = 0;
+    const service = { admit: async () => {
+      if (++reads === 2) throw new Error('temporary control outage');
+      return { status: 'unpaused' as const, paused: false, revision: 1, pausedAt: 1 };
+    } };
+    const env = makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, FLEET_CONTROL: service });
+    expect(await executeFleet(makeJob(), env)).toMatchObject({ kind: 'suspended' });
+    expect(state.completed[0].summary).toContain('pd-fleet-suspension:v1');
+    expect(ai.calls).toHaveLength(0);
+    expect(await executeFleet(makeJob(), env)).not.toMatchObject({ kind: 'already-decided' });
+    expect(ai.calls.length).toBeGreaterThan(0);
+    expect(state.completed.at(-1)?.conclusion).toBe('success');
+  });
+
+  it('pause/resume between continuation invocations cannot grant the old run a fresh epoch', async () => {
+    state.files.set('main:pd-fleet.yml', fleetYaml([{ name: 'code-reviewer', blocking: true }, { name: 'qa', blocking: true }]));
+    const { namespace } = memoryFleetControl({ paused: false, revision: 1, pausedAt: 1 });
+    const service = { admit: (expectedRevision?: number, runId?: string) =>
+      fleetControlRequest(namespace, '/admit', { expectedRevision, runId }) };
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS', qa: 'ok\n\nFLEET-VERDICT: PASS' } });
+    const env = makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, FLEET_CONTROL: service });
+    expect(await executeFleet(makeJob(), env, { maxNewShipsPerInvocation: 1 })).toMatchObject({ kind: 'continuation' });
+    const paidCalls = ai.calls.length;
+    await fleetControlRequest(namespace, '/set', { paused: true });
+    await fleetControlRequest(namespace, '/set', { paused: false, expectedRevision: 2, requestId: 'resume-run' });
+    expect(await executeFleet(makeJob({ continuationSequence: 1 }), { ...env })).toMatchObject({
+      kind: 'suspended', reason: 'run-revision-changed',
+    });
+    expect(ai.calls).toHaveLength(paidCalls);
+    expect(state.completed.at(-1)?.conclusion).toBe('failure');
+  });
+
   it('a stale unpaused KV value cannot replace the authoritative service binding', async () => {
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -122,7 +163,7 @@ describe('Fleet pause service (legacy KV scenarios are fixture inputs only)', ()
     let calls = 0;
     const admit = vi.fn(async () => ({ status: 'unpaused' as const, paused: false, revision: ++calls === 1 ? 1 : 3, pausedAt: 1 }));
     await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, FLEET_CONTROL: { admit } }));
-    expect(admit).toHaveBeenNthCalledWith(2, 1);
+    expect(admit).toHaveBeenNthCalledWith(2, 1, 'erichowens/port-daddy/run:delivery-abc');
     expect(ai.calls).toHaveLength(0);
     expect(state.completed.at(-1)?.conclusion).toBe('failure');
   });
