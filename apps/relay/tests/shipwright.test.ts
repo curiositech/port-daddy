@@ -18,12 +18,15 @@
  * queries these paths issue, recording every SQL + binds for assertions.
  */
 
-import { describe, it, expect } from 'vitest';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
+import { generateKeyPairSync } from 'node:crypto';
 import {
   handleShipwrightChat,
   handleShipwrightHistory,
   handleShipwrightClear,
   handleShipwrightCreateThread,
+  handleShipwrightThreads,
+  handleShipwrightContext,
   assembleSseText,
   shipwrightModel,
   SHIPWRIGHT_DEFAULT_MODEL,
@@ -50,6 +53,20 @@ const INSTALLATION_ID = 42;
 const REPO = 'octo/widgets';
 const WRAP_KEY = 'cc'.repeat(32);
 const SEALED_TOKEN = { enc: 'U4N_M4a3twfj0EeV9zkalIHLEF0iOBia', iv: 'AQEBAQEBAQEBAQEB' };
+const TEST_APP_KEY = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey
+  .export({ type: 'pkcs8', format: 'pem' }) as string;
+
+beforeEach(() => {
+  vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.endsWith('/repos/octo/widgets/installation')) return Response.json({ id: INSTALLATION_ID });
+    if (url.includes(`/user/installations/${INSTALLATION_ID}/repositories`)) {
+      return Response.json({ total_count: 1, repositories: [{ full_name: REPO }] });
+    }
+    return new Response('not found', { status: 404 });
+  }));
+});
+afterEach(() => vi.unstubAllGlobals());
 
 const baseUser: UserRow = {
   id: 'u_1',
@@ -90,7 +107,7 @@ function makeDb(opts: { history?: ShipwrightMessageRow[]; sessionHash?: string }
             : null) as T | null;
         }
         if (sql.includes('FROM users WHERE id')) return baseUser as unknown as T;
-        if (sql.includes('FROM shipwright_threads WHERE id')) return {
+        if (sql.includes('FROM shipwright_threads')) return {
           id: THREAD_ID, user_id: 'u_1', installation_id: INSTALLATION_ID,
           repo_full_name: REPO, created_at: 1, updated_at: 1,
         } as T;
@@ -98,6 +115,12 @@ function makeDb(opts: { history?: ShipwrightMessageRow[]; sessionHash?: string }
       },
       async all<T>(): Promise<{ results: T[] }> {
         calls.push({ sql, binds: bound });
+        if (sql.includes('FROM shipwright_threads WHERE user_id')) {
+          return { results: [{
+            id: THREAD_ID, user_id: 'u_1', installation_id: INSTALLATION_ID,
+            repo_full_name: REPO, created_at: 1, updated_at: 1,
+          }] as unknown as T[] };
+        }
         if (sql.includes('FROM shipwright_thread_messages') || sql.includes('FROM shipwright_chats')) {
           // The DAL SELECTs newest-first; give it newest-first and let it reverse.
           const rows = [...(opts.history ?? [])].sort((a, b) => b.id - a.id);
@@ -131,7 +154,7 @@ function makeEnv(
     } as unknown as KVNamespace,
     USER_TOKEN_WRAPPING_KEY: WRAP_KEY,
     GITHUB_APP_ID: '12345',
-    GITHUB_APP_PRIVATE_KEY: 'cached-so-not-parsed',
+    GITHUB_APP_PRIVATE_KEY: TEST_APP_KEY,
     PUBLIC_BASE_URL: BASE,
     ...over,
   } as unknown as Env;
@@ -260,10 +283,30 @@ describe('shipwright — history is scoped to the session user', () => {
     // A hostile query param must not widen the read.
     const res = await handleShipwrightHistory(req('/v1/shipwright/history?user_id=u_2'), env);
     expect(res.status).toBe(200);
+    const payload = await res.clone().json() as { thread: { repo: string; installationId: number } };
+    expect(payload.thread).toEqual({ threadId: THREAD_ID, repo: REPO, installationId: INSTALLATION_ID });
     const sel = calls.find((c) => c.sql.includes('FROM shipwright_thread_messages'));
     expect(sel).toBeDefined();
     expect(sel!.sql).toContain('m.user_id = ?');
     expect(sel!.binds.slice(0, 3)).toEqual([THREAD_ID, 'u_1', 'u_1']);
+  });
+
+  it('lists server-bound identities and previews durable context without model egress', async () => {
+    const { env } = sessionEnv({ AI: mockAi(new Error('model must not run')).ai });
+    const inventory = await handleShipwrightThreads(req('/v1/shipwright/threads'), env);
+    expect(inventory.status).toBe(200);
+    expect((await inventory.json() as { threads: unknown[] }).threads).toEqual([{
+      threadId: THREAD_ID, repo: REPO, installationId: INSTALLATION_ID, updatedAt: 1,
+    }]);
+
+    const preview = await handleShipwrightContext(req(`/v1/shipwright/context?thread=${THREAD_ID}`), env);
+    expect(preview.status).toBe(200);
+    expect(await preview.json()).toMatchObject({
+      thread: { threadId: THREAD_ID, repo: REPO, installationId: INSTALLATION_ID },
+      memory: [],
+      latestProposal: null,
+      modelContinuity: 'held_pending_operator_consent',
+    });
   });
 
   it('a chat turn persists BOTH rows under the session user id', async () => {
@@ -384,6 +427,7 @@ describe('shipwright — ADR-0101 erasure + export', () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { shipwrightChats: Array<{ role: string; content: string; createdAt: number }> };
     expect(body.shipwrightChats).toEqual([{ role: 'user', content: 'my repo is acme/widgets', createdAt: 42 }]);
+    expect((body as unknown as { shipwrightScopedContext: unknown }).shipwrightScopedContext).toBeDefined();
   });
 });
 
@@ -667,6 +711,9 @@ describe('GET /account/shipwright — page', () => {
     const html = await res.text();
     const nonce = /script-src 'nonce-([0-9a-f]{32})'/.exec(csp)![1]!;
     expect(html).toContain(`<script nonce="${nonce}">`);
+    const script = html.match(/<script nonce="[^"]+">([\s\S]*?)<\/script>/)?.[1];
+    expect(script).toBeDefined();
+    expect(() => new Function(script!)).not.toThrow();
   });
 
   it('is honest about its hands: PR-opening at the user click, stated retention, real endpoints', () => {

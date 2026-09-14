@@ -44,11 +44,11 @@
  *   3. provenance: the YAML must be a fenced block the Shipwright actually
  *      emitted in THIS user's own stored conversation — the PR body then
  *      carries that provenance honestly;
- *   4. tenancy (the billing-page idiom, ADR-0116): `userOwnsInstallation`
- *      gates on GitHub's own GET /user/installations answer, and the target
- *      repo must resolve (via the App JWT) to that SAME installation — so a
- *      session can never target another tenant's installation or repo, and
- *      never supplies an id the server didn't offer it.
+ *   4. tenancy: the signed-in user's GitHub token must list the exact repo
+ *      under the exact installation, and a force-refreshed App lookup must
+ *      agree. All denial shapes are indistinguishable.
+ *   5. publication mints one uncached installation token attenuated to that
+ *      repository with contents/pull-request write only, then revokes it.
  *
  * VALIDATION (grand-plan §shipwright-yaml-validate): the model's emitted
  * pd-fleet.yml is never trusted on its say-so. Every fenced ```yaml/```yml
@@ -65,10 +65,11 @@
 import { CF_ROLE_MODELS } from '../../shared/model-registry.generated.js';
 import type { Env } from './types.js';
 import { modelBoardPromptFragment } from './model-dossier.js';
-import { resolveSession, isSameOrigin, userOwnsInstallation, type ResolvedSession } from './auth-github.js';
+import { resolveSession, isSameOrigin, type ResolvedSession } from './auth-github.js';
 import {
-  createShipwrightThread,
+  getOrCreateShipwrightThread,
   getShipwrightThread,
+  listShipwrightThreads,
   insertScopedShipwrightMessage,
   listScopedShipwrightMessages,
   clearScopedShipwrightMessages,
@@ -76,16 +77,20 @@ import {
   insertShipwrightProposal,
   shipwrightProposalExists,
   clearShipwrightRepo,
+  listShipwrightRepoMemory,
+  latestShipwrightProposal,
   type ShipwrightThreadRow,
 } from './db.js';
 import { validateFleetYaml, type FleetValidationResult } from './fleet-parser.js';
 import { commitFilesAndOpenPr } from './fleet-control.js';
 import {
   getRepoInstallationId,
-  getInstallationTokenCached,
+  mintRepositoryInstallationToken,
+  revokeInstallationToken,
   getRepoDefaultBranch,
 } from './github-app.js';
 import { randomHex } from './crypto.js';
+import { authorizeExactRepository } from './github-publisher.js';
 
 // ── Bounds ──────────────────────────────────────────────────────────────────
 //
@@ -171,9 +176,6 @@ async function authorizeRepoScope(
   if (!env.GITHUB_APP_ID || !env.GITHUB_APP_PRIVATE_KEY) {
     return json(503, { code: 'SHIPWRIGHT_REPO_AUTH_UNCONFIGURED', error: 'GitHub App not configured on this relay' });
   }
-  if (!(await userOwnsInstallation(env, session, installationId))) {
-    return json(403, { code: 'FORBIDDEN', error: 'you do not own this installation' });
-  }
   const [owner, repo] = repoFullName.split('/') as [string, string];
   try {
     const installed = await getRepoInstallationId(
@@ -182,12 +184,15 @@ async function authorizeRepoScope(
       owner,
       repo,
       env.KV,
+      true,
     );
-    if (installed !== installationId) {
-      return json(403, { code: 'REPO_SCOPE_MISMATCH', error: 'repository does not belong to this installation' });
-    }
+    if (installed !== installationId || !session.ghToken) throw new Error('scope unavailable');
+    await authorizeExactRepository(installationId, repoFullName, session.ghToken);
   } catch {
-    return json(403, { code: 'REPO_NOT_INSTALLED', error: `the Port Daddy Fleet GitHub App is not installed on ${repoFullName}` });
+    // Missing repo, another account, wrong installation and upstream denial
+    // are intentionally indistinguishable. This route is not a repository or
+    // installation existence oracle.
+    return json(404, { code: 'SHIPWRIGHT_SCOPE_UNAVAILABLE', error: 'repository context is unavailable' });
   }
   return null;
 }
@@ -229,14 +234,22 @@ export async function handleShipwrightCreateThread(request: Request, env: Env): 
   if (refused) return refused;
   const now = Math.floor(Date.now() / 1000);
   const threadId = `swt_${randomHex(24)}`;
-  await createShipwrightThread(env.DB, {
-    id: threadId,
-    user_id: session.user.id,
-    installation_id: installationId,
-    repo_full_name: repoFullName,
-    created_at: now,
-    updated_at: now,
-  });
+  let thread: ShipwrightThreadRow;
+  try {
+    thread = await getOrCreateShipwrightThread(env.DB, {
+      id: threadId,
+      user_id: session.user.id,
+      installation_id: installationId,
+      repo_full_name: repoFullName,
+      created_at: now,
+      updated_at: now,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('shipwright thread quota exceeded')) {
+      return json(429, { code: 'SHIPWRIGHT_THREAD_QUOTA', error: 'repository thread quota reached' });
+    }
+    throw error;
+  }
   await upsertShipwrightRepoMemory(env.DB, {
     id: `swm_${randomHex(24)}`,
     userId: session.user.id,
@@ -246,7 +259,23 @@ export async function handleShipwrightCreateThread(request: Request, env: Env): 
     bodyJson: JSON.stringify({ repo: repoFullName, installationId }),
     now,
   });
-  return json(201, { code: 'SHIPWRIGHT_THREAD_CREATED', error: null, threadId, repo: repoFullName, installationId });
+  return json(201, { code: 'SHIPWRIGHT_THREAD_READY', error: null, threadId: thread.id, repo: thread.repo_full_name, installationId: thread.installation_id });
+}
+
+/** GET /v1/shipwright/threads — bounded server-backed resume inventory. */
+export async function handleShipwrightThreads(request: Request, env: Env): Promise<Response> {
+  const session = await resolveSession(request, env);
+  if (!session) return json(401, { code: 'UNAUTHENTICATED', error: 'no session' });
+  const threads = await listShipwrightThreads(env.DB, session.user.id, 100);
+  return json(200, {
+    code: 'OK', error: null,
+    threads: threads.map((thread) => ({
+      threadId: thread.id,
+      repo: thread.repo_full_name,
+      installationId: thread.installation_id,
+      updatedAt: thread.updated_at,
+    })),
+  });
 }
 
 // ── GET /v1/shipwright/history?thread=<opaque> ───────────────────────────────
@@ -272,6 +301,38 @@ export async function handleShipwrightHistory(request: Request, env: Env): Promi
       // Only the Shipwright's own turns can carry a roster to badge.
       yaml: m.role === 'assistant' ? validateEmittedYaml(m.content) : [],
     })),
+    thread: {
+      threadId: scope.thread.id,
+      repo: scope.thread.repo_full_name,
+      installationId: scope.thread.installation_id,
+    },
+  });
+}
+
+/** GET /v1/shipwright/context?thread= — user-visible durable-memory preview. */
+export async function handleShipwrightContext(request: Request, env: Env): Promise<Response> {
+  const threadId = new URL(request.url).searchParams.get('thread') ?? '';
+  const scope = await resolveAuthorizedThread(request, env, threadId);
+  if (scope instanceof Response) return scope;
+  const repoScope = {
+    userId: scope.session.user.id,
+    installationId: scope.thread.installation_id,
+    repoFullName: scope.thread.repo_full_name,
+  };
+  const [memory, proposal] = await Promise.all([
+    listShipwrightRepoMemory(env.DB, repoScope, 20),
+    latestShipwrightProposal(env.DB, { ...repoScope, threadId: scope.thread.id }),
+  ]);
+  return json(200, {
+    code: 'OK', error: null,
+    thread: { threadId: scope.thread.id, repo: scope.thread.repo_full_name, installationId: scope.thread.installation_id },
+    memory: memory.map((row) => ({ kind: row.kind, body: JSON.parse(row.body_json), updatedAt: row.updated_at })),
+    latestProposal: proposal ? {
+      createdAt: proposal.created_at,
+      yaml: proposal.yaml,
+      verdict: validateFleetYaml(proposal.yaml),
+    } : null,
+    modelContinuity: 'held_pending_operator_consent',
   });
 }
 
@@ -566,9 +627,8 @@ async function readOpenPrBody(request: Request, form: boolean): Promise<OpenPrFi
  *     that lies about validation gets a 400, unconditionally;
  *   - the YAML must be a block the Shipwright actually emitted in this user's
  *     own stored conversation (provenance — and the PR body says so);
- *   - `userOwnsInstallation` plus the App-JWT repo→installation binding make
- *     the tenancy boundary GitHub's own answer: session A can never target
- *     session B's installation, or any repo outside the chosen installation.
+ *   - GitHub must freshly confirm both the App's repo→installation binding and
+ *     the signed-in user's exact repository grant before publication.
  *
  * Dialects: JSON (`{yaml, installationId, repo}`) answers JSON; the page's
  * script-free form POST answers 303 — to the created PR on success, back to
@@ -624,7 +684,7 @@ export async function handleShipwrightOpenPr(request: Request, env: Env): Promis
     );
   }
   if (scoped.thread.installation_id !== installationId || scoped.thread.repo_full_name !== repoFull) {
-    return fail(403, 'REPO_SCOPE_MISMATCH', 'the target does not match this Shipwright thread');
+    return fail(404, 'SHIPWRIGHT_SCOPE_UNAVAILABLE', 'repository context is unavailable');
   }
 
   // ── Gate 1: the server re-validates. The page's badge, the model's claim,
@@ -654,38 +714,28 @@ export async function handleShipwrightOpenPr(request: Request, env: Env): Promis
     return fail(400, 'NOT_FROM_CHAT', 'that roster is not one the Shipwright emitted in your conversation');
   }
 
-  // ── Gate 3: tenancy (the billing idiom, ADR-0116). GitHub's own answer
-  // decides ownership of the installation, and the App JWT decides which
-  // installation serves the repo — both must agree before anything writes.
-  if (!(await userOwnsInstallation(env, session, installationId))) {
-    return fail(403, 'FORBIDDEN', 'you do not own this installation');
-  }
-  let boundInstallation: number;
-  try {
-    boundInstallation = await getRepoInstallationId(
-      env.GITHUB_APP_ID,
-      env.GITHUB_APP_PRIVATE_KEY,
-      owner,
-      repo,
-      env.KV,
-    );
-  } catch {
-    return fail(403, 'REPO_NOT_INSTALLED', `the Port Daddy Fleet GitHub App is not installed on ${repoFull}`);
-  }
-  if (boundInstallation !== installationId) {
-    return fail(403, 'REPO_NOT_INSTALLED', `${repoFull} does not belong to installation ${installationId}`);
+  // ── Gate 3: repeat exact repository authorization immediately before the
+  // mutation credential is minted. This force-refreshes both the App binding
+  // and the signed-in user's installation-repository grant.
+  const publicationRefusal = await authorizeRepoScope(env, session, installationId, repoFull);
+  if (publicationRefusal) {
+    return fail(404, 'SHIPWRIGHT_SCOPE_UNAVAILABLE', 'repository context is unavailable');
   }
 
   // ── The write: fresh branch + PR via the ONE mutation core. Review/merge
   // stays the gate; nothing here (or anywhere) pushes to an existing branch.
+  let scopedToken: string | null = null;
   try {
-    const token = await getInstallationTokenCached(
+    const minted = await mintRepositoryInstallationToken(
       env.GITHUB_APP_ID,
       env.GITHUB_APP_PRIVATE_KEY,
       installationId,
-      env.KV,
+      owner,
+      repo,
+      { contents: 'write', pull_requests: 'write' },
     );
-    const baseBranch = await getRepoDefaultBranch(owner, repo, token);
+    scopedToken = minted.token;
+    const baseBranch = await getRepoDefaultBranch(owner, repo, scopedToken);
     const branchName = generateShipwrightBranch();
     const when = new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
     const shipNames = verdict.ships.map((sh) => `\`${sh.name}\``).join(', ');
@@ -709,11 +759,24 @@ export async function handleShipwrightOpenPr(request: Request, env: Env): Promis
       commitMessage: 'fleet: add pd-fleet.yml drafted by the Port Daddy Shipwright',
       prTitle: 'Add pd-fleet.yml — fleet roster drafted by the Port Daddy Shipwright',
       prBody,
-      token,
+      token: scopedToken,
     });
+    const revoked = await revokeInstallationToken(scopedToken);
+    scopedToken = null;
+    if (!revoked) {
+      return fail(502, 'TOKEN_CLEANUP_UNCONFIRMED', 'PR may have opened, but repository token cleanup is unconfirmed');
+    }
     if (form) return redirect303(prUrl);
     return json(200, { code: 'OK_PR_CREATED', error: null, prUrl, branch: branchName });
   } catch (e) {
-    return fail(502, 'GITHUB_ERROR', `GitHub API save failed: ${publicError(e)}`);
+    const cleanupConfirmed = scopedToken ? await revokeInstallationToken(scopedToken) : true;
+    if (!cleanupConfirmed) {
+      return fail(502, 'TOKEN_CLEANUP_UNCONFIRMED', 'repository token cleanup is unconfirmed');
+    }
+    const message = publicError(e);
+    if (message.includes('token revocation UNCONFIRMED')) {
+      return fail(502, 'TOKEN_CLEANUP_UNCONFIRMED', 'repository token cleanup is unconfirmed');
+    }
+    return fail(502, 'GITHUB_ERROR', `GitHub API save failed: ${message}`);
   }
 }
