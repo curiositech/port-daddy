@@ -294,6 +294,17 @@ it while the full entry stays in the back matter.
 per-key short-form table. 513 of the Book's 519 point-of-use citations are
 already `\pdcite`.
 
+**Eligible excludes the margin itself, including the margin twins.** A `\cite`
+inside `\caption`, `\footnote`, a heading, the bibliography, or another margin
+device's own argument is not eligible, and neither is one inside
+`\pdsidenote{...}` or `\pdmargincaption{...}` — they are the same note and the
+same caption, set in the column rather than at the foot or under the float.
+This matters when you move apparatus: converting a `\footnote` that contains a
+citation into a `\pdsidenote` does not make that citation newly promotable, and
+if the promoter's protected list knows only the in-column names it will say it
+did. Four citations came loose exactly that way on the commit that moved the
+footnotes, and `promote_cites.py --check` — correctly — went red.
+
 **Standing defect, stated so nobody re-derives it.** `\pdcite`'s margin copy is
 currently *switched off* in `figures/pd-pedagogy.tex`: the macro emits the
 `\cite` and then `\relax`. The reason is recorded there and is not a
