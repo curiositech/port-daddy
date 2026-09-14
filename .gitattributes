@@ -39,3 +39,109 @@
 whitepaper-foundlings/**/*.png filter=lfs diff=lfs merge=lfs -text
 whitepaper-foundlings/**/*.pdf filter=lfs diff=lfs merge=lfs -text
 skill_candidates/**/*.pdf filter=lfs diff=lfs merge=lfs -text
+
+# EVIDENCE MEDIA IN LFS. DEPLOYED MEDIA DELIBERATELY NOT.
+#
+# The directories below hold *evidence*: PR screenshots, capture artifacts,
+# console pane grabs, before/after GIFs. Nothing deploys them and no build,
+# test, component or checker reads their bytes — that was verified path by
+# path, not assumed (see CONTRIBUTING.md § Binary media and Git LFS).
+#
+# WHY THIS SPLIT EXISTS AT ALL. No workflow in .github/workflows/ sets
+# `lfs: true` on actions/checkout — all 78 checkout steps take the default,
+# which leaves LFS paths as 130-byte pointer files in CI. For evidence media
+# that is harmless (nothing opens it). For DEPLOYED media it is fatal:
+# website-v2/public/** is what Cloudflare Pages uploads, so a pointer there
+# would have the live site serve 130 bytes of text where a PNG belongs.
+# That is why website-v2/public/** — including the whitepaper PDFs and
+# plates — is NOT listed here and must not be added without first making
+# the deploy workflow do an LFS checkout.
+#
+# GitHub still renders these inline in PR bodies: the `?raw=1` blob form
+# 302s to github.com/<repo>/raw/<sha>/<path>, which smudges the pointer and
+# returns real image bytes. Plain raw.githubusercontent.com does NOT — it
+# returns the pointer as text/plain. See CONTRIBUTING.md for the URL form
+# agents must use.
+#
+# scripts/check-binary-lfs.mjs fails CI when a large binary lands outside
+# these paths, so the rule cannot quietly drift as agents add evidence.
+docs/pr-assets/**/*.png  filter=lfs diff=lfs merge=lfs -text
+docs/pr-assets/**/*.jpg  filter=lfs diff=lfs merge=lfs -text
+docs/pr-assets/**/*.jpeg filter=lfs diff=lfs merge=lfs -text
+docs/pr-assets/**/*.gif  filter=lfs diff=lfs merge=lfs -text
+docs/pr-assets/**/*.webp filter=lfs diff=lfs merge=lfs -text
+docs/pr-assets/**/*.mp4  filter=lfs diff=lfs merge=lfs -text
+docs/pr-assets/**/*.mov  filter=lfs diff=lfs merge=lfs -text
+docs/pr-assets/**/*.webm filter=lfs diff=lfs merge=lfs -text
+docs/pr-assets/**/*.pdf  filter=lfs diff=lfs merge=lfs -text
+docs/artifacts/**/*.png  filter=lfs diff=lfs merge=lfs -text
+docs/artifacts/**/*.jpg  filter=lfs diff=lfs merge=lfs -text
+docs/artifacts/**/*.jpeg filter=lfs diff=lfs merge=lfs -text
+docs/artifacts/**/*.gif  filter=lfs diff=lfs merge=lfs -text
+docs/artifacts/**/*.webp filter=lfs diff=lfs merge=lfs -text
+docs/artifacts/**/*.mp4  filter=lfs diff=lfs merge=lfs -text
+docs/artifacts/**/*.mov  filter=lfs diff=lfs merge=lfs -text
+docs/artifacts/**/*.webm filter=lfs diff=lfs merge=lfs -text
+docs/artifacts/**/*.pdf  filter=lfs diff=lfs merge=lfs -text
+docs/pr-media/**/*.png  filter=lfs diff=lfs merge=lfs -text
+docs/pr-media/**/*.jpg  filter=lfs diff=lfs merge=lfs -text
+docs/pr-media/**/*.jpeg filter=lfs diff=lfs merge=lfs -text
+docs/pr-media/**/*.gif  filter=lfs diff=lfs merge=lfs -text
+docs/pr-media/**/*.webp filter=lfs diff=lfs merge=lfs -text
+docs/pr-media/**/*.mp4  filter=lfs diff=lfs merge=lfs -text
+docs/pr-media/**/*.mov  filter=lfs diff=lfs merge=lfs -text
+docs/pr-media/**/*.webm filter=lfs diff=lfs merge=lfs -text
+docs/pr-media/**/*.pdf  filter=lfs diff=lfs merge=lfs -text
+docs/pr-artifacts/**/*.png  filter=lfs diff=lfs merge=lfs -text
+docs/pr-artifacts/**/*.jpg  filter=lfs diff=lfs merge=lfs -text
+docs/pr-artifacts/**/*.jpeg filter=lfs diff=lfs merge=lfs -text
+docs/pr-artifacts/**/*.gif  filter=lfs diff=lfs merge=lfs -text
+docs/pr-artifacts/**/*.webp filter=lfs diff=lfs merge=lfs -text
+docs/pr-artifacts/**/*.mp4  filter=lfs diff=lfs merge=lfs -text
+docs/pr-artifacts/**/*.mov  filter=lfs diff=lfs merge=lfs -text
+docs/pr-artifacts/**/*.webm filter=lfs diff=lfs merge=lfs -text
+docs/pr-artifacts/**/*.pdf  filter=lfs diff=lfs merge=lfs -text
+website-v2/screenshots/**/*.png  filter=lfs diff=lfs merge=lfs -text
+website-v2/screenshots/**/*.jpg  filter=lfs diff=lfs merge=lfs -text
+website-v2/screenshots/**/*.jpeg filter=lfs diff=lfs merge=lfs -text
+website-v2/screenshots/**/*.gif  filter=lfs diff=lfs merge=lfs -text
+website-v2/screenshots/**/*.webp filter=lfs diff=lfs merge=lfs -text
+website-v2/screenshots/**/*.mp4  filter=lfs diff=lfs merge=lfs -text
+website-v2/screenshots/**/*.mov  filter=lfs diff=lfs merge=lfs -text
+website-v2/screenshots/**/*.webm filter=lfs diff=lfs merge=lfs -text
+website-v2/screenshots/**/*.pdf  filter=lfs diff=lfs merge=lfs -text
+website-v2/docs/pr-artifacts/**/*.png  filter=lfs diff=lfs merge=lfs -text
+website-v2/docs/pr-artifacts/**/*.jpg  filter=lfs diff=lfs merge=lfs -text
+website-v2/docs/pr-artifacts/**/*.jpeg filter=lfs diff=lfs merge=lfs -text
+website-v2/docs/pr-artifacts/**/*.gif  filter=lfs diff=lfs merge=lfs -text
+website-v2/docs/pr-artifacts/**/*.webp filter=lfs diff=lfs merge=lfs -text
+website-v2/docs/pr-artifacts/**/*.mp4  filter=lfs diff=lfs merge=lfs -text
+website-v2/docs/pr-artifacts/**/*.mov  filter=lfs diff=lfs merge=lfs -text
+website-v2/docs/pr-artifacts/**/*.webm filter=lfs diff=lfs merge=lfs -text
+website-v2/docs/pr-artifacts/**/*.pdf  filter=lfs diff=lfs merge=lfs -text
+website-v2/docs/artifacts/**/*.png  filter=lfs diff=lfs merge=lfs -text
+website-v2/docs/artifacts/**/*.jpg  filter=lfs diff=lfs merge=lfs -text
+website-v2/docs/artifacts/**/*.jpeg filter=lfs diff=lfs merge=lfs -text
+website-v2/docs/artifacts/**/*.gif  filter=lfs diff=lfs merge=lfs -text
+website-v2/docs/artifacts/**/*.webp filter=lfs diff=lfs merge=lfs -text
+website-v2/docs/artifacts/**/*.mp4  filter=lfs diff=lfs merge=lfs -text
+website-v2/docs/artifacts/**/*.mov  filter=lfs diff=lfs merge=lfs -text
+website-v2/docs/artifacts/**/*.webm filter=lfs diff=lfs merge=lfs -text
+website-v2/docs/artifacts/**/*.pdf  filter=lfs diff=lfs merge=lfs -text
+core/pd-console/docs/artifacts/**/*.png  filter=lfs diff=lfs merge=lfs -text
+core/pd-console/docs/artifacts/**/*.jpg  filter=lfs diff=lfs merge=lfs -text
+core/pd-console/docs/artifacts/**/*.jpeg filter=lfs diff=lfs merge=lfs -text
+core/pd-console/docs/artifacts/**/*.gif  filter=lfs diff=lfs merge=lfs -text
+core/pd-console/docs/artifacts/**/*.webp filter=lfs diff=lfs merge=lfs -text
+core/pd-console/docs/artifacts/**/*.mp4  filter=lfs diff=lfs merge=lfs -text
+core/pd-console/docs/artifacts/**/*.mov  filter=lfs diff=lfs merge=lfs -text
+core/pd-console/docs/artifacts/**/*.webm filter=lfs diff=lfs merge=lfs -text
+core/pd-console/docs/artifacts/**/*.pdf  filter=lfs diff=lfs merge=lfs -text
+
+# CARVE-OUT, and it is not cosmetic.
+# tests/unit/spawn-whitepaper-contract.test.js pins the sha256 of
+# all-seven-volumes-color-contact-sheet.png and -color-tour.gif, and asserts
+# the PNG is exactly 3792x3576 by parsing the IHDR out of the file it reads.
+# Under LFS those reads return a 130-byte pointer, the digests do not match
+# and the dimension parse fails. This subtree therefore stays in plain git.
+docs/artifacts/whitepaper-figure-semantics/** -filter -diff -merge -text

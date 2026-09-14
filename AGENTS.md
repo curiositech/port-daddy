@@ -668,7 +668,14 @@ Console work lives on `feat/console-tmux-multiplexer`; the v12 feel-pass design 
   pairs, 100% and 200% zoom where layout matters. Read the PNGs back to confirm a
   settled render (not a loading state) before attaching.
 - Embed artifacts in the PR body Test Plan (commit them and reference
-  `raw.githubusercontent.com/<repo>/<sha>/<path>` URLs so they survive the squash).
+  `github.com/<repo>/blob/<sha>/<path>?raw=1` URLs so they survive the squash).
+  Use that form, **not** `raw.githubusercontent.com`: the evidence directories
+  (`docs/pr-assets/`, `website-v2/screenshots/`, `core/pd-console/docs/artifacts/`,
+  and the rest) are stored in Git LFS, and `raw.githubusercontent.com` serves an
+  LFS file as a 130-byte pointer in `text/plain` — the image renders broken. The
+  `?raw=1` blob URL redirects through GitHub's LFS smudge and returns real image
+  bytes, for LFS and non-LFS files alike. See CONTRIBUTING.md § Binary media and
+  Git LFS.
 
 ### Create / Update / Land mechanics
 

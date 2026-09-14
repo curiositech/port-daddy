@@ -85,6 +85,31 @@ export const TEXT_EXTENSIONS = ['ts', 'tsx', 'js', 'mjs', 'cjs', 'rs', 'json'];
 export const ALLOWED_BINARY_SOURCE = new Set([]);
 
 /**
+ * The evidence directories routed into Git LFS, and the media extensions
+ * routed for each. Enumerated as two lists rather than 72 hand-typed pattern
+ * strings, but the product below still puts every exact pattern in the Set —
+ * so a pattern in `.gitattributes` that is NOT one of these still falls into
+ * `unparsed` and still fails the guard. Nothing here relaxes the `-text`
+ * requirement enforced at the call site.
+ *
+ * Why these are exempt: every one is binary evidence media (PR screenshots,
+ * capture artifacts, GIF/video recordings) that nothing reads, deliberately
+ * marked `-text`. A "keep source text" scan has nothing to say about them.
+ * See CONTRIBUTING.md § Binary media and Git LFS.
+ */
+const EVIDENCE_LFS_DIRS = [
+  'docs/pr-assets',
+  'docs/artifacts',
+  'docs/pr-media',
+  'docs/pr-artifacts',
+  'website-v2/screenshots',
+  'website-v2/docs/pr-artifacts',
+  'website-v2/docs/artifacts',
+  'core/pd-console/docs/artifacts',
+];
+const EVIDENCE_LFS_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4', 'mov', 'webm', 'pdf'];
+
+/**
  * `.gitattributes` patterns that are path-scoped (not a bare `*.ext`) and
  * explicitly mark their files `-text` (binary, LFS-tracked). These sit
  * outside this guard's invariant entirely — a "keep source text" scan has
@@ -100,6 +125,13 @@ export const ALLOWED_NON_TEXT_PATTERNS = new Set([
   'whitepaper-foundlings/**/*.png', // LFS-tracked archival screenshots, PR #10105
   'whitepaper-foundlings/**/*.pdf', // LFS-tracked archival PDFs, PR #10105
   'skill_candidates/**/*.pdf', // LFS-tracked archival PDF, PR #10105
+  // Evidence media moved to LFS — see EVIDENCE_LFS_DIRS above.
+  ...EVIDENCE_LFS_DIRS.flatMap((dir) => EVIDENCE_LFS_EXTS.map((ext) => `${dir}/**/*.${ext}`)),
+  // Carve-out: this subtree stays in plain git because
+  // tests/unit/spawn-whitepaper-contract.test.js pins the sha256 of two files
+  // in it and parses the PNG IHDR for exact dimensions. Still `-text` (it is
+  // binary media), so it belongs on this list for the same reason.
+  'docs/artifacts/whitepaper-figure-semantics/**',
 ]);
 
 /**

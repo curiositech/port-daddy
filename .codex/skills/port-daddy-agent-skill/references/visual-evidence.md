@@ -92,8 +92,17 @@ app — reviewers treat fabricated evidence as failure.
 
 - Commit artifacts under `.github/assets/<pr-number>/` on the PR branch.
 - Embed with raw URLs **pinned to the commit SHA**, not the branch:
-  `https://raw.githubusercontent.com/curiositech/port-daddy/<sha>/.github/assets/<pr>/x.png`
+  `https://github.com/curiositech/port-daddy/blob/<sha>/.github/assets/<pr>/x.png?raw=1`
   — branch URLs die when the branch is deleted after squash-merge.
+- Use that `blob/...?raw=1` form, **not** `raw.githubusercontent.com`. It 302s
+  to `github.com/<repo>/raw/<sha>/<path>`, which smudges Git LFS pointers and
+  returns real image bytes; plain `raw.githubusercontent.com` returns a
+  130-byte pointer as `text/plain` for anything stored in LFS, and the image
+  renders broken. Evidence directories such as `docs/pr-assets/`,
+  `website-v2/screenshots/` and `core/pd-console/docs/artifacts/` ARE in LFS
+  (CONTRIBUTING.md § Binary media and Git LFS), so this matters in practice.
+  The `?raw=1` form works identically for non-LFS files, so it is always the
+  safe choice.
 - GIF from two stills (before → crossfade → after) — note both inputs must be
   scaled/padded to identical even dimensions or xfade errors:
 

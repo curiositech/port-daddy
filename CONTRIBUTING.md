@@ -198,6 +198,64 @@ lives in [`AGENTS.md` § Pull Request Operating Procedure](AGENTS.md); the pivot
   PR assuming laziness/slop/lies/corner-cutting and ends with a
   `SHIP / SHIP-AFTER-FIX / DO-NOT-SHIP` verdict; address every HIGH finding.
 
+### Binary media and Git LFS
+
+Roughly four fifths of this repository's tracked bytes are binary media, and
+almost all of it is *evidence*: PR screenshots, capture artifacts, before/after
+GIFs. Evidence media goes in Git LFS. Deployed media deliberately does not.
+The split is not stylistic — the two halves fail in opposite directions.
+
+**The fact everything else follows from:** no workflow in `.github/workflows/`
+sets `lfs: true` on `actions/checkout`. All 78 checkout steps take the default,
+which leaves an LFS-tracked file on disk as a ~130-byte pointer file.
+
+| | Evidence media | Deployed media |
+|---|---|---|
+| Examples | `docs/pr-assets/`, `docs/artifacts/`, `website-v2/screenshots/`, `website-v2/docs/artifacts/`, `website-v2/docs/pr-artifacts/`, `docs/pr-media/`, `docs/pr-artifacts/`, `core/pd-console/docs/artifacts/` | `website-v2/public/**`, `whitepaper/figures/**` |
+| In LFS? | **Yes** | **No, deliberately** |
+| Why | Nothing reads the bytes. A pointer in CI is harmless. | Vite copies `public/` into `dist/` verbatim and Cloudflare Pages uploads it. A pointer here means the live site serves 130 bytes of ASCII where a PNG or PDF belongs. |
+
+Do **not** add `website-v2/public/**` to LFS without first making the deploy
+workflow do an LFS checkout. That ordering is the whole safety property.
+
+**Carve-outs inside evidence directories.** A file that something *reads* is
+not evidence, whichever directory it sits in.
+`docs/artifacts/whitepaper-figure-semantics/**` stays in plain git because
+`tests/unit/spawn-whitepaper-contract.test.js` pins the sha256 of the contact
+sheet and the colour tour and parses the PNG `IHDR` for exact dimensions —
+under LFS it would hash a pointer. `demos/**` stays in plain git because
+`vhs.yml` regenerates those GIFs and auto-commits them to `main` on a runner
+that never ran `git lfs install`.
+
+**Embedding evidence in a PR body — use the `?raw=1` form:**
+
+```
+https://github.com/curiositech/port-daddy/blob/<sha>/<path>?raw=1
+```
+
+That URL 302s to `github.com/<repo>/raw/<sha>/<path>`, which smudges the
+pointer and returns real image bytes, so LFS-stored screenshots render inline
+exactly like ordinary ones. Plain `raw.githubusercontent.com/...` does **not**
+— for an LFS file it returns the pointer as `text/plain`, and the image shows
+as broken. Keep pinning to the commit SHA, not the branch: branch URLs die when
+the branch is deleted after squash-merge. Verified against a real LFS object in
+this repository; see the PR that introduced this section.
+
+**The gate.** `scripts/check-binary-lfs.mjs` (CI job `binary-lfs-guard`) fails
+when a binary of 1 MiB or more is committed to a path `.gitattributes` does not
+route through LFS, unless that path is on the script's `ALLOWED_NON_LFS`
+allow-list. Run it locally with `npm run check:binary-lfs`. Adding a new
+evidence directory means adding its rules to `.gitattributes` and running
+`git add --renormalize <dir>`; the script's failure message spells out the
+options. A short `GRANDFATHERED` list in that script holds files that predate
+the gate — it is checked for staleness by the tests, and shrinking it is
+welcome work.
+
+**This is forward-only.** Converting a path to LFS does not shrink `.git`:
+the old blobs stay in pack history, which is why the clone is what it is.
+Only a history rewrite reclaims that, and with ~40 PRs open at any time,
+rewriting commit SHAs would invalidate every one of them.
+
 ### Adding New Features Checklist
 
 When adding a new capability to Port Daddy, follow this sequence:
