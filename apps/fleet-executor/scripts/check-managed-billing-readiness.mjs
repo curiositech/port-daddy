@@ -1,10 +1,9 @@
-import fs from 'node:fs';
-const path = process.argv[2];
-if (!path) throw new Error('usage: check-managed-billing-readiness.mjs <wrangler-json>');
-const payload = JSON.parse(fs.readFileSync(path, 'utf8'));
-const rows = Array.isArray(payload) ? payload.flatMap(x => x?.results ?? x?.result?.[0]?.results ?? []) : [];
-const count = Number(rows[0]?.active_entitlements);
-if (!Number.isSafeInteger(count) || count < 1) {
-  throw new Error('deployment blocked: production billing schema is absent or has no explicit active entitlement');
-}
-console.log(`managed billing ready: ${count} explicit active entitlement(s)`);
+import { execFileSync } from 'node:child_process';
+const ids=(process.env.FLEET_SERVED_INSTALLATION_IDS??'').split(',').map(x=>x.trim()).filter(Boolean);
+if(ids.length===0||ids.some(x=>!/^\d+$/.test(x))) throw new Error('deployment blocked: FLEET_SERVED_INSTALLATION_IDS must contain the complete explicitly provisioned served-installation inventory');
+const values=ids.map(x=>`(${Number(x)})`).join(',');
+const sql=`WITH served(installation_id) AS (VALUES ${values}) SELECT (SELECT COUNT(*) FROM pragma_table_info('fleet_run_reservations') WHERE name IN ('lease_owner','lease_fence','lease_expires_at')) AS fence_columns,(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='fleet_run_call_authorizations') AS authorization_table,(SELECT COUNT(*) FROM served s JOIN fleet_managed_entitlements e USING(installation_id) WHERE e.state='active' AND e.source_ref<>'' AND e.retail_balance_microusd>=e.run_retail_microusd) AS entitled_served,(SELECT COUNT(*) FROM served) AS served_count`;
+const raw=execFileSync('npx',['wrangler','d1','execute','port-daddy-relay','--remote','--config','wrangler.deploy.toml','--json','--command',sql],{encoding:'utf8'});
+const row=JSON.parse(raw).flatMap(x=>x?.results??x?.result?.[0]?.results??[])[0]??{};
+if(Number(row.fence_columns)!==3||Number(row.authorization_table)!==1||Number(row.entitled_served)!==ids.length||Number(row.served_count)!==ids.length) throw new Error(`deployment blocked: managed billing schema/entitlement preflight failed (${JSON.stringify(row)})`);
+console.log(`managed billing ready for all ${ids.length} served installation(s)`);
