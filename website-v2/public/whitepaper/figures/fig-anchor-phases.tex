@@ -61,9 +61,14 @@
 % Arrows showing progression
 \draw[pd focus rule,->,>=Latex,thick] (p1.east) -- ($(p2.west)+(0,0)$);
 \draw[pd focus rule,->,>=Latex,thick] (p2.east) -- ($(p3.west)+(0,0)$);
-\node[font=\pdfiglabelitalic,text=hhcobalt,above=1mm of $(p1.east)!0.5!(p2.west)$]
+% Above the NORTH edges, not above the gap's mid-height. Anchored at mid-height
+% these labels always sat inside the phase boxes' vertical band, and were only
+% clear of them while they were set in a narrower face; the moment the font=
+% keys took the house handle and the labels came back into the edition's grotesk
+% they got wider and "chain extension" ran into Phase 3's first line.
+\node[font=\pdfiglabelitalic,text=hhcobalt,above=1.5mm of $(p1.north east)!0.5!(p2.north west)$]
   {trust split};
-\node[font=\pdfiglabelitalic,text=hhcobalt,above=1mm of $(p2.east)!0.5!(p3.west)$]
+\node[font=\pdfiglabelitalic,text=hhcobalt,above=1.5mm of $(p2.north east)!0.5!(p3.north west)$]
   {chain extension};
 \end{tikzpicture}
 \caption{The three Harbor Card phases. Each phase is a refinement of the previous, both in capability and in adversary model. Phase~1 (HS256) is a teaching baseline; Phase~2 (Ed25519) removes the shared-secret trust boundary; Phase~3 (delegation) adds capability attenuation across an agent chain. All three are mechanized in ProVerif (\S\ref{app:mech}).}

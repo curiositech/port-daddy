@@ -1,15 +1,171 @@
 [
   {
+    "id": "appendix-figures",
+    "fragment": "website-v2/public/whitepaper/figures/appendix-figures.tex",
+    "chapter": 2,
+    "checks_failed": [
+      "T1",
+      "T2",
+      "T3",
+      "T4"
+    ],
+    "first_seen": "2026-09-14",
+    "waiver": {
+      "reason": "pre-existing and measured: at the merge base c92efaa5c this fragment already failed T1x31, T2x2, T3x4, T4x10 under the Book preamble, and the typography PR that pulled it into gate scope REDUCED that to T1x20, T2x2, T3x4, T4x9. It is also six \\begin{figure} environments in one file that float onto two pages, so a per-fragment gate measures six figures as one; and no chapter root \\inputs it. Its real remedy is deletion or a redraw by whoever owns Appendix B, not a typography change.",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-anchor-alg-confusion",
+    "fragment": "website-v2/public/whitepaper/figures/fig-anchor-alg-confusion.tex",
+    "chapter": 2,
+    "checks_failed": [
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-anchor-capability-attenuation",
+    "fragment": "website-v2/public/whitepaper/figures/fig-anchor-capability-attenuation.tex",
+    "chapter": 2,
+    "checks_failed": [
+      "T1",
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-anchor-card-lifecycle",
+    "fragment": "website-v2/public/whitepaper/figures/fig-anchor-card-lifecycle.tex",
+    "chapter": 2,
+    "checks_failed": [
+      "T1",
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-anchor-cuckoo-inline",
+    "fragment": "website-v2/public/whitepaper/figures/fig-anchor-cuckoo-inline.tex",
+    "chapter": 2,
+    "checks_failed": [
+      "T1",
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-anchor-delegation-inline",
+    "fragment": "website-v2/public/whitepaper/figures/fig-anchor-delegation-inline.tex",
+    "chapter": 2,
+    "checks_failed": [
+      "T1",
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-anchor-four-phases",
+    "fragment": null,
+    "chapter": 2,
+    "checks_failed": [
+      "T3"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "retired by triage",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-anchor-verification-stack",
+    "fragment": null,
+    "chapter": 2,
+    "checks_failed": [
+      "T2",
+      "T3",
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "retired by triage",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-auction-inline",
+    "fragment": null,
+    "chapter": 6,
+    "checks_failed": [
+      "T1"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "retired by triage",
+      "expires": "2026-10-31"
+    }
+  },
+  {
     "id": "fig-bonded-key-custody",
     "fragment": "website-v2/public/whitepaper/figures/fig-bonded-key-custody.tex",
     "chapter": 7,
     "checks_failed": [
+      "T1",
       "T2",
       "T4"
     ],
     "first_seen": "2026-09-07",
     "waiver": {
       "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-bonded-sen-regime",
+    "fragment": null,
+    "chapter": 7,
+    "checks_failed": [
+      "T1",
+      "T2",
+      "T3"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "retired by triage",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-bonded-three-layer",
+    "fragment": null,
+    "chapter": 7,
+    "checks_failed": [
+      "T1",
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "retired by triage",
       "expires": "2026-10-31"
     }
   },
@@ -27,15 +183,30 @@
     }
   },
   {
-    "id": "fig-fh-settlement",
-    "fragment": "website-v2/public/whitepaper/figures/fig-fh-settlement.tex",
+    "id": "fig-fh-federation-topology",
+    "fragment": null,
     "chapter": 8,
     "checks_failed": [
-      "T3"
+      "T1",
+      "T3",
+      "T4"
     ],
     "first_seen": "2026-09-07",
     "waiver": {
-      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "reason": "retired by triage",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-fh-settlement",
+    "fragment": "website-v2/public/whitepaper/figures/fig-fh-settlement.tex",
+    "chapter": 4,
+    "checks_failed": [
+      "T3"
+    ],
+    "first_seen": "2026-09-14",
+    "waiver": {
+      "reason": "pre-existing: 'compensate claimant' ran into panel B's 'funded' label at the merge base too (20.8% of the smaller bbox there, 17.7% here -- this PR reduced it). Panel A's note has 3.2cm of room and the text needs 2.8cm of it; wrapping the note was tried and is worse, because CLEAR sits 0.37 units above it and the second line collides with that instead. The fix is to widen the gap between the two panels, which is a redraw.",
       "expires": "2026-10-31"
     }
   },
@@ -44,6 +215,7 @@
     "fragment": "website-v2/public/whitepaper/figures/fig-fh-threat-bands.tex",
     "chapter": 8,
     "checks_failed": [
+      "T3",
       "T4"
     ],
     "first_seen": "2026-09-07",
@@ -57,6 +229,7 @@
     "fragment": "website-v2/public/whitepaper/figures/fig-fh-xfer-ceremony.tex",
     "chapter": 8,
     "checks_failed": [
+      "T1",
       "T3",
       "T4"
     ],
@@ -71,7 +244,6 @@
     "fragment": "website-v2/public/whitepaper/figures/fig-governance-flow.tex",
     "chapter": 7,
     "checks_failed": [
-      "T3",
       "T4"
     ],
     "first_seen": "2026-09-07",
@@ -98,6 +270,7 @@
     "fragment": "website-v2/public/whitepaper/figures/fig-he-cold-start.tex",
     "chapter": 6,
     "checks_failed": [
+      "T1",
       "T4"
     ],
     "first_seen": "2026-09-07",
@@ -111,6 +284,7 @@
     "fragment": "website-v2/public/whitepaper/figures/fig-he-conservation-functor.tex",
     "chapter": 6,
     "checks_failed": [
+      "T1",
       "T4"
     ],
     "first_seen": "2026-09-07",
@@ -134,11 +308,39 @@
     }
   },
   {
+    "id": "fig-he-keystone-split",
+    "fragment": null,
+    "chapter": 6,
+    "checks_failed": [
+      "T2",
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "retired by triage",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-he-stack-map",
+    "fragment": null,
+    "chapter": 6,
+    "checks_failed": [
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "retired by triage",
+      "expires": "2026-10-31"
+    }
+  },
+  {
     "id": "fig-magic-link-inline",
     "fragment": "website-v2/public/whitepaper/figures/fig-magic-link-inline.tex",
     "chapter": 7,
     "checks_failed": [
-      "T2",
+      "T1",
+      "T3",
       "T4"
     ],
     "first_seen": "2026-09-07",
@@ -148,14 +350,47 @@
     }
   },
   {
-    "id": "fig-stp-deterrence-regime",
-    "fragment": "website-v2/public/whitepaper/figures/fig-stp-deterrence-regime.tex",
-    "chapter": 5,
+    "id": "fig-sealed-two-worlds",
+    "fragment": "website-v2/public/whitepaper/figures/fig-sealed-two-worlds.tex",
+    "chapter": 6,
     "checks_failed": [
       "T4"
     ],
+    "first_seen": "2026-09-14",
+    "waiver": {
+      "reason": "pre-existing and marginal: identical at the merge base. A 0.86pt focus arrow arriving at a pd terminal node overlaps the FONT box of '$g=0$' by 1.0pt. That run has no descenders, so the overlap is in the font's descender space rather than in ink. Clearing it means adding inner ysep to the shared pd state/pd terminal styles, which moves every state node in the corpus -- a change that deserves its own measurement rather than riding a typography PR.",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-stp-estimator-family",
+    "fragment": null,
+    "chapter": 5,
+    "checks_failed": [
+      "T1",
+      "T3"
+    ],
     "first_seen": "2026-09-07",
-    "waiver": null
+    "waiver": {
+      "reason": "retired by triage",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-stp-honest-state",
+    "fragment": null,
+    "chapter": 5,
+    "checks_failed": [
+      "T1",
+      "T2",
+      "T3",
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "retired by triage",
+      "expires": "2026-10-31"
+    }
   },
   {
     "id": "fig-stp-judge-market",
@@ -167,6 +402,20 @@
     "first_seen": "2026-09-07",
     "waiver": {
       "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-stp-keystone-split",
+    "fragment": null,
+    "chapter": 5,
+    "checks_failed": [
+      "T1",
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "retired by triage",
       "expires": "2026-10-31"
     }
   },
@@ -186,12 +435,25 @@
     }
   },
   {
+    "id": "fig-stp-not-bandit",
+    "fragment": null,
+    "chapter": 5,
+    "checks_failed": [
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "retired by triage",
+      "expires": "2026-10-31"
+    }
+  },
+  {
     "id": "fig-stp-parfit-chain",
     "fragment": "website-v2/public/whitepaper/figures/fig-stp-parfit-chain.tex",
     "chapter": 5,
     "checks_failed": [
       "T1",
-      "T3",
+      "T2",
       "T4"
     ],
     "first_seen": "2026-09-07",
@@ -230,6 +492,21 @@
     }
   },
   {
+    "id": "fig-stp-stack-map",
+    "fragment": null,
+    "chapter": 5,
+    "checks_failed": [
+      "T1",
+      "T2",
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "retired by triage",
+      "expires": "2026-10-31"
+    }
+  },
+  {
     "id": "fig-stp-sybil-whitewash",
     "fragment": "website-v2/public/whitepaper/figures/fig-stp-sybil-whitewash.tex",
     "chapter": 5,
@@ -244,9 +521,176 @@
     }
   },
   {
+    "id": "fig-stp-three-organs",
+    "fragment": null,
+    "chapter": 5,
+    "checks_failed": [
+      "T1"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
     "id": "fig-stp-tombstone",
     "fragment": "website-v2/public/whitepaper/figures/fig-stp-tombstone.tex",
     "chapter": 5,
+    "checks_failed": [
+      "T1",
+      "T2",
+      "T3",
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-swk-claim-lifecycle",
+    "fragment": "whitepaper/figures/fig-swk-claim-lifecycle.tex",
+    "chapter": 1,
+    "checks_failed": [
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-swk-comm-organ",
+    "fragment": null,
+    "chapter": 1,
+    "checks_failed": [
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "retired by triage",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-swk-consistency-model",
+    "fragment": "whitepaper/figures/fig-swk-consistency-model.tex",
+    "chapter": 1,
+    "checks_failed": [
+      "T1",
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-swk-continuity-organs",
+    "fragment": "whitepaper/figures/fig-swk-continuity-organs.tex",
+    "chapter": 1,
+    "checks_failed": [
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-swk-controllability-quadrant",
+    "fragment": "whitepaper/figures/fig-swk-controllability-quadrant.tex",
+    "chapter": 1,
+    "checks_failed": [
+      "T1",
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-swk-controllability-relation",
+    "fragment": null,
+    "chapter": 1,
+    "checks_failed": [
+      "T1",
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "retired by triage",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-swk-deontic-split",
+    "fragment": null,
+    "chapter": 1,
+    "checks_failed": [
+      "T4",
+      "T5"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-swk-dual-runtime",
+    "fragment": null,
+    "chapter": 1,
+    "checks_failed": [
+      "T1",
+      "T4",
+      "T5"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "retired by triage",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-swk-durability-faultclass",
+    "fragment": "whitepaper/figures/fig-swk-durability-faultclass.tex",
+    "chapter": 1,
+    "checks_failed": [
+      "T1",
+      "T4",
+      "T5"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-swk-seven-organs",
+    "fragment": null,
+    "chapter": 1,
+    "checks_failed": [
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "retired by triage",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "fig-swk-stack-map",
+    "fragment": "whitepaper/figures/fig-swk-stack-map.tex",
+    "chapter": 1,
     "checks_failed": [
       "T2",
       "T3",
@@ -263,6 +707,8 @@
     "fragment": "website-v2/public/whitepaper/figures/fig-sybil-inline.tex",
     "chapter": 7,
     "checks_failed": [
+      "T1",
+      "T3",
       "T4",
       "T5"
     ],
@@ -279,6 +725,167 @@
     "checks_failed": [
       "T1",
       "T2",
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "legible-swarm-abdication",
+    "fragment": null,
+    "chapter": 4,
+    "checks_failed": [
+      "T3",
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "retired by triage",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "legible-swarm-authority-organs",
+    "fragment": null,
+    "chapter": 4,
+    "checks_failed": [
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "retired by triage",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "legible-swarm-cascade",
+    "fragment": null,
+    "chapter": 4,
+    "checks_failed": [
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "retired by triage",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "legible-swarm-pushpull",
+    "fragment": null,
+    "chapter": 4,
+    "checks_failed": [
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "retired by triage",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "legible-swarm-read-surfaces",
+    "fragment": null,
+    "chapter": 4,
+    "checks_failed": [
+      "T1"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "retired by triage",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "legible-swarm-roles",
+    "fragment": "whitepaper/figures/legible-swarm-roles.tex",
+    "chapter": 4,
+    "checks_failed": [
+      "T1",
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "legible-swarm-sdt",
+    "fragment": "whitepaper/figures/legible-swarm-sdt.tex",
+    "chapter": 4,
+    "checks_failed": [
+      "T1",
+      "T3",
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "legible-swarm-specialization",
+    "fragment": "whitepaper/figures/legible-swarm-specialization.tex",
+    "chapter": 4,
+    "checks_failed": [
+      "T1",
+      "T5"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "legible-swarm-split-ranker",
+    "fragment": "whitepaper/figures/legible-swarm-split-ranker.tex",
+    "chapter": 4,
+    "checks_failed": [
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "legible-swarm-stack-map",
+    "fragment": null,
+    "chapter": 4,
+    "checks_failed": [
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "retired by triage",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "legible-swarm-state-of-nature",
+    "fragment": "whitepaper/figures/legible-swarm-state-of-nature.tex",
+    "chapter": 4,
+    "checks_failed": [
+      "T4"
+    ],
+    "first_seen": "2026-09-07",
+    "waiver": {
+      "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
+      "expires": "2026-10-31"
+    }
+  },
+  {
+    "id": "legible-swarm-zoom-vs-potemkin",
+    "fragment": "whitepaper/figures/legible-swarm-zoom-vs-potemkin.tex",
+    "chapter": 4,
+    "checks_failed": [
       "T4"
     ],
     "first_seen": "2026-09-07",
