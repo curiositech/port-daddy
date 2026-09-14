@@ -186,6 +186,40 @@ A demonstration is scheduled for 4pm. Alice runs the back end on her laptop; Bob
 
 \vspace{0.4cm}
 
+% ═══════════════════════════════════════════════════════════════════════════════
+\section*{Reader's Map}\label{sec:fh-readers-map}
+\addcontentsline{toc}{section}{Reader's Map}
+% ═══════════════════════════════════════════════════════════════════════════════
+
+The paper has a topology: it opens with the gestalt (\S\ref{sec:fh-intro}--\S\ref{sec:fh-authority}), then moves through three governing primitives in order of cryptographic depth (capability transfer, revocation, settlement), then steps back to admission, failure modes, and limitations. The figures are designed to be readable in sequence without the surrounding prose; if you want the five-figure summary, that path is given below.
+
+\vspace{0.4cm}
+\noindent
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.21\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.22\textwidth}@{}}
+\toprule
+\textbf{Layer} & \textbf{Critical artifact} & \textbf{Lives at} \\
+\midrule
+\textbf{(1) Topology}        & Two harbors, witness log, settlement escrow as a four-element gestalt & \S\ref{sec:fh-authority}; Table~\ref{tab:fh-topology} \\
+\textbf{(2) Cap.\ transfer}  & Four-message ceremony; ProVerif model of cross-realm authenticity \& attenuation, \emph{conditional on a witness-log freshness assumption} (\S\ref{sec:fh-xfer-mech}) & \S\ref{sec:fh-xfer}; Figure~\ref{fig:fh-xfer} \\
+\textbf{(3) Revocation}      & Conditional epidemic-dissemination expectation; partition caveat & \S\ref{sec:fh-revocation}; Figure~\ref{fig:fh-revocation} \\
+\textbf{(4) Settlement}      & Recipient-whitelisted custody condition; bucket-partition Conservation & \S\ref{sec:fh-settlement}; Figure~\ref{fig:fh-settlement} \\
+\textbf{(5) Threat bands}    & What is mechanized, what is bounded, what is open & \S\ref{sec:fh-limitations}; Figure~\ref{fig:fh-threat-bands} \\
+\bottomrule
+\end{tabularx}
+
+\vspace{0.6cm}
+\noindent\textbf{Suggested reading paths by reader type:}
+\begin{itemize}[nosep,leftmargin=*,topsep=2pt]
+\item \textbf{Beginner / new to the series.} Read \S\ref{sec:fh-intro} (the two-machine problem) and \S\ref{sec:fh-worked-example} (Alice and Bob, end-to-end). The worked example is written to be read cold. Look at the five figures in order. Skip the proofs on the first pass.
+\item \textbf{Distributed-systems engineer.} \S\ref{sec:fh-authority} (the topology), \S\ref{sec:fh-xfer} (transfer ceremony), \S\ref{sec:fh-revocation} (gossip and equivocation). \pdchapref{anchor}{The Anchor Protocol} for the cryptographic substrate. Then \S\ref{sec:fh-limitations} for the honest open questions.
+\item \textbf{Formal-methods reviewer.} Jump to \S\ref{sec:fh-formal} (the TLA+ and ProVerif extensions) and Appendix~\ref{app:fh-mech} (the verification status table). Threat bands in Figure~\ref{fig:fh-threat-bands} are the most concentrated signal of what is and is not mechanized.
+\item \textbf{Cryptoeconomic / mechanism-design reader.} \S\ref{sec:fh-settlement} (bounded escrow) and \S\ref{sec:fh-admission} (cold-start admission via bonded sponsorship). The proposal's equilibrium contributions are stated here as open work; that is honest, not coy.
+\item \textbf{Security-engineering reviewer.} \S\ref{sec:fh-threat-model} (threat model) first, then the three primitive sections in order. \S\ref{sec:fh-failure-modes} for the operationally interesting cases the protocols do not close.
+\end{itemize}
+
+\vspace{0.5cm}
+\noindent\textbf{Volume Context.} \pdchapref{anchor}{The Anchor Protocol} formalizes process identity on a single machine. \pdchapref{bonded}{The Bonded Commons} establishes pre-transactional commons authority and collateralized incentive alignment. This chapter extends both into the cross-machine, cross-organization regime. Specific primitives are cited directly (e.g., Anchor \S2.4, Bonded \S2) rather than re-derived.
+
 \newpage
 \tableofcontents
 \newpage
