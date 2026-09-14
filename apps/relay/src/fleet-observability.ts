@@ -21,7 +21,7 @@
 import { fleetOperatorOnly, type FleetOperatorAuthorization } from './fleet-access.js';
 import {
   lastFleetRunAt,
-  getFleetPaused,
+  getFleetControl,
   setFleetPaused,
   appendAudit,
 } from './db.js';
@@ -182,8 +182,8 @@ export async function handleFleetHealth(request: Request, env: Env): Promise<Res
   if (authorization instanceof Response) return authorization;
 
   try {
-    const [paused, lastAt, intentHealth] = await Promise.all([
-      getFleetPaused(env.KV),
+    const [control, lastAt, intentHealth] = await Promise.all([
+      getFleetControl(env),
       lastFleetRunAt(env.DB),
       fleetIntentHealth(env.DB),
     ]);
@@ -191,7 +191,10 @@ export async function handleFleetHealth(request: Request, env: Env): Promise<Res
     return envelope(200, {
       code: 'OK',
       error: null,
-      paused,
+      paused: control.paused,
+      pauseStatus: control.status,
+      pauseRevision: control.revision,
+      automationBlocked: control.status !== 'unpaused',
       lastRunAgeSec,
       // D1-known intents, not a promise of Cloudflare's exact internal queue
       // position.  The explicit estimate label prevents false precision while
@@ -218,9 +221,8 @@ interface PauseBody {
 }
 
 /**
- * Toggle the fleet kill switch. The executor reads this KV flag at job START
- * (before any AI spend or GitHub post), so pausing stops new runs immediately.
- * Audited.
+ * Commit the pause before acknowledging it. Each new ship admission consults
+ * the same object. A ship already admitted may finish its bounded work.
  */
 export async function handleFleetPause(request: Request, env: Env): Promise<Response> {
   const authorization = await fleetOperatorOnly(request, env);
@@ -232,14 +234,15 @@ export async function handleFleetPause(request: Request, env: Env): Promise<Resp
   }
 
   try {
-    const state = await setFleetPaused(env.KV, body.paused);
+    const state = await setFleetPaused(env, body.paused);
     await appendAudit(env.DB, {
       action: body.paused ? 'fleet_pause' : 'fleet_resume',
       detail: operatorAuditDetail(authorization, body.paused ? 'pause' : 'resume'),
     }).catch(() => {
       /* audit is best-effort; never fail the toggle on an audit write error */
     });
-    return envelope(200, { code: 'OK', error: null, ok: true, paused: state.paused });
+    return envelope(200, { code: 'OK', error: null, ok: true, paused: state.paused,
+      pauseStatus: state.status, pauseRevision: state.revision });
   } catch (e) {
     return fleetErr('INTERNAL_ERROR', `pause toggle failed: ${msg(e)}`, 500);
   }

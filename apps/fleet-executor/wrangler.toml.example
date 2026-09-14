@@ -72,6 +72,11 @@ binding = "AI"
 # Relay's named, RPC-only ADR-0092 grant issuer. Deploy that named entrypoint
 # before deploying this caller binding. Fleet never stores a static macaroon.
 [[services]]
+binding = "FLEET_CONTROL"
+service = "port-daddy-relay"
+entrypoint = "FleetControlService"
+
+[[services]]
 binding = "COORDINATION_GRANTS"
 service = "port-daddy-relay"
 entrypoint = "CoordinationGrantService"
@@ -85,7 +90,8 @@ binding = "FLEET_TOKENS"
 id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
 
 # CONTROL-PLANE KV: must be the SAME id the relay binds as "KV" (apps/relay
-# wrangler.toml). Carries the `fleet:paused` kill switch the relay toggles.
+# wrangler.toml). Carries secondary Mediator flags and reinjection records.
+# Global Fleet admission exclusively uses the FLEET_CONTROL service binding.
 [[kv_namespaces]]
 binding = "CONTROL_KV"
 id = "REPLACE_WITH_YOUR_RELAY_KV_NAMESPACE_ID"

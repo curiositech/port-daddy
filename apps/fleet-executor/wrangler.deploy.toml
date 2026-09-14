@@ -75,6 +75,11 @@ binding = "AI"
 # deploying this caller binding. Relay remains a replicated peer, not the
 # coordination ledger's authority.
 [[services]]
+binding = "FLEET_CONTROL"
+service = "port-daddy-relay"
+entrypoint = "FleetControlService"
+
+[[services]]
 binding = "COORDINATION_GRANTS"
 service = "port-daddy-relay"
 entrypoint = "CoordinationGrantService"
@@ -88,7 +93,8 @@ binding = "FLEET_TOKENS"
 id = "c5e329c764274a3380467e46fc0f965a"
 
 # CONTROL-PLANE KV: must be the SAME id the relay binds as "KV" (apps/relay
-# wrangler.toml). Carries the `fleet:paused` kill switch the relay toggles.
+# wrangler.toml). Carries secondary Mediator flags and reinjection records.
+# Global Fleet admission exclusively uses the FLEET_CONTROL service binding.
 [[kv_namespaces]]
 binding = "CONTROL_KV"
 id = "4dc3eaaefbf14b1b90c0d60621b610ae"

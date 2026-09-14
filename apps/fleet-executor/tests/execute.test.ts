@@ -1736,7 +1736,7 @@ describe('executeFleet — merge_group (merge-queue gate)', () => {
     } as Partial<ReturnType<typeof makeJob>>);
   }
 
-  it('posts a SUCCESS check on the queue-branch head sha', async () => {
+  it('blocks the queue head when constituent review receipts cannot be verified', async () => {
     const { ai } = aiStub({ perShip: {} });
     const state = freshState();
     installGitHubFetch(state);
@@ -1751,7 +1751,7 @@ describe('executeFleet — merge_group (merge-queue gate)', () => {
 
     const completed = state.records.filter(r => r.url.includes('/check-runs/') && r.method === 'PATCH');
     expect(completed).toHaveLength(1);
-    expect((completed[0].body as { conclusion: string }).conclusion).toBe('success');
+    expect((completed[0].body as { conclusion: string }).conclusion).toBe('failure');
   });
 
   it('spends NOTHING on models — it is a pass-through, not a re-review', async () => {

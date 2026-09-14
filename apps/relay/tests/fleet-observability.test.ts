@@ -19,7 +19,7 @@ import {
   handleFleetPause,
   handleDeleteFleetRun,
 } from '../src/fleet-observability.js';
-import { FLEET_PAUSED_KEY } from '../src/db.js';
+import { memoryFleetControl } from './fleet-control-fixture.js';
 import type { Env } from '../src/types.js';
 
 // >= 32 chars: operatorOnly() fail-closes (500 MISCONFIGURED) below the minimum.
@@ -76,6 +76,7 @@ function makeEnv(o: {
   return {
     DB: o.db ?? makeMockD1({}),
     HARBOR_CHANNEL: {} as unknown as DurableObjectNamespace,
+    FLEET_CONTROL: memoryFleetControl().namespace,
     KV: o.kv ?? makeKV(),
     RELAY_OPERATOR_TOKEN: o.operatorToken ?? OPERATOR,
     RELAY_OPERATOR_GITHUB_USER_ID: o.operatorGithubUserId,
@@ -377,7 +378,7 @@ describe('handleFleetPause + handleFleetHealth', () => {
     expect(json.code).toBe('BAD_JSON');
   });
 
-  it('pausing writes the KV flag and health reflects paused=true', async () => {
+  it('pausing commits control and health reflects its durable revision', async () => {
     const kv = makeKV();
     const db = makeMockD1({ onFirst: () => null /* no runs yet */ });
     const env = makeEnv({ kv, db });
@@ -387,10 +388,10 @@ describe('handleFleetPause + handleFleetHealth', () => {
     const pauseJson = (await pauseRes.json()) as { ok: boolean; paused: boolean };
     expect(pauseJson).toMatchObject({ ok: true, paused: true });
 
-    // KV flag persisted as structured JSON.
-    const raw = await kv.get(FLEET_PAUSED_KEY);
-    expect(raw).not.toBeNull();
-    expect(JSON.parse(raw as string).paused).toBe(true);
+    // No admission authority is written into the eventually consistent cache.
+    const raw = await kv.get('fleet:paused');
+    expect(raw).toBeNull();
+    expect(pauseJson).toMatchObject({ pauseStatus: 'paused', pauseRevision: 1 });
 
     const healthRes = await handleFleetHealth(req('/v1/fleet/health', 'GET', OPERATOR), env);
     expect(healthRes.status).toBe(200);
@@ -403,9 +404,16 @@ describe('handleFleetPause + handleFleetHealth', () => {
     expect(health.queueDepthEstimate).toBeNull();
   });
 
+  it('health reports unknown for absent authority despite an old KV unpaused value', async () => {
+    const env = makeEnv({ kv: makeKV({ 'fleet:paused': 'false' }) });
+    env.FLEET_CONTROL = undefined;
+    const response = await handleFleetHealth(req('/v1/fleet/health', 'GET', OPERATOR), env);
+    expect(await response.json()).toMatchObject({ paused: null, pauseStatus: 'unknown', automationBlocked: true });
+  });
+
   it('resuming flips the flag back and health reflects paused=false + last-run age', async () => {
     const now = Math.floor(Date.now() / 1000);
-    const kv = makeKV({ [FLEET_PAUSED_KEY]: JSON.stringify({ paused: true, pausedAt: now - 10 }) });
+    const kv = makeKV({ 'fleet:paused': JSON.stringify({ paused: true, pausedAt: now - 10 }) });
     const db = makeMockD1({
       onFirst: (q) => {
         if (q.includes('FROM fleet_run_intents')) {

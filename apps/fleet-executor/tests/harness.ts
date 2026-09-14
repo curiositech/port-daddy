@@ -975,6 +975,23 @@ export function aiStub(opts: {
 }
 
 export function makeEnv(over: Partial<ExecutorEnv> = {}): ExecutorEnv {
+  // Legacy test scenarios script KV reads; adapt those fixtures to the new
+  // RPC contract. Production never uses KV for Fleet admission.
+  const control = Object.hasOwn(over, 'CONTROL_KV') ? over.CONTROL_KV : memoryKV();
+  let revision = 1;
+  let previous: string | null | undefined;
+  const service = control ? { admit: async (expectedRevision?: number) => {
+    const raw = await control.get('fleet:paused');
+    if (previous !== undefined && previous !== raw) revision++;
+    previous = raw;
+    if (raw === null) return { status: 'unknown' as const, paused: null, revision: null, reason: 'value-missing' };
+    let value: unknown;
+    try { value = JSON.parse(raw); } catch { value = null; }
+    const paused = typeof value === 'boolean' ? value : (value as { paused?: unknown } | null)?.paused;
+    if (typeof paused !== 'boolean') return { status: 'unknown' as const, paused: null, revision: null, reason: 'value-malformed' };
+    if (expectedRevision !== undefined && expectedRevision !== revision) return { status: 'unknown' as const, paused: null, revision: null, reason: 'revision-changed' };
+    return { status: paused ? 'paused' as const : 'unpaused' as const, paused, revision, pausedAt: 1 };
+  } } : undefined;
   return {
     GITHUB_APP_ID: '3810450',
     // A real RSA PKCS8 key is not needed: the token mint is faked by the fetch
@@ -984,6 +1001,7 @@ export function makeEnv(over: Partial<ExecutorEnv> = {}): ExecutorEnv {
     DEFAULT_BRANCH: 'main',
     FLEET_TOKENS: memoryKV(),
     CONTROL_KV: memoryKV(),
+    FLEET_CONTROL: service,
     DB: memoryD1().db,
     AI: aiStub({ perShip: {} }).ai,
     ...over,

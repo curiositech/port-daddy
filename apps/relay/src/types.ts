@@ -6,6 +6,8 @@
  */
 
 export interface Env {
+  /** Strongly consistent global Fleet controls; absence denies automation. */
+  FLEET_CONTROL?: DurableObjectNamespace;
   // D1 database (identity, events, chain heads, revocations, audit, issuers)
   DB: D1Database;
   // Durable Object namespace — one DO per (harbor_fingerprint, channel)
