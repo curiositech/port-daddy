@@ -174,6 +174,7 @@ import {
   resolveManagedEntitlement,
   settleManagedRun,
   yieldManagedRunLease,
+  finalizeUnleasedManagedRun,
   type ManagedRunReservation,
   type ManagedRunLease,
 } from './managed-billing.js';
@@ -1536,6 +1537,7 @@ export async function executeFleet(
   const initialShipControls = await readRepoShipControls(env.DB, job.repoFullName);
   const repositoryStopped = !repoShipEnabled(initialShipControls, '*');
   if (await isFleetPaused(env) || repositoryStopped) {
+    if (env.DB) await finalizeUnleasedManagedRun(env.DB, runId, nowSec());
     console.log(`[fleet-executor] delivery=${deliveryId} paused; posting neutral check (no AI spend, no posts)`);
     const head = prPayload.head as { sha?: unknown } | undefined;
     const headSha = typeof head?.sha === 'string' ? head.sha : null;
@@ -2039,6 +2041,7 @@ export async function executeFleet(
   // call instead of spending until the three-hour wall-clock deadline.
   const continuationLivelock = await readDeliveryContinuationLivelock(env, runId);
   if (continuationLivelock) {
+    await finalizeUnleasedManagedRun(env.DB, runId, nowSec());
     const remaining = continuationLivelock.remainingShips.map(ship => `pd-${ship}`).join(', ');
     const summary =
       `Fleet stopped because ${continuationLivelock.repeats} consecutive checkpoint continuations ` +
@@ -2219,6 +2222,7 @@ export async function executeFleet(
 
   const lifecycle = classifyPrLifecycle(prCtx);
   if (lifecycle.over) {
+    await finalizeUnleasedManagedRun(env.DB, runId, nowSec());
     // HUMAN-FACING: this is the entire explanation an author gets for a neutral
     // required check, so it has to read like a sentence AND claim only what we
     // actually observed. The earlier draft ended "…it has since ${state}",
