@@ -1262,8 +1262,9 @@ layer); \emph{this} section is the ceremony that rides that substrate across a
 boundary.
 
 \ifpdbook
-The four-message ceremony is drawn in \pdchapref{fh}{The Federated Harbor}, which develops
-the protocol; written out as Protocol~\ref{prot:xfer} below, it
+The four-message ceremony is drawn and stepped through in
+\pdchapref{fh}{The Federated Harbor} (\S\ref{fh:sec:fh-xfer-ceremony}), which owns
+the protocol; what the market needs from it is only this, and the ceremony
 \else
 \input{figures/fig-fh-xfer-ceremony}%
 The four-message ceremony (Figure~\ref{fig:fh-xfer}, written out as
@@ -1276,6 +1277,7 @@ bound into the envelope is the governing primitive: a revocation issued by $A$
 after epoch $e$ invalidates $C_B'$ as soon as the new root $R_A^{(e+1)}$ reaches the
 witness log that $B$ audits.
 
+\ifpdbook\else
 \begin{protocol}[Cross-harbor capability transfer]\label{prot:xfer}
 \textbf{Parties:} Alice's agent (holds card $C_A$), Harbor~$A$ (Alice's daemon),
 Harbor~$B$ (Bob's daemon), Bob's agent (verifier). \textbf{Pre:} $B$ audits a
@@ -1299,6 +1301,7 @@ witness log to which $A$ publishes epoch roots.
 $R_A^{(e)}$ is rejected; a revocation by $A$ kills $C_B'$ once $R_A^{(e+1)}$ reaches
 $B$'s witness log.
 \end{protocol}
+\fi
 
 \paragraph{The ceremony, dramatized.} Alice's specialist $a_2$ holds a card $C_A$
 that authorizes ``read and write \texttt{src/payments/}, run the test suite.'' Bob
@@ -2778,7 +2781,7 @@ Local non-forgeable identity (intra-harbor) & \BuiltWeak{} & \texttt{actor-souls
 Cross-operator attestation & \Designed{}/\Vision{} & no spec for the critical part \\
 Float plan $+$ signed escrow ceremony & \Designed{} & Protocol~\ref{prot:escrow} \\
 Cross-harbor capability transfer (attenuation) & \Designed{} & verified \emph{as model};
-  Protocol~\ref{prot:xfer} \\
+  \ifpdbook \pdchapref{fh}{The Federated Harbor}, \S\ref{fh:sec:fh-xfer-ceremony}\else Protocol~\ref{prot:xfer}\fi \\
 Reputation estimator (Elo / Bradley--Terry / TrueSkill) & \Designed{}/\Vision{} &
   no estimator shipped \\
 Multi-dimensional reputation, neutral judges & \Vision{} & no axis-aggregation spec \\
