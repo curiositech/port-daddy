@@ -51,7 +51,8 @@ interface DlqTarget {
 function targetOf(job: FleetRunJob): DlqTarget | null {
   const [owner, repo] = (job.repoFullName ?? '').split('/');
   const pr = job.payloadMinimal?.pull_request as { head?: { sha?: string } } | undefined;
-  const headSha = pr?.head?.sha ?? '';
+  const group = job.payloadMinimal?.merge_group as { head_sha?: string } | undefined;
+  const headSha = job.eventType === 'merge_group' ? group?.head_sha ?? '' : pr?.head?.sha ?? '';
   const installationId = job.installationId ?? 0;
   if (!owner || !repo || !headSha || !installationId) return null;
   return { owner, repo, headSha, installationId, prNumber: job.prNumber };

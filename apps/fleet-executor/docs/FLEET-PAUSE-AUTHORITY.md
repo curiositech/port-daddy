@@ -66,6 +66,15 @@ Its required Fleet check therefore fails with an explicit coverage hold.
 Returning that check to success requires a separate implementation that
 verifies every constituent PR and exact head's completed review evidence.
 Queue CI alone is insufficient.
+The coverage hold does not require an AI binding. Token, check creation
+and completion failures propagate to the queue's bounded retry path, with the
+merge-group SHA preserved in durable attempt/failure evidence. A retried hold
+reuses its exact App/run-bound check instead of silently acknowledging an absent
+gate; the dead-letter handler also understands the merge-group head.
+
+The admission ledger's missing-binding/missing-row compatibility fallback remains
+an unresolved safety finding. It is not removed by the fresh-schema/merge-check
+follow-up and must not be treated as a completed fail-closed admission contract.
 
 ## Release state
 

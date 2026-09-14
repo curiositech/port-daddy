@@ -1359,35 +1359,30 @@ function triggerFor(job: FleetRunJob): string | null {
 async function reportMergeGroupCoverageHold(job: FleetRunJob, env: ExecutorEnv): Promise<void> {
   const mergeGroup = job.payloadMinimal?.merge_group as Record<string, unknown> | undefined;
   const headSha = typeof mergeGroup?.head_sha === 'string' ? mergeGroup.head_sha : '';
-  if (!job.repoFullName || !job.installationId || !headSha) return;
+  if (!job.repoFullName || !job.installationId || !headSha) {
+    throw new Error('Merge-group coverage hold cannot locate its required check: repository, installation ID and head SHA are required');
+  }
   const [owner, repo] = job.repoFullName.split('/');
-  if (!owner || !repo) return;
+  if (!owner || !repo) throw new Error('Merge-group repository coordinates are malformed');
 
   const token = await getInstallationTokenCached(
     env.GITHUB_APP_ID,
     env.GITHUB_APP_PRIVATE_KEY,
     job.installationId,
     env.FLEET_TOKENS,
-  ).catch(() => null);
-  if (!token) return;
-
-  try {
-    const checkRunId = await createCheckRun(owner, repo, CHECK_NAME, headSha, token, null);
-    await completeCheckRun(
-      owner,
-      repo,
-      checkRunId,
-      'failure',
-      'Fleet cannot verify the constituent PR review receipts for this merge group. ' +
-        'The required review check remains blocked; queue CI alone does not establish Fleet review coverage.',
-      token,
-      null,
-    );
-  } catch (err) {
-    // Absent check == today's behaviour. Never throw: a failure here must not
-    // retry the job or dead-letter it.
-    console.error(`[fleet-executor] merge_group coverage hold failed for ${job.repoFullName}@${headSha}: ${String(err)}`);
-  }
+  );
+  const runId = `run:${job.deliveryId}`;
+  const existing = await findFleetCheckRun(owner, repo, headSha, CHECK_NAME, token, env.GITHUB_APP_ID, runId);
+  const checkRunId = existing ?? await createCheckRun(owner, repo, CHECK_NAME, headSha, token, null, undefined, runId);
+  if (!checkRunId) throw new Error(`Merge-group coverage hold could not create the required check for ${job.repoFullName}@${headSha}`);
+  await completeCheckRun(
+    owner, repo, checkRunId, 'failure',
+    'Fleet cannot verify the constituent PR review receipts for this merge group. ' +
+      'The required review check remains blocked; queue CI alone does not establish Fleet review coverage. ' +
+      'Operator action: restore constituent-review verification before requesting a new merge-group check.',
+    token, null,
+  );
+  await recordRunEnd(env, runId, 'failure', Date.now());
 }
 
 export type FleetExecutionDisposition =
@@ -1401,6 +1396,7 @@ export type FleetExecutionDisposition =
     }
   | { kind: 'already-decided'; conclusion: 'success' | 'failure' }
   | { kind: 'suspended'; reason: string }
+  | { kind: 'coverage-held' }
   | { kind: 'no-cloud-ships' }
   | { kind: 'continuation'; completedShip: string; remainingShips: string[] };
 
@@ -1507,16 +1503,16 @@ export async function executeFleet(
   env: ExecutorEnv,
   options: FleetExecutionOptions = {},
 ): Promise<FleetExecutionDisposition | void> {
-  if (!env.AI) return;
-
   // MERGE QUEUE: handled before every guard below, all of which assume a PR.
   // A merge_group delivery has no pull_request and no prNumber, so it would
   // otherwise fall straight out of `!job.prNumber` and report nothing — the
   // deadlock this branch exists to end.
   if (job.eventType === 'merge_group') {
     await reportMergeGroupCoverageHold(job, env);
-    return;
+    return { kind: 'coverage-held' };
   }
+
+  if (!env.AI) throw new Error('Fleet AI binding unavailable; review cannot run');
 
   const trigger = triggerFor(job);
   if (!trigger) return;

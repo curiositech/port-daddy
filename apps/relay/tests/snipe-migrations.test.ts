@@ -20,6 +20,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { MIGRATIONS_DIR, SCHEMA_SQL, makeTestD1, migrationFiles } from './support/d1-sqlite.js';
 
 const NEW_MIGRATIONS = [
@@ -156,33 +157,45 @@ describe('migrations — the schema-of-record mirrors them', () => {
       'seamanship_suggestion_jobs',
       'agent_chats',
       'agent_chat_spend',
+      'fleet_run_intents',
+      'fleet_control_requeues',
     ]) {
       expect(schema).toContain(`CREATE TABLE IF NOT EXISTS ${table}`);
     }
   });
 
   it('the schema-of-record produces the same columns as the migration chain', () => {
-    // schema.sql is the schema-of-record and is idempotent, so overlaying it on
-    // a database already built from the chain must be a no-op. A drifted mirror
-    // shows up here as a column difference.
+    // Build independently: IF NOT EXISTS over a migrated database masks drift.
     const chain = makeTestD1();
-    const overlaid = makeTestD1();
+    const fresh = new DatabaseSync(':memory:');
     try {
-      overlaid.raw.exec(schema);
+      fresh.exec(schema);
       for (const table of [
         'seamanship_suggestions',
         'seamanship_build_grants',
         'seamanship_suggestion_jobs',
         'agent_chats',
         'agent_chat_spend',
+        'fleet_run_intents',
+        'fleet_control_requeues',
       ]) {
-        const cols = (t: typeof chain): string[] =>
-          (t.raw.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map((r) => r.name);
-        expect(cols(overlaid)).toEqual(cols(chain));
+        const cols = (db: DatabaseSync) => db.prepare(`PRAGMA table_info(${table})`).all();
+        expect(cols(fresh), table).toEqual(cols(chain.raw));
+      }
+      for (const db of [chain.raw, fresh]) {
+        db.exec(`INSERT INTO fleet_run_intents
+          (delivery_id, repo_full_name, pr_number, pr_url, head_sha, event_type, generation, state)
+          VALUES ('held', 'a/b', 1, 'https://github.com/a/b/pull/1', 'sha', 'pull_request', 1, 'waiting_for_control')`);
+        expect(db.prepare('SELECT control_wait_count, requeue_revision FROM fleet_run_intents').get())
+          .toEqual({ control_wait_count: 0, requeue_revision: null });
+        expect(() => db.exec("UPDATE fleet_run_intents SET state = 'invented'")).toThrow();
+        db.exec("INSERT INTO fleet_control_requeues VALUES ('request', 'held', 1, 2, 'operator', 0)");
+        expect(() => db.exec("INSERT INTO fleet_control_requeues VALUES ('other', 'held', 1, 2, 'operator', 0)")).toThrow();
+        expect(() => db.exec("INSERT INTO fleet_control_requeues VALUES ('request', 'other', 2, 2, 'operator', 0)")).toThrow();
       }
     } finally {
       chain.close();
-      overlaid.close();
+      fresh.close();
     }
   });
 

@@ -135,7 +135,8 @@ export async function recordDeliveryFailure(
     if (!deliveryId) return;
     const runId = runIdForDelivery(deliveryId);
     const pr = job.payloadMinimal?.pull_request as { head?: { sha?: string } } | undefined;
-    const headSha = pr?.head?.sha ?? '';
+    const group = job.payloadMinimal?.merge_group as { head_sha?: string } | undefined;
+    const headSha = job.eventType === 'merge_group' ? group?.head_sha ?? '' : pr?.head?.sha ?? '';
     await ensureRunRow(env, runId, deliveryId, job.repoFullName ?? null, job.prNumber ?? null, headSha);
 
     const error = describeDeliveryError(err);
@@ -189,7 +190,8 @@ export async function recordDeliveryAttemptStart(
     if (!deliveryId) return;
     const runId = runIdForDelivery(deliveryId);
     const pr = job.payloadMinimal?.pull_request as { head?: { sha?: string } } | undefined;
-    const headSha = pr?.head?.sha ?? '';
+    const group = job.payloadMinimal?.merge_group as { head_sha?: string } | undefined;
+    const headSha = job.eventType === 'merge_group' ? group?.head_sha ?? '' : pr?.head?.sha ?? '';
     await ensureRunRow(env, runId, deliveryId, job.repoFullName ?? null, job.prNumber ?? null, headSha);
 
     const safeAttempt = Number.isInteger(attempt) && attempt > 0 ? attempt : 0;

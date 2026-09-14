@@ -1754,7 +1754,7 @@ describe('executeFleet — merge_group (merge-queue gate)', () => {
     expect((completed[0].body as { conclusion: string }).conclusion).toBe('failure');
   });
 
-  it('spends NOTHING on models — it is a pass-through, not a re-review', async () => {
+  it('spends NOTHING on models — it is a blocking coverage hold', async () => {
     const { ai } = aiStub({ perShip: { 'code-reviewer': 'x\n\nFLEET-VERDICT: PASS' } });
     const state = freshState();
     installGitHubFetch(state);
@@ -1771,9 +1771,31 @@ describe('executeFleet — merge_group (merge-queue gate)', () => {
     const state = freshState();
     installGitHubFetch(state);
 
-    await executeFleet(mergeGroupJob({ payloadMinimal: { merge_group: {} } }), envWithToken(ai));
+    await expect(executeFleet(mergeGroupJob({ payloadMinimal: { merge_group: {} } }), envWithToken(ai))).rejects.toThrow('head SHA');
 
     expect(state.records.filter(r => r.url.includes('/check-runs'))).toHaveLength(0);
+  });
+
+  it('posts an explicit failing check even without an AI binding', async () => {
+    const state = freshState();
+    installGitHubFetch(state);
+    await executeFleet(mergeGroupJob(), envWithToken(undefined));
+    expect(state.completed[0]).toMatchObject({ conclusion: 'failure' });
+    expect(state.completed[0].summary).toContain('Operator action:');
+    await executeFleet(mergeGroupJob(), envWithToken(undefined));
+    expect(state.checkRunsCreated).toBe(1);
+    expect(state.completed.at(-1)?.conclusion).toBe('failure');
+  });
+
+  it('propagates token and check-creation failures instead of acknowledging an invisible gate', async () => {
+    const state = freshState();
+    installGitHubFetch(state);
+    await expect(executeFleet(mergeGroupJob(), makeEnv({ AI: undefined }))).rejects.toThrow();
+    state.failCreateCheckRun = 1;
+    await expect(executeFleet(mergeGroupJob(), envWithToken(undefined))).rejects.toThrow('create Fleet check run failed');
+    expect(state.completed).toHaveLength(0);
+    await executeFleet(mergeGroupJob(), envWithToken(undefined));
+    expect(state.completed[0].conclusion).toBe('failure');
   });
 });
 
