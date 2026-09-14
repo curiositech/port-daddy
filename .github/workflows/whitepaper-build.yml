@@ -537,10 +537,51 @@ jobs:
           # second copy arrives appended to a half-executed script. Landing it
           # in a file first means a retry replaces the download instead of
           # continuing it, and sh sees one whole script or nothing.
+          # THE RETRY ABOVE COVERS THE FIRST HOP ONLY, and the failure it was
+          # written for arrived on the second. Fetching this script from
+          # drop-sh.fullyjustified.net is one download; the script then fetches
+          # the tectonic TARBALL from GitHub's release CDN with its own
+          # downloader, which has no retry of its own. On 2026-09-14 that second
+          # hop returned a 504 and the step died:
+          #
+          #   tectonic(drop-installer.sh): downloading version 0.17.0 ...
+          #   curl: (22) The requested URL returned error: 504
+          #   tectonic(drop-installer.sh): command failed: downloader
+          #     https://github.com/.../tectonic-0.17.0-...tar.gz
+          #
+          # Nothing compiled, no figcheck JSON was written, the artifact upload
+          # found no files, and figure-gates reported red on a pull request
+          # whose figures were fine -- which is precisely the "network error
+          # dressed up as a figure finding" the comment above says this step
+          # exists to prevent. It prevented it on one host out of two.
+          #
+          # So the whole installer run is retried, with a widening backoff. `if`
+          # rather than a bare call because `set -e` is on and errexit is
+          # suspended inside a condition; the explicit exit on the last attempt
+          # keeps a genuine outage loud instead of leaving a half-installed tree
+          # to fail two hundred lines later.
           curl --proto '=https' --tlsv1.2 -fsSL \
             --retry 5 --retry-all-errors --retry-delay 3 --max-time 600 \
             -o /tmp/install-tectonic.sh https://drop-sh.fullyjustified.net
-          sh /tmp/install-tectonic.sh
+          for attempt in 1 2 3 4 5; do
+            if sh /tmp/install-tectonic.sh; then
+              break
+            fi
+            if [ "$attempt" -eq 5 ]; then
+              echo "::error::tectonic could not be installed after 5 attempts. This is a network failure on the release CDN, NOT a figure finding -- no fragment was compiled and no figcheck result exists for this run."
+              exit 1
+            fi
+            echo "tectonic install attempt $attempt failed; retrying in $((attempt * 5))s"
+            sleep "$((attempt * 5))"
+          done
+          # A partial install is worse than a failed one: it leaves the step
+          # green and every compile below failing for a reason that looks like
+          # TeX. Assert the thing we are about to name in TECTONIC actually runs.
+          if [ ! -x "$PWD/tectonic" ]; then
+            echo "::error::the tectonic installer reported success but left no executable at $PWD/tectonic"
+            exit 1
+          fi
+          "$PWD/tectonic" --version
           echo "TECTONIC=$PWD/tectonic" >> "$GITHUB_ENV"
 
       - name: Determine which fragments to compile (changed in this PR, plus every current blocker)
