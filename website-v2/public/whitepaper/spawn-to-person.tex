@@ -655,6 +655,88 @@ is an engineering reason, and we are candid that it is not a metaphysical one
 --- which is also why the chapter takes Parfit's move (dissolve the question)
 and not his thesis.
 
+\subsubsection{The correspondence, written out --- and where it
+fails}\label{sec:parfit-lineage-map}
+
+Two structures carry this chapter: Relation~R as an overlapping chain, drawn
+just above in Fig.~\ref{fig:parfit}, and the credential lineage as a chain of
+signatures, drawn overleaf in Fig.~\ref{fig:stp-nomint-lineage}. The chapter
+has been asserting that these are the same shape. They are, at one specific
+level, and it is worth
+writing the map down rather than leaving the reader to infer it --- and worth
+being precise about the three places where the map breaks, because a
+correspondence stated without its failures is an analogy doing unearned work.
+
+The level at which they agree is the \emph{ancestral}. Parfit's direct
+psychological connectedness $\mathsf{conn}(a,b)$ --- $b$ carries $a$'s memories
+and intentions --- is not transitive, which is exactly the problem Reid's
+gallant officer exposes. Parfit's repair is to take identity to be the
+transitive closure $\mathsf{conn}^{*}$. The credential relation is built the
+same way: direct succession $\mathsf{succ}(a,b)$ --- $b$ presents a continuity
+witness signed by $a$'s key --- is likewise not transitive, since a verifier
+holding $c$'s witness learns nothing about $a$ without the intervening links,
+and lineage is defined as $\mathsf{succ}^{*}$. So the engineering is not
+\emph{inspired by} Parfit; it instantiates the same construction, the ancestral
+of a non-transitive direct relation, on a different base relation.
+
+\begin{pdclaim}{Design invariant}{Lineage is Relation~R's construction on a
+witnessed base}
+\label{inv:parfit-lineage}
+The outcome ledger's identity criterion is $\mathsf{succ}^{*}$, the transitive
+closure of signed direct succession, and it is chosen because it is the same
+construction Parfit applies to $\mathsf{conn}$: reputation must accumulate over
+arbitrarily many incarnations, and only the ancestral of a link relation is
+guaranteed to reach that far. This is a design invariant and not a theorem
+about persons: it says what the system is built to do, and it takes no position
+on whether $\mathsf{succ}^{*}$ tracks personal identity in Parfit's sense.
+\end{pdclaim}
+
+\begin{pdboundary}
+Three disanalogies, each of which the correspondence must not be read past.
+
+\emph{First, degree against predicate.} Parfit's connectedness is a matter of
+degree --- how much carries over --- and that is not incidental to his view, it
+is what licenses his central conclusion that identity is not what matters and
+that survival admits of more and less. Signature verification is a predicate:
+it holds or it does not. $\mathsf{succ}^{*}$ therefore cannot express partial
+survival at all, and the case Parfit finds most interesting is the one the
+ledger criterion is structurally unable to represent. The ledger is not a
+sharper version of Relation~R; it is a different, coarser object that happens
+to be built by the same closure.
+
+\emph{Second, fission.} Parfit's fission case --- one person, two equally
+continuous successors --- is deliberately left without a determinate answer,
+because for him it shows the question was wrong. A key can sign two successors,
+so the ledger faces the same case and \emph{does} answer it: the no-mint rule
+below debits the source and discounts each child, making fission a conserved
+split. That is a genuine answer, but note what it costs. It is a decision that
+total creditable reputation is conserved, imposed because an economy needs it;
+it is not a discovery about identity, and it resolves by fiat the case Parfit
+argues cannot be resolved.
+
+\emph{Third, and sharpest, the direction of evidence.} Psychological
+connectedness is a first-personal fact about the successor: it remembers.
+Signature verification is third-personal and constitutively so --- anyone
+holding the public key can check it, and the successor's own testimony is not
+consulted. Williams's framing warning, cited above, is precisely about the
+first-personal framing's power to compel; the lineage criterion is immune to it
+because it has no first-personal framing available. Read the right way round,
+this is the correspondence's one clear advantage over its source. Read the
+wrong way round it is the trap: possession of a predecessor's key proves
+\emph{custody transfer}, not continuity of anything psychological. A successor
+that verifies lineage perfectly and loads none of the predecessor's notes is
+fully continuous by the ledger criterion and not connected at all by Parfit's.
+Table~\ref{tab:stp-organs} is the measure of that gap in this
+implementation: each organ stores less than the live body had.
+
+What would close the third gap is not a better argument but a stated
+obligation, and it is open: a continuity witness that attests \emph{what the
+successor actually loaded} --- which notes, which checkpoint, which ledger
+positions --- rather than only that a successor was authorized. That is a
+schema and an attestation-coverage question, not a philosophical one, and no
+design in this chapter specifies it.
+\end{pdboundary}
+
 \pdexercisepointer*{\ref{ex:stp-connected-vs-continuous}}{\ref{ex:stp-fork-inheritance}}{\pageref{ex:stp-connected-vs-continuous}}
 
 \begin{pdexample}{No-mint inheritance: the closure-sum refutation and the copy-fork mint}
