@@ -387,17 +387,187 @@ describe('check-pr-requirements guard', () => {
       expect(stderr).toMatch(/`visual-exempt` is not available/);
     });
 
+    // Git stores paths case-sensitively, so `Figures/` and `figures/` are two
+    // different directories on this filesystem. A contributor who capitalises a
+    // directory would otherwise create a figure tree the rule cannot see — the
+    // exact gap the shape-based tests exist to close. Today's corpus is all
+    // lowercase, so every one of these is latent rather than live.
+    test.each([
+      ['an upper-case figures dir', 'docs/x/FIGURES/b.png'],
+      ['a mixed-case figures dir', 'docs/x/Figures/b.png'],
+      ['a mixed-case hyphenated plate dir', 'docs/pr-assets/Swiss-Plates/d.jpg'],
+      ['an upper-case plates dir', 'docs/x/PLATES/d.jpg'],
+      ['a capitalised whitepaper tree', 'Whitepaper/corpus.json'],
+      ['a capitalised chartwork skill', 'skills/Harbor-Chartwork/SKILL.md'],
+    ])('%s is still figure territory', (_label, path) => {
+      const { code, stderr } = run('--body-file', fixture('figure-visual-exempt.md'), '--changed', `${path},changelog.d/9914-x.md`);
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/`visual-exempt` is not available/);
+    });
+
     // ...and `templates/` contains the letters "plates". A looser plate pattern
     // matches every one of the ~90 template directories in this repo, which
     // would make the rule fire on skill scaffolding that renders nothing.
     test.each([
       ['a templates/ directory is NOT a plate directory', 'skills/agent-pr-authoring/templates/pr-body.md'],
       ['a repo-root templates/ directory is not either', 'templates/agent-brief.md'],
+      ['nor is a capitalised Templates/', 'skills/x/Templates/pr-body.md'],
     ])('%s', (_label, path) => {
       const { code, stdout } = run('--body-file', fixture('figure-visual-exempt.md'), '--changed', path);
       expect(code).toBe(0);
       expect(stdout).toMatch(/meets the contract/);
     });
+  });
+
+  // --- Section boundaries: the fence state machine ---------------------------
+  //
+  // Rule 3b asks "is there a render in THIS section", so where the section ends
+  // is now a question with a pass/fail attached to it. A fence tracker that
+  // desynchronises can move that boundary, and it moves it in both directions:
+  // a section truncated early loses evidence that is really there (a false
+  // failure), and a section that swallows the next heading counts evidence that
+  // belongs to a different section (a bypass). The second is the one that
+  // matters, and it is reachable: a four-backtick fence whose body contains a
+  // three-backtick line is ordinary in a repo whose PR bodies quote markdown.
+  describe('fenced code blocks do not move a section boundary', () => {
+    const HEAD = [
+      '## Summary',
+      'A genuine summary with plenty of words to satisfy the floor cleanly here today.',
+      '## Test Plan',
+      'Ran the suite and exercised several edge cases to be sure it behaves well here.',
+      '',
+    ].join('\n');
+    const FIG = 'whitepaper/figures/fig-swk-stack-map.tex';
+
+    // THE BYPASS. The Visual Proof section has no render. If the fence tracker
+    // desynchronises on the inner ``` line it never leaves the fence, so the
+    // `## Appendix` heading below stops terminating the section and the logo in
+    // the appendix is read as this section's evidence.
+    test('a nested fence does not let a LATER section supply the render', () => {
+      const body = HEAD + [
+        '## Visual Proof',
+        '',
+        'Rendered and inspected; see the log below.',
+        '',
+        '````',
+        '```',
+        '````',
+        '',
+        '## Appendix',
+        '',
+        '![unrelated logo](https://x.test/logo.png)',
+        '',
+      ].join('\n');
+      const { code, stderr } = run('--body', body, '--changed', FIG);
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/carries no render a reviewer can open/);
+    });
+
+    test('a tilde fence containing backticks does not leak a later section in', () => {
+      const body = HEAD + [
+        '## Visual Proof',
+        '',
+        '~~~',
+        '```',
+        '~~~',
+        '',
+        '## Appendix',
+        '',
+        '![unrelated logo](https://x.test/logo.png)',
+        '',
+      ].join('\n');
+      const { code, stderr } = run('--body', body, '--changed', FIG);
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/carries no render a reviewer can open/);
+    });
+
+    // ...and the other direction: a real render inside a section that also
+    // quotes fenced output must still count. These are the four shapes a PR body
+    // in this repo actually contains.
+    test.each([
+      ['a plain fenced block', ['```', 'some log output', '```']],
+      ['a fence with a language tag', ['```sh', 'figcheck --dpi 150 fig.pdf', '```']],
+      ['two consecutive fences', ['```', '```', '```', 'more', '```']],
+      ['a four-backtick fence quoting a three-backtick one', ['````', '```', 'inner', '```', '````']],
+      ['a tilde fence quoting backticks', ['~~~', '```', '~~~']],
+    ])('%s before the render still passes', (_label, fenceLines) => {
+      const body = HEAD + [
+        '## Visual Proof',
+        '',
+        ...fenceLines,
+        '',
+        '![render](https://x.test/fig.png)',
+        '',
+      ].join('\n');
+      const { code, stdout } = run('--body', body, '--changed', FIG);
+      expect(code).toBe(0);
+      expect(stdout).toMatch(/meets the contract/);
+    });
+
+    // A heading inside a fenced block must not be mistaken for the section
+    // itself. Without correct fence tracking on the SEARCH loop, this quoted
+    // heading-plus-image would be found as the Visual Proof section.
+    test('a quoted "## Visual Proof" inside a code block is not the section', () => {
+      const body = HEAD + [
+        '## Test evidence',
+        '',
+        'The template block a figure PR has to fill in looks like this:',
+        '',
+        '```md',
+        '## Visual Proof',
+        '',
+        '![your render here](https://example.invalid/render.png)',
+        '```',
+        '',
+      ].join('\n');
+      const { code, stderr } = run('--body', body, '--changed', FIG);
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/no `## Visual Proof` section at all/);
+    });
+  });
+
+  // Finding refuted rather than fixed, pinned so the refutation is checkable.
+  // `HTML_COMMENT_RE` is non-greedy to the FIRST `-->`, which is exactly what an
+  // HTML comment is: per the HTML standard a comment's text may not contain
+  // `-->`, so the first one always ends it. A body carrying `-->` inside a
+  // fenced code block is the case that looks alarming, and it is fine: each
+  // comment still ends at its own terminator, and the stray `-->` is just text.
+  test('a stray --> in a code block does not break comment stripping', () => {
+    const body = [
+      '## Summary',
+      'A genuine summary with plenty of words to satisfy the floor cleanly here today.',
+      '',
+      '```',
+      'the marker ends with --> and this line is not a comment',
+      '```',
+      '',
+      '## Test Plan',
+      'Ran the suite and exercised several edge cases to be sure it behaves well here.',
+      '## Visual Proof',
+      '![render](https://x.test/fig.png)',
+    ].join('\n');
+    const { code, stdout } = run('--body', body, '--changed', 'whitepaper/figures/f.tex');
+    expect(code).toBe(0);
+    expect(stdout).toMatch(/meets the contract/);
+  });
+
+  // The same shape, but the stray `-->` sits between a real marker's `<!--` and
+  // its own `-->`. Greedy matching would swallow to the LAST `-->` and silently
+  // delete the Summary; non-greedy keeps the body intact.
+  test('a real marker is not extended past its own terminator', () => {
+    const body = [
+      '<!-- changelog-exempt: CI-only change -->',
+      'the word --> appears here as ordinary prose',
+      '## Summary',
+      'A genuine summary with plenty of words to satisfy the floor cleanly here today.',
+      '## Test Plan',
+      'Ran the suite and exercised several edge cases to be sure it behaves well here.',
+      '## Visual Proof',
+      '![render](https://x.test/fig.png)',
+    ].join('\n');
+    const { code, stdout } = run('--body', body, '--changed', 'whitepaper/figures/f.tex,lib/relay-client.ts');
+    expect(code).toBe(0);
+    expect(stdout).toMatch(/meets the contract/);
   });
 
   test('an .avif still does not satisfy the motion requirement', () => {
