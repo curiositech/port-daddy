@@ -46,8 +46,9 @@ cheap `@cf/qwen/qwen3-30b-a3b-fp8` ($0.051/$0.335). Routing is currently
 ## Decision
 
 Production deployment is a protected manual activation, not an automatic merge
-side effect. It requires the complete served-installation inventory, a valid
-explicit entitlement and provisioning `source_ref` for every member, plus the
+side effect. It derives the complete served-installation inventory from
+`fleet_served_installations`, requires a valid explicit entitlement and
+provisioning `source_ref` for every served member, plus the
 verification date and exact SHA-256 digest of the generated Workers AI tariff
 table. Missing schema, incomplete entitlements, or a stale tariff witness aborts
 before `wrangler deploy`, leaving the previously deployed Worker live.
