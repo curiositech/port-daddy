@@ -4,7 +4,7 @@
     "website-v2/public/whitepaper/agent-transactions-whitepaper.pdf": {
       "pages": 60,
       "bytes": 992630,
-      "sha256": "f527a4540d9bec19937a14305b3238490379941fd3cd60c8ae29166e980dc006"
+      "sha256": "3ff3a15b7ba61a037f1e9267acd59c0fcb8d4bb31e6ad72145988b552ff2370e"
     },
     "website-v2/public/whitepaper/anchor-protocol-whitepaper.pdf": {
       "pages": 38,
@@ -14,7 +14,7 @@
     "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf": {
       "pages": 551,
       "bytes": 9740631,
-      "sha256": "a305ceccb8b7d22758584a5c7429af9ac8c4ad267ffda1ad7b16204543a92ca5"
+      "sha256": "0480793831c366542938595fff0bc31481457014d311a6c5be5a1faa443d7739"
     },
     "website-v2/public/whitepaper/federated-harbor-whitepaper.pdf": {
       "pages": 45,
@@ -24,7 +24,7 @@
     "website-v2/public/whitepaper/harbor-economy-whitepaper.pdf": {
       "pages": 48,
       "bytes": 782057,
-      "sha256": "0011f5d1bea66bb377e39c295e5ee659d5bc0897f108ae29ef03ede3a40e2867"
+      "sha256": "f935902a41223f8a9dbaadce3f8c6a99f323223a902b2cbcc15bbaf69253d1c5"
     },
     "website-v2/public/whitepaper/legible-swarm-whitepaper.pdf": {
       "pages": 64,
@@ -44,7 +44,7 @@
     "website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf": {
       "pages": 53,
       "bytes": 812597,
-      "sha256": "a0e2049166858759a373ed2be97bf3b9e9b8e30d44d78686b0ad1ad95399c04c"
+      "sha256": "8dfb40a5179a5dbb30090288e601c769d2fb4ac209da7a381e6ce5b6d34bd59d"
     }
   }
 }
