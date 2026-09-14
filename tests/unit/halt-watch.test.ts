@@ -24,6 +24,7 @@ import {
   formatDistressLine,
   haltSentinelPath,
   readHaltSentinel,
+  runHaltStopPlan,
 } from '../../lib/halt-watch.js';
 
 const SCRATCH = join(process.cwd(), '.scratch', `halt-watch-test-${process.pid}`);
@@ -33,6 +34,18 @@ const SENTINEL = join(HOME, 'HALT');
 const DISTRESS = join(HOME, 'DISTRESS');
 const REPO_DISTRESS = join(REPO, '.portdaddy', 'DISTRESS');
 const HALT_LINE = '2026-09-05T14:02:11Z operator:erich SECURITE HALT reason=spend-runaway ref=docs/incidents/2026-09-05-port-daddy-halt.md';
+
+test('halt stop plans attempt every component and reject partial compliance', () => {
+  const attempted: string[] = [];
+  const failures: string[] = [];
+  expect(() => runHaltStopPlan([
+    { name: 'dispatch worker', stop: () => { attempted.push('dispatch'); throw new Error('worker stuck'); } },
+    { name: 'fleet daemon', stop: () => { attempted.push('fleet'); } },
+    { name: 'active backends', stop: () => { attempted.push('backends'); throw new Error('child stuck'); } },
+  ], (name) => failures.push(name))).toThrow(/dispatch worker, active backends/);
+  expect(attempted).toEqual(['dispatch', 'fleet', 'backends']);
+  expect(failures).toEqual(['dispatch worker', 'active backends']);
+});
 
 function logSink() {
   const events: Array<{ level: string; event: string; meta?: Record<string, unknown> }> = [];

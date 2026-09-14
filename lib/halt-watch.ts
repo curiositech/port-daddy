@@ -87,6 +87,37 @@ export interface HaltWatch {
   checks(): number;
 }
 
+export interface HaltStopStep {
+  name: string;
+  stop: () => void;
+}
+
+/**
+ * Attempt every synchronous shutdown step, but refuse to turn partial success
+ * into a COMPLIED witness. The caller's halt transition catches the aggregate
+ * and records CANNOT-STOP after all remaining cleanup has been attempted.
+ */
+export function runHaltStopPlan(
+  steps: readonly HaltStopStep[],
+  onFailure: (name: string, error: unknown) => void = () => {},
+): void {
+  const failures: Array<{ name: string; error: unknown }> = [];
+  for (const step of steps) {
+    try {
+      step.stop();
+    } catch (error) {
+      failures.push({ name: step.name, error });
+      onFailure(step.name, error);
+    }
+  }
+  if (failures.length > 0) {
+    throw new AggregateError(
+      failures.map(({ error }) => error),
+      `Local halt could not confirm ${failures.map(({ name }) => name).join(', ')}`,
+    );
+  }
+}
+
 const noopLogger: HaltWatchLogger = { info() {}, warn() {} };
 
 function pdHome(env: NodeJS.ProcessEnv): string {
