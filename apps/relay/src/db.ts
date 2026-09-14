@@ -2529,15 +2529,18 @@ export interface ShipwrightProposalRow {
   installation_id: number;
   repo_full_name: string;
   yaml: string;
+  origin: ShipwrightProposalOrigin;
   created_at: number;
 }
+
+export type ShipwrightProposalOrigin = 'assistant_conversation' | 'deterministic_onboarding';
 
 export async function latestShipwrightProposal(
   db: D1Database,
   scope: { threadId: string; userId: string; installationId: number; repoFullName: string },
 ): Promise<ShipwrightProposalRow | null> {
   return (await db.prepare(
-    `SELECT id, thread_id, user_id, installation_id, repo_full_name, yaml, created_at
+    `SELECT id, thread_id, user_id, installation_id, repo_full_name, yaml, origin, created_at
        FROM shipwright_proposals
       WHERE thread_id = ? AND user_id = ? AND installation_id = ? AND repo_full_name = ?
       ORDER BY created_at DESC LIMIT 1`,
@@ -2562,7 +2565,7 @@ export async function exportScopedShipwrightContext(db: D1Database, userId: stri
          FROM shipwright_repo_memory WHERE user_id = ? ORDER BY updated_at DESC`,
     ).bind(userId).all<ShipwrightRepoMemoryRow>(),
     db.prepare(
-      `SELECT id, thread_id, user_id, installation_id, repo_full_name, yaml, created_at
+      `SELECT id, thread_id, user_id, installation_id, repo_full_name, yaml, origin, created_at
          FROM shipwright_proposals WHERE user_id = ? ORDER BY created_at ASC`,
     ).bind(userId).all<ShipwrightProposalRow>(),
   ]);
@@ -2584,19 +2587,21 @@ export async function insertShipwrightProposal(
     installationId: number;
     repoFullName: string;
     yaml: string;
+    origin: ShipwrightProposalOrigin;
     now: number;
   },
 ): Promise<void> {
   await db.prepare(
     `INSERT INTO shipwright_proposals
-      (id, thread_id, user_id, installation_id, repo_full_name, yaml, created_at)
-     SELECT ?, id, user_id, installation_id, repo_full_name, ?, ?
+      (id, thread_id, user_id, installation_id, repo_full_name, yaml, origin, created_at)
+     SELECT ?, id, user_id, installation_id, repo_full_name, ?, ?, ?
        FROM shipwright_threads
       WHERE id = ? AND user_id = ? AND installation_id = ? AND repo_full_name = ?
      ON CONFLICT(thread_id, yaml) DO NOTHING`,
   ).bind(
     row.id,
     row.yaml,
+    row.origin,
     row.now,
     row.threadId,
     row.userId,
@@ -2605,12 +2610,12 @@ export async function insertShipwrightProposal(
   ).run();
 }
 
-export async function shipwrightProposalExists(
+export async function getShipwrightProposalOrigin(
   db: D1Database,
   scope: { threadId: string; userId: string; installationId: number; repoFullName: string; yaml: string },
-): Promise<boolean> {
+): Promise<ShipwrightProposalOrigin | null> {
   const row = await db.prepare(
-    `SELECT 1 AS found FROM shipwright_proposals
+    `SELECT origin FROM shipwright_proposals
       WHERE thread_id = ? AND user_id = ? AND installation_id = ?
         AND repo_full_name = ? AND yaml = ? LIMIT 1`,
   ).bind(
@@ -2619,8 +2624,8 @@ export async function shipwrightProposalExists(
     scope.installationId,
     scope.repoFullName,
     scope.yaml,
-  ).first<{ found: number }>();
-  return row?.found === 1;
+  ).first<{ origin: ShipwrightProposalOrigin }>();
+  return row?.origin ?? null;
 }
 
 /** Explicit repo clear: raw threads and durable repo records all disappear. */

@@ -7,7 +7,7 @@ import {
   insertScopedShipwrightMessage,
   insertShipwrightProposal,
   listScopedShipwrightMessages,
-  shipwrightProposalExists,
+  getShipwrightProposalOrigin,
   exportScopedShipwrightContext,
 } from '../src/db.js';
 import { MIGRATIONS_DIR, SCHEMA_SQL, makeTestD1 } from './support/d1-sqlite.js';
@@ -38,9 +38,28 @@ describe('Shipwright scoped-context migration', () => {
     }
   });
 
+  it('adds a constrained proposal origin and mirrors it in the fresh schema', () => {
+    const originMigration = '2026-09-14-zz-shipwright-proposal-origin.sql';
+    const sql = readFileSync(join(MIGRATIONS_DIR, originMigration), 'utf8');
+    const schema = readFileSync(SCHEMA_SQL, 'utf8');
+    expect(sql).toContain("DEFAULT 'assistant_conversation'");
+    expect(sql).toContain("'deterministic_onboarding'");
+    expect(schema).toContain('origin TEXT NOT NULL');
+    const t = makeTestD1();
+    seedUser(t.raw);
+    t.raw.prepare(
+      'INSERT INTO shipwright_threads (id,user_id,installation_id,repo_full_name,created_at,updated_at) VALUES (?,?,?,?,?,?)',
+    ).run(`swt_${'9'.repeat(48)}`, 'u_1', 11, 'octo/repo', 1, 1);
+    expect(() => t.raw.prepare(
+      'INSERT INTO shipwright_proposals (id,thread_id,user_id,installation_id,repo_full_name,yaml,origin,created_at) VALUES (?,?,?,?,?,?,?,?)',
+    ).run('bad', `swt_${'9'.repeat(48)}`, 'u_1', 11, 'octo/repo', 'fleet: {}', 'invented', 1)).toThrow();
+    t.close();
+  });
+
   it('leaves the previous schema usable after the new tables arrive', () => {
     const quotaMigration = '2026-09-14-z-shipwright-thread-quota.sql';
-    const t = makeTestD1([MIGRATION, quotaMigration]);
+    const originMigration = '2026-09-14-zz-shipwright-proposal-origin.sql';
+    const t = makeTestD1([MIGRATION, quotaMigration, originMigration]);
     seedUser(t.raw);
     t.raw.exec(readFileSync(join(MIGRATIONS_DIR, MIGRATION), 'utf8'));
     t.raw.exec(readFileSync(join(MIGRATIONS_DIR, quotaMigration), 'utf8'));
@@ -95,16 +114,17 @@ describe('Shipwright proposal provenance', () => {
     await insertShipwrightProposal(t.db, {
       id: `swp_${'c'.repeat(48)}`,
       threadId: `swt_${'a'.repeat(48)}`,
-      userId: 'u_1', installationId: 11, repoFullName: 'octo/repo-a', yaml, now: 2,
+      userId: 'u_1', installationId: 11, repoFullName: 'octo/repo-a', yaml,
+      origin: 'assistant_conversation', now: 2,
     });
-    expect(await shipwrightProposalExists(t.db, {
+    expect(await getShipwrightProposalOrigin(t.db, {
       threadId: `swt_${'a'.repeat(48)}`,
       userId: 'u_1', installationId: 11, repoFullName: 'octo/repo-a', yaml,
-    })).toBe(true);
-    expect(await shipwrightProposalExists(t.db, {
+    })).toBe('assistant_conversation');
+    expect(await getShipwrightProposalOrigin(t.db, {
       threadId: `swt_${'b'.repeat(48)}`,
       userId: 'u_1', installationId: 12, repoFullName: 'octo/repo-b', yaml,
-    })).toBe(false);
+    })).toBeNull();
     t.close();
   });
 
@@ -144,7 +164,7 @@ describe('Shipwright proposal provenance', () => {
     });
     await insertShipwrightProposal(t.db, {
       id: `swp_${'f'.repeat(48)}`, threadId, userId: 'u_1', installationId: 11,
-      repoFullName: 'octo/repo-a', yaml: 'fleet:\n  agents: {}', now: 1,
+      repoFullName: 'octo/repo-a', yaml: 'fleet:\n  agents: {}', origin: 'assistant_conversation', now: 1,
     });
     const now = (SHIPWRIGHT_RETENTION_DAYS + 1) * 24 * 60 * 60;
     await runRetentionSweep({ DB: t.db } as Env, now);
