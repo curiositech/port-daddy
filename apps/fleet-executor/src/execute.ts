@@ -161,6 +161,16 @@ import {
   requireContextAdmission,
   utf8ByteLength,
 } from './context-admission.js';
+import {
+  ManagedBillingError,
+  MICROUSD_PER_USD,
+  recordManagedShipSpend,
+  releaseManagedRun,
+  reserveManagedRun,
+  resolveManagedEntitlement,
+  settleManagedRun,
+  type ManagedRunReservation,
+} from './managed-billing.js';
 
 const TRANSCRIPT_FAILURE_TELEMETRY_TIMEOUT_MS = 250;
 
@@ -1128,38 +1138,6 @@ async function reconcileTerminalRunProjection(
 }
 
 /**
- * Per-installation SPEND CIRCUIT-BREAKER (ADR-0116/0117). Returns true ONLY when
- * the `credit_ledger` table exists, this installation HAS ledger rows, and its
- * balance (SUM(delta_usd)) is <= 0 — i.e. billing is configured for them and
- * they are out of credit. FAIL-OPEN everywhere else:
- *   - DB binding absent               ⇒ false (allow)
- *   - `credit_ledger` table absent    ⇒ query throws ⇒ false (allow)
- *   - installation has NO ledger rows ⇒ false (allow: trial / billing not live)
- *   - any read error                  ⇒ false (allow)
- * Inert until the relay starts writing credit_ledger; then it is the
- * per-installation abuse gate once billing is live.
- */
-async function creditsExhausted(env: ExecutorEnv, installationId: number): Promise<boolean> {
-  if (!env.DB) return false;
-  try {
-    const row = await env.DB.prepare(
-      `SELECT COUNT(*) AS n, COALESCE(SUM(delta_usd), 0) AS bal
-         FROM credit_ledger
-        WHERE installation_id = ?`,
-    )
-      .bind(installationId)
-      .first<{ n: number; bal: number }>();
-    if (!row) return false;
-    const n = Number(row.n) || 0;
-    if (n <= 0) return false; // no ledger rows ⇒ billing not configured ⇒ allow
-    return Number(row.bal) <= 0; // rows exist AND balance spent ⇒ skip
-  } catch {
-    // Table absent (billing not deployed) or any read error ⇒ fail-open.
-    return false;
-  }
-}
-
-/**
  * Record the ship's token spend into the RUN TRANSCRIPT, so the human-facing
  * run page can report it.
  *
@@ -1219,50 +1197,8 @@ async function recordShipTokensInTranscript(
 }
 
 /**
- * Record ONE `fleet_run_spend` row for a completed ship (best-effort). The
- * per-ship input/output tokens come from the ship's {@link ShipMetrics}; cost is
- * derived from {@link costUsdForModel} at the ship's model rate. A failed insert
- * (missing table / D1 down) is swallowed and NEVER changes the run — the same
- * best-effort contract the transcript writes hold to.
- */
-async function recordShipSpend(
-  env: ExecutorEnv,
-  runId: string,
-  ship: ShipConfig,
-  installationId: number | null,
-  metrics: ShipMetrics,
-): Promise<void> {
-  if (!env.DB) return;
-  // Per-call sum (see ShipMetrics.costUsd), NOT a single rate applied to the
-  // ship's totals -- MAP and REDUCE may have run on different models.
-  const cost = metrics.costUsd;
-  try {
-    await env.DB.prepare(
-      `INSERT INTO fleet_run_spend
-         (run_id, ship, installation_id, model, input_tokens, output_tokens, cost_usd, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-      .bind(
-        runId,
-        ship.name,
-        installationId,
-        ship.cfModel,
-        metrics.inputTokens,
-        metrics.outputTokens,
-        cost,
-        nowSec(),
-      )
-      .run();
-  } catch (err) {
-    console.error(
-      `[fleet-executor] fleet_run_spend insert failed run=${runId} ship=${ship.name}: ${String(err)}`,
-    );
-  }
-}
-
-/**
  * Record ONE `fleet_ai_call_stats` row for a completed ship's Workers AI
- * calls (best-effort, same contract as {@link recordShipSpend}). Called with
+ * calls (best-effort telemetry, unlike authoritative managed billing). Called with
  * whatever {@link FleetAiCircuit.snapshotShipStats} has accumulated for this
  * ship by the time it finishes — a no-op when the ship made no AI calls
  * through `runForShip` (e.g. it errored before reaching one, or ideation-only
@@ -1548,6 +1484,7 @@ export async function executeFleet(
   // Deterministic run id from the delivery id so a retried delivery rewrites its
   // own audit row + transcript (INSERT OR REPLACE) instead of duplicating.
   const runId = `run:${deliveryId}`;
+  let managedReservation: ManagedRunReservation | null = null;
   // Capability URL for the human-facing run page (ADR-0101 Phase 0). Null when
   // RUN_DETAILS_BASE_URL / RUN_PAGE_SECRET are unconfigured; never throws.
   const detailsUrl = await runDetailsUrl(env, runId);
@@ -2201,6 +2138,14 @@ export async function executeFleet(
         checkNeutralized,
       },
     );
+    if (managedReservation?.state === 'reserved') {
+      // A cancellation before inference returns the retail reservation. Once a
+      // ship has incurred provider cost, the run must settle instead: releasing
+      // spent work would push the platform below its margin floor.
+      managedReservation = modelSpendPossible
+        ? await settleManagedRun(env.DB, runId, nowSec())
+        : await releaseManagedRun(env.DB, runId, nowSec());
+    }
     await recordRunEnd(env, runId, 'cancelled', startMs);
     return {
       kind: 'stale-head',
@@ -2337,23 +2282,26 @@ export async function executeFleet(
   // pd-fleet.yml). Signed zero-trust publish — see src/squid-events.ts.
   emitSquidEvent(env, 'run-started', { repo: job.repoFullName, pr: prNumber, runId }, squidConsent);
 
-  // --- SPEND CIRCUIT-BREAKER (pre-spend, before any ship runs) --------------
-  // The per-installation abuse gate: if this installation has a credit_ledger and
-  // its balance is spent (SUM(delta_usd) <= 0), skip ALL AI spend and complete
-  // the gating check NEUTRAL (never falsely-green, never blocking) so the PR is
-  // not gated by an unpaid bill. FAIL-OPEN: absent table / no ledger rows / trial
-  // installs run normally (see creditsExhausted). Runs after the check is
-  // established so we can complete it, but BEFORE any ship inference.
-  if (job.installationId != null && (await creditsExhausted(env, job.installationId))) {
+  // --- MANAGED BILLING ADMISSION (pre-spend, before any ship runs) ----------
+  // Managed inference is deny-by-default. Missing D1/schema/entitlement, read
+  // errors, and insufficient prepaid retail all produce ZERO AI calls. The
+  // atomic reservation fixes a provider-cost ceiling at 25% of retail.
+  try {
+    await resolveManagedEntitlement(env.DB, job.installationId);
+    managedReservation = await reserveManagedRun(env.DB, runId, job.installationId, nowSec());
+  } catch (error) {
+    const billingCode = error instanceof ManagedBillingError ? error.code : 'accounting-failed';
     const summary =
-      'Fleet skipped: this installation is out of credits. Top up credits to resume automated reviews.';
-    await transcript.step('check-completed', null, 'Check concluded: neutral (credits exhausted)', {
+      'Fleet skipped: managed inference could not reserve prepaid credit. ' +
+      'No AI was run. Activate or top up this installation to resume automated reviews.';
+    await transcript.step('check-completed', null, 'Check concluded: neutral (billing admission denied)', {
       checkRunId,
       conclusion: 'neutral',
-      reason: 'credits-exhausted',
+      reason: 'managed-billing-denied',
+      billingCode,
       installationId: job.installationId,
     });
-    await completeOwnedCheck('neutral', summary, 'before credits neutral completion');
+    await completeOwnedCheck('neutral', summary, 'before billing neutral completion');
     await recordRunEnd(env, runId, 'neutral', startMs);
     return;
   }
@@ -2681,9 +2629,18 @@ export async function executeFleet(
       verdict: result.errored ? 'ERROR' : result.verdict,
     }, squidConsent);
     await emitShipTelemetry(env, job, prCtx, ship, result, metrics, checkRunId, shipStartMs);
-    // Per-run spend: one fleet_run_spend row per ship that actually ran, so the
-    // relay can bill per installation. Best-effort — never changes the run.
-    await recordShipSpend(env, runId, ship, job.installationId, metrics);
+    // Billing-critical spend identity. This is deliberately not best-effort:
+    // a run cannot checkpoint or conclude when its exact integer accounting is
+    // missing or disagrees with an earlier retry.
+    await recordManagedShipSpend(env.DB, {
+      runId,
+      ship: ship.name,
+      installationId: job.installationId,
+      model: ship.cfModel,
+      inputTokens: metrics.inputTokens,
+      outputTokens: metrics.outputTokens,
+      providerCostMicrousd: Math.round(metrics.costUsd * MICROUSD_PER_USD),
+    }, nowSec());
     // Aggregate (not per-call) Workers AI stats for this ship — see
     // FleetAiCircuit.runForShip for why per-call D1 rows were rejected.
     await recordShipAiCallStats(env, runId, ship, aiCircuit.snapshotShipStats(ship.name), aiCallDeadlineMs);
@@ -2864,6 +2821,10 @@ export async function executeFleet(
   } catch (error) {
     return stopSupersededRun(error, true);
   }
+  // Settlement is the durable money boundary and therefore precedes the
+  // public terminal check. It is idempotent on retry and rejects any provider
+  // total above 25% of the reserved retail amount.
+  managedReservation = await settleManagedRun(env.DB, runId, nowSec());
   const checkCompletion = await completeCheckRunDetailed(
     owner,
     repo,
