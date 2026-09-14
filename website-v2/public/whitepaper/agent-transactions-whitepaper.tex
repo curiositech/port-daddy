@@ -278,7 +278,7 @@ The standard response in security engineering is ``zero trust''---never trust, a
 
 Hobbes identified this dynamic in 1651~\pdcite{hobbes1651leviathan}. In the state of nature, without a common authority, rational actors cannot cooperate because the cost of verifying each counterparty's intentions exceeds the benefit of cooperation. The solution is not to make individuals trustworthy---it is to establish a \textbf{sovereign} whose authority both parties accept \emph{before} the interaction begins, so that the interaction itself can focus on the work. ``Covenants, without the sword, are but words, and of no strength to secure a man at all.''
 
-This paper argues that multi-agent systems need exactly this: a \textbf{commons authority} that provides trust as infrastructure, not trust as ceremony. Agents don't negotiate trust per-transaction. They enter a commons where trust has already been established---structurally, evidentially, and economically---and they work freely within that trust envelope.
+This paper argues that multi-agent systems need exactly this: a \pdgloss{commons authority}{One always-on service every agent already trusts because it was there before any of them arrived, holding the bonds, the claims and the evidence.} that provides trust as infrastructure, not trust as ceremony. Agents don't negotiate trust per-transaction. They enter a commons where trust has already been established---structurally, evidentially, and economically---and they work freely within that trust envelope.
 
 \subsection{The Three Failures of Peer-to-Peer Trust}
 
@@ -725,7 +725,7 @@ This subsection is intentionally short: full governance design is out of scope f
 
 When an agent dies, the commons does not lose information---if the authority does its job.
 
-Traditional crash recovery in database systems follows the ARIES protocol~\pdcite{mohan1992aries}, within the classical transaction-processing frame of Gray and Reuter~\pdcite{gray1993transaction}: the recovery manager replays the write-ahead log to restore consistency mechanically. Agent crash recovery is fundamentally different. An agent's ``log'' is its evidence trail---a sequence of natural-language observations and decisions. A successor cannot replay this trail deterministically; it must \emph{interpret} it.
+Traditional crash recovery in database systems follows the ARIES protocol~\pdcite{mohan1992aries}, within the classical transaction-processing frame of Gray and Reuter~\pdcite{gray1993transaction}: the recovery manager replays the write-ahead log to restore consistency mechanically. Agent crash recovery is fundamentally different. An agent's ``log'' is its \pdgloss{evidence trail}{The ordered sequence of notes an agent leaves as it works, each hashing the one before, so a later reader can tell what was recorded and when.}---a sequence of natural-language observations and decisions. A successor cannot replay this trail deterministically; it must \emph{interpret} it.
 
 \begin{definition}[Social Recovery]\label{def:social-recovery}
 When agent $\alpha$ is declared dead (no heartbeat for a status-adaptive threshold $\theta_{\text{dead}}$):

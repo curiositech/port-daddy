@@ -315,7 +315,7 @@ We will use Definition~\ref{def:fh-sovereignty} as the discipline against which 
 
 \subsection{Inter-harbor scope}\label{sec:fh-scope-property}
 
-The dual notion is equally important. \emph{Inter-harbor scope} is the scope of operations whose effects cross the trust boundary between sovereign harbors.
+The dual notion is equally important. \pdgloss{Inter-harbor scope}{The scope of an operation whose effects cross the trust boundary between two sovereign harbors, and so cannot be settled inside either one.} is the scope of operations whose effects cross the trust boundary between sovereign harbors.
 
 \begin{definition}[Inter-Harbor Scope]\label{def:fh-interscope}
 An operation $o$ has \emph{inter-harbor scope $(A, B)$} if its execution causes a state change observable to $B$ under authority that originated at $A$. Examples: an $A$-issued card used to write to a $B$-hosted database; a settlement clearing a bond posted at $A$ against damage measured at $B$; a revocation issued by $A$ becoming visible to a $B$-side verifier.
@@ -635,7 +635,7 @@ matching the hand value to six decimals on $C_6$, and on $P_6$ holding the print
 
 \pdexercisepointer{\ref{ex:fh-consistency-radius-run}}{\ref{ex:fh-two-liar-boundary}}{\pageref{ex:fh-consistency-radius-run}}
 
-\paragraph{The residual as a certificate.} Robinson's consistency radius asks how
+\paragraph{The residual as a certificate.} Robinson's \pdgloss{consistency radius}{How far the harbors' local views sit from the nearest single story that could explain them all; zero means they agree.} asks how
 far local data sits from the nearest global section~\pdcite{robinson}; the
 residual $r$ is its least-squares form under the completion over severed
 blocks. The new content is that $r$ is not merely a distance. It is a

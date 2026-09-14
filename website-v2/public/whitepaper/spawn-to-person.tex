@@ -523,7 +523,7 @@ memory and non-stationary types, reputation can build and collapse in cycles, an
 $\infty$-memory is rarely optimal}) is why \S\ref{sec:revoke} treats bounded memory
 as a \emph{parameter}, not a virtue. \textbf{Our departure:} the broader mechanism
 falls under mechanism design~\pdcite{nisan2007agt,myerson1981}, and we treat the
-grading oracle's own incentive-compatibility (\S\ref{sec:oracle}) as a hole in the
+grading \pdgloss{oracle}{A trusted source of ground truth the graded agent cannot edit, which is what turns an opinion about work into evidence about it.}'s own incentive-compatibility (\S\ref{sec:oracle}) as a hole in the
 core theorem rather than an assumption --- a move the platform-reputation
 literature, which usually takes the rating signal as exogenous, does not make.
 
@@ -1829,7 +1829,7 @@ stationarity (no model upgrades). All four are false in a market.}
 
 We now define the central protocol contribution of this paper: a
 \textbf{multi-dimensional reputation} built over witnessed outcomes. It has three
-parts: a multi-dimensional quality vector; a market of neutral, conflict-free,
+parts: a multi-dimensional \pdgloss{quality vector}{A witnessed outcome's score on three axes at once, so one number cannot hide a trade made between them.}; a market of neutral, conflict-free,
 influence-free evaluators; and a skill$\to$agent helpfulness attribution. We state
 it formally as a design (\DESIGNED-to-\VISION): the reference system has no
 reputation component yet, only the witnessed-outcome substrate the protocol scores
