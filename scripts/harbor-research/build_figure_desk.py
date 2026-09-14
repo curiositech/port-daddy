@@ -137,7 +137,9 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fi
 
 FIGURES_DIR = "docs/harbor-research/exposition/figures"
 CURATED_DIR = f"{FIGURES_DIR}/desk-curated"
-DATA_DIR = f"{FIGURES_DIR}/desk-data"
+DESK_DIR = f"{FIGURES_DIR}/desk"
+DATA_DIR = f"{DESK_DIR}/data"
+INDEX_REL = f"{DESK_DIR}/index.html"
 
 TEXTBOOK_REL = "whitepaper/textbook.json"
 BOOK_PDF_REL = "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf"
@@ -1111,12 +1113,25 @@ def main() -> int:
             print(f"wrote {rel} ({len(content)} bytes)")
 
     if args.bundle:
-        out = os.path.join(os.path.abspath(args.bundle), "data")
+        # the publishable bundle: the page, then its data beside it. The page
+        # images (pages/*.jpg) and the contact sheets are not emitted here --
+        # they are already published, and republishing keeps any file the
+        # publish does not name.
+        root_out = os.path.abspath(args.bundle)
+        out = os.path.join(root_out, "data")
         os.makedirs(out, exist_ok=True)
         for rel, content in outputs:
             with open(os.path.join(out, os.path.basename(rel)), "w", encoding="utf-8") as fh:
                 fh.write(content)
-        print(f"bundled {len(outputs)} files into {out}")
+        idx = abspath(INDEX_REL)
+        if os.path.isfile(idx):
+            with open(idx, encoding="utf-8") as fh:
+                page = fh.read()
+            with open(os.path.join(root_out, "index.html"), "w", encoding="utf-8") as fh:
+                fh.write(page)
+            print(f"bundled index.html + {len(outputs)} data files into {root_out}")
+        else:
+            print(f"bundled {len(outputs)} data files into {out} (no index.html at {INDEX_REL})")
 
     if args.report:
         report(ctx)
