@@ -697,7 +697,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     overviewHref: '/whitepaper?paper=harbor-economy',
     date: 'August 2026',
     pages: 48,
-    sizeKb: 764,
+    sizeKb: 742,
     status: 'Version 1.3 (textbook edition)',
     order: '06',
     chapter: 6,
