@@ -175,21 +175,50 @@
 % stroke and left the dash at the .45pt already baked into it. The canonical
 % Book therefore shipped a 0.448pt dot on a 0.498pt stroke.
 %
-% Measured on the Book (Swiss, the built edition) at 1.0x / 150 dpi:
-%   on 0.448pt = 0.93 device px -- UNDER ONE PIXEL
-%   off 0.996pt = 2.08 px, period 3.01 px
-%   peak ink per dot swings 0.173-0.345 (a 2.0x range) purely with where the
-%     dot lands on the pixel grid; the line's weight is a rasteriser accident
-%   the darkest pixel of the guide (0.30) is DARKER than every pixel of the
-%     solid `pd hairline` (0.25/0.19) beside it, while its mean ink (2.3%) is a
-%     quarter of the hairline's (8.9%) -- the two lines are not separated on any
-%     axis a reader can name
-%   declared separation from `pd hairline`: hhink!40 against hhink!45, 4.6% of
-%     the grey scale
+% MEASURED IN THE SHIPPED ARTIFACT, not in a probe: 50 guide strokes sampled
+% pixel by pixel in the committed coordination-papers-mega-volume.pdf, at 150
+% dpi / 1.0x.
 %
-% So a fragment that used `pd guide` to mean "this line is not that line" was
-% relying on ink that does not arrive on the page. Twenty-five of the corpus's
-% thirty-six guide draws carry exactly that meaning.
+%   on 0.448pt = 0.93 device px -- UNDER ONE PIXEL; off 0.996pt = 2.08 px
+%   the dash DECLARES 69% of each line's length as gap
+%   only 34% of each line's pixels actually reach paper
+%   35.4% of three-period windows contain NO pixel that reaches paper at all
+%
+% That last number is the defect. The gap (2.08 px) is narrower than the
+% antialias spread of a 0.93 px stroke, so as the pattern's phase drifts along a
+% line the gaps fill in: over a third of every guide's length there is no gap
+% left and it is a continuous grey stroke, while the rest of the same line still
+% reads as dots. The ink arrives. The DOTTEDNESS does not. A reader sees one
+% line that is dotted here and solid there, and no author chose that.
+%
+% Twenty-five of the corpus's thirty-six guide draws use dottedness to mean
+% "this line is not a drawn edge", so twenty-five of them were making a
+% distinction the page does not carry.
+%
+% After, same measurement, same probe geometry, Book preamble:
+%   on 1.2pt = 2.50 px, off 2.0pt = 4.17 px, stroke .7pt = 1.45 px
+%   0.0% of three-period windows are without paper -- every gap survives,
+%     at every phase
+%   50% of pixels reach paper against 62.5% declared, the shortfall now being
+%     the stroke's antialias skirt rather than the whole signal
+%
+% ON THE INK, because the obvious reading of this change is wrong. The BASE pair
+% was never the problem: hhgray!62 against the hairline's hhgray!78 is 0.411
+% against 0.517 of nominal ink, well apart. The problem is that the Book renders
+% the SWISS edition (\pdedition defaults to swiss; the committed Book PDF is
+% full of hhink!40 guides), where the pair was hhink!40 against hhink!45 -- 4.6%
+% of the grey scale. Deleting the Swiss override, which is the right fix for the
+% geometry, makes the base ink govern the Book too -- and hhgray!62 is 0.411
+% against the Book hairline's 0.410. The same grey, to a thousandth. So the base
+% ink has to move, or the dash would go back to carrying the whole distinction
+% by itself, which is how this started.
+%
+% hhink!70 measured against the hairline, mean ink on the page at 150 dpi:
+%   chapter  guide 0.0502  hairline 0.0790   guide is 64% of the hairline
+%   Book     guide 0.0545  hairline 0.0671   guide is 81% of the hairline
+% Per DOT it is 0.638 against 0.410 -- unmistakably a different mark. In MEAN it
+% is still lighter than the hairline -- so it still recedes. Two channels, both
+% working, instead of one that does not.
 %
 % The replacement is stated absolutely and measures phase-STABLE: every dot
 % renders at the same weight wherever it falls on the grid (peak column ink

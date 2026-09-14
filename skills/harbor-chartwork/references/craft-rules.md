@@ -231,26 +231,47 @@ So every dash in this corpus is written `dash pattern=on Xpt off Ypt`, in
 absolute points. The `dashed` family is already absolute (`on 3pt off 3pt`) and
 is fine; the `dotted` family is not and is banned (P23).
 
-**The floor, measured at 1.0× / 150 dpi** — the resolution at which someone reads
-a PDF on a screen without zooming. 1 pt = 2.083 px.
+**Measured in the shipped artifact**, not in a probe: 50 `pd guide` strokes
+sampled pixel by pixel in the committed `coordination-papers-mega-volume.pdf` at
+150 dpi / 1.0×, the resolution at which someone reads a PDF on a screen without
+zooming. 1 pt = 2.083 px.
 
-| | on | gap | stroke | peak ink per dot, over 12 sub-pixel phase offsets |
-|---|---|---|---|---|
-| `pd guide` before, Book (Swiss) | 0.448 pt = **0.93 px** | 0.996 pt = 2.08 px | 0.498 pt = 1.04 px | 0.184 → 0.302 (**1.6× swing**) |
-| `pd guide` before, technical | 0.600 pt = 1.25 px | 1.200 pt = 2.50 px | 0.299 pt = **0.62 px** | 0.353 → 0.553 (**1.6× swing**) |
-| `pd guide` after, all editions | 1.200 pt = 2.50 px | 2.000 pt = 4.17 px | 0.697 pt = 1.45 px | flat: 0.894 / 0.937 / 1.337 |
+| | on | gap | stroke | gap declared | pixels reaching paper | 3-period windows with **no** paper |
+|---|---|---|---|---|---|---|
+| `pd guide` before (Book/Swiss, as shipped) | 0.448 pt = **0.93 px** | 0.996 pt = 2.08 px | 0.498 pt = 1.04 px | 69 % | **34 %** | **35.4 %** |
+| `pd guide` after (every edition) | 1.200 pt = 2.50 px | 2.000 pt = 4.17 px | 0.697 pt = 1.45 px | 62.5 % | 50 % | **0.0 %** |
 
-A mark under one device pixel is at the rasteriser's Nyquist limit: its weight
-depends on where it lands on the pixel grid, so the line antialiases into nothing
-at one phase and, on any renderer that snaps a thin stroke to a one-pixel
-minimum, merges into a solid line at another. Two pixels is the first on-length
-that renders at the same weight wherever it falls. **figcheck's T9** enforces
-on ≥ 2 px, gap ≥ 2 px and stroke ≥ 1 px at `--dash-dpi` (default 150), reading
-the dash array straight off the compiled PDF — the only place the numbers exist.
+Read the last column. The gap (2.08 px) was narrower than the antialias spread of
+a 0.93 px stroke, so as the pattern's phase drifted along a line the gaps filled
+in: over a third of every guide's length had no gap left and was a continuous
+grey stroke, while the rest of the same line still read as dots. The ink arrived;
+the *dottedness* did not. Nobody chose that, and nothing could see it — the
+source said `densely dotted` and the caption said "dotted" and both were true.
+
+A mark under one device pixel is at the rasteriser's Nyquist limit. Two pixels is
+the first on-length that renders at the same weight wherever it falls, and a gap
+has to clear the stroke's antialias skirt on both sides. **figcheck's T9**
+enforces on ≥ 2 px, gap ≥ 2 px and stroke ≥ 1 px at `--dash-dpi` (default 150),
+reading the dash array straight off the compiled PDF — the only place the numbers
+exist.
 
 T9 decides whether a dash *can* resolve. It cannot decide whether it *reads* as
 dotted against a particular background, or at arm's length. Clearing it is
-necessary, not sufficient; look at the render.
+necessary, not sufficient; look at the render, and sample pixels along the stroke
+rather than trusting that `densely dotted` means dotted.
+
+**On the ink, because the obvious reading of this change is wrong.** The base
+pair was never the problem: `hhgray!62` against the hairline's `hhgray!78` is
+0.411 against 0.517 of nominal ink, well apart. But the Book renders the **Swiss**
+edition (`\pdedition` defaults to `swiss`; the committed Book PDF is full of
+`hhink!40` guides), where the pair was `hhink!40` against `hhink!45` — 4.6 % of
+the grey scale. Deleting the Swiss override, which is the right fix for the
+geometry, makes the base ink govern the Book too — and `hhgray!62` is 0.411
+against the Book hairline's 0.410, the same grey to a thousandth. So the base ink
+had to move as well, or the dash would go back to carrying the whole distinction
+alone. At `hhink!70` a dot is 0.638 against 0.410 (unmistakably a different
+mark), while the line's mean ink stays below the hairline's — 64 % of it in a
+chapter, 81 % in the Book — so it still recedes. Two channels, both working.
 
 ### A dash that means nothing is the first ink you lose
 
@@ -267,6 +288,30 @@ looks hard at a grid line, so nobody noticed the channel had stopped working in
 the figures where it mattered. A lattice is continuous and quiet; a guide is
 discontinuous and definite. Reach for `pd guide` only where the reader must see
 that the line is not an edge.
+
+### A shape word is a promise too
+
+A caption that says "the diamond", "the dot", "the circle" has made a claim about
+the drawing exactly as surely as one that says "dotted" or "hatched" — and an
+**edition** can break it without the fragment changing a character. Measured, the
+same three datum styles under both preambles:
+
+| | standalone chapter | Book (Swiss) |
+|---|---|---|
+| `pd datum` | circle, 5.92 pt | **square**, 4.58 pt |
+| `pd focus datum` | circle, 7.05 pt | circle, 7.61 pt |
+| `pd caution datum` | diamond, 9.74 pt | diamond, 10.53 pt |
+
+Three distinguishable forms survive in both, which is the rule §"Shape has to
+survive the print size" asks for. But `pd datum` is a circle in one edition and a
+square in the other, so **a caption that calls a plain datum "the dot" or "the
+circle" is true in a chapter and false in the Book.** The two marked styles are
+stable across editions, so "the diamond" and the focus circle are safe words.
+
+Check a shape word against every edition the figure ships in, not the one you
+compiled. The caption-promise precheck (P15, on `claude/figures-that-were-missing`)
+covers styling words; shape words against a per-edition style set are the obvious
+next case for it and are not yet mechanised.
 
 One consequence worth stating plainly: **a caption verified against a shared
 style expires when that style moves.** Any figure whose caption was checked
