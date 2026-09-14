@@ -511,8 +511,10 @@ describe('queue consumer', () => {
     const kv = memoryKV();
     seedToken(kv, 42);
     const intent = { state: 'queued', error: null as string | null };
+    const billingD1 = memoryD1();
     const db = {
       prepare(sql: string) {
+        if (!sql.includes('fleet_run_intents')) return billingD1.db.prepare(sql);
         let bound: unknown[] = [];
         const stmt = {
           bind(...values: unknown[]) { bound = values; return stmt; },
