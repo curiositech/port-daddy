@@ -264,8 +264,8 @@ export const COLLECTED_VOLUME: CollectedVolume = {
   downloadUrl:
     'https://raw.githubusercontent.com/curiositech/port-daddy/main/website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
   date: TEXTBOOK.edition.date,
-  pages: 554,
-  sizeKb: 9526,
+  pages: 553,
+  sizeKb: 9523,
   references: 221,
   // No `editions` while the Book publishes only its central edition. See the
   // CollectedVolumeEdition doc comment above.
@@ -927,8 +927,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/bonded-commons',
     overviewHref: '/whitepaper?paper=bonded-commons',
     date: 'August 2026',
-    pages: 62,
-    sizeKb: 981,
+    pages: 60,
+    sizeKb: 984,
     status: 'Version 2.8 (textbook edition)',
     order: '07',
     chapter: 7,
@@ -1049,8 +1049,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/federated-harbor',
     overviewHref: '/whitepaper?paper=federated-harbor',
     date: 'August 2026',
-    pages: 45,
-    sizeKb: 826,
+    pages: 46,
+    sizeKb: 822,
     status: 'Version 1.1 (textbook edition)',
     order: '08',
     chapter: 8,

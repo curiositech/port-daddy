@@ -1,13 +1,68 @@
 # Textbook Craft — Changelog
 
+## v1.2.0 (2026-09-14)
+
+Two floors reported success while not doing their job. Both were found by
+workers running `chapter_lint.py` over real chapters; both are fixed in the
+checker, not in the chapters.
+
+- `exercises_at_chapter_end` mistook a section for the Exercises section.
+  `website-v2/public/whitepaper/spawn-to-person.tex`'s
+  `\section{Open problems (the starred exercises, collected)}` matched the
+  `exercises\b` title substring and, being the last such match, was taken
+  for the chapter's closing Exercises section — so all **50** correctly
+  placed clusters were reported as sitting outside it. Fifty false
+  positives is worse than no check, because someone acts on them.
+  Selection now scores candidates by exact normalized title first
+  (`Exercises`, optionally numbered, optionally "and solutions"), then by
+  how many `\pdexercisesfor`/`\pdexercise` clusters the candidate actually
+  contains — the grouping the page grammar already defines — and only then
+  by position. An exactly-titled section outranks a decoy holding the
+  clusters, so clusters parked in "Starred exercises" while the chapter's
+  own Exercises section stands empty still fail. The report now names the
+  section it judged against, which the misfiring version never did.
+  New helpers: `normalize_section_title`, `exercise_cluster_positions`;
+  `find_final_exercises_section` takes the cluster positions;
+  `find_exercise_clusters` returns `(clusters, exercises_section)`.
+- `at_most_one_interlude` could only see interludes that were already
+  labelled, and printed a clean `PASS` on `whitepaper/legible-swarm.tex` —
+  the chapter with the worst instance of exactly what it checks (Hobbes as
+  its spine, Scott as its governing warning, both unlabelled, plus Hume,
+  Locke, Pateman, Hirschman and Hayek in §9). Renamed
+  `at_most_one_labelled_interlude` and given a fourth status: two or more
+  labelled interludes still FAIL and still block, but one or none now
+  reports `REVIEW`, never `PASS`, and says what was measured —
+  "0 LABELLED interludes … an unlabelled philosophical aside woven into
+  ordinary prose is not detectable here and needs a human read". No
+  keyword list of philosopher names was added and none should be: that is
+  a guess wearing a measurement's clothes. A citation footprint
+  (bibliography entries; distinct works cited in the body; how many of
+  those are cited from a single section only — `citation_spread`) rides
+  along explicitly marked "Hint, not a verdict and not evidence" and can
+  never change the floor's status.
+- New status `REVIEW` in `floor_status`, counted separately in both
+  consolidated reports: a floor whose rule is only partly mechanically
+  visible reports what it measured instead of certifying what it cannot
+  see. It never blocks `--strict`.
+- `tests/test_chapter_lint.py`: 13 new tests — the spawn-to-person decoy,
+  scattered mid-body clusters still failing, exact-title precedence over a
+  decoy holding clusters, a chapter with no Exercises section at all,
+  title-markup normalization, zero/one/two labelled interludes, the hint
+  never becoming the verdict, `\pdcite` counting, and REVIEW rows in the
+  consolidated summary.
+- `examples/chapter1-lint-report.txt` and
+  `examples/consolidated-lint-report.txt` regenerated; both are now
+  produced with `--repo-root .` so the chapter column stays repo-relative.
+
 ## v1.1.0 (2026-09-08)
 
 Six `chapter_lint.py` fixes from PR #10074 review bots (lead-accepted), plus
 CI wiring and a consolidated report:
 
-- Strip TeX comments (`(?<!\\)%.*$`, the idiom `scripts/harbor-research/
-  check_plate_provenance.py` proved out) before every regex pass, in place,
-  preserving newlines so line numbers stay correct for free.
+- Strip TeX comments (`(?<!\\)%.*$`, the idiom
+  `scripts/harbor-research/check_plate_provenance.py` proved out) <!-- phantom-ok -->
+  before every regex pass, in place, preserving newlines so line numbers
+  stay correct for free.
 - `claims_carry_epistemic_kind`: the tag must sit inside the claim's own
   brace-and-env-balanced body (new `balanced_env_body`), not a fixed
   ±200/400-character window that could borrow a neighboring claim's tag.
