@@ -29,9 +29,24 @@ head, not by the source-input commit. Pre-commit drafts have only file digests.
 - [ADR-0137: Identity Retirement and Resurrection](../../../docs/adr/0137-identity-retirement-is-final-unless-resurrected.md)
 
 **Execution note:** This proposal and its mockups were built from inert source,
-existing receipts, and official documentation. No Port Daddy CLI, daemon, hook,
-MCP server, agent launcher, FleetBar, pd-console process, or provider call was
-started. Tool-native research workers were read-only and did not run Port Daddy.
+existing receipts, and official documentation. No **Port Daddy CLI**
+([command entrypoint](../../../bin/port-daddy-cli.js)), **daemon**
+([local control-plane process](../../../server.ts)), **coordination hook**
+([interactive harness adapter](../../../lib/squid/hook-shape.ts)), **MCP server**
+([tool-protocol adapter](../../../mcp/server.ts)), **agent launcher**
+([subprocess admission path](../../../lib/spawner.ts)), **FleetBar**
+([macOS operator app](../../../apps/FleetBar/FleetBar/FleetBarApp.swift)),
+**pd-console** ([GPU operator console](../../../core/pd-console/README.md)), or
+provider call was started. Tool-native research workers were read-only and did
+not run Port Daddy.
+
+**Internal vocabulary used below:** an **AgentNode** is the durable worker
+identity and a **BodyLease** is one temporary, generation-fenced embodiment;
+both are defined by [ADR-0121](../../../docs/adr/0121-durable-agent-roster.md).
+A **WorkIntent** states accepted purpose and constraints, while a **WorkPlan**
+is its versioned execution decomposition; the plan never supplies launch
+authority. **Drydock** names the external containment-and-proof system in these
+documents, and **Trial Basin** names its deterministic fake/replay test driver.
 
 ---
 

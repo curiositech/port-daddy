@@ -175,10 +175,18 @@ cursor and bounded tail, capability requirements, capacity state, memory
 disposition, omissions, and signatures. Use the schema in
 `schemas/resurrection-plan.schema.json`.
 
+Seal capsule meaning with the explicit `resurrection-capsule-v1` digest scope.
+Recompute the digest from the semantic payload and require the external
+signature-verification receipt to bind that digest, signer key, algorithm, and
+exact signature bytes. This binding verifies receipt consistency; a production
+verifier must still perform the named signature algorithm outside the proposed
+body.
+
 Validate the schema and the cross-field safety rules. The JSON Schema rejects
 structurally unsafe ready verdicts; `scripts/validate-resurrection-plan.mjs`
 also checks generation, typed-fact coverage, semantic effect uniqueness,
-capacity, and native-resume lease invariants. A schema-valid object is not
+recomputed effect fingerprints, the complete referenced capacity artifact, and
+bidirectional native-resume lease invariants. A schema-valid object is not
 necessarily semantically safe, and neither result authorizes execution.
 
 ### 6. Choose native resume or successor handoff
@@ -187,6 +195,9 @@ Native resume is an optimization, not authority. Use it only when the adapter ca
 prove the provider session, project/workspace binding, retained transcript, and
 expected tail. Otherwise compile a sanitized successor prompt from the capsule.
 Never claim that one provider's session format transfers to another.
+`destination.mode=native-resume` and `verdict=NATIVE_RESUME_ELIGIBLE` are an
+equivalence: either assertion requires the other plus a current exclusive lease
+receipt.
 
 ### 7. Translate and attenuate capabilities
 
@@ -206,6 +217,11 @@ for body, time, context, subscription windows, cash/credits, effects, and
 concurrency. A zero marginal dollar estimate does not make subscription-backed
 work free. Only the named external retry owner may authorize another attempt,
 under durable breakers.
+
+Each effect fingerprint is recomputed over its logical identity, operation,
+normalized destination, normalized arguments, and approval slot. Caller-supplied
+random fingerprints and new slot IDs cannot disguise one repeated logical
+effect.
 
 ### 9. Challenge the successor
 

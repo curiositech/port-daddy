@@ -46,15 +46,15 @@ truth.
 
 | Domain | Primary repository anchors |
 |---|---|
-| Runtime halt and restart authority | `docs/incidents/2026-09-05-port-daddy-halt.md`, root `AGENTS.md` |
-| Drydock governance | `docs/adr/0090-drydock-governance.md` when present on the evaluated commit |
+| Runtime halt and restart authority | root `AGENTS.md`, `docs/adr/0138-distress-register-emergency-broadcast.md` |
+| Drydock governance | `docs/adr/0140-provable-action-adjudication-contract.md` |
 | Process spawning and confinement | `lib/spawner.ts`, `lib/coast-guard.ts`, `lib/coast-guard/` |
 | Dispatch worktree provenance | `lib/dispatch/runner.ts`, `lib/dispatch/spawn-adapter.ts` |
 | Resurrection and fleet lifecycle | `lib/resurrection.ts`, `lib/fleet-engine.ts`, relevant routes and tests |
 | Durable state | registry schema/migrations and `sqlite-durable-agent-state` skill |
 | Relay and remote projection | `apps/relay/`, `lib/relay-client.ts`, `docs/adr/0049-relay-architecture.md` |
 | Operator surfaces | `core/pd-console/`, `apps/FleetBar/`, `docs/design/drydock-operator-journeys/index.html` |
-| Security implementation boundary | `docs/adr/0120-rust-security-boundary.md` when present on the evaluated commit |
+| Security implementation boundary | `docs/adr/0120-rust-kernel-boundary.md` |
 
 Paths can drift. Resolve them against the exact commit before citing them and
 record missing anchors as evidence gaps rather than inventing replacements.

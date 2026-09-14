@@ -77,6 +77,17 @@ describe('Drydock program architecture skill', () => {
     ]));
   });
 
+  test('the sealed plan digest changes when launcher membership changes', () => {
+    const tree = JSON.parse(text(treePath));
+    tree.launcherNodes[0] = 'DD-060';
+    const result = validateSemantic(tree);
+
+    expect(result.status).toBe(1);
+    expect(JSON.parse(result.stdout).errors).toEqual([
+      expect.stringMatching(/^planDigest mismatch; expected sha256:/),
+    ]);
+  });
+
   test('the public proposal now points into one skill instead of six loose artifacts', () => {
     const landing = text(join(repo, 'docs/proposals/drydock-program-architecture.md'));
     const prose = landing.replace(/\s+/g, ' ');

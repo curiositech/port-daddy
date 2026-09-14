@@ -49,7 +49,7 @@
         "publicationReceiptLocation": { "type": "string", "minLength": 1 },
         "digestAlgorithm": { "const": "sha256-canonical-json-v1" },
         "digestScope": {
-          "const": ["root", "roleDefinitions", "nodes", "hyperedges", "assignmentPolicy", "criticalPath"]
+          "const": ["root", "roleDefinitions", "nodes", "hyperedges", "assignmentPolicy", "launcherNodes", "criticalPath"]
         },
         "planDigest": { "$ref": "#/$defs/digest" }
       }

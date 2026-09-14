@@ -1,5 +1,14 @@
 # Context Economics for Agent Swarms — Changelog
 
+## v2.0.1 (2026-09-14)
+
+- Required every forecast route to belong to its capacity bucket's route
+  aliases and made outsider-route claims ineligible.
+- Required an admissible committed reservation to satisfy
+  `issuedAt <= evaluatedAt < expiresAt`.
+- Made the structural and semantic validator importable so resurrection proof
+  validates the referenced artifact itself, not only its digest and metadata.
+
 ## v2.0.0 (2026-09-11)
 
 - Added subscription allowance as a fourth economic view alongside token COGS,
