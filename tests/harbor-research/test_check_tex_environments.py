@@ -92,6 +92,138 @@ class TestBraceBalance(unittest.TestCase):
             self.assertEqual(cte.check(p), [])
 
 
+class TestRootLoadsWhatItsFiguresNeed(unittest.TestCase):
+    r"""The 2026-09-14 defect: a pgfplots figure \input into a tikz-only chapter.
+
+    Every environment paired and the file balanced, so the first check passed.
+    The Book compiled, because its preamble loads pgfplots for other figures.
+    Only the standalone chapter build died -- eight minutes in, on "Environment
+    axis undefined" -- and took the job that consumes its artifact with it.
+    """
+
+    def build(self, tmp: str, root_body: str, **fragments: str) -> Path:
+        base = Path(tmp)
+        (base / "figures").mkdir(exist_ok=True)
+        for name, body in fragments.items():
+            (base / "figures" / f"{name}.tex").write_text(body, encoding="utf-8")
+        root = base / "chapter.tex"
+        root.write_text(root_body, encoding="utf-8")
+        return root
+
+    def test_an_inputted_pgfplots_figure_without_pgfplots_is_refused(self):
+        with TemporaryDirectory() as tmp:
+            root = self.build(
+                tmp,
+                "\\documentclass{article}\n\\usepackage{tikz}\n"
+                "\\begin{document}\n\\input{figures/plot}\n\\end{document}\n",
+                plot="\\begin{tikzpicture}\n\\begin{axis}[]\n\\end{axis}\n\\end{tikzpicture}\n",
+            )
+            problems = cte.check_root_provides(root)
+        self.assertEqual(len(problems), 1)
+        self.assertIn("\\usepackage{pgfplots}", problems[0])
+        self.assertIn("figures/plot.tex", problems[0])
+        # The message must carry TeX's own wording, so a search for the build
+        # error lands on the check that would have caught it.
+        self.assertIn("Environment axis undefined", problems[0])
+
+    def test_loading_pgfplots_satisfies_it(self):
+        with TemporaryDirectory() as tmp:
+            root = self.build(
+                tmp,
+                "\\documentclass{article}\n\\usepackage{tikz}\n\\usepackage{pgfplots}\n"
+                "\\begin{document}\n\\input{figures/plot}\n\\end{document}\n",
+                plot="\\begin{axis}[]\n\\end{axis}\n",
+            )
+            self.assertEqual(cte.check_root_provides(root), [])
+
+    def test_pgfplots_supplies_tikz(self):
+        # \usepackage{pgfplots} loads tikz; demanding both would be a false
+        # positive on every chapter that plots but never draws by hand.
+        with TemporaryDirectory() as tmp:
+            root = self.build(
+                tmp,
+                "\\documentclass{article}\n\\usepackage{pgfplots}\n"
+                "\\begin{document}\n\\input{figures/plot}\n\\end{document}\n",
+                plot="\\begin{tikzpicture}\n\\end{tikzpicture}\n",
+            )
+            self.assertEqual(cte.check_root_provides(root), [])
+
+    def test_a_package_reached_through_an_inputted_preamble_counts(self):
+        # The mega-volume keeps its \usepackage lines in a separate preamble
+        # file. Looking only at the root would fail the Book itself.
+        with TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            (base / "figures").mkdir()
+            (base / "figures" / "plot.tex").write_text("\\begin{axis}[]\n\\end{axis}\n", encoding="utf-8")
+            (base / "preamble.tex").write_text("\\usepackage{pgfplots}\n", encoding="utf-8")
+            root = base / "book.tex"
+            root.write_text(
+                "\\documentclass{book}\n\\input{preamble}\n"
+                "\\begin{document}\n\\input{figures/plot}\n\\end{document}\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(cte.check_root_provides(root), [])
+
+    def test_a_comma_list_of_packages_is_read(self):
+        with TemporaryDirectory() as tmp:
+            root = self.build(
+                tmp,
+                "\\documentclass{article}\n\\usepackage{amsmath,pgfplots,booktabs}\n"
+                "\\begin{document}\n\\input{figures/plot}\n\\end{document}\n",
+                plot="\\begin{axis}[]\n\\end{axis}\n",
+            )
+            self.assertEqual(cte.check_root_provides(root), [])
+
+    def test_an_optional_argument_does_not_hide_the_package(self):
+        with TemporaryDirectory() as tmp:
+            root = self.build(
+                tmp,
+                "\\documentclass{article}\n\\usepackage[font=small]{caption}\n"
+                "\\usepackage{pgfplots}\n"
+                "\\begin{document}\n\\input{figures/plot}\n\\end{document}\n",
+                plot="\\begin{axis}[]\n\\end{axis}\n",
+            )
+            self.assertEqual(cte.check_root_provides(root), [])
+
+    def test_a_commented_out_figure_input_is_not_a_use(self):
+        with TemporaryDirectory() as tmp:
+            root = self.build(
+                tmp,
+                "\\documentclass{article}\n\\usepackage{tikz}\n"
+                "\\begin{document}\n% \\input{figures/plot}\n\\end{document}\n",
+                plot="\\begin{axis}[]\n\\end{axis}\n",
+            )
+            self.assertEqual(cte.check_root_provides(root), [])
+
+    def test_an_input_that_is_not_on_disk_is_left_to_tex(self):
+        # A generated fragment is not this check's business to report missing.
+        with TemporaryDirectory() as tmp:
+            root = self.build(
+                tmp,
+                "\\documentclass{article}\n\\usepackage{tikz}\n"
+                "\\begin{document}\n\\input{figures/generated-at-build-time}\n\\end{document}\n",
+            )
+            self.assertEqual(cte.check_root_provides(root), [])
+
+    def test_an_input_cycle_terminates(self):
+        with TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            (base / "a.tex").write_text("\\documentclass{article}\n\\input{b}\n", encoding="utf-8")
+            (base / "b.tex").write_text("\\input{a}\n", encoding="utf-8")
+            self.assertEqual(cte.check_root_provides(base / "a.tex"), [])
+
+    def test_only_documents_with_a_documentclass_are_roots(self):
+        # Figure fragments are not compiled on their own; treating one as a
+        # root would demand a preamble it is never supposed to have.
+        with TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            frag = base / "fig.tex"
+            frag.write_text("\\begin{axis}[]\n\\end{axis}\n", encoding="utf-8")
+            root = base / "doc.tex"
+            root.write_text("\\documentclass{article}\n", encoding="utf-8")
+            self.assertEqual(cte.roots([frag, root]), [root])
+
+
 class TestCli(unittest.TestCase):
     def run_cli(self, *args: str) -> subprocess.CompletedProcess:
         return subprocess.run([sys.executable, str(SCRIPT), *args],
@@ -101,6 +233,15 @@ class TestCli(unittest.TestCase):
         result = self.run_cli()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("every environment pairs", result.stdout)
+
+    def test_the_committed_roots_load_what_their_figures_need(self):
+        result = self.run_cli()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("loads the packages its figures need", result.stdout)
+        # Having checked nothing is not a pass: the corpus really does have
+        # compilable roots, and the count must say so.
+        found = int(result.stdout.split("root document(s)")[0].strip().split("\n")[-1])
+        self.assertGreater(found, 1)
 
     def test_a_file_outside_the_repo_is_named_rather_than_crashing(self):
         with TemporaryDirectory() as tmp:

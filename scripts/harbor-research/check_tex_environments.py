@@ -23,6 +23,23 @@ break followed by an open brace, which appears in nearly every tikz label)
 reads as an escaped \{ and a real brace is silently dropped. That produced two
 confident false positives before it was caught.
 
+THE SECOND CHECK: a root document must load what its figures need. On
+2026-09-14 two pgfplots figures were \input into agent-transactions-
+whitepaper.tex, whose preamble loads tikz but not pgfplots. The Book compiled
+-- the mega-volume preamble loads pgfplots for the sealed room's figures -- so
+nothing looked wrong until the standalone chapter build died on "Environment
+axis undefined" and took the artifact-consuming job down with it. Every
+environment paired; the file was balanced; the first check had nothing to say.
+The package a fragment needs is not visible in the fragment, and the preamble
+that must supply it is in a different file, so this is precisely the kind of
+defect nobody sees by reading either half.
+
+So for each root document (anything with a \documentclass) this resolves the
+transitive \input/\include closure, and refuses a root whose closure uses an
+environment that only a package supplies unless that package is loaded
+somewhere in the same closure. The table of requirements is deliberately
+short: it lists what has actually bitten, not every package in TeX Live.
+
 Usage:
     python3 scripts/harbor-research/check_tex_environments.py            # the Book's corpus
     python3 scripts/harbor-research/check_tex_environments.py FILE ...   # named files
@@ -52,6 +69,30 @@ BEGIN = re.compile(r"\\begin\s*\{([A-Za-z@*]+)\}")
 END = re.compile(r"\\end\s*\{([A-Za-z@*]+)\}")
 # A \newenvironment or \renewenvironment names an environment it does not open.
 DEFINES = re.compile(r"\\(?:re)?newenvironment\s*\{([A-Za-z@*]+)\}")
+
+DOCUMENTCLASS = re.compile(r"\\documentclass\s*(?:\[[^\]]*\])?\s*\{")
+# \usepackage[opt]{a,b,c} -- the optional argument may itself contain braces
+# (\usepackage[font={small}]{caption}), so the class is "not ]" up to the last.
+USEPACKAGE = re.compile(r"\\usepackage\s*(?:\[[^\]]*\])?\s*\{([^}]*)\}")
+INPUT = re.compile(r"\\(?:input|include)\s*\{([^}]*)\}")
+
+# What a fragment can use that its own file cannot supply. Keep this list to
+# what has actually broken a build: a speculative entry that fires on a
+# correct document teaches everyone to pass --no-verify.
+ENVIRONMENT_PACKAGES = {
+    "axis": "pgfplots",
+    "groupplot": "pgfplots",
+    "semilogxaxis": "pgfplots",
+    "semilogyaxis": "pgfplots",
+    "loglogaxis": "pgfplots",
+    "polaraxis": "pgfplots",
+    "tikzpicture": "tikz",
+}
+# Loading the key implies the values: pgfplots loads tikz, tikz loads pgf.
+PACKAGE_IMPLIES = {
+    "pgfplots": {"tikz", "pgf"},
+    "tikz": {"pgf"},
+}
 
 
 def strip_comments(text: str) -> str:
@@ -103,6 +144,104 @@ def check(path: Path) -> list[str]:
     return problems
 
 
+def resolve_input(name: str, root_dir: Path) -> Path | None:
+    r"""\input{figures/fig-x} -> the file it names, or None if it is not on disk.
+
+    A missing \input is TeX's problem to report, not this check's: the file may
+    be generated at build time. Silence here, a build error there.
+    """
+    name = name.strip()
+    if not name:
+        return None
+    for candidate in (root_dir / name, root_dir / (name + ".tex")):
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def closure(root: Path) -> list[Path]:
+    r"""The root and every file it reaches through \input/\include.
+
+    Depth-first with a visited set, so a preamble included from two places is
+    read once and a cycle cannot hang the check.
+    """
+    seen: set[Path] = set()
+    order: list[Path] = []
+    stack = [root.resolve()]
+    while stack:
+        current = stack.pop()
+        if current in seen or not current.is_file():
+            continue
+        seen.add(current)
+        order.append(current)
+        body = strip_comments(current.read_text(encoding="utf-8", errors="replace"))
+        for name in INPUT.findall(body):
+            found = resolve_input(name, current.parent)
+            if found is not None:
+                stack.append(found.resolve())
+    return order
+
+
+def packages_loaded(text: str) -> set[str]:
+    names: set[str] = set()
+    for group in USEPACKAGE.findall(text):
+        for name in group.split(","):
+            name = name.strip()
+            if name:
+                names.add(name)
+    for name in list(names):
+        names |= PACKAGE_IMPLIES.get(name, set())
+    return names
+
+
+def check_root_provides(root: Path) -> list[str]:
+    r"""A root document loads every package the environments in its closure need."""
+    files = closure(root)
+    loaded: set[str] = set()
+    used: dict[str, Path] = {}
+    for path in files:
+        body = strip_comments(path.read_text(encoding="utf-8", errors="replace"))
+        loaded |= packages_loaded(body)
+        defined = set(DEFINES.findall(body))
+        for name in BEGIN.findall(body):
+            if name in ENVIRONMENT_PACKAGES and name not in defined:
+                used.setdefault(name, path)
+
+    try:
+        rel_root = root.resolve().relative_to(REPO).as_posix()
+    except ValueError:
+        rel_root = root.as_posix()
+
+    problems: list[str] = []
+    for env in sorted(used):
+        package = ENVIRONMENT_PACKAGES[env]
+        if package in loaded:
+            continue
+        source = used[env]
+        try:
+            rel_src = source.resolve().relative_to(REPO).as_posix()
+        except ValueError:
+            rel_src = source.as_posix()
+        where = "its own body" if source.resolve() == root.resolve() else f"\\input {rel_src}"
+        problems.append(
+            f"{rel_root}: uses \\begin{{{env}}} (from {where}) but no \\usepackage{{{package}}} "
+            f"in its preamble  (TeX will say \"Environment {env} undefined\")"
+        )
+    return problems
+
+
+def roots(paths: list[Path]) -> list[Path]:
+    """The compilable documents among these files: those with a \\documentclass."""
+    found = []
+    for path in paths:
+        if not path.is_file():
+            continue
+        head = strip_comments(path.read_text(encoding="utf-8", errors="replace"))
+        if DOCUMENTCLASS.search(head):
+            found.append(path)
+    return found
+
+
 def corpus() -> list[Path]:
     files: list[Path] = []
     for pattern in CORPUS_GLOBS:
@@ -127,15 +266,28 @@ def main() -> int:
             return 1
         problems.extend(check(p))
 
+    missing: list[str] = []
+    document_roots = roots(paths)
+    for root in document_roots:
+        missing.extend(check_root_provides(root))
+
     if problems:
         print(f"-- {len(problems)} unpaired environment(s) or unbalanced file(s):")
         for line in problems:
             print(f"  {line}")
         print("\nThe Book will not compile. TeX reports this as a brace or macro-argument")
         print("error at a generated line far from the edit, so fix it here instead.")
+    if missing:
+        print(f"-- {len(missing)} root document(s) missing a package their figures need:")
+        for line in missing:
+            print(f"  {line}")
+        print("\nThe fragment cannot load its own package, and the preamble that must")
+        print("supply it is a different file. Add the \\usepackage to the root's preamble.")
+    if problems or missing:
         return 1
 
     print(f"{len(paths)} source file(s): every environment pairs, every file balances")
+    print(f"{len(document_roots)} root document(s): each loads the packages its figures need")
     return 0
 
 
