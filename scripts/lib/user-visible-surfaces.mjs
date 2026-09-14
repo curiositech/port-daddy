@@ -53,6 +53,84 @@ export const VISUAL_SURFACE_RE =
   /^(core\/pd-console\/|website-v2\/|fleet-config-ui\/|public\/fleet-ui\/|public\/|dashboard\/|apps\/FleetBar\/)/
 
 /**
+ * FIGURE / PRINT TERRITORY — the trees whose output is a rendered page rather
+ * than a running screen: the Book and the papers, their TikZ fragments, the
+ * plate pipelines, and the two skills that decide what a figure is allowed to
+ * look like.
+ *
+ * Why this is a SEPARATE set from VISUAL_SURFACE_RE rather than a slice of it:
+ * the two ask for different evidence. A pane in the GPUI window is proved by a
+ * screenshot plus a recording — you have to see it move. A figure in a printed
+ * book has nothing to record; it is proved by a still render at page scale, and
+ * demanding a GIF of it would be a requirement nobody can meet honestly. So the
+ * print set gets its own rule (`check-pr-requirements.mjs` rule 3b) and is
+ * SUBTRACTED from the app-visual set that rule 3 fires on.
+ *
+ * The entries are whole trees on purpose. `skills/harbor-chartwork/` holds the
+ * craft rules and the figure checkers, not drawings — but a change to
+ * `craft-rules.md` or `tikz_precheck.py` changes what every figure in the corpus
+ * is allowed to look like, and the only honest proof that such a change is right
+ * is a page that was rendered and looked at. Same for the semantic figure atlas.
+ */
+export const FIGURE_WORK_TREES = [
+  // The Book and the chapter sources, their `figures/` fragments, and the
+  // corpus records (`standalone-figures.json`, `corpus.json`) that say which
+  // fragment prints in which edition.
+  'whitepaper/',
+  // Parked worktree copies of the same tree, same shape, same contract.
+  'whitepaper-foundlings/',
+  // The published paper sources: `.tex`, the committed PDFs, `figures/`,
+  // `plates/`, `art/`, and the book cover.
+  'website-v2/public/whitepaper/',
+  // The chartwork skill: house craft rules plus `tikz_precheck.py` / `figcheck.py`.
+  'skills/harbor-chartwork/',
+  // The semantic figure atlas and its coverage checker — this is where a
+  // figure's FORM is decided before any TikZ is written.
+  'skills/whitepaper-figure-system/',
+  // The plate render pipelines and their checks.
+  'scripts/whitepaper-plates/',
+  'tests/whitepaper-plates/',
+]
+
+/**
+ * Any directory literally named `figures` — at any depth, in any tree. Catches
+ * `docs/harbor-research/figures/`, `docs/harbor-research/exposition/figures/`
+ * and whatever figure tree exists next month, so the enumerated list above does
+ * not have to be the only line of defence.
+ */
+export const FIGURE_DIR_RE = /(^|\/)figures\//
+
+/**
+ * A plate directory: a segment that is exactly `plates` or ends in `-plates`
+ * (`website-v2/public/whitepaper/plates/`, `scripts/whitepaper-plates/`,
+ * `docs/pr-assets/swiss-plates/`). The `(^|\/)` anchor and the required hyphen
+ * are what keep this off the ~90 `templates/` directories in this repo —
+ * "templates" contains the letters "plates" and a looser pattern matches every
+ * one of them.
+ */
+export const PLATE_DIR_RE = /(^|\/)(?:[A-Za-z0-9_]+-)?plates\//
+
+/**
+ * A typeset source file. Every `.tex` in this repository is a chapter, a paper,
+ * a TikZ fragment or a figure-craft template — there is no `.tex` here that is
+ * not a page someone has to look at — so the extension alone is a sound test
+ * and needs no tree to qualify it.
+ */
+export const TYPESET_SOURCE_RE = /\.tex$/i
+
+/**
+ * True if `file` is figure/print territory: work whose result is a rendered
+ * page. `check-pr-requirements.mjs` uses this to decide that a `visual-exempt`
+ * marker is not available and that a page-scale render is required instead.
+ */
+export function isFigureSurface(file) {
+  if (matchesPathspec(file, FIGURE_WORK_TREES)) return true
+  if (FIGURE_DIR_RE.test(file)) return true
+  if (PLATE_DIR_RE.test(file)) return true
+  return TYPESET_SOURCE_RE.test(file)
+}
+
+/**
  * Release/packaging plumbing that lives in DAEMON_PATHSPEC (correctly — a change
  * there can change what gets released) but which, CHANGED ALONE, ships nothing a
  * user would notice: a devDependency bump, an npm-script alias, a CI matrix tweak.

@@ -13,6 +13,17 @@
  *      the PR body ships visual artifacts: at least one screenshot (image) AND at
  *      least one motion artifact (GIF or screen recording). "A green build proves
  *      it compiles, not that it renders correctly."
+ *   3b. If the diff touches FIGURE / PRINT territory (the Book and paper sources,
+ *      any `figures/` or plate directory, any `.tex`, the chartwork and figure-system
+ *      skills — see `isFigureSurface` in scripts/lib/user-visible-surfaces.mjs), the
+ *      `visual-exempt` marker is an ERROR rather than an escape hatch, and the
+ *      `## Visual Proof` section must carry a pointer to a page-scale render.
+ *      Two PRs — #10190 (three new Book figures) and #10191 (fifteen restyled Book
+ *      figures) — passed every check in this repo while shipping no image of the
+ *      thing they changed, both by writing `<!-- visual-exempt: ... -->`. Entirely
+ *      visual work took the marker that exists to say "there is no visual change."
+ *      The marker stays valid where it is legitimate: a CI or script PR that touches
+ *      no figure path is unaffected.
  *   4. If the diff touches a USER-VISIBLE surface, the PR adds a changelog fragment
  *      under `changelog.d/`. The honour-system version of this rule already exists
  *      and does not work: `.github/PULL_REQUEST_TEMPLATE.md` carries a "CHANGELOG.md
@@ -47,7 +58,8 @@
  * Escape hatches (mirroring the doc-citation guard's proposal markers — explicit,
  * visible in the body, auditable):
  *   <!-- pr-requirements-exempt: <reason> -->   skip the WHOLE gate (bots, etc.)
- *   <!-- visual-exempt: <reason> -->            skip only the visual-artifact rule
+ *   <!-- visual-exempt: <reason> -->            skip only the visual-artifact rule —
+ *                                               VOID on a figure/print diff, see 3b
  *   <!-- changelog-exempt: <reason> -->         skip only the changelog-fragment rule
  *
  * The changelog rule lives HERE rather than in its own workflow because this is the
@@ -65,7 +77,7 @@ import { fileURLToPath } from 'node:url'
 // for why `ci.yml`'s detect-changes classifier is deliberately NOT the one reused.
 // VISUAL_SURFACE_RE moved there so the visual rule (3) and the changelog rule (4)
 // cannot drift apart.
-import { VISUAL_SURFACE_RE, isUserVisibleSurface } from './lib/user-visible-surfaces.mjs'
+import { VISUAL_SURFACE_RE, isFigureSurface, isUserVisibleSurface } from './lib/user-visible-surfaces.mjs'
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -189,11 +201,11 @@ function hasMarker(body, name) {
 }
 
 /**
- * Extract a section's content by heading text (case-insensitive substring match),
- * from the matched heading to the next heading of the same-or-higher level.
- * Returns the prose word count after dropping checkbox lines and bullets-only noise.
+ * Extract a section's content lines by heading text (case-insensitive substring
+ * match), from the matched heading to the next heading of the same-or-higher
+ * level. Returns null when the section is absent.
  */
-function sectionWordCount(strippedBody, headingNeedle) {
+function sectionLines(strippedBody, headingNeedle) {
   const lines = strippedBody.split('\n')
   const isFence = (l) => /^\s*(?:```|~~~)/.test(l)
   let start = -1
@@ -223,6 +235,16 @@ function sectionWordCount(strippedBody, headingNeedle) {
     }
     content.push(lines[i])
   }
+  return content
+}
+
+/**
+ * The prose word count of a section, after dropping checkbox lines and
+ * bullets-only noise. Returns null when the section is absent.
+ */
+function sectionWordCount(strippedBody, headingNeedle) {
+  const content = sectionLines(strippedBody, headingNeedle)
+  if (content === null) return null
 
   const prose = content
     // drop checkbox lines — template scaffolding, not authored proof
@@ -258,6 +280,59 @@ function bodyHasMedia(body, motion) {
   return false
 }
 
+// ---------------------------------------------------------------------------
+// Rule 3b: what counts as a page-scale render, and what does not.
+//
+// The bar is deliberately "a pointer a reviewer can OPEN and LOOK AT", not "a
+// string that mentions rendering". #10190's body describes renders at 1.0× /
+// 150 dpi and quotes figcheck JSON and ink-audit numbers; #10191's describes a
+// before/after contact sheet it built. Neither shipped a picture. Those are
+// claims about looking, and a claim is what this rule exists to stop counting.
+//
+// HONEST BOUNDARY, stated here because it is the whole risk of this rule: this
+// can tell a resolvable pointer to an image from prose. It CANNOT tell whether
+// the image shows the figure that changed, whether it was rendered at 1.0× /
+// 150 dpi, or whether it is a render at all rather than an unrelated
+// screenshot. `![x](old-unrelated.png)` passes. That residue is a judgment call
+// and belongs to the adversarial reviewer — the same division of labour the
+// module header sets out for rules 1-3. What this buys is that the author must
+// produce and attach an image, which is the step both #10190 and #10191 skipped.
+const EVIDENCE_EXT = 'png|jpe?g|webp|svg|bmp|tiff?|avif|gif|mp4|mov|webm|m4v'
+const RENDER_EVIDENCE_PATTERNS = [
+  // A markdown image with a non-empty target: `![contact sheet](...)`.
+  // `[^)\s]` rather than `\S` so `![sheet]()` — an image of nothing — is not one.
+  /!\[[^\]]*\]\(\s*[^)\s]/,
+  // A raw HTML media embed.
+  /<(?:img|video|picture)[\s>]/i,
+  // A link whose target is an image or video file.
+  new RegExp(`https?://\\S+?\\.(?:${EVIDENCE_EXT})(?=[)"'\\s?#]|$)`, 'i'),
+  // A dragged-in GitHub attachment. Extension-less, but it IS an uploaded asset.
+  /https:\/\/github\.com\/[^\s)]+\/(?:assets|user-attachments)\//i,
+  // Published renders kept as a CI artifact: an Actions run, or an artifact on it.
+  /https:\/\/github\.com\/[^\s)]+\/actions\/runs\/\d+/i,
+  /https:\/\/github\.com\/[^\s)]+\/(?:artifacts|suites\/\d+\/artifacts)\/\d+/i,
+]
+
+/** True if `text` contains at least one openable pointer to a rendered image. */
+function hasRenderEvidence(text) {
+  return RENDER_EVIDENCE_PATTERNS.some((re) => re.test(text))
+}
+
+/** The craft-rules convention, quoted in every rule-3b failure so it teaches. */
+const PAGE_SCALE =
+  'Render at 1.0× / 150 dpi — page scale, what a phone PDF viewer shows ' +
+  '(skills/harbor-chartwork/references/craft-rules.md §1.4: "Test the figure as a ' +
+  '150 dpi PNG at 1.0×").'
+
+/** The accepted forms, spelled out so the error says what to do, not just no. */
+const ACCEPTED_FORMS =
+  'Accepted: an image embedded in the `## Visual Proof` section (a markdown image, ' +
+  'an `<img>`, or a dragged-in GitHub attachment), or a link to published page-scale ' +
+  'renders (a GitHub Actions run or artifact URL — the figure-gates contact sheet). ' +
+  'A figcheck or ink_audit table, a compile log, a list of page numbers, or prose ' +
+  'saying you looked at the pixels is not a render: none of them is something a ' +
+  'reviewer can open and see.'
+
 function main() {
   const ctx = loadPrContext()
   if (!ctx) {
@@ -290,10 +365,24 @@ function main() {
     failures.push(`Test Plan is too thin (${testWords} words of prose; need ≥ ${MIN_TEST_PLAN_WORDS}). Show the evidence: commands run, their output, and the edge cases exercised.`)
   }
 
-  // (3) Visual surface ⇒ visual artifacts.
   const files = changedFiles()
-  const visualFiles = files.filter((f) => VISUAL_SURFACE_RE.test(f))
-  if (visualFiles.length && !hasMarker(body, 'visual-exempt')) {
+
+  // Figure/print territory is computed FIRST because it changes what the other
+  // two visual questions mean:
+  //   - it is subtracted from rule (3)'s set, so a printed page is never asked
+  //     for a "GIF or screen recording" it cannot have; and
+  //   - it VOIDS the `visual-exempt` marker outright, for rule (3) as well as
+  //     (3b). A PR in this territory is visual work by definition, so a marker
+  //     whose meaning is "there is no visual change here" is simply false on it,
+  //     and half-honouring it would let the app-surface half of a mixed diff
+  //     keep slipping through.
+  const figureFiles = files.filter(isFigureSurface)
+  const visualExemptClaimed = hasMarker(body, 'visual-exempt')
+  const visualExemptHonoured = visualExemptClaimed && figureFiles.length === 0
+
+  // (3) App-visual surface ⇒ screenshot + motion artifact.
+  const visualFiles = files.filter((f) => VISUAL_SURFACE_RE.test(f) && !isFigureSurface(f))
+  if (visualFiles.length && !visualExemptHonoured) {
     const committedImage = files.some((f) => IMAGE_EXT_RE.test(f))
     const committedMotion = files.some((f) => MOTION_EXT_RE.test(f))
     const hasImage = committedImage || bodyHasMedia(body, false)
@@ -307,6 +396,47 @@ function main() {
         `but the PR body is missing ${missing.join(' and ')}. Attach screenshots + a GIF + a short recording ` +
         'of the actual change (commit them and embed raw.githubusercontent URLs), or add ' +
         '`<!-- visual-exempt: <reason> -->` to the body if there is genuinely no visual change.',
+      )
+    }
+  }
+
+  // (3b) Figure/print territory ⇒ a page-scale render, and NO visual-exempt.
+  //
+  // Two failures, reported together rather than one at a time, so an author who
+  // has both problems fixes them in one pass instead of two CI rounds.
+  if (figureFiles.length) {
+    const shown = `${figureFiles.slice(0, 5).join(', ')}${figureFiles.length > 5 ? ', …' : ''}`
+
+    if (visualExemptClaimed) {
+      failures.push(
+        `\`visual-exempt\` is not available on a PR that changes figure or print territory ` +
+        `(${shown}). The marker means "there is no visual change here"; this diff IS the ` +
+        'visual change, so the marker states the opposite of the truth. Remove it and show ' +
+        `the rendered page instead. ${ACCEPTED_FORMS} ${PAGE_SCALE}`,
+      )
+    }
+
+    // The render has to live in `## Visual Proof`. Scanning the whole body would
+    // accept any stray image link — a logo in a table, a badge, an unrelated
+    // screenshot in the Test Plan — and the section is where a reviewer looks.
+    // `stripped` has HTML comments removed, so the template's own guidance
+    // (which is entirely a comment) cannot be mistaken for an author's evidence,
+    // and a section left as the template shipped it reads as empty.
+    const proof = sectionLines(stripped, 'visual proof')
+    // Don't reprint the accepted forms when the marker bullet above already
+    // carried them — the author reads both bullets in one run.
+    const how = visualExemptClaimed ? 'See the accepted forms above.' : `${ACCEPTED_FORMS} ${PAGE_SCALE}`
+    if (proof === null) {
+      failures.push(
+        `Figure/print territory changed (${shown}) but this PR has no \`## Visual Proof\` ` +
+        `section at all. Add it and put the rendered page in it. ${how}`,
+      )
+    } else if (!hasRenderEvidence(proof.join('\n'))) {
+      failures.push(
+        `Figure/print territory changed (${shown}) but the \`## Visual Proof\` section ` +
+        'carries no render a reviewer can open. "N/A", a bare checkbox, an empty bullet, or a ' +
+        'prose description of what you saw do not satisfy this — the section must contain the ' +
+        `picture itself or a link to it. ${how}`,
       )
     }
   }
@@ -352,7 +482,7 @@ function main() {
     )
     process.exit(1)
   }
-  console.log('check-pr-requirements: PR meets the contract (summary, test plan, visual artifacts, changelog fragment).')
+  console.log('check-pr-requirements: PR meets the contract (summary, test plan, visual artifacts, page-scale renders, changelog fragment).')
 }
 
 main()
