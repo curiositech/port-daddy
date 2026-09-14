@@ -18,8 +18,8 @@
     },
     "website-v2/public/whitepaper/federated-harbor-whitepaper.pdf": {
       "pages": 45,
-      "bytes": 832093,
-      "sha256": "80a0d103b878165e2c5b2a2cba0f9e78b7eb182c2c2855ca9a80d75b1e2a1a8d"
+      "bytes": 809987,
+      "sha256": "f61d2e62f7da257302101577f27948571785b07b1a6b07c5992dddceb57ad8a4"
     },
     "website-v2/public/whitepaper/harbor-economy-whitepaper.pdf": {
       "pages": 49,
@@ -28,18 +28,18 @@
     },
     "website-v2/public/whitepaper/legible-swarm-whitepaper.pdf": {
       "pages": 64,
-      "bytes": 946214,
-      "sha256": "c0d848b088e2f45ae1976d0df7901d07f260b83622cb73d6693e5cdd437691a2"
+      "bytes": 946167,
+      "sha256": "052a3b67ed65a8946d513b111d4736fbd5a9018139e85b615c0288e511ef8602"
     },
     "website-v2/public/whitepaper/sealed-harbor-whitepaper.pdf": {
       "pages": 21,
-      "bytes": 569564,
-      "sha256": "b5eeae7b9f5cf71fc47ce6d9e965ee86cc2872de57c48ec02d336737d5b7fce9"
+      "bytes": 570783,
+      "sha256": "ec8e52a480b3aae1758515f06c25d01eb09b15873260531afaa6bfb84c252bc8"
     },
     "website-v2/public/whitepaper/single-writer-kernel-whitepaper.pdf": {
       "pages": 58,
-      "bytes": 812260,
-      "sha256": "cf1bd69d2424807c74d440425b1a2f66afc1df2941dffa59a09c1f8f10e32463"
+      "bytes": 813508,
+      "sha256": "d8517edf5b21cb1c3d789e183668e960e0ae7ad6285b44c103cbdca3349b7be8"
     },
     "website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf": {
       "pages": 53,

@@ -7,7 +7,7 @@
     {assurance advances only when a threat acquires an artifact or theorem};
   \foreach \y/\lab in {2.55/identity + replay,1.75/revocation,.95/equivocation,.15/settlement,-.65/cold-start admission,-1.45/cartel monitoring,-2.25/centralization}
     {\node[pd direct label,anchor=east] at (-4.35,\y) {\lab};
-     \draw[pd guide] (-4.05,\y)--(6.35,\y);}
+     \draw[pd lattice] (-4.05,\y)--(6.35,\y);}
 
   % Evidence positions and uncertainty intervals.
   \draw[pd focus rule,line width=1.2pt] (-4.05,2.55)--(5.15,2.55);

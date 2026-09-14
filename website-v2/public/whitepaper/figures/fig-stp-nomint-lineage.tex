@@ -10,10 +10,10 @@
   % override sets text=hhpaper for the ordinary case of a solid, saturated
   % fill, and that inherited text otherwise survives this later fill override
   % untouched (contrast `spent` below, which already restates its own text=).
-  live/.style={pd state,circle,minimum size=7.5mm,inner sep=0pt,font=\footnotesize,fill=hhteal!24,draw=hhteal,text=hhink},
-  spent/.style={pd state,circle,minimum size=7.5mm,inner sep=0pt,font=\footnotesize,fill=white,draw=hhgray,text=hhgray}]
+  live/.style={pd state,pd focus fill,circle,minimum size=7.5mm,inner sep=0pt},
+  spent/.style={pd state,circle,minimum size=7.5mm,inner sep=0pt,fill=hhpaper,draw=hhgray,text=hhink!80!hhgray}]
   % panel A: budget-only, refuted
-  \node[pd row label,anchor=south,align=center,text width=3.4cm] at (0,2.55) {budget-only\\\normalfont refuted};
+  \node[pd row label,anchor=south,align=center,text width=3.4cm] at (0,2.55) {budget-only\\\pdfigsub refuted};
   \node[live] (a0) at (0,1.6) {1};
   \node[live] (a1) at (0,0.4) {.9};
   \node[live] (a2) at (0,-0.8) {.81};
@@ -24,7 +24,7 @@
   \node[pd note,anchor=north,align=center,text width=3.4cm] at (0,-2.7) {live total $2.439>1$\\three terms, one episode};
   % panel B: transfer, the theorem
   \begin{scope}[xshift=4.2cm]
-  \node[pd row label,anchor=south,align=center,text width=3.4cm] at (0,2.55) {transfer\\\normalfont the theorem};
+  \node[pd row label,anchor=south,align=center,text width=3.4cm] at (0,2.55) {transfer\\\pdfigsub the theorem};
   \node[spent] (b0) at (0,1.6) {0};
   \node[spent] (b1) at (0,0.4) {0};
   \node[spent] (b2) at (0,-0.8) {0};
@@ -36,13 +36,17 @@
   \end{scope}
   % panel C: copy-fork mutant
   \begin{scope}[xshift=9.6cm]
-  \node[pd row label,anchor=south,align=center,text width=3.6cm] at (0,2.55) {copy-fork mutant\\\normalfont refused by the checker};
+  \node[pd row label,anchor=south,align=center,text width=3.6cm] at (0,2.55) {copy-fork mutant\\\pdfigsub refused by the checker};
   \node[live] (c0) at (0,1.6) {1};
   \foreach \i/\x in {1/-1.5,2/-1.0,3/-0.5,4/0,5/0.5,6/1.0,7/1.5} {
     \node[live,minimum size=5.5mm] (c\i) at (\x,-0.2) {1};
     \draw[pd caution arrow] (c0) -- (c\i);
   }
-  \node[pd direct label,text=hhamber,anchor=west] at (1.85,-0.2) {$\ldots$};
+  % fill=none: the cream backing exists to knock a label out of the lines
+  % under it, and there is nothing under an ellipsis between two nodes. It
+  % also removes a container the math font overflows -- \ldots reports a span
+  % box 8.7pt tall for three baseline dots, taller than any sane inner ysep.
+  \node[pd direct label,fill=none,text=hhamber,anchor=west] at (1.85,-0.2) {$\ldots$};
   \node[pd note,anchor=north,align=center,text width=3.6cm] at (0,-1.0) {eight copies of one episode\\$8.2\times$ its quorum weight\\shortest crime: two operations};
   \end{scope}
 \end{tikzpicture}
