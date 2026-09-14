@@ -175,33 +175,53 @@ describe('public shell contracts', () => {
     expect(main).toContain('<Route path="/whitepaper" element={<WhitepaperPage />} />')
     expect(main).toContain('<Route path="/library" element={<Navigate to="/whitepaper" replace />} />')
 
-    // Both library routes stand on the same shell, so the deck's guarantees
-    // are guarantees for both of them.
-    for (const page of [whitepaper, research]) {
-      expect(page).toContain('DeckShell')
-      expect(page).toContain('useSearchParams') // a panel is linkable
-      expect(page).toContain('routeLabel=')
-      expect(page).toContain('hoist={[') // the route, spelled in signal flags
-    }
+    // /research still stands on the deck shell, so the deck's guarantees are
+    // its guarantees.
+    expect(research).toContain('DeckShell')
+    expect(research).toContain('useSearchParams') // a panel is linkable
+    expect(research).toContain('routeLabel=')
+    expect(research).toContain('hoist={[') // the route, spelled in signal flags
+
+    // /whitepaper does NOT, and that is the contract now. It had five tabs —
+    // Contents, The Spine, The Proofs, Limits, Read it — and four of them were
+    // the same eight chapters listed again under a different heading while the
+    // fifth repeated the masthead's download button. A reader who wanted the
+    // table of contents had to guess which tab it was. So the tabs are gone
+    // and the outline gets the whole panel. Pinned as an absence because the
+    // tempting fix, when a future panel needs somewhere to live, is to put the
+    // rail back.
+    expect(whitepaper).not.toContain('DeckShell')
+    expect(whitepaper).not.toContain('role="tablist"')
+    expect(whitepaper).not.toContain('?panel=')
+    expect(whitepaper).toContain('slug-hoist') // the route is still spelled out
+    expect(whitepaper).toContain('fl-whiskey') // and still in signal flags
 
     // One viewport: the deck sizes itself from where it actually starts rather
     // than assuming it owns the whole screen, which is what made it overflow
     // by exactly the header's height the first time it was measured.
     expect(deck).toContain('--deck-h')
     expect(deck).toContain('overflow-hidden')
-    expect(deck).toContain("role=\"tablist\"")
+    expect(deck).toContain("role=\"tablist\"") // /research still has a rail
     expect(deck).toContain('useReducedMotion')
 
     // A flag on this site means what Pub. 102 says it means, so every signal
     // carries its meaning rather than being picked for its letter.
-    expect(whitepaper).toContain('Papa — about to proceed to sea')
-    expect(whitepaper).toContain('Uniform — you are running into danger')
     expect(research).toContain('Kilo — I wish to communicate with you')
 
     // The chapters are an outline with a teaser each, never a grid of cards
     // linking off to eight separate documents — there are not eight documents.
     expect(whitepaper).toContain('record.question')
     expect(whitepaper).toContain('record.teaser')
+    // and the finding under each one, which is what let the four duplicate
+    // panels go: the page shows what the chapters found instead of listing
+    // them again.
+    expect(whitepaper).toContain('record.result')
+
+    // The Book's own part and chapter plates, the same files it prints at its
+    // openers. Showing the argument's furniture on the page is the point;
+    // pinning the paths stops a plate rename from silently emptying the page.
+    expect(whitepaper).toContain('/whitepaper/plates/swiss/part-')
+    expect(whitepaper).toContain('/whitepaper/plates/swiss/chapter-')
 
     // The ceremonial hero and the old two-page split stay gone.
     expect(whitepaper).not.toContain('Research dossier')

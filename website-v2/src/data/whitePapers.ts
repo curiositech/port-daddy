@@ -207,6 +207,14 @@ export interface TextbookChapterRecord {
    * the outline shows all three, and the teaser is the one doing the selling.
    */
   teaser: string
+  /**
+   * The concrete thing the chapter leaves you holding: a theorem, a model a
+   * machine will run, or a number you can recompute. Site-only — the Book
+   * states these in the chapter itself, and /whitepaper shows them under each
+   * outline entry, which is what let the page drop four sub-menus that were
+   * each the same eight chapters listed again.
+   */
+  result?: string
   epigraph: { text: string; source: string }
 }
 
