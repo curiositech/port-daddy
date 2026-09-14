@@ -1,0 +1,3 @@
+type: fixed
+
+- **The Bonded Commons chapter now carries a worked example and an honest epistemic-kind tag on every claim.** Nine of its eighteen sections gained a hand-checkable `pdexample` (capability delegation, Merkle-proof sizing, hard-lock turn counting, crash-detection timing, pairwise trust-negotiation counts, and more), all built from numbers the chapter, its proofs, or its appendix already fix. All twelve previously untagged claims now carry a kind from the honesty ledger, including relabeling the ledger Conservation claim from Theorem to Model-checked property to match what `Conservation.tla`'s bounded TLC run actually establishes. The chapter's duplicate "Reader's Map" section is removed and its dead `\pullquote` tinted-box macro is deleted.
