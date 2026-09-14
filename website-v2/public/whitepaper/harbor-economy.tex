@@ -787,17 +787,53 @@ regenerated at seed 20260816.} Naming a layer is not the same as being able to
 run it. What decides whether the deontic layer is an algorithm or an office is
 what happens when two accepted norms collide. Cheap detection is a
 language-design choice, not a discovery about deontic logic in general, and the
-commitment fragment $\mathcal{L}_c$ buys it by construction. A policy set in
-$\mathcal{L}_c$ contains facts, definite Horn rules and integrity constraints;
-deontic rules $\mathrm{body}\to\mathsf{M}(\mathrm{act},s,[t_1,t_2])$ with
-$\mathsf{M}\in\{\mathsf{O},\mathsf{F}\}$, which oblige or forbid an action on
-scope $s$ over a ground interval whenever the Horn body holds; exclusive interval
-claims on resources; and difference constraints over deadline variables. A
-conflict is any of four things: a derivable $\bot$, a fired obligation and
-prohibition on the same action with overlapping scope and interval, two
-exclusive claims overlapping on one resource, or a negative cycle in the deadline
-graph. The fragment is deliberately ground: no nested deontic operators, no
-negation as failure, monotone bodies only.
+commitment fragment $\mathcal{L}_c$ buys it by construction. The syntax fits in
+one box, and it belongs in one box: a reader who wants to reimplement the
+polynomial checker should not have to assemble the grammar from four pages of
+running prose.
+
+\begin{definition}[The commitment fragment $\mathcal{L}_c$]\label{def:lc-fragment}
+A policy set $P \in \mathcal{L}_c$ is a finite set of five kinds of sentence over
+a function-free, ground signature of actions, scopes, resources and integer time
+points:
+\begin{enumerate}[leftmargin=1.8em,itemsep=1pt]
+  \item \textbf{Facts} --- ground atoms $p(\bar{c})$.
+  \item \textbf{Definite Horn rules} --- $a_1 \wedge \cdots \wedge a_n \to h$,
+  with $h$ a single positive atom and every $a_i$ positive.
+  \item \textbf{Integrity constraints} --- $a_1 \wedge \cdots \wedge a_n \to
+  \bot$.
+  \item \textbf{Deontic rules} ---
+  $\mathrm{body} \to \mathsf{M}(\mathrm{act}, s, [t_1,t_2])$ with
+  $\mathsf{M} \in \{\mathsf{O},\mathsf{F}\}$, $\mathrm{body}$ a monotone Horn
+  conjunction, $\mathrm{act}$ a ground action, $s$ a ground scope, and
+  $[t_1,t_2]$ a ground interval: when the body holds, the rule \emph{fires} a
+  token obliging or forbidding $\mathrm{act}$ on $s$ throughout $[t_1,t_2]$.
+  \item \textbf{Exclusive interval claims} --- $\mathrm{excl}(r,[t_1,t_2])$,
+  asserting sole use of resource $r$ across a ground interval.
+\end{enumerate}
+Deadlines are carried by a separate system of \textbf{difference constraints}
+$t_j - t_i \le k$ over integer deadline variables, whose constraint graph is
+$(V,E)$.
+
+A policy set is \textbf{in conflict} exactly when one of four things holds:
+(i) the Horn part derives $\bot$; (ii) a fired $\mathsf{O}$ token and a fired
+$\mathsf{F}$ token name the same action with overlapping scope \emph{and}
+overlapping interval; (iii) two exclusive claims on one resource have
+overlapping intervals; or (iv) the deadline graph contains a negative cycle.
+
+The fragment is deliberately ground and deliberately weak, and each omission is
+what buys Theorem~\ref{thm:deontic-detect}: no nested deontic operators, no
+negation as failure, monotone bodies only, and no quantification over time.
+\end{definition}
+
+\noindent Note two things the grammar carries that a one-line summary of it
+tends to drop, because both are doing real work below. The deadline system is a
+separate constraint store rather than more Horn rules --- that is what makes
+clause (iv) a negative-cycle test at $O(V\cdot E)$ instead of a satisfiability
+question. And an exclusive claim is a claim on a \emph{resource over an
+interval}, not a prohibition on an action; collapsing it into an $\mathsf{F}$
+token would change clause (iii) into clause (ii) and lose the resource
+dimension that makes it checkable by interval overlap.
 
 \begin{pdclaim}{Theorem}{In-fragment conflict detection is polynomial and witness-producing}
 \label{thm:deontic-detect}
