@@ -79,6 +79,8 @@
  *   POST /v1/shipwright/thread                  (session; issue repo-bound thread)
  *   GET  /v1/shipwright/threads                 (session; bounded resume inventory)
  *   GET  /v1/shipwright/context                 (session; durable context preview)
+ *   POST /v1/shipwright/onboarding              (session; save scoped answers + draft)
+ *   POST /v1/shipwright/ai-context-consent      (session; record/revoke explicit AI-context request)
  *   GET  /v1/shipwright/history                 (session; scoped thread history)
  *   POST /v1/shipwright/chat                    (session; scoped Workers AI, SSE)
  *   POST /v1/shipwright/clear                   (session; delete raw thread history)
@@ -275,6 +277,8 @@ import {
   handleShipwrightCreateThread,
   handleShipwrightThreads,
   handleShipwrightContext,
+  handleShipwrightOnboarding,
+  handleShipwrightAiContextConsent,
   handleShipwrightRepoClear,
   handleShipwrightOpenPr,
 } from './shipwright.js';
@@ -896,6 +900,12 @@ export default {
     }
     else if (pathname === '/v1/shipwright/context' && method === 'GET') {
       response = await handleShipwrightContext(request, env);
+    }
+    else if (pathname === '/v1/shipwright/onboarding' && method === 'POST') {
+      response = await handleShipwrightOnboarding(request, env);
+    }
+    else if (pathname === '/v1/shipwright/ai-context-consent' && method === 'POST') {
+      response = await handleShipwrightAiContextConsent(request, env);
     }
     else if (pathname === '/v1/shipwright/history' && method === 'GET') {
       response = await handleShipwrightHistory(request, env);

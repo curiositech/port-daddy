@@ -92,6 +92,20 @@ body{display:flex;flex-direction:column}
 .repo-scope select,.repo-scope input{display:block;margin-top:4px;border:1px solid var(--hair-strong);background:var(--surface-base);padding:7px 9px;font-size:14px}
 .repo-scope button{padding:8px 14px;border:2px solid var(--border-strong);background:var(--cobalt);color:var(--on-accent);font-weight:700;cursor:pointer}
 .repo-scope p{margin:5px 0 0;font-size:13px;color:var(--text-secondary)}
+.onboarding{margin-top:12px;border:1px solid var(--hair-strong);background:var(--surface-card)}
+.onboarding>summary{cursor:pointer;padding:11px 16px;font-family:"IBM Plex Mono",monospace;font-weight:700;color:var(--cobalt)}
+.onboarding-body{padding:0 16px 14px}
+.onboarding-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.onboarding label{font-size:12px;font-weight:700;color:var(--text-secondary)}
+.onboarding input,.onboarding textarea,.onboarding select{display:block;width:100%;margin-top:4px;border:1px solid var(--hair-strong);background:var(--surface-base);padding:8px;font-size:14px}
+.onboarding textarea{min-height:64px;resize:vertical}
+.onboarding button{margin-top:10px;padding:8px 13px;border:2px solid var(--border-strong);background:var(--cobalt);color:var(--on-accent);font-weight:700;cursor:pointer}
+.context-preview{margin-top:12px;border-top:1px solid var(--hair);padding-top:10px;font-size:13px;color:var(--text-secondary)}
+.context-preview pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto;border:1px solid var(--hair);padding:8px;background:var(--surface-base)}
+.consent{margin-top:12px;padding:10px;border:2px solid var(--amber);background:var(--surface-raised)}
+.consent label{display:flex;gap:8px;align-items:flex-start;color:var(--text-primary)}
+.consent input{width:auto;margin-top:2px}
+.consent p{margin:5px 0 0;font-size:12px;color:var(--text-secondary)}
 .chat{flex:1;min-height:0;max-width:980px;width:100%;margin:0 auto;padding:0 24px;display:flex;flex-direction:column}
 .log{flex:1;min-height:0;overflow-y:auto;padding:18px 2px 12px;display:flex;flex-direction:column;gap:14px}
 .msg{max-width:72ch;border:1px solid var(--hair-strong);padding:12px 16px;font-size:15px;line-height:1.6;white-space:normal}
@@ -143,7 +157,7 @@ body{display:flex;flex-direction:column}
 .prform .pr-note{flex-basis:100%;font-size:12.5px;color:var(--text-muted);line-height:1.5}
 .pr-unavail{border-top:1px solid var(--hair-strong);padding:10px 12px;background:var(--surface-card);font-size:12.5px;color:var(--text-secondary);line-height:1.55}
 .notice-strip{margin-top:12px;background:var(--surface-card);border:1px solid var(--hair);padding:10px 16px;font-size:13.5px;line-height:1.55;box-shadow:inset 3px 0 0 var(--amber)}
-@media (max-width:640px){.site-header{padding:12px 16px}.masthead,.chat{padding-left:14px;padding-right:14px}.msg{max-width:100%}.composer form{flex-direction:column;align-items:stretch}}
+@media (max-width:640px){.site-header{padding:12px 16px}.masthead,.chat{padding-left:14px;padding-right:14px}.msg{max-width:100%}.composer form{flex-direction:column;align-items:stretch}.onboarding-grid{grid-template-columns:1fr}}
 `;
 
 /**
@@ -166,6 +180,9 @@ const CLIENT_JS = `
   var deletionRepo = '';
   var scopedInstallation = 0;
   var scopeForm = document.getElementById('repo-scope-form');
+  var onboardingForm = document.getElementById('shipwright-onboarding');
+  var consentBox = document.getElementById('ai-context-consent');
+  var contextPreview = document.getElementById('context-preview');
   var FENCE = '\\u0060\\u0060\\u0060';
   var busy = false;
 
@@ -348,12 +365,65 @@ const CLIENT_JS = `
       sendBtn.disabled = false;
       clearBtn.disabled = false;
       if (repoClearBtn) repoClearBtn.disabled = false;
+      if (onboardingForm) onboardingForm.hidden = false;
+      loadContext();
       input.focus();
     }).catch(function (e) {
       var label = document.getElementById('active-repo-label');
       if (label) label.textContent = 'Unavailable';
       addMsg('error', (e && e.message) || 'Repository authorization failed. Choose another saved thread.');
     });
+  }
+
+  function downloadText(name, text, type) {
+    var blob = new Blob([text], { type: type });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function renderContext(d) {
+    if (!contextPreview) return;
+    var onboarding = null;
+    var rows = d.memory || [];
+    for (var i = 0; i < rows.length; i++) if (rows[i].kind === 'onboarding') onboarding = rows[i].body;
+    if (onboarding && onboardingForm) {
+      onboardingForm.elements.desiredReviewOutcomes.value = onboarding.desiredReviewOutcomes || '';
+      onboardingForm.elements.riskTolerance.value = onboarding.riskTolerance || 'balanced';
+      onboardingForm.elements.budgetCeilingUsdPerDay.value = onboarding.budgetCeilingUsdPerDay || 4;
+      onboardingForm.elements.languagesAndFrameworks.value = onboarding.languagesAndFrameworks || '';
+      onboardingForm.elements.protectedPaths.value = (onboarding.protectedPaths || []).join('\\n');
+      onboardingForm.elements.reviewStrictness.value = onboarding.reviewStrictness || 'standard';
+    }
+    var consent = d.aiContextConsent || {};
+    if (consentBox) consentBox.checked = consent.requested === true;
+    contextPreview.replaceChildren();
+    var profileTitle = el('b', null, onboarding ? 'Saved onboarding profile' : 'No onboarding profile saved yet');
+    contextPreview.appendChild(profileTitle);
+    if (onboarding) {
+      var pre = el('pre', null, JSON.stringify(onboarding, null, 2));
+      contextPreview.appendChild(pre);
+      var exportProfile = el('button', null, 'Export profile');
+      exportProfile.type = 'button';
+      exportProfile.addEventListener('click', function () { downloadText('shipwright-profile.json', JSON.stringify(onboarding, null, 2), 'application/json'); });
+      contextPreview.appendChild(exportProfile);
+    }
+    if (d.latestProposal && d.latestProposal.yaml) {
+      var exportDraft = el('button', null, 'Download draft fleet');
+      exportDraft.type = 'button';
+      exportDraft.addEventListener('click', function () { downloadText('pd-fleet.yml', d.latestProposal.yaml, 'text/yaml'); });
+      contextPreview.appendChild(exportDraft);
+    }
+  }
+
+  function loadContext() {
+    if (!threadId) return;
+    fetch('/v1/shipwright/context?thread=' + encodeURIComponent(threadId))
+      .then(function (r) { return r.json(); })
+      .then(function (d) { if (!d.thread) throw new Error(d.error || 'context unavailable'); renderContext(d); })
+      .catch(function () { if (contextPreview) contextPreview.textContent = 'Saved context could not be loaded.'; });
   }
 
   function send(text) {
@@ -448,6 +518,38 @@ const CLIENT_JS = `
       body: JSON.stringify({ threadId: threadId })
     }).then(function (r) { if (!r.ok) throw new Error('clear refused'); window.location.href = '/account/shipwright'; })
       .catch(function () { window.alert('Repository clear failed. Nothing was assumed deleted.'); });
+  });
+
+  if (onboardingForm) onboardingForm.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var e = onboardingForm.elements;
+    var paths = e.protectedPaths.value.split(/[\\n,]/).map(function (p) { return p.trim(); }).filter(Boolean);
+    var profile = {
+      desiredReviewOutcomes: e.desiredReviewOutcomes.value,
+      riskTolerance: e.riskTolerance.value,
+      budgetCeilingUsdPerDay: Number(e.budgetCeilingUsdPerDay.value),
+      languagesAndFrameworks: e.languagesAndFrameworks.value,
+      protectedPaths: paths,
+      reviewStrictness: e.reviewStrictness.value
+    };
+    fetch('/v1/shipwright/onboarding', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ threadId: threadId, profile: profile })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.profile) throw new Error(d.error || 'Onboarding save failed');
+      loadContext();
+    }).catch(function (e) { window.alert(e.message || 'Onboarding save failed.'); });
+  });
+
+  if (consentBox) consentBox.addEventListener('change', function () {
+    var requested = consentBox.checked;
+    fetch('/v1/shipwright/ai-context-consent', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ threadId: threadId, enabled: requested })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      if (d.requested !== requested) throw new Error(d.error || 'Consent update failed');
+      loadContext();
+    }).catch(function (e) { consentBox.checked = !requested; window.alert(e.message || 'Consent update failed.'); });
   });
 
   if (scopeForm) scopeForm.addEventListener('submit', function (ev) {
@@ -670,6 +772,28 @@ export function renderShipwrightPage(user: UserRow, nonce: string, view: Shipwri
   ${renderModelBoard()}
   ${noticeHtml}
   ${renderRepoSelector(view)}
+  <details class="onboarding"${view.threadId ? ' open' : ''}>
+    <summary>Fleet interview — answers, draft, and AI context</summary>
+    <div class="onboarding-body">
+      <form id="shipwright-onboarding"${view.threadId ? '' : ' hidden'}>
+        <div class="onboarding-grid">
+          <label>Desired review outcomes<textarea name="desiredReviewOutcomes" maxlength="1000" required placeholder="Catch regressions, improve tests, flag security risks…"></textarea></label>
+          <label>Languages and frameworks<textarea name="languagesAndFrameworks" maxlength="500" required placeholder="Rust, TypeScript, GPUI, Cloudflare Workers…"></textarea></label>
+          <label>Risk tolerance<select name="riskTolerance"><option value="conservative">Conservative</option><option value="balanced" selected>Balanced</option><option value="aggressive">Aggressive</option></select></label>
+          <label>Review strictness<select name="reviewStrictness"><option value="advisory">Advisory</option><option value="standard" selected>Standard</option><option value="strict">Strict</option></select></label>
+          <label>Daily cost ceiling (USD)<input name="budgetCeilingUsdPerDay" type="number" min="0.25" max="500" step="0.25" value="4" required></label>
+          <label>Protected paths<textarea name="protectedPaths" maxlength="12000" placeholder="One path or glob per line"></textarea></label>
+        </div>
+        <button type="submit">Save answers + generate draft fleet</button>
+      </form>
+      <div class="consent">
+        <label><input id="ai-context-consent" type="checkbox"${view.threadId ? '' : ' disabled'}>
+          Request use of the six previewed onboarding fields as structured context for Cloudflare Workers AI.</label>
+        <p>Default is off. This release records or revokes the request but does not activate egress. Raw transcripts, repository contents, secrets, and other repositories are never included by this control.</p>
+      </div>
+      <div id="context-preview" class="context-preview">Select a repository to preview its saved context.</div>
+    </div>
+  </details>
 </section>
 <main class="chat">
   <div id="log" class="log" aria-live="polite" aria-label="Conversation with the Shipwright">

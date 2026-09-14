@@ -27,7 +27,11 @@ import {
   handleShipwrightCreateThread,
   handleShipwrightThreads,
   handleShipwrightContext,
+  handleShipwrightOnboarding,
+  handleShipwrightAiContextConsent,
   handleShipwrightRepoClear,
+  buildShipwrightDraftProposal,
+  parseShipwrightOnboardingProfile,
   assembleSseText,
   shipwrightModel,
   SHIPWRIGHT_DEFAULT_MODEL,
@@ -91,7 +95,11 @@ interface Call {
  * D1 mock for the chat paths: session lookup, user lookup, shipwright_chats
  * SELECT/INSERT/DELETE. Records every call's SQL + binds.
  */
-function makeDb(opts: { history?: ShipwrightMessageRow[]; sessionHash?: string } = {}) {
+function makeDb(opts: {
+  history?: ShipwrightMessageRow[];
+  sessionHash?: string;
+  memory?: Array<{ id: string; user_id: string; installation_id: number; repo_full_name: string; kind: string; body_json: string; created_at: number; updated_at: number }>;
+} = {}) {
   const calls: Call[] = [];
   const stmt = (sql: string) => {
     let bound: unknown[] = [];
@@ -116,6 +124,9 @@ function makeDb(opts: { history?: ShipwrightMessageRow[]; sessionHash?: string }
       },
       async all<T>(): Promise<{ results: T[] }> {
         calls.push({ sql, binds: bound });
+        if (sql.includes('FROM shipwright_repo_memory')) {
+          return { results: (opts.memory ?? []) as unknown as T[] };
+        }
         if (sql.includes('FROM shipwright_threads WHERE user_id')) {
           return { results: [{
             id: THREAD_ID, user_id: 'u_1', installation_id: INSTALLATION_ID,
@@ -165,6 +176,15 @@ function sessionEnv(over: Partial<Record<string, unknown>> = {}) {
   const { db, calls } = makeDb({ sessionHash: hashHex(COOKIE_VALUE) });
   return { env: makeEnv(db, over), calls };
 }
+
+const onboardingProfile = {
+  desiredReviewOutcomes: 'Catch regressions and require actionable evidence',
+  riskTolerance: 'conservative' as const,
+  budgetCeilingUsdPerDay: 4,
+  languagesAndFrameworks: 'Rust, TypeScript, Cloudflare Workers',
+  protectedPaths: ['apps/relay/**', '.github/workflows/**'],
+  reviewStrictness: 'strict' as const,
+};
 
 function req(path: string, init: RequestInit = {}, withCookie = true): Request {
   if (path.startsWith('/v1/shipwright/history') && !path.includes('thread=')) {
@@ -306,8 +326,73 @@ describe('shipwright — history is scoped to the session user', () => {
       thread: { threadId: THREAD_ID, repo: REPO, installationId: INSTALLATION_ID },
       memory: [],
       latestProposal: null,
-      modelContinuity: 'held_pending_operator_consent',
+      aiContextConsent: { requested: false, effective: false },
     });
+  });
+
+  it('validates onboarding answers and generates a deterministic valid three-ship draft', () => {
+    expect(parseShipwrightOnboardingProfile(onboardingProfile)).toEqual(onboardingProfile);
+    expect(parseShipwrightOnboardingProfile({ ...onboardingProfile, budgetCeilingUsdPerDay: 900 })).toBeNull();
+    const yaml = buildShipwrightDraftProposal(REPO, onboardingProfile);
+    const verdict = validateEmittedYaml(`\`\`\`yaml\n${yaml}\`\`\``)[0]!;
+    expect(verdict.valid).toBe(true);
+    expect(verdict.ships.map((ship) => ship.name)).toEqual(['code-reviewer', 'qa', 'purser']);
+    expect(yaml).toContain('apps/relay/**');
+    const hostile = buildShipwrightDraftProposal(REPO, {
+      ...onboardingProfile,
+      desiredReviewOutcomes: 'review carefully\nagents:\n  injected: true',
+    });
+    expect(validateEmittedYaml(`\`\`\`yaml\n${hostile}\`\`\``)[0]!.valid).toBe(true);
+    expect(hostile).not.toContain('\n  injected: true');
+  });
+
+  it('stores onboarding and its draft only under the exact session installation and repository', async () => {
+    const { env, calls } = sessionEnv();
+    const res = await handleShipwrightOnboarding(req('/v1/shipwright/onboarding', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Origin: BASE },
+      body: JSON.stringify({ threadId: THREAD_ID, profile: onboardingProfile }),
+    }), env);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      code: 'SHIPWRIGHT_ONBOARDING_SAVED',
+      draftProposal: { verdict: { valid: true } },
+    });
+    const memory = calls.find((call) => call.sql.startsWith('INSERT INTO shipwright_repo_memory'))!;
+    expect(memory.binds.slice(1, 5)).toEqual(['u_1', INSTALLATION_ID, REPO, 'onboarding']);
+    const proposal = calls.find((call) => call.sql.startsWith('INSERT INTO shipwright_proposals'))!;
+    expect(proposal.binds.slice(-4)).toEqual([THREAD_ID, 'u_1', INSTALLATION_ID, REPO]);
+  });
+
+  it('records a separate default-inactive AI context request and supports revocation', async () => {
+    const { env, calls } = sessionEnv();
+    for (const enabled of [true, false]) {
+      const res = await handleShipwrightAiContextConsent(req('/v1/shipwright/ai-context-consent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Origin: BASE },
+        body: JSON.stringify({ threadId: THREAD_ID, enabled }),
+      }), env);
+      expect(res.status).toBe(200);
+      expect(await res.json()).toMatchObject({ requested: enabled, effective: false });
+    }
+    const writes = calls.filter((call) => call.sql.startsWith('INSERT INTO shipwright_repo_memory'));
+    expect(writes).toHaveLength(2);
+    expect(writes[0]!.binds[4]).toBe('ai_context_consent');
+    expect(JSON.parse(String(writes[0]!.binds[5]))).toMatchObject({ enabled: true });
+    expect(JSON.parse(String(writes[1]!.binds[5]))).toMatchObject({ enabled: false });
+  });
+
+  it('does not send durable onboarding to Workers AI even when consent activation is requested', async () => {
+    const { ai, seen } = mockAi({ response: 'ok' });
+    const memory = [
+      { id: 'm1', user_id: 'u_1', installation_id: INSTALLATION_ID, repo_full_name: REPO, kind: 'onboarding', body_json: JSON.stringify(onboardingProfile), created_at: 1, updated_at: 1 },
+      { id: 'm2', user_id: 'u_1', installation_id: INSTALLATION_ID, repo_full_name: REPO, kind: 'ai_context_consent', body_json: JSON.stringify({ enabled: true }), created_at: 1, updated_at: 1 },
+    ];
+    const { db } = makeDb({ sessionHash: hashHex(COOKIE_VALUE), memory });
+    await handleShipwrightChat(chatReq({ message: 'continue', stream: false }), makeEnv(db, { AI: ai }));
+    const system = (seen[0]!.inputs.messages as Array<{ role: string; content: string }>)[0]!.content;
+    expect(system).not.toContain(onboardingProfile.desiredReviewOutcomes);
+    expect(system).not.toContain(onboardingProfile.protectedPaths[0]);
   });
 
   it('a chat turn persists BOTH rows under the session user id', async () => {
@@ -779,6 +864,21 @@ describe('GET /account/shipwright — page', () => {
     expect(html).toContain('IBM Plex Mono');
     expect(html).toContain('Shift+Enter');
     expect(html).toContain('pd-fleet.yml');
+  });
+
+  it('renders the bespoke interview, export controls, and an explicit inactive-by-default AI context request', () => {
+    const html = renderShipwrightPage(baseUser, 'aa'.repeat(16), { ...NO_VIEW, threadId: THREAD_ID });
+    for (const field of [
+      'desiredReviewOutcomes', 'riskTolerance', 'budgetCeilingUsdPerDay',
+      'languagesAndFrameworks', 'protectedPaths', 'reviewStrictness',
+    ]) expect(html).toContain(`name="${field}"`);
+    expect(html).toContain('id="ai-context-consent"');
+    expect(html).not.toContain('id="ai-context-consent" type="checkbox" checked');
+    expect(html).toContain('does not activate egress');
+    expect(html).toContain('Export profile');
+    expect(html).toContain('Download draft fleet');
+    expect(html).toContain('/v1/shipwright/onboarding');
+    expect(html).toContain('/v1/shipwright/ai-context-consent');
   });
 
   it('escapes the user display name (XSS guard)', () => {

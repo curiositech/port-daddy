@@ -222,6 +222,72 @@ async function resolveAuthorizedThread(
 interface CreateThreadBody { installationId?: unknown; repo?: unknown }
 interface RepoClearBody { threadId?: unknown }
 
+export const SHIPWRIGHT_AI_CONTEXT_FIELDS = [
+  'desiredReviewOutcomes',
+  'riskTolerance',
+  'budgetCeilingUsdPerDay',
+  'languagesAndFrameworks',
+  'protectedPaths',
+  'reviewStrictness',
+] as const;
+
+export interface ShipwrightOnboardingProfile {
+  desiredReviewOutcomes: string;
+  riskTolerance: 'conservative' | 'balanced' | 'aggressive';
+  budgetCeilingUsdPerDay: number;
+  languagesAndFrameworks: string;
+  protectedPaths: string[];
+  reviewStrictness: 'advisory' | 'standard' | 'strict';
+}
+
+interface OnboardingBody { threadId?: unknown; profile?: unknown }
+interface AiContextConsentBody { threadId?: unknown; enabled?: unknown }
+
+function boundedText(value: unknown, max: number): string | null {
+  if (typeof value !== 'string') return null;
+  const text = value.trim();
+  return text && text.length <= max ? text : null;
+}
+
+export function parseShipwrightOnboardingProfile(value: unknown): ShipwrightOnboardingProfile | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const raw = value as Record<string, unknown>;
+  const desiredReviewOutcomes = boundedText(raw.desiredReviewOutcomes, 1_000);
+  const languagesAndFrameworks = boundedText(raw.languagesAndFrameworks, 500);
+  const riskTolerance = raw.riskTolerance;
+  const reviewStrictness = raw.reviewStrictness;
+  const budgetCeilingUsdPerDay = Number(raw.budgetCeilingUsdPerDay);
+  if (!desiredReviewOutcomes || !languagesAndFrameworks
+    || !['conservative', 'balanced', 'aggressive'].includes(String(riskTolerance))
+    || !['advisory', 'standard', 'strict'].includes(String(reviewStrictness))
+    || !Number.isFinite(budgetCeilingUsdPerDay) || budgetCeilingUsdPerDay < 0.25 || budgetCeilingUsdPerDay > 500) return null;
+  if (!Array.isArray(raw.protectedPaths) || raw.protectedPaths.length > 50) return null;
+  const protectedPaths = raw.protectedPaths.map((path) => boundedText(path, 240));
+  if (protectedPaths.some((path) => path === null)) return null;
+  return {
+    desiredReviewOutcomes,
+    riskTolerance: riskTolerance as ShipwrightOnboardingProfile['riskTolerance'],
+    budgetCeilingUsdPerDay: Math.round(budgetCeilingUsdPerDay * 100) / 100,
+    languagesAndFrameworks,
+    protectedPaths: protectedPaths as string[],
+    reviewStrictness: reviewStrictness as ShipwrightOnboardingProfile['reviewStrictness'],
+  };
+}
+
+function yamlString(value: string): string { return JSON.stringify(value); }
+function yamlPromptLine(value: string): string { return value.replace(/\s+/g, ' ').trim(); }
+
+/** Deterministic, valid three-ship starting roster. It is a draft, not an AI claim. */
+export function buildShipwrightDraftProposal(repo: string, profile: ShipwrightOnboardingProfile): string {
+  const project = repo.replace('/', '-');
+  const protectedNote = profile.protectedPaths.length
+    ? `Pay special attention to protected paths: ${profile.protectedPaths.map(yamlPromptLine).join(', ')}.`
+    : 'No protected paths were named; do not infer any.';
+  const context = `Repository stack: ${yamlPromptLine(profile.languagesAndFrameworks)}. Desired outcomes: ${yamlPromptLine(profile.desiredReviewOutcomes)}. ` +
+    `Risk tolerance: ${profile.riskTolerance}. Review strictness: ${profile.reviewStrictness}. ${protectedNote}`;
+  return `fleet:\n  name: ${yamlString(`${repo} review fleet`)}\n  harbor: ${yamlString(`${project}:fleet`)}\n  limits:\n    max_concurrent_spawns: 2\n    max_spawns_per_hour: 12\n    budget_usd_per_day: ${profile.budgetCeilingUsdPerDay}\n  agents:\n    code-reviewer:\n      trigger: pull_request:*\n      backend: cli:claude-code\n      fallbacks:\n        - backend: cloudflare\n          capability: cheap\n      cooldown_ms: 60000\n      singleton: true\n      blocking: false\n      prompt: |\n        Review the diff for correctness, regressions, and maintainability. Rank concrete findings by severity and cite exact evidence.\n        ${context}\n      identity: ${yamlString(`${project}:fleet:code-reviewer`)}\n      telos: ${yamlString('Find actionable defects without manufacturing work.')}\n    qa:\n      trigger: pull_request:*\n      backend: cli:claude-code\n      fallbacks:\n        - backend: cloudflare\n          capability: cheap\n      cooldown_ms: 60000\n      singleton: true\n      blocking: false\n      prompt: |\n        Design hostile tests around the strongest contract implied by the change. Report gaps; do not claim execution you cannot prove.\n        ${context}\n      identity: ${yamlString(`${project}:fleet:qa`)}\n      telos: ${yamlString('Turn likely regressions into reproducible tests.')}\n    purser:\n      trigger: pull_request:*\n      class: purser\n      backend: cli:claude-code\n      fallbacks:\n        - backend: cloudflare\n          capability: cheap\n      cooldown_ms: 60000\n      singleton: true\n      blocking: false\n      graft:\n        - sandboxed-adversarial-test-harness\n        - steel-man-argument\n      prompt: |\n        Steel-man the pull request into its strongest testable contract, then identify the smallest decisive tests. Stay advisory until explicitly promoted.\n        ${context}\n      identity: ${yamlString(`${project}:fleet:purser`)}\n      telos: ${yamlString('Make the review contract explicit and testable.')}\n`;
+}
+
 /** POST /v1/shipwright/thread — issue an opaque, server-bound thread id. */
 export async function handleShipwrightCreateThread(request: Request, env: Env): Promise<Response> {
   const session = await resolveSession(request, env);
@@ -326,16 +392,81 @@ export async function handleShipwrightContext(request: Request, env: Env): Promi
     listShipwrightRepoMemory(env.DB, repoScope, 20),
     latestShipwrightProposal(env.DB, { ...repoScope, threadId: scope.thread.id }),
   ]);
+  const parsed = memory.map((row) => {
+    try { return { kind: row.kind, body: JSON.parse(row.body_json) as unknown, updatedAt: row.updated_at }; }
+    catch { return { kind: row.kind, body: null, updatedAt: row.updated_at, malformed: true }; }
+  });
+  const consent = parsed.find((row) => row.kind === 'ai_context_consent')?.body as { enabled?: unknown } | null | undefined;
   return json(200, {
     code: 'OK', error: null,
     thread: { threadId: scope.thread.id, repo: scope.thread.repo_full_name, installationId: scope.thread.installation_id },
-    memory: memory.map((row) => ({ kind: row.kind, body: JSON.parse(row.body_json), updatedAt: row.updated_at })),
+    memory: parsed,
     latestProposal: proposal ? {
       createdAt: proposal.created_at,
       yaml: proposal.yaml,
       verdict: validateFleetYaml(proposal.yaml),
     } : null,
-    modelContinuity: 'held_pending_operator_consent',
+    aiContextConsent: {
+      requested: consent?.enabled === true,
+      effective: false,
+      fields: SHIPWRIGHT_AI_CONTEXT_FIELDS,
+      disclosure: 'This records a revocable request. Model continuity remains held until the operator authorizes activation; no durable stored profile is sent to Cloudflare Workers AI by this release.',
+    },
+  });
+}
+
+/** POST /v1/shipwright/onboarding — save/edit answers and generate a scoped draft. */
+export async function handleShipwrightOnboarding(request: Request, env: Env): Promise<Response> {
+  if (!isSameOrigin(request, env)) return json(403, { code: 'CROSS_ORIGIN', error: 'cross-origin request refused' });
+  const body = await readJson<OnboardingBody>(request);
+  const threadId = typeof body?.threadId === 'string' ? body.threadId : '';
+  const profile = parseShipwrightOnboardingProfile(body?.profile);
+  if (!profile) return json(400, { code: 'BAD_ONBOARDING', error: 'complete every onboarding field with valid bounded values' });
+  const scope = await resolveAuthorizedThread(request, env, threadId);
+  if (scope instanceof Response) return scope;
+  const now = Math.floor(Date.now() / 1000);
+  const repoScope = {
+    threadId: scope.thread.id,
+    userId: scope.session.user.id,
+    installationId: scope.thread.installation_id,
+    repoFullName: scope.thread.repo_full_name,
+  };
+  const yaml = buildShipwrightDraftProposal(scope.thread.repo_full_name, profile);
+  await upsertShipwrightRepoMemory(env.DB, {
+    id: `swm_${randomHex(24)}`,
+    ...repoScope,
+    kind: 'onboarding',
+    bodyJson: JSON.stringify(profile),
+    now,
+  });
+  await insertShipwrightProposal(env.DB, { id: `swp_${randomHex(24)}`, ...repoScope, yaml, now });
+  return json(200, { code: 'SHIPWRIGHT_ONBOARDING_SAVED', error: null, profile, draftProposal: { yaml, verdict: validateFleetYaml(yaml) } });
+}
+
+/** POST /v1/shipwright/ai-context-consent — an independent, reversible egress choice. */
+export async function handleShipwrightAiContextConsent(request: Request, env: Env): Promise<Response> {
+  if (!isSameOrigin(request, env)) return json(403, { code: 'CROSS_ORIGIN', error: 'cross-origin request refused' });
+  const body = await readJson<AiContextConsentBody>(request);
+  const threadId = typeof body?.threadId === 'string' ? body.threadId : '';
+  if (typeof body?.enabled !== 'boolean') return json(400, { code: 'BAD_CONSENT', error: 'enabled must be a boolean' });
+  const scope = await resolveAuthorizedThread(request, env, threadId);
+  if (scope instanceof Response) return scope;
+  const now = Math.floor(Date.now() / 1000);
+  await upsertShipwrightRepoMemory(env.DB, {
+    id: `swm_${randomHex(24)}`,
+    userId: scope.session.user.id,
+    installationId: scope.thread.installation_id,
+    repoFullName: scope.thread.repo_full_name,
+    kind: 'ai_context_consent',
+    bodyJson: JSON.stringify({ enabled: body.enabled, fields: SHIPWRIGHT_AI_CONTEXT_FIELDS }),
+    now,
+  });
+  return json(200, {
+    code: body.enabled ? 'SHIPWRIGHT_AI_CONTEXT_REQUEST_RECORDED' : 'SHIPWRIGHT_AI_CONTEXT_REVOKED',
+    error: null,
+    requested: body.enabled,
+    effective: false,
+    fields: SHIPWRIGHT_AI_CONTEXT_FIELDS,
   });
 }
 
