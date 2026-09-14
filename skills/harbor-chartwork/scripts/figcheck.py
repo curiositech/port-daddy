@@ -644,6 +644,20 @@ def compute_page_ink(page, content_rect, page_rect, page_no, ink_audit):
 # --------------------------------------------------------------------------- #
 
 def run_figcheck(pdf_path, min_font_pt=7.0, textwidth_cm=16.3):
+    """Run the eight geometry checks over one compiled figure PDF.
+
+    `pdf_path` accepts a `str` or a `os.PathLike` and is coerced to `Path` here.
+    That tolerance is the contract, not an accident: `pymupdf.open` takes either,
+    and this function took either until a reporting change (65fabd93f) began
+    reading `pdf_path.stem` and silently narrowed the parameter to Path-only.
+    Coercing once, at the top, keeps the one attribute access downstream from
+    being the thing that defines the accepted type.
+
+    Returns the report dict. Its "figure" key is the fragment STEM, not a path --
+    the throwaway PDF's location names nothing on another machine. `render_markdown`
+    is the report's only other reader; keep the two in step.
+    """
+    pdf_path = Path(pdf_path)
     doc = pymupdf.open(pdf_path)
     textwidth_pt = textwidth_cm * PT_PER_CM
     findings = []
@@ -723,7 +737,8 @@ CHECK_LABELS = {
 
 def render_markdown(report):
     lines = []
-    lines.append(f"# figcheck: `{Path(report['pdf']).name}`")
+    # "figure" is a stem, not a path -- no Path(...).name to take off it.
+    lines.append(f"# figcheck: `{report['figure']}`")
     lines.append("")
     lines.append(f"Result: **{report['summary']['result'].upper()}** "
                  f"({report['page_count']} page(s))")
