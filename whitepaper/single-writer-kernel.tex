@@ -372,7 +372,7 @@ Appendix~\ref{app:status}; the body argues at the level of mechanisms.
 
 \begin{table}[H]
 \centering
-\caption{The research-maturity scale used throughout. The last two rows are
+\pdmargincaption{The research-maturity scale used throughout. The last two rows are
 refinements this paper introduces (see \S\ref{sec:durability} and
 \S\ref{sec:enforcement}).}
 \label{tab:honestkey}
@@ -408,7 +408,7 @@ paper and a brochure.}
 
 \begin{table}[H]
 \centering
-\caption{Reader's Map. Find your row; read those sections first.}
+\pdmargincaption{Reader's Map. Find your row; read those sections first.}
 \label{tab:readers-map}
 \small
 \renewcommand{\arraystretch}{1.3}
@@ -446,7 +446,7 @@ connective tissue a noun-list hides.
 
 \begin{table}[H]
 \centering
-\caption{The seven organs, each the contract the daemon holds for the layer above it,
+\pdmargincaption{The seven organs, each the contract the daemon holds for the layer above it,
 with the table that is its home where the chapter names one and its maturity grade.
 All seven are disciplines over one SQLite/WAL file: one commit history, not seven
 stores. The grades come from the chapter's own status table (\S\ref{app:status}).}
@@ -900,7 +900,7 @@ the queue are the same code path, and until the ticket table exists at all.
 
 \begin{table}[H]
 \centering
-\caption{The communication organ: one durable carrier and two provenance traces that
+\pdmargincaption{The communication organ: one durable carrier and two provenance traces that
 must never be merged. The envelope fields are what the bus stores; the two traces
 answer two different questions and are checked by two different mechanisms.}
 \label{tab:swk-comm-organ}
@@ -1030,7 +1030,7 @@ behind each.
 
 \begin{table}[H]
 \centering
-\caption{The deontic split: three modalities, three mechanisms. Capability (what the
+\pdmargincaption{The deontic split: three modalities, three mechanisms. Capability (what the
 sandbox makes possible) is kept apart from permission (what the deontic layer
 allows) so that ``able but forbidden'' stays expressible.}
 \label{tab:swk-deontic-split}
@@ -1152,7 +1152,7 @@ In SQLite WAL mode under single-writer serialization, transaction commits occur 
 event the runtime cannot refuse can carry a legal history out of the rule; that is
 Ramadge--Wonham controllability with the model's own steps as the uncontrollable alphabet.
 The formal statement is the box below; the machine-checked policy table is
-Table~\ref{tab:policy-classification}.}\footnote{A standalone, submission-form version of this section is \emph{Regimented or Enforced: The Controllability Boundary for Agent Governance} (research paper 2), whose policy table and verdicts regenerate from \texttt{skills/harbor-results/scripts/b3\_controllability.py}.}
+Table~\ref{tab:policy-classification}.}\pdsidenote{A standalone, submission-form version of this section is \emph{Regimented or Enforced: The Controllability Boundary for Agent Governance} (research paper 2), whose policy table and verdicts regenerate from \texttt{skills/harbor-results/scripts/b3\_controllability.py}.}
 
 \paragraph{The scene.}
 The operations lead reads the governance document aloud. \emph{No force-push to main. No
@@ -1307,7 +1307,7 @@ after \texttt{spawn\_child}'' and ``forbid \texttt{internal\_plan} after \texttt
 
 \begin{table}[H]
 \centering
-\caption{Nine governance rules classified by the product-automaton checker. The verdicts are
+\pdmargincaption{Nine governance rules classified by the product-automaton checker. The verdicts are
 the checker's output; the eight single-event rows also follow by hand from
 Theorem~\ref{thm:regimentation-controllability} [internal, \texttt{b3\_controllability.py}].}
 \label{tab:policy-classification}
@@ -1733,7 +1733,7 @@ theorems themselves.
 \renewcommand{\arraystretch}{1.2}
 \begin{table}[H]
 \centering
-\caption{The kernel invariants. I1 is split by fault class (I1a/I1b) per
+\pdmargincaption{The kernel invariants. I1 is split by fault class (I1a/I1b) per
 \S\ref{sec:durability}; I7--I9 carry the regimentation/detection correction per
 \S\ref{sec:enforcement}.}
 \label{tab:invariants}
@@ -1864,7 +1864,7 @@ which invariant does it break? (Exercise~\ref{ex:swk-crimes}.)
 
 \begin{table}[H]
 \centering
-\caption{Every guard is essential. Disabling one guard at a time, the checker's shortest
+\pdmargincaption{Every guard is essential. Disabling one guard at a time, the checker's shortest
 violating trace, in transitions from the initial state [internal, \texttt{c0\_workunit.py}].}
 \label{tab:workunit-crimes}
 \small
@@ -2019,7 +2019,7 @@ and the honest move is to draw the boundary, not gesture at it.
 \renewcommand{\arraystretch}{1.25}
 \begin{table}[H]
 \centering
-\caption{The substrate-layer threat model. The same-user adversary is \emph{out of
+\pdmargincaption{The substrate-layer threat model. The same-user adversary is \emph{out of
 scope} by design; several ``security'' organs become necessary only against the
 cross-machine adversary, which belongs to the economy layer.}
 \label{tab:threat-model}
@@ -2717,7 +2717,7 @@ to agree with it. Where they ever disagree, this table is the one to trust.
 \renewcommand{\arraystretch}{1.2}
 \begin{table}[H]
 \centering
-\caption{Open-problem status, stated once. \Closed{} = settled in this chapter;
+\pdmargincaption{Open-problem status, stated once. \Closed{} = settled in this chapter;
 \Partial{} = something ships but not the property as posed; \Open{} = not solved,
 whether or not a design exists. The last column grades the \emph{design}, not the
 problem, on the scale of Table~\ref{tab:honestkey}.}
@@ -2872,7 +2872,7 @@ pragma set: \texttt{journal\_mode=WAL}, \texttt{synchronous=NORMAL},
 \renewcommand{\arraystretch}{1.2}
 \begin{table}[H]
 \centering
-\caption{Mechanism-to-artifact map for the reference implementation. Module names
+\pdmargincaption{Mechanism-to-artifact map for the reference implementation. Module names
 are illustrative of the organization, not a stable public interface.}
 \label{tab:appendix-map}
 \small

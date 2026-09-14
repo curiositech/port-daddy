@@ -319,7 +319,7 @@ Table~\ref{tab:related-borrow} compresses the four paragraphs above into what is
 
 \begin{table}[H]
 \centering
-\caption{Every borrowed result is re-used at a smaller scale than its origin assumed: the adversary is co-located rather than networked, the bonded act is coordination rather than validation, and the record is evidence rather than law. Nothing in the four lineages is discarded --- each is narrowed by one assumption, and the narrowing is what makes the composition deployable on one machine.}
+\pdmargincaption{Every borrowed result is re-used at a smaller scale than its origin assumed: the adversary is co-located rather than networked, the bonded act is coordination rather than validation, and the record is evidence rather than law. Nothing in the four lineages is discarded --- each is narrowed by one assumption, and the narrowing is what makes the composition deployable on one machine.}
 \label{tab:related-borrow}
 \small
 \setlength{\tabcolsep}{2pt}
@@ -341,7 +341,7 @@ Cryptoeconomic mechanism design & Priced deterrence; market-discovered parameter
 
 \begin{table}[H]
 \centering
-\caption{Three layers answer three different questions about the same attempted act. An out-of-grant act ends at Layer 1 before shared state changes; every admitted act crosses Layer 2 and acquires durable attribution, so admission creates an attribution duty; a harmful admitted act reaches Layer 3, where only bound evidence can reach settlement. [internal]}
+\pdmargincaption{Three layers answer three different questions about the same attempted act. An out-of-grant act ends at Layer 1 before shared state changes; every admitted act crosses Layer 2 and acquires durable attribution, so admission creates an attribution duty; a harmful admitted act reaches Layer 3, where only bound evidence can reach settlement. [internal]}
 \label{tab:bonded-three-layer}
 \small
 \renewcommand{\arraystretch}{1.15}
@@ -418,7 +418,7 @@ In Hobbes, consent to the sovereign is rational because the alternative---the st
 
 \begin{table}[H]
 \centering
-\caption{The commons authority converts six failure modes from ad hoc and manual to deterministic and automatic --- without forbidding anything an agent could already do. Every row is a service the agent gains, not a permission it loses, which is why consent is rational rather than coerced.}
+\pdmargincaption{The commons authority converts six failure modes from ad hoc and manual to deterministic and automatic --- without forbidding anything an agent could already do. Every row is a service the agent gains, not a permission it loses, which is why consent is rational rather than coerced.}
 \label{tab:consent}
 \begin{tabularx}{\textwidth}{@{}l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
@@ -745,7 +745,7 @@ This raises a question: if death carries no permanent consequence, what is the L
 
 \begin{table}[H]
 \centering
-\caption{The only catastrophic event in this hierarchy is the loss of information, not the loss of an agent. Severity climbs from a crash (none, because salvage recovers the context) to a daemon failure (catastrophic), with dismissal-from-salvage as the one irreversible step a single agent can cause on its own.}
+\pdmargincaption{The only catastrophic event in this hierarchy is the loss of information, not the loss of an agent. Severity climbs from a crash (none, because salvage recovers the context) to a daemon failure (catastrophic), with dismissal-from-salvage as the one irreversible step a single agent can cause on its own.}
 \label{tab:moral}
 \begin{tabularx}{\textwidth}{@{}l l >{\raggedright\arraybackslash}X@{}}
 \toprule
@@ -843,7 +843,7 @@ The stage-game payoffs, in expected-utility units calibrated to the cleanup cost
 
 \begin{table}[H]
 \centering
-\caption{One-shot file-claim signaling: a classical Prisoner's Dilemma. Mutual truth $(3,3)$ is Pareto-optimal, but $F$ strictly dominates $T$ for each player ($4>3$ and $1>0$). The unique one-shot Nash equilibrium is $(F,F)$ yielding $(1,1)$, destroying the coordination signal.}
+\pdmargincaption{One-shot file-claim signaling: a classical Prisoner's Dilemma. Mutual truth $(3,3)$ is Pareto-optimal, but $F$ strictly dominates $T$ for each player ($4>3$ and $1>0$). The unique one-shot Nash equilibrium is $(F,F)$ yielding $(1,1)$, destroying the coordination signal.}
 \label{tab:claim-stage-game}
 \begin{tabular}{@{}rcc@{}}
 \toprule
@@ -990,7 +990,7 @@ Table~\ref{tab:threat-bonds} gives starting bands. These are not parameters, the
 
 \begin{table}[H]
 \centering
-\caption{Threat-class bond sizing. Percentages are bond as a fraction of expected task value. Bands are starting points for calibration, not protocol constants.}
+\pdmargincaption{Threat-class bond sizing. Percentages are bond as a fraction of expected task value. Bands are starting points for calibration, not protocol constants.}
 \label{tab:threat-bonds}
 \setlength{\tabcolsep}{3pt}
 % Threat column widened 2.3cm -> 2.6cm: "Abandonment" (11 letters)
@@ -1108,11 +1108,11 @@ Under the simulation's full-information, competitive-entry assumptions and its c
 An independent model specification and a Monte Carlo sweep over 36 parameter configurations accompany this paper as a downloadable artifact (Appendix~\ref{app:mech}). Figure~\ref{fig:pareto-mc-inline} reports three results of that implementation: (i) the no-cartel baseline remains favorable across the tested noise sweep, whereas the three-colluder case loses the comparison beyond roughly $\sigma_r=0.1$; (ii) the tested full-cartel case defeats the mechanism at the fixed detection setting; and (iii) the tested objective peaks at $n=3$ insurers. These are finite-sample properties of the supplied code and parameter grid, not general theorems about Vickrey auctions or winner's curse.
 
 \begin{figure}[H]
+\pdmargincaption{The competitive auction's Pareto-dominance advantage is real but narrow: it survives moderate reputation noise and a modest cartel, then collapses once noise crosses roughly $\sigma_r=0.1$, and it shrinks as more insurers are added rather than growing. Left: fraction of trials satisfying the code's Pareto criterion versus reputation noise $\sigma_r$ at $n=5$, split by cartel size. Right: the same criterion versus insurer count at $\sigma_r=0$ with no cartel. Error bars and seeds are recorded in the accompanying artifact; the curves are not analytical welfare bounds.}
+  \label{fig:pareto-mc-inline}
   \centering
   \includegraphics[width=\textwidth]{figures/fig-pareto-dominance.pdf}
-  \caption{The competitive auction's Pareto-dominance advantage is real but narrow: it survives moderate reputation noise and a modest cartel, then collapses once noise crosses roughly $\sigma_r=0.1$, and it shrinks as more insurers are added rather than growing. Left: fraction of trials satisfying the code's Pareto criterion versus reputation noise $\sigma_r$ at $n=5$, split by cartel size. Right: the same criterion versus insurer count at $\sigma_r=0$ with no cartel. Error bars and seeds are recorded in the accompanying artifact; the curves are not analytical welfare bounds.}
-  \label{fig:pareto-mc-inline}
-\end{figure}
+  \end{figure}
 
 \paragraph{Relationship to the Bonded Advisor.}
 Under this framing, the Bonded Advisor of \S\ref{sec:bonded-advisor} becomes the matchmaker plus reputation oracle in the insurance market. It does not set prices; it provides information. Pricing is a competitive equilibrium, not an administrative decision.
@@ -1131,11 +1131,11 @@ which for the mixed risk classes used in the simulation gives
 $B_{\mathrm{dep}}^{\star} \approx 316$ USD. \emph{Empirically the attack remains profitable indefinitely.} The reason is structural: the deposit slash is capped at the coverage amount, $\mathrm{slash} = \min(B_{\mathrm{dep}}, B_T)$. Past $B_{\mathrm{dep}} \geq B_T$, any additional deposit posted by the Sybil is recovered intact on no-loss transactions; it never reaches the commons (Figure~\ref{fig:sybil-mc-inline}).
 
 \begin{figure}[H]
+\pdmargincaption{A5 --- Sybil attack: deposit-only deterrence has a coverage-bounded ceiling. Left: attacker net profit per 50-transaction trial stays positive across the entire deposit sweep ($B_{\mathrm{dep}} \in [0.5, 1000]$ USD). Right: commons deficit converges to zero around $B_{\mathrm{dep}} \approx 200$ USD --- the protocol is fully reimbursed, but the attacker still profits because deposit slash is capped at coverage $B_T = \mu(1+s)$. Closing A5 requires a composite mechanism ($C_{\mathrm{kyc}}$ + reputation gating + per-class $B_{\mathrm{dep}}$); pure deposit-based deterrence is provably insufficient.}
+  \label{fig:sybil-mc-inline}
   \centering
   \includegraphics[width=\textwidth]{figures/fig-sybil-deposit-floor.pdf}
-  \caption{A5 --- Sybil attack: deposit-only deterrence has a coverage-bounded ceiling. Left: attacker net profit per 50-transaction trial stays positive across the entire deposit sweep ($B_{\mathrm{dep}} \in [0.5, 1000]$ USD). Right: commons deficit converges to zero around $B_{\mathrm{dep}} \approx 200$ USD --- the protocol is fully reimbursed, but the attacker still profits because deposit slash is capped at coverage $B_T = \mu(1+s)$. Closing A5 requires a composite mechanism ($C_{\mathrm{kyc}}$ + reputation gating + per-class $B_{\mathrm{dep}}$); pure deposit-based deterrence is provably insufficient.}
-  \label{fig:sybil-mc-inline}
-\end{figure}
+  \end{figure}
 
 \emph{Closing A5 requires a composite mechanism}: an unrecoverable per-identity onboarding cost $C_{\mathrm{kyc}}$ (proof-of-personhood, KYC fee, or NFT mint), reputation gating that caps new identities to low-coverage transactions until they accumulate a track record, and per-class $B_{\mathrm{dep}}$ tuned to saturate the coverage cap exactly. The single-instrument deposit policy is provably insufficient; the mechanism in \S\ref{sec:youle} is correct only with this composite extension. The supporting analysis is bundled as \texttt{cartel-resilience.md} (Appendix~\ref{app:mech}).
 
@@ -1158,11 +1158,11 @@ p_d^\star=\frac{\pi_C-(1-\delta)\pi_D}{L+\delta\pi_D}.
 At $\delta=0.95$ this gives $p_d^\star\approx0.0478$, and the tested grid first classifies the cartel as fragile at $p_d=0.05$. This is a falsifiable, model-conditional calibration target for bid-pattern detection; the paper does not claim the deployed detector already attains it.
 
 \begin{figure}[H]
+\pdmargincaption{Cartel sustainability collapses sharply once per-round detection crosses a narrow threshold: at $\delta=0.95$ the closed-form $p_d^\star\approx0.0478$ and the simulated grid first flips to ``collapses'' at $p_d=0.05$, a near-exact match. Left: the tested $(p_d,\delta)$ grid under the supplied grim-trigger payoff model; amber cells marked S are sustainable, teal cells marked C collapse, and the dashed curve is the analytical boundary $p_d^\star(\delta)$. Right: simulated mean rounds to first detection, the truncated-geometric expectation, and its model-derived 95\% interval for the sample mean. Neither value transfers to a different payoff, event timing, or monitoring model without re-derivation.}
+  \label{fig:cartel-folk}
   \centering
   \includegraphics[width=\textwidth]{figures/fig-cartel-folk-theorem.pdf}
-  \caption{Cartel sustainability collapses sharply once per-round detection crosses a narrow threshold: at $\delta=0.95$ the closed-form $p_d^\star\approx0.0478$ and the simulated grid first flips to ``collapses'' at $p_d=0.05$, a near-exact match. Left: the tested $(p_d,\delta)$ grid under the supplied grim-trigger payoff model; amber cells marked S are sustainable, teal cells marked C collapse, and the dashed curve is the analytical boundary $p_d^\star(\delta)$. Right: simulated mean rounds to first detection, the truncated-geometric expectation, and its model-derived 95\% interval for the sample mean. Neither value transfers to a different payoff, event timing, or monitoring model without re-derivation.}
-  \label{fig:cartel-folk}
-\end{figure}
+  \end{figure}
 
 This result does not automatically extend to the agent layer. The two layers share a repeated-game template, but their payoff functions and monitoring signals differ; each layer needs its own obedience calculation.
 
@@ -1215,7 +1215,7 @@ where $\mathrm{causal\_density}$ aggregates token-emission rates strictly weight
 
 \begin{table}[H]
 \centering
-\caption{Causal density separates the two agents that a wall-clock or token-rate meter cannot tell apart: the psychotic agent is the \emph{highest} token spender in the table and the only one stopped, while the healthy agent spends a third as much and is nominal. Token rate alone would rank these three in exactly the wrong order.}
+\pdmargincaption{Causal density separates the two agents that a wall-clock or token-rate meter cannot tell apart: the psychotic agent is the \emph{highest} token spender in the table and the only one stopped, while the healthy agent spends a third as much and is nominal. Token rate alone would rank these three in exactly the wrong order.}
 \label{tab:cadence-verdicts}
 \begin{tabularx}{\textwidth}{@{}l l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
@@ -1465,7 +1465,7 @@ Instantiate Theorem~\ref{thm:conservation}'s proof sketch with round numbers. Be
 
 \begin{table}[H]
 \centering\small
-\caption{What the commons borrows from each prior body of work, where it departs, and why.}
+\pdmargincaption{The commons borrows something from each prior body of work and departs from each in a named place, for a stated reason.}
 \label{tab:related-borrow-depart}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.19\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
