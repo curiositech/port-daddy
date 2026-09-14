@@ -3,10 +3,11 @@
 A small, local first step toward reconciling a sprawling repository: find the
 planning sources you have, keep their provenance, and show what was not covered.
 
-This package is a **source inventory, not a semantic reconciliation product**.
-It does not find genius, decide which plan is right, or generate a smaller repo.
-It shares its scanner with the existing Harbor Clearance projection; there is
-not a second reconciliation engine.
+This package starts with source inventory and adds a narrow review-receipt gate;
+it is **not yet a semantic reconciliation product**. It does not find genius,
+decide which plan is right, or generate a smaller repo. It shares its scanner
+with the existing Harbor Clearance projection; there is not a second
+reconciliation engine.
 
 ## Try the distributable
 
@@ -23,8 +24,9 @@ Install that tarball in a separate tools directory, not the repository being
 examined:
 
 ```sh
-npm install --ignore-scripts --offline --no-audit --no-fund /absolute/path/curiositech-harbor-inventory-0.1.0.tgz
+npm install --ignore-scripts --offline --no-audit --no-fund /absolute/path/curiositech-harbor-inventory-0.2.0.tgz
 ./node_modules/.bin/harbor-inventory --repo /absolute/path/to/repository --source-id my-project
+./node_modules/.bin/harbor-review-audit --source /absolute/source.md --contract /absolute/review-contract.json --receipt /absolute/review.json
 ```
 
 The name is provisional. This is a locally installable tarball, not an npm
@@ -85,6 +87,24 @@ Use a trusted, quiescent local checkout. Individual reads have path, identity an
 change checks; the collection is not an atomic snapshot, and this process is
 not a sandbox against a malicious user concurrently changing ancestor paths.
 Nothing is sent elsewhere. There is no update checker or telemetry.
+
+## Promote semantic review without pretending
+
+Inventory and extraction never earn the `agent-reviewed` label by themselves.
+`harbor-review-audit` checks one JSON receipt against the exact supplied UTF-8
+source and a separately supplied review contract. The receipt must bind the
+contract identity, revision and digest; it cannot choose its own required-field
+set. Promotion requires a complete-source declaration, exact required-field
+coverage, byte-true line anchors for present findings, distinct declared
+producer/reviewer/quality-reviewer identities, and an accepted quality review.
+The result binds the exact receipt, contract and source digests. Rejected prior
+attempts remain listed by digest and reason.
+
+This is a receipt-consistency gate, not an oracle. It cannot authenticate the
+reviewers, prove they were independent, establish that a summary is logically
+correct, or authorize deletion. Exit 2 leaves the result at
+`machine-semantic-extracted`; malformed inputs exit 1. The command is local,
+read-only and stdout-only.
 
 For a failed run, retain the version, exit code, selected roots, coverage state
 and a redacted error example. File a minimal reproduction in the source
