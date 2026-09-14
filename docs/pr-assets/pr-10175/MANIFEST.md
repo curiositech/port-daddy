@@ -91,12 +91,12 @@ python3 -c "import pymupdf; pymupdf.open('after.pdf')[412-1].get_pixmap(dpi=150)
 
 ---
 
-## Artifact 1 — `worked-example-sovereignty.png`
+## Artifact 1 — `https://media.portdaddy.dev/sha256/e3/e3abd454f08450011050890f935ffa164a23eb32b2d2882057f6f7666ec82b21.png`
 
 1 / Sovereignty over the card is not sovereignty over what it touches
 
-- File: `docs/pr-assets/pr-10175/worked-example-sovereignty.png`
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/de8f95337bc70c1e68b5908549c4c98002c5e25b/docs/pr-assets/pr-10175/worked-example-sovereignty.png`
+- File: `https://media.portdaddy.dev/sha256/e3/e3abd454f08450011050890f935ffa164a23eb32b2d2882057f6f7666ec82b21.png`
+  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/de8f95337bc70c1e68b5908549c4c98002c5e25bhttps://media.portdaddy.dev/sha256/e3/e3abd454f08450011050890f935ffa164a23eb32b2d2882057f6f7666ec82b21.png`
 - Shows: before = p.412 · after = p.412 (the committed Book PDF)
 - Render: 150 dpi, scale 1.0×, PyMuPDF 1.28.2; 2174×1634 px; 781 KB
 - Daemon port: `none` — a PDF rasterisation opens no socket and starts no daemon
@@ -107,12 +107,12 @@ python3 -c "import pymupdf; pymupdf.open('after.pdf')[412-1].get_pixmap(dpi=150)
   half is necessarily an earlier commit (c92efaa5c1 (main at the merge-base)), which is what "before" means.
 - Source: `real` — rasterised from the `coordination-papers-mega-volume.pdf` committed at those two commits; not rebuilt, not fixtured, not mocked
 
-## Artifact 2 — `worked-example-four-step-breach.png`
+## Artifact 2 — `https://media.portdaddy.dev/sha256/5d/5ddeef7dabc0b8a59f386dbddad447af397a011f2ac400e539330ee9a9ea8a09.png`
 
 2 / One breach traced end to end, before the taxonomy
 
-- File: `docs/pr-assets/pr-10175/worked-example-four-step-breach.png`
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/de8f95337bc70c1e68b5908549c4c98002c5e25b/docs/pr-assets/pr-10175/worked-example-four-step-breach.png`
+- File: `https://media.portdaddy.dev/sha256/5d/5ddeef7dabc0b8a59f386dbddad447af397a011f2ac400e539330ee9a9ea8a09.png`
+  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/de8f95337bc70c1e68b5908549c4c98002c5e25bhttps://media.portdaddy.dev/sha256/5d/5ddeef7dabc0b8a59f386dbddad447af397a011f2ac400e539330ee9a9ea8a09.png`
 - Shows: before = p.414 · after = p.415 (the committed Book PDF)
 - Render: 150 dpi, scale 1.0×, PyMuPDF 1.28.2; 2174×1634 px; 799 KB
 - Daemon port: `none` — a PDF rasterisation opens no socket and starts no daemon
@@ -123,12 +123,12 @@ python3 -c "import pymupdf; pymupdf.open('after.pdf')[412-1].get_pixmap(dpi=150)
   half is necessarily an earlier commit (c92efaa5c1 (main at the merge-base)), which is what "before" means.
 - Source: `real` — rasterised from the `coordination-papers-mega-volume.pdf` committed at those two commits; not rebuilt, not fixtured, not mocked
 
-## Artifact 3 — `formal-model-two-layer.png`
+## Artifact 3 — `https://media.portdaddy.dev/sha256/28/280c636012aad25191358fce8935a72d1f442cd1f1ab01c7b815ab45cb33a6a7.png`
 
 3 / What is actually mechanized, laid out as a two-layer substrate
 
-- File: `docs/pr-assets/pr-10175/formal-model-two-layer.png`
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/de8f95337bc70c1e68b5908549c4c98002c5e25b/docs/pr-assets/pr-10175/formal-model-two-layer.png`
+- File: `https://media.portdaddy.dev/sha256/28/280c636012aad25191358fce8935a72d1f442cd1f1ab01c7b815ab45cb33a6a7.png`
+  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/de8f95337bc70c1e68b5908549c4c98002c5e25bhttps://media.portdaddy.dev/sha256/28/280c636012aad25191358fce8935a72d1f442cd1f1ab01c7b815ab45cb33a6a7.png`
 - Shows: before = p.440 · after = p.442 (the committed Book PDF)
 - Render: 150 dpi, scale 1.0×, PyMuPDF 1.28.2; 2174×1634 px; 570 KB
 - Daemon port: `none` — a PDF rasterisation opens no socket and starts no daemon

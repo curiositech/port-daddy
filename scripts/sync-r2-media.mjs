@@ -47,6 +47,17 @@ export const REQUIRED_ENV = Object.freeze([
   'R2_BUCKET',
 ]);
 
+// The second, weaker transport. See the TRANSPORTS note above: this exists
+// because an account-owned Cloudflare API token cannot be turned into an S3
+// access key id, not because two ways of doing this are desirable.
+export const REQUIRED_ENV_REST = Object.freeze([
+  'R2_ACCOUNT_ID',
+  'R2_BUCKET',
+  'CLOUDFLARE_API_TOKEN',
+]);
+
+export const CLOUDFLARE_API_BASE = 'https://api.cloudflare.com/client/v4';
+
 /** Thrown for every fail-closed condition, so the CLI has one exit path. */
 export class SyncError extends Error {
   constructor(message, { exitCode = 1 } = {}) {
@@ -67,17 +78,56 @@ export class SyncError extends Error {
  * Fail closed: a variable that is absent, empty, or whitespace is missing.
  */
 export function readCredentials(env = process.env) {
-  const missing = REQUIRED_ENV.filter((name) => !env[name] || env[name].trim() === '');
+  const present = (name) => Boolean(env[name] && env[name].trim() !== '');
+
+  // Transport selection is explicit and S3-first. The REST transport is only
+  // chosen when the S3 secret is genuinely absent AND a Cloudflare API token is
+  // genuinely present, so a half-configured environment can never silently
+  // downgrade to the weaker path -- it fails closed on the S3 branch instead.
+  if (!present('R2_SECRET_ACCESS_KEY') && !present('R2_ACCESS_KEY_ID') && present('CLOUDFLARE_API_TOKEN')) {
+    const missingRest = REQUIRED_ENV_REST.filter((name) => !present(name));
+    if (missingRest.length > 0) {
+      throw new SyncError(
+        `missing required environment variable(s): ${missingRest.join(', ')}. `
+        + 'This run selected the REST transport because CLOUDFLARE_API_TOKEN is set; '
+        + 'see docs/adr/0142-r2-media-offload.md §7.',
+        { exitCode: 2 },
+      );
+    }
+    const restConfig = {
+      transport: 'rest',
+      accountId: env.R2_ACCOUNT_ID.trim(),
+      bucket: env.R2_BUCKET.trim(),
+      endpoint: `${CLOUDFLARE_API_BASE}/accounts/${env.R2_ACCOUNT_ID.trim()}`
+        + `/r2/buckets/${env.R2_BUCKET.trim()}`,
+      toJSON() {
+        return {
+          transport: 'rest', accountId: this.accountId, bucket: this.bucket, apiToken: '[redacted]',
+        };
+      },
+    };
+    Object.defineProperty(restConfig, 'apiToken', {
+      value: env.CLOUDFLARE_API_TOKEN.trim(),
+      enumerable: false,
+      writable: false,
+    });
+    return Object.freeze(restConfig);
+  }
+
+  const missing = REQUIRED_ENV.filter((name) => !present(name));
   if (missing.length > 0) {
     throw new SyncError(
       `missing required environment variable(s): ${missing.join(', ')}. `
       + 'Set them from the repository secrets (see docs/adr/0142-r2-media-offload.md); '
-      + 'this tool will not run without credentials and has no unauthenticated mode.',
+      + 'this tool will not run without credentials and has no unauthenticated mode. '
+      + '(To use an account-owned Cloudflare API token instead of S3 keys, set '
+      + 'CLOUDFLARE_API_TOKEN with R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY both unset.)',
       { exitCode: 2 },
     );
   }
 
   const config = {
+    transport: 's3',
     accountId: env.R2_ACCOUNT_ID.trim(),
     accessKeyId: env.R2_ACCESS_KEY_ID.trim(),
     bucket: env.R2_BUCKET.trim(),
@@ -178,6 +228,106 @@ export function signRequest({ method, key, headers, payloadHash, config, now = n
 // The two operations.
 // --------------------------------------------------------------------------
 
+// --------------------------------------------------------------------------
+// The REST transport, and exactly what it costs.
+//
+// The S3 endpoint needs an access key id, which R2 derives from an R2 API
+// TOKEN ID. An account-owned Cloudflare API token has no retrievable id -- it
+// cannot call /user/tokens/verify (it is not user-owned) and listing account
+// tokens needs a permission this token does not carry -- so the S3 path is not
+// reachable with that credential at all. This transport is what makes the tool
+// runnable with the credential that actually exists.
+//
+// Three measured differences from the S3 path, none of them cosmetic:
+//
+//   1. HEAD is 405 on this API, and Range is ignored (a Range: bytes=0-0 GET
+//      still transfers the whole object). A per-key existence probe would
+//      therefore download the entire bucket to answer "is it there". So this
+//      transport LISTS the bucket once and answers from that set.
+//
+//   2. `If-None-Match: *` IS IGNORED. Measured, not assumed: a conditional PUT
+//      onto an existing key returned 200 and replaced the object. The atomic
+//      create-if-absent that ADR-0142 §8 rests on does not exist here, so
+//      "append-only" is enforced by the tool skipping keys it listed, and by
+//      verifyAssetsOnDisk() proving the bytes hash to the key before any PUT --
+//      not by the store refusing the write. Two racing runs on the same NEW
+//      asset can both PUT; because the key is the hash and the hash was
+//      re-verified, they write identical bytes, so the object is correct either
+//      way. That is a weaker guarantee than 412 and it is stated rather than
+//      glossed.
+//
+//   3. A clobbered object is invisible from the edge for up to a year. The
+//      objects carry `immutable, max-age=31536000`, so a bad overwrite keeps
+//      serving the OLD cached bytes while the origin holds the new ones.
+//      Verification therefore has to read the origin, not the CDN, whenever it
+//      is checking that a write landed.
+//
+// Prefer the S3 transport whenever a real R2 Object Read & Write token exists.
+// --------------------------------------------------------------------------
+
+/** Authorization for the REST transport. Never logged; see redactUrl(). */
+function restHeaders(config, extra = {}) {
+  return { Authorization: `Bearer ${config.apiToken}`, ...extra };
+}
+
+/** The object URL for a key. Keys are `sha256/ab/<hex><ext>` -- path-safe already. */
+export function restObjectUrl(key, config) {
+  return `${config.endpoint}/objects/${key.split('/').map(encodeURIComponent).join('/')}`;
+}
+
+/**
+ * Every key the bucket already holds, in one paginated pass.
+ *
+ * This replaces 782 existence probes with a few list calls. It fails closed on
+ * any non-2xx and on a truncated page it cannot continue, because an
+ * under-reported key set would cause re-uploads (harmless) but an
+ * over-reported one would cause a MISSING object to be treated as present
+ * (not harmless at all) -- so the listing is only ever allowed to be complete.
+ */
+export async function listExistingKeys(config, { fetchImpl = fetch, log = () => {} } = {}) {
+  const keys = new Set();
+  let cursor = null;
+  for (let page = 0; page < 10000; page += 1) {
+    const url = `${config.endpoint}/objects?per_page=1000${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`;
+    const response = await fetchImpl(url, { headers: restHeaders(config) });
+    if (!response.ok) {
+      throw new SyncError(
+        `listing r2://${config.bucket} answered ${response.status}; refusing to guess what it holds. `
+        + `(url: ${redactUrl(url)})`,
+      );
+    }
+    const body = await response.json();
+    if (body.success !== true) {
+      throw new SyncError(
+        `listing r2://${config.bucket} reported failure: ${JSON.stringify(body.errors ?? [])}`,
+      );
+    }
+    for (const object of body.result ?? []) if (object?.key) keys.add(object.key);
+    cursor = body.result_info?.cursor || null;
+    if (!cursor || (body.result ?? []).length === 0) {
+      log(`bucket already holds ${keys.size} object(s)`);
+      return keys;
+    }
+  }
+  throw new SyncError('listing did not terminate after 10000 pages; refusing to continue.');
+}
+
+/** PUT over the REST API. Returns 'uploaded'; there is no 412 to return here. */
+async function restPutObject(key, body, { contentType, cacheControl }, config, { fetchImpl = fetch } = {}) {
+  const url = restObjectUrl(key, config);
+  const response = await fetchImpl(url, {
+    method: 'PUT',
+    headers: restHeaders(config, { 'content-type': contentType, 'cache-control': cacheControl }),
+    body,
+  });
+  if (!response.ok) {
+    throw new SyncError(
+      `PUT ${key} failed with ${response.status} ${response.statusText}. (url: ${redactUrl(url)})`,
+    );
+  }
+  return 'uploaded';
+}
+
 /** True when the key already holds an object. Any non-200/404 is an error. */
 export async function objectExists(key, config, { fetchImpl = fetch } = {}) {
   const signed = signRequest({
@@ -197,6 +347,9 @@ export async function objectExists(key, config, { fetchImpl = fetch } = {}) {
 }
 
 export async function putObject(key, body, { contentType, cacheControl }, config, { fetchImpl = fetch } = {}) {
+  if (config.transport === 'rest') {
+    return restPutObject(key, body, { contentType, cacheControl }, config, { fetchImpl });
+  }
   const signed = signRequest({
     method: 'PUT',
     key,
@@ -275,6 +428,15 @@ export async function syncManifest(manifest, repoRoot, config, {
   const result = { total: work.length, present: 0, uploaded: 0, wouldUpload: 0, bytesUploaded: 0 };
   let cursor = 0;
 
+  // The REST transport has no usable per-key probe (HEAD is 405, Range is
+  // ignored), so it answers "already there" from one complete listing instead.
+  const presentKeys = config.transport === 'rest'
+    ? await listExistingKeys(config, { fetchImpl, log })
+    : null;
+  const alreadyPresent = async (key) => (
+    presentKeys ? presentKeys.has(key) : objectExists(key, config, { fetchImpl })
+  );
+
   const worker = async () => {
     for (;;) {
       const index = cursor;
@@ -282,7 +444,7 @@ export async function syncManifest(manifest, repoRoot, config, {
       if (index >= work.length) return;
       const asset = work[index];
 
-      if (await objectExists(asset.key, config, { fetchImpl })) {
+      if (await alreadyPresent(asset.key)) {
         result.present += 1;
         continue;
       }

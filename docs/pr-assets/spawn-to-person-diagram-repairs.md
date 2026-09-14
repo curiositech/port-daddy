@@ -21,9 +21,9 @@ figures now sit at different page numbers in the regrown document.
 
 Artifacts:
 
-- `spawn-to-person-diagram-repairs.jpg` — selected-page contact sheet, SHA-256
+- `https://media.portdaddy.dev/sha256/6c/6c5507dd28e2050ffaa5171625d0839c70b9b2b0b742261362540fe7528291ef.jpg` — selected-page contact sheet, SHA-256
   `6c5507dd28e2050ffaa5171625d0839c70b9b2b0b742261362540fe7528291ef`;
-- `spawn-to-person-diagram-tour.gif` — labeled four-frame visual tour, SHA-256
+- `https://media.portdaddy.dev/sha256/83/833a1ef14c71d1ed6a1f1460959e2b6998119734fb19520e639abe51877ad265.gif` — labeled four-frame visual tour, SHA-256
   `833a1ef14c71d1ed6a1f1460959e2b6998119734fb19520e639abe51877ad265`;
 - `website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf` — the current
   reproducibly generated 41-page source artifact is now tracked in the

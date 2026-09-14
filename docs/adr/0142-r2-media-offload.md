@@ -1,9 +1,11 @@
 # ADR-0142: Review-evidence media moves to R2, content-addressed, with the manifest derived from the tree
 
-- **Status:** Proposed — the code in this PR is complete and tested against an
-  in-memory bucket; no Cloudflare resource has been created. Provisioning the
-  bucket, the custom domain and the CI secrets is a separate, explicitly
-  approved step. See §11 for the exact list.
+- **Status:** Accepted, and provisioned. The bucket, the custom domain and the
+  upload path now exist and were exercised against the real account; §11.1
+  records what was created and what was measured doing it. Phase 2 has begun
+  for two roots (§9.1) — 108 files, 67.0 MiB, removed from git and served from
+  `media.portdaddy.dev`. The rest of §2's population remains Phase 1 (mirrored,
+  still in git).
 - **Date:** 2026-09-14
 - **Measured, not assumed:** the numbers below were taken on
   `origin/main` at `c92efaa5c`. Every claim in this ADR that has a number
@@ -281,8 +283,8 @@ repository, so R2 is at this point a write-only destination that nothing reads.
 If R2 is down, the only thing that fails is the sync job.
 
 **Phase 2 — the offloaded files are removed from git and referenced by URL.**
-This is where the 411 MiB is actually reclaimed, and it is deliberately not in
-this PR. Once it happens:
+Begun for two roots; see §9.1 for which, and for what "reclaimed" honestly
+means. Once it happens:
 
 - **Breaks:** images and recordings in PR bodies, in the markdown under
   `docs/reports/`, `docs/artifacts/`, `docs/pr-assets/`, `docs/pr-media/`, and
@@ -294,6 +296,63 @@ this PR. Once it happens:
   The site itself, in production, for a visitor. Not one of them reads an
   offloaded file — that is the entire content of the rule in §2, and the test
   suite asserts it (`no offloaded asset is something a build reads`).
+
+## 9.1 Phase 2, and what removing a file from git does not reclaim
+
+**It does not shrink the repository.** A file removed from the tip keeps its
+blob in history forever, so a default `git clone` still transfers every byte.
+What actually gets smaller is the *tip*: the working tree every agent and every
+worktree materialises, and the shallow checkout CI does (`actions/checkout`
+fetches depth 1). That is a real benefit on a machine running a dozen
+worktrees, and it is a much narrower claim than "46% of the repository", which
+is why §12's framing is corrected here rather than repeated.
+
+Because the benefit is narrower, the population is chosen conservatively rather
+than by sweeping §2's whole rule:
+
+- **Moved: `docs/pr-assets/` and `docs/pr-media/`.** 108 files, 67.0 MiB. Review
+  evidence for merged PRs — §1.2's "a human clicking a link in a PR" case
+  exactly. A scan of every tracked text file found no consumer outside prose for
+  any of them, and the 5 prose files that did cite them were rewritten to
+  `media.portdaddy.dev` URLs in the same commit.
+- **Refused by the tool, inside those same roots: 5 files.**
+  `docs/pr-assets/pr-729/wedge-editor-face.{png,webm}` are read by
+  `docs/pr-assets/pr-729/proof.tape`, and three under
+  `docs/pr-media/squid-hook-debug/` are read by a Swift snapshot test. The move
+  tool refuses any file with a non-prose referrer; these are why that rule is
+  not a formality.
+- **Deliberately left in git, mirrored only:** `docs/artifacts/` (contains the
+  digest-pinned `whitepaper-figure-semantics/**` fixtures — see Difference 3),
+  `.github/assets/`, `docs/reports/`, `fleet-config-ui/docs/`,
+  `website-v2/docs/`, `website-v2/screenshots/`. Each has readers in code or
+  tests, or is large enough to deserve its own reference scan. Per §2.1, moving
+  a further root is an amendment with its own scan, not a flag.
+
+**The manifest cannot speak for a moved file.** `media/r2-manifest.json` is a
+projection of the git tree, so a file leaving git leaves the manifest, and the
+drift check goes on passing while that file's URL could be 404. Phase 2
+therefore writes a second, differently-shaped record —
+`media/r2-offloaded.json`, the authority for files git no longer has — and
+`scripts/verify-r2-public-reads.mjs` fetches every URL in it with **no
+credentials at all**, hashing each response against its content address. See
+§11.2.
+
+## 11.2 How this is verified without credentials
+
+A check that silently passes when credentials are absent is worse than no
+check. There were two honest options — skip loudly, or ask a question that
+needs no secret — and a public bucket behind a custom domain makes the second
+available, so that is the one taken.
+
+The `public-reads` CI job has no `env:` block. It makes the same anonymous GET
+a reader of a two-year-old PR makes, and it compares **bytes, not status**: a
+200 from the wrong object fails, because each key is the sha256 of the object it
+addresses. It runs on `pull_request` including from a fork, where `sync`
+deliberately cannot. `--origin` adds a cache-busting query so the read reaches
+past the edge, for the reason in Difference 2.
+
+`manifest-drift` was already credential-free and stays so. `sync` is the only
+job that holds a secret, and it still fails closed when one is missing.
 
 The worst case is "a screenshot in a review does not load until Cloudflare comes
 back". That is a real cost and it is the one being accepted. It is not
@@ -366,10 +425,73 @@ Until these exist, `node scripts/sync-r2-media.mjs` exits 2 on the missing
 credentials, which is the correct behaviour for a tool whose infrastructure has
 not been provisioned.
 
+## 11.1 What was actually created, and the three places reality differed
+
+Written after doing it, against account `1f7b49a1…`. The parts of §§1–10 not
+named here survived contact unchanged.
+
+**Created.** The bucket already existed. `media.portdaddy.dev` was attached to
+it with `wrangler r2 bucket domain add … --min-tls 1.2`, which also created the
+proxied `CNAME media.portdaddy.dev -> public.r2.dev` in zone `0e6d0456…`. The
+attach is not the same event as the domain serving: for roughly three minutes
+afterwards the API reported `ownership: pending` and a fetch returned **HTTP 403
+with Cloudflare error 1014**, which is why §11.2 insists the evidence for this
+step is a fetched object and never a config read.
+
+**Difference 1 — the S3 credential is not reachable from an account-owned API
+token, so there is a second transport.** §7 assumes an R2 API token, from which
+R2 derives an S3 access key id (the token id) and secret (sha256 of the token
+value). The credential this repository actually has is an *account-owned*
+Cloudflare API token: it cannot call `/user/tokens/verify` (403 — it is not
+user-owned) and it lacks the permission to list account tokens, so **its id is
+not obtainable and the S3 endpoint cannot be addressed at all.**
+`scripts/sync-r2-media.mjs` therefore grew a REST transport over
+`api.cloudflare.com/client/v4/…/r2/buckets/…/objects`, selected only when
+`CLOUDFLARE_API_TOKEN` is set *and* both S3 variables are unset, so a
+half-configured environment fails closed on the S3 branch instead of quietly
+downgrading. The S3 path remains preferred and unchanged.
+
+**Difference 2 — `If-None-Match: *` is ignored by the REST API, so §8's
+"append-only" is weaker on that transport.** Measured, not inferred: a
+conditional PUT onto an existing key returned **200 and replaced the object**
+(this was done to a real object during verification, and the object was
+re-uploaded immediately afterwards). `HEAD` is **405** there and `Range` is
+ignored, so a per-key existence probe would transfer the whole bucket; the REST
+transport lists the bucket once instead and answers from that set. The
+consequences for §4 and §8:
+
+- "Nothing can overwrite an object" becomes "nothing in this tool overwrites an
+  object": the skip is enforced by the listing and by `verifyAssetsOnDisk()`
+  re-hashing every file before upload, not by the store refusing the write.
+- Two runs racing on the same *new* asset can both PUT. Because the key is the
+  hash and the hash was re-verified, they write identical bytes, so the object
+  is correct either way. That is a weaker guarantee than a 412 and it is stated
+  rather than glossed.
+- A clobbered object is **invisible from the edge for up to a year**, because
+  `immutable, max-age=31536000` keeps the old bytes cached while the origin
+  holds the new ones. Any check that a write landed must read the origin, which
+  is what `--origin` on the verifier is for.
+
+**Difference 3 — §9's "does not break `npm test`" was not true, and §9's own
+test could not have caught it.** `tests/unit/r2-media-sync.test.js` asserted
+"no offloaded asset is something a build reads" by checking two hardcoded path
+prefixes. That is a list checked against itself — **the exact failure shape §10
+was written to condemn** — and it was green while
+`tests/unit/spawn-whitepaper-contract.test.js` hashed two manifest files and
+parsed one's PNG IHDR, and while
+`apps/FleetBar/Tests/FleetBarTests/SquidHarnessSnapshotTests.swift` read three
+more. The test is renamed to what it actually checks, and the real invariant
+— *nothing but prose ever referenced this file* — is now asserted against
+`media/r2-offloaded.json`, resolved by scanning every tracked text file rather
+than by consulting a list.
+
 ## 12. Consequences
 
-- **411.4 MiB (46%) of the repository becomes eligible to leave git** — at
-  Phase 2, not now.
+- **261.2 MiB across 580 files is mirrored and eligible to leave git**, and
+  67.0 MiB across 108 files has left (§9.1). The earlier "411.4 MiB (46%) of the
+  repository" figure is superseded twice over: main's `a94120c32` deleted 133 of
+  those assets outright as unreferenced, and — more importantly — leaving git
+  shrinks the *tip*, not the repository, because history keeps every blob.
 - **A new required check.** `check-r2-media-manifest.mjs` fails any PR that adds,
   removes or edits media under an offload root without regenerating the
   manifest. The fix it prints is one command. Regeneration hashes 411 MiB in

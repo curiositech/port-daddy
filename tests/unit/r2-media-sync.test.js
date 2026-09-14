@@ -9,7 +9,7 @@
  * than merely asserted in a comment.
  */
 
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,7 +27,10 @@ import {
   isOffloadable,
   objectKeyFor,
   serializeManifest,
+  trackedFiles,
 } from '../../scripts/r2-media-manifest.mjs';
+import { findReferrers } from '../../scripts/r2-offload-move.mjs';
+import { verifyEntry } from '../../scripts/verify-r2-public-reads.mjs';
 import { diffManifests } from '../../scripts/check-r2-media-manifest.mjs';
 import {
   REQUIRED_ENV,
@@ -553,7 +556,21 @@ describe('the committed manifest describes this repository', () => {
     expect(committed).toBe(serializeManifest(buildManifest(repoRoot)));
   });
 
-  test('no offloaded asset is something a build reads', () => {
+  // RENAMED, because the old name was a claim this assertion cannot support.
+  //
+  // This was called 'no offloaded asset is something a build reads' and it
+  // checked two hardcoded prefixes. That is a list checked against itself --
+  // precisely the shape ADR-0142 §10 was written to condemn, and it was green
+  // the whole time two manifest files were being hashed by
+  // tests/unit/spawn-whitepaper-contract.test.js and three more by
+  // apps/FleetBar/Tests/FleetBarTests/SquidHarnessSnapshotTests.swift.
+  //
+  // Mirroring a file to R2 while it stays in git is harmless whoever reads it,
+  // so the honest assertion at Phase 1 is just that the two build-input trees
+  // the rule excludes are in fact excluded. The real invariant -- nothing reads
+  // this file -- belongs to Phase 2, and is asserted below against
+  // media/r2-offloaded.json, which is the list of files actually removed.
+  test('the rule excludes the two trees a build reads from', () => {
     const manifest = JSON.parse(readFileSync(join(repoRoot, 'media/r2-manifest.json'), 'utf8'));
     for (const asset of manifest.assets) {
       expect(asset.path.startsWith('website-v2/public/')).toBe(false);
@@ -566,6 +583,112 @@ describe('the committed manifest describes this repository', () => {
     for (const asset of manifest.assets) {
       expect(asset.key).toBe(objectKeyFor(asset.sha256, asset.path));
       expect(asset.key.startsWith('sha256/')).toBe(true);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 2: the files that are no longer in git.
+//
+// media/r2-manifest.json cannot speak for these -- it is a projection of the
+// tree, and they are deliberately not in the tree. media/r2-offloaded.json is,
+// so the invariants that matter at Phase 2 are asserted against that file.
+// ---------------------------------------------------------------------------
+describe('offloaded files are gone from git and readable from R2', () => {
+  const offloadedPath = join(REPO_ROOT, 'media/r2-offloaded.json');
+  const offloaded = existsSync(offloadedPath)
+    ? JSON.parse(readFileSync(offloadedPath, 'utf8'))
+    : { entries: [], publicBase: 'https://media.portdaddy.dev' };
+
+  test('every entry is content-addressed by its own sha256', () => {
+    for (const entry of offloaded.entries) {
+      expect(entry.key).toBe(objectKeyFor(entry.sha256, entry.path));
+      expect(entry.url).toBe(`${offloaded.publicBase}/${entry.key}`);
+    }
+  });
+
+  test('no offloaded path is still tracked by git', () => {
+    const tracked = new Set(trackedFiles(REPO_ROOT));
+    for (const entry of offloaded.entries) {
+      expect(tracked.has(entry.path)).toBe(false);
+    }
+  });
+
+  // THE Phase 2 invariant. A file that left git must have had no reader other
+  // than prose, because prose was rewritten to the URL and anything else would
+  // now be resolving a path that does not exist. This is the assertion the old
+  // 'no offloaded asset is something a build reads' test was named after but
+  // did not make.
+  test('nothing but prose ever referenced an offloaded file', () => {
+    if (offloaded.entries.length === 0) return;
+    const names = new Set(offloaded.entries.map((e) => e.path.split('/').pop()));
+    const textFiles = trackedFiles(REPO_ROOT).filter((f) => !isOffloadable(f));
+    const referrers = findReferrers(REPO_ROOT, names, textFiles);
+    const consumers = [];
+    for (const [name, hits] of referrers) {
+      for (const [file, kind] of hits) if (kind === 'consumer') consumers.push(`${name} <- ${file}`);
+    }
+    expect(consumers).toEqual([]);
+  });
+
+  test('the manifest and the offloaded list are disjoint', () => {
+    const manifest = JSON.parse(readFileSync(join(REPO_ROOT, 'media/r2-manifest.json'), 'utf8'));
+    const manifestPaths = new Set(manifest.assets.map((a) => a.path));
+    for (const entry of offloaded.entries) expect(manifestPaths.has(entry.path)).toBe(false);
+  });
+});
+
+describe('the public-read check needs no credentials and verifies bytes', () => {
+  const entry = {
+    path: 'docs/pr-assets/pr-1/shot.png',
+    bytes: 3,
+    sha256: createHash('sha256').update(Buffer.from('abc')).digest('hex'),
+    contentType: 'image/png',
+  };
+  entry.key = objectKeyFor(entry.sha256, entry.path);
+  entry.url = `https://media.portdaddy.dev/${entry.key}`;
+
+  const respond = (status, type, body) => async () => ({
+    status,
+    headers: { get: (h) => (h.toLowerCase() === 'content-type' ? type : null) },
+    arrayBuffer: async () => Buffer.from(body),
+  });
+
+  test('a correct object passes', async () => {
+    expect(await verifyEntry(entry, { fetchImpl: respond(200, 'image/png', 'abc') })).toBeNull();
+  });
+
+  test('a 404 fails and says the public cannot read it', async () => {
+    const failure = await verifyEntry(entry, { fetchImpl: respond(404, 'text/plain', '') });
+    expect(failure).toMatch(/answered 404/);
+  });
+
+  test('a wrong content-type fails', async () => {
+    const failure = await verifyEntry(entry, { fetchImpl: respond(200, 'application/octet-stream', 'abc') });
+    expect(failure).toMatch(/served as 'application\/octet-stream'/);
+  });
+
+  // The failure the REST upload path cannot prevent: a key overwritten with
+  // different bytes. A status check alone would call this healthy.
+  test('right status, right type, WRONG BYTES fails', async () => {
+    const failure = await verifyEntry(entry, { fetchImpl: respond(200, 'image/png', 'xyz') });
+    expect(failure).toMatch(/does not describe itself|served bytes hash/);
+  });
+
+  test('a truncated body fails on length before it is hashed', async () => {
+    const failure = await verifyEntry(entry, { fetchImpl: respond(200, 'image/png', 'ab') });
+    expect(failure).toMatch(/served 2 bytes, expected 3/);
+  });
+
+  test('verifyEntry reads no credential from the environment', async () => {
+    const before = { ...process.env };
+    for (const name of ['CLOUDFLARE_API_TOKEN', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_ACCOUNT_ID']) {
+      delete process.env[name];
+    }
+    try {
+      expect(await verifyEntry(entry, { fetchImpl: respond(200, 'image/png', 'abc') })).toBeNull();
+    } finally {
+      process.env = before;
     }
   });
 });

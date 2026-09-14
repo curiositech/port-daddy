@@ -1,7 +1,7 @@
 {
   "name": "port-daddy",
   "version": "3.30.6",
-  "description": "Authoritative port management and service orchestration for multi-agent development — port-daddy up/down, atomic assignment, pub/sub messaging, distributed locks, agent registry, and project:stack:context semantic identities",
+  "description": "Authoritative port management and service orchestration for multi-agent development \u2014 port-daddy up/down, atomic assignment, pub/sub messaging, distributed locks, agent registry, and project:stack:context semantic identities",
   "main": "./dist/server.js",
   "type": "module",
   "types": "./dist/server.d.ts",
@@ -71,7 +71,9 @@
     "package:fleetbar-preview": "bash scripts/package-fleetbar-preview.sh",
     "fixtures:pd-ios": "bun run scripts/generate-pd-ios-fixtures.ts",
     "fixtures:pd-ios:check": "bun run scripts/generate-pd-ios-fixtures.ts --check",
-    "package:scout-extension": "node scripts/package-scout-extension.mjs"
+    "package:scout-extension": "node scripts/package-scout-extension.mjs",
+    "r2:move": "node scripts/r2-offload-move.mjs",
+    "check:r2-public": "node scripts/verify-r2-public-reads.mjs"
   },
   "repository": {
     "type": "git",
