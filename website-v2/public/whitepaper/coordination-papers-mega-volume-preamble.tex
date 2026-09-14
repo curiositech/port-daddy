@@ -79,6 +79,11 @@
 \usepackage{listings}
 \usepackage{xcolor}
 \usepackage{booktabs}
+% colortbl is loaded for one reason: \arrayrulecolor, so the concordance table
+% at the foot of the chapter map can take a part hue on its booktabs rules
+% instead of black. It changes nothing else -- its default rule colour is the
+% black every other table in the Book already draws.
+\usepackage{colortbl}
 \usepackage{tabularx}
 \usepackage{xltabular}
 \usepackage{array}
@@ -100,6 +105,55 @@
 \makeatother
 \usepackage{needspace}
 \usepackage{etoolbox}
+% ---------------------------------------------------------------------------
+% Heading weights, in tandem with the contents (titlesec + titletoc).
+%
+% The contents pages carry their hierarchy in WEIGHT, not size: heavy grotesk
+% for chapter titles and part labels, a light italic serif for the one-line
+% claims. A reader who learns that grammar on page v should meet the same
+% grammar in the body, so the section heads are set in the same grotesk the
+% part and chapter openers already use (TeX Gyre Heros, bound at the top of
+% this file for all three editions; no new family is introduced).
+%
+% Sizes step DOWN from the article defaults -- 13.5/11.5/10.5 against
+% 14.4/12/10.5 -- because Heros sets wider than Pagella at the same nominal
+% size and the column is only 4.5 in. The separation between levels is carried
+% by weight and by the space above, which is what the contents does too.
+%
+% The SPACING, on the other hand, is article's own, to the tenth of an ex, and
+% that is deliberate. A first pass tightened it (3.0/1.5, 2.6/1.1, 2.2/0.9) and
+% took three pages out of the Book. Those three pages are 500 pages of
+% reflow, and a margin note has nowhere to go when the column beneath it
+% fills: scripts/harbor-research/page_overflow.py found an exercise pointer,
+% a margin portrait and a citation pushed off the bottom of the paper on
+% pages 63, 71 and 338, which is a failing check in whitepaper-build and, more
+% to the point, ink a reader cannot read. Keeping article's skips makes the
+% heading change vertically neutral: the Book is the same 549 pages it was,
+% and page_overflow reports zero rows with loss in all three editions. The
+% weight and the face are what change; where the type falls does not.
+%
+% Ordering matters here and is not incidental: titlesec redefines \section and
+% friends outright, so it must be loaded and every \titleformat issued BEFORE
+% the \pretocmd calls below, or the \Needspace patch is applied to a \section
+% that titlesec then throws away. The failure branch of each \pretocmd writes
+% to the log so a future reordering cannot break this silently.
+% ---------------------------------------------------------------------------
+\usepackage{titlesec}
+\usepackage{titletoc}
+\titleformat{\section}[block]
+  {\pdgrotesk\bfseries\fontsize{13.5}{16}\selectfont\color{hhink}\raggedright}
+  {\thesection}{0.7em}{}
+\titleformat{\subsection}[block]
+  {\pdgrotesk\bfseries\fontsize{11.5}{14}\selectfont\color{hhink}\raggedright}
+  {\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}[block]
+  {\pdgrotesk\bfseries\fontsize{10.5}{13}\selectfont\color{hhink}\raggedright}
+  {\thesubsubsection}{0.55em}{}
+\titlespacing*{\section}{0pt}{3.5ex plus 1ex minus .2ex}{2.3ex plus .2ex}
+\titlespacing*{\subsection}{0pt}{3.25ex plus 1ex minus .2ex}{1.5ex plus .2ex}
+\titlespacing*{\subsubsection}{0pt}{3.25ex plus 1ex minus .2ex}{1.5ex plus .2ex}
+% \paragraph is deliberately left alone: it is a run-in lead-in used hundreds
+% of times through the chapters, not a level of the contents' hierarchy.
 % The reservation has to cover the heading's own apparatus before it covers any
 % prose: a \section spends roughly 3.5 baselines on beforeskip, the heading line
 % at \Large and afterskip, so 6 left about 2.5 lines of text under it -- right on
@@ -108,9 +162,9 @@
 % stranded that way in all three editions. 8 and 7 leave four clear lines, which
 % is a margin rather than a coin flip, and holds for the Swiss and technical
 % editions too, where Heros sets the heads larger than Pagella does.
-\pretocmd{\section}{\Needspace*{8\baselineskip}}{}{}
-\pretocmd{\subsection}{\Needspace*{7\baselineskip}}{}{}
-\pretocmd{\subsubsection}{\Needspace*{7\baselineskip}}{}{}
+\pretocmd{\section}{\Needspace*{8\baselineskip}}{}{\GenericWarning{}{pd-book: \string\pretocmd\space on \string\section\space FAILED -- heading orphan protection is off}}
+\pretocmd{\subsection}{\Needspace*{7\baselineskip}}{}{\GenericWarning{}{pd-book: \string\pretocmd\space on \string\subsection\space FAILED}}
+\pretocmd{\subsubsection}{\Needspace*{7\baselineskip}}{}{\GenericWarning{}{pd-book: \string\pretocmd\space on \string\subsubsection\space FAILED}}
 \usepackage{caption}
 \usepackage{enumitem}
 \usepackage{refcount}
@@ -174,39 +228,68 @@
 \makeatletter
 % article.cls has no chapter level; the Book adds one between part and section.
 \providecommand*{\toclevel@chapter}{0}
-\newcommand*\l@chapter[2]{%
-  \ifnum \c@tocdepth >-1\relax
-    \addpenalty\@secpenalty
-    \addvspace{0.7em \@plus\p@}%
-    \begingroup
-      \parindent \z@ \rightskip \@pnumwidth
-      \parfillskip -\@pnumwidth
-      \leavevmode \bfseries\color{hhink}%
-      \setlength\@tempdima{2.0em}%
-      \advance\leftskip\@tempdima \hskip -\leftskip
-      #1\nobreak\hfil \nobreak\hb@xt@\@pnumwidth{\hss #2}\par
-      \nobreak\vspace{0.15em}%
-    \endgroup
-  \fi}
-\renewcommand*\l@part[2]{%
-  \ifnum \c@tocdepth >-2\relax
-    \addpenalty\@secpenalty
-    \addvspace{1.4em \@plus\p@}%
-    \begingroup
-      \parindent \z@ \rightskip \@pnumwidth
-      \parfillskip -\@pnumwidth
-      {\leavevmode
-       \large\scshape\bfseries\color{hhink} #1\dotfill\normalfont\normalsize\bfseries\color{hhink}#2}\par
-       \nobreak
-       \vspace{0.3em}
-    \endgroup
-  \fi}
-\renewcommand*\l@section{\@dottedtocline{1}{1.2em}{3.5em}}
-\renewcommand*\l@subsection{\@dottedtocline{2}{4.1em}{4.2em}}
-\renewcommand*\l@subsubsection{\@dottedtocline{3}{7.0em}{4.8em}}
-\renewcommand*\l@figure{\@dottedtocline{1}{1.2em}{2.8em}}
-\renewcommand*\l@table{\@dottedtocline{1}{1.2em}{2.8em}}
 \makeatother
+% ---------------------------------------------------------------------------
+% The contents, set with titletoc. NO DOT LEADERS ANYWHERE.
+%
+% What the default engine does, and why it is wrong here: \@dottedtocline sets
+% the entry, then a rubber-length run of dots, then the page number in a box
+% at the right margin. The reader's eye has to travel the whole measure and
+% come back, once per line, and the dots are a rail built to make that travel
+% survivable. Remove the travel and the rail has no work left.
+%
+% So the page number is set 0.6 em after the entry text -- close enough that
+% the title and its numeral read as ONE data block -- and the line then simply
+% stops, ragged right. That leaves a soft right edge and a hard left one:
+% every entry, at every level, hangs from a single left vertical datum, and
+% each level's continuation lines return to that level's own datum. No
+% centring and no justification: the asymmetry is the point.
+%
+% Weight, not size, separates the levels, matching the \titleformat block
+% above and the chapter map below: grotesk bold for parts and chapters,
+% grotesk regular at a smaller optical size and a muted ink for sections.
+% ---------------------------------------------------------------------------
+\titlecontents{part}[0pt]
+  {\addvspace{1.5em}\pdgrotesk\bfseries\fontsize{11.5}{14}\selectfont\color{hhink}}
+  {}{}
+  {\hspace{0.6em}\normalfont\pdgrotesk\fontsize{9}{11}\selectfont\color{hhgray}\thecontentspage}
+  [\addvspace{0.45em}]
+\titlecontents{chapter}[1.9em]
+  {\addvspace{0.8em}\pdgrotesk\bfseries\fontsize{10.5}{13}\selectfont\color{hhink}}
+  {\contentslabel{1.9em}}
+  {\hspace*{-1.9em}}
+  {\hspace{0.6em}\normalfont\pdgrotesk\fontsize{9}{11}\selectfont\color{hhgray}\thecontentspage}
+  [\addvspace{0.15em}]
+% Numberless entries (front matter, "Review of the key ideas", the per-chapter
+% appendix heads) keep the SAME text datum as numbered ones -- an empty
+% numberless format, not a negative kern back to the margin. A section that
+% happens to carry no numeral is still a section, and letting it jump to the
+% left margin is what broke the left axis in the default engine's output.
+\titlecontents{section}[3.4em]
+  {\pdgrotesk\fontsize{9}{11.6}\selectfont\color{pdinkmuted}}
+  {\contentslabel{2.3em}}
+  {}
+  {\hspace{0.55em}\color{hhgray}\thecontentspage}
+\titlecontents{subsection}[5.9em]
+  {\pdgrotesk\fontsize{8.5}{11}\selectfont\color{pdinkmuted}}
+  {\contentslabel{2.6em}}
+  {}
+  {\hspace{0.55em}\color{hhgray}\thecontentspage}
+\titlecontents{subsubsection}[8.7em]
+  {\pdgrotesk\fontsize{8.5}{11}\selectfont\color{pdinkmuted}}
+  {\contentslabel{2.9em}}
+  {}
+  {\hspace{0.55em}\color{hhgray}\thecontentspage}
+\titlecontents{figure}[3.4em]
+  {\pdgrotesk\fontsize{9}{11.6}\selectfont\color{pdinkmuted}}
+  {\contentslabel{2.6em}}
+  {}
+  {\hspace{0.55em}\color{hhgray}\thecontentspage}
+\titlecontents{table}[3.4em]
+  {\pdgrotesk\fontsize{9}{11.6}\selectfont\color{pdinkmuted}}
+  {\contentslabel{2.6em}}
+  {}
+  {\hspace{0.55em}\color{hhgray}\thecontentspage}
 
 \definecolor{codebg}{RGB}{248,248,248}
 \definecolor{codeframe}{RGB}{200,200,200}
@@ -637,20 +720,27 @@
   \fi}
 \makeatletter
 % The drawing sheet of the technical edition: frame, inch ticks, faint grid,
-% title block bottom right. #1 title, #2 sheet name.
-\def\pd@techsheet{\pd@techsheet@{\draw[hhgray!18,line width=.3pt,step=0.5] (0.5,0.5) grid (6.5,9.5);}}
-\def\pd@techsheetplain{\pd@techsheet@{}}
+% title block bottom right. #3 title, #4 sheet name.
+\def\pd@bgthispage{\AddToShipoutPictureBG*}
+\def\pd@bgeverypage{\AddToShipoutPictureBG}
+\def\pd@techsheet{\pd@techsheet@\pd@bgthispage{\draw[hhgray!18,line width=.3pt,step=0.5] (0.5,0.5) grid (6.5,9.5);}}
+\def\pd@techsheetplain{\pd@techsheet@\pd@bgthispage{}}
 \newcommand{\pdtechsheetplain}[2]{\pd@techsheetplain{#1}{#2}}
-% #1 the grid command or nothing, #2 title, #3 sheet name
-\def\pd@techsheet@#1#2#3{%
+% The same sheet laid under EVERY page until \ClearShipoutPictureBG, which is
+% what a run of contents pages needs: the frame, the ticks and the title block
+% have to hold for as long as the index runs, not for one page of it.
+\def\pd@techsheetplainall{\pd@techsheet@\pd@bgeverypage{}}
+% #1 the background adder (\pd@bgthispage or \pd@bgeverypage), #2 the grid
+% command or nothing, #3 title, #4 sheet name
+\def\pd@techsheet@#1#2#3#4{%
   % The overflow safety net must not touch a page background: it would scale
   % the sheet to the column width. It is switched off for this picture only.
-  \AddToShipoutPictureBG*{\AtPageLowerLeft{\begingroup\let\pgfsys@typesetpicturebox\pd@typesetpicturebox\begin{tikzpicture}[x=1in,y=1in]
+  #1{\AtPageLowerLeft{\begingroup\let\pgfsys@typesetpicturebox\pd@typesetpicturebox\begin{tikzpicture}[x=1in,y=1in]
     % The picture is placed by its bounding box, so without this the sheet's
     % (0.5,0.5) corner landed on the page corner and the whole frame sat half
     % an inch low and left, cutting through the running head and epigraphs.
     \useasboundingbox (0,0) rectangle (\paperwidth,\paperheight);
-    #1
+    #2
     \draw[hhink,line width=.7pt] (0.5,0.5) rectangle (6.5,9.5);
     \foreach \x in {1,...,6} \draw[hhink,line width=.5pt] (\x,0.5)--(\x,0.6) (\x,9.4)--(\x,9.5);
     \foreach \y in {1,...,9} \draw[hhink,line width=.5pt] (0.5,\y)--(0.6,\y) (6.4,\y)--(6.5,\y);
@@ -658,9 +748,9 @@
     \draw[hhink,line width=.6pt] (2.9,0.5) rectangle (6.5,1.45);
     \draw[hhink,line width=.4pt] (2.9,0.98)--(6.5,0.98) (4.9,0.5)--(4.9,1.45) (5.9,0.5)--(5.9,1.45);
     \node[anchor=north west,font=\pdgrotesk\fontsize{5.5}{6}\selectfont,text=hhgray,inner sep=2pt] at (2.9,1.45) {TITLE};
-    \node[anchor=south west,font=\pdgrotesk\footnotesize,text=hhink,text width=1.9in,align=left,inner sep=3pt] at (2.9,0.98) {#2};
+    \node[anchor=south west,font=\pdgrotesk\footnotesize,text=hhink,text width=1.9in,align=left,inner sep=3pt] at (2.9,0.98) {#3};
     \node[anchor=north west,font=\pdgrotesk\fontsize{5.5}{6}\selectfont,text=hhgray,inner sep=2pt] at (4.9,1.45) {SHEET};
-    \node[anchor=south west,font=\pdgrotesk\footnotesize,text=hhink,inner sep=3pt] at (4.9,0.98) {#3};
+    \node[anchor=south west,font=\pdgrotesk\footnotesize,text=hhink,inner sep=3pt] at (4.9,0.98) {#4};
     \node[anchor=north west,font=\pdgrotesk\fontsize{5.5}{6}\selectfont,text=hhgray,inner sep=2pt] at (5.9,1.45) {REV};
     \node[anchor=south west,font=\pdgrotesk\footnotesize,text=hhink,inner sep=3pt] at (5.9,0.98) {3.0};
     \node[anchor=north west,font=\pdgrotesk\fontsize{5.5}{6}\selectfont,text=hhgray,inner sep=2pt] at (2.9,0.98) {WORK};
@@ -795,7 +885,11 @@
   \clearpage
   \thispagestyle{empty}%
   \refstepcounter{part}\label{part:#1}%
-  \addcontentsline{toc}{part}{\textbf{\scshape Part #1}\quad #2}%
+  % Plain text, no markup: the weight and the face are the contents' business
+  % (\titlecontents{part} above), and the PDF bookmark gets a clean string.
+  % \textbf{\scshape ...} here used to reach the entry as Heros asked for small
+  % caps it does not have, which silently fell back to another family.
+  \addcontentsline{toc}{part}{Part #1\quad #2}%
   \ifpdswiss\pd@part@swiss{#1}{#2}{#3}{#4}{#5}\else
   \ifpdtechnical\pd@part@technical{#1}{#2}{#3}{#4}{#5}\else
   \IfFileExists{plates/part-#1.jpg}{\pd@part@maritime{#1}{#2}{#3}{#4}{#5}}{\pd@part@swiss{#1}{#2}{#3}{#4}{#5}}\fi\fi
@@ -804,33 +898,192 @@
 }
 \makeatother
 
-% Front-matter map ("The argument, chapter by chapter"), generated from the
-% JSON. A chrome page: its links take each part's hue; \pdcontentsend restores
-% the quiet body link color afterwards.
-% Each part is one tinted band in its hue (a 9% wash over the cream) with a
-% solid rule of the same hue on its left edge; the chapters sit inside the band.
-% The band is captured in a save box between \pdcontentspart and
-% \pdcontentspartend (the generator emits both), then set in one \colorbox.
-\newsavebox{\pdbandbox}
-\newlength{\pdbandwidth}
-\newcommand{\pdbandcolor}{pdcobalt}
+% ---------------------------------------------------------------------------
+% The chapter map ("The argument, chapter by chapter"), generated from
+% whitepaper/textbook.json. The JSON stays the source of truth for every
+% numeral, title, claim, note and hue; what follows decides only how those
+% five fields are SET.
+%
+% The shape, in one sentence: each chapter is a data block -- numeral, title,
+% page -- on one strict left datum, with its one-line claim and its "proves
+% what X assumes" note beneath in a light italic serif, and the parts are
+% separated by negative space rather than by a rule, a box or a tinted band.
+%
+% PROXIMITY. The page number sits 0.6 em after the chapter title, not at the
+% right margin with a trail of dots behind it. The title and its numeral then
+% read as one object and the eye never crosses the measure. This is the same
+% rule the \titlecontents block near the top of this file applies to the full
+% contents; the two pages should feel like one system, because they are.
+%
+% WEIGHT, NOT SIZE. Grotesk bold (TeX Gyre Heros, already bound above for the
+% Swiss and technical display type -- no new family is introduced anywhere in
+% this block) for part labels and chapter titles; the body's Pagella italic,
+% smaller and in a muted ink, for the claims and the notes. The secondary
+% information is legible without competing.
+%
+% COLOUR comes from the data. \pdcontentspart is handed the part's own `color`
+% field out of textbook.json -- pdcobalt, pdteal, pdviolet, pdgold, all four
+% already defined in figures/pd-palette.tex and checked against the site's
+% design tokens by website-v2/scripts/check-figure-palette.mjs. Nothing here
+% mints a colour or a colour name of its own.
+%
+% THREE EDITIONS, dispatched on \pdedition exactly as \pdchapter and \pdpart
+% are:
+%
+%   swiss      the full treatment. "Part I" sits in a \colorbox flooded with
+%              the part's hue, its text the cream surface colour (pdcream,
+%              #F2EEE6), which is the same figure/ground inversion the Swiss
+%              part title pages use. Chapter numerals and page numbers take
+%              the parent part's hue; titles and claims stay in pdink.
+%
+%   technical  a drawing-sheet index. The frame, the inch ticks and the title
+%              block come from \pd@techsheet and hold under every page of the
+%              index; chapters are callout-numbered the way a part is called
+%              out on an exploded drawing, and the accents are ochre (pdamber)
+%              and burnt orange (pdrust) rather than the story hues, which is
+%              this edition's standing rule.
+%
+%   maritime   quiet and near monochrome. The part hue appears once, as a thin
+%              rule under the part label, and nowhere else: a flooded band of
+%              colour on this page fights the watercolour plates that open
+%              every part of that edition.
+%
+% \pdcontentsbegin ... \pdcontentsend bracket the whole map (the generator
+% emits both). Between them the link colour is ink, so the page reads as
+% typography and not as a list of links; \pdcontentsend puts the quiet body
+% link colour back, and undoes whatever page furniture the edition borrowed.
+% ---------------------------------------------------------------------------
+\makeatletter
+% The part's hue for the rows beneath it, and the first and last hue seen, for
+% the concordance rules at the foot.
+\newcommand{\pdcontentshue}{pdcobalt}
+\newcommand{\pdcontentsfirsthue}{pdcobalt}
+\newcommand{\pdcontentslasthue}{pdcobalt}
+\newif\ifpd@contents@seenpart
+\newlength{\pdcontentsindent}
+\newlength{\pdcontentsmeasure}
+\newsavebox{\pdcontentscallout}
+
+% A chapter's page, pulled tight against its title. \pageref* and not \pageref:
+% the whole block is already one hyperlink to the chapter, and a link nested
+% inside a link is not a link.
+\newcommand{\pdcontentspage}[1]{\pageref*{chap:#1}}
+
+% The technical edition's callout bubble: the chapter numeral ringed the way a
+% part number is ringed on an exploded drawing.
+\newcommand{\pd@contents@callout}[1]{%
+  \begin{tikzpicture}[baseline=(cn.base)]
+    \node[circle,draw=pdrust,line width=0.6pt,fill=pdamber!14,inner sep=0pt,
+          minimum size=1.45em,font=\pdgrotesk\bfseries\fontsize{8.5}{8.5}\selectfont,
+          text=pdrust] (cn) {#1};
+  \end{tikzpicture}}
+
+\newcommand{\pdcontentsbegin}{%
+  \hypersetup{linkcolor=hhink}%
+  \setlength{\pdcontentsindent}{2.1em}%
+  \setlength{\pdcontentsmeasure}{\textwidth}%
+  \pd@contents@seenpartfalse
+  \ifpdtechnical
+    % The index is a drawing sheet for as long as it runs, so the background
+    % goes under every page of it and the text block shortens to clear the
+    % title block at the sheet's foot. \pdcontentsend puts both back.
+    \setlength{\pdcontentsindent}{2.6em}%
+    \pagestyle{empty}\thispagestyle{empty}%
+    \addtolength{\textheight}{-1.75cm}%
+    \pd@techsheetplainall{The argument, chapter by chapter}{Contents}%
+  \fi}
+
 \newcommand{\pdcontentspart}[3]{%
-  \hypersetup{linkcolor=hhink}%   % text stays ink; the band's tint and rule carry the hue
-  \renewcommand{\pdbandcolor}{#3}%
-  \setlength{\pdbandwidth}{\dimexpr\textwidth-3pt-22pt\relax}%
-  \begin{lrbox}{\pdbandbox}\begin{minipage}[t]{\pdbandwidth}%
+  \renewcommand{\pdcontentshue}{#3}%
+  \ifpd@contents@seenpart\else\renewcommand{\pdcontentsfirsthue}{#3}\fi
+  \pd@contents@seenparttrue
+  \renewcommand{\pdcontentslasthue}{#3}%
+  % Negative space is the separator: no rule, no box, no tinted band. The
+  % \Needspace is what keeps a part label from being stranded at the foot of a
+  % page with one of its chapters while the rest go over -- a part either
+  % starts here with room to be read, or it starts the next page whole.
+  \par\addvspace{16pt}\penalty-300\Needspace*{13\baselineskip}\relax
+  \ifpdswiss
+    \noindent{\setlength{\fboxsep}{3.2pt}%
+      \colorbox{\pdcontentshue}{\pdgrotesk\bfseries\fontsize{8.5}{10}\selectfont
+        \color{pdcream}\strut PART~#1}}%
+    \hspace{8pt}{\pdgrotesk\bfseries\fontsize{11}{13}\selectfont\color{pdink}#2}\par
     \vspace{9pt}%
-    {\noindent\scshape\bfseries\color{hhink}Part #1\enspace\textperiodcentered\enspace #2}\par\vspace{5pt}}
+  \else\ifpdtechnical
+    \noindent{\pdgrotesk\bfseries\fontsize{8}{10}\selectfont\color{pdrust}PART~#1}%
+    \hspace{7pt}{\pdgrotesk\bfseries\fontsize{10.5}{13}\selectfont\color{pdink}#2}\par
+    \vspace{3pt}\noindent{\color{pdamber}\rule{\pdcontentsmeasure}{0.7pt}}\par
+    \vspace{7pt}%
+  \else
+    \noindent{\pdgrotesk\bfseries\fontsize{8.5}{10}\selectfont\color{pdink}PART~#1}%
+    \hspace{7pt}{\pdgrotesk\bfseries\fontsize{10.5}{13}\selectfont\color{pdink}#2}\par
+    \vspace{3.5pt}\noindent{\color{\pdcontentshue}\rule{0.34\pdcontentsmeasure}{0.9pt}}\par
+    \vspace{8pt}%
+  \fi\fi}
+
+% #1 number, #2 prefix, #3 title, #4 one-line claim, #5 note (may be empty)
 \newcommand{\pdcontentschapter}[5]{%
-  \par\noindent\begin{minipage}[t]{1.6em}\raggedleft\bfseries\pdchaplink{#2}{#1}\end{minipage}\hspace{0.7em}%
-  \begin{minipage}[t]{\dimexpr\pdbandwidth-2.3em\relax}\raggedright
-    \pdchaplink{#2}{\bfseries #3}\ifx\relax#5\relax\else\enspace{\footnotesize\itshape\color{hhgray}#5}\fi\par
-    {\small #4\par}\end{minipage}\par\vspace{5pt}}
-\newcommand{\pdcontentspartend}{%
-  \vspace{4pt}\end{minipage}\end{lrbox}%
-  \par\vspace{7pt}\noindent{\setlength{\fboxsep}{0pt}%
-    \colorbox{\pdbandcolor}{\rule{3pt}{0pt}}\colorbox{\pdbandcolor!9}{\hspace{10pt}\usebox{\pdbandbox}\hspace{12pt}}}\par}
-\newcommand{\pdcontentsend}{\hypersetup{linkcolor=pdinkmuted}}
+  % A chapter's three lines are one block (the minipage sees to that) and a
+  % break between chapters is allowed, so a long part flows rather than
+  % leaving half a page empty behind it.
+  \par\noindent
+  \ifpdtechnical
+    \sbox{\pdcontentscallout}{\pd@contents@callout{#1}}%
+    \makebox[\pdcontentsindent][l]{\raisebox{-0.32em}{\usebox{\pdcontentscallout}}}%
+  \else\ifpdswiss
+    \makebox[\pdcontentsindent][l]{\pdgrotesk\bfseries\fontsize{12}{14}\selectfont
+      \color{\pdcontentshue}#1}%
+  \else
+    \makebox[\pdcontentsindent][l]{\pdgrotesk\bfseries\fontsize{12}{14}\selectfont
+      \color{pdink}#1}%
+  \fi\fi
+  \begin{minipage}[t]{\dimexpr\pdcontentsmeasure-\pdcontentsindent\relax}%
+    \raggedright\hyphenpenalty=10000\relax
+    \pdchaplink{#2}{%
+      {\pdgrotesk\bfseries\fontsize{10.5}{13}\selectfont\color{pdink}#3}%
+      \hspace{0.6em}%
+      {\pdgrotesk\fontsize{8.5}{10}\selectfont
+       \ifpdswiss\color{\pdcontentshue}\else\ifpdtechnical\color{pdrust}\else\color{pdinkmuted}\fi\fi
+       \pdcontentspage{#2}}}\par
+    \vspace{2pt}%
+    {\fontsize{9}{11.4}\selectfont\itshape\color{pdinkmuted}#4\par}%
+    \ifx\relax#5\relax\else
+      \vspace{1pt}%
+      {\fontsize{8.4}{10.6}\selectfont\itshape\color{hhgray}#5\par}%
+    \fi
+  \end{minipage}\par\vspace{8pt}}
+
+\newcommand{\pdcontentspartend}{\par}
+
+% The first-edition concordance: booktabs only, no vertical rules, and the
+% horizontal rules in a part hue rather than black -- the spine's first colour
+% on top and its last at the foot, so the table is visibly part of the same
+% page. The technical edition swaps the story hues for its ochre and burnt
+% orange, as it does everywhere else.
+\newenvironment{pdconcordance}%
+  {\par\smallskip\noindent
+   \ifpdtechnical\def\pd@conc@top{pdamber}\def\pd@conc@mid{pdrust}\def\pd@conc@bot{pdrust}%
+   \else\edef\pd@conc@top{\pdcontentsfirsthue}\def\pd@conc@mid{pdinkmuted}%
+     \edef\pd@conc@bot{\pdcontentslasthue}\fi
+   \begin{tabular}{@{}lll@{}}}%
+  {\end{tabular}\par}
+\newcommand{\pdconcordancetoprule}{\arrayrulecolor{\pd@conc@top}\toprule}
+\newcommand{\pdconcordancemidrule}{\arrayrulecolor{\pd@conc@mid}\midrule}
+\newcommand{\pdconcordancebottomrule}{\arrayrulecolor{\pd@conc@bot}\bottomrule\arrayrulecolor{black}}
+\newcommand{\pdconcordancehead}[3]{%
+  {\pdgrotesk\bfseries\fontsize{8.5}{10}\selectfont\color{pdink}#1} &
+  {\pdgrotesk\bfseries\fontsize{8.5}{10}\selectfont\color{pdink}#2} &
+  {\pdgrotesk\bfseries\fontsize{8.5}{10}\selectfont\color{pdink}#3}}
+
+\newcommand{\pdcontentsend}{%
+  \ifpdtechnical
+    \clearpage
+    \ClearShipoutPictureBG
+    \addtolength{\textheight}{1.75cm}%
+    \pagestyle{fancy}%
+  \fi
+  \hypersetup{linkcolor=pdinkmuted}}
+\makeatother
 
 % Hyperlink and cross-reference discipline (must stay last).
 \input{figures/pd-hyperlinks}
