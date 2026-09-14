@@ -29,6 +29,11 @@
 \usepackage{graphicx}
 \usepackage{fancyhdr}
 \usepackage{tikz}
+% fig-bc-graduated-trigger and fig-bc-oracle-audit-rate are pgfplots axes. The
+% Book preamble already loads pgfplots; the standalone chapter needs it too, or
+% the axis environment is undefined and this PDF does not build.
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
 \usepackage{float}
 \usepackage{caption}
 \usepackage{enumitem}
