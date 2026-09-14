@@ -50,6 +50,18 @@ jobs:
     # AST-based (the TypeScript compiler API), not text/regex — see
     # scripts/check-relay-decode-guard.mjs for why a text search would miss
     # the bare-reference shape.
+    #
+    # Deliberately NOT path-gated on apps/relay/** the way porthole-recordings
+    # is gated on its own inputs. This guard's own history is the reason: it
+    # once scanned one file, and widening its scope is what surfaced a real
+    # violation in coordination.ts. Gating the JOB on Relay source paths
+    # reintroduces that same narrowness one level up, and fails open exactly
+    # where it matters most — a PR that edits this script, renames
+    # safeDecodeSegment, or removes an AREAS entry touches nothing under
+    # apps/relay/**, and would skip the very guard it is weakening. The cost
+    # of running it unconditionally is an AST parse of ~71 TypeScript files
+    # with no install beyond Node — negligible next to the Rust and iOS jobs
+    # in this same workflow.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

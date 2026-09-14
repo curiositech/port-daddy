@@ -32,7 +32,7 @@
  * blesses a permanently red required job.
  */
 import { describe, expect, test, afterEach } from '@jest/globals';
-import { execFileSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { readdirSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -75,14 +75,16 @@ const FIXTURE_EXIT_CODES = {
   'renamed-helper.ts': 2,
 };
 
-/** Run the guard; return { code, stdout, stderr }. */
+/**
+ * Run the guard; return { code, stdout, stderr }. Uses spawnSync rather than
+ * execFileSync so stderr is captured on the success path too, not just on
+ * failure -- a guard that can write a warning and still exit 0 (a config
+ * entry that expanded to nothing, a skipped file, a deprecation) needs that
+ * output visible to an assertion, not discarded before anything can see it.
+ */
 function run(...args) {
-  try {
-    const stdout = execFileSync('node', [script, ...args], { cwd: repo, encoding: 'utf8' });
-    return { code: 0, stdout, stderr: '' };
-  } catch (e) {
-    return { code: e.status ?? 1, stdout: e.stdout?.toString() ?? '', stderr: e.stderr?.toString() ?? '' };
-  }
+  const r = spawnSync('node', [script, ...args], { cwd: repo, encoding: 'utf8' });
+  return { code: r.status ?? 1, stdout: r.stdout ?? '', stderr: r.stderr ?? '' };
 }
 
 describe('relay decode guard (scripts/check-relay-decode-guard.mjs)', () => {
