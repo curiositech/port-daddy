@@ -42,10 +42,10 @@ for the dogfooded coordination vocabulary.
 | `--chart-yellow` | `#cad900` | Highlight tier in diagrams (no brand-slot equivalent) |
 | `--story-health` | `#1f7a4d` | Sage green — L1 ready/coordinated (150°) |
 | `--story-health-on-tint` | `#155534` | Health on tinted wells |
-| `--story-indigo` | `#353a85` | Indigo — L1→L3 protocol/federation (236°, deep slate blue-violet) |
-| `--story-indigo-on-tint` | `#262a63` | Indigo on tinted wells |
-| `--story-violet` | `#933fa5` | Violet — L3 identity/continuity, the "person" (289°, clear purple) |
-| `--story-violet-on-tint` | `#6b2e79` | Violet on tinted wells |
+| `--story-indigo` | `#312865` | Indigo — L1→L3 protocol/federation (249°, deep slate blue-violet). Re-stepped deeper so it separates from cobalt: OKLab ΔE 15.1 normal / 14.7 worst-CVD, from 9.1 / 8.4. 11.19:1 on `--surface-base` #f2eee6. |
+| `--story-indigo-on-tint` | `#201948` | Indigo on tinted wells |
+| `--story-violet` | `#822586` | Violet — L3 identity/continuity, the "person" (298°, clear purple). Re-stepped darker because it collapsed against cobalt under protanopia: ΔE 8.6, from 4.8. 7.09:1 on `--surface-base` #f2eee6. |
+| `--story-violet-on-tint` | `#5d0b61` | Violet on tinted wells |
 | `--story-rust` | `#7a4514` | Rust — L3 reputation/Elo, trust earned (29°) |
 | `--story-rust-on-tint` | `#5a3210` | Rust on tinted wells |
 | `--story-gold` | `#666a00` | Gold — L3 economy/value, the market (62°; not the warning amber) |
@@ -118,8 +118,8 @@ truth to a market of trusted persons.
 | 150° sage | `--story-health` `#1f7a4d` | L1 | ready / coordinated — agents in good standing, healthy fleet |
 | 173° teal | `--brand-accent` `#006b5f` | L2 | **legibility** — the product itself; the digest-with-zoom |
 | 220° cobalt | `--brand-primary` `#003fb8` | L0 | **truth / kernel** — the SQLite source of truth, the daemon |
-| 236° indigo | `--story-indigo` `#353a85` | L1→L3 | protocol / federation — the rules of the road across harbors |
-| 289° violet | `--story-violet` `#933fa5` | L3 | **identity / continuity** — memory → checkpoint → a *person* |
+| 249° indigo | `--story-indigo` `#312865` | L1→L3 | protocol / federation — the rules of the road across harbors |
+| 298° violet | `--story-violet` `#822586` | L3 | **identity / continuity** — memory → checkpoint → a *person* |
 
 ### Color-theory rationale
 
@@ -128,8 +128,11 @@ truth to a market of trusted persons.
   economy*. The cool arc (health → teal → cobalt → indigo → violet, 150–289°)
   reads as *ready → legible → true → federated → continuous*. Palette v2
   (`website-v2/public/design-preview/proposal.html`) re-derived indigo, violet and rust so
-  every semantic pair clears a CIEDE2000 gap of at least 14.6 in both themes,
-  and minted gold so the economy stops borrowing the warning token. The Book's
+  the semantic pairs separate, and minted gold so the economy stops borrowing
+  the warning token. (That pass stated its gaps in CIEDE2000, which nothing in
+  this repo computes. The measured metric is now OKLab ΔE×100 — see
+  **Separation** below, which is a harder gate and which four pairs do not
+  pass.) The Book's
   TeX palette (`website-v2/public/whitepaper/figures/pd-palette.tex`) mirrors the light values one-for-one;
   `website-v2/scripts/check-figure-palette.mjs` fails the build if they drift. The two arcs sit roughly
   **opposite** on the wheel — cobalt (220°) is the near-complement of amber
@@ -138,11 +141,12 @@ truth to a market of trusted persons.
   vs. *traded value*.
 - **The new hues fill the wheel's two gaps.** Before this pass the anchors left
   an 86° hole between lime (64°) and teal (173°) and a 40°+ hole past cobalt
-  (220°). `--story-health` (150°) closes the green gap; `--story-indigo` (248°)
-  and `--story-violet` (261°) close the violet gap. The result is even, rhythmic
+  (220°). `--story-health` (150°) closes the green gap; `--story-indigo` (249°)
+  and `--story-violet` (298°) close the violet gap. The result is even, rhythmic
   spacing (Δ ≈ 20–25° between neighbours) with two intentional wide jumps that
   separate the warm/economy cluster from the cool/state cluster.
-- **Indigo + violet are analogous on purpose.** They sit 13° apart because they
+- **Indigo + violet are analogous on purpose.** They sit 49° apart — they were
+  13° apart until the separation pass moved both — because they
   are *the same story* — protocol/federation flows into identity/continuity
   (ADR-0048's "memory → person → reputation → market" through-line). Federation
   is the slightly cooler, more structural sibling; violet is the warmer, more
@@ -150,6 +154,67 @@ truth to a market of trusted persons.
 - **Saturation stays disciplined.** New light-mode hues hold L≈30–48 / moderate
   chroma so they sit as *ink on cream*, never as candy. Dark-mode variants are
   lightened (L≈59–77) to stay luminous on near-black without glowing.
+
+### Separation (can two story colours be told apart?)
+
+Contrast asks whether an ink can be read **on** a ground. It cannot answer
+whether two inks can be told **apart** — two colours of identical luminance
+have a contrast ratio of 1.00 against each other and may be a perfectly legible
+pair, or an invisible one. A categorical palette exists to tell series apart, so
+that is measured separately, by
+`node website-v2/scripts/check-figure-palette-separation.mjs` (required in CI).
+
+The metric is OKLab ΔE×100, with protanopia and deuteranopia simulated
+(Machado–Oliveira–Fernandes 2009, severity 1.0, in linear RGB). Floors: a
+normal-vision ΔE of **15** is a hard gate that secondary encoding does not
+excuse, and simulated CVD gates at **8** (target) / **6** (floor, legal only
+with a secondary encoding). Tritanopia is reported but does not gate — the
+thresholds are calibrated on the two red-green forms. All 21 pairs are measured,
+not just neighbours, because this is a *semantic* palette: any two meanings can
+meet in one diagram.
+
+**Four pairs do not clear the floor, and three of them never can.** Holding each
+meaning on its own hue, the best normal-vision ΔE obtainable anywhere on the two
+ramps is:
+
+| Pair | Today | Ceiling | Floor | Why |
+|---|---|---|---|---|
+| `pdteal`/`pdhealth` | 6.4 | **12.2** | 15 | teal 182° vs health 157° |
+| `pdgold`/`pdhealth` | 8.5 | **13.9** | 15 | gold 112° vs health 157° |
+| `pdteal`/`pdgold` | 11.8 | **14.3** | 15 | teal 182° vs gold 112° |
+| `pdgold`/`pdrust` | 11.1 | 18.5 | 15 | clears alone, but not while gold also holds off teal and health |
+
+This is a fact about the sRGB gamut on a cream ground, not a tuning failure. An
+ink that must set as text against the cream at the AA ratio cannot be lighter
+than OKLab L≈0.57, and on the 112°–182° arc sRGB has almost no chroma that dark:
+the teal ramp cannot reach chroma 0.10 at 4.5:1 there **at all** (its maximum is
+0.097), and admits 52 admissible steps against indigo's 3254.
+
+**The consequence: only ONE of gold, health and teal may carry a series by
+colour alone.** The largest set of these seven meanings that can coexist
+pairwise is **five** — `pdcobalt`, `pdindigo`, `pdrust`, `pdviolet`, plus
+exactly one of `pdgold` / `pdhealth` / `pdteal`. Seven distinguishable
+categorical colours are not available here and no re-stepping produces them.
+Where more than five categories must be shown at once, the remedy is the one
+the `dataviz` skill prescribes: fold to "Other", facet into small multiples, or
+carry the distinction on a second channel — direct labels, a surface gap,
+texture (45°/135° hatch), or a dash pattern.
+
+The guard pins each of the four pairs at the value it has today, so a pair that
+cannot be fixed can still never be made *worse*, and it fails any figure that
+draws two of them together unless that figure is listed with the secondary
+encoding it uses instead.
+
+**Status inks are reserved** and five of them sit close to a series colour
+(`pderror`/`pdrust` collapses to ΔE 3.7 under protanopia). That is legal only
+because status always ships with an icon **and** a label, never as a bare
+swatch. The guard prints these every run rather than hiding them.
+
+**The dark theme is not yet gated.** It has four pairs of its own below the
+floor, including `--brand-accent`/`--story-health` at ΔE 5.3 and
+`--brand-primary`/`--story-violet` at 2.2 under protanopia. Fixing it is a
+separate pass against the dark surface; this one covers the Book's printed
+figures, which are light-only.
 
 ### Contrast (WCAG)
 

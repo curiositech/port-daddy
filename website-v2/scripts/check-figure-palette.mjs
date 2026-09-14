@@ -27,6 +27,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, dirname, basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { contrastRatio } from './wcag.mjs'
+import { lightTokens } from './tokens-css.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = join(HERE, '..', '..')             // repo root from website-v2/scripts
@@ -53,8 +54,8 @@ const ALLOWED_HEX = new Set([
   // Amber is stripes/dots/display only (3.71:1); violet and gold are AA as text.
   '006B5F', // pdteal    — legibility               --brand-accent
   '1F7A4D', // pdhealth  — ready / coordinated      --story-health
-  '353A85', // pdindigo  — protocol / federation    --story-indigo
-  '933FA5', // pdviolet  — identity / continuity    --story-violet
+  '312865', // pdindigo  — protocol / federation    --story-indigo
+  '822586', // pdviolet  — identity / continuity    --story-violet
   '7A4514', // pdrust    — reputation               --story-rust
   '666A00', // pdgold    — economy / value          --story-gold
   '403B34', // pdinkmuted — links, secondary text   --text-secondary
@@ -197,23 +198,6 @@ for (const dir of FIG_DIRS) {
 }
 
 // 3) pd* lockstep: the TeX palette equals the light tokens, in both copies.
-function lightTokens(css) {
-  // The first `:root {` block is the light theme; dark themes follow it.
-  const start = css.indexOf(':root')
-  const open = css.indexOf('{', start)
-  let depth = 0
-  let end = open
-  for (let i = open; i < css.length; i += 1) {
-    if (css[i] === '{') depth += 1
-    if (css[i] === '}') { depth -= 1; if (depth === 0) { end = i; break } }
-  }
-  const block = css.slice(open + 1, end)
-  const tokens = new Map()
-  for (const m of block.matchAll(/(--[a-z0-9-]+)\s*:\s*#([0-9a-fA-F]{6})\b/g)) {
-    if (!tokens.has(m[1])) tokens.set(m[1], m[2].toUpperCase())
-  }
-  return tokens
-}
 try {
   const tokens = lightTokens(readFileSync(TOKENS_CSS, 'utf8'))
   const copies = PD_PALETTE_COPIES.map((p) => ({ path: p, text: readFileSync(p, 'utf8') }))
