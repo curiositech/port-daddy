@@ -49,14 +49,14 @@ Editing a curated file by hand is correct. Editing anything in `data/` is not:
     evidence/staleness-check.txt      eight source mutations, each shown
                                       failing --check and then passing again
                                       once restored
-    evidence/smoke-render.cjs         renders the page headlessly and asserts
+    evidence/smoke-render.mjs         renders the page headlessly and asserts
                                       the counts, the rubric and the lists
-    evidence/smoke-db-and-regions.cjs stubs the artifact db and asserts that
+    evidence/smoke-db-and-regions.mjs stubs the artifact db and asserts that
                                       rulings, notes and the region tool still
                                       write
 
 Both smoke tests need `linkedom`; run them from the repository root:
 
     npm install --no-save linkedom
-    node docs/harbor-research/exposition/figures/desk/evidence/smoke-render.cjs
-    node docs/harbor-research/exposition/figures/desk/evidence/smoke-db-and-regions.cjs
+    node docs/harbor-research/exposition/figures/desk/evidence/smoke-render.mjs
+    node docs/harbor-research/exposition/figures/desk/evidence/smoke-db-and-regions.mjs
