@@ -5,6 +5,27 @@ import ViewInspector
 
 @MainActor
 final class CloudFleetStoreTests: XCTestCase {
+    func testWaitingForControlIsNotAProviderRetryOrReviewFailure() async throws {
+        let run = try JSONDecoder().decode(CloudFleetRun.self, from: Data(
+            "{\"id\":\"run:held\",\"state\":\"waiting_for_control\",\"conclusion\":\"failure\"}".utf8))
+        XCTAssertFalse(run.isActive)
+        XCTAssertFalse(run.isFailure)
+        XCTAssertEqual(run.statusLabel, "waiting_for_control")
+        let account = OperatorAccount(token: "pdu_fixture", relayUrl: "https://relay.example", login: "operator")
+        StubURLProtocol.handler = { request in
+            let body = request.url?.path == "/v1/fleet/health"
+                ? "{\"waitingForControl\":1,\"retrying\":0}"
+                : "{\"runs\":[]}"
+            return StubURLProtocol.Stub(status: 200, body: Data(body.utf8))
+        }
+        let store = CloudFleetStore(autoStart: false, session: StubURLProtocol.makeSession(), loadAccount: { account })
+        await store.refresh()
+        XCTAssertEqual(store.health?.waitingForControl, 1)
+        XCTAssertEqual(store.health?.retrying, 0)
+        let inspected = try CloudFleetSection(store: store, localProjects: [], localDaemonURL: nil, compact: true).inspect()
+        XCTAssertNoThrow(try inspected.find(text: "1 waiting for control — no automatic retry"))
+    }
+
     func testUnknownPauseCannotDecodeAsPermission() throws {
         for json in [
             "{}", "{\"paused\":null}", "{\"paused\":false}",

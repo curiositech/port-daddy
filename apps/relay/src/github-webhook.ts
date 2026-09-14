@@ -49,6 +49,7 @@ import {
   ChainError,
 } from './db.js';
 import { harborChannelKey } from './harbor-channel.js';
+import { fleetControlRequest } from './fleet-pause-control.js';
 import {
   markFleetRunIntentEnqueued,
   markFleetRunIntentEnqueueFailed,
@@ -391,6 +392,12 @@ async function maybeEnqueueFleetRun(
         eventType,
         action,
         now,
+        authorizeReplay: async (expectedRevision) => {
+          const state = await fleetControlRequest(env.FLEET_CONTROL, '/admit', {
+            expectedRevision, runId: `${repoFullName}/run:${deliveryId}`,
+          });
+          return state.status === 'unpaused' && state.revision === expectedRevision;
+        },
       });
       if (!reservation.shouldEnqueue) {
         await appendAudit(env.DB, {
@@ -401,15 +408,13 @@ async function maybeEnqueueFleetRun(
         return;
       }
     } catch (intentError) {
-      // Rollback compatibility: a new relay can briefly run before the additive
-      // migration is applied.  Preserve the legacy queue path and make the
-      // missing admission receipt visible in audit instead of dropping a gate.
-      reservation = null;
+      // Missing admission authority cannot authorize an unchecked duplicate.
       await appendAudit(env.DB, {
         action: 'fleet_run_intent_failed',
         target: repoFullName,
         detail: `delivery=${deliveryId} error=${String(intentError).slice(0, 300)}`,
       }).catch(() => {});
+      return;
     }
   }
   const job: FleetRunJob = {

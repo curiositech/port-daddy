@@ -69,7 +69,7 @@ afterEach(() => {
 });
 
 describe('queue consumer', () => {
-  it('acks suspension without a terminal review verdict and permits explicit same-delivery redelivery', async () => {
+  it('acks suspension without a terminal review verdict and rejects unauthorised direct redelivery', async () => {
     state.files.set('main:pd-fleet.yml', ONE_SHIP_YAML);
     const tokens = memoryKV();
     seedToken(tokens, 42);
@@ -84,6 +84,7 @@ describe('queue consumer', () => {
         async first() { return { state: intentState }; },
         async run() {
           if (sql.includes("SET state = 'running'")) intentState = 'running';
+          else if (sql.includes("SET state = 'waiting_for_control'")) { intentState = 'waiting_for_control'; intentReason = String(bound[1]); }
           else if (sql.includes("SET state = 'retrying'")) { intentState = 'retrying'; intentReason = String(bound[2]); }
           else if (sql.includes('SET state = ?')) intentState = String(bound[0]);
           return { success: true, meta: { changes: 1 } };
@@ -99,15 +100,16 @@ describe('queue consumer', () => {
     await handler.queue(fakeBatch([first]), env, capturingCtx());
     expect(first.ack).toHaveBeenCalledOnce();
     expect(first.retry).not.toHaveBeenCalled();
-    expect(intentState).toBe('retrying');
+    expect(intentState).toBe('waiting_for_control');
     expect(intentReason).toContain('Fleet suspended: binding-missing');
     expect(ai.calls).toHaveLength(0);
     env.FLEET_CONTROL = available;
     const redelivery = fakeMessage(makeJob(), 2);
     await handler.queue(fakeBatch([redelivery]), env, capturingCtx());
     expect(redelivery.ack).toHaveBeenCalledOnce();
-    expect(ai.calls.length).toBeGreaterThan(0);
-    expect(state.completed.at(-1)?.conclusion).toBe('success');
+    expect(ai.calls).toHaveLength(0);
+    expect(intentState).toBe('waiting_for_control');
+    expect(state.completed.at(-1)?.conclusion).toBe('failure');
   });
 
   it('retries an unavailable raw diff, then the DLQ fails its visible gate without model work', async () => {

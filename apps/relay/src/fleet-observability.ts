@@ -15,7 +15,7 @@
  * Shared envelope: every response is JSON `{ code, error, ... }` to match the
  * fleet control-plane contract. The gate accepts either the break-glass secret
  * or an account-backed operator role. Reads NEVER mutate fleet state; pause
- * writes only KV + audit.
+ * writes the serialized control object plus audit.
  */
 
 import { fleetOperatorOnly, type FleetOperatorAuthorization } from './fleet-access.js';
@@ -204,6 +204,7 @@ export async function handleFleetHealth(request: Request, env: Env): Promise<Res
         : intentHealth.queued + intentHealth.retrying,
       running: intentHealth.running,
       retrying: intentHealth.retrying,
+      waitingForControl: intentHealth.waitingForControl,
       superseded: intentHealth.superseded,
       failedAdmission: intentHealth.failedAdmission,
       oldestQueuedAgeSec: intentHealth.oldestQueuedAgeSec,

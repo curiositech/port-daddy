@@ -4,12 +4,13 @@
  * The relay writes `fleet_run_intents` before queueing.  A consumer consults
  * that row before any GitHub fetch or model call: superseded/terminal messages
  * are acknowledged without spend, while active messages publish attempt and
- * terminal progress. Missing rows/D1 errors still enter an explicitly degraded
- * legacy path for rollout compatibility; that mode does not provide
- * single-generation concurrency guarantees.
+ * terminal progress. Database errors block execution so they cannot bypass a
+ * control hold. Missing rows still identify the older no-ledger queue format;
+ * current Relay never enqueues without an admission row.
  */
 
 import type { ExecutorEnv, FleetRunJob } from './env.js';
+import { FLEET_WAITING_CONTROL } from '../../shared/fleet-suspension.js';
 
 export type FleetIntentExecutionDecision = 'run' | 'skip' | 'legacy';
 
@@ -18,6 +19,7 @@ interface IntentStateRow {
 }
 
 const TERMINAL_OR_SUPERSEDED = new Set([
+  FLEET_WAITING_CONTROL,
   'superseded',
   'success',
   'failure',
@@ -133,9 +135,10 @@ export async function beginFleetIntentAttempt(
     return 'run';
   } catch (error) {
     console.error(
-      `[fleet-executor] intent preflight degraded delivery=${job.deliveryId}: ${String(error)}`,
+      `[fleet-executor] intent preflight unavailable delivery=${job.deliveryId}: ${String(error)}`,
     );
-    return 'legacy';
+    // A database outage must not bypass a durable waiting-for-control hold.
+    throw error;
   }
 }
 
@@ -175,6 +178,19 @@ export async function markFleetIntentRetrying(
       `[fleet-executor] intent retry marker failed delivery=${job.deliveryId}: ${String(writeError)}`,
     );
   }
+}
+
+/** Acknowledged control hold: no automatic retry and no review verdict. */
+export async function markFleetIntentWaitingForControl(
+  env: ExecutorEnv, job: FleetRunJob, reason: string,
+): Promise<void> {
+  if (!env.DB || !job.deliveryId) throw new Error('Suspension ledger unavailable');
+  const now = Math.floor(Date.now() / 1000);
+  await env.DB.prepare(
+    `UPDATE fleet_run_intents SET state = 'waiting_for_control',
+       control_wait_count = control_wait_count + 1, last_progress_at = ?, last_error = ?, finished_at = NULL
+     WHERE delivery_id = ? AND state = 'running'`,
+  ).bind(now, reason.slice(0, 600), job.deliveryId).run();
 }
 
 /**

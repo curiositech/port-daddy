@@ -85,9 +85,9 @@ describe('executor Fleet intent preflight', () => {
     expect(await beginFleetIntentAttempt(env, JOB, 4)).toBe('skip');
   });
 
-  it('falls back to legacy execution during a migration rollout gap', async () => {
+  it('does not bypass a possible control hold when the ledger is unavailable', async () => {
     const { env } = envWithDb({ fail: true });
-    expect(await beginFleetIntentAttempt(env, JOB, 1)).toBe('legacy');
+    await expect(beginFleetIntentAttempt(env, JOB, 1)).rejects.toThrow();
   });
 
   it('publishes retry failure detail without making the retry path throw', async () => {

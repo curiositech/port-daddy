@@ -26,6 +26,7 @@
  */
 
 import type { ExecutorEnv, FleetRunJob } from './env.js';
+import { FLEET_WAITING_CONTROL } from '../../shared/fleet-suspension.js';
 import { executeFleet } from './execute.js';
 import { CheckRunCompletionError } from './github.js';
 import {
@@ -48,6 +49,7 @@ import {
   beginFleetIntentAttempt,
   finishFleetIntentFromRun,
   markFleetIntentRetrying,
+  markFleetIntentWaitingForControl,
   markFleetIntentTerminal,
   readFleetIntentState,
 } from './run-intent.js';
@@ -188,9 +190,8 @@ export default {
         }
         const intentDecision = await beginFleetIntentAttempt(env, message.body, attemptCursor);
         if (intentDecision === 'skip') {
-          // A newer PR generation owns the required check.  The queue cannot
-          // delete this stale message, so acknowledge it here before GitHub or
-          // model work.  The superseded intent remains visible to operators.
+          // A superseded/terminal generation or an operator-control hold cannot
+          // be reopened by an ordinary duplicate consumer delivery.
           //
           // LOUD ON PURPOSE: this is the one exit that acks a job WITHOUT ever
           // creating the 'Port Daddy Fleet' check, so a PR that takes it shows
@@ -199,7 +200,7 @@ export default {
           // make it invisible; a superseded skip is normal, a stream of them on
           // current heads is a bug.
           console.log(
-            `[fleet-executor] SKIPPED as superseded delivery=${message.body?.deliveryId} repo=${message.body?.repoFullName} pr=${message.body?.prNumber} — no check run will be created`,
+            `[fleet-executor] SKIPPED by durable admission state delivery=${message.body?.deliveryId} repo=${message.body?.repoFullName} pr=${message.body?.prNumber} — no check run will be created`,
           );
           message.ack();
           continue;
@@ -295,13 +296,13 @@ export default {
             reason,
           );
         } else if (disposition?.kind === 'suspended') {
-          // Keep a durable retryable intent, but acknowledge this message.
+          // Keep a durable waiting-for-control intent, but acknowledge this message.
           // Suspension never schedules automatic paid work or becomes a
           // terminal model verdict. A later explicit redelivery rechecks the
           // same durable control epoch.
-          await markFleetIntentRetrying(env, message.body, attemptCursor,
-            `Fleet suspended: ${disposition.reason}; awaiting explicit redelivery`);
-          if (intentDecision === 'run' && await readFleetIntentState(env, message.body.deliveryId) !== 'retrying') {
+          if (intentDecision === 'run') await markFleetIntentWaitingForControl(env, message.body,
+            `Fleet suspended: ${disposition.reason}; operator-authorized redelivery or new delivery required; no automatic retry`);
+          if (intentDecision === 'run' && await readFleetIntentState(env, message.body.deliveryId) !== FLEET_WAITING_CONTROL) {
             throw new Error('Fleet suspension was not durably recorded; refusing to acknowledge the delivery');
           }
         } else if (disposition?.kind === 'already-decided') {

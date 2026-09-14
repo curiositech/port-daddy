@@ -2,7 +2,7 @@
 
 Global Fleet control lives in Relay's `FleetControl` Durable Object, named
 `global`. The signed-in operator gate on `POST /v1/fleet/pause` remains the
-only public write route. An internal `FleetControlService` binding admits
+only public global-toggle route. An internal `FleetControlService` binding admits
 executor work; it exposes no HTTP admission or resume endpoint.
 
 The object commits `{ paused, revision, pausedAt }` and its monotonic revision
@@ -35,11 +35,31 @@ the project verdict controls show Unknown and remain disabled. FleetBar and
 pd-console also preserve and display Unknown, including missing, null,
 malformed, or contradictory health fields.
 
-Suspensions carry the durable `pd-fleet-suspension:v1` check marker and a
-retryable intent reason, rather than a terminal model verdict. The queue
-acknowledges a suspended message without scheduling automatic retries. An
-explicit redelivery after a transient outage can resume at the original
-epoch; a real pause/resume requires a new delivery because its epoch changed.
+Suspensions carry the durable `pd-fleet-suspension:v1` check marker and explicit
+`waiting_for_control` intent/transcript state, rather than a terminal model
+verdict or provider retry. Health counts waiting work separately and excludes
+it from retry counts and queue estimates. Activity and receipts prioritize the
+hold even if an older transcript header says failure. The GitHub required check
+still fails: a control hold is not a passing review.
+
+The queue acknowledges a durably recorded suspension without scheduling retries.
+Ordinary duplicate webhook or consumer deliveries cannot reopen it. An operator
+can POST `/v1/fleet/control-requeues/:deliveryId` with `{ expectedRevision,
+requestId }` using account operator or break-glass authorization, then redeliver
+the original GitHub webhook. This grants one signed redelivery; it does not
+queue or run work itself. Cookie/read-capability access cannot authorize it.
+Issuance and actual webhook admission both consult the run-bound control epoch.
+One conditional admission wins duplicate races. The durable request ID and
+suspension incarnation prevent reusing a grant after a second suspension.
+A real pause/resume cycle requires a new delivery because its epoch changed.
+Queue-send failure remains explicitly retryable under the same checked epoch.
+Missing admission storage fails closed, without the former unchecked enqueue.
+
+The D1 state-constraint replacement migration must be applied before this code;
+it preserves existing rows, generations, indexes and structured legacy suspension
+markers. It adds the durable requeue authorization ledger. Queue send and D1
+admission are not atomic: a crash after claiming admission but before send may
+leave `admitting` work requiring repair; it cannot justify automatic requeue.
 
 The merge-group event currently lacks verified constituent review receipts.
 Its required Fleet check therefore fails with an explicit coverage hold.
@@ -58,5 +78,8 @@ This change does not authorize deployment, resumption, or paid runs.
 
 Local tests exercise parser rejection, serialized toggle/admission ordering,
 pause/resume revisions, storage failure, stale KV isolation, and bounded drain.
+The recovery lifecycle tests use real HMAC webhook admission, the actual consumer,
+the full SQLite migration chain and the control-object implementation, with mocked
+GitHub/provider boundaries. They do not invoke providers or deploy Workers.
 The in-memory storage fixture is not a live Cloudflare restart/durability test;
 deployment and real multi-region observations remain unverified.

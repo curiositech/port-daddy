@@ -29,6 +29,7 @@
 
 import { timingSafeEqual } from './crypto.js';
 import type { FleetRunStepRow } from './db.js';
+import { FLEET_WAITING_CONTROL, FLEET_WAITING_CONTROL_COPY } from '../../shared/fleet-suspension.js';
 import {
   getFleetRunProjectionWithSteps,
   listFleetRunGenerationsForPr,
@@ -417,6 +418,7 @@ function notFoundPage(): Response {
 // ── Rendering ────────────────────────────────────────────────────────────────
 
 function badgeClass(conclusion: string): string {
+  if (conclusion === FLEET_WAITING_CONTROL) return 'failure';
   if (conclusion === 'success') return 'success';
   if (conclusion === 'failure') return 'failure';
   if (conclusion === 'neutral') return 'neutral';
@@ -429,6 +431,7 @@ function badgeClass(conclusion: string): string {
 }
 
 function stateLabel(state: string): string {
+  if (state === FLEET_WAITING_CONTROL) return 'waiting for control';
   if (state === 'enqueue_failed') return 'needs repair';
   return state || 'pending';
 }
@@ -1416,6 +1419,7 @@ function renderShips(
 }
 
 function emptyTranscript(run: FleetRunProjection): string {
+  if (run.logical_state === FLEET_WAITING_CONTROL) return `<div class="empty"><div class="e-title">Waiting for control.</div><p>${esc(FLEET_WAITING_CONTROL_COPY)}</p>${run.last_error ? `<p class="meta">${esc(run.last_error)}</p>` : ''}</div>`;
   if (['admitting', 'queued'].includes(run.logical_state)) {
     return `<div class="empty"><div class="e-title">Waiting for a Fleet worker.</div>
       <p>This generation is durably admitted. No ship has started yet; the page will refresh while
@@ -1578,12 +1582,13 @@ export function renderFleetRunReceiptPage(
     ? `<a href="${esc(run.pr_url)}">${prLabel}</a>`
     : prLabel;
   const active = ['admitting', 'queued', 'running', 'retrying'].includes(run.logical_state);
+  const waiting = run.logical_state === FLEET_WAITING_CONTROL;
   const retrying = run.logical_state === 'retrying';
-  const timingLabel = active ? 'admitted' : 'finished';
-  const timingValue = active ? run.queued_at : (run.finished_at ?? run.created_at);
+  const timingLabel = waiting ? 'suspended' : active ? 'admitted' : 'finished';
+  const timingValue = waiting ? run.last_progress_at : active ? run.queued_at : (run.finished_at ?? run.created_at);
   const expected = run.expected_finish_at == null ? 'calculating' : fmtUtc(run.expected_finish_at);
   const wallClock = run.ms > 0 ? fmtMs(run.ms) : active ? 'live' : '—';
-  const lede = active
+  const lede = waiting ? 'This review is blocked on control authority. No automatic retry is scheduled; the required check remains blocking.' : active
     ? 'Follow this review from durable admission through every delivery attempt and ship checkpoint. Queue timing is estimated; recorded steps and outcomes are receipts.'
     : "Every review bot's pass on this PR — the files it read, the problems it raised, and the calls it made — gathered in one verifiable receipt.";
   const accessNote = run.id.startsWith('intent:')
@@ -1617,6 +1622,7 @@ export function renderFleetRunReceiptPage(
       ${renderGenerationsStrip(run.id, prContext.generations)}
     </div>
 
+    ${run.logical_state === FLEET_WAITING_CONTROL ? `<p class="operator-action">${esc(FLEET_WAITING_CONTROL_COPY)}</p>` : ''}
     ${renderDiffPanel(prContext.diff, run.pr_url)}
 
     ${active ? '<div class="live-strip"><span class="pulse" aria-hidden="true"></span>Live run · this receipt refreshes every 5 seconds while work is active</div>' : ''}

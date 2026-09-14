@@ -67,7 +67,13 @@ struct CloudFleetRun: Decodable, Identifiable, Equatable {
     }
 
     var isFailure: Bool {
-        state == "enqueue_failed" || state == "failed_admission" || conclusion == "failure"
+        !isWaitingForControl && (state == "enqueue_failed" || state == "failed_admission" || conclusion == "failure")
+    }
+
+    var isWaitingForControl: Bool { state == "waiting_for_control" }
+    var statusLabel: String {
+        if isActive || isWaitingForControl { return state }
+        return conclusion.flatMap { $0.isEmpty ? nil : $0 } ?? state
     }
 
     var shortSha: String {
@@ -98,6 +104,7 @@ struct CloudFleetHealth: Decodable, Equatable {
     let queueDepthEstimate: Int?
     let running: Int
     let retrying: Int
+    let waitingForControl: Int
     let superseded: Int
     let failedAdmission: Int
     let oldestQueuedAgeSec: Double?
@@ -105,7 +112,7 @@ struct CloudFleetHealth: Decodable, Equatable {
 
     private enum CodingKeys: String, CodingKey {
         case paused, pauseStatus, pauseRevision, automationBlocked, lastRunAgeSec, queueDepthEstimate, running, retrying
-        case superseded, failedAdmission, oldestQueuedAgeSec, knownIntents
+        case superseded, failedAdmission, oldestQueuedAgeSec, knownIntents, waitingForControl
     }
 
     init(from decoder: Decoder) throws {
@@ -125,6 +132,7 @@ struct CloudFleetHealth: Decodable, Equatable {
         queueDepthEstimate = try values.decodeIfPresent(Int.self, forKey: .queueDepthEstimate)
         running = (try values.decodeIfPresent(Int.self, forKey: .running)) ?? 0
         retrying = (try values.decodeIfPresent(Int.self, forKey: .retrying)) ?? 0
+        waitingForControl = (try values.decodeIfPresent(Int.self, forKey: .waitingForControl)) ?? 0
         superseded = (try values.decodeIfPresent(Int.self, forKey: .superseded)) ?? 0
         failedAdmission = (try values.decodeIfPresent(Int.self, forKey: .failedAdmission)) ?? 0
         oldestQueuedAgeSec = try values.decodeIfPresent(Double.self, forKey: .oldestQueuedAgeSec)

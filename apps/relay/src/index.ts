@@ -146,6 +146,7 @@ import type { Env } from './types.js';
 import { HarborChannel } from './harbor-channel.js';
 import { HarborQuota } from './harbor-quota.js';
 import { CoordinationRoom } from './coordination-room.js';
+import { handleFleetControlRequeue } from './fleet-control-requeue.js';
 import {
   handleHealth,
   handleHandshake,
@@ -544,6 +545,10 @@ export default {
     }
     else if (pathname === '/v1/fleet/health' && method === 'GET') {
       response = await handleFleetHealth(request, env);
+    }
+    else if (pathname.startsWith('/v1/fleet/control-requeues/') && method === 'POST') {
+      const deliveryId = decodeURIComponent(pathname.slice('/v1/fleet/control-requeues/'.length));
+      response = await handleFleetControlRequeue(request, env, deliveryId);
     }
     else if (pathname.startsWith('/v1/fleet/runs/') && method === 'GET') {
       const runId = decodeURIComponent(pathname.slice('/v1/fleet/runs/'.length));
