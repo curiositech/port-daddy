@@ -29,6 +29,7 @@
         "fig-anchor-card-lifecycle",
         "fig-anchor-cuckoo-inline",
         "fig-anchor-delegation-inline",
+        "fig-anchor-handshake-ladder",
         "fig-anchor-revocation-gossip",
         "session-anchor-v6-attack"
       ],
@@ -91,6 +92,7 @@
         "fig-he-cold-start",
         "fig-he-conservation-functor",
         "fig-he-float-plan",
+        "fig-he-succession-price",
         "fig-he-three-sided",
         "tab-fh-topology",
         "tab-keystone-split"
@@ -101,6 +103,7 @@
     "bonded-commons": {
       "source": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
       "inputs": [
+        "fig-bc-delta-threshold",
         "fig-bc-graduated-trigger",
         "fig-bc-oracle-audit-rate",
         "fig-bonded-key-custody",

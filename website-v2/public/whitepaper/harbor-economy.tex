@@ -35,6 +35,9 @@
 \usepackage{graphicx}
 \usepackage{fancyhdr}
 \usepackage{tikz}
+% this chapter now carries a pgfplots figure; the Book's own preamble
+% already loads pgfplots, this keeps the standalone paper building too.
+\usepackage{pgfplots}\pgfplotsset{compat=1.18}
 \usepackage{float}
 \usepackage{caption}
 \usepackage{enumitem}
@@ -572,6 +575,12 @@ $\lambda,c,\mu_g,w$ fixed and ask how much Alice would have to speed up her own
 succession plan --- raise $\eta$ --- to double $D^\star$ and make sole ownership
 of a slower-succeeding $a_2$ viable again.
 \end{pdexample}
+
+Figure~\ref{fig:he-succession-price} puts that worked instance on the boundary
+it sits on, so the distance between the threshold and the canary is something
+to look at rather than something to take on trust.
+
+\input{figures/fig-he-succession-price}
 
 \begin{pdboundary}
 The specialization boundary and the succession price compare mean costs only,
