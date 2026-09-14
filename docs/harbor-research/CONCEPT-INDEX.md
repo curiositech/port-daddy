@@ -39,66 +39,66 @@ because eight concepts in one bad section is one repair, not eight. `judged`.
 
 | passage | chapter | section | domains | cash-out only in a float caption | concepts |
 | --- | ---: | --- | --- | --- | --- |
+| `s:single-writer-kernel:435-479` | 1 | sec:organs | anatomy, architecture, medicine, moral | **yes** | `actor`, `claim`, `commitment`, `continuity`, `daemon`, `discipline` |
 | `s:legible-swarm:2296-2390` | 4 | sec:tokens-digest | agriculture, anatomy, architecture, finance, moral, plumbing, theatre | no | `agents`, `artifact`, `author`, `authority`, `binding`, `budget` |
 | `s:spawn-to-person:848-904` | 5 | Organ 2 --- Checkpoint: restorable state | anatomy, architecture, finance, moral, textile | no | `actor`, `agents`, `artifact`, `claim`, `continuity`, `discipline` |
-| `s:harbor-economy:1800-2375` | 6 | sec:he-exercises | architecture, finance, law, mechanics, medicine | no | `acceptance`, `accuracy`, `actor`, `aesthetics`, `agents`, `alice` |
 | `s:harbor-economy:2376-2488` | 6 | sec:related | architecture, finance, mechanics, medicine, textile | no | `adversarial`, `agents`, `algorithmic game theory`, `artifact`, `binding`, `bond` |
-| `s:agent-transactions-whitepaper:1758-1984` | 7 | Conclusion | anatomy, architecture, finance, medicine, textile | no | `advisory`, `agents`, `authority`, `authorization chain`, `bond`, `bonded advisor` |
 | `s:federated-harbor-whitepaper:1155-1277` | 8 | sec:fh-exercises | architecture, finance, law, medicine, moral | no | `able`, `acceptance`, `adversarial`, `agents`, `arbiter`, `artifact` |
-| `s:single-writer-kernel:435-479` | 1 | sec:organs | anatomy, architecture, medicine, moral | **yes** | `actor`, `claim`, `commitment`, `continuity`, `daemon`, `discipline` |
-| `s:legible-swarm:615-715` | 4 | sec:consent | architecture, finance, mechanics, moral | no | `able`, `artifact`, `authority`, `capability`, `consent grant`, `daemon` |
-| `s:legible-swarm:1909-2194` | 4 | sec:relevance | architecture, finance, law, moral | no | `agents`, `authority`, `budget`, `capability`, `claim`, `commitment` |
+| `s:agent-transactions-whitepaper:1758-1984` | 7 | Conclusion | anatomy, architecture, finance, medicine, textile | no | `advisory`, `agents`, `authority`, `authorization chain`, `bond`, `bonded advisor` |
+| `s:harbor-economy:1800-2375` | 6 | sec:he-exercises | architecture, finance, law, mechanics, medicine | no | `acceptance`, `accuracy`, `actor`, `aesthetics`, `agents`, `alice` |
 | `s:legible-swarm:3155-3199` | 4 | sec:handoff | anatomy, architecture, finance, moral | no | `actor`, `commitment`, `consent grant`, `continuity`, `cost`, `cross-operator` |
-| `s:legible-swarm:3200-3567` | 4 | sec:openproblems | anatomy, architecture, mechanics, textile | no | `adversarial`, `agents`, `algorithmic game theory`, `annals of mathematical statistics`, `artifact`, `authority` |
-| `s:spawn-to-person:1361-1584` | 5 | sec:body-behind-name | architecture, finance, mechanics, moral | no | `actor`, `artifact`, `bond`, `claim`, `clear`, `commitment` |
-| `s:spawn-to-person:3008-3075` | 5 | sec:open | architecture, finance, law, warfare | no | `actor`, `agents`, `arbiter`, `binding`, `bond`, `claim` |
-| `s:spawn-to-person:3105-3404` | 5 | app:status | anatomy, architecture, finance, moral | no | `actor`, `agents`, `algorithmic game theory`, `alice`, `authorization chain`, `binding` |
-| `s:harbor-economy:415-602` | 6 | sec:three-sides | architecture, finance, mechanics, moral | no | `agents`, `alice`, `bond`, `bounty`, `capability`, `clear` |
+| `s:agent-transactions-whitepaper:1985-2032` | 7 | app:mech | anatomy, architecture, finance, medicine | no | `artifact`, `binding`, `bond`, `claim`, `conservation`, `coordination` |
 | `s:harbor-economy:705-752` | 6 | Settlement: four terminal states bound to an oracle | architecture, finance, law, moral | no | `acceptance`, `alice`, `arbiter`, `author`, `bond`, `bounty` |
 | `s:harbor-economy:2640-2703` | 6 | app:impl | anatomy, architecture, finance, mechanics | no | `actor`, `adversarial`, `artifact`, `attenuation`, `authority`, `binding` |
+| `s:spawn-to-person:3008-3075` | 5 | sec:open | architecture, finance, law, warfare | no | `actor`, `agents`, `arbiter`, `binding`, `bond`, `claim` |
+| `s:legible-swarm:615-715` | 4 | sec:consent | architecture, finance, mechanics, moral | no | `able`, `artifact`, `authority`, `capability`, `consent grant`, `daemon` |
 | `s:agent-transactions-whitepaper:831-936` | 7 | sec:claim-signaling-ic | anatomy, architecture, finance, mechanics | no | `advisory`, `agents`, `bond`, `claim`, `coordination`, `cost` |
 | `s:agent-transactions-whitepaper:1571-1757` | 7 | sec:bonded-exercises | architecture, finance, law, medicine | no | `actor`, `advisory`, `agents`, `artifact`, `attenuation`, `authority` |
-| `s:agent-transactions-whitepaper:1985-2032` | 7 | app:mech | anatomy, architecture, finance, medicine | no | `artifact`, `binding`, `bond`, `claim`, `conservation`, `coordination` |
-| `s:single-writer-kernel:1409-1521` | 1 | sec:partial-observation | anatomy, finance, law | no | `bond`, `capability`, `claim`, `controllable`, `daemon`, `enforcement` |
-| `s:single-writer-kernel:2052-2136` | 1 | sec:enforcement-gap | architecture, mechanics, warfare | no | `advisory`, `agents`, `always invoked`, `author`, `authority`, `binding` |
-| `s:single-writer-kernel:2698-2808` | 1 | sec:openproblems | anatomy, finance, plumbing | no | `artifact`, `binding`, `claim`, `closed by`, `coordination`, `durability` |
+| `s:harbor-economy:415-602` | 6 | sec:three-sides | architecture, finance, mechanics, moral | no | `agents`, `alice`, `bond`, `bounty`, `capability`, `clear` |
+| `s:spawn-to-person:1361-1584` | 5 | sec:body-behind-name | architecture, finance, mechanics, moral | no | `actor`, `artifact`, `bond`, `claim`, `clear`, `commitment` |
+| `s:legible-swarm:1909-2194` | 4 | sec:relevance | architecture, finance, law, moral | no | `agents`, `authority`, `budget`, `capability`, `claim`, `commitment` |
+| `s:spawn-to-person:3105-3404` | 5 | app:status | anatomy, architecture, finance, moral | no | `actor`, `agents`, `algorithmic game theory`, `alice`, `authorization chain`, `binding` |
+| `s:legible-swarm:3200-3567` | 4 | sec:openproblems | anatomy, architecture, mechanics, textile | no | `adversarial`, `agents`, `algorithmic game theory`, `annals of mathematical statistics`, `artifact`, `authority` |
 | `s:anchor-protocol-whitepaper:464-480` | 2 | Runtime Enforcement: The Arbiter | anatomy, finance, law | no | `agents`, `arbiter`, `capability`, `claim`, `daemon`, `escrow` |
-| `s:anchor-protocol-whitepaper:816-1000` | 2 | sec:conclusion | architecture, finance, medicine | no | `artifact`, `attenuation`, `authorization chain`, `bond`, `capability`, `claim` |
-| `s:sealed-harbor:603-761` | 3 | sec:sealed-conservation | architecture, finance, moral | no | `artifact`, `author`, `bond`, `budget`, `conservation`, `cost` |
-| `s:legible-swarm:304-367` | 4 | How to read this paper (Reader's Map) | anatomy, mechanics, moral | no | `artifact`, `authorization chain`, `binding`, `capability`, `claim`, `compaction` |
-| `s:legible-swarm:836-903` | 4 | sec:four-questions | architecture, mechanics, theatre | no | `artifact`, `authority`, `claim`, `illegible`, `legible`, `open` |
-| `s:legible-swarm:1589-1880` | 4 | sec:lowerbound | architecture, mechanics, theatre | no | `adversarial`, `artifact`, `binding`, `budget`, `by design`, `commitment` |
+| `s:harbor-economy:1783-1799` | 6 | Review of the key ideas | architecture, finance, mechanics | no | `bond`, `by construction`, `clear`, `conservation`, `cost`, `cross-operator` |
+| `s:spawn-to-person:2408-2424` | 5 | Review of the key ideas | anatomy, finance, mechanics | no | `commitment`, `continuity`, `honest`, `identity`, `lineage`, `memory` |
+| `s:agent-transactions-whitepaper:950-967` | 7 | sec:cleanup-bound | architecture, finance, plumbing | no | `bond`, `budget`, `capability`, `cost`, `enforcement`, `float plan` |
+| `s:spawn-to-person:931-950` | 5 | The canonical seam sentence (stated identically in every paper) | anatomy, architecture, finance | no | `artifact`, `claim`, `commitment`, `continuity`, `honest`, `memory` |
+| `s:agent-transactions-whitepaper:1064-1085` | 7 | sec:bonded-advisor | architecture, finance, moral | no | `acceptance`, `accuracy`, `advisory`, `bond`, `bonded advisor`, `budget` |
+| `s:agent-transactions-whitepaper:1039-1063` | 7 | sec:pricing:settlement | architecture, finance, law | no | `acceptance`, `agents`, `arbiter`, `bond`, `cost`, `daemon` |
+| `s:harbor-economy:2615-2639` | 6 | sec:conclusion | anatomy, architecture, finance | no | `binding`, `bond`, `claim`, `conservation`, `cost`, `cross-operator` |
+| `s:spawn-to-person:3076-3104` | 5 | sec:conclusion | architecture, mechanics, moral | no | `adversarial`, `closed by`, `continuity`, `cross-operator`, `cross-operator attestation`, `honest` |
+| `s:harbor-economy:673-704` | 6 | The bond ledger conserves value (this is built) | finance, moral, plumbing | no | `bond`, `conservation`, `discipline`, `enforces`, `escrow`, `escrowed` |
+| `s:harbor-economy:205-237` | 6 | - | architecture, finance, mechanics | no | `agents`, `authority`, `bond`, `capability`, `claim`, `conservation` |
+| `s:agent-transactions-whitepaper:233-269` | 7 | sec:readers-map | architecture, finance, medicine | no | `advisory`, `agents`, `artifact`, `binding`, `bond`, `capability` |
+| `s:harbor-economy:351-391` | 6 | sec:thesis | finance, mechanics, moral | no | `agents`, `bond`, `claim`, `conservation`, `discipline`, `distinct` |
+| `s:harbor-economy:1641-1687` | 6 | sec:fh-failure-modes | architecture, finance, textile | no | `adversarial`, `cost`, `harbor`, `mean`, `operator`, `pair` |
 | `s:spawn-to-person:301-351` | 5 | sec:readers-map | anatomy, architecture, finance | no | `artifact`, `authority`, `continuity`, `coordination`, `cross-operator`, `daemon` |
 | `s:spawn-to-person:579-632` | 5 | sec:role-person | anatomy, finance, textile | no | `able`, `alice`, `authority`, `capability`, `claim`, `continuity` |
-| `s:spawn-to-person:703-803` | 5 | Parfit's repair: continuity, not connectedness | anatomy, finance, moral | no | `budget`, `connectedness`, `conservation`, `continuity`, `direction`, `discipline` |
-| `s:spawn-to-person:931-950` | 5 | The canonical seam sentence (stated identically in every paper) | anatomy, architecture, finance | no | `artifact`, `claim`, `commitment`, `continuity`, `honest`, `memory` |
-| `s:spawn-to-person:951-1067` | 5 | sec:identity | anatomy, architecture, finance | no | `actor`, `binding`, `budget`, `by construction`, `claim`, `continuity` |
-| `s:spawn-to-person:2021-2241` | 5 | sec:oracle | architecture, finance, plumbing | no | `agents`, `artifact`, `bond`, `by construction`, `claim`, `conclusion` |
 | `s:spawn-to-person:2352-2407` | 5 | sec:handoff | anatomy, finance, textile | no | `artifact`, `binding`, `bond`, `closed by`, `commitment`, `continuity` |
-| `s:spawn-to-person:2408-2424` | 5 | Review of the key ideas | anatomy, finance, mechanics | no | `commitment`, `continuity`, `honest`, `identity`, `lineage`, `memory` |
-| `s:spawn-to-person:3076-3104` | 5 | sec:conclusion | architecture, mechanics, moral | no | `adversarial`, `closed by`, `continuity`, `cross-operator`, `cross-operator attestation`, `honest` |
-| `s:harbor-economy:205-237` | 6 | - | architecture, finance, mechanics | no | `agents`, `authority`, `bond`, `capability`, `claim`, `conservation` |
-| `s:harbor-economy:351-391` | 6 | sec:thesis | finance, mechanics, moral | no | `agents`, `bond`, `claim`, `conservation`, `discipline`, `distinct` |
-| `s:harbor-economy:673-704` | 6 | The bond ledger conserves value (this is built) | finance, moral, plumbing | no | `bond`, `conservation`, `discipline`, `enforces`, `escrow`, `escrowed` |
-| `s:harbor-economy:753-974` | 6 | sec:three-on-one | finance, law, mechanics | no | `ability`, `able`, `acceptance`, `artifact`, `authority`, `bond` |
-| `s:harbor-economy:1641-1687` | 6 | sec:fh-failure-modes | architecture, finance, textile | no | `adversarial`, `cost`, `harbor`, `mean`, `operator`, `pair` |
-| `s:harbor-economy:1783-1799` | 6 | Review of the key ideas | architecture, finance, mechanics | no | `bond`, `by construction`, `clear`, `conservation`, `cost`, `cross-operator` |
+| `s:legible-swarm:304-367` | 4 | How to read this paper (Reader's Map) | anatomy, mechanics, moral | no | `artifact`, `authorization chain`, `binding`, `capability`, `claim`, `compaction` |
+| `s:legible-swarm:836-903` | 4 | sec:four-questions | architecture, mechanics, theatre | no | `artifact`, `authority`, `claim`, `illegible`, `legible`, `open` |
+| `s:single-writer-kernel:2052-2136` | 1 | sec:enforcement-gap | architecture, mechanics, warfare | no | `advisory`, `agents`, `always invoked`, `author`, `authority`, `binding` |
+| `s:spawn-to-person:703-803` | 5 | Parfit's repair: continuity, not connectedness | anatomy, finance, moral | no | `budget`, `connectedness`, `conservation`, `continuity`, `direction`, `discipline` |
+| `s:single-writer-kernel:2698-2808` | 1 | sec:openproblems | anatomy, finance, plumbing | no | `artifact`, `binding`, `claim`, `closed by`, `coordination`, `durability` |
+| `s:single-writer-kernel:1409-1521` | 1 | sec:partial-observation | anatomy, finance, law | no | `bond`, `capability`, `claim`, `controllable`, `daemon`, `enforcement` |
+| `s:spawn-to-person:951-1067` | 5 | sec:identity | anatomy, architecture, finance | no | `actor`, `binding`, `budget`, `by construction`, `claim`, `continuity` |
 | `s:harbor-economy:2489-2614` | 6 | sec:adversarial-tests | architecture, finance, mechanics | no | `adversarial`, `agents`, `author`, `bond`, `bounty`, `budget` |
-| `s:harbor-economy:2615-2639` | 6 | sec:conclusion | anatomy, architecture, finance | no | `binding`, `bond`, `claim`, `conservation`, `cost`, `cross-operator` |
-| `s:agent-transactions-whitepaper:233-269` | 7 | sec:readers-map | architecture, finance, medicine | no | `advisory`, `agents`, `artifact`, `binding`, `bond`, `capability` |
-| `s:agent-transactions-whitepaper:950-967` | 7 | sec:cleanup-bound | architecture, finance, plumbing | no | `bond`, `budget`, `capability`, `cost`, `enforcement`, `float plan` |
-| `s:agent-transactions-whitepaper:1039-1063` | 7 | sec:pricing:settlement | architecture, finance, law | no | `acceptance`, `agents`, `arbiter`, `bond`, `cost`, `daemon` |
-| `s:agent-transactions-whitepaper:1064-1085` | 7 | sec:bonded-advisor | architecture, finance, moral | no | `acceptance`, `accuracy`, `advisory`, `bond`, `bonded advisor`, `budget` |
+| `s:sealed-harbor:603-761` | 3 | sec:sealed-conservation | architecture, finance, moral | no | `artifact`, `author`, `bond`, `budget`, `conservation`, `cost` |
+| `s:anchor-protocol-whitepaper:816-1000` | 2 | sec:conclusion | architecture, finance, medicine | no | `artifact`, `attenuation`, `authorization chain`, `bond`, `capability`, `claim` |
+| `s:spawn-to-person:2021-2241` | 5 | sec:oracle | architecture, finance, plumbing | no | `agents`, `artifact`, `bond`, `by construction`, `claim`, `conclusion` |
+| `s:harbor-economy:753-974` | 6 | sec:three-on-one | finance, law, mechanics | no | `ability`, `able`, `acceptance`, `artifact`, `authority`, `bond` |
 | `s:federated-harbor-whitepaper:534-759` | 8 | sec:fh-sheaf | architecture, law, mechanics | no | `adversarial`, `artifact`, `binding`, `by construction`, `claim`, `clear` |
-| `s:fig-swk-marker-decay:7-25` | 1 | - | agriculture, architecture | no | `width` |
+| `s:legible-swarm:1589-1880` | 4 | sec:lowerbound | architecture, mechanics, theatre | no | `adversarial`, `artifact`, `binding`, `budget`, `by design`, `commitment` |
+| `s:federated-harbor-whitepaper:175-175` | 8 | - | finance, medicine | no | `alice`, `attenuation`, `bond`, `capability`, `claim`, `conservation` |
+| `s:fig-worked-example:61-63` | 7 | - | finance, mechanics | no | `authority`, `capability`, `continuity`, `escrow`, `identity`, `rail` |
+| `s:federated-harbor-whitepaper:1118-1121` | 8 | sec:fh-lim-cold-start | finance, moral | no | `discipline`, `harbor`, `open`, `the bonded-sponsor pattern`, `witness` |
+| `s:federated-harbor-whitepaper:1122-1125` | 8 | sec:fh-lim-equiv | finance, medicine | no | `bond`, `open`, `root`, `witness` |
+| `s:fig-stp-parfit-chain:30-33` | 5 | - | finance, mechanics | no | `rail`, `transitive`, `width` |
+| `s:fig-he-cold-start:34-38` | 6 | - | architecture, finance | no | `state` |
+| `s:tab-fh-topology:3-7` | 6 | - | finance, mechanics | no | `authority`, `bond`, `capability`, `direction`, `harbor`, `rail` |
 | `s:fig-swk-marker-decay:28-33` | 1 | - | agriculture, architecture | no | `question` |
-| `s:single-writer-kernel:405-434` | 1 | sec:readersmap | anatomy, architecture | no | `artifact`, `author`, `claim`, `continuity`, `critical artifact`, `durability` |
-| `s:single-writer-kernel:480-489` | 1 | sec:substrate | geology, moral | no | `discipline`, `durability`, `single`, `single-writer discipline`, `the single-writer discipline` |
-| `s:single-writer-kernel:729-738` | 1 | sec:resource | anatomy, moral | no | `agents`, `claim`, `organ`, `single` |
-| `s:single-writer-kernel:925-944` | 1 | The bus: a durable carrier envelope | finance, moral | no | `coordination`, `coordination lineage`, `discipline`, `layer`, `lineage`, `machine` |
-| `s:single-writer-kernel:945-972` | 1 | Stigmergic markers: decay as a provided guarantee | agriculture, architecture | no | `coordination`, `open`, `question`, `state`, `stigmergic markers` |
-| `s:single-writer-kernel:1595-1620` | 1 | Extending the oracle vocabulary: State-Machine Assertions (OP-5) | architecture, law | no | `agents`, `claim`, `commitment`, `daemon`, `enforces`, `machine` |
-| `s:single-writer-kernel:1724-1766` | 1 | sec:invariants | anatomy, moral | no | `actor`, `binding`, `claim`, `daemon`, `discipline`, `durability` |
+| `s:federated-harbor-whitepaper:1035-1041` | 8 | sec:fh-partition | finance, moral | no | `capability`, `daemon`, `discipline`, `escrow`, `global`, `local` |
 
 ## Entries
 

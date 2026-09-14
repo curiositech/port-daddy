@@ -897,6 +897,7 @@ def _passage_record(lex: Lexicon, sf: SourceFile, scope: str, lo: int, hi: int,
         "section_title": (sec or {}).get("title"),
         "line_start": lo,
         "line_end": hi,
+        "line_span": hi - lo + 1,
         "vehicles": [{"term": v, "domain": d} for v, d in vehicles],
         "domains": domains,
         "domain_count": len(domains),
@@ -909,6 +910,23 @@ def _passage_record(lex: Lexicon, sf: SourceFile, scope: str, lo: int, hi: int,
             "candidates": deduped[:6],
         },
     }
+
+
+def _worst_first(c: dict) -> tuple:
+    """Rank a metaphor passage by how much it costs a reader.
+
+    1. Never cashed out anywhere beats cashed out in prose.
+    2. Among those, cashed out ONLY in a float caption is worst: the author
+       DID write the literal sentence and then put it where a prose reader
+       will not meet it. That is the specimen this index was built for.
+    3. Then most domains, then TIGHTEST. Without the span tiebreak a
+       chapter's 400-line Exercises block wins every time -- sixty exercises
+       accumulate vehicles by sheer length, which is a long section, not a
+       mixed metaphor.
+    """
+    co = c["cash_out"]
+    return (co["in_prose"], not co.get("only_in_float_caption"),
+            -c["domain_count"], c["line_span"], c["id"])
 
 
 def build_passages(lex: Lexicon, files: list[SourceFile]) -> PassageRegistry:
@@ -1007,11 +1025,13 @@ def metaphor_for(lex: Lexicon, files: list[SourceFile], cid: str,
             "section": sect_ids,
             "mixed_sections": mixed_sections,
             "mixed_paragraph_count": sum(1 for c in paras if c["mixed"]),
+            # Worst = never cashed out first, then most domains, then
+            # TIGHTEST. Without the span tiebreak a chapter's 400-line
+            # Exercises block wins every time: sixty exercises accumulate
+            # vehicles by sheer length, which is not a mixed metaphor, it is a
+            # long section. The collision worth reading is the dense one.
             "worst_section": next(
-                (c["id"] for c in sorted(sects, key=lambda c: (-c["domain_count"],
-                                                               c["cash_out"]["in_prose"],
-                                                               c["id"])) if c["mixed"]),
-                None),
+                (c["id"] for c in sorted(sects, key=_worst_first) if c["mixed"]), None),
         },
     }
 
@@ -1490,7 +1510,7 @@ def render_md(index: dict) -> str:
             concepts_in[pid].append(e["id"])
     rows = [p for p in index["metaphor_passages"]
             if p["scope"] == "section" and p["mixed"] and not p["cash_out"]["in_prose"]]
-    rows.sort(key=lambda p: (-p["domain_count"], p["chapter"], p["file"], p["line_start"]))
+    rows.sort(key=_worst_first)
     for p in rows[:60]:
         L.append("| `%s` | %s | %s | %s | %s | %s |" % (
             p["id"], p["chapter"],
@@ -1582,7 +1602,7 @@ def print_entry(entry: dict, passages: dict[str, dict],
         if not combos:
             continue
         head("METAPHOR COMBINATIONS -- %s scope (%d mixed)" % (scope, len(combos)))
-        for c in sorted(combos, key=lambda c: (-c["domain_count"], c["id"]))[:6]:
+        for c in sorted(combos, key=_worst_first)[:6]:
             print("  [%s]  %s:%d-%d  ch.%s  %s -- %s" % (
                 c["id"], c["file"], c["line_start"], c["line_end"], c["chapter"],
                 c["section"] or "(unlabelled)", c["section_title"]))
