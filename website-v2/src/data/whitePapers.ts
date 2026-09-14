@@ -1050,7 +1050,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     overviewHref: '/whitepaper?paper=federated-harbor',
     date: 'August 2026',
     pages: 46,
-    sizeKb: 822,
+    sizeKb: 801,
     status: 'Version 1.1 (textbook edition)',
     order: '08',
     chapter: 8,
