@@ -290,6 +290,34 @@ jobs:
       - name: Semantic figure atlas covers every canonical figure (no drift from textbook.json)
         run: python3 skills/whitepaper-figure-system/scripts/check_atlas_coverage.py
 
+      # The figure gate's own tests. A suite that checks the checkers and is
+      # not itself checked is the same defect one layer up -- this one was red
+      # for six days because nothing ran it.
+      #
+      # The count floor is this job's convention and this job's reason: a module
+      # that cannot import is ONE error in a run that still prints "Ran N
+      # tests", which is how 11 page-measurement tests went missing above.
+      # Raise the floor when the suite grows.
+      #
+      # `claude/figcheck-suite-repair` adds this same step with a floor of 86.
+      # If that branch lands first this is a one-number conflict on the floor,
+      # which is the right kind of conflict: the higher number is the correct
+      # one, because the suite only ever grows.
+      - name: figcheck T1-T10 and tikz_precheck unit tests (the figure gate's own tests)
+        run: |
+          set -euo pipefail
+          out=$(python3 -m unittest discover -s skills/harbor-chartwork/tests -p 'test_*.py' 2>&1) || suite_failed=1
+          echo "$out"
+          if [ "${suite_failed:-0}" = "1" ]; then
+            echo "::error::the harbor-chartwork figure-gate suite failed; its output is above"
+            exit 1
+          fi
+          ran=$(printf '%s' "$out" | sed -n 's/^Ran \([0-9]*\) tests.*/\1/p')
+          if [ "${ran:-0}" -lt 163 ]; then
+            echo "::error::the harbor-chartwork suite ran ${ran:-0} tests, fewer than the 163 it has; a module failed to import"
+            exit 1
+          fi
+
       - name: Banned phrases ("held to account", "load-bearing") never appear in prose
         run: node scripts/lint/check-banned-phrases.mjs
 
