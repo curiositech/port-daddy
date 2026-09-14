@@ -3,16 +3,23 @@ r"""Tests for scripts/harbor-research/check_absent_data_captions.py.
 
 stdlib-only, no TeX: the brace-counting caption scanner is fed the shapes a real
 caption takes (\ref, \texttt, math, nested braces, an optional short caption,
-a commented-out caption), and the finder is fed the caption that actually
+a commented-out caption), and the finder is fed the caption that once
 shipped -- Figure 4.5's "The committed sweep CSV (r1-floor.csv) is not yet
 present" -- beside the honest boundary prose the check must leave alone.
 
+That caption is history. The R1 sweep CSV is now committed at
+whitepaper/figures/data/r1-floor.csv, the caption states what the measurement
+shows, and the CI step runs with no --allow. The corpus test therefore asserts
+the corpus is *clean* rather than pinning one known debt.
+
 The mutation tests are the point: a check that cannot be made to fail is not
-evidence of anything. So the check is run against the real corpus and asserted
-to find exactly the one caption the workflow records and nothing else; a second
-apology in an already-excepted file is asserted to still fail; and the scanner
-is asserted to have actually read the corpus's captions, since a scanner that
-read nothing would also report nothing and look just as green.
+evidence of anything. So the synthetic fixtures still prove the finder fires on
+the shipped phrasing and stays quiet on honest scope prose; a second apology in
+an already-excepted file is asserted to still fail; the scanner is asserted to
+have actually read the corpus's captions, since a scanner that read nothing
+would also report nothing and look just as green; and the paid debt is guarded
+from the dishonest fix -- deleting the sentence without committing the data --
+by asserting the CSV exists and the figure cites it.
 
 Run:
     python3 -m unittest discover -s tests/harbor-research
@@ -30,7 +37,6 @@ sys.path.insert(0, str(REPO_ROOT / "scripts" / "harbor-research"))
 import check_absent_data_captions as cadc  # noqa: E402
 
 REAL = "whitepaper/figures/legible-swarm-readpoverty.tex"
-KEY = f"{REAL}:not yet present"
 
 
 class TestCaptionScanner(unittest.TestCase):
@@ -104,12 +110,25 @@ class TestFindAbsent(unittest.TestCase):
 
 
 class TestAgainstTheRealCorpus(unittest.TestCase):
-    def test_the_known_caption_is_the_only_one_in_the_corpus(self):
+    def test_no_caption_in_the_corpus_says_its_data_is_absent(self):
+        # This test used to pin exactly one caption (Figure 4.5's "not yet
+        # present") as a known, allowed debt. That debt is paid: the R1 sweep
+        # CSV is committed at whitepaper/figures/data/r1-floor.csv and the
+        # caption now states what the measurement shows. The corpus is clean,
+        # the CI step runs with no --allow, and this test holds it there.
         found = cadc.find_absent(cadc.sources())
-        self.assertEqual([f"{rel}:{phrase}" for rel, _, phrase, _ in found], [KEY])
+        self.assertEqual(
+            [f"{rel}:{phrase}" for rel, _, phrase, _ in found], [],
+            "a figure caption again says its data is absent; commit the data or "
+            "rewrite the caption rather than adding an --allow back",
+        )
 
-    def test_the_recorded_exception_clears_the_corpus(self):
-        self.assertEqual(cadc.find_absent(cadc.sources(), allow={KEY}), [])
+    def test_the_figure_that_carried_the_debt_now_cites_its_data(self):
+        # Guard the other half: the caption could be cleaned by deleting the
+        # sentence and never committing the CSV, which is the dishonest fix.
+        csv = cadc.REPO / "whitepaper" / "figures" / "data" / "r1-floor.csv"
+        self.assertTrue(csv.is_file(), f"{csv} is missing; Figure 4.5's overlay has no data")
+        self.assertIn("r1-floor.csv", (cadc.REPO / REAL).read_text(encoding="utf-8"))
 
     def test_the_scanner_actually_reaches_the_corpus_captions(self):
         # A check that read nothing would also report nothing; count what it read.

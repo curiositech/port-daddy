@@ -979,12 +979,52 @@ At the round number $\rho=0.5$: $g(0.5,2)=1+2(0.5)-0.5^2=1.75$ [verified, closed
 
 \pitfall{Eq.~\ref{eq:specboundary} prices \emph{mean} response time under
 first-come-first-served exponential service. It does not price the tail, and it does
-not price the corner the whole sole-responsibility discipline exists for: the sole
-specialist \emph{failing}, which is an $M/M/1$ queue with breakdowns and a
-succession protocol, not the queue modeled here. Nor does it price the thing an
-operator actually values in a roadmap owner --- consistency of judgment across
-requests --- which does not appear in a response-time objective at all. The
-boundary is a floor on the argument, not the whole argument.}
+not price the thing an operator actually values in a roadmap owner ---
+consistency of judgment across requests --- which does not appear in a
+response-time objective at all. The corner the whole sole-responsibility
+discipline exists for, the sole specialist \emph{failing}, is priced in
+\S\ref{sec:succession-corner} below, and priced under an assumption worth
+reading before the formula.}
+
+\subsubsection{The succession corner, and who prices it}\label{sec:succession-corner}
+
+Eq.~\ref{eq:specboundary} assumes a specialist who never stops. The corner the
+whole discipline exists for is the one where they do: they crash, are reaped,
+quit, or are reassigned, and a successor spins up. That corner \emph{is}
+priced, in closed form, and it is priced in
+\pdchapref{he}{The Harbor Economy} rather than here --- the result is a
+condition on what a succession plan costs, which is an economic statement, and
+the economy chapter carries it as the price of the succession rule%
+\ifpdbook
+\ (Thm.~\ref{he:thm:succession-price})%
+\fi
+, with its own verification and its own boundary. Two of its consequences belong in
+this chapter's argument, because they change what a sole-responsibility role
+means rather than what it costs.
+
+The first is that skill has a ceiling here. With death at rate $\xi$ and
+succession at rate $\eta$, the sole owner's mean response time decreases in
+skill but never below
+\[
+W_\infty=\frac{\xi}{\eta(\xi+\eta)},
+\]
+the residual downtime a request meets when it arrives during an outage. No
+premium buys that back, so past a point the honest fix for a slow sole role is
+a better handoff and not a better owner. The second is that the ceiling can
+bind absolutely: writing $K$ for what the pool costs including accountability,
+pooling wins at \emph{every} skill premium once $\xi/\eta$ clears the
+succession price $D^\star=\eta K/(1-\eta K)$ --- and, in the case worth
+remembering, only while $\eta K<1$. Where succession is fast enough that
+$\eta K\ge 1$ there is no such threshold at all and sole ownership cannot be
+ruled out on response time, which is the more common situation in a
+well-run fleet and the one a reader is likeliest to be in.
+
+\pdthesis{Both statements rest on a modelling choice the economy chapter
+declares and this one inherits: the specialist can die \emph{at any time},
+not only while serving. Under active-only breakdowns a fast enough specialist
+escapes the floor entirely and $D^\star$ does not exist. The choice is right
+for an owner who is reassigned or dead rather than worn out, and it is a
+choice, not a derivation.}
 
 \subsubsection{What heavy tails do to the boundary}\label{sec:spec-heavy-tails}
 
@@ -1882,6 +1922,68 @@ A performative cannot be addressed until the swarm knows who exists. The
 \emph{directory substrate} --- the existence layer a message must address --- belongs
 with the discovery story, so we treat it here.
 
+\paragraph{Three losses, named before they collide.} This section and the next
+two prove that certain read surfaces cannot share a scoring head
+(Thm.~\ref{thm:split-ranker}, Thm.~\ref{thm:split-digest}). Those are
+impossibility results, and an impossibility result is only as legible as the
+objects it says cannot be identified. Three distinct losses run through the rest
+of the chapter, and a reader who has not seen them side by side will meet them
+one at a time, several pages apart, and reasonably assume they are three
+weightings of one thing. They are not, and Table~\ref{tab:ls-three-losses} is
+the inventory: what each reads, what it optimizes, in what units it is wrong,
+and who consumes the answer.
+
+\begin{table}[H]
+\centering
+\caption{The three loss functions of this chapter, in the order they are
+introduced. Two are minimized over \emph{compactions} of one trace; one is
+maximized over \emph{candidates} for one query --- they are not commensurable
+objects, and that is the first reason no single head serves them. The
+impossibility results (Thm.~\ref{thm:split-ranker},
+Thm.~\ref{thm:split-digest}) concern the pairs that \emph{are} commensurable:
+rows~1--2 rank the same items, and rows~2--3 score the same trace. [internal]}
+\label{tab:ls-three-losses}
+\small
+\renewcommand{\arraystretch}{1.3}
+\begin{tabularx}{\linewidth}{@{}p{0.155\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.19\textwidth}@{}}
+\toprule
+\textbf{Loss} & \textbf{Input space / what is optimized over} & \textbf{Objective and loss metric} & \textbf{Target consumer} \\
+\midrule
+Directory candidate fit \newline (\S\ref{sec:relevance})
+& a (candidate, query) pair $(c,q)$; optimized over the live candidate set
+& \emph{Maximize} $\mathrm{fit}(c,q)=\mathrm{clamp}(z(c,q),0,1)$,
+Eq.~\ref{eq:fit}. Wrongness is measured in \emph{mis-routing}: a capable
+candidate ranked below an incapable one
+& the routing agent, choosing who to ask \\
+Human oversight regret \newline (\S\ref{sec:sdt}, \S\ref{sec:tokens-digest})
+& a compaction $D$ of a trace $E$; optimized over what to surface under budget
+& \emph{Minimize} $L_{\mathrm{op}}(D)=\sum_{e\in E\setminus D}\mathrm{regret}(e)$
+with $\mathrm{regret}=\mathrm{stakes}\times\mathrm{irrev}\times\mathrm{anomaly}$
+(Eq.~\ref{eq:regret}). Wrongness is measured in \emph{unreviewed
+irreversible loss}
+& the human operator, deciding whether to intervene \\
+Successor continuation \newline (\S\ref{sec:tokens-digest})
+& a compaction $D$ of the same trace $E$
+& \emph{Minimize}
+$L_{\mathrm{succ}}(D)=\mathrm{KL}\bigl(P_{\mathrm{next}}(\cdot\mid E)\,\|\,P_{\mathrm{next}}(\cdot\mid D)\bigr)$.
+Wrongness is measured in \emph{bits of predictive divergence} about the next
+action
+& the successor agent, resuming the task \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\noindent Read the table as the setup for two crossing pairs rather than as a
+taxonomy for its own sake. Rows~1 and~2 both induce an order on items and
+disagree on the pair (safe capable completion, dangerous incapable proposal) ---
+that is Thm.~\ref{thm:split-ranker}. Rows~2 and~3 both score compactions of one
+trace and disagree on the pair (routine working detail, dead-end breach
+attempt) --- that is Thm.~\ref{thm:split-digest}. Rows~1 and~3 never meet: they
+do not range over the same objects, so there is no impossibility to prove
+between them and none is claimed. The general statement underneath both
+crossings is comonotonicity (Thm.~\ref{thm:comonotone}), which is why this
+chapter has one theorem with two applications rather than two coincidences.
+
 \subsection{Existence: the yellow pages (a solved shape)}\label{sec:existence}
 
 The canonical prior art is forty years old. \textbf{FIPA} (\emph{Foundation for
@@ -2755,7 +2857,41 @@ skill premium --- then check whether that rate is above or below the one an oper
 can actually promise.
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-succession-corner}
-Let the specialist die at rate $\xi$ and a successor take over after $\mathrm{Exp}(\eta)$: the exact breakdown-corrected wait is $W_{\mathrm{bd}}=(1+\mu_{\mathrm{spec}}\xi/(\xi+\eta)^2)/(\mu_{\mathrm{eff}}-\lambda)$, with infimum $W_\infty=\xi/(\eta(\xi+\eta))$ as $\mu_{\mathrm{spec}}\to\infty$ --- skill cannot buy back downtime past that floor. Writing $K=A/(w\lambda)+W_{\mathrm{pool}}$, pooling dominates at \emph{every} skill premium once $\xi/\eta > D^\star = \eta K/(1-\eta K)$: this is the succession-rate threshold the question asks for, and it is a closed-form price on the succession protocol, not on the specialist's skill. Whether that threshold sits above or below what an operator can actually promise is an empirical question about the concrete repair process (on-call depth, handoff quality, documentation): if the promised $\eta$ implies $\xi/\eta>D^\star$, no amount of hiring a better specialist recovers sole ownership, and the honest fix is a succession plan, not a stronger specialist. (Exercise~\ref{ex:ls-b8-specialization-run} runs the closed form numerically.)
+The corner is priced in closed form, and the result belongs to
+\pdchapref{he}{The Harbor Economy}%
+\ifpdbook
+, which carries it as Thm.~\ref{he:thm:succession-price}%
+\fi
+; \S\ref{sec:succession-corner} states the two consequences that matter here.
+The route: with death at rate $\xi$ and succession at rate $\eta$ the sole
+owner's mean wait decreases in skill to an infimum
+$W_\infty=\xi/(\eta(\xi+\eta))$, the residual downtime a request meets when it
+arrives during an outage, which it never attains --- so skill cannot buy back
+downtime past that floor. Writing $K=A/(w\lambda)+W_{\mathrm{pool}}$ for the
+pool's cost line, pooling dominates at \emph{every} skill premium iff the floor
+has reached that line, $W_\infty\ge K$, which rearranges to
+$\xi/\eta\ge D^\star=\eta K/(1-\eta K)$. Whether that threshold sits above or
+below what an operator can promise is an empirical question about the concrete
+handoff process (on-call depth, handoff quality, documentation): if the
+promised $\eta$ implies $\xi/\eta>D^\star$, no amount of hiring a better
+specialist recovers sole ownership, and the honest fix is a succession plan,
+not a stronger specialist.
+
+\emph{Two corrections on record, both local.} First, this solution used to give
+$D^\star$ unconditionally. It presupposes $\eta K<1$; where succession is fast
+enough that $\eta K\ge1$ the floor never reaches the cost line, $D^\star$ does
+not exist, and the criterion does not apply rather than being satisfied --- and
+that is the more common case in a well-run fleet, so the missing proviso was
+not a corner. Second, the closed form for $W_{\mathrm{bd}}$ was called
+``exact'' here without naming the model that makes it exact: death \emph{at all
+times} with preemptive resume. Under active-only breakdowns --- the specialist
+can fail only while serving --- a faster specialist does less work and so
+suffers fewer failures, the floor is $0$, and $D^\star$ does not exist at all.
+The formula is exact, and the economy chapter's own boundary declares the model
+choice as decisive; what was wrong was stating the result without it.
+(Exercise~\ref{ex:ls-b8-specialization-run} runs the never-failing boundary
+numerically; \texttt{b8\_specialization.py} checks the breakdown form against a
+matrix-geometric solution and a Gillespie simulation.)
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:ls-b8-specialization-run}
 Run \texttt{python3 skills/harbor-results/scripts/b8\_specialization.py} and read off
@@ -3266,7 +3402,9 @@ Calibrating discovery-ranker weights with no ground truth (Ex.~\ref{ex:ls-implic
 Decay-vs-summary boundary (Ex.~\ref{ex:ls-decay-vs-summary}) & $\star$ & Prop.~\ref{prop:decay} \\
 Legibility's information-theoretic lower bound (Ex.~\ref{ex:ls-adversarial-critical-set}) & $\star\star\star$ & Thm.~\ref{thm:lowerbound} \\
 The ranker-as-political-organ regress (Ex.~\ref{ex:ls-ranker-political-organ}) & $\star\star$ & Prop.~\ref{prop:legible-sovereign} \\
-The succession corner of the specialization boundary (Ex.~\ref{ex:ls-succession-corner}) & $\star\star$ & Thm.~\ref{thm:specialization} \\
+The succession corner \emph{beyond the mean}: tail response, and consistency of
+judgment, neither of which the succession price covers
+(Ex.~\ref{ex:ls-succession-corner}) & $\star\star$ & \S\ref{sec:succession-corner} \\
 \bottomrule
 \end{tabular}
 \caption{The paper's open problems, consolidated from the starred exercises, with
