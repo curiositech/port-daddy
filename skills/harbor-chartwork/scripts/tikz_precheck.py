@@ -15,7 +15,7 @@ Checks (hard, fail the build unless noted):
     caption's bolded lead sentence) or inside a title-styled node/pgfplots
     axis title (heuristic, not a full parse -- see find_title_texts()).
 
-  Numbered rules (P10-P14), evaluated against the fragment with LaTeX
+  Numbered rules (P10-P19), evaluated against the fragment with LaTeX
   comments stripped (an unescaped `%` to end of line) so a `\tiny` or
   `\resizebox` mentioned only in a comment never fires:
   - P10 tiny        (FAIL) any `\tiny` in the fragment.
@@ -33,7 +33,7 @@ Checks (hard, fail the build unless noted):
 
   The typographic law (figures/pd-figure-language.tex). One size for every
   named text role; roles separate by weight, slope, family and ink. These
-  three rules are what makes the style file binding rather than advisory --
+  five rules are what makes the style file binding rather than advisory --
   before them, half the fragments in the Book opted out of the house styles
   by restating typography locally, and the corpus had no single voice. They
   do not apply to the style-definition files themselves (see
@@ -53,6 +53,20 @@ Checks (hard, fail the build unless noted):
                      same thing and keeps the edition overrides working.
                      `hhpaper` is exempt: it is the ground, not an ink (a
                      knockout backing or a halo ring around a mark).
+  - P18 node-family (FAIL) a `font=` naming a type FAMILY (`\sffamily`,
+                     `\rmfamily`, `\ttfamily`, `\fontfamily{..}`). Figure
+                     type inherits the document's own face -- Palatino in the
+                     Book, Computer Modern in a standalone chapter -- so a
+                     fragment asking for sans gets Latin Modern Sans against a
+                     Computer Modern page and reads as a foreign object on it.
+                     An EDITION may substitute a face, in one command in one
+                     file; a fragment may not. The identifier face is asked
+                     for by role (`pd mono label`), not by `\ttfamily`.
+  - P19 figmath     (FAIL) `\pdfigmath` applied to a math group with no sub-
+                     or superscript. That macro forces a size one notch ABOVE
+                     the law's, and the only thing that buys is a subscript
+                     over figcheck's 7pt floor. On plain math it is just a
+                     label set larger than its neighbours.
 
 Usage:
   tikz_precheck.py FRAGMENT.tex [FRAGMENT.tex ...]
@@ -105,6 +119,7 @@ CHAPTER_STYLE_NAMES = {
     # of the above, so an edition override on the parent reaches it.
     "pd decision", "pd mono label", "pd verdict", "pd reverse label",
     "pd reverse row label", "pd legend", "pd axis",
+    "pd kind tag", "pd badge",
 }
 # The subset of the above whose definition already bakes in `align=` or
 # `text width=` -- so a multi-word node using one of these does not need its
@@ -114,6 +129,7 @@ CHAPTER_SAFE_STYLES = {
     "pd panel title", "pd direct label", "pd note",
     "pd state", "pd terminal", "pd actor", "pd artifact",
     "pd decision", "pd mono label", "pd verdict", "pd reverse label",
+    "pd kind tag", "pd badge",
 }
 
 RESEARCH_STYLE_NAMES = {"relnode", "relarrow", "regimebox"}
@@ -151,7 +167,7 @@ STYLE_DEF_RE = re.compile(r"([A-Za-z][A-Za-z0-9 _-]*?)/\.style\s*=\s*\{")
 # Numbered rule ids introduced alongside the original, unnumbered checks
 # above. Kept in one place so the summary/"counts per id" machinery and the
 # markdown report can iterate them without hardcoding the list twice.
-RULE_IDS = ["P10", "P11", "P12", "P13", "P14", "P15", "P16", "P17"]
+RULE_IDS = ["P10", "P11", "P12", "P13", "P14", "P15", "P16", "P17", "P18", "P19"]
 
 # The files that ARE the one place the typographic law lives. P15-P17 police
 # fragments for opting out of those files; running them against the files
@@ -197,6 +213,12 @@ RULE_EQUIVALENT = {
 # A LaTeX size command, in any of the forms a fragment has actually used.
 SIZE_COMMAND_RE = re.compile(
     r"\\(tiny|scriptsize|footnotesize|small|normalsize|large|Large|LARGE|huge|Huge|fontsize)\b"
+)
+# A LaTeX family selection. \ttfamily is on the list: a fragment that wants the
+# identifier face takes `pd mono label`, which is the one place the mono face
+# and its side bearing are decided.
+FAMILY_COMMAND_RE = re.compile(
+    r"\\(sffamily|rmfamily|ttfamily|fontfamily|sfdefault|rmdefault|ttdefault|usefont)\b"
 )
 FONT_KEY_RE = re.compile(r"\bfont\s*=\s*")
 
@@ -683,6 +705,76 @@ def check_node_font_size(text):
     return findings
 
 
+def check_node_font_family(text):
+    """P18: any `font=` naming a type family. The figure's face is the
+    document's face; an edition substitutes it in one command in one file, and
+    a fragment never does. `\\sffamily` against a Computer Modern page
+    resolves to Latin Modern Sans and reads as a foreign object on it -- the
+    exact complaint that sent this rule in."""
+    findings = []
+    stripped = strip_comments(text)
+    for m in FONT_KEY_RE.finditer(stripped):
+        value = _font_value_at(stripped, m.end())
+        fm = FAMILY_COMMAND_RE.search(value)
+        if not fm:
+            continue
+        line = stripped.count("\n", 0, m.start()) + 1
+        findings.append(
+            {
+                "check": "node-family",
+                "id": "P18",
+                "severity": "fail",
+                "line": line,
+                "message": f"font={value!r} names the type family \\{fm.group(1)} -- figure "
+                f"type inherits the document's own face; for an identifier take "
+                f"'pd mono label', and leave any other substitution to an edition",
+            }
+        )
+    return findings
+
+
+FIGMATH_RE = re.compile(r"\\pdfigmath\b")
+
+
+def check_figmath(text):
+    """P19: `\\pdfigmath` is the one licensed exception to the one-size law,
+    and it is licensed for one reason -- a sub- or superscript inside a
+    `\\pdfiglabelsize` label renders under figcheck's 7pt floor (measured:
+    5.98pt in a chapter, 6.36pt in the Book). Used on math that carries
+    neither, it is not an exception; it is a label set a notch larger than the
+    ones beside it. Looks at the rest of the enclosing braced group, which is
+    how the macro is always written: `{\\pdfigmath $x_i$}`."""
+    findings = []
+    stripped = strip_comments(text)
+    for m in FIGMATH_RE.finditer(stripped):
+        depth, i, n = 0, m.end(), len(stripped)
+        while i < n:
+            c = stripped[i]
+            if c == "{":
+                depth += 1
+            elif c == "}":
+                if depth == 0:
+                    break
+                depth -= 1
+            i += 1
+        scope = stripped[m.end() : i]
+        if "_" in scope or "^" in scope:
+            continue
+        line = stripped.count("\n", 0, m.start()) + 1
+        findings.append(
+            {
+                "check": "figmath",
+                "id": "P19",
+                "severity": "fail",
+                "line": line,
+                "message": f"\\pdfigmath governs {scope.strip()[:40]!r}, which carries no sub- or "
+                f"superscript -- it exists only to lift a subscript over the 7pt floor, "
+                f"so here it just sets one label larger than its neighbours",
+            }
+        )
+    return findings
+
+
 PAINT_CMD_RE = re.compile(r"\\(fill|draw|path|addplot)\b")
 
 
@@ -869,6 +961,8 @@ def run_precheck(path, corpus="auto", extra_style_defs=None, extra_colors=None):
     if resolved_corpus != "research" and not is_style_definition(path):
         findings += check_style_font_override(text, base_names)
         findings += check_node_font_size(text)
+        findings += check_node_font_family(text)
+        findings += check_figmath(text)
         findings += check_hard_ink(text)
     findings += check_colors(text, base_colors, known_names)
     findings += check_node_wrapping(text, safe_styles)

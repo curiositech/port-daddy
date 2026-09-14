@@ -34,6 +34,21 @@
 % unstyled node is never SMALLER than a styled one; every named role steps
 % down exactly one notch from it and none steps down twice.
 %
+% ONE FACE, AND IT IS THE DOCUMENT'S. \pdfiglabelfamily is empty by default,
+% which means figure type inherits whatever face the document is setting --
+% Palatino in the Book, Computer Modern in a standalone chapter. Figures
+% agreeing with EACH OTHER is not the goal; figures agreeing with the
+% paragraph beside them is. A fragment therefore never names a family. Not
+% \sffamily (which resolves to Latin Modern Sans against a Computer Modern
+% page and reads as a foreign object on it), not \rmfamily, not
+% \fontfamily{...}. P18 in tikz_precheck.py is an error for exactly that.
+% An edition MAY substitute a face -- the Swiss and technical editions set
+% \pdfiglabelfamily to \pdgrotesk, because grotesk display is their declared
+% character -- and it does so in ONE command in ONE file, so the substitution
+% is a decision on the record rather than an accident in a fragment. The
+% only family a fragment may ask for is the identifier one, and it asks for
+% it by role (pd mono label / \pdfiglabelmono), never by \ttfamily.
+%
 % What the roles are, and what each one is for:
 %   pd panel title        bold        the name of a panel
 %   pd row label          bold        an actor/row name east of its lane
@@ -69,6 +84,28 @@
 % is never shrunk to fit, because there is no size below \footnotesize to shrink
 % to, and never clipped. Do not add a hover affordance, a legend toggle, or a
 % filter to a figure in this book.
+%
+% IDENTIFIERS GET ONE SPELLING. A key, a cell id, a file name or any other
+% literal a reader could type is set in `pd mono label` (or \pdfiglabelmono
+% inside a compound style), spelled exactly as the code spells it: sk_A, not
+% skA and not sk with a subscript A; card0, not card-nought and not a Unicode
+% subscript zero. A figure that shows the same identifier two ways has told
+% the reader they are two things. The subscripted form belongs to MATHEMATICS
+% ($\kappa_7$, an index into a sequence) and the literal form to CODE -- one
+% figure may use both, for different objects, but never both for the same
+% one. (A precheck for two spellings of one identifier inside a fragment is
+% being added on another branch; this is the convention it will enforce.)
+%
+% SHAPE IS A CHANNEL, AND IT HAS TO SURVIVE THE PRINT SIZE. pd datum, pd
+% focus datum and pd caution datum carry three different forms, because the
+% house palette is three low-chroma print inks and every distinction it makes
+% has to be doubled by something that is not colour. That only counts if the
+% form is still legible at 2.1-2.7 pt: an edition that flattens all three to
+% one form has removed the second channel and left the figure separating its
+% classes by hue alone, which fails in greyscale and for a colour-blind
+% reader. Any edition override that restyles a datum must keep three
+% distinguishable forms, and must be checked on a render at 1.0x, not
+% reasoned about from the point sizes.
 %
 % One screen rule that does NOT bind here, and why. "Text never wears the data
 % colour" exists because a light categorical hue is illegible as text on a
@@ -120,7 +157,13 @@
   pd row label/.style={font=\pdfiglabelbold,text=hhink,anchor=east},
   pd panel title/.style={font=\pdfiglabelbold,text=hhink,align=left},
   pd axis label/.style={font=\pdfiglabel,text=hhink!80!hhgray},
-  pd direct label/.style={font=\pdfiglabel,text=hhink,align=left,inner sep=1.5pt,fill=hhpaper},
+  % inner ysep is deliberately larger than inner xsep: at 1.5pt the descenders
+  % of a last line (q, y, p, g) reach the bottom of the cream backing under
+  % Computer Modern, where they clear it under Palatino. A label should not
+  % need its own patch to hold its own tails, and the sensitivity is the
+  % face's, not the fragment's.
+  pd direct label/.style={font=\pdfiglabel,text=hhink,align=left,
+    inner xsep=1.5pt,inner ysep=2.5pt,fill=hhpaper},
   pd note/.style={font=\pdfiglabelitalic,text=hhink!80!hhgray,align=left},
   pd tick/.style={draw=hhgray,line width=.45pt},
   pd datum/.style={circle,fill=hhink,draw=none,inner sep=2.1pt},
@@ -154,11 +197,22 @@
   % A shade more side bearing than its parent: a monospace glyph box overhangs
   % its own advance width, so the cream backing at the parent's 1.5pt clipped
   % the last character of a long identifier.
-  pd mono label/.style={pd direct label,font=\pdfiglabelmono,inner sep=2.5pt},
+  pd mono label/.style={pd direct label,font=\pdfiglabelmono,inner xsep=2.5pt,inner ysep=2.5pt},
   pd verdict/.style={pd direct label,font=\pdfiglabelbold},
   pd reverse label/.style={pd direct label,text=hhpaper,fill=none},
   pd reverse row label/.style={pd row label,text=hhpaper},
   pd legend/.style={font=\pdfiglabel,text=hhink,draw=none,fill=none},
+  % A KIND TAG names what a row or column IS, rather than what it says: an
+  % audience ("for the operator"), a category, a running head. craft-rules S6
+  % already reserves small caps for exactly this, and small caps is the
+  % smallest effective difference that marks a change in kind -- it needs no
+  % size drop, no second colour and no box.
+  pd kind tag/.style={pd axis label,font=\pdfiglabel\scshape,align=right},
+  % A BADGE is a short boxed fact riding beside a row -- a part and chapter
+  % range, a version, a count. Hairline edge, no fill: it is a label with a
+  % boundary, not a region.
+  pd badge/.style={pd hairline,font=\pdfiglabel,text=hhink,align=center,
+    inner sep=2.4pt,fill=none},
 }
 
 % The pgfplots half of the same law. Before this existed, every plot fragment
