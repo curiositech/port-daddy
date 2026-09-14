@@ -33,8 +33,14 @@
   \node[lane,pd terminal] (A4) at (8.6,7.2) {release\\$g=0$};
   \node[lane,pd terminal] (B4) at (8.6,4.6) {release\\$g=0$};
   \draw[pd arrow] (A3) -- (A4); \draw[pd arrow] (B3) -- (B4);
-  \draw[tie] (8.6,6.84) -- (8.6,6.30);
-  \draw[tie] (8.6,5.50) -- (8.6,4.96);
+  % Started lower than the ties at x=0/2.8/5.6, and for a reason those do not
+  % have: A4 and B4 are `pd terminal`, whose double border puts a second rule
+  % 1.2pt inside the box, so their two-line text sits lower in the node than a
+  % plain `lane`'s single line does. At 6.84 this tie ran 1.0pt into the font
+  % box of `$g=0$` -- which figcheck T4 reports and which is pre-existing, not
+  % introduced by the typography pass.
+  \draw[tie] (8.6,6.66) -- (8.6,6.30);
+  \draw[tie] (8.6,5.50) -- (8.6,5.14);
   \node[tiemark] at (8.6,5.9) {$\equiv$};
   % --- the mutation: honest gate replaced by one that leaks the raw secret ---
   \draw[pd caution arrow] (8.6,3.85) -- (8.6,3.42);

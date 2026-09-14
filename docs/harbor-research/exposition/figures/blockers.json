@@ -1,21 +1,5 @@
 [
   {
-    "id": "appendix-figures",
-    "fragment": "website-v2/public/whitepaper/figures/appendix-figures.tex",
-    "chapter": 2,
-    "checks_failed": [
-      "T1",
-      "T2",
-      "T3",
-      "T4"
-    ],
-    "first_seen": "2026-09-14",
-    "waiver": {
-      "reason": "pre-existing and measured: at the merge base c92efaa5c this fragment already failed T1x31, T2x2, T3x4, T4x10 under the Book preamble, and the typography PR that pulled it into gate scope REDUCED that to T1x20, T2x2, T3x4, T4x9. It is also six \\begin{figure} environments in one file that float onto two pages, so a per-fragment gate measures six figures as one; and no chapter root \\inputs it. Its real remedy is deletion or a redraw by whoever owns Appendix B, not a typography change.",
-      "expires": "2026-10-31"
-    }
-  },
-  {
     "id": "fig-anchor-alg-confusion",
     "fragment": "website-v2/public/whitepaper/figures/fig-anchor-alg-confusion.tex",
     "chapter": 2,
@@ -198,19 +182,6 @@
     }
   },
   {
-    "id": "fig-fh-settlement",
-    "fragment": "website-v2/public/whitepaper/figures/fig-fh-settlement.tex",
-    "chapter": 4,
-    "checks_failed": [
-      "T3"
-    ],
-    "first_seen": "2026-09-14",
-    "waiver": {
-      "reason": "pre-existing: 'compensate claimant' ran into panel B's 'funded' label at the merge base too (20.8% of the smaller bbox there, 17.7% here -- this PR reduced it). Panel A's note has 3.2cm of room and the text needs 2.8cm of it; wrapping the note was tried and is worse, because CLEAR sits 0.37 units above it and the second line collides with that instead. The fix is to widen the gap between the two panels, which is a redraw.",
-      "expires": "2026-10-31"
-    }
-  },
-  {
     "id": "fig-fh-threat-bands",
     "fragment": "website-v2/public/whitepaper/figures/fig-fh-threat-bands.tex",
     "chapter": 8,
@@ -346,19 +317,6 @@
     "first_seen": "2026-09-07",
     "waiver": {
       "reason": "condemned by Wave 11 triage and scheduled for redraw; the mechanical failure is the condition the redraw exists to end",
-      "expires": "2026-10-31"
-    }
-  },
-  {
-    "id": "fig-sealed-two-worlds",
-    "fragment": "website-v2/public/whitepaper/figures/fig-sealed-two-worlds.tex",
-    "chapter": 6,
-    "checks_failed": [
-      "T4"
-    ],
-    "first_seen": "2026-09-14",
-    "waiver": {
-      "reason": "pre-existing and marginal: identical at the merge base. A 0.86pt focus arrow arriving at a pd terminal node overlaps the FONT box of '$g=0$' by 1.0pt. That run has no descenders, so the overlap is in the font's descender space rather than in ink. Clearing it means adding inner ysep to the shared pd state/pd terminal styles, which moves every state node in the corpus -- a change that deserves its own measurement rather than riding a typography PR.",
       "expires": "2026-10-31"
     }
   },
