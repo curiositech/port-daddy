@@ -1,5 +1,5 @@
 {
-  "figure": "fig-swk-consistency-model",
+  "figure": "fig-stp-nomint-lineage",
   "page_count": 1,
   "params": {
     "min_font_pt": 7.0,
@@ -50,11 +50,11 @@
   "ink": [
     {
       "page": 0,
-      "ink_fraction": 0.1093,
-      "edge_density": 0.0627,
-      "distinct_colors": 1265,
+      "ink_fraction": 0.1295,
+      "edge_density": 0.0856,
+      "distinct_colors": 2166,
       "flags": [
-        "No heuristic flags raised. This does NOT mean the figure is good Tufte design \u2014 data-ink ratio, chartjunk, and the Lie Factor are judgments about MEANING no pixel-counter can make. Read references/doctrines.md and use the SKILL.md checklists for the judgment call; use these numbers only as a second opinion."
+        "edge_density=0.086 is high \u2014 check for heavy gridlines, hatching/cross-hatch fills, or moir\u00e9-like repeating texture (Tufte's 'vibration' complaint about grids and patterns)."
       ]
     }
   ],

@@ -1,5 +1,5 @@
 {
-  "figure": "fig-swk-consistency-model",
+  "figure": "fig-swk-marker-decay",
   "page_count": 1,
   "params": {
     "min_font_pt": 7.0,
@@ -50,9 +50,9 @@
   "ink": [
     {
       "page": 0,
-      "ink_fraction": 0.1093,
-      "edge_density": 0.0627,
-      "distinct_colors": 1265,
+      "ink_fraction": 0.061,
+      "edge_density": 0.0535,
+      "distinct_colors": 1122,
       "flags": [
         "No heuristic flags raised. This does NOT mean the figure is good Tufte design \u2014 data-ink ratio, chartjunk, and the Lie Factor are judgments about MEANING no pixel-counter can make. Read references/doctrines.md and use the SKILL.md checklists for the judgment call; use these numbers only as a second opinion."
       ]
