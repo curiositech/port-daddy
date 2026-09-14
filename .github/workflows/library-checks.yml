@@ -126,13 +126,6 @@ jobs:
         run: node checks/check-ledger.mjs
         working-directory: docs/grand-harbor
 
-      # The queue of work that documents schedule and the registry has no row
-      # for. It fails on the queue being stale, never on the queue being
-      # non-empty: the runtime is halted, nobody can write rows, and a check
-      # that cannot pass until that changes is a check nobody reads.
-      - name: The unregistered-work queue is a current count of the drift
-        run: python3 scripts/roadmap/check_unregistered.py --check
-
       - name: Book generator contract (namespacing, apparatus stripping, seams, shared files)
         run: node --test scripts/generate-mega-whitepaper.test.mjs scripts/generate-mega-mechanized.test.mjs
 

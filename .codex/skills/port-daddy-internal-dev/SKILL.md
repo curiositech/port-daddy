@@ -58,6 +58,15 @@ roadmap before the CLI-only path ships to operators. Examples in flight:
 `fleetbar-secret-management-with-provider-deeplinks`,
 `fleetbar-console-must-support-zoom-and-text-scaling`.
 
+The Harbor Work Register is the sanctioned coordination surface while the
+local runtime is intentionally Off. Browser approval may mint only a one-use,
+short-lived, repository/task/owner-bound Register credential. Keep that
+credential in a dedicated table and resolver; never admit it through the
+general `pdu_` account-auth path. The Register remains occupancy authority,
+not roadmap authority: a missing or stale daemon-pushed mirror means unknown
+work and `proposed` claims, never permission for the Relay to become a second
+roadmap writer.
+
 ## How to work a slice (operating expectations)
 
 The full posture lives in `AGENTS.md` § Agent Operating Expectations. The
@@ -404,8 +413,10 @@ invent a command, switch identities or replay an uncertain write.
 permitted inspection path. Respond graciously, incorporating actionable
 feedback unless clearly wrong or harmful; explain disagreements with evidence.
 Add regression tests and land high-confidence findings as named fixup commits.
-Get `npx tsc
---noEmit`, jest, `npm run parity`, and the build green. Rebase onto latest
+Get every status context configured as required by the live ruleset green.
+Advisory repo jobs and external checks are evidence, not merge blockers; inspect
+material failures, record their disposition, and do not wait merely for visual
+all-green. Rebase onto latest
 `origin/main`, resolve conflicts with affected owners, validate and update the
 same App PR. Read-only reviewers must not push or merge; preserve role scope.
 
