@@ -38,7 +38,7 @@
   \node[tiemark] at (8.6,5.9) {$\equiv$};
   % --- the mutation: honest gate replaced by one that leaks the raw secret ---
   \draw[pd caution arrow] (8.6,3.85) -- (8.6,3.42);
-  \node[pd note,anchor=north,font=\footnotesize\itshape,text=hhamber!80!black,text width=8.0cm,align=center] at (8.6,3.40) {mutation: a gate that leaks the raw secret would emit leak $0$ from World A and leak $2$ from World B -- now distinguishable, caught at this same 4-step witness};
+  \node[pd note,anchor=north,font=\footnotesize\itshape,text=pdinkmuted,text width=8.0cm,align=center] at (8.6,3.40) {mutation: a gate that leaks the raw secret would emit leak $0$ from World A and leak $2$ from World B -- now distinguishable, caught at this same 4-step witness};
   \node[pd note,anchor=north west,text width=14.7cm,font=\footnotesize\itshape] at (-3.0,1.15) {Model check on the finite clean-room transition system, secrets $s\in\{0,1,2,3\}$, $g(s)=s\bmod 2$: exhaustive over all interleavings to depth 7 and all secret pairs, zero distinguishing observations in the honest model. Both mutations caught: the leaked-secret gate above (4 steps), and a worker that bypasses the gate entirely (3 steps) [internal, \texttt{c1\_noninterference.py}].};
 \end{tikzpicture}
 \caption{Two runs of the clean room, identical except Derek's secret, driven in lockstep through the action sequence \texttt{load}$\to$\texttt{read}$\to$\texttt{submit}$\to$\texttt{release}. Erin's observable state is tied ($\equiv$) at every step; the release step is boxed as ``the slot'' because it is the only step the theorem lets differ at all, and here it still does not, since the two secrets share a parity. Below the slot, the leaky-gate mutation shows what a difference at that step actually looks like once caught.}
