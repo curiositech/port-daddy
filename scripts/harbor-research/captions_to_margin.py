@@ -39,6 +39,25 @@ build, so the paper twins render unchanged. All three editions (maritime, swiss,
 technical) share one chapter source and one geometry; neither macro branches on
 \pdedition, so one conversion serves all three.
 
+THE MEASURED END STATE -- DO NOT "FINISH THE JOB"
+-------------------------------------------------
+After this conversion the eight chapters named in whitepaper/textbook.json hold
+7 \caption calls and 54 \pdmargincaption calls. All 7 residuals are the
+longtable/xltabular case below -- anchor-protocol 1, legible-swarm 1,
+spawn-to-person 2, harbor-economy 1, agent-transactions 1, federated-harbor 1 --
+and the full-bleed case has zero instances in the chapters as of this pass.
+
+None of the 7 was skipped for an incidental reason: not a pattern miss, not a
+parse failure, not an unbalanced argument. They are structural. Converting one
+would put a single margin block beside page one of a table that spans three
+pages, pointing the reader at the wrong rows -- which is the defect the
+carve-out exists to prevent. A later pass that "finishes the job" by forcing
+these into the margin is a regression, not a completion.
+
+Do not confuse that 7 with the 16 in WHY THE CAPTION MOVES above: 16 counts
+captions that move POSITION within their float, not captions left in the
+column.
+
 WHAT IS DELIBERATELY LEFT ALONE
 -------------------------------
 longtable / xltabular captions
@@ -313,6 +332,11 @@ def scan_captions(text: str, mask: str):
             out.append({"line": line_of(text, m.start()), "action": "skip",
                         "reason": "\\caption outside any caption-bearing environment"})
             continue
+        # These two skips are the ONLY reason a caption stays in the text
+        # column, and between them they account for every one of the 7
+        # residuals in the Book (all 7 longtable; 0 full-bleed). They are
+        # structural, not leftovers -- see THE MEASURED END STATE above before
+        # removing either branch to "finish the conversion".
         if env in LONGTABLE_ENVS:
             out.append({"line": line_of(text, m.start()), "action": "skip", "env": env,
                         "reason": f"{env} caption is longtable's own -- it must sit in its "

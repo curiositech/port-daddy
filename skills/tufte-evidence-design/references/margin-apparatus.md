@@ -155,8 +155,9 @@ citations as things that happened to live in the column.
 
 Counted directly over the eight chapter sources named in
 `whitepaper/textbook.json`, TeX comments stripped first (the counting script is
-five lines of `re.finditer`; `scripts/harbor-research/captions_to_margin.py
---check --json` reports the caption and footnote halves of it):
+five lines of `re.finditer`;
+`scripts/harbor-research/captions_to_margin.py --check --json` <!-- phantom-ok -->
+reports the caption and footnote halves of it):
 
 | In the margin | calls | In the text column | calls |
 |---|---:|---|---:|
@@ -180,7 +181,7 @@ lower one moves or is dropped (`\pd@placemarginopt` already implements
 **Rule.** A caption goes in the margin. Write `\pdmargincaption{...}` where
 you would have written `\caption{...}`; the float itself stays in the text
 column at full measure, and the caption sits beside it in the margin.
-`scripts/harbor-research/captions_to_margin.py` performs and re-checks the
+`scripts/harbor-research/captions_to_margin.py` <!-- phantom-ok --> performs and re-checks the
 conversion mechanically, so a new float that reaches for `\caption` is a lint
 finding, not a style preference.
 
@@ -214,6 +215,24 @@ float whose shape the converter misreads, and if you are, fix the converter.
    wrong content. Seven of the Book's 61 captions are these.
 3. Nothing else. "It is a long caption" is not a case — see the next
    paragraph.
+
+**The measured end state — do not "finish the job".** After the conversion the
+eight chapters hold **7** `\caption` calls and 54 `\pdmargincaption` calls, and
+all 7 of those residuals are case 2: the `xltabular` status tables in
+`anchor-protocol` (1), `legible-swarm` (1), `spawn-to-person` (2),
+`harbor-economy` (1), `agent-transactions` (1) and `federated-harbor` (1).
+Case 1 has zero instances in the chapters as of this pass. None of the 7 was
+skipped for an incidental reason — not a pattern miss, not a parse failure —
+so there is no residue to mop up later. Converting any of them would put one
+margin block beside page one of a table that spans three pages, which is the
+defect the carve-out exists to prevent. `margin_lint.py` and
+`captions_to_margin.py` agree on this set by construction: the lint imports
+the converter and asks it which captions are eligible rather than re-deriving
+the rule, so the two can never drift apart.
+
+Note that the "16" in the `foot` bullet above counts captions that *move
+position* within their float, not captions left in the column. The two numbers
+are easy to conflate; the in-column residual is 7.
 
 **What a margin caption must contain.** The *claim*, as a sentence, per this
 skill's own checklist: "X stays flat until Y crosses Z, then rises linearly"
@@ -270,7 +289,7 @@ off the paper, with the foot clamp and occupancy caps still applying downward.
 **Rule.** A citation is `\pdcite{key}`, never a bare `\cite{key}`, and the
 short form ("Lamport 1978") belongs in the margin beside the clause that cites
 it while the full entry stays in the back matter.
-`scripts/harbor-research/promote_cites.py` already promotes every eligible
+`scripts/harbor-research/promote_cites.py` <!-- phantom-ok --> already promotes every eligible
 `\cite` to `\pdcite`, and `build_cite_shortforms.py` already generates the
 per-key short-form table. 513 of the Book's 519 point-of-use citations are
 already `\pdcite`.
@@ -320,6 +339,14 @@ figure down to fit — a figure that is only legible at 4.5in is illegible at
 1.3in, and `references/critiques-and-limits.md` §Accessibility is explicit that
 shrinking is not a free operation. Redraw it smaller with fewer marks, or leave
 it in the column.
+
+That envelope is enforced, not merely advised: `margin_lint.py`'s
+`margin-graphic-fits` rule reads the declared width of any `\includegraphics`
+or `tikzpicture` inside a margin device's argument — resolving a `\textwidth`
+or `\linewidth` fraction against the Book's 4.5in measure — and fails a
+chapter that declares anything wider than the 1.3in `\marginparwidth`. It
+checks what the SOURCE declares; a graphic whose *natural* size exceeds its
+declared width is the rendered-figure checkers' business, not this rule's.
 
 **Mechanism.** `\pdmarginfigure{slug}{caption}` carries these as well as
 portraits; a slug that does not resolve under `plates/marginalia/` is by
