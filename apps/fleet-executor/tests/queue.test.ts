@@ -69,6 +69,32 @@ afterEach(() => {
 });
 
 describe('queue consumer', () => {
+  it('durably retries a merge-group token or check-creation failure even without AI', async () => {
+    const job = makeJob({ eventType: 'merge_group', action: 'checks_requested', prNumber: null,
+      payloadMinimal: { merge_group: { head_sha: 'QUEUE_SHA' } } });
+    const db = memoryD1();
+    const tokens = memoryKV();
+    const env = makeEnv({ DB: db.db, FLEET_TOKENS: tokens, AI: undefined });
+    const first = fakeMessage(job, 1);
+    await handler.queue(fakeBatch([first]), env, capturingCtx());
+    expect(first.retry).toHaveBeenCalledOnce();
+    expect(first.ack).not.toHaveBeenCalled();
+    expect(db.steps.some(step => step.kind === 'delivery-failed')).toBe(true);
+    expect(db.runs[0].headSha).toBe('QUEUE_SHA');
+    seedToken(tokens, 42);
+    state.failCreateCheckRun = 1;
+    const second = fakeMessage(job, 2);
+    await handler.queue(fakeBatch([second]), env, capturingCtx());
+    expect(second.retry).toHaveBeenCalledOnce();
+    expect(second.ack).not.toHaveBeenCalled();
+    const third = fakeMessage(job, 3);
+    await handler.queue(fakeBatch([third]), env, capturingCtx());
+    expect(third.ack).toHaveBeenCalledOnce();
+    expect(third.retry).not.toHaveBeenCalled();
+    expect(state.completed[0]).toMatchObject({ conclusion: 'failure' });
+    expect(db.runs[0].conclusion).toBe('failure');
+  });
+
   it('acks suspension without a terminal review verdict and rejects unauthorised direct redelivery', async () => {
     state.files.set('main:pd-fleet.yml', ONE_SHIP_YAML);
     const tokens = memoryKV();

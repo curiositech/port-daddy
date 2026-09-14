@@ -305,6 +305,8 @@ export default {
           if (intentDecision === 'run' && await readFleetIntentState(env, message.body.deliveryId) !== FLEET_WAITING_CONTROL) {
             throw new Error('Fleet suspension was not durably recorded; refusing to acknowledge the delivery');
           }
+        } else if (disposition?.kind === 'coverage-held') {
+          await markFleetIntentTerminal(env, message.body.deliveryId, 'failure', 'Merge-group constituent review receipts are unverified');
         } else if (disposition?.kind === 'already-decided') {
           await markFleetIntentTerminal(
             env,

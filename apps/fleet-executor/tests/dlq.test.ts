@@ -38,6 +38,17 @@ afterEach(() => {
 });
 
 describe('DLQ handler', () => {
+  it('can fail an owned merge-group check after queue retries exhaust', async () => {
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const env = makeEnv({ FLEET_TOKENS: kv });
+    state.existingCheckRuns.push({ id: 515, name: 'Port Daddy Fleet', headSha: 'QUEUE_SHA',
+      external_id: 'pd-fleet-run:v1:run:delivery-abc', status: 'in_progress', app: { id: Number(env.GITHUB_APP_ID) } });
+    await handleDlqJob(makeJob({ eventType: 'merge_group', action: 'checks_requested', prNumber: null,
+      payloadMinimal: { merge_group: { head_sha: 'QUEUE_SHA' } } }), env);
+    expect(state.completed[0]).toMatchObject({ id: 515, conclusion: 'failure' });
+  });
+
   it('completes the stuck check run as failure for a dead-lettered job', async () => {
     // A 'Port Daddy Fleet' check exists in_progress for the PR head SHA.
     state.existingCheckRuns.push({ id: 4242, name: 'Port Daddy Fleet' });
