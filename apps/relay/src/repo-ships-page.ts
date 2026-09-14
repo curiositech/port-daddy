@@ -239,7 +239,7 @@ async function shipInventory(env: Env, repo: string, witness: RepoWitness): Prom
   // only a different event is configured. ON still cannot create a new trigger.
   const inventory = new Map<string, ShipView>();
   for (const ship of [...defaultPRShips(), ...configured]) {
-    if (ship.needsExecution || ship.name === '*' || !validShipControlName(ship.name)) continue;
+    if (ship.execution.mode !== 'none' || ship.name === '*' || !validShipControlName(ship.name)) continue;
     inventory.set(ship.name, { name: ship.name, role: ship.role.slice(0, 220), model: ship.cfModel, blocking: ship.blocking,
       trigger: Array.isArray(ship.trigger) ? ship.trigger.join(', ') : ship.trigger });
   }

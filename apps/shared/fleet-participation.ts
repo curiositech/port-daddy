@@ -149,6 +149,7 @@ export function decideShipParticipation(
   const risks = new Set(profile.riskSignals);
   for (let i = 0; i < policy.rules.length; i += 1) {
     const rule = policy.rules[i];
+    if (!rule) continue;
     const classMatches = !rule.prClasses?.length || rule.prClasses.includes(profile.prClass);
     const riskMatches = !rule.riskSignals?.length || rule.riskSignals.some(risk => risks.has(risk));
     if (classMatches && riskMatches) {
