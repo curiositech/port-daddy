@@ -243,31 +243,21 @@
   \input{coordination-papers-mega-volume-swiss-plates}
 \fi
 
-% One maturity vocabulary for the collected volume. Uppercase aliases preserve
-% the independently buildable Chapter III source.
-\newcommand{\Built}{{\textcolor{hhink}{\textsc{\textbf{implemented}}}}}
-\newcommand{\BuiltWeak}{{\textcolor{hhink}{\textsc{partial}}}}
-\newcommand{\Designed}{{\textcolor{hhgray}{\textsc{specified}}}}
-\newcommand{\Vision}{{\textcolor{hhgray}{\textit{proposed}}}}
-% Chapter I (The Legible Swarm) uses a second, narrower evidentiary vocabulary
-% for its own claims (independently re-derived vs. argued vs. a stated design
-% target) alongside the shared Built/Designed/Vision maturity labels above.
-% Carried over verbatim from whitepaper/legible-swarm.tex so the chapter body
-% (which drops its standalone preamble when inlined into the collected volume)
-% still resolves these commands.
-\newcommand{\Verified}{{\textcolor{hhink}{\textsc{\textbf{verified}}}}}
-\newcommand{\Proved}{{\textcolor{hhink}{\textsc{proved here}}}}
-\newcommand{\Proposed}{{\textcolor{hhgray}{\textit{proposed}}}}
-\newcommand{\BUILT}{\Built}
-\newcommand{\BUILTWEAK}{\BuiltWeak}
-\newcommand{\DESIGNED}{\Designed}
-\newcommand{\VISION}{\Vision}
-\newcommand{\NotGuar}{{\textcolor{hhink}{\textit{not guaranteed}}}}
-\newcommand{\Closed}{{\textcolor{hhink}{\textsc{\textbf{closed}}}}}
-\newcommand{\Partial}{{\textcolor{hhink}{\textsc{partial}}}}
-\newcommand{\Open}{{\textcolor{hhgray}{\textit{open}}}}
-\newcommand{\SpecOnly}{{\textcolor{hhgray}{\textit{spec-only}}}}
-\newcommand{\code}[1]{{\ttfamily\detokenize{#1}}}
+% The maturity, guarantee, proof-obligation and claim-evidence vocabularies --
+% \Built, \BuiltWeak, \Designed, \Vision, their uppercase aliases, \NotGuar,
+% \Closed, \Partial, \Open, \SpecOnly, \Verified, \Proved, \Unproved -- and
+% \code are defined once, for this volume and for every standalone chapter, in
+% figures/pd-pedagogy.tex (\input above).
+%
+% They used to be listed here AND again in each chapter's own preamble. The
+% generator keeps only what lies between \begin{document} and \end{document},
+% so the chapter copies never reached this document and the two sets were free
+% to disagree -- which they did: chapter 4 printed "built" and "designed" when
+% it compiled alone and "implemented" and "specified" at the same call sites
+% here. One definition, in a file both preambles read, is what makes a marker
+% mean the same thing in both places.
+% scripts/harbor-research/check_duplicate_macros.py fails the build if a
+% second definition of any of these names comes back.
 
 \newcommand{\pullquote}[1]{%
   \par\vspace{6pt}\noindent\begin{tikzpicture}

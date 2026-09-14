@@ -64,18 +64,12 @@
 %                 or detects rather than prevents
 %   specified   : a concrete design exists, but no running artifact realizes it
 %   proposed    : named as a direction, with no design yet
-% Muted ink throughout; the four grades differ by WEIGHT and SMALL-CAPS /
-% italic, never by hue (house style: status by weight/small-caps, not a rainbow).
-\newcommand{\Built}{{\textcolor{hhink}{\textsc{\textbf{implemented}}}}}
-\newcommand{\BuiltWeak}{{\textcolor{hhink}{\textsc{partial}}}}
-\newcommand{\Designed}{{\textcolor{hhgray}{\textsc{specified}}}}
-\newcommand{\Vision}{{\textcolor{hhgray}{\textit{proposed}}}}
-\newcommand{\NotGuar}{{\textcolor{hhink}{\textit{not guaranteed}}}}
-
-% Verification-status markers for status tables.
-\newcommand{\Closed}{{\textcolor{hhink}{\textsc{\textbf{closed}}}}}
-\newcommand{\Partial}{{\textcolor{hhink}{\textsc{partial}}}}
-\newcommand{\Open}{{\textcolor{hhgray}{\textit{open}}}}
+% \Built, \BuiltWeak, \Designed, \Vision and \NotGuar -- and the
+% \Closed/\Partial/\Open proof-obligation markers this chapter's status tables
+% use -- are defined once, for this paper and for the Book, in
+% figures/pd-pedagogy.tex (\input above). They used to be redefined here; a
+% chapter preamble is discarded when the Book is assembled, so a local
+% definition silently applied to the standalone paper only.
 
 % Pull-quote sidebar: large quote, left-edge accent stripe.
 \newcommand{\pullquote}[1]{%
