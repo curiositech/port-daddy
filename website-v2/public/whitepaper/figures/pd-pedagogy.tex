@@ -756,7 +756,20 @@
   \setlength{\pd@sessionlwidth}{\dimexpr\pd@sessionwidth+\pd@sessionshift\relax}%
   \lstset{style=pdsession,linewidth=\pd@sessionlwidth,xleftmargin=\pd@sessionshift}%
 }{%
-  \endgraf\nobreak\noindent\hspace*{\pd@sessionshift}\makebox[\linewidth][l]{\color{pdinkmuted}\rule{\pd@sessionwidth}{0.4pt}}\endgraf
+  % A long transcript can break across a leaf, and then the closing rule is on
+  % the OTHER side of the book from the opening one -- 5.55 in of rule widening
+  % the wrong way, 0.35 in of it off the paper (p. 460 of the first two-sided
+  % build). The shift is decided again here, for the leaf this rule is on.
+  \endgraf\nobreak
+  \ifpdmargincolumn
+    \checkoddpage
+    \ifoddpage
+      \setlength{\pd@sessionshift}{\z@}%
+    \else
+      \setlength{\pd@sessionshift}{-\dimexpr\marginparsep+\marginparwidth\relax}%
+    \fi
+  \fi
+  \noindent\hspace*{\pd@sessionshift}\makebox[\linewidth][l]{\color{pdinkmuted}\rule{\pd@sessionwidth}{0.4pt}}\endgraf
   \addvspace{8pt plus 1pt}%
 }
 
