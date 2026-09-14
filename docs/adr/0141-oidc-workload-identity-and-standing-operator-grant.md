@@ -64,7 +64,7 @@ admission contract — there is no deployed caller to break.
 
 ### The substrate this ADR does not need to invent
 
-Three things already exist and are load-bearing here.
+Three things already exist, and this ADR depends on all three.
 
 1. **An OIDC verifier and an exchange endpoint.** `apps/relay/src/oidc.ts`
    verifies a JWT against a registered issuer with exact-audience matching,
@@ -527,7 +527,11 @@ an ADR-0140 `ActionProposal` with an adjudication receipt binding the exact
 content digest to the proposing actor before the capability is signed.
 **Recommendation:** ship first-use binding now (cheap, no new object), and open
 a follow-on to route the mint through ADR-0140's contract rather than inventing
-a separate authorship attestation.
+a separate authorship attestation. ADR-0096 (signed guidance envelope and
+suggestibility authority) should be evaluated as a second candidate before that
+follow-on is scoped, though note its envelope authenticates guidance flowing
+*into* an agent's turn rather than attesting what the agent then publishes
+outward, so it likely constrains the confused deputy without closing it.
 
 **OQ-5 — Where is a spend ceiling actually enforced?** Relay cannot see local
 agent spend; it sees mutations. Pretending otherwise would be the kind of claim
@@ -543,7 +547,11 @@ than implying one number governs both.
 two revocation paths and two places the operator has to look to answer "what has
 this agent been allowed to do", which is the failure mode this repository names
 explicitly. The cost is a slightly wider row with surface-specific columns left
-null; that is cheaper than a second system.
+null; that is cheaper than a second system. ADR-0038 (claim tree —
+multi-granularity coordination over hierarchical state) is a candidate prior art
+for that row's scope representation and should be checked before the Phase 6
+schema is cut, so the grant's scope columns do not become a third hierarchical
+scope vocabulary beside it.
 
 **OQ-7 — What is the pre-ladder `asks_per_episode` baseline?** It has to be
 measured before M1 or the reduction claim is unfalsifiable.
@@ -558,7 +566,7 @@ justification is R5 containment and the other rungs should not ship.
 | --- | --- | --- | --- | --- |
 | 0 | `fleetbot-workload-identity-admission` | now | — | This ADR: freeze the admission contract, the grant schema, the scope vocabulary, and the threat bindings |
 | 1 | `publisher-grant-record` | now | Phase 0 | `publisher_grants` migration, the operator account surface that writes rows, per-request read and intersection with live installation scope |
-| 2 | `fleetbot-capability-v2` | now | Phase 1 | Capability schema v2 (`grantId`/`grantEpoch`), dual-accept admission, first-use session binding, nonce table column swap, negative fixtures for each D6 row |
+| 2 | `fleetbot-capability-v2` | now | Phase 1 | Capability schema v2 (`grantId`/`grantEpoch`), **and the route that mints and validates it**: the daemon-side mint that reads the grant and stamps `grantId`/`grantEpoch` into the capability, and the Relay-side enforcement of all eight D3 admission conditions. Plus dual-accept admission, first-use session binding, nonce table column swap, negative fixtures for each D6 row |
 | 3 | `fleetbot-host-workload-enrolment` | backlog | Phase 2, OQ-1 | Enrol class `host` per the OQ-1 recommendation; record attestation-versus-issuer provenance honestly in the identity row |
 | 4 | `fleetbot-account-bearer-retirement` | backlog | Phase 3 | Delete `bearer()`, refuse v1, run the two-credential retirement ceremony, amend `skills/github-app-actuator/SKILL.md` |
 | 5 | `consent-ladder-asks-baseline` | now | Phase 0, OQ-7 | Instrument `asks_per_episode` and publish the pre-ladder baseline — the falsifiability precondition for the whole ladder |
@@ -568,6 +576,15 @@ justification is R5 containment and the other rungs should not ship.
 
 Phase 0 changes no runtime behaviour. Nothing in this ADR should be described as
 shipped, enforced, or credential-separated until Phase 4 lands.
+
+To be explicit about the `grantId`/`grantEpoch` contract specified in D3: this
+ADR *specifies* the format and the eight admission conditions, and **no phase
+before Phase 2 makes them enforceable**. Phase 1 delivers the `publisher_grants`
+record and the per-request read; Phase 2 delivers the route that mints a
+capability against a grant and the Relay-side check that validates one. Until
+Phase 2 lands there is no code path that accepts a `grantId`, so a reader should
+not treat D3 as a contract the tree currently enforces — it is a contract this
+ADR freezes for Phase 2 to implement.
 
 ## Consequences
 
