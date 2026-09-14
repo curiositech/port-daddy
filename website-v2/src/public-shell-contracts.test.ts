@@ -233,27 +233,49 @@ describe('public shell contracts', () => {
     expect(cta).not.toContain('Dogfood restore')
   })
 
-  test('individual whitepaper pages explain value and embed PDFs inline', () => {
+  test('a chapter page is web-native prose plus a link to the Book, not a viewer', () => {
     const mainSource = read('./main.tsx')
     const detailPage = read('./pages/whitepaper/PaperDetailPage.tsx')
     const metadata = read('./data/siteMetadata.ts')
     const seo = read('../scripts/generate-seo-artifacts.mjs')
 
     expect(mainSource).toContain('path="/whitepaper/:paperSlug"')
-    // The story-linework rebuild renamed every section on this page: "What
-    // this paper is saying" / "Why this paper matters" / "Future value" /
-    // "Inline PDF reader" became the argument map, the takeaways, and the
-    // reader. What the page still owes the visitor is the same -- the paper's
-    // argument, what to take from it, and the PDF itself on the page rather
-    // than behind a download -- so those are what is asserted.
+
+    // What earns this page its URL is the apparatus that exists nowhere else:
+    // the primer, the vocabulary, the two reader framings, the argument map,
+    // the takeaways, and the way out to the chapters either side. None of it
+    // is in the PDF, so all of it is the contract.
+    expect(detailPage).toContain('The big idea, in one paragraph.')
+    expect(detailPage).toContain('Words this paper uses, defined.')
+    expect(detailPage).toContain('paper.whatYouGet')
+    expect(detailPage).toContain('paper.forBuilders')
     expect(detailPage).toContain('Argument map')
     expect(detailPage).toContain('Takeaways')
+    expect(detailPage).toContain('siblingPapers.map')
+
+    // The Book is reachable from here, as a link. `COLLECTED_VOLUME` is the
+    // one PDF; a chapter-scoped file would be the old claim wearing a link.
     expect(detailPage).toContain('Read the paper')
-    expect(detailPage).toContain('<iframe')
-    expect(detailPage).toContain('paperPdfUrl(paper)')
+    expect(detailPage).toContain('COLLECTED_VOLUME.pdfPath')
+    expect(detailPage).toContain('to="/whitepaper"')
+
+    // And the embedded viewer stays gone. An 82vh frame holding all 551 pages
+    // of the Book, under a heading about chapter N, was the last structural
+    // claim that this page *is* a document -- while /whitepaper's own reader
+    // offered the same PDF one click away. The page links to the Book; it does
+    // not pretend to be it.
+    expect(detailPage).not.toContain('<iframe')
+    expect(detailPage).not.toContain('82vh')
+    expect(detailPage).not.toContain('embedded below')
+
+    // Both route lists that name the chapters are spread from the data, so a
+    // ninth chapter lands on the site and in llms.txt without either file
+    // being edited. The hand-typed list this replaced held seven of eight and
+    // dropped The Sealed Harbor for its whole life.
     expect(metadata).toContain('WHITE_PAPERS.map')
-    expect(seo).toContain('/whitepaper/anchor-protocol')
-    expect(seo).toContain('/whitepaper/bonded-commons')
+    expect(seo).toContain('WHITE_PAPERS.map((paper) => paper.readerHref)')
+    expect(seo).not.toContain("'/whitepaper/anchor-protocol'")
+    expect(seo).not.toContain("'/whitepaper/bonded-commons'")
   })
 
   test('docs shell copy points to the public whitepaper without replacement-brand framing', () => {
