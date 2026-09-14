@@ -79,6 +79,8 @@ requireColumn('mercy_health', 'hooks_json');
 const managedEntitlementsSql = requireTable('fleet_managed_entitlements');
 const managedReservationsSql = requireTable('fleet_run_reservations');
 const managedSpendSql = requireTable('fleet_run_spend_v2');
+requireTable('fleet_run_call_authorizations');
+requireTable('fleet_served_installations');
 for (const column of ['retail_balance_microusd', 'run_retail_microusd', 'source_ref']) {
   requireColumn('fleet_managed_entitlements', column);
 }
@@ -117,11 +119,22 @@ for (const bad of [
   `INSERT INTO fleet_run_spend_v2
     (run_id, ship, installation_id, model, input_tokens, output_tokens, provider_cost_microusd, created_at)
    VALUES ('billing-check', 'bad', 4242, '@cf/check', 1, 1, 1.5, 1)`,
+  `UPDATE fleet_run_reservations SET lease_fence = 1.5 WHERE run_id = 'billing-check'`,
+  `INSERT INTO fleet_run_call_authorizations
+    (authorization_id, run_id, lease_fence, call_sequence, attempt_id, ship, model,
+     max_input_tokens, max_output_tokens, authorized_cost_microusd, state, created_at)
+   VALUES ('billing-bad-call', 'billing-check', 1, 1, 'a', 'reviewer', '@cf/check', 1.5, 1, 1, 'authorized', 1)`,
 ]) {
   let rejected = false;
   try { db.exec(bad); } catch { rejected = true; }
   if (!rejected) throw new Error('managed billing constraints admitted invalid money state');
 }
+db.exec(`UPDATE fleet_run_reservations SET lease_fence = 1 WHERE run_id = 'billing-check'`);
+db.exec(`UPDATE fleet_run_spend_v2 SET provider_cost_microusd = 1 WHERE run_id = 'billing-check'`);
+let badSpendUpdateRejected = false;
+try { db.exec(`UPDATE fleet_run_spend_v2 SET provider_cost_microusd = 1.5 WHERE run_id = 'billing-check'`); }
+catch { badSpendUpdateRejected = true; }
+if (!badSpendUpdateRejected) throw new Error('managed billing update guards admitted non-integer spend');
 
 // repo_settings (/account/repos): the SITREP dial must stay a closed enum at
 // the storage layer — the Worker trusts the CHECK as its last line of defense.
