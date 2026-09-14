@@ -84,25 +84,56 @@ Dispositions: **keep** · **restyle** (same idea and layout, mechanics only) · 
 ## 4. Mechanics (enforced)
 
 Styles live in `figures/pd-figure-language.tex` (twins, byte-identical). Use them; do
-not restyle inline.
+not restyle inline. The file's own header carries the typographic law in full,
+with the measurements behind it; this table is its index.
+
+### The typographic law, in one line
+
+**One size for every named text role — `\pdfiglabelsize`, which is `\footnotesize`
+(8.72 pt in the Book, 8.97 pt in a standalone chapter, measured). Roles separate by
+weight, slope, family and ink, never by size.** `\scriptsize` measures 6.97 pt in
+the Book, under figcheck's 7 pt T1 floor before a single width promotion, which is
+why it is an error rather than a preference.
 
 | element | style | rule |
 |---|---|---|
-| row / actor names | `pd row label` | `\footnotesize\bfseries`, anchored east of the row |
-| tick numerals | `pd axis label` | `\footnotesize`, the only place `\scriptsize` was ever allowed and it no longer is |
-| direct labels | `pd direct label` | `\footnotesize`, cream backing, never across a line |
-| notes | `pd note` | `\footnotesize\itshape`, at most one per figure |
+| panel titles | `pd panel title` | label size, bold |
+| row / actor names | `pd row label` | label size, bold, anchored east of the row |
+| row names on a dark band | `pd reverse row label` | as above, cream on ink |
+| tick numerals, axis titles | `pd axis label` | label size, recessive ink |
+| direct labels | `pd direct label` | label size, cream backing, never across a line |
+| direct labels on a dark band | `pd reverse label` | label size, cream, no backing |
+| identifiers, paths, literals | `pd mono label` | label size, monospace |
+| a terminal outcome stamp | `pd verdict` | label size, bold (CLEAR, REJECT, CRASH) |
+| notes | `pd note` | label size, italic, at most one per figure |
+| legend entries | `pd legend` | label size, no frame, no fill |
+| the whole pgfplots block | `pd axis` | title / labels / tick labels / legend / axis rule / ticks, one key |
+| a gloss line under a heading, inside a node | `\pdfigsub` | same size, stepped down by slope and weight |
+| math carrying a sub/superscript, inside a label | `\pdfigmath` | one notch up: a `\footnotesize` subscript measures 5.98 / 6.36 pt, under the floor |
 | hairlines / guides | `pd hairline`, `pd guide` | 0.5 / 0.45 pt, grey 78 / 62 |
 | rules | `pd rule`, `pd focus rule`, `pd caution rule` | 0.62 / 1.05 / 1.05 pt |
 | marks | `pd datum`, `pd focus datum`, `pd caution datum` | 2.1 / 2.5 / 2.5 pt inner sep |
-| regions | `pd focus fill`, `pd caution fill`, `pd neutral fill` | 24 / 26 / 40 % with a drawn edge |
-| states | `pd state`, `pd terminal` | ink outline, 30 % sand fill |
+| regions | `pd focus fill`, `pd caution fill`, `pd neutral fill`, `pd ink fill` | 24 / 26 / 40 % with a drawn edge; solid ink |
+| states | `pd state`, `pd terminal`, `pd decision` | ink outline, 30 % sand fill; decision is the diamond gate |
+
+A fragment that needs a compound style of its own composes it from a role above
+(`gate/.style={pd decision,minimum width=2cm}`) or from the `\pdfiglabel*` handles.
+It never writes a raw size command.
 
 Further rules the prechecker applies to the source:
 
 - Multi-word node text needs `text width=` and `align=`.
 - `\tiny` is an error; `\scriptsize` outside `pd axis label` is an error.
 - A `\fill` with no matching `\draw` (a region without an edge) is an error.
+- A node carrying a `pd *` style **and** its own `font=` is an error (P15): the
+  style already fixes the font, and a local one silently replaces the whole role.
+- Any `font=` naming a size command is an error (P16), including inside a
+  pgfplots `tick label style={}` and inside a local `.style={}` definition.
+- Painting a house ink through a bare `fill=`/`draw=`/colour token on a path with
+  no `pd *` style in the same option list is an error (P17) — the `pd ... fill` and
+  `pd ... rule` styles say the same thing and are what the Book's edition
+  overrides (swiss, technical) restyle. `hhpaper` is exempt: it is the page
+  ground, not an ink (a knockout backing, a halo ring).
 - `\resizebox{f\textwidth}` with f < 0.85 is a warning; prefer drawing to the measure
   (`x=` scaled so the picture is at most `\linewidth`) and no `\resizebox` at all.
 - Colours are the `hh*` house set only (`hhsand hhsanddeep hhebony hhink hhcobalt
@@ -113,6 +144,34 @@ Further rules the prechecker applies to the source:
 Rendered checks (`figcheck.py`): T1 minimum text 7 pt · T2 text escaping its box ·
 T3 pairwise overlap > 5 % · T4 line through text · T5 ink outside the mediabox ·
 T6 dead canvas · T7 width over `\textwidth` · T8 ink below the picture inside the figure.
+
+### What the screen rules give us, and what they do not
+
+Most of this section's rules are the print form of a screen data-viz method, and
+the translation is not uniform. The **invariant** half transfers whole: choose
+the form from the data's job before choosing colour; one axis, never two; direct
+labels before a legend and a legend before a second axis; no chartjunk; small
+multiples over one overloaded panel; erase ink that does no work.
+
+The **interaction** half does not transfer at all, and its absence is not a
+defect to design around. A page has no tooltip, no hover, no filter row. Do not
+add one, and do not read "the value is not reachable on hover" as a finding. What
+does survive is the tooltip rule's *intent* — every value is reachable without
+gating — and on the page it is discharged elsewhere: the value is in the caption,
+in the margin apparatus, or in the chapter's own worked example. So a label that
+will not fit inside its mark moves outside the mark or drops to the caption. It
+is never shrunk to fit (there is nothing below the label size to shrink to) and
+never clipped.
+
+One screen rule is suspended here with its reason. "Text never wears the data
+colour" exists because a light categorical hue is illegible as text on a light
+surface. The house hues are print inks — ink `#1B1712`, teal `#00564C`, amber
+`#6B4500` — and all three clear text contrast on cream, so a label may wear its
+series' ink to bind itself to a curve. That is direct labelling, and it saves a
+legend. What survives is the reason behind the rule: text wears one of those
+three inks at full strength, or `hhink!80!hhgray` for recessive furniture, and
+nothing else. A tint (`text=hhgray`, `text=hhteal!60`) is not a role, it is a
+fade.
 
 ### Colour is never the only cue
 

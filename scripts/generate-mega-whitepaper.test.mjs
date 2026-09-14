@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import test from 'node:test';
 
@@ -185,6 +185,72 @@ test('the committed shared textbook map matches textbook.json in both copies', (
   assert.match(rendered, /pdchapternumberofswk\\endcsname\{1\}/);
   assert.match(rendered, /pdchapternumberofls\\endcsname\{4\}/);
   assert.match(rendered, /\\pdtextbookmap/);
+});
+
+// Every macro below resolves a chapter PREFIX through \csname, and \csname on a
+// name nothing defines expands to \relax -- which typesets NOTHING and raises
+// nothing. A mistyped prefix at a use site therefore deletes a chapter number
+// from the page in silence. Every prefix the generated map defines is correct by
+// construction; the only way in is a use site, so the use sites are what this
+// checks.
+const prefixSourceRoots = ['whitepaper', 'website-v2/public/whitepaper'];
+// The generated map is where the prefixes are DEFINED, so it is the one file
+// whose \csname names are not use sites. Regenerate it, don't lint it.
+const prefixDefinitionFiles = new Set([
+  'whitepaper/figures/pd-textbook-map.tex',
+  'website-v2/public/whitepaper/figures/pd-textbook-map.tex',
+]);
+
+function texSourcesUnder(root) {
+  const out = [];
+  const walk = (dir) => {
+    for (const entry of readdirSync(resolve(dir), { withFileTypes: true })) {
+      const path = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) walk(path);
+      else if (entry.name.endsWith('.tex') && !prefixDefinitionFiles.has(path)) out.push(path);
+    }
+  };
+  walk(root);
+  return out;
+}
+
+const prefixReferencePatterns = [
+  [/\\csname\s+pdchapter[a-z]*of([A-Za-z]+)\\endcsname/g, '\\csname pdchapter...of<prefix>\\endcsname'],
+  [/\\pdchapref\{([A-Za-z]+)\}/g, '\\pdchapref{<prefix>}'],
+  [/\\(?:new|renew|provide)command\{\\pdchapterprefix\}\{([A-Za-z]+)\}/g, '\\pdchapterprefix'],
+];
+
+test('every chapter-prefix reference names a prefix textbook.json declares', () => {
+  const declared = new Set(loadTextbook().chapters.map((chapter) => chapter.prefix));
+  // The generated map provides `none` as the prefix a build carries before any
+  // chapter has opened; it is a real key, not a typo.
+  declared.add('none');
+  const offenders = [];
+  for (const root of prefixSourceRoots) {
+    for (const file of texSourcesUnder(root)) {
+      const source = readFileSync(resolve(file), 'utf8');
+      for (const [pattern, shape] of prefixReferencePatterns) {
+        for (const match of source.matchAll(pattern)) {
+          if (!declared.has(match[1])) {
+            offenders.push(`${file}: ${shape} names '${match[1]}', which textbook.json does not declare`);
+          }
+        }
+      }
+    }
+  }
+  assert.deepEqual(offenders, []);
+});
+
+test('a mistyped chapter prefix is caught rather than expanding to nothing', () => {
+  const declared = new Set(loadTextbook().chapters.map((chapter) => chapter.prefix));
+  declared.add('none');
+  const typo = '\\csname pdchapternumberofswkk\\endcsname';
+  const found = [...typo.matchAll(prefixReferencePatterns[0][0])].map((match) => match[1]);
+  assert.deepEqual(found, ['swkk']);
+  assert.equal(declared.has('swkk'), false);
+  // ...and the real spelling passes the same gate, so the check is not vacuous.
+  const good = [...'\\csname pdchapternumberofswk\\endcsname'.matchAll(prefixReferencePatterns[0][0])];
+  assert.equal(declared.has(good[0][1]), true);
 });
 
 test('the shared palette and hyperlink files are byte-identical in both source trees', () => {
