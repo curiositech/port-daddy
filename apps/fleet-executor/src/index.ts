@@ -87,6 +87,9 @@ function deliveryAttemptCursor(job: FleetRunJob, platformAttempt: number): numbe
 }
 
 export default {
+  async scheduled(_controller: ScheduledController, env: ExecutorEnv, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(sweepStaleManagedReservations(env.DB, Math.floor(Date.now()/1000)));
+  },
   async queue(
     batch: MessageBatch<FleetRunJob>,
     env: ExecutorEnv,
