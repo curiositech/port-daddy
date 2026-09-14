@@ -313,8 +313,8 @@ jobs:
             exit 1
           fi
           ran=$(printf '%s' "$out" | sed -n 's/^Ran \([0-9]*\) tests.*/\1/p')
-          if [ "${ran:-0}" -lt 163 ]; then
-            echo "::error::the harbor-chartwork suite ran ${ran:-0} tests, fewer than the 163 it has; a module failed to import"
+          if [ "${ran:-0}" -lt 171 ]; then
+            echo "::error::the harbor-chartwork suite ran ${ran:-0} tests, fewer than the 171 it has; a module failed to import"
             exit 1
           fi
 

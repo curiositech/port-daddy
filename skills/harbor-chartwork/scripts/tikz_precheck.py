@@ -15,7 +15,7 @@ Checks (hard, fail the build unless noted):
     caption's bolded lead sentence) or inside a title-styled node/pgfplots
     axis title (heuristic, not a full parse -- see find_title_texts()).
 
-  Numbered rules (P10-P24), evaluated against the fragment with LaTeX
+  Numbered rules (P10-P25), evaluated against the fragment with LaTeX
   comments stripped (an unescaped `%` to end of line) so a `\tiny` or
   `\resizebox` mentioned only in a comment never fires:
   - P10 tiny        (FAIL) any `\tiny` in the fragment.
@@ -62,6 +62,23 @@ Checks (hard, fail the build unless noted):
                      An EDITION may substitute a face, in one command in one
                      file; a fragment may not. The identifier face is asked
                      for by role (`pd mono label`), not by `\ttfamily`.
+  - P25 font-handle (FAIL) a `font=` in a fragment whose value is built from
+                     anything but the house handles (`\pdfiglabel`,
+                     `\pdfiglabelbold`, `\pdfiglabelitalic`,
+                     `\pdfiglabelmono`, `\pdfigsub`, `\pdfigmath`, ...).
+                     This is the GENERAL form of P19 and P21, and it is a
+                     whitelist because the mechanism is general: `pd figure`
+                     sets the figure's family through the PICTURE-level `font=`
+                     key, and a node's own `font=` REPLACES that key's value
+                     wholesale, so `\pdfiglabelfamily` is never applied and the
+                     node falls back to the document's face. Measured: in the
+                     Book, `font=\bfseries` renders TeXGyrePagellaX-Bold and
+                     `font=\itshape` renders TeXGyrePagellaX-Italic inside
+                     drawings whose every other label is TeXGyreHeros. A
+                     `font=` naming neither a family nor a size still loses the
+                     family, which is why enumerating banned commands could
+                     never have closed this. The handles re-apply the family
+                     themselves, so they are the only safe values.
   - P24 body-font   (FAIL) a family-selection command in a node's TEXT rather
                      than in its `font=`: `\normalfont`, `\rmfamily`,
                      `\sffamily`, `\ttfamily`. P21 watches `font=`; this
@@ -192,7 +209,7 @@ STYLE_DEF_RE = re.compile(r"([A-Za-z][A-Za-z0-9 _-]*?)/\.style\s*=\s*\{")
 # above. Kept in one place so the summary/"counts per id" machinery and the
 # markdown report can iterate them without hardcoding the list twice.
 RULE_IDS = ["P10", "P11", "P12", "P13", "P14",
-            "P18", "P19", "P20", "P21", "P22", "P23", "P24"]
+            "P18", "P19", "P20", "P21", "P22", "P23", "P24", "P25"]
 
 # Rule numbers claimed by work that is not in this file.
 #
@@ -853,6 +870,62 @@ def check_figmath(text):
 # `\text` are deliberately absent: those are math, and TeX sets math roman in
 # the text family whatever face the node carries -- flagging them would be
 # flagging the typesetter, not the author.
+# The house handles, and nothing else, may appear in a fragment's `font=`.
+# Each one re-applies \pdfiglabelfamily, so a node built from them keeps the
+# edition's face; anything else replaces the picture-level `font=` and loses it.
+FONT_HANDLE_RE = re.compile(
+    r"\\(pdfiglabelfamily|pdfiglabelsize|pdfiglabelbold|pdfiglabelitalic|"
+    r"pdfiglabelmono|pdfiglabel|pdfigbasesize|pdfigsub|pdfigmath|relax)\b"
+)
+
+
+def check_font_handle(text):
+    """P25: a `font=` built from anything but the house handles.
+
+    The mechanism, measured rather than assumed. `pd figure` sets the figure's
+    family through the PICTURE-level `font=` key:
+
+        pd figure/.style={font=\\pdfiglabelfamily\\pdfigbasesize,text=hhink}
+
+    A node's own `font=` is the SAME KEY, so its value replaces that one
+    entirely. \\pdfiglabelfamily is then never applied to the node and it falls
+    back to the document's face -- Palatino in the Book, against a drawing whose
+    every other label is in the edition's grotesk.
+
+    This is why a blacklist could never close it. `font=\\bfseries` names no
+    family and no size, and in the Book it renders TeXGyrePagellaX-Bold;
+    `font=\\itshape` renders TeXGyrePagellaX-Italic. Both were found by
+    figcheck's T10 on compiled pages of appendix-figures.tex and
+    fig-anchor-phases.tex, after P19 and P21 had passed them clean.
+
+    So: a fragment's `font=` may be built only from the handles, which re-apply
+    the family themselves. P19 (a size) and P21 (a family) stay, because they
+    name the specific fault in their message and fire first on the common cases.
+    """
+    findings = []
+    stripped = strip_comments(text)
+    for m in FONT_KEY_RE.finditer(stripped):
+        value = _font_value_at(stripped, m.end())
+        residue = FONT_HANDLE_RE.sub("", value).strip()
+        if not residue.strip("{} \t"):
+            continue
+        line = stripped.count("\n", 0, m.start()) + 1
+        findings.append(
+            {
+                "check": "font-handle",
+                "id": "P25",
+                "severity": "fail",
+                "line": line,
+                "message": f"font={value!r} is not built from the house handles, so it replaces "
+                f"the picture-level `font=` that carries \\pdfiglabelfamily and the node "
+                f"falls back to the DOCUMENT's face -- in the Book, Palatino inside a "
+                f"grotesk drawing. Take a `pd *` role, or build the font from "
+                f"\\pdfiglabel / \\pdfiglabelbold / \\pdfiglabelitalic / \\pdfiglabelmono.",
+            }
+        )
+    return findings
+
+
 BODY_FONT_RE = re.compile(r"\\(normalfont|rmfamily|sffamily|ttfamily)\b")
 
 
@@ -1132,6 +1205,7 @@ def run_precheck(path, corpus="auto", extra_style_defs=None, extra_colors=None):
         findings += check_node_font_size(text)
         findings += check_node_font_family(text)
         findings += check_body_font(text)
+        findings += check_font_handle(text)
         findings += check_figmath(text)
         findings += check_hard_ink(text)
     findings += check_colors(text, base_colors, known_names)

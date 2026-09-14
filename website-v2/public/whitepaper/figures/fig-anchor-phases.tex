@@ -27,7 +27,7 @@
 \begin{tikzpicture}[pd figure,
   phase/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=3pt,
                 inner sep=6pt,minimum width=46mm,align=left},
-  hdr/.style={font=\bfseries,anchor=west,inner sep=2pt},
+  hdr/.style={font=\pdfiglabelbold,anchor=west,inner sep=2pt},
   badge/.style={draw=hhcobalt,fill=hhpaper,thick,rounded corners=1pt,
                 inner sep=2pt,text=hhcobalt},
   okbadge/.style={draw=hhteal,fill=hhpaper,thick,rounded corners=1pt,
@@ -61,9 +61,9 @@
 % Arrows showing progression
 \draw[pd focus rule,->,>=Latex,thick] (p1.east) -- ($(p2.west)+(0,0)$);
 \draw[pd focus rule,->,>=Latex,thick] (p2.east) -- ($(p3.west)+(0,0)$);
-\node[font=\itshape,text=hhcobalt,above=1mm of $(p1.east)!0.5!(p2.west)$]
+\node[font=\pdfiglabelitalic,text=hhcobalt,above=1mm of $(p1.east)!0.5!(p2.west)$]
   {trust split};
-\node[font=\itshape,text=hhcobalt,above=1mm of $(p2.east)!0.5!(p3.west)$]
+\node[font=\pdfiglabelitalic,text=hhcobalt,above=1mm of $(p2.east)!0.5!(p3.west)$]
   {chain extension};
 \end{tikzpicture}
 \caption{The three Harbor Card phases. Each phase is a refinement of the previous, both in capability and in adversary model. Phase~1 (HS256) is a teaching baseline; Phase~2 (Ed25519) removes the shared-secret trust boundary; Phase~3 (delegation) adds capability attenuation across an agent chain. All three are mechanized in ProVerif (\S\ref{app:mech}).}
