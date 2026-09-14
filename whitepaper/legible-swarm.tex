@@ -1513,6 +1513,22 @@ The swarm has not run out of information. It has drowned in it. Every agent emit
 sessions, claims, notes, diffs, skill tags, and --- eventually --- reputations, far
 faster than any single participant can read them.
 
+Say what kind of problem that is, because the whole chapter turns on the answer.
+The operator is not a bottleneck in the sense of a slow worker who could be told
+to hurry; the operator is a \emph{channel}, with a capacity, and the swarm is a
+source emitting at a rate. Everything that follows is what information theory
+says about a source whose rate exceeds its channel's capacity: some of it must
+be discarded, the only question is which, and the discarding has to happen
+somewhere. A digest is a lossy encoder choosing what crosses. That framing is
+not an analogy borrowed for colour --- it is why the chapter's results are rate
+results and why its central bound is in bits rather than in seconds or in
+dollars, and it is what makes ``the operator cannot keep up'' into a quantity a
+system can be designed against instead of a complaint. It also fixes what would
+otherwise be a tempting mistake: raising the operator's throughput (more
+dashboards, faster scrolling, a bigger team) moves the capacity, and the results
+below hold at every capacity. Read-poverty is the name this chapter gives to the
+regime where the source rate exceeds it.
+
 \begin{definition}[Read-poverty]\label{def:readpoverty}
 \textbf{Read-poverty} is a regime in which legible state accumulates faster than it
 can be consulted, so participants fall back to $O(n)$ eyeball search over the
@@ -1683,11 +1699,13 @@ in the form someone can actually evaluate rather than leaving as a named
 functional --- with source margin $\Pr(X{=}1)=p$ and digest margin
 $\Pr(\hat X{=}1)=f$, the mutual information is the four-term sum
 \begin{equation}\label{eq:pinned-rate}
-R(\delta,f) \;=\;
-(p-\delta)\log_2\frac{p-\delta}{p\,f}
-\;+\; \delta\log_2\frac{\delta}{p\,(1-f)}
-\;+\; (f-p+\delta)\log_2\frac{f-p+\delta}{(1-p)\,f}
-\;+\; (1-f-\delta)\log_2\frac{1-f-\delta}{(1-p)(1-f)},
+\begin{split}
+R(\delta,f) \;=\;\;
+&(p-\delta)\log_2\frac{p-\delta}{p\,f}
+\;\;+\;\; \delta\log_2\frac{\delta}{p\,(1-f)} \\[2pt]
++\;\; &(f-p+\delta)\log_2\frac{f-p+\delta}{(1-p)\,f}
+\;\;+\;\; (1-f-\delta)\log_2\frac{1-f-\delta}{(1-p)(1-f)},
+\end{split}
 \end{equation}
 one term per cell of the $2\times2$ joint, each comparing that cell against the
 product of its margins, with $0\log_2 0$ read as $0$. At the zero-miss,

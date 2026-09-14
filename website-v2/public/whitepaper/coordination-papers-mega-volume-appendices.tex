@@ -245,6 +245,71 @@ unresolved.
   No whole-system implication follows without a conformance argument.
 \end{description}
 
+\subsection*{Which chapter owns which primitive}
+\label{app:ownership}
+
+The list above settles what a word means. This table settles something
+different and just as easy to get wrong across eight chapters: which chapter is
+allowed to \emph{define} a shared object, and which chapters may only cite it.
+The rule is one definition per primitive, in its owning chapter; a chapter that
+needs a primitive it does not own states what it needs from it and refers, and
+if two chapters ever disagree the owner is the one to trust. Most of the
+duplication an outside reader has found in this book was a primitive defined
+twice rather than a fact stated twice, which is why this table exists at all.
+
+\begin{table}[H]
+\centering
+\caption{Primitive ownership. ``Owner'' defines it and proves what is proved
+about it; ``cites'' names the chapters that use it without redefining it.}
+\label{tab:primitive-ownership}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.24\textwidth} >{\raggedright\arraybackslash}p{0.20\textwidth} >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Primitive} & \textbf{Owner} & \textbf{Cites it} \\
+\midrule
+Authorization chain (attenuation, hop-binding, replay) & ch.~2, Anchor Protocol & ch.~1, 5, 7, 8 \\
+Coordination lineage (task graph, loop detection) & ch.~1, Single-Writer Kernel & ch.~4 \\
+Leakage budget and the priced exit & ch.~3, Sealed Harbor & ch.~4, 6 \\
+Float plan & ch.~6, Harbor Economy & ch.~7, 8 \\
+Bond, escrow, and the commons pool & ch.~7, Bonded Commons & ch.~6, 8 \\
+Cross-harbor transfer ceremony & ch.~8, Federated Harbor & ch.~6 \\
+Witness log, epoch root, equivocation residual & ch.~8, Federated Harbor & ch.~2, 7 \\
+Threat bands and the visibility tiers & ch.~8, Federated Harbor & ch.~3 \\
+Keystone identity (non-forgeable principal) & ch.~5, From Spawn to Person & ch.~6, 7 \\
+Inspection tower and grader escalation & ch.~5, From Spawn to Person & ch.~1, 6 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection*{Open problems, all three lists in one place}
+\label{app:open-concordance}
+
+Open problems are numbered in three separate namespaces on purpose --- chapter
+1's \textsf{OP-$n$} is the kernel's, chapter 5 declines to extend it because its
+questions are not kernel questions, and chapter 8 states its own in prose --- and
+the cost of that decision is that no reader can see the whole set at once. This
+concordance indexes them; it does not renumber them, and the owning chapter's
+table stays the one to trust for status.
+
+\begin{table}[H]
+\centering
+\caption{Open-problem concordance. Statuses are the owning chapter's own, as of
+this edition; where a later chapter bears on a problem without closing it, the
+last column says how.}
+\label{tab:op-concordance}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.13\textwidth} >{\raggedright\arraybackslash}p{0.30\textwidth} >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Where} & \textbf{Problem} & \textbf{What bears on it elsewhere} \\
+\midrule
+ch.~1, \textsf{OP-1}--\textsf{OP-11} & The kernel's eleven, stated once in its own status table; \textsf{OP-4} splits into \textsf{OP-4a} (durable lineage replay) and \textsf{OP-4b} (inference-state recovery). & \textsf{OP-4b} is graded on ch.~5's agent-death ladder, rung 5; \textsf{OP-5} (oracle \emph{completeness}) is untouched by ch.~5's tower, which is about oracle \emph{incentives}. \\
+ch.~5 & Its own list, deliberately outside the kernel's numbering: death taxonomy, neutral graded outcomes, judge conflict of interest, correlated auditors. & The correlated-auditor question shares ch.~6's mixing model and its unmeasured $\theta$. \\
+ch.~8 & The federation limitations section: deployment-specific propagation tail bounds, and reconciling sheaf diffusion with epidemic gossip. & The second now carries a falsifier (rounds-to-first-alarm against $1/\lambda_2$) and no scheduled run. \\
+Cross-chapter & Claim signalling under \emph{private} monitoring: ch.~7's equilibrium assumes perfect public monitoring, which one harbor's ledger supplies and gossip does not. & Open in both ch.~7 and ch.~8; neither re-derives it, and ch.~8's settlement uses bonds rather than triggers to avoid needing it. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
 \clearpage
 \addcontentsline{toc}{section}{References}
 \pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-bibliography.tex}{bibliography}
