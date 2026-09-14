@@ -87,8 +87,8 @@ CURRENCY_NOTE = {
 
 
 def block(i):
-    L = [f"### `{i['name']}`  ·  {i['severity']} · {i['dialect']} · {i['medium']} · "
-         f"{i.get('detection_type','')} · family: {i.get('family','')}", ""]
+    L = [(f"### `{i['name']}`  ·  {i['severity']} · {i['dialect']} · {i['medium']} · "
+          + f"{i.get('detection_type','')} · family: {i.get('family','')}"), ""]
     note = CURRENCY_NOTE.get(i.get("currency", "current"), "")
     if note:
         L += [f"**Currency:** {note}", ""]
@@ -119,10 +119,10 @@ for fname, g in GROUPS.items():
                     key=lambda i: (SEV_RANK.get(i["severity"], 3), i["name"]))
     placed |= {i["name"] for i in picked}
     doc = [f"# {g['title']}", "", g["intro"], "",
-           f"_{len(picked)} items. Generated from catalog.json — edit there, then re-run "
-           f"`scripts/regenerate_references.py`. Do not hand-edit this file._", "",
-           "_Every item carries a **False positive when** line. Read it before you act on "
-           "the item: these are cues for an editor, not evidence about an author._", "",
+           (f"_{len(picked)} items. Generated from catalog.json — edit there, then re-run "
+            + "`scripts/regenerate_references.py`. Do not hand-edit this file._"), "",
+           ("_Every item carries a **False positive when** line. Read it before you act on "
+            + "the item: these are cues for an editor, not evidence about an author._"), "",
            "<!-- humanize:ignore-start",
            "     Everything below is a specimen catalog. It quotes the tells it documents,",
            "     including literal machine residue, so reviewing it with humanize_review.py",
