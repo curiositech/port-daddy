@@ -178,9 +178,9 @@ export default function WhitepaperPage() {
                         as one band rather than an image next to a heading.
                         Below 900px the plate goes: at that width it would be a
                         70px letterbox, which is showing nothing. */}
-                    <div className="grid items-stretch md:grid-cols-2">
-                      <Slab slug={part.slug} className="grid grid-cols-[auto_1fr] items-end gap-x-5 px-5 py-5">
-                        <span className="font-mono text-[clamp(52px,8vw,96px)] font-bold leading-[0.74] tracking-[-0.05em]">
+                    <div className="grid h-[168px] items-stretch md:grid-cols-2">
+                      <Slab slug={part.slug} className="grid grid-cols-[auto_1fr] items-end gap-x-5 px-5 py-4">
+                        <span className="font-mono text-[clamp(52px,7vw,88px)] font-bold leading-[0.74] tracking-[-0.05em]">
                           {part.numeral}
                         </span>
                         <h2 className="pb-[0.18em] text-[clamp(20px,2.6vw,30px)] font-bold leading-[1.02] tracking-[-0.025em]">
