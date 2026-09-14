@@ -27,6 +27,7 @@ import {
   handleShipwrightCreateThread,
   handleShipwrightThreads,
   handleShipwrightContext,
+  handleShipwrightRepoClear,
   assembleSseText,
   shipwrightModel,
   SHIPWRIGHT_DEFAULT_MODEL,
@@ -334,6 +335,24 @@ describe('shipwright — history is scoped to the session user', () => {
     expect(del).toBeDefined();
     expect(del!.sql).toContain('thread_id = ? AND user_id = ?');
     expect(del!.binds).toEqual([THREAD_ID, 'u_1', 'u_1', INSTALLATION_ID, REPO]);
+  });
+
+  it('repo clear uses the session-owned stored thread even after GitHub access is revoked', async () => {
+    const github = vi.fn(async () => new Response('revoked', { status: 404 }));
+    vi.stubGlobal('fetch', github);
+    const { env, calls } = sessionEnv();
+    const res = await handleShipwrightRepoClear(req('/v1/shipwright/repo-clear', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Origin: BASE },
+      body: JSON.stringify({ threadId: THREAD_ID }),
+    }), env);
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { code: string }).code).toBe('SHIPWRIGHT_REPO_CLEARED');
+    expect(github).not.toHaveBeenCalled();
+    const memoryDelete = calls.find((c) => c.sql.startsWith('DELETE FROM shipwright_repo_memory'));
+    const threadDelete = calls.find((c) => c.sql.startsWith('DELETE FROM shipwright_threads'));
+    expect(memoryDelete?.binds).toEqual(['u_1', INSTALLATION_ID, REPO]);
+    expect(threadDelete?.binds).toEqual(['u_1', INSTALLATION_ID, REPO]);
   });
 
   it('listShipwrightMessages returns conversation order (oldest → newest by id)', async () => {
@@ -727,6 +746,16 @@ describe('GET /account/shipwright — page', () => {
     expect(html).toContain('/v1/shipwright/chat');
     expect(html).toContain('/v1/shipwright/history');
     expect(html).toContain('/v1/shipwright/clear');
+  });
+
+  it('renders resume on the bare page and keeps controls inert until authorized history hydrates', () => {
+    const html = renderShipwrightPage(baseUser, 'aa'.repeat(16), NO_VIEW);
+    expect(html).toContain('id="resume-thread"');
+    expect(html).toContain('id="input"');
+    expect(html).toMatch(/id="input"[^>]*disabled/);
+    expect(html).toMatch(/id="send"[^>]*disabled/);
+    expect(html).toContain("addMsg('error', (e && e.message) || 'Repository authorization failed.");
+    expect(html).toContain("label.textContent = 'Unavailable'");
   });
 
   it('keeps the story-linework identity and keyboard UX affordances', () => {

@@ -722,15 +722,25 @@ export async function authorizeExactRepository(
   installationId: number,
   repository: string,
   userToken: string,
+  requiredAccess: 'read' | 'write' = 'read',
 ): Promise<void> {
   for (let page = 1; page <= MAX_REPOSITORY_PAGES; page += 1) {
     const result = await fetchJson<{
       total_count?: number;
-      repositories?: Array<{ full_name?: string }>;
+      repositories?: Array<{
+        full_name?: string;
+        permissions?: { admin?: boolean; maintain?: boolean; push?: boolean; pull?: boolean };
+      }>;
     }>(`${GH_API}/user/installations/${installationId}/repositories?per_page=100&page=${page}`, userToken);
     const repositories = result.body?.repositories;
     if (!Array.isArray(repositories)) failure('GITHUB_GRANT_INVALID', 502, 'GitHub installation repository response is invalid');
-    if (repositories.some((entry) => entry.full_name?.toLowerCase() === repository)) return;
+    const exact = repositories.find((entry) => entry.full_name?.toLowerCase() === repository);
+    if (exact) {
+      if (requiredAccess === 'read') return;
+      const permission = exact.permissions;
+      if (permission?.push || permission?.maintain || permission?.admin) return;
+      failure('REPOSITORY_WRITE_NOT_AUTHORIZED', 403, 'the signed-in user does not have write access to this repository');
+    }
     if (repositories.length < 100 || (Number.isSafeInteger(result.body?.total_count)
       && page * 100 >= (result.body?.total_count ?? 0))) {
       failure('REPOSITORY_NOT_AUTHORIZED', 403, 'the signed-in user has not granted this repository to Port Daddy');
@@ -1570,7 +1580,7 @@ export async function handleFleetbotPublisher(request: Request, env: PublisherEn
     }
     const [owner, repo] = action.repository.split('/') as [string, string];
     const installationId = await getRepoInstallationId(config.appId, config.privateKey, owner, repo, env.KV, true);
-    await authorizeExactRepository(installationId, action.repository, account.credential.accessToken);
+    await authorizeExactRepository(installationId, action.repository, account.credential.accessToken, 'write');
     key = {
       accountUserId: account.user.id,
       accountGithubUserId: account.user.github_user_id,

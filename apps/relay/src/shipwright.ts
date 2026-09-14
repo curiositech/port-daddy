@@ -5,7 +5,7 @@
  *   GET  /v1/shipwright/history  (session + thread)       → one repo-scoped log
  *   POST /v1/shipwright/chat     (session + thread)       → Workers AI, SSE
  *   POST /v1/shipwright/clear    (session + thread)       → delete raw thread history
- *   POST /v1/shipwright/repo-clear (session + repo)       → delete durable repo state
+ *   POST /v1/shipwright/repo-clear (session + stored thread) → delete durable repo state
  *   POST /v1/shipwright/open-pr  (session + same-origin)  → PR in the user's repo
  *
  * The Shipwright interviews the operator (repo + goals), proposes a bespoke
@@ -46,7 +46,8 @@
  *      carries that provenance honestly;
  *   4. tenancy: the signed-in user's GitHub token must list the exact repo
  *      under the exact installation, and a force-refreshed App lookup must
- *      agree. All denial shapes are indistinguishable.
+ *      agree. Publication additionally requires write, maintain, or admin
+ *      permission on that repository. All denial shapes are indistinguishable.
  *   5. publication mints one uncached installation token attenuated to that
  *      repository with contents/pull-request write only, then revokes it.
  *
@@ -130,7 +131,7 @@ YOUR PROCESS, in order:
 5. AFTER the YAML, tell the operator how to ship it, in this order: (a) once the roster shows the green "Validates" badge, they can click the "Open PR" button right on this page — you (via the relay) will commit pd-fleet.yml to a fresh branch of their repo and open the PR for them, provided the Port Daddy Fleet GitHub App is installed on that repo; (b) or commit it by hand: save the block as pd-fleet.yml at the repo root and open a PR to the default branch (git checkout -b fleet-setup && git add pd-fleet.yml && git commit && gh pr create). Either way, remind them the fleet only fires once the PR is merged and the App is installed.
 
 HARD RULES:
-- BE HONEST ABOUT YOUR HANDS: you CAN open a PR — but only when the operator clicks "Open PR" beside a roster that passed validation, only into a repo whose Port Daddy Fleet GitHub App installation they own, and only as a fresh branch + PR (never a push, never a merge — their review is the gate). You still cannot read their repo or change anything anywhere else. Say exactly this much whenever you hand over YAML — no more, no less.
+- BE HONEST ABOUT YOUR HANDS: you CAN open a PR — but only when the operator clicks "Open PR" beside a roster that passed validation, only into a repo where GitHub freshly confirms they have write, maintain, or admin access and the Port Daddy Fleet GitHub App is installed, and only as a fresh branch + PR (never a push, never a merge — their review is the gate). You still cannot read their repo or change anything anywhere else. Say exactly this much whenever you hand over YAML — no more, no less.
 - Never invent repo facts the operator didn't give you — ask instead.
 - Never emit a partial pd-fleet.yml, and never emit one before you know repo + goals.
 - Keep replies tight: a few short paragraphs or a compact list. No walls of text.
@@ -172,6 +173,7 @@ async function authorizeRepoScope(
   session: ResolvedSession,
   installationId: number,
   repoFullName: string,
+  requiredAccess: 'read' | 'write' = 'read',
 ): Promise<Response | null> {
   if (!env.GITHUB_APP_ID || !env.GITHUB_APP_PRIVATE_KEY) {
     return json(503, { code: 'SHIPWRIGHT_REPO_AUTH_UNCONFIGURED', error: 'GitHub App not configured on this relay' });
@@ -187,7 +189,7 @@ async function authorizeRepoScope(
       true,
     );
     if (installed !== installationId || !session.ghToken) throw new Error('scope unavailable');
-    await authorizeExactRepository(installationId, repoFullName, session.ghToken);
+    await authorizeExactRepository(installationId, repoFullName, session.ghToken, requiredAccess);
   } catch {
     // Missing repo, another account, wrong installation and upstream denial
     // are intentionally indistinguishable. This route is not a repository or
@@ -218,6 +220,7 @@ async function resolveAuthorizedThread(
 }
 
 interface CreateThreadBody { installationId?: unknown; repo?: unknown }
+interface RepoClearBody { threadId?: unknown }
 
 /** POST /v1/shipwright/thread — issue an opaque, server-bound thread id. */
 export async function handleShipwrightCreateThread(request: Request, env: Env): Promise<Response> {
@@ -358,18 +361,19 @@ export async function handleShipwrightRepoClear(request: Request, env: Env): Pro
   const session = await resolveSession(request, env);
   if (!session) return json(401, { code: 'UNAUTHENTICATED', error: 'no session' });
   if (!isSameOrigin(request, env)) return json(403, { code: 'CROSS_ORIGIN', error: 'cross-origin request refused' });
-  const body = await readJson<CreateThreadBody>(request);
-  const installationId = Number(body?.installationId);
-  const repoFullName = normalizeShipwrightRepo(body?.repo);
-  if (!Number.isInteger(installationId) || installationId <= 0 || !repoFullName) {
-    return json(400, { code: 'BAD_JSON', error: 'Request body must be {installationId: positive integer, repo: owner/name}' });
+  const body = await readJson<RepoClearBody>(request);
+  const threadId = typeof body?.threadId === 'string' ? body.threadId : '';
+  if (!THREAD_RE.test(threadId)) {
+    return json(400, { code: 'BAD_JSON', error: 'Request body must be {threadId: opaque Shipwright thread}' });
   }
-  const refused = await authorizeRepoScope(env, session, installationId, repoFullName);
-  if (refused) return refused;
+  // Erasure authority comes from the authenticated account's stored thread,
+  // not GitHub. Revoking repo/App access must never strand the user's data.
+  const thread = await getShipwrightThread(env.DB, session.user.id, threadId);
+  if (!thread) return json(404, { code: 'SHIPWRIGHT_THREAD_NOT_FOUND', error: 'thread not found in this account' });
   const clearedThreads = await clearShipwrightRepo(env.DB, {
     userId: session.user.id,
-    installationId,
-    repoFullName,
+    installationId: thread.installation_id,
+    repoFullName: thread.repo_full_name,
   });
   return json(200, { code: 'SHIPWRIGHT_REPO_CLEARED', error: null, clearedThreads });
 }
@@ -717,7 +721,7 @@ export async function handleShipwrightOpenPr(request: Request, env: Env): Promis
   // ── Gate 3: repeat exact repository authorization immediately before the
   // mutation credential is minted. This force-refreshes both the App binding
   // and the signed-in user's installation-repository grant.
-  const publicationRefusal = await authorizeRepoScope(env, session, installationId, repoFull);
+  const publicationRefusal = await authorizeRepoScope(env, session, installationId, repoFull, 'write');
   if (publicationRefusal) {
     return fail(404, 'SHIPWRIGHT_SCOPE_UNAVAILABLE', 'repository context is unavailable');
   }

@@ -26,6 +26,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { generateKeyPairSync } from 'node:crypto';
 import {
+  handleShipwrightChat,
+  handleShipwrightHistory,
   handleShipwrightOpenPr,
   SHIPWRIGHT_BRANCH_PREFIX,
   MAX_YAML_CHARS,
@@ -103,7 +105,11 @@ const baseUser: UserRow = {
  * SELECT. Every write (run) THROWS — the route must never touch D1 state, and
  * a passing happy-path test is the proof.
  */
-function makeDb(opts: { history?: ShipwrightMessageRow[]; sealed?: { enc: string; iv: string } } = {}) {
+function makeDb(opts: {
+  history?: ShipwrightMessageRow[];
+  sealed?: { enc: string; iv: string };
+  allowWrites?: boolean;
+} = {}) {
   const stmt = (sql: string) => {
     let bound: unknown[] = [];
     const s = {
@@ -137,13 +143,14 @@ function makeDb(opts: { history?: ShipwrightMessageRow[]; sealed?: { enc: string
         return null;
       },
       async all<T>(): Promise<{ results: T[] }> {
-        if (sql.includes('FROM shipwright_chats')) {
+        if (sql.includes('FROM shipwright_thread_messages') || sql.includes('FROM shipwright_chats')) {
           const rows = [...(opts.history ?? [])].sort((a, b) => b.id - a.id);
           return { results: rows as unknown as T[] };
         }
         return { results: [] };
       },
-      async run(): Promise<never> {
+      async run(): Promise<D1Result> {
+        if (opts.allowWrites) return { success: true, meta: { changes: 1 } } as unknown as D1Result;
         throw new Error('D1 write refused: the open-pr route must not mutate state');
       },
     };
@@ -166,6 +173,8 @@ interface EnvOpts {
   /** Pre-seed the repo→installation KV binding (skips the App-JWT lookup). */
   repoBoundTo?: number;
   noGithubApp?: boolean;
+  allowWrites?: boolean;
+  ai?: Ai;
 }
 
 /** Env with a decryptable session token + KV pre-seeded like fleet-control tests. */
@@ -181,10 +190,11 @@ async function makeSessionEnv(opts: EnvOpts = {}): Promise<Env> {
     seed['github_repo_inst_octo_widgets'] = String(opts.repoBoundTo);
   }
   return {
-    DB: makeDb({ history: opts.history, sealed }),
+    DB: makeDb({ history: opts.history, sealed, allowWrites: opts.allowWrites }),
     KV: makeKV(seed),
     USER_TOKEN_WRAPPING_KEY: WRAP_KEY,
     PUBLIC_BASE_URL: BASE,
+    AI: opts.ai,
     ...(opts.noGithubApp
       ? {}
       : { GITHUB_APP_ID: '12345', GITHUB_APP_PRIVATE_KEY: TEST_APP_KEY }),
@@ -223,6 +233,7 @@ function stubGithub(
   installations: Array<{ id: number }>,
   repoInstallation = INSTALLATION_ID,
   revokeStatus = 204,
+  userCanWrite = true,
 ) {
   const seen: Array<{ url: string; method: string; body: string | null }> = [];
   const mock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -231,7 +242,13 @@ function stubGithub(
     seen.push({ url, method, body: typeof init?.body === 'string' ? init.body : null });
     if (url.includes(`/user/installations/${INSTALLATION_ID}/repositories`)) {
       const granted = installations.some((entry) => entry.id === INSTALLATION_ID);
-      return Response.json({ total_count: granted ? 1 : 0, repositories: granted ? [{ full_name: 'octo/widgets' }] : [] });
+      return Response.json({
+        total_count: granted ? 1 : 0,
+        repositories: granted ? [{
+          full_name: 'octo/widgets',
+          permissions: { pull: true, push: userCanWrite, maintain: false, admin: false },
+        }] : [],
+      });
     }
     if (url.includes('/user/installations')) {
       return Response.json({ installations });
@@ -372,6 +389,36 @@ describe('open-pr — the server re-validates; a lying client gets a 400', () =>
 // ── Tenancy (the billing idiom, GitHub decides) ──────────────────────────────
 
 describe('open-pr — tenancy: a session can never target another tenant', () => {
+  it('allows a read-only collaborator to read/chat but refuses publication', async () => {
+    const { seen } = stubGithub([{ id: INSTALLATION_ID }], INSTALLATION_ID, 204, false);
+    const env = await makeSessionEnv({
+      history: chatWith(GOOD_YAML),
+      repoBoundTo: INSTALLATION_ID,
+      allowWrites: true,
+      ai: { run: async () => ({ response: 'Read-only discussion remains available.' }) } as unknown as Ai,
+    });
+    const headers = { Cookie: `__Host-pd_session=${COOKIE_VALUE}` };
+    const history = await handleShipwrightHistory(
+      new Request(`${BASE}/v1/shipwright/history?thread=${THREAD_ID}`, { headers }),
+      env,
+    );
+    expect(history.status).toBe(200);
+    const chat = await handleShipwrightChat(new Request(`${BASE}/v1/shipwright/chat`, {
+      method: 'POST',
+      headers: { ...headers, Origin: BASE, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ threadId: THREAD_ID, message: 'Discuss this roster', stream: false }),
+    }), env);
+    expect(chat.status).toBe(200);
+
+    const publish = await handleShipwrightOpenPr(
+      jsonReq({ yaml: GOOD_YAML, installationId: INSTALLATION_ID, repo: 'octo/widgets' }),
+      env,
+    );
+    expect(publish.status).toBe(404);
+    expect(((await publish.json()) as { code: string }).code).toBe('SHIPWRIGHT_SCOPE_UNAVAILABLE');
+    expect(seen.every((call) => call.method === 'GET')).toBe(true);
+  });
+
   it('refuses identical emitted YAML when the requested target is repo B, not thread repo A', async () => {
     const { seen } = stubGithub([{ id: INSTALLATION_ID }]);
     const env = await makeSessionEnv({ history: chatWith(GOOD_YAML), repoBoundTo: INSTALLATION_ID });
