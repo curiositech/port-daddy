@@ -65,7 +65,6 @@ function mkShip(over: Partial<ShipConfig> = {}): ShipConfig {
     role: 'Hold the PR to its best interpretation.',
     telos: 'Steel-man, then demand.',
     blocking: false,
-    needsExecution: false,
     ideation: false,
     purser: true,
     blockWithoutSandbox: false,
@@ -2604,7 +2603,7 @@ describe('pd-fleet.yml purser parsing', () => {
     // No graft configured ⇒ the purser gets the default skill-graft list.
     expect(p.graft).toEqual([...PURSER_DEFAULT_GRAFT]);
     expect(p.cfModel).toBe(CF_ROLE_MODELS.shipDefault);
-    expect(p.needsExecution).toBe(false); // cloud-executable by contract
+    expect(p.execution.mode).toBe('none'); // model-only by explicit execution policy
     expect(p.prompt.length).toBeGreaterThan(0); // default persona prompt
   });
 

@@ -84,7 +84,6 @@ function mkShip(): ShipConfig {
     role: 'Hold the PR to its best interpretation.',
     telos: 'Steel-man, then demand.',
     blocking: false,
-    needsExecution: false,
     ideation: false,
     purser: true,
     blockWithoutSandbox: false,

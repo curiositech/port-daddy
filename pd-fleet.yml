@@ -147,10 +147,22 @@ fleet:
       trigger: pull_request:opened
       participation:
         default: abstain
+        unavailable_blocks: false
         rules:
-          - disposition: required
+          - disposition: advisory
             prClasses: [code, ui, ci, data, dependencies]
-            reason: runnable product or build surface changed
+            reason: runnable product or build surface changed; execution evidence is advisory until the sandbox runner is configured
+      execution:
+        mode: write_sandbox
+        repository: current_repository
+        worktree: isolated
+        cwd: .
+        toolAllowlist: [read_file, list_files, search, run_tests]
+        mcpAllowlist: [github.read]
+        networkAllowlist: []
+        writePathAllowlist: [.]
+        maxWallClockMs: 600000
+        maxCostMicrousd: 2000000
       backend: cli:claude-code
       fallbacks:
         - backend: cli:codex
@@ -1360,6 +1372,7 @@ fleet:
       schedule: "*/20 * * * *"
       trigger: pull_request:opened
       participation: { default: advisory, rules: [] }
+      execution: { mode: none }
       backend: cli:claude-code
       fallbacks:
         - backend: cli:codex

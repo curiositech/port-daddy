@@ -2,7 +2,7 @@
  * Provider-neutral Fleet participation and execution authority contracts.
  *
  * These types deliberately separate three questions that the historical
- * `blocking` and `needsExecution` booleans collapsed:
+ * the historical `blocking` boolean and tool-name inference collapsed:
  *
  *  1. Is this ship relevant to this PR?
  *  2. If relevant, is its judgement required or advisory?
@@ -54,6 +54,8 @@ export interface ShipParticipationRule {
 
 export interface ShipParticipationPolicy {
   default: ShipParticipation;
+  /** When true, an eligible ship's infrastructure unavailability blocks the run. */
+  unavailableBlocks?: boolean;
   /** First matching rule wins. Rules therefore remain reviewable and deterministic. */
   rules: ShipParticipationRule[];
 }
@@ -89,9 +91,10 @@ function enumList<T extends string>(value: unknown, values: ReadonlySet<T>): T[]
 /** Parse repository-authored participation policy; malformed rules are dropped closed. */
 export function isShipParticipationPolicyValid(value: unknown): boolean {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-  const raw = value as { default?: unknown; rules?: unknown };
-  if (Object.keys(value).some(key => key !== 'default' && key !== 'rules')) return false;
+  const raw = value as { default?: unknown; rules?: unknown; unavailable_blocks?: unknown };
+  if (Object.keys(value).some(key => !['default', 'rules', 'unavailable_blocks'].includes(key))) return false;
   if (typeof raw.default !== 'string' || !PARTICIPATION_VALUES.has(raw.default as ShipParticipation)) return false;
+  if (raw.unavailable_blocks !== undefined && typeof raw.unavailable_blocks !== 'boolean') return false;
   if (raw.rules !== undefined && !Array.isArray(raw.rules)) return false;
   return (raw.rules ?? []).every(item => {
     if (!item || typeof item !== 'object' || Array.isArray(item)) return false;
@@ -108,10 +111,11 @@ export function isShipParticipationPolicyValid(value: unknown): boolean {
 export function parseShipParticipationPolicy(value: unknown): ShipParticipationPolicy {
   const fallback: ShipParticipationPolicy = {
     default: 'ineligible',
+    unavailableBlocks: false,
     rules: [],
   };
   if (!isShipParticipationPolicyValid(value)) return fallback;
-  const raw = value as { default?: unknown; rules?: unknown };
+  const raw = value as { default?: unknown; rules?: unknown; unavailable_blocks?: unknown };
   const defaultValue = typeof raw.default === 'string' && PARTICIPATION_VALUES.has(raw.default as ShipParticipation)
     ? raw.default as ShipParticipation
     : fallback.default;
@@ -134,7 +138,7 @@ export function parseShipParticipationPolicy(value: unknown): ShipParticipationP
       });
     }
   }
-  return { default: defaultValue, rules };
+  return { default: defaultValue, unavailableBlocks: raw.unavailable_blocks === true, rules };
 }
 
 /** Select one ship's participation without invoking a model. */
@@ -496,39 +500,10 @@ export async function mintShipExecutionGrant(params: {
       params.issuedAtEpochMs > params.nowEpochMs || params.expiresAtEpochMs <= params.nowEpochMs ||
       params.expiresAtEpochMs <= params.issuedAtEpochMs ||
       params.expiresAtEpochMs - params.issuedAtEpochMs > policy.maxWallClockMs) return null;
-  const digestInput = JSON.stringify([
-    'fleet-execution-grant-v1', params.nonce, params.tenantId, params.tenantBindingReceiptId,
-    params.repositoryId, params.repositoryFullName.toLowerCase(), canonicalWorktree, cwdPath,
-    params.headSha, params.runId, params.attempt, params.issuedAtEpochMs, params.expiresAtEpochMs,
-    canonicalWritePathRoots, policy,
-  ]);
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(digestInput));
-  const digestSha256 = [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
-  // No production runner atomically consumes this envelope yet. Refuse write
-  // grants rather than returning an object that could be mistaken for usable
-  // mutation authority. The canonical-root contract above remains the required
-  // shape for that future consumer.
-  if (policy.mode === 'write_sandbox') return null;
-  return {
-    ...policy,
-    grantId: `seg_${digestSha256.slice(0, 32)}`,
-    nonce: params.nonce,
-    tenantId: params.tenantId,
-    tenantBindingReceiptId: params.tenantBindingReceiptId,
-    repositoryId: params.repositoryId,
-    repositoryFullName: params.repositoryFullName,
-    worktreePath: canonicalWorktree,
-    cwdPath,
-    canonicalWritePathRoots,
-    requiresTargetRealpathRecheck: true,
-    headSha: params.headSha,
-    runId: params.runId,
-    attempt: params.attempt,
-    issuedAtEpochMs: params.issuedAtEpochMs,
-    expiresAtEpochMs: params.expiresAtEpochMs,
-    singleUse: true,
-    digestSha256,
-  };
+  // No production runner atomically consumes the nonce and digest yet. Refuse
+  // both read and write grants: an unconsumed read envelope is still replayable
+  // authority and must not be mistaken for a working sandbox capability.
+  return null;
 }
 
 /**

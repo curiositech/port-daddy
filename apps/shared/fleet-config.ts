@@ -73,8 +73,6 @@ export interface ShipConfig {
    * false (default), the ship posts findings but never fails the check.
    */
   blocking: boolean;
-  /** When true, ship needs execution (bash/write) — dispatch to GHA instead */
-  needsExecution: boolean;
   /**
    * When true, this is an IDEATION ship: it
    * proposes forward work via the {@link Proposal} schema and its comment is
@@ -209,10 +207,6 @@ function resolveModelToken(raw: unknown): string | undefined {
   return undefined;
 }
 
-// Tools that require local execution (can't run in a Worker). Matches any
-// Bash(...) tool whose command is NOT `gh` (gh runs fine against the API).
-const EXECUTION_TOOLS_RE = /Bash\((?!gh)[^)]*\)/;
-
 interface RawFallback {
   backend?: string;
   /**
@@ -248,7 +242,6 @@ interface RawAgent {
   prompt?: string;
   backend?: string;
   fallbacks?: RawFallback[];
-  allowedTools?: string;
   telos?: string;
   role?: string;
   temperature?: unknown;
@@ -653,10 +646,6 @@ function deriveGraft(value: unknown, purser: boolean): string[] {
   return ids;
 }
 
-function deriveNeedsExecution(allowedTools: unknown): boolean {
-  return EXECUTION_TOOLS_RE.test(typeof allowedTools === 'string' ? allowedTools : '');
-}
-
 /**
  * Does a ship's trigger (string or array) match the requested event trigger?
  * Matches an exact trigger (`pull_request:opened`) or a wildcard
@@ -879,9 +868,6 @@ export function fleetShipsFromDocument(doc: unknown, trigger: string): ShipConfi
       // Ideation ships are advisory by definition — they can never gate a merge,
       // even if pd-fleet.yml mistakenly sets `blocking: true` on one.
       blocking,
-      // Purser runs entirely against the GitHub API + Workers AI: cloud-executable
-      // by contract, regardless of any allowedTools relic.
-      needsExecution: purser ? false : deriveNeedsExecution(agent.allowedTools),
       ideation,
       purser,
       blockWithoutSandbox: purser ? coerceBlocking(agent.blockWithoutSandbox) : false,
@@ -938,7 +924,6 @@ Be direct. Cite specific lines. Flag ADR violations if you see them.`,
       role: 'Catch the bugs the diff would otherwise ship.',
       telos: 'Catch the bugs the diff would otherwise ship; cite ADRs.',
       blocking: true,
-      needsExecution: false,
       ideation: false,
       purser: false,
       blockWithoutSandbox: false,
@@ -970,7 +955,6 @@ Output:
       role: 'Find the test gaps and edge cases the author missed.',
       telos: 'Find the edge cases.',
       blocking: false,
-      needsExecution: false,
       ideation: false,
       purser: false,
       blockWithoutSandbox: false,
@@ -1002,7 +986,6 @@ For each finding: write the falsifiable attack construction and its impact. Be a
       role: 'Probe for security vulnerabilities in auth and capability surfaces.',
       telos: 'Find the attack before an adversary does.',
       blocking: true,
-      needsExecution: false,
       ideation: false,
       purser: false,
       blockWithoutSandbox: false,
@@ -1062,7 +1045,6 @@ Rules:
       role: 'Catch AI-isms in user-facing copy before they ship.',
       telos: 'Read every user-facing string as a new user. Strip the machine accent without flattening the voice.',
       blocking: false,
-      needsExecution: false,
       ideation: false,
       purser: false,
       blockWithoutSandbox: false,
@@ -1098,7 +1080,6 @@ function ideationDefaults(): ShipConfig[] {
     role: telos,
     telos,
     blocking: false,
-    needsExecution: false,
     ideation: true,
     purser: false,
     blockWithoutSandbox: false,
