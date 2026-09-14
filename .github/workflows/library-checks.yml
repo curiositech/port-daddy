@@ -287,16 +287,15 @@ jobs:
       - name: No message ceremony is written out twice in the Book
         run: python3 scripts/harbor-research/check_duplicate_protocols.py
 
-      # Figure 4.5's caption tells the reader its sweep CSV "is not yet
-      # present", so the curves are the closed-form floor rather than the
-      # measurement the plot looks like. The honesty belongs in the tree, not
-      # in a caption a skimming reader never reaches; the allow keeps that one
-      # debt visible here until the CSV is committed, and a second such caption
-      # anywhere in the corpus fails.
+      # Figure 4.5's caption used to tell the reader its sweep CSV "is not yet
+      # present", and this step carried an --allow for exactly that one debt.
+      # The CSV is now committed (whitepaper/figures/data/r1-floor.csv, emitted
+      # by a7_experiment.py at seed 20260816), the caption states what the
+      # measurement shows, and the allow is gone. This step now runs with no
+      # --allow at all: any caption anywhere in the corpus that says its data
+      # is absent fails it.
       - name: No figure caption says the data behind it is absent
-        run: >-
-          python3 scripts/harbor-research/check_absent_data_captions.py
-          --allow 'whitepaper/figures/legible-swarm-readpoverty.tex:not yet present'
+        run: python3 scripts/harbor-research/check_absent_data_captions.py
 
       # Chapter 1 splits "delegation chain" into the cryptographic authorization
       # chain and the coordination lineage and promises, in its own prose, never
