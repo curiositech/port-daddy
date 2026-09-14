@@ -28,7 +28,7 @@ Three rules are already mechanized and shipping in #10153. Four more have to be 
 
 ### Still to be mechanized — the four that encode this brief
 
-These do not exist yet. They are the deliverable of Wave 0b, and each one turns a sentence you wrote into a script.
+These do not exist yet. They are the deliverable of Wave 0b, and each one turns a sentence you wrote into a script. Where a rule checks a closed vocabulary — `status`'s six state names, `frames`'s eight pattern names — it reads that vocabulary from `system.html`, the normative spec for this directory (see the README), and fails if a name it checks no longer appears there. `fleetbar-research-report.html` is archival research and is never the source a rule validates against, even where the two happen to agree today.
 
 **`typeface`** — *"I do not love inter/geist and of course reject them."*
 Fails on any `font-family` in a component that is not `var(--display)` or `var(--mono)`, and on any font URL that is not the one house link. Two faces, declared once. A rejected face cannot re-enter by being imported in one page's stylesheet.
@@ -86,13 +86,13 @@ Once these exist, most of the 264 violations stop being individual fixes and bec
 
 By *leverage*, not by violation count. A primitive's radius is inherited by everything that renders it; a leaf page's radius is its own.
 
-### Wave 0 — the guard *(shipping, #10153)*
+### Wave 0 — the guard *(#10153)*
 Three rules, the ratchet, 27 tests. Nothing converts yet; this is the instrument.
 
-### Wave 0b — the four new rules + the seven primitives
-The primitives, their stories, and the `typeface` / `status` / `frames` / `motion` rules with their own baselines recorded. Ends with `system.html` as the living specimen page, published at `/design` so the system is a URL and not a file anyone has to find.
+### Wave 0b — the five new rules + the seven primitives
+The primitives, their stories, and the `typeface` / `status` / `frames` / `motion` / `type` rules with their own baselines recorded — `type` included, because it falls out of the same typography-expert pass that settles the typeface question in §5.1 below, uses the same detector shape as the other four, and nothing about it depends on a later wave's conversions the way `frames` depends on the `Frame` primitive existing first. Ends with `system.html` as the living specimen page, published at `/design` so the system is a URL and not a file anyone has to find.
 
-### Wave 1 — `/whitepaper` *(shipped, #10154)*
+### Wave 1 — `/whitepaper` *(#10154)*
 The proof page. Already lifted onto `--part-*` role tokens driven by a `slug` field in `textbook.json`, with the hard-coded colour table deleted rather than moved. Ten screenshot pairs prove the page is pixel-identical.
 
 ### Wave 2 — the two primitives, alone, in one PR
@@ -147,7 +147,7 @@ Each of these gets a screenshot pair at 1280 / 860 / 390 in light and dark on ev
 1. ~~**The typeface.**~~ **Settled.** `typography-expert` sorts faces by *register*, and this work sits in its **Quiet Swiss / neo-grotesque** row, whose libre entries are **Archivo** and Hanken Grotesk. Archivo is also its named libre replacement for Helvetica and Neue Haas. So the stack stands: **Archivo** (one family, two widths — `wdth` 100 for text, 125 for the oversized numerals) plus **IBM Plex Mono** as the permitted third family for machine truth. Its §8 rules also corrected the first build: type is now sized in `rem` throughout, nothing a reader reads sits below 14px, and every 12px label meets all three conditions of the label exception (weight ≥600, uppercase, tracking ≥0.1em). One exception is stated rather than hidden: display type ≥48px is set at 1.0 leading, below the 1.05 heading floor, because that is how this tradition sets it.
    **One rule still to honour on the site:** §7 says self-host WOFF2 and never `@import` — Google Fonts CSS costs a render-blocking round trip. The local specimen page links Google Fonts because it has to travel as one file; **the site subsets and self-hosts**, with `font-display: swap` and a `size-adjust` fallback to kill CLS. That is a Wave 0b task, not a preference.
 2. **`PortDaddyMark.tsx`** (Wave 5) — allow the brand literals with a recorded reason, or tokenise the mark?
-3. **Scope.** The ratchet covers `website-v2/src/{components,pages}/**`. `src/app/**` and `src/lib/**` are outside it today, which means drift there is invisible. Widen now, or convert first and widen at the end?
+3. ~~**Scope.**~~ **Settled: widen to `src/lib/**` in Wave 0b; `src/app/**` isn't a real question yet.** Measured directly with `check-swiss-normalization.mjs --root` pointed at each excluded tree: `src/app/**` has zero files, because the directory does not exist on `main` today — there is nothing to widen there, and it comes into scope on its own the day it's created. `src/lib/**` carries exactly 9 `literal` violations across 2 files (`src/lib/porthole/vt.ts`: 4, `src/lib/porthole/vt.test.ts`: 5) and zero `radius` or `flat` violations. Nine violations in one file pair does not flood the ratchet the way widening to all of `src/` would; Wave 0b adds `src/lib` to `SCOPE_DIRS` alongside `components` and `pages`, and the ratchet gains those two files' counts in the same commit — the boundary does not stay open past this document.
 4. **The `frames` rule's surface boundary.** I have proposed "a component tree bounded at the next `Slab` or `Frame` root". If that proves noisy in practice the alternative is to check only at the page level, which catches less but never cries wolf.
 
 ### A fifth guard rule falls out of the typography reference
