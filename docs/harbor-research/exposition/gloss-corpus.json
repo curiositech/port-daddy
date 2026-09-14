@@ -1,161 +1,555 @@
 {
   "_note": "Gloss corpus for claude/book-maximal-apparatus. term = the exact \\textbf{...} argument at its FIRST body use in the chapter; def = the one-line margin definition, drawn from that chapter's own defining sentence, not from outside it.",
-
   "single-writer-kernel": [
-    ["substrate layer", "the bottom of the four-layer coordination stack: the durable state every other layer reads and writes through."],
-    ["single-writer transactional reference monitor", "Anderson and Lampson's mediator, realised locally: one writer, always invoked, tamper-evident, small enough to verify."],
-    ["reference monitor", "a mediator of every security-relevant operation that is always invoked, tamper-evident, and small enough to verify."],
-    ["substrate organ", "the floor of the seven organs: the plain table the other six impose discipline over."],
-    ["boot-time migration ledger", "a numbered, totally ordered set of migrations the daemon applies---and then verifies against the live schema---before it serves any request."],
-    ["Chartroom", "the product's name for the surface that shows who is authorised, who owns what, and which transitions were accepted."],
-    ["Selective Checkpointing", "a design that appends a synchronous full WAL checkpoint to money-bearing write paths, so a settlement entry is durable before it is acknowledged."],
-    ["whole-file", "the coarsest claim grain: the file path alone, with no interval and no symbol."],
-    ["fencing token", "Kleppmann's rule: a number that only increases, carried with every write, so a stale holder's write is refused by the resource itself."],
-    ["Stigmergic Ticket-Lock", "a specified, unbuilt queue that hands out ordered tickets instead of letting contenders retry, so no claimant starves."],
-    ["capability", "ability: what the agent's sandbox makes possible, kept distinct from permission so ``able but forbidden'' stays expressible."],
-    ["permission", "normative status: what the deontic layer allows, as against what the sandbox makes possible."],
-    ["regimentable", "strictly preventable before commit, so the violating state is physically unreachable rather than merely detected after the fact."],
-    ["enforceable", "the weaker half of the pair: detected after commit and compensated, because the predicate needs I/O, a clock, or consensus."],
-    ["State-Machine Assertions", "a design adding delta oracles and machine-checkable before/after measurements to the finite set of close conditions."],
-    ["Event-sourced rehydration", "a specified successor start that replays the predecessor's commit and message log rather than inheriting a summary of it."],
-    ["effectively-once", "deduplication enforced at the boundary by an idempotency key and a unique receipt row---not a promise the network keeps."],
-    ["differential fuzzing", "driving one randomised concurrent stream against two bindings of the same interface and failing on the first divergence."],
-    ["buildable defect", "a gap filed as research whose durable primitive already exists: what is missing is the wrapping, not the mechanism."],
-    ["macaroon", "a bearer credential whose authority can only narrow, because each caveat is folded into a chained keyed hash."],
-    ["Coordination Guard", "the CLI gate that intercepts destructive verbs---in-band, as the same user, through a PATH the agent controls."],
-    ["hook harness", "a monitor riding the lifecycle events a vendor's agent loop already exposes, rather than a gate the agent must pass through."],
-    ["cross-machine provisioning", "the re-scoped ninth invariant: it defends against cross-machine synchronisation and a tamperer who is not the same user."],
-    ["OS-level ephemeral namespaces", "a design that spawns each agent inside its own kernel namespace, so the same-machine adversary cannot reach the daemon's socket."]
+    [
+      "substrate layer",
+      "the bottom of the four-layer coordination stack: the durable state every other layer reads and writes through."
+    ],
+    [
+      "single-writer transactional reference monitor",
+      "Anderson and Lampson's mediator, realised locally: one writer, always invoked, tamper-evident, small enough to verify."
+    ],
+    [
+      "reference monitor",
+      "a mediator of every security-relevant operation that is always invoked, tamper-evident, and small enough to verify."
+    ],
+    [
+      "substrate organ",
+      "the floor of the seven organs: the plain table the other six impose discipline over."
+    ],
+    [
+      "boot-time migration ledger",
+      "a numbered, totally ordered set of migrations the daemon applies---and then verifies against the live schema---before it serves any request."
+    ],
+    [
+      "Chartroom",
+      "the product's name for the surface that shows who is authorised, who owns what, and which transitions were accepted."
+    ],
+    [
+      "Selective Checkpointing",
+      "a design that appends a synchronous full WAL checkpoint to money-bearing write paths, so a settlement entry is durable before it is acknowledged."
+    ],
+    [
+      "whole-file",
+      "the coarsest claim grain: the file path alone, with no interval and no symbol."
+    ],
+    [
+      "fencing token",
+      "Kleppmann's rule: a number that only increases, carried with every write, so a stale holder's write is refused by the resource itself."
+    ],
+    [
+      "Stigmergic Ticket-Lock",
+      "a specified, unbuilt queue that hands out ordered tickets instead of letting contenders retry, so no claimant starves."
+    ],
+    [
+      "capability",
+      "ability: what the agent's sandbox makes possible, kept distinct from permission so ``able but forbidden'' stays expressible."
+    ],
+    [
+      "permission",
+      "normative status: what the deontic layer allows, as against what the sandbox makes possible."
+    ],
+    [
+      "regimentable",
+      "strictly preventable before commit, so the violating state is physically unreachable rather than merely detected after the fact."
+    ],
+    [
+      "enforceable",
+      "the weaker half of the pair: detected after commit and compensated, because the predicate needs I/O, a clock, or consensus."
+    ],
+    [
+      "State-Machine Assertions",
+      "a design adding delta oracles and machine-checkable before/after measurements to the finite set of close conditions."
+    ],
+    [
+      "Event-sourced rehydration",
+      "a specified successor start that replays the predecessor's commit and message log rather than inheriting a summary of it."
+    ],
+    [
+      "effectively-once",
+      "deduplication enforced at the boundary by an idempotency key and a unique receipt row---not a promise the network keeps."
+    ],
+    [
+      "differential fuzzing",
+      "driving one randomised concurrent stream against two bindings of the same interface and failing on the first divergence."
+    ],
+    [
+      "buildable defect",
+      "a gap filed as research whose durable primitive already exists: what is missing is the wrapping, not the mechanism."
+    ],
+    [
+      "macaroon",
+      "a bearer credential whose authority can only narrow, because each caveat is folded into a chained keyed hash."
+    ],
+    [
+      "Coordination Guard",
+      "the CLI gate that intercepts destructive verbs---in-band, as the same user, through a PATH the agent controls."
+    ],
+    [
+      "hook harness",
+      "a monitor riding the lifecycle events a vendor's agent loop already exposes, rather than a gate the agent must pass through."
+    ],
+    [
+      "cross-machine provisioning",
+      "the re-scoped ninth invariant: it defends against cross-machine synchronisation and a tamperer who is not the same user."
+    ],
+    [
+      "OS-level ephemeral namespaces",
+      "a design that spawns each agent inside its own kernel namespace, so the same-machine adversary cannot reach the daemon's socket."
+    ]
   ],
-
   "anchor-protocol": [
-    ["Anchor Protocol", "the daemon's identity framework: Ed25519 signatures, multi-hop authorization chains, and offline attenuation."],
-    ["Harbor", "a zero-trust, namespace-isolated execution environment where an agent must prove identity and capability before it acts."],
-    ["Algorithmic Pinning", "ignoring the token's own \\texttt{alg} header and forcing the verifier to the pre-determined algorithm, per RFC 8725."],
-    ["Offline Attenuation", "narrowing a token's authority without asking the issuer: the holder folds a caveat in and the authority can only shrink."],
-    ["ProVerif", "a protocol verifier that represents a protocol as Horn clauses and resolves security properties over unbounded sessions."],
-    ["Arbiter", "the runtime monitor that subscribes to the post-commit activity log and checks six derived invariants against it."],
-    ["Kani", "a bounded model checker for Rust, used here on the token parser with decoding and signature verification stubbed."],
-    ["Dolev-Yao adversary", "an attacker who controls the entire network---reading, dropping, replaying and forging every message in transit."]
+    [
+      "Anchor Protocol",
+      "the daemon's identity framework: Ed25519 signatures, multi-hop authorization chains, and offline attenuation."
+    ],
+    [
+      "Harbor",
+      "a zero-trust, namespace-isolated execution environment where an agent must prove identity and capability before it acts."
+    ],
+    [
+      "Algorithmic Pinning",
+      "ignoring the token's own \\texttt{alg} header and forcing the verifier to the pre-determined algorithm, per RFC 8725."
+    ],
+    [
+      "Offline Attenuation",
+      "narrowing a token's authority without asking the issuer: the holder folds a caveat in and the authority can only shrink."
+    ],
+    [
+      "ProVerif",
+      "a protocol verifier that represents a protocol as Horn clauses and resolves security properties over unbounded sessions."
+    ],
+    [
+      "Arbiter",
+      "the runtime monitor that subscribes to the post-commit activity log and checks six derived invariants against it."
+    ],
+    [
+      "Kani",
+      "a bounded model checker for Rust, used here on the token parser with decoding and signature verification stubbed."
+    ],
+    [
+      "Dolev-Yao adversary",
+      "an attacker who controls the entire network---reading, dropping, replaying and forging every message in transit."
+    ]
   ],
-
   "sealed-harbor": [
-    ["self-composition", "Barthe, D'Argenio and Rezk's trick: noninterference is a claim about pairs of runs, so you compose two copies of the system and state it as one invariant."],
-    ["privacy odometer", "a running total of differential-privacy expenditure read with no pre-specified ceiling."],
-    ["privacy filter", "the halting counterpart of the odometer: it refuses the release that would exceed a budget fixed in advance."]
+    [
+      "self-composition",
+      "Barthe, D'Argenio and Rezk's trick: noninterference is a claim about pairs of runs, so you compose two copies of the system and state it as one invariant."
+    ],
+    [
+      "privacy odometer",
+      "a running total of differential-privacy expenditure read with no pre-specified ceiling."
+    ],
+    [
+      "privacy filter",
+      "the halting counterpart of the odometer: it refuses the release that would exceed a budget fixed in advance."
+    ]
   ],
-
   "legible-swarm": [
-    ["Hobbes' state of nature", "rational, even well-meaning actors falling into a war of all against all for want of a common authority."],
-    ["legible", "arranged so an authority can see and govern what it cannot personally inspect---Scott's word, and his warning."],
-    ["digest-with-zoom", "the buildable form of Scott's warning: every summary is a lens onto a verifiable artifact, never a replacement for it."],
-    ["daemon", "a single always-on local process, backed by a write-ahead-logged embedded database, that is the realm's one writer."],
-    ["coordination protocol", "the rule of the road the operator institutes instead of negotiating with each agent: typed performatives whose type declares their intent."],
-    ["commitment", "a violable obligation bound to a named actor and watched by a breach monitor."],
-    ["honest attestation", "one self-report that runs every invariant check and distinguishes verified-good from not-checked, rather than reporting silence as health."],
-    ["tacit consent", "consent inferred from continued use---Hume's target, and the reason this chapter makes consent a first-class recorded object."],
-    ["level of automation", "Sheridan's ten-point scale, refined by Parasuraman, Sheridan and Wickens across four stages: acquire, analyse, decide, act."],
-    ["capability with contextual caveats", "an unforgeable authorization whose scope, reason and expiry travel with it."],
-    ["Potemkin digest", "a beautiful surface whose tiles assert a reality nobody can check, having paraphrased away the diff and the test."],
-    ["tacit knowledge", "what a practitioner knows and cannot tell---Polanyi's problem, and the m\\^etis an over-legible scheme destroys."],
-    ["roadmap", "a phase-keyed, versioned, amendable statement of intent: the single artifact the authority is measured against."],
-    ["sole-responsibility role", "an avatar holding exclusive write authority over an invariant-critical function, so attribution has one name."],
-    ["queueing-specialization setup", "requests for one invariant-critical function arriving Poisson, served by a single specialist as an $M/M/1$ queue."],
-    ["Erlang-C", "the probability that an arriving request finds every server busy and must wait."],
-    ["completion claim", "a commitment whose satisfaction predicate is a verifier derived from the task's own acceptance criteria."],
-    ["fail loudly", "an unverifiable predicate must say ``I cannot verify this completion'' and never silently pass."],
-    ["physically unreachable", "the reserved phrase: a state is prevented only when a constraint forbids it before the fact, not repaired after."],
-    ["detect-and-compensate", "the weaker discipline: observe a violation after the fact, then halt or repair within a bounded window."],
-    ["Signal Detection Theory", "Green and Swets's frame for an operator discriminating signal from noise under a criterion they can shift."],
-    ["Inception Canary", "a consented, blinded vigilance probe that measures whether the operator is still reading."],
-    ["Directory Facilitator", "FIPA's mandatory yellow-pages agent: others register what they can do and query it to find each other."],
-    ["Agent Management System", "FIPA's white pages---identity lookup, as against the Directory Facilitator's capability lookup."],
-    ["discovery ranker", "a clamped weighted sum of normalised features scoring each candidate agent against a query."],
-    ["comonotone", "two readers' losses moving together across items, never one rising while the other falls."],
-    ["EigenTrust", "a global trust vector computed as the principal eigenvector of a normalised local-trust matrix, anchored on a pre-trusted set."],
-    ["cost-of-goods-sold", "the direct variable cost any agent economy must meter---here, inference tokens in and out."],
-    ["legibility engine", "the same token spend read the other way: the mechanism by which a swarm becomes seeable at all."],
-    ["compaction", "the choice of what to keep when a trace will not fit the budget---the bridge between the bill and the view."],
-    ["virtual memory for language models", "the file buffer as backing store, the context window as the resident set, and paging tools as the memory manager."],
-    ["recency-plus-pin policy", "an online replacement rule where pins correspond to the pages a successor must not lose."],
-    ["Pheromone decay", "multiplying every stored coordination trace by a decay factor each interval, so a stale trace fades without being deleted."],
-    ["stigmergy", "coordination through traces left in a shared environment rather than through direct messages."]
+    [
+      "Hobbes' state of nature",
+      "rational, even well-meaning actors falling into a war of all against all for want of a common authority."
+    ],
+    [
+      "legible",
+      "arranged so an authority can see and govern what it cannot personally inspect---Scott's word, and his warning."
+    ],
+    [
+      "digest-with-zoom",
+      "the buildable form of Scott's warning: every summary is a lens onto a verifiable artifact, never a replacement for it."
+    ],
+    [
+      "daemon",
+      "a single always-on local process, backed by a write-ahead-logged embedded database, that is the realm's one writer."
+    ],
+    [
+      "coordination protocol",
+      "the rule of the road the operator institutes instead of negotiating with each agent: typed performatives whose type declares their intent."
+    ],
+    [
+      "commitment",
+      "a violable obligation bound to a named actor and watched by a breach monitor."
+    ],
+    [
+      "honest attestation",
+      "one self-report that runs every invariant check and distinguishes verified-good from not-checked, rather than reporting silence as health."
+    ],
+    [
+      "tacit consent",
+      "consent inferred from continued use---Hume's target, and the reason this chapter makes consent a first-class recorded object."
+    ],
+    [
+      "level of automation",
+      "Sheridan's ten-point scale, refined by Parasuraman, Sheridan and Wickens across four stages: acquire, analyse, decide, act."
+    ],
+    [
+      "capability with contextual caveats",
+      "an unforgeable authorization whose scope, reason and expiry travel with it."
+    ],
+    [
+      "Potemkin digest",
+      "a beautiful surface whose tiles assert a reality nobody can check, having paraphrased away the diff and the test."
+    ],
+    [
+      "tacit knowledge",
+      "what a practitioner knows and cannot tell---Polanyi's problem, and the m\\^etis an over-legible scheme destroys."
+    ],
+    [
+      "roadmap",
+      "a phase-keyed, versioned, amendable statement of intent: the single artifact the authority is measured against."
+    ],
+    [
+      "sole-responsibility role",
+      "an avatar holding exclusive write authority over an invariant-critical function, so attribution has one name."
+    ],
+    [
+      "queueing-specialization setup",
+      "requests for one invariant-critical function arriving Poisson, served by a single specialist as an $M/M/1$ queue."
+    ],
+    [
+      "Erlang-C",
+      "the probability that an arriving request finds every server busy and must wait."
+    ],
+    [
+      "completion claim",
+      "a commitment whose satisfaction predicate is a verifier derived from the task's own acceptance criteria."
+    ],
+    [
+      "fail loudly",
+      "an unverifiable predicate must say ``I cannot verify this completion'' and never silently pass."
+    ],
+    [
+      "physically unreachable",
+      "the reserved phrase: a state is prevented only when a constraint forbids it before the fact, not repaired after."
+    ],
+    [
+      "detect-and-compensate",
+      "the weaker discipline: observe a violation after the fact, then halt or repair within a bounded window."
+    ],
+    [
+      "Signal Detection Theory",
+      "Green and Swets's frame for an operator discriminating signal from noise under a criterion they can shift."
+    ],
+    [
+      "Inception Canary",
+      "a consented, blinded vigilance probe that measures whether the operator is still reading."
+    ],
+    [
+      "Directory Facilitator",
+      "FIPA's mandatory yellow-pages agent: others register what they can do and query it to find each other."
+    ],
+    [
+      "Agent Management System",
+      "FIPA's white pages---identity lookup, as against the Directory Facilitator's capability lookup."
+    ],
+    [
+      "discovery ranker",
+      "a clamped weighted sum of normalised features scoring each candidate agent against a query."
+    ],
+    [
+      "comonotone",
+      "two readers' losses moving together across items, never one rising while the other falls."
+    ],
+    [
+      "EigenTrust",
+      "a global trust vector computed as the principal eigenvector of a normalised local-trust matrix, anchored on a pre-trusted set."
+    ],
+    [
+      "cost-of-goods-sold",
+      "the direct variable cost any agent economy must meter---here, inference tokens in and out."
+    ],
+    [
+      "legibility engine",
+      "the same token spend read the other way: the mechanism by which a swarm becomes seeable at all."
+    ],
+    [
+      "compaction",
+      "the choice of what to keep when a trace will not fit the budget---the bridge between the bill and the view."
+    ],
+    [
+      "virtual memory for language models",
+      "the file buffer as backing store, the context window as the resident set, and paging tools as the memory manager."
+    ],
+    [
+      "recency-plus-pin policy",
+      "an online replacement rule where pins correspond to the pages a successor must not lose."
+    ],
+    [
+      "Pheromone decay",
+      "multiplying every stored coordination trace by a decay factor each interval, so a stale trace fades without being deleted."
+    ],
+    [
+      "stigmergy",
+      "coordination through traces left in a shared environment rather than through direct messages."
+    ]
   ],
-
   "spawn-to-person": [
-    ["role", "a bundle of obligation, capability and authority---an org-chart entry any spawn can fill."],
-    ["person", "a role instance plus continuity: a durable identity that carries a record forward across restarts."],
-    ["multi-dimensional reputation", "accuracy, aesthetics and efficiency scored on separate axes, because one number hides which of them failed."],
-    ["local non-forgeable identity", "an identity root that holds within a single trusted operator---the only keystone this chapter assumes."],
-    ["cross-operator attestation", "binding identities across operators who do not trust each other: named here, built in the market chapter, not assumed."],
-    ["spawn", "a process that booted with a prompt, did some work, and exited: no yesterday, and nothing to reward or distrust."],
-    ["continuity", "what turns a spawn into someone: a record that survives the restart and can be priced."],
-    ["personal-identity", "the question of whether the agent at $t_2$ is the same one as at $t_1$, and on what the answer turns."],
-    ["Bradley--Terry", "the maximum-likelihood latent-strength model for paired comparisons."],
-    ["TrueSkill", "the Bayesian factor-graph generalisation of Elo, carrying an uncertainty as well as a rating."],
-    ["Cheap pseudonyms", "Friedman and Resnick's result: if a fresh identity is free, a bad record can always be shed."],
-    ["LLM-as-judge", "a model grading another model's output: strong agreement with humans, and a bias profile of its own."],
-    ["actor-soul", "the durable identity, mailbox and history that outlive any one process or session."],
-    ["body-lease", "the live incarnation the soul is currently running in---revocable, and not the thing reputation keys on."],
-    ["outcome ledger", "the durable record of what an agent actually delivered: the organ reputation keys on, rather than the memory stream."],
-    ["episodic memory", "the system's record of what happened: durable typed episodes, each with a title, a summary, and a source reference."],
-    ["restart organ", "a heartbeat-staleness detector that flags dead agents for salvage and republishes their work---forwarding notes, not checkpointing state."],
-    ["Event-Sourced Neural Rehydration", "the specified successor start that replays the predecessor's log rather than inheriting its summary."],
-    ["sanction-respecting", "a reputation mechanism is sanction-respecting when a penalty actually costs the identity more than a fresh start would."],
-    ["whitewashing", "shedding a sanctioned identity for a clean one, which is what makes identity-local penalties evadable."],
-    ["Sybil", "multiplying identities costlessly to inflate votes or aggregate credit, which collapses any quorum mechanism."],
-    ["principal", "the human or organization that owns the fleet and stands behind its bonds: the economic counterparty in every trade."],
-    ["re-audit", "a fresh, conflict-free judge, sampled after the fact, whose overturn costs the original grader their bond."],
-    ["model heterogeneity", "requiring a quorum of re-auditors to prove distinct architectural weights, so correlated blind spots do not vote together."],
-    ["honeypot tasks", "pre-graded trap tasks, indistinguishable from real ones, injected to measure whether a judge is actually grading."],
-    ["verifiable random function", "a function whose output is unpredictable but whose correctness anyone can check after the fact."],
-    ["saga", "a compensation discipline: you do not mutate an append-only ledger, you append the transaction that undoes the last one."]
+    [
+      "role",
+      "a bundle of obligation, capability and authority---an org-chart entry any spawn can fill."
+    ],
+    [
+      "person",
+      "a role instance plus continuity: a durable identity that carries a record forward across restarts."
+    ],
+    [
+      "multi-dimensional reputation",
+      "accuracy, aesthetics and efficiency scored on separate axes, because one number hides which of them failed."
+    ],
+    [
+      "local non-forgeable identity",
+      "an identity root that holds within a single trusted operator---the only keystone this chapter assumes."
+    ],
+    [
+      "cross-operator attestation",
+      "binding identities across operators who do not trust each other: named here, built in the market chapter, not assumed."
+    ],
+    [
+      "spawn",
+      "a process that booted with a prompt, did some work, and exited: no yesterday, and nothing to reward or distrust."
+    ],
+    [
+      "continuity",
+      "what turns a spawn into someone: a record that survives the restart and can be priced."
+    ],
+    [
+      "personal-identity",
+      "the question of whether the agent at $t_2$ is the same one as at $t_1$, and on what the answer turns."
+    ],
+    [
+      "Bradley--Terry",
+      "the maximum-likelihood latent-strength model for paired comparisons."
+    ],
+    [
+      "TrueSkill",
+      "the Bayesian factor-graph generalisation of Elo, carrying an uncertainty as well as a rating."
+    ],
+    [
+      "Cheap pseudonyms",
+      "Friedman and Resnick's result: if a fresh identity is free, a bad record can always be shed."
+    ],
+    [
+      "LLM-as-judge",
+      "a model grading another model's output: strong agreement with humans, and a bias profile of its own."
+    ],
+    [
+      "actor-soul",
+      "the durable identity, mailbox and history that outlive any one process or session."
+    ],
+    [
+      "body-lease",
+      "the live incarnation the soul is currently running in---revocable, and not the thing reputation keys on."
+    ],
+    [
+      "outcome ledger",
+      "the durable record of what an agent actually delivered: the organ reputation keys on, rather than the memory stream."
+    ],
+    [
+      "episodic memory",
+      "the system's record of what happened: durable typed episodes, each with a title, a summary, and a source reference."
+    ],
+    [
+      "restart organ",
+      "flags a dead agent for salvage on heartbeat staleness; it forwards notes, it does not checkpoint state."
+    ],
+    [
+      "Event-Sourced Neural Rehydration",
+      "the specified successor start that replays the predecessor's log rather than inheriting its summary."
+    ],
+    [
+      "sanction-respecting",
+      "a reputation mechanism is sanction-respecting when a penalty actually costs the identity more than a fresh start would."
+    ],
+    [
+      "whitewashing",
+      "shedding a sanctioned identity for a clean one, which is what makes identity-local penalties evadable."
+    ],
+    [
+      "Sybil",
+      "multiplying identities costlessly to inflate votes or aggregate credit, which collapses any quorum mechanism."
+    ],
+    [
+      "principal",
+      "the human or organization that owns the fleet and stands behind its bonds: the economic counterparty in every trade."
+    ],
+    [
+      "re-audit",
+      "a fresh, conflict-free judge, sampled after the fact, whose overturn costs the original grader their bond."
+    ],
+    [
+      "model heterogeneity",
+      "requiring a quorum of re-auditors to prove distinct architectural weights, so correlated blind spots do not vote together."
+    ],
+    [
+      "honeypot tasks",
+      "pre-graded trap tasks, indistinguishable from real ones, injected to measure whether a judge is actually grading."
+    ],
+    [
+      "verifiable random function",
+      "a function whose output is unpredictable but whose correctness anyone can check after the fact."
+    ],
+    [
+      "saga",
+      "a compensation discipline: you do not mutate an append-only ledger, you append the transaction that undoes the last one."
+    ]
   ],
-
   "harbor-economy": [
-    ["three-sided market", "operators selling labor, agents renting capacity, and skill authors licensing know-how---on one escrow ledger."],
-    ["cross-harbor capability-transfer ceremony", "the handover by which one operator's harbor lends an agent to another without either trusting the other's daemon."],
-    ["hosted trust", "the defensible product under the unsolved parts: a verified ledger a buyer can check rather than a claim they must believe."],
-    ["two-sided market", "Rochet and Tirole's platform: the split of a fee between the two sides changes the volume, not just who pays."],
-    ["asset owner", "the entity rental reputation keys on, as against the principal for labor and the content hash for a skill."],
-    ["content hash", "the identity a licensed skill is priced under: a specific artifact, not the author who wrote it."],
-    ["bond-ledger module", "the one primitive here that is actually built: bond escrow held against an agent's spawn."],
-    ["oracle", "a trusted source of ground truth the agent cannot author---a passing test id, a merged SHA, a satisfied Arbiter check."],
-    ["difference constraints", "deadline relations of the form $t_j - t_i \\le k$, whose constraint graph makes feasibility a shortest-path question."],
-    ["in conflict", "a policy set is in conflict exactly when the Horn part derives $\\bot$, or an obligation and a prohibition fire on one act."],
-    ["Certificate Transparency", "you do not prevent a misissued certificate; you make it undeniable afterwards, which is the posture taken here."],
-    ["Dwork--Lynch--Stockmeyer", "partial synchrony: the canonical escape from FLP, and the assumption these convergence bounds quietly need."],
-    ["grim-trigger", "cooperate until one defection is seen, then punish forever---the crudest way to hold a cartel together."],
-    ["discount factor", "the weight a member places on next round's payoff, and so on the future the punishment threatens."],
-    ["Becker-enforced panel", "independent, conflict-free test-writers, each bonded and each detecting a given flaw with some probability."],
-    ["Becker deterrence condition", "cheating is deterred exactly when expected punishment at least matches the one-shot gain from it."],
-    ["mutation-testing kill rates", "grading the test-writers against held-out syntactic mutations, so a vacuous test scores zero."]
+    [
+      "three-sided market",
+      "operators selling labor, agents renting capacity, and skill authors licensing know-how---on one escrow ledger."
+    ],
+    [
+      "cross-harbor capability-transfer ceremony",
+      "the handover by which one operator's harbor lends an agent to another without either trusting the other's daemon."
+    ],
+    [
+      "hosted trust",
+      "the defensible product under the unsolved parts: a verified ledger a buyer can check rather than a claim they must believe."
+    ],
+    [
+      "two-sided market",
+      "Rochet and Tirole's platform: the split of a fee between the two sides changes the volume, not just who pays."
+    ],
+    [
+      "asset owner",
+      "the entity rental reputation keys on, as against the principal for labor and the content hash for a skill."
+    ],
+    [
+      "content hash",
+      "the identity a licensed skill is priced under: a specific artifact, not the author who wrote it."
+    ],
+    [
+      "bond-ledger module",
+      "the one primitive here that is actually built: bond escrow held against an agent's spawn."
+    ],
+    [
+      "oracle",
+      "a trusted source of ground truth the agent cannot author---a passing test id, a merged SHA, a satisfied Arbiter check."
+    ],
+    [
+      "difference constraints",
+      "deadline relations of the form $t_j - t_i \\le k$, whose constraint graph makes feasibility a shortest-path question."
+    ],
+    [
+      "in conflict",
+      "a policy set is in conflict exactly when the Horn part derives $\\bot$, or an obligation and a prohibition fire on one act."
+    ],
+    [
+      "Certificate Transparency",
+      "you do not prevent a misissued certificate; you make it undeniable afterwards, which is the posture taken here."
+    ],
+    [
+      "Dwork--Lynch--Stockmeyer",
+      "partial synchrony: the canonical escape from FLP, and the assumption these convergence bounds quietly need."
+    ],
+    [
+      "grim-trigger",
+      "cooperate until one defection is seen, then punish forever, whatever it costs the punisher."
+    ],
+    [
+      "discount factor",
+      "the weight a member places on next round's payoff, and so on the future the punishment threatens."
+    ],
+    [
+      "Becker-enforced panel",
+      "independent, conflict-free test-writers, each bonded and each detecting a given flaw with some probability."
+    ],
+    [
+      "Becker deterrence condition",
+      "cheating is deterred exactly when expected punishment at least matches the one-shot gain from it."
+    ],
+    [
+      "mutation-testing kill rates",
+      "grading the test-writers against held-out syntactic mutations, so a vacuous test scores zero."
+    ]
   ],
-
   "bonded-commons": [
-    ["sovereign", "a common authority instituted because making every individual trustworthy is not available."],
-    ["offline attenuation", "narrowing a Harbor Card's authority without contacting the issuer: the authority can only ever shrink."],
-    ["Rust core", "the shared library holding the capability-subset check and the secret-independent comparison, called from the daemon by FFI."],
-    ["structural isolation", "separate git worktrees: physically distinct copies of the repository, so two agents cannot write one file."],
-    ["Synchronous State Decidability", "the exact boundary between what can be prevented before commit and what can only be detected after."],
-    ["append-only note trail", "a sequence of timestamped, immutable records of an agent session's observations, decisions and progress."],
-    ["Merkle Forest", "the three-level hardening of the evidence trail for fleets spanning multiple daemons."],
-    ["authorization chain", "the record that traces every action back to the authorizing principal, even after the acting identity is discarded."],
-    ["Deterministic Hard-Lock Fallback", "what replaces an advisory claim when two agents deadlock on it: a lock that does not negotiate."],
-    ["irrecoverable loss of information", "the fundamental moral harm in an agent society---an agent can be rebuilt, what it knew cannot."],
-    ["Bonded Advisor", "a role that posts collateral against its advice, so a confident wrong answer costs something."],
-    ["total capital forfeiture", "removing the bounded downside a slash cap gives an attacker, which is what makes Sybil undercutting unprofitable."],
-    ["Semantic Cadence", "the distinction between a wait while a model thinks and a wait while four agents are producing tokens."],
-    ["commons pool", "the third bucket beside wallet and escrow: what the project holds jointly rather than any one agent."]
+    [
+      "sovereign",
+      "a common authority instituted because making every individual trustworthy is not available."
+    ],
+    [
+      "offline attenuation",
+      "narrowing a Harbor Card's authority without contacting the issuer: the authority can only ever shrink."
+    ],
+    [
+      "Rust core",
+      "the shared library holding the capability-subset check and the secret-independent comparison, called from the daemon by FFI."
+    ],
+    [
+      "structural isolation",
+      "separate git worktrees: physically distinct copies of the repository, so two agents cannot write one file."
+    ],
+    [
+      "Synchronous State Decidability",
+      "the exact boundary between what can be prevented before commit and what can only be detected after."
+    ],
+    [
+      "append-only note trail",
+      "a sequence of timestamped, immutable records of an agent session's observations, decisions and progress."
+    ],
+    [
+      "Merkle Forest",
+      "the three-level hardening of the evidence trail for fleets spanning multiple daemons."
+    ],
+    [
+      "authorization chain",
+      "the record that traces every action back to the authorizing principal, even after the acting identity is discarded."
+    ],
+    [
+      "Deterministic Hard-Lock Fallback",
+      "what replaces an advisory claim when two agents deadlock on it: a lock that does not negotiate."
+    ],
+    [
+      "irrecoverable loss of information",
+      "an agent can be rebuilt; what it learned and never wrote down cannot."
+    ],
+    [
+      "Bonded Advisor",
+      "a role that posts collateral against its advice, so a confident wrong answer costs something."
+    ],
+    [
+      "total capital forfeiture",
+      "removing the bounded downside a slash cap gives an attacker, which is what makes Sybil undercutting unprofitable."
+    ],
+    [
+      "Semantic Cadence",
+      "the distinction between a wait while a model thinks and a wait while four agents are producing tokens."
+    ],
+    [
+      "commons pool",
+      "the third bucket beside wallet and escrow: what the project holds jointly rather than any one agent."
+    ]
   ],
-
   "federated-harbor": [
-    ["two-machine problem", "two local fleets dovetailing on one task, where the bug is neither daemon but the assumption that one daemon is enough."],
-    ["Append-Only Event Log of Revocation IDs", "the gossiped log daemons reconcile by vector clock, so a revocation spreads without a central authority."],
-    ["single equivocator", "the hypothesis that exactly one witness lies: two liars on a common cycle can cancel each other's contribution to the residual."],
-    ["acceptance rate", "admitted harbors over sponsorship requests on a trailing window---the first of four cheap admission-health metrics."],
-    ["sponsor concentration", "the Herfindahl index, or the top sponsor's share, of successful sponsorships."],
-    ["time-to-entry", "elapsed time from an accepted applicant's first sponsorship request to admission."],
-    ["false-rejection rate", "requests declined that a later independent sponsor accepted without incident."]
+    [
+      "two-machine problem",
+      "two local fleets dovetailing on one task, where the bug is neither daemon but the assumption that one daemon is enough."
+    ],
+    [
+      "Append-Only Event Log of Revocation IDs",
+      "the gossiped log daemons reconcile by vector clock, so a revocation spreads without a central authority."
+    ],
+    [
+      "single equivocator",
+      "the hypothesis that exactly one witness lies: two liars on a common cycle can cancel each other's contribution to the residual."
+    ],
+    [
+      "acceptance rate",
+      "admitted harbors over sponsorship requests on a trailing window---the first of four cheap admission-health metrics."
+    ],
+    [
+      "sponsor concentration",
+      "the Herfindahl index, or the top sponsor's share, of successful sponsorships."
+    ],
+    [
+      "time-to-entry",
+      "elapsed time from an accepted applicant's first sponsorship request to admission."
+    ],
+    [
+      "false-rejection rate",
+      "requests declined that a later independent sponsor accepted without incident."
+    ]
   ]
 }

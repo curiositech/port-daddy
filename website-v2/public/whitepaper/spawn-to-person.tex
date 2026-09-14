@@ -870,7 +870,7 @@ another name. In the reference system this organ runs in production; it is
 
 A checkpoint is \emph{restorable execution/belief state}: enough that a successor
 \emph{resumes} where the predecessor stopped. The reference system has a
-\pdgloss{restart organ}{a heartbeat-staleness detector that flags dead agents for salvage and republishes their work---forwarding notes, not checkpointing state.} --- a heartbeat-staleness detector that flags dead agents
+\pdgloss{restart organ}{flags a dead agent for salvage on heartbeat staleness; it forwards notes, it does not checkpoint state.} --- a heartbeat-staleness detector that flags dead agents
 for salvage and republishes their unfinished work. It must be described formally,
 and it is: the restart organ \textbf{forwards a summary, not state}. It is
 checkpoint-\emph{of-record}, not checkpoint-\emph{of-execution}. The successor

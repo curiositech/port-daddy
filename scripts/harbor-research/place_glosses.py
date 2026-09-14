@@ -40,7 +40,18 @@ SKIP_ENVS = ("figure", "table", "tabular", "tabularx", "xltabular", "longtable",
              "verbatim", "lstlisting", "align", "equation", "gather",
              "tikzpicture", "pdsession")
 HEADING_RE = re.compile(r'\\(chapter|section|subsection|subsubsection|paragraph|caption|pdmargincaption|pdsidenote|pdgloss|pdboundary|title|keyidea|pitfall|xrefbox|pullquote)\*?\s*[\[{]')
-MARGIN_DEVICE_RE = re.compile(r'\\(pdgloss|pdsidenote|pdmarginfigure|pdmargincaption|pdprovedon|pd@marginhead|keyidea|pitfall|xrefbox)\b')
+# EVERY device that puts a block in the margin column, including the ones
+# that arrive as an environment. The first version of this list carried only
+# the macro forms and was blind to \begin{pdrecitation}: the grim-trigger
+# gloss landed thirteen source lines above one, the two blocks interleaved
+# line for line on p. 328, and page_overflow.py reported five collisions at
+# 2.9 pt of a 10.4 pt leading. A proximity rule that cannot see half the
+# devices is not a proximity rule.
+MARGIN_DEVICE_RE = re.compile(
+    r'\\(pdgloss|pdsidenote|pdmarginfigure|pdmargincaption|pdprovedon|pd@marginhead'
+    r'|keyidea|pitfall|xrefbox|pullquote|pdrecitation|pdboundary|pdexample|pdsession'
+    r'|pdexercisesfor|pdrecall)\b'
+    r'|\\begin\{(pdrecitation|pdboundary|pdexample|pdsession)\}')
 
 
 def env_stack_per_line(lines):
