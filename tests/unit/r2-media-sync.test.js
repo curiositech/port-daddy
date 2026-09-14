@@ -112,11 +112,13 @@ describe('the offload rule is mechanical', () => {
     // A 1-byte png under an offload root and a 100 MiB one get the same answer.
     // Any threshold is a number somebody has to defend per file.
     const source = readFileSync(join(REPO_ROOT, 'scripts/r2-media-manifest.mjs'), 'utf8');
-    const ruleBody = source.slice(
-      source.indexOf('export function isOffloadable'),
-      source.indexOf('export function objectKeyFor'),
-    );
-    expect(ruleBody).not.toMatch(/statSync|\.size|bytes/u);
+    const start = source.indexOf('export function isOffloadable');
+    // The function body only — up to its closing brace in column 0. Slicing to
+    // the NEXT export would sweep in the doc comment that follows it, and
+    // prose about bytes is not a size term in the rule.
+    const ruleBody = source.slice(start, source.indexOf('\n}', start) + 2);
+    expect(ruleBody).toContain('isOffloadable');
+    expect(ruleBody).not.toMatch(/statSync|\.size|bytes|length\s*[<>]/u);
   });
 
   test('extension matching is case-insensitive', () => {
@@ -138,9 +140,12 @@ describe('the offload rule is mechanical', () => {
 describe('content addressing makes a redeploy of identical bytes a no-op', () => {
   test('the key is derived from the bytes, not the path', () => {
     const hash = sha256(Buffer.from('same bytes'));
+    // Two completely different paths, same bytes, same extension -> same key.
     expect(objectKeyFor(hash, 'docs/pr-assets/a.png'))
-      .toBe(objectKeyFor(hash, 'docs/reports/somewhere/else/b.png').replace('b.png', 'a.png'));
+      .toBe(objectKeyFor(hash, 'docs/reports/somewhere/else/deeply/nested/b.png'));
     expect(objectKeyFor(hash, 'docs/pr-assets/a.png')).toBe(`sha256/${hash.slice(0, 2)}/${hash}.png`);
+    // The extension is the only part of the path that survives into the key.
+    expect(objectKeyFor(hash, 'docs/pr-assets/a.gif')).toBe(`sha256/${hash.slice(0, 2)}/${hash}.gif`);
   });
 
   test('two paths with identical bytes collapse to one object', () => {
