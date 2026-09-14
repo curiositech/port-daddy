@@ -785,6 +785,29 @@ to say about a merge.
 
 \input{figures/fig-stp-nomint-lineage}
 
+\paragraph{Why not stake?} A reader who has met Sybil resistance in
+permissionless systems will have noticed that this chapter reaches for a
+daemon-attested identity where that literature reaches for capital --- proof of
+stake, deposit bonding, a burnt fee --- and the choice deserves its reason
+rather than its silence. Those mechanisms answer a different question than the
+one \S\ref{sec:identity} asks. Stake makes an identity \emph{expensive} to mint,
+which bounds how many an adversary makes but says nothing about \emph{whose}
+they are: a thousand staked identities held by one party are still one party,
+and the conduct this chapter wants to sanction is a party's. What the
+no-mint result conserves is the total live creditable reputation across a
+derivation graph, which is a statement about accounting rather than about cost
+of entry, and it holds whether identities are cheap or dear. Per-principal
+exposure pooling does the rest of the work stake would have done: an operator's
+agents share one principal's exposure, so multiplying them multiplies nothing.
+
+The trade is real and worth naming plainly rather than winning by definition.
+Daemon attestation buys all of this at the price of a trusted local authority,
+which is exactly what a permissionless system refuses to assume, and it is why
+the keystone primitive covers a single-operator threat model and must be
+extended before a cross-operator boundary is one neither party controls
+(\pdchapref{fh}{The Federated Harbor}). Capital does enter this system, and it
+enters where it belongs: as bonds in \pdchapref{bonded}{The Bonded Commons},
+priced against a specific breach, rather than as a toll at the door.
 
 \pdexercisepointerone*{\ref{ex:stp-nomint-sweep}}{\pageref{ex:stp-nomint-sweep}}
 
