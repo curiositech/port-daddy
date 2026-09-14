@@ -145,12 +145,46 @@ Further rules the prechecker applies to the source:
   `\sffamily`, `\ttfamily` — is an error (P24). P21 watches `font=`; this watches
   the other door. `\mathrm` and `\text` are not flagged: they are math, and math
   takes the text roman whatever face the node carries.
+- A `font=` built from anything but the house handles (`\pdfiglabel`,
+  `\pdfiglabelbold`, `\pdfiglabelitalic`, `\pdfiglabelmono`, `\pdfigsub`,
+  `\pdfigmath`) is an error (P25). See §"Why a fragment may not set a font at all".
 - `\resizebox{f\textwidth}` with f < 0.85 is a warning; prefer drawing to the measure
   (`x=` scaled so the picture is at most `\linewidth`) and no `\resizebox` at all.
 - Colours are the `hh*` house set only (`hhsand hhsanddeep hhebony hhink hhcobalt
   hhamber hhteal hhpaper hhgray`); `pd*` palette names belong to the page grammar,
   not to figures.
 - No result codes (`R7`, `B6`) in titles or captions; name the idea.
+
+### Why a fragment may not set a font at all
+
+Not "may not set a family", and not "may not set a size". **May not set a font.**
+The mechanism, measured rather than reasoned about:
+
+```
+pd figure/.style={font=\pdfiglabelfamily\pdfigbasesize,text=hhink}
+```
+
+`pd figure` carries the edition's face through the **picture-level** `font=` key.
+A node's own `font=` is *the same key*, so the node's value replaces the
+picture's entirely — `\pdfiglabelfamily` is never applied, and the node falls
+back to the **document's** face. In the Book that is Palatino, against a drawing
+whose every other label is grotesk.
+
+This is why enumerating banned commands could never close it. Measured on
+compiled pages:
+
+| in the fragment | renders in the Book as |
+|---|---|
+| `font=\footnotesize\bfseries` | TeXGyrePagellaX-Bold |
+| `font=\bfseries` | TeXGyrePagellaX-Bold |
+| `font=\itshape` | TeXGyrePagellaX-Italic |
+| `font=\pdfiglabelbold` | TeXGyreHeros-Bold ✓ |
+
+`\bfseries` names no family and no size and still loses the face. So the rule is
+a **whitelist**: a fragment's `font=` may be built only from the house handles,
+which re-apply the family themselves. Where a node needs small caps, it writes
+`\textsc{}` in the node's *text*, which composes with the role's font instead of
+replacing it — or it takes `pd kind tag`, which is that role.
 
 ### One face, and it is the document's
 
