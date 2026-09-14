@@ -10,6 +10,12 @@
 
 export const FLEET_RUN_JOB_SCHEMA_VERSION = 2 as const;
 
+/**
+ * Production admission remains on the legacy envelope until the executor can
+ * validate every server-owned tenant coordinate before doing work.
+ */
+export const FLEET_RUN_JOB_V2_ACTIVATION = 'blocked-pending-executor-validation' as const;
+
 export interface FleetTenantIdentityWitness {
   installationId: number;
   repositoryId: number;
@@ -24,7 +30,13 @@ export type FleetTenantResolution =
   | { ok: true; binding: FleetTenantBinding }
   | {
       ok: false;
-      reason: 'invalid-identity' | 'unbound' | 'ambiguous' | 'github-account-mismatch' | 'invalid-binding' | 'lookup-failed';
+      disposition: 'permanent';
+      reason: 'invalid-identity' | 'unbound' | 'ambiguous' | 'github-account-mismatch' | 'invalid-binding';
+    }
+  | {
+      ok: false;
+      disposition: 'retryable';
+      reason: 'lookup-failed';
     };
 
 /** Minimal D1 read surface needed at webhook admission. */
@@ -61,6 +73,11 @@ export interface FleetRunJobV2 extends FleetTenantBinding {
   };
 }
 
+export type FleetRunJobV2Input = Omit<
+  FleetRunJobV2,
+  'schemaVersion' | keyof FleetTenantBinding
+>;
+
 /**
  * Recognize a GitHub numeric identity without accepting coercible strings,
  * zero, fractions, or values outside JavaScript's lossless integer range.
@@ -72,6 +89,32 @@ export interface FleetRunJobV2 extends FleetTenantBinding {
  */
 export function isPositiveGithubId(value: unknown): value is number {
   return Number.isSafeInteger(value) && Number(value) > 0;
+}
+
+/**
+ * Construct the explicit v2 queue envelope after a caller has resolved tenant
+ * authority. WHY: keeping this pure lets producers and consumers pin the wire
+ * shape before either one activates it in production.
+ *
+ * @param binding - Verified active tenant binding returned by the resolver.
+ * @param input - Delivery metadata and bounded webhook fragments.
+ * @returns A complete v2 queue job with authority promoted to top-level fields.
+ */
+export function buildFleetRunJobV2(
+  binding: FleetTenantBinding,
+  input: FleetRunJobV2Input,
+): FleetRunJobV2 {
+  if (typeof binding.tenantAccountId !== 'string' || binding.tenantAccountId.length === 0
+    || !isPositiveGithubId(binding.installationId)
+    || !isPositiveGithubId(binding.repositoryId)
+    || !isPositiveGithubId(binding.githubAccountId)) {
+    throw new TypeError('Cannot build FleetRunJobV2 from an invalid tenant binding');
+  }
+  return {
+    ...input,
+    schemaVersion: FLEET_RUN_JOB_SCHEMA_VERSION,
+    ...binding,
+  };
 }
 
 /**
@@ -94,7 +137,7 @@ export async function resolveFleetTenantBinding(
   if (!isPositiveGithubId(witness.installationId)
     || !isPositiveGithubId(witness.repositoryId)
     || !isPositiveGithubId(witness.githubAccountId)) {
-    return { ok: false, reason: 'invalid-identity' };
+    return { ok: false, disposition: 'permanent', reason: 'invalid-identity' };
   }
 
   try {
@@ -113,10 +156,10 @@ export async function resolveFleetTenantBinding(
     }>();
 
     if (result.success === false || !Array.isArray(result.results)) {
-      return { ok: false, reason: 'lookup-failed' };
+      return { ok: false, disposition: 'retryable', reason: 'lookup-failed' };
     }
-    if (result.results.length === 0) return { ok: false, reason: 'unbound' };
-    if (result.results.length !== 1) return { ok: false, reason: 'ambiguous' };
+    if (result.results.length === 0) return { ok: false, disposition: 'permanent', reason: 'unbound' };
+    if (result.results.length !== 1) return { ok: false, disposition: 'permanent', reason: 'ambiguous' };
 
     const row = result.results[0]!;
     if (typeof row.tenant_account_id !== 'string' || row.tenant_account_id.length === 0
@@ -125,10 +168,10 @@ export async function resolveFleetTenantBinding(
       || !isPositiveGithubId(row.github_account_id)
       || row.installation_id !== witness.installationId
       || row.repository_id !== witness.repositoryId) {
-      return { ok: false, reason: 'invalid-binding' };
+      return { ok: false, disposition: 'permanent', reason: 'invalid-binding' };
     }
     if (row.github_account_id !== witness.githubAccountId) {
-      return { ok: false, reason: 'github-account-mismatch' };
+      return { ok: false, disposition: 'permanent', reason: 'github-account-mismatch' };
     }
 
     return {
@@ -141,8 +184,10 @@ export async function resolveFleetTenantBinding(
       },
     };
   } catch {
-    // A release may briefly precede its forward-only migration. That state is
-    // quarantined: no name-based or legacy-row fallback may mint authority.
-    return { ok: false, reason: 'lookup-failed' };
+    // A release may briefly precede its forward-only migration or D1 may be
+    // unavailable. That state is not a permanent tenant refusal: the eventual
+    // admission handler MUST return a retryable 5xx so GitHub redelivers. It
+    // must never audit-and-204 or fall back to a name/legacy row here.
+    return { ok: false, disposition: 'retryable', reason: 'lookup-failed' };
   }
 }
