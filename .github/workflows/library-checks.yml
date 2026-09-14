@@ -308,14 +308,13 @@ jobs:
       # chapter 6, a hand-written enumerate in chapter 8. Neither sibling can
       # see that: there is no shared \input and no shared \label. A green check
       # over the half that was fixed is worse than no check, because it reads
-      # as coverage, so this is the other half. The allow records the one
-      # duplication that is still waiting for an owner, by chapter pair and by
-      # the exact message names, so that a different one -- or a change to this
-      # one -- still fails.
+      # as coverage, so this is the other half. That duplication is now closed:
+      # chapter 8 owns the ceremony, chapter 6's Protocol moved into its \else
+      # branch so the standalone paper keeps its copy and the Book does not,
+      # and this step runs with no --allow at all. Adding one back should take
+      # an argument about who owns the ceremony, not a flag.
       - name: No message ceremony is written out twice in the Book
-        run: >-
-          python3 scripts/harbor-research/check_duplicate_protocols.py
-          --allow '6:8:xfer_ack,xfer_deliver,xfer_offer,xfer_req'
+        run: python3 scripts/harbor-research/check_duplicate_protocols.py
 
       # Figure 4.5's caption tells the reader its sweep CSV "is not yet
       # present", so the curves are the closed-form floor rather than the

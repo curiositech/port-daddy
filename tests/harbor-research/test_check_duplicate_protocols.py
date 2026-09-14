@@ -157,27 +157,49 @@ class TestAgainstTheRealCorpus(unittest.TestCase):
                 out.append((number, cid, src.read_text(encoding="utf-8")))
         return out
 
-    def test_the_known_duplication_is_the_only_one_in_the_book(self):
-        found = cdp.find_shared(self.corpus())
+    def test_the_book_writes_no_ceremony_out_twice(self):
+        """The corpus is clean with NO exception recorded.
+
+        It was not always: the transfer ceremony stood in chapter 6 as a
+        labelled Protocol and in chapter 8 as an enumerate, and this check
+        shipped with `--allow KEY` to record that. Chapter 8 now owns it and
+        chapter 6's copy sits in its `\\else` branch, so the standalone paper
+        keeps a copy the Book does not, and the workflow passes no --allow at
+        all. Asserting emptiness against the bare corpus is what stops an
+        --allow drifting back in unnoticed.
+        """
+        self.assertEqual(cdp.find_shared(self.corpus()), [])
+
+    def test_reverting_the_fix_reports_the_duplication_again(self):
+        """Both directions: undo the fix in memory and the check must fire.
+
+        Without this the test above would also pass if the scanner had simply
+        stopped reading chapter 6.
+        """
+        corpus = [
+            (n, cid, text.replace("\\ifpdbook\\else\n\\begin{protocol}[Cross-harbor",
+                                  "\n\\begin{protocol}[Cross-harbor", 1))
+            if n == 6 else (n, cid, text)
+            for n, cid, text in self.corpus()
+        ]
+        found = cdp.find_shared(corpus)
         self.assertEqual(
             [cdp.allow_key(a, b, names) for a, _, b, _, names in found], [KEY],
-            "a ceremony is written out twice that the workflow's --allow does not record",
+            "reverting chapter 6's \\else guard did not reproduce the duplication",
         )
-
-    def test_the_recorded_exception_clears_the_corpus(self):
-        self.assertEqual(cdp.find_shared(self.corpus(), allow={KEY}), [])
 
     def test_a_new_duplicated_ceremony_in_the_corpus_would_fail(self):
         # Mutation: graft a second chapter's copy of an existing ceremony into a
-        # chapter that does not have one, and assert the check notices even with
-        # the known exception recorded.
+        # chapter that does not have one, and assert the check notices -- now
+        # with no exception recorded at all, which is strictly stronger than the
+        # version of this test that ran while KEY was allowed.
         corpus = self.corpus()
         graft = "\n" + CH8.replace("xfer", "handoff") + "\n"
         mutated = [
             (n, cid, text + graft) if n in (1, 4) else (n, cid, text)
             for n, cid, text in corpus
         ]
-        found = cdp.find_shared(mutated, allow={KEY})
+        found = cdp.find_shared(mutated)
         self.assertTrue(found, "a ceremony grafted into two chapters was not reported")
 
 
