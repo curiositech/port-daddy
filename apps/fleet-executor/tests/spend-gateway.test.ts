@@ -3,11 +3,10 @@
  *   1. AI Gateway routing — when env.AI_GATEWAY_ID is set, every env.AI.run(...)
  *      is passed { gateway: { id } } (merged with the existing x-session-affinity
  *      extraHeaders); unset ⇒ no gateway key at all.
- *   2. Per-run spend recording — one fleet_run_spend row per ship that ran, with
- *      the ship's tokens + a cost derived from the model's $/M rate.
- *   3. Spend circuit-breaker — a spent credit_ledger (SUM(delta_usd) <= 0 with
- *      rows present) skips the run NEUTRAL before any AI spend; absent table /
- *      no rows / no DB fail OPEN (the run proceeds).
+ *   2. Per-run spend recording — one deterministic fleet_run_spend_v2 identity
+ *      per ship, using integer micro-USD.
+ *   3. Managed billing admission — explicit entitlement and an atomic run
+ *      reservation are required; missing state and read failures deny all AI.
  *
  * All three surfaces are best-effort against the shared relay D1 and can never
  * change the merge gate beyond the explicit neutral circuit-breaker skip.
@@ -169,8 +168,8 @@ describe('AI Gateway routing (env.AI_GATEWAY_ID)', () => {
   });
 });
 
-describe('per-run spend recording (fleet_run_spend)', () => {
-  it('records one row per ship with the ship model, tokens, and a sane cost_usd', async () => {
+describe('per-run spend recording (fleet_run_spend_v2)', () => {
+  it('records one row per ship with the ship model, tokens, and integer micro-USD', async () => {
     // code-reviewer → gpt-oss-120b (priced), qa → qwen3-30b (priced).
     state.files.set(
       'main:pd-fleet.yml',
@@ -197,6 +196,7 @@ describe('per-run spend recording (fleet_run_spend)', () => {
     expect(reviewer.inputTokens).toBe(100);
     expect(reviewer.outputTokens).toBe(20);
     expect(reviewer.costUsd).toBeCloseTo(costAt(CF_ROLE_MODELS.reviewBot, 100, 20), 6);
+    expect(reviewer.providerCostMicrousd).toBe(Math.round(costAt(CF_ROLE_MODELS.reviewBot, 100, 20) * 1e6));
 
     const qa = d1.spend.find(s => s.ship === 'qa')!;
     expect(qa.model).toBe(CF_ROLE_MODELS.shipDefault);
@@ -220,35 +220,32 @@ describe('per-run spend recording (fleet_run_spend)', () => {
     expect(d1.spend[0].costUsd).toBe(0);
   });
 
-  it('a failed spend insert is swallowed and never changes the gate', async () => {
+  it('a failed authoritative spend insert aborts the run instead of silently losing accounting', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
     const ai = aiStub({ perShip: { 'code-reviewer': 'HIGH\n\nFLEET-VERDICT: BLOCK' } });
     const d1 = memoryD1();
-    d1.failAll = true; // every .run() (spend + transcript) throws
+    d1.failManagedSpendWrites = true;
 
     await expect(
       executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: d1.db })),
-    ).resolves.toBeUndefined();
+    ).rejects.toMatchObject({ code: 'accounting-failed' });
 
-    expect(state.completed).toHaveLength(1);
-    expect(state.completed[0].conclusion).toBe('failure'); // blocking BLOCK still fails closed
-    expect(d1.spend).toHaveLength(0); // insert threw, nothing captured
+    expect(ai.calls.length).toBeGreaterThan(0);
+    expect(state.completed).toHaveLength(0);
+    expect(d1.spend).toHaveLength(0);
   });
 });
 
-describe('spend circuit-breaker (credit_ledger)', () => {
-  it('negative balance with ledger rows ⇒ run SKIPPED, check neutral, zero AI spend', async () => {
+describe('managed billing admission', () => {
+  it('insufficient reservable retail ⇒ run skipped neutral with zero AI spend', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
     const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
     const d1 = memoryD1();
-    d1.ledger = [
-      { installationId: 42, deltaUsd: 5 },
-      { installationId: 42, deltaUsd: -7.5 }, // net -2.5
-    ];
+    d1.entitlements[0].retailBalanceMicrousd = 0;
 
     await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: d1.db }));
 
@@ -258,17 +255,17 @@ describe('spend circuit-breaker (credit_ledger)', () => {
     expect(state.checkRunsCreated).toBe(1);
     expect(state.completed).toHaveLength(1);
     expect(state.completed[0].conclusion).toBe('neutral');
-    expect(state.completed[0].summary.toLowerCase()).toContain('top up credits');
+    expect(state.completed[0].summary.toLowerCase()).toContain('top up');
     expect(d1.runs[0].conclusion).toBe('neutral');
   });
 
-  it('zero balance with ledger rows ⇒ SKIPPED neutral (<= 0 is exhausted)', async () => {
+  it('paused entitlement ⇒ skipped neutral with zero AI spend', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
     const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
     const d1 = memoryD1();
-    d1.ledger = [{ installationId: 42, deltaUsd: 3 }, { installationId: 42, deltaUsd: -3 }];
+    d1.entitlements[0].state = 'paused';
 
     await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: d1.db }));
 
@@ -276,7 +273,7 @@ describe('spend circuit-breaker (credit_ledger)', () => {
     expect(state.completed[0].conclusion).toBe('neutral');
   });
 
-  it('positive balance ⇒ run PROCEEDS normally + records spend', async () => {
+  it('active funded entitlement ⇒ run proceeds, records spend, and settles once', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -285,53 +282,54 @@ describe('spend circuit-breaker (credit_ledger)', () => {
       usage: { prompt_tokens: 100, completion_tokens: 20 },
     });
     const d1 = memoryD1();
-    d1.ledger = [{ installationId: 42, deltaUsd: 10 }];
 
     await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: d1.db }));
 
     expect(ai.calls.length).toBeGreaterThan(0);
     expect(state.completed[0].conclusion).toBe('success');
     expect(d1.spend).toHaveLength(1);
+    expect(d1.reservations).toHaveLength(1);
+    expect(d1.reservations[0].state).toBe('settled');
+    expect(d1.reservations[0].providerCostCapMicrousd * 4).toBeLessThanOrEqual(d1.reservations[0].retailMicrousd);
   });
 
-  it('NO ledger rows for this install ⇒ FAIL-OPEN (run proceeds — trial / billing off)', async () => {
+  it('missing entitlement ⇒ fail-closed with zero AI', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
     const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
     const d1 = memoryD1();
-    // A DIFFERENT installation is out of credit; ours (42) has no rows.
-    d1.ledger = [{ installationId: 99, deltaUsd: -100 }];
+    d1.entitlements = [];
 
     await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: d1.db }));
 
-    expect(ai.calls.length).toBeGreaterThan(0);
-    expect(state.completed[0].conclusion).toBe('success');
+    expect(ai.calls).toHaveLength(0);
+    expect(state.completed[0].conclusion).toBe('neutral');
   });
 
-  it('credit_ledger table absent ⇒ FAIL-OPEN (breaker inert until billing ships)', async () => {
+  it('missing managed billing schema/read failure ⇒ fail-closed with zero AI', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
     const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
     const d1 = memoryD1();
-    d1.creditTableMissing = true; // SELECT throws "no such table"
+    d1.managedBillingUnavailable = true;
 
     await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: d1.db }));
 
-    expect(ai.calls.length).toBeGreaterThan(0);
-    expect(state.completed[0].conclusion).toBe('success');
+    expect(ai.calls).toHaveLength(0);
+    expect(state.completed[0].conclusion).toBe('neutral');
   });
 
-  it('no DB binding ⇒ FAIL-OPEN (run proceeds)', async () => {
+  it('no DB binding ⇒ fail-closed with zero AI', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
     const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
 
-    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai }));
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: undefined }));
 
-    expect(ai.calls.length).toBeGreaterThan(0);
-    expect(state.completed[0].conclusion).toBe('success');
+    expect(ai.calls).toHaveLength(0);
+    expect(state.completed[0].conclusion).toBe('neutral');
   });
 });

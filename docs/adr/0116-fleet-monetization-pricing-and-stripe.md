@@ -2,8 +2,9 @@
 
 ## Status
 
-Proposed — 2026-07-15. Engineering plan; the specific dollar figures are a
-recommended starting point for the operator to set, not a committed price.
+Accepted in part — 2026-09-14. The managed-inference safety boundary and 75%
+gross-margin floor are platform standards. Customer-facing package prices and
+the Stripe catalog remain proposals for the operator to set.
 Builds on ADR-0101 (accounts + the run pages + the `fleet_run_spend` /
 funding-tenant primitives). Supersedes the loose "Phase 2 = BYOK" note in
 ADR-0101 with a concrete funding + billing decision.
@@ -81,7 +82,17 @@ Most PRs never touch the expensive model → cuts the dominant cost line ~40–7
 while risky diffs still get heavy artillery. Routing sophistication becomes a
 product tier, not just an optimization.
 
-### D3 — Pricing (recommended starting point; operator sets final numbers)
+### D3 — Pricing and margin boundary
+
+Every managed run reserves an integer micro-USD retail amount before inference.
+Its provider-cost ceiling is at most one quarter of that amount, giving a
+minimum 75% gross margin before payment processing, support, and other overhead.
+The executor refuses managed inference when D1, the billing schema, the explicit
+installation entitlement, or the atomic reservation cannot be read or written.
+There is no implicit trial and no fail-open billing mode.
+
+The package amounts below remain recommended starting points; the operator sets
+the final customer-facing catalog.
 
 Lead with **usage/per-review + a cap and a BYOK escape valve**, because a fleet
 inherently costs more per PR (N ships) and per-review pricing neutralizes the
@@ -116,13 +127,17 @@ Rides on the relay Worker + D1 + the fleet's existing pre-spend pause gate + the
 ADR-0101 installation funding-tenant (MT2: one GitHub installation = one wallet
 across its repos).
 
-**New D1 tables (relay):**
+**Managed-inference D1 tables (relay):**
 ```
-stripe_customers(installation_id PK, stripe_customer_id, created_at)
-credit_ledger(id PK, installation_id, delta_usd, reason, stripe_ref, run_id, created_at)  -- append-only; balance = SUM(delta_usd)
-subscriptions(installation_id PK, stripe_sub_id, plan, status, seats, current_period_end)
-fleet_run_spend(run_id, installation_id, model, input_tok, output_tok, cost_usd, created_at)  -- ADR-0101 Phase 2 primitive
+fleet_managed_entitlements(installation_id PK, state, retail_balance_microusd, run_retail_microusd, source_ref, ...)
+fleet_run_reservations(run_id PK, installation_id, retail_microusd, provider_cost_cap_microusd, provider_cost_microusd, state, ...)
+fleet_run_spend_v2(run_id, ship, installation_id, model, input_tokens, output_tokens, provider_cost_microusd, ...; PK(run_id, ship))
 ```
+
+These are additive tables. They do not add unsafe uniqueness constraints to
+legacy `credit_ledger` or `fleet_run_spend` rows that may already contain retry
+duplicates. Stripe customer/subscription/ledger tables remain part of the later
+commerce slice, not the authority used by the executor's Wave 1 admission gate.
 
 **Stripe primitives:**
 - **Products + Prices = the SKUs** above (credit packs + subscription prices).
@@ -134,15 +149,20 @@ fleet_run_spend(run_id, installation_id, model, input_tok, output_tok, cost_usd,
 - **Customer Portal** — one Stripe-hosted link for card/plan self-service; no UI
   to build.
 
-**Draw-down + the per-installation gate (the operator's flagged "next thing"):**
-- The executor's existing pre-spend pause check gains a **balance check**:
-  resolve the installation → `SELECT SUM(delta_usd)`; if ≤ 0 and no active
-  subscription/trial quota, skip the run and post a "top up to resume" check-run
-  message. This is the same mechanism as the abuse gate — build it once.
-- After each run, debit `credit_ledger` by the run's `cost_usd` (from
-  `fleet_run_spend`, keyed on `run_id`). Requires persisting real token counts
-  per run (a small fix — today only `outputLength` is stored, so cost is an
-  estimate).
+**Reservation + settlement boundary:**
+- An installation must have an explicit active row in
+  `fleet_managed_entitlements`. Missing DB/schema/row, malformed integer values,
+  insufficient balance, and read errors all produce a neutral check with zero
+  model calls.
+- One `INSERT ... SELECT` atomically reserves the configured retail amount under
+  deterministic `run_id`. Concurrent deliveries cannot reserve the same money,
+  and a retry reads back the same reservation.
+- Every completed ship writes one exact `(run_id, ship)` spend identity in
+  integer micro-USD and verifies it by read-back. Accounting failure is a run
+  failure, never a swallowed telemetry error.
+- Settlement is a single state transition from `reserved` to `settled` and
+  refuses provider cost above the reservation's 25% ceiling. An unspent
+  cancellation transitions once to `released`; spent work must settle.
 
 **Money flow:** user buys $20 pack → Stripe deposits (−~3%) → webhook grants $20
 credits → runs debit at ~$0.30/PR cost → the operator owes Cloudflare only for
@@ -150,12 +170,11 @@ paid-for runs.
 
 ## Build order
 
-1. **Per-installation balance/abuse gate** in the executor (protects the
-   operator *today*, before any Stripe work; needed regardless of pricing).
-2. **Persist real per-run token counts** → accurate `fleet_run_spend` (kills the
-   cost-estimate guesswork).
-3. **Stripe Checkout + webhook + `credit_ledger`** on the relay.
-4. **Draw-down wiring** + the "top up" UX on the run page + Customer Portal link.
+1. **Managed entitlement + atomic reservation + exact settlement** in the
+   executor (Wave 1 platform stop-loss).
+2. **Stripe Checkout + webhook** on the relay, provisioning explicit
+   entitlements from verified payment events.
+3. **Top-up UX** on the run page + Customer Portal link.
 5. **Complexity-escalation routing** (D2) — independent, ships anytime; folds
    into the Pro/Deep-Review tiers.
 
@@ -181,7 +200,9 @@ parallel ~3-day task.
 
 ## Consequences
 
-**Positive:** unbounded install liability becomes bounded (the balance gate);
+**Positive:** unbounded install liability becomes bounded (explicit entitlement
+plus atomic reservation); the 75% gross-margin floor is storage- and
+settlement-enforced;
 the product can open to the public with positive float; pricing matches the
 fleet's cost shape and the 2026 usage-migration; transparency is a defensible
 moat rather than a me-too "multi-agent" claim.
