@@ -44,6 +44,30 @@ import check_figure_blockers as cfb  # noqa: E402 (reused: load_blockers, check_
 # touches one of them, which is the moment to fix it.
 GATING_CHECKS = ("T1", "T2", "T3", "T4", "T5", "T9")
 
+# T10 (more than one typeface inside a drawing) is DELIBERATELY NOT HERE, and
+# the condition for adding it is written down rather than left to whoever looks
+# next.
+#
+# T10 is sound about what it sees: it found three fragments whose nodes wrote
+# `\normalfont` in their TEXT to get an unemphasised line, which in the Book set
+# that line in Palatino inside a grotesk drawing, and which no source rule could
+# see. Those are fixed, and P24 in tikz_precheck.py now catches that shape at
+# source, where it IS unambiguous -- so the defect class gates, through the
+# precheck, today.
+#
+# What T10 cannot do from the PDF alone is separate a node that reset its own
+# family from TeX's own use of the text roman: `\mathrm{ok}` and `$k=3$` put
+# body-serif glyphs inside a grotesk drawing and no author chose either. A first
+# version of the check failed 46 of 66 fragments for exactly that; requiring two
+# consecutive letters cut it to twelve, of which three were real. Gating on the
+# remaining nine would mean nine waivers on figures that are correct, which is
+# the blockers.json pathology this PR is otherwise arguing against.
+#
+# ADD T10 HERE when it can tell math-roman from a family reset -- the likely
+# route is PyMuPDF's rawdict giving per-character origins so a run inside a math
+# box can be recognised by its spacing. Until then it reports, P24 gates, and
+# this comment says which is which.
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)

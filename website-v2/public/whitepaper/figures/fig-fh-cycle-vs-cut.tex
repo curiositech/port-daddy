@@ -6,7 +6,7 @@
 \centering
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
   % left panel: the cycle
-  \node[pd row label,anchor=south,align=center,text width=4.4cm] at (0,2.45) {the 6-cycle\\\normalfont the disagreement closes a cycle};
+  \node[pd row label,anchor=south,align=center,text width=4.4cm] at (0,2.45) {the 6-cycle\\\pdfigsub the disagreement closes a cycle};
   \foreach \i in {1,...,6} {
     \node[pd state,circle,minimum size=6.5mm,inner sep=0pt] (c\i) at ({90-60*(\i-1)}:1.45) {\i};
   }
@@ -15,7 +15,7 @@
   \node[pd note,anchor=north,align=center] at (0,-1.95) {$r = 1.2247$\\the disagreement is visible};
   % right panel: the path
   \begin{scope}[xshift=6.4cm]
-  \node[pd row label,anchor=south,align=center,text width=4.4cm] at (0,2.45) {the 6-path\\\normalfont the same disagreement, no cycle};
+  \node[pd row label,anchor=south,align=center,text width=4.4cm] at (0,2.45) {the 6-path\\\pdfigsub the same disagreement, no cycle};
   \foreach \i in {1,...,6} {
     \node[pd state,circle,minimum size=6.5mm,inner sep=0pt] (p\i) at ({-2.5+(\i-1)*1.0},0.55) {\i};
   }

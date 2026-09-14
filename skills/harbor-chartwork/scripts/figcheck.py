@@ -23,6 +23,10 @@ compile_fragment.sh) and reports pass/fail/warn per check:
   T9  dash resolution                  (a dashed/dotted stroke whose on-length,
                                          gap or stroke width falls below one
                                          device pixel at --dash-dpi: FAIL)
+  T10 typeface consistency             (more than one text family inside the
+                                         figure's own drawing, excluding the
+                                         caption, the identifier face and math:
+                                         FAIL)
 
 All checks operate purely on rendered PDF geometry (PyMuPDF's get_text("dict")
 and get_drawings()), not on the TikZ source -- this is deliberately the
@@ -54,6 +58,30 @@ arithmetic, not a guess -- that part is sound. It does NOT decide whether the
 result *looks* dotted: a pattern can clear every threshold here and still read
 as solid at a distance, or be lost against a busy background. The thresholds
 below are a floor, and clearing them is necessary, not sufficient.
+
+T10 exists because every other check in this file measures GEOMETRY -- size,
+overlap, escape, lines through text, mediabox, dead canvas, width, caption
+collision -- and none of them looks at the thing a reader notices first. The
+Book's stack map passes T1 through T9 clean and was rejected on sight, because
+under the Book preamble it sets `MACHINE FLOOR` and `file lock, clock, socket,
+supervisor` in TeXGyrePagellaX (the body serif) and every other label in
+TeXGyreHeros (the edition's grotesk). One drawing, two faces. The figure does
+not merely disagree with the rest of the corpus; it disagrees with itself.
+
+What T10 asserts is deliberately narrow: ONE text family inside the drawing. It
+does not assert WHICH family, because that is an edition's decision -- the Swiss
+and technical editions set figures in grotesk against a Palatino page on
+purpose, so "the figure's face must match the caption's" would be wrong here and
+would fire on every correctly-set figure in the Book. Two faces inside one
+drawing is wrong under every edition, which is why that is the line it draws.
+
+Two kinds of span are excluded, and the exclusions are named rather than
+inferred. The IDENTIFIER face (`pd mono label`) is a second family by design.
+MATH fonts are a second family by necessity -- a `$\kappa_7$` in a label pulls
+in newpx's math set whatever the text face is. Both lists are in MONO_FAMILIES
+and MATH_FAMILY_RE below, with the faces this repository's preambles actually
+produce; a family in neither list is counted, so extending them is a visible act
+rather than a silent one.
 
 Units: T1 works in PDF points (a span's reported font size already IS points).
 T2-T6, T8 all work in PDF points internally; T7's --textwidth-cm is converted
@@ -109,7 +137,7 @@ def _load_ink_audit():
         return None
 
 PT_PER_CM = 72.0 / 2.54
-HARD_CHECKS = ("T1", "T2", "T3", "T4", "T5", "T8", "T9")
+HARD_CHECKS = ("T1", "T2", "T3", "T4", "T5", "T8", "T9", "T10")
 WARN_CHECKS = ("T6", "T7")
 ALL_CHECKS = HARD_CHECKS + WARN_CHECKS
 
@@ -155,6 +183,51 @@ DASH_MIN_GAP_PX = 2.0
 # It is fatal in combination with a dash: the dot then has sub-pixel extent in
 # BOTH directions and there is nothing left of it to see.
 DASH_MIN_WIDTH_PX = 1.0
+
+# T10. Turning a PDF font name into a FAMILY: drop a subset prefix (`ABCDEF+`),
+# drop everything from the first hyphen (the weight/slope), drop a trailing
+# `_gnu`-style variant tag and any trailing size digits (`CMR10`). So
+# TeXGyreHeros-Bold, TeXGyreHeros-Regular and TeXGyreHeros-Italic are ONE
+# family: T10 is about faces, and a role separating itself by weight or slope is
+# what the house style asks for.
+FONT_SUBSET_RE = re.compile(r"^[A-Z]{6}\+")
+FONT_VARIANT_RE = re.compile(r"(_[A-Za-z]+)?\d*$")
+
+# The identifier face. A second family inside the drawing BY DESIGN: `pd mono
+# label` is the one role licensed to change family, because an identifier a
+# reader could type has to look like code. Listed, not guessed -- SourceCodePro
+# is what this repository's preambles resolve \ttfamily to; the rest are the
+# usual alternatives, so a preamble change does not silently start failing.
+MONO_FAMILIES = {
+    "SourceCodePro", "Courier", "NimbusMonoPS", "TeXGyreCursor",
+    "LMMono", "LMMonoLt", "DejaVuSansMono", "Inconsolata", "FiraMono", "CMTT",
+}
+# Math fonts. A second family by NECESSITY rather than by choice: a `$\kappa_7$`
+# inside a label pulls in the math set whatever the text face is, and no author
+# chose it. This matches the newpx family these preambles load (NewPXMI, pxsys,
+# pxmiaX) plus the common Computer Modern / Unicode-math sets.
+MATH_FAMILY_RE = re.compile(
+    r"^(newpx|px|cm(mi|sy|ex)|msam|msbm|rsfs|eufm|stix|xits|lmmath|"
+    r"latinmodernmath|texgyre\w*math)|math",
+    re.IGNORECASE,
+)
+
+# T10 counts only spans carrying a WORD -- two or more consecutive letters.
+#
+# This is the exclusion that makes the check sound, and it was found by running
+# it: a first version counted every span and failed 46 of 66 fragments, which is
+# not 46 broken figures. TeX sets math DIGITS and single math variables in the
+# TEXT roman family whatever face the surrounding node is in, so every pgfplots
+# axis with numerals on it, and every `$k=3$` in a label, showed the body serif
+# inside a grotesk drawing. Nobody chose that and there is nothing to fix.
+#
+# A word is different. `the disagreement closes a cycle` in Palatino inside a
+# grotesk drawing is a node that reached past the styles -- in practice a
+# `\normalfont` inside the node's TEXT, which resets to the DOCUMENT's family
+# and which no `font=` rule can see. Two letters in a row is the smallest thing
+# that separates the two cases, and it is a property of the glyphs rather than a
+# guess about the source.
+WORD_RE = re.compile(r"[A-Za-z]{2}")
 
 
 # --------------------------------------------------------------------------- #
@@ -292,9 +365,30 @@ def extract_spans(page):
                         "bbox": tuple(sp["bbox"]),
                         "text": sp["text"],
                         "size": sp["size"],
+                        # T10: the face this run was actually set in. The PDF is
+                        # the only place this exists -- the source says
+                        # \sffamily or nothing at all, and which font that
+                        # resolves to depends on the preamble that compiled it.
+                        "font": sp.get("font", ""),
                     }
                 )
     return out
+
+
+def font_family(name):
+    """A PDF font name reduced to its family. See FONT_SUBSET_RE above."""
+    name = FONT_SUBSET_RE.sub("", name or "")
+    name = name.split("-", 1)[0]
+    return FONT_VARIANT_RE.sub("", name) or name
+
+
+def classify_family(family):
+    """'mono', 'math', or 'text'. Only 'text' families are counted by T10."""
+    if family in MONO_FAMILIES:
+        return "mono"
+    if MATH_FAMILY_RE.search(family):
+        return "math"
+    return "text"
 
 
 def extract_drawings(page):
@@ -810,6 +904,62 @@ def check_t9(drawings, dash_dpi, page_no):
     return findings
 
 
+def check_t10(spans, lines, page_no):
+    """T10: more than one text family inside the figure's own drawing.
+
+    The caption is excluded: it is page furniture, legitimately set in the body
+    face, and on a standalone fragment PDF it is everything from the top of the
+    first caption line downward. The identifier face and the math fonts are
+    excluded for the reasons given in MONO_FAMILIES and MATH_FAMILY_RE.
+
+    What is left is the drawing's own type, and there may be one face of it.
+    Weight and slope are not faces -- TeXGyreHeros-Bold and -Regular are one
+    family, and separating a role by weight is exactly what the house style
+    asks. Two FAMILIES means some node reached past the styles and named its own
+    font, which is what P18/P21 catch in source and what nothing caught on the
+    page: the Book's stack map passes T1-T9 clean while setting two of its
+    labels in Palatino and the rest in grotesk.
+    """
+    caps = find_caption_lines(lines)
+    # Everything at or below the first caption line's TOP edge is caption. A
+    # caption wraps to several lines and find_caption_lines only matches the
+    # first; taking the whole band below it is right for a single-figure PDF and
+    # errs toward excluding text rather than misattributing it to the drawing.
+    caption_top = min((c["bbox"][1] for c in caps), default=None)
+    families = {}
+    for sp in spans:
+        if caption_top is not None and sp["bbox"][1] >= caption_top - 0.5:
+            continue
+        fam = font_family(sp.get("font", ""))
+        if not fam or classify_family(fam) != "text":
+            continue
+        text = sp["text"].strip()
+        if not WORD_RE.search(text):
+            continue
+        rec = families.setdefault(fam, {"glyphs": 0, "sample": ""})
+        rec["glyphs"] += len(text)
+        if not rec["sample"]:
+            rec["sample"] = text[:28]
+    if len(families) <= 1:
+        return []
+    # The minority family is the defect: name it first, with a sample, so the
+    # offending node is findable without opening the PDF.
+    order = sorted(families.items(), key=lambda kv: kv[1]["glyphs"])
+    listed = ", ".join(f"{fam} ({r['glyphs']} glyphs, e.g. {r['sample']!r})" for fam, r in order)
+    return [
+        {
+            "check": "T10",
+            "severity": "fail",
+            "page": page_no,
+            "families": {fam: r["glyphs"] for fam, r in order},
+            "message": f"the drawing is set in {len(families)} typefaces: {listed}. "
+            f"One figure, one face -- a node that names its own font (font=\\sffamily, "
+            f"font=\\bfseries on top of a pd style) leaves the edition's face behind. "
+            f"Take the role, not the font.",
+        }
+    ]
+
+
 # --------------------------------------------------------------------------- #
 # Driver
 # --------------------------------------------------------------------------- #
@@ -844,6 +994,7 @@ def run_figcheck(pdf_path, min_font_pt=7.0, textwidth_cm=16.3, dash_dpi=DASH_DPI
         findings += check_t7(content_rect, textwidth_pt, textwidth_cm, page_no)
         findings += check_t8(lines, drawings, page_no)
         findings += check_t9(drawings, dash_dpi, page_no)
+        findings += check_t10(spans, lines, page_no)
         ink_report.append(compute_page_ink(page, content_rect, page_rect, page_no, ink_audit))
 
     by_check = {c: [] for c in ALL_CHECKS}
@@ -896,6 +1047,7 @@ CHECK_LABELS = {
     "T7": "wider than chapter textwidth (warn only)",
     "T8": "caption collision",
     "T9": "dash too small to resolve",
+    "T10": "more than one typeface in the drawing",
 }
 # A label per check, asserted rather than assumed: render_markdown indexes this
 # by check id, so a check added to ALL_CHECKS without a label here raises a
