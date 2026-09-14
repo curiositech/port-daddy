@@ -21,7 +21,7 @@
     "criticalPath"
   ],
   "properties": {
-    "$schema": { "const": "./drydock-resurrection-hypertree.schema.json" },
+    "$schema": { "const": "../schemas/drydock-resurrection-hypertree.schema.json" },
     "schemaVersion": { "const": 1 },
     "kind": { "const": "DrydockHypertree" },
     "id": { "type": "string", "minLength": 1 },

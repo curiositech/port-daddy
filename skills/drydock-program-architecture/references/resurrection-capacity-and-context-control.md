@@ -17,16 +17,16 @@ head, not by the source-input commit. Pre-commit drafts have only file digests.
 
 **Companions:**
 
-- [Drydock: Controlled Port Daddy Execution and Agent Simulation](./drydock-controlled-agent-simulation.md)
-- [Drydock Agent Lifecycle and Operator Control](./drydock-agent-lifecycle-and-operator-control.md)
-- [Drydock execution hypertree](./drydock-resurrection-hypertree.json)
-- [Drydock hypertree schema](./drydock-resurrection-hypertree.schema.json)
-- [Drydock hypertree semantic validator](./validate-drydock-resurrection-hypertree.mjs)
-- [Drydock operator journey storyboard](../design/drydock-operator-journeys/index.html)
-- [The Grand Harbor Atlas](./grand-harbor-product-atlas.md)
-- [ADR-0118: Harness Adapter Contract](../adr/0118-harness-adapter-contract.md)
-- [ADR-0121: Durable Agent Roster](../adr/0121-durable-agent-roster.md)
-- [ADR-0137: Identity Retirement and Resurrection](../adr/0137-identity-retirement-is-final-unless-resurrected.md)
+- [Drydock: Controlled Port Daddy Execution and Agent Simulation](./controlled-agent-simulation.md)
+- [Drydock Agent Lifecycle and Operator Control](./agent-lifecycle-and-operator-control.md)
+- [Drydock execution hypertree](../examples/drydock-resurrection-hypertree.json)
+- [Drydock hypertree schema](../schemas/drydock-resurrection-hypertree.schema.json)
+- [Drydock hypertree semantic validator](../scripts/validate-drydock-resurrection-hypertree.mjs)
+- [Drydock operator journey storyboard](../../../docs/design/drydock-operator-journeys/index.html)
+- [The Grand Harbor Atlas](../../../docs/proposals/grand-harbor-product-atlas.md)
+- [ADR-0118: Harness Adapter Contract](../../../docs/adr/0118-harness-adapter-contract.md)
+- [ADR-0121: Durable Agent Roster](../../../docs/adr/0121-durable-agent-roster.md)
+- [ADR-0137: Identity Retirement and Resurrection](../../../docs/adr/0137-identity-retirement-is-final-unless-resurrected.md)
 
 **Execution note:** This proposal and its mockups were built from inert source,
 existing receipts, and official documentation. No Port Daddy CLI, daemon, hook,
@@ -1025,7 +1025,7 @@ effect until reconciliation or an operator-authorized compensating action.
 
 ## 9. The operator experience
 
-The [scripted storyboard](../design/drydock-operator-journeys/index.html) shows
+The [scripted storyboard](../../../docs/design/drydock-operator-journeys/index.html) shows
 the intended flow without claiming a working app.
 
 ### 9.1 Scene 1: Muster across repositories
@@ -1248,10 +1248,10 @@ worked, or a UI rendering a hoped-for state.
 
 ## 13. Executable hypertree and delivery sequence
 
-The machine-readable [Drydock execution hypertree](./drydock-resurrection-hypertree.json)
-is the planning artifact. Its [JSON Schema](./drydock-resurrection-hypertree.schema.json)
+The machine-readable [Drydock execution hypertree](../examples/drydock-resurrection-hypertree.json)
+is the planning artifact. Its [JSON Schema](../schemas/drydock-resurrection-hypertree.schema.json)
 checks the closed shape, while the
-[semantic validator](./validate-drydock-resurrection-hypertree.mjs) proves unique
+[semantic validator](../scripts/validate-drydock-resurrection-hypertree.mjs) proves unique
 roles/nodes, referential integrity, an acyclic graph, a complete topological
 delivery order, breaker ancestry for every launcher, and the scoped canonical
 plan digest. The source-input commit is not the artifact's publication commit;
@@ -1391,8 +1391,8 @@ while the local runtime is halted.
 
 ### Repository sources
 
-- `docs/proposals/drydock-controlled-agent-simulation.md`
-- `docs/proposals/drydock-agent-lifecycle-and-operator-control.md`
+- `skills/drydock-program-architecture/references/controlled-agent-simulation.md`
+- `skills/drydock-program-architecture/references/agent-lifecycle-and-operator-control.md`
 - `docs/proposals/grand-harbor-product-atlas.md`
 - `docs/adr/0022-durable-actor-souls-and-body-leases.md`
 - `docs/adr/0028-actor-fleet-agent-session-three-layers.md`

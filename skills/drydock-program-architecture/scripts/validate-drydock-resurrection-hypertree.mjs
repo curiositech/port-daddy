@@ -5,13 +5,13 @@ import { readFileSync } from "node:fs";
 
 const path = process.argv[2];
 if (!path) {
-  console.error("usage: node docs/proposals/validate-drydock-resurrection-hypertree.mjs <hypertree.json>");
+  console.error("usage: node skills/drydock-program-architecture/scripts/validate-drydock-resurrection-hypertree.mjs <hypertree.json>");
   process.exit(2);
 }
 
 let tree;
 try {
-  tree = JSON.parse(readFileSync(path, "utf8"));
+  tree = JSON.parse(readFileSync(path === "-" ? 0 : path, "utf8"));
 } catch (error) {
   console.error(JSON.stringify({ valid: false, errors: [`invalid JSON: ${error.message}`] }, null, 2));
   process.exit(1);

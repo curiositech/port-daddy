@@ -1,5 +1,5 @@
 {
-  "$schema": "./drydock-resurrection-hypertree.schema.json",
+  "$schema": "../schemas/drydock-resurrection-hypertree.schema.json",
   "schemaVersion": 1,
   "kind": "DrydockHypertree",
   "id": "drydock-resurrection-capacity-context-control",
