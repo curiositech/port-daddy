@@ -541,9 +541,18 @@ export function installGitHubFetch(state: GitHubState): void {
   vi.stubGlobal('fetch', vi.fn(handler) as unknown as typeof fetch);
 }
 
-/** In-memory KV with the subset of methods the executor uses. */
-export function memoryKV(): KVNamespace & { _store: Map<string, string>; _gets: number } {
+/**
+ * In-memory KV with the subset of methods the executor uses. Test environments
+ * model an explicitly enabled global Fleet by default; pass `fleetPause: null`
+ * only when a test intentionally exercises missing control state.
+ */
+export function memoryKV(
+  options: { fleetPause?: boolean | null } = {},
+): KVNamespace & { _store: Map<string, string>; _gets: number } {
   const store = new Map<string, string>();
+  if (options.fleetPause !== null) {
+    store.set('fleet:paused', options.fleetPause === true ? 'true' : 'false');
+  }
   let gets = 0;
   const kv = {
     _store: store,
