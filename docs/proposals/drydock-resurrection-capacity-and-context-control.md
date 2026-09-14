@@ -880,7 +880,7 @@ A node becomes executable only when it names:
 - acceptance tests and external evidence; and
 - failure, pause, salvage, and settlement behavior.
 
-This is where the WinDAGs Architect idea belongs: it operates on planning
+This is where the planning Architect belongs: it operates on planning
 structure. The Avatar belongs later, at embodiment. Combining them would let a
 planner turn its own vague node into an executable process without an admission
 boundary.
