@@ -22,16 +22,16 @@
   \draw[pd focus rule] (-3.4,1.82) -- (nonce1);
   \draw[pd focus rule] (nonce1) -- (-3.4,-.32);
 
-  % ---- crossing 2: id2 -> id3, the attempted splice ----
-  \draw[pd caution rule,dashed] (id2.east) to[out=5,in=175] (id3.west);
-  \node[pd caution datum] (splice) at (0,2.1) {};
-  \node[pd direct label,text=hhamber,align=center,text width=3.6cm,anchor=south]
+  % ---- crossing 2: id2 -> id3, the attempted splice (refused: danger, not caution) ----
+  \draw[pd danger rule,dashed] (id2.east) to[out=5,in=175] (id3.west);
+  \node[pd danger datum] (splice) at (0,2.1) {};
+  \node[pd direct label,text=pderror,align=center,text width=3.6cm,anchor=south]
     at (0,2.42) {sig3 does not cover n2: refused};
-  \node[pd caution datum] (nonce2) at (0,.75) {};
+  \node[pd danger datum] (nonce2) at (0,.75) {};
   \node[pd axis label,anchor=west,align=left,text width=1.3cm] at (.1,.75)
     {n2\\ expected};
-  \draw[pd caution rule,dashed] (0,1.82) -- (nonce2);
-  \draw[pd caution rule,dashed] (nonce2) -- (0,-.32);
+  \draw[pd danger rule,dashed] (0,1.82) -- (nonce2);
+  \draw[pd danger rule,dashed] (nonce2) -- (0,-.32);
 
   % ---- crossing 3: id3 -> id4, ordinary hop ----
   \draw[pd focus arrow] (id3.east) to[out=5,in=175] (id4.west);
@@ -48,7 +48,7 @@
 
   \node[pd note,anchor=west,align=left,text width=10.8cm] at (-5.55,-1.75)
     {each ordinary crossing binds parent, child, a fresh nonce, and the same
-     task hash h; the amber crossing reuses sig3 (bound to n3) where n2 was
+     task hash h; the red crossing reuses sig3 (bound to n3) where n2 was
      expected, so verification fails there};
 \end{tikzpicture}
 \caption{The delegation chain as a signed provenance braid across four
