@@ -180,8 +180,8 @@
           },
           "formerNumeral": {
             "type": "string",
-            "pattern": "^[IVX]+$",
-            "description": "First-edition numbering, kept only for the concordance."
+            "pattern": "^[IVX]*$",
+            "description": "First-edition numbering, kept only for the concordance. The empty string is the one non-Roman value accepted: a chapter added after the first edition has no first-edition numeral to concord, and validateTextbook in scripts/generate-mega-whitepaper.mjs accepts it and skips it from the rendered concordance. The pattern said ^[IVX]+$ until scripts/check-textbook-schema.mjs first ran the schema against the data and found it contradicting both the generator and chapter 3."
           },
           "oneLine": {
             "type": "string",
@@ -196,6 +196,11 @@
             "type": "string",
             "minLength": 1,
             "description": "One paragraph of why a reader would want this chapter, in the author's voice. The question states what the chapter answers; the teaser is the reason to care. Shown on the site outline under the chapter title."
+          },
+          "result": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The concrete thing the chapter settles, with its numbers: shown on the site outline (website-v2/src/pages/whitepaper/index.tsx) under the teaser, and rendered only when present. Site-only — the Book prints the chapter, not a summary of it. Optional, because the page renders the chapter with or without it; every chapter currently carries one."
           },
           "epigraph": {
             "type": "object",
