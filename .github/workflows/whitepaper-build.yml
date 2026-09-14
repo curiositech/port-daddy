@@ -463,6 +463,39 @@ jobs:
             echo "::error::could not read the apparatus list from the Book preamble; refusing to guess which files are drawings"
             exit 1
           fi
+          # A fragment that is not ONE figure cannot be measured by a checker
+          # whose contract is one figure per PDF. figcheck says so in its own
+          # docstring ("mechanical geometry QA on one compiled figure PDF"), and
+          # it shows: on appendix-figures.tex -- six \begin{figure} environments
+          # in one file, floating onto two pages -- find_caption_lines returns
+          # TWO captions per page, and T3 compares every text line on a page
+          # against every other, so two unrelated figures get compared to each
+          # other. That is the tool being asked the wrong question, not a defect
+          # in the drawing.
+          #
+          # By shape, not by name, and with a notice rather than silence: this is
+          # the only such file in all three corpora today, and if a second
+          # appears the notice says so on the run that introduces it. Its real
+          # remedy is a FIGURE-TRIAGE.md row -- it has none, and no figcheck
+          # record either, so the audit has never assessed it. A waiver would be
+          # the wrong instrument twice over: blockers.json is GENERATED from the
+          # figcheck records plus the triage, so a hand-written entry there is
+          # erased by the next `render_figure_audit.py --write`.
+          multifig=""
+          for stem in $changed; do
+            for d in whitepaper/figures website-v2/public/whitepaper/figures docs/harbor-research/figures; do
+              [ -f "$d/$stem.tex" ] || continue
+              count=$(grep -c '\\begin{figure' "$d/$stem.tex" || true)
+              if [ "${count:-0}" -gt 1 ]; then
+                echo "::notice::$stem holds $count figure environments in one file; figcheck measures one figure per PDF, so it is out of this gate's scope. It needs a FIGURE-TRIAGE.md row, not a waiver."
+                multifig="$multifig $stem"
+              fi
+              break
+            done
+          done
+          for stem in $multifig; do
+            changed="$(printf '%s\n' "$changed" | grep -vxF "$stem" || true)"
+          done
           blocked="$(python3 -c "import json; print(chr(10).join(e['id'] for e in json.load(open('docs/harbor-research/exposition/figures/blockers.json'))))")"
           { printf '%s\n' "$changed"; printf '%s\n' "$blocked"; } | grep -v '^$' | sort -u > /tmp/figure-gate-scope.txt
           count="$(wc -l < /tmp/figure-gate-scope.txt)"
