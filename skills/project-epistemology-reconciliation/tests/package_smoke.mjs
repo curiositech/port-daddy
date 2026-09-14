@@ -13,7 +13,7 @@ const target = join(repoRoot, 'core/target')
 mkdirSync(target, { recursive: true })
 const work = mkdtempSync(join(target, 'inventory-package-'))
 const packed = JSON.parse(execFileSync('npm', ['pack', '--ignore-scripts', '--offline', '--json', '--cache', join(work, 'npm-cache'), '--pack-destination', work], { cwd: packageRoot, encoding: 'utf8', timeout: 60000 }))[0]
-const expected = ['LICENSE', 'README.md', 'package.json', 'scripts/artifact_inventory.mjs', 'scripts/inventory.mjs', 'scripts/review_receipt.mjs']
+const expected = ['LICENSE', 'README.md', 'package.json', 'scripts/artifact_inventory.mjs', 'scripts/inventory.mjs', 'scripts/review_receipt.mjs', 'scripts/successor_export.mjs']
 assert.deepEqual(packed.files.map((f) => f.path).sort(), expected)
 
 const tools = join(work, 'tools')
@@ -63,6 +63,54 @@ const reviewBin = join(tools, 'node_modules/.bin/harbor-review-audit')
 const review = JSON.parse(execFileSync(process.execPath, ['--import', guard, reviewBin, '--source', sourcePath, '--contract', contractPath, '--receipt', receiptPath], { cwd: tools, encoding: 'utf8', timeout: 30000 }))
 assert.equal(review.pass, true)
 assert.equal(review.eligibleStatus, 'agent-reviewed')
+
+const successorSource = join(work, 'successor-source')
+const successorOutput = join(work, 'successor-output')
+mkdirSync(successorSource)
+const retained = Buffer.from('irreplaceable mechanism\n')
+const historical = Buffer.from('approved historical omission\n')
+writeFileSync(join(successorSource, 'keep.txt'), retained)
+writeFileSync(join(successorSource, 'old.txt'), historical)
+const universeBytes = Buffer.from([
+  JSON.stringify({ schemaVersion: 1, path: 'keep.txt', sha256: digest(retained), bytes: retained.length, mode: '100644' }),
+  JSON.stringify({ schemaVersion: 1, path: 'old.txt', sha256: digest(historical), bytes: historical.length, mode: '100644' }),
+].join('\n') + '\n')
+const authority = { decisionId: 'loss-audit-1', revision: '1', receiptSha256: 'a'.repeat(64) }
+const manifestBytes = Buffer.from([
+  JSON.stringify({ schemaVersion: 1, sourcePath: 'keep.txt', disposition: 'copy-exact', successorPath: 'core/keep.txt', generatedFrom: null, authority }),
+  JSON.stringify({ schemaVersion: 1, sourcePath: 'old.txt', disposition: 'omit-approved', successorPath: null, generatedFrom: null, authority }),
+].join('\n') + '\n')
+const successorApproval = {
+  schemaVersion: 1, action: 'materialize-successor', decisionId: 'owner-approval-1', revision: '1',
+  manifestSha256: digest(manifestBytes), universeSha256: digest(universeBytes), granted: true,
+  approverId: 'owner-a', scope: { sourceId: 'unrelated-successor', revision: 'frozen-1' },
+  limitations: ['Offline exact-copy smoke fixture.'],
+}
+const approvalBytes = Buffer.from(`${JSON.stringify(successorApproval)}\n`)
+const lossAuditBytes = Buffer.from(`${JSON.stringify({
+  schemaVersion: 1,
+  source: { sourceId: 'unrelated-successor', revision: 'frozen-1', universeSha256: digest(universeBytes), pathCount: 2 },
+  manifest: { sha256: digest(manifestBytes), pathCount: 2 },
+  authorization: { exportAuthorized: true, approvalSha256: digest(approvalBytes) },
+  blockers: [],
+})}\n`)
+const universePath = join(work, 'universe.jsonl')
+const manifestPath = join(work, 'manifest.jsonl')
+const lossAuditPath = join(work, 'loss-audit.json')
+const approvalPath = join(work, 'approval.json')
+writeFileSync(universePath, universeBytes)
+writeFileSync(manifestPath, manifestBytes)
+writeFileSync(lossAuditPath, lossAuditBytes)
+writeFileSync(approvalPath, approvalBytes)
+const successorBin = join(tools, 'node_modules/.bin/harbor-successor-export')
+const successor = JSON.parse(execFileSync(process.execPath, ['--import', guard, successorBin,
+  '--source', successorSource, '--universe', universePath, '--manifest', manifestPath,
+  '--loss-audit', lossAuditPath, '--approval', approvalPath, '--materialize', '--output', successorOutput,
+], { cwd: tools, encoding: 'utf8', timeout: 30000 }))
+assert.equal(successor.status, 'materialized')
+assert.equal(readFileSync(join(successorOutput, 'core/keep.txt'), 'utf8'), 'irreplaceable mechanism\n')
+assert.equal(readFileSync(join(successorSource, 'old.txt'), 'utf8'), 'approved historical omission\n')
+assert.equal(readFileSync(join(successorOutput, '.harbor-reconciliation/approval.json'), 'utf8'), approvalBytes.toString())
 const lock = JSON.parse(readFileSync(join(tools, 'package-lock.json'), 'utf8'))
 assert.deepEqual(Object.keys(lock.packages).sort(), ['', 'node_modules/@curiositech/harbor-inventory'])
-console.log(JSON.stringify({ status: 'passed', node: process.version, tarball: join(work, packed.filename), integrity: packed.integrity, packageBytes: packed.size, unpackedBytes: packed.unpackedSize, files: expected, installedArtifacts: report.inventory.total, reviewReceiptPass: review.pass, dependencyCount: 0, networkAndSubprocessGuards: 'installed CLIs only; npm invoked separately with offline and ignore-scripts' }, null, 2))
+console.log(JSON.stringify({ status: 'passed', node: process.version, tarball: join(work, packed.filename), integrity: packed.integrity, packageBytes: packed.size, unpackedBytes: packed.unpackedSize, files: expected, installedArtifacts: report.inventory.total, reviewReceiptPass: review.pass, successorStatus: successor.status, dependencyCount: 0, networkAndSubprocessGuards: 'installed CLIs only; npm invoked separately with offline and ignore-scripts' }, null, 2))

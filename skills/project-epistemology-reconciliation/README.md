@@ -1,13 +1,14 @@
 # Harbor Inventory
 
-A small, local first step toward reconciling a sprawling repository: find the
-planning sources you have, keep their provenance, and show what was not covered.
+A local, dependency-free foundation for reconciling a sprawling repository:
+enumerate planning sources, bind semantic-review receipts to exact bytes, and
+materialize an independently approved smaller tree without changing the source.
 
-This package starts with source inventory and adds a narrow review-receipt gate;
-it is **not yet a semantic reconciliation product**. It does not find genius,
-decide which plan is right, or generate a smaller repo. It shares its scanner
-with the existing Harbor Clearance projection; there is not a second
-reconciliation engine.
+This package does **not** decide which ideas are valuable or which plan is right.
+Its successor command consumes a complete universe, an externally produced
+selection manifest, a loss audit, and a separate approval; it never manufactures
+those judgments. It shares its scanner with the existing Harbor Clearance
+projection; there is not a second reconciliation engine.
 
 ## Try the distributable
 
@@ -24,9 +25,10 @@ Install that tarball in a separate tools directory, not the repository being
 examined:
 
 ```sh
-npm install --ignore-scripts --offline --no-audit --no-fund /absolute/path/curiositech-harbor-inventory-0.2.0.tgz
+npm install --ignore-scripts --offline --no-audit --no-fund /absolute/path/curiositech-harbor-inventory-0.5.0.tgz
 ./node_modules/.bin/harbor-inventory --repo /absolute/path/to/repository --source-id my-project
 ./node_modules/.bin/harbor-review-audit --source /absolute/source.md --contract /absolute/review-contract.json --receipt /absolute/review.json
+./node_modules/.bin/harbor-successor-export --source /absolute/source-repo --universe /absolute/universe.jsonl --manifest /absolute/successor-manifest.jsonl --loss-audit /absolute/loss-audit.json --approval /absolute/approval.json
 ```
 
 The name is provisional. This is a locally installable tarball, not an npm
@@ -38,7 +40,7 @@ For contributors, the same command can run without installation:
 
 ```sh
 node scripts/inventory.mjs --repo /absolute/path/to/repository --source-id my-project
-node --test tests/artifact_inventory.test.mjs
+node --test tests/artifact_inventory.test.mjs tests/review_receipt.test.mjs tests/successor_export.test.mjs
 node tests/package_smoke.mjs
 ```
 
@@ -53,6 +55,9 @@ node tests/package_smoke.mjs
 - Supplied registry exports retained with exact UTF-8 source, digest and native
   fields. Identical names in different harbors are not merged; timestamps do
   not choose a winning plan. Export authority is always unverified.
+- A fail-closed successor verifier and separately authorized materializer. It
+  copies only exact selected bytes, records approved omissions and aliases, and
+  retains the complete input evidence inside the new tree.
 
 Default output is Markdown on stdout; select JSON with `--format json`.
 The program has no report writer and changes no files. Reports can contain
@@ -106,6 +111,43 @@ correct, or authorize deletion. Exit 2 leaves the result at
 `machine-semantic-extracted`; malformed inputs exit 1. The command is local,
 read-only and stdout-only.
 
+## Materialize an approved successor without touching the source
+
+`harbor-successor-export` requires four independently supplied declarations:
+
+- `universe.jsonl`: every source path with exact SHA-256, byte count and
+  executable mode;
+- `successor-manifest.jsonl`: exactly one disposition for every universe path;
+- `loss-audit.json`: exact universe/manifest bindings, zero unresolved blockers,
+  and an explicit export authorization flag; and
+- `approval.json`: a separate, exact approval bound to the same source revision
+  and declaration digests.
+
+The only dispositions are `copy-exact`, `regenerate-alias`, and
+`omit-approved`. There is deliberately no content-transform or inferred-omit
+mode. Verification is the default and writes only JSON to stdout. Materialize
+only into an absent, separate absolute path:
+
+```sh
+harbor-successor-export \
+  --source /absolute/source-repo \
+  --universe /absolute/universe.jsonl \
+  --manifest /absolute/successor-manifest.jsonl \
+  --loss-audit /absolute/loss-audit.json \
+  --approval /absolute/approval.json \
+  --materialize --output /absolute/new-successor-repo
+```
+
+The command re-audits immediately before writing, independently censuses every
+regular source file except top-level Git metadata, and refuses symlinks, path
+collisions, stale bytes, missing coverage, absent authority and existing output
+paths. It atomically reserves the absent output name before writing; a failed
+write remains visibly incomplete instead of deleting or replacing anything.
+`.harbor-reconciliation/` in the successor retains the exact universe,
+manifest, loss audit, approval and materialization receipt. The original repo is
+never changed. Approval identity is declared rather than cryptographically
+authenticated, and exact copying does not prove the result is useful or builds.
+
 For a failed run, retain the version, exit code, selected roots, coverage state
 and a redacted error example. File a minimal reproduction in the source
 repository's issue tracker; do not attach private registry exports by default.
@@ -158,10 +200,12 @@ also reports proposed; it cannot confer registry authority.
    independently reviewed evidence. Preserve valuable alternatives.
 4. **Necessary choices:** show consequences and preservation costs for genuinely
    incompatible options; leave decisions to their named owner.
-5. **Smaller successor:** produce an explicit selection manifest, provenance map,
-   invariant tests and a loss audit before materializing a separate repo. Leave
-   the source repo intact; omit obsolete implementations rather than carrying
-   every historical layer forward.
+5. **Smaller successor (safe materializer shipped in this slice):** produce an
+   explicit selection manifest, provenance map, invariant tests, loss audit and
+   separate approval before materializing a separate repo. The tool enforces
+   those inputs but does not create the semantic selection. Leave the source
+   repo intact; omit obsolete implementations rather than carrying every
+   historical layer forward.
 6. **Usable product:** reviewable UI, human task testing on unrelated repos,
    useful-findings/false-alarm/cost evidence, distribution and support policy.
    Pricing, licensing changes and public publication require separate decisions.

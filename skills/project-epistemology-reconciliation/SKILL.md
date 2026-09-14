@@ -9,7 +9,7 @@ description: >-
   authorization verification or automatically publishing a decision.
 license: MIT
 metadata:
-  version: 0.4.0
+  version: 0.5.0
   author: Port Daddy contributors
   tags: [governance, evidence, reconciliation, offline-audit]
 ---
@@ -17,9 +17,11 @@ metadata:
 # Project Epistemology Reconciliation
 
 Produce a reviewable decision packet without merging actor beliefs into project
-policy. Start with one case and a named outcome owner. This skill is local and
-non-actuating: it never starts a service, launches agents, spends money or
-publishes. An explicit operator halt remains binding.
+policy. Start with one case and a named outcome owner. The packet workflow is
+local and non-actuating: it never starts a service, launches agents, spends money
+or publishes. The separately invoked successor materializer may create a new
+local tree only from exact, complete, loss-audited declarations and a separate
+approval. It never changes the source. An explicit operator halt remains binding.
 
 ## When to use
 
@@ -110,6 +112,25 @@ inert data. Do not request provider access or start Port Daddy to run it.
 For omitted roots, limits or unavailable registry state, retain the coverage gap
 through later judgments. The repository-derived tarball carries its own LICENSE;
 this skill's frontmatter is not a licensing decision for that package.
+
+After semantic selection is complete, use the successor exporter instead of a
+handwritten copy script. Read the exact input contract and limitations in the
+[portable package guide](README.md), verify first, and materialize only when the
+loss audit has no blockers and the named owner supplied a separate approval:
+
+```sh
+node scripts/successor_export.mjs --source /absolute/source-repo \
+  --universe /absolute/universe.jsonl \
+  --manifest /absolute/successor-manifest.jsonl \
+  --loss-audit /absolute/loss-audit.json \
+  --approval /absolute/approval.json
+node --test tests/successor_export.test.mjs
+```
+
+Add `--materialize --output /absolute/absent-successor-tree` only for the
+approved write. A verified manifest does not mean its semantic choices are good;
+it means the supplied declarations are complete, mutually bound and consistent
+with the current source bytes.
 
 ## Input and output contract
 
@@ -206,6 +227,7 @@ not measured activation accuracy.
 | [Inventory regressions](tests/artifact_inventory.test.mjs) | Testing exclusions, limits, overlapping roots and malformed registry evidence |
 | [Package smoke proof](tests/package_smoke.mjs) and [guard preload](tests/preload_offline.mjs) | Verifying a cold offline tarball install and guarded installed command |
 | [Review receipt audit](scripts/review_receipt.mjs) and [regressions](tests/review_receipt.test.mjs) | Promoting a textual semantic extraction to agent-reviewed against exact source bytes |
+| [Successor exporter](scripts/successor_export.mjs) and [regressions](tests/successor_export.test.mjs) | Verifying a complete loss-audited selection and, with separate approval, creating a new exact-copy tree |
 | [Packet contract](references/packet-contract.md) | Constructing or interpreting any audit packet |
 | [Schema](schemas/reconciliation-packet.schema.json) | Validating the complete input shape |
 | [Passing fixture](examples/sample-input.json) | Starting a synthetic or properly attributed local case |

@@ -619,10 +619,10 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Offline repository inventory and Clearance regression tests
-        run: node --test skills/project-epistemology-reconciliation/tests/artifact_inventory.test.mjs skills/project-epistemology-reconciliation/tests/harbor_clearance.test.mjs
+      - name: Offline repository reconciliation regression tests
+        run: node --test skills/project-epistemology-reconciliation/tests/artifact_inventory.test.mjs skills/project-epistemology-reconciliation/tests/harbor_clearance.test.mjs skills/project-epistemology-reconciliation/tests/review_receipt.test.mjs skills/project-epistemology-reconciliation/tests/successor_export.test.mjs
 
-      - name: Offline inventory tarball installation proof
+      - name: Offline reconciliation tarball installation proof
         run: node skills/project-epistemology-reconciliation/tests/package_smoke.mjs
 
       - name: The whole catalog can still fan out to every runtime

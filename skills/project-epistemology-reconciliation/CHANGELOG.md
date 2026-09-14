@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.5.0 — 2026-09-14
+
+- Added a dependency-free successor-tree verifier and explicitly authorized
+  materializer for complete, independently enumerated source universes.
+- Required exact universe, manifest, loss-audit and separate approval byte
+  bindings; unresolved blockers and absent authorization remain held.
+- Supported only exact copies, byte-identical regenerated installation aliases
+  and explicitly approved omissions. Content transformation remains out of
+  scope rather than becoming an unreviewed rewrite path.
+- Refused source symlinks, Git metadata, output overwrites, nested source/output
+  trees, portable path collisions and executable-mode drift.
+- Independently censused the source tree so mutually incomplete declarations
+  cannot manufacture complete coverage.
+- Atomically reserved an absent output name before writing and retained a
+  visible incomplete marker on failure, rather than clobbering a late-created
+  destination. The original source is never changed.
+
 ## 0.4.0 — 2026-09-14
 
 - Added a dependency-free semantic-review receipt auditor bound to exact local
