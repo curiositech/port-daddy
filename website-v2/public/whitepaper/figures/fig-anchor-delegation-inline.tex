@@ -4,8 +4,8 @@
 \centering
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
   \foreach \x/\id in {-5.1/1,-1.7/2,1.7/3,5.1/4} {
-    \node[circle,draw=hhink,line width=.7pt,fill=hhpaper,minimum size=10mm,
-      inner sep=0pt,font=\bfseries] (id\id) at (\x,2.1) {id\id};
+    \node[pd state,circle,line width=.7pt,fill=hhpaper,minimum size=10mm,
+      inner sep=0pt,font=\pdfiglabelmono] (id\id) at (\x,2.1) {id\id};
     \draw[pd hairline] (\x,1.58) -- (\x,-.4);
   }
 
@@ -37,7 +37,7 @@
   \draw[pd focus rule] (nonce3) -- (3.4,-.32);
 
   \draw[pd rule] (-5.55,-.32) -- (5.55,-.32);
-  \foreach \x in {-5.1,-1.7,1.7,5.1} \fill[hhteal] (\x,-.32) circle (1.45pt);
+  \foreach \x in {-5.1,-1.7,1.7,5.1} \fill[pd focus fill] (\x,-.32) circle (1.45pt);
   \node[pd direct label,anchor=north west] at (-5.55,-.52)
     {same h at every hop};
 

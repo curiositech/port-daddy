@@ -7,9 +7,9 @@
     {a crash breaks the process, not the task's evidence or escrow};
 
   % Light strata establish a common temporal field without boxes.
-  \fill[hhsand!13] (-.10,1.72) rectangle (12.75,2.42);
-  \fill[hhteal!5] (-.10,.30) rectangle (12.75,1.00);
-  \fill[hhamber!7] (-.10,-1.12) rectangle (12.75,-.42);
+  \fill[pd neutral fill] (-.10,1.72) rectangle (12.75,2.42);
+  \fill[pd focus fill] (-.10,.30) rectangle (12.75,1.00);
+  \fill[pd caution fill] (-.10,-1.12) rectangle (12.75,-.42);
   \node[pd panel title,anchor=east] at (-.25,2.07) {L1 scope};
   \node[pd panel title,anchor=east] at (-.25,.65) {L2 evidence};
   \node[pd panel title,anchor=east] at (-.25,-.77) {L3 escrow};
@@ -26,7 +26,7 @@
   \node[pd focus datum] at (8.0,2.07) {};
   \node[pd direct label,anchor=south] at (0,2.32) {capability};
   \node[pd direct label,anchor=south] at (3.0,2.32) {claim};
-  \node[pd direct label,text=hhamber,anchor=east,font=\scriptsize\bfseries] at (6.82,2.32) {CRASH};
+  \node[pd verdict,text=hhamber,anchor=east] at (6.82,2.32) {CRASH};
   \node[pd direct label,text=hhteal,anchor=west] at (8.16,2.32) {successor cap};
   \draw[pd caution rule,line width=1pt] (6.84,1.86)--(7.06,2.28);
   \draw[pd caution rule,line width=1pt] (7.06,1.86)--(7.28,2.28);
@@ -40,8 +40,8 @@
     \node[pd focus datum,inner sep=1.45pt] at (\x,.65) {};
   \draw[pd focus arrow,dashed] (6.50,.78) .. controls (7.00,1.35) and (7.55,1.35) .. (8.05,.78);
   \node[pd direct label,text=hhteal,anchor=south] at (7.27,1.23) {salvage parent};
-  \node[pd note,text=hhteal,anchor=north] at (4.70,.39) {$h_1\ldots h_5$};
-  \node[pd note,text=hhteal,anchor=north] at (9.65,.39) {$h_6\ldots h_8$};
+  \node[pd note,text=hhteal,anchor=north] at (4.70,.39) {{\pdfigmath $h_1\ldots h_5$}};
+  \node[pd note,text=hhteal,anchor=north] at (9.65,.39) {{\pdfigmath $h_6\ldots h_8$}};
 
   % Pre-funded exposure persists for the full task lifetime.
   \draw[pd caution rule,line width=3.2pt] (1.0,-.77)--(12.5,-.77);

@@ -1,0 +1,3 @@
+type: changed
+
+- Every figure in the Book now draws in one typographic voice. The shared figure style file states a single label size for every named text role — panel title, row label, axis numeral, direct label, note, identifier, verdict, legend entry, node text — and separates the roles by weight, slope, family and ink instead of by size. Half the corpus had been overriding those styles locally, which is why the stack map's dark band printed in the document serif while every other label in the same figure was set in the edition's grotesk. Thirty-five figure fragments were converted; text that rendered below the seven-point legibility floor is gone from every figure reviewed.

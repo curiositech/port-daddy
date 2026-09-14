@@ -1,20 +1,25 @@
 % Figure 1 — architectural section through the coordination stack.
+% Emphasis, not category: one band carries the chapter and the rest are the
+% same neutral. Which band that is comes from the chapter's own prose a few
+% lines below this figure -- "Substrate (the machine) ... This paper's core"
+% and "Coordination (the agents) ... This paper specifies the implemented
+% half of it" -- not from the drawing's own memory of itself.
 \begin{figure}[H]
 \centering
 \hyphenpenalty=10000\exhyphenpenalty=10000\relax
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \fill[hhink] (0,0) rectangle (10.6,.9);
-  \fill[pd neutral fill] (0,.9) rectangle (10.6,2.5);
-  \fill[pd focus fill] (0,2.5) rectangle (10.6,4.1);
-  \fill[hhsand!16,draw=hhgray!55] (0,4.1) rectangle (10.6,5.7);
-  \fill[hhsand!30] (0,5.7) rectangle (10.6,7.3);
+  \fill[pd ink fill] (0,0) rectangle (10.6,.9);
+  \fill[pd focus fill] (0,.9) rectangle (10.6,2.5);
+  \fill[pd neutral fill] (0,2.5) rectangle (10.6,4.1);
+  \fill[pd neutral fill] (0,4.1) rectangle (10.6,5.7);
+  \fill[pd neutral fill] (0,5.7) rectangle (10.6,7.3);
   \foreach \y in {.9,2.5,4.1,5.7,7.3}
     \draw[pd hairline] (0,\y)--(10.6,\y);
   \draw[pd rule] (0,0) rectangle (10.6,7.3);
 
-  \node[font=\footnotesize\bfseries,text=white,anchor=west,text width=3.3cm,align=left]
+  \node[pd reverse row label,anchor=west,text width=3.3cm]
     at (.25,.45) {MACHINE FLOOR};
-  \node[font=\footnotesize,text=white,anchor=east,text width=5.1cm,align=left] at (10.35,.45)
+  \node[pd reverse label,anchor=east,text width=5.1cm] at (10.35,.45)
     {\hyphenpenalty=10000\relax file lock, clock, socket, supervisor};
 
   \node[pd row label,anchor=west] at (.25,1.7) {substrate};
@@ -31,16 +36,30 @@
   \node[pd axis label,anchor=east,text width=6.0cm,align=left] at (10.3,6.7)
     {\hyphenpenalty=10000\relax settlement, reputation, cross-machine federation};
 
-  \draw[pd focus rule,line width=2.0pt] (10.95,1.0)--(10.95,4.0);
-  \draw[pd focus rule] (10.7,1.0)--(11.2,1.0);
-  \draw[pd focus rule] (10.7,4.0)--(11.2,4.0);
-  \node[pd direct label,rotate=90,anchor=south,text=hhteal,text width=1.9cm,align=center]
-    at (11.35,2.5) {this chapter};
+  % One bracket, two segments: solid beside the band this chapter IS, dashed
+  % beside the band it specifies half of. Dashing, not a tint and not a
+  % texture, because the dash survives every edition and survives greyscale;
+  % pd hatch does not (the Swiss edition flattens it to a wash, which would
+  % leave the two bands telling themselves apart by tint alone).
+  \draw[pd focus rule,line width=2.0pt] (10.95,.9)--(10.95,2.5);
+  \draw[pd focus rule,line width=2.0pt,dashed] (10.95,2.5)--(10.95,4.1);
+  \draw[pd focus rule] (10.7,.9)--(11.2,.9);
+  \draw[pd focus rule] (10.7,2.5)--(11.2,2.5);
+  \draw[pd focus rule] (10.7,4.1)--(11.2,4.1);
+  % Each label is one unwrapped rotated line, set clear of the bracket's own
+  % ticks (which end at x=11.2). A wrapped rotated label put two columns of
+  % type across the rule it names; fill=none keeps the label from painting
+  % the rule out, and the clearance keeps the rule from striking the label.
+  \node[pd direct label,fill=none,rotate=90,text=hhteal] at (11.52,1.7) {this chapter};
+  \node[pd direct label,fill=none,rotate=90,text=hhteal] at (11.52,3.3) {half of it};
 \end{tikzpicture}
 \caption{An architectural section through the four-layer coordination stack.
 This chapter is the second band from the floor: the transactional substrate,
 providing the one-writer record and claims that every higher layer rests on.
-The machine floor beneath it is the narrow dependency boundary the substrate
-assumes: a file lock, a clock, a socket, and a supervisor. [internal]}
+The solid bracket marks it. The dashed bracket beside the coordination band
+marks the half of that layer this chapter specifies; the rest of it, and the
+two layers above it, belong to later chapters. The machine floor beneath the
+substrate is the narrow dependency boundary the substrate assumes: a file
+lock, a clock, a socket, and a supervisor. [internal]}
 \label{fig:swk-stack-map}
 \end{figure}

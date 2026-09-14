@@ -31,6 +31,29 @@ Checks (hard, fail the build unless noted):
   - P14 row-labels  (WARN) a `\node[...anchor=east...,font=\scriptsize|\tiny]`
                      whose text is one bare word -- suggests `pd row label`.
 
+  The typographic law (figures/pd-figure-language.tex). One size for every
+  named text role; roles separate by weight, slope, family and ink. These
+  three rules are what makes the style file binding rather than advisory --
+  before them, half the fragments in the Book opted out of the house styles
+  by restating typography locally, and the corpus had no single voice. They
+  do not apply to the style-definition files themselves (see
+  STYLE_DEFINITION_STEMS): that file IS the one place.
+  - P15 style-font  (FAIL) a `\node` carrying a `pd ...` house style AND its
+                     own `font=`. The style already fixes the font; a local
+                     one silently overrides the whole role.
+  - P16 node-size   (FAIL) any `font=` whose value names a LaTeX size command
+                     (`\footnotesize`, `\small`, `\fontsize{..}`, ...). A
+                     fragment never sets a size; it takes the role that
+                     already has the right one.
+  - P17 hard-ink    (FAIL) a `\fill`/`\draw`/`\path`/`\addplot` that paints a
+                     house ink (`hhink`, `hhteal`, `hhamber`, `hhsand`,
+                     `hhgray`, ...) through a bare `fill=`/`draw=`/colour
+                     token with NO `pd ...` style anywhere in the same option
+                     list -- a `pd ... fill` or `pd ... rule` style says the
+                     same thing and keeps the edition overrides working.
+                     `hhpaper` is exempt: it is the ground, not an ink (a
+                     knockout backing or a halo ring around a mark).
+
 Usage:
   tikz_precheck.py FRAGMENT.tex [FRAGMENT.tex ...]
       [--corpus chapter|research|auto] [--json OUT] [--md OUT]
@@ -73,10 +96,15 @@ UNIVERSAL_COLORS = {"black", "white", "none", "gray", "grey"}
 CHAPTER_STYLE_NAMES = {
     "pd figure", "pd hairline", "pd rule", "pd focus rule", "pd caution rule",
     "pd guide", "pd arrow", "pd focus arrow", "pd caution arrow",
-    "pd panel title", "pd axis label", "pd direct label", "pd note",
-    "pd tick", "pd datum", "pd focus datum", "pd caution datum",
+    "pd row label", "pd panel title", "pd axis label", "pd direct label",
+    "pd note", "pd tick", "pd datum", "pd focus datum", "pd caution datum",
     "pd state", "pd terminal", "pd actor", "pd artifact", "pd boundary",
-    "pd focus fill", "pd caution fill", "pd neutral fill", "pd hatch",
+    "pd focus fill", "pd caution fill", "pd neutral fill", "pd ink fill",
+    "pd hatch",
+    # The roles added with the typographic law. Each is a composition of one
+    # of the above, so an edition override on the parent reaches it.
+    "pd decision", "pd mono label", "pd verdict", "pd reverse label",
+    "pd reverse row label", "pd legend", "pd axis",
 }
 # The subset of the above whose definition already bakes in `align=` or
 # `text width=` -- so a multi-word node using one of these does not need its
@@ -85,6 +113,7 @@ CHAPTER_STYLE_NAMES = {
 CHAPTER_SAFE_STYLES = {
     "pd panel title", "pd direct label", "pd note",
     "pd state", "pd terminal", "pd actor", "pd artifact",
+    "pd decision", "pd mono label", "pd verdict", "pd reverse label",
 }
 
 RESEARCH_STYLE_NAMES = {"relnode", "relarrow", "regimebox"}
@@ -122,7 +151,81 @@ STYLE_DEF_RE = re.compile(r"([A-Za-z][A-Za-z0-9 _-]*?)/\.style\s*=\s*\{")
 # Numbered rule ids introduced alongside the original, unnumbered checks
 # above. Kept in one place so the summary/"counts per id" machinery and the
 # markdown report can iterate them without hardcoding the list twice.
-RULE_IDS = ["P10", "P11", "P12", "P13", "P14"]
+RULE_IDS = ["P10", "P11", "P12", "P13", "P14", "P15", "P16", "P17"]
+
+# The files that ARE the one place the typographic law lives. P15-P17 police
+# fragments for opting out of those files; running them against the files
+# themselves would flag the definitions. Matched on the stem, so both twins
+# and every edition override are covered.
+STYLE_DEFINITION_STEMS = (
+    "pd-figure-language",
+    "pd-palette",
+)
+
+# Every ink in the chapter house palette EXCEPT hhpaper, which is the page
+# ground rather than an ink: a `fill=hhpaper` is a knockout backing behind a
+# label and a `draw=hhpaper` is a halo ring around a mark, and neither has a
+# `pd ...` style that says it better.
+HOUSE_INKS = {
+    "hhsand", "hhsanddeep", "hhebony", "hhink", "hhcobalt", "hhamber",
+    "hhteal", "hhgray",
+}
+
+# What to reach for instead, per ink. Named in the finding so the error tells
+# the author the fix rather than only the fault.
+FILL_EQUIVALENT = {
+    "hhteal": "pd focus fill",
+    "hhcobalt": "pd focus fill",
+    "hhamber": "pd caution fill",
+    "hhsand": "pd neutral fill",
+    "hhsanddeep": "pd neutral fill",
+    "hhgray": "pd neutral fill",
+    "hhink": "pd ink fill",
+    "hhebony": "pd ink fill",
+}
+RULE_EQUIVALENT = {
+    "hhink": "pd rule",
+    "hhebony": "pd rule",
+    "hhteal": "pd focus rule",
+    "hhcobalt": "pd focus rule",
+    "hhamber": "pd caution rule",
+    "hhgray": "pd hairline (or pd guide / pd tick)",
+    "hhsand": "pd neutral fill",
+    "hhsanddeep": "pd neutral fill",
+}
+
+# A LaTeX size command, in any of the forms a fragment has actually used.
+SIZE_COMMAND_RE = re.compile(
+    r"\\(tiny|scriptsize|footnotesize|small|normalsize|large|Large|LARGE|huge|Huge|fontsize)\b"
+)
+FONT_KEY_RE = re.compile(r"\bfont\s*=\s*")
+
+
+def is_style_definition(path):
+    """True for the files that DEFINE the house styles -- the typographic-law
+    rules (P15-P17) do not police the one place the law lives."""
+    stem = Path(path).stem
+    return any(stem == s or stem.startswith(s + "-") for s in STYLE_DEFINITION_STEMS)
+
+
+def _font_value_at(text, start):
+    """Return the `font=` value beginning at START (just past the `=`), stopping
+    at the first top-level comma, `]` or `}` -- the same boundary pgfkeys uses."""
+    depth = 0
+    i = start
+    n = len(text)
+    while i < n:
+        c = text[i]
+        if c in "{[":
+            depth += 1
+        elif c in "}]":
+            if depth == 0:
+                break
+            depth -= 1
+        elif c == "," and depth == 0:
+            break
+        i += 1
+    return text[start:i].strip()
 
 
 def strip_comments(text):
@@ -521,6 +624,121 @@ def check_row_labels(text):
     return findings
 
 
+def check_style_font_override(text, house_style_names):
+    """P15: a `\\node` that carries a `pd ...` house style AND sets its own
+    `font=`. The style already fixes size, weight and family for that role;
+    a local `font=` silently replaces all three, which is how a corpus ends
+    up with no single voice while every fragment looks locally reasonable."""
+    findings = []
+    stripped = strip_comments(text)
+    for style_text, _content, offset in find_node_calls(stripped):
+        names = {t.split("=", 1)[0].strip() for t in split_top_level(style_text)}
+        used = sorted(names & set(house_style_names))
+        if not used:
+            continue
+        m = FONT_KEY_RE.search(style_text)
+        if not m:
+            continue
+        value = _font_value_at(style_text, m.end())
+        line = stripped.count("\n", 0, offset) + 1
+        findings.append(
+            {
+                "check": "style-font",
+                "id": "P15",
+                "severity": "fail",
+                "line": line,
+                "message": f"node styled {used} also sets font={value!r} -- the house "
+                f"style already fixes the font; take the role that has the "
+                f"typography you want instead of overriding this one",
+            }
+        )
+    return findings
+
+
+def check_node_font_size(text):
+    """P16: any `font=` whose value names a LaTeX size command. This reaches
+    the places a node-only check cannot: a pgfplots `tick label style=
+    {font=\\footnotesize}`, a `\\begin{tikzpicture}[font=\\small]`, a local
+    `.style` definition inside the fragment. The size lives in
+    figures/pd-figure-language.tex and nowhere else."""
+    findings = []
+    stripped = strip_comments(text)
+    for m in FONT_KEY_RE.finditer(stripped):
+        value = _font_value_at(stripped, m.end())
+        sm = SIZE_COMMAND_RE.search(value)
+        if not sm:
+            continue
+        line = stripped.count("\n", 0, m.start()) + 1
+        findings.append(
+            {
+                "check": "node-size",
+                "id": "P16",
+                "severity": "fail",
+                "line": line,
+                "message": f"font={value!r} names the size command \\{sm.group(1)} -- "
+                f"a fragment never sets a figure's type size; the named roles in "
+                f"figures/pd-figure-language.tex do",
+            }
+        )
+    return findings
+
+
+PAINT_CMD_RE = re.compile(r"\\(fill|draw|path|addplot)\b")
+
+
+def check_hard_ink(text):
+    """P17: a path that paints a house ink through a bare colour token or a
+    `fill=`/`draw=` key with no `pd ...` style anywhere in the same option
+    list. Every such case has a house style that says the same thing, and
+    going through the style is what lets the Book's edition overrides
+    (swiss, technical) restyle the same drawing."""
+    findings = []
+    stripped = strip_comments(text)
+    for m in PAINT_CMD_RE.finditer(stripped):
+        cmd = m.group(1)
+        i = m.end()
+        while i < len(stripped) and stripped[i].isspace():
+            i += 1
+        if i >= len(stripped) or stripped[i] != "[":
+            continue
+        opts, _ = find_braced_bracket(stripped, i)
+        tokens = split_top_level(opts)
+        if any(t.split("=", 1)[0].strip().startswith("pd ") for t in tokens):
+            continue  # already goes through a house style
+        line = stripped.count("\n", 0, m.start()) + 1
+        for tok in tokens:
+            if "=" in tok:
+                key, value = tok.split("=", 1)
+                key, value = key.strip(), value.strip()
+                if key not in ("fill", "draw"):
+                    continue
+                table = FILL_EQUIVALENT if key == "fill" else RULE_EQUIVALENT
+            else:
+                # A bare colour token means "fill" on \fill and on a \path
+                # whose options say fill, and "draw" everywhere else. Getting
+                # this backwards sends the author to `pd focus rule` for what
+                # is plainly an area, so the command decides the table.
+                fills = cmd == "fill" or (cmd == "path" and re.search(r"\bfill\b", opts))
+                key = "fill" if fills else "draw"
+                value = tok.strip()
+                table = FILL_EQUIVALENT if fills else RULE_EQUIVALENT
+            base = value.split("!", 1)[0].strip()
+            if base not in HOUSE_INKS:
+                continue
+            findings.append(
+                {
+                    "check": "hard-ink",
+                    "id": "P17",
+                    "severity": "fail",
+                    "line": line,
+                    "message": f"\\{cmd}[...] paints {key}={value} with no pd style in the "
+                    f"option list -- use '{table[base]}'",
+                }
+            )
+            break
+    return findings
+
+
 def check_colors(text, allowed_colors, known_style_names):
     findings = []
 
@@ -642,6 +860,16 @@ def run_precheck(path, corpus="auto", extra_style_defs=None, extra_colors=None):
     findings += check_resizebox(text)
     findings += check_bare_fill(text)
     findings += check_row_labels(text)
+    # The typographic law polices fragments, never the file that defines it,
+    # and only the corpus that has one: the research papers under
+    # docs/harbor-research/ have their own preamble, their own palette, and no
+    # figures/pd-figure-language.tex, so there is no single place their sizes
+    # and inks could be moved to yet. Extending P15-P17 there means giving
+    # that corpus a style file first.
+    if resolved_corpus != "research" and not is_style_definition(path):
+        findings += check_style_font_override(text, base_names)
+        findings += check_node_font_size(text)
+        findings += check_hard_ink(text)
     findings += check_colors(text, base_colors, known_names)
     findings += check_node_wrapping(text, safe_styles)
     findings += check_title_numbers(text)
