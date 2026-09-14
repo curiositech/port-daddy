@@ -644,6 +644,11 @@ def compute_page_ink(page, content_rect, page_rect, page_no, ink_audit):
 # --------------------------------------------------------------------------- #
 
 def run_figcheck(pdf_path, min_font_pt=7.0, textwidth_cm=16.3):
+    # Accept a str as well as a Path: the report below takes `.stem` off this
+    # argument, so a caller passing a plain string (every test in
+    # tests/test_figcheck*.py does) used to reach that line and raise
+    # AttributeError after doing all the work. Coerce once, here.
+    pdf_path = Path(pdf_path)
     doc = pymupdf.open(pdf_path)
     textwidth_pt = textwidth_cm * PT_PER_CM
     findings = []
@@ -723,7 +728,11 @@ CHECK_LABELS = {
 
 def render_markdown(report):
     lines = []
-    lines.append(f"# figcheck: `{Path(report['pdf']).name}`")
+    # The report's identity key is "figure" (the fragment stem), not "pdf":
+    # run_figcheck stopped emitting an absolute scratch path deliberately --
+    # see its own comment -- and this line was left reading the old key, so
+    # every `--md` run died with a KeyError.
+    lines.append(f"# figcheck: `{report['figure']}`")
     lines.append("")
     lines.append(f"Result: **{report['summary']['result'].upper()}** "
                  f"({report['page_count']} page(s))")

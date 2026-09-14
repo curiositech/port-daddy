@@ -8,9 +8,9 @@
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm,
-  lane/.style={pd state,minimum width=2.5cm,font=\footnotesize},
-  journal/.style={pd artifact,minimum width=2.7cm,font=\footnotesize,align=center},
-  glabel/.style={font=\footnotesize,text=hhink}]
+  lane/.style={pd state,minimum width=2.5cm},
+  journal/.style={pd artifact,minimum width=2.7cm,align=center},
+  glabel/.style={pd direct label,fill=none}]
   % the center spine: the honest path
   \node[lane] (P) at (2.4,8.2) {proposed};
   \node[lane] (A) at (2.4,6.7) {authorized};

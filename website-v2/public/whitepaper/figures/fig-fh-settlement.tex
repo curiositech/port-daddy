@@ -10,8 +10,7 @@
 
   % Safe outcome graph.
   \node[pd datum] (fundeda) at (-6.0,.65) {};
-  \node[diamond,aspect=1.55,draw=hhink,fill=hhsand!16,inner sep=3pt,
-    font=\scriptsize\bfseries,align=center] (gatea) at (-4.25,.65) {criteria};
+  \node[pd decision] (gatea) at (-4.25,.65) {criteria};
   \node[pd focus datum] (cleara) at (-2.15,1.45) {};
   \node[pd datum] (refusea) at (-2.15,-.15) {};
   \draw[pd arrow] (fundeda)--(gatea);
@@ -28,8 +27,7 @@
 
   % Counterfactual graph with an extra unauthorized transition.
   \node[pd datum] (fundedb) at (1.35,.65) {};
-  \node[diamond,aspect=1.55,draw=hhink,fill=hhsand!16,inner sep=3pt,
-    font=\scriptsize\bfseries,align=center] (gateb) at (3.10,.65) {criteria};
+  \node[pd decision] (gateb) at (3.10,.65) {criteria};
   \node[pd focus datum] (clearb) at (5.20,1.45) {};
   \node[pd datum] (refuseb) at (5.20,-.15) {};
   \node[pd caution datum] (lossb) at (6.55,-1.50) {};

@@ -64,7 +64,7 @@ runs the whole loop over every fragment in all three corpora at once and regener
 
 | Script | What it does |
 |---|---|
-| `scripts/tikz_precheck.py FRAGMENT.tex...` | Source lint, no TeX: missing provenance comment, `\tiny`, an off-palette color, an unwrapped multi-word node, an internal result label (`R\d+`/`CR-\d`/`B6`) in a title; P10 `\tiny`, P11 `\scriptsize` in a fragment, P13 a bare low-alpha fill with no edge (errors); P12 `\resizebox` below 0.85 and P14 `\scriptsize` row labels (warnings). JSON/markdown via `--json`/`--md`. Exit 0 clean, 1 on a hard finding. |
+| `scripts/tikz_precheck.py FRAGMENT.tex...` | Source lint, no TeX: missing provenance comment, `\tiny`, an off-palette color, an unwrapped multi-word node, an internal result label (`R\d+`/`CR-\d`/`B6`) in a title; P10 `\tiny`, P11 `\scriptsize` in a fragment, P13 a bare low-alpha fill with no edge (errors); P12 `\resizebox` below 0.85 and P14 `\scriptsize` row labels (warnings). P15-P17 enforce the typographic law in `figures/pd-figure-language.tex`: a node carrying a `pd *` style AND its own `font=`, any `font=` naming a size command, and a house ink painted on a path with no `pd *` style in its option list (all errors, chapter corpus only). JSON/markdown via `--json`/`--md`. Exit 0 clean, 1 on a hard finding. |
 | `scripts/compile_fragment.sh FRAGMENT.tex [--preamble chapter\|research\|book] [--out DIR]` | Wraps the fragment in the real chapter/paper preamble (read from the real source at run time, not hand-copied) and compiles it: tectonic when one is present, otherwise a local TeX Live through `latexmk -xelatex` (see *Local TeX Live* below). Writes `DIR/<stem>.pdf` + `.log`. Exit 0 clean; non-zero with the first TeX error on failure. |
 | `scripts/figcheck.py PDF [--json OUT] [--md OUT] [--min-font-pt 7] [--textwidth-cm 16.3]` | Eight PyMuPDF geometry checks (T1-T8) on a compiled fragment PDF; T6/T7 are warn-only, T8 (drawing or text colliding with the caption) fails. Exit 0 clean, 1 on a T1-T5 or T8 failure. |
 | `scripts/contact_sheet.py PDF... --out sheet.png [--cols 4] [--dpi 150]` | Renders page 0 of each PDF to a captioned thumbnail grid (Pillow). A missing/broken PDF becomes a labeled placeholder cell. |
@@ -167,7 +167,10 @@ source lint pass, and one inventory spanning all three corpora together.
 
 `tests/test_figcheck.py` and `tests/test_tikz_precheck.py` cover the two Python checkers
 against fixture PDFs/fixture strings; `tests/test_figcheck_t8.py` covers the caption-collision
-check (T8) and `tests/test_tikz_precheck_new_rules.py` covers the legibility rules P10–P14
+check (T8), `tests/test_tikz_precheck_new_rules.py` covers the legibility rules P10–P14, and
+`tests/test_tikz_precheck_typography.py` covers the typographic-law rules P15–P17 — a passing
+and a failing fixture per rule, plus the exemptions (the style-definition file itself, the
+research corpus, `hhpaper` as the page ground)
 (see each script's own `--help` for CLI details):
 
 ```bash

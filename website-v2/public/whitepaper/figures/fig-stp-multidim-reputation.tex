@@ -12,7 +12,7 @@
     \foreach \y/\lab in {-.35/0,.35/.25,1.05/.5,1.75/.75,2.45/1}
       \draw[pd tick] (\x-.11,\y) -- (\x+.11,\y);
     \node[pd direct label,anchor=north,align=center] at (\x,-.58)
-      {\textbf{\axis}\\[-1pt]{\tiny \judge}};
+      {\textbf{\axis}\\[-1pt]{\pdfigsub \judge}};
   }
   % A=(1,.85,.45), B=(.75,.55,1)
   \draw[pd focus rule,line width=1.5pt] (-4.4,2.45) -- (0,2.03) -- (4.4,.91);
@@ -28,9 +28,9 @@
   \draw[pd hairline] (-5.25,-2.35) -- (5.8,-2.35);
   \draw[pd hairline] (-5.25,-3.20) -- (5.8,-3.20);
   \node[pd direct label,anchor=east] at (-5.45,-2.35)
-    {security buyer\\[-1pt]{\tiny weights $.60,.30,.10$}};
+    {security buyer\\[-1pt]{\pdfigsub weights $.60,.30,.10$}};
   \node[pd direct label,anchor=east] at (-5.45,-3.20)
-    {cost buyer\\[-1pt]{\tiny weights $.15,.15,.70$}};
+    {cost buyer\\[-1pt]{\pdfigsub weights $.15,.15,.70$}};
   \node[pd focus datum] at (4.10,-2.35) {};
   \node[pd caution datum] at (1.85,-2.35) {};
   \node[pd focus datum] at (-.70,-3.20) {};
