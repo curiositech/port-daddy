@@ -1,29 +1,30 @@
-chapter_lint: whitepaper/single-writer-kernel.tex  (3011 lines, 20 sections, 44 subsections)
+chapter_lint: whitepaper/single-writer-kernel.tex  (3158 lines, 20 sections, 44 subsections)
   imports figures/pd-pedagogy: True
 
 Floors:
   [FAIL] worked_example_per_section
-         17/20 top-level sections have zero worked examples (pdexample/example): Where this paper sits, and what it promises; Reader's Map; The kernel as seven organs; The substrate organ: one writer, one file; Durability, split by fault class; The resource organ: claims, locks, and fair exclusion; The continuity organ: memory, checkpoint, and the foundation of the economy; The self-attestation organ: honest green ...
+         9/12 top-level BODY sections have zero worked examples (pdexample/example); 8 apparatus section(s) exempt (exercises/review/history/boundary/reader's map/appendix): Where this paper sits, and what it promises; The kernel as seven organs; The substrate organ: one writer, one file; Durability, split by fault class; The resource organ: claims, locks, and fair exclusion; The continuity organ: memory, checkpoint, and the foundation of the economy; The self-attestation organ: honest green; Cross-organ atomicity: a buildable defect, not a frontier ...
   [PASS] exercises_at_chapter_end
          all 44 exercise clusters sit inside the chapter's closing 'Exercises' section
   [FAIL] claims_carry_epistemic_kind
-         8/12 claim-like environments (theorem/lemma/definition/property/corollary) carry no epistemic-kind tag INSIDE THEIR OWN BODY (pdclaim kind, or a \Built/\Designed/\pdassurance-style maturity marker) -- the honesty ledger requires every claim state its own kind where it is made. Lines: 501 (definition), 783 (theorem), 1028 (definition), 1060 (theorem), 1105 (theorem), 1461 (property), 1469 (property), 1853 (theorem)
+         8/13 claim-like environments (theorem/lemma/definition/property/corollary) carry no epistemic-kind tag INSIDE THEIR OWN BODY (pdclaim kind, or a \Built/\Designed/\pdassurance-style maturity marker) -- the honesty ledger requires every claim state its own kind where it is made. Lines: 501 (definition), 796 (theorem), 1055 (definition), 1087 (theorem), 1132 (theorem), 1532 (property), 1540 (property), 1929 (theorem)
   [PASS] no_tinted_box_macros
          3 legacy tinted-box macro(s) defined with a fill= node, but whitepaper/figures/pd-pedagogy.tex's own \AtBeginDocument block re-\long\def's every one of their names as a run-in or margin head with plain prose -- the preamble definitions are cosmetic leftovers, never live at render time: \keyidea (line 95), \pitfall (line 105), \pullquote (line 81)
   [PASS] imports_pd_pedagogy_twin
          chapter \input{s} figures/pd-pedagogy -- the shared page grammar (claim boxes, boundaries, worked examples, exercises) is live
   [WARN] chapter_opener_and_claim_labeling
-         opener: first \section opens with prose -- OK; claim labeling: 8/12 claim-like environments carry no kind tag (see claims_carry_epistemic_kind for detail)
+         opener: first \section opens with prose -- OK; claim labeling: 8/13 claim-like environments carry no kind tag (see claims_carry_epistemic_kind for detail)
   [PASS] at_most_one_interlude
          0 interludes
   [PASS] chapter_close_apparatus
          review/history/boundary sections all present (by title keyword match)
 
-Claims: 12 total, 4 tagged, 8 untagged.
+Claims: 13 total, 5 tagged, 8 untagged.
     property: 4
     theorem: 4
     definition: 2
     pdclaim:Theorem: 1
+    pdclaim:Design invariant: 1
     pdclaim:Model-checked property: 1
 
 Worked examples: 4 total (pdexample/example), 0 pdsession transcript(s).
@@ -31,51 +32,61 @@ Worked examples: 4 total (pdexample/example), 0 pdsession transcript(s).
     2  The obligation \& enforcement organ: the sovereign's two arms
     1  The invariants, stated as theorems
 
+Apparatus sections (exempt from the worked-example floor): 8
+    line   405  [readers_map, by title]  Reader's Map
+    line  2010  [boundary_or_handoff, by title]  Threat model and the limits of mediation
+    line  2237  [boundary_or_handoff, by title]  Adjacency contract: what the kernel assumes and provides
+    line  2316  [review, by title]  Review of the key ideas
+    line  2353  [exercises, by title]  Exercises
+    line  2593  [history_and_references, by title]  Related work
+    line  2698  [boundary_or_handoff, by title]  Open problems
+    line  2842  [appendix, by label app:status]  Implementation \& status
+
 Exercise clusters: 44 found.
-    line  2280  \pdexercisesfor      [chapter-end]  in "Exercises"
-    line  2282  \pdexercise          [chapter-end]  in "Exercises"
-    line  2288  \pdexercise          [chapter-end]  in "Exercises"
-    line  2294  \pdexercise          [chapter-end]  in "Exercises"
-    line  2301  \pdexercisesfor      [chapter-end]  in "Exercises"
-    line  2303  \pdexercise          [chapter-end]  in "Exercises"
-    line  2309  \pdexercise          [chapter-end]  in "Exercises"
-    line  2315  \pdexercise          [chapter-end]  in "Exercises"
-    line  2322  \pdexercisesfor      [chapter-end]  in "Exercises"
-    line  2324  \pdexercise          [chapter-end]  in "Exercises"
-    line  2330  \pdexercise          [chapter-end]  in "Exercises"
-    line  2336  \pdexercise          [chapter-end]  in "Exercises"
-    line  2343  \pdexercisesfor      [chapter-end]  in "Exercises"
-    line  2345  \pdexercise          [chapter-end]  in "Exercises"
-    line  2351  \pdexercise          [chapter-end]  in "Exercises"
-    line  2357  \pdexercise          [chapter-end]  in "Exercises"
-    line  2364  \pdexercisesfor      [chapter-end]  in "Exercises"
-    line  2366  \pdexercise          [chapter-end]  in "Exercises"
-    line  2372  \pdexercise          [chapter-end]  in "Exercises"
-    line  2378  \pdexercise          [chapter-end]  in "Exercises"
-    line  2385  \pdexercisesfor      [chapter-end]  in "Exercises"
-    line  2387  \pdexercise          [chapter-end]  in "Exercises"
-    line  2393  \pdexercise          [chapter-end]  in "Exercises"
-    line  2399  \pdexercise          [chapter-end]  in "Exercises"
-    line  2405  \pdexercise          [chapter-end]  in "Exercises"
-    line  2411  \pdexercise          [chapter-end]  in "Exercises"
-    line  2417  \pdexercise          [chapter-end]  in "Exercises"
-    line  2424  \pdexercisesfor      [chapter-end]  in "Exercises"
-    line  2426  \pdexercise          [chapter-end]  in "Exercises"
-    line  2432  \pdexercise          [chapter-end]  in "Exercises"
-    line  2438  \pdexercise          [chapter-end]  in "Exercises"
-    line  2445  \pdexercisesfor      [chapter-end]  in "Exercises"
-    line  2447  \pdexercise          [chapter-end]  in "Exercises"
-    line  2453  \pdexercise          [chapter-end]  in "Exercises"
-    line  2460  \pdexercise          [chapter-end]  in "Exercises"
-    line  2466  \pdexercise          [chapter-end]  in "Exercises"
-    line  2472  \pdexercise          [chapter-end]  in "Exercises"
-    line  2479  \pdexercisesfor      [chapter-end]  in "Exercises"
-    line  2481  \pdexercise          [chapter-end]  in "Exercises"
-    line  2487  \pdexercise          [chapter-end]  in "Exercises"
-    line  2494  \pdexercisesfor      [chapter-end]  in "Exercises"
-    line  2496  \pdexercise          [chapter-end]  in "Exercises"
-    line  2502  \pdexercise          [chapter-end]  in "Exercises"
-    line  2508  \pdexercise          [chapter-end]  in "Exercises"
+    line  2357  \pdexercisesfor      [chapter-end]  in "Exercises"
+    line  2359  \pdexercise          [chapter-end]  in "Exercises"
+    line  2365  \pdexercise          [chapter-end]  in "Exercises"
+    line  2371  \pdexercise          [chapter-end]  in "Exercises"
+    line  2378  \pdexercisesfor      [chapter-end]  in "Exercises"
+    line  2380  \pdexercise          [chapter-end]  in "Exercises"
+    line  2386  \pdexercise          [chapter-end]  in "Exercises"
+    line  2392  \pdexercise          [chapter-end]  in "Exercises"
+    line  2399  \pdexercisesfor      [chapter-end]  in "Exercises"
+    line  2401  \pdexercise          [chapter-end]  in "Exercises"
+    line  2407  \pdexercise          [chapter-end]  in "Exercises"
+    line  2413  \pdexercise          [chapter-end]  in "Exercises"
+    line  2420  \pdexercisesfor      [chapter-end]  in "Exercises"
+    line  2422  \pdexercise          [chapter-end]  in "Exercises"
+    line  2428  \pdexercise          [chapter-end]  in "Exercises"
+    line  2434  \pdexercise          [chapter-end]  in "Exercises"
+    line  2441  \pdexercisesfor      [chapter-end]  in "Exercises"
+    line  2443  \pdexercise          [chapter-end]  in "Exercises"
+    line  2449  \pdexercise          [chapter-end]  in "Exercises"
+    line  2455  \pdexercise          [chapter-end]  in "Exercises"
+    line  2462  \pdexercisesfor      [chapter-end]  in "Exercises"
+    line  2464  \pdexercise          [chapter-end]  in "Exercises"
+    line  2470  \pdexercise          [chapter-end]  in "Exercises"
+    line  2476  \pdexercise          [chapter-end]  in "Exercises"
+    line  2482  \pdexercise          [chapter-end]  in "Exercises"
+    line  2488  \pdexercise          [chapter-end]  in "Exercises"
+    line  2494  \pdexercise          [chapter-end]  in "Exercises"
+    line  2501  \pdexercisesfor      [chapter-end]  in "Exercises"
+    line  2503  \pdexercise          [chapter-end]  in "Exercises"
+    line  2509  \pdexercise          [chapter-end]  in "Exercises"
+    line  2515  \pdexercise          [chapter-end]  in "Exercises"
+    line  2522  \pdexercisesfor      [chapter-end]  in "Exercises"
+    line  2524  \pdexercise          [chapter-end]  in "Exercises"
+    line  2530  \pdexercise          [chapter-end]  in "Exercises"
+    line  2537  \pdexercise          [chapter-end]  in "Exercises"
+    line  2543  \pdexercise          [chapter-end]  in "Exercises"
+    line  2549  \pdexercise          [chapter-end]  in "Exercises"
+    line  2556  \pdexercisesfor      [chapter-end]  in "Exercises"
+    line  2558  \pdexercise          [chapter-end]  in "Exercises"
+    line  2564  \pdexercise          [chapter-end]  in "Exercises"
+    line  2571  \pdexercisesfor      [chapter-end]  in "Exercises"
+    line  2573  \pdexercise          [chapter-end]  in "Exercises"
+    line  2579  \pdexercise          [chapter-end]  in "Exercises"
+    line  2585  \pdexercise          [chapter-end]  in "Exercises"
 
 Interludes: 0
 Tinted-box macros: 3: \keyidea, \pitfall, \pullquote

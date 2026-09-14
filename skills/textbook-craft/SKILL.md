@@ -12,7 +12,7 @@ allowed-tools: Read,Write,Edit,Bash,Grep,Glob
 metadata:
   category: Writing & Communication
   tags: [textbook, pedagogy, exposition, exercise-design, harbor]
-  version: 1.1.0
+  version: 1.2.0
   pairs-with:
     - skill: harbor-exposition
       reason: Shares the honesty-ledger and express-lane discipline; harbor-exposition governs one result, this skill governs a chapter of many
@@ -181,7 +181,16 @@ content-kind fills.
   section, which is expected to be prose-only. This was the sharpest
   reading-flow defect measured across the Book's chapters (F5); a chapter's
   own worked-example floor (`chapter_lint.py`) is a proxy check for it at the
-  source level.
+  source level, and carries the same carve-out: **apparatus sections are
+  exempt**. Apparatus means Exercises, the Review, History and references,
+  the boundary/handoff statement, the Reader's Map, a verification-status
+  table, a dumped formal model (ProVerif/TLA+), a notation key, and anything
+  the source declares an appendix with an `app:`-namespaced `\label`. These
+  sections are *supposed* to be prose-and-tables; a pacing rule that demands
+  a worked example from an Exercises section is measuring the wrong thing.
+  `chapter_lint.py` holds this vocabulary in one place
+  (`APPARATUS_SECTION_PATTERNS`), which its chapter-close and exercises
+  checks read too, so the exemption cannot drift between floors.
 - **Back-references per page: ≤2.** A reader following the argument should
   not have to chase more than two cross-references per page to keep reading.
 
@@ -290,8 +299,10 @@ this anti-pattern executed at the highest level of polish; it is the
 counter-example this skill is built against, not the model
 (`references/canon.md` §Rudin).
 **Detection**: `scripts/chapter_lint.py`'s `worked_example_per_section`
-floor: a section with zero `pdexample`/`example` environments before its
-first `theorem`/`definition`.
+floor: a **body** section with zero `pdexample`/`example` environments before
+its first `theorem`/`definition`. Apparatus sections (Exercises, Review,
+History and references, boundary/handoff, Reader's Map, verification status,
+dumped formal models, notation, appendices) are exempt — see §Pacing rules.
 
 ## NOT-for boundaries
 
@@ -312,14 +323,28 @@ first `theorem`/`definition`.
 
 ## Scripts
 
-- `python3 scripts/chapter_lint.py [CHAPTER.tex ...] [--json|--md] [--strict] [--table]` —
+- `python3 scripts/chapter_lint.py [CHAPTER.tex ...] [--json|--md] [--strict] [--table] [--max-blocking N]` —
   a DO-CONFIRM checklist (Gawande, `references/canon.md`) that strips TeX
   comments (an unescaped `%`, the same idiom `check_plate_provenance.py` uses
   in the harbor-research scripts, not yet merged to main <!-- cite-exempt -->)
   before every regex pass, then reports, against this
   skill's floors:
-  - **`worked_example_per_section`** — every top-level section has >=1
-    worked example (`pdexample`/`example`) before its general statement.
+  - **`worked_example_per_section`** — every top-level **body** section has
+    >=1 worked example (`pdexample`/`example`) before its general statement.
+    **Apparatus sections are exempt** (§Pacing rules): Exercises, Review,
+    History and references, boundary/handoff, Reader's Map, verification
+    status, dumped ProVerif/TLA+ models, notation, and any section whose own
+    `\label` is in the `app:` namespace — an author-declared signal that
+    catches appendices a title regex cannot ("Phase 2: Asymmetric Ed25519" is
+    57 lines of dumped ProVerif source). The vocabulary lives in exactly one
+    place, `APPARATUS_SECTION_PATTERNS`, from which the chapter-close and
+    exercises checks take the *same compiled patterns*; the unit tests assert
+    that identity rather than trusting two lists to stay in step. Every
+    exemption is printed in the report, with the kind and the reason, so the
+    floor cannot quietly shrink its own denominator. Before this carve-out
+    the floor flagged 117 of the Book's 138 sections, 54 of them apparatus;
+    it now flags 63 of 84 body sections — a smaller number that is a real
+    backlog rather than a mixture of backlog and noise.
   - **`claims_carry_epistemic_kind`** — every claim-like environment
     (theorem/lemma/definition/property/corollary, or `pdclaim{KIND}{...}`)
     carries an epistemic-kind tag *inside its own body* (a brace-and-env
@@ -339,9 +364,13 @@ first `theorem`/`definition`.
     scattered mid-body. Advisory because the Book's chapters have not all
     been relocated to this rule yet.
   - **`chapter_opener_and_claim_labeling`** (advisory) — the chapter's
-    first `\section` opens with prose or an epigraph macro rather than a
-    cold table or claim, and every claim-like environment is tagged.
-    Advisory because no chapter in the corpus yet opens with an epigraph.
+    first **body** `\section` opens with prose or an epigraph macro rather
+    than a cold table or claim, and every claim-like environment is tagged.
+    Leading apparatus is skipped: six of the eight chapters open with a
+    Reader's Map, so this floor used to measure the first line of the map
+    instead of the first line of the argument (it read "prose" either way,
+    on five of eight chapters, for the wrong section). Advisory because no
+    chapter in the corpus yet opens with an epigraph.
   - **`at_most_one_interlude`**, **`chapter_close_apparatus`** — unchanged
     structural counts (interlude titles; Review/History/boundary sections
     present by title keyword).
@@ -357,11 +386,22 @@ first `theorem`/`definition`.
   paths. Tested on `whitepaper/single-writer-kernel.tex` (see
   `examples/chapter1-lint-report.txt`) and, consolidated across all eight
   Book chapters, in `examples/consolidated-lint-report.txt` — the same
-  report `library-checks.yml`'s CI step reads (advisory today: two blocking
-  floors already fail on several chapters, pre-dating this script, so the
-  step is `continue-on-error` until that content catches up). Unit tests:
-  `tests/test_chapter_lint.py` (`python3 -m unittest discover -s
-  skills/textbook-craft/tests -p 'test_*.py'`).
+  report `library-checks.yml`'s CI step reads.
+
+  **The CI step is a ratchet, not a gate.** `--strict` still fails: with the
+  apparatus noise gone, 17 blocking floor failures remain across the eight
+  chapters — `worked_example_per_section` on all 8 (63 body sections with no
+  worked example), `claims_carry_epistemic_kind` on 7 (50 untagged claims),
+  and `chapter_close_apparatus` on sealed-harbor and spawn-to-person (both
+  missing a history-and-references section). That is real content work, not a
+  measurement artefact, so the step cannot be made required today. It runs
+  `--max-blocking 17` instead: the count may fall, never rise. A chapter edit
+  that takes the Book backwards fails CI; a chapter edit that fixes a floor
+  prints the new, lower number to set the ratchet to. Drop the ratchet for a
+  bare `--strict` when the number reaches 0.
+
+  Unit tests: `tests/test_chapter_lint.py` (`python3 -m unittest discover -s
+  skills/textbook-craft/tests -p 'test_*.py'`) — 61 tests.
 
 ## References
 
