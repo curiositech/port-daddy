@@ -1,0 +1,35 @@
+% Figure 6 — controllability x witnessing: a quadrant, one instance per cell.
+% Cell membership: the checker [internal, b3_controllability.py]; row membership
+% by inspection of each trigger.
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
+  cell/.style={font=\footnotesize,align=center,text width=4.35cm}]
+  \fill[pd focus fill] (4.55,3.1) rectangle (9.1,6.2);
+  \draw[pd rule] (0,0) rectangle (9.1,6.2);
+  \draw[pd rule] (4.55,0)--(4.55,6.2);
+  \draw[pd rule] (0,3.1)--(9.1,3.1);
+
+  \node[pd axis label,anchor=north,text width=8.6cm,align=center] at (4.55,-.2)
+    {the trigger is witnessed at the mediation boundary};
+  \node[pd axis label] at (2.28,6.45) {no};
+  \node[pd axis label] at (6.83,6.45) {yes};
+  \node[pd axis label,rotate=90,anchor=south,text width=5.6cm,align=center]
+    at (-.5,3.1) {the event is controllable: it passes through the daemon};
+  \node[pd axis label,rotate=90] at (-.15,4.65) {yes};
+  \node[pd axis label,rotate=90] at (-.15,1.55) {no};
+
+  \node[cell] at (2.28,4.65) {\textbf{detect-only}\\[2pt]a plan stated in the model's context};
+  \node[cell] at (6.83,4.65) {\textbf{preventable} $\bigstar$\\[2pt]\texttt{git push}, net egress, spawn child};
+  \node[cell] at (2.28,1.55) {\textbf{detect-only}\\[2pt]a thought};
+  \node[cell] at (6.83,1.55) {\textbf{detect-only}\\[2pt]an effect whose guard reads unwitnessed state};
+\end{tikzpicture}
+\caption{Preventable is one cell, not a spectrum. An event is preventable
+exactly when it is controllable (top row) \emph{and} its trigger is witnessed
+at the mediation boundary (right column): the shaded cell, marked $\bigstar$
+and tied to Theorem~\ref{thm:regimentation-controllability}. Every other
+combination is detect-only. Column membership reproduces from the checker
+[internal, \texttt{b3\_controllability.py}]; row membership is by inspection
+of each trigger.}
+\label{fig:swk-controllability-quadrant}
+\end{figure}

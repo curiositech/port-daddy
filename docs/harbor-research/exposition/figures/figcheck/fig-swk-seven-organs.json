@@ -1,0 +1,99 @@
+{
+ "figure": "fig-swk-seven-organs",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T4": {
+   "status": "fail",
+   "count": 2,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      464.99456787109375,
+      90.08295440673828,
+      488.8144836425781,
+      97.84440612792969
+     ],
+     "text": "partial",
+     "line_segment": [
+      [
+       191.4388427734375,
+       94.22997283935547
+      ],
+      [
+       474.38690185546875,
+       94.22997283935547
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'partial'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      464.99456787109375,
+      51.08669662475586,
+      508.4198913574219,
+      58.84815216064453
+     ],
+     "text": "self-asserted",
+     "line_segment": [
+      [
+       191.4388427734375,
+       54.479164123535156
+      ],
+      [
+       474.38690185546875,
+       54.479164123535156
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'self-asserted'"
+    }
+   ]
+  },
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T4"
+  ],
+  "warned_checks": []
+ }
+}

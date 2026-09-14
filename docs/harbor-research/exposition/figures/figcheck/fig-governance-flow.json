@@ -1,0 +1,214 @@
+{
+ "figure": "fig-governance-flow",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T4": {
+   "status": "fail",
+   "count": 7,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      110.87492370605469,
+      109.79629516601562,
+      187.3368377685547,
+      117.09716033935547
+     ],
+     "text": "1 DIRECT RELEASE",
+     "line_segment": [
+      [
+       184.15475463867188,
+       132.98155212402344
+      ],
+      [
+       184.15475463867188,
+       113.76615905761719
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text '1 DIRECT RELEASE'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      248.2810821533203,
+      66.6917724609375,
+      345.9447021484375,
+      73.99263763427734
+     ],
+     "text": "3 BONDED PREEMPTION",
+     "line_segment": [
+      [
+       336.05908203125,
+       89.87700653076172
+      ],
+      [
+       336.05908203125,
+       57.159339904785156
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text '3 BONDED PREEMPTION'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      252.99940490722656,
+      74.44893646240234,
+      341.17919921875,
+      81.74980163574219
+     ],
+     "text": "waiting cost exceeds bond",
+     "line_segment": [
+      [
+       336.05908203125,
+       89.87700653076172
+      ],
+      [
+       336.05908203125,
+       57.159339904785156
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'waiting cost exceeds bond'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      190.78421020507812,
+      121.47953033447266,
+      232.17279052734375,
+      128.7803955078125
+     ],
+     "text": "no heartbeat",
+     "line_segment": [
+      [
+       221.80612182617188,
+       117.14196014404297
+      ],
+      [
+       221.80612182617188,
+       168.28492736816406
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'no heartbeat'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      265.048095703125,
+      97.39961242675781,
+      331.8729248046875,
+      104.70047760009766
+     ],
+     "text": "preemption justi\ufb01ed",
+     "line_segment": [
+      [
+       297.10931396484375,
+       93.25279235839844
+      ],
+      [
+       297.10931396484375,
+       168.28492736816406
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'preemption justi\ufb01ed'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      342.94769287109375,
+      65.3917465209961,
+      417.7815246582031,
+      72.69261169433594
+     ],
+     "text": "machine limit reached",
+     "line_segment": [
+      [
+       377.60528564453125,
+       60.53510284423828
+      ],
+      [
+       377.60528564453125,
+       168.28492736816406
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'machine limit reached'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      263.57733154296875,
+      164.2304229736328,
+      410.4341735839844,
+      172.4438934326172
+     ],
+     "text": "one evidence-bound resolution rail",
+     "line_segment": [
+      [
+       297.10931396484375,
+       93.25279235839844
+      ],
+      [
+       297.10931396484375,
+       168.28492736816406
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'one evidence-bound resolution rail'"
+    }
+   ]
+  },
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T4"
+  ],
+  "warned_checks": []
+ }
+}

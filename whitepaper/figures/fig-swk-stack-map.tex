@@ -1,55 +1,46 @@
 % Figure 1 — architectural section through the coordination stack.
 \begin{figure}[H]
 \centering
-\resizebox{0.91\textwidth}{!}{%
+\hyphenpenalty=10000\exhyphenpenalty=10000\relax
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \fill[hhpaper] (0,0) rectangle (13.6,6.6);
-  \fill[hhink] (0,.0) rectangle (13.6,.58);
-  \fill[hhteal!8] (0,.58) rectangle (13.6,2.18);
-  \fill[hhteal!4] (0,2.18) rectangle (13.6,3.66);
-  \fill[hhsand!18] (0,3.66) rectangle (13.6,5.02);
-  \fill[hhsand!10] (0,5.02) rectangle (13.6,6.38);
-  \foreach \y in {.58,2.18,3.66,5.02,6.38}
-    \draw[pd hairline] (0,\y)--(13.6,\y);
+  \fill[hhink] (0,0) rectangle (10.6,.9);
+  \fill[pd neutral fill] (0,.9) rectangle (10.6,2.5);
+  \fill[pd focus fill] (0,2.5) rectangle (10.6,4.1);
+  \fill[hhsand!16,draw=hhgray!55] (0,4.1) rectangle (10.6,5.7);
+  \fill[hhsand!30] (0,5.7) rectangle (10.6,7.3);
+  \foreach \y in {.9,2.5,4.1,5.7,7.3}
+    \draw[pd hairline] (0,\y)--(10.6,\y);
+  \draw[pd rule] (0,0) rectangle (10.6,7.3);
 
-  \node[anchor=west,font=\scriptsize\bfseries,text=white] at (.22,.29) {MACHINE FLOOR};
-  \node[anchor=west,font=\small\bfseries] at (.35,1.62) {substrate};
-  \node[anchor=west,font=\small\bfseries] at (.35,3.10) {coordination};
-  \node[anchor=west,font=\small\bfseries] at (.35,4.48) {legibility};
-  \node[anchor=west,font=\small\bfseries] at (.35,5.84) {economy + federation};
+  \node[font=\footnotesize\bfseries,text=white,anchor=west,text width=3.3cm,align=left]
+    at (.25,.45) {MACHINE FLOOR};
+  \node[font=\footnotesize,text=white,anchor=east,text width=5.1cm,align=left] at (10.35,.45)
+    {\hyphenpenalty=10000\relax file lock, clock, socket, supervisor};
 
-  \node[pd axis label,anchor=west] at (3.80,1.62)
-    {one writer \quad claims \quad sessions \quad bus \quad memory};
-  \node[pd axis label,anchor=west] at (3.80,3.10)
-    {typed acts \quad commitments \quad delegation \quad policy observation};
-  \node[pd axis label,anchor=west] at (3.80,4.48)
-    {digest with zoom \quad review \quad operator surface};
-  \node[pd axis label,anchor=west] at (3.80,5.84)
-    {settlement \quad reputation \quad cross-machine federation};
+  \node[pd row label,anchor=west] at (.25,1.7) {substrate};
+  \node[pd row label,anchor=west] at (.25,3.3) {coordination};
+  \node[pd row label,anchor=west] at (.25,4.9) {legibility};
+  \node[pd row label,anchor=west,text width=4.4cm] at (.25,6.5) {\hyphenpenalty=10000\relax economy + federation};
 
-  \draw[pd focus rule,line width=2.1pt] (12.55,.72)--(12.55,3.56);
-  \draw[pd focus rule] (12.28,.72)--(12.82,.72);
-  \draw[pd focus rule] (12.28,3.56)--(12.82,3.56);
-  \node[rotate=90,anchor=south,font=\scriptsize\bfseries,text=hhteal]
-    at (13.02,2.14) {CHAPTER II};
-  \node[pd axis label,anchor=west] at (10.55,2.83) {carrier half};
-  \draw[pd guide] (10.35,2.18)--(12.48,2.18);
+  \node[pd axis label,anchor=east,text width=6.0cm,align=left] at (10.3,1.9)
+    {\hyphenpenalty=10000\relax one writer, claims, sessions, bus, memory};
+  \node[pd axis label,anchor=east,text width=6.0cm,align=left] at (10.3,3.5)
+    {\hyphenpenalty=10000\relax typed acts, commitments, delegation, policy observation};
+  \node[pd axis label,anchor=east,text width=6.0cm,align=left] at (10.3,5.1)
+    {\hyphenpenalty=10000\relax digest with zoom, review, operator surface};
+  \node[pd axis label,anchor=east,text width=6.0cm,align=left] at (10.3,6.7)
+    {\hyphenpenalty=10000\relax settlement, reputation, cross-machine federation};
 
-  \draw[pd focus arrow] (5.15,.15)--(5.15,1.05)
-    node[pd direct label,anchor=east,pos=.58] {provides};
-  \draw[pd caution arrow] (8.36,1.05)--(8.36,.15)
-    node[pd direct label,anchor=west,pos=.58] {assumes};
-  \node[font=\scriptsize,text=white] at (7.05,.29)
-    {file lock \quad clock \quad socket \quad supervisor};
-
-  \draw[pd rule] (0,0) rectangle (13.6,6.38);
-\end{tikzpicture}%
-}
+  \draw[pd focus rule,line width=2.0pt] (10.95,1.0)--(10.95,4.0);
+  \draw[pd focus rule] (10.7,1.0)--(11.2,1.0);
+  \draw[pd focus rule] (10.7,4.0)--(11.2,4.0);
+  \node[pd direct label,rotate=90,anchor=south,text=hhteal,text width=1.9cm,align=center]
+    at (11.35,2.5) {this chapter};
+\end{tikzpicture}
 \caption{An architectural section through the four-layer coordination stack.
-Chapter II occupies the complete transactional substrate and the implemented
-carrier half of coordination; it does not claim the semantic, operator, or market
-layers above. The dark machine floor is the narrow dependency boundary: the kernel
-assumes a file lock, clock, socket, and supervisor, then provides a single-writer
-record on which every higher layer rests. Chapter numbers are not layer numbers.}
+This chapter is the second band from the floor: the transactional substrate,
+providing the one-writer record and claims that every higher layer rests on.
+The machine floor beneath it is the narrow dependency boundary the substrate
+assumes: a file lock, a clock, a socket, and a supervisor. [internal]}
 \label{fig:swk-stack-map}
 \end{figure}

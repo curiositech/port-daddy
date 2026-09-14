@@ -16,7 +16,7 @@
 -->
 
 <!--
-  Port Daddy PR template. The headings below are load-bearing: the
+  Port Daddy PR template. The headings below are structural: the
   `pr-requirements-guard` CI job (scripts/check-pr-requirements.mjs) parses
   ## Summary and ## Test Plan and FAILS the merge queue if either is missing or
   trivially short, or if a visual surface changed without screenshot + motion

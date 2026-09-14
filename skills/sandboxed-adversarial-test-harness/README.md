@@ -1,27 +1,45 @@
-# Sandboxed Adversarial Test Harness
+# Sandboxed Adversarial Test Harness / Drydock Safety Engineering
 
-Procedural guidance for designing an adversarial test harness that proves a sandbox
-contains untrusted or AI-authored code and agent actions, rather than just checking
-that the code's own tests pass.
+This skill designs and audits laboratories for untrusted code, tests, daemons, and
+agent runtimes. It separates seven proof domains that are often blurred:
 
-Use this skill when a sandbox, worktree, output sink, or trust gate is about to hold
-real agent actions and you need to prove — not assume — that a malicious payload
-cannot escape it, exfiltrate secrets, or exhaust host resources.
+1. Trusted-language, process, package, and release boundaries.
+2. VM and host isolation.
+3. Typed I/O and capability brokering.
+4. Broker-authorized spend versus externally bounded financial loss, including
+   provider enforcement lag and overshoot.
+5. Durable agent admission, process witnessing, crash recovery, and spawn-storm
+   breakers.
+6. Deterministic fault and schedule exploration.
+7. Sealed provenance and externally witnessed receipts.
 
-## Quick Start
+The legacy JSON schema and `containment_audit.mjs` remain available for narrow T0
+policy-shape lint. Their `pass` result is not runtime containment evidence and does
+not authorize execution.
 
-1. Read `SKILL.md`.
-2. Load `references/threat-classes-and-adversarial-recipes.md` for the five threat
-   classes and concrete attack payloads (SSRF to metadata endpoints, path traversal
-   via `../` and symlinks, secret exfil via DNS).
-3. Load `references/isolation-mechanisms-macos-linux.md` for the mechanisms that
-   actually enforce each isolation dimension on macOS and Linux, plus fail-closed
-   gating.
-4. Write a harness spec covering isolation dimensions, egress/path/secret policy,
-   and one adversarial case per threat class in scope.
-5. Run `node scripts/containment_audit.mjs --input harness-spec.json`.
-6. Gate deployment on `pass: true` and zero unaddressed findings.
+## Quick start
 
-The harness audits the *design* of a spec — coverage, allowlist-vs-denylist shape,
-default-allow egress, fail-open modes — so a passing result is safe to wire into a
-real execution harness and CI gate.
+1. Read `SKILL.md` and honor its halt gate.
+2. Select the references named by the expertise map.
+3. Fill `templates/output-template.md` without launching the subject.
+4. Check the activation cases in `tests/activation.md`.
+5. Validate the skill bundle with the external skill-architect validators.
+
+The canonical default-branch checkout is never a Drydock worksite or source
+authority. Fetch through a dedicated bare vault, materialize exact commits in
+disposable worktrees, author in guest-local worktrees, and promote only into a
+fresh host linked review worktree on a non-default branch.
+
+## Safe validation
+
+These checks inspect the skill bundle itself. They do not execute Port Daddy or a
+hostile specimen:
+
+```bash
+python3 <skill-architect>/scripts/validate_skill.py skills/sandboxed-adversarial-test-harness
+python3 <skill-architect>/scripts/check_self_contained.py skills/sandboxed-adversarial-test-harness
+```
+
+Do not run the legacy audit script or any repository test while an operator halt
+forbids Port Daddy code execution. A validator result is a skill-quality result,
+not a Drydock promotion receipt.

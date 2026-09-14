@@ -1,0 +1,122 @@
+{
+ "figure": "fig-swk-continuity-organs",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T4": {
+   "status": "fail",
+   "count": 3,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      145.13250732421875,
+      49.12391662597656,
+      252.91754150390625,
+      58.13603973388672
+     ],
+     "text": "notes, not execution state",
+     "line_segment": [
+      [
+       199.04940795898438,
+       143.8134307861328
+      ],
+      [
+       199.04940795898438,
+       30.987197875976562
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'notes, not execution state'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      283.0852966308594,
+      58.73986053466797,
+      390.61798095703125,
+      67.75198364257812
+     ],
+     "text": "partial outcome substrate",
+     "line_segment": [
+      [
+       336.8768310546875,
+       143.8134307861328
+      ],
+      [
+       336.8768310546875,
+       30.987197875976562
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'partial outcome substrate'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      350.82952880859375,
+      31.61861801147461,
+      506.15350341796875,
+      40.63074493408203
+     ],
+     "text": "support can only narrow downstream",
+     "line_segment": [
+      [
+       404.18804931640625,
+       143.8134307861328
+      ],
+      [
+       404.18804931640625,
+       30.987197875976562
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'support can only narrow downstream'"
+    }
+   ]
+  },
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T4"
+  ],
+  "warned_checks": []
+ }
+}

@@ -1,0 +1,293 @@
+{
+ "figure": "fig-magic-link-inline",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "fail",
+   "count": 4,
+   "findings": [
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      173.09701538085938,
+      206.17901611328125,
+      176.76181030273438,
+      212.1770477294922
+     ],
+     "text": "0",
+     "size_pt": 6.0,
+     "message": "text '0' renders at 6.00pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      305.36029052734375,
+      206.17901611328125,
+      309.02508544921875,
+      212.1770477294922
+     ],
+     "text": "1",
+     "size_pt": 6.0,
+     "message": "text '1' renders at 6.00pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      325.27130126953125,
+      206.17901611328125,
+      328.93609619140625,
+      212.1770477294922
+     ],
+     "text": "2",
+     "size_pt": 6.0,
+     "message": "text '2' renders at 6.00pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      451.84588623046875,
+      206.17901611328125,
+      455.51068115234375,
+      212.1770477294922
+     ],
+     "text": "3",
+     "size_pt": 6.0,
+     "message": "text '3' renders at 6.00pt, below the 7.00pt floor"
+    }
+   ]
+  },
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "fail",
+   "count": 2,
+   "findings": [
+    {
+     "check": "T3",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      229.3741912841797,
+      57.06966018676758,
+      319.9044189453125,
+      65.06703186035156
+     ],
+     "other_bbox": [
+      216.8740692138672,
+      50.14058303833008,
+      259.3401184082031,
+      58.1379508972168
+     ],
+     "text": "request intervals overlap",
+     "other_text": "UPDATE ...",
+     "overlap_fraction": 0.094,
+     "message": "text 'request intervals overlap' overlaps 'UPDATE ...' by 9.4% of the smaller bbox"
+    },
+    {
+     "check": "T3",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      229.3741912841797,
+      57.06966018676758,
+      319.9044189453125,
+      65.06703186035156
+     ],
+     "other_bbox": [
+      267.83331298828125,
+      50.14058303833008,
+      416.47247314453125,
+      58.1379508972168
+     ],
+     "text": "request intervals overlap",
+     "other_text": "WHERE consumed_at IS NULL RETURNING",
+     "overlap_fraction": 0.077,
+     "message": "text 'request intervals overlap' overlaps 'WHERE consumed_at IS NULL RETURNING' by 7.7% of the smaller bbox"
+    }
+   ]
+  },
+  "T4": {
+   "status": "fail",
+   "count": 6,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      229.3741912841797,
+      57.06966018676758,
+      319.9044189453125,
+      65.06703186035156
+     ],
+     "text": "request intervals overlap",
+     "line_segment": [
+      [
+       306.76202392578125,
+       62.183258056640625
+      ],
+      [
+       306.76202392578125,
+       185.06004333496094
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'request intervals overlap'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      312.8330383300781,
+      81.14167785644531,
+      321.830078125,
+      165.53390502929688
+     ],
+     "text": "ATOMIC DRAIN",
+     "line_segment": [
+      [
+       150.89036560058594,
+       109.96857452392578
+      ],
+      [
+       476.5712890625,
+       109.96857452392578
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'ATOMIC DRAIN'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      454.09381103515625,
+      73.52530670166016,
+      498.5191955566406,
+      81.52267456054688
+     ],
+     "text": "SUCCESS",
+     "line_segment": [
+      [
+       150.89036560058594,
+       76.97415161132812
+      ],
+      [
+       476.5712890625,
+       76.97415161132812
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'SUCCESS'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      454.09381103515625,
+      106.51972961425781,
+      493.19293212890625,
+      114.51710510253906
+     ],
+     "text": "REJECT",
+     "line_segment": [
+      [
+       150.89036560058594,
+       109.96857452392578
+      ],
+      [
+       476.5712890625,
+       109.96857452392578
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'REJECT'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      444.9915771484375,
+      170.42178344726562,
+      500.1413269042969,
+      178.5668487548828
+     ],
+     "text": "receipt tk 7\u2192A",
+     "line_segment": [
+      [
+       150.89036560058594,
+       174.8202667236328
+      ],
+      [
+       476.5712890625,
+       174.8202667236328
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'receipt tk 7\u2192A'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      167.538330078125,
+      180.7849578857422,
+      376.06182861328125,
+      188.78233337402344
+     ],
+     "text": "the rejected consumer creates no second state transition",
+     "line_segment": [
+      [
+       306.76202392578125,
+       62.183258056640625
+      ],
+      [
+       306.76202392578125,
+       185.06004333496094
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'the rejected consumer creates no second state transition'"
+    }
+   ]
+  },
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T1",
+   "T3",
+   "T4"
+  ],
+  "warned_checks": []
+ }
+}

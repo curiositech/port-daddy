@@ -1,0 +1,510 @@
+{
+ "figure": "fig-bonded-sen-regime",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "fail",
+   "count": 28,
+   "findings": [
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      377.62054443359375,
+      146.49497985839844,
+      399.83514404296875,
+      153.40036010742188
+     ],
+     "text": "private",
+     "size_pt": 6.91,
+     "message": "text 'private' renders at 6.91pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      402.2796630859375,
+      146.49497985839844,
+      439.5687561035156,
+      153.40036010742188
+     ],
+     "text": "information",
+     "size_pt": 6.91,
+     "message": "text 'information' renders at 6.91pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      442.01324462890625,
+      146.49497985839844,
+      460.5472412109375,
+      153.40036010742188
+     ],
+     "text": "about",
+     "size_pt": 6.91,
+     "message": "text 'about' renders at 6.91pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      462.9986572265625,
+      146.49497985839844,
+      482.3613586425781,
+      153.40036010742188
+     ],
+     "text": "future",
+     "size_pt": 6.91,
+     "message": "text 'future' renders at 6.91pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      484.8058776855469,
+      146.49497985839844,
+      502.36627197265625,
+      153.40036010742188
+     ],
+     "text": "needs",
+     "size_pt": 6.91,
+     "message": "text 'needs' renders at 6.91pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      92.22587585449219,
+      76.92743682861328,
+      99.13125610351562,
+      117.06153869628906
+     ],
+     "text": "coordination",
+     "size_pt": 6.91,
+     "message": "text 'coordination' renders at 6.91pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      92.22587585449219,
+      62.99237060546875,
+      99.13125610351562,
+      74.48294067382812
+     ],
+     "text": "loss",
+     "size_pt": 6.91,
+     "message": "text 'loss' renders at 6.91pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      116.05713653564453,
+      156.97235107421875,
+      136.2484893798828,
+      163.8777313232422
+     ],
+     "text": "shared",
+     "size_pt": 6.91,
+     "message": "text 'shared' renders at 6.91pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      138.89324951171875,
+      156.97235107421875,
+      142.68431091308594,
+      163.8777313232422
+     ],
+     "text": "/",
+     "size_pt": 6.91,
+     "message": "text '/' renders at 6.91pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      145.33599853515625,
+      156.97235107421875,
+      182.010498046875,
+      163.8777313232422
+     ],
+     "text": "forecastable",
+     "size_pt": 6.91,
+     "message": "text 'forecastable' renders at 6.91pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      296.0924072265625,
+      156.97235107421875,
+      310.11724853515625,
+      163.8777313232422
+     ],
+     "text": "local",
+     "size_pt": 6.91,
+     "message": "text 'local' renders at 6.91pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      312.76202392578125,
+      156.97235107421875,
+      316.5530700683594,
+      163.8777313232422
+     ],
+     "text": "/",
+     "size_pt": 6.91,
+     "message": "text '/' renders at 6.91pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      319.2047119140625,
+      156.97235107421875,
+      355.03680419921875,
+      163.8777313232422
+     ],
+     "text": "exploratory",
+     "size_pt": 6.91,
+     "message": "text 'exploratory' renders at 6.91pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      303.8045349121094,
+      59.732948303222656,
+      332.1718444824219,
+      66.6383285522461
+     ],
+     "text": "exclusive",
+     "size_pt": 6.91,
+     "message": "text 'exclusive' renders at 6.91pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      334.60943603515625,
+      59.732948303222656,
+      365.7803649902344,
+      66.6383285522461
+     ],
+     "text": "allocation",
+     "size_pt": 6.91,
+     "message": "text 'allocation' renders at 6.91pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      212.90074157714844,
+      107.69056701660156,
+      239.84555053710938,
+      114.595947265625
+     ],
+     "text": "advisory",
+     "size_pt": 6.91,
+     "message": "text 'advisory' renders at 6.91pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      242.29006958007812,
+      107.69056701660156,
+      262.29498291015625,
+      114.595947265625
+     ],
+     "text": "claims",
+     "size_pt": 6.91,
+     "message": "text 'claims' renders at 6.91pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      237.01312255859375,
+      35.87886428833008,
+      257.0180358886719,
+      42.78424835205078
+     ],
+     "text": "design",
+     "size_pt": 6.91,
+     "message": "text 'design' renders at 6.91pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      259.4625244140625,
+      35.87886428833008,
+      290.0257568359375,
+      42.78424835205078
+     ],
+     "text": "boundary",
+     "size_pt": 6.91,
+     "message": "text 'boundary' renders at 6.91pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      292.49578857421875,
+      35.87886428833008,
+      296.6252136230469,
+      42.78424835205078
+     ],
+     "text": "x",
+     "size_pt": 6.91,
+     "message": "text 'x' renders at 6.91pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      296.6258850097656,
+      34.69538116455078,
+      299.935302734375,
+      39.874420166015625
+     ],
+     "text": "\u2217",
+     "size_pt": 5.18,
+     "message": "text '\u2217' renders at 5.18pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      311.3772888183594,
+      54.694454193115234,
+      327.2666015625,
+      61.59983825683594
+     ],
+     "text": "LLM",
+     "size_pt": 6.91,
+     "message": "text 'LLM' renders at 6.91pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      329.71112060546875,
+      54.694454193115234,
+      350.68963623046875,
+      61.59983825683594
+     ],
+     "text": "coding",
+     "size_pt": 6.91,
+     "message": "text 'coding' renders at 6.91pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      353.1341552734375,
+      54.694454193115234,
+      373.3531494140625,
+      61.59983825683594
+     ],
+     "text": "agents",
+     "size_pt": 6.91,
+     "message": "text 'agents' renders at 6.91pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      298.73101806640625,
+      62.89459991455078,
+      317.4791564941406,
+      69.79998016357422
+     ],
+     "text": "retain",
+     "size_pt": 6.91,
+     "message": "text 'retain' renders at 6.91pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      319.92364501953125,
+      62.89459991455078,
+      350.5213928222656,
+      69.79998016357422
+     ],
+     "text": "task-local",
+     "size_pt": 6.91,
+     "message": "text 'task-local' renders at 6.91pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      352.9659423828125,
+      62.89459991455078,
+      385.98052978515625,
+      69.79998016357422
+     ],
+     "text": "knowledge",
+     "size_pt": 6.91,
+     "message": "text 'knowledge' renders at 6.91pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      174.50588989257812,
+      212.24925231933594,
+      178.58558654785156,
+      219.2230987548828
+     ],
+     "text": "\u2217",
+     "size_pt": 6.97,
+     "message": "text '\u2217' renders at 6.97pt, below the 7.00pt floor"
+    }
+   ]
+  },
+  "T2": {
+   "status": "fail",
+   "count": 1,
+   "findings": [
+    {
+     "check": "T2",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      298.73101806640625,
+      62.89459991455078,
+      385.98052978515625,
+      69.79998016357422
+     ],
+     "container_bbox": [
+      302.509765625,
+      59.07793426513672,
+      367.0987854003906,
+      66.42448425292969
+     ],
+     "text": "retain task-local knowledge",
+     "message": "text 'retain task-local knowledge' escapes its containing rect (302.5, 59.1, 367.1, 66.4)"
+    }
+   ]
+  },
+  "T3": {
+   "status": "fail",
+   "count": 2,
+   "findings": [
+    {
+     "check": "T3",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      303.8045349121094,
+      59.732948303222656,
+      365.7803649902344,
+      66.6383285522461
+     ],
+     "other_bbox": [
+      311.3772888183594,
+      54.694454193115234,
+      373.3531494140625,
+      61.59983825683594
+     ],
+     "text": "exclusive allocation",
+     "other_text": "LLM coding agents",
+     "overlap_fraction": 0.237,
+     "message": "text 'exclusive allocation' overlaps 'LLM coding agents' by 23.7% of the smaller bbox"
+    },
+    {
+     "check": "T3",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      303.8045349121094,
+      59.732948303222656,
+      365.7803649902344,
+      66.6383285522461
+     ],
+     "other_bbox": [
+      298.73101806640625,
+      62.89459991455078,
+      385.98052978515625,
+      69.79998016357422
+     ],
+     "text": "exclusive allocation",
+     "other_text": "retain task-local knowledge",
+     "overlap_fraction": 0.542,
+     "message": "text 'exclusive allocation' overlaps 'retain task-local knowledge' by 54.2% of the smaller bbox"
+    }
+   ]
+  },
+  "T4": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T1",
+   "T2",
+   "T3"
+  ],
+  "warned_checks": []
+ }
+}

@@ -25,7 +25,7 @@ primitives Port Daddy already has or has decided on:
   is unchanged.
 - **Permissions = three composable grants**: `use` ⊂ `read` ⊂ `manage`, with
   `use` ("use the secret through the daemon, never see its bytes") as the
-  load-bearing least-privilege primitive.
+  structural least-privilege primitive.
 - **Crypto = envelope encryption** (reuse `lib/note-encryption.ts` /
   `lib/coordination-crypto.ts`): one ciphertext + one sealed data key per
   recipient. Plaintext never crosses the wire; the relay sees ciphertext +
@@ -79,7 +79,7 @@ per-secret grant and any grant implied by harbor-card capability.
 | `read` | `use` + retrieve raw plaintext | rotate/grant/revoke/delete |
 | `manage` | `read` + rotate/revoke/grant/scope/delete | — |
 
-**`use` ("use without see") is the load-bearing primitive.** A `use` holder is
+**`use` ("use without see") is the foundational primitive.** A `use` holder is
 never issued a wrapped data key; it sends a daemon-mediated `pd secret use --op
 <id>` request to the key-holding daemon, which injects the secret, performs the
 operation, and returns the result. The plaintext never enters the requesting

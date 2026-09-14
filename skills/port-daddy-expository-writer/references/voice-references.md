@@ -6,7 +6,7 @@ Re-read it before every drafting session. This file holds verbatim quotes for in
 
 ## The seven tells (verbatim, from user_voice_website.md)
 
-> **1. High-low collisions in the same breath.** SAT-prep word next to basement-hole word. *autochthonous* and "the weird scary basement hole closet" in the same paragraph. The fancy word and the homely word are both load-bearing — together they signal "I am a person who reads, who notices, who isn't going to perform a register at you." Do not smooth into corporate evenness. If the right word is *syncretic*, use *syncretic*. If the right word is *gross*, use *gross*.
+> **1. High-low collisions in the same breath.** SAT-prep word next to basement-hole word. *autochthonous* and "the weird scary basement hole closet" in the same paragraph. The fancy word and the homely word are both central — together they signal "I am a person who reads, who notices, who isn't going to perform a register at you." Do not smooth into corporate evenness. If the right word is *syncretic*, use *syncretic*. If the right word is *gross*, use *gross*.
 >
 > **2. Cathedral build, then punchline.** Long-form Erich never arrives at the ask directly. Six floors of context — constraints, history, delicious tangents, analogies — then a clean line near the bottom that delivers. For site copy: open with the connective tissue, not the feature list. Tell me what you saw in the world that made the product necessary, then drop the product into the story.
 >
@@ -40,7 +40,7 @@ Expository-specific additions:
 - **"It is left as an exercise"** — fine in a textbook, condescending in expository writing. If it matters, walk through it.
 - **"As shown above"** / **"as we will see"** — meta-noise. Just show it.
 - **"In some sense"** — vague throat-clearing. Either say *in what sense* or cut.
-- **"Naively"** as a technical adjective — borderline. *"The naive expected-value calculation"* (from the paper) is fine because *naive* is a load-bearing word in mechanism design. *"Naively one might think..."* as a rhetorical device is not.
+- **"Naively"** as a technical adjective — borderline. *"The naive expected-value calculation"* (from the paper) is fine because *naive* is a decisive word in mechanism design. *"Naively one might think..."* as a rhetorical device is not.
 
 ## Voice-applied-to-verifiers: operator-approved example paragraphs
 
@@ -48,7 +48,7 @@ These are short paragraphs that demonstrate the register applied to specific for
 
 ### On ProVerif's threat model
 
-> ProVerif's adversary is named, after the paper that introduced it: Dolev-Yao, 1981. The adversary controls the network — every message you send, the adversary reads, can replay, can compose with other messages it has seen, can rewrite. The adversary cannot break the cryptography itself: signatures are unforgeable, encryptions are opaque without the key, hashes are collision-free. Inside that model — and the model is the load-bearing word — if ProVerif proves the secret stays secret, the secret stays secret against *every* adversary the model permits. It is not a guarantee about the universe; it is a guarantee about the bouncer's idea of an adversary.
+> ProVerif's adversary is named, after the paper that introduced it: Dolev-Yao, 1981. The adversary controls the network — every message you send, the adversary reads, can replay, can compose with other messages it has seen, can rewrite. The adversary cannot break the cryptography itself: signatures are unforgeable, encryptions are opaque without the key, hashes are collision-free. Inside that model — and the model is the core word — if ProVerif proves the secret stays secret, the secret stays secret against *every* adversary the model permits. It is not a guarantee about the universe; it is a guarantee about the bouncer's idea of an adversary.
 
 ### On TLA+ as daydream
 

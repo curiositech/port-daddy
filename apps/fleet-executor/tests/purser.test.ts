@@ -98,6 +98,7 @@ function mkCtx(over: Partial<PRContext> = {}): PRContext {
     diffBytes: 0,
     diffTruncated: false,
     filesTruncated: false,
+    diffSource: 'raw',
     ...over,
   };
 }

@@ -1,0 +1,199 @@
+{
+  "$schema": "./textbook.schema.json",
+  "edition": {
+    "title": "The Harbor, the Person, and the Economy",
+    "subtitle": "A textbook of accountable autonomous work",
+    "version": "4.0 (Textbook Edition)",
+    "date": "September 2026",
+    "pdf": "coordination-papers-mega-volume.pdf",
+    "claim": "Autonomy scales only when authority, evidence, and consequence remain coupled at every effect boundary."
+  },
+  "parts": [
+    {
+      "id": "machine",
+      "numeral": "I",
+      "title": "Ground Truth",
+      "color": "pdcobalt",
+      "blurb": "One writer decides what is real, every request that reaches it arrives with authority that can only have narrowed, and what runs on its behalf runs in a sealed room. Three chapters build the machine every later chapter answers to.",
+      "chapters": [
+        "single-writer-kernel",
+        "anchor-protocol",
+        "sealed-harbor"
+      ]
+    },
+    {
+      "id": "operator",
+      "numeral": "II",
+      "title": "The Cost of Seeing",
+      "color": "pdteal",
+      "blurb": "Many machines, one person watching. Supervision has a price, and it can be measured in bits. This part prices what the operator must be able to see and proves what no summary can hide.",
+      "chapters": [
+        "legible-swarm"
+      ]
+    },
+    {
+      "id": "person",
+      "numeral": "III",
+      "title": "What Survives the Restart",
+      "color": "pdviolet",
+      "blurb": "A process that can come back under a new name owes nothing. This part builds the continuity that turns a spawn into someone with a record worth pricing.",
+      "chapters": [
+        "spawn-to-person"
+      ]
+    },
+    {
+      "id": "market",
+      "numeral": "IV",
+      "title": "Trade Between Strangers",
+      "color": "pdgold",
+      "blurb": "Once records cannot be minted, trust can be rented. This part builds the market, then proves what it must assume: settlement conserves value, evidence is admissible, and sovereignty never crosses the wire.",
+      "chapters": [
+        "harbor-economy",
+        "bonded-commons",
+        "federated-harbor"
+      ]
+    }
+  ],
+  "chapters": [
+    {
+      "number": 1,
+      "id": "single-writer-kernel",
+      "prefix": "swk",
+      "title": "The Single-Writer Kernel",
+      "source": "whitepaper/single-writer-kernel.tex",
+      "pdf": "single-writer-kernel-whitepaper.pdf",
+      "role": "builds",
+      "formerNumeral": "II",
+      "oneLine": "One writer, one durable file, decides what is true so nothing above it has to guess.",
+      "question": "Where can a rule be made real?",
+      "teaser": "Every coordination story eventually reaches the place where somebody actually has to decide, and this is that place — one writer, one durable file, no quorum and no election, plus a short and honest list of what it will and won't promise you. It is the least glamorous chapter in the book, and everything above it leans on it.",
+      "epigraph": {
+        "text": "A distributed system is one in which the failure of a computer you didn't even know existed can render your own computer unusable.",
+        "source": "Leslie Lamport, message to a DEC SRC bulletin board, 28 May 1987"
+      }
+    },
+    {
+      "number": 2,
+      "id": "anchor-protocol",
+      "prefix": "anchor",
+      "title": "The Anchor Protocol",
+      "source": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+      "pdf": "anchor-protocol-whitepaper.pdf",
+      "role": "proves",
+      "discharges": "single-writer-kernel",
+      "formerNumeral": "V",
+      "oneLine": "Delegated capability only narrows: every child is a subset of its parent, at every hop, and the verifier checks the whole chain.",
+      "question": "How may authority travel without silently growing?",
+      "teaser": "Hand a capability to something you only mostly trust, which hands it on again, and again — and the interesting question isn't whether the first hop was safe, it's whether the fourth one quietly acquired more than the first. Attenuation at every hop, checked by a machine rather than by a convention everyone means to follow.",
+      "epigraph": {
+        "text": "Every program and every user of the system should operate using the least set of privileges necessary to complete the job.",
+        "source": "Jerome Saltzer and Michael Schroeder, The Protection of Information in Computer Systems, 1975"
+      }
+    },
+    {
+      "number": 3,
+      "id": "sealed-harbor",
+      "prefix": "sealed",
+      "title": "The Sealed Harbor",
+      "source": "website-v2/public/whitepaper/sealed-harbor.tex",
+      "pdf": "sealed-harbor-whitepaper.pdf",
+      "role": "proves",
+      "discharges": "single-writer-kernel",
+      "formerNumeral": "",
+      "oneLine": "A work order runs in a room with two fences and two gates, the only thing that leaves is what the slot lets out, and the budget of what can leak is a ledger that conserves.",
+      "question": "What can a sealed agent leak, and how would we know?",
+      "teaser": "You can put an agent in a room with no doors, but it still has to hand you its work, and the slot you hand it through is the whole security story. Two fences, two gates, and a budget for what can escape that gets counted rather than hoped about.",
+      "epigraph": {
+        "text": "Whereof one cannot speak, thereof one must be silent.",
+        "source": "Ludwig Wittgenstein, Tractatus Logico-Philosophicus, proposition 7, 1921 (Ogden translation, 1922)"
+      }
+    },
+    {
+      "number": 4,
+      "id": "legible-swarm",
+      "prefix": "ls",
+      "title": "The Legible Swarm",
+      "source": "whitepaper/legible-swarm.tex",
+      "pdf": "legible-swarm-whitepaper.pdf",
+      "role": "builds",
+      "formerNumeral": "I",
+      "oneLine": "The operator's problem is blindness, not collision; supervision has an information cost you can price in bits.",
+      "question": "What must remain visible, and what does seeing cost?",
+      "teaser": "The failure that actually costs you isn't two agents writing the same file — that one you can catch. It's the afternoon where twelve of them each did something defensible and you cannot tell which one cost you the morning. Supervision has a price, and this chapter puts a number on it, in bits.",
+      "epigraph": {
+        "text": "Certain forms of knowledge and control require a narrowing of vision. The great advantage of such tunnel vision is that it brings into sharp focus certain limited aspects of an otherwise far more complex and unwieldy reality.",
+        "source": "James C. Scott, Seeing Like a State, 1998"
+      }
+    },
+    {
+      "number": 5,
+      "id": "spawn-to-person",
+      "prefix": "stp",
+      "title": "From Spawn to Person",
+      "source": "website-v2/public/whitepaper/spawn-to-person.tex",
+      "pdf": "spawn-to-person-whitepaper.pdf",
+      "role": "builds",
+      "formerNumeral": "III",
+      "oneLine": "Continuity turns an anonymous spawn into a ledger position with a witnessed record; reputation is what that record is worth.",
+      "question": "What remains long enough to owe anything?",
+      "teaser": "A process that can come back under a new name owes you nothing, which means it can't be trusted with anything that matters. So the question is not whether an agent is a person (it isn't) but what would have to survive a restart before it could hold a position somebody would price. Not a soul — a row in a ledger.",
+      "epigraph": {
+        "text": "Person, as I take it, is the name for this self. It is a forensic term, appropriating actions and their merit; and so belongs only to intelligent agents, capable of a law, and happiness, and misery.",
+        "source": "John Locke, An Essay Concerning Human Understanding, II.xxvii.26, 1690"
+      }
+    },
+    {
+      "number": 6,
+      "id": "harbor-economy",
+      "prefix": "he",
+      "title": "The Harbor Economy",
+      "source": "website-v2/public/whitepaper/harbor-economy.tex",
+      "pdf": "harbor-economy-whitepaper.pdf",
+      "role": "builds",
+      "formerNumeral": "IV",
+      "oneLine": "Once records cannot be minted, trust can be rented between operators who never met: a three-sided market on one conserving ledger.",
+      "question": "What makes cooperation rational without making loss unbounded?",
+      "teaser": "Here the book stops describing a tool and starts describing a market: three sides, one conserving ledger, and the uncomfortable observation that once a record cannot be minted, trust becomes something you can rent to a stranger — which is either the point of the whole project or the moment you decide it went too far.",
+      "epigraph": {
+        "text": "Virtually every commercial transaction has within itself an element of trust, certainly any transaction conducted over a period of time.",
+        "source": "Kenneth J. Arrow, Gifts and Exchanges, 1972"
+      }
+    },
+    {
+      "number": 7,
+      "id": "bonded-commons",
+      "prefix": "bonded",
+      "title": "The Bonded Commons",
+      "source": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "pdf": "agent-transactions-whitepaper.pdf",
+      "role": "proves",
+      "discharges": "harbor-economy",
+      "formerNumeral": "VI",
+      "oneLine": "Bonds, witnesses, audits and appeals turn residual uncertainty into an institution; the ledger's conservation law is mechanically checked.",
+      "question": "Who may decide, on what evidence, with what consequence?",
+      "teaser": "Bonds, witnesses, audits, appeals — the machinery every real institution grows the moment it admits that disputes happen and somebody has to settle them. Underneath it sits a conservation law (value is neither conjured nor vanished in a settlement), and that law is the part a model checker can actually hold.",
+      "epigraph": {
+        "text": "If men were angels, no government would be necessary. If angels were to govern men, neither external nor internal controls on government would be necessary.",
+        "source": "James Madison, Federalist No. 51, 1788"
+      }
+    },
+    {
+      "number": 8,
+      "id": "federated-harbor",
+      "prefix": "fh",
+      "title": "The Federated Harbor",
+      "source": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+      "pdf": "federated-harbor-whitepaper.pdf",
+      "role": "proves",
+      "discharges": "harbor-economy",
+      "formerNumeral": "VII",
+      "oneLine": "Mutually distrustful machines relay evidence, not sovereignty: what may gossip, what needs an authority point, and how a grant crosses a boundary.",
+      "question": "What can cross a trust boundary without moving the authority itself?",
+      "teaser": "Two machines, two owners, neither willing to put the other in charge, and yet the work has to cross. Evidence travels and sovereignty doesn't — which sounds obvious right up until you have to say precisely which bytes may gossip and which ones need an authority point.",
+      "epigraph": {
+        "text": "Good fences make good neighbours.",
+        "source": "Robert Frost, Mending Wall, 1914"
+      }
+    }
+  ]
+}

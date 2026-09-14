@@ -2,45 +2,50 @@
 % envelope. Nested geometry carries both inequalities without a prose table.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[pd figure,x=.16cm,y=1.08cm]
-  \draw[pd rule,-{Stealth[length=1.7mm,width=1.05mm]}] (0,0) -- (67,0);
+\begin{tikzpicture}[pd figure,x=.15cm,y=1.08cm]
+  \draw[pd rule,-{Stealth[length=1.7mm,width=1.05mm]}] (0,0) -- (63,0);
   \draw[pd rule,-{Stealth[length=1.7mm,width=1.05mm]}] (0,0) -- (0,4.15);
-  \node[pd axis label,anchor=west] at (67,0) {remaining lifetime (min)};
-  \node[pd axis label,anchor=south,rotate=90] at (-4.7,4.15) {capability reach};
+  \node[pd axis label,anchor=north,align=center,text width=4.6cm] at (30,-.75)
+    {remaining lifetime (min)};
+  \node[pd axis label,anchor=south,rotate=90,align=center,text width=3.2cm]
+    at (-4.7,4.15) {capability reach};
 
   \foreach \y/\rightname in {1/{\texttt{db:write}},2/{+ \texttt{fs:read}},3/{+ \texttt{net:*}}} {
     \draw[pd guide] (0,\y) -- (63,\y);
-    \node[pd axis label,anchor=east] at (-1.0,\y) {\rightname};
+    \node[pd axis label,anchor=east] at (-.6,\y) {\rightname};
   }
   \foreach \x/\tickname in {5/5,15/15,60/60} {
     \draw[pd tick] (\x,0) -- (\x,-.12);
     \node[pd axis label,anchor=north] at (\x,-.18) {\tickname};
   }
 
-  \path[fill=hhsand!24,draw=hhgray!70,line width=.62pt]
-    (0,0) rectangle (60,3.35);
-  \path[fill=hhteal!7,draw=hhteal!72,line width=.82pt]
-    (0,0) rectangle (15,2.35);
-  \path[fill=hhteal!17,draw=hhteal,line width=1.02pt]
-    (0,0) rectangle (5,1.35);
+  \path[pd neutral fill] (0,0) rectangle (60,3.35);
+  \draw[pd rule] (0,0) rectangle (60,3.35);
+  \path[pd focus fill] (0,0) rectangle (15,2.35);
+  \draw[pd focus rule] (0,0) rectangle (15,2.35);
+  \path[pd focus fill] (0,0) rectangle (5,1.35);
+  \draw[pd focus rule] (0,0) rectangle (5,1.35);
 
-  \node[pd direct label,anchor=north east] at (59.4,3.28)
-    {$C_0$ root \quad 60 min};
-  \node[pd direct label,text=hhteal,anchor=north east] at (14.5,2.28)
-    {$C_1$ \quad 15 min};
-  \node[pd direct label,text=hhteal,anchor=west] at (5.7,.72)
-    {$C_2$ \quad 5 min};
+  \node[pd direct label,anchor=north east] at (59.4,2.7)
+    {\textbf{C0} root, 60 min};
+  \node[pd direct label,text=hhteal,anchor=north east] at (14.5,2.0)
+    {\textbf{C1}, 15 min};
+  \draw[pd hairline] (5,.9) -- (18,1.62);
+  \node[pd direct label,text=hhteal,anchor=west] (c2lab) at (18,1.62)
+    {\textbf{C2}, 5 min};
 
-  \node[pd caution datum] (bad) at (5,3) {};
-  \draw[pd caution arrow] (bad) -- ++(8,0)
-    node[pd direct label,text=hhamber,anchor=west] {attempted re-grant of \texttt{net:*}};
-  \node[pd note,anchor=west] at (25,.5)
-    {$C_2\subseteq C_1\subseteq C_0$ and $T_2<T_1<T_0$};
+  \node[pd caution datum] (bad) at (60,3.7) {};
+  \draw[pd caution arrow] (bad) -- ++(-14,.55)
+    node[pd direct label,text=hhamber,align=left,text width=3.3cm,anchor=south east]
+      {attempted re-grant:\\ net:* at 60 min:\\ refused};
+  \node[pd note,anchor=west] at (17,.5)
+    {C2 $\subseteq$ C1 $\subseteq$ C0 and T2 $<$ T1 $<$ T0};
 \end{tikzpicture}
-\caption{Delegation must remain inside a two-dimensional parent envelope. The
-child's capability set and remaining lifetime both contract at every hop. The
-amber re-grant lies outside $C_1$ even though its requested lifetime is short;
-the verifier rejects it because attenuation is conjunctive, not a trade between
-rights and time.}
+\caption{Nested rectangles for the capability envelope C0 (root, 60 min), C1
+(15 min) and C2 (5 min): each child rectangle sits strictly inside its parent
+on both axes. The amber datum is an attempted re-grant of \texttt{net:*} at
+the full 60-minute root lifetime, outside C0 on the capability axis; the
+verifier refuses it because attenuation is conjunctive on rights and time
+together, not a trade between them. [internal]}
 \label{fig:anchor-capability-attenuation}
 \end{figure}

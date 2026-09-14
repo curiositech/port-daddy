@@ -35,7 +35,7 @@ verdict. This makes the daemon a **thin untrusted orchestrator** — it gathers
 context and asks the kernel; it cannot forge an authorization because it holds no
 keys. Phase 3 closes the verdict-trust gap: the daemon **signs** its rent verdict
 with a daemon-held signing key, and the kernel **verifies** that signature before
-it will mint a discharge. This is the load-bearing hinge of the whole program —
+it will mint a discharge. This is the pivotal hinge of the whole program —
 **decision-in-daemon, verification-in-TCB** — and it is the precondition for the
 separate-UID kernel process (kernel slice 3 / ADR-0050 Layer 3), because once the
 verdict is a signed artifact the kernel can sit behind a UID boundary and still
@@ -261,7 +261,7 @@ that signature against a key it trusts before it mints a discharge.
 
 ### 3.2 Key management — the hinge
 
-This is the load-bearing design choice, stated explicitly to avoid the easy error
+This is the pivotal design choice, stated explicitly to avoid the easy error
 of putting the verify key in the wrong place:
 
 - **The SIGNING key is the daemon's.** The rent *decision* is the daemon's job —

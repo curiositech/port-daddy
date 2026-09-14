@@ -1,0 +1,146 @@
+/* ══════════════════════════════════════════════════════════════════
+   Signal flags — the ICS alphabet, Swiss-abstracted.
+
+   Ported from docs/design/story-linework/ports/port.css, where the
+   alphabet was drawn for the mocks and then had nowhere to live in the
+   product. Letter geometry is ICS-correct (verified against Pub. 102 via
+   the international-code-of-signals corpus, not from a decorative flag
+   chart); the colours map into the story palette rather than the real
+   flag inks — red becomes rust, yellow becomes lime, blue becomes cobalt,
+   black becomes ink, white stays a warm cream.
+
+   Two rules that are not decoration:
+
+   1. A flag on a surface means what lib/maritime-signals.ts says it
+      means. Do not pick a flag because its letter resembles a product
+      verb. Change that registry first; every renderer follows it.
+   2. Geometry carries the meaning, colour only reinforces it, so these
+      stay legible in monochrome and in high-contrast mode. Never set
+      body text over a flag field.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* The flag inks. Print inks do not survive a dark ground unchanged: cobalt
+   at #003fb8 goes to a hole and rust to a smudge, so dark gets its own set,
+   lifted in lightness and held at the same hue. The cream and the ink swap
+   roles rather than inverting, which keeps Papa reading as "white square on
+   blue" in both themes instead of becoming its own negative. */
+:root,
+[data-theme='light'] {
+  --fl-cobalt: #003fb8;
+  --fl-rust: #7a4514;
+  --fl-lime: #cad900;
+  --fl-cream: #fbf7ef;
+  --fl-ink: #17191d;
+}
+
+[data-theme='dark'] {
+  --fl-cobalt: #4a86ff;
+  --fl-rust: #b98e6b;
+  --fl-lime: #d8dd3c;
+  --fl-cream: #f2ede1;
+  --fl-ink: #0b0d11;
+}
+
+.fl {
+  display: inline-block;
+  width: var(--fl-w, 26px);
+  height: var(--fl-h, 19px);
+  border: 1px solid var(--hair-strong, rgba(18, 18, 18, 0.34));
+  flex: none;
+  --fw: var(--fl-cream);
+  --ink: var(--fl-ink);
+  --c: var(--fl-cobalt);
+  --r: var(--fl-rust);
+  --y: var(--fl-lime);
+}
+
+.fl-alfa { background: linear-gradient(to right, var(--fw) 0 50%, var(--c) 50%); }
+.fl-bravo { background: var(--r); }
+.fl-charlie {
+  background: linear-gradient(
+    to bottom,
+    var(--c) 0 20%, var(--fw) 20% 40%, var(--r) 40% 60%, var(--fw) 60% 80%, var(--c) 80%
+  );
+}
+.fl-delta { background: linear-gradient(to bottom, var(--y) 0 25%, var(--c) 25% 75%, var(--y) 75%); }
+.fl-echo { background: linear-gradient(to bottom, var(--c) 0 50%, var(--r) 50%); }
+.fl-foxtrot {
+  background:
+    linear-gradient(45deg, transparent 0 calc(50% - 12%), var(--r) calc(50% - 12%) calc(50% + 12%), transparent calc(50% + 12%)),
+    linear-gradient(-45deg, transparent 0 calc(50% - 12%), var(--r) calc(50% - 12%) calc(50% + 12%), transparent calc(50% + 12%)),
+    var(--fw);
+}
+.fl-golf { background: repeating-linear-gradient(to right, var(--y) 0 16.667%, var(--c) 16.667% 33.333%); }
+.fl-hotel { background: linear-gradient(to right, var(--fw) 0 50%, var(--r) 50%); }
+.fl-india { background: radial-gradient(circle at 50% 50%, var(--ink) 0 30%, transparent calc(30% + 0.5px)), var(--y); }
+.fl-juliett { background: linear-gradient(to bottom, var(--c) 0 33.4%, var(--fw) 33.4% 66.7%, var(--c) 66.7%); }
+.fl-kilo { background: linear-gradient(to right, var(--y) 0 50%, var(--c) 50%); }
+.fl-lima { background: conic-gradient(var(--ink) 0 25%, var(--y) 25% 50%, var(--ink) 50% 75%, var(--y) 75%); }
+.fl-mike {
+  background:
+    linear-gradient(45deg, transparent 0 calc(50% - 9%), var(--fw) calc(50% - 9%) calc(50% + 9%), transparent calc(50% + 9%)),
+    linear-gradient(-45deg, transparent 0 calc(50% - 9%), var(--fw) calc(50% - 9%) calc(50% + 9%), transparent calc(50% + 9%)),
+    var(--c);
+}
+.fl-november { background: repeating-conic-gradient(var(--c) 0 25%, var(--fw) 25% 50%) top left / 50% 50%; }
+.fl-oscar { background: linear-gradient(to top right, var(--r) 0 50%, var(--y) 50%); }
+.fl-papa { background: linear-gradient(var(--fw), var(--fw)) center / 42% 42% no-repeat, var(--c); }
+.fl-quebec { background: var(--y); }
+.fl-romeo {
+  background:
+    linear-gradient(var(--y), var(--y)) center / 100% 26% no-repeat,
+    linear-gradient(var(--y), var(--y)) center / 26% 100% no-repeat,
+    var(--r);
+}
+.fl-sierra { background: linear-gradient(var(--c), var(--c)) center / 42% 42% no-repeat, var(--fw); }
+.fl-tango { background: linear-gradient(to right, var(--r) 0 33.4%, var(--fw) 33.4% 66.7%, var(--c) 66.7%); }
+.fl-uniform { background: conic-gradient(var(--y) 0 25%, var(--r) 25% 50%, var(--y) 50% 75%, var(--r) 75%); }
+.fl-victor {
+  background:
+    linear-gradient(45deg, transparent 0 calc(50% - 11%), var(--r) calc(50% - 11%) calc(50% + 11%), transparent calc(50% + 11%)),
+    linear-gradient(-45deg, transparent 0 calc(50% - 11%), var(--r) calc(50% - 11%) calc(50% + 11%), transparent calc(50% + 11%)),
+    var(--fw);
+}
+.fl-whiskey {
+  background:
+    linear-gradient(var(--fw), var(--fw)) center / 66% 66% no-repeat,
+    linear-gradient(var(--r), var(--r)) center / 34% 34% no-repeat,
+    var(--c);
+}
+.fl-xray {
+  background:
+    linear-gradient(var(--c), var(--c)) center / 100% 26% no-repeat,
+    linear-gradient(var(--c), var(--c)) center / 26% 100% no-repeat,
+    var(--fw);
+}
+.fl-yankee { background: repeating-linear-gradient(45deg, var(--y) 0 6px, var(--r) 6px 12px); }
+.fl-zulu { background: conic-gradient(var(--y) 0 25%, var(--c) 25% 50%, var(--r) 50% 75%, var(--ink) 75%); }
+
+/* Substitutes are stylized pennants; band count is 1st/2nd/3rd. A repeat
+   whose original sits past the third position repeats the letter flag
+   itself, as it does at sea. */
+.fl-sub { clip-path: polygon(0 0, 100% 50%, 0 100%); border: none; }
+.fl-sub1 { background: linear-gradient(to bottom, var(--fw) 0 38%, var(--c) 38% 62%, var(--fw) 62%); }
+.fl-sub2 { background: repeating-linear-gradient(to bottom, var(--fw) 0 22%, var(--c) 22% 40%); }
+.fl-sub3 { background: repeating-linear-gradient(to bottom, var(--fw) 0 16%, var(--c) 16% 28%); }
+
+/* The route spelled in flags, flown at the head of a page. Decorative:
+   the visible text label carries the meaning for anyone not reading
+   flags, and the hoist itself is hidden from the accessibility tree. */
+.slug-hoist { display: flex; gap: 7px; align-items: center; }
+.slug-hoist .route {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-right: 6px;
+}
+
+/* One flag blown up to be THE colour block of a panel. */
+.flag-field {
+  position: relative;
+  border: none;
+  width: 100%;
+  height: 100%;
+}

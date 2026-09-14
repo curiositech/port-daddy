@@ -1,0 +1,490 @@
+{
+ "figure": "fig-swk-durability-faultclass",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "fail",
+   "count": 26,
+   "findings": [
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      434.2587890625,
+      135.78152465820312,
+      448.8872985839844,
+      142.57286071777344
+     ],
+     "text": "fault",
+     "size_pt": 6.79,
+     "message": "text 'fault' renders at 6.79pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      451.29144287109375,
+      135.78152465820312,
+      473.9812927246094,
+      142.57286071777344
+     ],
+     "text": "reaches",
+     "size_pt": 6.79,
+     "message": "text 'reaches' renders at 6.79pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      476.3786315917969,
+      135.78152465820312,
+      497.83245849609375,
+      142.57286071777344
+     ],
+     "text": "farther",
+     "size_pt": 6.79,
+     "message": "text 'farther' renders at 6.79pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      168.41763305664062,
+      144.94845581054688,
+      191.1414337158203,
+      151.7397918701172
+     ],
+     "text": "process",
+     "size_pt": 6.79,
+     "message": "text 'process' renders at 6.79pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      234.91526794433594,
+      146.7027587890625,
+      244.53179931640625,
+      153.4940948486328
+     ],
+     "text": "OS",
+     "size_pt": 6.79,
+     "message": "text 'OS' renders at 6.79pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      246.93592834472656,
+      146.7027587890625,
+      252.54556274414062,
+      153.4940948486328
+     ],
+     "text": "+",
+     "size_pt": 6.79,
+     "message": "text '+' renders at 6.79pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      254.94970703125,
+      146.7027587890625,
+      271.98236083984375,
+      153.4940948486328
+     ],
+     "text": "cache",
+     "size_pt": 6.79,
+     "message": "text 'cache' renders at 6.79pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      319.01129150390625,
+      144.94845581054688,
+      337.6534729003906,
+      151.7397918701172
+     ],
+     "text": "power",
+     "size_pt": 6.79,
+     "message": "text 'power' renders at 6.79pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      378.6256103515625,
+      146.7027587890625,
+      401.1116943359375,
+      153.4940948486328
+     ],
+     "text": "storage",
+     "size_pt": 6.79,
+     "message": "text 'storage' renders at 6.79pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      403.5158386230469,
+      146.7027587890625,
+      422.95263671875,
+      153.4940948486328
+     ],
+     "text": "device",
+     "size_pt": 6.79,
+     "message": "text 'device' renders at 6.79pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      155.86708068847656,
+      92.60944366455078,
+      182.72679138183594,
+      99.40077209472656
+     ],
+     "text": "returned",
+     "size_pt": 6.79,
+     "message": "text 'returned' renders at 6.79pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      185.1309356689453,
+      92.60944366455078,
+      207.2910614013672,
+      99.40077209472656
+     ],
+     "text": "success",
+     "size_pt": 6.79,
+     "message": "text 'success' renders at 6.79pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      209.6951904296875,
+      92.60944366455078,
+      234.8367156982422,
+      99.40077209472656
+     ],
+     "text": "survives",
+     "size_pt": 6.79,
+     "message": "text 'survives' renders at 6.79pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      237.2408447265625,
+      92.60944366455078,
+      259.96466064453125,
+      99.40077209472656
+     ],
+     "text": "process",
+     "size_pt": 6.79,
+     "message": "text 'process' renders at 6.79pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      262.3687744140625,
+      92.60944366455078,
+      278.84454345703125,
+      99.40077209472656
+     ],
+     "text": "crash",
+     "size_pt": 6.79,
+     "message": "text 'crash' renders at 6.79pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      155.86708068847656,
+      55.17015838623047,
+      179.50772094726562,
+      61.961490631103516
+     ],
+     "text": "commit",
+     "size_pt": 6.79,
+     "message": "text 'commit' renders at 6.79pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      181.91184997558594,
+      55.17015838623047,
+      198.1838836669922,
+      61.961490631103516
+     ],
+     "text": "waits",
+     "size_pt": 6.79,
+     "message": "text 'waits' renders at 6.79pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      200.5812225341797,
+      55.17015838623047,
+      223.23033142089844,
+      61.961490631103516
+     ],
+     "text": "beyond",
+     "size_pt": 6.79,
+     "message": "text 'beyond' renders at 6.79pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      225.63446044921875,
+      55.17015838623047,
+      248.48049926757812,
+      61.961490631103516
+     ],
+     "text": "volatile",
+     "size_pt": 6.79,
+     "message": "text 'volatile' renders at 6.79pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      250.87783813476562,
+      55.17015838623047,
+      267.91729736328125,
+      61.961490631103516
+     ],
+     "text": "cache",
+     "size_pt": 6.79,
+     "message": "text 'cache' renders at 6.79pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      255.62416076660156,
+      28.988739013671875,
+      266.04205322265625,
+      35.78007125854492
+     ],
+     "text": "not",
+     "size_pt": 6.79,
+     "message": "text 'not' renders at 6.79pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      268.4461975097656,
+      28.988739013671875,
+      303.115966796875,
+      35.78007125854492
+     ],
+     "text": "guaranteed",
+     "size_pt": 6.79,
+     "message": "text 'guaranteed' renders at 6.79pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      305.5133056640625,
+      28.988739013671875,
+      313.13995361328125,
+      35.78007125854492
+     ],
+     "text": "by",
+     "size_pt": 6.79,
+     "message": "text 'by' renders at 6.79pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      315.53729248046875,
+      28.988739013671875,
+      325.55450439453125,
+      35.78007125854492
+     ],
+     "text": "the",
+     "size_pt": 6.79,
+     "message": "text 'the' renders at 6.79pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      327.9586486816406,
+      28.988739013671875,
+      349.799560546875,
+      35.78007125854492
+     ],
+     "text": "default",
+     "size_pt": 6.79,
+     "message": "text 'default' renders at 6.79pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      352.2037048339844,
+      28.988739013671875,
+      378.0650634765625,
+      35.78007125854492
+     ],
+     "text": "contract",
+     "size_pt": 6.79,
+     "message": "text 'contract' renders at 6.79pt, below the 7.00pt floor"
+    }
+   ]
+  },
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T4": {
+   "status": "fail",
+   "count": 2,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      155.86708068847656,
+      92.60944366455078,
+      278.84454345703125,
+      99.40077209472656
+     ],
+     "text": "returned success survives process crash",
+     "line_segment": [
+      [
+       139.93118286132812,
+       96.23812103271484
+      ],
+      [
+       248.6256103515625,
+       96.23812103271484
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'returned success survives process crash'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      155.86708068847656,
+      55.17015838623047,
+      267.91729736328125,
+      61.961490631103516
+     ],
+     "text": "commit waits beyond volatile cache",
+     "line_segment": [
+      [
+       139.93118286132812,
+       58.798858642578125
+      ],
+      [
+       323.504150390625,
+       58.798858642578125
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'commit waits beyond volatile cache'"
+    }
+   ]
+  },
+  "T5": {
+   "status": "fail",
+   "count": 1,
+   "findings": [
+    {
+     "check": "T5",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      -1.408932089805603,
+      840.4810791015625,
+      1.408932089805603,
+      843.2989501953125
+     ],
+     "message": "a drawing at (-1.4, 840.5, 1.4, 843.3) falls outside the MediaBox (0.0, 0.0, 595.3, 841.9)"
+    }
+   ]
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "warn",
+   "count": 1,
+   "findings": [
+    {
+     "check": "T7",
+     "severity": "warn",
+     "page": 0,
+     "content_width_pt": 530.3,
+     "textwidth_pt": 462.0,
+     "message": "drawn content is 18.71cm wide, wider than the 16.30cm chapter textwidth"
+    }
+   ]
+  }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T1",
+   "T4",
+   "T5"
+  ],
+  "warned_checks": [
+   "T7"
+  ]
+ }
+}

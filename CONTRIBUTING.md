@@ -168,7 +168,7 @@ port-daddy/
 
 Every PR is filled out against [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md)
 and goes through skeptical adversarial review before merge. The full doctrine
-lives in [`AGENTS.md` § Pull Request Operating Procedure](AGENTS.md); the load-bearing rules:
+lives in [`AGENTS.md` § Pull Request Operating Procedure](AGENTS.md); the pivotal rules:
 
 - **Exhaustive Summary + non-trivial Test Plan.** Not "ran the tests" — show the
   evidence (commands, output, edge cases), ideally turned into new test cases.

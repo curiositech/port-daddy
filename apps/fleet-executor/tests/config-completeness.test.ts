@@ -38,9 +38,9 @@ const CODE_ONLY: Record<string, string> = {
   purser: 'derived from `class: purser`',
 };
 
-/** Read fleet.ts so the parser can be checked against the type. */
+/** Read the shared source so the parser remains checked against its type. */
 function fleetSource(): string {
-  return readFileSync(join(__dirname, '..', 'src', 'fleet.ts'), 'utf8');
+  return readFileSync(join(__dirname, '..', '..', 'shared', 'fleet-config.ts'), 'utf8');
 }
 
 describe('the config type and the config parser do not drift', () => {

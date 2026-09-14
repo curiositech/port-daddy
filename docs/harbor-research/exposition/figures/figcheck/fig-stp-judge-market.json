@@ -1,0 +1,145 @@
+{
+ "figure": "fig-stp-judge-market",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T4": {
+   "status": "fail",
+   "count": 4,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      99.2386474609375,
+      68.78868103027344,
+      110.17176055908203,
+      81.23236846923828
+     ],
+     "text": "J1",
+     "line_segment": [
+      [
+       93.56660461425781,
+       86.12322998046875
+      ],
+      [
+       116.42059326171875,
+       63.269256591796875
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'J1'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      174.33029174804688,
+      68.78868103027344,
+      185.26341247558594,
+      81.23236846923828
+     ],
+     "text": "J3",
+     "line_segment": [
+      [
+       168.65875244140625,
+       86.12322998046875
+      ],
+      [
+       191.51278686523438,
+       63.269256591796875
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'J3'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      286.9687805175781,
+      68.78868103027344,
+      297.9018859863281,
+      81.23236846923828
+     ],
+     "text": "J6",
+     "line_segment": [
+      [
+       281.2967529296875,
+       86.12322998046875
+      ],
+      [
+       304.1507263183594,
+       63.269256591796875
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'J6'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      476.71136474609375,
+      171.13087463378906,
+      510.2997131347656,
+      180.31053161621094
+     ],
+     "text": "re-audit",
+     "line_segment": [
+      [
+       493.513427734375,
+       166.1124725341797
+      ],
+      [
+       493.513427734375,
+       199.72718811035156
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 're-audit'"
+    }
+   ]
+  },
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T4"
+  ],
+  "warned_checks": []
+ }
+}

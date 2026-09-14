@@ -1,5 +1,5 @@
 /**
- * Capability attenuation under delegation (Chapter V, `fig-anchor-capability-attenuation.tex`),
+ * Capability attenuation under delegation (Chapter 2, `fig-anchor-capability-attenuation.tex`),
  * drawn as three nested rings — a Russian doll of authority. Each child capability is
  * a *strict subset* of its parent's: both the granted rights and the TTL shrink
  * monotonically across every delegation hop. A macaroon-style chain only ever
@@ -130,7 +130,7 @@ export function AnchorCapabilityAttenuation() {
         </svg>
       </div>
       <figcaption className="border-t-2 border-[var(--border-strong)] p-[var(--space-4)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-        From Chapter V, <span className="font-black text-[var(--text-primary)]">The Anchor Protocol</span>.
+        From Chapter 2, <span className="font-black text-[var(--text-primary)]">The Anchor Protocol</span>.
         Each delegation hop can only <span className="font-black text-[var(--text-primary)]">contract</span> authority:
         the child capability is a strict subset of its parent&apos;s, and its TTL is
         shorter. AgentB inherits only what AgentA explicitly hands down — and cannot

@@ -25,7 +25,7 @@
  */
 
 import { createTool2VecStore } from '../lib/skill-graft-tool2vec.js';
-import { createLocalEmbedder, defaultTransformersCacheDir } from '../lib/semantic-resolver.js';
+import { createLocalTextEmbedder, defaultTransformersCacheDir } from '../lib/semantic-resolver.js';
 import {
   createSkillGraftIndex,
   defaultSkillGraftRoots,
@@ -54,7 +54,7 @@ function localSyntheticQueryGenerator(skill: { name: string; description: string
 async function main(): Promise<void> {
   const failures: string[] = [];
   const cacheDir = defaultTransformersCacheDir();
-  const embedder = createLocalEmbedder({ cacheDir });
+  const embedder = createLocalTextEmbedder('pd.skill-catalog.graft-verification', { cacheDir });
 
   console.log(`[verify-skill-graft] using real MiniLM embedder (cache: ${cacheDir})`);
   console.log('[verify-skill-graft] scanning real skills/ directory...');

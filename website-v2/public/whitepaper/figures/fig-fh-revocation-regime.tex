@@ -1,0 +1,37 @@
+% Figure --- the revocation exposure regime: which bound binds a stale card.
+% Provenance: cor:fh-window (exposure <= T_p + T_g under a partition bound and a
+% delivery service level) and thm:fh-conv item 3 (no bound without them); the
+% card's TTL is the fail-closed ceiling. Drawn by hand in TikZ; TTL = 8 rounds.
+\begin{figure}[H]
+\centering
+\resizebox{0.88\textwidth}{!}{%
+\begin{tikzpicture}[pd figure,x=1cm,y=0.5cm]
+  \node[pd panel title,anchor=west] at (0,11.4) {which bound binds a stale card: partition bound against delivery service level};
+  \fill[pd focus fill] (0,0) -- (8,0) -- (0,8) -- cycle;
+  \fill[pd caution fill] (8,0) -- (10,0) -- (10,10) -- (0,10) -- (0,8) -- cycle;
+  \draw[hhteal,line width=1.2pt] (8,0) -- (0,8);
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (0,0) -- (10.4,0);
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (0,0) -- (0,10.6);
+  \foreach \t in {2,4,6,8,10} {
+    \draw[pd rule] (\t,0) -- (\t,-0.25);
+    \node[pd axis label,anchor=north] at (\t,-0.35) {\t};
+    \draw[pd rule] (0,\t) -- (-0.12,\t);
+    \node[pd axis label,anchor=east] at (-0.2,\t) {\t};
+  }
+  \node[pd axis label,anchor=north,text width=5cm,align=center] at (5,-1.3) {partition bound, in rounds};
+  \node[pd axis label,anchor=south,rotate=90,text width=5cm,align=center] at (-0.95,5) {delivery service level, in rounds};
+  \node[pd axis label,text=hhteal,text width=3.6cm,align=left,anchor=west] at (0.4,2.2)
+    {exposure is bounded by the two operational bounds added together};
+  \node[pd axis label,text=hhamber,text width=7cm,align=left,anchor=west] at (1.0,9.15)
+    {the operational bounds exceed the TTL: only the card's expiry binds};
+  \node[pd axis label,text=hhteal,anchor=south west,text width=3.4cm,align=left] at (4.3,4.1) {the TTL line, eight rounds here};
+\end{tikzpicture}}
+\caption{Which bound binds a stale card after revocation. Under a partition
+bound and a delivery service level, exposure is at most the two added together
+(Corollary~\ref{cor:fh-window}); once that sum exceeds the card's time to live,
+the expiry binds instead and the harbor fails closed. Without a partition bound
+the horizontal axis is unbounded and only the expiry remains
+(Theorem~\ref{thm:fh-conv}, item 3); the line is drawn for a time to live of
+eight rounds.}
+\label{fig:fh-revocation-regime}
+\end{figure}

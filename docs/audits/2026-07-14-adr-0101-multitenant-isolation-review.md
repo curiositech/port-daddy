@@ -23,7 +23,7 @@ This is a legitimate model — delegating isolation to a strong external ACL bea
 a hand-rolled tenant table — but it means the skill's RLS-centric playbook does
 **not** apply as written. The findings below are framed for *this* model.
 
-## The structural constraint (the load-bearing finding)
+## The structural constraint (the decisive finding)
 
 **MT1 — D1 has no row-level security, so there is no database-level isolation
 backstop.** The skill's first rule ("enforce at the database level, not just

@@ -215,7 +215,7 @@ pd setup`}
             ))}
           </div>
           <Link
-            to="/library"
+            to="/whitepaper"
             className="group inline-flex w-fit items-center gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)] no-underline"
           >
             Read all {WHITE_PAPERS.length} in the Harbor Library

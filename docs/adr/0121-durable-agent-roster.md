@@ -1,6 +1,6 @@
 # 0121. Durable named-agent roster
 
-> **Note (2026-08-16):** Renumbered from 0119 → 0121 to resolve the 0119 collision with the relay release-channels ADR (which keeps 0119: dated 2026-08-04 and load-bearing for the relay deploy gate).
+> **Note (2026-08-16):** Renumbered from 0119 → 0121 to resolve the 0119 collision with the relay release-channels ADR (which keeps 0119: dated 2026-08-04 and core for the relay deploy gate).
 
 ## Status
 

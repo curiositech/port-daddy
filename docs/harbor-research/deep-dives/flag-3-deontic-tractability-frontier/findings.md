@@ -196,7 +196,7 @@ $q \to p$ — "note that `q` and `p` are different, but `q` implies `p`."
 That is exactly Paper 6's canonical mutation-detected case, the one the paper
 calls "a two-hop indirect conflict, exactly the species the mutant misses"
 (`paper6.tex:145–146`). The paper independently arrived at the field's textbook
-example of an indirect conflict and built its load-bearing mutation test on it.
+example of an indirect conflict and built its critical mutation test on it.
 
 **Adopt the term.** Say "what the normative-MAS literature calls an *indirect*
 normative conflict" once at `paper6.tex:145`. Eight words. It tells a COIN/AAMAS
@@ -317,7 +317,7 @@ survey itself was fetched and read in full):
 
 **Why this matters more than its length suggests.** Every other neighbour in this
 dive solves *compliance of a behaviour model against a norm set*. That difference
-is the load-bearing reason the verdict is `NARROW` rather than `SUBSUMED`. This
+is the critical reason the verdict is `NARROW` rather than `SUBSUMED`. This
 one does not: it is **conflict-freedom of the normative system itself, at design
 time** — Paper 6's problem, stated the same way, proven intractable, in 2007.
 

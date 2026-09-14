@@ -58,6 +58,15 @@ roadmap before the CLI-only path ships to operators. Examples in flight:
 `fleetbar-secret-management-with-provider-deeplinks`,
 `fleetbar-console-must-support-zoom-and-text-scaling`.
 
+The Harbor Work Register is the sanctioned coordination surface while the
+local runtime is intentionally Off. Browser approval may mint only a one-use,
+short-lived, repository/task/owner-bound Register credential. Keep that
+credential in a dedicated table and resolver; never admit it through the
+general `pdu_` account-auth path. The Register remains occupancy authority,
+not roadmap authority: a missing or stale daemon-pushed mirror means unknown
+work and `proposed` claims, never permission for the Relay to become a second
+roadmap writer.
+
 ## How to work a slice (operating expectations)
 
 The full posture lives in `AGENTS.md` § Agent Operating Expectations. The
@@ -404,8 +413,10 @@ invent a command, switch identities or replay an uncertain write.
 permitted inspection path. Respond graciously, incorporating actionable
 feedback unless clearly wrong or harmful; explain disagreements with evidence.
 Add regression tests and land high-confidence findings as named fixup commits.
-Get `npx tsc
---noEmit`, jest, `npm run parity`, and the build green. Rebase onto latest
+Get every status context configured as required by the live ruleset green.
+Advisory repo jobs and external checks are evidence, not merge blockers; inspect
+material failures, record their disposition, and do not wait merely for visual
+all-green. Rebase onto latest
 `origin/main`, resolve conflicts with affected owners, validate and update the
 same App PR. Read-only reviewers must not push or merge; preserve role scope.
 
@@ -450,6 +461,14 @@ work; never reset or clobber the main checkout.
   argv argument.
 
 ### Test + session gotchas (dev-loop shibboleths)
+
+- **Research reuse is not another authority.** The Project Epistemology D1a lab
+  (`docs/research/egosystem-reconciliation/harness/`) imports the existing Harbor
+  R17 checker without running its sweep at import. Keep fixture envelopes out of
+  production registration, preserve scoped provenance and explicit bounds, and
+  distinguish synthetic replay from canonical conformance and empirical H1–H4
+  evidence. During an operator halt, use only bounded offline tests; never boot
+  the daemon or fan out reviewers to satisfy a research gate.
 
 The friction below costs every fresh session real time. Internalize it.
 
@@ -624,6 +643,21 @@ extensions (release-tag immutability, the v-prefix convention, the brew
 formula update protocol).
 
 ## Fleet Model Tiers (never choose from memory)
+
+Repository-wide cloud ship permissions are spending authority, not personal
+preferences. Preserve admin Off across account/settings removal; require a fresh
+repository-admin witness and revisioned writes. Re-read the shared D1 control
+before ship/checkpoint admission and optional XO work; unknown storage stops
+execution, and skipped reviews are not passing reviews. Keep the page's scope
+explicit: this does not control local agents or the separate Steward service.
+Follow `docs/operations/repo-ship-controls.md` for schema-first release ordering.
+Browser form proof must exercise real Origin and redirect behavior, not only
+synthetic Request objects.
+Ship history must stay repo-authorized and bounded. Missing cost is not zero,
+permission is not running status, and a transcript index is not proof its R2
+object survives. Keep additional Cloudflare logs metadata-only; verify deployed
+settings separately from committed configuration and never probe with paid work
+under the operator halt.
 
 Every Workers AI model decision — a ship's tier, a purser step model, a new
 admission — is made against `references/cloudflare-model-roster.md` (the
@@ -830,13 +864,14 @@ latency, and cost. Persist provider, model id, immutable revision, dimensions,
 normalization, distance metric, and a `space_id` hashed from canonical ordered
 metadata with vectors and queries;
 reject or re-embed incompatible spaces rather than comparing them silently.
-MiniLM is only an explicit local/degraded fallback. Verify current source and
-the installed `pd embed --help` surface before depending on model selection. At
-the 2026-08-31 audit point, `main` and the installed stable runtime exposed only
-the MiniLM path; treat that as transitional. Higher-quality selection depends
-on the in-flight control-plane embedding-model-registry work; do not describe
-that registry as shipped until source, deployed runtime, and read-back evidence
-agree. Do not add reputation scores from declared skills, or mark stored
+MiniLM is only an explicit local/degraded fallback. Direct embedding calls name
+their stable corpus (`pd embed text|stdin --corpus <id>`); the source selector
+maps policy, role, tier, and provider to a registry `spaceId`, while the local
+loader verifies artifact/runtime digests and vector shape before returning
+coordinates. Those checks neither sign producer conformance nor promote a
+profile. Verify current source and the installed `pd embed --help` surface;
+do not describe the selector as deployed until source, runtime, and read-back
+evidence agree. Do not add reputation scores from declared skills, or mark stored
 permission/trigger declarations enforced without a daemon-witnessed runtime
 receipt.
 

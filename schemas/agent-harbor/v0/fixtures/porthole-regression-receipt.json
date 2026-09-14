@@ -1,0 +1,153 @@
+{
+  "schema": "pd.porthole.regression-receipt.v1",
+  "receiptId": "regression_01JZPORT0001",
+  "stageId": "stage_01JZPORT0001",
+  "source": {
+    "interval": {
+      "startedAt": "2026-08-30T18:00:12.000Z",
+      "endedAt": "2026-08-30T18:00:20.000Z",
+      "startEventId": "stage_evt_01JZPORT0003",
+      "endEventId": "stage_evt_01JZPORT0010"
+    },
+    "bugReport": {
+      "eventId": "stage_evt_01JZPORT0010",
+      "commitment": "sha256:a333333333333333333333333333333333333333333333333333333333333333"
+    },
+    "events": [
+      {
+        "eventId": "stage_evt_01JZPORT0003",
+        "commitment": "sha256:a111111111111111111111111111111111111111111111111111111111111111"
+      },
+      {
+        "eventId": "stage_evt_01JZPORT0007",
+        "commitment": "sha256:a222222222222222222222222222222222222222222222222222222222222222"
+      },
+      {
+        "eventId": "stage_evt_01JZPORT0010",
+        "commitment": "sha256:a333333333333333333333333333333333333333333333333333333333333333"
+      }
+    ],
+    "perspectives": [
+      {
+        "perspectiveId": "pov_01JZPORT0001",
+        "commitment": "sha256:a444444444444444444444444444444444444444444444444444444444444444"
+      }
+    ],
+    "sourceSetCommitment": "sha256:a555555555555555555555555555555555555555555555555555555555555555"
+  },
+  "generator": {
+    "name": "porthole-regression-generator",
+    "version": "1.0.0",
+    "framework": "playwright",
+    "frameworkVersion": "1.55.0",
+    "generatedAt": "2026-08-30T18:02:00.000Z"
+  },
+  "privacy": {
+    "scan": {
+      "scanner": "pd-secret-scanner",
+      "version": "1.0.0",
+      "status": "passed",
+      "detectedSecretCount": 0,
+      "completedAt": "2026-08-30T18:02:02.000Z",
+      "receiptRef": "privacy_scan_receipt_regression_1",
+      "artifactManifestHash": "sha256:a666666666666666666666666666666666666666666666666666666666666666"
+    },
+    "policy": {
+      "policyId": "porthole-regression-privacy-v1",
+      "receiptRef": "privacy_policy_receipt_regression_1",
+      "verification": "verified",
+      "verifiedAt": "2026-08-30T18:02:03.000Z"
+    }
+  },
+  "environment": {
+    "cleanProfile": {
+      "profileId": "browser_profile_clean_01",
+      "state": "clean",
+      "attestationRef": "attest_clean_profile_01",
+      "commitment": "sha256:a777777777777777777777777777777777777777777777777777777777777777"
+    },
+    "build": {
+      "buildRef": "build_checkout_80340bb0",
+      "commitHash": "80340bb080340bb080340bb080340bb080340bb0",
+      "attestationRef": "attest_build_01",
+      "commitment": "sha256:a888888888888888888888888888888888888888888888888888888888888888"
+    },
+    "worktree": {
+      "worktreeId": "worktree_porthole_regression_01",
+      "state": "clean",
+      "baseCommit": "80340bb080340bb080340bb080340bb080340bb0",
+      "attestationRef": "attest_worktree_01",
+      "commitment": "sha256:a999999999999999999999999999999999999999999999999999999999999999"
+    },
+    "sandbox": {
+      "policyRef": "coast_guard_porthole_test_v1",
+      "state": "enforced",
+      "attestationRef": "attest_sandbox_01",
+      "commitment": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "egress": {
+      "policyRef": "egress_deny_default_v1",
+      "state": "denied-by-default",
+      "attestationRef": "attest_egress_01",
+      "commitment": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  },
+  "artifactManifest": {
+    "manifestId": "artifact_manifest_regression_01",
+    "immutableVersion": 1,
+    "files": [
+      {
+        "artifactId": "artifact_checkout_clipping_spec",
+        "path": "tests/porthole/checkout-clipping.spec.ts",
+        "mediaType": "text/typescript",
+        "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      }
+    ],
+    "manifestHash": "sha256:a666666666666666666666666666666666666666666666666666666666666666"
+  },
+  "execution": {
+    "status": "passed",
+    "targetBuildCommit": "80340bb080340bb080340bb080340bb080340bb0",
+    "startedAt": "2026-08-30T18:02:05.000Z",
+    "completedAt": "2026-08-30T18:02:20.000Z",
+    "attempts": [
+      {
+        "attempt": 1,
+        "status": "passed",
+        "startedAt": "2026-08-30T18:02:05.000Z",
+        "completedAt": "2026-08-30T18:02:11.000Z",
+        "outputManifestHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      {
+        "attempt": 2,
+        "status": "passed",
+        "startedAt": "2026-08-30T18:02:12.000Z",
+        "completedAt": "2026-08-30T18:02:18.000Z",
+        "outputManifestHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      }
+    ],
+    "flakeAssessment": "stable"
+  },
+  "review": {
+    "decision": "accepted",
+    "reviewedByParticipantId": "person_erich",
+    "reviewedAt": "2026-08-30T18:03:00.000Z",
+    "reviewReceiptRef": "review_receipt_regression_01",
+    "acceptedCommit": "5555555555555555555555555555555555555555",
+    "rejectionReason": null
+  },
+  "lineageRunId": "openlineage-run_regression_01",
+  "issuer": {
+    "harborId": "harbor_local",
+    "participantId": "person_erich",
+    "deviceId": "device_erich_mac",
+    "signingKeyId": "signing_key_erich_mac_1"
+  },
+  "createdAt": "2026-08-30T18:03:01.000Z",
+  "contentHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "signature": {
+    "algorithm": "ed25519",
+    "keyId": "signing_key_erich_mac_1",
+    "value": "bW9jay1wb3J0aG9sZS1yZWdyZXNzaW9uLXNpZ25hdHVyZS0wMQ"
+  }
+}

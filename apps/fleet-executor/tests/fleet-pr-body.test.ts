@@ -116,6 +116,7 @@ function mkCtx(): PRContext {
     diffBytes: 0,
     diffTruncated: false,
     filesTruncated: false,
+    diffSource: 'raw',
   };
 }
 

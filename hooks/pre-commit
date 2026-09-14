@@ -1,11 +1,46 @@
-#!/usr/bin/env zsh
+#!/bin/sh
+# POSIX sh, not zsh. This hook used to open `#!/usr/bin/env zsh` for one
+# reason -- an associative array of line-count floors -- and paid for it by
+# not existing at all on any machine without zsh, which is most Linux boxes
+# and every CI runner we use. A guard that silently does not run is a guard
+# that fails open, so the floors are a here-doc now and the shell is the one
+# every POSIX system has.
+PD_HOOK_HOME="${PD_HOME:-$HOME/.port-daddy}"
+[ -e "$PD_HOOK_HOME/hooks.disabled" ] && exit 0
+PD_HOOK_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+PD_HOOK_COMMON=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || exit 0
+[ -f "$PD_HOOK_ROOT/.portdaddy/coordination-guard.json" ] ||
+  [ -f "$PD_HOOK_COMMON/port-daddy/coordination-guard.json" ] || exit 0
+PD_HOOK_READY="${PORT_DADDY_READY_FILE:-$PD_HOOK_HOME/daemon.ready}"
+PD_HOOK_PID="${PORT_DADDY_PID_FILE:-$PD_HOOK_HOME/daemon.pid}"
+PD_HOOK_HEARTBEAT="${PORT_DADDY_HEARTBEAT_FILE:-$PD_HOOK_HOME/heartbeat}"
+[ -f "$PD_HOOK_READY" ] && [ ! -L "$PD_HOOK_READY" ] || exit 0
+[ -f "$PD_HOOK_PID" ] && [ ! -L "$PD_HOOK_PID" ] || exit 0
+[ -f "$PD_HOOK_HEARTBEAT" ] && [ ! -L "$PD_HOOK_HEARTBEAT" ] || exit 0
+PD_HOOK_READY_PID=$(tr -d '[:space:]' < "$PD_HOOK_READY" 2>/dev/null || true)
+PD_HOOK_DAEMON_PID=$(tr -d '[:space:]' < "$PD_HOOK_PID" 2>/dev/null || true)
+[ -n "$PD_HOOK_READY_PID" ] && [ "$PD_HOOK_READY_PID" = "$PD_HOOK_DAEMON_PID" ] || exit 0
+# GNU stat and BSD stat spell mtime differently, and neither fails the way the
+# other's flag suggests: `stat -f %m FILE` on GNU coreutils treats %m as a
+# second FILE, prints a whole filesystem block to stdout, and exits 1 -- so
+# `stat -f %m || stat -c %Y` captures the dump AND the timestamp concatenated,
+# which then fails the digit check below and takes the hook out entirely.
+# Ask each dialect separately and keep whichever answers in digits.
+PD_HOOK_HEARTBEAT_MTIME=$(stat -c %Y "$PD_HOOK_HEARTBEAT" 2>/dev/null || true)
+case "$PD_HOOK_HEARTBEAT_MTIME" in
+  ''|*[!0-9]*) PD_HOOK_HEARTBEAT_MTIME=$(stat -f %m "$PD_HOOK_HEARTBEAT" 2>/dev/null || true) ;;
+esac
+PD_HOOK_NOW=$(date +%s 2>/dev/null || true)
+case "$PD_HOOK_HEARTBEAT_MTIME" in ''|*[!0-9]*) exit 0 ;; esac
+case "$PD_HOOK_NOW" in ''|*[!0-9]*) exit 0 ;; esac
+PD_HOOK_AGE=$((PD_HOOK_NOW - PD_HOOK_HEARTBEAT_MTIME))
+[ "$PD_HOOK_AGE" -ge -30 ] && [ "$PD_HOOK_AGE" -le 30 ] || exit 0
+
 # =============================================================================
 # Port Daddy Pre-Commit Guard
 # =============================================================================
 # Prevents rogue agents (or humans) from gutting critical files.
 # Defense-in-depth: tests catch regressions, this hook blocks commits.
-#
-# Uses zsh (available on macOS) for associative array support.
 # =============================================================================
 
 RED='\033[0;31m'
@@ -15,90 +50,88 @@ NC='\033[0m'
 ERRORS=0
 
 fail() {
-  echo "${RED}PRE-COMMIT BLOCKED:${NC} $1" >&2
+  printf '%bPRE-COMMIT BLOCKED:%b %s\n' "$RED" "$NC" "$1" >&2
   ERRORS=$((ERRORS + 1))
 }
 
 # ---------------------------------------------------------------------------
 # 1. Critical files must not be deleted
 # ---------------------------------------------------------------------------
-CRITICAL_FILES=(
-  server.ts
-  lib/services.ts
-  lib/sessions.ts
-  lib/agents.ts
-  lib/locks.ts
-  lib/messaging.ts
-  lib/identity.ts
-  lib/db.ts
-  lib/client.ts
-  lib/sugar.ts
-  lib/config.ts
-  lib/activity.ts
-  lib/webhooks.ts
-  lib/dns.ts
-  lib/health.ts
-  lib/harbors.ts
-  lib/resurrection.ts
-  lib/orchestrator.ts
-  lib/detect.ts
-  lib/scan.ts
-  bin/port-daddy-cli.ts
-  mcp/server.ts
-  public/index.html
-  package.json
-)
-
 DELETED_FILES=$(git diff --cached --name-only --diff-filter=D 2>/dev/null || true)
-for f in $CRITICAL_FILES; do
-  if echo "$DELETED_FILES" | grep -qx "$f"; then
+while IFS= read -r f; do
+  [ -n "$f" ] || continue
+  if printf '%s\n' "$DELETED_FILES" | grep -qx -- "$f"; then
     fail "$f was DELETED. This file is critical infrastructure."
   fi
-done
+done <<'CRITICAL_FILES'
+server.ts
+lib/services.ts
+lib/sessions.ts
+lib/agents.ts
+lib/locks.ts
+lib/messaging.ts
+lib/identity.ts
+lib/db.ts
+lib/client.ts
+lib/sugar.ts
+lib/config.ts
+lib/activity.ts
+lib/webhooks.ts
+lib/dns.ts
+lib/health.ts
+lib/harbors.ts
+lib/resurrection.ts
+lib/orchestrator.ts
+lib/detect.ts
+lib/scan.ts
+bin/port-daddy-cli.ts
+mcp/server.ts
+public/index.html
+package.json
+CRITICAL_FILES
 
 # ---------------------------------------------------------------------------
 # 2. Critical files must not be gutted below minimum line counts
 #    Thresholds are ~40% of current size — catches gutting while allowing
-#    legitimate refactoring.
+#    legitimate refactoring. `public/index.html` is low on purpose: the web
+#    dashboard was retired (surface consolidation, 2026-07) and the root page
+#    is now a deliberately minimal pointer to the native surfaces, so its
+#    floor guards against accidental truncation only.
 # ---------------------------------------------------------------------------
-typeset -A MIN_LINES
-MIN_LINES=(
-  server.ts 300
-  lib/services.ts 200
-  lib/sessions.ts 400
-  lib/agents.ts 300
-  lib/locks.ts 150
-  lib/messaging.ts 150
-  lib/identity.ts 60
-  lib/db.ts 80
-  lib/client.ts 800
-  lib/sugar.ts 100
-  lib/config.ts 80
-  lib/activity.ts 150
-  lib/webhooks.ts 200
-  lib/dns.ts 150
-  lib/health.ts 100
-  lib/harbors.ts 100
-  lib/detect.ts 400
-  lib/scan.ts 100
-  lib/orchestrator.ts 150
-  bin/port-daddy-cli.ts 800
-  mcp/server.ts 800
-  # public/index.html: the web dashboard was retired (surface consolidation,
-  # 2026-07) — the root page is now a deliberately minimal pointer to the
-  # native surfaces. Floor guards against accidental truncation only.
-  public/index.html 60
-)
-
 MODIFIED_FILES=$(git diff --cached --name-only --diff-filter=M 2>/dev/null || true)
-for f threshold in ${(kv)MIN_LINES}; do
-  if echo "$MODIFIED_FILES" | grep -qx "$f"; then
+while read -r f threshold; do
+  [ -n "$f" ] || continue
+  if printf '%s\n' "$MODIFIED_FILES" | grep -qx -- "$f"; then
     LINES=$(git show ":$f" 2>/dev/null | wc -l | tr -d ' ')
-    if (( LINES < threshold )); then
+    case "$LINES" in ''|*[!0-9]*) continue ;; esac
+    if [ "$LINES" -lt "$threshold" ]; then
       fail "$f was gutted to $LINES lines (minimum: $threshold). Restore the file."
     fi
   fi
-done
+done <<'MIN_LINES'
+server.ts 300
+lib/services.ts 200
+lib/sessions.ts 400
+lib/agents.ts 300
+lib/locks.ts 150
+lib/messaging.ts 150
+lib/identity.ts 60
+lib/db.ts 80
+lib/client.ts 800
+lib/sugar.ts 100
+lib/config.ts 80
+lib/activity.ts 150
+lib/webhooks.ts 200
+lib/dns.ts 150
+lib/health.ts 100
+lib/harbors.ts 100
+lib/detect.ts 400
+lib/scan.ts 100
+lib/orchestrator.ts 150
+bin/port-daddy-cli.ts 800
+mcp/server.ts 800
+public/index.html 60
+MIN_LINES
 
 # ---------------------------------------------------------------------------
 # 3. Database and binary files must never be committed
@@ -106,7 +139,8 @@ done
 # --diff-filter=d: deletions carry no staged content, and blocking them would
 # prevent the one commit that removes an already-tracked artifact.
 STAGED_FILES=$(git diff --cached --name-only --diff-filter=d 2>/dev/null || true)
-for f in ${(f)STAGED_FILES}; do
+while IFS= read -r f; do
+  [ -n "$f" ] || continue
   case "$f" in
     *.db|*.db-wal|*.db-shm|*.sqlite|*.sqlite3)
       fail "Database file '$f' is staged. Remove it: git reset HEAD '$f'"
@@ -115,27 +149,33 @@ for f in ${(f)STAGED_FILES}; do
       fail "Rust build artifact '$f' is staged. Add '**/target/' to .gitignore."
       ;;
   esac
-done
+done <<STAGED_DB_SCAN
+$STAGED_FILES
+STAGED_DB_SCAN
 
 # ---------------------------------------------------------------------------
 # 4. No suspicious padding/injection patterns
 # ---------------------------------------------------------------------------
-for f in ${(f)STAGED_FILES}; do
+while IFS= read -r f; do
+  [ -n "$f" ] || continue
   case "$f" in
     *.ts|*.js|*.html|*.css|*.json|*.md)
-      PADDING_COUNT=$(git show ":$f" 2>/dev/null | grep -c 'PADDING_ANCHOR\|STIGMERGIC_SWARM\|VISUAL_RICHNESS_[0-9]' 2>/dev/null || true)
-      if (( PADDING_COUNT > 10 )); then
+      PADDING_COUNT=$(git show ":$f" 2>/dev/null | grep -c 'PADDING_ANCHOR\|STIGMERGIC_SWARM\|VISUAL_RICHNESS_[0-9]' || true)
+      case "$PADDING_COUNT" in ''|*[!0-9]*) continue ;; esac
+      if [ "$PADDING_COUNT" -gt 10 ]; then
         fail "$f contains $PADDING_COUNT suspicious padding lines. This looks like injection."
       fi
       ;;
   esac
-done
+done <<STAGED_PADDING_SCAN
+$STAGED_FILES
+STAGED_PADDING_SCAN
 
 # ---------------------------------------------------------------------------
 # 5. Website public-shell guard
 # ---------------------------------------------------------------------------
-if echo "$STAGED_FILES" | grep -q '^website-v2/'; then
-  echo "${YELLOW}Running website-v2 public-shell contract checks...${NC}" >&2
+if printf '%s\n' "$STAGED_FILES" | grep -q '^website-v2/'; then
+  printf '%bRunning website-v2 public-shell contract checks...%b\n' "$YELLOW" "$NC" >&2
 
   if ! npm --prefix website-v2 test -- src/public-shell-contracts.test.ts >/dev/null 2>&1; then
     fail "website-v2 public-shell contracts failed. Fix the routed shell before committing."
@@ -173,12 +213,12 @@ fi
 # README.md update alongside. Agents: update the affected README section, then
 # `git add README.md`. Genuinely internal change? PD_README_OK=1 git commit …
 # Fail-open when node or the script is absent (old branches must not hard-fail).
-README_GUARD="$(git rev-parse --show-toplevel)/scripts/check-readme-freshness.mjs"
-if command -v node >/dev/null 2>&1 && [[ -f "$README_GUARD" ]]; then
+README_GUARD="$PD_HOOK_ROOT/scripts/check-readme-freshness.mjs"
+if command -v node >/dev/null 2>&1 && [ -f "$README_GUARD" ]; then
   node "$README_GUARD" --staged
   README_GUARD_RC=$?
   # exit 1 = README update required; exit 2 = could not determine (fail-open)
-  if (( README_GUARD_RC == 1 )); then
+  if [ "$README_GUARD_RC" -eq 1 ]; then
     fail "operator-facing surface changed without a README.md update (see above)."
   fi
 fi
@@ -200,12 +240,12 @@ fi
 #   node scripts/adr-number-collision-guard.mjs --write-registry && git add docs/adr
 # One-time bulk-renumber pass only: PD_ADR_GUARD_OK=1 git commit … (logged).
 # Fail-open when node or the script is absent (old branches must not hard-fail).
-ADR_GUARD="$(git rev-parse --show-toplevel)/scripts/adr-number-collision-guard.mjs"
-if command -v node >/dev/null 2>&1 && [[ -f "$ADR_GUARD" ]]; then
+ADR_GUARD="$PD_HOOK_ROOT/scripts/adr-number-collision-guard.mjs"
+if command -v node >/dev/null 2>&1 && [ -f "$ADR_GUARD" ]; then
   node "$ADR_GUARD" --staged
   ADR_GUARD_RC=$?
   # exit 1 = collision or stale registry; exit 2 = could not determine (fail-open)
-  if (( ADR_GUARD_RC == 1 )); then
+  if [ "$ADR_GUARD_RC" -eq 1 ]; then
     fail "ADR number collision or stale registry (see above)."
   fi
 fi
@@ -214,10 +254,9 @@ fi
 # ---------------------------------------------------------------------------
 # Result
 # ---------------------------------------------------------------------------
-if (( ERRORS > 0 )); then
-  echo "" >&2
-  echo "${RED}Commit blocked: $ERRORS issue(s) found.${NC}" >&2
-  echo "If this is intentional, use: git commit --no-verify" >&2
+if [ "$ERRORS" -gt 0 ]; then
+  printf '\n%bCommit blocked: %s issue(s) found.%b\n' "$RED" "$ERRORS" "$NC" >&2
+  printf 'If this is intentional, use: git commit --no-verify\n' >&2
   exit 1
 fi
 

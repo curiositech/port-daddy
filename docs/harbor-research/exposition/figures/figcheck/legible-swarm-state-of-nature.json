@@ -1,0 +1,191 @@
+{
+ "figure": "legible-swarm-state-of-nature",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T4": {
+   "status": "fail",
+   "count": 6,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      143.46438598632812,
+      124.88032531738281,
+      236.43576049804688,
+      132.85043334960938
+     ],
+     "text": "four valid writers overlap",
+     "line_segment": [
+      [
+       155.6613311767578,
+       136.0533447265625
+      ],
+      [
+       155.6613311767578,
+       47.894744873046875
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'four valid writers overlap'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      351.2958679199219,
+      140.2838592529297,
+      371.0457763671875,
+      148.25396728515625
+     ],
+     "text": "#241",
+     "line_segment": [
+      [
+       310.1513671875,
+       143.70664978027344
+      ],
+      [
+       507.9064025878906,
+       143.70664978027344
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text '#241'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      388.1468200683594,
+      140.2838592529297,
+      407.896728515625,
+      148.25396728515625
+     ],
+     "text": "#242",
+     "line_segment": [
+      [
+       310.1513671875,
+       143.70664978027344
+      ],
+      [
+       507.9064025878906,
+       143.70664978027344
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text '#242'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      424.997314453125,
+      140.2838592529297,
+      444.74725341796875,
+      148.25396728515625
+     ],
+     "text": "#243",
+     "line_segment": [
+      [
+       310.1513671875,
+       143.70664978027344
+      ],
+      [
+       507.9064025878906,
+       143.70664978027344
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text '#243'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      461.8482666015625,
+      140.2838592529297,
+      481.59820556640625,
+      148.25396728515625
+     ],
+     "text": "#244",
+     "line_segment": [
+      [
+       310.1513671875,
+       143.70664978027344
+      ],
+      [
+       507.9064025878906,
+       143.70664978027344
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text '#244'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      383.9654541015625,
+      116.65951538085938,
+      448.90594482421875,
+      124.62963104248047
+     ],
+     "text": "one commit spine",
+     "line_segment": [
+      [
+       327.72625732421875,
+       118.19471740722656
+      ],
+      [
+       508.5790100097656,
+       118.19471740722656
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'one commit spine'"
+    }
+   ]
+  },
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T4"
+  ],
+  "warned_checks": []
+ }
+}

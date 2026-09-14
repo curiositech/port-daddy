@@ -43,7 +43,7 @@ is **achieved**, believed **impossible**, or its **motivation is gone**. Nothing
 > models responsibility as *durable, owned, drop-condition-gated state.* (C) Therefore: implement
 > responsibility as a **durable object in the substrate** — a row with an owner, a maintained
 > predicate, explicit drop conditions, a deadline, and a sanction — rather than a sentence in a
-> prompt. Port Daddy is unusually well-positioned to do this because the load-bearing pieces (an
+> prompt. Port Daddy is unusually well-positioned to do this because the foundational pieces (an
 > event stream, a prohibition enforcer, durable identities, collateral) already exist.
 
 First, two Port Daddy abstractions this proposal leans on throughout:
@@ -144,7 +144,7 @@ quantified across the 29 verdicts:
 
 Every surviving hardening reduces to five rules. A mechanism that violates any one is theater.
 
-1. **The load-bearing fact must be outside agent control.** The agent picks the *work*; the
+1. **The critical fact must be outside agent control.** The agent picks the *work*; the
    **daemon** picks the *clock* and *deadline*. Resurrection resists Goodhart *only* because
    heartbeats are emitted by the runtime, not chosen by the agent — preserve that property.
 
@@ -216,7 +216,7 @@ refusal paths now point only to the correct action (`git worktree add`); the byp
 
 The research and the one-line bug are the *same defect at two scales*. A guardrail that names its
 escape hatch, and an obligation an agent can self-author and self-close, fail for the identical
-reason: **the load-bearing fact was left inside the controlled party's reach.** Move it out, bind
+reason: **the pivotal fact was left inside the controlled party's reach.** Move it out, bind
 closure to an oracle, anchor identity, fail closed, stake the sanction — and "responsibility" stops
 being a sentence in a prompt and becomes a property of the substrate.
 

@@ -1,0 +1,97 @@
+{
+ "figure": "fig-he-float-plan",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T2": {
+   "status": "fail",
+   "count": 1,
+   "findings": [
+    {
+     "check": "T2",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      175.44688415527344,
+      165.76683044433594,
+      217.9756317138672,
+      174.58839416503906
+     ],
+     "container_bbox": [
+      173.79281616210938,
+      167.2088165283203,
+      219.65298461914062,
+      176.03048706054688
+     ],
+     "text": "no process",
+     "message": "text 'no process' escapes its containing rect (173.8, 167.2, 219.7, 176.0)"
+    }
+   ]
+  },
+  "T3": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T4": {
+   "status": "fail",
+   "count": 1,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      242.72068786621094,
+      155.04029846191406,
+      377.4522399902344,
+      163.8618621826172
+     ],
+     "text": "abort: all three traces unchanged",
+     "line_segment": [
+      [
+       272.4036560058594,
+       198.99099731445312
+      ],
+      [
+       272.4036560058594,
+       59.3719482421875
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'abort: all three traces unchanged'"
+    }
+   ]
+  },
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T2",
+   "T4"
+  ],
+  "warned_checks": []
+ }
+}

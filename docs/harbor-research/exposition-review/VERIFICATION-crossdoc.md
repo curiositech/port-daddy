@@ -228,7 +228,7 @@ there is no cryptography involved. That is an independent error in the L1393 sen
 
 ### What this means for the fix
 
-One of the two must go, and the table is the load-bearing one (it is the document's stated
+One of the two must go, and the table is the critical one (it is the document's stated
 security contract, and L822 depends on it). The L1393/L1606 block should be restated as a
 design proposal with a status marker — matching how L1073 and L1100 handle OP-4 — or, if
 `SO_PEERCRED` genuinely is now enforced in code, the table row and L822 must be updated
@@ -374,7 +374,7 @@ instructed be replaced, and it survived into two shipping chapters anyway.
 2. *Does paper5's boundary address a different mechanism?* It addresses "the checkpoint"
    and "continuity witnesses" in the migration/resurrection result — the same continuity
    claim the chapters key on. It is on-point.
-3. *Is "instantly" load-bearing enough to matter?* Yes: prefix-cache replay is a prefill,
+3. *Is "instantly" critical enough to matter?* Yes: prefix-cache replay is a prefill,
    which costs time and money proportional to context length; and the claim silently
    assumes same-provider/model/version, per doc1_treatise.
 
@@ -409,7 +409,7 @@ raters'' introduced a severe \emph{Algorithmic Mode Collapse} vulnerability, whe
 **Register 2 — mathematically certain (key-idea box, L1504–1505):**
 
 ```latex
-\keyidea{The grading oracle is the load-bearing assumption hidden under every IC
+\keyidea{The grading oracle is the critical assumption hidden under every IC
 claim in the economy. By bounding the dishonesty payoff with a mathematically certain VRF slash, the rate-the-raters recursion collapses: the market enforces its own honesty without relying on infinite re-audits.}
 ```
 
@@ -471,7 +471,7 @@ Consequently \emph{finite} bond capital certifies a tower deep enough to drive s
 ```
 
 The theorem comes with a proof sketch (L121–123), a per-level-vs-programme dominance
-argument (L125), and a "why sealing is load-bearing" section (L127).
+argument (L125), and a "why sealing is critical" section (L127).
 
 Numbers, `paper3.tex` L129 and L131:
 
@@ -625,7 +625,7 @@ preceding sentences ($\Delta_{\mathcal F}=\delta^*\delta$, $\ker\Delta_{\mathcal
 = globally synchronized states) are correct once the stalks are real vector spaces and are
 enough to motivate the section. (b) Keep it as an explicitly-tagged conjecture with a status
 macro and a Appendix A `\Open` row, stating the linearization assumption it needs. (c) If
-it is meant to be load-bearing, it needs its own result and must be reconciled with the
+it is meant to be critical, it needs its own result and must be reconciled with the
 "no partition deadline" / "no hard delivery bound" rows it currently contradicts. Whichever
 is chosen, L488 must first give $\mathcal F$ vector-space stalks, or the Laplacian sentence
 has no referent. Do **not** cite paper7 in support — paper7 supplies no such bound.
@@ -706,7 +706,7 @@ The document is not blind to the error. Scope rider (i) states paper7's exact wa
 the whitepaper's own words, one paragraph later — "the detector is the observed
 disagreement cochain's failure to be a coboundary (its harmonic residual), **not
 $\dim H^1$ of the abstract sheaf, which is a property of the restriction maps alone and is
-blind to any particular lie**." Riders (ii) (cycles are load-bearing; cut edges see
+blind to any particular lie**." Riders (ii) (cycles are critical; cut edges see
 nothing) and (iii) (non-vanishing is an alarm, vanishing is not an all-clear — the Carù
 gap) likewise track paper7's honest boundary faithfully. The `Status (statistical harness)`
 paragraph at L500 also correctly describes the detector as the completion residual.

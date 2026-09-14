@@ -135,7 +135,7 @@ what "sheaf cohomology" means in classical algebraic geometry. But the primary
 PDF was never obtained.
 
 This matters more than a normal citation check because the Bach citation is
-load-bearing: it exists specifically to pre-empt a category error a referee might
+critical: it exists specifically to pre-empt a category error a referee might
 raise. It should be closed with institutional access before submission.
 
 ## Q7 — Is the three-tier visibility contract already named?

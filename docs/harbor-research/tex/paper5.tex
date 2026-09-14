@@ -1,3 +1,16 @@
+% -----------------------------------------------------------------------
+% TWIN-LOCATION NOTICE. This file is one of the shared homes for the same
+% results; edit every listed home or the drift checker fails.
+%   Standalone paper : docs/harbor-research/tex/paper5.tex (S2, S5)
+%   Chapter          : website-v2/public/whitepaper/spawn-to-person.tex
+%                       (Chapter 4, From Spawn to Person; S(continuity),
+%                       S(identity))
+%   Index ids        : R12, R13, B6
+%   Check            : python3 scripts/harbor-research/check_library_index.py
+%                      python3 scripts/harbor-research/check_propagated_corrections.py
+%                      python3 scripts/harbor-research/check_citations.py
+%   System document  : docs/harbor-research/LIBRARY-SYSTEM.md
+% -----------------------------------------------------------------------
 \documentclass[11pt,a4paper]{article}
 \input{preamble}
 \usepackage{graphicx}
@@ -396,7 +409,12 @@ that fission does not divide what matters: ``the relation of the original person
 that interests us --- all that matters --- in any ordinary case of survival'' \cite{parfit1971}. Theorem 1 makes the inherited
 prior scarce, conserved and divisible precisely so that it \emph{must} split eight ways among eight forks. A reputation ledger is
 exactly the kind of thing Parfit argues psychological continuity is not, and that is why a ledger can be conserved where a stream
-of experience cannot.
+of experience cannot. This section does not engage Parfit's two strongest rivals, and should: Williams's body-swap thought
+experiments show the same facts, narrated first-personally versus third-personally, flip readers' intuitions between the bodily
+and the psychological criterion \cite{williams1970} --- a sharp worry for a chapter that is, after all, choosing which continuity
+criterion to build the ledger on; and Olson's animalism holds that we are essentially biological organisms, for whom psychological
+continuity is neither necessary nor sufficient for persistence \cite{olson2007}. Neither rival is answered here; both are simply
+not the criterion this chapter needs.
 
 Theorem 2a's logic is Akerlof's market for lemons \cite{akerlof}, run inside one identity --- and it is one end of a continuum
 Grossman drew in 1981. His §2 shows that when quality is verifiable at negligible cost a monopolist \emph{voluntarily} discloses
@@ -440,13 +458,20 @@ assets attached to names is Tadelis \cite{tadelis}; their value and decay under 
 been able to obtain Lazear's article, and if his contract front-loads the honest worker's implicit bond then Theorem 4 agrees
 with him rather than correcting him. We state the foil as folklore until that is checked.
 
+Theorem 1's conservation discipline has an uncited, twenty-five-year-old cousin in peer-to-peer trust systems: Levien's
+Advogato attack-resistant trust metric computes certified trust as \emph{maximum flow} from a small seed set of trusted nodes
+through a capacity-bounded graph, specifically so that no set of newly created accounts can manufacture trust beyond what
+genuinely flows from the seed \cite{levien-advogato}. The two mechanisms differ in direction rather than in discipline: Advogato
+bounds trust \emph{propagating outward} from a trusted root, while Theorem 1 bounds value \emph{extracted upward} through
+derivation --- a distinction worth stating rather than a reason to leave Advogato unread.
+
 \textbf{New, honestly.} The contribution is the assembly for software agents, where forking, distillation, engine substitution,
 and resurrection are cheap, routine, first-class operations rather than edge cases: (1) the transfer-semantics conservation
 theorem for reputation inheritance, with the refuted budget-only phrasing reported and the $8.2\times$ copy-fork exhibit of what it
 prevents; (2) the observation that engine attestation does not merely deter substitution but, under a stated pricing hypothesis,
 \emph{flips} its incentive to the planner's efficiency rule at zero audit stake --- with the Bertrand case, where the flip
 collapses, named --- plus the scope lemma --- price per (principal, engine), sanction per principal ---
-that a machine-checked migration protocol shows is load-bearing in both directions; (3) resurrection soundness as a theorem with
+that a machine-checked migration protocol shows is critical in both directions; (3) resurrection soundness as a theorem with
 three named attacks, each caught by a shortest trace when its clause is dropped; and (4) the probation-cliff optimality result,
 which sharpens ``newcomers pay dues'' into ``the dues schedule has a unique optimal shape, front-loaded to the newcomer's ceiling
 rather than ramped --- and a feasibility bound past which probation is the wrong instrument entirely.'' Where a claim
@@ -497,6 +522,9 @@ systems. In \emph{Proc.\ ACM SIGCOMM Workshop on Practice and Theory of Incentiv
 76(2):169--217, 1968.
 \bibitem{cai2025} W.~Cai, T.~Shi, X.~Zhao, and D.~Song. Are you getting what you pay for? Auditing model substitution in LLM
 APIs. arXiv:2504.04715, 2025.
+\bibitem{williams1970} B.~Williams. The self and the future. \emph{The Philosophical Review}, 79(2):161--180, 1970.
+\bibitem{olson2007} E.~T. Olson. \emph{What Are We? A Study in Personal Ontology}. Oxford University Press, 2007.
+\bibitem{levien-advogato} R.~Levien and A.~Aiken. Attack-resistant trust metrics for public key certification. In \emph{Proc.\ 7th USENIX Security Symposium}, 1998. Deployed as the Advogato trust metric, 1999.
 \end{thebibliography}
 
 \end{document}

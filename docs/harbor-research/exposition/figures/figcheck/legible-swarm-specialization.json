@@ -1,0 +1,120 @@
+{
+ "figure": "legible-swarm-specialization",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "fail",
+   "count": 3,
+   "findings": [
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      378.1600036621094,
+      78.97926330566406,
+      383.68328857421875,
+      84.95684814453125
+     ],
+     "text": "A",
+     "size_pt": 5.98,
+     "message": "text 'A' renders at 5.98pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      473.3639831542969,
+      85.76463317871094,
+      478.88726806640625,
+      91.74221801757812
+     ],
+     "text": "A",
+     "size_pt": 5.98,
+     "message": "text 'A' renders at 5.98pt, below the 7.00pt floor"
+    },
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      501.0286560058594,
+      232.1871795654297,
+      507.0191955566406,
+      239.16102600097656
+     ],
+     "text": "A",
+     "size_pt": 6.97,
+     "message": "text 'A' renders at 6.97pt, below the 7.00pt floor"
+    }
+   ]
+  },
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T4": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T5": {
+   "status": "fail",
+   "count": 1,
+   "findings": [
+    {
+     "check": "T5",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      -1.408932089805603,
+      840.4810791015625,
+      1.408932089805603,
+      843.2989501953125
+     ],
+     "message": "a drawing at (-1.4, 840.5, 1.4, 843.3) falls outside the MediaBox (0.0, 0.0, 595.3, 841.9)"
+    }
+   ]
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "warn",
+   "count": 1,
+   "findings": [
+    {
+     "check": "T7",
+     "severity": "warn",
+     "page": 0,
+     "content_width_pt": 531.2,
+     "textwidth_pt": 462.0,
+     "message": "drawn content is 18.74cm wide, wider than the 16.30cm chapter textwidth"
+    }
+   ]
+  }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T1",
+   "T5"
+  ],
+  "warned_checks": [
+   "T7"
+  ]
+ }
+}

@@ -10,7 +10,7 @@
 
 import { jest } from '@jest/globals';
 import { spawnSync as realSpawnSync } from 'node:child_process';
-import { readFileSync as realReadFileSync } from 'node:fs';
+import { readFileSync as realReadFileSync, realpathSync as realRealpathSync } from 'node:fs';
 import { join as realJoin } from 'node:path';
 import { parse as realYamlParse, parseDocument as realParseDocument, LineCounter as RealLineCounter, isScalar as realIsScalar, isMap as realIsMap, isSeq as realIsSeq } from 'yaml';
 
@@ -29,6 +29,7 @@ jest.unstable_mockModule('node:fs', () => ({
   unlinkSync: jest.fn(),
   mkdirSync: mockMkdirSync,
   chmodSync: jest.fn(),
+  realpathSync: realRealpathSync,
   // The fleet engine now transitively imports the pluggable I/O registry
   // (lib/fleet/io-dispatch.ts), whose file trigger uses fs.watch. The
   // wholesale node:fs mock must surface it or module link fails.

@@ -32,7 +32,7 @@ Agents read this file. Operators do not. If an agent's instructions push a CLI c
 
 ## Skill maintenance is part of every slice
 
-The two Port Daddy skills are the operating instructions for *all* future agents working in port-daddy-protected projects. Treat them as load-bearing code:
+The two Port Daddy skills are the operating instructions for *all* future agents working in port-daddy-protected projects. Treat them as pivotal code:
 
 - **`skills/port-daddy-agent-skill/SKILL.md`** — the public skill. Edit when the lesson would help any agent on any project (new verb, deprecated flag, anti-pattern, decision-table gap, inefficient worked example, stale or wrong content).
 - **`skills/port-daddy-internal-dev/SKILL.md`** — the contributor-only skill. Edit when the lesson is specific to editing *this* repo (release ceremony, internal actor embodiments, drift protocol, worked contributor examples).
@@ -49,7 +49,55 @@ Operator directives (2026-07-04, superseded and expanded 2026-09-01). Any search
 4. **Select by corpus policy, not machine-wide habit.** A versioned policy chooses an approved local or remote quality tier from the profile registry using corpus privacy, egress authority, quality target, latency budget, and cost cap. Remote inference is allowed only when that corpus policy explicitly permits the provider and data class. Record the selected profile, provider/runtime revision, latency, cost, and benchmark-promotion receipt.
 5. **Filter authority before ranking.** Repo, harbor, account/team, disclosure, retention, and redaction boundaries are hard filters applied before lexical or dense retrieval. Cross-repo and cross-harbor retrieval is default-deny. Index only provenance-bound sanitized derivatives of protected evidence; never let retrieval decrypt raw evidence or widen its disclosure scope.
 
-The current local embedding source uses `Xenova/all-MiniLM-L6-v2`; treat it as an explicit local/degraded fallback while the provider-neutral fabric in [`docs/proposals/provider-neutral-retrieval-fabric.md`](docs/proposals/provider-neutral-retrieval-fabric.md) is implemented. The registry foundation is source-present, but its profiles remain declarative-only: it does not activate role selection or prove producer conformance. Verify installed CLI support before relying on the source `pd embed` command or its cache-management subcommands; do not infer a daemon upgrade from a merged PR. Lexical-only degradation is allowed only when corpus policy permits it, it is labeled degraded, and it warns with the agent repair path `pd doctor`; a requested semantic contract must never silently downgrade.
+The current local embedding source uses `Xenova/all-MiniLM-L6-v2`; treat it as an explicit local/degraded fallback while the provider-neutral fabric in [`docs/proposals/provider-neutral-retrieval-fabric.md`](docs/proposals/provider-neutral-retrieval-fabric.md) is implemented. Registry-backed role/tier/provider selection and local artifact/runtime/output verification are source-present, but the generated profiles remain declarative-only and degraded: runtime verification does not mint signed producer or benchmark promotion. Persistent indexes without the exact selected `spaceId` remain legacy state and must be rebuilt, not relabeled. Verify installed CLI support before relying on the source `pd embed` command or its cache-management subcommands; source `pd embed text|stdin` requires `--corpus <stable-id>`. Do not infer a daemon upgrade from a merged PR. Lexical-only degradation is allowed only when corpus policy permits it, it is labeled degraded, and it warns with the agent repair path `pd doctor`; a requested semantic contract must never silently downgrade.
+
+## The Harbor Work Register — read it before you start, write to it as you go
+
+The register is the shared board telling every agent in this repository who is
+on what, right now. It lives on the relay, not in the tree, so it is current
+rather than as-of-your-last-pull, and it survives an operator halt because it
+does not depend on the daemon.
+
+**Read it first.** `GET https://relay.portdaddy.dev/v1/register/available?repo=curiositech/port-daddy`
+answers "what may I take" — every slug nothing holds, plus every slug whose
+holder has gone quiet past the salvage clock. `.../board` is the whole picture
+including who is on what. The human view is `/account/register?repo=...`, which
+is gated to the operator's own GitHub identity and is not linked from anywhere.
+When the local runtime is intentionally Off, the operator can use **Authorize
+this task** on that page to mint a one-use ten-minute pairing code. The task
+exchanges it at `POST /v1/register/exchange` for an eight-hour `pdr_` bearer.
+That bearer is bound to the approved repository, task name, and owner; it is
+accepted only by `/v1/register/*`, cannot become general Relay account
+authority, and can be revoked from the same page. Never ask the operator to
+start Port Daddy merely to admit a task to this board.
+
+**Claim before you work.** `POST .../claim` with `{"slug": "...", "agent":
+"<your session id>", "headline": "what you are about to do"}`. A `409` means
+somebody else has it and names them — that refusal is the whole point, and it
+is cheaper than two agents discovering the collision in a merge. Go and ask for
+something else.
+
+**Say you are alive.** `POST .../heartbeat` while you work. A claim that stops
+reporting for forty-five minutes is offered to the next agent as salvage, which
+is what stops a dead session holding work until a human notices.
+
+**Leave the note.** `POST .../note` as you learn things, and always on
+`.../release`: what you tried, what you ruled out, what you would do next. A
+claim released without a note makes the next agent start from the beginning.
+`POST .../finish` with the PR number when it lands.
+
+**What the register is not.** It says who *holds* work. It does not say what
+work *exists* — that is the roadmap registry (`roadmap_items` in the daemon,
+projected append-only to `docs/roadmap/roadmap.snapshot.json`), and the register
+reads it rather than rivalling it. A slug you claim that has no row there is
+stored as `proposed`: queued, not scheduled, and counted alongside
+`docs/roadmap/unregistered.json`. Do not treat a green claim as evidence that
+work is registered. See `docs/roadmap/AUTHORITY.md`.
+
+**It is cooperative, and that is stated rather than papered over.** The register
+refuses a second claim and tells you who holds the first; it cannot stop an
+agent that never asks. The enforcement point is your own harness reading this
+file. Behave as though it could stop you.
 
 ## Port Daddy First
 
@@ -275,6 +323,51 @@ is a real red you cannot fix unilaterally (missing secrets, infra outage).
 Operator, 2026-06-11: "Why are you waiting on me? Why do I have to tell
 every Claude this?" — don't be the Claude that has to be told.
 
+### Base `main`. Do not stack PRs onto feature branches.
+
+**Open every PR against `main`.** A PR whose base is another feature branch is
+not shipped when it merges — it is moved one branch sideways, and GitHub tells
+its author "Merged" either way. That badge is the whole problem: it retires the
+work from everyone's attention while leaving it outside the product.
+
+The measurement that produced this rule (2026-09-10, over the whole repository):
+1,255 PRs have merged in this repo's life. **99 of them merged into a base other
+than `main`, and 72 of those 99 are from the last five weeks** — the practice is
+accelerating. Testing every one of the 72 against `main` twice, by patch-id
+(`git cherry`, which survives squash and rebase) and by whether the files it
+added exist on `main` at all, **six** are confirmed absent from the product
+today, one of them for over a month. Four more sit in a single branch that is
+233 commits ahead of `main` and has never merged. Meanwhile **917 branches are
+alive** in the remote, 138 of them `purser/`.
+
+So:
+
+- **Base every PR on `main`.** If your change genuinely depends on unmerged
+  work, say so in the body and wait for that work to land, or carry the
+  dependency as a commit in your own branch. Waiting is cheaper than a merged
+  PR nobody can find.
+- **Never retarget a PR onto a branch that is not `main`** — not to satisfy a
+  bot, not to stack a test contract underneath it, not for review convenience.
+  A tool that wants to retarget your PR is asking you to hide it.
+- **"Merged" is not "shipped."** Before you record a PR as done, in a note, a
+  ledger row, a changelog fragment or a reply: check that its base was `main`,
+  or that its base has itself reached `main`. `git cherry origin/main <head>`
+  answers it — every line starting `+` is a commit that is NOT in `main`.
+- **If you find yourself merging into a long-lived integration branch,** that
+  branch is now a second `main` with none of `main`'s protections and no one
+  watching whether it lands. Merge it or delete it; do not let it accumulate.
+
+The same discipline applies to the two failure modes that hide a PR from its
+own author. Before claiming a PR is ready, ready to re-queue, or done:
+
+1. **Every review thread is RESOLVED, not merely replied to.** A reply
+   satisfies `pr-comments-guard` (it only asks who spoke last) and still leaves
+   the merge blocked. Enumerate the threads and check `is_resolved` on each.
+2. **Re-check for conflicts against the base after every push to it.** A
+   conflict against a moving base emits no webhook and no notification; it is
+   silent until someone tries to merge. `git merge-tree --write-tree
+   origin/main <head>` answers it in one command.
+
 **Two PR-body checks are REQUIRED and fail closed — fill them in or the PR is
 bounced (it cannot enter the merge queue):**
 
@@ -316,6 +409,30 @@ Two rules learned the hard way when touching it:
   `merge_group` (always-run, or skip = pass). `proofs`, `whitepaper-build`, and
   `whitepaper-metadata` are now `merge_group`-safe for exactly this reason.
 
+### GitHub mutations use the Fleetbot actuator only
+
+Agents must not use the operator's GitHub identity or credentials for any
+mutation. This includes `gh pr create`, `gh pr comment`, `gh pr merge`, `gh api`
+with a write method, authenticated `git push` through an ambient credential
+helper, and direct REST/GraphQL writes with `GH_TOKEN`, `GITHUB_TOKEN`, a
+personal access token, OAuth token, browser cookie, or copied account bearer.
+
+Use the repository's authorized GitHub App/Fleetbot actuator. The actuator must
+hold the App key outside the agent process, mint a repository-scoped short-lived
+installation token internally, execute only the exact approved operation, revoke
+the token, stamp the responsible agent/session/roadmap scope, and return a
+read-back receipt without returning any credential. Read
+[`skills/github-app-actuator/SKILL.md`](skills/github-app-actuator/SKILL.md)
+before publishing or changing a PR.
+
+An operator sentence authorizing an action is not a credential and must never be
+converted into permission to fetch their token. If the actuator is unavailable,
+preserve the commit and prepared message and report the missing actuator
+operation. Never fall back to the operator identity. The one-time credential
+retirement/bootstrap ceremony is the sole exception: it must be explicitly
+authorized by the operator, perform only the named cutover, remove the ambient
+credential immediately afterward, and record non-secret verification.
+
 Every PR opened in this repo MUST go through skeptical adversarial review
 before merging. The author cannot self-approve by typing "looks good." The
 flow is:
@@ -352,11 +469,11 @@ flow is:
    done while a `port-daddy-fleet` or other actionable bot thread sits
    unanswered. Operator, 2026-06-23: "Why did you ignore fleetbot?" — the
    answer must never be "I didn't read its comments."
-6. **Get the full CI/CD surface clean.** "CI is green" means the GitHub
-   matrix, review checks, deploy previews, release/package jobs, and external
-   statuses attached to the PR are green. If a red status is truly external,
-   inspect the linked logs, name the external owner/root cause in a PR
-   comment, and leave a `pd note`; otherwise fix the repo branch.
+6. **Get every configured required context green.** The ruleset, not the visual
+   checks list, defines merge blockers. Fix every required failure. Advisory
+   repo jobs, deploy previews, experiments, and external statuses remain useful
+   evidence, but they do not hold a merge merely because they are red, pending,
+   neutral, or skipped; record a material finding and continue.
 7. **Re-spawn the reviewer** (or a fresh one) if the change set is
    non-trivial. Don't ship with a stale verdict.
 8. **`pd note` the result + `pd done`** before merge. The PD audit trail
@@ -429,7 +546,7 @@ means one of:
 
 What does **not** count: resolving a thread with no reply, a one-word "done" with
 no evidence, closing the PR to dodge the comment, or letting a bot finding scroll
-off the page. "Seriously" is load-bearing — engage the substance.
+off the page. "Seriously" is central — engage the substance.
 
 **Auto-pilot (operator directive, 2026-07-07).** When you are subscribed to a
 PR, work the review comments *autonomously* — do not ask permission each round.
@@ -613,31 +730,22 @@ tracked work instead of vanishing. The mechanism:
   `roadmap_items` row (`POST /roadmap/items`) and edits the trailer into the
   PR body. Then `npx tsx scripts/export-roadmap-snapshot.ts` and commit so CI
   sees it.
-- **The check is REQUIRED and fails closed.** `.github/workflows/roadmap-link.yml`
-  reads the committed mirror `docs/roadmap/roadmap.snapshot.json` (via the pure,
-  unit-tested `lib/roadmap-link-core.ts`) and is a **required status check** in
-  branch protection (operator, 2026-06). A PR with no valid `Roadmap-Item:`
-  trailer **cannot merge** — it is bounced back until you add the link or the
-  explicit opt-out. It reports on `merge_group` heads as a pass-through, so the
-  merge queue never hangs on it.
+- **The check requires a declaration, not snapshot membership.**
+  `.github/workflows/roadmap-link.yml` blocks only when the PR lacks a valid
+  `Roadmap-Item:` trailer or explicit opt-out. The versioned
+  `docs/roadmap/roadmap.snapshot.json` projection is not merge authority;
+  freshness, existence, contradictions, and reconciliation belong to Chartroom.
 - **Belt and suspenders: the label too.** A PR with no valid link also gets
   `needs-roadmap-link`, and the land/auto-merge flow treats that label as *hold
   for a human*. With the check now required, the merge is also blocked
   mechanically — so an unlinked PR is stopped two ways.
-- **Keep the snapshot fresh — it fails closed.** If `roadmap.snapshot.json` is
-  missing, empty, or >21d stale, the gate shouts (🔴 comment + step summary) AND,
-  because it is required + fail-closed, **blocks every PR** — even correctly
-  linked ones — until someone regenerates and commits it:
-  `npx tsx scripts/export-roadmap-snapshot.ts`. A stale mirror must never read as
-  "all clear". (This is the operator's deliberate trade-off: a stale roadmap
-  halts the line rather than letting unverified links through.)
-- **Planning docs must spawn downstream work.** A PR that adds/edits an ADR, a
-  `PLAN`/`ROADMAP` file, or a `docs/` proposal must also enumerate the roadmap
-  items it creates: `Roadmap-Spawns: <slug-a>, <slug-b>` (or
-  `Roadmap-Spawns: none — <reason>` when it only supersedes/clarifies). A plan
-  exists to generate work; without the spawn line the PR gets
-  `needs-roadmap-spawn` and waits for a human. Detection is by file path, so it
-  fires on the actual document, not on prose.
+- **Snapshot drift is reported elsewhere and never freezes delivery.** Exported
+  roadmap files may support archaeology and offline inspection, but an old or
+  broken projection cannot block a correctly declared PR.
+- **Planning-document consequences belong in Chartroom.** `Roadmap-Spawns:` is
+  useful evidence for reconciliation, but its absence is not a merge blocker.
+  Chartroom should infer, challenge, and present downstream work rather than
+  making every document author manually satisfy another GitHub gate.
 
 ### Shell gotchas (real and recurring)
 

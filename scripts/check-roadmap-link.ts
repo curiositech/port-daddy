@@ -6,11 +6,10 @@
  *   npx tsx scripts/check-roadmap-link.ts 512 --dry-run   # classify, mutate nothing
  *
  * Decides whether a PR declares the roadmap item it advances. On a pull_request
- * event this is a REQUIRED, fail-closed status check (the operator promoted it,
- * 2026-06): any non-pass verdict exits non-zero and BLOCKS the merge — that is
- * the bounce-back. It also marks `needs-roadmap-link` so the land flow holds it
- * for a human, and posts a loud comment + step summary when the roadmap itself
- * is broken. The workflow makes `merge_group` heads a pass-through (a rebase in
+ * event this is a required declaration check: a missing trailer blocks, while
+ * an explicit slug or reasoned opt-out passes. The versioned roadmap snapshot
+ * is deliberately not merge authority; stale projection data cannot freeze
+ * unrelated delivery. The workflow makes `merge_group` heads a pass-through (a rebase in
  * the queue can't change a roadmap declaration), so this script gates only at
  * pull_request time and a queued PR never hangs waiting for a report.
  *
@@ -19,27 +18,20 @@
  * the same locally as in Actions.
  */
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import {
-  classify,
-  classifyPlanningSpawn,
-  type RoadmapSnapshot,
+  classifyDeclaration,
   type LinkResult,
-  type SpawnResult,
 } from '../lib/roadmap-link-core';
 
 const LABEL = 'needs-roadmap-link';
-const SPAWN_LABEL = 'needs-roadmap-spawn';
 const COMMENT_MARKER = '<!-- roadmap-link-gate -->';
-const SNAPSHOT_PATH = resolve('docs/roadmap/roadmap.snapshot.json');
 const DRY_RUN = process.argv.includes('--dry-run');
 
 interface PrInfo {
   number: number;
   body: string;
   labels: string[];
-  files: string[];
 }
 
 function gh(args: string[]): string {
@@ -50,12 +42,11 @@ function gh(args: string[]): string {
 function resolvePr(): PrInfo | null {
   const argNum = process.argv.find((a) => /^\d+$/.test(a));
   if (argNum) {
-    const json = JSON.parse(gh(['pr', 'view', argNum, '--json', 'number,body,labels,files']));
+    const json = JSON.parse(gh(['pr', 'view', argNum, '--json', 'number,body,labels']));
     return {
       number: json.number,
       body: json.body ?? '',
       labels: (json.labels ?? []).map((l: { name: string }) => l.name),
-      files: (json.files ?? []).map((f: { path: string }) => f.path),
     };
   }
   const eventPath = process.env.GITHUB_EVENT_PATH;
@@ -63,29 +54,11 @@ function resolvePr(): PrInfo | null {
   const event = JSON.parse(readFileSync(eventPath, 'utf8'));
   const pr = event.pull_request;
   if (!pr) return null;
-  // The pull_request event payload has no file list; ask gh for it.
-  let files: string[] = [];
-  try {
-    files = gh(['pr', 'view', String(pr.number), '--json', 'files', '-q', '.files[].path'])
-      .split('\n')
-      .filter(Boolean);
-  } catch {
-    /* file-derived rules just won't fire */
-  }
   return {
     number: pr.number,
     body: pr.body ?? '',
     labels: (pr.labels ?? []).map((l: { name: string }) => l.name),
-    files,
   };
-}
-
-function loadSnapshot(): RoadmapSnapshot | null {
-  try {
-    return JSON.parse(readFileSync(SNAPSHOT_PATH, 'utf8')) as RoadmapSnapshot;
-  } catch {
-    return null; // missing/unparseable → core treats as "broken"
-  }
 }
 
 function buildComment(r: LinkResult): string {
@@ -106,7 +79,7 @@ function buildComment(r: LinkResult): string {
       lines.push(
         `✅ Linked to **\`${r.slug}\`**, declared by this PR's own \`Roadmap-Spawns:\` trailer.`,
       );
-      lines.push('', 'The item is introduced by this PR; the snapshot catches up at the next `export-roadmap-snapshot` run.');
+      lines.push('', 'The item is introduced by this PR; Chartroom reconciliation can ingest it asynchronously.');
       break;
     case 'opt-out':
       lines.push(`✅ Explicit opt-out accepted — _${r.optOutReason}_.`);
@@ -119,50 +92,11 @@ function buildComment(r: LinkResult): string {
       lines.push('', "Don't know the slug? Create the item and stamp the PR in one step:", '', linkCmd());
       lines.push('', `Until then this PR carries \`${LABEL}\` and **needs a human to approve the land.**`);
       break;
-    case 'unknown-slug':
-      lines.push(`⚠️ **\`${r.slug}\` is not a known roadmap item.**`, '');
-      lines.push('Either fix the typo, or create it (and re-stamp) with:', '', linkCmd());
-      lines.push('', `This PR carries \`${LABEL}\` and **needs a human to approve the land.**`);
-      break;
-    case 'snapshot-missing':
-      lines.push('🔴 **THE ROADMAP SNAPSHOT IS MISSING OR UNREADABLE.**', '');
-      lines.push('`docs/roadmap/roadmap.snapshot.json` did not parse. The gate cannot verify any link.');
-      lines.push('', 'Regenerate it from the daemon and commit:', '', '```bash', 'npx tsx scripts/export-roadmap-snapshot.ts', '```');
-      break;
-    case 'snapshot-empty':
-      lines.push('🔴 **THE ROADMAP SNAPSHOT HAS ZERO ITEMS.**', '');
-      lines.push('The export is broken — every PR would fail this gate. Regenerate and commit:', '');
-      lines.push('```bash', 'npx tsx scripts/export-roadmap-snapshot.ts', '```');
-      break;
-    case 'snapshot-stale':
-      lines.push('🔴 **THE ROADMAP SNAPSHOT IS STALE.**', '');
-      lines.push(r.headline, '', 'Regenerate it so links validate against current truth:', '');
-      lines.push('```bash', 'npx tsx scripts/export-roadmap-snapshot.ts', '```');
-      break;
+    default:
+      lines.push('⚠️ The declaration needs operator review.');
   }
-  lines.push('', '---', `<sub>Non-blocking check. Land truth lives in the daemon; this reads the committed mirror. · \`${r.reason}\`</sub>`);
+  lines.push('', '---', `<sub>Declaration check only. Durable truth and reconciliation live outside this versioned projection. · \`${r.reason}\`</sub>`);
   return lines.join('\n');
-}
-
-function spawnSection(s: SpawnResult): string[] {
-  if (!s.isPlanning) return [];
-  const lines: string[] = ['', '### 📐 Planning-doc spawn check', ''];
-  const files = s.planningFiles.map((f) => `\`${f.split('/').pop()}\``).join(', ');
-  switch (s.reason) {
-    case 'spawns-declared':
-      lines.push(`✅ Declares ${s.spawnedSlugs.length} downstream item(s): ${s.spawnedSlugs.map((x) => `\`${x}\``).join(', ')}.`);
-      break;
-    case 'spawn-opt-out':
-      lines.push(`✅ ${s.headline}`);
-      break;
-    case 'missing-spawns':
-      lines.push(`⚠️ This PR changes a planning doc (${files}) but **declares no downstream roadmap items.**`, '');
-      lines.push('A plan/ADR exists to create work. List the items it spawns:', '');
-      lines.push('```', 'Roadmap-Spawns: <slug-a>, <slug-b>, <slug-c>', '# or, if it only supersedes/clarifies with no new work:', 'Roadmap-Spawns: none — <reason>', '```');
-      lines.push('', `Until then this PR carries \`${SPAWN_LABEL}\` and **needs a human to approve the land.**`);
-      break;
-  }
-  return lines;
 }
 
 function writeStepSummary(r: LinkResult, pr: PrInfo): void {
@@ -191,7 +125,6 @@ function writeStepSummary(r: LinkResult, pr: PrInfo): void {
 
 const LABEL_DESC: Record<string, string> = {
   [LABEL]: 'PR does not link a roadmap item — needs human approval to land',
-  [SPAWN_LABEL]: 'Planning doc declares no downstream roadmap items — needs human approval to land',
 };
 
 function syncLabel(pr: PrInfo, label: string, want: boolean): void {
@@ -247,33 +180,21 @@ function main(): void {
     console.log('No pull request in context (not a PR event) — skipping roadmap link gate.');
     process.exit(0);
   }
-  const snapshot = loadSnapshot();
-  const result = classify(pr.body, snapshot);
-  const spawn = classifyPlanningSpawn(pr.body, pr.files);
-
-  console.log(`PR #${pr.number}: link=${result.verdict}(${result.reason}) spawn=${spawn.reason} — ${result.headline}`);
+  const result = classifyDeclaration(pr.body);
+  console.log(`PR #${pr.number}: declaration=${result.verdict}(${result.reason}) — ${result.headline}`);
   writeStepSummary(result, pr);
 
-  const linkPass = result.verdict === 'pass';
-  const spawnPass = spawn.verdict === 'pass';
-  const passed = linkPass && spawnPass;
+  const passed = result.verdict === 'pass';
 
-  // Comment when there's something to fix or shout about (link or spawn).
+  // Comment when the required declaration is missing or malformed.
   if (!passed) {
-    const body = [buildComment(result), ...spawnSection(spawn)].join('\n');
-    upsertComment(pr, body);
+    upsertComment(pr, buildComment(result));
   }
   syncLabel(pr, LABEL, result.labelShouldBePresent);
-  syncLabel(pr, SPAWN_LABEL, spawn.labelShouldBePresent);
 
-  // Required + fail-closed: `roadmap-link` is in branch protection's required
-  // checks, so a non-zero exit here blocks the merge. Any non-pass blocks —
-  // an author-fixable miss (no/typo'd `Roadmap-Item:`, a planning doc with no
-  // spawns) OR a broken/stale snapshot. The operator chose fail-closed so a
-  // stale mirror can never read as "all clear"; keep it fresh with
-  // `npx tsx scripts/export-roadmap-snapshot.ts`. The label + comment still fire
-  // so the fix is obvious. (merge_group is a workflow pass-through, so this only
-  // gates at pull_request time.)
+  // `roadmap-link` is required, so absence of the explicit declaration blocks.
+  // Snapshot freshness and slug reconciliation are asynchronous Chartroom work,
+  // not merge admission. A versioned projection can never stop unrelated code.
   process.exit(passed ? 0 : 1);
 }
 

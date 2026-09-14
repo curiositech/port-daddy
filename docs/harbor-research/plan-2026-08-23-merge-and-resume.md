@@ -40,7 +40,7 @@ Push (`git push -u origin` to the PR head branch), wait for CI + Fleet gate (do 
 Copy into the repo and commit (on the same branch pre-merge if timing allows, else a follow-up PR on the designated branch `claude/white-paper-pr-review-uncpxg`):
 - `docs/harbor-research/pdf/Sheaf-Cohomology-Lit-Review-Assessment-Prototyping-Plan.pdf` (upload `e0de2c53…`) — replaces the `research/sheaf-assessment-notes.md` stub's "not yet rescued" status; contains the experiment matrix + three theorem candidates gating W8.
 - `docs/harbor-research/pdf/The-Harbor-After-the-Harbor.pdf` (upload `312d5943…`) — the rigor review (correctness audit, exercise solution key, build sequence) cited by doc1.
-- Update `research/sheaf-assessment-notes.md`, `HANDOFF.md` (§3.7 rescue status, delta v4), and `pr7698-reconciliation.md` F4 → discharged. The remaining chat-only artifact ("Theorem-Proving Stack SotA") stays flagged — HANDOFF §3.2 already extracts its load-bearing content.
+- Update `research/sheaf-assessment-notes.md`, `HANDOFF.md` (§3.7 rescue status, delta v4), and `pr7698-reconciliation.md` F4 → discharged. The remaining chat-only artifact ("Theorem-Proving Stack SotA") stays flagged — HANDOFF §3.2 already extracts its critical content.
 - Fix the two documented doc inconsistencies while here: `docs/harbor-research/README.md:4` self-contradiction (PDFs *are* committed) and `HANDOFF.md:10` same claim.
 
 ## Part 2 — Correctness repairs: sync the stale δ\* mechanization

@@ -51,7 +51,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "pd attention --json 2>/dev/null || true"
+            "command": "[ -e \"${PD_HOME:-$HOME/.port-daddy}/hooks.disabled\" ] || pd attention --json 2>/dev/null || true"
           }
         ]
       }
@@ -61,7 +61,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npx tsx scripts/sync-skills.ts --scope user --quiet >/dev/null 2>&1 || true"
+            "command": "[ -e \"${PD_HOME:-$HOME/.port-daddy}/hooks.disabled\" ] || npx tsx scripts/sync-skills.ts --scope user --quiet >/dev/null 2>&1 || true"
           }
         ]
       }

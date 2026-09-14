@@ -174,7 +174,7 @@ Are agents under one operator (cooperative) or across operators (strategic)?
 **Lost-in-the-middle starvation.** *Symptom:* agent retrieves the right document/tool but
 reasons as if it didn't; accuracy depends on *where* in the window the fact sat.
 *Root cause:* models use the beginning and end of context far better than the middle.
-*Detection:* same fact, two positions, two answers. *Fix:* put the load-bearing fact at
+*Detection:* same fact, two positions, two answers. *Fix:* put the foundational fact at
 an edge; shorten the window; don't bury the obligation in scrollback.
 
 **Context rot.** *Symptom:* quality silently decays as the session grows even though nothing
@@ -239,7 +239,7 @@ compacts from artifacts, and ships a zoomable digest plus a per-task bill.
 - [ ] Token spend is metered per agent-task in a ledger keyed to outcomes; cap breaches loud-fail.
 - [ ] Pricing/auctions appear ONLY in the multi-operator case; the single-operator case accounts, it does not charge.
 - [ ] Tool exposure ≤3–5 always-loaded; the rest discovered (context precision).
-- [ ] A position/length sanity check exists (load-bearing facts at edges; accuracy-vs-length curve known).
+- [ ] A position/length sanity check exists (critical facts at edges; accuracy-vs-length curve known).
 
 ## NOT-FOR BOUNDARIES
 

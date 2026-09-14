@@ -42,6 +42,7 @@
     "diagnose:node-builtin-imports": "node scripts/check-builtin-named-imports.mjs",
     "check:changelog": "node scripts/assemble-changelog.mjs --check",
     "check:doc-citations": "node scripts/check-doc-citations.mjs",
+    "lint:banned-phrases": "node scripts/lint/check-banned-phrases.mjs",
     "check:pr-requirements": "node scripts/check-pr-requirements.mjs",
     "check:pr-comments": "node scripts/check-pr-comments-answered.mjs",
     "check:version-drift": "node scripts/check-version-drift.mjs",

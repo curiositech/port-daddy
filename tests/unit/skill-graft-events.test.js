@@ -11,7 +11,7 @@
 //      never lets a broken recorder break the spawn (fail-open).
 
 import { jest } from '@jest/globals';
-import { readFileSync as realReadFileSync } from 'node:fs';
+import { readFileSync as realReadFileSync, realpathSync as realRealpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { parse as realYamlParse, parseDocument as realParseDocument, LineCounter as RealLineCounter, isScalar as realIsScalar, isMap as realIsMap, isSeq as realIsSeq } from 'yaml';
@@ -38,6 +38,7 @@ jest.unstable_mockModule('node:fs', () => ({
   unlinkSync: jest.fn(),
   mkdirSync: mockMkdirSync,
   chmodSync: jest.fn(),
+  realpathSync: realRealpathSync,
   watch: jest.fn(() => ({ close: jest.fn() })),
   statSync: jest.fn(() => ({ mtimeMs: 0 })),
   readdirSync: jest.fn(() => []),

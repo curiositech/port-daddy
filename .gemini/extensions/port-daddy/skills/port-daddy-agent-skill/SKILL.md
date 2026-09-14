@@ -53,6 +53,16 @@ that is a product gap: file a `high`-severity feedback entry against the
 to follow: `fleetbar-secret-management-with-provider-deeplinks`,
 `fleetbar-console-must-support-zoom-and-text-scaling`.
 
+When Port Daddy is intentionally Off, do not ask the operator to turn it on
+merely so an agent can coordinate. The Relay's Harbor Work Register has a
+browser-approved task path: the operator opens the repository's Register page,
+names the task, and pastes the one-use pairing code into that task. Exchange it
+at `POST /v1/register/exchange`; the returned `pdr_` bearer is short-lived and
+bound to that repository, task name, and owner. It is Register authority only,
+not a general Relay credential. Treat roadmap rows missing from a halted or
+stale mirror as unknown and any new claim as `proposed`; never pretend the
+Register became the roadmap's writer.
+
 If an agent's output reads like "now run `launchctl ...`" or "edit
 `~/.env.local` and add ...", rewrite it. The right output is "open FleetBar →
 Credentials → Cloudflare → paste token (deep-link: dash.cloudflare.com/
@@ -352,13 +362,15 @@ from canonical ordered metadata.
 Reject or re-embed incompatible spaces; never compare them silently.
 
 MiniLM is an explicit local/degraded fallback, not the universal design
-authority. Verify the live `pd embed --help` surface and current source before
-depending on model selection. At the 2026-08-31 audit point, the installed
-stable runtime and `main` exposed only the MiniLM `pd embed` path; treat that as
-a transitional capability and run `pd doctor` when it is unavailable.
-Higher-quality model selection depends on the in-flight control-plane
-embedding-model-registry work; do not claim that registry shipped until source,
-deployed runtime, and a read-back receipt agree.
+authority. Name the stable corpus on every direct embedding call (`pd embed
+text|stdin --corpus <id>`); the source selector maps corpus policy, role, tier,
+and provider to a registry profile and returns its `spaceId`. The local loader
+must verify pinned artifact and runtime digests plus the vector output contract
+before use. That runtime check is not a signed producer or benchmark promotion
+receipt, and it does not activate BGE or any code/multimodal candidate. Verify
+the installed `pd embed --help` surface before depending on this source contract,
+run `pd doctor` when the local profile is unavailable, and do not claim a daemon
+upgrade until deployed runtime and read-back evidence agree.
 
 
 ## Telos vs Purpose

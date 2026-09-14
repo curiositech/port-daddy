@@ -1,0 +1,308 @@
+{
+  "generated": "2026-09-06",
+  "method_note": "commons.wikimedia.org, en.wikipedia.org and api.wikimedia.org are all blocked by this sandbox's egress proxy for direct WebFetch. All Commons license text below was obtained via Firecrawl's indexed search snippets (mcp__Firecrawl__firecrawl_search, includeDomains=commons.wikimedia.org), which return literal excerpts of the rendered file page (including the 'Licensing' section text). Where a snippet directly quotes the file page's license/attribution text, confidence is 'verified'; where the license was only inferable from category listings, sister-wiki mirrors, or WebSearch's synthesized summary (not a literal on-page quote), confidence is 'indexed'. Direct-file URLs use the Commons 'Special:FilePath/<filename>' stable redirect when the literal upload.wikimedia.org hashed path was not captured in a snippet; where the hashed upload.wikimedia.org URL WAS captured verbatim, that is given instead and noted.",
+  "attribution_rules": {
+    "source": "creativecommons.org license deed pages, quoted verbatim via Firecrawl search snippets",
+    "CC_BY_SA_3.0": {
+      "url": "https://creativecommons.org/licenses/by-sa/3.0/deed.en",
+      "quoted_clause": "Attribution — You must give appropriate credit, provide a link to the license, and indicate if changes were made. You may do so in any reasonable manner, but not in any way that suggests the licensor endorses you or your use.",
+      "also_note": "The by-sa/3.0 deed page also carries a notice: 'This is an older version of this license. Compared to previous ... [CC] strongly recommend the use of the 4.0 license instead.'"
+    },
+    "CC_BY_SA_4.0": {
+      "url": "https://creativecommons.org/licenses/by-sa/4.0/deed.en",
+      "quoted_clause": "Attribution — You must give appropriate credit, provide a link to the license, and indicate if changes were made. You may do so in any reasonable manner, but not in any way that suggests the licensor endorses you or your use."
+    },
+    "CC_BY_4.0": {
+      "url": "https://creativecommons.org/licenses/by/4.0/deed.en",
+      "quoted_clause": "Attribution — You must give appropriate credit, provide a link to the license, and indicate if changes were made. You may do so in any reasonable manner, but not in any way that suggests the licensor endorses you or your use."
+    },
+    "TASL_best_practice": {
+      "source": "Creative Commons wiki 'Best practices for attribution', paraphrased by multiple library guides that quote it",
+      "note": "CC's recommended attribution formula is the acronym TASL: Title, Author, Source, License — i.e. name the work, name the creator, link to where it came from, and name/link the license. This is CC's stated best practice, not a strict legal requirement of the license text itself, but the credits page should follow it for every entry below."
+    },
+    "practical_rule_for_this_book": "Every BY-SA (3.0 or 4.0) image being duotoned/cropped is a derivative work: the credits page must (1) name the original author/attribution string exactly as the file page states it, (2) link to the file's Commons page and to the CC license, (3) note that the image has been cropped/duotoned (adaptation), and (4) the adaptation itself must remain available under the same BY-SA license if the book redistributes the crop as a standalone file. CC BY (no SA) images (e.g. the Aumann, Robert (1930).jpg / David Orban photo, and CC BY 3.0 James C Scott photo) only require credit + link, no share-alike obligation on the crop."
+  },
+  "subjects": [
+    {
+      "subject": "Leslie Lamport",
+      "candidates": [
+        {
+          "commons_file_page": "https://commons.wikimedia.org/wiki/File:Leslie_Lamport_September_2006.jpg",
+          "direct_original_file_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Leslie_Lamport_September_2006.jpg",
+          "licence": "Creative Commons Attribution-Share Alike 2.5 Slovenia",
+          "attribution": "Author not captured in the indexed snippet — the file summary was truncated at 'Source' before naming the photographer. Needs a direct look at the file page to complete the credit line before printing.",
+          "source_date": "12 September 2006, IFIP conference, Udine, Italy (per file caption 'Leslie Lamport, IFIP, Udine, September 2006')",
+          "pixel_dimensions": "1,200 x 1,600 (largest listed; other sizes 960x1280, 500x667, 250x333 also available)",
+          "face_view_background": "Not visually inspected (image fetch blocked); conference-photo context suggests a candid three-quarter view with visible background — needs visual check before committing to the 1.2in-square crop.",
+          "confidence": "verified for the licence line itself (direct quote: 'This file is licensed under the Creative Commons Attribution-Share Alike 2.5 Slovenia license'); indexed/incomplete for author and framing"
+        }
+      ],
+      "notes": "A second file, File:Leslie Lamport.jpg (393x500, used on Wikipedia's Leslie Lamport infobox), could not be resolved to a specific license tag — every snippet returned only Wikipedia's generic page-footer boilerplate ('Creative Commons Attribution-ShareAlike License; additional terms may apply'), which is NOT the file's own licence tag but the site-wide text license notice that appears on every Commons page. Per instructions this file is excluded rather than guessed. Only one verifiable candidate is listed for Lamport."
+    },
+    {
+      "subject": "Elinor Ostrom",
+      "candidates": [
+        {
+          "commons_file_page": "https://commons.wikimedia.org/wiki/File:Elinor_Ostrom_close-up_(cropped).jpg",
+          "direct_original_file_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Elinor_Ostrom_close-up_(cropped).jpg",
+          "licence": "Creative Commons Attribution-Share Alike 3.0 Unported",
+          "attribution": "© Holger Motzkau 2010, Wikipedia/Wikimedia Commons (quoted directly from the file's Attribution field)",
+          "source_date": "Photographed at the Beijer Hall, Royal Swedish Academy of Sciences, Stockholm, around the 2009 Nobel Prize press conference; file attribution year given as 2010",
+          "pixel_dimensions": "1,355 x 2,173 (3.54 MB original)",
+          "face_view_background": "Close-up crop already made for exactly this purpose (a tight head shot pulled from a press-conference photo) — likely near-frontal with plain/blurred background, but not visually confirmed here.",
+          "confidence": "verified (direct quote: 'This file is licensed under the Creative Commons Attribution-Share Alike 3.0 Unported license. Attribution: © Holger Motzkau 2010, Wikipedia/Wikimedia Commons')"
+        }
+      ],
+      "notes": "Only one strong candidate found; the only other Commons photo of her found (Nobel Prize 2009-Press Conference KVA-30.jpg) is a multi-person group photo, not a usable second solo portrait, though a further crop of it ('...KVA-30 (cropped).jpg') is referenced but its own license line was not independently confirmed, so it is omitted."
+    },
+    {
+      "subject": "Robert Aumann",
+      "candidates": [
+        {
+          "commons_file_page": "https://commons.wikimedia.org/wiki/File:Aumann-1080b.jpg",
+          "direct_original_file_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Aumann-1080b.jpg",
+          "licence": "Creative Commons Attribution-Share Alike 2.0 France (dual-licensed with CeCILL per the file's {{self2|CeCILL|Cc-by-sa-2.0-fr}} tag)",
+          "attribution": "Photograph by Rama (Wikimedia Commons username 'Rama')",
+          "source_date": "16 September 2006, 'Journée de la Recherche', EPFL (Ecole Polytechnique Federale de Lausanne); EXIF date 16 November 2006",
+          "pixel_dimensions": "approx. 1,633 x 1,634 (near-square)",
+          "face_view_background": "Not visually inspected; Rama's EPFL conference portraits are typically tight, near-frontal head shots against a plain or blurred background (Rama photographs are commonly used for exactly this reason on Wikipedia infoboxes), but this is inference from the photographer's general style, not a direct look at this file.",
+          "confidence": "verified for licence (direct quote of the licence sentence plus the raw wikitext tag '{{self2|CeCILL|Cc-by-sa-2.0-fr}} ... Work by Rama'); indexed for dimensions (via a WebSearch summary, not a literal snippet quote)"
+        },
+        {
+          "commons_file_page": "https://commons.wikimedia.org/wiki/File:Aumann,_Robert_(1930).jpg",
+          "direct_original_file_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Aumann,_Robert_(1930).jpg",
+          "licence": "Creative Commons Attribution 2.0 Generic (CC BY 2.0 — no share-alike clause)",
+          "attribution": "David Orban (originally posted to Flickr as 'Robert Aumann')",
+          "source_date": "18 March 2008; originally posted to Flickr",
+          "pixel_dimensions": "960 x 1,079",
+          "face_view_background": "Flickr conference-portrait framing typical of David Orban's photos of this era — likely a fairly frontal head-and-shoulders shot with some visible background — not visually confirmed here.",
+          "confidence": "verified (direct quote from a sister-wiki mirror of the same file page: 'Lizenz Creative Commons Attribution 2.0 Generic', and separately 'Creative Commons Attribution 2.0 Generic' with the 960x1079 dimension, both reproducing the file's own licence tag)"
+        }
+      ],
+      "notes": "The CC BY (not BY-SA) file (David Orban's) is the simpler one for the credits page since it carries no share-alike obligation on the crop."
+    },
+    {
+      "subject": "Butler Lampson",
+      "candidates": [
+        {
+          "commons_file_page": "https://commons.wikimedia.org/wiki/File:Butler_Lampson_Royal_Society_(cropped).jpg",
+          "direct_original_file_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Butler_Lampson_Royal_Society_(cropped).jpg",
+          "licence": "Creative Commons Attribution-Share Alike 3.0 Unported",
+          "attribution": "The Royal Society (quoted directly from the file's Attribution field; cropped/uploaded to Commons by user Duncan.Hull from the Royal Society's official Fellow-portrait release)",
+          "source_date": "Part of the Royal Society's 2014-onward practice of releasing new-Fellow portraits to Commons under CC BY-SA; exact sitting date not captured",
+          "pixel_dimensions": "270 x 359 (cropped version; small)",
+          "face_view_background": "Royal Society Fellow portraits are studio head-and-shoulders shots, typically frontal/near-frontal against a plain grey background — this is the standard house style for that image series, not a visual confirmation of this specific frame.",
+          "confidence": "verified (direct quote: 'This file is licensed under the Creative Commons Attribution-Share Alike 3.0 Unported license. Attribution: The Royal Society. You are free: to share ...')"
+        },
+        {
+          "commons_file_page": "https://commons.wikimedia.org/wiki/File:Butler_Lampson_Royal_Society.jpg",
+          "direct_original_file_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Butler_Lampson_Royal_Society.jpg",
+          "licence": "Creative Commons Attribution-Share Alike 3.0 Unported (same release; this is the uncropped parent of the file above)",
+          "attribution": "The Royal Society; uploaded by Duncan.Hull",
+          "source_date": "Same Royal Society Fellow-portrait release as above",
+          "pixel_dimensions": "576 x 864 (larger, uncropped)",
+          "face_view_background": "Same studio portrait, uncropped — more surrounding background/framing than the (cropped) version, giving more room to choose the exact 1.2in-square crop.",
+          "confidence": "indexed (license inferred by direct relation/identical release to the verified cropped sibling above; the uncropped file's own licensing section text was not independently quoted)"
+        }
+      ],
+      "notes": "The 270x359 cropped file is quite small for a duotone print crop; the 576x864 uncropped original gives more resolution to re-crop from at print size — recommend using the uncropped file and re-cropping tighter."
+    },
+    {
+      "subject": "Derek Parfit",
+      "candidates": [
+        {
+          "commons_file_page": "https://commons.wikimedia.org/wiki/File:Derek_Parfit_at_Harvard-April_21,_2015-Effective_Altruism_(cropped).jpg",
+          "direct_original_file_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Derek_Parfit_at_Harvard-April_21,_2015-Effective_Altruism_(cropped).jpg",
+          "licence": "Creative Commons Attribution-Share Alike 4.0 International",
+          "attribution": "Anna Riedl",
+          "source_date": "Photographed 22 April 2015 (EXIF) at a Harvard Effective Altruism talk on 21 April 2015",
+          "pixel_dimensions": "480 x 652",
+          "face_view_background": "Cropped from a lecture-hall candid photo; likely three-quarter view with some remaining background — not visually confirmed here.",
+          "confidence": "verified (direct quote: 'This file is licensed under the Creative Commons Attribution-Share Alike 4.0 International license') for licence; verified author via a separate snippet naming 'Author Anna Riedl' on the parent file page"
+        },
+        {
+          "commons_file_page": "https://commons.wikimedia.org/wiki/File:Derek_Parfit_at_Harvard-April_21,_2015-Effective_Altruism.jpg",
+          "direct_original_file_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Derek_Parfit_at_Harvard-April_21,_2015-Effective_Altruism.jpg",
+          "licence": "Creative Commons Attribution-Share Alike 4.0 International",
+          "attribution": "Anna Riedl",
+          "source_date": "Same event as above; uncropped parent file",
+          "pixel_dimensions": "2,560 x 1,707",
+          "face_view_background": "Full lecture-hall/podium shot with visible background and audience context; much more room to pick the crop than the pre-cropped version.",
+          "confidence": "verified (direct quote of the same licence sentence on this file's own page)"
+        }
+      ],
+      "notes": "Recommend using the uncropped full-resolution file (2560x1707) and re-cropping tighter for the 1.2in-square margin portrait."
+    },
+    {
+      "subject": "Ronald Coase",
+      "candidates": [
+        {
+          "commons_file_page": "https://commons.wikimedia.org/wiki/File:Ronald_Coase_close-up_(cropped).jpg",
+          "direct_original_file_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Ronald_Coase_close-up_(cropped).jpg",
+          "licence": "NOT a standard CC tag — the file page's own Licensing section states a bespoke free-use permission (quoted verbatim): \"The copyright holder of this file allows anyone to use it for any purpose, provided that the copyright holder is properly attributed. Redistribution, derivative work, commercial use, and all other use is permitted.\"",
+          "attribution": "University of Chicago Law School",
+          "source_date": "12 June 2003; 'Ronald Coase profile photo in 2003. Photo taken at and by University of Chicago Law School.'",
+          "pixel_dimensions": "1,195 x 1,928",
+          "face_view_background": "Close-up profile crop, likely a fairly tight head-and-shoulders shot — not visually confirmed here.",
+          "confidence": "verified (direct quote of the Licensing section text) — flagged as a licence-text subtlety below"
+        },
+        {
+          "commons_file_page": "https://commons.wikimedia.org/wiki/File:Coase_profile_2003.jpg",
+          "direct_original_file_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Coase_profile_2003.jpg",
+          "licence": "Same bespoke free-use-with-attribution permission as above (this is the uncropped parent file)",
+          "attribution": "University of Chicago Law School",
+          "source_date": "12 June 2003, 16:48:48",
+          "pixel_dimensions": "Larger than the cropped derivative; exact original dimensions not captured in the indexed snippets",
+          "face_view_background": "Uncropped profile photo, presumably with an office/institutional background — not visually confirmed here.",
+          "confidence": "indexed (license inferred as identical to the verified cropped sibling; this file's own Licensing section text was not independently quoted in full)"
+        }
+      ],
+      "notes": "IMPORTANT LICENCE SUBTLETY: this is not one of the standard CC BY / BY-SA license classes — it is Commons' 'copyright holder permits any use, including commercial and derivative, provided attribution is given' template (functionally similar to CC BY but not badged as CC). The credits page should quote this exact permission sentence for Coase rather than writing 'CC BY' or 'CC BY-SA', since that would misstate the actual grant on file."
+    },
+    {
+      "subject": "Thomas Hobbes, Leviathan 1651 title page",
+      "candidates": [
+        {
+          "commons_file_page": "https://commons.wikimedia.org/wiki/File:Leviathan_-_Hobbes%27_Leviathan_(1651),_title_page_-_BL.jpg",
+          "direct_original_file_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Leviathan_-_Hobbes%27_Leviathan_(1651),_title_page_-_BL.jpg",
+          "licence": "Public domain (CC0 Universal Public Domain Dedication)",
+          "attribution": "Engraving by Abraham Bosse (with input from Thomas Hobbes); released by the British Library — 'One of 430 images released by British [Library]'. No attribution is legally required for a PD/CC0 work, but crediting the British Library and Abraham Bosse is good practice for the credits page.",
+          "source_date": "1651 (original publication date); digitized/released by the British Library",
+          "pixel_dimensions": "1,016 x 1,574",
+          "face_view_background": "N/A — this is the full engraved title page/frontispiece image (allegorical figure plus text), not a face portrait; the book will need to select/crop the crowned figure for a margin treatment.",
+          "confidence": "verified (direct quote: 'Universal Public Domain Dedication. One of 430 images released by British ...')"
+        },
+        {
+          "commons_file_page": "https://commons.wikimedia.org/wiki/File:Leviathan_frontispiece_cropped_British_Library.jpg",
+          "direct_original_file_url": "https://upload.wikimedia.org/wikipedia/commons/a/a3/Leviathan_frontispiece_cropped_British_Library.jpg",
+          "licence": "CC0 (Public Domain)",
+          "attribution": "Abraham Bosse, CC0, via Wikimedia Commons (quoted directly from the file page's share/mailto metadata: 'Abraham Bosse, CC0, via Wikimedia Commons')",
+          "source_date": "1651 engraving; British Library digitization",
+          "pixel_dimensions": "1,930 x 3,078 (original)",
+          "face_view_background": "This crop already isolates just the frontispiece illustration (removing the surrounding title-page text/border), making it the more print-ready of the two for a smaller marginal treatment; still an engraving scene, not a single face.",
+          "confidence": "verified (direct quote of the CC0 attribution line and the confirmed original pixel dimensions)"
+        }
+      ],
+      "notes": "No 'no-derivatives' restriction applies to either file — both are CC0/public domain, so duotoning and cropping are fully permitted with no licence obstacle."
+    },
+    {
+      "subject": "James C. Scott (Seeing Like a State)",
+      "candidates": [
+        {
+          "commons_file_page": "https://commons.wikimedia.org/wiki/File:James_C_Scott_2016.jpg",
+          "direct_original_file_url": "https://commons.wikimedia.org/wiki/Special:FilePath/James_C_Scott_2016.jpg",
+          "licence": "Creative Commons Attribution 3.0 Unported (CC BY 3.0 — no share-alike clause)",
+          "attribution": "Author not captured in the indexed snippets — needs a direct look at the file page to complete the credit line",
+          "source_date": "2016 (per filename); exact date/photographer not captured",
+          "pixel_dimensions": "365 x 529 (original file; the scraped preview line oddly showed a larger 500x725 'preview' size, which is likely a scaling/DPI artifact in the indexed text rather than a real inconsistency — the 'Original file (365 x 529 pixels...)' line is the one to trust)",
+          "face_view_background": "Not visually inspected here.",
+          "confidence": "verified for licence (direct quote: 'This file is licensed under the Creative Commons Attribution 3.0 Unported license'); indexed/incomplete for author and exact date"
+        }
+      ],
+      "notes": "James C. Scott (1936-2024), the Yale political scientist/anthropologist and author of Seeing Like a State, does have a freely licensed Commons portrait — a second independent candidate was not found in this search pass."
+    },
+    {
+      "subject": "Peter Ramadge (supervisory control)",
+      "candidates": [],
+      "notes": "NONE FOUND. No Wikimedia Commons file for Peter Ramadge (Princeton ECE) turned up in repeated searches; his official Princeton faculty photo (https://ece.princeton.edu/people/peter-j-ramadge) is university-copyrighted, not freely licensed. Per instructions, no candidate is listed for Ramadge — treat as unresolved/none for the book."
+    },
+    {
+      "subject": "W. Murray Wonham (supervisory control)",
+      "candidates": [
+        {
+          "commons_file_page": "https://commons.wikimedia.org/wiki/File:Wonham.jpg",
+          "direct_original_file_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Wonham.jpg",
+          "licence": "Creative Commons Attribution-Share Alike 4.0 International",
+          "attribution": "Uploaded as the photographer's own work by Wikimedia Commons user 'Dal centro della mia vita venne una grande fontana' (an Italian-language username; this string is the credited author of record on the file page, since {{own}} source was declared)",
+          "source_date": "2015-12-08 (per the file's upload/description date); used in the W. M. Wonham Wikipedia infobox captioned 'Wonham in 2015'",
+          "pixel_dimensions": "Not fully captured in indexed snippets (an 82px preview line was seen but not the full-resolution 'Original file' line)",
+          "face_view_background": "CAUTION: one indexed snippet described the image's caption/description as 'Professor Wonham with students' — this may be a group photo rather than a clean solo portrait, which would need cropping down to just Wonham's face for a margin portrait. This was not visually confirmed.",
+          "confidence": "verified for licence (direct quote: 'This file is licensed under the Creative Commons Attribution-Share Alike 4.0 International license'); indexed and flagged with caution for framing/composition"
+        }
+      ],
+      "notes": "Usable, but check before typesetting whether the frame is a solo head shot or a group photo needing a tighter crop around Wonham specifically."
+    },
+    {
+      "subject": "Abraham Wald (SPRT)",
+      "candidates": [
+        {
+          "commons_file_page": "https://commons.wikimedia.org/wiki/File:Abraham_Wald_(cropped).jpg",
+          "direct_original_file_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Abraham_Wald_(cropped).jpg",
+          "licence": "Creative Commons Attribution-Share Alike 2.0 Germany",
+          "attribution": "Photo by Konrad Jacobs, from the Oberwolfach Photo Collection (Mathematisches Forschungsinstitut Oberwolfach / MFO) — same collection and credit convention as the Claude Shannon photo below",
+          "source_date": "Oberwolfach Photo Collection archival photo; exact sitting date not captured",
+          "pixel_dimensions": "361 x 482 (cropped)",
+          "face_view_background": "Cropped headshot; MFO archive photos are typically candid academic snapshots with mild background — not visually confirmed here.",
+          "confidence": "verified (direct quote: 'w:en:Creative Commons attribution share alike. This file is licensed under the Creative Commons Attribution-Share Alike 2.0 Germany license.')"
+        },
+        {
+          "commons_file_page": "https://commons.wikimedia.org/wiki/File:Abraham_Wald.jpg",
+          "direct_original_file_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Abraham_Wald.jpg",
+          "licence": "Creative Commons Attribution-Share Alike 2.0 Germany (uncropped parent, part of Category:Pictures from Oberwolfach Photo Collection, which the snippet confirms is CC BY-SA 2.0 Germany-licensed as a set)",
+          "attribution": "Oberwolfach Photo Collection (Konrad Jacobs), per the category-wide licence statement",
+          "source_date": "Not captured precisely",
+          "pixel_dimensions": "512 x 800",
+          "face_view_background": "Uncropped archive photo; likely more background/context than the cropped version — not visually confirmed here.",
+          "confidence": "verified (direct quote from the shared Category:Pictures from Oberwolfach Photo Collection page: 'This file is licensed under the Creative Commons Attribution-Share Alike 2.0 Germany license ... Abraham Wald.jpg')"
+        }
+      ],
+      "notes": "Do not confuse with 'File:Abraham Wald in his youth.jpg' (a different, PD-because-pre-1930-publication photo of a young Wald) or 'File:Abraham Wald. The spirit of the Ghetto.1902.jpg' (an unrelated book illustration with 'Abraham' and 'Wald' both appearing in an unrelated title) — those were search false leads and are excluded here."
+    },
+    {
+      "subject": "Claude Shannon",
+      "candidates": [
+        {
+          "commons_file_page": "https://commons.wikimedia.org/wiki/File:ClaudeShannon_MFO3807.jpg",
+          "direct_original_file_url": "https://commons.wikimedia.org/wiki/Special:FilePath/ClaudeShannon_MFO3807.jpg",
+          "licence": "Creative Commons Attribution-Share Alike 2.0 Germany",
+          "attribution": "Photo by Konrad Jacobs, Oberwolfach Photo Collection (quoted directly: 'Author: Jacobs, Konrad. This file is licensed under the Creative Commons Attribution-Share Alike 2.0 Germany license.')",
+          "source_date": "Oberwolfach Photo Collection archival photo; exact sitting date not captured",
+          "pixel_dimensions": "284 x 400 (this appears to be the only resolution on file — small for a duotone print; will need to check the actual page for any larger uploaded version)",
+          "face_view_background": "Not visually inspected here.",
+          "confidence": "verified (direct quote of both author and licence line)"
+        }
+      ],
+      "notes": "Only one verified candidate found. Commons' Category:Claude Shannon lists 33 files (mostly statues, diagrams, and the Shannon-switching-game/multigraph illustrations named after him rather than portraits of him), and other portrait-looking files turned up in general search did not yield a directly quotable licence line, so they are excluded rather than guessed at. 284x400 px is on the small side for a 1.2in square duotone crop at print resolution — flag this to the production team."
+    },
+    {
+      "subject": "Ada Lovelace",
+      "candidates": [
+        {
+          "commons_file_page": "https://commons.wikimedia.org/wiki/File:Ada_Lovelace_portrait.jpg",
+          "direct_original_file_url": "https://upload.wikimedia.org/wikipedia/commons/a/a4/Ada_Lovelace_portrait.jpg",
+          "licence": "Public domain (PD-Art — faithful photographic reproduction of a 2-D public-domain work)",
+          "attribution": "Painting by Alfred Edward Chalon (watercolor portrait of Ada King, Countess of Lovelace); digital source: Science Museum Group. No attribution is legally required for PD, but crediting Chalon and the Science Museum Group is good practice.",
+          "source_date": "19th century watercolor (painted in Ada Lovelace's lifetime); digitized copy via Science Museum Group",
+          "pixel_dimensions": "2,439 x 3,504 (original, 2.19 MB)",
+          "face_view_background": "Formal watercolor portrait; period portraits of this type are typically three-quarter view against a plain or softly painted background — not visually confirmed here.",
+          "confidence": "verified (direct quote: 'Alfred Edward Chalon, Public domain, via Wikimedia Commons' from the file's own share/mailto metadata, plus the confirmed original pixel size)"
+        },
+        {
+          "commons_file_page": "https://commons.wikimedia.org/wiki/File:Ada_Lovelace.jpg",
+          "direct_original_file_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Ada_Lovelace.jpg",
+          "licence": "Public domain (PD-Art — faithful photographic reproduction of a 2-D public-domain work of art, created before 1 January 1931)",
+          "attribution": "Painting by Margaret Sarah Carpenter (Government Art Collection, UK). No attribution legally required for PD; crediting Carpenter and the Government Art Collection is good practice.",
+          "source_date": "Painted circa 1836 (Carpenter's well-known Lovelace portrait); reproduction pre-1931",
+          "pixel_dimensions": "Not captured precisely in the indexed snippets for this exact filename (a related crop, 'Ada Lovelace (crop 3-4).jpg', is derived from it); needs a direct check",
+          "face_view_background": "This is the well-known formal oil-painting portrait of Lovelace — three-quarter view, painted interior background — this is a generally known fact about the painting itself rather than a fresh visual inspection of the file.",
+          "confidence": "verified (direct quote: 'This is a faithful photographic reproduction of a two-dimensional, public domain work of art... before January 1, 1931' plus explicit painter attribution 'Margaret Sarah Carpenter - Government Art Collection')"
+        }
+      ],
+      "notes": "Both are fully public domain with no restrictions on duotoning/cropping. The Chalon watercolor (2439x3504) has confirmed high resolution suitable for print; the Carpenter oil painting is Ada Lovelace's most iconic likeness but its exact file dimensions need a direct page check before typesetting."
+    }
+  ],
+  "unresolved": [
+    {
+      "subject": "Peter Ramadge",
+      "attempted": "Multiple Firecrawl searches restricted to commons.wikimedia.org for 'Peter Ramadge' turned up nothing; general web search found only his Princeton faculty-bio photo (university-copyrighted, not freely licensed) and LinkedIn/Google Scholar profile photos (not freely licensed). No freely licensed portrait found — report as none available, per the task's own instruction for this subject."
+    },
+    {
+      "subject": "Leslie Lamport.jpg (the 393x500 Wikipedia-infobox version)",
+      "attempted": "Repeated targeted Firecrawl searches for this specific file's licensing text returned only Wikipedia's generic site-wide footer boilerplate ('Creative Commons Attribution-ShareAlike License; additional terms may apply'), which is not the file's own license tag. Could not confirm the actual per-file license, so this candidate is excluded (the September-2006 Lamport photo, which HAS a confirmed CC BY-SA 2.5 Slovenia tag, is used instead)."
+    },
+    {
+      "subject": "Coase profile 2003.jpg exact original pixel dimensions",
+      "attempted": "Confirmed the (cropped) derivative's dimensions (1,195 x 1,928) and the parent file's licence text, but the parent's own 'Original file (W x H pixels...)' line was not captured in any indexed snippet after several query variants."
+    }
+  ]
+}
