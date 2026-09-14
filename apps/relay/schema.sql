@@ -1152,6 +1152,16 @@ CREATE TABLE IF NOT EXISTS fleet_account_members (
 );
 CREATE INDEX IF NOT EXISTS fleet_account_members_user_idx
   ON fleet_account_members (user_id, tenant_account_id);
+CREATE TABLE IF NOT EXISTS fleet_tenant_installations (
+  installation_id INTEGER PRIMARY KEY CHECK (typeof(installation_id) = 'integer' AND installation_id > 0),
+  tenant_account_id TEXT NOT NULL REFERENCES fleet_accounts(id),
+  github_account_id INTEGER NOT NULL CHECK (typeof(github_account_id) = 'integer' AND github_account_id > 0),
+  created_at INTEGER NOT NULL CHECK (typeof(created_at) = 'integer' AND created_at > 0),
+  updated_at INTEGER NOT NULL CHECK (typeof(updated_at) = 'integer' AND updated_at > 0),
+  UNIQUE (tenant_account_id, installation_id, github_account_id)
+);
+CREATE INDEX IF NOT EXISTS fleet_tenant_installations_account_idx
+  ON fleet_tenant_installations (tenant_account_id, installation_id);
 CREATE TABLE IF NOT EXISTS fleet_tenant_repositories (
   tenant_account_id TEXT NOT NULL REFERENCES fleet_accounts(id),
   installation_id INTEGER NOT NULL CHECK (typeof(installation_id) = 'integer' AND installation_id > 0),
@@ -1161,7 +1171,9 @@ CREATE TABLE IF NOT EXISTS fleet_tenant_repositories (
   active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
   created_at INTEGER NOT NULL CHECK (typeof(created_at) = 'integer' AND created_at > 0),
   updated_at INTEGER NOT NULL CHECK (typeof(updated_at) = 'integer' AND updated_at > 0),
-  PRIMARY KEY (tenant_account_id, installation_id, repository_id)
+  PRIMARY KEY (tenant_account_id, installation_id, repository_id),
+  FOREIGN KEY (tenant_account_id, installation_id, github_account_id)
+    REFERENCES fleet_tenant_installations (tenant_account_id, installation_id, github_account_id)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS fleet_tenant_repositories_active_identity_idx
   ON fleet_tenant_repositories (installation_id, repository_id) WHERE active = 1;
@@ -1175,6 +1187,11 @@ CREATE TRIGGER IF NOT EXISTS fleet_account_members_immutable_ids
 BEFORE UPDATE OF tenant_account_id, user_id ON fleet_account_members
 BEGIN
   SELECT RAISE(ABORT, 'fleet account member identity is immutable');
+END;
+CREATE TRIGGER IF NOT EXISTS fleet_tenant_installations_immutable_ids
+BEFORE UPDATE OF installation_id, tenant_account_id, github_account_id ON fleet_tenant_installations
+BEGIN
+  SELECT RAISE(ABORT, 'fleet tenant installation identity is immutable');
 END;
 CREATE TRIGGER IF NOT EXISTS fleet_tenant_repositories_immutable_ids
 BEFORE UPDATE OF tenant_account_id, installation_id, repository_id, github_account_id

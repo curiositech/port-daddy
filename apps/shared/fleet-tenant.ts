@@ -10,11 +10,8 @@
 
 export const FLEET_RUN_JOB_SCHEMA_VERSION = 2 as const;
 
-/**
- * Production admission remains on the legacy envelope until the executor can
- * validate every server-owned tenant coordinate before doing work.
- */
-export const FLEET_RUN_JOB_V2_ACTIVATION = 'blocked-pending-executor-validation' as const;
+/** Production admission uses only the v2 envelope and fails closed. */
+export const FLEET_RUN_JOB_V2_ACTIVATION = 'active-fail-closed' as const;
 
 export interface FleetTenantIdentityWitness {
   installationId: number;
@@ -144,6 +141,10 @@ export async function resolveFleetTenantBinding(
     const result = await db.prepare(
       `SELECT r.tenant_account_id, r.installation_id, r.repository_id, r.github_account_id
          FROM fleet_tenant_repositories r
+         JOIN fleet_tenant_installations i
+           ON i.installation_id = r.installation_id
+          AND i.tenant_account_id = r.tenant_account_id
+          AND i.github_account_id = r.github_account_id
          JOIN fleet_accounts a ON a.id = r.tenant_account_id
         WHERE r.installation_id = ? AND r.repository_id = ?
           AND r.active = 1 AND a.status = 'active'

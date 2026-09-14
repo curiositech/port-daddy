@@ -51,6 +51,7 @@ import {
   markFleetIntentRetrying,
   markFleetIntentTerminal,
 } from './run-intent.js';
+import { validateTenantJobAdmission } from './tenant-admission.js';
 
 export type { ExecutorEnv, FleetRunJob } from './env.js';
 export { executeFleet } from './execute.js';
@@ -114,6 +115,16 @@ export default {
         console.log(
           `[fleet-executor] dlq delivery=${message.body?.deliveryId} repo=${message.body?.repoFullName} pr=${message.body?.prNumber}`,
         );
+        const tenantAdmission = await validateTenantJobAdmission(env, message.body);
+        if (!tenantAdmission.ok) {
+          console.error(
+            `[fleet-executor] DLQ tenant admission refused delivery=${message.body?.deliveryId ?? 'unknown'} ` +
+            `reason=${tenantAdmission.reason} disposition=${tenantAdmission.disposition}`,
+          );
+          if (tenantAdmission.disposition === 'retryable') message.retry();
+          else message.ack();
+          continue;
+        }
         await sweepStaleManagedReservations(env.DB, Math.floor(Date.now()/1000));
         await finalizeUnleasedManagedRun(env.DB, `run:${message.body.deliveryId}`, Math.floor(Date.now()/1000));
         await handleDlqJob(message.body, env);
@@ -129,6 +140,16 @@ export default {
         : 1;
       const explicitContinuation = continuationSequence(message.body);
       const attemptCursor = deliveryAttemptCursor(message.body, attempt);
+      const tenantAdmission = await validateTenantJobAdmission(env, message.body);
+      if (!tenantAdmission.ok) {
+        console.error(
+          `[fleet-executor] tenant admission refused delivery=${message.body?.deliveryId ?? 'unknown'} ` +
+          `reason=${tenantAdmission.reason} disposition=${tenantAdmission.disposition}`,
+        );
+        if (tenantAdmission.disposition === 'retryable') message.retry();
+        else message.ack();
+        continue;
+      }
       try {
         if (
           message.body?.continuationSequence !== undefined &&

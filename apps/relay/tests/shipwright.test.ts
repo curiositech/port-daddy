@@ -66,7 +66,7 @@ beforeEach(() => {
     const url = String(input);
     if (url.endsWith('/repos/octo/widgets/installation')) return Response.json({ id: INSTALLATION_ID });
     if (url.includes(`/user/installations/${INSTALLATION_ID}/repositories`)) {
-      return Response.json({ total_count: 1, repositories: [{ full_name: REPO }] });
+      return Response.json({ total_count: 1, repositories: [{ id: 777, full_name: REPO, owner: { id: 888 } }] });
     }
     return new Response('not found', { status: 404 });
   }));
@@ -120,6 +120,12 @@ function makeDb(opts: {
           id: THREAD_ID, user_id: 'u_1', installation_id: INSTALLATION_ID,
           repo_full_name: REPO, created_at: 1, updated_at: 1,
         } as T;
+        if (sql.includes('FROM fleet_tenant_repositories r')) return {
+          tenant_account_id: bound[2], github_account_id: 888, user_id: 'u_1',
+          repository_full_name: REPO,
+          config_status: 'proposed', execution_status: 'blocked_pending_executor',
+          proposal_status: 'proposed',
+        } as T;
         return null;
       },
       async all<T>(): Promise<{ results: T[] }> {
@@ -147,7 +153,10 @@ function makeDb(opts: {
     };
     return s as unknown as D1PreparedStatement;
   };
-  return { db: { prepare: stmt } as unknown as D1Database, calls };
+  return { db: {
+    prepare: stmt,
+    batch: async (statements: D1PreparedStatement[]) => Promise.all(statements.map((statement) => statement.run())),
+  } as unknown as D1Database, calls };
 }
 
 function makeEnv(

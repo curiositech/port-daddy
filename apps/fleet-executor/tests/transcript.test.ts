@@ -441,13 +441,13 @@ describe('transcript is best-effort (never changes the gate)', () => {
     ]));
   });
 
-  it('D1 down ⇒ transcript failure telemetry cannot hold run completion open', async () => {
+  it('transcript-only failure telemetry cannot hold run completion open', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
     const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
     const d1 = memoryD1();
-    d1.failAll = true;
+    d1.failTranscriptWrites = true;
 
     const originalFetch = globalThis.fetch;
     let telemetryCalls = 0;
@@ -485,8 +485,8 @@ describe('transcript is best-effort (never changes the gate)', () => {
     await telemetryStarted;
     expect(telemetryCalls).toBeGreaterThan(0);
     expect(state.completed).toHaveLength(1);
-    expect(ai.calls).toHaveLength(0);
-    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(ai.calls).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('success');
   });
 
   it('queue acks a completed run even when every transcript D1 write fails', async () => {
@@ -495,7 +495,7 @@ describe('transcript is best-effort (never changes the gate)', () => {
     seedToken(kv, 42);
     const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
     const d1 = memoryD1();
-    d1.failAll = true;
+    d1.failTranscriptWrites = true;
 
     const msg = fakeMessage(makeJob());
     await handler.queue!(
@@ -506,9 +506,9 @@ describe('transcript is best-effort (never changes the gate)', () => {
 
     expect(msg.ack).toHaveBeenCalledTimes(1);
     expect(msg.retry).not.toHaveBeenCalled();
-    expect(ai.calls).toHaveLength(0);
+    expect(ai.calls).toHaveLength(1);
     expect(state.completed).toHaveLength(1);
-    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(state.completed[0].conclusion).toBe('success');
     expect(d1.runCalls).toBeGreaterThan(0);
     expect(d1.runs).toHaveLength(0);
     expect(d1.steps).toHaveLength(0);

@@ -718,17 +718,25 @@ async function graphql<T>(
   return response.body.data;
 }
 
+export interface AuthorizedRepositoryIdentity {
+  repositoryId: number | null;
+  githubAccountId: number | null;
+  fullName: string;
+}
+
 export async function authorizeExactRepository(
   installationId: number,
   repository: string,
   userToken: string,
   requiredAccess: 'read' | 'write' = 'read',
-): Promise<void> {
+): Promise<AuthorizedRepositoryIdentity> {
   for (let page = 1; page <= MAX_REPOSITORY_PAGES; page += 1) {
     const result = await fetchJson<{
       total_count?: number;
       repositories?: Array<{
+        id?: number;
         full_name?: string;
+        owner?: { id?: number };
         permissions?: { admin?: boolean; maintain?: boolean; push?: boolean; pull?: boolean };
       }>;
     }>(`${GH_API}/user/installations/${installationId}/repositories?per_page=100&page=${page}`, userToken);
@@ -736,10 +744,18 @@ export async function authorizeExactRepository(
     if (!Array.isArray(repositories)) failure('GITHUB_GRANT_INVALID', 502, 'GitHub installation repository response is invalid');
     const exact = repositories.find((entry) => entry.full_name?.toLowerCase() === repository);
     if (exact) {
-      if (requiredAccess === 'read') return;
+      if (typeof exact.full_name !== 'string') {
+        failure('GITHUB_GRANT_INVALID', 502, 'GitHub repository identity response is invalid');
+      }
       const permission = exact.permissions;
-      if (permission?.push || permission?.maintain || permission?.admin) return;
-      failure('REPOSITORY_WRITE_NOT_AUTHORIZED', 403, 'the signed-in user does not have write access to this repository');
+      if (requiredAccess === 'write' && !(permission?.push || permission?.maintain || permission?.admin)) {
+        failure('REPOSITORY_WRITE_NOT_AUTHORIZED', 403, 'the signed-in user does not have write access to this repository');
+      }
+      return {
+        repositoryId: Number.isSafeInteger(exact.id) && (exact.id ?? 0) > 0 ? exact.id! : null,
+        githubAccountId: Number.isSafeInteger(exact.owner?.id) && (exact.owner?.id ?? 0) > 0 ? exact.owner!.id! : null,
+        fullName: exact.full_name.toLowerCase(),
+      };
     }
     if (repositories.length < 100 || (Number.isSafeInteger(result.body?.total_count)
       && page * 100 >= (result.body?.total_count ?? 0))) {

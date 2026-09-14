@@ -138,8 +138,9 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
   /**
    * Shared relay D1 database (`port-daddy-relay`). The executor writes the
    * fleet_runs audit header + retry-replaceable fleet_run_steps telemetry here.
-   * Optional at the type level so unit tests can omit it; ordinary telemetry
-   * writes are best-effort and are not publication authority.
+   * Optional at the type boundary because queue input and test harnesses are
+   * untrusted. Runtime tenant admission requires it before credentials or
+   * work; later telemetry writes remain best-effort.
    */
   DB?: D1Database;
 }
@@ -150,11 +151,15 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
  * PR diff from the API). `deliveryId` dedupes retries.
  */
 export interface FleetRunJob {
+  schemaVersion?: 2;
+  tenantAccountId?: string;
   deliveryId: string;
   eventType: string;
   action: string | null;
   repoFullName: string | null;
   installationId: number | null;
+  repositoryId?: number;
+  githubAccountId?: number;
   prNumber: number | null;
   /**
    * Number of durable ship checkpoints that existed when this explicit
