@@ -1,4 +1,4 @@
-"""Unit tests for tikz_precheck.py's P18-P23 rules -- the five that make the
+"""Unit tests for tikz_precheck.py's P18-P24 rules -- the five that make the
 typographic law in figures/pd-figure-language.tex binding rather than advisory.
 
 Same fixture-file-per-case pattern as test_tikz_precheck.py and
@@ -468,7 +468,7 @@ class TestRuleIdsAreReported(LawTestCase):
     def test_markdown_report_lists_the_new_ids(self):
         report = self.run_on("\\begin{tikzpicture}\\end{tikzpicture}\n")
         md = tikz_precheck.render_markdown([report])
-        for rid in ("P18", "P19", "P20", "P21", "P22", "P23"):
+        for rid in ("P18", "P19", "P20", "P21", "P22", "P23", "P24"):
             self.assertIn(rid + "=", md)
 
 
@@ -532,6 +532,91 @@ class TestP23Dotted(LawTestCase):
             stem="pd-figure-language",
         )
         self.assertEqual(report["summary"]["by_id"]["P23"], 1)
+
+
+class TestP24BodyFont(LawTestCase):
+    """P24: a family-selection command in a node's TEXT rather than its font=."""
+
+    def test_a_plain_node_passes(self):
+        report = self.run_on(
+            "\\begin{tikzpicture}\n"
+            "\\node[pd row label] at (0,0) {the 6-cycle};\n"
+            "\\end{tikzpicture}\n"
+        )
+        self.assertEqual(report["summary"]["by_id"]["P24"], 0)
+
+    def test_pdfigsub_is_the_licensed_way_to_step_down(self):
+        report = self.run_on(
+            "\\begin{tikzpicture}\n"
+            "\\node[pd row label] at (0,0) {the 6-cycle\\\\\\pdfigsub the disagreement closes a cycle};\n"
+            "\\end{tikzpicture}\n"
+        )
+        self.assertEqual(report["summary"]["by_id"]["P24"], 0)
+
+    def test_normalfont_in_node_text_fails(self):
+        """The real case, from fig-fh-cycle-vs-cut and fig-stp-nomint-lineage:
+        \\normalfont resets to the DOCUMENT's family, so in the Book that line
+        printed in Palatino inside a grotesk drawing. No font= rule sees it."""
+        report = self.run_on(
+            "\\begin{tikzpicture}\n"
+            "\\node[pd row label] at (0,0) {the 6-cycle\\\\\\normalfont the disagreement closes a cycle};\n"
+            "\\end{tikzpicture}\n"
+        )
+        self.assertEqual(report["summary"]["by_id"]["P24"], 1)
+        msg = self.findings_for(report, "body-font")[0]["message"]
+        self.assertIn("pdfigsub", msg)
+        self.assertIn("DOCUMENT", msg)
+
+    def test_every_family_command_in_node_text_fails(self):
+        report = self.run_on(
+            "\\begin{tikzpicture}\n"
+            "\\node at (0,0) {a \\rmfamily b};\n"
+            "\\node at (0,1) {a \\sffamily b};\n"
+            "\\node at (0,2) {a \\ttfamily b};\n"
+            "\\end{tikzpicture}\n"
+        )
+        self.assertEqual(report["summary"]["by_id"]["P24"], 3)
+
+    def test_math_roman_is_not_flagged(self):
+        """\\mathrm and \\text take the text roman whatever the node's face is.
+        Flagging them would be flagging the typesetter, not the author -- and it
+        is exactly the class figcheck's T10 cannot separate from the page."""
+        report = self.run_on(
+            "\\begin{tikzpicture}\n"
+            "\\node[pd direct label] at (0,0) {$\\mathrm{sk}_A$ and $\\text{ok}$};\n"
+            "\\end{tikzpicture}\n"
+        )
+        self.assertEqual(report["summary"]["by_id"]["P24"], 0)
+
+    def test_a_family_command_in_a_comment_is_ignored(self):
+        report = self.run_on(
+            "\\begin{tikzpicture}\n"
+            "% this used to say \\normalfont, which is why it broke\n"
+            "\\node[pd row label] at (0,0) {fine};\n"
+            "\\end{tikzpicture}\n"
+        )
+        self.assertEqual(report["summary"]["by_id"]["P24"], 0)
+
+    def test_apparatus_files_are_exempt(self):
+        """Not everything under figures/ is a figure. pd-pedagogy.tex uses
+        \\normalfont inside an environment definition, which is correct there --
+        and is how the pd-* prefix rule in is_apparatus() was found."""
+        report = self.run_on(
+            "\\newenvironment{thing}{\\normalfont}{}\n", stem="pd-pedagogy",
+        )
+        self.assertEqual(report["summary"]["by_id"]["P24"], 0)
+
+
+class TestApparatusDetection(LawTestCase):
+    def test_every_pd_prefixed_file_is_apparatus(self):
+        for stem in ("pd-figure-language", "pd-figure-language-swiss", "pd-palette",
+                     "pd-pedagogy", "pd-cite-shortforms", "pd-textbook-map",
+                     "pd-something-invented-tomorrow"):
+            self.assertTrue(tikz_precheck.is_apparatus(stem + ".tex"), stem)
+
+    def test_a_drawing_is_not_apparatus(self):
+        for stem in ("fig-swk-stack-map", "legible-swarm-roles", "appendix-figures"):
+            self.assertFalse(tikz_precheck.is_apparatus(stem + ".tex"), stem)
 
 
 class TestRuleIdRegistry(unittest.TestCase):
