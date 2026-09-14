@@ -1142,6 +1142,8 @@ CREATE TABLE IF NOT EXISTS shipwright_proposals (
   installation_id INTEGER NOT NULL,
   repo_full_name TEXT NOT NULL CHECK (repo_full_name = lower(repo_full_name)),
   yaml TEXT NOT NULL,
+  origin TEXT NOT NULL DEFAULT 'assistant_conversation'
+    CHECK (origin IN ('assistant_conversation', 'deterministic_onboarding')),
   created_at INTEGER NOT NULL,
   UNIQUE (thread_id, yaml)
 );

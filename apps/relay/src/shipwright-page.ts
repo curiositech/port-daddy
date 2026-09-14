@@ -411,6 +411,9 @@ const CLIENT_JS = `
       contextPreview.appendChild(exportProfile);
     }
     if (d.latestProposal && d.latestProposal.yaml) {
+      contextPreview.appendChild(el('p', 'musing', d.latestProposal.origin === 'deterministic_onboarding'
+        ? 'Draft source: deterministic onboarding answers (no model call).'
+        : 'Draft source: repository-scoped Shipwright conversation.'));
       var exportDraft = el('button', null, 'Download draft fleet');
       exportDraft.type = 'button';
       exportDraft.addEventListener('click', function () { downloadText('pd-fleet.yml', d.latestProposal.yaml, 'text/yaml'); });
@@ -647,7 +650,7 @@ export const SHIPWRIGHT_NOTICES: Record<string, string> = {
   bad_request: 'That request did not make sense — no PR was opened. Check the repo field (owner/name) and try again.',
   bad_json: 'That request did not make sense — no PR was opened. Try again.',
   invalid_yaml: 'That roster does not validate, so no PR was opened. The server re-checks every roster itself — fix the YAML until the badge is green.',
-  not_from_chat: 'That YAML is not a roster the Shipwright emitted in your conversation, so no PR was opened.',
+  not_from_chat: 'That YAML is not a stored proposal from this repository thread, so no PR was opened.',
   forbidden: 'That installation is not yours — GitHub decides ownership, and it said no. No PR was opened.',
   repo_not_installed: 'The Port Daddy Fleet GitHub App is not installed on that repository (or it belongs to a different installation). Install it there, then try again.',
   repo_scope_mismatch: 'That target does not match the repository thread that produced the roster. No PR was opened.',
