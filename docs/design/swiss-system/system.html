@@ -451,7 +451,7 @@ section > .wrap > .eyebrow { display: block; margin-bottom: var(--s3); }
 </head>
 <body>
 
-<button class="themebtn" id="themebtn" type="button">Theme</button>
+<button class="themebtn" id="themebtn" type="button" aria-pressed="false">Theme</button>
 
 <!-- ═══ MASTHEAD ═══════════════════════════════════════════════════ -->
 <header class="slab" style="--slab: var(--machine)">
@@ -731,14 +731,28 @@ section > .wrap > .eyebrow { display: block; margin-bottom: var(--s3); }
 
   /* ── theme ─────────────────────────────────────────────────────── */
   var btn = document.getElementById('themebtn');
+
+  function effectiveTheme() {
+    var attr = document.documentElement.getAttribute('data-theme');
+    if (attr) return attr;
+    var dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    return dark ? 'dark' : 'light';
+  }
+
+  /* The button's visible label ("Theme") already gives it an accessible
+     name, so it needs no aria-label. What it lacks without this is any
+     announced STATE -- a screen-reader user has no way to tell which
+     theme is active. aria-pressed is the correct role for a two-state
+     toggle button (this is not a disclosure, so aria-expanded does not
+     apply); set it once at load from the theme actually in effect, then
+     keep it in lockstep with data-theme on every click. */
+  btn.setAttribute('aria-pressed', String(effectiveTheme() === 'dark'));
+
   btn.addEventListener('click', function () {
     var root = document.documentElement;
-    var now = root.getAttribute('data-theme');
-    if (!now) {
-      var dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      now = dark ? 'dark' : 'light';
-    }
-    root.setAttribute('data-theme', now === 'dark' ? 'light' : 'dark');
+    var next = effectiveTheme() === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    btn.setAttribute('aria-pressed', String(next === 'dark'));
   });
 
   /* The crossing needs no JavaScript at all. Its band and its clip are
