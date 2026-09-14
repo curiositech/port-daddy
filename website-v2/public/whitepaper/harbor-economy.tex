@@ -546,6 +546,17 @@ specialist while simulation says the pool wins decisively, and at low $\xi$ the
 two are indistinguishable, so the canary rather than routine testing is what
 makes the omission visible [internal].
 
+% pdnum id=he-K kind=arithmetic scope=block
+%   expr="0.2 / 1 + 0.8362" value=1.0362 prints="$K=0.2/1+0.8362=1.0362$"
+% pdnum id=he-etaK kind=arithmetic scope=block
+%   expr="0.25 * 1.0362" value=0.2591 prints="$\eta K=0.25\times1.0362=0.2591$"
+% pdnum id=he-dstar kind=arithmetic scope=block
+%   expr="0.25 * 1.0362 / (1 - 0.25 * 1.0362)" value=0.3496
+%   prints="$D^\star=0.2591/(1-0.2591)=0.3496$"
+%   note="the displayed 0.2591 is itself a rounding of eta*K = 0.25905; carry the chain
+%         unrounded and D* is 0.34963, which is the 0.3496 b8_specialization.py prints.
+%         Dividing the ROUNDED 0.2591 gives 0.34971, and this check caught that -- the
+%         example is right and the naive re-derivation of it is not"
 \begin{pdexample}{The succession price, for a rented specialist}
 Side~2 rests on a quiet assumption: that Alice's well-reputed specialist $a_2$ is
 worth being a \emph{sole} specialist for, rather than one interchangeable member
@@ -1172,6 +1183,10 @@ itself prove incentive compatibility of the harbor mechanism or identify the
 desideratum sacrificed by the full three-sided market.
 \end{pdclaim}
 
+% pdnum id=he-ms-threshold kind=arithmetic scope=block
+%   expr="90 / 4" value=22.5 prints="that threshold is $22.5$\,\textsc{cr}"
+% pdnum id=he-ms-region kind=arithmetic scope=block
+%   expr="7 / 32 * 100" value=21.9 prints="$7/32\approx21.9\%$"
 \begin{pdexample}{Efficient trade that the mechanism still refuses}
 Theorem~\ref{thm:ms} names the corner the market gives up; here is what giving
 it up costs in the chapter's own numbers. Suppose Bob's value $v$ for renting

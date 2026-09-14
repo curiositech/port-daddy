@@ -956,6 +956,12 @@ and pruned below a small threshold. The decay is the structural defense against
 calibration of the decay rate is genuinely open (OP-8): too slow and signals rot,
 too fast and they evaporate before they coordinate.
 
+% pdnum id=swk-decay-w5 kind=arithmetic scope=block
+%   expr="0.9 ** 5" value=0.590 prints="$w(5)=0.9^{5}=0.590$"
+% pdnum id=swk-decay-prune kind=arithmetic scope=block
+%   expr="0.9 ** 29" value=0.047 prints="$0.9^{29}=0.047$"
+% pdnum id=swk-decay-halflife kind=arithmetic scope=block
+%   expr="log(0.05) / log(0.95)" value=58.4 prints="$\ln 0.05/\ln 0.95=58.4$"
 \begin{pdexample}{The decay arithmetic a calibration will use}
 Take $w_0=1$ and $r=0.9$ per tick, with a prune threshold of $0.05$. Then
 $w(5)=0.9^{5}=0.590$, $w(10)=0.349$, $w(20)=0.122$, and the marker is pruned at

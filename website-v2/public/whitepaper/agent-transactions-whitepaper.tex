@@ -910,6 +910,16 @@ The forward reference is direct. Section~\ref{sec:youle:a6} reuses the same anal
 
 \pdexercisepointerone*{\ref{ex:bonded-claim-signaling-pd}}{\pageref{ex:bonded-claim-signaling-pd}}
 
+% pdnum id=bonded-delta-sq kind=arithmetic scope=block
+%   expr="0.3425 * 0.3425" value=0.11730625
+%   prints="$\delta^2 = 0.3425 \times 0.3425 = 0.11730625$"
+% pdnum id=bonded-delta-poly kind=arithmetic scope=block
+%   expr="2 * 0.3425 * (1 + 0.3425 + 0.3425 ** 2) - 1" value=-0.0000327 tol=1e-7
+%   prints="f(0.3425) \approx 0.9999672813 - 1 = -0.0000327$"
+% pdnum id=bonded-delta-root kind=artifact scope=block
+%   file=proofs/economics/delta-threshold.expected.txt
+%   pattern="Numerically delta\* . (0\.\d+)" value=0.3425080314
+%   prints="$\delta^\star \approx 0.3425080314$"
 \begin{pdexample}{the claim-signaling threshold}
 Evaluate $f(\delta) = 2\delta^3+2\delta^2+2\delta-1$ at $\delta=0.3425$ by hand, using the factored form $f(\delta)=2\delta(1+\delta+\delta^2)-1$ to keep the arithmetic to two multiplications. First $\delta^2 = 0.3425 \times 0.3425 = 0.11730625$, so $1+\delta+\delta^2 = 1 + 0.3425 + 0.11730625 = 1.45980625$. Then $2\delta = 0.685$, and $0.685 \times 1.45980625 = 0.9999672813\ldots$, so $f(0.3425) \approx 0.9999672813 - 1 = -0.0000327$ [verified]. That is within $3.3\times10^{-5}$ of zero---close enough to call $0.3425$ a root by hand, and the small \emph{negative} residual is exactly consistent with the more precise value \texttt{delta-threshold.expected.txt} reports, $\delta^\star \approx 0.3425080314$: since $f$ is strictly increasing for $\delta>0$ (every term has a positive coefficient), a negative value at $0.3425$ means the true root sits slightly \emph{above} it, and $0.34250803 > 0.3425$ by exactly the sliver this residual predicts.
 
@@ -1429,6 +1439,16 @@ Both transactions execute under \texttt{BEGIN EXCLUSIVE}, so SQLite serializes t
 
 \paragraph{Graduated sanctions.} The TLA$^{+}$ model abstracts settlement into \texttt{Commit} and \texttt{Crash}. Reality has an intermediate state: an agent whose spend is approaching its daily budget. The daemon's budget-guard component introduces \textbf{throttle} as a soft signal at 80\% spend (publishes a \texttt{budget:decisions:throttle} event; structurally non-coercive, advisory in Sen's sense) and \textbf{kill} as the hard signal at 100\% (refuses new spawns until UTC midnight; existing spawns SIGTERMed; bond slashed). The throttle/kill split is the commons' analogue of Ostrom's graduated sanctions~\pdcite{ostrom1990governing}: response scales with violation severity. Settlement is not binary; it is a three-state machine $\textit{nominal} \to \textit{throttled} \to \textit{killed}$, with $\textit{nominal} \to \textit{killed}$ reachable only on hard evidence (e.g., a direct Arbiter violation).
 
+% pdnum id=bonded-ledger-before kind=arithmetic scope=block
+%   expr="4 + 6 + 0" value=10 prints="$S_P = 4+6+0=10$"
+% pdnum id=bonded-ledger-refund kind=arithmetic scope=block
+%   expr="6 - 2" value=4 prints="$b-p=6-2=4$"
+% pdnum id=bonded-ledger-after kind=arithmetic scope=block
+%   expr="8 + 0 + 2" value=10 prints="$S_P=8+0+2=10$"
+% pdnum id=bonded-tlc-states kind=artifact scope=block
+%   file=proofs/bonded/conservation/Conservation.run.log
+%   pattern="(\d+) distinct states found" value=1716
+%   prints="all $1{,}716$ reachable states"
 \begin{pdexample}{a settlement's ledger check}
 Instantiate Theorem~\ref{thm:conservation}'s proof sketch with round numbers. Before a settlement, a project sits at $(W_P, E_P, C_P) = (4, 6, 0)$---four in wallet, six escrowed on one open Float Plan, nothing yet in the commons pool---so $S_P = 4+6+0=10$ [verified]. The settlement resolves as a partial breach: $\mathrm{slash}(\mathit{id}, p{=}2)$ burns $2$ to the commons pool and refunds the remaining $b-p=6-2=4$ to the wallet. Applying the proof sketch's own bookkeeping, $W_P \mathrel{+}= (b-p) = 4+4=8$, $C_P \mathrel{+}= p = 0+2=2$, and $E_P$'s contribution of $6$ is fully retired to $0$. After: $(W_P, E_P, C_P)=(8,0,2)$, and $S_P=8+0+2=10$ [verified]---unchanged, exactly as the theorem predicts, because the settlement only moved money between buckets rather than minting or destroying it.
 
@@ -1713,6 +1733,14 @@ The depth of the complete state graph search is 9.
 \end{lstlisting}
 These are two different numbers, and the difference is the exercise. TLC \emph{generates} a state every time it evaluates a transition, including transitions that land back on a state it has already seen by a different path---$26{,}818$ counts every such evaluation. The \emph{reachable} state count is the number of \textbf{distinct} states TLC actually found, $1{,}716$: every other generated state was a re-visit, not a new point in the state space. (Table~\ref{tab:verification-status} now carries both figures for this row; both are pinned from the same committed log, and only $1{,}716$ answers ``how many reachable states are there.'')
 
+% pdnum id=bonded-tlc-verdict kind=artifact
+%   file=proofs/bonded/conservation/Conservation.run.log
+%   pattern="(No error has been found)" value="No error has been found"
+%   digits="No error has been found" prints="``No error has been found''"
+% pdnum id=bonded-tlc-depth kind=artifact
+%   file=proofs/bonded/conservation/Conservation.run.log
+%   pattern="The depth of the complete state graph search is (\d+)\." value=9
+%   prints="to search depth $9$"
 The invariant named in \texttt{Conservation.cfg}'s \texttt{INVARIANTS} block that gives the module its name is \texttt{Conservation}, defined as \texttt{TotalFree + TotalEscrow + burned = minted}---the free-form statement of Theorem~\ref{thm:conservation} at the granularity of individual mint/stake/slash/refund/payout operations rather than the three-bucket accounting state. The same run also checks \texttt{NoNegative} (no balance ever goes negative) and \texttt{Safety} (their conjunction); the log's ``No error has been found'' covers all three across every one of the $1{,}716$ reachable states, to search depth $9$.
 \end{pdsolution}
 
@@ -2009,6 +2037,12 @@ DataDome.
 Coordination channel isolation (\S\ref{sec:merkle-forest}) & ProVerif (Dolev-Yao) & \Closed\ 3 properties TRUE & \texttt{isolation\allowbreak.pv} \\
 Passkey device pairing & ProVerif & \Closed\ 3 properties TRUE & \texttt{passkey-pair.pv} \\
 Federated security (\S\ref{sec:federated-sovereign}) & ProVerif, 3-of-4 compromise & \Closed\ no attacker reach & \texttt{federated.pv} \\
+% pdnum id=bonded-tlc-distinct-row kind=artifact
+%   file=proofs/bonded/conservation/Conservation.run.log
+%   pattern="(\d+) distinct states found" value=1716 prints="1{,}716 reachable states"
+% pdnum id=bonded-tlc-generated-row kind=artifact
+%   file=proofs/bonded/conservation/Conservation.run.log
+%   pattern="(\d+) states generated" value=26818 prints="(26{,}818 generated)"
 Conservation Theorem (\S\ref{sec:conservation}) & TLA+ bounded TLC & \Closed\ 1{,}716 reachable states (26{,}818 generated), invariant holds & \texttt{Conservation.tla} \\
 No-overdraft lemma (\S\ref{sec:economic}) & fast-check property test & \Closed\ 4 invariants, randomized ops & bonds-property tests \\
 Algorithm-confusion immunity & ProVerif (pinned vs.\ naive) & \Closed\ pinned TRUE; counter-trace produced & \texttt{algconfusion.pv} \\

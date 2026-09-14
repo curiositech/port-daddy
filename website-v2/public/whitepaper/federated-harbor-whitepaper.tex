@@ -585,6 +585,10 @@ at the sharpened scope only: synthetic gossip, prefix restrictions, one
 equivocator per trial. A statistical pass is not a theorem, which is what the
 three claims below are for.
 
+% pdnum id=fh-residual-ring kind=arithmetic scope=block
+%   expr="sqrt(4 * 0.75 ** 2)" value=1.5 prints="r=\sqrt{4\times0.75^{2}}=1.5"
+% pdnum id=fh-residual-c8 kind=arithmetic scope=block
+%   expr="2 / sqrt(8)" value=0.7071 prints="$2/\sqrt8=0.7071$"
 \begin{pdexample}{The cochain by hand: one ring, one chain, one dark link}
 Four relays $0,1,2,3$ in a ring, scalar stalks, one shared coordinate. The links
 $0\!-\!1$, $1\!-\!2$ and $2\!-\!3$ are compared and agree; the link $3\!-\!0$ is
@@ -617,6 +621,18 @@ lie on any bridge, $0$; the same lie on $C_8$ with any one of the other seven
 links severed, also $0$ [verified].
 \end{pdexample}
 
+% pdnum id=fh-radius-c6 kind=arithmetic scope=block
+%   expr="3 / sqrt(6)" value=1.2247 prints="\tfrac{3}{\sqrt6} \;=\; 1.2247"
+% pdnum id=fh-radius-c6-printed kind=arithmetic scope=block
+%   expr="3 * sqrt(1 - 5 / 6)" value=1.224745
+%   prints="C6 relayed cycle edge, lie 3.0:  r = 1.224745"
+%   note="the lstlisting quotes the script's own printed line; the arithmetic behind it is
+%         the closed form the same line prints beside it"
+% pdnum id=fh-tol-silent kind=code scope=block
+%   file=skills/harbor-results/scripts/sheaf_consistency_radius.py symbol=TOL_SILENT
+%   value=1e-9 digits="10^{-9}" prints="under $10^{-9}$ (the script's own \texttt{TOL\_SILENT}"
+% pdnum id=fh-dilution-c8 kind=arithmetic scope=block
+%   expr="1 / sqrt(8)" value=0.3536 prints="$|s|/\sqrt8\approx0.3536|s|$"
 \begin{pdexample}{the consistency radius, six-cycle vs.\ six-path, and the $1/\sqrt n$ scaling}
 Six harbors in a ring ($C_6$), unit-weight edges, a lie of magnitude $|s|=3$ on one relayed cycle edge. The effective resistance across that edge is $R_{\mathrm{eff}}=(n-1)/n=5/6$, so by hand:
 \[
@@ -824,6 +840,8 @@ Summing over bonds gives $\sum_b(P_b+E_b+C_b+R_b)=\sum_b a_b$. External top-ups 
 
 This is the federation-layer analogue of Conservation in Bonded. The intra-harbor Conservation invariants hold per-harbor (Bonded gives the proofs); the cross-harbor property adds the constraint that bonds in transit between harbors --- i.e., posted at $A$, locked in escrow, awaiting clearance against $B$ --- are accounted for as in-escrow rather than as either posted at $A$ or cleared to $B$. The escrow's role as the holder of in-flight bonds is what makes the conservation accounting tractable.
 
+% pdnum id=fh-bond-split kind=arithmetic scope=block
+%   expr="90 + 10" value=100 prints="the four sum to 100"
 \begin{pdexample}{One bond across two harbors}
 A \$100 bond posted at $A$ has buckets $(P,E,C,R)=(100,0,0,0)$. The transfer
 locks it in escrow, $(0,100,0,0)$. Clearance at $B$ pays \$90 to the

@@ -747,6 +747,12 @@ and not his thesis.
 
 \pdexercisepointer*{\ref{ex:stp-connected-vs-continuous}}{\ref{ex:stp-fork-inheritance}}{\pageref{ex:stp-connected-vs-continuous}}
 
+% pdnum id=stp-nomint-trials kind=code scope=block file=skills/harbor-results/scripts/a6_no_mint.py
+%   pattern="^TRIALS, MAXOPS = (\d+), \d+$" value=4000 prints="$4{,}000$"
+% pdnum id=stp-nomint-seed kind=code scope=block file=skills/harbor-results/scripts/a6_no_mint.py
+%   symbol=SEED value=20260816 prints="seed 20260816"
+% pdnum id=stp-nomint-closure kind=arithmetic scope=block
+%   expr="0.9 + 0.81 + 0.729" value=2.439 prints="$0.9+0.81+0.729=2.439>1$"
 \begin{pdexample}{No-mint inheritance: the closure-sum refutation and the copy-fork mint}
 The branching rule of Exercise~\ref{ex:stp-fork-inheritance} now carries an
 executed no-mint theorem (research-ledger item A6). Inheritance as
@@ -1292,6 +1298,12 @@ uncapped optimum. \emph{Now you try:} at $L=8$, is the schedule feasible at all?
 infinite horizon held at the cap forever; any $L<8$ makes this fraud gain
 undeterrable by probation alone, and you need a bond instead.)
 
+% pdnum id=stp-probation-instances kind=code scope=block
+%   file=skills/harbor-results/scripts/b6_probation.py symbol=N_INSTANCES value=4000
+%   prints="$4{,}000$ draws"
+% the 76,000 candidate schedules in the same sentence are NOT annotated: the script
+% prints that count at run time (b6_probation.py:101) and fixes no constant equal to it,
+% so nothing here can re-derive it without running the sweep.
 \begin{pdexample}{The probation cliff: falsifying the schedule shape}
 This is the whitepaper statement of the companion paper's probation-cliff
 theorem~\pdcite{harborpaper5}, carrying its amended ceiling hypothesis. Exchange
@@ -2161,6 +2173,11 @@ $53\times 50 = \$2{,}650$. \emph{Now you try:} at $C=2$, where does the linear
 phase stop? (Bleed $C\beta = 20$ per level until $G_k \le CB = 100$, i.e.\ $15$
 levels, then $21$ geometric ones --- $36$ levels, $\$1{,}800$.)
 
+% pdnum id=stp-tower-horizon kind=code scope=block
+%   file=skills/harbor-results/scripts/b2_tower.py pattern="^T = (\d+)$" value=200
+%   prints="$T=200$ periods it totals"
+% pdnum id=stp-tower-flat kind=arithmetic scope=block
+%   expr="0.25 * 1 * 200" value=50 prints="200=0.25\times 1\times 200=50$"
 \begin{pdexample}{The audit tower: amortized verification spend}
 As a judge accumulates verified history its reputation-at-stake $vt$ grows,
 and the audit rate needed for deterrence can fall with it. Flat auditing

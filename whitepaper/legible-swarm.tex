@@ -1056,6 +1056,10 @@ $\mu_{\mathrm{spec}} = 2.8/\text{hr}$ still be worth it on response time alone?
 confirms it. The boundary is genuinely tight here; note that a positive
 accountability value $A$ lowers $g_A$ below $g$ and can buy the sole owner back.)
 
+% pdnum id=ls-g-half kind=arithmetic scope=block
+%   expr="1 + 2 * 0.5 - 0.5 ** 2" value=1.75 prints="$g(0.5,2)=1+2(0.5)-0.5^2=1.75$"
+% pdnum id=ls-crossing-root kind=arithmetic scope=block
+%   expr="(3 - sqrt(5)) / 2" value=0.382 prints="$\rho=(3-\sqrt5)/2\approx0.382$"
 \begin{pdexample}{Where the exact and superseded thresholds cross}
 At the round number $\rho=0.5$: $g(0.5,2)=1+2(0.5)-0.5^2=1.75$ [verified, closed form].\footnote{Worked numbers carry a tag throughout: [verified] when a named script in the repository regenerates them, [internal] when only the chapter's own derivation does.} The superseded $\tilde g(\rho,2)=1+\rho/(1-\rho)$ gives $\tilde g(0.5,2)=2.00$ at the same point --- already a visible gap. Setting $g=\tilde g$ and clearing denominators leaves $\rho(\rho^2-3\rho+1)=0$, whose root in $(0,1)$ is $\rho=(3-\sqrt5)/2\approx0.382$ [verified, closed form]: below it $\tilde g$ over-certifies specialization (false-certify), above it $\tilde g$ over-rejects (false-reject), which is exactly why the superseded form was wrong in \emph{both} directions rather than merely conservative. \emph{Now you try:} run the falsification sweep behind this crossing (Exercise~\ref{ex:ls-b8-specialization-run}).
 \end{pdexample}
@@ -1203,6 +1207,10 @@ capacity or evidence quality. Monotone $V$ is required throughout; a non-monoton
 validator breaks the separating threshold (item R14 of the research ledger,
 \texttt{b7\_escalation\_band.py}).
 
+% pdnum id=ls-ustar kind=arithmetic scope=block
+%   expr="0.05 / 1.05" value=0.0476 prints="$u^\star=\delta w/(1+\delta w)=0.05/1.05=0.0476$"
+% pdnum id=ls-ucrit kind=arithmetic scope=block
+%   expr="6 / 105" value=0.057 prints="$u_{\mathrm{crit}}=6/105\approx0.057$"
 \begin{pdexample}{The threshold and the tuning band, by hand}
 At $\delta=0.05,w=1$: $u^\star=\delta w/(1+\delta w)=0.05/1.05=0.0476$ [verified, closed form] --- the fraction of the validation signal $u$ above which escalating clears its cost, one of twelve $(\delta,w)$ points the script confirms against bisection to machine precision. Under the R3 constants ($C_{\mathrm{miss}}=100,c_{\mathrm{att}}=1,C_{\mathrm{fa}}=5$, so $u_{\mathrm{crit}}=6/105\approx0.057$), the feasible debit interval is $[\delta_{\min},\delta_{\max}]=[0.0350,0.0720]$ at attention budget $A=3.3$, and it is \emph{empty} at $A=2.0$ (there $\delta_{\min}=0.396$ exceeds $\delta_{\max}=0.072$, so no debit satisfies both walls at once) [verified closed forms, grid-confirmed]. An empty band is not a bug to tune away: it is the honest signal that the fix is capacity or evidence quality, not a better $\delta$. \emph{Now you try:} run the script and confirm both bands (Exercise~\ref{ex:ls-b7-escalation-run}).
 \end{pdexample}
@@ -1661,6 +1669,11 @@ restored agreement. The transferable rule: a simulation that appears to beat an
 information bound is leaking through an unpriced channel; audit the meter before
 doubting the theorem, and before trusting the refutation.
 
+% pdnum id=ls-floor-1000 kind=arithmetic scope=block
+%   expr="log2(comb(1000, 3)) - log2(comb(10, 3))" value=20.4
+%   prints="$\log_2\binom{1000}{3}-\log_2\binom{10}{3} = 27.31 - 6.91 = 20.4$"
+% pdnum id=ls-floor-m100 kind=arithmetic scope=block
+%   expr="log2(comb(100, 3))" value=17.3 prints="$\log_2\binom{100}{3}=17.3$"
 \paragraph{Numbers by hand.} Take $N=1000$ artifacts with $k=3$ critical among
 them and a review budget of $m=10$ opens. The floor is
 $\log_2\binom{1000}{3}-\log_2\binom{10}{3} = 27.31 - 6.91 = 20.4$ bits --- about two
@@ -2347,6 +2360,16 @@ One stored compaction under-provisions divergent readers by more than a factor o
 two, and by increasingly more as each reader's critical set grows; running two
 heads costs strictly more than twice one head. The worked instance is next.
 
+% pdnum id=ls-split-single kind=arithmetic scope=block
+%   expr="log2(comb(60, 2)) - log2(comb(8, 2))" value=5.98
+%   prints="$\log_2\binom{60}{2}-\log_2\binom{8}{2}=10.79-4.81=5.98$"
+% pdnum id=ls-split-joint kind=arithmetic scope=block
+%   expr="log2(comb(60, 4)) - log2(comb(8, 4))" value=12.77
+%   prints="$\log_2\binom{60}{4}-\log_2\binom{8}{4}=18.90-6.13=12.77$"
+% pdnum id=ls-split-ratio kind=arithmetic scope=block
+%   expr="12.77 / 5.98" value=2.13 tol=0.01 prints="$12.77/5.98=2.13$"
+%   note="2.1354 truncated, not rounded; the loosened tolerance is that truncation and
+%         nothing else, and it still fails the moment either floor above it moves"
 \begin{pdexample}{The split-floor arithmetic, at the sweep's own instance}
 Thm.~\ref{thm:lowerbound}'s floor at $N=60,k=2,m=8$ is $\log_2\binom{60}{2}-\log_2\binom{8}{2}=10.79-4.81=5.98$ bits [verified, closed form] --- the single-reader case, one compaction head serving one reader. Give the successor and the operator \emph{disjoint} critical sets of size $k=2$ each (the non-comonotone construction of the proof sketch above) and the joint zero-miss floor is the same formula at $2k=4$: $\log_2\binom{60}{4}-\log_2\binom{8}{4}=18.90-6.13=12.77$ bits [verified, closed form]. The ratio is $12.77/5.98=2.13$, not the $2\times$ that ``just run the floor formula twice'' would predict --- the super-additivity is the theorem's content, not a rounding artifact. \emph{Now you try:} run the falsification sweep behind these two numbers and confirm the split penalty (Exercise~\ref{ex:ls-a7-split-floor-run}).
 \end{pdexample}
@@ -2434,6 +2457,8 @@ reason to distrust the sweep: two routes into the same neighborhood is what
 one hopes to see.
 \end{pdboundary}
 
+% pdnum id=ls-landlord kind=arithmetic scope=block
+%   expr="8 / (8 - 4 + 1)" value=1.6 prints="$k/(k-h+1)=8/(8-4+1)=8/5=1.6$"
 \begin{pdexample}{The Landlord ratio, at a size an operator can hold in one head}
 Take $k=8$ active context pages against an offline optimum allowed $h=4$ of them pinned: $k/(k-h+1)=8/(8-4+1)=8/5=1.6$ [verified, Young 2002, closed form] --- the online recency-plus-pin policy never pays more than $1.6\times$ what an $h$-pinned offline optimum would have paid, for \emph{any} sequence, adversarial included. No script in this repository prints this exact $(k,h)$ pair; \texttt{b9\_context\_paging.py} instead verifies the general bound $\mathrm{Cost}_{\mathrm{online}}\le\frac{k}{k-h+1}\mathrm{OPT}$ itself, over 122 (instance,$h$) pairs including adversarial cyclic thrash, 0 violations, tightest observed cost/bound ratio $1.000$ (cycles sit at equality, confirming the bound is not slack) [internal, \texttt{b9\_context\_paging.py}]. \emph{Now you try:} compute the ratio at the two ends of the range, $h=k$ and $h=1$ (Exercise~\ref{ex:ls-paging-ratio-hand}).
 \end{pdexample}

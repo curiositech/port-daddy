@@ -453,6 +453,8 @@ boxed as the one place a difference could ever show.
 
 \input{figures/fig-sealed-two-worlds}
 
+% pdnum id=sealed-pairs kind=arithmetic scope=block
+%   expr="comb(4, 2)" value=6 prints="$\binom{4}{2}=6$ unordered pairs"
 \begin{pdexample}{six pairs, two of them equal-parity}
 Four secrets give $\binom{4}{2}=6$ unordered pairs; two of them, $(0,2)$ and
 $(1,3)$, are equal-parity, and it is exactly those two on which the honest gate
@@ -725,6 +727,10 @@ invariants, with the step count each is caught in.
 
 \input{figures/fig-sealed-mutant-grid}
 
+% pdnum id=sealed-basic-32 kind=arithmetic scope=block
+%   expr="32 * 0.1" value=3.20 prints="$32\times 0.1=3.20$"
+% pdnum id=sealed-basic-128 kind=arithmetic scope=block
+%   expr="128 * 0.05" value=6.40 prints="gives $6.40$"
 \begin{pdexample}{when the advanced composition bound starts to pay}
 At $\delta'=10^{-6}$: for $k=32$ releases at $\varepsilon=0.1$, basic
 composition gives $32\times 0.1=3.20$ while the advanced bound gives $3.31$, so
@@ -836,6 +842,10 @@ $359.0$, the gap being boundary overshoot, which only helps the error rates
 $\mathbb{E}_0[N]=431.9$ against simulated $438.1$. Tenfold leak intensity cuts
 time to detection about thirtyfold [internal, \texttt{a4\_canary\_sprt.py}].
 
+% pdnum id=sealed-canary-two kind=arithmetic scope=block
+%   expr="1 - 0.2 ** 2" value=0.96 prints="$1-0.04=0.96$"
+% pdnum id=sealed-canary-three kind=arithmetic scope=block
+%   expr="1 - 0.2 ** 3" value=0.992 prints="three with $1-0.008=0.992$"
 \begin{pdexample}{three canaries, one operating curve}
 At $\beta=0.2$, two smuggled canaries are caught with probability
 $1-0.04=0.96$ and three with $1-0.008=0.992$ [verified]. The operating curve at
