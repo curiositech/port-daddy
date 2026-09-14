@@ -73,7 +73,14 @@
      src/components/swiss/Slab.tsx. Each `-on` is the paper-coloured
      foreground for content sitting on that block. Every alias already
      redefines itself in tokens.semantic.css's dark block, so the pair
-     stays legible in both themes without a dark block of its own here. */
+     stays legible in both themes without a dark block of its own here.
+
+     The pair itself is generated from whitepaper/textbook.json's per-part
+     webRoleAlias field -- regenerate with
+     node scripts/generate-mega-whitepaper.mjs --sync-shared, checked in CI by
+     node --test scripts/generate-mega-whitepaper.test.mjs. Edit the alias in
+     textbook.json, not the lines below. */
+  /* GENERATED:BEGIN part-role-tokens -- do not edit by hand. */
   --part-machine: var(--brand-primary);
   --part-machine-on: var(--brand-primary-foreground);
   --part-operator: var(--brand-accent);
@@ -82,4 +89,5 @@
   --part-person-on: var(--story-violet-foreground);
   --part-market: var(--story-gold);
   --part-market-on: var(--story-gold-foreground);
+  /* GENERATED:END part-role-tokens */
 }

@@ -37,6 +37,12 @@ const sharedMapTargets = [
 // reads a byte-identical mirror of textbook.json that --sync-shared writes and
 // --check-shared (plus the node test) keeps honest.
 const siteTextbookMirror = 'website-v2/src/data/textbook.json';
+// The role-layer's --part-<slug> / --part-<slug>-on pair, generated into a
+// marked region of the hand-authored tokens.roles.css rather than a whole
+// file of its own -- everything else in that file stays hand-written.
+const roleTokensTarget = 'website-v2/src/styles/tokens.roles.css';
+const ROLE_TOKENS_BEGIN = '  /* GENERATED:BEGIN part-role-tokens -- do not edit by hand. */';
+const ROLE_TOKENS_END = '  /* GENERATED:END part-role-tokens */';
 
 function readUtf8(path) {
   return readFileSync(path, 'utf8').replace(/\r\n/g, '\n');
@@ -137,6 +143,18 @@ function validateTextbook(raw, source = 'whitepaper/textbook.json') {
     if (!/^[a-z]+$/.test(part.slug)) fail(`${where}: slug must be lowercase letters only (it becomes var(--part-${part.slug}))`);
     if (partSlugs.has(part.slug)) fail(`duplicate part slug ${part.slug}`);
     partSlugs.add(part.slug);
+    // webRoleAlias says which SEMANTIC-layer token pair var(--part-<slug>) /
+    // var(--part-<slug>-on) aliases in tokens.roles.css. It must name a token,
+    // never a literal colour -- generating a hex here would put a source-layer
+    // value in the role layer and trip the Swiss normalization guard's literal
+    // rule the moment tokens.roles.css stopped being exempt from it.
+    const alias = part.webRoleAlias;
+    if (typeof alias !== 'object' || alias === null) fail(`${where}: webRoleAlias must be an object with bg and on`);
+    for (const side of ['bg', 'on']) {
+      if (typeof alias?.[side] !== 'string' || !/^--[a-z][a-z-]*$/.test(alias[side])) {
+        fail(`${where}: webRoleAlias.${side} must be a CSS custom-property name like "--brand-primary"`);
+      }
+    }
     if (!Array.isArray(part.chapters) || part.chapters.length === 0) fail(`${where}: chapters must be a non-empty array`);
     if (partIds.has(part.id)) fail(`duplicate part id ${part.id}`);
     partIds.add(part.id);
@@ -346,6 +364,32 @@ function renderContents(textbook) {
   return lines.join('\n');
 }
 
+/**
+ * The lines that belong between ROLE_TOKENS_BEGIN and ROLE_TOKENS_END in
+ * tokens.roles.css: one --part-<slug> / --part-<slug>-on pair per part,
+ * each aliasing the semantic-layer token its webRoleAlias names -- never a
+ * literal, so the role layer stays an alias layer.
+ */
+function renderPartRoleTokens(textbook) {
+  const lines = [ROLE_TOKENS_BEGIN];
+  for (const part of textbook.parts) {
+    lines.push(`  --part-${part.slug}: var(${part.webRoleAlias.bg});`);
+    lines.push(`  --part-${part.slug}-on: var(${part.webRoleAlias.on});`);
+  }
+  lines.push(ROLE_TOKENS_END);
+  return lines.join('\n');
+}
+
+/** Replace the marked region in `content` with `block`, or throw if the markers are missing/misordered. */
+function spliceGeneratedRegion(content, block, target) {
+  const begin = content.indexOf(ROLE_TOKENS_BEGIN);
+  const end = content.indexOf(ROLE_TOKENS_END);
+  if (begin === -1 || end === -1 || end < begin) {
+    throw new Error(`${target}: missing the GENERATED:BEGIN/END part-role-tokens markers`);
+  }
+  return content.slice(0, begin) + block + content.slice(end + ROLE_TOKENS_END.length);
+}
+
 function sharedMapDrift(textbook = loadTextbook()) {
   const expected = renderTextbookMap(textbook);
   const drift = [];
@@ -363,6 +407,22 @@ function sharedMapDrift(textbook = loadTextbook()) {
   } else if (readUtf8(mirror) !== readUtf8(textbookPath)) {
     drift.push(`${siteTextbookMirror}: stale — does not match whitepaper/textbook.json (run --sync-shared)`);
   }
+  const rolePath = resolve(repoRoot, roleTokensTarget);
+  if (!existsSync(rolePath)) {
+    drift.push(`${roleTokensTarget}: missing`);
+  } else {
+    const current = readUtf8(rolePath);
+    let expectedRoleFile;
+    try {
+      expectedRoleFile = spliceGeneratedRegion(current, renderPartRoleTokens(textbook), roleTokensTarget);
+    } catch (e) {
+      drift.push(`${roleTokensTarget}: ${e.message} (run --sync-shared)`);
+      expectedRoleFile = null;
+    }
+    if (expectedRoleFile !== null && current !== expectedRoleFile) {
+      drift.push(`${roleTokensTarget}: stale — part-role-tokens region does not match whitepaper/textbook.json (run --sync-shared)`);
+    }
+  }
   return drift;
 }
 
@@ -376,7 +436,10 @@ function syncSharedMap(textbook = loadTextbook()) {
   const mirror = resolve(repoRoot, siteTextbookMirror);
   mkdirSync(dirname(mirror), { recursive: true });
   writeFileSync(mirror, readUtf8(textbookPath), 'utf8');
-  return [...sharedMapTargets, siteTextbookMirror];
+  const rolePath = resolve(repoRoot, roleTokensTarget);
+  const nextRoleFile = spliceGeneratedRegion(readUtf8(rolePath), renderPartRoleTokens(textbook), roleTokensTarget);
+  writeFileSync(rolePath, nextRoleFile, 'utf8');
+  return [...sharedMapTargets, siteTextbookMirror, roleTokensTarget];
 }
 
 // ---------------------------------------------------------------------------
@@ -1441,7 +1504,7 @@ function main(argv) {
       console.error(drift.join('\n'));
       process.exit(1);
     }
-    console.log('figures/pd-textbook-map.tex matches whitepaper/textbook.json in both copies');
+    console.log('figures/pd-textbook-map.tex, the site mirror, and tokens.roles.css all match whitepaper/textbook.json');
     return;
   }
   const positional = argv.filter((arg) => !arg.startsWith('--'));
@@ -1472,6 +1535,8 @@ export {
   renderSolutions,
   renderTextbookMap,
   rewriteCitations,
+  renderPartRoleTokens,
+  roleTokensTarget,
   sharedMapDrift,
   sharedMapTargets,
   siteTextbookMirror,

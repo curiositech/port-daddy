@@ -64,6 +64,7 @@
           "title",
           "color",
           "slug",
+          "webRoleAlias",
           "blurb",
           "chapters"
         ],
@@ -89,6 +90,22 @@
             "type": "string",
             "pattern": "^[a-z]+$",
             "description": "The part's web role-token name, unique across parts. The site's Swiss primitives (website-v2/src/components/swiss/) derive a part's ink mechanically from this field -- var(--part-<slug>) / var(--part-<slug>-on) in tokens.roles.css -- rather than from a hard-coded color-to-token lookup table."
+          },
+          "webRoleAlias": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["bg", "on"],
+            "description": "The semantic-layer tokens the generated var(--part-<slug>) / var(--part-<slug>-on) pair aliases in tokens.roles.css -- e.g. --brand-primary / --brand-primary-foreground. Data, not a literal: the role layer must alias the semantic layer, never a raw colour, so this stays a token name, not a hex value.",
+            "properties": {
+              "bg": {
+                "type": "string",
+                "pattern": "^--[a-z][a-z-]*$"
+              },
+              "on": {
+                "type": "string",
+                "pattern": "^--[a-z][a-z-]*$"
+              }
+            }
           },
           "blurb": {
             "type": "string",
