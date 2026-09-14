@@ -18,6 +18,7 @@ const ship = (over: Partial<ShipConfig>): ShipConfig => ({
   testPaths: [],
   graft: [],
   participation: { default: 'advisory', rules: [] },
+  participationValid: true,
   execution: {
     mode: 'none', repository: 'current_repository', worktree: 'isolated', cwd: '.',
     toolAllowlist: [], mcpAllowlist: [], networkAllowlist: [], writePathAllowlist: [],
@@ -67,46 +68,43 @@ describe('isReviewableForBugs', () => {
 describe('decideShipGate', () => {
   const CODE = ['apps/fleet-executor/src/execute.ts'];
   const SECURITY = ['lib/auth/session.ts'];
-  const TESTS = ['apps/fleet-executor/tests/foo.test.ts'];
 
-  it('ideation ships ALWAYS run — including on a docs-only diff', () => {
-    const spark = ship({ name: 'spark', ideation: true });
-    expect(decideShipGate(spark, ['docs/plan.md'], true).run).toBe(true);
-    expect(decideShipGate(spark, CODE, false).run).toBe(true);
+  it('uses declared class policy, never a ship-name exception', () => {
+    const classScoped = ship({ participation: { default: 'abstain', rules: [
+      { disposition: 'required', prClasses: ['code'] },
+    ] } });
+    expect(decideShipGate(classScoped, CODE, false).disposition).toBe('required');
+    expect(decideShipGate(classScoped, ['docs/plan.md'], true).disposition).toBe('abstain');
   });
 
-  it('reviewer ships SKIP a docs-only diff (nothing to review for correctness)', () => {
-    const g = decideShipGate(ship({ name: 'code-reviewer' }), ['docs/plan.md'], true);
-    expect(g.run).toBe(false);
-    expect(g.reason).toMatch(/docs-only/);
+  it('uses declared risk policy for security-sensitive paths', () => {
+    const riskScoped = ship({ participation: { default: 'abstain', rules: [
+      { disposition: 'required', riskSignals: ['authentication', 'cryptography'] },
+    ] } });
+    expect(decideShipGate(riskScoped, SECURITY, false).run).toBe(true);
+    expect(decideShipGate(riskScoped, ['core/kernel/pd-vault/src/hpke.rs'], false).run).toBe(true);
+    expect(decideShipGate(riskScoped, CODE, false).run).toBe(false);
   });
 
-  it('red-team runs ONLY when the diff touches its security surface', () => {
-    const rt = ship({ name: 'red-team', blocking: true });
-    expect(decideShipGate(rt, SECURITY, false).run).toBe(true);
-    const off = decideShipGate(rt, CODE, false);
-    expect(off.run).toBe(false);
-    expect(off.reason).toMatch(/surface not touched/);
+  it('advisory agents run but do not acquire a required vote', () => {
+    const advisory = ship({ participation: { default: 'advisory', rules: [] } });
+    expect(decideShipGate(advisory, CODE, false)).toMatchObject({ run: true, disposition: 'advisory' });
   });
 
-  it('red-team runs on key-wrap/vault crypto surfaces (PRs #9873, #9882 real diffs)', () => {
-    // Regression: none of these paths contained crypto|sign|verify|hash|token|
-    // secret|auth|capabilit, so red-team silently never spawned on either PR —
-    // the exact gap that made it look broken. key|vault|wrap|hpke close it.
-    const rt = ship({ name: 'red-team', blocking: true });
-    expect(decideShipGate(rt, ['core/kernel/pd-vault/src/hpke.rs'], false).run).toBe(true);
-    expect(decideShipGate(rt, ['core/kernel/pd-vault/src/keys.rs'], false).run).toBe(true);
-    expect(decideShipGate(rt, ['apps/relay/src/device-keys.ts'], false).run).toBe(true);
-    expect(decideShipGate(rt, ['apps/relay/migrations/2026-08-26-b3-device-keys.sql'], false).run).toBe(true);
+  it('invalid policy is unavailable rather than PASS', () => {
+    expect(decideShipGate(ship({ participationValid: false }), CODE, false)).toMatchObject({
+      run: false, disposition: 'ineligible',
+    });
   });
 
-  it('tautology-sniffer runs only when the diff touches test files', () => {
-    expect(decideShipGate(ship({ name: 'tautology-sniffer' }), TESTS, false).run).toBe(true);
-    expect(decideShipGate(ship({ name: 'tautology-sniffer' }), CODE, false).run).toBe(false);
-  });
-
-  it('an ungated reviewer (code-reviewer, qa) runs on any code diff', () => {
-    expect(decideShipGate(ship({ name: 'code-reviewer' }), CODE, false).run).toBe(true);
-    expect(decideShipGate(ship({ name: 'qa' }), CODE, false).run).toBe(true);
+  it('promotes an incomplete inventory to the strongest declared runnable posture', () => {
+    const scoped = ship({ participation: { default: 'abstain', rules: [
+      { disposition: 'advisory', prClasses: ['documentation'] },
+      { disposition: 'required', riskSignals: ['secrets'] },
+    ] } });
+    expect(decideShipGate(scoped, [], false, 0, true)).toMatchObject({
+      run: true,
+      disposition: 'required',
+    });
   });
 });

@@ -91,6 +91,7 @@ function mkShip(): ShipConfig {
     testPaths: [],
     graft: [],
     participation: { default: 'advisory', rules: [] },
+    participationValid: true,
     execution: {
       mode: 'none', repository: 'current_repository', worktree: 'isolated', cwd: '.',
       toolAllowlist: [], mcpAllowlist: [], networkAllowlist: [], writePathAllowlist: [],

@@ -951,6 +951,7 @@ async function recordShipsConfigInTranscript(
       testPaths: ship.testPaths,
       graft: ship.graft,
       participation: ship.participation,
+      participationValid: ship.participationValid,
       execution: ship.execution,
     });
   }
@@ -1838,8 +1839,10 @@ export async function executeFleet(
     ? await mediatorReinjectionDigest(mediatorReinjectionState.reinjection)
     : null;
 
-  // Cloud-executable ships only (execution ships dispatch to GHA elsewhere).
-  const cloudShips = ships.filter(s => !s.needsExecution);
+  // Every configured ship participates in authority calculation. A ship that
+  // requests execution is not silently filtered out; it must present a grant
+  // to a consuming runner or record UNAVAILABLE and fail closed.
+  const cloudShips = ships;
   if (cloudShips.length === 0) return { kind: 'no-cloud-ships' };
 
   // Freeze the complete model/checkpoint input before deciding whether an
@@ -2374,9 +2377,7 @@ export async function executeFleet(
   // configured cloud ship and mark the final result partial/neutral instead of
   // allowing an all-gated roster to silently become a green check.
   const surfaceGate = (candidate: ShipConfig) =>
-    sourceCoverageReason == null
-      ? decideShipGate(candidate, changedPaths, docsOnly)
-      : { run: true as const, reason: 'source inventory incomplete' };
+    decideShipGate(candidate, changedPaths, docsOnly, prCtx.diffBytes, sourceCoverageReason != null);
   if (sourceCoverageReason) {
     await transcript.step(
       'source-inventory-incomplete',
@@ -2487,6 +2488,21 @@ export async function executeFleet(
   );
 
   const results: ShipResult[] = [];
+  const persistParticipation = async (result: ShipResult): Promise<void> => {
+    await transcript.step(
+      'ship-participation',
+      result.ship,
+      `pd-${result.ship}: ${result.participation ?? 'legacy'} / ${result.voteOutcome ?? 'unrecorded'} / ${result.operationalStatus ?? 'unrecorded'}`,
+      {
+        participation: result.participation ?? null,
+        voteOutcome: result.voteOutcome ?? null,
+        operationalStatus: result.operationalStatus ?? null,
+        verdict: result.verdict,
+        eligible: result.participation === 'required',
+        blocking: result.blocking,
+      },
+    );
+  };
   let newlyExecutedShips = 0;
   for (const [shipIndex, ship] of orderedShips.entries()) {
     // Per-ship wall-clock start: durationMs must reflect THIS ship's work
@@ -2517,6 +2533,17 @@ export async function executeFleet(
       return;
     }
 
+    const gate = surfaceGate(ship);
+    if (!ship.participationValid) {
+      const reason = 'Invalid or unauthorized participation policy; Fleet cannot determine voting authority';
+      await transcript.step('ship-failed', ship.name, `pd-${ship.name}: unavailable — ${reason}`, { reason });
+      const result: ShipResult = { ship: ship.name, blocking: false, participation: 'ineligible', voteOutcome: 'failed',
+        operationalStatus: 'unavailable', verdict: 'UNAVAILABLE', errored: true, failureReason: reason, findings: [] };
+      results.push(result);
+      await persistParticipation(result);
+      continue;
+    }
+
     // Admin OFF is not a PASS and not a broken ship. Check BEFORE checkpoint
     // resume: changing permission must not reuse a prior verdict as approval.
     if (!repoShipEnabled(shipControls, ship.name) || !validShipControlName(ship.name) || ship.name === '*') {
@@ -2524,10 +2551,45 @@ export async function executeFleet(
         ? 'Unsupported ship control name; cannot safely admit this ship'
         : 'Disabled by a repository admin in Ship controls';
       await transcript.step('ship-skipped', ship.name, `pd-${ship.name}: off — not reviewed`, { reason });
-      results.push({ ship: ship.name, blocking: ship.blocking, verdict: 'PASS', errored: false,
-        findings: [], reviewCoverage: 'none', reviewCoverageReason: reason });
+      const result: ShipResult = { ship: ship.name, blocking: false, participation: 'ineligible', voteOutcome: 'abstain',
+        operationalStatus: 'disabled', verdict: 'ABSTAIN', errored: false, findings: [],
+        reviewCoverage: 'none', reviewCoverageReason: reason };
+      results.push(result);
+      await persistParticipation(result);
       continue;
     }
+
+    if (!gate.run) {
+      await transcript.step('ship-abstained', ship.name, `pd-${ship.name}: ${gate.disposition} — ${gate.reason}`, {
+        participation: gate.disposition, reason: gate.reason, changedPathCount: changedPaths.length,
+      });
+      const result: ShipResult = { ship: ship.name, blocking: false, participation: gate.disposition ?? 'ineligible',
+        voteOutcome: 'abstain', operationalStatus: 'gated', verdict: 'ABSTAIN', errored: false, findings: [] };
+      results.push(result);
+      await persistParticipation(result);
+      continue;
+    }
+
+    // Until a runner verifies and consumes a single-use execution grant, an
+    // execution-requesting ship is unavailable. It must never fall back to
+    // model-only review or fabricate PASS.
+    if (ship.needsExecution || ship.execution.mode !== 'none') {
+      const reason = 'execution authority declared but no grant-consuming runner is attached';
+      await transcript.step('ship-unavailable', ship.name, `pd-${ship.name}: unavailable — ${reason}`, {
+        participation: gate.disposition, executionMode: ship.execution.mode, reason,
+      });
+      const result: ShipResult = { ship: ship.name, blocking: gate.disposition === 'required',
+        participation: gate.disposition, voteOutcome: 'failed', operationalStatus: 'unavailable',
+        verdict: 'UNAVAILABLE', errored: true,
+        failureReason: reason, findings: [] };
+      results.push(result);
+      await persistParticipation(result);
+      continue;
+    }
+
+    // Legacy consumers still key off `blocking`; project the authoritative
+    // per-PR decision, never the retired YAML boolean.
+    ship.blocking = gate.disposition === 'required';
 
     // RESUME: an earlier attempt of this delivery already completed this ship.
     // Its comment is already posted (edit-in-place inside runShip), its
@@ -2542,7 +2604,13 @@ export async function executeFleet(
         `pd-${ship.name}: resumed from a prior attempt's checkpoint — ${resumed.errored ? 'ERROR' : resumed.verdict} reused, no re-run`,
         { verdict: resumed.verdict, errored: resumed.errored, findings: resumed.findings?.length ?? 0 },
       );
-      results.push(withIncompletePrSourceCoverage(resumed, sourceCoverageReason));
+      const resumedResult = withIncompletePrSourceCoverage({ ...resumed,
+        participation: gate.disposition,
+        voteOutcome: resumed.errored || resumed.noUsableOutput ? 'failed' : resumed.verdict === 'PASS' ? 'approve' : 'reject',
+        operationalStatus: resumed.errored ? 'failed' : 'completed',
+      }, sourceCoverageReason);
+      results.push(resumedResult);
+      await persistParticipation(resumedResult);
       continue;
     }
 
@@ -2550,19 +2618,6 @@ export async function executeFleet(
     // A gated-out ship resolves PASS (advisory-clean) and posts nothing — a
     // gated-out BLOCKING ship (red-team off its security surface) correctly does
     // not block, matching its own "exit clean" contract.
-    const gate = surfaceGate(ship);
-    if (!gate.run) {
-      await transcript.step('ship-skipped', ship.name, `pd-${ship.name}: skipped — ${gate.reason}`, {
-        reason: gate.reason,
-        changedPathCount: changedPaths.length,
-      });
-      const skipped: ShipResult = { ship: ship.name, blocking: ship.blocking, verdict: 'PASS', errored: false, findings: [] };
-      results.push(skipped);
-      // Telemetry for a gated ship: zero AI spend, status ok (calls=0 ⇒ not a blackout).
-      await emitShipTelemetry(env, job, prCtx, ship, skipped, newShipMetrics(), checkRunId, shipStartMs);
-      continue;
-    }
-
     // Re-check the run's ABSOLUTE wall-clock budget immediately before the
     // first operation that can lead to fresh model spend. Resumed checkpoints
     // and surface-gated ships above are free, trusted progress; stopping before
@@ -2673,7 +2728,11 @@ export async function executeFleet(
     }
     await flushShipTranscript(env, capture);
     result = withIncompletePrSourceCoverage(result, sourceCoverageReason);
+    result = { ...result, participation: gate.disposition,
+      voteOutcome: result.errored || result.noUsableOutput ? 'failed' : result.verdict === 'PASS' ? 'approve' : 'reject',
+      operationalStatus: result.errored ? 'failed' : 'completed' };
     results.push(result);
+    await persistParticipation(result);
     // Cloud squid: one ship-verdict event per ship that ran (fire-and-forget).
     emitSquidEvent(env, 'ship-verdict', {
       repo: job.repoFullName,
@@ -4259,7 +4318,7 @@ async function shipRepairCall(
 
 function buildSummary(results: ShipResult[], conclusion: string, sourceCoverageReason: string | null = null): string {
   const lines = results.map(r => {
-    const tag = r.blocking ? ' [BLOCKING]' : '';
+    const tag = r.participation ? ` [${r.participation.toUpperCase()}]` : r.blocking ? ' [BLOCKING]' : '';
     // A ship that produced nothing is reported as exactly that. It must never
     // print as `PASS` here — this summary is the check-run body an operator
     // reads before merging. Broken states (error / no usable output) fail the
@@ -4268,7 +4327,9 @@ function buildSummary(results: ShipResult[], conclusion: string, sourceCoverageR
     // of blaming this PR. See aggregateConclusion + src/adjudicator.ts.
     const adjudication = r.brokenAdjudicated
       ? ` — adjudicated FLEET-WIDE fault${r.brokenAdjudicated.issueNumber != null ? ` (#${r.brokenAdjudicated.issueNumber})` : ''}: ` +
-        `${r.brokenAdjudicated.reason}; not gating this PR; the fleet is on the hook`
+        `${r.brokenAdjudicated.reason}; ${r.participation === 'required'
+          ? 'required vote remains unmet and gates this PR'
+          : 'not gating this PR; the fleet is on the hook'}`
       : ' (broken ship ⇒ run FAILED)';
     const cause = r.failureReason ? ` — ${r.failureReason}` : '';
     const coverage = r.reviewCoverage === 'none'
@@ -4276,7 +4337,10 @@ function buildSummary(results: ShipResult[], conclusion: string, sourceCoverageR
       : r.reviewCoverage === 'partial'
         ? `PARTIAL REVIEW (${r.verdict}) — ${r.reviewCoverageReason ?? 'some reviewable source was omitted'}`
         : null;
-    const state = r.noUsableOutput
+    const state = r.operationalStatus === 'disabled' ? 'disabled — no vote'
+      : r.operationalStatus === 'gated' ? `${r.participation} — no vote`
+      : r.operationalStatus === 'unavailable' ? `unavailable${cause} (broken ship ⇒ run FAILED)`
+      : r.noUsableOutput
       ? `no usable output — nothing was reviewed${adjudication}`
       : r.errored
         ? `error${cause}${adjudication}`
