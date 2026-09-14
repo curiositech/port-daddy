@@ -695,7 +695,7 @@ dual --- the operator-to-daemon channel --- and it is a \emph{right}, not a feat
 it preempts every grant, every in-flight landing, every coordinator decision.
 \end{property}
 
-Computer security reached the same object by its own road. A consent grant is,
+Computer security reached the same object by its own road. A \pdgloss{consent grant}{An explicit, scoped, revocable authorization the operator gives, recorded with its scope, its named reason and its expiry.} is,
 to a capability theorist, a \textbf{capability with contextual caveats} ---
 unforgeable, revocable, and able only to narrow as it is passed
 along~\pdcite{macaroons2014} --- and that a Hobbesian covenant and a Macaroon
@@ -1563,7 +1563,7 @@ been left implicit, and it is where the next order of magnitude is won or lost.}
 The cure is the move every database made when table scans stopped scaling: build an
 \textbf{index}. A \emph{directory} is to agents what an index is to rows --- it pays a
 write-time cost (maintaining the structure) to buy read-time speed (answer a query in
-$O(\text{query})$ instead of scanning $O(n)$ participants). Read-poverty is also a
+$O(\text{query})$ instead of scanning $O(n)$ participants). \pdgloss{Read-poverty}{The regime in which legible state accumulates faster than any operator can read it, so what goes unread is decided by the ranker rather than by the operator.} is also a
 human constraint (Miller's $7\pm2$, \S\ref{sec:operator}) and a legibility argument
 in Scott's sense: a directory is a state-like act of legibility over the swarm, and a
 directory entry over-flattened into a verdict that hides what mattered (``this agent

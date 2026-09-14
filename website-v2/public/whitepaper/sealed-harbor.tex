@@ -318,7 +318,7 @@ one.
 The four claims are not four independent guarantees stacked for redundancy;
 they are four links in one pipeline, each closing a gap the others leave open.
 Enforceability fixes \emph{where} a boundary can exist at all: gate the channel,
-or nothing about the design is provably enforceable. Noninterference proves
+or nothing about the design is provably enforceable. \pdgloss{Noninterference}{The room's silence: nothing about the data inside changes anything an observer outside can see, except through the one declared release.} proves
 that boundary, once installed, is silent except through its declared release.
 Conservation meters the cumulative cost of everything that legitimately crosses
 it, because a gate honest on every single release can still bankrupt the
@@ -806,7 +806,7 @@ the move has a precedent worth naming: Jung, Paxson, Berger and Balakrishnan's
 threshold random walk did the same thing to portscan detection in 2004,
 modelling the benign-or-malicious question as a random walk between two
 hypotheses and reading a guaranteed false-positive-against-latency trade-off
-straight off Wald's test \pdcite{jpbb04}. The canary is that detector with the
+straight off Wald's test \pdcite{jpbb04}. The \pdgloss{canary}{A planted, known-bad item whose appearance outside the room proves a leak, and whose continued absence bounds the leak rate.} is that detector with the
 network swapped for a gate.
 
 \paragraph{Proof idea.}\pdmarginfigure{wald}{Wald's sequential probability ratio test, made for wartime quality control, is still the fastest way to decide that a canary has tripped at a guaranteed error rate.}%
