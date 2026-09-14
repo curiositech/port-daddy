@@ -42,16 +42,28 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
     expect(names.has('tenderfoot')).toBe(false);
   });
 
-  it('does not silently erase qa execution needs declared by its tools', () => {
+  it('keeps qa sandbox execution explicit and advisory until a runner is configured', () => {
     const qa = ships!.find(s => s.name === 'qa');
     expect(qa).toBeDefined();
-    expect(qa!.needsExecution).toBe(true);
+    expect(qa!.execution.mode).toBe('write_sandbox');
+    expect(qa!.executionConfigState).toBe('valid');
+    expect(qa!.participation.unavailableBlocks).toBe(false);
+    expect(qa!.participation.rules[0]?.disposition).toBe('advisory');
   });
 
-  it('test-author needs execution (has non-gh Bash tools) → routes to GHA', () => {
+  it('legacy test-author tool strings do not acquire execution authority', () => {
     const ta = ships!.find(s => s.name === 'test-author');
     expect(ta).toBeDefined();
-    expect(ta!.needsExecution).toBe(true);
+    expect(ta!.execution.mode).toBe('none');
+    expect(ta!.executionConfigState).toBe('absent');
+  });
+
+  it('declares Steward model-only instead of deriving authority from its command list', () => {
+    const steward = parseFleetShips(REAL_YAML, '*')?.find(ship => ship.name === 'steward');
+    expect(steward).toBeDefined();
+    expect(steward!.execution.mode).toBe('none');
+    expect(steward!.executionConfigState).toBe('valid');
+    expect(steward!.participation.default).toBe('advisory');
   });
 
   it('spark and spider are advisory PR commenters with explicit creative temperatures', () => {
@@ -60,13 +72,11 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
 
     expect(spark).toBeDefined();
     expect(spark!.blocking).toBe(false);
-    expect(spark!.needsExecution).toBe(false);
     expect(spark!.temperature).toBe(1.25);
     expect(spark!.prompt).toContain('high-temperature product imagination');
 
     expect(spider).toBeDefined();
     expect(spider!.blocking).toBe(false);
-    expect(spider!.needsExecution).toBe(false);
     expect(spider!.temperature).toBe(0.95);
     // Spider's prompt was sharpened to a STRUCTURAL syllogism: the rationale must
     // be written verbatim as Premise A / Premise B / Therefore C.
@@ -81,7 +91,6 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
       expect(ship, `${name} should be present in pull_request:opened ships`).toBeDefined();
       expect(ship!.ideation, `${name} should be ideation`).toBe(true);
       expect(ship!.blocking, `${name} must never block`).toBe(false);
-      expect(ship!.needsExecution).toBe(false);
     }
   });
 
@@ -169,6 +178,7 @@ describe('parseFleetShips — participation and execution authority', () => {
 `, 'pull_request:opened');
     expect(parsed?.[0].participation).toEqual({
       default: 'ineligible',
+      unavailableBlocks: false,
       rules: [{
         disposition: 'required',
         riskSignals: ['secrets', 'tenant-boundary'],
@@ -195,7 +205,6 @@ describe('parseFleetShips — participation and execution authority', () => {
       prompt: write tests
       allowedTools: "Read,Write,Bash(npm test*)"
 `, 'pull_request:opened');
-    expect(parsed?.[0].needsExecution).toBe(true);
     expect(parsed?.[0].execution.mode).toBe('none');
     expect(parsed?.[0].executionConfigState).toBe('absent');
   });
