@@ -1,6 +1,6 @@
 % New figure for Sec. claim-signaling-ic: what the graduated trigger costs in
 % patience. The chapter states delta*_{k=3} ~ 0.342 against the grim-trigger
-% bound 1/3 and says the three-round window "adds barely 0.009" -- but never
+% bound 1/3 and says the three-round window "adds barely 0.0092" -- but never
 % shows how fast that premium falls, which is the whole reason the graduated
 % strategy is affordable. A k-round graduated trigger sustains truthful claim
 % signalling iff (d-c) < (c-p) * sum_{i=1..k} delta^i; with the chapter's stage
@@ -45,7 +45,7 @@
     % the chapter's own worked point, and the premium it names
     \draw[pd guide] (axis cs:3,0.333333) -- (axis cs:3,0.342508);
     \node[pd direct label,text=hhteal,anchor=north west,align=left,text width=3.9cm]
-      at (axis cs:3.3,0.4125) {the chapter's window:\\$\delta^\star = 0.342$, a premium\\of $0.009$ over grim};
+      at (axis cs:3.3,0.4125) {the chapter's window:\\$\delta^\star = 0.3425$, a premium\\of $0.0092$ over grim};
     \node[pd direct label,anchor=west] at (axis cs:1.3,0.4855)
       {one round of punishment needs $\delta>0.50$};
     \node[pd direct label,anchor=east] at (axis cs:8.75,0.3488)
@@ -59,8 +59,8 @@ truthful file-claim signalling survives a $k$-round
 graduated trigger, at the chapter's stage game ($d-c=1$, $c-p=2$), against the
 grim-trigger floor $\delta>1/3$ that a never-forgiving strategy needs. One
 round of punishment demands $\delta>0.500$; two rounds already fall to $0.366$;
-the three-round window the chapter adopts costs $0.342$, a premium of $0.009$
-over grim, and by five rounds the premium is $0.001$. This is why the
+the three-round window the chapter adopts costs $0.3425$, a premium of
+$0.0092$ over grim, and by five rounds the premium falls under $0.001$. This is why the
 production strategy can afford to forgive: crashes and deliberate defection are
 indistinguishable to an observer, and buying that tolerance costs almost no
 patience. The curve is the root of $2(\delta+\cdots+\delta^k)=1$ and holds only
