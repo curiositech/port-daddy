@@ -283,6 +283,7 @@ without those the Leviathan is a tyrant in a costume.}
 \section{Introduction: the swarm is a state of nature}\label{sec:intro}
 % ═════════════════════════════════════════════════════════════════════════════
 
+\pdmarginfigure{leviathan}{Hobbes's \emph{Leviathan} (1651) made the sovereign-by-consent argument; this chapter runs it on one machine.}%
 The pitch for running many coding agents at once is parallelism: five agents, five
 times the work. The reality, the first time you try it on a real repository, is a
 specific kind of dread. Two agents claim the same file and race each other's writes.
@@ -291,7 +292,6 @@ one. A fourth opens a pull request you cannot review because three others have
 opened five more. You spawned a team and got a mob. The work did not get more
 parallel; your \emph{uncertainty} did.
 
-\pdmarginfigure{leviathan}{Hobbes's \emph{Leviathan} (1651) made the sovereign-by-consent argument; this chapter runs it on one machine.}%
 This is not a prompt-engineering problem. It is a coordination problem, and
 coordination problems have a literature. \textbf{Thomas Hobbes}, \emph{Leviathan}
 (1651)~\pdcite{hobbes1651} --- \emph{the foundational social-contract text: rational
@@ -1568,7 +1568,6 @@ reputation over an unranked registry has nothing to attach a score to.
 
 \subsection{A legibility lower bound}\label{sec:lowerbound}
 
-\pdmarginfigure{shannon}{Shannon's information theory is why a digest has a hard floor: nothing compresses below the entropy of what the reader must recover.}%
 Section~\ref{sec:zoom} forbade the Potemkin digest by fiat. We can also state the
 prohibition as a theorem --- and the theorem, it should be said before the box
 and not after it, is the classical counting bound of group testing, the one
@@ -1583,6 +1582,7 @@ derived here before it was recognized is, if anything, a point in its favor:
 a two-line proof that lands on a 1943 bound by a different door is behaving
 the way a true bound behaves.
 
+\pdmarginfigure{shannon}{Shannon's information theory is why a digest has a hard floor: nothing compresses below the entropy of what the reader must recover.}%
 \begin{pdclaim}{Theorem}{Legibility lower bound with a review budget}
 \label{thm:lowerbound}
 Let $N$ artifacts contain an unknown critical subset $S$ of size $k$. A digest
