@@ -76,9 +76,11 @@
  *   GET  /account/shipwright                    (HTML Shipwright chat; session;
  *                                                the ONE page with inline JS —
  *                                                nonce-scoped CSP)
- *   GET  /v1/shipwright/history                 (session; own chat history)
- *   POST /v1/shipwright/chat                    (session; Workers AI, SSE)
- *   POST /v1/shipwright/clear                   (session; delete own history)
+ *   POST /v1/shipwright/thread                  (session; issue repo-bound thread)
+ *   GET  /v1/shipwright/history                 (session; scoped thread history)
+ *   POST /v1/shipwright/chat                    (session; scoped Workers AI, SSE)
+ *   POST /v1/shipwright/clear                   (session; delete raw thread history)
+ *   POST /v1/shipwright/repo-clear              (session; clear durable repo context)
  *   POST /v1/shipwright/open-pr                 (session; PR into the user's own
  *                                                installation's repo — validated
  *                                                rosters only, server re-checks)
@@ -268,6 +270,8 @@ import {
   handleShipwrightChat,
   handleShipwrightHistory,
   handleShipwrightClear,
+  handleShipwrightCreateThread,
+  handleShipwrightRepoClear,
   handleShipwrightOpenPr,
 } from './shipwright.js';
 import { handleBillingPage } from './billing-page.js';
@@ -880,6 +884,9 @@ export default {
     }
 
     // ── Shipwright chat API (session-scoped; src/shipwright.ts) ──────────────
+    else if (pathname === '/v1/shipwright/thread' && method === 'POST') {
+      response = await handleShipwrightCreateThread(request, env);
+    }
     else if (pathname === '/v1/shipwright/history' && method === 'GET') {
       response = await handleShipwrightHistory(request, env);
     }
@@ -888,6 +895,9 @@ export default {
     }
     else if (pathname === '/v1/shipwright/clear' && method === 'POST') {
       response = await handleShipwrightClear(request, env);
+    }
+    else if (pathname === '/v1/shipwright/repo-clear' && method === 'POST') {
+      response = await handleShipwrightRepoClear(request, env);
     }
     else if (pathname === '/v1/shipwright/open-pr' && method === 'POST') {
       response = await handleShipwrightOpenPr(request, env);
