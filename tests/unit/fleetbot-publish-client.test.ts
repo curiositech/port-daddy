@@ -3,6 +3,7 @@ import {
   ATTRIBUTION_BLOCK,
   ATTRIBUTION_LINE,
   DEFAULT_RELAY_ORIGIN,
+  FLEETBOT_APP_LOGIN,
   FleetbotPublishError,
   MissingActuatorError,
   assertBotAuthorship,
@@ -283,6 +284,34 @@ describe('receipt verification', () => {
   test('rejects a receipt naming a different repository', () => {
     expect(() => assertBotAuthorship(receiptFor({ repository: 'someone/else' }), expected))
       .toThrow(/names repository/);
+  });
+
+  // A Relay pointed at some other GitHub App returns a well-formed, correctly
+  // signed receipt. Without this check the client would report the mutation as
+  // published "as the bot" while GitHub showed a different author — the exact
+  // misattribution this module exists to prevent.
+  test('rejects a receipt from a different GitHub App', () => {
+    expect(() => assertBotAuthorship(receiptFor({ appSlug: 'someone-elses-app' }), expected))
+      .toThrow(/names App "someone-elses-app\[bot\]", expected "port-daddy\[bot\]"/);
+  });
+
+  test('still rejects a receipt carrying no App slug at all', () => {
+    expect(() => assertBotAuthorship(receiptFor({ appSlug: '' }), expected))
+      .toThrow(/carries no App slug/);
+  });
+
+  // A deployment that installs a differently-named App states that explicitly
+  // rather than by weakening the default.
+  test('an explicit expectedAppLogin admits a deliberately different App', () => {
+    expect(() => assertBotAuthorship(
+      receiptFor({ appSlug: 'other-harbor' }),
+      { ...expected, expectedAppLogin: 'other-harbor[bot]' },
+    )).not.toThrow();
+  });
+
+  test('the default expectation is the Fleetbot App login', () => {
+    expect(FLEETBOT_APP_LOGIN).toBe('port-daddy[bot]');
+    expect(() => assertBotAuthorship(receiptFor({ appSlug: 'port-daddy' }), expected)).not.toThrow();
   });
 });
 

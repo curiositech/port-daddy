@@ -396,15 +396,40 @@ export function classifyPublishFailure(
 // ── Receipt verification ─────────────────────────────────────────────────────
 
 /**
+ * The bot login a receipt's `appSlug` must correspond to.
+ *
+ * Relay sets `appSlug` from the App identity it authenticated as (`app.slug` in
+ * `signedReceipt`), and GitHub derives a bot login from that slug by appending
+ * `[bot]`. Comparing the derived login rather than the bare slug keeps this
+ * check written in the same vocabulary as the thing being asserted — the PR
+ * author GitHub will display.
+ */
+function botLoginForSlug(appSlug: string): string {
+  return `${appSlug}[bot]`;
+}
+
+/**
  * Refuse a receipt that does not name the App.
  *
  * The whole point of this path is that the mutation is attributable to
  * `port-daddy[bot]`. A receipt naming anything else means the publish happened
  * under some other identity and must be treated as a failure.
+ *
+ * The App identity is checked, not merely required to be present. A Relay
+ * configured against a different App would otherwise return a well-formed,
+ * correctly-signed receipt for a mutation this client would report as published
+ * "as the bot" while GitHub showed some other author — which is precisely the
+ * misattribution this module exists to make impossible. `expectedAppLogin`
+ * exists so a deployment that installs a differently-named App can state that
+ * fact explicitly rather than by weakening the check.
  */
 export function assertBotAuthorship(
   receipt: FleetbotReceipt,
-  expected: { repository: string; operation: FleetbotOperation },
+  expected: {
+    repository: string;
+    operation: FleetbotOperation;
+    expectedAppLogin?: string;
+  },
 ): void {
   const problems: string[] = [];
   if (receipt.authority !== 'port-daddy-relay-github-app') {
@@ -416,8 +441,13 @@ export function assertBotAuthorship(
   if (receipt.operation !== expected.operation) {
     problems.push(`receipt names operation "${receipt.operation}", expected "${expected.operation}"`);
   }
+  const wantedLogin = expected.expectedAppLogin ?? FLEETBOT_APP_LOGIN;
   if (!receipt.appSlug) {
     problems.push('receipt carries no App slug');
+  } else if (botLoginForSlug(receipt.appSlug) !== wantedLogin) {
+    problems.push(
+      `receipt names App "${botLoginForSlug(receipt.appSlug)}", expected "${wantedLogin}"`,
+    );
   }
   if (problems.length > 0) {
     throw new Error(`fleetbot receipt failed verification: ${problems.join('; ')}`);
