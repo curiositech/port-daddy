@@ -488,8 +488,10 @@ work; never reset or clobber the main checkout.
   awaited launch witness or availability probe. A check inside an async callback
   is stale by the time its caller resumes; test that gap with a queued microtask
   and inert adapters. Check standalone adapters as well as the parent runner.
-  A guarded sink invocation does not guard awaits inside that sink (for example,
-  OAuth refresh before a calendar POST); name those remaining effect boundaries.
+  A guarded sink invocation does not guard awaits inside that sink: carry the
+  same latched witness into the provider and recheck after authentication or
+  refresh awaits, immediately before the external write. Name any remaining
+  effect boundaries that do not yet have this final check.
   Late trigger handles must be stopped, and a failed stop must remain visible
   with its cleanup handle rather than turning the saved Off state into proof.
 
