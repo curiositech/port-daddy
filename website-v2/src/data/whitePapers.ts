@@ -1298,7 +1298,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
  * chain above it falls — which is why the harbor comes before the economy.
  */
 export const LIBRARY_SPINE =
-  'Memory makes continuity; continuity makes a person, not a spawn; a person accrues a record; a record is reputation; reputation is a tradeable asset; and tradeable assets make a market.'
+  'Memory gives an agent continuity across a restart; continuity lets a record build up against one identity instead of evaporating with the process; an expensive record is reputation; and reputation nobody can cheaply re-mint is an asset somebody will pay to rent.'
 
 /**
  * The table of contents: the Book's parts, each with its chapters in order.

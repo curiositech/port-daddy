@@ -243,9 +243,10 @@ function ProofsPanel() {
   return (
     <div className="space-y-5">
       <p className="max-w-[74ch] text-[15px] leading-[1.65] text-[var(--text-secondary)]">
-        A proving chapter is not an appendix — it is the chapter where the prose stops
-        and a checker starts, and it always follows the chapter whose promises it keeps.
-        Three of the eight do this, and each one names the tool that holds it.
+        A proving chapter is a chapter, not an appendix bolted on at the back: it sits in the
+        running order directly after the chapter whose promises it discharges, and it is where
+        a claim gets handed to a checker instead of argued in prose. Three of the eight work
+        this way.
       </p>
       {/* Three rows, not three cards. A proving chapter is a chapter — the
           same outline entry the Contents panel draws, picked out of it — and
@@ -284,8 +285,9 @@ function ProofsPanel() {
       </div>
       <p className="max-w-[74ch] text-[14px] leading-[1.6] text-[var(--text-muted)]">
         Every mechanised claim in the Book is listed with the artifact that checks it and
-        the job that runs it, in the appendix and on the proofs page — including the ones
-        where the model is bounded, or the property is named but not yet machine-checked.
+        the job that runs it, in the Book's own appendix and in the repository's manifest,
+        including the ones where the model is bounded or the property is named but not yet
+        machine-checked.
       </p>
     </div>
   )
@@ -314,9 +316,9 @@ function LimitsPanel() {
         style={{ background: 'var(--story-rust)', color: 'var(--story-rust-foreground)' }}
       >
         <p className="max-w-[70ch] text-[15px] font-medium leading-[1.55]">
-          The harbor runs today. The market does not — it is specified and, in places,
-          proved, which is a different thing from deployed, and the Book says which is
-          which on every page rather than in a disclaimer at the end.
+          The harbor runs today. The market is specified and in places proved, which is not
+          the same as deployed, and the Book labels every claim by kind on the page where it
+          appears instead of collecting the caveats into a disclaimer at the back.
         </p>
       </div>
       <div>
@@ -372,8 +374,8 @@ function ReadPanel() {
       <p className="max-w-[74ch] text-[15px] leading-[1.65] text-[var(--text-secondary)]">
         It is one PDF. Read it front to back if you have the time, or use the front
         matter's express lanes, which name the four or five sections that carry the
-        argument for whoever you happen to be — the operator, the security reviewer, the
-        economist, the person who just wants the thing to stop losing their work.
+        argument for an operator, for a security reviewer, or for somebody who just wants
+        the thing to stop losing their work.
       </p>
       {/* One edition gets a slab the width of the reading measure, not a
           card-sized tile stranded in a panel with nothing beside it. The
@@ -408,10 +410,10 @@ function ReadPanel() {
         })}
       </div>
       <p className="max-w-[74ch] text-[14px] leading-[1.6] text-[var(--text-muted)]">
-        One set of sources, set in the Swiss character: colour blocking, grotesk display,
-        flat marks. Two other typographies of the same eight chapters and the same generated
-        bibliography live in the repository and build from the same sources; nothing in the
-        argument changes between them.
+        What you download is set in the Swiss character, which means colour blocking, grotesk
+        display and flat marks. Two other typographies of the same eight chapters build from
+        the same sources and the same generated bibliography; nothing in the argument changes
+        between them.
       </p>
     </div>
   )
@@ -429,9 +431,9 @@ export default function WhitepaperPage() {
         meaning: 'Papa — about to proceed to sea',
         color: 'var(--brand-primary)',
         onColor: 'var(--brand-primary-foreground)',
-        headline: 'Four parts, eight chapters, one question each.',
+        headline: 'Every chapter, and the question it answers.',
         standfirst:
-          'Each chapter stands on the ones before it, and every proving chapter follows the chapter whose promises it keeps — so the numbers are the argument, not a filing order.',
+          'Each chapter stands on the ones before it, and every proving chapter sits directly after the chapter whose promises it discharges, so the numbering is the dependency order and you can read it that way.',
         render: () => <ContentsPanel />,
       },
       {
@@ -441,9 +443,9 @@ export default function WhitepaperPage() {
         meaning: 'Kilo — I wish to communicate with you',
         color: 'var(--brand-accent)',
         onColor: 'var(--brand-accent-foreground)',
-        headline: 'One sentence, threaded through eight chapters.',
+        headline: 'The whole argument, in one sentence.',
         standfirst:
-          'If you read nothing else, read this: it is the whole book compressed to the point where you can decide whether you disagree with it.',
+          'The argument compressed far enough that you can tell whether you disagree with it without reading the book first.',
         render: () => <SpinePanel />,
       },
       {
@@ -453,9 +455,9 @@ export default function WhitepaperPage() {
         meaning: 'Charlie — affirmative',
         color: 'var(--story-indigo)',
         onColor: 'var(--story-indigo-foreground)',
-        headline: 'Where the prose stops and a checker starts.',
+        headline: 'Three chapters that hand their claims to a machine.',
         standfirst:
-          'Three chapters exist to keep another chapter honest, and each one names the tool that holds it — ProVerif, TLA⁺, Kani, Z3.',
+          'Three of the eight exist to discharge what an earlier chapter assumed, and each one names the checker that did it, whether that was ProVerif, TLA⁺, Kani or Z3.',
         render: () => <ProofsPanel />,
       },
       {
@@ -465,9 +467,9 @@ export default function WhitepaperPage() {
         meaning: 'Uniform — you are running into danger',
         color: 'var(--story-rust)',
         onColor: 'var(--story-rust-foreground)',
-        headline: 'What is built, what is modelled, what is proposed.',
+        headline: 'Which claims are running code, and which are arguments.',
         standfirst:
-          'The seam between working software and a finished argument is the most interesting thing on this page, so it is not buried at the back.',
+          'Some of what the Book describes runs today, and some of it is specified, and in places proved, but not deployed.',
         render: () => <LimitsPanel />,
       },
       {
@@ -479,7 +481,7 @@ export default function WhitepaperPage() {
         onColor: 'var(--story-gold-foreground)',
         headline: 'One PDF, free.',
         standfirst:
-          'No form, no email, no chapter paywalled behind a newsletter — the whole book, eight chapters in four parts.',
+          'The whole book, eight chapters in four parts, with no form to fill in and no email to hand over.',
         render: () => <ReadPanel />,
       },
     ],

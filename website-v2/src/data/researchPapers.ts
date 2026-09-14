@@ -82,7 +82,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     pages: 16,
     sizeKb: 451,
     claim:
-      'Reading digests instead of transcripts has an exact bit-price, not a rule of thumb — and the floor survived a pre-registered attempt to break it.',
+      'Reading digests instead of full transcripts costs you a countable number of bits, and the paper gives the exact floor. Sixteen pre-registered attempts to get under it failed, including one that let the encoder see the answer.',
     pullQuote:
       'log₂C(N,k) − log₂C(m,k) bits, minimum, to guarantee catching all k critical artifacts among N while opening only m — 0/16 falsification attempts survived it, including an oracle encoder.',
     resultTags: ['R1', 'R2', 'R3', 'R4', 'R14', 'R16'],
@@ -100,7 +100,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     pages: 14,
     sizeKb: 363,
     claim:
-      'Whether a governance rule can be prevented before it happens or only caught after is decided by one theorem, not by how hard the runtime tries.',
+      'Whether a governance rule can be stopped before it happens or only noticed afterwards is a property of the rule, settled by one theorem, and no amount of runtime effort moves the line.',
     pullQuote:
       'A safety policy is regimentable — preventable pre-effect — iff it is controllable in the Ramadge–Wonham sense. The design rule it proves: gate the channel, never the token.',
     resultTags: ['R5'],
@@ -124,7 +124,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     pages: 12,
     sizeKb: 343,
     claim:
-      'A bonded judge stays honest exactly when audit-rate times damages clears the bribe — and stacking judges on judges holds at any depth on a finite bond, not an infinite one.',
+      'A bonded judge stays honest exactly when the audit rate times the damages clears whatever a bribe would pay, and a tower of judges checking judges holds at any depth on a bond that stays finite.',
     pullQuote:
       'Lifetime audit spend falls from Θ(T) flat to Θ(log T) to O(1) as a track record grows. Reputation is not a soft layer bolted onto verification — it is the mechanism that amortizes its cost.',
     resultTags: ['R7'],
@@ -135,7 +135,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     priorArtDive: {
       verdict: 'CLEAR',
       summary:
-        'The one named competing result turned out to support the tower theorem, not contradict it — but the adversarial re-read caught and fixed a real arithmetic defect in the paper’s own C=1 counter-case.',
+        'The one named competing result turned out to support the tower theorem instead of contradicting it. The adversarial re-read still caught a real arithmetic defect in the paper’s own C=1 counter-case, which is fixed.',
       findingsPath: 'flag-1-bonded-tower-vs-hierarchical-collusion/findings.md',
     },
   },
@@ -148,7 +148,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     pages: 17,
     sizeKb: 406,
     claim:
-      'Two parties who share neither data nor model can still get one attributable joint computation, with every leak explicit, gated, and priced in bits — not trusted away.',
+      'Two parties who share neither their data nor their model can still run one joint computation they can both attribute, and every release out of it is written down, gated, and priced in bits rather than taken on trust.',
     pullQuote:
       'Four independently verified pillars — exhaustive noninterference, the controllability boundary, ε-conservation of the release ledger, a canary detector with a quotable operating curve — priced honestly as q·b bits across q jobs, before timing channels, which are out of model.',
     resultTags: ['R5', 'R9', 'R10', 'R11'],
@@ -172,7 +172,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     pages: 14,
     sizeKb: 325,
     claim:
-      'Forking, distilling, swapping engines, or resurrecting an agent from a checkpoint needs no theory of personal identity — just three conservation laws on a ledger, proved.',
+      'Forking an agent, distilling it, swapping its engine, or restoring it from a checkpoint can all be handled with three conservation laws on a ledger, and none of them requires a theory of personal identity.',
     pullQuote:
       'Unattested, swapping in a cheap engine always pays — Akerlof’s death spiral runs inside one identity. Attest the engine id and the incentive flips to the planner’s own efficiency rule, at zero audit stake.',
     resultTags: ['R12', 'R13'],
@@ -196,7 +196,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     pages: 14,
     sizeKb: 419,
     claim:
-      'Conflict detection needs no authority at all — until one small step up in expressiveness makes it NP-complete, and that is exactly, provably, where an authority earns its keep.',
+      'Checking a policy set for conflicts is tractable, and stays tractable, until you allow disjunctive obligations; at that point it becomes NP-complete, and that boundary is where a human authority starts to be worth its cost.',
     pullQuote:
       'One step outside the tractable fragment (disjunctive obligations), conflict-freedom is NP-complete — validated against a brute-force oracle on 3,000 random policy sets, zero disagreements. An authority is needed exactly where the algorithm ends.',
     resultTags: ['R15', 'R17'],
@@ -220,7 +220,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     pages: 14,
     sizeKb: 466,
     claim:
-      'An analyst can convict an equivocating gossip peer across a link that was never directly checked, whenever that link sits on a cycle — and the size of the lie has a certified lower bound.',
+      'An analyst can catch a gossip peer telling two different stories across a link nobody directly compared, as long as that link sits on a cycle, and the size of the lie comes with a certified lower bound.',
     pullQuote:
       'r = |s|·√(1 − R_eff(e)), closed form — the harness’s measured 1.2247 is exactly 3√(1 − 5/6). r > 0 proves no global history explains the data; a coalition on a cycle cancels to 0, measured at 6×10⁻¹⁵.',
     resultTags: ['R6'],
@@ -231,7 +231,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     priorArtDive: {
       verdict: 'CLEAR',
       summary:
-        'The one citation flagged as possibly fabricated turned out to be real but irrelevant — excluded on relevance, not fraud — and Herlihy–Shavit plus three more foundational citations were added to close a real omission.',
+        'The one citation flagged as possibly fabricated turned out to be real but irrelevant, so it was dropped on relevance rather than for fraud. Herlihy–Shavit and three more foundational citations were added to close a genuine omission.',
       findingsPath: 'flag-4-topological-consensus-citation-audit/findings.md',
     },
   },

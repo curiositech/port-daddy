@@ -75,10 +75,10 @@ function PapersPanel() {
   return (
     <div>
       <p className="mb-3 max-w-[76ch] text-[15px] leading-[1.65] text-[var(--text-secondary)]">
-        Seven papers in submission form. Every result in them is folded into a chapter of
-        the Book, in the Book's own voice and with the worked examples a chapter needs —
-        these are the versions you would send to a referee, kept byte-stable so a citation
-        to one still resolves.
+        Every result in these papers also appears in the Book, rewritten in the Book's voice
+        with the worked examples a chapter needs. What's here is the version you'd send to a
+        referee, and the files don't move, so a citation to one of them still resolves years
+        from now.
       </p>
       {RESEARCH_PAPERS.map((paper) => (
         <PaperRow key={paper.id} paper={paper} />
@@ -92,22 +92,22 @@ function MethodPanel() {
     {
       n: '01',
       title: 'Pre-registered',
-      body: 'The falsification attempt is written down — what would break the claim, and how many tries it gets — before the run, so a null result is a result rather than a thing quietly not mentioned.',
+      body: 'Before a run starts we write down what result would break the claim, and how many attempts it gets. A run that comes back negative then gets published too, since we committed to publishing it before we knew which way it would go.',
     },
     {
       n: '02',
-      title: 'Falsified first',
-      body: 'Every headline number comes with the count of attempts that tried to break it and failed. A bound nobody attacked is a conjecture with good posture.',
+      title: 'The falsification count',
+      body: 'Every headline number is reported with the count of attempts that tried to break it and failed — the information floor in paper 1 came through sixteen of them, including one where the encoder was given the answer. A bound nobody has attacked is still a conjecture, so the count travels with the number.',
     },
     {
       n: '03',
-      title: 'Mechanized where it can be',
-      body: 'Where a claim fits a checker, a checker holds it — ProVerif, TLA⁺, Apalache, Kani, Z3 — and where it does not, the paper says so instead of implying a machine agreed.',
+      title: 'Mechanized where a checker fits',
+      body: 'Claims that fit a checker get one: ProVerif for the protocol models, TLA⁺ and Apalache for the state machines, Kani for the Rust, Z3 for the thresholds. Where no checker fits, the paper marks that claim as unmechanized, so you can tell which results a machine has actually seen.',
     },
     {
       n: '04',
       title: 'Reviewed on the record',
-      body: 'Adversarial review rounds, prior-art dives and the corrections they forced are published alongside the papers, including the rounds where the reviewers were right.',
+      body: 'Review rounds and prior-art dives are published next to the papers. Several of them found real errors — a misnamed theorem in paper 5, an arithmetic slip in paper 3, an over-strict "iff" in paper 6 — and the corrected claims are what you are reading now.',
     },
   ]
   return (
@@ -132,10 +132,10 @@ function DivesPanel() {
   return (
     <div className="space-y-5">
       <p className="max-w-[76ch] text-[15px] leading-[1.65] text-[var(--text-secondary)]">
-        Before a result is claimed as new, somebody goes looking for the paper that already
-        proved it. A dive ends in one of four verdicts, and two of them are bad news for us —
-        which is the point of running them, and of publishing the ones that came back
-        narrow.
+        Before we claim a result is new, somebody goes looking for the paper that already
+        proved it. Every dive is below with its verdict and what it changed — several of them
+        caught errors in our own arithmetic and wording, and those corrections are in the
+        published papers.
       </p>
       <div className="space-y-3">
         {dived.map((paper) => {
@@ -162,8 +162,8 @@ function DivesPanel() {
       {undived.length > 0 ? (
         <p className="max-w-[74ch] text-[14px] leading-[1.6] text-[var(--text-muted)]">
           No dive has run yet against{' '}
-          {undived.map((paper) => paper.title).join(', ')} — named here rather than left as a
-          gap you would have to notice.
+          {undived.map((paper) => paper.title).join(', ')}. Until one does, nothing on this page
+          says whether prior art already covers that result.
         </p>
       ) : null}
     </div>
@@ -174,20 +174,20 @@ function EstatePanel() {
   return (
     <div className="space-y-5">
       <p className="max-w-[76ch] text-[15px] leading-[1.65] text-[var(--text-secondary)]">
-        The formal estate is a manifest, not a claim: every model, harness and checker in the
-        repository is either wired into a CI job that runs it, or explicitly retired with the
-        reason written down. There is no third state, and a checker that has never been run
-        is not evidence of anything.
+        Every model, harness and checker in the repository is either wired into a CI job that
+        runs it or marked retired with the reason written down, and the manifest says which for
+        all of them. There's no third category for the ones nobody has gotten around to,
+        because a checker that never runs isn't evidence of anything.
       </p>
       <div className="grid gap-4 sm:grid-cols-2">
         {[
           {
-            t: 'The negative controls matter most',
-            b: 'Half the estate is models that are supposed to FAIL — the unsigned envelope, the rollback configuration, the multi-hop attack before the fix. They are what prove the passing runs are not vacuous, and they are the ones that went missing the longest.',
+            t: 'The negative controls',
+            b: 'About half the estate is models that are supposed to fail: an unsigned envelope, a rolled-back configuration, the multi-hop attack as it stood before the fix. They\'re the reason a green run means something — without a case the checker can actually fail, a pass only tells you the question was too easy.',
           },
           {
-            t: 'Bounded means bounded',
-            b: 'A Kani harness with the crypto stubbed proves no panic on the parse path under a fixed unwind, and that is what the Book now says it proves — not "verified in Rust". The every-hop attenuation property is ProVerif’s, and lives in a different file.',
+            t: 'What the Kani harness actually proves',
+            b: 'The Kani harness stubs out the crypto and checks one thing: that the parse path doesn\'t panic, under a fixed unwind bound. That\'s what the Book claims for it, and the wording matters, because "verified in Rust" would imply a much larger result. The every-hop attenuation property is proved in ProVerif, in a different file.',
           },
         ].map((item) => (
           <div key={item.t} className="border border-[var(--hair)] bg-[var(--surface-raised)] p-4">
@@ -209,7 +209,7 @@ function EstatePanel() {
         href="https://github.com/curiositech/port-daddy/blob/main/whitepaper/corpus.json"
         className="inline-block font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-[var(--brand-primary)] no-underline hover:underline"
       >
-        Read the manifest: every artifact, and the job that runs it →
+        Every artifact and the job that runs it, on GitHub
       </a>
     </div>
   )
@@ -227,9 +227,9 @@ export default function ResearchProgramPage() {
         meaning: 'Papa — about to proceed to sea',
         color: 'var(--brand-primary)',
         onColor: 'var(--brand-primary-foreground)',
-        headline: 'Seven papers, in the form a referee would want them.',
+        headline: 'Seven papers, and the chapter each one is folded into.',
         standfirst:
-          'Every one of these results is also in the Book, folded into a chapter with the worked examples a reader needs — these are the same results with the pedagogy taken out and the apparatus left in.',
+          'Same results the Book teaches, written up for review. The proofs run in full, there are no worked examples, and the related work is where a reviewer will look for it.',
         render: () => <PapersPanel />,
       },
       {
@@ -239,9 +239,9 @@ export default function ResearchProgramPage() {
         meaning: 'Kilo — I wish to communicate with you',
         color: 'var(--brand-accent)',
         onColor: 'var(--brand-accent-foreground)',
-        headline: 'Four moves, and the third one is the expensive one.',
+        headline: 'How a result gets from a guess to a claim.',
         standfirst:
-          'Pre-register the attack, run it, mechanise what a machine can hold, and publish the review that found the hole — in that order, because doing them out of order is how you end up believing your own abstract.',
+          'We decide what would refute a claim before we test it, hand what fits a checker to a checker, and publish the adversarial review that corrected it. An early 8/14 bound did not survive that process, and it was cut.',
         render: () => <MethodPanel />,
       },
       {
@@ -251,9 +251,9 @@ export default function ResearchProgramPage() {
         meaning: 'Uniform — you are running into danger',
         color: 'var(--story-rust)',
         onColor: 'var(--story-rust-foreground)',
-        headline: 'Somebody probably proved it first. Go and look.',
+        headline: 'We look for the paper that already proved it.',
         standfirst:
-          'A dive that comes back SUBSUMED costs a claim and buys a citation, which is a trade worth making every time — and the ones we have not run yet are named rather than left for you to spot.',
+          'A dive comes back CLEAR, NARROW, SUBSUMED or CONTRADICTED, and the last two would cost us the claim. Every paper but one has had a dive run against it; the one that hasn\'t is named below.',
         render: () => <DivesPanel />,
       },
       {
@@ -263,9 +263,9 @@ export default function ResearchProgramPage() {
         meaning: 'Charlie — affirmative',
         color: 'var(--story-indigo)',
         onColor: 'var(--story-indigo-foreground)',
-        headline: 'Wired, or retired. There is no third state.',
+        headline: 'Every model either runs in CI or is marked retired.',
         standfirst:
-          'A model checked into a repository and never run again is decoration; the manifest exists so that every artifact has to be one thing or the other, on the record.',
+          'The manifest pairs every model with the CI job that runs it. A model with no job has to be marked retired, with a reason, before it is allowed to sit in the repository.',
         render: () => <EstatePanel />,
       },
     ],
@@ -305,9 +305,9 @@ export default function ResearchProgramPage() {
                 The results, in submission form.
               </h1>
               <p className="deck-voice mt-3 max-w-[46ch] text-[15px] leading-[1.6] text-[var(--text-secondary)]">
-                The Book is where these results are taught; this is where they are argued to
-                a referee — same author, same numbers, and every falsification attempt that
-                failed to break them counted out loud.
+                The Book teaches these results; these papers argue them to a referee. Same
+                author and the same numbers either way, with the count of failed attempts to
+                break each one reported alongside it.
               </p>
             </div>
 
