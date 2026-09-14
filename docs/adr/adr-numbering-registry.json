@@ -126,6 +126,7 @@
     "0138": "0138-distress-register-emergency-broadcast.md",
     "0139": "0139-verdict-integrity-separating-infra-failure-from-review-verdict.md",
     "0140": "0140-provable-action-adjudication-contract.md",
+    "0141": "0141-oidc-workload-identity-and-standing-operator-grant.md",
     "0142": "0142-r2-media-offload.md"
   },
   "stubs": [
