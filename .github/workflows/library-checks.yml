@@ -184,8 +184,8 @@ jobs:
           # floor that would no longer have caught the missing-import case it
           # was written for.
           ran=$(printf '%s' "$out" | sed -n 's/^Ran \([0-9]*\) tests.*/\1/p')
-          if [ "${ran:-0}" -lt 321 ]; then
-            echo "::error::the harbor-research suite ran ${ran:-0} tests, fewer than the 321 it has; a module failed to import"
+          if [ "${ran:-0}" -lt 336 ]; then
+            echo "::error::the harbor-research suite ran ${ran:-0} tests, fewer than the 336 it has; a module failed to import"
             exit 1
           fi
 
@@ -298,6 +298,22 @@ jobs:
         run: >-
           python3 scripts/harbor-research/check_absent_data_captions.py
           --allow 'whitepaper/figures/legible-swarm-readpoverty.tex:not yet present'
+
+      # Chapter 1 splits "delegation chain" into the cryptographic authorization
+      # chain and the coordination lineage and promises, in its own prose, never
+      # to write the phrase bare again. Nothing enforced that promise, and bare
+      # uses had survived in five other chapters (with chapter 4 running a third
+      # name, "delegation trace", for the coordination lineage). The four allowed
+      # below are permanent editorial decisions rather than debt: two are the
+      # descriptive genus used right after naming the object, two name the
+      # ProVerif query that pairs with the committed chain-replay.pv.
+      - name: No chapter writes bare "delegation chain"
+        run: >-
+          python3 scripts/harbor-research/check_delegation_chain_vocabulary.py
+          --allow 'whitepaper/single-writer-kernel.tex:attenuation-monotonic delegation chain of digital signatures'
+          --allow 'whitepaper/legible-swarm.tex:attenuation-monotonic delegation chain (a security object'
+          --allow 'website-v2/public/whitepaper/anchor-protocol-whitepaper.tex:Delegation chain replay (\S\ref{sec:delegation}'
+          --allow 'website-v2/public/whitepaper/agent-transactions-whitepaper.tex:Delegation chain replay & ProVerif at depth 3'
 
       - name: Margin citation short-forms are a fresh render of the bibliographies
         run: python3 scripts/harbor-research/build_cite_shortforms.py --check

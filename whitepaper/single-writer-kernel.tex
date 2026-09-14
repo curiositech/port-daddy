@@ -220,7 +220,7 @@ every mutation. There is one decider, so there is no agreement to reach.
 This paper presents that kernel --- the \textbf{substrate layer} of a four-layer
 coordination stack --- together with the implemented half of the coordination
 protocol that rides directly on it (a durable message bus, decaying stigmergic
-markers, violable commitments, a cryptographic delegation chain, and a policy
+markers, violable commitments, a cryptographic authorization chain, and a policy
 monitor) as a \textbf{single-writer transactional reference monitor} in the sense
 of Anderson and Lampson: a small, tamper-evident mediator of every
 security-relevant operation, realized locally rather than as an abstract security
@@ -290,7 +290,7 @@ claims, bus, and policy monitor to render the swarm; the personhood argument lea
 the entire notion of a \emph{durable agent identity} on the kernel's continuity
 machinery; the economy's settlement ledger is, mechanically, another set of tables
 under the same single writer, and its cross-machine capability transfer rides the
-kernel's cryptographic delegation chain. If this floor is unsound, everything above
+kernel's authorization chain. If this floor is unsound, everything above
 it inherits the fault. So the discipline of this paper is to state each promise
 precisely and, where the promise has an edge, to draw the edge in ink.
 
@@ -1939,7 +1939,7 @@ production, which is the point of asking a machine rather than an author to find
 Every earlier theorem in this chapter now has a substrate to be a property \emph{of}.
 Table~\ref{tab:invariants} states the kernel's invariants as claims about organs; the work
 unit is where they meet: I2 and I3 of the machine are the resource organ's fenced leases and
-idempotent re-claim, I4 is the delegation chain's monotone narrowing that the Anchor chapter
+idempotent re-claim, I4 is the authorization chain's monotone narrowing that the Anchor chapter
 mechanizes across principals, I3 and I6 are the obligation organ's oracle-bound closure
 carried through to settlement. The continuity chapter's checkpoint and the market chapters'
 settlement inherit the same object, which is why the book can name the work unit as its
