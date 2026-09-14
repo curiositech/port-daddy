@@ -33,13 +33,45 @@
  */
 import { describe, expect, test } from '@jest/globals';
 import { execFileSync } from 'node:child_process';
+import { readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = join(here, '..', '..');
 const script = join(repo, 'scripts', 'check-relay-decode-guard.mjs');
-const fixture = (name) => join(repo, 'tests', 'fixtures', 'relay-decode-guard', name);
+const fixtureDir = join(repo, 'tests', 'fixtures', 'relay-decode-guard');
+const fixture = (name) => join(fixtureDir, name);
+
+/**
+ * The exit code each committed fixture is INTENDED to produce, declared here
+ * rather than inferred from whatever the fixture currently happens to do.
+ *
+ * Why this table exists as its own thing, separate from the per-behavior
+ * tests below: a real incident on this exact directory (see the "carries an
+ * automated bot regression" note in this PR) had an automated "unused
+ * variable" tidy-up strip `safeDecodeSegment` out of dirty-bare-ref.ts. That
+ * silently turned its intended exit-1 case into an exit-2 case — the
+ * fixture stopped testing what it was written to test, while the suite
+ * still ran green everywhere except the one existing assertion that
+ * happened to pin the code explicitly. A fixture directory has no compiler
+ * to notice this: nothing but an explicit, declared expectation does. This
+ * table is that: every fixture's code is asserted against a value written
+ * here, not derived from a bespoke describe block, and the directory
+ * listing is cross-checked against the table in both directions — a new
+ * fixture with no entry, or an entry for a fixture that no longer exists,
+ * fails loudly instead of silently doing nothing.
+ */
+const FIXTURE_EXIT_CODES = {
+  'clean.ts': 0,
+  'clean-name-shapes.ts': 0,
+  'dirty-bare-ref.ts': 1,
+  'dirty-destructuring-bind.ts': 1,
+  'dirty-qualified-ref.ts': 1,
+  'dirty-raw-call.ts': 1,
+  'no-helper.ts': 2,
+  'renamed-helper.ts': 2,
+};
 
 /** Run the guard; return { code, stdout, stderr }. */
 function run(...args) {
@@ -52,6 +84,26 @@ function run(...args) {
 }
 
 describe('relay decode guard (scripts/check-relay-decode-guard.mjs)', () => {
+  test('every committed fixture is registered in FIXTURE_EXIT_CODES, and vice versa', () => {
+    const onDisk = readdirSync(fixtureDir).filter((name) => name.endsWith('.ts')).sort();
+    const registered = Object.keys(FIXTURE_EXIT_CODES).sort();
+    // Symmetric: a fixture added without an entry, or an entry for a fixture
+    // that no longer exists, is exactly the drift this table exists to catch.
+    expect(onDisk).toEqual(registered);
+  });
+
+  test('every fixture in FIXTURE_EXIT_CODES actually produces its declared exit code', () => {
+    const mismatches = [];
+    for (const [name, expected] of Object.entries(FIXTURE_EXIT_CODES)) {
+      const { code } = run(fixture(name));
+      if (code !== expected) mismatches.push(`${name}: expected ${expected}, got ${code}`);
+    }
+    // One assertion with every mismatch named, not the first thrown one --
+    // a single tidy-up that touches several fixtures should not have to be
+    // re-run per fixture to see the full damage.
+    expect(mismatches).toEqual([]);
+  });
+
   test('a clean file (helper-only call, comment mention) passes', () => {
     const { code, stdout } = run(fixture('clean.ts'));
     expect(code).toBe(0);
