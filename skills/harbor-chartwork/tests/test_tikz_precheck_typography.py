@@ -1,4 +1,4 @@
-"""Unit tests for tikz_precheck.py's P15-P17 rules -- the three that make the
+"""Unit tests for tikz_precheck.py's P15-P19 rules -- the five that make the
 typographic law in figures/pd-figure-language.tex binding rather than advisory.
 
 Same fixture-file-per-case pattern as test_tikz_precheck.py and
@@ -296,6 +296,156 @@ class TestP17HardInk(LawTestCase):
         self.assertFalse(self.findings_for(report, "hard-ink"))
 
 
+# --------------------------------------------------------------------------- #
+# P18 -- a type family named in a fragment
+# --------------------------------------------------------------------------- #
+class TestP18NodeFontFamily(LawTestCase):
+    def test_sffamily_fails(self):
+        """The reported defect: a figure asking for sans against a Computer
+        Modern page gets Latin Modern Sans and reads as a foreign object on
+        it. The figure's face is the document's face."""
+        report = self.run_on(
+            "\\begin{tikzpicture}[pd figure]\n"
+            "\\node[anchor=west,font=\\sffamily] at (0,0) {phase 1};\n"
+            "\\end{tikzpicture}\n"
+        )
+        findings = self.findings_for(report, "node-family")
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0]["id"], "P18")
+        self.assertEqual(findings[0]["severity"], "fail")
+        self.assertIn("sffamily", findings[0]["message"])
+        self.assertIn("pd mono label", findings[0]["message"])
+
+    def test_inheriting_the_document_face_passes(self):
+        report = self.run_on(
+            "\\begin{tikzpicture}[pd figure]\n"
+            "\\node[pd panel title,anchor=west] at (0,0) {phase 1};\n"
+            "\\end{tikzpicture}\n"
+        )
+        self.assertFalse(self.findings_for(report, "node-family"))
+        self.assertEqual(report["summary"]["result"], "pass")
+
+    def test_ttfamily_is_a_family_too(self):
+        """An identifier asks for its face by role, not by \\ttfamily -- the
+        role is also where the mono side bearing is decided."""
+        report = self.run_on(
+            "\\begin{tikzpicture}[pd figure]\n"
+            "\\node[anchor=west,font=\\ttfamily] at (0,0) {sk_A};\n"
+            "\\end{tikzpicture}\n"
+        )
+        findings = self.findings_for(report, "node-family")
+        self.assertEqual(len(findings), 1)
+        self.assertIn("ttfamily", findings[0]["message"])
+
+    def test_pd_mono_label_passes(self):
+        report = self.run_on(
+            "\\begin{tikzpicture}[pd figure]\n"
+            "\\node[pd mono label,anchor=west] at (0,0) {sk_A};\n"
+            "\\end{tikzpicture}\n"
+        )
+        self.assertFalse(self.findings_for(report, "node-family"))
+
+    def test_fontfamily_selection_is_caught(self):
+        report = self.run_on(
+            "\\begin{tikzpicture}[pd figure]\n"
+            "\\node[font=\\fontfamily{qhv}\\selectfont] at (0,0) {x};\n"
+            "\\end{tikzpicture}\n"
+        )
+        findings = self.findings_for(report, "node-family")
+        self.assertEqual(len(findings), 1)
+        self.assertIn("fontfamily", findings[0]["message"])
+
+    def test_a_weight_or_slope_is_not_a_family(self):
+        report = self.run_on(
+            "\\begin{tikzpicture}[pd figure]\n"
+            "\\node[font=\\bfseries] at (0,0) {A};\n"
+            "\\node[font=\\itshape] at (1,0) {B};\n"
+            "\\end{tikzpicture}\n"
+        )
+        self.assertFalse(self.findings_for(report, "node-family"))
+
+    def test_the_laws_own_family_handle_passes(self):
+        """A compound style may compose from the law's handles; that IS the
+        one place, not a second one."""
+        report = self.run_on(
+            "\\begin{tikzpicture}[pd figure,\n"
+            "  bucket/.style={pd state,font=\\pdfiglabelmono}]\n"
+            "\\node[bucket] at (0,0) {c1};\n"
+            "\\end{tikzpicture}\n"
+        )
+        self.assertFalse(self.findings_for(report, "node-family"))
+        self.assertFalse(self.findings_for(report, "node-size"))
+
+    def test_the_style_file_itself_is_exempt(self):
+        path = write_fixture(
+            HEAD + "\\tikzset{pd mono label/.style={font=\\pdfiglabelsize\\ttfamily}}\n",
+            stem="pd-figure-language",
+        )
+        self.addCleanup(lambda: Path(path).unlink(missing_ok=True))
+        report = tikz_precheck.run_precheck(path, corpus="chapter")
+        self.assertFalse(self.findings_for(report, "node-family"))
+
+    def test_research_corpus_is_out_of_scope(self):
+        report = self.run_on(
+            "\\begin{tikzpicture}\n"
+            "\\node[font=\\sffamily] at (0,0) {x};\n"
+            "\\end{tikzpicture}\n",
+            corpus="research",
+        )
+        self.assertFalse(self.findings_for(report, "node-family"))
+
+
+# --------------------------------------------------------------------------- #
+# P19 -- the one licensed exception, used only where it is licensed
+# --------------------------------------------------------------------------- #
+class TestP19Figmath(LawTestCase):
+    def test_figmath_on_plain_math_fails(self):
+        report = self.run_on(
+            "\\begin{tikzpicture}[pd figure]\n"
+            "\\node[pd direct label] at (0,0) {{\\pdfigmath $g$} Erlang};\n"
+            "\\end{tikzpicture}\n"
+        )
+        findings = self.findings_for(report, "figmath")
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0]["id"], "P19")
+        self.assertEqual(findings[0]["severity"], "fail")
+        self.assertIn("no sub- or superscript", findings[0]["message"])
+
+    def test_figmath_on_a_subscript_passes(self):
+        report = self.run_on(
+            "\\begin{tikzpicture}[pd figure]\n"
+            "\\node[pd direct label] at (0,0) {{\\pdfigmath $g_A(\\rho,3)$} Erlang};\n"
+            "\\end{tikzpicture}\n"
+        )
+        self.assertFalse(self.findings_for(report, "figmath"))
+        self.assertEqual(report["summary"]["result"], "pass")
+
+    def test_figmath_on_a_superscript_passes(self):
+        report = self.run_on(
+            "\\begin{tikzpicture}[pd figure]\n"
+            "\\node[pd direct label] at (0,0) {{\\pdfigmath $r^{t}$}};\n"
+            "\\end{tikzpicture}\n"
+        )
+        self.assertFalse(self.findings_for(report, "figmath"))
+
+    def test_plain_math_without_the_macro_is_not_flagged(self):
+        report = self.run_on(
+            "\\begin{tikzpicture}[pd figure]\n"
+            "\\node[pd direct label] at (0,0) {$g$};\n"
+            "\\end{tikzpicture}\n"
+        )
+        self.assertFalse(self.findings_for(report, "figmath"))
+
+    def test_a_mention_in_a_comment_does_not_fire(self):
+        report = self.run_on(
+            "% \\pdfigmath is for subscripts only\n"
+            "\\begin{tikzpicture}[pd figure]\n"
+            "\\node[pd direct label] at (0,0) {plain};\n"
+            "\\end{tikzpicture}\n"
+        )
+        self.assertFalse(self.findings_for(report, "figmath"))
+
+
 class TestRuleIdsAreReported(LawTestCase):
     def test_summary_counts_the_new_ids(self):
         report = self.run_on(
@@ -309,10 +459,16 @@ class TestRuleIdsAreReported(LawTestCase):
         self.assertEqual(by_id["P16"], 1)
         self.assertEqual(by_id["P17"], 1)
 
+    def test_summary_counts_p18(self):
+        report = self.run_on(
+            "\\begin{tikzpicture}\\node[font=\\sffamily] at (0,0) {x};\\end{tikzpicture}\n"
+        )
+        self.assertEqual(report["summary"]["by_id"]["P18"], 1)
+
     def test_markdown_report_lists_the_new_ids(self):
         report = self.run_on("\\begin{tikzpicture}\\end{tikzpicture}\n")
         md = tikz_precheck.render_markdown([report])
-        for rid in ("P15", "P16", "P17"):
+        for rid in ("P15", "P16", "P17", "P18", "P19"):
             self.assertIn(rid + "=", md)
 
 

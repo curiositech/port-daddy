@@ -21,15 +21,19 @@
     plot[smooth] coordinates {(-5.8,2.15) (-4.75,1.72) (-3.70,1.25) (-2.65,.72) (-1.60,.15) (-.55,-.48) (.05,-1.55)};
   \draw[pd caution rule,dashed,line width=1.55pt]
     plot[smooth] coordinates {(-5.8,2.15) (-3.75,1.78) (-1.70,1.28) (.35,.72) (2.40,.10) (4.45,-.62) (5.45,-1.55)};
-  \node[pd direct label,text=hhteal,anchor=west] at (-2.65,1.02)
+  % Both labels now carry a readable second line instead of a 5pt one, so they
+  % no longer fit in the gap BETWEEN the two curves -- the curves nearly touch
+  % on the left. Each moves into the open field under its own curve, which is
+  % also where it stops competing with the other series.
+  \node[pd direct label,text=hhteal,anchor=west] at (-5.60,-.35)
     {$C=8$: heterogeneous cliques\\[-1pt]{\pdfigsub reaches root near level 27}};
-  \node[pd direct label,text=hhamber,anchor=west] at (2.20,.55)
+  \node[pd direct label,text=hhamber,anchor=west] at (1.05,-.62)
     {$C=1$: monoculture\\[-1pt]{\pdfigsub reaches root near level 53}};
 
   % The theorem ends at a separately owed root.
-  \fill[pd caution fill] (-5.95,-1.95) rectangle (6.0,-1.45);
-  \draw[pd caution rule] (-5.95,-1.45) -- (6.0,-1.45);
-  \node[pd direct label,text=hhamber,anchor=west] at (-5.65,-1.70)
+  \fill[pd caution fill] (-5.95,-2.06) rectangle (6.0,-1.30);
+  \draw[pd caution rule] (-5.95,-1.30) -- (6.0,-1.30);
+  \node[pd direct label,fill=none,text=hhamber,anchor=west] at (-5.90,-1.68)
     {exogenously honest root required; the contraction theorem does not manufacture it};
 
   \node[pd direct label,anchor=west] at (-5.75,-3.05)

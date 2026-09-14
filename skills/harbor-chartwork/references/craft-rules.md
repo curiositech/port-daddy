@@ -134,6 +134,50 @@ Further rules the prechecker applies to the source:
   `pd ... rule` styles say the same thing and are what the Book's edition
   overrides (swiss, technical) restyle. `hhpaper` is exempt: it is the page
   ground, not an ink (a knockout backing, a halo ring).
+- Any `font=` naming a type family (`\sffamily`, `\rmfamily`, `\ttfamily`,
+  `\fontfamily{..}`) is an error (P18). See §"One face, and it is the document's"
+  below.
+
+### One face, and it is the document's
+
+Figure type inherits the face the document is already setting — Palatino in the
+Book, Computer Modern in a standalone chapter. Figures agreeing with *each other*
+is not the goal; figures agreeing with the paragraph beside them is, and a corpus
+that is internally consistent in a face the body text does not use is still wrong
+on every page.
+
+So a fragment never names a family. `\sffamily` against a Computer Modern page
+resolves to Latin Modern Sans and reads as a foreign object on it — this is the
+single most common way a figure looks pasted-in rather than set. An **edition**
+may substitute a face: the Swiss and technical editions set `\pdfiglabelfamily`
+to `\pdgrotesk`, because grotesk display is their declared character, and they do
+it in one command in one file, so the substitution is a decision on the record.
+The only family a fragment may ask for is the identifier one, and it asks by role
+(`pd mono label`), never by `\ttfamily`.
+
+Check it on a rendered page with a paragraph above the figure, not by reading the
+style file.
+
+### Identifiers get one spelling
+
+A key, a cell id, a file name or any other literal a reader could type is set in
+`pd mono label`, spelled exactly as the code spells it: `sk_A`, not `skA` and not
+`sk` with a subscript `A`; `card0`, not a Unicode subscript zero. A figure that
+shows one identifier two ways has told the reader they are two things. The
+subscripted form belongs to *mathematics* (an index into a sequence) and the
+literal form to *code*; one figure may use both, for different objects, never
+both for the same one.
+
+### Shape has to survive the print size
+
+`pd datum`, `pd focus datum` and `pd caution datum` carry three different forms,
+because the house palette is three low-chroma print inks and every distinction it
+makes is doubled by something that is not colour. That only counts if the form is
+still legible at 2.1–2.7 pt. The Swiss edition used to flatten all three to a
+square, which left hue as the only separation — nothing in greyscale, nothing for
+a colour-blind reader. An edition override that restyles a datum must keep three
+distinguishable forms, and must be checked on a render at 1.0×, not reasoned
+about from the point sizes.
 - `\resizebox{f\textwidth}` with f < 0.85 is a warning; prefer drawing to the measure
   (`x=` scaled so the picture is at most `\linewidth`) and no `\resizebox` at all.
 - Colours are the `hh*` house set only (`hhsand hhsanddeep hhebony hhink hhcobalt
