@@ -74,10 +74,14 @@ reads that trace, per its own header comment — see the `harbor-chartwork` skil
 twin `whitepaper/figures/pd-pedagogy.tex` — checked by the repo-root test
 `scripts/generate-mega-whitepaper.test.mjs` <!-- phantom-ok -->)
 
-Defines the pedagogic apparatus, gated by `\ifpdmargincolumn` (true only in the
-Book; standalone A4 chapter PDFs have no margin column and every macro below
-degrades to an inline, run-in form so the same chapter source compiles both
-ways):
+Defines the pedagogic apparatus. Every macro below renders into the margin
+column unconditionally: there is one margin system, and the Book is the only
+artifact that renders it. There is no second, in-column form to fall back to
+and no switch selecting between them — `\ifpdmargincolumn` and its eighteen
+branch sites were removed once the standalone A4 chapter PDFs were retired. A
+device that cannot fit a particular page's column still says so itself (see
+`\pdmargincaption` and `\pdsidenote` below); that is a per-page fit decision
+inside the one system, not a second rendering mode:
 
 - **`\pdmarginfigure{slug}{caption}`** (implemented, verified by direct read) —
   a duotone portrait or plate. Looks for `plates/marginalia/<slug>.jpg`; if the
@@ -117,14 +121,13 @@ ways):
   which checks this and also checks that a glossed term is not a stranger
   to the chapter's own running prose).
 - **`\pd@marginhead{label}`** — the shared primitive behind `\keyidea`,
-  `\pitfall`, `\scene`, `\xrefbox`: a small-caps label in the margin (Book) or a
-  bold run-in head (standalone). This is the closest existing thing to a
+  `\pitfall`, `\scene`, `\xrefbox`: a small-caps label in the margin. This is the closest existing thing to a
   "sidenote head" and is the right macro to extend if `\pdgloss` is ever added
   — it would likely be `\pd@marginhead{Term}` plus a `\marginnote` body.
 - **`\pdrecitation`, `\pdexercise`/`\pdSolution`, `\pdsession`** — margin-column
   pointers for retrieval prompts, exercise solution page numbers, and (for
   `\pdsession`) a full-width transcript block (`\pd@sessionwidth` adds
-  `\marginparsep+\marginparwidth` to `\linewidth` when `\ifpdmargincolumn`).
+  `\marginparsep+\marginparwidth` to `\linewidth`, always).
   These are the repo's other full-width and margin devices beyond figures.
 - **`\pdboundary`** — the "Where this stops" honest-limit box: a left ink bar,
   no fill, head in the margin. This is where doctrine 11 (Snow's cholera map:
