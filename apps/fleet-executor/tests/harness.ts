@@ -618,6 +618,7 @@ export interface CapturedReservation {
   providerCostCapMicrousd: number;
   providerCostMicrousd: number | null;
   state: 'reserved' | 'settled' | 'released';
+  leaseOwner?: string; leaseFence?: number; leaseExpiresAt?: number;
 }
 
 export interface D1Capture {
@@ -632,6 +633,7 @@ export interface D1Capture {
   entitlements: CapturedEntitlement[];
   /** Deterministic run reservations, including terminal settlement state. */
   reservations: CapturedReservation[];
+  callAuthorizations: Array<{ authorizationId:string; runId:string; cost:number; actual:number|null; state:string }>;
   /** Simulates a missing v2 schema or any billing read failure. */
   managedBillingUnavailable: boolean;
   /** Makes authoritative v2 spend writes fail after admission succeeds. */
@@ -670,10 +672,11 @@ export function memoryD1(): D1Capture {
     entitlements: [{
       installationId: 42,
       state: 'active',
-      retailBalanceMicrousd: 100_000_000,
-      runRetailMicrousd: 1_000_000,
+      retailBalanceMicrousd: 1_000_000_000,
+      runRetailMicrousd: 100_000_000,
     }],
     reservations: [],
+    callAuthorizations: [],
     managedBillingUnavailable: false,
     failManagedSpendWrites: false,
     failAll: false,
@@ -699,7 +702,13 @@ export function memoryD1(): D1Capture {
           cap.failNextRecordRunStartInsert = false;
           throw new Error('D1 unavailable (simulated recordRunStart failure)');
         }
-        if (/INTO fleet_run_spend_v2/i.test(sql)) {
+        if (/UPDATE fleet_run_reservations/i.test(sql) && /lease_owner=NULL/i.test(sql)) {
+          const reservation=cap.reservations.find(r=>r.runId===String(args[1]));
+          if (reservation && reservation.leaseOwner===String(args[2]) && reservation.leaseFence===Number(args[3])) { reservation.leaseOwner=undefined; reservation.leaseExpiresAt=undefined; }
+        } else if (/UPDATE fleet_run_call_authorizations/i.test(sql)) {
+          const row = cap.callAuthorizations.find(a => a.authorizationId === String(args[3]));
+          if (row && row.state === 'authorized') { row.actual = Number(args[0]); row.state = String(args[1]); }
+        } else if (/INTO fleet_run_spend_v2/i.test(sql)) {
           if (cap.managedBillingUnavailable) throw new Error('no such table: fleet_run_spend_v2');
           if (cap.failManagedSpendWrites) throw new Error('managed spend write unavailable');
           const reservation = cap.reservations.find(r => r.runId === String(args[8]));
@@ -832,11 +841,29 @@ export function memoryD1(): D1Capture {
             provider_cost_microusd: null, state: reservation.state,
           } as unknown as Record<string, unknown>;
         }
+        if (/UPDATE fleet_run_reservations/i.test(sql) && /lease_fence = lease_fence \+ 1/i.test(sql)) {
+          const reservation = cap.reservations.find(r => r.runId === String(args[3]));
+          if (!reservation || reservation.state !== 'reserved' || (reservation.leaseOwner && (reservation.leaseExpiresAt ?? 0) > Number(args[4]))) return null;
+          reservation.leaseOwner = String(args[0]); reservation.leaseFence = (reservation.leaseFence ?? 0) + 1; reservation.leaseExpiresAt = Number(args[1]);
+          return { run_id: reservation.runId, lease_owner: reservation.leaseOwner, lease_fence: reservation.leaseFence, lease_expires_at: reservation.leaseExpiresAt } as Record<string,unknown>;
+        }
+        if (/INSERT INTO fleet_run_call_authorizations/i.test(sql)) {
+          const runId=String(args[2]); const reservation=cap.reservations.find(r=>r.runId===runId);
+          const used=cap.callAuthorizations.filter(a=>a.runId===runId).reduce((s,a)=>s+(a.actual??a.cost),0);
+          if (!reservation || reservation.leaseOwner!==String(args[12]) || reservation.leaseFence!==Number(args[13]) || used+Number(args[9])>reservation.providerCostCapMicrousd) return null;
+          const seq=cap.callAuthorizations.filter(a=>a.runId===runId).length+1;
+          const row={authorizationId:`${runId}:${args[3]}:${seq}`,runId,cost:Number(args[9]),actual:null,state:'authorized'}; cap.callAuthorizations.push(row);
+          return {authorization_id:row.authorizationId,authorized_cost_microusd:row.cost} as Record<string,unknown>;
+        }
+        if (/SELECT actual_cost_microusd,state FROM fleet_run_call_authorizations/i.test(sql)) {
+          const row=cap.callAuthorizations.find(a=>a.authorizationId===String(args[0]));
+          return row ? {actual_cost_microusd:row.actual,state:row.state} as Record<string,unknown> : null;
+        }
         if (/UPDATE fleet_run_reservations/i.test(sql) && /state = 'settled'/i.test(sql)) {
           const runId = String(args[3]);
           const reservation = cap.reservations.find(r => r.runId === runId);
-          const providerCost = cap.spend.filter(s => s.runId === runId)
-            .reduce((sum, s) => sum + s.providerCostMicrousd, 0);
+          const providerCost = cap.callAuthorizations.filter(s => s.runId === runId)
+            .reduce((sum, s) => sum + (s.actual ?? s.cost), 0);
           if (!reservation || reservation.state !== 'reserved' || providerCost > reservation.providerCostCapMicrousd) return null;
           reservation.state = 'settled';
           reservation.providerCostMicrousd = providerCost;
