@@ -154,6 +154,24 @@ jobs:
       - name: LIBRARY-INDEX.md is a fresh render of library-index.json
         run: python3 scripts/harbor-research/check_library_index.py --check-md
 
+      # The library index says where each RESULT lives; the concept index says
+      # where each IDEA lives and what metaphor it is wearing. It is generated
+      # from the chapter sources -- never hand-edited -- so this step is a
+      # staleness gate: rebuild, and fail if the committed copy differs.
+      #
+      # Advisory (continue-on-error) on day one, for the same reason
+      # 7c2c5e16f made the figure-blocker check advisory and chapter_lint
+      # --strict runs advisory below: this job runs unconditionally on
+      # merge_group, so a required failure here would freeze the queue for
+      # anyone who edits a chapter and does not yet know the index has to be
+      # regenerated alongside it. The fix is one command
+      # (build_concept_index.py --write) and the failure message says so.
+      # Drop continue-on-error once a wave of chapter edits has landed with
+      # the regeneration in the same commit and nobody is surprised by it.
+      - name: Concept index is a fresh build of the chapter sources (advisory)
+        continue-on-error: true
+        run: python3 scripts/harbor-research/build_concept_index.py --check
+
       - name: Critique ledger Markdown and JSON agree and every Status cell is well-formed
         run: python3 scripts/harbor-research/check_critique_ledger.py
 
@@ -180,8 +198,8 @@ jobs:
             exit 1
           fi
           ran=$(printf '%s' "$out" | sed -n 's/^Ran \([0-9]*\) tests.*/\1/p')
-          if [ "${ran:-0}" -lt 212 ]; then
-            echo "::error::the harbor-research suite ran ${ran:-0} tests, fewer than the 212 it has; a module failed to import"
+          if [ "${ran:-0}" -lt 330 ]; then
+            echo "::error::the harbor-research suite ran ${ran:-0} tests, fewer than the 330 it has; a module failed to import"
             exit 1
           fi
 

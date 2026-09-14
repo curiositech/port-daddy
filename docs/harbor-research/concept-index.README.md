@@ -196,7 +196,7 @@ wrong and the schema is what to change.
 
 Two mechanisms, and the recommendation is **both, in this order**:
 
-1. **The staleness check is the load-bearing one.** `--check` rebuilds from
+1. **The staleness check is the one that carries the weight.** `--check` rebuilds from
    the sources and fails if the committed copy differs. Regenerate-and-diff,
    never hand-edit. It cannot drift, because there is nothing to drift *from*
    — the sources are the only input. Wired into `library-checks.yml`,
