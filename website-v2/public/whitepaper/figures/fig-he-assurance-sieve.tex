@@ -14,7 +14,12 @@
     \node[pd datum] at (\x,\y) {};
     \node[pd direct label,above right=1pt and 1pt] at (\x,\y) {\lab};
   }
-  \node[pd note,align=center] at (3.25,2.9)
+  % Anchored west of a point past the last labelled datum, not centred over the
+  % middle of the plot. Centred, this block spans x=0.5 to x=6.0 -- which was
+  % invisible while it was \scriptsize and the curve labels were too, and became
+  % a real overlap with the $(1-d)$ label at x=1 the moment both were promoted to
+  % the law's size. The empty quadrant above the decaying curve is where it goes.
+  \node[pd note,align=left,anchor=north west] at (2.15,3.42)
     {assurance $1-(1-d)^k$ requires\\independent detection};
 \end{tikzpicture}
 \caption{Each independent test writer removes fraction $d$ of the defects that
