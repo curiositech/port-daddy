@@ -98,6 +98,53 @@ jobs:
       - name: MCP tool catalogue matches mcp/server.ts
         run: npm --prefix website-v2 run test:mcp-catalog
 
+  swiss-token-guards:
+    # Two derivations reach the site with no compiler behind either of them,
+    # and both fail SILENTLY when they break.
+    #
+    # The part role layer: whitepaper/textbook.json gives a Book part a `slug`
+    # and a `webRoleAlias`, a generated region of tokens.roles.css turns that
+    # into --part-<slug>, and Slab.tsx paints var(--part-<slug>) derived from
+    # the slug alone. Any break in that chain is a CSS declaration the browser
+    # drops: the slab paints nothing, the numeral prints default ink on default
+    # ground, and every build stays green.
+    #
+    # The Book cover: website-v2/public/whitepaper/book-cover.jpg is page 1 of
+    # the committed PDF, and the site once advertised a watercolour jacket the
+    # Book had stopped having for a week because the copy was made by hand.
+    #
+    # So this job runs both checks AND the tests that prove the checks still
+    # reject what they claim to reject. The second half is the point: a guard
+    # nothing mutation-tests degrades into a guard that reports success, which
+    # is how the source-layer alias hole (an alias pointing at a unitless
+    # number) passed for as long as it did.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install poppler (pdftoppm re-renders page 1 of the Book)
+        # No `|| true`: without pdftoppm the cover check cannot run, and a
+        # cover check that skips itself is exactly the stale cover it exists
+        # to catch. The website-v2 guard tests skip loudly on the same
+        # absence rather than passing, and this step keeps that from mattering.
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends poppler-utils
+
+      - name: Part role tokens resolve end to end (textbook.json -> CSS -> Slab)
+        run: npm --prefix website-v2 run test:part-roles
+
+      - name: The site's cover is still page 1 of the committed Book
+        run: npm --prefix website-v2 run test:book-cover
+
+      - name: Install locked website-v2 dependencies
+        run: npm ci --prefix website-v2 --ignore-scripts
+
+      - name: Both guards still reject what they claim to (mutation tests)
+        run: npm --prefix website-v2 run test:swiss-guards
+
   porthole-cast-gate:
     # Cheap, blocking companion to website-terminal-recordings' raw-text regex
     # scan: replays every committed website-v2/public/casts/porthole/*.cast
