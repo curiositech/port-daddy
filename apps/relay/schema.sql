@@ -407,6 +407,7 @@ CREATE TABLE IF NOT EXISTS fleet_run_spend_v2 (
   provider_cost_microusd INTEGER NOT NULL CHECK(provider_cost_microusd >= 0), created_at INTEGER NOT NULL,
   PRIMARY KEY(run_id,ship), FOREIGN KEY(run_id) REFERENCES fleet_run_reservations(run_id)
 );
+CREATE INDEX IF NOT EXISTS fleet_run_spend_v2_installation_created_idx ON fleet_run_spend_v2(installation_id,created_at);
 CREATE TABLE IF NOT EXISTS fleet_run_call_authorizations (
   authorization_id TEXT PRIMARY KEY, run_id TEXT NOT NULL, lease_fence INTEGER NOT NULL,
   call_sequence INTEGER NOT NULL, attempt_id TEXT NOT NULL, ship TEXT NOT NULL, model TEXT NOT NULL,
