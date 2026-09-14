@@ -257,6 +257,21 @@ skills, outputs, dependencies, acceptance gates, and failure terminal. Fog nodes
 may gather evidence or questions but may not launch. Every launcher must depend
 transitively on global spawn breakers and capacity admission.
 
+Keep four topologies explicit instead of forcing every concern into the DAG:
+
+- a static DAG decides which nodes are eligible;
+- a bounded workflow routes review, rework, escalation, and approval;
+- manager-driven rounds assign workers and independent reviewers;
+- an append-only event stream feeds deterministic operator projections.
+
+Load `references/hypertree-execution-observatory.md` when specifying node
+input/output contracts, reviewer tiers, rework bounds, or shared HTML, Swift,
+and Rust execution views. Validate the inert review-loop fixture with:
+
+```text
+node scripts/validate-hypertree-execution.mjs examples/hypertree-execution.review-loop.json
+```
+
 ### 10. Produce operator and reviewer surfaces
 
 Operator views are projections over typed records, never parallel authority.
@@ -314,13 +329,17 @@ Before calling the packet complete:
    `node scripts/audit-drydock-program-skill.mjs` for the integrated contract.
 2. Validate hypertree JSON against `schemas/drydock-resurrection-hypertree.schema.json`
    and the semantic validator.
-3. Run positive and negative activation cases in `tests/activation.md`.
-4. Prove every local source link in `references/knowledge-map.md` exists.
-5. Confirm no canonical checkout or raw credential appears in an executable input.
-6. Confirm every launch node is gated by admission, capacity, and persistent
+3. Validate the execution fixture against `schemas/hypertree-execution.schema.json`
+   and `scripts/validate-hypertree-execution.mjs`; require exact plan binding,
+   distinct producer/reviewer/manager identities, complete outputs, bounded
+   rework, and identical HTML/Swift/Rust projections.
+4. Run positive and negative activation cases in `tests/activation.md`.
+5. Prove every local source link in `references/knowledge-map.md` exists.
+6. Confirm no canonical checkout or raw credential appears in an executable input.
+7. Confirm every launch node is gated by admission, capacity, and persistent
    breakers.
-7. Confirm every PASS claim names an exact tier, digest, and external witness.
-8. Have a skeptical reviewer argue safety, liveness, economics, usability, and
+8. Confirm every PASS claim names an exact tier, digest, and external witness.
+9. Have a skeptical reviewer argue safety, liveness, economics, usability, and
    evidence independently.
 
 ## Bundle Index
@@ -332,10 +351,16 @@ Load only what the current decision requires:
 - `references/architecture-decisions.md` — component/process/language placement.
 - `references/diagram-atlas.md` — comprehensive decision and proof diagrams.
 - `references/delivery-and-proof.md` — staged implementation and promotion gates.
+- `references/hypertree-execution-observatory.md` — typed execution, review ladder,
+  bounded rework, shared projections, and observatory delivery slices.
 - `examples/drydock-resurrection-hypertree.json` — 30-node machine plan.
+- `examples/hypertree-execution.review-loop.json` — inert bad-to-good review-loop trace.
 - `examples/INDEX.md` — example and executable-plan routing.
 - `schemas/drydock-resurrection-hypertree.schema.json` — structural contract.
+- `schemas/hypertree-execution.schema.json` — closed execution/event/review contract.
 - `scripts/validate-drydock-resurrection-hypertree.mjs` — semantic DAG/digest checks.
+- `scripts/validate-hypertree-execution.mjs` — semantic event, identity, review,
+  rework, and projection checks.
 - `scripts/audit-drydock-program-skill.mjs` — bundle, links, diagrams, routing, and moved-source audit.
 - `scripts/INDEX.md` — validator loading and invocation map.
 - `templates/architecture-packet.md` — final deliverable shape.

@@ -13,7 +13,10 @@ The bundle contains:
 - component, language, and authority decisions;
 - staged delivery and promotion gates;
 - the machine-readable 30-node implementation hypertree, closed JSON Schema,
-  and semantic validator; and
+  and semantic validator;
+- a separate typed execution contract that keeps node eligibility acyclic while
+  independently validating review, bounded rework, manager scrutiny, event
+  reduction, and shared HTML/Swift/Rust operator projections; and
 - activation tests, an architecture-packet template, and a worked example.
 
 This is static product and safety design. It does not authorize starting Port
