@@ -44,10 +44,12 @@ const TOP_DIRS = [
   'docs', 'skills', 'website-v2', 'mcp', 'fleet', 'public', 'dashboard',
   'analyses', 'proofs', 'fleet-config-ui',
 ]
-// Excludes tokens containing `*` (globs) or `<`/`>` (template placeholders like
-// `skills/<name>/SKILL.md`) — those are patterns, not concrete citations.
+// Excludes tokens containing `*` (globs), `<`/`>` (template placeholders like
+// `skills/<name>/SKILL.md`), or `{`/`}` (brace expansion — `lib/coordination-{
+// crypto,acl}.ts` names several real files at once, exactly the way a shell
+// would expand it) — those are patterns, not concrete citations.
 const REPO_PATH_RE = new RegExp(
-  `^(?:${TOP_DIRS.join('|')})\\/[^\\s\\\`*<>]+\\.[A-Za-z0-9]+$`,
+  `^(?:${TOP_DIRS.join('|')})\\/[^\\s\\\`*<>{}]+\\.[A-Za-z0-9]+$`,
 )
 
 // Deliberately PRECISE markers. Broad prose words like "planned"/"future" are
