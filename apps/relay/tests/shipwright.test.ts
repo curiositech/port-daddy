@@ -758,6 +758,21 @@ describe('GET /account/shipwright — page', () => {
     expect(html).toContain("label.textContent = 'Unavailable'");
   });
 
+  it('enables only repository erasure when the saved-thread inventory recognizes a revoked thread', () => {
+    const html = renderShipwrightPage(baseUser, 'aa'.repeat(16), {
+      ...NO_VIEW, threadId: THREAD_ID,
+    });
+    const inventoryBranch = html.slice(
+      html.indexOf('if (rows[i].threadId === threadId)'),
+      html.indexOf("}).catch(function () {", html.indexOf('if (rows[i].threadId === threadId)')),
+    );
+    expect(inventoryBranch).toContain('repoClearBtn.disabled = false');
+    expect(inventoryBranch).not.toContain('input.disabled = false');
+    expect(inventoryBranch).not.toContain('sendBtn.disabled = false');
+    expect(inventoryBranch).not.toMatch(/\n\s*clearBtn\.disabled = false/);
+    expect(html).toContain("body: JSON.stringify({ threadId: threadId })");
+  });
+
   it('keeps the story-linework identity and keyboard UX affordances', () => {
     const html = renderShipwrightPage(baseUser, 'aa'.repeat(16), NO_VIEW);
     expect(html).toContain('#003fb8'); // cobalt storefront accent (TOKENS)
