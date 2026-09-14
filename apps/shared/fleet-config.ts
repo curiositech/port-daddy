@@ -23,6 +23,7 @@ import {
 } from './model-registry.generated.js';
 import {
   DENY_ALL_EXECUTION,
+  isShipParticipationPolicyValid,
   parseShipExecutionPolicy,
   parseShipParticipationPolicy,
   type ShipExecutionPolicy,
@@ -74,13 +75,12 @@ export interface ShipConfig {
   /** When true, ship needs execution (bash/write) — dispatch to GHA instead */
   needsExecution: boolean;
   /**
-   * When true, this is an IDEATION ship (spark, spider, lookout, snipe): it
+   * When true, this is an IDEATION ship: it
    * proposes forward work via the {@link Proposal} schema and its comment is
    * rendered into real actionable Port Daddy syntax, rather than raising
    * file:line findings. Ideation ships are ALWAYS advisory (never blocking) and
-   * never gate a merge. Derived from a `class: ideation` field in pd-fleet.yml
-   * OR from membership in {@link IDEATION_SHIPS} (belt-and-suspenders so a ship
-   * that forgets the field still gets the ideation contract).
+   * never gates a merge. Derived only from the trusted `class: ideation` role;
+   * ship names never confer or remove voting authority.
    */
   ideation: boolean;
   /**
@@ -116,24 +116,12 @@ export interface ShipConfig {
   graft: string[];
   /** PR/risk-specific voting posture. `blocking` remains its legacy projection. */
   participation: ShipParticipationPolicy;
+  participationValid: boolean;
   /** Explicit execution authority. Missing config is deny-all, never inferred. */
   execution: ShipExecutionPolicy;
 }
 
-/**
- * Ships that are ideation-class by identity, regardless of whether pd-fleet.yml
- * declares `class: ideation`. These four always propose forward work and are
- * always advisory. A repo can add more via `class: ideation` on its own ships.
- */
-export const IDEATION_SHIPS: ReadonlySet<string> = new Set([
-  'spark',
-  'spider',
-  'lookout',
-  'snipe',
-]);
-
-function deriveIdeation(name: string, agentClass: unknown): boolean {
-  if (IDEATION_SHIPS.has(name)) return true;
+function deriveIdeation(agentClass: unknown): boolean {
   return agentClass === 'ideation';
 }
 
@@ -221,15 +209,6 @@ function resolveModelToken(raw: unknown): string | undefined {
 // Tools that require local execution (can't run in a Worker). Matches any
 // Bash(...) tool whose command is NOT `gh` (gh runs fine against the API).
 const EXECUTION_TOOLS_RE = /Bash\((?!gh)[^)]*\)/;
-
-/**
- * Ships that are CLOUD-STATIC reviewers by contract: they analyze the diff and
- * existing tests but NEVER execute. `qa` historically lists `Bash(npm test*)`
- * in `allowedTools` (a relic of its local-runner past); the cloud executor runs
- * it as a static reviewer per fleet/ships/qa.md, so we force needsExecution=false
- * for it regardless of allowedTools.
- */
-const CLOUD_STATIC_SHIPS = new Set(['qa']);
 
 interface RawFallback {
   backend?: string;
@@ -663,8 +642,7 @@ function deriveGraft(value: unknown, purser: boolean): string[] {
   return ids;
 }
 
-function deriveNeedsExecution(name: string, allowedTools: unknown): boolean {
-  if (CLOUD_STATIC_SHIPS.has(name)) return false;
+function deriveNeedsExecution(allowedTools: unknown): boolean {
   return EXECUTION_TOOLS_RE.test(typeof allowedTools === 'string' ? allowedTools : '');
 }
 
@@ -817,7 +795,7 @@ export function fleetShipsFromDocument(doc: unknown, trigger: string): ShipConfi
 
     const telos = typeof agent.telos === 'string' ? agent.telos : '';
     const role = telos || (typeof agent.role === 'string' ? agent.role : '') || `${name} ship`;
-    const ideation = purser ? false : deriveIdeation(name, agent.class);
+    const ideation = purser ? false : deriveIdeation(agent.class);
     const shipCfModel = purser ? derivePurserModel(agent, name) : deriveCfModel(agent, name);
     const shipMapModel = deriveMapModel(agent, shipCfModel);
     // Per-step tiers exist only for the purser, whose steps genuinely differ in
@@ -848,13 +826,16 @@ export function fleetShipsFromDocument(doc: unknown, trigger: string): ShipConfi
       blocking,
       // Purser runs entirely against the GitHub API + Workers AI: cloud-executable
       // by contract, regardless of any allowedTools relic.
-      needsExecution: purser ? false : deriveNeedsExecution(name, agent.allowedTools),
+      needsExecution: purser ? false : deriveNeedsExecution(agent.allowedTools),
       ideation,
       purser,
       blockWithoutSandbox: purser ? coerceBlocking(agent.blockWithoutSandbox) : false,
       testPaths: purser ? coerceStringList(agent.testPaths) : [],
       graft: deriveGraft(agent.graft, purser),
-      participation: parseShipParticipationPolicy(agent.participation, blocking),
+      participation: parseShipParticipationPolicy(agent.participation),
+      participationValid: isShipParticipationPolicyValid(agent.participation) &&
+        (!ideation || (parseShipParticipationPolicy(agent.participation).default !== 'required' &&
+          !parseShipParticipationPolicy(agent.participation).rules.some(rule => rule.disposition === 'required'))),
       execution: parseShipExecutionPolicy(agent.execution),
     });
   }
@@ -908,6 +889,7 @@ Be direct. Cite specific lines. Flag ADR violations if you see them.`,
       testPaths: [],
       graft: [],
       participation: { default: 'required', rules: [] },
+      participationValid: true,
       execution: { ...DENY_ALL_EXECUTION },
     },
     {
@@ -938,6 +920,7 @@ Output:
       testPaths: [],
       graft: [],
       participation: { default: 'advisory', rules: [] },
+      participationValid: true,
       execution: { ...DENY_ALL_EXECUTION },
     },
     {
@@ -968,6 +951,7 @@ For each finding: write the falsifiable attack construction and its impact. Be a
       testPaths: [],
       graft: [],
       participation: { default: 'required', rules: [] },
+      participationValid: true,
       execution: { ...DENY_ALL_EXECUTION },
     },
     {
@@ -1026,6 +1010,7 @@ Rules:
       testPaths: [],
       graft: [],
       participation: { default: 'advisory', rules: [] },
+      participationValid: true,
       execution: { ...DENY_ALL_EXECUTION },
     },
     ...ideationDefaults(),
@@ -1060,6 +1045,7 @@ function ideationDefaults(): ShipConfig[] {
     testPaths: [],
     graft: [],
     participation: { default: 'advisory', rules: [] },
+    participationValid: true,
     execution: { ...DENY_ALL_EXECUTION },
   });
 

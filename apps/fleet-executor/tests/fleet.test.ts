@@ -42,10 +42,10 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
     expect(names.has('tenderfoot')).toBe(false);
   });
 
-  it('qa is a cloud-static reviewer (needsExecution=false despite Bash(npm test*))', () => {
+  it('does not silently erase qa execution needs declared by its tools', () => {
     const qa = ships!.find(s => s.name === 'qa');
     expect(qa).toBeDefined();
-    expect(qa!.needsExecution).toBe(false);
+    expect(qa!.needsExecution).toBe(true);
   });
 
   it('test-author needs execution (has non-gh Bash tools) → routes to GHA', () => {
@@ -160,9 +160,9 @@ describe('parseFleetShips — participation and execution authority', () => {
         repository: current_repository
         worktree: isolated
         cwd: .
-        toolAllowlist: [read_file, run_tests, dynamic_skill_search]
+        toolAllowlist: [read_file, dynamic_skill_search]
         mcpAllowlist: [github.read]
-        networkAllowlist: [api.github.com]
+        networkAllowlist: []
         writePathAllowlist: []
         maxWallClockMs: 120000
         maxCostMicrousd: 500000
@@ -180,9 +180,9 @@ describe('parseFleetShips — participation and execution authority', () => {
       repository: 'current_repository',
       worktree: 'isolated',
       cwd: '.',
-      toolAllowlist: ['read_file', 'run_tests', 'dynamic_skill_search'],
+      toolAllowlist: ['read_file', 'dynamic_skill_search'],
       mcpAllowlist: ['github.read'],
-      networkAllowlist: ['api.github.com'],
+      networkAllowlist: [],
     });
   });
 
@@ -196,6 +196,38 @@ describe('parseFleetShips — participation and execution authority', () => {
 `, 'pull_request:opened');
     expect(parsed?.[0].needsExecution).toBe(true);
     expect(parsed?.[0].execution.mode).toBe('none');
+  });
+
+  it('fails malformed participation policy closed and grants no legacy blocking authority', () => {
+    const parsed = parseFleetShips(`fleet:
+  agents:
+    reviewer:
+      trigger: pull_request:opened
+      prompt: review
+      blocking: true
+      participation:
+        default: required
+        rules:
+          - disposition: required
+            prClasses: [securty]
+`, 'pull_request:opened');
+    expect(parsed?.[0]).toMatchObject({
+      blocking: true,
+      participationValid: false,
+      participation: { default: 'ineligible', rules: [] },
+    });
+  });
+
+  it('requires the explicit ideation role and denies required voting to that role', () => {
+    const parsed = parseFleetShips(`fleet:
+  agents:
+    arbitrary-ideas:
+      trigger: pull_request:opened
+      class: ideation
+      prompt: propose ideas
+      participation: { default: required, rules: [] }
+`, 'pull_request:opened');
+    expect(parsed?.[0]).toMatchObject({ ideation: true, participationValid: false });
   });
 });
 

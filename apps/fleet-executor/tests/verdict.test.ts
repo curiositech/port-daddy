@@ -141,6 +141,14 @@ describe('aggregateConclusion', () => {
     );
   });
 
+  it('fails when execution is unavailable even if another required voter approved', () => {
+    expect(aggregateConclusion([
+      r({ ship: 'reviewer', blocking: true, participation: 'required', voteOutcome: 'approve' }),
+      r({ ship: 'qa', participation: 'advisory', voteOutcome: 'failed', operationalStatus: 'unavailable',
+        verdict: 'UNAVAILABLE', errored: true, brokenAdjudicated: { scope: 'fleet', reason: 'runner absent' } }),
+    ])).toBe('failure');
+  });
+
   it('neutral when only a non-blocking ship objects', () => {
     expect(
       aggregateConclusion([r({ blocking: true, verdict: 'PASS' }), r({ verdict: 'BLOCK' })]),
