@@ -2267,6 +2267,7 @@ export async function executeFleet(
     fleetAppLogin,
   });
   if (authorship.fleetAuthored) {
+    await finalizeUnleasedManagedRun(env.DB, runId, nowSec());
     const summary =
       `Fleet-authored branch — not self-reviewed. ${authorship.reason}. ` +
       `No ships were run and no AI was spent: reviewing the fleet's own output produces ` +
@@ -2818,7 +2819,7 @@ export async function executeFleet(
   // budget is exhausted, then this optional section disables itself and the
   // already-computed check conclusion remains untouched.
   let reviewBody = summary;
-  if (xoEnabled && !(await isFleetPaused(env)) && repoShipEnabled(await readRepoShipControls(env.DB, job.repoFullName), 'xo')) {
+  if (!settledPublicationReplay && xoEnabled && !(await isFleetPaused(env)) && repoShipEnabled(await readRepoShipControls(env.DB, job.repoFullName), 'xo')) {
     const advisories = collectAdvisoryFindings(results);
     if (advisories.length > 0) {
       let section: string;
