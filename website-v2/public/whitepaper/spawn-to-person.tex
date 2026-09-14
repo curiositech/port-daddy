@@ -849,6 +849,46 @@ weakest continuity link and
 ``checkpoint with teeth'' (a real execution-state checkpoint) is the literal
 foundation of L3.}}
 
+\paragraph{Which death is this?}
+``Checkpoint stores notes, not execution state'' is the right sentence and it is
+doing a lot of work in one clause, because ``execution state'' covers several
+things that fail differently and a reader is entitled to know which of them the
+organ actually reaches. Deaths come in rungs, ordered by what survives, and the
+checkpoint organ can be graded on the ladder rather than described against it.
+
+\begin{table}[H]
+\centering
+\caption{The agent-death ladder, and where the checkpoint organ sits on it.
+Rungs are ordered by what survives the death, not by how bad it feels. The organ
+reaches rung~2 and specifies rung~3; rung~5 is not a gap in the implementation
+but a property of the artifact, which is why OP-4b
+(\pdchapref{swk}{The Single-Writer Kernel}) is stated as two problems rather than
+one. Exercise~\ref{ex:stp-death-taxonomy} derives the ladder.}
+\label{tab:death-ladder}
+\small
+\begin{tabularx}{\textwidth}{@{}p{0.05\textwidth} >{\raggedright\arraybackslash}p{0.21\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.17\textwidth}@{}}
+\toprule
+\textbf{\#} & \textbf{Rung} & \textbf{What survives} & \textbf{This organ} \\
+\midrule
+1 & Record survival & Logs and notes only; a successor reconstructs by reading. & reached \\
+2 & Artifact survival & A content-addressed worktree and outputs; computation is rerun rather than resumed. & reached (\BUILTWEAK) \\
+3 & Semantic task capsule & Artifacts plus obligations, decisions, transcript projection, tool bindings and a pending-effect journal, so a new provider continues observably. & specified, not shipped \\
+4 & Execution snapshot & Process memory and runtime state, under a controlled runtime; rarely portable. & not attempted \\
+5 & Latent state & Unexposed activations, KV cache, whatever ``intent'' names. & unrecoverable in principle from an arbitrary provider \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The grading is the point of the table. A checkpoint guarantee that does not name
+its rung is not a guarantee, and the two rungs that matter for this chapter's
+argument are 3 and 5: rung~3 is buildable and would make succession observable,
+which is what L3 needs, while rung~5 is not a matter of effort --- an arbitrary
+provider's latent state is not an artifact anyone can hand over, so a system that
+promised continuity of experience would be promising something no implementation
+can deliver. That is why this chapter's continuity claims are about the ledger
+following the right body, never about a successor inheriting a predecessor's
+experience.
+
 \noindent Table~\ref{tab:app-status} is the honest-state ledger for this paper:
 every major claim with its label and its grounding. It is the artifact a skeptical
 reader should consult first.
@@ -1130,6 +1170,39 @@ qualifications bind and are part of the statement, not footnotes to it:
   an escrow), not a different schedule.
 \end{enumerate}
 \end{pdclaim}
+
+\paragraph{The entrant who cannot afford to wait.}
+A natural objection to any front-loaded penalty is that it is a liquidity barrier:
+an honest but capital-poor newcomer cannot absorb it, while a well-capitalised
+attacker can, so the cliff selects for exactly the wrong entrant. Half of that is
+a misreading of the instrument and worth correcting, because the instrument is
+unusual. Nothing is \emph{posted} here. $g_t$ is a holdback on a newcomer's
+earning ceiling --- the amount by which what they may earn is reduced --- so an
+entrant with no capital at all can serve a probation; they earn less during it,
+they do not pay in. The well-capitalised attacker is already in the statement
+too, as qualification (2): deterrence is bounded by what a ceiling can withhold,
+and past $G_{\max} > L/(1-\delta_f)$ the answer is a bond, which is where capital
+enters this system.
+
+The other half survives the correction and is a real effect, on
+\emph{participation} rather than solvency. An honest newcomer with an outside
+option worth $u$ per period takes the probation only if
+$\sum_t \delta_h^t(\pi_t - g_t) \ge \sum_t \delta_h^t u$, and the theorem's own
+result is that the optimal schedule puts as much friction as possible at $t=0$.
+So the participation constraint binds first, and hardest, at exactly the period
+the optimum loads --- giving a corollary the operator can act on: if entrants are
+to be retained, the schedule is fill-from-zero up to $\min(L,\ \pi_0 - u)$ rather
+than to $L$, and any deterrence that requires more must come from a later period
+or a different instrument. The cost is a longer cliff for the same $G_{\max}$.
+
+Whether that changes the \emph{mix} of entrants --- fewer honest newcomers with
+good outside options, unchanged numbers of attackers who have none --- is an
+adverse-selection question this chapter does not settle, and it is the named
+falsifier: a probation schedule tuned by the corollary above should not shift the
+honest share of entrants downward, and if a sweep of \texttt{b6\_probation.py}
+with an income floor shows that it does, the participation term belongs inside
+the optimisation rather than beside it. No such sweep has run, so no number for
+the mix appears here.
 
 \input{figures/fig-stp-probation-cliff}
 
@@ -2070,6 +2143,30 @@ over for $\lceil \log 50/\log 1.25\rceil = 18$ more: $53$ levels and
 $53\times 50 = \$2{,}650$. \emph{Now you try:} at $C=2$, where does the linear
 phase stop? (Bleed $C\beta = 20$ per level until $G_k \le CB = 100$, i.e.\ $15$
 levels, then $21$ geometric ones --- $36$ levels, $\$1{,}800$.)
+
+\paragraph{What $C$ is actually doing, and the symbol it shares with the market.}
+The clique count $C$ is this theorem's diversity parameter --- it is why the
+worked numbers above contrast $C=8$ against a monoculture $C=1$, and why the
+monoculture costs roughly twice the bond capital. It is worth saying what $C$
+is a proxy \emph{for}, because the reviewer of a foundation-model monoculture
+is right that ``disjoint clique'' is a structural description and correlated
+error is a statistical one. \pdchapref{he}{The Harbor Economy} gives the
+statistical version%
+\ifpdbook
+\ (\S\ref{he:sec:assurance-correlation})%
+\fi
+: let a panel's
+detection rate be a random $D$ with mean $d$ drawn once and shared, write
+$\theta$ for the resulting intra-panel correlation, and the probability that a
+panel of $k$ all miss is $\mathbb{E}[(1-D)^k] \ge (1-d)^k$ by Jensen ---
+independence is the \emph{optimistic} case, always. Sampling sealed across $C$
+disjoint cliques is the instrument by which this chapter holds $\theta$ near
+zero; it is not an independent assumption bolted on beside it. A tower whose
+$C$ cliques all run the same base model has a large $\theta$ and a contraction
+factor that is nominally $1-\rho d$ and effectively worse, and boundary (iii)
+below is right that measuring it is an obligation on deployed judge telemetry
+rather than something this chapter can assume. One symbol, two chapters:
+$\theta$ is correlation and $\rho$ stays the audit rate in both.
 
 \begin{pdexample}{The audit tower: amortized verification spend}
 As a judge accumulates verified history its reputation-at-stake $vt$ grows,
