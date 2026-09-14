@@ -21,6 +21,13 @@ import {
   CF_ADMITTED_MODELS,
   resolveCfModel,
 } from './model-registry.generated.js';
+import {
+  DENY_ALL_EXECUTION,
+  parseShipExecutionPolicy,
+  parseShipParticipationPolicy,
+  type ShipExecutionPolicy,
+  type ShipParticipationPolicy,
+} from './fleet-participation.js';
 
 const WORKERS_AI_RATES = CF_PRICES;
 
@@ -107,6 +114,10 @@ export interface ShipConfig {
    * declared without a graft list gets {@link PURSER_DEFAULT_GRAFT}.
    */
   graft: string[];
+  /** PR/risk-specific voting posture. `blocking` remains its legacy projection. */
+  participation: ShipParticipationPolicy;
+  /** Explicit execution authority. Missing config is deny-all, never inferred. */
+  execution: ShipExecutionPolicy;
 }
 
 /**
@@ -271,6 +282,8 @@ interface RawAgent {
   testPaths?: unknown;
   /** Any ship: repo skill ids to graft onto the prompt (skill-graft.ts). */
   graft?: unknown;
+  participation?: unknown;
+  execution?: unknown;
   /**
    * Any ship: the cloud-plane role that scans ONE chunk (`map_cf_role:` in
    * pd-fleet.yml; `mapCfRole` accepted too). REDUCE keeps the ship's `cfModel`.
@@ -863,6 +876,7 @@ export function fleetShipsFromDocument(doc: unknown, trigger: string): ShipConfi
     const shipPlanModel = purser ? derivePurserPlanModel(agent, shipCfModel) : undefined;
     const shipAuthorModel = purser ? derivePurserAuthorModel(agent, shipCfModel) : undefined;
 
+    const blocking = ideation ? false : coerceBlocking(agent.blocking);
     ships.push({
       name,
       trigger: agent.trigger as string | string[],
@@ -881,7 +895,7 @@ export function fleetShipsFromDocument(doc: unknown, trigger: string): ShipConfi
       telos,
       // Ideation ships are advisory by definition — they can never gate a merge,
       // even if pd-fleet.yml mistakenly sets `blocking: true` on one.
-      blocking: ideation ? false : coerceBlocking(agent.blocking),
+      blocking,
       // Purser runs entirely against the GitHub API + Workers AI: cloud-executable
       // by contract, regardless of any allowedTools relic.
       needsExecution: purser ? false : deriveNeedsExecution(name, agent.allowedTools),
@@ -890,6 +904,8 @@ export function fleetShipsFromDocument(doc: unknown, trigger: string): ShipConfi
       blockWithoutSandbox: purser ? coerceBlocking(agent.blockWithoutSandbox) : false,
       testPaths: purser ? coerceStringList(agent.testPaths) : [],
       graft: deriveGraft(agent.graft, purser),
+      participation: parseShipParticipationPolicy(agent.participation, blocking),
+      execution: parseShipExecutionPolicy(agent.execution),
     });
   }
 
@@ -941,6 +957,8 @@ Be direct. Cite specific lines. Flag ADR violations if you see them.`,
       blockWithoutSandbox: false,
       testPaths: [],
       graft: [],
+      participation: { default: 'required', rules: [] },
+      execution: { ...DENY_ALL_EXECUTION },
     },
     {
       name: 'qa',
@@ -969,6 +987,8 @@ Output:
       blockWithoutSandbox: false,
       testPaths: [],
       graft: [],
+      participation: { default: 'advisory', rules: [] },
+      execution: { ...DENY_ALL_EXECUTION },
     },
     {
       name: 'red-team',
@@ -997,6 +1017,8 @@ For each finding: write the falsifiable attack construction and its impact. Be a
       blockWithoutSandbox: false,
       testPaths: [],
       graft: [],
+      participation: { default: 'required', rules: [] },
+      execution: { ...DENY_ALL_EXECUTION },
     },
     {
       name: 'copy-pm',
@@ -1053,6 +1075,8 @@ Rules:
       blockWithoutSandbox: false,
       testPaths: [],
       graft: [],
+      participation: { default: 'advisory', rules: [] },
+      execution: { ...DENY_ALL_EXECUTION },
     },
     ...ideationDefaults(),
   ];
@@ -1085,6 +1109,8 @@ function ideationDefaults(): ShipConfig[] {
     blockWithoutSandbox: false,
     testPaths: [],
     graft: [],
+    participation: { default: 'advisory', rules: [] },
+    execution: { ...DENY_ALL_EXECUTION },
   });
 
   return [

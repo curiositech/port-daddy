@@ -274,6 +274,64 @@ describe('resolveCfModel — the empty-model guard', () => {
   });
 });
 
+describe('parseFleetShips — participation and execution authority', () => {
+  it('projects explicit PR-class voting and sandbox authority from trusted config', () => {
+    const parsed = parseFleetShips(`fleet:
+  agents:
+    privacy-warden:
+      trigger: pull_request:opened
+      prompt: review privacy boundaries
+      blocking: false
+      participation:
+        default: ineligible
+        rules:
+          - disposition: required
+            riskSignals: [secrets, tenant-boundary]
+            reason: protected data boundary changed
+      execution:
+        mode: read_only_sandbox
+        repository: current_repository
+        worktree: isolated
+        cwd: .
+        toolAllowlist: [read_file, run_tests, dynamic_skill_search]
+        mcpAllowlist: [github.read]
+        networkAllowlist: [api.github.com]
+        writePathAllowlist: []
+        maxWallClockMs: 120000
+        maxCostMicrousd: 500000
+`, 'pull_request:opened');
+    expect(parsed?.[0].participation).toEqual({
+      default: 'ineligible',
+      rules: [{
+        disposition: 'required',
+        riskSignals: ['secrets', 'tenant-boundary'],
+        reason: 'protected data boundary changed',
+      }],
+    });
+    expect(parsed?.[0].execution).toMatchObject({
+      mode: 'read_only_sandbox',
+      repository: 'current_repository',
+      worktree: 'isolated',
+      cwd: '.',
+      toolAllowlist: ['read_file', 'run_tests', 'dynamic_skill_search'],
+      mcpAllowlist: ['github.read'],
+      networkAllowlist: ['api.github.com'],
+    });
+  });
+
+  it('does not infer execution authority from legacy allowedTools', () => {
+    const parsed = parseFleetShips(`fleet:
+  agents:
+    test-author:
+      trigger: pull_request:opened
+      prompt: write tests
+      allowedTools: "Read,Write,Bash(npm test*)"
+`, 'pull_request:opened');
+    expect(parsed?.[0].needsExecution).toBe(true);
+    expect(parsed?.[0].execution.mode).toBe('none');
+  });
+});
+
 describe('parseFleetShips — model derivation + blocking coercion', () => {
   const yaml = (body: string) => `fleet:\n  agents:\n${body}\n`;
 

@@ -71,6 +71,12 @@ function mkShip(over: Partial<ShipConfig> = {}): ShipConfig {
     blockWithoutSandbox: false,
     testPaths: [],
     graft: [],
+    participation: { default: 'advisory', rules: [] },
+    execution: {
+      mode: 'none', repository: 'current_repository', worktree: 'isolated', cwd: '.',
+      toolAllowlist: [], mcpAllowlist: [], networkAllowlist: [], writePathAllowlist: [],
+      maxWallClockMs: 0, maxCostMicrousd: 0,
+    },
     ...over,
   };
 }

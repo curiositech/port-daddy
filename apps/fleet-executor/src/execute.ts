@@ -950,6 +950,8 @@ async function recordShipsConfigInTranscript(
       blockWithoutSandbox: ship.blockWithoutSandbox,
       testPaths: ship.testPaths,
       graft: ship.graft,
+      participation: ship.participation,
+      execution: ship.execution,
     });
   }
 }
