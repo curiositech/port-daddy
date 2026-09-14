@@ -59,6 +59,14 @@ const PROPOSAL_MARKERS = [
   'designed but not built', 'will land', 'when it lands', 'to be built',
   'doesn’t exist yet', "doesn't exist yet", 'cite-exempt', 'not built yet',
   'unbuilt', 'salvage diff',
+  // The proof estate's own two prospective-artifact idioms, both as precise as
+  // the phrases above. `(placeholder)` is what the federated-harbor redteam and
+  // whitehat skills write after an artifact path they are *obliging a future
+  // run to produce* ("Artifact obligation to close ... Path: `x.pv`
+  // (placeholder)"). `artifact target` is the shipwright TODO docs' equivalent
+  // ("**Artifact target:** `proofs/...`"). Both name a deliverable, never an
+  // existing file, so treating them as claims-of-existence is a false positive.
+  'placeholder', 'artifact target',
 ]
 
 function changedMarkdown() {
