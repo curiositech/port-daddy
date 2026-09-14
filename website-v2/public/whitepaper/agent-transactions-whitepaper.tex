@@ -888,7 +888,9 @@ The general sustainability condition under a $k$-round graduated trigger with st
 \[
 \underbrace{d - c}_{\text{one-shot gain}} \;<\; \underbrace{(c - p) \cdot \frac{\delta(1 - \delta^k)}{1 - \delta}}_{\text{discounted punishment cost}}.
 \]
-Substituting $d - c = 1,\; c - p = 2$ and $k = 3$ gives $1 < 2\delta(1 + \delta + \delta^2)$, which solves numerically to $\delta > \delta^\star_{k=3} \approx 0.342$. Under grim trigger ($k \to \infty$) the bound is the closed-form $\delta > 1/3 \approx 0.333$, recovering the standard folk-theorem threshold. The graduated bound is therefore only marginally above grim---the three-round window adds barely $0.009$ to the threshold---which is the right result: graduated trigger pays almost nothing for the crash tolerance it buys.
+Substituting $d - c = 1,\; c - p = 2$ and $k = 3$ gives $1 < 2\delta(1 + \delta + \delta^2)$, which solves numerically to $\delta > \delta^\star_{k=3} \approx 0.342$. Under grim trigger ($k \to \infty$) the bound is the closed-form $\delta > 1/3 \approx 0.333$, recovering the standard folk-theorem threshold. The graduated bound is therefore only marginally above grim---the three-round window adds barely $0.009$ to the threshold---which is the right result: graduated trigger pays almost nothing for the crash tolerance it buys. Figure~\ref{fig:bc-graduated-trigger} plots $\delta^\star$ against the length of the punishment window and shows where that premium goes: nearly all of it is paid in the first two rounds, and by five rounds the graduated bound sits within $0.001$ of grim.
+
+\input{figures/fig-bc-graduated-trigger}
 
 \begin{pdclaim}{Theorem}{Claim Signaling Incentive Compatibility}
 \label{prop:claim-signaling-ic}
@@ -1052,14 +1054,14 @@ A verifier (which may itself be a bonded agent) reviews the Merkle attribution c
 A randomized sample of contested settlements, at a configurable rate (default $10\%$), is routed to a human auditor. Expensive, slow, and authoritative. The audit produces a labeled outcome that feeds back into reputation history and, critically, into calibrating Oracles 1 and 2: any disagreement between human audit and the cheaper oracles is a training signal for the gameable layers.
 
 \paragraph{Settlement rule.}
-\begin{itemize}[nosep]
-  \item \emph{3-of-3 agreement.} Settle immediately on the agreed outcome. The cheaper oracles carry most of the volume in steady state.
-  \item \emph{2-of-3 agreement.} Settle with the majority. Flag the dissenting trace for review; this is the primary signal for tuning the gameable oracle.
-  \item \emph{No majority (three different verdicts, or one settle / one slash / one abstain).} Escalate to full human arbitration. Bond held in escrow until the human verdict lands.
-\end{itemize}
+Table~\ref{tab:bc-settlement-rule} is the whole rule: the three verdict patterns, what each settles, where it leaves the bond, and what the protocol does with the disagreement. A no-majority row is three different verdicts, or one settle against one slash against one abstain.
+
+\input{figures/tab-bc-settlement-rule}
 
 \paragraph{Composition with cartel resistance.}
-Oracle collusion is itself a collusion problem. If Oracles 1 and 2 are run by agents in the same cartel, a 2-of-3 majority can launder a sabotaged settlement past the human audit, modulo the audit sampling rate. The same insurer-collusion analysis applies (\S\ref{sec:youle:a6}) with the oracles in the role of bidders: the human-audit sampling rate $\sigma$ sets the detection probability $p_d^{\text{oracle}} = \sigma$ for the oracle layer, and the folk-theorem threshold becomes a calibration target on $\sigma$ in the same way it is a calibration target on bid-pattern detection elsewhere in the protocol. The default $10\%$ sample is a starting point; deployments where Oracles 1 and 2 are co-owned should raise it.
+Oracle collusion is itself a collusion problem. If Oracles 1 and 2 are run by agents in the same cartel, a 2-of-3 majority can launder a sabotaged settlement past the human audit, modulo the audit sampling rate. The same insurer-collusion analysis applies (\S\ref{sec:youle:a6}) with the oracles in the role of bidders: the human-audit sampling rate $\sigma$ sets the detection probability $p_d^{\text{oracle}} = \sigma$ for the oracle layer, and the folk-theorem threshold becomes a calibration target on $\sigma$ in the same way it is a calibration target on bid-pattern detection elsewhere in the protocol. The default $10\%$ sample is a starting point; Figure~\ref{fig:bc-oracle-audit-rate} puts it beside the threshold it has to clear, and deployments where Oracles 1 and 2 are co-owned should raise it.
+
+\input{figures/fig-bc-oracle-audit-rate}
 
 \subsubsection{The Bonded Advisor}\label{sec:bonded-advisor}
 

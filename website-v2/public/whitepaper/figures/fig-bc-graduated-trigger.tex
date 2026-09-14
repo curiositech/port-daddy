@@ -1,0 +1,71 @@
+% New figure for Sec. claim-signaling-ic: what the graduated trigger costs in
+% patience. The chapter states delta*_{k=3} ~ 0.342 against the grim-trigger
+% bound 1/3 and says the three-round window "adds barely 0.009" -- but never
+% shows how fast that premium falls, which is the whole reason the graduated
+% strategy is affordable. A k-round graduated trigger sustains truthful claim
+% signalling iff (d-c) < (c-p) * sum_{i=1..k} delta^i; with the chapter's stage
+% game d-c = 1 and c-p = 2 this is 2*sum delta^i > 1, whose root is delta*(k).
+% Data: whitepaper/figures/data/graduated-trigger-threshold.csv, emitted by
+% whitepaper/figures/data/make-figure-data.py (deterministic, no seed).
+% delta*(3) = 0.3425 reproduces the chapter's 0.342 [verified].
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure]
+  \begin{axis}[
+    width=9.3cm,height=5.3cm,
+    scale only axis,
+    axis lines=left,
+    title={crash tolerance is paid for in the first two rounds},
+    title style={font=\footnotesize\bfseries,text=hhink,yshift=-1pt},
+    xmin=0.4,xmax=8.9,ymin=0.325,ymax=0.525,
+    xlabel={rounds of punishment $k$ before forgiveness},
+    ylabel={patience $\delta$ the equilibrium needs},
+    xlabel style={font=\footnotesize,text=hhgray},
+    ylabel style={font=\footnotesize,text=hhgray},
+    tick label style={font=\footnotesize,text=hhgray},
+    axis line style={draw=hhgray,line width=.45pt},
+    tick style={draw=hhgray,line width=.45pt},
+    xtick={1,2,3,4,5,6,7,8},
+    ytick={0.3333,0.35,0.40,0.45,0.50},
+    yticklabels={0.333,.35,.40,.45,.50},
+    clip=false,
+  ]
+    % the grim-trigger floor: permanent punishment, no crash tolerance
+    \addplot[draw=hhink,line width=.62pt,forget plot,domain=0.4:8.9,samples=2]{0.333333};
+
+    % the graduated threshold, k = 1..8
+    \addplot[draw=hhteal,line width=1.1pt,forget plot]
+      coordinates {(1,0.500000) (2,0.366025) (3,0.342508) (4,0.336215)
+        (5,0.334394) (6,0.333835) (7,0.333660) (8,0.333604)};
+    \addplot[only marks,mark=*,mark size=1.5pt,draw=hhteal,fill=hhteal,forget plot]
+      coordinates {(1,0.500000) (2,0.366025) (4,0.336215) (5,0.334394)
+        (6,0.333835) (7,0.333660) (8,0.333604)};
+    \node[pd focus datum] at (axis cs:3,0.342508) {};
+
+    % the chapter's own worked point, and the premium it names
+    \draw[pd guide] (axis cs:3,0.333333) -- (axis cs:3,0.342508);
+    \node[pd direct label,text=hhteal,anchor=north west,align=left,text width=3.9cm]
+      at (axis cs:3.3,0.4125) {the chapter's window:\\$\delta^\star = 0.342$, a premium\\of $0.009$ over grim};
+    \node[pd direct label,anchor=west] at (axis cs:1.3,0.4855)
+      {one round of punishment needs $\delta>0.50$};
+    \node[pd direct label,anchor=east] at (axis cs:8.75,0.3488)
+      {grim trigger, $\delta>0.333$: never forgives};
+  \end{axis}
+\end{tikzpicture}
+\vspace{2mm}
+\caption{\textbf{A forgiving punishment window is almost free, and the whole
+price is paid in the first two rounds.} The smallest patience at which
+truthful file-claim signalling survives a $k$-round
+graduated trigger, at the chapter's stage game ($d-c=1$, $c-p=2$), against the
+grim-trigger floor $\delta>1/3$ that a never-forgiving strategy needs. One
+round of punishment demands $\delta>0.500$; two rounds already fall to $0.366$;
+the three-round window the chapter adopts costs $0.342$, a premium of $0.009$
+over grim, and by five rounds the premium is $0.001$. This is why the
+production strategy can afford to forgive: crashes and deliberate defection are
+indistinguishable to an observer, and buying that tolerance costs almost no
+patience. The curve is the root of $2(\delta+\cdots+\delta^k)=1$ and holds only
+for this stage game; a different payoff spread moves every point.
+[verified; \texttt{figures/data/graduated-trigger-threshold.csv} from
+\texttt{figures/data/make-figure-data.py}, deterministic]}
+\label{fig:bc-graduated-trigger}
+\end{figure}
