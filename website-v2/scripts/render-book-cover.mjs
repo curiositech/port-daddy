@@ -1,10 +1,14 @@
 /**
  * The Book's cover, as an image the site can show.
  *
- * It lands beside the Book's other plates rather than in /img/, because the
- * site's theme-pair guard requires every /img/ raster to have a dark twin and
- * a cover has no dark twin: a book is an object, and inverting it would be
- * advertising a book that does not exist.
+ * It lands beside the PDF it comes from, not in /img/ and not in /plates/.
+ * Not /img/, because the site's theme-pair guard requires every raster there
+ * to have a dark twin, and a cover has none: a book is an object, and
+ * inverting it would advertise a book that does not exist. Not /plates/,
+ * because a plate is an image-model render with a provenance entry naming the
+ * model and prompt, and this is a render of page 1 of the committed PDF --
+ * filing it there would claim a provenance it does not have, which is exactly
+ * what the plate-provenance guard caught.
  *
  * The cover is page 1 of the built PDF: the Swiss plate under type set in
  * LaTeX. Hand-exporting it is how a site ends up advertising a jacket the
@@ -28,7 +32,7 @@ import { dirname, resolve } from 'node:path';
 
 const root = resolve(import.meta.dirname, '..', '..');
 const PDF = resolve(root, 'website-v2/public/whitepaper/coordination-papers-mega-volume.pdf');
-const OUT = resolve(root, 'website-v2/public/whitepaper/plates/book-cover.jpg');
+const OUT = resolve(root, 'website-v2/public/whitepaper/book-cover.jpg');
 
 // 110 dpi on a 7x10in trim is 770x1100: sharp at the ~420px the cover is ever
 // shown at, including on a 2x display, without carrying a print-size raster.
@@ -53,12 +57,12 @@ try {
   const rendered = render(resolve(dir, 'cover'));
   if (check) {
     if (!existsSync(OUT)) {
-      console.error('website-v2/public/whitepaper/plates/book-cover.jpg is missing — run node scripts/render-book-cover.mjs');
+      console.error('website-v2/public/whitepaper/book-cover.jpg is missing — run node scripts/render-book-cover.mjs');
       process.exit(1);
     }
     if (!readFileSync(rendered).equals(readFileSync(OUT))) {
       console.error(
-        'website-v2/public/whitepaper/plates/book-cover.jpg does not match page 1 of the committed Book —\n' +
+        'website-v2/public/whitepaper/book-cover.jpg does not match page 1 of the committed Book —\n' +
         'the cover changed and the site is still showing the old one.\n' +
         'Run: node scripts/render-book-cover.mjs',
       );

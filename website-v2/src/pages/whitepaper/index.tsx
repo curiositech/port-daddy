@@ -1,4 +1,4 @@
-import { Eyebrow, Slab } from '@/components/swiss'
+import { Slab } from '@/components/swiss'
 import {
   chapterRecordFor,
   COLLECTED_VOLUME,
@@ -91,8 +91,13 @@ export default function WhitepaperPage() {
     <main id="main-content">
       <div className="flex flex-col overflow-hidden bg-[var(--surface-base)] lg:h-[100dvh]">
         <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,25rem)_minmax(0,1fr)]">
-          {/* The masthead never moves: title, claim, the three numbers, the
-              one thing to do, and the cover. */}
+          {/* The masthead. The cover IS the title -- it carries the title,
+              the subtitle and the author in type already, so setting them
+              again beside it was the same words twice. What is left is the
+              cover, the one sentence the Book argues, and the thing to do.
+              The edition eyebrow and the chapters/parts/pages counters went
+              with the duplicate title: a count of parts is not a reason to
+              read anything, and the outline on the right shows both. */}
           <div className="flex min-h-0 flex-col gap-6 overflow-y-auto border-b-2 border-[var(--border-strong)] px-6 py-6 lg:border-b-0 lg:border-r-2 lg:px-8 lg:py-8">
             <div className="slug-hoist" aria-hidden="true">
               <span className="route">/whitepaper</span>
@@ -100,71 +105,36 @@ export default function WhitepaperPage() {
               <i className="fl fl-papa" />
             </div>
 
-            <div>
-              <Eyebrow>The Harbor Library · {TEXTBOOK.edition.version}</Eyebrow>
-              <h1 className="mt-2 max-w-[17ch] text-[clamp(30px,3.2vw,44px)] font-bold leading-[1.04] tracking-[-0.035em] text-[var(--text-primary)]">
-                {TEXTBOOK.edition.title}
-              </h1>
-              <p className="deck-voice mt-3 max-w-[44ch] text-[15px] leading-[1.6] text-[var(--text-secondary)]">
-                {TEXTBOOK.edition.claim}
-              </p>
-            </div>
+            {/* Page 1 of the committed PDF, rendered by
+                scripts/render-book-cover.mjs. One image in both themes on
+                purpose: a cover is an object, and inverting it for dark mode
+                would show a book that does not exist. */}
+            <img
+              className="block h-auto w-full border-2 border-[var(--border-strong)]"
+              src="/whitepaper/book-cover.jpg"
+              width={770}
+              height={1100}
+              alt={`${TEXTBOOK.edition.title}: ${TEXTBOOK.edition.subtitle}. The title set in grotesk over a container terminal in halftone, cut into a blue and red modular grid.`}
+              loading="eager"
+              decoding="async"
+            />
 
-            <div className="flex flex-wrap gap-x-7 gap-y-3">
-              {[
-                { n: String(TEXTBOOK.chapters.length).padStart(2, '0'), l: 'chapters' },
-                { n: String(TEXTBOOK.parts.length).padStart(2, '0'), l: 'parts' },
-                { n: String(COLLECTED_VOLUME.pages), l: 'pages, free' },
-              ].map((stat) => (
-                <div key={stat.l} className="border-t-2 border-[var(--border-strong)] pt-2">
-                  <div className="font-mono text-[26px] font-bold leading-none text-[var(--text-primary)]">
-                    {stat.n}
-                  </div>
-                  <div className="mt-1 text-[12.5px] text-[var(--text-muted)]">{stat.l}</div>
-                </div>
-              ))}
-            </div>
+            <p className="deck-voice max-w-[42ch] text-[15.5px] leading-[1.6] text-[var(--text-secondary)]">
+              {TEXTBOOK.edition.claim}
+            </p>
 
             <a
               href={COLLECTED_VOLUME.downloadUrl}
               className="inline-block bg-[var(--brand-primary)] px-5 py-3 font-mono text-[13px] font-bold tracking-[0.04em] text-[var(--brand-primary-foreground)] no-underline"
             >
-              Read the Book (PDF)
+              Read the Book — {COLLECTED_VOLUME.pages}pp PDF, free
             </a>
-
-            {/* The cover is page 1 of the committed PDF, rendered by
-                scripts/render-book-cover.mjs. It is one image in both themes
-                on purpose: a cover is a physical object, and inverting it for
-                dark mode would be showing a book that does not exist. */}
-            <figure className="mt-auto border-2 border-[var(--border-strong)]">
-              <img
-                className="block h-auto w-full"
-                src="/whitepaper/plates/book-cover.jpg"
-                width={770}
-                height={1100}
-                alt="The cover: the title set in grotesk over a container terminal in halftone, cut into a blue and red modular grid."
-                loading="lazy"
-                decoding="async"
-              />
-            </figure>
           </div>
 
-          {/* The outline. One head, then everything, and only this scrolls. */}
+          {/* The outline. No head block: it carried a headline counting the
+              parts and a paragraph explaining what a chapter is, and the
+              outline underneath says both by existing. Only this scrolls. */}
           <div className="flex min-h-0 flex-col">
-            <div
-              className="on-block shrink-0 px-6 py-5 lg:px-9 lg:py-6"
-              style={{ background: 'var(--brand-primary)', color: 'var(--brand-primary-foreground)' }}
-            >
-              <h2 className="max-w-[24ch] text-[clamp(22px,2.4vw,34px)] font-bold leading-[1.08] tracking-[-0.02em]">
-                Four parts, eight chapters, one question each.
-              </h2>
-              <p className="deck-voice mt-2 max-w-[64ch] text-[15px] leading-[1.5] opacity-90">
-                Every chapter opens on a question and closes on something you can check —
-                a theorem, a model a machine will run for you, or a number you can
-                recompute. The check is the line under each chapter.
-              </p>
-            </div>
-
             <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6 lg:px-9 lg:py-7">
               <div className="space-y-8">
                 {TABLE_OF_CONTENTS.map((part) => (
@@ -178,9 +148,9 @@ export default function WhitepaperPage() {
                         as one band rather than an image next to a heading.
                         Below 900px the plate goes: at that width it would be a
                         70px letterbox, which is showing nothing. */}
-                    <div className="grid h-[168px] items-stretch md:grid-cols-2">
+                    <div className="grid items-stretch md:grid-cols-2">
                       <Slab slug={part.slug} className="grid grid-cols-[auto_1fr] items-end gap-x-5 px-5 py-4">
-                        <span className="font-mono text-[clamp(52px,7vw,88px)] font-bold leading-[0.74] tracking-[-0.05em]">
+                        <span className="font-mono text-[clamp(40px,4.6vw,60px)] font-bold leading-[0.74] tracking-[-0.05em]">
                           {part.numeral}
                         </span>
                         <h2 className="pb-[0.18em] text-[clamp(20px,2.6vw,30px)] font-bold leading-[1.02] tracking-[-0.025em]">
@@ -193,10 +163,10 @@ export default function WhitepaperPage() {
                         aria-hidden="true"
                         loading="lazy"
                         decoding="async"
-                        className="hidden h-full w-full object-cover md:block"
+                        className="hidden h-full max-h-[136px] w-full object-cover md:block"
                       />
                     </div>
-                    <p className="mt-3 max-w-[76ch] text-[14.5px] leading-[1.6] text-[var(--text-muted)]">
+                    <p className="mt-3 max-w-[76ch] text-[15px] leading-[1.6] text-[var(--text-secondary)]">
                       {part.blurb}
                     </p>
                     <div className="mt-2">

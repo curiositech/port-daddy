@@ -26,7 +26,7 @@ export function LibraryBanner() {
       <PageContainer width="wide">
         <div className="flex items-center gap-4 py-2">
           <img
-            src="/whitepaper/plates/book-cover.jpg"
+            src="/whitepaper/book-cover.jpg"
             width={770}
             height={1100}
             loading="lazy"
