@@ -107,7 +107,7 @@ flowchart TB
     Projection --> Rust
 ```
 
-**Runtime honesty:** the repository's existing WinDAGs compatibility path can
+**Runtime honesty:** the repository's existing legacy DAG compatibility path can
 execute DAG and workflow shapes, while several richer labels are projected
 through DAG execution. This Drydock composition is therefore a target contract,
 not proof that manager rounds or the shared blackboard execute natively today.
@@ -328,7 +328,7 @@ starting performance budgets; implementation must measure them on each client.
 The status language is shape plus text plus color. The graph never relies on a
 permanent animation to prove life. Meaningful new activity gets one short edge
 or card cue, then a calm persistent state; reduced-motion users get a static
-contrast change and announcement. This intentionally narrows the older WinDAGs
+contrast change and announcement. This intentionally narrows the older DAG-runtime
 “traveling dot” suggestion to the shared AgentPresence rule.
 
 Every node summary must zoom in no more than two actions to:
@@ -438,11 +438,11 @@ observation never becomes retrospective permission.
 - [ADR-0120 Rust kernel boundary](../../../docs/adr/0120-rust-kernel-boundary.md)
 - [ADR-0140 provable action adjudication](../../../docs/adr/0140-provable-action-adjudication-contract.md)
 
-The WinDAGs principles applied here are BC-PLAN-003 (failure-domain isolation),
+The imported DAG-planning principles applied here are BC-PLAN-003 (failure-domain isolation),
 BC-EXEC-002/006 (logged mutation and infrastructure-enforced protocol),
 BC-FAIL-004 (independent breakers), BC-EVAL-001/002 (ordered evaluation and no
 self-scoring), BC-UX-003/006 (typed live events and bounded human gates), and
 BC-BIZ-003 (orchestration overhead must stay subordinate to useful work). Where
-the older WinDAGs runtime or visualization guidance conflicts with Drydock's
+older DAG-runtime or visualization guidance conflicts with Drydock's
 halt, hypervisor, capacity, or calm-presence constraints, Drydock narrows it and
 records the divergence rather than pretending parity.
