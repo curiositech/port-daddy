@@ -7,10 +7,8 @@
 
 import { createHash } from 'node:crypto'
 import {
-  lstatSync,
   mkdirSync,
   readFileSync,
-  readdirSync,
   writeFileSync,
 } from 'node:fs'
 import {
@@ -21,6 +19,7 @@ import {
   sep,
 } from 'node:path'
 import { fileURLToPath as urlToPath } from 'node:url'
+import { scanArtifacts } from './artifact_inventory.mjs'
 
 export const RELATION_KINDS = Object.freeze([
   'duplicate',
@@ -66,7 +65,6 @@ const PR_STATES = new Set(['open', 'closed', 'merged'])
 const CHECK_STATES = new Set(['pass', 'fail', 'unknown'])
 const REVIEW_STATES = new Set(['complete', 'incomplete', 'unknown'])
 const MERGE_STATES = new Set(['clean', 'conflicting', 'unknown'])
-const TEXT_EXTENSIONS = new Set(['.md', '.json', '.tex', '.html', '.yaml', '.yml'])
 
 /** Return true only for ordinary JSON-style records. */
 function isRecord(value) {
@@ -319,61 +317,9 @@ export function extractStructuredStatusClaims(artifact, content) {
   return found
 }
 
-/** Inventory declared text roots without following symlinks or leaving the repo. */
+/** The portable census is also the Clearance inventory; no parallel scanner. */
 export function inventoryArtifacts(repoRoot, corpus) {
-  const root = resolve(repoRoot)
-  const artifacts = []
-  const skipped = []
-
-  const addFile = (absolutePath, entry) => {
-    const repoPath = relative(root, absolutePath).split(sep).join('/')
-    const extension = extname(repoPath).toLowerCase()
-    const allowed = new Set(entry.extensions ?? TEXT_EXTENSIONS)
-    if (!allowed.has(extension)) return
-    const bytes = readFileSync(absolutePath)
-    const artifact = {
-      path: repoPath,
-      kind: entry.kind,
-      bytes: bytes.length,
-      sha256: createHash('sha256').update(bytes).digest('hex'),
-    }
-    artifacts.push({
-      ...artifact,
-      structuredStatusClaims: extractStructuredStatusClaims(artifact, bytes.toString('utf8')),
-    })
-  }
-
-  const walk = (absolutePath, entry) => {
-    requireValue(isInside(root, absolutePath), entry.path, 'resolved outside the repository')
-    const stat = lstatSync(absolutePath)
-    if (stat.isSymbolicLink()) {
-      skipped.push({ path: relative(root, absolutePath).split(sep).join('/'), reason: 'symlink-not-followed' })
-      return
-    }
-    if (stat.isFile()) {
-      addFile(absolutePath, entry)
-      return
-    }
-    requireValue(stat.isDirectory(), entry.path, 'must be a file or directory')
-    for (const child of readdirSync(absolutePath, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
-      walk(resolve(absolutePath, child.name), entry)
-    }
-  }
-
-  for (const entry of [...corpus].sort((a, b) => a.path.localeCompare(b.path))) {
-    walk(resolve(root, entry.path), entry)
-  }
-
-  artifacts.sort((a, b) => a.path.localeCompare(b.path))
-  skipped.sort((a, b) => a.path.localeCompare(b.path))
-  const countsByKind = {}
-  for (const artifact of artifacts) countsByKind[artifact.kind] = (countsByKind[artifact.kind] ?? 0) + 1
-  return {
-    total: artifacts.length,
-    countsByKind: Object.fromEntries(Object.entries(countsByKind).sort(([a], [b]) => a.localeCompare(b))),
-    artifacts,
-    skipped,
-  }
+  return scanArtifacts(repoRoot, corpus, { extractClaims: extractStructuredStatusClaims })
 }
 
 /** Classify only exact or explicitly linked claim relations. */
