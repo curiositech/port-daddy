@@ -341,6 +341,39 @@ Let $R_t$ denote the authoritative Append-Only Event Log of revoked Harbor Card 
 
 \input{figures/fig-anchor-revocation-gossip}
 
+\paragraph{What retires an entry.} An append-only log that never drops anything has a
+size that grows with the fleet's whole history rather than with its live population,
+and on a constrained host that is a storage bug waiting for a slow month to expose
+it. The log does not have to grow that way, and the reason is temporal attenuation: a
+revocation identifier exists to stop a card being honoured, and a card that has
+expired is already refused by the expiry check before the filter is ever consulted,
+so the entry has no remaining work to do.
+
+\begin{pdclaim}{Design invariant}{Revocation-log truncation}\label{def:revocation-truncation}
+Let $T_{\max}$ be the longest lifetime any unexpired card in the fleet can still
+carry. An entry naming card \texttt{kid} may be dropped from the authoritative log
+$R_t$ once every card that entry could name has expired --- that is, once
+$t$ exceeds the entry's recorded card expiry --- and correctness is unaffected:
+for every \emph{live} card, the filter rebuilt from the truncated log returns the
+same verdict as the filter rebuilt from the untruncated one. Because attenuation
+only ever shrinks a lifetime (\S\ref{sec:architecture}), no descendant of a
+revoked card can outlive the entry that names it, so a dropped entry cannot be
+needed again by a chain derived from it. The log's steady-state size is therefore
+bounded by the revocations issued in the trailing window $T_{\max}$, not by the
+fleet's lifetime history.
+\end{pdclaim}
+
+This rule is specified here and the daemon does not yet apply it, which is the
+distinction the rest of this series marks between a design and a shipped mechanism,
+and it is the honest grade for this one. What would verify it is a property test
+rather than an argument --- generate a revocation log and a set of cards, truncate at an arbitrary
+cut, rebuild both filters, and assert the two agree on every card that is still live
+at the cut. A test that only checked total agreement would pass vacuously on an
+empty live set, so the live set is what the generator has to make non-trivial. Note
+the one thing the invariant does not buy: it bounds the log by a \emph{time} window,
+so a fleet that issues revocations faster than they expire still grows, and the load
+ceiling below, not this rule, is what holds that case.
+
 \paragraph{Pollution as denial of revocation.} The load ceiling keeps the false-positive bound honest; it does not by itself defeat an attacker who submits many authenticated-looking revocation identifiers to push the filter out of its bound-holding regime, which turns the revocation path into a denial of service. The design requires three things of the daemon: a per-issuer insertion quota, an overflow record for every refused insertion, and lookups that consult the authoritative event log while a flooded filter rebuilds, so that flooding degrades revocation checks to slower, never to missed.
 
 \begin{pdclaim}{Design invariant}{Filter monotonicity over a TTL epoch}
@@ -603,12 +636,34 @@ function Harbor.VerifyChain(chain, pk_root):
 
 
 % ═════════════════════════════════════════════════════════════════════════════
-\section{The verified code is the running code}\label{sec:implementation}
+\section{The verified crate is the deployed crate}\label{sec:implementation}
 % ═════════════════════════════════════════════════════════════════════════════
 
-The verified cryptographic core is not a reference implementation---it is the \textbf{deployed production code}. The open-source Rust crate \texttt{harbor-card-rs} is compiled to a C dynamic library (\texttt{cdylib}) and called from the Node.js daemon via FFI through the daemon's runtime-enforcement (Arbiter) module.
+An earlier edition of this chapter titled this section \emph{The verified code is the
+running code}, and that sentence is wrong as printed --- not under-hedged, wrong ---
+so it is withdrawn here rather than qualified downstream. The correction is
+\emph{global}: what fails is the headline claim itself, not a step on the way to it,
+and the claim that replaces it is a narrower one that happens to be true. What is
+shared between proof and deployment is the \textbf{crate}, not the coverage. The
+open-source Rust crate \texttt{harbor-card-rs} is compiled to a C dynamic library
+(\texttt{cdylib}) and called from the Node.js daemon via FFI through the daemon's
+runtime-enforcement (Arbiter) module, and the Kani harnesses are compiled from that
+same source rather than from a reference model written alongside it.
 
-This architecture narrows the gap between ``verified code'' and ``running code'' that weakens many formal verification efforts: the harnesses are compiled from the same crate the daemon loads at runtime. Kani checks the source under \texttt{cfg(kani)}, not the shipped shared library, so the gap that remains is the compiler's.
+That is worth having, and it is worth being exact about what it buys. It removes the
+failure mode that weakens many verification efforts --- a specification that drifts
+from the artifact, because they were never the same artifact. It does not make the
+proofs coextensive with the code. The harnesses are \emph{bounded}: they stub the
+cryptography and cap the parser's input at 32 bytes, which is smaller than the
+64-byte Ed25519 signature a real token carries, let alone a whole Harbor Card. What
+Kani establishes is therefore a memory-safety and no-panic result about the token
+delimiter parser on small inputs with signature verification abstracted away, and the
+security of the signature scheme rests on the ProVerif model and on Ed25519 itself,
+not on these harnesses. Section~\ref{sec:correct}'s status table, its caption, and
+Exercises~\ref{ex:anchor-kani-scope} and~\ref{ex:anchor-model-vs-code} all say this
+too; the point of saying it here is that a reader meets the section title first.
+Kani also checks the source under \texttt{cfg(kani)} rather than the shipped shared
+library, so one further gap --- the compiler's --- stays open behind all of it.
 
 \subsection{Core Verification Logic}
 
@@ -1428,7 +1483,7 @@ RESULT event(chain_accepted(idP_4,idA_3,idB_2,idC_1,m_4)) ==> event(chain_author
 This is a different property from Property~\ref{thm:attn-sound}'s capability-subset soundness: chain replay says who signed what is delivered intact; attenuation soundness says authority never grows along the way. \S\ref{sec:limitations} cites this exact artifact as the depth-3 evidence behind the ``Delegation-chain depth'' boundary.
 \end{pdsolution}
 
-\pdexercisesfor{\S\ref{sec:implementation}}{The verified code is the running code}
+\pdexercisesfor{\S\ref{sec:implementation}}{The verified crate is the deployed crate}
 
 \begin{pdexercise}[kind=Check,rating=2]{ex:anchor-kani-scope}
 For each of the three Kani harnesses above, state exactly what is proved and name one stronger claim a reader might wrongly draw from it.
