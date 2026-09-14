@@ -2588,6 +2588,67 @@ priced assurance level is an overstatement of the delivered one. The same
 requirement appears in \pdcite{harbor3} as the sealed multi-clique sampling hypothesis,
 where it is likewise required rather than hygienic.}
 
+\subsection{Putting a parameter on the echo}\label{sec:assurance-correlation}
+
+``One draw and two echoes'' is the right intuition and it is not yet a number, and
+an operator buying assurance by the reviewer needs the number, because the whole
+point of Theorem~\ref{thm:assurance} is that assurance has a price. Give the echo a
+model. Let the panel's per-reviewer detection rate be a \emph{random} quantity $D$
+with mean $d$, drawn once per panel and shared by its members --- that is what a
+common blind spot is, a draw the panel makes together rather than one each. Then
+the miss probability is $\mathbb{E}\bigl[(1-D)^k\bigr]$, and the first thing to
+notice is a one-line inequality with an uncomfortable direction:
+\begin{equation}\label{eq:assurance-jensen}
+\Pr(\text{defect undetected}) \;=\; \mathbb{E}\bigl[(1-D)^k\bigr] \;\ge\; (1-d)^k ,
+\end{equation}
+by Jensen, since $x \mapsto (1-x)^k$ is convex. The independent bound is not
+conservative --- it is \emph{optimistic}, always, for every mixing distribution
+with the same mean. Correlation cannot help.
+
+To get a closed form take $D \sim \mathrm{Beta}(a,b)$, whose intra-panel
+correlation is $\theta = 1/(a+b+1)$ and whose mean is $d = a/(a+b)$, so a target
+$(d,\theta)$ pins $a = d(1/\theta - 1)$ and $b = (1-d)(1/\theta - 1)$. The
+miss probability telescopes into a product a reader can evaluate on paper --- it is
+a ratio of Beta functions, but it is easier to use and easier to check in this
+form, and it avoids colliding with the bond $B$:
+\begin{equation}\label{eq:assurance-beta}
+\Pr(\text{defect undetected})
+  \;=\; \mathbb{E}\bigl[(1-D)^k\bigr]
+  \;=\; \prod_{j=0}^{k-1}\frac{b+j}{a+b+j}.
+\end{equation}
+
+\begin{pdexample}{what correlation costs a three-reviewer panel}
+Take the chapter's running $d = 0.8$ and the pitfall's own panel of $k=3$. Under
+independence the bound is $(1-0.8)^3 = 0.008$: eight misses in a thousand.
+Now set $\theta = \tfrac12$, so $1/\theta - 1 = 1$ and $(a,b) = (0.8,\,0.2)$.
+Equation~\ref{eq:assurance-beta} is three fractions:
+$\tfrac{0.2}{1.0}\times\tfrac{1.2}{2.0}\times\tfrac{2.2}{3.0}
+= 0.2 \times 0.6 \times 0.7\overline{3} = 0.088$ [verified, closed form] --- eleven
+times the independent number, from a panel the ledger still counts as three.
+Push to the monoculture limit $\theta \to 1$ and the product tends to $1-d = 0.2$,
+which is precisely ``one draw and two echoes'' written as arithmetic: three
+reviewers deliver exactly the assurance of one, a factor of $25$ worse than the
+line item says. \emph{Now you try:} at $k=5$ and $\theta=\tfrac12$, does adding two
+more correlated reviewers buy more or less than the third one did?
+(Two more fractions, $\tfrac{3.2}{4.0}\times\tfrac{4.2}{5.0}$, multiply the miss
+probability by $0.8 \times 0.84 = 0.672$, giving $0.059$ --- against $0.2^2 = 0.04$
+for the independent case's next two, so much less: correlated panels have sharply
+diminishing returns, which is the whole argument for buying diversity instead of
+headcount.)
+\end{pdexample}
+
+Two things this does \emph{not} license. It is an empirical hypothesis rather than
+a theorem about any deployed panel, and $\theta$
+is not measured anywhere in this series --- what would measure it is disagreement
+telemetry on deployed panels, and until that exists $\theta$ is a knob for pricing
+sensitivity, not a calibrated constant. And the Beta mixture is a choice, made for
+its closed form; Eq.~\ref{eq:assurance-jensen} is the part that holds for
+\emph{every} mixing distribution and is therefore the part to quote. Note also the
+symbol: $\theta$ is intra-panel correlation, not the audit rate $\rho$ of
+Eq.~\ref{eq:becker}. \pdchapref{stp}{From Spawn to Person} runs the same model
+against its inspection tower, where the tower's clique count $C$ is the instrument
+that holds $\theta$ down.
+
 The ground-truth oracle for grading the test-writers themselves is
 \textbf{mutation-testing kill rates} against held-out syntactic mutation operators,
 which stops agents from overfitting tests to a suite they can already see. This is a
