@@ -1247,9 +1247,9 @@ both.
 The economic counterparty in every trade is not the agent but the
 \textbf{principal} --- the human or organization that owns the fleet and stands
 behind its bonds. Bonds, reputation inheritance, and sanctions must ultimately
-key on the principal via the delegation chain, or Sybil bond-farming works by
+key on the principal via the authorization chain, or Sybil bond-farming works by
 spawning fresh \emph{agents} under one principal. This paper defines the principal
-as the delegation chain's terminus and the identity object on which the market
+as the authorization chain's terminus and the identity object on which the market
 paper's counterparty is built; the market paper \emph{cross-references} this
 definition rather than redefining it.
 
@@ -1262,7 +1262,7 @@ between a spawned agent and its principal, and it carries the same warning: an
 actor with no identifiable author is an actor no counterparty can hold to anything.
 
 \begin{definition}[Principal]\label{def:principal}
-A \textbf{principal} is the root of a delegation chain: the durable economic
+A \textbf{principal} is the root of an authorization chain: the durable economic
 entity (human/org) that owns a fleet, posts its bonds, and inherits the
 reputational consequence of its agents' witnessed outcomes. Each agent's
 non-forgeable identity is bound to exactly one principal at mint time.

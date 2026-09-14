@@ -409,7 +409,7 @@ The first layer of trust does not depend on agent reputation or economic incenti
 
 \subsection{Capability Attenuation}
 
-The Anchor Protocol~\pdcite{owens2026anchor} provides Harbor Cards---Ed25519-signed capability tokens that bound the operations available to each agent. The critical property is \textbf{offline attenuation}: when Agent~A delegates to Agent~B, it creates a new token whose capabilities are a strict subset of its own. Agent~B can further delegate to Agent~C with even narrower capabilities. Capabilities can only shrink along the delegation chain, never grow.
+The Anchor Protocol~\pdcite{owens2026anchor} provides Harbor Cards---Ed25519-signed capability tokens that bound the operations available to each agent. The critical property is \textbf{offline attenuation}: when Agent~A delegates to Agent~B, it creates a new token whose capabilities are a strict subset of its own. Agent~B can further delegate to Agent~C with even narrower capabilities. Capabilities can only shrink along the authorization chain, never grow.
 
 The capability subset check and the secret-independent comparison are implemented in a \textbf{Rust core} (\texttt{harbor-card-rs}) that is compiled to a shared library and called from the Node.js daemon via FFI. Kani harnesses check that the parser and the comparator cannot panic on bounded symbolic inputs and exercise the subset check on two concrete vectors; the every-hop attenuation property is ProVerif's, in \pdchapref{anchor}{The Anchor Protocol}; runtime conformance tests cover the bridge. Compiler behavior, full interception coverage, and hardware side channels remain separate obligations.
 
@@ -421,7 +421,7 @@ An agent transaction $\mathcal{T}_\alpha$ is capability-bounded by token $\tau_\
 
 \begin{pdclaim}{Theorem}{Structural Scope Limitation}
 \label{thm:scope}
-For any delegation chain $\tau_0 \rightarrow \tau_1 \rightarrow \cdots \rightarrow \tau_k$, where $\tau_0$ is issued by the commons authority and each $\tau_{i+1}$ is attenuated from $\tau_i$:
+For any authorization chain $\tau_0 \rightarrow \tau_1 \rightarrow \cdots \rightarrow \tau_k$, where $\tau_0$ is issued by the commons authority and each $\tau_{i+1}$ is attenuated from $\tau_i$:
 \[
 C(\tau_k) \subseteq C(\tau_{k-1}) \subseteq \cdots \subseteq C(\tau_0).
 \]
@@ -558,7 +558,7 @@ This dual---mutable view, immutable substrate---is what lets coordination signal
 
 \subsection{Attribution Survives Identity Disposal}\label{sec:attribution-survives}
 
-A critical property: even if an agent's identity is discarded after task completion, the \textbf{delegation chain} traces every action back to the authorizing principal. The chain is:
+A critical property: even if an agent's identity is discarded after task completion, the \textbf{authorization chain} traces every action back to the authorizing principal. The chain is:
 \[
 \begin{aligned}
 \text{Principal} &\xrightarrow{\text{funds}} \text{Float Plan} \xrightarrow{\text{authorizes}} \text{Agent } \alpha\\

@@ -3719,9 +3719,11 @@ used) has to stay expressible, or the system cannot reason about a capability it
 possesses but is not permitted to exercise.
 \item \textbf{Two distinct delegation objects.} The \emph{authorization chain} is a
 cryptographic, hop-bound, attenuation-monotonic delegation chain (a security object,
-developed in \pdchapref{anchor}{The Anchor Protocol}). The \emph{delegation trace} is the
-coordination object over which loop-detection runs (a liveness object, in this paper's
-protocol layer). They are different artifacts with different invariants; ``delegation
+developed in \pdchapref{anchor}{The Anchor Protocol}). The \emph{coordination lineage} is the
+task graph over which loop-detection runs (a liveness object, in this paper's
+protocol layer), and it is the same object \pdchapref{swk}{The Single-Writer Kernel}
+names under that name --- one object, one name, which is the point of this entry.
+They are different artifacts with different invariants; ``delegation
 chain'' unqualified conflates a security claim with a coordination claim and must be
 avoided.
 \item \textbf{Physically unreachable} is reserved for constraint-enforced or
