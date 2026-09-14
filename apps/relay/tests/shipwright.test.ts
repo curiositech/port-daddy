@@ -23,6 +23,7 @@ import {
   handleShipwrightChat,
   handleShipwrightHistory,
   handleShipwrightClear,
+  handleShipwrightCreateThread,
   assembleSseText,
   shipwrightModel,
   SHIPWRIGHT_DEFAULT_MODEL,
@@ -44,6 +45,11 @@ const BASE = 'https://relay.example';
 const NO_VIEW = { installations: null, notice: null };
 const COOKIE_VALUE = 'sess-value-abc';
 const DAY = 24 * 60 * 60;
+const THREAD_ID = `swt_${'a'.repeat(48)}`;
+const INSTALLATION_ID = 42;
+const REPO = 'octo/widgets';
+const WRAP_KEY = 'cc'.repeat(32);
+const SEALED_TOKEN = { enc: 'U4N_M4a3twfj0EeV9zkalIHLEF0iOBia', iv: 'AQEBAQEBAQEBAQEB' };
 
 const baseUser: UserRow = {
   id: 'u_1',
@@ -80,15 +86,19 @@ function makeDb(opts: { history?: ShipwrightMessageRow[]; sessionHash?: string }
         calls.push({ sql, binds: bound });
         if (sql.startsWith('SELECT user_id, gh_token_enc')) {
           return (opts.sessionHash && bound[0] === opts.sessionHash
-            ? { user_id: 'u_1', gh_token_enc: null, gh_token_iv: null, expires_at: 2_000_000_000 }
+            ? { user_id: 'u_1', gh_token_enc: SEALED_TOKEN.enc, gh_token_iv: SEALED_TOKEN.iv, expires_at: 2_000_000_000 }
             : null) as T | null;
         }
         if (sql.includes('FROM users WHERE id')) return baseUser as unknown as T;
+        if (sql.includes('FROM shipwright_threads WHERE id')) return {
+          id: THREAD_ID, user_id: 'u_1', installation_id: INSTALLATION_ID,
+          repo_full_name: REPO, created_at: 1, updated_at: 1,
+        } as T;
         return null;
       },
       async all<T>(): Promise<{ results: T[] }> {
         calls.push({ sql, binds: bound });
-        if (sql.includes('FROM shipwright_chats')) {
+        if (sql.includes('FROM shipwright_thread_messages') || sql.includes('FROM shipwright_chats')) {
           // The DAL SELECTs newest-first; give it newest-first and let it reverse.
           const rows = [...(opts.history ?? [])].sort((a, b) => b.id - a.id);
           return { results: rows as unknown as T[] };
@@ -111,6 +121,17 @@ function makeEnv(
 ): Env {
   return {
     DB: db,
+    KV: {
+      get: async (key: string) => {
+        if (key === `inst_owner:u_1:${hashHex(COOKIE_VALUE)}:${INSTALLATION_ID}`) return '1';
+        if (key === 'github_repo_inst_octo_widgets') return String(INSTALLATION_ID);
+        return null;
+      },
+      put: async () => undefined,
+    } as unknown as KVNamespace,
+    USER_TOKEN_WRAPPING_KEY: WRAP_KEY,
+    GITHUB_APP_ID: '12345',
+    GITHUB_APP_PRIVATE_KEY: 'cached-so-not-parsed',
     PUBLIC_BASE_URL: BASE,
     ...over,
   } as unknown as Env;
@@ -122,6 +143,12 @@ function sessionEnv(over: Partial<Record<string, unknown>> = {}) {
 }
 
 function req(path: string, init: RequestInit = {}, withCookie = true): Request {
+  if (path.startsWith('/v1/shipwright/history') && !path.includes('thread=')) {
+    path += (path.includes('?') ? '&' : '?') + `thread=${THREAD_ID}`;
+  }
+  if (path.startsWith('/v1/shipwright/clear') && !path.includes('thread=')) {
+    path += (path.includes('?') ? '&' : '?') + `thread=${THREAD_ID}`;
+  }
   const headers = new Headers(init.headers);
   if (withCookie) headers.set('Cookie', `__Host-pd_session=${COOKIE_VALUE}`);
   return new Request(`${BASE}${path}`, { ...init, headers });
@@ -130,7 +157,8 @@ function req(path: string, init: RequestInit = {}, withCookie = true): Request {
 function chatReq(body: unknown, withCookie = true, origin?: string): Request {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (origin) headers.Origin = origin;
-  return req('/v1/shipwright/chat', { method: 'POST', headers, body: JSON.stringify(body) }, withCookie);
+  const scoped = body && typeof body === 'object' ? { threadId: THREAD_ID, ...(body as Record<string, unknown>) } : body;
+  return req('/v1/shipwright/chat', { method: 'POST', headers, body: JSON.stringify(scoped) }, withCookie);
 }
 
 /** Mock Ai whose run() returns a canned buffered reply or SSE stream. */
@@ -192,15 +220,50 @@ describe('shipwright — session gate', () => {
 // ── History scoping ──────────────────────────────────────────────────────────
 
 describe('shipwright — history is scoped to the session user', () => {
+  it('issues an opaque thread bound to the normalized authorized repository', async () => {
+    const { env, calls } = sessionEnv();
+    const res = await handleShipwrightCreateThread(req('/v1/shipwright/thread', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ installationId: INSTALLATION_ID, repo: 'Octo/Widgets' }),
+    }), env);
+    expect(res.status).toBe(201);
+    const body = await res.json() as { threadId: string; repo: string };
+    expect(body.threadId).toMatch(/^swt_[0-9a-f]{48}$/);
+    expect(body.repo).toBe(REPO);
+    const inserted = calls.find((c) => c.sql.includes('INSERT INTO shipwright_threads'));
+    expect(inserted?.binds[1]).toBe('u_1');
+    expect(inserted?.binds[2]).toBe(INSTALLATION_ID);
+    expect(inserted?.binds[3]).toBe(REPO);
+  });
+
+  it('unscoped legacy requests are refused before history or model access', async () => {
+    const { env, calls } = sessionEnv({ AI: mockAi({ response: 'must not run' }).ai });
+    const history = await handleShipwrightHistory(req('/v1/shipwright/history?thread=', {}, true), env);
+    const chat = await handleShipwrightChat(
+      req('/v1/shipwright/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: 'legacy unscoped turn' }),
+      }),
+      env,
+    );
+    expect(history.status).toBe(409);
+    expect(chat.status).toBe(409);
+    expect((await chat.json() as { code: string }).code).toBe('SHIPWRIGHT_THREAD_REQUIRED');
+    expect(calls.some((c) => c.sql.includes('shipwright_thread_messages'))).toBe(false);
+    expect(calls.some((c) => c.sql.includes('shipwright_chats'))).toBe(false);
+  });
+
   it('history reads bind the SESSION user id, never a caller-supplied one', async () => {
     const { env, calls } = sessionEnv();
     // A hostile query param must not widen the read.
     const res = await handleShipwrightHistory(req('/v1/shipwright/history?user_id=u_2'), env);
     expect(res.status).toBe(200);
-    const sel = calls.find((c) => c.sql.includes('FROM shipwright_chats'));
+    const sel = calls.find((c) => c.sql.includes('FROM shipwright_thread_messages'));
     expect(sel).toBeDefined();
-    expect(sel!.sql).toContain('WHERE user_id = ?');
-    expect(sel!.binds[0]).toBe('u_1');
+    expect(sel!.sql).toContain('m.user_id = ?');
+    expect(sel!.binds.slice(0, 3)).toEqual([THREAD_ID, 'u_1', 'u_1']);
   });
 
   it('a chat turn persists BOTH rows under the session user id', async () => {
@@ -210,24 +273,24 @@ describe('shipwright — history is scoped to the session user', () => {
     const body = (await res.json()) as { code: string; reply: string };
     expect(body.code).toBe('OK');
     expect(body.reply).toBe('Ahoy!');
-    const inserts = calls.filter((c) => c.sql.startsWith('INSERT INTO shipwright_chats'));
+    const inserts = calls.filter((c) => c.sql.startsWith('INSERT INTO shipwright_thread_messages'));
     expect(inserts).toHaveLength(2);
-    expect(inserts[0]!.binds[0]).toBe('u_1');
-    expect(inserts[0]!.binds[1]).toBe('user');
-    expect(inserts[0]!.binds[2]).toBe('hello');
-    expect(inserts[1]!.binds[0]).toBe('u_1');
-    expect(inserts[1]!.binds[1]).toBe('assistant');
-    expect(inserts[1]!.binds[2]).toBe('Ahoy!');
+    expect(inserts[0]!.binds[0]).toBe('user');
+    expect(inserts[0]!.binds[1]).toBe('hello');
+    expect(inserts[0]!.binds[3]).toBe(THREAD_ID);
+    expect(inserts[0]!.binds[4]).toBe('u_1');
+    expect(inserts[1]!.binds[0]).toBe('assistant');
+    expect(inserts[1]!.binds[1]).toBe('Ahoy!');
   });
 
   it('clear deletes ONLY the session user rows', async () => {
     const { env, calls } = sessionEnv();
     const res = await handleShipwrightClear(req('/v1/shipwright/clear', { method: 'POST' }), env);
     expect(res.status).toBe(200);
-    const del = calls.find((c) => c.sql.startsWith('DELETE FROM shipwright_chats'));
+    const del = calls.find((c) => c.sql.startsWith('DELETE FROM shipwright_thread_messages'));
     expect(del).toBeDefined();
-    expect(del!.sql).toContain('WHERE user_id = ?');
-    expect(del!.binds).toEqual(['u_1']);
+    expect(del!.sql).toContain('thread_id = ? AND user_id = ?');
+    expect(del!.binds).toEqual([THREAD_ID, 'u_1', 'u_1', INSTALLATION_ID, REPO]);
   });
 
   it('listShipwrightMessages returns conversation order (oldest → newest by id)', async () => {
@@ -254,7 +317,9 @@ describe('shipwright — history is scoped to the session user', () => {
     await handleShipwrightChat(chatReq({ message: 'goals: review PRs', stream: false }), makeEnv(db, { AI: ai }));
     expect(seen).toHaveLength(1);
     const msgs = seen[0]!.inputs.messages as Array<{ role: string; content: string }>;
-    expect(msgs[0]).toEqual({ role: 'system', content: SHIPWRIGHT_SYSTEM_PROMPT });
+    expect(msgs[0]!.role).toBe('system');
+    expect(msgs[0]!.content).toContain(SHIPWRIGHT_SYSTEM_PROMPT);
+    expect(msgs[0]!.content).toContain(`repository: ${REPO}`);
     expect(msgs.slice(1).map((m) => m.role)).toEqual(['user', 'assistant']);
   });
 });
@@ -268,6 +333,8 @@ describe('shipwright — ADR-0101 erasure + export', () => {
     const del = calls.find((c) => c.sql.startsWith('DELETE FROM shipwright_chats'));
     expect(del).toBeDefined();
     expect(del!.binds).toEqual(['u_1']);
+    expect(calls.some((c) => c.sql.startsWith('DELETE FROM shipwright_repo_memory'))).toBe(true);
+    expect(calls.some((c) => c.sql.startsWith('DELETE FROM shipwright_threads'))).toBe(true);
   });
 
   it('the retention sweep age-prunes chats and purges soft-deleted users rows', async () => {
@@ -295,6 +362,9 @@ describe('shipwright — ADR-0101 erasure + export', () => {
     expect(age).toBeDefined();
     expect(age!.horizon).toBe(NOW - SHIPWRIGHT_RETENTION_DAYS * DAY);
     expect(r.shipwrightChatsPruned).toBe(4);
+    const scopedAge = calls.find((c) => c.sql === 'DELETE FROM shipwright_thread_messages WHERE created_at < ?');
+    expect(scopedAge?.horizon).toBe(NOW - SHIPWRIGHT_RETENTION_DAYS * DAY);
+    expect(r.shipwrightThreadMessagesPruned).toBe(4);
 
     // Erasure completion: soft-deleted users' rows die at the erasure horizon.
     const erased = calls.find((c) =>
@@ -325,7 +395,7 @@ describe('shipwright — fail semantics', () => {
     const res = await handleShipwrightChat(chatReq({ message: 'hi' }, true, 'https://evil.example'), env);
     expect(res.status).toBe(403);
     // Refused before any row is written.
-    expect(calls.some((c) => c.sql.startsWith('INSERT INTO shipwright_chats'))).toBe(false);
+    expect(calls.some((c) => c.sql.startsWith('INSERT INTO shipwright_thread_messages'))).toBe(false);
   });
 
   it('same-origin POSTs pass the origin check', async () => {
@@ -354,9 +424,9 @@ describe('shipwright — fail semantics', () => {
     const res = await handleShipwrightChat(chatReq({ message: 'hi', stream: false }), env);
     expect(res.status).toBe(500);
     expect(((await res.json()) as { code: string }).code).toBe('AI_ERROR');
-    const inserts = calls.filter((c) => c.sql.startsWith('INSERT INTO shipwright_chats'));
+    const inserts = calls.filter((c) => c.sql.startsWith('INSERT INTO shipwright_thread_messages'));
     expect(inserts).toHaveLength(1); // the user row survived; no assistant row
-    expect(inserts[0]!.binds[1]).toBe('user');
+    expect(inserts[0]!.binds[0]).toBe('user');
   });
 
   it('SHIPWRIGHT_MODEL var overrides the committed default', () => {
@@ -386,10 +456,10 @@ describe('shipwright — SSE streaming pass-through', () => {
     const wire = await res.text(); // drains the stream (and runs flush)
     expect(wire).toBe(LINES.join(''));
 
-    const inserts = calls.filter((c) => c.sql.startsWith('INSERT INTO shipwright_chats'));
+    const inserts = calls.filter((c) => c.sql.startsWith('INSERT INTO shipwright_thread_messages'));
     expect(inserts).toHaveLength(2);
-    expect(inserts[1]!.binds[1]).toBe('assistant');
-    expect(inserts[1]!.binds[2]).toBe('Ahoy, operator!');
+    expect(inserts[1]!.binds[0]).toBe('assistant');
+    expect(inserts[1]!.binds[1]).toBe('Ahoy, operator!');
   });
 
   it('assembleSseText handles OpenAI-style deltas and garbage lines', () => {
@@ -564,9 +634,9 @@ describe('shipwright — chat responses carry the deterministic verdict, not the
     // Persisted content is exactly the model's text — the verdict marker
     // never contaminates what's saved (and thus never re-shown as "content").
     const assistantInsert = calls.find(
-      (c) => c.sql.startsWith('INSERT INTO shipwright_chats') && c.binds[1] === 'assistant',
+      (c) => c.sql.startsWith('INSERT INTO shipwright_thread_messages') && c.binds[0] === 'assistant',
     );
-    expect(assistantInsert!.binds[2]).not.toContain('pdYamlVerdict');
+    expect(assistantInsert!.binds[1]).not.toContain('pdYamlVerdict');
   });
 
   it('SSE mode: no synthetic line is appended when the turn emits no roster', async () => {
@@ -606,6 +676,7 @@ describe('GET /account/shipwright — page', () => {
     expect(html).toContain('open the PR in your own repo');
     expect(html).toContain('never merges');
     expect(html).toContain(`${SHIPWRIGHT_RETENTION_DAYS} days`);
+    expect(html).toContain('Structured repository memory and proposal provenance remain until');
     expect(html).toContain('/v1/shipwright/chat');
     expect(html).toContain('/v1/shipwright/history');
     expect(html).toContain('/v1/shipwright/clear');

@@ -43,6 +43,7 @@ const BASE = 'https://relay.example';
 const COOKIE_VALUE = 'sess-open-pr';
 const WRAP_KEY = 'cc'.repeat(32);
 const INSTALLATION_ID = 42;
+const THREAD_ID = `swt_${'b'.repeat(48)}`;
 const PR_URL = 'https://github.com/octo/widgets/pull/7';
 
 const GOOD_YAML = [
@@ -119,6 +120,17 @@ function makeDb(opts: { history?: ShipwrightMessageRow[]; sealed?: { enc: string
             : null) as T | null;
         }
         if (sql.includes('FROM users WHERE id')) return baseUser as unknown as T;
+        if (sql.includes('FROM shipwright_threads WHERE id')) return {
+          id: THREAD_ID, user_id: 'u_1', installation_id: INSTALLATION_ID,
+          repo_full_name: 'octo/widgets', created_at: 1, updated_at: 1,
+        } as T;
+        if (sql.includes('FROM shipwright_proposals')) {
+          const yaml = bound[4];
+          const emitted = (opts.history ?? []).some(
+            (m) => m.role === 'assistant' && m.content.includes('```yaml\n' + yaml + '\n```'),
+          );
+          return (emitted ? { found: 1 } : null) as T | null;
+        }
         return null;
       },
       async all<T>(): Promise<{ results: T[] }> {
@@ -183,7 +195,7 @@ function jsonReq(body: unknown, withCookie = true, origin?: string): Request {
   return new Request(`${BASE}/v1/shipwright/open-pr`, {
     method: 'POST',
     headers,
-    body: JSON.stringify(body),
+    body: JSON.stringify(body && typeof body === 'object' ? { threadId: THREAD_ID, ...(body as Record<string, unknown>) } : body),
   });
 }
 
@@ -195,7 +207,7 @@ function formReq(fields: Record<string, string>): Request {
       Cookie: `__Host-pd_session=${COOKIE_VALUE}`,
       Origin: BASE,
     },
-    body: new URLSearchParams(fields).toString(),
+    body: new URLSearchParams({ threadId: THREAD_ID, ...fields }).toString(),
   });
 }
 
@@ -300,8 +312,8 @@ describe('open-pr — the server re-validates; a lying client gets a 400', () =>
     );
     expect(res.status).toBe(400);
     expect(((await res.json()) as { code: string }).code).toBe('INVALID_YAML');
-    // Fail-fast shape: the roster never reached GitHub in any form.
-    expect(mock).not.toHaveBeenCalled();
+    // Scope authorization may read GitHub, but invalid YAML never mutates it.
+    expect(mock.mock.calls.every((c) => (c[1]?.method ?? 'GET') === 'GET')).toBe(true);
   });
 
   it('400 BAD_REQUEST on an oversized roster (bounded before parsing)', async () => {
@@ -328,13 +340,25 @@ describe('open-pr — the server re-validates; a lying client gets a 400', () =>
     );
     expect(res.status).toBe(400);
     expect(((await res.json()) as { code: string }).code).toBe('NOT_FROM_CHAT');
-    expect(mock).not.toHaveBeenCalled();
+    expect(mock.mock.calls.every((c) => (c[1]?.method ?? 'GET') === 'GET')).toBe(true);
   });
 });
 
 // ── Tenancy (the billing idiom, GitHub decides) ──────────────────────────────
 
 describe('open-pr — tenancy: a session can never target another tenant', () => {
+  it('refuses identical emitted YAML when the requested target is repo B, not thread repo A', async () => {
+    const { seen } = stubGithub([{ id: INSTALLATION_ID }]);
+    const env = await makeSessionEnv({ history: chatWith(GOOD_YAML), repoBoundTo: INSTALLATION_ID });
+    const res = await handleShipwrightOpenPr(
+      jsonReq({ yaml: GOOD_YAML, installationId: INSTALLATION_ID, repo: 'octo/repo-b' }),
+      env,
+    );
+    expect(res.status).toBe(403);
+    expect(((await res.json()) as { code: string }).code).toBe('REPO_SCOPE_MISMATCH');
+    expect(seen.every((c) => c.method === 'GET')).toBe(true);
+  });
+
   it('403 FORBIDDEN when GitHub does not attribute the installation to this user', async () => {
     // Session A asks for installation 42; GitHub says A owns only 7 — that IS
     // the session-A-vs-session-B test: B's installation is simply one GitHub
@@ -351,7 +375,7 @@ describe('open-pr — tenancy: a session can never target another tenant', () =>
     expect(seen.every((c) => c.method === 'GET')).toBe(true);
   });
 
-  it('403 REPO_NOT_INSTALLED when the repo belongs to a DIFFERENT installation', async () => {
+  it('403 REPO_SCOPE_MISMATCH when the repo belongs to a DIFFERENT installation', async () => {
     const { seen } = stubGithub([{ id: INSTALLATION_ID }]);
     // The user owns 42 — but octo/widgets is served by installation 99.
     const env = await makeSessionEnv({ history: chatWith(GOOD_YAML), repoBoundTo: 99 });
@@ -360,7 +384,7 @@ describe('open-pr — tenancy: a session can never target another tenant', () =>
       env,
     );
     expect(res.status).toBe(403);
-    expect(((await res.json()) as { code: string }).code).toBe('REPO_NOT_INSTALLED');
+    expect(((await res.json()) as { code: string }).code).toBe('REPO_SCOPE_MISMATCH');
     expect(seen.every((c) => c.method === 'GET')).toBe(true);
   });
 
@@ -450,16 +474,17 @@ describe('open-pr — happy path (stubbed GitHub, fleet-control idiom)', () => {
 // ── The page's Open-PR deck ──────────────────────────────────────────────────
 
 describe('shipwright page — the Open-PR deck', () => {
-  it('offers ONLY installations GitHub attributes to this user, escaped', () => {
+  it('locks the PR form to the active repository-scoped thread', () => {
     const html = renderPrTemplate([
       { id: INSTALLATION_ID, accountLogin: 'octo', accountType: 'User' },
       { id: 7, accountLogin: '<script>evil</script>', accountType: 'Organization' },
-    ]);
+    ], { installations: [], notice: null, threadId: THREAD_ID, repo: 'octo/widgets', installationId: INSTALLATION_ID });
     expect(html).toContain('action="/v1/shipwright/open-pr"');
-    expect(html).toContain(`<option value="${INSTALLATION_ID}">octo</option>`);
-    // Hostile GitHub account names never become markup.
+    expect(html).toContain(`name="threadId" value="${THREAD_ID}"`);
+    expect(html).toContain(`name="installationId" value="${INSTALLATION_ID}"`);
+    expect(html).toContain('name="repo" value="octo/widgets"');
+    expect(html).not.toContain('<select');
     expect(html).not.toContain('<script>evil');
-    expect(html).toContain('&lt;script&gt;');
     // The submission is a plain form POST — no client JS in the path.
     expect(html).toContain('method="post"');
   });
