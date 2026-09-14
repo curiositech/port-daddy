@@ -718,10 +718,10 @@ type FleetPauseGate = { status: 'paused' | 'unpaused' | 'unknown'; blocked: bool
  * UNKNOWN and blocks just like an operator pause; it must never become implicit
  * permission to spend money or produce external effects.
  */
-async function readFleetPauseGate(env: ExecutorEnv, expectedRevision?: number): Promise<FleetPauseGate> {
+async function readFleetPauseGate(env: ExecutorEnv, expectedRevision?: number, runId?: string): Promise<FleetPauseGate> {
   if (!env.FLEET_CONTROL) return { status: 'unknown', blocked: true, reason: 'binding-missing' };
   try {
-    const raw = await env.FLEET_CONTROL.admit(expectedRevision);
+    const raw = await env.FLEET_CONTROL.admit(expectedRevision, runId);
     const parsed = raw?.status === 'unknown' ? raw : parseFleetControl(raw);
     if (parsed.status === 'unknown') return { status: 'unknown', blocked: true, reason: parsed.reason };
     if (expectedRevision !== undefined && parsed.revision !== expectedRevision) {
@@ -737,6 +737,9 @@ function unknownPauseSummary(reason: FleetPauseGate['reason']): string {
   return `Fleet automation was denied because the global cloud pause state is unknown (${reason}). ` +
     'No automated review was performed. Restore readable control state and explicitly turn Fleet on before retrying.';
 }
+
+/** Durable GitHub check marker: a suspension is never a terminal review verdict. */
+const FLEET_SUSPENSION_MARKER = '<!-- pd-fleet-suspension:v1 -->\n';
 
 /**
  * Retry-replaceable transcript telemetry. Each {@link step} writes one
@@ -1396,6 +1399,7 @@ export type FleetExecutionDisposition =
       modelSpendPossible?: boolean;
     }
   | { kind: 'already-decided'; conclusion: 'success' | 'failure' }
+  | { kind: 'suspended'; reason: string }
   | { kind: 'no-cloud-ships' }
   | { kind: 'continuation'; completedShip: string; remainingShips: string[] };
 
@@ -1563,7 +1567,8 @@ export async function executeFleet(
   // can never spiral into queue retries/DLQ churn — pausing must stay cheap.
   const initialShipControls = await readRepoShipControls(env.DB, job.repoFullName);
   const repositoryStopped = !repoShipEnabled(initialShipControls, '*');
-  const initialPauseGate = await readFleetPauseGate(env);
+  const admissionRunId = `${job.repoFullName}/${runId}`;
+  const initialPauseGate = await readFleetPauseGate(env, undefined, admissionRunId);
   if (initialPauseGate.blocked || repositoryStopped) {
     console.log(
       `[fleet-executor] delivery=${deliveryId} automation-blocked ` +
@@ -1619,13 +1624,13 @@ export async function executeFleet(
           runId,
         );
       }
-      const summary = initialPauseGate.status === 'unknown'
+      const summary = FLEET_SUSPENSION_MARKER + (initialPauseGate.status === 'unknown'
         ? unknownPauseSummary(initialPauseGate.reason)
         : repositoryStopped
         ? `${initialShipControls.available ? 'Cloud ships are off for this repository.' : initialShipControls.reason} ` +
           'No automated review was performed. Manage permissions in the signed-in account Ship controls page.'
         : 'Fleet paused by operator; no automated review was performed for this delivery. ' +
-          'Resume the fleet (POST /v1/fleet/pause {"paused":false}) or review this PR manually.';
+          'Use the account control to resume with its observed revision, then request a new review delivery.');
       if (checkRunId) {
         await completeCheckRun(
           owner,
@@ -1693,7 +1698,7 @@ export async function executeFleet(
         `[fleet-executor] delivery=${deliveryId} paused-check post failed: ${String(err)}`,
       );
     }
-    return;
+    return { kind: 'suspended', reason: repositoryStopped ? 'repository-off' : initialPauseGate.reason };
   }
 
   // --- Token (KV-cached; remint once on 401) -------------------------------
@@ -1940,11 +1945,12 @@ export async function executeFleet(
   // Actions CI while the fleet check never reappeared at all.
   const DECIDED: ReadonlySet<string> = new Set(['success', 'failure']);
   const deadLettered = isDeadLetteredSummary(existing?.summary);
+  const suspended = existing?.summary.startsWith(FLEET_SUSPENSION_MARKER) === true;
   if (
     existing &&
     existing.status === 'completed' &&
     DECIDED.has(existing.conclusion ?? '') &&
-    !deadLettered &&
+    !deadLettered && !suspended &&
     existing.reviewInputSha256 === reviewInputSha256 &&
     existing.mediatorOrderSha256 === (acknowledgedMediatorOrderSha256 ?? mediatorOrderSha256) &&
     existing.creatorRunId === runId
@@ -2004,7 +2010,7 @@ export async function executeFleet(
   const completedNeedsReplacement = Boolean(
     existing &&
       existing.status === 'completed' &&
-      (deadLettered ||
+      (deadLettered || suspended ||
         existing.reviewInputSha256 !== reviewInputSha256 ||
         existing.mediatorOrderSha256 !== mediatorOrderSha256 ||
         existing.conclusion === 'neutral'),
@@ -2504,12 +2510,12 @@ export async function executeFleet(
     // but before additional AI spend or review posts. Complete failure rather
     // than leaving the already-created check run in progress forever.
     const shipControls = await readRepoShipControls(env.DB, job.repoFullName);
-    const pauseGate = await readFleetPauseGate(env, initialPauseGate.revision);
+    const pauseGate = await readFleetPauseGate(env, initialPauseGate.revision, admissionRunId);
     if (pauseGate.blocked || !repoShipEnabled(shipControls, '*')) {
-      const summary = pauseGate.status === 'unknown'
+      const summary = FLEET_SUSPENSION_MARKER + (pauseGate.status === 'unknown'
         ? unknownPauseSummary(pauseGate.reason)
         : !shipControls.available ? shipControls.reason
-          : `Fleet paused before pd-${ship.name}; stopped before additional AI spend or review posts.`;
+          : `Fleet paused before pd-${ship.name}; stopped before additional AI spend or review posts.`);
       await transcript.step('check-completed', null, 'Check concluded: failure (paused)', {
         checkRunId,
         conclusion: 'failure',
@@ -2519,7 +2525,7 @@ export async function executeFleet(
       });
       await completeOwnedCheck('failure', summary, `before pd-${ship.name} paused failure completion`);
       await recordRunEnd(env, runId, 'failure', startMs);
-      return;
+      return { kind: 'suspended', reason: pauseGate.blocked ? pauseGate.reason : 'repository-off' };
     }
 
     const gate = surfaceGate(ship);
@@ -2727,6 +2733,7 @@ export async function executeFleet(
             providerAttempt,
             assertCurrentHead,
             capture,
+            initialPauseGate.revision,
           );
       await assertCurrentHead(`after pd-${ship.name} model work, before checkpoint`);
     } catch (error) {
@@ -2863,7 +2870,7 @@ export async function executeFleet(
   // budget is exhausted, then this optional section disables itself and the
   // already-computed check conclusion remains untouched.
   let reviewBody = summary;
-  if (xoEnabled && !(await readFleetPauseGate(env)).blocked && repoShipEnabled(await readRepoShipControls(env.DB, job.repoFullName), 'xo')) {
+  if (xoEnabled && !(await readFleetPauseGate(env, initialPauseGate.revision, admissionRunId)).blocked && repoShipEnabled(await readRepoShipControls(env.DB, job.repoFullName), 'xo')) {
     const advisories = collectAdvisoryFindings(results);
     if (advisories.length > 0) {
       let section: string;
@@ -2997,7 +3004,7 @@ export async function executeFleet(
   // closed to inert; the whole call is additionally fenced here so no scan
   // failure can ever surface as a run failure.
   try {
-    const mediatorAllowed = !(await readFleetPauseGate(env)).blocked && repoShipEnabled(await readRepoShipControls(env.DB, job.repoFullName), 'mediator');
+    const mediatorAllowed = !(await readFleetPauseGate(env, initialPauseGate.revision, admissionRunId)).blocked && repoShipEnabled(await readRepoShipControls(env.DB, job.repoFullName), 'mediator');
     const scan = await runMediatorScan(env, {
       repo: job.repoFullName,
       deliveredPr: prNumber,
@@ -3143,6 +3150,7 @@ async function runShip(
    * into it via {@link runCaptured}. See docs/FLEET-SESSION-TRANSCRIPTS.md.
    */
   capture: ShipTranscript | null = null,
+  admissionRevision?: number,
 ): Promise<ShipResult> {
   try {
     const systemPrompt = buildSystemPrompt(ship, contract, graftText);
@@ -3437,7 +3445,7 @@ async function runShip(
       // failures keep `proposals` untouched. A provider-circuit fault instead
       // propagates to the ship boundary so the queue owns the bounded retry.
       let curated = proposals;
-      if (xoEnabled && proposals && proposals.length > 0 && !(await readFleetPauseGate(env)).blocked
+      if (xoEnabled && proposals && proposals.length > 0 && !(await readFleetPauseGate(env, admissionRevision, `${prCtx.owner}/${prCtx.repo}/${runId}`)).blocked
         && repoShipEnabled(await readRepoShipControls(env.DB, `${prCtx.owner}/${prCtx.repo}`), 'xo')) {
         await assertCurrentHead(`before pd-${ship.name} XO editor`);
         const recentIdeas = env.DB

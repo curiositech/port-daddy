@@ -49,6 +49,7 @@ import {
   finishFleetIntentFromRun,
   markFleetIntentRetrying,
   markFleetIntentTerminal,
+  readFleetIntentState,
 } from './run-intent.js';
 
 export type { ExecutorEnv, FleetRunJob } from './env.js';
@@ -293,6 +294,16 @@ export default {
             'cancelled',
             reason,
           );
+        } else if (disposition?.kind === 'suspended') {
+          // Keep a durable retryable intent, but acknowledge this message.
+          // Suspension never schedules automatic paid work or becomes a
+          // terminal model verdict. A later explicit redelivery rechecks the
+          // same durable control epoch.
+          await markFleetIntentRetrying(env, message.body, attemptCursor,
+            `Fleet suspended: ${disposition.reason}; awaiting explicit redelivery`);
+          if (intentDecision === 'run' && await readFleetIntentState(env, message.body.deliveryId) !== 'retrying') {
+            throw new Error('Fleet suspension was not durably recorded; refusing to acknowledge the delivery');
+          }
         } else if (disposition?.kind === 'already-decided') {
           await markFleetIntentTerminal(
             env,

@@ -433,7 +433,8 @@ describe('handleFleetPause + handleFleetHealth', () => {
     });
     const env = makeEnv({ kv, db });
 
-    const resumeRes = await handleFleetPause(req('/v1/fleet/pause', 'POST', OPERATOR, { paused: false }), env);
+    await handleFleetPause(req('/v1/fleet/pause', 'POST', OPERATOR, { paused: true }), env);
+    const resumeRes = await handleFleetPause(req('/v1/fleet/pause', 'POST', OPERATOR, { paused: false, expectedRevision: 1, requestId: 'resume-test' }), env);
     expect(resumeRes.status).toBe(200);
     expect(((await resumeRes.json()) as { paused: boolean }).paused).toBe(false);
 
@@ -460,7 +461,7 @@ describe('handleFleetPause + handleFleetHealth', () => {
       env,
     )).status).toBe(200);
     expect((await handleFleetPause(
-      req('/v1/fleet/pause', 'POST', ACCOUNT_TOKEN, { paused: false }),
+      req('/v1/fleet/pause', 'POST', ACCOUNT_TOKEN, { paused: false, expectedRevision: 1, requestId: 'account-resume' }),
       env,
     )).status).toBe(200);
 

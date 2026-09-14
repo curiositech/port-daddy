@@ -5,9 +5,39 @@ import ViewInspector
 
 @MainActor
 final class CloudFleetStoreTests: XCTestCase {
+    func testUnknownPauseCannotDecodeAsPermission() throws {
+        for json in [
+            "{}", "{\"paused\":null}", "{\"paused\":false}",
+            "{\"paused\":\"false\"}", "{\"paused\":false,\"pauseStatus\":\"unknown\",\"pauseRevision\":2,\"automationBlocked\":true}"
+        ] {
+            let health = try JSONDecoder().decode(CloudFleetHealth.self, from: Data(json.utf8))
+            XCTAssertNil(health.paused)
+            XCTAssertEqual(health.pauseStatus, "unknown")
+            XCTAssertTrue(health.automationBlocked)
+        }
+        let known = try JSONDecoder().decode(CloudFleetHealth.self, from: Data(
+            "{\"paused\":false,\"pauseStatus\":\"unpaused\",\"pauseRevision\":2,\"automationBlocked\":false}".utf8))
+        XCTAssertEqual(known.paused, false)
+        XCTAssertFalse(known.automationBlocked)
+    }
+
     override func tearDown() {
         StubURLProtocol.handler = nil
         super.tearDown()
+    }
+
+    func testUnknownPauseIsVisibleEvenWithoutRuns() async throws {
+        let account = OperatorAccount(token: "pdu_fixture", relayUrl: "https://relay.example", login: "operator")
+        StubURLProtocol.handler = { request in
+            let body = request.url?.path == "/v1/fleet/health"
+                ? "{\"paused\":null,\"pauseStatus\":\"unknown\",\"automationBlocked\":true}"
+                : "{\"runs\":[]}"
+            return StubURLProtocol.Stub(status: 200, body: Data(body.utf8))
+        }
+        let store = CloudFleetStore(autoStart: false, session: StubURLProtocol.makeSession(), loadAccount: { account })
+        await store.refresh()
+        let inspected = try CloudFleetSection(store: store, localProjects: [], localDaemonURL: nil, compact: true).inspect()
+        XCTAssertNoThrow(try inspected.find(text: "UNKNOWN — automated work blocked"))
     }
 
     func testDecodesLogicalRunHealthAndTranscriptShape() throws {
@@ -368,6 +398,9 @@ final class CloudFleetStoreTests: XCTestCase {
       "code": "OK",
       "error": null,
       "paused": false,
+      "pauseStatus": "unpaused",
+      "pauseRevision": 1,
+      "automationBlocked": false,
       "lastRunAgeSec": 12,
       "queueDepthEstimate": 7,
       "running": 1,
