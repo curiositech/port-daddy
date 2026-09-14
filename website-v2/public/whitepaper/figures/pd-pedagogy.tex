@@ -714,6 +714,7 @@
   moredelim=[l][\bfseries]{\$\ }}
 \newlength{\pd@sessionwidth}
 \newlength{\pd@sessionshift}
+\newlength{\pd@sessionlwidth}
 \lstnewenvironment{pdsession}[1][]{%
   \endgraf\addvspace{8pt plus 1pt}%
   \ifdefined\Needspace\Needspace{7\baselineskip}\fi
@@ -747,7 +748,13 @@
   \noindent\hspace*{\pd@sessionshift}\makebox[\linewidth][l]{\color{pdinkmuted}\rule{\pd@sessionwidth}{0.4pt}}\endgraf\nobreak\vspace{3pt}%
   \noindent\pd@marginhead{At the terminal}%
   \ifx\relax#1\relax\else{\itshape #1.}\fi\endgraf\nobreak
-  \lstset{style=pdsession,linewidth=\pd@sessionwidth,xleftmargin=\pd@sessionshift}%
+  % listings takes the width it wraps at as linewidth MINUS xleftmargin, so a
+  % negative xleftmargin widens the block as well as moving it. Handing it
+  % width+shift cancels that: the block wraps at \pd@sessionwidth wherever it
+  % sits. Without this the verso transcripts wrapped 1.3 in wide and ran off
+  % the paper.
+  \setlength{\pd@sessionlwidth}{\dimexpr\pd@sessionwidth+\pd@sessionshift\relax}%
+  \lstset{style=pdsession,linewidth=\pd@sessionlwidth,xleftmargin=\pd@sessionshift}%
 }{%
   \endgraf\nobreak\noindent\hspace*{\pd@sessionshift}\makebox[\linewidth][l]{\color{pdinkmuted}\rule{\pd@sessionwidth}{0.4pt}}\endgraf
   \addvspace{8pt plus 1pt}%

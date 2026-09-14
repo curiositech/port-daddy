@@ -831,8 +831,15 @@
     \ifdim\pdplateh>2cm
       \noindent\pdswisspartplate{#1}{\dimexpr1.5\pdplateh\relax}\par
     \fi
+    % The part opener is TWO pages, and an adjustwidth* decides which way to
+    % widen once, at \begin, from the page it opens on. Spanning the \clearpage
+    % would hand the second page the first page's decision -- which is how the
+    % Part I chapter list came to widen into the spine and 0.35 in off the paper
+    % on a verso. Each page gets its own environment and its own parity test.
+    \end{adjustwidth*}
     \clearpage
     \thispagestyle{empty}%
+    \begin{adjustwidth*}{0pt}{-\dimexpr\marginparsep+\marginparwidth\relax}
     % The facing page, still in the part's ink: the chapters of the part with
     % their one-line claims, set full size now that they have the page.
     \vspace*{0.3cm}
