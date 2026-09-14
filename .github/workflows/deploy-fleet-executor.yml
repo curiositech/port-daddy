@@ -3,9 +3,10 @@ name: Deploy fleet-executor (Cloudflare Worker)
 # Why this workflow exists:
 #   apps/fleet-executor is the LIVE cloud fleet bot (the Cloudflare Queues
 #   consumer that posts PR review + ideation-ship comments). It had no deploy
-#   automation, so merging a change to main left the OLD Worker running until
-#   someone remembered to `wrangler deploy` by hand. This workflow deploys it on
-#   every push to main that touches the app, so main == what's live.
+#   automation. This lane is intentionally manual and environment-protected.
+#   It currently refuses activation until a durable GitHub installation
+#   lifecycle writer and authoritative backfill exist; merge leaves the old
+#   Worker live.
 #
 # Config model — committed file, NOT a secret:
 #   The Worker config lives in apps/fleet-executor/wrangler.deploy.toml,
@@ -46,15 +47,6 @@ name: Deploy fleet-executor (Cloudflare Worker)
 
 on:
   workflow_dispatch:
-    inputs:
-      price_tariff_digest:
-        description: SHA-256 of the generated cloud model registry
-        required: true
-        type: string
-      price_tariff_verified_at:
-        description: UTC date (YYYY-MM-DD) when Workers AI tariffs were verified
-        required: true
-        type: string
 
 permissions:
   contents: read
@@ -109,8 +101,6 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          FLEET_PRICE_TARIFF_DIGEST: ${{ inputs.price_tariff_digest }}
-          FLEET_PRICE_TARIFF_VERIFIED_AT: ${{ inputs.price_tariff_verified_at }}
         run: node scripts/check-managed-billing-readiness.mjs
 
       - name: Deploy Worker

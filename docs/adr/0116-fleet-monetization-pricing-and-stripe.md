@@ -46,12 +46,22 @@ cheap `@cf/qwen/qwen3-30b-a3b-fp8` ($0.051/$0.335). Routing is currently
 ## Decision
 
 Production deployment is a protected manual activation, not an automatic merge
-side effect. It derives the complete served-installation inventory from
-`fleet_served_installations`, requires a valid explicit entitlement and
-provisioning `source_ref` for every served member, plus the
-verification date and exact SHA-256 digest of the generated Workers AI tariff
-table. Missing schema, incomplete entitlements, or a stale tariff witness aborts
-before `wrangler deploy`, leaving the previously deployed Worker live.
+side effect. The checked-in tariff witness is versioned and its SHA-256 is
+mechanically compared with the generated Workers AI tariff artifact; its date
+is an honestly labelled human vendor-document review, not a machine attestation.
+The activation job verifies exact D1 column, foreign-key, index, and migrated
+write-guard fingerprints before it can reach `wrangler deploy`.
+
+Wave 1 deliberately does **not** claim that a caller-populated table is a
+complete installation inventory. `fleet_served_installations` is consulted by
+runtime admission, but there is not yet a durable writer for GitHub App
+installation-created/deleted lifecycle events nor an authoritative backfill of
+installations that predate the table. Therefore this release's activation gate
+ends in a hard refusal even when manually seeded rows look complete. The
+prerequisite for lifting that refusal is a tested lifecycle writer plus a
+GitHub-authoritative initial snapshot whose provenance is stored with the
+roster. Until then, merge leaves the previously deployed Worker live; no
+operator-entered count or self-asserted completeness flag can bypass the gate.
 
 ### D1 — Funding model: managed-primary, BYOK-secondary
 
@@ -138,6 +148,7 @@ across its repos).
 **Managed-inference D1 tables (relay):**
 ```
 fleet_managed_entitlements(installation_id PK, state, retail_balance_microusd, run_retail_microusd, source_ref, ...)
+fleet_served_installations(installation_id PK, state, source_ref, ...)
 fleet_run_reservations(run_id PK, installation_id, retail_microusd, provider_cost_cap_microusd, provider_cost_microusd, state, ...)
 fleet_run_spend_v2(run_id, ship, installation_id, model, input_tokens, output_tokens, provider_cost_microusd, ...; PK(run_id, ship))
 ```
@@ -159,7 +170,7 @@ commerce slice, not the authority used by the executor's Wave 1 admission gate.
 
 **Reservation + settlement boundary:**
 - An installation must have an explicit active row in
-  `fleet_managed_entitlements`. Missing DB/schema/row, malformed integer values,
+  both `fleet_managed_entitlements` and the runtime roster. Missing DB/schema/row, malformed integer values,
   insufficient balance, and read errors all produce a neutral check with zero
   model calls.
 - One `INSERT ... SELECT` atomically reserves the configured retail amount under
