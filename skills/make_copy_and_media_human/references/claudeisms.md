@@ -2,7 +2,7 @@
 
 Tells most associated with Claude-family output, plus the cross-model prose tells that show up strongest in Claude registers. Severity is how loudly the tell announces machine authorship — not how confident you should be about who wrote it.
 
-_33 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
+_37 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
 
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
@@ -72,6 +72,48 @@ The negation-contrast family: 'It's not X, it's Y' / 'This isn't about X, it's a
 **After**
 
 > It's a fast database that changes how teams collaborate.
+
+### `no-detail-only-you-could-know`  ·  high · generic-llm · prose · llm-judge · family: form
+
+The unifying rubric. A passage fails when it contains no detail that could only have come from the specific author, recipient, or object in front of it.
+
+**Why it reads AI:** Five separate communities converged on this independently: LinkedIn slop-flaggers, Amazon fake-review researchers, Reddit moderators, cold-email testers and dating-app users all describe the same failure in their own vocabulary. The academic version is that synthetic reviews emphasize generic product merits rather than idiosyncratic experiences. If this skill only ever ran one judge rubric, it should be this one.
+
+**Detect:** Ask one question of any passage: what fact here could ONLY have come from this writer, this reader, or this thing? If the answer is none, the passage is generic regardless of how well formed it is.
+
+**Fix:** Add the one thing only you know: the name, the number, the room, the defect, the moment it went wrong.
+
+**False positive when:** Reference material and general explainers are supposed to be general. Scope this to anything addressed to a specific person, about a specific object, or drawn from personal experience.
+
+**Before**
+
+> I came across your profile and was truly impressed by your background and expertise.
+
+**After**
+
+> Your talk on partial index maintenance is the reason we stopped rebuilding ours nightly.
+
+### `nothing-at-stake`  ·  high · generic-llm · prose · llm-judge · family: form
+
+The whole-document version of the complaint. Nothing in the piece could be wrong, nothing costs the author anything, and removing any paragraph would change nothing.
+
+**Why it reads AI:** This is what readers mean when they say a piece 'says nothing' despite being well formed. The largest community analysis of what makes writing sound like AI concluded against its own premise on exactly this point: cosmetic AI-isms are mostly noise, and the discourse-level absence is the signal.
+
+**Detect:** Ask two questions. What claim here could turn out to be false? What did the author risk by writing it? If both answers are nothing, this is the finding, and it outranks every phrase-level item in the catalog.
+
+**Fix:** Cut to the one claim worth defending and rebuild around it. If there isn't one, the piece should not exist yet.
+
+**False positive when:** Reference material, documentation and explainers are not supposed to have stakes. Scope this to anything meant to persuade or to be read for its own sake.
+
+**Evidence:** ~90,000-post community analysis of what makes writing sound like AI, whose author concluded that cosmetic AI-isms are mostly noise; StoryScope's discourse-only 93.2% macro-F1 is the quantitative counterpart.
+
+**Before**
+
+> A 1,200-word post about the importance of communication in teams.
+
+**After**
+
+> A 400-word post arguing that standups are worse than a written update, with the two cases where that's wrong.
 
 ### `participial-tail`  ·  high · generic-llm · prose · structural · family: form
 
@@ -182,6 +224,26 @@ The piece surveys both sides and lands nowhere. An argument becomes a balanced o
 **After**
 
 > Use Postgres. The Mongo case only wins if your schema genuinely changes weekly, and yours doesn't.
+
+### `textureless-anecdote`  ·  high · generic-llm · prose · llm-judge · family: form
+
+A personal story with no texture: no names, no weather, no dialogue, nothing that could be checked or misremembered. It has a beginning, a lesson, and nothing in between.
+
+**Why it reads AI:** A model generating an anecdote produces the SHAPE of one, because the details it would invent are the details most likely to be wrong.
+
+**Detect:** Ask what detail in this anecdote the teller would have had to actually be there to know.
+
+**Fix:** Add the wrong-seeming detail: the thing that does not serve the point but happened anyway. Real memories have those; invented ones do not.
+
+**False positive when:** Anonymized professional anecdotes are deliberately stripped of detail for good reasons, and some people simply do not tell stories well.
+
+**Before**
+
+> I had a manager once who never gave feedback, and it taught me how important communication is.
+
+**After**
+
+> Priya gave me exactly one piece of feedback in two years, in a stairwell, about a slide I'd already presented.
 
 ### `vague-attribution`  ·  high · generic-llm · prose · llm-judge · family: form
 
@@ -449,6 +511,28 @@ Verbs converted into abstract nouns and propped up with a weak verb: 'the implem
 
 > We added a caching layer. Latency dropped.
 
+### `paragraph-length-monoculture`  ·  medium · generic-llm · prose · structural · family: rhythm
+
+Every paragraph is roughly the same length, usually three to four sentences.
+
+**Why it reads AI:** The model paragraphs on a rhythm rather than on a thought. People break where the idea breaks, which is irregular.
+
+**Detect:** Coefficient of variation of paragraph length in sentences. Human documents have a one-line paragraph somewhere, and a long one.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_paragraphs` = 6, `cue_cv` = 0.35
+
+**Fix:** Put a one-sentence paragraph where the argument turns. Let another run long.
+
+**False positive when:** Some house styles and most news writing enforce short even paragraphs deliberately.
+
+**Before**
+
+> Six consecutive paragraphs of exactly four sentences.
+
+**After**
+
+> Four sentences, then one, then seven, then two.
+
 ### `parallel-overload-uniform-bullets`  ·  medium · generic-llm · prose · structural · family: form
 
 Every bullet in a list has identical grammatical shape and near-identical length — all start with an imperative verb, all run 6-9 words, all end without punctuation. Reads like a generated template.
@@ -669,7 +753,7 @@ Em dashes used at a rate well above the author's own habit — typically as a su
 
 **False positive when:** This is the single most over-applied tell in circulation, and the reason people get falsely accused. Melville runs 0.81 per 100 words in Moby-Dick and Twain runs 1.01 in Huckleberry Finn — both above GPT-4-class means. Llama emits zero. One anti-slop detector measured its em-dash rule warning on roughly 64% of legitimate technical blog posts. Never treat this as evidence; treat it as a prompt to look.
 
-**Evidence:** Freeburg, arXiv:2603.27006 (12 models, 5 providers, ~240k words; human control mean 3.23/1000w); van Nuenen, arXiv:2604.22142 (+325.7% under LLM rewriting, d=1.12); gptme anti-slop calibration notes.
+**Evidence:** Freeburg, arXiv:2603.27006 (12 models, 5 providers, ~240k words; human control mean 3.23/1000w); van Nuenen, arXiv:2604.22142 (+325.7% under LLM rewriting, d=1.12); gptme anti-slop calibration notes. Note it is a DIALECT signal, not a generic one: GPT-4.1 10.62/1000w and Claude Opus 4.6 9.09, but Gemini 2.5 Pro 3.53 (indistinguishable from human) and Llama 3.1 0.00. Vendors suppress it on request, and later models suppress it by default. A signal that one sentence of instruction can remove is not a signal to build a case on.
 
 **Before**
 

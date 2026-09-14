@@ -2,7 +2,7 @@
 
 ChatGPT's service voice and README register, and the code-comment tells of Codex/Copilot-shaped generation.
 
-_33 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
+_35 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
 
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
@@ -131,30 +131,6 @@ Assertions that cannot fail: assert True, assert result == result, assert x is n
 **After**
 
 > assert parse(payload).currency == 'EUR'
-
-### `invisible-unicode-artifacts`  ·  high · chatgpt · typography · structural · family: residue
-
-Invisible or near-invisible codepoints left in the text: U+202F narrow no-break space (characteristically wrapped around em dashes), zero-width space, word joiner, byte-order mark, soft hyphen.
-
-**Why it reads AI:** This is residue, not style. Its presence means the text was pasted out of a model's rendered output rather than typed, which is a fact about provenance rather than an inference about taste.
-
-**Detect:** Count the codepoints. U+202F is the strongest single countable tell available: no mainstream keyboard layout produces it and no word processor inserts it around a dash.
-
-**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
-
-**Fix:** Normalize whitespace before judging anything else: U+202F and U+00A0 to a plain space, zero-width characters deleted. Then re-read, because the prose problems are separate.
-
-**False positive when:** Typeset documents legitimately use U+00A0 (and French typography uses U+202F before high punctuation by convention). Exclude markup files where &nbsp; is deliberate, and exclude French-language copy from the U+202F rule entirely.
-
-**Evidence:** Catalogued by Wikipedia's WikiProject AI Cleanup among formatting-residue signs.
-
-**Before**
-
-> A sentence — with residue in it.
-
-**After**
-
-> A sentence — with the residue removed.
 
 ### `key-takeaways-box-everywhere`  ·  high · chatgpt · structure · structural · family: shape
 
@@ -401,6 +377,26 @@ A document, email, or landing page ends with an 'FAQ' section no actual user ask
 > ## Questions we actually get
 > **Does this double-count sessions across subdomains?** No. We key on the root domain, which is why your numbers dropped ~8% after the migration.
 
+### `amber-white-balance-cast`  ·  medium · chatgpt · image · structural · family: visual
+
+A global warm cast across generated images: whites drifting to cream, shadows muddy brown, skin pushed slightly yellow. It compounds, adding a layer with each edit round.
+
+**Why it reads AI:** No camera and no photographer produces the same white balance across a kitchen, a beach and an office. A cast invariant to the scene implies a single rendering stage.
+
+**Detect:** Compute the chromaticity of the brightest 1% of pixels. Neutral highlights sit near equal R/G/B; this skews R>G>B. A consistent cast across unrelated subjects from one source is close to conclusive.
+
+**Fix:** Neutralize white balance in post by sampling a known-white object and correcting globally. Prompting alone is unreliable, because the cast is applied late in rendering.
+
+**False positive when:** Golden-hour photography, tungsten interiors, deliberate warm grading across most commercial and film work, film-emulation looks, and anything shot under sodium light. The tell is a warm cast INVARIANT TO THE SCENE, not a warm cast. It is also trivially corrected, so its absence means nothing.
+
+**Before**
+
+> Product shot on a white seamless that samples at #F6EEDC.
+
+**After**
+
+> Same shot with the seamless corrected to #FAFAFA.
+
 ### `checkmark-bullet-grid`  ·  medium · chatgpt · structure · structural · family: form
 
 List items led by status glyphs — checkmarks, crosses, warning triangles, target and lightbulb emoji — turning every claim into a satisfied requirement.
@@ -518,6 +514,32 @@ Closes with a defensive caveat hedging that the answer might not fit: 'Note that
 
 > This assumes Redis on the default port; if yours is TLS-only, add rediss:// and the CA path — nothing else changes.
 
+### `invisible-unicode-artifacts`  ·  medium · chatgpt · typography · structural · family: residue
+
+**Currency:** Fading — still seen, but vendors have patched toward it and it is weakening.
+
+Invisible or near-invisible codepoints in the text: U+202F narrow no-break space, zero-width space, word joiner, byte-order mark, soft hyphen. Treat this as evidence the text was PASTED from somewhere, which is not the same as evidence about who wrote it.
+
+**Why it reads AI:** It often doesn't any more. U+202F appeared in o3 and o4-mini output in April 2025 and OpenAI removed it within days, calling it a quirk of large-scale reinforcement learning. As of 2026 no mainstream assistant is known to embed hidden characters deliberately.
+
+**Detect:** Count the codepoints. Useful as a normalization step and as a provenance hint, not as an authorship signal.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
+
+**Fix:** Normalize whitespace before judging anything else, then forget about it. The prose problems are the real work.
+
+**False positive when:** Constantly. Microsoft Word emits U+202F and U+00A0 routinely, LaTeX does, French typography requires U+202F before high punctuation by convention, and every web copy-paste carries non-breaking spaces. This was a genuine tell for roughly a week. Treat a hit as 'this was pasted', never as 'a model wrote this'.
+
+**Evidence:** OpenAI removed the U+202F behavior days after it was noticed in April 2025; contemporaneous reporting notes Word as a routine source of the same character.
+
+**Before**
+
+> A sentence — with residue in it.
+
+**After**
+
+> A sentence — with the residue removed.
+
 ### `markdown-bold-title-case-scaffold`  ·  medium · chatgpt · structure · structural · family: shape
 
 Structural over-formatting carried into contexts that don't call for it: bolded **key terms** mid-sentence, Title Case On Every Heading, and a recurring intro/numbered-points/'In conclusion' skeleton. Raw markdown (** and #) leaking into plain-text or wiki fields is a hard tell.
@@ -619,6 +641,26 @@ A README with a fixed, project-agnostic skeleton: badge row, one-line tagline, t
 > $ pg-slowlog --since 1h
 > ```
 > ## Install / ## Caveats (it only reads pg_stat_statements)
+
+### `rhetorical-question-hook`  ·  medium · chatgpt · marketing-copy · llm-judge · family: shape
+
+An opening question the reader did not ask and cannot answer: 'Ever wonder why some teams ship faster than others?'
+
+**Why it reads AI:** It is the safest possible opener: it commits to nothing and flatters the reader's curiosity. Models default to it because it never offends.
+
+**Detect:** Judge whether the piece opens by asserting something or by asking permission to assert it.
+
+**Fix:** Open with the claim the question was circling.
+
+**False positive when:** A genuine question the piece then genuinely answers is a legitimate and old device.
+
+**Before**
+
+> Ever wonder why some teams ship faster than others?
+
+**After**
+
+> Teams that ship fast almost always have fewer people in the approval chain, not better engineers.
 
 ### `stale-training-api`  ·  medium · codex · code · llm-judge · family: code
 

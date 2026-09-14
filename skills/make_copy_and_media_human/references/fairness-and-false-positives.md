@@ -101,6 +101,51 @@ sympathetic than the academic fairness literature, and declines to treat limited
 English proficiency as an excuse. The two bodies of work are not fully aligned.
 What both endorse is the operational rule below.
 
+## Tells that do not work, and why they are still repeated
+
+Some of the most-cited giveaways are the worst detectors. Recording them here
+stops the catalog re-acquiring them.
+
+**The em dash.** Covered above, and worth one more fact: nobody arguing about it
+agrees on what the tell even is. In a single thread one person says models use a
+closed em dash with no spaces and another says they consistently add spaces
+around it, while a third says the opposite of both. When the sub-claims
+contradict each other, nobody is measuring anything. Later models suppress the
+character by default, and one sentence of instruction removes it, so a case built
+on it collapses on contact.
+
+**Perfect grammar and no typos.** The most socially destructive item in the set,
+because it selects almost perfectly for the groups least able to defend
+themselves: autistic writers with consistent structural habits, second-language
+speakers taught formal English, and anyone who writes for a living. Detectors
+looking for "a style of writing" are looking for formal English. There is a
+subreddit substantially populated by people accused on this basis.
+
+**The rule of three.** Homer used it. So does every speechwriter alive. Models
+learned it because it works.
+
+**Semicolons.** Circulating in fiction communities with no corpus study behind
+it, and in direct tension with the em-dash claim, since one analysis reports
+models substituting semicolons as dashes get suppressed. You cannot run both
+directions as evidence.
+
+**Purple prose and bad writing generally.** In 2026 a publisher cancelled a
+novel after a community-led AI accusation. The reviewer who actually read the
+manuscript concluded the individual markers were unreliable, because plenty of
+human writers, including non-native speakers and autistic writers, write that
+way. A commercial detector returned 78% on the book, which is not a verdict
+either.
+
+**Mangled hands and garbled text in images.** Dead. Current models render both
+correctly, and repeating this produces confident wrong answers in both
+directions. The catalog entry is retained with `currency: obsolete` as a caution.
+
+**A missing C2PA manifest.** Proves nothing. Every social upload, screenshot,
+re-save and CDN transform strips it, and the most widely used image generator
+does not embed one at all. A signed manifest naming a generator is strong
+positive evidence; its absence is no evidence whatsoever, and reading the
+converse is where most current guidance goes wrong.
+
 ## The rules this skill follows
 
 1. **Every finding is a prompt to edit a sentence, never a verdict on who wrote

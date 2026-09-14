@@ -120,6 +120,14 @@ against a baseline. This is where false accusations come from.
 between every section, the obligatory future-directions block. Usually safe to
 act on, because the fix improves the document regardless.
 
+Weight `form` and `shape` over the phrase-level items when the two disagree. The
+largest community analysis of what makes writing sound like AI concluded against
+its own premise on this, finding cosmetic tells mostly noise. The quantitative
+version is stronger still: a study of 61,608 stories separated human from
+generated fiction at 93.2% macro-F1 using discourse-level narrative features
+alone, with every stylistic cue stripped out. Structure survives a model that has
+learned not to say "delve". Phrases do not.
+
 `code` covers engineering artifacts. The highest-precision checks here are all
 relative, comparing a change against the repo's own log, idiom, and PR norms.
 A contributor who read the surrounding code passes them automatically.
@@ -129,6 +137,32 @@ pathology is about truth rather than authorship: a dead DOI, a reference that
 does not support its sentence, a statistic with no study behind it. Check those
 with complete confidence, because you are verifying a claim rather than inferring
 an author. It is the highest-yield check in the skill and it has no fairness cost.
+
+## The one rubric that matters most
+
+If you only ever run one judge question, run this one: **what detail in this
+passage could only have come from this author, this reader, or this thing?**
+
+Five communities arrived at it independently, in their own vocabularies. People
+flagging LinkedIn slop call it generic abstraction. Researchers studying fake
+reviews call it emphasizing generic product merits over idiosyncratic
+experience. Reddit moderators, cold-email testers and dating-app users all
+describe the same failure. It's the rubric behind `specificity-starvation`,
+`textureless-anecdote`, `substitutable-reply`, `synthetic-review-shape` and
+`mirror-back-research-opener`, and it survives every model improvement, because
+the thing it asks for is knowledge the model doesn't have.
+
+## Scale severity by the venue's base rate
+
+The same tell deserves different weight in different places, because the prior
+differs by more than an order of magnitude. Measured rates run around 40% fully
+generated for LinkedIn long-form posts and 24% for their comments, roughly 24%
+for posts on X, and about 4% on Reddit overall with replies near 2%.
+
+So a formatted, structured, correctly punctuated comment on LinkedIn is worth
+acting on. The same comment on a Reddit reply is firing against a 2% prior and
+will be wrong most of the time. Adjust before you speak, especially anywhere a
+person might feel accused.
 
 ## Decision tree
 
@@ -235,6 +269,7 @@ already one of them.
 | `references/other-model-dialects.md` | Gemini caveat stacks, DeepSeek and Qwen register, Grok voice, register leveling |
 | `references/visual-design-tells.md` | Web UI, landing pages, slide visuals, generated imagery, video, audio |
 | `references/structure-and-deck-tells.md` | Long docs, decks, marketing pages, social posts, email |
+| `references/fiction-and-narrative-tells.md` | Fiction, narrative, and anything told as a story; the strongest tells in the catalog live here |
 | `references/engineering-artifact-tells.md` | Commits, PRs, code review, tests, docs, source files |
 | `references/sources.md` | When you need citations |
 | `templates/output-template.md` | Drafting a judge-pass finding or the delivery summary |
@@ -332,25 +367,28 @@ launch announcement in machine accent and then edited,
 *Every file in this skill, and when to open it. Auto-generated; run `scripts/index_references.py --fix`.*
 
 **root**
-- [`CHANGELOG.md`](CHANGELOG.md) — Changelog — Upgraded to the port-daddy agentic-family bundle standard.
-- [`README.md`](README.md) — Make Copy and Media Human — Strip the machine accent from copy, web UI, slides, READMEs, marketing pages, and generated imagery before anything outward-facing ships.
+- [`CHANGELOG.md`](CHANGELOG.md) — Changelog — Rebuilt around measured evidence.
+- [`README.md`](README.md) — Make Copy and Media Human — Strip the machine accent from copy, web UI, slides, READMEs, commits, PRs, marketing pages, and generated imagery before anything outward-fa
 
 **`agents/`**
 - [`agents/openai.yaml`](agents/openai.yaml) — openai (data/schema)
 
 **`examples/`**
-- [`examples/before-after-landing-page.md`](examples/before-after-landing-page.md) — Before / After — Landing Page (the v0 look, token by token) — | Token | Ism | Severity | |---|---|---| | `Inter` (Google Fonts) | ai-default-typeface | high | | `#6366f1`, `from-indigo-500 to-violet-500
+- [`examples/before-after-landing-page.md`](examples/before-after-landing-page.md) — Before / After — Landing Page (the v0 look, token by token) — Verified by running `scripts/humanize_review.py` against the Before block above.
 - [`examples/before-after-prose.md`](examples/before-after-prose.md) — Before / After — Launch Announcement — The same announcement, machine accent vs.
 - [`examples/sample-report.html`](examples/sample-report.html)
 
 **`references/`**
 - [`references/catalog.json`](references/catalog.json) — catalog (data/schema)
 - [`references/claudeisms.md`](references/claudeisms.md) — Claudeisms — and the generic prose tells Claude amplifies — Tells most associated with Claude-family output, plus the cross-model prose tells that show up strongest in Claude registers.
+- [`references/engineering-artifact-tells.md`](references/engineering-artifact-tells.md) — Engineering-artifact tells — commits, PRs, reviews, code, tests, docs — What generated engineering work looks like in the artifacts maintainers actually read.
+- [`references/fairness-and-false-positives.md`](references/fairness-and-false-positives.md) — Fairness and false positives — read this before you act on any finding — Hand-written, not generated from the catalog.
+- [`references/fiction-and-narrative-tells.md`](references/fiction-and-narrative-tells.md) — Fiction and narrative tells — What generated fiction does at the level of story rather than sentence.
 - [`references/gptisms-codexisms.md`](references/gptisms-codexisms.md) — GPT-isms and Codexisms — ChatGPT's service voice and README register, and the code-comment tells of Codex/Copilot-shaped generation.
-- [`references/other-model-dialects.md`](references/other-model-dialects.md) — Other model dialects — Gemini, Kimi, DeepSeek, Qwen, Llama, Grok — and cross-model translationese — Distinctive tics per model family, plus the affect-flatness tells that mark any machine register.
+- [`references/other-model-dialects.md`](references/other-model-dialects.md) — Other model dialects — Gemini, Kimi, DeepSeek, Qwen, Llama, Grok — and cross-model translationese — Distinctive tics per model family, plus the affect and register tells that mark any machine output regardless of vendor.
 - [`references/sources.md`](references/sources.md) — Sources — Published catalogs, stylometry research, and essays the catalog draws on.
-- [`references/structure-and-deck-tells.md`](references/structure-and-deck-tells.md) — Structure, deck, and marketing-copy tells — Document-shape tells: how generated long-form docs, slides, posts, and emails are assembled, independent of any sentence.
-- [`references/visual-design-tells.md`](references/visual-design-tells.md) — Visual design tells — the v0/Lovable look and AI imagery — What makes a UI, slide, or image read as generated: the defaults nobody chose, clustering together.
+- [`references/structure-and-deck-tells.md`](references/structure-and-deck-tells.md) — Structure, deck, and marketing-copy tells — Document-shape tells: how generated long-form docs, slides, posts, and emails are assembled, independent of any sentence in them.
+- [`references/visual-design-tells.md`](references/visual-design-tells.md) — Visual design tells — the v0/Lovable look and generated imagery — What makes a UI, slide, or image read as generated: the defaults nobody chose, clustering together.
 
 **`scripts/`**
 - [`scripts/humanize_review.py`](scripts/humanize_review.py) — humanize_review.py — flag AI-isms in copy/media and emit a static HTML fix plan.
@@ -358,7 +396,7 @@ launch announcement in machine accent and then edited,
 
 **`templates/`**
 - [`templates/output-template.md`](templates/output-template.md) — Judge-Pass Finding + Delivery Template — Fill this in during step 3 (judge pass) and step 4 (delivery) of the process in `SKILL.md`.
-- [`templates/rewrite-checklist.md`](templates/rewrite-checklist.md) — Rewrite Checklist — run after every humanizing pass — Work the report top-down (high severity first), then verify: - [ ] Every fix touched only the flagged span; surrounding text is byte-identic
+- [`templates/rewrite-checklist.md`](templates/rewrite-checklist.md) — Rewrite Checklist — run after every humanizing pass — Work the report top-down, highest severity first, then verify each line below.
 
 <!-- END BUNDLE INDEX -->
 <!-- humanize:ignore-end -->
