@@ -35,6 +35,7 @@ function fleetYaml(
   const body = ships
     .map(s => {
       const lines = [`    ${s.name}:`, `      trigger: pull_request:opened`];
+      lines.push(`      participation: { default: ${s.blocking ? 'required' : 'advisory'}, rules: [] }`);
       if (s.blocking) lines.push('      blocking: true');
       lines.push('      fallbacks:');
       lines.push('        - backend: cloudflare');
@@ -307,12 +308,13 @@ describe('transcript writes (fleet_runs + fleet_run_steps)', () => {
       'map-chunk',
       'ship-verdict',
       'review-posted',
+      'ship-participation',
       'ship-spend',
       'ship-checkpoint',
       'check-completed',
     ]);
     // seq is monotonic from 0 for the recorder's own steps.
-    expect(d1.steps.filter(s => s.kind !== 'ship-checkpoint').map(s => s.seq)).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(d1.steps.filter(s => s.kind !== 'ship-checkpoint').map(s => s.seq)).toEqual([0, 1, 2, 3, 4, 5, 6]);
     // The verdict step carries the parsed findings as its detail (here: empty).
     const verdict = d1.steps.find(s => s.kind === 'ship-verdict');
     expect(verdict?.ship).toBe('code-reviewer');
@@ -370,6 +372,7 @@ describe('transcript writes (fleet_runs + fleet_run_steps)', () => {
       'reduce',
       'ship-verdict',
       'review-posted',
+      'ship-participation',
       'ship-spend',
       'ship-checkpoint',
       'check-completed',

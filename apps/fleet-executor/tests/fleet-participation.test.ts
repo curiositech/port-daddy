@@ -15,7 +15,7 @@ describe('ship participation', () => {
         { disposition: 'required', riskSignals: ['authentication'], reason: 'auth boundary changed' },
         { disposition: 'advisory', prClasses: ['documentation'] },
       ],
-    }, false);
+    });
 
     expect(decideShipParticipation(policy, {
       prClass: 'code',
@@ -31,16 +31,15 @@ describe('ship participation', () => {
     }).disposition).toBe('ineligible');
   });
 
-  it('preserves legacy blocking only as the default when no richer policy exists', () => {
-    expect(parseShipParticipationPolicy(undefined, true).default).toBe('required');
-    expect(parseShipParticipationPolicy(undefined, false).default).toBe('advisory');
+  it('does not project legacy blocking into voting authority', () => {
+    expect(parseShipParticipationPolicy(undefined).default).toBe('ineligible');
   });
 
   it('drops misspelled selectors instead of turning them into match-all rules', () => {
     const policy = parseShipParticipationPolicy({
       default: 'ineligible',
       rules: [{ disposition: 'required', prClasses: ['securty'] }],
-    }, false);
+    });
     expect(policy.rules).toEqual([]);
     expect(decideShipParticipation(policy, { prClass: 'code', riskSignals: [] }).disposition)
       .toBe('ineligible');
@@ -53,16 +52,12 @@ describe('ship participation', () => {
       { ship: 'red-team', participation: 'ineligible', outcome: 'failed' },
       { ship: 'purser', participation: 'abstain', outcome: 'abstain' },
       { ship: 'style-critic', participation: 'ineligible', outcome: 'reject' },
-    ], {
-      minimumEligibleVoters: 2,
-      minimumApprovals: 2,
-      requireEveryRequiredApproval: true,
-    });
+    ]);
 
     expect(result).toMatchObject({
       reached: true,
-      eligibleVoters: 2,
-      approvals: 2,
+      eligibleVoters: 1,
+      approvals: 1,
       failures: 0,
       abstentions: 1,
       excludedIneligible: 2,
@@ -74,15 +69,22 @@ describe('ship participation', () => {
       { ship: 'code-reviewer', participation: 'required', outcome: 'failed' },
       { ship: 'qa', participation: 'advisory', outcome: 'approve' },
       { ship: 'privacy-warden', participation: 'required', outcome: 'abstain' },
-    ], {
-      minimumEligibleVoters: 1,
-      minimumApprovals: 1,
-      requireEveryRequiredApproval: true,
-    });
+    ]);
     expect(result.reached).toBe(false);
     expect(result.failures).toBe(1);
     expect(result.abstentions).toBe(1);
     expect(result.unmetRequiredShips).toEqual(['code-reviewer', 'privacy-warden']);
+  });
+
+  it('rejects duplicate ship identities and a fleet with no required voters', () => {
+    expect(computeFleetQuorum([
+      { ship: 'reviewer', participation: 'required', outcome: 'approve' },
+      { ship: 'reviewer', participation: 'required', outcome: 'approve' },
+    ])).toMatchObject({ reached: false, unmetRequiredShips: ['duplicate ship identity'] });
+    expect(computeFleetQuorum([
+      { ship: 'style', participation: 'advisory', outcome: 'approve' },
+      { ship: 'ideas', participation: 'abstain', outcome: 'abstain' },
+    ])).toMatchObject({ reached: false, eligibleVoters: 0, approvals: 0 });
   });
 });
 
@@ -94,7 +96,7 @@ describe('ship execution authority', () => {
     cwd: 'apps/widget',
     toolAllowlist: ['read_file', 'write_file', 'run_tests', 'dynamic_skill_search'],
     mcpAllowlist: ['github.read'],
-    networkAllowlist: ['api.github.com'],
+    networkAllowlist: ['github_api'],
     writePathAllowlist: ['apps/widget', 'tests/widget'],
     maxWallClockMs: 300_000,
     maxCostMicrousd: 2_000_000,
@@ -116,13 +118,24 @@ describe('ship execution authority', () => {
     expect(parseShipExecutionPolicy({ ...writablePolicy, mode: 'read_only_sandbox' }).mode).toBe('none');
   });
 
+  it('denies every mutating or unknown read-only capability', () => {
+    const base = { ...writablePolicy, mode: 'read_only_sandbox', writePathAllowlist: [], networkAllowlist: [] };
+    for (const tool of ['write_file', 'edit_file', 'run_tests', 'shell', 'made_up_reader']) {
+      expect(parseShipExecutionPolicy({ ...base, toolAllowlist: [tool] }).mode).toBe('none');
+    }
+    for (const mcp of ['github.write', 'relay.write', 'unknown.read']) {
+      expect(parseShipExecutionPolicy({ ...base, toolAllowlist: ['read_file'], mcpAllowlist: [mcp] }).mode).toBe('none');
+    }
+  });
+
   it('denies wildcard capabilities and unbounded time or spend', () => {
     expect(parseShipExecutionPolicy({ ...writablePolicy, toolAllowlist: ['*'] }).mode).toBe('none');
+    expect(parseShipExecutionPolicy({ ...writablePolicy, surpriseAuthority: true }).mode).toBe('none');
     expect(parseShipExecutionPolicy({ ...writablePolicy, maxWallClockMs: 31 * 60 * 1000 }).mode).toBe('none');
     expect(parseShipExecutionPolicy({ ...writablePolicy, maxCostMicrousd: 25_000_001 }).mode).toBe('none');
   });
 
-  it('mints an exact tenant/repository/worktree/cwd grant', () => {
+  it('mints an exact tenant/repository/worktree/cwd/head/attempt single-use grant', async () => {
     const policy = parseShipExecutionPolicy(writablePolicy);
     const grant = mintShipExecutionGrant({
       policy,
@@ -134,18 +147,24 @@ describe('ship execution authority', () => {
       admittedRepositoryFullName: 'ACME/widget',
       worktreePath: '/fleet/worktrees/run-7',
       isolatedWorktreeRoot: '/fleet/worktrees',
+      canonicalizePath: async (path: string) => path,
+      tenantBindingReceiptId: 'bind_123',
+      headSha: 'a'.repeat(40),
+      runId: 'run:delivery-7', attempt: 1, nonce: 'nonce_1234567890123456',
+      nowEpochMs: 2_000, issuedAtEpochMs: 1_000, expiresAtEpochMs: 301_000,
     });
-    expect(grant).toMatchObject({
+    expect(await grant).toMatchObject({
       mode: 'write_sandbox',
       tenantId: 'tenant-1',
       repositoryId: 'repo-42',
       repositoryFullName: 'acme/widget',
       worktreePath: '/fleet/worktrees/run-7',
       cwdPath: '/fleet/worktrees/run-7/apps/widget',
+      singleUse: true,
     });
   });
 
-  it('refuses cross-tenant/repository and traversal-shaped grants', () => {
+  it('refuses cross-tenant/repository and traversal-shaped grants', async () => {
     const policy = parseShipExecutionPolicy(writablePolicy);
     const base = {
       policy,
@@ -157,18 +176,49 @@ describe('ship execution authority', () => {
       admittedRepositoryFullName: 'other/private',
       worktreePath: '/fleet/worktrees/run-7',
       isolatedWorktreeRoot: '/fleet/worktrees',
+      canonicalizePath: async (path: string) => path,
+      tenantBindingReceiptId: 'bind_123', headSha: 'a'.repeat(40), runId: 'run:delivery-7',
+      attempt: 1, nonce: 'nonce_1234567890123456', nowEpochMs: 2_000,
+      issuedAtEpochMs: 1_000, expiresAtEpochMs: 301_000,
     };
-    expect(mintShipExecutionGrant(base)).toBeNull();
-    expect(mintShipExecutionGrant({
+    expect(await mintShipExecutionGrant(base)).toBeNull();
+    expect(await mintShipExecutionGrant({
       ...base,
       admittedRepositoryFullName: 'acme/widget',
       admittedTenantId: 'tenant-2',
     })).toBeNull();
-    expect(mintShipExecutionGrant({
+    expect(await mintShipExecutionGrant({
       ...base,
       admittedRepositoryFullName: 'acme/widget',
       worktreePath: '/fleet/other/run-7',
     })).toBeNull();
+    expect(await mintShipExecutionGrant({
+      ...base,
+      admittedRepositoryFullName: 'acme/widget',
+      canonicalizePath: async (path: string) => path === '/fleet/worktrees/run-7'
+        ? '/other-tenant/worktrees/run-7'
+        : path,
+    })).toBeNull();
+    expect(await mintShipExecutionGrant({
+      ...base,
+      admittedRepositoryFullName: 'acme/widget',
+      nowEpochMs: 301_000,
+    })).toBeNull();
     expect(parseShipExecutionPolicy({ ...writablePolicy, cwd: '../other-repo' }).mode).toBe('none');
+  });
+
+  it('revalidates policy capabilities and limits when minting', async () => {
+    const forged = { ...parseShipExecutionPolicy(writablePolicy), maxCostMicrousd: 25_000_001 };
+    expect(await mintShipExecutionGrant({
+      policy: forged,
+      tenantId: 'tenant-1', admittedTenantId: 'tenant-1',
+      repositoryId: 'repo-42', admittedRepositoryId: 'repo-42',
+      repositoryFullName: 'acme/widget', admittedRepositoryFullName: 'acme/widget',
+      worktreePath: '/fleet/worktrees/run-7', isolatedWorktreeRoot: '/fleet/worktrees',
+      canonicalizePath: async (path: string) => path,
+      tenantBindingReceiptId: 'bind_123', headSha: 'a'.repeat(40), runId: 'run:delivery-7',
+      attempt: 1, nonce: 'nonce_1234567890123456', nowEpochMs: 2_000,
+      issuedAtEpochMs: 1_000, expiresAtEpochMs: 301_000,
+    })).toBeNull();
   });
 });
