@@ -45,6 +45,12 @@ cheap `@cf/qwen/qwen3-30b-a3b-fp8` ($0.051/$0.335). Routing is currently
 
 ## Decision
 
+Production deployment is gated on the migrated D1 schema and at least one
+explicit active entitlement. Each entitlement requires a non-empty `source_ref`
+that receipts the operator-approved provisioning action. The deploy workflow
+queries production before `wrangler deploy`; a missing table, read error, or
+empty entitlement set aborts while the previously deployed Worker remains live.
+
 ### D1 — Funding model: managed-primary, BYOK-secondary
 
 - **Managed ("they just pay you") is the front door.** Users subscribe / buy

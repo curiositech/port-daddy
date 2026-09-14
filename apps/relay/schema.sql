@@ -380,6 +380,41 @@ CREATE INDEX IF NOT EXISTS credit_ledger_installation_idx ON credit_ledger (inst
 
 -- Per-run token spend metering. cost_usd is what the run consumed; a matching
 -- negative credit_ledger row (reason='fleet:spend') decrements the balance.
+CREATE TABLE IF NOT EXISTS fleet_managed_entitlements (
+  installation_id INTEGER PRIMARY KEY,
+  state TEXT NOT NULL CHECK (state IN ('active','paused','revoked')),
+  retail_balance_microusd INTEGER NOT NULL CHECK (retail_balance_microusd >= 0),
+  run_retail_microusd INTEGER NOT NULL CHECK (run_retail_microusd > 0),
+  source_ref TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS fleet_run_reservations (
+  run_id TEXT PRIMARY KEY, installation_id INTEGER NOT NULL,
+  retail_microusd INTEGER NOT NULL CHECK (retail_microusd > 0),
+  provider_cost_cap_microusd INTEGER NOT NULL CHECK (provider_cost_cap_microusd >= 0 AND provider_cost_cap_microusd * 4 <= retail_microusd),
+  provider_cost_microusd INTEGER,
+  state TEXT NOT NULL CHECK (state IN ('reserved','settled','released')),
+  lease_owner TEXT, lease_fence INTEGER NOT NULL DEFAULT 0, lease_expires_at INTEGER,
+  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, settled_at INTEGER, released_at INTEGER,
+  FOREIGN KEY (installation_id) REFERENCES fleet_managed_entitlements(installation_id)
+);
+CREATE INDEX IF NOT EXISTS fleet_run_reservations_installation_state_idx ON fleet_run_reservations(installation_id,state,created_at);
+CREATE TABLE IF NOT EXISTS fleet_run_spend_v2 (
+  run_id TEXT NOT NULL, ship TEXT NOT NULL, installation_id INTEGER NOT NULL, model TEXT NOT NULL,
+  input_tokens INTEGER NOT NULL CHECK(input_tokens >= 0), output_tokens INTEGER NOT NULL CHECK(output_tokens >= 0),
+  provider_cost_microusd INTEGER NOT NULL CHECK(provider_cost_microusd >= 0), created_at INTEGER NOT NULL,
+  PRIMARY KEY(run_id,ship), FOREIGN KEY(run_id) REFERENCES fleet_run_reservations(run_id)
+);
+CREATE TABLE IF NOT EXISTS fleet_run_call_authorizations (
+  authorization_id TEXT PRIMARY KEY, run_id TEXT NOT NULL, lease_fence INTEGER NOT NULL,
+  call_sequence INTEGER NOT NULL, attempt_id TEXT NOT NULL, ship TEXT NOT NULL, model TEXT NOT NULL,
+  max_input_tokens INTEGER NOT NULL CHECK(max_input_tokens >= 0), max_output_tokens INTEGER NOT NULL CHECK(max_output_tokens >= 0),
+  authorized_cost_microusd INTEGER NOT NULL CHECK(authorized_cost_microusd >= 0), actual_cost_microusd INTEGER,
+  state TEXT NOT NULL CHECK(state IN ('authorized','reported','unreported','failed')),
+  created_at INTEGER NOT NULL, reconciled_at INTEGER, UNIQUE(run_id,lease_fence,call_sequence),
+  FOREIGN KEY(run_id) REFERENCES fleet_run_reservations(run_id)
+);
+CREATE INDEX IF NOT EXISTS fleet_run_call_authorizations_run_idx ON fleet_run_call_authorizations(run_id,state,created_at);
+
 CREATE TABLE IF NOT EXISTS fleet_run_spend (
   run_id          TEXT    NOT NULL,
   ship            TEXT,

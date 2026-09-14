@@ -153,6 +153,7 @@ import {
   costUsdForModel,
   isPricedModel,
   MODEL_CONTEXT_TOKENS,
+  WORKERS_AI_RATES,
   hasKnownContextWindow,
 } from './spend.js';
 import {
@@ -163,13 +164,18 @@ import {
 } from './context-admission.js';
 import {
   ManagedBillingError,
+  acquireManagedRunLease,
+  authorizeManagedAiCall,
   MICROUSD_PER_USD,
   recordManagedShipSpend,
+  reconcileManagedAiCall,
   releaseManagedRun,
   reserveManagedRun,
   resolveManagedEntitlement,
   settleManagedRun,
+  yieldManagedRunLease,
   type ManagedRunReservation,
+  type ManagedRunLease,
 } from './managed-billing.js';
 
 const TRANSCRIPT_FAILURE_TELEMETRY_TIMEOUT_MS = 250;
@@ -1485,6 +1491,7 @@ export async function executeFleet(
   // own audit row + transcript (INSERT OR REPLACE) instead of duplicating.
   const runId = `run:${deliveryId}`;
   let managedReservation: ManagedRunReservation | null = null;
+  let managedLease: ManagedRunLease | null = null;
   // Capability URL for the human-facing run page (ADR-0101 Phase 0). Null when
   // RUN_DETAILS_BASE_URL / RUN_PAGE_SECRET are unconfigured; never throws.
   const detailsUrl = await runDetailsUrl(env, runId);
@@ -2289,6 +2296,37 @@ export async function executeFleet(
   try {
     await resolveManagedEntitlement(env.DB, job.installationId);
     managedReservation = await reserveManagedRun(env.DB, runId, job.installationId, nowSec());
+    const leaseOwner = `${deliveryId}:${providerAttempt}:${crypto.randomUUID()}`;
+    managedLease = await acquireManagedRunLease(
+      env.DB, runId, leaseOwner, nowSec(), nowSec() + Math.ceil((RUN_ABSOLUTE_DEADLINE_MS + aiCallDeadlineMs + 60_000) / 1000),
+    );
+    aiCircuit.setAuthorizer({
+      authorize: async request => {
+        const rate = WORKERS_AI_RATES[request.model];
+        const context = MODEL_CONTEXT_TOKENS[request.model];
+        if (!rate || !context || request.maxInputTokens > context || request.maxOutputTokens < 0) {
+          throw new ManagedBillingError('margin-exceeded', `model ${request.model} is not safely priced`);
+        }
+        const worst = Math.ceil(
+          request.maxInputTokens * rate.input + request.maxOutputTokens * rate.output,
+        );
+        return { authorization: await authorizeManagedAiCall(env.DB, managedLease!, leaseOwner, request, worst, nowSec()), request };
+      },
+      reconcile: async (token, result, error) => {
+        const { authorization, request } = token as {
+          authorization: Awaited<ReturnType<typeof authorizeManagedAiCall>>;
+          request: { model: string };
+        };
+        const usage = result == null ? { inputTokens: null, outputTokens: null } : extractWorkersAiUsage(result);
+        const reported = usage.inputTokens != null && usage.outputTokens != null;
+        const rate = WORKERS_AI_RATES[request.model];
+        const actual = reported && rate
+          ? Math.ceil(usage.inputTokens! * rate.input + usage.outputTokens! * rate.output)
+          : null;
+        await reconcileManagedAiCall(env.DB, authorization, actual,
+          error ? 'failed' : reported ? 'reported' : 'unreported', nowSec());
+      },
+    });
   } catch (error) {
     const billingCode = error instanceof ManagedBillingError ? error.code : 'accounting-failed';
     const summary =
@@ -2703,6 +2741,7 @@ export async function executeFleet(
         )
         .map(candidate => candidate.name);
       if (remainingShips.length > 0) {
+        await yieldManagedRunLease(env.DB, managedLease!, nowSec());
         return { kind: 'continuation', completedShip: ship.name, remainingShips };
       }
     }
@@ -3189,14 +3228,13 @@ async function runShip(
         capture,
         { phase: 'map', model: mapModel, chunk: { index: i, count: chunks.length } },
         request,
-        () =>
-          aiCircuit.runForShip(ship.name, () =>
-            env.AI.run(
-              mapModel as Parameters<typeof env.AI.run>[0],
-              request,
-              aiOptions(env, ship.name, capture),
-            ),
+        () => aiCircuit.runForShip(
+          ship.name,
+          () => env.AI.run(
+            mapModel as Parameters<typeof env.AI.run>[0], request, aiOptions(env, ship.name, capture),
           ),
+          { model: mapModel, maxInputTokens: MODEL_CONTEXT_TOKENS[mapModel] - MAX_OUTPUT_TOKENS, maxOutputTokens: MAX_OUTPUT_TOKENS },
+        ),
       );
       const { text, shape } = extractAiText(res);
       accumulateUsage(metrics, mapModel, res, text);
@@ -3826,8 +3864,9 @@ async function embedText(ai: Ai, text: string, aiCircuit: FleetAiCircuit): Promi
   // forensic value, high volume; see the RFC's call-site inventory)
   // context-admission: exempt (embedding input has a distinct vector contract,
   // not chat messages plus a requested completion to reserve)
-  const res = await aiCircuit.run(() =>
-    ai.run(EMBED_MODEL as Parameters<typeof ai.run>[0], { text: [text] }),
+  const res = await aiCircuit.run(
+    () => ai.run(EMBED_MODEL as Parameters<typeof ai.run>[0], { text: [text] }),
+    { ship: 'embedding', model: EMBED_MODEL, maxInputTokens: MODEL_CONTEXT_TOKENS[EMBED_MODEL], maxOutputTokens: 0 },
   );
   const data = (res as { data?: unknown }).data;
   if (Array.isArray(data) && Array.isArray(data[0])) return data[0] as number[];
@@ -4097,7 +4136,7 @@ async function runReduceGroup(
           model as Parameters<typeof env.AI.run>[0],
           request,
           aiOptions(env, ship.name, capture),
-        ),
+        ), { model, maxInputTokens: MODEL_CONTEXT_TOKENS[model] - MAX_OUTPUT_TOKENS, maxOutputTokens: MAX_OUTPUT_TOKENS },
       ),
   );
   const { text } = extractAiText(res);
@@ -4208,7 +4247,7 @@ async function shipRepairCall(
         model as Parameters<typeof env.AI.run>[0],
         request,
         aiOptions(env, ship.name, capture),
-      ),
+      ), { model, maxInputTokens: MODEL_CONTEXT_TOKENS[model] - MAX_OUTPUT_TOKENS, maxOutputTokens: MAX_OUTPUT_TOKENS },
     ),
   );
   const { text } = extractAiText(res);

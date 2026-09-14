@@ -37,6 +37,10 @@ export interface ManagedShipSpend {
   providerCostMicrousd: number;
 }
 
+export interface ManagedRunLease { runId: string; owner: string; fence: number; expiresAt: number }
+export interface ManagedCallRequest { ship: string; model: string; maxInputTokens: number; maxOutputTokens: number }
+export interface ManagedCallAuthorization { authorizationId: string; authorizedCostMicrousd: number }
+
 export class ManagedBillingError extends Error {
   constructor(
     public readonly code:
@@ -54,6 +58,121 @@ export class ManagedBillingError extends Error {
   ) {
     super(message, options);
     this.name = 'ManagedBillingError';
+  }
+}
+
+/** Acquire the sole execution fence for a delivery. A live foreign lease denies before AI. */
+export async function acquireManagedRunLease(
+  dbBinding: D1Database | undefined, runId: string, owner: string, now: number, expiresAt: number,
+): Promise<ManagedRunLease> {
+  const db = requireDb(dbBinding);
+  try {
+    const row = await db.prepare(
+      `UPDATE fleet_run_reservations SET lease_owner = ?, lease_fence = lease_fence + 1,
+              lease_expires_at = ?, updated_at = ?
+        WHERE run_id = ? AND state = 'reserved'
+          AND (lease_owner IS NULL OR lease_expires_at <= ?)
+       RETURNING run_id, lease_owner, lease_fence, lease_expires_at`,
+    ).bind(owner, expiresAt, now, runId, now).first<Record<string, unknown>>();
+    if (!row) throw new ManagedBillingError('reservation-conflict', `run ${runId} already has a live executor`);
+    return { runId, owner: String(row.lease_owner), fence: integer(row.lease_fence, 'lease fence', 1), expiresAt: integer(row.lease_expires_at, 'lease expiry', 1) };
+  } catch (error) {
+    if (error instanceof ManagedBillingError) throw error;
+    throw new ManagedBillingError('accounting-failed', `managed lease failed for ${runId}`, { cause: error });
+  }
+}
+
+/** Yield after a durable checkpoint so the next continuation can take a new fence. */
+export async function yieldManagedRunLease(dbBinding: D1Database | undefined, lease: ManagedRunLease, now: number): Promise<void> {
+  const db = requireDb(dbBinding);
+  const result = await db.prepare(
+    `UPDATE fleet_run_reservations SET lease_owner=NULL, lease_expires_at=NULL, updated_at=?
+      WHERE run_id=? AND state='reserved' AND lease_owner=? AND lease_fence=?`,
+  ).bind(now, lease.runId, lease.owner, lease.fence).run();
+  if (!result.success) throw new ManagedBillingError('accounting-failed', `managed lease yield failed for ${lease.runId}`);
+}
+
+/**
+ * Reap only expired fences. Calls authorized by a crashed executor are settled
+ * at actual-or-worst-case cost; a reservation with no calls is released.
+ * Every mutation compares the observed fence and expiry so a renewed owner wins.
+ */
+export async function sweepStaleManagedReservations(dbBinding: D1Database | undefined, now: number, limit = 100): Promise<number> {
+  const db = requireDb(dbBinding);
+  const stale = await db.prepare(
+    `SELECT run_id, lease_fence, lease_expires_at,
+            EXISTS(SELECT 1 FROM fleet_run_call_authorizations a WHERE a.run_id=r.run_id) AS has_calls
+       FROM fleet_run_reservations r WHERE state='reserved' AND lease_expires_at<=?
+       ORDER BY lease_expires_at LIMIT ?`,
+  ).bind(now, limit).all<Record<string, unknown>>();
+  let changed = 0;
+  for (const row of stale.results ?? []) {
+    const runId=String(row.run_id); const fence=integer(row.lease_fence,'lease fence'); const expiry=integer(row.lease_expires_at,'lease expiry');
+    const state = Number(row.has_calls) ? 'settled' : 'released';
+    const result = await db.prepare(
+      state === 'settled'
+        ? `UPDATE fleet_run_reservations SET state='settled', provider_cost_microusd=COALESCE((SELECT SUM(COALESCE(actual_cost_microusd,authorized_cost_microusd)) FROM fleet_run_call_authorizations WHERE run_id=?),0), settled_at=?,updated_at=? WHERE run_id=? AND state='reserved' AND lease_fence=? AND lease_expires_at=?`
+        : `UPDATE fleet_run_reservations SET state='released',released_at=?,updated_at=? WHERE run_id=? AND state='reserved' AND lease_fence=? AND lease_expires_at=? AND NOT EXISTS(SELECT 1 FROM fleet_run_call_authorizations WHERE run_id=?)`,
+    ).bind(...(state === 'settled' ? [runId,now,now,runId,fence,expiry] : [now,now,runId,fence,expiry,runId])).run();
+    changed += Number(result.meta?.changes ?? 0);
+  }
+  return changed;
+}
+
+/** Reserve worst-case provider cost atomically before the provider thunk starts. */
+export async function authorizeManagedAiCall(
+  dbBinding: D1Database | undefined, lease: ManagedRunLease, attemptId: string,
+  request: ManagedCallRequest, authorizedCostMicrousd: number, now: number,
+): Promise<ManagedCallAuthorization> {
+  const db = requireDb(dbBinding);
+  integer(authorizedCostMicrousd, 'authorized provider cost');
+  try {
+    const row = await db.prepare(
+      `INSERT INTO fleet_run_call_authorizations
+        (authorization_id, run_id, lease_fence, call_sequence, attempt_id, ship, model,
+         max_input_tokens, max_output_tokens, authorized_cost_microusd, state, created_at)
+       SELECT ? || ':' || ? || ':' || (COALESCE(MAX(a.call_sequence),0)+1), ?, ?,
+              COALESCE(MAX(a.call_sequence),0)+1, ?, ?, ?, ?, ?, ?, 'authorized', ?
+         FROM fleet_run_reservations r
+         LEFT JOIN fleet_run_call_authorizations a ON a.run_id=r.run_id
+        WHERE r.run_id=? AND r.state='reserved' AND r.lease_owner=?
+          AND r.lease_fence=? AND r.lease_expires_at>?
+        GROUP BY r.run_id, r.provider_cost_cap_microusd
+       HAVING COALESCE(SUM(COALESCE(a.actual_cost_microusd,a.authorized_cost_microusd)),0)+?
+              <= r.provider_cost_cap_microusd
+       RETURNING authorization_id, authorized_cost_microusd`,
+    ).bind(lease.runId, lease.fence, lease.runId, lease.fence, attemptId, request.ship, request.model,
+      request.maxInputTokens, request.maxOutputTokens, authorizedCostMicrousd, now,
+      lease.runId, lease.owner, lease.fence, now, authorizedCostMicrousd).first<Record<string, unknown>>();
+    if (!row) throw new ManagedBillingError('margin-exceeded', `run ${lease.runId} has no safe provider-cost capacity`);
+    return { authorizationId: String(row.authorization_id), authorizedCostMicrousd: integer(row.authorized_cost_microusd, 'authorized provider cost') };
+  } catch (error) {
+    if (error instanceof ManagedBillingError) throw error;
+    throw new ManagedBillingError('accounting-failed', `AI call authorization failed for ${lease.runId}`, { cause: error });
+  }
+}
+
+/** Reconcile once. Missing usage or any thrown/timeout call consumes the authorized worst case. */
+export async function reconcileManagedAiCall(
+  dbBinding: D1Database | undefined, authorization: ManagedCallAuthorization,
+  actualCostMicrousd: number | null, outcome: 'reported'|'unreported'|'failed', now: number,
+): Promise<void> {
+  const db = requireDb(dbBinding);
+  const charged = actualCostMicrousd == null ? authorization.authorizedCostMicrousd : integer(actualCostMicrousd, 'actual provider cost');
+  if (charged > authorization.authorizedCostMicrousd) throw new ManagedBillingError('margin-exceeded', 'reported cost exceeded its preauthorization');
+  try {
+    await db.prepare(
+      `UPDATE fleet_run_call_authorizations SET actual_cost_microusd=?, state=?, reconciled_at=?
+        WHERE authorization_id=? AND state='authorized'`,
+    ).bind(charged, outcome, now, authorization.authorizationId).run();
+    const row = await db.prepare(`SELECT actual_cost_microusd,state FROM fleet_run_call_authorizations WHERE authorization_id=?`)
+      .bind(authorization.authorizationId).first<Record<string, unknown>>();
+    if (!row || Number(row.actual_cost_microusd) !== charged || String(row.state) !== outcome) {
+      throw new ManagedBillingError('spend-conflict', `call reconciliation conflict for ${authorization.authorizationId}`);
+    }
+  } catch (error) {
+    if (error instanceof ManagedBillingError) throw error;
+    throw new ManagedBillingError('accounting-failed', `call reconciliation failed for ${authorization.authorizationId}`, { cause: error });
   }
 }
 
@@ -251,11 +370,11 @@ export async function settleManagedRun(
       `UPDATE fleet_run_reservations
           SET state = 'settled',
               provider_cost_microusd = COALESCE((
-                SELECT SUM(provider_cost_microusd) FROM fleet_run_spend_v2 WHERE run_id = ?
+                SELECT SUM(COALESCE(actual_cost_microusd, authorized_cost_microusd)) FROM fleet_run_call_authorizations WHERE run_id = ?
               ), 0),
               settled_at = ?, updated_at = ?
         WHERE run_id = ? AND state = 'reserved'
-          AND COALESCE((SELECT SUM(provider_cost_microusd) FROM fleet_run_spend_v2 WHERE run_id = ?), 0)
+          AND COALESCE((SELECT SUM(COALESCE(actual_cost_microusd, authorized_cost_microusd)) FROM fleet_run_call_authorizations WHERE run_id = ?), 0)
               <= provider_cost_cap_microusd
        RETURNING run_id, installation_id, retail_microusd, provider_cost_cap_microusd,
                  provider_cost_microusd, state`,
@@ -289,7 +408,7 @@ export async function releaseManagedRun(
       `UPDATE fleet_run_reservations
           SET state = 'released', released_at = ?, updated_at = ?
         WHERE run_id = ? AND state = 'reserved'
-          AND NOT EXISTS (SELECT 1 FROM fleet_run_spend_v2 WHERE run_id = ?)
+          AND NOT EXISTS (SELECT 1 FROM fleet_run_call_authorizations WHERE run_id = ?)
        RETURNING run_id, installation_id, retail_microusd, provider_cost_cap_microusd,
                  provider_cost_microusd, state`,
     ).bind(releasedAt, releasedAt, runId, runId).first<Record<string, unknown>>();

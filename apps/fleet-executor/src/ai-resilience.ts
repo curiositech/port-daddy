@@ -116,6 +116,12 @@ export interface ShipAiCallStats {
   maxElapsedMs: number;
 }
 
+export interface FleetAiCallBudget { ship: string; model: string; maxInputTokens: number; maxOutputTokens: number }
+export interface FleetAiCallAuthorizer {
+  authorize(request: FleetAiCallBudget): Promise<unknown>;
+  reconcile(token: unknown, result: unknown | null, error: unknown | null): Promise<void>;
+}
+
 /**
  * Zeroed per-ship call aggregate.
  *
@@ -192,11 +198,13 @@ export class FleetAiCircuit {
   /** Per-ship call aggregates for this run, flushed once per ship at run end. */
   private readonly shipStats = new Map<string, ShipAiCallStats>();
 
-  constructor(private readonly deadlineMs = FLEET_AI_CALL_DEADLINE_MS) {
+  constructor(private readonly deadlineMs = FLEET_AI_CALL_DEADLINE_MS, private authorizer?: FleetAiCallAuthorizer) {
     if (!Number.isFinite(deadlineMs) || deadlineMs <= 0) {
       throw new RangeError('Fleet AI call deadline must be a positive finite number');
     }
   }
+
+  setAuthorizer(authorizer: FleetAiCallAuthorizer): void { this.authorizer = authorizer; }
 
   /**
    * Whether this run has already given up on the provider.
@@ -231,8 +239,11 @@ export class FleetAiCircuit {
    * @throws FleetAiDependencyError on timeout, provider failure, or an
    * already-open circuit.
    */
-  async run<T>(call: () => Promise<T>): Promise<T> {
+  async run<T>(call: () => Promise<T>, budget?: FleetAiCallBudget): Promise<T> {
     if (this.openedBy) throw this.openedBy;
+    if (this.authorizer && !budget) throw new Error('managed AI call is missing a preauthorization budget');
+    const authorization = this.authorizer ? await this.authorizer.authorize(budget!) : null;
+    let reconciled = false;
     let deadline: ReturnType<typeof setTimeout> | undefined;
     const startedAt = Date.now();
     try {
@@ -242,8 +253,17 @@ export class FleetAiCircuit {
           this.deadlineMs,
         );
       });
-      return await Promise.race([call(), timedOut]);
+      const result = await Promise.race([call(), timedOut]);
+      if (this.authorizer) {
+        reconciled = true;
+        await this.authorizer.reconcile(authorization, result, null);
+      }
+      return result;
     } catch (error) {
+      if (this.authorizer && authorization != null && !reconciled) {
+        reconciled = true;
+        await this.authorizer.reconcile(authorization, null, error);
+      }
       const wrapped = new FleetAiDependencyError(describeAiFailure(error, elapsedSince(startedAt)));
       if (wrapped.failure.retryable) this.openedBy = wrapped;
       throw wrapped;
@@ -268,12 +288,12 @@ export class FleetAiCircuit {
    * @param call - The Workers AI call to race against the deadline.
    * @returns Whatever {@link run} resolves to; rejects the same way.
    */
-  async runForShip<T>(ship: string, call: () => Promise<T>): Promise<T> {
+  async runForShip<T>(ship: string, call: () => Promise<T>, budget?: Omit<FleetAiCallBudget, 'ship'>): Promise<T> {
     const stats = this.shipStats.get(ship) ?? emptyShipAiCallStats(ship);
     this.shipStats.set(ship, stats);
     const startedAt = Date.now();
     try {
-      const result = await this.run(call);
+      const result = await this.run(call, budget ? { ship, ...budget } : undefined);
       stats.calls += 1;
       stats.okCalls += 1;
       const elapsed = elapsedSince(startedAt);
