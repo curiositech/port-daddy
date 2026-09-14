@@ -14,6 +14,7 @@ separate different trust questions.
 | Which component/process/language owns each authority? | `references/architecture-decisions.md` | Compact decision ledger derived from the volumes and focused skills. |
 | Which visual proves which relationship? | `references/diagram-atlas.md` | Diagram collection with proof and non-proof notes. |
 | What can be built and promoted in what order? | `references/delivery-and-proof.md` | Delivery stages, witness classes, and release gates. |
+| How are live hypertree execution, low-cost review, manager scrutiny, bounded rework, and three operator clients composed? | `references/hypertree-execution-observatory.md` | Static T0 execution contract and delivery design. It does not claim a running scheduler, reviewer, or UI. |
 
 ## Normative focused skills
 
@@ -36,6 +37,9 @@ These are peers, not excerpts hidden inside this skill:
 | `examples/drydock-resurrection-hypertree.json` | Thirty-node architecture and delivery graph | JSON Schema plus semantic validator |
 | `schemas/drydock-resurrection-hypertree.schema.json` | Closed structural contract | Draft 2020-12 validator |
 | `scripts/validate-drydock-resurrection-hypertree.mjs` | Uniqueness, DAG, critical path, launcher gates, digest | Node 22+ |
+| `examples/hypertree-execution.review-loop.json` | One intentionally subpar attempt followed by named rework and independently approved completion | JSON Schema plus semantic execution validator |
+| `schemas/hypertree-execution.schema.json` | Closed event, review, limit, and client-binding envelope | Draft 2020-12 validator |
+| `scripts/validate-hypertree-execution.mjs` | Exact plan binding, event chain, role separation, review budgets, bounded rework, and deterministic projection | Node 22+ |
 | `templates/architecture-packet.md` | Reviewer-facing output skeleton | Human and skill audit |
 | `tests/activation.md` | Routing boundary | Five positive and five negative cases |
 

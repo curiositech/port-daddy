@@ -33,15 +33,19 @@ const required = [
   "references/architecture-decisions.md",
   "references/diagram-atlas.md",
   "references/delivery-and-proof.md",
+  "references/hypertree-execution-observatory.md",
   "references/controlled-agent-simulation.md",
   "references/agent-lifecycle-and-operator-control.md",
   "references/resurrection-capacity-and-context-control.md",
   "examples/INDEX.md",
   "examples/drydock-resurrection-hypertree.json",
+  "examples/hypertree-execution.review-loop.json",
   "schemas/drydock-resurrection-hypertree.schema.json",
+  "schemas/hypertree-execution.schema.json",
   "scripts/INDEX.md",
   "scripts/audit-drydock-program-skill.mjs",
   "scripts/validate-drydock-resurrection-hypertree.mjs",
+  "scripts/validate-hypertree-execution.mjs",
   "templates/architecture-packet.md",
   "tests/activation.md",
 ];
@@ -83,6 +87,20 @@ for (let index = 1; index <= 17; index += 1) {
 requireValue((atlas.match(/\*\*Proves visually:\*\*/g) ?? []).length === 17, "every diagram needs a proof statement");
 requireValue((atlas.match(/\*\*Does not prove:\*\*/g) ?? []).length === 17, "every diagram needs a non-proof statement");
 
+const observatory = readFileSync(join(skillRoot, "references/hypertree-execution-observatory.md"), "utf8");
+requireValue((observatory.match(/^```mermaid\s*$/gm) ?? []).length >= 3, "hypertree observatory needs at least three decision diagrams");
+for (const term of [
+  "lowest-capable-reviewed-tier",
+  "Producer/reviewer/manager",
+  "bounded-workflow",
+  "append-only-event-projection",
+  "HTML",
+  "Swift",
+  "Rust",
+]) {
+  requireValue(observatory.includes(term), `hypertree observatory omits ${term}`);
+}
+
 const activation = readFileSync(join(skillRoot, "tests/activation.md"), "utf8");
 const positive = activation.match(/## Positive:[\s\S]*?(?=\n## Negative:)/)?.[0] ?? "";
 const negative = activation.match(/## Negative:[\s\S]*/)?.[0] ?? "";
@@ -105,6 +123,12 @@ const semantic = spawnSync(process.execPath, [
   join(skillRoot, "examples/drydock-resurrection-hypertree.json"),
 ], { encoding: "utf8" });
 requireValue(semantic.status === 0, `hypertree semantic validator failed: ${semantic.stderr || semantic.stdout}`);
+
+const executionSemantic = spawnSync(process.execPath, [
+  join(skillRoot, "scripts/validate-hypertree-execution.mjs"),
+  join(skillRoot, "examples/hypertree-execution.review-loop.json"),
+], { encoding: "utf8" });
+requireValue(executionSemantic.status === 0, `hypertree execution semantic validator failed: ${executionSemantic.stderr || executionSemantic.stdout}`);
 
 const result = {
   valid: errors.length === 0,
