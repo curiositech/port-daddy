@@ -15,7 +15,7 @@ Checks (hard, fail the build unless noted):
     caption's bolded lead sentence) or inside a title-styled node/pgfplots
     axis title (heuristic, not a full parse -- see find_title_texts()).
 
-  Numbered rules (P10-P23), evaluated against the fragment with LaTeX
+  Numbered rules (P10-P24), evaluated against the fragment with LaTeX
   comments stripped (an unescaped `%` to end of line) so a `\tiny` or
   `\resizebox` mentioned only in a comment never fires:
   - P10 tiny        (FAIL) any `\tiny` in the fragment.
@@ -62,6 +62,18 @@ Checks (hard, fail the build unless noted):
                      An EDITION may substitute a face, in one command in one
                      file; a fragment may not. The identifier face is asked
                      for by role (`pd mono label`), not by `\ttfamily`.
+  - P24 body-font   (FAIL) a family-selection command in a node's TEXT rather
+                     than in its `font=`: `\normalfont`, `\rmfamily`,
+                     `\sffamily`, `\ttfamily`. P21 watches `font=`; this
+                     watches the other door, and `\normalfont` is the one that
+                     matters because it resets to the DOCUMENT's family, not the
+                     figure's. Three fragments were using it to get an
+                     unemphasised second line inside a bold `pd row label`, and
+                     in the Book that set the line in Palatino inside a grotesk
+                     drawing. The role for a gloss line is `\pdfigsub`, which
+                     steps down by slope and weight and leaves the family alone.
+                     `\mathrm` and `\text` are NOT flagged: they are math, and
+                     math takes the text roman whatever the node's face is.
   - P23 dotted      (FAIL) a `dotted` / `densely dotted` / `loosely dotted`
                      key, in a fragment or in a style file. Those three derive
                      their on-length from `\pgflinewidth`, read when the KEY is
@@ -180,7 +192,7 @@ STYLE_DEF_RE = re.compile(r"([A-Za-z][A-Za-z0-9 _-]*?)/\.style\s*=\s*\{")
 # above. Kept in one place so the summary/"counts per id" machinery and the
 # markdown report can iterate them without hardcoding the list twice.
 RULE_IDS = ["P10", "P11", "P12", "P13", "P14",
-            "P18", "P19", "P20", "P21", "P22", "P23"]
+            "P18", "P19", "P20", "P21", "P22", "P23", "P24"]
 
 # Rule numbers claimed by work that is not in this file.
 #
@@ -264,11 +276,29 @@ FAMILY_COMMAND_RE = re.compile(
 FONT_KEY_RE = re.compile(r"\bfont\s*=\s*")
 
 
-def is_style_definition(path):
-    """True for the files that DEFINE the house styles -- the typographic-law
-    rules (P18-P20) do not police the one place the law lives."""
+def is_apparatus(path):
+    """True for a file under figures/ that is NOT a drawing.
+
+    Not everything in a figures directory is a figure. The Book keeps its
+    apparatus there too -- the figure language and its per-edition overrides,
+    the palette, the pedagogy environments, the citation shortforms, the
+    chapter map -- and all of them are named `pd-*`, because that is this
+    repository's convention for "loaded by the preamble, not \input as a
+    picture". Matching the PREFIX rather than listing today's five stems is the
+    same lesson compile_fragment.sh's exit 3 encodes: a list of names is
+    defeated by the next name, and `pd-pedagogy.tex` is how this one was --
+    it uses `\normalfont` inside an environment definition, which is correct
+    there and which P24 flagged because this function had never heard of it.
+    """
     stem = Path(path).stem
+    if stem.startswith("pd-"):
+        return True
     return any(stem == s or stem.startswith(s + "-") for s in STYLE_DEFINITION_STEMS)
+
+
+# The old name, kept because the law rules read better with it: P18-P20 do not
+# police the one place the law lives.
+is_style_definition = is_apparatus
 
 
 def _font_value_at(text, start):
@@ -819,6 +849,53 @@ def check_figmath(text):
 # The three keys whose on-length is `\pgflinewidth` rather than a length.
 # `dashed`, `densely dashed` and `loosely dashed` are NOT here: those are
 # absolute (on 3pt off 3pt and relatives) and cannot drift when a width moves.
+# A family-selection command as it appears in a node's TEXT. `\mathrm` and
+# `\text` are deliberately absent: those are math, and TeX sets math roman in
+# the text family whatever face the node carries -- flagging them would be
+# flagging the typesetter, not the author.
+BODY_FONT_RE = re.compile(r"\\(normalfont|rmfamily|sffamily|ttfamily)\b")
+
+
+def check_body_font(text):
+    """P24: a family-selection command inside node text.
+
+    P21 watches `font=`. This watches the other door, and it is the one that was
+    actually open: three fragments wrote
+    `{the 6-cycle\\\\\\normalfont the disagreement closes a cycle}` inside a
+    `pd row label` to get an unemphasised second line. `\\normalfont` resets to
+    the DOCUMENT's family -- Palatino in the Book -- so the second line printed
+    in the body serif inside a grotesk drawing, and the figure disagreed with
+    itself. No `font=` rule could see it, and figcheck T10 can see it on the page
+    but cannot always separate it from math's own use of the text roman. Here it
+    is unambiguous.
+
+    The role for a gloss line is `\\pdfigsub`: it steps down by slope and weight
+    and touches neither family nor ink, which is what lets it sit on a reversed
+    node without vanishing.
+    """
+    findings = []
+    stripped = strip_comments(text)
+    for m in BODY_FONT_RE.finditer(stripped):
+        line = stripped.count("\n", 0, m.start()) + 1
+        cmd = m.group(1)
+        findings.append(
+            {
+                "check": "body-font",
+                "id": "P24",
+                "severity": "fail",
+                "line": line,
+                "message": f"`\\{cmd}` in node text selects a family directly. "
+                + ("`\\normalfont` resets to the DOCUMENT's family, so in the Book this "
+                   "line prints in the body serif inside a grotesk drawing. "
+                   if cmd == "normalfont" else
+                   "The figure's face is the edition's, set in one command in one file. ")
+                + "For an unemphasised gloss line inside a node take `\\pdfigsub`; for an "
+                  "identifier take `pd mono label`.",
+            }
+        )
+    return findings
+
+
 DOTTED_KEY_RE = re.compile(r"\b(densely\s+dotted|loosely\s+dotted|dotted)\b")
 
 
@@ -1054,6 +1131,7 @@ def run_precheck(path, corpus="auto", extra_style_defs=None, extra_colors=None):
         findings += check_style_font_override(text, base_names)
         findings += check_node_font_size(text)
         findings += check_node_font_family(text)
+        findings += check_body_font(text)
         findings += check_figmath(text)
         findings += check_hard_ink(text)
     findings += check_colors(text, base_colors, known_names)

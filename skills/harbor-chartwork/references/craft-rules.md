@@ -141,6 +141,10 @@ Further rules the prechecker applies to the source:
   See §"What the 7 pt floor is a floor on" below for what it is and is not for.
 - A `dotted`, `densely dotted` or `loosely dotted` key anywhere in a fragment or a
   style file is an error (P23). See §"A dash is stated in points" below.
+- A family-selection command in a node's **text** — `\normalfont`, `\rmfamily`,
+  `\sffamily`, `\ttfamily` — is an error (P24). P21 watches `font=`; this watches
+  the other door. `\mathrm` and `\text` are not flagged: they are math, and math
+  takes the text roman whatever face the node carries.
 - `\resizebox{f\textwidth}` with f < 0.85 is a warning; prefer drawing to the measure
   (`x=` scaled so the picture is at most `\linewidth`) and no `\resizebox` at all.
 - Colours are the `hh*` house set only (`hhsand hhsanddeep hhebony hhink hhcobalt
@@ -165,8 +169,20 @@ it in one command in one file, so the substitution is a decision on the record.
 The only family a fragment may ask for is the identifier one, and it asks by role
 (`pd mono label`), never by `\ttfamily`.
 
+`\normalfont` deserves its own line, because it is the escape that actually
+happened. Three fragments wrote `{the 6-cycle\\\normalfont the disagreement closes a
+cycle}` inside a bold `pd row label`, to get an unemphasised second line.
+`\normalfont` resets to the **document's** family — Palatino in the Book — so that
+line printed in the body serif inside a grotesk drawing, and the figure disagreed
+with *itself*. No `font=` rule could see it. The role for a gloss line is
+`\pdfigsub`, which steps down by slope and weight and leaves family and ink alone.
+
 Check it on a rendered page with a paragraph above the figure, not by reading the
-style file.
+style file — and **figcheck's T10** now checks it on the page: more than one text
+family inside the drawing (caption, identifier face and math excluded) is a hard
+finding. T10 is honest about its limit: it cannot always separate a node that
+reset its own family from TeX's own use of the text roman for `\mathrm{ok}` and
+`$k=3$`, so it reports rather than gates, and P24 is what gates.
 
 ### Identifiers get one spelling
 
@@ -323,7 +339,7 @@ nothing checks.
 Rendered checks (`figcheck.py`): T1 minimum text 7 pt · T2 text escaping its box ·
 T3 pairwise overlap > 5 % · T4 line through text · T5 ink outside the mediabox ·
 T6 dead canvas · T7 width over `\textwidth` · T8 ink below the picture inside the figure ·
-T9 a dash too small to resolve at 150 dpi.
+T9 a dash too small to resolve at 150 dpi · T10 more than one typeface in the drawing.
 
 ### What the screen rules give us, and what they do not
 
