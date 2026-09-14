@@ -1,0 +1,95 @@
+% Where the succession price binds. The boundary is the theorem's own closed
+% form D* = eta*K/(1 - eta*K) (Thm. succession-price); the plane is the pair the
+% criterion is stated over: eta*K on x, the mortality-to-succession ratio xi/eta
+% on y. Both marked points are the chapter's worked instance (lambda=1, c=4
+% servers at mu_g=1.2, A=0.2, w=1, eta=0.25, W_pool=0.8362, K=1.0362), so
+% eta*K = 0.2591 for both: the boundary value D* = 0.3496 and the script's own
+% canary at xi/eta = 2.0
+% [verified, skills/harbor-results/scripts/b8_specialization.py].
+%
+% Per-claim verification, against rendered PDF geometry at 1.0x / 150 dpi under
+% BOTH preambles (chapter: harbor-economy-whitepaper.pdf p.9; Book:
+% coordination-papers-mega-volume.pdf p.302). Settled from the script that
+% executes, not from the prose that quotes it:
+%   - eta*K = 0.25 * 1.0362 = 0.2590586. The DISPLAYED labels keep the
+%     chapter's four places (0.2591, 0.3496); the PLOTTED coordinates carry
+%     five, because 0.2591/(1-0.2591) = 0.34971 and would round to 0.3497,
+%     contradicting the script's own D* = 0.3496. At 0.25906 the mark sits on
+%     the drawn curve AND agrees with its label. The residual display gap is
+%     0.02pt, below one device pixel at 150 dpi.
+%   - the mark was previously plotted at y = 0.3497 while labelled 0.3496 --
+%     ink and label disagreeing by one digit. Now both read 0.3496.
+%   - WHAT THE SCRIPT CHECKS WHERE. b8_specialization.py's mu_s = 1e8
+%     assertion runs at xi = 1.5*xi*, i.e. xi/eta = 0.5245 -- NOT at the
+%     canary. The xi/eta = 2.0 canary (section 6) runs at mu_s = 5.0. The old
+%     label and caption attached the 1e8 result to the canary; that conflated
+%     two different checks and is corrected. What actually holds at the canary
+%     is the theorem's own floor, W_inf = xi/(eta*(xi+eta)) = 0.5/(0.25*0.75)
+%     = 2.6667 > K = 1.0362 -- hand-checkable, and the real reason no finite
+%     premium rescues the specialist there.
+%   - 2.0 / 0.349634 = 5.7203, so "5.7 times higher up" rather than the vaguer
+%     "nearly six times".
+%   - `pd guide` draws the vertical read, and the caption's "that same vertical
+%     read" DEPENDS on that ink arriving. Measured in the committed PDFs its
+%     dash array is [0.44832 0.99628] -- 0.45pt on, 1.0pt off. At 150 dpi every
+%     sampled pixel along the line is darker than paper (deepest contrast 40%
+%     of paper in the chapter edition, 35% in the Book), so the line ARRIVES --
+%     but as a continuous stroke: the dottedness does not survive, and the
+%     caption therefore does not claim it. This audit is against `pd guide` as
+%     defined in figures/pd-figure-language.tex TODAY; if the in-flight
+%     figure-typography work changes that style, re-run this check.
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure]
+\begin{axis}[
+  width=\linewidth, height=0.60\linewidth,
+  axis lines=left,
+  axis line style={pd hairline},
+  xmin=0, xmax=0.75, ymin=0, ymax=2.45,
+  xtick={0,0.2,0.4,0.6},
+  ytick={0,0.5,1,1.5,2},
+  tick style={pd tick},
+  tick label style={font=\footnotesize},
+  xlabel={$\eta K$: succession rate $\times$ the pool's cost line},
+  ylabel={$\xi/\eta$: deaths per successor spin-up},
+  label style={font=\footnotesize},
+  clip=true, axis on top,
+]
+  \addplot[pd focus rule,domain=0:0.7101,samples=160] {x/(1-x)};
+
+  % the worked instance: one vertical read at eta*K = 0.25906 (displayed to the
+  % chapter's four places; see the header note on why the plot carries five)
+  \draw[pd guide] (axis cs:0.25906,0) -- (axis cs:0.25906,2.06);
+  \node[pd axis label,anchor=south west] at (axis cs:0.266,0.04)
+    {$\eta K=0.2591$};
+
+  \node[pd focus datum] at (axis cs:0.25906,0.34962) {};
+  \node[pd direct label,anchor=south east] at (axis cs:0.246,0.42)
+    {$D^{\star}=0.3496$};
+
+  \node[pd caution datum] at (axis cs:0.25906,2.0) {};
+  \node[pd direct label,anchor=west,align=left,text width=3.3cm]
+    at (axis cs:0.281,2.03)
+    {the canary, $\xi/\eta=2.0$: the floor $W_{\infty}=2.67$ already
+     exceeds $K=1.04$};
+
+  \node[pd direct label,anchor=north west,align=left]
+    at (axis cs:0.022,2.38) {above the curve:\\the pool wins at\\every skill premium};
+  \node[pd direct label,anchor=north east,align=right]
+    at (axis cs:0.735,0.72) {below: enough skill\\still buys the specialist};
+\end{axis}
+\end{tikzpicture}
+\caption{The succession price as a boundary in the plane the criterion is
+actually stated over. Below the curve a high enough skill premium can still
+justify renting one sole specialist; above it the pool wins at \emph{every}
+finite premium, however large. The chapter's worked instance puts
+$\eta K=0.2591$, so the boundary sits at $D^{\star}=0.3496$ --- and the
+script's own canary, at $\xi/\eta=2.0$, sits $5.7$ times higher up that same
+vertical read. What makes the specialist unrescuable there is the theorem's
+floor rather than any premium: $W_{\infty}=\xi/(\eta(\xi+\eta))=2.67$ already
+exceeds the pool's cost line $K=1.04$, and $W_{\infty}$ is what infinite skill
+buys. The curve steepens without limit as $\eta K\to1$; past $\eta K=1$ the
+criterion does not apply rather than being satisfied
+[verified, \texttt{b8\_specialization.py}].}
+\label{fig:he-succession-price}
+\end{figure}
