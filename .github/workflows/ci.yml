@@ -72,7 +72,7 @@ jobs:
     # AST-based (the TypeScript compiler API), not text/regex — see
     # scripts/check-relay-decode-guard.mjs for why a text search would miss
     # the bare-reference shape.
-
+    #
     # Deliberately NOT path-gated on apps/relay/** the way porthole-recordings
     # is gated on its own inputs. This guard's own history is the reason: it
     # once scanned one file, and widening its scope is what surfaced a real
