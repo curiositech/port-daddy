@@ -9,9 +9,9 @@
 
   \foreach \y/\peer/\wake in {2.4/A/-4.5,1.35/B/-1.4,.3/C/2.0,-.75/D/-.6,-1.8/E/2.0} {
     \node[pd row label,anchor=east] at (\xzero-.32,\y) {daemon \peer};
-    \draw[draw=hhamber,line width=2.6pt,line cap=round] (\xzero,\y) -- (\wake,\y);
+    \draw[pd caution rule,line width=2.6pt,line cap=round] (\xzero,\y) -- (\wake,\y);
     \draw[draw=hhpaper,line width=1pt,line cap=round] (\xzero,\y) -- (\wake,\y);
-    \draw[draw=hhteal,line width=2.6pt,line cap=round] (\wake,\y) -- (\xend,\y);
+    \draw[pd focus rule,line width=2.6pt,line cap=round] (\wake,\y) -- (\xend,\y);
     \node[pd focus datum,minimum size=4.8pt,inner sep=0pt] at (\wake,\y) {};
   }
   \draw[pd focus rule]

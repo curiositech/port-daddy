@@ -10,8 +10,8 @@
   % override sets text=hhpaper for the ordinary case of a solid, saturated
   % fill, and that inherited text otherwise survives this later fill override
   % untouched (contrast `spent` below, which already restates its own text=).
-  live/.style={pd state,circle,minimum size=7.5mm,inner sep=0pt,font=\footnotesize,fill=hhteal!24,draw=hhteal,text=hhink},
-  spent/.style={pd state,circle,minimum size=7.5mm,inner sep=0pt,font=\footnotesize,fill=white,draw=hhgray,text=hhgray}]
+  live/.style={pd state,pd focus fill,circle,minimum size=7.5mm,inner sep=0pt},
+  spent/.style={pd state,circle,minimum size=7.5mm,inner sep=0pt,fill=hhpaper,draw=hhgray,text=hhink!80!hhgray}]
   % panel A: budget-only, refuted
   \node[pd row label,anchor=south,align=center,text width=3.4cm] at (0,2.55) {budget-only\\\normalfont refuted};
   \node[live] (a0) at (0,1.6) {1};

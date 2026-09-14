@@ -8,8 +8,8 @@
 
   % Role track: the specification is stable while fillers are unrelated.
   \draw[pd hairline,line width=2.4pt] (-5.6,1.45) -- (6.4,1.45);
-  \node[pd direct label,anchor=east] at (-5.85,1.45)
-    {reviewer role\\[-1pt]{\tiny obligation + capability + authority}};
+  \node[pd direct label,anchor=east,text width=2.7cm,align=right] at (-5.85,1.45)
+    {reviewer role\\[-1pt]{\pdfigsub obligation + capability + authority}};
   \foreach \x/\body in {-4.25/A,-1.35/B,1.55/C,4.45/D} {
     \draw[pd rule] (\x,1.08) -- (\x,1.82);
     \node[pd actor,circle,minimum size=7.5mm,inner sep=0pt] at (\x,1.45) {\body};
@@ -19,8 +19,8 @@
 
   % Person track: one identity crosses role boundaries and accumulates witnesses.
   \draw[pd focus rule,line width=2.0pt] (-5.6,-1.25) -- (6.4,-1.25);
-  \node[pd direct label,anchor=east,text=hhteal] at (-5.85,-1.25)
-    {$\kappa_7$\\[-1pt]{\tiny non-forgeable identity}};
+  \node[pd direct label,anchor=east,text=hhteal,text width=2.7cm,align=right] at (-5.85,-1.25)
+    {$\kappa_7$\\[-1pt]{\pdfigsub non-forgeable identity}};
   \foreach \xa/\xb/\role in {-5.6/-2.7/navigator,-2.7/.25/cartographer,.25/3.25/reviewer,3.25/6.4/lookout} {
     \draw[pd guide] (\xa,-1.82) -- (\xa,-.68);
     \node[pd direct label,anchor=south] at ({(\xa+\xb)/2},-.68) {\role};
