@@ -38,8 +38,17 @@ const UI_RE = /\.(tsx|jsx|html|css|scss|swift)$|(^|\/)(website|website-v2|ui|vie
 const DATA_RE = /\.(sql)$|(^|\/)(migrations|schemas?)\//i;
 
 /** Deterministic, provider-neutral PR profile consumed by every ship policy. */
-export function classifyPullRequest(changedPaths: string[], diffBytes = 0): PullRequestProfile {
+export function classifyPullRequest(
+  changedPaths: string[],
+  diffBytes = 0,
+  diffText = '',
+): PullRequestProfile {
   const has = (re: RegExp) => changedPaths.some(path => re.test(path));
+  // Bound classification work and inspect only changed lines. This is safety
+  // routing evidence, not semantic retrieval or a model-authored decision.
+  const changedContent = diffText.slice(0, 200_000).split('\n')
+    .filter(line => /^[+-](?!\+\+\+|---)/.test(line)).join('\n');
+  const contentHas = (re: RegExp) => re.test(changedContent);
   const prClass = isDocsOnly(changedPaths) ? 'documentation'
     : has(DEPENDENCY_RE) ? 'dependencies'
       : has(SECURITY_SURFACE_RE) ? 'security'
@@ -48,16 +57,19 @@ export function classifyPullRequest(changedPaths: string[], diffBytes = 0): Pull
             : has(UI_RE) ? 'ui'
               : changedPaths.length ? 'code' : 'unknown';
   const riskSignals: PullRequestProfile['riskSignals'] = [];
-  if (has(/authenticat|login|oauth|oidc|session/i)) riskSignals.push('authentication');
-  if (has(/authoriz|permission|capabilit|policy|grant/i)) riskSignals.push('authorization');
-  if (has(/secret|token|credential|vault|keychain/i)) riskSignals.push('secrets');
+  if (has(/authenticat|login|oauth|oidc|session/i) || contentHas(/\b(authenticate|authentication|login|oauth|oidc|jwt|password)\b/i)) riskSignals.push('authentication');
+  if (has(/authoriz|permission|capabilit|policy|grant/i) || contentHas(/\b(authorize|authorization|permission|capability|access[_-]?control|role[_-]?binding)\b/i)) riskSignals.push('authorization');
+  if (has(/secret|token|credential|vault|keychain/i) || contentHas(/\b(secret|credential|api[_-]?key|private[_-]?key|access[_-]?token)\b/i)) riskSignals.push('secrets');
   if (has(/crypto|encrypt|decrypt|sign|verify|hash|hpke/i)) riskSignals.push('cryptography');
-  if (has(/bill|cost|spend|credit|ledger|price/i)) riskSignals.push('billing');
-  if (has(/tenant|account|installation|repository.*scope/i)) riskSignals.push('tenant-boundary');
-  if (has(/migration|\.sql$/i)) riskSignals.push('schema-migration');
+  if (has(/bill|cost|spend|credit|ledger|price/i) || contentHas(/\b(billing|invoice|charge|price|cost[_-]?microusd|spend[_-]?cap|credit[_-]?balance)\b/i)) riskSignals.push('billing');
+  if (has(/tenant|account|installation|repository.*scope/i) || contentHas(/\b(tenant[_-]?id|account[_-]?id|installation[_-]?id|repository[_-]?id|cross[_-]?tenant)\b/i)) riskSignals.push('tenant-boundary');
+  if (has(/migration|\.sql$/i) || contentHas(/\b(ALTER\s+TABLE|CREATE\s+TABLE|DROP\s+TABLE|schema[_-]?migration)\b/i)) riskSignals.push('schema-migration');
   if (has(/deploy|workflow|wrangler|Dockerfile/i)) riskSignals.push('deployment');
   if (changedPaths.some(path => !isReviewableForBugs(path))) riskSignals.push('generated-code');
+  if (has(/privacy|retention|redact|disclosure/i) || contentHas(/\b(privacy|retention|redact(?:ion)?|personally[_ -]?identifiable|disclosure)\b/i)) riskSignals.push('privacy');
+  if (has(/database|storage|sqlite|d1|r2|kv|persist/i) || contentHas(/\b(database|sqlite|durable[_ -]?object|object[_ -]?storage|persist(?:ence|ed)?|\bD1\b|\bR2\b|\bKV\b)\b/i)) riskSignals.push('storage');
   if (diffBytes > 250_000 || changedPaths.length > 100) riskSignals.push('large-diff');
+  if (prClass === 'code' && riskSignals.length === 0) riskSignals.push('security-uncertain');
   return { prClass, riskSignals: [...new Set(riskSignals)] };
 }
 
@@ -138,11 +150,12 @@ export function decideShipGate(
   _docsOnly: boolean,
   diffBytes = 0,
   inventoryIncomplete = false,
+  diffText = '',
 ): GateDecision {
   if (!ship.participationValid) {
     return { run: false, disposition: 'ineligible', reason: 'invalid or unauthorized participation policy' };
   }
-  const decision = decideShipParticipation(ship.participation, classifyPullRequest(changedPaths, diffBytes));
+  const decision = decideShipParticipation(ship.participation, classifyPullRequest(changedPaths, diffBytes, diffText));
   if (inventoryIncomplete && decision.disposition !== 'required' && decision.disposition !== 'advisory') {
     const declared = [ship.participation.default, ...ship.participation.rules.map(rule => rule.disposition)];
     const conservative = declared.includes('required') ? 'required'

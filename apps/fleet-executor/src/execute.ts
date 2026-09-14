@@ -953,6 +953,7 @@ async function recordShipsConfigInTranscript(
       participation: ship.participation,
       participationValid: ship.participationValid,
       execution: ship.execution,
+      executionConfigState: ship.executionConfigState,
     });
   }
 }
@@ -2377,7 +2378,7 @@ export async function executeFleet(
   // configured cloud ship and mark the final result partial/neutral instead of
   // allowing an all-gated roster to silently become a green check.
   const surfaceGate = (candidate: ShipConfig) =>
-    decideShipGate(candidate, changedPaths, docsOnly, prCtx.diffBytes, sourceCoverageReason != null);
+    decideShipGate(candidate, changedPaths, docsOnly, prCtx.diffBytes, sourceCoverageReason != null, prCtx.diff);
   if (sourceCoverageReason) {
     await transcript.step(
       'source-inventory-incomplete',
@@ -2539,6 +2540,19 @@ export async function executeFleet(
       await transcript.step('ship-failed', ship.name, `pd-${ship.name}: unavailable — ${reason}`, { reason });
       const result: ShipResult = { ship: ship.name, blocking: false, participation: 'ineligible', voteOutcome: 'failed',
         operationalStatus: 'unavailable', verdict: 'UNAVAILABLE', errored: true, failureReason: reason, findings: [] };
+      results.push(result);
+      await persistParticipation(result);
+      continue;
+    }
+
+    if (ship.executionConfigState === 'invalid') {
+      const reason = 'Explicit execution policy is malformed; deny-all cannot be treated as model-only review';
+      await transcript.step('ship-unavailable', ship.name, `pd-${ship.name}: unavailable — ${reason}`, {
+        participation: gate.disposition, executionConfigState: ship.executionConfigState, reason,
+      });
+      const result: ShipResult = { ship: ship.name, blocking: gate.disposition === 'required',
+        participation: gate.disposition ?? 'ineligible', voteOutcome: 'failed', operationalStatus: 'unavailable',
+        verdict: 'UNAVAILABLE', errored: true, failureReason: reason, findings: [] };
       results.push(result);
       await persistParticipation(result);
       continue;

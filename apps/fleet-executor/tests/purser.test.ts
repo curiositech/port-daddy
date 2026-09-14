@@ -78,6 +78,7 @@ function mkShip(over: Partial<ShipConfig> = {}): ShipConfig {
       toolAllowlist: [], mcpAllowlist: [], networkAllowlist: [], writePathAllowlist: [],
       maxWallClockMs: 0, maxCostMicrousd: 0,
     },
+    executionConfigState: 'absent',
     ...over,
   };
 }
