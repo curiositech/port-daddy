@@ -31,6 +31,10 @@
 \@ifpackageloaded{mdframed}{}{\usepackage{mdframed}}
 \@ifpackageloaded{answers}{}{\usepackage{answers}}
 \@ifpackageloaded{marginnote}{}{\usepackage{marginnote}}
+% \pdsession asks which side of the leaf it is on (see \pd@sessionshift), so
+% \checkoddpage and \ifoddpage have to exist even in the standalone chapter
+% papers, where the question has the same answer on every page.
+\@ifpackageloaded{changepage}{}{\usepackage{changepage}}
 \@ifpackageloaded{environ}{}{\usepackage{environ}}
 \@ifpackageloaded{etoolbox}{}{\usepackage{etoolbox}}
 \@ifpackageloaded{listings}{}{\usepackage{listings}}
@@ -709,24 +713,43 @@
   language={},keywordstyle={},commentstyle={},stringstyle={},identifierstyle={},
   moredelim=[l][\bfseries]{\$\ }}
 \newlength{\pd@sessionwidth}
+\newlength{\pd@sessionshift}
 \lstnewenvironment{pdsession}[1][]{%
   \endgraf\addvspace{8pt plus 1pt}%
   \ifdefined\Needspace\Needspace{7\baselineskip}\fi
-  % In the Book a transcript runs across the column and the margin (6 in,
-  % 83 monospace characters), the full-width block of the page grammar.
+  % In the Book a transcript runs across the column and the margin (5.55 in,
+  % about 77 monospace characters), the full-width block of the page grammar.
   % (through the listing's own width key: a nested environment would change
   % \@currenvir and make listings look for the wrong end marker)
+  %
+  % The Book is twoside, so the margin the block runs into is the OUTER one,
+  % which is to the right on a recto and to the left on a verso. Widening
+  % rightward on both would run the block into the spine on every even leaf.
+  % \pd@sessionshift is the left displacement that makes the widening go
+  % outward: zero on a recto, the width of the margin column on a verso. It is
+  % applied to the rules with \hspace* and to the listing body through
+  % listings' own xleftmargin, because the nesting a changepage environment
+  % would need is what the note above rules out. In the standalone chapter
+  % papers \ifpdmargincolumn is false, the block is plain \linewidth, and the
+  % shift stays zero.
   \ifpdmargincolumn
     \setlength{\pd@sessionwidth}{\dimexpr\linewidth+\marginparsep+\marginparwidth\relax}%
+    \checkoddpage
+    \ifoddpage
+      \setlength{\pd@sessionshift}{\z@}%
+    \else
+      \setlength{\pd@sessionshift}{-\dimexpr\marginparsep+\marginparwidth\relax}%
+    \fi
   \else
     \setlength{\pd@sessionwidth}{\linewidth}%
+    \setlength{\pd@sessionshift}{\z@}%
   \fi
-  \noindent\makebox[\linewidth][l]{\color{pdinkmuted}\rule{\pd@sessionwidth}{0.4pt}}\endgraf\nobreak\vspace{3pt}%
+  \noindent\hspace*{\pd@sessionshift}\makebox[\linewidth][l]{\color{pdinkmuted}\rule{\pd@sessionwidth}{0.4pt}}\endgraf\nobreak\vspace{3pt}%
   \noindent\pd@marginhead{At the terminal}%
   \ifx\relax#1\relax\else{\itshape #1.}\fi\endgraf\nobreak
-  \lstset{style=pdsession,linewidth=\pd@sessionwidth}%
+  \lstset{style=pdsession,linewidth=\pd@sessionwidth,xleftmargin=\pd@sessionshift}%
 }{%
-  \endgraf\nobreak\noindent\makebox[\linewidth][l]{\color{pdinkmuted}\rule{\pd@sessionwidth}{0.4pt}}\endgraf
+  \endgraf\nobreak\noindent\hspace*{\pd@sessionshift}\makebox[\linewidth][l]{\color{pdinkmuted}\rule{\pd@sessionwidth}{0.4pt}}\endgraf
   \addvspace{8pt plus 1pt}%
 }
 

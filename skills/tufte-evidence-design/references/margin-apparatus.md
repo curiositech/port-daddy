@@ -49,12 +49,16 @@ Sets the geometry directly (not via tufte-latex; this is a hand-rolled
 equivalent using `geometry`, `marginnote`, and a custom overflow hook):
 
 ```
-\geometry{paperwidth=7in,paperheight=10in,left=0.8in,right=1.7in,
-  top=0.85in,bottom=0.95in,textwidth=4.5in,marginparsep=0.2in,marginparwidth=1.3in}
+\geometry{paperwidth=7in,paperheight=10in,inner=0.95in,outer=1.8in,
+  top=0.85in,bottom=0.95in,textwidth=4.25in,marginparsep=0.18in,marginparwidth=1.12in}
 ```
 
-A 7×10in trim, 4.5in text column, 0.2in `marginparsep`, 1.3in `marginparwidth` —
-proportionally close to tufte-latex's ratio (margin column is roughly 29% of the
+A 7×10in trim, 4.25in text column, 0.18in `marginparsep`, 1.12in
+`marginparwidth`, cut two-sided (the document class carries `twoside`) so that
+`marginnote` puts the column on the OUTER edge of each leaf rather than the
+right of every page; the remaining 0.5in of the 1.8in outer margin is trim
+white —
+proportionally close to tufte-latex's ratio (margin column is roughly 26% of the
 text column here vs. tufte-latex's ~46%, i.e., this repo's margin column is
 narrower relative to the text — it fits a portrait or a short note, not a long
 sidenote paragraph). `\pdfullwidth` is defined as
