@@ -109,7 +109,7 @@ UNIVERSAL_COLORS = {"black", "white", "none", "gray", "grey"}
 # style reference (`\node[pd actor]`) for an unrecognized color.
 CHAPTER_STYLE_NAMES = {
     "pd figure", "pd hairline", "pd rule", "pd focus rule", "pd caution rule",
-    "pd guide", "pd arrow", "pd focus arrow", "pd caution arrow",
+    "pd guide", "pd lattice", "pd arrow", "pd focus arrow", "pd caution arrow",
     "pd row label", "pd panel title", "pd axis label", "pd direct label",
     "pd note", "pd tick", "pd datum", "pd focus datum", "pd caution datum",
     "pd state", "pd terminal", "pd actor", "pd artifact", "pd boundary",
@@ -205,7 +205,7 @@ RULE_EQUIVALENT = {
     "hhteal": "pd focus rule",
     "hhcobalt": "pd focus rule",
     "hhamber": "pd caution rule",
-    "hhgray": "pd hairline (or pd guide / pd tick)",
+    "hhgray": "pd hairline (or pd lattice / pd tick)",
     "hhsand": "pd neutral fill",
     "hhsanddeep": "pd neutral fill",
 }
