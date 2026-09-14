@@ -152,6 +152,31 @@ test('portable registries need no Harbor identity and unsafe numeric revisions a
   assert.throws(() => readRegistryExport(root, 'bad.json', 'registry-v1'), /requires/)
 })
 
+test('BOM-bearing registry exports roundtrip to the exact source digest', (t) => {
+  const bytes = Buffer.from(`\uFEFF${native([{ id: 'bom' }])}`)
+  const root = fixture(t, { 'registry.json': bytes })
+  const result = readRegistryExport(root, 'registry.json', 'registry-v1')
+  assert.deepEqual(Buffer.from(result.rawExport), bytes)
+  assert.equal(createHash('sha256').update(result.rawExport).digest('hex'), result.sha256)
+  assert.equal(result.nativeExport.records[0].id, 'bom')
+})
+
+test('Clearance propagates an incomplete census to Markdown and exit status', async (t) => {
+  const { runCli } = await import('../scripts/harbor_clearance.mjs')
+  const snapshot = JSON.parse(readFileSync(fileURLToPath(new URL('../examples/port-daddy-open-pr-snapshot.json', import.meta.url)), 'utf8'))
+  snapshot.corpus = [{ path: 'missing-corpus', kind: 'missing' }]
+  const root = fixture(t, { 'snapshot.json': JSON.stringify(snapshot) })
+  let output = ''
+  const status = runCli(['--snapshot', 'snapshot.json', '--stdout', '--format', 'markdown'], {
+    cwd: root, stdout: (s) => { output += s }, stderr: (s) => assert.fail(s),
+  })
+  assert.equal(status, 2)
+  assert.ok(output.includes('Corpus traversal: incomplete'))
+  assert.ok(output.includes('missing-corpus'))
+  assert.ok(output.includes('unreadable-or-missing'))
+  assert.equal(existsSync(join(root, '.cache')), false)
+})
+
 test('unavailable registry is not an empty authoritative registry', (t) => {
   const root = fixture(t, { 'empty.json': native() })
   const report = buildInventory(root, 'not-port-daddy', ['.'], [{ path: 'missing.json', adapter: 'registry-v1' }, { path: 'empty.json', adapter: 'registry-v1' }])

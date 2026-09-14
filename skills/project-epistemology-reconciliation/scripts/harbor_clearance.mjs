@@ -624,6 +624,8 @@ export function renderMarkdown(report) {
     '## Inventory',
     '',
     `- ${report.inventory.total} local artifacts across ${Object.keys(report.inventory.countsByKind).length} declared corpus kinds`,
+    `- Corpus traversal: ${report.inventory.coverage?.traversal ?? 'not-supplied'}; semantic review: not performed`,
+    `- ${report.inventory.skipped.length} excluded or unavailable sources (listed below)`,
     `- ${report.pullRequests.total} PRs from frozen metadata`,
     `- ${report.claims.normalized.length} supplied typed claims`,
     `- ${report.claims.structuredStatusCandidates.length} explicit document-status candidates`,
@@ -641,9 +643,14 @@ export function renderMarkdown(report) {
     '| ---: | --- | --- | --- |',
     ...report.clearancePlan.map((entry) => `| #${entry.pullRequest} | ${entry.proposedDisposition} | ${entry.candidateDisposition ?? '—'} | ${entry.reason.replace(/\|/gu, '\\|')} |`),
     '',
-    '## Loss audit',
+    '## Corpus gaps and exclusions',
     '',
   ]
+  for (const entry of report.inventory.skipped) {
+    const path = JSON.stringify(entry.path).replace(/[&<>]/gu, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])).replace(/[\\`*_[\]{}|!#]/gu, (c) => `\\${c}`)
+    lines.push(`- ${path}: ${entry.reason}`)
+  }
+  lines.push('', '## Loss audit', '')
   const destructive = report.clearancePlan.filter((entry) => entry.lossAudit.required)
   if (destructive.length === 0) lines.push('- No destructive disposition was proposed.')
   for (const entry of destructive) {
@@ -698,16 +705,17 @@ export function runCli(args, io = {}) {
     const report = analyzeSnapshot(repoRoot, snapshot)
     const json = `${JSON.stringify(report, null, 2)}\n`
     const markdown = renderMarkdown(report)
+    const exitCode = report.inventory.coverage.traversal === 'completed-with-declared-exclusions' ? 0 : 2
     if (options.stdout) {
       stdout(options.format === 'json' ? json : markdown)
-      return 0
+      return exitCode
     }
     const outputDir = resolveOutputDir(repoRoot, options.outputDir)
     mkdirSync(outputDir, { recursive: true })
     if (options.format === 'both' || options.format === 'json') writeFileSync(resolve(outputDir, 'clearance-plan.json'), json)
     if (options.format === 'both' || options.format === 'markdown') writeFileSync(resolve(outputDir, 'clearance-plan.md'), markdown)
     stdout(`Wrote non-canonical report ${relative(repoRoot, outputDir).split(sep).join('/')} (${report.reportId})\n`)
-    return 0
+    return exitCode
   } catch (error) {
     stderr(`harbor-clearance: ${error.message}\n`)
     return 1
