@@ -181,6 +181,7 @@ const CLIENT_JS = `
   var scopedInstallation = 0;
   var scopeForm = document.getElementById('repo-scope-form');
   var onboardingForm = document.getElementById('shipwright-onboarding');
+  var activationState = document.getElementById('fleet-activation-state');
   var consentBox = document.getElementById('ai-context-consent');
   var contextPreview = document.getElementById('context-preview');
   var FENCE = '\\u0060\\u0060\\u0060';
@@ -540,6 +541,9 @@ const CLIENT_JS = `
       body: JSON.stringify({ threadId: threadId, profile: profile })
     }).then(function (r) { return r.json(); }).then(function (d) {
       if (!d.profile) throw new Error(d.error || 'Onboarding save failed');
+      if (activationState && d.fleetOnboarding) {
+        activationState.textContent = 'Saved as a proposed fleet. No work can run until you explicitly accept a configuration and managed billing, served-roster, and stop-loss checks all pass.';
+      }
       loadContext();
     }).catch(function (e) { window.alert(e.message || 'Onboarding save failed.'); });
   });
@@ -788,6 +792,7 @@ export function renderShipwrightPage(user: UserRow, nonce: string, view: Shipwri
           <label>Protected paths<textarea name="protectedPaths" maxlength="12000" placeholder="One path or glob per line"></textarea></label>
         </div>
         <button type="submit">Save answers + generate draft fleet</button>
+        <p id="fleet-activation-state" class="musing">Saving creates an inert proposal for this exact GitHub repository. It does not enable ships or spend.</p>
       </form>
       <div class="consent">
         <label><input id="ai-context-consent" type="checkbox"${view.threadId ? '' : ' disabled'}>

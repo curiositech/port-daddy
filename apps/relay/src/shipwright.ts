@@ -92,6 +92,7 @@ import {
 } from './github-app.js';
 import { randomHex } from './crypto.js';
 import { authorizeExactRepository } from './github-publisher.js';
+import { saveFleetOnboardingDraft } from './fleet-onboarding.js';
 
 // ── Bounds ──────────────────────────────────────────────────────────────────
 //
@@ -433,6 +434,38 @@ export async function handleShipwrightOnboarding(request: Request, env: Env): Pr
     repoFullName: scope.thread.repo_full_name,
   };
   const yaml = buildShipwrightDraftProposal(scope.thread.repo_full_name, profile);
+  let repositoryIdentity;
+  try {
+    repositoryIdentity = await authorizeExactRepository(
+      scope.thread.installation_id,
+      scope.thread.repo_full_name,
+      scope.session.ghToken!,
+      'read',
+    );
+  } catch {
+    return json(404, { code: 'SHIPWRIGHT_SCOPE_UNAVAILABLE', error: 'repository context is unavailable' });
+  }
+  if (repositoryIdentity.repositoryId == null || repositoryIdentity.githubAccountId == null) {
+    return json(502, { code: 'GITHUB_REPOSITORY_IDENTITY_UNAVAILABLE', error: 'GitHub did not return immutable repository identity; no onboarding state changed' });
+  }
+  const customerBudgetMicrousd = Math.round(profile.budgetCeilingUsdPerDay * 1_000_000);
+  let fleetDraft;
+  try {
+    fleetDraft = await saveFleetOnboardingDraft(env.DB, {
+      userId: scope.session.user.id,
+      userLogin: scope.session.user.login,
+      installationId: scope.thread.installation_id,
+      repositoryId: repositoryIdentity.repositoryId,
+      githubAccountId: repositoryIdentity.githubAccountId,
+      repositoryFullName: repositoryIdentity.fullName,
+    }, {
+      desiredOutcomes: [profile.desiredReviewOutcomes],
+      customerBudgetMicrousd,
+      proposal: { source: 'shipwright_deterministic_onboarding', yaml, profile },
+    }, now);
+  } catch {
+    return json(503, { code: 'FLEET_ONBOARDING_STORE_UNAVAILABLE', error: 'Fleet onboarding could not be saved; no configuration was activated' });
+  }
   await upsertShipwrightRepoMemory(env.DB, {
     id: `swm_${randomHex(24)}`,
     ...repoScope,
@@ -443,7 +476,17 @@ export async function handleShipwrightOnboarding(request: Request, env: Env): Pr
   await insertShipwrightProposal(env.DB, {
     id: `swp_${randomHex(24)}`, ...repoScope, yaml, origin: 'deterministic_onboarding', now,
   });
-  return json(200, { code: 'SHIPWRIGHT_ONBOARDING_SAVED', error: null, profile, draftProposal: { yaml, verdict: validateFleetYaml(yaml) } });
+  return json(200, {
+    code: 'SHIPWRIGHT_ONBOARDING_SAVED', error: null, profile,
+    fleetOnboarding: {
+      tenantAccountId: fleetDraft.tenantAccountId,
+      proposalId: fleetDraft.proposalId,
+      configurationStatus: 'proposed',
+      executionStatus: 'blocked_pending_executor',
+      activationRequirements: ['accepted configuration', 'managed entitlement', 'served installation', 'per-call stop-loss'],
+    },
+    draftProposal: { yaml, verdict: validateFleetYaml(yaml) },
+  });
 }
 
 /** POST /v1/shipwright/ai-context-consent — an independent, reversible egress choice. */

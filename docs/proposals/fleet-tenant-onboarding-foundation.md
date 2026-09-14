@@ -1,8 +1,16 @@
 # Fleet tenant onboarding foundation
 
-Status: schema foundation; production activation is intentionally blocked.
+Status: immediate fail-closed admission contract; deployment not performed.
 
 ## Authority
+
+Each GitHub App installation is bound to exactly one Port Daddy tenant. GitHub
+credentials, served-roster admission, entitlements, reservations, and spending
+are installation-scoped, so allowing an installation to straddle tenants would
+also let one tenant consume another tenant's authority or credit. Repository
+bindings are children of that installation binding and retain immutable numeric
+GitHub identity; the mutable repository name is refreshed only after exact
+GitHub authorization and is checked again by the executor before credentials.
 
 Fleet tenancy is keyed by a Port Daddy account plus GitHub's immutable numeric
 installation, repository, and owner-account identifiers. Repository names are
@@ -29,26 +37,38 @@ server-owned repository binding and the user's tenant membership. It separately 
 repository may have only one accepted proposal at a time. Accepting a proposal
 does not start a Fleet.
 
-Every foundation row has execution status
-`blocked_pending_executor`. The database rejects any other value. This release
-adds no onboarding route, model call, queue producer, scheduled trigger, or
-automatic activation.
+Every onboarding row starts with execution status `blocked_pending_executor`.
+The signed-in Shipwright onboarding route creates the server-owned tenant,
+membership, immutable GitHub repository binding, and a proposed configuration.
+The proposal is inert: onboarding neither creates billing entitlement nor adds
+an installation to the served roster, and it never launches work.
 
-## Staged activation contract
+## Immediate fail-closed contract
 
-Current webhook behavior remains unchanged in this release. `FleetRunJobV2`
-and its pure builder exist only to pin the future queue envelope. A later,
-coordinated release may activate it only after all of the following land and
-are tested together:
+`FleetRunJobV2` is the only admitted queue envelope. The Relay resolves its
+tenant from HMAC-verified numeric GitHub installation, repository, and owner
+identities. D1 lookup failure returns retryable 503 before persistence; invalid
+or unbound identities are acknowledged as permanent non-work. There is no
+repository-name or legacy-envelope fallback.
 
-1. the signed-in onboarding flow writes the server-owned identity tuple;
-2. Relay returns retryable 5xx responses for tenant-store failures;
-3. the executor rejects absent, malformed, inactive, or mismatched tenant
-   tuples before acquiring credentials or authorizing spend;
-4. accepted proposals still require a separate explicit activation decision;
-5. stop-loss and margin authorization are enforced at every model-call
-   boundary.
+Before credentials, GitHub reads, or model calls, the executor re-resolves the
+same tuple and requires both the onboarding and one proposal to be explicitly
+accepted. Managed billing then independently requires an active entitlement,
+a served-installation row, a reservable retail balance, and per-call provider
+authorization within the 25-percent cost ceiling.
 
-Until then, `FLEET_RUN_JOB_V2_ACTIVATION` is
-`blocked-pending-executor-validation` and no existing webhook is changed to
-emit the v2 envelope.
+## Release order
+
+1. Apply all additive Relay D1 migrations and run the migration-chain check.
+2. Create and read back the intended onboarding binding through the signed-in
+   Relay UI. Do not hand-seed guessed GitHub numeric identifiers.
+3. Configure and read back an accepted proposal, managed entitlement, and
+   served-installation row through an approved control-plane release.
+4. Deploy Relay and executor from the same reviewed main commit only after the
+   stop-loss readiness check passes against the exact production D1 inventory.
+5. Verify an unbound delivery starts no work, a D1 outage returns retryable 503,
+   and the onboarded repository still starts no spend until every activation
+   prerequisite is present.
+
+Merging code does not apply migrations, accept a configuration, serve an
+installation, grant credit, or deploy either Worker.
