@@ -35,7 +35,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { lightTokens } from './tokens-css.mjs'
-import { separation, oklch, GATED_CVD } from './oklab-cvd.mjs'
+import { separation, oklch } from './oklab-cvd.mjs'
 import { contrastRatio } from './wcag.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
