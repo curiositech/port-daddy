@@ -57,6 +57,18 @@ function makeMockD1(cap: Captured): D1Database {
         return null;
       },
       async all<T>(): Promise<{ results: T[] }> {
+        if (query.includes('FROM fleet_tenant_repositories')) {
+          const [installationId, repositoryId] = bound as [number, number];
+          const results = installationId === 777 && repositoryId === 42
+            ? [{
+                tenant_account_id: 'acct_test',
+                installation_id: 777,
+                repository_id: 42,
+                github_account_id: 9001,
+              }]
+            : [];
+          return { results: results as T[] };
+        }
         return { results: [] };
       },
       async run() {
@@ -148,8 +160,10 @@ function webhookReq(opts: {
 
 const PR_BODY = JSON.stringify({
   action: 'opened',
-  repository: { full_name: 'curiositech/port-daddy', id: 42 },
+  repository: { full_name: 'curiositech/port-daddy', id: 42, owner: { id: 9001 } },
   sender: { login: 'octocat', id: 1 },
+  installation: { id: 777 },
+  pull_request: { number: 7, head: { sha: 'a'.repeat(40) } },
 });
 
 describe('channelsForWebhook — canonical channel naming', () => {
@@ -401,7 +415,7 @@ describe('fleet enqueue — merge_group (the merge-queue deadlock)', () => {
 
   const MERGE_GROUP_BODY = JSON.stringify({
     action: 'checks_requested',
-    repository: { full_name: 'curiositech/port-daddy', id: 42 },
+    repository: { full_name: 'curiositech/port-daddy', id: 42, owner: { id: 9001 } },
     sender: { login: 'octocat', id: 1 },
     installation: { id: 777 },
     merge_group: {
@@ -434,6 +448,13 @@ describe('fleet enqueue — merge_group (the merge-queue deadlock)', () => {
     };
     expect(job.eventType).toBe('merge_group');
     expect(job.action).toBe('checks_requested');
+    expect(job).toMatchObject({
+      schemaVersion: 2,
+      tenantAccountId: 'acct_test',
+      installationId: 777,
+      repositoryId: 42,
+      githubAccountId: 9001,
+    });
     // No pull_request on this payload — the head_sha IS the only thing the
     // executor can hang a check run on, so losing it loses the whole fix.
     expect(job.prNumber).toBeNull();
@@ -466,7 +487,7 @@ describe('fleet enqueue — merge_group (the merge-queue deadlock)', () => {
     const sent: unknown[] = [];
     const body = JSON.stringify({
       action: 'destroyed',
-      repository: { full_name: 'curiositech/port-daddy', id: 42 },
+      repository: { full_name: 'curiositech/port-daddy', id: 42, owner: { id: 9001 } },
       sender: { login: 'octocat', id: 1 },
       installation: { id: 777 },
       merge_group: { head_sha: 'deadbeef' },
@@ -503,7 +524,7 @@ describe('fleet enqueue — merge_group (the merge-queue deadlock)', () => {
     const reviewSent: unknown[] = [];
     const editedBody = JSON.stringify({
       action: 'edited',
-      repository: { full_name: 'curiositech/port-daddy', id: 42 },
+      repository: { full_name: 'curiositech/port-daddy', id: 42, owner: { id: 9001 } },
       sender: { login: 'octocat', id: 1 },
       installation: { id: 777 },
       pull_request: { number: 7, head: { sha: 'same-head' } },
@@ -520,6 +541,58 @@ describe('fleet enqueue — merge_group (the merge-queue deadlock)', () => {
     expect(res.status).toBe(204);
     expect(reviewSent).toHaveLength(1);
     expect(reviewSent[0]).toMatchObject({ action: 'edited', deliveryId: 'pr-edited-1' });
+  });
+
+  it.each([
+    ['missing installation id', { repository: { full_name: 'curiositech/port-daddy', id: 42, owner: { id: 9001 } } }],
+    ['zero repository id', { installation: { id: 777 }, repository: { full_name: 'curiositech/port-daddy', id: 0, owner: { id: 9001 } } }],
+    ['missing owner id', { installation: { id: 777 }, repository: { full_name: 'curiositech/port-daddy', id: 42, owner: {} } }],
+  ])('audits and refuses %s before enqueue', async (_label, identity) => {
+    const sent: unknown[] = [];
+    const { env, cap } = envWithQueues(sent);
+    const body = JSON.stringify({
+      action: 'checks_requested',
+      ...identity,
+      merge_group: { head_sha: 'd'.repeat(40) },
+    });
+    const res = await handleGithubWebhook(webhookReq({
+      body,
+      signature: sign(SECRET, body),
+      event: 'merge_group',
+      delivery: 'invalid-tenant-identity',
+    }), env);
+
+    expect(res.status).toBe(204);
+    expect(sent).toHaveLength(0);
+    expect(cap.audits.some((row) => row.action === 'fleet_run_tenant_refused')).toBe(true);
+  });
+
+  it.each([
+    ['unbound installation/repository', 778, 43, 9001],
+    ['owner-account mismatch', 777, 42, 9002],
+  ])('audits and refuses an %s without a name fallback', async (_label, installationId, repositoryId, ownerId) => {
+    const sent: unknown[] = [];
+    const { env, cap } = envWithQueues(sent);
+    const body = JSON.stringify({
+      action: 'checks_requested',
+      installation: { id: installationId },
+      repository: {
+        full_name: 'curiositech/port-daddy',
+        id: repositoryId,
+        owner: { id: ownerId },
+      },
+      merge_group: { head_sha: 'e'.repeat(40) },
+    });
+    const res = await handleGithubWebhook(webhookReq({
+      body,
+      signature: sign(SECRET, body),
+      event: 'merge_group',
+      delivery: 'untrusted-tenant-binding',
+    }), env);
+
+    expect(res.status).toBe(204);
+    expect(sent).toHaveLength(0);
+    expect(cap.audits.some((row) => row.action === 'fleet_run_tenant_refused')).toBe(true);
   });
 });
 
@@ -618,7 +691,7 @@ describe('fleet enqueue — durable PR generation admission', () => {
   function prBody(sha: string): string {
     return JSON.stringify({
       action: 'synchronize',
-      repository: { full_name: 'curiositech/port-daddy', id: 42 },
+      repository: { full_name: 'curiositech/port-daddy', id: 42, owner: { id: 9001 } },
       sender: { login: 'octocat', id: 1 },
       installation: { id: 777 },
       pull_request: {
