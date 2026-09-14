@@ -38,6 +38,8 @@ on:
       - 'tests/harbor-research/**'
       - 'scripts/generate-mega-whitepaper.mjs'
       - 'scripts/generate-mega-whitepaper.test.mjs'
+      - 'scripts/check-textbook-schema.mjs'
+      - 'scripts/check-textbook-schema.test.mjs'
       - 'scripts/build-whitepapers.sh'
       - 'skills/whitepaper-figure-system/**'
       - 'skills/**'
@@ -69,6 +71,8 @@ on:
       - 'tests/harbor-research/**'
       - 'scripts/generate-mega-whitepaper.mjs'
       - 'scripts/generate-mega-whitepaper.test.mjs'
+      - 'scripts/check-textbook-schema.mjs'
+      - 'scripts/check-textbook-schema.test.mjs'
       - 'scripts/build-whitepapers.sh'
       - 'skills/whitepaper-figure-system/**'
       - 'skills/**'
@@ -116,6 +120,16 @@ jobs:
       - name: textbook.json is the one source of chapter order (generated mirrors match)
         run: node scripts/generate-mega-whitepaper.mjs --check-shared
 
+      # textbook.schema.json is what `"$schema"` at the top of textbook.json
+      # points at, and until this step existed nothing ever fed one to the
+      # other: the schema said additionalProperties:false while an undeclared
+      # `result` sat on all eight chapters, and demanded ^[IVX]+$ from a
+      # formerNumeral the generator deliberately allows to be empty. Both were
+      # found the first time the schema was actually run. A schema nothing
+      # validates is a comment with punctuation.
+      - name: textbook.json conforms to textbook.schema.json (and slugs are unique)
+        run: node scripts/check-textbook-schema.mjs
+
       # The architecture ledger's own checker, on the ledger's own terms: it
       # rejects an indexed document that is missing, a duplicate stable ID, a
       # broken local link, an unlabelled stub, and a citation that points at a
@@ -127,7 +141,7 @@ jobs:
         working-directory: docs/grand-harbor
 
       - name: Book generator contract (namespacing, apparatus stripping, seams, shared files)
-        run: node --test scripts/generate-mega-whitepaper.test.mjs scripts/generate-mega-mechanized.test.mjs
+        run: node --test scripts/generate-mega-whitepaper.test.mjs scripts/generate-mega-mechanized.test.mjs scripts/check-textbook-schema.test.mjs
 
       - name: Book body generates from the chapter sources (fails closed on drift)
         run: node scripts/generate-mega-whitepaper.mjs .cache/library-checks/mega-volume
