@@ -241,6 +241,7 @@ class SourceFile:
             raw_lines = fh.read().split("\n")
         # 1-based: code[0] is a sentinel so code[n] is source line n.
         self.code = [""] + [cc.strip_comments(ln) for ln in raw_lines]
+        self.excluded_lines = self._blank_non_body()
         self.prose = [""] + [detex(ln) for ln in self.code[1:]]
         self.prose_lower = [p.lower() for p in self.prose]
         self.nlines = len(self.code) - 1
@@ -256,6 +257,44 @@ class SourceFile:
         self._map_floats()
         self._map_exercises()
         self._map_definition_envs()
+
+    def _blank_non_body(self) -> int:
+        """Blank every line that is not the chapter's body, before anything
+        else reads it. Two regions, both of which produced real false
+        positives on the first build:
+
+          - the PREAMBLE (everything up to \\begin{document}). It holds
+            \\title, \\author and macro definitions. "Read-Poverty" appears in
+            chapter 4's title, and that scored as the concept's first use --
+            a title page is not where a \\pdgloss belongs. The Book's own
+            generator strips the preamble too.
+          - the BIBLIOGRAPHY (thebibliography). A \\bibitem's title is some
+            other author's words about their own work, not this Book using
+            the concept.
+
+        A figure fragment has no \\begin{document} and is left whole.
+        """
+        blanked = 0
+        body_start = 1
+        for n in range(1, len(self.code)):
+            if r"\begin{document}" in self.code[n]:
+                body_start = n + 1
+                break
+        in_bib = False
+        for n in range(1, len(self.code)):
+            drop = n < body_start
+            if r"\begin{thebibliography}" in self.code[n]:
+                in_bib = True
+            if in_bib:
+                drop = True
+            if r"\end{thebibliography}" in self.code[n]:
+                in_bib = False
+            if r"\end{document}" in self.code[n]:
+                drop = True
+            if drop and self.code[n].strip():
+                self.code[n] = ""
+                blanked += 1
+        return blanked
 
     # -- sections ---------------------------------------------------------
     def _map_sections(self) -> None:
@@ -1326,7 +1365,9 @@ PARSER_LIMITS = [
     "score, and a table of mechanism nouns near a metaphor scores when it "
     "explains nothing.",
     "Shared preamble files (pd-pedagogy.tex and friends) are excluded entirely: "
-    "a term 'defined' there is a LaTeX macro, not an idea.",
+    "a term 'defined' there is a LaTeX macro, not an idea. So is each chapter's "
+    "own preamble (up to \\begin{document}) and its thebibliography block: a "
+    "title page and a \\bibitem's title are not the Book using a concept.",
     "Chapters 2, 3, 5, 6, 7 and 8 live under website-v2/public/whitepaper/ and "
     "are read from there, per whitepaper/textbook.json's `source` field; a "
     "chapter whose source path is wrong in textbook.json is reported as "
@@ -1466,6 +1507,8 @@ def build(min_mentions: int = DEFAULT_MIN_MENTIONS) -> dict:
             "source_files_scanned": len({f.relpath for f in files}),
             "source_lines_scanned": sum(f.nlines for f in files),
             "sections_scanned": sum(len(f.sections) for f in files),
+            "source_lines_excluded_as_preamble_or_bibliography":
+                sum(f.excluded_lines for f in files),
             "exercises_scanned": sum(len(f.exercises) for f in files),
         },
         "parser_gave_up_on": PARSER_LIMITS,

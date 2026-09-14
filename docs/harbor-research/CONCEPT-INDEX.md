@@ -9,27 +9,28 @@ Machine-readable copy: `docs/harbor-research/concept-index.json`.
 
 | measure | value |
 | --- | ---: |
-| candidates dropped | 2387 |
-| candidates dropped as unmarked | 2170 |
-| candidates dropped below mention floor | 217 |
-| concepts | 304 |
-| concepts in a mixed metaphor paragraph | 201 |
-| concepts joined to the library index | 48 |
+| candidates dropped | 2239 |
+| candidates dropped as unmarked | 2030 |
+| candidates dropped below mention floor | 209 |
+| concepts | 274 |
+| concepts in a mixed metaphor paragraph | 195 |
+| concepts joined to the library index | 47 |
 | concepts that are metaphor vehicles | 7 |
-| concepts with definition | 140 |
-| concepts with first use | 304 |
-| concepts without definition | 164 |
-| definitions judged | 80 |
+| concepts with definition | 138 |
+| concepts with first use | 274 |
+| concepts without definition | 136 |
+| definitions judged | 78 |
 | definitions parsed | 60 |
 | distinct mixed metaphor paragraphs | 147 |
 | exercises scanned | 203 |
-| metaphor passages recorded | 1191 |
+| metaphor passages recorded | 1163 |
 | mixed metaphor sections cashed out only in a float caption | 1 |
-| mixed metaphor sections never cashed out in prose | 130 |
+| mixed metaphor sections never cashed out in prose | 128 |
 | sections scanned | 377 |
 | source files scanned | 71 |
+| source lines excluded as preamble or bibliography | 2366 |
 | source lines scanned | 23023 |
-| total mentions | 13382 |
+| total mentions | 12576 |
 
 ## Mixed metaphor, never cashed out in prose
 
@@ -42,9 +43,8 @@ because eight concepts in one bad section is one repair, not eight. `judged`.
 | `s:single-writer-kernel:435-479` | 1 | sec:organs | anatomy, architecture, medicine, moral | **yes** | `actor`, `claim`, `commitment`, `continuity`, `daemon`, `discipline` |
 | `s:legible-swarm:2296-2390` | 4 | sec:tokens-digest | agriculture, anatomy, architecture, finance, moral, plumbing, theatre | no | `agents`, `artifact`, `author`, `authority`, `binding`, `budget` |
 | `s:spawn-to-person:848-904` | 5 | Organ 2 --- Checkpoint: restorable state | anatomy, architecture, finance, moral, textile | no | `actor`, `agents`, `artifact`, `claim`, `continuity`, `discipline` |
-| `s:harbor-economy:2376-2488` | 6 | sec:related | architecture, finance, mechanics, medicine, textile | no | `adversarial`, `agents`, `algorithmic game theory`, `artifact`, `binding`, `bond` |
+| `s:harbor-economy:2376-2488` | 6 | sec:related | architecture, finance, mechanics, medicine, textile | no | `adversarial`, `agents`, `artifact`, `binding`, `bond`, `bubbles` |
 | `s:federated-harbor-whitepaper:1155-1277` | 8 | sec:fh-exercises | architecture, finance, law, medicine, moral | no | `able`, `acceptance`, `adversarial`, `agents`, `arbiter`, `artifact` |
-| `s:agent-transactions-whitepaper:1758-1984` | 7 | Conclusion | anatomy, architecture, finance, medicine, textile | no | `advisory`, `agents`, `authority`, `authorization chain`, `bond`, `bonded advisor` |
 | `s:harbor-economy:1800-2375` | 6 | sec:he-exercises | architecture, finance, law, mechanics, medicine | no | `acceptance`, `accuracy`, `actor`, `aesthetics`, `agents`, `alice` |
 | `s:legible-swarm:3155-3199` | 4 | sec:handoff | anatomy, architecture, finance, moral | no | `actor`, `commitment`, `consent grant`, `continuity`, `cost`, `cross-operator` |
 | `s:agent-transactions-whitepaper:1985-2032` | 7 | app:mech | anatomy, architecture, finance, medicine | no | `artifact`, `binding`, `bond`, `claim`, `conservation`, `coordination` |
@@ -57,8 +57,8 @@ because eight concepts in one bad section is one repair, not eight. `judged`.
 | `s:harbor-economy:415-602` | 6 | sec:three-sides | architecture, finance, mechanics, moral | no | `agents`, `alice`, `bond`, `bounty`, `capability`, `clear` |
 | `s:spawn-to-person:1361-1584` | 5 | sec:body-behind-name | architecture, finance, mechanics, moral | no | `actor`, `artifact`, `bond`, `claim`, `clear`, `commitment` |
 | `s:legible-swarm:1909-2194` | 4 | sec:relevance | architecture, finance, law, moral | no | `agents`, `authority`, `budget`, `capability`, `claim`, `commitment` |
-| `s:spawn-to-person:3105-3404` | 5 | app:status | anatomy, architecture, finance, moral | no | `actor`, `agents`, `algorithmic game theory`, `alice`, `authorization chain`, `binding` |
-| `s:legible-swarm:3200-3567` | 4 | sec:openproblems | anatomy, architecture, mechanics, textile | no | `adversarial`, `agents`, `algorithmic game theory`, `annals of mathematical statistics`, `artifact`, `authority` |
+| `s:spawn-to-person:3105-3404` | 5 | app:status | anatomy, architecture, finance, moral | no | `actor`, `agents`, `binding`, `capability`, `commitment`, `continuity` |
+| `s:legible-swarm:3200-3567` | 4 | sec:openproblems | anatomy, architecture, mechanics, textile | no | `adversarial`, `artifact`, `authority`, `compaction`, `continuity`, `exercises` |
 | `s:anchor-protocol-whitepaper:464-480` | 2 | Runtime Enforcement: The Arbiter | anatomy, finance, law | no | `agents`, `arbiter`, `capability`, `claim`, `daemon`, `escrow` |
 | `s:harbor-economy:1783-1799` | 6 | Review of the key ideas | architecture, finance, mechanics | no | `bond`, `by construction`, `clear`, `conservation`, `cost`, `cross-operator` |
 | `s:spawn-to-person:2408-2424` | 5 | Review of the key ideas | anatomy, finance, mechanics | no | `commitment`, `continuity`, `honest`, `identity`, `lineage`, `memory` |
@@ -77,7 +77,7 @@ because eight concepts in one bad section is one repair, not eight. `judged`.
 | `s:spawn-to-person:579-632` | 5 | sec:role-person | anatomy, finance, textile | no | `able`, `alice`, `authority`, `capability`, `claim`, `continuity` |
 | `s:spawn-to-person:2352-2407` | 5 | sec:handoff | anatomy, finance, textile | no | `artifact`, `binding`, `bond`, `closed by`, `commitment`, `continuity` |
 | `s:legible-swarm:304-367` | 4 | How to read this paper (Reader's Map) | anatomy, mechanics, moral | no | `artifact`, `authorization chain`, `binding`, `capability`, `claim`, `compaction` |
-| `s:legible-swarm:836-903` | 4 | sec:four-questions | architecture, mechanics, theatre | no | `artifact`, `authority`, `claim`, `illegible`, `legible`, `open` |
+| `s:legible-swarm:836-903` | 4 | sec:four-questions | architecture, mechanics, theatre | no | `artifact`, `authority`, `claim`, `illegible`, `legible`, `operator` |
 | `s:single-writer-kernel:2052-2136` | 1 | sec:enforcement-gap | architecture, mechanics, warfare | no | `advisory`, `agents`, `always invoked`, `author`, `authority`, `binding` |
 | `s:spawn-to-person:703-803` | 5 | Parfit's repair: continuity, not connectedness | anatomy, finance, moral | no | `budget`, `connectedness`, `conservation`, `continuity`, `direction`, `discipline` |
 | `s:single-writer-kernel:2698-2808` | 1 | sec:openproblems | anatomy, finance, plumbing | no | `artifact`, `binding`, `claim`, `closed by`, `coordination`, `durability` |
@@ -85,20 +85,21 @@ because eight concepts in one bad section is one repair, not eight. `judged`.
 | `s:spawn-to-person:951-1067` | 5 | sec:identity | anatomy, architecture, finance | no | `actor`, `binding`, `budget`, `by construction`, `claim`, `continuity` |
 | `s:harbor-economy:2489-2614` | 6 | sec:adversarial-tests | architecture, finance, mechanics | no | `adversarial`, `agents`, `author`, `bond`, `bounty`, `budget` |
 | `s:sealed-harbor:603-761` | 3 | sec:sealed-conservation | architecture, finance, moral | no | `artifact`, `author`, `bond`, `budget`, `conservation`, `cost` |
-| `s:anchor-protocol-whitepaper:816-1000` | 2 | sec:conclusion | architecture, finance, medicine | no | `artifact`, `attenuation`, `authorization chain`, `bond`, `capability`, `claim` |
 | `s:spawn-to-person:2021-2241` | 5 | sec:oracle | architecture, finance, plumbing | no | `agents`, `artifact`, `bond`, `by construction`, `claim`, `conclusion` |
 | `s:harbor-economy:753-974` | 6 | sec:three-on-one | finance, law, mechanics | no | `ability`, `able`, `acceptance`, `artifact`, `authority`, `bond` |
 | `s:federated-harbor-whitepaper:534-759` | 8 | sec:fh-sheaf | architecture, law, mechanics | no | `adversarial`, `artifact`, `binding`, `by construction`, `claim`, `clear` |
+| `s:agent-transactions-whitepaper:1758-1984` | 7 | Conclusion | anatomy, finance, textile | no | `advisory`, `agents`, `authority`, `bond`, `bonded advisor`, `capability` |
 | `s:legible-swarm:1589-1880` | 4 | sec:lowerbound | architecture, mechanics, theatre | no | `adversarial`, `artifact`, `binding`, `budget`, `by design`, `commitment` |
 | `s:federated-harbor-whitepaper:175-175` | 8 | - | finance, medicine | no | `alice`, `attenuation`, `bond`, `capability`, `claim`, `conservation` |
 | `s:fig-worked-example:61-63` | 7 | - | finance, mechanics | no | `authority`, `capability`, `continuity`, `escrow`, `identity`, `rail` |
-| `s:federated-harbor-whitepaper:1118-1121` | 8 | sec:fh-lim-cold-start | finance, moral | no | `discipline`, `harbor`, `open`, `the bonded-sponsor pattern`, `witness` |
-| `s:federated-harbor-whitepaper:1122-1125` | 8 | sec:fh-lim-equiv | finance, medicine | no | `bond`, `open`, `root`, `witness` |
+| `s:federated-harbor-whitepaper:1118-1121` | 8 | sec:fh-lim-cold-start | finance, moral | no | `discipline`, `harbor`, `the bonded-sponsor pattern`, `witness` |
+| `s:federated-harbor-whitepaper:1122-1125` | 8 | sec:fh-lim-equiv | finance, medicine | no | `bond`, `root`, `witness` |
 | `s:fig-stp-parfit-chain:30-33` | 5 | - | finance, mechanics | no | `rail`, `transitive`, `width` |
 | `s:fig-he-cold-start:34-38` | 6 | - | architecture, finance | no | `state` |
 | `s:tab-fh-topology:3-7` | 6 | - | finance, mechanics | no | `authority`, `bond`, `capability`, `direction`, `harbor`, `rail` |
 | `s:fig-swk-marker-decay:28-33` | 1 | - | agriculture, architecture | no | `question` |
 | `s:federated-harbor-whitepaper:1035-1041` | 8 | sec:fh-partition | finance, moral | no | `capability`, `daemon`, `discipline`, `escrow`, `global`, `local` |
+| `s:fig-stp-deterrence-regime:30-36` | 5 | - | architecture, finance | no | `bond`, `re-audit` |
 
 ## Entries
 
@@ -108,32 +109,29 @@ because eight concepts in one bad section is one repair, not eight. `judged`.
 | `able` | 1-8 | 15 | single-writer-kernel.tex:1046 (judged) | single-writer-kernel.tex:1035 | - | 2 | - |
 | `acceptance` | 1-8 | 49 | federated-harbor-whitepaper.tex:307 | single-writer-kernel.tex:1794 | - | 2 | - |
 | `accuracy` | 4-7 | 18 | spawn-to-person.tex:1863 | legible-swarm.tex:1395 | - | 2 | - |
-| `actor` | 1-7 | 96 | spawn-to-person.tex:1347 (judged) | session-swk-lock-demo.tex:10 | - | 4 | - |
+| `actor` | 1-7 | 95 | spawn-to-person.tex:1347 (judged) | session-swk-lock-demo.tex:10 | - | 4 | - |
 | `admissible kms` | 8-8 | 3 | agent-transactions-whitepaper.tex:1503 | federated-harbor-whitepaper.tex:272 | - | 0 | - |
-| `adversarial` | 3-8 | 40 | none | sealed-harbor.tex:901 | - | 4 | - |
+| `adversarial` | 3-8 | 39 | none | sealed-harbor.tex:901 | - | 4 | - |
 | `advisory` | 1-8 | 46 | single-writer-kernel.tex:2042 (judged) | single-writer-kernel.tex:334 | - | 2 | - |
 | `aesthetics` | 5-6 | 19 | spawn-to-person.tex:1863 | fig-stp-multidim-reputation.tex:10 | - | 2 | - |
-| `agents` | 1-8 | 188 | none | single-writer-kernel.tex:211 | - | 4 | - |
-| `algorithmic game theory` | 4-6 | 4 | none | legible-swarm.tex:3443 | - | 1 | - |
+| `agents` | 1-8 | 179 | none | single-writer-kernel.tex:211 | - | 4 | - |
 | `algorithmic pinning` | 2-2 | 3 | none | anchor-protocol-whitepaper.tex:275 | - | 0 | - |
-| `alice` | 1-8 | 67 | none | session-swk-lock-demo.tex:3 | - | 2 | - |
+| `alice` | 1-8 | 66 | none | session-swk-lock-demo.tex:3 | - | 2 | - |
 | `always invoked` | 1-1 | 4 | none | single-writer-kernel.tex:320 | - | 0 | - |
-| `annals of mathematical statistics` | 3-4 | 4 | none | sealed-harbor.tex:1214 | - | 0 | - |
 | `arbiter` | 1-8 | 23 | none | single-writer-kernel.tex:2940 | arbiter (law) | 2 | - |
-| `artifact` | 1-8 | 132 | none | fig-swk-workunit-machine.tex:12 | - | 4 | R4 |
-| `artificial intelligence` | 1-6 | 3 | none | single-writer-kernel.tex:3042 | - | 0 | - |
+| `artifact` | 1-8 | 131 | none | fig-swk-workunit-machine.tex:12 | - | 4 | R4 |
 | `attenuation` | 1-8 | 59 | federated-harbor-whitepaper.tex:305 | single-writer-kernel.tex:914 | - | 4 | - |
 | `author` | 1-6 | 28 | spawn-to-person.tex:1348 (judged) | single-writer-kernel.tex:422 | - | 2 | - |
-| `authority` | 1-8 | 188 | spawn-to-person.tex:606 | single-writer-kernel.tex:579 | - | 4 | - |
-| `authorization chain` | 1-8 | 25 | single-writer-kernel.tex:2941 (judged) | single-writer-kernel.tex:914 | - | 2 | - |
+| `authority` | 1-8 | 186 | spawn-to-person.tex:606 | single-writer-kernel.tex:579 | - | 4 | - |
+| `authorization chain` | 1-6 | 18 | single-writer-kernel.tex:2941 (judged) | single-writer-kernel.tex:914 | - | 2 | - |
 | `binding` | 1-8 | 88 | spawn-to-person.tex:1610 | single-writer-kernel.tex:1060 | - | 4 | - |
-| `bond` | 1-8 | 236 | agent-transactions-whitepaper.tex:1000 (judged) | single-writer-kernel.tex:1436 | bond (finance) | 4 | - |
+| `bond` | 1-8 | 234 | agent-transactions-whitepaper.tex:1000 (judged) | single-writer-kernel.tex:1436 | bond (finance) | 4 | - |
 | `bond post` | 5-8 | 3 | none | spawn-to-person.tex:1920 | - | 1 | - |
 | `bonded advisor` | 7-7 | 6 | agent-transactions-whitepaper.tex:1066 (judged) | agent-transactions-whitepaper.tex:948 | - | 1 | - |
 | `bounty` | 6-6 | 23 | none | fig-he-three-sided.tex:26 | - | 4 | - |
 | `bradley terry` | 5-6 | 11 | spawn-to-person.tex:481 (judged) | spawn-to-person.tex:268 | - | 4 | - |
-| `bubbles` | 5-6 | 7 | harbor-economy.tex:1503 (judged) | spawn-to-person.tex:521 | - | 1 | - |
-| `budget` | 1-7 | 81 | none | single-writer-kernel.tex:2096 | - | 3 | - |
+| `bubbles` | 5-6 | 5 | harbor-economy.tex:1503 (judged) | spawn-to-person.tex:521 | - | 1 | - |
+| `budget` | 1-7 | 79 | none | single-writer-kernel.tex:2096 | - | 3 | - |
 | `by construction` | 1-8 | 19 | harbor-economy.tex:2020 (judged) | single-writer-kernel.tex:323 | - | 2 | - |
 | `by design` | 1-8 | 11 | harbor-economy.tex:608 (judged) | single-writer-kernel.tex:2023 | - | 1 | - |
 | `cannot author` | 5-6 | 4 | spawn-to-person.tex:925 | spawn-to-person.tex:925 | - | 1 | - |
@@ -144,23 +142,22 @@ because eight concepts in one bad section is one repair, not eight. `judged`.
 | `cleanup lower bound` | 6-6 | 5 | harbor-economy.tex:1451 (judged) | harbor-economy.tex:1451 | - | 2 | - |
 | `clear` | 1-8 | 38 | harbor-economy.tex:1361 (judged) | single-writer-kernel.tex:1972 | - | 2 | - |
 | `closed by` | 1-5 | 3 | none | single-writer-kernel.tex:2707 | - | 3 | - |
-| `commitment` | 1-7 | 75 | none | fig-swk-commitment-oracle.tex:38 | - | 4 | - |
+| `commitment` | 1-7 | 74 | none | fig-swk-commitment-oracle.tex:38 | - | 4 | - |
 | `commons authority` | 7-8 | 26 | agent-transactions-whitepaper.tex:367 | agent-transactions-whitepaper.tex:281 | - | 2 | - |
-| `communications of the acm` | 1-8 | 10 | none | single-writer-kernel.tex:3037 | - | 0 | - |
 | `compaction` | 1-4 | 32 | legible-swarm.tex:2298 (judged) | single-writer-kernel.tex:2093 | - | 2 | - |
 | `conclusion` | 1-8 | 4 | none | single-writer-kernel.tex:2622 | - | 1 | - |
 | `connectedness` | 5-5 | 10 | spawn-to-person.tex:466 (judged) | fig-stp-parfit-chain.tex:7 | - | 2 | - |
 | `consent grant` | 4-4 | 14 | legible-swarm.tex:627 | legible-swarm.tex:333 | - | 2 | - |
 | `conservation` | 3-8 | 66 | harbor-economy.tex:1753 (judged) | fig-sealed-pillar-pipeline.tex:23 | - | 4 | - |
 | `content hash` | 5-6 | 9 | none | spawn-to-person.tex:1997 | - | 1 | - |
-| `continuity` | 1-7 | 91 | legible-swarm.tex:3158 (judged) | fig-swk-continuity-organs.tex:11 | - | 4 | - |
+| `continuity` | 1-7 | 88 | legible-swarm.tex:3158 (judged) | fig-swk-continuity-organs.tex:11 | - | 4 | - |
 | `continuity witness` | 1-5 | 6 | spawn-to-person.tex:613 | single-writer-kernel.tex:1673 | - | 3 | - |
 | `contributions` | 5-8 | 5 | none | spawn-to-person.tex:554 | - | 3 | - |
-| `controllable` | 1-3 | 43 | single-writer-kernel.tex:1213 (judged) | fig-swk-controllability-quadrant.tex:18 | - | 2 | R5 |
-| `coordination` | 1-8 | 136 | none | fig-swk-stack-map.tex:21 | - | 4 | - |
+| `controllable` | 1-3 | 42 | single-writer-kernel.tex:1213 (judged) | fig-swk-controllability-quadrant.tex:18 | - | 2 | R5 |
+| `coordination` | 1-8 | 116 | none | fig-swk-stack-map.tex:21 | - | 4 | - |
 | `coordination lineage` | 1-6 | 8 | single-writer-kernel.tex:2941 (judged) | single-writer-kernel.tex:915 | - | 1 | - |
 | `correlated equilibrium` | 7-8 | 11 | agent-transactions-whitepaper.tex:389 (judged) | agent-transactions-whitepaper.tex:205 | - | 2 | - |
-| `cost` | 1-8 | 225 | legible-swarm.tex:2269 (judged) | fig-swk-durability-faultclass.tex:29 | - | 4 | - |
+| `cost` | 1-8 | 221 | legible-swarm.tex:2269 (judged) | fig-swk-durability-faultclass.tex:29 | - | 4 | - |
 | `critical artifact` | 1-8 | 10 | harbor-economy.tex:303 (judged) | single-writer-kernel.tex:417 | - | 2 | - |
 | `cross-harbor capability transfer` | 6-8 | 7 | none | harbor-economy.tex:213 | - | 4 | - |
 | `cross-harbor capability-transfer ceremony` | 6-8 | 4 | harbor-economy.tex:1220 (judged) | harbor-economy.tex:213 | - | 3 | - |
@@ -175,200 +172,177 @@ because eight concepts in one bad section is one repair, not eight. `judged`.
 | `direction` | 1-8 | 33 | none | single-writer-kernel.tex:388 | - | 2 | R5 |
 | `discipline` | 1-8 | 68 | single-writer-kernel.tex:510 (judged) | single-writer-kernel.tex:294 | discipline (moral) | 4 | R4 |
 | `dishonest` | 5-5 | 7 | spawn-to-person.tex:972 | spawn-to-person.tex:972 | - | 1 | R13 |
-| `distinct` | 1-8 | 48 | agent-transactions-whitepaper.tex:1714 (judged) | single-writer-kernel.tex:976 | - | 1 | - |
-| `douceur` | 4-8 | 9 | none | legible-swarm.tex:2502 | - | 2 | - |
+| `distinct` | 1-8 | 47 | agent-transactions-whitepaper.tex:1714 (judged) | single-writer-kernel.tex:976 | - | 1 | - |
+| `douceur` | 4-6 | 5 | none | legible-swarm.tex:2502 | - | 2 | - |
 | `drake` | 5-5 | 7 | none | spawn-to-person.tex:358 | - | 1 | - |
-| `durability` | 1-8 | 39 | none | fig-swk-durability-faultclass.tex:25 | - | 2 | - |
+| `durability` | 1-8 | 37 | none | fig-swk-durability-faultclass.tex:25 | - | 2 | - |
 | `durability by fault class` | 1-1 | 3 | single-writer-kernel.tex:654 | fig-swk-durability-faultclass.tex:25 | - | 1 | - |
-| `econometrica` | 4-6 | 6 | none | legible-swarm.tex:3519 | - | 0 | - |
 | `economic settlement` | 7-7 | 3 | agent-transactions-whitepaper.tex:374 | agent-transactions-whitepaper.tex:374 | - | 2 | - |
-| `effective` | 4-8 | 25 | none | legible-swarm.tex:2281 | - | 2 | - |
-| `efficiency` | 4-7 | 28 | spawn-to-person.tex:1865 | legible-swarm.tex:3456 | - | 4 | - |
-| `eigentrust` | 4-5 | 13 | spawn-to-person.tex:1704 (judged) | legible-swarm.tex:2208 | - | 2 | - |
-| `endsley` | 4-4 | 6 | none | legible-swarm.tex:1383 | - | 1 | - |
-| `enforceable` | 1-7 | 16 | none | single-writer-kernel.tex:1135 | - | 2 | R5 |
+| `effective` | 4-8 | 24 | none | legible-swarm.tex:2281 | - | 2 | - |
+| `efficiency` | 5-7 | 27 | spawn-to-person.tex:1865 | fig-stp-multidim-reputation.tex:10 | - | 4 | - |
+| `eigentrust` | 4-5 | 11 | spawn-to-person.tex:1704 (judged) | legible-swarm.tex:2208 | - | 2 | - |
+| `endsley` | 4-4 | 4 | none | legible-swarm.tex:1383 | - | 1 | - |
+| `enforceable` | 1-7 | 14 | none | single-writer-kernel.tex:1135 | - | 2 | R5 |
 | `enforcement` | 1-8 | 45 | single-writer-kernel.tex:2056 (judged) | single-writer-kernel.tex:279 | - | 4 | - |
 | `enforces` | 1-8 | 24 | none | single-writer-kernel.tex:312 | - | 2 | - |
 | `epoch` | 1-8 | 109 | single-writer-kernel.tex:792 (judged) | fig-swk-workunit-machine.tex:37 | - | 2 | R8 |
-| `erich owens` | 1-8 | 15 | none | single-writer-kernel.tex:191 | - | 1 | - |
 | `escrow` | 2-8 | 119 | agent-transactions-whitepaper.tex:790 | anchor-protocol-whitepaper.tex:472 | escrow (finance) | 4 | - |
 | `escrowed` | 6-7 | 7 | agent-transactions-whitepaper.tex:1391 | harbor-economy.tex:376 | - | 2 | - |
 | `evidence trail` | 7-8 | 19 | agent-transactions-whitepaper.tex:515 | agent-transactions-whitepaper.tex:205 | - | 2 | - |
 | `exercises` | 1-7 | 9 | none | single-writer-kernel.tex:424 | - | 1 | - |
-| `exit` | 1-7 | 30 | legible-swarm.tex:705 (judged) | single-writer-kernel.tex:1219 | - | 2 | - |
+| `exit` | 1-7 | 29 | legible-swarm.tex:705 (judged) | single-writer-kernel.tex:1219 | - | 2 | - |
 | `express` | 1-5 | 18 | none | single-writer-kernel.tex:1150 | - | 2 | R5, R8 |
 | `failure modes` | 2-8 | 14 | none | anchor-protocol-whitepaper.tex:200 | - | 1 | - |
 | `federated revocation` | 6-8 | 6 | none | harbor-economy.tex:1406 | - | 4 | - |
 | `final` | 1-8 | 14 | none | single-writer-kernel.tex:1548 | - | 2 | - |
-| `fipa` | 4-4 | 7 | none | legible-swarm.tex:1890 | - | 1 | - |
+| `fipa` | 4-4 | 6 | none | legible-swarm.tex:1890 | - | 1 | - |
 | `float plan` | 2-7 | 39 | harbor-economy.tex:635 | anchor-protocol-whitepaper.tex:472 | - | 4 | - |
 | `forbidden` | 1-6 | 16 | single-writer-kernel.tex:1046 (judged) | fig-swk-reference-monitor.tex:16 | - | 1 | - |
 | `formal model` | 2-8 | 11 | none | anchor-protocol-whitepaper.tex:466 | - | 4 | - |
 | `from bob's foreign view` | 5-6 | 4 | none | tab-keystone-split.tex:4 | - | 1 | - |
-| `from spawn to person` | 1-6 | 16 | none | single-writer-kernel.tex:239 | - | 2 | - |
 | `global` | 1-8 | 32 | none | single-writer-kernel.tex:699 | - | 1 | - |
-| `good` | 1-7 | 37 | harbor-economy.tex:401 (judged) | single-writer-kernel.tex:811 | - | 4 | - |
-| `harbor` | 1-8 | 412 | none | session-swk-workunit-check.tex:3 | - | 4 | R5 |
-| `hayek` | 4-4 | 5 | legible-swarm.tex:2571 (judged) | legible-swarm.tex:2571 | - | 1 | - |
+| `good` | 1-7 | 36 | harbor-economy.tex:401 (judged) | single-writer-kernel.tex:811 | - | 4 | - |
+| `harbor` | 1-8 | 398 | none | session-swk-workunit-check.tex:3 | - | 4 | R5 |
+| `hayek` | 4-4 | 4 | legible-swarm.tex:2571 (judged) | legible-swarm.tex:2571 | - | 1 | - |
 | `heron` | 5-5 | 11 | none | spawn-to-person.tex:359 | - | 1 | - |
-| `hirschman` | 4-4 | 5 | none | legible-swarm.tex:705 | - | 2 | - |
+| `hirschman` | 4-4 | 4 | none | legible-swarm.tex:705 | - | 2 | - |
 | `honest` | 1-8 | 166 | spawn-to-person.tex:3092 (judged) | single-writer-kernel.tex:534 | - | 4 | - |
 | `honest-attestation` | 4-5 | 6 | none | legible-swarm.tex:414 | - | 4 | - |
 | `hosted trust` | 4-6 | 13 | none | legible-swarm.tex:655 | - | 4 | - |
-| `human factors` | 4-4 | 8 | none | legible-swarm.tex:334 | - | 1 | R4 |
-| `hume` | 4-4 | 4 | none | legible-swarm.tex:622 | - | 0 | - |
-| `identity` | 1-8 | 261 | agent-transactions-whitepaper.tex:370 | fig-swk-continuity-organs.tex:11 | - | 4 | - |
-| `ieee computer` | 1-4 | 5 | none | single-writer-kernel.tex:3077 | - | 1 | - |
+| `hume` | 4-4 | 3 | none | legible-swarm.tex:622 | - | 0 | - |
+| `identity` | 1-8 | 255 | agent-transactions-whitepaper.tex:370 | fig-swk-continuity-organs.tex:11 | - | 4 | - |
 | `illegible` | 4-4 | 10 | legible-swarm.tex:426 (judged) | legible-swarm.tex:420 | - | 1 | R4 |
-| `implementation` | 1-8 | 69 | none | fig-swk-durability-faultclass.tex:26 | - | 4 | - |
+| `implementation` | 1-8 | 57 | none | fig-swk-durability-faultclass.tex:26 | - | 4 | - |
 | `in one breath` | 5-6 | 4 | none | spawn-to-person.tex:958 | - | 1 | - |
 | `incentive constraints` | 6-8 | 5 | harbor-economy.tex:2386 (judged) | harbor-economy.tex:372 | - | 2 | - |
-| `infrastructure` | 2-8 | 19 | agent-transactions-whitepaper.tex:376 | anchor-protocol-whitepaper.tex:162 | - | 2 | - |
-| `integrity` | 1-7 | 22 | spawn-to-person.tex:1610 | single-writer-kernel.tex:723 | - | 1 | - |
+| `infrastructure` | 2-8 | 16 | agent-transactions-whitepaper.tex:376 | anchor-protocol-whitepaper.tex:162 | - | 2 | - |
+| `integrity` | 1-7 | 21 | spawn-to-person.tex:1610 | single-writer-kernel.tex:723 | - | 1 | - |
 | `inter-harbor scope` | 8-8 | 3 | federated-harbor-whitepaper.tex:320 | federated-harbor-whitepaper.tex:272 | - | 1 | - |
-| `iptps` | 4-8 | 4 | none | legible-swarm.tex:3448 | - | 0 | - |
 | `isolation domains` | 7-7 | 3 | none | agent-transactions-whitepaper.tex:963 | - | 2 | - |
 | `issuance` | 2-8 | 16 | federated-harbor-whitepaper.tex:304 | anchor-protocol-whitepaper.tex:278 | - | 1 | - |
-| `journal of cryptographic engineering` | 1-8 | 3 | none | single-writer-kernel.tex:3082 | - | 0 | - |
-| `journal of economic theory` | 5-7 | 5 | none | spawn-to-person.tex:3250 | - | 0 | - |
-| `journal of political economy` | 5-7 | 4 | none | spawn-to-person.tex:3185 | - | 0 | - |
-| `journal of the acm` | 1-6 | 5 | none | single-writer-kernel.tex:3027 | - | 0 | - |
 | `keywords` | 1-8 | 8 | none | single-writer-kernel.tex:245 | - | 0 | - |
 | `layer` | 1-8 | 171 | none | fig-swk-stack-map.tex:40 | - | 4 | - |
-| `legibility-with-zoom` | 4-4 | 6 | legible-swarm.tex:360 (judged) | legible-swarm.tex:203 | - | 2 | - |
-| `legible` | 1-7 | 68 | legible-swarm.tex:722 (judged) | single-writer-kernel.tex:239 | - | 3 | R4 |
-| `leviathan` | 4-7 | 28 | none | legible-swarm.tex:203 | - | 2 | R4 |
-| `limited records and reputation` | 5-6 | 4 | harbor-economy.tex:1502 (judged) | spawn-to-person.tex:520 | - | 1 | - |
+| `legibility-with-zoom` | 4-4 | 5 | legible-swarm.tex:360 (judged) | legible-swarm.tex:360 | - | 2 | - |
+| `legible` | 1-7 | 66 | legible-swarm.tex:722 (judged) | single-writer-kernel.tex:239 | - | 3 | R4 |
+| `leviathan` | 4-7 | 23 | none | legible-swarm.tex:232 | - | 2 | R4 |
 | `lineage` | 1-7 | 35 | none | single-writer-kernel.tex:915 | - | 4 | - |
 | `llm-as-judge` | 5-6 | 6 | none | spawn-to-person.tex:269 | - | 0 | - |
-| `local` | 1-8 | 175 | federated-harbor-whitepaper.tex:1235 (judged) | single-writer-kernel.tex:187 | - | 4 | R4 |
+| `local` | 1-8 | 168 | federated-harbor-whitepaper.tex:1235 (judged) | single-writer-kernel.tex:216 | - | 4 | R4 |
 | `local non-forgeable identity` | 5-6 | 19 | spawn-to-person.tex:1593 | spawn-to-person.tex:257 | - | 4 | - |
 | `localization` | 8-8 | 4 | none | federated-harbor-whitepaper.tex:557 | - | 0 | - |
-| `locke` | 4-7 | 8 | none | legible-swarm.tex:2557 | - | 3 | - |
+| `locke` | 4-5 | 5 | none | legible-swarm.tex:2557 | - | 3 | - |
 | `lowers` | 4-5 | 8 | legible-swarm.tex:2121 (judged) | legible-swarm.tex:1057 | - | 1 | - |
-| `machine` | 1-8 | 140 | harbor-economy.tex:638 | fig-swk-stack-map.tex:16 | - | 4 | R5, R8 |
+| `machine` | 1-8 | 135 | harbor-economy.tex:638 | fig-swk-stack-map.tex:16 | - | 4 | R5, R8 |
 | `machine-checkable` | 1-6 | 15 | harbor-economy.tex:637 | single-writer-kernel.tex:1601 | - | 2 | - |
 | `manifest` | 1-7 | 11 | agent-transactions-whitepaper.tex:789 | single-writer-kernel.tex:2519 | - | 1 | - |
-| `mathematics of operations research` | 5-7 | 3 | none | spawn-to-person.tex:3275 | - | 0 | - |
 | `maturity` | 1-7 | 33 | none | single-writer-kernel.tex:366 | - | 4 | - |
 | `mean` | 1-8 | 44 | none | single-writer-kernel.tex:650 | - | 4 | - |
-| `mechanism` | 1-8 | 195 | none | single-writer-kernel.tex:371 | - | 4 | R5 |
+| `mechanism` | 1-8 | 190 | none | single-writer-kernel.tex:371 | - | 4 | R5 |
 | `memory` | 1-7 | 100 | spawn-to-person.tex:323 (judged) | fig-swk-continuity-organs.tex:11 | - | 4 | - |
 | `merkle forest` | 7-8 | 14 | agent-transactions-whitepaper.tex:537 | agent-transactions-whitepaper.tex:245 | - | 4 | - |
-| `method` | 1-8 | 16 | agent-transactions-whitepaper.tex:1997 (judged) | single-writer-kernel.tex:3003 | - | 4 | - |
+| `method` | 2-8 | 11 | agent-transactions-whitepaper.tex:1997 (judged) | anchor-protocol-whitepaper.tex:1018 | - | 4 | - |
 | `minimal liberalism` | 7-7 | 3 | none | agent-transactions-whitepaper.tex:616 | - | 0 | - |
 | `multi-dimensional reputation` | 5-6 | 8 | none | spawn-to-person.tex:249 | - | 4 | - |
 | `mutations` | 1-4 | 9 | none | single-writer-kernel.tex:498 | - | 1 | - |
 | `narrow` | 1-8 | 27 | spawn-to-person.tex:667 (judged) | fig-swk-commitment-oracle.tex:37 | - | 1 | - |
 | `nearest prior art` | 4-6 | 6 | none | legible-swarm.tex:3095 | - | 2 | - |
 | `necessity` | 5-5 | 4 | spawn-to-person.tex:1034 (judged) | spawn-to-person.tex:549 | - | 0 | - |
-| `neurips` | 4-6 | 6 | none | legible-swarm.tex:808 | - | 0 | - |
 | `no-spawn-without-bond` | 6-6 | 4 | none | fig-he-float-plan.tex:34 | - | 4 | - |
 | `nominal` | 7-7 | 3 | none | agent-transactions-whitepaper.tex:1078 | - | 1 | - |
-| `normal` | 1-7 | 18 | single-writer-kernel.tex:522 (judged) | fig-swk-durability-faultclass.tex:11 | - | 2 | - |
-| `normative` | 1-7 | 16 | single-writer-kernel.tex:2678 (judged) | single-writer-kernel.tex:1064 | - | 1 | - |
+| `normal` | 1-7 | 17 | single-writer-kernel.tex:522 (judged) | fig-swk-durability-faultclass.tex:11 | - | 2 | - |
+| `normative` | 1-7 | 13 | single-writer-kernel.tex:2678 (judged) | single-writer-kernel.tex:1064 | - | 1 | - |
 | `normative status` | 1-5 | 4 | none | single-writer-kernel.tex:1064 | - | 1 | - |
-| `not guaranteed` | 1-1 | 5 | none | single-writer-kernel.tex:73 | - | 1 | - |
 | `now you` | 1-8 | 30 | none | single-writer-kernel.tex:1303 | - | 2 | R5, R8 |
 | `now you try` | 1-8 | 30 | none | single-writer-kernel.tex:1303 | - | 2 | R5, R8 |
 | `numbers by hand` | 5-5 | 5 | none | spawn-to-person.tex:1006 | - | 2 | - |
-| `obligation` | 1-8 | 90 | single-writer-kernel.tex:1058 | single-writer-kernel.tex:229 | - | 4 | - |
-| `obligations` | 1-7 | 24 | spawn-to-person.tex:604 | single-writer-kernel.tex:278 | - | 2 | - |
+| `obligation` | 1-8 | 87 | single-writer-kernel.tex:1058 | single-writer-kernel.tex:229 | - | 4 | - |
+| `obligations` | 1-7 | 23 | spawn-to-person.tex:604 | single-writer-kernel.tex:278 | - | 2 | - |
 | `observes` | 1-8 | 14 | none | single-writer-kernel.tex:1082 | - | 1 | - |
 | `offline attenuation` | 2-7 | 3 | anchor-protocol-whitepaper.tex:295 | anchor-protocol-whitepaper.tex:293 | - | 0 | - |
 | `one-shot defectors` | 7-7 | 3 | none | agent-transactions-whitepaper.tex:769 | - | 1 | - |
-| `open` | 1-8 | 158 | none | fig-swk-commitment-oracle.tex:5 | - | 3 | - |
 | `open problem` | 1-8 | 27 | none | single-writer-kernel.tex:424 | - | 3 | - |
 | `operator` | 1-8 | 331 | spawn-to-person.tex:1598 | fig-swk-stack-map.tex:30 | - | 4 | R4 |
-| `oracle` | 1-8 | 130 | spawn-to-person.tex:923 | fig-swk-commitment-oracle.tex:12 | - | 4 | - |
+| `oracle` | 1-8 | 129 | spawn-to-person.tex:923 | fig-swk-commitment-oracle.tex:12 | - | 4 | - |
 | `organ` | 1-7 | 111 | single-writer-kernel.tex:439 (judged) | single-writer-kernel.tex:423 | organ (anatomy) | 4 | - |
 | `our departure` | 5-5 | 4 | none | spawn-to-person.tex:473 | - | 2 | - |
 | `outcome ledger` | 1-6 | 31 | spawn-to-person.tex:717 (judged) | fig-swk-continuity-organs.tex:38 | - | 4 | - |
 | `pair` | 1-8 | 66 | none | single-writer-kernel.tex:1387 | - | 4 | R4 |
 | `parameter` | 1-8 | 32 | none | single-writer-kernel.tex:1798 | - | 3 | - |
 | `pareto efficiency` | 7-7 | 4 | none | agent-transactions-whitepaper.tex:615 | - | 2 | - |
-| `partial` | 1-8 | 73 | harbor-economy.tex:881 (judged) | fig-swk-continuity-organs.tex:16 | - | 4 | R4 |
+| `partial` | 1-8 | 60 | harbor-economy.tex:881 (judged) | fig-swk-continuity-organs.tex:16 | - | 4 | R4 |
 | `parties` | 3-7 | 15 | none | sealed-harbor.tex:359 | - | 2 | - |
-| `pateman` | 4-4 | 3 | none | legible-swarm.tex:2559 | - | 2 | - |
 | `permission` | 1-7 | 36 | single-writer-kernel.tex:1059 | single-writer-kernel.tex:556 | - | 4 | - |
-| `person` | 1-6 | 72 | spawn-to-person.tex:611 | single-writer-kernel.tex:239 | - | 3 | - |
-| `phase` | 1-8 | 66 | none | fig-swk-workunit-machine.tex:50 | - | 2 | - |
+| `person` | 1-6 | 68 | spawn-to-person.tex:611 | single-writer-kernel.tex:239 | - | 3 | - |
+| `phase` | 1-8 | 65 | none | fig-swk-workunit-machine.tex:50 | - | 2 | - |
 | `physically unreachable` | 1-4 | 9 | none | single-writer-kernel.tex:391 | - | 1 | - |
 | `plus continuity` | 5-5 | 3 | spawn-to-person.tex:241 (judged) | spawn-to-person.tex:241 | - | 2 | - |
-| `policy` | 1-8 | 168 | single-writer-kernel.tex:1199 (judged) | fig-swk-commitment-oracle.tex:20 | - | 4 | R5, R8 |
-| `port daddy` | 1-8 | 43 | legible-swarm.tex:251 (judged) | single-writer-kernel.tex:177 | - | 2 | - |
-| `power` | 1-8 | 53 | none | fig-swk-durability-faultclass.tex:8 | - | 2 | - |
-| `price` | 1-8 | 162 | harbor-economy.tex:592 (judged) | single-writer-kernel.tex:2621 | - | 3 | - |
+| `policy` | 1-8 | 167 | single-writer-kernel.tex:1199 (judged) | fig-swk-commitment-oracle.tex:20 | - | 4 | R5, R8 |
+| `port daddy` | 2-8 | 24 | legible-swarm.tex:251 (judged) | anchor-protocol-whitepaper.tex:164 | - | 2 | - |
+| `power` | 1-8 | 48 | none | fig-swk-durability-faultclass.tex:8 | - | 2 | - |
+| `price` | 1-8 | 158 | harbor-economy.tex:592 (judged) | single-writer-kernel.tex:2621 | - | 3 | - |
 | `prices` | 4-8 | 51 | none | legible-swarm.tex:658 | - | 3 | - |
 | `principal` | 1-8 | 163 | spawn-to-person.tex:1354 | fig-swk-workunit-machine.tex:55 | - | 3 | R8 |
 | `privacy filter` | 3-3 | 3 | sealed-harbor.tex:657 (judged) | sealed-harbor.tex:608 | - | 3 | - |
-| `proceedings of the ieee` | 1-2 | 3 | none | single-writer-kernel.tex:2965 | - | 0 | - |
 | `prohibition` | 1-6 | 20 | single-writer-kernel.tex:1057 | single-writer-kernel.tex:391 | - | 2 | - |
 | `projection` | 1-8 | 35 | legible-swarm.tex:1384 (judged) | single-writer-kernel.tex:576 | - | 2 | R4 |
 | `propagate` | 1-8 | 13 | none | single-writer-kernel.tex:2213 | - | 1 | - |
-| `properties` | 1-8 | 35 | none | single-writer-kernel.tex:754 | - | 4 | R8 |
-| `protection` | 1-6 | 11 | single-writer-kernel.tex:2605 (judged) | single-writer-kernel.tex:342 | - | 0 | - |
-| `proverif` | 1-8 | 86 | none | single-writer-kernel.tex:118 | - | 4 | - |
+| `properties` | 1-8 | 34 | none | single-writer-kernel.tex:754 | - | 4 | R8 |
+| `protection` | 1-6 | 6 | single-writer-kernel.tex:2605 (judged) | single-writer-kernel.tex:342 | - | 0 | - |
+| `proverif` | 1-8 | 73 | none | single-writer-kernel.tex:914 | - | 4 | - |
 | `quality vector` | 5-5 | 8 | spawn-to-person.tex:1857 | fig-stp-multidim-reputation.tex:43 | - | 1 | - |
-| `quarterly journal of economics` | 4-7 | 4 | none | legible-swarm.tex:3514 | - | 0 | - |
 | `question` | 1-8 | 78 | legible-swarm.tex:863 (judged) | fig-swk-marker-decay.tex:32 | - | 2 | - |
 | `rail` | 1-8 | 32 | none | fig-swk-consistency-model.tex:31 | rail (mechanics) | 4 | - |
 | `re-audit` | 4-6 | 34 | none | legible-swarm.tex:2365 | - | 2 | - |
-| `read-poverty` | 4-4 | 16 | legible-swarm.tex:1552 | legible-swarm.tex:203 | - | 1 | - |
+| `read-poverty` | 4-4 | 15 | legible-swarm.tex:1552 | legible-swarm.tex:240 | - | 1 | - |
 | `reader's map` | 1-8 | 9 | none | single-writer-kernel.tex:250 | - | 1 | - |
-| `record` | 1-8 | 146 | agent-transactions-whitepaper.tex:335 (judged) | fig-swk-stack-map.tex:42 | - | 4 | R5 |
-| `reference` | 1-8 | 90 | none | fig-swk-durability-faultclass.tex:26 | - | 4 | R5 |
-| `reference monitor` | 1-4 | 12 | single-writer-kernel.tex:319 (judged) | fig-swk-reference-monitor.tex:34 | - | 1 | - |
+| `record` | 1-8 | 144 | agent-transactions-whitepaper.tex:335 (judged) | fig-swk-stack-map.tex:42 | - | 4 | R5 |
+| `reference` | 1-7 | 83 | none | fig-swk-durability-faultclass.tex:26 | - | 4 | R5 |
+| `reference monitor` | 1-4 | 10 | single-writer-kernel.tex:319 (judged) | fig-swk-reference-monitor.tex:34 | - | 1 | - |
 | `refuse` | 1-8 | 56 | harbor-economy.tex:1361 (judged) | single-writer-kernel.tex:345 | - | 2 | R5 |
 | `regimentable` | 1-7 | 22 | single-writer-kernel.tex:1133 (judged) | single-writer-kernel.tex:1133 | - | 1 | R5 |
 | `regiments` | 1-4 | 5 | none | single-writer-kernel.tex:311 | - | 1 | - |
-| `reputation` | 1-8 | 317 | none | fig-swk-stack-map.tex:32 | - | 4 | - |
+| `reputation` | 1-8 | 302 | none | fig-swk-stack-map.tex:32 | - | 4 | - |
 | `reputation discount` | 7-7 | 3 | none | agent-transactions-whitepaper.tex:865 | - | 1 | - |
-| `reputation is amortized` | 5-6 | 6 | none | spawn-to-person.tex:2063 | - | 2 | - |
-| `result` | 1-8 | 177 | none | session-swk-workunit-check.tex:3 | - | 4 | R4, R5 |
+| `reputation is amortized` | 5-6 | 4 | none | spawn-to-person.tex:2063 | - | 2 | - |
+| `result` | 1-8 | 176 | none | session-swk-workunit-check.tex:3 | - | 4 | R4, R5 |
 | `revocation` | 1-8 | 120 | federated-harbor-whitepaper.tex:306 | single-writer-kernel.tex:602 | - | 4 | - |
-| `role` | 1-8 | 78 | spawn-to-person.tex:602 | fig-swk-workunit-machine.tex:37 | - | 3 | R8 |
+| `role` | 1-8 | 77 | spawn-to-person.tex:602 | fig-swk-workunit-machine.tex:37 | - | 3 | R8 |
 | `root` | 1-8 | 197 | none | single-writer-kernel.tex:593 | - | 4 | - |
-| `rules` | 1-8 | 42 | none | fig-swk-reference-monitor.tex:40 | - | 2 | R4, R5 |
+| `rules` | 1-8 | 41 | none | fig-swk-reference-monitor.tex:40 | - | 2 | R4, R5 |
 | `running` | 1-8 | 64 | agent-transactions-whitepaper.tex:1391 | single-writer-kernel.tex:369 | - | 3 | - |
 | `sabotage` | 6-7 | 12 | none | harbor-economy.tex:727 | - | 2 | - |
 | `sanction-respecting` | 5-5 | 11 | spawn-to-person.tex:971 | spawn-to-person.tex:262 | - | 2 | R13 |
 | `sanction-respecting reputation` | 5-5 | 3 | spawn-to-person.tex:967 | spawn-to-person.tex:262 | - | 2 | R13 |
 | `security property` | 1-5 | 6 | none | single-writer-kernel.tex:1515 | - | 1 | - |
-| `seeing like a state` | 4-4 | 4 | legible-swarm.tex:719 (judged) | legible-swarm.tex:719 | - | 1 | R4 |
-| `settlement` | 1-8 | 122 | agent-transactions-whitepaper.tex:799 | fig-swk-stack-map.tex:32 | - | 4 | R8 |
+| `seeing like a state` | 4-4 | 3 | legible-swarm.tex:719 (judged) | legible-swarm.tex:719 | - | 1 | R4 |
+| `settlement` | 1-8 | 121 | agent-transactions-whitepaper.tex:799 | fig-swk-stack-map.tex:32 | - | 4 | R8 |
 | `settlement protocol` | 6-8 | 3 | none | harbor-economy.tex:1392 | - | 1 | - |
 | `setup` | 4-7 | 3 | none | legible-swarm.tex:976 | - | 0 | - |
-| `shape` | 1-8 | 57 | spawn-to-person.tex:1177 (judged) | single-writer-kernel.tex:31 | - | 2 | - |
+| `shape` | 1-8 | 48 | spawn-to-person.tex:1177 (judged) | single-writer-kernel.tex:793 | - | 2 | - |
 | `shared knowledge` | 7-7 | 3 | agent-transactions-whitepaper.tex:372 | agent-transactions-whitepaper.tex:372 | - | 0 | - |
-| `signatures` | 1-8 | 25 | agent-transactions-whitepaper.tex:791 | single-writer-kernel.tex:981 | - | 1 | - |
-| `single` | 1-8 | 263 | none | fig-swk-consistency-model.tex:30 | - | 4 | R4, R5, R8 |
+| `signatures` | 1-8 | 22 | agent-transactions-whitepaper.tex:791 | single-writer-kernel.tex:981 | - | 1 | - |
+| `single` | 1-8 | 247 | none | fig-swk-consistency-model.tex:30 | - | 4 | R4, R5, R8 |
 | `single-writer discipline` | 1-4 | 5 | single-writer-kernel.tex:501 | single-writer-kernel.tex:486 | - | 2 | - |
 | `slashes` | 5-6 | 8 | none | spawn-to-person.tex:1435 | - | 2 | - |
-| `sovereign` | 4-8 | 59 | none | legible-swarm.tex:233 | - | 3 | - |
-| `spawn` | 1-7 | 67 | none | fig-swk-controllability-quadrant.tex:23 | - | 4 | R5 |
-| `specification` | 1-8 | 35 | sealed-harbor.tex:479 (judged) | single-writer-kernel.tex:1385 | - | 1 | - |
-| `state` | 1-8 | 442 | legible-swarm.tex:749 | fig-swk-claim-lifecycle.tex:5 | - | 4 | R4, R5, R8 |
-| `status` | 1-8 | 98 | harbor-economy.tex:1082 | single-writer-kernel.tex:424 | - | 4 | - |
+| `sovereign` | 4-8 | 58 | none | legible-swarm.tex:233 | - | 3 | - |
+| `spawn` | 1-7 | 65 | none | fig-swk-controllability-quadrant.tex:23 | - | 4 | R5 |
+| `specification` | 1-8 | 23 | sealed-harbor.tex:479 (judged) | single-writer-kernel.tex:1385 | - | 1 | - |
+| `state` | 1-8 | 439 | legible-swarm.tex:749 | fig-swk-claim-lifecycle.tex:5 | - | 4 | R4, R5, R8 |
+| `status` | 1-8 | 96 | harbor-economy.tex:1082 | single-writer-kernel.tex:424 | - | 4 | - |
 | `stigmergic markers` | 1-1 | 6 | none | single-writer-kernel.tex:222 | - | 1 | - |
 | `stigmergic ticket-lock` | 1-7 | 4 | single-writer-kernel.tex:859 (judged) | single-writer-kernel.tex:859 | - | 2 | - |
-| `stoc` | 6-8 | 3 | none | harbor-economy.tex:2859 | - | 0 | - |
 | `success` | 1-7 | 26 | none | session-swk-lock-demo.tex:5 | - | 2 | - |
-| `test` | 1-8 | 176 | single-writer-kernel.tex:1973 (judged) | fig-swk-commitment-oracle.tex:18 | - | 4 | R4, R5 |
-| `the anchor protocol` | 1-8 | 49 | none | single-writer-kernel.tex:603 | - | 1 | - |
+| `test` | 1-8 | 174 | single-writer-kernel.tex:1973 (judged) | fig-swk-commitment-oracle.tex:18 | - | 4 | R4, R5 |
 | `the bonded advisor` | 7-7 | 5 | none | agent-transactions-whitepaper.tex:948 | - | 1 | - |
-| `the bonded commons` | 2-8 | 30 | none | anchor-protocol-whitepaper.tex:171 | - | 2 | - |
 | `the bonded-sponsor pattern` | 8-8 | 3 | none | federated-harbor-whitepaper.tex:869 | - | 2 | - |
 | `the commons authority` | 7-8 | 19 | none | agent-transactions-whitepaper.tex:365 | - | 2 | - |
 | `the conservation theorem` | 3-7 | 3 | none | sealed-harbor.tex:969 | - | 3 | - |
 | `the evidence chain` | 6-7 | 6 | none | harbor-economy.tex:972 | - | 2 | - |
-| `the federated harbor` | 4-8 | 33 | none | legible-swarm.tex:270 | - | 4 | - |
 | `the float plan` | 6-7 | 10 | none | harbor-economy.tex:633 | - | 2 | - |
 | `the four-message ceremony` | 6-8 | 5 | none | harbor-economy.tex:1229 | - | 0 | - |
 | `the grading oracle's incentive-compatibility` | 5-5 | 4 | none | spawn-to-person.tex:1804 | - | 3 | - |
-| `the harbor economy` | 1-6 | 28 | none | single-writer-kernel.tex:239 | - | 4 | - |
 | `the keystone split` | 5-6 | 5 | none | tab-keystone-split.tex:4 | - | 3 | - |
-| `the legible swarm` | 1-6 | 14 | none | single-writer-kernel.tex:239 | - | 3 | - |
+| `the legible swarm` | 1-6 | 12 | none | single-writer-kernel.tex:239 | - | 3 | - |
 | `the legible-sovereign rule` | 4-4 | 5 | legible-swarm.tex:557 | legible-swarm.tex:342 | - | 1 | - |
 | `the reference implementation` | 1-6 | 24 | none | fig-swk-durability-faultclass.tex:25 | - | 4 | - |
 | `the single-writer discipline` | 1-4 | 5 | none | single-writer-kernel.tex:486 | - | 2 | - |
@@ -376,35 +350,32 @@ because eight concepts in one bad section is one repair, not eight. `judged`.
 | `threat` | 1-8 | 56 | none | single-writer-kernel.tex:338 | - | 4 | - |
 | `threat model` | 1-8 | 28 | none | single-writer-kernel.tex:338 | - | 3 | - |
 | `tokens` | 1-8 | 39 | none | single-writer-kernel.tex:1165 | - | 2 | - |
-| `tool` | 1-7 | 65 | none | fig-swk-single-writer.tex:6 | - | 4 | R5 |
+| `tool` | 1-7 | 63 | none | fig-swk-single-writer.tex:6 | - | 4 | R5 |
 | `transition metric` | 7-7 | 3 | none | agent-transactions-whitepaper.tex:1021 | - | 1 | - |
 | `transitive` | 2-5 | 16 | spawn-to-person.tex:728 (judged) | anchor-protocol-whitepaper.tex:595 | - | 2 | - |
 | `trigger` | 1-7 | 53 | none | fig-swk-controllability-quadrant.tex:14 | - | 2 | - |
-| `trueskill` | 5-6 | 10 | none | spawn-to-person.tex:268 | - | 4 | - |
-| `two cheers for anarchism` | 4-4 | 3 | legible-swarm.tex:2579 (judged) | legible-swarm.tex:2579 | - | 1 | - |
-| `uncertainty` | 4-7 | 13 | none | legible-swarm.tex:377 | - | 1 | - |
+| `trueskill` | 5-6 | 9 | none | spawn-to-person.tex:268 | - | 4 | - |
+| `uncertainty` | 4-7 | 11 | none | legible-swarm.tex:377 | - | 1 | - |
 | `unsolved` | 5-5 | 6 | spawn-to-person.tex:1607 | spawn-to-person.tex:443 | - | 3 | - |
 | `unverifiable` | 4-6 | 5 | legible-swarm.tex:1083 | legible-swarm.tex:1083 | - | 2 | - |
-| `usenix security symposium` | 5-8 | 3 | none | spawn-to-person.tex:3349 | - | 0 | - |
 | `vector` | 2-8 | 49 | spawn-to-person.tex:1872 (judged) | anchor-protocol-whitepaper.tex:309 | - | 1 | - |
 | `verdict` | 1-8 | 24 | none | single-writer-kernel.tex:1155 | verdict (law) | 3 | R5 |
 | `verification status` | 7-8 | 4 | none | agent-transactions-whitepaper.tex:254 | - | 4 | - |
-| `verifier` | 1-8 | 76 | legible-swarm.tex:1082 | session-swk-workunit-check.tex:16 | - | 2 | - |
+| `verifier` | 1-8 | 74 | legible-swarm.tex:1082 | session-swk-workunit-check.tex:16 | - | 2 | - |
 | `visible` | 1-8 | 43 | none | single-writer-kernel.tex:1339 | - | 2 | R5 |
-| `voice` | 2-4 | 11 | legible-swarm.tex:705 (judged) | anchor-protocol-whitepaper.tex:829 | - | 2 | - |
+| `voice` | 2-4 | 10 | legible-swarm.tex:705 (judged) | anchor-protocol-whitepaper.tex:829 | - | 2 | - |
 | `volume context` | 2-8 | 3 | none | anchor-protocol-whitepaper.tex:221 | - | 1 | - |
 | `wallet` | 6-7 | 20 | none | fig-he-conservation-functor.tex:51 | - | 4 | - |
-| `weak` | 1-7 | 9 | none | single-writer-kernel.tex:1627 | - | 2 | - |
+| `weak` | 1-7 | 8 | none | single-writer-kernel.tex:1627 | - | 2 | - |
 | `what it drops` | 4-4 | 3 | legible-swarm.tex:2478 (judged) | legible-swarm.tex:2380 | - | 3 | - |
-| `what needs an authority` | 4-6 | 4 | none | legible-swarm.tex:3107 | - | 1 | - |
 | `what survives` | 1-5 | 5 | none | single-writer-kernel.tex:672 | - | 1 | - |
-| `wickens` | 1-4 | 10 | none | single-writer-kernel.tex:1444 | - | 1 | - |
-| `width` | 1-8 | 416 | spawn-to-person.tex:1208 (judged) | fig-swk-claim-lifecycle.tex:6 | - | 2 | - |
+| `wickens` | 1-4 | 6 | none | single-writer-kernel.tex:1444 | - | 1 | - |
+| `width` | 1-8 | 365 | spawn-to-person.tex:1208 (judged) | fig-swk-claim-lifecycle.tex:6 | - | 2 | - |
 | `within one trusted daemon` | 5-6 | 3 | spawn-to-person.tex:1595 | spawn-to-person.tex:1595 | - | 1 | - |
-| `witness` | 1-8 | 123 | none | fig-swk-workunit-machine.tex:24 | - | 4 | R5 |
+| `witness` | 1-8 | 122 | none | fig-swk-workunit-machine.tex:24 | - | 4 | R5 |
 | `witnessed` | 1-8 | 97 | spawn-to-person.tex:925 | fig-swk-continuity-organs.tex:35 | - | 4 | - |
-| `worked example` | 6-8 | 6 | none | harbor-economy.tex:2768 | - | 2 | - |
+| `worked example` | 7-8 | 5 | none | agent-transactions-whitepaper.tex:1618 | - | 2 | - |
 | `wren` | 5-5 | 6 | spawn-to-person.tex:591 (judged) | spawn-to-person.tex:358 | - | 1 | - |
 | `wrong` | 1-8 | 69 | spawn-to-person.tex:1690 (judged) | fig-swk-workunit-machine.tex:77 | - | 3 | R8 |
-| `zoom` | 1-4 | 69 | legible-swarm.tex:753 | fig-swk-stack-map.tex:30 | - | 2 | R4 |
+| `zoom` | 1-4 | 68 | legible-swarm.tex:753 | fig-swk-stack-map.tex:30 | - | 2 | R4 |
 | `zoom advantage` | 4-4 | 3 | none | legible-swarm.tex:2600 | - | 1 | - |

@@ -16,7 +16,7 @@ They join on `\label`. Every concept entry carries `library_index_ids`,
 with the labels each library-index entry claims. It is never typed. That is
 deliberate: this repo's recurring defect is two lists that must agree with
 nothing deriving either from the other, and a hand-typed cross-reference here
-would have been a third one. 45 of the 284 concepts join today.
+would have been a third one. 47 of the 274 concepts join today.
 
 Companion files:
 
@@ -59,7 +59,7 @@ figure-blocker steps were introduced.
   prose across the Book.
 
 Every rejection is written to `dropped_candidates[]` with its reason, so the
-misses are countable. They currently number 2 407 — 2 170 unmarked, 237 below
+misses are countable. They currently number 2 239 — 2 030 unmarked, 209 below
 the mention floor.
 
 ## Parsed vs judged
