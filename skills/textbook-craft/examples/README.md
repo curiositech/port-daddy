@@ -6,8 +6,9 @@ against Chapter 1 (the single-writer kernel) as it stands at this skill's most
 recent revision. Regenerate it after any change to the chapter or the script:
 
 ```bash
-python3 scripts/chapter_lint.py whitepaper/single-writer-kernel.tex \
-  > examples/chapter1-lint-report.txt
+python3 skills/textbook-craft/scripts/chapter_lint.py --repo-root . \
+  whitepaper/single-writer-kernel.tex \
+  > skills/textbook-craft/examples/chapter1-lint-report.txt
 ```
 
 Chapter 1 has since adopted the Wave 12 page-grammar rewrite
@@ -28,11 +29,24 @@ arguments at all so it reads its own chapter list from
 `skills/tufte-evidence-design/scripts/margin_lint.py` uses):
 
 ```bash
-python3 scripts/chapter_lint.py > examples/consolidated-lint-report.txt
+python3 skills/textbook-craft/scripts/chapter_lint.py --repo-root . \
+  > skills/textbook-craft/examples/consolidated-lint-report.txt
 ```
 
-This is the report CI reads: one row per (chapter, floor), a PASS/FAIL/WARN
-status column (WARN is an advisory floor left unmet — it never fails
-`--strict`), and a one-line summary of how many rows are genuinely blocking
-versus merely advisory. Read the summary line first; read individual rows
-when a chapter needs fixing.
+This is the report CI reads: one row per (chapter, floor), a
+PASS/REVIEW/WARN/FAIL status column, and a one-line summary of how many rows
+are genuinely blocking, how many are merely advisory, and how many are
+`REVIEW`. Read the summary line first; read individual rows when a chapter
+needs fixing.
+
+- `WARN` — an advisory floor left unmet. Never fails `--strict`.
+- `REVIEW` — everything the script can measure came back clean, but the
+  floor's rule is only partly mechanically visible, so this is a
+  measurement, not a verdict. Today that is
+  `at_most_one_labelled_interlude`: it sees titled interludes and nothing
+  else, and an unlabelled philosophical aside in ordinary prose needs a
+  human read. Never fails `--strict` either.
+
+Both files are regenerated with `--repo-root .` from the repository root, so
+the chapter column holds repo-relative paths rather than whichever absolute
+path the generating checkout happened to live at.
