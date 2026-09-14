@@ -1841,10 +1841,10 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     expect(resumedPurserAi.calls.filter(call => call.ship === 'code-reviewer')).toHaveLength(0);
     expect(d1.steps.filter(step => step.kind === 'ship-checkpoint-invalidated')).toHaveLength(0);
     expect(d1.steps.filter(step => step.kind === 'ship-resumed' && step.ship === 'code-reviewer'))
-      .toHaveLength(2);
+      .toHaveLength(1);
     const purserComment = state.existingComments.find(comment => comment.body.includes('pd-purser'))?.body ?? '';
-    expect(purserComment).toContain('Keep the generated contract from invalidating review checkpoints.');
-    expect(purserComment).toContain('Generated obligation from Fleet only.');
+    expect(purserComment).toBe('');
+    expect(resumedPurserAi.calls).toHaveLength(0);
     expect(state.prPatches.filter(patch => typeof patch.body === 'string')).toHaveLength(0);
     expect(state.completed).toHaveLength(1);
     expect(state.existingCheckRuns.find(check => check.id === state.completed[0].id)?.status)

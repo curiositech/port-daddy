@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  acquireManagedRunLease,
+  authorizeManagedAiCall,
   recordManagedShipSpend,
+  reconcileManagedAiCall,
   releaseManagedRun,
   reserveManagedRun,
   resolveManagedEntitlement,
@@ -18,11 +21,41 @@ describe('managed billing stop-loss', () => {
     const db = real.DB as D1Database;
     const reservation = await reserveManagedRun(db, 'run:sqlite', 42, 2);
     expect(reservation.providerCostCapMicrousd).toBe(250_000);
+    const lease = await acquireManagedRunLease(db, 'run:sqlite', 'attempt-a', 2, 100);
+    const call = await authorizeManagedAiCall(db, lease, 'attempt-a', {
+      ship: 'reviewer', model: '@cf/model', maxInputTokens: 100, maxOutputTokens: 20,
+    }, 25_000, 3);
+    await reconcileManagedAiCall(db, call, 25_000, 'reported', 3);
     await recordManagedShipSpend(db, {
       runId: 'run:sqlite', ship: 'reviewer', installationId: 42, model: '@cf/model',
       inputTokens: 100, outputTokens: 20, providerCostMicrousd: 25_000,
     }, 3);
     expect((await settleManagedRun(db, 'run:sqlite', 4)).providerCostMicrousd).toBe(25_000);
+    real.raw.close();
+  });
+
+  it('denies a fresh migrated database with no explicit entitlement', async () => {
+    const real = makeDb(applyAllMigrations());
+    await expect(resolveManagedEntitlement(real.DB as D1Database, 42))
+      .rejects.toMatchObject({ code: 'entitlement-missing' });
+    real.raw.close();
+  });
+
+  it('fences duplicate executors and charges missing usage at the authorized maximum', async () => {
+    const real = makeDb(applyAllMigrations());
+    real.exec(`INSERT INTO fleet_managed_entitlements
+      (installation_id,state,retail_balance_microusd,run_retail_microusd,source_ref,created_at,updated_at)
+      VALUES (42,'active',2000000,1000000,'operator:test',1,1)`);
+    const db = real.DB as D1Database;
+    await reserveManagedRun(db, 'run:fenced', 42, 2);
+    const lease = await acquireManagedRunLease(db, 'run:fenced', 'attempt-a', 2, 100);
+    await expect(acquireManagedRunLease(db, 'run:fenced', 'attempt-b', 3, 100))
+      .rejects.toMatchObject({ code: 'reservation-conflict' });
+    const call = await authorizeManagedAiCall(db, lease, 'attempt-a', {
+      ship: 'reviewer', model: '@cf/model', maxInputTokens: 10, maxOutputTokens: 10,
+    }, 1234, 3);
+    await reconcileManagedAiCall(db, call, null, 'unreported', 4);
+    expect((await settleManagedRun(db, 'run:fenced', 5)).providerCostMicrousd).toBe(1234);
     real.raw.close();
   });
 
@@ -78,21 +111,21 @@ describe('managed billing stop-loss', () => {
     const settled = await settleManagedRun(d1.db, 'run:a', 12);
     const retry = await settleManagedRun(d1.db, 'run:a', 13);
     expect(settled.state).toBe('settled');
-    expect(settled.providerCostMicrousd).toBe(250_000);
+    expect(settled.providerCostMicrousd).toBe(0);
     expect(retry).toEqual(settled);
   });
 
   it('refuses settlement above the 75% gross-margin floor', async () => {
     const d1 = memoryD1();
+    d1.entitlements[0].runRetailMicrousd = 1_000_000;
     await reserveManagedRun(d1.db, 'run:a', 42, 10);
     await expect(recordManagedShipSpend(d1.db, {
       runId: 'run:a', ship: 'reviewer', installationId: 42, model: '@cf/model',
       inputTokens: 1, outputTokens: 1, providerCostMicrousd: 250_001,
     }, 11)).rejects.toMatchObject({ code: 'margin-exceeded' });
 
-    await expect(settleManagedRun(d1.db, 'run:a', 12))
-      .rejects.toMatchObject({ code: 'margin-exceeded' });
-    expect(d1.reservations[0].state).toBe('reserved');
+    expect((await settleManagedRun(d1.db, 'run:a', 12)).providerCostMicrousd).toBe(0);
+    expect(d1.reservations[0].state).toBe('settled');
   });
 
   it('releases only an unspent reservation and is idempotent', async () => {
