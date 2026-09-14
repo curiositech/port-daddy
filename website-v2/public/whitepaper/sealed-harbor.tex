@@ -167,6 +167,15 @@ a data owner and a code owner who distrust each other both keep their secrets.
 Ryoan buys its confinement with a module that sees its input once and keeps no
 state. A looping, tool-calling agent cannot pay that price, which is why this
 chapter needs a budget and a detector where Ryoan needed neither. Table~\ref{tab:sealed-ryoan} is the whole difference in one place.
+The other end of that design space is worth naming in the same breath, because it
+is where most deployments actually sit: SCONE \pdcite{scone16} puts an ordinary
+Linux container inside SGX and asks almost nothing of the application, which makes
+it adoptable in a way Ryoan is not, and buys correspondingly less --- it protects
+the workload from the host, not the data owner from the code owner, and a
+container free to open sockets can carry $D$ out through any of them. Between the
+two lies the gap this chapter works in: the stateful, non-DAG, tool-calling
+workload that neither a one-shot confinement nor a transparent container serves,
+and for which the answer turns out to be a priced exit rather than a stronger box.
 
 \begin{table}[H]\centering\footnotesize
 \pdmargincaption{Ryoan confines a stateless module that sees its input once; the sealed room confines a looping agent, so it needs a priced exit and a detector where Ryoan needed neither.}
@@ -659,6 +668,20 @@ $\sigma\le\varepsilon_{\max}\Rightarrow(\varepsilon_{\max},0)$-differential
 privacy under adaptive, heterogeneous spend is their filter theorem, that
 summing \emph{realised} parameters is valid, not the textbook
 sequential-composition theorem, which fixes the parameters in advance.
+\textbf{What this theorem does not say.} The equality
+$\sigma=\sum_{\Lambda}\varepsilon_i$ is bookkeeping over \emph{admitted}
+releases, and it is exact about a quantity that is deliberately syntactic: how
+much declared budget has been spent. It says nothing about what an admitted
+artifact \emph{means}. A worker that computes $t=f(s)$ and submits $t$ so the
+gate honestly releases $g(t)$ spends one $\varepsilon_i$ like any other caller,
+and the ledger balances afterwards exactly as it did before --- the semantic
+content of that release is Section~\ref{sec:sealed-budget}'s $q\cdot b$
+residual, which is priced rather than prevented, and the closest thing to a
+non-interference guarantee in this chapter is
+Property~\ref{thm:sealed-noninterference}, a separate and model-checked claim
+that holds under a committed-input hypothesis this theorem never assumes.
+Accounting consistency and non-leakage are two different properties, and only
+the first of them is proved here.
 \end{pdclaim}
 
 \paragraph{Proof.}
@@ -883,7 +906,15 @@ exfiltrate up to $b$ bits through it: the noninterference property guarantees
 only that those bits pass through the declared gate, not that they are
 innocent. Across $q$ jobs the raw capacity is $q\cdot b$ bits; choosing among
 $s$ timing slots adds up to $\log_2 s$ bits per event, which is why timing sits
-outside the possibilistic model. In Smith's vocabulary \pdcite{smith-qif}, the
+outside the possibilistic model. That timing term is not an estimate of ours:
+it is the bound Askarov, Zhang and Myers \pdcite{azm10} prove for
+\emph{predictive mitigation}, where a scheduler quantises releases into a
+bounded set of permitted delays and the leakage through the resulting channel
+is at most the logarithm of the number of distinguishable slots. The
+mitigation this section describes --- scheduled release into coarse buckets ---
+is theirs, and so is the reason it works: an adversary who can modulate
+duration continuously has an unbounded channel, and the only thing that bounds
+it is destroying the resolution, never observing the content. In Smith's vocabulary \pdcite{smith-qif}, the
 design does not drive min-entropy leakage to zero; it makes leakage a
 \emph{declared, metered} quantity. Fixed schemas, padding, coarse statuses,
 query limits, and scheduled release turn an unlimited covert channel into a
@@ -1239,6 +1270,15 @@ Implementation (OSDI)}, pages 55--74, 2021.
 \bibitem{aacp11} M.~S. Alvim, M.~E. Andr\'es, K.~Chatzikokolakis, and C.~Palamidessi. On the
 relation between differential privacy and quantitative information flow. In \emph{Proc.\ ICALP
 2011}, LNCS 6756, pages 60--76. Springer, 2011.
+
+\bibitem{azm10} A.~Askarov, D.~Zhang, and A.~C. Myers. Predictive black-box mitigation of timing
+channels. In \emph{Proc.\ 17th ACM Conference on Computer and Communications Security (CCS)},
+pages 297--307, 2010.
+
+\bibitem{scone16} S.~Arnautov, B.~Trach, F.~Gregor, T.~Knauth, A.~Martin, C.~Priebe, J.~Lind,
+D.~Muthukumaran, D.~O'Keeffe, M.~L. Stillwell, D.~Goltzsche, D.~Eyers, R.~Kapitza, P.~Pietzuch,
+and C.~Fetzer. SCONE: secure Linux containers with Intel SGX. In \emph{Proc.\ 12th USENIX
+Symposium on Operating Systems Design and Implementation (OSDI)}, pages 689--703, 2016.
 
 \bibitem{ryoan16} T.~Hunt, Z.~Zhu, Y.~Xu, S.~Peter, and E.~Witchel. Ryoan: a distributed sandbox for
 untrusted computation on secret data. In \emph{Proc.\ 12th USENIX Symposium on Operating Systems

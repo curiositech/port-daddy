@@ -449,7 +449,7 @@ The first layer of trust does not depend on agent reputation or economic incenti
 
 \subsection{Capability Attenuation}
 
-The Anchor Protocol~\pdcite{owens2026anchor} provides Harbor Cards---Ed25519-signed capability tokens that bound the operations available to each agent. The critical property is \textbf{offline attenuation}: when Agent~A delegates to Agent~B, it creates a new token whose capabilities are a strict subset of its own. Agent~B can further delegate to Agent~C with even narrower capabilities. Capabilities can only shrink along the delegation chain, never grow.
+The Anchor Protocol~\pdcite{owens2026anchor} provides Harbor Cards---Ed25519-signed capability tokens that bound the operations available to each agent. The critical property is \textbf{offline attenuation}: when Agent~A delegates to Agent~B, it creates a new token whose capabilities are a strict subset of its own. Agent~B can further delegate to Agent~C with even narrower capabilities. Capabilities can only shrink along the authorization chain, never grow.
 
 The capability subset check and the secret-independent comparison are implemented in a \textbf{Rust core} (\texttt{harbor-card-rs}) that is compiled to a shared library and called from the Node.js daemon via FFI. Kani harnesses check that the parser and the comparator cannot panic on bounded symbolic inputs and exercise the subset check on two concrete vectors; the every-hop attenuation property is ProVerif's, in \pdchapref{anchor}{The Anchor Protocol}; runtime conformance tests cover the bridge. Compiler behavior, full interception coverage, and hardware side channels remain separate obligations.
 
@@ -459,9 +459,20 @@ The guarantee below is what security engineers mean by a \emph{wall} rather than
 An agent transaction $\mathcal{T}_\alpha$ is capability-bounded by token $\tau_\alpha$ if every operation $o$ executed during $\mathcal{T}_\alpha$ satisfies $o \in C(\tau_\alpha)$, where $C(\tau)$ extracts the capability set from a Harbor Card. The commons authority rejects any operation $o \notin C(\tau_\alpha)$ at the verification step, before the operation can affect shared state.
 \end{definition}
 
+One point of vocabulary before the statement, because it decides which chapter
+owns what. Attenuation is \pdchapref{anchor}{The Anchor Protocol}'s result, not
+this chapter's: the condition that $C(\tau_{i+1}) \subseteq C(\tau_i)$ at every
+hop, that lifetimes only shrink, and that a chain cannot be spliced or replayed
+is proved there, mechanically, over the deployed crate. This chapter does not
+restate it, re-derive it, or define a competing notion --- it \emph{consumes}
+it, and the theorem below is what that guarantee buys once bonds and escrow sit
+on top. If the two ever disagree, chapter 2 is the one to trust; a second
+definition of attenuation living here is precisely the duplication the Book's
+chapter boundaries exist to prevent.
+
 \begin{pdclaim}{Theorem}{Structural Scope Limitation}
 \label{thm:scope}
-For any delegation chain $\tau_0 \rightarrow \tau_1 \rightarrow \cdots \rightarrow \tau_k$, where $\tau_0$ is issued by the commons authority and each $\tau_{i+1}$ is attenuated from $\tau_i$:
+For any authorization chain $\tau_0 \rightarrow \tau_1 \rightarrow \cdots \rightarrow \tau_k$ satisfying \pdchapref{anchor}{The Anchor Protocol}'s attenuation condition, where $\tau_0$ is issued by the commons authority and each $\tau_{i+1}$ is attenuated from $\tau_i$:
 \[
 C(\tau_k) \subseteq C(\tau_{k-1}) \subseteq \cdots \subseteq C(\tau_0).
 \]
@@ -598,7 +609,7 @@ This dual---mutable view, immutable substrate---is what lets coordination signal
 
 \subsection{Attribution Survives Identity Disposal}\label{sec:attribution-survives}
 
-A critical property: even if an agent's identity is discarded after task completion, the \textbf{delegation chain} traces every action back to the authorizing principal. The chain is:
+A critical property: even if an agent's identity is discarded after task completion, the \textbf{authorization chain} traces every action back to the authorizing principal. The chain is:
 \[
 \begin{aligned}
 \text{Principal} &\xrightarrow{\text{funds}} \text{Float Plan} \xrightarrow{\text{authorizes}} \text{Agent } \alpha\\
@@ -901,6 +912,40 @@ Substituting $d - c = 1,\; c - p = 2$ and $k = 3$ gives $1 < 2\delta(1 + \delta 
 \label{prop:claim-signaling-ic}
 Under the observable-history regime of \S\ref{sec:attribution} and the Sybil-resistant identity regime of the Anchor Protocol~\pdcite{owens2026anchor}, truthful file-claim signaling is a Nash equilibrium of the repeated coordination game with stage-game payoffs as in Table~\ref{tab:claim-stage-game} for any discount factor $\delta > \delta^\star_{k=3} \approx 0.342$, when both players adopt the three-round graduated-trigger strategy described above. Under grim trigger, the critical bound is $\delta \ge 1/3$.
 \end{pdclaim}
+
+\begin{pdboundary}
+Every word of this rests on \emph{perfect public monitoring}: both players see
+the same history, they see it correctly, and they see it at the same time. That
+is an unusually strong assumption in repeated-game theory and an unusually
+cheap one here, and it is worth being explicit about why --- inside one harbor
+the single-writer ledger of \pdchapref{swk}{The Single-Writer Kernel}
+\emph{is} the public history. There is one writer, one commit order, and one
+record both parties read; a trigger strategy can fire on it because there is
+nothing for the two sides to disagree about. The architecture buys the
+assumption rather than making it.
+
+Across harbors it is not bought, and the equilibrium above does not travel.
+Once history is gossiped rather than committed --- \pdchapref{anchor}{The
+Anchor Protocol}'s anti-entropy mesh, with message loss, partitions and
+latency --- monitoring becomes imperfect and, worse, \emph{private}: two
+principals can hold different views of the same round, each correct about what
+it saw. Deterministic triggers are exactly the wrong instrument there. A
+punishment fired on a view the other side never had is indistinguishable from
+an unprovoked defection, which triggers their punishment, and the pair
+descends into a cascade neither can exit, because the strategy has no way to
+say ``that was noise.'' The literature has known this since Green and Porter
+\pdcite{greenporter1984}, whose answer is to accept periodic punishment phases
+as the price of monitoring noise, and Kandori and Matsushima
+\pdcite{kandorimatsushima1998}, whose belief-free constructions sustain
+cooperation under private monitoring by adding communication and review phases
+so that players coordinate on what they collectively believe happened before
+anyone sanctions. That is a different mechanism from the one proved here, not a
+relaxation of it, and the honest status is that the cross-harbor case is
+\emph{open}: nothing in this chapter or in \pdchapref{fh}{The Federated
+Harbor} re-derives claim signalling under private monitoring, and the
+federation chapter's settlement argument assumes bonds rather than triggers
+precisely so that it does not have to.
+\end{pdboundary}
 
 \paragraph{What each condition buys, and what breaks when it is removed.}
 The proposition is conditional, and the conditions matter. Naming what each one is doing makes the dependency on the rest of the architecture explicit rather than implicit.
@@ -1448,6 +1493,34 @@ Instantiate Theorem~\ref{thm:conservation}'s proof sketch with round numbers. Be
 \emph{Now you try:} Exercise~\ref{ex:bonded-conservation-states} asks you to find the analogous check across all $1{,}716$ reachable states of the mechanized model, not just this one hand-picked settlement.
 \end{pdexample}
 
+\paragraph{Why the forfeit goes to the commons and not back to the buyer.}
+That worked example contains a design decision most readers slide past: the
+slashed $2$ went to $C_P$, the commons pool, and not to the counterparty who
+suffered the breach. Refunding the injured party looks obviously fairer and
+would be a mistake, and the reason is a theorem that predates all of this.
+Holmström \pdcite{holmstrom1982} proved that in joint production with
+unobservable individual effort, no \emph{budget-balanced} sharing rule can
+sustain efficient effort: if every unit collected from a shirker is paid out
+to the other participants, then the participants' shares always sum to the
+total, and that adding-up constraint is exactly what lets someone deviate
+profitably --- the punishment one agent pays is another agent's windfall, so
+the group as a whole is never made worse off by a breach and cannot credibly
+commit to destroying value. His resolution is a \emph{budget breaker}: a third
+party outside the sharing rule that absorbs the forfeit, so the penalty leaves
+the participants entirely.
+
+The commons pool is that budget breaker, and $\mathrm{slash}(\mathit{id}, p)$
+is what makes it one --- $p$ routes to $C_P$ and never back to the
+counterparty, so a breach is a strict loss to the pair rather than a transfer
+within it. Note what this does \emph{not} claim. Holmström's theorem is about
+sustaining first-best effort in a team, and the mechanism here is not doing
+that; what it borrows is the structural reason budget balance has to break,
+which is why the conservation identity of Theorem~\ref{thm:conservation} holds
+over $W_P + E_P + C_P$ and not over the wallets alone. A version of this
+system that refunded slashed bonds to buyers would satisfy a narrower
+conservation law and lose the deterrent, and it would fail for Holmström's
+reason rather than for an accounting one.
+
 \pdexercisepointer*{\ref{ex:bonded-conservation-states}}{\ref{ex:bonded-conservation-weaken}}{\pageref{ex:bonded-conservation-states}}
 
 \begin{pdrecitation}
@@ -1929,6 +2002,21 @@ Alan Demers, Dan Greene, Carl Hauser, Wes Irish, John Larson, Scott Shenker, How
 Adi Shamir.
 \newblock How to Share a Secret.
 \newblock \textit{Communications of the ACM}, 22(11):612--613, 1979.
+
+\bibitem{holmstrom1982}
+Bengt Holmstr\"om.
+\newblock Moral hazard in teams.
+\newblock \textit{The Bell Journal of Economics}, 13(2):324--340, 1982.
+
+\bibitem{greenporter1984}
+Edward J. Green and Robert H. Porter.
+\newblock Noncooperative collusion under imperfect price information.
+\newblock \textit{Econometrica}, 52(1):87--100, 1984.
+
+\bibitem{kandorimatsushima1998}
+Michihiro Kandori and Hitoshi Matsushima.
+\newblock Private observation, communication and collusion.
+\newblock \textit{Econometrica}, 66(3):627--652, 1998.
 
 \bibitem{ostrom1990governing}
 Elinor Ostrom.
