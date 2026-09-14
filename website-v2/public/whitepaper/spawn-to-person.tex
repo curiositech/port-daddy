@@ -1603,7 +1603,7 @@ including this one---need and assume.
 \BUILTWEAK.
 \end{definition}
 
-\begin{definition}[Cross-operator attestation]\label{def:0040b}
+\begin{definition}[Cross-operator attestation]\label{def:cross-operator-attestation}
 \textbf{Cross-operator attestation} is the \emph{unsolved} problem of binding
 identity keys across harbors you do \emph{not} own: an actual key-distribution and
 attestation story between mutually-distrusting operators. A federated witness log
@@ -1618,7 +1618,7 @@ boundary. This is what the market paper needs and does \emph{not} yet have.
 % (draft-mih-agent-bilateral-attestation), which binds attestation to
 % cross-organization agent actions and explicitly notes that "the evidentiary
 % weight of a bilateral record is bounded by the binding of keys to organizations."
-% This paper does not claim to have solved or coined the term -- Def.~\ref{def:0040b}
+% This paper does not claim to have solved or coined the term -- Def.~\ref{def:cross-operator-attestation}
 % names it as an unsolved dependency handed to the market paper (Chapter~IV) -- so
 % the risk here is not a false-novelty claim in \emph{this} chapter but a missed
 % citation the market paper should engage when it actually builds the mechanism.
@@ -1656,7 +1656,7 @@ more than anywhere: \emph{a standard format shrinks the problem; it does not
 solve it}. What the profile buys is that a principal mandate verifies with
 off-the-shelf tooling, that principal keys can live in secure enclaves, and that
 key \emph{distribution} reduces to fetching a cacheable HTTPS document. What it
-does not buy is the binding of Definition~\ref{def:0040b}: a JWK set
+does not buy is the binding of Definition~\ref{def:cross-operator-attestation}: a JWK set
 authenticates keys to an \emph{origin}, not to a principal, and origin-binding
 across mutually-distrusting operators is exactly the unsolved attestation
 problem --- exercise~(3)'s ``shared root of trust'' in its 2026 industrial form.
@@ -2360,7 +2360,7 @@ explicitly owed.
 \begin{xltabular}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{2.6cm} >{\raggedright\arraybackslash}X@{}}
 \caption{The bridge's hand-off to the market paper. One item still flows \emph{back}
 as a named, unsolved obligation --- cross-operator attestation
-(Def.~\ref{def:0040b}). The second historical debt, the grading oracle's
+(Def.~\ref{def:cross-operator-attestation}). The second historical debt, the grading oracle's
 incentive-compatibility, has been \emph{paid}: the companion inspection-game paper
 closes the rate-the-raters recursion as Theorem~\ref{thm:tower-imported}, leaving
 only the tower's honest root and its measurement obligation open. The series is
@@ -2393,7 +2393,7 @@ Neutral-judge market & \shortstack[l]{\DESIGNED\\[-1pt]to \VISION} &
 The ``universities and rating agencies'' that keep grades honest. \\
 Grading-oracle hole (Prop.~\ref{prop:hole}) & \DESIGNED &
 \emph{No longer owed}: the recursion is closed by Theorem~\ref{thm:tower-imported}~\pdcite{harborpaper3} ($\lambda=1-\rho d$; $27$ levels / \$1{,}350 at $C{=}8$). What is owed back is narrower --- an exogenously honest root and the audit telemetry ($d$, cross-clique correlation). \\
-Cross-operator attestation (Def.~\ref{def:0040b}) & \VISION &
+Cross-operator attestation (Def.~\ref{def:cross-operator-attestation}) & \VISION &
 \emph{Named dependency the market paper must build}; not assumed here. \\
 Tombstone revocation (Prop.~\ref{prop:tombstone}) & \DESIGNED &
 Reputation is revocable; convergence is the market paper's federation job. \\
