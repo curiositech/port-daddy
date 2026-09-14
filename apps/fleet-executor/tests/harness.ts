@@ -634,6 +634,7 @@ export interface D1Capture {
   /** Deterministic run reservations, including terminal settlement state. */
   reservations: CapturedReservation[];
   callAuthorizations: Array<{ authorizationId:string; runId:string; cost:number; actual:number|null; state:string }>;
+  staleSweepQueries: number;
   /** Simulates a missing v2 schema or any billing read failure. */
   managedBillingUnavailable: boolean;
   /** Makes authoritative v2 spend writes fail after admission succeeds. */
@@ -677,6 +678,7 @@ export function memoryD1(): D1Capture {
     }],
     reservations: [],
     callAuthorizations: [],
+    staleSweepQueries: 0,
     managedBillingUnavailable: false,
     failManagedSpendWrites: false,
     failAll: false,
@@ -979,6 +981,10 @@ export function memoryD1(): D1Capture {
         return null;
       },
       async all() {
+        if (/FROM fleet_run_reservations r WHERE state='reserved'/i.test(sql)) {
+          cap.staleSweepQueries += 1;
+          return { results: [] };
+        }
         // Checkpoint read-back (src/ship-checkpoint.ts): every row of one kind
         // for one run, served from the same `steps` array the INSERT path
         // appends to — a test that checkpoints through the real code resumes
