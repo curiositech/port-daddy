@@ -22,6 +22,31 @@
 %
 % The readable fact is the shaded region: every message after m1 is inside it,
 % and the Daemon's lifeline crosses it carrying no activation box at all.
+%
+% Per-claim verification, against rendered PDF geometry at 1.0x / 150 dpi under
+% BOTH preambles (chapter: anchor-protocol-whitepaper.pdf p.8; Book:
+% coordination-papers-mega-volume.pdf p.95). Read off get_drawings(), not by
+% eye:
+%   - "shaded region": the fill is real ink in both editions, not merely a
+%     declared style. Modal grey inside the region against paper outside it
+%     separates by 14 levels (5.5%) under the chapter preamble and 34 levels
+%     (13.3%) under the Book's, and the region additionally carries a drawn
+%     edge. This is the one styling word the caption spends, and it is kept.
+%   - "every message after m1 falls inside": the region spans y 359.5..618.9
+%     (chapter). m1 is at y 336.8, ABOVE it; m2 421.8, m3 506.9, the verifier's
+%     reflex 9.35/10.05 and m4 591.9 all fall within. Same ordering in the Book
+%     at y 252.4..511.7. No message label crosses the boundary either.
+%   - "where the Daemon is not addressed": the four lifelines are at x 180.5,
+%     264.1, 347.8, 431.4 (chapter). Inside the region no arrow endpoint comes
+%     within 6pt of x 180.5, and the Daemon carries no activation box below
+%     y 359.5 -- its only box is at y 330..345, above the region. The lifeline
+%     itself runs the full depth, so the reader sees a participant present and
+%     unspoken-to rather than a participant that vanished.
+%   - NO dash-bearing path exists in this figure in either edition (zero paths
+%     carry a dash array), so there is nothing here for the `pd guide`
+%     antialiasing failure to reach. That is deliberate: the earlier version of
+%     this figure promised a dotted lifeline that rendered solid, and the fix
+%     was to stop encoding the fact in a dash at all.
 % [internal; the chapter's own algorithms and the ProVerif models]
 \begin{figure}[H]
 \centering
