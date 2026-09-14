@@ -248,3 +248,52 @@ itself an unclassified ambition.
 - Gate census, per document, by `grep -cE '^ *(Gate|Acceptance gates?|Human gate|Proof gate):'` — 7 documents carry all 70.
 - `comm -13` of the work packet's required-reading chapter list against the
   binder's actual chapter files — 12 documents outside the declared universe.
+
+---
+
+## Entry — 2026-09-13: portable source discovery, not completed reconciliation
+
+`binder-aor-log:` Scoped implementation checkpoint on
+`codex/reconciliation-distribution-20260913`, based on main `c92efaa5c`.
+The local runtime remains halted. This is not a full Architect of Record sweep,
+and no prior unresolved ambition, proof gate or roadmap row is marked complete.
+
+- **Outcome owner:** Codex task `01a0728f-99e2-7051-95a5-69e5ae8c21c3`,
+  implementing the operator's within-repository reconciliation priority.
+- **Reuse:** [the existing reconciliation skill](../skills/project-epistemology-reconciliation/SKILL.md)
+  and Harbor Clearance now share one bounded census. The
+  [portable package and delivery checklist](../skills/project-epistemology-reconciliation/README.md)
+  are implementation artifacts, not a rival roadmap or obligation store.
+- **Measured discovery checkpoint:** before final documentation edits, the
+  uncommitted source tree census contained 4,730 text artifacts: 3,041 Markdown,
+  355 skills, 226 HTML and 1,108 structured-text files, with 287 exact-copy
+  groups. Report digest:
+  `dd2a386dfeb38882e2833929a69db02ab3ccfe28682d194f8e4c8445263cc445`.
+  These are inventory counts, not ideas read, duplicates approved for removal,
+  or a source-head-complete semantic audit.
+- **Registry evidence:** the explicitly supplied committed Harbor export has
+  318 records and digest
+  `69c4889b72b2ad64a33918cae43d0468a0f086c907721eca5fe5ceeaba0230d1`.
+  Its authority stays unverified. Native harbors, slugs, dependencies and
+  histories are retained; a newer timestamp cannot silently win a dispute.
+  The remote work register reported no mirrored registry and admitted the
+  reconciliation claim as proposed. Neither that claim nor the named program
+  lineage establishes a canonical roadmap row.
+- **Coverage gaps:** live registry shards, unselected refs/PRs, code semantics,
+  PDF/rendered content and the actual semantic reading of the planning corpus.
+  All ambition classifications remain unassessed. The three completeness axes
+  have not been re-audited. No contradiction count is inferred from file hashes.
+- **Verification:** focused inventory/Clearance regressions pass on Node 22
+  and 26; offline npm pack/install in an unrelated synthetic repo exercises the
+  installed bin with network/subprocess denial. The package is five files with
+  zero dependencies. This is source-built and locally tested, not deployed,
+  publicly published or user-validated.
+- **Product reality:** the structured first-run review reports build-ready for
+  this no-account/no-provider inventory only. Semantic usefulness, commercial
+  demand, pricing, review UI and human task testing remain unproved. No new
+  license was selected.
+- **Handover:** complete evidence extraction across the full source families and
+  supplied registry exports; use existing typed relations and loss audits to
+  preserve valuable alternatives; surface necessary owner decisions before
+  materializing a separate, smaller repo. No deletion or provider run is
+  authorized by this checkpoint.
