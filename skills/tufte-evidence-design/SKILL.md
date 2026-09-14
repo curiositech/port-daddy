@@ -111,8 +111,8 @@ The margin's claims are ordered. When two kinds want the same vertical band, the
 - [ ] **Captions first.** Every float caption is `\pdmargincaption`, not `\caption` — the float keeps the text
       column, the caption rides the margin beside it. Only two exceptions: a full-bleed plate (no margin beside it)
       and a `longtable`/`xltabular` caption (longtable's own, heads a table that spans pages).
-      `scripts/harbor-research/captions_to_margin.py --check` enforces it; `scripts/margin_lint.py`'s
-      `caption-in-column` rule fails a chapter that reaches for `\caption` again.
+      `scripts/harbor-research/captions_to_margin.py --check` <!-- phantom-ok --> enforces it;
+      `scripts/margin_lint.py`'s `caption-in-column` rule fails a chapter that reaches for `\caption` again.
 - [ ] The caption states the figure's *claim* as a sentence, not a label — this is the same rule as in "Words,
       numbers, images" below, and at 1.3in it is also a length discipline: a caption comfortable at 4.5in is
       visibly long in the margin, and the answer is to cut the caption, never to widen the margin or move it back.
@@ -121,7 +121,7 @@ The margin's claims are ordered. When two kinds want the same vertical band, the
       a section-family heading's title argument (a moving argument — a margin device expanded there ends the build).
       `margin_lint.py`'s `no-footnote-in-body` is now ENFORCED, not advisory.
 - [ ] **Short-form citations third.** A point-of-use citation is `\pdcite{key}`, never a bare `\cite{key}`, with the
-      full entry in the back matter (`scripts/harbor-research/promote_cites.py`). Note that `\pdcite`'s margin copy
+      full entry in the back matter (`scripts/harbor-research/promote_cites.py` <!-- phantom-ok -->). Note that `\pdcite`'s margin copy
       is currently suppressed for a documented allocator reason — see `references/margin-apparatus.md` §3.3 before
       concluding the margin short-forms are simply missing.
 - [ ] **Small explanatory graphics fourth.** Sparkline (~1.3in × one line), regime strip (~1.3in × 0.25–0.4in),
@@ -140,7 +140,7 @@ The margin's claims are ordered. When two kinds want the same vertical band, the
 - [ ] Two margin figures of any kind are not placed within about a dozen source lines of each other, or they will
       likely collide on the printed page (`scripts/margin_lint.py` warns advisory). The build log's "Marginpar on
       page" count is a necessary gate but NOT a sufficient one: `\marginnote` blocks never warn, so the authority on
-      a real overlap is `scripts/harbor-research/page_overflow.py`'s margin-column collision count.
+      a real overlap is `scripts/harbor-research/page_overflow.py`'s <!-- phantom-ok --> margin-column collision count.
 - [ ] A "wall of text" finding (no figure/table/session for 4+ pages) is fixed with `pdsession`/`pdexample`/a redrawn
       figure, not a margin portrait — those are different failure modes.
 
