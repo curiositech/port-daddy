@@ -43,8 +43,12 @@
   % A fill marks one state only: the rung this chapter builds outright.  The
   % rung above it is drawn in the same accent but left unfilled -- this chapter
   % specifies half of it.  The host floor is dotted: the book does not build it.
-  \fill[pd focus fill] (\swkleft,2.10) rectangle (\swkright,3.22);
-  \draw[pd focus rule] (\swkleft,2.10) rectangle (\swkright,3.22);
+  % One path, one stroke. \fill[pd focus fill] does NOT suppress that style's
+  % own draw=, so a following \draw[pd focus rule] over the same rectangle laid
+  % a 1.05pt hhteal edge on top of a 0.4pt hhteal!65 edge in every edition whose
+  % pd focus fill carries an outline -- two coincident strokes at two tints, and
+  % a reader of the compiled PDF cannot then say which accent the rung wears.
+  \filldraw[pd focus fill,pd focus rule] (\swkleft,2.10) rectangle (\swkright,3.22);
   \draw[pd focus rule] (\swkleft,4.20) rectangle (\swkright,5.32);
   \draw[pd hairline] (\swkleft,6.30) rectangle (\swkright,7.42);
   \draw[pd hairline] (\swkleft,8.40) rectangle (\swkright,9.52);
