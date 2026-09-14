@@ -9,7 +9,7 @@ description: >-
   authorization verification or automatically publishing a decision.
 license: MIT
 metadata:
-  version: 0.3.0
+  version: 0.4.0
   author: Port Daddy contributors
   tags: [governance, evidence, reconciliation, offline-audit]
 ---
@@ -176,6 +176,22 @@ claims, embeddings, inference provider, identity lookup or network call.
 It does not prove logical consistency, optimal policy, empirical benefit,
 independent authorship or live enforcement. Human task testing is still needed.
 
+Do not promote a generated semantic summary merely because an agent produced
+it. Bind a proposed `agent-reviewed` result to the exact local source bytes and
+run the independent quality receipt gate:
+
+```sh
+node scripts/review_receipt.mjs --source /absolute/source.md --contract /absolute/review-contract.json --receipt /absolute/review.json
+node --test tests/review_receipt.test.mjs
+```
+
+Exit 0 means the declared reviewers, coverage, field anchors and quality
+disposition are internally consistent. Exit 2 keeps the result at
+`machine-semantic-extracted`; exit 1 is malformed input. Reviewer identities and
+independence remain declarations, and matching anchors do not prove a correct or
+complete interpretation. The command writes only JSON to stdout and authorizes
+no deletion, publication, execution or spend.
+
 Activation examples include five positive and five negative cases in
 [activation examples](examples/activation.md). They are intended trigger tests,
 not measured activation accuracy.
@@ -189,6 +205,7 @@ not measured activation accuracy.
 | [Inventory CLI](scripts/inventory.mjs) and [shared census](scripts/artifact_inventory.mjs) | Inspecting bounded reads, registry provenance and coverage states |
 | [Inventory regressions](tests/artifact_inventory.test.mjs) | Testing exclusions, limits, overlapping roots and malformed registry evidence |
 | [Package smoke proof](tests/package_smoke.mjs) and [guard preload](tests/preload_offline.mjs) | Verifying a cold offline tarball install and guarded installed command |
+| [Review receipt audit](scripts/review_receipt.mjs) and [regressions](tests/review_receipt.test.mjs) | Promoting a textual semantic extraction to agent-reviewed against exact source bytes |
 | [Packet contract](references/packet-contract.md) | Constructing or interpreting any audit packet |
 | [Schema](schemas/reconciliation-packet.schema.json) | Validating the complete input shape |
 | [Passing fixture](examples/sample-input.json) | Starting a synthetic or properly attributed local case |

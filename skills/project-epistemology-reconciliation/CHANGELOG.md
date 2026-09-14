@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.0 — 2026-09-14
+
+- Added a dependency-free semantic-review receipt auditor bound to exact local
+  source bytes and line-range digests.
+- Required distinct declared extraction, semantic-review and quality-review
+  identities before promotion to `agent-reviewed`.
+- Failed closed on incomplete field coverage, rejected quality, stale anchors,
+  partial source reads and malformed receipt shapes.
+- Bound promotion to a separately supplied review contract and returned exact
+  source, contract and receipt digests; bounded CLI reads to regular files.
+- Preserved rejected attempts and documented that the receipt does not prove
+  reviewer identity, semantic correctness, deletion safety or authorization.
+
 ## 0.3.0 — 2026-09-13
 
 - Replaced Clearance's recursive census with one bounded shared scanner.
