@@ -15,7 +15,7 @@ Checks (hard, fail the build unless noted):
     caption's bolded lead sentence) or inside a title-styled node/pgfplots
     axis title (heuristic, not a full parse -- see find_title_texts()).
 
-  Numbered rules (P10-P19), evaluated against the fragment with LaTeX
+  Numbered rules (P10-P23), evaluated against the fragment with LaTeX
   comments stripped (an unescaped `%` to end of line) so a `\tiny` or
   `\resizebox` mentioned only in a comment never fires:
   - P10 tiny        (FAIL) any `\tiny` in the fragment.
@@ -33,19 +33,19 @@ Checks (hard, fail the build unless noted):
 
   The typographic law (figures/pd-figure-language.tex). One size for every
   named text role; roles separate by weight, slope, family and ink. These
-  five rules are what makes the style file binding rather than advisory --
+  six rules are what makes the style file binding rather than advisory --
   before them, half the fragments in the Book opted out of the house styles
   by restating typography locally, and the corpus had no single voice. They
   do not apply to the style-definition files themselves (see
   STYLE_DEFINITION_STEMS): that file IS the one place.
-  - P15 style-font  (FAIL) a `\node` carrying a `pd ...` house style AND its
+  - P18 style-font  (FAIL) a `\node` carrying a `pd ...` house style AND its
                      own `font=`. The style already fixes the font; a local
                      one silently overrides the whole role.
-  - P16 node-size   (FAIL) any `font=` whose value names a LaTeX size command
+  - P19 node-size   (FAIL) any `font=` whose value names a LaTeX size command
                      (`\footnotesize`, `\small`, `\fontsize{..}`, ...). A
                      fragment never sets a size; it takes the role that
                      already has the right one.
-  - P17 hard-ink    (FAIL) a `\fill`/`\draw`/`\path`/`\addplot` that paints a
+  - P20 hard-ink    (FAIL) a `\fill`/`\draw`/`\path`/`\addplot` that paints a
                      house ink (`hhink`, `hhteal`, `hhamber`, `hhsand`,
                      `hhgray`, ...) through a bare `fill=`/`draw=`/colour
                      token with NO `pd ...` style anywhere in the same option
@@ -53,7 +53,7 @@ Checks (hard, fail the build unless noted):
                      same thing and keeps the edition overrides working.
                      `hhpaper` is exempt: it is the ground, not an ink (a
                      knockout backing or a halo ring around a mark).
-  - P18 node-family (FAIL) a `font=` naming a type FAMILY (`\sffamily`,
+  - P21 node-family (FAIL) a `font=` naming a type FAMILY (`\sffamily`,
                      `\rmfamily`, `\ttfamily`, `\fontfamily{..}`). Figure
                      type inherits the document's own face -- Palatino in the
                      Book, Computer Modern in a standalone chapter -- so a
@@ -62,7 +62,19 @@ Checks (hard, fail the build unless noted):
                      An EDITION may substitute a face, in one command in one
                      file; a fragment may not. The identifier face is asked
                      for by role (`pd mono label`), not by `\ttfamily`.
-  - P19 figmath     (FAIL) `\pdfigmath` applied to a math group with no sub-
+  - P23 dotted      (FAIL) a `dotted` / `densely dotted` / `loosely dotted`
+                     key, in a fragment or in a style file. Those three derive
+                     their on-length from `\pgflinewidth`, read when the KEY is
+                     processed rather than when the path is stroked -- so a
+                     `line width=` set afterwards, or appended by an edition
+                     override, changes the stroke and silently leaves the dash
+                     at the old width. That is how `pd guide` shipped a 0.448pt
+                     dot on a 0.498pt stroke. Write `dash pattern=on Xpt off
+                     Ypt`, and let figcheck's T9 say whether it resolves. This
+                     is the ONE law rule that also applies to the
+                     style-definition files, because that is where the defect
+                     was. `dashed` and its relatives are absolute and are fine.
+  - P22 figmath     (FAIL) `\pdfigmath` applied to a math group with no sub-
                      or superscript. That macro forces a size one notch ABOVE
                      the law's, and the only thing that buys is a subscript
                      over figcheck's 7pt floor. On plain math it is just a
@@ -167,9 +179,38 @@ STYLE_DEF_RE = re.compile(r"([A-Za-z][A-Za-z0-9 _-]*?)/\.style\s*=\s*\{")
 # Numbered rule ids introduced alongside the original, unnumbered checks
 # above. Kept in one place so the summary/"counts per id" machinery and the
 # markdown report can iterate them without hardcoding the list twice.
-RULE_IDS = ["P10", "P11", "P12", "P13", "P14", "P15", "P16", "P17", "P18", "P19"]
+RULE_IDS = ["P10", "P11", "P12", "P13", "P14",
+            "P18", "P19", "P20", "P21", "P22", "P23"]
 
-# The files that ARE the one place the typographic law lives. P15-P17 police
+# Rule numbers claimed by work that is not in this file.
+#
+# P15-P17 were implemented here first, on 2026-09-14 at 12:49, as the three
+# typographic-law rules now numbered P18-P20. Thirty-three minutes later
+# `claude/figures-that-were-missing` independently landed a DIFFERENT P15, P16
+# and P17 -- caption-promise, identifier-consistency and caption-vocabulary --
+# each with a passing and a failing fixture and a clean run over all ~100
+# fragments in the three corpora. Two branches, six good rules, three numbers.
+#
+# This branch yielded the numbers rather than the other. Not because its rules
+# are worse: because renumbering HERE is something this branch can do, and
+# asking the other branch to renumber is something it can only hope for. A
+# reconciliation that depends on someone else acting is not a reconciliation.
+# The other three keep the numbers they published, and are written down here so
+# the collision cannot silently happen a third time.
+#
+# The point of this table is that it is CHECKED. TestRuleIdRegistry in
+# tests/test_tikz_precheck_typography.py asserts that RULE_IDS and
+# RESERVED_RULE_IDS are disjoint, that together they run with no gaps, and that
+# every implemented id is documented above -- so the next person claiming a
+# number has to add a line here, and finds out at once if it is taken. Delete an
+# entry only when that branch has merged and its rule lives in this file.
+RESERVED_RULE_IDS = {
+    "P15": "caption-promise (claude/figures-that-were-missing, PR #10190)",
+    "P16": "identifier-consistency (claude/figures-that-were-missing, PR #10190)",
+    "P17": "caption-vocabulary (claude/figures-that-were-missing, PR #10190)",
+}
+
+# The files that ARE the one place the typographic law lives. P18-P20 police
 # fragments for opting out of those files; running them against the files
 # themselves would flag the definitions. Matched on the stem, so both twins
 # and every edition override are covered.
@@ -225,7 +266,7 @@ FONT_KEY_RE = re.compile(r"\bfont\s*=\s*")
 
 def is_style_definition(path):
     """True for the files that DEFINE the house styles -- the typographic-law
-    rules (P15-P17) do not police the one place the law lives."""
+    rules (P18-P20) do not police the one place the law lives."""
     stem = Path(path).stem
     return any(stem == s or stem.startswith(s + "-") for s in STYLE_DEFINITION_STEMS)
 
@@ -647,7 +688,7 @@ def check_row_labels(text):
 
 
 def check_style_font_override(text, house_style_names):
-    """P15: a `\\node` that carries a `pd ...` house style AND sets its own
+    """P18: a `\\node` that carries a `pd ...` house style AND sets its own
     `font=`. The style already fixes size, weight and family for that role;
     a local `font=` silently replaces all three, which is how a corpus ends
     up with no single voice while every fragment looks locally reasonable."""
@@ -666,7 +707,7 @@ def check_style_font_override(text, house_style_names):
         findings.append(
             {
                 "check": "style-font",
-                "id": "P15",
+                "id": "P18",
                 "severity": "fail",
                 "line": line,
                 "message": f"node styled {used} also sets font={value!r} -- the house "
@@ -678,7 +719,7 @@ def check_style_font_override(text, house_style_names):
 
 
 def check_node_font_size(text):
-    """P16: any `font=` whose value names a LaTeX size command. This reaches
+    """P19: any `font=` whose value names a LaTeX size command. This reaches
     the places a node-only check cannot: a pgfplots `tick label style=
     {font=\\footnotesize}`, a `\\begin{tikzpicture}[font=\\small]`, a local
     `.style` definition inside the fragment. The size lives in
@@ -694,7 +735,7 @@ def check_node_font_size(text):
         findings.append(
             {
                 "check": "node-size",
-                "id": "P16",
+                "id": "P19",
                 "severity": "fail",
                 "line": line,
                 "message": f"font={value!r} names the size command \\{sm.group(1)} -- "
@@ -706,7 +747,7 @@ def check_node_font_size(text):
 
 
 def check_node_font_family(text):
-    """P18: any `font=` naming a type family. The figure's face is the
+    """P21: any `font=` naming a type family. The figure's face is the
     document's face; an edition substitutes it in one command in one file, and
     a fragment never does. `\\sffamily` against a Computer Modern page
     resolves to Latin Modern Sans and reads as a foreign object on it -- the
@@ -722,7 +763,7 @@ def check_node_font_family(text):
         findings.append(
             {
                 "check": "node-family",
-                "id": "P18",
+                "id": "P21",
                 "severity": "fail",
                 "line": line,
                 "message": f"font={value!r} names the type family \\{fm.group(1)} -- figure "
@@ -737,7 +778,7 @@ FIGMATH_RE = re.compile(r"\\pdfigmath\b")
 
 
 def check_figmath(text):
-    """P19: `\\pdfigmath` is the one licensed exception to the one-size law,
+    """P22: `\\pdfigmath` is the one licensed exception to the one-size law,
     and it is licensed for one reason -- a sub- or superscript inside a
     `\\pdfiglabelsize` label renders under figcheck's 7pt floor (measured:
     5.98pt in a chapter, 6.36pt in the Book). Used on math that carries
@@ -764,7 +805,7 @@ def check_figmath(text):
         findings.append(
             {
                 "check": "figmath",
-                "id": "P19",
+                "id": "P22",
                 "severity": "fail",
                 "line": line,
                 "message": f"\\pdfigmath governs {scope.strip()[:40]!r}, which carries no sub- or "
@@ -775,11 +816,57 @@ def check_figmath(text):
     return findings
 
 
+# The three keys whose on-length is `\pgflinewidth` rather than a length.
+# `dashed`, `densely dashed` and `loosely dashed` are NOT here: those are
+# absolute (on 3pt off 3pt and relatives) and cannot drift when a width moves.
+DOTTED_KEY_RE = re.compile(r"\b(densely\s+dotted|loosely\s+dotted|dotted)\b")
+
+
+def check_dotted(text):
+    """P23: a dash whose on-length is derived from the line width.
+
+    pgf defines `dotted` as `dash pattern=on \\pgflinewidth off 2pt`, and the
+    densely/loosely variants the same way with a different gap. \\pgflinewidth is
+    read when the KEY is processed, not when the path is stroked -- so the
+    on-length is frozen at whatever the width happened to be at that moment, and
+    any `line width=` arriving afterwards moves the stroke and leaves the dash.
+
+    Not a theoretical hazard. `pd guide` was defined
+    `draw=hhgray!62,line width=.45pt,densely dotted`; the Swiss edition appended
+    `draw=hhink!40,line width=.5pt`; the canonical Book therefore shipped a
+    0.448pt dot on a 0.498pt stroke -- 0.93 device pixels at 150 dpi, under one
+    pixel, with its rendered weight swinging 1.6x on sub-pixel phase alone.
+    Nothing in the source showed it and nothing in the caption showed it.
+
+    Unlike the rest of the typographic-law rules, this one DOES apply to the
+    style-definition files. Those rules police fragments for opting out of the
+    one place the law lives; this one is about a defect that was IN that place.
+    """
+    findings = []
+    stripped = strip_comments(text)
+    for m in DOTTED_KEY_RE.finditer(stripped):
+        line = stripped.count("\n", 0, m.start()) + 1
+        findings.append(
+            {
+                "check": "dotted",
+                "id": "P23",
+                "severity": "fail",
+                "line": line,
+                "message": f"`{m.group(1)}` takes its on-length from \\pgflinewidth, read when the "
+                f"key is processed -- a `line width=` set after it, or appended by an "
+                f"edition override, moves the stroke and leaves the dash at the old "
+                f"width. Write `dash pattern=on Xpt off Ypt`; figcheck T9 measures "
+                f"whether it resolves at 150 dpi.",
+            }
+        )
+    return findings
+
+
 PAINT_CMD_RE = re.compile(r"\\(fill|draw|path|addplot)\b")
 
 
 def check_hard_ink(text):
-    """P17: a path that paints a house ink through a bare colour token or a
+    """P20: a path that paints a house ink through a bare colour token or a
     `fill=`/`draw=` key with no `pd ...` style anywhere in the same option
     list. Every such case has a house style that says the same thing, and
     going through the style is what lets the Book's edition overrides
@@ -820,7 +907,7 @@ def check_hard_ink(text):
             findings.append(
                 {
                     "check": "hard-ink",
-                    "id": "P17",
+                    "id": "P20",
                     "severity": "fail",
                     "line": line,
                     "message": f"\\{cmd}[...] paints {key}={value} with no pd style in the "
@@ -956,8 +1043,13 @@ def run_precheck(path, corpus="auto", extra_style_defs=None, extra_colors=None):
     # and only the corpus that has one: the research papers under
     # docs/harbor-research/ have their own preamble, their own palette, and no
     # figures/pd-figure-language.tex, so there is no single place their sizes
-    # and inks could be moved to yet. Extending P15-P17 there means giving
+    # and inks could be moved to yet. Extending P18-P20 there means giving
     # that corpus a style file first.
+    if resolved_corpus != "research":
+        # P23 is the one law rule that also applies to the style-definition
+        # files: the others police fragments for opting OUT of the one place the
+        # law lives, and this one is about a defect that was IN it.
+        findings += check_dotted(text)
     if resolved_corpus != "research" and not is_style_definition(path):
         findings += check_style_font_override(text, base_names)
         findings += check_node_font_size(text)

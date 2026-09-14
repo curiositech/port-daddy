@@ -478,7 +478,7 @@ jobs:
     # below the print floor), but nothing in CI ran it. This job compiles
     # only what a PR actually touches (plus every fragment blockers.json
     # already knows about), under the Book's own preamble — the only
-    # context a chapter figure is actually printed in — and fails on a T1-T5
+    # context a chapter figure is actually printed in — and fails on a T1-T5 or T9
     # finding unless docs/harbor-research/exposition/figures/blockers.json
     # already waives it. It never touches a TikZ fragment itself; it only
     # reads and reports. Runs on ubuntu-latest, not the texlive container:
@@ -650,7 +650,31 @@ jobs:
               echo "::notice::$stem has no fragment on disk (already retired) — skipping compile"
               continue
             fi
-            if ! skills/harbor-chartwork/scripts/compile_fragment.sh "$frag" --preamble book --out /tmp/figure-gate/pdf; then
+            # Three outcomes, not two. compile_fragment.sh exits 3 when LaTeX
+            # reported no error and no pages -- a file under figures/ that
+            # defines style or apparatus and draws nothing. That is not a
+            # broken fragment and must not redden the gate; it is also not
+            # silent, because a notice is how the next person finds out that
+            # the gate's scope has picked up a non-drawing.
+            #
+            # This is the shape-based half of the pair. The step above still
+            # subtracts the apparatus the Book preamble \inputs by name, which
+            # catches pd-figure-language.tex (it fails with a REAL error,
+            # "already defined", because the wrapper's preamble has loaded it
+            # once already). It could not catch the per-edition overrides:
+            # pd-figure-language.tex pulls those in as
+            # \input{figures/pd-figure-language-\pdedition}, a name built from
+            # a macro, which no grep for a literal path will ever see. Exit 3
+            # catches them without anyone having to predict the next one.
+            set +e
+            skills/harbor-chartwork/scripts/compile_fragment.sh "$frag" --preamble book --out /tmp/figure-gate/pdf
+            rc=$?
+            set -e
+            if [ "$rc" -eq 3 ]; then
+              echo "::notice::$stem defines style or apparatus and draws nothing — no picture to check, skipping"
+              continue
+            fi
+            if [ "$rc" -ne 0 ]; then
               echo "::error::$stem failed to compile under the Book preamble"
               uncompilable="$uncompilable $stem"
               continue
@@ -685,6 +709,6 @@ jobs:
             /tmp/figure-gate/contact-sheet.png
           if-no-files-found: ignore
 
-      - name: Fail on any unwaived T1-T5 failure
+      - name: Fail on any unwaived T1-T5 or T9 failure
         if: steps.scope.outputs.relevant == 'true' && steps.fragments.outputs.count != '0'
         run: python3 scripts/harbor-research/check_figure_gate_results.py --results-dir /tmp/figure-gate/json

@@ -72,9 +72,14 @@
 % sql → 2nd Consumer (rejection — cap already drained).
 \draw[bad] (sql.south) |- (consumer2.west);
 \node[badlbl] at ($(sql.south)+(2.0,-4mm)$) {cap drained $\to$ reject};
-% Event dotted lines (provenance).
-\draw[pd focus rule,->,>=Latex,thick,dotted] (issuer.south) -- (eIssue.north);
-\draw[pd focus rule,->,>=Latex,thick,dotted] (consumer.south) -- (eConsume.north);
+% Event provenance lines. `dotted` took its on-length from \pgflinewidth, which
+% `thick` had just set to .8pt -- 1.44pt of dash once pgf had scaled it, 1.44
+% device px at 150 dpi, under figcheck T9's two-pixel floor. Stated in points,
+% at the same geometry as `pd guide`, which is what these lines are.
+\draw[pd focus rule,->,>=Latex,thick,dash pattern=on \pdguideon off \pdguideoff]
+  (issuer.south) -- (eIssue.north);
+\draw[pd focus rule,->,>=Latex,thick,dash pattern=on \pdguideon off \pdguideoff]
+  (consumer.south) -- (eConsume.north);
 \end{tikzpicture}
 \caption{Magic-link single-use atomicity. The SQL \texttt{UPDATE \dots WHERE consumed\_at IS NULL RETURNING} is the runtime analogue of the ProVerif private-channel cap: SQLite serializes concurrent writers, so the first caller drains the cap and the second consumer's transaction returns zero rows. Verified properties: injective single-use ($\mathrm{inj\text{-}event}(\texttt{consumed\_for}) \Rightarrow \mathrm{inj\text{-}event}(\texttt{issued\_for})$) and binding.}
 \label{fig:magic-link-diag}

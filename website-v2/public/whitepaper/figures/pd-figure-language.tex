@@ -133,15 +133,36 @@
 % it stays legible and stays legal, and it touches neither family nor ink --
 % which is what lets it sit on a reversed node without vanishing.
 \providecommand{\pdfigsub}{\mdseries\itshape}
-% The one place the law's own size is not the right size, with the measurement
-% that says so. A subscript is set at roughly 70% of its base, so math with a
-% subscript inside a \pdfiglabelsize label renders its subscript at 5.98pt in a
-% standalone chapter and 6.36pt in the Book -- under figcheck's 7pt T1 floor,
-% measured, not estimated. One notch up puts the same subscript at 7.97pt and
-% 7.64pt, over the floor, while the base glyph stays close enough to its
-% neighbours that the label still reads as one label. Use it ONLY for a math
-% group that carries a sub- or superscript; plain math takes the label's own
-% size like any other text.
+% The one place the law's own size is not the right size.
+%
+% Measured, both preambles, on a subscripted label inside `pd direct label`:
+%
+%              base glyph   subscript   subscript as % of base
+%   chapter      8.97pt       5.98pt            66.7%
+%   Book         8.72pt       6.36pt            72.9%
+%   promoted    10.91/10.46   7.97/7.64
+%
+% An earlier version of this comment said those subscripts are "under figcheck's
+% 7pt T1 floor". They are not, and the correction is worth more than the claim
+% was. T1 has TWO bands: running text is held to 7.0pt, and a span of three
+% glyphs or fewer -- a sub/superscript, a tick numeral -- is held to 5.9pt
+% (T1_SHORT_SPAN_PT). That second band is not a loophole. A subscript is set at
+% roughly 70% of its base by every typesetter that has ever existed; holding one
+% to the running-text floor would mean either no subscripts in figures at all,
+% or a figure whose base type is 10pt against 8.72pt body text.
+%
+% So \pdfigmath is NOT a T1 remedy, and using it as one is how a rule gets
+% applied where it does not belong. It exists because 5.98pt clears the
+% short-span band by 0.08pt, and 0.08pt is not a margin: a font substitution, an
+% edition that nudges \pdfigbasesize, or a chapter that loads a different math
+% font puts that subscript under the band with nobody having decided anything.
+% Promotion puts it at 7.97/7.64pt -- over even the running-text floor -- while
+% the base glyph stays close enough to its neighbours that the label still reads
+% as one label.
+%
+% Use it ONLY for a math group that carries a sub- or superscript. Plain math
+% takes the label's own size like any other text, and P22 in tikz_precheck.py is
+% an error if it does not.
 \providecommand{\pdfigmath}{\normalsize}
 
 % ---------------------------------------------------------------------------
