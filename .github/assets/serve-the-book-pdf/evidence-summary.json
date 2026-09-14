@@ -1,0 +1,13 @@
+{
+  "prodUrl": "https://portdaddy.dev/whitepaper/coordination-papers-mega-volume.pdf",
+  "prodHead": {
+    "status": 200,
+    "contentType": "text/html; charset=utf-8"
+  },
+  "previewUrl": "https://916322bb.port-daddy.pages.dev/whitepaper/coordination-papers-mega-volume.pdf",
+  "previewHead": {
+    "status": 200,
+    "contentType": "application/pdf"
+  },
+  "pdfPageTitle": ""
+}
