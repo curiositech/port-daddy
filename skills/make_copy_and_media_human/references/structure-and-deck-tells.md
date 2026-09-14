@@ -2,7 +2,7 @@
 
 Document-shape tells: how generated long-form docs, slides, posts, and emails are assembled, independent of any sentence in them.
 
-_33 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
+_48 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
 
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
@@ -150,6 +150,26 @@ A testimonial section with placeholder quotes attributed to alliterative invente
 
 > A single honest line — 'In private beta with 40 teams; case studies coming soon' — or two real, attributed quotes with permission and actual photos.
 
+### `false-precision-statistic`  ·  high · generic-llm · marketing-copy · llm-judge · family: residue
+
+A specific-sounding number with no source: '73% of teams report improved collaboration', 'studies show a 3x increase'.
+
+**Why it reads AI:** Precision is cheap to generate and expensive to verify. The model produces the shape of evidence because evidence-shaped claims are what its training rewarded.
+
+**Detect:** Look for the citation. A statistic with a decimal point and no source is the strongest form.
+
+**Fix:** Find the source, or cut the number and make the qualitative claim honestly.
+
+**False positive when:** Real statistics are also specific. The tell is the missing source, not the number.
+
+**Before**
+
+> Studies show that 73% of distributed teams struggle with async communication.
+
+**After**
+
+> Every remote team I've worked on has had the same problem with async, and none of us solved it well.
+
 ### `h2-spam-full-sentence-headings`  ·  high · chatgpt · structure · structural · family: shape
 
 A heading appears every one to two paragraphs, and the headings are full title-case sentences ('How To Structure Your Onboarding For Maximum Retention') rather than short labels. Heading density approaches paragraph density.
@@ -198,6 +218,34 @@ Every slide is a declarative claim followed by 3-5 bullets, with no connective n
 
 > Slide: 'We bet everything on retention this quarter'
 > Last year we chased new markets and leaked customers out the back. So Q3 is one number: 15% better retention. Markets wait until that holds.
+
+### `hook-break-lesson-list-close`  ·  high · generic-llm · social-post · llm-judge · family: shape
+
+The LinkedIn macro-frame, distinct from broetry: a standalone hook line, a blank line, a labelled transition ('Here's what I learned:', '3 things I'd do differently:'), a list of three, then an interrogative close. It survives re-flowing the paragraphs, which is what makes it a different tell from the line spacing.
+
+**Why it reads AI:** It is the highest-engagement post structure in the training data, so it is what a model produces when asked for a LinkedIn post. It is also what a lot of humans produce, which is why it needs its base rate attached.
+
+**Detect:** Judge the skeleton rather than the line breaks. The labelled transition plus a list of exactly three plus a question close is the shape.
+
+**Fix:** Keep the story, drop the scaffold. Tell what happened and stop when it's told.
+
+**False positive when:** This is a native LinkedIn convention that predates LLMs, and plenty of humans write it sincerely. Weight it by platform: LinkedIn long-form runs around 40% fully generated, so the prior is high there and nowhere else.
+
+**Before**
+
+> I got rejected 47 times.
+> 
+> Here's what I learned:
+> 
+> 1. Persistence matters
+> 2. Feedback is a gift
+> 3. Rejection isn't personal
+> 
+> What's your experience?
+
+**After**
+
+> I got rejected 47 times before Northwind said yes, and the only useful feedback came from the 31st, who told me my deck buried the number.
 
 ### `key-takeaways-box-everywhere`  ·  high · chatgpt · structure · structural · family: shape
 
@@ -276,6 +324,26 @@ Markdown syntax pasted into a medium that does not render it — a LinkedIn post
 
 > The key takeaway is that we shipped it. Here's what's next.
 
+### `mirror-back-research-opener`  ·  high · generic-llm · email · llm-judge · family: shape
+
+An opener that personalizes by reciting the recipient's own public information back at them: 'I came across your profile and was truly impressed by your background', or a paraphrase of their homepage hero.
+
+**Why it reads AI:** It signals the opposite of what it intends. Reading someone's homepage is not research, and the recipient knows what is on their own homepage.
+
+**Detect:** Judge whether the opener contains one fact that is NOT on the recipient's public profile headline or homepage.
+
+**Fix:** Lead with something you noticed that they would not expect you to have noticed.
+
+**False positive when:** Referencing a specific piece of someone's public work is good outreach. The tell is reciting their own summary of themselves.
+
+**Before**
+
+> I noticed your company helps businesses scale their operations.
+
+**After**
+
+> Your changelog says you moved off Elasticsearch in March. How did the reindex go?
+
 ### `model-markup-residue`  ·  high · chatgpt · structure · structural · family: residue
 
 Vendor scaffolding tokens leaking into shipped text: oaicite, contentReference, turn0search0, attributableIndex (ChatGPT); [cite_start] and (start_span) (Gemini); grok_render_citation_card_json (Grok); ppl-ai-file-upload (Perplexity); lenticular brackets in DeepSeek output.
@@ -300,6 +368,26 @@ Vendor scaffolding tokens leaking into shipped text: oaicite, contentReference, 
 
 > Kobak et al. found a 40% reduction.
 
+### `substitutable-reply`  ·  high · generic-llm · social-post · llm-judge · family: shape
+
+A comment that would fit unchanged under thousands of other posts: it restates the question, offers balanced general advice, and ends with encouragement.
+
+**Why it reads AI:** The model answers the category, not the post. It is the social equivalent of specificity starvation, and it is what people actually mean when they say a comment feels like a bot.
+
+**Detect:** Ask whether the reply contains one fact that could only have come from reading THIS post. If not, it is substitutable.
+
+**Fix:** Quote the specific thing you are responding to, and say the thing only you would know.
+
+**False positive when:** Plenty of humans write generic supportive comments, and on advice subreddits that is often the socially correct move.
+
+**Before**
+
+> That sounds really difficult, and it's completely valid to feel that way. Have you considered talking to a professional about it?
+
+**After**
+
+> The part about your manager copying HR on everything is the bit I'd document. Same thing happened to me and the paper trail is what saved it.
+
 ### `summary-restates-title-conclusion-restates-summary`  ·  high · generic-llm · structure · llm-judge · family: shape
 
 An Executive Summary that paraphrases the title, a body that paraphrases the summary, and a Conclusion that paraphrases both, often opening with 'This document outlines...' / 'In this article, we will explore...'.
@@ -322,6 +410,46 @@ An Executive Summary that paraphrases the title, a body that paraphrases the sum
 
 > Executive Summary: Paid spend doubled but CAC stayed flat — the channel scaled, which it wasn't supposed to at this budget.
 > Conclusion: The Q4 question is whether flat CAC survives once we exhaust the warm retargeting pool, and we don't yet know.
+
+### `synthetic-executive-quote`  ·  high · generic-llm · marketing-copy · llm-judge · family: shape
+
+A press-release quote attributed to a named executive that no executive said, containing no information: 'We're thrilled to partner with X to deliver best-in-class solutions to our customers.'
+
+**Why it reads AI:** The quote slot is a template field, and the model fills it with the average of every quote it has seen. Putting a real person's name on it is the part that matters.
+
+**Detect:** Judge whether the quote contains a fact, an opinion someone could disagree with, or a voice. Attributed quotes with none of the three are manufactured.
+
+**Fix:** Get a real sentence from the real person, or drop the quote. A release without a quote is better than one with a fabricated one, and putting invented words in a named person's mouth is its own problem.
+
+**False positive when:** PR quotes have been ghostwritten and approved for a century, and an approved quote is not fabricated. The line is whether the named person saw and agreed to it.
+
+**Before**
+
+> "We're thrilled to partner with Acme to deliver best-in-class solutions," said the CEO.
+
+**After**
+
+> "We bought them because we'd already rebuilt half of what they do, badly," said the CEO.
+
+### `synthetic-review-shape`  ·  high · generic-llm · listing · llm-judge · family: shape
+
+The generated review arc plus its content signature. Skeptic-conversion opener, three generic merits, recommendation close. It praises category virtues such as quality, value and convenience, and never names a use, a room, a defect, a comparison, or a moment.
+
+**Why it reads AI:** Fake and generated reviews emphasize generic product merits rather than idiosyncratic experiences. A measured 3% of front-page Amazon reviews are generated, skewing toward five stars, and 93% of those carried a verified-purchase badge, so the badge does not save you.
+
+**Detect:** Judge: does this review contain a single detail that could only come from owning the item? A corpus-level signal is stronger than the text: star-rating skew and burst timing at the product level.
+
+**Fix:** One concrete artifact per review: what you did with it, where it sits, what went wrong, what you compared it to, how long you have had it. Drop the recommendation sentence, because the star rating already says it.
+
+**False positive when:** 'I was skeptical' describes a genuinely common purchase experience, and most people are simply not good reviewers. Seeded and sampled reviews are legitimately labelled and legitimately glowing. Text alone on a single review is weak evidence.
+
+**Before**
+
+> I was skeptical at first, but this exceeded my expectations! The quality is excellent and the value is great. Highly recommend!
+
+**After**
+
+> Third one of these I've owned. The hinge on the previous two gave out around 14 months; this revision uses a metal pin. It does not fit a 15-inch laptop with a case on, despite the listing photo.
 
 ### `tracking-param-residue`  ·  high · chatgpt · structure · structural · family: residue
 
@@ -366,6 +494,28 @@ Copy leans on aspirational hollow verbs — Unlock, Elevate, Transform, Supercha
 **After**
 
 > Cut your weekly status meeting from 60 minutes to 10. Standups post themselves from your commits, so nobody narrates their week out loud.
+
+### `unfilled-placeholder-residue`  ·  high · generic-llm · email · structural · family: residue
+
+Template scaffolding shipped live. Two mechanically identical families: merge tags that never resolved ('Hi {{first_name}}', 'Hi FNAME', 'Dear Customer Name', 'Hi null,') and model bracket placeholders nobody replaced ('the [Job Title] position at [Company Name]', '[insert metric here]').
+
+**Why it reads AI:** It is the one item in this catalog that is proof rather than inference: unreviewed generated or templated output reached a recipient. Nothing else here is that certain.
+
+**Detect:** Regex for merge-tag and bracket-placeholder syntax. This should be a hard fail rather than a score.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
+
+**Fix:** Block send or publish on any placeholder pattern. Set fallbacks on every merge field, and grep the final artifact before it leaves.
+
+**False positive when:** Documentation, template libraries, tutorials and code samples show unrendered merge tags on purpose, which is the point of them. Never fire inside fenced code, or in content whose subject IS templating. Some CRMs also render the braces in preview panes.
+
+**Before**
+
+> Hi {FirstName}, I'm reaching out because [Company Name] is doing interesting work in [industry].
+
+**After**
+
+> Hi Priya, I saw Northwind shipped the SOC 2 attestation last month.
 
 ### `unsolicited-faq-section`  ·  high · chatgpt · structure · llm-judge · family: shape
 
@@ -465,6 +615,46 @@ List items led by status glyphs — checkmarks, crosses, warning triangles, targ
 **After**
 
 > It handles about 4,000 requests a second, runs in our SOC 2 boundary, and has survived two regional failovers.
+
+### `credential-persona-opener`  ·  medium · generic-llm · social-post · llm-judge · family: shape
+
+An opener claiming standing that the rest of the comment never uses: 'As someone who has worked in this field for fifteen years', followed by advice available on any search engine.
+
+**Why it reads AI:** The frame is a rhetorical move the model has learned to perform. A person with fifteen years in a field leaks specifics without being asked.
+
+**Detect:** Judge whether the claimed experience produces anything in the body that a non-expert could not have written.
+
+**Fix:** Drop the credential and lead with the specific thing the credential would have taught you.
+
+**False positive when:** Establishing standing is a real and useful convention, especially on technical subreddits where it tells readers how to weight the answer.
+
+**Before**
+
+> As someone who's worked in commercial insurance for over a decade, I'd say it's important to read your policy carefully.
+
+**After**
+
+> Check whether your policy has a 72-hour reporting window. Most commercial ones do and it's the single most common reason these get denied.
+
+### `engagement-bait-close`  ·  medium · generic-llm · social-post · llm-judge · family: shape
+
+The closing line that asks for interaction rather than ending the thought: 'What's your take?', 'Agree?', 'Drop a comment below', 'P.S. Follow me for more'.
+
+**Why it reads AI:** It is a growth tactic learned as a writing convention. The model appends it because the corpus rewards it, regardless of whether a question is warranted.
+
+**Detect:** Closed phrase bank over the final line, plus a judge call on whether the question is real.
+
+**Fix:** End on the last real sentence. If you genuinely want an answer, ask a specific question only your readers could answer.
+
+**False positive when:** Asking readers a genuine question is normal and good, and community managers do it professionally.
+
+**Before**
+
+> What's your take? Drop a comment below.
+
+**After**
+
+> If anyone has made the Postgres side of this work above 10k writes a second, I'd like to know how.
 
 ### `grok-forced-irreverence`  ·  medium · grok · marketing-copy · llm-judge · family: shape
 
@@ -590,6 +780,31 @@ Structural over-formatting carried into contexts that don't call for it: bolded 
 > ## What you get
 > It's fast and it rarely falls over. That's the whole pitch.
 
+### `markdown-scaffolding-in-casual-comment`  ·  medium · generic-llm · social-post · structural · family: shape
+
+Bold headers, numbered sections and horizontal rules inside a threaded comment, where the surrounding replies are two sentences of lowercase.
+
+**Why it reads AI:** The model formats every answer as a document. A person typing into a reply box does not reach for an H3.
+
+**Detect:** Count markdown structural constructs in a comment and compare against the thread's other replies.
+
+**Fix:** Write it as you would say it. One paragraph, no headers.
+
+**False positive when:** Long technical answers on technical subreddits legitimately use structure, and some communities expect it. And the base rate matters enormously: Reddit replies measure around 1.7% generated against LinkedIn long-form at 40.5%, so the same formatting deserves very different weight in the two places.
+
+**Before**
+
+> **TL;DR:** yes.
+> 
+> ### Why
+> 
+> 1. **Cost** — it's cheaper
+> 2. **Speed** — it's faster
+
+**After**
+
+> yeah, mostly cost. it's about a third the price and marginally faster, which surprised me
+
 ### `notability-padding`  ·  medium · generic-llm · marketing-copy · llm-judge · family: shape
 
 Canned proof-of-importance: 'has been featured in local, regional, and national media outlets', 'garnered coverage in trade publications', 'maintains a strong digital presence'.
@@ -611,6 +826,26 @@ Canned proof-of-importance: 'has been featured in local, regional, and national 
 **After**
 
 > The Star Tribune profiled her in 2022.
+
+### `power-verb-metric-bullet`  ·  medium · generic-llm · resume · llm-judge · family: shape
+
+Resume bullets built from a verb bank and an invented percentage: 'Spearheaded cross-functional initiatives resulting in a 40% increase in operational efficiency'.
+
+**Why it reads AI:** Resume-writing advice is heavily represented in training data, so the model produces its distilled form. The percentages are generated because the corpus contains percentages, not because anyone measured anything.
+
+**Detect:** Hit rate against the standard power-verb bank, joined with round-number percentages the candidate cannot source.
+
+**Fix:** Name the actual thing and the actual number. If you don't have a number, describe what changed instead of inventing one.
+
+**False positive when:** Real achievements have real metrics, and resume conventions genuinely favor this shape. Career coaches teach it. The tell is the unverifiable round number attached to an abstract noun.
+
+**Before**
+
+> Spearheaded cross-functional initiatives resulting in a 40% increase in team efficiency.
+
+**After**
+
+> Rewrote the nightly batch so it finished before standup instead of at 11am. Four teams stopped waiting on it.
 
 ### `problem-agitate-solve-by-template`  ·  medium · chatgpt · marketing-copy · llm-judge · family: shape
 
@@ -669,6 +904,86 @@ A README with a fixed, project-agnostic skeleton: badge row, one-line tagline, t
 > $ pg-slowlog --since 1h
 > ```
 > ## Install / ## Caveats (it only reads pg_stat_statements)
+
+### `rhetorical-question-hook`  ·  medium · chatgpt · marketing-copy · llm-judge · family: shape
+
+An opening question the reader did not ask and cannot answer: 'Ever wonder why some teams ship faster than others?'
+
+**Why it reads AI:** It is the safest possible opener: it commits to nothing and flatters the reader's curiosity. Models default to it because it never offends.
+
+**Detect:** Judge whether the piece opens by asserting something or by asking permission to assert it.
+
+**Fix:** Open with the claim the question was circling.
+
+**False positive when:** A genuine question the piece then genuinely answers is a legitimate and old device.
+
+**Before**
+
+> Ever wonder why some teams ship faster than others?
+
+**After**
+
+> Teams that ship fast almost always have fewer people in the approval chain, not better engineers.
+
+### `scripted-empathy-opener`  ·  medium · generic-llm · email · llm-judge · family: shape
+
+Support and advice replies opening with acknowledgement boilerplate: 'I completely understand how frustrating this must be', 'I'm sorry you're going through this', before any engagement with the actual problem.
+
+**Why it reads AI:** Alignment training rewards acknowledging feelings first, so the model performs the move whether or not it has understood the problem. Recipients read it as a script because it is one.
+
+**Detect:** Judge whether the empathy line references anything specific to this person's situation.
+
+**Fix:** Lead with the specific thing that went wrong for them. Demonstrated understanding reads as far more sympathetic than stated sympathy.
+
+**False positive when:** Genuine acknowledgement is good support practice and many teams require it by policy. The tell is empathy that could precede any ticket.
+
+**Before**
+
+> I completely understand how frustrating this must be. Let me look into it for you.
+
+**After**
+
+> Your invoice ran twice on the 3rd because the retry fired after the first charge settled. I've refunded the duplicate.
+
+### `subreddit-register-mismatch`  ·  medium · generic-llm · social-post · llm-judge · family: shape
+
+Formal, structured, correctly punctuated prose posted into a venue that runs on fragments, in-jokes and lowercase.
+
+**Why it reads AI:** Register leveling, localized. The model writes its one register regardless of where it is posting, and the mismatch is visible because the surrounding comments are right there.
+
+**Detect:** Compare the comment's register against its five neighbours in the same thread.
+
+**Fix:** Read the room, then write in it.
+
+**False positive when:** Some people write formally everywhere, including in casual venues, and non-native speakers often write more formally than natives. This is the single most socially destructive check in this catalog to get wrong.
+
+**Before**
+
+> A three-paragraph structured answer with a bolded summary, posted in a shitposting thread.
+
+**After**
+
+> lol no. the connector melts at like 40 amps
+
+### `synthetic-consensus`  ·  medium · generic-llm · social-post · llm-judge · family: shape
+
+A comment asserting what 'most people' or 'the community' thinks, in a thread where that consensus is visibly not present.
+
+**Why it reads AI:** The model reports the aggregate of its training rather than the state of the conversation in front of it. It cannot see the room.
+
+**Detect:** Check the assertion against the thread it is in.
+
+**Fix:** Cite the comment you are agreeing or disagreeing with, by what it said.
+
+**False positive when:** Sometimes a consensus really is obvious, and long-standing community members can speak to norms accurately.
+
+**Before**
+
+> I think most people here would agree that the original approach was the better one.
+
+**After**
+
+> The top comment says the opposite, and I think it's wrong because...
 
 ### `tables-for-non-tabular-content`  ·  medium · chatgpt · structure · structural · family: shape
 

@@ -29,7 +29,8 @@ VISUAL_MEDIA = {"web-ui", "typography", "color", "iconography", "layout"}
 STRUCT_MEDIA = {"structure", "slide-deck", "marketing-copy"}
 ENG_MEDIA = {"commit-message", "pr-description", "code-review", "code", "docs",
              "code-comments", "issue", "test"}
-PLATFORM_MEDIA = {"social-post", "email", "listing", "resume", "video", "audio", "image"}
+PLATFORM_MEDIA = {"social-post", "email", "listing", "resume"}
+VISUAL_ASSET_MEDIA = {"image", "video", "audio", "chart", "brand-identity"}
 
 GROUPS = {
     "claudeisms.md": {
@@ -55,7 +56,7 @@ GROUPS = {
     "visual-design-tells.md": {
         "title": "Visual design tells — the v0/Lovable look and generated imagery",
         "intro": "What makes a UI, slide, or image read as generated: the defaults nobody chose, clustering together. Read the currency line on every item here — the image-forensics advice in particular has a short shelf life, and some of it has already expired.",
-        "pick": lambda i: i["medium"] in VISUAL_MEDIA or i["medium"] in {"image", "video", "audio"}
+        "pick": lambda i: i["medium"] in VISUAL_MEDIA or i["medium"] in VISUAL_ASSET_MEDIA
                           or i["name"].startswith("ai-image")
                           or i["name"] in {"identical-face-different-people",
                                            "stock-mesh-gradient-background"},
@@ -64,6 +65,11 @@ GROUPS = {
         "title": "Structure, deck, and marketing-copy tells",
         "intro": "Document-shape tells: how generated long-form docs, slides, posts, and emails are assembled, independent of any sentence in them.",
         "pick": lambda i: i["medium"] in STRUCT_MEDIA or i["medium"] in PLATFORM_MEDIA,
+    },
+    "fiction-and-narrative-tells.md": {
+        "title": "Fiction and narrative tells",
+        "intro": "What generated fiction does at the level of story rather than sentence. This file matters out of proportion to its length: a 61,608-story study separated human from AI fiction at 93.2% macro-F1 using discourse-level narrative features ALONE, with every stylistic cue stripped out. Which means the tells here are stronger than any phrase in the rest of the catalog, and they survive a model that has learned not to say \"delve\".",
+        "pick": lambda i: i["medium"] == "fiction",
     },
     "engineering-artifact-tells.md": {
         "title": "Engineering-artifact tells — commits, PRs, reviews, code, tests, docs",

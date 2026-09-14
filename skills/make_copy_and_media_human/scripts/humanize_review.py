@@ -78,6 +78,7 @@ DEFAULT_THRESHOLDS = {
     "pronoun-evacuation": {"min_words": 250, "cue_per_100w": 0.8},
     "specificity-starvation": {"min_words": 300, "cue_per_100w": 2.0},
     "linkedin-broetry-one-line-runs": {"min_run": 4, "max_words_per_line": 14},
+    "paragraph-length-monoculture": {"min_paragraphs": 6, "cue_cv": 0.35},
     "heading-spam": {"min_headings": 5, "ratio": 0.5},
     "bullet-colonization-of-prose": {"min_bullets": 10, "cue_share": 0.45},
     "bold-label-colon-bullet": {"min_count": 4},
@@ -92,6 +93,7 @@ DEFAULT_THRESHOLDS = {
     "curly-straight-quote-mixing": {"min_of_each": 2},
     "markdown-leak-in-unrendered-medium": {"min_count": 3},
     "tracking-param-residue": {"min_count": 1},
+    "unfilled-placeholder-residue": {"min_count": 1},
     "model-markup-residue": {"min_count": 1},
     "ai-default-token-repetition": {"min_count": 3},
     "comment-narrates-next-line": {"min_count": 2, "overlap": 0.6},
@@ -484,6 +486,24 @@ def analyze_prose(path, text, suffix=".md", base=None):
                 "to points at anything real.", "chatgpt", family="residue"))
             break
 
+    # humanize:ignore-start -- the placeholder patterns below are specimens
+    PLACEHOLDER = re.compile(
+        r"\{\{?\s*[a-z_][a-z_ ]{1,30}\s*\}?\}|%%\w+%%|\*\|\w+\|\*"
+        r"|\b(FNAME|LNAME|FIRSTNAME)\b|\[(?:Job Title|Company Name|Your Name|"
+        r"insert [^\]]{2,30}|specific [^\]]{2,30})\]", re.I)
+    # humanize:ignore-end
+    ph = [l for l, t in zip(lines, tags) if t == "prose" and PLACEHOLDER.search(l)]
+    if ph:
+        out.append(finding(
+            path, where(lambda l: PLACEHOLDER.search(l)),
+            f"{len(ph)} unfilled placeholder(s), e.g. {PLACEHOLDER.search(ph[0]).group(0)}",
+            "unfilled-placeholder-residue", "high",
+            "Template scaffolding shipped live. This is the one finding in the whole "
+            "catalog that is proof rather than inference: unreviewed output reached a "
+            "reader.",
+            "Block publish on any placeholder pattern. Set fallbacks on every merge "
+            "field and grep the artifact before it leaves.", family="residue"))
+
     trk = TRACKING_PARAMS.findall(scan)
     if trk:
         out.append(finding(
@@ -668,6 +688,33 @@ def analyze_prose(path, text, suffix=".md", base=None):
                 "you can't, you may not have anything to say yet.", family="form"))
 
     # ------------------------------------------------------- DOCUMENT SHAPE
+    # paragraph-length monoculture: people break where the idea breaks, which is
+    # irregular. A model paragraphs on a rhythm.
+    paras_sent = []
+    cur = 0
+    for l, t in zip(lines, tags):
+        if t != "prose":
+            continue
+        if l.strip():
+            if not re.match(r"\s*([-*+#>|]|\d+\.)", l):
+                cur += len(split_sentences(l))
+        elif cur:
+            paras_sent.append(cur); cur = 0
+    if cur:
+        paras_sent.append(cur)
+    if len(paras_sent) >= th("paragraph-length-monoculture", "min_paragraphs", 6):
+        mu = statistics.mean(paras_sent)
+        cv = statistics.pstdev(paras_sent) / mu if mu else 1.0
+        if cv < th("paragraph-length-monoculture", "cue_cv", 0.35):
+            out.append(finding(
+                path, 1, f"paragraph-length CV {cv:.2f} over {len(paras_sent)} paragraphs "
+                         f"(mean {mu:.1f} sentences)",
+                "paragraph-length-monoculture", "medium",
+                "Every paragraph the same length. People break where the idea breaks, "
+                "which is irregular; a model breaks on a rhythm.",
+                "Put a one-sentence paragraph where the argument turns, and let another "
+                "run long.", family="rhythm"))
+
     run = best_run = run_line = 0
     max_w = th("linkedin-broetry-one-line-runs", "max_words_per_line", 14)
     for i, (l, t) in enumerate(zip(lines, tags)):

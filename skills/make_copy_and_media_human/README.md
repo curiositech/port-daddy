@@ -65,7 +65,8 @@ earlier typo silently dropped an item out of every reference and nothing noticed
 | --- | --- |
 | `SKILL.md` | Three laws, five families, decision tree, process, shibboleths, failure modes |
 | `references/fairness-and-false-positives.md` | Why findings are cues and not evidence; read before your first review |
-| `references/catalog.json` | Source of truth: 120 tells with thresholds, false-positive notes, currency, and evidence |
+| `references/catalog.json` | Source of truth: 157 tells with thresholds, false-positive notes, currency, and evidence |
+| `references/fiction-and-narrative-tells.md` | Story-level tells; the strongest in the catalog |
 | `references/*.md` | Generated per-dialect and per-medium views of the catalog |
 | `scripts/humanize_review.py` | Structural detector and report renderer |
 | `scripts/regenerate_references.py` | Regenerates `references/*.md`; fails on orphaned items |

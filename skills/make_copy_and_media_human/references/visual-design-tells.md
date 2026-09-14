@@ -2,7 +2,7 @@
 
 What makes a UI, slide, or image read as generated: the defaults nobody chose, clustering together. Read the currency line on every item here — the image-forensics advice in particular has a short shelf life, and some of it has already expired.
 
-_17 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
+_29 items. Generated from catalog.json — edit there, then re-run `scripts/regenerate_references.py`. Do not hand-edit this file._
 
 _Every item carries a **False positive when** line. Read it before you act on the item: these are cues for an editor, not evidence about an author._
 
@@ -10,6 +10,26 @@ _Every item carries a **False positive when** line. Read it before you act on th
      Everything below is a specimen catalog. It quotes the tells it documents,
      including literal machine residue, so reviewing it with humanize_review.py
      would flag the exhibits rather than the writing. -->
+
+### `breathless-uniform-prosody`  ·  high · generic-llm · audio · llm-judge · family: visual
+
+Synthetic narration with even stress, no breath, and emphasis landing on function words. Sentences all start at the same pitch and fall the same way.
+
+**Why it reads AI:** Prosody encodes what the speaker means, and a system that has not understood the sentence stresses it by rule. Breath is the other giveaway, because a voice that never needs air has no body.
+
+**Detect:** Listen for a breath. Then listen for where the emphasis lands: 'the RESULTS were surprising' rather than 'the results were SURPRISING'.
+
+**Fix:** Record a person, or at minimum hand-mark emphasis and insert breaths. Proper nouns need a pronunciation pass regardless.
+
+**False positive when:** Trained broadcast narrators are extremely even, and heavy compression removes audible breath. Radio and audiobook professionals get flagged by this constantly.
+
+**Before**
+
+> Ninety seconds of even, breathless narration over stock footage.
+
+**After**
+
+> A take with a person in it, including the place they stumble.
 
 ### `centered-hero-three-card-skeleton`  ·  high · generic-llm · layout · structural · family: visual
 
@@ -30,6 +50,26 @@ The whole-page template: centered badge pill ('Now in beta'), giant centered hea
 **After**
 
 > Left-aligned hero with a live product canvas on the right, one CTA (Start building), then an alternating sequence: a wide demo, a 2x2 bento of differentiated capabilities, a metric strip.
+
+### `cream-serif-sage-tasteful-default`  ·  high · generic-llm · color · structural · family: visual
+
+The SECOND-generation default: what models produce when you ask them not to look AI-generated. A warm off-white ground (#faf8f5, #f5f1e8, bg-stone-50, bg-amber-50), a display serif (Instrument Serif, Fraunces, Playfair Display, Spectral, Cormorant, DM Serif), and a deep sage or forest primary (#15573a, #1a4d3a, emerald-800).
+
+**Why it reads AI:** It is the model's stored idea of taste, the look of a well-funded 2024 DTC brand, applied without reference to what the product is. A payroll API and a meditation app get the same cream-and-Fraunces treatment, so it reads as a costume rather than an identity.
+
+**Detect:** Grep for those grounds, for the serif list in font imports, and for a primary in the emerald 700-900 band. All three together is close to conclusive.
+
+**Fix:** Treat it as a palette you have to earn. If the product has no reason to be warm, don't be warm. Choose the serif for what it does to your longest headline, and don't pair cream with green unless the brand is about growing things.
+
+**False positive when:** Editorial and publishing sites, food and hospitality, wellness and skincare, independent bookshops. Cream, serif and green is a genuinely correct and long-standing set there. Also any brand whose guidelines predate 2023 and happen to land here.
+
+**Before**
+
+> bg-[#faf8f5], Instrument Serif h1, --primary #15573a, one generated photo of hands holding a ceramic mug.
+
+**After**
+
+> White ground, one grotesque at two optical sizes, the brand's actual color, and a real screenshot of the product.
 
 ### `emoji-as-ui-icons`  ·  high · generic-llm · iconography · structural · family: visual
 
@@ -71,29 +111,45 @@ Across 'different' avatars or testimonial photos, the same underlying face recur
 
 > Four genuinely distinct licensed portraits with varied lighting, framing, and color treatment — or four monogram/initial avatars instead of faces.
 
-### `invisible-unicode-artifacts`  ·  high · chatgpt · typography · structural · family: residue
+### `no-idle-micro-behavior`  ·  high · generic-llm · video · llm-judge · family: visual
 
-Invisible or near-invisible codepoints left in the text: U+202F narrow no-break space (characteristically wrapped around em dashes), zero-width space, word joiner, byte-order mark, soft hyphen.
+People in generated video do the thing they were asked to do and nothing else. No blinking at the wrong moment, no weight shift, no glance off-camera, no hand doing something absent-minded.
 
-**Why it reads AI:** This is residue, not style. Its presence means the text was pasted out of a model's rendered output rather than typed, which is a fact about provenance rather than an inference about taste.
+**Why it reads AI:** The model animates the prompt. Idle behavior is what a body does when nobody is directing it, and there is no instruction for it.
 
-**Detect:** Count the codepoints. U+202F is the strongest single countable tell available: no mainstream keyboard layout produces it and no word processor inserts it around a dash.
+**Detect:** Watch a person who is not the focus of the shot. Real people are never doing only one thing.
 
-**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
+**Fix:** Cut to the background actor and see whether the shot survives. Usually it does not, which tells you what to keep.
 
-**Fix:** Normalize whitespace before judging anything else: U+202F and U+00A0 to a plain space, zero-width characters deleted. Then re-read, because the prose problems are separate.
-
-**False positive when:** Typeset documents legitimately use U+00A0 (and French typography uses U+202F before high punctuation by convention). Exclude markup files where &nbsp; is deliberate, and exclude French-language copy from the U+202F rule entirely.
-
-**Evidence:** Catalogued by Wikipedia's WikiProject AI Cleanup among formatting-residue signs.
+**False positive when:** Direction, and staged corporate footage, both produce unnaturally still extras. This is an underrated tell precisely because people look at the main subject.
 
 **Before**
 
-> A sentence — with residue in it.
+> A conference room where everyone not speaking is perfectly still.
 
 **After**
 
-> A sentence — with the residue removed.
+> Real footage, or a tighter shot that does not show the room.
+
+### `plausibly-wrong-chart`  ·  high · generic-llm · chart · llm-judge · family: visual
+
+A chart that looks right and is wrong: axes that do not start where they should, percentages that do not sum, a trend line fitted to points that do not support it, labels that do not match the data.
+
+**Why it reads AI:** Generating a chart means generating its appearance. The model produces a convincing picture of an analysis, and nothing in the loop checks the picture against the data.
+
+**Detect:** Read the numbers off the chart and check them against the source. This is arithmetic, not taste.
+
+**Fix:** Rebuild the chart from the data. If there is no data, there is no chart.
+
+**False positive when:** Humans make chart errors constantly too, which is the point: this finding is about the chart being wrong, not about who drew it. Like citation pathology, act on it with full confidence.
+
+**Before**
+
+> A pie chart whose wedges sum to 112%.
+
+**After**
+
+> The same comparison as a bar chart, from a CSV anyone can open.
 
 ### `purple-blue-gradient-text-headline`  ·  high · generic-llm · color · structural · family: visual
 
@@ -139,6 +195,28 @@ The most reliable web AI-ism: the brand/primary color is Tailwind's default indi
 
 > Custom brand token --brand: oklch(0.62 0.17 28) (a warm terracotta) with a hand-tuned scale; CTA, links, and focus ring all derive from it; zero default-Tailwind swatches.
 
+### `uniform-detail-no-focus-falloff`  ·  high · generic-llm · image · llm-judge · family: visual
+
+Detail distributed evenly rather than optically: everything equally sharp regardless of distance, or a flat Gaussian background wash that does not deepen with distance from the focal plane. Mid-tones perfectly smooth.
+
+**Why it reads AI:** A lens has one focal plane and a circle of confusion that grows with distance. Diffusion models learned background blur as a style token rather than as geometry, so the blur has no depth structure. A real sensor also never produces perfectly smooth mid-tones, because it produces noise.
+
+**Detect:** Look at whether sharpness falls off as a gradient or as two flat zones. A partial structural assist is available by computing high-frequency energy in depth bands.
+
+**Fix:** If you must use the image, add real grain and a depth-aware blur. Better: use a photograph.
+
+**False positive when:** Deep-focus photography, focus stacking, macro work, and small-sensor phone images with computational depth all break this. Heavy noise reduction also smooths mid-tones.
+
+**Evidence:** Reported by practitioners as the strongest purely visual tell surviving into 2026, now that hands and text no longer work.
+
+**Before**
+
+> A portrait where the subject and the wall four metres behind are equally crisp.
+
+**After**
+
+> A photograph, or a render with a real depth pass.
+
 ### `ai-default-token-repetition`  ·  medium · generic-llm · web-ui · structural · family: visual
 
 Utility-class tokens repeated across every surface: backdrop-blur, rounded-2xl, bg-gradient-to-r, bg-clip-text, from-indigo, bg-grid-, animate-pulse.
@@ -162,6 +240,70 @@ Utility-class tokens repeated across every surface: backdrop-blur, rounded-2xl, 
 **After**
 
 > One elevated surface with a chosen radius and a real shadow; everything else flat.
+
+### `allcaps-letterspaced-eyebrow`  ·  medium · generic-llm · typography · structural · family: visual
+
+A small all-caps, wide-tracked, often monospace label above the H1, repeated above every section on the page.
+
+**Why it reads AI:** Free-looking hierarchy. It adds a level above the headline without requiring a decision, and because it costs nothing it appears above every section, destroying the hierarchy it was meant to create.
+
+**Detect:** Count elements combining uppercase, wide tracking, small size and a mono family. More than two on a page is the fire condition.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 3
+
+**Fix:** Allow one eyebrow per page, and only where it carries information the H1 cannot: a category, a date, an issue number.
+
+**False positive when:** Editorial layouts where a kicker is a real typographic convention, conference sites where it carries track and date, and Swiss-modernist systems that use caps labels as a grid element.
+
+**Before**
+
+> A mono uppercase tracked kicker above each of six sections.
+
+**After**
+
+> No eyebrows; section boundaries carried by whitespace and H2 size.
+
+### `amber-white-balance-cast`  ·  medium · chatgpt · image · structural · family: visual
+
+A global warm cast across generated images: whites drifting to cream, shadows muddy brown, skin pushed slightly yellow. It compounds, adding a layer with each edit round.
+
+**Why it reads AI:** No camera and no photographer produces the same white balance across a kitchen, a beach and an office. A cast invariant to the scene implies a single rendering stage.
+
+**Detect:** Compute the chromaticity of the brightest 1% of pixels. Neutral highlights sit near equal R/G/B; this skews R>G>B. A consistent cast across unrelated subjects from one source is close to conclusive.
+
+**Fix:** Neutralize white balance in post by sampling a known-white object and correcting globally. Prompting alone is unreliable, because the cast is applied late in rendering.
+
+**False positive when:** Golden-hour photography, tungsten interiors, deliberate warm grading across most commercial and film work, film-emulation looks, and anything shot under sodium light. The tell is a warm cast INVARIANT TO THE SCENE, not a warm cast. It is also trivially corrected, so its absence means nothing.
+
+**Before**
+
+> Product shot on a white seamless that samples at #F6EEDC.
+
+**After**
+
+> Same shot with the seamless corrected to #FAFAFA.
+
+### `ambient-background-stack`  ·  medium · generic-llm · color · structural · family: visual
+
+Two or more decorative background layers stacked behind the hero: a dot or line grid, a noise overlay, an aurora or spotlight wash, a blurred gradient orb.
+
+**Why it reads AI:** Each layer individually is a legitimate technique. Stacking them is what happens when nobody decided which one the page needed.
+
+**Detect:** Count decorative absolutely-positioned background layers behind the hero that carry no content.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_layers` = 2
+
+**Fix:** Keep at most one, and only if it does something for legibility or depth.
+
+**False positive when:** Some design systems genuinely layer texture, and a grid plus noise is a real and old print-derived treatment.
+
+**Before**
+
+> Grid background, plus noise, plus two blurred orbs, plus a radial spotlight.
+
+**After**
+
+> A flat ground and one well-judged shadow.
 
 ### `badge-pill-now-in-beta`  ·  medium · generic-llm · web-ui · structural · family: visual
 
@@ -227,6 +369,48 @@ Dark-mode-by-default near-black background (#0A0A0A / slate-950) decorated with 
 
 > Warm off-white (#F7F5F2) light theme with a single hand-made hero illustration; or a deliberate deep-green dark theme with one structural light source and no ambient glow blobs.
 
+### `eight-second-shot-ceiling`  ·  medium · generic-llm · video · structural · family: visual
+
+**Currency:** Fading — still seen, but vendors have patched toward it and it is weakening.
+
+Every shot runs five to ten seconds, because that is the generation window, and the piece is assembled entirely from cuts at that interval.
+
+**Why it reads AI:** The edit rhythm is the tool's constraint rather than an editorial choice. No human edit has that little variance.
+
+**Detect:** Measure shot lengths. A whole piece with no shot outside the five-to-ten-second band is the signal.
+
+**Fix:** If you must use generated footage, cut against the grain: hold one shot long, and cut one hard and short.
+
+**False positive when:** Music videos, trailers and social edits use fast uniform cutting deliberately. This is also expiring fast as generation windows lengthen.
+
+**Before**
+
+> A ninety-second piece of twelve eight-second shots.
+
+**After**
+
+> A piece with a twenty-second hold in it.
+
+### `fade-up-on-scroll-everything`  ·  medium · generic-llm · layout · structural · family: visual
+
+Every section, card and heading enters with the same fade-and-rise animation on scroll, usually staggered.
+
+**Why it reads AI:** Motion applied as a finish rather than as meaning. When everything animates, the animation stops telling the reader anything.
+
+**Detect:** Count elements carrying the same scroll-triggered entrance variant. Uniformity is the tell, not animation.
+
+**Fix:** Animate the one thing whose arrival matters. Let the rest be present when the page is.
+
+**False positive when:** Motion systems with a documented entrance token are doing this on purpose, and a long marketing page can legitimately use entrance motion for pacing.
+
+**Before**
+
+> Twelve elements sharing one fade-up variant with a 0.1s stagger.
+
+**After**
+
+> A static page with one deliberate transition where state actually changes.
+
 ### `glassmorphism-card-stack`  ·  medium · generic-llm · web-ui · structural · family: visual
 
 Cards use the identical recipe: semi-transparent fill, backdrop-blur, rounded-2xl/3xl corners, soft drop shadow, and a 1px white-at-10%-opacity inset border. Every card shares the exact token combo.
@@ -269,6 +453,32 @@ AI site builders default to Inter (or Vercel's Geist) for every text role with n
 
 > Headlines in a high-contrast serif (e.g. GT Sectra) at 600; body in Inter at 400 with -0.011em tracking; clear hierarchy between display and text.
 
+### `invisible-unicode-artifacts`  ·  medium · chatgpt · typography · structural · family: residue
+
+**Currency:** Fading — still seen, but vendors have patched toward it and it is weakening.
+
+Invisible or near-invisible codepoints in the text: U+202F narrow no-break space, zero-width space, word joiner, byte-order mark, soft hyphen. Treat this as evidence the text was PASTED from somewhere, which is not the same as evidence about who wrote it.
+
+**Why it reads AI:** It often doesn't any more. U+202F appeared in o3 and o4-mini output in April 2025 and OpenAI removed it within days, calling it a quirk of large-scale reinforcement learning. As of 2026 no mainstream assistant is known to embed hidden characters deliberately.
+
+**Detect:** Count the codepoints. Useful as a normalization step and as a provenance hint, not as an authorship signal.
+
+**Thresholds** (read by `scripts/humanize_review.py`): `min_count` = 1
+
+**Fix:** Normalize whitespace before judging anything else, then forget about it. The prose problems are the real work.
+
+**False positive when:** Constantly. Microsoft Word emits U+202F and U+00A0 routinely, LaTeX does, French typography requires U+202F before high punctuation by convention, and every web copy-paste carries non-breaking spaces. This was a genuine tell for roughly a week. Treat a hit as 'this was pasted', never as 'a model wrote this'.
+
+**Evidence:** OpenAI removed the U+202F behavior days after it was noticed in April 2025; contemporaneous reporting notes Word as a routine source of the same character.
+
+**Before**
+
+> A sentence — with residue in it.
+
+**After**
+
+> A sentence — with the residue removed.
+
 ### `mixed-icon-sets-one-view`  ·  medium · generic-llm · iconography · structural · family: visual
 
 A single view mixes icon vocabularies: some Lucide line icons, some Heroicons solid, a couple of emoji, maybe a Font Awesome glyph — different stroke weights, corner radii, and fill styles side by side.
@@ -288,6 +498,46 @@ A single view mixes icon vocabularies: some Lucide line icons, some Heroicons so
 **After**
 
 > All three are Lucide outline icons at 24px / 1.5px stroke in brand color, optically centered on a shared baseline.
+
+### `provenance-absent-or-stripped`  ·  medium · generic-llm · image · structural · family: residue
+
+The file's provenance record: a C2PA manifest naming a generator, a manifest naming a camera, or nothing at all, plus EXIF that is present, absent, or implausible.
+
+**Why it reads AI:** A signed manifest from a generator is a positive fact about the file. Most 2026 guidance goes wrong by reading the converse.
+
+**Detect:** Read the JUMBF box for a C2PA manifest, verify the signature against the C2PA trust list, and read EXIF and XMP. This is the only genuinely scriptable provenance test, and the asymmetry is the whole point: a signed generator manifest is close to proof of synthesis, and its absence proves nothing.
+
+**Fix:** If you are PRODUCING work, sign your real photography. Lightroom and Photoshop emit Content Credentials, and several camera bodies sign at capture. It is the only durable way to prove your work is yours as detectors get less decisive.
+
+**False positive when:** Constantly, in the negative direction. Every social upload, screenshot, re-save, CMS resize and CDN transform strips the manifest. Midjourney does not embed C2PA at all as of early 2026, so the most-used generator produces clean files. The standard has documented holes too: timestamps can be replaced without detection, and different validators return contradictory results. Never read a missing manifest as evidence of anything.
+
+**Before**
+
+> A hero image shipped as a stripped JPEG with no manifest and no EXIF.
+
+**After**
+
+> Signed at capture or export, with the manifest preserved through the build pipeline.
+
+### `shadcn-defaults-unmodified`  ·  medium · generic-llm · web-ui · structural · family: visual
+
+shadcn/ui shipped exactly as generated: default radius, default zinc neutrals, default hairline borders, lucide as the only icon set, no token overrides.
+
+**Why it reads AI:** The library is excellent and the defaults are fine, which is why nobody changes them. A site that has not overridden one token has not made one decision.
+
+**Detect:** Check whether components.json and the CSS variable block differ from the scaffold defaults at all. Zero diff is the signal.
+
+**Fix:** Change the radius, the neutral ramp, and the primary. Three token edits move a page further than a redesign.
+
+**False positive when:** Internal tools, admin panels and prototypes are exactly what unmodified defaults are for.
+
+**Before**
+
+> A components.json and theme block byte-identical to the scaffold.
+
+**After**
+
+> Custom radius scale, a neutral ramp mixed toward the brand hue, one real accent.
 
 ### `sparkle-motif-for-ai`  ·  medium · generic-llm · iconography · structural · family: visual
 
