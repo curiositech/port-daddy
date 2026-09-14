@@ -135,15 +135,234 @@ ways):
 
 | Feature | tufte-latex | This repo's Book |
 |---|---|---|
-| Sidenote (numbered, inline) | `\sidenote` | not implemented — `\pd@marginhead` + `\marginnote` covers the labeled-aside case; no numbered-footnote-in-margin equivalent |
+| Sidenote (numbered, inline) | `\sidenote` | `\pdsidenote{text}` — a superscript number in the text, the note in the margin (Book); exactly `\footnote` in a standalone chapter |
 | Unnumbered margin note | `\marginnote` | `\marginnote` (same package, used directly and via `\pd@marginhead`) |
+| Margin caption | `\sidecaption` (sidenotes pkg) | `\pdmargincaption[anchor]{claim}` — replaces `\caption` inside a float; the float keeps the text column, the caption rides the margin; exactly `\caption` in a standalone chapter |
 | Margin figure | `marginfigure` env | `\pdmarginfigure{slug}{caption}` — a portrait/plate when the slug is keyed to `plates/marginalia/`, otherwise a small multiple, sparkline, or regime strip; only the former is rationed one per section |
 | Margin table | `margintable` env | not implemented |
 | Full width | `fullwidth` env / `figure*` | `\pdfullwidth` length + automatic TikZ promotion hook; `\pdsession` computes its own full width |
 | Measure | 26pc text / 12pc margin (~46%) | 4.5in text / 1.3in margin (~29%) |
 | Short gloss/definition | none built in | `\pdgloss{Term}{one-line definition}` — bold term in text, definition in the margin (Book) or a parenthetical (standalone) |
+| Short-form citation | short forms in the sidenote | `\pdcite{key}` + the generated `figures/pd-cite-shortforms.tex` table — **margin copy currently suppressed**, see §3.3 |
 
-## 3. Where each Book chapter should carry marginalia — reading the current state
+## 3. What belongs in the Book's margin, in priority order
+
+This is the prescriptive section. It replaces an earlier version of this file
+that treated portraits and glosses as the apparatus and captions, notes and
+citations as things that happened to live in the column.
+
+### 3.0 The measurement that forced the rewrite
+
+Counted directly over the eight chapter sources named in
+`whitepaper/textbook.json`, TeX comments stripped first (the counting script is
+five lines of `re.finditer`; `scripts/harbor-research/captions_to_margin.py
+--check --json` reports the caption and footnote halves of it):
+
+| In the margin | calls | In the text column | calls |
+|---|---:|---|---:|
+| `\pdmarginfigure` (all 10 resolve to a portrait plate) | 10 | `\caption` | 61 |
+| `\pdgloss` | 0 | `\footnote` | 9 |
+| | | `\pdcite` / `\cite` at the point of use | 519 |
+
+Ten portraits and no glosses in the margin; 589 captions, notes and citations
+in the column. Tufte's books run the other way round, by roughly the same
+factor. That inversion is the defect this section exists to prevent
+recurring — not the presence of the portraits, which are fine, but their
+having been the *whole* apparatus.
+
+The order below is the order of first claim on the margin column. When two
+kinds want the same vertical band, the one higher in this list wins and the
+lower one moves or is dropped (`\pd@placemarginopt` already implements
+"dropped" for the second-copy devices).
+
+### 3.1 Figure, table and listing captions — the default, not the exception
+
+**Rule.** A caption goes in the margin. Write `\pdmargincaption{...}` where
+you would have written `\caption{...}`; the float itself stays in the text
+column at full measure, and the caption sits beside it in the margin.
+`scripts/harbor-research/captions_to_margin.py` performs and re-checks the
+conversion mechanically, so a new float that reaches for `\caption` is a lint
+finding, not a style preference.
+
+**The anchor argument.** `\pdmargincaption` takes an optional anchor:
+
+- `top` (the default) for a caption written at the float's top — after
+  `\begin{table}[H]` and an optional `\centering`/`\small`/`\arraystretch` and
+  nothing else. The margin block hangs downward from that line, running down
+  the margin beside the table. No page position is read, so nothing about it
+  can be stale. 38 of the Book's 54 convertible captions are this shape.
+- `foot` for a caption written *below* its content — the three
+  `\begin{figure}[H]` captions that follow their `\includegraphics`, and every
+  table whose `\caption` sits after the `tabular`. The block is raised by its
+  own measured height so its last line lands on the caption's line and it runs
+  *up* the margin beside the content. The raise is a box measurement, not a
+  page measurement, so it is exact. 16 captions are this shape.
+
+The converter decides the anchor by looking at what sits between the float's
+`\begin` and its `\caption`; do not set it by hand unless you are writing a
+float whose shape the converter misreads, and if you are, fix the converter.
+
+**When a caption stays in the column.** Three cases, and only three:
+
+1. **A full-bleed plate.** A float that reaches past the text column —
+   `\pdfullwidth`, an `adjustwidth` that cancels the margin, `\paperwidth`, an
+   `\AddToShipoutPicture` — has no margin beside it to put a caption in. Its
+   caption stays a `\caption` under the plate.
+2. **A `longtable` / `xltabular` caption.** That `\caption` is longtable's own:
+   it must sit in its own row followed by `\\`, and it heads a table that spans
+   pages. One margin block beside page one of a three-page table points at the
+   wrong content. Seven of the Book's 61 captions are these.
+3. Nothing else. "It is a long caption" is not a case — see the next
+   paragraph.
+
+**What a margin caption must contain.** The *claim*, as a sentence, per this
+skill's own checklist: "X stays flat until Y crosses Z, then rises linearly"
+and not "Figure 3: X vs Y". The Book is already mostly right about this — 54 of
+its 61 captions open with a claim sentence — and the handful that do not
+(`How the harbor economy sits relative to the nearest prior art on each axis.`,
+`What the commons borrows from each prior body of work, where it departs, and
+why.`) are noun phrases naming a subject rather than sentences making a claim.
+Those are the ones `margin_lint.py`'s `caption-states-a-claim` rule flags.
+
+**The width discipline is the point, not a side effect.** The margin is 1.3in,
+which is about 23 characters a line at `\marginfont`. A caption that was
+comfortable at 4.5in becomes visibly long at 1.3in, and that is the mechanism
+doing its job: a five-line full-measure caption restating what the drawing
+already labels is a caption that was never edited, because nothing was pushing
+back on it. Do not widen the margin to fit the caption; cut the caption. The
+one thing you may not do is move it back to the column.
+
+### 3.2 Sidenotes replacing footnotes
+
+**Rule.** Every `\footnote` in a chapter body becomes `\pdsidenote`. The reader
+never leaves the page to read a note. `\pdsidenote` sets a superscript number
+in the running text and the note itself in the margin beside the line that
+called it; outside the margin column it is exactly `\footnote`, so the
+standalone chapter PDFs keep their foot notes unchanged.
+
+**The one exception**, and it is real rather than a hedge: a note with no line
+of running prose to sit beside. A margin note anchors to the line that issued
+it, so a note issued from inside a float, a `longtable`, a `tabular`, a
+listing/verbatim block, or a **section-family heading's title argument**
+anchors to that box and points the reader at the wrong content. The heading
+case is the one the Book actually contains: the bonded-commons chapter carries
+`\subsubsection{Competitive-Insurance Pricing Mechanism\protect\footnote{This
+subsection contributed by Thomas Youle...}}`. A heading title is a moving
+argument — it is written to the `.toc` and the `.aux` — and a margin device
+expanded there does not merely look wrong, it ends the build: converting it
+produced 100 `Missing \endcsname inserted` errors and a 360-page torso of the
+549-page Book. That is also the right editorial answer independently, because
+a heading's margin line already belongs to `\pd@marginhead`, and because the
+note attaches to a *section*, not to a sentence. Eight of the Book's nine
+footnotes convert; that one stays a footnote.
+
+**Why `\pdsidenote` is top-anchored.** The Book's footnotes run 90 to 400
+characters, which is 8 to 18 lines at `\marginparwidth`. That is a tall block,
+and a sidenote is called mid-sentence where `\pagetotal` is stale by the lines
+of the current paragraph. This file's own rule (see "Where a margin block is
+anchored" below) is that a tall block does not compute an upward offset from a
+number it cannot trust. `\pdsidenote` therefore goes through
+`\pd@placemargintop`: no raise at all, so no stale page position can lift it
+off the paper, with the foot clamp and occupancy caps still applying downward.
+
+### 3.3 Short-form citations at the point of use
+
+**Rule.** A citation is `\pdcite{key}`, never a bare `\cite{key}`, and the
+short form ("Lamport 1978") belongs in the margin beside the clause that cites
+it while the full entry stays in the back matter.
+`scripts/harbor-research/promote_cites.py` already promotes every eligible
+`\cite` to `\pdcite`, and `build_cite_shortforms.py` already generates the
+per-key short-form table. 513 of the Book's 519 point-of-use citations are
+already `\pdcite`.
+
+**Standing defect, stated so nobody re-derives it.** `\pdcite`'s margin copy is
+currently *switched off* in `figures/pd-pedagogy.tex`: the macro emits the
+`\cite` and then `\relax`. The reason is recorded there and is not a
+disagreement with this rule — it is an allocator problem. There are 505 of
+these calls, all issued mid-sentence, and every placement decision in that file
+is arithmetic on `\pagetotal`, which mid-paragraph is stale by however much of
+the paragraph has been set. The notes printed on each other 132 times and off
+the paper 7 times on the merge that brought them in.
+
+The fix on record is `\marginpar` rather than better arithmetic: `\marginpar`
+stacks notes in reading order, never overlaps, and never runs off the foot,
+and it has to own the whole column to do it — a `\marginnote` block is
+invisible to the page builder, so a mixed column collides by construction. That
+conversion is a separate piece of work with its own fixture
+(`website-v2/public/whitepaper/margin-apparatus-fixture.tex`, whose real cases
+live at `tests/harbor-research/fixtures/margin-apparatus-fixture.tex`). Until
+it lands, the short-form table and its freshness check stay exactly as they
+are, and **the margin caption work does not make this worse**: a margin caption
+is issued inside a float box, in vertical mode, and computes no page position
+at all, so it is not another client of the arithmetic that failed.
+
+### 3.4 Small explanatory graphics
+
+**Rule.** A graphic whose only job is to explain the sentence beside it belongs
+in the margin, not in the column. A graphic the argument turns on belongs in
+the column. The test is whether the reader who skips it loses the argument or
+only loses a confirmation.
+
+**The size envelope.** The margin column is 1.3in wide (93.6pt) and the text
+block is 8.2in tall, so the hard ceiling is 1.3in × 8.2in and the useful
+ceiling is much lower, because a margin graphic that is taller than the
+paragraph it explains has stopped being marginal. In practice:
+
+| Kind | Size | Notes |
+|---|---|---|
+| Sparkline | ~1.3in × one line (≈13pt) | Set inline in the sentence or table cell, at word size (doctrine 4). If it needs its own row it is a chart. |
+| Regime strip | ~1.3in × 0.25–0.4in | One horizontal band, regimes direct-labelled, no axis. |
+| Small multiple grid | ~1.3in × up to 1.5in | 2×2 or 2×3 at most at this width; same scale and frame across panels (doctrine 3). More panels than that means the column, not the margin. |
+| A single 2cm explanatory plot | ~1.3in × 0.8in | One series, direct-labelled, no legend, no gridlines. |
+
+Anything wider than 1.3in is not a margin graphic. Do not scale a column
+figure down to fit — a figure that is only legible at 4.5in is illegible at
+1.3in, and `references/critiques-and-limits.md` §Accessibility is explicit that
+shrinking is not a free operation. Redraw it smaller with fewer marks, or leave
+it in the column.
+
+**Mechanism.** `\pdmarginfigure{slug}{caption}` carries these as well as
+portraits; a slug that does not resolve under `plates/marginalia/` is by
+construction not a portrait and faces no quota. There is no per-section limit
+on small multiples, sparklines or regime strips in the margin — the Book's
+margin column is meant to be used generously.
+
+### 3.5 Glosses — first use only
+
+Unchanged from the previous specification, and still correct.
+`\pdgloss{Term}{one-line definition}` at the term's first use in a chapter,
+one per term, many per chapter; never the same term twice
+(`margin_lint.py`'s `gloss-not-repeated`), and the term must appear in the
+chapter's own running prose (`gloss-term-in-prior-prose`). A gloss repeated at
+every mention crowds the column and stops meaning anything special the second
+time.
+
+The Book currently has **zero** `\pdgloss` calls across all eight chapters. The
+macro exists and the lint rules exist; the calls do not. That is a real gap,
+but adding one is an editorial decision about which first use carries the
+argument, so it is not something this file's converter will ever do
+mechanically.
+
+### 3.6 Portraits — rationed, and last
+
+Unchanged in its rules, changed in its standing. A portrait is the **last**
+claim on the margin, not the first. At most one PORTRAIT per `\section` (a
+`\pdmarginfigure` slug that resolves to a real file under
+`plates/marginalia/<slug>.jpg`), the plate must be cleared (no
+`.NOT-CLEARED.json` sidecar), the person's *idea* — not just their name — must
+carry the sentence it is anchored to, and a bibliography-adjacent mention is
+explicitly not a home. `docs/harbor-research/exposition/MARGINALIA-PLACEMENT.md`
+records the ten placements and the two held back (Lovelace: no anchor; Coase:
+no cleared image and no citation).
+
+What changes is precedence. When a portrait and a caption, a sidenote, or a
+short-form citation want the same band of margin, the portrait moves. A
+portrait is a garnish on an apparatus; it is not the apparatus. A chapter whose
+margin carries portraits and nothing else has an empty margin apparatus with
+decoration in it, which is what `margin_lint.py`'s `margin-carries-the-caption`
+rule measures.
+
+## 4. Where each Book chapter should carry marginalia — the placement record
 
 `docs/harbor-research/exposition/MARGINALIA-PLACEMENT.md` (read directly this
 pass) is the standing, lead-approved-pending proposal for `\pdmarginfigure`
