@@ -267,6 +267,44 @@ describe('check-pr-requirements guard', () => {
       expect(stderr).toMatch(/carries no render a reviewer can open/);
     });
 
+    // #10192's shape, and the sharpest case of the three. Its Visual Proof reads
+    // like thorough diligence — sixteen page numbers, read at 1.0x, three defects
+    // found by looking and fixed — and contains no picture. A reviewer cannot
+    // check any of it without rebuilding a 562-page book themselves. A list of
+    // pages you looked at is a description of looking, not a thing to look at.
+    test('a list of inspected page numbers at 1.0x is NOT evidence', () => {
+      const { code, stderr } = run('--body-file', fixture('figure-page-list.md'), '--changed', FIGURE_DIFF);
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/carries no render a reviewer can open/);
+      // No marker in this body, so the full teaching text must be present here.
+      expect(stderr).toMatch(/a list of page numbers/);
+      expect(stderr).toMatch(/1\.0× \/ 150 dpi/);
+    });
+
+    // #10192's marker verbatim. Its reasoning is the one the rule has to refuse:
+    // "the Book PDF is built by a workflow, not a web surface" is a true sentence
+    // about rule (3)'s territory and an irrelevant one — print work is not
+    // exempt for failing to be a web surface, it is the other kind of visual
+    // work, with its own evidence.
+    test('"built by a workflow, not a web surface" does not exempt LaTeX chapter sources', () => {
+      const body = [
+        '## Summary',
+        'Apply the manuscript critique to eight chapter sources: two theorems gain hypotheses, one section title is withdrawn.',
+        '## Test Plan',
+        'Book builds under tectonic: 562 pages, zero undefined references, zero undefined citations in the log.',
+        '<!-- visual-exempt: LaTeX chapter sources and research-ledger data; the Book PDF is built by whitepaper-build.yml, not a web surface. -->',
+      ].join('\n');
+      const { code, stderr } = run(
+        '--body', body,
+        '--changed', 'website-v2/public/whitepaper/spawn-to-person.tex,whitepaper/single-writer-kernel.tex,changelog.d/9913-critique.md',
+      );
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/`visual-exempt` is not available/);
+      expect(stderr).toMatch(/figure or print territory/);
+      // A print diff must never be told to attach a recording.
+      expect(stderr).not.toMatch(/GIF or screen recording/);
+    });
+
     test('a missing Visual Proof section FAILS on a figure diff', () => {
       const body = [
         '## Summary',

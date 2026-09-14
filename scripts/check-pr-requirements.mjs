@@ -18,10 +18,16 @@
  *      skills — see `isFigureSurface` in scripts/lib/user-visible-surfaces.mjs), the
  *      `visual-exempt` marker is an ERROR rather than an escape hatch, and the
  *      `## Visual Proof` section must carry a pointer to a page-scale render.
- *      Two PRs — #10190 (three new Book figures) and #10191 (fifteen restyled Book
- *      figures) — passed every check in this repo while shipping no image of the
- *      thing they changed, both by writing `<!-- visual-exempt: ... -->`. Entirely
- *      visual work took the marker that exists to say "there is no visual change."
+ *      Three PRs — #10190 (three new Book figures), #10191 (fifteen restyled Book
+ *      figures) and #10192 (eight chapter sources) — passed every check in this repo
+ *      while shipping no image of the thing they changed, all three by writing
+ *      `<!-- visual-exempt: ... -->`. Entirely visual work took the marker that
+ *      exists to say "there is no visual change."
+ *      #10192's stated reason is the one worth answering, because it is not a
+ *      dodge — "the Book PDF is built by whitepaper-build.yml, not a web surface."
+ *      That is TRUE about rule (3)'s territory and beside the point: print work is
+ *      not exempt for failing to be a web surface, it is the other kind of visual
+ *      work, and rule (3b) is the evidence it owes instead.
  *      The marker stays valid where it is legitimate: a CI or script PR that touches
  *      no figure path is unaffected.
  *   4. If the diff touches a USER-VISIBLE surface, the PR adds a changelog fragment
