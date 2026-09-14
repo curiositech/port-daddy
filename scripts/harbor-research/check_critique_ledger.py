@@ -24,7 +24,13 @@ Checks
        DONE <sha-or-PR>
        IN-WAVE-<n>
        DECLINED -- <reason>
+       BLOCKED -- <branch>
      (an em/en dash or a plain double hyphen is accepted before <reason>).
+     BLOCKED names a row whose fix is real, agreed and owned by a *different*
+     branch, so it is not done and is not declined -- the distinction matters
+     because a blocked row silently left empty reads as nobody having looked
+     at it, and a blocked row marked DONE is the CA-045 failure (a Status
+     whose own Notes refuted it). It is counted as open, never as closed.
   4. For every id present in both files, the two files agree on `Status`
      verbatim -- if the author updates one and forgets the other, this is
      exactly the drift the tool exists to catch.
@@ -56,7 +62,12 @@ STATUS_RE = re.compile(
     r"^(?:"
     r"DONE \S.*"                        # DONE <sha-or-PR> (at least one non-space token after)
     r"|IN-WAVE-\d+"                     # IN-WAVE-<n>
-    r"|DECLINED\s*(?:--|-|—|–)\s*\S.*"  # DECLINED -- <reason> (--, -, em/en dash)
+    # The reason/branch may not be empty and may not itself be a dash: without
+    # the second exclusion "DECLINED --" parses as reason "-" via the single-dash
+    # alternative, and a row that declines or blocks without saying why or where
+    # is the silent version of both, which is what this ledger exists to stop.
+    r"|DECLINED\s*(?:--|-|—|–)\s*[^\s\-—–].*"  # DECLINED -- <reason>
+    r"|BLOCKED\s*(?:--|-|—|–)\s*[^\s\-—–].*"   # BLOCKED -- <branch that owns the file>
     r")$"
 )
 
@@ -155,7 +166,7 @@ def check_status(rid: str, status: str, source: str, errors: list[str]) -> None:
         return
     errors.append(
         f"  [BAD STATUS] {source} row {rid}: {status!r} is not empty, "
-        f"'DONE <sha-or-PR>', 'IN-WAVE-<n>', or 'DECLINED -- <reason>'"
+        f"'DONE <sha-or-PR>', 'IN-WAVE-<n>', 'DECLINED -- <reason>', or 'BLOCKED -- <branch>'"
     )
 
 
