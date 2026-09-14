@@ -10,6 +10,14 @@ export default defineConfig({
     globals: false,
   },
   resolve: {
+    // fleet-control-requeue deliberately imports the sibling Fleet Executor
+    // source. Keep its YAML import rooted in this package so Vite applies the
+    // Worker/browser export condition instead of rebundling YAML's node CJS
+    // entry relative to a synthetic `apps/relay/yaml` module.
+    dedupe: ['yaml'],
+    alias: {
+      '@cloudflare/sandbox': new URL('../fleet-executor/tests/stubs/cloudflare-sandbox.ts', import.meta.url).pathname,
+    },
     conditions: ['workerd', 'browser', 'import', 'module', 'main'],
   },
 });
