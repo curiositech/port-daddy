@@ -342,7 +342,16 @@ const CLIENT_JS = `
       if (label) label.textContent = scopedRepo;
       var msgs = (d && d.messages) || [];
       for (var i = 0; i < msgs.length; i++) addMsg(msgs[i].role, msgs[i].content, msgs[i].yaml);
-    }).catch(function () { /* empty state stays */ });
+      input.disabled = false;
+      sendBtn.disabled = false;
+      clearBtn.disabled = false;
+      if (repoClearBtn) repoClearBtn.disabled = false;
+      input.focus();
+    }).catch(function (e) {
+      var label = document.getElementById('active-repo-label');
+      if (label) label.textContent = 'Unavailable';
+      addMsg('error', (e && e.message) || 'Repository authorization failed. Choose another saved thread.');
+    });
   }
 
   function send(text) {
@@ -433,7 +442,7 @@ const CLIENT_JS = `
     fetch('/v1/shipwright/repo-clear', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ installationId: scopedInstallation, repo: scopedRepo })
+      body: JSON.stringify({ threadId: threadId })
     }).then(function (r) { if (!r.ok) throw new Error('clear refused'); window.location.href = '/account/shipwright'; })
       .catch(function () { window.alert('Repository clear failed. Nothing was assumed deleted.'); });
   });
@@ -463,21 +472,22 @@ const CLIENT_JS = `
         option.textContent = rows[i].repo;
         resume.appendChild(option);
       }
+    }).catch(function () {
+      resume.options[0].textContent = 'Saved threads unavailable';
     });
     resume.addEventListener('change', function () {
       if (resume.value) window.location.href = '/account/shipwright?thread=' + encodeURIComponent(resume.value);
     });
   }
 
-  if (!threadId) {
-    input.disabled = true;
-    sendBtn.disabled = true;
-    clearBtn.disabled = true;
-    if (repoClearBtn) repoClearBtn.disabled = true;
-  }
+  // An opaque URL thread id is not authority. The composer remains inert
+  // until loadHistory returns the exact server-bound, freshly authorized repo.
+  input.disabled = true;
+  sendBtn.disabled = true;
+  clearBtn.disabled = true;
+  if (repoClearBtn) repoClearBtn.disabled = true;
 
   loadHistory();
-  input.focus();
 })();
 `;
 
@@ -495,23 +505,24 @@ export interface ShipwrightPageView {
 }
 
 export function renderRepoSelector(view: ShipwrightPageView): string {
+  const resume = `<label>Resume saved thread<select id="resume-thread"><option value="">Choose repository…</option></select></label>`;
   if (view.threadId) {
     return `<div class="repo-scope"><b>Repository context:</b> <code id="active-repo-label">Verifying…</code>
       <p>The server-bound repository name appears only after exact authorization. Choose another saved thread below.</p>
-      <label>Resume thread<select id="resume-thread"><option value="">Choose repository…</option></select></label></div>`;
+      ${resume}</div>`;
   }
   if (view.installations === null) {
-    return `<div class="repo-scope"><b>Repository context unavailable.</b><p>GitHub installations could not be listed. Reload to try again; chat stays disabled until the server authorizes an exact repository.</p></div>`;
+    return `<div class="repo-scope"><b>Repository context unavailable.</b><p>GitHub installations could not be listed. Reload to try again; chat stays disabled until the server authorizes an exact repository.</p>${resume}</div>`;
   }
   if (view.installations.length === 0) {
-    return `<div class="repo-scope"><b>Install the Port Daddy Fleet GitHub App first.</b><p>Shipwright will not start an unscoped conversation.</p></div>`;
+    return `<div class="repo-scope"><b>Install the Port Daddy Fleet GitHub App first.</b><p>Shipwright will not start an unscoped conversation.</p>${resume}</div>`;
   }
   const options = view.installations.map((i) => `<option value="${i.id}">${esc(i.accountLogin ?? `installation ${i.id}`)}</option>`).join('');
   return `<div class="repo-scope"><form id="repo-scope-form">
     <label>Installation<select name="installationId">${options}</select></label>
     <label>Repository<input name="repo" required pattern="[A-Za-z0-9_.\\-]+/[A-Za-z0-9_.\\-]+" placeholder="owner/repo"></label>
     <button type="submit">Start scoped thread</button>
-  </form><p>GitHub authorization is checked before history is read or a model is called.</p></div>`;
+  </form><p>GitHub authorization is checked before history is read or a model is called.</p>${resume}</div>`;
 }
 
 /**
@@ -641,7 +652,7 @@ export function renderShipwrightPage(user: UserRow, nonce: string, view: Shipwri
   <div class="honesty">
     <p><b>Honest limits:</b> the Shipwright designs your <b>pd-fleet.yml</b> in conversation, and once
     a roster <b>validates</b> it can <b>open the PR in your own repo</b> at your click — always a fresh
-    branch + PR into a repo whose GitHub App installation you own; it never pushes to existing
+    branch + PR into a repo GitHub says you can write to; it never pushes to existing
     branches, never merges, and cannot read your repo. Your review stays the gate. Conversations stay
     inside the selected repository thread and raw messages are pruned after ${SHIPWRIGHT_RETENTION_DAYS} days.
     Structured repository memory and proposal provenance remain until you clear that repository
@@ -663,13 +674,13 @@ export function renderShipwrightPage(user: UserRow, nonce: string, view: Shipwri
   </div>
   <div class="composer">
     <form id="composer">
-      <textarea id="input" rows="2" placeholder="Describe your repo and what the fleet should do…" aria-label="Message the Shipwright" maxlength="4000"></textarea>
-      <button id="send" type="submit">Send</button>
+      <textarea id="input" rows="2" placeholder="Describe your repo and what the fleet should do…" aria-label="Message the Shipwright" maxlength="4000" disabled></textarea>
+      <button id="send" type="submit" disabled>Send</button>
     </form>
     <div class="hints">
       <span class="hint">Enter to send · Shift+Enter for a new line</span>
-      <button id="clear" class="clear" type="button">Clear raw transcript (keeps memory + proposals)</button>
-      <button id="repo-clear" class="clear" type="button">Clear all repository context</button>
+      <button id="clear" class="clear" type="button" disabled>Clear raw transcript (keeps memory + proposals)</button>
+      <button id="repo-clear" class="clear" type="button" disabled>Clear all repository context</button>
     </div>
   </div>
 </main>
