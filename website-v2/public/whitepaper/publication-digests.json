@@ -3,18 +3,18 @@
   "pdfs": {
     "website-v2/public/whitepaper/agent-transactions-whitepaper.pdf": {
       "pages": 61,
-      "bytes": 1005031,
-      "sha256": "d7f471633be3f00eaa9aefa372367bc2a2826b71e239a8aa943786dd3483fe99"
+      "bytes": 1005120,
+      "sha256": "3c7b75a1992696a8faf2c31b5c28502abb034cf12a26eb1f5624313d5d6eb171"
     },
     "website-v2/public/whitepaper/anchor-protocol-whitepaper.pdf": {
       "pages": 38,
       "bytes": 726301,
-      "sha256": "70d130bf992e83ed2264b496af307989a410a3f9b8fd37fe7efc4ce4455cdc68"
+      "sha256": "768a5dd1d7a5f8e0cbc007e30f6e65192c311edf19cd94bd33b3630c2059b061"
     },
     "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf": {
-      "pages": 555,
-      "bytes": 9761895,
-      "sha256": "2251fdedb6c8e43126b1953285fa0e4a224b60040e74b792152a942fdff3d035"
+      "pages": 556,
+      "bytes": 9762909,
+      "sha256": "f9c44b25f1970170cbff90114d1a8da3d6e55d02767f68d757ebeac4cc34a629"
     },
     "website-v2/public/whitepaper/federated-harbor-whitepaper.pdf": {
       "pages": 45,
@@ -23,8 +23,8 @@
     },
     "website-v2/public/whitepaper/harbor-economy-whitepaper.pdf": {
       "pages": 49,
-      "bytes": 794879,
-      "sha256": "a8812d239d96bc9376d9b2f80be2c39baebd5704e2d84ac806e8d8aee6cc05ab"
+      "bytes": 789610,
+      "sha256": "9c388612a316ce1876cb14e2747b8a736113c28aba9f6ba59a685c381824415c"
     },
     "website-v2/public/whitepaper/legible-swarm-whitepaper.pdf": {
       "pages": 64,
