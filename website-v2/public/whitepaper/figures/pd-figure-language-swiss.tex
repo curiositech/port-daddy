@@ -13,7 +13,15 @@
   pd rule/.append style={draw=hhink,line width=.9pt},
   pd focus rule/.append style={draw=\pdcurrentchaptercolor,line width=2pt},
   pd caution rule/.append style={draw=pderror,line width=2pt},
-  pd guide/.append style={draw=hhink!40,line width=.5pt},
+  % NO pd guide override. This edition used to append `draw=hhink!40,line
+  % width=.5pt` to it, which is what widened the stroke under a dash pattern the
+  % base had already baked from the OLD width -- the 0.93px dot the Book shipped.
+  % The base guide's geometry is a legibility floor, not this edition's
+  % character, and hhink!70 is already the ink this edition would have asked for.
+  % An edition that does want to move the guide's ink changes `draw=` only and
+  % takes \pdguidewidth / \pdguideon / \pdguideoff for the rest; it never restates a width
+  % without restating the dash that was derived from it.
+  pd lattice/.append style={draw=hhink!28,line width=.4pt},
   pd arrow/.append style={-{Triangle[length=2.4mm,width=2.2mm]},draw=hhink,line width=1.1pt},
   pd focus arrow/.append style={-{Triangle[length=2.4mm,width=2.2mm]},draw=\pdcurrentchaptercolor,line width=1.5pt},
   pd caution arrow/.append style={-{Triangle[length=2.4mm,width=2.2mm]},draw=pderror,line width=1.5pt},

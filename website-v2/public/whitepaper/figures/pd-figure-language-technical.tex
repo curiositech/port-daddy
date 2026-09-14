@@ -14,7 +14,14 @@
   pd rule/.append style={draw=hhink,line width=.5pt},
   pd focus rule/.append style={draw=pdamber,line width=1pt},
   pd caution rule/.append style={draw=pdrust,line width=1pt,dash pattern=on 3pt off 1.5pt},
-  pd guide/.append style={draw=hhink,line width=.3pt,dash pattern=on .6pt off 1.2pt},
+  % The manual's guide is full ink rather than a tint -- that is this edition's
+  % character and it stays. The geometry does not: `line width=.3pt,dash
+  % pattern=on .6pt off 1.2pt` is 0.63px of stroke carrying a 1.25px dot at
+  % 150dpi, which is the same sub-pixel failure the Swiss guide had, arrived at
+  % independently. Width and dash come from the three shared macros, so this
+  % edition cannot drift off the floor again.
+  pd guide/.append style={draw=hhink,line width=\pdguidewidth,dash pattern=on \pdguideon off \pdguideoff},
+  pd lattice/.append style={draw=hhink!45,line width=.35pt},
   pd arrow/.append style={-{Stealth[length=1.9mm,width=1.3mm,open]},draw=hhink,line width=.5pt},
   pd focus arrow/.append style={-{Stealth[length=1.9mm,width=1.3mm]},draw=pdamber,line width=.8pt},
   pd caution arrow/.append style={-{Stealth[length=1.9mm,width=1.3mm]},draw=pdrust,line width=.8pt,dash pattern=on 3pt off 1.5pt},

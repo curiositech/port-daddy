@@ -144,13 +144,74 @@
 % size like any other text.
 \providecommand{\pdfigmath}{\normalsize}
 
+% ---------------------------------------------------------------------------
+% THE GUIDE DASH, IN ABSOLUTE POINTS, IN ONE PLACE.
+%
+% `pd guide` used to read `line width=.45pt,densely dotted`. `densely dotted`
+% expands to `dash pattern=on \pgflinewidth off 1pt`, and \pgflinewidth is read
+% when the KEY is processed, not when the path is stroked. So the Swiss
+% edition's `pd guide/.append style={draw=hhink!40,line width=.5pt}` widened the
+% stroke and left the dash at the .45pt already baked into it. The canonical
+% Book therefore shipped a 0.448pt dot on a 0.498pt stroke.
+%
+% Measured on the Book (Swiss, the built edition) at 1.0x / 150 dpi:
+%   on 0.448pt = 0.93 device px -- UNDER ONE PIXEL
+%   off 0.996pt = 2.08 px, period 3.01 px
+%   peak ink per dot swings 0.173-0.345 (a 2.0x range) purely with where the
+%     dot lands on the pixel grid; the line's weight is a rasteriser accident
+%   the darkest pixel of the guide (0.30) is DARKER than every pixel of the
+%     solid `pd hairline` (0.25/0.19) beside it, while its mean ink (2.3%) is a
+%     quarter of the hairline's (8.9%) -- the two lines are not separated on any
+%     axis a reader can name
+%   declared separation from `pd hairline`: hhink!40 against hhink!45, 4.6% of
+%     the grey scale
+%
+% So a fragment that used `pd guide` to mean "this line is not that line" was
+% relying on ink that does not arrive on the page. Twenty-five of the corpus's
+% thirty-six guide draws carry exactly that meaning.
+%
+% The replacement is stated absolutely and measures phase-STABLE: every dot
+% renders at the same weight wherever it falls on the grid (peak column ink
+% 0.808, invariant across twelve sub-pixel offsets). It is a macro rather than
+% three numbers because an edition that restates one of them and not the others
+% is how this defect happened. The geometry is a LEGIBILITY FLOOR, not an
+% edition's character: an edition may move the guide's ink, and states the
+% geometry through these two macros so it cannot half-restate it.
+%
+% Any dash in this corpus is stated in absolute points. The `dotted` family
+% (`dotted`, `densely dotted`, `loosely dotted`) derives its on-length from the
+% line width and is therefore banned -- P23 in tikz_precheck.py. `dashed` and
+% its relatives are absolute (on 3pt off 3pt) and are fine.
+\providecommand{\pdguidewidth}{.7pt}
+% Three lengths, not one macro holding the whole key: pgfkeys splits a key list
+% on `,` and `=` before expanding anything (so a macro carrying `dash
+% pattern=...` is read as one key NAME), and TikZ's dash-pattern scanner reads
+% the literal words `on`/`off` without expanding a macro that hides them. A
+% dimension after each word does expand, which is the seam that works.
+\providecommand{\pdguideon}{1.2pt}
+\providecommand{\pdguideoff}{2.0pt}
+
 \tikzset{
   pd figure/.style={font=\pdfiglabelfamily\pdfigbasesize,text=hhink},
   pd hairline/.style={draw=hhgray!78,line width=.5pt},
   pd rule/.style={draw=hhink,line width=.62pt},
   pd focus rule/.style={draw=hhteal,line width=1.05pt},
   pd caution rule/.style={draw=hhamber,line width=1.05pt},
-  pd guide/.style={draw=hhgray!62,line width=.45pt,densely dotted},
+  % Darker per dot than the hairline, lighter in mean ink than it: a guide is a
+  % construction line the reader traces from a mark to an axis, so each dot has
+  % to be a definite mark, while the line as a whole has to recede behind the
+  % data. The hairline is the opposite -- continuous and faint. Those are the
+  % two axes that now separate them, instead of 4.6% of the grey scale.
+  pd guide/.style={draw=hhink!70,line width=\pdguidewidth,dash pattern=on \pdguideon off \pdguideoff},
+  % A LATTICE is the rule work a figure stands on: column separators, row
+  % baselines, a time grid. It is NOT dotted, and that is the point. Dotted
+  % versus solid is a semantic channel -- it distinguishes a construction line
+  % from a drawn edge -- and thirteen fragments were spending it on background
+  % grid where it distinguishes nothing. A dash that carries no meaning is the
+  % first ink a rasteriser is entitled to lose, and it did. A lattice is
+  % continuous and quiet; a guide is discontinuous and definite. Use `pd guide`
+  % only where the reader must see that the line is not a drawn edge.
+  pd lattice/.style={draw=hhgray!52,line width=.4pt},
   pd arrow/.style={-{Stealth[length=2.0mm,width=1.25mm]},draw=hhink,line width=.68pt},
   pd focus arrow/.style={-{Stealth[length=2.0mm,width=1.25mm]},draw=hhteal,line width=.88pt},
   pd caution arrow/.style={-{Stealth[length=2.0mm,width=1.25mm]},draw=hhamber,line width=.88pt,dashed},

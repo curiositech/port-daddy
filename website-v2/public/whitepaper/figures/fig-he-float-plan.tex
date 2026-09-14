@@ -6,7 +6,7 @@
   \node[pd panel title,anchor=west] at (-6.7,3.0)
     {execution becomes admissible at one committed transition};
   \foreach \x/\lab in {-5.4/signed plan,-1.8/transaction begins,1.3/commit,5.2/clearance}
-    {\draw[pd guide] (\x,-2.2)--(\x,2.25);
+    {\draw[pd lattice] (\x,-2.2)--(\x,2.25);
      \node[pd axis label,anchor=north] at (\x,-2.35) {\lab};}
   \node[pd axis label,anchor=east] at (-6.05,1.65) {wallet};
   \node[pd axis label,anchor=east] at (-6.05,.15) {escrow row};
