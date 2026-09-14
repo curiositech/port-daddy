@@ -3,6 +3,36 @@
   "registry_items": 318,
   "unregistered": [
     {
+      "slug": "consent-grant-surface",
+      "sources": [
+        {
+          "file": "docs/adr/0141-oidc-workload-identity-and-standing-operator-grant.md",
+          "line": 629,
+          "how": "declared"
+        }
+      ]
+    },
+    {
+      "slug": "consent-ladder-asks-baseline",
+      "sources": [
+        {
+          "file": "docs/adr/0141-oidc-workload-identity-and-standing-operator-grant.md",
+          "line": 629,
+          "how": "declared"
+        }
+      ]
+    },
+    {
+      "slug": "cost-band-calibration",
+      "sources": [
+        {
+          "file": "docs/adr/0141-oidc-workload-identity-and-standing-operator-grant.md",
+          "line": 629,
+          "how": "declared"
+        }
+      ]
+    },
+    {
       "slug": "fleet-cost-canary",
       "sources": [
         {
@@ -23,11 +53,71 @@
       ]
     },
     {
+      "slug": "fleetbot-account-bearer-retirement",
+      "sources": [
+        {
+          "file": "docs/adr/0141-oidc-workload-identity-and-standing-operator-grant.md",
+          "line": 629,
+          "how": "declared"
+        }
+      ]
+    },
+    {
+      "slug": "fleetbot-capability-v2",
+      "sources": [
+        {
+          "file": "docs/adr/0141-oidc-workload-identity-and-standing-operator-grant.md",
+          "line": 629,
+          "how": "declared"
+        }
+      ]
+    },
+    {
+      "slug": "fleetbot-host-workload-enrolment",
+      "sources": [
+        {
+          "file": "docs/adr/0141-oidc-workload-identity-and-standing-operator-grant.md",
+          "line": 629,
+          "how": "declared"
+        }
+      ]
+    },
+    {
       "slug": "fleetbot-pr-authorship",
       "sources": [
         {
           "file": "docs/adr/0098-cloud-fleet-operator-surface.md",
           "line": 106,
+          "how": "declared"
+        }
+      ]
+    },
+    {
+      "slug": "fleetbot-workload-identity-admission",
+      "sources": [
+        {
+          "file": "docs/adr/0141-oidc-workload-identity-and-standing-operator-grant.md",
+          "line": 629,
+          "how": "declared"
+        }
+      ]
+    },
+    {
+      "slug": "plan-ask-rendering",
+      "sources": [
+        {
+          "file": "docs/adr/0141-oidc-workload-identity-and-standing-operator-grant.md",
+          "line": 629,
+          "how": "declared"
+        }
+      ]
+    },
+    {
+      "slug": "publisher-grant-record",
+      "sources": [
+        {
+          "file": "docs/adr/0141-oidc-workload-identity-and-standing-operator-grant.md",
+          "line": 629,
           "how": "declared"
         }
       ]
