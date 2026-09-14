@@ -183,7 +183,7 @@ function normalizedTriggers(trigger: ShipConfig['trigger']): string[] {
  */
 function semanticShipConfigTuple(ship: ShipConfig): readonly unknown[] {
   return [
-    'fleet-ship-config-v1',
+    'fleet-ship-config-v2',
     ship.name,
     normalizedTriggers(ship.trigger),
     ship.prompt,
@@ -201,6 +201,8 @@ function semanticShipConfigTuple(ship: ShipConfig): readonly unknown[] {
     ship.blockWithoutSandbox,
     ship.testPaths,
     ship.graft,
+    ship.participation,
+    ship.execution,
   ];
 }
 
