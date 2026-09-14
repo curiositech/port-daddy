@@ -456,6 +456,83 @@
   \fi}
 
 % ---------------------------------------------------------------------------
+% The honesty ledger's status vocabularies -- ONE definition each, for the
+% Book and for every standalone chapter.
+%
+% These used to be redefined in each chapter's own preamble, which is why they
+% are here now. The Book is assembled by scripts/generate-mega-whitepaper.mjs,
+% which keeps only what lies between \begin{document} and \end{document}: a
+% chapter's preamble is DISCARDED at collation. So a chapter that defined its
+% own \Built rendered "built" when it compiled alone and whatever the Book's
+% preamble happened to say -- "implemented" -- when it compiled as a chapter.
+% Same source, same call site, two different words, and nothing anywhere
+% compared them. Defining them once, in a file both the Book and the
+% standalone chapters \input, is what makes the two renderings the same
+% object. scripts/harbor-research/check_duplicate_macros.py fails the build if
+% a second definition of any of these names reappears.
+%
+% FOUR SEPARATE AXES. They answer different questions about the same claim and
+% are never collapsed into one another; a claim normally carries one label
+% from at most one of them, and carrying two (a Theorem that is only
+% \Designed) is an ordinary state of affairs, not a contradiction.
+%
+%   1. MATURITY      how much of the mechanism exists in code today.
+%   2. GUARANTEE     whether a property actually holds as configured.
+%   3. OBLIGATION    whether a proof obligation has been discharged.
+%   4. EVIDENCE      how far a stated result has been checked.
+%
+% The KIND of a claim -- Theorem / Design invariant / Model-checked property /
+% Empirical hypothesis -- is a fifth axis with its own apparatus, \pdkind and
+% the pdclaim environment below, whose vocabulary is closed and validated. A
+% claim's kind is never spelled with a marker from the four scales here: a
+% chapter that wants to say "this is a Theorem" writes \pdkind{Theorem}, not a
+% maturity marker that happens to print the word.
+%
+% House style throughout: status reads by WEIGHT and SMALL-CAPS, never by hue.
+% Two inks only -- hhink for a state that is asserted, hhgray for one that is
+% not yet.
+
+% 1. Maturity. The four grades single-writer-kernel.tex names in prose as
+% "the series' honest labels": implemented / partial / specified / proposed.
+\newcommand{\Built}{{\textcolor{hhink}{\textsc{\textbf{implemented}}}}}
+\newcommand{\BuiltWeak}{{\textcolor{hhink}{\textsc{partial}}}}
+\newcommand{\Designed}{{\textcolor{hhgray}{\textsc{specified}}}}
+\newcommand{\Vision}{{\textcolor{hhgray}{\textit{proposed}}}}
+% Chapter 5 (From Spawn to Person) spells the same four in capitals. Aliases,
+% not second definitions -- there is still exactly one body per grade.
+\newcommand{\BUILT}{\Built}
+\newcommand{\BUILTWEAK}{\BuiltWeak}
+\newcommand{\DESIGNED}{\Designed}
+\newcommand{\VISION}{\Vision}
+
+% 2. Guarantee. Marks a property that does NOT hold under the configuration
+% actually shipped -- chapter 1's power-loss durability, throughout. It is the
+% negative end of the ledger and prints the words it is named for.
+\newcommand{\NotGuar}{{\textcolor{hhink}{\textit{not guaranteed}}}}
+
+% 3. Proof obligation: discharged, partly discharged, outstanding, or carried
+% only in a specification with no mechanised check behind it.
+\newcommand{\Closed}{{\textcolor{hhink}{\textsc{\textbf{closed}}}}}
+\newcommand{\Partial}{{\textcolor{hhink}{\textsc{partial}}}}
+\newcommand{\Open}{{\textcolor{hhgray}{\textit{open}}}}
+\newcommand{\SpecOnly}{{\textcolor{hhgray}{\textit{spec-only}}}}
+
+% 4. Evidence for a stated result. \Unproved was called \Proposed until the
+% maturity scale above became shared: both rendered the single word
+% "proposed", in the same gray italic, eight lines apart in chapter 4's own
+% legend -- one meaning "no design document yet", the other "no proof here".
+% Two axes printing one word is the collapse this apparatus exists to
+% prevent, so the evidence scale says what it means instead.
+\newcommand{\Verified}{{\textcolor{hhink}{\textsc{\textbf{verified}}}}}
+\newcommand{\Proved}{{\textcolor{hhink}{\textsc{proved here}}}}
+\newcommand{\Unproved}{{\textcolor{hhgray}{\textit{unproved}}}}
+
+% Verbatim-safe inline code for use INSIDE macro arguments (callouts,
+% captions, TikZ nodes) where \verb is illegal. Detokenizes so special
+% characters survive.
+\newcommand{\code}[1]{{\ttfamily\detokenize{#1}}}
+
+% ---------------------------------------------------------------------------
 % \pdkind, pdclaim -- a numbered, labelled statement. Hairline above, run-in
 % head "THEOREM 1.3  Title." in small caps and bold, short hairline below.
 % ---------------------------------------------------------------------------

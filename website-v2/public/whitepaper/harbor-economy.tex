@@ -66,17 +66,10 @@
 \input{figures/pd-figure-language}
 
 % ─── Maturity markers (self-grading of every claim) ────────────────────
-% Muted ink throughout; the four grades differ by WEIGHT and SMALL-CAPS /
-% italic, never by hue (house style: status by weight/small-caps, not a rainbow).
-\newcommand{\Built}{{\textcolor{hhink}{\textsc{\textbf{implemented}}}}}
-\newcommand{\BuiltWeak}{{\textcolor{hhink}{\textsc{partial}}}}
-\newcommand{\Designed}{{\textcolor{hhgray}{\textsc{specified}}}}
-\newcommand{\Vision}{{\textcolor{hhgray}{\textit{proposed}}}}
-
-% Verification-status markers (for the open-problem / status tables).
-\newcommand{\Closed}{{\textcolor{hhink}{\textsc{\textbf{closed}}}}}
-\newcommand{\Partial}{{\textcolor{hhink}{\textsc{partial}}}}
-\newcommand{\Open}{{\textcolor{hhgray}{\textit{open}}}}
+% \Built, \BuiltWeak, \Designed and \Vision, and the \Closed/\Partial/\Open
+% proof-obligation markers of the open-problem and status tables, are defined
+% once, for this paper and for the Book, in figures/pd-pedagogy.tex (\input
+% above).
 
 % ─── Pull-quote sidebar: large quote, left-edge accent stripe. ────────────────
 \newcommand{\pullquote}[1]{%

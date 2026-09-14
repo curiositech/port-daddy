@@ -87,19 +87,11 @@
 %   proposed     — a research direction, not yet specified
 % Muted ink throughout; the four grades differ by WEIGHT and SMALL-CAPS /
 % italic, never by hue (house style: status by weight/small-caps, not a rainbow).
-\newcommand{\BUILT}{{\textcolor{hhink}{\textsc{\textbf{implemented}}}}}
-\newcommand{\BUILTWEAK}{{\textcolor{hhink}{\textsc{partial}}}}
-\newcommand{\DESIGNED}{{\textcolor{hhgray}{\textsc{specified}}}}
-\newcommand{\VISION}{{\textcolor{hhgray}{\textit{proposed}}}}
-
-% Verbatim-safe inline code for use INSIDE macro arguments (callouts, captions,
-% TikZ nodes) where \verb is illegal. Detokenizes so special chars survive.
-\newcommand{\code}[1]{{\ttfamily\detokenize{#1}}}
-
-% Verification-status markers (kept for the appendix status table).
-\newcommand{\Closed}{{\textcolor{hhink}{\textsc{\textbf{closed}}}}}
-\newcommand{\Partial}{{\textcolor{hhink}{\textsc{partial}}}}
-\newcommand{\Open}{{\textcolor{hhgray}{\textit{open}}}}
+% \BUILT, \BUILTWEAK, \DESIGNED and \VISION -- this chapter's capitalised
+% spelling of the four grades -- together with \code and the
+% \Closed/\Partial/\Open proof-obligation markers of the appendix status
+% table, are defined once, for this paper and for the Book, in
+% figures/pd-pedagogy.tex (\input above).
 
 % Pull-quote sidebar: large quote, left-edge accent stripe.
 \newcommand{\pullquote}[1]{%
