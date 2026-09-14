@@ -393,7 +393,7 @@ CREATE TABLE IF NOT EXISTS fleet_run_reservations (
   provider_cost_cap_microusd INTEGER NOT NULL CHECK (typeof(provider_cost_cap_microusd)='integer' AND provider_cost_cap_microusd >= 0 AND provider_cost_cap_microusd * 4 <= retail_microusd),
   provider_cost_microusd INTEGER CHECK(provider_cost_microusd IS NULL OR (typeof(provider_cost_microusd)='integer' AND provider_cost_microusd>=0 AND provider_cost_microusd<=provider_cost_cap_microusd)),
   state TEXT NOT NULL CHECK (state IN ('reserved','settled','released')),
-  lease_owner TEXT, lease_fence INTEGER NOT NULL DEFAULT 0, lease_expires_at INTEGER,
+  lease_owner TEXT, lease_fence INTEGER NOT NULL DEFAULT 0 CHECK(typeof(lease_fence)='integer' AND lease_fence>=0), lease_expires_at INTEGER CHECK(lease_expires_at IS NULL OR typeof(lease_expires_at)='integer'),
   created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, settled_at INTEGER, released_at INTEGER,
   FOREIGN KEY (installation_id) REFERENCES fleet_managed_entitlements(installation_id),
   CHECK((state='reserved' AND settled_at IS NULL AND released_at IS NULL AND provider_cost_microusd IS NULL) OR (state='settled' AND settled_at IS NOT NULL AND released_at IS NULL AND provider_cost_microusd IS NOT NULL) OR (state='released' AND released_at IS NOT NULL AND settled_at IS NULL AND provider_cost_microusd IS NULL))
@@ -417,8 +417,8 @@ CREATE TABLE IF NOT EXISTS fleet_run_spend_v2 (
 );
 CREATE INDEX IF NOT EXISTS fleet_run_spend_v2_installation_created_idx ON fleet_run_spend_v2(installation_id,created_at);
 CREATE TABLE IF NOT EXISTS fleet_run_call_authorizations (
-  authorization_id TEXT PRIMARY KEY, run_id TEXT NOT NULL, lease_fence INTEGER NOT NULL,
-  call_sequence INTEGER NOT NULL, attempt_id TEXT NOT NULL, ship TEXT NOT NULL, model TEXT NOT NULL,
+  authorization_id TEXT PRIMARY KEY, run_id TEXT NOT NULL, lease_fence INTEGER NOT NULL CHECK(typeof(lease_fence)='integer' AND lease_fence>=0),
+  call_sequence INTEGER NOT NULL CHECK(typeof(call_sequence)='integer' AND call_sequence>0), attempt_id TEXT NOT NULL, ship TEXT NOT NULL, model TEXT NOT NULL,
   max_input_tokens INTEGER NOT NULL CHECK(typeof(max_input_tokens)='integer' AND max_input_tokens >= 0), max_output_tokens INTEGER NOT NULL CHECK(typeof(max_output_tokens)='integer' AND max_output_tokens >= 0),
   authorized_cost_microusd INTEGER NOT NULL CHECK(typeof(authorized_cost_microusd)='integer' AND authorized_cost_microusd >= 0), actual_cost_microusd INTEGER CHECK(actual_cost_microusd IS NULL OR (typeof(actual_cost_microusd)='integer' AND actual_cost_microusd>=0)),
   state TEXT NOT NULL CHECK(state IN ('authorized','reported','unreported','failed')),

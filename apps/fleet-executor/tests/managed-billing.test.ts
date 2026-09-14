@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import {
   acquireManagedRunLease,
   authorizeManagedAiCall,
@@ -38,6 +39,29 @@ describe('managed billing stop-loss', () => {
     const real = makeDb(applyAllMigrations());
     await expect(resolveManagedEntitlement(real.DB as D1Database, 42))
       .rejects.toMatchObject({ code: 'entitlement-missing' });
+    real.raw.close();
+  });
+
+  it('gives migrated and fresh schemas identical integer-accounting write constraints', () => {
+    const schemas=[applyAllMigrations(),readFileSync(new URL('../../relay/schema.sql',import.meta.url),'utf8')];
+    for(const schema of schemas) {
+      const real=makeDb(schema);
+      real.exec(`INSERT INTO fleet_managed_entitlements VALUES(42,'active',2000000,1000000,'test',1,1);
+        INSERT INTO fleet_run_reservations(run_id,installation_id,retail_microusd,provider_cost_cap_microusd,state,created_at,updated_at) VALUES('run:i',42,1000000,250000,'reserved',1,1)`);
+      expect(()=>real.exec(`INSERT INTO fleet_run_call_authorizations(authorization_id,run_id,lease_fence,call_sequence,attempt_id,ship,model,max_input_tokens,max_output_tokens,authorized_cost_microusd,state,created_at) VALUES('bad','run:i',1,1,'a','s','m',1.5,1,1,'authorized',1)`)).toThrow();
+      expect(()=>real.exec(`UPDATE fleet_run_reservations SET lease_fence=1.5 WHERE run_id='run:i'`)).toThrow();
+      real.exec(`INSERT INTO fleet_run_spend_v2 VALUES('run:i','s',42,'m',1,1,1,1)`);
+      expect(()=>real.exec(`UPDATE fleet_run_spend_v2 SET provider_cost_microusd=1.5 WHERE run_id='run:i'`)).toThrow();
+      real.raw.close();
+    }
+  });
+
+  it('requires both the entitlement and the runtime-authoritative served roster', async () => {
+    const real=makeDb(applyAllMigrations());
+    real.exec(`INSERT INTO fleet_managed_entitlements VALUES(42,'active',2000000,1000000,'test',1,1)`);
+    await expect(resolveManagedEntitlement(real.DB as D1Database,42)).rejects.toMatchObject({code:'entitlement-missing'});
+    real.exec(`INSERT INTO fleet_served_installations VALUES(42,'served','github-installation-event:test',1,1)`);
+    await expect(resolveManagedEntitlement(real.DB as D1Database,42)).resolves.toMatchObject({installationId:42});
     real.raw.close();
   });
 
