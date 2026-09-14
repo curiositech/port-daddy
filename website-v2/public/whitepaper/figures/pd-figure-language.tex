@@ -265,6 +265,17 @@
   pd arrow/.style={-{Stealth[length=2.0mm,width=1.25mm]},draw=hhink,line width=.68pt},
   pd focus arrow/.style={-{Stealth[length=2.0mm,width=1.25mm]},draw=hhteal,line width=.88pt},
   pd caution arrow/.style={-{Stealth[length=2.0mm,width=1.25mm]},draw=hhamber,line width=.88pt,dashed},
+  % Four named mark families share one construction (rule/arrow/fill/datum at
+  % the same line weights and the same same-hue edge): hairline (no colour of
+  % its own), focus (hhteal, "the thing to notice"), caution (hhamber, "the
+  % thing to watch"), and danger (pderror, "the thing that broke"). Danger is
+  % the only family wired to a figures/pd-palette.tex colour rather than an
+  % hh* one -- every file that \input{figures/pd-figure-language} loads
+  % figures/pd-palette first, so pderror is always already defined. Reserve it
+  % for genuine breach/refusal/attack content; a plain data series with no
+  % danger meaning should use ink, navy, or a neutral grey, not this family.
+  pd danger rule/.style={draw=pderror,line width=1.05pt},
+  pd danger arrow/.style={-{Stealth[length=2.0mm,width=1.25mm]},draw=pderror,line width=.88pt,dashed},
   pd row label/.style={font=\pdfiglabelbold,text=hhink,anchor=east},
   pd panel title/.style={font=\pdfiglabelbold,text=hhink,align=left},
   pd axis label/.style={font=\pdfiglabel,text=hhink!80!hhgray},
@@ -280,6 +291,7 @@
   pd datum/.style={circle,fill=hhink,draw=none,inner sep=2.1pt},
   pd focus datum/.style={circle,fill=hhteal,draw=hhpaper,line width=.55pt,inner sep=2.5pt},
   pd caution datum/.style={diamond,fill=hhamber,draw=hhpaper,line width=.55pt,inner sep=2.5pt},
+  pd danger datum/.style={diamond,fill=pderror,draw=hhpaper,line width=.55pt,inner sep=2.5pt},
   pd state/.style={draw=hhink,line width=.62pt,fill=hhsand!30,rounded corners=1.5pt,
     font=\pdfiglabel,inner xsep=8pt,inner ysep=6pt,align=center,minimum height=9mm},
   pd terminal/.style={pd state,double,double distance=1.2pt},
@@ -297,6 +309,7 @@
   % whatever was inherited.
   pd focus fill/.style={fill=hhteal!24,draw=hhteal!65,line width=.4pt,text=hhink},
   pd caution fill/.style={fill=hhamber!26,draw=hhamber!70,line width=.4pt,text=hhink},
+  pd danger fill/.style={fill=pderror!26,draw=pderror!70,line width=.4pt,text=hhink},
   pd neutral fill/.style={fill=hhsand!40,draw=hhgray!65,line width=.4pt,text=hhink},
   pd ink fill/.style={fill=hhink,draw=hhink,line width=.4pt,text=hhpaper},
   pd hatch/.style={pattern={Lines[angle=45,distance=4pt,line width=.28pt]},pattern color=hhgray!55},
