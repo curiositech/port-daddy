@@ -451,6 +451,22 @@ work; never reset or clobber the main checkout.
 
 ### Test + session gotchas (dev-loop shibboleths)
 
+- **Input grouping is policy, not a second undo stack.** Use Loro's manual
+  groups after range/claim checks, keep each authored delta independently mirrored,
+  and fence continuation by exact frontier plus successful-import generation:
+  duplicate or dependency-pending imports may not move visible state. Explicitly
+  close groups on navigation, focus loss, saves and isolated edits. IME updates
+  may span time gaps but must refer to the same marked range. Headless group tests
+  and a GPUI compile do not prove native callback or composition behavior.
+
+- **Local text Save is not CRDT recovery.** Capture the exact document/revision,
+  serialize in-process filesystem writes off the UI thread, and revalidate the
+  opened target before replacement. A completion cannot mark later edits clean.
+  Preserve metadata or refuse the write; readable linked sources need not grant
+  overwrite authority. Foreground save status overrides producer-mirror status.
+  Keep history reload protection after text saves. Optimistic disk checks are
+  not an OS compare-and-swap or a shared Harbor admission receipt.
+
 - **Editor reload is not permission to discard a CRDT.** Share the sync/async
   preflight; keep the existing buffer/cache/claims on refusal or read failure.
   Protect imports waiting for dependencies even when the visible state frontier
@@ -870,13 +886,14 @@ latency, and cost. Persist provider, model id, immutable revision, dimensions,
 normalization, distance metric, and a `space_id` hashed from canonical ordered
 metadata with vectors and queries;
 reject or re-embed incompatible spaces rather than comparing them silently.
-MiniLM is only an explicit local/degraded fallback. Verify current source and
-the installed `pd embed --help` surface before depending on model selection. At
-the 2026-08-31 audit point, `main` and the installed stable runtime exposed only
-the MiniLM path; treat that as transitional. Higher-quality selection depends
-on the in-flight control-plane embedding-model-registry work; do not describe
-that registry as shipped until source, deployed runtime, and read-back evidence
-agree. Do not add reputation scores from declared skills, or mark stored
+MiniLM is only an explicit local/degraded fallback. Direct embedding calls name
+their stable corpus (`pd embed text|stdin --corpus <id>`); the source selector
+maps policy, role, tier, and provider to a registry `spaceId`, while the local
+loader verifies artifact/runtime digests and vector shape before returning
+coordinates. Those checks neither sign producer conformance nor promote a
+profile. Verify current source and the installed `pd embed --help` surface;
+do not describe the selector as deployed until source, runtime, and read-back
+evidence agree. Do not add reputation scores from declared skills, or mark stored
 permission/trigger declarations enforced without a daemon-witnessed runtime
 receipt.
 

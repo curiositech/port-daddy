@@ -144,7 +144,23 @@ describe('GET /auth/github/login', () => {
     expect(loc.searchParams.get('scope')).toBe('read:user user:email repo');
     const state = loc.searchParams.get('state')!;
     expect(state).toMatch(/^[0-9a-f]{64}$/);
-    expect(kv.store.get(`oauth_state:${state}`)).toBe('1'); // stored for one-time use
+    expect(JSON.parse(kv.store.get(`oauth_state:${state}`)!)).toEqual({ returnTo: '/account' });
+  });
+
+  it('binds a safe account return path to OAuth state and rejects external destinations', async () => {
+    const kv = makeKV();
+    const wanted = '/account/ships?repo=curiositech%2Fport-daddy';
+    const res = await handleGithubLogin(new Request(`${BASE}/auth/github/login?return_to=${encodeURIComponent(wanted)}`), makeEnv({}, kv));
+    const state = new URL(res.headers.get('Location')!).searchParams.get('state')!;
+    expect(JSON.parse(kv.store.get(`oauth_state:${state}`)!)).toEqual({ returnTo: wanted });
+    const refused = await handleGithubLogin(new Request(`${BASE}/auth/github/login?return_to=${encodeURIComponent('https://evil.example/account')}`), makeEnv({}, kv));
+    const refusedState = new URL(refused.headers.get('Location')!).searchParams.get('state')!;
+    expect(JSON.parse(kv.store.get(`oauth_state:${refusedState}`)!)).toEqual({ returnTo: '/account' });
+    for (const unsafe of ['/accounting', '/account/../../outside', '//evil.example/account']) {
+      const response = await handleGithubLogin(new Request(`${BASE}/auth/github/login?return_to=${encodeURIComponent(unsafe)}`), makeEnv({}, kv));
+      const unsafeState = new URL(response.headers.get('Location')!).searchParams.get('state')!;
+      expect(JSON.parse(kv.store.get(`oauth_state:${unsafeState}`)!)).toEqual({ returnTo: '/account' });
+    }
   });
 });
 
@@ -217,6 +233,15 @@ describe('GET /auth/github/callback', () => {
     // The stored gh token is sealed, never the plaintext.
     expect([...sessions.values()][0].gh_token_enc).not.toContain('gho_usertoken');
   });
+
+  it('returns a renewed session to its state-bound account surface', async () => {
+    const kv = makeKV();
+    const env = makeEnv({}, kv);
+    kv.store.set('oauth_state:return', JSON.stringify({ returnTo: '/account/ships?repo=owner%2Frepo' }));
+    mockGithub();
+    const res = await handleGithubCallback(new Request(`${BASE}/auth/github/callback?code=c&state=return`), env);
+    expect(res.headers.get('Location')).toBe(`${BASE}/account/ships?repo=owner%2Frepo`);
+  });
 });
 
 // ── /auth/me + logout + session resolution ─────────────────────────────────────
@@ -247,6 +272,8 @@ describe('/auth/me, logout, and session resolution', () => {
     const env = makeEnv({}, kv, makeDb().db);
     const cookie = await loginAndGetCookie(env, kv);
     const out = await handleLogout(new Request(`${BASE}/auth/logout`, { method: 'POST', headers: { Cookie: cookie } }), env);
+    expect(out.status).toBe(303);
+    expect(out.headers.get('Location')).toBe('/login');
     expect(out.headers.get('Set-Cookie')).toContain('Max-Age=0');
     const me = await handleAuthMe(new Request(`${BASE}/auth/me`, { headers: { Cookie: cookie } }), env);
     expect(me.status).toBe(401);

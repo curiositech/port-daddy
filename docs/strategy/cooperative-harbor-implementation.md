@@ -64,15 +64,23 @@ features already form a working product. Keep the existing CH identities.
 
 | Stage | Current evidence | Next work / completion gate |
 | --- | --- | --- |
-| CH1: contracts and program | Research PR [#10108](https://github.com/curiositech/port-daddy/pull/10108) merged; custody/ownership amendments in draft [#10132](https://github.com/curiositech/port-daddy/pull/10132) | Reconcile canonical program revisions when runtime access is permitted; retain exact source/test/release references |
-| CH2: local IDE | Routing/replica/selection foundations in #10132; guarded per-replica undo/redo in draft [#10133](https://github.com/curiositech/port-daddy/pull/10133) | Complete the editing checklist below, then real native task proof |
+| CH1: contracts and program | Research PR [#10108](https://github.com/curiositech/port-daddy/pull/10108) merged; custody/ownership amendments in regular [#10132](https://github.com/curiositech/port-daddy/pull/10132) | Reconcile canonical program revisions when runtime access is permitted; retain exact source/test/release references |
+| CH2: local IDE | Routing/replica/selection foundations in #10132; guarded history in regular [#10133](https://github.com/curiositech/port-daddy/pull/10133); reload protection in regular [#10134](https://github.com/curiositech/port-daddy/pull/10134); local-save continuation below | Complete the editing checklist below, then real native task proof |
 | CH3: governed collaboration | Authority/replay contracts identified; no shared admission or recovery claim | Verified principal/device admission, typed Rust receipts, complete replay, stable claims, filesystem witnesses and atomic transfer |
 | CH4: project state | Record ownership and disclosure contracts specified | Invitations/participation, explicit contribution publishing, dependency plans, accepted commitments, decisions/dissent, keys and revocation |
 | CH5: Remote Harbor | Custody and persistence protocol specified | Durable encrypted journal/checked heads, cold reconstruction, fencing/transfer, transport parity and failure UI |
 | CH6: intersections | Offline research artifacts exist; no measured predictive benefit | Scoped hybrid retrieval, bounded consequence paths, conflict/opportunity resolution, invalidation and held-out baseline comparison |
-| CH7: delivery | Source evidence and draft PRs, not a native release | Native/web/iOS/companion workflows, replay/handoffs, accessibility/human testing, independent review and exact-version release receipts |
+| CH7: delivery | Source evidence and regular review PRs, not a native release | Native/web/iOS/companion workflows, replay/handoffs, accessibility/human testing, independent review and exact-version release receipts |
 
 CH2's remaining implementation queue, in order:
+
+**Now:** input-aware typing/IME undo groups are published in regular
+[#10144](https://github.com/curiositech/port-daddy/pull/10144), with 895 selected
+headless tests and bounded adversarial review; the delegated Off worker's final
+TS launch/trigger admission fixes are reviewed and committed. **Next:**
+private-draft custody/restart design and implementation, edit-associated selection,
+then syntax/navigation and file lifecycle. Current native proof remains withheld
+by the operator halt, not replaced with a source-test count.
 
 - [x] Source-built and headless-tested: preserve live operations, imported history,
   pending dependencies, claims and editor visibility during refused/failed reloads.
@@ -82,16 +90,30 @@ CH2's remaining implementation queue, in order:
 - [ ] Correct current PR CI and preserve a complete headless target-graph check,
   including examples that rehost editor modules; do not infer crate health from
   a selected test filter.
+  Save head `c8690f095aaebd40561203c09a727434eb2b3711` has a successful hosted
+  [CI run](https://github.com/curiositech/port-daddy/actions/runs/34599670847),
+  including headless console check/test. This does not close all stack checks.
 - [ ] Local save lifecycle: explicit dirty state, validated filesystem target,
   asynchronous writes tied to an exact document/revision, external-change refusal
   and no false clean state when edits race completion. Device-local saving is
   not shared acceptance or a canonical filesystem compare-and-swap guarantee.
+  Regular PR [#10141](https://github.com/curiositech/port-daddy/pull/10141) includes
+  Cmd-S/Ctrl-S, exact-revision completion, process-local write
+  serialization, optimistic disk-conflict checks and metadata preservation/refusal.
+  See [local-save evidence](../research/egosystem-reconciliation/final/cooperative-editor-save-evidence.md).
+  Native interaction, Save As, richer file metadata/platform coverage and packaged
+  proof remain open; saving text deliberately does not clear the history reload guard.
 - [ ] Private draft persistence and restart recovery using reviewed key custody;
   preserve authorship, distinguish acknowledged/durable work from device-only
   drafts, and never dump private CRDT history into an unprotected cache.
 - [ ] Typing/IME undo grouping, edit-associated selection restoration and native
   clipboard/IME/Unicode/keyboard behavior. Per-replica history alone is not this
   complete interaction contract.
+  The input-grouping continuation is source-built and headless-tested; see
+  [grouping evidence](../research/egosystem-reconciliation/final/cooperative-editor-input-groups-evidence.md).
+  Adjacent typing/deletion and one composition use Loro-owned groups, while
+  individual edits still publish exact deltas. Focus loss/imports/save/paste
+  split groups. Edit-associated selection and real native behavior remain open.
 - [ ] Native incremental syntax, navigation/diagnostics, wrapping and large-file
   virtualization; remove silent truncation only with bounded rendering proof.
 - [ ] File create/rename/delete and unsaved-close handling, diff/review, test
@@ -105,6 +127,16 @@ scaffolds as completed prerequisites. Shared decisions, transfers and external
 effects must remain unavailable wherever their authority or durable receipt is
 missing. The field-notebook acceptance gates below close the overall project,
 not an aggregate unit-test count.
+
+The separate safety prerequisite remains delegated: regular
+[#10138](https://github.com/curiositech/port-daddy/pull/10138) contains the reviewed
+native admission/cancellation fixup `a1653ac63880` and TS shim/final-launch/output/
+trigger admission fixup `afeddb996739`. The latter has 61 halt-safe tests and
+bounded adversarial review; 115 unrelated cases were excluded. Next safety work:
+Calendar's OAuth-to-POST gap, general sink-effect admission, surfaced stop errors,
+remaining installer/console coverage and packaged containment proof. Off is not
+complete. These remain tracked in that PR without pausing editor development or
+authorizing app launch.
 
 ### CH1: accepted contract amendments
 

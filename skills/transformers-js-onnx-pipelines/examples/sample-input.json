@@ -11,6 +11,9 @@
   "normalizeEmbeddings": true,
   "embeddingProfile": {
     "servingProvider": "local-transformers-js",
+    "executionClass": "local",
+    "retrievalRoles": ["text_dense"],
+    "qualityTier": "local_fast",
     "runtimeFamily": "transformers.js+onnxruntime-node",
     "runtimeVersion": "transformers.js@4.1.0+onnxruntime-node@1.24.3",
     "upstreamModelId": "Xenova/all-MiniLM-L6-v2",

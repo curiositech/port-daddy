@@ -127,7 +127,7 @@ export const CLI_REFERENCE_GROUPS: ReferenceGroup[] = [
       { name: 'pd secret <command>', description: 'Manage the daemon-held provider credentials in the OS keychain. The store is the macOS Keychain, so the values never sit in the repository.', aliases: ['pd secrets'] },
       { name: 'pd account <command>', description: 'Sign the CLI in to GitHub with the device flow and hold the resulting token locally. pd account pair is the same command under the name the storefront uses.' },
       { name: 'pd backend', description: 'Show which LLM backend the fleet is running on, including the cli-tube backends that ride your own Claude or Codex subscription.' },
-      { name: 'pd embed <text>', description: 'Use the one shared local embedding model that skill search and code matching both run on, cached under the shared model directory.' },
+      { name: 'pd embed <subcommand>', description: 'Inspect or prefetch the shared local cache, or embed text through a corpus-policy-selected profile. Text and stdin require --corpus and return the immutable vector-space identity.', flags: ['--corpus', '--offline', '--cache-dir', '--json'] },
       { name: 'pd squid <command>', description: 'Local Giant Squid compatibility surfaces, for running against that toolchain from this machine.' },
       { name: 'pd relay <command>', description: 'Configure and inspect the cloud relay: set or read its URL, check status, and see how this machine is enrolled.' },
       { name: 'pd cut', description: 'Take a manual release candidate: build the daemon binary, the Rust library and the app, collect them under dist, and hash each artifact.' },

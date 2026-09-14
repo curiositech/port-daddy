@@ -18,6 +18,12 @@ import {
 
 interface ShipView { name: string; role: string; trigger: string; model?: string; blocking?: boolean; }
 interface RepoWitness { admin: boolean; headers: Record<string, string>; }
+type RepoWitnessResult =
+  | { kind: 'verified'; witness: RepoWitness }
+  | { kind: 'renew' }
+  | { kind: 'denied' }
+  | { kind: 'rate-limited'; resetAt: number | null }
+  | { kind: 'unavailable'; reason: 'github-status' | 'transport' | 'malformed-response' | 'repository-mismatch'; status?: number; requestId?: string };
 
 /** Why escape: source-controlled names and descriptions are untrusted HTML input.
  * @param value Untrusted text.
@@ -25,6 +31,12 @@ interface RepoWitness { admin: boolean; headers: Record<string, string>; }
  */
 function esc(value: string): string {
   return value.replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]!));
+}
+
+/** Keep an upstream correlation handle useful without reflecting arbitrary headers. */
+function githubRequestId(response: Response): string | undefined {
+  const value = response.headers.get('X-GitHub-Request-Id');
+  return value && /^[A-Za-z0-9:-]{1,128}$/.test(value) ? value : undefined;
 }
 
 /** Bound bytes actually consumed, not a caller-supplied Content-Length. Why:
@@ -58,19 +70,101 @@ async function boundedText(message: Request | Response, limit: number): Promise<
  * @param repo Validated exact repository.
  * @returns Fresh repository read/admin witness; failure grants nothing.
  */
-async function repoWitness(session: ResolvedSession, repo: string): Promise<RepoWitness | null> {
-  if (!session.ghToken) return null;
+async function repoWitness(session: ResolvedSession, repo: string): Promise<RepoWitnessResult> {
+  if (!session.ghToken) return { kind: 'renew' };
   const headers = { Authorization: `Bearer ${session.ghToken}`, Accept: 'application/vnd.github+json',
     'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'port-daddy-relay' };
-  try {
-    const response = await fetch(`https://api.github.com/repos/${repo}`, {
-      headers, signal: AbortSignal.timeout(10_000), redirect: 'error',
-    });
-    if (!response.ok) return null;
-    const body = await response.json() as { permissions?: { admin?: boolean }; full_name?: string };
-    if (body.full_name?.toLowerCase() !== repo) return null;
-    return { admin: body.permissions?.admin === true, headers };
-  } catch { return null; }
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    let response: Response;
+    try {
+      response = await fetch(`https://api.github.com/repos/${repo}`, {
+        headers, signal: AbortSignal.timeout(attempt === 0 ? 6_000 : 4_000), redirect: 'error',
+      });
+    } catch (error) {
+      if (attempt === 0) continue;
+      const result = { kind: 'unavailable' as const, reason: 'transport' as const };
+      console.warn('repo-witness-unavailable', { reason: result.reason,
+        error: error instanceof Error ? error.name : 'unknown' });
+      return result;
+    }
+    if (response.status === 401) return { kind: 'renew' };
+    // GitHub documents both 403 and 429 for primary and secondary limits.
+    // A 429 is unambiguously throttling even when an intermediary omits the
+    // advisory headers; 403 remains a permission denial unless GitHub supplies
+    // an explicit rate-limit signal.
+    const rateLimited = response.status === 429 || (response.status === 403
+      && (response.headers.get('X-RateLimit-Remaining') === '0' || response.headers.has('Retry-After')));
+    if (rateLimited) {
+      const reset = Number(response.headers.get('X-RateLimit-Reset'));
+      return { kind: 'rate-limited', resetAt: Number.isSafeInteger(reset) && reset > 0 ? reset : null };
+    }
+    if (response.status === 403 || response.status === 404) return { kind: 'denied' };
+    if (!response.ok) {
+      if (attempt === 0 && [502, 503, 504].includes(response.status) && !response.headers.has('Retry-After')) continue;
+      const result = { kind: 'unavailable' as const, reason: 'github-status' as const,
+        status: response.status, requestId: githubRequestId(response) };
+      console.warn('repo-witness-unavailable', { reason: result.reason,
+        status: result.status, requestId: result.requestId });
+      return result;
+    }
+    const body = await response.json().catch(() => null) as { permissions?: { admin?: boolean }; full_name?: string } | null;
+    if (!body || typeof body.full_name !== 'string') {
+      const result = { kind: 'unavailable' as const, reason: 'malformed-response' as const,
+        status: response.status, requestId: githubRequestId(response) };
+      console.warn('repo-witness-unavailable', { reason: result.reason,
+        status: result.status, requestId: result.requestId });
+      return result;
+    }
+    if (body.full_name.toLowerCase() !== repo) {
+      const result = { kind: 'unavailable' as const, reason: 'repository-mismatch' as const,
+        status: response.status, requestId: githubRequestId(response) };
+      console.warn('repo-witness-unavailable', { reason: result.reason,
+        status: result.status, requestId: result.requestId });
+      return result;
+    }
+    return { kind: 'verified', witness: { admin: body.permissions?.admin === true, headers } };
+  }
+  return { kind: 'unavailable', reason: 'transport' };
+}
+
+/** Keep repository authorization failures inside the account experience. */
+function repoWitnessFailure(repo: string, result: Exclude<RepoWitnessResult, { kind: 'verified' }>): Response {
+  const messages = {
+    renew: {
+      title: 'Reconnect GitHub to continue.',
+      detail: 'Your Port Daddy login is still active, but its GitHub repository credential is missing or expired.',
+      action: `<a class="button" href="/auth/github/login?return_to=${encodeURIComponent(`/account/ships?repo=${repo}`)}">Continue with GitHub</a>`,
+    },
+    denied: {
+      title: 'GitHub did not grant repository access.',
+      detail: `The current GitHub identity cannot read ${esc(repo)}. If access changed, reconnect GitHub and approve repository access.`,
+      action: `<a class="button" href="/auth/github/login?return_to=${encodeURIComponent(`/account/ships?repo=${repo}`)}">Reconnect GitHub</a>`,
+    },
+    'rate-limited': {
+      title: 'GitHub API limit reached.',
+      detail: `GitHub temporarily refused another repository check for this account.${result.kind === 'rate-limited' && result.resetAt ? ` Its reported reset time is ${esc(new Date(result.resetAt * 1000).toISOString())}.` : ''} No ship setting changed.`,
+      action: `<a class="button" href="/account/ships?repo=${encodeURIComponent(repo)}">Retry repository check</a>`,
+    },
+    unavailable: {
+      title: 'GitHub repository check failed.',
+      detail: result.kind === 'unavailable' && result.reason === 'github-status'
+        ? `GitHub returned status ${result.status ?? 'unknown'}${result.requestId ? ` (request ${esc(result.requestId)})` : ''}. No permission decision was made and no ship setting changed.`
+        : result.kind === 'unavailable' && result.reason === 'malformed-response'
+          ? 'GitHub returned a repository response the Relay could not verify. No permission decision was made and no ship setting changed.'
+          : result.kind === 'unavailable' && result.reason === 'repository-mismatch'
+            ? 'GitHub returned a different repository identity. No permission decision was made and no ship setting changed.'
+            : 'The Relay could not complete the GitHub repository check. No permission decision was made and no ship setting changed.',
+      action: `<a class="button" href="/account/ships?repo=${encodeURIComponent(repo)}">Retry repository check</a><a class="button secondary" href="/auth/github/login?return_to=${encodeURIComponent(`/account/ships?repo=${repo}`)}">Reconnect GitHub</a>`,
+    },
+  }[result.kind];
+  return html(`<!doctype html><html lang="en"><head>${HEAD}<title>Repository access · Port Daddy</title><style>${TOKENS}
+    .shell{max-width:760px;margin:auto;padding:32px}.crumbs{display:flex;gap:18px;border-bottom:2px solid var(--border-strong);padding-bottom:18px}
+    h1{font-size:clamp(30px,5vw,48px);margin:48px 0 16px}p{font-size:17px;line-height:1.6;max-width:62ch}.actions{display:flex;gap:14px;flex-wrap:wrap;margin-top:28px}
+    .button{display:inline-block;background:var(--cobalt);color:var(--on-accent);padding:12px 16px;border:2px solid var(--border-strong);text-decoration:none}
+    .secondary{background:var(--surface-raised);color:var(--text-primary)}a:focus-visible{outline:3px solid var(--health);outline-offset:4px}
+  </style></head><body><main class="shell"><nav class="crumbs"><a href="/account">Port Daddy / Account</a><a href="/account/ships">Ship controls</a></nav>
+    <h1>${messages.title}</h1><p>${messages.detail}</p><div class="actions">${messages.action}<a class="button secondary" href="/account">Back to account</a></div>
+  </main></body></html>`, result.kind === 'unavailable' || result.kind === 'rate-limited' ? 503 : 403);
 }
 
 /** List cloud ships using the executor's actual pure parser and defaults. Why:
@@ -208,8 +302,9 @@ export async function handleRepoShips(request: Request, env: Env): Promise<Respo
   const normalized = normalizeRepoFullName(rawRepo);
   const repo = normalized ? shipControlRepo(normalized) : null;
   if (!repo) return html(renderRepoShipsPage('', [], { available: true, rows: [] }, false, rawRepo ? 'Enter an owner/repository name.' : ''), writing ? 400 : 200);
-  const witness = await repoWitness(session, repo);
-  if (!witness) return html('Repository access could not be verified. Sign in again or retry when GitHub is available.', 403);
+  const witnessResult = await repoWitness(session, repo);
+  if (witnessResult.kind !== 'verified') return repoWitnessFailure(repo, witnessResult);
+  const witness = witnessResult.witness;
   if (writing && !witness.admin) return html('Only a repository admin can change its ship controls.', 403);
   const controls = await readRepoShipControls(env.DB, repo);
   let ships: ShipView[] = [];

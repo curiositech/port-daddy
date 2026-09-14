@@ -105,6 +105,140 @@ describe('repository ship storage and authority', () => {
 });
 
 describe('signed-in ship UI', () => {
+  it('offers credential renewal without exposing repository data when the GitHub token is unavailable', async () => {
+    const prepare = vi.spyOn(store.db, 'prepare');
+    vi.mocked(resolveSession).mockResolvedValue({ user: { id: 'admin-1' }, ghToken: null, cacheNamespace: 'test' } as never);
+    const result = await handleRepoShips(new Request(`${BASE}/account/ships?repo=owner/repo`), env);
+    const body = await result.text();
+    expect(result.status).toBe(403);
+    expect(body).toContain('Reconnect GitHub to continue.');
+    expect(body).toContain('href="/auth/github/login?return_to=%2Faccount%2Fships%3Frepo%3Downer%2Frepo"');
+    expect(body).toContain('Back to account');
+    expect(prepare).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it.each([
+    [401, 'Reconnect GitHub to continue.', '/auth/github/login?return_to=%2Faccount%2Fships%3Frepo%3Downer%2Frepo', 403, 1],
+    [403, 'GitHub did not grant repository access.', '/auth/github/login?return_to=%2Faccount%2Fships%3Frepo%3Downer%2Frepo', 403, 1],
+    [404, 'GitHub did not grant repository access.', '/auth/github/login?return_to=%2Faccount%2Fships%3Frepo%3Downer%2Frepo', 403, 1],
+    [429, 'GitHub API limit reached.', '/account/ships?repo=owner%2Frepo', 503, 1],
+    [503, 'GitHub repository check failed.', '/account/ships?repo=owner%2Frepo', 503, 2],
+  ])('distinguishes GitHub status %s without querying private telemetry', async (upstream, message, action, status, calls) => {
+    const prepare = vi.spyOn(store.db, 'prepare');
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.mocked(fetch).mockResolvedValue(new Response('', { status: upstream }));
+    const result = await handleRepoShips(new Request(`${BASE}/account/ships?repo=owner/repo`), env);
+    const body = await result.text();
+    expect(result.status).toBe(status);
+    expect(body).toContain(message);
+    expect(body).toContain(`href="${action}"`);
+    expect(prepare).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledTimes(calls);
+    warning.mockRestore();
+  });
+  it('reports GitHub rate limiting as temporary and includes a trustworthy reset time', async () => {
+    const prepare = vi.spyOn(store.db, 'prepare');
+    vi.mocked(fetch).mockResolvedValue(new Response('', { status: 403, headers: {
+      'X-RateLimit-Remaining': '0', 'X-RateLimit-Reset': '1789113313',
+    } }));
+    const result = await handleRepoShips(new Request(`${BASE}/account/ships?repo=owner/repo`), env);
+    const body = await result.text();
+    expect(result.status).toBe(503);
+    expect(body).toContain('GitHub API limit reached.');
+    expect(body).toContain('2026-09-11T07:55:13.000Z');
+    expect(body).toContain('No ship setting changed.');
+    expect(prepare).not.toHaveBeenCalled();
+  });
+  it('classifies a bare GitHub 429 as rate limiting when advisory headers are absent', async () => {
+    const prepare = vi.spyOn(store.db, 'prepare');
+    vi.mocked(fetch).mockResolvedValue(new Response('', { status: 429 }));
+    const result = await handleRepoShips(new Request(`${BASE}/account/ships?repo=owner/repo`), env);
+    const body = await result.text();
+    expect(result.status).toBe(503);
+    expect(body).toContain('GitHub API limit reached.');
+    expect(body).toContain('No ship setting changed.');
+    expect(body).not.toContain('GitHub could not be reached.');
+    expect(prepare).not.toHaveBeenCalled();
+  });
+  it('retries one transient GitHub failure before granting a fresh witness', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(new Response('', { status: 503 }))
+      .mockResolvedValueOnce(Response.json({ full_name: 'owner/repo', permissions: { admin: true } }))
+      .mockResolvedValueOnce(new Response(config));
+    const result = await handleRepoShips(new Request(`${BASE}/account/ships?repo=owner/repo`), env);
+    expect(result.status).toBe(200);
+    expect(await result.text()).toContain('All cloud ships');
+    expect(fetch).toHaveBeenCalledTimes(3);
+  });
+  it('reports a persistent upstream status with a safe GitHub request reference', async () => {
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.mocked(fetch).mockResolvedValue(new Response('', { status: 503, headers: {
+      'X-GitHub-Request-Id': 'SAFE:REQUEST:ID',
+    } }));
+    const result = await handleRepoShips(new Request(`${BASE}/account/ships?repo=owner/repo`), env);
+    const body = await result.text();
+    expect(result.status).toBe(503);
+    expect(body).toContain('GitHub repository check failed.');
+    expect(body).toContain('status 503 (request SAFE:REQUEST:ID)');
+    expect(body).toContain('Reconnect GitHub');
+    expect(body).not.toContain('mock-user-token');
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(warning).toHaveBeenCalledWith('repo-witness-unavailable', {
+      reason: 'github-status', status: 503, requestId: 'SAFE:REQUEST:ID',
+    });
+    warning.mockRestore();
+  });
+  it('retries a transport exception once, then reports only its safe class', async () => {
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.mocked(fetch).mockRejectedValue(new TypeError('secret network detail'));
+    const result = await handleRepoShips(new Request(`${BASE}/account/ships?repo=owner/repo`), env);
+    const body = await result.text();
+    expect(result.status).toBe(503);
+    expect(body).toContain('The Relay could not complete the GitHub repository check.');
+    expect(body).not.toContain('secret network detail');
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(warning).toHaveBeenCalledWith('repo-witness-unavailable', {
+      reason: 'transport', error: 'TypeError',
+    });
+    warning.mockRestore();
+  });
+  it.each([
+    [Response.json({}), 'malformed-response', 'response the Relay could not verify'],
+    [Response.json({ full_name: 'owner/other' }), 'repository-mismatch', 'different repository identity'],
+  ])('keeps %s GitHub evidence unavailable as %s', async (upstream, reason, detail) => {
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.mocked(fetch).mockResolvedValue(upstream);
+    const result = await handleRepoShips(new Request(`${BASE}/account/ships?repo=owner/repo`), env);
+    expect(result.status).toBe(503);
+    expect(await result.text()).toContain(detail);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(warning.mock.calls.at(-1)?.[1]).toMatchObject({ reason });
+    warning.mockRestore();
+  });
+  it('honors Retry-After instead of immediately retrying a GitHub 503', async () => {
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.mocked(fetch).mockResolvedValue(new Response('', { status: 503, headers: { 'Retry-After': '60' } }));
+    const result = await handleRepoShips(new Request(`${BASE}/account/ships?repo=owner/repo`), env);
+    expect(result.status).toBe(503);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    warning.mockRestore();
+  });
+  it('drops an untrusted GitHub request reference instead of reflecting or logging it', async () => {
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.mocked(fetch).mockResolvedValue(new Response('', { status: 502, headers: {
+      'X-GitHub-Request-Id': '<script>not-a-request-id</script>',
+      'Retry-After': '60',
+    } }));
+    const result = await handleRepoShips(new Request(`${BASE}/account/ships?repo=owner/repo`), env);
+    const body = await result.text();
+    expect(result.status).toBe(503);
+    expect(body).not.toContain('not-a-request-id');
+    expect(warning).toHaveBeenCalledWith('repo-witness-unavailable', {
+      reason: 'github-status', status: 502, requestId: undefined,
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    warning.mockRestore();
+  });
   it('does not query private telemetry before fresh repository authorization', async () => {
     const prepare = vi.spyOn(store.db, 'prepare');
     vi.mocked(fetch).mockResolvedValue(new Response('', { status: 404 }));
@@ -187,6 +321,24 @@ it.skipIf(!process.env.SHIP_CONTROLS_PROOF_DIR)('records browser control round-t
     await page.evaluate(() => document.documentElement.style.zoom = '2');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: `${directory}/ships-200pct.png`, fullPage: true });
+    vi.mocked(resolveSession).mockResolvedValue({ user: { id: 'admin-1' }, ghToken: null, cacheNamespace: 'test' } as never);
+    await page.goto(`${base}/account/ships?repo=owner/repo`);
+    await expect.poll(() => page.getByRole('link', { name: 'Continue with GitHub', exact: true }).count()).toBe(1);
+    await page.screenshot({ path: `${directory}/ships-auth-renew.png`, fullPage: true });
+    vi.mocked(resolveSession).mockResolvedValue({ user: { id: 'admin-1' }, ghToken: 'mock-user-token', cacheNamespace: 'test' } as never);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 429, headers: {
+      'X-RateLimit-Remaining': '0', 'X-RateLimit-Reset': '1789113313',
+    } })));
+    await page.goto(`${base}/account/ships?repo=owner/repo`);
+    await expect.poll(() => page.getByRole('heading', { name: 'GitHub API limit reached.', exact: true }).count()).toBe(1);
+    await page.screenshot({ path: `${directory}/ships-rate-limited.png`, fullPage: true });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 503, headers: {
+      'X-GitHub-Request-Id': 'SAFE:PROOF:REFERENCE',
+    } })));
+    await page.goto(`${base}/account/ships?repo=owner/repo`);
+    await expect.poll(() => page.getByRole('heading', { name: 'GitHub repository check failed.', exact: true }).count()).toBe(1);
+    await expect.poll(() => page.getByRole('link', { name: 'Reconnect GitHub', exact: true }).count()).toBe(1);
+    await page.screenshot({ path: `${directory}/ships-repository-check-failed.png`, fullPage: true });
   } finally {
     await context.close(); await browser.close();
     await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));

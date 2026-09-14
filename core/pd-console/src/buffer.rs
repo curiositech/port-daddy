@@ -89,6 +89,9 @@ pub struct HarborBuffer {
     /// Imported bytes may be waiting for dependencies and therefore absent from
     /// the visible state frontier. A reload must not discard them as "clean".
     received_import: std::cell::Cell<bool>,
+    /// Input grouping barrier even for duplicate/dependency-pending imports.
+    /// This is a local UI generation, never an authority revision.
+    import_generation: std::cell::Cell<u64>,
 }
 
 impl HarborBuffer {
@@ -125,6 +128,7 @@ impl HarborBuffer {
             identity,
             history,
             received_import: std::cell::Cell::new(false),
+            import_generation: std::cell::Cell::new(0),
         }
     }
 
@@ -139,10 +143,16 @@ impl HarborBuffer {
         identity: impl Into<String>,
     ) -> std::result::Result<Self, std::io::Error> {
         let contents = std::fs::read_to_string(path)?;
+        Ok(Self::from_text(&contents, identity))
+    }
+
+    /// Seed from the same bytes used to establish a local filesystem baseline.
+    /// This avoids reopening the path between validation and buffer creation.
+    pub fn from_text(contents: &str, identity: impl Into<String>) -> Self {
         let buf = Self::empty(identity);
         if !contents.is_empty() {
             buf.text
-                .insert(0, &contents)
+                .insert(0, contents)
                 .expect("seed insert into fresh LoroText");
             let len = buf.text.len_unicode();
             buf.text
@@ -153,7 +163,7 @@ impl HarborBuffer {
         // Loading a file is a baseline, not a user edit. In particular, Cmd-Z
         // immediately after opening must not erase the file's seed content.
         buf.history.clear();
-        Ok(buf)
+        buf
     }
 
     /// The local replica's PeerId.
@@ -219,12 +229,21 @@ impl HarborBuffer {
         }
     }
 
+    pub fn begin_input_group(&mut self) -> Result<(), String> {
+        self.history.group_start().map_err(|error| format!("editor input grouping failed: {error}"))
+    }
+
+    pub fn end_input_group(&mut self) { self.history.group_end(); }
+
+    pub fn import_generation(&self) -> u64 { self.import_generation.get() }
+
     /// Undo/redo only this replica's local operations, emitting the exact new
     /// CRDT delta for the existing mirror/transport pipeline. This is deliberately
     /// not a string snapshot replacement: remote edits and authorship survive.
-    /// Each accepted replacement is one history item (no timed grouping yet).
+    /// The pane may explicitly group related accepted input replacements.
     /// The pane must check claims BEFORE calling this mutating substrate method.
     pub fn step_history(&mut self, direction: HistoryDirection) -> Result<Option<Vec<u8>>, String> {
+        self.history.group_end();
         let before = self.doc.oplog_vv();
         let changed = match direction {
             HistoryDirection::Undo => self.history.undo(),
@@ -281,6 +300,7 @@ impl HarborBuffer {
     pub fn apply_remote_ops(&self, export_bytes: &[u8]) -> std::result::Result<(), String> {
         self.doc.import(export_bytes).map_err(|e| format!("{e}"))?;
         self.received_import.set(true);
+        self.import_generation.set(self.import_generation.get().saturating_add(1));
         self.doc.commit();
         Ok(())
     }
