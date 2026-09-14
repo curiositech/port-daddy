@@ -220,6 +220,47 @@ const prefixReferencePatterns = [
   [/\\(?:new|renew|provide)command\{\\pdchapterprefix\}\{([A-Za-z]+)\}/g, '\\pdchapterprefix'],
 ];
 
+// A fragment under figures/ that no chapter root \input`s is invisible: it is
+// never compiled, never rendered, and never reviewed, but it sits in the
+// corpus where the next author will copy it. The five below are known and
+// named. The point of naming them is that the set is CHECKED: a sixth cannot
+// appear without this test failing, so a scratch file, a measurement probe or
+// an abandoned draft cannot quietly become part of the Book's figure corpus.
+// To add one deliberately, add it here and say in the PR why it stays.
+const figureDirs = ['whitepaper/figures', 'website-v2/public/whitepaper/figures'];
+const knownUnreferencedFragments = [
+  // Superseded by fig-anchor-four-phases; kept for out-of-tree consumers.
+  'website-v2/public/whitepaper/figures/appendix-figures.tex',
+  'website-v2/public/whitepaper/figures/diag-magic-link.tex',
+  'website-v2/public/whitepaper/figures/diag-sybil-attack.tex',
+  'website-v2/public/whitepaper/figures/fig-anchor-phases.tex',
+  'website-v2/public/whitepaper/figures/fig-he-assurance-sieve.tex',
+];
+
+test('no fragment joins the figure corpus without a chapter that inputs it', () => {
+  const inputRe = /\\input\{figures\/([A-Za-z0-9._-]+?)(?:\.tex)?\}/g;
+  const inputted = new Set();
+  for (const root of ['whitepaper', 'website-v2/public/whitepaper']) {
+    for (const entry of readdirSync(resolve(root), { withFileTypes: true })) {
+      if (!entry.isFile() || !entry.name.endsWith('.tex')) continue;
+      const source = readFileSync(resolve(`${root}/${entry.name}`), 'utf8');
+      for (const match of source.matchAll(inputRe)) inputted.add(match[1]);
+    }
+  }
+  const unreferenced = [];
+  for (const dir of figureDirs) {
+    for (const entry of readdirSync(resolve(dir), { withFileTypes: true })) {
+      if (!entry.isFile() || !entry.name.endsWith('.tex')) continue;
+      const stem = entry.name.slice(0, -'.tex'.length);
+      // pd-* are the shared style and apparatus files, pulled in by the
+      // preamble rather than as a figure.
+      if (stem.startsWith('pd-') || inputted.has(stem)) continue;
+      unreferenced.push(`${dir}/${entry.name}`);
+    }
+  }
+  assert.deepEqual(unreferenced.sort(), [...knownUnreferencedFragments].sort());
+});
+
 test('every chapter-prefix reference names a prefix textbook.json declares', () => {
   const declared = new Set(loadTextbook().chapters.map((chapter) => chapter.prefix));
   // The generated map provides `none` as the prefix a build carries before any

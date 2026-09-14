@@ -20,12 +20,17 @@
   pd row label/.append style={text=hhink,anchor=east},
   pd panel title/.append style={text=hhink,align=left},
   pd axis label/.append style={text=hhink},
-  pd direct label/.append style={text=hhink,align=left,inner sep=1.5pt,fill=hhpaper},
+  pd direct label/.append style={text=hhink,align=left,fill=hhpaper},
   pd note/.append style={font=\pdfiglabel,text=hhink!70!hhgray,align=left},
   pd tick/.append style={draw=hhink,line width=.6pt},
+  % Three forms, not three colours of one form. This edition used to make all
+  % three a square, which at 2.3-2.7pt left hue as the only thing separating a
+  % focus mark from a caution mark -- no second channel, nothing in greyscale.
+  % Square, circle and diamond are all flat right-angle-or-primitive Swiss
+  % forms; verified on a 600 dpi render of the Book preamble, not inferred.
   pd datum/.append style={rectangle,fill=hhink,draw=none,inner sep=2.3pt},
-  pd focus datum/.append style={rectangle,fill=\pdcurrentchaptercolor,draw=none,inner sep=2.7pt},
-  pd caution datum/.append style={rectangle,fill=pderror,draw=none,inner sep=2.7pt},
+  pd focus datum/.append style={circle,fill=\pdcurrentchaptercolor,draw=none,inner sep=2.7pt},
+  pd caution datum/.append style={diamond,fill=pderror,draw=none,inner sep=2.7pt},
   % A Swiss state is a solid block of the chapter's hue with reversed type, so
   % this one keeps a weight of its own -- family and size still come from the law.
   pd state/.append style={draw=none,fill=\pdcurrentchaptercolor,text=hhpaper,rounded corners=0pt,
