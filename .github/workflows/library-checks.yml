@@ -296,20 +296,38 @@ jobs:
       - name: textbook-craft chapter_lint unit tests
         run: python3 -m unittest discover -s skills/textbook-craft/tests -p 'test_*.py' -v
 
-      # Advisory (continue-on-error) for the same reason 7c2c5e16f made the
-      # figure-blocker check advisory: two of chapter_lint's BLOCKING floors
-      # (worked_example_per_section, claims_carry_epistemic_kind) already
-      # fail on 6 of the 8 Book chapters today, pre-dating this check --
-      # making the step required now would freeze every PR that merely
-      # touches a whitepaper path (this job also runs unconditionally on
-      # merge_group, so a required failure here would freeze the whole
-      # queue). Drop continue-on-error once those two floors are clean
-      # chapter-by-chapter; the floors made advisory in the linter itself
-      # (exercises_at_chapter_end, chapter_opener_and_claim_labeling) stay
-      # advisory here too -- --strict only fails on a BLOCKING floor.
-      - name: Chapter template floors hold across every Book chapter (advisory)
-        continue-on-error: true
-        run: python3 skills/textbook-craft/scripts/chapter_lint.py --strict
+      # A RATCHET, not continue-on-error, and not a gate.
+      #
+      # This step was advisory because --strict fails, and it stayed advisory
+      # because nobody could tell how much of the failure was real: the
+      # worked-example floor asked every top-level \section for a worked
+      # example, including the Exercises, Review, Limitations and Reader's Map
+      # sections the skill exempts by name, so it reported 117 failing
+      # sections of which 54 were apparatus -- 46% noise. A number that is
+      # nearly half noise cannot
+      # be argued down to zero, so it never was.
+      #
+      # With the apparatus exempted the honest count is 17 blocking floor
+      # failures across the 8 chapters: worked_example_per_section on all 8
+      # (63 body sections with no worked example), claims_carry_epistemic_kind
+      # on 7 (50 untagged claims), chapter_close_apparatus on 2 (sealed-harbor
+      # and spawn-to-person have no history-and-references section). All 17
+      # are real content work on nine chapter PRs' worth of files, so --strict
+      # still cannot be required here -- this job runs unconditionally on
+      # merge_group, and a required failure would freeze the queue.
+      #
+      # continue-on-error measured nothing, though. --max-blocking 17 measures
+      # the direction: the count may fall, never rise. An edit that drops a
+      # chapter's last worked example, or removes a Review section, fails this
+      # step today. An edit that fixes one prints the new lower number and the
+      # instruction to lower the ratchet with it. When it reaches 0, delete
+      # the flag and leave --strict.
+      #
+      # The floors made advisory in the linter itself
+      # (exercises_at_chapter_end, chapter_opener_and_claim_labeling) are not
+      # counted here -- neither --strict nor the ratchet counts a WARN.
+      - name: Chapter template floors do not regress across the Book chapters (ratchet at 17)
+        run: python3 skills/textbook-craft/scripts/chapter_lint.py --max-blocking 17
 
       - name: Figure register and triage are well-formed (enums, ids, chapters, fragment paths)
         run: python3 scripts/harbor-research/check_figure_register.py

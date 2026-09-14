@@ -11,7 +11,15 @@ prose quality -- only mechanically checkable structure:
   - sections and subsections (title, line range)
   - worked examples per section (pdexample envs, plus the legacy `example`
     amsthm environment if the chapter defines one), against the floor of
-    >=1 per top-level section (Axler / SICP / Pierce; canon.md)
+    >=1 per top-level BODY section (Axler / SICP / Pierce; canon.md).
+    APPARATUS sections -- Exercises, the Review, History and references, the
+    boundary/handoff statement, the Reader's Map, a verification-status
+    table, a dumped formal model, a notation key, an appendix -- are exempt,
+    because SKILL.md §Pacing rules exempts them by name ("outside an
+    Exercises section, which is expected to be prose-only") and this floor is
+    that rule's source-level proxy. See APPARATUS_SECTION_PATTERNS, which is
+    the ONE list; chapter_close_apparatus and find_final_exercises_section
+    read the same Pattern objects.
   - exercise clusters (old-style `\exercises{...}` macro calls and new-style
     `\pdexercisesfor`/`\pdexercise`), and whether each sits inside a
     chapter-end "Exercises" section or interrupts the body mid-argument
@@ -87,16 +95,82 @@ PDCLAIM_KINDS = ("Theorem", "Design invariant", "Model-checked property", "Empir
 EPISTEMIC_TAG_RE = re.compile(
     r"\\(Built|BuiltWeak|Designed|Vision|NotGuar|Closed|Partial|Open|pdassurance)\b"
 )
-TINTED_BOX_MACROS = ("keyidea", "pitfall", "exercises", "scene", "xrefbox", "pullquote", "scene")
-CHAPTER_CLOSE_KEYWORDS = {
+# "scene" appeared twice here, so legible-swarm.tex's single
+# \newcommand{\scene} was counted and printed twice and the chapter reported
+# 5 tinted-box macros where it has 4. Names must be unique; the assert is
+# cheap and says so.
+TINTED_BOX_MACROS = ("keyidea", "pitfall", "exercises", "scene", "xrefbox", "pullquote")
+assert len(set(TINTED_BOX_MACROS)) == len(TINTED_BOX_MACROS), "TINTED_BOX_MACROS must not repeat a name"
+
+# ---------------------------------------------------------------------------
+# Apparatus sections -- THE one list.
+#
+# An "apparatus" section is one whose job is navigation, reference, or
+# bookkeeping rather than developing the chapter's argument: Exercises, the
+# Review, History and references, the boundary/handoff statement, the Reader's
+# Map, a verification-status table, a dumped formal model, a notation key, an
+# appendix. SKILL.md §Pacing rules already carves these out in prose -- "no run
+# of more than four consecutive body pages with nothing to look at ... OUTSIDE
+# AN EXERCISES SECTION, WHICH IS EXPECTED TO BE PROSE-ONLY" -- and the
+# worked-example floor is that rule's source-level proxy, so it must carve out
+# the same thing. It did not, and demanded a worked example from every
+# Exercises / Review / Limitations / Reader's Map section in the Book: 54 of
+# the 117 sections it flagged were apparatus -- 46% noise, and a backlog
+# overstated by 86% (117 reported against 63 real) -- which is why nobody
+# could act on the report.
+#
+# THIS DICT IS THE SINGLE DEFINITION. Do not add a second list anywhere:
+# CHAPTER_CLOSE_KEYWORDS and EXERCISES_SECTION_TITLE_RE below are *derived*
+# from it (the same compiled Pattern objects, not copies), and
+# test_chapter_lint.py asserts that identity -- two lists that must agree with
+# nothing checking they do is the defect class this repository keeps
+# rediscovering. A new apparatus kind goes here and every consumer gets it.
+#
+# On `boundary_or_handoff`: the alternation deliberately says `scope boundary`
+# and `boundaries` rather than a bare `boundary`. A bare `boundary` matched
+# sealed-harbor.tex's "The gate sits on the only enforceable boundary" -- a
+# core body section, the fourth of ten -- which is exactly the kind of
+# false positive a title heuristic produces. Narrowing it changes no chapter's
+# chapter_close_apparatus verdict (every chapter still matches this key through
+# `limitations`, `threat model`, `open problems`, `what this chapter`, or
+# `assumes and provides`); test_chapter_lint.py pins both halves of that.
+APPARATUS_SECTION_PATTERNS = {
+    # --- the chapter-close sequence (also consumed by chapter_close_apparatus)
     "review": re.compile(r"review of the key ideas|key ideas", re.I),
     "history_and_references": re.compile(r"history and references|related work|further reading", re.I),
     "boundary_or_handoff": re.compile(
-        r"limitations?|open problems?|boundary|threat model|what this chapter|does not solve|assumes and provides",
+        r"limitations?|open problems?|scope boundary|boundaries\b|threat model"
+        r"|what this chapter|does not solve|assumes and provides",
         re.I,
     ),
+    # --- the exercises section (also consumed by find_final_exercises_section)
+    "exercises": re.compile(r"exercises?\b", re.I),
+    # --- navigation and reference apparatus
+    "readers_map": re.compile(r"reader'?s\s+map|how to read this (?:paper|chapter|book)", re.I),
+    "verification_status": re.compile(r"verification status", re.I),
+    # Tool names only. `formal models?` would swallow "Formal Model", which is
+    # a body section in two chapters -- the section that DEVELOPS the model,
+    # not the appendix that dumps its source.
+    "formal_models": re.compile(r"\bproverif\b|\btla\+|\btamarin\b|\balloy\b|\bkani\b", re.I),
+    "notation": re.compile(r"\bnotation\b|\bnomenclature\b", re.I),
+    "appendix": re.compile(r"\bappendix\b|\bappendices\b", re.I),
 }
-EXERCISES_SECTION_TITLE_RE = re.compile(r"exercises?\b", re.I)
+
+# The three keys chapter_close_apparatus asks after, taken BY REFERENCE from
+# the one list above -- same Pattern objects, so the vocabularies cannot drift.
+CHAPTER_CLOSE_KEYS = ("review", "history_and_references", "boundary_or_handoff")
+CHAPTER_CLOSE_KEYWORDS = {k: APPARATUS_SECTION_PATTERNS[k] for k in CHAPTER_CLOSE_KEYS}
+EXERCISES_SECTION_TITLE_RE = APPARATUS_SECTION_PATTERNS["exercises"]
+
+# The second, stronger apparatus signal, and the reason this is not a pure
+# title heuristic: every chapter in the Book already declares its appendices
+# structurally, with a label in the `app:` namespace
+# (\section{Full ProVerif Models}\label{app:proverif}), as against `sec:` for
+# body sections. That is author-declared, not inferred, and it catches
+# apparatus a title regex cannot -- "Phase 2: Asymmetric Ed25519" is 57 lines
+# of dumped ProVerif source, and nothing in its title says so.
+APPARATUS_LABEL_RE = re.compile(r"^app:", re.I)
+
 INTERLUDE_TITLE_RE = re.compile(r"\binterlude\b", re.I)
 
 
@@ -178,6 +252,7 @@ class Section:
     end: int = -1  # char offset of next same-or-higher-level heading, or EOF
     title_end: int = -1  # char offset just past the heading's own closing brace
     parent_section_idx: int = -1  # index into sections list of enclosing \section, for a subsection
+    label: str = ""  # this heading's OWN \label{...} key, "" if it has none
 
 
 @dataclass
@@ -202,6 +277,10 @@ class ChapterReport:
     path: str
     total_lines: int
     sections: list = field(default_factory=list)
+    # Top-level sections exempted from the worked-example floor, with the
+    # apparatus kind that exempted each -- so an exemption is auditable in the
+    # report rather than silently shrinking a denominator.
+    apparatus_sections: list = field(default_factory=list)
     claims: list = field(default_factory=list)
     examples_per_section: dict = field(default_factory=dict)  # section title -> count
     session_count: int = 0
@@ -213,14 +292,48 @@ class ChapterReport:
     floors: dict = field(default_factory=dict)  # floor name -> {"ok": bool, "detail": str}
 
 
+_LABEL_RE = re.compile(r"\\label\{([^}]*)\}")
+# A letter-command in a heading (\emph, \texttt, \cdot); `\&`, `\ ` and other
+# backslash-punctuation escapes are handled separately below.
+_TITLE_MACRO_RE = re.compile(r"\\[A-Za-z@]+\s*")
+
+
+def normalize_section_title(title: str) -> str:
+    """A section title with its LaTeX stripped down to the words a reader
+    sees, so one pattern matches "Limitations \\& Boundaries" and
+    "Limitations and boundaries" alike and no pattern has to carry a copy of
+    LaTeX's escaping rules. Drops \\label{...}, letter-commands (\\emph,
+    \\texttt, \\cdot), backslash escapes (\\& -> &), and braces, then
+    collapses whitespace."""
+    t = _LABEL_RE.sub("", title or "")
+    t = _TITLE_MACRO_RE.sub(" ", t)
+    t = re.sub(r"\\(.)", r"\1", t)  # \& -> &, \_ -> _, backslash-space -> space
+    t = t.replace("{", " ").replace("}", " ")
+    return re.sub(r"\s+", " ", t).strip()
+
+
+def _heading_label(text: str, title_raw: str, title_end: int) -> str:
+    """The \\label{...} key belonging to THIS heading: either inside its own
+    title braces or immediately following the closing brace. Deliberately
+    not a search further down the section body -- a label three paragraphs
+    in belongs to a theorem, not to the heading."""
+    m = _LABEL_RE.search(title_raw or "")
+    if m:
+        return m.group(1).strip()
+    m = re.match(r"\s*\\label\{([^}]*)\}", text[title_end : title_end + 200])
+    return m.group(1).strip() if m else ""
+
+
 def parse_sections(text: str):
     sections = []
     pat = re.compile(r"\\(section|subsection)\*?\{", re.M)
     for m in pat.finditer(text):
         kind = m.group(1)
-        title, title_end = balanced_brace_arg(text, m.end() - 1)
-        title = re.sub(r"\\label\{[^}]*\}", "", title or "").strip()
-        sections.append(Section(kind=kind, title=title, start=m.start(), line=line_of(text, m.start()), title_end=title_end))
+        title_raw, title_end = balanced_brace_arg(text, m.end() - 1)
+        label = _heading_label(text, title_raw, title_end)
+        title = re.sub(r"\\label\{[^}]*\}", "", title_raw or "").strip()
+        sections.append(Section(kind=kind, title=title, start=m.start(), line=line_of(text, m.start()),
+                                title_end=title_end, label=label))
     # A \section's span runs to the NEXT \section (its own subsections nest
     # inside it and must not truncate it); a \subsection's span runs to the
     # next heading of either kind. Record each subsection's enclosing
@@ -237,6 +350,52 @@ def parse_sections(text: str):
             s.parent_section_idx = last_section_idx
             s.end = sections[i + 1].start if i + 1 < len(sections) else len(text)
     return sections
+
+
+def apparatus_kind(section: Section):
+    """Which apparatus role this section fills, or None if it is body.
+
+    Two signals, in order of strength:
+
+      1. The heading's own \\label is in the `app:` namespace. Author-declared
+         and exact; catches appendices whose titles say nothing ("Phase 2:
+         Asymmetric Ed25519" is a dumped ProVerif model).
+      2. Its title matches one of APPARATUS_SECTION_PATTERNS -- the same one
+         list chapter_close_apparatus and find_final_exercises_section read.
+
+    Returns the matching key ("exercises", "review", "appendix", ...) so a
+    report can say WHY a section was exempted rather than only that it was.
+    """
+    if section.label and APPARATUS_LABEL_RE.match(section.label):
+        title_hit = next(
+            (k for k, pat in APPARATUS_SECTION_PATTERNS.items()
+             if pat.search(normalize_section_title(section.title))),
+            None,
+        )
+        return title_hit or "appendix"
+    norm = normalize_section_title(section.title)
+    for key, pat in APPARATUS_SECTION_PATTERNS.items():
+        if pat.search(norm):
+            return key
+    return None
+
+
+def is_apparatus_section(section: Section) -> bool:
+    """Whether a section is apparatus (navigation/reference/bookkeeping) and
+    so is NOT expected to carry a worked example -- SKILL.md §Pacing rules'
+    "outside an Exercises section, which is expected to be prose-only",
+    generalised to every apparatus kind. The single predicate every floor
+    that needs the body/apparatus split must call."""
+    return apparatus_kind(section) is not None
+
+
+def split_body_and_apparatus(top_sections):
+    """(body_sections, apparatus_sections) for a chapter's top-level sections,
+    in document order."""
+    body, apparatus = [], []
+    for s in top_sections:
+        (apparatus if is_apparatus_section(s) else body).append(s)
+    return body, apparatus
 
 
 def enclosing_top_section_obj(sections, pos: int):
@@ -313,7 +472,8 @@ def find_final_exercises_section(sections):
     be the literal end of the document. Returns None if no section's title
     matches at all."""
     top_sections = [s for s in sections if s.kind == "section"]
-    matches = [s for s in top_sections if EXERCISES_SECTION_TITLE_RE.search(s.title)]
+    matches = [s for s in top_sections
+               if EXERCISES_SECTION_TITLE_RE.search(normalize_section_title(s.title))]
     return matches[-1] if matches else None
 
 
@@ -453,18 +613,30 @@ _EPIGRAPH_MACRO_RE = re.compile(r"\\(epigraph|pdchapterepigraph)\b")
 
 
 def find_opener_kind(text: str, top_sections):
-    """What immediately follows the chapter's first top-level \\section
+    """What immediately follows the chapter's first top-level BODY \\section
     heading (its own \\label{...}, if any, skipped): 'epigraph' (an
     epigraph macro), 'table' or 'claim' (jumps cold into one), 'prose'
     (ordinary text -- the template's failure-scene paragraph, in effect),
-    or None if the chapter has no top-level section at all. Mirrors the
+    or None if the chapter has no top-level body section at all. Mirrors the
     chapter template's page-1 order (chapter-template.md): title, epigraph,
     scene, question, and ONLY THEN the boxed claim -- a section that starts
     with a table or a claim environment has skipped straight past the
-    opener the template requires."""
+    opener the template requires.
+
+    Leading APPARATUS sections are skipped, because six of the Book's eight
+    chapters open with a "Reader's Map" and this floor was therefore
+    measuring the first line of the map rather than the first line of the
+    chapter's argument -- the same apparatus blind spot as
+    worked_example_per_section, in a different floor. It happens not to change
+    any chapter's verdict today (every one of those maps opens with prose, and
+    so does the body section behind it), but it was measuring the wrong
+    section to get there."""
     if not top_sections:
         return None
-    i = top_sections[0].title_end
+    body_sections, _ = split_body_and_apparatus(top_sections)
+    if not body_sections:
+        return None
+    i = body_sections[0].title_end
     n = len(text)
     while True:
         while i < n and text[i] in " \t\n":
@@ -490,7 +662,7 @@ def check_chapter_close(text: str, sections):
     for key, pat in CHAPTER_CLOSE_KEYWORDS.items():
         hit = None
         for s in sections:
-            if pat.search(s.title):
+            if pat.search(normalize_section_title(s.title)):
                 hit = s.title
                 break
         result[key] = {"present": hit is not None, "matched_title": hit}
@@ -502,6 +674,7 @@ def build_report(path: Path) -> ChapterReport:
     text = strip_comments(raw)
     sections = parse_sections(text)
     top_sections = [s for s in sections if s.kind == "section"]
+    body_sections, apparatus_sections = split_body_and_apparatus(top_sections)
 
     claims = find_claims(text, sections)
     examples_per_section, session_count = find_examples(text, sections)
@@ -513,7 +686,15 @@ def build_report(path: Path) -> ChapterReport:
     report = ChapterReport(
         path=str(path),
         total_lines=raw.count("\n") + 1,
-        sections=[{"kind": s.kind, "title": s.title, "line": s.line} for s in sections],
+        sections=[
+            {"kind": s.kind, "title": s.title, "line": s.line, "label": s.label,
+             "apparatus_kind": apparatus_kind(s) if s.kind == "section" else None}
+            for s in sections
+        ],
+        apparatus_sections=[
+            {"title": s.title, "line": s.line, "label": s.label, "apparatus_kind": apparatus_kind(s)}
+            for s in apparatus_sections
+        ],
         claims=[c.__dict__ for c in claims],
         examples_per_section=examples_per_section,
         session_count=session_count,
@@ -525,19 +706,29 @@ def build_report(path: Path) -> ChapterReport:
     )
 
     # ---- Floors -----------------------------------------------------
+    # The floor is a BODY-section floor. SKILL.md §Pacing rules exempts
+    # apparatus by name ("outside an Exercises section, which is expected to
+    # be prose-only"); asking Exercises, the Review, Limitations, the
+    # Reader's Map and a dumped ProVerif model each for a worked example
+    # produced a failure list that was 46% sections the skill exempts, and a
+    # report nobody could act on. See APPARATUS_SECTION_PATTERNS.
     sections_with_zero_examples = [
-        s.title for s in top_sections if examples_per_section.get(s.title, 0) == 0
+        s.title for s in body_sections if examples_per_section.get(s.title, 0) == 0
     ]
     report.floors["worked_example_per_section"] = {
         "ok": not sections_with_zero_examples,
         "detail": (
-            f"{len(sections_with_zero_examples)}/{len(top_sections)} top-level sections have zero "
-            "worked examples (pdexample/example): "
+            f"{len(sections_with_zero_examples)}/{len(body_sections)} top-level BODY sections have zero "
+            f"worked examples (pdexample/example); {len(apparatus_sections)} apparatus section(s) "
+            "exempt (exercises/review/history/boundary/reader's map/appendix): "
             + "; ".join(sections_with_zero_examples[:8])
             + (" ..." if len(sections_with_zero_examples) > 8 else "")
         )
         if sections_with_zero_examples
-        else f"all {len(top_sections)} top-level sections have >=1 worked example",
+        else (
+            f"all {len(body_sections)} top-level body sections have >=1 worked example "
+            f"({len(apparatus_sections)} apparatus section(s) exempt)"
+        ),
     }
 
     # Advisory (item 4): the template's rule is the chapter's closing-
@@ -724,6 +915,13 @@ def render_text(report: ChapterReport) -> str:
     for title, n in report.examples_per_section.items():
         lines.append(f"    {n}  {title}")
     lines.append("")
+    # Print every exemption. A floor that quietly shrinks its own denominator
+    # is the failure mode this change was made to end, not to reproduce.
+    lines.append(f"Apparatus sections (exempt from the worked-example floor): {len(report.apparatus_sections)}")
+    for a in report.apparatus_sections:
+        why = f"label {a['label']}" if a["label"].lower().startswith("app:") else "title"
+        lines.append(f"    line {a['line']:5d}  [{a['apparatus_kind']}, by {why}]  {a['title']}")
+    lines.append("")
     lines.append(f"Exercise clusters: {len(report.exercise_clusters)} found.")
     for c in report.exercise_clusters:
         loc = "chapter-end" if c["in_exercises_section"] else "MID-BODY"
@@ -817,6 +1015,11 @@ def main(argv=None) -> int:
     ap.add_argument("--json", action="store_true", help="Emit a JSON report instead of text")
     ap.add_argument("--md", action="store_true", help="Emit a markdown report instead of text")
     ap.add_argument("--strict", action="store_true", help="Exit 1 if any BLOCKING floor is violated (advisory floors never trigger this)")
+    ap.add_argument("--max-blocking", type=int, default=None, metavar="N",
+                    help="Ratchet: exit 1 if MORE than N blocking floor failures are found. "
+                         "The honest middle between --strict (which no chapter passes today) "
+                         "and continue-on-error (which measures nothing): the count may fall, "
+                         "never rise. Prints a nudge to lower N when it falls.")
     ap.add_argument("--table", action="store_true", help="Force the one-table consolidated report even for a single chapter")
     ap.add_argument("--repo-root", type=Path, default=REPO_ROOT,
                      help="Repository root used to resolve the default chapter list (default: inferred from this script's location)")
@@ -861,8 +1064,25 @@ def main(argv=None) -> int:
         else:
             print(render_text(report))
 
-    any_blocking = any(is_blocking(f) for r in reports for f in r.floors.values())
-    if args.strict and any_blocking:
+    n_blocking = sum(1 for r in reports for f in r.floors.values() if is_blocking(f))
+
+    if args.max_blocking is not None:
+        if n_blocking > args.max_blocking:
+            print(
+                f"error: {n_blocking} blocking floor failure(s), above the ratchet of "
+                f"{args.max_blocking}. A chapter edit has taken the Book backwards; fix it "
+                "rather than raising the number.",
+                file=sys.stderr,
+            )
+            return 1
+        if n_blocking < args.max_blocking:
+            print(
+                f"note: {n_blocking} blocking floor failure(s), below the ratchet of "
+                f"{args.max_blocking}. Lower the ratchet to {n_blocking} to hold the gain.",
+                file=sys.stderr,
+            )
+
+    if args.strict and n_blocking:
         return 1
     return 0
 
