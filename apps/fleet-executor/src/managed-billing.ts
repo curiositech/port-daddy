@@ -102,17 +102,17 @@ export async function sweepStaleManagedReservations(dbBinding: D1Database | unde
   const stale = await db.prepare(
     `SELECT run_id, lease_fence, lease_expires_at,
             EXISTS(SELECT 1 FROM fleet_run_call_authorizations a WHERE a.run_id=r.run_id) AS has_calls
-       FROM fleet_run_reservations r WHERE state='reserved' AND lease_expires_at<=?
-       ORDER BY lease_expires_at LIMIT ?`,
+       FROM fleet_run_reservations r WHERE state='reserved' AND (lease_expires_at IS NULL OR lease_expires_at<=?)
+       ORDER BY COALESCE(lease_expires_at,0) LIMIT ?`,
   ).bind(now, limit).all<Record<string, unknown>>();
   let changed = 0;
   for (const row of stale.results ?? []) {
-    const runId=String(row.run_id); const fence=integer(row.lease_fence,'lease fence'); const expiry=integer(row.lease_expires_at,'lease expiry');
+    const runId=String(row.run_id); const fence=integer(row.lease_fence,'lease fence'); const expiry=row.lease_expires_at==null?0:integer(row.lease_expires_at,'lease expiry');
     const state = Number(row.has_calls) ? 'settled' : 'released';
     const result = await db.prepare(
       state === 'settled'
-        ? `UPDATE fleet_run_reservations SET state='settled', provider_cost_microusd=COALESCE((SELECT SUM(COALESCE(actual_cost_microusd,authorized_cost_microusd)) FROM fleet_run_call_authorizations WHERE run_id=?),0), settled_at=?,updated_at=? WHERE run_id=? AND state='reserved' AND lease_fence=? AND lease_expires_at=?`
-        : `UPDATE fleet_run_reservations SET state='released',released_at=?,updated_at=? WHERE run_id=? AND state='reserved' AND lease_fence=? AND lease_expires_at=? AND NOT EXISTS(SELECT 1 FROM fleet_run_call_authorizations WHERE run_id=?)`,
+        ? `UPDATE fleet_run_reservations SET state='settled', provider_cost_microusd=COALESCE((SELECT SUM(COALESCE(actual_cost_microusd,authorized_cost_microusd)) FROM fleet_run_call_authorizations WHERE run_id=?),0), settled_at=?,updated_at=? WHERE run_id=? AND state='reserved' AND lease_fence=? AND COALESCE(lease_expires_at,0)=?`
+        : `UPDATE fleet_run_reservations SET state='released',released_at=?,updated_at=? WHERE run_id=? AND state='reserved' AND lease_fence=? AND COALESCE(lease_expires_at,0)=? AND NOT EXISTS(SELECT 1 FROM fleet_run_call_authorizations WHERE run_id=?)`,
     ).bind(...(state === 'settled' ? [runId,now,now,runId,fence,expiry] : [now,now,runId,fence,expiry,runId])).run();
     changed += Number(result.meta?.changes ?? 0);
   }
@@ -299,7 +299,10 @@ export async function reserveManagedRun(
   }
 }
 
-/** Write one deterministic per-ship spend identity and verify its read-back. */
+/**
+ * Write per-ship reported telemetry and verify read-back. This is explicitly
+ * non-authoritative: settlement uses per-call actual-or-authorized charges.
+ */
 export async function recordManagedShipSpend(
   dbBinding: D1Database | undefined,
   spend: ManagedShipSpend,

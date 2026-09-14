@@ -2325,9 +2325,17 @@ export async function executeFleet(
           : null;
         await reconcileManagedAiCall(env.DB, authorization, actual,
           error ? 'failed' : reported ? 'reported' : 'unreported', nowSec());
+        if (error && describeAiFailure(error).retryable) {
+          await yieldManagedRunLease(env.DB, managedLease!, nowSec());
+        }
       },
     });
   } catch (error) {
+    if (error instanceof ManagedBillingError && error.code === 'reservation-conflict') {
+      // Another delivery owns the live fence. Defer without neutralizing its
+      // check or publishing anything under the duplicate delivery.
+      throw error;
+    }
     const billingCode = error instanceof ManagedBillingError ? error.code : 'accounting-failed';
     const summary =
       'Fleet skipped: managed inference could not reserve prepaid credit. ' +
@@ -2497,6 +2505,7 @@ export async function executeFleet(
         pausedBeforeShip: ship.name,
       });
       await completeOwnedCheck('neutral', summary, `before pd-${ship.name} paused neutral completion`);
+      managedReservation = await settleManagedRun(env.DB, runId, nowSec());
       await recordRunEnd(env, runId, 'neutral', startMs);
       return;
     }
@@ -2583,6 +2592,7 @@ export async function executeFleet(
           },
         );
         await completeOwnedCheck('neutral', summary, `before pd-${ship.name} deadline neutral completion`);
+        managedReservation = await settleManagedRun(env.DB, runId, nowSec());
         await recordRunEnd(env, runId, 'neutral', startMs);
         return;
       }
