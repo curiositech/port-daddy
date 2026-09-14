@@ -11,9 +11,8 @@
  * Fleet' check run in_progress before model work. A lost admitted job normally
  * leaves that owned check unresolved until the DLQ claims the same intent and
  * marks the exact creator-run check failure. The webhook-to-check interval,
- * degraded legacy admission, and GitHub's lack of atomic metadata/check
- * mutation remain explicit residual windows; this code does not claim they are
- * closed by the queue consumer.
+ * and GitHub's lack of atomic metadata/check mutation remain explicit residual
+ * windows; this code does not claim they are closed by the queue consumer.
  *
  * Retry semantics: on a thrown (recoverable) error we record the cause against
  * the run's transcript (delivery-failure.ts) and call `message.retry()`;
@@ -126,6 +125,7 @@ export default {
         : 1;
       const explicitContinuation = continuationSequence(message.body);
       const attemptCursor = deliveryAttemptCursor(message.body, attempt);
+      let intentClaimed = false;
       try {
         if (
           message.body?.continuationSequence !== undefined &&
@@ -135,11 +135,44 @@ export default {
             `invalid continuation sequence: ${String(message.body.continuationSequence)}`,
           );
         }
+        if (explicitContinuation != null) {
+          if (!message.body.deliveryId) {
+            throw new Error('explicit continuation is missing its delivery id');
+          }
+          // Validate the claimed checkpoint before its sequence contributes to
+          // attemptCursor. A forged high sequence must not inflate durable
+          // attempt_count and strand every legitimate successor.
+          const preAdmissionSequence = await readDeliveryContinuationCount(
+            env,
+            runIdForDelivery(message.body.deliveryId),
+          );
+          if (preAdmissionSequence == null) {
+            throw new Error(
+              `explicit continuation ${explicitContinuation} cannot verify durable checkpoint sequence`,
+            );
+          }
+          if (preAdmissionSequence < explicitContinuation) {
+            throw new Error(
+              `explicit continuation ${explicitContinuation} is ahead of durable sequence ${preAdmissionSequence}`,
+            );
+          }
+        }
         console.log(
           `[fleet-executor] job delivery=${message.body?.deliveryId} repo=${message.body?.repoFullName} ` +
             `pr=${message.body?.prNumber} attempt=${attempt} cursor=${attemptCursor} ` +
             `continuation=${explicitContinuation ?? 'legacy'}`,
         );
+        const intentDecision = await beginFleetIntentAttempt(env, message.body, attemptCursor);
+        if (intentDecision === 'skip') {
+          // A superseded/terminal generation or an operator-control hold cannot
+          // be reopened by an ordinary duplicate consumer delivery.
+          console.log(
+            `[fleet-executor] SKIPPED by durable admission state delivery=${message.body?.deliveryId} repo=${message.body?.repoFullName} pr=${message.body?.prNumber} — no check run will be created`,
+          );
+          message.ack();
+          continue;
+        }
+        intentClaimed = true;
         if (explicitContinuation != null) {
           if (!message.body.deliveryId) {
             throw new Error('explicit continuation is missing its delivery id');
@@ -187,23 +220,6 @@ export default {
             message.ack();
             continue;
           }
-        }
-        const intentDecision = await beginFleetIntentAttempt(env, message.body, attemptCursor);
-        if (intentDecision === 'skip') {
-          // A superseded/terminal generation or an operator-control hold cannot
-          // be reopened by an ordinary duplicate consumer delivery.
-          //
-          // LOUD ON PURPOSE: this is the one exit that acks a job WITHOUT ever
-          // creating the 'Port Daddy Fleet' check, so a PR that takes it shows
-          // no gate at all — indistinguishable from "the fleet never ran" when
-          // read from GitHub. If this fires when it shouldn't, silence would
-          // make it invisible; a superseded skip is normal, a stream of them on
-          // current heads is a bug.
-          console.log(
-            `[fleet-executor] SKIPPED by durable admission state delivery=${message.body?.deliveryId} repo=${message.body?.repoFullName} pr=${message.body?.prNumber} — no check run will be created`,
-          );
-          message.ack();
-          continue;
         }
         // Attempt-start marker BEFORE any work: the one write that survives an
         // uncatchable platform kill (memory/CPU), so a dead-letter with starts
@@ -302,7 +318,7 @@ export default {
           // same durable control epoch.
           if (intentDecision === 'run') await markFleetIntentWaitingForControl(env, message.body,
             `Fleet suspended: ${disposition.reason}; operator-authorized redelivery or new delivery required; no automatic retry`);
-          if (intentDecision === 'run' && await readFleetIntentState(env, message.body.deliveryId) !== FLEET_WAITING_CONTROL) {
+          if (intentDecision === 'run' && await readFleetIntentState(env, message.body) !== FLEET_WAITING_CONTROL) {
             throw new Error('Fleet suspension was not durably recorded; refusing to acknowledge the delivery');
           }
         } else if (disposition?.kind === 'coverage-held') {
@@ -377,13 +393,19 @@ export default {
         // the run, so without this the only artifact a dead-lettered job leaves
         // is "was lost" with no cause — see delivery-failure.ts. Best-effort and
         // non-throwing by construction, so it can never eat the retry below.
-        await recordDeliveryFailure(
-          env,
-          message.body,
-          attemptCursor,
-          durableError,
-        );
-        await markFleetIntentRetrying(env, message.body, attemptCursor, durableError);
+        // A rejected or unverifiable queue body never owned this generation,
+        // so it must not write a transcript or reopen the legitimate intent.
+        // Only the exact attempt that completed the conditional admission write
+        // may publish retry evidence for that run.
+        if (intentClaimed) {
+          await recordDeliveryFailure(
+            env,
+            message.body,
+            attemptCursor,
+            durableError,
+          );
+          await markFleetIntentRetrying(env, message.body, attemptCursor, durableError);
+        }
         if (err instanceof CheckRunCompletionError && err.retryAfterSeconds) {
           message.retry({ delaySeconds: err.retryAfterSeconds });
         } else if (providerDelaySeconds != null) {

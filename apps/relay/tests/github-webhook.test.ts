@@ -24,6 +24,7 @@ import {
 } from '../src/github-webhook.js';
 import { tryDecodeTransitEnvelope } from '../src/envelope.js';
 import type { Env } from '../src/types.js';
+import { fleetLifecycleDb } from './fleet-lifecycle-db.js';
 
 const SECRET = 'super-secret-webhook-key';
 
@@ -392,11 +393,13 @@ describe('fleet enqueue — merge_group (the merge-queue deadlock)', () => {
   function envWithQueues(reviewSent: unknown[], gateSent?: unknown[]) {
     const cap: Captured = { events: [], audits: [] };
     const env = makeEnv(cap, []) as unknown as Record<string, unknown>;
+    const { db, sqlite } = fleetLifecycleDb();
+    env.DB = db;
     env.FLEET_RUNS = { async send(job: unknown) { reviewSent.push(job); } };
     if (gateSent) {
       env.FLEET_GATES = { async send(job: unknown) { gateSent.push(job); } };
     }
-    return { env: env as unknown as Env, cap };
+    return { env: env as unknown as Env, cap, sqlite };
   }
 
   const MERGE_GROUP_BODY = JSON.stringify({
@@ -412,7 +415,7 @@ describe('fleet enqueue — merge_group (the merge-queue deadlock)', () => {
 
   it('falls back to the review queue and carries the queue-branch head_sha', async () => {
     const sent: unknown[] = [];
-    const { env } = envWithQueues(sent);
+    const { env, sqlite } = envWithQueues(sent);
     const res = await handleGithubWebhook(
       webhookReq({
         body: MERGE_GROUP_BODY,
@@ -441,6 +444,11 @@ describe('fleet enqueue — merge_group (the merge-queue deadlock)', () => {
     expect(job.payloadMinimal.merge_group?.head_sha).toBe(
       'b8ae3f4202aeb2b25d7be69b7a3ed6898957c8c1'
     );
+    expect(sqlite.prepare('SELECT repo_full_name, pr_number, head_sha, event_type, state FROM fleet_run_intents WHERE delivery_id = ?').get('mg-1')).toEqual({
+      repo_full_name: 'curiositech/port-daddy', pr_number: 0,
+      head_sha: 'b8ae3f4202aeb2b25d7be69b7a3ed6898957c8c1',
+      event_type: 'merge_group', state: 'queued',
+    });
   });
 
   it('routes deterministic checks to the independent gate queue when bound', async () => {
@@ -460,6 +468,35 @@ describe('fleet enqueue — merge_group (the merge-queue deadlock)', () => {
     expect(res.status).toBe(204);
     expect(reviewSent).toHaveLength(0);
     expect(gateSent).toHaveLength(1);
+  });
+
+  it('keeps distinct merge-group heads independently queued', async () => {
+    const sent: unknown[] = [];
+    const { env, sqlite } = envWithQueues(sent);
+    const secondBody = MERGE_GROUP_BODY
+      .replace('b8ae3f4202aeb2b25d7be69b7a3ed6898957c8c1', 'c'.repeat(40))
+      .replace('refs/heads/gh-readonly-queue/main/pr-6455-b8ae3f42',
+        'refs/heads/gh-readonly-queue/release/pr-9000-cccccccc');
+    expect((await handleGithubWebhook(webhookReq({
+      body: MERGE_GROUP_BODY,
+      signature: sign(SECRET, MERGE_GROUP_BODY),
+      event: 'merge_group',
+      delivery: 'mg-independent-a',
+    }), env)).status).toBe(204);
+    expect((await handleGithubWebhook(webhookReq({
+      body: secondBody,
+      signature: sign(SECRET, secondBody),
+      event: 'merge_group',
+      delivery: 'mg-independent-b',
+    }), env)).status).toBe(204);
+
+    expect(sent).toHaveLength(2);
+    expect(sqlite.prepare(
+      "SELECT delivery_id, state FROM fleet_run_intents WHERE delivery_id LIKE 'mg-independent-%' ORDER BY delivery_id",
+    ).all()).toEqual([
+      { delivery_id: 'mg-independent-a', state: 'queued' },
+      { delivery_id: 'mg-independent-b', state: 'queued' },
+    ]);
   });
 
   it('ignores merge_group actions that are not checks_requested', async () => {
