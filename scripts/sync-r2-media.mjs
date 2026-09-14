@@ -71,7 +71,7 @@ export function readCredentials(env = process.env) {
   if (missing.length > 0) {
     throw new SyncError(
       `missing required environment variable(s): ${missing.join(', ')}. `
-      + 'Set them from the repository secrets (see docs/adr/0141-r2-media-offload.md); '
+      + 'Set them from the repository secrets (see docs/adr/0142-r2-media-offload.md); '
       + 'this tool will not run without credentials and has no unauthenticated mode.',
       { exitCode: 2 },
     );
