@@ -143,6 +143,45 @@
 % text block. \pagegoal is \maxdimen on an empty page, which is room for
 % anything; a block already taller than its page is left alone rather than
 % shoved, because moving it cannot make it fit.
+\newlength{\pd@goal}
+% The page's own foot, usable as a clamp. \pagegoal is \maxdimen while the page
+% is still empty, and every foot clamp in this file was written as
+% "\ifdim\pagegoal<\maxdimen ... \fi" -- i.e. skipped entirely on exactly the
+% pages where a block is most free to be pushed somewhere silly. A Recall block
+% went 205.6 pt below the paper on p. 203 through that hole, with nine lines of
+% retrieval prompts on the wrong side of the trim. \textheight is the right
+% stand-in: it is what \pagegoal converges to once the page has anything on it.
+\newcommand{\pd@setgoal}{%
+  \setlength{\pd@goal}{\pagegoal}%
+  \ifdim\pd@goal=\maxdimen \setlength{\pd@goal}{\textheight}\fi}
+\newlength{\pd@blockcand}
+% Record a block's foot as the column's low-water mark for this page. The mark
+% is MONOTONE within a page: a block that ends higher than the one before it
+% does not move the mark up.
+%
+% It used to, and that is a real defect, not a nicety. \pd@blockbottom is one
+% global, overwritten by whichever device placed last, while the caps that read
+% it mean "what is already in the column". A short note placed after a tall one
+% -- an Exercises pointer or a provenance note between a table and its Recall
+% block -- reset the mark to its own foot, and the next block raised itself
+% straight through the tall one the mark had been describing. That is the
+% "RECALL" head printed on the last line of the sealed-room caption on p. 131:
+% the caption recorded a foot seven lines down, a shorter note in the paragraph
+% between then overwrote it, and the Recall block's raise was capped against
+% the wrong number.
+%
+% Monotone is the conservative direction: the mark can only be too LOW, which
+% makes the next block step a little too far down, never too far up.
+\newcommand{\pd@recordblock}[1]{%
+  \setlength{\pd@blockcand}{#1}%
+  \ifnum\pd@blockpage=\thepage\relax
+    \ifdim\pd@blockcand>\pd@blockbottom
+      \global\pd@blockbottom=\pd@blockcand
+    \fi
+  \else
+    \global\pd@blockbottom=\pd@blockcand
+  \fi
+  \xdef\pd@blockpage{\thepage}}
 \newlength{\pd@blockfloor}
 \newcommand{\pd@placemargintop}[1]{%
   \setlength{\pd@blockoff}{0pt}%
@@ -167,15 +206,13 @@
   % the floor and overruns the foot, where page_overflow.py's foot-intrusion
   % and off-the-paper checks will report it -- a visible, measured overrun is
   % worth more than a silent overlap.
-  \ifdim\pagegoal<\maxdimen
-    \ifdim\dimexpr\pagetotal+\pd@blockoff+\ht#1+\dp#1\relax>\pagegoal
-      \setlength{\pd@blockoff}{\dimexpr\pagegoal-\pagetotal-\ht#1-\dp#1\relax}%
-      \ifdim\pd@blockoff<\pd@blockfloor \setlength{\pd@blockoff}{\pd@blockfloor}\fi
-    \fi
+  \pd@setgoal
+  \ifdim\dimexpr\pagetotal+\pd@blockoff+\ht#1+\dp#1\relax>\pd@goal
+    \setlength{\pd@blockoff}{\dimexpr\pd@goal-\pagetotal-\ht#1-\dp#1\relax}%
+    \ifdim\pd@blockoff<\pd@blockfloor \setlength{\pd@blockoff}{\pd@blockfloor}\fi
   \fi
   \marginnote{\usebox#1}[\pd@blockoff]%
-  \xdef\pd@blockpage{\thepage}%
-  \global\pd@blockbottom=\dimexpr\pagetotal+\pd@blockoff+\ht#1+\dp#1\relax}
+  \pd@recordblock{\dimexpr\pagetotal+\pd@blockoff+\ht#1+\dp#1\relax}}
 
 \newcommand{\pd@placemargin}[1]{%
   \setlength{\pd@blockoff}{\dimexpr\baselineskip-\ht#1-\dp#1\relax}%
@@ -217,9 +254,25 @@
     \ifdim\pd@blockoff<\dimexpr\pd@blockbottom-\pagetotal+2pt\relax
       \setlength{\pd@blockoff}{\dimexpr\pd@blockbottom-\pagetotal+2pt\relax}\fi
   \fi
+  % A foot clamp, floored, exactly as \pd@placemargintop has one. This
+  % placement raises, so for most of its life it could not reach the foot and
+  % did not need one -- but the caps above push DOWN, and once the column
+  % carries a caption there is enough in it to push a tall block past the
+  % bottom of the text block. A Recall block went 205.6 pt below the paper on
+  % p. 203 that way: nine lines of retrieval prompts, off the trim, where the
+  % log says nothing and no reader can reach them. The floor is the position
+  % the occupancy caps established; reducing past it re-collides the block with
+  % what it was just moved clear of, which is the 132-collision defect this
+  % file records. A block too tall to satisfy both stays at the floor and
+  % overruns measurably, which page_overflow.py reports.
+  \setlength{\pd@blockfloor}{\pd@blockoff}%
+  \pd@setgoal
+  \ifdim\dimexpr\pagetotal+\pd@blockoff+\ht#1+\dp#1\relax>\pd@goal
+    \setlength{\pd@blockoff}{\dimexpr\pd@goal-\pagetotal-\ht#1-\dp#1\relax}%
+    \ifdim\pd@blockoff<\pd@blockfloor \setlength{\pd@blockoff}{\pd@blockfloor}\fi
+  \fi
   \marginnote{\usebox#1}[\pd@blockoff]%
-  \xdef\pd@blockpage{\thepage}%
-  \global\pd@blockbottom=\dimexpr\pagetotal+\pd@blockoff+\ht#1+\dp#1\relax}
+  \pd@recordblock{\dimexpr\pagetotal+\pd@blockoff+\ht#1+\dp#1\relax}}
 % The same placement for a note the page can do without. A Recall block, a
 % margin figure and a gloss carry content that is nowhere else, so they are
 % always placed. A short-form citation, a provenance note and a discharge
@@ -238,9 +291,12 @@
     \ifdim\pd@blockoff<\dimexpr\pd@lastheadbottom-\pagetotal\relax
       \setlength{\pd@blockoff}{\dimexpr\pd@lastheadbottom-\pagetotal\relax}\fi
   \fi
+  % 6pt, matching \pdmargincaption. 2pt left a 1.4pt gap inside a 10.4pt
+  % leading between an Exercises pointer and the last line of a margin caption
+  % on p. 305 -- two lines all but touching. It only ever pushes down.
   \ifnum\pd@blockpage=\thepage\relax
-    \ifdim\pd@blockoff<\dimexpr\pd@blockbottom-\pagetotal+2pt\relax
-      \setlength{\pd@blockoff}{\dimexpr\pd@blockbottom-\pagetotal+2pt\relax}\fi
+    \ifdim\pd@blockoff<\dimexpr\pd@blockbottom-\pagetotal+6pt\relax
+      \setlength{\pd@blockoff}{\dimexpr\pd@blockbottom-\pagetotal+6pt\relax}\fi
   \fi
   % Room left on this page, measured to the block's foot, with two lines of
   % slack. \pagegoal is \maxdimen while the page is empty, which is room
@@ -250,11 +306,14 @@
   % foot of p. 309 of the Swiss edition -- a page that only exists in the CI
   % build's pagination, which is why the local builds were clean and the check
   % running over every edition in CI is what found it.
-  \ifdim\dimexpr\pagetotal+\pd@blockoff+\ht#1+\dp#1+2\baselineskip\relax>\pagegoal
+  % Four lines of slack, not two. \pagetotal under-reads mid-paragraph, which
+  % is where most of these are called, and two lines of slack was not enough
+  % once captions in the column pushed the blockoff down: a provenance note
+  % printed 7.5 pt below the foot of p. 296.
+  \ifdim\dimexpr\pagetotal+\pd@blockoff+\ht#1+\dp#1+4\baselineskip\relax>\pagegoal
   \else
     \marginnote{\usebox#1}[\pd@blockoff]%
-    \xdef\pd@blockpage{\thepage}%
-    \global\pd@blockbottom=\dimexpr\pagetotal+\pd@blockoff+\ht#1+\dp#1\relax
+    \pd@recordblock{\dimexpr\pagetotal+\pd@blockoff+\ht#1+\dp#1\relax}%
   \fi}
 \newcommand{\pd@marginglyph}{%
   \ifpdmargincolumn\marginnote{\textcolor{\pd@chaptercolor}{\rule[-0.5pt]{4.5pt}{4.5pt}}}\fi}
@@ -332,6 +391,241 @@
       % off the page.
       \pd@placemargintop{\pd@mfbox}%
     }{}%
+  \fi}
+
+% ---------------------------------------------------------------------------
+% Margin captions. \pdmargincaption{claim sentence} replaces \caption inside a
+% figure/table float: the float itself stays in the text column at full
+% measure, and its caption rides the margin beside it. This is the default
+% shape for a caption in the Book, not an exception -- see
+% skills/tufte-evidence-design/references/margin-apparatus.md section 3.1.
+%
+% ONE PLACEMENT, AND WHY THERE IS ONLY ONE. The block always hangs DOWNWARD
+% from the line that issues it, and the converter
+% (scripts/harbor-research/captions_to_margin.py) moves every caption to the
+% top of its float so that line is the float's own first line. A caption
+% written below its content wants the opposite -- a block raised by its own
+% height so its last line lands on the caption's line and it runs up beside
+% the image -- and that raise cannot be made safe here. The only information a
+% macro inside a float has about its position is \pagetotal, and inside an [H]
+% float declared after a paragraph \pagetotal under-reads by the whole of that
+% paragraph; a raise computed from it is then applied at the float's real
+% position. Measured: six lines and 67.1 pt below the foot of p. 370, printed
+% over the running foot. Removing the page arithmetic and raising by the box's
+% own height fixed that and reintroduced ten collisions with the material
+% ABOVE the block, which the same stale number is the only way to see. So the
+% caption moves instead of the placement: at a float's top there is nothing
+% above it in the float to collide with, the caps below only ever push down,
+% and no upward offset is ever computed. The cost is that a standalone chapter
+% now prints its table and figure captions above the float rather than below;
+% that is the conventional position for a table caption and a defensible one
+% for a figure, and it is the whole of the visible change to the paper twins.
+%
+% MECHANISM: the box is placed DIRECTLY, with an \hbox offset from the float's
+% own left edge, not through \marginnote. Three things ruled out the
+% alternatives.
+%
+%  - \marginpar does not work inside a float at all: the float box has no page
+%    to ship a marginpar to, which is the "Float(s) lost" failure this file's
+%    \pd@marginhead comment already records for a marginpar in horizontal mode.
+%
+%  - The sidenotes package's \sidecaption is \marginnote{\caption{...}}, which
+%    puts \refstepcounter inside the \marginnote's box group. \@currentlabel
+%    reverts when that group ends, so a \label{tab:x} written AFTER the caption
+%    -- what 51 of the Book's 54 float captions do -- silently resolves to the
+%    enclosing section number instead of the table number.
+%
+%  - \marginnote itself has two code paths with two different horizontal
+%    origins: in horizontal mode it hangs the note off a \vadjust, whose origin
+%    is the galley and so already the text column; in vertical mode it sets a
+%    \vbox in place, whose origin inside a float is the PAGE, one left-margin
+%    further out. Which one a caption gets depends on whether the paragraph
+%    holding the float's tabular has ended -- a detail of the float's source
+%    that nobody is thinking about when writing a caption. Uncorrected it
+%    pushed 136 page-rows of ink past the paper edge; correcting for it put one
+%    set of captions right and moved the other 57.6 pt INTO the text column,
+%    over the prose; normalising the mode first moved them 239 pt. There is no
+%    value of the correction that is right for both paths.
+%
+% The direct placement has one origin and no modes: an \hbox at the float's
+% left edge, kerned right by \textwidth+\marginparsep, inside a \vbox of zero
+% height so the caption adds nothing to the float's own height. That is the
+% same \vbox to\z@ idiom marginnote uses internally, minus the origin it gets
+% wrong here. Verified on a fixture under this preamble: x = 396.0 pt, which is
+% exactly 57.6 (column left) + 324 (textwidth) + 14.4 (marginparsep).
+%
+% Outside the margin column (a standalone A4 chapter) this is exactly
+% \caption{#1}. All three editions share one chapter source and this macro, and
+% none of them branches on \pdedition: the geometry is identical across
+% editions and only the type changes.
+%
+% Not for a longtable/xltabular caption: that \caption is longtable's own,
+% must sit in its own row followed by \\, and heads a table that spans pages
+% -- a single margin block beside page one of a three-page table points at
+% the wrong content. Those keep \caption; captions_to_margin.py skips them.
+\newsavebox{\pd@capbox}
+% Place the measured caption box in the margin column, `#1' points below the
+% caption's own line. Zero height, so the float's height is unchanged; \hss
+% absorbs the box's width so nothing overfulls; \nointerlineskip keeps the
+% vertical list from putting baseline glue around a box that is not there.
+\newcommand{\pd@shipcap}[1]{%
+  \par\nointerlineskip
+  \vbox to \z@{%
+    \kern #1\relax
+    \hbox to \z@{\kern\dimexpr\textwidth+\marginparsep\relax
+      \usebox{\pd@capbox}\hss}%
+    \vss}%
+  \nointerlineskip}
+% Does this caption fit the margin at all? Measured on a twin of the block
+% (same text, a stand-in for the number, which is not yet stepped) against the
+% room the page has left BELOW whatever is already in the column. A caption
+% that does not fit is set in the TEXT COLUMN instead.
+%
+% That is the honest degradation, and it is what the specification asks for: a
+% caption too long for a 1.3 in column is a caption that was never edited, and
+% the answer is to cut it -- but until someone does, the reader must still be
+% able to read it. The alternative is what this replaces: a block left at the
+% occupancy floor and overrunning the trim, 51.9 pt past the bottom of p. 367.
+\newif\ifpd@capfits
+\newcommand{\pd@capfittest}[1]{%
+  \pd@capfitstrue
+  \setlength{\pd@blockfloor}{\z@}%
+  \ifnum\pd@lastheadpage=\thepage\relax
+    \ifdim\pd@blockfloor<\dimexpr\pd@lastheadbottom-\pagetotal\relax
+      \setlength{\pd@blockfloor}{\dimexpr\pd@lastheadbottom-\pagetotal\relax}\fi
+  \fi
+  \ifnum\pd@blockpage=\thepage\relax
+    \ifdim\pd@blockfloor<\dimexpr\pd@blockbottom-\pagetotal+6pt\relax
+      \setlength{\pd@blockfloor}{\dimexpr\pd@blockbottom-\pagetotal+6pt\relax}\fi
+  \fi
+  \pd@setgoal
+  % One spare line: the measured twin carries a stand-in number, and the real
+  % one can wrap the head differently by a line.
+  \ifdim\dimexpr\pagetotal+\pd@blockfloor+\ht#1+\dp#1
+      +\baselineskip\relax>\pd@goal
+    \pd@capfitsfalse
+  \fi}
+\newcommand{\pdmargincaption}[1]{%
+  \ifpdmargincolumn
+    \ifhmode\par\fi
+    \sbox{\pd@capbox}{\begin{minipage}[b]{\marginparwidth}\marginfont
+      {\scshape\csname\@captype name\endcsname~00.0}%
+      \par\nobreak\vspace{1pt plus 1pt}#1\par\end{minipage}}%
+    \pd@capfittest{\pd@capbox}%
+  \else
+    \pd@capfitsfalse
+  \fi
+  \ifpd@capfits
+    \refstepcounter{\@captype}%
+    % The Book prints no \listoftables or \listoffigures today, but a caption
+    % that stopped writing the line would be a silent regression the day it
+    % does. \ext@table / \ext@figure and the \l@table / \l@figure this
+    % preamble already redefines are the kernel's own names for it.
+    \addcontentsline{\csname ext@\@captype\endcsname}{\@captype}%
+      {\protect\numberline{\csname the\@captype\endcsname}{\ignorespaces #1}}%
+    % \tablename/\figurename rather than \fnum@\@captype: the caption package
+    % is loaded here and owns \caption's own label assembly, so borrowing its
+    % internals would tie this macro to a package version. The name macros are
+    % the kernel's and are what the caption package itself builds from.
+    \sbox{\pd@capbox}{\begin{minipage}[b]{\marginparwidth}\marginfont
+      {\scshape\csname\@captype name\endcsname~\csname the\@captype\endcsname}%
+      \par\nobreak\vspace{1pt plus 1pt}#1\par\end{minipage}}%
+    % Step below whatever is already in the column on this page. These caps
+    % only ever push DOWN, which is why they are safe on a number as stale as
+    % \pagetotal is inside a float: being wrong costs drift, never a block
+    % lifted off the page. Without them, 11 margin-column collisions --
+    % including a Recall \marginpar printed on top of the sealed-room caption
+    % on p. 131, which the build log does not report because a margin block
+    % overlap never warns. page_overflow.py does.
+    \setlength{\pd@blockoff}{\z@}%
+    \ifnum\pd@lastheadpage=\thepage\relax
+      \ifdim\pd@blockoff<\dimexpr\pd@lastheadbottom-\pagetotal\relax
+        \setlength{\pd@blockoff}{\dimexpr\pd@lastheadbottom-\pagetotal\relax}\fi
+    \fi
+    % 6pt, not the 2pt the other devices use. A caption is the one margin block
+    % whose neighbour may be a \marginpar (the Recall block), and a \marginpar
+    % is allocated by the page builder, which cannot see a manually placed box
+    % and is not seen by one. Stepping below the recorded foot by 2pt left a
+    % 0.3pt gap inside a 10.4pt leading on p. 131 -- two lines all but touching.
+    % The extra 4pt is the cheapest thing that buys a visible gap, and it only
+    % ever pushes down.
+    \ifnum\pd@blockpage=\thepage\relax
+      \ifdim\pd@blockoff<\dimexpr\pd@blockbottom-\pagetotal+6pt\relax
+        \setlength{\pd@blockoff}{\dimexpr\pd@blockbottom-\pagetotal+6pt\relax}\fi
+    \fi
+    \ifdim\pd@blockoff<\z@ \setlength{\pd@blockoff}{\z@}\fi
+    % The floor those caps established: nothing may be placed above it, because
+    % reducing past it re-collides the block with what it was just moved clear
+    % of -- the defect this file records as 132 collisions on one merge.
+    \setlength{\pd@blockfloor}{\pd@blockoff}%
+    \pd@setgoal
+    \ifdim\dimexpr\pagetotal+\pd@blockoff+\ht\pd@capbox+\dp\pd@capbox\relax>\pd@goal
+      \setlength{\pd@blockoff}{\dimexpr\pd@goal-\pagetotal-\ht\pd@capbox-\dp\pd@capbox\relax}%
+      \ifdim\pd@blockoff<\pd@blockfloor \setlength{\pd@blockoff}{\pd@blockfloor}\fi
+    \fi
+    \pd@shipcap{\pd@blockoff}%
+    % Three lines of slack on the recorded foot, and only here. Every other
+    % device reads \pagetotal in outer vertical mode, where \pd@settle has just
+    % run the page builder. A caption cannot: it is inside a float box, where
+    % \ifinner is true and \pd@settle is a no-op by design, so \pagetotal is
+    % whatever the builder last saw -- short by the paragraph that precedes the
+    % float. The recorded foot is then too high by that much, and the next
+    % block raises through the caption: the "RECALL" head printed on the last
+    % line of the sealed-room caption, p. 131. Slack is the only correction
+    % available without a page position, and it errs the safe way -- a block
+    % capped a little low, never one lifted off the page.
+    \pd@recordblock{\dimexpr\pagetotal+\pd@blockoff+\ht\pd@capbox+\dp\pd@capbox
+      +3\baselineskip\relax}%
+  \else
+    \caption{#1}%
+  \fi}
+
+% \pdsidenote{text} -- the Book's replacement for \footnote in a chapter
+% body. A superscript number in the running text, the note itself in the
+% margin beside the line that called it, so the reader never leaves the page
+% (references/margin-apparatus.md section 3.2). Outside the margin column it
+% is exactly \footnote, so a standalone chapter keeps its foot notes.
+%
+% The Book's footnotes are long -- the nine in the eight chapters run 90 to
+% 400 characters, which is 8 to 18 lines at \marginparwidth -- so this uses
+% \pd@placemargintop, not \pd@placemargin. That is this file's own stated
+% rule applied, not a new one: "Do not compute an upward offset from
+% \pagetotal for a block tall enough that being wrong about the page
+% matters", and a sidenote is called mid-sentence where \pagetotal is stale
+% by the lines of the current paragraph. Top-anchored it computes no raise,
+% so no stale page position can lift it off the paper; the foot clamp and
+% the occupancy caps in \pd@placemargintop still apply downward.
+%
+% \stepcounter, not \refstepcounter: a sidenote is not a \ref target, and
+% \refstepcounter would leave \@currentlabel pointing at the note number for
+% any \label that happened to follow it in the same paragraph.
+% A sidenote that does not fit the column falls back to a real \footnote,
+% the same honest degradation \pdmargincaption makes for the same reason: the
+% Book's notes run 90 to 400 characters, which is 8 to 18 lines at
+% \marginparwidth, and on a page whose column is already carrying a caption
+% there is not always room. Left in the margin anyway they printed past the
+% trim -- 36.7 pt below the foot of p. 416, where the log says nothing. A note
+% at the foot of the page is a worse note than one in the margin; a note off
+% the paper is not a note at all.
+\newsavebox{\pd@snbox}
+\newcommand{\pdsidenote}[1]{%
+  \ifpdmargincolumn
+    \sbox{\pd@snbox}{\begin{minipage}[b]{\marginparwidth}\marginfont
+      \textsuperscript{\thefootnote}\,#1\par\end{minipage}}%
+    \pd@capfittest{\pd@snbox}%
+  \else
+    \pd@capfitsfalse
+  \fi
+  \ifpd@capfits
+    \stepcounter{footnote}%
+    \textsuperscript{\thefootnote}%
+    % Re-set with the stepped number; the measurement above used the previous
+    % one, which differs in width by at most a digit.
+    \sbox{\pd@snbox}{\begin{minipage}[b]{\marginparwidth}\marginfont
+      \textsuperscript{\thefootnote}\,#1\par\end{minipage}}%
+    \pd@placemargintop{\pd@snbox}%
+  \else
+    \footnote{#1}%
   \fi}
 
 % ---------------------------------------------------------------------------
@@ -569,6 +863,29 @@
     % page top, and the whole block is on the paper below its anchor. A
     % recitation ends a section, so the short page costs the argument nothing.
     \ifdim\dimexpr\pagetotal+2\baselineskip\relax>\pagegoal
+      \newpage\penalty\@M\vskip\z@\fi
+    % And break the page when what is ALREADY in the column leaves no room for
+    % the block below it. The raise is capped never to rise above the occupancy
+    % floor -- whatever a head or a margin caption on this page has claimed --
+    % and once the Book's captions moved into the margin that floor became
+    % something a nine-line Recall block can no longer fit under: nine lines of
+    % retrieval prompts printed 205.6 pt below the paper on p. 203, past the
+    % trim, where no reader can reach them and the log says nothing. The
+    % remedy is the one the guard above already uses and for the same stated
+    % reason -- a recitation ends a section, so the short page costs the
+    % argument nothing. After the break the floor is on the previous page and
+    % no longer applies, so the block starts clear at the top of the new one.
+    \setlength{\pd@blockfloor}{\z@}%
+    \ifnum\pd@lastheadpage=\thepage\relax
+      \ifdim\pd@blockfloor<\dimexpr\pd@lastheadbottom-\pagetotal\relax
+        \setlength{\pd@blockfloor}{\dimexpr\pd@lastheadbottom-\pagetotal\relax}\fi
+    \fi
+    \ifnum\pd@blockpage=\thepage\relax
+      \ifdim\pd@blockfloor<\dimexpr\pd@blockbottom-\pagetotal\relax
+        \setlength{\pd@blockfloor}{\dimexpr\pd@blockbottom-\pagetotal\relax}\fi
+    \fi
+    \pd@setgoal
+    \ifdim\dimexpr\pagetotal+\pd@blockfloor+\ht\pd@recallbox+\dp\pd@recallbox\relax>\pd@goal
       \newpage\penalty\@M\vskip\z@\fi
     \pd@placemargin{\pd@recallbox}%
     \global\let\pd@pendingpointer\@empty
