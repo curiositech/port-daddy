@@ -297,3 +297,19 @@ and no prior unresolved ambition, proof gate or roadmap row is marked complete.
   preserve valuable alternatives; surface necessary owner decisions before
   materializing a separate, smaller repo. No deletion or provider run is
   authorized by this checkpoint.
+
+Follow-up evidence: adversarial source review found and then approved fixes for
+installed-bin symlink entry, unsafe output creation (removed from the portable
+package), partial traversal, overlapping filters, registry numeric fidelity,
+Clearance partial-result reporting and BOM byte preservation. Final verdict:
+SHIP for the bounded source-inventory slice only. Inventory/Clearance now pass
+32 regressions; the existing declaration audit adds 50 passing cases.
+
+Publication is pending, not delivered. The current
+[GitHub App actuator skill](../skills/github-app-actuator/SKILL.md) disallows the
+older task-local key-reading helper; the inspected Relay publisher still
+requires an operator bearer and daemon capability. No protected non-human
+publication grant/tool is exposed in this task. A read-only unauthenticated
+GET returned 404, which does not establish the state of its POST route.
+Do not solve this admission gap by reading App keys, using personal credentials
+or restarting the runtime.

@@ -156,8 +156,8 @@ export function scanArtifacts(repoRoot, corpus = [{ path: '.', kind: 'repository
 /** Preserve supplied native registry fields; no winner selection or authority promotion. */
 export function readRegistryExport(repoRoot, path, adapter, maxBytes = DEFAULT_LIMITS.fileBytes, onReadBytes) {
   const bytes = readSource(repoRoot, path, maxBytes, onReadBytes)
-  const rawExport = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
-  const value = JSON.parse(rawExport, (_key, field) => {
+  const rawExport = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes)
+  const value = JSON.parse(rawExport.replace(/^\uFEFF/u, ''), (_key, field) => {
     if (typeof field === 'number' && (!Number.isFinite(field) || (Number.isInteger(field) && !Number.isSafeInteger(field)))) throw new Error('unsafe registry number; use string identities and revisions')
     return field
   })
