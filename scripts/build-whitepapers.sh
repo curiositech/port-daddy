@@ -24,6 +24,24 @@
 #
 # Requires: latexmk + pdflatex, plus xelatex for the Book (TeX Live). No bibtex/biber — all papers embed
 # \begin{thebibliography}.
+#
+# Engine, and why this script never asks for tectonic. tectonic is the figure
+# toolchain's reference engine (skills/harbor-chartwork/scripts/compile_fragment.sh)
+# and CI installs it for the per-figure gates, but the published PDFs have always
+# come off a plain TeX Live: latexmk driving pdflatex, and xelatex for the Book.
+# So this script needs no tectonic fallback — it IS the local path. What it does
+# need is a TeX Live complete enough to satisfy the Book, and fontconfig able to
+# see TeX Gyre Pagella / TeX Gyre Heros / Source Code Pro, which the Book's
+# preamble binds BY NAME through fontspec. A stock apt TeX Live installs those
+# faces under texmf-dist without registering them with fontconfig, and then every
+# edition dies on "The font ... cannot be found". The one-command setup (apt list
+# + the /etc/fonts/conf.d drop-in) is in the "Local TeX Live" section of
+# skills/harbor-chartwork/SKILL.md; run it once per container.
+#
+# Honest limit, the same one the figure toolchain has: a missing .sty is a hard
+# error here. Nothing in this path downloads packages. And TeX Live versions do
+# not agree on page breaks — see the toolchain note below — so a local page count
+# is evidence about THIS machine, not about the published artifact.
 
 set -uo pipefail
 
@@ -263,6 +281,9 @@ build_one() {
       # cover the rare long-TOC case that still reports changed labels.
       if ! command -v "$engine" >/dev/null 2>&1; then
         echo "error: whitepaper build requires latexmk or $engine" >&2
+        echo "       install a local TeX Live: see the 'Local TeX Live' section of" >&2
+        echo "       skills/harbor-chartwork/SKILL.md for the apt list and the" >&2
+        echo "       fontconfig drop-in the Book's by-name font binding needs." >&2
         exit 127
       fi
       local pass
