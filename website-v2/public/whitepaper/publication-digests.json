@@ -13,8 +13,8 @@
     },
     "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf": {
       "pages": 555,
-      "bytes": 9758410,
-      "sha256": "af886437a90f831f2003def815d44fd6445a9e2f073077f0360d68b4436d9e6e"
+      "bytes": 9758409,
+      "sha256": "2c1646c623a3656e9e75bf3057cc90a235356c1b26bf9aae20a874e743216034"
     },
     "website-v2/public/whitepaper/federated-harbor-whitepaper.pdf": {
       "pages": 45,
@@ -28,8 +28,8 @@
     },
     "website-v2/public/whitepaper/legible-swarm-whitepaper.pdf": {
       "pages": 67,
-      "bytes": 956569,
-      "sha256": "833f8cbf0af19a8c52cf27b43f5d1fabd15bbe7c474b0b6e26d0d7d8419413e9"
+      "bytes": 959695,
+      "sha256": "bc5e8c9a266a6e8cda2403c79b36a05d98961f53fd493b743f95287b31a6a5b5"
     },
     "website-v2/public/whitepaper/sealed-harbor-whitepaper.pdf": {
       "pages": 21,
