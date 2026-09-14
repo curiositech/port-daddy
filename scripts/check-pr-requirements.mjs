@@ -357,8 +357,19 @@ const RENDER_EVIDENCE_PATTERNS = [
   // A markdown image with a non-empty target: `![contact sheet](...)`.
   // `[^)\s]` rather than `\S` so `![sheet]()` — an image of nothing — is not one.
   /!\[[^\]]*\]\(\s*[^)\s]/,
-  // A raw HTML media embed.
-  /<(?:img|video|picture)[\s>]/i,
+  // A raw HTML media embed that actually carries a source. `<img>` or
+  // `<picture>` with nothing in it shows nothing, and someone typing `<img>` in
+  // prose to talk ABOUT embedding a render is the realistic way that arrives —
+  // the same empty gesture `![sheet]()` is, and rejected for the same reason.
+  // `picture` is not in the list because it has no source attribute of its own:
+  // a `<picture>` block is caught by the `<source srcset>` or `<img src>` inside
+  // it, which is where its image actually comes from.
+  //
+  // NOTE: rule (3) uses `bodyHasMedia` above, not this list, and the two are
+  // deliberately different — that one must split image from motion, this one
+  // asks the single question "is there something to look at". Changing one does
+  // not change the other.
+  /<(?:img|video|source)\b[^>]*?\bsrc(?:set)?\s*=\s*["']?[^"'\s>]/i,
   // A link whose target is an image or video file.
   new RegExp(`https?://\\S+?\\.(?:${EVIDENCE_EXT})(?=[)"'\\s?#]|$)`, 'i'),
   // A dragged-in GitHub attachment. Extension-less, but it IS an uploaded asset.

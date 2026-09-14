@@ -215,6 +215,56 @@ describe('check-pr-requirements guard', () => {
       expect(stdout).toMatch(/meets the contract/);
     });
 
+    // An accepted form that the error message and CONTRIBUTING both advertise,
+    // and that nothing here exercised until QA asked about it. The claim was
+    // false — the live path has matched HTML media since it was written — but
+    // the coverage gap was real, and an accepted form whose correctness lives
+    // only in a report is the defect this whole branch exists to stop.
+    test.each([
+      ['an <img> with a source', '<img src="https://x.test/fig.png" width="600">'],
+      ['an upper-case <IMG>', '<IMG SRC="https://x.test/fig.png">'],
+      ['an <img> split across lines', '<img\n  src="https://x.test/fig.png"\n  alt="render at 1.0x">'],
+      ['a <video>', '<video src="https://x.test/tour.mp4" controls></video>'],
+      ['a <picture> with a source', '<picture><source srcset="https://x.test/a.avif"><img src="https://x.test/a.png"></picture>'],
+      ['a single-quoted src', "<img src='https://x.test/fig.png'>"],
+      ['an unquoted src', '<img src=https://x.test/fig.png>'],
+    ])('%s in Visual Proof satisfies the render rule', (_label, embed) => {
+      const body = [
+        '## Summary',
+        'A genuine summary with plenty of words to satisfy the floor cleanly here today.',
+        '## Test Plan',
+        'Ran the suite and exercised several edge cases to be sure it behaves well here.',
+        '## Visual Proof',
+        embed,
+      ].join('\n');
+      const { code, stdout } = run('--body', body, '--changed', 'whitepaper/figures/f.tex');
+      expect(code).toBe(0);
+      expect(stdout).toMatch(/meets the contract/);
+    });
+
+    // ...and the same tags with nothing in them are an empty gesture, which is
+    // the one thing rule 3b must never accept. `![sheet]()` was already guarded
+    // for exactly this reason; these are its HTML twins. A reader typing `<img>`
+    // in prose to talk ABOUT embedding is the realistic way this arrives.
+    test.each([
+      ['a bare <img> with no source', 'I would embed the render here: <img>'],
+      ['an <img> with an empty src', '<img src="">'],
+      ['a bare <picture> on its own', '<picture>'],
+      ['a bare <video> with no source', '<video></video>'],
+    ])('%s is NOT a render', (_label, embed) => {
+      const body = [
+        '## Summary',
+        'A genuine summary with plenty of words to satisfy the floor cleanly here today.',
+        '## Test Plan',
+        'Ran the suite and exercised several edge cases to be sure it behaves well here.',
+        '## Visual Proof',
+        embed,
+      ].join('\n');
+      const { code, stderr } = run('--body', body, '--changed', 'whitepaper/figures/f.tex');
+      expect(code).toBe(1);
+      expect(stderr).toMatch(/carries no render a reviewer can open/);
+    });
+
     test('a CI-artifact link to published renders PASSES', () => {
       const body = [
         '## Summary',
