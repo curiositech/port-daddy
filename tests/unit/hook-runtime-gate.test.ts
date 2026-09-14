@@ -142,7 +142,10 @@ describe('automatic hook runtime admission', () => {
       const source = readFileSync(join(process.cwd(), path), 'utf8');
       expect(source).toContain(hookRuntimePreamble());
       writeFileSync(join(canonical, 'hooks.disabled'), 'off');
-      const result = run(bindFixtureRoots(source));
+      // This row proves the embedded gate itself is inert. Do not inherit an
+      // optional system git-lfs binary; dedicated tests below explicitly add
+      // a fake git-lfs and prove that independent behavior survives Off.
+      const result = run(bindFixtureRoots(source), [], '/bin/sh', { PATH: fakeBin });
       expect(result.status).toBe(0);
       expect(result.stdout).toBe('');
       expect(result.stderr).toBe('');
