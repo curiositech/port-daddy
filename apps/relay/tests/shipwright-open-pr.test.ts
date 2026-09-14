@@ -107,6 +107,7 @@ const baseUser: UserRow = {
  */
 function makeDb(opts: {
   history?: ShipwrightMessageRow[];
+  proposalOrigin?: 'assistant_conversation' | 'deterministic_onboarding' | null;
   sealed?: { enc: string; iv: string };
   allowWrites?: boolean;
 } = {}) {
@@ -138,7 +139,10 @@ function makeDb(opts: {
           const emitted = (opts.history ?? []).some(
             (m) => m.role === 'assistant' && m.content.includes('```yaml\n' + yaml + '\n```'),
           );
-          return (emitted ? { found: 1 } : null) as T | null;
+          const origin = opts.proposalOrigin === undefined
+            ? (emitted ? 'assistant_conversation' : null)
+            : opts.proposalOrigin;
+          return (origin ? { origin } : null) as T | null;
         }
         return null;
       },
@@ -170,6 +174,7 @@ function makeKV(seed: Record<string, string> = {}): KVNamespace {
 
 interface EnvOpts {
   history?: ShipwrightMessageRow[];
+  proposalOrigin?: 'assistant_conversation' | 'deterministic_onboarding' | null;
   /** Pre-seed the repo→installation KV binding (skips the App-JWT lookup). */
   repoBoundTo?: number;
   noGithubApp?: boolean;
@@ -190,7 +195,7 @@ async function makeSessionEnv(opts: EnvOpts = {}): Promise<Env> {
     seed['github_repo_inst_octo_widgets'] = String(opts.repoBoundTo);
   }
   return {
-    DB: makeDb({ history: opts.history, sealed, allowWrites: opts.allowWrites }),
+    DB: makeDb({ history: opts.history, proposalOrigin: opts.proposalOrigin, sealed, allowWrites: opts.allowWrites }),
     KV: makeKV(seed),
     USER_TOKEN_WRAPPING_KEY: WRAP_KEY,
     PUBLIC_BASE_URL: BASE,
@@ -518,6 +523,26 @@ describe('open-pr — happy path (stubbed GitHub, fleet-control idiom)', () => {
     expect(prPayload.body).toContain('re-validated');
     expect(prPayload.body).toContain('review and merge');
     // Zero D1 writes: makeDb throws on ANY run() — reaching 200 proves none.
+  });
+
+  it('labels deterministic onboarding provenance without claiming a conversation emitted it', async () => {
+    const { seen } = stubGithub([{ id: INSTALLATION_ID }]);
+    const env = await makeSessionEnv({
+      proposalOrigin: 'deterministic_onboarding',
+      repoBoundTo: INSTALLATION_ID,
+    });
+    const res = await handleShipwrightOpenPr(
+      jsonReq({ yaml: GOOD_YAML, installationId: INSTALLATION_ID, repo: 'octo/widgets' }),
+      env,
+    );
+    expect(res.status).toBe(200);
+    const pr = seen.find((call) => call.url.endsWith('/pulls') && call.method === 'POST');
+    const body = (JSON.parse(pr!.body!) as { body: string }).body;
+    expect(body).toContain('generated deterministically');
+    expect(body).toContain('saved **Port Daddy Shipwright onboarding answers**');
+    expect(body).toContain('without a model call');
+    expect(body).not.toContain('drafted in a **Port Daddy Shipwright** conversation');
+    expect(body).not.toContain('designed with GitHub user');
   });
 
   it('reports an unconfirmed repository-token revocation after the PR opens', async () => {

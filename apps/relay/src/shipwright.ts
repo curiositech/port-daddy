@@ -41,9 +41,9 @@
  *   2. the server RE-VALIDATES the submitted YAML with `validateFleetYaml` —
  *      a client claiming "it validated" is a claim, not evidence, and an
  *      invalid roster 400s here no matter what the page showed (fail-closed);
- *   3. provenance: the YAML must be a fenced block the Shipwright actually
- *      emitted in THIS user's own stored conversation — the PR body then
- *      carries that provenance honestly;
+ *   3. provenance: the YAML must be a stored proposal for THIS user's exact
+ *      repository thread, with an explicit assistant-conversation or
+ *      deterministic-onboarding origin carried honestly into the PR body;
  *   4. tenancy: the signed-in user's GitHub token must list the exact repo
  *      under the exact installation, and a force-refreshed App lookup must
  *      agree. Publication additionally requires write, maintain, or admin
@@ -76,7 +76,7 @@ import {
   clearScopedShipwrightMessages,
   upsertShipwrightRepoMemory,
   insertShipwrightProposal,
-  shipwrightProposalExists,
+  getShipwrightProposalOrigin,
   clearShipwrightRepo,
   listShipwrightRepoMemory,
   latestShipwrightProposal,
@@ -403,6 +403,7 @@ export async function handleShipwrightContext(request: Request, env: Env): Promi
     memory: parsed,
     latestProposal: proposal ? {
       createdAt: proposal.created_at,
+      origin: proposal.origin,
       yaml: proposal.yaml,
       verdict: validateFleetYaml(proposal.yaml),
     } : null,
@@ -439,7 +440,9 @@ export async function handleShipwrightOnboarding(request: Request, env: Env): Pr
     bodyJson: JSON.stringify(profile),
     now,
   });
-  await insertShipwrightProposal(env.DB, { id: `swp_${randomHex(24)}`, ...repoScope, yaml, now });
+  await insertShipwrightProposal(env.DB, {
+    id: `swp_${randomHex(24)}`, ...repoScope, yaml, origin: 'deterministic_onboarding', now,
+  });
   return json(200, { code: 'SHIPWRIGHT_ONBOARDING_SAVED', error: null, profile, draftProposal: { yaml, verdict: validateFleetYaml(yaml) } });
 }
 
@@ -644,6 +647,7 @@ function scopedShipwrightAgent(thread: ShipwrightThreadRow): ChatAgent {
             ...scope,
             userId: m.userId,
             yaml,
+            origin: 'assistant_conversation',
             now: m.now,
           });
         }
@@ -760,8 +764,9 @@ async function readOpenPrBody(request: Request, form: boolean): Promise<OpenPrFi
  * (ADR-0109 / D11). What replaces asking is checking:
  *   - the server re-runs `validateFleetYaml` on the submitted bytes — a client
  *     that lies about validation gets a 400, unconditionally;
- *   - the YAML must be a block the Shipwright actually emitted in this user's
- *     own stored conversation (provenance — and the PR body says so);
+ *   - the YAML must be a stored proposal in this user's exact repository
+ *     thread; its typed origin makes the PR distinguish a model conversation
+ *     from deterministic onboarding output;
  *   - GitHub must freshly confirm both the App's repo→installation binding and
  *     the signed-in user's exact repository grant before publication.
  *
@@ -834,19 +839,18 @@ export async function handleShipwrightOpenPr(request: Request, env: Env): Promis
     return fail(400, 'INVALID_YAML', verdict.message || 'the roster does not validate');
   }
 
-  // ── Gate 2: provenance. The YAML must be a fenced block the Shipwright
-  // actually emitted in THIS user's own stored conversation — the PR body's
-  // provenance line is then true, and this route can never be used as a
-  // generic write-anything-to-github primitive.
-  const fromChat = await shipwrightProposalExists(env.DB, {
+  // ── Gate 2: typed provenance. The YAML must be a stored proposal for this
+  // exact thread. Its origin controls the PR's wording, so deterministic
+  // onboarding output is never misrepresented as a model conversation.
+  const proposalOrigin = await getShipwrightProposalOrigin(env.DB, {
     threadId: scoped.thread.id,
     userId: session.user.id,
     installationId,
     repoFullName: repoFull,
     yaml,
   });
-  if (!fromChat) {
-    return fail(400, 'NOT_FROM_CHAT', 'that roster is not one the Shipwright emitted in your conversation');
+  if (!proposalOrigin) {
+    return fail(400, 'NOT_FROM_CHAT', 'that roster is not a stored Shipwright proposal for this repository thread');
   }
 
   // ── Gate 3: repeat exact repository authorization immediately before the
@@ -874,12 +878,18 @@ export async function handleShipwrightOpenPr(request: Request, env: Env): Promis
     const branchName = generateShipwrightBranch();
     const when = new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
     const shipNames = verdict.ships.map((sh) => `\`${sh.name}\``).join(', ');
+    const provenance = proposalOrigin === 'deterministic_onboarding'
+      ? ['Fleet roster generated deterministically from the operator’s saved **Port Daddy Shipwright onboarding answers**.', '',
+        `**Provenance:** generated without a model call for GitHub user \`@${session.user.login}\``,
+        `from their repository-scoped onboarding profile and opened at their click on ${when}.`]
+      : ['Fleet roster drafted in a **Port Daddy Shipwright** conversation.', '',
+        `**Provenance:** designed with GitHub user \`@${session.user.login}\` in their own`,
+        `repository-scoped Shipwright chat and opened at their click on ${when}.`];
     const prBody = [
-      'Fleet roster drafted in a **Port Daddy Shipwright** conversation.',
+      ...provenance,
       '',
-      `**Provenance:** designed with GitHub user \`@${session.user.login}\` in their own`,
-      `Shipwright chat and opened at their click on ${when}. The YAML was re-validated`,
-      `server-side before this PR existed: ${verdict.ships.length} ship(s) parse clean (${shipNames}).`,
+      `The YAML was re-validated server-side before this PR existed:`,
+      `${verdict.ships.length} ship(s) parse clean (${shipNames}).`,
       '',
       'Zero-trust: this PR adds a fresh branch only. The fleet reads config from',
       `\`${baseBranch}\`, so nothing takes effect until you review and merge. The`,
