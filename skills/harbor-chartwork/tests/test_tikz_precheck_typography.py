@@ -1,4 +1,4 @@
-"""Unit tests for tikz_precheck.py's P15-P19 rules -- the five that make the
+"""Unit tests for tikz_precheck.py's P18-P23 rules -- the five that make the
 typographic law in figures/pd-figure-language.tex binding rather than advisory.
 
 Same fixture-file-per-case pattern as test_tikz_precheck.py and
@@ -40,9 +40,9 @@ class LawTestCase(unittest.TestCase):
 
 
 # --------------------------------------------------------------------------- #
-# P15 -- a node that carries a pd style AND its own font=
+# P18 -- a node that carries a pd style AND its own font=
 # --------------------------------------------------------------------------- #
-class TestP15StyleFontOverride(LawTestCase):
+class TestP18StyleFontOverride(LawTestCase):
     def test_pd_style_plus_local_font_fails(self):
         report = self.run_on(
             "\\begin{tikzpicture}[pd figure]\n"
@@ -51,7 +51,7 @@ class TestP15StyleFontOverride(LawTestCase):
         )
         findings = self.findings_for(report, "style-font")
         self.assertEqual(len(findings), 1)
-        self.assertEqual(findings[0]["id"], "P15")
+        self.assertEqual(findings[0]["id"], "P18")
         self.assertEqual(findings[0]["severity"], "fail")
         self.assertIn("pd direct label", findings[0]["message"])
         self.assertEqual(report["summary"]["result"], "fail")
@@ -74,10 +74,10 @@ class TestP15StyleFontOverride(LawTestCase):
         )
         findings = self.findings_for(report, "style-font")
         self.assertEqual(len(findings), 1)
-        self.assertEqual(findings[0]["id"], "P15")
+        self.assertEqual(findings[0]["id"], "P18")
 
     def test_local_font_without_a_pd_style_is_not_this_rule(self):
-        """P16 owns that case; P15 is specifically the override."""
+        """P19 owns that case; P18 is specifically the override."""
         report = self.run_on(
             "\\begin{tikzpicture}\n"
             "\\node[anchor=west,font=\\bfseries] at (0,0) {label};\n"
@@ -99,9 +99,9 @@ class TestP15StyleFontOverride(LawTestCase):
 
 
 # --------------------------------------------------------------------------- #
-# P16 -- a bare size command used as a font, anywhere in a fragment
+# P19 -- a bare size command used as a font, anywhere in a fragment
 # --------------------------------------------------------------------------- #
-class TestP16NodeFontSize(LawTestCase):
+class TestP19NodeFontSize(LawTestCase):
     def test_footnotesize_as_a_node_font_fails(self):
         report = self.run_on(
             "\\begin{tikzpicture}\n"
@@ -110,7 +110,7 @@ class TestP16NodeFontSize(LawTestCase):
         )
         findings = self.findings_for(report, "node-size")
         self.assertEqual(len(findings), 1)
-        self.assertEqual(findings[0]["id"], "P16")
+        self.assertEqual(findings[0]["id"], "P19")
         self.assertEqual(findings[0]["severity"], "fail")
         self.assertIn("footnotesize", findings[0]["message"])
 
@@ -135,7 +135,7 @@ class TestP16NodeFontSize(LawTestCase):
         )
         findings = self.findings_for(report, "node-size")
         self.assertEqual(len(findings), 2)
-        self.assertTrue(all(f["id"] == "P16" for f in findings))
+        self.assertTrue(all(f["id"] == "P19" for f in findings))
 
     def test_pd_axis_key_passes(self):
         report = self.run_on(
@@ -156,7 +156,7 @@ class TestP16NodeFontSize(LawTestCase):
         self.assertIn("fontsize", findings[0]["message"])
 
     def test_a_weight_only_font_is_not_a_size(self):
-        """P16 is the SIZE rule. font=\\bfseries alone is P15's business when a
+        """P19 is the SIZE rule. font=\\bfseries alone is P18's business when a
         pd style is present and nobody's otherwise."""
         report = self.run_on(
             "\\begin{tikzpicture}\n"
@@ -176,7 +176,7 @@ class TestP16NodeFontSize(LawTestCase):
 
     def test_research_corpus_is_out_of_scope(self):
         """docs/harbor-research has no pd-figure-language.tex, so there is no
-        single place its sizes could move to; P16 must not fire there."""
+        single place its sizes could move to; P19 must not fire there."""
         report = self.run_on(
             "\\begin{tikzpicture}\n"
             "\\node[font=\\footnotesize] at (0,0) {A};\n"
@@ -187,9 +187,9 @@ class TestP16NodeFontSize(LawTestCase):
 
 
 # --------------------------------------------------------------------------- #
-# P17 -- a house ink painted without going through a pd style
+# P20 -- a house ink painted without going through a pd style
 # --------------------------------------------------------------------------- #
-class TestP17HardInk(LawTestCase):
+class TestP20HardInk(LawTestCase):
     def test_bare_fill_of_a_house_ink_fails(self):
         report = self.run_on(
             "\\begin{tikzpicture}\n"
@@ -198,7 +198,7 @@ class TestP17HardInk(LawTestCase):
         )
         findings = self.findings_for(report, "hard-ink")
         self.assertEqual(len(findings), 1)
-        self.assertEqual(findings[0]["id"], "P17")
+        self.assertEqual(findings[0]["id"], "P20")
         self.assertEqual(findings[0]["severity"], "fail")
         self.assertIn("pd neutral fill", findings[0]["message"])
 
@@ -297,9 +297,9 @@ class TestP17HardInk(LawTestCase):
 
 
 # --------------------------------------------------------------------------- #
-# P18 -- a type family named in a fragment
+# P21 -- a type family named in a fragment
 # --------------------------------------------------------------------------- #
-class TestP18NodeFontFamily(LawTestCase):
+class TestP21NodeFontFamily(LawTestCase):
     def test_sffamily_fails(self):
         """The reported defect: a figure asking for sans against a Computer
         Modern page gets Latin Modern Sans and reads as a foreign object on
@@ -311,7 +311,7 @@ class TestP18NodeFontFamily(LawTestCase):
         )
         findings = self.findings_for(report, "node-family")
         self.assertEqual(len(findings), 1)
-        self.assertEqual(findings[0]["id"], "P18")
+        self.assertEqual(findings[0]["id"], "P21")
         self.assertEqual(findings[0]["severity"], "fail")
         self.assertIn("sffamily", findings[0]["message"])
         self.assertIn("pd mono label", findings[0]["message"])
@@ -396,9 +396,9 @@ class TestP18NodeFontFamily(LawTestCase):
 
 
 # --------------------------------------------------------------------------- #
-# P19 -- the one licensed exception, used only where it is licensed
+# P22 -- the one licensed exception, used only where it is licensed
 # --------------------------------------------------------------------------- #
-class TestP19Figmath(LawTestCase):
+class TestP22Figmath(LawTestCase):
     def test_figmath_on_plain_math_fails(self):
         report = self.run_on(
             "\\begin{tikzpicture}[pd figure]\n"
@@ -407,7 +407,7 @@ class TestP19Figmath(LawTestCase):
         )
         findings = self.findings_for(report, "figmath")
         self.assertEqual(len(findings), 1)
-        self.assertEqual(findings[0]["id"], "P19")
+        self.assertEqual(findings[0]["id"], "P22")
         self.assertEqual(findings[0]["severity"], "fail")
         self.assertIn("no sub- or superscript", findings[0]["message"])
 
@@ -455,21 +455,134 @@ class TestRuleIdsAreReported(LawTestCase):
             "\\end{tikzpicture}\n"
         )
         by_id = report["summary"]["by_id"]
-        self.assertEqual(by_id["P15"], 1)
-        self.assertEqual(by_id["P16"], 1)
-        self.assertEqual(by_id["P17"], 1)
+        self.assertEqual(by_id["P18"], 1)
+        self.assertEqual(by_id["P19"], 1)
+        self.assertEqual(by_id["P20"], 1)
 
     def test_summary_counts_p18(self):
         report = self.run_on(
             "\\begin{tikzpicture}\\node[font=\\sffamily] at (0,0) {x};\\end{tikzpicture}\n"
         )
-        self.assertEqual(report["summary"]["by_id"]["P18"], 1)
+        self.assertEqual(report["summary"]["by_id"]["P21"], 1)
 
     def test_markdown_report_lists_the_new_ids(self):
         report = self.run_on("\\begin{tikzpicture}\\end{tikzpicture}\n")
         md = tikz_precheck.render_markdown([report])
-        for rid in ("P15", "P16", "P17", "P18", "P19"):
+        for rid in ("P18", "P19", "P20", "P21", "P22", "P23"):
             self.assertIn(rid + "=", md)
+
+
+class TestP23Dotted(LawTestCase):
+    """P23: a dash whose on-length is \\pgflinewidth rather than a length."""
+
+    def test_absolute_dash_pattern_passes(self):
+        report = self.run_on(
+            "\\begin{tikzpicture}\n"
+            "\\draw[pd guide] (0,0)--(1,0);\n"
+            "\\draw[draw=hhgray,line width=.7pt,dash pattern=on 1.2pt off 2pt] (0,1)--(1,1);\n"
+            "\\end{tikzpicture}\n"
+        )
+        self.assertEqual(report["summary"]["by_id"]["P23"], 0)
+
+    def test_dashed_family_is_not_flagged(self):
+        """`dashed` and its relatives are absolute (on 3pt off 3pt); only the
+        dotted family reads \\pgflinewidth, and only it can drift."""
+        report = self.run_on(
+            "\\begin{tikzpicture}\n"
+            "\\draw[pd boundary,dashed] (0,0)--(1,0);\n"
+            "\\draw[pd boundary,densely dashed] (0,1)--(1,1);\n"
+            "\\draw[pd boundary,loosely dashed] (0,2)--(1,2);\n"
+            "\\end{tikzpicture}\n"
+        )
+        self.assertEqual(report["summary"]["by_id"]["P23"], 0)
+
+    def test_densely_dotted_fails(self):
+        report = self.run_on(
+            "\\begin{tikzpicture}\n"
+            "\\draw[draw=hhgray,line width=.45pt,densely dotted] (0,0)--(1,0);\n"
+            "\\end{tikzpicture}\n"
+        )
+        self.assertEqual(report["summary"]["by_id"]["P23"], 1)
+
+    def test_every_member_of_the_dotted_family_fails(self):
+        report = self.run_on(
+            "\\begin{tikzpicture}\n"
+            "\\draw[pd guide,dotted] (0,0)--(1,0);\n"
+            "\\draw[pd guide,densely dotted] (0,1)--(1,1);\n"
+            "\\draw[pd guide,loosely dotted] (0,2)--(1,2);\n"
+            "\\end{tikzpicture}\n"
+        )
+        self.assertEqual(report["summary"]["by_id"]["P23"], 3)
+
+    def test_a_dotted_key_in_a_comment_is_ignored(self):
+        report = self.run_on(
+            "\\begin{tikzpicture}\n"
+            "% this used to be densely dotted, and that is why it broke\n"
+            "\\draw[pd guide] (0,0)--(1,0);\n"
+            "\\end{tikzpicture}\n"
+        )
+        self.assertEqual(report["summary"]["by_id"]["P23"], 0)
+
+    def test_p23_applies_to_the_style_definition_file_too(self):
+        """Every other law rule exempts pd-figure-language.tex, because those
+        rules police fragments for opting OUT of the one place the law lives.
+        P23 is about a defect that was IN that place, so it applies there."""
+        report = self.run_on(
+            "\\tikzset{pd guide/.style={draw=hhgray!62,line width=.45pt,densely dotted}}\n",
+            stem="pd-figure-language",
+        )
+        self.assertEqual(report["summary"]["by_id"]["P23"], 1)
+
+
+class TestRuleIdRegistry(unittest.TestCase):
+    """The numbering itself, checked.
+
+    P15-P17 exist twice in this repository right now: as this file's rules
+    (before they were renumbered to P18-P20) and as caption-promise,
+    identifier-consistency and caption-vocabulary on
+    claude/figures-that-were-missing. Two agents each took "the next three free
+    numbers" thirty-three minutes apart, and nothing noticed. This test is what
+    notices: claiming a number means adding a line to RULE_IDS or to
+    RESERVED_RULE_IDS, and a collision or a gap fails here rather than in a
+    reviewer's head.
+    """
+
+    def test_implemented_and_reserved_ids_are_disjoint(self):
+        clash = set(tikz_precheck.RULE_IDS) & set(tikz_precheck.RESERVED_RULE_IDS)
+        self.assertEqual(
+            clash, set(),
+            f"these rule ids are both implemented here and reserved for another branch: "
+            f"{sorted(clash)}. One of the two has to move.",
+        )
+
+    def test_the_numbering_has_no_gaps(self):
+        ids = sorted(
+            set(tikz_precheck.RULE_IDS) | set(tikz_precheck.RESERVED_RULE_IDS),
+            key=lambda s: int(s[1:]),
+        )
+        numbers = [int(s[1:]) for s in ids]
+        expected = list(range(numbers[0], numbers[0] + len(numbers)))
+        self.assertEqual(
+            numbers, expected,
+            f"the rule numbering runs {ids} -- a gap means a number was skipped or "
+            f"silently freed, which is how the next collision starts. Reserve it in "
+            f"RESERVED_RULE_IDS with the branch that owns it, or renumber.",
+        )
+
+    def test_every_implemented_id_says_what_it_checks(self):
+        """A number in RULE_IDS with no line in the module docstring is a rule
+        nobody can look up, which is how two of them ended up meaning two
+        things."""
+        doc = tikz_precheck.__doc__ or ""
+        missing = [r for r in tikz_precheck.RULE_IDS if f"- {r} " not in doc]
+        self.assertEqual(missing, [], f"not documented in the module docstring: {missing}")
+
+    def test_every_reserved_id_names_its_owner(self):
+        for rid, owner in tikz_precheck.RESERVED_RULE_IDS.items():
+            self.assertIn(
+                "claude/", owner,
+                f"{rid} is reserved but does not name the branch that owns it: {owner!r}",
+            )
 
 
 if __name__ == "__main__":

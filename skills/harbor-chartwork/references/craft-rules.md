@@ -125,18 +125,28 @@ Further rules the prechecker applies to the source:
 - Multi-word node text needs `text width=` and `align=`.
 - `\tiny` is an error; `\scriptsize` outside `pd axis label` is an error.
 - A `\fill` with no matching `\draw` (a region without an edge) is an error.
-- A node carrying a `pd *` style **and** its own `font=` is an error (P15): the
+- A node carrying a `pd *` style **and** its own `font=` is an error (P18): the
   style already fixes the font, and a local one silently replaces the whole role.
-- Any `font=` naming a size command is an error (P16), including inside a
+- Any `font=` naming a size command is an error (P19), including inside a
   pgfplots `tick label style={}` and inside a local `.style={}` definition.
 - Painting a house ink through a bare `fill=`/`draw=`/colour token on a path with
-  no `pd *` style in the same option list is an error (P17) — the `pd ... fill` and
+  no `pd *` style in the same option list is an error (P20) — the `pd ... fill` and
   `pd ... rule` styles say the same thing and are what the Book's edition
   overrides (swiss, technical) restyle. `hhpaper` is exempt: it is the page
   ground, not an ink (a knockout backing, a halo ring).
 - Any `font=` naming a type family (`\sffamily`, `\rmfamily`, `\ttfamily`,
-  `\fontfamily{..}`) is an error (P18). See §"One face, and it is the document's"
+  `\fontfamily{..}`) is an error (P21). See §"One face, and it is the document's"
   below.
+- `\pdfigmath` on a math group with no sub- or superscript is an error (P22).
+  See §"What the 7 pt floor is a floor on" below for what it is and is not for.
+- A `dotted`, `densely dotted` or `loosely dotted` key anywhere in a fragment or a
+  style file is an error (P23). See §"A dash is stated in points" below.
+- `\resizebox{f\textwidth}` with f < 0.85 is a warning; prefer drawing to the measure
+  (`x=` scaled so the picture is at most `\linewidth`) and no `\resizebox` at all.
+- Colours are the `hh*` house set only (`hhsand hhsanddeep hhebony hhink hhcobalt
+  hhamber hhteal hhpaper hhgray`); `pd*` palette names belong to the page grammar,
+  not to figures.
+- No result codes (`R7`, `B6`) in titles or captions; name the idea.
 
 ### One face, and it is the document's
 
@@ -178,16 +188,97 @@ square, which left hue as the only separation — nothing in greyscale, nothing 
 a colour-blind reader. An edition override that restyles a datum must keep three
 distinguishable forms, and must be checked on a render at 1.0×, not reasoned
 about from the point sizes.
-- `\resizebox{f\textwidth}` with f < 0.85 is a warning; prefer drawing to the measure
-  (`x=` scaled so the picture is at most `\linewidth`) and no `\resizebox` at all.
-- Colours are the `hh*` house set only (`hhsand hhsanddeep hhebony hhink hhcobalt
-  hhamber hhteal hhpaper hhgray`); `pd*` palette names belong to the page grammar,
-  not to figures.
-- No result codes (`R7`, `B6`) in titles or captions; name the idea.
+
+### What the 7 pt floor is a floor on
+
+T1 is a floor on **running text**, and it has a second, lower band for spans of
+three glyphs or fewer — a sub/superscript, a tick numeral. Measured on this
+repository's own styles:
+
+| | base glyph | subscript | subscript / base |
+|---|---|---|---|
+| standalone chapter | 8.97 pt | **5.98 pt** | 66.7 % |
+| Book | 8.72 pt | **6.36 pt** | 72.9 % |
+| either, under `\pdfigmath` | 10.91 / 10.46 pt | **7.97 / 7.64 pt** | — |
+
+The running-text floor is 7.0 pt; the short-span floor is 5.9 pt. Both subscripts
+above therefore **pass** T1. An earlier version of this rule said they failed it,
+and the correction matters: a subscript is set at roughly 70 % of its base by
+every typesetter that has ever existed, so holding one to the running-text floor
+would mean either no subscripts in figures at all or a figure whose base type is
+larger than the paragraph beside it. The band is a decision about what T1
+measures, not a loophole, and the finding now names which band it applied.
+
+So `\pdfigmath` is **not** a way to pass T1. It exists because 5.98 pt clears
+5.9 pt by 0.08 pt, and 0.08 pt is not a margin — a font substitution, an edition
+that nudges `\pdfigbasesize`, or a chapter loading a different math font puts
+that subscript under the band with nobody having decided anything. Promotion puts
+it at 7.97 / 7.64 pt, over even the running-text floor. Used on math that carries
+no subscript it buys nothing at all and just sets one label larger than its
+neighbours, which is what P22 catches.
+
+### A dash is stated in points
+
+`densely dotted` expands to `dash pattern=on \pgflinewidth off 1pt`, and
+`\pgflinewidth` is read when the **key** is processed, not when the path is
+stroked. So a style that sets `line width=` *after* the dotted key — or an
+edition override that appends a new width later — changes the stroke and leaves
+the dash at the width it had already baked in. That is not a hypothetical: it is
+how `pd guide` came to ship a 0.448 pt dot on a 0.498 pt stroke in the canonical
+Book, and neither the source nor the caption could show it.
+
+So every dash in this corpus is written `dash pattern=on Xpt off Ypt`, in
+absolute points. The `dashed` family is already absolute (`on 3pt off 3pt`) and
+is fine; the `dotted` family is not and is banned (P23).
+
+**The floor, measured at 1.0× / 150 dpi** — the resolution at which someone reads
+a PDF on a screen without zooming. 1 pt = 2.083 px.
+
+| | on | gap | stroke | peak ink per dot, over 12 sub-pixel phase offsets |
+|---|---|---|---|---|
+| `pd guide` before, Book (Swiss) | 0.448 pt = **0.93 px** | 0.996 pt = 2.08 px | 0.498 pt = 1.04 px | 0.184 → 0.302 (**1.6× swing**) |
+| `pd guide` before, technical | 0.600 pt = 1.25 px | 1.200 pt = 2.50 px | 0.299 pt = **0.62 px** | 0.353 → 0.553 (**1.6× swing**) |
+| `pd guide` after, all editions | 1.200 pt = 2.50 px | 2.000 pt = 4.17 px | 0.697 pt = 1.45 px | flat: 0.894 / 0.937 / 1.337 |
+
+A mark under one device pixel is at the rasteriser's Nyquist limit: its weight
+depends on where it lands on the pixel grid, so the line antialiases into nothing
+at one phase and, on any renderer that snaps a thin stroke to a one-pixel
+minimum, merges into a solid line at another. Two pixels is the first on-length
+that renders at the same weight wherever it falls. **figcheck's T9** enforces
+on ≥ 2 px, gap ≥ 2 px and stroke ≥ 1 px at `--dash-dpi` (default 150), reading
+the dash array straight off the compiled PDF — the only place the numbers exist.
+
+T9 decides whether a dash *can* resolve. It cannot decide whether it *reads* as
+dotted against a particular background, or at arm's length. Clearing it is
+necessary, not sufficient; look at the render.
+
+### A dash that means nothing is the first ink you lose
+
+`pd guide` is a **construction line** — a drop line to an axis, a leader to an
+annotation, a projection, a waterfall connector, the bound of an interval. Its
+dottedness is doing semantic work: it tells the reader this line is not a drawn
+edge. `pd lattice` is the **background rule work** a figure stands on — column
+separators, row baselines, a time grid — and there, dotted-versus-solid
+distinguishes nothing at all.
+
+Thirteen of the corpus's twenty-three guide users were lattices. Spending a
+semantic channel on background grid is what made its failure invisible: nobody
+looks hard at a grid line, so nobody noticed the channel had stopped working in
+the figures where it mattered. A lattice is continuous and quiet; a guide is
+discontinuous and definite. Reach for `pd guide` only where the reader must see
+that the line is not an edge.
+
+One consequence worth stating plainly: **a caption verified against a shared
+style expires when that style moves.** Any figure whose caption was checked
+against the old `pd guide` needs re-reading after a change like this one — a
+verification that silently goes stale is the same defect class as a claim
+nothing checks.
+
 
 Rendered checks (`figcheck.py`): T1 minimum text 7 pt · T2 text escaping its box ·
 T3 pairwise overlap > 5 % · T4 line through text · T5 ink outside the mediabox ·
-T6 dead canvas · T7 width over `\textwidth` · T8 ink below the picture inside the figure.
+T6 dead canvas · T7 width over `\textwidth` · T8 ink below the picture inside the figure ·
+T9 a dash too small to resolve at 150 dpi.
 
 ### What the screen rules give us, and what they do not
 
