@@ -206,20 +206,68 @@ function hasMarker(body, name) {
   })
 }
 
+const FENCE_LINE_RE = /^\s*(`{3,}|~{3,})(.*)$/
+
+/**
+ * A fence tracker that follows CommonMark's rule instead of toggling on every
+ * line that starts with three backticks: a fence OPENS on a run of 3+ backticks
+ * or tildes, and CLOSES only on a run of the SAME character that is at least as
+ * long, with nothing but whitespace after it. A shorter or different run inside
+ * an open fence is content.
+ *
+ * The toggling version desynchronised on ordinary input. A four-backtick fence
+ * quoting a three-backtick one — what you write when a PR body quotes markdown,
+ * which is most of the bodies in this repo — closed on the inner line and
+ * reopened on the real closer, leaving the parser permanently "inside a fence".
+ * Every heading after that stopped terminating a section, so a `## Visual Proof`
+ * with no render silently absorbed the rest of the body and any image in a later
+ * section satisfied rule (3b). That is a bypass, not a false alarm: the guard
+ * reported success on a body with nothing to look at. It also fails the other
+ * way — a section truncated early loses evidence that is really there.
+ *
+ * Returns, per line: `fence` (this line is a delimiter, not content) and
+ * `inside` (the parser is inside a fenced block after handling this line).
+ */
+function makeFenceTracker() {
+  let open = null // { char, len }
+  return (line) => {
+    const m = line.match(FENCE_LINE_RE)
+    if (!m) return { fence: false, inside: open !== null }
+    const char = m[1][0]
+    const len = m[1].length
+    if (open === null) {
+      // A backtick fence's info string may not itself contain a backtick
+      // (CommonMark); `` ```a`b `` is a paragraph, not a fence.
+      if (char === '`' && m[2].includes('`')) return { fence: false, inside: false }
+      open = { char, len }
+      return { fence: true, inside: true }
+    }
+    // Only a same-character run, at least as long, with a blank remainder closes.
+    if (char === open.char && len >= open.len && m[2].trim() === '') {
+      open = null
+      return { fence: true, inside: false }
+    }
+    return { fence: false, inside: true }
+  }
+}
+
 /**
  * Extract a section's content lines by heading text (case-insensitive substring
  * match), from the matched heading to the next heading of the same-or-higher
  * level. Returns null when the section is absent.
+ *
+ * Both loops track fences, and for the same reason: a `# comment` in pasted
+ * shell output is not a heading, and a quoted `## Visual Proof` in a markdown
+ * example is not the section.
  */
 function sectionLines(strippedBody, headingNeedle) {
   const lines = strippedBody.split('\n')
-  const isFence = (l) => /^\s*(?:```|~~~)/.test(l)
   let start = -1
   let startLevel = 0
-  let inFence = false
+  const findFence = makeFenceTracker()
   for (let i = 0; i < lines.length; i++) {
-    if (isFence(lines[i])) { inFence = !inFence; continue }
-    if (inFence) continue
+    const f = findFence(lines[i])
+    if (f.fence || f.inside) continue
     const m = lines[i].match(/^(#{1,6})\s*(.+?)\s*$/)
     if (m && m[2].toLowerCase().includes(headingNeedle)) {
       start = i
@@ -229,13 +277,14 @@ function sectionLines(strippedBody, headingNeedle) {
   }
   if (start === -1) return null // section absent
 
-  // Headings INSIDE a fenced code block (e.g. `# comment` in pasted shell output)
-  // must not terminate the section — track fences so the Test Plan can quote logs.
+  // A fresh tracker: the heading was found outside any fence, so the content
+  // scan starts closed. Carrying the search loop's state would be equivalent,
+  // and restating it here is what the previous `inFence = false` reset meant.
   const content = []
-  inFence = false
+  const contentFence = makeFenceTracker()
   for (let i = start + 1; i < lines.length; i++) {
-    if (isFence(lines[i])) { inFence = !inFence; content.push(lines[i]); continue }
-    if (!inFence) {
+    const f = contentFence(lines[i])
+    if (!f.fence && !f.inside) {
       const m = lines[i].match(/^(#{1,6})\s/)
       if (m && m[1].length <= startLevel) break
     }

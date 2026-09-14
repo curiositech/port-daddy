@@ -98,7 +98,7 @@ export const FIGURE_WORK_TREES = [
  * and whatever figure tree exists next month, so the enumerated list above does
  * not have to be the only line of defence.
  */
-export const FIGURE_DIR_RE = /(^|\/)figures\//
+export const FIGURE_DIR_RE = /(^|\/)figures\//i
 
 /**
  * A plate directory: a segment that is exactly `plates` or ends in `-plates`
@@ -108,7 +108,7 @@ export const FIGURE_DIR_RE = /(^|\/)figures\//
  * "templates" contains the letters "plates" and a looser pattern matches every
  * one of them.
  */
-export const PLATE_DIR_RE = /(^|\/)(?:[A-Za-z0-9_]+-)?plates\//
+export const PLATE_DIR_RE = /(^|\/)(?:[A-Za-z0-9_]+-)?plates\//i
 
 /**
  * A typeset source file. Every `.tex` in this repository is a chapter, a paper,
@@ -124,7 +124,19 @@ export const TYPESET_SOURCE_RE = /\.tex$/i
  * marker is not available and that a page-scale render is required instead.
  */
 export function isFigureSurface(file) {
-  if (matchesPathspec(file, FIGURE_WORK_TREES)) return true
+  // Matched case-INSENSITIVELY, unlike `isUserVisibleSurface` below. Git stores
+  // paths case-sensitively, so `Figures/` and `figures/` are two different
+  // directories here, and `Whitepaper/` is a tree the enumerated list would not
+  // recognise. A contributor who capitalises a directory would then create a
+  // figure tree this rule cannot see — which is the exact gap the shape-based
+  // tests exist to close, reopened by an accident of spelling. The corpus is all
+  // lowercase today, so this is latent, and a guard meant to be unbypassable
+  // should not depend on that staying true.
+  //
+  // The three patterns carry `i` for the same reason and for direct importers;
+  // `FIGURE_WORK_TREES` is all lowercase, so folding the path is enough there.
+  const lower = file.toLowerCase()
+  if (matchesPathspec(lower, FIGURE_WORK_TREES)) return true
   if (FIGURE_DIR_RE.test(file)) return true
   if (PLATE_DIR_RE.test(file)) return true
   return TYPESET_SOURCE_RE.test(file)
