@@ -86,6 +86,12 @@ body{display:flex;flex-direction:column}
 .board .chip.bench{border:1px solid var(--hair);color:var(--text-secondary)}
 .honesty p{font-size:13.5px;line-height:1.5;color:var(--text-secondary)}
 .honesty b{color:var(--text-primary)}
+.repo-scope{margin-top:12px;padding:12px 16px;border:2px solid var(--border-strong);background:var(--surface-raised)}
+.repo-scope form{display:flex;gap:8px;flex-wrap:wrap;align-items:end}
+.repo-scope label{font-family:"IBM Plex Mono",monospace;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.repo-scope select,.repo-scope input{display:block;margin-top:4px;border:1px solid var(--hair-strong);background:var(--surface-base);padding:7px 9px;font-size:14px}
+.repo-scope button{padding:8px 14px;border:2px solid var(--border-strong);background:var(--cobalt);color:var(--on-accent);font-weight:700;cursor:pointer}
+.repo-scope p{margin:5px 0 0;font-size:13px;color:var(--text-secondary)}
 .chat{flex:1;min-height:0;max-width:980px;width:100%;margin:0 auto;padding:0 24px;display:flex;flex-direction:column}
 .log{flex:1;min-height:0;overflow-y:auto;padding:18px 2px 12px;display:flex;flex-direction:column;gap:14px}
 .msg{max-width:72ch;border:1px solid var(--hair-strong);padding:12px 16px;font-size:15px;line-height:1.6;white-space:normal}
@@ -153,7 +159,12 @@ const CLIENT_JS = `
   var input = document.getElementById('input');
   var sendBtn = document.getElementById('send');
   var clearBtn = document.getElementById('clear');
+  var repoClearBtn = document.getElementById('repo-clear');
   var emptyState = document.getElementById('empty');
+  var threadId = document.body.getAttribute('data-thread') || '';
+  var scopedRepo = document.body.getAttribute('data-repo') || '';
+  var scopedInstallation = Number(document.body.getAttribute('data-installation') || '0');
+  var scopeForm = document.getElementById('repo-scope-form');
   var FENCE = '\\u0060\\u0060\\u0060';
   var busy = false;
 
@@ -318,7 +329,8 @@ const CLIENT_JS = `
   }
 
   function loadHistory() {
-    fetch('/v1/shipwright/history').then(function (r) { return r.json(); }).then(function (d) {
+    if (!threadId) return;
+    fetch('/v1/shipwright/history?thread=' + encodeURIComponent(threadId)).then(function (r) { return r.json(); }).then(function (d) {
       var msgs = (d && d.messages) || [];
       for (var i = 0; i < msgs.length; i++) addMsg(msgs[i].role, msgs[i].content, msgs[i].yaml);
     }).catch(function () { /* empty state stays */ });
@@ -332,7 +344,7 @@ const CLIENT_JS = `
     fetch('/v1/shipwright/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: text }),
+      body: JSON.stringify({ threadId: threadId, message: text }),
     }).then(function (res) {
       var ctype = res.headers.get('Content-Type') || '';
       if (ctype.indexOf('text/event-stream') < 0) {
@@ -402,10 +414,42 @@ const CLIENT_JS = `
   clearBtn.addEventListener('click', function () {
     if (busy) return;
     if (!window.confirm('Delete this whole conversation from the relay?')) return;
-    fetch('/v1/shipwright/clear', { method: 'POST' }).then(function () {
+    fetch('/v1/shipwright/clear?thread=' + encodeURIComponent(threadId), { method: 'POST' }).then(function () {
       window.location.reload();
     });
   });
+  if (repoClearBtn) repoClearBtn.addEventListener('click', function () {
+    if (busy || !threadId) return;
+    if (!window.confirm('Delete every Shipwright thread, saved proposal, and repository memory for ' + scopedRepo + '?')) return;
+    fetch('/v1/shipwright/repo-clear', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ installationId: scopedInstallation, repo: scopedRepo })
+    }).then(function (r) { if (!r.ok) throw new Error('clear refused'); window.location.href = '/account/shipwright'; })
+      .catch(function () { window.alert('Repository clear failed. Nothing was assumed deleted.'); });
+  });
+
+  if (scopeForm) scopeForm.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var install = scopeForm.querySelector('[name=installationId]');
+    var repo = scopeForm.querySelector('[name=repo]');
+    fetch('/v1/shipwright/thread', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ installationId: Number(install.value), repo: repo.value })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.threadId) throw new Error(d.error || 'Repository authorization failed');
+      var q = new URLSearchParams({ thread: d.threadId, installationId: String(d.installationId), repo: d.repo });
+      window.location.href = '/account/shipwright?' + q.toString();
+    }).catch(function (e) { window.alert(e.message || 'Could not select that repository.'); });
+  });
+
+  if (!threadId) {
+    input.disabled = true;
+    sendBtn.disabled = true;
+    clearBtn.disabled = true;
+    if (repoClearBtn) repoClearBtn.disabled = true;
+  }
 
   loadHistory();
   input.focus();
@@ -419,6 +463,29 @@ export interface ShipwrightPageView {
   installations: UserInstallation[] | null;
   /** Whitelisted notice key from ?notice=, or null. */
   notice: string | null;
+  /** Opaque server-issued active thread; absent until repo onboarding succeeds. */
+  threadId?: string | null;
+  repo?: string | null;
+  installationId?: number | null;
+}
+
+export function renderRepoSelector(view: ShipwrightPageView): string {
+  if (view.threadId && view.repo && view.installationId) {
+    return `<div class="repo-scope"><b>Repository context:</b> <code>${esc(view.repo)}</code>
+      <p>This conversation and every proposal are locked to this repository. Choose another repository to start a separate thread.</p></div>`;
+  }
+  if (view.installations === null) {
+    return `<div class="repo-scope"><b>Repository context unavailable.</b><p>GitHub installations could not be listed. Reload to try again; chat stays disabled until the server authorizes an exact repository.</p></div>`;
+  }
+  if (view.installations.length === 0) {
+    return `<div class="repo-scope"><b>Install the Port Daddy Fleet GitHub App first.</b><p>Shipwright will not start an unscoped conversation.</p></div>`;
+  }
+  const options = view.installations.map((i) => `<option value="${i.id}">${esc(i.accountLogin ?? `installation ${i.id}`)}</option>`).join('');
+  return `<div class="repo-scope"><form id="repo-scope-form">
+    <label>Installation<select name="installationId">${options}</select></label>
+    <label>Repository<input name="repo" required pattern="[A-Za-z0-9_.\\-]+/[A-Za-z0-9_.\\-]+" placeholder="owner/repo"></label>
+    <button type="submit">Start scoped thread</button>
+  </form><p>GitHub authorization is checked before history is read or a model is called.</p></div>`;
 }
 
 /**
@@ -435,6 +502,8 @@ export const SHIPWRIGHT_NOTICES: Record<string, string> = {
   not_from_chat: 'That YAML is not a roster the Shipwright emitted in your conversation, so no PR was opened.',
   forbidden: 'That installation is not yours — GitHub decides ownership, and it said no. No PR was opened.',
   repo_not_installed: 'The Port Daddy Fleet GitHub App is not installed on that repository (or it belongs to a different installation). Install it there, then try again.',
+  repo_scope_mismatch: 'That target does not match the repository thread that produced the roster. No PR was opened.',
+  shipwright_thread_required: 'Select the repository thread that produced this roster. No PR was opened.',
   github_error: 'GitHub had a problem — no PR was opened. Try again shortly.',
 };
 
@@ -446,7 +515,7 @@ export const SHIPWRIGHT_NOTICES: Record<string, string> = {
  * POST re-verifies ownership server-side anyway. Degraded and empty states
  * stay honest instead of rendering a dead button.
  */
-export function renderPrTemplate(installations: UserInstallation[] | null): string {
+export function renderPrTemplate(installations: UserInstallation[] | null, view?: ShipwrightPageView): string {
   if (installations === null) {
     return `<template id="prform-tpl"><div class="pr-unavail"><b>Open PR unavailable:</b> your GitHub App
     installations could not be listed just now, so the button is not shown (never guessed). Copy or
@@ -457,13 +526,14 @@ export function renderPrTemplate(installations: UserInstallation[] | null): stri
     Fleet GitHub App on your repository, then reload — the Shipwright can then open the PR for you.
     Until then, copy or download the YAML and commit it by hand.</div></template>`;
   }
-  const options = installations
-    .map((i) => `<option value="${i.id}">${esc(i.accountLogin ?? `installation ${i.id}`)}</option>`)
-    .join('');
+  if (!view?.threadId || !view.repo || !view.installationId) {
+    return `<template id="prform-tpl"><div class="pr-unavail"><b>Select a repository first:</b> proposal provenance is repository-scoped.</div></template>`;
+  }
   return `<template id="prform-tpl"><form class="prform" method="post" action="/v1/shipwright/open-pr">
     <span class="pr-label">Open the PR from here — validated rosters only</span>
-    <select name="installationId" aria-label="GitHub App installation">${options}</select>
-    <input type="text" name="repo" placeholder="owner/repo" required pattern="[A-Za-z0-9_.\\-]+/[A-Za-z0-9_.\\-]+" aria-label="Repository (owner/name)">
+    <input type="hidden" name="threadId" value="${esc(view.threadId)}">
+    <input type="hidden" name="installationId" value="${view.installationId}">
+    <input type="hidden" name="repo" value="${esc(view.repo)}">
     <textarea name="yaml" hidden></textarea>
     <button type="submit">Open PR</button>
     <span class="pr-note">Commits pd-fleet.yml to a <b>fresh branch</b> of that repo and opens a PR — never a
@@ -528,7 +598,7 @@ export function renderShipwrightPage(user: UserRow, nonce: string, view: Shipwri
   const noticeHtml = noticeText
     ? `<div class="notice-strip" role="status">${noticeText}</div>`
     : '';
-  return `<!DOCTYPE html><html lang="en"><head><title>Port Daddy — Shipwright</title>${HEAD}<style>${CSS}</style></head><body>
+  return `<!DOCTYPE html><html lang="en"><head><title>Port Daddy — Shipwright</title>${HEAD}<style>${CSS}</style></head><body data-thread="${esc(view.threadId ?? '')}" data-repo="${esc(view.repo ?? '')}" data-installation="${view.installationId ?? ''}">
 <header class="site-header">
   <a class="sh-brand" href="/account"><span class="sh-mark" aria-hidden="true">pd</span>Port Daddy</a>
   <nav class="sh-links" aria-label="Account">
@@ -545,11 +615,13 @@ export function renderShipwrightPage(user: UserRow, nonce: string, view: Shipwri
     a roster <b>validates</b> it can <b>open the PR in your own repo</b> at your click — always a fresh
     branch + PR into a repo whose GitHub App installation you own; it never pushes to existing
     branches, never merges, and cannot read your repo. Your review stays the gate. Conversations stay
-    on this account only, are yours to export or delete, and are pruned after
-    ${SHIPWRIGHT_RETENTION_DAYS} days.</p>
+    inside the selected repository thread and raw messages are pruned after ${SHIPWRIGHT_RETENTION_DAYS} days.
+    Structured repository memory and proposal provenance remain until you clear that repository
+    or erase your account.</p>
   </div>
   ${renderModelBoard()}
   ${noticeHtml}
+  ${renderRepoSelector(view)}
 </section>
 <main class="chat">
   <div id="log" class="log" aria-live="polite" aria-label="Conversation with the Shipwright">
@@ -569,10 +641,11 @@ export function renderShipwrightPage(user: UserRow, nonce: string, view: Shipwri
     <div class="hints">
       <span class="hint">Enter to send · Shift+Enter for a new line</span>
       <button id="clear" class="clear" type="button">Delete conversation</button>
+      <button id="repo-clear" class="clear" type="button">Clear repository memory</button>
     </div>
   </div>
 </main>
-${renderPrTemplate(view.installations)}
+${renderPrTemplate(view.installations, view)}
 <script nonce="${nonce}">${CLIENT_JS}</script>
 </body></html>`;
 }
@@ -598,7 +671,14 @@ export async function handleShipwrightPage(request: Request, env: Env): Promise<
     installations = null;
   }
   const nonce = randomHex(16);
-  return new Response(renderShipwrightPage(session.user, nonce, { installations, notice }), {
+  const pageUrl = new URL(request.url);
+  const rawThread = pageUrl.searchParams.get('thread');
+  const rawRepo = pageUrl.searchParams.get('repo');
+  const rawInstallation = Number(pageUrl.searchParams.get('installationId'));
+  const threadId = rawThread && /^swt_[0-9a-f]{48}$/.test(rawThread) ? rawThread : null;
+  const repo = rawRepo && /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(rawRepo) ? rawRepo.toLowerCase() : null;
+  const installationId = Number.isInteger(rawInstallation) && rawInstallation > 0 ? rawInstallation : null;
+  return new Response(renderShipwrightPage(session.user, nonce, { installations, notice, threadId, repo, installationId }), {
     status: 200,
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
