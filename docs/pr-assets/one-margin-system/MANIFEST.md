@@ -45,6 +45,16 @@ writes into the trailer `/ID`. Both were held fixed for the before/after control
 | `one-margin-system-capfits-fallback-p050.png` | 64 | 50 | `\ifpd@capfits` **fires** — Table 1.9's caption measured too tall for the column and set at full measure in the text column instead; margin empty |
 | `one-margin-system-pdsidenote-p155.png` | 169 | 155 | `\pdsidenote` — superscript 2 in the line, the note beside it in the margin rather than at the foot of the page |
 | `one-margin-system-pdgloss-p167.png` | 181 | 167 | `\pdgloss` — **Read-poverty** bold at its definition, the definition carried in the margin; also `pdrecitation`'s Recall block and a `\pdexercisepointer` |
+| `one-margin-system-margin-tour.gif` | — | — | Motion artifact: the five pages above in sequence, margin column tinted, 2.0–2.6 s a frame, looping. Built from the same 150 dpi stills with PIL and downscaled to 620 px wide purely to keep the file small; the PNGs are the full-resolution record. |
+
+## Why the motion artifact is a tour and not an A/B flip
+
+This branch changes no rendered page — the Book is byte-identical before and
+after (see the build receipt above). An A/B flip would therefore be two
+identical frames presented as a comparison, which would be a dishonest image.
+The tour instead shows what the apparatus renders unconditionally, and puts
+p.46 next to p.50 so the one real distinction in this branch — a caption that
+fits the column against one that does not — reads as motion.
 
 ## How the fallback pages were found
 
