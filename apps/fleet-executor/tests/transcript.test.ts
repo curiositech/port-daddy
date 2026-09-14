@@ -204,7 +204,7 @@ describe('Fleet pause service (legacy KV scenarios are fixture inputs only)', ()
     expect(state.completed[0].conclusion).toBe('failure');
     expect(state.completed[0].summary).toContain('Fleet paused by operator');
     expect(d1.runs).toHaveLength(1);
-    expect(d1.runs[0].conclusion).toBe('failure');
+    expect(d1.runs[0].conclusion).toBe('waiting_for_control');
     // The consumer stamps a delivery-attempt marker on EVERY delivery — paused
     // ones included (#7743: an attempt's existence must be provable even when
     // the run itself does nothing). The pause still spends nothing beyond it.
@@ -388,7 +388,7 @@ describe('Fleet pause service (legacy KV scenarios are fixture inputs only)', ()
     expect(state.completed).toHaveLength(1);
     expect(state.completed[0].conclusion).toBe('failure');
     expect(state.completed[0].summary).toContain('revision-changed');
-    expect(d1.runs[0].conclusion).toBe('failure');
+    expect(d1.runs[0].conclusion).toBe('waiting_for_control');
     // Ship configs are recorded once, right after the gating check is
     // established — before the per-ship loop's own (second) pause check, so
     // this run's pause-before-first-ship still carries that one config row.

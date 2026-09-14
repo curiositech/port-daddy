@@ -99,6 +99,11 @@ struct CloudFleetSection: View {
 
     @ViewBuilder
     private var liveRuns: some View {
+        if let waiting = store.health?.waitingForControl, waiting > 0 {
+            Label("\(waiting) waiting for control — no automatic retry", systemImage: "pause.circle.fill")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Fleet.Color.warning)
+        }
         if store.health?.pauseStatus == "unknown" {
             Label("UNKNOWN — automated work blocked", systemImage: "exclamationmark.shield.fill")
                 .font(.caption.weight(.semibold))
@@ -364,8 +369,7 @@ struct CloudFleetSection: View {
     }
 
     private func stateBadge(_ run: CloudFleetRun) -> some View {
-        let terminalConclusion = run.conclusion.flatMap { $0.isEmpty ? nil : $0 }
-        let label = run.isActive ? run.state : (terminalConclusion ?? run.state)
+        let label = run.statusLabel
         return Text(label.replacingOccurrences(of: "_", with: " ").uppercased())
             .font(.caption2.weight(.bold))
             .foregroundStyle(runColor(run))
@@ -381,7 +385,7 @@ struct CloudFleetSection: View {
         if run.isFailure { return Fleet.Color.failure }
         switch run.state {
         case "running": return Fleet.Color.active
-        case "admitting", "queued", "retrying": return Fleet.Color.warning
+        case "admitting", "queued", "retrying", "waiting_for_control": return Fleet.Color.warning
         case "superseded": return Fleet.Color.dormant
         default:
             return run.conclusion == "success" ? Fleet.Color.healthy : Fleet.Color.dormant
@@ -390,6 +394,8 @@ struct CloudFleetSection: View {
 
     private func timingSummary(_ run: CloudFleetRun) -> String {
         switch run.state {
+        case "waiting_for_control":
+            return "operator action required · no automatic retry"
         case "admitting":
             return run.expectedStartAt.map { "executor handoff \(timestamp($0))" }
                 ?? "admission in progress"

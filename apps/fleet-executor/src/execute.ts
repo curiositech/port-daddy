@@ -21,6 +21,7 @@
  */
 
 import type { ExecutorEnv, FleetRunJob } from './env.js';
+import { FLEET_WAITING_CONTROL } from '../../shared/fleet-suspension.js';
 import { parseFleetControl } from '../../relay/src/fleet-pause-control.js';
 import { shipAiOptions, type ShipCallContext } from './ship-ai-options.js';
 import { readRepoShipControls, repoShipEnabled, validShipControlName } from '../../shared/repo-ship-controls.js';
@@ -1692,7 +1693,7 @@ export async function executeFleet(
         diffSource: 'raw',
       };
       await recordRunStart(env, runId, job, stubPrCtx, prNumber, []);
-      await recordRunEnd(env, runId, 'failure', startMs);
+      await recordRunEnd(env, runId, FLEET_WAITING_CONTROL, startMs);
     } catch (err) {
       console.error(
         `[fleet-executor] delivery=${deliveryId} paused-check post failed: ${String(err)}`,
@@ -2524,7 +2525,7 @@ export async function executeFleet(
         pauseReason: pauseGate.reason,
       });
       await completeOwnedCheck('failure', summary, `before pd-${ship.name} paused failure completion`);
-      await recordRunEnd(env, runId, 'failure', startMs);
+      await recordRunEnd(env, runId, FLEET_WAITING_CONTROL, startMs);
       return { kind: 'suspended', reason: pauseGate.blocked ? pauseGate.reason : 'repository-off' };
     }
 

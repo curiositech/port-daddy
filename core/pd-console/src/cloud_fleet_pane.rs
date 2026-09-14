@@ -91,6 +91,7 @@ impl FleetRun {
 
     fn timing(&self) -> String {
         match self.state.as_str() {
+            "waiting_for_control" => "operator action required · no automatic retry".into(),
             "admitting" => self
                 .expected_start_at
                 .map(|value| format!("executor handoff {}Z est.", hhmmss_seconds(value)))
@@ -384,7 +385,7 @@ fn conclusion_tone(conclusion: &str) -> Tone {
 fn run_tone(run: &FleetRun) -> Tone {
     match run.state.as_str() {
         "running" => Tone::Engaged,
-        "admitting" | "queued" | "retrying" => Tone::Gated,
+        "admitting" | "queued" | "retrying" | "waiting_for_control" => Tone::Gated,
         "enqueue_failed" | "failed_admission" => Tone::Conflicted,
         "superseded" => Tone::Resting,
         _ => conclusion_tone(&run.conclusion),
@@ -479,6 +480,7 @@ pub struct CloudFleetPane {
     queue_depth_estimate: Option<i64>,
     running: i64,
     retrying: i64,
+    waiting_for_control: i64,
     superseded: i64,
     failed_admission: i64,
     known_intents: i64,
@@ -521,6 +523,7 @@ impl Default for CloudFleetPane {
             queue_depth_estimate: None,
             running: 0,
             retrying: 0,
+            waiting_for_control: 0,
             superseded: 0,
             failed_admission: 0,
             known_intents: 0,
@@ -864,8 +867,8 @@ impl Pane for CloudFleetPane {
                 "PAUSED — kill switch engaged".into()
             } else {
                 format!(
-                    "{} running · {} retrying · {} known intents",
-                    self.running, self.retrying, self.known_intents
+                    "{} running · {} retrying · {} waiting for control · {} known intents",
+                    self.running, self.retrying, self.waiting_for_control, self.known_intents
                 )
             },
             tone: if alarmed {
@@ -1094,6 +1097,7 @@ impl Pane for CloudFleetPane {
                     };
                     self.running = n(&data, "running");
                     self.retrying = n(&data, "retrying");
+                    self.waiting_for_control = n(&data, "waitingForControl");
                     self.superseded = n(&data, "superseded");
                     self.failed_admission = n(&data, "failedAdmission");
                     self.known_intents = n(&data, "knownIntents");
@@ -1440,6 +1444,20 @@ mod tests {
         assert_eq!(r.attempt_count, 4);
         assert_eq!(r.queue_ahead_estimate, Some(2));
         assert!(r.has_transcript);
+    }
+
+    #[test]
+    fn waiting_control_is_not_an_active_retry_or_a_review_verdict() {
+        let run = FleetRun::from_value(&json!({
+            "id": "held", "state": "waiting_for_control", "conclusion": "failure"
+        }));
+        assert!(!run.is_active());
+        assert!(matches!(run_tone(&run), Tone::Gated));
+        assert_eq!(run.timing(), "operator action required · no automatic retry");
+        let mut p = configured();
+        p.waiting_for_control = 2;
+        assert!(p.view().iter().any(|block| matches!(block,
+            Block::Chip { label, .. } if label.contains("0 retrying · 2 waiting for control"))));
     }
 
     #[test]
