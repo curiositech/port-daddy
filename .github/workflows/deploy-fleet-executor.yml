@@ -45,12 +45,20 @@ name: Deploy fleet-executor (Cloudflare Worker)
 #                                copy-paste secret commands.
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'apps/fleet-executor/**'
-      - '.github/workflows/deploy-fleet-executor.yml'
   workflow_dispatch:
+    inputs:
+      served_installation_ids:
+        description: Complete installation inventory approved for this activation
+        required: true
+        type: string
+      price_tariff_digest:
+        description: SHA-256 of the generated cloud model registry
+        required: true
+        type: string
+      price_tariff_verified_at:
+        description: UTC date (YYYY-MM-DD) when Workers AI tariffs were verified
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -96,7 +104,9 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          FLEET_SERVED_INSTALLATION_IDS: ${{ vars.FLEET_SERVED_INSTALLATION_IDS }}
+          FLEET_SERVED_INSTALLATION_IDS: ${{ inputs.served_installation_ids }}
+          FLEET_PRICE_TARIFF_DIGEST: ${{ inputs.price_tariff_digest }}
+          FLEET_PRICE_TARIFF_VERIFIED_AT: ${{ inputs.price_tariff_verified_at }}
         run: node scripts/check-managed-billing-readiness.mjs
 
       - name: Deploy Worker

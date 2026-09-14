@@ -1496,6 +1496,7 @@ export async function executeFleet(
   const runId = `run:${deliveryId}`;
   let managedReservation: ManagedRunReservation | null = null;
   let managedLease: ManagedRunLease | null = null;
+  let settledPublicationReplay = false;
   // Capability URL for the human-facing run page (ADR-0101 Phase 0). Null when
   // RUN_DETAILS_BASE_URL / RUN_PAGE_SECRET are unconfigured; never throws.
   const detailsUrl = await runDetailsUrl(env, runId);
@@ -1733,6 +1734,7 @@ export async function executeFleet(
     console.log(
       `[fleet-executor] delivery=${deliveryId} stale head ${eventHead.slice(0, 12)}; current=${prCtx.headSha.slice(0, 12)}; skipping`,
     );
+    await finalizeUnleasedManagedRun(env.DB, runId, nowSec());
     return { kind: 'stale-head' };
   }
 
@@ -1789,7 +1791,10 @@ export async function executeFleet(
   // requests execution is not silently filtered out; it must present a grant
   // to a consuming runner or record UNAVAILABLE and fail closed.
   const cloudShips = ships;
-  if (cloudShips.length === 0) return { kind: 'no-cloud-ships' };
+  if (cloudShips.length === 0) {
+    await finalizeUnleasedManagedRun(env.DB, runId, nowSec());
+    return { kind: 'no-cloud-ships' };
+  }
 
   // Freeze the complete model/checkpoint input before deciding whether an
   // existing check may be reused. The digest includes exact files and diff;
@@ -2305,11 +2310,12 @@ export async function executeFleet(
   try {
     await resolveManagedEntitlement(env.DB, job.installationId);
     managedReservation = await reserveManagedRun(env.DB, runId, job.installationId, nowSec());
+    settledPublicationReplay = managedReservation.state === 'settled';
     const leaseOwner = `${deliveryId}:${providerAttempt}:${crypto.randomUUID()}`;
-    managedLease = await acquireManagedRunLease(
+    if (!settledPublicationReplay) managedLease = await acquireManagedRunLease(
       env.DB, runId, leaseOwner, nowSec(), nowSec() + Math.ceil((RUN_ABSOLUTE_DEADLINE_MS + aiCallDeadlineMs + 60_000) / 1000),
     );
-    aiCircuit.setAuthorizer({
+    if (!settledPublicationReplay) aiCircuit.setAuthorizer({
       authorize: async request => {
         const rate = WORKERS_AI_RATES[request.model];
         const context = MODEL_CONTEXT_TOKENS[request.model];
@@ -2360,6 +2366,8 @@ export async function executeFleet(
     await recordRunEnd(env, runId, 'neutral', startMs);
     return;
   }
+
+  try {
 
   // --- Run ships sequentially (Workers AI rate limits) ---------------------
   // Each ship is a map-reduce over the diff: MAP one call per diff chunk, then
@@ -2508,6 +2516,12 @@ export async function executeFleet(
     // (including its gate/skip decision), not the cumulative run time — else
     // later ships report inflated durations that fold in every earlier ship.
     const shipStartMs = Date.now();
+    const resumed = resumedShips.get(ship.name);
+    if (settledPublicationReplay) {
+      if (!resumed) throw new ManagedBillingError('reservation-terminal', `settled run ${runId} lacks checkpoint ${ship.name}; refusing AI replay`);
+      results.push(withIncompletePrSourceCoverage(resumed, sourceCoverageReason));
+      continue;
+    }
     try {
       await assertCurrentHead(`before pd-${ship.name} model work`);
     } catch (error) {
@@ -2614,7 +2628,6 @@ export async function executeFleet(
     // telemetry/spend rows are already written; re-running would produce the
     // identical result and pay for it again. Reuse the recorded verdict —
     // findings included, so the final review and conclusion see the full run.
-    const resumed = resumedShips.get(ship.name);
     if (resumed) {
       await transcript.step(
         'ship-resumed',
@@ -3055,6 +3068,9 @@ export async function executeFleet(
     }
   } catch {
     // The concluded run stands; a mediator failure is a mediator failure.
+  }
+  } finally {
+    if (managedLease) await yieldManagedRunLease(env.DB, managedLease, nowSec());
   }
 }
 

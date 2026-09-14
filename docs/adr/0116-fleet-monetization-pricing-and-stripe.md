@@ -45,11 +45,12 @@ cheap `@cf/qwen/qwen3-30b-a3b-fp8` ($0.051/$0.335). Routing is currently
 
 ## Decision
 
-Production deployment is gated on the migrated D1 schema and at least one
-explicit active entitlement. Each entitlement requires a non-empty `source_ref`
-that receipts the operator-approved provisioning action. The deploy workflow
-queries production before `wrangler deploy`; a missing table, read error, or
-empty entitlement set aborts while the previously deployed Worker remains live.
+Production deployment is a protected manual activation, not an automatic merge
+side effect. It requires the complete served-installation inventory, a valid
+explicit entitlement and provisioning `source_ref` for every member, plus the
+verification date and exact SHA-256 digest of the generated Workers AI tariff
+table. Missing schema, incomplete entitlements, or a stale tariff witness aborts
+before `wrangler deploy`, leaving the previously deployed Worker live.
 
 ### D1 — Funding model: managed-primary, BYOK-secondary
 
