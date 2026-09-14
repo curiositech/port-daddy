@@ -12,7 +12,7 @@ fields and an **honest** `sourceLabel`.
 
 ## What these artefacts show
 
-**Said plainly: the load-bearing proof for this PR is a re-derivation, not a
+**Said plainly: the proof that carries this PR is a re-derivation, not a
 picture.** This PR changes figure-QA *records* — 59 modified, 27 deleted, 4
 added — and not one drawing. A before/after of any figure would be two identical
 images, which is worse than no evidence because it looks like evidence.
