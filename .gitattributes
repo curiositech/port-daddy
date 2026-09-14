@@ -36,6 +36,85 @@
 *.cjs  text diff merge
 *.rs   text diff merge
 *.json text diff merge
-whitepaper-foundlings/**/*.png filter=lfs diff=lfs merge=lfs -text
-whitepaper-foundlings/**/*.pdf filter=lfs diff=lfs merge=lfs -text
-skill_candidates/**/*.pdf filter=lfs diff=lfs merge=lfs -text
+# BINARY MEDIA -> git-lfs, REPO-WIDE.
+#
+# WHAT THIS REPLACES, AND WHY. Until this change the only LFS rules were three
+# path-scoped globs (whitepaper-foundlings/**/*.png|pdf, skill_candidates/**/*.pdf).
+# Measured on 0b6d9c21c: those three carried 409 files / 139.8 MiB, while 2,378
+# tracked media files held 767.8 MiB as ORDINARY git blobs -- and not one of the
+# 25 largest files in HEAD matched any of the three. The configuration pointed
+# away from exactly the weight it was added to carry. Repo-wide bare globs make
+# the DEFAULT correct, so a new screenshot is a pointer wherever it lands rather
+# than only where somebody remembered to add a directory.
+#
+# SCOPE -- SAY IT PLAINLY. These rules govern FUTURE writes only. A filter does
+# not rewrite blobs that are already committed, and this change deliberately
+# does NOT re-add the 2,378 existing files. That is not the cheap half of a
+# choice, it is very nearly the whole of the available benefit: converting a
+# file that is never edited again reclaims nothing (its original blob stays in
+# history forever) while adding an LFS object against the storage quota. The
+# existing 767.8 MiB is addressed by the R2 offload in #10199 (ADR-0142), and
+# by a history rewrite if one is ever scheduled -- not by this file.
+*.png   filter=lfs diff=lfs merge=lfs -text
+*.jpg   filter=lfs diff=lfs merge=lfs -text
+*.jpeg  filter=lfs diff=lfs merge=lfs -text
+*.gif   filter=lfs diff=lfs merge=lfs -text
+*.webp  filter=lfs diff=lfs merge=lfs -text
+*.tiff  filter=lfs diff=lfs merge=lfs -text
+*.mp4   filter=lfs diff=lfs merge=lfs -text
+*.mov   filter=lfs diff=lfs merge=lfs -text
+*.webm  filter=lfs diff=lfs merge=lfs -text
+*.pdf   filter=lfs diff=lfs merge=lfs -text
+
+# BUILD INPUTS -- EXEMPT, and the exemption is the safety-critical half.
+#
+# A file a BUILD reads must never be an LFS pointer. Every consumer that forgets
+# `git lfs pull` then gets a ~130-byte text stub where it expected bytes, and the
+# failure is silent in the worst possible way: the Pages deploy ships a "PDF"
+# that is a pointer file, and the download 200s with the wrong content.
+# ADR-0142 section 2.1 names the two trees a build reads:
+#   website-v2/public/  -- vite copies it into dist, and pdflatex
+#                          \includegraphics resolves the plates beneath it
+#   core/pd-console/    -- test fixtures; a test that needs the network is not a test
+#
+# Enumerated per extension rather than as `website-v2/public/** !filter ...` on
+# purpose: a bare `**` would also unset `diff` and `merge` for the .ts/.json
+# files in those trees, silently stripping the very attributes the block at the
+# top of this file exists to guarantee. (Verified with `git check-attr`:
+# core/pd-console/src/main.rs still reports diff=set merge=set text=set.) The
+# list is mechanical; keep it complete rather than trimming it to the
+# extensions present today, because a missing line means a pointer served to a
+# real user.
+website-v2/public/**/*.png   !filter !diff !merge -text
+website-v2/public/**/*.jpg   !filter !diff !merge -text
+website-v2/public/**/*.jpeg  !filter !diff !merge -text
+website-v2/public/**/*.gif   !filter !diff !merge -text
+website-v2/public/**/*.webp  !filter !diff !merge -text
+website-v2/public/**/*.tiff  !filter !diff !merge -text
+website-v2/public/**/*.mp4   !filter !diff !merge -text
+website-v2/public/**/*.mov   !filter !diff !merge -text
+website-v2/public/**/*.webm  !filter !diff !merge -text
+website-v2/public/**/*.pdf   !filter !diff !merge -text
+core/pd-console/**/*.png     !filter !diff !merge -text
+core/pd-console/**/*.jpg     !filter !diff !merge -text
+core/pd-console/**/*.jpeg    !filter !diff !merge -text
+core/pd-console/**/*.gif     !filter !diff !merge -text
+core/pd-console/**/*.webp    !filter !diff !merge -text
+core/pd-console/**/*.tiff    !filter !diff !merge -text
+core/pd-console/**/*.mp4     !filter !diff !merge -text
+core/pd-console/**/*.mov     !filter !diff !merge -text
+core/pd-console/**/*.webm    !filter !diff !merge -text
+core/pd-console/**/*.pdf     !filter !diff !merge -text
+
+# CARVE-OUT, and it is not cosmetic.
+# tests/unit/spawn-whitepaper-contract.test.js pins the sha256 of
+# all-seven-volumes-color-contact-sheet.png and -color-tour.gif, and asserts the
+# PNG is exactly 3792x3576 by parsing the IHDR out of the file it reads. Under
+# LFS those reads return a ~131-byte pointer: the digests do not match and the
+# dimension parse fails. This subtree therefore stays in plain git. Found first
+# by branch claude/lfs-evidence-media; re-verified here before being carried over.
+#
+# NOTE FOR #10199: this subtree sits inside `docs/artifacts/`, an ADR-0142
+# OFFLOAD_ROOT, and both pinned files ARE in media/r2-manifest.json. Phase 2
+# (deleting offloaded files from git) breaks this same test for the same reason.
+docs/artifacts/whitepaper-figure-semantics/** -filter -diff -merge -text

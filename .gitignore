@@ -1,5 +1,16 @@
 # Dependencies
+#
+# BOTH forms, and the second is not redundant. A pattern with a trailing slash
+# matches only a real DIRECTORY, so `node_modules/` alone does not ignore a
+# node_modules SYMLINK -- and a symlink is what you get whenever somebody links
+# a worktree at the primary checkout's install to avoid a second npm ci.
+# Measured: with only the slash form, `git check-ignore node_modules` reports
+# no match for a symlink and `git status` lists it as untracked, so `git add -A`
+# stages it. That is exactly how branch claude/book-toc-titletoc came to commit
+# node_modules as a symlink to the absolute path /home/user/port-daddy/node_modules,
+# which resolves on one machine and is silently broken everywhere else.
 node_modules/
+node_modules
 
 # Database
 *.db
@@ -18,10 +29,36 @@ node_modules/
 *.swp
 
 # Build output
+# Slash-less twins, for the same symlink reason as node_modules above: a linked
+# `dist` or `target` is a directory to the developer and a plain symlink to git.
 dist/
+dist
 **/target/
+**/target
 **/__pycache__/
 *.py[cod]
+
+# LaTeX intermediates, repo-wide.
+#
+# PREVENTIVE -- this untracks nothing. Zero .aux/.toc/.fls/.fdb_latexmk/.synctex.gz
+# files are tracked today, and scripts/build-whitepapers.sh keeps its
+# intermediates in .cache/whitepaper-build, which `.cache/` already covers.
+#
+# The gap it closes is a hand-run build. Two TeX source trees carry their own
+# ignore file -- website-v2/public/whitepaper/ and whitepaper/ -- and
+# docs/harbor-research/ (19 .tex sources, 37 figure sources, built in CI by
+# harbor-research-build.yml) carries none. Running latexmk there by hand drops a
+# dozen intermediates beside the sources with nothing watching, and TeX
+# byproducts are the kind of thing that gets committed once and lives forever.
+#
+# `.out` is deliberately NOT here: unlike the rest it is not TeX-specific, and a
+# repo-wide `*.out` would quietly swallow genuine fixtures. No .out file is
+# tracked today either, so the rule would be speculative in both directions.
+*.aux
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
 
 # Test coverage
 coverage/

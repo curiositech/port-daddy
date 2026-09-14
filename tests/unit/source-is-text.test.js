@@ -15,9 +15,11 @@
  * rather than just reporting a boolean. Keep them that way.
  */
 import { describe, test, expect } from '@jest/globals';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
   ALLOWED_BINARY_SOURCE,
+  BINARY_MEDIA_EXTENSIONS,
   TEXT_EXTENSIONS,
   checkTextAttributes,
   declaredExtensions,
@@ -132,6 +134,55 @@ describe('source stays text, greppable, and mergeable', () => {
     expect({ declaredNotGuarded, guardedNotDeclared, unparsed }).toEqual({
       declaredNotGuarded: [], guardedNotDeclared: [], unparsed: [],
     });
+  });
+
+  test('.gitattributes and BINARY_MEDIA_EXTENSIONS stay in lockstep', () => {
+    // The mirror of the two assertions above, for the repo-wide LFS block, and
+    // asserted in both directions for the same reason they are for source: a
+    // bare `*.heic ... -text` line that no list admits to is media routed to
+    // LFS with nothing watching, and an entry here with no glob behind it is a
+    // rule that silently does nothing.
+    const { binary } = declaredExtensions(REPO_ROOT);
+
+    const declaredNotListed = [...binary].filter((e) => !BINARY_MEDIA_EXTENSIONS.includes(e)).sort();
+    const listedNotDeclared = BINARY_MEDIA_EXTENSIONS.filter((e) => !binary.has(e)).sort();
+
+    if (declaredNotListed.length > 0 || listedNotDeclared.length > 0) {
+      throw new Error(
+        `.gitattributes and BINARY_MEDIA_EXTENSIONS have drifted apart.\n` +
+          (declaredNotListed.length
+            ? `  Routed to LFS by a bare glob but NOT listed: ${declaredNotListed.join(', ')}\n` +
+              `    -> add them to BINARY_MEDIA_EXTENSIONS, or drop the glob.\n`
+            : '') +
+          (listedNotDeclared.length
+            ? `  Listed but NOT routed by a bare glob: ${listedNotDeclared.join(', ')}\n` +
+              `    -> add \`*.<ext> filter=lfs diff=lfs merge=lfs -text\`, or drop the entry.\n`
+            : ''),
+      );
+    }
+
+    expect({ declaredNotListed, listedNotDeclared }).toEqual({
+      declaredNotListed: [], listedNotDeclared: [],
+    });
+  });
+
+  test('no source extension can declare itself binary to escape the scan', () => {
+    // The hole the `binary` branch could have opened. Routing bare `-text`
+    // globs away from `declared` is what lets `*.png -text` coexist with the
+    // source lockstep -- but if that branch accepted ANY extension, then
+    // `*.ts ... -text` would quietly move TypeScript out of `declared` and
+    // every assertion above would keep passing while the NUL scan lost a whole
+    // language. So the refusal is asserted, not assumed.
+    const probe = resolve(REPO_ROOT, '.gitattributes');
+    const original = readFileSync(probe, 'utf8');
+    try {
+      writeFileSync(probe, `${original}\n*.ts filter=lfs diff=lfs merge=lfs -text\n`);
+      const { binary, unparsed } = declaredExtensions(REPO_ROOT);
+      expect(binary.has('ts')).toBe(false);
+      expect(unparsed).toContain('*.ts');
+    } finally {
+      writeFileSync(probe, original);
+    }
   });
 
   test('the binary-source allowlist is still empty', () => {

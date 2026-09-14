@@ -85,6 +85,36 @@ export const TEXT_EXTENSIONS = ['ts', 'tsx', 'js', 'mjs', 'cjs', 'rs', 'json'];
 export const ALLOWED_BINARY_SOURCE = new Set([]);
 
 /**
+ * Extensions `.gitattributes` routes to git-lfs with a bare, repo-wide
+ * `*.ext ... -text` glob.
+ *
+ * WHY THIS LIST HAS TO EXIST. `declaredExtensions` below maps every bare
+ * `*.ext` pattern to "a source extension declared text", because until the
+ * repo-wide LFS block landed that is the only thing a bare glob could be. A
+ * bare `*.png ... -text` line would therefore be read as "png is a source
+ * extension", `declaredNotGuarded` would list it, and the lockstep test would
+ * fail on a correct change. (Measured before writing this: appending one bare
+ * `*.png` line to .gitattributes produced exactly `declaredNotGuarded:
+ * ['png']`.)
+ *
+ * So binary globs get their own side of the lockstep rather than an exemption.
+ * The test asserts this list and the bare `-text` globs in .gitattributes match
+ * EXACTLY, in both directions -- the same discipline TEXT_EXTENSIONS gets, for
+ * the same reason: a list nobody cross-checks is a list that rots.
+ *
+ * The one thing this must never do is let a SOURCE extension be waved through
+ * by writing `-text` beside it. `declaredExtensions` refuses that explicitly: a
+ * bare glob whose extension is in TEXT_EXTENSIONS goes to `unparsed` even when
+ * it declares `-text`, so `*.ts ... -text` fails the guard loudly instead of
+ * silently removing TypeScript from the NUL scan.
+ *
+ * @type {readonly string[]}
+ */
+export const BINARY_MEDIA_EXTENSIONS = [
+  'png', 'jpg', 'jpeg', 'gif', 'webp', 'tiff', 'mp4', 'mov', 'webm', 'pdf',
+];
+
+/**
  * `.gitattributes` patterns that are path-scoped (not a bare `*.ext`) and
  * explicitly mark their files `-text` (binary, LFS-tracked). These sit
  * outside this guard's invariant entirely — a "keep source text" scan has
@@ -97,9 +127,18 @@ export const ALLOWED_BINARY_SOURCE = new Set([]);
  * @type {Set<string>}
  */
 export const ALLOWED_NON_TEXT_PATTERNS = new Set([
-  'whitepaper-foundlings/**/*.png', // LFS-tracked archival screenshots, PR #10105
-  'whitepaper-foundlings/**/*.pdf', // LFS-tracked archival PDFs, PR #10105
-  'skill_candidates/**/*.pdf', // LFS-tracked archival PDF, PR #10105
+  // Build-input exemptions: these two trees are read by a build, so their media
+  // must stay ordinary blobs rather than LFS pointers. See the "BUILD INPUTS"
+  // block in .gitattributes for why each tree is on the list, and ADR-0142
+  // section 2.1 for the underlying rule.
+  ...['website-v2/public', 'core/pd-console'].flatMap((dir) =>
+    BINARY_MEDIA_EXTENSIONS.map((ext) => `${dir}/**/*.${ext}`),
+  ),
+  // Carve-out: stays in plain git because
+  // tests/unit/spawn-whitepaper-contract.test.js pins the sha256 of two files
+  // in it and parses the PNG IHDR for exact dimensions. Still `-text` (it is
+  // binary media), so it belongs on this list for the same reason.
+  'docs/artifacts/whitepaper-figure-semantics/**',
 ]);
 
 /**
@@ -193,11 +232,17 @@ export function checkTextAttributes(paths, attrs, repoRoot) {
  * `__attribute_probe__/probe.<ext>` path the guard builds, so it is returned
  * in `unparsed` rather than silently ignored.
  *
+ * A bare `*.ext` glob that declares `-text` is returned in `binary` instead of
+ * `declared`: it routes media to git-lfs and says nothing about source. A bare
+ * glob naming a TEXT_EXTENSIONS extension falls into `unparsed` even when it
+ * says `-text`, so source cannot opt itself out of the scan.
+ *
  * @param {string} repoRoot Absolute path to the repository root.
- * @returns {{declared: Set<string>, unparsed: string[]}}
+ * @returns {{declared: Set<string>, binary: Set<string>, unparsed: string[]}}
  */
 export function declaredExtensions(repoRoot) {
   const declared = new Set();
+  const binary = new Set();
   const unparsed = [];
   for (const raw of readFileSync(resolve(repoRoot, '.gitattributes'), 'utf8').split('\n')) {
     const line = raw.trim();
@@ -205,7 +250,19 @@ export function declaredExtensions(repoRoot) {
     const [pattern, ...attrs] = line.split(/\s+/);
     const simple = /^\*\.([A-Za-z0-9]+)$/.exec(pattern);
     if (simple) {
-      declared.add(simple[1]);
+      const ext = simple[1];
+      // A bare glob that declares `-text` is a BINARY declaration, not a source
+      // one. Tested before the `declared` branch, because the whole point is
+      // that `*.png ... -text` must not be read as "png is a source extension".
+      if (attrs.includes('-text')) {
+        // ...but a SOURCE extension may never buy its way out of the NUL scan
+        // by declaring itself binary. `*.ts ... -text` lands in `unparsed` and
+        // fails the guard rather than quietly shrinking its own scope.
+        if (TEXT_EXTENSIONS.includes(ext)) unparsed.push(pattern);
+        else binary.add(ext);
+        continue;
+      }
+      declared.add(ext);
       continue;
     }
     // The allowlist exempts a pattern only while its line still actually
@@ -215,5 +272,5 @@ export function declaredExtensions(repoRoot) {
     if (ALLOWED_NON_TEXT_PATTERNS.has(pattern) && attrs.includes('-text')) continue;
     unparsed.push(pattern);
   }
-  return { declared, unparsed };
+  return { declared, binary, unparsed };
 }
