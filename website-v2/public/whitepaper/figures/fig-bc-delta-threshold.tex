@@ -1,0 +1,78 @@
+% The deviator's net payoff from one defection, against the discount factor, for
+% the three-round graduated trigger and for grim trigger. Both curves are the
+% chapter's own closed form (d-c) - (c-p)*delta*(1-delta^k)/(1-delta) at the
+% chapter's stage-game payoffs (c,d,p) = (3,4,1): k=3 gives 1 - 2*delta*(1 +
+% delta + delta^2), k -> infinity gives 1 - 2*delta/(1-delta). The marked root
+% delta* = 0.3425 is proofs/economics/delta-threshold.expected.txt (Z3: unique
+% real root of 2x^3+2x^2+2x-1 in (0,1), delta* = 0.3425080314) [verified]; the
+% grim bound 1/3 is the closed form stated in the same section; the marked point
+% -3.878 at delta = 0.9 is the chapter's own worked arithmetic (1 - 2*2.439)
+% [verified].
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure]
+\begin{axis}[
+  width=\linewidth, height=0.62\linewidth,
+  axis lines=left,
+  axis line style={pd hairline},
+  xmin=0.17, xmax=0.93, ymin=-4.2, ymax=1.60,
+  xtick={0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9},
+  ytick={1,0,-1,-2,-3,-4},
+  tick style={pd tick},
+  tick label style={font=\footnotesize},
+  xlabel={discount factor $\delta$ (weight on the next round)},
+  ylabel={deviator's net payoff, in stage-game units},
+  label style={font=\footnotesize},
+  clip=true, axis on top,
+]
+  % the indifference line: above it a defection pays, below it a defection loses
+  \draw[pd rule] (axis cs:0.17,0) -- (axis cs:0.93,0);
+
+  % grim is drawn only to where it leaves the frame: past that the path would
+  % run metres off the page and figcheck reads unclipped path geometry (T5).
+  \addplot[pd rule,line width=1.05pt,domain=0.18:0.728,samples=120,smooth]
+    {1 - 2*x/(1-x)};
+  \addplot[pd focus rule,domain=0.18:0.92,samples=120,smooth]
+    {1 - 2*x*(1 + x + x*x)};
+
+  % the two thresholds, 0.009 apart: one mark, both numbers
+  \node[pd focus datum] at (axis cs:0.3425,0) {};
+  \draw[pd guide] (axis cs:0.352,0.04) -- (axis cs:0.393,0.30);
+  \node[pd direct label,anchor=west] at (axis cs:0.398,0.35)
+    {both thresholds: $\delta^{\star}=0.3425$ ($k=3$), $1/3$ (grim)};
+
+  % the one discount factor the model checker has actually been run at
+  \node[pd caution datum] at (axis cs:0.30,0.166) {};
+  \draw[pd guide] (axis cs:0.303,0.24) -- (axis cs:0.322,1.04);
+  \node[pd direct label,anchor=south west] at (axis cs:0.315,1.08)
+    {TLC finds the deviation here, at $\delta=0.30$};
+
+  % the chapter's own worked instance
+  \node[pd focus datum] at (axis cs:0.9,-3.878) {};
+  \node[pd direct label,anchor=east,align=right] at (axis cs:0.888,-3.878)
+    {$-3.878$};
+
+  \node[pd direct label,anchor=south west,align=left] at (axis cs:0.655,-1.60)
+    {graduated trigger, $k=3$};
+  \node[pd direct label,anchor=east,align=right] at (axis cs:0.585,-1.95)
+    {grim trigger, $k\to\infty$};
+  \node[pd direct label,anchor=north east,align=right] at (axis cs:0.905,-0.05)
+    {below the line, defecting loses};
+\end{axis}
+\end{tikzpicture}
+\caption{Net payoff to a player who defects once, against the discount factor,
+under the two punishment regimes of this section. Both curves cross zero within
+$0.009$ of each other --- $\delta^{\star}=0.3425$ for the three-round graduated
+trigger, $1/3$ for grim trigger --- so bounding the punishment at three rounds
+costs almost nothing in the threshold. Away from the threshold the two regimes
+are not close at all: grim trigger's punishment grows without bound and leaves
+the frame by $\delta=0.72$, while the graduated trigger's stays finite, reaching
+the chapter's worked value of $-3.878$ at $\delta=0.9$. The diamond at
+$\delta=0.30$ is the one discount factor the model checker has actually been
+run at --- the session printed below --- and the curve's sign there, defecting
+still pays, is exactly what that run reports. Both curves are the section's own
+closed form at $(c,d,p)=(3,4,1)$, not a simulation
+[verified, \texttt{proofs/economics/delta-threshold.z3} and
+\texttt{claim\_signaling\_delta30.run.log}].}
+\label{fig:bc-delta-threshold}
+\end{figure}

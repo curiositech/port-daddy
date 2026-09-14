@@ -1,0 +1,59 @@
+% Where the succession price binds. The boundary is the theorem's own closed
+% form D* = eta*K/(1 - eta*K) (Thm. succession-price); the plane is the pair the
+% criterion is stated over: eta*K on x, the mortality-to-succession ratio xi/eta
+% on y. Both marked points are the chapter's worked instance (lambda=1, c=4
+% servers at mu_g=1.2, A=0.2, w=1, eta=0.25, W_pool=0.8362, K=1.0362), so
+% eta*K = 0.2591 for both: the boundary value D* = 0.3496 and the script's own
+% canary at xi/eta = 2.0, where even mu_s = 1e8 loses to the pool
+% [verified, skills/harbor-results/scripts/b8_specialization.py].
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure]
+\begin{axis}[
+  width=\linewidth, height=0.60\linewidth,
+  axis lines=left,
+  axis line style={pd hairline},
+  xmin=0, xmax=0.75, ymin=0, ymax=2.45,
+  xtick={0,0.2,0.4,0.6},
+  ytick={0,0.5,1,1.5,2},
+  tick style={pd tick},
+  tick label style={font=\footnotesize},
+  xlabel={$\eta K$: succession rate $\times$ the pool's cost line},
+  ylabel={$\xi/\eta$: deaths per successor spin-up},
+  label style={font=\footnotesize},
+  clip=true, axis on top,
+]
+  \addplot[pd focus rule,domain=0:0.7101,samples=160] {x/(1-x)};
+
+  % the worked instance: one vertical read at eta*K = 0.2591
+  \draw[pd guide] (axis cs:0.2591,0) -- (axis cs:0.2591,2.06);
+  \node[pd axis label,anchor=south west] at (axis cs:0.266,0.04)
+    {$\eta K=0.2591$};
+
+  \node[pd focus datum] at (axis cs:0.2591,0.3497) {};
+  \node[pd direct label,anchor=south east] at (axis cs:0.246,0.42)
+    {$D^{\star}=0.3496$};
+
+  \node[pd caution datum] at (axis cs:0.2591,2.0) {};
+  \node[pd direct label,anchor=west,align=left,text width=3.3cm]
+    at (axis cs:0.281,2.03)
+    {the canary, $\xi/\eta=2.0$: even $\mu_s=10^{8}$ loses to the pool};
+
+  \node[pd direct label,anchor=north west,align=left]
+    at (axis cs:0.022,2.38) {above the curve:\\the pool wins at\\every skill premium};
+  \node[pd direct label,anchor=north east,align=right]
+    at (axis cs:0.735,0.72) {below: enough skill\\still buys the specialist};
+\end{axis}
+\end{tikzpicture}
+\caption{The succession price as a boundary in the plane the criterion is
+actually stated over. Below the curve a high enough skill premium can still
+justify renting one sole specialist; above it the pool wins at \emph{every}
+finite premium, including one the buyer cannot reach. At the chapter's worked
+instance $\eta K=0.2591$, so the boundary sits at $D^{\star}=0.3496$ --- and the
+script's own canary, at $\xi/\eta=2.0$, sits nearly six times higher up that
+same vertical read, which is why an infinitely skilled specialist still loses
+there. The curve steepens without limit as $\eta K\to1$; past $\eta K=1$ the
+criterion does not apply rather than being satisfied
+[verified, \texttt{b8\_specialization.py}].}
+\label{fig:he-succession-price}
+\end{figure}

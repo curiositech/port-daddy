@@ -1,0 +1,72 @@
+% The issue-delegate-verify ceremony in time, drawn from the chapter's own
+% pseudocode: Daemon.IssueToken (Alg. asymmetric), Agent.Delegate and
+% Harbor.VerifyChain (Alg. delegation), with the capability sets of
+% Def. offline-attn (["db:read","db:write"] narrowed to ["db:read"]). Each
+% message carries its signing key above the arrow and the capabilities it
+% conveys below it. The readable fact is the dotted stretch of the daemon's
+% lifeline: after message 1 nothing returns to the issuer.
+% [internal; the chapter's own algorithms]
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  % ---- participants ----
+  \node[pd actor,text width=1.75cm,align=center] at (-4.45,0) {Daemon\\(root key)};
+  \node[pd actor,text width=1.75cm,align=center] at (-1.483,0) {Agent A};
+  \node[pd actor,text width=1.75cm,align=center] at (1.483,0) {Agent B};
+  \node[pd actor,text width=1.75cm,align=center] at (4.45,0) {Harbor\\(verifier)};
+
+  % lifelines: solid while the participant is still spoken to, dotted after.
+  % The harbor's is broken around its own verification box so that no drawn
+  % line runs through that box's text.
+  \draw[pd hairline] (-4.45,-0.72) -- (-4.45,-2.0);
+  \draw[pd guide]    (-4.45,-2.0)  -- (-4.45,-8.85);
+  \foreach \x in {-1.483,1.483} \draw[pd hairline] (\x,-0.72) -- (\x,-8.85);
+  \draw[pd hairline] (4.45,-0.72) -- (4.45,-5.22);
+  \draw[pd hairline] (4.45,-7.48) -- (4.45,-8.85);
+
+  % ---- 1: the daemon issues the root card ----
+  \draw[pd arrow] (-4.45,-2.0) -- (-1.483,-2.0);
+  \node[pd direct label,inner ysep=3pt,anchor=south,align=center,text width=2.6cm] at (-2.97,-1.9)
+    {1\quad card$_0$\\signed \texttt{sk\_harbor}};
+  \node[pd direct label,inner ysep=3pt,anchor=north,align=center,text width=1.8cm] at (-2.97,-2.1)
+    {\texttt{db:read},\\\texttt{db:write}};
+
+  % ---- 2: agent A mints the child card offline ----
+  \draw[pd focus arrow] (-1.483,-3.8) -- (1.483,-3.8);
+  \node[pd direct label,inner ysep=3pt,anchor=south,align=center,text width=1.8cm] at (0,-3.7)
+    {2\quad card$_1$\\signed \texttt{sk\_A}};
+  \node[pd direct label,inner ysep=3pt,anchor=north,align=center,text width=1.35cm] at (0,-3.9)
+    {\texttt{db:read}};
+
+  % ---- 3: agent B presents the whole chain ----
+  \draw[pd arrow] (1.483,-5.1) -- (4.45,-5.1);
+  \node[pd direct label,inner ysep=3pt,anchor=south,align=center,text width=1.95cm] at (2.97,-5.0)
+    {3\quad the chain\\card$_0$, card$_1$};
+
+  % ---- the verifier walks the chain hop by hop ----
+  \node[pd artifact,text width=2.1cm,align=center] at (4.45,-6.35)
+    {each hop checked under the previous hop's key};
+
+  % ---- 4: the verdict returns to B, never to the daemon ----
+  \draw[pd arrow] (4.45,-8.55) -- (1.483,-8.55);
+  \node[pd direct label,inner ysep=3pt,anchor=south,align=center,text width=1.85cm] at (2.97,-8.45)
+    {4\quad accepted\\at \texttt{db:read}};
+
+  \node[pd note,anchor=north west,text width=10.9cm] at (-5.48,-9.2)
+    {after message 1 the daemon is never contacted again: delegation and
+     acceptance need no round trip to the issuer};
+\end{tikzpicture}
+\caption{The issue--delegate--verify ceremony in time, for the chapter's own
+worked delegation. Above each arrow is the key that signs the message; below it
+are the capabilities the message conveys. Message~1 is the only one the daemon
+takes part in: it binds agent~A, the harbor, a fresh \texttt{jti} and the set
+\texttt{\{db:read, db:write\}} under the harbor's signing key. Message~2 is
+minted by agent~A alone --- it binds the whole parent card \emph{including its
+signature}, agent~B's identity and the narrowed set \texttt{\{db:read\}} ---
+which is why the daemon's lifeline is dotted from that point down. The verifier
+then walks the chain: the root signature under \texttt{pk\_root}, each later hop
+under the key carried by the hop before it, and a subset check at every hop.
+Delegation costs no round trip to the issuer, and the chain is the only evidence
+that travels. [internal]}
+\label{fig:anchor-handshake-ladder}
+\end{figure}
