@@ -231,9 +231,10 @@ export async function resolveManagedEntitlement(
   const db = requireDb(dbBinding);
   try {
     const row = await db.prepare(
-      `SELECT installation_id, retail_balance_microusd, run_retail_microusd
-         FROM fleet_managed_entitlements
-        WHERE installation_id = ? AND state = 'active'`,
+      `SELECT e.installation_id, e.retail_balance_microusd, e.run_retail_microusd
+         FROM fleet_managed_entitlements e
+         JOIN fleet_served_installations s USING (installation_id)
+        WHERE e.installation_id = ? AND e.state = 'active' AND s.state = 'served'`,
     ).bind(installationId).first<Record<string, unknown>>();
     if (!row) {
       throw new ManagedBillingError(
