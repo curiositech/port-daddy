@@ -41,7 +41,7 @@ requireValue(tree?.kind === "DrydockHypertree", "kind must be DrydockHypertree")
 requireValue(tree?.sourceSnapshot?.localRuntimeUsed === false, "static plan must prove localRuntimeUsed=false");
 requireValue(tree?.sourceSnapshot?.roadmapMutated === false, "static plan must prove roadmapMutated=false");
 requireValue(tree?.artifactIdentity?.publicationCommit === null && tree?.artifactIdentity?.publicationTree === null, "self-publication commit/tree must remain external");
-const requiredDigestScope = ["root", "roleDefinitions", "nodes", "hyperedges", "assignmentPolicy", "criticalPath"];
+const requiredDigestScope = ["root", "roleDefinitions", "nodes", "hyperedges", "assignmentPolicy", "launcherNodes", "criticalPath"];
 requireValue(
   JSON.stringify(tree?.artifactIdentity?.digestScope) === JSON.stringify(requiredDigestScope),
   `digestScope must be exactly ${requiredDigestScope.join(", ")}`

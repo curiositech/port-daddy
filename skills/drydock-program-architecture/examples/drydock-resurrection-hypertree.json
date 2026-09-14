@@ -17,8 +17,8 @@
     "publicationTree": null,
     "publicationReceiptLocation": "The eventual Git commit and PR receipt remain external because an artifact cannot contain its own commit identity.",
     "digestAlgorithm": "sha256-canonical-json-v1",
-    "digestScope": ["root", "roleDefinitions", "nodes", "hyperedges", "assignmentPolicy", "criticalPath"],
-    "planDigest": "sha256:d1348aae7c2952da668913ecb4c3edcc9cacd7526b7f890275c9ebb480ae212e"
+    "digestScope": ["root", "roleDefinitions", "nodes", "hyperedges", "assignmentPolicy", "launcherNodes", "criticalPath"],
+    "planDigest": "sha256:058de383271f41662b6809c4781ae4bf5dd23cf747ce38b70989dcf4f1b0676a"
   },
   "root": {
     "intent": "Prove that bounded agent work can start, stop, fail, checkpoint, and continue in a new body without losing identity, authority, evidence, or economic truth.",

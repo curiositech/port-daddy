@@ -69,6 +69,9 @@ revision. Two aliases may not each subtract an identical reservation, and two
 different bucket IDs may not claim the same alias. The immutable observation's
 `outstandingReservations` value is the amount before its candidate reservation;
 the compare-and-swap commit adds the candidate once to the durable bucket.
+The forecast's selected route must be one of that bucket's own aliases. A
+committed reservation is admissible only while
+`issuedAt <= evaluatedAt < expiresAt`; equality at expiry is already stale.
 
 ## Observation quality
 

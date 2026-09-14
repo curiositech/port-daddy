@@ -219,7 +219,9 @@ observer, backend ranking, model switch, or subscription-backed fleet budget.
 Emit `capacity-evidence` that validates against
 `schemas/capacity-evidence.schema.json`, then run
 `scripts/validate-capacity-evidence.mjs` for native-unit arithmetic, alias
-conservation, freshness, reservation coverage, and execution-class separation.
+conservation, forecast-route ownership, observation freshness, strict
+`issuedAt <= evaluatedAt < expiresAt` reservation freshness, reservation
+coverage, and execution-class separation.
 `fake-or-replay` evidence can fit only a simulation; `real-provider` evidence
 that supports automatic use must come from a documented structured provider or
 first-party client source. The evidence says whether a route fits; it never
@@ -311,6 +313,8 @@ compacts from artifacts, and ships a zoomable digest plus a per-task bill.
 - [ ] Every subscription route records authentication mode, observation quality, remaining/reset evidence, reserve, and forecast error.
 - [ ] Missing capacity is `UNKNOWN`; no scheduler infers unlimited, empty, or zero-cost capacity.
 - [ ] p95 action burn plus checkpoint tail fits allocatable capacity after reserve, outstanding reservations, unresolved-attempt holds, and drift margin.
+- [ ] Every forecast route belongs to the same bucket's canonical route aliases; no caller-selected outsider route can borrow its allowance.
+- [ ] Every admissible committed reservation is live at evaluation time under `issuedAt <= evaluatedAt < expiresAt`.
 - [ ] Pricing/auctions appear ONLY in the multi-operator case; the single-operator case accounts, it does not charge.
 - [ ] Tool exposure ≤3–5 always-loaded; the rest discovered (context precision).
 - [ ] A position/length sanity check exists (critical facts at edges; accuracy-vs-length curve known).
@@ -339,8 +343,9 @@ compacts from artifacts, and ships a zoomable digest plus a per-task bill.
   preemption rules.
 - `schemas/capacity-evidence.schema.json` — versioned native-unit evidence and
   reservation contract; load whenever capacity may gate a body or model call.
-- `scripts/validate-capacity-evidence.mjs` — deterministic arithmetic, freshness,
-  alias, and reservation verifier.
+- `scripts/validate-capacity-evidence.mjs` — reusable structural and semantic
+  verifier for arithmetic, freshness, route ownership, aliases, and
+  reservations.
 - `examples/capacity-evidence.ready.json` — admissible fake-observer fixture.
 - `examples/capacity-evidence.unknown.json` — supported fail-closed unknown
   fixture.

@@ -121,7 +121,9 @@
             "properties": {
               "state": { "const": "committed" },
               "reservationId": { "type": "string", "minLength": 1 },
-              "atomicAcrossBucketsAndAliases": { "const": true }
+              "atomicAcrossBucketsAndAliases": { "const": true },
+              "issuedAt": { "type": "string", "format": "date-time" },
+              "expiresAt": { "type": "string", "format": "date-time" }
             }
           },
           "buckets": {

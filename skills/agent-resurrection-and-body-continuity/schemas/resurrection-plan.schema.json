@@ -101,13 +101,18 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["effectSlotId", "canonicalFingerprint", "logicalIdentity", "operation", "normalizedDestination", "state", "idempotencyKeys", "reconciliationEvidence", "replayAllowed"],
+            "required": ["effectSlotId", "canonicalFingerprint", "logicalIdentity", "operation", "normalizedDestination", "normalizedArguments", "approvalSlot", "state", "idempotencyKeys", "reconciliationEvidence", "replayAllowed"],
             "properties": {
               "effectSlotId": { "type": "string", "minLength": 1 },
               "canonicalFingerprint": { "$ref": "#/$defs/digest" },
               "logicalIdentity": { "type": "string", "minLength": 1 },
               "operation": { "type": "string", "minLength": 1 },
               "normalizedDestination": { "type": "string", "minLength": 1 },
+              "normalizedArguments": {
+                "type": "object",
+                "additionalProperties": { "$ref": "#/$defs/jsonValue" }
+              },
+              "approvalSlot": { "type": ["string", "null"], "minLength": 1 },
               "state": { "enum": ["intended", "dispatched", "observed", "committed", "ambiguous", "denied"] },
               "idempotencyKeys": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
               "reconciliationEvidence": { "type": "array", "items": { "type": "string", "minLength": 1 } },
@@ -120,13 +125,14 @@
     "capsule": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["capsuleId", "sequence", "predecessorDigest", "digestAlgorithm", "canonicalEncoding", "digest", "signer", "audience", "issuedAt", "expiresAt", "retentionRoot", "artifactAvailabilityRoot", "signatureVerificationReceipt", "lineageVerificationReceipt", "availabilityVerificationReceipt", "requiredFactTypes", "satisfiedFactTypes", "verifiedFacts", "unsupportedClaims", "decisions", "toolPairs", "tests", "transcript", "memoryDisposition", "omissions", "oneTime", "redemption"],
+      "required": ["capsuleId", "sequence", "predecessorDigest", "digestAlgorithm", "canonicalEncoding", "digestScope", "digest", "signer", "audience", "issuedAt", "expiresAt", "retentionRoot", "artifactAvailabilityRoot", "signatureVerificationReceipt", "lineageVerificationReceipt", "availabilityVerificationReceipt", "requiredFactTypes", "satisfiedFactTypes", "verifiedFacts", "unsupportedClaims", "decisions", "toolPairs", "tests", "transcript", "memoryDisposition", "omissions", "oneTime", "redemption"],
       "properties": {
         "capsuleId": { "type": "string", "minLength": 1 },
         "sequence": { "type": "integer", "minimum": 1 },
         "predecessorDigest": { "anyOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
         "digestAlgorithm": { "const": "sha256" },
         "canonicalEncoding": { "const": "RFC8785-JCS" },
+        "digestScope": { "const": "resurrection-capsule-v1" },
         "digest": { "$ref": "#/$defs/digest" },
         "signer": {
           "type": "object",
@@ -143,7 +149,19 @@
         "expiresAt": { "type": "string", "format": "date-time" },
         "retentionRoot": { "$ref": "#/$defs/digest" },
         "artifactAvailabilityRoot": { "$ref": "#/$defs/digest" },
-        "signatureVerificationReceipt": { "type": "string", "minLength": 1 },
+        "signatureVerificationReceipt": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["receiptId", "capsuleDigest", "signerKeyId", "signatureAlgorithm", "signatureDigest", "verifiedAt"],
+          "properties": {
+            "receiptId": { "type": "string", "minLength": 1 },
+            "capsuleDigest": { "$ref": "#/$defs/digest" },
+            "signerKeyId": { "type": "string", "minLength": 1 },
+            "signatureAlgorithm": { "type": "string", "minLength": 1 },
+            "signatureDigest": { "$ref": "#/$defs/digest" },
+            "verifiedAt": { "type": "string", "format": "date-time" }
+          }
+        },
         "lineageVerificationReceipt": { "type": "string", "minLength": 1 },
         "availabilityVerificationReceipt": { "type": "string", "minLength": 1 },
         "requiredFactTypes": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
@@ -230,6 +248,16 @@
   "$defs": {
     "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
     "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "jsonValue": {
+      "anyOf": [
+        { "type": "null" },
+        { "type": "boolean" },
+        { "type": "number" },
+        { "type": "string" },
+        { "type": "array", "items": { "$ref": "#/$defs/jsonValue" } },
+        { "type": "object", "additionalProperties": { "$ref": "#/$defs/jsonValue" } }
+      ]
+    },
     "evidencedStatement": {
       "type": "object",
       "additionalProperties": false,
@@ -397,6 +425,36 @@
             "properties": {
               "mode": { "const": "native-resume" },
               "nativeSessionLease": { "type": "object", "properties": { "required": { "const": true }, "exclusive": { "const": true }, "receipt": { "type": "string", "minLength": 1 } } }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "destination": {
+            "type": "object",
+            "properties": { "mode": { "const": "native-resume" } },
+            "required": ["mode"]
+          }
+        },
+        "required": ["destination"]
+      },
+      "then": {
+        "properties": {
+          "verdict": { "const": "NATIVE_RESUME_ELIGIBLE" },
+          "destination": {
+            "type": "object",
+            "properties": {
+              "nativeSessionLease": {
+                "type": "object",
+                "properties": {
+                  "required": { "const": true },
+                  "exclusive": { "const": true },
+                  "receipt": { "type": "string", "minLength": 1 }
+                }
+              }
             }
           }
         }
