@@ -8966,7 +8966,7 @@
     "Item": "The review as a whole: 30 pages, an executive assessment, a formal audit of seventeen theorems, a literature table, a visual-register audit, chapter-by-chapter tactical guidance, and a publication roadmap.",
     "Targets": "whole volume",
     "Prior adjudication": "The review was received on 2026-09-08 and adjudicated the same day, item by item, against commit `daf24d62e`, in `docs/harbor-research/exposition/critique/ADJUDICATION-2026-09-08.md` (61 rows, CA-001 to CA-061). Item 13 of that adjudication's own work list ordered the ledger fold this section performs.",
-    "Status": "DONE -- folded here",
+    "Status": "DONE #10185",
     "Notes": "The uploaded PDF and the committed `docs/harbor-research/exposition/critique/CriticalAnalysis-2026-09-08.md` are the same document (the PDF's word count is lower only because its equations are rendered as images that no text extraction recovers). The adjudication existed and was correct; nothing referenced it. `CA-` returned no hits in `CRITIQUE-LEDGER.md` or `critique-ledger.json` before this commit, and no file in the repository linked to the adjudication, so the question \"have we answered this review\" could not be asked of the ledger -- which is the ledger's entire purpose."
   }
 ]
