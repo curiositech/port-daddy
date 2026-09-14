@@ -201,15 +201,11 @@
 
 \vspace{1cm}
 
-\begin{abstract}\noindent
-Two autonomous agents working on the same project corrupt each other's state, double-claim the same files, race for the same ports, and leave the operator to do recovery archaeology. The problem is not the agents---it is that they have no coordination substrate. This paper specifies one. We model the daemon the way game theory models a referee who never forces anyone's hand: it whispers a private recommendation to each agent---\emph{you go, you wait}---and Aumann's theory of \emph{correlated equilibrium}~\pdcite{aumann1974subjectivity} tells us exactly when agents have no reason to ignore it. That ``exactly when'' is the decisive part: the recommendations constitute a correlated equilibrium only when the explicit obedience inequalities of \S\ref{sec:correlating-device} hold. The substrate has three independently necessary layers---capability-attenuated tokens that bound scope, Merkle-chained evidence trails that preserve attribution, and collateralized work contracts that pre-fund damage regardless of intent. We formalize the construction in the context of Port Daddy, a coordination daemon for local agent swarms, and separate structural guarantees from incentive assumptions. Sen's Impossibility of a Paretian Liberal supplies a design warning, not a proof that every enforced lock is inefficient: decisive local control and team-wide Pareto choice can conflict under unrestricted preferences. That warning motivates an advisory claim graph whose completeness is proved separately. We further specify a \emph{mutable-signal ledger} (\S\ref{sec:pheromones}) supporting revocation, renaming, and provenance-aware propagation without sacrificing attribution integrity. Finally, we evaluate a competitive-insurance pricing mechanism (\S\ref{sec:youle}, contributed by Youle) against a named static baseline. Its Pareto comparisons are simulation results under stated assumptions, not a universal welfare theorem. Hobbes had the right idea about sovereigns; he just lacked a way to deploy one on \texttt{localhost:9876}.
-\end{abstract}
-
 \vspace{0.5cm}
 \noindent\textbf{Keywords:} multi-agent coordination, trust infrastructure, capability-based security, social contract, collateralized computation, formal verification, commons governance
 
 \vspace{0.3cm}
-\noindent\textit{Reading time: approximately 50 minutes end-to-end. The Reader's Map below provides shorter paths for specific reader types.}
+\noindent\textit{Reading time: approximately 50 minutes end-to-end.}
 
 \vspace{0.6cm}
 
@@ -228,36 +224,6 @@ Two autonomous agents working on the same project corrupt each other's state, do
 \end{center}
 
 \vspace{0.4cm}
-
-% ═══════════════════════════════════════════════════════════════════════════════
-\section*{Reader's Map}\label{sec:readers-map}
-% ═══════════════════════════════════════════════════════════════════════════════
-
-The paper builds in four layers; each layer carries a critical formal claim or empirical result. If you have less than 50 minutes, the table below tells you where to start.
-
-\vspace{0.4cm}
-\noindent
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.21\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.22\textwidth}@{}}
-\toprule
-\textbf{Layer} & \textbf{Critical artifact} & \textbf{Lives at} \\
-\midrule
-\textbf{(1) Structural prevention} & Capability-attenuated tokens; ProVerif proofs of algorithm-confusion immunity and delegation replay resistance & \S\ref{sec:structural}--\S\ref{sec:isolation}; \pdchapref{anchor}{The Anchor Protocol} \\
-\textbf{(2) Immutable attribution} & Merkle Forest with cross-daemon inclusion proofs; EasyCrypt binding mechanization (\texttt{binding.ec}) & \S\ref{sec:merkle-forest}; Appendix~\ref{app:mech} \\
-\textbf{(3) Economic alignment} & Competitive-insurance auction; conditional Monte Carlo comparison & \S\ref{sec:youle}; \S\ref{sec:youle:welfare} \\
-\textbf{(4) Governance} & Sen-inspired design warning; advisory-conflict completeness & \S\ref{sec:sen}--\S\ref{sec:advisory} \\
-\bottomrule
-\end{tabularx}
-
-\vspace{0.6cm}
-\noindent\textbf{Suggested reading paths by reader type:}
-\begin{itemize}[nosep,leftmargin=*,topsep=2pt]
-\item \textbf{Formal-methods reviewer / program committee} --- abstract, then jump to Appendix~\ref{app:mech} (Formal Verification Status). The artifact registry is the most concentrated signal of what is and is not proved.
-\item \textbf{Engineering manager evaluating multi-agent infrastructure} --- abstract, \S\ref{sec:why-consent} (``Why Agents Consent''), \S\ref{sec:economic} (bond pricing), \S\ref{sec:youle:welfare} (welfare results), then Appendix~\ref{app:worked} (one \$5 task traced end to end). The Appendix~\ref{app:mech} status registry tells you what is production-ready and what is research.
-\item \textbf{Cryptoeconomic protocol designer} --- abstract, then \S\ref{sec:youle} (auction mechanism), \S\ref{sec:youle:welfare} (welfare theorem with inline Pareto Monte Carlo), \S\ref{sec:youle:a5} (A5 Sybil-deterrence is coverage-bounded --- a surprising negative result).
-\item \textbf{AI safety researcher} --- \S\ref{sec:morality} (``What Morality Means When Death Is Cheap''), \S\ref{sec:sen} (Sen's theorem), \S\ref{sec:economic} (collateralized work contracts). Skim Appendix~\ref{app:mech} for the proof posture.
-\item \textbf{Distributed systems engineer} --- \S\ref{sec:structural}--\S\ref{sec:merkle-forest} (primitives), then \pdchapref{anchor}{The Anchor Protocol} for the cryptographic-token protocol detail.
-\item \textbf{Policy / governance analyst} --- abstract, \S\ref{sec:sen}--\S\ref{sec:advisory} (the Sen's-theorem argument for advisory rather than enforced claims), \S\ref{sec:federated-sovereign} (federated sovereign).
-\end{itemize}
 
 \vspace{0.5cm}
 \noindent\textbf{Volume Context.} \pdchapref{anchor}{The Anchor Protocol} supplies the ProVerif-verified cryptographic-token foundation this chapter assumes throughout---Harbor Card phases, cuckoo-filter revocation, bounded multi-hop delegation; this chapter supplies the economic and governance argument built on top of it.

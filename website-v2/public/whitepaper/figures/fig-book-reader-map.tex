@@ -1,0 +1,121 @@
+% Figure 0.1 --- the one reader's map the Book keeps: five archetypes, drawn as
+% flowing paths of varying width through the Book's four parts, replacing the
+% six per-chapter Reader's Map sections and abstracts this edition used to
+% carry (and promise standalone editions would keep). Full-width: this is the
+% one figure important enough to claim the margin column too.
+%
+% Drawn at its native size (about 7in wide) and left otherwise unwrapped: the
+% preamble's own overflow safety net (coordination-papers-mega-volume-preamble.tex,
+% "Overflow safety net", \pgfsys@typesetpicturebox) already intercepts every
+% tikzpicture wider than \linewidth, sets it across the column and the margin
+% at \pdfullwidth (6in), and rescales it with \resizebox itself if it is wider
+% still -- that is the ONE way a full-width figure claims the margin column in
+% this book, not a hand-rolled adjustwidth+resizebox. A hand-rolled wrapper
+% was tried first here and produced a figure that ran off the right edge of
+% the page: the safety net's own \resizebox, downstream of a \makebox[\textwidth]
+% whose declared width is only \textwidth regardless of the margin content
+% already sitting past it, re-scaled that already-correct result back up.
+% Removing the manual wrapper and trusting the existing hook fixed it.
+%
+% Encoding, deliberately: position (which lane) and width/line-style (fat solid
+% = read closely; medium solid = read; thin dashed = skim) carry the archetype
+% distinction, and every path is labelled directly on the page -- no legend.
+% Colour is used only for the four PART headers (an axis label, exactly the
+% \pd@chaptercolor already used for the margin glyph elsewhere in this book),
+% never to distinguish one archetype's path from another's: the Book's seven
+% story colours have measured pairs below the legibility floor for full-colour
+% readers (a separate branch, claude/figure-palette-separation, is re-stepping
+% them), so a figure that leaned on hue to tell two paths apart would have to
+% be redrawn once that lands. This one does not depend on it either way.
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure]
+  % ---- column geometry: four parts, touching, no gaps -----------------------
+  \def\bA{0}\def\bB{3.65}\def\bC{7.30}\def\bD{10.95}\def\bE{14.60}
+  \def\cA{1.825}\def\cB{5.475}\def\cC{9.125}\def\cD{12.775}
+  \def\yTop{10.55}\def\yHead{10.30}\def\ySub{9.75}\def\yBase{0.55}
+
+  % ---- part dividers and header band -----------------------------------
+  \foreach \x in {\bB,\bC,\bD} \draw[pd hairline] (\x,\yBase) -- (\x,\yTop);
+  \draw[pd hairline] (\bA,\yTop) -- (\bE,\yTop);
+  \node[pd panel title,text=pdcobalt,align=center] at (\cA,\yHead) {Part I\\[1pt]\footnotesize\normalfont Ground Truth};
+  \node[pd panel title,text=pdteal,align=center] at (\cB,\yHead) {Part II\\[1pt]\footnotesize\normalfont The Cost of Seeing};
+  \node[pd panel title,text=pdviolet,align=center] at (\cC,\yHead) {Part III\\[1pt]\footnotesize\normalfont What Survives the Restart};
+  \node[pd panel title,text=pdgold,align=center] at (\cD,\yHead) {Part IV\\[1pt]\footnotesize\normalfont Trade Between Strangers};
+  \node[pd note] at (\cA,\ySub) {1 \textperiodcentered\ 2 \textperiodcentered\ 3};
+  \node[pd note] at (\cB,\ySub) {4};
+  \node[pd note] at (\cC,\ySub) {5};
+  \node[pd note] at (\cD,\ySub) {6 \textperiodcentered\ 7 \textperiodcentered\ 8};
+
+  % ---- lane geometry: five archetypes, top to bottom -------------------
+  \def\yPrac{8.55}\def\yEng{6.90}\def\ySec{5.25}\def\yEcon{3.60}\def\yPhil{1.95}
+  \def\wFat{9.0}\def\wMed{5.0}\def\wThin{2.0}
+
+  % A river segment: #1 x start, #2 x end, #3 y, #4 line width, #5 extra style
+  \newcommand{\rmseg}[5]{\draw[pd rule,line cap=round,line width=#4pt,#5] (#1,#3) -- (#2,#3);}
+  % A direct label naming the path, set once, at the far left of Part I.
+  \newcommand{\rmlabel}[2]{\node[pd direct label,anchor=east,align=right,text width=3.05cm,font=\bfseries\footnotesize] at (-0.30,#1) {#2};}
+  % A short note pinned just above a fat segment, naming what it is fat for.
+  \newcommand{\rmnote}[3]{\node[pd note,anchor=south,font=\scriptsize\itshape] at (#1,#2+0.28) {#3};}
+
+  % 1. The Practitioner (buyer, solo developer, founder, newcomer) ---------
+  \rmlabel{\yPrac}{THE PRACTITIONER}
+  \rmseg{\bA}{\bB}{\yPrac}{\wThin}{dashed}
+  \rmseg{\bB}{\bC}{\yPrac}{\wFat}{}
+  \rmseg{\bC}{\bD}{\yPrac}{\wFat}{}
+  \rmseg{\bD}{\bE}{\yPrac}{\wMed}{-{Stealth[length=5mm,width=4mm]}}
+  \rmnote{\cB}{\yPrac}{digest-with-zoom, consent}
+  \rmnote{\cC}{\yPrac}{role vs.\ person}
+
+  % 2. The Systems Engineer (builds and verifies the mechanism) -----------
+  \rmlabel{\yEng}{THE SYSTEMS ENGINEER}
+  \rmseg{\bA}{\bB}{\yEng}{\wFat}{}
+  \rmseg{\bB}{\bC}{\yEng}{\wFat}{}
+  \rmseg{\bC}{\bD}{\yEng}{\wMed}{}
+  \rmseg{\bD}{\bE}{\yEng}{\wFat}{-{Stealth[length=5mm,width=4mm]}}
+  \rmnote{\cA}{\yEng}{single-writer proof, attenuation}
+  \rmnote{\cD}{\yEng}{transfer ceremony, settlement}
+
+  % 3. The Security / Formal-Methods Reviewer ------------------------------
+  \rmlabel{\ySec}{THE SECURITY REVIEWER}
+  \rmseg{\bA}{\bB}{\ySec}{\wFat}{}
+  \rmseg{\bB}{\bC}{\ySec}{\wThin}{dashed}
+  \rmseg{\bC}{\bD}{\ySec}{\wThin}{dashed}
+  \rmseg{\bD}{\bE}{\ySec}{\wFat}{-{Stealth[length=5mm,width=4mm]}}
+  \rmnote{\cA}{\ySec}{threat model, deontic split}
+  \rmnote{\cD}{\ySec}{ProVerif / TLA+ status}
+
+  % 4. The Mechanism Designer / Economist ----------------------------------
+  \rmlabel{\yEcon}{THE MECHANISM DESIGNER}
+  \rmseg{\bA}{\bB}{\yEcon}{\wThin}{dashed}
+  \rmseg{\bB}{\bC}{\yEcon}{\wMed}{}
+  \rmseg{\bC}{\bD}{\yEcon}{\wMed}{}
+  \rmseg{\bD}{\bE}{\yEcon}{\wFat}{-{Stealth[length=5mm,width=4mm]}}
+  \rmnote{\cD}{\yEcon}{three-sided market, conservation}
+
+  % 5. The Institutional Theorist (legitimacy, personhood, morality) ------
+  \rmlabel{\yPhil}{THE INSTITUTIONAL THEORIST}
+  \rmseg{\bA}{\bB}{\yPhil}{\wThin}{dashed}
+  \rmseg{\bB}{\bC}{\yPhil}{\wMed}{}
+  \rmseg{\bC}{\bD}{\yPhil}{\wFat}{}
+  \rmseg{\bD}{\bE}{\yPhil}{\wMed}{-{Stealth[length=5mm,width=4mm]}}
+  \rmnote{\cC}{\yPhil}{Locke, Parfit, personhood}
+\end{tikzpicture}
+\caption{\textbf{One reader's map for the whole book.} Five archetypes, each a
+single flowing path left to right through Parts I--IV; line width is the
+encoding that matters --- fat where that reader should read closely, thin and
+dashed where the part is safe to skim without losing the argument --- and
+every path is named on the page rather than in a legend. Position and width
+carry the distinction; colour marks only the four parts themselves (the same
+per-part hue used throughout this edition), never one archetype against
+another, so the figure does not depend on the categorical palette currently
+being re-stepped for full-colour legibility (\texttt{claude/figure-palette-separation}).
+A sixth reader, the instructor checking exercises, is deliberately not drawn
+as a sixth lane: every chapter's own closing \textsc{Exercises} section is
+that reader's route, in every part at once, and a sixth flat line spanning
+the full width would say nothing a reader could not already infer. Five
+paths is close to the legibility ceiling for one figure; a design that
+needed a sixth or seventh would be better split into two figures than drawn
+here.}
+\label{fig:book-reader-map}
+\end{figure}

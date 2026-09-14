@@ -7,6 +7,7 @@ import {
   cleanStandaloneChrome,
   collateReferences,
   compareNormalizedReferences,
+  generate,
   inlineInputs,
   loadCiteShortforms,
   loadTextbook,
@@ -923,5 +924,84 @@ test('loadCiteShortforms parses the generated \\pdciteshort table', () => {
     assert.equal(map.get('lampson1974'), 'Lampson 1974, \\textit{Protection}');
   } finally {
     rmSync(path, { force: true });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// No chapter carries an abstract or a Reader's Map -- zero, full stop.
+//
+// An earlier gate (drafted on claude/generator-readers-map-gate, not merged)
+// policed a weaker invariant: a Reader's Map had to be STARRED so the Book's
+// stripPaperApparatus would drop it, on the theory that a numbered
+// \section{Reader's Map} is chapter content and a starred one is standalone
+// chrome the Book does not print. That distinction is now moot. The author's
+// decision was to delete the six per-chapter Reader's Maps and the seven
+// per-chapter abstracts outright -- from every chapter source, standalone
+// editions included, not only from the Book's generated output -- and to
+// replace them with one book-level reader's map (figures/fig-book-reader-map)
+// drawn once in the front matter. So the invariant this test polices is
+// strictly stronger than "no unstarred map leaks into the Book": no chapter
+// source may define one at all, starred or not, and the generated Book body
+// must contain no trace of either apparatus either. A regression here means
+// someone added a per-chapter abstract or reader's map back, not that they
+// forgot to star one.
+// ---------------------------------------------------------------------------
+
+// Any sectioning command whose title names a reader's map, starred or not --
+// deliberately looser than any strip pattern the generator might use, so this
+// test notices a heading the generator would fail to recognise too.
+const READERS_MAP_HEADING = /\\(?:sub)*section(\*?)\s*\{([^}]*[Rr]eader'?s?\s+[Mm]ap[^}]*)\}/g;
+// The phrase itself, anywhere -- what a reader would actually see on the page.
+const READERS_MAP_PHRASE = /[Rr]eader'?s?\s+[Mm]ap/;
+
+test("no chapter source defines a Reader's Map or an abstract, and neither reaches the Book", () => {
+  const textbook = loadTextbook();
+
+  // --- the source side: every chapter, by name, from textbook.json --------
+  // Chapters come from textbook.json, never a list kept here: a ninth chapter
+  // is covered the day it is added, and a renamed source cannot quietly fall
+  // out of the sweep.
+  const withMaps = [];
+  const withAbstracts = [];
+  for (const chapter of textbook.chapters) {
+    const source = readFileSync(resolve(chapter.source), 'utf8');
+    for (const heading of source.matchAll(READERS_MAP_HEADING)) {
+      withMaps.push(`${chapter.source}: \\section${heading[1]}{${heading[2]}}`);
+    }
+    if (/\\begin\{abstract\}/.test(source)) {
+      withAbstracts.push(chapter.source);
+    }
+  }
+  assert.deepEqual(
+    withMaps,
+    [],
+    "no chapter source may define a Reader's Map, starred or not -- the one book-level map in "
+    + 'figures/fig-book-reader-map replaces all six; a chapter that still has one was missed',
+  );
+  assert.deepEqual(
+    withAbstracts,
+    [],
+    'no chapter source may carry \\begin{abstract}; the author deleted the per-chapter abstracts '
+    + 'along with the reader maps, and the front matter no longer promises standalone editions keep them',
+  );
+
+  // --- the output side: against the generated Book, not a regex belief ----
+  const out = resolve('.cache/mega-generator-readers-map-test');
+  rmSync(out, { recursive: true, force: true });
+  try {
+    generate({ textbook, out });
+    const bodyLines = readFileSync(resolve(out, 'mega-volume-body.tex'), 'utf8').split('\n');
+    const leaked = bodyLines
+      .map((line, index) => `${index + 1}: ${line.trim()}`)
+      .filter((line) => READERS_MAP_PHRASE.test(line));
+    assert.deepEqual(
+      leaked,
+      [],
+      "the Book body must contain no reader's map; these lines reached mega-volume-body.tex",
+    );
+    const abstractLeaked = bodyLines.some((line) => /\\begin\{abstract\}/.test(line));
+    assert.equal(abstractLeaked, false, 'the Book body must contain no \\begin{abstract}');
+  } finally {
+    rmSync(out, { recursive: true, force: true });
   }
 });

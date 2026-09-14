@@ -207,49 +207,13 @@
 
 \vspace{0.6cm}
 
-\begin{abstract}\noindent
-A swarm of autonomous coding agents sharing one machine collides over the same
-scarce things: network ports, files on disk, mutual-exclusion locks, and the
-record of who did what. The instinct, trained on a decade of distributed-systems
-literature, is to reach for consensus --- replicate the state, run an agreement
-protocol. We make the opposite, and we argue correct, move: collapse the entire
-problem onto a \textbf{single writer over a single local SQLite database in
-write-ahead-log (WAL) mode}, and let the operating system's file lock serialize
-every mutation. There is one decider, so there is no agreement to reach.
-
-This paper presents that kernel --- the \textbf{substrate layer} of a four-layer
-coordination stack --- together with the implemented half of the coordination
-protocol that rides directly on it (a durable message bus, decaying stigmergic
-markers, violable commitments, a cryptographic delegation chain, and a policy
-monitor) as a \textbf{single-writer transactional reference monitor} in the sense
-of Anderson and Lampson: a small, tamper-evident mediator of every
-security-relevant operation, realized locally rather than as an abstract security
-kernel. We state the kernel's invariants as theorems --- mutual exclusion,
-idempotence, the consistency model (serializable transactions, a linearizable
-claim history), oracle-bound obligation closure --- and we are deliberate about
-where the promises stop. In particular we \emph{split} durability by fault class:
-a write that returns success survives a \emph{process} crash but is \emph{not
-guaranteed} against power loss under the default WAL configuration; and we correct
-a widespread over-claim, showing that the policy monitor is a post-commit
-\emph{detector}, not a pre-commit regimenter, with the only genuine
-pre-commit regimentation credited to a uniqueness constraint and a boot-time
-admission gate. The kernel is solid where it is local and provisional exactly
-where a cross-machine economy of agents would need it to become cryptographic and
-continuous --- and we say so in the same words throughout. Companion chapters in the
-same series (\emph{The Legible Swarm}, \emph{From Spawn to Person}, \emph{The
-Harbor Economy}) build the operator interface, the identity-and-reputation bridge,
-and the cross-machine market on the floor this paper specifies.
-\end{abstract}
-
 \vspace{0.4cm}
 \noindent\textbf{Keywords:} reference monitor, single-writer transactions, SQLite
 write-ahead logging, durability by fault class, linearizability, deontic logic,
 commitments, stigmergy, local-first coordination, multi-agent systems
 
 \vspace{0.4cm}
-\noindent\textit{Reading time: approximately 45 minutes end-to-end; the Reader's
-Map (\S\ref{sec:readersmap}) routes you to a 15-minute path and to single-section
-paths. This is Chapter~\pdchapternumber{} of \pdbooktitle{}, a
+\noindent\textit{Reading time: approximately 45 minutes end-to-end. This is Chapter~\pdchapternumber{} of \pdbooktitle{}, a
 \pdchaptercountword-chapter textbook, and the chapter every later one rests on.
 \pdchapref{ls}{The Legible Swarm} is the operator-facing entry point and a natural
 place to start; \pdchapref{stp}{From Spawn to Person} builds an
@@ -400,36 +364,6 @@ foundational promise be read as stronger than the artifact delivers. When a syst
 claims ``the database survives every agent's death,'' a reader hears ``power-loss
 durable.'' It is not, by default. Saying so is the difference between a systems
 paper and a brochure.}
-
-% ═════════════════════════════════════════════════════════════════════════════
-\section{Reader's Map}
-\label{sec:readersmap}
-% ═════════════════════════════════════════════════════════════════════════════
-
-\begin{table}[H]
-\centering
-\caption{Reader's Map. Find your row; read those sections first.}
-\label{tab:readers-map}
-\small
-\renewcommand{\arraystretch}{1.3}
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.22\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.31\textwidth}@{}}
-\toprule
-\textbf{If you are\ldots} & \textbf{\ldots read first} & \textbf{\ldots critical artifact} \\
-\midrule
-short on time (15 min) & \S1 (thesis + stack map), \S\ref{sec:durability} (durability split), \S\ref{sec:enforcement} (the monitor correction) & Figs.~\ref{fig:swk-stack-map}, \ref{fig:swk-durability-faultclass}, \ref{fig:swk-reference-monitor} \\
-a systems engineer & \S\ref{sec:substrate}--\S\ref{sec:invariants} (substrate, single-writer, the theorems) & Thm.~\ref{thm:consistency}; Figs.~\ref{fig:swk-single-writer}, \ref{fig:swk-consistency-model} \\
-a security reviewer & \S\ref{sec:enforcement} (deontic split, the monitor), \S\ref{sec:threatmodel} (threat model) & Fig.~\ref{fig:swk-reference-monitor}, Table~\ref{tab:swk-deontic-split}; Table~\ref{tab:threat-model} \\
-a protocol/agent author & \S\ref{sec:resource} (claims), \S\ref{sec:comm} (the bus), \S\ref{sec:adjacency} (the interface contract) & Fig.~\ref{fig:swk-claim-lifecycle}, Table~\ref{tab:swk-comm-organ}; \S\ref{sec:adjacency} \\
-here for the economy & \S\ref{sec:continuity} (continuity subsystems), then the personhood and market papers & Fig.~\ref{fig:swk-continuity-organs} \\
-an instructor & every \textbf{Exercises} block; the open problems OP-1\,--\,OP-11 and their status table (\S\ref{sec:openproblems}) & the starred exercises; Table~\ref{tab:op-status} \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-\noindent\textbf{Reading order within the series.} The legibility paper is the
-gentlest on-ramp; this paper, the substrate, is the formal floor; the personhood
-and market papers build upward. If you only read one paper to decide whether the
-foundation is sound, read this one.
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{The kernel as seven subsystems}
