@@ -872,6 +872,10 @@ function permissionsFor(operation: FleetbotOperation): Readonly<Record<string, I
       : { pull_requests: 'write' };
 }
 
+function repositoryAccessFor(operation: FleetbotOperation): 'read' | 'write' {
+  return operation === 'pull-request.inspect' ? 'read' : 'write';
+}
+
 function expectedBranch(request: FleetbotActionRequest, accountUserId: string): string {
   const name = request.authorship!.agentId.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 44) || 'agent';
   const scope = hashHex(`${accountUserId}:${request.idempotencyKey}`).slice(0, 12);
@@ -1580,7 +1584,12 @@ export async function handleFleetbotPublisher(request: Request, env: PublisherEn
     }
     const [owner, repo] = action.repository.split('/') as [string, string];
     const installationId = await getRepoInstallationId(config.appId, config.privateKey, owner, repo, env.KV, true);
-    await authorizeExactRepository(installationId, action.repository, account.credential.accessToken, 'write');
+    await authorizeExactRepository(
+      installationId,
+      action.repository,
+      account.credential.accessToken,
+      repositoryAccessFor(action.operation),
+    );
     key = {
       accountUserId: account.user.id,
       accountGithubUserId: account.user.github_user_id,
@@ -1664,5 +1673,6 @@ export const __fleetbotPublisherTest = {
   executeExisting,
   gitObjectSha,
   expectedCommitSha,
+  repositoryAccessFor,
   maxOuterRequestBytes: MAX_OUTER_REQUEST_BYTES,
 };

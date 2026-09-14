@@ -163,6 +163,7 @@ const CLIENT_JS = `
   var emptyState = document.getElementById('empty');
   var threadId = document.body.getAttribute('data-thread') || '';
   var scopedRepo = '';
+  var deletionRepo = '';
   var scopedInstallation = 0;
   var scopeForm = document.getElementById('repo-scope-form');
   var FENCE = '\\u0060\\u0060\\u0060';
@@ -337,6 +338,7 @@ const CLIENT_JS = `
     fetch('/v1/shipwright/history?thread=' + encodeURIComponent(threadId)).then(function (r) { return r.json(); }).then(function (d) {
       if (!d.thread) throw new Error(d.error || 'Repository authorization failed');
       scopedRepo = d.thread.repo;
+      deletionRepo = d.thread.repo;
       scopedInstallation = d.thread.installationId;
       var label = document.getElementById('active-repo-label');
       if (label) label.textContent = scopedRepo;
@@ -438,7 +440,8 @@ const CLIENT_JS = `
   });
   if (repoClearBtn) repoClearBtn.addEventListener('click', function () {
     if (busy || !threadId) return;
-    if (!window.confirm('Delete every Shipwright thread, saved proposal, and repository memory for ' + scopedRepo + '?')) return;
+    var target = deletionRepo || 'this saved repository thread';
+    if (!window.confirm('Delete every Shipwright thread, saved proposal, and repository memory for ' + target + '?')) return;
     fetch('/v1/shipwright/repo-clear', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -471,6 +474,12 @@ const CLIENT_JS = `
         option.value = rows[i].threadId;
         option.textContent = rows[i].repo;
         resume.appendChild(option);
+        if (rows[i].threadId === threadId) {
+          deletionRepo = rows[i].repo;
+          // Account-owned stored data remains erasable after GitHub access is
+          // revoked. This does not enable chat, history, or raw-transcript clear.
+          if (repoClearBtn) repoClearBtn.disabled = false;
+        }
       }
     }).catch(function () {
       resume.options[0].textContent = 'Saved threads unavailable';
