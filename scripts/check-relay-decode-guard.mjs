@@ -87,7 +87,7 @@
  *     ("relay") since every existing fixture is written against that rule.
  */
 import ts from 'typescript';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { resolve, dirname, relative, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
