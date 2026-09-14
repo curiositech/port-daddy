@@ -67,6 +67,41 @@ requireTable('fleet_runs');
 requireTable('fleet_run_steps');
 requireTable('events');
 requireTable('users');
+const fleetAccountsSql = requireTable('fleet_accounts');
+const fleetMembersSql = requireTable('fleet_account_members');
+const fleetTenantRepositoriesSql = requireTable('fleet_tenant_repositories');
+for (const column of ['id', 'status', 'created_at', 'updated_at']) requireColumn('fleet_accounts', column);
+for (const column of ['tenant_account_id', 'user_id', 'role']) requireColumn('fleet_account_members', column);
+for (const column of [
+  'tenant_account_id', 'installation_id', 'repository_id', 'github_account_id', 'active',
+]) requireColumn('fleet_tenant_repositories', column);
+if (!fleetAccountsSql.includes("'active'") || !fleetAccountsSql.includes("'suspended'")) {
+  throw new Error('fleet_accounts.status lost its closed lifecycle CHECK');
+}
+if (!fleetMembersSql.includes("'owner'") || !fleetMembersSql.includes("'member'")) {
+  throw new Error('fleet_account_members.role lost its closed role CHECK');
+}
+for (const id of ['installation_id', 'repository_id', 'github_account_id']) {
+  if (!fleetTenantRepositoriesSql.includes(`typeof(${id}) = 'integer'`)
+    || !fleetTenantRepositoriesSql.includes(`${id} > 0`)) {
+    throw new Error(`fleet_tenant_repositories.${id} lost its positive-integer CHECK`);
+  }
+}
+const activeTenantIdentityIndex = db.prepare(
+  "SELECT sql FROM sqlite_schema WHERE type = 'index' AND name = 'fleet_tenant_repositories_active_identity_idx'",
+).get();
+if (!String(activeTenantIdentityIndex?.sql ?? '').includes('WHERE active = 1')) {
+  throw new Error('fleet tenant identity lost its one-active-binding unique index');
+}
+for (const trigger of [
+  'fleet_accounts_immutable_id',
+  'fleet_account_members_immutable_ids',
+  'fleet_tenant_repositories_immutable_ids',
+]) {
+  if (!db.prepare("SELECT 1 FROM sqlite_schema WHERE type = 'trigger' AND name = ?").get(trigger)) {
+    throw new Error(`relay migration chain did not create immutable identity trigger ${trigger}`);
+  }
+}
 requireColumn('parleys', 'convened_by');
 requireColumn('parleys', 'outcome_json');
 requireColumn('harbor_helms', 'parley_expiry_default');
