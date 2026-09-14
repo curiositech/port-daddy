@@ -235,7 +235,7 @@ witnessed outcomes $\to$ reputation $\to$ a tradeable asset} from the legible
 single-operator tool (\pdchapref{swk}{The Single-Writer Kernel} through
 \pdchapref{ls}{The Legible Swarm}) to the cross-operator market
 (\pdchapref{he}{The Harbor Economy}). We
-make a single distinction carry the argument: a \textbf{role} is a bundle of
+make a single distinction carry the argument: a \pdgloss{role}{a bundle of obligation, capability and authority---an org-chart entry any spawn can fill.} is a bundle of
 $\{\text{obligation}, \text{capability}, \text{authority}\}$ --- an org-chart
 entry any spawn can fill --- while a \textbf{person} is a role instance
 \emph{plus continuity}: durable memory, a restorable checkpoint, and a witnessed
@@ -246,7 +246,7 @@ witnessed outcomes on a non-forgeable identity --- is the gate.} We ground the
 philosophy (Locke's memory criterion, Parfit's psychological continuity), name
 the three continuity organs against a reference implementation on a neutral
 maturity scale, and define this paper's central protocol contribution: a
-\textbf{multi-dimensional reputation} (accuracy / aesthetics / efficiency, each a
+\pdgloss{multi-dimensional reputation}{accuracy, aesthetics and efficiency scored on separate axes, because one number hides which of them failed.} (accuracy / aesthetics / efficiency, each a
 different axis with a different judge) scored by \emph{neutral, conflict-free,
 influence-free} evaluators --- the harbor's ``universities and rating agencies''
 --- hired through the same bonded ceremony the market uses for any other task.
@@ -254,7 +254,7 @@ We argue at length why reputation is \emph{not} a bandit problem
 (non-stationarity, multi-dimensionality, strategic adversaries, and the grading
 oracle's own incentive-compatibility), and we treat the grading-oracle hole in
 the core economic theorem head-on. We are disciplined about the keystone: this
-paper depends only on a \textbf{local non-forgeable identity} (an identity root
+paper depends only on a \pdgloss{local non-forgeable identity}{an identity root that holds within a single trusted operator---the only keystone this chapter assumes.} (an identity root
 that holds within a single trusted operator) and hands \pdchapref{he}{The Harbor Economy}
 the unbuilt \textbf{cross-operator attestation} (binding identities across
 operators who do not trust each other) as a named dependency rather than
@@ -364,7 +364,7 @@ also reverts an unrelated migration. Heron wrote the function that finally shipp
 Pike and Finch produced nothing that survived. Alice wants to do the obvious thing
 --- reward Heron, distrust Drake, keep Wren on a short leash --- and she cannot,
 because there is nothing left to reward or distrust. Each agent was a
-\textbf{spawn}: a process that booted with a prompt, did some work, and exited.
+\pdgloss{spawn}{a process that booted with a prompt, did some work, and exited: no yesterday, and nothing to reward or distrust.}: a process that booted with a prompt, did some work, and exited.
 A spawn has no yesterday and no tomorrow. Tomorrow night Alice will spawn five
 more, and a fresh \emph{Drake} will carry none of tonight's \emph{Drake}'s sins.
 The attribution she lost is not a logging problem. It is the precondition for an
@@ -393,7 +393,7 @@ can be \emph{about}.}
 daemon (L0) and the protocol (L1) give an agent a way to \emph{act} and to
 \emph{prove who it is to one machine}. Legibility (L2) lets one operator
 \emph{see} the swarm. None of that yet makes a tradeable person. The bridge from
-the wedge to the market is the thing this paper builds: \textbf{continuity}, and
+the wedge to the market is the thing this paper builds: \pdgloss{continuity}{what turns a spawn into someone: a record that survives the restart and can be priced.}, and
 the reputation it makes possible.
 
 % --- FIGURE 1: the L0->L3 stack map, placing Chapter III ---
@@ -460,7 +460,7 @@ place we depart.
 \subsection{Personal identity: what makes a later thing the same person}
 
 The question ``is the agent at $t_2$ the same person as the agent at $t_1$'' is the
-\textbf{personal-identity} problem, and philosophy has a dominant answer. The
+\pdgloss{personal-identity}{the question of whether the agent at $t_2$ is the same one as at $t_1$, and on what the answer turns.} problem, and philosophy has a dominant answer. The
 \emph{memory criterion} (Locke~\pdcite{locke1689}, 1689 --- \emph{identity consists
 in continuity of consciousness, not of substance}) is the founding move; it has a
 famous bug, the non-transitivity of memory \emph{connectedness} (\textbf{Reid's
@@ -478,7 +478,7 @@ attach to the transitive thing.
 \subsection{Reputation and skill-rating estimators}
 
 The statistics of turning comparisons into a latent strength is mature. The
-\textbf{Bradley--Terry} model~\pdcite{bradleyterry1952} (1952) is the
+\pdgloss{Bradley--Terry}{the maximum-likelihood latent-strength model for paired comparisons.} model~\pdcite{bradleyterry1952} (1952) is the
 maximum-likelihood latent-strength model for paired comparisons; \textbf{Elo}~\pdcite{elo1978}
 (1978) is its online special case; \textbf{TrueSkill}~\pdcite{herbrich2007trueskill}
 (2007) adds calibrated Gaussian uncertainty for cold start, teams, and draws. For
@@ -514,7 +514,7 @@ That reputation has \emph{price} is established empirically (Resnick et
 al.~\pdcite{resnick2006value} measure an ${\sim}8\%$ premium on eBay; Tadelis~\pdcite{tadelis2016}
 frames feedback systems as the platform's answer to adverse selection, the
 \textbf{lemons} problem of Akerlof~\pdcite{akerlof1970}). Two results constrain the
-design. \textbf{Cheap pseudonyms} (Friedman \& Resnick~\pdcite{friedmanresnick2001},
+design. \pdgloss{Cheap pseudonyms}{Friedman and Resnick's result: if a fresh identity is free, a bad record can always be shed.} (Friedman \& Resnick~\pdcite{friedmanresnick2001},
 2001 --- \emph{when identities are cheap, society pays a tax because it must
 distrust all newcomers}) dictates the newcomer policy and is the economic engine
 behind our Theorem~\ref{thm:whitewash-cost}. \textbf{Limited records and reputation
@@ -685,7 +685,7 @@ in the continuity of consciousness/memory, not of substance}) is the founding
 move: what makes the person at $t_2$ the same as the person at $t_1$ is not the
 same body or the same ``soul-stuff'' but a \emph{connection of memory} between
 them. This is precisely the cut a well-designed agent runtime makes when it
-separates the \textbf{actor-soul} --- the durable identity, mailbox, and history
+separates the \pdgloss{actor-soul}{the durable identity, mailbox and history that outlive any one process or session.} --- the durable identity, mailbox, and history
 that outlive any one process or session --- from the \textbf{body-lease}, the live
 incarnation with a heartbeat that any single run holds. The body is Lockean
 substance; the soul is Lockean consciousness. The reference system this paper
@@ -712,7 +712,7 @@ transitive chain --- and reputation, which must accumulate across arbitrarily ma
 incarnations, can only attach to the transitive thing.}
 
 \noindent This is why, later (\S\ref{sec:substrate}), we insist the
-\textbf{outcome ledger}, not the memory stream, is the organ reputation keys on.
+\pdgloss{outcome ledger}{the durable record of what an agent actually delivered: the organ reputation keys on, rather than the memory stream.}, not the memory stream, is the organ reputation keys on.
 Memory makes an agent \emph{feel} like the same character; the ledger makes it
 \emph{be} the same accountable principal. Figure~\ref{fig:parfit} draws the
 distinction: a chain of overlapping connections is continuous even where no single
@@ -855,7 +855,7 @@ outcome ledger & the commitments $c_1, c_2$ and the witnessed outcomes $o_1, o_2
 
 \subsection{Organ 1 --- Memory: the episodic record \quad\BUILT}
 
-An \textbf{episodic memory} component is the system's record of \emph{what
+An \pdgloss{episodic memory}{the system's record of what happened: durable typed episodes, each with a title, a summary, and a source reference.} component is the system's record of \emph{what
 happened}: durable, typed episodes --- each with a title, a summary, a source
 reference, and an agent/scope tag --- promoted out of transient execution history.
 This design echoes the canonical agent-memory architecture of \textbf{Generative
@@ -870,7 +870,7 @@ another name. In the reference system this organ runs in production; it is
 
 A checkpoint is \emph{restorable execution/belief state}: enough that a successor
 \emph{resumes} where the predecessor stopped. The reference system has a
-\textbf{restart organ} --- a heartbeat-staleness detector that flags dead agents
+\pdgloss{restart organ}{a heartbeat-staleness detector that flags dead agents for salvage and republishes their work---forwarding notes, not checkpointing state.} --- a heartbeat-staleness detector that flags dead agents
 for salvage and republishes their unfinished work. It must be described formally,
 and it is: the restart organ \textbf{forwards a summary, not state}. It is
 checkpoint-\emph{of-record}, not checkpoint-\emph{of-execution}. The successor
@@ -1112,7 +1112,7 @@ attack~\pdcite{douceur2002}, and the same positive-cost requirement defeats it. 
 record both consequences as one property.
 
 \begin{property}[Reality of Reputation and Principal Liability]\label{prop:reality}
-A reputation system carries economic force only to the extent that the accountable principal cannot costlessly discard or multiply the liability-bearing identity. If an actor can freely obtain a fresh identity whose accessible economic utility (credit, exposure ceiling, opportunity) matches or exceeds its sanctioned utility, identity-local sanctions are evadable (\textbf{whitewashing}). If an actor can costlessly multiply identities to inflate votes or aggregate unreserved credit, quorum mechanisms collapse (\textbf{Sybil}~\pdcite{douceur2002}). Effective deterrence therefore requires binding all spawned actors to a durable principal with aggregated exposure limits.
+A reputation system carries economic force only to the extent that the accountable principal cannot costlessly discard or multiply the liability-bearing identity. If an actor can freely obtain a fresh identity whose accessible economic utility (credit, exposure ceiling, opportunity) matches or exceeds its sanctioned utility, identity-local sanctions are evadable (\pdgloss{whitewashing}{shedding a sanctioned identity for a clean one, which is what makes identity-local penalties evadable.}). If an actor can costlessly multiply identities to inflate votes or aggregate unreserved credit, quorum mechanisms collapse (\textbf{Sybil}~\pdcite{douceur2002}). Effective deterrence therefore requires binding all spawned actors to a durable principal with aggregated exposure limits.
 \end{property}
 
 \noindent Most agent runtimes still accept a \emph{self-asserted string}: a
@@ -1429,7 +1429,7 @@ both.
 \subsection{The principal above the actor}
 
 The economic counterparty in every trade is not the agent but the
-\textbf{principal} --- the human or organization that owns the fleet and stands
+\pdgloss{principal}{the human or organization that owns the fleet and stands behind its bonds: the economic counterparty in every trade.} --- the human or organization that owns the fleet and stands
 behind its bonds. Bonds, reputation inheritance, and sanctions must ultimately
 key on the principal via the authorization chain, or Sybil bond-farming works by
 spawning fresh \emph{agents} under one principal. This paper defines the principal
@@ -2017,7 +2017,7 @@ To grade a settled outcome $o$ produced by actor $a$ under principal $p$:
   discipline (blind, order-swapped, pairwise where possible). The grade enters the
   ledger as a witnessed event keyed on $J$'s non-forgeable identity.
   \item \textbf{Settlement and exposure.} The outcome settles on the grade; the
-  bond flow follows. $J$'s bond remains exposed to a sampled \textbf{re-audit}
+  bond flow follows. $J$'s bond remains exposed to a sampled \pdgloss{re-audit}{a fresh, conflict-free judge, sampled after the fact, whose overturn costs the original grader their bond.}
   (\S\ref{sec:oracle}): a fresh, conflict-free judge who overturns $J$'s grade
   \emph{slashes} $B_J$ and updates $J$'s own reputation downward.
 \end{enumerate}
@@ -2180,7 +2180,7 @@ expects when the problem is real.
 % --- FIGURE 12: rate-the-raters recursion ---
 \input{figures/fig-stp-rate-the-raters}
 
-First, the protocol mandates \textbf{model heterogeneity} for judge selection. A
+First, the protocol mandates \pdgloss{model heterogeneity}{requiring a quorum of re-auditors to prove distinct architectural weights, so correlated blind spots do not vote together.} for judge selection. A
 quorum of re-auditors must prove they represent distinct architectural weights
 (e.g.\ Llama-3 vs.\ Claude vs.\ Qwen) under distinct principals, verified via
 cryptographic provenance, so that a single-model alignment flaw cannot
@@ -2190,7 +2190,7 @@ agreement inside one clique does not reach the others. (The word is
 graph-theoretic here, a set of judges who would agree with one another; it is the
 defensive mirror of the collusive cliques EigenTrust resists.)
 
-Second, the system injects \textbf{honeypot tasks} selected by a
+Second, the system injects \pdgloss{honeypot tasks}{pre-graded trap tasks, indistinguishable from real ones, injected to measure whether a judge is actually grading.} selected by a
 \textbf{verifiable random function} (VRF)~\pdcite{mrv1999}: deterministic, pre-graded
 trap tasks, indistinguishable from organic ones, drawn at a committed rate $\rho$.
 The VRF is what makes the draw \emph{sealed} --- unpredictable to a briber before
@@ -2376,7 +2376,7 @@ fraudulent (a colluding judge, a faked oracle). ``Never decays'' applies to hone
 outcomes \emph{only}; it is \emph{not} an anti-revocation property.
 \end{property}
 
-\noindent This is a \textbf{saga}-style compensation~\pdcite{garcia1987sagas}: you do
+\noindent This is a \pdgloss{saga}{a compensation discipline: you do not mutate an append-only ledger, you append the transaction that undoes the last one.}-style compensation~\pdcite{garcia1987sagas}: you do
 not mutate the ledger in place (that would break append-only and auditability);
 you append a tombstone that nullifies the targeted entry, and the tombstone
 \emph{propagates} across harbors bounded by the federation's revocation-convergence

@@ -210,7 +210,7 @@ a daemon, a coordination protocol, a legible authority anyone would pay for toda
 and the continuity that turns an anonymous \emph{spawn} into an accountable
 \emph{person}. This paper is the rung above all of them --- the only one whose
 participants are plural and mutually distrusting. We argue that the harbor economy
-is a \textbf{three-sided market}: operators sell labor and fleet-for-hire; agents
+is a \pdgloss{three-sided market}{operators selling labor, agents renting capacity, and skill authors licensing know-how---on one escrow ledger.}: operators sell labor and fleet-for-hire; agents
 and fleets are rentable assets; skills and tools are licensed --- all settling on
 \emph{one} conserving bond ledger via float-plan escrow. We present the
 \textbf{cross-harbor capability-transfer ceremony}: a way for one operator's harbor
@@ -236,7 +236,7 @@ Every folk-theorem incentive-compatibility claim rests on a grading oracle that 
 be made strategy-proof or bonded-and-slashed. Myerson--Satterthwaite constrains a
 bilateral private-value slice only under its regularity assumptions; this paper does
 not yet prove incentive compatibility or identify which desideratum the full market
-gives up. The defensible product is \textbf{hosted trust} --- a verified ledger, a
+gives up. The defensible product is \pdgloss{hosted trust}{the defensible product under the unsolved parts: a verified ledger a buyer can check rather than a claim they must believe.} --- a verified ledger, a
 relay, and a reputation system --- not the commoditized payment rail.
 \end{abstract}
 
@@ -415,7 +415,7 @@ on a non-forgeable identity --- is the gate.}
 \section{What a ``side'' is, and why there are three}\label{sec:three-sides}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-A \textbf{two-sided market} (\textbf{Rochet \& Tirole}~\pdcite{rochet2003}, the
+A \pdgloss{two-sided market}{Rochet and Tirole's platform: the split of a fee between the two sides changes the volume, not just who pays.} (\textbf{Rochet \& Tirole}~\pdcite{rochet2003}, the
 foundational reference: \emph{a platform is two-sided when the allocation of the
 total price across the two user groups --- not just its level --- affects
 transaction volume}) is the canonical frame for a marketplace: buyers on one side,
@@ -624,7 +624,7 @@ overclaim the market.
 
 All three sides ride one float-plan escrow, but they do not share one identity key.
 Each side keys reputation on a different entity --- the \textbf{principal} for
-labor, the \textbf{asset owner} for rental, the \textbf{content hash} (a specific
+labor, the \pdgloss{asset owner}{the entity rental reputation keys on, as against the principal for labor and the content hash for a skill.} for rental, the \textbf{content hash} (a specific
 skill version) for licensing. The shared settlement table therefore needs a tagged
 subject identifier such as $(\mathit{kind},\mathit{id},\mathit{version})$; otherwise
 non-equivalent reputation subjects collide. The dashed band in
@@ -817,7 +817,7 @@ points:
   \item \textbf{Exclusive interval claims} --- $\mathrm{excl}(r,[t_1,t_2])$,
   asserting sole use of resource $r$ across a ground interval.
 \end{enumerate}
-Deadlines are carried by a separate system of \textbf{difference constraints}
+Deadlines are carried by a separate system of \pdgloss{difference constraints}{deadline relations of the form $t_j - t_i \le k$, whose constraint graph makes feasibility a shortest-path question.}
 $t_j - t_i \le k$ over integer deadline variables, whose constraint graph is
 $(V,E)$.
 
@@ -1376,7 +1376,7 @@ misbehaving log from lying, you make lying detectable after the fact and expensi
 via a slashable bond.}
 
 The convergence and detection bounds smuggle in \emph{partial synchrony}
-(\textbf{Dwork--Lynch--Stockmeyer}~1988~\pdcite{dls1988}, the canonical escape from
+(\pdgloss{Dwork--Lynch--Stockmeyer}{partial synchrony: the canonical escape from FLP, and the assumption these convergence bounds quietly need.}~1988~\pdcite{dls1988}, the canonical escape from
 FLP): ``gossip every $\Delta$'' \emph{is} an eventual-synchrony assumption, and we
 state it as such rather than burying it.
 
@@ -1710,7 +1710,7 @@ Each round a member either \emph{colludes} (holds the agreed floor
 $q_{\mathrm{floor}}$, collecting the cartel payoff $\pi_C$) or \emph{defects}
 (undercuts the floor by $\varepsilon$ for a one-time gain $\pi_D$, after which the
 cartel unravels and everyone drops to the competitive payoff $\pi_N \approx 0$). A
-\textbf{grim-trigger} strategy is the crudest way to punish that: \emph{cooperate
+\pdgloss{grim-trigger}{cooperate until one defection is seen, then punish forever---the crudest way to hold a cartel together.} strategy is the crudest way to punish that: \emph{cooperate
 until the first observed defection, then defect forever}. It sustains the cartel
 only while members weight the future heavily enough --- that weight is the
 \textbf{discount factor} $\delta \in (0,1)$, the value a member places on next
@@ -2556,7 +2556,7 @@ bounty plus the carry on one bond.
 
 \input{figures/fig-he-assurance}
 
-A \textbf{Becker-enforced panel} is a set of $k$ independent, conflict-free
+A \pdgloss{Becker-enforced panel}{independent, conflict-free test-writers, each bonded and each detecting a given flaw with some probability.} is a set of $k$ independent, conflict-free
 test-writing agents, each detecting a given flaw with probability
 $d \in (0,1)$, each posting a slashable bond $B$ to enter the market, and each
 facing a platform re-audit rate $\rho$ against a one-shot misreporting gain $G$.
@@ -2582,7 +2582,7 @@ priced at $k \cdot (\text{bounty} + \text{bond carry})$, which is what makes
 \label{prop:becker-deterrence}
 Truthful effort is a dominant strategy for a Becker-enforced panel's test-writers
 exactly when expected punishment at least matches the one-shot gain from
-cheating --- the \textbf{Becker deterrence condition}~\pdcite{becker1968}:
+cheating --- the \pdgloss{Becker deterrence condition}{cheating is deterred exactly when expected punishment at least matches the one-shot gain from it.}~\pdcite{becker1968}:
 \begin{equation}\label{eq:becker}
 \rho\, d\, B \;\ge\; G ,
 \end{equation}
@@ -2692,7 +2692,7 @@ against its inspection tower, where the tower's clique count $C$ is the instrume
 that holds $\theta$ down.
 
 The ground-truth oracle for grading the test-writers themselves is
-\textbf{mutation-testing kill rates} against held-out syntactic mutation operators,
+\pdgloss{mutation-testing kill rates}{grading the test-writers against held-out syntactic mutations, so a vacuous test scores zero.} against held-out syntactic mutation operators,
 which stops agents from overfitting tests to a suite they can already see. This is a
 Fix~A oracle in the sense of \S\ref{sec:ic}: machine-checkable, and not authored by
 the party being graded.

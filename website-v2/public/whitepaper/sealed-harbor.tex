@@ -441,7 +441,7 @@ it observes, not the frequency an adversary chooses to request it.
 There is no proof to read; there is a search to rerun. The checker builds the
 two worlds side by side, one per secret, and drives them through every
 interleaving of the same action sequence to depth 7. This is
-\textbf{self-composition}, exactly as Barthe, D'Argenio and Rezk set it
+\pdgloss{self-composition}{Barthe, D'Argenio and Rezk's trick: noninterference is a claim about pairs of runs, so you compose two copies of the system and state it as one invariant.}, exactly as Barthe, D'Argenio and Rezk set it
 out~\pdcite{bdr04}: noninterference is a claim about \emph{pairs} of runs,
 which no ordinary invariant can state, so you compose two copies of the system
 into one and state an ordinary invariant about the pair. We do it to a finite
@@ -611,7 +611,7 @@ property of the workroom, not a theorem.
 
 \noindent Rogers, Roth, Ullman and Vadhan coined two names for a ledger like
 this one, tracking cumulative differential-privacy expenditure across
-adaptively chosen queries \pdcite{rruv16}: a \textbf{privacy odometer} reads the
+adaptively chosen queries \pdcite{rruv16}: a \pdgloss{privacy odometer}{a running total of differential-privacy expenditure read with no pre-specified ceiling.} reads the
 running total with no pre-specified ceiling, and a \textbf{privacy filter}
 halts before a pre-specified budget is exceeded. Because $\varepsilon_{\max}$
 below is fixed in advance and every over-budget release is refused, this

@@ -161,7 +161,7 @@
 \medskip\noindent
 As AI agents transition from isolated copilots to collaborative, autonomous swarms, local development environments face a crisis of coordination and trust. Existing tools designed for human-driven, static infrastructures lack the primitives required to prevent dynamic agents from corrupting shared state or squatting on ephemeral ports.
 
-This paper introduces the \textbf{Anchor Protocol}, a cryptographic and semantic identity framework built into the Port Daddy daemon. We detail the protocol's evolution from symmetric MACs to Ed25519 signatures and multi-hop authorization chains inspired by Macaroons~\pdcite{birgisson2014macaroons}. ProVerif~\pdcite{blanchet2016modeling} checks symbolic authentication and attenuation properties of the protocol models; Kani checks that the Rust core's parsing and comparison paths cannot panic on bounded symbolic inputs, with the cryptography stubbed; runtime conformance tests cover the deployed bridge. These layers do not amount to a proof of the entire implementation or of hardware-level constant time, and the multi-hop proof is structurally bounded rather than session-unbounded --- Section~\ref{sec:limitations} records those boundaries explicitly.
+This paper introduces the \pdgloss{Anchor Protocol}{the daemon's identity framework: Ed25519 signatures, multi-hop authorization chains, and offline attenuation.}, a cryptographic and semantic identity framework built into the Port Daddy daemon. We detail the protocol's evolution from symmetric MACs to Ed25519 signatures and multi-hop authorization chains inspired by Macaroons~\pdcite{birgisson2014macaroons}. ProVerif~\pdcite{blanchet2016modeling} checks symbolic authentication and attenuation properties of the protocol models; Kani checks that the Rust core's parsing and comparison paths cannot panic on bounded symbolic inputs, with the cryptography stubbed; runtime conformance tests cover the deployed bridge. These layers do not amount to a proof of the entire implementation or of hardware-level constant time, and the multi-hop proof is structurally bounded rather than session-unbounded --- Section~\ref{sec:limitations} records those boundaries explicitly.
 \end{abstract}
 
 \vspace{0.5cm}
@@ -209,7 +209,7 @@ That is the local swarm problem. In a multi-agent development environment, agent
 
 \paragraph{The idea in one breath.} \emph{Every agent on the machine carries a short-lived, cryptographically signed card that names exactly what it may do; anything it hands to a child is strictly smaller; and any card can be withdrawn before it expires.} Everything that follows is that sentence made precise, then mechanically checked.
 
-To make it enforceable, Port Daddy introduces the concept of a \textbf{Harbor}---a zero-trust, namespace-isolated execution environment where agents must prove their identity and capabilities. Our approach builds upon foundational work in capability-based security by Dennis and Van Horn~\pdcite{dennis1966programming} and the principle of least privilege articulated by Saltzer and Schroeder~\pdcite{saltzer1975protection}. This protocol sits in a specific lineage --- Macaroons for delegation, ProVerif and Tamarin for symbolic verification, the JWT algorithm-confusion literature for the Phase~1 hardening, and the emerging agentic-commerce credential profiles for the envelope --- traced in full in Appendix~\ref{app:related}, which a reader following the argument rather than the citations can skip entirely.
+To make it enforceable, Port Daddy introduces the concept of a \pdgloss{Harbor}{a zero-trust, namespace-isolated execution environment where an agent must prove identity and capability before it acts.}---a zero-trust, namespace-isolated execution environment where agents must prove their identity and capabilities. Our approach builds upon foundational work in capability-based security by Dennis and Van Horn~\pdcite{dennis1966programming} and the principle of least privilege articulated by Saltzer and Schroeder~\pdcite{saltzer1975protection}. This protocol sits in a specific lineage --- Macaroons for delegation, ProVerif and Tamarin for symbolic verification, the JWT algorithm-confusion literature for the Phase~1 hardening, and the emerging agentic-commerce credential profiles for the envelope --- traced in full in Appendix~\ref{app:related}, which a reader following the argument rather than the citations can skip entirely.
 
 \paragraph{How to read this chapter.} \S\ref{sec:architecture} is the protocol: four phases, each closing a hole the previous one left open. \S\ref{sec:correct} is the evidence: three verification layers, what each one proves, and what it hands the next. \S\ref{sec:adversary} is the accounting: the adversary we assume, the properties that survive it, and where the guarantees stop. Table~\ref{tab:anchor-verification-stack} is the map for \S\ref{sec:correct}; Table~\ref{tab:threat-closure} closes the loop on the three failure modes just listed.
 
@@ -272,7 +272,7 @@ Early versions of the protocol relied on HS256 (HMAC-SHA256). The primary vulner
 
 \begin{pdclaim}{Design invariant}{Algorithmic pinning}
 \label{prop:alg-pinning}
-The Port Daddy Verifier employs strict \textbf{Algorithmic Pinning}. It entirely ignores the user-provided \texttt{alg} header and explicitly forces the underlying crypto library to evaluate the signature using the pre-determined algorithm. This approach is what the JWT Best Current Practices, RFC~8725, recommends~\pdcite{rfc8725jwtbcp}.
+The Port Daddy Verifier employs strict \pdgloss{Algorithmic Pinning}{ignoring the token's own \texttt{alg} header and forcing the verifier to the pre-determined algorithm, per RFC 8725.}. It entirely ignores the user-provided \texttt{alg} header and explicitly forces the underlying crypto library to evaluate the signature using the pre-determined algorithm. This approach is what the JWT Best Current Practices, RFC~8725, recommends~\pdcite{rfc8725jwtbcp}.
 \end{pdclaim}
 
 Figure~\ref{fig:anchor-alg-confusion} shows the two verifier paths side by side: the naive verifier trusts the \texttt{alg} field on the wire (and is exploited), while the pinned verifier records the issuance algorithm out-of-band and admits no rewrite trace.
@@ -292,7 +292,7 @@ One key changes hands at the Phase~3 boundary, and the chapter should say so rat
 % SUBMISSION-SKILL: naming conflict — "Biscuit" is the name of an existing, well-known capability-security authorization-token format (Eclipse Biscuit / biscuitsec.org, Couprie et al., presented at Pass the SALT 2021): public-key-signed tokens with offline attenuation, directly descended from Macaroons, structurally very close to what Phase 3 describes. This subsection uses "Biscuit" only as an informal nickname and cites neither the project nor a disambiguation. Recommend either citing the Biscuit project and stating how this protocol differs (datalog policies vs. flat capability sets; JWT envelope vs. Biscuit's own block format), or dropping the nickname in favor of the already-used "Macaroon"/"offline attenuation" vocabulary, which is unambiguous and already cited. Left as-is per submission-readiness scope (flag, not silent rename).
 \subsection{Phase 3: Stigmergic Delegation (The ``Biscuit'' Pattern)}
 
-Port Daddy v4 introduces multi-hop delegation. When Agent A spawns Agent B, it does not need to request a new token from the Daemon. Instead, it uses \textbf{Offline Attenuation}, inspired by Macaroons~\pdcite{birgisson2014macaroons}.
+Port Daddy v4 introduces multi-hop delegation. When Agent A spawns Agent B, it does not need to request a new token from the Daemon. Instead, it uses \pdgloss{Offline Attenuation}{narrowing a token's authority without asking the issuer: the holder folds a caveat in and the authority can only shrink.}, inspired by Macaroons~\pdcite{birgisson2014macaroons}.
 
 \begin{definition}[Offline Attenuation]\label{def:offline-attn}
 Agent A takes its existing Harbor Card, appends a new set of restricted capabilities (e.g., \texttt{["db:read"]} reduced from \texttt{["db:read", "db:write"]}), and signs the \textit{entire chain} with its own ephemeral private key.
@@ -453,7 +453,7 @@ running binary & conformance suite & the selected attacks are refused at the FFI
 
 \subsection{Symbolic Analysis with ProVerif}
 
-To prove the protocol's logical soundness against a Dolev-Yao adversary~\pdcite{dolev1983security} (an attacker who controls the entire network), we modeled the Anchor Protocol in \textbf{ProVerif}~\pdcite{blanchet2016modeling}. ProVerif represents protocols as Horn clauses and uses resolution to prove security properties for an unbounded number of sessions.
+To prove the protocol's logical soundness against a Dolev-Yao adversary~\pdcite{dolev1983security} (an attacker who controls the entire network), we modeled the Anchor Protocol in \pdgloss{ProVerif}{a protocol verifier that represents a protocol as Horn clauses and resolves security properties over unbounded sessions.}~\pdcite{blanchet2016modeling}. ProVerif represents protocols as Horn clauses and uses resolution to prove security properties for an unbounded number of sessions.
 
 \begin{pdclaim}{Model-checked property}{Authentication correspondence in the modeled phase}
 \label{thm:injective}
@@ -502,7 +502,7 @@ RESULT event(Accepted(b_2,harbor_id[],cap_1))
 
 \subsection{Runtime Enforcement: The Arbiter}
 
-Formal models establish properties of their abstractions. At runtime, Port Daddy deploys the \textbf{Arbiter}---an ambient monitor that subscribes to the daemon's post-commit activity log and checks six derived invariants:
+Formal models establish properties of their abstractions. At runtime, Port Daddy deploys the \pdgloss{Arbiter}{the runtime monitor that subscribes to the post-commit activity log and checks six derived invariants against it.}---an ambient monitor that subscribes to the daemon's post-commit activity log and checks six derived invariants:
 
 \begin{enumerate}
   \item \texttt{PID\_SQUATTING}: Detects when a process claims a port previously held by a different PID (the ``Ghost in the Harbor'').
@@ -523,7 +523,7 @@ A secure protocol is useless if the implementation contains buffer overflows or 
 
 \begin{pdclaim}{Design invariant}{Memory safety within the harness bound}
 \label{inv:anchor-memory-safety}
-Using the \textbf{Kani} Rust Verifier~\pdcite{aws2022kani}, we bounded-model-check the token parser with key decoding, base64 decoding, and signature verification stubbed to return either outcome. For every 32-byte input that is valid UTF-8 and contains a dot, and within ten loop iterations, the parse path neither panics nor accesses memory out of bounds. The bound is the harness's, not the parser's: longer tokens and the real cryptographic primitives lie outside it.
+Using the \pdgloss{Kani}{a bounded model checker for Rust, used here on the token parser with decoding and signature verification stubbed.} Rust Verifier~\pdcite{aws2022kani}, we bounded-model-check the token parser with key decoding, base64 decoding, and signature verification stubbed to return either outcome. For every 32-byte input that is valid UTF-8 and contains a dot, and within ten loop iterations, the parse path neither panics nor accesses memory out of bounds. The bound is the harness's, not the parser's: longer tokens and the real cryptographic primitives lie outside it.
 \end{pdclaim}
 
 \begin{pdclaim}{Design invariant}{Secret-independent source control flow}
@@ -796,7 +796,7 @@ The three harnesses run under \texttt{cargo kani} in the repository's proof work
 
 \subsection{Threats this takes seriously}\label{sec:threat-model}
 
-We assume a \textbf{Dolev-Yao adversary}~\pdcite{dolev1983security} who:
+We assume a \pdgloss{Dolev-Yao adversary}{an attacker who controls the entire network---reading, dropping, replaying and forging every message in transit.}~\pdcite{dolev1983security} who:
 \begin{itemize}
   \item Controls the entire network
   \item Can intercept, modify, and inject messages

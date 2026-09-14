@@ -449,7 +449,7 @@ The first layer of trust does not depend on agent reputation or economic incenti
 
 \subsection{Capability Attenuation}
 
-The Anchor Protocol~\pdcite{owens2026anchor} provides Harbor Cards---Ed25519-signed capability tokens that bound the operations available to each agent. The critical property is \textbf{offline attenuation}: when Agent~A delegates to Agent~B, it creates a new token whose capabilities are a strict subset of its own. Agent~B can further delegate to Agent~C with even narrower capabilities. Capabilities can only shrink along the authorization chain, never grow.
+The Anchor Protocol~\pdcite{owens2026anchor} provides Harbor Cards---Ed25519-signed capability tokens that bound the operations available to each agent. The critical property is \pdgloss{offline attenuation}{narrowing a Harbor Card's authority without contacting the issuer: the authority can only ever shrink.}: when Agent~A delegates to Agent~B, it creates a new token whose capabilities are a strict subset of its own. Agent~B can further delegate to Agent~C with even narrower capabilities. Capabilities can only shrink along the authorization chain, never grow.
 
 The capability subset check and the secret-independent comparison are implemented in a \textbf{Rust core} (\texttt{harbor-card-rs}) that is compiled to a shared library and called from the Node.js daemon via FFI. Kani harnesses check that the parser and the comparator cannot panic on bounded symbolic inputs and exercise the subset check on two concrete vectors; the every-hop attenuation property is ProVerif's, in \pdchapref{anchor}{The Anchor Protocol}; runtime conformance tests cover the bridge. Compiler behavior, full interception coverage, and hardware side channels remain separate obligations.
 
@@ -492,7 +492,7 @@ This is the layer where the metaphor of ``walls, not laws'' applies. A law says 
 
 \subsection{Isolation Domains}\label{sec:isolation}
 
-Beyond capability tokens, the commons authority supports \textbf{structural isolation} via git worktrees: physically separate copies of the repository where agents operate on disjoint filesystem state.
+Beyond capability tokens, the commons authority supports \pdgloss{structural isolation}{separate git worktrees: physically distinct copies of the repository, so two agents cannot write one file.} via git worktrees: physically separate copies of the repository where agents operate on disjoint filesystem state.
 
 \begin{definition}[Isolation Levels]\label{def:isolation}
 Three tiers of isolation are available, ordered by strength:
@@ -516,7 +516,7 @@ Structural prevention is enforced at two levels: \emph{statically} by the Anchor
 % after detection. That is exactly the pre-commit/post-commit distinction drawn
 % below. Resolved here by adopting and citing rather than silently coining.
 \paragraph{Regimentation vs. Enforcement (OP-2).}
-This design formalizes \textbf{Synchronous State Decidability} as the exact boundary separating pre-commit \emph{regimentable} rules from post-commit \emph{enforceable} rules, in the sense of Jones and Sergot's regimentation/enforcement distinction for normative systems~\pdcite{jonessergot1993regimentation}: a regimented norm's violation cannot occur at all, while an enforced norm's violation can occur and is sanctioned on detection. If a rule can be evaluated purely against deterministic local DB state and the transaction payload, it is regimented (structurally prevented). If it requires async checks, external I/O, or non-deterministic oracles, it is relegated to post-commit enforcement (detected and salvaged).
+This design formalizes \pdgloss{Synchronous State Decidability}{the exact boundary between what can be prevented before commit and what can only be detected after.} as the exact boundary separating pre-commit \emph{regimentable} rules from post-commit \emph{enforceable} rules, in the sense of Jones and Sergot's regimentation/enforcement distinction for normative systems~\pdcite{jonessergot1993regimentation}: a regimented norm's violation cannot occur at all, while an enforced norm's violation can occur and is sanctioned on detection. If a rule can be evaluated purely against deterministic local DB state and the transaction payload, it is regimented (structurally prevented). If it requires async checks, external I/O, or non-deterministic oracles, it is relegated to post-commit enforcement (detected and salvaged).
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Layer 2: Immutable Attribution}\label{sec:attribution}
@@ -526,7 +526,7 @@ Structural prevention handles accidental harm---an agent cannot exceed capabilit
 
 \subsection{The Evidence Chain}
 
-Every agent session maintains an \textbf{append-only note trail}---a sequence of timestamped, immutable records of observations, decisions, and progress.
+Every agent session maintains an \pdgloss{append-only note trail}{a sequence of timestamped, immutable records of an agent session's observations, decisions and progress.}---a sequence of timestamped, immutable records of observations, decisions, and progress.
 
 \begin{definition}[Evidence Trail]\label{def:evidence}
 An evidence trail $N = \langle n_1, n_2, \ldots, n_k \rangle$ is an ordered sequence of notes where:
@@ -548,7 +548,7 @@ By code inspection of the session module: the note insertion API performs only \
 
 \subsection{The Merkle Forest: Cross-Daemon Inclusion Proofs}\label{sec:merkle-forest}
 
-For high-assurance environments and for fleets spanning multiple daemons, the evidence trail is strengthened to a three-level \textbf{Merkle Forest}. The single-daemon Merkle chain---each note hashing the previous, with a per-session root---is necessary but not sufficient: the moment two daemons exist, an auditor without database access still needs to verify that a particular note was included in a particular session using only a short proof.
+For high-assurance environments and for fleets spanning multiple daemons, the evidence trail is strengthened to a three-level \pdgloss{Merkle Forest}{the three-level hardening of the evidence trail for fleets spanning multiple daemons.}. The single-daemon Merkle chain---each note hashing the previous, with a per-session root---is necessary but not sufficient: the moment two daemons exist, an auditor without database access still needs to verify that a particular note was included in a particular session using only a short proof.
 
 \begin{definition}[Merkle Forest]\label{def:merkle-forest}
 The evidence structure has three levels:
@@ -609,7 +609,7 @@ This dual---mutable view, immutable substrate---is what lets coordination signal
 
 \subsection{Attribution Survives Identity Disposal}\label{sec:attribution-survives}
 
-A critical property: even if an agent's identity is discarded after task completion, the \textbf{authorization chain} traces every action back to the authorizing principal. The chain is:
+A critical property: even if an agent's identity is discarded after task completion, the \pdgloss{authorization chain}{the record that traces every action back to the authorizing principal, even after the acting identity is discarded.} traces every action back to the authorizing principal. The chain is:
 \[
 \begin{aligned}
 \text{Principal} &\xrightarrow{\text{funds}} \text{Float Plan} \xrightarrow{\text{authorizes}} \text{Agent } \alpha\\
@@ -702,7 +702,7 @@ Advisory coordination produces consistent allocation when agents share informati
 Two mechanisms sit underneath this escalation path rather than inside it: a thrashing fallback for advisory claims that never converge, and a fairness rule for the preemption queue itself.
 
 \paragraph{The Advisory Claims Paradox and Deterministic Hard-Lock Fallback.}
-Advisory claims risk an endless retry/thrashing loop if two LLM-backed agents mutually ignore advisory warnings. To break this paradox, the daemon implements a \textbf{Deterministic Hard-Lock Fallback}: if advisory conflicts on a resource exceed $k$ turns without resolution (default $k = 5$, tuned per deployment from the observed conflict-resolution distribution), the daemon escalates the advisory claim into an enforced POSIX file-level lock, rejecting all subsequent writes from un-holding agents until release.
+Advisory claims risk an endless retry/thrashing loop if two LLM-backed agents mutually ignore advisory warnings. To break this paradox, the daemon implements a \pdgloss{Deterministic Hard-Lock Fallback}{what replaces an advisory claim when two agents deadlock on it: a lock that does not negotiate.}: if advisory conflicts on a resource exceed $k$ turns without resolution (default $k = 5$, tuned per deployment from the observed conflict-resolution distribution), the daemon escalates the advisory claim into an enforced POSIX file-level lock, rejecting all subsequent writes from un-holding agents until release.
 
 \paragraph{Stigmergic Ticket-Lock (OP-1: Fair Exclusion).}
 To prevent starvation during high contention, the daemon replaces chaotic retries with a \textbf{Stigmergic Ticket-Lock}. The lock is managed via a strict SQLite schema:
@@ -775,7 +775,7 @@ Commons authority crashes & Catastrophic & The sovereign falls. No new trust est
 \end{tabularx}
 \end{table}
 
-The fundamental moral harm in agent societies is not the destruction of an agent---it is the \textbf{irrecoverable loss of information}. An agent can be rebuilt. Knowledge, once dismissed from the commons, cannot.
+The fundamental moral harm in agent societies is not the destruction of an agent---it is the \pdgloss{irrecoverable loss of information}{the fundamental moral harm in an agent society---an agent can be rebuilt, what it knew cannot.}. An agent can be rebuilt. Knowledge, once dismissed from the commons, cannot.
 
 \subsection{The Limits of Reputation}
 
@@ -1003,7 +1003,7 @@ What is the right collateral for ``write access to \texttt{auth.ts} for 30 minut
   \item \textbf{History adjustment}: $\pi$ may decrease for principals with strong track records.
 \end{enumerate}
 
-We do not close this problem. We tighten the lower bound, propose a scope multiplier, suggest a reputation discount, and describe two concrete mechanisms---the \textbf{Bonded Advisor} (\S\ref{sec:bonded-advisor}) and the \textbf{Competitive-Insurance} market of Youle (\S\ref{sec:youle}). See Appendix~\ref{app:worked} for these four requirements worked through a single \$5 task end to end.
+We do not close this problem. We tighten the lower bound, propose a scope multiplier, suggest a reputation discount, and describe two concrete mechanisms---the \pdgloss{Bonded Advisor}{a role that posts collateral against its advice, so a confident wrong answer costs something.} (\S\ref{sec:bonded-advisor}) and the \textbf{Competitive-Insurance} market of Youle (\S\ref{sec:youle}). See Appendix~\ref{app:worked} for these four requirements worked through a single \$5 task end to end.
 
 \subsubsection{Cleanup Lower Bound}\label{sec:cleanup-bound}
 
@@ -1179,7 +1179,7 @@ Under this framing, the Bonded Advisor of \S\ref{sec:bonded-advisor} becomes the
 
 A pure deposit-based Sybil deterrence policy is \emph{provably insufficient}, and the structure of the protocol explains why. An adversary spawns $K$ Sybil insurer identities, each posting the protocol-mandated deposit $B_{\mathrm{dep}}$, then undercuts honest bids by an arbitrarily small $\varepsilon$ and defaults on loss (Figure~\ref{fig:sybil-inline}).
 
-\textbf{Total Capital Forfeiture.} The arbitrary $\min(B_{\mathrm{dep}}, B_T)$ slash cap fails because it bounds the attacker's risk. To mathematically destroy the profitability of Sybil cartel undercutting, the protocol mandates \textbf{total capital forfeiture}: upon default, the \emph{entire} posted deposit $B_{\mathrm{dep}}$ is slashed, regardless of how small the coverage $B_T$ was. This converts a capped-risk arbitrage into a total-loss event.
+\textbf{Total Capital Forfeiture.} The arbitrary $\min(B_{\mathrm{dep}}, B_T)$ slash cap fails because it bounds the attacker's risk. To mathematically destroy the profitability of Sybil cartel undercutting, the protocol mandates \pdgloss{total capital forfeiture}{removing the bounded downside a slash cap gives an attacker, which is what makes Sybil undercutting unprofitable.}: upon default, the \emph{entire} posted deposit $B_{\mathrm{dep}}$ is slashed, regardless of how small the coverage $B_T$ was. This converts a capped-risk arbitrage into a total-loss event.
 
 \input{figures/fig-sybil-inline}
 
@@ -1263,7 +1263,7 @@ Treating all coordination as one uniform ``bonded action'' misses the price-disc
 \section{Semantic Cadence, Agentic Psychosis, and Observability}\label{sec:vibe}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-Wall-clock is the wrong axis for observing multi-agent coding. A 30-second wait while a model thinks is qualitatively different from a 30-second wait while four agents are actively producing tokens. We formally introduce \textbf{Semantic Cadence} (the Causal-Density Ratio) as the primary temporal axis:
+Wall-clock is the wrong axis for observing multi-agent coding. A 30-second wait while a model thinks is qualitatively different from a 30-second wait while four agents are actively producing tokens. We formally introduce \pdgloss{Semantic Cadence}{the distinction between a wait while a model thinks and a wait while four agents are producing tokens.} (the Causal-Density Ratio) as the primary temporal axis:
 \[
 t_{\text{cadence}} \;=\; \int_{0}^{t} \mathrm{causal\_density}(\tau)\,d\tau,
 \]
@@ -1443,7 +1443,7 @@ Spec == Init /\ [][Next]_vars
 
 \subsection{The Conservation Theorem}\label{sec:conservation}
 
-The TLA$^{+}$ escrow invariant states the property abstractly; the daemon's bond-accounting subsystem realizes it operationally, collapsing the abstract escrow into three monetary buckets per project---\textbf{wallet}, \textbf{escrow}, and \textbf{commons pool}---which together discharge what \texttt{EscrowInvariant} asserts.
+The TLA$^{+}$ escrow invariant states the property abstractly; the daemon's bond-accounting subsystem realizes it operationally, collapsing the abstract escrow into three monetary buckets per project---\textbf{wallet}, \textbf{escrow}, and \pdgloss{commons pool}{the third bucket beside wallet and escrow: what the project holds jointly rather than any one agent.}---which together discharge what \texttt{EscrowInvariant} asserts.
 
 \begin{definition}[Accounting State]\label{def:acct-state}
 For project $P$, the accounting state is the triple $(W_P, E_P, C_P) \in \mathbb{R}_{\geq 0}^{3}$, where $W_P$ is wallet balance, $E_P$ is the sum of bond amounts in states $\{\textit{escrowed},\, \textit{running},\, \textit{exiting}\}$, and $C_P$ is the commons pool balance. The \emph{monetary supply} is $S_P := W_P + E_P + C_P$.

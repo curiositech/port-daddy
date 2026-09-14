@@ -217,7 +217,7 @@ problem onto a \textbf{single writer over a single local SQLite database in
 write-ahead-log (WAL) mode}, and let the operating system's file lock serialize
 every mutation. There is one decider, so there is no agreement to reach.
 
-This paper presents that kernel --- the \textbf{substrate layer} of a four-layer
+This paper presents that kernel --- the \pdgloss{substrate layer}{the bottom of the four-layer coordination stack: the durable state every other layer reads and writes through.} of a four-layer
 coordination stack --- together with the implemented half of the coordination
 protocol that rides directly on it (a durable message bus, decaying stigmergic
 markers, violable commitments, a cryptographic authorization chain, and a policy
@@ -316,7 +316,7 @@ everything else is convenience.
 
 \subsection{Why ``reference monitor,'' and why \emph{not} consensus}
 
-The right mental model is the \textbf{reference monitor} of Anderson and
+The right mental model is the \pdgloss{reference monitor}{a mediator of every security-relevant operation that is always invoked, tamper-evident, and small enough to verify.} of Anderson and
 Lampson~\pdcite{anderson1972,lampson1974}: a mediator that is \emph{always invoked}
 (complete mediation), \emph{tamper-evident}, and \emph{small enough to verify}.
 The kernel instantiates this not as an abstract security kernel but as a concrete
@@ -468,7 +468,7 @@ self-attestation & the daemon reports its own coverage as enforced, degraded or 
 \end{tabularx}
 \end{table}
 
-The \textbf{substrate organ} is the floor; the other six are, mechanically,
+The \pdgloss{substrate organ}{the floor of the seven organs: the plain table the other six impose discipline over.} is the floor; the other six are, mechanically,
 tables \emph{with discipline} over the same file. We treat the substrate and the
 two organs that carry the paper's sharpest corrections (resource/exclusion and
 obligation/enforcement) in full, and the rest with the depth their novelty
@@ -534,7 +534,7 @@ vulnerabilities around unsequenced renames and multi-column backfills. The kerne
 answer so far is a partial one, and the honest way to report it is to name the trade
 it makes rather than the property it saves.
 
-What ships (\BuiltWeak) is a \textbf{boot-time migration ledger}: the daemon applies
+What ships (\BuiltWeak) is a \pdgloss{boot-time migration ledger}{a numbered, totally ordered set of migrations the daemon applies---and then verifies against the live schema---before it serves any request.}: the daemon applies
 a numbered, totally ordered set of migrations before it serves any request, and then
 \emph{verifies the schema it is about to serve from} --- probing the actual tables
 and column sentinels rather than trusting that the statements ran without raising
@@ -566,7 +566,7 @@ applied at the one place a test could corrupt production truth.
 
 A team runs several harbors and wants one plan across them: which objectives
 are authorized, who owns what, which transitions were accepted. The product
-calls that surface \textbf{Chartroom}, under the umbrella name Grand Harbor,
+calls that surface \pdgloss{Chartroom}{the product's name for the surface that shows who is authorised, who owns what, and which transitions were accepted.}, under the umbrella name Grand Harbor,
 and its design record (ADR-0137, Proposed, 2026-09-01) is the first place this
 chapter's invariant meets a second writer. The record exists on an unmerged
 branch; no Chartroom code is on the main line, and the book grades it
@@ -698,7 +698,7 @@ heartbeats resume. What is \emph{not} defensible is letting the prose imply the
 stronger guarantee --- and for the few paths that genuinely need I1b, the right fix
 is a per-write-path selector rather than a global change of synchronization level.
 
-The design, \textbf{Selective Checkpointing} (\Designed, OP-10), is small: a
+The design, \pdgloss{Selective Checkpointing}{a design that appends a synchronous full WAL checkpoint to money-bearing write paths, so a settlement entry is durable before it is acknowledged.} (\Designed, OP-10), is small: a
 high-stakes, money-bearing write path --- a settlement-ledger entry, say --- appends
 \texttt{PRAGMA wal\_checkpoint(FULL);} to its commit path, forcing a synchronous
 flush to disk, while claim, marker, and note writes keep the fast default. Two
@@ -739,7 +739,7 @@ files --- to which every higher layer's notion of ownership reduces.
 \subsection{Claim granularity is richer than ``claims''}
 
 It is tempting to collapse all three of these into one word. The kernel instead
-distinguishes \textbf{whole-file}, \textbf{line-range}, and \textbf{symbol-path}
+distinguishes \pdgloss{whole-file}{the coarsest claim grain: the file path alone, with no interval and no symbol.}, \textbf{line-range}, and \textbf{symbol-path}
 claims, each keyed by the file path together with, respectively, nothing, a
 line interval, or a syntactic symbol identifier. This is the substrate for a
 ``reserve regions, not whole files'' coordination policy and for semantic-conflict
@@ -780,7 +780,7 @@ function acquire(key, requester, ttl):
 \end{minipage}
 \end{figure}
 
-The second half of the theorem below is the \textbf{fencing token}, and it should
+The second half of the theorem below is the \pdgloss{fencing token}{Kleppmann's rule: a number that only increases, carried with every write, so a stale holder's write is refused by the resource itself.}, and it should
 be named before it is proved, because it is the part of the design that was not
 invented here. Kleppmann's rule is the whole of it --- ``a number that increases
 every time a client acquires the lock,'' handed to the resource along with every
@@ -856,7 +856,7 @@ racy first-come, so a fast agent churning a hot file can starve a slow agent
 indefinitely.
 
 The design that would close OP-1 without dragging a background scheduler into the
-kernel is a \textbf{Stigmergic Ticket-Lock}. It is \Designed{} --- specified here in
+kernel is a \pdgloss{Stigmergic Ticket-Lock}{a specified, unbuilt queue that hands out ordered tickets instead of letting contenders retry, so no claimant starves.}. It is \Designed{} --- specified here in
 enough detail to build and to attack, but not realized: no \texttt{claim\_tickets}
 table exists in the reference implementation, and the lifecycle above is still the
 one the kernel runs. It would introduce a \texttt{claim\_tickets} table:
@@ -1060,7 +1060,7 @@ post-commit); \emph{obligation} is enforced by oracle-bound commitments;
 binding is a direct lift of this split.
 \end{definition}
 
-We keep \textbf{capability} (\emph{ability} --- what the agent's sandbox makes
+We keep \pdgloss{capability}{ability: what the agent's sandbox makes possible, kept distinct from permission so ``able but forbidden'' stays expressible.} (\emph{ability} --- what the agent's sandbox makes
 possible) distinct from \textbf{permission} (\emph{normative status} --- what the
 deontic layer allows), so that ``able but forbidden'' stays expressible. The
 canonical example is a dangerous override flag that a tool exposes for emergencies:
@@ -1130,7 +1130,7 @@ prevention to the monitor \emph{double-counts} --- the uniqueness constraint
 already did it; the monitor merely logs it.}
 
 \begin{theorem}[Synchronous State Decidability --- closing OP-2]\label{thm:decidability}
-A safety invariant $\phi$ is \textbf{regimentable} (strictly preventable pre-commit, making violation states physically unreachable) if and only if $\phi(S, \Delta)$ is a pure, deterministic boolean predicate decidable solely over the daemon's local, synchronous, committed database state $S$ and the incoming transaction payload $\Delta$. 
+A safety invariant $\phi$ is \pdgloss{regimentable}{strictly preventable before commit, so the violating state is physically unreachable rather than merely detected after the fact.} (strictly preventable pre-commit, making violation states physically unreachable) if and only if $\phi(S, \Delta)$ is a pure, deterministic boolean predicate decidable solely over the daemon's local, synchronous, committed database state $S$ and the incoming transaction payload $\Delta$. 
 
 Conversely, any invariant requiring external I/O, asynchronous wall-clock verification, distributed consensus, or non-deterministic grading oracles is strictly \textbf{enforceable} (post-commit, detect-and-compensate).
 \end{theorem}
@@ -1632,7 +1632,7 @@ that free-text closure would.}
 
 The obvious way to widen what a commitment can close against is to widen the
 vocabulary, and there is a concrete design for doing so without re-admitting the
-Goodhart hole. \textbf{State-Machine Assertions} (\Designed) would add two kinds to
+Goodhart hole. \pdgloss{State-Machine Assertions}{a design adding delta oracles and machine-checkable before/after measurements to the finite set of close conditions.} (\Designed) would add two kinds to
 Listing~\ref{alg:close}'s finite set: \emph{delta oracles}, which close against a
 machine-checkable before/after measurement (a named benchmark improving past a
 declared threshold), and \emph{AST assertions}, which use a parser such as
@@ -1705,7 +1705,7 @@ restoring work --- is open problem OP-4, the most important unbuilt thing at thi
 layer because it is the literal foundation of any reputation economy.
 
 The most promising direction we have for it is worth naming, at exactly its
-strength. \textbf{Event-sourced rehydration} (\Designed) would treat the successor's
+strength. \pdgloss{Event-sourced rehydration}{a specified successor start that replays the predecessor's commit and message log rather than inheriting a summary of it.} (\Designed) would treat the successor's
 starting context as a replay rather than a summary: pin the working tree to the
 predecessor's Git commit, truncate the durable message log to the recorded failure
 point, and replay that log into a fresh agent so its prompt prefix is reconstructed
@@ -1881,7 +1881,7 @@ violation, found automatically as a shortest counterexample trace, and restoring
 restores safety [internal, \texttt{c0\_workunit.py}].
 \end{pdclaim}
 
-I2's guarantee is what the literature calls \textbf{effectively-once} processing: a
+I2's guarantee is what the literature calls \pdgloss{effectively-once}{deduplication enforced at the boundary by an idempotency key and a unique receipt row---not a promise the network keeps.} processing: a
 deduplication discipline enforced at the boundary (an idempotency key plus a unique
 receipt row), not a promise the network itself keeps, since true exactly-once delivery
 across an unreliable channel is impossible~\pdcite{helland2007distributed}.
@@ -2033,7 +2033,7 @@ classic ``green in the test runtime, broken in the deployment runtime'' failure.
 continuous-integration pipeline must therefore \emph{boot the deployment runtime}
 and exercise its endpoints, not merely build it.
 
-The harness that would turn I11 into a theorem is \textbf{differential fuzzing}
+The harness that would turn I11 into a theorem is \pdgloss{differential fuzzing}{driving one randomised concurrent stream against two bindings of the same interface and failing on the first divergence.}
 (\Designed, OP-3): drive a large randomized stream of concurrent operations ---
 $10^6$ is the order of magnitude the design targets --- against both bindings from
 the same seed, and assert hash-equivalence of the resulting database state. It does
@@ -2124,7 +2124,7 @@ primitive). We say so plainly rather than let advisory claims be read as isolati
 The same boundary problem reappears one level up, at the kernel's
 \emph{enforcement} ambition, and it is the paper's most consequential
 ``\emph{specified}, not \emph{implemented}'' caveat. The kernel ships a real
-cryptographic gate --- a \textbf{macaroon}~\pdcite{birgisson2014macaroons} discharge
+cryptographic gate --- a \pdgloss{macaroon}{a bearer credential whose authority can only narrow, because each caveat is folded into a chained keyed hash.}~\pdcite{birgisson2014macaroons} discharge
 primitive (a bearer credential whose authority can only ever \emph{narrow}, since
 each caveat is folded into a chained keyed hash so that tampering breaks the
 signature). Its reference implementation is \texttt{core/kernel/pd-anchor/src/macaroon.rs}:
@@ -2156,7 +2156,7 @@ ADR-0050's concession --- \emph{a secret a process can use, it can copy} --- and
 applies to enforcement verbs no less than to keys: a guard a process can decline to
 invoke is advisory.
 
-The third instrument of the same kind is the \textbf{hook harness}
+The third instrument of the same kind is the \pdgloss{hook harness}{a monitor riding the lifecycle events a vendor's agent loop already exposes, rather than a gate the agent must pass through.}
 (ADR-0108, which absorbed the earlier ADR-0091; both still marked Proposed). It
 rides the lifecycle events a vendor's agent loop already exposes (the prompt
 submission, the moments before and after a tool call, the compaction, the
@@ -2223,7 +2223,7 @@ The hash chain (I9) is built, but under the initial threat model it defended
 against nobody: its only adversary was someone who could edit the audit log, which was
 exactly the same-user process the model excluded. Tamper-evidence that
 nothing on the read path verifies is a data structure, not a control. We therefore
-re-scope I9 as \textbf{cross-machine provisioning}: it matters only against
+re-scope I9 as \pdgloss{cross-machine provisioning}{the re-scoped ninth invariant: it defends against cross-machine synchronisation and a tamperer who is not the same user.}: it matters only against
 cross-machine synchronization or a tamperer who is not the same user.
 
 The design that would let the kernel defend against the same-machine adversary

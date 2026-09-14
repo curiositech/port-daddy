@@ -225,7 +225,7 @@
 
 \begin{abstract}\noindent
 A swarm of autonomous coding agents, left to coordinate itself, is
-\textbf{Hobbes' state of nature}~\pdcite{hobbes1651}: rational, even well-meaning
+\pdgloss{Hobbes' state of nature}{rational, even well-meaning actors falling into a war of all against all for want of a common authority.}~\pdcite{hobbes1651}: rational, even well-meaning
 actors fall into a war of all against all --- double-claimed files, pull requests
 no human can read, confident lies, footguns obvious only in hindsight. We argue
 that the operator rationally \emph{consents} to a coordinating authority --- a
@@ -235,7 +235,7 @@ population it cannot personally inspect: by making the swarm
 \textbf{legible}~\pdcite{scott1998}. The central hazard is James~C.\ Scott's warning
 that high-modernist \emph{over}-legibility crushes \emph{m\^etis} --- the local,
 hard-to-codify practical knowledge a system actually runs on --- so we make Scott's
-warning a buildable rule: \textbf{digest-with-zoom}, in which every summary is a
+warning a buildable rule: \pdgloss{digest-with-zoom}{the buildable form of Scott's warning: every summary is a lens onto a verifiable artifact, never a replacement for it.}, in which every summary is a
 lens onto a verifiable artifact, never a replacement for it. Three claims follow.
 The binding constraint on swarm scale is \emph{read-poverty}, not write-contention.
 \emph{Tokens} are simultaneously the swarm's cost-of-goods-sold and its legibility
@@ -451,7 +451,7 @@ right.
 \subsection{Why ``local''}\label{sec:local}
 
 Hobbes' commonwealth is territorial: one sovereign per realm. Here the realm is
-\emph{one machine}. The \textbf{daemon} --- \emph{a single always-on local process,
+\emph{one machine}. The \pdgloss{daemon}{a single always-on local process, backed by a write-ahead-logged embedded database, that is the realm's one writer.} --- \emph{a single always-on local process,
 backed by a write-ahead-logged embedded database, that every agent and every
 command talks to and that holds coordination state no agent can edit} --- is the
 kernel and the realm: your machine, your swarm, no network, no cryptography
@@ -521,7 +521,7 @@ rational under the alternative. Crucially, in Hobbes the covenant is \emph{among
 subjects} --- ``a real unity of them all\ldots by covenant of every man with every
 man''~\pdcite{hobbes1651,sep-hobbes} --- not a bargain struck \emph{with} the
 sovereign. Transposed: the operator does not negotiate with each agent; the operator
-institutes a \emph{rule of the road} --- a \textbf{coordination protocol} of
+institutes a \emph{rule of the road} --- a \pdgloss{coordination protocol}{the rule of the road the operator institutes instead of negotiating with each agent: typed performatives whose type declares their intent.} of
 \emph{typed performatives} (messages whose type declares their intent: a request, a
 \textbf{commitment} (glossed in \S\ref{sec:flatten}: a violable obligation bound to a named actor, watched by a breach monitor), a delegation, a termination), so that every message carries real intent,
 ownership, and a stop condition --- that all agents are bound to, and the daemon
@@ -618,7 +618,7 @@ It is easy to say the operator ``consents to cede decision authority.'' A politi
 theorist's first question --- and the one that decides whether the Leviathan frame has
 substance or is merely decorative --- is: \emph{consented how, to what, and revocable when?}
 ``The operator just starts using the tool'' is
-not Hobbesian consent; it is what the canon calls \textbf{tacit consent}, and
+not Hobbesian consent; it is what the canon calls \pdgloss{tacit consent}{consent inferred from continued use---Hume's target, and the reason this chapter makes consent a first-class recorded object.}, and
 \textbf{Hume} (\emph{Of the Original Contract}, 1748~\pdcite{hume1748} --- \emph{the
 decisive critique: the peasant who ``consents'' by remaining in the country has no
 real alternative, so the consent does no normative work}) demolished it two and a
@@ -643,7 +643,7 @@ its active grants.
 Consent so defined gives the design something Hume's critique cannot reach: a
 discrete authorization event, a bounded scope, and an exit. It is also an object
 supervisory-control research named long before this chapter did: a
-\textbf{level of automation}, in Sheridan's ten-point sense and in the
+\pdgloss{level of automation}{Sheridan's ten-point scale, refined by Parasuraman, Sheridan and Wickens across four stages: acquire, analyse, decide, act.}, in Sheridan's ten-point sense and in the
 four-stage refinement (acquire, analyse, decide, act) that Parasuraman,
 Sheridan and Wickens later gave it~\pdcite{sheridan1992,parasuraman2000}. Read
 that way, a grant's $\langle\textsc{scope}, s_{\max}, v_{\min},
@@ -739,7 +739,7 @@ Map this onto agent oversight and the design rule writes itself. The operator is
 state; the swarm is the population; the dashboard/TUI/digest is the cadastral map.
 The temptation is identical: render the swarm as a clean grid of green tiles and
 \emph{govern the map}. The \emph{Normalbaum failure} in software is the
-\textbf{Potemkin digest} --- a beautiful surface whose tiles assert a reality nobody
+\pdgloss{Potemkin digest}{a beautiful surface whose tiles assert a reality nobody can check, having paraphrased away the diff and the test.} --- a beautiful surface whose tiles assert a reality nobody
 can check, having paraphrased away the diff, the test output, the error, the
 reasoning that constituted the actual work. The operator who acts on that map is the
 forester admiring the yield table while the forest dies.
@@ -794,7 +794,7 @@ admission --- which couples Scott to Bainbridge (\S\ref{sec:operator}) --- is th
 \emph{some of the most valuable operator knowledge is exactly what the system cannot
 make legible, and the more the supervising automation takes over, the faster that
 m\^etis atrophies}. What organizational-knowledge theory calls the problem of
-converting \textbf{tacit knowledge} into explicit, transferable form --- ``we know
+converting \pdgloss{tacit knowledge}{what a practitioner knows and cannot tell---Polanyi's problem, and the m\^etis an over-legible scheme destroys.} into explicit, transferable form --- ``we know
 more than we can tell''~\pdcite{polanyi1966} --- is the thirty-year literature this
 pitfall leaves open rather than solves. The skill-retention tax (\S\ref{sec:abdication}) is the design's
 only defense, and it is frankly the hardest part of the design to engineer.}
@@ -935,7 +935,7 @@ escalation & an interrupt & an operator decision & the question raised and the d
 
 A coordinator that prevents collisions answers ``what is the swarm doing?'' It does
 not answer ``is the swarm doing the \emph{right} thing?'' That question needs a
-single legible artifact the authority is measured against: a \textbf{roadmap} --- a
+single legible artifact the authority is measured against: a \pdgloss{roadmap}{a phase-keyed, versioned, amendable statement of intent: the single artifact the authority is measured against.} --- a
 phase-keyed, versioned, amendable statement of intent, priority, and dependency,
 against which the swarm's actual output can be compared. It is not truth about the
 world; calling it that would turn every lesson the work teaches into drift. The
@@ -956,7 +956,7 @@ first to one operator and then opened to a market.
 
 \subsection{Sole-responsibility roles and the specialization boundary}\label{sec:sole-roles}
 
-The single-writer discipline (\S\ref{sec:local}) generalizes naturally from data files to system functions. When an invariant is critical, the authority assigns a \textbf{sole-responsibility role} (an avatar holding exclusive write capability over an invariant):
+The single-writer discipline (\S\ref{sec:local}) generalizes naturally from data files to system functions. When an invariant is critical, the authority assigns a \pdgloss{sole-responsibility role}{an avatar holding exclusive write authority over an invariant-critical function, so attribution has one name.} (an avatar holding exclusive write capability over an invariant):
 \begin{itemize}[leftmargin=1.4em,itemsep=1pt]
 \item \emph{Roadmap Owner:} The single avatar authorized to commit mutations to the phase plan.
 \item \emph{Test Suite Curator:} The sole agent authorized to land modifications to regression suites.
@@ -973,7 +973,7 @@ shorthand (\textbf{Kendall 1953}~\pdcite{kendall1953}) for a single-server versu
 $c$-server queue with Poisson arrivals, exponential service times, and one waiting
 line served first-come-first-served} --- is the textbook way to price the trade.
 
-Fix the \textbf{queueing-specialization setup}: requests for an invariant-critical
+Fix the \pdgloss{queueing-specialization setup}{requests for one invariant-critical function arriving Poisson, served by a single specialist as an $M/M/1$ queue.}: requests for an invariant-critical
 function $F$ arrive as a Poisson stream at rate $\lambda_F$; a sole specialist
 serves them as an $M/M/1$ queue at rate $\mu_{\mathrm{spec}}$, the pooled
 alternative as an $M/M/c$ queue of generalists at rate $\mu_{\mathrm{pool}}$ each
@@ -981,7 +981,7 @@ with utilization $\rho=\lambda_F/(c\,\mu_{\mathrm{pool}})<1$ and
 first-come-first-served exponential service; and the objective is \emph{mean} cost
 --- mean response time, plus an accountability value $A$ per unit time of demand
 for single-writer attribution, against a waiting cost $w$ per request-hour. Let
-$C(c,\rho)$ be the \textbf{Erlang-C} delay probability (\textbf{Erlang
+$C(c,\rho)$ be the \pdgloss{Erlang-C}{the probability that an arriving request finds every server busy and must wait.} delay probability (\textbf{Erlang
 1917}~\pdcite{erlang1917} --- \emph{the probability that an arriving request finds
 all $c$ servers busy and must wait, the quantity that makes a pool a pool}).
 
@@ -1127,7 +1127,7 @@ the work is hollow} --- ``fixed the test by deleting it.'' The completionist
 obligation makes this structurally impossible to do silently.
 
 \begin{definition}[Completionist completion]\label{def:completionist}
-A \textbf{completion claim} is a commitment whose satisfaction predicate is a
+A \pdgloss{completion claim}{a commitment whose satisfaction predicate is a verifier derived from the task's own acceptance criteria.} is a commitment whose satisfaction predicate is a
 \emph{verifier} derived from the task's acceptance criteria. The authority refuses to
 accept the claim against an unmet predicate. An \emph{unverifiable} predicate must
 \textbf{fail loudly} --- surface ``I cannot verify this completion'' --- and never
@@ -1171,7 +1171,7 @@ that is wishful.
 % for this idea is already "physically unreachable" / "detect-and-compensate",
 % not "regimentation" itself.
 \begin{property}[Prevention vs.\ detection --- the reserved-phrase rule]\label{prop:regiment}
-A coordination state is \textbf{physically unreachable} --- prevented --- \emph{only}
+A coordination state is \pdgloss{physically unreachable}{the reserved phrase: a state is prevented only when a constraint forbids it before the fact, not repaired after.} --- prevented --- \emph{only}
 when a constraint forbids it \emph{inline}, before the act commits: a database
 uniqueness constraint that makes a double-claim impossible, or a fail-closed startup
 gate that refuses to run against the wrong target. A monitor that \emph{subscribes to
@@ -1297,7 +1297,7 @@ peak load on the bottleneck channel}, and the ambient-vs-dense split
 A naive objective --- ``attention-seconds-per-correct-decision'' --- is
 Goodhart-bait: it rewards lowering the decision criterion to wave things through,
 because zooming costs seconds and most diffs are fine. The correct frame is
-\textbf{Signal Detection Theory} (\textbf{Green \& Swets 1966}~\pdcite{greenswets1966}
+\pdgloss{Signal Detection Theory}{Green and Swets's frame for an operator discriminating signal from noise under a criterion they can shift.} (\textbf{Green \& Swets 1966}~\pdcite{greenswets1966}
 --- \emph{an operator discriminating signal from noise trades sensitivity $d'$
 against a decision criterion $\beta$; performance is a joint function of both and of
 the asymmetric costs of the two error types}). The operator is trading \emph{misses}
@@ -1454,7 +1454,7 @@ intervene at exactly the moment intervention is needed}) and Scott are the
 digest erases the \emph{operator's} m\^etis. As the supervising automation gains
 autonomy --- executing longer plans end-to-end --- the operator's role slides
 $\text{doer}\to\text{approver}\to\text{rubber-stamp}\to\text{absent}$ --- the
-\emph{abdication gradient}, stated here as a hypothesis, not a measurement. The design's primary active defense is the \textbf{Inception Canary} (a \emph{consented, blinded} vigilance probe), moving beyond static ``skill-retention taxes'' (such as arbitrary manual busywork, which causes attention residue and degrades focus~\pdcite{leroy2009}).
+\emph{abdication gradient}, stated here as a hypothesis, not a measurement. The design's primary active defense is the \pdgloss{Inception Canary}{a consented, blinded vigilance probe that measures whether the operator is still reading.} (a \emph{consented, blinded} vigilance probe), moving beyond static ``skill-retention taxes'' (such as arbitrary manual busywork, which causes attention residue and degrades focus~\pdcite{leroy2009}).
 
 
 \begin{protocol}{The Inception Canary protocol}\label{prot:canary}
@@ -1970,7 +1970,7 @@ with the discovery story, so we treat it here.
 \subsection{Existence: the yellow pages (a solved shape)}\label{sec:existence}
 
 The canonical prior art is forty years old. \textbf{FIPA} (\emph{Foundation for
-Intelligent Physical Agents}) made a \textbf{Directory Facilitator} (DF) ---
+Intelligent Physical Agents}) made a \pdgloss{Directory Facilitator}{FIPA's mandatory yellow-pages agent: others register what they can do and query it to find each other.} (DF) ---
 \emph{the mandatory ``yellow pages'' agent: others register the services they offer
 and query to find agents that offer a needed service} (FIPA Agent Management
 Specification, FIPA00023~\pdcite{fipa00023}) --- a required component of every conformant
@@ -1993,7 +1993,7 @@ gap; the layers above it are.
 A flat registry answers ``does an OAuth specialist exist?'' It does not answer ``of
 the fifty live agents, who should I ask about \emph{this} OAuth bug, given who
 touched these files an hour ago and who wrote the design note?'' That is a
-\emph{ranking} problem. The \textbf{discovery ranker} scores each candidate $c$
+\emph{ranking} problem. The \pdgloss{discovery ranker}{a clamped weighted sum of normalised features scoring each candidate agent against a query.} scores each candidate $c$
 against a query $q$ as a clamped weighted sum of normalized sub-scores:
 \begin{align}\label{eq:fit}
 z(c,q) ={}& w_f\,\mathrm{file}(c,q) + w_n\,\mathrm{note}(c,q)
@@ -2112,7 +2112,7 @@ Two readers want two numbers from one thermometer. The successor wants the readi
 that predicts tomorrow's weather; the operator wants the reading that says whether
 to act now. One scalar can serve both only when the two orderings agree item by
 item, and decision theory has had a word for that agreement since the 1980s:
-the two readers' losses are \textbf{comonotone} --- they move together across
+the two readers' losses are \pdgloss{comonotone}{two readers' losses moving together across items, never one rising while the other falls.} --- they move together across
 the items, never one rising while the other falls --- the property Yaari and
 Schmeidler built rank-dependent and Choquet expected utility
 on~\pdcite{yaari1987,schmeidler1989}. Their theorems are about how a decision
@@ -2287,7 +2287,7 @@ spoofable} surface --- agents that learn the stakes-ranking will manufacture dis
 to win the operator's attention. Goodhart's law applies more sharply here than to the
 discovery ranker (\textbf{Strathern 1997}~\pdcite{strathern1997}). The fix is signaling
 theory: an escalation the operator dismisses \emph{debits the agent's standing}, so
-crying wolf is costly --- the pre-trusted-set idea of \textbf{EigenTrust}
+crying wolf is costly --- the pre-trusted-set idea of \pdgloss{EigenTrust}{a global trust vector computed as the principal eigenvector of a normalised local-trust matrix, anchored on a pre-trusted set.}
 (\textbf{Kamvar et al.\ 2003}~\pdcite{kamvar2003}) applied to the distress lane. This
 arms the abdication-resistance and Goodhart gaps at once.
 
@@ -2472,7 +2472,7 @@ resurrection & the successor & an ordered continuation chain & the branches the 
 
 \subsection{Context paging: virtual memory for the context window}\label{sec:context-paging}
 
-Context compaction can be formalized as \textbf{virtual memory for language models}: the local file buffer is backing store, the finite context window is the resident set, and paging tools act as the memory management unit (MMU).
+Context compaction can be formalized as \pdgloss{virtual memory for language models}{the file buffer as backing store, the context window as the resident set, and paging tools as the memory manager.}: the local file buffer is backing store, the finite context window is the resident set, and paging tools act as the memory management unit (MMU).
 
 \begin{pdclaim}{Theorem}{Context Paging Competitiveness}
 \label{thm:paging}
@@ -2521,7 +2521,7 @@ Take $k=8$ active context pages against an offline optimum allowed $h=4$ of them
 \end{pdexample}
 
 The most counterintuitive instance is \emph{forgetting as compaction}.
-\textbf{Pheromone decay} --- multiplying every stored coordination trace by a decay
+\pdgloss{Pheromone decay}{multiplying every stored coordination trace by a decay factor each interval, so a stale trace fades without being deleted.} --- multiplying every stored coordination trace by a decay
 factor each interval --- implements \textbf{stigmergy} (\textbf{Grass\'e
 1959}~\pdcite{grasse1959} --- \emph{coordination via persistent traces left in a shared
 environment, as ants deposit evaporating trails}). Decay is deliberate, continuous,
