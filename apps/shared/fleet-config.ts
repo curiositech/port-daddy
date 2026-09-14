@@ -24,9 +24,10 @@ import {
 import {
   DENY_ALL_EXECUTION,
   isShipParticipationPolicyValid,
-  parseShipExecutionPolicy,
+  parseShipExecutionConfiguration,
   parseShipParticipationPolicy,
   type ShipExecutionPolicy,
+  type ShipExecutionConfigState,
   type ShipParticipationPolicy,
 } from './fleet-participation.js';
 
@@ -119,6 +120,8 @@ export interface ShipConfig {
   participationValid: boolean;
   /** Explicit execution authority. Missing config is deny-all, never inferred. */
   execution: ShipExecutionPolicy;
+  /** Keeps an explicit malformed declaration distinct from an omitted deny-all policy. */
+  executionConfigState: ShipExecutionConfigState;
 }
 
 function deriveIdeation(agentClass: unknown): boolean {
@@ -855,6 +858,8 @@ export function fleetShipsFromDocument(doc: unknown, trigger: string): ShipConfi
     const shipAuthorModel = purser ? derivePurserAuthorModel(agent, shipCfModel) : undefined;
 
     const blocking = ideation ? false : coerceBlocking(agent.blocking);
+    const participation = parseShipParticipationPolicy(agent.participation);
+    const execution = parseShipExecutionConfiguration(agent.execution);
     ships.push({
       name,
       trigger: agent.trigger as string | string[],
@@ -882,11 +887,12 @@ export function fleetShipsFromDocument(doc: unknown, trigger: string): ShipConfi
       blockWithoutSandbox: purser ? coerceBlocking(agent.blockWithoutSandbox) : false,
       testPaths: purser ? coerceStringList(agent.testPaths) : [],
       graft: deriveGraft(agent.graft, purser),
-      participation: parseShipParticipationPolicy(agent.participation),
+      participation,
       participationValid: isShipParticipationPolicyValid(agent.participation) &&
-        (!ideation || (parseShipParticipationPolicy(agent.participation).default !== 'required' &&
-          !parseShipParticipationPolicy(agent.participation).rules.some(rule => rule.disposition === 'required'))),
-      execution: parseShipExecutionPolicy(agent.execution),
+        (!ideation || (participation.default !== 'required' &&
+          !participation.rules.some(rule => rule.disposition === 'required'))),
+      execution: execution.policy,
+      executionConfigState: execution.state,
     });
   }
 
@@ -941,6 +947,7 @@ Be direct. Cite specific lines. Flag ADR violations if you see them.`,
       participation: { default: 'required', rules: [] },
       participationValid: true,
       execution: { ...DENY_ALL_EXECUTION },
+      executionConfigState: 'absent',
     },
     {
       name: 'qa',
@@ -972,6 +979,7 @@ Output:
       participation: { default: 'advisory', rules: [] },
       participationValid: true,
       execution: { ...DENY_ALL_EXECUTION },
+      executionConfigState: 'absent',
     },
     {
       name: 'red-team',
@@ -1003,6 +1011,7 @@ For each finding: write the falsifiable attack construction and its impact. Be a
       participation: { default: 'required', rules: [] },
       participationValid: true,
       execution: { ...DENY_ALL_EXECUTION },
+      executionConfigState: 'absent',
     },
     {
       name: 'copy-pm',
@@ -1062,6 +1071,7 @@ Rules:
       participation: { default: 'advisory', rules: [] },
       participationValid: true,
       execution: { ...DENY_ALL_EXECUTION },
+      executionConfigState: 'absent',
     },
     ...ideationDefaults(),
   ];
@@ -1097,6 +1107,7 @@ function ideationDefaults(): ShipConfig[] {
     participation: { default: 'advisory', rules: [] },
     participationValid: true,
     execution: { ...DENY_ALL_EXECUTION },
+    executionConfigState: 'absent',
   });
 
   return [

@@ -607,6 +607,41 @@ describe('MAP fan-out', () => {
 });
 
 describe('blocking-ship verdict → check conclusion', () => {
+  it('an explicit malformed execution policy is UNAVAILABLE and never falls through to model PASS', async () => {
+    state.files.set('main:pd-fleet.yml', `fleet:
+  agents:
+    code-reviewer:
+      trigger: pull_request:opened
+      participation: { default: required, rules: [] }
+      fallbacks:
+        - backend: cloudflare
+          model: '@cf/qwen/qwen2.5-coder-32b-instruct'
+      prompt: code-reviewer ship
+      execution:
+        mode: read_only_sandbox
+        repository: current_repository
+        worktree: isolated
+        cwd: .
+        toolAllowlist: [read_file]
+        mcpAllowlist: [github.read]
+        networkAllowlist: []
+        writePathAllowlist: []
+        maxWallClockMs: 120000
+        maxCostMicrousd: 500000
+        surpriseAuthority: true
+`);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({ perShip: { 'code-reviewer': 'FLEET-VERDICT: PASS' } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai }));
+
+    expect(ai.calls).toHaveLength(0);
+    expect(state.completed[0]).toMatchObject({ conclusion: 'failure' });
+    expect(state.completed[0].summary).toContain('Explicit execution policy is malformed');
+    expect(state.completed[0].summary).toContain('[REQUIRED]: unavailable');
+  });
+
   it('blocking ship emitting BLOCK => check conclusion failure', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();

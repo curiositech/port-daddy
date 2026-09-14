@@ -317,6 +317,7 @@ describe('parseFleetShips — participation and execution authority', () => {
       mcpAllowlist: ['github.read'],
       networkAllowlist: [],
     });
+    expect(parsed?.[0].executionConfigState).toBe('valid');
   });
 
   it('does not infer execution authority from legacy allowedTools', () => {
@@ -329,6 +330,33 @@ describe('parseFleetShips — participation and execution authority', () => {
 `, 'pull_request:opened');
     expect(parsed?.[0].needsExecution).toBe(true);
     expect(parsed?.[0].execution.mode).toBe('none');
+    expect(parsed?.[0].executionConfigState).toBe('absent');
+  });
+
+  it('preserves malformed explicit execution as invalid instead of absent deny-all', () => {
+    const parsed = parseFleetShips(`fleet:
+  agents:
+    reviewer:
+      trigger: pull_request:opened
+      prompt: review
+      participation: { default: required, rules: [] }
+      execution:
+        mode: read_only_sandbox
+        repository: current_repository
+        worktree: isolated
+        cwd: .
+        toolAllowlist: [read_file]
+        mcpAllowlist: [github.read]
+        networkAllowlist: []
+        writePathAllowlist: []
+        maxWallClockMs: 120000
+        maxCostMicrousd: 500000
+        surpriseAuthority: true
+`, 'pull_request:opened');
+    expect(parsed?.[0]).toMatchObject({
+      executionConfigState: 'invalid',
+      execution: { mode: 'none' },
+    });
   });
 
   it('fails malformed participation policy closed and grants no legacy blocking authority', () => {

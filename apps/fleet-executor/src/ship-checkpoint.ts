@@ -204,6 +204,7 @@ function semanticShipConfigTuple(ship: ShipConfig): readonly unknown[] {
     ship.participation,
     ship.participationValid,
     ship.execution,
+    ship.executionConfigState,
   ];
 }
 
